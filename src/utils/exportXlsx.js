@@ -203,6 +203,50 @@ const packageFiles = (sheet) => ({
   'xl/worksheets/sheet1.xml': sheetXml(sheet),
 });
 
+/** Nhiều sheet: đánh số sheet, workbook.xml liệt kê tất cả, mỗi sheet một file trong xl/worksheets/. */
+const packageFilesMany = (sheets) => ({
+  '[Content_Types].xml':
+    `${XML_HEAD}<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">` +
+    '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+    '<Default Extension="xml" ContentType="application/xml"/>' +
+    '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
+    sheets
+      .map(
+        (_, i) =>
+          `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`,
+      )
+      .join('') +
+    '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>',
+  '_rels/.rels': `${XML_HEAD}<Relationships xmlns="${NS_PKG_REL}"><Relationship Id="rId1" Type="${NS_REL}/officeDocument" Target="xl/workbook.xml"/></Relationships>`,
+  'xl/workbook.xml':
+    `${XML_HEAD}<workbook xmlns="${NS_MAIN}" xmlns:r="${NS_REL}">` +
+    `<sheets>${sheets
+      .map((s, i) => `<sheet name="${escapeXml(s.name)}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`)
+      .join('')}</sheets></workbook>`,
+  'xl/_rels/workbook.xml.rels':
+    `${XML_HEAD}<Relationships xmlns="${NS_PKG_REL}">` +
+    sheets.map((_, i) => `<Relationship Id="rId${i + 1}" Type="${NS_REL}/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join('') +
+    `<Relationship Id="rId${sheets.length + 1}" Type="${NS_REL}/styles" Target="styles.xml"/></Relationships>`,
+  'xl/styles.xml': STYLES_XML,
+  ...Object.fromEntries(sheets.map((s, i) => [`xl/worksheets/sheet${i + 1}.xml`, sheetXml(s)])),
+});
+
+/** Tên sheet hợp lệ (≤31 ký tự, bỏ ký tự cấm), không trùng nhau trong cùng workbook. */
+const uniqueSheetNames = (names) => {
+  const used = new Set();
+  return names.map((raw, index) => {
+    const base = safeSheetName(raw || `Sheet${index + 1}`) || `Sheet${index + 1}`;
+    let name = base;
+    let suffix = 1;
+    while (used.has(name.toLowerCase())) {
+      const tail = ` (${++suffix})`;
+      name = base.slice(0, 31 - tail.length) + tail;
+    }
+    used.add(name.toLowerCase());
+    return name;
+  });
+};
+
 // --- ZIP (lưu không nén) ---
 const CRC_TABLE = (() => {
   const table = new Uint32Array(256);
@@ -314,4 +358,26 @@ export const downloadXlsx = (input, filename, { sheetName, headerRow } = {}) => 
   if (!Array.isArray(input)) return downloadBlob(new Blob([buildXlsx(input)], { type: XLSX_MIME }), name);
   const header = headerRow ?? (input[0]?.length === 1 && input.length > 1 ? 1 : 0);
   return downloadBlob(buildXlsx(input, { sheetName, headerRow: header }), name);
+};
+
+/**
+ * Nội dung file .xlsx nhiều sheet. `sheets`: [{ sheetName, rows, headerRow }] hoặc [{ name, ...sheet }] đã định dạng.
+ * Trả Blob để tải về (và đọc lại được bằng read-excel-file).
+ */
+export const buildWorkbookXlsx = (sheets, options = {}) => {
+  if (!sheets.length) throw new Error('Workbook cần ít nhất một sheet.');
+  const names = uniqueSheetNames(sheets.map((s) => s.sheetName || s.name));
+  const prepared = sheets.map((s, i) => {
+    const header = s.headerRow ?? (s.rows?.[0]?.length === 1 && s.rows.length > 1 ? 1 : 0);
+    const base = s.rows && !s.cols ? rowsToSheet(s.rows, { sheetName: names[i], headerRow: header }) : s;
+    return { ...base, name: names[i] };
+  });
+  const bytes = zipStored(packageFilesMany(prepared), options.now || new Date());
+  return new Blob([bytes], { type: XLSX_MIME });
+};
+
+/** Tải file .xlsx nhiều sheet về máy. */
+export const downloadWorkbookXlsx = (sheets, filename, options = {}) => {
+  const name = filename.replace(/\.csv$/i, '.xlsx');
+  downloadBlob(buildWorkbookXlsx(sheets, options), name);
 };

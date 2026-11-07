@@ -5,7 +5,13 @@ import { FormField } from '@/components/form/FormField';
 import { EmptyState, ErrorState, LoadingState, SubmitOverlay } from '@/components/ui/States';
 import { useAsync } from '@/hooks/useAsync';
 import { getDailyHealth, notifyDailyHealth, PARENT_NOTIFY_ENABLED } from '@/services/dailyHealthService';
-import { HEALTH_ACTIONS, HEALTH_SYMPTOMS, actionSummary, validateDailyHealth } from '@/utils/dailyHealthValidation';
+import {
+  HEALTH_ACTIONS,
+  HEALTH_SYMPTOMS,
+  actionSummary,
+  normalizeTemperatureInput,
+  validateDailyHealth,
+} from '@/utils/dailyHealthValidation';
 import { temperatureLevel } from '@/utils/attendance/temperatureLevels';
 import { TemperatureBadge } from '@/components/attendance/TemperatureBadge';
 import { HealthObservationBadge, ParentNotifyBadge, ParentNotifyShortBadge } from '@/components/attendance/AttendanceBadges';
@@ -60,6 +66,12 @@ export function DailyHealthPanel({
     () => getDailyHealth({ classId, childId: child.id, date }, user),
     [classId, child.id, date, user.id, presentSaved],
   );
+  useEffect(() => {
+    if (busy || parentBusy) return undefined;
+    const refresh = () => reload({ silent: true });
+    window.addEventListener('focus', refresh);
+    return () => window.removeEventListener('focus', refresh);
+  }, [reload, busy, parentBusy]);
   const dirty = !!(form.temperature || form.observation || form.symptoms.length || form.note || form.actions.length);
   useEffect(() => {
     onDirty(dirty);
@@ -224,9 +236,13 @@ export function DailyHealthPanel({
                     inputMode="decimal"
                     value={form.temperature}
                     placeholder="Ví dụ: 36,8"
-                    onChange={(event) => set('temperature', event.target.value)}
+                    aria-describedby="health-temperature-help"
+                    onChange={(event) => set('temperature', normalizeTemperatureInput(event.target.value))}
                   />
                 </FormField>
+                <p id="health-temperature-help" className="muted text-sm">
+                  Nhập 385 để điền 38.5°C; cũng có thể nhập 38.5 hoặc 38,5.
+                </p>
                 {temperatureLevel(form.temperature)?.chip && (
                   // Gợi ý mức theo khoảng đo; cô vẫn tự chọn quan sát và biểu hiện
                   <p className="text-sm" role="status">
@@ -353,6 +369,11 @@ export function DailyHealthPanel({
                     </button>
                     {contactOpen && (
                       <div className="dd-health__contact mt-8" role="group" aria-label="Số điện thoại phụ huynh">
+                        {!data?.contacts?.length && (
+                          <p className="muted text-sm">
+                            Hồ sơ trẻ chưa có thông tin liên hệ phụ huynh. Vui lòng liên hệ người quản lý hồ sơ để bổ sung.
+                          </p>
+                        )}
                         {(data?.contacts || []).map((contact, index) => (
                           <div className="dd-health__contact-person" key={`${contact.relation}:${index}`}>
                             <span>

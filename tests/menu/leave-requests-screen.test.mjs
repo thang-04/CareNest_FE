@@ -43,10 +43,13 @@ test('teachers and team leaders see the monthly quality report in the assessment
   }
 });
 
-test('teachers and leaders see semester evaluations next to monthly ones', () => {
+test('teachers and leaders no longer see monthly evaluations but keep other assessment screens', () => {
   for (const role of ['TEACHER', 'TEAM_LEADER', 'VICE_PRINCIPAL', 'PRINCIPAL']) {
     const menu = keys(getMenuForRole(role, { role }));
-    assert.ok(menu.indexOf('assessSemester') === menu.indexOf('assessPeriodic') + 1, role);
+    assert.ok(!menu.includes('assessPeriodic'), role);
+    for (const key of ['assessSemester', 'assessYearEnd', 'assessQuality', 'assessTickets']) {
+      assert.ok(menu.includes(key), `${role}: ${key}`);
+    }
   }
 });
 

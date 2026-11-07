@@ -1,5 +1,5 @@
 /*
- * Bản in "Phiếu đánh giá sự phát triển của trẻ" cuối năm theo mẫu giấy của trường (BE OBS-28): MT theo lĩnh vực, ô
+ * Bản in "Phiếu đánh giá sự phát triển của trẻ" cuối năm theo mẫu giấy của trường (BE OBS-28): MT theo lĩnh vực, kết quả hoạt động cả năm, ô
  * Đạt / Chưa đạt, cân nặng – chiều cao, Nhận xét, 4 lưu ý; chỗ "Xác nhận của BGH nhà trường" và "Giáo viên" ký tay.
  * Dữ liệu giữ nguyên BE trả; một nguồn HTML cho khung xem trước, file .doc và trang in.
  */
@@ -47,6 +47,12 @@ export const yearEndSheetHtml = ({ sheet, ev, child, comment }) => {
       );
       no += 1;
     });
+    // Như mẫu giấy: cuối mỗi lĩnh vực là các dòng chấm để ghi nhận xét; có nhận xét thì in nhận xét của cô
+    rows.push(
+      d.comment
+        ? `<tr class="cmt"><td></td><td><i>Nhận xét:</i> ${esc(d.comment)}</td><td></td><td></td></tr>`
+        : `<tr class="cmt"><td></td><td><i>Nhận xét:</i> ${dots}</td><td></td><td></td></tr><tr class="cmt"><td></td><td>${dots}</td><td></td><td></td></tr>`,
+    );
   });
   const signed = localDate(sheet.confirmedAt);
   const [sy, sm, sd] = signed ? signed.split('-').map(Number) : [];
@@ -63,7 +69,7 @@ export const yearEndSheetHtml = ({ sheet, ev, child, comment }) => {
 </tr></table>
 <p>Họ và tên trẻ: <b>${esc(child?.fullName || ev.childName || '')}</b> &nbsp; Ngày, tháng, năm sinh: ${esc(dmy(child?.dateOfBirth))} &nbsp; Lớp: ${esc(ev.className || '')}</p>
 <p>Giáo viên: ${esc((sheet.teachers || []).join(', '))}</p>
-<table class="grid"><thead><tr><th style="width:6%">TT</th><th>Mục tiêu giáo dục</th><th style="width:9%">Đạt</th><th style="width:11%">Chưa đạt</th></tr></thead>
+<table class="grid" style="table-layout:fixed"><thead><tr><th style="width:6%">TT</th><th>Mục tiêu giáo dục</th><th style="width:10%">Đạt</th><th style="width:10%">Chưa đạt</th></tr></thead>
 <tbody>${rows.join('')}</tbody></table>
 <div class="after">
 <p><b>Nhận xét:</b> ${comment ? esc(comment) : dots}</p>

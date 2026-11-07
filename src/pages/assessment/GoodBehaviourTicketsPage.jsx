@@ -215,7 +215,7 @@ function TeacherTicketsPage() {
                 <div className="spacer" />
                 {board?.period && (
                   <div className="dg-ticket-stats">
-                    <TicketBadge status="ELIGIBLE" detail={`${rows.filter((r) => r.eligible).length}/${rows.length}`} />
+                    <TicketBadge status="ELIGIBLE_UNISSUED" detail={rows.filter((r) => r.eligible && !r.ticket).length} />
                     <TicketBadge status="ISSUED" detail={issued} />
                     {issuable.length > 0 && <TicketBadge status="PENDING_ISSUE" detail={issuable.length} />}
                   </div>

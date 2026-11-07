@@ -101,3 +101,11 @@ Admin và dữ liệu trẻ: AUTH-06 (PENDING P-16).
 ## Không có trên Web (mặc định)
 
 Parent (thuộc APP; gửi báo nghỉ qua app) · Kitchen: chỉ App, gateway Web từ chối (AUTH-21, `BE:docs/business/USER_ROLES.md`) · CSVC: sự cố, tài sản (BE FAC REMOVED 29/10; code ẩn) · kho/NCC thật (BE ADR-0009 ACCEPTED 28/10, chưa có API; UI mock theo BA, xem `docs/features/nutrition-inventory.md`) · kiểm kê kho thực phẩm (BA: không làm, gỡ 2026-10-20; BE NUT-11 cũng không).
+
+## Bỏ màn đánh giá tháng — 05/11/2026
+
+User chốt bỏ màn `/assessment/periodic` cho GV (cả tổ trưởng), PHT, HT. Menu không còn mục đánh giá tháng; route danh sách, chi tiết và AI-draft tháng chuyển bằng replace tới `/assessment/children`. Dashboard chỉ tải và nhắc đánh giá học kỳ/cuối năm. Giữ chất lượng tháng, phiếu bé ngoan, dữ liệu đánh giá tháng cũ và phần tổng hợp lịch sử trong hồ sơ/học kỳ/cuối năm. Không thay API hoặc xóa dữ liệu BE.
+
+## Kết quả mục tiêu cuối chủ đề — 05/11/2026
+
+OBS-27: BE tính từng mục tiêu đạt khi ít nhất 50% hoạt động đã đánh giá là đạt; chưa chấm/ngày vắng không tính mẫu số. Cùng hoạt động lưu sửa thay kết quả; không đếm thêm lần. FE hiển thị dấu +/−/trống từ BE, không tự tính. Tổng kết chủ đề 70%, sửa tay, bản đã xác nhận và URL giữ nguyên. Phiếu năm chưa chốt lấy kết quả mới từ BE. Plan chính: BE:docs/plans/active/2026-11-05-theme-goal-majority.md.

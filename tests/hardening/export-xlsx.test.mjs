@@ -22,3 +22,20 @@ test('xlsx export round-trips Vietnamese text, numbers and formula-like strings'
   assert.equal(data[3][0], '=1+1');
   assert.equal(data[3][1], '<b>&"');
 });
+
+
+test('workbook exports separate full daily and child tables without turning text into formulas', async () => {
+  const { buildWorkbookXlsx } = await import('@/utils/exportXlsx');
+  const rows = Array.from({ length: 45 }, (_, i) => [`${i + 1}/10/2026`, i]);
+  const blob = buildWorkbookXlsx([
+    { sheetName: 'Theo ngày', rows: [['Ngày', 'Có mặt'], ...rows], headerRow: 0 },
+    { sheetName: 'Theo trẻ', rows: [['Trẻ', 'Có mặt'], ['=1+1', 12]], headerRow: 0 },
+  ]);
+  const buffer = Buffer.from(await blob.arrayBuffer());
+  const result = await readXlsxFile(buffer);
+  assert.deepEqual(result.map((s) => s.sheet), ['Theo ngày', 'Theo trẻ']);
+  const daily = result[0].data;
+  assert.equal(daily.length, 46);
+  assert.deepEqual(daily.at(-1), ['45/10/2026', 44]);
+  assert.deepEqual(result[1].data[1], ['=1+1', 12]);
+});

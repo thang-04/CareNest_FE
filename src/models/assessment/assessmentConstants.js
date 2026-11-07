@@ -137,7 +137,7 @@ export const CLASS_RATING_CRITERIA = [
   { key: 'program', label: 'Thực hiện chương trình' },
   { key: 'theme', label: 'Thực hiện chủ đề' },
   { key: 'environment', label: 'Tạo môi trường ĐDĐC' },
-  { key: 'routine', label: 'Nền nếp trẻ' },
+  { key: 'routine', label: 'Nề nếp trẻ' },
   { key: 'health', label: 'Sức khỏe' },
   { key: 'parents', label: 'Kết hợp với cha mẹ' },
 ];

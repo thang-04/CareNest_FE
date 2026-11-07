@@ -268,10 +268,6 @@ const ITEMS = {
     label: 'Tiến độ phát triển',
     to: '/assessment/children',
   },
-  assessPeriodic: {
-    label: 'Đánh giá tháng',
-    to: '/assessment/periodic',
-  },
   assessSemester: {
     label: 'Đánh giá học kỳ',
     to: '/assessment/semester',
@@ -421,7 +417,6 @@ const MENUS = {
       'assessQuality',
       'assessClassRatings',
       'assessProgress',
-      'assessPeriodic',
       'assessSemester',
       'assessThemes',
       'assessYearEnd',
@@ -460,7 +455,6 @@ const MENUS = {
       'assessQuality',
       'assessClassRatings',
       'assessProgress',
-      'assessPeriodic',
       'assessSemester',
       'assessThemes',
       'assessYearEnd',
@@ -488,7 +482,6 @@ const MENUS = {
       'assessOverview',
       'assessDaily',
       'assessProfiles',
-      'assessPeriodic',
       'assessSemester',
       'assessThemes',
       'assessYearEnd',
@@ -508,7 +501,6 @@ const MENUS = {
     group('assessment', [
       'assessDaily',
       'assessProfiles',
-      'assessPeriodic',
       'assessSemester',
       'assessThemes',
       'assessYearEnd',

@@ -19,10 +19,13 @@ const NOTE_MAX = 1000;
 const emptyNotes = { forChild: '', forTeacher: '', forSchool: '', forParent: '' };
 const notesOf = (sheet) => Object.fromEntries(NOTE_FIELDS.map(([k]) => [k, sheet?.notes?.[k] || '']));
 const REVERT = 'auto';
+// Nhận xét dưới từng lĩnh vực (BE OBS-28): khóa = domainId, lĩnh vực chưa gắn mã dùng 0
+const domainKey = (d) => String(d.domainId ?? 0);
+const commentsOf = (sheet) => Object.fromEntries((sheet?.domains || []).map((d) => [domainKey(d), d.comment || '']));
 
 /**
  * Phiếu đánh giá sự phát triển của trẻ cuối năm (BE OBS-28): MT kế hoạch năm theo lĩnh vực, ô Đạt / Chưa đạt điền sẵn từ
- * cuối chủ đề, GV sửa tay; cân nặng – chiều cao từ phần sức khỏe; 4 lưu ý. sheetRef.current = { dirty, save } để màn đánh
+ * hoạt động cả năm, GV sửa tay; cân nặng – chiều cao từ phần sức khỏe; 4 lưu ý. sheetRef.current = { dirty, save } để màn đánh
  * giá lưu phiếu trước khi xác nhận.
  */
 export function YearEndSheetCard({ evaluation, child, comment, sheetRef, onDirtyChange }) {
@@ -31,6 +34,7 @@ export function YearEndSheetCard({ evaluation, child, comment, sheetRef, onDirty
   const { sheet, loading, error, reload } = useYearEndSheet(evaluation.id);
   const [edits, setEdits] = useState({});
   const [notes, setNotes] = useState(emptyNotes);
+  const [comments, setComments] = useState({});
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState(null);
 
@@ -38,15 +42,22 @@ export function YearEndSheetCard({ evaluation, child, comment, sheetRef, onDirty
   useEffect(() => {
     setEdits({});
     setNotes(notesOf(sheet));
+    setComments(commentsOf(sheet));
   }, [sheet]);
 
   const saved = useMemo(() => notesOf(sheet), [sheet]);
-  const dirty = Object.keys(edits).length > 0 || NOTE_FIELDS.some(([k]) => notes[k] !== saved[k]);
+  const savedComments = useMemo(() => commentsOf(sheet), [sheet]);
+  const commentsDirty = Object.keys(savedComments).some((k) => (comments[k] || '') !== savedComments[k]);
+  const dirty = Object.keys(edits).length > 0 || NOTE_FIELDS.some(([k]) => notes[k] !== saved[k]) || commentsDirty;
 
   const save = async ({ silent = false } = {}) => {
     const long = NOTE_FIELDS.find(([k]) => notes[k].trim().length > NOTE_MAX);
     if (long) {
       toast.error(`${long[1]}: tối đa ${NOTE_MAX} ký tự.`, 'Chưa lưu được phiếu');
+      return false;
+    }
+    if (Object.values(comments).some((c) => (c || '').trim().length > NOTE_MAX)) {
+      toast.error(`Nhận xét lĩnh vực: tối đa ${NOTE_MAX} ký tự.`, 'Chưa lưu được phiếu');
       return false;
     }
     setBusy(true);
@@ -56,6 +67,8 @@ export function YearEndSheetCard({ evaluation, child, comment, sheetRef, onDirty
         {
           goals: Object.entries(edits).map(([goalId, v]) => ({ goalId: Number(goalId), met: v === REVERT ? null : v })),
           ...Object.fromEntries(NOTE_FIELDS.map(([k]) => [k, notes[k]])),
+          // Gửi đủ mọi lĩnh vực của phiếu; ô trống = xóa nhận xét lĩnh vực đó
+          domainComments: Object.fromEntries(Object.keys(savedComments).map((k) => [k, comments[k] || ''])),
         },
         user,
       );
@@ -101,7 +114,11 @@ export function YearEndSheetCard({ evaluation, child, comment, sheetRef, onDirty
         sheet: {
           ...sheet,
           notes,
-          domains: sheet.domains.map((d) => ({ ...d, goals: d.goals.map((g) => ({ ...g, met: valueOf(g) })) })),
+          domains: sheet.domains.map((d) => ({
+            ...d,
+            comment: comments[domainKey(d)] ?? d.comment,
+            goals: d.goals.map((g) => ({ ...g, met: valueOf(g) })),
+          })),
         },
         ev: evaluation,
         child,
@@ -112,7 +129,7 @@ export function YearEndSheetCard({ evaluation, child, comment, sheetRef, onDirty
   return (
     <div className="card mt-16">
       <div className="card__header">
-        <div className="card__title">Phiếu đánh giá sự phát triển của trẻ</div>
+        <h2 className="card__title">Phiếu đánh giá sự phát triển của trẻ cuối năm</h2>
         <button type="button" className="btn btn--sm" onClick={openPreview}>
           <Printer size={16} aria-hidden /> Xem trước &amp; In
         </button>
@@ -130,8 +147,8 @@ export function YearEndSheetCard({ evaluation, child, comment, sheetRef, onDirty
         </p>
         {sheet.canEdit && (
           <p className="muted text-sm">
-            Hệ thống điền từ bảng đánh giá cuối chủ đề (chủ đề gần nhất có mục tiêu). Bấm ô để sửa tay; bấm lại ô đang chọn để về kết quả hệ
-            thống. Ô sửa tay có viền đậm.
+            Hệ thống tổng hợp các hoạt động đã đánh giá trong cả năm học; mục tiêu Đạt khi có ít nhất 50% hoạt động đã chấm là Đạt. Bấm ô để
+            sửa tay; bấm lại ô đang chọn để về kết quả hệ thống. Ô sửa tay có viền đậm.
           </p>
         )}
         {all.length === 0 ? (
@@ -139,6 +156,11 @@ export function YearEndSheetCard({ evaluation, child, comment, sheetRef, onDirty
         ) : (
           <div className="table-wrap">
             <table className="table table--grid table--compact dg-theme-table dg-year-sheet">
+              <colgroup>
+                <col className="dg-eval-index-col" />
+                <col />
+                <col className="dg-year-result-col" span={2} />
+              </colgroup>
               <thead>
                 <tr>
                   <th className="num">TT</th>
@@ -160,7 +182,7 @@ export function YearEndSheetCard({ evaluation, child, comment, sheetRef, onDirty
                         <td className="num">{i + 1}</td>
                         <td className="dg-year-sheet__goal">
                           {g.text}
-                          {g.source && !manual && <div className="muted text-xs">Theo chủ đề: {g.source}</div>}
+                          {g.source && !manual && <div className="muted text-xs">Căn cứ: {g.source}</div>}
                           {manual && <div className="muted text-xs">Cô sửa tay</div>}
                         </td>
                         {[true, false].map((option) => (
@@ -184,6 +206,32 @@ export function YearEndSheetCard({ evaluation, child, comment, sheetRef, onDirty
                       </tr>
                     );
                   }),
+                  <tr key={`c-${d.domainId ?? 'none'}`} className="dg-year-sheet__comment">
+                    <td />
+                    <td>
+                      <label className="text-sm fw-600" htmlFor={`year-domain-${domainKey(d)}`}>
+                        Nhận xét
+                      </label>
+                      {sheet.canEdit ? (
+                        <textarea
+                          id={`year-domain-${domainKey(d)}`}
+                          className="textarea"
+                          rows={2}
+                          maxLength={NOTE_MAX}
+                          placeholder={`Nhận xét về ${(d.name || 'lĩnh vực').toLowerCase()} của trẻ (không bắt buộc)`}
+                          value={comments[domainKey(d)] || ''}
+                          onChange={(e) => setComments((prev) => ({ ...prev, [domainKey(d)]: e.target.value }))}
+                          disabled={busy}
+                        />
+                      ) : (
+                        <div id={`year-domain-${domainKey(d)}`} className="text-sm dg-final">
+                          {d.comment || <span className="muted">—</span>}
+                        </div>
+                      )}
+                    </td>
+                    <td />
+                    <td />
+                  </tr>,
                 ])}
               </tbody>
             </table>
