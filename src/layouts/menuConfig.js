@@ -297,7 +297,7 @@ const ITEMS = {
     to: '/menu/dishes',
   },
   menus: {
-    label: 'Mẫu thực đơn ngày',
+    label: 'Mẫu thực đơn',
     to: '/menu/menus',
   },
   weeklyMenus: {
@@ -353,7 +353,7 @@ const ITEMS = {
     to: '/kitchen/food-samples',
   },
   forecast: {
-    label: 'Bản dự trù hàng tươi',
+    label: 'Bản dự trù',
     to: '/kitchen/forecast',
   },
   profile: {

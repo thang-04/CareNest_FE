@@ -599,7 +599,7 @@ export default function UiKitPage() {
                 <table className="table table--grid">
                   <thead>
                     <tr>
-                      <th className="center">STT</th>
+                      <th className="num">STT</th>
                       <th>Mã</th>
                       <th>Tên mục minh họa</th>
                       <th className="center">Số lượng</th>

@@ -458,7 +458,7 @@ export default function HealthCheckDetailPage() {
                   <tr>
                     <th>Trẻ</th>
                     <th>Lớp</th>
-                    <th>Ngày đo</th>
+                    <th className="center">Ngày đo</th>
                     <th className="num">BMI</th>
                     <th>Cảnh báo BMI</th>
                     <th className="cell--actions">Thao tác</th>
@@ -472,7 +472,7 @@ export default function HealthCheckDetailPage() {
                         <div className="muted text-xs">{r.code}</div>
                       </td>
                       <td className="nowrap">{r.className}</td>
-                      <td className="nowrap">{r.date ? formatDate(r.date) : '—'}</td>
+                      <td className="nowrap center">{r.date ? formatDate(r.date) : '—'}</td>
                       <td className="num">{formatNumber(r.bmi)}</td>
                       <td>
                         <BmiStatusBadge status={r.bmiStatus} />

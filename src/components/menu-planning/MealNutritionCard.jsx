@@ -1,14 +1,15 @@
 import { useState } from 'react';
 import { ErrorState, LoadingState } from '@/components/ui/States';
-import { NormStatusChip } from '@/components/menu-planning/MenuBadges';
+import { NormRowBadge, NormStatusChip } from '@/components/menu-planning/MenuBadges';
 import { StatisticsNutrition } from '@/components/menu-planning/MenuStatistics';
 import { MEAL_SESSION_LABELS, SESSION_ORDER, formatMoney } from '@/models/menu-planning/menuPlanningConstants';
 
 const num = (v) => (v == null ? '—' : Number(v).toLocaleString('vi-VN', { maximumFractionDigits: 2 }));
 const money = (v) => (v == null ? '—' : formatMoney(Number(v)));
 const range = (r) => (r && (r.min != null || r.max != null) ? `${num(r.min)}–${num(r.max)}` : '—');
-// Tô theo trạng thái BE trả cho chỉ số (LOW thấp, HIGH cao); không tự so định mức ở client
-const tone = (r) => (r?.status === 'LOW' ? 'td-daynut--low' : r?.status === 'HIGH' ? 'td-daynut--high' : '');
+// Tô theo trạng thái BE trả cho chỉ số; không tự so định mức ở client
+const TONE_CLASS = { OK: 'td-daynut--ok', LOW: 'td-daynut--low', HIGH: 'td-daynut--high' };
+const tone = (r) => TONE_CLASS[r?.status] || '';
 const TABS = [
   ['meal', 'Theo bữa'],
   ['origin', 'Động vật – thực vật'],
@@ -156,12 +157,24 @@ export function MealNutritionCard({ ageGroups, ageGroupId, onAgeGroup, statsQ, h
                       <td />
                       <td className="money nowrap">{stats.mealPrice == null ? 'Chưa đặt' : money(stats.mealPrice)}</td>
                     </tr>
+                    <tr className="td-daynut__verdict">
+                      <td>Đánh giá</td>
+                      {[row.protein, row.lipid, row.glucid, row.kcal].map((r, i) => (
+                        <td key={i} colSpan={2} className="center">
+                          {r?.status ? <NormRowBadge status={r.status} /> : '—'}
+                        </td>
+                      ))}
+                      <td />
+                    </tr>
                   </tbody>
                 </table>
               </div>
             )}
             {tab === 'meal' && (
               <p className="td-daynut__legend text-sm">
+                <span>
+                  <i className="td-eval__dot td-eval__dot--ok" /> Đạt chuẩn
+                </span>
                 <span>
                   <i className="td-eval__dot td-eval__dot--low" /> Thấp so với chuẩn
                 </span>

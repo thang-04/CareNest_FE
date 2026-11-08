@@ -54,7 +54,9 @@ export function NutrientTable({ values, caption }) {
                   <th scope="col" className="num">
                     Hàm lượng
                   </th>
-                  <th scope="col">Số liệu</th>
+                  <th scope="col" className="center">
+                    Số liệu
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -72,7 +74,9 @@ export function NutrientTable({ values, caption }) {
                           </>
                         )}
                       </td>
-                      <td>{value == null ? <StatusBadge tone="gray" label="Chưa có" /> : <StatusBadge tone="green" label="Có" />}</td>
+                      <td className="center">
+                        {value == null ? <StatusBadge tone="gray" label="Chưa có" /> : <StatusBadge tone="green" label="Có" />}
+                      </td>
                     </tr>
                   );
                 })}

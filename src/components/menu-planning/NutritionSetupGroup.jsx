@@ -67,8 +67,8 @@ function MinMaxCells({ value = ['', ''], readOnly, label, invalid, onChange }) {
     );
   return (
     <>
-      <td className="center">{cell(0)}</td>
-      <td className="center">{cell(1)}</td>
+      <td className="num">{cell(0)}</td>
+      <td className="num">{cell(1)}</td>
     </>
   );
 }
@@ -80,8 +80,8 @@ function NormTable({ norms, readOnly, errorOf, onChange }) {
         <thead>
           <tr>
             <th>Chỉ số</th>
-            <th className="center">Tối thiểu</th>
-            <th className="center">Tối đa</th>
+            <th className="num">Tối thiểu</th>
+            <th className="num">Tối đa</th>
             <th>Đơn vị</th>
           </tr>
         </thead>
@@ -277,8 +277,8 @@ export function NutritionSetupGroup({ group: g, info, childCount, setup, usesApi
                     <thead>
                       <tr>
                         <th>Bữa ăn</th>
-                        <th className="center">Tối thiểu</th>
-                        <th className="center">Tối đa</th>
+                        <th className="num">Tối thiểu</th>
+                        <th className="num">Tối đa</th>
                         <th>Đơn vị</th>
                         {removable && <th className="cell--actions">Thao tác</th>}
                       </tr>

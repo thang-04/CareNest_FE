@@ -91,7 +91,7 @@ export default function FreshCheckPage() {
         {campus.campusId && (
           <div className="kb-toolbar__end">
             <Link className="btn" to={`/kitchen/forecast?campusId=${campus.campusId}`}>
-              <ShoppingBasket size={16} /> Bản dự trù hàng tươi
+              <ShoppingBasket size={16} /> Bản dự trù
             </Link>
           </div>
         )}

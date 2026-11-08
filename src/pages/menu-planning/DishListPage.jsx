@@ -127,11 +127,11 @@ export default function DishListPage() {
               <table className="table table--grid td-dish-table">
                 <thead>
                   <tr>
-                    <th className="td-num-col center">#</th>
+                    <th className="td-num-col num">#</th>
                     <th>Tên món ăn</th>
-                    <th>Loại món</th>
+                    <th className="center">Loại món</th>
                     <th>Nhóm tuổi áp dụng</th>
-                    <th>Định lượng</th>
+                    <th className="center">Định lượng</th>
                     <th className="cell--actions">Thao tác</th>
                   </tr>
                 </thead>
@@ -166,20 +166,20 @@ export default function DishListPage() {
                       const missing = missingOf(d);
                       return (
                         <tr key={d.id} className="row-click" {...clickableRowProps(() => open(d))}>
-                          <td className="muted td-num-col center">{(safePage - 1) * PAGE + i + 1}</td>
+                          <td className="muted td-num-col num">{(safePage - 1) * PAGE + i + 1}</td>
                           <td>
                             <span className="fw-600">{d.name}</span>{' '}
                             <AllergenChips allergens={dishAllergens(d, catalog.foodById)} empty="" />
                             {d.status !== DISH_STATUS.ACTIVE && <DishStatusBadge status={d.status} />}
                           </td>
-                          <td className="text-sm">{DISH_TYPE_LABELS[d.type]}</td>
+                          <td className="text-sm center">{DISH_TYPE_LABELS[d.type]}</td>
                           <td className="text-sm">
                             {groupIds
                               .filter((id) => !missing.includes(id))
                               .map(ageAbbr)
                               .join(' · ') || '—'}
                           </td>
-                          <td>
+                          <td className="center">
                             {missing.length ? (
                               <StatusBadge tone="orange" icon={AlertCircle} label={`Thiếu ${missing.map(ageAbbr).join(', ')}`} />
                             ) : (
