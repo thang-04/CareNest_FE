@@ -445,3 +445,120 @@
     justify-content: stretch;
   }
 }
+
+/* Thẻ giao việc Phó hiệu trưởng: tóm tắt đầu thẻ, mỗi mảng một dòng, mở ra từng việc */
+.vp-panel {
+  padding: var(--space-4) var(--space-6) var(--space-6);
+}
+.vp-summary {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-muted);
+}
+.vp-summary__line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.vp-summary__line svg {
+  flex: none;
+}
+.vp-summary__line--warn {
+  color: var(--color-warning-fg);
+}
+.vp-panel__note {
+  margin: var(--space-3) 0 0;
+}
+.vp-presets {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+.vp-area {
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+}
+.vp-area__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+.vp-area__title {
+  flex: 1;
+  min-width: 180px;
+}
+.vp-area__chevron--open {
+  transform: rotate(180deg);
+}
+.card .tabs.vp-choice,
+.tabs.vp-choice {
+  flex: none;
+  max-width: none;
+  margin: 0;
+  overflow: visible;
+}
+.vp-choice .tab {
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--fs-sm);
+}
+.vp-choice .tab:disabled {
+  cursor: default;
+}
+.vp-task {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 140px;
+  gap: var(--space-3);
+  align-items: center;
+  padding: var(--space-2) 0 var(--space-2) var(--space-3);
+}
+.vp-task__label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.vp-task__place {
+  min-width: 0;
+}
+.vp-panel__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+}
+.vp-coverage__head {
+  padding: var(--space-5) var(--space-6) var(--space-3);
+}
+.vp-coverage__head h2 {
+  margin: 0;
+  font-size: var(--fs-md);
+}
+.vp-coverage__head p {
+  margin: var(--space-1) 0 0;
+}
+.vp-coverage__missing {
+  margin: var(--space-1) 0 0;
+  color: var(--color-warning-fg);
+}
+.vp-coverage .chip {
+  margin-right: var(--space-1);
+}
+@media (max-width: 640px) {
+  .vp-task {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Dòng "Bạn đang chỉ xem" đầu trang của PHT chưa được giao việc sửa */
+.page-readonly-notice {
+  margin: var(--space-4) var(--space-6) 0;
+}
