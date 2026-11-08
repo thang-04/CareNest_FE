@@ -134,7 +134,7 @@ export default function SchoolYearListPage() {
                   <th>Bắt đầu</th>
                   <th>Kết thúc</th>
                   <th className="num">Số lớp</th>
-                  <th className="center">Trạng thái</th>
+                  <th>Trạng thái</th>
                   <th className="cell--actions">Thao tác</th>
                 </tr>
               </thead>
@@ -178,7 +178,7 @@ export default function SchoolYearListPage() {
                       <td>{formatDate(y.startDate)}</td>
                       <td>{formatDate(y.endDate)}</td>
                       <td className="num">{y.classCount}</td>
-                      <td className="center">
+                      <td>
                         <YearStatusBadge status={y.status} />
                       </td>
                       <td className="cell--actions">

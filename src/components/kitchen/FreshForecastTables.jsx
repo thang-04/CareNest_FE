@@ -53,10 +53,10 @@ export function ForecastLinesTable({ forecast }) {
       <table className="table table--grid">
         <thead>
           <tr>
-            <th className="center">STT</th>
+            <th className="num">STT</th>
             <th className="min-w-220">Thực phẩm</th>
             <th className="num">Tổng cộng</th>
-            <th className="center">Đơn vị</th>
+            <th>Đơn vị</th>
             {days.map((day) => (
               <th key={day.date} className="num">
                 <div className="nowrap">{dayShort(day.date)}</div>
@@ -72,10 +72,10 @@ export function ForecastLinesTable({ forecast }) {
             const byDate = Object.fromEntries(line.byDate.map((cell) => [cell.date, cell]));
             return (
               <tr key={line.food.id}>
-                <td className="center">{i + 1}</td>
+                <td className="num">{i + 1}</td>
                 <td>{line.food.name}</td>
                 <td className="num fw-600">{fmtQty(line.purchaseTotal)}</td>
-                <td className="center">{line.food.purchaseUnit}</td>
+                <td>{line.food.purchaseUnit}</td>
                 {days.map((day) => (
                   <td key={day.date} className="num">
                     {byDate[day.date] ? fmtQty(byDate[day.date].purchaseQuantity) : <span className="muted">—</span>}

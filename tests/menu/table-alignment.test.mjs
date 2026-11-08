@@ -36,8 +36,8 @@ test('CSS chung: cột thao tác thu vừa nội dung và căn giữa', () => {
   assert.match(rule, /text-align:\s*center/);
 });
 
-// User đổi quyết định 20/10/2026: số đếm/số lượng căn giữa (.num), tiền căn phải (.money); tiêu đề cùng class với ô
-test('cột số hiển thị căn giữa cả tiêu đề bằng .num (ô nhập số giữ căn theo ô nhập)', () => {
+// User chốt 08/11/2026: mọi con số căn phải (.num, .money), chữ và trạng thái căn trái; tiêu đề cùng class với ô
+test('cột số hiển thị căn phải cả tiêu đề bằng .num (ô nhập số giữ căn theo ô nhập)', () => {
   const NUMERIC = {
     'pages/school-config/AgeGroupsClassesPage.jsx': ['Sĩ số tối đa/lớp', 'Số lớp'],
     'pages/school-config/SchoolYearListPage.jsx': ['Số lớp'],
@@ -53,8 +53,14 @@ test('cột số hiển thị căn giữa cả tiêu đề bằng .num (ô nhậ
       const esc = h.replace(/[()/]/g, (c) => `\\${c}`);
       const ths = [...text.matchAll(new RegExp(String.raw`<th\b([^>]*)>` + esc + '</th>', 'g'))];
       if (!ths.length) bad.push(`${file}: không thấy cột ${h}`);
-      if (ths.some((m) => !/\bnum\b/.test(m[1]))) bad.push(`${file}: cột ${h} chưa dùng .num (căn giữa)`);
+      if (ths.some((m) => !/\bnum\b/.test(m[1]))) bad.push(`${file}: cột ${h} chưa dùng .num (căn phải)`);
     }
   }
   assert.deepEqual(bad, []);
+});
+
+test('bảng kẻ ô: mọi ô tự có đủ 4 cạnh, ô cạnh cột gộp rowSpan không mất vạch', () => {
+  const css = readFileSync(join(SRC, 'styles/components.css'), 'utf8');
+  assert.match(css, /\.table\.table--grid th,\s*\.table\.table--grid td,\s*\.table\.table--grid tr:last-child td \{\s*border: 1px solid/);
+  assert.doesNotMatch(css, /\.table\.table--grid td \+ td/);
 });

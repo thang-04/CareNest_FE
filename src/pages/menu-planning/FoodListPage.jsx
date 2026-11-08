@@ -258,7 +258,7 @@ export default function FoodListPage() {
             <ErrorState error={error} onRetry={reload} />
           ) : (
             <div className="table-wrap">
-              <table className="table table--grid td-food-table">
+              <table className="table table--grid table--wrap-head td-food-table">
                 <thead>
                   <tr>
                     <th>Mã</th>

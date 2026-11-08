@@ -93,7 +93,7 @@ export default function SupplierListPage() {
                   <th>Người liên hệ</th>
                   <th>Số điện thoại</th>
                   <th className="num">Số phiếu nhập</th>
-                  <th className="center">Trạng thái</th>
+                  <th>Trạng thái</th>
                   <th className="cell--actions">Thao tác</th>
                 </tr>
               </thead>
@@ -136,7 +136,7 @@ export default function SupplierListPage() {
                       <td>{s.contactName || <span className="muted">—</span>}</td>
                       <td className="nowrap">{s.phone || <span className="muted">—</span>}</td>
                       <td className="num">{s.receiptCount ?? <span className="muted">—</span>}</td>
-                      <td className="center">
+                      <td>
                         <SupplierStatusBadge status={s.status} />
                       </td>
                       <td className="cell--actions">

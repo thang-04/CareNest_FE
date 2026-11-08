@@ -131,14 +131,14 @@ export default function HealthCheckListPage() {
           <ErrorState error={error} onRetry={reload} />
         ) : (
           <div className="table-wrap tr-table-flat">
-            <table className="table table--grid">
+            <table className="table table--grid table--wrap-head">
               <thead>
                 <tr>
                   <th>Tên</th>
                   <th>Loại</th>
                   <th>Điểm trường</th>
                   <th>Ngày</th>
-                  <th className="center">Trạng thái</th>
+                  <th>Trạng thái</th>
                   <th>Đã nhập kết quả</th>
                   <th>Cảnh báo</th>
                   <th className="cell--actions">Thao tác</th>
@@ -178,7 +178,7 @@ export default function HealthCheckListPage() {
                 ) : (
                   pageRows.map((c) => (
                     <tr key={c.id}>
-                      <td>
+                      <td className="tr-campaign-name">
                         <Link className="fw-600 text-primary" to={`/children/health-checks/${c.id}`}>
                           {c.name}
                         </Link>
@@ -188,10 +188,10 @@ export default function HealthCheckListPage() {
                         <CampaignKindBadge status={c.kind} />
                       </td>
                       <td className="text-sm">{c.campusName.split(' - ')[0]}</td>
-                      <td className="nowrap text-sm">
+                      <td className="text-sm">
                         {formatDate(c.startDate)} – {formatDate(c.endDate)}
                       </td>
-                      <td className="center">
+                      <td>
                         <CampaignStatusBadge status={c.status} />
                       </td>
                       <td className="tr-progress-cell">

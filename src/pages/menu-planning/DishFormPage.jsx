@@ -339,7 +339,7 @@ export default function DishFormPage() {
                       </option>
                     ))}
                 </select>
-                <button type="button" className="btn btn--sm" onClick={startCopy} disabled={!copyFrom || !copyTo || copyFrom === copyTo}>
+                <button type="button" className="btn" onClick={startCopy} disabled={!copyFrom || !copyTo || copyFrom === copyTo}>
                   <Copy size={15} /> Chép
                 </button>
               </div>
@@ -351,7 +351,7 @@ export default function DishFormPage() {
               </div>
             )}
             <div className="table-wrap td-recipe-wrap">
-              <table className="table table--grid table--compact td-recipe">
+              <table className="table table--grid table--compact table--wrap-head td-recipe">
                 <thead>
                   <tr>
                     <th className="num cell--fixed">#</th>
@@ -360,7 +360,7 @@ export default function DishFormPage() {
                     </th>
                     <th className="cell--fixed">ĐVT</th>
                     {groups.map((a) => (
-                      <th key={a.id} className="center">
+                      <th key={a.id} className="num">
                         {ageAbbr(a.id)}
                         {copied.includes(a.id) && (
                           <span className="chip chip--orange td-copied-chip" title="Vừa chép — kiểm tra lại">
@@ -402,7 +402,7 @@ export default function DishFormPage() {
                           const v = r.portions[a.id];
                           const bad = submitted && errors[`ing_${i}_${a.id}`];
                           return (
-                            <td key={a.id} className="center">
+                            <td key={a.id} className="num">
                               <input
                                 type="number"
                                 min="0"
@@ -446,7 +446,7 @@ export default function DishFormPage() {
                     {groups.map((a) => {
                       const t = dishTotals(preview, catalog.foodById, 1, a.id);
                       return (
-                        <td key={a.id} className="center nowrap cell--fixed">
+                        <td key={a.id} className="num nowrap cell--fixed">
                           {t.noQuantity ? <span className="td-warn">Thiếu</span> : `${g(t.totals.kcal)} kcal`}
                         </td>
                       );

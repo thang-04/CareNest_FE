@@ -25,6 +25,12 @@ export const ageGroupOptions = (ids, ageGroups) =>
     name: (ageGroups || []).find((g) => String(g.id) === String(id))?.name || `Nhóm tuổi ${id}`,
   }));
 
+/** Dinh dưỡng một suất của món theo nhóm tuổi, BE tính sẵn trong danh mục món; danh mục ghi nhóm tuổi bằng id hoặc mã. */
+export const dishNutrition = (dish, ageGroup) =>
+  (dish?.nutritionByAgeGroup || []).find((n) =>
+    [ageGroup?.id, ageGroup?.code].some((key) => key != null && String(n.ageGroupId) === String(key)),
+  ) || null;
+
 /** Link mở trang thống kê từ kế hoạch tuần hoặc bộ mẫu. */
 export const statisticsHref = (source) =>
   `/menu/statistics?${new URLSearchParams(Object.entries(source).filter(([, v]) => v != null && v !== '')).toString()}`;

@@ -116,7 +116,7 @@ export default function RewardListPage() {
                   {leader && multiCampus && <th>Điểm trường</th>}
                   <th className="num">Số trẻ</th>
                   <th className="num">Trẻ được đề xuất</th>
-                  <th className="center">Trạng thái</th>
+                  <th>Trạng thái</th>
                   <th>Ngày gửi</th>
                   <th className="cell--actions">Thao tác</th>
                 </tr>
@@ -159,7 +159,7 @@ export default function RewardListPage() {
                         {leader && multiCampus && <td>{r.campusName}</td>}
                         <td className="num">{r.children}</td>
                         <td className="num">{r.awarded ?? '—'}</td>
-                        <td className="center">
+                        <td>
                           <RewardStatusBadge status={r.status || 'NONE'} />
                         </td>
                         <td className="nowrap">{r.submittedAt ? formatDate(r.submittedAt) : '—'}</td>

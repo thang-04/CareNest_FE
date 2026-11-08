@@ -127,7 +127,7 @@ export default function DishListPage() {
               <table className="table table--grid td-dish-table">
                 <thead>
                   <tr>
-                    <th className="td-num-col center">#</th>
+                    <th className="td-num-col num">#</th>
                     <th>Tên món ăn</th>
                     <th>Loại món</th>
                     <th>Nhóm tuổi áp dụng</th>
@@ -166,7 +166,7 @@ export default function DishListPage() {
                       const missing = missingOf(d);
                       return (
                         <tr key={d.id} className="row-click" {...clickableRowProps(() => open(d))}>
-                          <td className="muted td-num-col center">{(safePage - 1) * PAGE + i + 1}</td>
+                          <td className="muted td-num-col num">{(safePage - 1) * PAGE + i + 1}</td>
                           <td>
                             <span className="fw-600">{d.name}</span>{' '}
                             <AllergenChips allergens={dishAllergens(d, catalog.foodById)} empty="" />

@@ -45,7 +45,7 @@ export default function StockReceiptListPage() {
                 <th>Nhà cung cấp</th>
                 <th className="num">Số thực phẩm</th>
                 <th className="num">Tổng tiền</th>
-                <th className="center">Trạng thái</th>
+                <th>Trạng thái</th>
               </tr>
             </thead>
             <tbody>
@@ -65,7 +65,7 @@ export default function StockReceiptListPage() {
                   </td>
                   <td className="num">{r.items.length}</td>
                   <td className="num nowrap">{formatMoney(r.totalAmount)}</td>
-                  <td className="center">
+                  <td>
                     <ReceiptStatusBadge status={r.status} />
                   </td>
                 </tr>

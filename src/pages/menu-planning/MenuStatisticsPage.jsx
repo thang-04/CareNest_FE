@@ -12,6 +12,7 @@ import {
 } from '@/components/menu-planning/MenuStatistics';
 import { useMasterData } from '@/hooks';
 import { useBeAgeGroups, useMealPlan, useMenuStatistics } from '@/hooks/menu-planning/useMealPlan';
+import { useDishes } from '@/hooks/menu-planning/useMenuPlanning';
 import { useMenuTemplate } from '@/hooks/menu-planning/useMenuTemplates';
 import { WeekPicker } from '@/components/form/WeekPicker';
 import { WEEKDAY_LABELS, formatMoney, mondayOf, schoolWeekStart, weekDates } from '@/models/menu-planning/menuPlanningConstants';
@@ -42,6 +43,7 @@ export default function MenuStatisticsPage() {
   const templateQ = useMenuTemplate(templateId || null);
   const source = templateId ? templateQ : planQ;
   const { ageGroups } = useBeAgeGroups();
+  const { items: catalog } = useDishes({});
   const { campuses } = useMasterData();
 
   const options = useMemo(() => {
@@ -74,9 +76,9 @@ export default function MenuStatisticsPage() {
   };
 
   // Ngữ cảnh (mẫu nào / ngày nào) nằm ở mục cuối breadcrumb thay cho dòng mô tả
-  const title = templateId ? `Mẫu ngày · ${source.data?.name || ''}` : `Thực đơn ngày ${formatDate(date)}`;
+  const title = templateId ? `Mẫu · ${source.data?.name || ''}` : `Thực đơn ngày ${formatDate(date)}`;
   const crumbs = templateId
-    ? menuCrumbs('Mẫu thực đơn ngày', `/menu/templates/${templateId}`, `Thống kê định lượng · ${title}`)
+    ? menuCrumbs('Mẫu thực đơn', `/menu/templates/${templateId}`, `Thống kê định lượng · ${title}`)
     : menuCrumbs('Thực đơn tuần', '/menu/weekly', `Thống kê định lượng · ${title}`);
 
   if (source.error)
@@ -189,9 +191,11 @@ export default function MenuStatisticsPage() {
             <div className="card__header">
               <h2 className="card__title">Món ăn</h2>
             </div>
-            <div className="card__body">
-              <StatisticsDishes dishes={stats.dishes} />
-            </div>
+            <StatisticsDishes
+              dishes={stats.dishes}
+              catalog={catalog}
+              ageGroup={ageGroups.find((g) => String(g.id) === String(ageGroupId))}
+            />
           </section>
           <section className="card">
             <div className="card__header">

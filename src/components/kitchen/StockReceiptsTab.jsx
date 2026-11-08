@@ -45,7 +45,7 @@ export function StockReceiptsTab({ campusId }) {
               <th>Nhà cung cấp</th>
               <th className="num">Số thực phẩm</th>
               <th className="money">Tổng tiền</th>
-              <th className="center">Trạng thái</th>
+              <th>Trạng thái</th>
             </tr>
           </thead>
           <tbody>
@@ -55,7 +55,7 @@ export function StockReceiptsTab({ campusId }) {
                 <td>{r.supplierName}</td>
                 <td className="num">{r.lines.length}</td>
                 <td className="money nowrap">{formatMoney(r.totalValue)}</td>
-                <td className="center">
+                <td>
                   <ReceiptStatusBadge status={r.status} />
                 </td>
               </tr>
@@ -83,7 +83,7 @@ export function StockReceiptsTab({ campusId }) {
   return (
     <section className="card">
       <div className="card__body kb-toolbar kb-toolbar--card">
-        <button type="button" className="btn btn--sm kb-export" onClick={exportCsv} disabled={!receipts.data?.length}>
+        <button type="button" className="btn kb-export" onClick={exportCsv} disabled={!receipts.data?.length}>
           <Download size={15} /> Xuất Excel
         </button>
         <label className="date-filter">

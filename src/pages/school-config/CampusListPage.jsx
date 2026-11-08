@@ -128,7 +128,7 @@ export default function CampusListPage() {
                       className={`row-click${c.status === 'INACTIVE' ? ' muted' : ''}`}
                       onClick={() => navigate(`/school/campuses/${c.id}`)}
                     >
-                      <td className="fw-600 text-primary">{c.code}</td>
+                      <td className="fw-600 text-primary nowrap">{c.code}</td>
                       <td>
                         <div className="fw-600">{c.shortName}</div>
                         <div className="text-xs muted sc-wrap">{c.name}</div>

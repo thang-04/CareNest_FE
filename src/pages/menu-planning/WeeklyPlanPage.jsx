@@ -15,11 +15,11 @@ import { MealPlanGrid } from '@/components/menu-planning/MealPlanGrid';
 import { MealPlanIssueList } from '@/components/menu-planning/MealPlanIssueList';
 import { MealPlanStatusBadge } from '@/components/menu-planning/MenuBadges';
 import { PublishWeekDialog } from '@/components/menu-planning/PublishWeekDialog';
-import { useActiveDishes, useMealPlan } from '@/hooks/menu-planning/useMealPlan';
+import { useActiveDishes, useBeAgeGroups, useMealPlan } from '@/hooks/menu-planning/useMealPlan';
 import { useMenuTemplates } from '@/hooks/menu-planning/useMenuTemplates';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { mealPlanApi } from '@/services/mealPlanApi';
-import { MEAL_BLOCK_LABELS, MEAL_PLAN_STATUS, mondayOf } from '@/models/menu-planning/menuPlanningConstants';
+import { MEAL_BLOCK_LABELS, MEAL_PLAN_STATUS, schoolWeekStart } from '@/models/menu-planning/menuPlanningConstants';
 import { blockSessions, draftFromPlan, isDirty, planBlocks, resolveWeekStart } from '@/utils/menu-planning/mealPlanGrid';
 import { applyTemplateDay, dayBlockItemCount, templateItemsForDate } from '@/utils/menu-planning/menuTemplateGrid';
 import { statisticsHref } from '@/utils/menu-planning/menuStatistics';
@@ -40,9 +40,11 @@ export default function WeeklyPlanPage() {
   const planQ = useMealPlan(week);
   const plan = planQ.data;
   const { dishes } = useActiveDishes();
+  const { ageGroups } = useBeAgeGroups();
   const saved = useMemo(() => (plan ? draftFromPlan(plan) : null), [plan]);
   const [draft, setDraft] = useState(null);
   const [blockKey, setBlockKey] = useState('');
+  const [kcalGroupId, setKcalGroupId] = useState('');
   const [busy, setBusy] = useState(false);
   const [publishOpen, setPublishOpen] = useState(false);
   const [publishError, setPublishError] = useState('');
@@ -57,19 +59,23 @@ export default function WeeklyPlanPage() {
   const block = blocks.includes(blockKey) ? blockKey : blocks[0];
   const editable = !!plan?.canEdit && plan.status !== MEAL_PLAN_STATUS.PUBLISHED;
   const dirty = !!draft && !!saved && isDirty(draft, saved);
+  // Một khối có thể gồm nhiều nhóm tuổi, kcal mỗi suất khác nhau nên phải nói rõ đang xem nhóm nào
+  const blockGroups = (plan?.blocks || []).find((b) => b.block === block)?.ageGroupIds || [];
+  const kcalGroups = ageGroups.filter((g) => blockGroups.some((id) => String(id) === String(g.id)));
+  const kcalAgeGroup = kcalGroups.find((g) => String(g.id) === kcalGroupId) || kcalGroups[0];
   const templatesQ = useMenuTemplates({ block, status: 'ACTIVE' });
   const templates = editable ? templatesQ.data || [] : [];
 
   const fillDay = (day, template) => {
     setDraft((d) => applyTemplateDay(d, day.date, template));
-    toast.success(`Đã điền món theo mẫu "${template.name}". Sửa từng món nếu cần rồi bấm Lưu nháp.`);
+    toast.success('Đã điền món theo mẫu.');
   };
   // Ngày đã có món của khối ⇒ hỏi trước khi thay bằng mẫu (agent chọn 2026-11-04, xem plan)
   const pickTemplate = (day, template) => {
     if (!template) return;
     // Bộ 4 tuần lấy Tuần 1 cùng thứ; thứ này chưa có món thì không thay gì, báo rõ thay vì xóa món đang có
     if (templateItemsForDate(template, day.date).length === 0) {
-      toast.error(`Mẫu "${template.name}" chưa có món cho ngày này (Tuần 1, cùng thứ).`, 'Chưa điền được theo mẫu');
+      toast.error('Mẫu chưa có món cho thứ này.', 'Chưa điền được theo mẫu');
       return;
     }
     const count = dayBlockItemCount(draft, day.date, block);
@@ -143,9 +149,21 @@ export default function WeeklyPlanPage() {
         )}
         <WeekPicker
           value={week}
-          thisWeek={mondayOf(today)}
+          thisWeek={schoolWeekStart(today)}
           onChange={(next) => guard.leave(`/menu/weekly?week=${next}`, { replace: true })}
         />
+        {kcalGroups.length > 1 && (
+          <label className="date-filter td-week-toolbar__group">
+            Kcal theo nhóm
+            <select className="select" value={kcalAgeGroup ? String(kcalAgeGroup.id) : ''} onChange={(e) => setKcalGroupId(e.target.value)}>
+              {kcalGroups.map((g) => (
+                <option key={g.id} value={String(g.id)}>
+                  {g.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
       </div>
     </>
   );
@@ -243,6 +261,7 @@ export default function WeeklyPlanPage() {
                 dayLink={plan.status === MEAL_PLAN_STATUS.NONE ? undefined : (day) => statisticsHref({ week, date: day.date })}
                 templates={templates}
                 onPickTemplate={pickTemplate}
+                kcalAgeGroup={kcalAgeGroup}
               />
             </section>
           ) : (

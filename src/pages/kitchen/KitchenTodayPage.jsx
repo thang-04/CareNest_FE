@@ -79,7 +79,7 @@ function MenuCard({ menu, typeOf }) {
 
 function ServingsCard({ servings }) {
   const sessions = servingsBySession(servings);
-  if (!sessions.length) return <p className="card__body muted">Chưa có bữa nào có số suất đã xác nhận.</p>;
+  if (!sessions.length) return <EmptyState title="Chưa có suất ăn" description="Chưa có bữa nào có số suất đã xác nhận." />;
   return (
     <div className="table-wrap">
       <table className="table table--grid kr-table">

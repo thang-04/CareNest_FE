@@ -107,7 +107,7 @@ export default function AllergyMenuListPage() {
                   <th>Loại</th>
                   <th>Tránh</th>
                   <th>Trẻ cần dùng</th>
-                  <th className="center">Trạng thái</th>
+                  <th>Trạng thái</th>
                   <th className="cell--actions">Thao tác</th>
                 </tr>
               </thead>
@@ -159,7 +159,7 @@ export default function AllergyMenuListPage() {
                           <AllergenChips allergens={a.restrictions} />
                         </td>
                         <td className="text-sm">{childCount ? `${childCount} lượt trẻ` : <span className="muted">Chưa có trẻ</span>}</td>
-                        <td className="center">
+                        <td>
                           <RecordStatusBadge status={a.status} />
                         </td>
                         <td className="cell--actions" onClick={(e) => e.stopPropagation()}>

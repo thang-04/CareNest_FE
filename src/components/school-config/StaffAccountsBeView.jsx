@@ -226,7 +226,7 @@ export function StaffAccountsBeView({ tabs = null }) {
                   <th>Điểm trường</th>
                   <th>Đang phụ trách</th>
                   <th>Số điện thoại</th>
-                  <th className="center">Trạng thái</th>
+                  <th>Trạng thái</th>
                   {actions && <th className="cell--actions">Thao tác</th>}
                 </tr>
               </thead>
@@ -259,7 +259,7 @@ export function StaffAccountsBeView({ tabs = null }) {
                         <td>{u.campusNames.join(', ') || <span className="muted">—</span>}</td>
                         <td className="text-sm sc-wrap">{u.duties.join(' · ') || <span className="muted">—</span>}</td>
                         <td className="nowrap">{u.phone || <span className="muted">—</span>}</td>
-                        <td className="center">
+                        <td>
                           <StaffStatusBadge status={u.status || 'ACTIVE'} />
                         </td>
                         {actions && (

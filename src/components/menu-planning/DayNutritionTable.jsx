@@ -34,7 +34,7 @@ export function DayNutritionTable({ wm, catalog, date, meals, onSelect }) {
       </div>
       <section className="card">
         <div className="table-wrap">
-          <table className="table table--grid td-day-table">
+          <table className="table table--grid table--wrap-head td-day-table">
             <thead>
               <tr>
                 <th rowSpan={2}>Ngày</th>

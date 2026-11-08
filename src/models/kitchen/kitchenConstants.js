@@ -141,7 +141,7 @@ export const STOCK_MOVEMENT_TYPES = ['RECEIPT', 'DEDUCT', 'ADJUST', 'SHORTFALL_D
 export const STOCK_MOVEMENT_LABELS = {
   RECEIPT: 'Nhập kho',
   DEDUCT: 'Trừ theo suất',
-  ADJUST: 'Điều chỉnh (xác nhận lại suất)',
+  ADJUST: 'Điều chỉnh suất',
   SHORTFALL_DEDUCT: 'Trừ phần thiếu',
   RECEIPT_CANCEL: 'Hủy phiếu',
 };

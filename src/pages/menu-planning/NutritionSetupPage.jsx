@@ -313,7 +313,7 @@ export default function NutritionSetupPage() {
                 <tr>
                   <th className="td-num-col">STT</th>
                   <th>Nhóm trẻ tại trường</th>
-                  <th className="center">Trạng thái</th>
+                  <th>Trạng thái</th>
                 </tr>
               </thead>
               <tbody>

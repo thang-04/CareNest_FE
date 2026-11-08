@@ -12,7 +12,8 @@ const isoWeekday = (date) => new Date(`${date}T00:00:00`).getDay() || 7;
  */
 export const templateItemsForDate = (template, date) => {
   const items = template?.items || [];
-  if (!hasTemplateDays(items)) return items;
+  // Mẫu ngày dùng được cho mọi thứ trong tuần; mẫu tuần, tháng lấy đúng thứ của Tuần 1
+  if (templateKind(items) === TEMPLATE_KIND.DAY) return items;
   return items.filter((item) => item.weekNo === 1 && item.weekday === isoWeekday(date));
 };
 
@@ -57,6 +58,12 @@ export const toTemplateRequest = (form) => ({
   })),
 });
 
+export const TEMPLATE_NAME_MAX = 100;
+const COPY_SUFFIX = ' (bản sao)';
+
+/** Tên gợi ý cho bản sao của một mẫu; cắt bớt để vừa giới hạn tên. */
+export const copyTemplateName = (name) => `${String(name || '').slice(0, TEMPLATE_NAME_MAX - COPY_SUFFIX.length)}${COPY_SUFFIX}`;
+
 /*
  * Bộ mẫu theo ngày: BE trả món kèm `weekNo` (1–4) và `weekday` (1–5). Màn xem / sửa chỉ hiện một ngày của bộ
  * ("Tuần 2 · Thứ Tư"), không gộp mọi ngày vào một danh sách.
@@ -64,6 +71,16 @@ export const toTemplateRequest = (form) => ({
 export const DEFAULT_DAY = { weekNo: 1, weekday: 1 };
 export const TEMPLATE_WEEKS = [1, 2, 3, 4];
 export const TEMPLATE_WEEKDAYS = [1, 2, 3, 4, 5];
+
+export const TEMPLATE_KIND = { DAY: 'DAY', WEEK: 'WEEK', MONTH: 'MONTH' };
+export const TEMPLATE_KIND_LABELS = { DAY: 'Mẫu ngày', WEEK: 'Mẫu tuần', MONTH: 'Mẫu tháng' };
+
+/** BE chưa lưu loại mẫu nên suy từ các ngày có món: nhiều tuần = tháng, nhiều thứ trong một tuần = tuần, còn lại = ngày. */
+export const templateKind = (items = []) => {
+  const dated = items.filter((item) => item.weekNo != null);
+  if (new Set(dated.map((item) => item.weekNo)).size > 1) return TEMPLATE_KIND.MONTH;
+  return new Set(dated.map((item) => item.weekday)).size > 1 ? TEMPLATE_KIND.WEEK : TEMPLATE_KIND.DAY;
+};
 
 /** Món có gắn ngày (bộ 4 tuần) hay không; không thì mẫu là một ngày duy nhất. */
 export const hasTemplateDays = (items = []) => items.some((item) => item.weekNo != null);

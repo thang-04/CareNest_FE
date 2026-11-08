@@ -172,7 +172,7 @@ function StaffAccountsMockView() {
                   <th>Điểm trường</th>
                   <th>Đang phụ trách</th>
                   <th>Số điện thoại</th>
-                  <th className="center">Trạng thái</th>
+                  <th>Trạng thái</th>
                   {cols === 7 && <th className="cell--actions">Thao tác</th>}
                 </tr>
               </thead>
@@ -208,7 +208,7 @@ function StaffAccountsMockView() {
                         <td>{md.campusById(u.campusId)?.shortName || <span className="muted">—</span>}</td>
                         <td className="text-sm sc-wrap">{list.length ? list.join(' · ') : <span className="muted">—</span>}</td>
                         <td className="nowrap">{u.phone || <span className="muted">—</span>}</td>
-                        <td className="center">
+                        <td>
                           <StaffStatusBadge status={u.status || 'ACTIVE'} />
                         </td>
                         {vpEdits && (

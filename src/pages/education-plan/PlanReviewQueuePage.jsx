@@ -84,7 +84,7 @@ export default function PlanReviewQueuePage() {
                     <th>Nội dung</th>
                     <th>Người gửi</th>
                     <th>Gửi lúc</th>
-                    <th className="center">Trạng thái</th>
+                    <th>Trạng thái</th>
                   </tr>
                 </thead>
                 <tbody>
