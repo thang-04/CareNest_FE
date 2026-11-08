@@ -3,6 +3,7 @@
  * Thay đổi giữa hai phiên bản do BE so sánh (GET /goals/{id}/changes); ở đây chỉ chép tài liệu sang id mới và chỉ ra ô
  * cần sửa để hiển thị. BE kiểm lại khi gửi duyệt. diffPlans chỉ dùng cho mock (BE giả).
  */
+import { planLevel } from './planLevel.mjs';
 import { DOMAINS } from '@/models/education-plan/educationPlanConstants';
 import { numberGoals, toRows } from '@/models/education-plan/goalTable';
 import { addDays, CLASS_DOC, themeGoalBlocks, yearWeeks } from '@/models/education-plan/classPlan';
@@ -11,15 +12,15 @@ export const CHANGE = { UNCHANGED: 'UNCHANGED', CHANGED: 'CHANGED', REMOVED: 'RE
 
 export const versionOf = (plan) => Number(plan?.versionNo) || 1;
 
-const sameChain = (a, b) => a.ageGroupId === b.ageGroupId && a.schoolYear === b.schoolYear;
+const sameChain = (a, b) => a.ageGroupId === b.ageGroupId && a.schoolYear === b.schoolYear && planLevel(a) === planLevel(b);
 
 /** Các phiên bản cùng (năm học, nhóm tuổi), theo số phiên bản tăng dần. */
 export const chainOf = (goals, plan) => (plan ? goals.filter((g) => sameChain(g, plan)).sort((a, b) => versionOf(a) - versionOf(b)) : []);
 
 /** Phiên bản hiện hành: đã ban hành, số lớn nhất (BE:EDU-25). */
-export const currentPlanOf = (goals, ageGroupId, schoolYear) =>
+export const currentPlanOf = (goals, ageGroupId, schoolYear, level = 'TEAM') =>
   goals
-    .filter((g) => g.ageGroupId === ageGroupId && g.schoolYear === schoolYear && g.status === 'APPROVED')
+    .filter((g) => g.ageGroupId === ageGroupId && g.schoolYear === schoolYear && g.status === 'APPROVED' && planLevel(g) === level)
     .sort((a, b) => versionOf(b) - versionOf(a))[0] || null;
 
 /** Phiên bản đã ban hành ngay trước plan (nguồn để chép tài liệu lớp). */
@@ -163,6 +164,16 @@ export function copyDocToVersion(kind, source, changes, plan, week = {}) {
   });
   if (kind === CLASS_DOC.BRANCH) {
     doc.id = `bp_${source.classId}_${plan.id}`;
+    if (doc.schemaVersion === 2) {
+      const template = (id) =>
+        plan.branchTemplates?.find((t) => String(t.lineageId || t.id) === String(id) || String(t.sourceTemplateId) === String(id));
+      doc.themeSchedules = (doc.themeSchedules || []).map((t) => ({ ...t, themeId: themes.get(String(t.themeId)) || t.themeId }));
+      doc.branches = (doc.branches || []).map((b) => ({
+        ...b,
+        themeId: themes.get(String(b.themeId)) || b.themeId,
+        sourceTemplateId: b.sourceTemplateId ? template(b.sourceTemplateId)?.id || b.sourceTemplateId : null,
+      }));
+    }
     return doc;
   }
   doc.themeId = kind === CLASS_DOC.WEEK && week.themeId ? week.themeId : themes.get(String(source.themeId)) || source.themeId;

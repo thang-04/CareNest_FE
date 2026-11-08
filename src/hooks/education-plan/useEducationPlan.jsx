@@ -228,14 +228,14 @@ export function EducationPlanProvider({ children }) {
         }
       },
       // BE:EDU-25 — tạo phiên bản điều chỉnh của kế hoạch năm đã ban hành
-      createGoalVersion: async (id) => {
+      createGoalVersion: async (id, curriculumSourcePlanId) => {
         try {
           const edit = {
             sessionId: crypto.randomUUID(),
             revision: data?.goals.find((g) => g.id === id)?.revision ?? 0,
             requestId: crypto.randomUUID(),
           };
-          const plan = await service.createGoalVersion(id, actor, edit);
+          const plan = await service.createGoalVersion(id, actor, { ...edit, curriculumSourcePlanId });
           setData((prev) => (prev ? { ...prev, goals: upsert(prev.goals, plan) } : prev));
           return plan;
         } catch (err) {
@@ -309,7 +309,7 @@ export function EducationPlanProvider({ children }) {
       },
       // Ném lỗi BE (403/409/5xx) cho màn gọi hiển thị; chỉ bỏ khỏi danh sách khi BE đã xóa
       deleteGoal: async (id) => {
-        await service.deleteGoal(id, data?.goals.find((goal) => goal.id === id)?.revision);
+        await service.deleteGoal(id, data?.goals.find((goal) => goal.id === id)?.revision, user);
         setData((prev) => (prev ? { ...prev, goals: prev.goals.filter((goal) => goal.id !== id) } : prev));
       },
       saveTheme: saveIn('themes', service.saveTheme),
@@ -319,8 +319,12 @@ export function EducationPlanProvider({ children }) {
     };
   }, [data, setData, reload, user, toast, toastApi, yearId, schoolYears, setSchoolYear]);
 
+  useEffect(() => {
+    if (error?.status === 403) setData(null);
+  }, [error, setData]);
+
   if (loading && !data) return <LoadingState />;
-  if (error && !data) return <ErrorState error={error} onRetry={reload} />;
+  if (error && (!data || error.status === 403)) return <ErrorState error={error} onRetry={reload} />;
   return <EducationPlanContext.Provider value={value}>{children}</EducationPlanContext.Provider>;
 }
 

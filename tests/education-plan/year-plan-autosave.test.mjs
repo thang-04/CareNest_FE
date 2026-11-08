@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { reconcileYearPlanIds, createSaveQueue } from '../../src/models/education-plan/yearPlanAutosave.mjs';
+import { reconcileYearPlanIds, createSaveQueue, yearPlanContentKey } from '../../src/models/education-plan/yearPlanAutosave.mjs';
 
 test('autosave preserves text typed during a save while assigning server IDs and theme ticks', () => {
   const snapshot = {
@@ -178,4 +178,11 @@ test('offline Lưu keeps the edits unsaved; Lưu after reconnect saves the lates
   assert.deepEqual(writes, ['offline latest']);
   assert.equal(queue.dirty(), false);
   queue.dispose();
+});
+
+test('editing only an STT label is a content change before goal text is entered', () => {
+  const before = { domains: [{ name: 'A', rows: [{ id: 'pending', kind: 'goal', text: '', displayLabel: 'MT01', contents: [] }] }] };
+  const after = structuredClone(before);
+  after.domains[0].rows[0].displayLabel = 'MTR20';
+  assert.notEqual(yearPlanContentKey(before), yearPlanContentKey(after));
 });

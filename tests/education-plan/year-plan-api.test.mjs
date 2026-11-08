@@ -84,6 +84,19 @@ test('UI → BE: id UI tự sinh gửi null, tích chủ đề theo key, lĩnh v
   );
 });
 
+test('goal labels round-trip through the API; empty clears and missing remains omitted for legacy clients', () => {
+  const response = detail();
+  response.domains[0].rows[1].displayLabel = 'Mục tiêu 01';
+  const goal = toUiGoal(response, refs);
+  assert.equal(goal.domains[0].rows[1].displayLabel, 'Mục tiêu 01');
+  assert.equal(goal.domains[0].items[0].code, 'Mục tiêu 01');
+  assert.equal(toYearPlanRequest(goal, refs).domains[0].rows[1].displayLabel, 'Mục tiêu 01');
+  goal.domains[0].rows[1].displayLabel = '';
+  assert.equal(toYearPlanRequest(goal, refs).domains[0].rows[1].displayLabel, '');
+  delete goal.domains[0].rows[1].displayLabel;
+  assert.equal(Object.hasOwn(toYearPlanRequest(goal, refs).domains[0].rows[1], 'displayLabel'), false);
+});
+
 test('trạng thái UI → endpoint hành động của BE', () => {
   const draft = { status: 'DRAFT', permissions: { canEdit: true } };
   const pending = { status: 'PENDING_VP', permissions: { canEdit: true } };
@@ -209,6 +222,7 @@ test('BE:EDU-11 — cấu hình: lĩnh vực thêm là lĩnh vực không chuẩ
     domainLabels: { 'Phát triển thể chất': 'Thể chất' },
     extraDomains: ['Lĩnh vực mới'],
     workflowPolicy: null,
+    durationPolicyAvailable: true,
     workflowRevision: 1,
     canConfigure: false,
     yearCreationScopes: [],
@@ -358,4 +372,61 @@ test('toUiGoal: giữ nguyên quyền permissions, waitingRole và creationCapab
   assert.equal(ui.permissions.canEdit, false);
   assert.equal(ui.permissions.canIssue, true);
   assert.equal(ui.permissions.canReturn, true);
+});
+
+test('old backend ignoring planLevel does not duplicate TEAM records or turn them into annual plans', async () => {
+  const detailReads = [];
+  axiosClient.defaults.adapter = async (config) => {
+    let data;
+    if (config.url.endsWith('/config')) data = CONFIG;
+    else if (config.url.endsWith('/workflow-policy')) data = { revision: 1, policies: {}, canConfigure: false };
+    else if (config.url.endsWith('/duration-policy'))
+      throw new AxiosError('not found', 'ERR_BAD_REQUEST', config, null, { status: 404, config, headers: {}, data: { desc: 'Not found' } });
+    else if (config.url.endsWith('/goals')) data = { items: [{ id: 41 }], totalPages: 1 };
+    else {
+      detailReads.push(config.url);
+      data = detail();
+    }
+    return { status: 200, statusText: 'OK', headers: {}, config, data: { code: 200, desc: 'ok', data } };
+  };
+  await educationPlanApi.getEduConfig();
+  const loaded = await educationPlanApi.getAll();
+  assert.equal(loaded.goals.length, 1);
+  assert.equal(loaded.goals[0].planLevel, 'TEAM');
+  assert.equal(detailReads.length, 1);
+});
+
+test('annual import sends SCHOOL_YEAR to the API list filter', async () => {
+  const calls = [];
+  axiosClient.defaults.adapter = async (config) => {
+    calls.push(config);
+    return respond(config, { items: [], totalPages: 1 });
+  };
+  await educationPlanApi.listGoalSources({ planLevel: 'SCHOOL_YEAR' }, sourceActor);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].params.planLevel, 'SCHOOL_YEAR');
+});
+
+test('label-only draft goals roundtrip without requiring text or replacing the entered STT', () => {
+  const goal = toUiGoal(detail(), refs);
+  goal.domains[0].rows.push({ id: 'pending-label', kind: 'goal', text: '', displayLabel: 'MTR20', contents: [] });
+  const body = toYearPlanRequest(goal, refs);
+  const pending = body.domains[0].rows.at(-1);
+  assert.equal(pending.text, '');
+  assert.equal(pending.displayLabel, 'MTR20');
+  const response = detail();
+  response.domains[0].rows.push({ ...pending, id: 103, goalNo: 2, contents: [] });
+  const restored = toUiGoal(response, refs).domains[0].rows.at(-1);
+  assert.equal(restored.displayLabel, 'MTR20');
+  assert.equal(restored.text, '');
+});
+
+test('annual source trusts server scope for a manager with a team-leader primary role', async () => {
+  axiosClient.defaults.adapter = async (config) => {
+    const data = config.url === '/education-plans/config' ? CONFIG : detail({ planLevel: 'SCHOOL_YEAR', status: 'REVIEW' });
+    return { status: 200, statusText: 'OK', headers: {}, config, data: { code: 200, desc: 'ok', data } };
+  };
+  const goal = await educationPlanApi.getGoalSource('41', { role: 'TEAM_LEADER', roles: ['VICE_PRINCIPAL'], ageGroupId: 'ag-4' });
+  assert.equal(goal.planLevel, 'SCHOOL_YEAR');
+  assert.equal(goal.status, 'REVIEW');
 });

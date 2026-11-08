@@ -246,10 +246,20 @@ export function AppRoutes() {
           <Route path="education" element={<EducationPlanLayout />}>
             <Route index element={edu(EDU_VIEW, <EducationHomeRedirect />)} />
             <Route path="school" element={edu([ROLES.PRINCIPAL], <SchoolPlansPage />)} />
+            <Route path="school-year-plans" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <GoalsEntry planLevel="SCHOOL_YEAR" />)} />
+            <Route
+              path="school-year-plans/new"
+              element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <GoalFormPage key="school-year" planLevel="SCHOOL_YEAR" />)}
+            />
+            <Route path="school-year-plans/:id" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <GoalDetailPage planLevel="SCHOOL_YEAR" />)} />
+            <Route
+              path="school-year-plans/:id/edit"
+              element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <GoalFormPage key="school-year" planLevel="SCHOOL_YEAR" />)}
+            />
             <Route path="goals" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <GoalsEntry />)} />
-            <Route path="goals/new" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <GoalFormPage />)} />
+            <Route path="goals/new" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <GoalFormPage key="team" />)} />
             <Route path="goals/:id" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <GoalDetailPage />)} />
-            <Route path="goals/:id/edit" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <GoalFormPage />)} />
+            <Route path="goals/:id/edit" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <GoalFormPage key="team" />)} />
             <Route path="class" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ClassPlanRedirect />)} />
             <Route path="class/:classId" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ClassPlanPage />)} />
             <Route

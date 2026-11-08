@@ -1,3 +1,4 @@
+import { planLevel as levelOf, planRoute } from '@/models/education-plan/planLevel.mjs';
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Plus, RotateCcw } from '@/components/ui/icons';
@@ -23,13 +24,17 @@ function Owner({ plan }) {
   );
 }
 
-/** Mục "Mục tiêu năm học": mọi vai trò dùng chung danh sách, mỗi người thấy theo phạm vi của mình. */
-export function GoalsEntry() {
-  return <GoalListPage />;
+/** Mục kế hoạch giáo dục tổ dùng chung danh sách theo phạm vi của từng vai trò. */
+export function GoalsEntry(props) {
+  return <GoalListPage {...props} />;
 }
 
-export default function GoalListPage() {
-  const { goals, schoolYear, role, user, classes, eduConfig } = useEducationPlan();
+export default function GoalListPage({ planLevel = 'TEAM' }) {
+  const annual = planLevel === 'SCHOOL_YEAR';
+  const basePath = planRoute({ planLevel });
+  const pageLabel = annual ? 'Kế hoạch năm học' : 'Kế hoạch giáo dục tổ';
+  const { goals: allGoals, schoolYear, role, user, classes, eduConfig } = useEducationPlan();
+  const goals = allGoals.filter((g) => levelOf(g) === planLevel);
   const navigate = useNavigate();
   const [q, setQ] = useState('');
   const [age, setAge] = useState('');
@@ -37,8 +42,13 @@ export default function GoalListPage() {
   const isLeader = role === ROLES.TEAM_LEADER;
   const isPrincipal = role === ROLES.PRINCIPAL;
 
-  const yearPolicy = eduConfig?.workflowPolicy?.year || { creators: ['TEAM_LEADER'], reviewers: ['VICE_PRINCIPAL'] };
+  const yearPolicy =
+    eduConfig?.workflowPolicy?.[annual ? 'schoolYear' : 'year'] ||
+    (annual
+      ? { creators: [ROLES.VICE_PRINCIPAL], reviewers: [ROLES.PRINCIPAL] }
+      : { creators: [ROLES.TEAM_LEADER], reviewers: [ROLES.VICE_PRINCIPAL] });
   const isYearCreator = (yearPolicy.creators || []).includes(role) && !(yearPolicy.reviewers || []).includes(role);
+  const principalViewer = isPrincipal && !isYearCreator;
 
   // API thật (có permissions): danh sách BE đã theo phạm vi người xem (BE:EDU-06), không lọc lại ở client.
   // Mock: tổ trưởng thấy mọi bản của nhóm tuổi mình; giáo viên chỉ bản đã ban hành của nhóm tuổi các lớp mình dạy
@@ -51,12 +61,14 @@ export default function GoalListPage() {
       (isPrincipal && g.status !== EDU_STATUS.DRAFT && g.status !== EDU_STATUS.EDITING) ||
       (isLeader && g.ageGroupId === user.ageGroupId) ||
       (issuedPlan(g) && (g.ageGroupId === user.ageGroupId || taught.includes(g.ageGroupId)));
-    return goals.filter((g) => g.schoolYear === schoolYear && visible(g));
-  }, [goals, classes, schoolYear, isVP, isPrincipal, isLeader, user]);
+    return goals.filter((g) => g.schoolYear === schoolYear && visible(g) && (!principalViewer || ['APPROVED', 'REPLACED'].includes(g.status)));
+  }, [goals, classes, schoolYear, isVP, isPrincipal, isLeader, user, principalViewer]);
 
-  const canCreate = eduConfig?.yearCreationScopes
-    ? eduConfig.yearCreationScopes.some((id) => !scoped.some((g) => g.ageGroupId === id))
-    : isYearCreator && (!user.ageGroupId || !scoped.some((g) => g.ageGroupId === user.ageGroupId));
+  const creationScopes = eduConfig?.[annual ? 'schoolYearCreationScopes' : 'yearCreationScopes'];
+  const canCreate = !principalViewer && (creationScopes
+    ? creationScopes.some((id) => !scoped.some((g) => g.ageGroupId === id))
+    : isYearCreator && (!user.ageGroupId || !scoped.some((g) => g.ageGroupId === user.ageGroupId)));
+
   const rows = scoped.filter((g) => (!age || g.ageGroupId === age) && (!q || (g.title + g.code).toLowerCase().includes(q.toLowerCase())));
 
   const issued = scoped.filter((g) => g.status === EDU_STATUS.APPROVED || g.status === EDU_STATUS.SENT).length;
@@ -65,12 +77,12 @@ export default function GoalListPage() {
   return (
     <div className="page ga-page">
       <PageHead
-        crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Mục tiêu năm học' }]}
-        title="Mục tiêu năm học"
+        crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: pageLabel }]}
+        title={pageLabel}
         actions={
           canCreate && (
-            <Link to="/education/goals/new" state={{ backTo: '/education/goals' }} className="btn btn--primary">
-              <Plus size={16} aria-hidden /> Lập kế hoạch năm học
+            <Link to={`${basePath}/new`} state={{ backTo: basePath }} className="btn btn--primary">
+              <Plus size={16} aria-hidden /> {annual ? 'Lập kế hoạch năm học' : 'Lập kế hoạch giáo dục tổ'}
             </Link>
           )
         }
@@ -79,14 +91,14 @@ export default function GoalListPage() {
       {/* Tổ trưởng, giáo viên chỉ có 1–2 kế hoạch mỗi năm: không cần thẻ tổng quan, tìm kiếm, lọc */}
       {isVP && (
         <div className="stat-grid">
-          <StatCard tone="blue" label="Kế hoạch trong năm học" value={scoped.length} />
+          <StatCard tone="blue" label={annual ? 'Kế hoạch trong năm học' : 'Kế hoạch giáo dục tổ'} value={scoped.length} />
           <StatCard tone="green" label="Đã ban hành" value={issued} />
           <StatCard tone="orange" label="Chờ duyệt ban hành" value={pending} />
         </div>
       )}
 
       <Card bodyClass={null}>
-        {isVP && (
+        {(isVP || isPrincipal) && (
           <div className="filter-bar">
             <SearchSubmit value={q} placeholder="Tìm theo tên hoặc mã" label="Tìm kế hoạch" onSearch={setQ} />
             <select className="select" value={age} onChange={(e) => setAge(e.target.value)} aria-label="Lọc theo nhóm tuổi">
@@ -117,16 +129,18 @@ export default function GoalListPage() {
           />
         ) : rows.length === 0 ? (
           <EmptyState
-            title="Chưa có kế hoạch năm học"
+            title={`Chưa có ${pageLabel.toLowerCase()}`}
             desc={
-              canCreate
-                ? 'Lập kế hoạch năm học cho nhóm tuổi: mục tiêu, nội dung giáo dục và chủ đề, sự kiện trong năm.'
-                : 'Kế hoạch năm học của nhóm tuổi bạn chưa được ban hành.'
+              annual && eduConfig?.durationPolicyAvailable === false
+                ? 'Bạn có thể mở form kế hoạch năm học để xem trước. Thao tác lưu và gửi duyệt sẽ có khi máy chủ hỗ trợ; kế hoạch giáo dục tổ hiện có vẫn sử dụng bình thường.'
+                : canCreate
+                  ? 'Lập kế hoạch giáo dục tổ cho nhóm tuổi: mục tiêu, nội dung giáo dục và chủ đề, sự kiện trong năm.'
+                  : 'Kế hoạch giáo dục tổ của nhóm tuổi bạn chưa được ban hành.'
             }
             action={
               canCreate && (
-                <Link to="/education/goals/new" state={{ backTo: '/education/goals' }} className="btn btn--primary">
-                  <Plus size={16} aria-hidden /> Lập kế hoạch năm học
+                <Link to={`${basePath}/new`} state={{ backTo: basePath }} className="btn btn--primary">
+                  <Plus size={16} aria-hidden /> {annual ? 'Lập kế hoạch năm học' : 'Lập kế hoạch giáo dục tổ'}
                 </Link>
               )
             }
@@ -149,7 +163,7 @@ export default function GoalListPage() {
                   <tr
                     key={g.id}
                     className="row-click"
-                    {...clickableRowProps(() => navigate(`/education/goals/${g.id}`, { state: { backTo: '/education/goals' } }))}
+                    {...clickableRowProps(() => navigate(`${basePath}/${g.id}`, { state: { backTo: basePath } }))}
                   >
                     <td>
                       <div className="ga-cell-title">{g.title}</div>
@@ -165,8 +179,10 @@ export default function GoalListPage() {
                     </td>
                     <td className="center">
                       <YearPlanStatusBadge
+                        doc={g}
                         status={
-                          g.status === EDU_STATUS.APPROVED && !(g.current ?? currentPlanOf(goals, g.ageGroupId, g.schoolYear)?.id === g.id)
+                          g.status === EDU_STATUS.APPROVED &&
+                          !(g.current ?? currentPlanOf(goals, g.ageGroupId, g.schoolYear, planLevel)?.id === g.id)
                             ? 'REPLACED'
                             : g.status
                         }

@@ -10,7 +10,7 @@ import { weekBreaks } from '@/models/education-plan/goalTable';
 export const CLASS_DOC = { BRANCH: 'branch', THEME: 'theme', WEEK: 'week' };
 
 export const CLASS_DOC_LABELS = {
-  year: 'Kế hoạch năm học',
+  year: 'Kế hoạch giáo dục tổ',
   branch: 'Chủ đề nhánh và thời gian',
   theme: 'Kế hoạch chủ đề',
   week: 'Giáo án tuần (kế hoạch chủ đề)',
@@ -281,7 +281,17 @@ export const themeNumber = (plan, themeId) =>
     .findIndex((t) => t.id === themeId) + 1;
 
 /** Số thứ tự chủ đề nhánh trong chủ đề ("Chủ đề nhánh 1") của một tuần. */
-export const branchNumber = (plan, weekStart) => {
+export const branchNumber = (plan, weekStart, branchDoc) => {
+  if (branchDoc?.schemaVersion === 2) {
+    const branch = branchDoc.branches.find((b) => weekStart >= b.startDate && weekStart <= b.endDate);
+    if (!branch) return 0;
+    return (
+      branchDoc.branches
+        .filter((b) => b.themeId === branch.themeId)
+        .sort((a, b) => a.startDate.localeCompare(b.startDate))
+        .findIndex((b) => b.key === branch.key) + 1
+    );
+  }
   const weeks = yearWeeks(plan).filter((w) => w.type === 'week');
   const week = weeks.find((w) => w.start === weekStart);
   return week ? weeks.filter((w) => w.theme.id === week.theme.id).findIndex((w) => w.start === weekStart) + 1 : 0;

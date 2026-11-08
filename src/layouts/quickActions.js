@@ -57,7 +57,7 @@ const QUICK_ACTIONS = [
     roles: VP_ONLY,
   },
   {
-    label: 'Kế hoạch năm học',
+    label: 'Kế hoạch giáo dục tổ',
     to: '/education/goals',
     group: 'Kế hoạch giáo dục',
     icon: Target,

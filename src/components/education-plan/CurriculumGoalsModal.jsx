@@ -1,11 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Download } from '@/components/ui/icons';
 import { GoalPicker } from '@/components/education-plan/GoalPicker';
 import { Tabs } from '@/components/ui/Tabs';
 import { useCurriculum } from '@/hooks/education-plan/useCurriculum';
 import { AGE_GROUPS } from '@/models/education-plan/educationPlanConstants';
-import { curriculumPickTree, curriculumSourceLink, curriculumTree, goalTargets } from '@/models/education-plan/curriculum.mjs';
+import { curriculumPickTree, curriculumSourceLink, curriculumTree, goalTargets, filterGoalTargets, filterCurriculumContents, validContentSelection } from '@/models/education-plan/curriculum.mjs';
 import { EmptyState, Modal, Notice } from '@/components/education-plan/eduUi';
 import { ErrorState, LoadingState } from '@/components/ui/States';
 
@@ -19,18 +19,28 @@ export default function CurriculumGoalsModal({ ageGroupId, form, onClose, onImpo
   const [tab, setTab] = useState('goals');
   const [picked, setPicked] = useState(() => new Set());
   const [target, setTarget] = useState('');
-  const [domainFilter, setDomainFilter] = useState('');
-  const [subFilter, setSubFilter] = useState('');
+  const [filter, setFilter] = useState({});
   const [suggested, setSuggested] = useState(() => new Set());
   const tree = useMemo(() => curriculumTree(data.goals), [data.goals]);
-  const targets = useMemo(() => goalTargets(form), [form]);
+  const allTargets = useMemo(() => goalTargets(form), [form]);
+  const targets = useMemo(() => filterGoalTargets(form, filter), [form, filter]);
   const chosenTarget = targets.find((t) => t.id === target);
   const targetTitle = chosenTarget ? `${chosenTarget.domainName} · ${chosenTarget.text}` : undefined;
-  const targetDomain = targets.find((t) => t.id === target)?.domainName || '';
-  const filterDomain = domainFilter || targetDomain;
-  const inDomain = data.contents.filter((c) => !filterDomain || c.domainName === filterDomain);
-  const subDomains = [...new Set(inDomain.map((c) => c.subDomain).filter(Boolean))];
-  const suggestions = inDomain.filter((c) => !subFilter || c.subDomain === subFilter);
+  const domain = form.domains.find((d) => String(d.id) === String(filter.domainId));
+  const subs = domain?.rows.filter((r) => r.kind === 'sub') || [];
+  const groups = [...new Map(filterGoalTargets(form, { ...filter, groupRowId: '' }).map((t) => [t.groupRowId, t.group])).values()].filter(Boolean);
+  const selectedSub = subs.find((s) => String(s.id) === String(filter.subRowId));
+  const sourceSubs = [...new Map(data.contents.filter((c) => !domain || c.domainName === domain.name).map((c) => [c.subDomainId ?? '@none', c])).values()];
+  const suggestions = useMemo(() => filterCurriculumContents(form, filter, data.contents), [form, filter, data.contents]);
+  const selection = validContentSelection(form, filter, target, suggestions, suggested);
+  useEffect(() => {
+    if (target && !chosenTarget) setTarget('');
+    setSuggested((old) => {
+      const next = new Set([...old].filter((id) => suggestions.some((c) => c.id === id)));
+      return next.size === old.size ? old : next;
+    });
+  }, [target, chosenTarget, suggestions]);
+  useEffect(() => { setTarget(''); setSuggested(new Set()); setFilter({}); setPicked(new Set()); }, [ageGroupId]);
   const source = data.sources[0];
   const ageName = AGE_GROUPS.find((a) => a.id === ageGroupId)?.name || '';
 
@@ -92,12 +102,9 @@ export default function CurriculumGoalsModal({ ageGroupId, form, onClose, onImpo
     if (onImportGoals(goals)) onClose();
   };
   const confirmContents = () => {
-    if (
-      onAddContents(
-        target,
-        data.contents.filter((c) => suggested.has(c.id)),
-      )
-    )
+    const valid = validContentSelection(form, filter, target, suggestions, suggested);
+    if (!valid.targetId || !valid.items.length || data.loading || data.error) return;
+    if (onAddContents(valid.targetId, valid.items, { filter, ageGroupId, formId: form.id, catalog: data.contents }))
       setSuggested(new Set());
   };
 
@@ -117,8 +124,8 @@ export default function CurriculumGoalsModal({ ageGroupId, form, onClose, onImpo
               <Download size={16} aria-hidden /> Thêm {picked.size || ''} mục tiêu
             </button>
           ) : (
-            <button className="btn btn--primary" disabled={!target || !suggested.size} onClick={confirmContents}>
-              <Download size={16} aria-hidden /> Thêm {suggested.size || ''} nội dung
+            <button className="btn btn--primary" disabled={!selection.targetId || !selection.items.length || data.loading || !!data.error} onClick={confirmContents}>
+              <Download size={16} aria-hidden /> Thêm {selection.items.length || ''} nội dung
             </button>
           )}
         </>
@@ -163,78 +170,47 @@ export default function CurriculumGoalsModal({ ageGroupId, form, onClose, onImpo
         />
       ) : (
         <>
-          {!targets.length ? (
-            <Notice tone="warn">Bản đang soạn chưa có mục tiêu.</Notice>
-          ) : (
-            <div className="ga-cur-toolbar ga-cur-filters ga-cur-content-filters">
-              <div className="field">
-                <label className="field__label" htmlFor="cur-target">
-                  Thêm vào mục tiêu <span className="req">*</span>
-                </label>
-                <select
-                  id="cur-target"
-                  className="select ga-cur-select--ellipsis"
-                  value={target}
-                  title={targetTitle}
-                  onChange={(e) => {
-                    setTarget(e.target.value);
-                    setSubFilter('');
-                  }}
-                >
-                  <option value="">Chọn mục tiêu</option>
-                  {targets.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.domainName} · {t.text.slice(0, 90)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="field">
-                <label className="field__label" htmlFor="cur-domain">
-                  Lĩnh vực
-                </label>
-                <select
-                  id="cur-domain"
-                  className="select ga-cur-select--ellipsis"
-                  value={domainFilter}
-                  title={domainFilter || (targetDomain ? `Theo mục tiêu (${targetDomain})` : 'Tất cả lĩnh vực')}
-                  onChange={(e) => {
-                    setDomainFilter(e.target.value);
-                    setSubFilter('');
-                  }}
-                >
-                  <option value="">{targetDomain ? `Theo mục tiêu (${targetDomain})` : 'Tất cả lĩnh vực'}</option>
-                  {[...new Set(data.contents.map((c) => c.domainName))].map((d) => (
-                    <option key={d} value={d}>
-                      {d}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              {subDomains.length > 0 && (
-                <div className="field">
-                  <label className="field__label" htmlFor="cur-sub">
-                    Lĩnh vực con
-                  </label>
-                  <select
-                    id="cur-sub"
-                    className="select"
-                    value={subFilter}
-                    title={subFilter || 'Tất cả'}
-                    onChange={(e) => setSubFilter(e.target.value)}
-                  >
-                    <option value="">Tất cả</option>
-                    {subDomains.map((s) => (
-                      <option key={s} value={s}>
-                        {s}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
+          {!allTargets.length && <Notice tone="warn">Bản đang soạn chưa có mục tiêu.</Notice>}
+          <div className="ga-cur-toolbar ga-cur-filters ga-cur-content-filters">
+            <div className="field">
+              <label className="field__label" htmlFor="cur-domain">Lĩnh vực</label>
+              <select id="cur-domain" className="select" value={filter.domainId || ''} onChange={(e) => setFilter({ domainId: e.target.value })}>
+                <option value="">Tất cả lĩnh vực</option>
+                {form.domains.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+              </select>
             </div>
-          )}
-          <p className="muted text-sm">Chọn mục tiêu đích, lọc lĩnh vực rồi tích từng nội dung để thêm.</p>
+            <div className="field">
+              <label className="field__label" htmlFor="cur-sub">Lĩnh vực con</label>
+              <select id="cur-sub" className="select" value={filter.subRowId || ''} disabled={!domain} onChange={(e) => setFilter({ domainId: filter.domainId, subRowId: e.target.value })}>
+                <option value="">Tất cả lĩnh vực con</option>
+                <option value="@none">Không thuộc lĩnh vực con</option>
+                {subs.map((sub) => <option key={sub.id} value={sub.id}>{sub.text || 'Chưa đặt tên'}</option>)}
+              </select>
+            </div>
+            <div className="field">
+              <label className="field__label" htmlFor="cur-group">Kết quả mong đợi</label>
+              <select id="cur-group" className="select" value={filter.groupRowId || ''} onChange={(e) => setFilter({ ...filter, groupRowId: e.target.value })}>
+                <option value="">Tất cả kết quả mong đợi</option>
+                <option value="@none">Không thuộc nhóm</option>
+                {groups.map((group) => <option key={group.id} value={group.id}>{group.text || 'Chưa đặt tên'}</option>)}
+              </select>
+            </div>
+            <div className="field">
+              <label className="field__label" htmlFor="cur-target">Thêm vào mục tiêu <span className="req">*</span></label>
+              <select id="cur-target" className="select ga-cur-select--ellipsis" value={selection.targetId} title={targetTitle} onChange={(e) => setTarget(e.target.value)}>
+                <option value="">Chọn mục tiêu</option>
+                {targets.map((t) => <option key={t.id} value={t.id}>{t.domainName} · {t.text}</option>)}
+              </select>
+            </div>
+            {selectedSub && selectedSub.curriculumSubDomainId == null && <div className="field">
+              <label className="field__label" htmlFor="cur-source-sub">Lĩnh vực con nguồn gợi ý</label>
+              <select id="cur-source-sub" className="select" value={filter.sourceSubId || ''} onChange={(e) => setFilter({ ...filter, sourceSubId: e.target.value })}>
+                <option value="">Chọn ngữ cảnh nguồn của Bộ</option>
+                {sourceSubs.map((c) => <option key={c.subDomainId ?? '@none'} value={c.subDomainId ?? '@none'}>{c.subDomain || 'Không có lĩnh vực con'}</option>)}
+              </select>
+            </div>}
+          </div>
+          <p className="muted text-sm">Lọc lĩnh vực, lĩnh vực con, kết quả mong đợi rồi chọn mục tiêu đích. Gợi ý mục C chỉ lọc theo lĩnh vực/lĩnh vực con.</p>
           <div className="ga-cur-list ga-cur-content-list">
             {!suggestions.length && (
               <p className="muted" role="status">
@@ -249,7 +225,7 @@ export default function CurriculumGoalsModal({ ageGroupId, form, onClose, onImpo
                 <div key={c.id} className="ga-cur-suggestion">
                   {showHead && <div className="ga-cur-sub__name">{head}</div>}
                   <label className="ga-cur-row">
-                    <input type="checkbox" disabled={!target} checked={suggested.has(c.id)} onChange={() => toggleSuggestion(c.id)} />
+                    <input type="checkbox" disabled={!selection.targetId} checked={selection.items.some((item) => item.id === c.id)} onChange={() => toggleSuggestion(c.id)} />
                     <span className="ga-cur-row__text">
                       {c.label && <span className="muted">{c.label}: </span>}
                       {c.text}

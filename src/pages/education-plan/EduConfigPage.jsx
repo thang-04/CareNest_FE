@@ -254,7 +254,7 @@ export default function EduConfigPage() {
     );
 
   return (
-    <div className="page ga-page">
+    <div className="page ga-page ga-config-page">
       <PageHead
         crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Cấu hình' }]}
         title="Cấu hình kế hoạch giáo dục"
@@ -298,7 +298,65 @@ export default function EduConfigPage() {
         }
       />
 
-      <Card title="1. Lĩnh vực giáo dục" bodyClass={null}>
+      <Card title="1. Thời lượng chủ đề / chủ đề nhánh" bodyClass={null}>
+        <div className="card__body stack">
+          {eduConfig.durationPolicyAvailable === false && (
+            <Notice>Máy chủ hiện chưa hỗ trợ cấu hình thời lượng. Các cấu hình hiện có vẫn sử dụng bình thường.</Notice>
+          )}
+          <div className="table-wrap">
+            <table className="table ga-plan-table ga-goal-table" onMouseDown={focusCell}>
+              <thead>
+                <tr>
+                  <th className="cell--fixed">Loại chủ đề</th>
+                  <th>Tối thiểu (tuần)</th>
+                  <th>Tối đa (tuần)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  ['theme', 'Chủ đề lớn'],
+                  ['branch', 'Chủ đề nhánh'],
+                ].map(([key, label]) => (
+                  <tr key={key}>
+                    <td className="cell--fixed">
+                      <div className="ga-goal-table__pad ga-cell-text">{label}</div>
+                    </td>
+                    {['minWeeks', 'maxWeeks'].map((bound) => (
+                      <td
+                        key={bound}
+                        className={editing && isPrincipal && eduConfig.durationPolicyAvailable !== false ? undefined : 'cell--fixed'}
+                      >
+                        {editing && isPrincipal && eduConfig.durationPolicyAvailable !== false ? (
+                          <input
+                            className="ga-cell-input"
+                            type="number"
+                            min="1"
+                            step="1"
+                            aria-label={`${label} ${bound === 'minWeeks' ? 'tối thiểu' : 'tối đa'}`}
+                            value={draft.durationPolicy?.[key]?.[bound] ?? ''}
+                            onChange={(e) =>
+                              setDraft((d) => ({
+                                ...d,
+                                durationPolicy: {
+                                  ...d.durationPolicy,
+                                  [key]: { ...d.durationPolicy[key], [bound]: Number(e.target.value) },
+                                },
+                              }))
+                            }
+                          />
+                        ) : (
+                          <div className="ga-goal-table__pad ga-cell-text">{draft.durationPolicy?.[key]?.[bound] ?? '—'}</div>
+                        )}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </Card>
+      <Card title="2. Lĩnh vực giáo dục" bodyClass={null}>
         <div className="card__body stack">
           <div className="table-wrap">
             <table className="table ga-plan-table ga-goal-table" onMouseDown={focusCell}>
@@ -322,7 +380,7 @@ export default function EduConfigPage() {
                       <td className="cell--fixed ga-stt">
                         <div className="ga-goal-table__pad">{DOMAIN_ROMAN[i] || i + 1}</div>
                       </td>
-                      <td>
+                      <td className={editing ? undefined : 'cell--fixed'}>
                         {/* Tên hiển thị gõ thẳng; để trống thì dùng lại tên gốc */}
                         <Cell
                           editable={editing}
@@ -384,7 +442,7 @@ export default function EduConfigPage() {
         </div>
       </Card>
 
-      <Card title="2. Người tạo/duyệt" bodyClass={null}>
+      <Card title="3. Người tạo/duyệt" bodyClass={null}>
         <div className="card__body stack gap-2">
           {editing && !isPrincipal && <Notice tone="info">Chỉ Hiệu trưởng mới có quyền thay đổi cấu hình người tạo và người duyệt.</Notice>}
           <div className="table-wrap">
@@ -414,7 +472,14 @@ export default function EduConfigPage() {
                       const policy = draft.workflowPolicy?.[doc.key] ||
                         DEFAULT_WORKFLOW_POLICY[doc.key] || { creators: [], reviewers: draft.signers?.[doc.key] || [] };
                       return (
-                        <td key={doc.key}>
+                        <td
+                          key={doc.key}
+                          className={
+                            editing && isPrincipal && (doc.key !== 'schoolYear' || eduConfig.durationPolicyAvailable !== false)
+                              ? undefined
+                              : 'cell--fixed'
+                          }
+                        >
                           {row.key === 'creator' ? (
                             <WorkflowPolicyConfig
                               docKey={doc.key}
@@ -422,7 +487,7 @@ export default function EduConfigPage() {
                               policy={policy}
                               onChange={(next) => updateDocWorkflow(doc.key, { ...policy, ...next })}
                               editing={editing}
-                              canEdit={isPrincipal}
+                              canEdit={isPrincipal && (doc.key !== 'schoolYear' || eduConfig.durationPolicyAvailable !== false)}
                               askDelete={setConfirmDelete}
                               toast={toast}
                               mode="creator"
@@ -434,7 +499,7 @@ export default function EduConfigPage() {
                               policy={policy}
                               onChange={(next) => updateDocWorkflow(doc.key, { ...policy, ...next })}
                               editing={editing}
-                              canEdit={isPrincipal}
+                              canEdit={isPrincipal && (doc.key !== 'schoolYear' || eduConfig.durationPolicyAvailable !== false)}
                               askDelete={setConfirmDelete}
                               toast={toast}
                               mode="reviewer"
@@ -451,7 +516,7 @@ export default function EduConfigPage() {
         </div>
       </Card>
 
-      <Card title="3. Các dòng hoạt động của kế hoạch tuần" bodyClass={null}>
+      <Card title="4. Các dòng hoạt động của kế hoạch tuần" bodyClass={null}>
         <div className="card__body stack">
           <div className="table-wrap">
             <SortableList
@@ -489,7 +554,7 @@ export default function EduConfigPage() {
                           <SortIndex id={r.key} index={i} />
                         </div>
                       </td>
-                      <td>
+                      <td className={editing ? undefined : 'cell--fixed'}>
                         <Cell
                           editable={editing}
                           value={r.label}
@@ -497,7 +562,7 @@ export default function EduConfigPage() {
                           onChange={(v) => set((x) => ((x.weekRows[i].label = v), x))}
                         />
                       </td>
-                      <td className="center">
+                      <td className={`center${editing ? '' : ' cell--fixed'}`}>
                         <div className="ga-goal-table__pad">
                           {!editing ? (
                             yesNo(r.canMerge, 'Cho gộp cả tuần')
@@ -513,7 +578,7 @@ export default function EduConfigPage() {
                           )}
                         </div>
                       </td>
-                      <td className="center">
+                      <td className={`center${editing ? '' : ' cell--fixed'}`}>
                         <div className="ga-goal-table__pad">
                           {!editing ? (
                             yesNo(r.allWeek, 'Mặc định cả tuần')

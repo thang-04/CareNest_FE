@@ -199,13 +199,13 @@ test('ST-02 rời màn khi chưa lưu: hỏi Hủy · Không lưu · Lưu; Khôn
   await page.locator('#desc').fill('Sửa rồi bỏ (ST-02)');
   await page.waitForTimeout(1200);
   expect((await storageKeys(page, 'year-plan-recovery')).length).toBeGreaterThan(0);
-  await page.locator('nav, aside').getByRole('link', { name: 'Kế hoạch năm học' }).first().click();
+  await page.locator('nav, aside').getByRole('link', { name: 'Kế Hoạch Tổ' }).first().click();
   const dialog = page.getByRole('dialog', { name: 'Có thay đổi chưa lưu' });
   await expect(dialog).toBeVisible();
   await expect(dialog.getByRole('button')).toHaveText(['Hủy', 'Không lưu', 'Lưu']);
   await dialog.getByRole('button', { name: 'Hủy' }).click();
   await expect(page).toHaveURL(new RegExp(`/goals/${planId}/edit`));
-  await page.locator('nav, aside').getByRole('link', { name: 'Kế hoạch năm học' }).first().click();
+  await page.locator('nav, aside').getByRole('link', { name: 'Kế Hoạch Tổ' }).first().click();
   await page.getByRole('dialog').getByRole('button', { name: 'Không lưu' }).click();
   await expect(page).toHaveURL(/\/education\/goals$/);
   expect(await storageKeys(page, 'year-plan-recovery')).toEqual([]);
@@ -259,7 +259,7 @@ test('ST-02b viết tắt chủ đề trùng: chỉ báo đỏ tại ô, Enter �
   await abbr.press('Enter');
   await expect(page.getByLabel(`Viết tắt chủ đề ${n + 1}`)).toBeFocused();
   await expect(page.getByLabel('Thêm chủ đề')).toHaveAttribute('placeholder', 'Nhập tên chủ đề mới');
-  await page.locator('nav, aside').getByRole('link', { name: 'Kế hoạch năm học' }).first().click();
+  await page.locator('nav, aside').getByRole('link', { name: 'Kế Hoạch Tổ' }).first().click();
   await page.getByRole('dialog').getByRole('button', { name: 'Không lưu' }).click();
   await expect(page).toHaveURL(/\/education\/goals$/);
   await leave(page);
@@ -283,7 +283,7 @@ test('ST-02c Phó HT đang xem bản do Tổ trưởng giữ quyền sửa: Tổ
   b.on('framenavigated', (frame) => frame === b.mainFrame() && navigations.push(frame.url()));
 
   // A rời trang soạn (không đổi gì) ⇒ nhả quyền; B tự thấy trong vài giây, không tải lại trang
-  await a.locator('nav, aside').getByRole('link', { name: 'Kế hoạch năm học' }).first().click();
+  await a.locator('nav, aside').getByRole('link', { name: 'Kế Hoạch Tổ' }).first().click();
   await expect(a).toHaveURL(/\/education\/goals$/);
   await expect(b.getByRole('link', { name: 'Chỉnh sửa' })).toBeVisible({ timeout: 15_000 });
   await expect(b.getByText(/^Đang được .+ sửa từ/)).toHaveCount(0);
@@ -370,7 +370,7 @@ test('ST-04 Tổ trưởng gửi Phó HT duyệt kế hoạch năm', async ({ pa
   await login(page, USERS.teacher1);
   await page.goto(`/education/goals/${planId}/edit`);
   await expect(page.locator('#desc')).toBeEditable();
-  await review(page, 'Gửi Phó HT duyệt', 'Gửi');
+  await review(page, 'Gửi duyệt', 'Gửi duyệt');
   await expect.poll(async () => (await goal()).status).toBe('PENDING_VP');
   await leave(page);
 });
@@ -405,7 +405,7 @@ test('ST-05b chi tiết bản Bị trả lại: mã kế hoạch không chồng 
   const tl = await ctx.newPage();
   await login(tl, USERS.teacher1);
   await tl.goto(`/education/goals/${planId}`);
-  await expect(tl.getByRole('button', { name: 'Gửi Phó HT duyệt' })).toBeVisible();
+  await expect(tl.getByRole('button', { name: 'Gửi duyệt' })).toBeVisible();
   // Đầu trang giờ chỉ còn 1 nút Xuất nên không tái hiện được lỗi chồng cũ (cần 3 nút); chỉ kiểm không chồng
   expect(await headerOverlaps(tl)).toBe(false);
   if (process.env.E2E_SHOTS) await tl.screenshot({ path: 'docs/test-reports/assets/b1-after-1280.png' });
@@ -415,7 +415,7 @@ test('ST-05b chi tiết bản Bị trả lại: mã kế hoạch không chồng 
   const m = await mctx.newPage();
   await login(m, USERS.teacher1);
   await m.goto(`/education/goals/${planId}`);
-  await expect(m.getByRole('button', { name: 'Gửi Phó HT duyệt' })).toBeVisible();
+  await expect(m.getByRole('button', { name: 'Gửi duyệt' })).toBeVisible();
   expect(await headerOverlaps(m)).toBe(false);
   if (process.env.E2E_SHOTS) await m.screenshot({ path: 'docs/test-reports/assets/b1-after-375.png' });
   await mctx.close();
@@ -426,7 +426,7 @@ test('ST-06 Tổ trưởng gửi lại; Phó HT ban hành; giáo viên chỉ xem
   await login(tl, USERS.teacher1);
   await tl.goto(`/education/goals/${planId}/edit`);
   await expect(tl.locator('#desc')).toBeEditable();
-  await review(tl, 'Gửi Phó HT duyệt', 'Gửi');
+  await review(tl, 'Gửi duyệt', 'Gửi duyệt');
   await expect.poll(async () => (await goal()).status).toBe('PENDING_VP');
   const vp = await (await browser.newContext()).newPage();
   await login(vp, USERS.vp);
@@ -462,7 +462,7 @@ test('ST-07 giáo viên đặt tên chủ đề nhánh, lưu tay và gửi duy�
   await expectNoAutosaveWording(page);
   await page.getByRole('button', { name: 'Lưu', exact: true }).click();
   await expect(saveStatus(page)).toHaveText(/Đã lưu lúc/);
-  await review(page, /^Gửi .* duyệt$/, 'Gửi');
+  await review(page, /^Gửi duyệt$/, 'Gửi duyệt');
   await expect.poll(() => docStatus(branchKey())).toBe('PENDING_TL');
 });
 
@@ -481,7 +481,7 @@ test('ST-08 Tổ trưởng duyệt; Phó HT trả lại có lý do; giáo viên 
   await t2.getByPlaceholder('Nhập tên chủ đề nhánh').first().fill('Lớp học của bé (ST-08)');
   await t2.keyboard.press('Control+s');
   await expect(saveStatus(t2)).toHaveText(/Đã lưu lúc/);
-  await review(t2, /^Gửi .* duyệt$/, 'Gửi');
+  await review(t2, /^Gửi duyệt$/, 'Gửi duyệt');
   await expect.poll(() => docStatus(branchKey())).toBe('PENDING_TL');
   await review(await as(USERS.teacher1), 'Duyệt', 'Duyệt');
   await review(await as(USERS.vp), 'Duyệt', 'Duyệt');
@@ -540,7 +540,7 @@ test('ST-11 Tổ trưởng dạy chính lớp ⇒ gửi hồ sơ chủ đề th�
     await page.close();
     const dossier = await context.newPage();
     await pickYearAfterReload(dossier, `/education/class/${ref.classroom}/themes/${themeId}`);
-    await review(dossier, 'Gửi Phó HT duyệt', 'Gửi');
+    await review(dossier, 'Gửi duyệt', 'Gửi duyệt');
     await expect.poll(() => docStatus(themeKey())).toBe('PENDING_VP');
     const week = await context.newPage();
     await pickYearAfterReload(week, weekPath);

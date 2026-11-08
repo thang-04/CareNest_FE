@@ -40,8 +40,13 @@ export const toUiEduConfig = (config) => {
     domainLabels: Object.fromEntries(domains.filter((d) => d.displayLabel).map((d) => [d.name, d.displayLabel])),
     extraDomains: domains.filter((d) => !d.standard).map((d) => d.name),
     workflowPolicy: config?.workflow?.policies || config?.workflowPolicy || null,
+    durationPolicyAvailable: config?.durationPolicyAvailable ?? true,
     workflowRevision: config?.workflow?.revision ?? config?.workflowRevision ?? 1,
     canConfigure: config?.workflow?.canConfigure ?? false,
+    ...(config?.durationPolicy ? { durationPolicy: config.durationPolicy } : {}),
+    ...(config?.schoolYearCreationScopes
+      ? { schoolYearCreationScopes: config.schoolYearCreationScopes.map((id) => buildRefs(config).ageGroupCode(id)).filter(Boolean) }
+      : {}),
     yearCreationScopes: (config?.yearCreationScopes || []).map((id) => buildRefs(config).ageGroupCode(id)).filter(Boolean),
     ...(config?.signers ? { signers: config.signers } : {}),
     ...(config?.weekRows ? { weekRows: config.weekRows } : {}),
@@ -71,7 +76,10 @@ export const toUiGoal = (detail, refs) => {
       kind: r.kind,
       text: r.text,
       ...(r.kind === 'goal'
-        ? { contents: r.contents.map((c) => ({ id: String(c.id), text: c.text, themes: c.themeIds.map(String) })) }
+        ? {
+            displayLabel: r.displayLabel ?? null,
+            contents: r.contents.map((c) => ({ id: String(c.id), text: c.text, themes: c.themeIds.map(String) })),
+          }
         : {}),
       // Dòng lấy từ Chương trình của Bộ (BE:EDU-28): giữ liên kết nguồn để bỏ trùng khi lấy lại, không hiện nhãn
       ...(r.curriculumGoalId
@@ -89,10 +97,23 @@ export const toUiGoal = (detail, refs) => {
       rows,
       items: rows
         .filter((r) => r.kind === 'goal')
-        .map((r) => ({ id: r.id, code: `MT${goalNo[r.id]}`, text: r.text, contents: r.contents, requirements: [] })),
+        .map((r) => ({
+          id: r.id,
+          code: r.displayLabel?.trim() || `MT${goalNo[r.id]}`,
+          text: r.text,
+          contents: r.contents,
+          requirements: [],
+        })),
     };
   });
   return {
+    planLevel: detail.planLevel || 'TEAM',
+    sourceMode: detail.sourceMode || 'LEGACY',
+    curriculumSourcePlanId: detail.curriculumSourcePlanId == null ? null : String(detail.curriculumSourcePlanId),
+    branchTemplates: (detail.branchTemplates || []).map((t) => ({ ...t, id: String(t.id), themeId: String(t.themeId) })),
+    durationPolicySnapshot: detail.durationPolicySnapshot,
+    sourceChanges: detail.sourceChanges || null,
+    remapWarnings: detail.remapWarnings || [],
     id: String(detail.id),
     revision: detail.revision ?? 0,
     editExpiresAt: detail.editExpiresAt,
@@ -147,6 +168,16 @@ export const toUiGoal = (detail, refs) => {
 
 /** Kế hoạch năm dạng UI → YearPlanRequest (lưu cả văn bản). Lĩnh vực BE không có thì bỏ qua. */
 export const toYearPlanRequest = (goal, refs) => ({
+  planLevel: goal.planLevel || 'TEAM',
+  ...(goal.curriculumSourcePlanId ? { curriculumSourcePlanId: serverId(goal.curriculumSourcePlanId) } : {}),
+  branchTemplates: (goal.branchTemplates || []).map((t) => ({
+    key: String(t.id),
+    id: serverId(t.id),
+    themeKey: String(t.themeId),
+    name: t.name,
+    startDate: t.startDate || null,
+    endDate: t.endDate || null,
+  })),
   schoolYearId: refs.schoolYearId(goal.schoolYear),
   ageGroupId: refs.ageGroupId(goal.ageGroupId),
   title: goal.title,
@@ -160,6 +191,7 @@ export const toYearPlanRequest = (goal, refs) => ({
         id: serverId(r.id),
         kind: r.kind,
         text: r.text,
+        ...(r.kind === 'goal' && r.displayLabel != null ? { displayLabel: r.displayLabel } : {}),
         contents: (r.contents || []).map((c) => ({ id: serverId(c.id), text: c.text, themeKeys: (c.themes || []).map(String) })),
         curriculumGoalId: r.kind === 'goal' ? (r.curriculumGoalId ?? null) : null,
         curriculumSubDomainId: r.kind === 'sub' ? (r.curriculumSubDomainId ?? null) : null,

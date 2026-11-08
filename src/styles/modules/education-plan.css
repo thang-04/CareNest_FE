@@ -488,10 +488,6 @@
 .ga-goal-table__del {
   width: 64px;
 }
-/* Cột "Sắp xếp" bảng chủ đề, đợt nghỉ: tay nắm kéo-thả và 2 nút lên/xuống trên 1 hàng */
-.ga-goal-table__sort {
-  width: 132px;
-}
 .ga-sort-cell {
   display: flex;
   align-items: center;
@@ -556,6 +552,46 @@
 .ga-goal-line__text {
   display: flex;
   align-items: flex-start;
+}
+.ga-goal-label-cell {
+  position: relative;
+}
+.ga-goal-label-fill {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  display: inline-flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  width: var(--space-6);
+  height: var(--space-6);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: crosshair;
+  touch-action: none;
+  opacity: 0;
+  pointer-events: none;
+}
+.ga-goal-label-cell:focus-within .ga-goal-label-fill {
+  opacity: 1;
+  pointer-events: auto;
+}
+.ga-goal-label-fill::after {
+  content: '';
+  width: var(--space-1-5);
+  height: var(--space-1);
+  background: var(--color-primary);
+  outline: 1px solid var(--color-surface);
+  pointer-events: none;
+}
+.ga-goal-label-fill:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: -2px;
+}
+.table.ga-goal-table tbody tr:nth-child(n) td.ga-goal-label-cell--fill,
+.table.ga-goal-table tbody tr:nth-child(n):hover td.ga-goal-label-cell--fill {
+  background: var(--color-primary-soft);
 }
 .ga-goal-line__text .icon-btn {
   margin: var(--space-1);
@@ -638,7 +674,7 @@
 /* Dòng lĩnh vực con (1., 2.…) trong bảng mục tiêu: dải vàng chói như bút highlight của Word, trải hết hàng,
    cao vừa dòng chữ, chữ đen đậm. Hệ thống chưa có token vàng này nên khai báo biến riêng cho module (Tiền chọn màu 14/10). */
 .ga-goal-table {
-  --ga-highlight: var(--surface) f00;
+  --ga-highlight: #ffff00;
 }
 .ga-goal-table__subname {
   display: flex;
@@ -666,11 +702,6 @@
 .ga-goal-table__subname:focus-within {
   outline: 2px solid var(--color-primary);
   outline-offset: -2px;
-}
-.ga-goal-table__subname .icon-btn {
-  width: auto;
-  height: auto;
-  padding: 0 var(--space-1);
 }
 /* Gợi ý kết quả mong đợi trong ô bảng mục tiêu: danh sách rộng hơn cột để đọc đủ câu */
 .ga-goal-table .search-select__panel {
@@ -812,6 +843,9 @@
 .table.ga-goal-table td:not(.ga-goal-table__subband):focus-within {
   outline: 2px solid var(--color-primary);
   outline-offset: -2px;
+}
+.ga-config-page .table.ga-goal-table td:not(.ga-goal-table__subband):focus-within {
+  outline: none;
 }
 .table.ga-goal-table td .ga-cell-input:focus {
   outline: none;
@@ -1200,7 +1234,35 @@
   flex: none;
 }
 .ga-cur-content-filters {
-  grid-template-columns: minmax(0, 2fr) repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.ga-suggest-context,
+.ga-suggest-state {
+  padding: var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--text-2);
+}
+.ga-suggest-context:empty {
+  display: none;
+}
+.ga-suggest-context label {
+  display: block;
+  margin-bottom: var(--space-2);
+}
+.ga-suggest-context .select {
+  width: 100%;
+}
+.ga-curriculum-options .search-select__option {
+  min-height: 44px;
+  white-space: normal;
+  text-align: left;
+}
+.ga-curriculum-options .search-select__option[aria-selected='true'] {
+  background: var(--primary-50);
+}
+.ga-curriculum-suggest [role='combobox']:focus-visible,
+.ga-suggest-context .select:focus-visible {
+  box-shadow: var(--focus-ring);
 }
 .ga-cur-chip:focus-visible,
 .ga-cur-row input:focus-visible,
@@ -2021,4 +2083,318 @@ h2.ga-cur-domain__head {
   min-width: 180px;
   border-color: var(--color-border-strong, var(--border));
   background-color: var(--surface);
+}
+
+.ga-annual-theme-table .ga-col-mt {
+  width: 240px;
+  min-width: 200px;
+}
+
+.table.ga-annual-theme-table tbody tr td.ga-branch-template-cell,
+.table.ga-annual-theme-table tbody tr:hover td.ga-branch-template-cell,
+.table.ga-annual-theme-table tbody tr:nth-child(even) td.ga-branch-template-cell {
+  background: var(--color-white, #fff);
+}
+
+.ga-branch-range-label {
+  background: var(--color-secondary);
+  padding: 4px 8px;
+}
+.ga-branch-calendar-controls input:not(:disabled) {
+  background: var(--color-white, #fff);
+}
+.ga-branch-calendar-controls input:disabled {
+  background: var(--color-secondary);
+}
+
+.table.ga-goal-table.ga-curriculum-fixed tbody tr td:not(.ga-theme-tick-cell):not(.ga-goal-table__domain):not(.ga-goal-table__subband),
+.table.ga-goal-table.ga-curriculum-fixed
+  tbody
+  tr:hover
+  td:not(.ga-theme-tick-cell):not(.ga-goal-table__domain):not(.ga-goal-table__subband) {
+  background: var(--color-secondary);
+  cursor: not-allowed;
+}
+.ga-curriculum-fixed .ga-goal-table__subband {
+  cursor: not-allowed;
+}
+.table.ga-goal-table.ga-curriculum-fixed tbody tr td.ga-theme-tick-cell {
+  background: var(--color-white, #fff);
+}
+.table.ga-goal-table.ga-theme-edit-fixed tbody tr:nth-child(n) td,
+.table.ga-goal-table.ga-theme-edit-fixed tbody tr:nth-child(n):hover td {
+  background: var(--color-secondary);
+  cursor: not-allowed;
+}
+.ga-year-page .table.ga-year-info.ga-info-team th,
+.ga-year-page .table.ga-year-info.ga-info-team tbody tr td,
+.ga-year-page .table.ga-year-info.ga-info-team tbody tr:hover td {
+  background: var(--color-secondary);
+  transition: none;
+  box-shadow: none;
+}
+.ga-info-fixed .ga-cell-input,
+.ga-info-fixed .ga-cell-input:hover,
+.ga-info-fixed .ga-cell-input:focus {
+  background: transparent;
+  outline: none;
+  box-shadow: none;
+}
+
+.table.ga-goal-table.ga-branch-readonly tbody tr td,
+.table.ga-goal-table.ga-branch-readonly tbody tr:hover td {
+  background: var(--color-secondary);
+}
+
+.ga-year-page .table.ga-year-info tbody tr:hover td {
+  background: var(--color-surface);
+  outline: none;
+  box-shadow: none;
+}
+.ga-year-page .table.ga-year-info tbody tr:nth-child(even):hover td {
+  background: var(--color-surface-muted);
+}
+.ga-year-page .table.ga-year-info.ga-info-team tbody tr:hover td,
+.ga-year-page .table.ga-year-info.ga-info-team tbody tr:nth-child(even):hover td {
+  background: var(--color-secondary);
+}
+
+.ga-year-page .table.ga-year-info.ga-info-annual th {
+  background: var(--color-secondary);
+}
+.ga-year-page .table.ga-year-info.ga-info-annual tbody tr:nth-child(n) td {
+  background: var(--color-surface);
+}
+.ga-year-page .table.ga-year-info tbody tr:nth-child(n) td:has(.ga-cell-input:is([readonly], :disabled)) {
+  background: var(--color-secondary);
+  cursor: not-allowed;
+  outline: none;
+  box-shadow: none;
+}
+.ga-year-info .ga-cell-input:is([readonly], :disabled) {
+  background: transparent;
+  cursor: not-allowed;
+}
+
+.ga-branch-template-dates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+}
+.ga-branch-template-dates.ga-branch-date-range {
+  align-items: center;
+}
+.ga-branch-date-endpoint {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.ga-branch-date-endpoint .ga-cal__trigger {
+  justify-content: flex-start;
+  padding: var(--space-1);
+}
+.ga-branch-date-endpoint .ga-cal__trigger:disabled {
+  background: var(--color-secondary);
+  cursor: not-allowed;
+}
+.ga-branch-date-errors {
+  grid-column: 1 / -1;
+}
+
+.ga-branch-template-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+.ga-branch-template-item > .icon-btn {
+  grid-column: 2;
+  grid-row: 1;
+  width: var(--space-6);
+  height: var(--space-6);
+  margin: 0 var(--space-1) 0 0;
+}
+.ga-branch-template-item > .ga-branch-template-dates {
+  grid-column: 1 / -1;
+  grid-row: 2;
+}
+
+.table.ga-annual-theme-table tbody.sortable-item--moved > tr > td {
+  background: var(--color-primary-soft-hover) !important;
+}
+
+/* Bảng chủ đề/sự kiện vừa khung, không dùng chiều rộng tối thiểu của bảng kế hoạch khác. */
+.ga-theme-event-tables .table.ga-plan-table.ga-goal-table {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  table-layout: fixed;
+}
+.ga-theme-event-tables .table.ga-plan-table col {
+  min-width: 0;
+}
+.ga-theme-event-tables .ga-col-stt {
+  width: 4%;
+}
+.ga-theme-event-tables .ga-col-abbr {
+  width: 8%;
+}
+.ga-theme-event-tables .ga-col-theme-name,
+.ga-theme-event-tables .ga-col-mt,
+.ga-theme-event-tables .ga-col-festivals,
+.ga-theme-event-tables .ga-col-theme-note {
+  width: auto;
+}
+.ga-theme-event-tables .ga-col-weeks {
+  width: 6%;
+}
+.ga-theme-event-tables .ga-col-actions {
+  width: 10%;
+}
+.ga-theme-event-tables .table.ga-plan-table th,
+.ga-theme-event-tables .table.ga-plan-table td {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.ga-theme-event-tables .table.ga-plan-table thead th {
+  text-overflow: clip;
+  padding: var(--space-2) var(--space-1);
+}
+.ga-theme-event-tables .ga-sort-cell,
+.ga-theme-event-tables .table.ga-plan-table thead th .stt-head {
+  flex-wrap: wrap;
+}
+.ga-theme-event-tables .ga-branch-date-endpoint {
+  max-width: 100%;
+}
+.ga-theme-event-tables .ga-cal__trigger {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.table.ga-goal-table tbody tr td.ga-goal-table__subband,
+.table.ga-goal-table tbody tr:hover td.ga-goal-table__subband {
+  background: var(--ga-highlight);
+}
+
+.ga-goal-table__subband .icon-btn {
+  width: auto;
+  height: auto;
+  padding: 0 var(--space-1);
+  vertical-align: middle;
+}
+
+.table.ga-goal-table .ga-goal-table__code {
+  width: calc(var(--space-12) + var(--space-2));
+}
+.table.ga-goal-table td.ga-stt > .ga-cell-input {
+  padding-left: var(--space-1);
+  padding-right: var(--space-1);
+}
+
+/* Tên và ngày cùng nhịp đệm, chiều cao theo nội dung thay vì khung nhập lớn. */
+.ga-theme-event-tables .ga-cell-input {
+  min-height: 0;
+  padding: var(--space-1) var(--space-2);
+}
+.ga-theme-event-tables .ga-goal-table__pad {
+  padding: var(--space-1) var(--space-2);
+}
+.ga-theme-event-tables .ga-branch-template-dates {
+  padding: 0 var(--space-2) var(--space-1);
+}
+.ga-theme-event-tables .ga-branch-date-endpoint .ga-cal__trigger {
+  padding: 0;
+}
+.ga-year-title-field {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding-right: var(--space-3);
+}
+.ga-year-title-field > .ga-cell-input {
+  flex: 1;
+  min-width: 0;
+  width: 0;
+}
+.ga-year-title-field > .char-count {
+  flex: none;
+  white-space: nowrap;
+}
+.table.ga-year-info label[for='title'] {
+  white-space: nowrap;
+}
+
+/* Độ gọn và vùng thao tác riêng của kế hoạch năm học. */
+.ga-annual-plan .table.ga-goal-table td.ga-goal-label-cell {
+  padding-bottom: var(--space-5);
+}
+.ga-annual-plan .table.ga-goal-table:not(.ga-year-info) :is(textarea, input).ga-cell-input {
+  min-height: 0;
+  padding-top: var(--space-1);
+  padding-bottom: var(--space-1);
+}
+.ga-annual-plan .table.ga-goal-table:not(.ga-year-info) .ga-goal-table__pad {
+  padding-top: var(--space-1);
+  padding-bottom: var(--space-1);
+}
+.ga-plan-error-summary ul {
+  margin: var(--space-1) 0 0;
+  padding-left: var(--space-5);
+}
+.ga-plan-error-summary .link-btn {
+  text-align: left;
+  white-space: normal;
+}
+@media (pointer: coarse) {
+  .ga-annual-plan .table.ga-goal-table td.ga-goal-label-cell {
+    padding-bottom: var(--space-7);
+  }
+  .ga-annual-plan .ga-goal-label-fill {
+    width: var(--space-8);
+    height: var(--space-8);
+  }
+}
+
+.ga-year-page .ga-year-info :is(#year, #ag, #title),
+.ga-year-page .ga-info-emphasis {
+  color: var(--color-primary);
+  font-weight: var(--fw-semibold);
+}
+
+.ga-source-plan-info {
+  margin-top: var(--space-3);
+}
+.ga-source-plan-info a {
+  font-weight: var(--fw-semibold);
+}
+.ga-team-plan .ga-goal-table .ga-theme-tick[aria-pressed='true'],
+.ga-team-plan .ga-goal-table .ga-goal-table__pad.ga-theme-tick:not(:empty) {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  font-weight: var(--fw-semibold);
+  box-shadow: inset 0 0 0 1px var(--color-primary-border);
+}
+.ga-team-plan .table-wrap:has(> .ga-goal-table) {
+  max-height: none;
+  overflow: visible;
+}
+.table.ga-curriculum-fixed thead tr:first-child th:nth-child(-n + 4),
+.table.ga-theme-edit-fixed thead th,
+.table.ga-theme-edit-fixed tbody tr:nth-child(n) td {
+  background: var(--color-secondary);
+  color: var(--color-text);
+}
+.ga-theme-goal-preview label {
+  display: grid;
+  gap: var(--space-1);
+}
+.ga-theme-goal-preview .select {
+  width: 100%;
+  background-color: var(--color-white, #fff);
+}
+.ga-theme-goal-preview :is(p, li) {
+  overflow-wrap: anywhere;
+}
+
+.ga-theme-goal-preview {
+  cursor: default;
 }

@@ -3,6 +3,7 @@
  * (lĩnh vực con, nhóm kết quả mong đợi, mục tiêu kèm các nội dung); bảng hiển thị mỗi tầng một cột. Nội dung tích vào chủ đề ở phần B.
  */
 import { DOMAINS } from '@/models/education-plan/educationPlanConstants';
+import { goalDisplayLabel } from '@/models/education-plan/goalLabels.mjs';
 
 export const DOMAIN_ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
 export const domainRoman = (name) => DOMAIN_ROMAN[DOMAINS.indexOf(name)] || String(DOMAINS.indexOf(name) + 1 || '');
@@ -148,7 +149,10 @@ export const goalIdsToTicks = (domains, themes) => {
 
 /** "MT 1, 2, 4 (3 MT)"; mục tiêu đã xóa (không còn số) tự bỏ qua. */
 export const themeGoalLabel = (domains, numbers, theme) => {
-  const nos = themeGoalIds(domains, theme)
+  const ids = themeGoalIds(domains, theme).filter((id) => numbers[id]);
+  const rows = domains.flatMap((d) => d.rows.filter((r) => ids.includes(r.id) && r.kind === 'goal'));
+  if (rows.some((r) => r.displayLabel?.trim())) return rows.map((r) => goalDisplayLabel(r, numbers[r.id])).join(', ');
+  const nos = ids
     .map((id) => numbers[id])
     .filter(Boolean)
     .sort((a, b) => a - b);
@@ -198,6 +202,15 @@ const weekdayOf = (iso) => toDate(iso).getUTCDay();
 
 /** BE:EDU-40 — chủ đề trọn tuần học: bắt đầu Thứ 2, kết thúc Thứ 6. */
 export const isWholeWeekTheme = (theme) => !theme.start || !theme.end || (weekdayOf(theme.start) === 1 && weekdayOf(theme.end) === 5);
+
+export const durationRangeIssue = (range, breaks, limits, label) => {
+  if (!limits || !Number.isInteger(limits.minWeeks) || !Number.isInteger(limits.maxWeeks) ||
+      !range.start || !range.end || range.end < range.start || !isWholeWeekTheme(range)) return null;
+  const weeks = weekCount(range, breaks);
+  return weeks < limits.minWeeks || weeks > limits.maxWeeks
+    ? `${label} cần từ ${limits.minWeeks} đến ${limits.maxWeeks} tuần học (hiện tại ${weeks} tuần).`
+    : null;
+};
 
 /** BE:EDU-39 — tên các chủ đề khác trùng thời gian với chủ đề này. */
 export const overlappingThemes = (theme, themes) =>

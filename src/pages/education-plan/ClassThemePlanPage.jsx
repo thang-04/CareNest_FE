@@ -15,6 +15,7 @@ import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
 import { numberGoals } from '@/models/education-plan/goalTable';
 import {
+  branchNumber,
   createBlocker,
   ddmm,
   emptyThemePlan,
@@ -156,9 +157,9 @@ function ThemePlanInner() {
     blocks,
     rowOf,
     weekDocs: weeks
-      .map((w, i) => ({
+      .map((w) => ({
         week: w,
-        branchNo: i + 1,
+        branchNo: branchNumber(yearPlan, w.start, branch),
         branchName: branch?.names?.[w.start] || '',
         doc: weekPlans.find((x) => x.classId === classId && x.yearPlanId === yearPlan.id && x.weekStart === w.start),
       }))
@@ -200,7 +201,7 @@ function ThemePlanInner() {
         {/* Thanh thao tác như màn Kế hoạch năm học: nút cỡ nhỏ viền xanh, nhóm lưu/gửi/xuất bên phải (Tiền 05/11) */}
         <div className="ga-year-toolbar" role="group" aria-label="Thao tác kế hoạch chủ đề">
           <div className="ga-year-toolbar__group">
-            <EduStatusBadge status={status} />
+            <EduStatusBadge status={status} doc={saved} />
             <button
               type="button"
               className="btn btn--sm btn--outline-primary"

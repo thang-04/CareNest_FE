@@ -87,7 +87,8 @@ const curriculumOf = async (path, ageGroupCode, options = {}) => {
 };
 
 export const educationPlanApi = {
-  previewBranchFile: (file, { classId, yearPlanId }) => {
+  previewClassCalendar: (request) => axiosClient.post('/education-plans/class-docs/branch/calendar-preview', request),
+  previewBranchFile: (file, { classId, yearPlanId, draftCalendar }) => {
     const cls = serverId(classId);
     const plan = serverId(yearPlanId);
     if (cls == null || plan == null) throw sourceError(400, 'Lớp hoặc kế hoạch năm không hợp lệ.');
@@ -95,6 +96,7 @@ export const educationPlanApi = {
     data.append('file', file);
     data.append('classId', String(cls));
     data.append('yearPlanId', String(plan));
+    if (draftCalendar) data.append('draftCalendar', JSON.stringify(draftCalendar));
     return axiosClient.post('/education-plans/class-docs/branch/file-preview', data, {
       headers: { 'Content-Type': undefined },
       timeout: 60000,
@@ -109,10 +111,10 @@ export const educationPlanApi = {
   getCurriculumSources: (options = {}) => axiosClient.get('/education-plans/curriculum/sources', { signal: options.signal }),
   getCurriculumGoals: (ageGroupCode, options) => curriculumOf('goals', ageGroupCode, options),
   getCurriculumContents: (ageGroupCode, options) => curriculumOf('contents', ageGroupCode, options),
-  listGoalSources: async ({ schoolYear, ageGroupId, excludeId } = {}, actor, options = {}) => {
+  listGoalSources: async ({ schoolYear, ageGroupId, excludeId, planLevel } = {}, actor, options = {}) => {
     const group = ageGroupId;
     const refs = buildRefs(await loadConfig());
-    const params = {};
+    const params = planLevel ? { planLevel } : {};
     if (schoolYear) {
       params.schoolYearId = refs.schoolYearId(schoolYear);
       if (params.schoolYearId == null) throw sourceError(400, 'Năm học đã chọn không hợp lệ.');
@@ -139,7 +141,12 @@ export const educationPlanApi = {
     const refs = buildRefs(await loadConfig());
     const goal = toUiGoal(await axiosClient.get(`${GOALS}/${id}`, { signal: options.signal }), refs);
     // BE:EDU-06/24 — giới hạn UX của import; quyền đọc thực tế vẫn do BE kiểm qua token.
-    if (actor.role === ROLES.TEAM_LEADER && goal.ageGroupId !== actor.ageGroupId && goal.status !== EDU_STATUS.APPROVED)
+    if (
+      goal.planLevel !== 'SCHOOL_YEAR' &&
+      actor.role === ROLES.TEAM_LEADER &&
+      goal.ageGroupId !== actor.ageGroupId &&
+      goal.status !== EDU_STATUS.APPROVED
+    )
       throw sourceError(403, 'Nhóm tuổi khác chỉ lấy được từ kế hoạch đã ban hành.');
     return {
       ...goal,
@@ -149,8 +156,20 @@ export const educationPlanApi = {
   getAll: async () => {
     const refs = buildRefs(await loadConfig());
     // Danh sách đã theo phạm vi người xem (BE); màn hình cần cả văn bản nên lấy chi tiết từng kế hoạch
-    const page = await axiosClient.get(GOALS, { params: { page: 0, size: 200 } });
-    const goals = await Promise.all(page.items.map((p) => fetchGoal(p.id, refs)));
+    const pages = await Promise.all(
+      ['TEAM', 'SCHOOL_YEAR'].map((planLevel) =>
+        axiosClient.get(GOALS, { params: { page: 0, size: 200, planLevel } }).catch((error) => {
+          if (planLevel === 'SCHOOL_YEAR' && error.status === 404) return { items: [] };
+          throw error;
+        }),
+      ),
+    );
+    const summaries = new Map(
+      pages
+        .flatMap((page, index) => page.items.filter((item) => index === 0 || item.planLevel === 'SCHOOL_YEAR'))
+        .map((item) => [String(item.id), item]),
+    );
+    const goals = await Promise.all([...summaries.values()].map((p) => fetchGoal(p.id, refs)));
     return { goals, themes: [], lessons: [] };
   },
   // Trả kế hoạch đã lưu (id do BE cấp) để trang lập kế hoạch dùng tiếp id thật
@@ -198,7 +217,14 @@ export const educationPlanApi = {
   // BE:EDU-25 — phiên bản n+1 chép từ bản ban hành mới nhất; người tạo giữ phiên sửa của bản mới
   createGoalVersion: async (id, edit) => {
     const refs = buildRefs(await loadConfig());
-    return remember(await axiosClient.post(`${GOALS}/${serverId(id) ?? id}/versions`, null, { headers: editHeaders(edit) }), refs);
+    return remember(
+      await axiosClient.post(
+        `${GOALS}/${serverId(id) ?? id}/versions`,
+        edit?.curriculumSourcePlanId ? { curriculumSourcePlanId: serverId(edit.curriculumSourcePlanId) } : null,
+        { headers: editHeaders(edit) },
+      ),
+      refs,
+    );
   },
   getGoalChanges: (id, fromId) =>
     axiosClient.get(`${GOALS}/${serverId(id) ?? id}/changes`, { params: fromId ? { fromPlanId: serverId(fromId) ?? fromId } : {} }),
@@ -225,14 +251,28 @@ export const educationPlanApi = {
     return axiosClient.get('/education-plans/class-docs', { params: id == null ? {} : { schoolYearId: id } });
   },
   getEduConfig: async () => {
-    const [config, workflow] = await Promise.all([loadConfig(true), axiosClient.get('/education-plans/workflow-policy')]);
-    const fresh = { ...config, workflow };
+    const [config, workflow, durationPolicy] = await Promise.all([
+      loadConfig(true),
+      axiosClient.get('/education-plans/workflow-policy'),
+      axiosClient.get('/education-plans/duration-policy').catch((error) => {
+        if (error.status === 404) return null;
+        throw error;
+      }),
+    ]);
+    const fresh = {
+      ...config,
+      workflow,
+      durationPolicyAvailable: !!durationPolicy?.theme && !!durationPolicy?.branch,
+      ...(durationPolicy?.theme && durationPolicy?.branch ? { durationPolicy } : {}),
+    };
     configCache = Promise.resolve(fresh);
     return toUiEduConfig(fresh);
   },
   saveWorkflowPolicy: async (cfg) => {
     try {
-      await axiosClient.put('/education-plans/workflow-policy', { revision: cfg.workflowRevision, policies: cfg.workflowPolicy });
+      const policies = { ...cfg.workflowPolicy };
+      if (cfg.durationPolicyAvailable === false) delete policies.schoolYear;
+      await axiosClient.put('/education-plans/workflow-policy', { revision: cfg.workflowRevision, policies });
     } finally {
       configCache = null;
       known.clear();
@@ -241,6 +281,16 @@ export const educationPlanApi = {
   },
   // BE:EDU-11 — lưu xong thì dùng luôn bản BE trả về làm dữ liệu tham chiếu của phiên
   saveEduConfig: async (cfg) => {
+    const current = await loadConfig();
+    let durationPolicy = current.durationPolicy;
+    if (
+      cfg.durationPolicyAvailable !== false &&
+      cfg.durationPolicy &&
+      JSON.stringify(cfg.durationPolicy) !== JSON.stringify(durationPolicy)
+    ) {
+      const { revision, theme, branch } = cfg.durationPolicy;
+      durationPolicy = await axiosClient.put('/education-plans/duration-policy', { revision, theme, branch });
+    }
     const saved = await axiosClient.put('/education-plans/config', {
       domainLabels: cfg.domainLabels || {},
       extraDomains: cfg.extraDomains || [],
@@ -254,8 +304,13 @@ export const educationPlanApi = {
         : cfg.signers,
       weekRows: cfg.weekRows,
     });
-    configCache = Promise.resolve(saved);
-    return toUiEduConfig(saved);
+    const fresh = {
+      ...saved,
+      durationPolicyAvailable: current.durationPolicyAvailable ?? true,
+      ...(durationPolicy ? { durationPolicy } : {}),
+    };
+    configCache = Promise.resolve(fresh);
+    return toUiEduConfig(fresh);
   },
   saveClassDoc: (kind, doc, options = {}) => {
     const headers = { 'X-Class-Doc-Version': String(doc?.version ?? -1) };
@@ -263,6 +318,12 @@ export const educationPlanApi = {
     if (options?.headers) Object.assign(headers, options.headers);
     if (kind === 'week' && doc?.dossierVersion == null) throw sourceError(409, 'Hãy tải lại hồ sơ chủ đề trước khi lưu tuần.');
     const { version, dossierVersion, review, permissions, ...content } = doc;
+    if (kind === 'branch' && content.schemaVersion === 2) {
+      delete content.names;
+      delete content.notes;
+      delete content.calendarRevision;
+      delete content.durationPolicySnapshot;
+    }
     return axiosClient.put(`/education-plans/class-docs/${kind}/${doc.id}`, content, { headers });
   },
   // BE:EDU-27 — ô "Kế hoạch điều chỉnh và bổ sung", ghi được cả khi đã duyệt

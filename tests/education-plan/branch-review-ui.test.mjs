@@ -18,9 +18,10 @@ test('showSend mặc định false giữ caller cũ; nhánh luôn hiện và gi�
   // Tiền 05/11: nút gửi không bao giờ mờ; bấm thì báo lý do
   assert.doesNotMatch(html, /disabled/);
   assert.match(html, /aria-description="Chỉ được xem"/);
-  assert.match(html, /Gửi Tổ trưởng duyệt/);
+  assert.match(html, /> Gửi duyệt<\/button>/);
+  assert.doesNotMatch(html, /Gửi Tổ trưởng duyệt/);
 });
-test('send giữ người nhận và khóa vì chưa lưu, không đổi nút duyệt trả lại', () => {
+test('send thống nhất Gửi duyệt, giữ giải thích và nút duyệt trả lại', () => {
   assert.doesNotMatch(render({ can: { send: true } }), /disabled/);
   const html = render({ can: { send: true, approve: true, reject: true }, sendBlocked: 'Còn 2 tuần chưa đặt tên' });
   assert.match(html, /title="Còn 2 tuần chưa đặt tên"/);

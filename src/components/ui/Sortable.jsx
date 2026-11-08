@@ -151,13 +151,13 @@ export function SortHandle({ label }) {
     <button
       type="button"
       ref={setActivatorNodeRef}
-      className={`drag-handle ${isDragging ? 'drag-handle--grabbed' : ''}`}
+      className={`icon-btn drag-handle ${isDragging ? 'drag-handle--grabbed' : ''}`}
       title="Kéo để đổi thứ tự"
       {...attributes}
       {...listeners}
       aria-label={`Sắp xếp ${label}. Kéo, hoặc nhấn Space rồi dùng mũi tên lên xuống`}
     >
-      <DragHandle size={18} aria-hidden />
+      <DragHandle size={16} aria-hidden />
     </button>
   );
 }

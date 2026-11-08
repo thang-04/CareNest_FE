@@ -1,3 +1,4 @@
+import { planRoute } from '@/models/education-plan/planLevel.mjs';
 import { useNavigate } from 'react-router-dom';
 import { Card, EduStatusBadge, EmptyState, PageHead, YearPlanStatusBadge, fmtDateTime } from '@/components/education-plan/eduUi';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
@@ -44,7 +45,7 @@ export default function PlanReviewQueuePage() {
         doc: g,
         cls: '—',
         what: `Khối ${AGE_GROUPS.find((a) => a.id === g.ageGroupId)?.name || ''}, năm học ${g.schoolYear}`,
-        to: `/education/goals/${g.id}`,
+        to: `${planRoute(g)}/${g.id}`,
         by: g.sentBy?.name || [...(g.history || [])].reverse().find((h) => h.action?.startsWith('Gửi'))?.by,
         at: g.sentAt,
       })),
@@ -115,7 +116,7 @@ export default function PlanReviewQueuePage() {
                       </td>
                       <td>
                         <div className="ga-goal-table__pad">
-                          {it.kind === 'year' ? <YearPlanStatusBadge status={it.doc.status} /> : <EduStatusBadge status={it.doc.status} />}
+                          {it.kind === 'year' ? <YearPlanStatusBadge status={it.doc.status} doc={it.doc} /> : <EduStatusBadge status={it.doc.status} doc={it.doc} />}
                         </div>
                       </td>
                     </tr>

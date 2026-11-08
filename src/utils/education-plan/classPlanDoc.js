@@ -1,3 +1,4 @@
+import { calendarPlan } from '@/models/education-plan/branchCalendar.mjs';
 /*
  * Xuất dự kiến chủ đề nhánh, kế hoạch chủ đề và giáo án tuần (kế hoạch tuần + 5 kế hoạch ngày) theo bố cục văn bản
  * của MN Thái Dương. Không có chữ ký trong hệ thống: bản in để trống chỗ ký tay, in sẵn họ tên người soạn / người duyệt.
@@ -11,6 +12,7 @@ import {
   DAY_SECTIONS,
   WEEKDAY_LABELS,
   addDays,
+  branchNumber,
   hocTitle,
   longDay,
   monthOf,
@@ -197,7 +199,7 @@ export const weekFileHtml = ({ cls, ...w }) =>
 // blank: file mẫu để nhập (Tiền 05/11) — giữ nguyên bảng như file xuất (tháng, chủ đề, tuần, dòng nghỉ, chỗ ký),
 // bỏ dữ liệu đã có: tên nhánh, ghi chú, họ tên người ký
 export const branchFileHtml = ({ doc, cls, yearPlan, teachers, leaderName, blank = false }) => {
-  const rows = yearWeeks(yearPlan);
+  const rows = yearWeeks(calendarPlan(yearPlan, doc));
   const weeks = rows.filter((r) => r.type === 'week');
   const year = (yearPlan.schoolYear || '').replace(/\s*[-–]\s*/, ' - ');
   const span = (i) => {
@@ -219,7 +221,10 @@ export const branchFileHtml = ({ doc, cls, yearPlan, teachers, leaderName, blank
       if (r.type === 'break')
         // Tên đợt nghỉ thường đã có chữ "Nghỉ" ("Nghỉ Tết Nguyên đán"): không lặp "Nghỉ Nghỉ"
         return `<tr>${head}<td colspan="3"><i>Nghỉ ${esc((r.label || '').replace(/^\s*nghỉ\s*/i, ''))} từ ngày ${fmt(r.start)} đến hết ngày ${fmt(r.end)}</i></td></tr>`;
-      const no = rows.slice(0, i + 1).filter((x) => x.type === 'week' && x.theme.id === r.theme.id).length;
+      const no =
+        doc.schemaVersion === 2
+          ? branchNumber(calendarPlan(yearPlan, doc), r.start, doc)
+          : rows.slice(0, i + 1).filter((x) => x.type === 'week' && x.theme.id === r.theme.id).length;
       return `<tr>${head}<td>- Nhánh ${no}: ${blank ? '' : esc(doc.names?.[r.start] || '')}</td><td>Tuần ${r.no}: ${fmt(r.start)}<br/>${fmt(r.end)}</td><td>${blank ? '' : esc(doc.notes?.[r.start] || '')}</td></tr>`;
     })
     .join('');

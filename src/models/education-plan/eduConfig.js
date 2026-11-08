@@ -18,6 +18,7 @@ export const CREATOR_ROLES = ['TEACHER', 'TEAM_LEADER', 'VICE_PRINCIPAL', 'PRINC
 export const REVIEWER_ROLES = ['TEAM_LEADER', 'VICE_PRINCIPAL', 'PRINCIPAL'];
 
 export const DEFAULT_WORKFLOW_POLICY = {
+  schoolYear: { creators: ['VICE_PRINCIPAL'], reviewers: ['PRINCIPAL'] },
   year: { creators: ['TEAM_LEADER'], reviewers: ['VICE_PRINCIPAL'] },
   branch: { creators: ['TEACHER'], reviewers: ['TEAM_LEADER', 'VICE_PRINCIPAL'] },
   theme: { creators: ['TEACHER'], reviewers: ['TEAM_LEADER', 'VICE_PRINCIPAL'] },
@@ -27,9 +28,10 @@ export const DEFAULT_WORKFLOW_POLICY = {
 export const PENDING_OF = { TEAM_LEADER: 'PENDING_TL', VICE_PRINCIPAL: 'PENDING_VP', PRINCIPAL: 'PENDING_HT' };
 
 export const SIGN_DOCS = [
+  { key: 'schoolYear', label: 'Kế hoạch năm học', hint: 'Phó hiệu trưởng soạn; Hiệu trưởng duyệt.' },
   {
     key: 'year',
-    label: 'Kế hoạch năm học',
+    label: 'Kế hoạch giáo dục tổ',
     hint: 'Tổ trưởng chuyên môn soạn; Phó Hiệu trưởng hoặc Hiệu trưởng duyệt ban hành.',
   },
   { key: 'branch', label: 'Chủ đề nhánh và thời gian', hint: 'Giáo viên soạn, gửi; Tổ trưởng và Phó Hiệu trưởng duyệt theo thứ tự.' },
@@ -86,12 +88,16 @@ export const withDefaults = (cfg) => ({
   extraDomains: (cfg?.extraDomains || []).filter((d) => d?.trim() && !STANDARD_DOMAINS.includes(d)),
   workflowPolicy: cfg?.workflowPolicy
     ? {
+        schoolYear: cfg.workflowPolicy.schoolYear || DEFAULT_WORKFLOW_POLICY.schoolYear,
         year: cfg.workflowPolicy.year || DEFAULT_WORKFLOW_POLICY.year,
         branch: cfg.workflowPolicy.branch || DEFAULT_WORKFLOW_POLICY.branch,
         theme: cfg.workflowPolicy.theme || cfg.workflowPolicy.week || DEFAULT_WORKFLOW_POLICY.theme,
       }
     : DEFAULT_WORKFLOW_POLICY,
+  durationPolicyAvailable: cfg?.durationPolicyAvailable ?? true,
   workflowRevision: cfg?.workflowRevision ?? 1,
+  durationPolicy: cfg?.durationPolicy || { revision: 1, theme: { minWeeks: 2, maxWeeks: 4 }, branch: { minWeeks: 1, maxWeeks: 2 } },
+  ...(cfg?.schoolYearCreationScopes ? { schoolYearCreationScopes: cfg.schoolYearCreationScopes } : {}),
   canConfigure: cfg?.canConfigure ?? false,
   ...(cfg?.yearCreationScopes ? { yearCreationScopes: cfg.yearCreationScopes } : {}),
   signers: { ...DEFAULT_EDU_CONFIG.signers, ...(cfg?.signers || {}) },
@@ -135,7 +141,10 @@ export const applyEduConfig = (cfg) => {
 };
 
 /** Hiệu trưởng có trong chuỗi ký của ít nhất một loại tài liệu (kế hoạch năm, chủ đề nhánh, giáo án tuần). */
-export const principalSigns = (cfg) => Object.values(withDefaults(cfg).signers).some((chain) => chain.includes('PRINCIPAL'));
+export const principalSigns = (cfg) =>
+  (cfg?.durationPolicyAvailable !== false &&
+    Object.values(withDefaults(cfg).workflowPolicy).some((policy) => policy.reviewers.includes('PRINCIPAL'))) ||
+  Object.values(withDefaults(cfg).signers).some((chain) => chain.includes('PRINCIPAL'));
 
 /** Vai trò của người ký đã lưu (bản ký cũ chỉ có chức danh). */
 export const roleOfSigner = (s) =>

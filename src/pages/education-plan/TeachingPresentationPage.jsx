@@ -93,7 +93,7 @@ function Presentation() {
         title={theme.name}
         desc={
           <>
-            {cls.name} · {date || (weekKey ? `Tuần ${weekKey}` : 'Toàn chủ đề')} <EduStatusBadge status={doc.status} />
+            {cls.name} · {date || (weekKey ? `Tuần ${weekKey}` : 'Toàn chủ đề')} <EduStatusBadge status={doc.status} doc={doc} />
           </>
         }
         actions={

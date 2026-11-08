@@ -1,3 +1,5 @@
+import { BranchCalendarEditor } from '@/components/education-plan/BranchCalendarEditor';
+import { adaptCalendar, calendarDurationIssue, calendarPlan, updateWeek } from '@/models/education-plan/branchCalendar.mjs';
 import { useEffect, useState } from 'react';
 import { Navigate, useParams } from 'react-router-dom';
 import { Check, FileDown, Lightbulb, Save, Upload, Wand2, X } from '@/components/ui/icons';
@@ -35,7 +37,8 @@ import { applyBranchFile, branchPayload } from '@/models/education-plan/importBr
 export default function BranchPlanPage() {
   const { classId } = useParams();
   // Đổi lớp thì dựng lại trang để bỏ bản sửa dở của lớp trước
-  return <BranchPlanInner key={classId} classId={classId} />;
+  const { yearPlan } = useClassPlanContext(classId);
+  return <BranchPlanInner key={`${classId}:${yearPlan?.id}:${yearPlan?.curriculumSourcePlanId || 'legacy'}`} classId={classId} />;
 }
 
 // Bản gửi đi khi lưu: ô AI chưa ✓ / ✗ vẫn lưu tên trước đó, chỉ lưu khi giáo viên đã giữ
@@ -52,7 +55,8 @@ function BranchPlanInner({ classId }) {
   const [preview, setPreview] = useState(null);
   const [importContext, setImportContext] = useState(null);
   const ctx = useClassPlanContext(classId);
-  const { cls, classes, yearPlan, teachers, isClassTeacher } = ctx;
+  const { cls, classes, yearPlan: sourcePlan, teachers, isClassTeacher } = ctx;
+  const yearPlan = sourcePlan;
   const saved = yearPlan ? branchPlans.find((b) => b.classId === classId && b.yearPlanId === yearPlan.id) || null : null;
   const [draft, setDraft] = useState(null);
   const [dirty, setDirty] = useState(false);
@@ -83,7 +87,7 @@ function BranchPlanInner({ classId }) {
     onSaved: (same) => same && !hasPending && setDirty(false),
     backup: { userId: user?.id, key: yearPlan && `branch:${classId}:${yearPlan.id}` },
     onRestore: (doc) => {
-      setDraft(doc);
+      setDraft(eduConfig.durationPolicyAvailable === false ? doc : adaptCalendar(doc, yearPlan));
       setDirty(true);
     },
   });
@@ -92,8 +96,20 @@ function BranchPlanInner({ classId }) {
   useEffect(() => {
     if (dirty) return;
     const doc = saved || (yearPlan ? emptyBranchPlan({ classId, yearPlanId: yearPlan.id }) : null);
-    setDraft(doc);
-    saver.markClean(doc);
+    const adapted =
+      eduConfig.durationPolicyAvailable === false
+        ? doc
+        : doc &&
+          adaptCalendar(
+            {
+              ...doc,
+              durationPolicySnapshot:
+                doc.durationPolicySnapshot || (saved ? { mode: 'LEGACY_UNBOUNDED' } : { mode: 'BOUNDED', ...eduConfig.durationPolicy }),
+            },
+            yearPlan,
+          );
+    setDraft(adapted);
+    saver.markClean(adapted);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [saved?.id, saved?.version, saved?.dossierVersion, saved?.status, saved?.history?.length, yearPlan?.id, classId]);
 
@@ -115,11 +131,13 @@ function BranchPlanInner({ classId }) {
     setDirty(true);
   };
   const editable = canEdit;
-  const rows = yearWeeks(yearPlan);
+  const rows = yearWeeks(calendarPlan(yearPlan, draft));
   const weekCount = rows.filter((r) => r.type === 'week').length;
   const empty = rows.filter((r) => r.type === 'week' && !draft.names[r.start]?.trim()).length;
   const set = (field, key, value) => {
-    setDraft((d) => ({ ...d, [field]: { ...d[field], [key]: value } }));
+    setDraft((d) =>
+      d.schemaVersion === 2 ? updateWeek(d, yearPlan, field, key, value) : { ...d, [field]: { ...d[field], [key]: value } },
+    );
     setDirty(true);
   };
   const settle = (week) =>
@@ -258,6 +276,11 @@ function BranchPlanInner({ classId }) {
   // Chưa đủ điều kiện gửi: chỉ nhắc ở góc màn hình khi bấm, không mở hộp gửi
   const checkBeforeOpen = (action) => {
     if (action !== 'submit') return true;
+    const durationIssue = calendarDurationIssue(draft, yearPlan);
+    if (durationIssue) {
+      toast(durationIssue, 'warn');
+      return false;
+    }
     if (pendingWeeks.length) {
       toast(`Còn ${pendingWeeks.length} tên do AI điền chưa giữ hoặc bỏ. Bấm ✓ / ✗ hoặc "Giữ tất cả" trước khi gửi.`, 'warn');
       return false;
@@ -316,7 +339,7 @@ function BranchPlanInner({ classId }) {
         {/* Thanh thao tác như màn Kế hoạch năm học: nút cỡ nhỏ viền xanh, nhóm lưu/gửi/xuất bên phải (Tiền 04/11) */}
         <div className="ga-year-toolbar" role="group" aria-label="Thao tác chủ đề nhánh">
           <div className="ga-year-toolbar__group">
-            <EduStatusBadge status={status} />
+            <EduStatusBadge status={status} doc={saved} />
             {ctx.canPickClass && (
               <select
                 className="select"
@@ -336,7 +359,7 @@ function BranchPlanInner({ classId }) {
                 type="button"
                 className="btn btn--sm btn--outline-primary"
                 disabled={aiBusy || saver.saving}
-                onClick={() => setImportContext({ classId, yearPlanId: yearPlan.id })}
+                onClick={() => setImportContext({ classId, yearPlanId: yearPlan.id, draftCalendar: draft })}
               >
                 <Upload size={16} aria-hidden /> Nhập file
               </button>
@@ -418,10 +441,24 @@ function BranchPlanInner({ classId }) {
         onCheck={(f) => flagEdit((d) => checkFlag(d, f))}
         onDrop={(f) => flagEdit((d) => dropReference('branch', d, f))}
       />
-      {status === EDU_STATUS.REJECTED && (
+      {['DRAFT', 'REJECTED'].includes(status) && (
         <div className="mb-16">
           <RejectedNotice status={status} history={saved?.history} />
         </div>
+      )}
+      {draft.schemaVersion === 2 && (
+        <Card title="Lịch chủ đề và chủ đề nhánh của lớp">
+          <BranchCalendarEditor
+            plan={yearPlan}
+            doc={draft}
+            editable={editable && !saver.saving}
+            toast={toast}
+            onChange={(next) => {
+              setDraft(next);
+              setDirty(true);
+            }}
+          />
+        </Card>
       )}
       <Card
         title="Chủ đề nhánh"
@@ -464,7 +501,7 @@ function BranchPlanInner({ classId }) {
       >
         <div className="card__body stack">
           <div className="table-wrap">
-            <table className="table ga-plan-table ga-goal-table" onMouseDown={focusCell}>
+            <table className={`table ga-plan-table ga-goal-table${editable ? '' : ' ga-branch-readonly'}`} onMouseDown={focusCell}>
               <colgroup>
                 <col className="ga-col-month" />
                 <col className="ga-goal-table__group" />

@@ -15,7 +15,7 @@ import { ErrorState, LoadingState } from '@/components/ui/States';
 
 const range = (start, end) => (start || end ? `${start ? fmtDate(start) : '…'} – ${end ? fmtDate(end) : '…'}` : '—');
 
-export default function ImportThemesModal({ excludeId, defaultAgeGroupId, defaultYear, form, onClose, onImport }) {
+export default function ImportThemesModal({ planLevel = 'TEAM', excludeId, defaultAgeGroupId, defaultYear, form, onClose, onImport }) {
   const { schoolYears, user } = useEducationPlan();
   // Mặc định năm học của kế hoạch đang soạn (Tiền 31/10)
   const [year, setYear] = useState(schoolYears.includes(defaultYear) ? defaultYear : schoolYears[1] || schoolYears[0] || '');
@@ -26,6 +26,7 @@ export default function ImportThemesModal({ excludeId, defaultAgeGroupId, defaul
   const [confirmError, setConfirmError] = useState('');
   const query = useGoalImportSources({
     schoolYear: year,
+    planLevel,
     ageGroupId,
     excludeId,
     sourceId,
@@ -130,7 +131,7 @@ export default function ImportThemesModal({ excludeId, defaultAgeGroupId, defaul
 
   return (
     <Modal
-      title="Lấy chủ đề từ kế hoạch có sẵn"
+      title={planLevel === 'SCHOOL_YEAR' ? 'Lấy chủ đề từ kế hoạch năm' : 'Lấy chủ đề từ kế hoạch có sẵn'}
       width={900}
       className="ga-cur-modal"
       onClose={onClose}
@@ -230,7 +231,7 @@ export default function ImportThemesModal({ excludeId, defaultAgeGroupId, defaul
               <span className="muted text-sm">
                 {source.schoolYear} · Phiên bản {versionOf(source)}
               </span>
-              <YearPlanStatusBadge status={source.status} />
+                  <YearPlanStatusBadge status={source.status} doc={source} />
             </div>
             {!rows.length ? (
               <EmptyState title="Kế hoạch nguồn chưa có chủ đề, đợt nghỉ" />

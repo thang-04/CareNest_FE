@@ -1,3 +1,4 @@
+import { calendarPlan } from '@/models/education-plan/branchCalendar.mjs';
 import { useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Check, Eye, Send } from '@/components/ui/icons';
@@ -23,22 +24,34 @@ export { Cell, focusCell } from '@/components/ui/TableCell';
 /** Dữ liệu dùng chung của màn lớp. Kế hoạch năm chỉ dùng bản đã được Phó HT ban hành. */
 export function useClassPlanContext(classId) {
   // Lớp, giáo viên, tổ trưởng nạp cùng tài liệu của lớp (theo phạm vi người xem)
-  const { user, goals, schoolYear, classes, creationCapabilities, staff: users } = useEducationPlan();
+  const { user, goals, schoolYear, classes, branchPlans, creationCapabilities, staff: users } = useEducationPlan();
   const cls = classes.find((c) => c.id === classId) || null;
   // Phiên bản hiện hành = bản đã ban hành mới nhất (BE:EDU-25); phiên bản trước để chép tài liệu cũ
   const current = cls ? currentPlanOf(goals, cls.ageGroupId, schoolYear) : null;
   // ?plan=<id>: xem tài liệu của một phiên bản cũ đã ban hành cùng nhóm tuổi (chỉ xem, BE:EDU-26)
   const [params] = useSearchParams();
   const pinned =
-    current && goals.find((g) => g.id === params.get('plan') && g.status === EDU_STATUS.APPROVED && g.ageGroupId === current.ageGroupId);
+    current &&
+    goals.find(
+      (g) =>
+        g.id === params.get('plan') &&
+        (!g.planLevel || g.planLevel === 'TEAM') &&
+        g.status === EDU_STATUS.APPROVED &&
+        g.ageGroupId === current.ageGroupId,
+    );
   const raw = pinned || current;
   const rawPrevious = raw ? previousPlanOf(goals, raw) : null;
   const asRows = (p) =>
     p ? { ...p, domains: p.domains.map((d) => ({ ...d, rows: toRows(d, () => Math.random().toString(36).slice(2, 9)) })) } : null;
   // Kế hoạch năm dạng hàng của bảng (giống trang mục tiêu năm)
-  const yearPlan = useMemo(() => asRows(raw), [raw]);
+  const yearPlan = useMemo(() => {
+    const approved = branchPlans.find((b) => b.classId === classId && b.yearPlanId === raw?.id && b.status === EDU_STATUS.APPROVED);
+    return raw ? calendarPlan(asRows(raw), approved) : null;
+  }, [raw, branchPlans, classId]);
   const previousPlan = useMemo(() => asRows(rawPrevious), [rawPrevious]);
-  const pending = cls ? goals.find((g) => g.ageGroupId === cls.ageGroupId && g.schoolYear === schoolYear) : null;
+  const pending = cls
+    ? goals.find((g) => (!g.planLevel || g.planLevel === 'TEAM') && g.ageGroupId === cls.ageGroupId && g.schoolYear === schoolYear)
+    : null;
   const teachers = cls ? (cls.teacherIds || []).map((id) => users.find((u) => u.id === id)).filter(Boolean) : [];
   const leaders = cls ? users.filter((u) => u.role === ROLES.TEAM_LEADER && u.ageGroupId === cls.ageGroupId) : [];
   const isClassTeacher = !!cls && (cls.teacherIds || []).includes(user.id);
@@ -91,7 +104,7 @@ export function reviewLabel(doc, ctx, user, kind = 'branch') {
   if (kind !== 'branch') {
     if (isMyReviewTurn(doc, ctx, user)) return 'Duyệt kế hoạch chủ đề';
     // Giáo viên còn sửa được: gửi duyệt ở trang kế hoạch chủ đề
-    return ctx.isClassTeacher && isOpen(doc) ? 'Gửi duyệt kế hoạch chủ đề' : 'Xem kế hoạch chủ đề';
+    return ctx.isClassTeacher && isOpen(doc) ? 'Gửi duyệt' : 'Xem kế hoạch chủ đề';
   }
   if (isMyReviewTurn(doc, ctx, user)) return 'Duyệt';
   if (ctx.isClassTeacher && isOpen(doc)) return 'Gửi duyệt';

@@ -9,12 +9,13 @@ const source = await readFile(new URL('../../src/pages/education-plan/GoalListPa
 const isolated = source.replace(/^import [\s\S]*? from '[^']+';\r?\n/gm, '');
 const stubs = `
 import React, {useMemo, useState} from 'react';
+import {planLevel as levelOf, planRoute, inheritAnnual} from ${JSON.stringify(import.meta.resolve('../../src/models/education-plan/planLevel.mjs'))};
 import {currentPlanOf, versionOf} from ${JSON.stringify(import.meta.resolve('../../src/models/education-plan/planVersions.mjs'))};
 export const context={goals:[],schoolYear:'2026',role:'vp',user:{id:'test'},classes:[]};
 const useEducationPlan=()=>context, useNavigate=()=>()=>{};
-const ROLES={VICE_PRINCIPAL:'vp'}, AGE_GROUPS=[], EDU_STATUS={APPROVED:'APPROVED',SENT:'SENT',PENDING_VP:'PENDING_VP'};
+const ROLES={VICE_PRINCIPAL:'vp', PRINCIPAL:'principal', TEAM_LEADER:'leader'}, AGE_GROUPS=[], EDU_STATUS={APPROVED:'APPROVED',SENT:'SENT',PENDING_VP:'PENDING_VP'};
 const allGoalItems=()=>[], clickableRowProps=()=>({}), fmtDate=()=>'';
-const Card=({children})=><section>{children}</section>, PageHead=()=>null, StatCard=()=>null, SearchSubmit=()=>null, EmptyState=()=>null;
+const Card=({children})=><section>{children}</section>, PageHead=({actions})=><header>{actions}</header>, StatCard=({label})=><span>{label}</span>, SearchSubmit=()=>null, EmptyState=()=>null;
 const Link=({children,to})=><a href={to}>{children}</a>, Plus=()=>null, RotateCcw=()=>null;
 const YearPlanStatusBadge=({status})=><span data-status={status}>{status}</span>;
 const VersionBadge=()=> <span className="chip">Phiên bản màu</span>;
@@ -37,6 +38,38 @@ const render = (goals) => {
   context.goals = goals;
   return renderToStaticMarkup(React.createElement(GoalListPage));
 };
+
+test('thẻ thống kê phân biệt kế hoạch giáo dục tổ và kế hoạch năm học', () => {
+  context.goals = [];
+  const team = renderToStaticMarkup(React.createElement(GoalListPage));
+  const annual = renderToStaticMarkup(React.createElement(GoalListPage, { planLevel: 'SCHOOL_YEAR' }));
+  assert.match(team, /Kế hoạch giáo dục tổ/);
+  assert.doesNotMatch(team, /Kế hoạch trong năm học/);
+  assert.match(annual, /Kế hoạch trong năm học/);
+});
+
+test('hiệu trưởng chỉ xem kế hoạch đã ban hành hoặc thay thế ở danh sách năm và tổ', () => {
+  const previous = { ...context };
+  try {
+    context.role = 'principal';
+    for (const level of ['SCHOOL_YEAR', 'TEAM']) {
+      context.goals = [
+        plan('cu', 1, 'APPROVED', { planLevel: level, current: false, permissions: {} }),
+        plan('moi', 2, 'APPROVED', { planLevel: level, current: true, permissions: {} }),
+        plan('cho-duyet', 3, 'REVIEW', { planLevel: level, permissions: {} }),
+        plan('nhap', 4, 'DRAFT', { planLevel: level, permissions: {} }),
+      ];
+      const html = renderToStaticMarkup(React.createElement(GoalListPage, { planLevel: level }));
+      assert.match(html, />cu</);
+      assert.match(html, />moi</);
+      assert.match(html, /data-status="REPLACED"/);
+      assert.doesNotMatch(html, />cho-duyet<|>nhap</);
+    }
+  } finally {
+    Object.keys(context).forEach((key) => delete context[key]);
+    Object.assign(context, previous);
+  }
+});
 
 test('bản cũ đã thay thế, bản ban hành mới nhất và bản đang sửa giữ đúng nhãn; phiên bản là chữ nhỏ', () => {
   const html = render([plan('v1', 1), plan('v2', 2), plan('v3', 3, 'EDITING')]);
@@ -85,4 +118,33 @@ test('bảng phiên bản chi tiết bỏ mã, giữ liên kết ở số phiên
   assert.equal((html.match(/data-status="REPLACED"/g) || []).length, 1);
   assert.equal((html.match(/data-status="APPROVED"/g) || []).length, 1);
   assert.match(html, /data-status="EDITING"/);
+});
+
+test('PHT sees annual create button even when duration API is unavailable; TEAM creator scopes do not hide it', () => {
+  const previous = { ...context };
+  try {
+    context.goals = [];
+    context.role = 'vp';
+    context.eduConfig = { durationPolicyAvailable: false, yearCreationScopes: [] };
+    const html = renderToStaticMarkup(React.createElement(GoalListPage, { planLevel: 'SCHOOL_YEAR' }));
+    assert.match(html, /href="\/education\/school-year-plans\/new"/);
+    assert.match(html, /Lập kế hoạch năm học/);
+    context.role = 'teacher';
+    assert.doesNotMatch(renderToStaticMarkup(React.createElement(GoalListPage, { planLevel: 'SCHOOL_YEAR' })), /school-year-plans\/new/);
+  } finally {
+    Object.keys(context).forEach((key) => delete context[key]);
+    Object.assign(context, previous);
+  }
+});
+test('explicit empty annual creation scopes from server remain authoritative', () => {
+  const previous = { ...context };
+  try {
+    context.goals = [];
+    context.role = 'vp';
+    context.eduConfig = { schoolYearCreationScopes: [] };
+    assert.doesNotMatch(renderToStaticMarkup(React.createElement(GoalListPage, { planLevel: 'SCHOOL_YEAR' })), /school-year-plans\/new/);
+  } finally {
+    Object.keys(context).forEach((key) => delete context[key]);
+    Object.assign(context, previous);
+  }
 });

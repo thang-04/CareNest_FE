@@ -19,7 +19,7 @@ const docs = () => sql(`select coalesce(jsonb_agg(to_jsonb(d)), '[]') from edu_c
 const persisted = () => JSON.parse(docs()).find((d) => d.doc_key === key());
 const names = (page) => page.getByPlaceholder('Nhập tên chủ đề nhánh');
 const dialogOf = (page) => page.getByRole('dialog', { name: 'Nhập file chủ đề nhánh', exact: true });
-const send = (page) => page.getByRole('button', { name: /^Gửi .* duyệt$/ });
+const send = (page) => page.getByRole('button', { name: /^Gửi duyệt$/ });
 const save = (page) => page.getByRole('button', { name: 'Lưu', exact: true });
 
 test.beforeAll(async () => {
@@ -239,8 +239,8 @@ test('EDU-47 lỗi file thật 7124/7125/7126 và người xem 403 không thay b
 
 test('EDU-18/47 chuỗi Tổ trưởng → Phó HT giữ nguyên; nút luôn hiện khi chờ duyệt/đã duyệt/người xem', async ({ page, browser }) => {
   await open(page);
-  await expect(send(page)).toHaveText('Gửi Tổ trưởng duyệt');
-  await review(page, 'Gửi Tổ trưởng duyệt', 'Gửi');
+  await expect(send(page)).toHaveText('Gửi duyệt');
+  await review(page, 'Gửi duyệt', 'Gửi duyệt');
   await expect.poll(() => persisted().status).toBe('PENDING_TL');
   await disabledActions(page);
   const as = async (email) => {
@@ -261,7 +261,7 @@ test('EDU-18/47 chuỗi Tổ trưởng → Phó HT giữ nguyên; nút luôn hi�
   await expect(names(page).first()).toBeEditable();
   await expect(save(page)).toBeVisible();
   await expect(send(page)).toBeEnabled();
-  await review(page, 'Gửi Tổ trưởng duyệt', 'Gửi');
+  await review(page, 'Gửi duyệt', 'Gửi duyệt');
   await tl.reload();
   await review(tl, 'Duyệt', 'Duyệt');
   await vp.reload();

@@ -174,7 +174,7 @@ function WeekPlanInner() {
   const prev = weeks[idx - 1];
   const next = weeks[idx + 1];
   const day = tab === 'week' ? -1 : Number(tab);
-  const branchNo = branchNumber(yearPlan, weekStart);
+  const branchNo = branchNumber(yearPlan, weekStart, branch);
   const exportArgs = { doc: draft, week, cls, branchNo, branchName, leaderName: leaderNameOf(staff, cls.ageGroupId, yearPlan?.schoolYear) };
 
   const moveTab = (event) => {
@@ -201,7 +201,7 @@ function WeekPlanInner() {
         <div className="ga-year-toolbar" role="group" aria-label="Thao tác giáo án tuần">
           <div className="ga-year-toolbar__group">
             {/* Trạng thái theo kế hoạch chủ đề (giáo án tuần gửi / duyệt cùng kế hoạch chủ đề), đặt ở header như mục tiêu năm học */}
-            <EduStatusBadge status={themeDoc?.status || EDU_STATUS.DRAFT} />
+            <EduStatusBadge status={themeDoc?.status || EDU_STATUS.DRAFT} doc={themeDoc} />
             <button
               type="button"
               className="btn btn--sm btn--outline-primary"

@@ -1,3 +1,5 @@
+import { calendarPlan, projectCalendar, branchWeeks } from '@/models/education-plan/branchCalendar.mjs';
+import { DEFAULT_DURATION } from '@/models/education-plan/planLevel.mjs';
 import { readDb, writeDb, clone, delay } from '@/mocks/mockDatabase';
 import { eduError } from './eduMockErrors';
 import { ensureSchoolSeeded } from '@/mocks/schoolMockRepository';
@@ -145,7 +147,7 @@ const bumpRoot = (db, kind, doc, expected) => {
 
 export const classPlanMockRepository = {
   // BE:EDU-47 — demo CSV; Word/Excel được đọc bởi BE thật.
-  async previewBranchFile(file, { classId, yearPlanId }, user) {
+  async previewBranchFile(file, { classId, yearPlanId, draftCalendar }, user) {
     await delay();
     const db = readDb();
     const cls = classOf(db, classId);
@@ -173,7 +175,8 @@ export const classPlanMockRepository = {
     if (header < 0) throw eduError('BRANCH_FILE_NO_TABLE');
     const themeCol = table[header].findIndex((c) => norm(c) === 'chủ đề');
     const nameCol = table[header].findIndex((c) => norm(c) === 'chủ đề nhánh');
-    const weeks = yearWeeks(plan).filter((r) => r.type === 'week');
+    const calendar = draftCalendar || doc;
+    const weeks = yearWeeks(calendarPlan(plan, calendar)).filter((r) => r.type === 'week');
     const used = new Map();
     const matches = [];
     const warnings = [];
@@ -196,8 +199,24 @@ export const classPlanMockRepository = {
       const index = used.get(norm(themeName)) || 0;
       if (!target[index]) warnings.push({ row: header + i + 2, message: 'Chủ đề không khớp, mơ hồ hoặc tên nhánh vượt số tuần' });
       else {
-        matches.push({ row: header + i + 2, themeId: themes[0].id, themeName: themes[0].name, weekStart: target[index].start, name });
-        used.set(norm(themeName), index + 1);
+        const branch = calendar?.branches?.find(
+          (b) => b.themeId === themes[0].id && target[index].start >= b.startDate && target[index].start <= b.endDate,
+        );
+        const weekStarts = branch ? branchWeeks(branch, plan, calendar).map((w) => w.start) : [target[index].start];
+        matches.push({
+          row: header + i + 2,
+          themeId: themes[0].id,
+          themeName: themes[0].name,
+          weekStart: target[index].start,
+          weekStarts,
+          name,
+          operation: branch ? 'RENAME' : 'CREATE_CUSTOM',
+          branchKey: branch?.key || null,
+          sourceTemplateId: branch?.sourceTemplateId || null,
+          startDate: branch?.startDate || target[index].start,
+          endDate: branch?.endDate || target[index].end,
+        });
+        used.set(norm(themeName), index + weekStarts.length);
       }
     });
     return { matches, warnings };
@@ -275,8 +294,20 @@ export const classPlanMockRepository = {
       }
       if (current && !isEditableStatus(current.status)) throw eduError('CLASS_DOC_SUBMITTED');
       const { superseded, review, permissions, dossierVersion, ...body } = clone(doc);
+      const plan = (db.eduGoals || []).find((g) => g.id === doc.yearPlanId);
+      if (!plan || plan.planLevel === 'SCHOOL_YEAR' || plan.status !== EDU_STATUS.APPROVED) throw eduError('YEAR_PLAN_NOT_ISSUED');
+      const normalized = kind === 'branch' && body.schemaVersion === 2 ? projectCalendar(body, plan) : body;
       const saved = {
-        ...body,
+        ...normalized,
+        ...(kind === 'branch'
+          ? {
+              durationPolicySnapshot:
+                current?.durationPolicySnapshot ||
+                (current
+                  ? { mode: 'LEGACY_UNBOUNDED' }
+                  : { mode: 'BOUNDED', ...clone(withDefaults(db.eduConfig).durationPolicy || DEFAULT_DURATION) }),
+            }
+          : {}),
         version: (current?.version ?? -1) + 1,
         authorIds: [...new Set([...(current?.authorIds || []), user.id])],
         sourceDocKey: current ? current.sourceDocKey : body.sourceDocKey,
@@ -375,7 +406,35 @@ export const classPlanMockRepository = {
         const unresolved = all.reduce((n, d) => n + unresolvedOf(db, d.kind || (d === doc ? kind : CLASS_DOC.WEEK), d), 0);
         if (unresolved) fail('CLASS_DOC_VERSION_FIX_REQUIRED', unresolved);
         if (kind === CLASS_DOC.BRANCH) {
-          const empty = (yearPlan ? yearWeeks(yearPlan).filter((w) => w.type === 'week') : []).filter(
+          if (doc.schemaVersion === 2) {
+            const limits = doc.durationPolicySnapshot;
+            const effective = calendarPlan(yearPlan, doc);
+            const valid = (start, end) =>
+              start &&
+              end &&
+              start <= end &&
+              new Date(start + 'T00:00:00Z').getUTCDay() === 1 &&
+              new Date(end + 'T00:00:00Z').getUTCDay() === 5;
+            for (const t of effective.themes || []) {
+              if (!valid(t.start, t.end)) fail('INVALID_VALUE', 'chủ đề phải trọn tuần Thứ Hai–Thứ Sáu');
+              if (effective.themes.some((o) => o.id !== t.id && o.start <= t.end && o.end >= t.start))
+                fail('INVALID_VALUE', 'các chủ đề bị trùng thời gian');
+              const count = yearWeeks({ ...effective, themes: [t] }).filter((w) => w.type === 'week').length;
+              if (limits?.mode === 'BOUNDED' && (count < limits.theme.minWeeks || count > limits.theme.maxWeeks))
+                fail('INVALID_VALUE', 'thời lượng chủ đề vượt giới hạn hồ sơ');
+            }
+            for (const b of doc.branches || []) {
+              const parent = effective.themes.find((t) => String(t.id) === String(b.themeId));
+              if (!parent || !valid(b.startDate, b.endDate) || b.startDate < parent.start || b.endDate > parent.end)
+                fail('INVALID_VALUE', 'nhánh phải nằm trong chủ đề cha và trọn tuần học');
+              if (doc.branches.some((o) => o.key !== b.key && o.startDate <= b.endDate && o.endDate >= b.startDate))
+                fail('INVALID_VALUE', 'các nhánh bị trùng thời gian');
+              const count = branchWeeks(b, yearPlan, doc).length;
+              if (limits?.mode === 'BOUNDED' && (count < limits.branch.minWeeks || count > limits.branch.maxWeeks))
+                fail('INVALID_VALUE', 'thời lượng nhánh vượt giới hạn hồ sơ');
+            }
+          }
+          const empty = (yearPlan ? yearWeeks(calendarPlan(yearPlan, doc)).filter((w) => w.type === 'week') : []).filter(
             (w) => !doc.names?.[w.start]?.trim(),
           ).length;
           if (empty) fail('BRANCH_WEEKS_UNNAMED', empty);

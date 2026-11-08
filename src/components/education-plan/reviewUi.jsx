@@ -8,7 +8,7 @@ import { Card, Field, History, Modal, Notice, fmtDateTime } from '@/components/e
  * trả lại dưới đầu trang → lịch sử xử lý cuối trang. Quyền và bước duyệt do service quyết định; ở đây chỉ hiển thị.
  */
 
-/** Tên ngắn của người duyệt trên nút "Gửi … duyệt". */
+/** Tên ngắn của người duyệt trong hộp xác nhận. */
 export const SIGNER_SHORT = { TEAM_LEADER: 'Tổ trưởng', VICE_PRINCIPAL: 'Phó HT', PRINCIPAL: 'Hiệu trưởng' };
 
 /** Lần trả lại gần nhất trong lịch sử (tone 'err'). */
@@ -70,7 +70,7 @@ export function ReviewActions({
     if (res) setAction(null);
   };
   const titles = {
-    submit: `Gửi ${sendTo} duyệt ${name}`,
+    submit: sendTo ? `Gửi ${sendTo} duyệt ${name}` : `Gửi duyệt ${name}`,
     reject: `Trả lại ${name}`,
     approve: `${approveLabel} ${name}`,
   };
@@ -89,7 +89,7 @@ export function ReviewActions({
           aria-description={sendReason || undefined}
           onClick={() => (sendReason ? setBlocked(sendReason) : open('submit'))}
         >
-          <Send size={16} aria-hidden /> Gửi {sendTo} duyệt
+          <Send size={16} aria-hidden /> Gửi duyệt
         </button>
       )}
       {can.reject && (
@@ -124,14 +124,14 @@ export function ReviewActions({
                 ) : (
                   <Check size={16} aria-hidden />
                 )}{' '}
-                {action === 'reject' ? 'Trả lại' : withSave(action === 'submit' ? 'Gửi' : approveLabel)}
+                {action === 'reject' ? 'Trả lại' : action === 'submit' ? 'Gửi duyệt' : withSave(approveLabel)}
               </button>
             </>
           }
         >
           {unsaved && action !== 'reject' && (
             <Notice tone="warn">
-              Còn thay đổi chưa lưu. Bấm "{withSave(action === 'submit' ? 'Gửi' : approveLabel)}" để lưu rồi tiếp tục.
+              Còn thay đổi chưa lưu. Bấm "{action === 'submit' ? 'Gửi duyệt' : withSave(approveLabel)}" để lưu rồi tiếp tục.
             </Notice>
           )}
           {notes[action] && <p>{notes[action]}</p>}

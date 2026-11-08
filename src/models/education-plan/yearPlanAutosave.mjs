@@ -12,6 +12,7 @@ export const yearPlanContentKey = (doc) =>
         id: r.id,
         kind: r.kind,
         text: r.text,
+        displayLabel: r.displayLabel,
         contents: r.contents,
       })),
     })),

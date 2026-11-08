@@ -8,6 +8,7 @@ import { EDU_ERROR_CODE } from '@/models/education-plan/educationPlanConstants';
 const SPECS = {
   REQUIRED_FIELD_MISSING: [400, 'Thiếu thông tin bắt buộc: {0}'],
   YEAR_PLAN_NOT_FOUND: [404, 'Không tìm thấy kế hoạch năm học'],
+  YEAR_PLAN_ACCESS_DENIED: [403, 'Bạn không có quyền xem kế hoạch giáo dục này'],
   YEAR_PLAN_EDIT_FORBIDDEN: [403, 'Bạn không sửa được kế hoạch này'],
   YEAR_PLAN_LOCKED_BY_OTHER: [409, 'Đang được {0} sửa'],
   YEAR_PLAN_INVALID_STATUS: [409, 'Không thể {0} kế hoạch ở trạng thái hiện tại'],

@@ -1,3 +1,7 @@
+import YearPlanSourceCard from '@/components/education-plan/YearPlanSourceCard';
+import { RowMenu } from '@/components/ui/RowMenu';
+import { branchScheduleIssue } from '@/models/education-plan/branchTemplateSchedule.mjs';
+import { planLevel as levelOf, planRoute, inheritAnnual } from '@/models/education-plan/planLevel.mjs';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
@@ -9,7 +13,7 @@ import { useYearPlanAutosave } from '@/hooks/education-plan/useYearPlanAutosave'
 import { recoveryText } from '@/models/education-plan/yearPlanAutosave.mjs';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
-import { ROLES, ROLE_LABELS } from '@/models/User';
+import { ROLES } from '@/models/User';
 import {
   AGE_GROUPS,
   DOMAINS,
@@ -21,6 +25,7 @@ import {
 import {
   duplicateAbbrThemeIds,
   duplicateNameIds,
+  durationRangeIssue,
   mixedSubDomains,
   goalIdsToTicks,
   isBlankTheme,
@@ -37,7 +42,7 @@ import ImportGoalsModal from '@/components/education-plan/ImportGoalsModal';
 import ImportThemesModal from '@/components/education-plan/ImportThemesModal';
 import { mergeImportedThemes } from '@/models/education-plan/importThemes.mjs';
 import CurriculumGoalsModal from '@/components/education-plan/CurriculumGoalsModal';
-import { addContentsToExistingGoals, addSuggestedContents, curriculumAsSourcePlan } from '@/models/education-plan/curriculum.mjs';
+import { addContentsToExistingGoals, addSuggestedContents, curriculumAsSourcePlan, filterCurriculumContents, validContentSelection } from '@/models/education-plan/curriculum.mjs';
 import { Card, Notice, PageHead, fmtDate } from '@/components/education-plan/eduUi';
 import { VersionHistory } from '@/components/education-plan/VersionHistory';
 import { yearPlanLines } from '@/models/education-plan/planHistory.mjs';
@@ -84,10 +89,23 @@ const formOf = (goal) => ({
   breaks: goal.breaks || [],
 });
 
-const NO_THEME_NOTE = 'Chưa có chủ đề. Thêm chủ đề ở phần "Chủ đề, sự kiện trong năm" phía trên để có cột tích chủ đề trong bảng này.';
+const NO_THEME_NOTE = 'Chưa có chủ đề từ kế hoạch năm học nguồn để phân bổ nội dung.';
+
+export function focusYearPlanIssue(root, issue) {
+  const section = root?.querySelector(`.ga-plan-section--${issue.section}`);
+  const target =
+    (issue.control && section?.querySelector(`#${issue.control}`)) ||
+    section?.querySelector('[aria-invalid="true"]') ||
+    section?.querySelector('.ga-card-toggle');
+  target?.scrollIntoView({ block: 'center' });
+  target?.focus({ preventScroll: true });
+}
 
 /** Lập / sửa kế hoạch giáo dục năm học của một nhóm tuổi theo mẫu MN Thái Dương (Phó HT và tổ trưởng cùng soạn). */
-export default function GoalFormPage() {
+export default function GoalFormPage({ planLevel = 'TEAM' }) {
+  const annual = planLevel === 'SCHOOL_YEAR';
+  const basePath = planRoute({ planLevel });
+  const pageLabel = annual ? 'Kế hoạch năm học' : 'Kế hoạch giáo dục tổ';
   const { id } = useParams();
   const location = useLocation();
   const handoffKey = location.state?.yearPlanHandoff;
@@ -96,23 +114,65 @@ export default function GoalFormPage() {
   useEffect(() => {
     if (id && handoffKey) editHandoffs.delete(handoffKey);
   }, [id, handoffKey]);
-  const { goals, schoolYear, saveGoal, startEditingGoal, finishEditingGoal, heartbeatGoal, toast, user, staff, eduConfig } =
-    useEducationPlan();
+  const {
+    goals: allGoals,
+    schoolYear,
+    saveGoal,
+    startEditingGoal,
+    finishEditingGoal,
+    heartbeatGoal,
+    toast,
+    user,
+    staff,
+    eduConfig,
+  } = useEducationPlan();
+  const levelsAvailable = eduConfig?.durationPolicyAvailable !== false;
+  const goals = allGoals.filter((g) => levelOf(g) === planLevel);
   const [preview, setPreview] = useState(null);
   const { schoolYears: yearOptions } = useSchoolYear();
   const navigate = useNavigate();
   const existing = goals.find((g) => g.id === id);
+  const teamEditing = !annual && !!existing;
   const isVp = user.role === ROLES.VICE_PRINCIPAL;
   const isLeader = user.role === ROLES.TEAM_LEADER;
-  const allowedAgeGroupIds = eduConfig?.yearCreationScopes ?? (isLeader ? [user.ageGroupId] : AGE_GROUPS.map((a) => a.id));
+  const annualPolicy = eduConfig?.workflowPolicy?.schoolYear || { creators: [ROLES.VICE_PRINCIPAL], reviewers: [ROLES.PRINCIPAL] };
+  const annualCreator = annualPolicy.creators.includes(user.role) && !annualPolicy.reviewers.includes(user.role);
+  const allowedAgeGroupIds =
+    eduConfig?.[annual ? 'schoolYearCreationScopes' : 'yearCreationScopes'] ??
+    (annual ? (annualCreator ? AGE_GROUPS.map((a) => a.id) : []) : isLeader ? [user.ageGroupId] : AGE_GROUPS.map((a) => a.id));
 
   const [form, setForm] = useState(() =>
     existing
       ? formOf(existing)
       : // Mã cố định ngay từ đầu để các lần lưu cùng ghi vào một kế hoạch
-        { ...emptyForm(schoolYear, isLeader ? user.ageGroupId : ''), id: `g-${uid()}` },
+        { ...emptyForm(schoolYear, isLeader ? user.ageGroupId : ''), planLevel, branchTemplates: [], id: `g-${uid()}` },
+  );
+  const inherited = !annual && form.sourceMode === 'INHERITED';
+  const annualSources = allGoals.filter(
+    (g) =>
+      levelOf(g) === 'SCHOOL_YEAR' &&
+      g.status === EDU_STATUS.APPROVED &&
+      g.schoolYear === form.schoolYear &&
+      (!form.ageGroupId || g.ageGroupId === form.ageGroupId),
   );
   const [errors, setErrors] = useState({});
+  const planRoot = useRef(null);
+  const errorSummary = useRef(null);
+  const focusValidation = useRef(false);
+  const planIssues = Object.entries(errors).map(([key, message]) => ({
+    key,
+    message: typeof message === 'string' ? message : 'Có tên viết tắt chủ đề bị trùng. Kiểm tra các ô báo đỏ.',
+    section: key === 'source' ? 'source' : ['title', 'ageGroupId'].includes(key) ? 'info' : key === 'domains' ? 'goals' : 'themes',
+    control: key === 'title' ? 'title' : key === 'ageGroupId' ? 'ag' : key === 'source' ? 'annual-source' : null,
+  }));
+  useEffect(() => {
+    if (!focusValidation.current) return;
+    focusValidation.current = false;
+    if (!Object.keys(errors).length) return;
+    errorSummary.current?.scrollIntoView({ block: 'center' });
+    errorSummary.current?.focus({ preventScroll: true });
+  }, [errors]);
+
   // BE:EDU-25 — phiên bản điều chỉnh dùng chung (năm học, nhóm tuổi) với các bản trước nên không tính là trùng
   const sameScope = existing && existing.schoolYear === form.schoolYear && existing.ageGroupId === form.ageGroupId;
   const dupGoal = !sameScope && goals.some((g) => g.id !== form.id && g.schoolYear === form.schoolYear && g.ageGroupId === form.ageGroupId);
@@ -168,17 +228,26 @@ export default function GoalFormPage() {
     [x.start, x.end].some((d) => d && (d < yearRange.start || d > yearRange.end)),
   );
   const outOfYearMsg = `Có chủ đề hoặc đợt nghỉ nằm ngoài năm học (${fmtDate(yearRange.start)} – ${fmtDate(yearRange.end)}).`;
-  const scheduleIssue = themeScheduleIssue(themes);
+  const durationPolicy = form.durationPolicySnapshot?.mode === 'BOUNDED'
+    ? form.durationPolicySnapshot
+    : !existing && levelsAvailable ? eduConfig?.durationPolicy : null;
+  const durationTheme = themes.map((t) => durationRangeIssue(t, form.breaks, durationPolicy?.theme, `Chủ đề "${t.name || t.abbr}"`)).find(Boolean);
+  const scheduleIssue = themeScheduleIssue(themes) || durationTheme || branchScheduleIssue(form.branchTemplates || [], form.breaks, durationPolicy?.branch);
   // EDU-52: chỉ khi bấm Ban hành mới bắt buộc chọn ngày cho mọi chủ đề
   const [requireDates, setRequireDates] = useState(false);
   const validate = (s, action) => {
     const e = {};
     if (s === 0) {
       if (!form.title.trim()) e.title = 'Nhập tên kế hoạch';
+      if (!annual && !existing && levelsAvailable && !form.curriculumSourcePlanId) e.source = 'Chọn kế hoạch năm học đã ban hành';
       if (!form.ageGroupId) e.ageGroupId = 'Chọn nhóm tuổi áp dụng';
-      if (form.ageGroupId && dupGoal) e.ageGroupId = 'Nhóm tuổi này đã có kế hoạch năm học. Mở kế hoạch đã có để chỉnh sửa.';
+      if (form.ageGroupId && dupGoal) e.ageGroupId = `Nhóm tuổi này đã có ${pageLabel.toLowerCase()}. Mở kế hoạch đã có để chỉnh sửa.`;
     }
     if (s === 1) {
+      if (annual && (form.branchTemplates || []).some((t) => !t.name?.trim())) {
+        setErrors({ themes: 'Nhập tên chủ đề nhánh / dự án hoặc xóa dòng chưa dùng trước khi gửi.' });
+        return false;
+      }
       const abbrs = themes.map((t) => t.abbr.trim().toLowerCase());
       if (themes.some((t) => !t.name.trim() || !t.abbr.trim()))
         e.themes = 'Mỗi chủ đề cần có tên và tên viết tắt (dùng làm cột "Chủ đề thực hiện" ở bảng mục tiêu).';
@@ -226,6 +295,13 @@ export default function GoalFormPage() {
     const domains = source.domains;
     const nos = numberGoals(domains);
     return {
+      planLevel,
+      sourceMode: source.sourceMode,
+      curriculumSourcePlanId: source.curriculumSourcePlanId,
+      branchTemplates: source.branchTemplates || [],
+      durationPolicySnapshot: source.durationPolicySnapshot,
+      remapWarnings: source.remapWarnings,
+      sourceChanges: source.sourceChanges,
       id: source.id || `g-${uid()}`,
       code: source.code || `KHNH-${source.schoolYear.slice(2, 4)}${source.schoolYear.slice(-2)}-${agCode}`,
       schoolYear: source.schoolYear,
@@ -251,7 +327,13 @@ export default function GoalFormPage() {
         ...d,
         items: d.rows
           .filter((r) => r.kind === 'goal')
-          .map((r) => ({ id: r.id, code: `MT${nos[r.id]}`, text: r.text, contents: r.contents, requirements: [] })),
+          .map((r) => ({
+            id: r.id,
+            code: r.displayLabel?.trim() || `MT${nos[r.id]}`,
+            text: r.text,
+            contents: r.contents,
+            requirements: [],
+          })),
       })),
       ...extra,
     };
@@ -274,14 +356,21 @@ export default function GoalFormPage() {
   const pendingHide = useRef(null);
   const retryLease = useRef(() => {});
   const lockId = existing?.id || (goals.some((g) => g.id === form.id) ? form.id : null);
-  const saveReady = canEdit && leaseReady && !!form.ageGroupId && !!form.schoolYear && !dupGoal;
+  const saveReady =
+    canEdit &&
+    (!annual || levelsAvailable) &&
+    leaseReady &&
+    !!form.ageGroupId &&
+    !!form.schoolYear &&
+    !dupGoal &&
+    (annual || !levelsAvailable || !!existing || !!form.curriculumSourcePlanId);
   const saver = useYearPlanAutosave({
     doc: form,
     setDoc: setForm,
     enabled: saveReady,
     mayBackup: !existing || (leaseReady && !leaseError),
     userId: user.id,
-    planKey: id || `new-${schoolYear}`,
+    planKey: id || `new-${planLevel}-${schoolYear}`,
     onConflict: (error) => {
       setLeaseError(error.message || 'Đã mất quyền sửa');
       setLeaseReady(false);
@@ -418,7 +507,7 @@ export default function GoalFormPage() {
       handingOff.current = true;
       const handoff = crypto.randomUUID();
       editHandoffs.set(handoff, { id: lockId, sessionId: editRef.current.sessionId });
-      const to = `/education/goals/${lockId}/edit${location.search}`;
+      const to = `${basePath}/${lockId}/edit${location.search}`;
       const state = { yearPlanHandoff: handoff, backTo: location.state?.backTo };
       navigate(to, { replace: true, state });
     }
@@ -456,6 +545,7 @@ export default function GoalFormPage() {
   const checkBeforeFinish = (action) => {
     setFolded({});
     setRequireDates(action === 'approve');
+    focusValidation.current = true;
     return validate(0) && validate(1, action);
   };
 
@@ -491,15 +581,15 @@ export default function GoalFormPage() {
       return null;
     }
     saver.clearRecovery();
-    toast('Đã gửi kế hoạch năm học để duyệt');
-    guard.leaveNow(exitTo(`/education/goals/${saved.id}`));
+    toast(`Đã gửi ${pageLabel.toLowerCase()} để duyệt`);
+    guard.leaveNow(exitTo(`${basePath}/${saved.id}`));
     return saved;
   };
 
   /* ---------- Nhập dữ liệu ---------- */
 
   const importState = useRef(null);
-  importState.current = { form, yearRange: fileYearRange, allowed: canEdit && leaseReady && !finishing && !leaseError };
+  importState.current = { form, yearRange: fileYearRange, allowed: annual && canEdit && leaseReady && !finishing && !leaseError };
   // EDU-46: áp dụng nguyên tử theo chế độ, dùng khoảng năm học cấu hình của hệ thống.
   const importFile = (preview, mode) => {
     const current = importState.current;
@@ -575,9 +665,14 @@ export default function GoalFormPage() {
     toast(`Đã thêm ${report.added} mục tiêu${contents}${unavailable}`, report.added || existing.added ? 'ok' : 'warn');
     return true;
   };
-  const addMinistryContents = (goalRowId, suggestions) => {
+  const addMinistryContents = (goalRowId, suggestions, context) => {
     if (!importState.current.allowed) return false;
-    const { domains, added, duplicates } = addSuggestedContents(importState.current.form, goalRowId, suggestions, () => `import-${uid()}`);
+    const current = importState.current.form;
+    if (!context || context.formId !== current.id || context.ageGroupId !== current.ageGroupId) return false;
+    const eligible = filterCurriculumContents(current, context.filter, context.catalog);
+    const valid = validContentSelection(current, context.filter, goalRowId, eligible, new Set(suggestions.map((c) => c.id)));
+    if (!valid.targetId || valid.items.length !== suggestions.length || !valid.items.length) return false;
+    const { domains, added, duplicates } = addSuggestedContents(current, valid.targetId, valid.items, () => `import-${uid()}`);
     if (added) set({ domains });
     toast(`Đã thêm ${added} nội dung${duplicates ? ` · bỏ qua ${duplicates} nội dung trùng` : ''}`, added ? 'ok' : 'warn');
     return true;
@@ -586,10 +681,7 @@ export default function GoalFormPage() {
   if (!permitted && !leaseError)
     return (
       <div className="page ga-page">
-        <PageHead
-          crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Mục tiêu năm học', to: '/education/goals' }]}
-          title="Kế hoạch năm học"
-        />
+        <PageHead crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: pageLabel, to: basePath }]} title={pageLabel} />
         <Notice tone="warn">
           {existing?.status === EDU_STATUS.APPROVED
             ? 'Kế hoạch đã ban hành nên không sửa được.'
@@ -597,13 +689,13 @@ export default function GoalFormPage() {
               ? `Kế hoạch đang ở trạng thái duyệt nên không sửa được.`
               : lockedByOther
                 ? `Kế hoạch đang được ${editor.name} sửa từ ${editor.at}.`
-                : 'Bạn chỉ lập, sửa được kế hoạch năm học của nhóm tuổi mình phụ trách.'}
+                : 'Bạn chỉ lập, sửa được kế hoạch giáo dục tổ của nhóm tuổi mình phụ trách.'}
         </Notice>
       </div>
     );
 
   return (
-    <div className="page ga-page ga-class-editor ga-year-page">
+    <div ref={planRoot} className={`page ga-page ga-class-editor ga-year-page${annual ? ' ga-annual-plan' : ' ga-team-plan'}`}>
       {leaseError && (
         <Notice tone="warn">
           <div className="row row--wrap gap-2">
@@ -617,33 +709,40 @@ export default function GoalFormPage() {
           </div>
         </Notice>
       )}
+      {annual && !levelsAvailable && (
+        <Notice tone="warn">Bạn đang soạn bản xem trước. Máy chủ chưa hỗ trợ lưu và gửi duyệt kế hoạch năm học.</Notice>
+      )}
       <fieldset disabled={!canEdit || !leaseReady || finishing} className="ga-edit-fieldset">
         <div className="ga-sticky-head">
           <PageHead
             crumbs={[
               { label: 'Kế hoạch giáo dục' },
-              { label: 'Mục tiêu năm học', to: '/education/goals' },
+              { label: pageLabel, to: basePath },
               { label: existing ? 'Chỉnh sửa' : 'Lập kế hoạch' },
             ]}
-            title={existing ? 'Chỉnh sửa kế hoạch giáo dục năm học' : 'Lập kế hoạch giáo dục năm học'}
+            title={`${existing ? 'Chỉnh sửa' : 'Lập'} ${pageLabel.toLowerCase()}`}
           />
-          <div className="ga-year-toolbar" role="group" aria-label="Thao tác kế hoạch năm học">
-            <div className="ga-year-toolbar__group">
-              <button type="button" className="btn btn--sm btn--outline-primary" onClick={() => setImporting(true)}>
-                <Download size={16} aria-hidden /> Lấy từ kế hoạch năm học
-              </button>
-              <button
-                type="button"
-                className="btn btn--sm btn--outline-primary"
-                disabled={!form.ageGroupId}
-                onClick={() => setMinistryOpen(true)}
-              >
-                <Download size={16} aria-hidden /> Lấy từ Chương trình của Bộ
-              </button>
-              <button type="button" className="btn btn--sm btn--outline-primary" onClick={() => setFileOpen(true)}>
-                <Upload size={16} aria-hidden /> Nhập file
-              </button>
-            </div>
+          <div className="ga-year-toolbar" role="group" aria-label={annual ? 'Thao tác kế hoạch năm học' : 'Thao tác kế hoạch giáo dục tổ'}>
+            {annual && (
+              <div className="ga-year-toolbar__group">
+                <RowMenu
+                  label="Lấy và nhập nội dung kế hoạch năm học"
+                  text="Lấy / nhập nội dung"
+                  icon={<Download size={16} aria-hidden />}
+                  className="btn btn--sm btn--outline-primary"
+                  items={[
+                    { label: 'Lấy kế hoạch năm', icon: Download, onClick: () => setImporting(true) },
+                    {
+                      label: 'Lấy từ Chương trình của Bộ',
+                      icon: Download,
+                      disabled: !form.ageGroupId,
+                      onClick: () => setMinistryOpen(true),
+                    },
+                    { label: 'Nhập file', icon: Upload, onClick: () => setFileOpen(true) },
+                  ]}
+                />
+              </div>
+            )}
             <div className="ga-year-toolbar__group ga-year-toolbar__group--end">
               <p className="muted text-sm ga-year-save-status" aria-live="polite">
                 {saveReady ? saver.label : leaseError || 'Chọn năm học và nhóm tuổi; đang chờ quyền sửa'}
@@ -668,7 +767,7 @@ export default function GoalFormPage() {
               )}
               <button
                 type="button"
-                className="btn btn--sm btn--outline-primary"
+                className="btn btn--sm btn--primary"
                 onClick={saver.save}
                 disabled={!saveReady || saver.saving || (!saver.unsaved && !saver.error)}
                 title="Lưu (Ctrl+S)"
@@ -676,15 +775,17 @@ export default function GoalFormPage() {
                 <Save size={16} aria-hidden /> Lưu
               </button>
               <ReviewActions
-                name="kế hoạch năm học"
-                sendTo={ROLE_LABELS[eduConfig?.workflowPolicy?.year?.reviewers?.[0]] || 'người duyệt'}
+                name={pageLabel.toLowerCase()}
                 approveLabel={pendingEdit ? 'Lưu và ban hành' : 'Ban hành'}
-                can={{ send: existing?.permissions ? existing.permissions.canSubmit : canEdit, approve: false }}
+                can={{
+                  send: (!annual || levelsAvailable) && (existing?.permissions ? existing.permissions.canSubmit : canEdit),
+                  approve: false,
+                }}
                 variant="btn--outline-primary"
                 unsaved={saver.unsaved}
                 beforeOpen={checkBeforeFinish}
                 notes={{
-                  submit: `Gửi "${form.title}" cho người duyệt theo cấu hình? Bạn không sửa được cho tới khi được ban hành hoặc bị trả lại.`,
+                  submit: 'Kế hoạch sẽ bị khóa cho tới khi được ban hành hoặc trả lại.',
                   approve: `Ban hành "${form.title}"? Giáo viên trong khối sẽ thấy kế hoạch này. Sau đó xuất file để in và ký.`,
                 }}
                 onAct={finish}
@@ -702,14 +803,41 @@ export default function GoalFormPage() {
 
         {!existing && dupGoal && (
           <Notice tone="warn">
-            Nhóm tuổi này đã có kế hoạch trong năm học, kể cả bản chưa ban hành. <Link to="/education/goals">Mở danh sách kế hoạch</Link> để
-            tiếp tục bản hiện có.
+            Nhóm tuổi này đã có kế hoạch trong năm học, kể cả bản chưa ban hành. <Link to={basePath}>Mở danh sách kế hoạch</Link> để tiếp
+            tục bản hiện có.
           </Notice>
         )}
 
-        <Card title="1. Thông tin chung" {...fold('info')}>
+        {planIssues.length > 0 && (
+          <Notice tone="err">
+            <div ref={errorSummary} tabIndex={-1} role="alert" aria-label="Các phần cần kiểm tra" className="ga-plan-error-summary">
+              <strong>Kiểm tra các mục sau trước khi gửi:</strong>
+              <ul>
+                {planIssues.map((issue) => (
+                  <li key={issue.key}>
+                    <button
+                      type="button"
+                      className="link-btn"
+                      onClick={() => {
+                        setFolded((current) => ({ ...current, [issue.section]: false }));
+                        requestAnimationFrame(() => focusYearPlanIssue(planRoot.current, issue));
+                      }}
+                    >
+                      {issue.message}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </Notice>
+        )}
+
+        <Card title="1. Thông tin chung" className="ga-plan-section--info" {...fold('info')}>
           <div className="table-wrap">
-            <table className="table ga-plan-table ga-goal-table ga-year-info" aria-label="Thông tin chung">
+            <table
+              className={`table ga-plan-table ga-goal-table ga-year-info ${annual ? 'ga-info-annual' : 'ga-info-team'}${teamEditing ? ' ga-info-fixed' : ''}`}
+              aria-label="Thông tin chung"
+            >
               <thead>
                 <tr>
                   <th>Thông tin</th>
@@ -788,25 +916,28 @@ export default function GoalFormPage() {
                     </label>
                   </th>
                   <td>
-                    <textarea
-                      id="title"
-                      rows={1}
-                      className="ga-cell-input"
-                      maxLength={150}
-                      placeholder="Chọn nhóm tuổi áp dụng để hệ thống đề xuất tên"
-                      value={form.title}
-                      aria-invalid={!!errors.title}
-                      aria-describedby={errors.title ? 'title-error' : undefined}
-                      onChange={(e) => set({ title: e.target.value })}
-                    />
-                    <div className="ga-field-meta">
-                      {errors.title && (
+                    <div className="ga-year-title-field">
+                      <input
+                        id="title"
+                        type="text"
+                        readOnly={teamEditing}
+                        className="ga-cell-input"
+                        maxLength={150}
+                        placeholder="Chọn nhóm tuổi áp dụng để hệ thống đề xuất tên"
+                        value={form.title}
+                        aria-invalid={!!errors.title}
+                        aria-describedby={errors.title ? 'title-error' : undefined}
+                        onChange={(e) => set({ title: e.target.value })}
+                      />
+                      <span className="char-count">{form.title.length}/150</span>
+                    </div>
+                    {errors.title && (
+                      <div className="ga-field-meta">
                         <span id="title-error" className="field__error" role="alert">
                           {errors.title}
                         </span>
-                      )}
-                      <span className="char-count">{form.title.length}/150</span>
-                    </div>
+                      </div>
+                    )}
                   </td>
                 </tr>
                 <tr>
@@ -816,6 +947,7 @@ export default function GoalFormPage() {
                   <td>
                     <textarea
                       id="desc"
+                      readOnly={teamEditing}
                       rows={2}
                       className="ga-cell-input"
                       maxLength={500}
@@ -833,28 +965,47 @@ export default function GoalFormPage() {
           </div>
         </Card>
 
+        {!annual && (levelsAvailable || !!existing) && (
+          <YearPlanSourceCard plan={form} source={allGoals.find((g) => String(g.id) === String(form.curriculumSourcePlanId))}>
+            {!existing && levelsAvailable && (
+              <label className="field" htmlFor="annual-source">
+                <span>Kế hoạch năm học đã ban hành</span>
+                <select
+                  id="annual-source"
+                  className="select"
+                  value={form.curriculumSourcePlanId || ''}
+                  aria-invalid={!!errors.source}
+                  aria-describedby={errors.source ? 'annual-source-error' : undefined}
+                  onChange={(e) => {
+                    const source = annualSources.find((g) => String(g.id) === e.target.value);
+                    if (source) set({ ...inheritAnnual(source), ageGroupId: source.ageGroupId });
+                  }}
+                >
+                  <option value="">Chọn kế hoạch năm học</option>
+                  {annualSources.map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.title} · Phiên bản {g.versionNo || 1}
+                    </option>
+                  ))}
+                </select>
+                {errors.source && (
+                  <span id="annual-source-error" role="alert" className="text-danger">
+                    {errors.source}
+                  </span>
+                )}
+                {!annualSources.length && (
+                  <Notice tone="warn">
+                    Chưa có kế hoạch năm học đã ban hành cho nhóm tuổi này. Hãy hoàn thành và duyệt kế hoạch năm học trước.
+                  </Notice>
+                )}
+              </label>
+            )}
+          </YearPlanSourceCard>
+        )}
+        {inherited && <Notice>Nội dung kế thừa từ kế hoạch năm học được giữ cố định. Tích từng nội dung vào chủ đề ở phần 2.</Notice>}
         <Card
-          title="2. Chủ đề, sự kiện trong năm"
-          {...fold('themes')}
-          actions={
-            <button type="button" className="btn btn--sm btn--outline-primary" onClick={() => setImportingThemes(true)}>
-              <Download size={16} aria-hidden /> Lấy chủ đề từ kế hoạch có sẵn
-            </button>
-          }
-        >
-          {errors.themes ? <Notice tone="err">{errors.themes}</Notice> : themeIssue && <Notice tone="warn">{themeIssue}</Notice>}
-          <ThemeEventTable
-            yearRange={yearRange}
-            themes={form.themes}
-            breaks={form.breaks}
-            domains={form.domains}
-            numbers={numbers}
-            requireDates={requireDates}
-            onChange={(patch) => set(patch)}
-          />
-        </Card>
-        <Card
-          title="3. Mục tiêu, nội dung giáo dục"
+          title="2. Mục tiêu nội dung giáo dục cuối độ tuổi"
+          className="ga-plan-section--goals"
           {...fold('goals')}
           actions={<span className="muted text-xs nowrap">{totalGoals} mục tiêu</span>}
         >
@@ -871,13 +1022,47 @@ export default function GoalFormPage() {
             </Notice>
           )}
           {errors.domains && <Notice tone="err">{errors.domains}</Notice>}
-          {themes.length === 0 && <p className="text-danger text-sm text-right">{NO_THEME_NOTE}</p>}
+          {!annual && themes.length === 0 && <p className="text-danger text-sm text-right">{NO_THEME_NOTE}</p>}
           <GoalTable
             domains={form.domains}
-            themes={themes}
+            themes={annual ? [] : themes}
+            readOnly={!annual}
+            fixedCells={!annual}
+            editLabels={annual}
+            canAssignContents={!annual}
             numbers={numbers}
             ageGroupId={form.ageGroupId}
+            canSuggest={importState.current.allowed}
+            suggestionScope={form.id || id || 'new'}
             onChange={(domains) => set({ domains })}
+          />
+        </Card>
+        <Card
+          title={annual ? '3. Dự kiến chủ đề / sự kiện năm học' : '3. Dự kiến chủ đề, sự kiện trong năm'}
+          className="ga-plan-section--themes"
+          {...fold('themes')}
+          actions={
+            annual && (
+              <button type="button" className="btn btn--sm btn--outline-primary" onClick={() => setImportingThemes(true)}>
+                <Download size={16} aria-hidden /> Lấy chủ đề từ kế hoạch có sẵn
+              </button>
+            )
+          }
+        >
+          {errors.themes ? <Notice tone="err">{errors.themes}</Notice> : themeIssue && <Notice tone="warn">{themeIssue}</Notice>}
+          <ThemeEventTable
+            hideGoals={annual}
+            branchTemplates={form.branchTemplates || []}
+            durationPolicy={durationPolicy}
+            readOnly={!annual}
+            fixedFields={!annual}
+            yearRange={yearRange}
+            themes={form.themes}
+            breaks={form.breaks}
+            domains={form.domains}
+            numbers={numbers}
+            requireDates={requireDates}
+            onChange={(patch) => set(patch)}
           />
         </Card>
 
@@ -893,6 +1078,7 @@ export default function GoalFormPage() {
 
         {importingThemes && (
           <ImportThemesModal
+            planLevel={planLevel}
             excludeId={form.id}
             defaultAgeGroupId={form.ageGroupId}
             defaultYear={form.schoolYear}
@@ -915,6 +1101,7 @@ export default function GoalFormPage() {
 
         {importing && (
           <ImportGoalsModal
+            planLevel={planLevel}
             excludeId={form.id}
             defaultAgeGroupId={form.ageGroupId}
             defaultYear={form.schoolYear}

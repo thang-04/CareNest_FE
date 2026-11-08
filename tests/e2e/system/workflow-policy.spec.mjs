@@ -34,7 +34,7 @@ test('WF-01 HT lưu policy bằng form và đọc lại từ BE thật sau reloa
   expect(actual.data.policies.year.creators).toEqual(['TEACHER']);
   policies = actual.data.policies;
   await page.reload();
-  await expect(page.getByText('2. Người tạo/duyệt', { exact: true })).toBeVisible();
+  await expect(page.getByText('3. Người tạo/duyệt', { exact: true })).toBeVisible();
 });
 
 test('WF-02 PHT không sửa được policy qua API hoặc form', async ({ page }) => {

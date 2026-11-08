@@ -144,7 +144,7 @@ test('ST-15 gửi Phó HT duyệt; Phó HT ban hành phiên bản mới; không 
   await login(tl, USERS.teacher1);
   await tl.goto(`/education/goals/${v2Id}/edit`);
   await expect(tl.locator('#desc')).toBeEditable();
-  await review(tl, 'Gửi Phó HT duyệt', 'Gửi');
+  await review(tl, 'Gửi duyệt', 'Gửi duyệt');
   await expect.poll(async () => (await plan(v2Id)).status).toBe('PENDING_VP');
 
   const ctx = await browser.newContext();

@@ -212,8 +212,9 @@ const ITEMS = {
     label: 'Kế hoạch toàn trường',
     to: '/education/school',
   },
+  eduSchoolYear: { label: 'Kế hoạch năm học', icon: BookOpenText, to: '/education/school-year-plans' },
   eduGoals: {
-    label: 'Kế hoạch năm học',
+    label: 'Kế hoạch giáo dục tổ',
     to: '/education/goals',
   },
   eduBranch: {
@@ -433,7 +434,7 @@ const MENUS = {
       'assessRewards',
       'assessDayUnlocks',
     ]),
-    group('education', ['eduSchool', 'eduPlanReviews', 'eduSettings', 'eduCurriculum']),
+    group('education', ['eduSchoolYear', 'eduGoals', 'eduPlanReviews', 'eduSettings', 'eduCurriculum']),
     ...boardingSection({
       nutrition: ['weeklyMenus', 'menus'],
       kitchenOps: ['mealCount', 'publishedMenu', 'forecast', 'freshReceipts'],
@@ -466,7 +467,7 @@ const MENUS = {
       'healthTrends',
     ]),
     group('attendance', ['attendanceSummary', 'leaveRequests', 'attendanceDayUnlocks', 'dailyHealthOverview']),
-    group('education', ['eduGoals', 'eduPlanReviews', 'eduSettings', 'eduCurriculum']),
+    group('education', ['eduSchoolYear', 'eduGoals', 'eduPlanReviews', 'eduSettings', 'eduCurriculum']),
     group('assessment', [
       'assessOverview',
       'assessQuality',
@@ -495,7 +496,7 @@ const MENUS = {
     link('approvals'),
     group('children', ['childList', 'healthChecks', 'healthFollowUps', 'healthTrends']),
     group('attendance', ['attendance', 'attendanceSummary', 'leaveRequests', 'pickup']),
-    group('education', ['eduGoals', 'eduBranch', 'eduClass', 'eduPlanReviews', 'eduCurriculum']),
+    group('education', ['eduSchoolYear', 'eduGoals', 'eduBranch', 'eduClass', 'eduPlanReviews', 'eduCurriculum']),
     group('assessment', [
       'assessOverview',
       'assessDaily',
@@ -516,7 +517,7 @@ const MENUS = {
     link('home'),
     group('children', ['childList', 'healthChecks', 'healthFollowUps', 'healthTrends']),
     group('attendance', ['attendance', 'attendanceSummary', 'leaveRequests', 'pickup']),
-    group('education', ['eduGoals', 'eduBranch', 'eduClass', 'eduCurriculum']),
+    group('education', ['eduSchoolYear', 'eduGoals', 'eduBranch', 'eduClass', 'eduCurriculum']),
     group('assessment', [
       'assessDaily',
       'assessProfiles',

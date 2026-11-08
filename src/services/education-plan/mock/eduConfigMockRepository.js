@@ -1,3 +1,4 @@
+import { workflowKey } from '@/models/education-plan/planLevel.mjs';
 import { readDb, writeDb, clone, delay } from '@/mocks/mockDatabase';
 import { eduError } from './eduMockErrors';
 import { ROLES } from '@/models/User';
@@ -12,7 +13,20 @@ const view = (config, user) => {
     cfg.workflowPolicy.year.creators.some((role) => rolesOf(user).includes(role));
   const scoped = user?.role === ROLES.TEAM_LEADER || user?.role === ROLES.TEACHER;
   const groups = scoped ? [user?.ageGroupId].filter(Boolean) : [...new Set((readDb().classes || []).map((cls) => cls.ageGroupId))];
-  return { ...cfg, canConfigure: canConfigure(user), ...(user ? { yearCreationScopes: author ? groups : [] } : {}) };
+  return {
+    ...cfg,
+    canConfigure: canConfigure(user),
+    ...(user
+      ? {
+          yearCreationScopes: author ? groups : [],
+          schoolYearCreationScopes:
+            cfg.workflowPolicy.schoolYear.creators.some((r) => rolesOf(user).includes(r)) &&
+            !cfg.workflowPolicy.schoolYear.reviewers.some((r) => rolesOf(user).includes(r))
+              ? groups
+              : [],
+        }
+      : {}),
+  };
 };
 
 // BE:FR-003/012 — fake backend đối soát tài liệu đang mở trong cùng lần lưu policy.
@@ -24,7 +38,7 @@ const reconcile = (db, policies, revision) => {
   ]) {
     for (const doc of db[collection] || []) {
       if (doc.status === 'APPROVED') continue;
-      const policy = policies[kind];
+      const policy = policies[kind === 'year' ? workflowKey(doc) : kind];
       const members =
         kind === 'theme'
           ? [
@@ -118,7 +132,26 @@ export const eduConfigMockRepository = {
     const current = withDefaults(readDb().eduConfig);
     if (cfg.workflowPolicy && JSON.stringify(cfg.workflowPolicy) !== JSON.stringify(current.workflowPolicy))
       throw eduError('INVALID_VALUE', 'dùng chức năng lưu người tạo/duyệt');
-    const next = withDefaults({ ...current, domainLabels: cfg.domainLabels, extraDomains: cfg.extraDomains, weekRows: cfg.weekRows });
+    if (JSON.stringify(cfg.durationPolicy || current.durationPolicy) !== JSON.stringify(current.durationPolicy)) {
+      if (!canConfigure(user)) throw eduError('EDU_CONFIG_FORBIDDEN');
+      if (cfg.durationPolicy.revision !== current.durationPolicy.revision) throw eduError('YEAR_PLAN_REVISION_STALE');
+      for (const key of ['theme', 'branch']) {
+        const { minWeeks, maxWeeks } = cfg.durationPolicy[key] || {};
+        if (!Number.isInteger(minWeeks) || !Number.isInteger(maxWeeks) || minWeeks < 1 || minWeeks > maxWeeks)
+          throw eduError('INVALID_VALUE', 'giới hạn tuần học');
+      }
+    }
+    const durationPolicy =
+      JSON.stringify(cfg.durationPolicy || current.durationPolicy) === JSON.stringify(current.durationPolicy)
+        ? current.durationPolicy
+        : { ...cfg.durationPolicy, revision: current.durationPolicy.revision + 1 };
+    const next = withDefaults({
+      ...current,
+      durationPolicy,
+      domainLabels: cfg.domainLabels,
+      extraDomains: cfg.extraDomains,
+      weekRows: cfg.weekRows,
+    });
     if (!next.weekRows.some((row) => row.key === 'hoc')) throw eduError('LESSON_ROW_REQUIRED');
     if (next.weekRows.some((row) => !row.label.trim())) throw eduError('REQUIRED_FIELD_MISSING', 'tên dòng hoạt động');
     const names = next.extraDomains.map((name) => name.trim().toLowerCase());
@@ -133,8 +166,12 @@ export const eduConfigMockRepository = {
     if (!canConfigure(user)) throw eduError('EDU_CONFIG_FORBIDDEN');
     const current = withDefaults(readDb().eduConfig);
     if (cfg.workflowRevision !== current.workflowRevision) throw eduError('YEAR_PLAN_REVISION_STALE');
-    const policies = cfg.workflowPolicy;
-    if (!policies || Object.keys(policies).sort().join(',') !== 'branch,theme,year') throw eduError('INVALID_VALUE', 'loại tài liệu');
+    const policies = cfg.workflowPolicy && {
+      ...cfg.workflowPolicy,
+      schoolYear: cfg.workflowPolicy.schoolYear || current.workflowPolicy.schoolYear,
+    };
+    if (!policies || Object.keys(policies).sort().join(',') !== 'branch,schoolYear,theme,year')
+      throw eduError('INVALID_VALUE', 'loại tài liệu');
     for (const policy of Object.values(policies)) {
       if (Object.keys(policy).sort().join(',') !== 'creators,reviewers') throw eduError('INVALID_VALUE', 'vai trò');
       for (const [key, allowed] of [

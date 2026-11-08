@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { readFileSync } from 'node:fs';
+import * as cascade from '../../src/models/education-plan/curriculum.mjs';
 
 import { CURRICULUM_SEED } from '../../src/mocks/curriculumSeed.js';
 import {
@@ -27,14 +29,173 @@ const emptyPlan = () => ({ id: 'g-1', domains: DOMAINS.map((name, i) => ({ id: `
 let seq = 0;
 const makeId = () => `n${++seq}`;
 
+test('EDU-28: nội dung và mục tiêu ô gộp được cung cấp đủ theo từng độ tuổi', () => {
+  const hasContent = (age, text) => CURRICULUM_SEED.contents.some((item) => item.ageGroup === age && item.text === text);
+  assert.ok(hasContent('ag-2', 'Nghe lời nói với sắc thái tình cảm khác nhau.'));
+  assert.ok(hasContent('ag-5', 'Các nguồn nước trong môi trường sống.'));
+  assert.ok(hasContent('ag-4', 'Nhận biết các bữa ăn trong ngày và ích lợi của ăn uống đủ lượng và đủ chất.'));
+  for (const age of ['ag-4', 'ag-5']) assert.ok(hasContent(age, 'Hô hấp: Hít vào, thở ra.'));
+  assert.ok(goalsOf('ag-5').some((item) => item.goalNo === '5.1' && item.goalText === 'Thích chăm sóc cây, con vật thân thuộc.'));
+});
+
+test('EDU-28: 73 mục ô gộp giữ đúng nguyên văn và độ tuổi đã đối chiếu', () => {
+  const expected = JSON.parse(readFileSync(new URL('./curriculum-source-additions.json', import.meta.url), 'utf8'));
+  assert.equal(expected.length, 73);
+  for (const item of expected) {
+    const rows = item.kind === 'content' ? CURRICULUM_SEED.contents : CURRICULUM_SEED.goals;
+    const matches = rows.filter((row) => row.ageGroup === item.age && (row.text ?? row.goalText) === item.text);
+    assert.equal(matches.length, 1, `${item.kind}/${item.age}/PDF${item.pdfPage}: ${item.text}`);
+  }
+});
+
+test('EDU-28: câu 5 - 7 và dấu hai chấm được giữ nguyên trong nguồn Bộ', () => {
+  const split = goalsOf('ag-2').find((g) => g.id === 27);
+  assert.equal(split.goalText, 'Nói được câu đơn, câu có 5 - 7 tiếng, có các từ thông dụng chỉ sự vật, hoạt động, đặc điểm quen thuộc.');
+  assert.deepEqual(split.contents, []);
+  const punctuation = {
+    'ag-2': [28],
+    'ag-3': [2, 3, 4, 5, 6, 7, 11, 14, 17],
+    'ag-4': [2, 4, 5, 6, 7, 8, 11, 13, 14, 17, 18],
+    'ag-5': [2, 4, 5, 6, 7, 8, 10, 12, 13, 16, 17, 18],
+  };
+  for (const [age, orders] of Object.entries(punctuation)) {
+    for (const order of orders) assert.ok(goalsOf(age).find((g) => g.sortOrder === order * 1000).goalText.endsWith(':'), `${age}/${order}`);
+  }
+});
+
+test('EDU-61: nguồn mock có danh tính cha ổn định, không sửa seed hoặc mã mục tiêu', async () => {
+  globalThis.window ??= new EventTarget();
+  const { curriculumMockRepository: repo } = await import('../../src/services/education-plan/mock/curriculumMockRepository.js');
+  const before = JSON.stringify(CURRICULUM_SEED);
+  const all = [];
+  for (const age of ['ag-2', 'ag-3', 'ag-4', 'ag-5']) {
+    const goals = await repo.getCurriculumGoals(age);
+    assert.ok(goals.every((g) => g.domainId != null && g.expectedResultId != null));
+    assert.ok(goals.every((g) => !g.subDomain || g.subDomainId != null));
+    assert.deepEqual(goals.map((g) => g.id), goalsOf(age).map((g) => g.id));
+    assert.deepEqual(goals, await repo.getCurriculumGoals(age));
+    const contents = await repo.getCurriculumContents(age);
+    for (const c of contents) {
+      assert.equal(c.expectedResultId, undefined);
+      const g = goals.find((g) => g.domainName === c.domainName && g.subDomain === c.subDomain);
+      if (g) assert.equal(c.subDomainId, g.subDomainId);
+    }
+    all.push(...goals);
+  }
+  const identities = new Map();
+  for (const g of all) {
+    const tuple = JSON.stringify([g.ageGroup, g.sourceId, g.domainName, g.subDomain, g.groupNo, g.groupText]);
+    if (identities.has(g.expectedResultId)) assert.equal(identities.get(g.expectedResultId), tuple);
+    identities.set(g.expectedResultId, tuple);
+  }
+  assert.equal(JSON.stringify(CURRICULUM_SEED), before);
+});
+
+test('EDU-61: lưu, tải lại và tạo phiên bản mock giữ định danh nguồn', async () => {
+  globalThis.window ??= new EventTarget();
+  const store = new Map();
+  globalThis.localStorage = { getItem: (k) => store.get(k) || null, setItem: (k, v) => store.set(k, v), removeItem: (k) => store.delete(k) };
+  const { curriculumMockRepository } = await import('../../src/services/education-plan/mock/curriculumMockRepository.js');
+  const { educationPlanMockRepository: repo } = await import('../../src/services/education-plan/mock/educationPlanMockRepository.js');
+  const vp = { id: 'synthetic-vp', name: 'PHT kiểm thử', fullName: 'PHT kiểm thử', role: 'VICE_PRINCIPAL' };
+  const ht = { id: 'synthetic-ht', name: 'HT kiểm thử', fullName: 'HT kiểm thử', role: 'PRINCIPAL' };
+  const [goal] = await curriculumMockRepository.getCurriculumGoals('ag-3');
+  const domains = curriculumAsSourcePlan([goal]).domains;
+  const form = { id: 'test-014-source', code: 'TEST014', planLevel: 'SCHOOL_YEAR', schoolYear: '2027 – 2028', ageGroupId: 'ag-3',
+    title: 'Kế hoạch kiểm thử', status: 'DRAFT', domains, themes: [{ id: 'theme', name: 'Chủ đề', abbr: 'CD', start: '2027-09-06', end: '2027-09-17' }], breaks: [], branchTemplates: [] };
+  let saved = await repo.saveGoal(form, { actor: vp });
+  const expected = saved.domains[0].rows.map((r) => [r.kind, r.curriculumSubDomainId, r.curriculumExpectedResultId, r.curriculumGoalId]);
+  const loaded = (await repo.getAll(vp)).goals.find((plan) => plan.id === saved.id);
+  assert.deepEqual(loaded.domains[0].rows.map((r) => [r.kind, r.curriculumSubDomainId, r.curriculumExpectedResultId, r.curriculumGoalId]), expected);
+  saved = await repo.saveGoal({ ...saved, status: 'REVIEW' }, { actor: vp, action: 'submit' });
+  saved = await repo.saveGoal({ ...saved, status: 'APPROVED' }, { actor: ht, action: 'approve' });
+  const version = await repo.createGoalVersion(saved.id, vp);
+  assert.deepEqual(version.domains[0].rows.map((r) => [r.kind, r.curriculumSubDomainId, r.curriculumExpectedResultId, r.curriculumGoalId]), expected);
+});
+
+const cascadeForm = () => ({ domains: [{ id: 'd', name: 'D', rows: [
+  { id: 's1', kind: 'sub', text: 'Same', curriculumSubDomainId: 100 },
+  { id: 'r1', kind: 'group', text: 'Same', curriculumExpectedResultId: 200 },
+  { id: 'g1', kind: 'goal', text: 'One', contents: [{ id: 'c1', text: 'Kept', themes: ['t'] }] },
+  { id: 's2', kind: 'sub', text: 'Same', curriculumSubDomainId: 101 },
+  { id: 'r2', kind: 'group', text: 'Same', curriculumExpectedResultId: 201 },
+  { id: 'g2', kind: 'goal', text: 'Two', contents: [] },
+] }] });
+
+test('EDU-61: mục tiêu đích dùng cha thực, lọc bằng local ID và không sửa dữ liệu', () => {
+  const form = cascadeForm();
+  const before = structuredClone(form);
+  const targets = goalTargets(form);
+  assert.equal(targets[0].subRowId, 's1');
+  assert.equal(targets[0].groupRowId, 'r1');
+  assert.deepEqual(cascade.filterGoalTargets(form, { domainId: 'd', subRowId: 's2' }).map((t) => t.id), ['g2']);
+  assert.equal(cascade.filterGoalTargets(form, { subRowId: '100' }).length, 0);
+  assert.deepEqual(form, before);
+});
+
+test('EDU-61: đổi cha loại đích và nội dung đã tick ngoài phạm vi, giữ bản soạn', () => {
+  const form = cascadeForm();
+  const before = structuredClone(form);
+  const filter = { domainId: 'd', subRowId: 's2' };
+  const contents = [{ id: 1, text: 'A' }, { id: 2, text: 'B' }];
+  assert.deepEqual(cascade.validContentSelection(form, filter, 'g1', contents, new Set([1, 2])), { targetId: '', items: [] });
+  assert.deepEqual(cascade.validContentSelection(form, filter, 'g2', contents.slice(1), new Set([1, 2])), { targetId: 'g2', items: [contents[1]] });
+  assert.deepEqual(form, before);
+  form.domains[0].rows.unshift({ id: 'direct', kind: 'goal', text: 'Direct', contents: [] });
+  assert.deepEqual(cascade.filterGoalTargets(form, { subRowId: '@none' }).map((t) => t.id), ['direct']);
+  assert.equal(cascade.filterGoalTargets(form, {}).length, 3);
+  assert.deepEqual(cascade.filterGoalTargets(form, { groupRowId: 'r1' }).map((t) => t.id), ['g1']);
+  assert.equal(cascade.filterGoalTargets(form, { domainId: 'other' }).length, 0);
+  form.domains.push({ id: 'other', name: 'Other', rows: [{ id: 'other-sub', kind: 'sub', text: 'Same' }, { id: 'other-goal', kind: 'goal', text: 'Other goal', contents: [] }] });
+  assert.deepEqual(cascade.filterGoalTargets(form, { domainId: 'other', subRowId: 'other-sub' }).map((t) => t.id), ['other-goal']);
+  assert.equal(cascade.validContentSelection(form, {}, 'g1', contents, new Set([1])).targetId, 'g1');
+  const tips = [{ id: 1, domainName: 'D', subDomainId: 100 }, { id: 2, domainName: 'D', subDomainId: 101 }];
+  assert.deepEqual(cascade.filterCurriculumContents(form, { domainId: 'd', subRowId: 's2' }, tips).map((c) => c.id), [2]);
+  delete form.domains[0].rows.find((r) => r.id === 's2').curriculumSubDomainId;
+  assert.deepEqual(cascade.filterCurriculumContents(form, { domainId: 'd', subRowId: 's2' }, tips), []);
+  assert.deepEqual(cascade.filterCurriculumContents(form, { domainId: 'd', subRowId: 's2', sourceSubId: 101 }, tips).map((c) => c.id), [2]);
+});
+
+test('EDU-61: gợi ý dùng source ID đúng nhóm, nội dung lấy từ mọi mục tiêu trong nhóm', () => {
+  const goals = [
+    { id: 1, sourceId: 1, domainName: 'D', subDomainId: 100, expectedResultId: 200, groupText: 'Same', goalText: 'A', contents: ['A1'] },
+    { id: 2, sourceId: 1, domainName: 'D', subDomainId: 100, expectedResultId: 200, groupText: 'Same', goalText: 'B', contents: ['B1'] },
+    { id: 3, sourceId: 1, domainName: 'D', subDomainId: 101, expectedResultId: 201, groupText: 'Same', goalText: 'A', contents: ['Other'] },
+  ];
+  const scope = { domainName: 'D', subDomainId: 100, expectedResultId: 200 };
+  assert.deepEqual(cascade.curriculumOptions(goals, scope, 'group').map((o) => o.patch.curriculumExpectedResultId), [200]);
+  assert.deepEqual(cascade.curriculumOptions(goals, scope, 'goal').map((o) => o.patch.curriculumGoalId), [1, 2]);
+  assert.deepEqual(cascade.curriculumOptions(goals, scope, 'content').map((o) => o.text), ['A1', 'B1']);
+  assert.deepEqual(cascade.curriculumOptions(goals, { domainName: 'D' }, 'goal'), []);
+  assert.deepEqual(cascade.curriculumOptions(goals, { ...scope, subDomainId: 101 }, 'content'), []);
+});
+
+test('EDU-61: gợi ý giữ nguyên từng ký tự trong danh mục nguồn của bốn nhóm tuổi', async () => {
+  globalThis.window ??= new EventTarget();
+  const { curriculumMockRepository: repo } = await import('../../src/services/education-plan/mock/curriculumMockRepository.js');
+  for (const age of ['ag-2', 'ag-3', 'ag-4', 'ag-5']) {
+    const goals = await repo.getCurriculumGoals(age);
+    for (const goal of goals) {
+      const scope = { domainName: goal.domainName, subDomainId: goal.subDomainId, expectedResultId: goal.expectedResultId };
+      assert.ok(cascade.curriculumOptions(goals, scope, 'group').some((o) => o.patch.curriculumExpectedResultId === goal.expectedResultId && o.text === goal.groupText));
+      assert.ok(cascade.curriculumOptions(goals, scope, 'goal').some((o) => o.patch.curriculumGoalId === goal.id && o.text === goal.goalText));
+      const content = cascade.curriculumOptions(goals, scope, 'content');
+      for (let i = 0; i < goal.contents.length; i++) {
+        const key = JSON.stringify([goal.sourceId, goal.id, i]);
+        assert.equal(content.find((o) => o.key === key)?.text, goal.contents[i]);
+      }
+    }
+  }
+});
+
 test('dữ liệu mock trùng số lượng BE (V31) cho 4 nhóm tuổi', () => {
   assert.deepEqual(
     ['ag-2', 'ag-3', 'ag-4', 'ag-5'].map((a) => goalsOf(a).length),
-    [41, 84, 99, 103],
+    [41, 84, 99, 107],
   );
   assert.deepEqual(
     ['ag-2', 'ag-3', 'ag-4', 'ag-5'].map((a) => CURRICULUM_SEED.contents.filter((c) => c.ageGroup === a).length),
-    [77, 119, 121, 106],
+    [82, 119, 143, 150],
   );
   assert.equal(CURRICULUM_SEED.sources[0].documentNo, '01/VBHN-BGDĐT');
 });
@@ -58,7 +219,7 @@ test('lấy tất cả mục tiêu MG bé: đủ lĩnh vực con, nhóm, mục t
       ['goal', 'Thực hiện đủ các động tác trong bài tập thể dục theo hướng dẫn.'],
     ],
   );
-  const balance = physical.find((r) => r.text === 'Giữ được thăng bằng cơ thể khi thực hiện vận động');
+  const balance = physical.find((r) => r.text === 'Giữ được thăng bằng cơ thể khi thực hiện vận động:');
   assert.deepEqual(
     balance.contents.map((c) => c.text),
     ['Đi hết đoạn đường hẹp (3m x 0,2m).', 'Đi kiễng gót liên tục 3m.'],
@@ -148,7 +309,7 @@ test('cây hiển thị giữ thứ tự văn bản: lĩnh vực > lĩnh vực c
   assert.equal(tree[0].subs[0].name, 'Phát triển vận động');
   assert.equal(
     tree.reduce((n, d) => n + d.subs.reduce((m, s) => m + s.groups.reduce((k, g) => k + g.goals.length, 0), 0), 0),
-    103,
+    107,
   );
 });
 

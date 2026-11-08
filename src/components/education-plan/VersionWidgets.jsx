@@ -74,6 +74,7 @@ export function YearPlanVersionPanel({ plan, goals }) {
                     </td>
                     <td>
                       <YearPlanStatusBadge
+                        doc={goals.find((goal) => String(goal.id) === String(v.id)) || v}
                         status={
                           v.status === 'APPROVED' && !(v.current ?? currentPlanOf(goals, v.ageGroupId, v.schoolYear)?.id === v.id)
                             ? 'REPLACED'

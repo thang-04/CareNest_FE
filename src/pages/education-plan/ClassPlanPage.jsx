@@ -20,7 +20,7 @@ import { numberGoals } from '@/models/education-plan/goalTable';
 import { leaderNameOf, themeFile } from '@/utils/education-plan/classPlanDoc';
 import DocPreviewModal from '@/components/education-plan/DocPreviewModal';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
-import { AGE_GROUPS, EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
+import { AGE_GROUPS, EDU_STATUS, educationDisplayStatus } from '@/models/education-plan/educationPlanConstants';
 import {
   createBlocker,
   ddmm,
@@ -93,7 +93,7 @@ export default function ClassPlanPage() {
           {pendingYearPlan && (
             <>
               {' '}
-              Trạng thái hiện tại: <YearPlanStatusBadge status={pendingYearPlan.status} />
+              Trạng thái hiện tại: <YearPlanStatusBadge status={pendingYearPlan.status} doc={pendingYearPlan} />
             </>
           )}
         </Notice>
@@ -138,7 +138,7 @@ export default function ClassPlanPage() {
       </span>
     );
   };
-  const status = (doc, noneStatus) => (doc ? <EduStatusBadge status={doc.status} /> : <DocAvailabilityBadge status={noneStatus} />);
+  const status = (doc, noneStatus) => (doc ? <EduStatusBadge status={doc.status} doc={doc} /> : <DocAvailabilityBadge status={noneStatus} />);
   const branchApproved = branch?.status === EDU_STATUS.APPROVED;
   // Giáo án tuần chỉ tạo được khi đã lưu kế hoạch chủ đề; dòng chưa tới lượt hiện lý do, không có nút tạo
   const lockOf = (kind, themeId) => createBlocker(kind, { classId, yearPlanId: yearPlan.id, themeId }, { branchPlans, classThemePlans });
@@ -189,7 +189,7 @@ export default function ClassPlanPage() {
           const doc = classThemePlans.find((x) => x.classId === classId && x.themeId === t.id) || null;
           const themeRows = rows.filter((r) => r.theme.id === t.id);
           const themeWeeks = themeRows.filter((r) => r.type === 'week');
-          const sent = !!doc && doc.status !== EDU_STATUS.DRAFT;
+          const sent = !!doc && (doc.status !== EDU_STATUS.DRAFT || educationDisplayStatus(doc) === EDU_STATUS.REJECTED);
           const to = `${base}/themes/${t.id}`;
           const weekLock = lockOf('week', t.id);
           return (
@@ -215,7 +215,7 @@ export default function ClassPlanPage() {
               <div className="card__body stack">
                 <div className="row row--between row--wrap gap-3">
                   <div className="row row--wrap gap-2">
-                    {sent ? <EduStatusBadge status={doc.status} /> : <span className="muted text-sm">{due(doc, t.start)}</span>}
+                    {sent ? <EduStatusBadge status={doc.status} doc={doc} /> : <span className="muted text-sm">{due(doc, t.start)}</span>}
                   </div>
                   {/* Gửi và duyệt ở cuối trang xem cả tập; nút nói rõ việc cần làm */}
                   {doc && (

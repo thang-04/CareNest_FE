@@ -73,7 +73,12 @@ export const yearSigners = (plan, staff = []) => {
       name: (s.names || []).join(', '),
     }));
   }
-  return getEduConfig().signers.year.map((role) => {
+  const config = getEduConfig();
+  const roles =
+    plan.planLevel === 'SCHOOL_YEAR'
+      ? [...config.workflowPolicy.schoolYear.creators, ...config.workflowPolicy.schoolYear.reviewers]
+      : config.signers.year;
+  return roles.map((role) => {
     // Người gửi duyệt luôn là Tổ trưởng, người ban hành luôn là Phó HT (EDU-04/05); người soạn suy từ chức danh BE trả
     const roleOfTitle = (t = '') => (/tổ trưởng/i.test(t) ? 'TEAM_LEADER' : /phó hiệu trưởng/i.test(t) ? 'VICE_PRINCIPAL' : null);
     const people = [
@@ -112,7 +117,7 @@ const partA = (domains, themes, numbers, { blankRows = 0 } = {}) => {
           const contents = r.contents.filter((c) => c.text.trim());
           const span = Math.max(contents.length, 1);
           const no = numbers[r.id] || '';
-          const head = `<td rowspan="${span}" class="c">${no}</td><td rowspan="${span}">${no ? `${no}. ` : ''}${esc(r.text)}</td>`;
+          const head = `<td rowspan="${span}" class="c">${esc(r.displayLabel?.trim() || String(no))}</td><td rowspan="${span}">${no ? `${no}. ` : ''}${esc(r.text)}</td>`;
           if (!contents.length) rows.push(`<tr>${head}<td></td>${ticks(null)}</tr>`);
           contents.forEach((c, k) => rows.push(`<tr>${k === 0 ? head : ''}<td>- ${esc(c.text)}</td>${ticks(c)}</tr>`));
         }
@@ -144,7 +149,7 @@ const partA = (domains, themes, numbers, { blankRows = 0 } = {}) => {
 };
 
 /** Bảng B: chủ đề, sự kiện; đợt nghỉ ghi vào Ghi chú của chủ đề có tuần nghỉ, đợt nghỉ ngoài mọi chủ đề thành dòng riêng. */
-const partB = (domains, themes, breaks, numbers) => {
+const partB = (domains, themes, breaks, numbers, templates = null) => {
   const overlaps = (t, b) => t.start && t.end && b.start && b.end && b.start <= t.end && t.start <= b.end;
   const breakText = (b) => `Nghỉ: ${esc(b.label || 'Đợt nghỉ')} (${fmt(b.start)} – ${fmt(b.end || b.start)})`;
   const rows = themes.map((t, i) => {
@@ -161,7 +166,16 @@ const partB = (domains, themes, breaks, numbers) => {
     const weeks = weekCount(t, breaks);
     const time = t.start ? `${weeks ? `${weeks} tuần<br/>` : ''}Từ ${fmt(t.start)}${t.end ? `<br/>đến ${fmt(t.end)}` : ''}` : '';
     const notes = [t.note ? esc(t.note) : '', ...breaks.filter((b) => overlaps(t, b)).map(breakText)].filter(Boolean).join('<br/>');
-    return `<tr><td class="c">${i + 1}</td><td><b>${esc(t.name)}</b></td><td class="c">${nos.length ? `${nos.join(',')} (${nos.length}MT)` : ''}</td><td>${festivals}</td><td>${time}</td><td>${notes}</td></tr>`;
+    return `<tr><td class="c">${i + 1}</td><td><b>${esc(t.name)}</b></td><td class="c">${
+      templates
+        ? templates
+            .filter((b) => String(b.themeId) === String(t.id))
+            .map((b) => esc(b.name))
+            .join('<br/>')
+        : nos.length
+          ? `${nos.join(',')} (${nos.length}MT)`
+          : ''
+    }</td><td>${festivals}</td><td>${time}</td><td>${notes}</td></tr>`;
   });
   const lone = breaks.filter((b) => (b.label || b.start) && !themes.some((t) => overlaps(t, b)));
   lone.forEach((b) =>
@@ -169,11 +183,11 @@ const partB = (domains, themes, breaks, numbers) => {
       `<tr><td></td><td><i>${esc(b.label || 'Đợt nghỉ')}</i></td><td></td><td></td><td>Từ ${fmt(b.start)}${b.end ? `<br/>đến ${fmt(b.end)}` : ''}</td><td>Đợt nghỉ</td></tr>`,
     ),
   );
-  return partBTable(rows);
+  return partBTable(rows, templates !== null);
 };
-const partBTable = (rows) => `<table class="grid">
+const partBTable = (rows, annual = false) => `<table class="grid">
 <colgroup><col style="width:5%"/><col style="width:20%"/><col style="width:14%"/><col style="width:25%"/><col style="width:16%"/><col style="width:20%"/></colgroup>
-<thead><tr><th>STT</th><th>Tên chủ đề</th><th>Mục tiêu giáo dục</th><th>Ngày lễ hội</th><th>Thời gian</th><th>Ghi chú</th></tr></thead>
+<thead><tr><th>STT</th><th>Tên chủ đề</th><th>${annual ? 'Chủ đề nhánh / dự án' : 'Mục tiêu giáo dục'}</th><th>Ngày lễ hội</th><th>Thời gian</th><th>Ghi chú</th></tr></thead>
 <tbody>${rows.join('')}</tbody></table>`;
 
 // Chỗ ký tay: ngày ban hành (chưa có thì để trống), chức danh, khoảng trống ký, họ tên
@@ -193,6 +207,29 @@ const signBlock = (plan, staff, list = yearSigners(plan, staff)) => {
  * HTML đầy đủ của kế hoạch năm học. plan: { schoolYear, ageGroupId, domains (dạng hàng), themes, breaks, owner, sentBy, issued };
  * numbers: số MT theo id mục tiêu.
  */
+const annualGoals = (domains, numbers) => {
+  const rows = [];
+  for (const d of domains) {
+    rows.push(`<tr><td colspan="4"><b>${esc(domainTitle(d.name))}</b></td></tr>`);
+    let group = '';
+    for (const row of d.rows || []) {
+      if (row.kind === 'sub') {
+        group = '';
+        rows.push(`<tr><td colspan="4"><b>${esc(row.text)}</b></td></tr>`);
+      } else if (row.kind === 'group') group = row.text;
+      else if (row.kind === 'goal')
+        rows.push(
+          `<tr><td>${esc(group)}</td><td>${esc(row.displayLabel?.trim() || String(numbers[row.id] || ''))}</td><td>${esc(row.text)}</td><td>${(
+            row.contents || []
+          )
+            .filter((c) => c.text.trim())
+            .map((c) => esc(c.text))
+            .join('<br/>')}</td></tr>`,
+        );
+    }
+  }
+  return `<table class="grid"><thead><tr><th>Nhóm kết quả mong đợi</th><th>STT</th><th>Mục tiêu giáo dục</th><th>Nội dung giáo dục</th></tr></thead><tbody>${rows.join('')}</tbody></table>`;
+};
 export const yearPlanHtml = (plan, numbers, staff = []) => {
   const ageName = (AGE_GROUPS.find((a) => a.id === plan.ageGroupId)?.name || '').replace(/[–—]/g, ' - ');
   const year = (plan.schoolYear || '').replace(/\s*[-–]\s*/, ' - ');
@@ -203,9 +240,9 @@ export const yearPlanHtml = (plan, numbers, staff = []) => {
 <h1>KẾ HOẠCH GIÁO DỤC NĂM HỌC ${esc(year)}</h1>
 <h1>KHỐI ${esc(ageName.toUpperCase())}</h1>
 <h2>A. MỤC TIÊU GIÁO DỤC, NỘI DUNG GIÁO DỤC</h2>
-${partA(plan.domains, plan.themes, numbers)}
+${plan.planLevel === 'SCHOOL_YEAR' ? annualGoals(plan.domains, numbers) : partA(plan.domains, plan.themes, numbers)}
 <h2>B. DỰ KIẾN KẾ HOẠCH CHỦ ĐỀ, SỰ KIỆN NĂM HỌC</h2>
-${partB(plan.domains, plan.themes, plan.breaks || [], numbers)}
+${partB(plan.domains, plan.themes, plan.breaks || [], numbers, plan.planLevel === 'SCHOOL_YEAR' ? plan.branchTemplates || [] : null)}
 ${signBlock(plan, staff)}`,
   );
 };
