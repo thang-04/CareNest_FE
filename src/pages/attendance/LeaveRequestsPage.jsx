@@ -213,11 +213,11 @@ export default function LeaveRequestsPage() {
                 <tr>
                   <th>Trẻ</th>
                   <th>Lớp</th>
-                  <th>Nghỉ</th>
+                  <th className="center">Nghỉ</th>
                   <th>Lý do</th>
-                  <th>Trạng thái</th>
+                  <th className="center">Trạng thái</th>
                   <th>Người gửi</th>
-                  <th>Gửi lúc</th>
+                  <th className="center">Gửi lúc</th>
                 </tr>
               </thead>
               <tbody>
@@ -237,13 +237,13 @@ export default function LeaveRequestsPage() {
                         {r.className}
                         {leader && campusIds.size > 1 && r.campusId ? ` · ${campusName(r.campusId)}` : ''}
                       </td>
-                      <td className="nowrap">
+                      <td className="nowrap center">
                         {r.fromDate === r.toDate ? formatDate(r.fromDate) : `${formatDate(r.fromDate)} – ${formatDate(r.toDate)}`}
                       </td>
                       <td>{r.reason}</td>
-                      <td>{statusOf(r)}</td>
+                      <td className="center">{statusOf(r)}</td>
                       <td>{r.createdByName || ''}</td>
-                      <td className="nowrap">{formatDateTime(r.createdAt)}</td>
+                      <td className="nowrap center">{formatDateTime(r.createdAt)}</td>
                     </tr>
                   ))
                 )}

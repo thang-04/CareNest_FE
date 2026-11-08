@@ -216,7 +216,7 @@ export default function ChildrenListPage() {
                   <th>Lớp</th>
                   {showCampus && <th>Điểm trường</th>}
                   <th>Phụ huynh</th>
-                  <th>Trạng thái</th>
+                  <th className="center">Trạng thái</th>
                   <th className="cell--actions">Thao tác</th>
                 </tr>
               </thead>
@@ -297,7 +297,7 @@ export default function ChildrenListPage() {
                             <span className="muted">Chưa có</span>
                           )}
                         </td>
-                        <td>
+                        <td className="center">
                           <ChildStatusBadge status={c.status} />
                         </td>
                         <td className="cell--actions">

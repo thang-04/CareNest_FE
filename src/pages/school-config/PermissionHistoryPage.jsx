@@ -77,7 +77,7 @@ export default function PermissionHistoryPage() {
               <table className="table table--grid table--compact permission-history-table">
                 <thead>
                   <tr>
-                    <th>Thời điểm</th>
+                    <th className="center">Thời điểm</th>
                     <th>Người đổi</th>
                     <th>Áp cho</th>
                     <th>Quyền</th>
@@ -88,7 +88,7 @@ export default function PermissionHistoryPage() {
                 <tbody>
                   {groupChangeLogs(data.items, catalog).map(({ key, feature, logs: [log, ...rest] }) => (
                     <tr key={key}>
-                      <td className="nowrap text-sm">{formatDateTime(log.changedAt)}</td>
+                      <td className="nowrap text-sm center">{formatDateTime(log.changedAt)}</td>
                       <td>
                         <strong>{log.actorName || `Tài khoản #${log.actorUserId}`}</strong>
                       </td>

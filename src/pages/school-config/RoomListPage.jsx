@@ -184,7 +184,7 @@ export default function RoomListPage() {
         {r.managerFromClass && r.managerUserId && <div className="text-xs muted">Chủ nhiệm lớp</div>}
       </td>
       {!yearReadOnly && (
-        <td>
+        <td className="center">
           <RoomStatusBadge status={r.status} />
         </td>
       )}
@@ -345,7 +345,7 @@ export default function RoomListPage() {
                             <th className="center">Sức chứa</th>
                             <th>Lớp ({schoolYear})</th>
                             <th>Người phụ trách</th>
-                            {!yearReadOnly && <th>Trạng thái</th>}
+                            {!yearReadOnly && <th className="center">Trạng thái</th>}
                             {manage && <th className="cell--actions">Thao tác</th>}
                           </tr>
                         </thead>

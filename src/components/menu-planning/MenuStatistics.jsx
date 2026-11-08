@@ -27,7 +27,7 @@ export function StatisticsDishes({ dishes, catalog, ageGroup }) {
           <tr>
             <th>Bữa ăn</th>
             <th>Món ăn</th>
-            <th>Loại món</th>
+            <th className="center">Loại món</th>
             <th className="num">Năng lượng (kcal)</th>
             <th className="num">Đạm (g)</th>
             <th className="num">Béo (g)</th>
@@ -47,7 +47,7 @@ export function StatisticsDishes({ dishes, catalog, ageGroup }) {
                     </th>
                   )}
                   <td>{d.dishName}</td>
-                  <td>
+                  <td className="center">
                     <span className={`td-dish-type ${dishTypeClass(d.dishType)}`}>{DISH_TYPE_LABELS[d.dishType] || 'Món khác'}</span>
                   </td>
                   <td className="num">{num(n?.kcal)}</td>
@@ -79,7 +79,7 @@ export function StatisticsIngredients({ stats }) {
             <th className="num">Thải bỏ (%)</th>
             <th className="num">Lượng mua {n} trẻ</th>
             <th className="num">Mua theo ĐVT</th>
-            <th>ĐVT</th>
+            <th className="center">ĐVT</th>
             <th className="money">Đơn giá</th>
             <th className="money">Tiền ăn {n} trẻ</th>
           </tr>
@@ -103,7 +103,7 @@ export function StatisticsIngredients({ stats }) {
               <td className="num">{num(r.wastePct)}</td>
               <td className="num nowrap">{big(r.purchaseTotal, r.unit)}</td>
               <td className="num">{num(r.purchaseQty, 3)}</td>
-              <td className="nowrap">{r.purchaseUnit}</td>
+              <td className="nowrap center">{r.purchaseUnit}</td>
               <td className="money nowrap">{r.unitPrice == null ? '—' : formatMoney(r.unitPrice)}</td>
               <td className="money nowrap fw-600">{formatMoney(r.cost)}</td>
             </tr>
@@ -246,7 +246,7 @@ export function StatisticsSessions({ sessions }) {
             <th className="num">kcal</th>
             <th className="num">% nhu cầu cả ngày</th>
             <th className="num">Định mức (%)</th>
-            <th>Đánh giá</th>
+            <th className="center">Đánh giá</th>
           </tr>
         </thead>
         <tbody>
@@ -256,7 +256,7 @@ export function StatisticsSessions({ sessions }) {
               <td className="num">{num(s.kcal)}</td>
               <td className="num">{num(s.percent)}</td>
               <td className="num nowrap">{range(s)}</td>
-              <td>
+              <td className="center">
                 <NormRowBadge status={s.status} />
               </td>
             </tr>

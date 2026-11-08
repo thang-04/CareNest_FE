@@ -144,7 +144,7 @@ export default function PickupListPage() {
                   <thead>
                     <tr>
                       <th>Trẻ</th>
-                      <th>Trạng thái</th>
+                      <th className="center">Trạng thái</th>
                       <th>Người đón</th>
                       <th>Giờ trả</th>
                       <th>Xác minh</th>
@@ -186,7 +186,7 @@ export default function PickupListPage() {
                               <div className="fw-600">{r.child.fullName}</div>
                               <div className="text-xs muted">{r.child.code}</div>
                             </td>
-                            <td>
+                            <td className="center">
                               <PickupStatusBadge status={r.status} />
                               {/* Cô đã báo phụ huynh đón về sớm ở Sức khỏe trong ngày: trả trẻ khi phụ huynh đến, giờ ghi lúc trả */}
                               {r.earlyRequest && r.status === PICKUP_STATUS.WAITING && (

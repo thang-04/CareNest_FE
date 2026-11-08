@@ -337,7 +337,7 @@ export function EvaluationListView({ kind }) {
                   {showClass && <th>Lớp</th>}
                   <th>Kỳ đánh giá</th>
                   {showFlags && <th className="center">Cờ bé ngoan</th>}
-                  <th>Trạng thái</th>
+                  <th className="center">Trạng thái</th>
                   <th>Cập nhật</th>
                   <th className="cell--actions">Thao tác</th>
                 </tr>
@@ -392,7 +392,7 @@ export function EvaluationListView({ kind }) {
                             </span>
                           </td>
                         )}
-                        <td>
+                        <td className="center">
                           <EvaluationStatusBadge status={e.status} />
                         </td>
                         <td className="nowrap text-sm">

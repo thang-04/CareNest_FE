@@ -238,7 +238,7 @@ export default function ClassPlanPage() {
                       <tr>
                         <th>Nội dung</th>
                         <th className="cell--fixed">Thời gian</th>
-                        <th>Trạng thái</th>
+                        <th className="center">Trạng thái</th>
                         <th className="cell--actions">Thao tác</th>
                       </tr>
                     </thead>

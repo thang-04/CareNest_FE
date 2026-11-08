@@ -32,7 +32,7 @@ export function StockMovementsTab({ campusId }) {
   };
   const filtered = Object.values(filters).some(Boolean);
   const result = movements.data;
-  const items = result?.items || [];
+  const items = useMemo(() => result?.items || [], [result]);
   const groups = useMemo(() => groupMovementsByDay(items), [items]);
   // Cột trống cả trang thì ẩn cho bảng gọn
   const showReason = items.some((m) => m.reason || m.receiptId);
@@ -63,10 +63,10 @@ export function StockMovementsTab({ campusId }) {
             <thead>
               <tr>
                 <th>Thực phẩm</th>
-                <th>Lô</th>
-                <th>Loại</th>
+                <th className="center">Lô</th>
+                <th className="center">Loại</th>
                 <th className="num">Số lượng</th>
-                <th>Ghi lúc</th>
+                <th className="center">Ghi lúc</th>
                 {showReason && <th>Lý do</th>}
                 {showPerson && <th>Người thực hiện</th>}
               </tr>
@@ -88,14 +88,14 @@ export function StockMovementsTab({ campusId }) {
                     group.items.map((m) => (
                       <tr key={m.id}>
                         <td className="fw-600">{m.food?.name}</td>
-                        <td className="nowrap">{m.lotNo}</td>
-                        <td>
+                        <td className="nowrap center">{m.lotNo}</td>
+                        <td className="center">
                           <StockMovementBadge status={m.type} />
                         </td>
                         <td className={`num nowrap ${Number(m.quantity) < 0 ? 'kb-short' : 'kb-gain'}`}>
                           {formatStockChange(m.quantity, m.food)}
                         </td>
-                        <td className="nowrap">{formatDateTime(m.createdAt)}</td>
+                        <td className="nowrap center">{formatDateTime(m.createdAt)}</td>
                         {showReason && (
                           <td className="kb-cell-wrap">
                             {m.receiptId && (

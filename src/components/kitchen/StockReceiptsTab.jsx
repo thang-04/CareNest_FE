@@ -41,21 +41,21 @@ export function StockReceiptsTab({ campusId }) {
         <table className="table table--grid">
           <thead>
             <tr>
-              <th>Ngày nhập</th>
+              <th className="center">Ngày nhập</th>
               <th>Nhà cung cấp</th>
               <th className="num">Số thực phẩm</th>
               <th className="money">Tổng tiền</th>
-              <th>Trạng thái</th>
+              <th className="center">Trạng thái</th>
             </tr>
           </thead>
           <tbody>
             {receipts.data.map((r) => (
               <tr key={r.id} className="row-click" {...clickableRowProps(() => navigate(`/kitchen/stock-receipts/${r.id}`))}>
-                <td className="fw-600 text-primary">{formatDate(r.receivedDate)}</td>
+                <td className="fw-600 text-primary center">{formatDate(r.receivedDate)}</td>
                 <td>{r.supplierName}</td>
                 <td className="num">{r.lines.length}</td>
                 <td className="money nowrap">{formatMoney(r.totalValue)}</td>
-                <td>
+                <td className="center">
                   <ReceiptStatusBadge status={r.status} />
                 </td>
               </tr>

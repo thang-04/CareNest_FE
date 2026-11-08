@@ -182,7 +182,7 @@ export default function CampusDetailPage() {
                   <tr>
                     <th>Lớp</th>
                     <th>Nhóm tuổi</th>
-                    <th>Phòng</th>
+                    <th className="center">Phòng</th>
                     <th className="num">Sĩ số</th>
                     <th>Chủ nhiệm</th>
                   </tr>
@@ -203,7 +203,7 @@ export default function CampusDetailPage() {
                       <tr key={c.id}>
                         <td className="fw-600">{c.name}</td>
                         <td>{ageGroupName(c.ageGroupId) || c.ageGroupId}</td>
-                        <td>{md.locationById(c.locationId)?.room || '—'}</td>
+                        <td className="center">{md.locationById(c.locationId)?.room || '—'}</td>
                         <td className="num nowrap">
                           <span className="row row--center gap-1">
                             <Users size={14} className="muted" /> {c.childCount}/{c.capacity}

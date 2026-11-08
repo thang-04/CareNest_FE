@@ -188,7 +188,7 @@ export default function SchoolPlansPage() {
                   <th>{tab === 'goals' ? 'Nội dung' : 'Tiến độ'}</th>
                   <th>Người lập</th>
                   <th>{tab === 'goals' ? 'Ngày gửi' : 'Cập nhật'}</th>
-                  <th>Trạng thái</th>
+                  <th className="center">Trạng thái</th>
                 </tr>
               </thead>
               <tbody>

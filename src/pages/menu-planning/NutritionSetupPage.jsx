@@ -256,7 +256,7 @@ export default function NutritionSetupPage() {
                   <th>Bữa phục vụ</th>
                   <th className="money">Giá suất / ngày</th>
                   <th className="num">Năng lượng (kcal)</th>
-                  <th>Trạng thái</th>
+                  <th className="center">Trạng thái</th>
                   {canEdit && <th className="cell--actions">Thao tác</th>}
                 </tr>
               </thead>
@@ -290,7 +290,7 @@ export default function NutritionSetupPage() {
                         </div>
                       </td>
                       <td className="num nowrap">{rangeLabel(g.norms.kcal)}</td>
-                      <td>
+                      <td className="center">
                         <StatusBadge {...groupStatus(g)} />
                       </td>
                       {canEdit && (
@@ -313,7 +313,7 @@ export default function NutritionSetupPage() {
                 <tr>
                   <th className="td-num-col">STT</th>
                   <th>Nhóm trẻ tại trường</th>
-                  <th>Trạng thái</th>
+                  <th className="center">Trạng thái</th>
                 </tr>
               </thead>
               <tbody>

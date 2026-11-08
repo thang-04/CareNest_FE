@@ -261,9 +261,9 @@ export default function FoodListPage() {
               <table className="table table--grid table--wrap-head td-food-table">
                 <thead>
                   <tr>
-                    <th>Mã</th>
+                    <th className="center">Mã</th>
                     <th>Tên thực phẩm</th>
-                    <th>Đơn vị mua</th>
+                    <th className="center">Đơn vị mua</th>
                     <th className="money">Đơn giá</th>
                     <th className="num">Thải bỏ (%)</th>
                     <th className="num">{bulk ? 'Kcal' : 'Năng lượng / 100 g'}</th>
@@ -317,12 +317,12 @@ export default function FoodListPage() {
                         className={`${bulk ? '' : 'row-click'} ${needsData(f) ? 'td-row--warn' : ''}`}
                         {...(bulk ? {} : clickableRowProps(() => navigate(`/menu/foods/${f.id}`)))}
                       >
-                        <td className="muted nowrap">{f.code}</td>
+                        <td className="muted nowrap center">{f.code}</td>
                         <td>
                           <div className="fw-600">{f.name}</div>
                           {f.status === RECORD_STATUS.INACTIVE && <RecordStatusBadge status={f.status} />}
                         </td>
-                        <td>{f.purchaseUnit || '—'}</td>
+                        <td className="center">{f.purchaseUnit || '—'}</td>
                         <td className="money nowrap">
                           {bulk ? (
                             cell(f, ...BULK_FIELDS[0])

@@ -135,7 +135,7 @@ export default function GoalListPage() {
                   <th>Số mục tiêu</th>
                   <th>Ngày gửi</th>
                   <th className="min-w-200">Người soạn</th>
-                  <th>Trạng thái</th>
+                  <th className="center">Trạng thái</th>
                 </tr>
               </thead>
               <tbody>
@@ -157,7 +157,7 @@ export default function GoalListPage() {
                     <td>
                       <Owner plan={g} />
                     </td>
-                    <td>
+                    <td className="center">
                       <YearPlanStatusBadge
                         status={
                           g.status === EDU_STATUS.APPROVED && !(g.current ?? currentPlanOf(goals, g.ageGroupId, g.schoolYear)?.id === g.id)

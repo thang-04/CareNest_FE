@@ -806,15 +806,15 @@ tr.sortable-item--moved > td {
 .table.table--grid tbody tr:hover td {
   background: var(--color-surface);
 }
-/* Căn lề theo loại dữ liệu (user chốt 08/11/2026), tiêu đề cột dùng cùng class với ô:
-   chữ, mã, ngày, trạng thái, đơn vị: trái (mặc định) · mọi con số (số đếm, số lượng, %, tiền): .num/.money phải ·
-   chỉ ô tích, icon, nút: .center */
-.table .center {
-  text-align: center;
-}
-.table .right,
+/* Căn lề theo loại dữ liệu (user chốt 08/11/2026, cách lai), tiêu đề cột dùng cùng class với ô:
+   chữ dài (tên, lý do, ghi chú): trái (mặc định) · mọi giá trị ngắn (số, tiền, %, STT, ngày, trạng thái, đơn vị, mã, ô tích):
+   .num / .money / .center giữa. Không căn phải để mỗi bảng chỉ có 2 kiểu căn */
+.table .center,
 .table .num,
 .table .money {
+  text-align: center;
+}
+.table .right {
   text-align: right;
 }
 .table .num,
@@ -822,13 +822,9 @@ tr.sortable-item--moved > td {
   font-variant-numeric: tabular-nums;
 }
 /* Ô có nội dung xếp ngang (icon + số, nhiều chip): căn theo cột như chữ */
-.table .center > :is(.row, .stack) {
+.table :is(.num, .money, .center) > :is(.row, .stack) {
   justify-content: center;
   align-items: center;
-}
-.table :is(.num, .money) > :is(.row, .stack) {
-  justify-content: flex-end;
-  align-items: flex-end;
 }
 /* Cột "Thao tác": rộng vừa nhóm nút (không nhận phần dư của bảng), tiêu đề và nút căn giữa — DESIGN.md §6.3 */
 .table .cell--actions {

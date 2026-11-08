@@ -670,6 +670,10 @@
   margin-top: var(--space-4);
 }
 
+.td-split-aside--solo {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .td-split-aside > * {
   min-width: 0;
 }
@@ -711,7 +715,7 @@
 .td-qty {
   width: 64px;
   padding-inline: var(--space-1-5);
-  text-align: right;
+  text-align: center;
 }
 
 .td-qty--empty {
@@ -2126,12 +2130,11 @@
 }
 
 .table .td-eval__cell {
-  text-align: right;
+  text-align: center;
   white-space: normal;
 }
 .td-eval__cell .chip {
   white-space: normal;
-  text-align: left;
 }
 
 .td-eval__cell small {
@@ -2925,7 +2928,7 @@
 .table .td-eval__norm {
   color: var(--color-text-secondary);
   font-size: var(--fs-sm);
-  text-align: right;
+  text-align: center;
   white-space: nowrap;
 }
 .table.td-eval td.td-eval__cell--low {

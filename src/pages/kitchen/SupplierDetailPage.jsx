@@ -143,7 +143,7 @@ export default function SupplierDetailPage() {
                   <th>Điểm trường</th>
                   <th className="num">Số thực phẩm</th>
                   <th className="money">Tổng tiền</th>
-                  <th>Trạng thái</th>
+                  <th className="center">Trạng thái</th>
                 </tr>
               </thead>
               <tbody>
@@ -159,7 +159,7 @@ export default function SupplierDetailPage() {
                     <td>{r.campusName}</td>
                     <td className="num">{r.items.length}</td>
                     <td className="money nowrap">{formatMoney(r.totalAmount)}</td>
-                    <td>
+                    <td className="center">
                       <ReceiptStatusBadge status={r.status} />
                     </td>
                   </tr>

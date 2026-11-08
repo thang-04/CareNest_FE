@@ -56,7 +56,9 @@ export function DayNutritionTable({ wm, catalog, date, meals, onSelect }) {
                 <th rowSpan={2} className="money">
                   Tiền ăn
                 </th>
-                <th rowSpan={2}>Đánh giá</th>
+                <th rowSpan={2} className="center">
+                  Đánh giá
+                </th>
               </tr>
               <tr>
                 <th className="num td-col-p">Động vật</th>
@@ -103,7 +105,7 @@ export function DayNutritionTable({ wm, catalog, date, meals, onSelect }) {
                     <td className="money nowrap">
                       <span className={`td-tag ${sum.overPrice ? 'td-tag--orange' : 'td-tag--green'}`}>{formatMoney(sum.cost)}</span>
                     </td>
-                    <td>
+                    <td className="center">
                       <NormStatusChip status={status} />
                     </td>
                   </tr>

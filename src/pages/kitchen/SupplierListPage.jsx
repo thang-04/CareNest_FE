@@ -88,12 +88,12 @@ export default function SupplierListPage() {
             <table className="table table--grid">
               <thead>
                 <tr>
-                  <th>Mã NCC</th>
+                  <th className="center">Mã NCC</th>
                   <th>Tên nhà cung cấp</th>
                   <th>Người liên hệ</th>
-                  <th>Số điện thoại</th>
+                  <th className="center">Số điện thoại</th>
                   <th className="num">Số phiếu nhập</th>
-                  <th>Trạng thái</th>
+                  <th className="center">Trạng thái</th>
                   <th className="cell--actions">Thao tác</th>
                 </tr>
               </thead>
@@ -131,12 +131,12 @@ export default function SupplierListPage() {
                 ) : (
                   paginate(rows, safePage, PAGE).map((s) => (
                     <tr key={s.id} className="row-click" {...clickableRowProps(() => open(s))}>
-                      <td className="fw-600 text-primary">{s.code || <span className="muted">—</span>}</td>
+                      <td className="fw-600 text-primary center">{s.code || <span className="muted">—</span>}</td>
                       <td>{s.name}</td>
                       <td>{s.contactName || <span className="muted">—</span>}</td>
-                      <td className="nowrap">{s.phone || <span className="muted">—</span>}</td>
+                      <td className="nowrap center">{s.phone || <span className="muted">—</span>}</td>
                       <td className="num">{s.receiptCount ?? <span className="muted">—</span>}</td>
-                      <td>
+                      <td className="center">
                         <SupplierStatusBadge status={s.status} />
                       </td>
                       <td className="cell--actions">

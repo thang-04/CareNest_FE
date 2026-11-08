@@ -113,10 +113,10 @@ export function StockLotsTab({ campusId }) {
         <table className="table table--grid table--wrap-head kb-lots-table">
           <thead>
             <tr>
-              <th>Số lô</th>
+              <th className="center">Số lô</th>
               <th>Thực phẩm</th>
-              <th>Hạn sử dụng</th>
-              <th>Ngày nhập</th>
+              <th className="center">Hạn sử dụng</th>
+              <th className="center">Ngày nhập</th>
               <th>Nhà cung cấp</th>
               <th className="num">Đã nhập</th>
               <th className="num">Còn lại</th>
@@ -126,12 +126,12 @@ export function StockLotsTab({ campusId }) {
           <tbody>
             {paginate(rows, safePage, PAGE).map(({ lot, food }) => (
               <tr key={lot.id}>
-                <td className="muted nowrap">{lot.lotNo}</td>
+                <td className="muted nowrap center">{lot.lotNo}</td>
                 <td className="fw-600">{food?.name}</td>
-                <td>
+                <td className="center">
                   <ExpiryCell expiryDate={lot.expiryDate} />
                 </td>
-                <td>{formatDate(lot.receivedDate)}</td>
+                <td className="center">{formatDate(lot.receivedDate)}</td>
                 <td>{lot.supplierName || <span className="muted">—</span>}</td>
                 <td className="num nowrap">{formatPurchaseQty(lot.quantity, lot.food)}</td>
                 <td className="num nowrap fw-600">{formatPurchaseQty(lot.remaining, lot.food)}</td>

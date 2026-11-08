@@ -301,7 +301,8 @@ export default function DishFormPage() {
           </details>
         </section>
 
-        <div className="td-split-aside">
+        {/* Chưa có cảnh báo tự kiểm thì không chừa cột phải trống: bảng thành phần chiếm cả bề ngang */}
+        <div className={`td-split-aside ${checks.length ? '' : 'td-split-aside--solo'}`}>
           <section className="card">
             <div className="card__header">
               <h2 className="card__title">Thành phần và định lượng một trẻ</h2>
@@ -358,7 +359,7 @@ export default function DishFormPage() {
                     <th>
                       Thành phần <span className="req">*</span>
                     </th>
-                    <th className="cell--fixed">ĐVT</th>
+                    <th className="cell--fixed center">ĐVT</th>
                     {groups.map((a) => (
                       <th key={a.id} className="num">
                         {ageAbbr(a.id)}
@@ -397,7 +398,7 @@ export default function DishFormPage() {
                           )}
                           {err && <span className="field__error">{err}</span>}
                         </td>
-                        <td className="muted cell--fixed">{food?.unit || 'g'}</td>
+                        <td className="muted cell--fixed center">{food?.unit || 'g'}</td>
                         {groups.map((a) => {
                           const v = r.portions[a.id];
                           const bad = submitted && errors[`ing_${i}_${a.id}`];
@@ -464,7 +465,11 @@ export default function DishFormPage() {
             </div>
           </section>
 
-          <div className="td-aside-stack">{checks.length > 0 && <AutoChecks items={checks} />}</div>
+          {checks.length > 0 && (
+            <div className="td-aside-stack">
+              <AutoChecks items={checks} />
+            </div>
+          )}
         </div>
         <section className="card td-portion-card">
           <div className="card__header">
