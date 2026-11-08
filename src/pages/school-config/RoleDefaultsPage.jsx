@@ -161,13 +161,13 @@ export default function RoleDefaultsPage() {
 
   return (
     <div className="page permission-center">
-      <Breadcrumb items={permissionCrumbs('Quyền theo vai trò')} />
+      <Breadcrumb items={permissionCrumbs('Mặc định theo vai trò')} />
       <div className="page__head permission-page-head">
         <div>
-          <h1 className="page__title">Quyền theo vai trò</h1>
+          <h1 className="page__title">Mặc định theo vai trò</h1>
           <p className="text-sm text-2">
             Tick việc mà từng vai trò được làm. Áp dụng chung cho Phó hiệu trưởng, Giáo viên và Nhân viên bếp toàn trường; ngoại lệ cho từng
-            người ở tab “Quyền ngoại lệ từng người”.
+            người ở màn Phân công Phó hiệu trưởng hoặc tab “Ngoại lệ giáo viên”.
           </p>
         </div>
       </div>

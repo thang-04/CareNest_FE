@@ -6,8 +6,8 @@ export function PermissionTabs({ actions }) {
   const { pathname } = useLocation();
 
   const tabs = [
-    { key: 'roles', label: 'Quyền theo vai trò', to: '/school/roles' },
-    { key: 'overrides', label: 'Quyền ngoại lệ từng người', to: '/permissions/overrides' },
+    { key: 'roles', label: 'Mặc định theo vai trò', to: '/school/roles' },
+    { key: 'overrides', label: 'Ngoại lệ giáo viên', to: '/permissions/overrides' },
     { key: 'history', label: 'Lịch sử thay đổi', to: '/permissions/history' },
   ];
 

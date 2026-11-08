@@ -64,6 +64,21 @@ export const PERMISSION_TASKS = {
     hint: 'Chỉ trẻ trong lớp/điểm trường được phân công',
     group: 'child',
   },
+  CHILD_ENROLL: {
+    label: 'Tiếp nhận trẻ, nhập Excel, mở lại hồ sơ đã nghỉ',
+    hint: 'Trẻ của điểm trường phụ trách',
+    group: 'child',
+  },
+  CHILD_PROFILE_EDIT: {
+    label: 'Sửa hồ sơ trẻ, khai báo sức khỏe',
+    hint: 'Trẻ của điểm trường phụ trách',
+    group: 'child',
+  },
+  CHILD_PLACEMENT: {
+    label: 'Xếp lớp, chuyển lớp, cho trẻ nghỉ học',
+    hint: 'Trẻ của điểm trường phụ trách',
+    group: 'child',
+  },
   STAFF_ACCOUNT_VIEW: {
     label: 'Xem danh sách, chi tiết tài khoản nhân sự',
     hint: 'Giáo viên, nhân viên bếp trong phạm vi phụ trách',
@@ -106,8 +121,8 @@ export const PERMISSION_TASKS = {
     group: 'meal-catalog',
   },
   STOCK_MANAGE: {
-    label: 'Nhập kho khô theo điểm trường',
-    hint: 'Lập phiếu nhập kho khô của điểm trường phụ trách',
+    label: 'Nhập kho khô, kiểm nhận hàng tươi',
+    hint: 'Phiếu nhập kho khô, bản dự trù và kiểm nhận hàng tươi theo điểm trường',
     group: 'meal-stock',
   },
   FOOD_SAFETY_APPROVE: {

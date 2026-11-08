@@ -69,12 +69,17 @@ export const createSchoolConfigApi = (axiosClient) => ({
     return {
       items: (view.configurablePermissions || []).map((code) => {
         const roleOn = defaults.includes(code);
-        const effect = overrides.find((o) => o.permission === code)?.effect;
+        const override = overrides.find((o) => o.permission === code);
+        const effect = override?.effect;
+        const permission = catalog.find((p) => p.code === code);
         return {
           code,
-          label: catalog.find((p) => p.code === code)?.description || code,
+          label: permission?.description || code,
           roleOn,
           on: effect === 'GRANT' ? true : effect === 'REVOKE' ? false : roleOn,
+          effect: effect || 'INHERIT',
+          scope: override?.scope ?? null,
+          campusScoped: !!permission?.campusScoped,
         };
       }),
     };

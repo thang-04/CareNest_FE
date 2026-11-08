@@ -1,15 +1,16 @@
 import { Link } from 'react-router-dom';
 import { SCHOOL_CONFIG_API } from '@/config/env';
-import { useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { UserCog, AlertTriangle, Save, Utensils } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
-import { usePermissionGrant } from '@/contexts/PermissionGrantContext';
-import { ROLES } from '@/models/User';
+import { VpCoverageCard } from '@/components/permissions/VpCoverageCard';
+import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
+import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { useMasterData } from '@/hooks/useMasterData';
-import { useSchoolYears, useViceAssignments } from '@/hooks/school-config/useSchoolConfig';
+import { useSchoolYears, useViceAssignments, useVicesPermissions } from '@/hooks/school-config/useSchoolConfig';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Modal } from '@/components/ui/Modal';
 import { EmptyState, ErrorState, SkeletonRows, Spinner } from '@/components/ui/States';
@@ -116,7 +117,7 @@ function AssignModal({ row, year, campuses, sharedHolder, onClose }) {
       <p className="text-sm text-2 mb-12">
         Năm học <b>{year.name}</b>.{' '}
         {SCHOOL_CONFIG_API
-          ? 'Chọn điểm trường Phó hiệu trưởng phụ trách. Quyền thao tác của người này chỉnh ở màn Quyền ngoại lệ từng người.'
+          ? 'Chọn điểm trường Phó hiệu trưởng phụ trách. Việc được giao chỉnh ngay trên thẻ của người này.'
           : 'Phó hiệu trưởng chỉ thấy và làm được những công việc Hiệu trưởng giao dưới đây.'}
       </p>
       {row.assignment?.campusId && form.campusId && row.assignment.campusId !== form.campusId && (
@@ -141,9 +142,7 @@ function AssignModal({ row, year, campuses, sharedHolder, onClose }) {
 
       <div className="mt-16">
         {SCHOOL_CONFIG_API ? (
-          <p className="text-sm muted">
-            Quyền thao tác chỉnh ở <Link to={`/permissions/overrides?userId=${row.user.id}`}>Quyền ngoại lệ từng người</Link>.
-          </p>
+          <p className="text-sm muted">Việc được giao chỉnh ngay trên thẻ của người này.</p>
         ) : (
           <>
             <span className="field__label">Công việc được giao</span>
@@ -304,7 +303,13 @@ export default function VicePrincipalAssignmentPage({ embedded = false }) {
   const { data, loading, error, reload } = useViceAssignments(allowed ? yearId : null);
   const [editing, setEditing] = useState(null);
   const [choosingFor, setChoosingFor] = useState(null);
-  const { openPermissionGrant } = usePermissionGrant();
+  const [dirtyUsers, setDirtyUsers] = useState({});
+  const year = data?.year;
+  const rows = useMemo(() => data?.rows || [], [data?.rows]);
+  const assignedIds = useMemo(() => (SCHOOL_CONFIG_API ? rows.filter((r) => r.assignment).map((r) => r.user.id) : []), [rows]);
+  const vices = useVicesPermissions(assignedIds);
+  const guard = useLeaveGuard({ when: Object.values(dirtyUsers).some(Boolean) });
+  const setUserDirty = useCallback((id, dirty) => setDirtyUsers((d) => (!!d[id] === dirty ? d : { ...d, [id]: dirty })), []);
 
   if (!allowed)
     return (
@@ -315,8 +320,6 @@ export default function VicePrincipalAssignmentPage({ embedded = false }) {
       </div>
     );
 
-  const year = data?.year;
-  const rows = data?.rows || [];
   const readOnly = year?.status === YEAR_STATUS.CLOSED;
   const sharedRow = rows.find((r) => r.assignment?.sharedService);
   // Điểm trường đã ngừng hoạt động không phân công PHT (BE từ chối)
@@ -358,6 +361,20 @@ export default function VicePrincipalAssignmentPage({ embedded = false }) {
         </div>
       )}
 
+      {SCHOOL_CONFIG_API && !loading && !vices.loading && !vices.error && assignedIds.length > 0 && (
+        <VpCoverageCard
+          campuses={md.campuses.filter((c) => c.status !== 'INACTIVE')}
+          missing={rows.filter((r) => r.assignment && vices.errorsByUser[r.user.id]).map((r) => r.user.fullName)}
+          holders={rows
+            .filter((r) => r.assignment && !vices.errorsByUser[r.user.id])
+            .map((r) => ({
+              fullName: r.user.fullName,
+              campusId: r.assignment.campusId,
+              items: vices.itemsByUser[r.user.id] || [],
+            }))}
+        />
+      )}
+
       {error ? (
         <div className="card">
           <ErrorState error={error} onRetry={reload} />
@@ -395,21 +412,22 @@ export default function VicePrincipalAssignmentPage({ embedded = false }) {
               assignerName={r.assignment ? md.userById(r.assignment.assignedBy)?.fullName : null}
               readOnly={readOnly}
               onEdit={() => setEditing(r)}
-              onChoosePermissions={
-                SCHOOL_CONFIG_API
-                  ? () =>
-                      openPermissionGrant({
-                        ...r.user,
-                        userId: r.user.id,
-                        role: ROLES.VICE_PRINCIPAL,
-                        campusName: campusName(r.assignment?.campusId),
-                      })
-                  : undefined
-              }
+              tasks={{
+                items: vices.itemsByUser[r.user.id],
+                loading: vices.loading,
+                error: vices.error || vices.errorsByUser[r.user.id],
+                reload: vices.reload,
+                // Việc giao theo người, không theo năm nên chỉ sửa ở năm đang hoạt động
+                readOnly: year?.status !== YEAR_STATUS.ACTIVE,
+                onSaved: () => vices.reload({ silent: true }),
+                onDirty: (dirty) => setUserDirty(r.user.id, dirty),
+              }}
             />
           ))}
         </div>
       )}
+
+      <LeaveConfirmModal {...guard.modal} canSave={false} message="Việc vừa giao chưa được lưu. Rời trang sẽ mất các thay đổi này." />
 
       {choosingFor && (
         <ChooseViceModal
