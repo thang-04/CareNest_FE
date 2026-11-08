@@ -42,7 +42,7 @@
 
 .kb-num {
   width: 110px;
-  text-align: right;
+  text-align: center;
 }
 .kb-num--wide {
   width: 140px;
@@ -51,6 +51,41 @@
 .kb-short {
   color: var(--danger-700);
   font-weight: var(--fw-semibold);
+}
+.kb-gain {
+  color: var(--color-success-fg);
+  font-weight: var(--fw-semibold);
+}
+/* Lịch sử nhập/trừ: mỗi ngày một dải bấm được, mở ra các dòng của ngày đó */
+.table.table--grid th.kb-day-band {
+  padding: 0;
+  background: var(--table-header-bg);
+}
+.kb-day-band__btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  background: none;
+  color: var(--color-text);
+  font: inherit;
+  font-weight: var(--fw-semibold);
+  text-align: left;
+  cursor: pointer;
+}
+.kb-day-band__btn svg {
+  transition: transform var(--duration-fast, 0.15s) ease;
+}
+.kb-day-band__btn[aria-expanded='false'] svg {
+  transform: rotate(-90deg);
+}
+.kb-day-band__count {
+  margin-left: auto;
+  color: var(--color-text-muted);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-regular);
 }
 .kb-over {
   color: var(--warning-700);
@@ -764,6 +799,9 @@
 .kb-lot:first-of-type {
   border-top: 0;
 }
+.table .date-input {
+  min-width: 150px;
+}
 .kb-lot-input {
   width: 110px;
 }
@@ -953,15 +991,25 @@
   display: flex;
   align-items: flex-end;
 }
-/* Hộp lập dự trù: kỳ, ghi chú và nút Tính cùng một hàng, đáy các ô thẳng nhau; hẹp thì xếp dọc */
+/* Hộp lập dự trù: mỗi nhóm ô một hàng, căn đỉnh để lỗi dưới một ô không đẩy lệch ô bên cạnh */
 .kb-forecast-form {
   display: grid;
-  grid-template-columns: minmax(150px, 1fr) minmax(150px, 1fr) minmax(0, 2fr) auto;
-  gap: var(--space-3) var(--space-4);
-  align-items: end;
+  gap: var(--space-3);
 }
-@media (max-width: 900px) {
-  .kb-forecast-form {
+.kb-forecast-form__range {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 220px));
+  gap: var(--space-3);
+  align-items: start;
+}
+.kb-forecast-stale {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+@media (max-width: 640px) {
+  .kb-forecast-form__range {
     grid-template-columns: minmax(0, 1fr);
   }
 }

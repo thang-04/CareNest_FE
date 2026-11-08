@@ -34,7 +34,8 @@ export function TicketOverview() {
   const rows = overview?.rows || [];
   const rangeText = month ? monthText(month) : 'cả năm học';
   const campusName = (id) => overview?.campuses.find((c) => String(c.id) === String(id))?.name || id;
-  const multiCampus = (overview?.campuses.length || 0) > 1;
+  // Giáo viên không đọc được danh mục điểm trường nên thiếu tên: ẩn cột, không hiện mã số
+  const multiCampus = (overview?.campuses || []).filter((c) => c.name).length > 1;
 
   if (classId) {
     const cls = rows.find((r) => r.classId === classId);

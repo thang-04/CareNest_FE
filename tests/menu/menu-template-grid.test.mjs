@@ -135,3 +135,21 @@ test('API bộ mẫu: tạo POST, sửa PUT, ngừng dùng PATCH status, lọc b
     ],
   );
 });
+
+test('loại mẫu suy từ các ngày có món; mẫu ngày điền được vào mọi thứ', async () => {
+  const { templateKind, templateItemsForDate } = await import('../../src/utils/menu-planning/menuTemplateGrid.js');
+  const item = (weekNo, weekday) => ({ weekNo, weekday, session: 'LUNCH', dishId: 1 });
+  assert.equal(templateKind([item(1, 1)]), 'DAY');
+  assert.equal(templateKind([item(1, 1), item(1, 2)]), 'WEEK');
+  assert.equal(templateKind([item(1, 1), item(2, 1)]), 'MONTH');
+  assert.equal(templateItemsForDate({ items: [item(1, 1)] }, '2026-11-11').length, 1);
+  assert.equal(templateItemsForDate({ items: [item(1, 1), item(1, 2)] }, '2026-11-11').length, 0);
+});
+
+test('tên gợi ý của bản sao thêm hậu tố và cắt vừa 100 ký tự', async () => {
+  const { copyTemplateName } = await import('../../src/utils/menu-planning/menuTemplateGrid.js');
+  assert.equal(copyTemplateName('Mùa thu'), 'Mùa thu (bản sao)');
+  const long = copyTemplateName('x'.repeat(100));
+  assert.equal(long.length, 100);
+  assert.ok(long.endsWith('(bản sao)'));
+});

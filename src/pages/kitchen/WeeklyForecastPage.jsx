@@ -77,7 +77,7 @@ export default function WeeklyForecastPage() {
     setSaving(true);
     try {
       await saveWeeklyForecast({ campusId, weekStart, cells }, user);
-      toast.success(data.sent ? 'Đã lưu dự trù. Phần đổi so với phiếu đã gửi nằm ở tab Báo NCC thay đổi.' : 'Đã lưu dự trù tuần.');
+      toast.success('Đã lưu dự trù tuần.');
       setDraft({});
       setErrors({});
       reload({ silent: true });

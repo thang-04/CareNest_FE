@@ -22,18 +22,18 @@ function VicePermissionTable({ userId }) {
         <thead>
           <tr>
             <th>Việc được làm</th>
-            <th>Người này</th>
-            <th>So với vai trò</th>
+            <th className="center">Người này</th>
+            <th className="center">So với vai trò</th>
           </tr>
         </thead>
         <tbody>
           {items.map((item) => (
             <tr key={item.code} className={item.on ? '' : 'sc-vp-table__off'}>
               <td className={item.on ? 'fw-600' : ''}>{item.label}</td>
-              <td>
+              <td className="center">
                 {item.on ? <span className="chip chip--green">Được làm</span> : <span className="chip chip--gray">Không được làm</span>}
               </td>
-              <td>
+              <td className="center">
                 {item.on === item.roleOn ? (
                   <span className="muted text-sm">Theo vai trò</span>
                 ) : item.on ? (

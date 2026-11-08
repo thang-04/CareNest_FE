@@ -62,7 +62,7 @@ export default function StockReceiptEditorPage() {
       const { lines, problems } = await readReceiptFile(file, Object.values(foodById));
       setForm((f) => ({ ...f, lines: [...f.lines.filter((l) => l.foodId || l.purchaseQty || l.lotNo), ...lines] }));
       setImportNote({ added: lines.length, problems });
-      if (lines.length) toast.success(`Đã thêm ${lines.length} dòng từ file. Xem lại rồi bấm Lưu nháp.`);
+      if (lines.length) toast.success(`Đã thêm ${lines.length} dòng từ file.`);
     } catch (err) {
       toast.error(err, 'Không đọc được file');
     }
@@ -431,7 +431,7 @@ export default function StockReceiptEditorPage() {
                             onChange={(e) => setLine(i, 'unitPrice', e.target.value)}
                             aria-label={`Đơn giá dòng ${i + 1}`}
                           />
-                          <span className="muted text-xs"> đ/{unit}</span>
+                          {unit && <span className="muted text-xs"> đ/{unit}</span>}
                           {err(i, 'unitPrice') && <div className="field__error">{err(i, 'unitPrice')}</div>}
                         </td>
                         <td className="money nowrap fw-600 cell--fixed">{value == null ? '—' : formatMoney(value)}</td>

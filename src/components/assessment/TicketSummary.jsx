@@ -92,7 +92,7 @@ export function TicketSummary({ classId }) {
           <table className="table table--grid">
             <thead>
               <tr>
-                <th className="center dg-col-no">STT</th>
+                <th className="num dg-col-no">STT</th>
                 <th>Trẻ</th>
                 <th className="num">Bé ngoan</th>
                 <th className="num">Bé ngoan toàn diện</th>
@@ -111,7 +111,7 @@ export function TicketSummary({ classId }) {
               ) : (
                 rows.map((r, i) => (
                   <tr key={r.child.id}>
-                    <td className="center muted">{i + 1}</td>
+                    <td className="num muted">{i + 1}</td>
                     <td>
                       <ChildNameCell child={r.child} />
                     </td>

@@ -1,5 +1,15 @@
 # Verification — bằng chứng trước khi báo xong (FE)
 
+## G94-272 — báo cáo lỗi bán trú và rà lỗi UI cơ bản, 08/11/2026
+
+- Sau source cuối: `node scripts/verify.mjs` → `VERIFY PASS full`, 934 tests, 0 fail. `node scripts/check-ai-layer.mjs`: 0 lỗi, 22 cảnh báo tài liệu cũ (lúc BE còn ở nhánh G94-192).
+- Kiểm trên FE nối BE local (`carenest-fe-mainstack`, dữ liệu seed), tài khoản Hiệu trưởng và Phó hiệu trưởng, 1440px: script đo DOM trên 26 route và 5 trang chi tiết, sau cùng 0 lỗi tràn bảng, dính mép, lệch ô, cột số không căn phải (số điện thoại căn trái là đúng). Ở 375px rà 5 màn, không tràn trang; dải nhóm thực phẩm cuộn ngang theo thiết kế.
+- Thao tác đã thử: mở danh sách tuần; lọc loại món trong modal; lập dự trù với Từ ngày sau Đến ngày và kỳ trên 31 ngày; điền mẫu vào tuần (không lưu); menu ba chấm, Nhân bản, Ngừng dùng; mở/đóng dải ngày ở Lịch sử nhập/trừ.
+- Chưa rà: tài khoản Giáo viên và Bếp, modal dự trù ở 375px, các bảng ngoài khu bán trú (quy tắc căn cột vẫn áp cho chúng qua CSS chung). Chưa kiểm trên `dev.carenest.edu.vn`.
+- Không commit/push. Nhánh đã tua nhanh lên `origin/dev`. Thử Nhân bản tạo hai mẫu thử ("Thực đơn mùa thu - Nhà trẻ (bản sao)", "Mẫu kiểm thử nhân bản"), trạng thái Ngừng sử dụng, trong dữ liệu local cổng 8090.
+- Sau đó: Nhân bản mở modal xem trước (hủy không tạo, tên trống báo lỗi, lưu mới tạo); hộp chọn Mẫu ngày, tuần, tháng và trang tạo đúng loại. User báo mất viền cạnh ô rowSpan: viền bảng từng dựa `td + td`; nay mỗi ô tự kẻ 4 cạnh, script đo viền trên 14 route ra 0 ô thiếu. Lần rà trước chưa đo viền nên bỏ sót.
+- `node scripts/verify.mjs` sau source cuối: `VERIFY PASS full`, 936 tests, 0 fail. `check-ai-layer` đang báo 18 lỗi link vì repo BE đổi sang nhánh `feature/G94-60-BE-FEAT-01-authentication`; các file đích có trên `origin/dev` của BE.
+
 ## G94-191 — chuyển thay đổi bán trú/dinh dưỡng sang nhánh tính năng, 06/11/2026
 
 - Nền `origin/dev` (`6a0554c`) trước khi chuyển diff: `node scripts/verify.mjs` thất bại ở 2 ca của `tests/health/growth-report-sheet.test.mjs` (dòng 158, 174: `rows.map is not a function`, `undefined is not a function`); đây là lỗi có sẵn, ngoài phần bán trú.

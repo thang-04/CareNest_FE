@@ -222,11 +222,11 @@ export default function CutoffSettingPage() {
               <table className="table table--grid table--compact">
                 <thead>
                   <tr>
-                    <th>Thời điểm</th>
+                    <th className="center">Thời điểm</th>
                     <th>Người thay đổi</th>
-                    <th>Giờ cũ</th>
-                    <th>Giờ mới</th>
-                    <th>Áp dụng từ</th>
+                    <th className="center">Giờ cũ</th>
+                    <th className="center">Giờ mới</th>
+                    <th className="center">Áp dụng từ</th>
                     <th>Ghi chú</th>
                   </tr>
                 </thead>
@@ -245,11 +245,11 @@ export default function CutoffSettingPage() {
                       5,
                     ).map((h) => (
                       <tr key={`${h.at}-${h.time}`}>
-                        <td className="nowrap">{formatDateTime(h.at)}</td>
+                        <td className="nowrap center">{formatDateTime(h.at)}</td>
                         <td>{h.userName || md.userById(h.userId)?.fullName || h.userId}</td>
-                        <td>{h.previousTime || '—'}</td>
-                        <td className="fw-600">{h.time}</td>
-                        <td>{formatDate(h.effectiveFrom)}</td>
+                        <td className="center">{h.previousTime || '—'}</td>
+                        <td className="fw-600 center">{h.time}</td>
+                        <td className="center">{formatDate(h.effectiveFrom)}</td>
                         <td className="sc-wrap">{h.note || <span className="muted">—</span>}</td>
                       </tr>
                     ))

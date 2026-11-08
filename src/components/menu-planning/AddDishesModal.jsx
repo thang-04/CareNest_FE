@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react';
 import { Search, X } from '@/components/ui/icons';
 import { Modal } from '@/components/ui/Modal';
 import { SearchSelect } from '@/components/ui/SearchSelect';
+import { EmptyState } from '@/components/ui/States';
+import { AllergenChips, DishKcal } from '@/components/menu-planning/MenuBadges';
 import { dishTypeClass } from '@/utils/dishTypeClass';
 import { DISH_TYPE_LABELS } from '@/models/menu-planning/menuPlanningConstants';
 import { normalizeText } from '@/utils/format';
@@ -10,9 +12,9 @@ const TYPE_ORDER = Object.keys(DISH_TYPE_LABELS);
 
 /**
  * Chọn nhiều món cho một bữa của mẫu ngày: món đã chọn ở trên (bỏ từng món hoặc tất cả), danh sách nhóm theo loại món,
- * nhãn chất gây dị ứng theo danh mục món (NUT-23). `onSave(dishes)` nhận danh sách món đã chọn của bữa.
+ * mỗi dòng có nhãn chất gây dị ứng (NUT-23) và kcal một suất của `ageGroup`. `onSave(dishes)` nhận danh sách món đã chọn của bữa.
  */
-export function AddDishesModal({ title, subtitle, dishes, selectedIds, onSave, onClose }) {
+export function AddDishesModal({ title, subtitle, dishes, selectedIds, ageGroup, onSave, onClose }) {
   const [picked, setPicked] = useState(() => selectedIds.map(String));
   const [keyword, setKeyword] = useState('');
   const [type, setType] = useState('');
@@ -91,15 +93,18 @@ export function AddDishesModal({ title, subtitle, dishes, selectedIds, onSave, o
           />
         </div>
         <div className="td-pick__list" role="group" aria-label="Món ăn">
-          {groups.length === 0 && <p className="text-sm muted td-pick__empty">Không tìm thấy món nào.</p>}
+          {groups.length === 0 && <EmptyState title="Không tìm thấy món nào" description="Thử đổi từ khóa hoặc loại món." />}
           {groups.map((g) => (
-            <section key={g.type || 'other'}>
+            <section key={g.type || 'other'} className="td-pick__section">
               <h4 className="td-pick__group">{DISH_TYPE_LABELS[g.type] || 'Món khác'}</h4>
               {g.items.map((d) => (
                 <label key={d.id} className={`td-pick__row ${dishTypeClass(d.type)}`}>
                   <input type="checkbox" checked={picked.includes(String(d.id))} onChange={() => toggle(String(d.id))} />
                   <span className="td-grow">{d.name}</span>
-                  {d.allergens?.length > 0 && <span className="chip chip--orange">Có {d.allergens.join(', ').toLowerCase()}</span>}
+                  {d.allergens?.length > 0 && <AllergenChips allergens={d.allergens} />}
+                  <span className="td-pick__kcal">
+                    <DishKcal dish={d} ageGroup={ageGroup} />
+                  </span>
                 </label>
               ))}
             </section>

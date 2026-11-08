@@ -121,7 +121,7 @@ export function NutritionTable({ result, ageGroupId, norms, price, setups }) {
               <th className="num">Thực tế</th>
               <th className="num">Định mức</th>
               <th className="num">% đạt</th>
-              <th>Đánh giá</th>
+              <th className="center">Đánh giá</th>
             </tr>
           </thead>
           <tbody>
@@ -140,7 +140,7 @@ export function NutritionTable({ result, ageGroupId, norms, price, setups }) {
                   </td>
                   <td className="num nowrap">{r.target == null ? 'Chưa đặt' : `${fmt(r.target)} ${unit}`}</td>
                   <td className="num">{pct(r.attainment)}</td>
-                  <td>
+                  <td className="center">
                     {k === 'kcal' ? <NormStatusChip status={r.status} /> : <span className="muted text-sm">Theo tỷ lệ năng lượng</span>}
                   </td>
                 </tr>
@@ -154,7 +154,7 @@ export function NutritionTable({ result, ageGroupId, norms, price, setups }) {
                 <td className="num nowrap fw-600">{pct(byKey[k].value)}</td>
                 <td className="num nowrap">{range(byKey[k])}</td>
                 <td className="num muted">—</td>
-                <td>
+                <td className="center">
                   <NormStatusChip status={byKey[k].status} />
                 </td>
               </tr>
@@ -165,7 +165,7 @@ export function NutritionTable({ result, ageGroupId, norms, price, setups }) {
                 <td className="num nowrap fw-600">{pct(byKey[k].percent)}</td>
                 <td className="num nowrap">{range(byKey[k])}</td>
                 <td className="num muted">—</td>
-                <td>
+                <td className="center">
                   <NormStatusChip status={byKey[k].status} />
                 </td>
               </tr>
@@ -181,7 +181,7 @@ export function NutritionTable({ result, ageGroupId, norms, price, setups }) {
                   <td className="num nowrap fw-600">{r.value == null ? '—' : `${fmt2(r.value)} ${unit}`}</td>
                   <td className="num nowrap">{microRange(r, unit)}</td>
                   <td className="num">{pct(r.attainment)}</td>
-                  <td>
+                  <td className="center">
                     <NormStatusChip status={r.status} />
                   </td>
                 </tr>
@@ -196,7 +196,7 @@ export function NutritionTable({ result, ageGroupId, norms, price, setups }) {
                   <td className="num nowrap fw-600">{formatMoney(result.cost)}</td>
                   <td className="num nowrap">{price ? formatMoney(price) : 'Chưa có giá'}</td>
                   <td className="num">{price ? pct(Math.round((result.cost * 100) / price)) : '—'}</td>
-                  <td>
+                  <td className="center">
                     {price ? (
                       <StatusBadge
                         tone={result.cost > price ? 'orange' : 'green'}

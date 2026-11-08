@@ -764,19 +764,11 @@ tr.sortable-item--moved > td {
   border-bottom: none;
 }
 /* Bảng kẻ ô theo bảng Mục tiêu năm học (Kế hoạch giáo dục): kẻ đủ mọi ô màu --color-text-disabled, tiêu đề chữ đậm */
-.table.table--grid th + th,
-.table.table--grid td + td,
-.table.table--grid th + td,
-.table.table--grid td + th {
-  border-left: 1px solid var(--color-text-disabled);
-}
-/* Tiêu đề 2 tầng: ô đầu hàng thứ hai không có ô liền trước nên thiếu vạch trái (cột ghép rowSpan bên cạnh) */
-.table.table--grid thead tr + tr > th:first-child {
-  border-left: 1px solid var(--color-text-disabled);
-}
+/* Kẻ đủ 4 cạnh trên từng ô, không dựa ô liền trước: hàng nằm cạnh ô gộp rowSpan không có ô đó trong cùng <tr> nên sẽ mất vạch */
 .table.table--grid th,
-.table.table--grid td {
-  border-bottom-color: var(--color-text-disabled);
+.table.table--grid td,
+.table.table--grid tr:last-child td {
+  border: 1px solid var(--color-text-disabled);
 }
 .table.table--grid th {
   color: var(--text);
@@ -814,15 +806,15 @@ tr.sortable-item--moved > td {
 .table.table--grid tbody tr:hover td {
   background: var(--color-surface);
 }
-/* Căn lề theo loại dữ liệu (user chốt 20/10/2026), tiêu đề cột dùng cùng class với ô:
-   chữ, mã, ngày: trái (mặc định) · số đếm/số lượng/%: .num giữa · tiền: .money phải ·
-   trạng thái, ô tích, icon, nút: .center */
+/* Căn lề theo loại dữ liệu (user chốt 08/11/2026, cách lai), tiêu đề cột dùng cùng class với ô:
+   chữ dài (tên, lý do, ghi chú): trái (mặc định) · mọi giá trị ngắn (số, tiền, %, STT, ngày, trạng thái, đơn vị, mã, ô tích):
+   .num / .money / .center giữa. Không căn phải để mỗi bảng chỉ có 2 kiểu căn */
 .table .center,
-.table .num {
+.table .num,
+.table .money {
   text-align: center;
 }
-.table .right,
-.table .money {
+.table .right {
   text-align: right;
 }
 .table .num,
@@ -830,13 +822,9 @@ tr.sortable-item--moved > td {
   font-variant-numeric: tabular-nums;
 }
 /* Ô có nội dung xếp ngang (icon + số, nhiều chip): căn theo cột như chữ */
-.table :is(.num, .center) > :is(.row, .stack) {
+.table :is(.num, .money, .center) > :is(.row, .stack) {
   justify-content: center;
   align-items: center;
-}
-.table .money > :is(.row, .stack) {
-  justify-content: flex-end;
-  align-items: flex-end;
 }
 /* Cột "Thao tác": rộng vừa nhóm nút (không nhận phần dư của bảng), tiêu đề và nút căn giữa — DESIGN.md §6.3 */
 .table .cell--actions {
@@ -1849,7 +1837,7 @@ tr.sortable-item--moved > td {
   gap: var(--space-1);
 }
 .campus-filter .select {
-  width: auto;
+  width: 100%;
 }
 .tab--active .tab__count {
   background: var(--color-primary);
@@ -2477,7 +2465,7 @@ a.file-row__name:hover {
 }
 .search-select__control {
   width: 100%;
-  min-height: var(--btn-height-lg);
+  min-height: var(--input-height);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -2560,7 +2548,7 @@ a.file-row__name:hover {
 }
 .search-select__panel {
   position: fixed;
-  z-index: var(--z-dropdown);
+  z-index: var(--z-popover);
   display: grid;
   padding: var(--space-1);
   background: var(--color-surface);
@@ -3297,11 +3285,14 @@ button.stat-card .stat-card__label::after {
   align-items: center;
   gap: var(--space-1);
 }
-.week-picker__value {
-  position: relative;
-}
-.week-picker__value .btn {
+.week-picker__select {
+  width: 200px;
   font-variant-numeric: tabular-nums;
+}
+.week-picker__select .search-select__value {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
 }
 .date-input__picker {
   position: absolute;
@@ -3615,7 +3606,7 @@ button.stat-card .stat-card__label::after {
 /* Menu "…" render ra body, vị trí tính bằng JS (RowMenu.jsx) để không bị khung cuộn bảng cắt */
 .row-menu__panel {
   position: fixed;
-  z-index: var(--z-dropdown);
+  z-index: var(--z-popover);
   display: grid;
   /* Rộng theo nội dung (không bị chỗ trống bên trái nút bóp xuống dòng); chỉ xuống dòng khi chạm max-width */
   width: max-content;

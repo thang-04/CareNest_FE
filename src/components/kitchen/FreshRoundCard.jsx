@@ -112,7 +112,7 @@ export function FreshRoundCard({ round, campusId, date, canManage, onSaved, onSt
             <table className="table table--grid">
               <thead>
                 <tr>
-                  <th className="center">STT</th>
+                  <th className="num">STT</th>
                   <th className="min-w-220">Thực phẩm</th>
                   <th className="num">Cần nhận</th>
                   <th>Thực nhận</th>
@@ -127,7 +127,7 @@ export function FreshRoundCard({ round, campusId, date, canManage, onSaved, onSt
                   const err = (field) => errors[`lines.${i}.${field}`];
                   return (
                     <tr key={line.food.id}>
-                      <td className="center">{i + 1}</td>
+                      <td className="num">{i + 1}</td>
                       <td>{line.food.name}</td>
                       <td className="num nowrap">
                         {fmtQty(line.purchaseExpectedQty)} {unit}

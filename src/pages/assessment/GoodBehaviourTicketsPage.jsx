@@ -263,7 +263,7 @@ function TeacherTicketsPage() {
                             Bé ngoan trong tháng <span className="muted">(cần {board?.rules?.MONTH_MIN_WEEKLY_TICKETS ?? 3})</span>
                           </th>
                         )}
-                        <th className="center">Điều kiện</th>
+                        <th>Điều kiện</th>
                         <th>Phiếu</th>
                       </tr>
                     </thead>

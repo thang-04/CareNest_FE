@@ -131,15 +131,15 @@ export default function HealthCheckListPage() {
           <ErrorState error={error} onRetry={reload} />
         ) : (
           <div className="table-wrap tr-table-flat">
-            <table className="table table--grid">
+            <table className="table table--grid table--wrap-head">
               <thead>
                 <tr>
                   <th>Tên</th>
-                  <th>Loại</th>
+                  <th className="center">Loại</th>
                   <th>Điểm trường</th>
-                  <th>Ngày</th>
+                  <th className="center">Ngày</th>
                   <th className="center">Trạng thái</th>
-                  <th>Đã nhập kết quả</th>
+                  <th className="center">Đã nhập kết quả</th>
                   <th>Cảnh báo</th>
                   <th className="cell--actions">Thao tác</th>
                 </tr>
@@ -178,23 +178,23 @@ export default function HealthCheckListPage() {
                 ) : (
                   pageRows.map((c) => (
                     <tr key={c.id}>
-                      <td>
+                      <td className="tr-campaign-name">
                         <Link className="fw-600 text-primary" to={`/children/health-checks/${c.id}`}>
                           {c.name}
                         </Link>
                         {c.examiner && <div className="muted text-xs">{c.examiner}</div>}
                       </td>
-                      <td>
+                      <td className="center">
                         <CampaignKindBadge status={c.kind} />
                       </td>
                       <td className="text-sm">{c.campusName.split(' - ')[0]}</td>
-                      <td className="nowrap text-sm">
+                      <td className="text-sm center">
                         {formatDate(c.startDate)} – {formatDate(c.endDate)}
                       </td>
                       <td className="center">
                         <CampaignStatusBadge status={c.status} />
                       </td>
-                      <td className="tr-progress-cell">
+                      <td className="tr-progress-cell center">
                         <ProgressBar
                           value={c.progress.recorded}
                           total={c.progress.total}
