@@ -10,7 +10,7 @@ import { kitchenCrumbs, KITCHEN_PAGES } from '@/utils/kitchen/breadcrumbs';
 import { clickableRowProps } from '@/utils/clickableRow';
 import { formatDate, formatDateTime } from '@/utils/format';
 
-/** Các bản dự trù hàng tươi đã lưu của một điểm trường, mới nhất trước; mở một bản để xem, in hoặc xóa. */
+/** Các bản dự trù đã lưu của một điểm trường, mới nhất trước; mở một bản để xem, in hoặc xóa. */
 export function FreshForecastList({ campus, autoOpen = false }) {
   const navigate = useNavigate();
   const canManage = useCanManageStock();
@@ -34,7 +34,7 @@ export function FreshForecastList({ campus, autoOpen = false }) {
   else if (!forecasts.data.length)
     body = (
       <EmptyState
-        title="Chưa có bản dự trù hàng tươi"
+        title="Chưa có bản dự trù"
         description="Lập bản dự trù cho một kỳ để biết cần đặt bao nhiêu hàng tươi và làm căn cứ kiểm nhận lần 1."
         action={canManage && create}
       />
@@ -76,7 +76,7 @@ export function FreshForecastList({ campus, autoOpen = false }) {
       <Breadcrumb items={kitchenCrumbs(KITCHEN_PAGES.forecast)} />
       <div className="page__head">
         <div>
-          <h1 className="page__title">Bản dự trù hàng tươi</h1>
+          <h1 className="page__title">Bản dự trù</h1>
         </div>
       </div>
       <div className="kb-toolbar">

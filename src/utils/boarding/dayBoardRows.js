@@ -1,4 +1,5 @@
 import { MEAL_SESSION_LABELS } from '@/models/mealSessions';
+import { formatWeekdayDate } from '@/utils/format';
 
 /*
  * "Bán trú hôm nay": đổi dữ liệu GET /nutrition/day-board của một điểm trường thành 5 dòng việc (tên · trạng thái · chi tiết ·
@@ -83,19 +84,25 @@ const dryStockRow = (campus) => {
   const link = shortfall
     ? { label: 'Phần thiếu', to: withQuery('/kitchen/stock-shortfalls', { campusId: campus.campusId }) }
     : { label: 'Lịch sử nhập/trừ', to: withQuery('/kitchen/stock-history', { campusId: campus.campusId }) };
+  // NUT-11: BE báo số thực phẩm khô sắp thiếu tới hết tuần sau; lượng cần nhập thêm xem ở bản dự trù
+  const upcoming = stock.upcomingShortFoodCount > 0;
+  const upcomingText = upcoming
+    ? `Sắp thiếu ${stock.upcomingShortFoodCount} thực phẩm khô từ ${formatWeekdayDate(stock.upcomingShortFrom)} — đặt thêm theo bản dự trù.`
+    : '';
+  const links = upcoming ? [link, { label: 'Bản dự trù', to: withQuery('/kitchen/forecast', { campusId: campus.campusId }) }] : [link];
   return {
     key: 'dryStock',
     title: 'Kho khô',
     tone,
     status: statusOf(stock),
-    detail: detailOf(stock),
+    detail: [detailOf(stock), upcomingText].filter(Boolean).join(' '),
     // NOT_SYNCED: nút gọi BE trừ lại (BE kiểm quyền), không phải link
-    actions: stock.status === 'NOT_SYNCED' ? [{ key: 'syncStock', label: 'Đồng bộ kho', syncStock: true }, link] : [link],
+    actions: stock.status === 'NOT_SYNCED' ? [{ key: 'syncStock', label: 'Đồng bộ kho', syncStock: true }, ...links] : links,
   };
 };
 
 const FRESH_STATUS = {
-  NO_FORECAST: ['gray', 'Chưa có bản dự trù', 'Chưa có bản dự trù hàng tươi cho ngày này nên chưa kiểm nhận lần 1.'],
+  NO_FORECAST: ['gray', 'Chưa có bản dự trù', 'Chưa có bản dự trù cho ngày này nên chưa kiểm nhận hàng tươi lần 1.'],
   ROUND1_PENDING: ['orange', 'Chờ kiểm lần 1', 'Kiểm nhận hàng tươi lần 1 so với bản dự trù.'],
   ROUND1_DONE: ['blue', 'Đã kiểm lần 1', 'Chờ số suất ăn được xác nhận để kiểm nhận lần 2.'],
   ROUND2_PENDING: ['orange', 'Chờ kiểm lần 2', 'Kiểm nhận hàng tươi lần 2 so với suất đã xác nhận.'],

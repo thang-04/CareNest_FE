@@ -353,7 +353,7 @@ const ITEMS = {
     to: '/kitchen/food-samples',
   },
   forecast: {
-    label: 'Bản dự trù hàng tươi',
+    label: 'Bản dự trù',
     to: '/kitchen/forecast',
   },
   profile: {
