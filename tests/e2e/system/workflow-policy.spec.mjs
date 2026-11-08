@@ -24,7 +24,6 @@ test.afterAll(async () => {
 test('WF-01 HT lưu policy bằng form và đọc lại từ BE thật sau reload', async ({ page }) => {
   await login(page, USERS.principal);
   await page.goto('/education/settings');
-  await page.getByRole('button', { name: 'Chỉnh sửa', exact: true }).click();
   await page.getByRole('checkbox', { name: 'Giáo viên', exact: true }).first().check();
   await page.getByRole('checkbox', { name: /Tổ trưởng/, exact: false }).first().uncheck();
   const saved = page.waitForResponse(r => r.url().endsWith(path) && r.request().method() === 'PUT');
@@ -43,7 +42,6 @@ test('WF-02 PHT không sửa được policy qua API hoặc form', async ({ page
   expect((await api(USERS.vp, 'PUT', path, { body: { revision: current.data.revision, policies } })).status).toBe(403);
   await login(page, USERS.vp);
   await page.goto('/education/settings');
-  await page.getByRole('button', { name: 'Chỉnh sửa', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Lưu người tạo/duyệt', exact: true })).toHaveCount(0);
 });
 

@@ -381,7 +381,7 @@ function BranchPlanInner({ classId }) {
             )}
             <button
               type="button"
-              className="btn btn--sm btn--outline-primary"
+              className="btn btn--sm btn--primary"
               onClick={saver.save}
               disabled={!!saveReason}
               title={saveReason || 'Lưu (Ctrl+S)'}

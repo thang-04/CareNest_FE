@@ -227,7 +227,7 @@ function ThemePlanInner() {
                 />
                 <button
                   type="button"
-                  className="btn btn--sm btn--outline-primary"
+                  className="btn btn--sm btn--primary"
                   onClick={saver.save}
                   disabled={saver.saving || (!saver.unsaved && !saver.error)}
                   title="Lưu (Ctrl+S)"

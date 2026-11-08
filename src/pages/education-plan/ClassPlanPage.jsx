@@ -138,7 +138,8 @@ export default function ClassPlanPage() {
       </span>
     );
   };
-  const status = (doc, noneStatus) => (doc ? <EduStatusBadge status={doc.status} doc={doc} /> : <DocAvailabilityBadge status={noneStatus} />);
+  const status = (doc, noneStatus) =>
+    doc ? <EduStatusBadge status={doc.status} doc={doc} /> : <DocAvailabilityBadge status={noneStatus} />;
   const branchApproved = branch?.status === EDU_STATUS.APPROVED;
   // Giáo án tuần chỉ tạo được khi đã lưu kế hoạch chủ đề; dòng chưa tới lượt hiện lý do, không có nút tạo
   const lockOf = (kind, themeId) => createBlocker(kind, { classId, yearPlanId: yearPlan.id, themeId }, { branchPlans, classThemePlans });
@@ -155,7 +156,7 @@ export default function ClassPlanPage() {
   const action = (doc, to, create, reviewTo, name) => {
     if (isMyReviewTurn(doc, ctx, user))
       return (
-        <Link className="btn btn--primary btn--sm" to={reviewTo}>
+        <Link className="btn btn--outline-primary btn--sm" to={reviewTo}>
           <Check size={16} aria-hidden /> Duyệt
         </Link>
       );
@@ -219,10 +220,7 @@ export default function ClassPlanPage() {
                   </div>
                   {/* Gửi và duyệt ở cuối trang xem cả tập; nút nói rõ việc cần làm */}
                   {doc && (
-                    <Link
-                      className={`btn btn--sm ${reviewLabel(doc, ctx, user, 'theme') === 'Xem cả kế hoạch chủ đề' ? 'btn--outline-primary' : 'btn--primary'}`}
-                      to={to}
-                    >
+                    <Link className="btn btn--sm btn--outline-primary" to={to}>
                       {reviewLabel(doc, ctx, user, 'theme')}
                     </Link>
                   )}

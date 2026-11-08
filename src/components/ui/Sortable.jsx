@@ -32,7 +32,7 @@ const FLASH_MS = 1100;
 const animateAlways = (args) => defaultAnimateLayoutChanges({ ...args, wasDragging: true });
 const INSTRUCTIONS = 'Nhấn Space để nhấc. Khi đang nhấc, dùng mũi tên lên xuống để di chuyển, Space để đặt, Esc để hủy.';
 
-export function SortableList({ ids, onMove, labelOf, disabled = false, children }) {
+export function SortableList({ ids, onMove, labelOf, disabled = false, overlayClassName = '', children }) {
   const [activeId, setActiveId] = useState(null);
   const [, rerender] = useState(0);
   const nums = useRef(null); // id -> STT đang hiển thị
@@ -95,7 +95,7 @@ export function SortableList({ ids, onMove, labelOf, disabled = false, children 
       {createPortal(
         <DragOverlay>
           {activeId != null && (
-            <div className="sortable-overlay">
+            <div className={`sortable-overlay ${overlayClassName}`.trim()}>
               <DragHandle size={18} aria-hidden />
               <span className="sortable-overlay__text">
                 {numOf(activeId)}. {nameOf(activeId)}

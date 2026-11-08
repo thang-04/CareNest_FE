@@ -42,10 +42,10 @@ const THEME_HEAD_MIN = 140;
 const NEW_GOAL_HINT = 'Nhập mục tiêu mới';
 const NO_BREAKS_HINT = 'Nhập đợt nghỉ mới';
 const NO_BREAKS = 'Chưa có đợt nghỉ. Tuần trùng đợt nghỉ không được tính vào số tuần của chủ đề.';
-/** ` "chữ"` (cắt bớt nếu dài) để đưa vào câu hỏi xác nhận; ô trống ⇒ chuỗi rỗng. */
+/** ` "chữ"` để đưa vào câu hỏi xác nhận; ô trống ⇒ chuỗi rỗng. */
 const quoted = (text) => {
   const t = (text || '').trim();
-  return t ? ` "${t.length > 60 ? `${t.slice(0, 60)}…` : t}"` : '';
+  return t ? ` "${t}"` : '';
 };
 const enterKey = (e) => e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing;
 const pastedLines = (e) =>
@@ -1413,6 +1413,7 @@ export function ThemeEventTable({
       )}
       <div className="table-wrap">
         <SortableList
+          overlayClassName="ga-sortable-overlay"
           ids={themes.map((t) => t.id)}
           onMove={(from, to) => onChange({ themes: moveItem(themes, from, to) })}
           labelOf={themeLabel}
@@ -1578,6 +1579,7 @@ export function ThemeEventTable({
 
       <div className="table-wrap">
         <SortableList
+          overlayClassName="ga-sortable-overlay"
           ids={breaks.map((b) => b.id)}
           onMove={(from, to) => onChange({ breaks: moveItem(breaks, from, to) })}
           labelOf={breakLabel}

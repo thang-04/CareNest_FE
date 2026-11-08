@@ -1,19 +1,12 @@
 import { useEffect, useLayoutEffect, useState } from 'react';
-import { Check, Pencil, RotateCcw, Save, Trash2, X } from '@/components/ui/icons';
+import { Check, Save, Trash2, X } from '@/components/ui/icons';
 import { Card, Notice, PageHead } from '@/components/education-plan/eduUi';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { Cell, focusCell } from '@/components/education-plan/planUi';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { STANDARD_DOMAINS } from '@/models/education-plan/educationPlanConstants';
 import { DOMAIN_ROMAN } from '@/models/education-plan/goalTable';
-import {
-  DEFAULT_EDU_CONFIG,
-  DEFAULT_WORKFLOW_POLICY,
-  WORKFLOW_ROLES,
-  CREATOR_ROLES,
-  REVIEWER_ROLES,
-  SIGN_DOCS,
-} from '@/models/education-plan/eduConfig';
+import { DEFAULT_WORKFLOW_POLICY, WORKFLOW_ROLES, CREATOR_ROLES, REVIEWER_ROLES, SIGN_DOCS } from '@/models/education-plan/eduConfig';
 import { moveItem } from '@/hooks/useSortableList';
 import { useManualSave } from '@/hooks/education-plan/useManualSave';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
@@ -91,6 +84,7 @@ function WorkflowPolicyConfig({ docLabel, policy, onChange, editing, canEdit, as
       {mode === 'reviewer' && (
         <div className="ga-workflow-roles ga-workflow-roles--reviewers" aria-label={`Người duyệt hồ sơ ${docLabel}`}>
           <SortableList
+            overlayClassName="ga-sortable-overlay"
             ids={reviewers}
             onMove={(from, to) => onChange({ creators, reviewers: moveItem(reviewers, from, to) })}
             labelOf={(index) => WORKFLOW_ROLES[reviewers[index]]}
@@ -135,7 +129,7 @@ function WorkflowPolicyConfig({ docLabel, policy, onChange, editing, canEdit, as
 
 /**
  * Cấu hình kế hoạch giáo dục của trường (Phó HT, Hiệu trưởng): tên hiển thị 5 lĩnh vực, người ký theo từng loại tài liệu,
- * các dòng hoạt động của kế hoạch tuần. Vào màn ở chế độ xem; bấm "Chỉnh sửa" mới sửa, lưu một lần cho cả trang.
+ * các dòng hoạt động của kế hoạch tuần. Sửa trực tiếp và lưu một lần cho cả trang.
  * Lưu và xóa theo quy tắc trang kế hoạch năm: nút Lưu đầu trang / Ctrl+S, hỏi khi rời trang còn thay đổi chưa lưu,
  * xóa một mục phải xác nhận.
  */
@@ -145,9 +139,21 @@ export default function EduConfigPage() {
   const [draft, setDraft] = useState(eduConfig);
   const [newDomain, setNewDomain] = useState('');
   const [domainError, setDomainError] = useState('');
-  const [editing, setEditing] = useState(false);
-  const [confirmCancel, setConfirmCancel] = useState(false);
+  const editing = true;
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [keyboardNavigation, setKeyboardNavigation] = useState(false);
+  useEffect(() => {
+    const onKey = (event) => {
+      if (event.key === 'Tab') setKeyboardNavigation(true);
+    };
+    const onPointer = () => setKeyboardNavigation(false);
+    document.addEventListener('keydown', onKey);
+    document.addEventListener('pointerdown', onPointer);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('pointerdown', onPointer);
+    };
+  }, []);
   // Dòng tuần vừa thêm: chuyển con trỏ sang ngay sau khi vẽ, trước phím gõ tiếp theo (gõ nhanh, bộ gõ tiếng Việt)
   const [focusRowKey, setFocusRowKey] = useState(null);
   useLayoutEffect(() => {
@@ -190,7 +196,10 @@ export default function EduConfigPage() {
   const guard = useLeaveGuard({ when: editing && dirty, onSave: saver.save });
 
   useEffect(() => {
-    if (!editing) setDraft(eduConfig);
+    if (!dirty) {
+      setDraft(eduConfig);
+      saver.markClean(eduConfig);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eduConfig]);
 
@@ -208,10 +217,6 @@ export default function EduConfigPage() {
   }, [eduConfig.workflowRevision, eduConfig.workflowPolicy, eduConfig.canConfigure]);
 
   const set = (fn) => setDraft((d) => fn(structuredClone(d)));
-  const startEditing = () => {
-    saver.markClean(draft);
-    setEditing(true);
-  };
   // Lĩnh vực mới: tên là khóa lưu trong kế hoạch năm nên không trùng tên đã có (không phân biệt hoa thường)
   const addDomain = () => {
     const name = newDomain.trim();
@@ -235,15 +240,6 @@ export default function EduConfigPage() {
       return x;
     });
   };
-  // Hủy / Xong: bỏ mọi thay đổi chưa lưu, về chế độ xem
-  const cancel = () => {
-    setDraft(eduConfig);
-    saver.markClean(null);
-    setNewDomain('');
-    setDomainError('');
-    setEditing(false);
-    setConfirmCancel(false);
-  };
   const yesNo = (on, label) =>
     on ? (
       <Check size={16} className="text-success" aria-label={`${label}: có`} />
@@ -254,49 +250,26 @@ export default function EduConfigPage() {
     );
 
   return (
-    <div className="page ga-page ga-config-page">
-      <PageHead
-        crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Cấu hình' }]}
-        title="Cấu hình kế hoạch giáo dục"
-        actions={
-          editing ? (
-            <>
-              <span className="muted text-sm">{saver.label}</span>
-              <button
-                type="button"
-                className="btn btn--ghost"
-                onClick={() =>
-                  setDraft((current) => ({
-                    ...current,
-                    ...structuredClone(DEFAULT_EDU_CONFIG),
-                    workflowRevision: current.workflowRevision,
-                    canConfigure: current.canConfigure,
-                    workflowPolicy: isPrincipal ? structuredClone(DEFAULT_WORKFLOW_POLICY) : current.workflowPolicy,
-                  }))
-                }
-              >
-                <RotateCcw size={16} aria-hidden /> Khôi phục mặc định
-              </button>
-              <button type="button" className="btn" onClick={() => (dirty ? setConfirmCancel(true) : cancel())}>
-                <X size={16} aria-hidden /> {dirty ? 'Hủy' : 'Xong'}
-              </button>
-              <button
-                type="button"
-                className="btn btn--primary"
-                onClick={saver.save}
-                disabled={saver.saving || (!dirty && !saver.error)}
-                title="Lưu (Ctrl+S)"
-              >
-                <Save size={16} aria-hidden /> Lưu
-              </button>
-            </>
-          ) : (
-            <button type="button" className="btn btn--primary" onClick={startEditing}>
-              <Pencil size={16} aria-hidden /> Chỉnh sửa
+    <div className={`page ga-page ga-config-page ga-class-editor ga-year-page${keyboardNavigation ? ' ga-keyboard-nav' : ''}`}>
+      <div className="ga-sticky-head">
+        <PageHead crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Cấu hình' }]} title="Cấu hình kế hoạch giáo dục" />
+        <div className="ga-year-toolbar" role="group" aria-label="Thao tác cấu hình kế hoạch giáo dục">
+          <div className="ga-year-toolbar__group ga-year-toolbar__group--end">
+            <p className="muted text-sm ga-year-save-status" aria-live="polite">
+              {saver.label}
+            </p>
+            <button
+              type="button"
+              className="btn btn--sm btn--primary"
+              onClick={saver.save}
+              disabled={saver.saving || (!dirty && !saver.error)}
+              title="Lưu (Ctrl+S)"
+            >
+              <Save size={16} aria-hidden /> Lưu
             </button>
-          )
-        }
-      />
+          </div>
+        </div>
+      </div>
 
       <Card title="1. Thời lượng chủ đề / chủ đề nhánh" bodyClass={null}>
         <div className="card__body stack">
@@ -520,6 +493,7 @@ export default function EduConfigPage() {
         <div className="card__body stack">
           <div className="table-wrap">
             <SortableList
+              overlayClassName="ga-sortable-overlay"
               ids={draft.weekRows.map((r) => r.key)}
               onMove={(from, to) => set((x) => ((x.weekRows = moveItem(x.weekRows, from, to)), x))}
               labelOf={(i) => draft.weekRows[i]?.label}
@@ -654,16 +628,6 @@ export default function EduConfigPage() {
         </div>
       </Card>
 
-      <ConfirmationModal
-        open={confirmCancel}
-        danger
-        title="Bỏ thay đổi chưa lưu?"
-        message="Các thay đổi trong cấu hình sẽ mất và trang trở về chế độ xem."
-        confirmLabel="Bỏ thay đổi"
-        cancelLabel="Tiếp tục sửa"
-        onConfirm={cancel}
-        onClose={() => setConfirmCancel(false)}
-      />
       <ConfirmationModal
         open={!!confirmDelete}
         danger
