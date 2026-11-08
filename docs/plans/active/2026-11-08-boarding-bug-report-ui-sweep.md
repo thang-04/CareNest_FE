@@ -58,6 +58,7 @@ updated: 2026-11-08
 ### 2026-11-08 — thống nhất căn cột, làm lại Lịch sử nhập/trừ
 
 - D8 User chê ba kiểu căn trong một bảng. Quy tắc mới: chữ, mã, ngày, trạng thái, đơn vị căn trái; mọi con số căn phải; chỉ ô tích, icon, ảnh căn giữa. Thay quyết định 20/10/2026 (số căn giữa). Áp ở `components.css` nên có hiệu lực toàn app; cột "Trạng thái" đổi ở 19 file.
+- D8b User chốt lại 08/11 (cách lai): chữ dài căn trái, mọi giá trị ngắn (số, tiền, ngày, trạng thái, mã, đơn vị, số điện thoại) căn giữa; không còn căn phải. Thay D8.
 - D9 Lịch sử nhập/trừ: gom theo ngày, dải ngày bấm mở/đóng (mặc định mở ngày đầu, đang lọc thì mở hết); ẩn cột Lý do, Người thực hiện khi cả trang trống; số lượng theo g, kg, ml, lít thay vì "0,502 chai 500 ml"; badge "Trừ theo suất" đổi xanh ngọc, bỏ chấm nhấp nháy dành cho việc đang chạy.
 
 ### 2026-11-08 — kiểm chứng, chờ user soát
