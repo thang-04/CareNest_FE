@@ -72,6 +72,25 @@
   gap: var(--space-2);
 }
 
+.perm-legend--levels {
+  color: var(--color-text-secondary);
+}
+
+.perm-legend__title {
+  font-weight: var(--fw-semibold);
+}
+
+/* Badge cấp quyền đứng trước tên việc, cùng bề rộng để các dòng thẳng cột khi dò dọc bảng */
+.perm-level {
+  min-width: 76px;
+  justify-content: center;
+}
+
+.perm-table .perm-level {
+  margin-right: var(--space-2);
+  vertical-align: middle;
+}
+
 .perm-legend__box {
   width: var(--space-4);
   height: var(--space-4);
