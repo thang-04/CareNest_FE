@@ -15,6 +15,8 @@ export const getEducationPlans = (user) => repo.getAll(user);
 export const listGoalSources = (filters, actor, options) => repo.listGoalSources(filters, actor, options);
 export const getGoalSource = (id, actor, options) => repo.getGoalSource(id, actor, options);
 export const saveGoal = (item, options) => repo.saveGoal(item, options);
+export const resolveGoalReview = (id, reviewItemId, expectedSourcePlanId, edit, actor) =>
+  repo.resolveGoalReview(id, reviewItemId, expectedSourcePlanId, edit, actor);
 export const deleteGoal = (id, revision, actor) => repo.deleteGoal(id, revision, actor);
 // Khóa "Đang sửa" kế hoạch năm (BE:EDU-10). user: người thao tác (mock cần); keepalive: gửi được cả khi đóng tab
 export const startEditingGoal = (id, user, edit) => (USE_MOCK ? repo.startEditingGoal(id, user, edit) : repo.startEditingGoal(id, edit));

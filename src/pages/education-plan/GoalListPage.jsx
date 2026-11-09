@@ -61,13 +61,17 @@ export default function GoalListPage({ planLevel = 'TEAM' }) {
       (isPrincipal && g.status !== EDU_STATUS.DRAFT && g.status !== EDU_STATUS.EDITING) ||
       (isLeader && g.ageGroupId === user.ageGroupId) ||
       (issuedPlan(g) && (g.ageGroupId === user.ageGroupId || taught.includes(g.ageGroupId)));
-    return goals.filter((g) => g.schoolYear === schoolYear && visible(g) && (!principalViewer || ['APPROVED', 'REPLACED'].includes(g.status)));
+    return goals.filter(
+      (g) => g.schoolYear === schoolYear && visible(g) && (!principalViewer || ['APPROVED', 'REPLACED'].includes(g.status)),
+    );
   }, [goals, classes, schoolYear, isVP, isPrincipal, isLeader, user, principalViewer]);
 
   const creationScopes = eduConfig?.[annual ? 'schoolYearCreationScopes' : 'yearCreationScopes'];
-  const canCreate = !principalViewer && (creationScopes
-    ? creationScopes.some((id) => !scoped.some((g) => g.ageGroupId === id))
-    : isYearCreator && (!user.ageGroupId || !scoped.some((g) => g.ageGroupId === user.ageGroupId)));
+  const canCreate =
+    !principalViewer &&
+    (creationScopes
+      ? creationScopes.some((id) => !scoped.some((g) => g.ageGroupId === id))
+      : isYearCreator && (!user.ageGroupId || !scoped.some((g) => g.ageGroupId === user.ageGroupId)));
 
   const rows = scoped.filter((g) => (!age || g.ageGroupId === age) && (!q || (g.title + g.code).toLowerCase().includes(q.toLowerCase())));
 
@@ -150,9 +154,9 @@ export default function GoalListPage({ planLevel = 'TEAM' }) {
             <table className="table ga-plan-table ga-list-table">
               <thead>
                 <tr>
-                  <th>Kế hoạch</th>
+                  <th>{annual ? 'Tên kế hoạch năm học' : 'Tên kế hoạch tổ'}</th>
                   <th>Nhóm tuổi áp dụng</th>
-                  <th>Số mục tiêu</th>
+                  {annual && <th>Số mục tiêu</th>}
                   <th>Ngày gửi</th>
                   <th className="min-w-200">Người soạn</th>
                   <th className="center">Trạng thái</th>
@@ -167,13 +171,15 @@ export default function GoalListPage({ planLevel = 'TEAM' }) {
                   >
                     <td>
                       <div className="ga-cell-title">{g.title}</div>
-                      <div className="text-xs text-primary">Phiên bản {versionOf(g)}</div>
+                      {annual && <div className="text-xs text-primary">Phiên bản {versionOf(g)}</div>}
                     </td>
                     <td>{ageName(g.ageGroupId)}</td>
-                    <td>
-                      {allGoalItems(g).length} mục tiêu · {(g.themes || []).length} chủ đề
-                    </td>
-                    <td>{fmtDate(g.sentAt)}</td>
+                    {annual && (
+                      <td>
+                        {allGoalItems(g).length} mục tiêu · {(g.themes || []).length} chủ đề
+                      </td>
+                    )}
+                    <td>{fmtDate(g.sentAt ?? g.sentBy?.at)}</td>
                     <td>
                       <Owner plan={g} />
                     </td>

@@ -167,8 +167,8 @@ const goalView = (db, goal, user) => {
       canApprove: canReview,
       canIssue: canReview,
       canReturn: canReview,
-      canDelete: author && open && !(planLevel(goal) === 'TEAM' && mockRoles(user).includes(ROLES.VICE_PRINCIPAL)),
-      canCreateVersion: author && goal.status === EDU_STATUS.APPROVED,
+      canDelete: author && open && planLevel(goal) === 'SCHOOL_YEAR',
+      canCreateVersion: planLevel(goal) === 'SCHOOL_YEAR' && author && goal.status === EDU_STATUS.APPROVED,
     },
   };
 };
@@ -208,6 +208,7 @@ const saveGoal = async (item, options = {}) => {
         !source ||
         planLevel(source) !== 'SCHOOL_YEAR' ||
         source.status !== EDU_STATUS.APPROVED ||
+        (!prev && currentPlanOf(list, source.ageGroupId, source.schoolYear, 'SCHOOL_YEAR')?.id !== source.id) ||
         source.ageGroupId !== item.ageGroupId ||
         source.schoolYear !== item.schoolYear
       )
@@ -290,12 +291,14 @@ const saveGoal = async (item, options = {}) => {
     if (prev && edit) {
       if (prev.editSessionId && prev.editSessionId !== edit.sessionId && Date.now() - (prev.editingAt || 0) < EDIT_LOCK_MS)
         throw eduError('EDIT_SESSION_LOST');
-      if (prev.lastSaveRequestId === edit.requestId) return clone(prev);
       if ((prev.revision || 0) !== edit.revision) throw eduError('YEAR_PLAN_REVISION_STALE');
+      if (prev.lastSaveRequestId === edit.requestId) return clone(prev);
     }
     const { editing, editingAt, editingFrom, editSessionId, ...rest } = clone(item);
     const draftLike = rest.status === EDU_STATUS.DRAFT || rest.status === EDU_STATUS.REJECTED;
     const isReview = rest.status === 'REVIEW' || rest.status === EDU_STATUS.PENDING_VP;
+    if (isReview && (prev?.reviewItems || []).some((reviewItem) => !reviewItem.resolved))
+      throw eduError('INVALID_VALUE', 'còn mục cần rà soát');
     if (isReview || rest.status === EDU_STATUS.APPROVED) {
       const issue = branchScheduleIssue(rest.branchTemplates || []);
       if (issue) throw eduError('INVALID_VALUE', issue);
@@ -344,6 +347,11 @@ const saveGoal = async (item, options = {}) => {
       }
     } else if (rest.status === EDU_STATUS.DRAFT) {
       delete next.waitingRole;
+    }
+    if (prev) {
+      next.reviewItems = prev.reviewItems || [];
+      next.newItems = prev.newItems || [];
+      next.previousSourcePlanId = prev.previousSourcePlanId;
     }
     if (edit) {
       next.revision = (prev?.revision || 0) + 1;
@@ -529,6 +537,38 @@ export const educationPlanMockRepository = {
       editingAt: Date.now(),
     };
   }),
+  // EDU-62: xác nhận từng mục chỉ sau khi lưu mapping với nguồn/phiên/revision hiện tại.
+  resolveGoalReview: async (id, reviewItemId, expectedSourcePlanId, edit, actor) => {
+    await delay();
+    return writeDb((db) => {
+      const goal = ensureSeeded(db).eduGoals.find((item) => item.id === id);
+      if (!goal) throw eduError('YEAR_PLAN_NOT_FOUND');
+      if (planLevel(goal) !== 'TEAM' || !authorOf(db, goal, actor)) throw eduError('YEAR_PLAN_EDIT_FORBIDDEN');
+      if (!['DRAFT', 'EDITING'].includes(goal.status)) throw eduError('YEAR_PLAN_INVALID_STATUS', 'rà soát');
+      if (goal.editSessionId !== edit.sessionId || Date.now() - (goal.editingAt || 0) >= EDIT_LOCK_MS) throw eduError('EDIT_SESSION_LOST');
+      if ((goal.revision ?? 0) !== (edit.revision ?? 0) || String(goal.curriculumSourcePlanId) !== String(expectedSourcePlanId))
+        throw eduError('YEAR_PLAN_REVISION_STALE');
+      const item = (goal.reviewItems || []).find((reviewItem) => String(reviewItem.reviewItemId) === String(reviewItemId));
+      if (!item) throw eduError('YEAR_PLAN_NOT_FOUND');
+      if (String(item.sourcePlanId) !== String(expectedSourcePlanId)) throw eduError('YEAR_PLAN_REVISION_STALE');
+      const themeIds = new Set((goal.themes || []).map((theme) => String(theme.id)));
+      if (
+        (goal.domains || []).some((domain) =>
+          domain.rows.some((row) =>
+            (row.contents || []).some((content) => (content.themes || []).some((themeId) => !themeIds.has(String(themeId)))),
+          ),
+        )
+      )
+        throw eduError('INVALID_VALUE', 'liên kết chủ đề không còn hợp lệ');
+      if (!item.resolved) {
+        item.resolved = true;
+        item.resolvedBy = actor.id;
+        item.resolvedAt = new Date().toISOString();
+        goal.revision = (goal.revision || 0) + 1;
+      }
+      return clone(goalView(db, goal, actor));
+    });
+  },
   heartbeatGoal: editGoal((goal, user, edit) => {
     if (goal.editSessionId !== edit.sessionId || Date.now() - (goal.editingAt || 0) >= EDIT_LOCK_MS) throw eduError('EDIT_SESSION_LOST');
     return { ...goal, editingAt: Date.now() };
@@ -536,9 +576,9 @@ export const educationPlanMockRepository = {
   finishEditingGoal: editGoal((goal, user, options) =>
     goal.editing?.userId === user.id && (!options?.edit || options.edit.sessionId === goal.editSessionId) ? releaseLock(goal) : goal,
   ),
-  deleteGoal: async (id, revision, actor) => {
+  deleteGoal: async (id, revision, _actor) => {
     const goal = ensureSeeded(readDb()).eduGoals.find((item) => item.id === id);
-    if (planLevel(goal) === 'TEAM' && mockRoles(actor).includes(ROLES.VICE_PRINCIPAL)) throw eduError('YEAR_PLAN_EDIT_FORBIDDEN');
+    if (planLevel(goal) === 'TEAM') throw eduError('YEAR_PLAN_EDIT_FORBIDDEN');
     if (goal?.editSessionId && Date.now() - (goal.editingAt || 0) < EDIT_LOCK_MS)
       throw eduError('YEAR_PLAN_LOCKED_BY_OTHER', goal.editing?.name || 'người khác');
     if (goal && (revision ?? 0) !== (goal.revision ?? 0)) throw eduError('YEAR_PLAN_REVISION_STALE');

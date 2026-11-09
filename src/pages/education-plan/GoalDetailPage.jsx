@@ -1,3 +1,4 @@
+import TeamSourceReview from '@/components/education-plan/TeamSourceReview';
 import YearPlanSourceCard from '@/components/education-plan/YearPlanSourceCard';
 import { planLevel as levelOf, planRoute } from '@/models/education-plan/planLevel.mjs';
 import { useState } from 'react';
@@ -30,7 +31,17 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
   const basePath = planRoute({ planLevel });
   const pageLabel = annual ? 'Kế hoạch năm học' : 'Kế hoạch giáo dục tổ';
   const { id } = useParams();
-  const { goals: allGoals, themes: themePlans, user, saveGoal, deleteGoal, createGoalVersion, toast, staff } = useEducationPlan();
+  const {
+    goals: allGoals,
+    themes: themePlans,
+    user,
+    saveGoal,
+    deleteGoal,
+    createGoalVersion,
+    toast,
+    staff,
+    refreshGoal,
+  } = useEducationPlan();
   const goals = allGoals.filter((g) => levelOf(g) === planLevel);
   const [preview, setPreview] = useState(null);
   const navigate = useNavigate();
@@ -41,7 +52,7 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const [creating, setCreating] = useState(false);
-  const [sourceId, setSourceId] = useState('');
+  const [actionError, setActionError] = useState('');
   const found = goals.find((x) => x.id === id);
   // Giáo viên chỉ xem kế hoạch năm đã ban hành
   const g = found;
@@ -96,14 +107,14 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
   const canIssue = perm ? (perm.canApprove ?? perm.canIssue) : isReviewerForPlan;
   const canReturn = perm ? perm.canReturn : isReviewerForPlan;
   const canDelete =
-    !(isVp && !annual) &&
-    (perm ? perm.canDelete : isVp && !lockedByOther && (g.status === EDU_STATUS.DRAFT || g.editingFrom === EDU_STATUS.DRAFT));
+    annual && (perm ? perm.canDelete : isVp && !lockedByOther && (g.status === EDU_STATUS.DRAFT || g.editingFrom === EDU_STATUS.DRAFT));
   // BE:EDU-25 — sửa bản đã ban hành = tạo phiên bản mới; bản đã ban hành giữ nguyên
   const canCreateVersion =
-    perm?.canCreateVersion ??
-    ((isVp || isLeader) &&
-      currentPlanOf(goals, g.ageGroupId, g.schoolYear, planLevel)?.id === g.id &&
-      chainOf(goals, g).every((x) => x.status === EDU_STATUS.APPROVED));
+    annual &&
+    (perm?.canCreateVersion ??
+      ((isVp || isLeader) &&
+        currentPlanOf(goals, g.ageGroupId, g.schoolYear, planLevel)?.id === g.id &&
+        chainOf(goals, g).every((x) => x.status === EDU_STATUS.APPROVED)));
   const closeDelete = () => {
     setModal(null);
     setDeleteError('');
@@ -124,7 +135,7 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
   };
   const newVersion = async () => {
     setCreating(true);
-    const plan = await createGoalVersion(g.id, sourceId || undefined);
+    const plan = await createGoalVersion(g.id);
     setCreating(false);
     setModal(null);
     if (plan) {
@@ -135,10 +146,16 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
 
   // Gửi / trả lại / ban hành theo mẫu chung (reviewUi); service quyết định trạng thái
   const act = async (action, note) => {
+    if (action === 'submit' && (g.reviewItems || []).some((item) => !item.resolved)) {
+      toast('Còn mục cần rà soát theo nguồn mới. Mở chỉnh sửa để xử lý trước khi gửi.', 'warn');
+      return null;
+    }
+    setActionError('');
     if (action === 'submit' && g.durationPolicySnapshot?.mode === 'BOUNDED') {
       const limits = g.durationPolicySnapshot;
-      const issue = (g.themes || []).map((t) => durationRangeIssue(t, g.breaks || [], limits.theme, `Chủ đề "${t.name || t.abbr}"`)).find(Boolean)
-        || branchScheduleIssue(g.branchTemplates || [], g.breaks || [], limits.branch);
+      const issue =
+        (g.themes || []).map((t) => durationRangeIssue(t, g.breaks || [], limits.theme, `Chủ đề "${t.name || t.abbr}"`)).find(Boolean) ||
+        branchScheduleIssue(g.branchTemplates || [], g.breaks || [], limits.branch);
       if (issue) {
         toast(issue, 'warn');
         return null;
@@ -149,7 +166,13 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
       reject: { ...g, status: EDU_STATUS.DRAFT, history: log('Trả lại để sửa', note, 'err') },
       approve: { ...g, status: EDU_STATUS.APPROVED, issued: me, history: log('Ban hành', note) },
     }[action];
-    const saved = await saveGoal(next, { action });
+    let saved;
+    try {
+      saved = await saveGoal(next, { action, silent: true });
+    } catch (error) {
+      setActionError(error.message || 'Không thực hiện được. Tải lại trạng thái trước khi thử lại.');
+      return null;
+    }
     if (saved)
       toast(
         {
@@ -168,14 +191,10 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
     <div className={`page ga-page ga-goal-detail ga-year-page ga-class-editor${annual ? ' ga-annual-plan' : ' ga-team-plan'}`}>
       <div className="ga-sticky-head">
         <PageHead
-          crumbs={[
-            { label: 'Kế hoạch giáo dục' },
-            { label: pageLabel, to: basePath },
-            { label: g.code },
-          ]}
+          crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: pageLabel, to: basePath }, { label: g.code }]}
           title={g.title}
           // Đầu trang chỉ giữ nhãn phiên bản, bỏ nhãn trạng thái riêng (Tiền 31/10); trạng thái vẫn quyết định quyền và nút
-          desc={<VersionBadge plan={g} goals={goals} />}
+          desc={annual ? <VersionBadge plan={g} goals={goals} /> : g.planTypeLabel || 'Kế hoạch tổ'}
         />
         <div className="ga-year-toolbar" role="group" aria-label={`Thao tác ${pageLabel.toLowerCase()}`}>
           <div className="ga-year-toolbar__group">
@@ -242,6 +261,25 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
         </div>
       )}
 
+      {actionError && (
+        <Notice tone="warn">
+          <span>{actionError}</span>{' '}
+          <button
+            type="button"
+            className="btn"
+            onClick={async () => {
+              try {
+                await refreshGoal(g.id);
+                setActionError('');
+              } catch (error) {
+                setActionError(error.message);
+              }
+            }}
+          >
+            Tải trạng thái mới
+          </button>
+        </Notice>
+      )}
       <Card title="1. Thông tin chung" {...fold('info')}>
         <dl className="info-list">
           <dt>Tên kế hoạch</dt>
@@ -273,6 +311,8 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
         actions={<span className="muted text-xs nowrap">{Object.keys(numbers).length} mục tiêu</span>}
       >
         <GoalTable
+          reviewItems={g.reviewItems}
+          newItems={g.newItems}
           domains={domains}
           themes={annual ? [] : themes}
           numbers={numbers}
@@ -283,6 +323,8 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
       </Card>
       <Card title={annual ? '3. Dự kiến chủ đề / sự kiện năm học' : '3. Dự kiến chủ đề, sự kiện trong năm'} {...fold('themes')}>
         <ThemeEventTable
+          reviewItems={g.reviewItems}
+          newItems={g.newItems}
           hideGoals={annual}
           fixedFields={!annual}
           branchTemplates={g.branchTemplates || []}
@@ -299,7 +341,8 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
           {typeof warning === 'string' ? warning : warning.message || 'Kiểm tra liên kết với nguồn mới trước khi gửi.'}
         </Notice>
       ))}
-      <YearPlanVersionPanel plan={g} goals={goals} />
+      {!annual && <TeamSourceReview plan={g} />}
+      {annual && <YearPlanVersionPanel plan={g} goals={goals} />}
 
       <div className="mt-16">
         <ReviewHistory items={history} />
@@ -321,27 +364,6 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
             </>
           }
         >
-          {!annual && (
-            <label className="field">
-              <span>Nguồn năm học cho phiên bản mới</span>
-              <select className="select" value={sourceId} onChange={(e) => setSourceId(e.target.value)}>
-                <option value="">Giữ nguồn của phiên bản trước</option>
-                {allGoals
-                  .filter(
-                    (p) =>
-                      levelOf(p) === 'SCHOOL_YEAR' &&
-                      p.status === EDU_STATUS.APPROVED &&
-                      p.ageGroupId === g.ageGroupId &&
-                      p.schoolYear === g.schoolYear,
-                  )
-                  .map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.title} · Phiên bản {p.versionNo || 1}
-                    </option>
-                  ))}
-              </select>
-            </label>
-          )}
           <p>
             Bản đã ban hành giữ nguyên. Hệ thống chép toàn bộ mục tiêu, nội dung, chủ đề, đợt nghỉ thành một phiên bản mới để sửa, rồi gửi /
             ban hành như kế hoạch mới. Lớp vẫn dùng bản hiện hành tới khi phiên bản mới được ban hành; sau đó các ô liên quan trong tài liệu

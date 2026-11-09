@@ -1,3 +1,4 @@
+import { SourceItemMark } from '@/components/education-plan/TeamSourceReview';
 import { branchDateIssues } from '@/models/education-plan/branchTemplateSchedule.mjs';
 import { removeThemeReferences } from '@/models/education-plan/planLevel.mjs';
 import { fillGoalLabels, goalDisplayLabel } from '@/models/education-plan/goalLabels.mjs';
@@ -216,6 +217,8 @@ export function GoalTable({
   ageGroupId,
   canSuggest = true,
   suggestionScope = null,
+  reviewItems = [],
+  newItems = [],
 }) {
   const readOnly = viewOnly || fixedCells;
   const setFocusId = useCellFocus();
@@ -621,7 +624,7 @@ export function GoalTable({
               {dupHint(r.id, 'Mục tiêu đã có')}
             </>
           ) : (
-            <div className="ga-goal-table__pad">{r.text}</div>
+            <div className="ga-goal-table__pad">{r.text}<SourceItemMark itemKind="GOAL" itemId={r.id} reviewItems={reviewItems} newItems={newItems} /></div>
           )}
         </td>
       </>
@@ -719,7 +722,7 @@ export function GoalTable({
                 {dupHint(c.id, 'Nội dung đã có')}
               </>
             ) : (
-              <div className="ga-goal-table__pad">{c.text}</div>
+              <div className="ga-goal-table__pad">{c.text}<SourceItemMark itemKind="CONTENT" itemId={c.id} reviewItems={reviewItems} newItems={newItems} /></div>
             )}
           </td>
           {themeCells(di, r, c, `nội dung ${k + 1} của mục tiêu ${no || 'mới'}`)}
@@ -1244,6 +1247,8 @@ export function ThemeEventTable({
   fixedFields = false,
   branchTemplates = [],
   durationPolicy = null,
+  reviewItems = [],
+  newItems = [],
 }) {
   const readOnly = viewOnly || fixedFields;
   const showBranches = hideGoals || fixedFields;
@@ -1482,6 +1487,7 @@ export function ThemeEventTable({
                         onKeyDown: themeKeys(t, i, ''),
                       },
                     )}
+                    <SourceItemMark itemKind="THEME" itemId={t.id} reviewItems={reviewItems} newItems={newItems} />
                     <div className={`ga-branch-template-dates ga-branch-date-range${themeSug.has(t.id) ? ' ga-date--bad' : ''}`}>
                       <div className="ga-branch-date-endpoint">
                         {dateCell(t.start, (start) => patchTheme(t.id, { start }), `Từ ngày chủ đề ${i + 1}`, t, takenForTheme(t), true)}

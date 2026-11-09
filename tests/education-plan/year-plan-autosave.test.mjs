@@ -186,3 +186,25 @@ test('editing only an STT label is a content change before goal text is entered'
   after.domains[0].rows[0].displayLabel = 'MTR20';
   assert.notEqual(yearPlanContentKey(before), yearPlanContentKey(after));
 });
+
+test('source/session conflicts retain local edits but do not replay a rejected snapshot after explicit recovery', async () => {
+  for (const status of [409, 403]) {
+    let doc = { title: 'Draft', source: 'old' };
+    let allowed = true;
+    const attempts = [];
+    const queue = createSaveQueue({ read: () => doc, enabled: () => allowed,
+      write: async (snapshot, requestId) => {
+        attempts.push({ snapshot, requestId });
+        if (snapshot.source === 'old') throw Object.assign(new Error('Source changed'), { status });
+        return snapshot;
+      }, accept: (saved) => saved, onState: (phase) => { if (phase === 'conflict') allowed = false; } });
+    queue.markClean(doc); doc = { title: 'Unsaved input', source: 'old' };
+    assert.equal(await queue.flush(), false); assert.equal(doc.title, 'Unsaved input');
+    assert.equal(await queue.flush(), false); assert.equal(attempts.length, 1);
+    doc = { ...doc, source: 'fresh' }; allowed = true;
+    assert.equal(await queue.flush(), true);
+    assert.equal(attempts[1].snapshot.source, 'fresh');
+    assert.notEqual(attempts[0].requestId, attempts[1].requestId);
+    queue.dispose();
+  }
+});

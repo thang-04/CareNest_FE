@@ -12,6 +12,7 @@ import React, {useEffect, useRef, useState} from 'react';
 import {planLevel as levelOf, planRoute, inheritAnnual} from ${JSON.stringify(import.meta.resolve('../../src/models/education-plan/planLevel.mjs'))};
 import {branchScheduleIssue} from ${JSON.stringify(import.meta.resolve('../../src/models/education-plan/branchTemplateSchedule.mjs'))};
 const BranchTemplateEditor=()=>null;
+const TeamSourceReview=()=>null;
 const YearPlanSourceCard=({plan,source,children})=><section className="ga-plan-section--source" data-source-id={plan.curriculumSourcePlanId} data-source-title={source?.title}>{children}</section>;
 
 const RowMenu=({label,text,items})=><div data-import-menu={label}><button>{text}</button>{items.map(item=><button key={item.label} disabled={item.disabled}>{item.label}</button>)}</div>;
@@ -99,6 +100,7 @@ const detailStubs = `
 import React, {useState} from 'react';
 import {planLevel as levelOf, planRoute} from ${JSON.stringify(import.meta.resolve('../../src/models/education-plan/planLevel.mjs'))};
 const BranchTemplateEditor=()=>null;
+const TeamSourceReview=()=>null;
 const useParams=()=>({id:'test'}), useNavigate=()=>()=>{}, useLocation=()=>({state:null});
 const ROLE_LABELS={};
 const YearPlanSourceCard=({plan,source,children})=><section className="ga-plan-section--source" data-source-id={plan.curriculumSourcePlanId} data-source-title={source?.title}>{children}</section>;

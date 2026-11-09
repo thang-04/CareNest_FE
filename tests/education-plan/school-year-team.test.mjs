@@ -160,3 +160,20 @@ test('valid two-week resize keeps UUID and per-week notes', () => {
   assert.equal(resized.names['2026-09-14'], 'Nhánh');
   assert.throws(() => resizeBranch(one, annual, one.branches[0].key, '2026-09-08', '2026-09-18'));
 });
+
+test('intentional conflict reapply keeps fresh source tree/review and only valid old ticks plus own text', async () => {
+  const { reapplyTeamDraft } = await import('../../src/models/education-plan/planLevel.mjs');
+  const fresh = { title: 'Server', description: '', curriculumSourcePlanId: 'new', revision: 9,
+    reviewItems: [{ reviewItemId: 'review', resolved: false }], themes: [{ id: 'keep' }],
+    domains: [{ rows: [{ id: 'goal', text: 'New source', contents: [
+      { id: 'content', text: 'New content', themes: [] }, { id: 'added', text: 'Added', themes: [] } ] }] }] };
+  const draft = { title: 'My title', description: 'My description', curriculumSourcePlanId: 'old', revision: 2,
+    domains: [{ rows: [{ text: 'Stale source', contents: [{ id: 'content', themes: ['keep', 'gone'] }, { id: 'deleted', themes: ['keep'] }] }] }] };
+  const reapplied = reapplyTeamDraft(fresh, draft);
+  assert.equal(reapplied.title, 'My title'); assert.equal(reapplied.description, 'My description');
+  assert.equal(reapplied.curriculumSourcePlanId, 'new'); assert.equal(reapplied.revision, 9);
+  assert.deepEqual(reapplied.reviewItems, fresh.reviewItems);
+  assert.equal(reapplied.domains[0].rows[0].text, 'New source');
+  assert.deepEqual(reapplied.domains[0].rows[0].contents.map((c) => c.themes), [['keep'], []]);
+  assert.equal(fresh.title, 'Server'); assert.deepEqual(fresh.domains[0].rows[0].contents[0].themes, []);
+});

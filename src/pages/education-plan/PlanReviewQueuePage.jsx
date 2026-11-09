@@ -1,9 +1,9 @@
-import { planRoute } from '@/models/education-plan/planLevel.mjs';
+import { planLevel, planRoute } from '@/models/education-plan/planLevel.mjs';
 import { useNavigate } from 'react-router-dom';
 import { Card, EduStatusBadge, EmptyState, PageHead, YearPlanStatusBadge, fmtDateTime } from '@/components/education-plan/eduUi';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { ROLES } from '@/models/User';
-import { AGE_GROUPS, EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
+import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
 import { CLASS_DOC_LABELS, themeNumber, themeWeeksOf } from '@/models/education-plan/classPlan';
 import { PENDING_OF } from '@/models/education-plan/eduConfig';
 import { clickableRowProps } from '@/utils/clickableRow';
@@ -44,10 +44,11 @@ export default function PlanReviewQueuePage() {
         kind: 'year',
         doc: g,
         cls: '—',
-        what: `Khối ${AGE_GROUPS.find((a) => a.id === g.ageGroupId)?.name || ''}, năm học ${g.schoolYear}`,
+        what: g.title,
+        label: g.planTypeLabel || (planLevel(g) === 'SCHOOL_YEAR' ? 'Kế hoạch năm học' : 'Kế hoạch tổ'),
         to: `${planRoute(g)}/${g.id}`,
         by: g.sentBy?.name || [...(g.history || [])].reverse().find((h) => h.action?.startsWith('Gửi'))?.by,
-        at: g.sentAt,
+        at: g.sentAt ?? g.sentBy?.at,
       })),
     ...branchPlans.filter(mine).map((d) => ({ kind: 'branch', doc: d, what: 'Cả năm học', to: `/education/branches/${d.classId}` })),
     // Hồ sơ chủ đề gửi và duyệt một lần (kế hoạch chủ đề + giáo án các nhánh)
@@ -100,7 +101,7 @@ export default function PlanReviewQueuePage() {
                   {items.map((it) => (
                     <tr key={it.key} className="row-click" {...clickableRowProps(() => navigate(it.to))}>
                       <td className="cell--fixed">
-                        <div className="ga-goal-table__pad fw-600">{CLASS_DOC_LABELS[it.kind]}</div>
+                        <div className="ga-goal-table__pad fw-600">{it.label || CLASS_DOC_LABELS[it.kind]}</div>
                       </td>
                       <td>
                         <div className="ga-goal-table__pad">{it.cls}</div>
@@ -116,7 +117,11 @@ export default function PlanReviewQueuePage() {
                       </td>
                       <td>
                         <div className="ga-goal-table__pad">
-                          {it.kind === 'year' ? <YearPlanStatusBadge status={it.doc.status} doc={it.doc} /> : <EduStatusBadge status={it.doc.status} doc={it.doc} />}
+                          {it.kind === 'year' ? (
+                            <YearPlanStatusBadge status={it.doc.status} doc={it.doc} />
+                          ) : (
+                            <EduStatusBadge status={it.doc.status} doc={it.doc} />
+                          )}
                         </div>
                       </td>
                     </tr>

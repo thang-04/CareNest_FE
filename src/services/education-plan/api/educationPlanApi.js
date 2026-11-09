@@ -72,7 +72,7 @@ const runSteps = async (goal, refs, edit, forceSave = false, action) => {
         { note: step.note },
         { headers: (step.call === 'submit' ? editHeaders : reviewHeaders)({ ...edit, requestId: crypto.randomUUID() }) },
       );
-    edit.revision = detail.revision;
+    edit.revision = detail.contentRevision ?? detail.revision;
     id = detail.id;
     remember(detail, refs);
   }
@@ -166,7 +166,7 @@ export const educationPlanApi = {
     );
     const summaries = new Map(
       pages
-        .flatMap((page, index) => page.items.filter((item) => index === 0 || item.planLevel === 'SCHOOL_YEAR'))
+        .flatMap((page, index) => page.items.filter((item) => index === 0 || (item.planType || item.planLevel) === 'SCHOOL_YEAR'))
         .map((item) => [String(item.id), item]),
     );
     const goals = await Promise.all([...summaries.values()].map((p) => fetchGoal(p.id, refs)));
@@ -191,7 +191,7 @@ export const educationPlanApi = {
       if (!explicit && id != null && !reviewOnly) {
         const current = await axiosClient.post(`${GOALS}/${id}/start-editing`, null, { headers: editHeaders(edit) });
         acquired = true;
-        if ((item.revision ?? 0) !== (current.revision ?? 0)) {
+        if ((item.revision ?? 0) !== (current.contentRevision ?? current.revision ?? 0)) {
           throw Object.assign(new Error('Kế hoạch đã thay đổi. Hãy tải lại và xem nội dung mới trước khi thao tác.'), { status: 409 });
         }
         remember(current, refs);
@@ -205,6 +205,17 @@ export const educationPlanApi = {
   startEditingGoal: async (id, edit) => {
     const refs = buildRefs(await loadConfig());
     return remember(await axiosClient.post(`${GOALS}/${serverId(id) ?? id}/start-editing`, null, { headers: editHeaders(edit) }), refs);
+  },
+  resolveGoalReview: async (id, reviewItemId, expectedSourcePlanId, edit) => {
+    const refs = buildRefs(await loadConfig());
+    return remember(
+      await axiosClient.post(
+        `${GOALS}/${serverId(id) ?? id}/review/${encodeURIComponent(String(reviewItemId))}/resolve`,
+        { expectedSourcePlanId: serverId(expectedSourcePlanId) },
+        { headers: editHeaders(edit) },
+      ),
+      refs,
+    );
   },
   heartbeatGoal: async (id, edit) => {
     const refs = buildRefs(await loadConfig());

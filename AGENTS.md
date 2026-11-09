@@ -4,6 +4,11 @@ Repo này là **client Web** của CareNest (Trường Mầm non Thượng Hồn
 
 Quy ước đường dẫn: `BE:<path>` = `../CareNest_BE/<path>` (repo sibling). Không có sibling ⇒ đọc trên https://github.com/thang-04/CareNest_BE.git và nói rõ đã đọc bản remote.
 
+## Quy trình trực tiếp — chỉ đạo user07/11/2026
+
+- Agent tự điều phối; không chạy harness/orchestrator hoặc script setup/check/verify của dự án, không nối thêm skill chỉ để thỏa cổng cũ. Kiểm chứng bằng test/build/lint gốc theo tác động, tái sử dụng test hiện có, ghi output thật; tài liệu chỉ kiểm nội dung/diff khi phù hợp. Quy tắc này thay yêu cầu wrapper ở dưới, không vô hiệu hóa CI/merge checks hay nới bảo mật/nghiệp vụ/quyền Git.
+- Feature012 hiện được phép FE-first để review, theo `BE:specs/012-school-year-team-plans/plan.md` và constitution local2.0.0. Không tự mở trình duyệt; dừng sau bản FE để user duyệt trước backend, không tự commit/push.
+
 ## Bắt đầu mọi task — chọn làn
 
 | Làn | Khi nào | Đọc | Plan · verify · báo cáo |

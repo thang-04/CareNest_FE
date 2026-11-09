@@ -430,3 +430,41 @@ test('annual source trusts server scope for a manager with a team-leader primary
   assert.equal(goal.planLevel, 'SCHOOL_YEAR');
   assert.equal(goal.status, 'REVIEW');
 });
+
+test('spec015 maps planType, sentAt, source baseline, distinct review IDs and revision aliases', () => {
+  const ui = toUiGoal(detail({ planType: 'SCHOOL_YEAR', planLevel: 'TEAM', sentAt: '2026-11-09T03:00:00Z',
+    previousSourcePlanId: 10, curriculumSourcePlanId: 20, contentRevision: 8, revision: 7,
+    reviewItems: [{ reviewItemId: 600, itemId: 200, itemKind: 'CONTENT', sourcePlanId: 20, reason: 'Nội dung đổi', resolved: false }],
+    newItems: [{ itemKind: 'GOAL', itemId: 102 }] }), refs);
+  assert.equal(ui.planLevel, 'SCHOOL_YEAR'); assert.equal(ui.planTypeLabel, 'Kế hoạch năm học');
+  assert.equal(ui.sentAt, '2026-11-09'); assert.equal(ui.previousSourcePlanId, '10');
+  assert.equal(ui.revision, 8); assert.equal(ui.contentRevision, 8);
+  assert.equal(ui.reviewItems[0].reviewItemId, '600'); assert.equal(ui.reviewItems[0].itemId, '200');
+  assert.equal(ui.newItems[0].itemId, '102');
+  assert.equal(toUiGoal(detail({ createdAt: '2026-11-09T03:00:00Z', sentBy: null }), refs).sentAt, null);
+  assert.equal(toUiGoal(detail({ sentBy: { at: '2026-11-08T03:00:00Z' } }), refs).sentAt, '2026-11-08');
+});
+
+test('resolve sends review primary key, current source and existing edit/revision/idempotency headers; conflicts propagate without retry', async () => {
+  const calls = [];
+  const edit = { sessionId: crypto.randomUUID(), revision: 8, requestId: crypto.randomUUID() };
+  axiosClient.defaults.adapter = async (config) => {
+    calls.push(config);
+    return respond(config, detail({ revision: 9, reviewItems: [{ reviewItemId: 600, itemId: 200, sourcePlanId: 20, resolved: true }] }));
+  };
+  const saved = await educationPlanApi.resolveGoalReview('41', '600', '20', edit);
+  const request = calls.at(-1);
+  assert.equal(request.url, '/education-plans/goals/41/review/600/resolve');
+  assert.deepEqual(JSON.parse(request.data), { expectedSourcePlanId: 20 });
+  assert.equal(request.headers.get('X-Edit-Session'), edit.sessionId);
+  assert.equal(request.headers.get('X-Plan-Revision'), '8');
+  assert.equal(request.headers.get('Idempotency-Key'), edit.requestId);
+  assert.equal(saved.reviewItems[0].resolved, true); assert.equal(saved.revision, 9);
+  let attempts = 0;
+  axiosClient.defaults.adapter = async (config) => {
+    attempts++;
+    throw new AxiosError('Conflict', 'ERR_BAD_REQUEST', config, null, { status: 409, config, headers: {}, data: { desc: 'Nguồn đã thay đổi' } });
+  };
+  await assert.rejects(educationPlanApi.resolveGoalReview('41', '600', '20', edit), { status: 409 });
+  assert.equal(attempts, 1);
+});

@@ -298,6 +298,17 @@ export function EducationPlanProvider({ children }) {
           return null;
         }
       },
+      refreshPlans: () => reload({ silent: true }),
+      refreshGoal: async (id) => {
+        const goal = await service.getGoalSource(id, actor);
+        setData((prev) => (prev ? { ...prev, goals: upsert(prev.goals, goal) } : prev));
+        return goal;
+      },
+      resolveGoalReview: async (id, reviewItemId, expectedSourcePlanId, edit) => {
+        const goal = await service.resolveGoalReview(id, reviewItemId, expectedSourcePlanId, edit, actor);
+        setData((prev) => (prev ? { ...prev, goals: upsert(prev.goals, goal) } : prev));
+        return goal;
+      },
       heartbeatGoal: (id, edit) => service.heartbeatGoal(id, edit, actor),
       // Thoát trang soạn; lỗi mạng thì để BE tự nhả khóa sau thời hạn
       finishEditingGoal: async (id, opts) => {

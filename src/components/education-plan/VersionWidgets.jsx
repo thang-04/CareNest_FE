@@ -1,3 +1,4 @@
+import { planLevel, planRoute } from '@/models/education-plan/planLevel.mjs';
 import { Link } from 'react-router-dom';
 import { Check, Copy, FileText, Trash2 } from '@/components/ui/icons';
 import { StatusBadge } from '@/components/ui/StatusBadge';
@@ -11,6 +12,7 @@ import { CHANGE, chainOf, currentPlanOf, unresolvedFlags, versionOf } from '@/mo
  */
 
 export function VersionBadge({ plan }) {
+  if (planLevel(plan) !== 'SCHOOL_YEAR') return null;
   return <span className="text-xs text-primary">Phiên bản {versionOf(plan)}</span>;
 }
 
@@ -67,7 +69,7 @@ export function YearPlanVersionPanel({ plan, goals }) {
                       {v.id === plan.id ? (
                         <VersionBadge plan={v} />
                       ) : (
-                        <Link to={`/education/goals/${v.id}`}>
+                        <Link to={`${planRoute(plan)}/${v.id}`}>
                           <VersionBadge plan={v} />
                         </Link>
                       )}

@@ -116,3 +116,29 @@ test('editing legacy TEAM without snapshot does not apply new duration limits re
   const saved = await repo.saveGoal({ ...current, title: 'Cập nhật bản cũ' }, { actor: vp });
   assert.equal(saved.durationPolicySnapshot.mode, 'LEGACY_UNBOUNDED');
 });
+
+test('TEAM review resolve checks distinct review ID/source/revision/lease, persists progress and blocks unresolved submit', async () => {
+  const item = { id: 'review-team', planLevel: 'TEAM', title: 'Tổ rà soát tổng hợp', schoolYear: '2098 – 2099', ageGroupId: 'ag-3',
+    status: 'DRAFT', revision: 0, curriculumSourcePlanId: null, themes: [{ id: 'current-theme' }],
+    domains: [{ name: 'Phát triển thể chất', rows: [{ id: 'review-goal', kind: 'goal', text: 'Mục tiêu', contents: [{ id: 'content-11', text: 'Nội dung', themes: ['gone-theme'] }] }] }],
+    reviewItems: [{ reviewItemId: 'review-91', itemId: 'content-11', itemKind: 'CONTENT', sourcePlanId: null, reason: 'Liên kết mất', resolved: false }],
+    newItems: [{ itemKind: 'GOAL', itemId: 'new-goal' }] };
+  writeDb((db) => db.eduGoals.push(item));
+  const edit = { sessionId: 'review-session', revision: 0, requestId: 'request-91' };
+  let current = await repo.startEditingGoal(item.id, vp, edit);
+  await assert.rejects(repo.resolveGoalReview(item.id, 'content-11', null, edit, vp));
+  await assert.rejects(repo.resolveGoalReview(item.id, 'review-91', 'stale-source', edit, vp));
+  await assert.rejects(repo.resolveGoalReview(item.id, 'review-91', null, { ...edit, sessionId: 'old-session' }, vp));
+  await assert.rejects(repo.resolveGoalReview(item.id, 'review-91', null, edit, vp));
+  current.domains[0].rows[0].contents[0].themes = ['current-theme'];
+  current = await repo.saveGoal(current, { actor: vp, edit });
+  edit.revision = current.revision; edit.requestId = 'request-92';
+  await assert.rejects(repo.saveGoal({ ...current, status: 'REVIEW', reviewItems: [] }, { actor: vp, edit, action: 'submit' }));
+  await assert.rejects(repo.resolveGoalReview(item.id, 'review-91', null, { ...edit, revision: -1 }, vp));
+  const resolved = await repo.resolveGoalReview(item.id, 'review-91', null, edit, vp);
+  assert.equal(resolved.reviewItems[0].resolved, true);
+  const reopened = await repo.getGoalSource(item.id, vp);
+  assert.equal(reopened.reviewItems[0].reviewItemId, 'review-91');
+  assert.equal(reopened.reviewItems[0].resolved, true); assert.deepEqual(reopened.newItems, item.newItems);
+  for (const actor of [vp, ht, tl]) await assert.rejects(repo.deleteGoal(item.id, resolved.revision, actor));
+});

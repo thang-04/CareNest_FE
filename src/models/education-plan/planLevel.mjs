@@ -1,4 +1,4 @@
-export const planLevel = (plan) => plan?.planLevel || 'TEAM';
+export const planLevel = (plan) => plan?.planType || plan?.planLevel || 'TEAM';
 export const planRoute = (plan) => (planLevel(plan) === 'SCHOOL_YEAR' ? '/education/school-year-plans' : '/education/goals');
 export const workflowKey = (plan) => (planLevel(plan) === 'SCHOOL_YEAR' ? 'schoolYear' : 'year');
 export const DEFAULT_DURATION = { revision: 1, theme: { minWeeks: 2, maxWeeks: 4 }, branch: { minWeeks: 1, maxWeeks: 2 } };
@@ -62,3 +62,32 @@ export const removeThemeReferences = (themes, domains, branchTemplates, themeId)
     ),
   })),
 });
+
+// EDU-62: chỉ áp lại thông tin riêng và dấu tích còn có trong cây mới do máy chủ trả.
+export const reapplyTeamDraft = (fresh, draft) => {
+  const oldContents = new Map(
+    (draft.domains || []).flatMap((d) => d.rows.flatMap((r) => (r.contents || []).map((c) => [String(c.id), c]))),
+  );
+  const themeIds = new Set((fresh.themes || []).map((t) => String(t.id)));
+  return {
+    ...fresh,
+    title: draft.title,
+    description: draft.description,
+    domains: fresh.domains.map((d) => ({
+      ...d,
+      rows: d.rows.map((r) => ({
+        ...r,
+        ...(r.contents
+          ? {
+              contents: r.contents.map((c) => ({
+                ...c,
+                themes: oldContents.has(String(c.id))
+                  ? (oldContents.get(String(c.id)).themes || []).filter((id) => themeIds.has(String(id)))
+                  : c.themes,
+              })),
+            }
+          : {}),
+      })),
+    })),
+  };
+};

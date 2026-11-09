@@ -105,6 +105,7 @@ const tableStubs = `
 import {branchDateIssues} from ${JSON.stringify(import.meta.resolve('../../src/models/education-plan/branchTemplateSchedule.mjs'))};
 import React, {Fragment,useState,useRef,useEffect,useMemo} from ${JSON.stringify(import.meta.resolve('react'))};
 const cloneElement=React.cloneElement;
+const SourceItemMark=()=>null;
 import {curriculumOptions} from ${JSON.stringify(import.meta.resolve('../../src/models/education-plan/curriculum.mjs'))};
 const useCurriculum=()=>({goals:[],contents:[],sources:[],loading:false,error:null,reload(){}});
 const useLayoutEffect=()=>{};

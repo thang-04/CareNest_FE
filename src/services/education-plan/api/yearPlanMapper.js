@@ -107,7 +107,18 @@ export const toUiGoal = (detail, refs) => {
     };
   });
   return {
-    planLevel: detail.planLevel || 'TEAM',
+    planLevel: detail.planType || detail.planLevel || 'TEAM',
+    planType: detail.planType || detail.planLevel || 'TEAM',
+    planTypeLabel: detail.planTypeLabel || ((detail.planType || detail.planLevel) === 'SCHOOL_YEAR' ? 'Kế hoạch năm học' : 'Kế hoạch tổ'),
+    previousSourcePlanId: detail.previousSourcePlanId == null ? null : String(detail.previousSourcePlanId),
+    contentRevision: detail.contentRevision ?? detail.revision ?? 0,
+    reviewItems: (detail.reviewItems || []).map((item) => ({
+      ...item,
+      reviewItemId: String(item.reviewItemId),
+      itemId: String(item.itemId),
+      sourcePlanId: String(item.sourcePlanId),
+    })),
+    newItems: (detail.newItems || []).map((item) => ({ ...item, itemId: String(item.itemId) })),
     sourceMode: detail.sourceMode || 'LEGACY',
     curriculumSourcePlanId: detail.curriculumSourcePlanId == null ? null : String(detail.curriculumSourcePlanId),
     branchTemplates: (detail.branchTemplates || []).map((t) => ({ ...t, id: String(t.id), themeId: String(t.themeId) })),
@@ -115,7 +126,7 @@ export const toUiGoal = (detail, refs) => {
     sourceChanges: detail.sourceChanges || null,
     remapWarnings: detail.remapWarnings || [],
     id: String(detail.id),
-    revision: detail.revision ?? 0,
+    revision: detail.contentRevision ?? detail.revision ?? 0,
     editExpiresAt: detail.editExpiresAt,
     code: detail.code,
     schoolYear: toYearLabel(detail.schoolYearName),
@@ -124,7 +135,7 @@ export const toUiGoal = (detail, refs) => {
     description: detail.description || '',
     status: detail.status,
     createdAt: localDate(detail.createdAt),
-    sentAt: localDate(detail.sentBy?.at),
+    sentAt: localDate(detail.sentAt ?? detail.sentBy?.at),
     createdBy: detail.owner?.name || '',
     owner: actor(detail.owner),
     sentBy: actor(detail.sentBy),
@@ -168,7 +179,8 @@ export const toUiGoal = (detail, refs) => {
 
 /** Kế hoạch năm dạng UI → YearPlanRequest (lưu cả văn bản). Lĩnh vực BE không có thì bỏ qua. */
 export const toYearPlanRequest = (goal, refs) => ({
-  planLevel: goal.planLevel || 'TEAM',
+  planLevel: goal.planType || goal.planLevel || 'TEAM',
+  planType: goal.planType || goal.planLevel || 'TEAM',
   ...(goal.curriculumSourcePlanId ? { curriculumSourcePlanId: serverId(goal.curriculumSourcePlanId) } : {}),
   branchTemplates: (goal.branchTemplates || []).map((t) => ({
     key: String(t.id),
