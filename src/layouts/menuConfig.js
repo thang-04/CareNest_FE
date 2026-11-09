@@ -218,7 +218,7 @@ const ITEMS = {
     to: '/education/goals',
   },
   eduBranch: {
-    label: 'Chủ đề nhánh',
+    label: 'Chủ đề / Chủ đề nhánh',
     to: '/education/branches',
   },
   eduClass: {
@@ -421,6 +421,7 @@ const MENUS = {
       'healthTrends',
     ]),
     group('attendance', ['attendanceSummary', 'leaveRequests', 'attendanceDayUnlocks', 'dailyHealthOverview']),
+    group('education', ['eduSchoolYear', 'eduGoals', 'eduPlanReviews', 'eduSettings', 'eduCurriculum']),
     group('assessment', [
       'assessOverview',
       'assessQuality',
@@ -434,7 +435,6 @@ const MENUS = {
       'assessRewards',
       'assessDayUnlocks',
     ]),
-    group('education', ['eduSchoolYear', 'eduGoals', 'eduPlanReviews', 'eduSettings', 'eduCurriculum']),
     ...boardingSection({
       nutrition: ['weeklyMenus', 'menus'],
       kitchenOps: ['mealCount', 'publishedMenu', 'forecast', 'freshReceipts'],

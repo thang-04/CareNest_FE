@@ -24,6 +24,17 @@ const CONFIG = {
 };
 const refs = buildRefs(CONFIG);
 
+test('deleting an annual draft uses revision directly without opening an editing lease', async () => {
+  const calls = [];
+  axiosClient.defaults.adapter = async (config) => {
+    calls.push(config);
+    return { status: 200, statusText: 'OK', headers: {}, config, data: { code: 200, data: { revision: 4 } } };
+  };
+  await educationPlanApi.deleteGoal('901', 4);
+  assert.deepEqual(calls.map((call) => call.method), ['delete']);
+  assert.equal(calls[0].headers['X-Plan-Revision'], '4');
+});
+
 test('planSteps: chuyển từ DRAFT sang REVIEW phát sinh hành động submit', () => {
   const prev = { status: EDU_STATUS.DRAFT, permissions: { canEdit: true } };
   const goal = { status: 'REVIEW', history: [{ note: 'Gửi duyệt lần 1' }] };

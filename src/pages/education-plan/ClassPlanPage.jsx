@@ -50,7 +50,7 @@ export default function ClassPlanPage() {
   const { user, branchPlans, classThemePlans, weekPlans, staff } = useEducationPlan();
   const [preview, setPreview] = useState(null);
   const ctx = useClassPlanContext(classId);
-  const { cls, classes, yearPlan, pendingYearPlan, teachers, isClassTeacher } = ctx;
+  const { cls, classes, yearPlan, pendingYearPlan, teachers, isHomeroomTeacher } = ctx;
 
   if (ctx.loading) return <LoadingState />;
   if (!cls) return <StatusPage kind="404" title="Không tìm thấy lớp hoặc bạn không có quyền xem" />;
@@ -140,7 +140,6 @@ export default function ClassPlanPage() {
   };
   const status = (doc, noneStatus) =>
     doc ? <EduStatusBadge status={doc.status} doc={doc} /> : <DocAvailabilityBadge status={noneStatus} />;
-  const branchApproved = branch?.status === EDU_STATUS.APPROVED;
   // Giáo án tuần chỉ tạo được khi đã lưu kế hoạch chủ đề; dòng chưa tới lượt hiện lý do, không có nút tạo
   const lockOf = (kind, themeId) => createBlocker(kind, { classId, yearPlanId: yearPlan.id, themeId }, { branchPlans, classThemePlans });
   // Lý do để ở tooltip, không hiện thêm dòng chữ trong bảng
@@ -161,7 +160,7 @@ export default function ClassPlanPage() {
         </Link>
       );
     const kind = to.includes('/weeks/') ? 'week' : 'theme';
-    if (doc?.permissions ? doc.permissions.canEdit : doc ? isClassTeacher && isEditableStatus(doc.status) : ctx.canCreate(kind))
+    if (doc?.permissions ? doc.permissions.canEdit : doc ? isHomeroomTeacher && isEditableStatus(doc.status) : ctx.canCreate(kind))
       return doc ? (
         <RowActions edit={{ to }} name={name} />
       ) : (
@@ -177,16 +176,8 @@ export default function ClassPlanPage() {
     <div className="page ga-page">
       {preview && <DocPreviewModal file={preview} onClose={() => setPreview(null)} />}
       {head}
-      {!branchApproved && (
-        <Notice tone="warn">
-          Cần duyệt chủ đề nhánh trước. Kế hoạch chủ đề và giáo án tuần dùng tên chủ đề nhánh đã duyệt.{' '}
-          <Link to={`/education/branches/${classId}`}>Mở Chủ đề nhánh</Link>
-        </Notice>
-      )}
-
       {/* Mỗi chủ đề là một hồ sơ như file của trường: gửi, duyệt cả hồ sơ một lần; đã duyệt thì xuất để in, ký tay */}
-      {branchApproved &&
-        themes.map((t, ti) => {
+      {themes.map((t, ti) => {
           const doc = classThemePlans.find((x) => x.classId === classId && x.themeId === t.id) || null;
           const themeRows = rows.filter((r) => r.theme.id === t.id);
           const themeWeeks = themeRows.filter((r) => r.type === 'week');
@@ -236,7 +227,7 @@ export default function ClassPlanPage() {
                     <thead>
                       <tr>
                         <th>Nội dung</th>
-                        <th className="cell--fixed">Thời gian</th>
+                        <th>Thời gian</th>
                         <th className="center">Trạng thái</th>
                         <th className="cell--actions">Thao tác</th>
                       </tr>
@@ -248,7 +239,7 @@ export default function ClassPlanPage() {
                             <div className="fw-600">Kế hoạch giáo dục chủ đề</div>
                           </div>
                         </td>
-                        <td className="cell--fixed">
+                        <td>
                           <div className="ga-goal-table__pad">
                             {ddmm(t.start)} → {ddmm(t.end)}
                           </div>
@@ -266,8 +257,8 @@ export default function ClassPlanPage() {
                         if (r.type === 'break')
                           return (
                             <tr key={`b-${r.start}`}>
-                              <td colSpan={4} className="cell--fixed">
-                                <div className="ga-goal-table__pad">
+                              <td colSpan={4}>
+                                <div className="ga-goal-table__pad muted">
                                   Nghỉ: {r.label || 'Đợt nghỉ'} ({ddmm(r.start)} → {ddmm(r.end)})
                                 </div>
                               </td>

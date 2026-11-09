@@ -222,7 +222,7 @@ test('annual branches are real child rows with merged parent cells, separate bor
   assert.equal((nameCell.match(/data-calendar="true"/g) || []).length, 2);
   assert.equal((group.match(/<tr\b/g) || []).length, 3);
   assert.equal((group.match(/rowspan="3"/g) || []).length, 7);
-  assert.equal((group.match(/<td class="ga-branch-template-cell"/g) || []).length, 3);
+  assert.equal((group.match(/<td class="ga-branch-template-cell(?: [^"]+)?"/g) || []).length, 3);
   assert.equal((group.match(/data-calendar="true"/g) || []).length, 6);
   assert.equal((group.match(/ga-branch-date-endpoint/g) || []).length, 6);
   assert.doesNotMatch(group, />Từ:|>Đến:|>Từ ngày|>Đến ngày/);
@@ -351,7 +351,7 @@ test('annual labels change only on release or confirmation; selection and cancel
         onChange: (next) => (current = next),
       }),
     );
-  const input = (tree, n) => tree.find((node) => node.type === 'input' && node.props['aria-label'] === `Nhãn mục tiêu ${n}`);
+  const input = (tree, n) => tree.find((node) => node.props['aria-label'] === `Nhãn mục tiêu ${n}`);
   const handle = (tree, n) => tree.find((node) => node.type === 'button' && node.props['aria-label'] === `Điền nhãn từ mục tiêu ${n}`);
   const key = (value) => ({ key: value, preventDefault() {} });
   try {
@@ -498,7 +498,7 @@ test('subdomain delete button occupies the same final column as goal deletion', 
   assert.match(html, /<td colSpan="4" class="ga-goal-table__subband"|<td colspan="4" class="ga-goal-table__subband"/);
   const subRow = html.match(/<tr><td col[Ss]pan="4" class="ga-goal-table__subband">([\s\S]*?)<\/tr>/)?.[1];
   assert.ok(subRow);
-  assert.match(subRow, /<\/td><td class="center ga-goal-table__subband">[\s\S]*aria-label="Xóa lĩnh vực con 1"/);
+  assert.match(subRow, /<\/td><td class="center ga-goal-table__subband(?: [^"]+)?">[\s\S]*aria-label="Xóa lĩnh vực con 1"/);
   assert.match(html, /aria-label="Xóa mục tiêu 1"/);
 });
 
@@ -520,7 +520,7 @@ test('annual STT can be entered before goal text and is not replaced when text a
     );
   const blankLabel = () =>
     render().find(
-      (node) => node.type === 'input' && node.props['aria-label']?.startsWith('STT mục tiêu mới lĩnh vực ') && !node.props['data-focus'],
+      (node) => node.props['aria-label']?.startsWith('STT mục tiêu mới lĩnh vực ') && !node.props['data-focus'],
     );
   const label = (id) => render().find((node) => node.props['data-focus'] === `label-${id}`);
   const goalText = (id) => render().find((node) => node.props['data-focus'] === id);

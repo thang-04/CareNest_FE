@@ -35,7 +35,6 @@ const titleOf = (u) => {
 };
 
 const TOAST_TYPES = { ok: 'success', err: 'error', warn: 'warning', info: 'info' };
-const LOCK_POLL_MS = 5000;
 
 const upsert = (list, item) => {
   const i = list.findIndex((x) => x.id === item.id);
@@ -102,22 +101,6 @@ export function EducationPlanProvider({ children }) {
     };
   }, [authUser, data?.staff]);
 
-  // BE:EDU-10 — có kế hoạch đang do người khác sửa thì tải lại im lặng 5 giây/lần (tab đang mở) và khi quay lại tab,
-  // để thấy ngay lúc họ thôi sửa mà không phải tải lại trang (Tiền 31/10); không ai khác đang sửa thì không hỏi
-  const lockedByOther = (data?.goals || []).some((g) => g.editing && g.editing.userId !== user.id);
-  useEffect(() => {
-    if (!lockedByOther) return undefined;
-    const refresh = () => !document.hidden && reload({ silent: true });
-    const timer = setInterval(refresh, LOCK_POLL_MS);
-    document.addEventListener('visibilitychange', refresh);
-    window.addEventListener('focus', refresh);
-    return () => {
-      clearInterval(timer);
-      document.removeEventListener('visibilitychange', refresh);
-      window.removeEventListener('focus', refresh);
-    };
-  }, [lockedByOther, reload]);
-
   const value = useMemo(() => {
     const yearName = (id) => {
       const option = schoolYears.find((y) => y.id === id);
@@ -137,6 +120,11 @@ export function EducationPlanProvider({ children }) {
     // Tài liệu của lớp: chờ kết quả từ service (quyền, trạng thái do service quyết định) rồi mới cập nhật màn hình
     const CLASS_KEY = { branch: 'branchPlans', theme: 'classThemePlans', week: 'weekPlans' };
     const actor = { id: user.id, fullName: user.name, role: user.role, roles: user.roles, ageGroupId: user.ageGroupId };
+    const refreshPlans = async () => {
+      const plans = await service.getEducationPlans(actor);
+      setData((prev) => (prev ? { ...prev, ...plans } : prev));
+      return plans;
+    };
     const classCall =
       (call) =>
       async (kind, ...args) => {
@@ -163,7 +151,7 @@ export function EducationPlanProvider({ children }) {
                 )
               : await call(kind, docOrId, body, actor, options);
           setData((prev) => (prev ? { ...prev, [CLASS_KEY[kind]]: upsert(prev[CLASS_KEY[kind]] || [], saved) } : prev));
-          if (kind === 'week' || kind === 'theme') await reload({ silent: true });
+          await reload({ silent: true });
           return saved;
         } catch (err) {
           toastApi.error(err.message, 'Không thực hiện được');
@@ -174,6 +162,13 @@ export function EducationPlanProvider({ children }) {
     const deleteIn = (key, call) => write(key, call, (list, id) => list.filter((x) => x.id !== id));
 
     return {
+      refreshPlans,
+      refreshGoal: async (id) => {
+        const plans = await refreshPlans();
+        const goal = plans.goals.find((item) => item.id === id);
+        if (!goal) throw new Error('Kế hoạch không còn trong phạm vi truy cập.');
+        return goal;
+      },
       goals: data?.goals || [],
       themes: data?.themes || [],
       lessons: data?.lessons || [],
@@ -285,38 +280,10 @@ export function EducationPlanProvider({ children }) {
           return null;
         }
       },
-      // Khóa "Đang sửa" (BE:EDU-10): trả kế hoạch mới nhất; người khác đang giữ khóa thì trả null, không báo lỗi
-      startEditingGoal: async (id, edit, strict = false) => {
-        try {
-          const goal = await service.startEditingGoal(id, actor, edit);
-          setData((prev) => (prev ? { ...prev, goals: upsert(prev.goals, goal) } : prev));
-          return goal;
-        } catch (err) {
-          if (strict) throw err;
-          if (err.status !== 409) toastApi.error(err.message, 'Không mở được trang soạn');
-          reload({ silent: true });
-          return null;
-        }
-      },
-      refreshPlans: () => reload({ silent: true }),
-      refreshGoal: async (id) => {
-        const goal = await service.getGoalSource(id, actor);
-        setData((prev) => (prev ? { ...prev, goals: upsert(prev.goals, goal) } : prev));
-        return goal;
-      },
       resolveGoalReview: async (id, reviewItemId, expectedSourcePlanId, edit) => {
         const goal = await service.resolveGoalReview(id, reviewItemId, expectedSourcePlanId, edit, actor);
         setData((prev) => (prev ? { ...prev, goals: upsert(prev.goals, goal) } : prev));
         return goal;
-      },
-      heartbeatGoal: (id, edit) => service.heartbeatGoal(id, edit, actor),
-      // Thoát trang soạn; lỗi mạng thì để BE tự nhả khóa sau thời hạn
-      finishEditingGoal: async (id, opts) => {
-        try {
-          await service.finishEditingGoal(id, actor, opts);
-        } catch {
-          reload({ silent: true });
-        }
       },
       // Ném lỗi BE (403/409/5xx) cho màn gọi hiển thị; chỉ bỏ khỏi danh sách khi BE đã xóa
       deleteGoal: async (id) => {

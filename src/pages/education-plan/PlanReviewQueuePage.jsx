@@ -9,11 +9,10 @@ import { PENDING_OF } from '@/models/education-plan/eduConfig';
 import { clickableRowProps } from '@/utils/clickableRow';
 
 /**
- * Hộp duyệt: tổ trưởng thấy chủ đề nhánh, hồ sơ chủ đề (kế hoạch chủ đề + giáo án các nhánh) của các lớp trong khối đang chờ tổ trưởng;
- * Phó HT thấy chủ đề nhánh, hồ sơ chủ đề chờ Phó HT và kế hoạch năm chờ ban hành. Danh sách chỉ để mở nhanh; quyền duyệt do service kiểm.
+ * Hộp duyệt: hồ sơ chủ đề (kế hoạch chủ đề + giáo án các nhánh) của các lớp trong khối đang chờ duyệt.
  */
 export default function PlanReviewQueuePage() {
-  const { user, goals, branchPlans, classThemePlans, classes } = useEducationPlan();
+  const { user, goals, classThemePlans, classes } = useEducationPlan();
   const navigate = useNavigate();
 
   const isVp = user.role === ROLES.VICE_PRINCIPAL;
@@ -50,7 +49,6 @@ export default function PlanReviewQueuePage() {
         by: g.sentBy?.name || [...(g.history || [])].reverse().find((h) => h.action?.startsWith('Gửi'))?.by,
         at: g.sentAt ?? g.sentBy?.at,
       })),
-    ...branchPlans.filter(mine).map((d) => ({ kind: 'branch', doc: d, what: 'Cả năm học', to: `/education/branches/${d.classId}` })),
     // Hồ sơ chủ đề gửi và duyệt một lần (kế hoạch chủ đề + giáo án các nhánh)
     ...classThemePlans.filter(mine).map((d) => {
       const plan = goals.find((g) => g.id === d.yearPlanId);
@@ -89,7 +87,7 @@ export default function PlanReviewQueuePage() {
                 </colgroup>
                 <thead>
                   <tr>
-                    <th className="cell--fixed">Loại</th>
+                    <th>Loại</th>
                     <th>Lớp</th>
                     <th>Nội dung</th>
                     <th>Người gửi</th>
@@ -100,7 +98,7 @@ export default function PlanReviewQueuePage() {
                 <tbody>
                   {items.map((it) => (
                     <tr key={it.key} className="row-click" {...clickableRowProps(() => navigate(it.to))}>
-                      <td className="cell--fixed">
+                      <td>
                         <div className="ga-goal-table__pad fw-600">{it.label || CLASS_DOC_LABELS[it.kind]}</div>
                       </td>
                       <td>

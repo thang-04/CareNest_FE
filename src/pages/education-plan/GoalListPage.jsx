@@ -68,6 +68,7 @@ export default function GoalListPage({ planLevel = 'TEAM' }) {
 
   const creationScopes = eduConfig?.[annual ? 'schoolYearCreationScopes' : 'yearCreationScopes'];
   const canCreate =
+    annual &&
     !principalViewer &&
     (creationScopes
       ? creationScopes.some((id) => !scoped.some((g) => g.ageGroupId === id))
@@ -137,9 +138,11 @@ export default function GoalListPage({ planLevel = 'TEAM' }) {
             desc={
               annual && eduConfig?.durationPolicyAvailable === false
                 ? 'Bạn có thể mở form kế hoạch năm học để xem trước. Thao tác lưu và gửi duyệt sẽ có khi máy chủ hỗ trợ; kế hoạch giáo dục tổ hiện có vẫn sử dụng bình thường.'
-                : canCreate
-                  ? 'Lập kế hoạch giáo dục tổ cho nhóm tuổi: mục tiêu, nội dung giáo dục và chủ đề, sự kiện trong năm.'
-                  : 'Kế hoạch giáo dục tổ của nhóm tuổi bạn chưa được ban hành.'
+                : !annual
+                  ? 'Kế hoạch tổ được tự tạo ở trạng thái Nháp khi kế hoạch năm học của nhóm tuổi được ban hành.'
+                  : canCreate
+                    ? 'Lập kế hoạch năm học cho nhóm tuổi.'
+                    : 'Chưa có kế hoạch năm học trong phạm vi được xem.'
             }
             action={
               canCreate && (

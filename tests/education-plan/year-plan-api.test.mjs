@@ -157,14 +157,13 @@ test('lưu kế hoạch mới: POST rồi trả bản BE (id thật), bóc envel
   await assert.rejects(axiosClient.get('/education-plans/goals/999'), { status: 404, message: 'Year plan not found' });
 });
 
-test('BE:EDU-10 — khóa "Đang sửa": người giữ khóa; lưu khi đang sửa chỉ là update, gửi vẫn là submit', () => {
+test('EDU-70 — dữ liệu EDITING cũ hiển thị nháp, không giữ khóa sửa', () => {
   const goal = toUiGoal(
     detail({ status: 'EDITING', editing: { userId: 7, name: 'Demo leader', title: null, at: '2026-10-22T03:05:00Z' } }),
     refs,
   );
-  assert.equal(goal.status, 'EDITING');
-  assert.equal(goal.editing.name, 'Demo leader');
-  assert.match(goal.editing.at, /^2026-10-22 \d\d:05$/);
+  assert.equal(goal.status, 'DRAFT');
+  assert.equal(goal.editing, null);
   assert.equal(toUiGoal(detail(), refs).editing, null);
 
   const editing = { status: 'EDITING', permissions: { canEdit: true } };
@@ -178,7 +177,7 @@ test('BE:EDU-10 — khóa "Đang sửa": người giữ khóa; lưu khi đang s�
   );
 });
 
-test('BE:EDU-10 — vào / thoát trang soạn gọi start-editing / finish-editing', async () => {
+test('EDU-70 — adapter tương thích chỉ đọc bản mới, không mở hoặc đóng lease', async () => {
   const calls = [];
   axiosClient.defaults.adapter = async (config) => {
     calls.push(`${config.method.toUpperCase()} ${config.url}`);
@@ -190,10 +189,11 @@ test('BE:EDU-10 — vào / thoát trang soạn gọi start-editing / finish-edit
   await educationPlanApi.startEditingGoal('41', edit);
   await educationPlanApi.finishEditingGoal('41', { edit });
 
-  assert.deepEqual(calls.slice(-2), ['POST /education-plans/goals/41/start-editing', 'POST /education-plans/goals/41/finish-editing']);
+  assert.equal(calls.at(-1), 'GET /education-plans/goals/41');
+  assert.ok(!calls.some((call) => /start-editing|finish-editing/.test(call)));
 });
 
-test('trang chi tiết cũ không dùng revision mới nhận được để ghi đè; quyền tạm luôn được nhả', async () => {
+test('trang chi tiết cũ không dùng revision mới nhận được để ghi đè và không mở lease', async () => {
   const calls = [];
   axiosClient.defaults.adapter = async (config) => {
     calls.push(`${config.method.toUpperCase()} ${config.url}`);
@@ -202,7 +202,8 @@ test('trang chi tiết cũ không dùng revision mới nhận được để ghi
   };
   const stale = { ...toUiGoal(detail({ revision: 8 }), refs), status: 'APPROVED' };
   await assert.rejects(educationPlanApi.saveGoal(stale), { status: 409 });
-  assert.ok(calls.includes('POST /education-plans/goals/41/finish-editing'));
+  assert.ok(calls.includes('GET /education-plans/goals/41'));
+  assert.ok(!calls.some((call) => /start-editing|finish-editing/.test(call)));
   assert.ok(!calls.some((call) => call.startsWith('PUT ') || call.endsWith('/issue')));
 });
 
@@ -302,7 +303,7 @@ test('import source detail stays fresh and does not overwrite the writer baselin
   const original = toUiGoal(detail({ id: 91 }), refs);
   axiosClient.defaults.adapter = async (config) => {
     calls.push(`${config.method} ${config.url}`);
-    const sourceRead = config.method === 'get';
+    const sourceRead = config.method === 'get' && config.signal === signal;
     if (sourceRead) assert.equal(config.signal, signal);
     return respond(
       config,
@@ -318,7 +319,7 @@ test('import source detail stays fresh and does not overwrite the writer baselin
   await educationPlanApi.saveGoal(original, { edit });
   assert.equal(calls.length, beforeSave);
   assert.deepEqual(calls, [
-    'post /education-plans/goals/91/start-editing',
+    'get /education-plans/goals/91',
     'get /education-plans/goals/91',
     'get /education-plans/goals/91',
   ]);

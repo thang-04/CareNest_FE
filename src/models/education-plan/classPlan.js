@@ -118,7 +118,7 @@ export const yearWeeks = (plan) => {
  * Mục tiêu của một chủ đề, nhóm theo lĩnh vực và lĩnh vực con như bảng mục tiêu năm:
  * [{ domain, sub, goals: [{ id, no, text, contents: [text] }] }]; chỉ mục tiêu có nội dung được tích vào chủ đề.
  */
-export const themeGoalBlocks = (domains, numbers, themeId) => {
+export const themeGoalBlocks = (domains, numbers, themeId, customTicks = null) => {
   const blocks = [];
   DOMAINS.map((name) => domains.find((d) => d.name === name))
     .filter(Boolean)
@@ -127,7 +127,17 @@ export const themeGoalBlocks = (domains, numbers, themeId) => {
       d.rows.forEach((r) => {
         if (r.kind === 'sub') sub = r.text;
         if (r.kind !== 'goal' || !numbers[r.id]) return;
-        const contents = r.contents.filter((c) => c.text.trim() && c.themes.includes(themeId)).map((c) => c.text);
+        const isGoalTicked = customTicks?.[r.id];
+        const contents = r.contents.filter((c) => {
+          if (!c.text.trim()) return false;
+          if (customTicks && customTicks[c.id] !== undefined) {
+            return customTicks[c.id];
+          }
+          if (isGoalTicked !== undefined) {
+            return isGoalTicked;
+          }
+          return c.themes.includes(themeId);
+        }).map((c) => c.text);
         if (!contents.length) return;
         let block = blocks.at(-1);
         if (!block || block.domain !== d.name || block.sub !== sub) blocks.push((block = { domain: d.name, sub, goals: [] }));
@@ -231,13 +241,14 @@ export const dossierWeekDocs = (themeDoc, plan, weekPlans = []) =>
 
 /*
  * Hồ sơ chủ đề theo file MN Thái Dương: giáo viên soạn kế hoạch chủ đề + giáo án tất cả các nhánh rồi gửi MỘT lần;
- * duyệt / trả lại cả hồ sơ. Chủ đề nhánh (cả năm) phải được duyệt trước.
+ * duyệt / trả lại cả hồ sơ. Chủ đề nhánh đi kèm hồ sơ này, không có vòng duyệt riêng.
  * Dùng chung cho màn hình (UX) và mock service (BE thật phải tự kiểm).
  */
 export function submitBlocker(kind, doc, { branchPlans = [], weekPlans = [], classThemePlans = [], yearPlan }) {
   if (!doc || kind === CLASS_DOC.BRANCH) return null;
   const branch = branchPlans.find((b) => b.classId === doc.classId && b.yearPlanId === doc.yearPlanId);
-  if (branch?.status !== 'APPROVED') return 'Dự kiến chủ đề nhánh của lớp chưa được duyệt, nên chưa gửi được.';
+  const unnamed = !branch || themeWeeksOf(yearPlan, doc.themeId).some((week) => !branch.names?.[week.start]?.trim());
+  if (unnamed) return 'Cần tạo đủ chủ đề nhánh của chủ đề này trước khi gửi hồ sơ chủ đề.';
   if (kind === CLASS_DOC.WEEK) {
     const theme = classThemePlans.find((t) => t.classId === doc.classId && t.yearPlanId === doc.yearPlanId && t.themeId === doc.themeId);
     if (!theme || theme.status === 'DRAFT') return 'Giáo án tuần được gửi cùng kế hoạch chủ đề.';
@@ -251,13 +262,11 @@ export function submitBlocker(kind, doc, { branchPlans = [], weekPlans = [], cla
 }
 
 /**
- * Trình tự lập kế hoạch lớp: chủ đề nhánh cả năm được duyệt → kế hoạch chủ đề → giáo án các tuần nhánh của chủ đề đó.
+ * Trình tự lập kế hoạch lớp: có thể soạn nhánh và kế hoạch chủ đề song song; giáo án cần hồ sơ chủ đề đã lưu.
  * Chỉ chặn tạo mới; các nhánh trong một chủ đề soạn song song. Trả { need: 'branch' | 'theme', message } hoặc null.
  */
-export function createBlocker(kind, { classId, yearPlanId, themeId }, { branchPlans = [], classThemePlans = [] }) {
+export function createBlocker(kind, { classId, yearPlanId, themeId }, { branchPlans: _branchPlans = [], classThemePlans = [] }) {
   if (kind === CLASS_DOC.BRANCH) return null;
-  const branch = branchPlans.find((b) => b.classId === classId && b.yearPlanId === yearPlanId);
-  if (branch?.status !== 'APPROVED') return { need: 'branch', message: 'Dự kiến chủ đề nhánh của lớp cần được duyệt trước.' };
   const theme = classThemePlans.some((t) => t.classId === classId && t.yearPlanId === yearPlanId && t.themeId === themeId);
   if (kind === CLASS_DOC.WEEK && !theme) return { need: 'theme', message: 'Cần lưu kế hoạch giáo dục chủ đề trước.' };
   return null;
@@ -502,7 +511,7 @@ const normText = (s) =>
  * Ô gõ tay (không chọn gợi ý): hoạt động của kế hoạch chủ đề có nội dung nằm trong chữ của ô thì tự nhớ như đã chọn,
  * để kế hoạch ngày và đánh giá trẻ có đúng MT. Vẫn giữ quy tắc một hoạt động chỉ một ô ngày trong cả chủ đề.
  */
-export function linkTypedActivities(doc, activities, placedElsewhere = new Set()) {
+export function linkTypedActivities(doc, activities, placedElsewhere = new Set(), canEditCell = () => true) {
   if (!activities.length) return doc;
   weekRows().forEach((r) => {
     const g = rowCell(doc, r);
@@ -514,6 +523,7 @@ export function linkTypedActivities(doc, activities, placedElsewhere = new Set()
           ...(r.extraLabel ? [['extra', g.extra]] : []),
         ];
     cells.forEach(([day, text]) => {
+      if (!canEditCell(day)) return;
       const t = ` ${normText(text)} `;
       if (!t.trim()) return;
       const key = cellKey(r.key, day);

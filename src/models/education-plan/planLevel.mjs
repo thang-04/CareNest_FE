@@ -13,9 +13,11 @@ export const curriculumShape = (plan) =>
     })),
   }));
 const lineage = (value) => String(value.lineageId || value.id);
-export function inheritAnnual(source, previous) {
+export function inheritAnnual(source, previous, baseline) {
   const warnings = [];
   const oldContents = (previous?.domains || []).flatMap((d) => (d.rows || []).flatMap((row) => row.contents || []));
+  const previousRows = (previous?.domains || []).flatMap((d) => d.rows || []);
+  const baselineContents = (baseline?.domains || []).flatMap((d) => (d.rows || []).flatMap((row) => row.contents || []));
   const newThemes = source.themes || [];
   const mappedThemes = (content) => {
     const old = oldContents.find((c) => lineage(c) === lineage(content));
@@ -24,7 +26,7 @@ export function inheritAnnual(source, previous) {
       const target = oldTheme && newThemes.find((t) => lineage(t) === lineage(oldTheme));
       if (!target) {
         warnings.push('Một liên kết nội dung–chủ đề không còn trong nguồn mới; kiểm tra lại dấu tích.');
-        return [];
+        return [id];
       }
       return [target.id];
     });
@@ -32,10 +34,21 @@ export function inheritAnnual(source, previous) {
   const domains = structuredClone(source.domains || []).map((d) => ({
     id: d.id,
     name: d.name,
-    rows: (d.rows || []).map((row) => ({
-      ...row,
-      contents: (row.contents || []).map((c) => ({ ...c, themes: previous ? mappedThemes(c) : [] })),
-    })),
+    rows: (d.rows || []).map((row) => {
+      const oldRow = previousRows.find((item) => lineage(item) === lineage(row));
+      const sourceIds = new Set((row.contents || []).map(lineage));
+      const contents = (row.contents || []).map((c) => {
+        const old = oldRow?.contents?.find((item) => lineage(item) === lineage(c));
+        const prior = baselineContents.find((item) => lineage(item) === lineage(c));
+        if (!old) return { ...c, themes: [] };
+        const text = !prior || old.text !== prior.text ? old.text : c.text;
+        if (prior && old.text !== prior.text && c.text !== prior.text) warnings.push('Nội dung năm và tổ cùng thay đổi; cần rà soát.');
+        return { ...c, id: old.id, text, themes: mappedThemes(c) };
+      });
+      const extras = (oldRow?.contents || []).filter((c) => !sourceIds.has(lineage(c)))
+        .map((c) => ({ ...c, themes: mappedThemes(c) }));
+      return { ...row, ...(oldRow ? { id: oldRow.id } : {}), contents: [...contents, ...extras] };
+    }),
   }));
   const newContentIds = new Set(domains.flatMap((d) => d.rows.flatMap((row) => row.contents || [])).map(lineage));
   if (oldContents.some((c) => c.themes?.length && !newContentIds.has(lineage(c))))
@@ -68,7 +81,7 @@ export const reapplyTeamDraft = (fresh, draft) => {
   const oldContents = new Map(
     (draft.domains || []).flatMap((d) => d.rows.flatMap((r) => (r.contents || []).map((c) => [String(c.id), c]))),
   );
-  const themeIds = new Set((fresh.themes || []).map((t) => String(t.id)));
+  const draftRows = new Map((draft.domains || []).flatMap((d) => (d.rows || []).map((r) => [String(r.id), r])));
   return {
     ...fresh,
     title: draft.title,
@@ -79,12 +92,17 @@ export const reapplyTeamDraft = (fresh, draft) => {
         ...r,
         ...(r.contents
           ? {
-              contents: r.contents.map((c) => ({
-                ...c,
-                themes: oldContents.has(String(c.id))
-                  ? (oldContents.get(String(c.id)).themes || []).filter((id) => themeIds.has(String(id)))
-                  : c.themes,
-              })),
+              contents: (() => {
+                const freshIds = new Set(r.contents.map((c) => String(c.id)));
+                const localExtras = (draftRows.get(String(r.id))?.contents || []).filter((c) => !freshIds.has(String(c.id)));
+                return [...r.contents, ...localExtras].map((c) => {
+                  const old = oldContents.get(String(c.id));
+                  return {
+                    ...c,
+                    ...(old ? { text: old.text ?? c.text, themes: old.themes || [] } : {}),
+                  };
+                });
+              })(),
             }
           : {}),
       })),

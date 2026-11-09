@@ -43,11 +43,16 @@ const remember = (detail, refs) => {
 const bodyKey = (goal, refs) => JSON.stringify(toYearPlanRequest(goal, refs));
 const fetchGoal = async (id, refs) => remember(await axiosClient.get(`${GOALS}/${id}`), refs);
 
-const editHeaders = (edit) => ({
-  'X-Edit-Session': edit.sessionId,
-  'X-Plan-Revision': String(edit.revision ?? 0),
-  'Idempotency-Key': edit.requestId || crypto.randomUUID(),
-});
+const editHeaders = (edit) => {
+  const headers = {
+    'X-Plan-Revision': String(edit?.revision ?? 0),
+    'Idempotency-Key': edit?.requestId || crypto.randomUUID(),
+  };
+  if (edit?.sessionId) {
+    headers['X-Edit-Session'] = edit.sessionId;
+  }
+  return headers;
+};
 
 const reviewHeaders = (edit) => ({
   'X-Plan-Revision': String(edit.revision ?? 0),
@@ -178,34 +183,22 @@ export const educationPlanApi = {
     const explicit = options.edit;
     const edit = explicit
       ? { ...explicit }
-      : { sessionId: crypto.randomUUID(), revision: item.revision ?? 0, requestId: crypto.randomUUID() };
+      : { revision: item.revision ?? 0, requestId: crypto.randomUUID() };
     const id = serverId(item.id);
-    let acquired = false;
-    try {
-      const reviewOnly =
-        id != null &&
-        (known.get(String(id))?.status === 'REVIEW' ||
-          item.permissions?.canApprove ||
-          item.permissions?.canIssue ||
-          item.permissions?.canReturn);
-      if (!explicit && id != null && !reviewOnly) {
-        const current = await axiosClient.post(`${GOALS}/${id}/start-editing`, null, { headers: editHeaders(edit) });
-        acquired = true;
-        if ((item.revision ?? 0) !== (current.contentRevision ?? current.revision ?? 0)) {
-          throw Object.assign(new Error('Kế hoạch đã thay đổi. Hãy tải lại và xem nội dung mới trước khi thao tác.'), { status: 409 });
-        }
-        remember(current, refs);
+    const reviewOnly = id != null && (known.get(String(id))?.status === 'REVIEW' ||
+      item.permissions?.canApprove || item.permissions?.canIssue || item.permissions?.canReturn);
+    if (!explicit && id != null && !reviewOnly) {
+      const current = await axiosClient.get(`${GOALS}/${id}`);
+      if ((item.revision ?? 0) !== (current.contentRevision ?? current.revision ?? 0)) {
+        throw Object.assign(new Error('Kế hoạch đã thay đổi. Hãy tải lại và xem nội dung mới trước khi thao tác.'), { status: 409 });
       }
-      const detail = await runSteps(item, refs, edit, !!options.silent, options.action);
-      return detail ? toUiGoal(detail, refs) : item;
-    } finally {
-      if (acquired) await axiosClient.post(`${GOALS}/${id}/finish-editing`, null, { headers: editHeaders(edit) }).catch(() => {});
+      remember(current, refs);
     }
+    const detail = await runSteps(item, refs, edit, !!options.silent, options.action);
+    return detail ? toUiGoal(detail, refs) : item;
   },
-  startEditingGoal: async (id, edit) => {
-    const refs = buildRefs(await loadConfig());
-    return remember(await axiosClient.post(`${GOALS}/${serverId(id) ?? id}/start-editing`, null, { headers: editHeaders(edit) }), refs);
-  },
+  // Tương thích caller cũ; EDU-70 không còn tạo hoặc gia hạn phiên sửa.
+  startEditingGoal: async (id) => fetchGoal(serverId(id) ?? id, buildRefs(await loadConfig())),
   resolveGoalReview: async (id, reviewItemId, expectedSourcePlanId, edit) => {
     const refs = buildRefs(await loadConfig());
     return remember(
@@ -217,14 +210,8 @@ export const educationPlanApi = {
       refs,
     );
   },
-  heartbeatGoal: async (id, edit) => {
-    const refs = buildRefs(await loadConfig());
-    return toUiGoal(await axiosClient.post(`${GOALS}/${serverId(id) ?? id}/editing-heartbeat`, null, { headers: editHeaders(edit) }), refs);
-  },
-  finishEditingGoal: async (id, { keepalive = false, edit } = {}) => {
-    const options = { headers: editHeaders(edit), ...(keepalive ? { adapter: 'fetch', fetchOptions: { keepalive: true } } : {}) };
-    return axiosClient.post(`${GOALS}/${serverId(id) ?? id}/finish-editing`, null, options);
-  },
+  heartbeatGoal: async (id) => fetchGoal(serverId(id) ?? id, buildRefs(await loadConfig())),
+  finishEditingGoal: async () => {},
   // BE:EDU-25 — phiên bản n+1 chép từ bản ban hành mới nhất; người tạo giữ phiên sửa của bản mới
   createGoalVersion: async (id, edit) => {
     const refs = buildRefs(await loadConfig());
@@ -240,16 +227,8 @@ export const educationPlanApi = {
   getGoalChanges: (id, fromId) =>
     axiosClient.get(`${GOALS}/${serverId(id) ?? id}/changes`, { params: fromId ? { fromPlanId: serverId(fromId) ?? fromId } : {} }),
   deleteGoal: async (id, revision) => {
-    const edit = { sessionId: crypto.randomUUID(), revision: revision ?? 0 };
-    const current = await axiosClient.post(`${GOALS}/${serverId(id) ?? id}/start-editing`, null, { headers: editHeaders(edit) });
-    try {
-      if (edit.revision !== current.revision)
-        throw Object.assign(new Error('Kế hoạch đã thay đổi. Hãy xem lại trước khi xóa.'), { status: 409 });
-      await axiosClient.delete(`${GOALS}/${serverId(id) ?? id}`, { headers: editHeaders(edit) });
-      known.delete(String(id));
-    } finally {
-      await axiosClient.post(`${GOALS}/${serverId(id) ?? id}/finish-editing`, null, { headers: editHeaders(edit) }).catch(() => {});
-    }
+    await axiosClient.delete(`${GOALS}/${serverId(id) ?? id}`, { headers: editHeaders({ revision: revision ?? 0 }) });
+    known.delete(String(id));
   },
   saveTheme: (item) => axiosClient.put(`/education-plans/themes/${item.id}`, item),
   deleteTheme: (id) => axiosClient.delete(`/education-plans/themes/${id}`),

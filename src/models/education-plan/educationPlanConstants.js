@@ -57,7 +57,7 @@ export const EDU_STATUS = {
 export const EDU_STATUS_LABELS = {
   DRAFT: 'Nháp',
   REVIEW: 'Chờ duyệt',
-  EDITING: 'Đang sửa',
+  EDITING: 'Nháp',
   SENT: 'Đã gửi tổ trưởng',
   PENDING_TL: 'Chờ duyệt',
   PENDING_VP: 'Chờ duyệt',

@@ -18,10 +18,6 @@ export const saveGoal = (item, options) => repo.saveGoal(item, options);
 export const resolveGoalReview = (id, reviewItemId, expectedSourcePlanId, edit, actor) =>
   repo.resolveGoalReview(id, reviewItemId, expectedSourcePlanId, edit, actor);
 export const deleteGoal = (id, revision, actor) => repo.deleteGoal(id, revision, actor);
-// Khóa "Đang sửa" kế hoạch năm (BE:EDU-10). user: người thao tác (mock cần); keepalive: gửi được cả khi đóng tab
-export const startEditingGoal = (id, user, edit) => (USE_MOCK ? repo.startEditingGoal(id, user, edit) : repo.startEditingGoal(id, edit));
-export const heartbeatGoal = (id, edit, user) => (USE_MOCK ? repo.heartbeatGoal(id, user, edit) : repo.heartbeatGoal(id, edit));
-export const finishEditingGoal = (id, user, opts) => (USE_MOCK ? repo.finishEditingGoal(id, user, opts) : repo.finishEditingGoal(id, opts));
 // Phiên bản kế hoạch năm (BE:EDU-25): tạo bản n+1 từ bản ban hành mới nhất; so sánh với phiên bản trước theo lineage
 export const createGoalVersion = (id, user, edit) => (USE_MOCK ? repo.createGoalVersion(id, user, edit) : repo.createGoalVersion(id, edit));
 export const getGoalChanges = (id, fromId, user) => repo.getGoalChanges(id, fromId, user);

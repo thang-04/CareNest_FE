@@ -137,7 +137,7 @@ const AIMS = [
 ];
 
 /** Bảng nhãn | nội dung dùng cho Mục đích yêu cầu, Chuẩn bị. */
-function LabelTable({ rows }) {
+function LabelTable({ rows, editable = false }) {
   return (
     <div className="table-wrap">
       <table className="table ga-plan-table ga-goal-table" onMouseDown={focusCell}>
@@ -148,10 +148,10 @@ function LabelTable({ rows }) {
         <tbody>
           {rows.map((r) => (
             <tr key={r.label}>
-              <td className="cell--fixed">
+              <td className={editable ? 'cell--fixed' : ''}>
                 <div className="ga-goal-table__pad fw-600">{r.label}</div>
               </td>
-              <td>{r.cell}</td>
+              <td className={editable ? 'ga-cell-editable' : ''}>{r.cell}</td>
             </tr>
           ))}
         </tbody>
@@ -164,6 +164,7 @@ export function WeekTab({
   draft,
   week,
   editable,
+  dayEditable = () => editable,
   update: rawUpdate,
   activities = [],
   placedElsewhere = new Set(),
@@ -173,7 +174,9 @@ export function WeekTab({
   flagOf = () => null,
 }) {
   // Mỗi lần sửa bảng tuần: ô gõ tay trùng nội dung hoạt động của kế hoạch chủ đề thì tự nhớ MT
-  const update = (fn) => rawUpdate((d) => linkTypedActivities(fn(d), activities, placedElsewhere));
+  const update = (fn) => rawUpdate((d) => linkTypedActivities(
+    fn(d), activities, placedElsewhere, (day) => typeof day === 'number' ? dayEditable(day) : editable,
+  ));
   // Chọn gợi ý: ghi nội dung vào ô (dòng mới) và nhớ MT của hoạt động cho ô đó
   const pick = (r, day, a) =>
     update((d) => {
@@ -200,7 +203,7 @@ export function WeekTab({
   // Hoạt động đã xếp vào ô ngày khác (tuần này hoặc tuần khác của chủ đề) thì không gợi ý lại; ô đang giữ vẫn thấy để bỏ chọn
   const placedHere = dayPlacedOf(draft);
   const cellProps = (r, day) => ({
-    editable,
+    editable: typeof day === 'number' ? dayEditable(day) : editable,
     suggestions: activitiesForRow(activities, r.key).filter((a) => {
       const at = placedHere.get(a.id);
       return at ? at === cellKey(r.key, day) : !placedElsewhere.has(a.id);
@@ -233,6 +236,7 @@ export function WeekTab({
           </div>
         )}
         <LabelTable
+          editable={editable}
           rows={AIMS.map((a) => ({
             label: a.label,
             cell: (
@@ -248,6 +252,7 @@ export function WeekTab({
       </FoldSection>
       <FoldSection title="II. Chuẩn bị">
         <LabelTable
+          editable={editable}
           rows={[
             {
               label: 'Chuẩn bị',
@@ -287,9 +292,9 @@ export function WeekTab({
             </colgroup>
             <thead>
               <tr>
-                <th className="cell--fixed">Tên hoạt động</th>
+                <th className={editable ? 'cell--fixed' : ''}>Tên hoạt động</th>
                 {WEEKDAY_LABELS.map((l, i) => (
-                  <th key={l} className="center">
+                  <th key={l} className={`center ${editable ? 'ga-th-editable' : ''}`}>
                     {l} · {ddmm(addDays(week.start, i))}
                     {week.offDays?.[i] && <div className="text-xs text-warning">Nghỉ: {week.offDays[i]}</div>}
                   </th>
@@ -303,7 +308,7 @@ export function WeekTab({
                 return (
                   <Fragment key={r.key}>
                     <tr>
-                      <td className="cell--fixed">
+                      <td className={editable ? 'cell--fixed' : ''}>
                         <div className="ga-goal-table__pad stack">
                           <span className="fw-600">{r.label}</span>
                           {r.canMerge && editable && (
@@ -319,7 +324,7 @@ export function WeekTab({
                         </div>
                       </td>
                       {merged ? (
-                        <td colSpan={5}>
+                        <td colSpan={5} className={editable ? 'ga-cell-editable' : ''}>
                           <ActivityCell {...cellProps(r, 'all')}>
                             <Cell
                               editable={editable}
@@ -331,19 +336,19 @@ export function WeekTab({
                         </td>
                       ) : (
                         g.days.map((v, i) => (
-                          <td key={i}>
+                          <td key={i} className={editable && dayEditable(i) ? 'ga-cell-editable' : ''}>
                             <ActivityCell {...cellProps(r, i)}>
                               {r.key === 'hoc' ? (
                                 <>
                                   <Cell
-                                    editable={editable}
+                                    editable={dayEditable(i)}
                                     value={v.subject}
                                     label={`Môn ${WEEKDAY_LABELS[i]}`}
                                     placeholder="Môn / lĩnh vực"
                                     onChange={(x) => update((d) => ((d.grid.hoc.days[i].subject = x), d))}
                                   />
                                   <Cell
-                                    editable={editable}
+                                    editable={dayEditable(i)}
                                     value={v.topic}
                                     label={`Đề tài ${WEEKDAY_LABELS[i]}`}
                                     placeholder="Đề tài"
@@ -352,7 +357,7 @@ export function WeekTab({
                                 </>
                               ) : (
                                 <Cell
-                                  editable={editable}
+                                  editable={dayEditable(i)}
                                   value={v}
                                   label={`${r.label} ${WEEKDAY_LABELS[i]}`}
                                   onChange={(x) => update((d) => (((d.grid[r.key] ||= rowCell(d, r)).days[i] = x), d))}
@@ -572,6 +577,7 @@ export function DayTab({
       />
       <FoldSection title="I. Mục đích yêu cầu">
         <LabelTable
+          editable={editable}
           rows={[
             {
               label: 'Mục đích yêu cầu',
@@ -582,6 +588,7 @@ export function DayTab({
       </FoldSection>
       <FoldSection title="II. Chuẩn bị">
         <LabelTable
+          editable={editable}
           rows={[
             {
               label: 'Chuẩn bị',
@@ -668,6 +675,7 @@ export function DayTab({
       </FoldSection>
       <FoldSection title="*Kế hoạch điều chỉnh và bổ sung">
         <LabelTable
+          editable={adjustEditable}
           rows={[
             {
               label: 'Kế hoạch điều chỉnh và bổ sung',

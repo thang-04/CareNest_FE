@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useState } from 'react';
-import { Check, Save, Trash2, X } from '@/components/ui/icons';
+import { Check, Pencil, Save, Trash2, X } from '@/components/ui/icons';
 import { Card, Notice, PageHead } from '@/components/education-plan/eduUi';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { Cell, focusCell } from '@/components/education-plan/planUi';
@@ -22,8 +22,12 @@ function WorkflowPolicyConfig({ docLabel, policy, onChange, editing, canEdit, as
   const reviewers = policy?.reviewers || [];
   const addRole = (role, kind) => {
     if (!role) return;
+    if (kind === 'creator') {
+      onChange({ creators: [role], reviewers: reviewers.filter((r) => r !== role) });
+      return;
+    }
     if (creators.includes(role) || reviewers.includes(role)) return;
-    onChange(kind === 'creator' ? { creators: [...creators, role], reviewers } : { creators, reviewers: [...reviewers, role] });
+    onChange({ creators, reviewers: [...reviewers, role] });
   };
   const removeRole = (role, kind) => {
     const current = kind === 'creator' ? creators : reviewers;
@@ -51,27 +55,20 @@ function WorkflowPolicyConfig({ docLabel, policy, onChange, editing, canEdit, as
     <div className="ga-goal-table__pad ga-workflow-cell">
       {mode === 'creator' && (
         <div className="ga-workflow-roles" aria-label={`Người tạo hồ sơ ${docLabel}`}>
-          {creators.map((role) => (
-            <div key={role} className="ga-workflow-role-row">
-              <span>{WORKFLOW_ROLES[role] || role}</span>
-              {editable && (
-                <button
-                  type="button"
-                  className="icon-btn"
-                  aria-label={`Bỏ ${WORKFLOW_ROLES[role]} khỏi người tạo`}
-                  onClick={() => removeRole(role, 'creator')}
-                >
-                  <X size={16} aria-hidden />
-                </button>
-              )}
+          {!editable ? (
+            <div className="ga-workflow-role-row">
+              <span>{WORKFLOW_ROLES[creators[0]] || creators[0] || 'Chưa cấu hình'}</span>
             </div>
-          ))}
-          {editable && availableCreators.length > 0 && (
+          ) : (
             <label className="ga-workflow-add">
-              <span className="sr-only">Thêm người tạo cho {docLabel}</span>
-              <select className="select" value="" onChange={(event) => addRole(event.target.value, 'creator')}>
-                <option value="">+ Thêm người tạo</option>
-                {availableCreators.map((role) => (
+              <span className="sr-only">Chọn người tạo cho {docLabel}</span>
+              <select
+                className="select"
+                value={creators[0] || ''}
+                onChange={(event) => addRole(event.target.value, 'creator')}
+              >
+                <option value="" disabled>-- Chọn đúng 1 vai trò tạo --</option>
+                {CREATOR_ROLES.filter((r) => !reviewers.includes(r)).map((role) => (
                   <option key={role} value={role}>
                     {WORKFLOW_ROLES[role]}
                   </option>
@@ -129,7 +126,7 @@ function WorkflowPolicyConfig({ docLabel, policy, onChange, editing, canEdit, as
 
 /**
  * Cấu hình kế hoạch giáo dục của trường (Phó HT, Hiệu trưởng): tên hiển thị 5 lĩnh vực, người ký theo từng loại tài liệu,
- * các dòng hoạt động của kế hoạch tuần. Sửa trực tiếp và lưu một lần cho cả trang.
+ * các dòng hoạt động của kế hoạch tuần. Bấm Chỉnh sửa để nhập và lưu một lần cho cả trang.
  * Lưu và xóa theo quy tắc trang kế hoạch năm: nút Lưu đầu trang / Ctrl+S, hỏi khi rời trang còn thay đổi chưa lưu,
  * xóa một mục phải xác nhận.
  */
@@ -139,7 +136,7 @@ export default function EduConfigPage() {
   const [draft, setDraft] = useState(eduConfig);
   const [newDomain, setNewDomain] = useState('');
   const [domainError, setDomainError] = useState('');
-  const editing = true;
+  const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [keyboardNavigation, setKeyboardNavigation] = useState(false);
   useEffect(() => {
@@ -250,24 +247,33 @@ export default function EduConfigPage() {
     );
 
   return (
-    <div className={`page ga-page ga-config-page ga-class-editor ga-year-page${keyboardNavigation ? ' ga-keyboard-nav' : ''}`}>
+    <div className={`page ga-page ga-config-page ga-class-editor ga-year-page${editing ? ' is-editing' : ' is-viewing'}${keyboardNavigation ? ' ga-keyboard-nav' : ''}`}>
       <div className="ga-sticky-head">
         <PageHead crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Cấu hình' }]} title="Cấu hình kế hoạch giáo dục" />
         <div className="ga-year-toolbar" role="group" aria-label="Thao tác cấu hình kế hoạch giáo dục">
-          <div className="ga-year-toolbar__group ga-year-toolbar__group--end">
-            <p className="muted text-sm ga-year-save-status" aria-live="polite">
-              {saver.label}
-            </p>
-            <button
-              type="button"
-              className="btn btn--sm btn--primary"
-              onClick={saver.save}
-              disabled={saver.saving || (!dirty && !saver.error)}
-              title="Lưu (Ctrl+S)"
-            >
-              <Save size={16} aria-hidden /> Lưu
-            </button>
-          </div>
+          {!editing && (
+            <div className="ga-year-toolbar__group">
+              <button type="button" className="btn btn--sm btn--outline-primary" onClick={() => setEditing(true)}>
+                <Pencil size={16} aria-hidden /> Chỉnh sửa
+              </button>
+            </div>
+          )}
+          {editing && (
+            <div className="ga-year-toolbar__group ga-year-toolbar__group--end">
+              <p className="muted text-sm ga-year-save-status" aria-live="polite">
+                {saver.label}
+              </p>
+              <button
+                type="button"
+                className="btn btn--sm btn--primary"
+                onClick={saver.save}
+                disabled={saver.saving || (!dirty && !saver.error)}
+                title="Lưu (Ctrl+S)"
+              >
+                <Save size={16} aria-hidden /> Lưu
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -280,9 +286,9 @@ export default function EduConfigPage() {
             <table className="table ga-plan-table ga-goal-table" onMouseDown={focusCell}>
               <thead>
                 <tr>
-                  <th className="cell--fixed">Loại chủ đề</th>
-                  <th>Tối thiểu (tuần)</th>
-                  <th>Tối đa (tuần)</th>
+                  <th className={editing ? 'cell--fixed' : ''}>Loại chủ đề</th>
+                  <th className={editing ? (isPrincipal && eduConfig.durationPolicyAvailable !== false ? 'ga-th-editable' : 'cell--fixed') : ''}>Tối thiểu (tuần)</th>
+                  <th className={editing ? (isPrincipal && eduConfig.durationPolicyAvailable !== false ? 'ga-th-editable' : 'cell--fixed') : ''}>Tối đa (tuần)</th>
                 </tr>
               </thead>
               <tbody>
@@ -291,13 +297,13 @@ export default function EduConfigPage() {
                   ['branch', 'Chủ đề nhánh'],
                 ].map(([key, label]) => (
                   <tr key={key}>
-                    <td className="cell--fixed">
+                    <td className={editing ? 'cell--fixed' : ''}>
                       <div className="ga-goal-table__pad ga-cell-text">{label}</div>
                     </td>
                     {['minWeeks', 'maxWeeks'].map((bound) => (
                       <td
                         key={bound}
-                        className={editing && isPrincipal && eduConfig.durationPolicyAvailable !== false ? undefined : 'cell--fixed'}
+                        className={editing ? (isPrincipal && eduConfig.durationPolicyAvailable !== false ? 'ga-cell-editable' : 'cell--fixed') : ''}
                       >
                         {editing && isPrincipal && eduConfig.durationPolicyAvailable !== false ? (
                           <input
@@ -340,9 +346,9 @@ export default function EduConfigPage() {
               </colgroup>
               <thead>
                 <tr>
-                  <th className="cell--fixed ga-stt">STT</th>
-                  <th>Tên lĩnh vực</th>
-                  {editing && <th className="center">Xóa</th>}
+                  <th className={`ga-stt${editing ? ' cell--fixed' : ''}`}>STT</th>
+                  <th className={editing ? 'ga-th-editable' : ''}>Tên lĩnh vực</th>
+                  {editing && <th className="center ga-th-editable">Xóa</th>}
                 </tr>
               </thead>
               <tbody>
@@ -350,10 +356,10 @@ export default function EduConfigPage() {
                   const extra = i >= STANDARD_DOMAINS.length;
                   return (
                     <tr key={d}>
-                      <td className="cell--fixed ga-stt">
+                      <td className={`ga-stt${editing ? ' cell--fixed' : ''}`}>
                         <div className="ga-goal-table__pad">{DOMAIN_ROMAN[i] || i + 1}</div>
                       </td>
-                      <td className={editing ? undefined : 'cell--fixed'}>
+                      <td className={editing ? 'ga-cell-editable' : ''}>
                         {/* Tên hiển thị gõ thẳng; để trống thì dùng lại tên gốc */}
                         <Cell
                           editable={editing}
@@ -364,7 +370,7 @@ export default function EduConfigPage() {
                         />
                       </td>
                       {editing && (
-                        <td className="center">
+                        <td className="center ga-cell-editable">
                           <div className="ga-goal-table__pad">
                             <button
                               type="button"
@@ -392,7 +398,7 @@ export default function EduConfigPage() {
                 {editing && (
                   <tr>
                     <td className="cell--fixed" />
-                    <td colSpan={2}>
+                    <td colSpan={2} className="ga-cell-editable">
                       <Cell
                         editable
                         value={newDomain}
@@ -422,14 +428,21 @@ export default function EduConfigPage() {
             <table className="table ga-plan-table ga-goal-table ga-sortable-table">
               <thead>
                 <tr>
-                  <th className="cell--fixed ga-workflow-row-heading" scope="col">
+                  <th className={`ga-workflow-row-heading${editing ? ' cell--fixed' : ''}`} scope="col">
                     &nbsp;
                   </th>
-                  {SIGN_DOCS.filter((doc) => doc.key !== 'week').map((doc) => (
-                    <th key={doc.key} scope="col">
-                      {doc.label}
-                    </th>
-                  ))}
+                  {SIGN_DOCS.filter((doc) => doc.key !== 'week').map((doc) => {
+                    const canEditDoc = isPrincipal && (doc.key !== 'schoolYear' || eduConfig.durationPolicyAvailable !== false);
+                    return (
+                      <th
+                        key={doc.key}
+                        scope="col"
+                        className={editing ? (canEditDoc ? 'ga-th-editable' : 'cell--fixed') : ''}
+                      >
+                        {doc.label}
+                      </th>
+                    );
+                  })}
                 </tr>
               </thead>
               <tbody>
@@ -438,20 +451,17 @@ export default function EduConfigPage() {
                   { key: 'reviewer', label: 'Người duyệt (theo thứ tự)' },
                 ].map((row) => (
                   <tr key={row.key}>
-                    <th className="cell--fixed ga-workflow-row-heading" scope="row">
+                    <th className={`ga-workflow-row-heading${editing ? ' cell--fixed' : ''}`} scope="row">
                       {row.label}
                     </th>
                     {SIGN_DOCS.filter((doc) => doc.key !== 'week').map((doc) => {
                       const policy = draft.workflowPolicy?.[doc.key] ||
                         DEFAULT_WORKFLOW_POLICY[doc.key] || { creators: [], reviewers: draft.signers?.[doc.key] || [] };
+                      const canEditDoc = isPrincipal && (doc.key !== 'schoolYear' || eduConfig.durationPolicyAvailable !== false);
                       return (
                         <td
                           key={doc.key}
-                          className={
-                            editing && isPrincipal && (doc.key !== 'schoolYear' || eduConfig.durationPolicyAvailable !== false)
-                              ? undefined
-                              : 'cell--fixed'
-                          }
+                          className={editing ? (canEditDoc ? 'ga-cell-editable' : 'cell--fixed') : ''}
                         >
                           {row.key === 'creator' ? (
                             <WorkflowPolicyConfig
@@ -510,25 +520,25 @@ export default function EduConfigPage() {
                 </colgroup>
                 <thead>
                   <tr>
-                    <th className="cell--fixed ga-stt">
+                    <th className={`ga-stt${editing ? ' cell--fixed' : ''}`}>
                       <span className="stt-head">STT {editing && <RenumberButton />}</span>
                     </th>
-                    <th>Tên hoạt động{editing && <span className="req">*</span>}</th>
-                    <th className="center">Cho gộp cả tuần</th>
-                    <th className="center">Mặc định cả tuần</th>
-                    {editing && <th className="center">Sắp xếp</th>}
-                    {editing && <th className="center">Xóa</th>}
+                    <th className={editing ? 'ga-th-editable' : ''}>Tên hoạt động{editing && <span className="req">*</span>}</th>
+                    <th className={`center ${editing ? 'ga-th-editable' : ''}`}>Cho gộp cả tuần</th>
+                    <th className={`center ${editing ? 'ga-th-editable' : ''}`}>Mặc định cả tuần</th>
+                    {editing && <th className="center ga-th-editable">Sắp xếp</th>}
+                    {editing && <th className="center ga-th-editable">Xóa</th>}
                   </tr>
                 </thead>
                 <tbody>
                   {draft.weekRows.map((r, i) => (
                     <SortableRow key={r.key} id={r.key}>
-                      <td className="cell--fixed ga-stt">
+                      <td className={`ga-stt${editing ? ' cell--fixed' : ''}`}>
                         <div className="ga-goal-table__pad">
                           <SortIndex id={r.key} index={i} />
                         </div>
                       </td>
-                      <td className={editing ? undefined : 'cell--fixed'}>
+                      <td className={editing ? 'ga-cell-editable' : ''}>
                         <Cell
                           editable={editing}
                           value={r.label}
@@ -536,7 +546,7 @@ export default function EduConfigPage() {
                           onChange={(v) => set((x) => ((x.weekRows[i].label = v), x))}
                         />
                       </td>
-                      <td className={`center${editing ? '' : ' cell--fixed'}`}>
+                      <td className={`center${editing ? ' ga-cell-editable' : ''}`}>
                         <div className="ga-goal-table__pad">
                           {!editing ? (
                             yesNo(r.canMerge, 'Cho gộp cả tuần')
@@ -552,7 +562,7 @@ export default function EduConfigPage() {
                           )}
                         </div>
                       </td>
-                      <td className={`center${editing ? '' : ' cell--fixed'}`}>
+                      <td className={`center${editing ? ' ga-cell-editable' : ''}`}>
                         <div className="ga-goal-table__pad">
                           {!editing ? (
                             yesNo(r.allWeek, 'Mặc định cả tuần')
@@ -570,7 +580,7 @@ export default function EduConfigPage() {
                         </div>
                       </td>
                       {editing && (
-                        <td className="center">
+                        <td className="center ga-cell-editable">
                           <div className="ga-goal-table__pad ga-sort-cell">
                             <SortHandle label={r.label} />
                             <SortButtons index={i} label={r.label} />
@@ -578,7 +588,7 @@ export default function EduConfigPage() {
                         </td>
                       )}
                       {editing && (
-                        <td className="center">
+                        <td className="center ga-cell-editable">
                           <div className="ga-goal-table__pad">
                             <button
                               type="button"
@@ -606,7 +616,7 @@ export default function EduConfigPage() {
                   {editing && (
                     <tr>
                       <td className="cell--fixed" />
-                      <td colSpan={5}>
+                      <td colSpan={5} className="ga-cell-editable">
                         <Cell
                           editable
                           value=""

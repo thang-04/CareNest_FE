@@ -14,6 +14,7 @@ const server = await createServer({ server: { middlewareMode: true }, appType: '
 after(() => server.close());
 const { GoalTable, ThemeEventTable } = await server.ssrLoadModule('/src/components/education-plan/GoalTables.jsx');
 const { BranchCalendarEditor } = await server.ssrLoadModule('/src/components/education-plan/BranchCalendarEditor.jsx');
+const { reapplyTeamDraft, inheritAnnual } = await import('../../src/models/education-plan/planLevel.mjs');
 const domains = [
   {
     id: 'd',
@@ -39,6 +40,38 @@ const props = {
   branchTemplates: [{ id: 'b', themeId: 't', name: 'Nhánh kế thừa' }],
   readOnly: true,
 };
+test('TEAM can edit and add contents while keeping goal structure read only', () => {
+  const html = renderToStaticMarkup(React.createElement(GoalTable, {
+    ...props, fixedCells: true, canEditContents: true, canAssignContents: true, onChange() {},
+  }));
+  assert.match(html, /aria-label="Nội dung 1 của mục tiêu 1"/);
+  assert.match(html, /aria-label="Nội dung đầu tiên của mục tiêu 1"/);
+  assert.doesNotMatch(html, /aria-label="Mục tiêu 1 lĩnh vực/);
+  assert.doesNotMatch(html, /aria-label="Xóa nội dung/);
+});
+test('annual goal table identifies required groups, goals and contents for assistive technology', () => {
+  const html = renderToStaticMarkup(React.createElement(GoalTable, { ...props, readOnly: false, onChange() {} }));
+  assert.equal((html.match(/Bắt buộc khi gửi duyệt/g) || []).length >= 3, true);
+});
+test('restoring team draft retains edited and newly added content and ticks', () => {
+  const fresh = { themes: [{ id: 't' }], domains: [{ id: 'd', rows: [{ id: 'g', contents: [{ id: 'c', text: 'Nguồn', themes: [] }] }] }] };
+  const draft = { title: 'Tổ', themes: fresh.themes, domains: [{ id: 'd', rows: [{ id: 'g', contents: [
+    { id: 'c', text: 'Tổ sửa', themes: ['t'] }, { id: 'new', text: 'Tổ thêm', themes: ['t'] },
+  ] }] }] };
+  const restored = reapplyTeamDraft(fresh, draft).domains[0].rows[0].contents;
+  assert.deepEqual(restored.map(({ id, text, themes }) => ({ id, text, themes })), draft.domains[0].rows[0].contents);
+});
+test('changing year source retains team edited and added contents', () => {
+  const makeYear = (text) => ({ id: 'y', themes: [{ id: 't' }], domains: [{ id: 'd', rows: [{ id: 'g', kind: 'goal', contents: [{ id: 'c', text, themes: [] }] }] }] });
+  const oldYear = makeYear('Hát A');
+  const newYear = makeYear('Hát C');
+  const team = makeYear('Hát B');
+  team.domains[0].rows[0].contents[0].themes = ['t'];
+  team.domains[0].rows[0].contents.push({ id: 'extra', text: 'Tổ thêm', themes: ['t'] });
+  const result = inheritAnnual(newYear, team, oldYear).domains[0].rows[0].contents;
+  assert.deepEqual(result.map((c) => c.text), ['Hát B', 'Tổ thêm']);
+  assert.deepEqual(result.map((c) => c.themes), [['t'], ['t']]);
+});
 test('TEAM shows inherited branches and one labeled goal select, no MT list or editing controls', () => {
   const html = renderToStaticMarkup(React.createElement(ThemeEventTable, { ...props, fixedFields: true }));
   assert.match(html, /Chủ đề nhánh \/ dự án/);

@@ -57,7 +57,7 @@ function ThemePlanInner() {
   const { user, classThemePlans, branchPlans, weekPlans, saveClassDoc, actOnClassDoc, toast, eduConfig, staff } = useEducationPlan();
   const [preview, setPreview] = useState(null);
   const ctx = useClassPlanContext(classId);
-  const { cls, yearPlan, isClassTeacher } = ctx;
+  const { cls, yearPlan, isHomeroomTeacher } = ctx;
   const theme = yearPlan?.themes.find((t) => t.id === themeId);
   const saved = classThemePlans.find((t) => t.classId === classId && t.themeId === themeId) || null;
   const [draft, setDraft] = useState(null);
@@ -67,14 +67,14 @@ function ThemePlanInner() {
   const version = useDocVersion('theme', saved, ctx, classThemePlans, { themeId });
   const canWrite =
     !ctx.superseded &&
-    (saved?.permissions ? saved.permissions.canEdit : saved ? isClassTeacher && isEditableStatus(saved.status) : ctx.canCreate('theme'));
+    (saved?.permissions ? saved.permissions.canEdit : saved ? isHomeroomTeacher && isEditableStatus(saved.status) : ctx.canCreate('theme'));
 
   // Lưu tay (nút Lưu, Ctrl+S). Lưu cả các dòng chưa sửa để bản đã duyệt giữ nguyên nội dung dù kế hoạch năm đổi sau này
   const saver = useManualSave({
     doc: draft,
     enabled: canWrite,
     save: (doc) => {
-      const gs = themeGoalBlocks(yearPlan.domains, numberGoals(yearPlan.domains), themeId).flatMap((b) => b.goals);
+      const gs = themeGoalBlocks(yearPlan.domains, numberGoals(yearPlan.domains), themeId, doc?.customTicks).flatMap((b) => b.goals);
       // Bản chép: dòng MT đã bị bỏ ở phiên bản mới giữ lại (đỏ) tới khi giáo viên bỏ (BE:EDU-26)
       return saveClassDoc('theme', {
         ...doc,
@@ -134,7 +134,7 @@ function ThemePlanInner() {
     );
   }
   const numbers = numberGoals(yearPlan.domains);
-  const blocks = themeGoalBlocks(yearPlan.domains, numbers, themeId);
+  const blocks = themeGoalBlocks(yearPlan.domains, numbers, themeId, draft?.customTicks);
   const branch = branchPlans.find((b) => b.classId === classId && b.yearPlanId === yearPlan.id);
   const weeks = yearWeeks(yearPlan).filter((w) => w.type === 'week' && w.theme.id === themeId);
   // Nội dung lấy nguyên từ kế hoạch năm (không sửa); giáo viên viết hoạt động giáo dục
@@ -286,6 +286,9 @@ function ThemePlanInner() {
         onDrop={(f) => flagEdit((d) => dropReference('theme', d, f))}
       />
       <RejectedNotice status={saved?.status} history={saved?.history} />
+      {editable && saved?.status === EDU_STATUS.APPROVED && (
+        <Notice tone="warn">Lưu thay đổi sẽ đưa hồ sơ chủ đề này về Nháp để gửi duyệt lại.</Notice>
+      )}
       {/* Chủ đề nhánh: chữ link xếp dọc như danh sách phiên bản mục tiêu năm học, không dùng thẻ / nút (Tiền 04/11) */}
       <Card title="Chủ đề nhánh" bodyClass={null} collapsed={branchFolded} onToggle={() => setBranchFolded((v) => !v)}>
         <div className="card__body">

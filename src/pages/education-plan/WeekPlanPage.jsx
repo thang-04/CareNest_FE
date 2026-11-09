@@ -26,6 +26,7 @@ import {
   lessonReuseFor,
   placedInOtherWeeks,
   themeCoverage,
+  todayIso,
   themeActivities,
   themeGoalBlocks,
   yearWeeks,
@@ -63,7 +64,7 @@ function WeekPlanInner() {
   const { user, weekPlans, branchPlans, classThemePlans, saveClassDoc, saveClassDocAdjustments, toast, staff } = useEducationPlan();
   const [preview, setPreview] = useState(null);
   const ctx = useClassPlanContext(classId);
-  const { cls, yearPlan, isClassTeacher } = ctx;
+  const { cls, yearPlan, isHomeroomTeacher } = ctx;
   const saved = weekPlans.find((w) => w.classId === classId && w.yearPlanId === yearPlan?.id && w.weekStart === weekStart) || null;
   const [draft, setDraft] = useState(null);
   const [dirty, setDirty] = useState(false);
@@ -77,8 +78,8 @@ function WeekPlanInner() {
   // Nội dung sửa khi Nháp / Bị trả lại trên phiên bản hiện hành; ô điều chỉnh của ngày ghi được ở mọi trạng thái (BE:EDU-27)
   const contentEditable =
     !ctx.superseded &&
-    (saved?.permissions ? saved.permissions.canEdit : saved ? isClassTeacher && isEditableStatus(saved.status) : ctx.canCreate('week'));
-  const adjustEditable = !!saved && (saved.permissions ? saved.permissions.canEditAdjustments : isClassTeacher);
+    (saved?.permissions ? saved.permissions.canEdit : saved ? isHomeroomTeacher && isEditableStatus(saved.status) : ctx.canCreate('week'));
+  const adjustEditable = !!saved && (saved.permissions ? saved.permissions.canEditAdjustments : isHomeroomTeacher);
   const sameAdjust = (a, b) => JSON.stringify(a || {}) === JSON.stringify(b || {});
 
   // Lưu tay (nút Lưu, Ctrl+S); rời trang khi chưa lưu thì hỏi
@@ -126,6 +127,9 @@ function WeekPlanInner() {
 
   const status = saved?.status || EDU_STATUS.DRAFT;
   const editable = contentEditable;
+  const today = todayIso();
+  const sharedEditable = editable && weekStart > today;
+  const dayEditable = (index) => editable && draft?.days?.[index]?.date > today;
   // Chép giáo án tuần cũ sang phiên bản mới (BE:EDU-26), lưu ngay thành Nháp để sửa ô đỏ
   const copyOld = async () => {
     setCopying(true);
@@ -264,12 +268,15 @@ function WeekPlanInner() {
       </div>
       <SupersededNote doc={saved || (ctx.superseded ? { superseded: true, yearPlanVersion: versionOf(yearPlan) } : null)} />
       {!saved && version.finished && <FinishedThemeNote />}
+      {editable && (saved?.status === EDU_STATUS.APPROVED || themeDoc?.status === EDU_STATUS.APPROVED) && (
+        <Notice tone="warn">Lưu thay đổi sẽ đưa hồ sơ chủ đề này về Nháp để gửi duyệt lại. Phần đã đến ngày dạy giữ nguyên.</Notice>
+      )}
       {!saved && !version.finished && version.prevDoc && !dirty && (
         <VersionCopyOffer
           plan={yearPlan}
           previous={ctx.previousPlan}
           prevDoc={version.prevDoc}
-          canCreate={editable}
+          canCreate={sharedEditable}
           busy={copying}
           onTemplate={fromTemplate}
           onCopy={copyOld}
@@ -312,7 +319,7 @@ function WeekPlanInner() {
           <div className={`ga-week-hero__name ${branchName ? '' : 'muted'}`}>{branchName || 'Chưa đặt tên chủ đề nhánh'}</div>
           <div className="ga-week-hero__meta">
             Chủ đề: {week.theme.name} · {fmtDate(week.start)} → {fmtDate(week.end)}
-            {!branchName && isClassTeacher && (
+            {!branchName && isHomeroomTeacher && (
               <>
                 {' · '}
                 <Link to={`/education/branches/${classId}`}>Đặt tên chủ đề nhánh</Link>
@@ -359,7 +366,8 @@ function WeekPlanInner() {
             <WeekTab
               draft={draft}
               week={week}
-              editable={editable}
+              editable={sharedEditable}
+              dayEditable={dayEditable}
               update={update}
               activities={activities}
               placedElsewhere={placedElsewhere}
@@ -372,7 +380,7 @@ function WeekPlanInner() {
             <DayTab
               draft={draft}
               index={day}
-              editable={editable}
+              editable={dayEditable(day)}
               update={update}
               goals={goals}
               reuse={lessonReuseFor(weekPlans, draft, day)}

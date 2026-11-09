@@ -46,28 +46,69 @@ export function ReviewActions({
   const [note, setNote] = useState('');
   const [tried, setTried] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [actError, setActError] = useState('');
   const open = async (next) => {
-    if (beforeOpen && (await beforeOpen(next)) === false) return;
+    if (beforeOpen && (await beforeOpen(next)) === false) {
+      requestAnimationFrame(() => {
+        const errEl =
+          document.querySelector('.ga-plan-error-summary') ||
+          document.querySelector('.alert--danger') ||
+          document.querySelector('[role="alert"]') ||
+          document.querySelector('.field__error') ||
+          document.querySelector('[aria-invalid="true"]');
+        errEl?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        errEl?.focus?.({ preventScroll: true });
+      });
+      return;
+    }
     setNote('');
     setTried(false);
+    setActError('');
     setAction(next);
   };
   const confirm = async () => {
     setTried(true);
+    setActError('');
     if (action === 'reject' && !note.trim()) return;
     setBusy(true);
     let savedDoc = null;
-    if (unsaved && onSave && action !== 'reject') {
-      const res = await onSave();
-      if (!res) {
-        setBusy(false);
-        return;
+    const scrollToError = () => {
+      requestAnimationFrame(() => {
+        const errEl =
+          document.querySelector('.ga-plan-error-summary') ||
+          document.querySelector('.alert--danger') ||
+          document.querySelector('[role="alert"]') ||
+          document.querySelector('.field__error') ||
+          document.querySelector('[aria-invalid="true"]');
+        errEl?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        errEl?.focus?.({ preventScroll: true });
+      });
+    };
+    try {
+      if (unsaved && onSave && action !== 'reject') {
+        const res = await onSave();
+        if (!res) {
+          setAction(null);
+          setBusy(false);
+          scrollToError();
+          return;
+        }
+        savedDoc = typeof res === 'object' ? res : null;
       }
-      savedDoc = typeof res === 'object' ? res : null;
+      const res = await onAct(action, note.trim() || undefined, savedDoc);
+      if (res) {
+        setAction(null);
+      } else {
+        setAction(null);
+        scrollToError();
+      }
+    } catch (err) {
+      setAction(null);
+      setActError(err?.message || 'Có lỗi xảy ra khi thực hiện thao tác.');
+      scrollToError();
+    } finally {
+      setBusy(false);
     }
-    const res = await onAct(action, note.trim() || undefined, savedDoc);
-    setBusy(false);
-    if (res) setAction(null);
   };
   const titles = {
     submit: sendTo ? `Gửi ${sendTo} duyệt ${name}` : `Gửi duyệt ${name}`,
@@ -129,9 +170,10 @@ export function ReviewActions({
             </>
           }
         >
-          {unsaved && action !== 'reject' && (
+          {actError && <Notice tone="err">{actError}</Notice>}
+          {unsaved && action !== 'submit' && action !== 'reject' && (
             <Notice tone="warn">
-              Còn thay đổi chưa lưu. Bấm "{action === 'submit' ? 'Gửi duyệt' : withSave(approveLabel)}" để lưu rồi tiếp tục.
+              Còn thay đổi chưa lưu. Bấm "{withSave(approveLabel)}" để lưu rồi tiếp tục.
             </Notice>
           )}
           {notes[action] && <p>{notes[action]}</p>}

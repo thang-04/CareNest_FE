@@ -99,6 +99,9 @@ test('EDU-61: lưu, tải lại và tạo phiên bản mock giữ định danh n
   const { educationPlanMockRepository: repo } = await import('../../src/services/education-plan/mock/educationPlanMockRepository.js');
   const vp = { id: 'synthetic-vp', name: 'PHT kiểm thử', fullName: 'PHT kiểm thử', role: 'VICE_PRINCIPAL' };
   const ht = { id: 'synthetic-ht', name: 'HT kiểm thử', fullName: 'HT kiểm thử', role: 'PRINCIPAL' };
+  await repo.getAll(vp);
+  const { writeDb } = await import('../../src/mocks/mockDatabase.js');
+  writeDb((db) => { db.users = [vp, ht, { id: 'curriculum-tl', role: 'TEAM_LEADER', ageGroupId: 'ag-3' }]; });
   const [goal] = await curriculumMockRepository.getCurriculumGoals('ag-3');
   const domains = curriculumAsSourcePlan([goal]).domains;
   const form = { id: 'test-014-source', code: 'TEST014', planLevel: 'SCHOOL_YEAR', schoolYear: '2027 – 2028', ageGroupId: 'ag-3',

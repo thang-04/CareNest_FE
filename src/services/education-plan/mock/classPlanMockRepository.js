@@ -1,3 +1,4 @@
+import { hasFutureClassContent, validateFutureClassEdit } from './classDocFutureEdit';
 import { calendarPlan, projectCalendar, branchWeeks } from '@/models/education-plan/branchCalendar.mjs';
 import { DEFAULT_DURATION } from '@/models/education-plan/planLevel.mjs';
 import { readDb, writeDb, clone, delay } from '@/mocks/mockDatabase';
@@ -85,6 +86,7 @@ const authorsOf = (db, doc) =>
   ]);
 const canAuthor = (db, kind, classId, user) => {
   const cls = classOf(db, classId);
+  if (cls?.homeroomTeacherId && String(cls.homeroomTeacherId) !== String(user?.id)) return false;
   const policy = withDefaults(db.eduConfig).workflowPolicy[kind === 'branch' ? 'branch' : 'theme'];
   if (policy.reviewers.some((role) => rolesOf(user).includes(role))) return false;
   const roles = policy.creators;
@@ -123,7 +125,7 @@ const decorate = (db, doc, user, kind = doc.kind) => {
     ...(user
       ? {
           permissions: {
-            canEdit: author && isEditableStatus(doc.status),
+            canEdit: author && doc.status !== 'REVIEW' && root?.status !== 'REVIEW' && !isSuperseded(db, doc.yearPlanId) && hasFutureClassContent(kind, doc, (db.eduGoals || []).find((plan) => plan.id === doc.yearPlanId)),
             canSubmit: kind !== 'week' && author && isEditableStatus(doc.status),
             canApprove: reviewer,
             canReject: reviewer,
@@ -263,7 +265,7 @@ export const classPlanMockRepository = {
           classId: cls.id,
           kind,
           canCreate: canAuthor(fresh, kind, cls.id, user),
-          requires: kind === 'branch' ? 'ISSUED_YEAR_PLAN' : kind === 'theme' ? 'APPROVED_BRANCH' : 'THEME_DOSSIER',
+          requires: kind === 'week' ? 'THEME_DOSSIER' : 'ISSUED_TEAM_PLAN',
           reasonCode: null,
         })),
       ),
@@ -292,11 +294,34 @@ export const classPlanMockRepository = {
         const blocker = createBlocker(kind, doc, { branchPlans: db.eduClassBranch, classThemePlans: db.eduClassTheme });
         if (blocker) throw eduError('CLASS_DOC_NOT_READY', `Chưa thể bắt đầu: ${blocker.message}`);
       }
-      if (current && !isEditableStatus(current.status)) throw eduError('CLASS_DOC_SUBMITTED');
+      if (current?.status === 'REVIEW') throw eduError('CLASS_DOC_SUBMITTED');
       const { superseded, review, permissions, dossierVersion, ...body } = clone(doc);
       const plan = (db.eduGoals || []).find((g) => g.id === doc.yearPlanId);
       if (!plan || plan.planLevel === 'SCHOOL_YEAR' || plan.status !== EDU_STATUS.APPROVED) throw eduError('YEAR_PLAN_NOT_ISSUED');
       const normalized = kind === 'branch' && body.schemaVersion === 2 ? projectCalendar(body, plan) : body;
+      const affected = validateFutureClassEdit(kind, current, normalized, plan);
+      for (const themeId of affected) {
+        const members = [...db.eduClassTheme, ...db.eduClassWeek].filter(
+          (member) => member.classId === doc.classId && member.yearPlanId === doc.yearPlanId && member.themeId === themeId,
+        );
+        if (members.some((member) => member.status === 'REVIEW')) throw eduError('CLASS_DOC_LOCKED');
+        for (const member of members) {
+          if (member.status !== EDU_STATUS.APPROVED) continue;
+          member.history = [...(member.history || []), {
+            action: 'revise_future', actorId: user.id, by: user.fullName, at: new Date().toISOString(),
+            round: member.reviewRound || 0, previousApprovals: clone(member.approvals || []),
+            previousPrintSnapshot: member.printSnapshot || null,
+          }];
+          member.status = EDU_STATUS.DRAFT;
+          member.waitingRole = null;
+          member.approvals = [];
+          member.printSnapshot = null;
+          member.completionMode = null;
+          member.completionPolicy = null;
+          member.completedAt = null;
+          if (member !== current) member.version = (member.version || 0) + 1;
+        }
+      }
       const saved = {
         ...normalized,
         ...(kind === 'branch'
@@ -313,6 +338,10 @@ export const classPlanMockRepository = {
         sourceDocKey: current ? current.sourceDocKey : body.sourceDocKey,
         adjustments: current?.adjustments || {},
         status: current?.status || EDU_STATUS.DRAFT,
+        printSnapshot: current?.printSnapshot || null,
+        completionMode: current?.completionMode || null,
+        completionPolicy: current?.completionPolicy || null,
+        completedAt: current?.completedAt || null,
         approvals: current?.approvals || [],
         history: current?.history || [],
       };
@@ -337,20 +366,26 @@ export const classPlanMockRepository = {
         throw eduError(name, ...args);
       };
       if (kind === CLASS_DOC.WEEK) fail('WEEKLY_LESSON_VIA_THEME');
+      if (kind === CLASS_DOC.BRANCH) fail('INVALID_VALUE', 'chủ đề nhánh gửi cùng hồ sơ chủ đề');
       const doc = findDoc(db, kind, id);
       assertVersion(doc, options.version);
       const cls = classOf(db, doc.classId);
       const yearPlan = (db.eduGoals || []).find((g) => g.id === doc.yearPlanId);
       const leaders = leadersOf(db, cls);
       const isLeader = leaders.some((u) => u.id === user.id);
-      const skipLeader = !leaders.length || leaders.some((u) => teachesClass(cls, u));
       const policy = withDefaults(db.eduConfig).workflowPolicy?.[kind === CLASS_DOC.BRANCH ? 'branch' : 'theme'];
       const rawChain = policy?.reviewers || withDefaults(db.eduConfig).signers[kind === CLASS_DOC.BRANCH ? 'branch' : 'week'] || [];
-      const chain = rawChain.filter((r) => r !== ROLES.TEAM_LEADER || !skipLeader);
+      // BE:EDU-54 — chỉ bỏ bước giữa thiếu người hợp lệ; bước cuối luôn giữ chờ.
+      const chain = rawChain.filter((role, index) => index === rawChain.length - 1 || (db.users || []).some(
+        (candidate) => candidate.status !== 'INACTIVE' && rolesOf(candidate).includes(role) &&
+          !authorsOf(db, doc).has(candidate.id) &&
+          (role !== ROLES.TEAM_LEADER || candidate.ageGroupId === cls?.ageGroupId),
+      ));
       const waiting = doc.waitingRole || Object.keys(PENDING_OF).find((r) => PENDING_OF[r] === doc.status);
       // Người đang được chờ: đúng vai trò; tổ trưởng phải là tổ trưởng của khối
       const isWaitingFor =
-        waiting && rolesOf(user).includes(waiting) && (waiting !== ROLES.TEAM_LEADER || isLeader) && !authorsOf(db, doc).has(user.id);
+        waiting && user.status !== 'INACTIVE' && rolesOf(user).includes(waiting) &&
+        (waiting !== ROLES.TEAM_LEADER || isLeader) && !authorsOf(db, doc).has(user.id);
       const lists = { branchPlans: db.eduClassBranch, weekPlans: db.eduClassWeek, classThemePlans: db.eduClassTheme, yearPlan };
       // Hồ sơ chủ đề: giáo án các tuần đi cùng trạng thái của kế hoạch chủ đề
       const weekDocs = kind === CLASS_DOC.THEME ? dossierWeekDocs(doc, yearPlan, db.eduClassWeek).map((x) => x.doc) : [];

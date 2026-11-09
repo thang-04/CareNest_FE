@@ -11,9 +11,11 @@ const vp = { id: 'synthetic-vp', role: 'VICE_PRINCIPAL' };
 const seed = () =>
   writeDb((db) => {
     db.eduSeedVersion = EDU_SEED_VERSION;
+    db.users = [tl, { id: 'leader-4', role: 'TEAM_LEADER', ageGroupId: 'ag-4' }];
     db.eduGoals = ['ag-3', 'ag-4'].flatMap((age) =>
       ['DRAFT', 'REVIEW', 'APPROVED'].map((status) => ({
         id: age + status,
+        code: age + status,
         ageGroupId: age,
         status,
         planLevel: 'SCHOOL_YEAR',
@@ -31,7 +33,7 @@ const seed = () =>
 test('EDU-60: annual list/source/detail and diff do not expose drafts or other assigned ages', async () => {
   seed();
   assert.deepEqual(
-    (await repo.getAll(tl)).goals.map((g) => g.id),
+    (await repo.getAll(tl)).goals.filter((g) => g.planLevel === 'SCHOOL_YEAR').map((g) => g.id),
     ['ag-3APPROVED'],
   );
   assert.deepEqual(
@@ -42,21 +44,21 @@ test('EDU-60: annual list/source/detail and diff do not expose drafts or other a
   await assert.rejects(repo.getGoalSource('ag-4APPROVED', tl), { status: 403, errorCode: 7004 });
   await assert.rejects(repo.getGoalSource('missing', tl), { status: 404 });
   await assert.rejects(repo.getGoalChanges('ag-3APPROVED', 'ag-3DRAFT', tl), { status: 403, errorCode: 7004 });
-  assert.deepEqual((await repo.getAll({ ...tl, ageGroupId: null })).goals, []);
+  assert.deepEqual((await repo.getAll({ ...tl, ageGroupId: null })).goals.filter((g) => g.planLevel === 'SCHOOL_YEAR'), []);
 });
 test('EDU-60/Q1=A: management sees all ages, independent annual rights retain drafts', async () => {
   seed();
-  assert.equal((await repo.getAll(vp)).goals.length, 6);
+  assert.equal((await repo.getAll(vp)).goals.filter((g) => g.planLevel === 'SCHOOL_YEAR').length, 6);
   writeDb((db) => {
     db.eduConfig.workflowPolicy.schoolYear = { creators: ['TEAM_LEADER'], reviewers: ['PRINCIPAL'] };
     db.eduConfig.workflowPolicy.year = { creators: ['VICE_PRINCIPAL'], reviewers: ['PRINCIPAL'] };
   });
   assert.deepEqual(
-    (await repo.getAll(vp)).goals.map((g) => g.id),
+    (await repo.getAll(vp)).goals.filter((g) => g.planLevel === 'SCHOOL_YEAR').map((g) => g.id),
     ['ag-3APPROVED', 'ag-4APPROVED'],
   );
-  assert.equal((await repo.getAll(tl)).goals.length, 3);
-  assert.equal((await repo.getAll({ ...vp, role: 'TEACHER', ageGroupId: null })).goals.length, 0);
+  assert.equal((await repo.getAll(tl)).goals.filter((g) => g.planLevel === 'SCHOOL_YEAR').length, 3);
+  assert.equal((await repo.getAll({ ...vp, role: 'TEACHER', ageGroupId: null })).goals.filter((g) => g.planLevel === 'SCHOOL_YEAR').length, 0);
 });
 
 test('EDU-60: management role excluded from annual policy does not widen a team-leader reviewer scope', async () => {
@@ -67,7 +69,7 @@ test('EDU-60: management role excluded from annual policy does not widen a team-
   });
   const mixed = { ...tl, roles: ['VICE_PRINCIPAL'] };
   assert.deepEqual(
-    (await repo.getAll(mixed)).goals.map((g) => g.id),
+    (await repo.getAll(mixed)).goals.filter((g) => g.planLevel === 'SCHOOL_YEAR').map((g) => g.id),
     ['ag-3REVIEW', 'ag-3APPROVED', 'ag-4APPROVED'],
   );
 });

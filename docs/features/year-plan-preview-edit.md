@@ -1,5 +1,7 @@
 # Kế hoạch năm học — chỉnh sửa trên một trang
 
+> Nghiệp vụ mới 09/11/2026: đối chiếu [điều kiện gửi và nội dung tổ](education-plan-submit-validation.md) và BE EDU-65–71 khi nội dung dưới đây mô tả luồng cũ. Delta là yêu cầu user, chưa chứng minh đã triển khai; nội dung cũ được giữ làm lịch sử.
+
 - Sửa ngày tràn cột theo ảnh user08/11/2026: khoảng ngày chủ đề và chủ đề nhánh tự xuống dòng khi cột hẹp ở cả năm/tổ; giữ đủ dd/mm/yyyy và dữ liệu lưu. Browser kiểm text geometry1440/698/390; live Keycloak/tick-save-server/reload E2E2/2 đạt trên DB riêng. Xem evidence mới nhất trong docs/quality/VERIFICATION.md và incident BE BUG-261108-theme-date-column-overflow.
 
 Nguồn mới nhất: user chốt cập nhật giao diện trong chat ngày 07/11/2026 · CONFIRMED cho quyết định Web; nghiệp vụ/contract vẫn theo BE. Thay thứ tự phần ngày 02/11; giữ quyết định bỏ ba bước/tab.

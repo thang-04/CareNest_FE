@@ -1,6 +1,7 @@
 import TeamSourceReview from '@/components/education-plan/TeamSourceReview';
 import YearPlanSourceCard from '@/components/education-plan/YearPlanSourceCard';
 import { planLevel as levelOf, planRoute } from '@/models/education-plan/planLevel.mjs';
+import { submissionRequirementsIssue } from '@/models/education-plan/submitRequirements.mjs';
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Copy, FileDown, Pencil, Trash2 } from '@/components/ui/icons';
@@ -96,18 +97,16 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
   const isReview = g.status === 'REVIEW' || g.status === EDU_STATUS.PENDING_VP;
   const pending = isReview;
   const draftLike = editable(g.status) && !isReview;
-  const editor = g.editing;
-  const lockedByOther = !!editor && editor.userId !== user.id;
   // API thật: BE trả quyền của người xem (permissions); mock chưa có thì tự suy
   const perm = g.permissions;
-  const free = draftLike && !lockedByOther;
+  const free = draftLike;
   const isReviewerForPlan = isReview && (g.waitingRole ? g.waitingRole === user.role : isVp);
   const canEditNow = perm ? perm.canEdit : free && (isVp || isLeader);
   const canSend = perm ? perm.canSubmit : free && isLeader;
   const canIssue = perm ? (perm.canApprove ?? perm.canIssue) : isReviewerForPlan;
   const canReturn = perm ? perm.canReturn : isReviewerForPlan;
   const canDelete =
-    annual && (perm ? perm.canDelete : isVp && !lockedByOther && (g.status === EDU_STATUS.DRAFT || g.editingFrom === EDU_STATUS.DRAFT));
+    annual && (perm ? perm.canDelete : isVp && g.status === EDU_STATUS.DRAFT);
   // BE:EDU-25 — sửa bản đã ban hành = tạo phiên bản mới; bản đã ban hành giữ nguyên
   const canCreateVersion =
     annual &&
@@ -146,6 +145,13 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
 
   // Gửi / trả lại / ban hành theo mẫu chung (reviewUi); service quyết định trạng thái
   const act = async (action, note) => {
+    if (action === 'submit') {
+      const issue = submissionRequirementsIssue({ ...g, planLevel });
+      if (issue) {
+        toast(issue, 'warn');
+        return null;
+      }
+    }
     if (action === 'submit' && (g.reviewItems || []).some((item) => !item.resolved)) {
       toast('Còn mục cần rà soát theo nguồn mới. Mở chỉnh sửa để xử lý trước khi gửi.', 'warn');
       return null;
@@ -170,8 +176,10 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
     try {
       saved = await saveGoal(next, { action, silent: true });
     } catch (error) {
-      setActionError(error.message || 'Không thực hiện được. Tải lại trạng thái trước khi thử lại.');
-      return null;
+      const msg = error.message || 'Không thực hiện được. Tải lại trạng thái trước khi thử lại.';
+      setActionError(msg);
+      toast(msg, 'err');
+      throw error;
     }
     if (saved)
       toast(
@@ -246,13 +254,6 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
       {['DRAFT', 'REJECTED'].includes(g.status) && (
         <div className="mb-16">
           <RejectedNotice status={g.status} history={history} />
-        </div>
-      )}
-      {lockedByOther && (
-        <div className="mb-16">
-          <Notice tone="warn">
-            Đang được {editor.name} sửa từ {editor.at}.
-          </Notice>
         </div>
       )}
       {isReview && !canIssue && (

@@ -501,3 +501,46 @@ Nguồn/ý định duy nhất [BE spec013](../../../CareNest_BE/specs/013-publis
 - Header nguồn phần2 và bảng/header phần3 xám, cột nhánh giữ, select có labelXem mục tiêu/chi tiết nội dung tick; không đổi annual, dữ liệu nguồn hoặc tick logic. Mock annual đọc/filter/diff theo scope server-equivalent, APIadapter giữ UXTEAM riêng; Provider403clearretaineddata qua retry.
 - `node --import ./scripts/register-auth-test-loader.mjs --test tests/education-plan/*.test.mjs`→278/278,fail0/skip0; localESLint8file0errors/warnings; localVitebuildexit0,built1.74s. Browsernative `node tests/education-plan/team-plan-browser.mjs` realCSS/component1440/390,50×2rows,select/ticks/keyboardsave-reopenlocaldraft/annualedit đạt. Logs TEMP/carenest013-fe-final.log, browser.log, fe-build.log.
 - Review không còn blockersource013. Chỉ componentfixture/localdraft, không E2E save qua API/liveKeycloak; chưa restart/deployAPIuser, không đổi dependency/APP/Git. Từng chạy nhầmFEcommandcwdBE, không dependencyfile đổi; lượtcuối dùng binarylocal và cwdFE. FullrepoBEformat ngoài delta vẫn có lỗi cũ, không dùng checkscoped để claimfullgate.
+## Sidebar Hiệu trưởng và chế độ xem cấu hình kế hoạch — 09/11/2026
+
+- Theo yêu cầu user: Kế hoạch giáo dục đứng trước Đánh giá trẻ trong sidebar Hiệu trưởng; cấu hình mở chỉ xem, bấm Chỉnh sửa mới nhập/lưu. Dùng lại kiểu nút và thanh Lưu của kế hoạch năm học, giữ hook lưu tay/guard và quyền theo từng phần. Quyết định UI: `docs/features/education-config-edit-mode.md`.
+- Native `node --import ./scripts/register-auth-test-loader.mjs --test tests/menu/edu-review-menu.test.mjs tests/education-plan/config-view-mode.test.mjs tests/education-plan/config-responsibility.test.mjs tests/education-plan/workflow-config.test.mjs`: 15/15 đạt. Test menu kiểm thứ tự thật; test SSR kiểm chế độ xem cho HT/PHT không có ô nhập/nút lưu và hook lưu/guard tắt. Test lần đầu lệch khoảng trắng nút do icon stub; sửa assertion khoảng trắng rồi chạy lại đạt.
+- ESLint hai source, `npm run build` và `git diff --check` đạt. Build có cảnh báo dependency/deprecation/annotation hiện có; không sửa ngoài phạm vi. Không đổi backend/API hoặc các thay đổi có sẵn trong working tree.
+- Chưa kiểm thao tác trực quan/click/Lưu trên browser theo AGENTS.md; không chạy toàn bộ suite, commit/push hoặc deploy.
+
+## Giữ vị trí cuộn khi lưu kế hoạch — 09/11/2026
+
+- User báo kn1.10 → Lưu → nhảy lên kn1.1. Hook nhận kết quả lưu nay chụp vị trí document/table-wrap ngay trước thay dữ liệu và khôi phục một lần trong layout effect sau commit. Giữ ID server và cơ chế save/retry/lease; không thay backend hoặc dữ liệu.
+- `node --import ./scripts/register-auth-test-loader.mjs --test tests/education-plan/year-plan-save-scroll.test.mjs tests/education-plan/year-plan-autosave.test.mjs tests/education-plan/year-plan-recovery.test.mjs tests/education-plan/year-plan-layout.test.mjs`: 25/25 đạt. Test hook dùng DOM/vòng render giả lập: remap ID, cuộn trong lúc chờ lưu, cuộn ngang, không kéo lại ở render sau, lỗi lưu giữ vị trí.
+- ESLint hook và Vite build exit0 (1.73s); log `%TEMP%/carenest-save-scroll-build.log`. Prettier source/test và diff check đạt. Incident: `docs/knowledge/incidents/FE-BUG-261109-year-plan-save-scroll.md` + ISSUE_INDEX.
+- Chưa tái hiện/kiểm trực tiếp trình duyệt theo AGENTS.md; chưa kiểm scroll anchoring hoặc đo textarea ở trình duyệt cũ. Không chạy toàn bộ suite, commit/push/deploy.
+
+## STT mục tiêu dài tự xuống dòng — 09/11/2026
+
+- Theo user: ô nhãn STT đang dùng input một dòng nên che chữ. Đổi cả ô STT hiện có và ô thêm mới sang CellInput textarea tự tăng chiều cao đang dùng chung trong GoalTables; giữ giới hạn 100 ký tự và nút kéo điền nhãn. CSS cho nhãn tự ngắt dòng kể cả chuỗi liền ở chế độ sửa và xem, không nới độ rộng cột.
+- Native node:test `goal-labels.test.mjs` + `year-plan-layout.test.mjs`: 17/17 đạt; ESLint GoalTables và Vite build exit0 (1.77s), log `%TEMP%/carenest-label-wrap-build.log`; diff check đạt.
+- Chưa kiểm trực quan browser theo AGENTS.md; test hiện có không đo chiều cao/xuống dòng thực tế. Không đổi BE/API, không commit/push/deploy.
+
+
+## Đối chiếu task giáo dục — 10/11/2026
+
+BE chọn lọc 44/44 (PostgreSQL Testcontainers); FE giáo dục 320/320; ESLint source sửa và build FE exit0. Đã kiểm chuỗi PHT-only/TT→PHT, thiếu ứng viên giữa/cuối, policy reconcile, reorder save/preview, snapshot unknown và năm xóa mềm. BE mở rộng trước đó còn 5 failure/25 error trên 49 ca do fixture/lease/schema chưa đồng bộ; không coi full BE đạt. Chưa browser/E2E hoặc áp dụng migration V94 lên DB người dùng. Chi tiết ở workspace root: `huong_dan_nghiep_vu/ket_qua_trien_khai_task_ke_hoach_giao_duc_2026-11-10.md`; tasks T002/T006/T015/T019/T020 còn mở.
+
+
+## Tiếp tục EDU-64 và cấm xóa tổ — 10/11/2026
+
+- BE: 78/78, 0 failure/error, exit0; gồm 33 ca workflow integration (21 tổ hợp cấm xóa tổ), 5 ca future-edit và 7 ca schema. PostgreSQL Testcontainers, không DB runtime.
+- FE: 325/325 test giáo dục, exit0; ESLint bảy source sửa exit0; build FE exit0 (còn cảnh báo phụ thuộc hiện có).
+- Diff BE đạt; diff toàn FE còn dòng trắng cuối file `src/styles/modules/education-plan.css` trong thay đổi ngoài phạm vi lượt này, không tự sửa CSS đó. Diff các source của lượt tiếp tục được kiểm riêng.
+- Không commit/push, restart/deploy, thêm dependency hay áp dụng migration lên DB thực. Chưa kiểm browser/E2E. T002/T015/T020 vẫn mở như mô tả.
+
+Chi tiết lệnh và AC: báo cáo workspace `huong_dan_nghiep_vu/ket_qua_trien_khai_task_ke_hoach_giao_duc_2026-11-10.md`. Đã thực hiện T006/T019: chỉ sửa phần tương lai, reopen đúng dossier, giữ evidence publication trong history; FE/mock cùng quy tắc. Sửa fixture schema qua initializeOwner, không nới constraint.
+
+
+## Kiểm tra trước commit/push theo user — 10/11/2026
+
+- Native Node: toàn bộ tests/education-plan/*.test.mjs và tests/menu/edu-review-menu.test.mjs, 328 test thành công (exit0).
+- ESLint toàn bộ JS/JSX/MJS source thay đổi: exit0, 0 error, một warning availableCreators chưa dùng tại EduConfigPage.jsx. npm.cmd run build exit0; còn cảnh báo Vite/phụ thuộc hiện có.
+- EDU-72: bỏ nút lập tổ, redirect route new về danh sách; mock tự tạo Nháp và giao tổ trưởng đúng tuổi khi năm được ban hành, đối soát dữ liệu đã ban hành; giữ nội dung qua nguồn mới.
+- Chỉ sửa dòng trắng cuối CSS cho diff check; không thêm dependency. Chưa browser/E2E.
+- User yêu cầu commit/push BE+FE và xác nhận dùng G94-278 cho FE trên nhánh hiện tại. Không đưa thư mục skill/.specify cài local hoặc target-feature012-ui-diff.txt vào commit giáo dục.

@@ -56,9 +56,6 @@ export const toUiEduConfig = (config) => {
 };
 
 const actor = (a) => (a ? { userId: a.userId, name: a.name, title: a.title || null, at: localDate(a.at) } : null);
-// Người đang giữ khóa "Đang sửa" (BE:EDU-10), at = giờ bắt đầu sửa
-const editor = (a) => (a ? { userId: a.userId, name: a.name, at: localDateTime(a.at) } : null);
-
 /** YearPlanDetailResponse → kế hoạch năm dạng UI. */
 export const toUiGoal = (detail, refs) => {
   const themes = (detail.themes || []).map((t) => ({
@@ -133,14 +130,14 @@ export const toUiGoal = (detail, refs) => {
     ageGroupId: refs.ageGroupCode(detail.ageGroupId),
     title: detail.title,
     description: detail.description || '',
-    status: detail.status,
+    status: detail.status === 'EDITING' ? EDU_STATUS.DRAFT : detail.status,
     createdAt: localDate(detail.createdAt),
     sentAt: localDate(detail.sentAt ?? detail.sentBy?.at),
     createdBy: detail.owner?.name || '',
     owner: actor(detail.owner),
     sentBy: actor(detail.sentBy),
     issued: actor(detail.issued),
-    editing: editor(detail.editing),
+    editing: null,
     waitingRole: detail.review?.waitingRole ?? detail.waitingRole ?? null,
     waitingRoleLabel: detail.waitingRoleLabel || null,
     creationCapabilities: detail.creationCapabilities || null,

@@ -1,5 +1,4 @@
-import { BranchCalendarEditor } from '@/components/education-plan/BranchCalendarEditor';
-import { adaptCalendar, calendarDurationIssue, calendarPlan, updateWeek } from '@/models/education-plan/branchCalendar.mjs';
+import { adaptCalendar, calendarPlan, updateWeek } from '@/models/education-plan/branchCalendar.mjs';
 import { useEffect, useState } from 'react';
 import { Navigate, useParams } from 'react-router-dom';
 import { Check, FileDown, Lightbulb, Save, Upload, Wand2, X } from '@/components/ui/icons';
@@ -8,8 +7,8 @@ import { rewriteBranchName, suggestBranchNames } from '@/services/education-plan
 import { Card, EduStatusBadge, PageHead } from '@/components/education-plan/eduUi';
 import { VersionHistory } from '@/components/education-plan/VersionHistory';
 import { docLines } from '@/models/education-plan/planHistory.mjs';
-import { Cell, docReview, focusCell, useClassPlanContext } from '@/components/education-plan/planUi';
-import { RejectedNotice, ReviewActions, ReviewHistory } from '@/components/education-plan/reviewUi';
+import { Cell, focusCell, useClassPlanContext } from '@/components/education-plan/planUi';
+import { RejectedNotice } from '@/components/education-plan/reviewUi';
 import { LoadingState } from '@/components/ui/States';
 import { AiWorkingOverlay } from '@/components/ui/AiWorkingOverlay';
 import { Modal } from '@/components/ui/Modal';
@@ -30,9 +29,9 @@ import { ImportBranchFileModal } from '@/components/education-plan/ImportBranchF
 import { applyBranchFile, branchPayload } from '@/models/education-plan/importBranchFile.mjs';
 
 /**
- * "Dự kiến chủ đề nhánh và thời gian thực hiện" theo mẫu MN Thái Dương.
+ * "Chủ đề / Chủ đề nhánh" theo mẫu MN Thái Dương.
  * Tháng | Chủ đề (gộp dòng) | Chủ đề nhánh (giáo viên gõ) | Tuần (đánh số cả năm, dòng nghỉ) | Ghi chú.
- * Mục "Chủ đề nhánh" trên sidebar, lập một lần cho cả năm; gửi duyệt và duyệt ở cuối trang, đã duyệt thì in ra ký tay.
+ * Mục này chỉ lưu nhánh theo lớp; gửi/duyệt diễn ra cùng hồ sơ kế hoạch chủ đề.
  */
 export default function BranchPlanPage() {
   const { classId } = useParams();
@@ -51,11 +50,11 @@ export function BranchPlanLegacyRedirect() {
 }
 
 function BranchPlanInner({ classId }) {
-  const { user, branchPlans, saveClassDoc, actOnClassDoc, toast, eduConfig, staff } = useEducationPlan();
+  const { user, branchPlans, saveClassDoc, toast, eduConfig, staff } = useEducationPlan();
   const [preview, setPreview] = useState(null);
   const [importContext, setImportContext] = useState(null);
   const ctx = useClassPlanContext(classId);
-  const { cls, classes, yearPlan: sourcePlan, teachers, isClassTeacher } = ctx;
+  const { cls, classes, yearPlan: sourcePlan, teachers, isHomeroomTeacher } = ctx;
   const yearPlan = sourcePlan;
   const saved = yearPlan ? branchPlans.find((b) => b.classId === classId && b.yearPlanId === yearPlan.id) || null : null;
   const [draft, setDraft] = useState(null);
@@ -75,7 +74,7 @@ function BranchPlanInner({ classId }) {
   const version = useDocVersion('branch', saved, ctx, branchPlans);
   const autoOk =
     !ctx.superseded &&
-    (saved?.permissions ? saved.permissions.canEdit : saved ? isClassTeacher && isEditableStatus(saved.status) : ctx.canCreate('branch'));
+    (saved?.permissions ? saved.permissions.canEdit : saved ? isHomeroomTeacher && isEditableStatus(saved.status) : ctx.canCreate('branch'));
   const payload = payloadOf(draft, pending);
   const hasPending = Object.keys(pending).length > 0;
   // Lưu tay (nút Lưu, Ctrl+S); rời trang khi chưa lưu thì hỏi
@@ -273,35 +272,8 @@ function BranchPlanInner({ classId }) {
       confirmLabel: 'Dùng AI viết lại',
       run: () => rewrite(r),
     });
-  // Chưa đủ điều kiện gửi: chỉ nhắc ở góc màn hình khi bấm, không mở hộp gửi
-  const checkBeforeOpen = (action) => {
-    if (action !== 'submit') return true;
-    const durationIssue = calendarDurationIssue(draft, yearPlan);
-    if (durationIssue) {
-      toast(durationIssue, 'warn');
-      return false;
-    }
-    if (pendingWeeks.length) {
-      toast(`Còn ${pendingWeeks.length} tên do AI điền chưa giữ hoặc bỏ. Bấm ✓ / ✗ hoặc "Giữ tất cả" trước khi gửi.`, 'warn');
-      return false;
-    }
-    if (empty > 0) {
-      toast(`Còn ${empty} tuần chưa đặt tên chủ đề nhánh. Đặt tên đủ các tuần rồi mới gửi duyệt.`, 'warn');
-      return false;
-    }
-    return true;
-  };
-  // savedDoc: bản vừa lưu ở "Lưu và gửi" (bản nháp đầu tiên chỉ có id sau khi lưu)
-  const act = (action, note, savedDoc) =>
-    actOnClassDoc('branch', savedDoc?.id || draft.id, { action, note }, user, {
-      version: savedDoc?.version ?? draft?.version,
-      dossierVersion: savedDoc?.dossierVersion ?? draft?.dossierVersion,
-    });
-  const review = docReview('branch', saved, ctx, user, eduConfig);
-  const editReason = ctx.superseded ? 'Đang xem phiên bản kế hoạch năm cũ' : !canEdit ? 'Tài liệu đang chờ duyệt hoặc đã duyệt' : null;
+  const editReason = ctx.superseded ? 'Đang xem phiên bản kế hoạch năm cũ' : !canEdit ? 'Chỉ giáo viên chủ nhiệm được chỉnh sửa' : null;
   const saveReason = editReason || (saver.saving ? 'Đang lưu' : !saver.unsaved && !saver.error ? 'Không có thay đổi cần lưu' : null);
-  // Chưa lưu lần nào vẫn bấm Gửi được: hộp xác nhận lưu trước rồi gửi (Tiền 05/11)
-  const sendReason = editReason || (saved && !review.can.send ? 'Bạn chưa thể gửi tài liệu này' : null);
   const importFile = (result, context) => {
     if (
       !canEdit ||
@@ -333,8 +305,8 @@ function BranchPlanInner({ classId }) {
     <div className="page ga-page ga-class-editor">
       <div className="ga-sticky-head">
         <PageHead
-          crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Chủ đề nhánh' }, { label: cls.name }]}
-          title={`Chủ đề nhánh ${cls.name}`}
+          crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Chủ đề / Chủ đề nhánh' }, { label: cls.name }]}
+          title={`Chủ đề / Chủ đề nhánh ${cls.name}`}
         />
         {/* Thanh thao tác như màn Kế hoạch năm học: nút cỡ nhỏ viền xanh, nhóm lưu/gửi/xuất bên phải (Tiền 04/11) */}
         <div className="ga-year-toolbar" role="group" aria-label="Thao tác chủ đề nhánh">
@@ -389,31 +361,6 @@ function BranchPlanInner({ classId }) {
             >
               <Save size={16} aria-hidden /> Lưu
             </button>
-            <ReviewActions
-              name="chủ đề nhánh"
-              sendTo={review.sendTo}
-              can={{ ...review.can, send: review.can.send || (!saved && !editReason) }}
-              // Nút gửi chỉ hiện cho giáo viên của lớp khi còn sửa được (nháp / bị trả lại); Phó HT, Tổ trưởng chỉ thấy Duyệt / Trả lại
-              showSend={!editReason}
-              sendDisabledReason={sendReason}
-              sendBlocked={
-                sendReason ||
-                // BE:EDU-26 — còn mục đỏ thì chưa gửi (BE cũng kiểm lại)
-                (version.unresolved.length
-                  ? `Còn ${version.unresolved.length} mục đổi theo kế hoạch năm mới cần sửa`
-                  : hasPending
-                    ? 'Còn tên AI chưa giữ hoặc bỏ'
-                    : empty
-                      ? `Còn ${empty} tuần chưa đặt tên chủ đề nhánh`
-                      : null)
-              }
-              unsaved={saver.unsaved || saver.saving || !saved}
-              onSave={saver.save}
-              beforeOpen={checkBeforeOpen}
-              notes={{ submit: 'Chủ đề nhánh sẽ bị khóa cho tới khi được duyệt hoặc bị trả lại.' }}
-              onAct={act}
-              variant="btn--outline-primary"
-            />
             {/* Xuất / in ở mọi bước; đã duyệt thì Phó HT in ra ký, giáo viên in để dùng hằng ngày */}
             <button type="button" className="btn btn--sm btn--outline-primary" onClick={() => setPreview(branchFile(printArgs))}>
               <FileDown size={16} aria-hidden /> Xuất file
@@ -446,22 +393,8 @@ function BranchPlanInner({ classId }) {
           <RejectedNotice status={status} history={saved?.history} />
         </div>
       )}
-      {draft.schemaVersion === 2 && (
-        <Card title="Lịch chủ đề và chủ đề nhánh của lớp">
-          <BranchCalendarEditor
-            plan={yearPlan}
-            doc={draft}
-            editable={editable && !saver.saving}
-            toast={toast}
-            onChange={(next) => {
-              setDraft(next);
-              setDirty(true);
-            }}
-          />
-        </Card>
-      )}
       <Card
-        title="Chủ đề nhánh"
+        title="Chủ đề / Chủ đề nhánh"
         bodyClass={null}
         actions={
           editable && (
@@ -511,22 +444,22 @@ function BranchPlanInner({ classId }) {
               </colgroup>
               <thead>
                 <tr>
-                  <th className="cell--fixed">Tháng</th>
-                  <th className="cell--fixed">Chủ đề</th>
-                  <th>Chủ đề nhánh</th>
-                  <th className="cell--fixed">Tuần</th>
-                  <th>Ghi chú</th>
+                  <th className={editable ? 'cell--fixed' : ''}>Tháng</th>
+                  <th className={editable ? 'cell--fixed' : ''}>Chủ đề</th>
+                  <th className={editable ? 'ga-th-editable' : ''}>Chủ đề nhánh</th>
+                  <th className={editable ? 'cell--fixed' : ''}>Tuần</th>
+                  <th className={editable ? 'ga-th-editable' : ''}>Ghi chú</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((r, i) => {
                   const monthCell = (i === 0 || !sameMonth(rows[i - 1], r)) && (
-                    <td className="cell--fixed" rowSpan={spanFrom(i, sameMonth)}>
+                    <td className={editable ? 'cell--fixed' : ''} rowSpan={spanFrom(i, sameMonth)}>
                       <div className="ga-goal-table__pad nowrap">Tháng {monthOf(r.start)}</div>
                     </td>
                   );
                   const themeCell = (i === 0 || !sameTheme(rows[i - 1], r)) && (
-                    <td className="cell--fixed" rowSpan={spanFrom(i, sameTheme)}>
+                    <td className={editable ? 'cell--fixed' : ''} rowSpan={spanFrom(i, sameTheme)}>
                       <div className="ga-goal-table__pad stack">
                         <span className="fw-600">{r.theme.name}</span>
                         <span className="text-xs">
@@ -555,7 +488,7 @@ function BranchPlanInner({ classId }) {
                       <tr key={`b-${r.start}`}>
                         {monthCell}
                         {themeCell}
-                        <td colSpan={3} className="cell--fixed">
+                        <td colSpan={3} className={editable ? 'cell--fixed' : ''}>
                           <div className="ga-goal-table__pad">
                             Nghỉ: {r.label || 'Đợt nghỉ'} ({ddmm(r.start)} → {ddmm(r.end)})
                           </div>
@@ -566,7 +499,7 @@ function BranchPlanInner({ classId }) {
                     <tr key={r.start}>
                       {monthCell}
                       {themeCell}
-                      <td className={editable && pending[r.start] ? 'ga-cell--ai' : undefined}>
+                      <td className={editable ? (pending[r.start] ? 'ga-cell--ai' : 'ga-cell-editable') : undefined}>
                         <div className="ga-goal-line__text">
                           <Cell
                             editable={editable}
@@ -612,13 +545,13 @@ function BranchPlanInner({ classId }) {
                           )}
                         </div>
                       </td>
-                      <td className="cell--fixed">
+                      <td className={editable ? 'cell--fixed' : ''}>
                         <div className="ga-goal-table__pad">
                           Tuần {r.no}: {ddmm(r.start)} → {ddmm(r.end)}
                           {r.offDays?.some(Boolean) && <div className="text-xs text-warning">Nghỉ {offDaysText(r.offDays)}</div>}
                         </div>
                       </td>
-                      <td>
+                      <td className={editable ? 'ga-cell-editable' : ''}>
                         <Cell
                           editable={editable}
                           value={draft.notes?.[r.start]}
@@ -666,7 +599,6 @@ function BranchPlanInner({ classId }) {
         onClose={() => setConfirm(null)}
       />
       {/* Ký, gửi, duyệt ngay cuối trang như trang mục tiêu năm; không mở hộp thoại */}
-      <ReviewHistory items={saved?.history} />
       {/* AI xong ⇒ tên AI điền mở trong modal để giữ/bỏ; đóng modal thì ✓/✗ cạnh từng ô vẫn còn (user chốt) */}
       <Modal
         open={showPending && editable && pendingWeeks.length > 0}

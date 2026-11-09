@@ -129,7 +129,7 @@ test('explicit annual source rebase preserves content ticks by lineage and warns
   source.themes[0] = { ...source.themes[0], id: 'a2', lineageId: 'a' };
   source.domains[0].rows[0].contents[0] = { ...source.domains[0].rows[0].contents[0], id: 'c2', lineageId: 'c' };
   const copied = inheritAnnual(source, previous);
-  assert.deepEqual(copied.domains[0].rows[0].contents[0].themes, ['a2']);
+  assert.deepEqual(copied.domains[0].rows[0].contents[0].themes, ['a2', 'gone']);
   assert.equal(copied.remapWarnings.length, 1);
   assert.deepEqual(previous.domains[0].rows[0].contents[0].themes, ['a', 'gone']);
 });
@@ -161,7 +161,7 @@ test('valid two-week resize keeps UUID and per-week notes', () => {
   assert.throws(() => resizeBranch(one, annual, one.branches[0].key, '2026-09-08', '2026-09-18'));
 });
 
-test('intentional conflict reapply keeps fresh source tree/review and only valid old ticks plus own text', async () => {
+test('intentional conflict reapply keeps fresh source tree and old ticks for review', async () => {
   const { reapplyTeamDraft } = await import('../../src/models/education-plan/planLevel.mjs');
   const fresh = { title: 'Server', description: '', curriculumSourcePlanId: 'new', revision: 9,
     reviewItems: [{ reviewItemId: 'review', resolved: false }], themes: [{ id: 'keep' }],
@@ -174,6 +174,6 @@ test('intentional conflict reapply keeps fresh source tree/review and only valid
   assert.equal(reapplied.curriculumSourcePlanId, 'new'); assert.equal(reapplied.revision, 9);
   assert.deepEqual(reapplied.reviewItems, fresh.reviewItems);
   assert.equal(reapplied.domains[0].rows[0].text, 'New source');
-  assert.deepEqual(reapplied.domains[0].rows[0].contents.map((c) => c.themes), [['keep'], []]);
+  assert.deepEqual(reapplied.domains[0].rows[0].contents.map((c) => c.themes), [['keep', 'gone'], []]);
   assert.equal(fresh.title, 'Server'); assert.deepEqual(fresh.domains[0].rows[0].contents[0].themes, []);
 });

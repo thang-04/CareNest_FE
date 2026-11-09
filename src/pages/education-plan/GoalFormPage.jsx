@@ -18,7 +18,6 @@ import { ROLES } from '@/models/User';
 import {
   AGE_GROUPS,
   DOMAINS,
-  EDU_ERROR_CODE,
   EDU_STATUS,
   SCHOOL_SCOPE,
   isStandardDomain,
@@ -36,6 +35,7 @@ import {
   toRows,
 } from '@/models/education-plan/goalTable';
 import { GoalTable, ThemeEventTable } from '@/components/education-plan/GoalTables';
+import { submissionRequirementsIssue } from '@/models/education-plan/submitRequirements.mjs';
 import { mergeImportedGoals } from '@/models/education-plan/importGoals.mjs';
 import { mergeFilePlan } from '@/models/education-plan/importGoalFile.mjs';
 import { ImportGoalFileModal } from '@/components/education-plan/ImportGoalFileModal';
@@ -61,9 +61,7 @@ const suggestTitle = (year, ageGroupId) => {
 };
 
 const uid = () => Math.random().toString(36).slice(2, 9);
-const editHandoffs = new Map();
 // BE:EDU-10 — phiên sửa hết hạn sau 90 giây không có tín hiệu
-const LEASE_TTL_MS = 90_000;
 
 const emptyDomain = (name) => ({ id: uid(), name, rows: [] });
 // Luôn đủ 5 lĩnh vực theo thứ tự I–V; lĩnh vực khác (dữ liệu cũ) xếp cuối.
@@ -115,19 +113,10 @@ export default function GoalFormPage({ planLevel = 'TEAM' }) {
   const pageLabel = annual ? 'Kế hoạch năm học' : 'Kế hoạch giáo dục tổ';
   const { id } = useParams();
   const location = useLocation();
-  const handoffKey = location.state?.yearPlanHandoff;
-  const transfer = useRef(editHandoffs.get(handoffKey)).current;
-  const transferred = !!transfer && transfer.id === id;
-  useEffect(() => {
-    if (id && handoffKey) editHandoffs.delete(handoffKey);
-  }, [id, handoffKey]);
   const {
     goals: allGoals,
     schoolYear,
     saveGoal,
-    startEditingGoal,
-    finishEditingGoal,
-    heartbeatGoal,
     refreshGoal,
     refreshPlans,
     resolveGoalReview,
@@ -179,12 +168,14 @@ export default function GoalFormPage({ planLevel = 'TEAM' }) {
   const planRoot = useRef(null);
   const errorSummary = useRef(null);
   const focusValidation = useRef(false);
-  const planIssues = Object.entries(errors).map(([key, message]) => ({
-    key,
-    message: typeof message === 'string' ? message : 'Có tên viết tắt chủ đề bị trùng. Kiểm tra các ô báo đỏ.',
-    section: key === 'source' ? 'source' : ['title', 'ageGroupId'].includes(key) ? 'info' : key === 'domains' ? 'goals' : 'themes',
-    control: key === 'title' ? 'title' : key === 'ageGroupId' ? 'ag' : key === 'source' ? 'annual-source' : null,
-  }));
+  const planIssues = Object.entries(errors)
+    .filter(([key]) => key !== 'domains' && key !== 'themes')
+    .map(([key, message]) => ({
+      key,
+      message: typeof message === 'string' ? message : 'Có tên viết tắt chủ đề bị trùng. Kiểm tra các ô báo đỏ.',
+      section: key === 'source' ? 'source' : ['title', 'ageGroupId'].includes(key) ? 'info' : key === 'domains' ? 'goals' : 'themes',
+      control: key === 'title' ? 'title' : key === 'ageGroupId' ? 'ag' : key === 'source' ? 'annual-source' : null,
+    }));
   useEffect(() => {
     if (!focusValidation.current) return;
     focusValidation.current = false;
@@ -218,9 +209,6 @@ export default function GoalFormPage({ planLevel = 'TEAM' }) {
     end: yearOption?.endDate || `${Number(form.schoolYear.slice(0, 4)) + 1}-05-31`,
   };
   // Phó HT và tổ trưởng nhóm tuổi cùng soạn, mỗi lúc một người giữ khóa "Đang sửa" (BE:EDU-03, EDU-10);
-  // đang chờ duyệt thì chỉ Phó HT tự sửa chỗ nhỏ. API thật dùng quyền BE trả; mock tự suy
-  const editor = existing?.editing;
-  const lockedByOther = !!editor && editor.userId !== user.id;
   const isReviewStatus = existing?.status === 'REVIEW' || existing?.status === EDU_STATUS.PENDING_VP;
   const pendingEdit = false;
   const permitted = !existing
@@ -229,15 +217,13 @@ export default function GoalFormPage({ planLevel = 'TEAM' }) {
       ? existing.permissions.canEdit
       : !isReviewStatus &&
         editableStatus(existing?.status) &&
-        !lockedByOther &&
         (isVp || (isLeader && form.ageGroupId === user.ageGroupId));
 
-  const [leaseReady, setLeaseReady] = useState(!existing || transferred);
-  const [leaseError, setLeaseError] = useState('');
+  const [contentReady, setContentReady] = useState(true);
+  const [contentError, setContentError] = useState('');
   const [finishing, setFinishing] = useState(false);
-  const leaseGeneration = useRef(0);
-  const editRef = useRef({ sessionId: transferred ? transfer.sessionId : crypto.randomUUID(), revision: existing?.revision ?? 0 });
-  const canEdit = permitted && !leaseError;
+  const editRef = useRef({ revision: existing?.revision ?? 0 });
+  const canEdit = permitted;
 
   // Dòng chủ đề / đợt nghỉ còn trống (vừa Enter thêm) không tính vào kiểm tra, cột tích và bản lưu
   const themes = form.themes.filter((t) => !isBlankTheme(t));
@@ -248,17 +234,14 @@ export default function GoalFormPage({ planLevel = 'TEAM' }) {
     [x.start, x.end].some((d) => d && (d < yearRange.start || d > yearRange.end)),
   );
   const outOfYearMsg = `Có chủ đề hoặc đợt nghỉ nằm ngoài năm học (${fmtDate(yearRange.start)} – ${fmtDate(yearRange.end)}).`;
-  const durationPolicy =
-    form.durationPolicySnapshot?.mode === 'BOUNDED'
-      ? form.durationPolicySnapshot
-      : !existing && levelsAvailable
-        ? eduConfig?.durationPolicy
-        : null;
+  const durationPolicy = form.durationPolicySnapshot || (existing
+    ? { mode: 'MISSING_OR_UNKNOWN' }
+    : { mode: 'BOUNDED', ...(eduConfig?.durationPolicy || { theme: { minWeeks: 2, maxWeeks: 4 }, branch: { minWeeks: 1, maxWeeks: 2 } }) });
   const durationTheme = themes
     .map((t) => durationRangeIssue(t, form.breaks, durationPolicy?.theme, `Chủ đề "${t.name || t.abbr}"`))
     .find(Boolean);
   const scheduleIssue =
-    themeScheduleIssue(themes) || durationTheme || branchScheduleIssue(form.branchTemplates || [], form.breaks, durationPolicy?.branch);
+    themeScheduleIssue(themes, form.breaks) || durationTheme || branchScheduleIssue(form.branchTemplates || [], form.breaks, durationPolicy?.branch);
   // EDU-52: chỉ khi bấm Ban hành mới bắt buộc chọn ngày cho mọi chủ đề
   const [requireDates, setRequireDates] = useState(false);
   const validate = (s, action) => {
@@ -270,6 +253,21 @@ export default function GoalFormPage({ planLevel = 'TEAM' }) {
       if (form.ageGroupId && dupGoal) e.ageGroupId = `Nhóm tuổi này đã có ${pageLabel.toLowerCase()}. Mở kế hoạch đã có để chỉnh sửa.`;
     }
     if (s === 1) {
+      const requiredIssue = submissionRequirementsIssue({
+        ...form,
+        planLevel,
+        durationPolicySnapshot: durationPolicy,
+      });
+      if (requiredIssue) {
+        const isThemeIssue =
+          requiredIssue.includes('chủ đề') ||
+          requiredIssue.includes('Chủ đề') ||
+          requiredIssue.includes('thời lượng') ||
+          requiredIssue.includes('Nhánh') ||
+          requiredIssue.includes('nhánh');
+        setErrors(isThemeIssue ? { themes: requiredIssue } : { domains: requiredIssue });
+        return false;
+      }
       if (!annual && (form.reviewItems || []).some((item) => !item.resolved)) {
         setErrors({ source: 'Còn mục cần rà soát theo nguồn mới. Sửa dấu tích và xác nhận từng mục trước khi gửi.' });
         return false;
@@ -300,16 +298,6 @@ export default function GoalFormPage({ planLevel = 'TEAM' }) {
     return Object.keys(e).length === 0;
   };
 
-  // Lỗi bảng chủ đề tính ngay khi gõ để báo tại chỗ; khi gửi / ban hành vẫn kiểm lại đầy đủ
-  // Viết tắt trùng không vào đây: chỉ báo đỏ tại ô (EDU-42)
-  const themeIssue = themes.some((t) => !t.name.trim() || !t.abbr.trim())
-    ? 'Có chủ đề chưa có tên hoặc tên viết tắt.'
-    : themes.some((t) => t.start && t.end && t.end < t.start)
-      ? 'Có chủ đề có ngày kết thúc trước ngày bắt đầu.'
-      : outOfYear
-        ? outOfYearMsg
-        : scheduleIssue;
-
   const today = () => new Date().toISOString().slice(0, 10);
   const me = { userId: user.id, name: user.name, role: user.role, title: user.title, at: today() };
   const log = (action, note) => [...(form.history || []), { at: today(), by: user.name, action, ...(note ? { note } : {}) }];
@@ -329,7 +317,12 @@ export default function GoalFormPage({ planLevel = 'TEAM' }) {
       sourceMode: source.sourceMode,
       curriculumSourcePlanId: source.curriculumSourcePlanId,
       branchTemplates: source.branchTemplates || [],
-      durationPolicySnapshot: source.durationPolicySnapshot,
+      durationPolicySnapshot:
+        source.durationPolicySnapshot?.mode && source.durationPolicySnapshot.mode !== 'MISSING_OR_UNKNOWN'
+          ? source.durationPolicySnapshot
+          : eduConfig?.durationPolicy
+            ? { mode: 'BOUNDED', ...eduConfig.durationPolicy }
+            : { mode: 'BOUNDED', theme: { minWeeks: 2, maxWeeks: 4 }, branch: { minWeeks: 1, maxWeeks: 2 } },
       remapWarnings: source.remapWarnings,
       sourceChanges: source.sourceChanges,
       previousSourcePlanId: source.previousSourcePlanId,
@@ -374,27 +367,13 @@ export default function GoalFormPage({ planLevel = 'TEAM' }) {
     };
   };
 
-  const pageAlive = useRef(true);
-  useEffect(() => {
-    pageAlive.current = true;
-    return () => {
-      pageAlive.current = false;
-    };
-  }, []);
   const finished = useRef(false);
-  const heldId = useRef(transferred ? id : null);
-  const handingOff = useRef(false);
-  useEffect(() => {
-    if (id) handingOff.current = false;
-  }, [id]);
-  const leaseTimer = useRef(null);
-  const pendingHide = useRef(null);
-  const retryLease = useRef(() => {});
-  const lockId = existing?.id || (goals.some((g) => g.id === form.id) ? form.id : null);
+  const savedId = useRef(id || null);
+  const currentPlanId = existing?.id || (goals.some((g) => g.id === form.id) ? form.id : null);
   const saveReady =
     canEdit &&
     (!annual || levelsAvailable) &&
-    leaseReady &&
+    contentReady &&
     !!form.ageGroupId &&
     !!form.schoolYear &&
     !dupGoal &&
@@ -403,12 +382,12 @@ export default function GoalFormPage({ planLevel = 'TEAM' }) {
     doc: form,
     setDoc: setForm,
     enabled: saveReady,
-    mayBackup: !existing || (leaseReady && !leaseError),
+    mayBackup: !existing || (contentReady && !contentError),
     userId: user.id,
     planKey: id || `new-${planLevel}-${schoolYear}`,
     onConflict: (error) => {
-      setLeaseError(error.message || 'Đã mất quyền sửa');
-      setLeaseReady(false);
+      setContentError(error.message || 'Đã mất quyền sửa');
+      setContentReady(false);
     },
     save: async (snapshot, requestId) => {
       // BE:EDU-42 viết tắt chủ đề trùng: không lưu tới khi sửa
@@ -420,173 +399,35 @@ export default function GoalFormPage({ planLevel = 'TEAM' }) {
       const item = build(pendingEdit ? EDU_STATUS.PENDING_VP : EDU_STATUS.DRAFT, {}, snapshot);
       const saved = await saveGoal(item, { silent: true, edit: { ...editRef.current, requestId } });
       editRef.current.revision = saved.revision ?? editRef.current.revision;
-      if (saved.id && !pageAlive.current && !handingOff.current) {
-        await finishEditingGoal(saved.id, { edit: { ...editRef.current } });
-        heldId.current = null;
-      } else if (saved.id) heldId.current = saved.id;
+      if (saved.id) savedId.current = saved.id;
       return formOf(saved);
     },
   });
-  const leaseLatest = useRef({});
-  leaseLatest.current = { startEditingGoal, finishEditingGoal, heartbeatGoal, saver, form, permitted };
-  useEffect(() => {
-    clearTimeout(leaseTimer.current);
-    if (pendingHide.current) window.removeEventListener('pagehide', pendingHide.current);
-    pendingHide.current = null;
-    if (!lockId) {
-      retryLease.current = async () => {
-        try {
-          const fresh = await refreshPlans();
-          if (fresh) {
-            setLeaseError('');
-            setLeaseReady(true);
-          }
-        } catch (error) {
-          setLeaseError(error.message);
-        }
-      };
-      return undefined;
-    }
-    if (!permitted) return undefined;
-    let alive = true;
-    const generation = ++leaseGeneration.current;
-    const currentEdit = editRef.current;
-    let busy = false;
-    let contentConflict = false;
-    // Lần cuối BE xác nhận phiên này còn giữ quyền (nhận quyền hoặc tín hiệu thành công)
-    let lastBeat = 0;
-    const acquire = async (initial = false) => {
-      if (busy || !navigator.onLine || !alive || contentConflict) return;
-      busy = true;
-      try {
-        const current = await leaseLatest.current.startEditingGoal(lockId, editRef.current, true);
-        if (!alive) {
-          if (generation !== leaseGeneration.current || handingOff.current) return;
-          await leaseLatest.current.finishEditingGoal(lockId, { edit: { ...editRef.current } });
-          return;
-        }
-        heldId.current = lockId;
-        lastBeat = Date.now();
-        if ((current.revision ?? 0) < editRef.current.revision) {
-          setLeaseReady(true);
-          return;
-        }
-        if (!initial && current.revision !== editRef.current.revision) {
-          contentConflict = true;
-          await leaseLatest.current.finishEditingGoal(lockId, { edit: { ...editRef.current } });
-          heldId.current = null;
-          setLeaseError('Kế hoạch đã được thay đổi ở nơi khác. Tải nội dung đang soạn để đối chiếu, không tự ghi đè.');
-          setLeaseReady(false);
-          return;
-        }
-        editRef.current.revision = current.revision ?? 0;
-        if (initial && !leaseLatest.current.saver.unsaved) {
-          const fresh = formOf(current);
-          setForm(fresh);
-          leaseLatest.current.saver.markClean(fresh);
-        }
-        setLeaseReady(true);
-        setLeaseError('');
-      } catch (error) {
-        if (alive && error.status) {
-          setLeaseError(error.message);
-          setLeaseReady(false);
-        }
-      } finally {
-        busy = false;
-      }
-    };
-    retryLease.current = async () => {
-      if (busy) return;
-      busy = true;
-      setPreservedDraft((old) => old || structuredClone(leaseLatest.current.form));
-      try {
-        await leaseLatest.current.saver.settle();
-        const fresh = await refreshGoal(lockId);
-        editRef.current = { sessionId: crypto.randomUUID(), revision: fresh.revision ?? 0 };
-        const current = await leaseLatest.current.startEditingGoal(lockId, editRef.current, true);
-        const value = formOf(current);
-        editRef.current.revision = current.revision ?? 0;
+  const reloadContent = async () => {
+    setPreservedDraft((old) => old || structuredClone(form));
+    try {
+      await saver.settle();
+      const fresh = currentPlanId ? await refreshGoal(currentPlanId) : null;
+      if (fresh) {
+        editRef.current.revision = fresh.revision ?? 0;
+        const value = formOf(fresh);
         setForm(value);
-        leaseLatest.current.saver.markClean(value);
-        heldId.current = lockId;
-        contentConflict = false;
-        lastBeat = Date.now();
-        setLeaseReady(true);
-        setLeaseError('');
-      } catch (error) {
-        setLeaseError(error.message);
-        setLeaseReady(false);
-      } finally {
-        busy = false;
-      }
-    };
-    if (heldId.current !== lockId) acquire(true);
-    const pulse = async () => {
-      if (busy || !alive || !navigator.onLine || finished.current || contentConflict) return;
-      busy = true;
-      try {
-        await leaseLatest.current.heartbeatGoal(lockId, editRef.current);
-        lastBeat = Date.now();
-      } catch (error) {
-        if (error.errorCode === EDU_ERROR_CODE.EDIT_SESSION_LOST && Date.now() - lastBeat < LEASE_TTL_MS - 5000) {
-          // Quyền còn hạn mà bị từ chối ⇒ cùng tài khoản đã mở lại ở tab/máy khác và nhận quyền (EDU-10):
-          // tab này dừng, không giành lại; bản giữ trên máy vẫn còn để đối chiếu
-          contentConflict = true;
-          heldId.current = null;
-          if (alive) {
-            setLeaseError('Đã mất quyền sửa: kế hoạch đang được mở ở tab hoặc máy khác.');
-            setLeaseReady(false);
-          }
-        } else if (error.status === 409) {
-          contentConflict = true;
-          heldId.current = null;
-          setLeaseError('Nguồn hoặc nội dung đã thay đổi. Tải trạng thái mới và nhận phiên sửa mới để đối chiếu.');
-          setLeaseReady(false);
-        } else if (error.status && alive) {
-          setLeaseError(error.message);
-          setLeaseReady(false);
-        }
-      } finally {
-        busy = false;
-      }
-    };
-    const interval = setInterval(pulse, 20000);
-    window.addEventListener('online', pulse);
-    const hide = () => {
-      if (heldId.current && !finished.current && !handingOff.current)
-        leaseLatest.current.finishEditingGoal(heldId.current, { keepalive: true, edit: editRef.current });
-    };
-    window.addEventListener('pagehide', hide);
-    return () => {
-      alive = false;
-      clearInterval(interval);
-      window.removeEventListener('online', pulse);
-      // Rời màn soạn rồi tải/đóng trang ngay: giữ pagehide tới khi nhả xong và gửi keepalive, không thì phiên
-      // sửa bị giữ tới hết TTL (BE:EDU-10)
-      pendingHide.current = hide;
-      leaseTimer.current = setTimeout(async () => {
-        await leaseLatest.current.saver.settle();
-        if (heldId.current && !finished.current && !handingOff.current)
-          await leaseLatest.current.finishEditingGoal(heldId.current, { keepalive: true, edit: currentEdit });
-        heldId.current = null;
-        window.removeEventListener('pagehide', hide);
-        if (pendingHide.current === hide) pendingHide.current = null;
-      }, 0);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lockId]);
+        saver.markClean(value);
+      } else await refreshPlans();
+      setContentReady(true);
+      setContentError('');
+    } catch (error) {
+      setContentError(error.message);
+    }
+  };
   useEffect(() => {
-    if (!id && lockId && !saver.unsaved) {
-      handingOff.current = true;
-      const handoff = crypto.randomUUID();
-      editHandoffs.set(handoff, { id: lockId, sessionId: editRef.current.sessionId });
-      const to = `${basePath}/${lockId}/edit${location.search}`;
-      const state = { yearPlanHandoff: handoff, backTo: location.state?.backTo };
-      navigate(to, { replace: true, state });
+    if (!id && currentPlanId && !saver.unsaved) {
+      navigate(`${basePath}/${currentPlanId}/edit${location.search}`, {
+        replace: true, state: { backTo: location.state?.backTo },
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, lockId, saver.unsaved]);
+  }, [id, currentPlanId, saver.unsaved]);
   const guard = useLeaveGuard({ when: saver.unsaved && !finished.current, onSave: saver.save });
   const exitTo = (to) => () => {
     if (location.state?.backTo === to) return navigate(-1);
@@ -605,7 +446,7 @@ export default function GoalFormPage({ planLevel = 'TEAM' }) {
 
   // EDU-10: mốc giữ khi bản trên hệ thống đã đổi revision thì chỉ xem/đối chiếu, không ghi đè
   const historyBlock = (entry) => {
-    if (!leaseReady || finishing) return 'Chưa có quyền sửa kế hoạch này nên chỉ xem được.';
+    if (!contentReady || finishing) return 'Chưa có quyền sửa kế hoạch này nên chỉ xem được.';
     if (entry && entry.baseRevision !== (form.revision ?? 0))
       return 'Kế hoạch trên hệ thống đã thay đổi sau thời điểm này nên không dùng lại được. Tải nội dung để đối chiếu.';
     return null;
@@ -627,6 +468,7 @@ export default function GoalFormPage({ planLevel = 'TEAM' }) {
   const finish = async (action, note) => {
     if (finishing) return null;
     setFinishing(true);
+    setReviewError('');
     const item =
       action === 'submit'
         ? build('REVIEW', { sentAt: today(), sentBy: me, history: log('Gửi duyệt', note) })
@@ -634,48 +476,51 @@ export default function GoalFormPage({ planLevel = 'TEAM' }) {
             issued: me,
             history: log('Ban hành', note),
           });
-    if (!(await saver.save())) {
-      setFinishing(false);
-      return null;
-    }
-    finished.current = true;
-    let saved;
     try {
-      saved = await saveGoal(
+      if (!(await saver.save())) {
+        const msg = saver.error ? 'Không thể lưu bản nháp. Vui lòng kiểm tra lại thông tin.' : 'Không thể lưu bản nháp trước khi gửi duyệt.';
+        setReviewError(msg);
+        toast(msg, 'err');
+        throw new Error(msg);
+      }
+      finished.current = true;
+      const targetId = savedId.current || form.id;
+      const saved = await saveGoal(
         {
           ...build(item.status, {}, saver.current()),
+          durationPolicySnapshot: durationPolicy,
           history: item.history,
           issued: item.issued,
           sentBy: item.sentBy,
-          id: heldId.current || form.id,
+          id: targetId,
         },
-        { action: 'submit', silent: true, edit: { ...editRef.current, requestId: crypto.randomUUID() } },
+        { action, silent: true, edit: { ...editRef.current, requestId: crypto.randomUUID() } },
       );
+      if (!saved) {
+        throw new Error('Máy chủ không phản hồi kết quả sau khi gửi.');
+      }
+      saver.clearRecovery();
+      toast(action === 'submit' ? `Đã gửi ${pageLabel.toLowerCase()} để duyệt` : `Đã ban hành ${pageLabel.toLowerCase()}`);
+      guard.leaveNow(exitTo(`${basePath}/${saved.id}`));
+      return saved;
     } catch (error) {
       setReviewError(error.message);
+      toast(error.message, 'err');
       if (error.status === 409 || error.status === 403) {
-        setLeaseError(error.message);
-        setLeaseReady(false);
+        setContentError(error.message);
+        setContentReady(false);
       }
       finished.current = false;
+      throw error;
+    } finally {
       setFinishing(false);
-      return null;
     }
-    if (!saved) {
-      finished.current = false;
-      setFinishing(false);
-      return null;
-    }
-    saver.clearRecovery();
-    toast(`Đã gửi ${pageLabel.toLowerCase()} để duyệt`);
-    guard.leaveNow(exitTo(`${basePath}/${saved.id}`));
-    return saved;
   };
 
   /* ---------- Nhập dữ liệu ---------- */
 
   const importState = useRef(null);
-  importState.current = { form, yearRange: fileYearRange, allowed: annual && canEdit && leaseReady && !finishing && !leaseError };
+  importState.current = { form, yearRange: fileYearRange, allowed: annual && canEdit && contentReady && !finishing && !contentError };
   // EDU-46: áp dụng nguyên tử theo chế độ, dùng khoảng năm học cấu hình của hệ thống.
   const importFile = (preview, mode) => {
     const current = importState.current;
@@ -764,7 +609,7 @@ export default function GoalFormPage({ planLevel = 'TEAM' }) {
     return true;
   };
 
-  if (!permitted && !leaseError)
+  if (!permitted && !contentError)
     return (
       <div className="page ga-page">
         <PageHead crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: pageLabel, to: basePath }]} title={pageLabel} />
@@ -773,21 +618,19 @@ export default function GoalFormPage({ planLevel = 'TEAM' }) {
             ? 'Kế hoạch đã ban hành nên không sửa được.'
             : isReviewStatus
               ? `Kế hoạch đang ở trạng thái duyệt nên không sửa được.`
-              : lockedByOther
-                ? `Kế hoạch đang được ${editor.name} sửa từ ${editor.at}.`
-                : 'Bạn chỉ lập, sửa được kế hoạch giáo dục tổ của nhóm tuổi mình phụ trách.'}
+              : 'Bạn chỉ lập, sửa được kế hoạch giáo dục tổ của nhóm tuổi mình phụ trách.'}
         </Notice>
       </div>
     );
 
   return (
     <div ref={planRoot} className={`page ga-page ga-class-editor ga-year-page${annual ? ' ga-annual-plan' : ' ga-team-plan'}`}>
-      {leaseError && (
+      {contentError && (
         <Notice tone="warn">
           <div className="row row--wrap gap-2">
-            <span>{leaseError}</span>
-            <button type="button" className="btn" onClick={() => retryLease.current()}>
-              Tải trạng thái mới và nhận quyền sửa
+            <span>{contentError}</span>
+            <button type="button" className="btn" onClick={reloadContent}>
+              Tải nội dung mới để đối chiếu
             </button>
             <button type="button" className="btn" onClick={() => downloadRecovery()}>
               Tải nội dung để đối chiếu
@@ -805,7 +648,7 @@ export default function GoalFormPage({ planLevel = 'TEAM' }) {
               <button type="button" className="btn" onClick={() => downloadRecovery(preservedDraft)}>
                 Tải nội dung trước khi tải lại
               </button>
-              {!annual && leaseReady && !leaseError && (
+              {!annual && contentReady && !contentError && (
                 <button
                   type="button"
                   className="btn"
@@ -824,7 +667,7 @@ export default function GoalFormPage({ planLevel = 'TEAM' }) {
       {annual && !levelsAvailable && (
         <Notice tone="warn">Bạn đang soạn bản xem trước. Máy chủ chưa hỗ trợ lưu và gửi duyệt kế hoạch năm học.</Notice>
       )}
-      <fieldset disabled={!canEdit || !leaseReady || finishing || resolving} className="ga-edit-fieldset">
+      <fieldset disabled={!canEdit || !contentReady || finishing || resolving} className="ga-edit-fieldset">
         <div className="ga-sticky-head">
           <PageHead
             crumbs={[
@@ -857,7 +700,7 @@ export default function GoalFormPage({ planLevel = 'TEAM' }) {
             )}
             <div className="ga-year-toolbar__group ga-year-toolbar__group--end">
               <p className="muted text-sm ga-year-save-status" aria-live="polite">
-                {saveReady ? saver.label : leaseError || 'Chọn năm học và nhóm tuổi; đang chờ quyền sửa'}
+                {saveReady ? saver.label : contentError || 'Chọn năm học và nhóm tuổi; đang chờ quyền sửa'}
               </p>
               {annual && canEdit && (
                 <VersionHistory
@@ -891,7 +734,7 @@ export default function GoalFormPage({ planLevel = 'TEAM' }) {
                 approveLabel={pendingEdit ? 'Lưu và ban hành' : 'Ban hành'}
                 can={{
                   send:
-                    !leaseError &&
+                    !contentError &&
                     !(form.reviewItems || []).some((item) => !item.resolved) &&
                     (!annual || levelsAvailable) &&
                     (existing?.permissions ? existing.permissions.canSubmit : canEdit),
@@ -899,6 +742,7 @@ export default function GoalFormPage({ planLevel = 'TEAM' }) {
                 }}
                 variant="btn--outline-primary"
                 unsaved={saver.unsaved}
+                onSave={saver.save}
                 beforeOpen={checkBeforeFinish}
                 notes={{
                   submit: 'Kế hoạch sẽ bị khóa cho tới khi được ban hành hoặc trả lại.',
@@ -916,6 +760,8 @@ export default function GoalFormPage({ planLevel = 'TEAM' }) {
             </div>
           </div>
         </div>
+
+        {reviewError && <Notice tone="err">{reviewError}</Notice>}
 
         {!existing && dupGoal && (
           <Notice tone="warn">
@@ -956,36 +802,36 @@ export default function GoalFormPage({ planLevel = 'TEAM' }) {
             >
               <thead>
                 <tr>
-                  <th>Thông tin</th>
-                  <th>Nội dung</th>
+                  <th className="cell--fixed">Thông tin</th>
+                  <th className={teamEditing ? 'cell--fixed' : 'ga-th-editable'}>Nội dung</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
-                  <th scope="row">
+                  <th scope="row" className="cell--fixed">
                     <label htmlFor="year">
                       Năm học <span className="req">*</span>
                     </label>
                   </th>
-                  <td>
+                  <td className="cell--fixed">
                     <input id="year" className="ga-cell-input" value={form.schoolYear} readOnly />
                   </td>
                 </tr>
                 <tr>
-                  <th scope="row">
+                  <th scope="row" className="cell--fixed">
                     <label htmlFor="scope">Phạm vi áp dụng</label>
                   </th>
-                  <td>
+                  <td className="cell--fixed">
                     <input id="scope" className="ga-cell-input" value={SCHOOL_SCOPE} readOnly />
                   </td>
                 </tr>
                 <tr>
-                  <th scope="row">
+                  <th scope="row" className="cell--fixed">
                     <label htmlFor="ag">
                       Nhóm tuổi áp dụng <span className="req">*</span>
                     </label>
                   </th>
-                  <td>
+                  <td className={isLeader || !!existing ? 'cell--fixed' : 'ga-cell-editable'}>
                     <select
                       id="ag"
                       className="ga-cell-input"
@@ -1018,20 +864,20 @@ export default function GoalFormPage({ planLevel = 'TEAM' }) {
                   </td>
                 </tr>
                 <tr>
-                  <th scope="row">
+                  <th scope="row" className="cell--fixed">
                     <label htmlFor="author">Người soạn</label>
                   </th>
-                  <td>
+                  <td className="cell--fixed">
                     <input id="author" className="ga-cell-input" value={user.name} readOnly />
                   </td>
                 </tr>
                 <tr>
-                  <th scope="row">
+                  <th scope="row" className="cell--fixed">
                     <label htmlFor="title">
                       Tên kế hoạch <span className="req">*</span>
                     </label>
                   </th>
-                  <td>
+                  <td className={teamEditing ? 'cell--fixed' : 'ga-cell-editable'}>
                     <div className="ga-year-title-field">
                       <input
                         id="title"
@@ -1057,10 +903,10 @@ export default function GoalFormPage({ planLevel = 'TEAM' }) {
                   </td>
                 </tr>
                 <tr>
-                  <th scope="row">
+                  <th scope="row" className="cell--fixed">
                     <label htmlFor="desc">Mô tả</label>
                   </th>
-                  <td>
+                  <td className={teamEditing ? 'cell--fixed' : 'ga-cell-editable'}>
                     <textarea
                       id="desc"
                       readOnly={teamEditing}
@@ -1116,8 +962,8 @@ export default function GoalFormPage({ planLevel = 'TEAM' }) {
                   onClick={async () => {
                     const fresh = await refreshPlans();
                     if (fresh) {
-                      setLeaseError('');
-                      setLeaseReady(true);
+                      setContentError('');
+                      setContentReady(true);
                     }
                   }}
                 >
@@ -1146,7 +992,7 @@ export default function GoalFormPage({ planLevel = 'TEAM' }) {
                   if (!(await saver.save())) return;
                   const current = saver.current();
                   const saved = await resolveGoalReview(
-                    heldId.current || form.id,
+                    savedId.current || form.id,
                     reviewItem.reviewItemId,
                     current.curriculumSourcePlanId,
                     { ...editRef.current, requestId: crypto.randomUUID() },
@@ -1158,8 +1004,8 @@ export default function GoalFormPage({ planLevel = 'TEAM' }) {
                 } catch (error) {
                   setReviewError(error.message);
                   if (error.status === 409 || error.status === 403) {
-                    setLeaseError(error.message);
-                    setLeaseReady(false);
+                    setContentError(error.message);
+                    setContentReady(false);
                   }
                 } finally {
                   setResolving(false);
@@ -1187,7 +1033,13 @@ export default function GoalFormPage({ planLevel = 'TEAM' }) {
               </ul>
             </Notice>
           )}
-          {errors.domains && <Notice tone="err">{errors.domains}</Notice>}
+          {errors.domains &&
+            !errors.domains.includes('nội dung') &&
+            !errors.domains.includes('mục tiêu') &&
+            !errors.domains.includes('chủ đề') &&
+            !errors.domains.includes('nhóm') && (
+              <Notice tone="err">{errors.domains}</Notice>
+            )}
           {!annual && themes.length === 0 && <p className="text-danger text-sm text-right">{NO_THEME_NOTE}</p>}
           <GoalTable
             reviewItems={form.reviewItems}
@@ -1198,6 +1050,7 @@ export default function GoalFormPage({ planLevel = 'TEAM' }) {
             fixedCells={!annual}
             editLabels={annual}
             canAssignContents={!annual}
+            canEditContents={!annual}
             numbers={numbers}
             ageGroupId={form.ageGroupId}
             canSuggest={importState.current.allowed}
@@ -1217,7 +1070,14 @@ export default function GoalFormPage({ planLevel = 'TEAM' }) {
             )
           }
         >
-          {errors.themes ? <Notice tone="err">{errors.themes}</Notice> : themeIssue && <Notice tone="warn">{themeIssue}</Notice>}
+          {errors.themes &&
+            !errors.themes.includes('tuần học') &&
+            !errors.themes.includes('Thứ 2') &&
+            !errors.themes.includes('trùng thời gian') &&
+            !errors.themes.includes('trống ngày') &&
+            !errors.themes.includes('kết thúc trước') && (
+              <Notice tone="err">{errors.themes}</Notice>
+            )}
           <ThemeEventTable
             reviewItems={form.reviewItems}
             newItems={form.newItems}

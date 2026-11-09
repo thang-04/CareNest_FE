@@ -9,9 +9,11 @@ const { eduConfigMockRepository: configRepo } = await import('../../src/services
 const { inheritAnnual } = await import('../../src/models/education-plan/planLevel.mjs');
 const vp = { id: 'synthetic-vp', name: 'PHT kiểm thử', fullName: 'PHT kiểm thử', role: 'VICE_PRINCIPAL' };
 const ht = { id: 'synthetic-ht', name: 'HT kiểm thử', fullName: 'HT kiểm thử', role: 'PRINCIPAL' };
+let generatedTeamId;
 const tl = { id: 'synthetic-tl', name: 'TL kiểm thử', fullName: 'TL kiểm thử', role: 'TEAM_LEADER', ageGroupId: 'ag-3' };
 test('annual PHT→HT; TEAM inheritance keeps source and permits only per-content ticks', async () => {
   await repo.getAll(vp);
+  writeDb((db) => { db.users = [vp, ht, tl]; });
   const root = {
     id: 'test-annual',
     code: 'TEST',
@@ -72,7 +74,15 @@ test('annual PHT→HT; TEAM inheritance keeps source and permits only per-conten
   await assert.rejects(repo.saveGoal({ ...annual, status: 'APPROVED' }, { actor: vp, action: 'approve' }));
   annual = await repo.saveGoal({ ...annual, status: 'APPROVED' }, { actor: ht, action: 'approve' });
   assert.equal(annual.status, 'APPROVED');
-  let team = await repo.saveGoal({ ...root, ...inheritAnnual(annual), id: 'test-team', code: 'TEAM', status: 'DRAFT' }, { actor: tl });
+  let team = (await repo.getAll(tl)).goals.find((plan) => plan.planLevel === 'TEAM' && plan.curriculumSourcePlanId === annual.id);
+  assert.ok(team, 'ban hành năm tự tạo bản tổ');
+  generatedTeamId = team.id;
+  assert.equal(team.status, 'DRAFT');
+  assert.equal(team.owner.userId, tl.id);
+  assert.equal(readDb().eduGoals.filter((plan) => plan.planLevel === 'TEAM' && plan.curriculumSourcePlanId === annual.id).length, 1);
+  const opened = await repo.startEditingGoal(team.id, tl, { sessionId: 'first', revision: team.revision, requestId: 'open' });
+  assert.equal(opened.status, 'DRAFT');
+  assert.equal(opened.editSessionId, undefined);
   assert.equal(team.domains[0].rows[0].displayLabel, 'Mục tiêu 01');
   const oldTeamClient = structuredClone(team);
   delete oldTeamClient.domains[0].rows[0].displayLabel;
@@ -81,9 +91,14 @@ test('annual PHT→HT; TEAM inheritance keeps source and permits only per-conten
   const badLabel = structuredClone(team);
   badLabel.domains[0].rows[0].displayLabel = 'Đã đổi 99';
   await assert.rejects(repo.saveGoal(badLabel, { actor: tl }));
-  team.domains[0].rows[0].contents[0].themes = ['theme-test'];
+  team.domains[0].rows[0].contents[0].themes = [team.themes[0].id];
   team = await repo.saveGoal(team, { actor: tl });
-  assert.deepEqual(team.domains[0].rows[0].contents[0].themes, ['theme-test']);
+  assert.deepEqual(team.domains[0].rows[0].contents[0].themes, [team.themes[0].id]);
+  team.domains[0].rows[0].contents[0].text = 'Tổ sửa';
+  team.domains[0].rows[0].contents.push({ id: 'team-extra', text: 'Tổ thêm', themes: [] });
+  team = await repo.saveGoal(team, { actor: tl });
+  assert.equal(team.domains[0].rows[0].contents[0].text, 'Tổ sửa');
+  assert.equal(readDb().eduGoals.find((g) => g.id === 'test-annual').domains[0].rows[0].contents[0].text, 'Nội dung kiểm thử');
   const bad = structuredClone(team);
   bad.domains[0].rows[0].text = 'Sửa trái phép';
   await assert.rejects(repo.saveGoal(bad, { actor: tl }));
@@ -95,10 +110,10 @@ test('duration only HT can save; stale revisions rejected and existing snapshots
   const cfg = await configRepo.get(ht);
   const next = { ...cfg, durationPolicy: { ...cfg.durationPolicy, branch: { minWeeks: 2, maxWeeks: 3 } } };
   await assert.rejects(configRepo.save(next, vp));
-  const old = structuredClone(readDb().eduGoals.find((g) => g.id === 'test-team').durationPolicySnapshot);
+  const old = structuredClone(readDb().eduGoals.find((g) => g.id === generatedTeamId).durationPolicySnapshot);
   const saved = await configRepo.save(next, ht);
   assert.equal(saved.durationPolicy.branch.minWeeks, 2);
-  assert.deepEqual(readDb().eduGoals.find((g) => g.id === 'test-team').durationPolicySnapshot, old);
+  assert.deepEqual(readDb().eduGoals.find((g) => g.id === generatedTeamId).durationPolicySnapshot, old);
   await assert.rejects(configRepo.save({ ...saved, durationPolicy: { ...cfg.durationPolicy, branch: { minWeeks: 3, maxWeeks: 4 } } }, ht));
 });
 test('PHT cannot delete TEAM even if configured as its creator; other deletion rules stay intact', async () => {

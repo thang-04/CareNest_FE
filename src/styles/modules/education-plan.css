@@ -609,13 +609,15 @@
 .table.ga-goal-table tbody tr:nth-child(even):hover td {
   background: var(--color-surface);
 }
-/* Dòng tiêu đề lĩnh vực trong bảng mục tiêu: dải xanh đậm, chữ trắng nhỏ */
+/* Dòng tiêu đề lĩnh vực trong bảng mục tiêu: dải xanh đậm, chữ trắng nhỏ (cố định giữ nguyên màu xanh thương hiệu) */
 .table.ga-goal-table tbody tr td.ga-goal-table__domain,
 .table.ga-goal-table tbody tr:hover td.ga-goal-table__domain,
 .table.ga-goal-table tbody tr:nth-child(even) td.ga-goal-table__domain,
-.table.ga-goal-table tbody tr:nth-child(even):hover td.ga-goal-table__domain {
-  background: var(--color-primary);
-  color: var(--text-inverse);
+.table.ga-goal-table tbody tr:nth-child(even):hover td.ga-goal-table__domain,
+.ga-goal-detail .table.ga-goal-table tbody tr td.ga-goal-table__domain,
+.ga-goal-detail .table.ga-goal-table tbody tr:hover td.ga-goal-table__domain {
+  background: var(--color-primary) !important;
+  color: var(--text-inverse) !important;
 }
 .ga-goal-table__domain .ga-goal-table__pad {
   padding-top: var(--space-1);
@@ -647,12 +649,15 @@
   .ga-goal-table--themes .ga-goal-table__theme {
     width: var(--space-10);
   }
-  /* Nhiều cột chủ đề + cột Xóa: thu cột nhóm / mục tiêu để cột nội dung không bị bóp còn 1 từ / dòng (rà UI 31/10) */
+  /* Kế hoạch tổ: cột nhóm kết quả mong đợi bé lại tầm 50px, mục tiêu và nội dung rộng rãi cân đối */
   .ga-goal-table--themes .ga-goal-table__group {
-    width: 13%;
+    width: 13.5%;
   }
   .ga-goal-table--themes .ga-goal-table__goaltext {
-    width: 18%;
+    width: 26%;
+  }
+  .ga-goal-table--themes .ga-goal-table__content {
+    width: 27.5%;
   }
   .ga-goal-table--themes .ga-goal-table__del {
     width: calc(var(--space-12) + var(--space-2));
@@ -664,12 +669,23 @@
 .ga-goal-table__theme {
   width: var(--space-12);
 }
-/* Bảng mục tiêu chia tầng: cột nhóm kết quả mong đợi và mục tiêu có độ rộng cố định, cột nội dung lấy phần còn lại */
+/* Bảng mục tiêu chia tầng (Kế hoạch năm học): cột nhóm kết quả mong đợi bé lại tầm 50px (~190px / 20%) */
+.ga-goal-table:not(.ga-goal-table--themes) .ga-goal-table__group {
+  width: 20%;
+  min-width: 190px;
+}
+.ga-goal-table:not(.ga-goal-table--themes) .ga-goal-table__goaltext {
+  width: 38%;
+  min-width: 350px;
+}
+.ga-goal-table:not(.ga-goal-table--themes) .ga-goal-table__content {
+  width: 34%;
+}
 .ga-goal-table__group {
   width: 190px;
 }
 .ga-goal-table__goaltext {
-  width: 240px;
+  width: 340px;
 }
 /* Dòng lĩnh vực con (1., 2.…) trong bảng mục tiêu: dải vàng chói như bút highlight của Word, trải hết hàng,
    cao vừa dòng chữ, chữ đen đậm. Hệ thống chưa có token vàng này nên khai báo biến riêng cho module (Tiền chọn màu 14/10). */
@@ -707,14 +723,53 @@
 .ga-goal-table .search-select__panel {
   min-width: 420px;
 }
-/* Ô cố định (class chung .cell--fixed): bảng mục tiêu tự đặt nền trắng ở selector mạnh hơn nên nhắc lại nền xám (Tiền duyệt 14/10) */
+/* Phân định trạng thái sửa được (trắng) vs cố định / chỉ xem (xám) theo chuẩn UI/UX Pro Max */
 .table.ga-goal-table th.cell--fixed,
+.table.ga-goal-table thead th.cell--fixed,
 .table.ga-goal-table tbody tr:hover th.cell--fixed,
 .table.ga-goal-table tbody tr td.cell--fixed,
 .table.ga-goal-table tbody tr:hover td.cell--fixed,
 .table.ga-goal-table tbody tr:nth-child(even) td.cell--fixed,
-.table.ga-goal-table tbody tr:nth-child(even):hover td.cell--fixed {
+.table.ga-goal-table tbody tr:nth-child(even):hover td.cell--fixed,
+.table.ga-theme-edit-fixed thead th,
+.table.ga-theme-edit-fixed tbody tr:nth-child(n) td,
+.table.ga-theme-edit-fixed tbody tr:nth-child(n):hover td,
+.table.ga-table-readonly thead th,
+.table.ga-table-readonly tbody tr:nth-child(n) td,
+.table.ga-table-readonly tbody tr:nth-child(n):hover td {
   background: var(--color-secondary);
+  color: var(--color-text);
+}
+.table.ga-goal-table tbody tr td.cell--fixed {
+  cursor: not-allowed;
+}
+.table.ga-table-readonly thead th,
+.table.ga-table-readonly tbody tr:nth-child(n) td,
+.table.ga-table-readonly tbody tr:nth-child(n):hover td {
+  cursor: default;
+}
+
+/* Tiêu đề cột và ô sửa được: nền trắng */
+.table.ga-goal-table th.ga-th-editable,
+.table.ga-goal-table thead th.ga-th-editable,
+.table.ga-goal-table:not(.ga-curriculum-fixed):not(.ga-theme-edit-fixed):not(.ga-table-readonly) thead th:not(.cell--fixed) {
+  background: var(--color-surface, #fff);
+  color: var(--color-text);
+}
+.table.ga-goal-table tbody tr td.ga-cell-editable,
+.table.ga-goal-table tbody tr:hover td.ga-cell-editable,
+.table.ga-goal-table tbody tr td.ga-goal-content-cell,
+.table.ga-goal-table tbody tr:hover td.ga-goal-content-cell,
+.table.ga-goal-table tbody tr td.ga-theme-tick-cell,
+.table.ga-goal-table tbody tr:hover td.ga-theme-tick-cell {
+  background: var(--color-surface, #fff);
+}
+.table.ga-goal-table tbody tr td.ga-cell-editable,
+.table.ga-goal-table tbody tr td.ga-goal-content-cell {
+  cursor: text;
+}
+.table.ga-goal-table tbody tr td.ga-theme-tick-cell {
+  cursor: pointer;
 }
 /* Lịch chọn ngày ở bảng chủ đề / đợt nghỉ (Tiền duyệt 14/10): đỏ = ngày đã thuộc chủ đề / đợt nghỉ khác,
    xanh lá = ngày đang chọn và khoảng của chính dòng đang sửa, trắng = ngày còn trống */
@@ -1273,7 +1328,13 @@
 .ga-curriculum-options .search-select__option[aria-selected='true'] {
   background: var(--primary-50);
 }
-.ga-curriculum-suggest [role='combobox']:focus-visible,
+.ga-curriculum-suggest,
+.ga-curriculum-suggest [role='combobox'],
+.ga-curriculum-suggest [role='combobox']:focus,
+.ga-curriculum-suggest [role='combobox']:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
 .ga-suggest-context .select:focus-visible {
   box-shadow: var(--focus-ring);
 }
@@ -2039,12 +2100,60 @@ h2.ga-cur-domain__head {
   overflow-wrap: anywhere;
 }
 
-/* Không tô nền khi rê chuột vào dòng ở mọi bảng của module (Tiền 04/11); ô có màu riêng (dòng lĩnh vực, cột cố định,
-   nhãn thông tin chung) giữ màu vì luật của chúng cụ thể hơn */
-.table.ga-plan-table tbody tr:nth-child(even) td,
+/* Xóa hoàn toàn style highlight/đổi màu khi di chuột vào dòng (hover) ở toàn bộ các bảng của module kế hoạch giáo dục */
+.table.ga-plan-table tbody tr td,
+.table.ga-plan-table tbody tr th,
+.ga-page .table tbody tr td,
+.ga-page .table tbody tr th,
+.ga-year-page .table tbody tr td,
+.ga-year-page .table tbody tr th {
+  transition: none !important;
+}
+
 .table.ga-plan-table tbody tr:hover td,
-.table.ga-plan-table tbody tr:hover th {
-  background: var(--color-surface);
+.table.ga-plan-table tbody tr:hover th,
+.table.ga-plan-table tbody tr:nth-child(even):hover td,
+.table.ga-plan-table tbody tr:nth-child(even):hover th,
+.table.ga-goal-table tbody tr:hover td,
+.table.ga-goal-table tbody tr:hover th,
+.table.ga-list-table tbody tr:hover td,
+.table.ga-list-table tbody tr:hover th,
+.ga-page .table tbody tr:hover td,
+.ga-page .table tbody tr:hover th,
+.ga-year-page .table tbody tr:hover td,
+.ga-year-page .table tbody tr:hover th,
+.ga-team-plan .table tbody tr:hover td,
+.ga-team-plan .table tbody tr:hover th,
+.ga-config-page .table tbody tr:hover td,
+.ga-config-page .table tbody tr:hover th,
+.ga-goal-detail .table tbody tr:hover td,
+.ga-goal-detail .table tbody tr:hover th,
+.ga-class-editor .table tbody tr:hover td,
+.ga-class-editor .table tbody tr:hover th {
+  background: var(--color-surface, #fff);
+  box-shadow: none;
+}
+
+/* Các ô cố định (.cell--fixed) khi hover vẫn giữ nguyên màu xám, không đổi màu */
+.table.ga-plan-table tbody tr:hover td.cell--fixed,
+.table.ga-plan-table tbody tr:hover th.cell--fixed,
+.table.ga-goal-table tbody tr:hover td.cell--fixed,
+.table.ga-goal-table tbody tr:hover th.cell--fixed,
+.ga-page .table tbody tr:hover td.cell--fixed,
+.ga-page .table tbody tr:hover th.cell--fixed,
+.ga-year-page .table tbody tr:hover td.cell--fixed,
+.ga-year-page .table tbody tr:hover th.cell--fixed,
+.ga-team-plan .table tbody tr:hover td.cell--fixed,
+.ga-team-plan .table tbody tr:hover th.cell--fixed {
+  background: var(--color-secondary) !important;
+}
+
+/* Tiêu đề lĩnh vực khi hover vẫn giữ nguyên màu xanh thương hiệu */
+.table.ga-plan-table tbody tr:hover td.ga-goal-table__domain,
+.table.ga-goal-table tbody tr:hover td.ga-goal-table__domain,
+.ga-page .table tbody tr:hover td.ga-goal-table__domain {
+  background: var(--color-primary) !important;
+  color: var(--text-inverse) !important;
 }
 /* Đầu trang cố định các màn soạn: chừa ít nhất 10px dưới hàng nút trước nội dung (kể cả khi cuộn, nền đầu trang che nội dung) */
 .ga-sticky-head {
@@ -2125,31 +2234,51 @@ h2.ga-cur-domain__head {
   background: var(--color-secondary);
 }
 
-.table.ga-goal-table.ga-curriculum-fixed tbody tr td:not(.ga-theme-tick-cell):not(.ga-goal-table__domain):not(.ga-goal-table__subband),
-.table.ga-goal-table.ga-curriculum-fixed
-  tbody
-  tr:hover
-  td:not(.ga-theme-tick-cell):not(.ga-goal-table__domain):not(.ga-goal-table__subband) {
+.table.ga-goal-table.ga-curriculum-fixed tbody tr td.cell--fixed,
+.table.ga-goal-table.ga-curriculum-fixed tbody tr:hover td.cell--fixed {
   background: var(--color-secondary);
   cursor: not-allowed;
 }
 .ga-curriculum-fixed .ga-goal-table__subband {
   cursor: not-allowed;
 }
+.table.ga-goal-table.ga-curriculum-fixed tbody tr td.ga-goal-content-cell,
+.table.ga-goal-table.ga-curriculum-fixed tbody tr:hover td.ga-goal-content-cell,
+.table.ga-goal-table.ga-curriculum-fixed tbody tr td.ga-theme-tick-cell,
+.table.ga-goal-table.ga-curriculum-fixed tbody tr:hover td.ga-theme-tick-cell {
+  background: var(--color-surface, #fff);
+}
+.table.ga-goal-table.ga-curriculum-fixed tbody tr td.ga-goal-content-cell {
+  cursor: text;
+}
 .table.ga-goal-table.ga-curriculum-fixed tbody tr td.ga-theme-tick-cell {
-  background: var(--color-white, #fff);
+  cursor: pointer;
 }
 .table.ga-goal-table.ga-theme-edit-fixed tbody tr:nth-child(n) td,
 .table.ga-goal-table.ga-theme-edit-fixed tbody tr:nth-child(n):hover td {
   background: var(--color-secondary);
   cursor: not-allowed;
 }
+.table.ga-year-info.ga-info-team th,
+.table.ga-year-info.ga-info-team tbody tr td,
+.table.ga-year-info.ga-info-team tbody tr:hover td,
 .ga-year-page .table.ga-year-info.ga-info-team th,
 .ga-year-page .table.ga-year-info.ga-info-team tbody tr td,
 .ga-year-page .table.ga-year-info.ga-info-team tbody tr:hover td {
   background: var(--color-secondary);
   transition: none;
   box-shadow: none;
+  cursor: default;
+}
+.table.ga-year-info.ga-info-annual thead th:first-child,
+.table.ga-year-info.ga-info-annual tbody th,
+.table.ga-year-info.ga-info-annual tbody td.cell--fixed {
+  background: var(--color-secondary);
+  cursor: default;
+}
+.table.ga-year-info.ga-info-annual thead th:last-child,
+.table.ga-year-info.ga-info-annual tbody td.ga-cell-editable {
+  background: var(--color-surface, #fff);
 }
 .ga-info-fixed .ga-cell-input,
 .ga-info-fixed .ga-cell-input:hover,
@@ -2159,9 +2288,13 @@ h2.ga-cur-domain__head {
   box-shadow: none;
 }
 
+.table.ga-goal-table.ga-branch-readonly thead th,
 .table.ga-goal-table.ga-branch-readonly tbody tr td,
-.table.ga-goal-table.ga-branch-readonly tbody tr:hover td {
-  background: var(--color-secondary);
+.table.ga-goal-table.ga-branch-readonly tbody tr:hover td,
+.table.ga-goal-table.ga-branch-readonly tbody tr td.cell--fixed,
+.table.ga-goal-table.ga-branch-readonly tbody tr:hover td.cell--fixed {
+  background: var(--color-surface, #fff) !important;
+  cursor: default !important;
 }
 
 .ga-year-page .table.ga-year-info tbody tr:hover td {
@@ -2307,6 +2440,11 @@ h2.ga-cur-domain__head {
   padding-left: var(--space-1);
   padding-right: var(--space-1);
 }
+.table.ga-goal-table td.ga-stt > textarea.ga-cell-input,
+.table.ga-goal-table td.ga-stt .ga-goal-code {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
 
 /* Tên và ngày cùng nhịp đệm, chiều cao theo nội dung thay vì khung nhập lớn. */
 .ga-theme-event-tables .ga-cell-input {
@@ -2395,9 +2533,12 @@ h2.ga-cur-domain__head {
   max-height: none;
   overflow: visible;
 }
+.table.ga-curriculum-fixed thead tr:first-child th.cell--fixed,
 .table.ga-curriculum-fixed thead tr:first-child th:nth-child(-n + 4),
 .table.ga-theme-edit-fixed thead th,
-.table.ga-theme-edit-fixed tbody tr:nth-child(n) td {
+.table.ga-theme-edit-fixed tbody tr:nth-child(n) td,
+.table.ga-table-readonly thead th,
+.table.ga-table-readonly tbody tr:nth-child(n) td {
   background: var(--color-secondary);
   color: var(--color-text);
 }
@@ -2415,4 +2556,74 @@ h2.ga-cur-domain__head {
 
 .ga-theme-goal-preview {
   cursor: default;
+}
+
+/* Khi không chỉnh sửa (màn hình chi tiết .ga-goal-detail): toàn bộ bảng màu trắng cho dễ nhìn, cursor default */
+.ga-goal-detail .table.ga-goal-table thead th,
+.ga-goal-detail .table.ga-goal-table tbody td:not(.ga-goal-table__domain),
+.ga-goal-detail .table.ga-goal-table tbody tr:hover td:not(.ga-goal-table__domain),
+.ga-goal-detail .table.ga-goal-table tbody tr:nth-child(even) td:not(.ga-goal-table__domain),
+.ga-goal-detail .table.ga-goal-table tbody tr:nth-child(even):hover td:not(.ga-goal-table__domain),
+.ga-goal-detail .table.ga-goal-table th.cell--fixed,
+.ga-goal-detail .table.ga-goal-table td.cell--fixed:not(.ga-goal-table__domain),
+.ga-goal-detail .table.ga-theme-edit-fixed thead th,
+.ga-goal-detail .table.ga-theme-edit-fixed tbody tr td:not(.ga-goal-table__domain),
+.ga-goal-detail .table.ga-theme-edit-fixed tbody tr:hover td:not(.ga-goal-table__domain),
+.ga-goal-detail .table.ga-theme-edit-fixed tbody tr:nth-child(n) td:not(.ga-goal-table__domain),
+.ga-goal-detail .table.ga-theme-edit-fixed tbody tr:nth-child(n):hover td:not(.ga-goal-table__domain),
+.ga-goal-detail .table.ga-curriculum-fixed thead th,
+.ga-goal-detail .table.ga-curriculum-fixed tbody tr td:not(.ga-goal-table__domain),
+.ga-goal-detail .table.ga-curriculum-fixed tbody tr:hover td:not(.ga-goal-table__domain),
+.ga-goal-detail .table.ga-table-readonly thead th,
+.ga-goal-detail .table.ga-table-readonly tbody tr td:not(.ga-goal-table__domain) {
+  background: var(--color-surface, #fff) !important;
+  color: var(--color-text);
+  cursor: default !important;
+}
+.ga-goal-detail .ga-curriculum-fixed .ga-goal-table__subband {
+  cursor: default !important;
+}
+
+/* Khi không chỉnh sửa trong Cấu hình kế hoạch giáo dục (.ga-config-page:not(.is-editing) hoặc .ga-config-page.is-viewing):
+   toàn bộ bảng màu trắng sáng cho dễ nhìn, cursor default */
+.ga-config-page:not(.is-editing) .table.ga-goal-table thead th,
+.ga-config-page:not(.is-editing) .table.ga-goal-table tbody td,
+.ga-config-page:not(.is-editing) .table.ga-goal-table tbody th,
+.ga-config-page:not(.is-editing) .table.ga-goal-table tbody tr:hover td,
+.ga-config-page:not(.is-editing) .table.ga-goal-table tbody tr:nth-child(even) td,
+.ga-config-page:not(.is-editing) .table.ga-goal-table tbody tr:nth-child(even):hover td,
+.ga-config-page.is-viewing .table.ga-goal-table thead th,
+.ga-config-page.is-viewing .table.ga-goal-table tbody td,
+.ga-config-page.is-viewing .table.ga-goal-table tbody th,
+.ga-config-page.is-viewing .table.ga-goal-table tbody tr:hover td,
+.ga-config-page.is-viewing .table.ga-goal-table tbody tr:nth-child(even) td,
+.ga-config-page.is-viewing .table.ga-goal-table tbody tr:nth-child(even):hover td {
+  background: var(--color-surface, #fff) !important;
+  color: var(--color-text);
+  cursor: default !important;
+}
+
+/* Khi đang chỉnh sửa (.ga-config-page.is-editing):
+   - Ô cố định (.cell--fixed): màu xám, cursor not-allowed
+   - Ô sửa được (.ga-cell-editable, .ga-th-editable): màu trắng
+*/
+.ga-config-page.is-editing .table.ga-goal-table thead th.cell--fixed,
+.ga-config-page.is-editing .table.ga-goal-table tbody td.cell--fixed,
+.ga-config-page.is-editing .table.ga-goal-table tbody th.cell--fixed,
+.ga-config-page.is-editing .table.ga-goal-table tbody tr:hover td.cell--fixed,
+.ga-config-page.is-editing .table.ga-goal-table tbody tr:nth-child(even) td.cell--fixed,
+.ga-config-page.is-editing .table.ga-goal-table tbody tr:nth-child(even):hover td.cell--fixed {
+  background: var(--color-secondary) !important;
+  cursor: not-allowed !important;
+}
+
+.ga-config-page.is-editing .table.ga-goal-table thead th.ga-th-editable,
+.ga-config-page.is-editing .table.ga-goal-table tbody td.ga-cell-editable,
+.ga-config-page.is-editing .table.ga-goal-table tbody tr:hover td.ga-cell-editable,
+.ga-config-page.is-editing .table.ga-goal-table tbody tr:nth-child(even) td.ga-cell-editable,
+.ga-config-page.is-editing .table.ga-goal-table tbody tr:nth-child(even):hover td.ga-cell-editable {
+  background: var(--color-surface, #fff) !important;
+}
+.ga-config-page.is-editing .table.ga-goal-table tbody td.ga-cell-editable:has(input[type="checkbox"]) {
+  cursor: pointer;
 }

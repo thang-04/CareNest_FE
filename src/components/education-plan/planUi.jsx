@@ -55,6 +55,7 @@ export function useClassPlanContext(classId) {
   const teachers = cls ? (cls.teacherIds || []).map((id) => users.find((u) => u.id === id)).filter(Boolean) : [];
   const leaders = cls ? users.filter((u) => u.role === ROLES.TEAM_LEADER && u.ageGroupId === cls.ageGroupId) : [];
   const isClassTeacher = !!cls && (cls.teacherIds || []).includes(user.id);
+  const isHomeroomTeacher = isClassTeacher && (!cls.homeroomTeacherId || String(cls.homeroomTeacherId) === String(user.id));
   // Mỗi giáo viên chỉ được xếp một lớp: người có lớp chỉ làm việc với lớp đó, không có ô chọn lớp
   const canPickClass = classes.length > 1 && !classes.some((c) => (c.teacherIds || []).includes(user.id));
   const isGroupLeader = user.role === ROLES.TEAM_LEADER && !!cls && user.ageGroupId === cls.ageGroupId;
@@ -73,6 +74,7 @@ export function useClassPlanContext(classId) {
     teachers,
     users,
     isClassTeacher,
+    isHomeroomTeacher,
     canCreate: (kind) => creationCapabilities.some((cap) => String(cap.classId) === String(classId) && cap.kind === kind && cap.canCreate),
     canPickClass,
     isGroupLeader,

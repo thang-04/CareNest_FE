@@ -218,12 +218,55 @@ export const overlappingThemes = (theme, themes) =>
     ? themes.filter((x) => x.id !== theme.id && x.start && x.end && x.start <= theme.end && theme.start <= x.end)
     : [];
 
+/** Kiểm tra khoảng trống ngày học (Thứ 2 đến Thứ 6) giữa các chủ đề liên tiếp. */
+export const themeGapIssue = (themes, breaks = []) => {
+  const dated = (themes || [])
+    .filter((t) => t.start && t.end && t.start <= t.end)
+    .sort((a, b) => a.start.localeCompare(b.start));
+  if (dated.length < 2) return null;
+
+  const minStart = dated[0].start;
+  const maxEnd = dated.reduce((max, t) => (t.end > max ? t.end : max), dated[0].end);
+
+  let gapStart = null;
+  let gapEnd = null;
+
+  for (let d = minStart; d <= maxEnd; d = addDays(d, 1)) {
+    const w = weekdayOf(d);
+    if (w >= 1 && w <= 5) {
+      const inTheme = dated.some((t) => d >= t.start && d <= t.end);
+      const inBreak = (breaks || []).some((b) => b.start && d >= b.start && d <= (b.end || b.start));
+      if (!inTheme && !inBreak) {
+        if (!gapStart) {
+          gapStart = d;
+        }
+        gapEnd = d;
+      } else if (gapStart) {
+        break;
+      }
+    }
+  }
+
+  if (gapStart && gapEnd) {
+    const fmt = (iso) => {
+      const [y, m, day] = iso.slice(0, 10).split('-');
+      return `${day}/${m}/${y}`;
+    };
+    return gapStart === gapEnd
+      ? `Bị trống ngày chưa tạo chủ đề (ngày ${fmt(gapStart)}).`
+      : `Bị trống ngày chưa tạo chủ đề (từ ${fmt(gapStart)} đến ${fmt(gapEnd)}).`;
+  }
+  return null;
+};
+
 /** Lỗi lịch chủ đề kiểm khi gửi / ban hành (EDU-39, EDU-40); nháp vẫn lưu được (EDU-23). */
-export const themeScheduleIssue = (themes) => {
+export const themeScheduleIssue = (themes, breaks = []) => {
   const misaligned = themes.find((t) => !isWholeWeekTheme(t));
   if (misaligned) return `Chủ đề "${misaligned.name || misaligned.abbr}" phải bắt đầu vào Thứ 2 và kết thúc vào Thứ 6.`;
   const overlapped = themes.find((t) => overlappingThemes(t, themes).length > 0);
   if (overlapped) return `Chủ đề "${overlapped.name || overlapped.abbr}" trùng thời gian với chủ đề khác.`;
+  const gap = themeGapIssue(themes, breaks);
+  if (gap) return gap;
   return null;
 };
 
