@@ -12,10 +12,11 @@ import {
   PermissionCheckCell,
   PermissionFixedCell,
   PermissionFlowCheckCell,
+  PermissionLevelBadge,
   PermissionTable,
 } from '@/components/permissions/PermissionTable';
 import { updateRolePermissions } from '@/services/account/permissionService';
-import { PERMISSION_ROLE_LABELS, PERMISSION_TASKS } from '@/models/account/permissionConstants';
+import { PERMISSION_LEVELS, PERMISSION_ROLE_LABELS, PERMISSION_TASKS } from '@/models/account/permissionConstants';
 import {
   codeDiff,
   configurableCheck,
@@ -196,6 +197,14 @@ export default function RoleDefaultsPage() {
                 </span>{' '}
                 Cần quyền xem ở dòng đầu nhóm (tự tick kèm)
               </li>
+            </ul>
+            <ul className="perm-legend perm-legend--levels" aria-label="Cấp quyền">
+              <li className="perm-legend__title">Cấp quyền:</li>
+              {Object.entries(PERMISSION_LEVELS).map(([level, info]) => (
+                <li key={level}>
+                  <PermissionLevelBadge level={level} /> {info.hint}
+                </li>
+              ))}
             </ul>
             <p className="perm-notice" role="status" aria-live="polite">
               {notice}

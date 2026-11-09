@@ -2,6 +2,7 @@
  * Gom mã quyền của Phó hiệu trưởng thành mảng để Hiệu trưởng đọc bằng lời thường; BE vẫn lưu từng mã (ADR-0017).
  * `place` là nơi áp dụng cố định: SCHOOL = dữ liệu dùng chung cả trường, CAMPUS = điểm trường phụ trách (AUTH-20).
  * Mã `campusScoped` của BE thì Hiệu trưởng chọn được nơi áp dụng, `place` chỉ là giá trị ban đầu.
+ * `checkGaps`: mảng cảnh báo khi điểm trường chưa có PHT nào được sửa (Nhân sự mặc định Hiệu trưởng làm nên không cảnh báo).
  */
 export const VP_PLACE = { SCHOOL: 'SCHOOL', CAMPUS: 'CAMPUS' };
 
@@ -9,6 +10,7 @@ export const VP_TASK_AREAS = [
   {
     key: 'meals',
     label: 'Bán trú',
+    checkGaps: true,
     tasks: [
       { code: 'MENU_MANAGE', place: VP_PLACE.SCHOOL },
       { code: 'NUTRITION_MANAGE', place: VP_PLACE.SCHOOL },
@@ -20,6 +22,7 @@ export const VP_TASK_AREAS = [
   {
     key: 'children',
     label: 'Hồ sơ trẻ và phụ huynh',
+    checkGaps: true,
     tasks: [
       { code: 'CHILD_ENROLL', place: VP_PLACE.CAMPUS },
       { code: 'CHILD_PROFILE_EDIT', place: VP_PLACE.CAMPUS },
@@ -47,13 +50,4 @@ export const VP_VIEW_CODE = 'CHILD_PROFILE_VIEW';
 export const VP_TASK_PRESETS = [
   { key: 'nutrition', label: 'Phụ trách dinh dưỡng', areas: ['meals'] },
   { key: 'academic', label: 'Phụ trách chuyên môn', areas: ['children'] },
-];
-
-/** Dòng bảng "Ai phụ trách gì": `shared` = dữ liệu chung cả trường, không tách theo điểm trường. */
-export const VP_COVERAGE_ROWS = [
-  { key: 'menu', label: 'Thực đơn, danh mục', codes: ['MENU_MANAGE', 'NUTRITION_MANAGE'], shared: true },
-  { key: 'mealCount', label: 'Số suất ăn', codes: ['MEAL_COUNT_CONFIRM'] },
-  { key: 'stock', label: 'Kho, hàng tươi', codes: ['STOCK_MANAGE'] },
-  { key: 'foodSafety', label: 'Lưu mẫu thức ăn', codes: ['FOOD_SAFETY_APPROVE'] },
-  { key: 'children', label: 'Hồ sơ trẻ', codes: ['CHILD_ENROLL', 'CHILD_PROFILE_EDIT', 'CHILD_PLACEMENT'] },
 ];

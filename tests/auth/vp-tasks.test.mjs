@@ -7,11 +7,17 @@ const {
   setVpArea,
   setVpTask,
   setVpTaskScope,
+  removeVpPreset,
+  setVpCell,
   vpAreasView,
-  vpCoverage,
+  vpCellOptions,
+  vpChangePreview,
   vpDraftChanges,
   vpDraftOf,
+  vpMatrixAreas,
   vpOverridesFromDraft,
+  vpPresetsOf,
+  vpTaskGaps,
   vpViewOff,
 } = await import('@/utils/account/vpTasks');
 
@@ -84,7 +90,10 @@ test('AUTH-20: REVOKE và mã không theo mảng không gửi scope; GRANT theo 
   draft = setVpTask(draft, 'NUTRITION_MANAGE', true);
   draft = setVpTask(draft, 'MEAL_COUNT_CONFIRM', false);
   const overrides = vpOverridesFromDraft(list, draft);
-  assert.deepEqual(overrides.find((o) => o.permission === 'STOCK_MANAGE'), { permission: 'STOCK_MANAGE', effect: 'GRANT', scope: 'CAMPUS' });
+  assert.deepEqual(
+    overrides.find((o) => o.permission === 'STOCK_MANAGE'),
+    { permission: 'STOCK_MANAGE', effect: 'GRANT', scope: 'CAMPUS' },
+  );
   assert.equal('scope' in overrides.find((o) => o.permission === 'NUTRITION_MANAGE'), false);
   assert.equal('scope' in overrides.find((o) => o.permission === 'MEAL_COUNT_CONFIRM'), false);
 });
@@ -119,8 +128,14 @@ test('AUTH-10: trạng thái mảng theo số việc đang bật; tắt cả m�
 test('AUTH-10: mã BE mới chưa xếp mảng hiện ở Việc khác; quyền xem hồ sơ không là việc để giao', () => {
   const list = [...items(), item('NEW_CODE')];
   const areas = vpAreasView(list);
-  assert.deepEqual(areas.find((a) => a.key === 'other').tasks.map((t) => t.code), ['NEW_CODE']);
-  assert.equal(areas.flatMap((a) => a.tasks).some((t) => t.code === 'CHILD_PROFILE_VIEW'), false);
+  assert.deepEqual(
+    areas.find((a) => a.key === 'other').tasks.map((t) => t.code),
+    ['NEW_CODE'],
+  );
+  assert.equal(
+    areas.flatMap((a) => a.tasks).some((t) => t.code === 'CHILD_PROFILE_VIEW'),
+    false,
+  );
 });
 
 test('AUTH-20: quyền xem hồ sơ trẻ bị tắt thì báo để không ghi là xem được cả trường', () => {
@@ -134,20 +149,98 @@ test('AUTH-14: danh sách thay đổi gồm việc đổi bật/tắt và đổi
   assert.deepEqual(vpDraftChanges(list, vpDraftOf(list)), []);
   let draft = setVpTask(vpDraftOf(list), 'MENU_MANAGE', true);
   draft = setVpTaskScope(draft, 'MEAL_COUNT_CONFIRM', 'SCHOOL');
-  assert.deepEqual(vpDraftChanges(list, draft).map((i) => i.code), ['MENU_MANAGE', 'MEAL_COUNT_CONFIRM']);
+  assert.deepEqual(
+    vpDraftChanges(list, draft).map((i) => i.code),
+    ['MENU_MANAGE', 'MEAL_COUNT_CONFIRM'],
+  );
 });
 
-test('AUTH-20: bảng ai phụ trách gì: chưa ai giữ mã là rỗng, GRANT SCHOOL tính cho mọi điểm trường', () => {
-  const campuses = [{ id: '1' }, { id: '2' }];
-  const a = {
-    fullName: 'A',
-    campusId: '1',
-    items: items().map((i) => (i.code === 'STOCK_MANAGE' ? { ...i, on: true, effect: 'GRANT', scope: 'SCHOOL' } : i)),
-  };
-  const b = { fullName: 'B', campusId: 2, items: items() };
-  const rows = Object.fromEntries(vpCoverage([a, b], campuses).map((row) => [row.key, row.cells]));
-  assert.deepEqual(rows.stock.map((c) => c.names), [['A'], ['A']]);
-  assert.deepEqual(rows.mealCount.map((c) => c.names), [['A'], ['B']]);
-  assert.deepEqual(rows.foodSafety.map((c) => c.names), [[], []]);
-  assert.deepEqual(rows.menu, [{ key: 'all', names: [] }]);
+test('AUTH-20: ô chỉ cho chọn cả trường ở mã campusScoped; chọn Được sửa · Cả trường lưu GRANT SCHOOL', () => {
+  const list = items();
+  const tasks = new Map(
+    vpAreasView(list)
+      .flatMap((a) => a.tasks)
+      .map((t) => [t.code, t]),
+  );
+  assert.deepEqual(vpCellOptions(tasks.get('STOCK_MANAGE')), ['VIEW', 'CAMPUS', 'SCHOOL']);
+  assert.deepEqual(vpCellOptions(tasks.get('MENU_MANAGE')), ['VIEW', 'SCHOOL']);
+  assert.deepEqual(vpCellOptions(tasks.get('CHILD_ENROLL')), ['VIEW', 'CAMPUS']);
+  const draft = setVpCell(vpDraftOf(list), 'STOCK_MANAGE', 'SCHOOL');
+  assert.deepEqual(vpOverridesFromDraft(list, draft), [{ permission: 'STOCK_MANAGE', effect: 'GRANT', scope: 'SCHOOL' }]);
+  assert.equal(setVpCell(draft, 'STOCK_MANAGE', 'VIEW').STOCK_MANAGE.on, false);
+});
+
+test('AUTH-10: giao nhanh xong người đó mang nhãn, bỏ nhãn thì mảng về chỉ xem', () => {
+  const list = items();
+  const before = vpPresetsOf(list);
+  assert.deepEqual(
+    before.map((p) => [p.key, p.applied]),
+    [
+      ['nutrition', false],
+      ['academic', true],
+    ],
+  );
+  const draft = applyVpPreset(vpDraftOf(list), 'nutrition', list);
+  assert.equal(vpPresetsOf(list, draft).find((p) => p.key === 'nutrition').applied, true);
+  const off = removeVpPreset(draft, 'nutrition', list);
+  assert.equal(areaOf(list, off, 'meals').state, VP_AREA_STATE.VIEW_ONLY);
+  assert.equal(vpPresetsOf(list, setVpTask(draft, 'STOCK_MANAGE', false)).find((p) => p.key === 'nutrition').applied, false);
+});
+
+test('AUTH-14: bản xem trước nêu việc trước → sau và nhãn được thêm', () => {
+  const list = items();
+  const draft = applyVpPreset(vpDraftOf(list), 'nutrition', list);
+  const preview = vpChangePreview(list, setVpCell(draft, 'STOCK_MANAGE', 'SCHOOL'), 'Cơ sở 1');
+  assert.deepEqual(
+    preview.rows.find((r) => r.code === 'STOCK_MANAGE'),
+    {
+      code: 'STOCK_MANAGE',
+      label: preview.rows.find((r) => r.code === 'STOCK_MANAGE').label,
+      before: 'Chỉ xem',
+      after: 'Được sửa · Cả trường',
+    },
+  );
+  assert.equal(preview.rows.find((r) => r.code === 'MENU_MANAGE').after, 'Được sửa · Cả trường');
+  assert.equal(
+    preview.rows.some((r) => r.code === 'MEAL_COUNT_CONFIRM'),
+    false,
+  );
+  assert.deepEqual(preview.labelsAdded, ['Phụ trách dinh dưỡng']);
+  // BE trả mã lộn thứ tự thì bản xem trước vẫn theo thứ tự việc trên bảng
+  const reversed = vpChangePreview([...list].reverse(), draft, 'Cơ sở 1').rows.map((r) => r.code);
+  assert.deepEqual(reversed, ['MENU_MANAGE', 'NUTRITION_MANAGE', 'STOCK_MANAGE', 'FOOD_SAFETY_APPROVE']);
+  assert.deepEqual(preview.labelsRemoved, []);
+});
+
+test('AUTH-20: cảnh báo việc chưa ai được sửa theo điểm trường; GRANT SCHOOL phủ mọi điểm trường; Nhân sự không cảnh báo', () => {
+  const campuses = [
+    { id: '1', shortName: 'Cơ sở 1' },
+    { id: '2', shortName: 'Cơ sở 2' },
+  ];
+  const a = { campusId: '1', items: items() };
+  const b = { campusId: 2, items: items() };
+  a.draft = setVpCell(vpDraftOf(a.items), 'STOCK_MANAGE', 'SCHOOL');
+  b.draft = vpDraftOf(b.items);
+  const gaps = vpTaskGaps([a, b], campuses);
+  assert.equal(gaps.STOCK_MANAGE, undefined);
+  assert.equal(gaps.MEAL_COUNT_CONFIRM, undefined);
+  assert.deepEqual(gaps.FOOD_SAFETY_APPROVE, { campuses: ['Cơ sở 1', 'Cơ sở 2'] });
+  assert.deepEqual(gaps.MENU_MANAGE, { all: true });
+  assert.equal(gaps.ACCOUNT_MANAGE, undefined);
+});
+
+test('AUTH-10: dòng bảng gom mã của mọi người theo thứ tự mảng', () => {
+  const a = { items: items().filter((i) => i.code !== 'STOCK_MANAGE') };
+  const b = { items: items() };
+  a.draft = vpDraftOf(a.items);
+  b.draft = vpDraftOf(b.items);
+  const areas = vpMatrixAreas([a, b]);
+  assert.deepEqual(
+    areas.map((area) => area.key),
+    ['meals', 'children', 'staff'],
+  );
+  assert.deepEqual(
+    areas[0].tasks.map((t) => t.code),
+    ['MENU_MANAGE', 'NUTRITION_MANAGE', 'MEAL_COUNT_CONFIRM', 'STOCK_MANAGE', 'FOOD_SAFETY_APPROVE'],
+  );
 });

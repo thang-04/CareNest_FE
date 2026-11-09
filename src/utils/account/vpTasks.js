@@ -1,32 +1,19 @@
 import { OVERRIDE_EFFECT, PERMISSION_TASKS } from '@/models/account/permissionConstants';
-import { VP_COVERAGE_ROWS, VP_OTHER_AREA, VP_PLACE, VP_TASK_AREAS, VP_TASK_PRESETS, VP_VIEW_CODE } from '@/models/account/vpTaskAreas';
+import { VP_OTHER_AREA, VP_PLACE, VP_TASK_AREAS, VP_TASK_PRESETS, VP_VIEW_CODE } from '@/models/account/vpTaskAreas';
 
 export const VP_AREA_STATE = { VIEW_ONLY: 'VIEW_ONLY', PARTIAL: 'PARTIAL', ALL: 'ALL' };
 
+/** Giá trị một ô của bảng giao việc: chỉ xem, hoặc được sửa ở nơi nào. */
+export const VP_CELL = { VIEW: 'VIEW', CAMPUS: VP_PLACE.CAMPUS, SCHOOL: VP_PLACE.SCHOOL };
+
 export const vpPlaceText = (place, campusName) => (place === VP_PLACE.SCHOOL ? 'Cả trường' : campusName);
 
-export const vpAreaStatusText = (area) => {
-  if (area.state === VP_AREA_STATE.VIEW_ONLY) return 'Chỉ xem, không sửa được';
-  if (area.state === VP_AREA_STATE.ALL) return 'Làm được mọi việc của mảng';
-  return `Làm được ${area.onCount}/${area.tasks.length} việc`;
-};
-
-/** Câu tóm tắt đầu thẻ, vd. "Bán trú (Cơ sở 1, Cả trường) · Nhân sự (Cơ sở 1)"; rỗng = chưa giao mảng nào. */
-export const vpEditSummary = (areas = [], campusName) =>
-  areas
-    .filter((area) => area.onCount > 0)
-    .map((area) => {
-      const places = [...new Set(area.tasks.filter((task) => task.on).map((task) => vpPlaceText(task.place, campusName)))];
-      return `${area.label} (${places.join(', ')})`;
-    })
-    .join(' · ');
-
-/** Đổi `key` khi dữ liệu đã lưu đổi, để thẻ nạp lại bản nháp mà không cần effect. */
+/** Đổi `key` khi dữ liệu đã lưu đổi, để bỏ bản nháp cũ của người đó. */
 export const vpItemsKey = (items = []) => items.map((item) => `${item.code}:${item.on ? 1 : 0}:${item.scope || ''}`).join('|');
 
 const isSchoolWide = (item) => item.effect === OVERRIDE_EFFECT.GRANT && item.scope === VP_PLACE.SCHOOL;
 
-/** Bản nháp của thẻ giao việc: { [mã]: { on, scope } }. Ô ma trận bật được hiểu là điểm trường phụ trách. */
+/** Bản nháp giao việc của một người: { [mã]: { on, scope } }. Ô ma trận bật được hiểu là điểm trường phụ trách. */
 export const vpDraftOf = (items = []) =>
   Object.fromEntries(items.map((item) => [item.code, { on: !!item.on, scope: isSchoolWide(item) ? VP_PLACE.SCHOOL : VP_PLACE.CAMPUS }]));
 
@@ -57,7 +44,7 @@ export const vpAreasView = (items = [], draft = vpDraftOf(items)) => {
         });
       const onCount = tasks.filter((task) => task.on).length;
       const state = onCount === 0 ? VP_AREA_STATE.VIEW_ONLY : onCount === tasks.length ? VP_AREA_STATE.ALL : VP_AREA_STATE.PARTIAL;
-      return { key: area.key, label: area.label, tasks, onCount, state };
+      return { key: area.key, label: area.label, checkGaps: !!area.checkGaps, tasks, onCount, state };
     })
     .filter((area) => area.tasks.length > 0);
 };
@@ -72,13 +59,40 @@ export const setVpTaskScope = (draft, code, scope) => ({ ...draft, [code]: { ...
 
 export const setVpArea = (draft, area, on) => area.tasks.reduce((next, task) => setVpTask(next, task.code, on), draft);
 
-/** Giao nhanh chỉ bật thêm, không tắt việc đã giao ở mảng khác. */
-export const applyVpPreset = (draft, presetKey, items = []) => {
+export const vpCellValue = (task) => (task.on ? task.place : VP_CELL.VIEW);
+
+/** Chỉ mã campusScoped mới chọn được nơi; mã khác sửa ở nơi cố định của việc. */
+export const vpCellOptions = (task) => [VP_CELL.VIEW, ...(task.choosable ? [VP_CELL.CAMPUS, VP_CELL.SCHOOL] : [task.place])];
+
+export const vpCellText = (value, campusName) => (value === VP_CELL.VIEW ? 'Chỉ xem' : `Được sửa · ${vpPlaceText(value, campusName)}`);
+
+export const setVpCell = (draft, code, value) =>
+  value === VP_CELL.VIEW ? setVpTask(draft, code, false) : { ...draft, [code]: { ...draft[code], on: true, scope: value } };
+
+const setVpPreset = (draft, presetKey, items, on) => {
   const preset = VP_TASK_PRESETS.find((p) => p.key === presetKey);
   if (!preset) return draft;
   return vpAreasView(items, draft)
     .filter((area) => preset.areas.includes(area.key))
-    .reduce((next, area) => setVpArea(next, area, true), draft);
+    .reduce((next, area) => setVpArea(next, area, on), draft);
+};
+
+/** Giao nhanh chỉ bật thêm, không tắt việc đã giao ở mảng khác. */
+export const applyVpPreset = (draft, presetKey, items = []) => setVpPreset(draft, presetKey, items, true);
+
+/** Bỏ nhãn: các mảng của nhãn về chỉ xem. */
+export const removeVpPreset = (draft, presetKey, items = []) => setVpPreset(draft, presetKey, items, false);
+
+/**
+ * Nhãn giao nhanh suy từ việc đang giao (không lưu riêng ở BE): người được sửa đủ mọi việc của các mảng trong nhãn thì
+ * mang nhãn đó. Nhãn không có mảng nào để giao cho người này thì bỏ qua.
+ */
+export const vpPresetsOf = (items = [], draft = vpDraftOf(items)) => {
+  const areas = vpAreasView(items, draft);
+  return VP_TASK_PRESETS.flatMap((preset) => {
+    const own = areas.filter((area) => preset.areas.includes(area.key));
+    return own.length ? [{ ...preset, applied: own.every((area) => area.state === VP_AREA_STATE.ALL) }] : [];
+  });
 };
 
 /**
@@ -97,7 +111,7 @@ export const vpOverridesFromDraft = (items = [], draft = {}) =>
     return [item.campusScoped ? { ...grant, scope: VP_PLACE.CAMPUS } : grant];
   });
 
-/** Việc đổi so với đã lưu, để hộp xác nhận liệt kê từng việc trước khi lưu. */
+/** Việc đổi so với đã lưu. */
 export const vpDraftChanges = (items = [], draft = {}) => {
   const saved = vpDraftOf(items);
   return items.filter((item) => {
@@ -107,41 +121,94 @@ export const vpDraftChanges = (items = [], draft = {}) => {
   });
 };
 
-/** Từng dòng cho hộp xác nhận, vd. "Nhập kho khô: Chỉ xem → Được sửa (Cơ sở 1)". */
-export const vpChangeTexts = (items = [], draft = {}, campusName) => {
-  const saved = vpDraftOf(items);
-  const stateText = (item, value) => {
-    if (!value.on) return 'Chỉ xem';
-    const place = item.campusScoped ? value.scope : null;
-    return place ? `Được sửa (${vpPlaceText(place, campusName)})` : 'Được sửa';
-  };
-  return vpDraftChanges(items, draft).map((item) => {
-    const label = PERMISSION_TASKS[item.code]?.label || item.label;
-    return `${label}: ${stateText(item, saved[item.code])} → ${stateText(item, draft[item.code])}`;
-  });
-};
+const tasksByCode = (items, draft) => new Map(vpAreasView(items, draft).flatMap((area) => area.tasks.map((task) => [task.code, task])));
 
-const holdsAt = (holder, code, campusId) => {
-  const item = holder.items.find((i) => i.code === code);
-  if (!item?.on) return false;
-  return isSchoolWide(item) || String(holder.campusId) === String(campusId);
+/**
+ * Bản xem trước khi lưu của một người: từng việc trước → sau, và nhãn giao nhanh được thêm/bỏ.
+ * Quyền xem hồ sơ trẻ không nằm trong mảng nên ghi riêng.
+ */
+export const vpChangePreview = (items = [], draft = {}, campusName) => {
+  const saved = vpDraftOf(items);
+  const before = tasksByCode(items, saved);
+  const after = tasksByCode(items, draft);
+  // Xếp theo thứ tự việc trên bảng (quyền xem lên đầu), không theo thứ tự BE trả
+  const order = [VP_VIEW_CODE, ...after.keys()];
+  const changed = [...vpDraftChanges(items, draft)].sort((a, b) => order.indexOf(a.code) - order.indexOf(b.code));
+  const rows = changed.map((item) => {
+    if (item.code === VP_VIEW_CODE) {
+      const viewText = (on) => (on ? 'Xem được' : 'Tắt quyền xem');
+      return { code: item.code, label: 'Xem hồ sơ trẻ', before: viewText(saved[item.code].on), after: viewText(draft[item.code].on) };
+    }
+    return {
+      code: item.code,
+      label: after.get(item.code).label,
+      before: vpCellText(vpCellValue(before.get(item.code)), campusName),
+      after: vpCellText(vpCellValue(after.get(item.code)), campusName),
+    };
+  });
+  const labels = (d) =>
+    new Set(
+      vpPresetsOf(items, d)
+        .filter((p) => p.applied)
+        .map((p) => p.label),
+    );
+  const was = labels(saved);
+  const now = labels(draft);
+  return {
+    rows,
+    labelsAdded: [...now].filter((label) => !was.has(label)),
+    labelsRemoved: [...was].filter((label) => !now.has(label)),
+  };
 };
 
 /**
- * Bảng "Ai phụ trách gì". holders: [{ userId, fullName, campusId, items }]. Không tính Hiệu trưởng: HT luôn làm được,
- * bảng chỉ trả lời việc đã giao cho PHT nào; `names` rỗng = "Chưa giao".
+ * Dòng của bảng Việc × Người: mảng theo thứ tự cố định, mỗi mảng gồm mọi mã có ở ít nhất một người.
+ * people: [{ items, draft }].
  */
-export const vpCoverage = (holders = [], campuses = []) =>
-  VP_COVERAGE_ROWS.map((row) => {
-    const namesOf = (test) => holders.filter((holder) => row.codes.some((code) => test(holder, code))).map((holder) => holder.fullName);
-    if (row.shared) {
-      return { ...row, cells: [{ key: 'all', names: namesOf((holder, code) => !!holder.items.find((i) => i.code === code)?.on) }] };
-    }
-    return {
-      ...row,
-      cells: campuses.map((campus) => ({
-        key: String(campus.id),
-        names: namesOf((holder, code) => holdsAt(holder, code, campus.id)),
-      })),
-    };
-  });
+export const vpMatrixAreas = (people = []) => {
+  const order = [...VP_TASK_AREAS.map((area) => area.key), VP_OTHER_AREA.key];
+  const rank = new Map(VP_TASK_AREAS.flatMap((area) => area.tasks.map((task, index) => [task.code, index])));
+  const byKey = new Map();
+  people.forEach((person) =>
+    vpAreasView(person.items, person.draft).forEach((area) => {
+      const row = byKey.get(area.key) || { key: area.key, label: area.label, checkGaps: area.checkGaps, tasks: [] };
+      area.tasks.forEach((task) => {
+        if (!row.tasks.some((t) => t.code === task.code)) row.tasks.push({ code: task.code, label: task.label });
+      });
+      byKey.set(area.key, row);
+    }),
+  );
+  return order
+    .filter((key) => byKey.has(key))
+    .map((key) => {
+      const row = byKey.get(key);
+      return { ...row, tasks: [...row.tasks].sort((a, b) => (rank.get(a.code) ?? 99) - (rank.get(b.code) ?? 99)) };
+    });
+};
+
+/**
+ * Việc chưa PHT nào được sửa (theo bản nháp đang chỉnh). Việc dùng chung cả trường: `{ all: true }` khi không ai sửa;
+ * việc theo điểm trường: `{ campuses: [tên] }` các điểm trường chưa ai sửa. people: [{ campusId, items, draft }].
+ */
+export const vpTaskGaps = (people = [], campuses = []) => {
+  const views = people.map((person) => ({ campusId: person.campusId, tasks: tasksByCode(person.items, person.draft) }));
+  const gaps = {};
+  VP_TASK_AREAS.filter((area) => area.checkGaps).forEach((area) =>
+    area.tasks.forEach((task) => {
+      if (!views.some((view) => view.tasks.has(task.code))) return;
+      const holders = views.filter((view) => view.tasks.get(task.code)?.on);
+      if (task.place === VP_PLACE.SCHOOL) {
+        if (!holders.length) gaps[task.code] = { all: true };
+        return;
+      }
+      const missing = campuses.filter(
+        (campus) =>
+          !holders.some((view) => view.tasks.get(task.code).place === VP_PLACE.SCHOOL || String(view.campusId) === String(campus.id)),
+      );
+      if (missing.length) gaps[task.code] = { campuses: missing.map((campus) => campus.shortName || campus.name) };
+    }),
+  );
+  return gaps;
+};
+
+export const vpGapText = (gap) => (gap.all ? 'Chưa ai được sửa' : `Chưa ai được sửa ở ${gap.campuses.join(', ')}`);
