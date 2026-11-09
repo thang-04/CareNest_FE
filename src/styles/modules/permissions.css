@@ -491,12 +491,35 @@
   list-style: none;
 }
 .vp-people__item {
-  border: 1px solid transparent;
+  border: 2px solid transparent;
   border-radius: var(--radius-md);
 }
+/* Đang chọn: viền dày + vạch đậm bên trái + nhãn chữ "Đang chọn" — không chỉ đổi màu nền */
 .vp-people__item.is-selected {
   border-color: var(--color-primary);
+  box-shadow: inset 5px 0 0 var(--color-primary);
   background: var(--color-primary-soft);
+}
+.vp-people__name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+/* Nhãn "đang chọn": nền nhạt, viền và chữ đậm cùng tông — rõ bằng chữ + dấu ✓ mà không chói */
+.pick-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px var(--space-2);
+  border: 1px solid var(--color-primary);
+  border-radius: var(--badge-radius);
+  background: var(--color-surface);
+  color: var(--color-primary-active);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  line-height: 1.4;
+  white-space: nowrap;
 }
 .vp-people__pick {
   display: flex;
@@ -517,6 +540,12 @@
   display: grid;
   gap: 2px;
   min-width: 0;
+}
+.vp-people__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
 }
 .vp-people__actions {
   padding: 0 var(--space-3) var(--space-3) calc(var(--space-3) + 44px);
@@ -583,6 +612,45 @@
   padding: 0;
   list-style: none;
 }
+/* Nhóm việc theo phạm vi sửa: tiêu đề nhỏ có icon + câu "vì sao", màu nhấn theo kiểu phạm vi */
+.vp-scope {
+  --scope-c: var(--tone-gray);
+}
+.vp-scope--school {
+  --scope-c: var(--tone-blue);
+}
+.vp-scope--choosable {
+  --scope-c: var(--tone-teal);
+}
+.vp-scope__head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border-top: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--scope-c) 6%, var(--color-surface));
+}
+.vp-scope__icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--scope-c) 16%, var(--color-surface));
+  color: var(--scope-c);
+}
+.vp-scope__title {
+  display: block;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+}
+.vp-scope__why {
+  display: block;
+  color: var(--color-text-secondary);
+  font-size: var(--fs-xs);
+}
 .vp-task-row {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
@@ -592,7 +660,27 @@
   border-top: 1px solid var(--color-border);
 }
 .vp-task-row.is-on {
+  box-shadow: inset 4px 0 0 var(--color-success-fg);
   background: var(--color-success-bg);
+}
+.vp-task-row__toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 132px;
+}
+.vp-task-row__state {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--color-text-muted);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  white-space: nowrap;
+}
+.vp-task-row__state.is-on {
+  color: var(--color-success-fg);
+  font-weight: var(--fw-bold);
 }
 .vp-task-row__text {
   display: grid;
@@ -603,8 +691,17 @@
   justify-self: end;
 }
 .vp-place .tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   padding: var(--space-1) var(--space-3);
   font-size: var(--fs-sm);
+}
+/* Nơi đang chọn: viền + chữ đậm cùng tông + dấu ✓, nền nhạt */
+.vp-place .tab.tab--active {
+  box-shadow: inset 0 0 0 1px var(--color-primary);
+  color: var(--color-primary-active);
+  font-weight: var(--fw-bold);
 }
 .vp-task__gap {
   display: inline-flex;
@@ -636,14 +733,234 @@
 .vp-editor__bar.is-dirty {
   background: var(--color-warning-bg);
 }
+/* Hộp xem lại trước khi lưu: tóm tắt → thẻ "trước → sau" theo mảng → lý do */
+.vp-review {
+  display: grid;
+  gap: var(--space-4);
+}
+.vp-review__summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-muted);
+}
+.vp-review__stats,
 .vp-review__labels {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-1);
-  margin: 0 0 var(--space-2);
+  align-items: center;
+  gap: var(--space-2);
 }
-.vp-review__table {
-  margin-bottom: var(--space-3);
+.vp-review__labels {
+  flex-basis: 100%;
+}
+.vp-review__total {
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-bold);
+}
+.vp-review__group {
+  display: grid;
+  gap: var(--space-2);
+}
+.vp-review__area {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.vp-review__list {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.vp-change {
+  --change-c: var(--tone-blue);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--change-c);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+.vp-change--green {
+  --change-c: var(--tone-green);
+}
+.vp-change--red {
+  --change-c: var(--tone-red);
+}
+.vp-change__icon {
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--change-c) 14%, var(--color-surface));
+  color: var(--change-c);
+}
+.vp-change__body {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.vp-change__label {
+  font-weight: var(--fw-semibold);
+}
+.vp-change__diff {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.vp-change__before {
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
+  font-size: var(--fs-sm);
+  text-decoration: line-through;
+}
+.vp-change__arrow {
+  color: var(--color-text-muted);
+}
+.vp-change__after {
+  font-weight: var(--fw-semibold);
+}
+.select.vp-review__select {
+  flex: 0 1 auto;
+  width: auto;
+  min-width: 200px;
+}
+.vp-review__empty {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-1);
+  padding: var(--space-6) var(--space-4);
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  color: var(--color-success-fg);
+  text-align: center;
+}
+.vp-review__empty p {
+  margin: 0;
+}
+/* Hộp Phân công điểm trường PHT: người được phân công → thẻ chọn điểm trường → hệ quả */
+.sc-vp-assign__who {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-muted);
+}
+.sc-vp-assign__field {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.sc-vp-assign__field .field__label {
+  margin-bottom: var(--space-2);
+}
+.sc-campus-pick {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-3);
+}
+.sc-campus-card {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+.sc-campus-card:hover {
+  border-color: var(--color-border-strong);
+}
+.sc-campus-card.is-checked {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-soft);
+  background: var(--color-primary-soft);
+}
+.sc-campus-card__name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.sc-campus-card:has(input:focus-visible) {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+.sc-campus-card.is-disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.sc-campus-card__radio {
+  display: inline-flex;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--color-border-strong);
+  border-radius: 50%;
+  color: var(--color-text-inverse);
+}
+.sc-campus-card.is-checked .sc-campus-card__radio {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+}
+.sc-campus-card__body {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.sc-campus-card__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
+}
+.sc-vp-assign__effects {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding-left: var(--space-4);
+}
+.reason-modal__reason {
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+@media (max-width: 640px) {
+  .vp-change {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .vp-change__undo {
+    grid-column: 2;
+    justify-self: start;
+  }
 }
 
 /* Dòng "Bạn đang chỉ xem" đầu trang của PHT chưa được giao việc sửa */

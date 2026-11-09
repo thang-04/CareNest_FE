@@ -213,9 +213,21 @@ export const validateCampus = (form, others = []) => {
   return withLength(e, form, CAMPUS_LIMITS);
 };
 
-export const validateVpAssignment = (form) => {
+/**
+ * Phân công điểm trường cho PHT. `campuses` có thì chặn điểm trường đã ngừng (BE trả CAMPUS_INACTIVE);
+ * `currentCampusId` + `requireChange` chặn lưu lại đúng điểm trường đang phụ trách (BE coi như không đổi, lưu vô ích).
+ * `takenBy(campusId)` trả tên PHT khác đang giữ điểm trường: AUTH-26 mỗi điểm trường tối đa một PHT (BE trả 2327).
+ */
+export const validateVpAssignment = (form, { campuses, currentCampusId, requireChange = false, takenBy } = {}) => {
   const e = {};
+  const campus = campuses?.find((c) => String(c.id) === String(form.campusId));
   if (!form.campusId) e.campusId = 'Chọn điểm trường phụ trách';
+  else if (campuses && !campus) e.campusId = 'Điểm trường không còn trong danh sách, chọn lại';
+  else if (campus?.status === 'INACTIVE') e.campusId = 'Điểm trường này đã ngừng hoạt động, chọn điểm trường khác';
+  else if (requireChange && currentCampusId && String(currentCampusId) === String(form.campusId))
+    e.campusId = 'Người này đang phụ trách điểm trường này. Chọn điểm trường khác để đổi.';
+  else if (takenBy?.(form.campusId))
+    e.campusId = `${campus?.shortName || 'Điểm trường này'} đã có ${takenBy(form.campusId)} phụ trách. Mỗi điểm trường chỉ một Phó hiệu trưởng — đổi người đó sang điểm trường khác trước.`;
   return e;
 };
 

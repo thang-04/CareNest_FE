@@ -14,7 +14,8 @@ const source = await readFile(new URL('../../src/components/permissions/VpTaskEd
 const isolated = source.replace(/^import [\s\S]*?;\r?\n/gm, '');
 const names = source.match(/import \{([^}]*)\} from '@\/utils\/account\/vpTasks'/)[1];
 const stubs = `import React, { useEffect, useRef, useState } from 'react';
-const Icon = () => null, AlertTriangle = Icon, Check = Icon, Info = Icon, Plus = Icon, X = Icon, Avatar = Icon, ReasonModal = Icon;
+const Icon = () => null, AlertTriangle = Icon, ArrowRight = Icon, Buildings = Icon, Check = Icon, Info = Icon, Lock = Icon, MapPin = Icon;
+const Minus = Icon, Plus = Icon, Undo2 = Icon, X = Icon, Avatar = Icon, ReasonModal = Icon;
 const Switch = ({ checked, label, disabled }) => React.createElement('button', { role: 'switch', 'aria-checked': checked, 'aria-label': label, disabled });
 const useAuth = () => ({ user: {} }), useToast = () => ({}), updatePermissionOverrides = async () => {};
 const { VP_PLACE, VP_VIEW_CODE, ${names} } = globalThis.__vp;
@@ -50,7 +51,7 @@ const campuses = [
 ];
 const render = (Component, props) => renderToStaticMarkup(React.createElement(Component, props));
 
-test('AUTH-10: danh sách PHT ghi rõ điểm trường, đang phụ trách gì và sửa được bao nhiêu việc', () => {
+test('AUTH-10: danh sách PHT gắn nhãn màu điểm trường, mảng phụ trách và số việc được sửa', () => {
   const html = render(mod.VpPeopleList, {
     people: [
       { userId: 1, user: { fullName: 'An' }, campusName: 'Cơ sở 1', items: mealItems(true) },
@@ -60,11 +61,14 @@ test('AUTH-10: danh sách PHT ghi rõ điểm trường, đang phụ trách gì 
     selectedId: 1,
     onSelect: () => {},
   });
-  assert.match(html, /Phụ trách: <b>dinh dưỡng<\/b>/);
-  assert.match(html, /sửa 5\/6 việc/);
-  assert.match(html, /Điểm trường: chưa phân công/);
-  assert.match(html, /Chưa tải được việc/);
+  assert.match(html, /class="chip chip--blue"[^>]*> Cơ sở 1/);
+  assert.match(html, /class="chip chip--teal"[^>]*> Dinh dưỡng/);
+  assert.match(html, /class="chip chip--green"[^>]*>Sửa 5\/6 việc/);
+  assert.match(html, /class="chip chip--orange">Chưa có điểm trường/);
+  assert.match(html, /class="chip chip--red">Chưa tải được việc/);
   assert.match(html, /aria-current="true"/);
+  // Người đang chọn có nhãn chữ, không chỉ đổi màu nền; chỉ một người mang nhãn
+  assert.equal(html.match(/class="pick-badge"[^>]*> Đang chọn/g)?.length, 1);
 });
 
 test('AUTH-20: mỗi việc một công tắc; việc đang bật và chọn được nơi thì có nút Cơ sở / Cả trường', () => {
@@ -76,8 +80,16 @@ test('AUTH-20: mỗi việc một công tắc; việc đang bật và chọn đ�
   assert.match(html, /aria-checked="true" class="tab tab--active"[^>]*>Cơ sở 1/);
   assert.match(html, /PHT khác đang sửa: Bình \(Cơ sở 2\)/);
   assert.match(html, /được sửa 1\/5 việc/);
+  // Trạng thái từng việc ghi bằng chữ cạnh công tắc
+  assert.match(html, /vp-task-row__state is-on"[^>]*> Được sửa/);
+  assert.match(html, /vp-task-row__state"[^>]*>Chỉ xem/);
+  // Mỗi nhóm phạm vi nói rõ sửa ở đâu và vì sao
+  assert.match(html, /Dùng chung cả trường/);
+  assert.match(html, /Theo điểm trường — chọn được phạm vi/);
+  assert.match(html, /Chỉ Cơ sở 1/);
+  assert.match(html, /chỉ sửa ở điểm trường mình phụ trách/);
   assert.match(html, /\+ Phụ trách dinh dưỡng|Phụ trách dinh dưỡng<\/button>/);
-  assert.match(html, /disabled="">Xem lại và lưu/);
+  assert.match(html, /disabled="">Lưu<\/button>/);
 });
 
 test('AUTH-20: việc chưa ai được sửa thì cảnh báo dưới tên việc', () => {
@@ -88,7 +100,7 @@ test('AUTH-20: việc chưa ai được sửa thì cảnh báo dưới tên vi�
 test('AUTH-10: năm không hoạt động thì khung chỉ đọc, không giao nhanh, không lưu', () => {
   const html = render(mod.VpTaskEditor, { person: person(1, 'An', mealItems()), campuses, readOnly: true });
   assert.doesNotMatch(html, /Phụ trách dinh dưỡng<\/button>/);
-  assert.doesNotMatch(html, /Xem lại và lưu/);
+  assert.doesNotMatch(html, />Lưu<\/button>/);
   assert.match(html, /Chọn năm đang hoạt động để sửa/);
 });
 

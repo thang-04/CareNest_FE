@@ -4,13 +4,17 @@ import { FormField } from '@/components/form/FormField';
 import { REASON_MAX_LENGTH } from '@/models/account/permissionConstants';
 import { validatePermissionChange } from '@/utils/account/permissionValidation';
 
-/** Hộp nhập lý do trước khi lưu quyền; `children` thay danh sách `changes` khi cần bản xem trước chi tiết hơn. */
+/**
+ * Hộp nhập lý do trước khi lưu quyền; `children` thay danh sách `changes` khi cần bản xem trước chi tiết hơn.
+ * `canSubmit = false` khóa nút lưu (vd. đã hoàn tác hết thay đổi ngay trong bản xem trước).
+ */
 export function ReasonModal({
   title = 'Vì sao thay đổi?',
   changes = [],
   children,
   size,
   confirmLabel = 'Lưu thay đổi',
+  canSubmit = true,
   saving,
   onClose,
   onSubmit,
@@ -18,7 +22,7 @@ export function ReasonModal({
   const [reason, setReason] = useState('');
   const [error, setError] = useState();
   const submit = () => {
-    if (saving) return;
+    if (saving || !canSubmit) return;
     const message = validatePermissionChange({ reason }).reason;
     setError(message);
     if (!message) onSubmit(reason.trim());
@@ -34,13 +38,13 @@ export function ReasonModal({
           <button className="btn" disabled={saving} onClick={onClose}>
             Quay lại
           </button>
-          <button className="btn btn--primary" disabled={saving} onClick={submit}>
+          <button className="btn btn--primary" disabled={saving || !canSubmit} onClick={submit}>
             {saving ? 'Đang lưu…' : confirmLabel}
           </button>
         </>
       }
     >
-      <p className="text-sm text-2">Lý do được lưu vào lịch sử thay đổi quyền.</p>
+      {!children && <p className="text-sm text-2">Lý do được lưu vào lịch sử thay đổi quyền.</p>}
       {children || (
         <ul className="permission-reason-list">
           {changes.map((change, index) => (
@@ -48,16 +52,25 @@ export function ReasonModal({
           ))}
         </ul>
       )}
-      <FormField label="Lý do" required error={error}>
-        <textarea
-          className="textarea"
-          rows={3}
-          value={reason}
-          maxLength={REASON_MAX_LENGTH}
-          disabled={saving}
-          onChange={(e) => setReason(e.target.value)}
-        />
-      </FormField>
+      {/* Bản xem trước chi tiết: lý do tách thành khối riêng dưới danh sách, gợi ý ngay dưới ô */}
+      <div className={children ? 'reason-modal__reason' : undefined}>
+        <FormField
+          label={children ? 'Lý do thay đổi' : 'Lý do'}
+          required
+          error={error}
+          hint={children ? `Lưu vào lịch sử thay đổi quyền · ${reason.length}/${REASON_MAX_LENGTH} ký tự` : undefined}
+        >
+          <textarea
+            className="textarea"
+            rows={3}
+            value={reason}
+            maxLength={REASON_MAX_LENGTH}
+            disabled={saving || !canSubmit}
+            placeholder={children ? 'Vì sao thay đổi việc giao?' : undefined}
+            onChange={(e) => setReason(e.target.value)}
+          />
+        </FormField>
+      </div>
     </Modal>
   );
 }

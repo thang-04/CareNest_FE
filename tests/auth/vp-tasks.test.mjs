@@ -8,6 +8,8 @@ const {
   setVpTask,
   setVpTaskScope,
   removeVpPreset,
+  revertVpTask,
+  vpScopeGroups,
   setVpCell,
   vpAreasView,
   vpCellOptions,
@@ -196,8 +198,12 @@ test('AUTH-14: bản xem trước nêu việc trước → sau và nhãn đượ
     {
       code: 'STOCK_MANAGE',
       label: preview.rows.find((r) => r.code === 'STOCK_MANAGE').label,
+      area: 'Bán trú',
+      kind: 'GRANT',
       before: 'Chỉ xem',
       after: 'Được sửa · Cả trường',
+      value: 'SCHOOL',
+      options: ['VIEW', 'CAMPUS', 'SCHOOL'],
     },
   );
   assert.equal(preview.rows.find((r) => r.code === 'MENU_MANAGE').after, 'Được sửa · Cả trường');
@@ -210,6 +216,32 @@ test('AUTH-14: bản xem trước nêu việc trước → sau và nhãn đượ
   const reversed = vpChangePreview([...list].reverse(), draft, 'Cơ sở 1').rows.map((r) => r.code);
   assert.deepEqual(reversed, ['MENU_MANAGE', 'NUTRITION_MANAGE', 'STOCK_MANAGE', 'FOOD_SAFETY_APPROVE']);
   assert.deepEqual(preview.labelsRemoved, []);
+});
+
+test('AUTH-02: việc của mảng chia nhóm theo phạm vi — cả trường dùng chung, chọn được, chỉ điểm trường', () => {
+  const list = items();
+  const meals = vpAreasView(list).find((area) => area.key === 'meals');
+  const groups = vpScopeGroups(meals.tasks).map((g) => [g.scope, g.tasks.map((t) => t.code)]);
+  assert.deepEqual(groups, [
+    ['SCHOOL', ['MENU_MANAGE', 'NUTRITION_MANAGE']],
+    ['CHOOSABLE', ['MEAL_COUNT_CONFIRM', 'STOCK_MANAGE', 'FOOD_SAFETY_APPROVE']],
+  ]);
+  const children = vpAreasView(list).find((area) => area.key === 'children');
+  assert.deepEqual(
+    vpScopeGroups(children.tasks).map((g) => g.scope),
+    ['CAMPUS'],
+  );
+});
+
+test('AUTH-14: trong bản xem trước hoàn tác một việc thì việc đó rời danh sách, các việc khác giữ nguyên', () => {
+  const list = items();
+  const draft = applyVpPreset(vpDraftOf(list), 'nutrition', list);
+  const reverted = revertVpTask(draft, 'STOCK_MANAGE', list);
+  const codes = vpChangePreview(list, reverted, 'Cơ sở 1').rows.map((r) => r.code);
+  assert.deepEqual(codes, ['MENU_MANAGE', 'NUTRITION_MANAGE', 'FOOD_SAFETY_APPROVE']);
+  // Sửa lại "Sau" về Chỉ xem cho mọi việc ⇒ hết thay đổi
+  const back = codes.reduce((d, code) => setVpCell(d, code, 'VIEW'), reverted);
+  assert.deepEqual(vpDraftChanges(list, back), []);
 });
 
 test('AUTH-20: cảnh báo việc chưa ai được sửa theo điểm trường; GRANT SCHOOL phủ mọi điểm trường; Nhân sự không cảnh báo', () => {

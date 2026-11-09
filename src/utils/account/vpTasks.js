@@ -55,6 +55,9 @@ export const vpViewOff = (items = [], draft = vpDraftOf(items)) =>
 
 export const setVpTask = (draft, code, on) => ({ ...draft, [code]: { ...draft[code], on } });
 
+/** Hoàn tác một việc về đúng như đã lưu (dùng ở bản xem trước trước khi lưu). */
+export const revertVpTask = (draft, code, items = []) => ({ ...draft, [code]: vpDraftOf(items)[code] });
+
 export const setVpTaskScope = (draft, code, scope) => ({ ...draft, [code]: { ...draft[code], scope } });
 
 export const setVpArea = (draft, area, on) => area.tasks.reduce((next, task) => setVpTask(next, task.code, on), draft);
@@ -127,23 +130,57 @@ const tasksByCode = (items, draft) => new Map(vpAreasView(items, draft).flatMap(
  * Bản xem trước khi lưu của một người: từng việc trước → sau, và nhãn giao nhanh được thêm/bỏ.
  * Quyền xem hồ sơ trẻ không nằm trong mảng nên ghi riêng.
  */
+/**
+ * Kiểu phạm vi sửa của việc, để màn giao việc gom nhóm và nói lý do một lần cho cả nhóm:
+ * SCHOOL = dữ liệu cả trường dùng chung (thực đơn, danh mục); CHOOSABLE = mã campusScoped, Hiệu trưởng chọn điểm trường
+ * hay cả trường; CAMPUS = chỉ điểm trường phụ trách (AUTH-02: không giao PHT phạm vi toàn trường).
+ */
+export const VP_SCOPE = { SCHOOL: 'SCHOOL', CHOOSABLE: 'CHOOSABLE', CAMPUS: 'CAMPUS' };
+
+const scopeOf = (task) => (task.choosable ? VP_SCOPE.CHOOSABLE : task.place === VP_PLACE.SCHOOL ? VP_SCOPE.SCHOOL : VP_SCOPE.CAMPUS);
+
+/** Việc của một mảng chia theo kiểu phạm vi, thứ tự: cả trường → chọn được → chỉ điểm trường; bỏ nhóm rỗng. */
+export const vpScopeGroups = (tasks = []) =>
+  [VP_SCOPE.SCHOOL, VP_SCOPE.CHOOSABLE, VP_SCOPE.CAMPUS]
+    .map((scope) => ({ scope, tasks: tasks.filter((task) => scopeOf(task) === scope) }))
+    .filter((group) => group.tasks.length > 0);
+
+/** Loại thay đổi của một việc trong bản xem trước: thêm quyền sửa, về chỉ xem, hay chỉ đổi nơi. */
+export const VP_CHANGE = { GRANT: 'GRANT', REVOKE: 'REVOKE', PLACE: 'PLACE' };
+
+const changeKind = (beforeOn, afterOn) => (beforeOn === afterOn ? VP_CHANGE.PLACE : afterOn ? VP_CHANGE.GRANT : VP_CHANGE.REVOKE);
+
 export const vpChangePreview = (items = [], draft = {}, campusName) => {
   const saved = vpDraftOf(items);
   const before = tasksByCode(items, saved);
   const after = tasksByCode(items, draft);
+  const areaOf = new Map(vpAreasView(items, draft).flatMap((area) => area.tasks.map((task) => [task.code, area.label])));
   // Xếp theo thứ tự việc trên bảng (quyền xem lên đầu), không theo thứ tự BE trả
   const order = [VP_VIEW_CODE, ...after.keys()];
   const changed = [...vpDraftChanges(items, draft)].sort((a, b) => order.indexOf(a.code) - order.indexOf(b.code));
   const rows = changed.map((item) => {
     if (item.code === VP_VIEW_CODE) {
       const viewText = (on) => (on ? 'Xem được' : 'Tắt quyền xem');
-      return { code: item.code, label: 'Xem hồ sơ trẻ', before: viewText(saved[item.code].on), after: viewText(draft[item.code].on) };
+      return {
+        code: item.code,
+        label: 'Xem hồ sơ trẻ',
+        area: 'Quyền xem',
+        kind: changeKind(saved[item.code].on, draft[item.code].on),
+        before: viewText(saved[item.code].on),
+        after: viewText(draft[item.code].on),
+      };
     }
+    const task = after.get(item.code);
     return {
       code: item.code,
-      label: after.get(item.code).label,
+      label: task.label,
+      area: areaOf.get(item.code),
+      kind: changeKind(before.get(item.code).on, task.on),
       before: vpCellText(vpCellValue(before.get(item.code)), campusName),
-      after: vpCellText(vpCellValue(after.get(item.code)), campusName),
+      after: vpCellText(vpCellValue(task), campusName),
+      // Cho sửa lại ngay trong bản xem trước
+      value: vpCellValue(task),
+      options: vpCellOptions(task),
     };
   });
   const labels = (d) =>

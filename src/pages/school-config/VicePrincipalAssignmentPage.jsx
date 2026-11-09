@@ -2,7 +2,8 @@ import { Link } from 'react-router-dom';
 import { SCHOOL_CONFIG_API } from '@/config/env';
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { UserCog, AlertTriangle, Save, Utensils } from '@/components/ui/icons';
+import { UserCog, AlertTriangle, Check, Save, Utensils } from '@/components/ui/icons';
+import { Avatar } from '@/components/ui/Avatar';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
@@ -31,7 +32,7 @@ const NOT_GIVEN = 'NONE';
 const VIEW_ONLY = { view: true, create: false, update: false, delete: false };
 const writes = (actions) => Object.entries(actions).some(([k, on]) => k !== 'view' && on);
 
-function AssignModal({ row, year, campuses, sharedHolder, onClose }) {
+function AssignModal({ row, year, campuses, others = [], sharedHolder, onClose }) {
   const { user } = useAuth();
   const toast = useToast();
   const [form, setForm] = useState({
@@ -40,7 +41,22 @@ function AssignModal({ row, year, campuses, sharedHolder, onClose }) {
   });
   const [grants, setGrants] = useState(() => vpGrantsOf(row.assignment));
   const [errors, setErrors] = useState({});
+  const [tried, setTried] = useState(false);
   const [saving, setSaving] = useState(false);
+  // id có thể là số hoặc chuỗi: so khớp theo String để không lệch kiểu
+  const sameId = (a, b) => a != null && b != null && String(a) === String(b);
+  const campusOptions = campuses.filter((c) => c.status !== 'INACTIVE' || sameId(c.id, form.campusId));
+  const holdersOf = (campusId) => others.filter((r) => r.user.id !== row.user.id && sameId(r.assignment?.campusId, campusId));
+  const holderNames = (campusId) =>
+    holdersOf(campusId)
+      .map((r) => r.user.fullName)
+      .join(', ');
+  // Bản API chỉ đổi điểm trường: chọn lại đúng điểm trường cũ là không có gì để lưu; AUTH-26 chặn điểm trường đã có PHT khác
+  const rules = { campuses, currentCampusId: row.assignment?.campusId, requireChange: SCHOOL_CONFIG_API, takenBy: holderNames };
+  const campusShort = (c) => c?.shortName || c?.name || 'điểm trường';
+  const currentCampus = campuses.find((c) => sameId(c.id, row.assignment?.campusId));
+  const targetCampus = campuses.find((c) => sameId(c.id, form.campusId));
+  const moving = !!currentCampus && !!targetCampus && !sameId(currentCampus.id, targetCampus.id);
   const menuHeldByOther = sharedHolder && sharedHolder.id !== row.user.id;
   const menuClash = menuHeldByOther && !!grants.menu && writes(grants.menu.actions);
 
@@ -61,6 +77,8 @@ function AssignModal({ row, year, campuses, sharedHolder, onClose }) {
       ),
     );
     setForm((f) => ({ ...f, campusId }));
+    // Đã bấm lưu một lần thì báo lỗi ngay khi chọn lại
+    if (tried) setErrors((e) => ({ ...e, campusId: validateVpAssignment({ ...form, campusId }, rules).campusId }));
   };
   const setScope = (area, scope) => {
     if (scope === NOT_GIVEN) return setGrant(area.key, null);
@@ -74,7 +92,8 @@ function AssignModal({ row, year, campuses, sharedHolder, onClose }) {
   };
 
   const submit = async () => {
-    const e = validateVpAssignment(form);
+    setTried(true);
+    const e = validateVpAssignment(form, rules);
     if (!SCHOOL_CONFIG_API && Object.values(grants).some((g) => !g.campusId)) e.areas = 'Chọn "Ở đâu" cho từng công việc được giao';
     if (!SCHOOL_CONFIG_API && menuClash)
       e.areas = `Thực đơn & dịch vụ bán trú đang do ${sharedHolder.fullName} quản lý. Mỗi năm học chỉ một Phó hiệu trưởng được lập, sửa, xóa thực đơn.`;
@@ -115,31 +134,95 @@ function AssignModal({ row, year, campuses, sharedHolder, onClose }) {
         </>
       }
     >
-      <p className="text-sm text-2 mb-12">
-        Năm học <b>{year.name}</b>.{' '}
-        {SCHOOL_CONFIG_API
-          ? 'Chọn điểm trường Phó hiệu trưởng phụ trách. Việc được giao chỉnh ở khung bên phải khi chọn người này.'
-          : 'Phó hiệu trưởng chỉ thấy và làm được những công việc Hiệu trưởng giao dưới đây.'}
-      </p>
-      {row.assignment?.campusId && form.campusId && row.assignment.campusId !== form.campusId && (
-        <div className="alert alert--warning mb-12">
-          <AlertTriangle size={18} />
-          <div>
-            {row.user.fullName} đang phụ trách {campuses.find((c) => c.id === row.assignment.campusId)?.shortName || 'điểm trường khác'}.
-            Lưu phân công mới thì điểm trường đó sẽ chưa có Phó hiệu trưởng.
+      {/* Người được phân công + năm học + điểm trường hiện tại, để biết đang đổi cho ai, từ đâu */}
+      <div className="sc-vp-assign__who">
+        <Avatar user={row.user} />
+        <div>
+          <div className="fw-600">{row.user.fullName}</div>
+          <div className="text-sm text-2">
+            Năm học {year.name} · {currentCampus ? `Đang phụ trách ${campusShort(currentCampus)}` : 'Chưa có điểm trường'}
           </div>
         </div>
+      </div>
+
+      <fieldset className="sc-vp-assign__field">
+        <legend className="field__label">
+          Điểm trường phụ trách
+          <span className="req">*</span>
+        </legend>
+        <div className="sc-campus-pick" role="radiogroup" aria-invalid={!!errors.campusId}>
+          {campusOptions.map((c) => {
+            const holders = holdersOf(c.id);
+            const checked = sameId(c.id, form.campusId);
+            const inactive = c.status === 'INACTIVE';
+            // AUTH-26: điểm trường đã có PHT khác thì không chọn được
+            const taken = holders.length > 0;
+            const locked = inactive || taken;
+            return (
+              <label key={c.id} className={`sc-campus-card${checked ? ' is-checked' : ''}${locked ? ' is-disabled' : ''}`}>
+                <input
+                  type="radio"
+                  name="vp-campus"
+                  className="sr-only"
+                  checked={checked}
+                  disabled={locked || saving}
+                  onChange={() => setCampus(c.id)}
+                />
+                <span className="sc-campus-card__radio" aria-hidden="true">
+                  {checked && <Check size={14} />}
+                </span>
+                <span className="sc-campus-card__body">
+                  <span className="sc-campus-card__name">
+                    <span className="fw-600">{campusShort(c)}</span>
+                    {checked && (
+                      <span className="pick-badge">
+                        <Check size={13} /> Đã chọn
+                      </span>
+                    )}
+                  </span>
+                  {c.shortName && c.name !== c.shortName && <span className="text-xs text-2">{c.name}</span>}
+                  <span className="sc-campus-card__tags">
+                    {sameId(c.id, row.assignment?.campusId) && <span className="chip chip--blue">Đang phụ trách</span>}
+                    {inactive ? (
+                      <span className="chip chip--gray">Đã ngừng hoạt động</span>
+                    ) : taken ? (
+                      <span className="chip chip--gray">Đã có: {holderNames(c.id)}</span>
+                    ) : (
+                      // Điểm trường người này đang phụ trách thì vẫn có PHT (chính người này)
+                      !sameId(c.id, row.assignment?.campusId) && <span className="chip chip--orange">Chưa có Phó hiệu trưởng</span>
+                    )}
+                  </span>
+                  {taken && !inactive && (
+                    <span className="text-xs text-2">
+                      Mỗi điểm trường chỉ một Phó hiệu trưởng. Muốn đổi, chuyển {holderNames(c.id)} sang điểm trường khác trước.
+                    </span>
+                  )}
+                </span>
+              </label>
+            );
+          })}
+        </div>
+        {errors.campusId && (
+          <p className="field__error mt-8" role="alert">
+            {errors.campusId}
+          </p>
+        )}
+      </fieldset>
+
+      {/* Nói trước hệ quả của lần đổi này, trước khi bấm lưu */}
+      {moving && (
+        <div className="alert alert--warning mt-12">
+          <AlertTriangle size={18} />
+          <ul className="sc-vp-assign__effects">
+            <li>
+              {row.user.fullName} chuyển từ <b>{campusShort(currentCampus)}</b> sang <b>{campusShort(targetCampus)}</b>.
+            </li>
+            <li>{campusShort(currentCampus)} sẽ chưa có Phó hiệu trưởng nào.</li>
+            {SCHOOL_CONFIG_API && <li>Việc theo điểm trường của người này sẽ áp dụng cho {campusShort(targetCampus)}.</li>}
+          </ul>
+        </div>
       )}
-      <FormField label="Điểm trường phụ trách" required error={errors.campusId}>
-        <select className="select" value={form.campusId} onChange={(e) => setCampus(e.target.value)}>
-          <option value="">Chọn điểm trường</option>
-          {campuses.map((c) => (
-            <option key={c.id} value={c.id}>
-              {!c.shortName || c.name.startsWith(c.shortName) ? c.name : `${c.shortName} – ${c.name}`}
-            </option>
-          ))}
-        </select>
-      </FormField>
+      {SCHOOL_CONFIG_API && <p className="text-xs muted mt-8">Việc được giao chỉnh ở khung bên phải sau khi lưu.</p>}
 
       {!SCHOOL_CONFIG_API && (
         <div className="mt-16">
@@ -208,7 +291,7 @@ function AssignModal({ row, year, campuses, sharedHolder, onClose }) {
         </div>
       )}
 
-      <FormField label="Ghi chú" className="mt-12">
+      <FormField label="Ghi chú" hint="Không bắt buộc" className="mt-16">
         <textarea
           className="textarea"
           rows={2}
@@ -541,6 +624,7 @@ export default function VicePrincipalAssignmentPage({ embedded = false }) {
           row={editing}
           year={year}
           campuses={md.campuses}
+          others={rows}
           sharedHolder={sharedRow?.user}
           onClose={(changed) => {
             setEditing(null);

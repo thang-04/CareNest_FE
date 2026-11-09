@@ -1474,7 +1474,13 @@ export const schoolConfigMockRepository = {
       assertOpenYear(year);
       const vp = db.users.find((u) => u.id === userId && u.role === ROLES.VICE_PRINCIPAL);
       if (!vp) throw notFound('Phó hiệu trưởng');
-      const errors = validateVpAssignment(form);
+      // AUTH-26: mỗi điểm trường tối đa một PHT trong năm học, như BE (2327)
+      const holder = (campusId) =>
+        db.vpAssignments
+          .filter((x) => x.schoolYear === schoolYear && x.userId !== userId && String(x.campusId) === String(campusId))
+          .map((x) => userName(db, x.userId))
+          .join(', ');
+      const errors = validateVpAssignment(form, { takenBy: holder });
       if (form.campusId && !knownCampus(form.campusId)) errors.campusId = 'Điểm trường không tồn tại';
       if (hasErrors(errors)) throw invalid(errors);
       // Chỉ lưu các mảng được thêm; kiểm tra mức và điểm trường hợp lệ
