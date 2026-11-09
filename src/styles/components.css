@@ -1240,6 +1240,11 @@ tr.sortable-item--moved > td {
 .modal--xl {
   max-width: 1100px;
 }
+/* Sửa nhiều trong một lần (vd. Sửa ngày của kế hoạch tuần): gần hết màn, thân cuộn trong modal (user chốt 09/11/2026) */
+.modal--full {
+  max-width: 1440px;
+  height: calc(100vh - 48px);
+}
 .modal__header {
   display: flex;
   align-items: center;
@@ -2536,6 +2541,35 @@ a.file-row__name:hover {
   border-color: var(--color-focus);
   box-shadow: 0 0 0 3px var(--color-focus-ring);
 }
+/* Nút chỉ có icon mở danh sách chọn (vd. "Thay món" trên chip món) — cùng cỡ với `.icon-action` của chip */
+.search-select__icon,
+.icon-action {
+  display: grid;
+  place-items: center;
+  width: var(--space-6);
+  height: var(--space-6);
+  flex-shrink: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+.search-select__icon:hover,
+.icon-action:hover,
+.search-select__icon[aria-expanded='true'] {
+  background: var(--color-surface-hover);
+  color: var(--color-primary);
+}
+.icon-action--danger:hover {
+  color: var(--color-danger);
+}
+.search-select__icon:focus-visible,
+.icon-action:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--color-focus-ring);
+}
 .search-select__empty {
   padding: var(--space-4);
   text-align: center;
@@ -3788,6 +3822,10 @@ button.stat-card .stat-card__label::after {
 }
 .td-split-nav__main {
   min-width: 0;
+}
+/* Bảng cách mép card như thanh lọc và phân trang phía trên/dưới, không dính viền danh mục và mép phải */
+.td-split-nav__main > .table-wrap {
+  margin-inline: var(--space-4);
 }
 .td-cat-nav {
   padding: var(--space-4) var(--space-3);

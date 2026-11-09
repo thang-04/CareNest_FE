@@ -1,6 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Breadcrumb, EmptyState, ErrorState, LoadingState } from '@/components';
+import { Breadcrumb, EmptyState, ErrorState, LoadingState, Modal, PrintToolbar } from '@/components';
+import { Download, Printer } from '@/components/ui/icons';
+import { exportWithPreview } from '@/components/ui/ExportPreview';
+import { MenuStatisticsPrint } from '@/components/menu-planning/MenuStatisticsPrint';
 import { FormField } from '@/components/form/FormField';
 import { CampusFilter } from '@/components/ui/CampusFilter';
 import { StatCard } from '@/components/ui/StatCard';
@@ -17,9 +20,12 @@ import { useMenuTemplate } from '@/hooks/menu-planning/useMenuTemplates';
 import { WeekPicker } from '@/components/form/WeekPicker';
 import { WEEKDAY_LABELS, formatMoney, mondayOf, schoolWeekStart, weekDates } from '@/models/menu-planning/menuPlanningConstants';
 import { menuCrumbs } from '@/utils/menu-planning/breadcrumbs';
-import { ageGroupOptions, planDayItems, templateDayItems } from '@/utils/menu-planning/menuStatistics';
+import { ageGroupOptions, planDayItems, statisticsExportRows, templateDayItems } from '@/utils/menu-planning/menuStatistics';
 import { formatDate, isIsoDate, todayInput } from '@/utils/format';
 import '@/styles/modules/menu-planning.css';
+
+// Tên màn theo việc người dùng làm (user chốt 09/11/2026, thay "Thống kê định lượng")
+const PAGE_TITLE = 'Định lượng & đi chợ';
 
 const CHILDREN_SOURCE = {
   INPUT: 'Số nhập tay',
@@ -28,7 +34,7 @@ const CHILDREN_SOURCE = {
 };
 
 /*
- * Thống kê định lượng một ngày thực đơn: nguồn là kế hoạch tuần (`?week=&date=`) hoặc bộ mẫu
+ * Định lượng & đi chợ của một ngày thực đơn (in, xuất Excel; tách hàng tươi / kho khô khi BE trả cờ): nguồn là kế hoạch tuần (`?week=&date=`) hoặc bộ mẫu
  * (`?template=`, mẫu một ngày). Số trẻ để trống ⇒ BE lấy suất đã xác nhận, không có thì sĩ số.
  */
 export default function MenuStatisticsPage() {
@@ -54,6 +60,8 @@ export default function MenuStatisticsPage() {
   const [ageGroupId, setAgeGroupId] = useState('');
   const [campusId, setCampusId] = useState('');
   const [children, setChildren] = useState('');
+  const [printing, setPrinting] = useState(false);
+  const sheetRef = useRef(null);
   useEffect(() => {
     if (options.length && !options.some((o) => o.id === ageGroupId)) setAgeGroupId(options[0].id);
   }, [options, ageGroupId]);
@@ -78,8 +86,11 @@ export default function MenuStatisticsPage() {
   // Ngữ cảnh (mẫu nào / ngày nào) nằm ở mục cuối breadcrumb thay cho dòng mô tả
   const title = templateId ? `Mẫu · ${source.data?.name || ''}` : `Thực đơn ngày ${formatDate(date)}`;
   const crumbs = templateId
-    ? menuCrumbs('Mẫu thực đơn', `/menu/templates/${templateId}`, `Thống kê định lượng · ${title}`)
-    : menuCrumbs('Thực đơn tuần', '/menu/weekly', `Thống kê định lượng · ${title}`);
+    ? menuCrumbs('Mẫu thực đơn', `/menu/templates/${templateId}`, `${PAGE_TITLE} · ${title}`)
+    : menuCrumbs('Thực đơn tuần', '/menu/weekly', `${PAGE_TITLE} · ${title}`);
+  const fileBase = `Dinh_luong_di_cho_${templateId ? `mau_${templateId}` : date}`;
+  const exportExcel = () =>
+    exportWithPreview(statisticsExportRows(stats, `${PAGE_TITLE} · ${title} · ${stats.ageGroupName}`), `${fileBase}.xlsx`);
 
   if (source.error)
     return (
@@ -101,8 +112,18 @@ export default function MenuStatisticsPage() {
       <Breadcrumb items={crumbs} />
       <div className="page__head">
         <div>
-          <h1 className="page__title">Thống kê định lượng</h1>
+          <h1 className="page__title">{PAGE_TITLE}</h1>
         </div>
+        {stats && (
+          <div className="page__actions">
+            <button type="button" className="btn" onClick={exportExcel}>
+              <Download size={16} /> Xuất Excel
+            </button>
+            <button type="button" className="btn" onClick={() => setPrinting(true)}>
+              <Printer size={16} /> Xem trước bản in
+            </button>
+          </div>
+        )}
       </div>
 
       <section className="card">
@@ -217,6 +238,18 @@ export default function MenuStatisticsPage() {
             </div>
             <StatisticsSessions sessions={stats.evaluation?.sessions} />
           </section>
+          <Modal
+            open={printing}
+            onClose={() => setPrinting(false)}
+            size="xl"
+            className="print-modal"
+            title={PAGE_TITLE}
+            footer={<PrintToolbar sheetRef={sheetRef} fileBase={fileBase} onCsv={exportExcel} printLabel="In phiếu" />}
+          >
+            <div className="print-preview__paper">
+              <MenuStatisticsPrint ref={sheetRef} stats={stats} title={title} />
+            </div>
+          </Modal>
         </>
       )}
     </div>

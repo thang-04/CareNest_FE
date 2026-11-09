@@ -42,6 +42,14 @@ export const formatDateTime = (value) => {
   return `${formatDate(value)} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 };
 
+/** ISO -> HH:mm (giờ máy, cùng cách formatDateTime) */
+export const formatTime = (value) => {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+};
+
 export const formatFileSize = (bytes) => {
   if (!bytes && bytes !== 0) return '';
   if (bytes < 1024) return `${bytes} B`;
