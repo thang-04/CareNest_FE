@@ -89,7 +89,7 @@ export function FreshForecastCreateModal({ campusId, onClose, onSaved }) {
     setBusy('save');
     try {
       const saved = await freshGoodsApi.saveForecast(form);
-      toast.success('Đã lưu bản dự trù hàng tươi.');
+      toast.success('Đã lưu bản dự trù.');
       onSaved(saved.id);
     } catch (err) {
       setErrors(inlineErrors(err));
@@ -110,7 +110,7 @@ export function FreshForecastCreateModal({ campusId, onClose, onSaved }) {
     <Modal
       open
       size="xl"
-      title="Lập bản dự trù hàng tươi"
+      title="Lập bản dự trù"
       onClose={busy === 'save' ? undefined : onClose}
       footer={
         <>

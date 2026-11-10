@@ -26,7 +26,7 @@ export function FreshForecastDetail({ campus }) {
   const campusId = forecast ? String(forecast.campusId) : campus.campusId;
   const listPath = `/kitchen/forecast${campusId ? `?campusId=${campusId}` : ''}`;
   const campusName = campus.campuses.find((c) => String(c.id) === campusId);
-  const title = forecast ? `Bản dự trù ${formatDate(forecast.periodFrom)} – ${formatDate(forecast.periodTo)}` : 'Bản dự trù hàng tươi';
+  const title = forecast ? `Bản dự trù ${formatDate(forecast.periodFrom)} – ${formatDate(forecast.periodTo)}` : 'Bản dự trù';
 
   const remove = async () => {
     try {
