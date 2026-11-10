@@ -8,6 +8,7 @@ import { Modal } from '@/components/ui/Modal';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
 import { Printer, Download, Save } from '@/components/ui/icons';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useAsync } from '@/hooks/useAsync';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
@@ -18,9 +19,12 @@ import { semesterAssessmentFile, semesterAssessmentRows, semesterLabel } from '@
 import { downloadXlsx } from '@/utils/exportXlsx';
 import { formatDate, formatDateTime } from '@/utils/format';
 import { semestersOf } from '@/utils/semesters';
+import { PERMISSIONS } from '@/models/bePermissions';
+import { hasBePermission } from '@/utils/bePermissions';
 import '@/styles/modules/assessment.css';
 
 export default function SemesterEvaluationListPage() {
+  const { user } = useAuth();
   const toast = useToast();
   const { schoolYear, schoolYears } = useSchoolYear();
   const year = schoolYears.find((y) => String(y.id) === String(schoolYear));
@@ -55,11 +59,13 @@ export default function SemesterEvaluationListPage() {
   const [preview, setPreview] = useState(null);
   const [detail, setDetail] = useState(null);
   const [search, setSearch] = useState({ draft: '', applied: '' });
+  const canEdit = !!board?.canEdit && hasBePermission(user, PERMISSIONS.ASSESSMENT_RECORD);
+  const canConfirm = !!board?.canConfirm && hasBePermission(user, PERMISSIONS.ASSESSMENT_CONFIRM);
   useEffect(() => {
     setNote(board?.note || '');
     setDetail(null);
   }, [board]);
-  const dirty = !!board && board.canEdit && note !== (board.note || '');
+  const dirty = !!board && canEdit && note !== (board.note || '');
   const run = async (confirm = false) => {
     if (!board || busy) return false;
     const requestScope = scope;
@@ -279,7 +285,7 @@ export default function SemesterEvaluationListPage() {
               <label className="field__label" htmlFor="semester-note">
                 Một số lưu ý
               </label>
-              {board.canEdit ? (
+              {canEdit ? (
                 <textarea
                   id="semester-note"
                   className="textarea"
@@ -293,18 +299,22 @@ export default function SemesterEvaluationListPage() {
                 <div className="text-sm">{board.note || '—'}</div>
               )}
             </div>
-            {board.canEdit && (
+            {(canEdit || hasBePermission(user, PERMISSIONS.ASSESSMENT_CONFIRM)) && (
               <div className="row gap-2 mt-16">
                 <div className="spacer" />
-                <button className="btn" disabled={busy || (!dirty && board.status !== 'NONE')} onClick={() => run()}>
-                  <Save size={16} /> Lưu
-                </button>
-                <button className="btn btn--primary" disabled={busy || !board.canConfirm} onClick={() => setConfirmOpen(true)}>
-                  Xác nhận
-                </button>
+                {canEdit && (
+                  <button className="btn" disabled={busy || (!dirty && board.status !== 'NONE')} onClick={() => run()}>
+                    <Save size={16} /> Lưu
+                  </button>
+                )}
+                {hasBePermission(user, PERMISSIONS.ASSESSMENT_CONFIRM) && (
+                  <button className="btn btn--primary" disabled={busy || !canConfirm} onClick={() => setConfirmOpen(true)}>
+                    Xác nhận
+                  </button>
+                )}
               </div>
             )}
-            {board.canEdit && !board.canConfirm && (
+            {hasBePermission(user, PERMISSIONS.ASSESSMENT_CONFIRM) && !board.canConfirm && (
               <p className="muted text-sm">Chỉ xác nhận sau khi học kỳ kết thúc và các mục tiêu đã có đủ kết quả.</p>
             )}
           </div>

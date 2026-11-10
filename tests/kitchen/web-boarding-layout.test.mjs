@@ -18,6 +18,7 @@ test('AUTH-21: route bán trú không mở cho bếp', () => {
   const kitchenBlock = routes.slice(routes.indexOf('<Route path="kitchen">'), routes.indexOf('<Route path="assessment">'));
   assert.ok(kitchenBlock.length > 0);
   assert.ok(!kitchenBlock.includes('KITCHEN_STAFF'));
+  // AUTH-20: BGH xem sổ suất; nút xác nhận theo MEAL_COUNT_CONFIRM ở từng bữa, bếp không vào
   assert.match(routes, /only\(LEADERS, <MealCountPage \/>\)/);
 });
 

@@ -1,4 +1,6 @@
 import { ROLES } from '@/models/User';
+import { PERMISSIONS } from '@/models/bePermissions';
+import { hasBePermission, hasSchoolWideBePermission, inBePermissionScope } from '@/utils/bePermissions';
 import {
   AREA_SCOPE_ALL,
   PERMISSION_ACCESS,
@@ -56,12 +58,18 @@ export const canManageAgeGroups = isPrincipal;
 /** Rooms (PROPOSED, outside SRS): Principal manages; a Vice Principal views the rooms of the assigned campus. */
 /** Phòng ban: Hiệu trưởng toàn quyền; PHT theo quyền "Quản lý phòng ban" được giao (mặc định chỉ xem campus mình). */
 // action: 'create' thêm phòng, 'update' sửa, 'delete' ngừng dùng / dùng lại / xóa; true = có ít nhất 1 thao tác ghi
-export const canManageRooms = (user, campusId, action = true) => areaAllows(user, 'rooms', campusId, action);
+export const canManageRooms = (user, campusId, action = true) => {
+  if (!isBeUser(user)) return areaAllows(user, 'rooms', campusId, action);
+  if (!hasBePermission(user, PERMISSIONS.ROOM_MANAGE)) return false;
+  return isPrincipal(user) || (isVicePrincipal(user) && inBePermissionScope(user, PERMISSIONS.ROOM_MANAGE, campusId));
+};
 export const canViewRooms = (user) =>
-  isPrincipal(user) || (isVicePrincipal(user) && areaAccess(user, 'rooms').access !== PERMISSION_ACCESS.NONE);
+  isBeUser(user)
+    ? hasBePermission(user, PERMISSIONS.ROOM_MANAGE) && (isPrincipal(user) || isVicePrincipal(user))
+    : isPrincipal(user) || (isVicePrincipal(user) && areaAccess(user, 'rooms').access !== PERMISSION_ACCESS.NONE);
 /** Điểm trường có phòng mà người dùng xem / sửa được. */
 export const roomCampusIds = (user, campuses, need = false) =>
-  campuses.filter((c) => areaAllows(user, 'rooms', c.id, need)).map((c) => c.id);
+  campuses.filter((c) => (isBeUser(user) ? canManageRooms(user, c.id, need) : areaAllows(user, 'rooms', c.id, need))).map((c) => c.id);
 
 /** UC 2.7 / GBR-CFG-03. */
 /** Cấu hình thời gian (giờ chốt, học kỳ, ngày nghỉ): chỉ Hiệu trưởng (user chốt 03/11/2026). */
@@ -120,8 +128,14 @@ export const areaAllows = (user, key, campusId, need = false) => {
  * Xếp lớp năm học mới: Hiệu trưởng toàn trường; PHT theo mảng "Xếp lớp năm học mới" Hiệu trưởng giao
  * (1 điểm trường hoặc toàn trường; Xem hoặc Xem + Sửa).
  */
-export const canViewYearPlacement = (user, campusId) => isPrincipal(user) || areaAllows(user, 'yearPlacement', campusId);
-export const canEditYearPlacement = (user, campusId) => isPrincipal(user) || areaAllows(user, 'yearPlacement', campusId, 'update');
+// Nối BE (Cần chốt 10/11/2026): mã YEAR_PLACEMENT_MANAGE HT cấp kèm phạm vi; BE lọc lớp theo phạm vi và chặn lưu ngoài phạm vi
+const placesWithBe = (user, campusId) =>
+  hasBePermission(user, PERMISSIONS.YEAR_PLACEMENT_MANAGE) &&
+  (isPrincipal(user) || !campusId || inBePermissionScope(user, PERMISSIONS.YEAR_PLACEMENT_MANAGE, campusId));
+export const canViewYearPlacement = (user, campusId) =>
+  isPrincipal(user) || (isBeUser(user) ? placesWithBe(user, campusId) : areaAllows(user, 'yearPlacement', campusId));
+export const canEditYearPlacement = (user, campusId) =>
+  isPrincipal(user) || (isBeUser(user) ? placesWithBe(user, campusId) : areaAllows(user, 'yearPlacement', campusId, 'update'));
 /** Điểm trường PHT được xếp (null = toàn trường). */
 export const yearPlacementCampus = (user) => {
   if (isPrincipal(user)) return null;
@@ -152,8 +166,8 @@ const teacherAssignAccess = (user) => {
   }
   return {
     access: PERMISSION_ACCESS.EDIT,
-    scope: isPrincipal(user) ? PERMISSION_SCOPE.ALL : PERMISSION_SCOPE.CAMPUS,
-    campusId: isPrincipal(user) ? null : user?.campusId || null,
+    scope: isPrincipal(user) || hasSchoolWideBePermission(user, STAFF_ASSIGNMENT_MANAGE) ? PERMISSION_SCOPE.ALL : PERMISSION_SCOPE.CAMPUS,
+    campusId: isPrincipal(user) || hasSchoolWideBePermission(user, STAFF_ASSIGNMENT_MANAGE) ? null : user?.campusId || null,
     actions: { create: true, update: true, delete: true },
   };
 };

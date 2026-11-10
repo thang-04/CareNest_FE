@@ -17,6 +17,8 @@ import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';
 import { themeEvaluationFile } from '@/utils/assessment/themeEvaluationDoc';
 import { downloadXlsx } from '@/utils/exportXlsx';
 import { formatDate, formatDateTime } from '@/utils/format';
+import { PERMISSIONS } from '@/models/bePermissions';
+import { hasBePermission } from '@/utils/bePermissions';
 import '@/styles/modules/assessment.css';
 
 const NOTE_MAX = 1000;
@@ -45,6 +47,8 @@ export default function ThemeEvaluationPage() {
   const defaultTheme = [...themes].reverse().find((t) => t.period === 'ENDED') || themes.find((t) => t.period === 'ONGOING') || themes[0];
   const currentThemeId = themeId || defaultTheme?.themeId || '';
   const { evaluation: ev, loading, error, reload, setEvaluation } = useThemeEvaluation(currentClassId, currentThemeId);
+  const canEdit = !!ev?.canEdit && hasBePermission(user, PERMISSIONS.ASSESSMENT_RECORD);
+  const canConfirm = !!ev?.canConfirm && hasBePermission(user, PERMISSIONS.ASSESSMENT_CONFIRM);
 
   // Ô sửa trên màn: key `${childId}:${goalId}` → true / false / null (null = bỏ sửa tay, về hệ thống tính khi lưu)
   const [edits, setEdits] = useState({});
@@ -240,7 +244,7 @@ export default function ThemeEvaluationPage() {
                   </span>
                 )}
               </div>
-              {ev.canEdit && (
+              {canEdit && (
                 <p className="muted text-sm mt-8">
                   Hệ thống điền từ Kiến thức kỹ năng hằng ngày: mục tiêu Đạt khi có ít nhất một hoạt động trong thời gian chủ đề được chấm
                   Đạt; trẻ vắng hoặc chưa có lần Đạt nào thì Chưa đạt. Bấm vào ô để sửa tay (đổi Đạt / Chưa đạt); bấm tiếp tới khi về kết
@@ -309,7 +313,7 @@ export default function ThemeEvaluationPage() {
                               }`;
                               return (
                                 <td key={c.goalId} className="center">
-                                  {ev.canEdit ? (
+                                  {canEdit ? (
                                     <button
                                       disabled={!!busy}
                                       type="button"
@@ -373,7 +377,7 @@ export default function ThemeEvaluationPage() {
               <label className="field__label" htmlFor="theme-note">
                 Một số lưu ý
               </label>
-              {ev.canEdit ? (
+              {canEdit ? (
                 <textarea
                   disabled={!!busy}
                   id="theme-note"
@@ -387,19 +391,23 @@ export default function ThemeEvaluationPage() {
               ) : (
                 <p className="text-sm">{ev.note || <span className="muted">—</span>}</p>
               )}
-              {ev.canEdit && (
+              {(canEdit || canConfirm) && (
                 <div className="row gap-2 mt-12 sc-end">
-                  <button className="btn" onClick={save} disabled={!!busy || !changed}>
-                    {busy === 'save' ? <Spinner small /> : <Save size={16} />} Lưu
-                  </button>
-                  <button
-                    className="btn btn--primary"
-                    onClick={() => setConfirmOpen(true)}
-                    disabled={!!busy || !ev.canConfirm}
-                    title={ev.canConfirm ? '' : 'Xác nhận được từ ngày kết thúc chủ đề'}
-                  >
-                    <CheckCircle2 size={16} /> Xác nhận
-                  </button>
+                  {canEdit && (
+                    <button className="btn" onClick={save} disabled={!!busy || !changed}>
+                      {busy === 'save' ? <Spinner small /> : <Save size={16} />} Lưu
+                    </button>
+                  )}
+                  {hasBePermission(user, PERMISSIONS.ASSESSMENT_CONFIRM) && (
+                    <button
+                      className="btn btn--primary"
+                      onClick={() => setConfirmOpen(true)}
+                      disabled={!!busy || !canConfirm}
+                      title={ev.canConfirm ? '' : 'Xác nhận được từ ngày kết thúc chủ đề'}
+                    >
+                      <CheckCircle2 size={16} /> Xác nhận
+                    </button>
+                  )}
                 </div>
               )}
             </div>

@@ -89,9 +89,9 @@ export const createSchoolConfigApi = (axiosClient) => ({
 
   getTeacherAssignments: (filters) => axiosClient.get('/teacher-assignments', { params: filters }),
   saveClassTeachers: (classId, form) => axiosClient.put(`/classes/${classId}/teachers`, form),
-  // GV dạy thay một lớp trong khoảng ngày (BE AUTH-24: substitute bắt buộc validTo)
-  assignSubstituteTeacher: ({ userId, classroomId, validFrom, validTo }) =>
-    axiosClient.post('/staff-assignments', { userId, classroomId, validFrom, validTo, substitute: true }),
+  // GV dạy thay một lớp trong khoảng ngày cho một GV đứng lớp (BE AUTH-24, SCH-04: bắt buộc validTo, replacedTeacherId)
+  assignSubstituteTeacher: ({ userId, classroomId, validFrom, validTo, replacedTeacherId }) =>
+    axiosClient.post('/staff-assignments', { userId, classroomId, validFrom, validTo, substitute: true, replacedTeacherId }),
   // PENDING BE: tổ trưởng 1 người / nhóm tuổi / năm học cho cả trường (không còn campusId trong payload)
   saveTeamLeader: (payload) => axiosClient.put('/team-leader-assignments', payload),
   getTeamLeaders: (filters) => axiosClient.get('/team-leader-assignments', { params: filters }),

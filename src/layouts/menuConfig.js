@@ -596,21 +596,42 @@ const withVpAreas = (menu, user) => {
 // Mục gắn với mã quyền BE thật: người dùng BE bị thu hồi quyền thì ẩn mục (BE vẫn chặn khi mở thẳng đường dẫn)
 const ITEM_BE_PERMISSIONS = {
   parentActivation: [PERMISSIONS.PARENT_ACCOUNT_MANAGE],
+  schoolPlacement: [PERMISSIONS.YEAR_PLACEMENT_MANAGE],
   childEnroll: [PERMISSIONS.CHILD_ENROLL],
   childPlacement: [PERMISSIONS.CHILD_PLACEMENT],
   schoolRoles: [PERMISSIONS.PERMISSION_MANAGE],
+  attendance: [PERMISSIONS.ATTENDANCE_RECORD, PERMISSIONS.DAILY_HEALTH_RECORD],
+  attendanceSummary: [PERMISSIONS.ATTENDANCE_VIEW],
+  attendanceDayUnlocks: [PERMISSIONS.ATTENDANCE_UNLOCK],
+  dailyHealthOverview: [PERMISSIONS.ATTENDANCE_VIEW],
+  leaveRequests: [PERMISSIONS.ATTENDANCE_VIEW],
+  pickup: [PERMISSIONS.PICKUP_RECORD],
+  assessDaily: [PERMISSIONS.ASSESSMENT_RECORD],
+  assessOverview: [PERMISSIONS.ASSESSMENT_VIEW],
+  assessQuality: [PERMISSIONS.ASSESSMENT_VIEW],
+  assessClassRatings: [PERMISSIONS.ASSESSMENT_VIEW],
+  assessThemes: [PERMISSIONS.ASSESSMENT_VIEW],
+  assessDayUnlocks: [PERMISSIONS.ASSESSMENT_UNLOCK],
+  assessProfiles: [PERMISSIONS.ASSESSMENT_VIEW],
+  assessProgress: [PERMISSIONS.ASSESSMENT_VIEW],
+  assessSemester: [PERMISSIONS.ASSESSMENT_VIEW],
+  assessYearEnd: [PERMISSIONS.ASSESSMENT_VIEW],
+  assessTickets: [PERMISSIONS.ASSESSMENT_VIEW],
+  assessRewards: [PERMISSIONS.ASSESSMENT_VIEW],
 };
 const withBePermissions = (menu, user) =>
-  menu
-    .map((e) =>
-      e.children
-        ? {
-            ...e,
-            children: e.children.filter((c) => !ITEM_BE_PERMISSIONS[c.key] || hasBePermission(user, ...ITEM_BE_PERMISSIONS[c.key])),
-          }
-        : e,
-    )
-    .filter((e) => !e.children || e.children.length > 0);
+  !Array.isArray(user?.bePermissions)
+    ? menu
+    : menu
+        .map((e) =>
+          e.children
+            ? {
+                ...e,
+                children: e.children.filter((c) => !ITEM_BE_PERMISSIONS[c.key] || hasBePermission(user, ...ITEM_BE_PERMISSIONS[c.key])),
+              }
+            : e,
+        )
+        .filter((e) => !e.children || e.children.length > 0);
 // Màn chỉ có khi nối BE (build mock không có route) ⇒ ẩn mục ở build demo
 // Không import demoSource ở đây: nó kéo mockDatabase (cần window) vào menu
 const KITCHEN_RECORDS_API = !USE_MOCK && INTEGRATION_MODULES['kitchen-records']?.source === 'api';
