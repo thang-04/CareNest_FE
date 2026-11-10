@@ -906,6 +906,19 @@
 .tr-exam-sheet__detail-label {
   font-size: var(--fs-sm);
 }
+/* Chi tiết điều kiện dưới nhóm radio trong ô (chips dị ứng, ô nhập chế độ ăn/tiền sử, cảnh báo lao): mỗi khối một dòng, co giãn theo ô */
+.tr-exam-sheet__cell-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+.tr-exam-sheet__cell-detail > .row {
+  width: 100%;
+}
+.tr-exam-sheet__cell-detail .alert {
+  margin: 0;
+}
 /* Nút chọn người đi cùng: tên phụ huynh dài xuống dòng trong ô hẹp (điện thoại) thay vì tràn ra ngoài bảng */
 .tr-exam-sheet__pick .btn {
   max-width: 100%;

@@ -106,6 +106,66 @@ export function IntakeChoiceField({ name, options, value, onChange, disabled, re
 }
 
 /**
+ * Ô bảng cho một nhóm radio kèm chi tiết điều kiện (khai báo sức khỏe khi tiếp nhận: chọn "Có" ⇒ ô nhập thêm hiện ra).
+ * children = chi tiết hiện khi đang chọn (chips, ô nhập phụ, ngày); hiển thị ngay dưới nhóm radio trong cùng ô, như ô kết quả của
+ * phiếu khám. number do IntakeSheet ghi vào.
+ */
+export function IntakeChoiceRow({ number, label, name, options, value, onChange, required, error, hint, children }) {
+  const id = useId();
+  const describedBy = error ? `${id}-error` : hint ? `${id}-hint` : undefined;
+  return (
+    <tr>
+      <td className="num">{number}</td>
+      <th scope="row" id={`${id}-label`}>
+        {label}
+        {required && <span className="req">*</span>}
+      </th>
+      <td>
+        <fieldset className="tr-fieldset" aria-labelledby={`${id}-label`} aria-describedby={describedBy}>
+          <div className="tr-exam-sheet__options">
+            {options.map((o) => (
+              <label key={o.value} className="radio">
+                <input type="radio" name={name} value={o.value} checked={value === o.value} onChange={() => onChange(o.value)} />
+                {o.label}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+        {children ? <div className="tr-exam-sheet__cell-detail">{children}</div> : null}
+        {error ? (
+          <span className="field__error" id={`${id}-error`} role="alert">
+            {error}
+          </span>
+        ) : (
+          hint && (
+            <span className="field__hint" id={`${id}-hint`}>
+              {hint}
+            </span>
+          )
+        )}
+      </td>
+    </tr>
+  );
+}
+
+/**
+ * Hàng giá trị chỉ xem của bảng tiếp nhận (bước Xem lại & xác nhận, tóm tắt khai báo): TT | nhãn | giá trị.
+ * Khác IntakeField (đóng FormField + ô nhập) ở chỗ ô kết quả chỉ hiện nội dung đọc, nên dùng cho màn xem lại.
+ */
+export function IntakeSheetValueRow({ number, label, children, required = false }) {
+  return (
+    <tr>
+      <td className="num">{number}</td>
+      <th scope="row">
+        {label}
+        {required && <span className="req">*</span>}
+      </th>
+      <td>{children}</td>
+    </tr>
+  );
+}
+
+/**
  * Ô nhập tự do kèm dropdown gợi ý (click vào ô hiện danh sách, gõ để lọc; bỏ dấu, không phân biệt hoa thường).
  * suggestions: danh sách chuỗi cố định. Giữ giá trị người nhập tự do — không chọn vẫn nhập được.
  */
@@ -117,7 +177,12 @@ export function IntakeSuggestField({ value, onChange, suggestions = [], maxLengt
   const valueRef = useRef(value);
   valueRef.current = value;
   const id = useId();
-  const norm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd');
+  const norm = (s) =>
+    String(s || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .replace(/đ/g, 'd');
   const q = norm(query.trim());
   const filter = q ? suggestions.filter((s) => norm(s).includes(q)) : suggestions;
   const showList = open && filter.length > 0;
