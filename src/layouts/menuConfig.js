@@ -320,10 +320,6 @@ const ITEMS = {
     label: 'Ảnh bữa ăn',
     to: '/kitchen/meal-photos',
   },
-  photoWindows: {
-    label: 'Khung giờ ảnh bữa',
-    to: '/kitchen/photo-windows',
-  },
   stockReceipts: {
     label: 'Phiếu nhập',
     to: '/kitchen/stock-receipts',
@@ -437,7 +433,7 @@ const MENUS = {
       nutrition: ['weeklyMenus', 'menuStatistics', 'menus'],
       kitchenOps: ['mealCount', 'publishedMenu', 'forecast', 'freshReceipts'],
       stock: ['dryStock', 'stockReceipts', 'stockHistory', 'stockShortfalls'],
-      foodSafety: ['inspections', 'foodSamples', 'mealPhotos', 'photoWindows'],
+      foodSafety: ['inspections', 'foodSamples', 'mealPhotos'],
       catalog: ['foods', 'dishes', 'nutritionSetup', 'suppliers'],
     }),
     account,
@@ -474,7 +470,7 @@ const MENUS = {
       nutrition: ['weeklyMenus', 'menuStatistics', 'menus', 'nutrition'],
       kitchenOps: ['mealCount', 'publishedMenu', 'forecast', 'freshReceipts'],
       stock: ['dryStock', 'stockReceipts', 'stockHistory', 'stockShortfalls'],
-      foodSafety: ['inspections', 'foodSamples', 'mealPhotos', 'photoWindows'],
+      foodSafety: ['inspections', 'foodSamples', 'mealPhotos'],
       catalog: ['foods', 'dishes', 'nutritionSetup', 'suppliers'],
     }),
     account,
@@ -619,7 +615,7 @@ const withBePermissions = (menu, user) =>
 // Không import demoSource ở đây: nó kéo mockDatabase (cần window) vào menu
 const KITCHEN_RECORDS_API = !USE_MOCK && INTEGRATION_MODULES['kitchen-records']?.source === 'api';
 const MEAL_PLAN_API = !USE_MOCK && INTEGRATION_MODULES['meal-plan']?.source === 'api';
-const API_ONLY_ITEMS = [...(!KITCHEN_RECORDS_API ? ['mealPhotos', 'photoWindows'] : []), ...(!MEAL_PLAN_API ? ['menuStatistics'] : [])];
+const API_ONLY_ITEMS = [...(!KITCHEN_RECORDS_API ? ['mealPhotos'] : []), ...(!MEAL_PLAN_API ? ['menuStatistics'] : [])];
 const withApiOnlyItems = (menu) =>
   API_ONLY_ITEMS.length
     ? menu.map((e) => (e.children ? { ...e, children: e.children.filter((c) => !API_ONLY_ITEMS.includes(c.key)) } : e))

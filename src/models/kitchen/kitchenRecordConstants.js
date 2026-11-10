@@ -25,5 +25,7 @@ export const KITCHEN_RECORD_PAGES = {
   inspections: { label: 'Kiểm thực ba bước', to: '/kitchen/inspections' },
   foodSamples: { label: 'Lưu mẫu thức ăn', to: '/kitchen/food-samples' },
   mealPhotos: { label: 'Ảnh bữa ăn', to: '/kitchen/meal-photos' },
-  photoWindows: { label: 'Khung giờ đăng ảnh', to: '/kitchen/photo-windows' },
 };
+
+// Giờ bếp được đăng ảnh nằm ở tab của trang Cấu hình thời gian (chỉ Hiệu trưởng)
+export const PHOTO_WINDOWS_SETTING_PATH = '/school/cutoff?tab=photo';

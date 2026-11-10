@@ -154,7 +154,7 @@ export const INTEGRATION_MODULES = {
   // Bếp hôm nay (xem), lưu mẫu thức ăn (duyệt), ảnh bữa, khung giờ ảnh trên BE /nutrition/{kitchen/day,food-samples,meal-photos,meal-photo-windows}
   'kitchen-records': {
     source: 'api',
-    routes: ['/kitchen/published-menu', '/kitchen/food-samples', '/kitchen/meal-photos', '/kitchen/photo-windows'],
+    routes: ['/kitchen/published-menu', '/kitchen/food-samples', '/kitchen/meal-photos'],
     files: ['src/services/kitchenRecordsApi.js'],
   },
   // Kế hoạch tuần theo khối + công bố trên BE /nutrition/meal-plans; thắng '/menu' của thực đơn mẫu còn demo

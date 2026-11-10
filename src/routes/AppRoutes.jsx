@@ -119,7 +119,6 @@ const KitchenTodayPage = lazyPage(() => import('@/pages/kitchen/KitchenTodayPage
 const FoodSampleQueuePage = lazyPage(() => import('@/pages/kitchen/FoodSampleQueuePage'));
 const InspectionDayPage = lazyPage(() => import('@/pages/kitchen/InspectionDayPage'));
 const MealPhotosPage = lazyPage(() => import('@/pages/kitchen/MealPhotosPage'));
-const MealPhotoWindowsPage = lazyPage(() => import('@/pages/kitchen/MealPhotoWindowsPage'));
 const ConfirmedMealCountPage = lazyPage(() => import('@/pages/kitchen/ConfirmedMealCountPage'));
 const RequiredFoodQuantityPage = lazyPage(() => import('@/pages/kitchen/RequiredFoodQuantityPage'));
 const MissingFoodReportPage = lazyPage(() => import('@/pages/kitchen/MissingFoodReportPage'));
@@ -420,7 +419,6 @@ export function AppRoutes() {
             <Route path="inspections" element={only(LEADERS, <InspectionDayPage />)} />
             <Route path="food-samples" element={only(LEADERS, KITCHEN_RECORDS_API ? <FoodSampleQueuePage /> : <FoodSampleLogPage />)} />
             {KITCHEN_RECORDS_API && <Route path="meal-photos" element={only(LEADERS, <MealPhotosPage />)} />}
-            {KITCHEN_RECORDS_API && <Route path="photo-windows" element={only(LEADERS, <MealPhotoWindowsPage />)} />}
             <Route path="forecast" element={only(LEADERS, FRESH_GOODS_API ? <FreshForecastPage /> : <WeeklyForecastPage />)} />
             {FRESH_GOODS_API && <Route path="forecast/new" element={only(LEADERS, <FreshForecastPage mode="new" />)} />}
             {FRESH_GOODS_API && <Route path="forecast/:id" element={only(LEADERS, <FreshForecastPage mode="detail" />)} />}
