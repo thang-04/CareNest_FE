@@ -8,6 +8,8 @@ import { axiosClient } from '@/services/http/axiosClient';
 export const createSchoolConfigApi = (axiosClient) => ({
   getSchoolYears: () => axiosClient.get('/school-years'),
   getSchoolYearById: (id) => axiosClient.get(`/school-years/${id}`),
+  // BE CFG-YR-05: lớp năm đang chuẩn bị của GV / tổ trưởng kèm trẻ đã xếp (chỉ xem)
+  getPrepClasses: (yearId) => axiosClient.get(`/school-years/${yearId}/prep-classes`),
   saveSchoolYear: (id, form) => (id ? axiosClient.put(`/school-years/${id}`, form) : axiosClient.post('/school-years', form)),
   // PENDING BE: kích hoạt kiểm tra lại các bước bắt buộc, áp dụng bản xếp lớp; payload { confirmName }
   activateSchoolYear: (id, payload) => axiosClient.post(`/school-years/${id}/activate`, payload),

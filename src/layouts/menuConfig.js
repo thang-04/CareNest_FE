@@ -158,6 +158,11 @@ const ITEMS = {
     label: 'Danh sách trẻ',
     to: '/children',
   },
+  // CFG-YR-05: GV xem lớp, trẻ năm đang chuẩn bị (chỉ xem)
+  childNewYearClass: {
+    label: 'Lớp năm học mới',
+    to: '/children/new-year-class',
+  },
   childEnroll: {
     label: 'Tiếp nhận trẻ',
     to: '/children/new',
@@ -504,7 +509,7 @@ const MENUS = {
   ],
   [ROLES.TEACHER]: [
     link('home'),
-    group('children', ['childList', 'healthChecks', 'healthTrends']),
+    group('children', ['childList', 'childNewYearClass', 'healthChecks', 'healthTrends']),
     group('attendance', ['attendance', 'attendanceSummary', 'leaveRequests', 'pickup']),
     group('education', ['eduGoals', 'eduBranch', 'eduClass', 'eduCurriculum']),
     group('assessment', [

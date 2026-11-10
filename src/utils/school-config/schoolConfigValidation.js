@@ -60,7 +60,15 @@ export const errorsAfterChange = (prev, patch, nextForm, limits) => {
 export const hasErrors = (e) => Object.keys(e).length > 0;
 export const firstError = (e) => Object.values(e)[0];
 
-export const validateSchoolYear = (form, others = [], { creating = false } = {}) => {
+/**
+ * prep: ngày mở chuẩn bị (BE CFG-YR-05). prepLocked = năm đã bắt đầu/kết thúc (chỉ xem); initialPrepDate = ngày đã lưu
+ * (đã qua vẫn giữ được); today = yyyy-mm-dd.
+ */
+export const validateSchoolYear = (
+  form,
+  others = [],
+  { creating = false, prepLocked = false, initialPrepDate = null, today = null } = {},
+) => {
   const e = {};
   const name = (form.name || '').trim();
   const m = YEAR_NAME.exec(name);
@@ -87,6 +95,21 @@ export const validateSchoolYear = (form, others = [], { creating = false } = {})
   }
   if (latest && !e.startDate && !e.endDate && form.startDate <= latest.endDate)
     e.startDate = `Ngày bắt đầu phải sau ngày kết thúc năm học ${latest.name} (${formatDate(latest.endDate)})`;
+  if (!prepLocked) {
+    const prep = form.prepDate;
+    if (!prep) e.prepDate = 'Chọn ngày mở chuẩn bị';
+    else if (!isIsoDate(prep)) e.prepDate = 'Ngày mở chuẩn bị không hợp lệ, nhập dạng dd/mm/yyyy (ví dụ 05/08/2027)';
+    else if (!e.startDate && isIsoDate(form.startDate) && prep >= form.startDate)
+      e.prepDate = `Ngày mở chuẩn bị phải trước ngày bắt đầu năm học (${formatDate(form.startDate)})`;
+    else {
+      const previous = isIsoDate(form.startDate)
+        ? [...others].filter((y) => y.endDate < form.startDate).sort((a, b) => b.endDate.localeCompare(a.endDate))[0]
+        : null;
+      if (previous && prep <= previous.endDate)
+        e.prepDate = `Ngày mở chuẩn bị phải sau ngày kết thúc năm học ${previous.name} (${formatDate(previous.endDate)})`;
+      else if (today && prep < today && prep !== initialPrepDate) e.prepDate = 'Ngày mở chuẩn bị không được trước hôm nay';
+    }
+  }
   return e;
 };
 

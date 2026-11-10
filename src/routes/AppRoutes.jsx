@@ -88,6 +88,7 @@ const PermissionHistoryPage = lazyPage(() => import('@/pages/school-config/Permi
 const TeacherAssignmentPage = lazyPage(() => import('@/pages/school-config/TeacherAssignmentPage'));
 const YearPlacementPage = lazyPage(() => import('@/pages/school-config/YearPlacementPage'));
 const ChildrenListPage = lazyPage(() => import('@/pages/children/ChildrenListPage'));
+const NewYearClassPage = lazyPage(() => import('@/pages/school-config/NewYearClassPage'));
 const EnrollChildPage = lazyPage(() => import('@/pages/children/EnrollChildPage'));
 const ImportChildrenPage = lazyPage(() => import('@/pages/children/ImportChildrenPage'));
 const ClassPlacementPage = lazyPage(() => import('@/pages/children/ClassPlacementPage'));
@@ -319,6 +320,7 @@ export function AppRoutes() {
             <Route index element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <ChildrenListPage />)} />
             {/* Tiếp nhận, nhập Excel, xếp lớp: Hiệu trưởng như PHT (user chốt 2026-10-27) */}
             <Route path="new" element={only(LEADERS, <EnrollChildPage />)} />
+            <Route path="new-year-class" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <NewYearClassPage />)} />
             <Route path="import" element={only(LEADERS, <ImportChildrenPage />)} />
             <Route path="placement" element={only(LEADERS, <ClassPlacementPage />)} />
             <Route
