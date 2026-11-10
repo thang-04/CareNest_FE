@@ -4,7 +4,7 @@ type: bug
 screens: [education-goals]
 be_modules: [education-plan]
 rules: []
-status: fixed
+status: open
 date: 2026-11-08
 keywords: [allGoalItems, items.map, rows, Hệ thống gặp sự cố]
 similar_to: []
@@ -44,3 +44,7 @@ Giữ nguyên items nếu có, fallback sang rows chỉ lấy kind=goal. Không 
 ## Ảnh hưởng
 
 Danh sách kế hoạch và thẻ tổng quan dùng allGoalItems. Chưa đọc được console của phiên Edge người dùng vì công cụ không xác định chắc URL, vì vậy stack phiên thật chưa được xác nhận.
+
+## Cập nhật 11/11/2026
+
+- Cần yêu cầu không sửa phần kế hoạch giáo dục của Tiền: đã trả `allGoalItems` và bỏ test `goal-items-compatibility` khỏi nhánh G94-179. Lỗi (nếu còn) do Tiền xử lý ở nhánh của mình.

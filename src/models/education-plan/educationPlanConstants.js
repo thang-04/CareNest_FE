@@ -67,11 +67,7 @@ export const EDU_STATUS_LABELS = {
 
 export function allGoalItems(goal) {
   if (!goal) return [];
-  return (goal.domains || []).flatMap((d) => {
-    // Dữ liệu bảng mới có rows; bản cũ vẫn giữ items và mã YCCĐ đã lưu.
-    const items = d.items ?? (d.rows || []).filter((row) => row.kind === 'goal');
-    return items.map((it) => ({ ...it, domain: d.name }));
-  });
+  return goal.domains.flatMap((d) => d.items.map((it) => ({ ...it, domain: d.name })));
 }
 
 // Cấu trúc kế hoạch chủ đề / tuần / ngày theo mẫu giáo án thật của MN Yên Định (knowledge/giao_an_mn_yen_dinh).
