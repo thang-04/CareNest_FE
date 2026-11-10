@@ -6,7 +6,7 @@ import { downloadDoc, printDoc } from '@/utils/assessment/themeEvaluationDoc';
 
 /**
  * Xem trước bản in đánh giá (cuối chủ đề, học kỳ) rồi In / Lưu PDF hoặc Xuất Word; khung xem trước là đúng HTML sẽ in.
- * file.signers + file.withSigners: sửa chức danh, họ tên, thêm người ký như tài liệu kế hoạch (Cần yêu cầu 10/11/2026);
+ * file.signers + file.withSigners: sửa chức danh, họ tên, thêm, bỏ người ký như tài liệu kế hoạch (Cần yêu cầu 10/11/2026);
  * chỉ đổi file in, không ghi hệ thống.
  */
 export default function ThemeEvaluationPreviewModal({ file, onClose }) {
@@ -63,7 +63,8 @@ export default function ThemeEvaluationPreviewModal({ file, onClose }) {
                   aria-label={`Họ tên người ký ${i + 1}`}
                   onChange={(e) => edit(i, 'name', e.target.value)}
                 />
-                {i >= original.length ? (
+                {/* Bỏ được mọi người ký, giữ ít nhất một chỗ ký (Cần yêu cầu 10/11/2026) */}
+                {signers.length > 1 ? (
                   <button
                     type="button"
                     className="icon-btn icon-btn--danger"

@@ -76,11 +76,16 @@ table { border-collapse: collapse; table-layout: fixed; width: 100%; }
 <p><i>${esc(signingPlace ? `${signingPlace}, ` : '')}${signingDate(board.confirmedAt)}</i></p>
 ${head ? signerCell(head, { upper: true }) : ''}
 </td></tr></tbody></table>
-<div class="signatures">
+${
+  // Bỏ hết người duyệt ở hộp xem trước thì bỏ luôn phần "Duyệt kế hoạch"
+  approvers.length
+    ? `<div class="signatures">
 <p><b>DUYỆT KẾ HOẠCH</b></p>
 <p>Từ ngày ${periodStart} đến ngày ${periodEnd}</p>
 <table><tbody>${approveRow(approvers)}</tbody></table>
-</div></body></html>`;
+</div>`
+    : ''
+}</body></html>`;
   return {
     html,
     name: `Danh-gia-hoc-ky-${board.semester}-${board.className}`,

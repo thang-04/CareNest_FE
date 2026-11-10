@@ -94,11 +94,16 @@ ${r.cells.map((c) => `<td class="n">${mark(c.met)}</td>`).join('')}
 ${signHead ? signerCell(signHead, { upper: true }) : ''}
 </td>
 </tr></table>
-<div class="approve">
+${
+  // Bỏ hết người duyệt ở hộp xem trước thì bỏ luôn phần "Duyệt kế hoạch"
+  approvers.length
+    ? `<div class="approve">
 <p class="c small">DUYỆT KẾ HOẠCH</p>
 <p class="c small">Từ ngày ${dmy(ev.startDate, false)} đến ngày ${dmy(ev.endDate)}</p>
 <table class="plain small">${approveRow(approvers)}</table>
-</div>`;
+</div>`
+    : ''
+}`;
   return shell(`Đánh giá cuối chủ đề - ${ev.themeName} - ${ev.className}`, body);
 };
 
