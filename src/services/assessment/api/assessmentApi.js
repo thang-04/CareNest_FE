@@ -181,8 +181,25 @@ export const createAssessmentBeApi = (client) => ({
   getYearEndSheet: (id) => client.get(`/assessment/evaluations/${id}/year-sheet`),
   saveYearEndSheet: (id, body) => client.put(`/assessment/evaluations/${id}/year-sheet`, body),
   // Hồ sơ / tiến độ phát triển: trẻ trong phạm vi của năm học, số liệu của trẻ theo khoảng ngày
-  getDevelopmentChildren: ({ schoolYear, classId } = {}) =>
-    client.get('/assessment/children', { params: { schoolYearId: schoolYear || undefined, classId: classId || undefined } }),
+  // Ghép điểm trường (tên đủ) và nhóm tuổi của lớp cho ô lọc; thiếu danh mục thì để trống, không chặn danh sách
+  getDevelopmentChildren: async ({ schoolYear, classId } = {}) => {
+    const [rows, classes, campuses, ageGroups] = await Promise.all([
+      client.get('/assessment/children', { params: { schoolYearId: schoolYear || undefined, classId: classId || undefined } }),
+      client.get('/assessment/theme-evaluations/classes', { params: { schoolYearId: schoolYear || undefined } }).catch(() => []),
+      client.get('/campuses').catch(() => []),
+      client.get('/age-groups').catch(() => []),
+    ]);
+    const classOf = new Map(classes.map((c) => [String(c.classId), c]));
+    return rows.map((r) => {
+      const ageGroupId = classOf.get(String(r.classId))?.ageGroupId ?? null;
+      return {
+        ...r,
+        campusName: campusFull(campuses, r.campusId) || '',
+        ageGroupId,
+        ageGroupName: ageGroups.find((g) => String(g.id) === String(ageGroupId))?.name || '',
+      };
+    });
+  },
   getChildDevelopment: (childId, { start, end }) => client.get(`/assessment/children/${childId}/development`, { params: { start, end } }),
   // Trẻ lớp 5–6 tuổi hoàn thành chương trình (sổ chỉ đạo chuyên môn mục 8): ghép tên điểm trường
   getProgramCompletion: async ({ schoolYear, campusId } = {}) => {
