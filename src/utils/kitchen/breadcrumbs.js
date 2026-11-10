@@ -14,7 +14,8 @@ export const KITCHEN_PAGES = {
   suppliers: { label: 'Nhà cung cấp', to: '/menu/suppliers' },
   publishedMenu: { label: 'Thực đơn đã công bố', to: '/kitchen/published-menu' },
   mealCount: { label: 'Sổ báo ăn đã xác nhận', to: '/kitchen/meal-count' },
-  forecast: { label: 'Bản dự trù hàng tươi', to: '/kitchen/forecast' },
+  forecast: { label: 'Bản dự trù', to: '/kitchen/forecast' },
+  dayMarket: { label: 'Đi chợ theo ngày', to: '/kitchen/market-day' },
   freshReceipts: { label: 'Kiểm nhận hàng tươi', to: '/kitchen/fresh-receipts' },
   foodSamples: { label: 'Sổ lưu mẫu thức ăn', to: '/kitchen/food-samples' },
 };

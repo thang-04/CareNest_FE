@@ -112,6 +112,7 @@ const DryStockPage = lazyPage(() => import('@/pages/kitchen/DryStockPage'));
 const FoodSampleLogPage = lazyPage(() => import('@/pages/kitchen/FoodSampleLogPage'));
 const WeeklyForecastPage = lazyPage(() => import('@/pages/kitchen/WeeklyForecastPage'));
 const FreshReceiptPage = lazyPage(() => import('@/pages/kitchen/FreshReceiptPage'));
+const DayMarketPage = lazyPage(() => import('@/pages/kitchen/DayMarketPage'));
 const FreshForecastPage = lazyPage(() => import('@/pages/kitchen/FreshForecastPage'));
 const FreshCheckPage = lazyPage(() => import('@/pages/kitchen/FreshCheckPage'));
 const PublishedMenuPage = lazyPage(() => import('@/pages/kitchen/PublishedMenuPage'));
@@ -443,6 +444,7 @@ export function AppRoutes() {
             <Route path="suppliers/:id/edit" element={<SupplierRedirect />} />
             <Route path="published-menu" element={only(LEADERS, KITCHEN_RECORDS_API ? <KitchenTodayPage /> : <PublishedMenuPage />)} />
             <Route path="meal-count" element={only(LEADERS, <ConfirmedMealCountPage />)} />
+            <Route path="market-day" element={only(LEADERS, <DayMarketPage />)} />
             <Route path="required-quantity" element={only(LEADERS, <RequiredFoodQuantityPage />)} />
             <Route path="missing-food" element={only(LEADERS, <MissingFoodReportPage />)} />
           </Route>
