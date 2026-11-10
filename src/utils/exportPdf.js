@@ -1,9 +1,9 @@
 /** Shared export: render a .print-sheet element to an A4 PDF (any module). */
-/** Libraries are loaded only when needed (code splitting). */
-export const exportElementToPdf = async (element, filename) => {
+/** Libraries are loaded only when needed (code splitting). `orientation`: 'portrait' (mặc định) | 'landscape' cho biểu mẫu nhiều cột. */
+export const exportElementToPdf = async (element, filename, { orientation = 'portrait' } = {}) => {
   const [{ default: html2canvas }, { jsPDF }] = await Promise.all([import('html2canvas'), import('jspdf')]);
   const canvas = await html2canvas(element, { scale: 2, backgroundColor: '#ffffff', useCORS: true });
-  const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const pdf = new jsPDF({ orientation, unit: 'mm', format: 'a4' });
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
   const imgHeight = (canvas.height * pageWidth) / canvas.width;

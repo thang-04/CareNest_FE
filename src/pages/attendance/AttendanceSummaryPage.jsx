@@ -308,7 +308,7 @@ export default function AttendanceSummaryPage() {
                       <span className="dd-stat__value">{totals.meals}</span>
                       <span
                         className="dd-stat__label"
-                        title="Số lượt trẻ có ăn trong ngày (mỗi trẻ 1 lượt/ngày); số suất theo bữa xem ở Sổ báo ăn"
+                        title="Số lượt trẻ có ăn trong ngày (mỗi trẻ 1 lượt/ngày); số suất theo bữa xem ở Sổ suất ăn"
                       >
                         Lượt trẻ ăn
                       </span>
@@ -331,7 +331,7 @@ export default function AttendanceSummaryPage() {
                           <th className="num">Có phép</th>
                           <th className="num">Không phép</th>
                           <th className="num">Chưa ĐD</th>
-                          <th className="num" title="Mỗi trẻ có ăn 1 lượt/ngày; số suất theo bữa xem ở Sổ báo ăn">
+                          <th className="num" title="Mỗi trẻ có ăn 1 lượt/ngày; số suất theo bữa xem ở Sổ suất ăn">
                             Lượt trẻ ăn
                           </th>
                         </tr>
@@ -412,7 +412,7 @@ export default function AttendanceSummaryPage() {
                             <th className="num">Có mặt</th>
                             <th className="num">Có phép</th>
                             <th className="num">Không phép</th>
-                            <th className="num" title="Mỗi trẻ có ăn 1 lượt/ngày; số suất theo bữa xem ở Sổ báo ăn">
+                            <th className="num" title="Mỗi trẻ có ăn 1 lượt/ngày; số suất theo bữa xem ở Sổ suất ăn">
                               Lượt trẻ ăn
                             </th>
                           </tr>
@@ -472,7 +472,7 @@ export default function AttendanceSummaryPage() {
                             <th className="num">Có mặt</th>
                             <th className="num">Có phép</th>
                             <th className="num">Không phép</th>
-                            <th className="num" title="Mỗi trẻ có ăn 1 lượt/ngày; số suất theo bữa xem ở Sổ báo ăn">
+                            <th className="num" title="Mỗi trẻ có ăn 1 lượt/ngày; số suất theo bữa xem ở Sổ suất ăn">
                               Lượt trẻ ăn
                             </th>
                           </tr>

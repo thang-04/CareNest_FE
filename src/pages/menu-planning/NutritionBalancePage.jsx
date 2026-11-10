@@ -37,6 +37,8 @@ import { formatDate, todayInput } from '@/utils/format';
 import { AGE_GROUPS, ageGroupById } from '@/models/School';
 import { FOOD_ORIGIN_LABELS, WEEKDAY_LABELS, WEEKLY_STATUS, mondayOf, weekLabel } from '@/models/menu-planning/menuPlanningConstants';
 import { mealCodesOf, mealLabel, mealsOf, normScopeMeals } from '@/utils/menu-planning/nutritionSetup';
+import { isDemoModule } from '@/services/demoSource';
+import DayBalancePage from '@/pages/menu-planning/DayBalancePage';
 import '@/styles/modules/menu-planning.css';
 
 const clone = (v) => JSON.parse(JSON.stringify(v || []));
@@ -47,7 +49,7 @@ const num = (v) => (Number(v) || 0).toLocaleString('vi-VN', { maximumFractionDig
  * (shared services) adjusts dishes or portions of a draft day and the values are recalculated (UC 6.11).
  * Định lượng từng thực phẩm của món đang xem sửa thử được ngay trên màn (chỉ tính ở trình duyệt); lưu vào món khi bấm lưu.
  */
-export default function NutritionBalancePage() {
+function LegacyNutritionBalance() {
   const [params, setParams] = useSearchParams();
   const { user } = useAuth();
   const toast = useToast();
@@ -506,4 +508,9 @@ export default function NutritionBalancePage() {
       )}
     </div>
   );
+}
+
+// Nối BE kế hoạch tuần ⇒ cân đối trên dữ liệu thật (dùng chung nội dung modal Sửa ngày); chế độ mock giữ màn demo cũ
+export default function NutritionBalancePage() {
+  return isDemoModule('meal-plan') ? <LegacyNutritionBalance /> : <DayBalancePage />;
 }

@@ -1,6 +1,16 @@
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { ArrowRight, CalendarDays, ClipboardCheck, FlaskConical, Package, RefreshCw, Truck, Users } from '@/components/ui/icons';
+import {
+  ArrowRight,
+  CalendarDays,
+  CircleCheck,
+  ClipboardCheck,
+  FlaskConical,
+  Package,
+  RefreshCw,
+  Truck,
+  Users,
+} from '@/components/ui/icons';
 import { Breadcrumb, EmptyState, ErrorState, LoadingState, StatusBadge } from '@/components';
 import { StatCard } from '@/components/ui/StatCard';
 import { CampusFilter } from '@/components/ui/CampusFilter';
@@ -9,7 +19,7 @@ import { DateInput } from '@/components/form/DateInput';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useDayBoard } from '@/hooks/boarding/useDayBoard';
 import { dayBoardApi } from '@/services/dayBoardApi';
-import { buildDayBoardRows, summarizeBoardRows } from '@/utils/boarding/dayBoardRows';
+import { buildDayBoardRows, nextBoardTask, summarizeBoardRows } from '@/utils/boarding/dayBoardRows';
 import { isIsoDate, todayInput } from '@/utils/format';
 import '@/styles/modules/boarding.css';
 
@@ -40,6 +50,45 @@ function TaskCell({ row, campus, syncing, onSyncStock }) {
           ),
         )}
       </div>
+    </div>
+  );
+}
+
+const NEXT_ALERT = { red: 'alert--danger', orange: 'alert--warning', purple: 'alert--warning' };
+
+/** Dòng "Việc tiếp theo": việc cần làm trước nhất trên các điểm trường đang xem, kèm nút tới màn xử lý. */
+function NextTask({ campuses, rowsPerCampus, syncing, onSyncStock }) {
+  const next = nextBoardTask(rowsPerCampus, campuses);
+  if (!next)
+    return (
+      <div className="alert alert--success bd-next" role="status">
+        <CircleCheck size={20} aria-hidden="true" />
+        <span>Đã xong các việc cần làm.</span>
+      </div>
+    );
+  const { row, campus, action } = next;
+  const Icon = TASK_ICONS[row.key] || ClipboardCheck;
+  return (
+    <div className={`alert ${NEXT_ALERT[row.tone]} bd-next`} role="status">
+      <Icon size={20} aria-hidden="true" />
+      <span className="bd-next__text">
+        Việc tiếp theo:{' '}
+        <b>
+          {row.title} · {campus.campusName}
+        </b>{' '}
+        — {row.status}
+      </span>
+      {action?.syncStock ? (
+        <button type="button" className="btn btn--sm btn--primary bd-next__action" disabled={syncing} onClick={() => onSyncStock(campus)}>
+          <RefreshCw size={14} /> {action.label}
+        </button>
+      ) : (
+        action && (
+          <Link className="btn btn--sm btn--primary bd-next__action" to={action.to}>
+            {action.label} <ArrowRight size={14} />
+          </Link>
+        )
+      )}
     </div>
   );
 }
@@ -154,6 +203,7 @@ export default function BoardingTodayPage() {
     const rowsPerCampus = board.data.campuses.map((campus) => buildDayBoardRows(campus, { date: boardDate }));
     body = (
       <>
+        <NextTask campuses={board.data.campuses} rowsPerCampus={rowsPerCampus} syncing={syncing} onSyncStock={syncStock} />
         <BoardSummary rowsPerCampus={rowsPerCampus} />
         <BoardTable campuses={board.data.campuses} rowsPerCampus={rowsPerCampus} syncing={syncing} onSyncStock={syncStock} />
       </>

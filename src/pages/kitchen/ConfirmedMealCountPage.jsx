@@ -37,7 +37,7 @@ export default function ConfirmedMealCountPage() {
     <div className="page">
       <Breadcrumb items={kitchenCrumbs(KITCHEN_PAGES.mealCount)} />
       <div className="page__head">
-        <h1 className="page__title">Sổ báo ăn đã xác nhận</h1>
+        <h1 className="page__title">Sổ suất ăn đã xác nhận</h1>
       </div>
       <div className="alert alert--info mb-16">
         <Lock size={18} />

@@ -118,7 +118,7 @@ function MealPanel({ count, user, md, onAdjust, counts }) {
 }
 
 /**
- * Sổ báo ăn ngày của một điểm trường: tab "Cả ngày" (mỗi lớp một dòng suất/ngày, BA) và mỗi bữa một tab
+ * Sổ suất ăn ngày của một điểm trường: tab "Cả ngày" (mỗi lớp một dòng suất/ngày, BA) và mỗi bữa một tab
  * (lớp nào ăn bữa đó, số suất). Nút "Xác nhận tất cả" chốt mọi bữa còn chờ: BE xác nhận theo cơ sở–ngày (NUT-02).
  */
 export function MealRegisterCard({ counts, campusName, user, md, onConfirm, onAdjust }) {
@@ -149,7 +149,7 @@ export function MealRegisterCard({ counts, campusName, user, md, onConfirm, onAd
   return (
     <div className="card dd-count">
       <div className="card__header">
-        <div className="card__title">Sổ báo ăn ngày{campusName ? ` · ${campusName}` : ''}</div>
+        <div className="card__title">Sổ suất ăn ngày{campusName ? ` · ${campusName}` : ''}</div>
         <MealCountStatusBadge status={status} />
       </div>
       <div className="card__body">
@@ -167,7 +167,7 @@ export function MealRegisterCard({ counts, campusName, user, md, onConfirm, onAd
             <Info size={18} />
             <div>
               {pastOpen(first)
-                ? 'Ngày đã qua và sổ báo ăn chưa được xác nhận trong ngày: số liệu dưới đây tính từ điểm danh, chỉ để xem.'
+                ? 'Ngày đã qua và sổ suất ăn chưa được xác nhận trong ngày: số liệu dưới đây tính từ điểm danh, chỉ để xem.'
                 : 'Giáo viên đang điểm danh và báo ăn. Số liệu dưới đây là tạm tính đến giờ chốt.'}
             </div>
           </div>
@@ -177,7 +177,7 @@ export function MealRegisterCard({ counts, campusName, user, md, onConfirm, onAd
             <AlertTriangle size={18} />
             <div>
               Lớp chưa hoàn thành điểm danh: <b>{incomplete.map((l) => `${l.className} (${l.missing} trẻ)`).join(', ')}</b>. Chưa xác nhận
-              được sổ báo ăn tới khi giáo viên điểm danh đủ (mở lại điểm danh nếu đã qua giờ chốt).
+              được sổ suất ăn tới khi giáo viên điểm danh đủ (mở lại điểm danh nếu đã qua giờ chốt).
             </div>
           </div>
         )}

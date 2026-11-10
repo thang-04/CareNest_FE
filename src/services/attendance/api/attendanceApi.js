@@ -16,6 +16,7 @@ export const attendanceApi = {
       ? axiosClient.get(`/classes/${classId}/attendance/summary`, { params: { from, to } })
       : axiosClient.get('/attendance/summary', { params: { from, to, ...(campusId ? { campusId } : {}) } }),
   getMealCounts: ({ date }) => axiosClient.get('/meal-counts', { params: { date } }),
+  getClassMealCount: ({ classId, date }) => axiosClient.get('/meal-counts/class', { params: { classId, date } }),
   confirmMealCount: (id, seen) =>
     axiosClient.post(`/meal-counts/${id}/confirm`, undefined, {
       params: { seenServings: seen?.servings ?? undefined, seenSubstitute: seen?.substitute ?? undefined },
@@ -95,6 +96,8 @@ export const createAttendanceBeApi = (client) => ({
           'MULTI',
         ),
   getMealCounts: ({ date, schoolYear }) => client.get('/meal-counts', { params: { date, schoolYearId: schoolYear || undefined } }),
+  // NUT-02, ATT-02: suất ăn từng bữa của một lớp cho giáo viên (BE kiểm phân công lớp, không tên trẻ)
+  getClassMealCount: ({ classId, date }) => client.get('/meal-counts/class', { params: { classId, date } }),
   // seen: { servings, substitute } cơ sở–ngày đang hiện; BE từ chối (409) nếu số đã đổi so với lúc xem (NUT-03)
   confirmMealCount: (id, seen) =>
     client.post(`/meal-counts/${id}/confirm`, undefined, {

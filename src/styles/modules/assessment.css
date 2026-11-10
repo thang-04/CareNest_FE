@@ -767,8 +767,9 @@
 .dg-rating-table td:nth-child(2) {
   min-width: 120px;
 }
+/* Đủ rộng cho lựa chọn dài nhất "Chưa đạt" trên một dòng */
 .dg-rating-table select.select {
-  min-width: 64px;
+  min-width: 88px;
   padding-inline: var(--space-2);
 }
 .dg-rating-table .input {

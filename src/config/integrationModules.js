@@ -67,6 +67,8 @@ export const INTEGRATION_MODULES = {
       'POST /meal-handovers/{x}/confirm',
       'POST /meal-handovers/{x}/shortage',
       'POST /meal-handovers/{x}/supplement',
+      // Suất ăn lớp cho giáo viên: đã làm ở nhánh BE feature/G94-254-BE-FEAT-27-day-boarding, chưa merge dev
+      'GET /meal-counts/class',
     ],
   },
   'meal-handover': {
@@ -154,13 +156,14 @@ export const INTEGRATION_MODULES = {
   // Bếp hôm nay (xem), lưu mẫu thức ăn (duyệt), ảnh bữa, khung giờ ảnh trên BE /nutrition/{kitchen/day,food-samples,meal-photos,meal-photo-windows}
   'kitchen-records': {
     source: 'api',
-    routes: ['/kitchen/published-menu', '/kitchen/food-samples', '/kitchen/meal-photos', '/kitchen/photo-windows'],
+    routes: ['/kitchen/published-menu', '/kitchen/food-samples', '/kitchen/meal-photos'],
     files: ['src/services/kitchenRecordsApi.js'],
   },
   // Kế hoạch tuần theo khối + công bố trên BE /nutrition/meal-plans; thắng '/menu' của thực đơn mẫu còn demo
   'meal-plan': {
     source: 'api',
-    routes: ['/menu/weekly', '/menu/statistics'],
+    // Cân đối khẩu phần đọc/lưu kế hoạch tuần + menu-statistics (09/11/2026)
+    routes: ['/menu/weekly', '/menu/statistics', '/menu/nutrition'],
     files: ['src/services/mealPlanApi.js'],
   },
   // Mẫu thực đơn một ngày theo khối trên BE /nutrition/menu-templates (NUT-13, đổi 04/11)
@@ -181,6 +184,13 @@ export const INTEGRATION_MODULES = {
     routes: ['/menu'],
     files: ['src/services/menu-planning/api/menuPlanningApi.js'],
     facades: ['src/services/menu-planning/menuPlanningService.js'],
+  },
+  // Kiểm thực ba bước M1–M3 (PHT điền, ký ảnh): BE chưa có API ⇒ demo
+  'kitchen-inspection': {
+    source: 'demo',
+    routes: ['/kitchen/inspections'],
+    files: ['src/services/kitchen/api/inspectionApi.js'],
+    facades: ['src/services/kitchen/inspectionService.js'],
   },
   // Sổ báo ăn đã xác nhận: BE có GET /meal-counts ⇒ màn này dùng số thật, các màn bếp khác còn demo
   'kitchen-meal-count': {

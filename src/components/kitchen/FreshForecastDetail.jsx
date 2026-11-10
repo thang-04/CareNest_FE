@@ -109,7 +109,7 @@ export function FreshForecastDetail({ campus }) {
           open={printing}
           onClose={() => setPrinting(false)}
           size="xl"
-          className="kb-print-modal"
+          className="print-modal"
           title="Danh sách đặt hàng"
           footer={<PrintToolbar sheetRef={sheetRef} fileBase={`Dat_hang_${forecast.periodFrom}`} printLabel="In danh sách" />}
         >

@@ -1,6 +1,6 @@
 import { dayLabel } from '@/utils/menu-planning/menuChecks';
 import { LUNCH_LABELS, LUNCH_TYPES } from '@/utils/menu-planning/weekGridLayout';
-import { mondayOf, schoolWeekStart, SESSION_ORDER } from '@/models/menu-planning/menuPlanningConstants';
+import { MEAL_PLAN_ISSUE_SHORT, mondayOf, schoolWeekStart, SESSION_ORDER } from '@/models/menu-planning/menuPlanningConstants';
 import { isIsoDate } from '@/utils/format';
 
 /*
@@ -73,6 +73,25 @@ export const dayResult = (plan, date) => {
   return (plan?.evaluations || []).some((e) => e.date === date) ? { tone: 'green', label: 'Đạt' } : null;
 };
 
+/**
+ * Lý do ngắn ở đầu cột ngày: tối đa `max` nhãn khác nhau theo mã lưu ý BE (lỗi chặn trước), phần còn lại đếm vào `more`.
+ * Mỗi lý do kèm câu đầy đủ BE trả để làm tooltip. Không có lưu ý ⇒ null (đầu cột giữ nhãn "Đạt" của `dayResult`).
+ */
+export const dayReasons = (plan, date, max = 2) => {
+  const issues = (plan?.issues || [])
+    .filter((i) => i.date === date && (i.severity === 'BLOCKING' || i.severity === 'WARNING'))
+    .sort((a, b) => (a.severity === b.severity ? 0 : a.severity === 'BLOCKING' ? -1 : 1));
+  if (!issues.length) return null;
+  const byLabel = new Map();
+  issues.forEach((issue) => {
+    const label = MEAL_PLAN_ISSUE_SHORT[issue.code] || 'Lưu ý khác';
+    if (!byLabel.has(label)) byLabel.set(label, { label, tone: issue.severity === 'BLOCKING' ? 'red' : 'orange', messages: [] });
+    if (issue.message) byLabel.get(label).messages.push(issue.message);
+  });
+  const reasons = [...byLabel.values()].map((r) => ({ ...r, title: r.messages.join('\n') }));
+  return { reasons: reasons.slice(0, max), more: Math.max(0, reasons.length - max), all: reasons };
+};
+
 /** Hàng "Suất dị ứng": món trong ngày (khối đang xem) có chất gây dị ứng theo danh mục món — chỉ hiển thị. */
 export const dayAllergenNotes = (day, block, dishById) =>
   (day?.items || [])
@@ -101,6 +120,54 @@ export const removeDish = (draft, date, block, session, dishId) =>
     ...day,
     items: day.items.filter((item) => !(item.block === block && item.session === session && item.dishId === String(dishId))),
   }));
+
+/** Thay một món trong ô bằng món khác, giữ đúng vị trí; món mới đã có trong ô thì không đổi gì. */
+export const replaceDish = (draft, date, block, session, oldId, dish) =>
+  updateDay(draft, date, (day) => {
+    const inCell = (item) => item.block === block && item.session === session;
+    if (day.items.some((item) => inCell(item) && item.dishId === String(dish.id))) return day;
+    return {
+      ...day,
+      items: day.items.map((item) =>
+        inCell(item) && item.dishId === String(oldId)
+          ? { ...item, dishId: String(dish.id), dishName: dish.name || '', dishType: dish.type || '' }
+          : item,
+      ),
+    };
+  });
+
+/** Món của một khối trong ngày (mọi bữa), theo thứ tự đang có. */
+export const dayBlockItems = (day, block) => (day?.items || []).filter((item) => item.block === block);
+
+/** Ghi đè món của một khối trong ngày bằng `items`; món của khối khác giữ nguyên. */
+export const setDayBlockItems = (draft, date, block, items) =>
+  updateDay(draft, date, (day) => ({
+    ...day,
+    items: [...day.items.filter((item) => item.block !== block), ...items.map((item) => ({ ...item, block }))],
+  }));
+
+/** Chép món của một khối từ ngày `from` sang một hoặc nhiều ngày `to` (thay món khối đó ở từng ngày đích). */
+export const copyDay = (draft, from, to, block) => {
+  const items = dayBlockItems(
+    draft.days.find((day) => day.date === from),
+    block,
+  );
+  return [].concat(to).reduce((next, date) => setDayBlockItems(next, date, block, items), draft);
+};
+
+/** Link mở một ngày của một khối ở màn Cân đối khẩu phần. */
+export const balanceHref = ({ week, block, date }) =>
+  `/menu/nutrition?${new URLSearchParams(Object.entries({ week, block, date }).filter(([, v]) => v)).toString()}`;
+
+/** Thân `POST /nutrition/menu-statistics` cho món đang chọn của một ngày và một nhóm tuổi; chưa có món ⇒ null (không gọi). */
+export const dayStatisticsQuery = (items, ageGroupId, date) =>
+  ageGroupId && items?.length
+    ? {
+        ageGroupId: Number(ageGroupId),
+        ...(date ? { date } : {}),
+        items: items.map(({ session, dishId }) => ({ session, dishId: Number(dishId) })),
+      }
+    : null;
 
 // Bật ngày nghỉ giữ nguyên món đã chọn để bỏ nghỉ thì khôi phục; yêu cầu gửi đi không mang món của ngày nghỉ
 export const setDayOff = (draft, date, off) => updateDay(draft, date, (day) => ({ ...day, off: !!off }));

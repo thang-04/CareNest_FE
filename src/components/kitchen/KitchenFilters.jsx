@@ -41,10 +41,12 @@ export function KbSessionFilter({ value, onChange, withAll = false, sessions = A
 }
 
 /** Campus picker for the Principal (school-wide scope); other roles see their campus name only. */
-export function KbCampusFilter({ campusId, onChange, canPick }) {
+export function KbCampusFilter({ campusId, onChange, canPick, campuses }) {
   const md = useMasterData();
+  // `campuses` = danh sách service của màn trả về (cùng nguồn với dữ liệu); không truyền thì lấy danh mục chung
+  const list = campuses || md.campuses;
   if (!canPick) {
-    const campus = md.campusById(campusId);
+    const campus = list.find((c) => String(c.id) === String(campusId));
     // Vẫn có nhãn như bản chọn được để chip thẳng hàng với các ô lọc khác
     return campus ? (
       <div className="date-filter">
@@ -59,7 +61,7 @@ export function KbCampusFilter({ campusId, onChange, canPick }) {
     <label className="date-filter">
       Điểm trường
       <select className="select" value={campusId} onChange={(e) => onChange(e.target.value)}>
-        {md.campuses.map((c) => (
+        {list.map((c) => (
           <option key={c.id} value={c.id}>
             {c.shortName || c.name}
           </option>
