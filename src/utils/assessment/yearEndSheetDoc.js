@@ -28,7 +28,8 @@ const tick = (on) => (on ? 'x' : '');
 /** Người ký mặc định: GV (ký bên phải, kèm ngày), BGH xác nhận (kí tên, đóng dấu); sửa / thêm ở hộp xem trước. */
 export const yearEndSigners = (sheet) => [
   { title: 'Giáo viên', name: (sheet.teachers || []).join(', ') },
-  { title: 'Xác nhận của BGH nhà trường', name: '' },
+  // Trường chỉ có 1 HT: điền sẵn tên HT (BE trả principal), sửa được ở hộp xem trước
+  { title: 'Xác nhận của BGH nhà trường', name: sheet.principal || '' },
 ];
 
 export const yearEndSheetHtml = ({ sheet, ev, child, comment }, signers = yearEndSigners(sheet)) => {

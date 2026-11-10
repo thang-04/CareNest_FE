@@ -163,12 +163,13 @@ export default function ClassRatingsPage() {
     const t = table();
     exportWithPreview([[t.title], t.headers, ...t.rows], `xep-loai-nhom-lop-${period.toLowerCase()}.xlsx`);
   };
-  // Bản in có chỗ ký Ban giám hiệu (Cần yêu cầu 10/11/2026): tên người đang đăng nhập điền sẵn đúng chức danh, sửa / thêm được
+  // Bản in có chỗ ký Ban giám hiệu (Cần yêu cầu 10/11/2026): trường chỉ có 1 HT nên tên HT luôn điền sẵn (BE trả
+  // principalName); PHT điền tên người đang đăng nhập nếu đúng chức danh; sửa / thêm / bỏ được
   const [printing, setPrinting] = useState(null);
   const openPrint = () =>
     setPrinting(
       classRatingFile(table(), [
-        { title: 'Hiệu trưởng', name: isPrincipal(user) ? user.fullName || '' : '' },
+        { title: 'Hiệu trưởng', name: ratings?.principalName || (isPrincipal(user) ? user.fullName || '' : '') },
         { title: 'Phó hiệu trưởng', name: isVicePrincipal(user) ? user.fullName || '' : '' },
       ]),
     );
