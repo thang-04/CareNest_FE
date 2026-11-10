@@ -145,7 +145,7 @@ function YearForm({ year, years, user }) {
             {errors._form}
           </div>
         )}
-        <div className="grid-3">
+        <div className="grid-4">
           <FormField
             label="Tên năm học"
             required
