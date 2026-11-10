@@ -1,5 +1,5 @@
 import { DEFAULT_PRINT_TEMPLATE } from '@/config/printTemplate';
-import { approveRow, signerCell } from '@/utils/assessment/docSignatures';
+import { signerCell } from '@/utils/assessment/docSignatures';
 
 const esc = (v = '') =>
   String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -7,6 +7,20 @@ const esc = (v = '') =>
 const colgroup = (n) =>
   `<colgroup><col style="width:4%"/><col style="width:18%"/>${'<col/>'.repeat(Math.max(n - 3, 0))}<col style="width:16%"/></colgroup>`;
 const place = (DEFAULT_PRINT_TEMPLATE.address.match(/xã ([^,]+)/i) || [])[1] || '';
+
+// Mọi người ký cùng một hàng (Cần yêu cầu 10/11/2026): người ký thêm bên trái, Hiệu trưởng (người ký đầu) bên phải dưới dòng ngày
+const signRow = (lead, rest) => {
+  const list = [...rest, lead].filter(Boolean);
+  if (!list.length) return '';
+  const width = Math.floor(100 / list.length);
+  const cells = list
+    .map((s, i) => {
+      const date = i === list.length - 1 ? `<p><i>${esc(place)}, ngày ..... tháng ..... năm ..........</i></p>` : '<p>&nbsp;</p>';
+      return `<td style="width:${width}%">${date}${signerCell(s, { upper: true })}</td>`;
+    })
+    .join('');
+  return `<table class="plain"><tr>${cells}</tr></table>`;
+};
 
 /**
  * Bản in Xếp loại nhóm lớp (OBS-24, sổ chỉ đạo chuyên môn) có chỗ ký Ban giám hiệu (Cần yêu cầu 10/11/2026).
@@ -40,13 +54,7 @@ tr { page-break-inside: avoid; }
 <body>
 <h1>${esc(title.toUpperCase())}</h1>
 <table class="grid">${colgroup(headers.length)}<thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>
-<div class="approve">
-<table class="plain"><tr><td style="width:50%"></td><td>
-<p><i>${esc(place)}, ngày ..... tháng ..... năm ..........</i></p>
-${lead ? signerCell(lead, { upper: true }) : ''}
-</td></tr></table>
-${rest.length ? `<table class="plain">${approveRow(rest)}</table>` : ''}
-</div>
+<div class="approve">${signRow(lead, rest)}</div>
 </body></html>`;
 }
 
