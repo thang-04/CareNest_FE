@@ -8,8 +8,8 @@ import { GENDER_LABELS } from '@/models/School';
 import { formatDate } from '@/utils/format';
 
 /**
- * Lớp năm học mới (BE CFG-YR-05): từ ngày mở chuẩn bị, giáo viên, tổ trưởng xem lớp mình được phân công ở năm sắp diễn
- * ra và trẻ đã được xếp vào (Xếp lớp năm mới). Chỉ xem; trẻ vào lớp thật, điểm danh, đánh giá từ ngày bắt đầu năm.
+ * Lớp năm học mới (BE CFG-YR-05): từ ngày mở chuẩn bị, giáo viên xem lớp mình dạy, tổ trưởng xem mọi lớp nhóm tuổi mình ở
+ * năm sắp diễn ra, kèm trẻ đã được xếp vào (Xếp lớp năm mới). Chỉ xem; trẻ vào lớp thật, điểm danh, đánh giá từ ngày bắt đầu năm.
  */
 export default function NewYearClassPage() {
   const { schoolYears } = useSchoolYear();
@@ -68,6 +68,8 @@ export default function NewYearClassPage() {
               <section key={c.id} className="card__body">
                 <h2 className="section-title">
                   {c.name}
+                  {/* Tổ trưởng / BGH xem lớp không dạy: chỉ xem */}
+                  {!c.teaches && ' (chỉ xem)'}
                   <span className="muted text-sm">
                     {' '}
                     · {md.campusById(c.campusId)?.name || ''} · {c.children.length} trẻ

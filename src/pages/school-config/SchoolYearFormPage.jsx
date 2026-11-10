@@ -11,7 +11,6 @@ import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { ErrorState, LoadingState, Spinner } from '@/components/ui/States';
 import { FormField } from '@/components/form/FormField';
 import { DateInput } from '@/components/form/DateInput';
-import { YearStatusBadge } from '@/components/school-config/SchoolConfigBadges';
 import { ScNoAccess } from '@/components/school-config/ScNoAccess';
 import { copyClasses, saveSchoolYear } from '@/services/school-config/schoolConfigService';
 import { copyResultMessage, copySourcesFor } from '@/components/school-config/CopyClassesModal';
@@ -151,7 +150,7 @@ function YearForm({ year, years, user }) {
             label="Tên năm học"
             required
             error={errors.name}
-            hint={nameLocked ? 'Năm học đã bắt đầu nên không đổi tên được' : 'Dạng NNNN-NNNN, ví dụ 2027-2028'}
+            hint={nameLocked ? 'Năm học đã bắt đầu nên không đổi tên được' : undefined}
           >
             <input
               className="input"
@@ -176,11 +175,7 @@ function YearForm({ year, years, user }) {
             label="Ngày mở chuẩn bị"
             required
             error={errors.prepDate}
-            hint={
-              prepLocked
-                ? 'Năm học đã bắt đầu nên không đổi được'
-                : 'Từ ngày này giáo viên thấy lớp, danh sách trẻ năm mới và soạn giáo án; điểm danh, đánh giá vẫn từ ngày bắt đầu'
-            }
+            hint={prepLocked ? 'Năm học đã bắt đầu nên không đổi được' : undefined}
           >
             <DateInput
               value={form.prepDate}
@@ -281,8 +276,6 @@ export default function SchoolYearFormPage() {
       <Breadcrumb items={yearCrumbs(id ? 'Sửa năm học' : 'Thêm năm học')} />
       <div className="row gap-3">
         <h1 className="page__title">{title}</h1>
-        {year && <YearStatusBadge status={year.status} size="lg" />}
-        {year?.preparing && <span className="chip chip--blue">Đang chuẩn bị</span>}
       </div>
       {body}
     </div>
