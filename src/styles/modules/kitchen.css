@@ -348,30 +348,6 @@
   font-weight: var(--fw-semibold);
 }
 
-/* Ô ký trên các phiếu in */
-.kb-print-sign {
-  margin-top: var(--space-6);
-}
-
-/* In từ modal xem trước: bỏ định vị của modal để phiếu bắt đầu ở đầu trang giấy */
-@media print {
-  .modal-backdrop:has(.kb-print-modal) {
-    position: absolute;
-    inset: 0 auto auto 0;
-    display: block;
-    width: 100%;
-    padding: 0;
-    background: none;
-  }
-
-  .kb-print-modal,
-  .kb-print-modal .modal__body {
-    position: static;
-    max-height: none;
-    overflow: visible;
-  }
-}
-
 /* Dự trù & đi chợ theo tuần */
 .kb-toolbar--center {
   align-items: center;

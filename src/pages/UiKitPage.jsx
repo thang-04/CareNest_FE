@@ -1,5 +1,17 @@
 import { useCallback, useState } from 'react';
-import { Plus, Save, Send, Trash2, Printer, Info, AlertTriangle, CheckCircle2, XCircle, Inbox } from '@/components/ui/icons';
+import {
+  Plus,
+  Save,
+  Send,
+  Trash2,
+  Printer,
+  Info,
+  AlertTriangle,
+  ArrowLeftRight,
+  CheckCircle2,
+  XCircle,
+  Inbox,
+} from '@/components/ui/icons';
 import * as AppIcons from '@/components/ui/icons';
 import { useToast } from '@/contexts/ToastContext';
 import { useAiRun } from '@/hooks/useAiRun';
@@ -477,6 +489,20 @@ export default function UiKitPage() {
               />
             </div>
             <div className="field">
+              <span className="field__label">SearchSelect variant=&quot;icon&quot; (Thay món)</span>
+              <SearchSelect
+                variant="icon"
+                icon={ArrowLeftRight}
+                ariaLabel="Thay Cơm tẻ"
+                heading="Thay Cơm tẻ · Cơm"
+                onChange={() => toast.info('Đã chọn món thay')}
+                options={[
+                  { value: 'x', label: 'Cơm gạo lứt' },
+                  { value: 'y', label: 'Cơm nếp' },
+                ]}
+              />
+            </div>
+            <div className="field">
               <label className="field__label" htmlFor="uk-text">
                 Textarea
               </label>
@@ -891,6 +917,9 @@ export default function UiKitPage() {
             <button className="btn" onClick={() => setModal(true)}>
               Mở Modal
             </button>
+            <button className="btn" onClick={() => setModal('full')}>
+              Mở Modal size=&quot;full&quot;
+            </button>
             <button className="btn btn--outline-danger" onClick={() => setConfirm(true)}>
               Mở ConfirmationModal (danger)
             </button>
@@ -918,8 +947,9 @@ export default function UiKitPage() {
             </button>
           </div>
           <Modal
-            open={modal}
-            title="Tiêu đề modal"
+            open={!!modal}
+            size={modal === 'full' ? 'full' : 'md'}
+            title={modal === 'full' ? 'Sửa nhiều một lần (size="full")' : 'Tiêu đề modal'}
             onClose={() => setModal(false)}
             footer={
               <>

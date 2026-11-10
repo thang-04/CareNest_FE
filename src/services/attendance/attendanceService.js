@@ -31,6 +31,7 @@ export const getClassAttendance = (classId, date, user) => (be || repo).getClass
 export const saveClassAttendance = (payload, user) => (be || repo).saveClassAttendance(payload, user);
 export const getAttendanceSummary = (query, user) => (be || repo).getAttendanceSummary(query, user);
 export const getMealCounts = (query, user) => (be || repo).getMealCounts(query, user);
+export const getClassMealCount = (query, user) => (be || repo).getClassMealCount(query, user);
 export const confirmMealCount = (id, user, seen) => (be ? be.confirmMealCount(id, seen) : repo.confirmMealCount(id, user));
 export const adjustMealDay = (payload, user) => (be || repo).adjustMealDay(payload, user);
 export const getMealHandovers = (query, user) => handoverRepo.getMealHandovers(query, user);

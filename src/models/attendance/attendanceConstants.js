@@ -108,3 +108,6 @@ export const needsSubstitute = (child) => (child?.allergies || []).length > 0;
 /** Đơn nghỉ của phụ huynh (BE LeaveRequestResponse.status). */
 export const LEAVE_STATUS = { ACTIVE: 'ACTIVE', CANCELLED: 'CANCELLED' };
 export const LEAVE_STATUS_LABELS = { ACTIVE: 'Đang hiệu lực', CANCELLED: 'Đã hủy' };
+
+// Tên màn số suất theo bữa, dùng chung cho menu, breadcrumb, tiêu đề (user chốt 09/11/2026, thay "Sổ báo ăn")
+export const MEAL_COUNT_TITLE = 'Sổ suất ăn';

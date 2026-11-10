@@ -21,6 +21,7 @@ import { hasBePermission } from '@/utils/account/accountPermissions';
 import { PERMISSIONS } from '@/models/account/permissionConstants';
 import { USE_MOCK } from '@/config/env';
 import { INTEGRATION_MODULES } from '@/config/integrationModules';
+import { MEAL_COUNT_TITLE } from '@/models/attendance/attendanceConstants';
 
 /*
  * Sidebar menu – single source of truth.
@@ -196,7 +197,7 @@ const ITEMS = {
     to: '/attendance/day-unlocks',
   },
   mealCount: {
-    label: 'Sổ suất ăn',
+    label: MEAL_COUNT_TITLE,
     to: '/attendance/meal-count',
   },
   dailyHealthOverview: {
@@ -309,7 +310,7 @@ const ITEMS = {
     to: '/menu/weekly',
   },
   menuStatistics: {
-    label: 'Thống kê định lượng',
+    label: 'Định lượng & đi chợ',
     to: '/menu/statistics',
   },
   nutrition: {

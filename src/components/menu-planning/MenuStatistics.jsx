@@ -1,8 +1,9 @@
+import { Fragment } from 'react';
 import { EmptyState } from '@/components/ui/States';
 import { NormRowBadge } from '@/components/menu-planning/MenuBadges';
 import { DISH_TYPE_LABELS, MEAL_SESSION_LABELS, SESSION_ORDER, formatMoney } from '@/models/menu-planning/menuPlanningConstants';
 import { dishTypeClass } from '@/utils/dishTypeClass';
-import { dishNutrition } from '@/utils/menu-planning/menuStatistics';
+import { dishNutrition, storageGroups } from '@/utils/menu-planning/menuStatistics';
 
 /*
  * Bảng thống kê một ngày thực đơn cho N trẻ (BE `POST /nutrition/menu-statistics`): thực phẩm × N trẻ, bảng dinh dưỡng
@@ -67,6 +68,8 @@ export function StatisticsDishes({ dishes, catalog, ageGroup }) {
 /** Bảng thực phẩm × N trẻ. */
 export function StatisticsIngredients({ stats }) {
   const n = stats.children;
+  // BE trả cờ Tươi/Khô + tổng nhóm ⇒ chia hai nhóm như phiếu kê chợ PMS; chưa có ⇒ một bảng
+  const groups = storageGroups(stats);
   return (
     <div className="table-wrap">
       <table className="table table--grid table--compact table--wrap-head td-stat-table">
@@ -92,21 +95,39 @@ export function StatisticsIngredients({ stats }) {
               </td>
             </tr>
           )}
-          {stats.ingredients.map((r, i) => (
-            <tr key={r.foodId}>
-              <td className="num muted">{i + 1}</td>
-              <td>{r.foodName}</td>
-              <td className="num nowrap">
-                {num(r.gramsPerChild, 2)} {r.unit}
-              </td>
-              <td className="num nowrap">{big(r.eatenTotal, r.unit)}</td>
-              <td className="num">{num(r.wastePct)}</td>
-              <td className="num nowrap">{big(r.purchaseTotal, r.unit)}</td>
-              <td className="num">{num(r.purchaseQty, 3)}</td>
-              <td className="nowrap center">{r.purchaseUnit}</td>
-              <td className="money nowrap">{r.unitPrice == null ? '—' : formatMoney(r.unitPrice)}</td>
-              <td className="money nowrap fw-600">{formatMoney(r.cost)}</td>
-            </tr>
+          {(groups || [{ key: 'ALL', rows: stats.ingredients }]).map((g) => (
+            <Fragment key={g.key}>
+              {groups && (
+                <tr className="td-stat-group">
+                  <th colSpan={10} scope="colgroup">
+                    {g.title} · {g.rows.length} thực phẩm
+                  </th>
+                </tr>
+              )}
+              {g.rows.map((r, i) => (
+                <tr key={r.foodId}>
+                  <td className="num muted">{i + 1}</td>
+                  <td>{r.foodName}</td>
+                  <td className="num nowrap">
+                    {num(r.gramsPerChild, 2)} {r.unit}
+                  </td>
+                  <td className="num nowrap">{big(r.eatenTotal, r.unit)}</td>
+                  <td className="num">{num(r.wastePct)}</td>
+                  <td className="num nowrap">{big(r.purchaseTotal, r.unit)}</td>
+                  <td className="num">{num(r.purchaseQty, 3)}</td>
+                  <td className="nowrap center">{r.purchaseUnit}</td>
+                  <td className="money nowrap">{r.unitPrice == null ? '—' : formatMoney(r.unitPrice)}</td>
+                  <td className="money nowrap fw-600">{formatMoney(r.cost)}</td>
+                </tr>
+              ))}
+              {groups && (
+                <tr className="td-stat-subtotal">
+                  <td />
+                  <td colSpan={8}>Tổng {g.title.toLowerCase()}</td>
+                  <td className="money nowrap">{formatMoney(g.total)}</td>
+                </tr>
+              )}
+            </Fragment>
           ))}
         </tbody>
         <tfoot>

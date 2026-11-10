@@ -201,6 +201,18 @@ export const MEAL_BLOCK_LABELS = { NURSERY: 'Nhà trẻ', KINDERGARTEN: 'Mẫu g
 export const MEAL_PLAN_STATUS = { NONE: 'NONE', DRAFT: 'DRAFT', PUBLISHED: 'PUBLISHED' };
 export const MEAL_PLAN_STATUS_LABELS = { NONE: 'Chưa lập', DRAFT: 'Bản nháp', PUBLISHED: 'Đã công bố' };
 export const PLAN_ISSUE_SEVERITY_LABELS = { BLOCKING: 'Cần sửa trước khi công bố', WARNING: 'Cảnh báo', INFO: 'Lưu ý' };
+// Nhãn ngắn ở đầu cột ngày theo `issues[].code` BE trả (MealPlanEvaluator); câu đầy đủ là `issues[].message`
+export const MEAL_PLAN_ISSUE_SHORT = {
+  NOT_BALANCED: 'Chưa cân đối',
+  NORM_NOT_SET: 'Chưa có định mức',
+  INCOMPLETE_DATA: 'Thiếu số liệu',
+  NO_DISHES: 'Chưa có món',
+  OVER_BUDGET: 'Vượt giá suất',
+  DISH_REPEATED: 'Món lặp',
+  SESSION_KCAL_OFF: 'Lệch kcal bữa',
+  MICRONUTRIENT_OFF: 'Lệch vi chất',
+  MICRONUTRIENT_INCOMPLETE: 'Thiếu số liệu vi chất',
+};
 // Dòng kiểm tra từng ngày của một nhóm tuổi (khóa `rows[].key` BE trả), theo thứ tự bảng dinh dưỡng PMS
 export const EVAL_ROW_KEYS = [
   'kcal',
