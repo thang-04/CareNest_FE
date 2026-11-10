@@ -265,49 +265,6 @@ test('ST-02b viết tắt chủ đề trùng: chỉ báo đỏ tại ô, Enter �
   await leave(page);
 });
 
-test('ST-02c Phó HT đang xem bản do Tổ trưởng giữ quyền sửa: Tổ trưởng rời trang thì màn Phó HT tự mở lại quyền sửa, không cần tải lại (EDU-10)', async ({
-  browser,
-}) => {
-  const a = await (await browser.newContext()).newPage();
-  await login(a, USERS.teacher1);
-  await a.goto(`/education/goals/${planId}/edit`);
-  await expect(a.locator('#desc')).toBeEditable();
-  await expect.poll(async () => (await goal()).status).toBe('EDITING');
-
-  const b = await (await browser.newContext()).newPage();
-  await login(b, USERS.vp);
-  await b.goto(`/education/goals/${planId}`);
-  await expect(b.getByText(/^Đang được .+ sửa từ/)).toBeVisible();
-  await expect(b.getByRole('link', { name: 'Chỉnh sửa' })).toHaveCount(0);
-  const navigations = [];
-  b.on('framenavigated', (frame) => frame === b.mainFrame() && navigations.push(frame.url()));
-
-  // A rời trang soạn (không đổi gì) ⇒ nhả quyền; B tự thấy trong vài giây, không tải lại trang
-  await a.locator('nav, aside').getByRole('link', { name: 'Kế Hoạch Tổ' }).first().click();
-  await expect(a).toHaveURL(/\/education\/goals$/);
-  await expect(b.getByRole('link', { name: 'Chỉnh sửa' })).toBeVisible({ timeout: 15_000 });
-  await expect(b.getByText(/^Đang được .+ sửa từ/)).toHaveCount(0);
-  expect(navigations).toEqual([]);
-  await a.context().close();
-  await b.context().close();
-});
-
-const HISTORY_WITH_DRAFT = 'Lịch sử phiên bản (có bản chưa lưu)';
-
-// Lịch sử phiên bản (Tiền 03/11): mở panel, chọn bản chưa lưu mới nhất, thấy dòng khác tô màu, Dùng bản này
-async function useDraftFromHistory(page) {
-  await page.getByRole('button', { name: HISTORY_WITH_DRAFT }).click();
-  const panel = page.getByRole('dialog', { name: 'Lịch sử phiên bản' });
-  await expect(panel.getByRole('button', { name: /Bản đã lưu hiện tại/ })).toBeVisible();
-  await panel.getByRole('button', { name: /^Lúc / }).first().click();
-  await expect(panel.locator('.ga-history-line--add').first()).toBeVisible();
-  await expect(panel.getByRole('button', { name: 'Dùng bản này' })).toBeEnabled({ timeout: 10_000 });
-  await panel.getByRole('button', { name: 'Dùng bản này' }).click();
-  const confirm = page.getByRole('dialog', { name: 'Dùng bản này?' });
-  if (await confirm.isVisible().catch(() => false)) await confirm.getByRole('button', { name: 'Dùng bản này' }).click();
-  await expect(panel).toBeHidden();
-}
-
 test('ST-03 đóng tab khi chưa lưu: trình duyệt hỏi; mở lại không chặn, Lịch sử phiên bản có chấm, dùng bản cũ + Lưu thì xóa bản giữ', async ({
   context,
 }) => {

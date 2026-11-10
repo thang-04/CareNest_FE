@@ -1,6 +1,6 @@
 # Điều kiện gửi và nội dung riêng của kế hoạch giáo dục
 
-Nguồn nghiệp vụ: [BE spec016](../../../CareNest_BE/specs/016-education-submit-validation/spec.md), [BE flow](../../../CareNest_BE/docs/business/flows/education-plan.md), EDU-65–71 tại [business rules](../../../CareNest_BE/docs/business/BUSINESS_RULES.md). Đây là yêu cầu user trực tiếp ngày 09/11/2026 (PROPOSED), chưa phải bằng chứng đã triển khai hoặc giáo viên trường đã xác nhận.
+Nguồn nghiệp vụ: [BE spec016](../../../CareNest_BE/specs/016-education-submit-validation/spec.md), [BE flow](../../../CareNest_BE/docs/business/flows/education-plan.md), EDU-65–71 tại [business rules](../../../CareNest_BE/docs/business/BUSINESS_RULES.md). Đây là yêu cầu user trực tiếp ngày 09/11/2026; Tiền chốt 10/11/2026 (EDU-66 CONFIRMED, EDU-52): mọi điều kiện bắt buộc khi ban hành chặn ngay từ bước gửi — Web báo "Chọn ngày" khi bấm Gửi.
 
 - Khi gửi năm: tối thiểu 9 chủ đề hợp lệ, có chuỗi kết quả/STT/mục tiêu/nội dung, mỗi mục tiêu có nội dung; mọi chủ đề và mẫu nhánh đã khai báo đủ ngày, số tuần trong giới hạn hồ sơ. Lưu nháp chưa hoàn chỉnh; dấu * đỏ có tên truy cập, lỗi chỉ được phần cần sửa. STT tự sinh, nhãn STT tùy chọn; rỗng về mặc định.
 - Hồ sơ mất giới hạn hoặc chưa phân biệt được legacy thật phải chặn gửi, báo kiểm tra/khôi phục. Legacy thật có bằng chứng giữ ngoại lệ khoảng tuần cũ nhưng vẫn kiểm đủ ngày. Không tự suy hoặc sửa dữ liệu cũ; server quyết định.

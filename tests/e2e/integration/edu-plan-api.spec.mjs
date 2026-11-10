@@ -69,7 +69,7 @@ test('IT-03 Tổ trưởng lập kế hoạch năm (nháp dở được lưu), g
   });
   expect(res.status, res.desc).toBe(201);
   plan = res.data;
-  expect(plan.status).toBe('EDITING'); // EDU-03: nháp đang có phiên sửa hiện "Đang sửa"
+  expect(plan.status).toBe('DRAFT'); // EDU-70: bỏ trạng thái "Đang sửa" (khóa sửa đã bỏ ở BE V93)
   expect(plan.revision).toBeGreaterThanOrEqual(1);
   themeId = plan.themes[0].id;
   // Lưu tay lần hai trên cùng phiên: revision tăng, nội dung đổi

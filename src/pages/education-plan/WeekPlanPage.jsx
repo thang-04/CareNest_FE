@@ -37,16 +37,20 @@ import { FinishedThemeNote, SupersededNote, VersionCopyOffer, VersionFlagsPanel 
 import { useDocVersion } from '@/hooks/education-plan/useDocVersion';
 import { checkFlag, dropReference, versionOf } from '@/models/education-plan/planVersions.mjs';
 import DocPreviewModal from '@/components/education-plan/DocPreviewModal';
+import { dayKeyOf } from '@/models/education-plan/deadline.mjs';
+
+const DAY_FIELDS = ['days', 'dayGoals', 'adjustments'];
+const without = (doc, keys) => Object.fromEntries(Object.entries(doc).filter(([k]) => !keys.includes(k)));
 
 /**
- * Giáo án một tuần của lớp = kế hoạch tuần (mục đích, chuẩn bị, bảng hoạt động × Thứ 2–6) + 5 kế hoạch ngày.
- * Không gửi riêng: gửi và duyệt trong hồ sơ chủ đề (kế hoạch chủ đề + giáo án tất cả các nhánh); bản in có khung
- * "Duyệt giáo án từ ngày … đến ngày …" để ký tay. review = đường dẫn duyệt cũ, chuyển sang hồ sơ chủ đề.
+ * Spec 003 (Q9): hai trang của một tuần — mode 'week' = Kế hoạch tuần (mục đích, chuẩn bị, bảng hoạt động Thứ 2–6),
+ * mode 'days' = Giáo án ngày (5 kế hoạch ngày + điều chỉnh sau dạy). Mỗi phần theo trạng thái gói/hồ sơ chứa nó; gửi và
+ * duyệt ở gói học kỳ hoặc hồ sơ chủ đề. review = đường dẫn duyệt cũ, chuyển sang trang tuần.
  */
-export default function WeekPlanPage({ review = false }) {
+export default function WeekPlanPage({ review = false, mode = 'week' }) {
   const { classId, weekStart } = useParams();
   if (review) return <WeekReviewRedirect />;
-  return <WeekPlanInner key={`${classId}/${weekStart}`} />;
+  return <WeekPlanInner key={`${classId}/${weekStart}/${mode}`} mode={mode} />;
 }
 
 function WeekReviewRedirect() {
@@ -58,17 +62,34 @@ function WeekReviewRedirect() {
   return <Navigate to={`/education/class/${classId}/weeks/${weekStart}`} replace />;
 }
 
-function WeekPlanInner() {
+function WeekPlanInner({ mode }) {
   const tabId = useId();
   const { classId, weekStart } = useParams();
-  const { user, weekPlans, branchPlans, classThemePlans, saveClassDoc, saveClassDocAdjustments, toast, staff } = useEducationPlan();
+  const {
+    user,
+    weekPlans,
+    dayPlans,
+    branchPlans,
+    classThemePlans,
+    themeDossiers,
+    semesterPackages,
+    saveClassDoc,
+    saveClassDocAdjustments,
+    toast,
+    staff,
+  } = useEducationPlan();
   const [preview, setPreview] = useState(null);
   const ctx = useClassPlanContext(classId);
-  const { cls, yearPlan, isHomeroomTeacher } = ctx;
-  const saved = weekPlans.find((w) => w.classId === classId && w.yearPlanId === yearPlan?.id && w.weekStart === weekStart) || null;
+  const { cls, yearPlan, canComposeClassDocs } = ctx;
+  const savedWeek = weekPlans.find((w) => w.classId === classId && w.yearPlanId === yearPlan?.id && w.weekStart === weekStart) || null;
+  const savedDay = dayPlans.find((w) => w.classId === classId && w.yearPlanId === yearPlan?.id && w.weekStart === weekStart) || null;
+  // Bản mock cũ chưa tách giáo án ngày: mọi thứ vẫn nằm ở giáo án tuần
+  const split = dayPlans.length > 0 || themeDossiers.length > 0;
+  const days = mode === 'days';
+  const saved = split && days ? savedDay : savedWeek;
   const [draft, setDraft] = useState(null);
   const [dirty, setDirty] = useState(false);
-  const [tab, setTab] = useState('week');
+  const [tab, setTab] = useState(days ? '0' : 'week');
 
   const weeks = yearPlan ? yearWeeks(yearPlan).filter((w) => w.type === 'week') : [];
   const idx = weeks.findIndex((w) => w.start === weekStart);
@@ -78,8 +99,12 @@ function WeekPlanInner() {
   // Nội dung sửa khi Nháp / Bị trả lại trên phiên bản hiện hành; ô điều chỉnh của ngày ghi được ở mọi trạng thái (BE:EDU-27)
   const contentEditable =
     !ctx.superseded &&
-    (saved?.permissions ? saved.permissions.canEdit : saved ? isHomeroomTeacher && isEditableStatus(saved.status) : ctx.canCreate('week'));
-  const adjustEditable = !!saved && (saved.permissions ? saved.permissions.canEditAdjustments : isHomeroomTeacher);
+    (saved?.permissions
+      ? saved.permissions.canEdit
+      : saved
+        ? canComposeClassDocs && isEditableStatus(saved.status)
+        : ctx.canCreate('week'));
+  const adjustEditable = !!saved && (saved.permissions ? saved.permissions.canEditAdjustments : canComposeClassDocs);
   const sameAdjust = (a, b) => JSON.stringify(a || {}) === JSON.stringify(b || {});
 
   // Lưu tay (nút Lưu, Ctrl+S); rời trang khi chưa lưu thì hỏi
@@ -87,9 +112,28 @@ function WeekPlanInner() {
     doc: draft,
     enabled: contentEditable || adjustEditable,
     save: async (doc) => {
-      let out = contentEditable ? await saveClassDoc('week', { ...doc, dayGoals: dayGoalsOf(doc) }) : saved;
+      if (!split) {
+        let out = contentEditable ? await saveClassDoc('week', { ...doc, dayGoals: dayGoalsOf(doc) }) : saved;
+        if (out && !sameAdjust(doc.adjustments, out.adjustments)) out = await saveClassDocAdjustments(out.id, doc.adjustments || {}, out);
+        return out;
+      }
+      if (!days) {
+        const out = await saveClassDoc('week', without(doc, DAY_FIELDS));
+        return out && { ...doc, ...out };
+      }
+      const dayDoc = {
+        id: savedDay?.id || dayKeyOf(doc.id),
+        classId: doc.classId,
+        yearPlanId: doc.yearPlanId,
+        themeId: doc.themeId,
+        weekStart: doc.weekStart,
+        days: doc.days,
+        dayGoals: dayGoalsOf(doc),
+        version: savedDay?.version,
+      };
+      let out = contentEditable ? await saveClassDoc('day', dayDoc) : savedDay;
       if (out && !sameAdjust(doc.adjustments, out.adjustments)) out = await saveClassDocAdjustments(out.id, doc.adjustments || {}, out);
-      return out;
+      return out && { ...doc, ...out };
     },
     onSaved: (same) => same && setDirty(false),
     backup: { userId: user?.id, key: `week:${classId}:${weekStart}${versionOf(yearPlan) > 1 ? `:${yearPlan.id}` : ''}` },
@@ -106,20 +150,27 @@ function WeekPlanInner() {
 
   useEffect(() => {
     if (dirty || !week) return;
-    const doc =
-      saved ||
-      emptyWeekPlan({
-        classId,
-        yearPlanId: yearPlan.id,
-        weekStart,
-        weekNo: week.no,
-        themeId: week.theme.id,
-        versionNo: versionOf(yearPlan),
-      });
+    const blank = emptyWeekPlan({
+      classId,
+      yearPlanId: yearPlan.id,
+      weekStart,
+      weekNo: week.no,
+      themeId: week.theme.id,
+      versionNo: versionOf(yearPlan),
+    });
+    // Ghép kế hoạch tuần + giáo án ngày để bảng hoạt động và từng ngày cùng nối MT (EDU-16)
+    const doc = split
+      ? {
+          ...(savedWeek || blank),
+          ...(savedDay
+            ? { days: savedDay.days?.length ? savedDay.days : blank.days, dayGoals: savedDay.dayGoals, adjustments: savedDay.adjustments }
+            : {}),
+        }
+      : saved || blank;
     setDraft(doc);
     saver.markClean(doc);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [saved?.id, saved?.version, saved?.dossierVersion, saved?.status, saved?.history?.length, week?.start, classId]);
+  }, [saved?.id, saved?.version, saved?.dossierVersion, saved?.status, saved?.history?.length, savedWeek?.version, week?.start, classId]);
 
   if (ctx.loading) return <LoadingState />;
   if (!cls || !yearPlan || !week) return <StatusPage kind="404" title="Không tìm thấy tuần học này trong kế hoạch năm của lớp" />;
@@ -141,11 +192,16 @@ function WeekPlanInner() {
   const flagEdit = (fn) => update((d) => fn(d));
   const base = `/education/class/${classId}`;
   // Gửi / duyệt cả kế hoạch chủ đề ở trang kế hoạch chủ đề (trang hồ sơ đã bỏ, Tiền 04/11)
-  const dossierTo = `${base}/themes/${week.theme.id}`;
+  const containerKey = saved?.containerKey || savedWeek?.containerKey;
+  const container =
+    [...semesterPackages, ...themeDossiers].find((d) => d.id === (days ? `ds_${classId}_${week.theme.id}` : containerKey)) || null;
+  const dossierTo =
+    !days && container?.kind === 'semester' ? `${base}/semesters/${container.semesterNo}` : `${base}/themes/${week.theme.id}`;
   const branch = branchPlans.find((b) => b.classId === classId && b.yearPlanId === yearPlan.id);
   const branchName = branch?.names?.[weekStart] || '';
   const themeDoc = classThemePlans.find((t) => t.classId === classId && t.themeId === week.theme.id) || null;
-  const crumbs = [{ label: 'Kế hoạch giáo dục' }, { label: `Kế hoạch ${cls.name}`, to: base }, { label: `Tuần ${week.no}` }];
+  const pageTitle = days ? `Giáo án ngày tuần ${week.no}` : `Kế hoạch tuần ${week.no}`;
+  const crumbs = [{ label: 'Kế hoạch giáo dục' }, { label: `Kế hoạch ${cls.name}`, to: base }, { label: pageTitle }];
   // Mở thẳng đường dẫn khi chưa tới bước này: không hiện biểu mẫu, chỉ ra bước còn thiếu
   const lock =
     !saved && createBlocker('week', { classId, yearPlanId: yearPlan.id, themeId: week.theme.id }, { branchPlans, classThemePlans });
@@ -153,7 +209,7 @@ function WeekPlanInner() {
     const target = lockTarget(lock, base, week.theme.id);
     return (
       <div className="page ga-page">
-        <PageHead crumbs={crumbs} title={`Giáo án tuần ${week.no}`} desc={`${cls.name} · ${fmtDate(week.start)} → ${fmtDate(week.end)}`} />
+        <PageHead crumbs={crumbs} title={pageTitle} desc={`${cls.name} · ${fmtDate(week.start)} → ${fmtDate(week.end)}`} />
         <Notice tone="warn">
           Chưa thể bắt đầu: {lock.message} <Link to={target.to}>{target.label}</Link>
         </Notice>
@@ -193,19 +249,22 @@ function WeekPlanInner() {
     }[event.key];
     if (nextTab === undefined) return;
     event.preventDefault();
-    setTab(nextTab === 0 ? 'week' : String(nextTab - 1));
+    setTab(split ? String(nextTab) : nextTab === 0 ? 'week' : String(nextTab - 1));
     tabs[nextTab].focus({ preventScroll: true });
   };
 
   return (
     <div className="page ga-page ga-class-editor">
       <div className="ga-sticky-head">
-        <PageHead crumbs={crumbs} title={`Giáo án tuần ${week.no}`} desc={`${cls.name} · ${fmtDate(week.start)} → ${fmtDate(week.end)}`} />
+        <PageHead crumbs={crumbs} title={pageTitle} desc={`${cls.name} · ${fmtDate(week.start)} → ${fmtDate(week.end)}`} />
         {/* Thanh thao tác như màn Kế hoạch năm học: nút cỡ nhỏ viền xanh, nhóm lưu/xuất bên phải (Tiền 05/11) */}
         <div className="ga-year-toolbar" role="group" aria-label="Thao tác giáo án tuần">
           <div className="ga-year-toolbar__group">
             {/* Trạng thái theo kế hoạch chủ đề (giáo án tuần gửi / duyệt cùng kế hoạch chủ đề), đặt ở header như mục tiêu năm học */}
-            <EduStatusBadge status={themeDoc?.status || EDU_STATUS.DRAFT} doc={themeDoc} />
+            <EduStatusBadge status={(container || themeDoc)?.status || EDU_STATUS.DRAFT} doc={container || themeDoc} />
+            <Link className="btn btn--sm btn--outline-primary" to={days ? `${base}/weeks/${weekStart}` : `${base}/weeks/${weekStart}/days`}>
+              {days ? 'Kế hoạch tuần' : 'Giáo án ngày'}
+            </Link>
             <button
               type="button"
               className="btn btn--sm btn--outline-primary"
@@ -248,7 +307,7 @@ function WeekPlanInner() {
             <DocReviewButton
               kind="week"
               doc={saved}
-              dossier={themeDoc}
+              dossier={container || themeDoc}
               ctx={ctx}
               user={user}
               dirty={saver.unsaved || saver.saving}
@@ -289,7 +348,7 @@ function WeekPlanInner() {
         onCheck={(f) => flagEdit((d) => checkFlag(d, f))}
         onDrop={(f) => flagEdit((d) => dropReference('week', d, f))}
       />
-      <RejectedNotice status={themeDoc?.status} history={themeDoc?.history} />
+      <RejectedNotice status={(container || themeDoc)?.status} history={(container || themeDoc)?.history} />
       <Card
         bodyClass={null}
         foot={
@@ -298,12 +357,12 @@ function WeekPlanInner() {
             <span />
             <span className="row gap-2">
               {prev && (
-                <Link className="btn btn--ghost btn--sm" to={`${base}/weeks/${prev.start}`}>
+                <Link className="btn btn--ghost btn--sm" to={`${base}/weeks/${prev.start}${days ? '/days' : ''}`}>
                   <ArrowLeft size={16} aria-hidden /> Về tuần {prev.no}
                 </Link>
               )}
               {next && (
-                <Link className="btn btn--ghost btn--sm" to={`${base}/weeks/${next.start}`}>
+                <Link className="btn btn--ghost btn--sm" to={`${base}/weeks/${next.start}${days ? '/days' : ''}`}>
                   Sang tuần {next.no} <ArrowRight size={16} aria-hidden />
                 </Link>
               )}
@@ -319,7 +378,7 @@ function WeekPlanInner() {
           <div className={`ga-week-hero__name ${branchName ? '' : 'muted'}`}>{branchName || 'Chưa đặt tên chủ đề nhánh'}</div>
           <div className="ga-week-hero__meta">
             Chủ đề: {week.theme.name} · {fmtDate(week.start)} → {fmtDate(week.end)}
-            {!branchName && isHomeroomTeacher && (
+            {!branchName && canComposeClassDocs && (
               <>
                 {' · '}
                 <Link to={`/education/branches/${classId}`}>Đặt tên chủ đề nhánh</Link>
@@ -327,40 +386,44 @@ function WeekPlanInner() {
             )}
           </div>
         </div>
-        <div className="tabs ga-class-tabs" role="tablist" aria-label="Kế hoạch tuần và ngày" onKeyDown={moveTab}>
-          <button
-            type="button"
-            role="tab"
-            id={`${tabId}-week`}
-            aria-controls={`${tabId}-panel-week`}
-            tabIndex={tab === 'week' ? 0 : -1}
-            aria-selected={tab === 'week'}
-            className={`tab ${tab === 'week' ? 'tab--active' : ''}`}
-            onClick={() => setTab('week')}
-          >
-            Kế hoạch tuần
-          </button>
-          {draft.days.map((d, i) => (
-            <button
-              key={d.date}
-              type="button"
-              role="tab"
-              id={`${tabId}-${i}`}
-              aria-controls={`${tabId}-panel-${i}`}
-              tabIndex={tab === String(i) ? 0 : -1}
-              aria-selected={tab === String(i)}
-              className={`tab ${tab === String(i) ? 'tab--active' : ''}`}
-              onClick={() => setTab(String(i))}
-            >
-              {WEEKDAY_LABELS[i]}
-              <span className="ga-class-tab__sep"> · </span>
-              <span className="ga-class-tab__date">
-                {ddmm(d.date)}
-                {week?.offDays?.[i] ? ' · Nghỉ' : ''}
-              </span>
-            </button>
-          ))}
-        </div>
+        {(days || !split) && (
+          <div className="tabs ga-class-tabs" role="tablist" aria-label="Kế hoạch tuần và ngày" onKeyDown={moveTab}>
+            {!split && (
+              <button
+                type="button"
+                role="tab"
+                id={`${tabId}-week`}
+                aria-controls={`${tabId}-panel-week`}
+                tabIndex={tab === 'week' ? 0 : -1}
+                aria-selected={tab === 'week'}
+                className={`tab ${tab === 'week' ? 'tab--active' : ''}`}
+                onClick={() => setTab('week')}
+              >
+                Kế hoạch tuần
+              </button>
+            )}
+            {draft.days.map((d, i) => (
+              <button
+                key={d.date}
+                type="button"
+                role="tab"
+                id={`${tabId}-${i}`}
+                aria-controls={`${tabId}-panel-${i}`}
+                tabIndex={tab === String(i) ? 0 : -1}
+                aria-selected={tab === String(i)}
+                className={`tab ${tab === String(i) ? 'tab--active' : ''}`}
+                onClick={() => setTab(String(i))}
+              >
+                {WEEKDAY_LABELS[i]}
+                <span className="ga-class-tab__sep"> · </span>
+                <span className="ga-class-tab__date">
+                  {ddmm(d.date)}
+                  {week?.offDays?.[i] ? ' · Nghỉ' : ''}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
         <div className="card__body stack" role="tabpanel" id={`${tabId}-panel-${tab}`} aria-labelledby={`${tabId}-${tab}`}>
           {day < 0 ? (
             <WeekTab
@@ -383,11 +446,15 @@ function WeekPlanInner() {
               editable={dayEditable(day)}
               update={update}
               goals={goals}
-              reuse={lessonReuseFor(weekPlans, draft, day)}
+              reuse={lessonReuseFor(split ? dayPlans : weekPlans, draft, day)}
               adjustEditable={adjustEditable}
               flagOf={(id) => version.unresolved.find((f) => f.goalId === String(id)) || null}
               offLabel={week?.offDays?.[day] || null}
-              assessTo={status === EDU_STATUS.APPROVED ? `/assessment/daily/skills?classId=${classId}&date=${draft.days[day].date}` : null}
+              assessTo={
+                (split ? savedDay?.status : status) === EDU_STATUS.APPROVED
+                  ? `/assessment/daily/skills?classId=${classId}&date=${draft.days[day].date}`
+                  : null
+              }
             />
           )}
         </div>

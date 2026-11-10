@@ -1,4 +1,4 @@
-import { calendarPlan } from '@/models/education-plan/branchCalendar.mjs';
+import { branchDisplayRows, branchWeeks, calendarPlan } from '@/models/education-plan/branchCalendar.mjs';
 /*
  * Xuất dự kiến chủ đề nhánh, kế hoạch chủ đề và giáo án tuần (kế hoạch tuần + 5 kế hoạch ngày) theo bố cục văn bản
  * của MN Thái Dương. Không có chữ ký trong hệ thống: bản in để trống chỗ ký tay, in sẵn họ tên người soạn / người duyệt.
@@ -199,8 +199,9 @@ export const weekFileHtml = ({ cls, ...w }) =>
 // blank: file mẫu để nhập (Tiền 05/11) — giữ nguyên bảng như file xuất (tháng, chủ đề, tuần, dòng nghỉ, chỗ ký),
 // bỏ dữ liệu đã có: tên nhánh, ghi chú, họ tên người ký
 export const branchFileHtml = ({ doc, cls, yearPlan, teachers, leaderName, blank = false }) => {
-  const rows = yearWeeks(calendarPlan(yearPlan, doc));
-  const weeks = rows.filter((r) => r.type === 'week');
+  const allRows = yearWeeks(calendarPlan(yearPlan, doc));
+  const rows = !blank && doc.schemaVersion === 2 ? branchDisplayRows(yearPlan, doc) : allRows;
+  const weeks = allRows.filter((r) => r.type === 'week');
   const year = (yearPlan.schoolYear || '').replace(/\s*[-–]\s*/, ' - ');
   const span = (i) => {
     let n = 1;
@@ -225,7 +226,17 @@ export const branchFileHtml = ({ doc, cls, yearPlan, teachers, leaderName, blank
         doc.schemaVersion === 2
           ? branchNumber(calendarPlan(yearPlan, doc), r.start, doc)
           : rows.slice(0, i + 1).filter((x) => x.type === 'week' && x.theme.id === r.theme.id).length;
-      return `<tr>${head}<td>- Nhánh ${no}: ${blank ? '' : esc(doc.names?.[r.start] || '')}</td><td>Tuần ${r.no}: ${fmt(r.start)}<br/>${fmt(r.end)}</td><td>${blank ? '' : esc(doc.notes?.[r.start] || '')}</td></tr>`;
+      const branch = !blank && doc.schemaVersion === 2
+        ? (doc.branches || []).find((b) => String(b.themeId) === String(r.theme.id) && r.start >= b.startDate && r.start <= b.endDate)
+        : null;
+      const coveredWeeks = branch ? branchWeeks(branch, yearPlan, doc) : [];
+      const branchNotes = branch ? coveredWeeks
+        .filter((week) => doc.notes?.[week.start]?.trim())
+        .map((week) => `${coveredWeeks.length > 1 ? `Tuần ${week.no}: ` : ''}${text(doc.notes[week.start])}`)
+        .join('<br/>') : esc(doc.notes?.[r.start] || '');
+      const dates = branch ? `${fmt(branch.startDate)} – ${fmt(branch.endDate)}`
+        : !blank && doc.schemaVersion === 2 ? 'dd/mm/yyyy – dd/mm/yyyy' : `Tuần ${r.no}: ${fmt(r.start)}<br/>${fmt(r.end)}`;
+      return `<tr>${head}<td>${no ? `- Nhánh ${no}: ` : ''}${blank ? '' : esc(doc.names?.[r.start] || '')}</td><td>${dates}</td><td>${blank ? '' : branchNotes}</td></tr>`;
     })
     .join('');
   const snapshot = doc?.review?.printSnapshot || doc?.printSnapshot;

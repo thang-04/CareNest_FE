@@ -55,6 +55,7 @@ const BranchPlanLegacyRedirect = lazyPage(() =>
 const ClassThemePlanPage = lazyPage(() => import('@/pages/education-plan/ClassThemePlanPage'));
 const TeachingPresentationPage = lazyPage(() => import('@/pages/education-plan/TeachingPresentationPage'));
 const WeekPlanPage = lazyPage(() => import('@/pages/education-plan/WeekPlanPage'));
+const SemesterPackagePage = lazyPage(() => import('@/pages/education-plan/SemesterPackagePage'));
 const PlanReviewQueuePage = lazyPage(() => import('@/pages/education-plan/PlanReviewQueuePage'));
 const EduConfigPage = lazyPage(() => import('@/pages/education-plan/EduConfigPage'));
 const CurriculumSourcesPage = lazyPage(() => import('@/pages/education-plan/CurriculumSourcesPage'));
@@ -274,6 +275,9 @@ export function AppRoutes() {
             <Route path="class/:classId/themes/:themeId/review" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ThemeReviewRedirect />)} />
             <Route path="class/:classId/weeks/:weekStart" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <WeekPlanPage />)} />
             <Route path="class/:classId/weeks/:weekStart/review" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <WeekPlanPage review />)} />
+            {/* Spec 003: giáo án ngày tách trang; gói học kỳ */}
+            <Route path="class/:classId/weeks/:weekStart/days" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <WeekPlanPage mode="days" />)} />
+            <Route path="class/:classId/semesters/:no" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <SemesterPackagePage />)} />
             <Route path="plan-reviews" element={edu([ROLES.PRINCIPAL, ...EDU_VP_TL], <PlanReviewQueuePage />)} />
             <Route path="curriculum-sources" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <CurriculumSourcesPage />)} />
             <Route

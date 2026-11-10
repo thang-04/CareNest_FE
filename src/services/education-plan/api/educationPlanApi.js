@@ -177,6 +177,16 @@ export const educationPlanApi = {
     const goals = await Promise.all([...summaries.values()].map((p) => fetchGoal(p.id, refs)));
     return { goals, themes: [], lessons: [] };
   },
+  // Mở một kế hoạch theo id (vd. bản Chờ duyệt từ hàng chờ, không có trong danh sách); BE trả 403 nếu chưa ban hành
+  getGoal: async (id) => fetchGoal(serverId(id) ?? id, buildRefs(await loadConfig())),
+  // Kế hoạch năm/tổ chờ đúng người gọi duyệt; danh sách thường chỉ có bản đã ban hành (BE spec 002 FR-007)
+  getReviewQueue: async () => {
+    const refs = buildRefs(await loadConfig());
+    const items = await axiosClient.get(`${GOALS}/review-queue`);
+    return Promise.all(items.map((p) => fetchGoal(p.id, refs)));
+  },
+  // Một bản hồ sơ chủ đề đã ban hành trước đây (nội dung + chuỗi ký), chỉ đọc
+  getClassDocRelease: (releaseId) => axiosClient.get(`/education-plans/class-docs/releases/${releaseId}`),
   // Trả kế hoạch đã lưu (id do BE cấp) để trang lập kế hoạch dùng tiếp id thật
   saveGoal: async (item, options = {}) => {
     const refs = buildRefs(await loadConfig());
@@ -306,7 +316,8 @@ export const educationPlanApi = {
     const headers = { 'X-Class-Doc-Version': String(doc?.version ?? -1) };
     if (doc?.dossierVersion != null) headers['X-Dossier-Version'] = String(doc.dossierVersion);
     if (options?.headers) Object.assign(headers, options.headers);
-    if (kind === 'week' && doc?.dossierVersion == null) throw sourceError(409, 'Hãy tải lại hồ sơ chủ đề trước khi lưu tuần.');
+    if ((kind === 'week' || kind === 'day') && doc?.dossierVersion == null)
+      throw sourceError(409, 'Hãy tải lại hồ sơ chủ đề trước khi lưu tuần.');
     const { version, dossierVersion, review, permissions, ...content } = doc;
     if (kind === 'branch' && content.schemaVersion === 2) {
       delete content.names;
@@ -323,7 +334,8 @@ export const educationPlanApi = {
     const headers = { 'X-Class-Doc-Version': String(options.version) };
     if (options?.dossierVersion != null) headers['X-Dossier-Version'] = String(options.dossierVersion);
     if (options?.headers) Object.assign(headers, options.headers);
-    return axiosClient.put(`/education-plans/class-docs/week/${id}/adjustments`, { adjustments }, { headers });
+    // EDU-27 ở giáo án ngày (spec 003 Q9); BE nhận cả khóa giáo án tuần cũ
+    return axiosClient.put(`/education-plans/class-docs/day/${id}/adjustments`, { adjustments }, { headers });
   },
   actOnClassDoc: (kind, id, body, options = {}) => {
     if (options.version == null) throw sourceError(409, 'Hãy tải lại tài liệu trước khi duyệt.');

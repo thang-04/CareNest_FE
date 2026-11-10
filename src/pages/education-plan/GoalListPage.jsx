@@ -10,6 +10,9 @@ import { StatCard } from '@/components/ui/StatCard';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { clickableRowProps } from '@/utils/clickableRow';
 import { currentPlanOf, versionOf } from '@/models/education-plan/planVersions.mjs';
+import { useAsync } from '@/hooks/useAsync';
+import { usePolling } from '@/hooks/usePolling';
+import { getReviewQueue } from '@/services/education-plan/educationPlanService';
 
 const ageName = (id) => AGE_GROUPS.find((a) => a.id === id)?.name || '—';
 
@@ -61,10 +64,11 @@ export default function GoalListPage({ planLevel = 'TEAM' }) {
       (isPrincipal && g.status !== EDU_STATUS.DRAFT && g.status !== EDU_STATUS.EDITING) ||
       (isLeader && g.ageGroupId === user.ageGroupId) ||
       (issuedPlan(g) && (g.ageGroupId === user.ageGroupId || taught.includes(g.ageGroupId)));
-    return goals.filter(
-      (g) => g.schoolYear === schoolYear && visible(g) && (!principalViewer || ['APPROVED', 'REPLACED'].includes(g.status)),
-    );
-  }, [goals, classes, schoolYear, isVP, isPrincipal, isLeader, user, principalViewer]);
+    return goals.filter((g) => g.schoolYear === schoolYear && visible(g));
+  }, [goals, classes, schoolYear, isVP, isPrincipal, isLeader, user]);
+  // Bản Chờ duyệt không nằm trong danh sách (chỉ bản đã ban hành); thẻ "Chờ duyệt" đếm theo hàng chờ của BE và dẫn sang đó
+  const queue = useAsync(() => getReviewQueue(user), [user.id], { refreshOnDataChange: true, enabled: isVP || isPrincipal });
+  usePolling(() => queue.reload({ silent: true }), { enabled: isVP || isPrincipal });
 
   const creationScopes = eduConfig?.[annual ? 'schoolYearCreationScopes' : 'yearCreationScopes'];
   const canCreate =
@@ -77,7 +81,7 @@ export default function GoalListPage({ planLevel = 'TEAM' }) {
   const rows = scoped.filter((g) => (!age || g.ageGroupId === age) && (!q || (g.title + g.code).toLowerCase().includes(q.toLowerCase())));
 
   const issued = scoped.filter((g) => g.status === EDU_STATUS.APPROVED || g.status === EDU_STATUS.SENT).length;
-  const pending = scoped.filter((g) => g.status === 'REVIEW' || g.status === EDU_STATUS.PENDING_VP).length;
+  const pending = (queue.data || []).filter((g) => levelOf(g) === planLevel).length;
 
   return (
     <div className="page ga-page">
@@ -94,11 +98,17 @@ export default function GoalListPage({ planLevel = 'TEAM' }) {
       />
 
       {/* Tổ trưởng, giáo viên chỉ có 1–2 kế hoạch mỗi năm: không cần thẻ tổng quan, tìm kiếm, lọc */}
-      {isVP && (
+      {(isVP || isPrincipal) && (
         <div className="stat-grid">
           <StatCard tone="blue" label={annual ? 'Kế hoạch trong năm học' : 'Kế hoạch giáo dục tổ'} value={scoped.length} />
           <StatCard tone="green" label="Đã ban hành" value={issued} />
-          <StatCard tone="orange" label="Chờ duyệt ban hành" value={pending} />
+          <StatCard
+            tone="orange"
+            label="Chờ bạn duyệt"
+            value={pending}
+            loading={queue.loading && !queue.data}
+            onClick={() => navigate('/education/plan-reviews')}
+          />
         </div>
       )}
 
@@ -134,7 +144,8 @@ export default function GoalListPage({ planLevel = 'TEAM' }) {
           />
         ) : rows.length === 0 ? (
           <EmptyState
-            title={`Chưa có ${pageLabel.toLowerCase()}`}
+            // Người chỉ xem chỉ thấy bản đã ban hành (BE spec 002 FR-011)
+            title={isYearCreator ? `Chưa có ${pageLabel.toLowerCase()}` : 'Chưa có bản ban hành'}
             desc={
               annual && eduConfig?.durationPolicyAvailable === false
                 ? 'Bạn có thể mở form kế hoạch năm học để xem trước. Thao tác lưu và gửi duyệt sẽ có khi máy chủ hỗ trợ; kế hoạch giáo dục tổ hiện có vẫn sử dụng bình thường.'

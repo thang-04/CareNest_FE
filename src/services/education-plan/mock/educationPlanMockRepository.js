@@ -544,6 +544,20 @@ export const educationPlanMockRepository = {
       throw eduError(planLevel(goal) === 'SCHOOL_YEAR' ? 'YEAR_PLAN_ACCESS_DENIED' : 'YEAR_PLAN_EDIT_FORBIDDEN');
     return clone({ ...goal, id: String(goal.id), revision: goal.revision ?? 0, goalCount: goalCount(goal) });
   },
+  // BE spec 002 FR-001/FR-007: hàng chờ = kế hoạch Chờ duyệt mà người gọi duyệt được ở bước hiện tại
+  async getReviewQueue(user) {
+    const { goals } = await this.getAll(user);
+    return goals.filter((g) => g.status === 'REVIEW' && !!(g.permissions?.canApprove ?? g.permissions?.canIssue));
+  },
+  async getGoal(id, user) {
+    const { goals } = await this.getAll(user);
+    const goal = goals.find((g) => String(g.id) === String(id));
+    if (!goal) throw eduError('YEAR_PLAN_NOT_FOUND');
+    return goal;
+  },
+  async getClassDocRelease() {
+    throw eduError('CLASS_DOC_NOT_FOUND');
+  },
   async getAll(user) {
     await delay();
     const db = readDb();

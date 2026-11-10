@@ -1227,7 +1227,8 @@ function BranchTemplateNames({ theme, templates, onChange, onDelete, readOnly, l
                     ))}
                   </div>
                 )}
-                {!readOnly && (
+                {/* Nhánh kế thừa từ kế hoạch năm chỉ sửa tên/ngày, không xóa (BE spec 002 FR-013) */}
+                {!readOnly && t.sourceTemplateId == null && (
                   <button
                     type="button"
                     className="icon-btn icon-btn--danger"
@@ -1283,12 +1284,14 @@ export function ThemeEventTable({
   requireDates = false,
   hideGoals = false,
   fixedFields = false,
+  branchEditable = false,
   branchTemplates = [],
   durationPolicy = null,
   reviewItems = [],
   newItems = [],
 }) {
   const readOnly = viewOnly || fixedFields;
+  const branchReadOnly = (viewOnly || fixedFields) && !branchEditable;
   const showBranches = hideGoals || fixedFields;
   const setFocusId = useCellFocus();
   const patchTheme = (id, patch) => onChange({ themes: themes.map((t) => (t.id === id ? { ...t, ...patch } : t)) });
@@ -1469,7 +1472,7 @@ export function ThemeEventTable({
           disabled={readOnly}
         >
           <table
-            className={`table ga-plan-table ga-goal-table${hideGoals ? ' ga-annual-theme-table' : ''}${fixedFields ? ' ga-theme-edit-fixed' : ''}${readOnly && !fixedFields ? ' ga-table-readonly' : ''}`}
+            className={`table ga-plan-table ga-goal-table${hideGoals ? ' ga-annual-theme-table' : ''}${fixedFields ? ' ga-theme-edit-fixed' : ''}${branchEditable ? ' ga-branch-template-editable' : ''}${readOnly && !fixedFields ? ' ga-table-readonly' : ''}`}
             onMouseDown={focusCell}
           >
             {/* Chia cột theo khung bảng, nội dung dài xuống dòng trong ô. */}
@@ -1510,7 +1513,7 @@ export function ThemeEventTable({
             )}
             {themes.map((t, i) => {
               const span = showBranches
-                ? Math.max(1, branchTemplates.filter((b) => String(b.themeId) === String(t.id)).length + (readOnly ? 0 : 1))
+                ? Math.max(1, branchTemplates.filter((b) => String(b.themeId) === String(t.id)).length + (branchReadOnly ? 0 : 1))
                 : 1;
               const durationIssue = readOnly ? null : durationRangeIssue(t, breaks, durationPolicy?.theme, 'Chủ đề');
               const leadingCells = (
@@ -1600,7 +1603,7 @@ export function ThemeEventTable({
                       templates={branchTemplates}
                       breaks={breaks}
                       durationLimits={durationPolicy?.branch}
-                      readOnly={readOnly}
+                      readOnly={branchReadOnly}
                       onChange={(values) => onChange({ branchTemplates: values })}
                       onDelete={askDeleteBranch}
                       leadingCells={leadingCells}

@@ -61,7 +61,7 @@ test('EDU-64: saving a published future theme reopens only that dossier and arch
   const root = { id: 'future-root', kind: 'theme', classId: 'future-class', yearPlanId: 'future-plan', themeId: 'future-theme', status: 'APPROVED', version: 0, approvals: [{ userId: 'vp' }], printSnapshot: { proof: true }, environment: 'Cũ' };
   writeDb((db) => {
     db.users = [teacher];
-    db.classes = [{ id: root.classId, teacherIds: [teacher.id], ageGroupId: 'future-age' }];
+    db.classes = [{ id: root.classId, teacherIds: [teacher.id], homeroomTeacherId: teacher.id, ageGroupId: 'future-age' }];
     db.eduGoals = [{ id: root.yearPlanId, planLevel: 'TEAM', status: 'APPROVED', themes: [{ id: root.themeId, start: '2099-11-09', end: '2099-11-13' }], domains: [] }];
     db.eduClassTheme = [root, { ...root, id: 'other-root', themeId: 'other-theme' }];
     db.eduClassBranch = [];

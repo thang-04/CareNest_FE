@@ -19,6 +19,8 @@ const Card=({children})=><section>{children}</section>, PageHead=({actions})=><h
 const Link=({children,to})=><a href={to}>{children}</a>, Plus=()=>null, RotateCcw=()=>null;
 const YearPlanStatusBadge=({status})=><span data-status={status}>{status}</span>;
 const VersionBadge=()=> <span className="chip">Phiên bản màu</span>;
+const useAsync=()=>({data:context.queue ?? context.goals ?? null,loading:false,reload:()=>{}}), usePolling=()=>{}, getReviewQueue=async()=>[];
+const submitEntryOf=(d)=>[...(d?.history||[])].reverse().find((h)=>h.code==='SUBMIT'||h.action==='submit')||null;
 `;
 const { code } = await transformWithOxc(stubs + isolated, 'GoalListPage.jsx', { lang: 'jsx', jsx: { runtime: 'classic' } });
 const { default: GoalListPage, context } = await import(
@@ -48,7 +50,7 @@ test('thẻ thống kê phân biệt kế hoạch giáo dục tổ và kế ho�
   assert.match(annual, /Kế hoạch trong năm học/);
 });
 
-test('hiệu trưởng chỉ xem kế hoạch đã ban hành hoặc thay thế ở danh sách năm và tổ', () => {
+test('hiệu trưởng thấy đúng danh sách BE trả (BE chỉ trả bản đã ban hành — spec 002 FR-007), bản cũ là thay thế', () => {
   const previous = { ...context };
   try {
     context.role = 'principal';
@@ -56,14 +58,11 @@ test('hiệu trưởng chỉ xem kế hoạch đã ban hành hoặc thay thế �
       context.goals = [
         plan('cu', 1, 'APPROVED', { planLevel: level, current: false, permissions: {} }),
         plan('moi', 2, 'APPROVED', { planLevel: level, current: true, permissions: {} }),
-        plan('cho-duyet', 3, 'REVIEW', { planLevel: level, permissions: {} }),
-        plan('nhap', 4, 'DRAFT', { planLevel: level, permissions: {} }),
       ];
       const html = renderToStaticMarkup(React.createElement(GoalListPage, { planLevel: level }));
       assert.match(html, />cu</);
       assert.match(html, />moi</);
       assert.match(html, /data-status="REPLACED"/);
-      assert.doesNotMatch(html, />cho-duyet<|>nhap</);
     }
   } finally {
     Object.keys(context).forEach((key) => delete context[key]);
@@ -164,7 +163,7 @@ test('TEAM ngày gửi ưu tiên sentAt, tương thích sentBy.at và chưa gử
 const queueSource = await readFile(new URL('../../src/pages/education-plan/PlanReviewQueuePage.jsx', import.meta.url), 'utf8');
 const queueStubs = stubs.replace('useNavigate=()=>()=>{}', 'useNavigate=()=>to=>context.destination=to')
   .replace('clickableRowProps=()=>({})', 'clickableRowProps=(onClick)=>({onClick})') + `
-const EduStatusBadge=YearPlanStatusBadge, fmtDateTime=(value)=>value;
+const EduStatusBadge=YearPlanStatusBadge, fmtDateTime=(value)=>value, DeadlineBadge=()=>null;
 const PENDING_OF={}, CLASS_DOC_LABELS={year:'Kế hoạch tổ', branch:'Nhánh', theme:'Chủ đề'};
 const themeNumber=()=>1, themeWeeksOf=()=>[];
 `;

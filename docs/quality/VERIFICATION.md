@@ -544,3 +544,11 @@ Chi tiết lệnh và AC: báo cáo workspace `huong_dan_nghiep_vu/ket_qua_trien
 - EDU-72: bỏ nút lập tổ, redirect route new về danh sách; mock tự tạo Nháp và giao tổ trưởng đúng tuổi khi năm được ban hành, đối soát dữ liệu đã ban hành; giữ nội dung qua nguồn mới.
 - Chỉ sửa dòng trắng cuối CSS cho diff check; không thêm dependency. Chưa browser/E2E.
 - User yêu cầu commit/push BE+FE và xác nhận dùng G94-278 cho FE trên nhánh hiện tại. Không đưa thư mục skill/.specify cài local hoặc target-feature012-ui-diff.txt vào commit giáo dục.
+
+
+## Lưu năm 7212 và mất nhánh trên UI — 10/11/2026
+
+- Read-only DB carenest_merge plan350: SCHOOL_YEAR DRAFT, chín chủ đề và bốn nhánh còn lưu. Không sửa DB runtime.
+- FE reconcileYearPlanIds trước đây chỉ map chủ đề/dòng/nội dung, bỏ ID nhánh/themeId: lần lưu tiếp gửi themeKey cũ, BE từ chối7212; UI không tìm thấy cha nên ẩn nhánh. yearPlanContentKey cũng bỏ branchTemplates nên không phân biệt bản recovery chỉ sửa nhánh.
+- RED ba regression mới; GREEN 37 test tập trung, sau đó 331/331 toàn giáo dục/menu. ESLint helper và npm.cmd run build exit0; cảnh báo build phụ thuộc hiện có.
+- Chỉ sửa helper chung, test và tri thức; giữ guard BE, giữ nhánh đang gõ/thêm trong lúc chờ và thao tác xóa có chủ ý. Chưa browser/E2E, PUT trên kế hoạch thật, commit/push. Chi tiết FE-BUG-261110-annual-branch-save-ids.

@@ -56,8 +56,9 @@ const NEXT_SIGNER = {
 };
 /** Câu báo sau khi gửi / duyệt / trả lại tài liệu lớp, theo trạng thái mới. */
 export const actDoneText = (kind, action, status) => {
-  const name = kind === 'branch' ? 'chủ đề nhánh' : 'kế hoạch chủ đề';
+  const name = { branch: 'chủ đề nhánh', semester: 'gói học kỳ', dossier: 'hồ sơ chủ đề' }[kind] || 'kế hoạch chủ đề';
   const next = NEXT_SIGNER[status];
+  if (action === 'extend') return `Đã mở hạn ${name}`;
   if (action === 'reject') return `Đã trả lại ${name}`;
   if (action === 'submit') return next ? `Đã gửi ${next} duyệt ${name}` : `Đã gửi ${name}`;
   return next ? `Đã duyệt ${name}, chuyển ${next} duyệt tiếp` : `Đã duyệt ${name}`;
@@ -118,7 +119,15 @@ export function EducationPlanProvider({ children }) {
     };
     const saveIn = (key, call) => write(key, call, upsert);
     // Tài liệu của lớp: chờ kết quả từ service (quyền, trạng thái do service quyết định) rồi mới cập nhật màn hình
-    const CLASS_KEY = { branch: 'branchPlans', theme: 'classThemePlans', week: 'weekPlans' };
+    // Spec 003: gói học kỳ (semester), hồ sơ chủ đề (dossier) là gốc gửi/duyệt; giáo án ngày (day) tách khỏi tuần
+    const CLASS_KEY = {
+      branch: 'branchPlans',
+      theme: 'classThemePlans',
+      week: 'weekPlans',
+      day: 'dayPlans',
+      semester: 'semesterPackages',
+      dossier: 'themeDossiers',
+    };
     const actor = { id: user.id, fullName: user.name, role: user.role, roles: user.roles, ageGroupId: user.ageGroupId };
     const refreshPlans = async () => {
       const plans = await service.getEducationPlans(actor);
@@ -131,11 +140,16 @@ export function EducationPlanProvider({ children }) {
         try {
           const [docOrId, body, , supplied] = args;
           const current = (data?.[CLASS_KEY[kind]] || []).find((doc) => doc.id === (docOrId?.id || docOrId));
+          // Gốc chứa tài liệu: giáo án ngày ⇒ hồ sơ chủ đề; kế hoạch tuần ⇒ gốc của kế hoạch chủ đề (containerKey do BE trả)
+          const sameTheme = (doc) =>
+            doc.classId === docOrId?.classId && doc.yearPlanId === docOrId?.yearPlanId && doc.themeId === docOrId?.themeId;
+          const themeDoc = (data?.classThemePlans || []).find(sameTheme);
+          const roots = [...(data?.themeDossiers || []), ...(data?.semesterPackages || [])];
           const root =
-            kind === 'week' &&
-            (data?.classThemePlans || []).find(
-              (doc) => doc.classId === docOrId?.classId && doc.yearPlanId === docOrId?.yearPlanId && doc.themeId === docOrId?.themeId,
-            );
+            (kind === 'week' || kind === 'day') &&
+            (roots.find((doc) => kind === 'week' && doc.id === themeDoc?.containerKey) ||
+              (data?.themeDossiers || []).find(sameTheme) ||
+              (!data?.themeDossiers?.length && themeDoc));
           const options = { version: current?.version, dossierVersion: current?.dossierVersion ?? root?.version, ...supplied };
           const saved =
             call === service.saveClassDoc
@@ -163,6 +177,12 @@ export function EducationPlanProvider({ children }) {
 
     return {
       refreshPlans,
+      // Tài liệu của lớp (hồ sơ chủ đề chờ duyệt…) do người khác đổi; tải lại im lặng, không đụng kế hoạch năm/tổ
+      refreshClassDocs: async () => {
+        const classDocs = await service.getClassPlans(yearId, actor);
+        setData((prev) => (prev ? { ...prev, ...classDocs } : prev));
+        return classDocs;
+      },
       refreshGoal: async (id) => {
         const plans = await refreshPlans();
         const goal = plans.goals.find((item) => item.id === id);
@@ -175,6 +195,10 @@ export function EducationPlanProvider({ children }) {
       branchPlans: data?.branchPlans || [],
       classThemePlans: data?.classThemePlans || [],
       weekPlans: data?.weekPlans || [],
+      dayPlans: data?.dayPlans || [],
+      semesterPackages: data?.semesterPackages || [],
+      themeDossiers: data?.themeDossiers || [],
+      semesterConfigMissing: !!data?.semesterConfigMissing,
       // Lớp, giáo viên và tổ trưởng của năm đang chọn (cùng nguồn với tài liệu của lớp)
       classes: data?.classes || [],
       staff: data?.staff || [],
@@ -208,12 +232,11 @@ export function EducationPlanProvider({ children }) {
       // BE:EDU-27 — ô điều chỉnh của kế hoạch ngày; trả bản đã lưu, lỗi thì báo và trả null
       saveClassDocAdjustments: async (id, adjustments, expected) => {
         try {
-          const current = data?.weekPlans.find((doc) => doc.id === id);
+          const current = (data?.dayPlans || []).find((doc) => doc.id === id) || data?.weekPlans.find((doc) => doc.id === id);
           const saved = await service.saveClassDocAdjustments(id, adjustments, actor, {
             version: expected?.version ?? current?.version,
             dossierVersion: expected?.dossierVersion ?? current?.dossierVersion,
           });
-          setData((prev) => (prev ? { ...prev, weekPlans: upsert(prev.weekPlans || [], saved) } : prev));
           await reload({ silent: true });
           return saved;
         } catch (err) {
@@ -242,7 +265,7 @@ export function EducationPlanProvider({ children }) {
       // Gửi / duyệt hồ sơ chủ đề đổi trạng thái cả giáo án các tuần: nạp lại để các tuần không giữ trạng thái cũ
       actOnClassDoc: async (kind, ...args) => {
         const saved = await classCall(service.actOnClassDoc)(kind, ...args);
-        if (saved && kind === 'theme') reload({ silent: true });
+        if (saved && ['theme', 'semester', 'dossier'].includes(kind)) reload({ silent: true });
         // Báo kết quả sau khi gửi / duyệt / trả lại (Tiền 05/11)
         if (saved) toast(actDoneText(kind, args[1]?.action, saved.status));
         return saved;

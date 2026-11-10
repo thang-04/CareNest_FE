@@ -13,12 +13,12 @@ import {
 import { isMyReviewTurn, reviewLabel, useClassPlanContext } from '@/components/education-plan/planUi';
 import { LoadingState } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
-import { RowActions } from '@/components/ui/RowActions';
-import { Check, FileDown, Plus } from '@/components/ui/icons';
+import { Check, Eye, FileDown, Pencil, Plus } from '@/components/ui/icons';
 import { themeRowOf } from '@/components/education-plan/ThemePlanBody';
 import { numberGoals } from '@/models/education-plan/goalTable';
 import { leaderNameOf, themeFile } from '@/utils/education-plan/classPlanDoc';
 import DocPreviewModal from '@/components/education-plan/DocPreviewModal';
+import { DeadlineBadge } from '@/components/education-plan/DeadlineWidgets';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { AGE_GROUPS, EDU_STATUS, educationDisplayStatus } from '@/models/education-plan/educationPlanConstants';
 import {
@@ -27,8 +27,6 @@ import {
   dueState,
   isEditableStatus,
   themeGoalBlocks,
-  mondayOf,
-  todayIso,
   yearWeeks,
 } from '@/models/education-plan/classPlan';
 
@@ -47,10 +45,10 @@ export function ClassPlanRedirect({ toOf = (id) => `/education/class/${id}` }) {
 export default function ClassPlanPage() {
   const { classId } = useParams();
   const navigate = useNavigate();
-  const { user, branchPlans, classThemePlans, weekPlans, staff } = useEducationPlan();
+  const { user, branchPlans, classThemePlans, weekPlans, themeDossiers, semesterConfigMissing, staff } = useEducationPlan();
   const [preview, setPreview] = useState(null);
   const ctx = useClassPlanContext(classId);
-  const { cls, classes, yearPlan, pendingYearPlan, teachers, isHomeroomTeacher } = ctx;
+  const { cls, classes, yearPlan, branchPlan, pendingYearPlan, teachers, canComposeClassDocs } = ctx;
 
   if (ctx.loading) return <LoadingState />;
   if (!cls) return <StatusPage kind="404" title="Không tìm thấy lớp hoặc bạn không có quyền xem" />;
@@ -102,8 +100,7 @@ export default function ClassPlanPage() {
   }
 
   const rows = yearWeeks(yearPlan);
-  const thisWeek = mondayOf(todayIso());
-  const branch = branchPlans.find((b) => b.classId === classId && b.yearPlanId === yearPlan.id) || null;
+  const branch = branchPlan;
   const themes = [...yearPlan.themes].filter((t) => t.start && t.end).sort((a, b) => a.start.localeCompare(b.start));
   const numbers = numberGoals(yearPlan.domains);
   // Xuất cả hồ sơ chủ đề (kế hoạch chủ đề + các tuần đã soạn) đúng thứ tự file của trường
@@ -128,6 +125,7 @@ export default function ClassPlanPage() {
         leaderName: leaderNameOf(staff, cls.ageGroupId, yearPlan?.schoolYear),
       }),
     );
+  const dossierOf = (t) => themeDossiers.find((d) => d.classId === classId && String(d.themeId) === String(t.id));
   // Hạn gửi chỉ để nhắc: hồ sơ chủ đề gửi trước ngày bắt đầu chủ đề
   const due = (doc, dueIso) => {
     const st = dueState(doc, dueIso);
@@ -160,22 +158,32 @@ export default function ClassPlanPage() {
         </Link>
       );
     const kind = to.includes('/weeks/') ? 'week' : 'theme';
-    if (doc?.permissions ? doc.permissions.canEdit : doc ? isHomeroomTeacher && isEditableStatus(doc.status) : ctx.canCreate(kind))
+    if (doc?.permissions ? doc.permissions.canEdit : doc ? canComposeClassDocs && isEditableStatus(doc.status) : ctx.canCreate(kind))
       return doc ? (
-        <RowActions edit={{ to }} name={name} />
+        <Link className="btn btn--outline-primary btn--sm" to={to} title={`Chỉnh sửa ${name || ''}`}>
+          <Pencil size={16} aria-hidden /> Chỉnh sửa
+        </Link>
       ) : (
-        <Link className="btn btn--primary btn--sm" to={to}>
+        <Link className="btn btn--outline-primary btn--sm" to={to}>
           <Plus size={16} aria-hidden /> {create}
         </Link>
       );
-    if (!doc) return <span className="muted text-sm">Chưa lập</span>;
-    return <RowActions view={{ to }} name={name} />;
+    if (!doc) return <span className="muted text-sm nowrap">Chưa lập</span>;
+    return (
+      <Link className="btn btn--outline-primary btn--sm" to={to} title={`Xem ${name || ''}`}>
+        <Eye size={16} aria-hidden /> Xem
+      </Link>
+    );
   };
 
   return (
     <div className="page ga-page">
       {preview && <DocPreviewModal file={preview} onClose={() => setPreview(null)} />}
       {head}
+      {semesterConfigMissing && (
+        // Spec 003 US1/AC7: chưa có ngày học kỳ thì gói học kỳ không có hạn
+        <Notice tone="warn">Năm học chưa cấu hình học kỳ. Hiệu trưởng đặt ngày học kỳ ở Cấu hình trường › Năm học để tính hạn gói học kỳ.</Notice>
+      )}
       {/* Mỗi chủ đề là một hồ sơ như file của trường: gửi, duyệt cả hồ sơ một lần; đã duyệt thì xuất để in, ký tay */}
       {themes.map((t, ti) => {
           const doc = classThemePlans.find((x) => x.classId === classId && x.themeId === t.id) || null;
@@ -190,24 +198,34 @@ export default function ClassPlanPage() {
               title={`Chủ đề ${ti + 1}: ${t.name}`}
               bodyClass={null}
               actions={
-                <>
-                  <span className="muted text-sm">
+                <div className="row row--wrap row--middle gap-2">
+                  <span className="muted text-sm nowrap">
                     {ddmm(t.start)} → {ddmm(t.end)} · {themeWeeks.length} tuần
                   </span>
                   <button
                     type="button"
-                    className="btn btn--outline-primary btn--sm"
+                    className="btn btn--outline-primary btn--sm nowrap"
                     onClick={() => exportTheme(t, ti + 1, doc, themeWeeks)}
                   >
                     <FileDown size={16} aria-hidden /> Xuất file
                   </button>
-                </>
+                </div>
               }
             >
               <div className="card__body stack">
                 <div className="row row--between row--wrap gap-3">
                   <div className="row row--wrap gap-2">
-                    {sent ? <EduStatusBadge status={doc.status} doc={doc} /> : <span className="muted text-sm">{due(doc, t.start)}</span>}
+                    {dossierOf(t) ? (
+                      // Spec 003: trạng thái và hạn theo hồ sơ chủ đề do BE tính
+                      <>
+                        <EduStatusBadge status={dossierOf(t).status} doc={dossierOf(t)} />
+                        <DeadlineBadge doc={dossierOf(t)} />
+                      </>
+                    ) : sent ? (
+                      <EduStatusBadge status={doc.status} doc={doc} />
+                    ) : (
+                      <span className="muted text-sm">{due(doc, t.start)}</span>
+                    )}
                   </div>
                   {/* Gửi và duyệt ở cuối trang xem cả tập; nút nói rõ việc cần làm */}
                   {doc && (
@@ -217,19 +235,19 @@ export default function ClassPlanPage() {
                   )}
                 </div>
                 <div className="table-wrap">
-                  <table className="table ga-plan-table ga-goal-table">
+                  <table className="table ga-plan-table ga-goal-table ga-class-plan-table">
                     <colgroup>
-                      <col />
-                      <col className="ga-goal-table__group" />
-                      <col className="ga-goal-table__group" />
-                      <col className="ga-goal-table__code" />
+                      <col className="ga-col-main" />
+                      <col className="ga-col-theme-time" />
+                      <col className="ga-col-theme-status" />
+                      <col className="ga-col-theme-actions" />
                     </colgroup>
                     <thead>
                       <tr>
                         <th>Nội dung</th>
                         <th>Thời gian</th>
-                        <th className="center">Trạng thái</th>
-                        <th className="cell--actions">Thao tác</th>
+                        <th className="center ga-col-theme-status">Trạng thái</th>
+                        <th className="center cell--actions ga-col-theme-actions">Thao tác</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -244,10 +262,10 @@ export default function ClassPlanPage() {
                             {ddmm(t.start)} → {ddmm(t.end)}
                           </div>
                         </td>
-                        <td>
+                        <td className="center ga-theme-status-cell">
                           <div className="ga-goal-table__pad">{status(doc, 'NOT_PLANNED')}</div>
                         </td>
-                        <td className="center">
+                        <td className="center cell--actions">
                           <div className="ga-goal-table__pad">
                             {action(doc, `${base}/themes/${t.id}`, 'Lập', to, `kế hoạch chủ đề ${t.name}`)}
                           </div>
@@ -280,13 +298,12 @@ export default function ClassPlanPage() {
                             <td className="cell--fixed">
                               <div className="ga-goal-table__pad">
                                 Tuần {r.no}: {ddmm(r.start)} → {ddmm(r.end)}
-                                {r.start === thisWeek && <span className="chip chip--blue"> Tuần này</span>}
                               </div>
                             </td>
-                            <td>
+                            <td className="center ga-theme-status-cell">
                               <div className="ga-goal-table__pad">{lock ? lockedStatus(lock) : status(wdoc, 'NOT_DRAFTED')}</div>
                             </td>
-                            <td className="cell--actions">
+                            <td className="center cell--actions">
                               <div className="ga-goal-table__pad">
                                 {!lock && action(wdoc, `${base}/weeks/${r.start}`, 'Tạo', `${to}?week=${r.start}`, `giáo án tuần ${r.no}`)}
                               </div>

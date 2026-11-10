@@ -2,6 +2,34 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { reconcileYearPlanIds, createSaveQueue, yearPlanContentKey } from '../../src/models/education-plan/yearPlanAutosave.mjs';
 
+test('saving assigns branch and parent theme IDs without losing edits made while waiting', () => {
+  const snapshot = {
+    themes: [{ id: 'theme-local', name: 'Trường mầm non' }],
+    branchTemplates: [{ id: 'branch-local', themeId: 'theme-local', name: 'Nhánh đã gửi' }],
+  };
+  const current = structuredClone(snapshot);
+  current.branchTemplates[0].name = 'Nhánh đang gõ tiếp';
+  current.branchTemplates.push({ id: 'branch-next', themeId: 'theme-local', name: 'Thêm trong lúc lưu' });
+  const saved = {
+    themes: [{ id: '703', name: 'Trường mầm non' }],
+    branchTemplates: [{ id: '35', themeId: '703', name: 'Nhánh đã gửi' }],
+  };
+  const result = reconcileYearPlanIds(current, snapshot, saved);
+  assert.deepEqual(result.branchTemplates, [
+    { id: '35', themeId: '703', name: 'Nhánh đang gõ tiếp' },
+    { id: 'branch-next', themeId: '703', name: 'Thêm trong lúc lưu' },
+  ]);
+  const deleted = reconcileYearPlanIds({ ...current, branchTemplates: [] }, snapshot, saved);
+  assert.deepEqual(deleted.branchTemplates, []);
+});
+
+test('branch-only changes remain distinguishable from the saved document for recovery', () => {
+  const before = { branchTemplates: [{ id: '35', themeId: '703', name: 'Nhánh cũ', startDate: '', endDate: '' }] };
+  const after = structuredClone(before);
+  after.branchTemplates[0].name = 'Nội dung chưa lưu';
+  assert.notEqual(yearPlanContentKey(before), yearPlanContentKey(after));
+});
+
 test('autosave preserves text typed during a save while assigning server IDs and theme ticks', () => {
   const snapshot = {
     id: 'new',

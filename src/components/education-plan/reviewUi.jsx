@@ -216,11 +216,11 @@ export function RejectedNotice({ status, history }) {
 }
 
 /** Lịch sử xử lý ở cuối trang (thu gọn). */
-export function ReviewHistory({ items }) {
+export function ReviewHistory({ items, open = false }) {
   return (
     <Card>
-      <details>
-        <summary className="muted text-sm">Lịch sử xử lý ({items?.length || 0})</summary>
+      <details open={open}>
+        <summary className="muted text-sm">Lịch sử duyệt ({items?.length || 0})</summary>
         <div className="mt-8">
           <History items={items} />
         </div>

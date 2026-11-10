@@ -3,7 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { Card, EduStatusBadge, EmptyState, PageHead, YearPlanStatusBadge, fmtDateTime } from '@/components/education-plan/eduUi';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { ROLES } from '@/models/User';
-import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
+import { useAsync } from '@/hooks/useAsync';
+import { usePolling } from '@/hooks/usePolling';
+import { DeadlineBadge } from '@/components/education-plan/DeadlineWidgets';
+import { getReviewQueue } from '@/services/education-plan/educationPlanService';
+import { submitEntryOf } from '@/models/education-plan/reviewHistory.mjs';
 import { CLASS_DOC_LABELS, themeNumber, themeWeeksOf } from '@/models/education-plan/classPlan';
 import { PENDING_OF } from '@/models/education-plan/eduConfig';
 import { clickableRowProps } from '@/utils/clickableRow';
@@ -12,10 +16,16 @@ import { clickableRowProps } from '@/utils/clickableRow';
  * Hộp duyệt: hồ sơ chủ đề (kế hoạch chủ đề + giáo án các nhánh) của các lớp trong khối đang chờ duyệt.
  */
 export default function PlanReviewQueuePage() {
-  const { user, goals, classThemePlans, classes } = useEducationPlan();
+  const { user, goals, classThemePlans, themeDossiers = [], semesterPackages = [], classes, refreshClassDocs } = useEducationPlan();
   const navigate = useNavigate();
+  // Kế hoạch năm/tổ chờ duyệt: BE trả riêng (danh sách thường chỉ có bản đã ban hành), tự làm mới không cần tải lại trang
+  const queue = useAsync(() => getReviewQueue(user), [user.id], { refreshOnDataChange: true });
+  usePolling(() => {
+    queue.reload({ silent: true });
+    refreshClassDocs?.().catch(() => {});
+  });
+  const reviewGoals = queue.data || [];
 
-  const isVp = user.role === ROLES.VICE_PRINCIPAL;
   // Trạng thái chờ đúng vai trò người dùng (thứ tự duyệt theo cấu hình của trường)
   const waiting = PENDING_OF[user.role];
   const classOf = (id) => classes.find((c) => c.id === id);
@@ -32,12 +42,7 @@ export default function PlanReviewQueuePage() {
   const themeName = (doc) => goals.find((g) => g.id === doc.yearPlanId)?.themes?.find((t) => t.id === doc.themeId)?.name || '—';
   const sentAt = (doc) => [...(doc.history || [])].reverse().find((h) => !h.tone);
   const items = [
-    ...goals
-      .filter((g) => {
-        if (g.permissions) return !!(g.permissions.canApprove ?? g.permissions.canIssue) || !!g.permissions.canReturn;
-        if (g.status === 'REVIEW' && (g.review?.waitingRole ?? g.waitingRole) === user.role) return true;
-        return isVp && g.status === EDU_STATUS.PENDING_VP;
-      })
+    ...reviewGoals
       .map((g) => ({
         key: `y-${g.id}`,
         kind: 'year',
@@ -46,11 +51,29 @@ export default function PlanReviewQueuePage() {
         what: g.title,
         label: g.planTypeLabel || (planLevel(g) === 'SCHOOL_YEAR' ? 'Kế hoạch năm học' : 'Kế hoạch tổ'),
         to: `${planRoute(g)}/${g.id}`,
-        by: g.sentBy?.name || [...(g.history || [])].reverse().find((h) => h.action?.startsWith('Gửi'))?.by,
+        by: g.sentBy?.name || submitEntryOf(g)?.by,
         at: g.sentAt ?? g.sentBy?.at,
       })),
-    // Hồ sơ chủ đề gửi và duyệt một lần (kế hoạch chủ đề + giáo án các nhánh)
-    ...classThemePlans.filter(mine).map((d) => {
+    // Spec 003: gói học kỳ (lịch nhánh + chủ đề theo kỳ) và hồ sơ chủ đề là đơn vị duyệt
+    ...semesterPackages.filter(mine).map((d) => ({
+      kind: 'semester',
+      label: 'Gói học kỳ',
+      doc: d,
+      what: `Lịch chủ đề nhánh học kỳ ${d.semesterNo} · ${(d.themeIds || []).length} chủ đề`,
+      to: `/education/class/${d.classId}/semesters/${d.semesterNo}`,
+    })),
+    ...themeDossiers.filter(mine).map((d) => {
+      const plan = goals.find((g) => g.id === d.yearPlanId);
+      return {
+        kind: 'theme',
+        label: 'Hồ sơ chủ đề',
+        doc: d,
+        what: `Chủ đề ${themeNumber(plan, d.themeId)}: ${themeName(d)} · ${d.submitMode === 'SEMESTER' ? 'giáo án ngày' : 'kế hoạch chủ đề, tuần, ngày'}`,
+        to: `/education/class/${d.classId}/themes/${d.themeId}`,
+      };
+    }),
+    // Bản mock cũ chưa có hồ sơ chủ đề tách riêng
+    ...(themeDossiers.length ? [] : classThemePlans).filter(mine).map((d) => {
       const plan = goals.find((g) => g.id === d.yearPlanId);
       return {
         kind: 'theme',
@@ -64,6 +87,7 @@ export default function PlanReviewQueuePage() {
     cls: classOf(it.doc.classId)?.name || '—',
     by: sentAt(it.doc)?.by,
     at: sentAt(it.doc)?.at,
+    note: submitEntryOf(it.doc)?.note,
     ...it,
   }));
 
@@ -105,7 +129,10 @@ export default function PlanReviewQueuePage() {
                         <div className="ga-goal-table__pad">{it.cls}</div>
                       </td>
                       <td>
-                        <div className="ga-goal-table__pad">{it.what}</div>
+                        <div className="ga-goal-table__pad">
+                          {it.what}
+                          {it.note && <div className="muted text-sm">Ghi chú: {it.note}</div>}
+                        </div>
                       </td>
                       <td>
                         <div className="ga-goal-table__pad">{it.by || '—'}</div>
@@ -118,7 +145,10 @@ export default function PlanReviewQueuePage() {
                           {it.kind === 'year' ? (
                             <YearPlanStatusBadge status={it.doc.status} doc={it.doc} />
                           ) : (
-                            <EduStatusBadge status={it.doc.status} doc={it.doc} />
+                            <span className="row row--wrap gap-2">
+                              <EduStatusBadge status={it.doc.status} doc={it.doc} />
+                              <DeadlineBadge doc={it.doc} />
+                            </span>
                           )}
                         </div>
                       </td>

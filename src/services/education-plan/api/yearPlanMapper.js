@@ -148,6 +148,7 @@ export const toUiGoal = (detail, refs) => {
       by: h.actorName,
       role: h.actorRoleLabel,
       action: h.label,
+      code: h.action,
       tone: h.tone,
       ...(h.note ? { note: h.note } : {}),
     })),

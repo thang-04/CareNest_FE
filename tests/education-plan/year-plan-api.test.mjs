@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { AxiosError } from 'axios';
+import { reconcileYearPlanIds } from '../../src/models/education-plan/yearPlanAutosave.mjs';
 
 globalThis.window = new EventTarget();
 
@@ -18,6 +19,24 @@ const CONFIG = {
   ageGroups: [{ id: 3, code: 'ag-3', name: 'Mẫu giáo bé (3–4 tuổi)', shortName: 'Mẫu giáo bé', sortOrder: 2 }],
 };
 const refs = buildRefs(CONFIG);
+
+test('second annual save sends persisted branch IDs and matching parent keys after the first save', () => {
+  const snapshot = {
+    planLevel: 'SCHOOL_YEAR', schoolYear: '2026 – 2027', ageGroupId: 'ag-3', title: 'Kế hoạch năm',
+    themes: [{ id: 'theme-local', name: 'Trường mầm non', abbr: 'TMN' }],
+    branchTemplates: [{ id: 'branch-local', themeId: 'theme-local', name: 'Trường của bé' }],
+  };
+  const saved = { ...snapshot, id: '350', revision: 1,
+    themes: [{ ...snapshot.themes[0], id: '703' }],
+    branchTemplates: [{ ...snapshot.branchTemplates[0], id: '35', themeId: '703' }],
+  };
+  const current = reconcileYearPlanIds(snapshot, snapshot, saved);
+  const body = toYearPlanRequest(current, refs);
+  assert.equal(body.planLevel, 'SCHOOL_YEAR');
+  assert.equal(body.branchTemplates[0].id, 35);
+  assert.equal(body.branchTemplates[0].themeKey, body.themes[0].key);
+  assert.equal(body.branchTemplates[0].themeKey, '703');
+});
 
 const detail = (overrides = {}) => ({
   id: 41,

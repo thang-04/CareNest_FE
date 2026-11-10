@@ -12,6 +12,9 @@ import { curriculumMockRepository } from '@/services/education-plan/mock/curricu
 const repo = USE_MOCK ? educationPlanMockRepository : educationPlanApi;
 
 export const getEducationPlans = (user) => repo.getAll(user);
+export const getReviewQueue = (user) => repo.getReviewQueue(user);
+export const getGoal = (id, user) => repo.getGoal(id, user);
+export const getClassDocRelease = (releaseId) => repo.getClassDocRelease(releaseId);
 export const listGoalSources = (filters, actor, options) => repo.listGoalSources(filters, actor, options);
 export const getGoalSource = (id, actor, options) => repo.getGoalSource(id, actor, options);
 export const saveGoal = (item, options) => repo.saveGoal(item, options);

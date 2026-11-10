@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { ReviewActions } from '@/components/education-plan/reviewUi';
-import { Download, FileDown, Save, Upload } from '@/components/ui/icons';
+import { Download, FileDown, Save } from '@/components/ui/icons';
 import { yearPlanFile } from '@/utils/education-plan/yearPlanDoc';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { useYearPlanAutosave } from '@/hooks/education-plan/useYearPlanAutosave';
@@ -459,7 +459,8 @@ export default function GoalFormPage({ planLevel = 'TEAM' }) {
   // Kiểm tra trước khi gửi / ban hành; mở lại mọi thẻ để thấy chỗ báo lỗi
   const checkBeforeFinish = (action) => {
     setFolded({});
-    setRequireDates(action === 'approve');
+    // BE:EDU-52 (Tiền 10/11/2026): điều kiện ban hành chặn từ bước gửi ⇒ báo "Chọn ngày" cả khi gửi
+    setRequireDates(action === 'approve' || action === 'submit');
     focusValidation.current = true;
     return validate(0) && validate(1, action);
   };
@@ -693,7 +694,7 @@ export default function GoalFormPage({ planLevel = 'TEAM' }) {
                       disabled: !form.ageGroupId,
                       onClick: () => setMinistryOpen(true),
                     },
-                    { label: 'Nhập file', icon: Upload, onClick: () => setFileOpen(true) },
+                    { label: 'Nhập file', icon: Download, onClick: () => setFileOpen(true) },
                   ]}
                 />
               </div>
@@ -1086,6 +1087,7 @@ export default function GoalFormPage({ planLevel = 'TEAM' }) {
             durationPolicy={durationPolicy}
             readOnly={!annual}
             fixedFields={!annual}
+            branchEditable={!annual}
             yearRange={yearRange}
             themes={form.themes}
             breaks={form.breaks}

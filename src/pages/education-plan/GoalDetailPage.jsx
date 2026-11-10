@@ -15,8 +15,11 @@ import { yearPlanFile } from '@/utils/education-plan/yearPlanDoc';
 import { Card, Modal, Notice, PageHead, fmtDate } from '@/components/education-plan/eduUi';
 import { RejectedNotice, ReviewActions, ReviewHistory } from '@/components/education-plan/reviewUi';
 import { StatusPage } from '@/components/ui/StatusPage';
-import { Spinner } from '@/components/ui/States';
-import { VersionBadge, YearPlanVersionPanel } from '@/components/education-plan/VersionWidgets';
+import { LoadingState, Spinner } from '@/components/ui/States';
+import { useAsync } from '@/hooks/useAsync';
+import { getGoal } from '@/services/education-plan/educationPlanService';
+import { submitEntryOf } from '@/models/education-plan/reviewHistory.mjs';
+import { ReleasedVersionsPanel, VersionBadge, YearPlanVersionPanel } from '@/components/education-plan/VersionWidgets';
 import { chainOf, currentPlanOf } from '@/models/education-plan/planVersions.mjs';
 import DocPreviewModal from '@/components/education-plan/DocPreviewModal';
 
@@ -55,16 +58,18 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
   const [creating, setCreating] = useState(false);
   const [actionError, setActionError] = useState('');
   const found = goals.find((x) => x.id === id);
-  // Giáo viên chỉ xem kế hoạch năm đã ban hành
-  const g = found;
+  // Bản Chờ duyệt (mở từ hàng chờ/thông báo) không có trong danh sách ⇒ hỏi BE theo id; người chỉ xem nhận 403 "chưa ban hành"
+  const single = useAsync(() => (found ? Promise.resolve(null) : getGoal(id, user)), [id, !!found]);
+  const g = found || single.data;
 
+  if (!g && single.loading) return <LoadingState />;
   if (!g)
     return (
       <div className="page ga-page">
         <PageHead crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: pageLabel, to: basePath }]} title={pageLabel} />
         <StatusPage
-          kind="404"
-          title={`Không tìm thấy ${pageLabel.toLowerCase()}`}
+          kind={single.error?.status === 403 ? '403' : '404'}
+          title={single.error?.status === 403 ? single.error.message : `Không tìm thấy ${pageLabel.toLowerCase()}`}
           action={
             <Link className="btn" to={basePath}>
               Về danh sách
@@ -202,7 +207,7 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
           crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: pageLabel, to: basePath }, { label: g.code }]}
           title={g.title}
           // Đầu trang chỉ giữ nhãn phiên bản, bỏ nhãn trạng thái riêng (Tiền 31/10); trạng thái vẫn quyết định quyền và nút
-          desc={annual ? <VersionBadge plan={g} goals={goals} /> : g.planTypeLabel || 'Kế hoạch tổ'}
+          desc={<VersionBadge plan={g} goals={goals} />}
         />
         <div className="ga-year-toolbar" role="group" aria-label={`Thao tác ${pageLabel.toLowerCase()}`}>
           <div className="ga-year-toolbar__group">
@@ -228,12 +233,14 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
               approveLabel={g.review?.roles?.at(-1) === g.review?.waitingRole ? 'Ban hành' : 'Duyệt'}
               variant="btn--outline-primary"
               can={{ send: canSend, reject: canReturn, approve: canIssue }}
-              // EDU-52: chủ đề chưa chọn ngày thì chưa ban hành được; sửa ngày ở màn chỉnh sửa
+              // EDU-52 (Tiền 10/11/2026): chủ đề chưa chọn ngày thì chưa gửi, chưa ban hành được; sửa ngày ở màn chỉnh sửa
               beforeOpen={(action) => {
-                const undated = action === 'approve' && themeWithoutDates(themes);
+                const undated = (action === 'approve' || action === 'submit') && themeWithoutDates(themes);
                 if (undated)
                   toast(
-                    `Chủ đề "${undated.name || undated.abbr}" chưa chọn ngày. Bấm "Sửa trước khi duyệt" để chọn ngày rồi ban hành.`,
+                    action === 'submit'
+                      ? `Chủ đề "${undated.name || undated.abbr}" chưa chọn ngày. Sửa kế hoạch để chọn ngày rồi gửi duyệt.`
+                      : `Chủ đề "${undated.name || undated.abbr}" chưa chọn ngày. Bấm "Sửa trước khi duyệt" để chọn ngày rồi ban hành.`,
                     'warn',
                   );
                 return !undated;
@@ -254,6 +261,20 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
       {['DRAFT', 'REJECTED'].includes(g.status) && (
         <div className="mb-16">
           <RejectedNotice status={g.status} history={history} />
+        </div>
+      )}
+      {isReview && submitEntryOf(g)?.note && (
+        <div className="mb-16">
+          {/* Ghi chú người gửi cho người duyệt (BE spec 002 FR-005) */}
+          <Notice>{`Ghi chú khi gửi (${submitEntryOf(g).by || '—'}, ${fmtDate(submitEntryOf(g).at)}): ${submitEntryOf(g).note}`}</Notice>
+        </div>
+      )}
+      {g.status === 'APPROVED' && (g.versions || []).some((v) => v.current && v.id !== g.id) && (
+        <div className="mb-16">
+          <Notice tone="warn">
+            Đã có bản mới hơn được ban hành.{' '}
+            <Link to={`${basePath}/${g.versions.find((v) => v.current).id}`}>Xem bản hiện hành</Link>
+          </Notice>
         </div>
       )}
       {isReview && !canIssue && (
@@ -344,10 +365,14 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
       ))}
       {!annual && <TeamSourceReview plan={g} />}
       {annual && <YearPlanVersionPanel plan={g} goals={goals} />}
+      {!annual && <ReleasedVersionsPanel plan={g} />}
 
-      <div className="mt-16">
-        <ReviewHistory items={history} />
-      </div>
+      {/* Lịch sử duyệt: BE chỉ trả cho người soạn và người duyệt (FR-019); luôn mở sẵn, kể cả sau khi ban hành */}
+      {history.length > 0 && (
+        <div className="mt-16">
+          <ReviewHistory items={history} open />
+        </div>
+      )}
       {preview && <DocPreviewModal file={preview} onClose={() => setPreview(null)} />}
 
       {modal === 'version' && (

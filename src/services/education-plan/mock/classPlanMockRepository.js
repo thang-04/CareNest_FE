@@ -84,16 +84,12 @@ const authorsOf = (db, doc) =>
       .filter((week) => week.classId === doc.classId && week.yearPlanId === doc.yearPlanId && week.themeId === doc.themeId)
       .flatMap((week) => week.authorIds || []),
   ]);
-const canAuthor = (db, kind, classId, user) => {
+const canAuthor = (db, classId, user) => {
   const cls = classOf(db, classId);
-  if (cls?.homeroomTeacherId && String(cls.homeroomTeacherId) !== String(user?.id)) return false;
-  const policy = withDefaults(db.eduConfig).workflowPolicy[kind === 'branch' ? 'branch' : 'theme'];
-  if (policy.reviewers.some((role) => rolesOf(user).includes(role))) return false;
-  const roles = policy.creators;
-  return roles.some(
-    (role) =>
-      rolesOf(user).includes(role) &&
-      (role === ROLES.TEACHER ? teachesClass(cls, user) : role === ROLES.TEAM_LEADER ? user?.ageGroupId === cls?.ageGroupId : true),
+  return (
+    rolesOf(user).includes(ROLES.TEACHER) &&
+    teachesClass(cls, user) &&
+    String(cls?.homeroomTeacherId) === String(user?.id)
   );
 };
 const decorate = (db, doc, user, kind = doc.kind) => {
@@ -112,7 +108,7 @@ const decorate = (db, doc, user, kind = doc.kind) => {
     approvals: doc.approvals || [],
     printSnapshot: doc.printSnapshot || null,
   };
-  const author = canAuthor(db, kind, doc.classId, user);
+  const author = canAuthor(db, doc.classId, user);
   const reviewer =
     kind !== 'week' && doc.status === 'REVIEW' && rolesOf(user).includes(review.waitingRole) && !authorsOf(db, doc).has(user?.id);
   return {
@@ -231,7 +227,7 @@ export const classPlanMockRepository = {
       const doc = findDoc(db, CLASS_DOC.WEEK, id);
       assertVersion(doc, options.version);
       bumpRoot(db, 'week', doc, options.dossierVersion);
-      if (!canAuthor(db, 'week', doc.classId, user)) throw eduError('CLASS_DOC_TEACHER_ONLY');
+      if (!canAuthor(db, doc.classId, user)) throw eduError('CLASS_DOC_TEACHER_ONLY');
       const days = new Set((doc.days || []).map((d) => d.date));
       const next = {};
       Object.entries(adjustments || {}).forEach(([day, text]) => {
@@ -260,11 +256,17 @@ export const classPlanMockRepository = {
       branchPlans: clone(fresh.eduClassBranch.map((d) => decorate(fresh, d, user, 'branch'))),
       classThemePlans: clone(fresh.eduClassTheme.map((d) => decorate(fresh, d, user, 'theme'))),
       weekPlans: clone(fresh.eduClassWeek.map((d) => decorate(fresh, d, user, 'week'))),
+      // ponytail: bản demo giữ cách duyệt cũ (BE:EDU-17); BE:EDU-74 (gói học kỳ, hồ sơ chủ đề, giáo án ngày) chỉ có ở API —
+      // danh sách rỗng ⇒ trang tự quay về gửi theo kế hoạch chủ đề. Dựng mock đầy đủ khi cần demo không có BE.
+      semesterPackages: [],
+      themeDossiers: [],
+      dayPlans: [],
+      semesterConfigMissing: false,
       creationCapabilities: (fresh.classes || []).flatMap((cls) =>
         ['branch', 'theme', 'week'].map((kind) => ({
           classId: cls.id,
           kind,
-          canCreate: canAuthor(fresh, kind, cls.id, user),
+          canCreate: canAuthor(fresh, cls.id, user),
           requires: kind === 'week' ? 'THEME_DOSSIER' : 'ISSUED_TEAM_PLAN',
           reasonCode: null,
         })),
@@ -288,7 +290,7 @@ export const classPlanMockRepository = {
       const current = i === -1 ? null : list[i];
       assertVersion(current, doc.version);
       bumpRoot(db, kind, doc, doc.dossierVersion);
-      if (!canAuthor(db, kind, doc.classId, user)) throw eduError('CLASS_DOC_TEACHER_ONLY');
+      if (!canAuthor(db, doc.classId, user)) throw eduError('CLASS_DOC_TEACHER_ONLY');
       if (isSuperseded(db, doc.yearPlanId)) throw eduError('YEAR_PLAN_SUPERSEDED');
       if (!current) {
         const blocker = createBlocker(kind, doc, { branchPlans: db.eduClassBranch, classThemePlans: db.eduClassTheme });
@@ -433,7 +435,7 @@ export const classPlanMockRepository = {
         });
 
       if (action === 'submit') {
-        if (!canAuthor(db, kind, doc.classId, user)) fail('CLASS_DOC_TEACHER_ONLY');
+        if (!canAuthor(db, doc.classId, user)) fail('CLASS_DOC_TEACHER_ONLY');
         if (!isEditableStatus(doc.status)) fail('CLASS_DOC_SUBMITTED');
         if (isSuperseded(db, doc.yearPlanId)) fail('YEAR_PLAN_SUPERSEDED');
         const blocker = submitBlocker(kind, doc, lists);

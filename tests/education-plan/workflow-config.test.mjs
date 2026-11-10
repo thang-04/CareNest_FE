@@ -43,7 +43,7 @@ test('mock class approvals follow the configured chain and retain an unavailable
       const cfg = withDefaults();
       db.eduConfig = { ...cfg, workflowPolicy: { ...cfg.workflowPolicy, theme: { creators: ['TEACHER'], reviewers } } };
       db.users = users;
-      db.classes = [{ id: 'wf-class', teacherIds: [teacher.id], ageGroupId: 'wf-age', schoolYear: 'wf-year' }];
+      db.classes = [{ id: 'wf-class', teacherIds: [teacher.id], homeroomTeacherId: teacher.id, ageGroupId: 'wf-age', schoolYear: 'wf-year' }];
       db.eduGoals = [{ id: 'wf-plan', planLevel: 'TEAM', status: 'APPROVED', ageGroupId: 'wf-age', schoolYear: 'wf-year', themes: [], domains: [] }];
       db.eduClassBranch = [{ id: 'wf-branch', classId: 'wf-class', yearPlanId: 'wf-plan', names: {} }];
       db.eduClassWeek = [];

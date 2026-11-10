@@ -390,6 +390,13 @@
     font-size: var(--fs-sm);
   }
 }
+
+.table.ga-goal-table.ga-theme-edit-fixed.ga-branch-template-editable tbody tr td.ga-branch-template-cell,
+.table.ga-goal-table.ga-theme-edit-fixed.ga-branch-template-editable tbody tr:hover td.ga-branch-template-cell,
+.table.ga-goal-table.ga-theme-edit-fixed.ga-branch-template-editable tbody tr:nth-child(n) td.ga-branch-template-cell {
+  background: var(--color-surface, #fff);
+  cursor: text;
+}
 .ga-class-editor .ga-week-hero {
   border-color: var(--color-border);
   background: var(--color-surface);
@@ -1190,7 +1197,17 @@
   }
 }
 
-/* ---------- Lấy từ Chương trình của Bộ (CurriculumGoalsModal) ---------- */
+/* ---------- Lấy từ Chương trình của Bộ (CurriculumGoalsModal & CurriculumSourcesPage) ---------- */
+.ga-cur-page .tabs,
+.ga-cur-page .card .tabs,
+.ga-cur-page .card__body > .tabs,
+.ga-cur-page .card__body > .stack > .tabs {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  max-width: 100% !important;
+  align-self: flex-start;
+}
+
 .ga-cur-meta {
   display: flex;
   flex-wrap: wrap;
@@ -2336,6 +2353,11 @@ h2.ga-cur-domain__head {
 .ga-branch-template-dates.ga-branch-date-range {
   align-items: center;
 }
+.ga-branch-week-dates {
+  flex-wrap: nowrap;
+  padding: 0;
+  white-space: nowrap;
+}
 .ga-branch-date-endpoint {
   flex: 0 1 auto;
   min-width: 0;
@@ -2627,3 +2649,144 @@ h2.ga-cur-domain__head {
 .ga-config-page.is-editing .table.ga-goal-table tbody td.ga-cell-editable:has(input[type="checkbox"]) {
   cursor: pointer;
 }
+
+/* ---------- Bảng kế hoạch chủ đề của lớp (ClassPlanPage) - UI/UX Pro Max & Responsive ---------- */
+.table-wrap:has(> .ga-class-plan-table) {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  max-width: 100%;
+}
+
+.table.ga-plan-table.ga-class-plan-table {
+  table-layout: fixed;
+  width: 100%;
+  min-width: 780px; /* Ngăn vỡ cột / gãy chữ khi co màn hình hẹp */
+}
+
+.ga-class-plan-table .ga-col-main {
+  width: auto;
+  min-width: 230px;
+}
+
+.ga-class-plan-table .ga-col-theme-time {
+  width: 200px;
+  min-width: 180px;
+}
+
+.ga-class-plan-table .ga-col-theme-status {
+  width: 190px;
+  min-width: 180px;
+}
+
+.ga-class-plan-table .ga-col-theme-actions {
+  width: 160px;
+  min-width: 150px;
+}
+
+/* Cột Thời gian: giữ ngày tháng thẳng hàng không rớt dòng */
+.ga-class-plan-table th:nth-child(2),
+.ga-class-plan-table td:nth-child(2) {
+  white-space: nowrap;
+}
+
+/* Cột Trạng thái: vừa vặn với badge, căn giữa cân đối */
+.ga-class-plan-table th.ga-col-theme-status,
+.ga-class-plan-table td.ga-theme-status-cell {
+  text-align: center;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.ga-class-plan-table td.ga-theme-status-cell .ga-goal-table__pad {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+/* Cột Thao tác: mở rộng thoải mái, không bao giờ gãy dòng, căn giữa trực quan */
+.ga-class-plan-table th.cell--actions,
+.ga-class-plan-table td.cell--actions {
+  width: 160px;
+  min-width: 150px;
+  text-align: center;
+  vertical-align: middle;
+  white-space: nowrap !important;
+  overflow: visible;
+  overflow-wrap: normal !important;
+}
+
+.ga-class-plan-table td.cell--actions .ga-goal-table__pad {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+.ga-class-plan-table td.cell--actions .btn {
+  white-space: nowrap;
+}
+
+/* Responsive trên điện thoại và màn hình nhỏ (< 768px) */
+@media (max-width: 767px) {
+  .table.ga-plan-table.ga-class-plan-table {
+    min-width: 740px;
+  }
+  .ga-class-plan-table .ga-col-theme-time {
+    width: 180px;
+  }
+  .ga-class-plan-table .ga-col-theme-status {
+    width: 180px;
+  }
+  .ga-class-plan-table .ga-col-theme-actions {
+    width: 150px;
+  }
+  .ga-class-plan-table .ga-goal-table__pad {
+    padding: var(--space-2) var(--space-2-5);
+  }
+  .ga-class-plan-table td.cell--actions .btn {
+    height: 32px;
+    padding: 0 var(--space-2-5);
+    font-size: var(--fs-xs);
+  }
+}
+
+/* Modal Tùy chọn mục tiêu cho chủ đề (ThemeGoalPickerModal) */
+.ga-goal-picker-modal .modal__body {
+  max-height: 80vh;
+  overflow-y: auto;
+}
+.ga-goal-domain-card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-bottom: var(--space-2);
+}
+.ga-goal-domain-card .card__header {
+  border-bottom: 1px solid var(--color-border);
+}
+.ga-goal-modal-item {
+  transition: background-color 0.15s ease-in-out;
+}
+.ga-goal-modal-item:hover {
+  background-color: var(--color-surface-hover, rgba(0, 0, 0, 0.03));
+}
+.ga-goal-modal-item.bg-primary-soft {
+  background-color: var(--color-primary-soft, rgba(14, 165, 233, 0.08));
+}
+.ga-goal-modal-domain-tabs {
+  padding-bottom: var(--space-1);
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* Khoảng cách chuẩn của tiêu đề và hàng nút tùy chọn mục tiêu với bảng kế hoạch chủ đề */
+.ga-theme-goal-head {
+  margin-bottom: var(--space-4);
+}
+.ga-theme-goal-head .subsection-title {
+  margin-bottom: var(--space-2);
+}
+
+
+

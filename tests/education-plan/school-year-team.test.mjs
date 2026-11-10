@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { planLevel, planRoute, inheritAnnual, curriculumShape } from '../../src/models/education-plan/planLevel.mjs';
 import {
+  branchDisplayRows,
   projectCalendar,
   adaptCalendar,
   resizeBranch,
@@ -18,6 +19,17 @@ const annual = {
   domains: [{ name: 'D', rows: [{ id: 'g', kind: 'goal', text: 'G', contents: [{ id: 'c', text: 'C', themes: [] }] }] }],
   branchTemplates: [{ id: 't', themeId: 'a', name: 'Mẫu', startDate: '2026-09-07', endDate: '2026-09-18' }],
 };
+test('multiweek branch occupies one display row and keeps uncovered weeks available', () => {
+  const base = adaptCalendar({ names: {}, notes: {} }, annual);
+  const doc = projectCalendar({ ...base, branches: [{
+    key: 'two-weeks', themeId: 'a', name: 'Hai tuần', startDate: '2026-09-07', endDate: '2026-09-18', weekNotes: { 0: 'Một', 1: 'Hai' },
+  }] }, annual);
+  const rows = branchDisplayRows(annual, doc).filter((row) => row.type === 'week');
+  assert.equal(rows.filter((row) => row.theme.id === 'a').length, 1);
+  assert.equal(rows.filter((row) => row.theme.id === 'b').length, 1);
+  assert.equal(doc.notes['2026-09-07'], 'Một');
+  assert.equal(doc.notes['2026-09-14'], 'Hai');
+});
 test('legacy defaults TEAM; route and annual inheritance isolate source', () => {
   assert.equal(planLevel({}), 'TEAM');
   assert.equal(planRoute(annual), '/education/school-year-plans');

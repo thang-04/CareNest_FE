@@ -17,17 +17,20 @@ export const yearPlanContentKey = (doc) =>
       })),
     })),
     themes: doc.themes || [],
+    branchTemplates: doc.branchTemplates || [],
     breaks: doc.breaks || [],
   });
 
 export function reconcileYearPlanIds(current, snapshot, saved) {
   const ids = new Map();
-  const pair = (before = [], after = []) =>
+  const branchIds = new Map();
+  const pair = (before = [], after = [], target = ids) =>
     before.forEach((item, i) => {
-      if (after[i]) ids.set(item.id, after[i].id);
+      if (after[i]) target.set(item.id, after[i].id);
     });
   pair(snapshot.themes, saved.themes);
   pair(snapshot.breaks, saved.breaks);
+  pair(snapshot.branchTemplates, saved.branchTemplates, branchIds);
   for (const domain of snapshot.domains || []) {
     const target = saved.domains?.find((d) => d.name === domain.name) || saved.domains?.[snapshot.domains.indexOf(domain)];
     pair(domain.rows, target?.rows);
@@ -46,6 +49,9 @@ export function reconcileYearPlanIds(current, snapshot, saved) {
     permissions: saved.permissions,
     editing: saved.editing,
     themes: (current.themes || []).map((t) => ({ ...t, id: idOf(t.id) })),
+    branchTemplates: (current.branchTemplates || []).map((t) => ({
+      ...t, id: branchIds.get(t.id) ?? t.id, themeId: idOf(t.themeId),
+    })),
     breaks: (current.breaks || []).map((b) => ({ ...b, id: idOf(b.id) })),
     domains: (current.domains || []).map((d) => ({
       ...d,

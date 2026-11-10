@@ -112,6 +112,7 @@ const PageHead=({actions})=><header>{actions}</header>, VersionBadge=()=>null, Y
 const GoalTable=()=> <div data-table="goals"/>, ThemeEventTable=()=> <div data-table="themes"/>, PlanTabs=()=> <div role="tablist"/>;
 const Copy=()=>null, FileDown=()=>null, Pencil=()=>null, Trash2=()=>null, ArrowLeft=()=>null, fmtDate=()=> '—';
 const Link=({to,children,...props})=><a href={to} data-back-to={props.state?.backTo} data-replace={props.replace ? 'true' : 'false'} className={props.className}>{children}</a>;
+const useAsync=()=>({data:null,loading:false,error:null}), getGoal=async()=>null, LoadingState=()=>null, ReleasedVersionsPanel=()=>null, submitEntryOf=()=>null, StatusPage=()=>null;
 `;
 const detailCode = await transformWithOxc(
   detailStubs + detailSource.replace(/^import [\s\S]*? from '[^']+';\r?\n/gm, ''),

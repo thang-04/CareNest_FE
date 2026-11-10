@@ -1,4 +1,4 @@
-import { calendarPlan } from '@/models/education-plan/branchCalendar.mjs';
+import { adaptCalendar, calendarPlan, seedTeamBranchTemplates } from '@/models/education-plan/branchCalendar.mjs';
 import { useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Check, Eye, Send } from '@/components/ui/icons';
@@ -7,6 +7,7 @@ import { ROLES } from '@/models/User';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { toRows } from '@/models/education-plan/goalTable';
+import { emptyBranchPlan } from '@/models/education-plan/classPlan';
 import { PENDING_OF } from '@/models/education-plan/eduConfig';
 import { currentPlanOf, previousPlanOf } from '@/models/education-plan/planVersions.mjs';
 
@@ -43,6 +44,13 @@ export function useClassPlanContext(classId) {
   const rawPrevious = raw ? previousPlanOf(goals, raw) : null;
   const asRows = (p) =>
     p ? { ...p, domains: p.domains.map((d) => ({ ...d, rows: toRows(d, () => Math.random().toString(36).slice(2, 9)) })) } : null;
+  const branchPlan = useMemo(() => {
+    if (!raw) return null;
+    const source = asRows(raw);
+    const saved = branchPlans.find((b) => b.classId === classId && b.yearPlanId === raw.id);
+    const base = adaptCalendar(saved || emptyBranchPlan({ classId, yearPlanId: raw.id }), source);
+    return seedTeamBranchTemplates(base, source);
+  }, [raw, branchPlans, classId]);
   // Kế hoạch năm dạng hàng của bảng (giống trang mục tiêu năm)
   const yearPlan = useMemo(() => {
     const approved = branchPlans.find((b) => b.classId === classId && b.yearPlanId === raw?.id && b.status === EDU_STATUS.APPROVED);
@@ -54,11 +62,12 @@ export function useClassPlanContext(classId) {
     : null;
   const teachers = cls ? (cls.teacherIds || []).map((id) => users.find((u) => u.id === id)).filter(Boolean) : [];
   const leaders = cls ? users.filter((u) => u.role === ROLES.TEAM_LEADER && u.ageGroupId === cls.ageGroupId) : [];
-  const isClassTeacher = !!cls && (cls.teacherIds || []).includes(user.id);
-  const isHomeroomTeacher = isClassTeacher && (!cls.homeroomTeacherId || String(cls.homeroomTeacherId) === String(user.id));
+  const isClassTeacher = !!cls && (cls.teacherIds || []).some((id) => String(id) === String(user.id));
+  const isHomeroomTeacher = isClassTeacher && String(cls.homeroomTeacherId) === String(user.id);
   // Mỗi giáo viên chỉ được xếp một lớp: người có lớp chỉ làm việc với lớp đó, không có ô chọn lớp
   const canPickClass = classes.length > 1 && !classes.some((c) => (c.teacherIds || []).includes(user.id));
-  const isGroupLeader = user.role === ROLES.TEAM_LEADER && !!cls && user.ageGroupId === cls.ageGroupId;
+  const isGroupLeader = leaders.some((leader) => String(leader.id) === String(user.id));
+  const canComposeClassDocs = isHomeroomTeacher;
   const isVp = user.role === ROLES.VICE_PRINCIPAL;
   // Chỉ để hiển thị chuỗi duyệt dự kiến; bước thật do service quyết định khi gửi
   const skipLeader = !leaders.length || leaders.some((u) => (cls?.teacherIds || []).includes(u.id));
@@ -67,6 +76,7 @@ export function useClassPlanContext(classId) {
     classes,
     loading: false,
     yearPlan,
+    branchPlan,
     previousPlan,
     // Đang xem phiên bản đã bị thay thế: mọi tài liệu chỉ xem
     superseded: !!raw && raw.id !== current?.id,
@@ -75,7 +85,8 @@ export function useClassPlanContext(classId) {
     users,
     isClassTeacher,
     isHomeroomTeacher,
-    canCreate: (kind) => creationCapabilities.some((cap) => String(cap.classId) === String(classId) && cap.kind === kind && cap.canCreate),
+    canCreate: (kind) => canComposeClassDocs && creationCapabilities.some((cap) => String(cap.classId) === String(classId) && cap.kind === kind && cap.canCreate),
+    canComposeClassDocs,
     canPickClass,
     isGroupLeader,
     isVp,
@@ -106,10 +117,10 @@ export function reviewLabel(doc, ctx, user, kind = 'branch') {
   if (kind !== 'branch') {
     if (isMyReviewTurn(doc, ctx, user)) return 'Duyệt kế hoạch chủ đề';
     // Giáo viên còn sửa được: gửi duyệt ở trang kế hoạch chủ đề
-    return ctx.isClassTeacher && isOpen(doc) ? 'Gửi duyệt' : 'Xem kế hoạch chủ đề';
+    return ctx.canComposeClassDocs && isOpen(doc) ? 'Gửi duyệt' : 'Xem kế hoạch chủ đề';
   }
   if (isMyReviewTurn(doc, ctx, user)) return 'Duyệt';
-  if (ctx.isClassTeacher && isOpen(doc)) return 'Gửi duyệt';
+  if (ctx.canComposeClassDocs && isOpen(doc)) return 'Gửi duyệt';
   return 'Xem';
 }
 
@@ -126,7 +137,7 @@ export function docReview(kind, doc, ctx, user, eduConfig) {
   const myTurn = isMyReviewTurn(doc, ctx, user);
   return {
     can: {
-      send: doc?.permissions ? doc.permissions.canSubmit : ctx.isClassTeacher && !!doc && isOpen(doc),
+      send: doc?.permissions ? doc.permissions.canSubmit : ctx.canComposeClassDocs && !!doc && isOpen(doc),
       reject: doc?.permissions ? (doc.permissions.canReject ?? doc.permissions.canReturn) : myTurn,
       approve: doc?.permissions ? (doc.permissions.canApprove ?? doc.permissions.canIssue) : myTurn,
     },

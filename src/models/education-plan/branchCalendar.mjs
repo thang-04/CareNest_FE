@@ -28,6 +28,23 @@ export const branchWeeks = (branch, plan, doc) =>
   teachingWeeks(plan, doc).filter(
     (w) => String(w.theme.id) === String(branch.themeId) && w.start >= branch.startDate && w.end <= branch.endDate,
   );
+export function branchDisplayRows(plan, doc) {
+  const rows = yearWeeks(calendarPlan(plan, doc));
+  const seen = new Set();
+  const branchOf = (row) => (doc.branches || []).find((branch) =>
+    String(branch.themeId) === String(row.theme.id) && row.start >= branch.startDate && row.start <= branch.endDate);
+  return rows.filter((row, index) => {
+    if (row.type !== 'week') return true;
+    const branch = branchOf(row);
+    if (branch) {
+      if (seen.has(branch.key)) return false;
+      seen.add(branch.key);
+      return true;
+    }
+    const previous = rows[index - 1];
+    return !previous || previous.type !== 'week' || String(previous.theme.id) !== String(row.theme.id) || !!branchOf(previous);
+  });
+}
 export function projectCalendar(doc, plan) {
   const names = {},
     notes = {};
@@ -189,4 +206,10 @@ export function takeTemplate(doc, plan, template) {
     },
     plan,
   );
+}
+
+export function seedTeamBranchTemplates(doc, plan) {
+  if (doc.branches?.length) return doc;
+  return (plan.branchTemplates || []).filter((template) => template.startDate && template.endDate)
+    .reduce((calendar, template) => takeTemplate(calendar, plan, template), doc);
 }

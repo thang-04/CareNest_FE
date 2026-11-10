@@ -118,7 +118,7 @@ export const mixedSubDomains = (domains) =>
     })
     .map((d) => d.name);
 
-/** BE:EDU-52 (7037) — chủ đề chưa chọn đủ Từ ngày, Đến ngày: chặn ban hành. */
+/** BE:EDU-52 (7037) — chủ đề chưa chọn đủ Từ ngày, Đến ngày: chặn gửi duyệt và ban hành. */
 export const themeWithoutDates = (themes) => themes.find((t) => !t.start || !t.end) || null;
 
 /** Dòng chủ đề / đợt nghỉ chưa gõ gì (dòng vừa thêm bằng Enter): không lưu, không thành cột tích ở bảng mục tiêu. */
