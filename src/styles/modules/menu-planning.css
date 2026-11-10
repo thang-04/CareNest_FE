@@ -2215,8 +2215,9 @@
   gap: var(--space-3);
 }
 
+/* 240px: vừa tên điểm trường dài nhất ("Cơ sở 1 – MN Thượng Hồng") trên một dòng */
 .td-stat-filters__row > * {
-  flex: 0 1 220px;
+  flex: 0 1 240px;
 }
 
 .td-stat-table th.td-stat-table__session {
