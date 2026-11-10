@@ -2,7 +2,7 @@ import { useId } from 'react';
 
 /**
  * Ô chọn điểm trường dùng chung (DESIGN §6.3, §14.1). Chỉ hiện khi có từ 2 điểm trường để chọn.
- * campuses: [{ id, name }]; value: id đang chọn ('' = tất cả); onChange(id).
+ * campuses: [{ id, name, fullName? }] (ô lọc hiện đủ tên điểm trường); value: id đang chọn ('' = tất cả); onChange(id).
  */
 export function CampusFilter({ campuses, value, onChange, label = 'Điểm trường', allLabel = 'Tất cả điểm trường', className = '' }) {
   const id = useId();
@@ -16,7 +16,7 @@ export function CampusFilter({ campuses, value, onChange, label = 'Điểm trư�
         <option value="">{allLabel}</option>
         {campuses.map((c) => (
           <option key={c.id} value={c.id}>
-            {c.name}
+            {c.fullName || c.name}
           </option>
         ))}
       </select>

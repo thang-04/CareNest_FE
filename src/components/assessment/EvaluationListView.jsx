@@ -70,7 +70,11 @@ export function EvaluationListView({ kind }) {
   const campusClasses = scopedClasses.filter((c) => !campusId || String(c.campusId) === campusId);
   const groupOptions = (ageGroups || []).filter((g) => campusClasses.some((c) => String(c.ageGroupId) === String(g.id)));
   const classOptions = campusClasses.filter((c) => !ageGroupId || String(c.ageGroupId) === ageGroupId);
-  const selectedClass = classOptions.find((c) => String(c.classId ?? c.id) === classId);
+  // Tổ trưởng / GV vào thẳng lớp mình đang dạy (Cần chốt 10/11/2026); HT, PHT vẫn tự chọn điểm trường, lớp
+  const ownClass =
+    pickYearEndClass && !leader ? classOptions.find((c) => c.teaches) || (classOptions.length === 1 ? classOptions[0] : null) : null;
+  const shownClassId = classId || (ownClass ? String(ownClass.classId ?? ownClass.id) : '');
+  const selectedClass = classOptions.find((c) => String(c.classId ?? c.id) === shownClassId);
   const evaluationClassId = pickYearEndClass ? (selectedClass?.classId ?? selectedClass?.id) : classId;
   const yearEndReadOnly = pickYearEndClass && (leader || (SCHOOL_CONFIG_API && !selectedClass?.teaches));
   const periodType = defaultPeriodType;
@@ -227,7 +231,7 @@ export function EvaluationListView({ kind }) {
                 <select
                   className="select"
                   aria-label="Lớp"
-                  value={selectedClass ? classId : ''}
+                  value={selectedClass ? shownClassId : ''}
                   disabled={classScope.loading || !classOptions.length}
                   onChange={(e) => applyFilters({ classId: e.target.value, tab: 'ALL' })}
                 >

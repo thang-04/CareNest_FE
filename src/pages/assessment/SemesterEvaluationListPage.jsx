@@ -326,7 +326,7 @@ export default function SemesterEvaluationListPage() {
               <thead>
                 <tr>
                   <th>Mục tiêu</th>
-                  <th className="center">Hoạt động Đạt / Đã chấm</th>
+                  <th className="center">Chủ đề Đạt / Chủ đề có kết quả</th>
                   <th>Kết quả</th>
                 </tr>
               </thead>

@@ -16,10 +16,8 @@ import { ClassFormModal } from '@/components/school-config/ClassFormModal';
 import { AgeGroupFormModal } from '@/components/school-config/AgeGroupFormModal';
 import { CopyClassesModal, copySourcesFor } from '@/components/school-config/CopyClassesModal';
 import { ClassListSection } from '@/components/school-config/ClassListSection';
-import { AssignClassTeachersDialog } from '@/components/school-config/AssignDialogs';
 import { deleteAgeGroup, deleteClass, saveTeamLeader } from '@/services/school-config/schoolConfigService';
 import {
-  canAssignClass,
   canManageClasses,
   canViewSchoolStructure,
   canViewTeamLeaders,
@@ -47,7 +45,6 @@ export default function AgeGroupsClassesPage({ embedded = false }) {
   const { years, error: yearsError } = useSchoolYears();
   const { structure, loading, error, reload } = useSchoolStructure(yearId, campusId);
   const [classModal, setClassModal] = useState(null); // { cls, defaults }
-  const [assigningNew, setAssigningNew] = useState(null);
   const [groupModal, setGroupModal] = useState(null); // { group }
   const [copyOpen, setCopyOpen] = useState(false);
   const [removing, setRemoving] = useState(null); // { kind, item }
@@ -247,12 +244,9 @@ export default function AgeGroupsClassesPage({ embedded = false }) {
 
       <ClassFormModal
         open={!!classModal}
-        onClose={(changed, created) => {
-          closeModal(setClassModal)(changed);
-          // Lớp mới: mở luôn phân công giáo viên cho lớp đó (nếu có quyền và năm chưa kết thúc)
-          if (created?.id && year?.status !== YEAR_STATUS.CLOSED && canAssignClass({ teacherIds: [], ...created }, user))
-            setAssigningNew(created);
-        }}
+        // Thêm lớp xong chỉ lưu lớp, không mở luôn chọn giáo viên: mỗi cơ sở có thể do HT hoặc PHT được giao phân công
+        // (Cần chốt 10/11/2026); phân công sau ở thẻ lớp hoặc màn Phân công giáo viên
+        onClose={closeModal(setClassModal)}
         cls={classModal?.cls}
         defaults={classModal?.defaults}
         schoolYear={yearId}
@@ -262,16 +256,6 @@ export default function AgeGroupsClassesPage({ embedded = false }) {
         locations={md.locations}
         existing={classes}
       />
-      {assigningNew && (
-        <AssignClassTeachersDialog
-          cls={assigningNew}
-          schoolYear={yearId}
-          onClose={(changed) => {
-            setAssigningNew(null);
-            if (changed) reload({ silent: true });
-          }}
-        />
-      )}
       <AgeGroupFormModal
         open={!!groupModal}
         onClose={closeModal(setGroupModal)}

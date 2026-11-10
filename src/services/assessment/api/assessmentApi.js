@@ -6,6 +6,8 @@ const campusLabel = (campuses, id) => {
   const c = campuses.find((x) => String(x.id) === String(id));
   return c?.shortName || c?.name;
 };
+// Ô lọc điểm trường hiện đủ tên (Cần chốt 10/11/2026)
+const campusFull = (campuses, id) => campuses.find((x) => String(x.id) === String(id))?.name;
 
 const GOAL_LISTS = ['goalsMet', 'goalsNotMet'];
 // beClient đổi `id` số thành chuỗi nhưng không đổi phần tử của goalsMet/…: đưa về chuỗi để so với goals[].id
@@ -31,10 +33,14 @@ const nameOf = (list, item) => item.name || list.find((x) => x.id === item.id)?.
 export const withNames = (overview, campuses = [], ageGroups = []) => ({
   ...overview,
   // Thiếu danh mục (giáo viên, tổ trưởng) thì để tên trống, không hiện mã số thay tên
-  campuses: (overview.campuses || []).map((c) => ({ ...c, name: campusLabel(campuses, c.id) || c.name || null })),
+  campuses: (overview.campuses || []).map((c) => ({
+    ...c,
+    name: campusLabel(campuses, c.id) || c.name || null,
+    fullName: campusFull(campuses, c.id),
+  })),
   ageGroups: (overview.ageGroups || []).map((g) => ({ ...g, name: nameOf(ageGroups, g) })),
   // Đủ danh mục điểm trường cho ô lọc của Hiệu trưởng (kể cả điểm trường chưa có lớp)
-  allCampuses: campuses.map((c) => ({ id: c.id, name: c.shortName || c.name })),
+  allCampuses: campuses.map((c) => ({ id: c.id, name: c.shortName || c.name, fullName: c.name })),
 });
 
 const pickGoals = (a) => Object.fromEntries(GOAL_LISTS.map((k) => [k, a[k] || []]));
@@ -125,8 +131,8 @@ export const createAssessmentBeApi = (client) => ({
       isLeader(user) && (campusId || (report.campusIds || []).length > 1) ? await client.get('/campuses').catch(() => []) : [];
     return {
       ...report,
-      campuses: (report.campusIds || []).map((id) => ({ id, name: campusLabel(campuses, id) || id })),
-      allCampuses: campuses.map((c) => ({ id: c.id, name: c.shortName || c.name })),
+      campuses: (report.campusIds || []).map((id) => ({ id, name: campusLabel(campuses, id) || id, fullName: campusFull(campuses, id) })),
+      allCampuses: campuses.map((c) => ({ id: c.id, name: c.shortName || c.name, fullName: c.name })),
     };
   },
   // Xếp loại nhóm lớp: ghép tên ngắn điểm trường cho cột / bộ lọc
@@ -138,7 +144,7 @@ export const createAssessmentBeApi = (client) => ({
     const campuses = isLeader(user) && (result.campusIds || []).length > 1 ? await client.get('/campuses').catch(() => []) : [];
     return {
       ...result,
-      campuses: (result.campusIds || []).map((id) => ({ id, name: campusLabel(campuses, id) || id })),
+      campuses: (result.campusIds || []).map((id) => ({ id, name: campusLabel(campuses, id) || id, fullName: campusFull(campuses, id) })),
     };
   },
   saveClassRatings: ({ period, items }) => client.put('/assessment/class-ratings', { period, items }),
@@ -188,7 +194,7 @@ export const createAssessmentBeApi = (client) => ({
     ]);
     return {
       ...report,
-      campuses: (report.campusIds || []).map((id) => ({ id, name: campusLabel(campuses, id) || id })),
+      campuses: (report.campusIds || []).map((id) => ({ id, name: campusLabel(campuses, id) || id, fullName: campusFull(campuses, id) })),
     };
   },
   // Đề xuất khen thưởng theo danh sách lớp: ghép tên điểm trường cho HT lọc
@@ -219,7 +225,11 @@ export const createAssessmentBeApi = (client) => ({
     return {
       ...overview,
       // Không đọc được danh mục điểm trường (giáo viên): tên trống để màn ẩn cột, không hiện mã số
-      campuses: (overview.campusIds || []).map((id) => ({ id, name: campusLabel(campuses, id) || null })),
+      campuses: (overview.campusIds || []).map((id) => ({
+        id,
+        name: campusLabel(campuses, id) || null,
+        fullName: campusFull(campuses, id),
+      })),
     };
   },
 });

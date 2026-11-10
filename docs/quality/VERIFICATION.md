@@ -328,3 +328,32 @@ Làn L:            ghi đủ vào Progress log của plan; chat chỉ tóm tắt
 
 - Bản in học kỳ có ba vị trí ký tay. Danh sách cuối năm của HT, PHT và Tổ trưởng chỉ tải hồ sơ khi chọn lớp từ danh sách lớp trong phạm vi BE trả.
 - `node scripts/verify.mjs` → `VERIFY PASS full | npm run verify | log verify.log`. Playwright Chrome với phản hồi API mẫu kiểm tra bộ lọc ở ba vai trò và đủ ba chỗ ký trong bản xem trước học kỳ.
+
+## Lỗi mở kế hoạch năm học sau merge — 08/11/2026
+
+- allGoalItems hỗ trợ lĩnh vực rows-only, vẫn giữ items/YCCĐ cũ. Ba regression test trước sửa có hai lỗi map/flatMap, sau sửa đạt cả ba.
+- Chrome với fixture riêng tái hiện trước sửa và mở được sau sửa, hiển thị số mục tiêu/chủ đề, không có pageerror hoặc ErrorBoundary. Chưa xác nhận stack trên phiên Edge thật vì công cụ không xác định chắc URL.
+- `node scripts/verify.mjs` → `VERIFY PASS full | npm run verify | log verify.log` sau sửa source cuối.
+- Rà soát tổng ba phần ở `2026-11-08-three-module-review.md`; các phát hiện còn lại chưa được sửa trong task này.
+
+## Giáo viên xem kế hoạch đã ban hành — 08/11/2026
+
+- Cấu hình local đăng nhập gateway nhưng thiếu VITE_USE_MOCK=false, dẫn tới kế hoạch/lớp mock dùng chung user BE. Đã đặt VITE_USE_MOCK=false trong file local không commit; Vite đã phục vụ flag mới.
+- 16 test mapper/API kế hoạch và nhãn danh sách đạt. Chrome với API giả ở hai role Giáo viên/Tổ trưởng kiểm kế hoạch đã ban hành → chủ đề lớp → soạn kế hoạch chủ đề → gợi ý MT1 khi soạn giáo án tuần, không có API ghi, pageerror hoặc ErrorBoundary.
+- `node scripts/verify.mjs` đạt `VERIFY PASS full | npm run verify | log verify.log` sau đổi môi trường local. Chưa kiểm phiên Edge thật; dữ liệu từng tạo ở chế độ demo cần đưa lên BE để dùng chung.
+
+## Đồng bộ origin/dev — 08/11/2026
+
+- Nhánh FE fast-forward lên bbc4021, BE lên 0090280. WIP tracked/staged/untracked đã sao lưu stash riêng và áp lại, gộp đủ dòng ISSUE_INDEX FE khi xung đột; không còn unmerged paths.
+- Sau sync FE `node scripts/verify.mjs` đạt VERIFY PASS full. BE compile đạt; chưa chạy full BE sau sync.
+- Hai nhánh giáo dục Tiền chưa merge. BE incoming dùng V80–V82 trùng V80–V83 đã áp local; kế hoạch draft tại `BE:docs/plans/active/2026-11-08-sync-dev-tien-education.md` chờ duyệt.
+
+## Trẻ vắng ở đánh giá hằng ngày, cuối năm vào lớp mình — 10/11/2026
+
+- Cần chốt 10/11: phiếu ngày hiện cả trẻ vắng / chưa điểm danh (`absentChildren` từ BE), dòng mờ không chấm được ở cả Hoạt động chung và Kiến thức kỹ năng; ngày đã khóa vẫn xem chỉ đọc. Tổ trưởng / GV vào Đánh giá cuối năm tự chọn lớp mình dạy (cờ `teaches`), HT/PHT giữ chọn lớp. Sửa câu hướng dẫn cuối chủ đề (một hoạt động Đạt) và phiếu cuối năm (≥50% chủ đề đã xong).
+- Mock lớp thêm cờ `teaches` như BE. Edge (Playwright, chế độ mock, cổng 5199): GV thấy trẻ vắng có phép mờ ở cả hai tab, tổ trưởng vào cuối năm tự chọn Lớp Chồi 2; không pageerror. `node scripts/verify.mjs` đạt `VERIFY PASS full` sau lần sửa cuối. Chưa kiểm với BE thật.
+
+## Ô lọc điểm trường đủ tên, nút Xuất Excel Sổ suất ăn — 10/11/2026
+
+- Cần yêu cầu 10/11: ô lọc điểm trường trong Cấu hình trường, Điểm danh & suất ăn, Đánh giá trẻ hiện đủ tên (`fullName`/`name`); cột bảng giữ tên ngắn. Nút Xuất Excel của Sổ suất ăn nằm cùng hàng Ngày, Điểm trường.
+- `node scripts/verify.mjs`: VERIFY PASS full. Chưa kiểm trình duyệt với BE thật.

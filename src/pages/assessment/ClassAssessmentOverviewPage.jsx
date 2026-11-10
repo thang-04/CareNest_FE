@@ -76,8 +76,9 @@ function CriteriaStrip({ values, notMet, flags }) {
 const DETAIL_COLS = 5 + CRITERIA.length;
 
 /** Một mục của một trẻ: vắng thì "–", không có gì thì trống, cần chú ý thì chữ đỏ (kỳ nhiều ngày: số ngày). */
-function ConcernCell({ days, present, multiDay, note }) {
-  if (!present) return <span className="muted">–</span>;
+// Trống = đã đánh giá và bình thường; "–" = vắng hoặc chưa được đánh giá ngày nào (Cần yêu cầu 10/11/2026)
+function ConcernCell({ days, present, assessed, multiDay, note }) {
+  if (!present || !assessed) return <span className="muted">–</span>;
   if (!days) return null;
   return <span className="text-danger">{multiDay ? `${days} ngày` : note}</span>;
 }
@@ -155,6 +156,7 @@ function ClassDetail({ classId, period, date, schoolYear, onBack }) {
                         <ConcernCell
                           days={r[c.child] || 0}
                           present={r.presentDays}
+                          assessed={r.assessedDays}
                           multiDay={multiDay}
                           note={c.key === 'health' && r.healthDays ? signsText(r.signs) : c.note}
                         />
@@ -289,7 +291,7 @@ export default function ClassAssessmentOverviewPage() {
                   <option value="">Tất cả điểm trường</option>
                   {campusOptions.map((c) => (
                     <option key={c.id} value={c.id}>
-                      {c.name}
+                      {c.fullName || c.name}
                     </option>
                   ))}
                 </select>

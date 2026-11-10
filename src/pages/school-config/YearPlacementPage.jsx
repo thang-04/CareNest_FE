@@ -42,6 +42,7 @@ export default function YearPlacementPage() {
   const [dirty, setDirty] = useState(false);
   const [pendingId, setPendingId] = useState(null);
   const [confirmAuto, setConfirmAuto] = useState(false);
+  const [autoGroup, setAutoGroup] = useState(null);
   const [autoError, setAutoError] = useState('');
 
   const campusName = (id) => plan?.campuses.find((c) => c.id === id)?.name || id;
@@ -57,6 +58,23 @@ export default function YearPlacementPage() {
   }, [plan, campusId, groupId]);
   const groupOptions = (plan?.ageGroups || []).filter((g) => (plan?.classes || []).some((c) => c.ageGroupId === g.id));
   const autoLabel = filtered ? 'Xếp tự động các lớp đang lọc' : 'Xếp tự động tất cả lớp';
+  // Danh sách lớp gom theo nhóm tuổi (nhỏ đến lớn) để dễ nhìn và xếp cả nhóm một lần
+  const groups = useMemo(() => {
+    const map = new Map();
+    classes.forEach((c) => {
+      if (!map.has(c.ageGroupId)) map.set(c.ageGroupId, []);
+      map.get(c.ageGroupId).push(c);
+    });
+    return [...map.entries()].map(([id, list]) => ({
+      id,
+      list,
+      graduating: list.every((c) => c.graduating),
+      nextId: list.find((c) => c.nextAgeGroupId)?.nextAgeGroupId,
+      left: list.reduce((n, c) => n + c.children.length - placedOf(c), 0),
+    }));
+  }, [classes]);
+  const groupAutoLabel = (g) => (g.graduating ? `Xếp ra trường nhóm ${groupName(g.id)}` : `Cả nhóm lên ${groupName(g.nextId)}`);
+  const confirmLabel = autoGroup ? autoGroup.label : autoLabel;
   const selected = classes.find((c) => c.id === selectedId) || classes[0];
   const all = classes.flatMap((c) => c.children);
   const count = (action) => all.filter((ch) => ch.placement?.action === action).length;
@@ -101,8 +119,12 @@ export default function YearPlacementPage() {
 
   const runAuto = async () => {
     try {
-      const r = await autoPlace(yearId, user, { campusId: campusId || undefined, ageGroupId: groupId || undefined });
+      const r = await autoPlace(yearId, user, {
+        campusId: campusId || undefined,
+        ageGroupId: autoGroup?.ageGroupId || groupId || undefined,
+      });
       setConfirmAuto(false);
+      setAutoGroup(null);
       const left = r.unplaced.map((u) => `${u.className}: ${u.count} trẻ`).join(', ');
       const undecided = r.undecided
         ? ` ${r.undecided} trẻ lớp ra trường chưa hoàn thành chương trình / chưa đánh giá: chọn ra trường hoặc ở lại.`
@@ -259,41 +281,71 @@ export default function YearPlacementPage() {
                     <Link to={`/school/classes?year=${plan.year.id}`}>Thêm lớp</Link>
                   </p>
                 )}
-                {classes.map((c) => {
-                  const done = placedOf(c);
-                  const complete = done === c.children.length;
-                  return (
-                    <button
-                      key={c.id}
-                      id={`plc-class-${c.id}`}
-                      type="button"
-                      className={`sc-plc__class ${c.id === selected?.id ? 'is-active' : ''}`}
-                      aria-current={c.id === selected?.id ? 'true' : undefined}
-                      onClick={() => pick(c.id)}
-                    >
-                      <span className="sc-plc__class-name">{c.name}</span>
-                      <span className="muted text-xs sc-plc__class-meta">
-                        {groupName(c.ageGroupId)} · {campusName(c.campusId)}
+                {groups.map((g) => (
+                  <div key={g.id || 'none'} className="sc-plc__group" role="group" aria-label={`Nhóm ${groupName(g.id)}`}>
+                    <div className="sc-plc__group-head">
+                      <span className="sc-plc__group-name">{groupName(g.id)}</span>
+                      <span className="muted text-xs">
+                        {g.list.length} lớp{g.left ? ` · chưa xếp ${g.left}` : ' · đã xếp hết'}
                       </span>
-                      <span className="sc-plc__class-chip">
-                        <StatusBadge
-                          tone={complete ? 'green' : done ? 'orange' : 'red'}
-                          icon={complete ? CircleCheck : done ? Clock : AlertTriangle}
-                          label={complete ? `Đã xếp ${done}/${c.children.length}` : `Chưa xếp ${c.children.length - done}`}
-                        />
-                      </span>
-                      {!c.graduating && !c.suggestedTargetId && (
-                        <span
-                          className="sc-plc__warn-icon"
-                          title={`Năm mới chưa có lớp ${groupName(c.nextAgeGroupId)} ở ${campusName(c.campusId)}`}
-                          aria-label={`Năm mới chưa có lớp ${groupName(c.nextAgeGroupId)}`}
+                      {plan.editable && g.id && g.left > 0 && (g.graduating || g.nextId) && (
+                        <button
+                          type="button"
+                          className="btn btn--sm sc-plc__group-auto"
+                          title={
+                            g.graduating
+                              ? 'Trẻ đã hoàn thành chương trình ra trường; trẻ khác bạn chọn'
+                              : 'Trẻ chưa xếp của cả nhóm lên nhóm tuổi kế tiếp'
+                          }
+                          onClick={() =>
+                            unlessDirty(() => {
+                              setAutoGroup({
+                                ageGroupId: g.id,
+                                label: g.graduating ? groupAutoLabel(g) : `Cả nhóm ${groupName(g.id)} lên ${groupName(g.nextId)}`,
+                              });
+                              setConfirmAuto(true);
+                            })
+                          }
                         >
-                          <AlertTriangle size={14} />
-                        </span>
+                          <Wand2 size={14} /> {groupAutoLabel(g)}
+                        </button>
                       )}
-                    </button>
-                  );
-                })}
+                    </div>
+                    {g.list.map((c) => {
+                      const done = placedOf(c);
+                      const complete = done === c.children.length;
+                      return (
+                        <button
+                          key={c.id}
+                          id={`plc-class-${c.id}`}
+                          type="button"
+                          className={`sc-plc__class ${c.id === selected?.id ? 'is-active' : ''}`}
+                          aria-current={c.id === selected?.id ? 'true' : undefined}
+                          onClick={() => pick(c.id)}
+                        >
+                          <span className="sc-plc__class-name">{c.name}</span>
+                          <span className="muted text-xs sc-plc__class-meta">{campusName(c.campusId)}</span>
+                          <span className="sc-plc__class-chip">
+                            <StatusBadge
+                              tone={complete ? 'green' : done ? 'orange' : 'red'}
+                              icon={complete ? CircleCheck : done ? Clock : AlertTriangle}
+                              label={complete ? `Đã xếp ${done}/${c.children.length}` : `Chưa xếp ${c.children.length - done}`}
+                            />
+                          </span>
+                          {!c.graduating && !c.suggestedTargetId && (
+                            <span
+                              className="sc-plc__warn-icon"
+                              title={`Năm mới chưa có lớp ${groupName(c.nextAgeGroupId)} ở ${campusName(c.campusId)}`}
+                              aria-label={`Năm mới chưa có lớp ${groupName(c.nextAgeGroupId)}`}
+                            >
+                              <AlertTriangle size={14} />
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ))}
               </nav>
               <section className="card sc-plc__main" aria-label={selected ? `Trẻ lớp ${selected.name}` : 'Trẻ của lớp'}>
                 {selected && (
@@ -352,13 +404,14 @@ export default function YearPlacementPage() {
       />
       <ConfirmationModal
         open={confirmAuto}
-        title={`${autoLabel}?`}
-        message={`${filtered ? `Chỉ các lớp đang hiện theo bộ lọc (${classes.length} lớp). ` : ''}Trẻ chưa xếp được chuyển cả lớp lên nhóm tuổi kế tiếp (lớp cùng điểm trường còn nhiều chỗ nhất); lớp nhóm tuổi lớn nhất: trẻ đã hoàn thành chương trình ra trường, trẻ chưa hoàn thành để chọn ra trường hoặc ở lại. Trẻ đã xếp giữ nguyên. Lớp mới hết chỗ thì trẻ còn lại để chưa xếp.`}
+        title={`${confirmLabel}?`}
+        message={`${autoGroup ? `Chỉ các lớp nhóm ${groupName(autoGroup.ageGroupId)}${campusId ? ` ở ${campusName(campusId)}` : ''}. ` : filtered ? `Chỉ các lớp đang hiện theo bộ lọc (${classes.length} lớp). ` : ''}Trẻ chưa xếp được chuyển cả lớp lên nhóm tuổi kế tiếp (lớp cùng điểm trường còn nhiều chỗ nhất); lớp nhóm tuổi lớn nhất: trẻ đã hoàn thành chương trình ra trường, trẻ chưa hoàn thành để chọn ra trường hoặc ở lại. Trẻ đã xếp giữ nguyên. Lớp mới hết chỗ thì trẻ còn lại để chưa xếp.`}
         confirmLabel="Xếp tự động"
         onConfirm={runAuto}
         error={autoError}
         onClose={() => {
           setConfirmAuto(false);
+          setAutoGroup(null);
           setAutoError('');
         }}
       />

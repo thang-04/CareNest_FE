@@ -6,6 +6,7 @@
  * giáo dục (bản riêng cho đánh giá trẻ, không dùng chung file của module đó).
  */
 import { DEFAULT_PRINT_TEMPLATE } from '@/config/printTemplate';
+import { approveRow, defaultSigners, signerCell } from '@/utils/assessment/docSignatures';
 
 const esc = (s = '') => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 // Ngày như mẫu viết tay: 7/9/2026 (không số 0 đầu)
@@ -48,12 +49,10 @@ tr { page-break-inside: avoid; }
 ${body}
 </div></body></html>`;
 
-const names = (list) => (list || []).map(esc).join('<br/>');
-
 /** HTML bảng đánh giá cuối chủ đề từ dữ liệu BE (GET /assessment/theme-evaluations); số liệu giữ nguyên BE trả. */
-export const themeEvaluationHtml = (ev) => {
+export const themeEvaluationHtml = (ev, signers = defaultSigners(ev.signers)) => {
   const goals = ev.goals || [];
-  const signers = ev.signers || {};
+  const [signHead, ...approvers] = signers;
   const head = `<tr>
 <th rowspan="2">STT</th>
 <th rowspan="2">Họ và tên</th>
@@ -92,18 +91,13 @@ ${r.cells.map((c) => `<td class="n">${mark(c.met)}</td>`).join('')}
 </td>
 <td class="c" style="width:45%">
 <p><i>${esc(place)}, ${signDate}</i></p>
-<p><b>GIÁO VIÊN CHỦ NHIỆM</b></p>
-<div class="sign"></div>
-<p><b>${names(signers.teachers)}</b></p>
+${signHead ? signerCell(signHead, { upper: true }) : ''}
 </td>
 </tr></table>
 <div class="approve">
 <p class="c small">DUYỆT KẾ HOẠCH</p>
 <p class="c small">Từ ngày ${dmy(ev.startDate, false)} đến ngày ${dmy(ev.endDate)}</p>
-<table class="plain"><tr>
-<td class="c small" style="width:50%">Tổ trưởng chuyên môn<div class="sign"></div>${names(signers.teamLeaders)}</td>
-<td class="c small" style="width:50%">Phó hiệu trưởng<div class="sign"></div>${esc(signers.vicePrincipal || '')}</td>
-</tr></table>
+<table class="plain small">${approveRow(approvers)}</table>
 </div>`;
   return shell(`Đánh giá cuối chủ đề - ${ev.themeName} - ${ev.className}`, body);
 };
@@ -118,6 +112,9 @@ const fileTitle = (text) =>
 export const themeEvaluationFile = (ev) => ({
   html: themeEvaluationHtml(ev),
   name: fileTitle(`Đánh giá cuối chủ đề - ${ev.themeName} - ${ev.className}`),
+  // Hộp xem trước sửa / thêm người ký rồi dựng lại HTML (chỉ đổi file in)
+  signers: defaultSigners(ev.signers),
+  withSigners: (next) => themeEvaluationHtml(ev, next),
 });
 
 /** Tải file .doc (HTML Word mở được, không cần thư viện). */

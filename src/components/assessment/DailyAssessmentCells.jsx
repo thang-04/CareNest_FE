@@ -4,6 +4,8 @@ import { CheckCheck, ChevronDown, X } from '@/components/ui/icons';
 import { MEAL_SESSION_SHORT } from '@/models/school-config/schoolConfigConstants';
 import { HEALTH_SYMPTOMS } from '@/utils/dailyHealthValidation';
 import { BEHAVIORS, EATING, EATING_LABELS, POSITIVE_BEHAVIORS, YCCD_RESULT } from '@/models/assessment/dailyObservationOptions';
+import { ABSENCE_LABELS } from '@/models/assessment/assessmentConstants';
+import { ChildAvatar } from '@/components/ChildAvatar';
 
 const FOCUSABLE = 'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled)';
 
@@ -250,4 +252,23 @@ export function GoalChips({ criteria, draft: d, disabled, name, onChange }) {
       })}
     </div>
   );
+}
+
+/** Trẻ vắng / chưa điểm danh: hiện đủ lớp nhưng không đánh giá được (OBS-01, Cần chốt 10/11/2026). */
+export function AbsentRows({ items, colSpan, firstClass = 'cell--fixed' }) {
+  return (items || []).map((c) => (
+    <tr key={`absent-${c.childId}`} className="dg-row dg-row--absent" title="Trẻ vắng, không đánh giá ngày này">
+      <td className={firstClass}>
+        <div className="dg-child">
+          <ChildAvatar child={c} size="sm" />
+          <div className="dg-child__info">
+            <span className="fw-600">{c.fullName}</span>
+          </div>
+        </div>
+      </td>
+      <td colSpan={colSpan - 1} className="muted text-sm">
+        {ABSENCE_LABELS[c.attendanceStatus] || 'Chưa điểm danh'} · không đánh giá ngày này
+      </td>
+    </tr>
+  ));
 }

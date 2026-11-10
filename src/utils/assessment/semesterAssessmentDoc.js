@@ -1,5 +1,6 @@
 import { DEFAULT_PRINT_TEMPLATE } from '@/config/printTemplate';
 import { formatDate } from '@/utils/format';
+import { approveRow, defaultSigners, signerCell } from '@/utils/assessment/docSignatures';
 const esc = (v = '') =>
   String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 export const semesterLabel = (n) => (n === 1 ? 'Học kỳ I' : 'Học kỳ II');
@@ -30,7 +31,9 @@ export function semesterAssessmentRows(board) {
     ['Một số lưu ý', board.note || ''],
   ];
 }
-export function semesterAssessmentFile(board) {
+/** signers: [{ title, name }] (mặc định GV chủ nhiệm, tổ trưởng, PHT từ BE); người đầu ký trên, còn lại ở "Duyệt kế hoạch". */
+export function semesterAssessmentFile(board, signers = defaultSigners(board.signers)) {
+  const [head, ...approvers] = signers;
   const headers = board.domains.map((d) => `<th colspan="2">${esc(d.name)}</th>`).join('');
   const sub = board.domains.map(() => '<th>Đạt</th><th>Chưa đạt</th>').join('');
   const body = board.rows
@@ -60,7 +63,7 @@ table { border-collapse: collapse; table-layout: fixed; width: 100%; }
 .signatures { margin-top: 8pt; break-inside: avoid; page-break-inside: avoid; }
 .signatures td { text-align: center; vertical-align: top; }
 .signatures p { margin: 0 0 3pt; }
-.sign-space { height: 42pt; }
+.sign { height: 42pt; }
 </style></head><body>
 <h1>BẢNG TỔNG HỢP ĐÁNH GIÁ SỰ PHÁT TRIỂN CỦA TRẺ</h1>
 <p>${esc(semesterLabel(board.semester))} · ${esc(board.className)} · Năm học ${esc(board.yearName)}</p>
@@ -71,17 +74,17 @@ table { border-collapse: collapse; table-layout: fixed; width: 100%; }
 <p class="status">${board.status === 'CONFIRMED' ? 'Đã xác nhận' : 'Bản nháp · Chưa xác nhận'}</p>
 <table class="signatures"><tbody><tr><td style="width:55%"></td><td>
 <p><i>${esc(signingPlace ? `${signingPlace}, ` : '')}${signingDate(board.confirmedAt)}</i></p>
-<p><b>GIÁO VIÊN CHỦ NHIỆM</b></p>
-<div class="sign-space"></div>
-<p>(Ký và ghi rõ họ tên)</p>
+${head ? signerCell(head, { upper: true }) : ''}
 </td></tr></tbody></table>
 <div class="signatures">
 <p><b>DUYỆT KẾ HOẠCH</b></p>
 <p>Từ ngày ${periodStart} đến ngày ${periodEnd}</p>
-<table><tbody><tr>
-<td style="width:50%">Tổ trưởng chuyên môn<div class="sign-space"></div><p>(Ký và ghi rõ họ tên)</p></td>
-<td style="width:50%">Phó hiệu trưởng<div class="sign-space"></div><p>(Ký và ghi rõ họ tên)</p></td>
-</tr></tbody></table>
+<table><tbody>${approveRow(approvers)}</tbody></table>
 </div></body></html>`;
-  return { html, name: `Danh-gia-hoc-ky-${board.semester}-${board.className}` };
+  return {
+    html,
+    name: `Danh-gia-hoc-ky-${board.semester}-${board.className}`,
+    signers,
+    withSigners: (next) => semesterAssessmentFile(board, next).html,
+  };
 }

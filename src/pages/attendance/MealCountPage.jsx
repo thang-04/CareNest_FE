@@ -154,20 +154,21 @@ export default function MealCountPage() {
       <Breadcrumb items={attendanceCrumbs('Sổ báo ăn', { linkParent: false })} />
       <div className="page__head">
         <h1 className="page__title">{kitchen ? 'Sổ báo ăn đã xác nhận' : 'Sổ báo ăn'}</h1>
-        {data?.counts.length > 0 && (
-          <button className="btn mt-8" onClick={exportCsv}>
-            <Download size={16} /> Xuất Excel
-          </button>
-        )}
       </div>
       <ClassDateBar date={date} maxDate={today} onDateChange={(v) => setParams({ date: v }, { replace: true })}>
         <CampusFilter
           className="dd-bar__field"
-          campuses={allCampuses.map((id) => ({ id, name: md.campusById?.(id)?.shortName || md.campusById?.(id)?.name || id }))}
+          campuses={allCampuses.map((id) => ({ id, name: md.campusById?.(id)?.name || id }))}
           value={campusFilter}
           onChange={setCampusFilter}
         />
         <div className="spacer" />
+        {/* Xuất Excel cùng hàng ngày, điểm trường (Cần yêu cầu 10/11/2026) */}
+        {data?.counts.length > 0 && (
+          <button className="btn" onClick={exportCsv}>
+            <Download size={16} /> Xuất Excel
+          </button>
+        )}
       </ClassDateBar>
       {error ? (
         <div className="card">

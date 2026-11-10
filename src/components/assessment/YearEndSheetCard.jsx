@@ -25,7 +25,7 @@ const commentsOf = (sheet) => Object.fromEntries((sheet?.domains || []).map((d) 
 
 /**
  * Phiếu đánh giá sự phát triển của trẻ cuối năm (BE OBS-28): MT kế hoạch năm theo lĩnh vực, ô Đạt / Chưa đạt điền sẵn từ
- * hoạt động cả năm, GV sửa tay; cân nặng – chiều cao từ phần sức khỏe; 4 lưu ý. sheetRef.current = { dirty, save } để màn đánh
+ * tỷ lệ chủ đề đã xong đạt MT (≥50%), GV sửa tay; cân nặng – chiều cao từ phần sức khỏe; 4 lưu ý. sheetRef.current = { dirty, save } để màn đánh
  * giá lưu phiếu trước khi xác nhận.
  */
 export function YearEndSheetCard({ evaluation, child, comment, sheetRef, onDirtyChange }) {
@@ -147,8 +147,8 @@ export function YearEndSheetCard({ evaluation, child, comment, sheetRef, onDirty
         </p>
         {sheet.canEdit && (
           <p className="muted text-sm">
-            Hệ thống tổng hợp các hoạt động đã đánh giá trong cả năm học; mục tiêu Đạt khi có ít nhất 50% hoạt động đã chấm là Đạt. Bấm ô để
-            sửa tay; bấm lại ô đang chọn để về kết quả hệ thống. Ô sửa tay có viền đậm.
+            Hệ thống tổng hợp kết quả cuối các chủ đề đã xong; mục tiêu Đạt khi Đạt ở ít nhất 50% số chủ đề có gắn mục tiêu. Bấm ô để sửa
+            tay; bấm lại ô đang chọn để về kết quả hệ thống. Ô sửa tay có viền đậm.
           </p>
         )}
         {all.length === 0 ? (

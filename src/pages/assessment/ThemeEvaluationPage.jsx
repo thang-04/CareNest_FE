@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, Download, Printer, Save } from '@/components/ui/icons';
 import ThemeEvaluationPreviewModal from '@/components/assessment/ThemeEvaluationPreviewModal';
+import { ThemeDailyCrossCheck } from '@/components/assessment/ThemeDailyCrossCheck';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
@@ -134,6 +135,8 @@ export default function ThemeEvaluationPage() {
     );
   };
 
+  // Bấm tên trẻ: mở đối chiếu đánh giá hằng ngày trong thời gian chủ đề (Cần yêu cầu 10/11/2026)
+  const [xcheck, setXcheck] = useState(null);
   const goalTitle = useMemo(() => Object.fromEntries((ev?.goals || []).map((g) => [g.goalId, g.text])), [ev]);
 
   return (
@@ -239,8 +242,9 @@ export default function ThemeEvaluationPage() {
               </div>
               {ev.canEdit && (
                 <p className="muted text-sm mt-8">
-                  Hệ thống điền từ Kiến thức kỹ năng hằng ngày: mục tiêu Đạt khi có ít nhất 50% hoạt động đã chấm là Đạt; chưa chấm hoặc trẻ
-                  vắng không tính. Bấm vào ô để sửa tay (đổi Đạt / Chưa đạt); bấm tiếp tới khi về kết quả hệ thống. Ô sửa tay có viền đậm.
+                  Hệ thống điền từ Kiến thức kỹ năng hằng ngày: mục tiêu Đạt khi có ít nhất một hoạt động trong thời gian chủ đề được chấm
+                  Đạt; trẻ vắng hoặc chưa có lần Đạt nào thì Chưa đạt. Bấm vào ô để sửa tay (đổi Đạt / Chưa đạt); bấm tiếp tới khi về kết
+                  quả hệ thống. Ô sửa tay có viền đậm.
                 </p>
               )}
             </div>
@@ -278,7 +282,16 @@ export default function ThemeEvaluationPage() {
                         ev.rows.map((r, i) => (
                           <tr key={r.childId}>
                             <td className="num">{i + 1}</td>
-                            <td className="nowrap">{r.fullName}</td>
+                            <td className="nowrap">
+                              <button
+                                type="button"
+                                className="dg-link-btn"
+                                title="Đối chiếu đánh giá hằng ngày trong thời gian chủ đề"
+                                onClick={() => setXcheck(r)}
+                              >
+                                {r.fullName}
+                              </button>
+                            </td>
                             {r.cells.map((c) => {
                               const value = valueOf(r.childId, c);
                               const manual = manualOf(r.childId, c);
@@ -403,6 +416,7 @@ export default function ThemeEvaluationPage() {
       />
       <LeaveConfirmModal {...guard.modal} canSave message="Đánh giá cuối chủ đề có thay đổi chưa lưu." />
       {preview && <ThemeEvaluationPreviewModal file={preview} onClose={() => setPreview(null)} />}
+      {xcheck && ev && <ThemeDailyCrossCheck child={xcheck} theme={ev} onClose={() => setXcheck(null)} />}
     </div>
   );
 }

@@ -1111,6 +1111,12 @@ export const assessmentMockRepository = {
       mealSessions: mealSessionsOf(db, cls),
       lesson: dayLessonOf(db, cls, day),
       rows,
+      // OBS-01 (Cần chốt 10/11/2026): lớp đã điểm danh thì hiện cả trẻ vắng / chưa điểm danh, không đánh giá được
+      absentChildren: kids.some((child) => att.has(`${day}|${child.id}`))
+        ? kids
+            .filter((child) => att.get(`${day}|${child.id}`) !== 'PRESENT')
+            .map((child) => ({ childId: child.id, fullName: child.fullName, attendanceStatus: att.get(`${day}|${child.id}`) || null }))
+        : [],
       classComment: classCommentView(
         db,
         (db.classDailyComments || []).find((note) => note.classId === classId && note.date === day),

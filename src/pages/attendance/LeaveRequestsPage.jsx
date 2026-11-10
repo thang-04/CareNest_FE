@@ -175,7 +175,7 @@ export default function LeaveRequestsPage() {
               <option value="">Tất cả điểm trường</option>
               {[...campusIds].map((id) => (
                 <option key={id} value={id}>
-                  {campusName(id) || id}
+                  {(campuses || []).find((x) => x.id === id)?.name || campusName(id) || id}
                 </option>
               ))}
             </select>

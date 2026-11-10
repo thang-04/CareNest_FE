@@ -1012,3 +1012,66 @@
   margin: var(--space-2) 0 0;
   padding-left: var(--space-4);
 }
+
+/* Trẻ vắng: hiện mờ, không đánh giá */
+.table tr.dg-row--absent > td,
+.table tr.dg-row--absent > td:first-child,
+.table.ga-goal-table tr.dg-row--absent > td,
+.table.ga-goal-table tr.dg-row--absent > td:first-child {
+  padding: var(--space-2) var(--space-3);
+  vertical-align: middle;
+  background: var(--surface-soft);
+}
+.dg-row--absent .dg-child {
+  opacity: 0.6;
+}
+
+/* Chỗ ký bản in đánh giá: sửa chức danh, họ tên, thêm người ký (chỉ đổi file in) */
+.dg-signers {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+.dg-signers__list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2) var(--space-3);
+}
+.dg-signer {
+  display: grid;
+  /* Cột số thứ tự cố định để mọi người ký thẳng hàng */
+  grid-template-columns: var(--space-6) minmax(0, 1fr) minmax(0, 1fr) var(--space-6);
+  align-items: center;
+  gap: var(--space-2);
+}
+.dg-signer__no {
+  color: var(--text-2);
+  text-align: right;
+}
+@media (max-width: 720px) {
+  .dg-signers__list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Xếp loại nhóm lớp: kỳ, điểm trường, nút trên cùng một đường giữa (Cần yêu cầu 10/11/2026) */
+.filter-bar.dg-rating-bar {
+  align-items: center;
+}
+
+/* Đối chiếu đánh giá hằng ngày ở bảng cuối chủ đề */
+.dg-xcheck {
+  display: grid;
+  gap: var(--space-4);
+}
+.dg-xcheck .section-title {
+  margin-bottom: var(--space-2);
+}
+.dg-xcheck__dates {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
