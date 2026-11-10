@@ -33,13 +33,14 @@ const signsText = (signs) =>
     .map(([key, n]) => `${HEALTH_SYMPTOMS[key] || key} (${n})`)
     .join(', ');
 
+/** Kiến thức kỹ năng: số lượt mục tiêu cô chấm Đạt / Chưa đạt trong kỳ (mỗi MT của mỗi hoạt động là một lượt). */
 function SkillsCell({ dat, chuaDat }) {
   const total = dat + chuaDat;
   if (!total) return <span className="muted">–</span>;
   return (
-    <span className="row gap-1 nowrap" title={`Đạt ${pct(dat, total)} · Chưa đạt ${pct(chuaDat, total)}`}>
-      <span className="chip chip--green">{dat}</span>
-      <span className="chip chip--red">{chuaDat}</span>
+    <span className="row gap-1 nowrap" title={`${total} lượt mục tiêu: Đạt ${pct(dat, total)}, Chưa đạt ${pct(chuaDat, total)}`}>
+      <span className="chip chip--green">{dat} Đạt</span>
+      {chuaDat > 0 && <span className="chip chip--red">{chuaDat} Chưa đạt</span>}
     </span>
   );
 }
@@ -58,7 +59,7 @@ const CRITERIA = [
 function CriteriaStrip({ values, notMet, flags }) {
   const items = [
     ...CRITERIA.map((c) => ({ key: c.key, label: c.label, value: values[c.key] || 0, danger: true })),
-    { key: 'skills', label: 'KTKN chưa đạt', value: notMet || 0, danger: true },
+    { key: 'skills', label: 'Lượt mục tiêu chưa đạt', value: notMet || 0, danger: true },
     { key: 'flags', label: 'Cờ', value: flags || 0 },
   ];
   return (
@@ -125,7 +126,7 @@ function ClassDetail({ classId, period, date, schoolYear, onBack }) {
                 {CRITERIA.map((c) => (
                   <th key={c.key}>{c.label}</th>
                 ))}
-                <th>Đạt / Chưa đạt</th>
+                <th title="Số lượt mục tiêu Kiến thức kỹ năng cô chấm Đạt / Chưa đạt">Kiến thức kỹ năng</th>
                 <th className="num">Cờ</th>
                 <th>Nhận xét</th>
               </tr>
