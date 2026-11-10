@@ -7,6 +7,7 @@ import { useAllergyContext, useMenuAccess, useMenuCatalog, useWeeklyMenu, useWee
 import { getAiDraft, saveWeeklyMenu } from '@/services/menu-planning/menuPlanningService';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { FormField } from '@/components/form/FormField';
+import { WeekPicker } from '@/components/form/WeekPicker';
 import { SearchSelect } from '@/components/ui/SearchSelect';
 import { ErrorState, LoadingState, Spinner } from '@/components/ui/States';
 import { AiDraftLabel, NoManageAccess } from '@/components/menu-planning/MenuBadges';
@@ -198,8 +199,8 @@ export default function WeeklyMenuFormPage() {
                 ))}
               </select>
             </FormField>
-            <FormField label="Tuần (Thứ Hai)" required error={show('weekStart')} hint="Ngày chọn được tự chuyển về Thứ Hai của tuần">
-              <input type="date" className="input" value={form.weekStart} onChange={(e) => changeWeek(e.target.value)} disabled={locked} />
+            <FormField label="Tuần" required error={show('weekStart')}>
+              <WeekPicker value={form.weekStart} onChange={changeWeek} disabled={locked} />
             </FormField>
             <FormField label="Ghi chú">
               <input

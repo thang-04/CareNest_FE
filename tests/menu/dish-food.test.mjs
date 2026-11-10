@@ -82,5 +82,8 @@ test('đánh dấu hay dùng; dữ liệu mẫu có tỷ lệ thải bỏ', asyn
   assert.equal(typeof f.wastePct, 'number');
   const after = await repo.setFoodFavorite(f.id, !f.favorite, VP);
   assert.equal(after.favorite, !f.favorite);
-  await assert.rejects(repo.setFoodFavorite(f.id, true, { id: 'u_hung', role: 'PRINCIPAL' }), (e) => e.status === 403);
+  // Hiệu trưởng có sẵn mọi mã bán trú (BE: meal-management-permissions §4) nên đánh dấu được; giáo viên thì không
+  const byPrincipal = await repo.setFoodFavorite(f.id, true, { id: 'u_hung', role: 'PRINCIPAL' });
+  assert.equal(byPrincipal.favorite, true);
+  await assert.rejects(repo.setFoodFavorite(f.id, true, { id: 'u_teacher', role: 'TEACHER' }), (e) => e.status === 403);
 });

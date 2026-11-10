@@ -764,15 +764,11 @@ tr.sortable-item--moved > td {
   border-bottom: none;
 }
 /* Bảng kẻ ô theo bảng Mục tiêu năm học (Kế hoạch giáo dục): kẻ đủ mọi ô màu --color-text-disabled, tiêu đề chữ đậm */
-.table.table--grid th + th,
-.table.table--grid td + td,
-.table.table--grid th + td,
-.table.table--grid td + th {
-  border-left: 1px solid var(--color-text-disabled);
-}
+/* Kẻ đủ 4 cạnh trên từng ô, không dựa ô liền trước: hàng nằm cạnh ô gộp rowSpan không có ô đó trong cùng <tr> nên sẽ mất vạch */
 .table.table--grid th,
-.table.table--grid td {
-  border-bottom-color: var(--color-text-disabled);
+.table.table--grid td,
+.table.table--grid tr:last-child td {
+  border: 1px solid var(--color-text-disabled);
 }
 .table.table--grid th {
   color: var(--text);
@@ -810,15 +806,15 @@ tr.sortable-item--moved > td {
 .table.table--grid tbody tr:hover td {
   background: var(--color-surface);
 }
-/* Căn lề theo loại dữ liệu (user chốt 20/10/2026), tiêu đề cột dùng cùng class với ô:
-   chữ, mã, ngày: trái (mặc định) · số đếm/số lượng/%: .num giữa · tiền: .money phải ·
-   trạng thái, ô tích, icon, nút: .center */
+/* Căn lề theo loại dữ liệu (user chốt 08/11/2026, cách lai), tiêu đề cột dùng cùng class với ô:
+   chữ dài (tên, lý do, ghi chú): trái (mặc định) · mọi giá trị ngắn (số, tiền, %, STT, ngày, trạng thái, đơn vị, mã, ô tích):
+   .num / .money / .center giữa. Không căn phải để mỗi bảng chỉ có 2 kiểu căn */
 .table .center,
-.table .num {
+.table .num,
+.table .money {
   text-align: center;
 }
-.table .right,
-.table .money {
+.table .right {
   text-align: right;
 }
 .table .num,
@@ -826,13 +822,9 @@ tr.sortable-item--moved > td {
   font-variant-numeric: tabular-nums;
 }
 /* Ô có nội dung xếp ngang (icon + số, nhiều chip): căn theo cột như chữ */
-.table :is(.num, .center) > :is(.row, .stack) {
+.table :is(.num, .money, .center) > :is(.row, .stack) {
   justify-content: center;
   align-items: center;
-}
-.table .money > :is(.row, .stack) {
-  justify-content: flex-end;
-  align-items: flex-end;
 }
 /* Cột "Thao tác": rộng vừa nhóm nút (không nhận phần dư của bảng), tiêu đề và nút căn giữa — DESIGN.md §6.3 */
 .table .cell--actions {
@@ -915,6 +907,32 @@ tr.sortable-item--moved > td {
 .chip--teal {
   --chip-c: var(--tone-teal);
   color: var(--tone-teal-fg);
+}
+/* Nhãn giá trị nổi bật trong bảng nhiều số (nhóm tuổi, năng lượng, chi phí, mã): khối bo nhẹ, chữ đậm cỡ vừa, không chấm tròn */
+.td-tag {
+  display: inline-block;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+  line-height: 1.3;
+  white-space: nowrap;
+}
+.td-tag--blue {
+  background: var(--color-info-bg);
+  color: var(--color-primary);
+}
+.td-tag--orange {
+  background: var(--color-warning-bg);
+  color: var(--color-warning-fg);
+}
+.td-tag--green {
+  background: var(--color-success-bg);
+  color: var(--color-success-fg);
+}
+.td-tag--gray {
+  background: var(--color-surface-muted);
+  color: var(--color-text-secondary);
 }
 .chip[class*='chip--']:not(:has(> svg, > .chip__live))::before {
   content: '';
@@ -1819,7 +1837,7 @@ tr.sortable-item--moved > td {
   gap: var(--space-1);
 }
 .campus-filter .select {
-  width: auto;
+  width: 100%;
 }
 .tab--active .tab__count {
   background: var(--color-primary);
@@ -2447,7 +2465,7 @@ a.file-row__name:hover {
 }
 .search-select__control {
   width: 100%;
-  min-height: var(--btn-height-lg);
+  min-height: var(--input-height);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -2530,7 +2548,7 @@ a.file-row__name:hover {
 }
 .search-select__panel {
   position: fixed;
-  z-index: var(--z-dropdown);
+  z-index: var(--z-popover);
   display: grid;
   padding: var(--space-1);
   background: var(--color-surface);
@@ -2830,6 +2848,29 @@ button.stat-card .stat-card__label::after {
   min-width: 260px;
   /* Hàng lọc: ô tìm cao bằng ô chọn */
   height: var(--input-height);
+}
+/*
+ * Thanh lọc căn giữa một hàng (Thực phẩm): ô tìm giãn hết chỗ trống, các nút lọc cùng chiều cao và cùng hàng.
+ * Nút bật / tắt `.btn--toggle` sáng màu khi đang áp dụng.
+ */
+.filter-bar--aligned {
+  align-items: center;
+}
+.filter-bar--aligned > .search-submit {
+  flex: 1 1 320px;
+}
+.filter-bar--aligned > .btn,
+.filter-bar--aligned > .filter-more > summary,
+.filter-bar--aligned .search-submit .btn {
+  height: var(--input-height);
+}
+.btn--toggle[aria-pressed='true'] {
+  background: var(--color-primary-soft);
+  border-color: var(--color-primary-border);
+  color: var(--color-primary);
+}
+.btn--toggle[aria-pressed='true'] svg {
+  color: var(--color-danger);
 }
 /* Tóm tắt khi đang lọc (FilterChips): "N kết quả" + chip bỏ từng bộ lọc, ngay dưới thanh lọc */
 .filter-summary {
@@ -3244,11 +3285,14 @@ button.stat-card .stat-card__label::after {
   align-items: center;
   gap: var(--space-1);
 }
-.week-picker__value {
-  position: relative;
-}
-.week-picker__value .btn {
+.week-picker__select {
+  width: 200px;
   font-variant-numeric: tabular-nums;
+}
+.week-picker__select .search-select__value {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
 }
 .date-input__picker {
   position: absolute;
@@ -3562,7 +3606,7 @@ button.stat-card .stat-card__label::after {
 /* Menu "…" render ra body, vị trí tính bằng JS (RowMenu.jsx) để không bị khung cuộn bảng cắt */
 .row-menu__panel {
   position: fixed;
-  z-index: var(--z-dropdown);
+  z-index: var(--z-popover);
   display: grid;
   /* Rộng theo nội dung (không bị chỗ trống bên trái nút bóp xuống dòng); chỉ xuống dòng khi chạm max-width */
   width: max-content;
@@ -3734,4 +3778,73 @@ button.stat-card .stat-card__label::after {
 /* Tiêu đề "Thao tác" không gãy dòng kể cả khi bảng cho tiêu đề xuống dòng */
 .table thead th.cell--actions {
   white-space: nowrap;
+}
+
+/* Danh sách có danh mục bên trái (CategoryNav): Món ăn, Thực phẩm, Tồn kho khô */
+.td-split-nav {
+  display: grid;
+  grid-template-columns: 230px minmax(0, 1fr);
+  overflow: hidden;
+}
+.td-split-nav__main {
+  min-width: 0;
+}
+.td-cat-nav {
+  padding: var(--space-4) var(--space-3);
+  border-right: 1px solid var(--color-border);
+}
+.td-cat-nav h3 {
+  margin: 0 var(--space-2) var(--space-2);
+  font-size: var(--fs-sm);
+}
+.td-cat-nav button {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: 38px;
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-text-secondary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.td-cat-nav button:hover {
+  background: var(--color-surface-hover);
+}
+/* Viền focus nằm trong nút để không bị cắt khi danh mục cuộn ngang */
+.td-cat-nav button:focus-visible {
+  outline-offset: -2px;
+}
+.td-cat-nav button[aria-current='true'] {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  font-weight: var(--fw-semibold);
+}
+.td-cat-nav em {
+  margin-left: auto;
+  color: var(--color-text-muted);
+  font-size: var(--fs-xs);
+  font-style: normal;
+}
+@media (max-width: 900px) {
+  .td-split-nav {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .td-cat-nav {
+    display: flex;
+    overflow-x: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+  .td-cat-nav h3 {
+    display: none;
+  }
+  .td-cat-nav button {
+    width: auto;
+    white-space: nowrap;
+  }
 }

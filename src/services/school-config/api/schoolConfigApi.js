@@ -57,6 +57,33 @@ export const createSchoolConfigApi = (axiosClient) => ({
   updateStaffProfile: (id, form) => axiosClient.patch(`/users/${id}/profile`, form),
   setStaffStatus: (id, status, reason) => axiosClient.patch(`/users/${id}/status`, { status, reason }),
   getViceAssignments: (schoolYear) => axiosClient.get(`/school-years/${schoolYear}/vice-principal-assignments`),
+  // Quyền thao tác của một PHT = mặc định vai trò (ma trận) ± ngoại lệ theo người (BE PermissionController, AUTH-10)
+  getVicePermissions: async (userId) => {
+    const [catalog, roles, view] = await Promise.all([
+      axiosClient.get('/permissions'),
+      axiosClient.get('/role-permissions'),
+      axiosClient.get(`/accounts/${userId}/permission-overrides`),
+    ]);
+    const defaults = roles.find((r) => r.role === 'VICE_PRINCIPAL')?.permissions || [];
+    const overrides = view.overrides || [];
+    return {
+      items: (view.configurablePermissions || []).map((code) => {
+        const roleOn = defaults.includes(code);
+        const override = overrides.find((o) => o.permission === code);
+        const effect = override?.effect;
+        const permission = catalog.find((p) => p.code === code);
+        return {
+          code,
+          label: permission?.description || code,
+          roleOn,
+          on: effect === 'GRANT' ? true : effect === 'REVOKE' ? false : roleOn,
+          effect: effect || 'INHERIT',
+          scope: override?.scope ?? null,
+          campusScoped: !!permission?.campusScoped,
+        };
+      }),
+    };
+  },
   saveViceAssignment: (schoolYear, userId, form) =>
     axiosClient.put(`/school-years/${schoolYear}/vice-principal-assignments/${userId}`, form),
 

@@ -17,12 +17,20 @@ const toForecastLine = (line) => ({
   purchaseTotal: toPurchaseQuantity(line.totalQty, line.food),
   byDate: (line.byDate || []).map((cell) => ({ ...cell, purchaseQuantity: toPurchaseQuantity(cell.quantity, line.food) })),
 });
+// Hàng khô cần nhập thêm (NUT-11): BE tính lại mỗi lần xem theo tồn hiện tại; FE chỉ đổi sang đơn vị mua
+const toDryLine = (line) => ({
+  ...line,
+  purchaseRequiredQty: toPurchaseQuantity(line.requiredQty, line.food),
+  purchaseAvailableQty: toPurchaseQuantity(line.availableQty, line.food),
+  purchaseShortQty: toPurchaseQuantity(line.shortQty, line.food),
+});
 // BE luôn trả đủ các mảng; chuẩn hóa để màn không phải kiểm null từng chỗ
 const toForecast = (forecast) => ({
   ...forecast,
   counts: forecast?.counts || [],
   days: forecast?.days || [],
   lines: (forecast?.lines || []).map(toForecastLine),
+  dryLines: (forecast?.dryLines || []).map(toDryLine),
 });
 
 const toCheckLine = (line) => ({

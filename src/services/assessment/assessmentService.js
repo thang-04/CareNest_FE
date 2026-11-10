@@ -75,3 +75,9 @@ export const getRewardList = (classId, user) => (be || repo).getRewardList(class
 export const saveRewardList = (classId, items, options, user) => (be || repo).saveRewardList(classId, items, options, user);
 export const reviewRewardList = (id, body, user) => (be || repo).reviewRewardList(id, body, user);
 export const decideRewardList = (id, body, user) => (be || repo).decideRewardList(id, body, user);
+
+// Bảng học kỳ mới cần nguồn BE, không trộn dữ liệu mock cũ của nhận xét định kỳ.
+const semesterBackend = () => be || notConnected;
+export const getSemesterAssessment = (params) => semesterBackend().getSemesterAssessment(params);
+export const saveSemesterAssessment = (body) => semesterBackend().saveSemesterAssessment(body);
+export const confirmSemesterAssessment = (body) => semesterBackend().confirmSemesterAssessment(body);

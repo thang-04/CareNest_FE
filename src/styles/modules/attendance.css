@@ -470,7 +470,8 @@
 /* ---------- Summary ---------- */
 .dd-summary {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  /* Hai bảng nửa khung chỉ khi đủ rộng; hẹp hơn thì xếp dọc thay vì cắt cột */
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 580px), 1fr));
   gap: var(--space-4);
 }
 .dd-summary > .card {

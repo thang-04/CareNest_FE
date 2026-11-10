@@ -20,3 +20,12 @@ export { hasBePermission };
 /** AUTH-18: Hiệu trưởng (mọi trẻ) và Phó hiệu trưởng (cơ sở mình) cấp tài khoản phụ huynh khi có quyền PARENT_ACCOUNT_MANAGE. */
 export const canManageParentAccounts = (user) =>
   [ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL].includes(user?.role) && hasBePermission(user, PERMISSIONS.PARENT_ACCOUNT_MANAGE);
+
+/**
+ * Tag phụ trách ở hồ sơ tài khoản. Dinh dưỡng = Phó hiệu trưởng được cấp NUTRITION_MANAGE (BE AUTH-20).
+ * Chỉ tin `bePermissions` từ BE; mock không có dữ liệu này ⇒ không hiện tag. Giáo dục chưa có mã quyền BE nên chưa có tag.
+ */
+export const accountDutyTags = (user) =>
+  user?.role === ROLES.VICE_PRINCIPAL && Array.isArray(user.bePermissions) && user.bePermissions.includes(PERMISSIONS.NUTRITION_MANAGE)
+    ? [{ key: 'nutrition', label: 'Phụ trách dinh dưỡng' }]
+    : [];

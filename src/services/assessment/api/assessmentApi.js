@@ -30,7 +30,8 @@ const nameOf = (list, item) => item.name || list.find((x) => x.id === item.id)?.
 /** Tổng quan đánh giá: điền tên điểm trường / nhóm tuổi từ danh mục (BE trả name null). */
 export const withNames = (overview, campuses = [], ageGroups = []) => ({
   ...overview,
-  campuses: (overview.campuses || []).map((c) => ({ ...c, name: campusLabel(campuses, c.id) || nameOf(campuses, c) })),
+  // Thiếu danh mục (giáo viên, tổ trưởng) thì để tên trống, không hiện mã số thay tên
+  campuses: (overview.campuses || []).map((c) => ({ ...c, name: campusLabel(campuses, c.id) || c.name || null })),
   ageGroups: (overview.ageGroups || []).map((g) => ({ ...g, name: nameOf(ageGroups, g) })),
   // Đủ danh mục điểm trường cho ô lọc của Hiệu trưởng (kể cả điểm trường chưa có lớp)
   allCampuses: campuses.map((c) => ({ id: c.id, name: c.shortName || c.name })),
@@ -168,6 +169,9 @@ export const createAssessmentBeApi = (client) => ({
   regenerateEvaluationDraft: (kind, id) => client.post(`/assessment/evaluations/${id}/redraft`),
   markProgramCompletion: (id, completed) => client.put(`/assessment/evaluations/${id}/program-completion`, { completed }),
   // Phiếu đánh giá sự phát triển cuối năm (BE OBS-28)
+  getSemesterAssessment: (params) => client.get('/assessment/semester-evaluations', { params }),
+  saveSemesterAssessment: (body) => client.put('/assessment/semester-evaluations', body),
+  confirmSemesterAssessment: (body) => client.post('/assessment/semester-evaluations/confirm', body),
   getYearEndSheet: (id) => client.get(`/assessment/evaluations/${id}/year-sheet`),
   saveYearEndSheet: (id, body) => client.put(`/assessment/evaluations/${id}/year-sheet`, body),
   // Hồ sơ / tiến độ phát triển: trẻ trong phạm vi của năm học, số liệu của trẻ theo khoảng ngày
@@ -214,7 +218,8 @@ export const createAssessmentBeApi = (client) => ({
     ]);
     return {
       ...overview,
-      campuses: (overview.campusIds || []).map((id) => ({ id, name: campusLabel(campuses, id) || id })),
+      // Không đọc được danh mục điểm trường (giáo viên): tên trống để màn ẩn cột, không hiện mã số
+      campuses: (overview.campusIds || []).map((id) => ({ id, name: campusLabel(campuses, id) || null })),
     };
   },
 });

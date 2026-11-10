@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Plus, RotateCcw, ShieldCheck } from '@/components/ui/icons';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
@@ -27,6 +27,7 @@ const CONFIGURABLE_ROLES = ['VICE_PRINCIPAL', 'TEACHER'];
 export default function UserOverridesPage() {
   const { user } = useAuth();
   const toast = useToast();
+  const navigate = useNavigate();
 
   const { data: accounts, loading, error, reload } = useAccountsWithOverrides();
   const [params, setParams] = useSearchParams();
@@ -42,6 +43,8 @@ export default function UserOverridesPage() {
   const [wizardDirty, setWizardDirty] = useState(false);
   // Đang gán ngoại lệ dở trong hộp (đã tick hoặc tới bước nhập lý do) ⇒ hỏi trước khi rời màn; lưu cần lý do nên không có nút Lưu
   const guard = useLeaveGuard({ when: !!wizardStaff && wizardDirty });
+  // PHT giao việc ở màn Phân công PHT; wizard chỉ còn cho giáo viên
+  const editStaff = (staff) => (staff.role === 'VICE_PRINCIPAL' ? navigate('/school/vice-principals') : setWizardStaff(staff));
   const closeWizard = () => {
     setWizardStaff(null);
     setWizardDirty(false);
@@ -81,11 +84,13 @@ export default function UserOverridesPage() {
 
   return (
     <div className="page permission-center">
-      <Breadcrumb items={permissionCrumbs('Quyền ngoại lệ từng người')} />
+      <Breadcrumb items={permissionCrumbs('Ngoại lệ giáo viên')} />
       <div className="page__head permission-page-head">
         <div>
-          <h1 className="page__title">Quyền ngoại lệ từng người</h1>
-          <p className="text-sm text-2">Danh sách nhân sự được cấp thêm (+) hoặc thu hồi (-) quyền đặc thù so với vai trò chuẩn.</p>
+          <h1 className="page__title">Ngoại lệ giáo viên</h1>
+          <p className="text-sm text-2">
+            Giáo viên được cấp thêm (+) hoặc thu hồi (-) quyền so với mặc định. Phó hiệu trưởng giao việc ở màn Phân công Phó hiệu trưởng.
+          </p>
         </div>
       </div>
       <PermissionTabs
@@ -106,7 +111,7 @@ export default function UserOverridesPage() {
                 : 'Nhân sự này không còn nằm trong danh sách được cấu hình quyền.'}
           </span>
           {targetStaff && (
-            <button className="btn btn--sm" onClick={() => setWizardStaff(targetStaff)}>
+            <button className="btn btn--sm" onClick={() => editStaff(targetStaff)}>
               Thiết lập ngoại lệ cho người này
             </button>
           )}
@@ -229,7 +234,7 @@ export default function UserOverridesPage() {
 
                       <td className="cell--actions">
                         <RowActions
-                          edit={{ onClick: () => setWizardStaff(item), label: 'Sửa quyền ngoại lệ' }}
+                          edit={{ onClick: () => editStaff(item), label: 'Sửa quyền ngoại lệ' }}
                           menu={[
                             {
                               label: 'Đặt lại quyền theo vai trò',

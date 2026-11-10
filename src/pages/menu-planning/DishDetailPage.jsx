@@ -11,6 +11,8 @@ import { useTabParam } from '@/hooks/useTabParam';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { ErrorState, LoadingState } from '@/components/ui/States';
 import { AllergenChips, DishStatusBadge, HistoryCard } from '@/components/menu-planning/MenuBadges';
+import { StatusBadge } from '@/components/ui/StatusBadge';
+import { microGroupOf } from '@/utils/menu-planning/microGroups';
 import { DishPortionTable } from '@/components/menu-planning/DishPortionTable';
 import { dishAllergens, ingredientBreakdown, ingredientQty } from '@/utils/menu-planning/menuCalculations';
 import { activeAgeGroups } from '@/utils/menu-planning/nutritionSetup';
@@ -242,7 +244,7 @@ export default function DishDetailPage() {
                               </th>
                             ))
                           : microCols.map((k) => (
-                              <th key={k} className="num">
+                              <th key={k} className={`num td-micro-th td-micro-th--${microGroupOf(k)}`}>
                                 {MICRONUTRIENT_LABELS[k]} ({MICRONUTRIENT_UNITS[k]})
                               </th>
                             ))}
@@ -271,7 +273,7 @@ export default function DishDetailPage() {
                             ))
                           : microCols.map((k) => (
                               <td key={k} className="num">
-                                {total[k] == null ? <span className="td-warn">Chưa đủ</span> : n2(total[k])}
+                                {total[k] == null ? <StatusBadge tone="orange" label="Chưa đủ" /> : n2(total[k])}
                               </td>
                             ))}
                       </>
@@ -327,7 +329,7 @@ export default function DishDetailPage() {
                           ) : (
                             microCols.map((k) => (
                               <td key={k} className="num">
-                                {r[k] == null ? <span className="muted">Chưa có</span> : n2(r[k])}
+                                {r[k] == null ? <StatusBadge tone="gray" label="Chưa có" /> : n2(r[k])}
                               </td>
                             ))
                           )}

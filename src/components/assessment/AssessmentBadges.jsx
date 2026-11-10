@@ -41,8 +41,13 @@ export const WeekPublishBadge = createStatusBadge(
 
 /** Phiếu bé ngoan: đủ điều kiện / đã phát / chờ phát (kèm số lượng qua `detail`). */
 export const TicketBadge = createDetailBadge(
-  { ELIGIBLE: ['green', CheckCircle2], ISSUED: ['teal', Ticket], PENDING_ISSUE: ['orange', Clock] },
-  { ELIGIBLE: 'Đủ điều kiện', ISSUED: 'Đã phát', PENDING_ISSUE: 'Chờ phát' },
+  {
+    ELIGIBLE: ['green', CheckCircle2],
+    ELIGIBLE_UNISSUED: ['green', CheckCircle2],
+    ISSUED: ['teal', Ticket],
+    PENDING_ISSUE: ['orange', Clock],
+  },
+  { ELIGIBLE: 'Đủ điều kiện', ELIGIBLE_UNISSUED: 'Đủ điều kiện · chưa phát', ISSUED: 'Đã phát', PENDING_ISSUE: 'Chờ phát' },
 );
 
 /** Lần mở lại ngày đánh giá: còn hiệu lực hay đã hết hạn (hạn truyền qua `detail`). */

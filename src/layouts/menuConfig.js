@@ -272,10 +272,6 @@ const ITEMS = {
     label: 'Tiến độ phát triển',
     to: '/assessment/children',
   },
-  assessPeriodic: {
-    label: 'Đánh giá tháng',
-    to: '/assessment/periodic',
-  },
   assessSemester: {
     label: 'Đánh giá học kỳ',
     to: '/assessment/semester',
@@ -305,12 +301,16 @@ const ITEMS = {
     to: '/menu/dishes',
   },
   menus: {
-    label: 'Mẫu thực đơn ngày',
+    label: 'Mẫu thực đơn',
     to: '/menu/menus',
   },
   weeklyMenus: {
     label: 'Kế hoạch tuần & công bố',
     to: '/menu/weekly',
+  },
+  menuStatistics: {
+    label: 'Thống kê định lượng',
+    to: '/menu/statistics',
   },
   nutrition: {
     label: 'Cân đối khẩu phần',
@@ -357,7 +357,7 @@ const ITEMS = {
     to: '/kitchen/food-samples',
   },
   forecast: {
-    label: 'Bản dự trù hàng tươi',
+    label: 'Bản dự trù',
     to: '/kitchen/forecast',
   },
   profile: {
@@ -421,7 +421,6 @@ const MENUS = {
       'assessQuality',
       'assessClassRatings',
       'assessProgress',
-      'assessPeriodic',
       'assessSemester',
       'assessThemes',
       'assessYearEnd',
@@ -431,7 +430,7 @@ const MENUS = {
     ]),
     group('education', ['eduSchool', 'eduPlanReviews', 'eduSettings', 'eduCurriculum']),
     ...boardingSection({
-      nutrition: ['weeklyMenus', 'menus'],
+      nutrition: ['weeklyMenus', 'menuStatistics', 'menus'],
       kitchenOps: ['mealCount', 'publishedMenu', 'forecast', 'freshReceipts'],
       stock: ['dryStock', 'stockReceipts', 'stockHistory', 'stockShortfalls'],
       foodSafety: ['foodSamples', 'mealPhotos', 'photoWindows'],
@@ -460,7 +459,6 @@ const MENUS = {
       'assessQuality',
       'assessClassRatings',
       'assessProgress',
-      'assessPeriodic',
       'assessSemester',
       'assessThemes',
       'assessYearEnd',
@@ -469,7 +467,7 @@ const MENUS = {
       'assessDayUnlocks',
     ]),
     ...boardingSection({
-      nutrition: ['weeklyMenus', 'menus', 'nutrition'],
+      nutrition: ['weeklyMenus', 'menuStatistics', 'menus', 'nutrition'],
       kitchenOps: ['mealCount', 'publishedMenu', 'forecast', 'freshReceipts'],
       stock: ['dryStock', 'stockReceipts', 'stockHistory', 'stockShortfalls'],
       foodSafety: ['foodSamples', 'mealPhotos', 'photoWindows'],
@@ -488,7 +486,6 @@ const MENUS = {
       'assessOverview',
       'assessDaily',
       'assessProfiles',
-      'assessPeriodic',
       'assessSemester',
       'assessThemes',
       'assessYearEnd',
@@ -508,7 +505,6 @@ const MENUS = {
     group('assessment', [
       'assessDaily',
       'assessProfiles',
-      'assessPeriodic',
       'assessSemester',
       'assessThemes',
       'assessYearEnd',
@@ -583,10 +579,12 @@ const withVpAreas = (menu, user) => {
   const hiddenItems = Object.entries(AREA_ITEMS)
     .filter(([area]) => none(area))
     .flatMap(([, items]) => items);
-  // Mục tạo mới cần đúng quyền Thêm của mảng
+  // Mục tạo mới cần đúng quyền Thêm của mảng; người dùng BE theo mã quyền ở withBePermissions
   const kids = areaAccess(user, 'children').actions || {};
-  if (!kids.create) hiddenItems.push('childEnroll');
-  if (!kids.update) hiddenItems.push('childPlacement', 'parentActivation');
+  if (!Array.isArray(user.bePermissions)) {
+    if (!kids.create) hiddenItems.push('childEnroll');
+    if (!kids.update) hiddenItems.push('childPlacement', 'parentActivation');
+  }
   return menu
     .filter((e) => !hidden.includes(e.key))
     .map((e) =>
@@ -602,6 +600,8 @@ const withVpAreas = (menu, user) => {
 // Mục gắn với mã quyền BE thật: người dùng BE bị thu hồi quyền thì ẩn mục (BE vẫn chặn khi mở thẳng đường dẫn)
 const ITEM_BE_PERMISSIONS = {
   parentActivation: [PERMISSIONS.PARENT_ACCOUNT_MANAGE],
+  childEnroll: [PERMISSIONS.CHILD_ENROLL],
+  childPlacement: [PERMISSIONS.CHILD_PLACEMENT],
   schoolRoles: [PERMISSIONS.PERMISSION_MANAGE],
 };
 const withBePermissions = (menu, user) =>
@@ -618,7 +618,8 @@ const withBePermissions = (menu, user) =>
 // Màn chỉ có khi nối BE (build mock không có route) ⇒ ẩn mục ở build demo
 // Không import demoSource ở đây: nó kéo mockDatabase (cần window) vào menu
 const KITCHEN_RECORDS_API = !USE_MOCK && INTEGRATION_MODULES['kitchen-records']?.source === 'api';
-const API_ONLY_ITEMS = !KITCHEN_RECORDS_API ? ['mealPhotos', 'photoWindows'] : [];
+const MEAL_PLAN_API = !USE_MOCK && INTEGRATION_MODULES['meal-plan']?.source === 'api';
+const API_ONLY_ITEMS = [...(!KITCHEN_RECORDS_API ? ['mealPhotos', 'photoWindows'] : []), ...(!MEAL_PLAN_API ? ['menuStatistics'] : [])];
 const withApiOnlyItems = (menu) =>
   API_ONLY_ITEMS.length
     ? menu.map((e) => (e.children ? { ...e, children: e.children.filter((c) => !API_ONLY_ITEMS.includes(c.key)) } : e))

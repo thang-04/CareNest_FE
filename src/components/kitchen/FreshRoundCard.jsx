@@ -92,23 +92,27 @@ export function FreshRoundCard({ round, campusId, date, canManage, onSaved, onSt
         </p>
       )}
       {!round.available && !round.recorded && (
-        <div className="alert alert--info card__body" role="status">
-          {round.unavailableReason || 'Lần kiểm này chưa mở.'}
+        <div className="card__body">
+          <div className="alert alert--info" role="status">
+            {round.unavailableReason || 'Lần kiểm này chưa mở.'}
+          </div>
         </div>
       )}
       {round.available && !round.lines.length && <p className="card__body muted">Ngày này không có hàng tươi cần nhận.</p>}
       {round.lines.length > 0 && (
         <>
           {errors._form && (
-            <div className="alert alert--danger card__body" role="alert">
-              {errors._form}
+            <div className="card__body">
+              <div className="alert alert--danger" role="alert">
+                {errors._form}
+              </div>
             </div>
           )}
           <div className="table-wrap">
             <table className="table table--grid">
               <thead>
                 <tr>
-                  <th className="center">STT</th>
+                  <th className="num">STT</th>
                   <th className="min-w-220">Thực phẩm</th>
                   <th className="num">Cần nhận</th>
                   <th>Thực nhận</th>
@@ -123,7 +127,7 @@ export function FreshRoundCard({ round, campusId, date, canManage, onSaved, onSt
                   const err = (field) => errors[`lines.${i}.${field}`];
                   return (
                     <tr key={line.food.id}>
-                      <td className="center">{i + 1}</td>
+                      <td className="num">{i + 1}</td>
                       <td>{line.food.name}</td>
                       <td className="num nowrap">
                         {fmtQty(line.purchaseExpectedQty)} {unit}

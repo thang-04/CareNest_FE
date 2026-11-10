@@ -281,7 +281,7 @@ export default function HealthTrendPage() {
                       <caption className="sr-only">Số đo của {child.fullName} theo thời gian</caption>
                       <thead>
                         <tr>
-                          <th>Ngày đo</th>
+                          <th className="center">Ngày đo</th>
                           <th className="num">Chiều cao (cm)</th>
                           <th className="num">Cân nặng (kg)</th>
                           <th className="num">BMI</th>
@@ -291,7 +291,7 @@ export default function HealthTrendPage() {
                       <tbody>
                         {points.map((m) => (
                           <tr key={m.id}>
-                            <td>{formatDate(m.date)}</td>
+                            <td className="center">{formatDate(m.date)}</td>
                             <td className="num">{formatNumber(m.heightCm)}</td>
                             <td className="num">{formatNumber(m.weightKg)}</td>
                             <td className="num">{formatNumber(m.bmi)}</td>

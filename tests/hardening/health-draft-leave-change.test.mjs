@@ -12,10 +12,10 @@ const Link=({to,children})=>React.createElement('a',{href:to},children),useToast
 const FormField=({children,label})=>React.createElement('label',{},label,children);
 const HeartPulse=()=>null,Save=()=>null,ArrowRight=()=>null,Clock=()=>null,CheckCircle2=()=>null,Phone=()=>null,ChevronDown=()=>null,ChevronUp=()=>null;
 const EmptyState=()=>null,ErrorState=()=>null,LoadingState=()=>null,SubmitOverlay=()=>null,TemperatureBadge=()=>null,ChildAvatar=()=>null,HealthObservationBadge=()=>null,ParentNotifyBadge=()=>null,ParentNotifyShortBadge=()=>null,ConfirmationModal=()=>null;
-const useAsync=()=>({data:{entries:[],contacts:[],canRecord:false},loading:false,error:null,reload:()=>{}});
+const useAsync=()=>({data:{entries:[],contacts:[],canRecord:false,...globalThis.healthContextFixture},loading:false,error:null,reload:()=>{}});
 const getDailyHealth=()=>{},notifyDailyHealth=()=>{},PARENT_NOTIFY_ENABLED=false,HEALTH_ACTIONS={},HEALTH_SYMPTOMS={},actionSummary=()=>'',validateDailyHealth=()=>({}),temperatureLevel=()=>null,formatDateTime=x=>x;
 `;
-const {code}=await transformWithOxc(stubs+source.replace(/^import .*;\r?\n/gm,''),'DailyHealthPanel.jsx',{lang:'jsx',jsx:{runtime:'classic'}});
+const {code}=await transformWithOxc(stubs+source.replace(/^import[\s\S]*?;\r?\n/gm,''),'DailyHealthPanel.jsx',{lang:'jsx',jsx:{runtime:'classic'}});
 const {DailyHealthPanel}=await import(`data:text/javascript;base64,${Buffer.from(code.replace('from "react"',`from ${JSON.stringify(import.meta.resolve('react'))}`)).toString('base64')}`);
 const props={child:{id:'test',fullName:'TEST child'},classId:'A',date:'2026-11-04',user:{id:'teacher'},presentSaved:false,canDraft:true,attendanceDirty:true,onDirty:()=>{},onBusy:()=>{},onNext:()=>{}};
 const walk=node=>!React.isValidElement(node)?[]:[node,...React.Children.toArray(node.props.children).flatMap(walk)];
@@ -41,4 +41,16 @@ test('khi có mặt lại hợp lệ, nháp sức khỏe vẫn còn và form đ�
     assert.doesNotMatch(html,/<fieldset[^>]*disabled/);
     assert.doesNotMatch(html,/Bỏ nội dung sức khỏe đang soạn/);
   }finally{delete globalThis.healthDraftFixture;}
+});
+
+test('đã trả trẻ khóa form kể cả khi điểm danh vẫn mở và trẻ có mặt', async () => {
+  globalThis.healthDraftFixture={temperature:'',observation:'',symptoms:[],note:'',actions:[],referral:{place:'',time:'',escort:''}};
+  globalThis.healthContextFixture={handedOverAt:'2026-11-05T08:30:00Z',canRecord:false};
+  try {
+    const tree=DailyHealthPanel({...props,presentDraft:true,presentSaved:true,onSave:()=>{throw new Error('must not save');}});
+    const html=renderToStaticMarkup(tree);
+    assert.match(html,/Đã trả trẻ lúc/);
+    assert.doesNotMatch(html,/Thêm lần ghi nhận/);
+    assert.equal(walk(tree).some(n=>n.type==='form'),false);
+  } finally { delete globalThis.healthDraftFixture; delete globalThis.healthContextFixture; }
 });

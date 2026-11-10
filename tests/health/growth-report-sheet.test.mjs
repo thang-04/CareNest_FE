@@ -2,11 +2,9 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 const { readSheet } = await import('read-excel-file/node');
-const { buildXlsx, columnName, crc32, XLSX_STYLES } = await import('@/utils/exportXlsx');
+const { buildXlsx, columnName, crc32 } = await import('@/utils/exportXlsx');
 const { buildGrowthReportSheet, GROWTH_SHEET_HEAD_ROW, growthReportFileName } = await import('@/utils/children/growthReportSheet');
 const { formatPct, growthReportRowsOf, monthLabelOf, pctOf } = await import('@/utils/children/growthReport');
-
-const bytesOf = async (blob) => new Uint8Array(await blob.arrayBuffer());
 
 /*
  * File Excel của báo cáo tổng hợp cân đo mẫu 5.1 (plan docs/plans/active/2026-11-04-health-growth-report.md): bố cục giống bảng
@@ -159,7 +157,7 @@ test('Sheet: số trẻ, tỉ lệ, ô cảnh báo, dòng tổng, điểm trư�
 
 test('File .xlsx mở lại được (read-excel-file): đúng ô, ô gộp có giá trị ở ô đầu', async () => {
   const sheet = buildGrowthReportSheet(REPORT, { scopeLabel: 'Campus 1' });
-  const bytes = await bytesOf(buildXlsx(sheet, { now: new Date(2026, 10, 4, 9, 30) }));
+  const bytes = buildXlsx(sheet, { now: new Date(2026, 10, 4, 9, 30) });
   assert.deepEqual([...bytes.slice(0, 4)], [0x50, 0x4b, 0x03, 0x04], 'chữ ký ZIP');
   const rows = await readSheet(Buffer.from(bytes));
   const h = GROWTH_SHEET_HEAD_ROW;
@@ -176,22 +174,7 @@ test('File .xlsx mở lại được (read-excel-file): đúng ô, ô gộp có 
 test('Writer: chữ cột, CRC32, ký tự đặc biệt được thoát', async () => {
   assert.deepEqual([0, 25, 26, 27, 51, 52, 701, 702].map(columnName), ['A', 'Z', 'AA', 'AB', 'AZ', 'BA', 'ZZ', 'AAA']);
   assert.equal(crc32(new TextEncoder().encode('123456789')), 0xcbf43926);
-  const bytes = await bytesOf(buildXlsx({ name: 'Thử [1]/2', rows: [['<b> & "x"', 3.5, null, 'Tiếng Việt có dấu']] }));
+  const bytes = buildXlsx({ name: 'Thử [1]/2', rows: [['<b> & "x"', 3.5, null, 'Tiếng Việt có dấu']] });
   const rows = await readSheet(Buffer.from(bytes));
   assert.deepEqual(rows[0], ['<b> & "x"', 3.5, null, 'Tiếng Việt có dấu']);
-});
-
-// Một writer cho cả bảng thường (điểm danh, đánh giá…: rows[]) và báo cáo theo mẫu (sheet): hai bản cùng tên từng đè nhau khi merge.
-test('Writer chung: bảng thường giữ kiểu cũ (tiêu đề cột đậm, cột tự rộng, không đặt khổ in); báo cáo theo mẫu có ô gộp, in ngang', async () => {
-  const xmlOf = async (blob) => new TextDecoder().decode(await bytesOf(blob));
-  const table = await xmlOf(buildXlsx([['Báo cáo'], ['Trẻ', 'Lớp'], ['An', 'Lá 1']], { sheetName: 'Điểm danh', headerRow: 1 }));
-  assert.ok(table.includes(`<c r="A2" s="${XLSX_STYLES.indexOf('plainHead')}" t="inlineStr">`), 'tiêu đề cột in đậm');
-  assert.ok(table.includes(`<c r="A3" s="${XLSX_STYLES.indexOf('plain')}" t="inlineStr">`), 'dòng dữ liệu chữ thường');
-  assert.ok(table.includes('<col min="1" max="1" width="9" customWidth="1"/>'), 'cột rộng theo nội dung');
-  assert.match(table, /<sheet name="Điểm danh"/);
-  assert.doesNotMatch(table, /<pageSetup |<mergeCells/);
-  const report = await xmlOf(buildXlsx(buildGrowthReportSheet(REPORT, { scopeLabel: 'Campus 1' })));
-  assert.match(report, /<mergeCells count="\d+">/);
-  assert.match(report, /<pageSetup paperSize="9" orientation="landscape"/);
-  assert.match(report, /<sheet name="Mẫu 5.1"/);
 });

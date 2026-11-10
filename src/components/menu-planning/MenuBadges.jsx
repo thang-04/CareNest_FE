@@ -3,6 +3,7 @@ import { createStatusBadge } from '@/components/ui/StatusBadge';
 import { StatusPage } from '@/components/ui/StatusPage';
 import { useMasterData } from '@/hooks/useMasterData';
 import { formatDateTime } from '@/utils/format';
+import { dishNutrition } from '@/utils/menu-planning/menuStatistics';
 import {
   AI_LABEL,
   DISH_STATUS_LABELS,
@@ -39,7 +40,7 @@ export const MealPlanStatusBadge = createStatusBadge(
 export const NormStatusChip = createStatusBadge(
   {
     OK: ['green', null],
-    LOW: ['orange', null],
+    LOW: ['red', null],
     HIGH: ['orange', null],
     NA: ['gray', null],
     INCOMPLETE: ['gray', null],
@@ -47,6 +48,19 @@ export const NormStatusChip = createStatusBadge(
   },
   NORM_STATUS_LABELS,
 );
+
+// Một chỉ số so định mức: cùng màu với NormStatusChip và ô tô màu trong bảng (thiếu đỏ, vượt cam, đạt xanh)
+export const NormRowBadge = createStatusBadge(
+  { OK: ['green', null], LOW: ['red', null], HIGH: ['orange', null], INCOMPLETE: ['gray', null], NA: ['gray', null] },
+  { OK: 'Đạt', LOW: 'Thiếu', HIGH: 'Vượt', INCOMPLETE: 'Thiếu số liệu', NA: 'Chưa đặt' },
+);
+
+/** Nhãn kcal một suất của món theo nhóm tuổi; món chưa có số liệu thì không hiện. */
+export function DishKcal({ dish, ageGroup }) {
+  const kcal = dishNutrition(dish, ageGroup)?.kcal;
+  if (kcal == null) return null;
+  return <span className="td-tag td-tag--orange td-kcal">{Number(kcal).toLocaleString('vi-VN', { maximumFractionDigits: 0 })} kcal</span>;
+}
 
 /** Allergens are a "needs attention" label (red), see DESIGN.md §3.2. */
 export function AllergenChips({ allergens, empty = '—' }) {
@@ -91,20 +105,28 @@ export function HistoryCard({ history }) {
         {list.length === 0 ? (
           <div className="muted">Chưa có lịch sử.</div>
         ) : (
-          <ul className="history-list">
-            {list.map((h) => (
-              <li key={h.id}>
-                <div className="history-list__dot" />
-                <div>
-                  <div className="fw-600">{HISTORY_LABELS[h.action] || h.action}</div>
-                  <div className="text-sm muted">
-                    {md.userById(h.userId)?.fullName || 'Người dùng'} · {formatDateTime(h.at)}
-                  </div>
-                  {h.note && <div className="text-sm">{h.note}</div>}
-                </div>
-              </li>
-            ))}
-          </ul>
+          <div className="table-wrap">
+            <table className="table table--grid table--compact td-history-table">
+              <thead>
+                <tr>
+                  <th>Thời gian</th>
+                  <th>Người thực hiện</th>
+                  <th>Hành động</th>
+                  <th>Ghi chú</th>
+                </tr>
+              </thead>
+              <tbody>
+                {list.map((h) => (
+                  <tr key={h.id}>
+                    <td className="nowrap">{formatDateTime(h.at)}</td>
+                    <td>{md.userById(h.userId)?.fullName || 'Người dùng'}</td>
+                    <td className="fw-600">{HISTORY_LABELS[h.action] || h.action}</td>
+                    <td>{h.note || <span className="muted">—</span>}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>

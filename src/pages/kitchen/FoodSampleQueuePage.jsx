@@ -161,19 +161,6 @@ export default function FoodSampleQueuePage() {
         <div>
           <h1 className="page__title">Lưu mẫu thức ăn</h1>
         </div>
-        <div className="page__actions">
-          <button
-            type="button"
-            className="btn"
-            disabled={!rows.length}
-            onClick={() => exportWithPreview(foodSampleCsvRows(rows), `so-luu-mau-${from}-${to}.xlsx`)}
-          >
-            <Download size={16} /> Xuất Excel
-          </button>
-          <button type="button" className="btn" disabled={!printable.length} onClick={() => setPrinting(true)}>
-            <Printer size={16} /> In biểu mẫu
-          </button>
-        </div>
       </div>
       <div className="kb-toolbar">
         <KbDateFilter label="Từ ngày" value={from} onChange={(next) => setParam('from', next)} />
@@ -190,6 +177,19 @@ export default function FoodSampleQueuePage() {
             <option value="pending">Chỉ việc chờ duyệt</option>
           </select>
         </label>
+        <div className="kb-toolbar__end">
+          <button
+            type="button"
+            className="btn"
+            disabled={!rows.length}
+            onClick={() => exportWithPreview(foodSampleCsvRows(rows), `so-luu-mau-${from}-${to}.xlsx`)}
+          >
+            <Download size={16} /> Xuất Excel
+          </button>
+          <button type="button" className="btn" disabled={!printable.length} onClick={() => setPrinting(true)}>
+            <Printer size={16} /> In biểu mẫu
+          </button>
+        </div>
       </div>
       {body}
       <Modal

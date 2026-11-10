@@ -6,6 +6,8 @@ import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import { EmptyState, ErrorState, LoadingState, Spinner } from '@/components/ui/States';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSchoolYear } from '@/contexts/SchoolYearContext';
+import { AssessmentFormHeading } from '@/components/assessment/AssessmentFormHeading';
 import { useToast } from '@/contexts/ToastContext';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { useThemeClasses, useThemeEvaluation, useThemeList } from '@/hooks/assessment/useAssessment';
@@ -30,16 +32,18 @@ const nextValue = (met, auto) => (met === true ? false : met === false ? (auto =
  */
 export default function ThemeEvaluationPage() {
   const { user } = useAuth();
+  const { schoolYear, schoolYears } = useSchoolYear();
+  const yearLabel = schoolYears.find((y) => String(y.id) === String(schoolYear))?.label;
   const toast = useToast();
   const { classes, loading: classesLoading, error: classesError } = useThemeClasses();
   const [classId, setClassId] = useState('');
   const [themeId, setThemeId] = useState('');
   const currentClassId = classId || classes[0]?.classId || '';
-  const { themes, loading: themesLoading, error: themesError } = useThemeList(currentClassId);
+  const { themes, loading: themesLoading, error: themesError, reload: reloadThemes } = useThemeList(currentClassId);
   // Mặc định chủ đề đã kết thúc gần nhất, chưa có thì chủ đề đang diễn ra
   const defaultTheme = [...themes].reverse().find((t) => t.period === 'ENDED') || themes.find((t) => t.period === 'ONGOING') || themes[0];
   const currentThemeId = themeId || defaultTheme?.themeId || '';
-  const { evaluation: ev, loading, error, reload } = useThemeEvaluation(currentClassId, currentThemeId);
+  const { evaluation: ev, loading, error, reload, setEvaluation } = useThemeEvaluation(currentClassId, currentThemeId);
 
   // Ô sửa trên màn: key `${childId}:${goalId}` → true / false / null (null = bỏ sửa tay, về hệ thống tính khi lưu)
   const [edits, setEdits] = useState({});
@@ -89,9 +93,13 @@ export default function ThemeEvaluationPage() {
     }
     setBusy(kind);
     try {
-      await fn({ classId: Number(currentClassId), themeId: Number(currentThemeId), note, cells: cellsBody() }, user);
+      const saved = await fn({ classId: Number(currentClassId), themeId: Number(currentThemeId), note, cells: cellsBody() }, user);
+      // Response lưu/xác nhận là nguồn trạng thái mới; không chờ GET rồi mới khóa phiếu.
+      setEvaluation(saved);
+      setEdits({});
+      setNote(saved.note || '');
+      await reloadThemes({ silent: true });
       toast.success(message);
-      await reload({ silent: true });
       return true;
     } catch (err) {
       toast.error(err, 'Chưa lưu được đánh giá cuối chủ đề');
@@ -141,6 +149,7 @@ export default function ThemeEvaluationPage() {
                 className="select"
                 aria-label="Lớp"
                 value={currentClassId}
+                disabled={!!busy}
                 onChange={(e) =>
                   guard.leave(() => {
                     setClassId(e.target.value);
@@ -164,6 +173,7 @@ export default function ThemeEvaluationPage() {
                 className="select"
                 aria-label="Chủ đề"
                 value={currentThemeId}
+                disabled={!!busy}
                 onChange={(e) => guard.leave(() => setThemeId(e.target.value))}
               >
                 {themes.map((t) => (
@@ -179,13 +189,18 @@ export default function ThemeEvaluationPage() {
             <>
               <button
                 className="btn"
-                disabled={changed}
+                disabled={changed || !!busy}
                 title={changed ? 'Lưu thay đổi trước khi in' : undefined}
                 onClick={() => setPreview(themeEvaluationFile(ev))}
               >
                 <Printer size={16} /> Xem trước & In
               </button>
-              <button className="btn" disabled={changed} title={changed ? 'Lưu thay đổi trước khi xuất' : undefined} onClick={exportExcel}>
+              <button
+                className="btn"
+                disabled={changed || !!busy}
+                title={changed ? 'Lưu thay đổi trước khi xuất' : undefined}
+                onClick={exportExcel}
+              >
                 <Download size={16} /> Xuất Excel
               </button>
             </>
@@ -224,106 +239,113 @@ export default function ThemeEvaluationPage() {
               </div>
               {ev.canEdit && (
                 <p className="muted text-sm mt-8">
-                  Hệ thống điền từ Kiến thức kỹ năng hằng ngày (lần chấm cuối trong chủ đề). Bấm vào ô để sửa tay (đổi Đạt / Chưa đạt); bấm
-                  tiếp tới khi về kết quả hệ thống. Ô sửa tay có viền đậm.
+                  Hệ thống điền từ Kiến thức kỹ năng hằng ngày: mục tiêu Đạt khi có ít nhất 50% hoạt động đã chấm là Đạt; chưa chấm hoặc trẻ
+                  vắng không tính. Bấm vào ô để sửa tay (đổi Đạt / Chưa đạt); bấm tiếp tới khi về kết quả hệ thống. Ô sửa tay có viền đậm.
                 </p>
               )}
             </div>
             {ev.goals.length === 0 ? (
               <EmptyState title="Chủ đề chưa có mục tiêu" description="Kế hoạch năm học chưa tích mục tiêu nào cho chủ đề này." />
             ) : (
-              <div className="table-wrap">
-                <table className="table table--grid table--compact dg-theme-table">
-                  <thead>
-                    <tr>
-                      <th className="num">STT</th>
-                      <th>Họ và tên</th>
-                      {ev.goals.map((g) => (
-                        <th key={g.goalId} className="center" title={g.text}>
-                          {g.goalNo}
-                        </th>
-                      ))}
-                      <th className="num">Đ</th>
-                      <th className="num">KĐ</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {ev.rows.length === 0 ? (
+              <>
+                <AssessmentFormHeading title="BẢNG ĐÁNH GIÁ SỰ PHÁT TRIỂN CỦA TRẺ CUỐI CHỦ ĐỀ">
+                  Chủ đề: {ev.themeName} · {ev.className}
+                  {yearLabel ? ` · Năm học ${yearLabel}` : ''}
+                </AssessmentFormHeading>
+                <div className="table-wrap">
+                  <table className="table table--grid table--compact dg-theme-table">
+                    <thead>
                       <tr>
-                        <td colSpan={ev.goals.length + 4}>
-                          <EmptyState title="Chưa có trẻ trong thời gian chủ đề" />
-                        </td>
+                        <th className="num">STT</th>
+                        <th>Họ và tên</th>
+                        {ev.goals.map((g) => (
+                          <th key={g.goalId} className="center" title={g.text}>
+                            MT{g.goalNo}
+                          </th>
+                        ))}
+                        <th className="num">Đ</th>
+                        <th className="num">KĐ</th>
                       </tr>
-                    ) : (
-                      ev.rows.map((r, i) => (
-                        <tr key={r.childId}>
-                          <td className="num">{i + 1}</td>
-                          <td className="nowrap">{r.fullName}</td>
-                          {r.cells.map((c) => {
-                            const value = valueOf(r.childId, c);
-                            const manual = manualOf(r.childId, c);
-                            // Bỏ sửa tay ô đã lưu: chưa biết kết quả hệ thống tính tới khi lưu
-                            // BE cũ chưa trả kết quả tự tính: bỏ sửa tay ô đã lưu thì chưa biết giá trị tới khi lưu
-                            const reverting = c.manual && !manual && c.auto === undefined;
-                            const label = `${r.fullName} – MT ${goalTitle[c.goalId] || ''}: ${
-                              reverting
-                                ? 'về kết quả hệ thống tính khi lưu'
-                                : value === true
-                                  ? 'Đạt'
-                                  : value === false
-                                    ? 'Chưa đạt'
-                                    : 'chưa chấm'
-                            }`;
-                            return (
-                              <td key={c.goalId} className="center">
-                                {ev.canEdit ? (
-                                  <button
-                                    type="button"
-                                    className={`dg-theme-cell ${manual ? 'is-manual' : ''} ${value === false ? 'is-not-met' : ''}`}
-                                    aria-label={label}
-                                    title={label}
-                                    onClick={() => toggle(r.childId, c)}
-                                  >
-                                    {reverting ? '↺' : mark(value) || '·'}
-                                  </button>
-                                ) : (
-                                  <span className={value === false ? 'text-danger' : ''} title={label}>
-                                    {mark(value)}
-                                  </span>
-                                )}
-                              </td>
-                            );
-                          })}
-                          <td className="num">{r.met}</td>
-                          <td className="num">{r.notMet}</td>
+                    </thead>
+                    <tbody>
+                      {ev.rows.length === 0 ? (
+                        <tr>
+                          <td colSpan={ev.goals.length + 4}>
+                            <EmptyState title="Chưa có trẻ trong thời gian chủ đề" />
+                          </td>
                         </tr>
-                      ))
-                    )}
-                  </tbody>
-                  <tfoot>
-                    <tr>
-                      <th colSpan={2}>Tổng số trẻ đạt</th>
-                      {ev.goals.map((g) => (
-                        <th key={g.goalId} className="center">
-                          {g.metChildren}
-                        </th>
-                      ))}
-                      <th />
-                      <th />
-                    </tr>
-                    <tr>
-                      <th colSpan={2}>Tỷ lệ (%)</th>
-                      {ev.goals.map((g) => (
-                        <th key={g.goalId} className="center">
-                          {g.rate == null ? '' : g.rate}
-                        </th>
-                      ))}
-                      <th />
-                      <th />
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
+                      ) : (
+                        ev.rows.map((r, i) => (
+                          <tr key={r.childId}>
+                            <td className="num">{i + 1}</td>
+                            <td className="nowrap">{r.fullName}</td>
+                            {r.cells.map((c) => {
+                              const value = valueOf(r.childId, c);
+                              const manual = manualOf(r.childId, c);
+                              // Bỏ sửa tay ô đã lưu: chưa biết kết quả hệ thống tính tới khi lưu
+                              // BE cũ chưa trả kết quả tự tính: bỏ sửa tay ô đã lưu thì chưa biết giá trị tới khi lưu
+                              const reverting = c.manual && !manual && c.auto === undefined;
+                              const label = `${r.fullName} – MT ${goalTitle[c.goalId] || ''}: ${
+                                reverting
+                                  ? 'về kết quả hệ thống tính khi lưu'
+                                  : value === true
+                                    ? 'Đạt'
+                                    : value === false
+                                      ? 'Chưa đạt'
+                                      : 'chưa chấm'
+                              }`;
+                              return (
+                                <td key={c.goalId} className="center">
+                                  {ev.canEdit ? (
+                                    <button
+                                      disabled={!!busy}
+                                      type="button"
+                                      className={`dg-theme-cell ${manual ? 'is-manual' : ''} ${value === false ? 'is-not-met' : ''}`}
+                                      aria-label={label}
+                                      title={label}
+                                      onClick={() => toggle(r.childId, c)}
+                                    >
+                                      {reverting ? '↺' : mark(value) || '·'}
+                                    </button>
+                                  ) : (
+                                    <span className={value === false ? 'text-danger' : ''} title={label}>
+                                      {mark(value)}
+                                    </span>
+                                  )}
+                                </td>
+                              );
+                            })}
+                            <td className="num">{r.met}</td>
+                            <td className="num">{r.notMet}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                    <tfoot>
+                      <tr>
+                        <th colSpan={2}>Tổng số trẻ đạt</th>
+                        {ev.goals.map((g) => (
+                          <th key={g.goalId} className="center">
+                            {g.metChildren}
+                          </th>
+                        ))}
+                        <th />
+                        <th />
+                      </tr>
+                      <tr>
+                        <th colSpan={2}>Tỷ lệ (%)</th>
+                        {ev.goals.map((g) => (
+                          <th key={g.goalId} className="center">
+                            {g.rate == null ? '' : g.rate}
+                          </th>
+                        ))}
+                        <th />
+                        <th />
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </>
             )}
             <div className="card__body dg-theme-summary">
               <p className="text-sm">
@@ -340,6 +362,7 @@ export default function ThemeEvaluationPage() {
               </label>
               {ev.canEdit ? (
                 <textarea
+                  disabled={!!busy}
                   id="theme-note"
                   className="textarea"
                   rows={3}

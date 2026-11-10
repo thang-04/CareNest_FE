@@ -1,6 +1,6 @@
 import { dayLabel } from '@/utils/menu-planning/menuChecks';
 import { LUNCH_LABELS, LUNCH_TYPES } from '@/utils/menu-planning/weekGridLayout';
-import { mondayOf, SESSION_ORDER } from '@/models/menu-planning/menuPlanningConstants';
+import { mondayOf, schoolWeekStart, SESSION_ORDER } from '@/models/menu-planning/menuPlanningConstants';
 import { isIsoDate } from '@/utils/format';
 
 /*
@@ -10,8 +10,8 @@ import { isIsoDate } from '@/utils/format';
  */
 const text = (v) => (v == null ? '' : String(v).trim());
 
-/** Tuần hợp lệ (thứ Hai) từ tham số URL; thiếu hoặc sai ngày thì lấy tuần của `today`. */
-export const resolveWeekStart = (value, today) => (isIsoDate(value) ? mondayOf(value) : mondayOf(today));
+/** Tuần hợp lệ (thứ Hai) từ tham số URL; thiếu hoặc sai ngày thì lấy tuần học đang chạy của `today`. */
+export const resolveWeekStart = (value, today) => (isIsoDate(value) ? mondayOf(value) : schoolWeekStart(today));
 
 /** Kế hoạch BE -> bản nháp đang sửa. */
 export const draftFromPlan = (plan) => ({

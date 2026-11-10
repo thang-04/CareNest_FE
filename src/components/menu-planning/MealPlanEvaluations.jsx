@@ -116,13 +116,15 @@ export function MealPlanEvaluations({ plan, block }) {
         </span>
       </div>
       <div className="table-wrap">
-        <table className="table table--grid td-eval">
+        <table className="table table--grid table--wrap-head td-eval">
           <thead>
             <tr>
               <th>Chỉ số</th>
-              <th>Định mức / ngày</th>
+              <th className="num">Định mức / ngày</th>
               {dates.map((date) => (
-                <th key={date}>{dayLabel(date)}</th>
+                <th key={date} className="num">
+                  {dayLabel(date)}
+                </th>
               ))}
             </tr>
           </thead>

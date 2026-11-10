@@ -68,15 +68,33 @@ export function IndicatorAmounts({ totals, title = 'Lượng thực tế' }) {
   );
 }
 
+/** Dải tiêu đề nhóm trong bảng cân đối (5 cột); tone = màu nền nhóm (info · success · warning · gray). */
+function SectionRow({ title, tone }) {
+  return (
+    <tr className={`td-nut-sec td-nut-sec--${tone}`}>
+      <th scope="colgroup" colSpan={5}>
+        {title}
+      </th>
+    </tr>
+  );
+}
+
 /**
- * Cân đối khẩu phần một ngày (GBR-MENU-02): ba loại số tách riêng — lượng thực tế (g, kcal), tỷ lệ cơ cấu (%),
- * mức đạt định mức (%). Chỉ số liệu, không lời khuyên sức khỏe. result = mealsTotals(...) → { totals, missing, cost }.
+ * Cân đối khẩu phần một ngày (GBR-MENU-02): một bảng thống nhất 5 cột (Chỉ số · Thực tế · Định mức · % đạt · Đánh giá), chia 4
+ * nhóm: năng lượng và chất sinh năng lượng, cơ cấu (%), khoáng chất và vitamin, chi phí. Chỉ số liệu, không lời khuyên sức khỏe.
+ * result = mealsTotals(...) → { totals, missing, cost }.
  */
 export function NutritionTable({ result, ageGroupId, norms, price, setups }) {
   const scope = setups ? mealsOf(setups, ageGroupId).map((m) => m.name) : [];
   const incomplete = (result?.missing || []).length > 0;
   const rows = compareToNorm(result?.totals, ageGroupId, incomplete, norms);
   const byKey = Object.fromEntries(rows.map((r) => [r.key, r]));
+  const t = result?.totals || {};
+  // Đạm, béo hiện kèm phần chia động vật / thực vật ngay dưới tên chỉ số
+  const origin = {
+    protein: `Động vật ${fmt(t.animalProtein)} g · thực vật ${fmt(t.plantProtein)} g`,
+    lipid: `Động vật ${fmt(t.animalLipid)} g · thực vật ${fmt(t.plantLipid)} g`,
+  };
   return (
     <>
       {incomplete && (
@@ -88,25 +106,55 @@ export function NutritionTable({ result, ageGroupId, norms, price, setups }) {
           </div>
         </div>
       )}
-      <IndicatorAmounts totals={result?.totals} title="Lượng thực tế / trẻ / ngày" />
-
-      <div className="table-wrap mt-12">
-        <table className="table table--grid table--compact">
+      <div className="table-wrap">
+        <table className="table table--grid table--compact td-nut-table">
+          <colgroup>
+            <col className="td-nut-table__c1" />
+            <col />
+            <col />
+            <col />
+            <col className="td-nut-table__c5" />
+          </colgroup>
           <thead>
             <tr>
-              <th>Tỷ lệ cơ cấu (%)</th>
+              <th>Chỉ số (1 trẻ / ngày)</th>
               <th className="num">Thực tế</th>
               <th className="num">Định mức</th>
-              <th>Đánh giá</th>
+              <th className="num">% đạt</th>
+              <th className="center">Đánh giá</th>
             </tr>
           </thead>
           <tbody>
+            <SectionRow title="Năng lượng và chất sinh năng lượng" tone="info" />
+            {['kcal', 'protein', 'lipid', 'glucid'].map((k) => {
+              const r = byKey[k];
+              const unit = k === 'kcal' ? 'kcal' : 'g';
+              return (
+                <tr key={k}>
+                  <td>
+                    {TARGET_LABELS[k]}
+                    {origin[k] && <div className="text-xs muted">{origin[k]}</div>}
+                  </td>
+                  <td className="num nowrap fw-600">
+                    {fmt(r.value)} {unit}
+                  </td>
+                  <td className="num nowrap">{r.target == null ? 'Chưa đặt' : `${fmt(r.target)} ${unit}`}</td>
+                  <td className="num">{pct(r.attainment)}</td>
+                  <td className="center">
+                    {k === 'kcal' ? <NormStatusChip status={r.status} /> : <span className="muted text-sm">Theo tỷ lệ năng lượng</span>}
+                  </td>
+                </tr>
+              );
+            })}
+
+            <SectionRow title="Cơ cấu năng lượng và nguồn đạm, béo (%)" tone="success" />
             {['animalProteinPct', 'animalLipidPct'].map((k) => (
               <tr key={k}>
                 <td>{SHARE_LABELS[k]}</td>
-                <td className="num">{pct(byKey[k].value)}</td>
+                <td className="num nowrap fw-600">{pct(byKey[k].value)}</td>
                 <td className="num nowrap">{range(byKey[k])}</td>
-                <td>
+                <td className="num muted">—</td>
+                <td className="center">
                   <NormStatusChip status={byKey[k].status} />
                 </td>
               </tr>
@@ -114,94 +162,53 @@ export function NutritionTable({ result, ageGroupId, norms, price, setups }) {
             {['protein', 'lipid', 'glucid'].map((k) => (
               <tr key={k}>
                 <td>{ENERGY_LABELS[k]}</td>
-                <td className="num">{pct(byKey[k].percent)}</td>
+                <td className="num nowrap fw-600">{pct(byKey[k].percent)}</td>
                 <td className="num nowrap">{range(byKey[k])}</td>
-                <td>
+                <td className="num muted">—</td>
+                <td className="center">
                   <NormStatusChip status={byKey[k].status} />
                 </td>
               </tr>
             ))}
-          </tbody>
-        </table>
-      </div>
 
-      <div className="table-wrap mt-12">
-        <table className="table table--grid table--compact">
-          <thead>
-            <tr>
-              <th>Mức đạt định mức (%)</th>
-              <th className="num">Thực tế</th>
-              <th className="num">Mục tiêu</th>
-              <th className="num">% đạt</th>
-              <th>Đánh giá</th>
-            </tr>
-          </thead>
-          <tbody>
-            {['kcal', 'protein', 'lipid', 'glucid'].map((k) => {
-              const r = byKey[k];
-              const unit = k === 'kcal' ? 'kcal' : 'g';
-              return (
-                <tr key={k}>
-                  <td>{TARGET_LABELS[k]}</td>
-                  <td className="num nowrap">
-                    {fmt(r.value)} {unit}
-                  </td>
-                  <td className="num nowrap">{r.target == null ? 'Chưa đặt' : `${fmt(r.target)} ${unit}`}</td>
-                  <td className="num">{pct(r.attainment)}</td>
-                  <td>
-                    {k === 'kcal' ? <NormStatusChip status={r.status} /> : <span className="muted text-sm">Theo tỷ lệ năng lượng</span>}
-                  </td>
-                </tr>
-              );
-            })}
-            {result && (
-              <tr>
-                <td>Chi phí thực phẩm ước tính</td>
-                <td className="money nowrap">{formatMoney(result.cost)}</td>
-                <td className="money nowrap">{price ? formatMoney(price) : 'Chưa có giá'}</td>
-                <td className="num">{price ? pct(Math.round((result.cost * 100) / price)) : '—'}</td>
-                <td>
-                  {price ? (
-                    <StatusBadge
-                      tone={result.cost > price ? 'orange' : 'green'}
-                      label={result.cost > price ? 'Vượt giá suất ăn' : 'Trong giá suất ăn'}
-                    />
-                  ) : (
-                    <StatusBadge tone="gray" label="Chưa đủ dữ liệu" />
-                  )}
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-      <div className="table-wrap mt-12">
-        <table className="table table--grid table--compact">
-          <thead>
-            <tr>
-              <th>Khoáng chất, vitamin</th>
-              <th className="num">Thực tế</th>
-              <th className="num">Định mức</th>
-              <th className="num">% đạt</th>
-              <th>Đánh giá</th>
-            </tr>
-          </thead>
-          <tbody>
+            <SectionRow title="Khoáng chất, vitamin" tone="warning" />
             {MICRONUTRIENTS.map((k) => {
               const r = byKey[k];
               const unit = MICRONUTRIENT_UNITS[k];
               return (
                 <tr key={k}>
                   <td>{MICRONUTRIENT_LABELS[k]}</td>
-                  <td className="num nowrap">{r.value == null ? '—' : `${fmt2(r.value)} ${unit}`}</td>
+                  <td className="num nowrap fw-600">{r.value == null ? '—' : `${fmt2(r.value)} ${unit}`}</td>
                   <td className="num nowrap">{microRange(r, unit)}</td>
                   <td className="num">{pct(r.attainment)}</td>
-                  <td>
+                  <td className="center">
                     <NormStatusChip status={r.status} />
                   </td>
                 </tr>
               );
             })}
+
+            {result && (
+              <>
+                <SectionRow title="Chi phí" tone="gray" />
+                <tr>
+                  <td>Chi phí thực phẩm ước tính</td>
+                  <td className="num nowrap fw-600">{formatMoney(result.cost)}</td>
+                  <td className="num nowrap">{price ? formatMoney(price) : 'Chưa có giá'}</td>
+                  <td className="num">{price ? pct(Math.round((result.cost * 100) / price)) : '—'}</td>
+                  <td className="center">
+                    {price ? (
+                      <StatusBadge
+                        tone={result.cost > price ? 'orange' : 'green'}
+                        label={result.cost > price ? 'Vượt giá suất ăn' : 'Trong giá suất ăn'}
+                      />
+                    ) : (
+                      <StatusBadge tone="gray" label="Chưa đủ dữ liệu" />
+                    )}
+                  </td>
+                </tr>
+              </>
+            )}
           </tbody>
         </table>
       </div>

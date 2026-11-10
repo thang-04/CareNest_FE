@@ -20,11 +20,12 @@ export const countsToForm = (counts = []) =>
 export const forecastInputKey = (form) =>
   JSON.stringify([form.campusId, form.periodFrom, form.periodTo, (form.counts || []).map((c) => [c.ageGroupId, c.expectedCount])]);
 
-/** Lỗi theo ô: kỳ phải là ngày đủ, số trẻ dự kiến là số nguyên từ 0. Thứ tự ngày và độ dài kỳ do BE kiểm. */
+/** Lỗi theo ô: kỳ phải là ngày đủ và đúng thứ tự, số trẻ dự kiến là số nguyên từ 0. Độ dài kỳ do BE kiểm. */
 export const validateForecastForm = (form) => {
   const errors = {};
   if (!isIsoDate(form.periodFrom)) errors.periodFrom = 'Chọn ngày bắt đầu kỳ dự trù';
   if (!isIsoDate(form.periodTo)) errors.periodTo = 'Chọn ngày kết thúc kỳ dự trù';
+  if (!errors.periodFrom && !errors.periodTo && form.periodFrom > form.periodTo) errors.periodTo = 'Đến ngày phải sau Từ ngày';
   (form.counts || []).forEach((count, i) => {
     const n = Number(count.expectedCount);
     if (blank(count.expectedCount) || !Number.isInteger(n) || n < 0) errors[`counts.${i}`] = 'Nhập số nguyên từ 0';

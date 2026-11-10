@@ -130,9 +130,9 @@ export default function SchoolYearListPage() {
             <table className="table table--grid table--compact">
               <thead>
                 <tr>
-                  <th>Năm học</th>
-                  <th>Bắt đầu</th>
-                  <th>Kết thúc</th>
+                  <th className="center">Năm học</th>
+                  <th className="center">Bắt đầu</th>
+                  <th className="center">Kết thúc</th>
                   <th className="num">Số lớp</th>
                   <th className="center">Trạng thái</th>
                   <th className="cell--actions">Thao tác</th>
@@ -161,7 +161,7 @@ export default function SchoolYearListPage() {
                 ) : (
                   years.map((y) => (
                     <tr key={y.id} className={y.id === preparing?.id ? 'is-selected' : undefined}>
-                      <td className="fw-600 text-primary">
+                      <td className="fw-600 text-primary center">
                         {canConfigureSchool(user) && y.status === YEAR_STATUS.PLANNED ? (
                           <button
                             type="button"
@@ -175,8 +175,8 @@ export default function SchoolYearListPage() {
                           y.name
                         )}
                       </td>
-                      <td>{formatDate(y.startDate)}</td>
-                      <td>{formatDate(y.endDate)}</td>
+                      <td className="center">{formatDate(y.startDate)}</td>
+                      <td className="center">{formatDate(y.endDate)}</td>
                       <td className="num">{y.classCount}</td>
                       <td className="center">
                         <YearStatusBadge status={y.status} />

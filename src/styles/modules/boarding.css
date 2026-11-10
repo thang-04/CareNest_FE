@@ -8,25 +8,47 @@
   margin-bottom: var(--space-4);
 }
 
-.bd-stack {
-  display: grid;
-  gap: var(--space-4);
-  min-width: 0;
+/* Bảng việc × điểm trường: cột đầu là việc, mỗi điểm trường một cột; ô gồm huy hiệu, chi tiết, nút xử lý */
+.bd-matrix {
+  min-width: 640px;
+  table-layout: fixed;
 }
-
-.table.table--grid .bd-title {
-  text-align: left;
+.bd-matrix th:first-child {
+  width: 200px;
+}
+.bd-matrix td {
+  vertical-align: top;
+}
+.bd-matrix__task {
+  vertical-align: top;
   font-weight: var(--fw-semibold);
-  white-space: nowrap;
+  text-align: left;
 }
-
+.bd-matrix__icon {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin-right: var(--space-2);
+  border-radius: var(--radius-md);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  vertical-align: middle;
+}
+.bd-cell {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-2);
+  padding-block: var(--space-1);
+}
 .bd-detail {
+  margin: 0;
   color: var(--color-text-secondary);
+  font-size: var(--fs-sm);
+  overflow-wrap: anywhere;
 }
-
 .bd-actions {
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-end;
   gap: var(--space-2);
 }

@@ -3,9 +3,23 @@
  * Ở kế hoạch tuần, người lập chọn mẫu cho từng ngày; món của mẫu được điền vào bản nháp và vẫn sửa được từng món.
  */
 
+/** Thứ trong tuần của ngày yyyy-mm-dd: 1 = Thứ Hai … 7 = Chủ nhật. */
+const isoWeekday = (date) => new Date(`${date}T00:00:00`).getDay() || 7;
+
+/**
+ * Món của mẫu dùng cho một ngày kế hoạch. Mẫu một ngày: toàn bộ món. Bộ 4 tuần (BE `main`): các món của Tuần 1,
+ * cùng thứ với ngày kế hoạch (user chốt 2026-11-06); thứ chưa có món ⇒ mảng rỗng.
+ */
+export const templateItemsForDate = (template, date) => {
+  const items = template?.items || [];
+  // Mẫu ngày dùng được cho mọi thứ trong tuần; mẫu tuần, tháng lấy đúng thứ của Tuần 1
+  if (templateKind(items) === TEMPLATE_KIND.DAY) return items;
+  return items.filter((item) => item.weekNo === 1 && item.weekday === isoWeekday(date));
+};
+
 /** Món của mẫu → dạng món trong bản nháp kế hoạch tuần (khối của mẫu). */
-export const templatePlanItems = (template) =>
-  (template?.items || []).map((item) => ({
+export const templatePlanItems = (template, date) =>
+  templateItemsForDate(template, date).map((item) => ({
     session: item.session,
     block: template.block,
     dishId: String(item.dishId),
@@ -23,7 +37,7 @@ export const applyTemplateDay = (planDraft, date, template) => ({
   days: planDraft.days.map((day) =>
     day.date !== date || day.off
       ? day
-      : { ...day, items: [...day.items.filter((item) => item.block !== template.block), ...templatePlanItems(template)] },
+      : { ...day, items: [...day.items.filter((item) => item.block !== template.block), ...templatePlanItems(template, date)] },
   ),
 });
 
@@ -36,8 +50,49 @@ export const toTemplateRequest = (form) => ({
   name: String(form.name || '').trim(),
   seasonLabel: String(form.seasonLabel || '').trim(),
   block: form.block,
-  items: form.items.map(({ session, dishId }) => ({ session, dishId })),
+  // weekNo / weekday chỉ gửi khi món thuộc một ngày của bộ 4 tuần (BE hiện tại bắt buộc); mẫu một ngày không có
+  items: form.items.map(({ session, dishId, weekNo, weekday }) => ({
+    ...(weekNo != null ? { weekNo, weekday } : {}),
+    session,
+    dishId,
+  })),
 });
+
+export const TEMPLATE_NAME_MAX = 100;
+const COPY_SUFFIX = ' (bản sao)';
+
+/** Tên gợi ý cho bản sao của một mẫu; cắt bớt để vừa giới hạn tên. */
+export const copyTemplateName = (name) => `${String(name || '').slice(0, TEMPLATE_NAME_MAX - COPY_SUFFIX.length)}${COPY_SUFFIX}`;
+
+/*
+ * Bộ mẫu theo ngày: BE trả món kèm `weekNo` (1–4) và `weekday` (1–5). Màn xem / sửa chỉ hiện một ngày của bộ
+ * ("Tuần 2 · Thứ Tư"), không gộp mọi ngày vào một danh sách.
+ */
+export const DEFAULT_DAY = { weekNo: 1, weekday: 1 };
+export const TEMPLATE_WEEKS = [1, 2, 3, 4];
+export const TEMPLATE_WEEKDAYS = [1, 2, 3, 4, 5];
+
+export const TEMPLATE_KIND = { DAY: 'DAY', WEEK: 'WEEK', MONTH: 'MONTH' };
+export const TEMPLATE_KIND_LABELS = { DAY: 'Mẫu ngày', WEEK: 'Mẫu tuần', MONTH: 'Mẫu tháng' };
+
+/** BE chưa lưu loại mẫu nên suy từ các ngày có món: nhiều tuần = tháng, nhiều thứ trong một tuần = tuần, còn lại = ngày. */
+export const templateKind = (items = []) => {
+  const dated = items.filter((item) => item.weekNo != null);
+  if (new Set(dated.map((item) => item.weekNo)).size > 1) return TEMPLATE_KIND.MONTH;
+  return new Set(dated.map((item) => item.weekday)).size > 1 ? TEMPLATE_KIND.WEEK : TEMPLATE_KIND.DAY;
+};
+
+/** Món có gắn ngày (bộ 4 tuần) hay không; không thì mẫu là một ngày duy nhất. */
+export const hasTemplateDays = (items = []) => items.some((item) => item.weekNo != null);
+
+export const sameDay = (item, day) => !day || (item.weekNo === day.weekNo && item.weekday === day.weekday);
+
+/** Món của đúng một ngày trong bộ; không chọn ngày thì giữ nguyên (mẫu một ngày). */
+export const dayItems = (items = [], day) => items.filter((item) => sameDay(item, day));
+
+/** Số món của từng ngày: { 'weekNo-weekday': n }, để đánh dấu ngày đã có món. */
+export const dayCounts = (items = []) =>
+  items.reduce((acc, item) => ({ ...acc, [`${item.weekNo}-${item.weekday}`]: (acc[`${item.weekNo}-${item.weekday}`] || 0) + 1 }), {});
 
 /** Món của mẫu → body món của `POST /nutrition/menu-statistics` (tính dinh dưỡng một ngày cho một nhóm tuổi). */
 export const toStatisticsItems = (items = []) => items.map(({ session, dishId }) => ({ session, dishId }));

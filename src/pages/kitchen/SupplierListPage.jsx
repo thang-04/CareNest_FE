@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Plus, RotateCcw } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSuppliers } from '@/hooks/kitchen/useKitchen';
@@ -8,6 +8,7 @@ import { Breadcrumb, EmptyState, ErrorState, Pagination, RowActions, SkeletonRow
 import { FilterChips } from '@/components/ui/FilterChips';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { SupplierStatusBadge } from '@/components/kitchen/KitchenBadges';
+import { SupplierEditModal } from '@/components/kitchen/SupplierEditModal';
 import { canEditSuppliers } from '@/services/kitchen/kitchenService';
 import { supplierCrumbs } from '@/utils/kitchen/breadcrumbs';
 import { clickableRowProps } from '@/utils/clickableRow';
@@ -25,6 +26,8 @@ export default function SupplierListPage() {
   const [filters, setFilters, resetFilters, activeKeys] = useFilterParams(FILTER_DEFAULTS);
   const { keyword, status } = filters;
   const [page, setPage] = useState(1);
+  // null = đóng; '' = thêm mới; id = sửa nhà cung cấp đó trong modal
+  const [editing, setEditing] = useState(null);
   const { data, loading, error, reload } = useSuppliers({ keyword, status });
   const rows = data || [];
   const filtered = activeKeys.length > 0;
@@ -50,14 +53,14 @@ export default function SupplierListPage() {
         </div>
         {canManage && (
           <div className="page__actions">
-            <Link className="btn btn--primary" to="/menu/suppliers/new">
+            <button type="button" className="btn btn--primary" onClick={() => setEditing('')}>
               <Plus size={16} /> Thêm nhà cung cấp
-            </Link>
+            </button>
           </div>
         )}
       </div>
       <section className="card">
-        <div className="filter-bar">
+        <div className="filter-bar filter-bar--aligned">
           <SearchSubmit
             className="flex-1"
             value={keyword}
@@ -85,10 +88,10 @@ export default function SupplierListPage() {
             <table className="table table--grid">
               <thead>
                 <tr>
-                  <th>Mã NCC</th>
+                  <th className="center">Mã NCC</th>
                   <th>Tên nhà cung cấp</th>
                   <th>Người liên hệ</th>
-                  <th>Số điện thoại</th>
+                  <th className="center">Số điện thoại</th>
                   <th className="num">Số phiếu nhập</th>
                   <th className="center">Trạng thái</th>
                   <th className="cell--actions">Thao tác</th>
@@ -116,9 +119,9 @@ export default function SupplierListPage() {
                             </button>
                           ) : (
                             canManage && (
-                              <Link className="btn btn--primary" to="/menu/suppliers/new">
+                              <button type="button" className="btn btn--primary" onClick={() => setEditing('')}>
                                 <Plus size={16} /> Thêm nhà cung cấp
-                              </Link>
+                              </button>
                             )
                           )
                         }
@@ -128,16 +131,16 @@ export default function SupplierListPage() {
                 ) : (
                   paginate(rows, safePage, PAGE).map((s) => (
                     <tr key={s.id} className="row-click" {...clickableRowProps(() => open(s))}>
-                      <td className="fw-600 text-primary">{s.code || <span className="muted">—</span>}</td>
+                      <td className="fw-600 text-primary center">{s.code || <span className="muted">—</span>}</td>
                       <td>{s.name}</td>
                       <td>{s.contactName || <span className="muted">—</span>}</td>
-                      <td className="nowrap">{s.phone || <span className="muted">—</span>}</td>
+                      <td className="nowrap center">{s.phone || <span className="muted">—</span>}</td>
                       <td className="num">{s.receiptCount ?? <span className="muted">—</span>}</td>
                       <td className="center">
                         <SupplierStatusBadge status={s.status} />
                       </td>
                       <td className="cell--actions">
-                        {canManage && <RowActions edit={{ to: `/menu/suppliers/${s.id}/edit` }} name={s.name} />}
+                        {canManage && <RowActions edit={{ onClick: () => setEditing(s.id) }} name={s.name} />}
                       </td>
                     </tr>
                   ))
@@ -150,6 +153,9 @@ export default function SupplierListPage() {
           <Pagination page={safePage} total={rows.length} onChange={setPage} pageSize={PAGE} unit="nhà cung cấp" />
         )}
       </section>
+      {editing !== null && (
+        <SupplierEditModal supplierId={editing} onClose={() => setEditing(null)} onSaved={() => reload({ silent: true })} />
+      )}
     </div>
   );
 }

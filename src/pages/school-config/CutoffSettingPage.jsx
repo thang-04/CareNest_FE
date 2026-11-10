@@ -11,6 +11,7 @@ import { ErrorState, LoadingState, Spinner } from '@/components/ui/States';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
+import { DateInput } from '@/components/form/DateInput';
 import { FormField } from '@/components/form/FormField';
 import { Pagination, paginate } from '@/components/ui/Pagination';
 import { ScNoAccess } from '@/components/school-config/ScNoAccess';
@@ -185,13 +186,11 @@ export default function CutoffSettingPage() {
                         <input className="input" type="time" value={form.time} onChange={(e) => set({ time: e.target.value })} />
                       </FormField>
                       <FormField label="Áp dụng từ ngày" required error={errors.effectiveFrom}>
-                        <input
-                          className="input"
-                          type="date"
+                        <DateInput
                           min={todayInput() > year.startDate ? todayInput() : year.startDate}
                           max={year.endDate}
                           value={form.effectiveFrom}
-                          onChange={(e) => set({ effectiveFrom: e.target.value })}
+                          onChange={(value) => set({ effectiveFrom: value })}
                         />
                       </FormField>
                     </div>
@@ -223,11 +222,11 @@ export default function CutoffSettingPage() {
               <table className="table table--grid table--compact">
                 <thead>
                   <tr>
-                    <th>Thời điểm</th>
+                    <th className="center">Thời điểm</th>
                     <th>Người thay đổi</th>
-                    <th>Giờ cũ</th>
-                    <th>Giờ mới</th>
-                    <th>Áp dụng từ</th>
+                    <th className="center">Giờ cũ</th>
+                    <th className="center">Giờ mới</th>
+                    <th className="center">Áp dụng từ</th>
                     <th>Ghi chú</th>
                   </tr>
                 </thead>
@@ -246,11 +245,11 @@ export default function CutoffSettingPage() {
                       5,
                     ).map((h) => (
                       <tr key={`${h.at}-${h.time}`}>
-                        <td className="nowrap">{formatDateTime(h.at)}</td>
+                        <td className="nowrap center">{formatDateTime(h.at)}</td>
                         <td>{h.userName || md.userById(h.userId)?.fullName || h.userId}</td>
-                        <td>{h.previousTime || '—'}</td>
-                        <td className="fw-600">{h.time}</td>
-                        <td>{formatDate(h.effectiveFrom)}</td>
+                        <td className="center">{h.previousTime || '—'}</td>
+                        <td className="fw-600 center">{h.time}</td>
+                        <td className="center">{formatDate(h.effectiveFrom)}</td>
                         <td className="sc-wrap">{h.note || <span className="muted">—</span>}</td>
                       </tr>
                     ))

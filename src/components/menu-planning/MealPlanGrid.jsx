@@ -2,8 +2,9 @@ import { Fragment, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, X } from '@/components/ui/icons';
 import { SearchSelect } from '@/components/ui/SearchSelect';
-import { dishTypeClass } from '@/utils/menu-planning/dishTypeClass';
+import { dishTypeClass } from '@/utils/dishTypeClass';
 import { StatusBadge } from '@/components/ui/StatusBadge';
+import { DishKcal } from '@/components/menu-planning/MenuBadges';
 import { DISH_TYPE_LABELS, MEAL_SESSION_LABELS, WEEKDAY_LABELS } from '@/models/menu-planning/menuPlanningConstants';
 import {
   addDish,
@@ -40,6 +41,7 @@ export function MealPlanGrid({
   dayLink,
   templates,
   onPickTemplate,
+  kcalAgeGroup,
 }) {
   const dishById = useMemo(() => Object.fromEntries(dishes.map((dish) => [String(dish.id), dish])), [dishes]);
   const sections = gridSections(draft, block, sessions, { keepEmpty: !!editable });
@@ -62,6 +64,7 @@ export function MealPlanGrid({
             {items.map((item) => (
               <li key={item.dishId} className={`td-dish ${dishTypeClass(item.dishType)}`}>
                 <span className="td-grow">{item.dishName || 'Món đã xóa'}</span>
+                <DishKcal dish={dishById[String(item.dishId)]} ageGroup={kcalAgeGroup} />
                 {editable && (
                   <button
                     type="button"
@@ -151,8 +154,8 @@ export function MealPlanGrid({
                       <SearchSelect
                         size="sm"
                         value=""
-                        placeholder="Chọn mẫu ngày"
-                        ariaLabel={`Chọn mẫu ngày cho ${WEEKDAY_LABELS[i]}`}
+                        placeholder="Chọn mẫu"
+                        ariaLabel={`Chọn mẫu cho ${WEEKDAY_LABELS[i]}`}
                         disabled={busy}
                         options={templates.map((t) => ({ value: String(t.id), label: t.name, hint: t.seasonLabel || undefined }))}
                         onChange={(id) =>

@@ -192,3 +192,40 @@ test('module day-board khai source api cho /boarding', () => {
   assert.deepEqual(mod.routes, ['/boarding']);
   assert.deepEqual(mod.files, ['src/services/dayBoardApi.js']);
 });
+
+test('summarizeBoardRows đếm việc theo nhóm tông trạng thái của mọi điểm trường', async () => {
+  const { summarizeBoardRows } = await import('@/utils/boarding/dayBoardRows');
+  const rows = [{ tone: 'red' }, { tone: 'orange' }, { tone: 'purple' }, { tone: 'green' }, { tone: 'gray' }, { tone: 'unknown' }];
+  assert.deepEqual(summarizeBoardRows([rows, [{ tone: 'green' }]]), { attention: 1, waiting: 2, done: 2, idle: 2 });
+});
+
+test('NUT-11: kho khô sắp thiếu ⇒ thêm câu nhắc ngày bắt đầu thiếu và nút Bản dự trù; đủ kho thì không nhắc', () => {
+  const row = rowOf(
+    buildDayBoardRows(
+      campus({
+        dryStock: {
+          status: 'DEDUCTED',
+          foodCount: 8,
+          shortfallFoodCount: 0,
+          openShortfallCount: 0,
+          upcomingShortFoodCount: 3,
+          upcomingShortFrom: '2026-11-11',
+        },
+      }),
+    ),
+    'dryStock',
+  );
+  assert.equal(row.tone, 'green');
+  assert.match(row.detail, /Sắp thiếu 3 thực phẩm khô từ thứ Tư 11\/11/);
+  assert.deepEqual(
+    row.actions.map((a) => a.to),
+    ['/kitchen/stock-history?campusId=1', '/kitchen/forecast?campusId=1'],
+  );
+
+  const enough = rowOf(
+    buildDayBoardRows(campus({ dryStock: { status: 'DEDUCTED', foodCount: 8, upcomingShortFoodCount: 0, upcomingShortFrom: null } })),
+    'dryStock',
+  );
+  assert.doesNotMatch(enough.detail, /Sắp thiếu/);
+  assert.equal(enough.actions.length, 1);
+});

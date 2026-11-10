@@ -37,7 +37,6 @@ import {
 } from '@/models/kitchen/kitchenConstants';
 import {
   canAccessCampus,
-  isVicePrincipal,
   canManageStock,
   canViewDryStock,
   canWriteStock,
@@ -1084,11 +1083,11 @@ const freshView = (db, campusId, date, user) => {
     lines,
     counts: Object.fromEntries(Object.values(FRESH_RESULT).map((r) => [r, lines.filter((l) => l.result === r).length])),
     canEdit: editable && isKitchenStaff(user) && canAccessCampus(user, campusId),
-    canReview: status === FRESH_RECEIPT_STATUS.SUBMITTED && isVicePrincipal(user) && canAccessCampus(user, campusId),
+    canReview: status === FRESH_RECEIPT_STATUS.SUBMITTED && canManageStock(user) && canAccessCampus(user, campusId),
     canMarkNotified:
       !!stored &&
       status !== FRESH_RECEIPT_STATUS.CONFIRMED &&
-      (isKitchenStaff(user) || isVicePrincipal(user)) &&
+      (isKitchenStaff(user) || canManageStock(user)) &&
       canAccessCampus(user, campusId),
   };
 };
@@ -2060,7 +2059,7 @@ const kitchenRepository = {
   /** PHT xác nhận kết quả cuối (khóa phiếu) hoặc trả bếp kiểm lại kèm ghi chú. */
   async reviewFreshReceipt({ campusId, date, approve, note = '' }, user) {
     await delay();
-    guard(isVicePrincipal(user) && canAccessCampus(user, campusId));
+    guard(canManageStock(user) && canAccessCampus(user, campusId));
     if (!approve && !String(note).trim()) invalid({ note: 'Ghi điều bếp cần kiểm lại.' });
     if (String(note).length > NOTE_MAX) invalid({ note: `Ghi chú tối đa ${NOTE_MAX} ký tự.` });
     return writeDb((db) => {
@@ -2089,7 +2088,7 @@ const kitchenRepository = {
   /** Đánh dấu đã báo NCC dòng thiếu / trả lại (bếp hoặc PHT), tới khi PHT xác nhận. */
   async setFreshSupplierNotified({ campusId, date, foodId, notified }, user) {
     await delay();
-    guard((isKitchenStaff(user) || isVicePrincipal(user)) && canAccessCampus(user, campusId));
+    guard((isKitchenStaff(user) || canManageStock(user)) && canAccessCampus(user, campusId));
     return writeDb((db) => {
       ensureSeeded(db);
       const receipt = db.freshReceipts.find((r) => r.campusId === campusId && r.date === date);

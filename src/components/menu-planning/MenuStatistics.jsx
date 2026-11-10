@@ -1,5 +1,8 @@
-import { StatusBadge } from '@/components/ui/StatusBadge';
-import { MEAL_SESSION_LABELS, SESSION_ORDER, formatMoney } from '@/models/menu-planning/menuPlanningConstants';
+import { EmptyState } from '@/components/ui/States';
+import { NormRowBadge } from '@/components/menu-planning/MenuBadges';
+import { DISH_TYPE_LABELS, MEAL_SESSION_LABELS, SESSION_ORDER, formatMoney } from '@/models/menu-planning/menuPlanningConstants';
+import { dishTypeClass } from '@/utils/dishTypeClass';
+import { dishNutrition } from '@/utils/menu-planning/menuStatistics';
 
 /*
  * Bảng thống kê một ngày thực đơn cho N trẻ (BE `POST /nutrition/menu-statistics`): thực phẩm × N trẻ, bảng dinh dưỡng
@@ -9,28 +12,54 @@ const num = (v, digits = 1) => (v == null || v === '' ? '—' : Number(v).toLoca
 const BIG_UNITS = { g: 'kg', ml: 'lít' };
 const big = (v, unit) => (BIG_UNITS[unit] ? `${num(Number(v) / 1000, 2)} ${BIG_UNITS[unit]}` : `${num(v, 2)} ${unit || ''}`);
 const range = (row, suffix = '') => (row?.min == null ? 'Chưa đặt' : `${num(row.min)}–${num(row.max)}${suffix}`);
-const TONES = { OK: 'green', LOW: 'orange', HIGH: 'red', INCOMPLETE: 'gray', NA: 'gray' };
-const STATUS_LABELS = { OK: 'Đạt', LOW: 'Thiếu', HIGH: 'Vượt', INCOMPLETE: 'Thiếu số liệu', NA: 'Chưa đặt' };
-const cellTone = (row) => (row?.status === 'LOW' || row?.status === 'HIGH' ? 'td-stat--off' : row?.status === 'OK' ? 'td-stat--ok' : '');
+const CELL_TONES = { OK: 'td-stat--ok', LOW: 'td-stat--low', HIGH: 'td-stat--high' };
+const cellTone = (row) => CELL_TONES[row?.status] || '';
 
-/** Món theo bữa, xếp sáng → trưa → chiều. */
-export function StatisticsDishes({ dishes }) {
+/** Bảng món theo bữa (sáng → trưa → chiều); số một suất đọc từ danh mục món theo nhóm tuổi đang xem. */
+export function StatisticsDishes({ dishes, catalog, ageGroup }) {
+  if (!dishes.length) return <EmptyState title="Ngày này chưa có món" description="Nhóm tuổi này chưa có món trong ngày." />;
+  const byId = Object.fromEntries((catalog || []).map((d) => [String(d.id), d]));
   const sessions = SESSION_ORDER.filter((s) => dishes.some((d) => d.session === s));
-  if (!dishes.length) return <p className="muted text-sm">Ngày này chưa có món cho nhóm tuổi.</p>;
   return (
-    <div className="td-stat-dishes">
-      {sessions.map((s) => (
-        <div key={s}>
-          <h3 className="td-stat-dishes__title">{MEAL_SESSION_LABELS[s] || s}</h3>
-          <ol>
-            {dishes
-              .filter((d) => d.session === s)
-              .map((d) => (
-                <li key={d.dishId}>{d.dishName}</li>
-              ))}
-          </ol>
-        </div>
-      ))}
+    <div className="table-wrap">
+      <table className="table table--grid table--compact td-stat-table">
+        <thead>
+          <tr>
+            <th>Bữa ăn</th>
+            <th>Món ăn</th>
+            <th className="center">Loại món</th>
+            <th className="num">Năng lượng (kcal)</th>
+            <th className="num">Đạm (g)</th>
+            <th className="num">Béo (g)</th>
+            <th className="num">Bột đường (g)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sessions.flatMap((s) => {
+            const rows = dishes.filter((d) => d.session === s);
+            return rows.map((d, i) => {
+              const n = dishNutrition(byId[String(d.dishId)], ageGroup);
+              return (
+                <tr key={`${s}-${d.dishId}`}>
+                  {i === 0 && (
+                    <th scope="rowgroup" rowSpan={rows.length} className="td-stat-table__session">
+                      {MEAL_SESSION_LABELS[s] || s}
+                    </th>
+                  )}
+                  <td>{d.dishName}</td>
+                  <td className="center">
+                    <span className={`td-dish-type ${dishTypeClass(d.dishType)}`}>{DISH_TYPE_LABELS[d.dishType] || 'Món khác'}</span>
+                  </td>
+                  <td className="num">{num(n?.kcal)}</td>
+                  <td className="num">{num(n?.protein)}</td>
+                  <td className="num">{num(n?.lipid)}</td>
+                  <td className="num">{num(n?.glucid)}</td>
+                </tr>
+              );
+            });
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -40,7 +69,7 @@ export function StatisticsIngredients({ stats }) {
   const n = stats.children;
   return (
     <div className="table-wrap">
-      <table className="table table--grid table--compact td-stat-table">
+      <table className="table table--grid table--compact table--wrap-head td-stat-table">
         <thead>
           <tr>
             <th className="num">#</th>
@@ -50,7 +79,7 @@ export function StatisticsIngredients({ stats }) {
             <th className="num">Thải bỏ (%)</th>
             <th className="num">Lượng mua {n} trẻ</th>
             <th className="num">Mua theo ĐVT</th>
-            <th>ĐVT</th>
+            <th className="center">ĐVT</th>
             <th className="money">Đơn giá</th>
             <th className="money">Tiền ăn {n} trẻ</th>
           </tr>
@@ -74,7 +103,7 @@ export function StatisticsIngredients({ stats }) {
               <td className="num">{num(r.wastePct)}</td>
               <td className="num nowrap">{big(r.purchaseTotal, r.unit)}</td>
               <td className="num">{num(r.purchaseQty, 3)}</td>
-              <td className="nowrap">{r.purchaseUnit}</td>
+              <td className="nowrap center">{r.purchaseUnit}</td>
               <td className="money nowrap">{r.unitPrice == null ? '—' : formatMoney(r.unitPrice)}</td>
               <td className="money nowrap fw-600">{formatMoney(r.cost)}</td>
             </tr>
@@ -108,13 +137,13 @@ export function StatisticsNutrition({ stats }) {
         <thead>
           <tr>
             <th rowSpan={2}>Một trẻ / ngày</th>
-            <th colSpan={2} className="center">
+            <th colSpan={2} className="center td-col-p">
               Đạm (g)
             </th>
-            <th colSpan={2} className="center">
+            <th colSpan={2} className="center td-col-l">
               Béo (g)
             </th>
-            <th rowSpan={2} className="num">
+            <th rowSpan={2} className="num td-col-g">
               Đường (g)
             </th>
             <th rowSpan={2} className="num">
@@ -125,10 +154,10 @@ export function StatisticsNutrition({ stats }) {
             </th>
           </tr>
           <tr>
-            <th className="num">Động vật</th>
-            <th className="num">Thực vật</th>
-            <th className="num">Động vật</th>
-            <th className="num">Thực vật</th>
+            <th className="num td-col-p">Động vật</th>
+            <th className="num td-col-p">Thực vật</th>
+            <th className="num td-col-l">Động vật</th>
+            <th className="num td-col-l">Thực vật</th>
           </tr>
         </thead>
         <tbody>
@@ -139,8 +168,12 @@ export function StatisticsNutrition({ stats }) {
                 {num(v)}
               </td>
             ))}
-            <td className="num">{num(t.kcal)}</td>
-            <td className="money nowrap">{formatMoney(stats.costPerChild)}</td>
+            <td className="num">
+              <span className="td-tag td-tag--orange">{num(t.kcal)}</span>
+            </td>
+            <td className="money nowrap">
+              <span className="td-tag td-tag--green">{formatMoney(stats.costPerChild)}</span>
+            </td>
           </tr>
           <tr>
             <td>Định mức một ngày</td>
@@ -203,7 +236,7 @@ export function StatisticsNutrition({ stats }) {
 
 /** Đánh giá % năng lượng từng bữa so định mức (NUT-25). */
 export function StatisticsSessions({ sessions }) {
-  if (!sessions?.length) return <p className="muted text-sm">Chưa có bữa nào để đánh giá.</p>;
+  if (!sessions?.length) return <EmptyState title="Chưa có bữa nào để đánh giá" description="Thêm món cho ngày này rồi xem lại." />;
   return (
     <div className="table-wrap">
       <table className="table table--grid table--compact">
@@ -213,7 +246,7 @@ export function StatisticsSessions({ sessions }) {
             <th className="num">kcal</th>
             <th className="num">% nhu cầu cả ngày</th>
             <th className="num">Định mức (%)</th>
-            <th>Đánh giá</th>
+            <th className="center">Đánh giá</th>
           </tr>
         </thead>
         <tbody>
@@ -223,8 +256,8 @@ export function StatisticsSessions({ sessions }) {
               <td className="num">{num(s.kcal)}</td>
               <td className="num">{num(s.percent)}</td>
               <td className="num nowrap">{range(s)}</td>
-              <td>
-                <StatusBadge tone={TONES[s.status] || 'gray'} label={STATUS_LABELS[s.status] || s.status} />
+              <td className="center">
+                <NormRowBadge status={s.status} />
               </td>
             </tr>
           ))}
