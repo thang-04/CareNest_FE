@@ -94,8 +94,10 @@ const nowIso = () => new Date().toISOString();
 // v12: mọi kết quả đã kết luận đều đã công bố; phiếu mức Cần theo dõi sát có người đi cùng có ý kiến phụ huynh.
 // v13: đợt sắp diễn ra ở c2 thành kỳ cân đo đang diễn ra (kỳ cân đo, user chốt 2026-10-31).
 // v14: bỏ phiếu theo dõi (HLT-16 bỏ, 2026-11-04); kỳ cân đo c2 có số đo (Lớp Lá A, 2 trẻ Lớp Mầm 1) để thấy cảnh báo BMI (HLT-18).
-const HEALTH_SEED_VERSION = 14;
-const SEED_MANAGED_FIELDS = ['headCircumferenceCm', 'grossMotor', 'fineMotor', 'campaignId', 'note', 'exam', 'examStatus'];
+// v15: kết quả các đợt khám đã đóng là phiếu Phụ lục II đã kết luận như BE (bỏ mẫu cũ có vận động thô/tinh).
+// v16, v17: phiếu của đợt cũ ghi tiếp xúc người bệnh lao chỉ khi đã xảy ra trước ngày khám, khi đó bác sĩ kết luận nguy cơ lao.
+const HEALTH_SEED_VERSION = 17;
+const SEED_MANAGED_FIELDS = ['headCircumferenceCm', 'grossMotor', 'fineMotor', 'campaignId', 'note', 'exam', 'examStatus', 'concludedAt'];
 
 // Dữ liệu demo lưu bằng seed cũ: cập nhật bản ghi seed chưa bị sửa, thêm bản ghi seed còn thiếu; không xóa gì.
 const upgradeSeedMeasurements = (d, seedMeasurements) => {

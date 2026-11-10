@@ -20,7 +20,7 @@ const PAST = [
     endDate: '2026-03-20',
     name: 'Khám sức khỏe học kỳ II năm học 2025–2026',
     examiner: EXAMINER,
-    note: 'Lần đầu đo vòng đầu và đánh giá vận động theo mẫu mới.',
+    note: 'Bác sĩ khám theo phiếu Phụ lục II, kết luận cho từng trẻ.',
     closedOn: '2026-03-23',
   },
   {
