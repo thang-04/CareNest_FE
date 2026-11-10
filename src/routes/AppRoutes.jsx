@@ -22,6 +22,7 @@ const VerifyOtpPage = lazyPage(() => import('@/pages/account/VerifyOtpPage'));
 const ResetPasswordPage = lazyPage(() => import('@/pages/account/ResetPasswordPage'));
 const ProfilePage = lazyPage(() => import('@/pages/account/ProfilePage'));
 const ChangePasswordPage = lazyPage(() => import('@/pages/account/ChangePasswordPage'));
+const MySignaturesPage = lazyPage(() => import('@/pages/account/MySignaturesPage'));
 const NotificationDetailPage = lazyPage(() => import('@/pages/account/NotificationDetailPage'));
 const AppearancePage = lazyPage(() => import('@/pages/settings/AppearancePage'));
 
@@ -116,6 +117,7 @@ const FreshCheckPage = lazyPage(() => import('@/pages/kitchen/FreshCheckPage'));
 const PublishedMenuPage = lazyPage(() => import('@/pages/kitchen/PublishedMenuPage'));
 const KitchenTodayPage = lazyPage(() => import('@/pages/kitchen/KitchenTodayPage'));
 const FoodSampleQueuePage = lazyPage(() => import('@/pages/kitchen/FoodSampleQueuePage'));
+const InspectionDayPage = lazyPage(() => import('@/pages/kitchen/InspectionDayPage'));
 const MealPhotosPage = lazyPage(() => import('@/pages/kitchen/MealPhotosPage'));
 const MealPhotoWindowsPage = lazyPage(() => import('@/pages/kitchen/MealPhotoWindowsPage'));
 const ConfirmedMealCountPage = lazyPage(() => import('@/pages/kitchen/ConfirmedMealCountPage'));
@@ -415,6 +417,7 @@ export function AppRoutes() {
               path="stock-shortfalls"
               element={only(LEADERS, DRY_STOCK_API ? <DryStockLedgerPage tab="shortfalls" /> : <DryStockPage />)}
             />
+            <Route path="inspections" element={only(LEADERS, <InspectionDayPage />)} />
             <Route path="food-samples" element={only(LEADERS, KITCHEN_RECORDS_API ? <FoodSampleQueuePage /> : <FoodSampleLogPage />)} />
             {KITCHEN_RECORDS_API && <Route path="meal-photos" element={only(LEADERS, <MealPhotosPage />)} />}
             {KITCHEN_RECORDS_API && <Route path="photo-windows" element={only(LEADERS, <MealPhotoWindowsPage />)} />}
@@ -490,6 +493,7 @@ export function AppRoutes() {
           <Route path="notifications/:id" element={<NotificationDetailPage />} />
           <Route path="account/profile" element={<ProfilePage />} />
           <Route path="account/password" element={<ChangePasswordPage />} />
+          <Route path="account/signatures" element={<MySignaturesPage />} />
           <Route path="settings/appearance" element={<AppearancePage />} />
           {UiKitPage && <Route path="ui-kit" element={<UiKitPage />} />}
           <Route path="coming-soon/:slug" element={<ComingSoonPage />} />

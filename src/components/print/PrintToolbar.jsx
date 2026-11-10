@@ -10,7 +10,7 @@ import { Spinner } from '@/components/ui/States';
  *
  * <PrintToolbar sheetRef={ref} fileBase="Phieu_LC006" onCsv={() => exportWithPreview(rows, 'x.xlsx')} printLabel="In phiếu" />
  */
-export function PrintToolbar({ sheetRef, fileBase, onCsv, printLabel = 'In', compact = false }) {
+export function PrintToolbar({ sheetRef, fileBase, onCsv, printLabel = 'In', compact = false, orientation = 'portrait' }) {
   const toast = useToast();
   const [busy, setBusy] = useState(false);
   const size = compact ? 'btn--sm' : '';
@@ -18,7 +18,7 @@ export function PrintToolbar({ sheetRef, fileBase, onCsv, printLabel = 'In', com
   const onPdf = async () => {
     setBusy(true);
     try {
-      await exportElementToPdf(sheetRef.current, `${fileBase}.pdf`);
+      await exportElementToPdf(sheetRef.current, `${fileBase}.pdf`, { orientation });
       toast.success('Đã xuất file PDF');
     } catch (err) {
       toast.error(`Không xuất được PDF: ${err.message}`);

@@ -22,6 +22,7 @@ export const SAMPLE_DISPOSAL_LABELS = { NONE: 'Chưa ghi hủy', RECORDED: 'Ch�
 
 export const KITCHEN_RECORD_PAGES = {
   today: { label: 'Bếp hôm nay', to: '/kitchen/published-menu' },
+  inspections: { label: 'Kiểm thực ba bước', to: '/kitchen/inspections' },
   foodSamples: { label: 'Lưu mẫu thức ăn', to: '/kitchen/food-samples' },
   mealPhotos: { label: 'Ảnh bữa ăn', to: '/kitchen/meal-photos' },
   photoWindows: { label: 'Khung giờ đăng ảnh', to: '/kitchen/photo-windows' },

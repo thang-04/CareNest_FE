@@ -182,6 +182,13 @@ export const INTEGRATION_MODULES = {
     files: ['src/services/menu-planning/api/menuPlanningApi.js'],
     facades: ['src/services/menu-planning/menuPlanningService.js'],
   },
+  // Kiểm thực ba bước M1–M3 (PHT điền, ký ảnh): BE chưa có API ⇒ demo
+  'kitchen-inspection': {
+    source: 'demo',
+    routes: ['/kitchen/inspections'],
+    files: ['src/services/kitchen/api/inspectionApi.js'],
+    facades: ['src/services/kitchen/inspectionService.js'],
+  },
   // Sổ báo ăn đã xác nhận: BE có GET /meal-counts ⇒ màn này dùng số thật, các màn bếp khác còn demo
   'kitchen-meal-count': {
     source: 'api',

@@ -348,6 +348,10 @@ const ITEMS = {
     label: 'Kiểm nhận hàng tươi',
     to: '/kitchen/fresh-receipts',
   },
+  inspections: {
+    label: 'Kiểm thực ba bước',
+    to: '/kitchen/inspections',
+  },
   foodSamples: {
     label: 'Lưu mẫu thực phẩm',
     to: '/kitchen/food-samples',
@@ -364,6 +368,10 @@ const ITEMS = {
     label: 'Đổi mật khẩu',
     to: '/account/password',
   },
+  signatures: {
+    label: 'Chữ ký của tôi',
+    to: '/account/signatures',
+  },
 };
 const link = (key) => ({
   ...LINKS[key],
@@ -377,7 +385,7 @@ const group = (key, itemKeys) => ({
     key: k,
   })),
 });
-const account = group('system', ['profile', 'password']);
+const account = group('system', ['profile', 'signatures', 'password']);
 // Nhãn khu trên sidebar: các mục liền nhau cùng `section` được Sidebar gom dưới một nhãn
 const BOARDING_SECTION = 'Bán trú';
 // Khu bán trú: "Bán trú hôm nay" đứng đầu, rồi năm nhóm theo thứ tự cố định; nhóm không có mục nào thì bỏ
@@ -429,7 +437,7 @@ const MENUS = {
       nutrition: ['weeklyMenus', 'menuStatistics', 'menus'],
       kitchenOps: ['mealCount', 'publishedMenu', 'forecast', 'freshReceipts'],
       stock: ['dryStock', 'stockReceipts', 'stockHistory', 'stockShortfalls'],
-      foodSafety: ['foodSamples', 'mealPhotos', 'photoWindows'],
+      foodSafety: ['inspections', 'foodSamples', 'mealPhotos', 'photoWindows'],
       catalog: ['foods', 'dishes', 'nutritionSetup', 'suppliers'],
     }),
     account,
@@ -466,7 +474,7 @@ const MENUS = {
       nutrition: ['weeklyMenus', 'menuStatistics', 'menus', 'nutrition'],
       kitchenOps: ['mealCount', 'publishedMenu', 'forecast', 'freshReceipts'],
       stock: ['dryStock', 'stockReceipts', 'stockHistory', 'stockShortfalls'],
-      foodSafety: ['foodSamples', 'mealPhotos', 'photoWindows'],
+      foodSafety: ['inspections', 'foodSamples', 'mealPhotos', 'photoWindows'],
       catalog: ['foods', 'dishes', 'nutritionSetup', 'suppliers'],
     }),
     account,
