@@ -91,19 +91,27 @@ export function ClassPlacementFields({
             {inGroup.map((c) => {
               const full = c.enrolledCount >= c.capacity && c.id !== currentClassId;
               const isCurrent = c.id === currentClassId;
+              const isSelected = classId === c.id;
+              const isDisabled = full || isCurrent;
+              const toggle = () => {
+                // Bắt buộc (màn Xếp lớp): radio giữ 1 lựa chọn, click card đang chọn vẫn giữ.
+                // Không bắt buộc (tiếp nhận trẻ): click card đang chọn thì bỏ chọn (về trạng thái chờ xếp lớp).
+                if (isSelected && !required) onClassChange('');
+                else if (!isSelected) onClassChange(c.id);
+              };
               return (
                 <label
                   key={c.id}
-                  className={`tr-class-option ${classId === c.id ? 'tr-class-option--selected' : ''} ${full || isCurrent ? 'tr-class-option--disabled' : ''}`}
+                  className={`tr-class-option ${isSelected ? 'tr-class-option--selected' : ''} ${isDisabled ? 'tr-class-option--disabled' : ''}`}
+                  onClick={(e) => {
+                    // Quản lý tự chọn/bỏ chọn (radio native không bỏ chọn được khi đã chọn). preventDefault chặn
+                    // activation mặc định của label, toggle xử lý 1 điểm, radio React-controlled giữ đúng 1 lựa chọn.
+                    if (isDisabled) return;
+                    e.preventDefault();
+                    toggle();
+                  }}
                 >
-                  <input
-                    type="radio"
-                    name="tr-class"
-                    value={c.id}
-                    checked={classId === c.id}
-                    disabled={full || isCurrent}
-                    onChange={() => onClassChange(c.id)}
-                  />
+                  <input type="radio" name="tr-class" value={c.id} checked={isSelected} disabled={isDisabled} />
                   <span className="tr-class-option__body">
                     <span className="fw-600">{c.name}</span>
                     <span className="muted text-sm">{ageGroupById(c.ageGroupId)?.shortName}</span>
