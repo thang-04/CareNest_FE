@@ -104,6 +104,9 @@ const GROUPS = {
   },
 };
 
+// Không import demoSource ở đây: nó kéo mockDatabase (cần window) vào menu
+const MENU_TEMPLATE_API = !USE_MOCK && INTEGRATION_MODULES['menu-template']?.source === 'api';
+
 /** Sub-menu items. */
 const ITEMS = {
   schoolYears: {
@@ -298,7 +301,8 @@ const ITEMS = {
   },
   menus: {
     label: 'Mẫu thực đơn',
-    to: '/menu/menus',
+    // Bản nối BE: /menu/menus chuyển hướng sang /menu/templates ⇒ trỏ thẳng để mục sáng đúng và breadcrumb khớp
+    to: MENU_TEMPLATE_API ? '/menu/templates' : '/menu/menus',
   },
   weeklyMenus: {
     label: 'Kế hoạch tuần & công bố',
