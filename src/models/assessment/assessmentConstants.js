@@ -130,8 +130,9 @@ export const PERIOD_TYPE_LABELS = { WEEK: 'Tuần', MONTH: 'Tháng', SEMESTER: '
 // Xếp loại nhóm lớp (sổ chỉ đạo chuyên môn mục 7, BE OBS-24): kỳ, mức và 7 tiêu chí (key = field BE `levels`)
 export const CLASS_RATING_PERIOD = { SEMESTER_1: 'SEMESTER_1', SEMESTER_2: 'SEMESTER_2', YEAR: 'YEAR' };
 export const CLASS_RATING_PERIOD_LABELS = { SEMESTER_1: 'Học kỳ I', SEMESTER_2: 'Học kỳ II', YEAR: 'Cuối năm' };
-export const CLASS_RATING_LEVELS = ['TOT', 'KHA', 'DAT', 'CHUA_DAT'];
-export const CLASS_RATING_LEVEL_LABELS = { TOT: 'Tốt', KHA: 'Khá', DAT: 'Đạt', CHUA_DAT: 'Chưa đạt' };
+// BE OBS-24 (Cần chốt 10/11/2026): 4 mức
+export const CLASS_RATING_LEVELS = ['XUAT_SAC', 'TOT', 'KHA', 'TRUNG_BINH'];
+export const CLASS_RATING_LEVEL_LABELS = { XUAT_SAC: 'Xuất sắc', TOT: 'Tốt', KHA: 'Khá', TRUNG_BINH: 'Trung bình' };
 export const CLASS_RATING_CRITERIA = [
   { key: 'records', label: 'Hồ sơ sổ sách' },
   { key: 'program', label: 'Thực hiện chương trình' },
