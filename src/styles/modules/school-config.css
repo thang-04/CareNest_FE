@@ -835,7 +835,7 @@
   margin: 0;
 }
 
-/* Phân công PHT: mỗi PHT 1 thẻ; màn rộng 2 thẻ cạnh nhau, hẹp thì xếp dọc */
+/* Phân công PHT (bản mock): mỗi PHT 1 thẻ; màn rộng 2 thẻ cạnh nhau, hẹp thì xếp dọc */
 .sc-vp-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 560px), 1fr));

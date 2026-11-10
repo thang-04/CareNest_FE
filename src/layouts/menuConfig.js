@@ -105,6 +105,9 @@ const GROUPS = {
   },
 };
 
+// Không import demoSource ở đây: nó kéo mockDatabase (cần window) vào menu
+const MENU_TEMPLATE_API = !USE_MOCK && INTEGRATION_MODULES['menu-template']?.source === 'api';
+
 /** Sub-menu items. */
 const ITEMS = {
   schoolYears: {
@@ -299,7 +302,8 @@ const ITEMS = {
   },
   menus: {
     label: 'Mẫu thực đơn',
-    to: '/menu/menus',
+    // Bản nối BE: /menu/menus chuyển hướng sang /menu/templates ⇒ trỏ thẳng để mục sáng đúng và breadcrumb khớp
+    to: MENU_TEMPLATE_API ? '/menu/templates' : '/menu/menus',
   },
   weeklyMenus: {
     label: 'Kế hoạch tuần & công bố',
@@ -320,10 +324,6 @@ const ITEMS = {
   mealPhotos: {
     label: 'Ảnh bữa ăn',
     to: '/kitchen/meal-photos',
-  },
-  photoWindows: {
-    label: 'Khung giờ ảnh bữa',
-    to: '/kitchen/photo-windows',
   },
   stockReceipts: {
     label: 'Phiếu nhập',
@@ -349,6 +349,10 @@ const ITEMS = {
     label: 'Kiểm nhận hàng tươi',
     to: '/kitchen/fresh-receipts',
   },
+  inspections: {
+    label: 'Kiểm thực ba bước',
+    to: '/kitchen/inspections',
+  },
   foodSamples: {
     label: 'Lưu mẫu thực phẩm',
     to: '/kitchen/food-samples',
@@ -365,6 +369,10 @@ const ITEMS = {
     label: 'Đổi mật khẩu',
     to: '/account/password',
   },
+  signatures: {
+    label: 'Chữ ký của tôi',
+    to: '/account/signatures',
+  },
 };
 const link = (key) => ({
   ...LINKS[key],
@@ -378,7 +386,7 @@ const group = (key, itemKeys) => ({
     key: k,
   })),
 });
-const account = group('system', ['profile', 'password']);
+const account = group('system', ['profile', 'signatures', 'password']);
 // Nhãn khu trên sidebar: các mục liền nhau cùng `section` được Sidebar gom dưới một nhãn
 const BOARDING_SECTION = 'Bán trú';
 // Khu bán trú: "Bán trú hôm nay" đứng đầu, rồi năm nhóm theo thứ tự cố định; nhóm không có mục nào thì bỏ
@@ -430,7 +438,7 @@ const MENUS = {
       nutrition: ['weeklyMenus', 'menuStatistics', 'menus'],
       kitchenOps: ['mealCount', 'publishedMenu', 'forecast', 'freshReceipts'],
       stock: ['dryStock', 'stockReceipts', 'stockHistory', 'stockShortfalls'],
-      foodSafety: ['foodSamples', 'mealPhotos', 'photoWindows'],
+      foodSafety: ['inspections', 'foodSamples', 'mealPhotos'],
       catalog: ['foods', 'dishes', 'nutritionSetup', 'suppliers'],
     }),
     account,
@@ -467,7 +475,7 @@ const MENUS = {
       nutrition: ['weeklyMenus', 'menuStatistics', 'menus', 'nutrition'],
       kitchenOps: ['mealCount', 'publishedMenu', 'forecast', 'freshReceipts'],
       stock: ['dryStock', 'stockReceipts', 'stockHistory', 'stockShortfalls'],
-      foodSafety: ['foodSamples', 'mealPhotos', 'photoWindows'],
+      foodSafety: ['inspections', 'foodSamples', 'mealPhotos'],
       catalog: ['foods', 'dishes', 'nutritionSetup', 'suppliers'],
     }),
     account,
@@ -576,10 +584,12 @@ const withVpAreas = (menu, user) => {
   const hiddenItems = Object.entries(AREA_ITEMS)
     .filter(([area]) => none(area))
     .flatMap(([, items]) => items);
-  // Mục tạo mới cần đúng quyền Thêm của mảng
+  // Mục tạo mới cần đúng quyền Thêm của mảng; người dùng BE theo mã quyền ở withBePermissions
   const kids = areaAccess(user, 'children').actions || {};
-  if (!kids.create) hiddenItems.push('childEnroll');
-  if (!kids.update) hiddenItems.push('childPlacement', 'parentActivation');
+  if (!Array.isArray(user.bePermissions)) {
+    if (!kids.create) hiddenItems.push('childEnroll');
+    if (!kids.update) hiddenItems.push('childPlacement', 'parentActivation');
+  }
   return menu
     .filter((e) => !hidden.includes(e.key))
     .map((e) =>
@@ -595,6 +605,8 @@ const withVpAreas = (menu, user) => {
 // Mục gắn với mã quyền BE thật: người dùng BE bị thu hồi quyền thì ẩn mục (BE vẫn chặn khi mở thẳng đường dẫn)
 const ITEM_BE_PERMISSIONS = {
   parentActivation: [PERMISSIONS.PARENT_ACCOUNT_MANAGE],
+  childEnroll: [PERMISSIONS.CHILD_ENROLL],
+  childPlacement: [PERMISSIONS.CHILD_PLACEMENT],
   schoolRoles: [PERMISSIONS.PERMISSION_MANAGE],
 };
 const withBePermissions = (menu, user) =>
@@ -612,7 +624,7 @@ const withBePermissions = (menu, user) =>
 // Không import demoSource ở đây: nó kéo mockDatabase (cần window) vào menu
 const KITCHEN_RECORDS_API = !USE_MOCK && INTEGRATION_MODULES['kitchen-records']?.source === 'api';
 const MEAL_PLAN_API = !USE_MOCK && INTEGRATION_MODULES['meal-plan']?.source === 'api';
-const API_ONLY_ITEMS = [...(!KITCHEN_RECORDS_API ? ['mealPhotos', 'photoWindows'] : []), ...(!MEAL_PLAN_API ? ['menuStatistics'] : [])];
+const API_ONLY_ITEMS = [...(!KITCHEN_RECORDS_API ? ['mealPhotos'] : []), ...(!MEAL_PLAN_API ? ['menuStatistics'] : [])];
 const withApiOnlyItems = (menu) =>
   API_ONLY_ITEMS.length
     ? menu.map((e) => (e.children ? { ...e, children: e.children.filter((c) => !API_ONLY_ITEMS.includes(c.key)) } : e))

@@ -26,6 +26,10 @@ export const canEditForecast = (user, campusId) => (isVicePrincipal(user) || isP
 export const canViewKitchenDay = (user) => is(user, ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL, ROLES.KITCHEN_STAFF);
 export const canEditFoodSample = (user, campusId) => isKitchenStaff(user) && canAccessCampus(user, campusId);
 
+// Kiểm thực ba bước M1–M3 (P-27): PHT của cơ sở (và HT) điền và ký; bếp ghi lưu mẫu trên App, không vào màn này.
+export const canViewInspection = (user) => is(user, ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL);
+export const canFillInspection = (user, campusId) => (isVicePrincipal(user) || isPrincipal(user)) && canAccessCampus(user, campusId);
+
 // Kiểm nhận hàng tươi (S5–S6): bếp cơ sở kiểm và gửi, PHT cơ sở xác nhận; HT xem.
 export const canViewFreshReceipt = (user) => is(user, ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL, ROLES.KITCHEN_STAFF);
 

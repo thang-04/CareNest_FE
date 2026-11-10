@@ -68,6 +68,8 @@ export const getConfirmedMealCount = withBeMealCounts((filters, user) => mealCou
 /** Dự trù tuần: { status, days, classes, fresh, dry, changes, pendingChanges, sent, canEdit }. */
 export const getWeeklyForecast = (filters, user) => repo.getWeeklyForecast(filters, user);
 export const saveWeeklyForecast = (payload, user) => repo.saveWeeklyForecast(payload, user);
+/** Bảng đi chợ một ngày: { status, basis, groups, lines, totals, menu, warnings, campuses, campusId, campusName }. */
+export const getDayMarket = (filters, user) => repo.getDayMarket(filters, user);
 export const markWeeklyOrderSent = (filters, user) => repo.markWeeklyOrderSent(filters, user);
 export const setSupplierNotified = (payload, user) => repo.setSupplierNotified(payload, user);
 /** Kiểm nhận hàng tươi một ngày: { status, lines, counts, canEdit, canReview, canMarkNotified, … }. */

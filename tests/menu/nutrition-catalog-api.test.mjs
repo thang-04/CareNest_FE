@@ -344,7 +344,6 @@ test('build nối BE: danh mục, kế hoạch tuần, kho khô, hàng tươi, b
     '/kitchen/published-menu',
     '/kitchen/food-samples',
     '/kitchen/meal-photos',
-    '/kitchen/photo-windows',
   ].forEach((path) => assert.equal(source.demoModuleOfPath(path), null, path));
   assert.equal(source.demoModuleOfPath('/menu/menus'), 'menu-planning');
   assert.equal(source.demoModuleOfPath('/kitchen/missing-food'), 'kitchen');
