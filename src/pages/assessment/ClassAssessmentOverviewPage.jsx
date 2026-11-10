@@ -33,13 +33,16 @@ const signsText = (signs) =>
     .map(([key, n]) => `${HEALTH_SYMPTOMS[key] || key} (${n})`)
     .join(', ');
 
-/** Kiến thức kỹ năng: số lượt mục tiêu cô chấm Đạt / Chưa đạt trong kỳ (mỗi MT của mỗi hoạt động là một lượt). */
+/**
+ * Kiến thức kỹ năng: số lượt mục tiêu Đạt / Chưa đạt trong kỳ (mỗi MT của mỗi hoạt động là một lượt). Ngày trẻ vắng BE
+ * tính mọi MT của giáo án ngày đó là Chưa đạt (OBS-01); trẻ có mặt chưa đánh giá không có lượt nào nên để "–".
+ */
 function SkillsCell({ dat, chuaDat }) {
   const total = dat + chuaDat;
   if (!total) return <span className="muted">–</span>;
   return (
     <span className="row gap-1 nowrap" title={`${total} lượt mục tiêu: Đạt ${pct(dat, total)}, Chưa đạt ${pct(chuaDat, total)}`}>
-      <span className="chip chip--green">{dat} Đạt</span>
+      {dat > 0 && <span className="chip chip--green">{dat} Đạt</span>}
       {chuaDat > 0 && <span className="chip chip--red">{chuaDat} Chưa đạt</span>}
     </span>
   );
