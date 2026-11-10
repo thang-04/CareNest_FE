@@ -255,7 +255,7 @@ export function GoalChips({ criteria, draft: d, disabled, name, onChange }) {
 }
 
 /** Trẻ vắng / chưa điểm danh: hiện đủ lớp nhưng không đánh giá được (OBS-01, Cần chốt 10/11/2026). */
-export function AbsentRows({ items, colSpan, firstClass = 'cell--fixed' }) {
+export function AbsentRows({ items, colSpan, firstClass = 'cell--fixed', renderCells }) {
   return (items || []).map((c) => (
     <tr key={`absent-${c.childId}`} className="dg-row dg-row--absent" title="Trẻ vắng, không đánh giá ngày này">
       <td className={firstClass}>
@@ -266,9 +266,13 @@ export function AbsentRows({ items, colSpan, firstClass = 'cell--fixed' }) {
           </div>
         </div>
       </td>
-      <td colSpan={colSpan - 1} className="muted text-sm">
-        {ABSENCE_LABELS[c.attendanceStatus] || 'Chưa điểm danh'} · không đánh giá ngày này
-      </td>
+      {renderCells ? (
+        renderCells(c, ABSENCE_LABELS[c.attendanceStatus] || 'Chưa điểm danh')
+      ) : (
+        <td colSpan={colSpan - 1} className="muted text-sm">
+          {ABSENCE_LABELS[c.attendanceStatus] || 'Chưa điểm danh'} · không đánh giá ngày này
+        </td>
+      )}
     </tr>
   ));
 }

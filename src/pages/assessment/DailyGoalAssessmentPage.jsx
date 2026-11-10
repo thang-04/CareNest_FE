@@ -434,7 +434,26 @@ export default function DailyGoalAssessmentPage() {
                         </tr>
                       );
                     })}
-                    <AbsentRows items={absentChildren} colSpan={activities.length + 2} />
+                    {/* OBS-27 (Cần chốt 10/11/2026): trẻ vắng thì mục tiêu của ngày đó tính Chưa đạt; chỉ hiển thị, không chấm */}
+                    <AbsentRows
+                      items={absentChildren}
+                      colSpan={activities.length + 2}
+                      renderCells={(c, absence) => (
+                        <>
+                          {activities.map((a) => (
+                            <td key={a.key} className="dg-day-cell">
+                              {a.goals.map((g) => (
+                                <div key={g.id} title={`${goalName(g)}: ${g.text}`}>
+                                  <div className="dg-pop__label">{goalName(g)}</div>
+                                  <div className={LEVEL_CLASS.CHUA_DAT}>{YCCD_RESULT_LABELS.CHUA_DAT}</div>
+                                </div>
+                              ))}
+                            </td>
+                          ))}
+                          <td className="muted text-sm">{absence}</td>
+                        </>
+                      )}
+                    />
                   </tbody>
                 </table>
               </div>
