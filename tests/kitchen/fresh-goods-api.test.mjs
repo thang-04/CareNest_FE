@@ -214,3 +214,21 @@ test('route hàng tươi chọn trang theo isDemoModule: build BE dùng trang m�
   assert.match(routes, /FRESH_GOODS_API \? <FreshForecastPage \/> : <WeeklyForecastPage \/>/);
   assert.match(routes, /FRESH_GOODS_API \? <FreshCheckPage \/> : <FreshReceiptPage \/>/);
 });
+
+test('NUT-11, P-24: bản dự trù kèm hàng khô cần nhập thêm, đổi sang đơn vị mua; BE không trả thì mảng rỗng', async () => {
+  const dryLine = { food: RICE, requiredQty: 750, availableQty: 375, shortQty: 375, shortFrom: '2026-11-11' };
+  const client = fakeClient({ 'POST /nutrition/fresh-forecasts/preview': beForecast({ dryLines: [dryLine] }) });
+  const api = createFreshGoodsApi({ client });
+  const preview = await api.previewForecast({ ...emptyForecastForm({ campusId: '1', today: '2026-11-03' }), periodTo: '2026-11-04' });
+  assert.deepEqual(
+    [preview.dryLines[0].purchaseRequiredQty, preview.dryLines[0].purchaseAvailableQty, preview.dryLines[0].purchaseShortQty],
+    [0.75, 0.375, 0.375],
+  );
+  assert.equal(preview.dryLines[0].shortFrom, '2026-11-11');
+
+  const none = await createFreshGoodsApi({ client: fakeClient({ 'POST /nutrition/fresh-forecasts/preview': beForecast() }) }).previewForecast({
+    ...emptyForecastForm({ campusId: '1', today: '2026-11-03' }),
+    periodTo: '2026-11-04',
+  });
+  assert.deepEqual(none.dryLines, []);
+});

@@ -10,7 +10,7 @@ import { kitchenCrumbs, KITCHEN_PAGES } from '@/utils/kitchen/breadcrumbs';
 import { clickableRowProps } from '@/utils/clickableRow';
 import { formatDate, formatDateTime } from '@/utils/format';
 
-/** Các bản dự trù hàng tươi đã lưu của một điểm trường, mới nhất trước; mở một bản để xem, in hoặc xóa. */
+/** Các bản dự trù đã lưu của một điểm trường, mới nhất trước; mở một bản để xem, in hoặc xóa. */
 export function FreshForecastList({ campus, autoOpen = false }) {
   const navigate = useNavigate();
   const canManage = useCanManageStock();

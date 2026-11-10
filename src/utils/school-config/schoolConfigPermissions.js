@@ -95,6 +95,8 @@ export const areaAccess = (user, key) => {
   if (!isVicePrincipal(user)) return parseAreaGrant(PERMISSION_LEVEL.NONE);
   // Người dùng BE: theo quyền BE, không theo mảng mock
   if (isBeUser(user) && BE_VIEW_ALL_AREAS.includes(key)) return parseAreaGrant(`${PERMISSION_ACCESS.VIEW}@${AREA_SCOPE_ALL}`);
+  // Hồ sơ trẻ: PHT xem mọi điểm trường (AUTH-20); nút sửa theo từng mã CHILD_* ở childrenPermissions
+  if (isBeUser(user) && key === 'children') return parseAreaGrant(`${PERMISSION_ACCESS.VIEW}@${AREA_SCOPE_ALL}`);
   if (isBeUser(user) && key === 'staff') {
     const allowed = user.bePermissions.some((code) => STAFF_VIEW_PERMISSIONS.includes(code));
     return parseAreaGrant(allowed ? `${PERMISSION_ACCESS.VIEW}@${AREA_SCOPE_ALL}` : PERMISSION_LEVEL.NONE);

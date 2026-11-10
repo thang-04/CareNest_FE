@@ -12,10 +12,11 @@ import {
   PermissionCheckCell,
   PermissionFixedCell,
   PermissionFlowCheckCell,
+  PermissionLevelBadge,
   PermissionTable,
 } from '@/components/permissions/PermissionTable';
 import { updateRolePermissions } from '@/services/account/permissionService';
-import { PERMISSION_ROLE_LABELS, PERMISSION_TASKS } from '@/models/account/permissionConstants';
+import { PERMISSION_LEVELS, PERMISSION_ROLE_LABELS, PERMISSION_TASKS } from '@/models/account/permissionConstants';
 import {
   codeDiff,
   configurableCheck,
@@ -161,13 +162,13 @@ export default function RoleDefaultsPage() {
 
   return (
     <div className="page permission-center">
-      <Breadcrumb items={permissionCrumbs('Quyền theo vai trò')} />
+      <Breadcrumb items={permissionCrumbs('Mặc định theo vai trò')} />
       <div className="page__head permission-page-head">
         <div>
-          <h1 className="page__title">Quyền theo vai trò</h1>
+          <h1 className="page__title">Mặc định theo vai trò</h1>
           <p className="text-sm text-2">
             Tick việc mà từng vai trò được làm. Áp dụng chung cho Phó hiệu trưởng, Giáo viên và Nhân viên bếp toàn trường; ngoại lệ cho từng
-            người ở tab “Quyền ngoại lệ từng người”.
+            người ở màn Phân công Phó hiệu trưởng hoặc tab “Ngoại lệ giáo viên”.
           </p>
         </div>
       </div>
@@ -196,6 +197,14 @@ export default function RoleDefaultsPage() {
                 </span>{' '}
                 Cần quyền xem ở dòng đầu nhóm (tự tick kèm)
               </li>
+            </ul>
+            <ul className="perm-legend perm-legend--levels" aria-label="Cấp quyền">
+              <li className="perm-legend__title">Cấp quyền:</li>
+              {Object.entries(PERMISSION_LEVELS).map(([level, info]) => (
+                <li key={level}>
+                  <PermissionLevelBadge level={level} /> {info.hint}
+                </li>
+              ))}
             </ul>
             <p className="perm-notice" role="status" aria-live="polite">
               {notice}

@@ -22,7 +22,8 @@ import { overridesFromSwitches, permissionDraftRows } from '@/utils/account/pers
 import { flowCheckState, permissionTableRows, toggleFlow, toggleWithRequires } from '@/utils/account/permissionMatrix';
 import { validatePermissionChange } from '@/utils/account/permissionValidation';
 
-const CONFIGURABLE_ROLES = ['VICE_PRINCIPAL', 'TEACHER'];
+// PHT giao việc ở màn Phân công PHT: wizard không giữ được phạm vi cả trường của mã mặc định bật
+const CONFIGURABLE_ROLES = ['TEACHER'];
 const taskLabel = (code) => PERMISSION_TASKS[code]?.label || code;
 const WIZARD_STEPS = ['Chọn người', 'Thiết lập quyền', 'Xác nhận & Lý do'];
 

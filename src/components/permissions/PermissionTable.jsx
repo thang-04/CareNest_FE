@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useRef } from 'react';
 import { Check } from '@/components/ui/icons';
-import { PERMISSION_TASKS } from '@/models/account/permissionConstants';
+import { PERMISSION_LEVELS, PERMISSION_TASKS } from '@/models/account/permissionConstants';
 import { groupByFlow, permissionFeatureLabel } from '@/utils/account/permissionMatrix';
 
 /**
@@ -62,6 +62,7 @@ export function PermissionTable({ groups, catalog, columns, caption }) {
                               ↳
                             </span>
                           )}
+                          <PermissionLevelBadge level={task?.level} />
                           {task?.label || catalog.find((permission) => permission.code === code)?.description || code}
                           {dependent && <span className="sr-only"> (cần quyền xem của nhóm này)</span>}
                           {task?.hint && <small className="perm-table__note">{task.hint}</small>}
@@ -81,6 +82,17 @@ export function PermissionTable({ groups, catalog, columns, caption }) {
         </tbody>
       </table>
     </div>
+  );
+}
+
+/** Badge màu cấp quyền (Xem / Thao tác / Duyệt / Quản trị); việc chưa gắn cấp thì không vẽ. */
+export function PermissionLevelBadge({ level }) {
+  const info = PERMISSION_LEVELS[level];
+  if (!info) return null;
+  return (
+    <span className={`chip chip--${info.tone} perm-level`} title={info.hint}>
+      {info.label}
+    </span>
   );
 }
 

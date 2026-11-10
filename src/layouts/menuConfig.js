@@ -583,10 +583,12 @@ const withVpAreas = (menu, user) => {
   const hiddenItems = Object.entries(AREA_ITEMS)
     .filter(([area]) => none(area))
     .flatMap(([, items]) => items);
-  // Mục tạo mới cần đúng quyền Thêm của mảng
+  // Mục tạo mới cần đúng quyền Thêm của mảng; người dùng BE theo mã quyền ở withBePermissions
   const kids = areaAccess(user, 'children').actions || {};
-  if (!kids.create) hiddenItems.push('childEnroll');
-  if (!kids.update) hiddenItems.push('childPlacement', 'parentActivation');
+  if (!Array.isArray(user.bePermissions)) {
+    if (!kids.create) hiddenItems.push('childEnroll');
+    if (!kids.update) hiddenItems.push('childPlacement', 'parentActivation');
+  }
   return menu
     .filter((e) => !hidden.includes(e.key))
     .map((e) =>
@@ -602,6 +604,8 @@ const withVpAreas = (menu, user) => {
 // Mục gắn với mã quyền BE thật: người dùng BE bị thu hồi quyền thì ẩn mục (BE vẫn chặn khi mở thẳng đường dẫn)
 const ITEM_BE_PERMISSIONS = {
   parentActivation: [PERMISSIONS.PARENT_ACCOUNT_MANAGE],
+  childEnroll: [PERMISSIONS.CHILD_ENROLL],
+  childPlacement: [PERMISSIONS.CHILD_PLACEMENT],
   schoolRoles: [PERMISSIONS.PERMISSION_MANAGE],
 };
 const withBePermissions = (menu, user) =>

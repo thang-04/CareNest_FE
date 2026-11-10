@@ -3,7 +3,7 @@ import { Calculator, Save } from '@/components/ui/icons';
 import { DateInput, FormField, Modal, Spinner } from '@/components';
 import { WeekPicker } from '@/components/form/WeekPicker';
 import { Tabs } from '@/components/ui/Tabs';
-import { ForecastCountsTable, ForecastLinesTable } from '@/components/kitchen/FreshForecastTables';
+import { ForecastCountsTable, ForecastDryCard, ForecastLinesTable } from '@/components/kitchen/FreshForecastTables';
 import { useToast } from '@/contexts/ToastContext';
 import { freshGoodsApi } from '@/services/freshGoodsApi';
 import { NOTE_MAX } from '@/models/kitchen/kitchenConstants';
@@ -177,7 +177,7 @@ export function FreshForecastCreateModal({ campusId, onClose, onSaved }) {
           </section>
           <section className={`card ${stale ? 'kb-stale' : ''}`}>
             <div className="card__header">
-              <div className="card__title">Thực phẩm cần đặt</div>
+              <div className="card__title">Hàng tươi cần đặt</div>
             </div>
             {data.lines.length ? (
               <ForecastLinesTable forecast={data} />
@@ -185,6 +185,7 @@ export function FreshForecastCreateModal({ campusId, onClose, onSaved }) {
               <p className="card__body muted">Kỳ này chưa có thực phẩm tươi cần đặt. Kiểm tra thực đơn của các ngày trong kỳ.</p>
             )}
           </section>
+          <ForecastDryCard forecast={data} className={stale ? 'kb-stale' : ''} />
         </div>
       ) : (
         busy === 'preview' && (

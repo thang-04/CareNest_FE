@@ -1,57 +1,13 @@
-import { SCHOOL_CONFIG_API } from '@/config/env';
-import { KeyRound, UserCog, Utensils } from '@/components/ui/icons';
+import { UserCog, Utensils } from '@/components/ui/icons';
 import { Avatar } from '@/components/ui/Avatar';
-import { ErrorState, LoadingState } from '@/components/ui/States';
-import { useVicePermissions } from '@/hooks/school-config/useSchoolConfig';
 import { UnassignedBadge } from '@/components/school-config/SchoolConfigBadges';
 import { areaTasks, scopeText, taskOn, visibleVpAreas, vpGrantsOf } from '@/utils/school-config/vpAssignmentView';
 import { formatDateTime } from '@/utils/format';
 
 const lowerFirst = (s) => s.charAt(0).toLowerCase() + s.slice(1);
 
-// Bảng chỉ đọc: việc người này được làm (mặc định vai trò ± ngoại lệ); sửa ở màn Quyền ngoại lệ từng người
-function VicePermissionTable({ userId }) {
-  const { permissions, loading, error, reload } = useVicePermissions(userId);
-  if (loading) return <LoadingState />;
-  if (error) return <ErrorState error={error} onRetry={reload} />;
-  const items = permissions?.items || [];
-  if (!items.length) return <p className="sc-vp-card__empty muted text-sm">Chưa có việc nào để thiết lập quyền cho người này.</p>;
-  return (
-    <div className="table-wrap">
-      <table className="table table--grid table--compact sc-vp-table sc-vp-table--perms">
-        <thead>
-          <tr>
-            <th>Việc được làm</th>
-            <th className="center">Người này</th>
-            <th className="center">So với vai trò</th>
-          </tr>
-        </thead>
-        <tbody>
-          {items.map((item) => (
-            <tr key={item.code} className={item.on ? '' : 'sc-vp-table__off'}>
-              <td className={item.on ? 'fw-600' : ''}>{item.label}</td>
-              <td className="center">
-                {item.on ? <span className="chip chip--green">Được làm</span> : <span className="chip chip--gray">Không được làm</span>}
-              </td>
-              <td className="center">
-                {item.on === item.roleOn ? (
-                  <span className="muted text-sm">Theo vai trò</span>
-                ) : item.on ? (
-                  <span className="chip chip--blue">Cấp thêm</span>
-                ) : (
-                  <span className="chip chip--orange">Thu hồi</span>
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-/** Thẻ 1 Phó hiệu trưởng: điểm trường phụ trách + bảng công việc được giao, nói bằng lời thường. */
-export function VicePrincipalCard({ row, campusName, assignerName, readOnly, onEdit, onChoosePermissions }) {
+/** Thẻ 1 Phó hiệu trưởng (bản mock): điểm trường phụ trách + bảng công việc. Bản API dùng 2 tab Phân công điểm trường / Giao việc. */
+export function VicePrincipalCard({ row, campusName, assignerName, readOnly, onEdit }) {
   const a = row.assignment;
   const grants = vpGrantsOf(a);
 
@@ -70,12 +26,6 @@ export function VicePrincipalCard({ row, campusName, assignerName, readOnly, onE
         </div>
         {!readOnly && (
           <div className="row gap-2">
-            {/* Quyền thao tác thuộc màn Quyền ngoại lệ từng người (module phân quyền) */}
-            {a && onChoosePermissions && (
-              <button className="btn btn--sm" type="button" onClick={onChoosePermissions}>
-                <KeyRound size={15} /> Chọn quyền
-              </button>
-            )}
             <button className={`btn btn--sm ${a ? '' : 'btn--primary'}`} onClick={onEdit}>
               <UserCog size={15} /> {a ? 'Đổi phân công' : 'Phân công'}
             </button>
@@ -85,16 +35,14 @@ export function VicePrincipalCard({ row, campusName, assignerName, readOnly, onE
 
       <div className="sc-vp-card__tags">
         {a ? <span className="chip chip--blue">Phụ trách {campusName(a.campusId)}</span> : <UnassignedBadge />}
-        {!SCHOOL_CONFIG_API && a?.sharedService && (
+        {a?.sharedService && (
           <span className="chip chip--teal">
             <Utensils size={13} /> Phụ trách thực đơn bán trú
           </span>
         )}
       </div>
 
-      {a && SCHOOL_CONFIG_API ? (
-        <VicePermissionTable userId={row.user.id} />
-      ) : a ? (
+      {a ? (
         <div className="table-wrap">
           <table className="table table--grid table--compact sc-vp-table">
             <thead>
