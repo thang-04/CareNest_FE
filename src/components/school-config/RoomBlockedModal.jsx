@@ -11,7 +11,7 @@ export function RoomBlockedModal({ room, actionLabel, onClose }) {
     <Modal
       open
       size="md"
-      title={`Chưa ${actionLabel.toLowerCase()} được phòng ${room.room}`}
+      title={`Không thể ${actionLabel.toLowerCase()} phòng đang được sử dụng`}
       onClose={onClose}
       footer={
         <>
@@ -24,8 +24,10 @@ export function RoomBlockedModal({ room, actionLabel, onClose }) {
         </>
       }
     >
+      {/* Tên phòng thường đã có chữ "Phòng" (vd. "Phòng học A1") nên không ghép thêm */}
       <p className="text-2">
-        Phòng <b>{room.name}</b> chưa {actionLabel.toLowerCase()} được vì:
+        <b>{room.name}</b>
+        {room.room ? ` (${room.room})` : ''} đang được lớp sử dụng nên chưa {actionLabel.toLowerCase()} được:
       </p>
       <ul className="sc-ready__list">
         {room.blockers.map((reason) => (
