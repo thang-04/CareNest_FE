@@ -17,7 +17,9 @@ import { Pagination, paginate } from '@/components/ui/Pagination';
 import { ScNoAccess } from '@/components/school-config/ScNoAccess';
 import { HolidaySetting } from '@/components/school-config/HolidaySetting';
 import { SemesterSetting } from '@/components/school-config/SemesterSetting';
+import { MealPhotoWindowsSetting } from '@/components/MealPhotoWindowsSetting';
 import { Tabs } from '@/components/ui/Tabs';
+import { isDemoModule } from '@/services/demoSource';
 import { saveCutoffSetting } from '@/services/school-config/schoolConfigService';
 import { YEAR_STATUS } from '@/models/school-config/schoolConfigConstants';
 import { canConfigureCutoff } from '@/utils/school-config/schoolConfigPermissions';
@@ -26,13 +28,17 @@ import { cutoffCrumbs } from '@/utils/school-config/breadcrumbs';
 import { formatDate, formatDateTime, todayInput } from '@/utils/format';
 import '@/styles/modules/school-config.css';
 
+// Giờ đăng ảnh bếp chỉ có khi nối BE (module kitchen-records); build mock không có tab này
+const PHOTO_WINDOWS_API = !isDemoModule('kitchen-records');
 const TABS = [
   { key: 'cutoff', label: 'Giờ chốt điểm danh' },
+  ...(PHOTO_WINDOWS_API ? [{ key: 'photo', label: 'Giờ đăng ảnh' }] : []),
   { key: 'semester', label: 'Học kỳ' },
   { key: 'holidays', label: 'Ngày nghỉ' },
 ];
+const OTHER_TABS = TABS.map((t) => t.key).filter((key) => key !== 'cutoff');
 
-/** #19 Cấu hình thời gian: giờ chốt (UC 2.7, GBR-CFG-02/03) và học kỳ I, II. Principal only. */
+/** #19 Cấu hình thời gian: giờ chốt (UC 2.7, GBR-CFG-02/03), giờ đăng ảnh bữa ăn, học kỳ I, II, ngày nghỉ. Principal only. */
 export default function CutoffSettingPage() {
   const { user } = useAuth();
   const toast = useToast();
@@ -46,8 +52,8 @@ export default function CutoffSettingPage() {
   const [saving, setSaving] = useState(false);
   const [historyPage, setHistoryPage] = useState(1);
   const [params, setParams] = useSearchParams();
-  const tab = ['semester', 'holidays'].includes(params.get('tab')) ? params.get('tab') : 'cutoff';
-  // Tab Học kỳ / Ngày nghỉ báo còn thay đổi chưa lưu; đổi tab hay rời màn đều hỏi như tab giờ chốt
+  const tab = OTHER_TABS.includes(params.get('tab')) ? params.get('tab') : 'cutoff';
+  // Tab Giờ đăng ảnh / Học kỳ / Ngày nghỉ báo còn thay đổi chưa lưu; đổi tab hay rời màn đều hỏi như tab giờ chốt
   const [childDirty, setChildDirty] = useState(false);
   const childSave = useRef(null);
   const switchTab = (key) => {
@@ -138,7 +144,9 @@ export default function CutoffSettingPage() {
         <Tabs items={TABS} value={tab} onChange={changeTab} ariaLabel="Cấu hình thời gian" />
       </div>
 
-      {tab === 'semester' ? (
+      {tab === 'photo' ? (
+        <MealPhotoWindowsSetting onDirtyChange={setChildDirty} saveRef={childSave} />
+      ) : tab === 'semester' ? (
         <SemesterSetting yearId={yearId} onDirtyChange={setChildDirty} saveRef={childSave} />
       ) : tab === 'holidays' ? (
         <HolidaySetting yearId={yearId} onDirtyChange={setChildDirty} saveRef={childSave} />

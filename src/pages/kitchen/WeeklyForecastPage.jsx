@@ -57,6 +57,8 @@ export default function WeeklyForecastPage() {
   const dirty = Object.values(draft).some((byDate) => Object.keys(byDate).length);
   const nextWeek = addDays(weekStart, 7);
   const menuPublished = ready;
+  // Mở bảng đi chợ ở hôm nay nếu hôm nay thuộc tuần đang xem, không thì ở ngày đầu tuần
+  const dayInWeek = today >= weekStart && today <= addDays(weekStart, 4) ? today : weekStart;
 
   const changeCell = (classId, date, value) => {
     setDraft((d) => ({ ...d, [classId]: { ...d[classId], [date]: value } }));
@@ -144,6 +146,11 @@ export default function WeeklyForecastPage() {
       </div>
       {(ready || (canEdit && weekStart <= thisWeek)) && (
         <div className="page__actions">
+          {ready && (
+            <Link className="btn" to={`/kitchen/market-day?campusId=${campusId}&date=${dayInWeek}`}>
+              <ShoppingBasket size={16} /> Đi chợ theo ngày
+            </Link>
+          )}
           {ready && (
             <button
               type="button"

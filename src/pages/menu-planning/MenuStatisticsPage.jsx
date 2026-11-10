@@ -176,15 +176,22 @@ export default function MenuStatisticsPage() {
       ) : (
         <>
           <div className="stat-grid">
-            <StatCard tone="blue" icon={false} label="Số trẻ" value={stats.children} />
-            <StatCard tone="green" icon={false} label="Tiền ăn 1 trẻ" value={formatMoney(stats.costPerChild)} />
+            <StatCard className="stat-card--fit" tone="blue" icon={false} label="Số trẻ" value={stats.children} />
+            <StatCard className="stat-card--fit" tone="green" icon={false} label="Tiền ăn 1 trẻ" value={formatMoney(stats.costPerChild)} />
             <StatCard
+              className="stat-card--fit"
               tone="purple"
               icon={false}
               label="Định mức tiền ăn"
               value={stats.mealPrice == null ? 'Chưa đặt' : formatMoney(stats.mealPrice)}
             />
-            <StatCard tone="orange" icon={false} label={`Tổng tiền ${stats.children} trẻ`} value={formatMoney(stats.totalCost)} />
+            <StatCard
+              className="stat-card--fit"
+              tone="orange"
+              icon={false}
+              label={`Tổng tiền ${stats.children} trẻ`}
+              value={formatMoney(stats.totalCost)}
+            />
           </div>
 
           <section className="card">

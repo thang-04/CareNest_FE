@@ -22,6 +22,7 @@ const VerifyOtpPage = lazyPage(() => import('@/pages/account/VerifyOtpPage'));
 const ResetPasswordPage = lazyPage(() => import('@/pages/account/ResetPasswordPage'));
 const ProfilePage = lazyPage(() => import('@/pages/account/ProfilePage'));
 const ChangePasswordPage = lazyPage(() => import('@/pages/account/ChangePasswordPage'));
+const MySignaturesPage = lazyPage(() => import('@/pages/account/MySignaturesPage'));
 const NotificationDetailPage = lazyPage(() => import('@/pages/account/NotificationDetailPage'));
 const AppearancePage = lazyPage(() => import('@/pages/settings/AppearancePage'));
 
@@ -111,13 +112,14 @@ const DryStockPage = lazyPage(() => import('@/pages/kitchen/DryStockPage'));
 const FoodSampleLogPage = lazyPage(() => import('@/pages/kitchen/FoodSampleLogPage'));
 const WeeklyForecastPage = lazyPage(() => import('@/pages/kitchen/WeeklyForecastPage'));
 const FreshReceiptPage = lazyPage(() => import('@/pages/kitchen/FreshReceiptPage'));
+const DayMarketPage = lazyPage(() => import('@/pages/kitchen/DayMarketPage'));
 const FreshForecastPage = lazyPage(() => import('@/pages/kitchen/FreshForecastPage'));
 const FreshCheckPage = lazyPage(() => import('@/pages/kitchen/FreshCheckPage'));
 const PublishedMenuPage = lazyPage(() => import('@/pages/kitchen/PublishedMenuPage'));
 const KitchenTodayPage = lazyPage(() => import('@/pages/kitchen/KitchenTodayPage'));
 const FoodSampleQueuePage = lazyPage(() => import('@/pages/kitchen/FoodSampleQueuePage'));
+const InspectionDayPage = lazyPage(() => import('@/pages/kitchen/InspectionDayPage'));
 const MealPhotosPage = lazyPage(() => import('@/pages/kitchen/MealPhotosPage'));
-const MealPhotoWindowsPage = lazyPage(() => import('@/pages/kitchen/MealPhotoWindowsPage'));
 const ConfirmedMealCountPage = lazyPage(() => import('@/pages/kitchen/ConfirmedMealCountPage'));
 const RequiredFoodQuantityPage = lazyPage(() => import('@/pages/kitchen/RequiredFoodQuantityPage'));
 const MissingFoodReportPage = lazyPage(() => import('@/pages/kitchen/MissingFoodReportPage'));
@@ -415,9 +417,9 @@ export function AppRoutes() {
               path="stock-shortfalls"
               element={only(LEADERS, DRY_STOCK_API ? <DryStockLedgerPage tab="shortfalls" /> : <DryStockPage />)}
             />
+            <Route path="inspections" element={only(LEADERS, <InspectionDayPage />)} />
             <Route path="food-samples" element={only(LEADERS, KITCHEN_RECORDS_API ? <FoodSampleQueuePage /> : <FoodSampleLogPage />)} />
             {KITCHEN_RECORDS_API && <Route path="meal-photos" element={only(LEADERS, <MealPhotosPage />)} />}
-            {KITCHEN_RECORDS_API && <Route path="photo-windows" element={only(LEADERS, <MealPhotoWindowsPage />)} />}
             <Route path="forecast" element={only(LEADERS, FRESH_GOODS_API ? <FreshForecastPage /> : <WeeklyForecastPage />)} />
             {FRESH_GOODS_API && <Route path="forecast/new" element={only(LEADERS, <FreshForecastPage mode="new" />)} />}
             {FRESH_GOODS_API && <Route path="forecast/:id" element={only(LEADERS, <FreshForecastPage mode="detail" />)} />}
@@ -442,6 +444,7 @@ export function AppRoutes() {
             <Route path="suppliers/:id/edit" element={<SupplierRedirect />} />
             <Route path="published-menu" element={only(LEADERS, KITCHEN_RECORDS_API ? <KitchenTodayPage /> : <PublishedMenuPage />)} />
             <Route path="meal-count" element={only(LEADERS, <ConfirmedMealCountPage />)} />
+            <Route path="market-day" element={only(LEADERS, <DayMarketPage />)} />
             <Route path="required-quantity" element={only(LEADERS, <RequiredFoodQuantityPage />)} />
             <Route path="missing-food" element={only(LEADERS, <MissingFoodReportPage />)} />
           </Route>
@@ -490,6 +493,7 @@ export function AppRoutes() {
           <Route path="notifications/:id" element={<NotificationDetailPage />} />
           <Route path="account/profile" element={<ProfilePage />} />
           <Route path="account/password" element={<ChangePasswordPage />} />
+          <Route path="account/signatures" element={<MySignaturesPage />} />
           <Route path="settings/appearance" element={<AppearancePage />} />
           {UiKitPage && <Route path="ui-kit" element={<UiKitPage />} />}
           <Route path="coming-soon/:slug" element={<ComingSoonPage />} />

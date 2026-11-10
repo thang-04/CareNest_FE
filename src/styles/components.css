@@ -548,6 +548,9 @@ tr.sortable-item--moved > td {
   /* base-select biến ô chọn thành flex, chữ dạt lên mép trên ⇒ căn giữa dọc như ô gốc */
   .select:not([multiple]):not([size]) {
     align-items: center;
+    /* base-select cho chữ xuống dòng khi tên dài hơn ô ⇒ giữ một dòng, phần thừa bị cắt; danh sách khi mở vẫn đủ chữ */
+    white-space: nowrap;
+    overflow: hidden;
   }
   .select::picker-icon {
     display: none; /* đã có mũi tên bằng background-image */
@@ -1239,6 +1242,16 @@ tr.sortable-item--moved > td {
 }
 .modal--xl {
   max-width: 1100px;
+}
+/* Hộp toàn màn hình (biểu mẫu nhập nhiều cột): chiếm gần hết khung */
+.modal-backdrop:has(> .modal--full) {
+  padding: var(--space-2);
+}
+.modal--full {
+  max-width: none;
+  width: 100%;
+  height: 100%;
+  max-height: none;
 }
 .modal__header {
   display: flex;
@@ -2799,6 +2812,14 @@ button.stat-card .stat-card__label::after {
   letter-spacing: -0.02em;
   color: color-mix(in srgb, var(--stat-tone) 70%, var(--color-text));
   font-variant-numeric: tabular-nums;
+}
+/* Thẻ có số dài (tiền): số luôn một dòng, thẻ hẹp thì chữ số nhỏ lại theo bề rộng thẻ thay vì xuống dòng */
+.stat-card--fit {
+  container-type: inline-size;
+}
+.stat-card--fit .stat-card__value {
+  white-space: nowrap;
+  font-size: min(var(--stat-value-size), 16cqi);
 }
 /* Đang tải: vạch cao bằng dòng số để thẻ không nhảy khi số về */
 .stat-card__skeleton {
