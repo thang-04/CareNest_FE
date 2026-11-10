@@ -33,6 +33,12 @@ test.beforeAll(async () => {
       `semester2_end='2027-05-31' where id = ${year}`,
   );
   sql(`update classrooms set created_at='2026-08-01' where id = ${cls.id}`);
+  // Chạy lại được: đưa các gói học kỳ của lớp về Nháp trước khi lưu lại lịch nhánh (gói đang Chờ duyệt khóa lịch nhánh),
+  // bỏ lần mở hạn / gửi của lần chạy trước (dữ liệu dev do bộ test tạo)
+  sql(
+    `update edu_class_docs set status='DRAFT', history='[]'::jsonb, approvals='[]'::jsonb ` +
+      `where kind='semester' and classroom_id=${cls.id}`,
+  );
   // Lưu lại lịch nhánh (không đổi nội dung) để BE tạo gói học kỳ / hồ sơ chủ đề còn thiếu
   const branch = docs.data.branchPlans.find((b) => String(b.classId) === String(cls.id));
   test.skip(!branch, 'Lớp chưa có lịch chủ đề nhánh');
@@ -41,11 +47,6 @@ test.beforeAll(async () => {
     headers: { 'X-Class-Doc-Version': String(branch.version) },
   });
   expect(saved.status, saved.desc).toBe(200);
-  // Chạy lại được: đưa gói học kỳ 1 của lớp về Nháp, bỏ lần mở hạn / gửi của lần chạy trước (dữ liệu dev do bộ test tạo)
-  sql(
-    `update edu_class_docs set status='DRAFT', history='[]'::jsonb, approvals='[]'::jsonb ` +
-      `where kind='semester' and classroom_id=${cls.id} and semester_no=1`,
-  );
   sp1 = await packageOf(U.tl);
 });
 
@@ -94,12 +95,12 @@ test('IT-003-03 sau mở hạn, lần gửi không còn bị chặn vì quá h�
   if (sent.status === 200) expect(sent.data.status).toBe('REVIEW');
 });
 
-test('IT-003-04 hồ sơ chủ đề: hạn = ngày bắt đầu chủ đề, có cách gửi; giáo án tuần không nhận phần ngày (400)', async () => {
+test('IT-003-04 hồ sơ chủ đề: hạn = ngày bắt đầu chủ đề, không còn cách gửi (spec 004); giáo án tuần không nhận phần ngày (400)', async () => {
   const docs = await api(U.tl, 'GET', DOCS);
   const dossiers = (docs.data.themeDossiers || []).filter((d) => String(d.classId) === String(cls.id));
   for (const d of dossiers) {
     expect(d.deadline).toBeTruthy();
-    expect(['THEME', 'SEMESTER']).toContain(d.submitMode);
+    expect(d.submitMode).toBeUndefined();
     expect(['NORMAL', 'NEAR', 'OVERDUE', 'ON_TIME', 'LATE']).toContain(d.deadlineState);
   }
   const week = (docs.data.weekPlans || []).find((w) => String(w.classId) === String(cls.id));

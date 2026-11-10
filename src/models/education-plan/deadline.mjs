@@ -8,7 +8,7 @@ export function deadlineLabel(doc) {
   const due = ddmm(doc.extendedTo || doc.deadline);
   switch (doc.deadlineState) {
     case 'NEAR':
-      return { tone: 'orange', label: `Gần đến hạn · còn ${doc.daysLeft} ngày (${due})` };
+      return { tone: 'orange', label: doc.daysLeft == null ? `Gần đến hạn (${due})` : `Gần đến hạn · còn ${doc.daysLeft} ngày (${due})` };
     case 'OVERDUE':
       return { tone: 'red', label: `Quá hạn (${due})` };
     case 'ON_TIME':
@@ -22,8 +22,8 @@ export function deadlineLabel(doc) {
 
 /** Lý do không gửi được (blockedReason của BE). */
 export const BLOCKED_TEXT = {
-  DEADLINE_PASSED: 'Đã quá hạn gửi. Cần Hiệu trưởng hoặc Phó hiệu trưởng mở hạn.',
-  SEMESTER_NOT_RELEASED: 'Lịch chủ đề nhánh của học kỳ chưa được duyệt. Gửi gói học kỳ trước.',
+  DEADLINE_PASSED: 'Đã quá hạn. Cần Hiệu trưởng hoặc Phó hiệu trưởng mở khóa.',
+  SEMESTER_NOT_RELEASED: 'Học kỳ chưa được duyệt.',
 };
 
 /** Khóa gói học kỳ của lớp + kế hoạch tổ (sp_), hồ sơ chủ đề (ds_), giáo án ngày (dd_) theo khóa giáo án tuần. */

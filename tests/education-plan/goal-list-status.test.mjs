@@ -163,7 +163,7 @@ test('TEAM ngày gửi ưu tiên sentAt, tương thích sentBy.at và chưa gử
 const queueSource = await readFile(new URL('../../src/pages/education-plan/PlanReviewQueuePage.jsx', import.meta.url), 'utf8');
 const queueStubs = stubs.replace('useNavigate=()=>()=>{}', 'useNavigate=()=>to=>context.destination=to')
   .replace('clickableRowProps=()=>({})', 'clickableRowProps=(onClick)=>({onClick})') + `
-const EduStatusBadge=YearPlanStatusBadge, fmtDateTime=(value)=>value, DeadlineBadge=()=>null;
+const EduStatusBadge=YearPlanStatusBadge, fmtDateTime=(value)=>value, DeadlineBadge=()=>null, Eye=()=>null;
 const PENDING_OF={}, CLASS_DOC_LABELS={year:'Kế hoạch tổ', branch:'Nhánh', theme:'Chủ đề'};
 const themeNumber=()=>1, themeWeeksOf=()=>[];
 `;

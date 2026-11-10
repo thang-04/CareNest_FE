@@ -1,15 +1,14 @@
-import { adaptCalendar, branchDisplayRows, branchWeeks, calendarDurationIssue, calendarPlan, resizeBranch, seedTeamBranchTemplates, updateWeek } from '@/models/education-plan/branchCalendar.mjs';
+import { adaptCalendar, branchDisplayRows, branchWeeks, calendarDurationIssue, resizeBranch, seedTeamBranchTemplates, updateWeek } from '@/models/education-plan/branchCalendar.mjs';
 import { useEffect, useState } from 'react';
-import { Link, Navigate, useParams } from 'react-router-dom';
+import { Navigate, useParams } from 'react-router-dom';
 import { Check, Download, FileDown, Lightbulb, Pencil, Save, Trash2, Wand2, X } from '@/components/ui/icons';
 import { branchFile, leaderNameOf } from '@/utils/education-plan/classPlanDoc';
 import { rewriteBranchName, suggestBranchNames } from '@/services/education-plan/educationPlanService';
-import { Card, EduStatusBadge, fmtDate, Notice, PageHead } from '@/components/education-plan/eduUi';
-import { DeadlineBadge } from '@/components/education-plan/DeadlineWidgets';
+import { Card, fmtDate, Notice, PageHead } from '@/components/education-plan/eduUi';
 import DatePickerCell from '@/components/education-plan/DatePickerCell';
 import { VersionHistory } from '@/components/education-plan/VersionHistory';
 import { docLines } from '@/models/education-plan/planHistory.mjs';
-import { Cell, focusCell, useClassPlanContext } from '@/components/education-plan/planUi';
+import { Cell, ClassPicker, focusCell, useClassPlanContext } from '@/components/education-plan/planUi';
 import { RejectedNotice } from '@/components/education-plan/reviewUi';
 import { LoadingState } from '@/components/ui/States';
 import { AiWorkingOverlay } from '@/components/ui/AiWorkingOverlay';
@@ -19,10 +18,11 @@ import { StatusPage } from '@/components/ui/StatusPage';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { useManualSave } from '@/hooks/education-plan/useManualSave';
+import { usePolling } from '@/hooks/usePolling';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
-import { ddmm, emptyBranchPlan, isEditableStatus, monthOf, offDaysText, yearWeeks } from '@/models/education-plan/classPlan';
+import { ddmm, emptyBranchPlan, isEditableStatus, monthOf, offDaysText } from '@/models/education-plan/classPlan';
 import { SupersededNote, VersionCopyOffer, VersionFlagsPanel } from '@/components/education-plan/VersionWidgets';
 import { useDocVersion } from '@/hooks/education-plan/useDocVersion';
 import { checkFlag, dropReference, versionOf } from '@/models/education-plan/planVersions.mjs';
@@ -33,7 +33,7 @@ import { applyBranchFile, branchPayload } from '@/models/education-plan/importBr
 /**
  * "Chủ đề / Chủ đề nhánh" theo mẫu MN Thái Dương.
  * Tháng | Chủ đề (gộp dòng) | Chủ đề nhánh (giáo viên gõ) | Tuần (đánh số cả năm, dòng nghỉ) | Ghi chú.
- * Mục này chỉ lưu nhánh theo lớp; gửi/duyệt diễn ra cùng hồ sơ kế hoạch chủ đề.
+ * Lịch nhánh gửi/duyệt theo học kỳ ở trang Kế hoạch giáo dục chủ đề (spec 004); trang này chỉ để sửa, không liên kết sang trang khác.
  */
 export default function BranchPlanPage() {
   const { classId } = useParams();
@@ -52,7 +52,8 @@ export function BranchPlanLegacyRedirect() {
 }
 
 function BranchPlanInner({ classId }) {
-  const { user, branchPlans, semesterPackages, semesterConfigMissing, saveClassDoc, toast, eduConfig, staff } = useEducationPlan();
+  const { user, branchPlans, semesterPackages, semesterConfigMissing, saveClassDoc, toast, eduConfig, staff, refreshClassDocs } =
+    useEducationPlan();
   const [preview, setPreview] = useState(null);
   const [importContext, setImportContext] = useState(null);
   const [editing, setEditing] = useState(false);
@@ -101,6 +102,8 @@ function BranchPlanInner({ classId }) {
     },
   });
   const guard = useLeaveGuard({ when: editing && autoOk && saver.unsaved, onSave: saver.save });
+  // Đang xem (không sửa): trạng thái gói học kỳ do người khác đổi tự cập nhật; đang sửa thì không nạp lại để giữ bản đang gõ
+  usePolling(() => refreshClassDocs?.().catch(() => {}), { enabled: !editing });
 
   useEffect(() => {
     setEditing(false);
@@ -149,7 +152,6 @@ function BranchPlanInner({ classId }) {
     setDirty(true);
   };
   const editable = editing && canEdit;
-  const rows = yearWeeks(calendarPlan(yearPlan, draft));
   const dateIssue = calendarDurationIssue(draft, yearPlan);
   const branchForWeek = (row) => draft.branches.find((branch) =>
     String(branch.themeId) === String(row.theme.id) && row.start >= branch.startDate && row.start <= branch.endDate);
@@ -197,7 +199,12 @@ function BranchPlanInner({ classId }) {
   };
   // Giáo viên sửa ô đang chờ: lần viết lại sau dựa trên chữ vừa sửa
   const editName = (week, value) => {
+    // Nhập tên trước khi chọn ngày: tuần chưa có nhánh tự thành nhánh 1 tuần, đổi ngày sau
     set('names', week, value);
+    setPendingDates((dates) => {
+      const { [week]: _, ...rest } = dates;
+      return rest;
+    });
     setPending((p) => (p[week] ? { ...p, [week]: { ...p[week], base: value } } : p));
   };
   const rewrite = async (r) => {
@@ -358,34 +365,15 @@ function BranchPlanInner({ classId }) {
         {/* Thanh thao tác như màn Kế hoạch năm học: nút cỡ nhỏ viền xanh, nhóm lưu/gửi/xuất bên phải (Tiền 04/11) */}
         <div className="ga-year-toolbar" role="group" aria-label="Thao tác chủ đề nhánh">
           <div className="ga-year-toolbar__group">
-            {/* Spec 003: lịch nhánh duyệt theo gói học kỳ; mỗi kỳ một trạng thái và hạn */}
-            {packages.length ? (
-              packages.map((p) => (
-                <Link key={p.id} className="row gap-2" to={`/education/class/${classId}/semesters/${p.semesterNo}`}>
-                  Gói học kỳ {p.semesterNo}
-                  <EduStatusBadge status={p.status} doc={p} />
-                  <DeadlineBadge doc={p} />
-                </Link>
-              ))
-            ) : (
-              <EduStatusBadge status={status} doc={saved} />
-            )}
             {ctx.canPickClass && (
-              <select
-                className="select"
-                aria-label="Chọn lớp"
-                value={classId}
-                onChange={(e) => {
+              <ClassPicker
+                classes={classes}
+                classId={classId}
+                onPick={(id) => {
                   setEditing(false);
-                  guard.leave(`/education/branches/${e.target.value}`);
+                  guard.leave(`/education/branches/${id}`);
                 }}
-              >
-                {classes.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
+              />
             )}
             {!editing && canEdit && (
               <button
@@ -462,7 +450,7 @@ function BranchPlanInner({ classId }) {
       />
       {semesterConfigMissing && (
         // Spec 003 US1/AC7: chưa có ngày học kỳ thì gói học kỳ không có hạn
-        <Notice tone="warn">Năm học chưa cấu hình học kỳ. Hiệu trưởng đặt ngày học kỳ ở Cấu hình trường › Năm học để tính hạn gói học kỳ.</Notice>
+        <Notice tone="warn">Năm học chưa cấu hình học kỳ.</Notice>
       )}
       {saved?.branchUnreleasedSemesters?.length > 0 && (
         // FR-015: người chỉ xem chỉ thấy lịch nhánh của học kỳ đã duyệt
@@ -589,10 +577,10 @@ function BranchPlanInner({ classId }) {
                       <td className={editable ? (pending[r.start] ? 'ga-cell--ai' : 'ga-cell-editable') : undefined}>
                         <div className="ga-goal-line__text">
                           <Cell
-                            editable={editable && !!branch}
+                            editable={editable}
                             value={draft.names[r.start]}
                             label={`Chủ đề nhánh tuần ${r.no}`}
-                            placeholder={branch ? 'Nhập tên chủ đề nhánh' : 'Chọn ngày ở cột Tuần trước'}
+                            placeholder="Nhập tên chủ đề nhánh"
                             onChange={(v) => editName(r.start, v)}
                           />
                           {editable && branch && !pending[r.start] && draft.names[r.start]?.trim() && (

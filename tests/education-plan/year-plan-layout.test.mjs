@@ -102,6 +102,7 @@ import {planLevel as levelOf, planRoute} from ${JSON.stringify(import.meta.resol
 const BranchTemplateEditor=()=>null;
 const TeamSourceReview=()=>null;
 const useParams=()=>({id:'test'}), useNavigate=()=>()=>{}, useLocation=()=>({state:null});
+const DeadlineBadge=()=>null, ExtendDeadlineButton=()=>null;
 const ROLE_LABELS={};
 const YearPlanSourceCard=({plan,source,children})=><section className="ga-plan-section--source" data-source-id={plan.curriculumSourcePlanId} data-source-title={source?.title}>{children}</section>;
 const ROLES={VICE_PRINCIPAL:'vp'}, AGE_GROUPS=[], DOMAINS=[], SCHOOL_SCOPE='Toàn trường', EDU_STATUS={DRAFT:'DRAFT',EDITING:'EDITING',APPROVED:'APPROVED'};

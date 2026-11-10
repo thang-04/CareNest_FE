@@ -29,6 +29,7 @@ export function ReviewActions({
   name,
   sendTo,
   approveLabel = 'Duyệt',
+  sendLabel = 'Gửi duyệt',
   can = {},
   sendBlocked,
   showSend = false,
@@ -130,7 +131,7 @@ export function ReviewActions({
           aria-description={sendReason || undefined}
           onClick={() => (sendReason ? setBlocked(sendReason) : open('submit'))}
         >
-          <Send size={16} aria-hidden /> Gửi duyệt
+          <Send size={16} aria-hidden /> {sendLabel}
         </button>
       )}
       {can.reject && (

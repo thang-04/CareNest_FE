@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { api, beReachable } from '../support/realBe.mjs';
+import { api, beReachable, sql } from '../support/realBe.mjs';
 import { login, saveStatus, spaGo } from '../support/ui.mjs';
 
 // System spec 002 trên dữ liệu dev sau reset 10/11/2026 (năm 2026–2027, nhóm 3–4 tuổi): teamlead34 = Tổ trưởng và
@@ -18,6 +18,11 @@ test.beforeAll(async () => {
   homeroomClass = docs.data.classes.find((c) => String(c.homeroomTeacherId) === String(me.data.userId));
   const teams = await api(U.tl, 'GET', `${GOALS}?planLevel=TEAM&size=100`);
   teamDraft = teams.data.items.find((p) => p.status === 'DRAFT');
+  // Gói học kỳ Chờ duyệt khóa lịch nhánh (đúng nghiệp vụ) ⇒ bộ test khác để lại thì đưa về Nháp trước khi thử Lưu
+  if (homeroomClass)
+    sql(
+      `update edu_class_docs set status='DRAFT', history='[]'::jsonb, approvals='[]'::jsonb where kind='semester' and classroom_id=${homeroomClass.id}`,
+    );
 });
 
 const page404 = (page) => page.getByText(/Không tìm thấy|Đã có lỗi/);
@@ -34,7 +39,8 @@ test('ST-002-01 GVCN lưu được trang Chủ đề / Chủ đề nhánh (Lưu 
   await expect(page.locator('.ga-page')).toBeVisible();
   await expect(page404(page)).toHaveCount(0);
   await page.getByRole('button', { name: 'Chỉnh sửa' }).click();
-  const name = page.locator('.ga-page input[type="text"], .ga-page textarea').first();
+  // Tuần cuối năm (học kỳ 2): gói HK1 đã qua ngày bắt đầu nên khóa theo thời gian (spec 004), sửa HK1 bị chặn 7388
+  const name = page.locator('textarea[aria-label^="Chủ đề nhánh tuần"]').last();
   const value = `Nhánh E2E ${Date.now() % 100000}`;
   await name.fill(value);
   const save = page.getByRole('button', { name: 'Lưu', exact: true });
@@ -62,7 +68,9 @@ test('ST-002-02 GV thứ hai không có nút sửa ở Chủ đề / Chủ đề
   expect(docs.data.branchPlans.some((b) => String(b.classId) === String(homeroomClass.id))).toBe(true);
 });
 
-test('ST-002-03 Tổ trưởng thêm chủ đề nhánh ở bản tổ Nháp và lưu được (nhánh do tổ thêm, không xóa được nhánh kế thừa)', async ({ page }) => {
+test('ST-002-03 Tổ trưởng thêm chủ đề nhánh ở bản tổ Nháp và lưu được (nhánh do tổ thêm, không xóa được nhánh kế thừa)', async ({
+  page,
+}) => {
   test.skip(!teamDraft, 'Không có bản tổ Nháp của teamlead34 (chạy integration trước)');
   await login(page, U.tl);
   await spaGo(page, `/education/goals/${teamDraft.id}/edit`);
@@ -89,13 +97,21 @@ test('ST-002-04 HT đang mở trang Duyệt: bản PHT vừa gửi kèm ghi chú
   test.skip(!annual, 'Không có kế hoạch năm đã ban hành');
   await login(page, U.ht);
   await spaGo(page, '/education/plan-reviews');
-  await expect(page.locator('.ga-page')).toBeVisible();
+  // HT tải tài liệu toàn trường ⇒ chờ lâu hơn mặc định
+  await expect(page.locator('.ga-page')).toBeVisible({ timeout: 45_000 });
 
   const note = `[E2E] Nhờ thầy duyệt ${Date.now() % 100000}`;
-  const h = (rev) => ({ 'X-Plan-Revision': String(rev ?? 0), 'Idempotency-Key': crypto.randomUUID(), 'X-Edit-Session': crypto.randomUUID() });
+  const h = (rev) => ({
+    'X-Plan-Revision': String(rev ?? 0),
+    'Idempotency-Key': crypto.randomUUID(),
+    'X-Edit-Session': crypto.randomUUID(),
+  });
   const v = await api(U.vp, 'POST', `${GOALS}/${annual.id}/versions`, { body: {}, headers: h(annual.revision) });
   expect(v.status, v.desc).toBe(201);
-  const sub = await api(U.vp, 'POST', `${GOALS}/${v.data.id}/submit`, { body: { note }, headers: h(v.data.contentRevision ?? v.data.revision) });
+  const sub = await api(U.vp, 'POST', `${GOALS}/${v.data.id}/submit`, {
+    body: { note },
+    headers: h(v.data.contentRevision ?? v.data.revision),
+  });
   expect(sub.status, sub.desc).toBe(200);
   try {
     // Không tải lại trang: hàng chờ tự hỏi lại BE (≤30 s) và hiện ghi chú người gửi
@@ -104,7 +120,10 @@ test('ST-002-04 HT đang mở trang Duyệt: bản PHT vừa gửi kèm ghi chú
     await page.getByRole('button', { name: /Chờ bạn duyệt/ }).click();
     await expect(page).toHaveURL(/\/education\/plan-reviews/);
   } finally {
-    await api(U.ht, 'POST', `${GOALS}/${v.data.id}/return`, { body: { note: '[E2E] trả lại sau kiểm thử' }, headers: h(sub.data.contentRevision ?? sub.data.revision) });
+    await api(U.ht, 'POST', `${GOALS}/${v.data.id}/return`, {
+      body: { note: '[E2E] trả lại sau kiểm thử' },
+      headers: h(sub.data.contentRevision ?? sub.data.revision),
+    });
     const back = await api(U.vp, 'GET', `${GOALS}/${v.data.id}`);
     await api(U.vp, 'DELETE', `${GOALS}/${v.data.id}`, { headers: h(back.data.contentRevision ?? back.data.revision) });
   }
@@ -133,7 +152,10 @@ test('ST-002-06 GVCN xóa được chủ đề nhánh do lớp tự thêm (có h
   test.skip(!doc || doc.schemaVersion !== 2, 'Lớp chưa có lịch chủ đề nhánh dạng mới');
   // Tạo sẵn một nhánh lớp tự thêm ở tuần trống đầu tiên còn lại của chủ đề đầu
   const theme = doc.themeSchedules[0];
-  const used = doc.branches.filter((b) => b.themeId === theme.themeId).map((b) => b.endDate).sort();
+  const used = doc.branches
+    .filter((b) => b.themeId === theme.themeId)
+    .map((b) => b.endDate)
+    .sort();
   const start = new Date(`${used.at(-1) || theme.startDate}T00:00:00Z`);
   start.setUTCDate(start.getUTCDate() + (used.length ? 3 : 0));
   const end = new Date(start);
@@ -141,9 +163,24 @@ test('ST-002-06 GVCN xóa được chủ đề nhánh do lớp tự thêm (có h
   const iso = (d) => d.toISOString().slice(0, 10);
   test.skip(iso(end) > theme.endDate, 'Chủ đề đầu không còn tuần trống');
   const key = crypto.randomUUID();
-  const { version, dossierVersion, review, permissions, names, notes, calendarRevision, durationPolicySnapshot, releases, ...content } = doc;
-  content.branches = [...doc.branches, { key, themeId: theme.themeId, sourceTemplateId: null, name: 'Nhánh lớp tự thêm (E2E)', startDate: iso(start), endDate: iso(end), weekNotes: {} }];
-  const put = await api(U.tl, 'PUT', `/education-plans/class-docs/branch/${doc.id}`, { body: content, headers: { 'X-Class-Doc-Version': String(doc.version) } });
+  const { version, dossierVersion, review, permissions, names, notes, calendarRevision, durationPolicySnapshot, releases, ...content } =
+    doc;
+  content.branches = [
+    ...doc.branches,
+    {
+      key,
+      themeId: theme.themeId,
+      sourceTemplateId: null,
+      name: 'Nhánh lớp tự thêm (E2E)',
+      startDate: iso(start),
+      endDate: iso(end),
+      weekNotes: {},
+    },
+  ];
+  const put = await api(U.tl, 'PUT', `/education-plans/class-docs/branch/${doc.id}`, {
+    body: content,
+    headers: { 'X-Class-Doc-Version': String(doc.version) },
+  });
   expect(put.status, put.desc).toBe(200);
 
   await login(page, U.tl);
@@ -163,4 +200,3 @@ test('ST-002-06 GVCN xóa được chủ đề nhánh do lớp tự thêm (có h
   expect(branches.some((b) => b.key === key)).toBe(false);
   expect(branches.length).toBe(doc.branches.length);
 });
-

@@ -221,9 +221,14 @@ const ITEMS = {
     label: 'Chủ đề / Chủ đề nhánh',
     to: '/education/branches',
   },
-  eduClass: {
-    label: 'Kế hoạch chủ đề',
-    to: '/education/class',
+  eduThemePlans: {
+    label: 'Kế hoạch giáo dục chủ đề',
+    to: '/education/theme-plans',
+    also: ['/education/class/'],
+  },
+  eduDayPlans: {
+    label: 'Kế hoạch giáo dục ngày',
+    to: '/education/day-plans',
   },
   eduPlanReviews: {
     label: 'Duyệt kế hoạch, giáo án',
@@ -421,7 +426,7 @@ const MENUS = {
       'healthTrends',
     ]),
     group('attendance', ['attendanceSummary', 'leaveRequests', 'attendanceDayUnlocks', 'dailyHealthOverview']),
-    group('education', ['eduSchoolYear', 'eduGoals', 'eduPlanReviews', 'eduSettings', 'eduCurriculum']),
+    group('education', ['eduSchoolYear', 'eduGoals', 'eduBranch', 'eduThemePlans', 'eduDayPlans', 'eduPlanReviews', 'eduSettings', 'eduCurriculum']),
     group('assessment', [
       'assessOverview',
       'assessQuality',
@@ -467,7 +472,7 @@ const MENUS = {
       'healthTrends',
     ]),
     group('attendance', ['attendanceSummary', 'leaveRequests', 'attendanceDayUnlocks', 'dailyHealthOverview']),
-    group('education', ['eduSchoolYear', 'eduGoals', 'eduPlanReviews', 'eduSettings', 'eduCurriculum']),
+    group('education', ['eduSchoolYear', 'eduGoals', 'eduBranch', 'eduThemePlans', 'eduDayPlans', 'eduPlanReviews', 'eduSettings', 'eduCurriculum']),
     group('assessment', [
       'assessOverview',
       'assessQuality',
@@ -496,7 +501,7 @@ const MENUS = {
     link('approvals'),
     group('children', ['childList', 'healthChecks', 'healthFollowUps', 'healthTrends']),
     group('attendance', ['attendance', 'attendanceSummary', 'leaveRequests', 'pickup']),
-    group('education', ['eduSchoolYear', 'eduGoals', 'eduBranch', 'eduClass', 'eduPlanReviews', 'eduCurriculum']),
+    group('education', ['eduSchoolYear', 'eduGoals', 'eduBranch', 'eduThemePlans', 'eduDayPlans', 'eduPlanReviews', 'eduCurriculum']),
     group('assessment', [
       'assessOverview',
       'assessDaily',
@@ -517,7 +522,7 @@ const MENUS = {
     link('home'),
     group('children', ['childList', 'healthChecks', 'healthFollowUps', 'healthTrends']),
     group('attendance', ['attendance', 'attendanceSummary', 'leaveRequests', 'pickup']),
-    group('education', ['eduSchoolYear', 'eduGoals', 'eduBranch', 'eduClass', 'eduCurriculum']),
+    group('education', ['eduSchoolYear', 'eduGoals', 'eduBranch', 'eduThemePlans', 'eduDayPlans', 'eduCurriculum']),
     group('assessment', [
       'assessDaily',
       'assessProfiles',

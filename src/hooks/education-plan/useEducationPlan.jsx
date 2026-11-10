@@ -56,9 +56,10 @@ const NEXT_SIGNER = {
 };
 /** Câu báo sau khi gửi / duyệt / trả lại tài liệu lớp, theo trạng thái mới. */
 export const actDoneText = (kind, action, status) => {
-  const name = { branch: 'chủ đề nhánh', semester: 'gói học kỳ', dossier: 'hồ sơ chủ đề' }[kind] || 'kế hoạch chủ đề';
+  const name = { branch: 'chủ đề nhánh', semester: 'học kỳ', dossier: 'hồ sơ chủ đề' }[kind] || 'kế hoạch chủ đề';
   const next = NEXT_SIGNER[status];
-  if (action === 'extend') return `Đã mở hạn ${name}`;
+  if (action === 'extend') return `Đã mở khóa ${name}`;
+  if (action === 'revise') return `Đã tạo phiên bản điều chỉnh ${name}`;
   if (action === 'reject') return `Đã trả lại ${name}`;
   if (action === 'submit') return next ? `Đã gửi ${next} duyệt ${name}` : `Đã gửi ${name}`;
   return next ? `Đã duyệt ${name}, chuyển ${next} duyệt tiếp` : `Đã duyệt ${name}`;
@@ -262,6 +263,17 @@ export function EducationPlanProvider({ children }) {
         }
       },
       getGoalChanges: service.getGoalChanges,
+      unlockGoal: async (id, body) => {
+        try {
+          const plan = await service.unlockGoal(id, body);
+          setData((prev) => (prev ? { ...prev, goals: upsert(prev.goals, plan) } : prev));
+          toast('Đã mở khóa kế hoạch');
+          return plan;
+        } catch (err) {
+          toastApi.error(err, 'Không mở khóa được');
+          return null;
+        }
+      },
       // Gửi / duyệt hồ sơ chủ đề đổi trạng thái cả giáo án các tuần: nạp lại để các tuần không giữ trạng thái cũ
       actOnClassDoc: async (kind, ...args) => {
         const saved = await classCall(service.actOnClassDoc)(kind, ...args);

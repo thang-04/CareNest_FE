@@ -12,4 +12,4 @@ Word/Excel/CSV do BE thật đọc; chế độ demo hỗ trợ CSV, có thông 
 
 Parser CSV được tách nguyên trạng từ mock tuyển sinh sang `src/utils/csv.js` để tránh import chéo module; export cũ giữ tương thích. Test so cùng hàm và BOM/delimiter/quoted multiline.
 
-Unit tests: tests/education-plan/import-branch-*.test.mjs, branch-review-ui.test.mjs. Real-BE E2E: tests/e2e/system/branch-file-import.spec.mjs và year-plan-import.spec.mjs. Bằng chứng cuối tại [quickstart BE](../../../CareNest_BE/specs/008-branch-plan-file-import/quickstart.md).
+Unit tests: tests/education-plan/import-branch-*.test.mjs, branch-review-ui.test.mjs. Real-BE E2E: (branch-file-import.spec.mjs đã xóa 11/11/2026 — dựng trên luồng Tổ trưởng tự lập kế hoạch năm, sai EDU-72) year-plan-import.spec.mjs. Bằng chứng cuối tại [quickstart BE](../../../CareNest_BE/specs/008-branch-plan-file-import/quickstart.md).

@@ -1325,15 +1325,14 @@ export function ThemeEventTable({
       message: `Xóa chủ đề nhánh / dự án "${(branch.name || '').trim() || 'chưa đặt tên'}"? Tên và lịch của nhánh sẽ bị bỏ. Thay đổi chỉ lưu khi bấm Lưu.`,
       run: () => onChange({ branchTemplates: branchTemplates.filter((t) => t.id !== branch.id) }),
     });
-  const actionCell = (label, onDelete, deleteLabel, rowSpan) => (
-    <td rowSpan={rowSpan} className="center">
-      <div className="ga-goal-table__pad ga-sort-cell">
-        <SortHandle label={label} />
-        <button type="button" className="icon-btn icon-btn--danger" onClick={onDelete} aria-label={deleteLabel} title={deleteLabel}>
-          <Trash2 size={16} aria-hidden />
-        </button>
-      </div>
-    </td>
+  // Nội dung ô Thao tác (kéo xếp + xóa); ô <td className="cell--actions"> viết ở từng bảng theo mẫu chung
+  const actionButtons = (label, onDelete, deleteLabel) => (
+    <div className="ga-goal-table__pad ga-sort-cell">
+      <SortHandle label={label} />
+      <button type="button" className="icon-btn icon-btn--danger" onClick={onDelete} aria-label={deleteLabel} title={deleteLabel}>
+        <Trash2 size={16} aria-hidden />
+      </button>
+    </div>
   );
   // Thêm dòng như bảng mục tiêu: gõ vào dòng trống cuối bảng, hoặc Enter ở ô tên để chèn dòng mới ngay dưới
   // col: tiền tố data-focus của cột cần đặt con trỏ ở dòng mới ('' = ô tên)
@@ -1499,7 +1498,7 @@ export function ThemeEventTable({
                 <th>Ngày lễ hội</th>
                 <th className="center cell--fixed">Số tuần</th>
                 <th>Ghi chú</th>
-                {!readOnly && <th className="center">Thao tác</th>}
+                {!readOnly && <th className="cell--actions">Thao tác</th>}
               </tr>
             </thead>
             {readOnly && themes.length === 0 && (
@@ -1592,7 +1591,11 @@ export function ThemeEventTable({
                       onKeyDown: themeKeys(t, i, 'note-'),
                     })}
                   </td>
-                  {!readOnly && actionCell(themeLabel(i), () => askDeleteTheme(t, i), `Xóa chủ đề ${i + 1}`, span)}
+                  {!readOnly && (
+                    <td rowSpan={span} className="cell--actions">
+                      {actionButtons(themeLabel(i), () => askDeleteTheme(t, i), `Xóa chủ đề ${i + 1}`)}
+                    </td>
+                  )}
                 </>
               );
               return (
@@ -1650,7 +1653,7 @@ export function ThemeEventTable({
                   <span className="stt-head">STT {!readOnly && <RenumberButton />}</span>
                 </th>
                 <th>Đợt nghỉ (Tết, ôn tập, nghỉ lễ…)</th>
-                {!readOnly && <th className="center">Thao tác</th>}
+                {!readOnly && <th className="cell--actions">Thao tác</th>}
               </tr>
             </thead>
             <tbody>
@@ -1685,7 +1688,7 @@ export function ThemeEventTable({
                     </div>
                     {breakSug.has(b.id) && suggestion(breakSug.get(b.id), () => patchBreak(b.id, breakSug.get(b.id)))}
                   </td>
-                  {!readOnly && actionCell(breakLabel(i), () => askDeleteBreak(b, i), `Xóa đợt nghỉ ${i + 1}`)}
+                  {!readOnly && <td className="cell--actions">{actionButtons(breakLabel(i), () => askDeleteBreak(b, i), `Xóa đợt nghỉ ${i + 1}`)}</td>}
                 </SortableRow>
               ))}
               {!readOnly && newRow(2, 'Thêm đợt nghỉ', NO_BREAKS_HINT, (label) => insertBreak(breaks.length - 1, label))}

@@ -21,6 +21,9 @@ const iconChip = (item) => {
 };
 
 const isActivePath = (pathname, to, exact = false) => (to === '/' || exact ? pathname === to : pathname.startsWith(to));
+// Mục menu có trang con ở đường dẫn khác (vd. kế hoạch chủ đề/tuần của lớp) khai báo `also` để vẫn sáng mục cha
+const isActiveItem = (pathname, item) =>
+  isActivePath(pathname, item.to, item.exact) || (item.also || []).some((prefix) => pathname.startsWith(prefix));
 
 const readOpenGroups = () => {
   try {
@@ -53,7 +56,7 @@ export function Sidebar({ role, collapsed, drawer = false, drawerOpen = false, o
 
   // Open the group that contains the current page when navigating.
   useEffect(() => {
-    const group = menu.find((m) => m.children?.some((c) => isActivePath(pathname, c.to, c.exact)));
+    const group = menu.find((m) => m.children?.some((c) => isActiveItem(pathname, c)));
     if (group) setOpen((o) => (o[group.label] ? o : { [group.label]: true }));
   }, [pathname, menu]);
 
@@ -116,7 +119,7 @@ export function Sidebar({ role, collapsed, drawer = false, drawerOpen = false, o
         </NavLink>
       );
     }
-    const groupActive = item.children.some((c) => isActivePath(pathname, c.to, c.exact));
+    const groupActive = item.children.some((c) => isActiveItem(pathname, c));
     const expanded = !!open[item.label] && !collapsed;
     const subId = `nav-sub-${item.label}`;
     return (
@@ -148,7 +151,7 @@ export function Sidebar({ role, collapsed, drawer = false, drawerOpen = false, o
                 to={child.to}
                 end={!!child.exact}
                 onClick={skipIfOpening(child.to)}
-                className={() => `nav-sub__item ${isActivePath(pathname, child.to, child.exact) ? 'nav-sub__item--active' : ''}`}
+                className={() => `nav-sub__item ${isActiveItem(pathname, child) ? 'nav-sub__item--active' : ''}`}
               >
                 {child.label}
               </NavLink>
@@ -166,7 +169,7 @@ export function Sidebar({ role, collapsed, drawer = false, drawerOpen = false, o
                 end={!!child.exact}
                 role="menuitem"
                 onClick={skipIfOpening(child.to)}
-                className={() => `nav-sub__item ${isActivePath(pathname, child.to, child.exact) ? 'nav-sub__item--active' : ''}`}
+                className={() => `nav-sub__item ${isActiveItem(pathname, child) ? 'nav-sub__item--active' : ''}`}
               >
                 {child.label}
               </NavLink>

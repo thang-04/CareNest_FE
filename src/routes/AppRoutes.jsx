@@ -46,6 +46,17 @@ const ClassPlanRedirect = lazyPage(() =>
     default: m.ClassPlanRedirect,
   })),
 );
+const ClassPlanLegacyRedirect = lazyPage(() =>
+  import('@/pages/education-plan/ClassPlanPage').then((m) => ({
+    default: m.ClassPlanLegacyRedirect,
+  })),
+);
+const DayPlansPage = lazyPage(() => import('@/pages/education-plan/DayPlansPage'));
+const DayPlansLegacyRedirect = lazyPage(() =>
+  import('@/pages/education-plan/DayPlansPage').then((m) => ({
+    default: m.DayPlansLegacyRedirect,
+  })),
+);
 const BranchPlanPage = lazyPage(() => import('@/pages/education-plan/BranchPlanPage'));
 const BranchPlanLegacyRedirect = lazyPage(() =>
   import('@/pages/education-plan/BranchPlanPage').then((m) => ({
@@ -55,7 +66,6 @@ const BranchPlanLegacyRedirect = lazyPage(() =>
 const ClassThemePlanPage = lazyPage(() => import('@/pages/education-plan/ClassThemePlanPage'));
 const TeachingPresentationPage = lazyPage(() => import('@/pages/education-plan/TeachingPresentationPage'));
 const WeekPlanPage = lazyPage(() => import('@/pages/education-plan/WeekPlanPage'));
-const SemesterPackagePage = lazyPage(() => import('@/pages/education-plan/SemesterPackagePage'));
 const PlanReviewQueuePage = lazyPage(() => import('@/pages/education-plan/PlanReviewQueuePage'));
 const EduConfigPage = lazyPage(() => import('@/pages/education-plan/EduConfigPage'));
 const CurriculumSourcesPage = lazyPage(() => import('@/pages/education-plan/CurriculumSourcesPage'));
@@ -261,8 +271,16 @@ export function AppRoutes() {
             <Route path="goals/new" element={<Navigate to="/education/goals" replace />} />
             <Route path="goals/:id" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <GoalDetailPage />)} />
             <Route path="goals/:id/edit" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <GoalFormPage key="team" />)} />
+            {/* Spec 004: Kế hoạch giáo dục chủ đề (gói học kỳ) và Kế hoạch giáo dục ngày (hồ sơ chủ đề) */}
+            <Route path="theme-plans" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ClassPlanRedirect />)} />
+            <Route path="theme-plans/:classId" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ClassPlanPage />)} />
+            <Route
+              path="day-plans"
+              element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ClassPlanRedirect toOf={(id) => `/education/day-plans/${id}`} />)}
+            />
+            <Route path="day-plans/:classId" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <DayPlansPage />)} />
             <Route path="class" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ClassPlanRedirect />)} />
-            <Route path="class/:classId" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ClassPlanPage />)} />
+            <Route path="class/:classId" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ClassPlanLegacyRedirect />)} />
             <Route
               path="branches"
               element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ClassPlanRedirect toOf={(id) => `/education/branches/${id}`} />)}
@@ -276,8 +294,8 @@ export function AppRoutes() {
             <Route path="class/:classId/weeks/:weekStart" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <WeekPlanPage />)} />
             <Route path="class/:classId/weeks/:weekStart/review" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <WeekPlanPage review />)} />
             {/* Spec 003: giáo án ngày tách trang; gói học kỳ */}
-            <Route path="class/:classId/weeks/:weekStart/days" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <WeekPlanPage mode="days" />)} />
-            <Route path="class/:classId/semesters/:no" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <SemesterPackagePage />)} />
+            <Route path="class/:classId/weeks/:weekStart/days" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <DayPlansLegacyRedirect />)} />
+            <Route path="class/:classId/semesters/:no" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ClassPlanLegacyRedirect />)} />
             <Route path="plan-reviews" element={edu([ROLES.PRINCIPAL, ...EDU_VP_TL], <PlanReviewQueuePage />)} />
             <Route path="curriculum-sources" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <CurriculumSourcesPage />)} />
             <Route

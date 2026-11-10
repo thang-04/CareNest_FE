@@ -125,6 +125,8 @@ export const toUiGoal = (detail, refs) => {
     id: String(detail.id),
     revision: detail.contentRevision ?? detail.revision ?? 0,
     editExpiresAt: detail.editExpiresAt,
+    // Spec 004 Q3b/Q5: khóa từ ngày bắt đầu năm học, Hiệu trưởng mở khóa
+    timeLock: detail.timeLock || null,
     code: detail.code,
     schoolYear: toYearLabel(detail.schoolYearName),
     ageGroupId: refs.ageGroupCode(detail.ageGroupId),

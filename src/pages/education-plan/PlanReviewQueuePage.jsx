@@ -11,6 +11,7 @@ import { submitEntryOf } from '@/models/education-plan/reviewHistory.mjs';
 import { CLASS_DOC_LABELS, themeNumber, themeWeeksOf } from '@/models/education-plan/classPlan';
 import { PENDING_OF } from '@/models/education-plan/eduConfig';
 import { clickableRowProps } from '@/utils/clickableRow';
+import { Eye } from '@/components/ui/icons';
 
 /**
  * Hộp duyệt: hồ sơ chủ đề (kế hoạch chủ đề + giáo án các nhánh) của các lớp trong khối đang chờ duyệt.
@@ -57,10 +58,10 @@ export default function PlanReviewQueuePage() {
     // Spec 003: gói học kỳ (lịch nhánh + chủ đề theo kỳ) và hồ sơ chủ đề là đơn vị duyệt
     ...semesterPackages.filter(mine).map((d) => ({
       kind: 'semester',
-      label: 'Gói học kỳ',
+      label: 'Học kỳ',
       doc: d,
-      what: `Lịch chủ đề nhánh học kỳ ${d.semesterNo} · ${(d.themeIds || []).length} chủ đề`,
-      to: `/education/class/${d.classId}/semesters/${d.semesterNo}`,
+      what: `Học kỳ ${d.semesterNo}: chủ đề nhánh, kế hoạch chủ đề, kế hoạch tuần · ${(d.themeIds || []).length} chủ đề`,
+      to: `/education/theme-plans/${d.classId}?hk=${d.semesterNo}`,
     })),
     ...themeDossiers.filter(mine).map((d) => {
       const plan = goals.find((g) => g.id === d.yearPlanId);
@@ -68,8 +69,8 @@ export default function PlanReviewQueuePage() {
         kind: 'theme',
         label: 'Hồ sơ chủ đề',
         doc: d,
-        what: `Chủ đề ${themeNumber(plan, d.themeId)}: ${themeName(d)} · ${d.submitMode === 'SEMESTER' ? 'giáo án ngày' : 'kế hoạch chủ đề, tuần, ngày'}`,
-        to: `/education/class/${d.classId}/themes/${d.themeId}`,
+        what: `Chủ đề ${themeNumber(plan, d.themeId)}: ${themeName(d)} · giáo án ngày`,
+        to: `/education/day-plans/${d.classId}?theme=${d.themeId}`,
       };
     }),
     // Bản mock cũ chưa có hồ sơ chủ đề tách riêng
@@ -101,13 +102,15 @@ export default function PlanReviewQueuePage() {
           <div className="card__body">
             <div className="table-wrap">
               <table className="table ga-plan-table ga-goal-table">
+                {/* Bảng cố định độ rộng: cột hẹp cho loại/người gửi/thời điểm, chừa phần lớn cho Nội dung (ghi chú gửi) */}
                 <colgroup>
-                  <col className="ga-goal-table__group" />
-                  <col className="ga-goal-table__code" />
+                  <col className="ga-review-queue__short" />
+                  <col className="ga-review-queue__class" />
                   <col />
-                  <col className="ga-goal-table__group" />
-                  <col className="ga-goal-table__group" />
-                  <col className="ga-goal-table__group" />
+                  <col className="ga-review-queue__short" />
+                  <col className="ga-review-queue__short" />
+                  <col className="ga-review-queue__status" />
+                  <col className="ga-review-queue__actions" />
                 </colgroup>
                 <thead>
                   <tr>
@@ -117,6 +120,7 @@ export default function PlanReviewQueuePage() {
                     <th>Người gửi</th>
                     <th>Gửi lúc</th>
                     <th className="center">Trạng thái</th>
+                    <th className="cell--actions">Thao tác</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -151,6 +155,19 @@ export default function PlanReviewQueuePage() {
                             </span>
                           )}
                         </div>
+                      </td>
+                      <td className="cell--actions">
+                        {/* Cả dòng bấm được; nút cho thấy rõ chỗ mở và dùng được bằng bàn phím */}
+                        <button
+                          type="button"
+                          className="btn btn--sm btn--outline-primary"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(it.to);
+                          }}
+                        >
+                          <Eye size={16} aria-hidden /> Mở duyệt
+                        </button>
                       </td>
                     </tr>
                   ))}

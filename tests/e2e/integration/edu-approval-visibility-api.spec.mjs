@@ -31,8 +31,25 @@ test.beforeAll(async () => {
 });
 
 test('IT-002-01 PHT tạo phiên bản năm, gửi kèm ghi chú; HT thấy trong hàng chờ kèm ghi chú và ban hành', async () => {
-  const v = await api(U.vp, 'POST', `${GOALS}/${annual.id}/versions`, { body: {}, headers: headers(annual.revision) });
-  expect(v.status, v.desc).toBe(201);
+  // Spec 004 Q3b/Q5: năm học đã bắt đầu ⇒ kế hoạch năm khóa (7389) tới khi Hiệu trưởng mở khóa; PHT không mở khóa được
+  if ((await api(U.vp, 'GET', `${GOALS}/${annual.id}`)).data.timeLock?.timeLocked) {
+    const locked = await api(U.vp, 'POST', `${GOALS}/${annual.id}/versions`, { body: {}, headers: headers(annual.revision) });
+    expect(locked.status).toBe(409);
+    expect(locked.errorCode ?? locked.code).toBe(7389);
+    const until = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10);
+    expect((await api(U.vp, 'POST', `${GOALS}/${annual.id}/unlock`, { body: { note: '[E2E] mở khóa', deadline: until } })).status).toBe(403);
+    const unlocked = await api(U.ht, 'POST', `${GOALS}/${annual.id}/unlock`, { body: { note: '[E2E] mở khóa', deadline: until } });
+    expect(unlocked.status, unlocked.desc).toBe(200);
+    expect((await api(U.vp, 'GET', `${GOALS}/${annual.id}`)).data.timeLock).toMatchObject({ timeLocked: false, extendedTo: until });
+  }
+  // Lần chạy trước dừng giữa chừng để lại phiên bản Nháp ⇒ dùng tiếp (mỗi chuỗi chỉ một phiên bản đang soạn)
+  const left = (await api(U.vp, 'GET', `${GOALS}?planLevel=SCHOOL_YEAR&size=100`)).data.items.find(
+    (p) => p.ageGroupId === ageGroupId && p.status === 'DRAFT',
+  );
+  const v = left
+    ? await api(U.vp, 'GET', `${GOALS}/${left.id}`)
+    : await api(U.vp, 'POST', `${GOALS}/${annual.id}/versions`, { body: {}, headers: headers(annual.revision) });
+  expect(v.status, v.desc).toBe(left ? 200 : 201);
   const sub = await api(U.vp, 'POST', `${GOALS}/${v.data.id}/submit`, { body: { note: NOTE }, headers: headers(rev(v.data)) });
   expect(sub.status, sub.desc).toBe(200);
   const queue = await api(U.ht, 'GET', `${GOALS}/review-queue`);
@@ -52,7 +69,13 @@ test('IT-002-01 PHT tạo phiên bản năm, gửi kèm ghi chú; HT thấy tron
 test('IT-002-02 bản tổ Nháp tự sinh: chỉ Tổ trưởng thấy; PHT/HT/GV nhận 403 "chưa ban hành", danh sách chỉ bản ban hành', async () => {
   const tlTeams = await api(U.tl, 'GET', `${GOALS}?planLevel=TEAM&size=100`);
   teamDraft = tlTeams.data.items.find((p) => p.status === 'DRAFT' && p.curriculumSourcePlanId === annual.id);
-  expect(teamDraft, 'bản tổ Nháp theo kế hoạch năm vừa ban hành').toBeTruthy();
+  if (!teamDraft) {
+    // Spec 004 Q6: kế hoạch tổ khóa cập nhật từ ngày bắt đầu năm học ⇒ không tự sinh bản tổ mới tới khi HT mở khóa
+    const prior = tlTeams.data.items.find((p) => p.ageGroupId === ageGroupId && p.status === 'APPROVED' && p.current);
+    test.skip(!prior, 'Chưa có kế hoạch tổ đã ban hành của nhóm tuổi');
+    expect((await api(U.tl, 'GET', `${GOALS}/${prior.id}`)).data.timeLock?.timeLocked, 'không có bản tổ Nháp thì kế hoạch tổ phải đang khóa').toBe(true);
+    return;
+  }
   for (const user of [U.vp, U.ht, U.gv2]) {
     const list = await api(user, 'GET', `${GOALS}?planLevel=TEAM&size=100`);
     expect(list.data.items.every((p) => p.status === 'APPROVED')).toBe(true);

@@ -28,5 +28,5 @@ test('khóa gốc và giáo án ngày khớp BE', () => {
   assert.equal(semesterKey('22', '353', 1), 'sp_22_353_1');
   assert.equal(dossierKey('22', '730'), 'ds_22_730');
   assert.equal(dayKeyOf('wp_22_2026-09-07_356'), 'dd_22_2026-09-07_356');
-  assert.ok(BLOCKED_TEXT.DEADLINE_PASSED.includes('mở hạn'));
+  assert.ok(BLOCKED_TEXT.DEADLINE_PASSED.includes('mở khóa'));
 });

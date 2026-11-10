@@ -184,7 +184,7 @@ test('fixed TEAM themes and breaks have no date, edit, reorder or delete control
   assert.match(annual, /<th class="center">Viết tắt/);
   assert.match(annual, /Xóa chủ đề/);
   assert.match(annual, /Xóa đợt nghỉ/);
-  assert.equal((annual.match(/<th class="center">Thao tác<\/th>/g) || []).length, 2);
+  assert.equal((annual.match(/<th class="cell--actions">Thao tác<\/th>/g) || []).length, 2);
   assert.doesNotMatch(annual, /<th[^>]*>Sắp xếp|<th[^>]*>Xóa<|ga-goal-table__sort/);
   assert.equal((annual.match(/data-drag-handle="true"/g) || []).length, 2);
   assert.match(annual, /data-drag-handle="true"[\s\S]*?aria-label="Xóa chủ đề 1"/);

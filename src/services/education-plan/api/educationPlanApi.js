@@ -234,6 +234,11 @@ export const educationPlanApi = {
       refs,
     );
   },
+  unlockGoal: async (id, body) => {
+    const refs = buildRefs(await loadConfig());
+    await axiosClient.post(`${GOALS}/${serverId(id) ?? id}/unlock`, body);
+    return fetchGoal(serverId(id) ?? id, refs);
+  },
   getGoalChanges: (id, fromId) =>
     axiosClient.get(`${GOALS}/${serverId(id) ?? id}/changes`, { params: fromId ? { fromPlanId: serverId(fromId) ?? fromId } : {} }),
   deleteGoal: async (id, revision) => {

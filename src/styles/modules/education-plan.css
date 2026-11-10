@@ -652,6 +652,12 @@
     min-width: calc(var(--space-16) * 19);
   }
 }
+/* Chủ đề / Chủ đề nhánh trên điện thoại: 5 cột cuộn ngang trong khung bảng, không bóp cột tên còn vài chữ mỗi dòng */
+@media (max-width: 767px) {
+  .ga-class-editor .table.ga-plan-table.ga-goal-table {
+    min-width: calc(var(--space-16) * 12);
+  }
+}
 @media (min-width: 768px) {
   .ga-goal-table--themes .ga-goal-table__theme {
     width: var(--space-10);
@@ -1685,6 +1691,11 @@ h2.ga-cur-domain__head {
 }
 .ga-year-toolbar .btn {
   flex: 0 0 auto;
+}
+/* Ô chọn nhóm tuổi / lớp trên thanh thao tác chỉ rộng vừa chữ, không đẩy các nút xuống dòng riêng */
+.ga-year-toolbar .select {
+  width: auto;
+  max-width: 100%;
 }
 .ga-year-page .table.ga-year-info th,
 .ga-year-page .table.ga-year-info tbody tr:nth-child(even) td {
@@ -2790,3 +2801,14 @@ h2.ga-cur-domain__head {
 
 
 
+/* Hàng chờ duyệt (bảng cố định độ rộng): cột phụ theo tỉ lệ để cột Nội dung (ghi chú gửi) luôn còn ~30% ở mọi khổ màn */
+.ga-goal-table .ga-review-queue__short {
+  width: 9%;
+}
+.ga-goal-table .ga-review-queue__class,
+.ga-goal-table .ga-review-queue__actions {
+  width: 13%;
+}
+.ga-goal-table .ga-review-queue__status {
+  width: 18%;
+}

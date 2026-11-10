@@ -67,10 +67,34 @@ Nguồn [BE spec013](../../../CareNest_BE/specs/013-published-year-plan-visibili
 
 ## Spec 003 — mốc duyệt theo thời gian dạy (10/11/2026, BE:EDU-74)
 
-- Trang **Gói học kỳ** `/education/class/:classId/semesters/:no`: lịch chủ đề nhánh của kỳ (tên từ `branchNames` BE trả), các chủ đề gửi "theo học kỳ", nhãn hạn, Gửi/Duyệt/Trả lại, **Mở hạn** (HT/PHT, theo cờ `canExtend`), lịch sử và các bản đã ban hành. Năm chưa cấu hình học kỳ ⇒ nhắc HT cấu hình.
-- Trang kế hoạch chủ đề gửi/duyệt theo **hồ sơ chủ đề** (`themeDossiers`, kind `dossier`); chọn cách gửi kế hoạch chủ đề + tuần (Theo chủ đề — mặc định / Theo học kỳ), khóa khi đã gửi hoặc từng ban hành; hiện lý do chưa gửi được (`blockedReason`).
+- *(Thay bởi spec 004: trang này đã xóa, đường dẫn chuyển hướng sang Kế hoạch giáo dục chủ đề.)* Trang **Gói học kỳ** `/education/class/:classId/semesters/:no`: lịch chủ đề nhánh của kỳ (tên từ `branchNames` BE trả), các chủ đề gửi "theo học kỳ", nhãn hạn, Gửi/Duyệt/Trả lại, **Mở hạn** (HT/PHT, theo cờ `canExtend`), lịch sử và các bản đã ban hành. Năm chưa cấu hình học kỳ ⇒ nhắc HT cấu hình.
+- *(Thay bởi spec 004: bỏ chọn cách gửi, trang kế hoạch chủ đề không gửi.)* Trang kế hoạch chủ đề gửi/duyệt theo **hồ sơ chủ đề** (`themeDossiers`, kind `dossier`); chọn cách gửi kế hoạch chủ đề + tuần (Theo chủ đề — mặc định / Theo học kỳ), khóa khi đã gửi hoặc từng ban hành; hiện lý do chưa gửi được (`blockedReason`).
 - Giáo án tuần tách hai trang: `/weeks/:weekStart` = **Kế hoạch tuần**; `/weeks/:weekStart/days` = **Giáo án ngày** (5 ngày + điều chỉnh sau dạy, lưu kind `day`). Hai trang liên kết qua lại; nhãn trạng thái theo gói/hồ sơ chứa phần đó.
 - Nhãn hạn (`DeadlineBadge`): Gần đến hạn · còn N ngày / Quá hạn / Đúng hạn / Ban hành trễ / Hạn dd/MM — chỉ hiển thị `deadlineState`, `daysLeft` BE tính; dùng ở trang lớp, trang chủ đề nhánh, hàng chờ duyệt, gói học kỳ, hồ sơ chủ đề.
 - Hàng chờ duyệt có thêm Gói học kỳ và Hồ sơ chủ đề. Trang chủ đề nhánh hiện trạng thái + hạn từng gói học kỳ; người chỉ xem thấy "Chưa có lịch chủ đề nhánh đã duyệt của học kỳ …".
 - Chuông thông báo nối BE `GET /me/notifications` (module `notifications` chuyển sang `api`), tự làm mới 20 giây, bấm mở `link`.
 - Mock repo kế hoạch lớp chưa có gói học kỳ/hồ sơ chủ đề: trang tự quay về cách cũ (gửi theo kế hoạch chủ đề) khi BE không trả các danh sách mới.
+
+## Spec 004 — cách duyệt cố định, tách trang chủ đề / ngày (11/11/2026, BE:EDU-75/76/77)
+
+- Sidebar "Kế hoạch giáo dục" tách hai mục **Kế hoạch giáo dục chủ đề** (`/education/theme-plans`) và **Kế hoạch giáo dục ngày**
+  (`/education/day-plans`); không có `:classId` thì tự chọn lớp.
+- **Kế hoạch giáo dục chủ đề** `/education/theme-plans/:classId?hk=1|2`: tab học kỳ; khối **Học kỳ n** (không gọi "gói"; tên nhánh + kế hoạch chủ đề + kế
+  hoạch tuần của mọi chủ đề trong kỳ) với nhãn hạn, Gửi / Duyệt / Trả lại, **Tạo phiên bản điều chỉnh** (`canRevise`), **Mở khóa**
+  (`canExtend`, HT/PHT, bắt buộc lý do + hạn mới), lịch sử, các bản đã ban hành; danh sách mục thiếu từ `missing` (thiếu nhánh /
+  kế hoạch chủ đề / kế hoạch tuần, chỉ là chữ). Lỗi 7387 hiện danh sách thiếu.
+- **Kế hoạch giáo dục ngày** `/education/day-plans/:classId?week=|theme=`: kế hoạch tuần chỉ xem ở trên (nhãn "chưa duyệt" khi học
+  kỳ chưa ban hành), giáo án 5 ngày bên dưới (lưu được khi gói chưa ban hành, chỉ chưa gửi), gửi/duyệt/phiên bản/mở khóa **hồ sơ chủ
+  đề**; ô điều chỉnh sau dạy (EDU-27) vẫn sửa được khi đã khóa.
+- Trang "Chủ đề / Chủ đề nhánh" và trang kế hoạch chủ đề không còn nút gửi duyệt; bỏ chọn "theo học kỳ"/"theo chủ đề".
+- **Không liên kết chéo** (Tiền 11/11/2026): các trang Chủ đề / Chủ đề nhánh, Kế hoạch giáo dục chủ đề, kế hoạch chủ đề, kế hoạch tuần,
+  Kế hoạch giáo dục ngày không có link/nút sang trang khác (kể cả breadcrumb, "Giáo án ngày", "Mở kế hoạch tuần", tuần trước/sau);
+  chuyển trang bằng sidebar. Giữ: nút Lập / Chỉnh sửa / Xem từng dòng ở Kế hoạch giáo dục chủ đề (mở tài liệu để soạn), ô chọn lớp/tuần
+  trên chính trang, Dạy học / Trình chiếu. Trang con `/education/class/...` sáng mục sidebar "Kế hoạch giáo dục chủ đề" (`also`).
+  Trang Chủ đề / Chủ đề nhánh không hiện trạng thái học kỳ. Bỏ chú thích thừa.
+- Khóa theo thời gian: `timeLocked` ⇒ nút sửa/gửi/tạo phiên bản tắt kèm lý do; 7388 `CLASS_DOC_TIME_LOCKED` / 7389 `PLAN_TIME_LOCKED` hiện
+  thông điệp BE.
+- Chi tiết kế hoạch năm/tổ: đọc `timeLock`; Hiệu trưởng thấy **Mở khóa** khi `canUnlock` (`POST /goals/{id}/unlock`, lý do + hạn mới).
+- Đường dẫn cũ `/education/class/:id`, `/education/class/:id/semesters/:no` → `theme-plans`; `/education/class/:id/weeks/:ws/days` →
+  `day-plans?week=:ws`. Giữ `/class/:id/themes/:themeId` (soạn kế hoạch chủ đề) và `/class/:id/weeks/:ws` (soạn kế hoạch tuần).
+  `SemesterPackagePage` đã xóa.

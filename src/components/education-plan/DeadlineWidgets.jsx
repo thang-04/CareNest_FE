@@ -16,14 +16,14 @@ export function BlockedNotice({ doc, author }) {
   return text ? <Notice tone="warn">{text}</Notice> : null;
 }
 
-/** HT/PHT mở hạn gói/hồ sơ quá hạn: bắt buộc lý do và hạn mới sau hôm nay (FR-004a). */
-export function ExtendDeadlineButton({ doc, onExtend }) {
+/** Mở khóa (spec 004 Q5): HT/PHT với gói/hồ sơ, HT với kế hoạch năm/tổ; bắt buộc lý do và hạn mới sau hôm nay. */
+export function ExtendDeadlineButton({ doc, onExtend, allowed = doc?.canExtend }) {
   const [open, setOpen] = useState(false);
   const [note, setNote] = useState('');
   const [deadline, setDeadline] = useState('');
   const [tried, setTried] = useState(false);
   const [busy, setBusy] = useState(false);
-  if (!doc?.canExtend) return null;
+  if (!allowed) return null;
   const today = todayIso();
   const valid = note.trim() && deadline > today;
   const confirm = async () => {
@@ -37,11 +37,11 @@ export function ExtendDeadlineButton({ doc, onExtend }) {
   return (
     <>
       <button type="button" className="btn btn--sm btn--outline-primary" onClick={() => setOpen(true)}>
-        Mở hạn
+        Mở khóa
       </button>
       {open && (
         <Modal
-          title="Mở hạn gửi duyệt"
+          title="Mở khóa"
           onClose={() => !busy && setOpen(false)}
           footer={
             <>
@@ -49,12 +49,12 @@ export function ExtendDeadlineButton({ doc, onExtend }) {
                 Hủy
               </button>
               <button type="button" className="btn btn--primary" disabled={busy} onClick={confirm}>
-                Mở hạn
+                Mở khóa
               </button>
             </>
           }
         >
-          <p>Giáo viên chủ nhiệm được gửi tiếp tới hạn mới. Lịch sử duyệt ghi người mở hạn và lý do.</p>
+          <p>Người soạn được sửa, gửi hoặc tạo phiên bản tới hạn mới. Lịch sử ghi người mở khóa và lý do.</p>
           <Field label="Hạn mới" required htmlFor="extend-deadline" error={tried && !(deadline > today) ? 'Chọn ngày sau hôm nay' : undefined}>
             <input id="extend-deadline" type="date" className="input" min={today} value={deadline} onChange={(e) => setDeadline(e.target.value)} />
           </Field>

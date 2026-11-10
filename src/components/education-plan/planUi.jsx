@@ -4,7 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 import { Check, Eye, Send } from '@/components/ui/icons';
 import { SIGNER_SHORT } from '@/components/education-plan/reviewUi';
 import { ROLES } from '@/models/User';
-import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
+import { AGE_GROUPS, EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { toRows } from '@/models/education-plan/goalTable';
 import { emptyBranchPlan } from '@/models/education-plan/classPlan';
@@ -64,8 +64,8 @@ export function useClassPlanContext(classId) {
   const leaders = cls ? users.filter((u) => u.role === ROLES.TEAM_LEADER && u.ageGroupId === cls.ageGroupId) : [];
   const isClassTeacher = !!cls && (cls.teacherIds || []).some((id) => String(id) === String(user.id));
   const isHomeroomTeacher = isClassTeacher && String(cls.homeroomTeacherId) === String(user.id);
-  // Mỗi giáo viên chỉ được xếp một lớp: người có lớp chỉ làm việc với lớp đó, không có ô chọn lớp
-  const canPickClass = classes.length > 1 && !classes.some((c) => (c.teacherIds || []).includes(user.id));
+  // Danh sách lớp do BE giới hạn theo phạm vi (EDU-64): HT/PHT mọi lớp, tổ trưởng lớp cùng nhóm tuổi, GV chỉ lớp mình
+  const canPickClass = classes.length > 1;
   const isGroupLeader = leaders.some((leader) => String(leader.id) === String(user.id));
   const canComposeClassDocs = isHomeroomTeacher;
   const isVp = user.role === ROLES.VICE_PRINCIPAL;
@@ -116,8 +116,8 @@ const isOpen = (doc) => !doc?.status || doc.status === EDU_STATUS.DRAFT || doc.s
 export function reviewLabel(doc, ctx, user, kind = 'branch') {
   if (kind !== 'branch') {
     if (isMyReviewTurn(doc, ctx, user)) return 'Duyệt kế hoạch chủ đề';
-    // Giáo viên còn sửa được: gửi duyệt ở trang kế hoạch chủ đề
-    return ctx.canComposeClassDocs && isOpen(doc) ? 'Gửi duyệt' : 'Xem kế hoạch chủ đề';
+    // Giáo án tuần/ngày không gửi riêng (EDU-74): nút dẫn sang trang chủ đề để gửi cả hồ sơ chủ đề
+    return ctx.canComposeClassDocs && isOpen(doc) ? 'Gửi hồ sơ chủ đề' : 'Xem kế hoạch chủ đề';
   }
   if (isMyReviewTurn(doc, ctx, user)) return 'Duyệt';
   if (ctx.canComposeClassDocs && isOpen(doc)) return 'Gửi duyệt';
@@ -182,5 +182,40 @@ export function DocReviewButton({
       )}{' '}
       {label}
     </button>
+  );
+}
+
+/** Lọc nhóm tuổi trước rồi chọn lớp (HT/PHT, tổ trưởng); đổi nhóm tuổi ⇒ mở lớp đầu tiên của nhóm đó. */
+export function ClassPicker({ classes, classId, onPick }) {
+  const current = classes.find((c) => c.id === classId);
+  const groups = AGE_GROUPS.filter((g) => classes.some((c) => c.ageGroupId === g.id));
+  const inGroup = classes.filter((c) => c.ageGroupId === current?.ageGroupId);
+  return (
+    <>
+      {groups.length > 1 && (
+        <select
+          className="select"
+          aria-label="Chọn nhóm tuổi"
+          value={current?.ageGroupId || ''}
+          onChange={(e) => {
+            const first = classes.find((c) => c.ageGroupId === e.target.value);
+            if (first) onPick(first.id);
+          }}
+        >
+          {groups.map((g) => (
+            <option key={g.id} value={g.id}>
+              {g.name}
+            </option>
+          ))}
+        </select>
+      )}
+      <select className="select" aria-label="Chọn lớp" value={classId} onChange={(e) => onPick(e.target.value)}>
+        {(inGroup.length ? inGroup : classes).map((c) => (
+          <option key={c.id} value={c.id}>
+            {c.name}
+          </option>
+        ))}
+      </select>
+    </>
   );
 }

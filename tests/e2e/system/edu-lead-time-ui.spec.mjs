@@ -37,42 +37,46 @@ test.beforeAll(async () => {
 
 const notFound = (page) => page.getByText(/Không tìm thấy|Đã có lỗi/);
 
-test('ST-003-01 trang gói học kỳ hiện trạng thái, nhãn hạn, lịch nhánh của kỳ', async ({ page }) => {
+test('ST-003-01 khối Học kỳ ở trang Kế hoạch giáo dục chủ đề hiện trạng thái, nhãn hạn; không còn chữ "gói học kỳ"', async ({ page }) => {
   test.skip(!cls, 'Thiếu lớp');
   await login(page, U.tl);
-  await spaGo(page, `/education/class/${cls.id}/semesters/1`);
-  await expect(page.getByRole('heading', { name: 'Gói học kỳ 1' })).toBeVisible();
+  await spaGo(page, `/education/theme-plans/${cls.id}?hk=1`);
+  await expect(page.getByRole('heading', { name: 'Học kỳ 1', exact: true })).toBeVisible({ timeout: 30_000 });
   await expect(notFound(page)).toHaveCount(0);
-  await expect(page.getByText('Lịch chủ đề nhánh của học kỳ')).toBeVisible();
+  await expect(page.getByRole('tab', { name: /Học kỳ 1/ })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByText(/[Gg]ói học kỳ/)).toHaveCount(0);
   await expect(page.getByText(/Gần đến hạn|Quá hạn|Đúng hạn|Ban hành trễ|Hạn \d\d\/\d\d/).first()).toBeVisible();
 });
 
-test('ST-003-02 PHT thấy nút Mở hạn khi gói quá hạn; GV thứ hai không thấy', async ({ page, browser }) => {
+test('ST-003-02 PHT thấy nút Mở khóa khi gói quá hạn; GV thứ hai không thấy', async ({ page, browser }) => {
   test.skip(!cls, 'Thiếu lớp');
   const pkg = (await api(U.vp, 'GET', '/education-plans/class-docs')).data.semesterPackages.find(
     (p) => String(p.classId) === String(cls.id) && p.semesterNo === 1,
   );
   await login(page, U.vp);
-  await spaGo(page, `/education/class/${cls.id}/semesters/1`);
-  await expect(page.getByRole('heading', { name: 'Gói học kỳ 1' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Mở hạn' })).toHaveCount(pkg?.canExtend ? 1 : 0);
+  await spaGo(page, `/education/theme-plans/${cls.id}?hk=1`);
+  // PHT tải hồ sơ mọi lớp toàn trường ⇒ chờ lâu hơn mặc định
+  await expect(page.getByRole('heading', { name: 'Học kỳ 1', exact: true })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole('button', { name: 'Mở khóa' })).toHaveCount(pkg?.canExtend ? 1 : 0);
   const other = await (await browser.newContext()).newPage();
   await login(other, U.gv2);
-  await spaGo(other, `/education/class/${cls.id}/semesters/1`);
-  await expect(other.getByRole('heading', { name: 'Gói học kỳ 1' })).toBeVisible();
-  await expect(other.getByRole('button', { name: 'Mở hạn' })).toHaveCount(0);
+  await spaGo(other, `/education/theme-plans/${cls.id}?hk=1`);
+  // GV thứ hai chỉ thấy gói đã ban hành (EDU-73); trang vẫn mở, không có nút Mở khóa
+  await expect(other.getByRole('heading', { name: /Kế hoạch giáo dục chủ đề/ })).toBeVisible({ timeout: 30_000 });
+  await expect(other.getByRole('button', { name: 'Mở khóa' })).toHaveCount(0);
 });
 
-test('ST-003-03 Kế hoạch tuần và Giáo án ngày là hai trang, liên kết qua lại', async ({ page }) => {
+test('ST-003-03 Kế hoạch tuần và Kế hoạch giáo dục ngày là hai trang riêng, không liên kết qua lại (chỉ sidebar)', async ({ page }) => {
   test.skip(!week, 'Lớp chưa có giáo án tuần');
   await login(page, U.tl);
   await spaGo(page, `/education/class/${cls.id}/weeks/${week.weekStart}`);
-  await expect(page.getByRole('heading', { name: /Kế hoạch tuần \d+/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Kế hoạch tuần \d+/ })).toBeVisible({ timeout: 30_000 });
   await expect(page.getByRole('tab', { name: /Thứ 2/ })).toHaveCount(0);
-  await page.getByRole('link', { name: 'Giáo án ngày' }).first().click();
-  await expect(page.getByRole('heading', { name: /Giáo án ngày tuần \d+/ })).toBeVisible();
+  await expect(page.locator('.ga-page a[href^="/education/"]')).toHaveCount(0);
+  await spaGo(page, `/education/day-plans/${cls.id}?week=${week.weekStart}`);
+  await expect(page.getByRole('heading', { name: /Kế hoạch giáo dục ngày/ })).toBeVisible({ timeout: 30_000 });
   await expect(page.getByRole('tab', { name: /Thứ 2/ })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Kế hoạch tuần' })).toBeVisible();
+  await expect(page.locator('.ga-page a[href^="/education/"]')).toHaveCount(0);
 });
 
 test('ST-003-04 chuông thông báo hiện thông báo kế hoạch giáo dục và mở đúng trang', async ({ page }) => {
