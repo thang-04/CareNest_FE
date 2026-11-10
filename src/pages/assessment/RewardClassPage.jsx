@@ -389,7 +389,8 @@ export default function RewardClassPage() {
                           {edit ? (
                             <div className="stack gap-1">
                               {d.titleOptions.map((t) => {
-                                const disabled = !c.yearEnd || (REWARD_PROGRAM_TITLES.includes(t) && c.programCompleted !== true);
+                                // Luôn cho chọn danh hiệu (Cần chốt 10/11/2026); hoàn thành chương trình cần đánh giá cuối năm đã tích hoàn thành
+                                const disabled = REWARD_PROGRAM_TITLES.includes(t) && c.programCompleted !== true;
                                 return (
                                   <label key={t} className={`dg-tick ${disabled ? 'muted' : ''}`}>
                                     <input
@@ -406,11 +407,8 @@ export default function RewardClassPage() {
                             </div>
                           ) : f.titles.length ? (
                             f.titles.join(', ')
-                          ) : c.suggested?.length ? (
-                            // Chưa chọn danh hiệu: vẫn hiện danh hiệu hệ thống gợi ý để PHT/HT/tổ trưởng thấy (Cần yêu cầu 10/11/2026)
-                            <span className="text-success">Gợi ý: {c.suggested.join(', ')}</span>
                           ) : (
-                            <span className="muted">Chưa đủ điều kiện gợi ý</span>
+                            <span className="muted">—</span>
                           )}
                         </td>
                         <td className="min-w-220">
