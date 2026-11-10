@@ -9,7 +9,7 @@ import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { EmptyState, LoadingState } from '@/components/ui/States';
 import { GrowthChart } from '@/components/children/GrowthChart';
 import { HealthWarningCell } from '@/components/children/HealthWarningCell';
-import { TrendChildList, sortByAttention } from '@/components/children/TrendChildList';
+import { TrendChildList, sortByName } from '@/components/children/TrendChildList';
 import { AiTrendPanel } from '@/components/children/AiTrendPanel';
 import { ChildAccessState } from '@/components/children/ChildAccessState';
 import { CHILD_STATUS, ageGroupById } from '@/models/School';
@@ -58,9 +58,9 @@ export default function HealthTrendPage() {
       .forEach((c) => seen.set(c.classId, { id: c.classId, name: c.className, campusId: c.campusId }));
     return [...seen.values()].sort((a, b) => a.name.localeCompare(b.name, 'vi'));
   }, [active, campusId]);
-  // Danh sách cột trái: trẻ cần chú ý nhất lên đầu (user chọn 2026-10-23).
+  // Danh sách cột trái xếp theo tên (không xếp theo mức cần chú ý từ 2026-11-10).
   const ordered = useMemo(
-    () => sortByAttention(active.filter((c) => (!campusId || c.campusId === campusId) && (!classId || c.classId === classId))),
+    () => sortByName(active.filter((c) => (!campusId || c.campusId === campusId) && (!classId || c.classId === classId))),
     [active, campusId, classId],
   );
   // Mở trang hoặc đổi lớp mà chưa có trẻ đang xem thì tự chọn trẻ đầu danh sách.

@@ -275,7 +275,7 @@ Từ 2026-10-31 mức theo dõi không còn ở danh sách trẻ (cột, bộ l�
 | Bước | Ai | Thao tác | Kết quả mong đợi |
 | --- | --- | --- | --- |
 | H1 | Hiệu trưởng | **Hồ sơ trẻ → Danh sách trẻ** | Không có cột Theo dõi sức khỏe, không có bộ lọc mức theo dõi |
-| H2 | Hiệu trưởng | **Xu hướng sức khỏe**, chọn Campus 2 | Danh sách trẻ xếp Cần theo dõi sát → Cần theo dõi → Vấn đề đã biết → còn lại (theo lần khám gần nhất có kết luận); trẻ chưa có kết luận ghi *Chưa có kết luận bác sĩ* |
+| H2 | Hiệu trưởng | **Xu hướng sức khỏe**, chọn Campus 2 | Danh sách trẻ xếp theo tên, mỗi dòng chỉ tên, mã, lớp; không ghi kết luận sức khỏe (không còn nhãn mức theo dõi, không còn *Chưa có kết luận bác sĩ*) |
 | H3 | Hiệu trưởng | Xu hướng của Ngô Phương Linh → **Bảng số liệu** | Một cột **Cảnh báo** như Sổ sức khỏe (Bác sĩ: … / BMI: …), không còn cột Kết luận, Mức theo dõi |
 | H4 | Cô Ngọc | Sau bước F, Sổ sức khỏe của Đỗ Gia Bảo | Khối BMI theo lần đo của kỳ F (*Bình thường*); khối Kết luận bác sĩ vẫn theo lần khám có kết luận trước đó (số đo của kỳ cân đo, phiếu nháp không tính) |
 | H5 | Hiệu trưởng | **Cho nghỉ học** một trẻ bất kỳ (chỉ thử trên dữ liệu demo) | Hộp xác nhận không còn dòng về phiếu theo dõi; giáo viên lớp nhận *… nghỉ học từ ngày …* không kèm câu phiếu theo dõi |

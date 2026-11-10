@@ -5,8 +5,6 @@ import { GUARDIAN_RELATIONSHIP_LABELS } from '@/models/guardianRelationships';
 /**
  * PROPOSED Spring Boot contract for child records & child health (not agreed with CareNest_BE yet).
  * Same names and shapes as the mock repository; the backend reads the user's scope from the JWT.
- * Danh sách trẻ (mock) trả thêm latestHealth { date, followUpLevel, campaignName } của lần khám gần nhất có kết luận, để Xu hướng sức
- * khỏe xếp trẻ cần chú ý; BE chưa có trường này (đề xuất khi nối BE).
  * Hành chính, tiền sử (2026-10-17, `models/children/childProfile.js`): child.profile trong GET profile, POST enrollments,
  * PUT /children/{id} (danh sách không trả); declaration.medicalHistory trong PUT health-declaration; file nhập thêm cột.
  * Khai tiếp xúc người bệnh lao ⇒ BE gửi thông báo CHILD_TB_CONTACT (cả người lưu, 2026-10-27). Từ 2026-10-22: bắt buộc trừ idNumber, bloodType (422 theo ô

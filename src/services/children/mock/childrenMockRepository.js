@@ -400,12 +400,6 @@ const latestBmiOf = (db, child) => {
   };
 };
 
-// Danh sách trẻ (phần thêm của mock cho Xu hướng sức khỏe): mức theo lần khám gần nhất có kết luận, để xếp trẻ cần chú ý.
-const latestHealthOf = (db, child) => {
-  const exam = latestExamOf(db, child);
-  return exam ? { date: exam.date, followUpLevel: exam.followUpLevel, campaignName: exam.campaignName } : null;
-};
-
 /** Khai báo sức khỏe của trẻ; trẻ chưa có khai báo thì tạo phần trống để Chưa cung cấp (ghi tiền sử từ phiếu khám, điền dữ liệu demo). */
 export const ensureDeclarationOf = (d, childId) => {
   let decl = declarationOf(d, childId);
@@ -504,8 +498,6 @@ const toView = (db, child, user) => {
     ageGroupId: cls?.ageGroupId || '',
     schoolYear: cls?.schoolYear || '',
     hasDeclaration: !!decl,
-    // Xu hướng sức khỏe xếp trẻ cần chú ý theo mức của lần khám gần nhất (phần thêm của mock, BE chưa có).
-    latestHealth: latestHealthOf(db, child),
   };
 };
 
