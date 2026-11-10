@@ -240,7 +240,7 @@ export function EvaluationListView({ kind }) {
                     <option key={c.classId ?? c.id} value={c.classId ?? c.id}>
                       {c.name}
                       {!campusId && campusOptions.length > 1 && campusName(c.campusId) ? ` · ${campusName(c.campusId)}` : ''}
-                      {!leader && c.teaches === false ? ' (xem)' : ''}
+                      {!leader && c.teaches === false ? ' (chỉ xem)' : ''}
                     </option>
                   ))}
                 </select>,

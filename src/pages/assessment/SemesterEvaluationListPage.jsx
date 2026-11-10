@@ -115,7 +115,7 @@ export default function SemesterEvaluationListPage() {
               {classes.map((c) => (
                 <option key={c.classId} value={c.classId}>
                   {c.name}
-                  {classes.some((x) => x.teaches) && !c.teaches ? ' (xem)' : ''}
+                  {classes.some((x) => x.teaches) && !c.teaches ? ' (chỉ xem)' : ''}
                 </option>
               ))}
             </select>

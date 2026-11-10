@@ -113,7 +113,7 @@ export default function ChildDevelopmentListPage() {
               {classes.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
-                  {viewOnly(c.id) ? ' (xem)' : ''}
+                  {viewOnly(c.id) ? ' (chỉ xem)' : ''}
                 </option>
               ))}
             </select>

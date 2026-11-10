@@ -170,7 +170,7 @@ function TeacherTicketsPage() {
                     {classes.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.name}
-                        {classes.some((x) => x.teaches) && !c.teaches ? ' (xem)' : ''}
+                        {classes.some((x) => x.teaches) && !c.teaches ? ' (chỉ xem)' : ''}
                       </option>
                     ))}
                   </select>
