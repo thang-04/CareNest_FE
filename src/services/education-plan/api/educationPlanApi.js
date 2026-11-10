@@ -1,6 +1,7 @@
 import { axiosClient } from '@/services/http/axiosClient';
 import { ROLES } from '@/models/User';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
+import { emptyBranchPlan, emptyThemePlan, emptyWeekPlan } from '@/models/education-plan/classPlan';
 import { buildRefs, planSteps, serverId, toUiEduConfig, toUiGoal, toYearPlanRequest } from './yearPlanMapper';
 
 /*
@@ -81,6 +82,16 @@ const curriculumOf = async (path, ageGroupCode, options = {}) => {
   if (ageGroupId == null) throw sourceError(400, 'Nhóm tuổi đã chọn không hợp lệ.');
   return axiosClient.get(`/education-plans/curriculum/${path}`, { params: { ageGroupId }, signal: options.signal });
 };
+
+// Tài liệu lớp BE lưu nội dung trống ({}) — vd. dữ liệu nạp sẵn — thì điền khung rỗng để màn soạn không sập
+const fillDoc = (empty) => (doc) => ({ ...empty(doc), ...doc });
+const withDocDefaults = (res) =>
+  res && {
+    ...res,
+    branchPlans: (res.branchPlans || []).map(fillDoc(emptyBranchPlan)),
+    classThemePlans: (res.classThemePlans || []).map(fillDoc(emptyThemePlan)),
+    weekPlans: (res.weekPlans || []).map(fillDoc(emptyWeekPlan)),
+  };
 
 export const educationPlanApi = {
   previewBranchFile: (file, { classId, yearPlanId }) => {
@@ -213,7 +224,7 @@ export const educationPlanApi = {
   // Header giữ id số (API) hoặc tên năm "2027-2028" (nối thử qua beClient) ⇒ đổi tên sang id theo cấu hình
   getClassPlans: async (schoolYearId) => {
     const id = serverId(schoolYearId) ?? (schoolYearId ? buildRefs(await loadConfig()).schoolYearId(String(schoolYearId)) : null);
-    return axiosClient.get('/education-plans/class-docs', { params: id == null ? {} : { schoolYearId: id } });
+    return withDocDefaults(await axiosClient.get('/education-plans/class-docs', { params: id == null ? {} : { schoolYearId: id } }));
   },
   getEduConfig: async () => toUiEduConfig(await loadConfig()),
   // BE:EDU-11 — lưu xong thì dùng luôn bản BE trả về làm dữ liệu tham chiếu của phiên
