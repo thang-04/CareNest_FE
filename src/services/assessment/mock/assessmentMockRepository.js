@@ -1437,6 +1437,8 @@ export const assessmentMockRepository = {
       cls,
       range: { start, end: to },
       presentDays: to >= start ? countPresentDays(db, childId, start, to, att) : 0,
+      // Ngày đã điểm danh vắng (có phép / không phép)
+      absentDays: to >= start ? schoolDaysBetween(start, to).filter((d) => (att.get(`${d}|${childId}`) || 'PRESENT') !== 'PRESENT') : [],
       flagCount: to >= start ? flagDaysOf(db, childId, start, to) : 0,
       summary: to >= start ? periodSummaryOf(db, childId, start, to) : null,
       days,

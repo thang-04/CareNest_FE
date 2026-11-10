@@ -10,7 +10,8 @@ const goalLabel = (g) => g.name || g.description || `MT ${g.id}`;
 
 /**
  * Đối chiếu đánh giá hằng ngày của một trẻ trong thời gian chủ đề (Cần yêu cầu 10/11/2026): cô xem từng mục tiêu
- * Đạt / Chưa đạt ngày nào, từng ngày đã chấm gì, cùng số liệu Hoạt động chung, trước khi sửa tay / xác nhận bảng.
+ * Đạt / Chưa đạt ngày nào, từng ngày đã chấm gì hoặc trẻ vắng, nhận xét hằng ngày của cô, cùng số liệu Hoạt động chung,
+ * trước khi sửa tay / xác nhận bảng.
  * Chỉ hiển thị số liệu BE trả (GET /assessment/children/{id}/development), không tính lại kết quả bảng.
  */
 export function ThemeDailyCrossCheck({ child, theme, onClose }) {
@@ -18,6 +19,11 @@ export function ThemeDailyCrossCheck({ child, theme, onClose }) {
   const end = theme.endDate > today ? today : theme.endDate;
   const { development: d, loading, error, reload } = useChildDevelopment(child?.childId, { start: theme.startDate, end });
   const days = useMemo(() => [...(d?.days || [])].sort((a, b) => a.date.localeCompare(b.date)), [d]);
+  // Từng ngày: ngày có đánh giá và ngày đã điểm danh vắng (BE trả absentDays)
+  const timeline = useMemo(() => {
+    const absent = (d?.absentDays || []).filter((x) => !days.some((day) => day.date === x)).map((x) => ({ date: x, absent: true }));
+    return [...days, ...absent].sort((a, b) => a.date.localeCompare(b.date));
+  }, [d, days]);
   // Gom theo mục tiêu: ngày Đạt / ngày Chưa đạt (cố gắng tính như chưa đạt, như bảng cuối chủ đề)
   const goals = useMemo(() => {
     const map = new Map();
@@ -43,7 +49,7 @@ export function ThemeDailyCrossCheck({ child, theme, onClose }) {
         <div className="dg-xcheck">
           <p className="muted text-sm">
             Chủ đề {theme.themeName}: {formatDate(theme.startDate)} – {formatDate(theme.endDate)} · Có mặt {d.presentDays} ngày ·{' '}
-            {days.length} ngày có đánh giá
+            {days.length} ngày có đánh giá{d.absentDays?.length ? ` · Vắng ${d.absentDays.length} ngày` : ''}
           </p>
 
           <section>
@@ -99,7 +105,7 @@ export function ThemeDailyCrossCheck({ child, theme, onClose }) {
             )}
           </section>
 
-          {days.length > 0 && (
+          {timeline.length > 0 && (
             <section>
               <h3 className="section-title">Theo từng ngày</h3>
               <div className="table-wrap">
@@ -109,18 +115,30 @@ export function ThemeDailyCrossCheck({ child, theme, onClose }) {
                       <th>Ngày</th>
                       <th>Đạt</th>
                       <th>Chưa đạt</th>
-                      <th>Nhận xét</th>
+                      <th>Nhận xét của cô</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {days.map((day) => (
-                      <tr key={day.date}>
-                        <td className="nowrap">{formatDate(day.date)}</td>
-                        <td>{(day.met || []).map(goalLabel).join(', ') || '—'}</td>
-                        <td>{[...(day.effort || []), ...(day.notMet || [])].map(goalLabel).join(', ') || '—'}</td>
-                        <td>{day.comment || '—'}</td>
-                      </tr>
-                    ))}
+                    {timeline.map((day) =>
+                      day.absent ? (
+                        <tr key={day.date}>
+                          <td className="nowrap">{formatDate(day.date)}</td>
+                          {/* OBS-01: ngày vắng mọi mục tiêu của giáo án hôm đó tính Chưa đạt */}
+                          <td colSpan={2}>
+                            <span className="chip">Vắng</span>{' '}
+                            <span className="muted text-sm">mục tiêu của giáo án hôm đó tính Chưa đạt</span>
+                          </td>
+                          <td>—</td>
+                        </tr>
+                      ) : (
+                        <tr key={day.date}>
+                          <td className="nowrap">{formatDate(day.date)}</td>
+                          <td>{(day.met || []).map(goalLabel).join(', ') || '—'}</td>
+                          <td>{[...(day.effort || []), ...(day.notMet || [])].map(goalLabel).join(', ') || '—'}</td>
+                          <td>{day.comment || '—'}</td>
+                        </tr>
+                      ),
+                    )}
                   </tbody>
                 </table>
               </div>
