@@ -31,7 +31,9 @@ export default function SemesterEvaluationListPage() {
   const semesters = semestersOf(year).filter((s) => s.key !== 'YEAR');
   const { classes, loading: classesLoading, error: classesError } = useThemeClasses();
   const [picked, setPicked] = useState('');
-  const classId = classes.find((c) => String(c.classId) === String(picked))?.classId || classes[0]?.classId;
+  // Mặc định lớp mình dạy; tổ trưởng/BGH chọn được lớp khác để xem (AUTH-23)
+  const classId =
+    classes.find((c) => String(c.classId) === String(picked))?.classId || (classes.find((c) => c.teaches) || classes[0])?.classId;
   const [selectedSemester, setSemester] = useState(1);
   const validSemester = semesters.find((s) => s.key === `S${selectedSemester}`);
   const {
@@ -113,6 +115,7 @@ export default function SemesterEvaluationListPage() {
               {classes.map((c) => (
                 <option key={c.classId} value={c.classId}>
                   {c.name}
+                  {c.teaches ? '' : ' (xem)'}
                 </option>
               ))}
             </select>

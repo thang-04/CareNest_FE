@@ -33,6 +33,8 @@ export default function ChildDevelopmentListPage() {
     list.forEach((ch) => ch[key] == null || seen.has(String(ch[key])) || seen.set(String(ch[key]), ch[label]));
     return [...seen].map(([id, name]) => ({ id, name: name || id }));
   };
+  // Tổ trưởng: lớp nhóm tuổi mình không dạy chỉ xem (BE trả teaches; mock không có cờ thì không đánh dấu)
+  const viewOnly = (id) => !leader && children.some((ch) => String(ch.classId) === id && ch.teaches === false);
   const inCampus = useMemo(() => children.filter((ch) => !campusId || String(ch.campusId) === campusId), [children, campusId]);
   const inGroup = inCampus.filter((ch) => !ageGroupId || String(ch.ageGroupId) === ageGroupId);
   const campuses = useMemo(() => options(children, 'campusId', 'campusName'), [children]);
@@ -111,6 +113,7 @@ export default function ChildDevelopmentListPage() {
               {classes.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
+                  {viewOnly(c.id) ? ' (xem)' : ''}
                 </option>
               ))}
             </select>
