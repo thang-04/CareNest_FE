@@ -791,6 +791,21 @@
   border-left-color: var(--color-warning);
 }
 
+/* Sổ sức khỏe: bảng kẻ ô như phiếu Tiếp nhận trẻ (user yêu cầu 2026-11-10): cột TT, dòng tiêu đề cột là dải xanh đậm chữ trắng in hoa
+   như dải phần của phiếu. Tiêu đề in hoa dài hơn nên được xuống dòng, bảng không tràn ngang khi khung hẹp. */
+.tr-record-table__col--tt {
+  width: var(--space-12);
+}
+.table.table--grid.tr-record-table thead th {
+  background: var(--color-primary);
+  color: var(--text-inverse);
+  text-transform: uppercase;
+  white-space: normal;
+}
+.table.table--grid.tr-record-table thead th.cell--actions {
+  white-space: nowrap;
+}
+
 /* Phiếu khám Phụ lục II: một kiểu bảng cho mọi phần như bảng IV–V (user chọn 2026-11-04): 3 cột TT, nội dung kiểm tra, kết quả,
    không dòng tiêu đề cột, mọi ô nền trắng; viền, lề ô theo .table--grid; ở đây chỉ độ rộng cột, dải phần/nhóm, ô cảnh báo, ô nhập. */
 .table.tr-exam-sheet {
