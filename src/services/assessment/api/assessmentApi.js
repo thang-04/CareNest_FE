@@ -160,7 +160,7 @@ export const createAssessmentBeApi = (client) => ({
   saveClassMonthlyComment: ({ classId, month, content }) => client.put('/assessment/class-monthly-comments', { classId, month, content }),
   confirmClassMonthlyComment: ({ classId, month, content }) =>
     client.post('/assessment/class-monthly-comments/confirm', { classId, month, content }),
-  // Đánh giá tháng / cuối năm: BE tạo bản nháp khi tháng kết thúc (cuối năm: từ tháng cuối năm học)
+  // Đánh giá tháng / cuối năm: BE tạo bản nháp khi tháng kết thúc (cuối năm: khi học kỳ II kết thúc)
   getEvaluations: (kind, { schoolYear, classId } = {}) =>
     client.get('/assessment/evaluations', {
       params: {

@@ -406,8 +406,11 @@ export default function RewardClassPage() {
                             </div>
                           ) : f.titles.length ? (
                             f.titles.join(', ')
+                          ) : c.suggested?.length ? (
+                            // Chưa chọn danh hiệu: vẫn hiện danh hiệu hệ thống gợi ý để PHT/HT/tổ trưởng thấy (Cần yêu cầu 10/11/2026)
+                            <span className="text-success">Gợi ý: {c.suggested.join(', ')}</span>
                           ) : (
-                            <span className="muted">—</span>
+                            <span className="muted">Chưa đủ điều kiện gợi ý</span>
                           )}
                         </td>
                         <td className="min-w-220">

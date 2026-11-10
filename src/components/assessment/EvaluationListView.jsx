@@ -362,7 +362,7 @@ export function EvaluationListView({ kind }) {
                             : filtered
                               ? 'Không có hồ sơ nào trong phạm vi hoặc kỳ đã chọn.'
                               : yearEnd
-                                ? 'Bản nháp cuối năm được tạo từ ngày 1 tháng cuối của năm học.'
+                                ? 'Bản nháp cuối năm được tạo khi học kỳ II kết thúc.'
                                 : semester
                                   ? 'Bản nháp được tạo khi học kỳ kết thúc. Nếu học kỳ đã kết thúc mà chưa có, kiểm tra ngày học kỳ ở Cấu hình thời gian.'
                                   : 'Bản nháp được tạo tự động khi tháng kết thúc.'
