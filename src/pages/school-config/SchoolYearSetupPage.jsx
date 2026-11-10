@@ -12,7 +12,6 @@ import { ErrorState, LoadingState, Spinner } from '@/components/ui/States';
 import { FormField } from '@/components/form/FormField';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { DateInput } from '@/components/form/DateInput';
-import { YearStatusBadge } from '@/components/school-config/SchoolConfigBadges';
 import { ScNoAccess } from '@/components/school-config/ScNoAccess';
 import { copySourcesFor } from '@/components/school-config/CopyClassesModal';
 import { ActivateYearModal, YearReadinessCard } from '@/components/school-config/YearReadiness';
@@ -480,10 +479,8 @@ export default function SchoolYearSetupPage() {
   return (
     <div className="page">
       <Breadcrumb items={yearCrumbs(id ? `Thiết lập năm học ${year?.name || ''}`.trim() : 'Tạo năm học')} />
-      <div className="row gap-3">
-        <h1 className="page__title">{id ? `Thiết lập năm học ${year?.name || ''}` : 'Tạo năm học'}</h1>
-        {year && <YearStatusBadge status={year.status} size="lg" />}
-      </div>
+      {/* Bỏ nhãn trạng thái năm (Sắp diễn ra…) trên màn thiết lập; header đã hiện trạng thái năm (Cần yêu cầu 11/11/2026) */}
+      <h1 className="page__title">{id ? `Thiết lập năm học ${year?.name || ''}` : 'Tạo năm học'}</h1>
       <div className="card stepper-card">
         <Stepper
           steps={SETUP_STEPS}
