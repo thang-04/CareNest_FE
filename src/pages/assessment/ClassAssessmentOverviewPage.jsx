@@ -10,7 +10,7 @@ import { Tabs } from '@/components/ui/Tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { ROLES } from '@/models/User';
-import { useClassAssessmentDetail, useClassAssessmentOverview } from '@/hooks/assessment/useAssessment';
+import { useClassAssessmentDetail, useClassAssessmentOverview, useDailyAssessmentClasses } from '@/hooks/assessment/useAssessment';
 import { OVERVIEW_PERIOD, OVERVIEW_PERIOD_LABELS } from '@/models/assessment/assessmentConstants';
 import { HEALTH_SYMPTOMS } from '@/utils/dailyHealthValidation';
 import { DateInput } from '@/components/form/DateInput';
@@ -208,6 +208,9 @@ export default function ClassAssessmentOverviewPage() {
   const { schoolYear } = useSchoolYear();
   const { user } = useAuth();
   const isPrincipal = user?.role === ROLES.PRINCIPAL;
+  // Lớp mình dạy (GV, tổ trưởng): lớp khác trong ô chọn ghi "(chỉ xem)"; BGH không dạy lớp nên không ghi
+  const { classes: ownClasses } = useDailyAssessmentClasses({ enabled: !isLeader(user) });
+  const own = new Set(isLeader(user) ? [] : ownClasses.map((c) => String(c.id)));
   const today = todayIso();
   const [period, setPeriod] = useState(OVERVIEW_PERIOD.DAY);
   const [date, setDate] = useState(today);
@@ -318,6 +321,7 @@ export default function ClassAssessmentOverviewPage() {
                   <option key={c.id} value={c.id}>
                     {c.name}
                     {multiCampus && !campusId ? ` · ${campusName(c.campusId)}` : ''}
+                    {own.size && !own.has(String(c.id)) ? ' (chỉ xem)' : ''}
                   </option>
                 ))}
               </select>
