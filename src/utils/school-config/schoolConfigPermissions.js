@@ -1,6 +1,6 @@
 import { ROLES } from '@/models/User';
 import { PERMISSIONS } from '@/models/bePermissions';
-import { hasBePermission, hasSchoolWideBePermission, inBePermissionScope } from '@/utils/bePermissions';
+import { hasBePermission, hasSchoolWideBePermission, inBePermissionScope, inOwnCampus } from '@/utils/bePermissions';
 import {
   AREA_SCOPE_ALL,
   PERMISSION_ACCESS,
@@ -63,13 +63,23 @@ export const canManageRooms = (user, campusId, action = true) => {
   if (!hasBePermission(user, PERMISSIONS.ROOM_MANAGE)) return false;
   return isPrincipal(user) || (isVicePrincipal(user) && inBePermissionScope(user, PERMISSIONS.ROOM_MANAGE, campusId));
 };
+// Như BE RoomServiceImpl.visibleTo: HT xem mọi cơ sở; PHT luôn xem phòng cơ sở mình, thêm cơ sở trong phạm vi ROOM_MANAGE
 export const canViewRooms = (user) =>
   isBeUser(user)
-    ? hasBePermission(user, PERMISSIONS.ROOM_MANAGE) && (isPrincipal(user) || isVicePrincipal(user))
+    ? isPrincipal(user) || isVicePrincipal(user)
     : isPrincipal(user) || (isVicePrincipal(user) && areaAccess(user, 'rooms').access !== PERMISSION_ACCESS.NONE);
-/** Điểm trường có phòng mà người dùng xem / sửa được. */
+const canViewRoomsOf = (user, campusId) =>
+  isPrincipal(user) ||
+  (isVicePrincipal(user) &&
+    (inOwnCampus(user, campusId) ||
+      (hasBePermission(user, PERMISSIONS.ROOM_MANAGE) && inBePermissionScope(user, PERMISSIONS.ROOM_MANAGE, campusId))));
+/** Điểm trường có phòng mà người dùng xem (need = false) / sửa được. */
 export const roomCampusIds = (user, campuses, need = false) =>
-  campuses.filter((c) => (isBeUser(user) ? canManageRooms(user, c.id, need) : areaAllows(user, 'rooms', c.id, need))).map((c) => c.id);
+  campuses
+    .filter((c) =>
+      isBeUser(user) ? (need ? canManageRooms(user, c.id, need) : canViewRoomsOf(user, c.id)) : areaAllows(user, 'rooms', c.id, need),
+    )
+    .map((c) => c.id);
 
 /** UC 2.7 / GBR-CFG-03. */
 /** Cấu hình thời gian (giờ chốt, học kỳ, ngày nghỉ): chỉ Hiệu trưởng (user chốt 03/11/2026). */
