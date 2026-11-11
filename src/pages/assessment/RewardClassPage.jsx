@@ -1,7 +1,7 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { AlertTriangle, ArrowLeft, ArrowRight, Check, Download, History, Save, Send, Sparkle, Undo2 } from '@/components/ui/icons';
+import { AlertTriangle, ArrowLeft, ArrowRight, Check, Download, History, Info, Save, Send, Sparkle, Undo2 } from '@/components/ui/icons';
 import { useToast } from '@/contexts/ToastContext';
 import { useRewardList, useRewardLists } from '@/hooks/assessment/useAssessment';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
@@ -23,7 +23,7 @@ import {
   REWARD_UNCLE_HO_TITLE,
   REWARD_PROGRAM_TITLES,
 } from '@/models/assessment/assessmentConstants';
-import { formatDate, formatDateTime } from '@/utils/format';
+import { formatDate, formatDateTime, todayInput } from '@/utils/format';
 import { exportWithPreview } from '@/components/ui/ExportPreview';
 import { findDiagnosticTerms, validateDecision } from '@/utils/assessment/assessmentValidation';
 import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';
@@ -284,6 +284,13 @@ export default function RewardClassPage() {
         <ProgressSteps steps={steps} />
       </div>
 
+      {/* OBS-14 (Cần chốt 10/11/2026): lập / gửi danh sách từ ngày kết thúc HK II; trước đó chỉ xem */}
+      {d.openFrom && d.openFrom > todayInput() && (
+        <div className="alert alert--info mt-16" role="status">
+          <Info size={18} />
+          <div>Danh sách khen thưởng cuối năm lập và gửi được từ {formatDate(d.openFrom)} (ngày kết thúc học kỳ II).</div>
+        </div>
+      )}
       {d.unrecordedDays?.length > 0 && (
         <div className="alert alert--warning mt-16" role="status">
           <AlertTriangle size={18} />
