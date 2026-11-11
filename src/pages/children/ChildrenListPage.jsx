@@ -1,7 +1,7 @@
 import { ChildAvatar } from '@/components/ChildAvatar';
 import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Plus, Search, RotateCcw, UserMinus, FileSpreadsheet, Baby, Info, LayoutGrid, KeyRound } from '@/components/ui/icons';
+import { Link, useNavigate } from 'react-router-dom';
+import { Plus, Search, RotateCcw, UserMinus, FileSpreadsheet, Baby, Info, LayoutGrid, KeyRound, Pencil } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useMasterData } from '@/hooks/useMasterData';
@@ -16,11 +16,11 @@ import { Pagination, paginate } from '@/components/ui/Pagination';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { RowActions } from '@/components/ui/RowActions';
 import { ChildStatusBadge } from '@/components/children/ChildBadges';
-import { ChildQuickPanel } from '@/components/children/ChildQuickPanel';
 import { WithdrawChildModal } from '@/components/children/WithdrawChildModal';
 import { CHILD_STATUS, CHILD_STATUS_LABELS, GENDER_LABELS, ageLabel } from '@/models/School';
 import { PARENT_ACCOUNT_STATUS } from '@/models/children/childrenConstants';
 import { formatDate, normalizeText } from '@/utils/format';
+import { clickableRowProps } from '@/utils/clickableRow';
 import {
   canEditChild,
   canEnrollChild,
@@ -38,12 +38,12 @@ const FILTER_DEFAULTS = { keyword: '', status: '', campusId: '', classId: '' };
 
 export default function ChildrenListPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { schoolYear } = useSchoolYear();
   const md = useMasterData();
   const [filters, setFilters, resetFilterParams, activeKeys] = useFilterParams(FILTER_DEFAULTS);
   const { status, keyword, campusId, classId } = filters;
   const [page, setPage] = useState(1);
-  const [quickViewId, setQuickViewId] = useState(null);
   const [withdrawing, setWithdrawing] = useState(null);
 
   const { children: all, loading, error, reload } = useChildRecords({ schoolYear });
@@ -90,7 +90,9 @@ export default function ChildrenListPage() {
     (c) => c.status !== CHILD_STATUS.LEFT && c.guardians.some((g) => g.accountStatus === PARENT_ACCOUNT_STATUS.NOT_ACTIVATED),
   ).length;
   const showCampus = seesAllCampusChildren(user);
-  const cols = showCampus ? 7 : 6;
+  // Giáo viên không có thao tác dòng (Sửa, Cho nghỉ học) nên bỏ cả cột; bấm dòng mở hồ sơ (DESIGN §6.3)
+  const showActions = !isTeacherRole(user);
+  const cols = 5 + (showCampus ? 1 : 0) + (showActions ? 1 : 0);
   const chipLabels = {
     keyword: `Từ khóa: ${keyword}`,
     status: `Trạng thái: ${CHILD_STATUS_LABELS[status] || status}`,
@@ -217,7 +219,7 @@ export default function ChildrenListPage() {
                   {showCampus && <th>Điểm trường</th>}
                   <th>Phụ huynh</th>
                   <th className="center">Trạng thái</th>
-                  <th className="cell--actions">Thao tác</th>
+                  {showActions && <th className="cell--actions">Thao tác</th>}
                 </tr>
               </thead>
               <tbody>
@@ -257,22 +259,13 @@ export default function ChildrenListPage() {
                   pageRows.map((c) => {
                     const g = c.guardians[0];
                     return (
-                      <tr key={c.id}>
+                      <tr key={c.id} className="row-click" {...clickableRowProps(() => navigate(`/children/${c.id}`))}>
                         <td>
                           {/* Mã trẻ đặt dưới tên như màn Nhân sự (email dưới tên) để bảng vừa khung 1440px */}
                           <span className="row gap-2-5">
                             <ChildAvatar child={c} size="sm" />
                             <span className="stack gap-0">
-                              {/* Bấm tên: xem nhanh trong panel; nút Xem ở cột thao tác mở trang hồ sơ đầy đủ */}
-                              <button
-                                type="button"
-                                className="link-btn fw-600 tr-name-btn"
-                                title="Xem nhanh"
-                                aria-label={`Xem nhanh hồ sơ ${c.fullName}`}
-                                onClick={() => setQuickViewId(c.id)}
-                              >
-                                {c.fullName}
-                              </button>
+                              <span className="fw-600 text-primary tr-child-name">{c.fullName}</span>
                               <span className="text-xs muted">{c.code}</span>
                             </span>
                           </span>
@@ -300,18 +293,23 @@ export default function ChildrenListPage() {
                         <td className="center">
                           <ChildStatusBadge status={c.status} />
                         </td>
-                        <td className="cell--actions">
-                          <RowActions
-                            view={{ to: `/children/${c.id}`, label: 'Xem hồ sơ' }}
-                            edit={canEditChild(c, user) ? { to: `/children/${c.id}/edit`, label: 'Sửa hồ sơ' } : null}
-                            menu={
-                              canWithdrawChild(c, user)
-                                ? [{ label: 'Cho nghỉ học', icon: UserMinus, danger: true, onClick: () => setWithdrawing(c) }]
-                                : []
-                            }
-                            name={c.fullName}
-                          />
-                        </td>
+                        {showActions && (
+                          <td className="cell--actions">
+                            {/* Mọi thao tác dòng gom vào menu "…" (user chọn 2026-11-11) */}
+                            <RowActions
+                              menu={[
+                                canEditChild(c, user) && { label: 'Sửa hồ sơ', icon: Pencil, to: `/children/${c.id}/edit` },
+                                canWithdrawChild(c, user) && {
+                                  label: 'Cho nghỉ học',
+                                  icon: UserMinus,
+                                  danger: true,
+                                  onClick: () => setWithdrawing(c),
+                                },
+                              ].filter(Boolean)}
+                              name={c.fullName}
+                            />
+                          </td>
+                        )}
                       </tr>
                     );
                   })
@@ -322,7 +320,6 @@ export default function ChildrenListPage() {
         )}
         {!loading && rows.length > 0 && <Pagination page={page} total={rows.length} onChange={setPage} unit="trẻ" />}
       </div>
-      <ChildQuickPanel childId={quickViewId} onClose={() => setQuickViewId(null)} />
       {withdrawing && (
         <WithdrawChildModal
           key={withdrawing.id}

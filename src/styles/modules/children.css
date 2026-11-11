@@ -24,28 +24,9 @@
   display: contents;
 }
 
-/* Tên trẻ trong danh sách: nút mở panel xem nhanh */
-/* Tên trẻ giữ một dòng: overflow-wrap anywhere làm bảng ép cột tên còn mỗi chữ một dòng */
-.tr-name-btn {
-  text-align: left;
+/* Tên trẻ trong danh sách giữ một dòng: overflow-wrap anywhere làm bảng ép cột tên còn mỗi chữ một dòng */
+.tr-child-name {
   white-space: nowrap;
-}
-
-/* Panel xem nhanh hồ sơ trẻ (danh sách trẻ) */
-.tr-quick__head {
-  flex-wrap: nowrap;
-}
-.tr-quick__guardian {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  padding: var(--space-2) 0;
-  border-bottom: 1px solid var(--border);
-  overflow-wrap: anywhere;
-}
-.tr-quick__guardian:last-child {
-  border-bottom: none;
 }
 
 /* Form trong hộp xác nhận Cho nghỉ học: hộp căn giữa chữ, form căn trái */
