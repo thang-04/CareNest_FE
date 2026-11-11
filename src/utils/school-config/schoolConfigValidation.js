@@ -19,7 +19,8 @@ export const normalizePhone = (raw) => {
 };
 export const isVnPhone = (raw) => VN_PHONE.test(normalizePhone(raw));
 // Số nguyên lớn nhất BE nhận cho sĩ số / sức chứa (@Max(Short.MAX_VALUE))
-export const MAX_SIZE = 32767;
+// Sĩ số tối đa / lớp 1–60 (Cần chốt 11/11/2026), như BE AgeGroupRequest / ClassRequest
+export const MAX_SIZE = 60;
 
 // Độ dài tối đa theo DTO BE (@Size): ô nhập không chặn gõ, vượt thì báo lỗi dưới ô
 export const CAMPUS_LIMITS = {
@@ -177,7 +178,7 @@ export const classSizeLimit = (ageGroup, room) => {
   const g = ageGroup?.maxClassSize || null;
   const r = room?.capacity || null;
   if (!g && !r) return { max: MAX_SIZE, reason: '' };
-  const max = Math.min(g || Infinity, r || Infinity);
+  const max = Math.min(g || Infinity, r || Infinity, MAX_SIZE);
   const parts = [g && `nhóm ${ageGroup.shortName} tối đa ${g}`, r && `phòng ${room.room} sức chứa ${r}`].filter(Boolean);
   const by = g && (!r || g <= r) ? 'theo nhóm tuổi' : 'theo sức chứa phòng';
   return { max, reason: `${by}: ${parts.join(', ')}` };
