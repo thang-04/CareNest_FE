@@ -51,13 +51,6 @@ export default function SupplierListPage() {
         <div>
           <h1 className="page__title">Nhà cung cấp</h1>
         </div>
-        {canManage && (
-          <div className="page__actions">
-            <button type="button" className="btn btn--primary" onClick={() => setEditing('')}>
-              <Plus size={16} /> Thêm nhà cung cấp
-            </button>
-          </div>
-        )}
       </div>
       <section className="card">
         <div className="filter-bar filter-bar--aligned">
@@ -79,6 +72,13 @@ export default function SupplierListPage() {
           <button type="button" className="btn" onClick={reset} disabled={!filtered}>
             <RotateCcw size={15} /> Đặt lại bộ lọc
           </button>
+          {canManage && (
+            <div className="filter-bar__end">
+              <button type="button" className="btn btn--primary" onClick={() => setEditing('')}>
+                <Plus size={16} /> Thêm nhà cung cấp
+              </button>
+            </div>
+          )}
         </div>
         <FilterChips count={loading ? null : rows.length} unit="nhà cung cấp" chips={chips} />
         {error ? (
