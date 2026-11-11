@@ -1,6 +1,6 @@
 import { ATTENDANCE_STATUS, MEAL_SESSIONS, isAbsent } from '@/models/attendance/attendanceConstants';
 import { isIsoDate } from '@/utils/format';
-import { schoolToday } from '@/utils/attendance/attendanceTime';
+import { daysBetween, schoolToday } from '@/utils/attendance/attendanceTime';
 
 /**
  * One child's entry: { status, meals }. `sessions` = meal sessions of the class's age group.
@@ -43,6 +43,8 @@ export const validateHandoverCheck = ({ normal, substitute, note } = {}, expecte
   return errors;
 };
 
+const SUMMARY_MAX_DAYS = 366;
+
 export const validateSummaryRange = ({ from, to }) => {
   const errors = {};
   if (!from) errors.from = 'Chọn ngày bắt đầu.';
@@ -52,6 +54,8 @@ export const validateSummaryRange = ({ from, to }) => {
   if (!errors.from && !errors.to) {
     if (from > to) errors.to = 'Ngày kết thúc phải từ ngày bắt đầu trở đi.';
     else if (to > schoolToday()) errors.to = 'Không chọn ngày trong tương lai.';
+    // BE DATE_RANGE_TOO_LONG: tổng hợp tối đa 366 ngày
+    else if (daysBetween(from, to) + 1 > SUMMARY_MAX_DAYS) errors.to = `Khoảng ngày tối đa ${SUMMARY_MAX_DAYS} ngày.`;
   }
   return errors;
 };
