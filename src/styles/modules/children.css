@@ -761,6 +761,8 @@
   font: inherit;
   text-align: left;
   cursor: pointer;
+  /* Tên lớp giữ một dòng; màn hẹp thì bảng cuộn ngang thay vì bẻ "Lớp / Mầm / 1" */
+  white-space: nowrap;
 }
 .tr-acc-toggle:focus-visible {
   outline: none;
@@ -1261,4 +1263,95 @@
   .gr-notes {
     padding: 0 var(--space-4) var(--space-4);
   }
+}
+
+/* Chi tiết đợt khám, kỳ cân đo: khối tổng quan (thông tin | tiến độ), chân khối là hoạt động gần nhất + nút xem lịch sử */
+.tr-hc-overview__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, calc(var(--space-16) * 7)), 1fr));
+  gap: var(--space-5) var(--space-8);
+  padding: var(--space-5);
+}
+.tr-hc-overview__progress {
+  min-width: 0;
+}
+.tr-hc-meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, calc(var(--space-16) * 3)), 1fr));
+  gap: var(--space-3) var(--space-5);
+  margin: 0;
+}
+.tr-hc-meta > div {
+  min-width: 0;
+}
+.tr-hc-meta dt {
+  margin-bottom: var(--space-1);
+  font-size: var(--fs-xs);
+  color: var(--text-2);
+}
+.tr-hc-meta dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.tr-hc-meta__wide {
+  grid-column: 1 / -1;
+}
+.tr-hc-headline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-3);
+}
+.tr-hc-headline__value {
+  font-size: var(--fs-title-sm);
+  color: var(--text);
+}
+/* Cảnh báo BMI của kỳ cân đo: viên có số đếm theo tông mức (đỏ: gầy còm nặng, béo phì; cam: còn lại) */
+.tr-hc-bmi {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+}
+.tr-hc-bmi__title {
+  margin: 0;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+}
+.tr-hc-bmi__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.tr-hc-bmi__item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  font-size: var(--fs-sm);
+}
+.tr-hc-bmi__item--orange b {
+  color: var(--tone-orange-fg);
+}
+.tr-hc-bmi__item--red b {
+  color: var(--tone-red-fg);
+}
+.tr-hc-overview__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-3) var(--space-5);
+  border-top: 1px solid var(--border);
+  color: var(--text-2);
+}
+.tr-hc-overview__foot .btn {
+  margin-left: auto;
 }

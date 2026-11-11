@@ -1,6 +1,6 @@
 import { Fragment, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Pencil, Lock, Unlock, CircleX, Info, Users, CheckCircle2, ChevronDown } from '@/components/ui/icons';
+import { ArrowLeft, Pencil, Lock, Unlock, CircleX, Info, Users, CheckCircle2, ChevronDown, History } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useHealthCheck } from '@/hooks/children/useHealthChecks';
@@ -29,22 +29,24 @@ import { formatDate, formatDateTime, isIsoDate, todayInput } from '@/utils/forma
 import { canManageHealthCheck, isTeacherRole } from '@/utils/children/childrenPermissions';
 import { formatNumber } from '@/utils/children/childrenHelpers';
 import { healthCheckCrumbs } from '@/utils/children/breadcrumbs';
-import { StatCard } from '@/components/ui/StatCard';
+import { SegmentedProgress } from '@/components/ui/SegmentedProgress';
+import { SidePanel } from '@/components/ui/SidePanel';
 import '@/styles/modules/children.css';
 
-const STAT_TONES = [
+// Các đoạn của thanh tiến độ theo progress BE trả (trạng thái loại trừ nhau); "Chưa khám" là phần còn lại của rãnh.
+const EXAM_SEGMENTS = [
   { key: 'recorded', label: 'Đã có kết luận', tone: 'green' },
   { key: 'inProgress', label: 'Đang khám', tone: 'blue' },
-  { key: 'notRecorded', label: 'Chưa khám', tone: 'gray' },
-  { key: 'absent', label: 'Vắng khám', tone: 'gray' },
   { key: 'notConcluded', label: 'Chưa kết luận', tone: 'orange', hideZero: true },
+  { key: 'absent', label: 'Vắng khám', tone: 'gray' },
+  { key: 'notRecorded', label: 'Chưa khám', tone: 'rest' },
 ];
 
 // Kỳ cân đo không có phiếu nháp, kết luận (user chốt 2026-10-31).
-const ROUND_STAT_TONES = [
+const ROUND_SEGMENTS = [
   { key: 'recorded', label: 'Đã cân đo', tone: 'green' },
-  { key: 'notRecorded', label: 'Chưa cân đo', tone: 'gray' },
   { key: 'absent', label: 'Vắng cân đo', tone: 'gray' },
+  { key: 'notRecorded', label: 'Chưa cân đo', tone: 'rest' },
 ];
 
 // Số trẻ theo mức BMI của kỳ cân đo BE trả (progress.bmi, HLT-18); tông như badge mức BMI.
@@ -139,6 +141,7 @@ export default function HealthCheckDetailPage() {
   const [confirm, setConfirm] = useState(null);
   const [reopen, setReopen] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const campaign = detail?.campaign;
   const crumbs = healthCheckCrumbs(campaign?.name || 'Chi tiết đợt khám');
@@ -169,6 +172,7 @@ export default function HealthCheckDetailPage() {
   const unclosed = [CAMPAIGN_STATUS.UPCOMING, CAMPAIGN_STATUS.IN_PROGRESS].includes(campaign.status);
   // Đợt đã đóng/hủy: thanh tiến độ tĩnh, không như đang diễn ra (user yêu cầu 2026-10-23).
   const ended = !unclosed;
+  const lastEvent = campaign.history?.[campaign.history.length - 1];
   const classId = params.get('classId') || '';
   const selectClass = (id) => setParams(id ? { classId: id } : {});
 
@@ -252,85 +256,100 @@ export default function HealthCheckDetailPage() {
 
       <StatusBanner campaign={campaign} teacher={teacher} isRound={isRound} />
 
-      <div className="detail-layout">
-        <div className="detail-layout__main">
-          <section className="card">
-            <div className="card__header">
-              <h2 className="card__title">Thông tin {w.name}</h2>
-            </div>
-            <div className="card__body">
-              <dl className="info-list">
+      {/* Một khối tổng quan thay cho thẻ thông tin + hàng thẻ số liệu + cột lịch sử (user yêu cầu 2026-11-11): thẻ số liệu lặp
+          lại thanh tiến độ và bảng theo lớp; lịch sử chỉ vài dòng nên xem trong panel, không giữ cả một cột trống. */}
+      <section className="card tr-hc-overview" aria-label={`Tổng quan ${w.name}`}>
+        <div className="tr-hc-overview__grid">
+          <div className="stack gap-3">
+            <h2 className="card__title">Thông tin {w.name}</h2>
+            <dl className="tr-hc-meta">
+              <div>
                 <dt>Điểm trường</dt>
                 <dd>{campaign.campusName}</dd>
+              </div>
+              <div>
                 <dt>{w.date}</dt>
                 <dd>
                   {formatDate(campaign.startDate)} – {formatDate(campaign.endDate)}
                 </dd>
-                {!isRound && (
-                  <>
-                    <dt>Đơn vị khám / bác sĩ</dt>
-                    <dd>{campaign.examiner || <span className="muted">Chưa cập nhật</span>}</dd>
-                  </>
-                )}
+              </div>
+              {!isRound && (
+                <div>
+                  <dt>Đơn vị khám / bác sĩ</dt>
+                  <dd>{campaign.examiner || <span className="muted">Chưa cập nhật</span>}</dd>
+                </div>
+              )}
+              <div className="tr-hc-meta__wide">
                 <dt>Ghi chú</dt>
                 <dd>{campaign.note || <span className="muted">Không có</span>}</dd>
-                <dt>Tiến độ{teacher ? ' lớp của bạn' : ''}</dt>
-                <dd className="tr-progress-cell">
-                  <ProgressBar value={campaign.progress.recorded} total={campaign.progress.total} ended={ended} />
-                </dd>
-              </dl>
-            </div>
-          </section>
-          {/* Giáo viên xem tiến độ ở thanh "Tiến độ" và tiêu đề danh sách lớp, không cần hàng thẻ (user chốt 2026-10-22). */}
-          {!teacher && (
-            <div className="stat-grid mt-16">
-              {(isRound ? ROUND_STAT_TONES : STAT_TONES)
-                .filter((s) => !s.hideZero || campaign.progress[s.key] > 0)
-                .map((s) => (
-                  <StatCard key={s.key} tone={s.tone} icon={false} label={s.label} value={campaign.progress[s.key]} />
-                ))}
-            </div>
-          )}
-          {!teacher && isRound && (
-            <section className="mt-16" aria-labelledby="hc-bmi-title">
-              <h2 className="subsection-title" id="hc-bmi-title">
-                Cảnh báo BMI theo tuổi
-              </h2>
-              <div className="stat-grid">
-                {BMI_STAT_TONES.map((s) => (
-                  <StatCard key={s.key} tone={s.tone} icon={false} label={s.label} value={campaign.progress.bmi?.[s.key] ?? 0} />
-                ))}
               </div>
-              <p className="muted text-xs m-0">
-                Hệ thống tính theo chuẩn WHO (BMI theo tuổi) từ số đo của kỳ, chỉ để sàng lọc, không phải chẩn đoán.
-              </p>
-            </section>
-          )}
+            </dl>
+          </div>
+          <div className="stack gap-3 tr-hc-overview__progress">
+            <div className="tr-hc-headline">
+              <h2 className="card__title">Tiến độ{teacher ? ' lớp của bạn' : ''}</h2>
+              <span className="muted text-sm">
+                <b className="tr-hc-headline__value">{campaign.progress.recorded}</b>/{campaign.progress.total} trẻ{' '}
+                {isRound ? 'đã cân đo' : 'đã có kết luận'}
+              </span>
+            </div>
+            <SegmentedProgress
+              label={`Tiến độ ${w.name}`}
+              total={campaign.progress.total}
+              segments={(isRound ? ROUND_SEGMENTS : EXAM_SEGMENTS).map((s) => ({ ...s, value: campaign.progress[s.key] ?? 0 }))}
+            />
+            {!teacher && isRound && (
+              <section className="tr-hc-bmi" aria-labelledby="hc-bmi-title">
+                <h3 className="tr-hc-bmi__title" id="hc-bmi-title">
+                  Cảnh báo BMI theo tuổi
+                </h3>
+                <ul className="tr-hc-bmi__list">
+                  {BMI_STAT_TONES.map((s) => (
+                    <li key={s.key} className={`tr-hc-bmi__item tr-hc-bmi__item--${s.tone}`}>
+                      <span>{s.label}</span>
+                      <b>{campaign.progress.bmi?.[s.key] ?? 0}</b>
+                    </li>
+                  ))}
+                </ul>
+                <p className="muted text-xs m-0">
+                  Hệ thống tính theo chuẩn WHO (BMI theo tuổi) từ số đo của kỳ, chỉ để sàng lọc, không phải chẩn đoán.
+                </p>
+              </section>
+            )}
+          </div>
         </div>
-        <aside className="detail-layout__aside">
-          <section className="card">
-            <div className="card__header">
-              <h2 className="card__title">Lịch sử</h2>
-            </div>
-            <div className="card__body">
-              <ul className="history-list">
-                {[...campaign.history].reverse().map((h, i) => (
-                  <li key={`${h.at}${i}`}>
-                    <span className="history-list__dot" />
-                    <div>
-                      <div className="fw-600">{campaignActionLabelOf(campaign.kind, h.action)}</div>
-                      <div className="muted text-sm">
-                        {h.userName || '—'} · {formatDateTime(h.at)}
-                      </div>
-                      {h.reason && <div className="text-sm">Lý do: {h.reason}</div>}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </section>
-        </aside>
-      </div>
+        {lastEvent && (
+          <div className="tr-hc-overview__foot">
+            <History size={16} aria-hidden="true" />
+            <span className="text-sm">
+              <span className="fw-600">{campaignActionLabelOf(campaign.kind, lastEvent.action)}</span>
+              <span className="muted">
+                {' '}
+                · {lastEvent.userName || '—'} · {formatDateTime(lastEvent.at)}
+              </span>
+            </span>
+            <button type="button" className="btn btn--sm" onClick={() => setHistoryOpen(true)}>
+              Xem lịch sử ({campaign.history.length})
+            </button>
+          </div>
+        )}
+      </section>
+      <SidePanel open={historyOpen} title={`Lịch sử ${w.name}`} onClose={() => setHistoryOpen(false)}>
+        <ul className="history-list">
+          {[...campaign.history].reverse().map((h, i) => (
+            <li key={`${h.at}${i}`}>
+              <span className="history-list__dot" />
+              <div>
+                <div className="fw-600">{campaignActionLabelOf(campaign.kind, h.action)}</div>
+                <div className="muted text-sm">
+                  {h.userName || '—'} · {formatDateTime(h.at)}
+                </div>
+                {h.reason && <div className="text-sm">Lý do: {h.reason}</div>}
+              </div>
+            </li>
+          ))}
+        </ul>
+      </SidePanel>
 
       {/* Giáo viên: danh sách trẻ của lớp hiện thẳng, không qua bảng tiến độ theo lớp và tab (user chốt 2026-10-22). */}
       {teacher ? (
