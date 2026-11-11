@@ -38,3 +38,12 @@ test('three digit shortcut and decimal input produce the same explicit temperatu
     assert.ok(validateDailyHealth({ temperature: normalizeTemperatureInput(raw), observation: 'NO_CONCERN' }).temperature);
   }
 });
+
+test('thân nhiệt ngoài 20,0–45,0 °C báo lỗi ngay dưới ô (Cần chốt 11/11/2026)', () => {
+  for (const ok of ['20', '20.0', '36.8', '45', '45.0']) {
+    assert.equal(validateDailyHealth({ temperature: ok, observation: 'NO_CONCERN' }).temperature, undefined);
+  }
+  for (const bad of ['19.9', '45.1', '83.5']) {
+    assert.match(validateDailyHealth({ temperature: bad, observation: 'NO_CONCERN' }).temperature, /20,0 đến 45,0/);
+  }
+});
