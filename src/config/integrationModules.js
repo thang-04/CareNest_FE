@@ -185,9 +185,9 @@ export const INTEGRATION_MODULES = {
     files: ['src/services/menu-planning/api/menuPlanningApi.js'],
     facades: ['src/services/menu-planning/menuPlanningService.js'],
   },
-  // Kiểm thực ba bước M1–M3 (PHT điền, ký ảnh): BE chưa có API ⇒ demo
+  // Biên bản kiểm thực M1–M3 và soát sổ lưu mẫu M5 (PHT điền, ký ảnh) trên BE /inspections/*
   'kitchen-inspection': {
-    source: 'demo',
+    source: 'api',
     routes: ['/kitchen/inspections'],
     files: ['src/services/kitchen/api/inspectionApi.js'],
     facades: ['src/services/kitchen/inspectionService.js'],
@@ -211,9 +211,9 @@ export const INTEGRATION_MODULES = {
     files: ['src/services/notificationService.js'],
     facades: ['src/services/notificationService.js'],
   },
-  // Nhãn ở SignaturePicker (dùng trong màn kế hoạch giáo dục)
+  // Chữ ký ảnh của tài khoản trên BE /signatures/me (SIG-01); biên bản kiểm thực ký bằng id chữ ký này
   signatures: {
-    source: 'demo',
+    source: 'api',
     files: ['src/services/signatureService.js'],
     facades: ['src/services/signatureService.js'],
   },
