@@ -459,7 +459,7 @@ export function AppRoutes() {
             <Route path="missing-food" element={only(LEADERS, <MissingFoodReportPage />)} />
           </Route>
           <Route path="assessment">
-            <Route path="daily" element={permit([PERMISSIONS.ASSESSMENT_RECORD], <DailyAssessmentPage />)} />
+            <Route path="daily" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <DailyAssessmentPage />)} />
             <Route path="daily/skills" element={permit([PERMISSIONS.ASSESSMENT_RECORD], <DailyGoalAssessmentPage />)} />
             <Route path="day-unlocks" element={permit([PERMISSIONS.ASSESSMENT_UNLOCK], <AssessmentDayUnlockPage />)} />
             <Route path="overview" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <ClassAssessmentOverviewPage />)} />
