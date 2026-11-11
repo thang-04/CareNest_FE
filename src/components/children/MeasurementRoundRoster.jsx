@@ -17,6 +17,8 @@ import { formatNumber } from '@/utils/children/childrenHelpers';
 
 const COLS = 7;
 const PAGE_SIZE = 10;
+// Sổ dưới dòng lớp: 5 trẻ/trang để bảng lớp không bị đẩy quá dài (user yêu cầu 2026-11-11).
+const EMBEDDED_PAGE_SIZE = 5;
 const FILTER_DEFAULTS = { keyword: '', result: '', bmiWarning: '' };
 
 // Trẻ có cảnh báo BMI theo mức BE trả (HLT-18); chỉ để lọc hiển thị.
@@ -33,6 +35,7 @@ export const measurementFormLink = (campaignId, classId, childId, measurementId)
  * diễn ra. Không có kết luận bác sĩ; mỗi trẻ có BMI và mức BMI theo tuổi BE xếp (HLT-18). embedded: sổ ngay dưới dòng lớp.
  */
 export function MeasurementRoundRoster({ campaignId, classId, embedded = false }) {
+  const pageSize = embedded ? EMBEDDED_PAGE_SIZE : PAGE_SIZE;
   const navigate = useNavigate();
   const { roster, loading, error, reload } = useHealthCheckClass(campaignId, classId);
   const rows = useMemo(() => roster?.children || [], [roster]);
@@ -47,7 +50,7 @@ export function MeasurementRoundRoster({ campaignId, classId, embedded = false }
       .filter((r) => !bmiWarning || hasBmiWarning(r))
       .filter((r) => !kw || normalizeText(`${r.fullName} ${r.code}`).includes(kw));
   }, [rows, keyword, result, bmiWarning]);
-  const current = Math.min(page, Math.max(1, Math.ceil(visible.length / PAGE_SIZE)));
+  const current = Math.min(page, Math.max(1, Math.ceil(visible.length / pageSize)));
   const filtered = activeKeys.length > 0;
   const setFilter = (patch) => {
     setFilters(patch);
@@ -133,7 +136,7 @@ export function MeasurementRoundRoster({ campaignId, classId, embedded = false }
                 </td>
               </tr>
             ) : (
-              paginate(visible, current, PAGE_SIZE).map((r) => {
+              paginate(visible, current, pageSize).map((r) => {
                 const recorded = r.result === CHILD_RESULT_STATUS.RECORDED;
                 const healthLink = `/children/${r.childId}/health`;
                 // Việc chính: giáo viên nhập hoặc sửa số đo; không có thì bấm dòng mở sổ sức khỏe (DESIGN §6.3)
@@ -173,7 +176,7 @@ export function MeasurementRoundRoster({ campaignId, classId, embedded = false }
         </table>
       </div>
       {!loading && visible.length > 0 && (
-        <Pagination page={current} total={visible.length} onChange={setPage} pageSize={PAGE_SIZE} unit="trẻ" />
+        <Pagination page={current} total={visible.length} onChange={setPage} pageSize={pageSize} unit="trẻ" />
       )}
     </>
   );

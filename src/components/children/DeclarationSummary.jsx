@@ -3,10 +3,11 @@ import { DECLARATION_STATE } from '@/models/children/childrenConstants';
 import { MEDICAL_HISTORY_ITEMS, historyItemText } from '@/models/children/childProfile';
 import { formatDateTime } from '@/utils/format';
 import { IntakeSheet, IntakeSheetValueRow } from './IntakeSheet';
+import { ChildInfoTable } from './ChildInfoTable';
 
 /**
  * Read-only health declaration. Allergies saved by the Vice Principal are the official list used by the kitchen.
- * sheet: bảng TT | nội dung | giá trị như bước 1 tiếp nhận (title = dải phần).
+ * sheet: bảng TT | nội dung | giá trị như bước 1 tiếp nhận (title = dải phần); mặc định bảng nhãn | giá trị (user chọn 2026-11-11).
  */
 export function DeclarationSummary({ declaration, sheet = false, title = 'Khai báo sức khỏe' }) {
   if (!declaration) return <p className="muted">Chưa có khai báo sức khỏe khi tiếp nhận.</p>;
@@ -54,14 +55,5 @@ export function DeclarationSummary({ declaration, sheet = false, title = 'Khai b
       </IntakeSheet>
     );
 
-  return (
-    <dl className="info-list info-list--wide">
-      {rows.map(([label, v]) => (
-        <div key={label} className="tr-dl-pair">
-          <dt>{label}</dt>
-          <dd>{v}</dd>
-        </div>
-      ))}
-    </dl>
-  );
+  return <ChildInfoTable label={title} rows={rows} />;
 }

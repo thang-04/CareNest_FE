@@ -28,6 +28,7 @@ const formatNumber=(v)=>v ?? '—', formatSigned=(v)=>v ?? '—';
 const BmiStatusBadge=()=>null, ConclusionCategoryBadge=()=>null, FollowUpLevelBadge=()=>null, HeadCircumferenceBadge=()=>null, MotorResultBadge=()=>null;
 const ISSUE_KIND_LABELS={}, NUTRITION_STATUS_OPTIONS=[], conclusionActionLabelOf=()=>'', conclusionLabelOf=()=>'', labelOf=()=>'';
 const Link=({to,children})=><a href={to}>{children}</a>;
+const ChildInfoTable=({rows})=><table><tbody>{rows.filter(Boolean).map((r)=><tr key={r.label}><th>{r.label}</th><td>{r.value}</td></tr>)}</tbody></table>;
 `,
 );
 
@@ -46,7 +47,7 @@ const summary = (overrides) =>
 test('kết quả kỳ cân đo không hiện vòng đầu kể cả dữ liệu cũ còn số đo', () => {
   for (const source of Object.values(MEASUREMENT_SOURCE)) {
     const html = summary({ source, campaignKind: CAMPAIGN_KIND.MEASUREMENT });
-    assert.doesNotMatch(html, /Vòng đầu|tr-metrics--4/);
+    assert.doesNotMatch(html, /Vòng đầu/);
     assert.match(html, /Chiều cao \(cm\)/);
     assert.match(html, /Cân nặng \(kg\)/);
     assert.match(html, /BMI/);
@@ -78,7 +79,7 @@ const NUTRITION_STATUS={NORMAL:'NORMAL'}, NUTRITION_STATUS_OPTIONS=[], labelOf=(
 const formatDate=(v)=>v, formatNumber=(v)=>v ?? '—', childrenCrumbs=()=>[];
 const GrowthChart=({title,points})=><figure><figcaption>{title}</figcaption><span>{points.map(p=>p.value).join(',')}</span></figure>;
 const Link=({to,children,...props})=><a href={to} {...props}>{children}</a>;
-const Breadcrumb=()=>null, TrendChildList=()=>null, AiTrendPanel=()=>null, HealthWarningCell=()=>null, ChildAccessState=()=>null;
+const Breadcrumb=()=>null, TrendChildList=()=>null, AiTrendPanel=()=>null, HealthWarningCell=()=>null, ChildAccessState=()=>null, ChildAvatar=()=>null;
 const EmptyState=()=>null, LoadingState=()=>null;
 const LineChart=()=>null, HeartPulse=()=>null, ArrowLeft=()=>null, ChevronLeft=()=>null, ChevronRight=()=>null;
 `,

@@ -7,7 +7,6 @@ import { useHealthCheck } from '@/hooks/children/useHealthChecks';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { Modal } from '@/components/ui/Modal';
-import { ProgressBar } from '@/components/ui/ProgressBar';
 import { EmptyState, LoadingState, Spinner } from '@/components/ui/States';
 import { clickableRowProps } from '@/utils/clickableRow';
 import { FormField } from '@/components/form/FormField';
@@ -30,6 +29,7 @@ import { canManageHealthCheck, isTeacherRole } from '@/utils/children/childrenPe
 import { formatNumber } from '@/utils/children/childrenHelpers';
 import { healthCheckCrumbs } from '@/utils/children/breadcrumbs';
 import { SegmentedProgress } from '@/components/ui/SegmentedProgress';
+import { ChildInfoTable } from '@/components/children/ChildInfoTable';
 import { SidePanel } from '@/components/ui/SidePanel';
 import '@/styles/modules/children.css';
 
@@ -77,6 +77,13 @@ const wordsOf = (isRound) =>
         notYet: 'chưa khám',
         results: 'phiếu khám',
       };
+
+/** Số đếm ở bảng theo lớp: 0 chữ mờ (không còn "—", user yêu cầu 2026-11-11); > 0 viên số theo tông mức. */
+function CountCell({ value, tone }) {
+  const n = value || 0;
+  if (!n) return <span className="tr-count tr-count--zero">0</span>;
+  return <span className={tone ? `tr-count tr-count--${tone}` : 'tr-count'}>{n}</span>;
+}
 
 function StatusBanner({ campaign, teacher, isRound }) {
   const w = wordsOf(isRound);
@@ -171,8 +178,6 @@ export default function HealthCheckDetailPage() {
   const w = wordsOf(isRound);
   const Roster = isRound ? MeasurementRoundRoster : HealthCheckClassRoster;
   const unclosed = [CAMPAIGN_STATUS.UPCOMING, CAMPAIGN_STATUS.IN_PROGRESS].includes(campaign.status);
-  // Đợt đã đóng/hủy: thanh tiến độ tĩnh, không như đang diễn ra (user yêu cầu 2026-10-23).
-  const ended = !unclosed;
   const lastEvent = campaign.history?.[campaign.history.length - 1];
   const classId = params.get('classId') || '';
   const selectClass = (id) => setParams(id ? { classId: id } : {});
@@ -263,28 +268,19 @@ export default function HealthCheckDetailPage() {
         <div className="tr-hc-overview__grid">
           <div className="stack gap-3">
             <h2 className="card__title">Thông tin {w.name}</h2>
-            <dl className="tr-hc-meta">
-              <div>
-                <dt>Điểm trường</dt>
-                <dd>{campaign.campusName}</dd>
-              </div>
-              <div>
-                <dt>{w.date}</dt>
-                <dd>
-                  {formatDate(campaign.startDate)} – {formatDate(campaign.endDate)}
-                </dd>
-              </div>
-              {!isRound && (
-                <div>
-                  <dt>Đơn vị khám / bác sĩ</dt>
-                  <dd>{campaign.examiner || <span className="muted">Chưa cập nhật</span>}</dd>
-                </div>
-              )}
-              <div className="tr-hc-meta__wide">
-                <dt>Ghi chú</dt>
-                <dd>{campaign.note || <span className="muted">Không có</span>}</dd>
-              </div>
-            </dl>
+            {/* Thông tin đợt dạng bảng nhãn | giá trị như hồ sơ trẻ (user yêu cầu 2026-11-11) */}
+            <ChildInfoTable
+              label={`Thông tin ${w.name}`}
+              rows={[
+                ['Điểm trường', campaign.campusName],
+                [w.date, `${formatDate(campaign.startDate)} – ${formatDate(campaign.endDate)}`],
+                !isRound && {
+                  label: 'Đơn vị khám / bác sĩ',
+                  value: campaign.examiner || <span className="muted">Chưa cập nhật</span>,
+                },
+                { label: 'Ghi chú', value: campaign.note || <span className="muted">Không có</span> },
+              ]}
+            />
           </div>
           <div className="stack gap-3 tr-hc-overview__progress">
             <div className="tr-hc-headline">
@@ -397,7 +393,14 @@ export default function HealthCheckDetailPage() {
               />
             ) : (
               <div className="table-wrap tr-table-flat">
-                <table className="table table--grid">
+                <table className="table table--grid tr-class-table">
+                  <colgroup>
+                    <col />
+                    <col className="tr-class-table__col--progress" />
+                    {(isRound ? [1, 2] : [1, 2, 3]).map((n) => (
+                      <col key={n} className="tr-class-table__col--count" />
+                    ))}
+                  </colgroup>
                   <thead>
                     <tr>
                       <th>Lớp</th>
@@ -434,18 +437,43 @@ export default function HealthCheckDetailPage() {
                                   className={`tr-acc-chevron ${open ? 'tr-acc-chevron--open' : ''}`}
                                   aria-hidden="true"
                                 />
-                                {c.className}
+                                <span className="tr-class-name">
+                                  {c.className}
+                                  <span className="tr-class-name__meta">Sĩ số {c.total}</span>
+                                </span>
                               </button>
                             </td>
                             <td className="tr-progress-cell">
-                              <ProgressBar value={c.recorded} total={c.total} ended={ended} />
+                              <SegmentedProgress
+                                compact
+                                label={`Tiến độ ${c.className}`}
+                                total={c.total}
+                                text={c.total ? `${c.recorded}/${c.total}` : '0/0'}
+                                segments={[
+                                  { key: 'recorded', label: isRound ? 'Đã cân đo' : 'Đã có kết luận', value: c.recorded, tone: 'green' },
+                                  { key: 'inProgress', label: 'Đang khám', value: c.inProgress || 0, tone: 'blue' },
+                                  { key: 'absent', label: w.absent, value: c.absent || 0, tone: 'gray' },
+                                ]}
+                              />
                             </td>
-                            <td className="num">{c.absent || '—'}</td>
-                            {!isRound && <td className="num">{c.watch || '—'}</td>}
+                            <td className="num">
+                              <CountCell value={c.absent} />
+                            </td>
                             {!isRound && (
-                              <td className="num">{c.closeWatch ? <span className="text-danger fw-600">{c.closeWatch}</span> : '—'}</td>
+                              <td className="num">
+                                <CountCell value={c.watch} tone="orange" />
+                              </td>
                             )}
-                            {isRound && <td className="num">{c.bmiWarning ? <span className="fw-600">{c.bmiWarning}</span> : '—'}</td>}
+                            {!isRound && (
+                              <td className="num">
+                                <CountCell value={c.closeWatch} tone="red" />
+                              </td>
+                            )}
+                            {isRound && (
+                              <td className="num">
+                                <CountCell value={c.bmiWarning} tone="orange" />
+                              </td>
+                            )}
                           </tr>
                           {open && (
                             <tr id={panelId} className="tr-acc-panel">

@@ -6,6 +6,7 @@ import { useMasterData } from '@/hooks/useMasterData';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useChildRecords, useClassOptions, useHealthRecord } from '@/hooks/children/useChildRecords';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
+import { ChildAvatar } from '@/components/ChildAvatar';
 import { EmptyState, LoadingState } from '@/components/ui/States';
 import { GrowthChart } from '@/components/children/GrowthChart';
 import { HealthWarningCell } from '@/components/children/HealthWarningCell';
@@ -91,6 +92,8 @@ export default function HealthTrendPage() {
   }, [record, period]);
 
   const child = record?.child;
+  // Lần đo mới nhất (mọi thời gian, không theo bộ lọc khoảng): chỉ hiển thị số BE trả, không tính chênh lệch
+  const latest = useMemo(() => [...(record?.measurements || [])].sort((a, b) => b.date.localeCompare(a.date))[0] || null, [record]);
   // Thang biểu đồ theo nhóm tuổi của lớp hiện tại; trẻ chưa xếp lớp thì theo năm sinh
   const ageGroupId =
     record?.cls?.ageGroupId ||
@@ -191,26 +194,64 @@ export default function HealthTrendPage() {
             </div>
           ) : (
             <>
-              <div className="row row--between row--wrap mb-12 gap-2">
-                <h2 className="section-title">
-                  {child.fullName}{' '}
-                  <span className="muted text-sm">
-                    ({child.code} · {child.className || 'Chưa xếp lớp'})
-                  </span>
-                </h2>
-                <div className="row row--wrap gap-2">
-                  <button type="button" className="btn btn--sm" disabled={!prevChild} onClick={() => selectChild(prevChild.id)}>
-                    <ChevronLeft size={15} /> Trẻ trước
-                  </button>
-                  <button type="button" className="btn btn--sm" disabled={!nextChild} onClick={() => selectChild(nextChild.id)}>
-                    Trẻ sau <ChevronRight size={15} />
-                  </button>
-                  <Link className="btn btn--sm" to={`/children/${child.id}/health`}>
-                    <HeartPulse size={15} /> Mở sổ sức khỏe
-                  </Link>
+              {/* Thẻ đầu: trẻ đang xem + lần đo gần nhất, đọc nhanh trước khi xem biểu đồ (user yêu cầu 2026-11-11) */}
+              <section className="card tr-trend-head" aria-label={`Tổng quan ${child.fullName}`}>
+                <div className="tr-trend-head__top">
+                  <div className="row gap-3">
+                    <ChildAvatar child={child} size="lg" />
+                    <div className="stack gap-0">
+                      <h2 className="tr-trend-head__name">{child.fullName}</h2>
+                      <span className="muted text-sm">
+                        {child.code} · {child.className || 'Chưa xếp lớp'}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="row row--wrap gap-2">
+                    <button type="button" className="btn btn--sm" disabled={!prevChild} onClick={() => selectChild(prevChild.id)}>
+                      <ChevronLeft size={15} /> Trẻ trước
+                    </button>
+                    <button type="button" className="btn btn--sm" disabled={!nextChild} onClick={() => selectChild(nextChild.id)}>
+                      Trẻ sau <ChevronRight size={15} />
+                    </button>
+                    <Link className="btn btn--sm" to={`/children/${child.id}/health`}>
+                      <HeartPulse size={15} /> Mở sổ sức khỏe
+                    </Link>
+                  </div>
                 </div>
-              </div>
-              <section className="card">
+                {latest ? (
+                  <dl className="tr-trend-kpis">
+                    <div>
+                      <dt>Lần đo gần nhất</dt>
+                      <dd>{formatDate(latest.date)}</dd>
+                    </div>
+                    <div>
+                      <dt>Chiều cao</dt>
+                      <dd>
+                        {formatNumber(latest.heightCm)} <small>cm</small>
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Cân nặng</dt>
+                      <dd>
+                        {formatNumber(latest.weightKg)} <small>kg</small>
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>BMI</dt>
+                      <dd>{formatNumber(latest.bmi)}</dd>
+                    </div>
+                    <div className="tr-trend-kpis__warn">
+                      <dt>Cảnh báo</dt>
+                      <dd>
+                        <HealthWarningCell measurement={latest} />
+                      </dd>
+                    </div>
+                  </dl>
+                ) : (
+                  <p className="muted text-sm tr-trend-kpis">Trẻ chưa có số đo.</p>
+                )}
+              </section>
+              <section className="card mt-16">
                 <div className="tr-chart-toolbar">
                   <div className="tabs" role="tablist" aria-label="Cách xem">
                     <button

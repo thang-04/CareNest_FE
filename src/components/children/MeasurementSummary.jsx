@@ -11,6 +11,7 @@ import {
 import { formatSigned } from '@/utils/format';
 import { formatNumber } from '@/utils/children/childrenHelpers';
 import { BmiStatusBadge, ConclusionCategoryBadge, FollowUpLevelBadge, HeadCircumferenceBadge, MotorResultBadge } from './ChildBadges';
+import { ChildInfoTable } from './ChildInfoTable';
 
 const NOT_SET = <span className="muted">Chưa cập nhật</span>;
 
@@ -20,13 +21,34 @@ const hasHead = (m) =>
   m.headCircumferenceCm != null &&
   m.headCircumferenceCm !== '';
 
+const headRow = (m) =>
+  hasHead(m) && {
+    label: 'Vòng đầu',
+    value: m.headCircumferenceStatus ? <HeadCircumferenceBadge status={m.headCircumferenceStatus} /> : NOT_SET,
+  };
+
+/** Mức BMI theo tuổi BE xếp (HLT-18) cho số đo của kỳ cân đo; null khi không xếp được (thiếu số đo, trẻ ngoài 0–84 tháng). */
+const bmiRow = (m) => ({
+  label: 'BMI theo tuổi',
+  value: m.bmiStatus ? (
+    <div className="tr-cell-stack">
+      <BmiStatusBadge status={m.bmiStatus} />
+      <span className="muted text-xs">
+        Z-score {formatSigned(m.bmiZScore)} · hệ thống tính theo chuẩn WHO, chỉ để sàng lọc, không phải chẩn đoán
+      </span>
+    </div>
+  ) : (
+    <span className="muted">Không xếp mức (thiếu số đo hoặc trẻ ngoài 0–84 tháng tuổi)</span>
+  ),
+});
+
 /** Kết luận bác sĩ của phiếu Phụ lục II (BE trả); mức theo dõi theo kết luận này (HLT-10). */
-function ExamConclusion({ m }) {
+const examRows = (m) => {
   const c = m.exam.conclusion;
-  return (
-    <dl className="info-list mt-16">
-      <dt>Kết luận của bác sĩ</dt>
-      <dd>
+  return [
+    {
+      label: 'Kết luận của bác sĩ',
+      value: (
         <div className="tr-cell-stack">
           <ConclusionCategoryBadge status={m.conclusionCategory} />
           <span>
@@ -35,118 +57,93 @@ function ExamConclusion({ m }) {
           </span>
           {c.issueKind && <span className="muted text-sm">{ISSUE_KIND_LABELS[c.issueKind]}</span>}
         </div>
-      </dd>
-      <dt>Tư vấn / chuyển khám</dt>
-      <dd>
-        {conclusionActionLabelOf(c) || '—'}
-        {c.adviceText && <div className="muted text-sm mt-8">Lời dặn: {c.adviceText}</div>}
-      </dd>
-      <dt>Tình trạng dinh dưỡng</dt>
-      <dd>{m.exam.nutrition.statuses.map((s) => labelOf(NUTRITION_STATUS_OPTIONS, s)).join(', ') || NOT_SET}</dd>
-      {hasHead(m) && (
+      ),
+    },
+    {
+      label: 'Tư vấn / chuyển khám',
+      value: (
         <>
-          <dt>Vòng đầu</dt>
-          <dd>{m.headCircumferenceStatus ? <HeadCircumferenceBadge status={m.headCircumferenceStatus} /> : NOT_SET}</dd>
+          {conclusionActionLabelOf(c) || '—'}
+          {c.adviceText && <div className="muted text-sm mt-8">Lời dặn: {c.adviceText}</div>}
         </>
-      )}
-      <dt>Bác sĩ kết luận</dt>
-      <dd>{c.doctorName || NOT_SET}</dd>
-      <dt>Mức theo dõi</dt>
-      <dd>
-        <FollowUpLevelBadge status={m.followUpLevel} />
-        {m.campaignId && (
-          <div className="mt-8">
-            <Link className="text-primary text-sm" to={`/children/health-checks/${m.campaignId}/exam/${m.childId}`}>
-              Xem phiếu khám đầy đủ
-            </Link>
-          </div>
-        )}
-      </dd>
-    </dl>
-  );
-}
-
-/** Mức BMI theo tuổi BE xếp (HLT-18) cho số đo của kỳ cân đo; null khi không xếp được (thiếu số đo, trẻ ngoài 0–84 tháng). */
-function BmiResult({ m }) {
-  return (
-    <>
-      <dt>BMI theo tuổi</dt>
-      <dd>
-        {m.bmiStatus ? (
-          <div className="tr-cell-stack">
-            <BmiStatusBadge status={m.bmiStatus} />
-            <span className="muted text-sm">
-              Z-score {formatSigned(m.bmiZScore)} · hệ thống tính theo chuẩn WHO, chỉ để sàng lọc, không phải chẩn đoán
-            </span>
-          </div>
-        ) : (
-          <span className="muted">Không xếp mức (thiếu số đo hoặc trẻ ngoài 0–84 tháng tuổi)</span>
-        )}
-      </dd>
-    </>
-  );
-}
+      ),
+    },
+    {
+      label: 'Tình trạng dinh dưỡng',
+      value: m.exam.nutrition.statuses.map((s) => labelOf(NUTRITION_STATUS_OPTIONS, s)).join(', ') || NOT_SET,
+    },
+    headRow(m),
+    { label: 'Bác sĩ kết luận', value: c.doctorName || NOT_SET },
+    {
+      label: 'Mức theo dõi',
+      value: (
+        <>
+          <FollowUpLevelBadge status={m.followUpLevel} />
+          {m.campaignId && (
+            <div className="mt-8">
+              <Link className="text-primary text-sm" to={`/children/health-checks/${m.campaignId}/exam/${m.childId}`}>
+                Xem phiếu khám đầy đủ
+              </Link>
+            </div>
+          )}
+        </>
+      ),
+    },
+  ];
+};
 
 /** Mẫu cũ (trước phiếu Phụ lục II, chỉ ở dữ liệu cũ): vòng đầu (khi có số), vận động thô/tinh để xem lại; cảnh báo theo BMI như kỳ cân đo. */
-function LegacyResult({ m }) {
-  return (
-    <dl className="info-list mt-16">
-      <BmiResult m={m} />
-      {hasHead(m) && (
-        <>
-          <dt>Vòng đầu</dt>
-          <dd>{m.headCircumferenceStatus ? <HeadCircumferenceBadge status={m.headCircumferenceStatus} /> : NOT_SET}</dd>
-        </>
-      )}
-      <dt>Vận động thô</dt>
-      <dd>{m.grossMotor ? <MotorResultBadge status={m.grossMotor} /> : NOT_SET}</dd>
-      <dt>Vận động tinh</dt>
-      <dd>{m.fineMotor ? <MotorResultBadge status={m.fineMotor} /> : NOT_SET}</dd>
-      <dt>Mẫu nhập</dt>
-      <dd className="muted text-sm">{MEASUREMENT_SOURCE_LABELS.LEGACY}: nhập trước khi có phiếu Phụ lục II, không có kết luận bác sĩ.</dd>
-    </dl>
-  );
-}
+const legacyRows = (m) => [
+  bmiRow(m),
+  headRow(m),
+  { label: 'Vận động thô', value: m.grossMotor ? <MotorResultBadge status={m.grossMotor} /> : NOT_SET },
+  { label: 'Vận động tinh', value: m.fineMotor ? <MotorResultBadge status={m.fineMotor} /> : NOT_SET },
+  {
+    label: 'Mẫu nhập',
+    value: (
+      <span className="muted text-sm">
+        {MEASUREMENT_SOURCE_LABELS.LEGACY}: nhập trước khi có phiếu Phụ lục II, không có kết luận bác sĩ.
+      </span>
+    ),
+  },
+];
 
 /**
- * Một kết quả: số đo + kết luận bác sĩ (phiếu khám) hoặc mức BMI theo tuổi (kỳ cân đo, mẫu cũ). Kỳ cân đo không đo vòng đầu
- * (2026-11-04): chỉ hiện vòng đầu của phiếu khám, mẫu cũ ngoài kỳ cân đo khi có số.
+ * Một kết quả dạng bảng (user yêu cầu 2026-11-11): bảng số đo một hàng (mỗi cột một chỉ số) rồi bảng nhãn | giá trị của kết luận
+ * bác sĩ (phiếu khám) hoặc mức BMI theo tuổi (kỳ cân đo, mẫu cũ). Kỳ cân đo không đo vòng đầu (2026-11-04): chỉ hiện vòng đầu của
+ * phiếu khám, mẫu cũ ngoài kỳ cân đo khi có số.
  */
 export function MeasurementSummary({ measurement: m }) {
   const head = hasHead(m);
+  const rows =
+    m.source === MEASUREMENT_SOURCE.EXAM && m.exam
+      ? examRows(m)
+      : m.source === MEASUREMENT_SOURCE.LEGACY
+        ? legacyRows(m)
+        : [bmiRow(m), { label: 'Loại kết quả', value: <span className="muted">{MEASUREMENT_SOURCE_LABELS.MEASUREMENT_ONLY}</span> }];
   return (
-    <>
-      <div className={head ? 'tr-metrics tr-metrics--4' : 'tr-metrics'}>
-        <div>
-          <div className="tr-metric__value">{formatNumber(m.heightCm)}</div>
-          <div className="muted text-sm">Chiều cao (cm)</div>
-        </div>
-        <div>
-          <div className="tr-metric__value">{formatNumber(m.weightKg)}</div>
-          <div className="muted text-sm">Cân nặng (kg)</div>
-        </div>
-        {head && (
-          <div>
-            <div className="tr-metric__value">{formatNumber(m.headCircumferenceCm)}</div>
-            <div className="muted text-sm">Vòng đầu (cm)</div>
-          </div>
-        )}
-        <div>
-          <div className="tr-metric__value">{formatNumber(m.bmi)}</div>
-          <div className="muted text-sm">BMI</div>
-        </div>
+    <div className="stack gap-4">
+      <div className="table-wrap">
+        <table className="table table--grid tr-metric-table" aria-label="Số đo">
+          <thead>
+            <tr>
+              <th className="num">Chiều cao (cm)</th>
+              <th className="num">Cân nặng (kg)</th>
+              {head && <th className="num">Vòng đầu (cm)</th>}
+              <th className="num">BMI</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td className="num">{formatNumber(m.heightCm)}</td>
+              <td className="num">{formatNumber(m.weightKg)}</td>
+              {head && <td className="num">{formatNumber(m.headCircumferenceCm)}</td>}
+              <td className="num">{formatNumber(m.bmi)}</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
-      {m.source === MEASUREMENT_SOURCE.EXAM && m.exam ? (
-        <ExamConclusion m={m} />
-      ) : m.source === MEASUREMENT_SOURCE.LEGACY ? (
-        <LegacyResult m={m} />
-      ) : (
-        <dl className="info-list mt-16">
-          <BmiResult m={m} />
-          <dt>Loại kết quả</dt>
-          <dd className="muted">{MEASUREMENT_SOURCE_LABELS.MEASUREMENT_ONLY}</dd>
-        </dl>
-      )}
-    </>
+      <ChildInfoTable label="Kết quả" rows={rows} />
+    </div>
   );
 }

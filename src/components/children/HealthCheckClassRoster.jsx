@@ -18,6 +18,8 @@ import { formatDate, normalizeText } from '@/utils/format';
 const COLS = 6;
 // 10 trẻ một trang (user yêu cầu 2026-10-23).
 const PAGE_SIZE = 10;
+// Sổ dưới dòng lớp: 5 trẻ/trang để bảng lớp không bị đẩy quá dài (user yêu cầu 2026-11-11).
+const EMBEDDED_PAGE_SIZE = 5;
 // Bộ lọc lưu trên URL: mở phiếu khám rồi quay lại vẫn giữ. Không lọc theo công bố: lưu kết luận là công bố (2026-10-23).
 const FILTER_DEFAULTS = { keyword: '', result: '', conclusion: '' };
 
@@ -29,6 +31,7 @@ const conclusionNote = (c) => (c?.specialty ? `Chuyển khám: ${c.specialty}` :
  * embedded: sổ ngay dưới dòng lớp của bảng tiến độ (không khung card, không tiêu đề riêng).
  */
 export function HealthCheckClassRoster({ campaignId, classId, embedded = false }) {
+  const pageSize = embedded ? EMBEDDED_PAGE_SIZE : PAGE_SIZE;
   const navigate = useNavigate();
   const { roster, loading, error, reload } = useHealthCheckClass(campaignId, classId);
   const rows = useMemo(() => roster?.children || [], [roster]);
@@ -44,7 +47,7 @@ export function HealthCheckClassRoster({ campaignId, classId, embedded = false }
       .filter((r) => !conclusion || r.conclusionCategory === conclusion)
       .filter((r) => !kw || normalizeText(`${r.fullName} ${r.code}`).includes(kw));
   }, [rows, keyword, result, conclusion]);
-  const current = Math.min(page, Math.max(1, Math.ceil(visible.length / PAGE_SIZE)));
+  const current = Math.min(page, Math.max(1, Math.ceil(visible.length / pageSize)));
   const filtered = activeKeys.length > 0;
   const setFilter = (patch) => {
     setFilters(patch);
@@ -134,7 +137,7 @@ export function HealthCheckClassRoster({ campaignId, classId, embedded = false }
                 </td>
               </tr>
             ) : (
-              paginate(visible, current, PAGE_SIZE).map((r) => {
+              paginate(visible, current, pageSize).map((r) => {
                 const legacy = r.source === MEASUREMENT_SOURCE.LEGACY;
                 const hasExam = !!r.measurementId && !legacy;
                 const healthLink = `/children/${r.childId}/health`;
@@ -215,7 +218,7 @@ export function HealthCheckClassRoster({ campaignId, classId, embedded = false }
         </table>
       </div>
       {!loading && visible.length > 0 && (
-        <Pagination page={current} total={visible.length} onChange={setPage} pageSize={PAGE_SIZE} unit="trẻ" />
+        <Pagination page={current} total={visible.length} onChange={setPage} pageSize={pageSize} unit="trẻ" />
       )}
     </>
   );

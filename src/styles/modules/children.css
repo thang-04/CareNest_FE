@@ -39,10 +39,11 @@
 .detail-layout__aside .tr-info-table__col--label {
   width: 42%;
 }
+/* Nhãn, giá trị chữ đậm màu chính cho dễ đọc (user yêu cầu 2026-11-11); chữ phụ (.muted) trong ô nâng một bậc */
 .table.table--grid.tr-info-table tbody th {
   background: var(--table-header-bg);
-  color: var(--text-2);
-  font-weight: var(--fw-medium);
+  color: var(--color-text);
+  font-weight: var(--fw-semibold);
   white-space: normal;
 }
 .tr-info-table :is(th, td) {
@@ -51,6 +52,11 @@
 /* Bảng nhãn – giá trị không sọc: mỗi dòng là một trường riêng */
 .table.table--grid.tr-info-table tbody tr td {
   background: var(--color-surface);
+  color: var(--color-text);
+  font-weight: var(--fw-medium);
+}
+.tr-info-table td .muted {
+  color: var(--color-text-secondary);
 }
 @media (max-width: 640px) {
   .tr-info-table__col--label,
@@ -566,19 +572,15 @@
   overflow-y: auto;
 }
 
-/* Health metrics */
-.tr-metrics {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-4);
+/* Số đo một lần đo (MeasurementSummary): bảng một hàng, mỗi cột một chỉ số, số to đậm canh giữa, nền trắng không sọc */
+.table.tr-metric-table {
+  table-layout: fixed;
 }
-.tr-metrics--4 {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-.tr-metric__value {
-  font-size: var(--fs-h2);
+.table.table--grid.tr-metric-table tbody td {
+  background: var(--color-surface);
+  font-size: var(--fs-title-sm);
   font-weight: var(--fw-bold);
-  color: var(--text);
+  font-variant-numeric: tabular-nums;
 }
 .tr-note {
   max-width: 220px;
@@ -739,7 +741,29 @@
   min-width: 150px;
 }
 .tr-progress-cell {
-  min-width: 120px;
+  min-width: 160px;
+}
+/* Số đếm bảng theo lớp: 0 chữ mờ (không để "—"); > 0 viên số tông mức (cần theo dõi, theo dõi sát, BMI cảnh báo) */
+.tr-count {
+  display: inline-block;
+  min-width: var(--space-7);
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-full);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--fw-semibold);
+  text-align: center;
+}
+.tr-count--zero {
+  color: var(--color-text-muted);
+  font-weight: var(--fw-regular);
+}
+.tr-count--orange {
+  background: var(--color-warning-bg);
+  color: var(--color-warning-fg);
+}
+.tr-count--red {
+  background: var(--color-danger-bg);
+  color: var(--color-danger-fg);
 }
 .table.table--grid .tr-row-selected td {
   background: var(--color-primary-soft);
@@ -922,12 +946,6 @@
   .tr-info-split__guardians {
     padding-left: 0;
     border-left: none;
-  }
-}
-
-@media (max-width: 900px) {
-  .tr-metrics--4 {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -1275,27 +1293,6 @@
 .tr-hc-overview__progress {
   min-width: 0;
 }
-.tr-hc-meta {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, calc(var(--space-16) * 3)), 1fr));
-  gap: var(--space-3) var(--space-5);
-  margin: 0;
-}
-.tr-hc-meta > div {
-  min-width: 0;
-}
-.tr-hc-meta dt {
-  margin-bottom: var(--space-1);
-  font-size: var(--fs-xs);
-  color: var(--text-2);
-}
-.tr-hc-meta dd {
-  margin: 0;
-  overflow-wrap: anywhere;
-}
-.tr-hc-meta__wide {
-  grid-column: 1 / -1;
-}
 .tr-hc-headline {
   display: flex;
   flex-wrap: wrap;
@@ -1362,6 +1359,97 @@
   justify-content: flex-end;
   gap: var(--space-2);
   white-space: nowrap;
+}
+
+/* Xu hướng: thẻ đầu trẻ đang xem (tên, nút chuyển trẻ) + dải số đo lần gần nhất */
+.tr-trend-head__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-4);
+  padding: var(--space-4) var(--space-5);
+}
+.tr-trend-head__name {
+  margin: 0;
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-semibold);
+}
+.tr-trend-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, calc(var(--space-16) * 2.25)), 1fr));
+  gap: var(--space-3) var(--space-4);
+  margin: 0;
+  padding: var(--space-4) var(--space-5);
+  border-top: 1px solid var(--border);
+  background: var(--color-surface-muted);
+  border-radius: 0 0 var(--card-radius) var(--card-radius);
+}
+.tr-trend-kpis dt {
+  margin-bottom: var(--space-1);
+  font-size: var(--fs-xs);
+  color: var(--text-2);
+}
+.tr-trend-kpis dd {
+  margin: 0;
+  font-size: var(--fs-title-sm);
+  font-weight: var(--fw-bold);
+  font-variant-numeric: tabular-nums;
+}
+.tr-trend-kpis dd small {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-regular);
+  color: var(--text-2);
+}
+.tr-trend-kpis__warn {
+  grid-column: 1 / -1;
+}
+.tr-trend-kpis__warn dd {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-regular);
+}
+
+/* Bảng tiến độ theo lớp (đợt khám, kỳ cân đo): cột số hẹp đều nhau, cột tiến độ rộng; dòng lớp đang mở có vạch nhấn bên trái */
+/* table-layout fixed: danh sách trẻ sổ xuống (colSpan) không kéo giãn bảng lớp, tự cuộn ngang bên trong */
+.table.tr-class-table {
+  table-layout: fixed;
+  min-width: calc(var(--space-16) * 11);
+}
+.tr-class-table__col--progress {
+  width: 36%;
+}
+.tr-class-table__col--count {
+  width: 13%;
+}
+.table.table--grid.tr-class-table tbody tr.tr-acc-row:hover td {
+  background: var(--surface-soft);
+}
+.table.table--grid.tr-class-table tbody tr.tr-acc-row.tr-row-selected td {
+  background: var(--color-primary-soft);
+}
+.table.table--grid.tr-class-table tbody tr.tr-row-selected td:first-child {
+  box-shadow: inset var(--space-1) 0 0 var(--color-primary);
+}
+.tr-class-name {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: var(--lh-tight);
+}
+.tr-class-name__meta {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-regular);
+  color: var(--color-text-muted);
+}
+/* Danh sách trẻ sổ dưới dòng lớp: khung trắng thụt vào, nối với dòng lớp bằng vạch nhấn */
+.table.table--grid.tr-class-table tbody tr.tr-acc-panel > td {
+  box-shadow: inset var(--space-1) 0 0 var(--color-primary);
+}
+.tr-class-table .tr-acc-roster {
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
 }
 
 /* Tiền sử nhiều tên bệnh (ExamSheetListDetail): ô nhập + nút Thêm một dòng, chip bên dưới */
