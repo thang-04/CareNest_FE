@@ -23,6 +23,8 @@ export default function SupplierListPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const canManage = canEditSuppliers(user);
+  // Chỉ xem ⇒ bỏ cột Thao tác; bấm dòng vẫn mở chi tiết
+  const colCount = canManage ? 7 : 6;
   const [filters, setFilters, resetFilters, activeKeys] = useFilterParams(FILTER_DEFAULTS);
   const { keyword, status } = filters;
   const [page, setPage] = useState(1);
@@ -51,13 +53,6 @@ export default function SupplierListPage() {
         <div>
           <h1 className="page__title">Nhà cung cấp</h1>
         </div>
-        {canManage && (
-          <div className="page__actions">
-            <button type="button" className="btn btn--primary" onClick={() => setEditing('')}>
-              <Plus size={16} /> Thêm nhà cung cấp
-            </button>
-          </div>
-        )}
       </div>
       <section className="card">
         <div className="filter-bar filter-bar--aligned">
@@ -79,6 +74,13 @@ export default function SupplierListPage() {
           <button type="button" className="btn" onClick={reset} disabled={!filtered}>
             <RotateCcw size={15} /> Đặt lại bộ lọc
           </button>
+          {canManage && (
+            <div className="filter-bar__end">
+              <button type="button" className="btn btn--primary" onClick={() => setEditing('')}>
+                <Plus size={16} /> Thêm nhà cung cấp
+              </button>
+            </div>
+          )}
         </div>
         <FilterChips count={loading ? null : rows.length} unit="nhà cung cấp" chips={chips} />
         {error ? (
@@ -94,15 +96,15 @@ export default function SupplierListPage() {
                   <th className="center">Số điện thoại</th>
                   <th className="num">Số phiếu nhập</th>
                   <th className="center">Trạng thái</th>
-                  <th className="cell--actions">Thao tác</th>
+                  {canManage && <th className="cell--actions">Thao tác</th>}
                 </tr>
               </thead>
               <tbody>
                 {loading && !data ? (
-                  <SkeletonRows rows={5} cols={7} />
+                  <SkeletonRows rows={5} cols={colCount} />
                 ) : rows.length === 0 ? (
                   <tr>
-                    <td colSpan={7}>
+                    <td colSpan={colCount}>
                       <EmptyState
                         title={filtered ? 'Không có kết quả phù hợp' : 'Chưa có nhà cung cấp nào'}
                         description={
@@ -139,9 +141,11 @@ export default function SupplierListPage() {
                       <td className="center">
                         <SupplierStatusBadge status={s.status} />
                       </td>
-                      <td className="cell--actions">
-                        {canManage && <RowActions edit={{ onClick: () => setEditing(s.id) }} name={s.name} />}
-                      </td>
+                      {canManage && (
+                        <td className="cell--actions">
+                          <RowActions edit={{ onClick: () => setEditing(s.id) }} name={s.name} />
+                        </td>
+                      )}
                     </tr>
                   ))
                 )}

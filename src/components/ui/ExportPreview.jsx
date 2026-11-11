@@ -19,7 +19,7 @@ const subscribe = (fn) => {
   return () => listeners.delete(fn);
 };
 
-/** Mở hộp xem trước. rows: mảng các mảng (dòng một ô = tiêu đề / tên phần); options như downloadXlsx + `title`. */
+/** Mở hộp xem trước. rows: mảng các mảng (dòng một ô = tiêu đề / tên phần); options như downloadXlsx + `title`, `size`. */
 export const exportWithPreview = (rows, fileName, options = {}) => {
   request = { sheets: [{ rows, sheetName: options.sheetName }], fileName: fileName.replace(/\.csv$/i, '.xlsx'), ...options };
   emit();
@@ -44,7 +44,8 @@ export function ExportPreviewHost() {
   // Mỗi lần mở hộp mới bắt đầu từ sheet đầu tiên
   useEffect(() => setTab(0), [req]);
   if (!req) return null;
-  const { sheets, fileName, title } = req;
+  // `size: 'full'` cho bảng nhiều cột (vd. bảng đi chợ chia theo nhóm tuổi)
+  const { sheets, fileName, title, size = 'xl' } = req;
   const sheet = sheets[tab] ?? sheets[0];
   const { rows, sheetName, headerRow } = sheet;
   const head = headerIndex(rows, headerRow);
@@ -65,7 +66,7 @@ export function ExportPreviewHost() {
   return (
     <Modal
       open
-      size="xl"
+      size={size}
       title={title || 'Xem trước khi xuất Excel'}
       onClose={close}
       footer={

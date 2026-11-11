@@ -548,6 +548,9 @@ tr.sortable-item--moved > td {
   /* base-select biến ô chọn thành flex, chữ dạt lên mép trên ⇒ căn giữa dọc như ô gốc */
   .select:not([multiple]):not([size]) {
     align-items: center;
+    /* base-select cho chữ xuống dòng khi tên dài hơn ô ⇒ giữ một dòng, phần thừa bị cắt; danh sách khi mở vẫn đủ chữ */
+    white-space: nowrap;
+    overflow: hidden;
   }
   .select::picker-icon {
     display: none; /* đã có mũi tên bằng background-image */
@@ -1239,6 +1242,16 @@ tr.sortable-item--moved > td {
 }
 .modal--xl {
   max-width: 1100px;
+}
+/* Hộp gần hết khung (biểu mẫu nhập nhiều cột, Sửa ngày của kế hoạch tuần); thân cuộn trong modal */
+.modal-backdrop:has(> .modal--full) {
+  padding: var(--space-2);
+}
+.modal--full {
+  max-width: none;
+  width: 100%;
+  height: 100%;
+  max-height: none;
 }
 .modal__header {
   display: flex;
@@ -2536,6 +2549,35 @@ a.file-row__name:hover {
   border-color: var(--color-focus);
   box-shadow: 0 0 0 3px var(--color-focus-ring);
 }
+/* Nút chỉ có icon mở danh sách chọn (vd. "Thay món" trên chip món) — cùng cỡ với `.icon-action` của chip */
+.search-select__icon,
+.icon-action {
+  display: grid;
+  place-items: center;
+  width: var(--space-6);
+  height: var(--space-6);
+  flex-shrink: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+.search-select__icon:hover,
+.icon-action:hover,
+.search-select__icon[aria-expanded='true'] {
+  background: var(--color-surface-hover);
+  color: var(--color-primary);
+}
+.icon-action--danger:hover {
+  color: var(--color-danger);
+}
+.search-select__icon:focus-visible,
+.icon-action:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--color-focus-ring);
+}
 .search-select__empty {
   padding: var(--space-4);
   text-align: center;
@@ -2800,6 +2842,14 @@ button.stat-card .stat-card__label::after {
   color: color-mix(in srgb, var(--stat-tone) 70%, var(--color-text));
   font-variant-numeric: tabular-nums;
 }
+/* Thẻ có số dài (tiền): số luôn một dòng, thẻ hẹp thì chữ số nhỏ lại theo bề rộng thẻ thay vì xuống dòng */
+.stat-card--fit {
+  container-type: inline-size;
+}
+.stat-card--fit .stat-card__value {
+  white-space: nowrap;
+  font-size: min(var(--stat-value-size), 16cqi);
+}
 /* Đang tải: vạch cao bằng dòng số để thẻ không nhảy khi số về */
 .stat-card__skeleton {
   display: block;
@@ -2839,6 +2889,16 @@ button.stat-card .stat-card__label::after {
   padding: var(--space-3-5) var(--space-4);
   align-items: flex-end;
   flex-wrap: wrap;
+}
+/* Nút thao tác của màn (Thêm, Nhập từ Excel…) nằm cuối hàng lọc, dồn sang phải; hẹp thì tự xuống hàng */
+.filter-bar__end {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+.filter-bar--aligned > .filter-bar__end > .btn {
+  height: var(--input-height);
 }
 .filter-bar .select {
   width: auto;
@@ -3832,6 +3892,14 @@ button.stat-card .stat-card__label::after {
   max-height: 60vh;
   overflow: auto;
 }
+/* Hộp toàn màn hình (bảng nhiều cột): bảng cao gần hết hộp, tiêu đề cột dài được xuống dòng để đỡ cuộn ngang */
+.modal--full .export-preview {
+  max-height: 74vh;
+}
+.modal--full .export-preview .export-preview__head th {
+  white-space: normal;
+  min-width: var(--space-16, 4rem);
+}
 .export-preview .export-preview__head th {
   position: sticky;
   top: 0;
@@ -3865,6 +3933,10 @@ button.stat-card .stat-card__label::after {
 }
 .td-split-nav__main {
   min-width: 0;
+}
+/* Bảng cách mép card như thanh lọc và phân trang phía trên/dưới, không dính viền danh mục và mép phải */
+.td-split-nav__main > .table-wrap {
+  margin-inline: var(--space-4);
 }
 .td-cat-nav {
   padding: var(--space-4) var(--space-3);

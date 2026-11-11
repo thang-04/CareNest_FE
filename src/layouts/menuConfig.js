@@ -21,6 +21,7 @@ import { hasBePermission } from '@/utils/account/accountPermissions';
 import { PERMISSIONS } from '@/models/account/permissionConstants';
 import { USE_MOCK } from '@/config/env';
 import { INTEGRATION_MODULES } from '@/config/integrationModules';
+import { MEAL_COUNT_TITLE } from '@/models/attendance/attendanceConstants';
 
 /*
  * Sidebar menu – single source of truth.
@@ -103,6 +104,9 @@ const GROUPS = {
     icon: Gear,
   },
 };
+
+// Không import demoSource ở đây: nó kéo mockDatabase (cần window) vào menu
+const MENU_TEMPLATE_API = !USE_MOCK && INTEGRATION_MODULES['menu-template']?.source === 'api';
 
 /** Sub-menu items. */
 const ITEMS = {
@@ -197,7 +201,7 @@ const ITEMS = {
     to: '/attendance/day-unlocks',
   },
   mealCount: {
-    label: 'Sổ suất ăn',
+    label: MEAL_COUNT_TITLE,
     to: '/attendance/meal-count',
   },
   dailyHealthOverview: {
@@ -302,14 +306,15 @@ const ITEMS = {
   },
   menus: {
     label: 'Mẫu thực đơn',
-    to: '/menu/menus',
+    // Bản nối BE: /menu/menus chuyển hướng sang /menu/templates ⇒ trỏ thẳng để mục sáng đúng và breadcrumb khớp
+    to: MENU_TEMPLATE_API ? '/menu/templates' : '/menu/menus',
   },
   weeklyMenus: {
     label: 'Kế hoạch tuần & công bố',
     to: '/menu/weekly',
   },
   menuStatistics: {
-    label: 'Thống kê định lượng',
+    label: 'Định lượng & đi chợ',
     to: '/menu/statistics',
   },
   nutrition: {
@@ -323,10 +328,6 @@ const ITEMS = {
   mealPhotos: {
     label: 'Ảnh bữa ăn',
     to: '/kitchen/meal-photos',
-  },
-  photoWindows: {
-    label: 'Khung giờ ảnh bữa',
-    to: '/kitchen/photo-windows',
   },
   stockReceipts: {
     label: 'Phiếu nhập',
@@ -352,6 +353,10 @@ const ITEMS = {
     label: 'Kiểm nhận hàng tươi',
     to: '/kitchen/fresh-receipts',
   },
+  inspections: {
+    label: 'Kiểm thực ba bước',
+    to: '/kitchen/inspections',
+  },
   foodSamples: {
     label: 'Lưu mẫu thực phẩm',
     to: '/kitchen/food-samples',
@@ -368,6 +373,10 @@ const ITEMS = {
     label: 'Đổi mật khẩu',
     to: '/account/password',
   },
+  signatures: {
+    label: 'Chữ ký của tôi',
+    to: '/account/signatures',
+  },
 };
 const link = (key) => ({
   ...LINKS[key],
@@ -381,7 +390,7 @@ const group = (key, itemKeys) => ({
     key: k,
   })),
 });
-const account = group('system', ['profile', 'password']);
+const account = group('system', ['profile', 'signatures', 'password']);
 // Nhãn khu trên sidebar: các mục liền nhau cùng `section` được Sidebar gom dưới một nhãn
 const BOARDING_SECTION = 'Bán trú';
 // Khu bán trú: "Bán trú hôm nay" đứng đầu, rồi năm nhóm theo thứ tự cố định; nhóm không có mục nào thì bỏ
@@ -433,7 +442,7 @@ const MENUS = {
       nutrition: ['weeklyMenus', 'menuStatistics', 'menus'],
       kitchenOps: ['mealCount', 'publishedMenu', 'forecast', 'freshReceipts'],
       stock: ['dryStock', 'stockReceipts', 'stockHistory', 'stockShortfalls'],
-      foodSafety: ['foodSamples', 'mealPhotos', 'photoWindows'],
+      foodSafety: ['inspections', 'foodSamples', 'mealPhotos'],
       catalog: ['foods', 'dishes', 'nutritionSetup', 'suppliers'],
     }),
     account,
@@ -470,7 +479,7 @@ const MENUS = {
       nutrition: ['weeklyMenus', 'menuStatistics', 'menus', 'nutrition'],
       kitchenOps: ['mealCount', 'publishedMenu', 'forecast', 'freshReceipts'],
       stock: ['dryStock', 'stockReceipts', 'stockHistory', 'stockShortfalls'],
-      foodSafety: ['foodSamples', 'mealPhotos', 'photoWindows'],
+      foodSafety: ['inspections', 'foodSamples', 'mealPhotos'],
       catalog: ['foods', 'dishes', 'nutritionSetup', 'suppliers'],
     }),
     account,
@@ -619,7 +628,7 @@ const withBePermissions = (menu, user) =>
 // Không import demoSource ở đây: nó kéo mockDatabase (cần window) vào menu
 const KITCHEN_RECORDS_API = !USE_MOCK && INTEGRATION_MODULES['kitchen-records']?.source === 'api';
 const MEAL_PLAN_API = !USE_MOCK && INTEGRATION_MODULES['meal-plan']?.source === 'api';
-const API_ONLY_ITEMS = [...(!KITCHEN_RECORDS_API ? ['mealPhotos', 'photoWindows'] : []), ...(!MEAL_PLAN_API ? ['menuStatistics'] : [])];
+const API_ONLY_ITEMS = [...(!KITCHEN_RECORDS_API ? ['mealPhotos'] : []), ...(!MEAL_PLAN_API ? ['menuStatistics'] : [])];
 const withApiOnlyItems = (menu) =>
   API_ONLY_ITEMS.length
     ? menu.map((e) => (e.children ? { ...e, children: e.children.filter((c) => !API_ONLY_ITEMS.includes(c.key)) } : e))

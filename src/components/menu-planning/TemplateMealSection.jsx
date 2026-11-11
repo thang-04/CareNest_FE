@@ -1,7 +1,6 @@
 import { Fragment, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronDown, ChevronRight, Plus, Trash2, UtensilsCrossed } from '@/components/ui/icons';
-import { EmptyState } from '@/components/ui/States';
 import { dishTypeClass } from '@/utils/dishTypeClass';
 import { DISH_TYPE_LABELS, MEAL_SESSION_LABELS, formatMoney } from '@/models/menu-planning/menuPlanningConstants';
 
@@ -18,6 +17,7 @@ export function TemplateMealSection({ session, items, ingredients, loading, edit
   // ingredients: mảng; null = máy chủ không trả thành phần món; undefined = đang tải
   const lines = (dishId) => (ingredients || []).filter((l) => l.session === session && String(l.dishId) === String(dishId));
   const label = MEAL_SESSION_LABELS[session] || session;
+  const noLines = ingredients === null && !loading;
 
   return (
     <section className={`card td-meal ${loading ? 'td-meal--busy' : ''}`} aria-label={label} aria-busy={!!loading}>
@@ -30,32 +30,34 @@ export function TemplateMealSection({ session, items, ingredients, loading, edit
         )}
       </div>
       {items.length === 0 ? (
-        <EmptyState
-          icon={UtensilsCrossed}
-          title={`${label} chưa có món`}
-          description="Chọn một hoặc nhiều món cho bữa này."
-          action={
-            editable && (
-              <button type="button" className="btn btn--primary" onClick={onAdd}>
-                <Plus size={16} /> Thêm món ăn
-              </button>
-            )
-          }
-        />
+        // Bữa trống: một dòng gọn thay cho khối tranh lớn, để nhiều bữa trống không đẩy phần chính xuống dưới
+        <div className="td-meal__empty">
+          <UtensilsCrossed size={18} aria-hidden="true" />
+          <span>
+            <b>Chưa có món</b> · Chọn một hoặc nhiều món cho bữa này.
+          </span>
+          {editable && (
+            <button type="button" className="btn btn--primary btn--sm" onClick={onAdd}>
+              <Plus size={16} /> Thêm món ăn
+            </button>
+          )}
+        </div>
       ) : (
         <div className="table-wrap">
           <table className="table table--grid td-meal__table">
-            <thead>
-              <tr>
-                <th className="td-meal__no">#</th>
-                <th>Thực phẩm</th>
-                <th className="num">Lượng ăn (g)</th>
-                <th className="num">Thải bỏ (%)</th>
-                <th className="num">Lượng mua (g)</th>
-                <th className="money">Đơn giá</th>
-                <th className="money">Thành tiền</th>
-              </tr>
-            </thead>
+            {!noLines && (
+              <thead>
+                <tr>
+                  <th className="td-meal__no">#</th>
+                  <th>Thực phẩm</th>
+                  <th className="num">Lượng ăn (g)</th>
+                  <th className="num">Thải bỏ (%)</th>
+                  <th className="num">Lượng mua (g)</th>
+                  <th className="money">Đơn giá</th>
+                  <th className="money">Thành tiền</th>
+                </tr>
+              </thead>
+            )}
             <tbody>
               {items.map((item) => {
                 const list = lines(item.dishId);
@@ -65,15 +67,17 @@ export function TemplateMealSection({ session, items, ingredients, loading, edit
                     <tr className={`td-meal__dish ${dishTypeClass(item.dishType)}`}>
                       <td colSpan={7}>
                         <div className="td-meal__dish-in">
-                          <button
-                            type="button"
-                            className="icon-btn"
-                            aria-expanded={isOpen}
-                            aria-label={`${isOpen ? 'Ẩn' : 'Xem'} thành phần ${item.dishName}`}
-                            onClick={() => toggle(item.dishId)}
-                          >
-                            {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                          </button>
+                          {!noLines && (
+                            <button
+                              type="button"
+                              className="icon-btn"
+                              aria-expanded={isOpen}
+                              aria-label={`${isOpen ? 'Ẩn' : 'Xem'} thành phần ${item.dishName}`}
+                              onClick={() => toggle(item.dishId)}
+                            >
+                              {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                            </button>
+                          )}
                           <b>{item.dishName || 'Món đã xóa'}</b>
                           {item.dishType && <span className="chip">{DISH_TYPE_LABELS[item.dishType] || item.dishType}</span>}
                           <span className="td-grow" />
@@ -97,6 +101,7 @@ export function TemplateMealSection({ session, items, ingredients, loading, edit
                       </td>
                     </tr>
                     {isOpen &&
+                      !noLines &&
                       (list.length ? (
                         list.map((l, i) => (
                           <tr key={`${l.foodId}-${i}`} className="td-meal__line">
@@ -116,11 +121,7 @@ export function TemplateMealSection({ session, items, ingredients, loading, edit
                       ) : (
                         <tr className="td-meal__line">
                           <td colSpan={7} className="text-sm muted">
-                            {loading || ingredients === undefined
-                              ? 'Đang tải thành phần…'
-                              : ingredients === null
-                                ? 'Máy chủ chưa trả thành phần của món (cần bản máy chủ mới).'
-                                : 'Chưa có thành phần cho nhóm tuổi đang xem.'}
+                            {loading || ingredients === undefined ? 'Đang tải thành phần…' : 'Chưa có thành phần cho nhóm tuổi đang xem.'}
                           </td>
                         </tr>
                       ))}
@@ -129,6 +130,12 @@ export function TemplateMealSection({ session, items, ingredients, loading, edit
               })}
             </tbody>
           </table>
+          {noLines && (
+            // Máy chủ cũ không trả `dishIngredients`: báo một lần cho cả bữa thay vì lặp dưới từng món
+            <p className="td-meal__note text-sm muted">
+              Chưa xem được thành phần từng món (máy chủ chưa hỗ trợ). Dinh dưỡng của ngày vẫn tính đủ.
+            </p>
+          )}
         </div>
       )}
     </section>

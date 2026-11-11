@@ -16,7 +16,8 @@ import { DailyHealthPanel } from '@/components/DailyHealthPanel';
 import { saveReception } from '@/services/receptionService';
 import { ClassDateBar } from '@/components/attendance/ClassDateBar';
 import { DayLockAlert } from '@/components/attendance/DayLockAlert';
-import { useAttendanceClasses, useAttendanceYear, useClassAttendance } from '@/hooks/attendance/useAttendance';
+import { useAttendanceClasses, useAttendanceYear, useClassAttendance, useClassMealCount } from '@/hooks/attendance/useAttendance';
+import { ClassMealCard } from '@/components/attendance/ClassMealCard';
 import { getClassAttendance, getDayInfo, saveClassAttendance } from '@/services/attendance/attendanceService';
 import { createAttendanceRefresh, leaveStateChanged, reconcileAttendanceDraft } from '@/utils/attendance/reconcileAttendance';
 import { ATTENDANCE_STATUS, isAbsent } from '@/models/attendance/attendanceConstants';
@@ -135,6 +136,7 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
   const [search] = useSearchParams();
   const toast = useToast();
   const { sheet, setSheet, loading, error, reload } = useClassAttendance(classId, date, { live: false });
+  const meal = useClassMealCount(classId, date);
   const [draft, setDraft] = useState({});
   const [selectedId, setSelectedId] = useState('');
   // Lớp đông: trẻ đang chọn (vd. sau "Lưu & trẻ tiếp theo") luôn nằm trong khung nhìn của bảng
@@ -273,9 +275,9 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
     toast.info('Đã chọn Có mặt cho các trẻ chưa điểm danh. Kiểm tra lại trước khi bấm Lưu điểm danh.');
   };
   // Trả true khi lưu xong (hộp hỏi rời màn dùng để quyết định có chuyển trang không)
-  const save = async (singleId) => {
+  const save = async () => {
     if (submitRef.current || !editable) return false;
-    const entries = dirtyRows.filter((row) => !singleId || row.child.id === singleId).map((row) => draft[row.child.id]);
+    const entries = dirtyRows.map((row) => draft[row.child.id]);
     if (!entries.length) return true;
     reconciliation.current?.invalidate();
     submitRef.current = true;
@@ -296,7 +298,9 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
           }),
         }));
       }
-      toast.success(singleId ? 'Đã lưu điểm danh của trẻ. Có thể ghi nhận sức khỏe bên phải.' : 'Đã lưu các thay đổi điểm danh.');
+      toast.success('Đã lưu các thay đổi điểm danh.');
+      // Số suất đổi theo điểm danh vừa lưu (BE tính lại)
+      meal.reload({ silent: true });
       return true;
     } catch (err) {
       setRowErrors(err.details || {});
@@ -337,6 +341,7 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
         user,
       );
       attendanceSaved = result.attendanceSaved;
+      if (attendanceSaved) meal.reload({ silent: true });
       healthSaved = true;
       return result.health;
     } catch (err) {
@@ -412,6 +417,7 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
         )}
         {!!dirtyRows.length && <span className="chip chip--orange">{dirtyRows.length} trẻ có thay đổi chưa lưu</span>}
       </div>
+      <ClassMealCard data={meal.data} loading={meal.loading} error={meal.error} onRetry={meal.reload} />
       <div className="dd-reception">
         <section className="card dd-reception__list" aria-labelledby="attendance-list-heading">
           <div className="card__header">
@@ -593,14 +599,9 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
           </p>
           <div className="dd-reception__footer">
             {editable && (
-              <div className="dd-health__actions">
-                <button
-                  className="btn"
-                  disabled={busy || !selected || !!selected.leaveRequest || !changed(draft[selectedId], selected.record)}
-                  onClick={() => save(selectedId)}
-                >
-                  <CheckCircle2 size={16} /> Lưu trẻ đang chọn
-                </button>
+              // Một nút lưu cho cả lớp; lưu riêng một trẻ kèm sức khỏe nằm ở khung bên phải
+              <div className="dd-health__actions dd-reception__save">
+                {!!sheet.receptionStats?.missing && <span className="muted">Còn {sheet.receptionStats.missing} trẻ chưa điểm danh</span>}
                 <button className="btn btn--primary" disabled={busy || !dirtyRows.length} onClick={() => save()}>
                   <Save size={16} /> Lưu điểm danh
                 </button>

@@ -348,30 +348,6 @@
   font-weight: var(--fw-semibold);
 }
 
-/* Ô ký trên các phiếu in */
-.kb-print-sign {
-  margin-top: var(--space-6);
-}
-
-/* In từ modal xem trước: bỏ định vị của modal để phiếu bắt đầu ở đầu trang giấy */
-@media print {
-  .modal-backdrop:has(.kb-print-modal) {
-    position: absolute;
-    inset: 0 auto auto 0;
-    display: block;
-    width: 100%;
-    padding: 0;
-    background: none;
-  }
-
-  .kb-print-modal,
-  .kb-print-modal .modal__body {
-    position: static;
-    max-height: none;
-    overflow: visible;
-  }
-}
-
 /* Dự trù & đi chợ theo tuần */
 .kb-toolbar--center {
   align-items: center;
@@ -982,6 +958,50 @@
   background: var(--color-warning-bg);
   color: var(--color-warning-fg);
   font-weight: var(--fw-semibold);
+}
+/* Bảng kiểm nhận hàng tươi: giá trị ngắn căn giữa, tên thực phẩm và ghi chú căn trái; thực phẩm chia hai cấp theo nhóm */
+.table.kb-fresh th,
+.table.kb-fresh td {
+  text-align: center;
+}
+.table.kb-fresh .kb-fresh__left {
+  text-align: left;
+}
+.table.kb-fresh tr.kb-fresh__group th {
+  padding-block: var(--space-2);
+  background: var(--color-surface-muted);
+  color: var(--color-text-secondary);
+  font-weight: var(--fw-bold);
+  text-align: left;
+}
+.kb-fresh__qty {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+}
+/* Dòng nguồn so sánh / người ghi nhận gọn một dòng, sát tiêu đề thẻ và bảng */
+.kb-fresh__meta {
+  margin: 0;
+  padding: var(--space-2) var(--space-6) var(--space-3);
+}
+.kb-fresh__foot {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-6) var(--space-5);
+}
+.kb-fresh__foot > p {
+  margin: 0;
+}
+.kb-fresh__actions {
+  display: flex;
+  justify-content: flex-end;
+}
+.kb-fresh__tally {
+  margin: var(--space-2) 0 0;
+}
+.kb-fresh__reason {
+  margin-top: var(--space-3);
+  text-align: left;
 }
 .kb-day-plan {
   margin-top: var(--space-1);
