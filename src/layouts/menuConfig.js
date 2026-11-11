@@ -221,21 +221,31 @@ const ITEMS = {
     label: 'Kế hoạch toàn trường',
     to: '/education/school',
   },
+  eduSchoolYear: { label: 'Kế hoạch năm học', icon: BookOpenText, to: '/education/school-year-plans' },
   eduGoals: {
-    label: 'Kế hoạch năm học',
+    label: 'Kế hoạch giáo dục tổ',
     to: '/education/goals',
   },
   eduBranch: {
-    label: 'Chủ đề nhánh',
+    label: 'Chủ đề / Chủ đề nhánh',
     to: '/education/branches',
   },
-  eduClass: {
-    label: 'Kế hoạch chủ đề',
-    to: '/education/class',
+  eduThemePlans: {
+    label: 'Kế hoạch giáo dục chủ đề',
+    to: '/education/theme-plans',
+    also: ['/education/class/'],
+  },
+  eduDayPlans: {
+    label: 'Kế hoạch giáo dục ngày',
+    to: '/education/day-plans',
   },
   eduPlanReviews: {
     label: 'Duyệt kế hoạch, giáo án',
     to: '/education/plan-reviews',
+  },
+  eduOverdue: {
+    label: 'Kế hoạch quá hạn',
+    to: '/education/overdue',
   },
   eduSettings: {
     label: 'Cấu hình kế hoạch',
@@ -426,6 +436,17 @@ const MENUS = {
     // Tiếp nhận trẻ, Xếp lớp như PHT trên mọi điểm trường (user chốt 2026-10-27)
     group('children', ['childList', 'childEnroll', 'childPlacement', 'parentActivation', 'healthChecks', 'healthTrends']),
     group('attendance', ['attendanceSummary', 'leaveRequests', 'attendanceDayUnlocks', 'dailyHealthOverview']),
+    group('education', [
+      'eduSchoolYear',
+      'eduGoals',
+      'eduBranch',
+      'eduThemePlans',
+      'eduDayPlans',
+      'eduPlanReviews',
+      'eduOverdue',
+      'eduSettings',
+      'eduCurriculum',
+    ]),
     group('assessment', [
       'assessOverview',
       'assessQuality',
@@ -438,7 +459,6 @@ const MENUS = {
       'assessRewards',
       'assessDayUnlocks',
     ]),
-    group('education', ['eduSchool', 'eduPlanReviews', 'eduSettings', 'eduCurriculum']),
     ...boardingSection({
       nutrition: ['weeklyMenus', 'menuStatistics', 'menus'],
       kitchenOps: ['mealCount', 'publishedMenu', 'forecast', 'freshReceipts'],
@@ -463,7 +483,16 @@ const MENUS = {
     ]),
     group('children', ['childList', 'childEnroll', 'childPlacement', 'parentActivation', 'healthChecks', 'healthTrends']),
     group('attendance', ['attendanceSummary', 'leaveRequests', 'attendanceDayUnlocks', 'dailyHealthOverview']),
-    group('education', ['eduGoals', 'eduPlanReviews', 'eduSettings', 'eduCurriculum']),
+    group('education', [
+      'eduSchoolYear',
+      'eduGoals',
+      'eduBranch',
+      'eduThemePlans',
+      'eduDayPlans',
+      'eduPlanReviews',
+      'eduSettings',
+      'eduCurriculum',
+    ]),
     group('assessment', [
       'assessOverview',
       'assessQuality',
@@ -491,7 +520,7 @@ const MENUS = {
     link('approvals'),
     group('children', ['childList', 'healthChecks', 'healthTrends']),
     group('attendance', ['attendance', 'attendanceSummary', 'leaveRequests', 'pickup']),
-    group('education', ['eduGoals', 'eduBranch', 'eduClass', 'eduPlanReviews', 'eduCurriculum']),
+    group('education', ['eduSchoolYear', 'eduGoals', 'eduBranch', 'eduThemePlans', 'eduDayPlans', 'eduPlanReviews', 'eduCurriculum']),
     group('assessment', [
       'assessOverview',
       'assessDaily',
@@ -511,7 +540,7 @@ const MENUS = {
     link('home'),
     group('children', ['childList', 'childNewYearClass', 'healthChecks', 'healthTrends']),
     group('attendance', ['attendance', 'attendanceSummary', 'leaveRequests', 'pickup']),
-    group('education', ['eduGoals', 'eduBranch', 'eduClass', 'eduCurriculum']),
+    group('education', ['eduSchoolYear', 'eduGoals', 'eduBranch', 'eduThemePlans', 'eduDayPlans', 'eduCurriculum']),
     group('assessment', [
       'assessDaily',
       'assessProfiles',

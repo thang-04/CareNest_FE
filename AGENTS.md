@@ -4,6 +4,11 @@ Repo này là **client Web** của CareNest (Trường Mầm non Thượng Hồn
 
 Quy ước đường dẫn: `BE:<path>` = `../CareNest_BE/<path>` (repo sibling). Không có sibling ⇒ đọc trên https://github.com/thang-04/CareNest_BE.git và nói rõ đã đọc bản remote.
 
+## Quy trình trực tiếp — chỉ đạo user07/11/2026
+
+- Agent tự điều phối; không chạy harness/orchestrator hoặc script setup/check/verify của dự án, không nối thêm skill chỉ để thỏa cổng cũ. Kiểm chứng bằng test/build/lint gốc theo tác động, tái sử dụng test hiện có, ghi output thật; tài liệu chỉ kiểm nội dung/diff khi phù hợp. Quy tắc này thay yêu cầu wrapper ở dưới, không vô hiệu hóa CI/merge checks hay nới bảo mật/nghiệp vụ/quyền Git.
+- Feature012 hiện được phép FE-first để review, theo `BE:specs/012-school-year-team-plans/plan.md` và constitution local2.0.0. Không tự mở trình duyệt; dừng sau bản FE để user duyệt trước backend, không tự commit/push.
+
 ## Bắt đầu mọi task — chọn làn
 
 | Làn | Khi nào | Đọc | Plan · verify · báo cáo |
@@ -26,6 +31,7 @@ Quy ước đường dẫn: `BE:<path>` = `../CareNest_BE/<path>` (repo sibling)
 4. **1 trường, 2 campus** — không phải multi-school/multi-tenant. Không tự suy luận scope (campus/lớp) ở client; dùng dữ liệu BE trả về.
 5. **Không dữ liệu trẻ thật / sức khỏe / tài khoản / secret** trong prompt, log, console, fixture, mock, screenshot, commit.
 6. **Chưa rõ / PENDING / OPEN / lệch tài liệu ⇒ hỏi user tới khi rõ** (actor, field); cấu hình được chỉ khi user nói chưa chốt. AI chỉ tạo DRAFT; UI phải thể hiện trạng thái DRAFT và bước người duyệt.
+   - **Kế hoạch giáo dục — bản nghiệp vụ chuẩn ngoài repo** (Tiền chốt 10/11/2026): nếu máy có `../nghiep_vu_chuan/ke_hoach_giao_duc.md` thì mọi thay đổi chạm kế hoạch giáo dục (kể cả sửa tay, không Spec Kit) phải đối chiếu file đó trước; nó thắng `BUSINESS_RULES.md` BE và `docs/features/` (có thể bị nhánh khác đổi khi pull). Lệch ⇒ trích hai bên, hỏi user; quy tắc đầy đủ ở `../AGENTS.md`. Máy không có file đó thì theo BE như cũ.
 7. **Tri thức mới, bug không hiển nhiên** (kể cả cách thử thất bại) ⇒ `.ai/workflows/update-knowledge.md` ngay trong lượt; bug contract/nghiệp vụ ⇒ đề xuất ghi `BE:docs/knowledge/CROSS_MODULE_ISSUES.md`.
 8. **Không mở rộng scope V1:** không CSVC (cả sự cố lẫn tài sản — BE FAC REMOVED 29/10; mã nguồn Web đã loại bỏ theo yêu cầu 02/11), không chat thay Zalo, không chẩn đoán. Kế hoạch giáo dục, giáo án **có** trong V1 theo BE nhóm EDU, module education-plan (ADR-0020). Đối chiếu `BE:docs/context/PROJECT_CONTEXT.md` (Exclusions).
 

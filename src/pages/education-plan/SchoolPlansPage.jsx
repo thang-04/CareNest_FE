@@ -17,9 +17,7 @@ const TABS = [
   { key: 'themes', label: 'Hồ sơ chủ đề' },
 ];
 
-// Bản nháp, bản đang sửa thuộc về người soạn; Hiệu trưởng chỉ xem những gì đã gửi hoặc đã duyệt (BE:EDU-06)
-const isShared = (status) => status !== EDU_STATUS.DRAFT && status !== EDU_STATUS.EDITING;
-const isPending = (status) => [EDU_STATUS.PENDING_TL, EDU_STATUS.PENDING_VP, EDU_STATUS.PENDING_HT].includes(status);
+const isShared = (status) => status === EDU_STATUS.APPROVED || status === 'REPLACED';
 // Lần gửi gần nhất (dòng lịch sử không có tone) và lần cập nhật cuối
 const sentEntry = (doc) => [...(doc.history || [])].reverse().find((h) => !h.tone);
 
@@ -103,18 +101,11 @@ export default function SchoolPlansPage() {
   );
   const statuses = [...new Set(all.map((r) => r.status))];
   const count = (list, s) => list.filter((r) => r.status === s).length;
-  const pendingCount = (list) => list.filter((r) => isPending(r.status)).length;
 
   const stats = [
     { label: 'Kế hoạch năm đã ban hành', value: count(data.goals, EDU_STATUS.APPROVED), tone: 'blue', tab: 'goals' },
     { label: 'Chủ đề nhánh đã duyệt', value: count(data.branches, EDU_STATUS.APPROVED), tone: 'green', tab: 'branches' },
     { label: 'Hồ sơ chủ đề đã duyệt', value: count(data.themes, EDU_STATUS.APPROVED), tone: 'purple', tab: 'themes' },
-    {
-      label: 'Đang chờ duyệt',
-      value: pendingCount(data.goals) + pendingCount(data.branches) + pendingCount(data.themes),
-      tone: 'orange',
-      tab: 'themes',
-    },
   ];
 
   const switchTab = (key) => {

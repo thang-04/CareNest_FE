@@ -44,6 +44,7 @@ export const WEEKDAYS = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6'];
 
 export const EDU_STATUS = {
   DRAFT: 'DRAFT',
+  REVIEW: 'REVIEW',
   EDITING: 'EDITING',
   SENT: 'SENT',
   PENDING_TL: 'PENDING_TL',
@@ -55,15 +56,28 @@ export const EDU_STATUS = {
 
 export const EDU_STATUS_LABELS = {
   DRAFT: 'Nháp',
-  EDITING: 'Đang sửa',
+  REVIEW: 'Chờ duyệt',
+  EDITING: 'Nháp',
   SENT: 'Đã gửi tổ trưởng',
-  PENDING_TL: 'Chờ tổ trưởng duyệt',
-  PENDING_VP: 'Chờ Phó HT duyệt',
-  PENDING_HT: 'Chờ Hiệu trưởng duyệt',
-  APPROVED: 'Đã duyệt',
+  PENDING_TL: 'Chờ duyệt',
+  PENDING_VP: 'Chờ duyệt',
+  PENDING_HT: 'Chờ duyệt',
+  APPROVED: 'Ban hành',
   // Tên trạng thái theo nghiệp vụ (BE:EDU-05, EDU-18): trả lại để sửa, không phải từ chối hẳn
-  REJECTED: 'Bị trả lại',
+  REJECTED: 'Trả lại',
 };
+
+export const isEduReviewPending = (status) =>
+  [EDU_STATUS.REVIEW, EDU_STATUS.PENDING_TL, EDU_STATUS.PENDING_VP, EDU_STATUS.PENDING_HT].includes(status);
+
+export function educationDisplayStatus(doc) {
+  if (!doc || doc.status !== EDU_STATUS.DRAFT) return doc?.status;
+  const transition = [...(doc.history || [])]
+    .reverse()
+    .find((event) => /^(reject|return|submit|approve|issue|trả lại|gửi duyệt|ban hành)/i.test(event.action || event.label || ''));
+  if (transition) return /^(reject|return|trả lại)/i.test(transition.action || transition.label || '') ? EDU_STATUS.REJECTED : doc.status;
+  return doc.lastReturnNote ? EDU_STATUS.REJECTED : doc.status;
+}
 
 export function allGoalItems(goal) {
   if (!goal) return [];
@@ -159,8 +173,10 @@ export const themeCodes = (theme) =>
 export const EDU_ERROR_CODE = {
   REQUIRED_FIELD_MISSING: 9003,
   INVALID_VALUE: 9007,
+  DAY_PLAN_SECTION_EMPTY: 7390,
   CLASS_ACCESS_DENIED: 2201,
   YEAR_PLAN_NOT_FOUND: 7001,
+  YEAR_PLAN_ACCESS_DENIED: 7004,
   YEAR_PLAN_EDIT_FORBIDDEN: 7005,
   YEAR_PLAN_LOCKED_BY_OTHER: 7006,
   YEAR_PLAN_INVALID_STATUS: 7009,
@@ -184,7 +200,6 @@ export const EDU_ERROR_CODE = {
   YEAR_PLAN_OPEN_VERSION_EXISTS: 7028,
   CLASS_DOC_VERSION_FIX_REQUIRED: 7121,
   YEAR_PLAN_SUPERSEDED: 7122,
-  CLASS_DOC_ADJUSTMENT_INVALID: 7123,
   BRANCH_FILE_UNSUPPORTED: 7124,
   BRANCH_FILE_NO_TABLE: 7125,
   BRANCH_FILE_TOO_LARGE: 7126,

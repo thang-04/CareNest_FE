@@ -1,9 +1,11 @@
 import { useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Download, Printer, ShoppingBasket } from '@/components/ui/icons';
-import { useDayMarket } from '@/hooks/kitchen/useKitchen';
+import { useStockCampus } from '@/hooks/kitchen/useDryStock';
+import { useDayMarket } from '@/hooks/kitchen/useFreshGoods';
 import { Breadcrumb, EmptyState, ErrorState, LoadingState, StatusBadge } from '@/components';
 import { Modal } from '@/components/ui/Modal';
+import { PrintPaperFit } from '@/components/print/PrintPaperFit';
 import { PrintToolbar } from '@/components/print/PrintToolbar';
 import { exportWithPreview } from '@/components/ui/ExportPreview';
 import { KbCampusFilter, KbDateFilter } from '@/components/kitchen/KitchenFilters';
@@ -17,12 +19,19 @@ import '@/styles/modules/kitchen.css';
 
 /**
  * Đi chợ theo ngày: bảng thực phẩm có đơn giá, lượng xuất kho / mua chợ, thành tiền chia theo nhóm tuổi; thu–chi trong ngày;
- * thực đơn theo bữa; in và xuất Excel. Mọi số do service tính (ngày đã chốt suất dùng số chốt, chưa chốt dùng số dự trù).
+ * thực đơn theo bữa; in và xuất Excel. Mọi số do BE tính (ngày đã chốt suất dùng số chốt, chưa chốt dùng sĩ số đang học).
  */
 export default function DayMarketPage() {
   const [params, setParams] = useSearchParams();
   const date = isIsoDate(params.get('date')) ? params.get('date') : todayInput();
-  const { data, loading, error, reload } = useDayMarket(params.get('campusId') || '', date);
+  const campus = useStockCampus();
+  const market = useDayMarket(campus.campusId, date);
+  const campusInfo = campus.campuses.find((c) => String(c.id) === campus.campusId);
+  // Tên điểm trường lấy từ danh mục của tài khoản để bản in và tệp xuất có tiêu đề
+  const data = market.data ? { ...market.data, campusName: campusInfo?.shortName || campusInfo?.name || '' } : null;
+  const error = campus.error || market.error;
+  const loading = campus.loading || market.loading;
+  const reload = campus.error ? campus.reload : market.reload;
   const [printing, setPrinting] = useState(false);
   const sheetRef = useRef(null);
 
@@ -40,6 +49,12 @@ export default function DayMarketPage() {
 
   let body;
   if (error) body = <ErrorState error={error} onRetry={reload} />;
+  else if (!loading && !campus.campusId)
+    body = (
+      <section className="card">
+        <EmptyState title="Chưa có điểm trường" description="Tài khoản chưa được gán điểm trường để xem bảng đi chợ." />
+      </section>
+    );
   else if (loading || !data) body = <LoadingState />;
   else if (data.status === 'HOLIDAY')
     body = (
@@ -82,7 +97,7 @@ export default function DayMarketPage() {
             <h2 className="card__title">
               <ShoppingBasket size={18} /> Thực phẩm ngày {formatDate(date)}
             </h2>
-            <span className="text-xs muted">Đồ khô xuất kho theo đơn vị kho; hàng tươi mua theo đơn vị mua.</span>
+            <span className="text-xs muted">Số lượng theo đơn vị mua; đồ khô xuất kho, hàng tươi mua chợ.</span>
           </div>
           <DayMarketTable data={data} />
         </section>
@@ -110,12 +125,25 @@ export default function DayMarketPage() {
         <div>
           <h1 className="page__title">Đi chợ theo ngày</h1>
         </div>
+      </div>
+      <div className="kb-toolbar">
+        <KbDateFilter value={date} onChange={(next) => setParam('date', next)} />
+        <KbCampusFilter campusId={campus.campusId} onChange={campus.setCampusId} canPick={campus.canPick} />
+        {data && data.status !== 'HOLIDAY' && data.status !== 'NO_MENU' && (
+          <span className="date-filter__static">
+            {data.basis === 'CONFIRMED' ? (
+              <StatusBadge tone="green" label={`Theo số suất đã chốt${data.confirmedAt ? ` ${formatDateTime(data.confirmedAt)}` : ''}`} />
+            ) : (
+              <StatusBadge tone="orange" label="Theo số trẻ đang học, chưa chốt suất" />
+            )}
+          </span>
+        )}
         {ready && (
-          <div className="page__actions">
+          <div className="kb-toolbar__end">
             <button
               type="button"
               className="btn"
-              onClick={() => exportWithPreview(dayMarketCsvRows(data), `bang-di-cho-${date}.xlsx`, { headerRow: 1 })}
+              onClick={() => exportWithPreview(dayMarketCsvRows(data), `bang-di-cho-${date}.xlsx`, { headerRow: 1, size: 'full' })}
             >
               <Download size={16} /> Xuất Excel
             </button>
@@ -125,40 +153,20 @@ export default function DayMarketPage() {
           </div>
         )}
       </div>
-      <div className="kb-toolbar">
-        <KbDateFilter value={date} onChange={(next) => setParam('date', next)} />
-        {data && (
-          <KbCampusFilter
-            campusId={data.campusId}
-            campuses={data.campuses}
-            canPick={data.campuses.length > 1}
-            onChange={(id) => setParam('campusId', id)}
-          />
-        )}
-        {data && data.status !== 'HOLIDAY' && data.status !== 'NO_MENU' && (
-          <span className="date-filter__static">
-            {data.basis === 'CONFIRMED' ? (
-              <StatusBadge tone="green" label={`Theo số suất đã chốt${data.confirmedAt ? ` ${formatDateTime(data.confirmedAt)}` : ''}`} />
-            ) : (
-              <StatusBadge tone="orange" label="Theo số suất dự trù, chưa chốt" />
-            )}
-          </span>
-        )}
-      </div>
       {body}
 
       {ready && (
         <Modal
           open={printing}
           onClose={() => setPrinting(false)}
-          size="xl"
+          size="full"
           className="kb-print-modal"
           title="Bảng đi chợ"
-          footer={<PrintToolbar sheetRef={sheetRef} fileBase={`Bang_di_cho_${date}`} printLabel="In bảng" />}
+          footer={<PrintToolbar sheetRef={sheetRef} fileBase={`Bang_di_cho_${date}`} printLabel="In bảng" orientation="landscape" />}
         >
-          <div className="print-preview__paper">
+          <PrintPaperFit>
             <DayMarketPrint ref={sheetRef} data={data} />
-          </div>
+          </PrintPaperFit>
         </Modal>
       )}
     </div>

@@ -82,8 +82,7 @@ export function FreshForecastList({ campus, autoOpen = false }) {
       <div className="kb-toolbar">
         <KbCampusFilter campusId={campus.campusId} onChange={campus.setCampusId} canPick={campus.canPick} />
         <div className="kb-toolbar__end">
-          {/* Không kèm campusId: bảng đi chợ còn dùng dữ liệu mẫu, mã điểm trường khác BE; màn đó tự chọn điểm trường xem được */}
-          <Link className="btn" to="/kitchen/market-day">
+          <Link className="btn" to={`/kitchen/market-day?campusId=${campus.campusId}`}>
             <ShoppingBasket size={16} /> Đi chợ theo ngày
           </Link>
           {canManage && create}

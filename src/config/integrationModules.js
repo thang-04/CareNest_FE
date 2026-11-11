@@ -147,10 +147,10 @@ export const INTEGRATION_MODULES = {
     routes: ['/kitchen/dry-stock', '/kitchen/stock-receipts', '/kitchen/stock-history', '/kitchen/stock-shortfalls'],
     files: ['src/services/dryStockApi.js'],
   },
-  // Hàng tươi trên BE: bản dự trù /nutrition/fresh-forecasts và kiểm nhận hai lần /nutrition/fresh-checks; route dài hơn nên thắng '/kitchen'
+  // Hàng tươi trên BE: bản dự trù /nutrition/fresh-forecasts, kiểm nhận hai lần /nutrition/fresh-checks, bảng đi chợ /nutrition/day-market; route dài hơn nên thắng '/kitchen'
   'fresh-goods': {
     source: 'api',
-    routes: ['/kitchen/forecast', '/kitchen/fresh-receipts'],
+    routes: ['/kitchen/forecast', '/kitchen/fresh-receipts', '/kitchen/market-day'],
     files: ['src/services/freshGoodsApi.js'],
   },
   // Bếp hôm nay (xem), lưu mẫu thức ăn (duyệt), ảnh bữa, khung giờ ảnh trên BE /nutrition/{kitchen/day,food-samples,meal-photos,meal-photo-windows}
@@ -185,9 +185,9 @@ export const INTEGRATION_MODULES = {
     files: ['src/services/menu-planning/api/menuPlanningApi.js'],
     facades: ['src/services/menu-planning/menuPlanningService.js'],
   },
-  // Kiểm thực ba bước M1–M3 (PHT điền, ký ảnh): BE chưa có API ⇒ demo
+  // Biên bản kiểm thực M1–M3 và soát sổ lưu mẫu M5 (PHT điền, ký ảnh) trên BE /inspections/*
   'kitchen-inspection': {
-    source: 'demo',
+    source: 'api',
     routes: ['/kitchen/inspections'],
     files: ['src/services/kitchen/api/inspectionApi.js'],
     facades: ['src/services/kitchen/inspectionService.js'],
@@ -206,14 +206,15 @@ export const INTEGRATION_MODULES = {
     facades: ['src/services/kitchen/kitchenService.js'],
   },
   notifications: {
-    source: 'demo',
+    // Spec 003: thông báo kế hoạch giáo dục từ BE (GET /me/notifications)
+    source: 'api',
     routes: ['/notifications'],
     files: ['src/services/notificationService.js'],
     facades: ['src/services/notificationService.js'],
   },
-  // Nhãn ở SignaturePicker (dùng trong màn kế hoạch giáo dục)
+  // Chữ ký ảnh của tài khoản trên BE /signatures/me (SIG-01); biên bản kiểm thực ký bằng id chữ ký này
   signatures: {
-    source: 'demo',
+    source: 'api',
     files: ['src/services/signatureService.js'],
     facades: ['src/services/signatureService.js'],
   },

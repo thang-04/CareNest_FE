@@ -22,7 +22,7 @@ import {
 } from '@/components';
 import { createStatusBadge } from '@/components/ui/StatusBadge';
 import { formatDate, formatFileSize } from '@/utils/format';
-import { EDU_STATUS_LABELS } from '@/models/education-plan/educationPlanConstants';
+import { EDU_STATUS_LABELS, educationDisplayStatus } from '@/models/education-plan/educationPlanConstants';
 
 /*
  * Thin wrappers that keep the lesson-plan screens on the shared components and classes of
@@ -61,9 +61,10 @@ export function PageHead({ crumbs, title, desc, actions }) {
 }
 
 // DESIGN.md §3.2: waiting for approval = purple, done = green, returned = red, draft = gray.
-export const EduStatusBadge = createStatusBadge(
+const BaseEduStatusBadge = createStatusBadge(
   {
     DRAFT: ['gray', FileEdit],
+    REVIEW: ['purple', Clock],
     SENT: ['green', Send],
     PENDING_TL: ['purple', Clock],
     PENDING_VP: ['purple', Clock],
@@ -72,6 +73,9 @@ export const EduStatusBadge = createStatusBadge(
     REJECTED: ['red', XCircle],
   },
   EDU_STATUS_LABELS,
+);
+export const EduStatusBadge = ({ status, doc, ...props }) => (
+  <BaseEduStatusBadge status={educationDisplayStatus({ ...doc, status })} {...props} />
 );
 
 /** Hạn gửi hồ sơ chủ đề chỉ để nhắc, không chặn. */
@@ -87,9 +91,10 @@ export const DocAvailabilityBadge = createStatusBadge(
 );
 
 /** Trạng thái kế hoạch năm: Tổ trưởng gửi Phó HT, Phó HT duyệt ban hành (ký tay trên bản in). */
-export const YearPlanStatusBadge = createStatusBadge(
+const BaseYearPlanStatusBadge = createStatusBadge(
   {
     DRAFT: ['gray', FileEdit],
+    REVIEW: ['purple', Clock],
     EDITING: ['orange', Lock],
     SENT: ['green', Send],
     PENDING_TL: ['purple', Clock],
@@ -99,7 +104,10 @@ export const YearPlanStatusBadge = createStatusBadge(
     REPLACED: ['gray', FileText],
     REJECTED: ['red', XCircle],
   },
-  { ...EDU_STATUS_LABELS, PENDING_VP: 'Chờ Phó HT ban hành', APPROVED: 'Đã ban hành', REPLACED: 'Đã thay thế' },
+  { ...EDU_STATUS_LABELS, APPROVED: 'Đã ban hành', REPLACED: 'Đã thay thế' },
+);
+export const YearPlanStatusBadge = ({ status, doc, ...props }) => (
+  <BaseYearPlanStatusBadge status={educationDisplayStatus({ ...doc, status })} {...props} />
 );
 
 /** .card with optional numbered title, header actions and footer. bodyClass={null} renders children directly. */

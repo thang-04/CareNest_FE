@@ -311,42 +311,15 @@
   color: var(--color-danger-fg);
 }
 
-/* Sắp xếp kéo-thả (components/ui/Sortable, dnd-kit): tay nắm ↕ có viền; khi kéo, dòng gốc thành ô giữ chỗ tô xanh
-   (đi theo vị trí sẽ thả), bản nhấc lên bám theo chuột; dòng vừa đổi chỗ nháy sáng */
+/* Tay nắm dùng cùng nút icon; chỉ đổi con trỏ cho thao tác kéo-thả. */
 .drag-handle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   flex: none;
-  width: var(--space-8);
-  height: var(--space-8);
-  padding: 0;
-  border: 1px solid var(--color-primary-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-primary-soft);
-  color: var(--color-primary);
   cursor: grab;
   touch-action: none;
-  transition:
-    background var(--duration-fast) var(--ease-out),
-    color var(--duration-fast) var(--ease-out),
-    transform var(--duration-fast) var(--ease-out);
 }
-.drag-handle:hover {
-  background: var(--color-primary);
-  color: var(--color-primary-fg);
-  transform: scale(1.06);
-}
-.drag-handle:active {
-  cursor: grabbing;
-}
-.drag-handle:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 3px var(--color-focus-ring);
-}
+.drag-handle:active,
 .drag-handle--grabbed {
-  background: var(--color-primary);
-  color: var(--color-primary-fg);
+  cursor: grabbing;
 }
 .sortable-item {
   position: relative;
@@ -2890,6 +2863,16 @@ button.stat-card .stat-card__label::after {
   align-items: flex-end;
   flex-wrap: wrap;
 }
+/* Nút thao tác của màn (Thêm, Nhập từ Excel…) nằm cuối hàng lọc, dồn sang phải; hẹp thì tự xuống hàng */
+.filter-bar__end {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+.filter-bar--aligned > .filter-bar__end > .btn {
+  height: var(--input-height);
+}
 .filter-bar .select {
   width: auto;
   min-width: 180px;
@@ -3804,6 +3787,14 @@ button.stat-card .stat-card__label::after {
 .export-preview {
   max-height: 60vh;
   overflow: auto;
+}
+/* Hộp toàn màn hình (bảng nhiều cột): bảng cao gần hết hộp, tiêu đề cột dài được xuống dòng để đỡ cuộn ngang */
+.modal--full .export-preview {
+  max-height: 74vh;
+}
+.modal--full .export-preview .export-preview__head th {
+  white-space: normal;
+  min-width: var(--space-16, 4rem);
 }
 .export-preview .export-preview__head th {
   position: sticky;

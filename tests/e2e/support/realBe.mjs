@@ -114,7 +114,11 @@ export const ids = () => {
 export function cleanup() {
   const { year, ageGroup } = ids();
   sql(
-    `delete from edu_learning_resources where class_doc_id in (select d.id from edu_class_docs d join edu_year_plans p on p.id = d.year_plan_id where p.title like '${E2E.titlePrefix}%');` +
+    // Kế hoạch năm và tổ tách bảng (edu_year_plans / edu_team_plans); tài liệu lớp trỏ qua team_plan_id hoặc school_year_plan_id
+    `delete from edu_learning_resources where class_doc_id in (select d.id from edu_class_docs d ` +
+      `left join edu_team_plans t on t.id = d.team_plan_id left join edu_year_plans y on y.id = d.school_year_plan_id ` +
+      `where t.title like '${E2E.titlePrefix}%' or y.title like '${E2E.titlePrefix}%');` +
+      `delete from edu_team_plans where title like '${E2E.titlePrefix}%' and school_year_id = ${year} and age_group_id = ${ageGroup};` +
       `delete from edu_year_plans where title like '${E2E.titlePrefix}%' and school_year_id = ${year} and age_group_id = ${ageGroup};` +
       `delete from staff_assignments where valid_from = '${E2E.markerDate}' and staff_role = 'AGE_GROUP_TEAM_LEADER';` +
       // Khôi phục phân công Tổ trưởng bị tạm ngưng (dời valid_from +100 năm) về đúng ngày cũ
