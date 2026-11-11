@@ -18,7 +18,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useMasterData } from '@/hooks/useMasterData';
-import { useCitizenIdAccounts, usePlacementClasses } from '@/hooks/children/useChildRecords';
+import { useCitizenIdAccounts, useClassOptions, usePlacementClasses } from '@/hooks/children/useChildRecords';
+import { sameId } from '@/services/http/idStrings';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Stepper } from '@/components/ui/Stepper';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
@@ -34,7 +35,7 @@ import { DeclarationSummary } from '@/components/children/DeclarationSummary';
 import { IntakeSheet, IntakeSheetValueRow } from '@/components/children/IntakeSheet';
 import { checkDuplicateChild, checkGuardianConflicts, enrollChild, readmitChild } from '@/services/children/childrenService';
 import { FormField } from '@/components/form/FormField';
-import { GENDER_LABELS, ageGroupById, ageLabel } from '@/models/School';
+import { GENDER_LABELS, ageLabel } from '@/models/School';
 import { formatDate } from '@/utils/format';
 import { hasErrors, validateChildInfo, validateDeclaration } from '@/utils/children/childrenValidation';
 import { canActivateParentsAt, canEnrollChild, childCampusesOf } from '@/utils/children/childrenPermissions';
@@ -111,6 +112,8 @@ export default function EnrollChildPage() {
   const { schoolYear, activeYear, yearReadOnly } = useSchoolYear();
   const md = useMasterData();
   const { classes, loading: classesLoading } = usePlacementClasses();
+  // Nhóm tuổi của năm học đang hoạt động (BE /school-structure hoặc mock) cho gợi ý nhóm tuổi, tên nhóm của lớp
+  const { ageGroups } = useClassOptions(activeYear?.id || schoolYear);
 
   const [step, setStep] = useState(0);
   const [maxReached, setMaxReached] = useState(0);
@@ -151,8 +154,9 @@ export default function EnrollChildPage() {
   // Xếp lớp khi tiếp nhận luôn vào năm học đang hoạt động (user chốt 2026-10-28, Y-3).
   const yearId = activeYear?.id || schoolYear;
   const yearLabel = activeYear?.label || schoolYear;
-  const suggested = suggestAgeGroupId(info.dateOfBirth, yearId);
+  const suggested = suggestAgeGroupId(info.dateOfBirth, activeYear?.startDate || yearId, ageGroups);
   const selectedClass = classes.find((c) => c.id === classId);
+  const selectedGroup = ageGroups.find((g) => sameId(g.id, selectedClass?.ageGroupId));
   // Hiệu trưởng, PHT toàn trường chọn điểm trường: trẻ chưa xếp lớp thuộc điểm trường này (BE kiểm lại).
   const campusOptions = childCampusesOf(user, md.campuses);
   const pickCampus = campusOptions.length > 1;
@@ -486,6 +490,7 @@ export default function EnrollChildPage() {
                 setErrors((e) => ({ ...e, placement: {} }));
               }}
               suggestedAgeGroupId={suggested}
+              ageGroups={ageGroups}
               error={errors.placement.classId}
               userById={md.userById}
               required={false}
@@ -611,8 +616,8 @@ export default function EnrollChildPage() {
                   <IntakeSheetValueRow label="Lớp">
                     {selectedClass ? (
                       <>
-                        <b>{selectedClass.name}</b> – {ageGroupById(selectedClass.ageGroupId)?.name} · sĩ số hiện tại{' '}
-                        {selectedClass.enrolledCount}/{selectedClass.capacity}
+                        <b>{selectedClass.name}</b> – {selectedGroup?.name} · sĩ số hiện tại {selectedClass.enrolledCount}/
+                        {selectedClass.capacity}
                       </>
                     ) : (
                       <span className="muted">Chưa xếp lớp. Trẻ ở trạng thái Chờ xếp lớp, xếp lớp sau tại màn Xếp lớp.</span>

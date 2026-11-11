@@ -4,7 +4,7 @@ import { LineChart, HeartPulse, ArrowLeft, ChevronLeft, ChevronRight } from '@/c
 import { useAuth } from '@/contexts/AuthContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
-import { useChildRecords, useHealthRecord } from '@/hooks/children/useChildRecords';
+import { useChildRecords, useClassOptions, useHealthRecord } from '@/hooks/children/useChildRecords';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { EmptyState, LoadingState } from '@/components/ui/States';
 import { GrowthChart } from '@/components/children/GrowthChart';
@@ -12,11 +12,11 @@ import { HealthWarningCell } from '@/components/children/HealthWarningCell';
 import { TrendChildList, sortByName } from '@/components/children/TrendChildList';
 import { AiTrendPanel } from '@/components/children/AiTrendPanel';
 import { ChildAccessState } from '@/components/children/ChildAccessState';
-import { CHILD_STATUS, ageGroupById } from '@/models/School';
+import { CHILD_STATUS } from '@/models/School';
 import { growthAxesFor } from '@/models/children/childrenConstants';
 import { NUTRITION_STATUS, NUTRITION_STATUS_OPTIONS, labelOf } from '@/models/children/healthExamForm';
 import { formatDate } from '@/utils/format';
-import { formatNumber, suggestAgeGroupId } from '@/utils/children/childrenHelpers';
+import { ageGroupIn, formatNumber, suggestAgeGroupId } from '@/utils/children/childrenHelpers';
 import { childrenCrumbs } from '@/utils/children/breadcrumbs';
 import { isPrincipal, isVicePrincipal } from '@/utils/children/childrenPermissions';
 import '@/styles/modules/children.css';
@@ -47,6 +47,8 @@ export default function HealthTrendPage() {
   const [classId, setClassId] = useState('');
   const { children, loading: listLoading } = useChildRecords({ schoolYear, status: CHILD_STATUS.ACTIVE });
   const { record, loading, error, reload } = useHealthRecord(childId);
+  // Nhóm tuổi của năm học (BE /school-structure hoặc mock): thang biểu đồ theo mã nhóm (ag-*), gợi ý theo ngày bắt đầu năm học
+  const { year: yearInfo, ageGroups } = useClassOptions(schoolYear);
 
   const active = useMemo(() => children.filter((c) => c.status === CHILD_STATUS.ACTIVE), [children]);
   // Lựa chọn điểm trường / lớp lấy từ danh sách trẻ BE trả về trong phạm vi người dùng
@@ -90,8 +92,13 @@ export default function HealthTrendPage() {
 
   const child = record?.child;
   // Thang biểu đồ theo nhóm tuổi của lớp hiện tại; trẻ chưa xếp lớp thì theo năm sinh
-  const ageGroupId = record?.cls?.ageGroupId || child?.ageGroupId || suggestAgeGroupId(child?.dateOfBirth, schoolYear);
-  const axes = growthAxesFor(ageGroupId);
+  const ageGroupId =
+    record?.cls?.ageGroupId ||
+    child?.ageGroupId ||
+    suggestAgeGroupId(child?.dateOfBirth, yearInfo?.startDate || schoolYear, ageGroups.length ? ageGroups : undefined);
+  // BE: nhóm tuổi id số, mã ag-* ở code; mock: id là ag-*
+  const ageGroup = ageGroupIn(ageGroups, ageGroupId);
+  const axes = growthAxesFor(ageGroup?.code || ageGroup?.id || ageGroupId);
   // Chiều cao, cân nặng tô màu theo tình trạng dinh dưỡng bác sĩ ghi ở phiếu khám (không còn phân loại BMI, user chốt 2026-10-17).
   const nutritionPoint = (m, value) => {
     const statuses = m.exam?.nutrition?.statuses || [];
@@ -270,9 +277,7 @@ export default function HealthTrendPage() {
                         <i className="tr-legend__dot tr-legend__dot--unavailable" /> Chưa có đánh giá
                       </span>
                       <span className="muted">Chiều cao, cân nặng tô màu theo tình trạng dinh dưỡng bác sĩ ghi ở phiếu khám.</span>
-                      {ageGroupById(ageGroupId) && (
-                        <span className="muted">Thang đo dùng chung cho nhóm {ageGroupById(ageGroupId).shortName}.</span>
-                      )}
+                      {ageGroup && <span className="muted">Thang đo dùng chung cho nhóm {ageGroup.shortName}.</span>}
                     </div>
                   </div>
                 ) : (

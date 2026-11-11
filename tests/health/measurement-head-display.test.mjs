@@ -73,6 +73,7 @@ const useMasterData=()=>({campuses:[]}), useChildRecords=()=>({children:[child],
 const useHealthRecord=()=>({record:{child,measurements:[context.measurement]},loading:false});
 const CHILD_STATUS={ACTIVE:'ACTIVE'}, isPrincipal=()=>false, isVicePrincipal=()=>false;
 const sortByName=(v)=>v, suggestAgeGroupId=()=>'', growthAxesFor=()=>({}), ageGroupById=()=>null;
+const useClassOptions=()=>({year:null,ageGroups:[]}), ageGroupIn=()=>null;
 const NUTRITION_STATUS={NORMAL:'NORMAL'}, NUTRITION_STATUS_OPTIONS=[], labelOf=()=>'';
 const formatDate=(v)=>v, formatNumber=(v)=>v ?? '—', childrenCrumbs=()=>[];
 const GrowthChart=({title,points})=><figure><figcaption>{title}</figcaption><span>{points.map(p=>p.value).join(',')}</span></figure>;

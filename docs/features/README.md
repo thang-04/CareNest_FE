@@ -255,3 +255,13 @@ Thiết kế mới cho form tiếp nhận, file/preview Excel và màn tài kho�
 ## Giao diện tiếp nhận theo phiếu khám — 05/11/2026
 
 Theo yêu cầu user: chia phần, bảng nhãn/ô nhập và bố trí ảnh tham khảo Phiếu khám sức khỏe; xem [giao diện tiếp nhận](enrollment-intake-ui.md). Giữ nguyên các trường, quyền và bốn bước tiếp nhận.
+
+## Danh sách trẻ, sĩ số lớp khi nối BE — 11/11/2026
+
+Quyết định user khi duyệt Phase 1 của [plan nối module children với BE](../plans/active/2026-11-11-children-module-be-wiring.md):
+
+- Danh sách trẻ `/children` mặc định không hiện trẻ đã nghỉ: bảng và ô "Tổng số trẻ" chỉ tính trẻ đang học, chờ xếp lớp. Bấm ô "Đã nghỉ học" mới hiện trẻ đã nghỉ để tra hồ sơ cũ. Rule G94-180/CHD-09 giữ nguyên (năm học vẫn gồm trẻ đã nghỉ), chỉ đổi mặc định hiển thị. Áp cho cả dữ liệu mẫu và BE.
+- Lớp luôn có giới hạn sĩ số (BE bắt buộc khi tạo lớp). Xếp lớp và tiếp nhận hiện sĩ số dạng `n/giới hạn`, không có trường hợp "không giới hạn".
+- Sửa hồ sơ: ô SĐT của phụ huynh đã lưu bị khóa, gợi ý "đổi số qua yêu cầu đổi SĐT" (G94-180/AUTH-21). Màn gửi và duyệt yêu cầu làm ở plan riêng.
+- Từ Phase 3 (11/11/2026), bản build nối BE đọc module trẻ (hồ sơ, xếp lớp, cho nghỉ, mở lại, sổ sức khỏe, đợt khám, kỳ cân đo) từ BE thật (`integrationModules.js`: `children.source = 'api'`). Câu ở mục ảnh phía trên ("module children giữ chế độ demo") không còn đúng cho module này. Bản dữ liệu mẫu (`VITE_USE_MOCK=true`) giữ nguyên.
+- Link "Tài khoản phụ huynh" ở hồ sơ trẻ mở thẳng hộp phụ huynh của bé đó ở màn Tài khoản phụ huynh, cả khi nối BE.

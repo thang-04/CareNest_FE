@@ -129,7 +129,8 @@ export default function HealthCheckFormPage() {
       </div>
     );
   const locked = editing && [CAMPAIGN_STATUS.CLOSED, CAMPAIGN_STATUS.CANCELLED].includes(campaign.status);
-  const campuses = ownCampusId ? md.campuses.filter((c) => c.id === ownCampusId) : md.campuses;
+  // PHT: điểm trường được phân công, kể cả nhiều điểm trường (user chốt 2026-11-11, Q4 = A); id /campuses là số khi nối BE
+  const campuses = isVicePrincipal(user) ? md.campuses.filter((c) => canManageHealthCheck(user, c.id)) : md.campuses;
   const minStartDate = editing ? undefined : todayInput();
   const minEndDate = isIsoDate(form.startDate) && (!minStartDate || form.startDate > minStartDate) ? form.startDate : minStartDate;
   const validate = (values) => validateHealthCheck(values, { creating: !editing });

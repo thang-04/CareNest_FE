@@ -5,8 +5,8 @@ import { Plus, Search, RotateCcw, UserMinus, FileSpreadsheet, Baby, Info, Layout
 import { useAuth } from '@/contexts/AuthContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useMasterData } from '@/hooks/useMasterData';
-import { useClasses } from '@/hooks/useSchool';
-import { useChildRecords } from '@/hooks/children/useChildRecords';
+import { useChildRecords, useClassOptions } from '@/hooks/children/useChildRecords';
+import { sameId } from '@/services/http/idStrings';
 import { useFilterParams } from '@/hooks/useFilterParams';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
@@ -30,6 +30,7 @@ import {
   seesAllCampusChildren,
 } from '@/utils/children/childrenPermissions';
 import { childrenCrumbs } from '@/utils/children/breadcrumbs';
+import { childrenOfStatus } from '@/utils/children/childrenHelpers';
 import '@/styles/modules/children.css';
 import { StatCard } from '@/components/ui/StatCard';
 
@@ -49,17 +50,27 @@ export default function ChildrenListPage() {
   const { children: all, loading, error, reload } = useChildRecords({ schoolYear });
   // PHT được giao "Hồ sơ trẻ" toàn trường: bộ lọc lớp gồm lớp của cả 2 điểm trường
   const allCampuses = isVicePrincipal(user) && seesAllCampusChildren(user);
-  const { classes } = useClasses({ ...(campusId ? { campusId } : {}), ...(allCampuses ? { all: true } : {}) });
-  const scopeCampusIds = useMemo(() => new Set(all.map((child) => child.campusId).filter(Boolean)), [all]);
-  const campusOptions = md.campuses.filter((campus) => scopeCampusIds.has(campus.id));
-  const yearClasses = classes.filter((c) => c.schoolYear === schoolYear);
+  // Lớp của năm học đang xem (mock hoặc BE /school-structure); id điểm trường của /campuses là số khi nối BE ⇒ so bằng sameId
+  const { classes: yearOptions } = useClassOptions(schoolYear, { all: allCampuses });
+  const scopeCampusIds = useMemo(
+    () =>
+      new Set(
+        all
+          .map((child) => child.campusId)
+          .filter(Boolean)
+          .map(String),
+      ),
+    [all],
+  );
+  const campusOptions = md.campuses.filter((campus) => scopeCampusIds.has(String(campus.id)));
+  const yearClasses = yearOptions.filter((c) => !campusId || sameId(c.campusId, campusId));
 
+  const current = useMemo(() => childrenOfStatus(all, ''), [all]);
   const rows = useMemo(() => {
     const kw = normalizeText(keyword).trim();
-    return all
-      .filter((c) => !status || c.status === status)
-      .filter((c) => !campusId || c.campusId === campusId)
-      .filter((c) => !classId || c.classId === classId)
+    return childrenOfStatus(all, status)
+      .filter((c) => !campusId || sameId(c.campusId, campusId))
+      .filter((c) => !classId || sameId(c.classId, classId))
       .filter((c) => !kw || normalizeText(`${c.fullName} ${c.code}`).includes(kw));
   }, [all, status, campusId, classId, keyword]);
   const pageRows = paginate(rows, page);
@@ -75,7 +86,7 @@ export default function ChildrenListPage() {
 
   const count = (s) => all.filter((c) => c.status === s).length;
   const stats = [
-    { key: '', label: 'Tổng số trẻ', value: all.length, tone: 'blue' },
+    { key: '', label: 'Tổng số trẻ', value: current.length, tone: 'blue' },
     { key: CHILD_STATUS.ACTIVE, label: CHILD_STATUS_LABELS.ACTIVE, value: count(CHILD_STATUS.ACTIVE), tone: 'green' },
     {
       key: CHILD_STATUS.PENDING_PLACEMENT,
@@ -97,7 +108,7 @@ export default function ChildrenListPage() {
     keyword: `Từ khóa: ${keyword}`,
     status: `Trạng thái: ${CHILD_STATUS_LABELS[status] || status}`,
     campusId: `Điểm trường: ${md.campusById(campusId)?.name?.split(' - ')[0] || 'đã chọn'}`,
-    classId: `Lớp: ${yearClasses.find((c) => c.id === classId)?.name || 'đã chọn'}`,
+    classId: `Lớp: ${yearClasses.find((c) => sameId(c.id, classId))?.name || 'đã chọn'}`,
   };
   // Bỏ điểm trường thì bỏ luôn lớp như khi đổi ô chọn điểm trường
   const chips = activeKeys.map((key) => ({
@@ -243,7 +254,7 @@ export default function ChildrenListPage() {
                         <EmptyState
                           icon={Baby}
                           title="Chưa có hồ sơ trẻ"
-                          description="Không có hồ sơ trẻ nào trong phạm vi và năm học đã chọn."
+                          description="Không có trẻ đang học hoặc chờ xếp lớp trong phạm vi và năm học đã chọn."
                           action={
                             canEnrollChild(user) && (
                               <Link to="/children/new" className="btn btn--primary">

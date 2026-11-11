@@ -182,7 +182,7 @@ export default function ChildProfilePage() {
                 {profileUpdate && (
                   <p className="muted text-xs mt-8">
                     Cập nhật gần nhất: {profileUpdate.action === 'UPDATED_FROM_EXAM' ? profileUpdate.note : 'Sửa hồ sơ'} ·{' '}
-                    {md.userById(profileUpdate.userId)?.fullName || '—'} · {formatDateTime(profileUpdate.at)}
+                    {profileUpdate.userName || md.userById(profileUpdate.userId)?.fullName || '—'} · {formatDateTime(profileUpdate.at)}
                   </p>
                 )}
               </div>
@@ -256,10 +256,11 @@ export default function ChildProfilePage() {
                   label="Lớp và năm học"
                   rows={[
                     ['Điểm trường', md.campusById(child.campusId)?.name || missing],
-                    ['Năm học', cls?.schoolYear || missing],
-                    ['Nhóm tuổi', ageGroupById(cls?.ageGroupId)?.name || missing],
+                    // BE: tên năm học, nhóm tuổi, giáo viên do adapter thêm (cls.*Name); mock: tra danh mục mẫu
+                    ['Năm học', cls?.schoolYearName || cls?.schoolYear || missing],
+                    ['Nhóm tuổi', cls?.ageGroupName || ageGroupById(cls?.ageGroupId)?.name || missing],
                     ['Lớp', cls?.name ? <span className="fw-600">{cls.name}</span> : <span className="muted">Chưa xếp lớp</span>],
-                    ['Giáo viên chủ nhiệm', md.userById(cls?.homeroomTeacherId)?.fullName || missing],
+                    ['Giáo viên chủ nhiệm', cls?.homeroomTeacherName || md.userById(cls?.homeroomTeacherId)?.fullName || missing],
                   ]}
                 />
               </div>

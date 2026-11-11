@@ -11,6 +11,7 @@ import { StatCard } from '@/components/ui/StatCard';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { GrowthReportDataBadge } from '@/components/children/ChildBadges';
 import { CAMPAIGN_STATUS } from '@/models/children/healthCheckConstants';
+import { sameId } from '@/services/http/idStrings';
 import { canManageHealthCheck, isPrincipal } from '@/utils/children/childrenPermissions';
 import { childrenCrumbs } from '@/utils/children/breadcrumbs';
 import {
@@ -126,9 +127,10 @@ export default function GrowthReportPage() {
   // Hiệu trưởng: tất cả hoặc từng điểm trường; PHT: điểm trường được giao (1 điểm trường ⇒ chỉ hiện tên).
   const campusOptions = principal ? md.campuses : md.campuses.filter((c) => canManageHealthCheck(user, c.id));
   const campusSelectable = principal || campusOptions.length > 1;
-  const campusId = campusSelectable && campusOptions.some((c) => c.id === filters.campusId) ? filters.campusId : '';
+  // id /campuses là số khi nối BE, tham số URL là chuỗi
+  const campusId = campusSelectable && campusOptions.some((c) => sameId(c.id, filters.campusId)) ? filters.campusId : '';
   const scopeLabel = campusId
-    ? campusOptions.find((c) => c.id === campusId)?.name || ''
+    ? campusOptions.find((c) => sameId(c.id, campusId))?.name || ''
     : principal
       ? 'Tất cả điểm trường'
       : campusOptions.length === 1

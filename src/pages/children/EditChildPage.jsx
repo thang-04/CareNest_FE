@@ -44,6 +44,8 @@ export default function EditChildPage() {
           fullName: g.fullName,
           relation: g.relation,
           phone: g.phone,
+          // G94-180/AUTH-21: SĐT đã lưu không sửa ở Sửa hồ sơ (đổi qua yêu cầu đổi SĐT); adapter bỏ trường này khi gửi
+          savedPhone: g.phone,
           idNumber: g.idNumber || '',
           email: g.email || '',
         })),
@@ -96,7 +98,9 @@ export default function EditChildPage() {
     if (hasErrors(errs)) return;
     setBusy(true);
     try {
-      const saved = await updateChild(id, { child: effective, reason }, user);
+      // savedPhone chỉ để khóa ô SĐT trên form, không gửi đi
+      const child = { ...effective, guardians: effective.guardians.map(({ savedPhone: _savedPhone, ...g }) => g) };
+      const saved = await updateChild(id, { child, reason }, user);
       // Đổi SĐT phụ huynh đã có tài khoản ⇒ BE đổi tên đăng nhập, gửi mật khẩu mới qua SMS (user chốt 2026-10-28).
       (saved.accountChanges || [])
         .filter((c) => c.phoneChanged)

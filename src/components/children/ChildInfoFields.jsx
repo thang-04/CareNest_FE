@@ -14,7 +14,7 @@ import { PortraitPicker } from './PortraitPicker';
 
 /**
  * CCCD trùng tài khoản phụ huynh có sẵn (BE trả): ai, đang là phụ huynh của trẻ nào; lưu thì liên kết trẻ (user chốt 2026-10-23).
- * Sửa thông tin ở form thì tài khoản đổi theo; SĐT khác tài khoản ⇒ báo trước việc đổi tên đăng nhập, gửi mật khẩu mới (2026-10-28).
+ * Sửa thông tin ở form thì tài khoản đổi theo; SĐT tài khoản chỉ đổi qua yêu cầu đổi SĐT (G94-180/AUTH-21, sửa 2026-11-11).
  * readOnly: người lưu không có quyền kích hoạt tài khoản phụ huynh ⇒ thông tin theo tài khoản, chỉ liên kết (P-18 A).
  */
 function AccountNotice({ account, guardian, childId, readOnly }) {
@@ -37,8 +37,8 @@ function AccountNotice({ account, guardian, childId, readOnly }) {
         </span>
         {normalizePhone(guardian.phone) !== normalizePhone(account.phone) && (
           <span className="text-sm">
-            <b>Số điện thoại khác tài khoản ({account.phone}).</b> Lưu sẽ đổi tên đăng nhập sang số mới và gửi mật khẩu tạm mới qua SMS tới
-            số mới.
+            <b>Số điện thoại khác tài khoản ({account.phone}).</b> Lưu hồ sơ không đổi số điện thoại của tài khoản; đổi số qua yêu cầu đổi
+            SĐT.
           </span>
         )}
       </div>
@@ -316,13 +316,16 @@ export function ChildInfoFields({
                     required
                     error={errors[`guardians.${i}.phone`]}
                     hint={
-                      locked
-                        ? 'Tên đăng nhập của tài khoản phụ huynh'
-                        : holder || acc
-                          ? 'Tên đăng nhập; đổi số thì tên đăng nhập đổi theo, mật khẩu tạm mới gửi SMS tới số mới'
-                          : sheet && !recipient
-                            ? 'Số điện thoại liên hệ với gia đình'
-                            : 'Dùng làm tên đăng nhập, nhận mật khẩu qua SMS'
+                      // G94-180/AUTH-21: SĐT đã lưu không sửa ở hồ sơ; đổi số qua yêu cầu đổi SĐT do HT/PHT duyệt
+                      g.savedPhone
+                        ? 'Số đã lưu không sửa ở đây; đổi số qua yêu cầu đổi SĐT'
+                        : locked
+                          ? 'Tên đăng nhập của tài khoản phụ huynh'
+                          : holder || acc
+                            ? 'Tên đăng nhập của tài khoản phụ huynh; đổi số qua yêu cầu đổi SĐT'
+                            : sheet && !recipient
+                              ? 'Số điện thoại liên hệ với gia đình'
+                              : 'Dùng làm tên đăng nhập, nhận mật khẩu qua SMS'
                     }
                   >
                     <input
@@ -330,7 +333,7 @@ export function ChildInfoFields({
                       inputMode="tel"
                       placeholder="0912 345 678"
                       value={shown.phone}
-                      readOnly={locked}
+                      readOnly={locked || !!g.savedPhone}
                       onChange={(e) => setGuardian(i, 'phone', e.target.value)}
                       onBlur={() => onBlurField?.(`guardians.${i}.phone`)}
                     />

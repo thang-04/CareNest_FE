@@ -1,11 +1,13 @@
 import { Info } from '@/components/ui/icons';
 import { FormField } from '@/components/form/FormField';
 import { ClassFillBadge } from '@/components/school-config/SchoolConfigBadges';
-import { AGE_GROUPS, ageGroupById } from '@/models/School';
+import { AGE_GROUPS } from '@/models/School';
+import { sameId } from '@/services/http/idStrings';
 
 /**
  * Age group + class choice (SRS #29). Capacity numbers come from the service; the service re-checks them on save.
- * classes: [{ id, name, ageGroupId, campusId, capacity, enrolledCount, homeroomTeacherId }]
+ * classes: [{ id, name, ageGroupId, campusId, capacity, enrolledCount, homeroomTeacherId }].
+ * ageGroups: nhóm tuổi của năm học (BE /school-structure hoặc AGE_GROUPS của mock).
  * campuses: điểm trường được chọn; từ 2 điểm trường (Hiệu trưởng, PHT toàn trường) hiện ô Điểm trường và chỉ hiện lớp của
  * điểm trường đó (hai điểm trường có lớp trùng tên).
  */
@@ -24,11 +26,13 @@ export function ClassPlacementFields({
   campusId = '',
   onCampusChange,
   campusError,
+  ageGroups = AGE_GROUPS,
 }) {
   const pickCampus = campuses.length > 1;
-  const inCampus = pickCampus ? classes.filter((c) => c.campusId === campusId) : classes;
-  const inGroup = inCampus.filter((c) => !ageGroupId || c.ageGroupId === ageGroupId);
-  const mismatch = suggestedAgeGroupId && ageGroupId && suggestedAgeGroupId !== ageGroupId;
+  const groupById = (id) => ageGroups.find((g) => sameId(g.id, id)) || null;
+  const inCampus = pickCampus ? classes.filter((c) => sameId(c.campusId, campusId)) : classes;
+  const inGroup = inCampus.filter((c) => !ageGroupId || sameId(c.ageGroupId, ageGroupId));
+  const mismatch = suggestedAgeGroupId && ageGroupId && !sameId(suggestedAgeGroupId, ageGroupId);
   const req = required && <span className="req">*</span>;
 
   return (
@@ -53,10 +57,10 @@ export function ClassPlacementFields({
           </label>
           <select id="tr-age-group" className="select" value={ageGroupId} onChange={(e) => onAgeGroupChange(e.target.value)}>
             <option value="">Tất cả nhóm tuổi</option>
-            {AGE_GROUPS.map((g) => (
+            {ageGroups.map((g) => (
               <option key={g.id} value={g.id}>
                 {g.name}
-                {g.id === suggestedAgeGroupId ? ' – phù hợp độ tuổi' : ''}
+                {sameId(g.id, suggestedAgeGroupId) ? ' – phù hợp độ tuổi' : ''}
               </option>
             ))}
           </select>
@@ -66,7 +70,7 @@ export function ClassPlacementFields({
         <div className="alert alert--warning">
           <Info size={18} />
           <div>
-            Theo ngày sinh, trẻ thường học nhóm <b>{ageGroupById(suggestedAgeGroupId)?.shortName}</b>. Kiểm tra lại trước khi xếp lớp.
+            Theo ngày sinh, trẻ thường học nhóm <b>{groupById(suggestedAgeGroupId)?.shortName}</b>. Kiểm tra lại trước khi xếp lớp.
           </div>
         </div>
       )}
@@ -95,8 +99,8 @@ export function ClassPlacementFields({
             <Info size={18} />
             <div className="stack gap-2">
               <span>
-                Chưa có lớp <b>{ageGroupById(ageGroupId)?.name}</b> ở {pickCampus ? 'điểm trường này' : 'phạm vi của bạn'} trong năm học
-                đang hoạt động. Lớp do Hiệu trưởng mở ở màn Nhóm tuổi &amp; lớp.
+                Chưa có lớp <b>{groupById(ageGroupId)?.name}</b> ở {pickCampus ? 'điểm trường này' : 'phạm vi của bạn'} trong năm học đang
+                hoạt động. Lớp do Hiệu trưởng mở ở màn Nhóm tuổi &amp; lớp.
               </span>
               <span>
                 <button type="button" className="btn btn--sm" onClick={() => onAgeGroupChange('')}>
@@ -108,9 +112,9 @@ export function ClassPlacementFields({
         ) : (
           <div className="tr-class-grid" role="radiogroup">
             {inGroup.map((c) => {
-              const full = c.enrolledCount >= c.capacity && c.id !== currentClassId;
-              const isCurrent = c.id === currentClassId;
-              const isSelected = classId === c.id;
+              const full = c.enrolledCount >= c.capacity && !sameId(c.id, currentClassId);
+              const isCurrent = sameId(c.id, currentClassId);
+              const isSelected = sameId(classId, c.id);
               const isDisabled = full || isCurrent;
               const toggle = () => {
                 // Bắt buộc (màn Xếp lớp): radio giữ 1 lựa chọn, click card đang chọn vẫn giữ.
@@ -133,7 +137,7 @@ export function ClassPlacementFields({
                   <input type="radio" name="tr-class" value={c.id} checked={isSelected} disabled={isDisabled} />
                   <span className="tr-class-option__body">
                     <span className="fw-600">{c.name}</span>
-                    <span className="muted text-sm">{ageGroupById(c.ageGroupId)?.shortName}</span>
+                    <span className="muted text-sm">{groupById(c.ageGroupId)?.shortName}</span>
                     <span className="text-sm">
                       Sĩ số: {c.enrolledCount}/{c.capacity}
                       {full && (

@@ -13,6 +13,7 @@ export function devPassword() {
 }
 const PG_CONTAINER = process.env.E2E_PG_CONTAINER || 'carenest_be-postgres-1';
 const PG_DB = process.env.E2E_PG_DB || 'carenest';
+const PG_USER = process.env.E2E_PG_USER || 'postgres';
 
 export const USERS = {
   vp: 'viceprincipal@gmail.com',
@@ -80,7 +81,7 @@ export const newSession = () => randomUUID();
 export function sql(query) {
   return execFileSync(
     'docker',
-    ['exec', PG_CONTAINER, 'psql', '-U', 'postgres', '-d', PG_DB, '-At', '-v', 'ON_ERROR_STOP=1', '-c', query],
+    ['exec', PG_CONTAINER, 'psql', '-U', PG_USER, '-d', PG_DB, '-At', '-v', 'ON_ERROR_STOP=1', '-c', query],
     {
       encoding: 'utf8',
     },

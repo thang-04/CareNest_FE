@@ -1,7 +1,7 @@
 import { normalizeRecipients } from '@/utils/children/accountRecipient';
 import { readDb, writeDb, clone, delay, ApiError } from '@/mocks/mockDatabase';
 import { prepareMockPortraits } from './enrollmentPhotoMock';
-import { ensureSchoolSeeded } from '@/mocks/schoolMockRepository';
+import { ensureSchoolSeeded, visibleClasses } from '@/mocks/schoolMockRepository';
 import { buildSeedChildRecords, seedChildProfileOf, seedMedicalHistoryOf } from '@/mocks/childrenSeed';
 import { PHONE_HAS_OTHER_ID, createBatchIdentityCheck, fillMissingCitizenIds, identityConflict } from '@/mocks/guardianIdentity';
 import { MEASUREMENT_ROUND, OPEN_CAMPAIGN, buildSeedHealthChecks } from '@/mocks/healthCheckSeed';
@@ -9,7 +9,7 @@ import { pushNotification } from '@/mocks/notificationMockRepository';
 import { activatePendingGuardians, applyGuardianEdits, differsFromAccount } from '@/mocks/parentAccountMock';
 import { activeYearId } from '@/mocks/roomManagers';
 import { schoolYearIdOfDate } from '@/mocks/schoolYearScope';
-import { CHILD_STATUS } from '@/models/School';
+import { AGE_GROUPS, CHILD_STATUS } from '@/models/School';
 import {
   AI_TREND_STATUS,
   DECLARATION_STATE,
@@ -979,6 +979,18 @@ export const childrenMockRepository = {
       target.history = [...(target.history || []), { action: 'READMITTED', userId: user.id, at: nowIso(), note: text }];
       return toView(d, target, user);
     });
+  },
+
+  /**
+   * Lớp, nhóm tuổi của một năm học cho bộ lọc, gợi ý nhóm tuổi (BE: GET /school-structure). all: PHT xem hồ sơ trẻ toàn
+   * trường thấy lớp mọi điểm trường như useClasses({ all }).
+   */
+  async getClassOptions(schoolYear, user, { all = false } = {}) {
+    await delay(80);
+    const db = ensureSchoolSeeded();
+    const yearId = schoolYear || activeYearId(db);
+    const classes = (all ? db.classes || [] : visibleClasses(db, user)).filter((c) => c.schoolYear === yearId);
+    return clone({ year: { id: yearId, name: String(yearId).replace('-', ' - '), startDate: null }, ageGroups: AGE_GROUPS, classes });
   },
 
   /** Lớp để tiếp nhận, xếp lớp: chỉ lớp của năm học đang hoạt động (user chốt 2026-10-28, Y-3). */

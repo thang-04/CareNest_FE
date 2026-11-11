@@ -205,7 +205,7 @@ export default function HealthDeclarationPage() {
                       <div>
                         <div>{HISTORY_LABELS[h.action] || h.action}</div>
                         <div className="muted text-sm">
-                          {md.userById(h.userId)?.fullName || '—'} · {formatDateTime(h.at)}
+                          {h.userName || md.userById(h.userId)?.fullName || '—'} · {formatDateTime(h.at)}
                           {h.note ? (SYSTEM_UPDATES.includes(h.action) ? ` · ${h.note}` : ` · Lý do: ${h.note}`) : ''}
                         </div>
                         {h.historyChange &&

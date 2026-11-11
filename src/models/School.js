@@ -25,11 +25,12 @@
  * @property {{ fullName: string, relation: string, phone: string, email: string, accountStatus: 'NOT_ACTIVATED'|'ACTIVE' }[]} guardians
  */
 
+// ageFromMonths/ageToMonths như nhóm tuổi BE (age_groups) để gợi ý nhóm tuổi cùng một cách cho mock và BE
 export const AGE_GROUPS = [
-  { id: 'ag-2', name: 'Nhà trẻ (24–36 tháng)', shortName: 'Nhà trẻ', level: 'NURSERY' },
-  { id: 'ag-3', name: 'Mẫu giáo bé (3–4 tuổi)', shortName: 'Mẫu giáo bé', level: 'KINDERGARTEN' },
-  { id: 'ag-4', name: 'Mẫu giáo nhỡ (4–5 tuổi)', shortName: 'Mẫu giáo nhỡ', level: 'KINDERGARTEN' },
-  { id: 'ag-5', name: 'Mẫu giáo lớn (5–6 tuổi)', shortName: 'Mẫu giáo lớn', level: 'KINDERGARTEN' },
+  { id: 'ag-2', name: 'Nhà trẻ (24–36 tháng)', shortName: 'Nhà trẻ', level: 'NURSERY', ageFromMonths: 24, ageToMonths: 36 },
+  { id: 'ag-3', name: 'Mẫu giáo bé (3–4 tuổi)', shortName: 'Mẫu giáo bé', level: 'KINDERGARTEN', ageFromMonths: 36, ageToMonths: 48 },
+  { id: 'ag-4', name: 'Mẫu giáo nhỡ (4–5 tuổi)', shortName: 'Mẫu giáo nhỡ', level: 'KINDERGARTEN', ageFromMonths: 48, ageToMonths: 60 },
+  { id: 'ag-5', name: 'Mẫu giáo lớn (5–6 tuổi)', shortName: 'Mẫu giáo lớn', level: 'KINDERGARTEN', ageFromMonths: 60, ageToMonths: 72 },
 ];
 
 export const ageGroupById = (id) => AGE_GROUPS.find((g) => g.id === id) || null;

@@ -22,6 +22,7 @@ import { getChildDetail } from '@/services/children/childrenService';
 import { GUARDIAN_RELATIONSHIP_LABELS } from '@/models/account/guardianConstants';
 import { groupChildrenByClass, missingAccount, NO_CLASS, sortMissingFirst } from '@/utils/account/guardianCoverage';
 import { childrenCrumbs } from '@/utils/children/breadcrumbs';
+import { sameId } from '@/services/http/idStrings';
 import { formatDate, normalizeText } from '@/utils/format';
 import '@/styles/modules/parent-accounts.css';
 
@@ -66,7 +67,8 @@ export default function ParentActivationPage() {
     };
   }, [targetId, user, structure.loading, structure.error, toast]);
   useEffect(() => {
-    const child = children.find((row) => row.id === targetId);
+    // id trẻ của BE là số, childId trên URL là chuỗi
+    const child = children.find((row) => sameId(row.id, targetId));
     if (!child || handledTarget.current === targetId || loading) return;
     handledTarget.current = targetId;
     setViewPick(child.classroomId || NO_CLASS);
