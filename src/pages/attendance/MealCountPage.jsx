@@ -158,7 +158,7 @@ export default function MealCountPage() {
       <ClassDateBar date={date} maxDate={today} onDateChange={(v) => setParams({ date: v }, { replace: true })}>
         <CampusFilter
           className="dd-bar__field"
-          campuses={allCampuses.map((id) => ({ id, name: md.campusById?.(id)?.name || id }))}
+          campuses={allCampuses.map((id) => ({ id, name: md.campusById?.(id)?.shortName || md.campusById?.(id)?.name || id }))}
           value={campusFilter}
           onChange={setCampusFilter}
         />
