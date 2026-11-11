@@ -766,7 +766,7 @@ const weekStats = (db, childId, monday, att) => {
   return {
     presentDays,
     flagCount,
-    eligible: presentDays >= TICKET_RULES.WEEK_MIN_PRESENT_DAYS && flagCount >= TICKET_RULES.WEEK_MIN_FLAGS,
+    eligible: flagCount >= TICKET_RULES.WEEK_MIN_FLAGS,
   };
 };
 

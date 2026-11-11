@@ -167,7 +167,8 @@ export const TICKET_TYPE = { WEEKLY: 'WEEKLY', MONTHLY: 'MONTHLY' };
 export const TICKET_TYPE_LABELS = { WEEKLY: 'Bé ngoan', MONTHLY: 'Bé ngoan toàn diện' };
 
 /** GBR-REW-01 / GBR-REW-02 thresholds. */
-export const TICKET_RULES = { WEEK_MIN_PRESENT_DAYS: 4, WEEK_MIN_FLAGS: 3, MONTH_MIN_WEEKLY_TICKETS: 3 };
+// BE OBS-10 (Cần chốt 11/11/2026): phiếu tuần cần ≥3 cờ; phiếu tháng cần ≥3 phiếu tuần
+export const TICKET_RULES = { WEEK_MIN_FLAGS: 3, MONTH_MIN_WEEKLY_TICKETS: 3 };
 
 export const REWARD_STATUS = {
   DRAFT: 'DRAFT',

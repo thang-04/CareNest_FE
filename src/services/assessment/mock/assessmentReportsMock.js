@@ -422,7 +422,7 @@ export const createAssessmentReportsMock = (ensureReady) => ({
           const dates = new Set(
             all.filter((r) => r.childId === c.id && r.status === 'PRESENT' && r.date >= d && r.date <= addDays(d, 4)).map((r) => r.date),
           );
-          if (dates.size >= TICKET_RULES.WEEK_MIN_PRESENT_DAYS && flagsOf(db, c.id, dates) >= TICKET_RULES.WEEK_MIN_FLAGS) n++;
+          if (flagsOf(db, c.id, dates) >= TICKET_RULES.WEEK_MIN_FLAGS) n++;
         }
         return n;
       });
