@@ -245,11 +245,14 @@ export const validateVpAssignment = (form) => {
 /**
  * Lớp có 0–2 giáo viên. Hộp phân công bắt buộc tích chủ nhiệm khi có giáo viên; gỡ giáo viên thì lớp được để trống
  * chủ nhiệm (`requireHomeroom: false`). Kích hoạt năm học cần mọi lớp có giáo viên và chủ nhiệm.
+ * yearActive: năm đang học mỗi lớp đúng 2 giáo viên, có chủ nhiệm (BE SCH-04, Cần chốt 10/11/2026).
  */
-export const validateClassTeachers = (form, { requireHomeroom = true } = {}) => {
+export const validateClassTeachers = (form, { requireHomeroom = true, yearActive = false } = {}) => {
   const e = {};
   const count = form.teacherIds?.length || 0;
   if (count > TEACHERS_PER_CLASS) e.teacherIds = `Mỗi lớp tối đa ${TEACHERS_PER_CLASS} giáo viên`;
+  else if (yearActive && count !== TEACHERS_PER_CLASS)
+    e.teacherIds = `Năm học đang diễn ra: mỗi lớp cần đúng ${TEACHERS_PER_CLASS} giáo viên (đang chọn ${count})`;
   if (requireHomeroom && count > 0 && !form.homeroomTeacherId) e.homeroomTeacherId = 'Chọn giáo viên chủ nhiệm';
   else if (form.homeroomTeacherId && !form.teacherIds?.includes(form.homeroomTeacherId))
     e.homeroomTeacherId = 'Giáo viên chủ nhiệm phải nằm trong danh sách giáo viên của lớp';
