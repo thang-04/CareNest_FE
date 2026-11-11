@@ -207,7 +207,7 @@ export default function QualityReportPage() {
               <option value="">Tất cả điểm trường</option>
               {campusOptions.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.name}
+                  {c.fullName || c.name}
                 </option>
               ))}
             </select>

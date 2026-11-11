@@ -52,7 +52,10 @@ export default function AttendanceDayUnlockPage() {
   const [filters, setFilters] = useState({ classId: '', status: '', from: '', to: '' });
   const [page, setPage] = useState(1);
   const selected = scoped.find((cls) => cls.id === form.classId);
-  const campusLabel = (id) => (campuses || []).find((campus) => campus.id === id)?.name || id;
+  const campusLabel = (id) => {
+    const campus = (campuses || []).find((x) => x.id === id);
+    return campus?.shortName || campus?.name || id;
+  };
   const multiCampus = new Set(scoped.map((cls) => cls.campusId)).size > 1;
   const classLabel = (cls) => `${cls.name}${multiCampus ? ` · ${campusLabel(cls.campusId)}` : ''}`;
   const active = (history.data || []).find(

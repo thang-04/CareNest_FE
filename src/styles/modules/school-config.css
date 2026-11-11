@@ -1123,3 +1123,45 @@
 .sc-holiday-form__add {
   margin-top: calc(var(--fs-sm) * 1.5 + var(--space-1-5));
 }
+
+/* Xếp lớp năm mới: lớp gom theo nhóm tuổi, nút xếp cả nhóm (Cần đề xuất 10/11/2026) */
+.sc-plc__group {
+  display: grid;
+  gap: var(--space-1);
+}
+.sc-plc__group + .sc-plc__group {
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border);
+}
+.sc-plc__group-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  padding: var(--space-1) var(--space-2);
+}
+.sc-plc__group-name {
+  font-weight: var(--fw-semibold);
+}
+/* Ô "Cả lớp lên" đủ rộng, tên lớp · điểm trường không xuống dòng */
+.sc-plc-page .sc-plc__toolbar .sc-placement__select {
+  width: calc(var(--space-16) * 3.5);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+/* Cột danh sách lớp rộng hơn để trạng thái và nút xếp cả nhóm không bị cắt */
+.sc-plc-page .sc-plc {
+  grid-template-columns: minmax(calc(var(--space-16) * 4.5), 1.15fr) 3fr;
+}
+.sc-plc__group-auto {
+  width: 100%;
+  justify-content: center;
+}
+/* Ô chọn lớp năm mới trong bảng co theo cột để không phải cuộn ngang */
+.sc-plc-page .sc-plc__table .sc-placement__select {
+  min-width: calc(var(--space-16) * 3);
+  width: 100%;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}

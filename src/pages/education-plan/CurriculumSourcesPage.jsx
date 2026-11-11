@@ -41,7 +41,7 @@ export default function CurriculumSourcesPage() {
   };
 
   return (
-    <div className="page ga-page">
+    <div className="page ga-page ga-cur-page">
       <PageHead crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Nguồn chương trình của Bộ' }]} title="Nguồn chương trình của Bộ" />
       <Card bodyClass={null}>
         <div className="card__body stack">

@@ -17,7 +17,7 @@ const { getMenuForRole } = await import('@/layouts/menuConfig');
 
 const campuses = [{ id: '1' }, { id: '2' }];
 // PHT đăng nhập BE: mảng mock "Không có" không còn quyết định quyền (FE-BUG-261102)
-const beVp = (bePermissions) => ({
+const beVp = (bePermissions, beSchoolWidePermissions = []) => ({
   id: '7',
   userId: 7,
   roles: ['VICE_PRINCIPAL'],
@@ -25,18 +25,26 @@ const beVp = (bePermissions) => ({
   campusId: '1',
   areas: { rooms: 'NONE', yearPlacement: 'NONE', staff: 'NONE' },
   bePermissions,
+  beSchoolWidePermissions,
 });
 const keys = (menu) => menu.flatMap((e) => [e.key, ...(e.children || []).map((c) => c.key)]);
 
-test('BE vice principal views rooms and year placement of every campus, read only', () => {
-  const user = beVp(['STAFF_ASSIGNMENT_MANAGE']);
-  assert.deepEqual(roomCampusIds(user, campuses), ['1', '2']);
-  assert.deepEqual(roomCampusIds(user, campuses, true), []);
-  assert.equal(canViewYearPlacement(user), true);
+test('BE vice principal manages rooms by the dynamically granted campus/school scope', () => {
+  const user = beVp(['ROOM_MANAGE']);
+  assert.deepEqual(roomCampusIds(user, campuses), ['1']);
+  assert.deepEqual(roomCampusIds(user, campuses, true), ['1']);
+  const schoolWide = beVp(['ROOM_MANAGE'], ['ROOM_MANAGE']);
+  assert.deepEqual(roomCampusIds(schoolWide, campuses), ['1', '2']);
+  assert.deepEqual(roomCampusIds(schoolWide, campuses, true), ['1', '2']);
+  // Xếp lớp năm mới theo mã riêng YEAR_PLACEMENT_MANAGE (Cần chốt 10/11/2026): không có mã thì không vào màn
+  assert.equal(canViewYearPlacement(user), false);
   assert.equal(canEditYearPlacement(user, '1'), false);
   const menu = keys(getMenuForRole('VICE_PRINCIPAL', user));
   assert.ok(menu.includes('schoolRooms'));
-  assert.ok(menu.includes('schoolPlacement'));
+  assert.ok(!menu.includes('schoolPlacement'));
+  const placer = beVp(['YEAR_PLACEMENT_MANAGE']);
+  assert.equal(canEditYearPlacement(placer, '1'), true);
+  assert.ok(keys(getMenuForRole('VICE_PRINCIPAL', placer)).includes('schoolPlacement'));
 });
 
 test('staff screen follows BE account permissions', () => {

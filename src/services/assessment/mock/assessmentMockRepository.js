@@ -766,7 +766,7 @@ const weekStats = (db, childId, monday, att) => {
   return {
     presentDays,
     flagCount,
-    eligible: presentDays >= TICKET_RULES.WEEK_MIN_PRESENT_DAYS && flagCount >= TICKET_RULES.WEEK_MIN_FLAGS,
+    eligible: flagCount >= TICKET_RULES.WEEK_MIN_FLAGS,
   };
 };
 
@@ -1111,6 +1111,12 @@ export const assessmentMockRepository = {
       mealSessions: mealSessionsOf(db, cls),
       lesson: dayLessonOf(db, cls, day),
       rows,
+      // OBS-01 (Cần chốt 10/11/2026): lớp đã điểm danh thì hiện cả trẻ vắng / chưa điểm danh, không đánh giá được
+      absentChildren: kids.some((child) => att.has(`${day}|${child.id}`))
+        ? kids
+            .filter((child) => att.get(`${day}|${child.id}`) !== 'PRESENT')
+            .map((child) => ({ childId: child.id, fullName: child.fullName, attendanceStatus: att.get(`${day}|${child.id}`) || null }))
+        : [],
       classComment: classCommentView(
         db,
         (db.classDailyComments || []).find((note) => note.classId === classId && note.date === day),
@@ -1431,6 +1437,8 @@ export const assessmentMockRepository = {
       cls,
       range: { start, end: to },
       presentDays: to >= start ? countPresentDays(db, childId, start, to, att) : 0,
+      // Ngày đã điểm danh vắng (có phép / không phép)
+      absentDays: to >= start ? schoolDaysBetween(start, to).filter((d) => (att.get(`${d}|${childId}`) || 'PRESENT') !== 'PRESENT') : [],
       flagCount: to >= start ? flagDaysOf(db, childId, start, to) : 0,
       summary: to >= start ? periodSummaryOf(db, childId, start, to) : null,
       days,

@@ -14,7 +14,7 @@ const CLASS_STAFF = [R.TEACHER, R.TEAM_LEADER];
 const QUICK_ACTIONS = [
   {
     label: 'Soạn giáo án',
-    to: '/education/class',
+    to: '/education/day-plans',
     group: 'Kế hoạch giáo dục',
     icon: BookOpen,
     roles: CLASS_STAFF,
@@ -27,8 +27,8 @@ const QUICK_ACTIONS = [
     roles: CLASS_STAFF,
   },
   {
-    label: 'Kế hoạch chủ đề',
-    to: '/education/class',
+    label: 'Kế hoạch giáo dục chủ đề',
+    to: '/education/theme-plans',
     group: 'Kế hoạch giáo dục',
     icon: PenLine,
     roles: [R.TEAM_LEADER],
@@ -57,7 +57,7 @@ const QUICK_ACTIONS = [
     roles: VP_ONLY,
   },
   {
-    label: 'Kế hoạch năm học',
+    label: 'Kế hoạch giáo dục tổ',
     to: '/education/goals',
     group: 'Kế hoạch giáo dục',
     icon: Target,

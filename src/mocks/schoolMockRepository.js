@@ -104,7 +104,8 @@ export const schoolMockRepository = {
     if (filters.activeYear) list = list.filter((c) => c.schoolYear === activeYearId(db));
     if (filters.campusId) list = list.filter((c) => c.campusId === filters.campusId);
     if (filters.ageGroupId) list = list.filter((c) => c.ageGroupId === filters.ageGroupId);
-    return clone(list);
+    // Như BE: cờ teaches = người dùng dạy lớp (màn đánh giá tự vào lớp mình)
+    return clone(list.map((c) => ({ ...c, teaches: !!user && (c.teacherIds || []).includes(user.id) })));
   },
 
   async getClassById(id) {

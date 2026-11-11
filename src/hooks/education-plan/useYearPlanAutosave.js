@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createSaveQueue, reconcileYearPlanIds, yearPlanContentKey } from '@/models/education-plan/yearPlanAutosave.mjs';
 import {
   findYearPlanDrafts,
@@ -17,6 +17,15 @@ const hhmm = (d) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinu
 export function useYearPlanAutosave({ doc, setDoc, enabled, mayBackup, save, userId, planKey, onConflict }) {
   const latest = useRef({});
   latest.current = { doc, setDoc, enabled, mayBackup, save, onConflict };
+  const scrollAfterSave = useRef(null);
+  useLayoutEffect(() => {
+    const positions = scrollAfterSave.current;
+    scrollAfterSave.current = null;
+    positions?.forEach(({ element, top, left }) => {
+      element.scrollTop = top;
+      element.scrollLeft = left;
+    });
+  }, [doc]);
   const [state, setState] = useState({ phase: 'idle', at: null });
   const [drafts, setDrafts] = useState(() => {
     try {
@@ -30,10 +39,10 @@ export function useYearPlanAutosave({ doc, setDoc, enabled, mayBackup, save, use
   const pruned = useRef(false);
   const mounted = useRef(true);
   const stopBackup = useRef(false);
-  const hasOwnedLease = useRef(false);
+  const hasBackedUpDraft = useRef(false);
   const slot = useRef(crypto.randomUUID());
   const restoredSource = useRef(null);
-  if (mayBackup) hasOwnedLease.current = true;
+  if (mayBackup) hasBackedUpDraft.current = true;
   const queue = useRef(null);
   if (!queue.current) {
     queue.current = createSaveQueue({
@@ -57,8 +66,13 @@ export function useYearPlanAutosave({ doc, setDoc, enabled, mayBackup, save, use
         }
         latest.current.doc = current;
         savedDoc.current = baseline;
-        if (mounted.current) latest.current.setDoc(current);
-        else if (hasOwnedLease.current) {
+        if (mounted.current) {
+          // ID từ server làm các dòng mới dựng lại; giữ vị trí ngay trước khi áp dụng phản hồi.
+          scrollAfterSave.current = [document.scrollingElement, ...document.querySelectorAll('.ga-year-page .table-wrap')]
+            .filter(Boolean)
+            .map((element) => ({ element, top: element.scrollTop, left: element.scrollLeft }));
+          latest.current.setDoc(current);
+        } else if (hasBackedUpDraft.current) {
           try {
             if (yearPlanContentKey(current) !== yearPlanContentKey(baseline)) {
               const entry = { doc: current, baseRevision: current.revision ?? 0, savedAt: Date.now() };
@@ -89,7 +103,7 @@ export function useYearPlanAutosave({ doc, setDoc, enabled, mayBackup, save, use
   };
   // Bản giữ ẩn trên máy (không báo trên UI): phòng mất điện/đóng tab khi chưa bấm Lưu
   const backup = () => {
-    if (stopBackup.current || !hasOwnedLease.current) return;
+    if (stopBackup.current || !hasBackedUpDraft.current) return;
     try {
       const current = latest.current.doc;
       if (!queue.current.dirty()) {

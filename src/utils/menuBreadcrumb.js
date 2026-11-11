@@ -12,8 +12,10 @@ const flatten = (menu) =>
   );
 
 // Khớp theo ranh giới "/" để /children không nhận nhầm /children-archive; mục `exact` và Trang chủ chỉ khớp đúng đường dẫn
+// `also`: trang con nằm ở đường dẫn khác (vd. kế hoạch chủ đề/tuần của lớp) vẫn thuộc mục này
 const covers = (item, pathname) =>
-  item.to === '/' || item.exact ? pathname === item.to : pathname === item.to || pathname.startsWith(`${item.to}/`);
+  (item.to === '/' || item.exact ? pathname === item.to : pathname === item.to || pathname.startsWith(`${item.to}/`)) ||
+  (item.also || []).some((prefix) => pathname.startsWith(prefix));
 
 /** Mục sidebar của màn đang mở: mục có đường dẫn dài nhất bao được `pathname`; không có ⇒ null. */
 export const menuEntryFor = (menu, pathname) =>

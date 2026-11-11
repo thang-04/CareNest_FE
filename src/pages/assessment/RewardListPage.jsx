@@ -82,7 +82,7 @@ export default function RewardListPage() {
                 <option value="">Tất cả điểm trường</option>
                 {campuses.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.name}
+                    {c.fullName || c.name}
                   </option>
                 ))}
               </select>
