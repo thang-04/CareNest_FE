@@ -389,7 +389,7 @@ export default function WeeklyForecastPage() {
           open={printing}
           onClose={() => setPrinting(false)}
           size="xl"
-          className="kb-print-modal"
+          className="print-modal"
           title="Phiếu đặt hàng tuần"
           footer={<PrintToolbar sheetRef={sheetRef} fileBase={`Phieu_dat_hang_tuan_${weekStart}`} printLabel="In phiếu" />}
         >

@@ -252,7 +252,7 @@ test('"Hay dùng" chỉ lưu ở trình duyệt', async () => {
 test('món BE: dòng theo nhóm tuổi ⇔ portions theo id nhóm tuổi FE; ô trống/0 không gửi', async () => {
   const dish = await api.getDish('30');
   assert.equal(dish.type, 'MAIN');
-  assert.deepEqual(dish.ingredients, [{ foodId: '7', portions: { 'ag-2': 20, 'ag-4': 30 }, quantity: 30 }]);
+  assert.deepEqual(dish.ingredients, [{ foodId: '7', foodName: 'Trứng gà', portions: { 'ag-2': 20, 'ag-4': 30 }, quantity: 30 }]);
   assert.deepEqual(dish.allergens, ['Trứng']);
   assert.equal(dish.nutritionByAgeGroup[0].ageGroupId, 'ag-4');
 
@@ -291,7 +291,7 @@ test('danh sách món: chỉ món của trường, một lần GET /nutrition/di
     calls.filter((c) => c.url.startsWith('/nutrition/dishes')).map((c) => c.url),
     ['/nutrition/dishes'],
   );
-  assert.deepEqual(dishes[0].ingredients, [{ foodId: '7', portions: { 'ag-2': 20, 'ag-4': 30 }, quantity: 30 }]);
+  assert.deepEqual(dishes[0].ingredients, [{ foodId: '7', foodName: 'Trứng gà', portions: { 'ag-2': 20, 'ag-4': 30 }, quantity: 30 }]);
   assert.deepEqual(dishes[0].allergens, ['Trứng']);
   assert.equal(dishes[0].nutritionByAgeGroup[0].ageGroupId, 'ag-4');
   assert.deepEqual(await api.listDishes({ status: 'DRAFT' }), []);

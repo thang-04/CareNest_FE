@@ -2220,6 +2220,17 @@
   flex: 0 1 240px;
 }
 
+/* Nhóm Tươi/Khô của bảng thực phẩm: dòng tiêu đề nhóm và dòng tổng nhóm */
+.td-stat-table .td-stat-group th {
+  background: var(--color-primary-soft);
+  color: var(--color-text);
+  font-weight: var(--fw-semibold);
+  text-align: left;
+}
+.td-stat-table .td-stat-subtotal td {
+  background: var(--color-surface-muted);
+  font-weight: var(--fw-semibold);
+}
 .td-stat-table th.td-stat-table__session {
   background: var(--table-header-bg);
   font-weight: var(--fw-semibold);
@@ -2630,6 +2641,29 @@
 .td-meal__dish td {
   background: var(--color-surface-muted);
 }
+/* Bữa trống: một dòng gọn (icon · câu hướng dẫn · nút thêm) thay cho khối tranh lớn */
+.td-meal__empty {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  margin: 0 var(--space-6) var(--space-5);
+  padding: var(--space-3) var(--space-4);
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+  color: var(--color-text-secondary);
+  font-size: var(--fs-sm);
+}
+.td-meal__empty > span {
+  flex: 1 1 220px;
+}
+.td-meal__empty b {
+  color: var(--color-text);
+}
+.td-meal__note {
+  margin: var(--space-2) 0 0;
+}
 .td-meal__dish-in {
   display: flex;
   align-items: center;
@@ -2863,6 +2897,273 @@
   border-radius: var(--radius-sm);
   background: var(--color-surface);
   line-height: 1.35;
+}
+/* Ba nút Thay thế · Thông tin · Xóa trên món (như PMS, user chốt 09/11/2026); thiếu chỗ thì xuống dòng, căn phải */
+.td-week__dishes li.td-dish {
+  flex-wrap: wrap;
+}
+/* Tên món một dòng riêng; dòng dưới: kcal bên trái, cụm nút bên phải — mọi món cùng một dáng, không đè chữ ở ô hẹp */
+.td-week__dishes li.td-dish > .td-grow {
+  flex-basis: 100%;
+}
+.td-dish__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+}
+/* Cân đối một ngày (modal Sửa ngày, màn Cân đối khẩu phần): món bên trái, dinh dưỡng bên phải dính khi cuộn */
+.td-day-balance {
+  display: grid;
+  gap: var(--space-4);
+  align-items: start;
+}
+.td-day-balance__meals {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+.td-day-balance__nutrition {
+  min-width: 0;
+}
+/* Xếp dọc: bảng dinh dưỡng lên trước để thấy ngay ngày đạt chưa, món bên dưới. Từ 1600px hai cột: món trái, dinh dưỡng
+   phải (bảng 10 cột cần ~820px gồm lề thẻ; bảng món ~600px) — hẹp hơn thì hai cột đè lên nhau */
+.td-day-balance__nutrition {
+  order: -1;
+}
+@media (min-width: 1600px) {
+  .td-day-balance {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 820px);
+  }
+  .td-day-balance__nutrition {
+    order: 0;
+    position: sticky;
+    top: 0;
+  }
+}
+/* Hộp "Chép món sang ngày khác": nguồn ở trên, thẻ ngày bấm chọn ở giữa, cảnh báo ngày bị thay ở dưới */
+.td-copy {
+  display: grid;
+  gap: var(--space-5);
+}
+.td-copy__source {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-muted);
+}
+.td-copy__source-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-2);
+}
+.td-copy__eyebrow {
+  color: var(--color-text-muted);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.td-copy__meals {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+}
+.td-copy__meals > div {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  gap: var(--space-2);
+  align-items: start;
+}
+.td-copy__meals dt {
+  padding-top: var(--space-1);
+  color: var(--color-text-secondary);
+  font-size: var(--fs-sm);
+}
+.td-copy__meals dd {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1-5);
+  margin: 0;
+}
+.td-copy__targets {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.td-copy__targets-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+.td-copy__targets-head legend {
+  float: left;
+  padding: 0;
+  font-weight: var(--fw-semibold);
+}
+.td-copy__quick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+.td-copy__days {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+/* Thẻ ngày: cả thẻ bấm được, ô tích ẩn cho trình đọc màn hình; trạng thái luôn có chữ, không chỉ dựa vào màu */
+.td-copy__day {
+  position: relative;
+  display: grid;
+  gap: 2px;
+  min-height: 88px;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  cursor: pointer;
+  transition:
+    border-color var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out);
+}
+.td-copy__day:hover {
+  border-color: var(--color-primary);
+}
+.td-copy__day:has(input:focus-visible) {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--color-focus-ring);
+  border-color: var(--color-focus);
+}
+.td-copy__check {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 1.5px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-surface);
+}
+.td-copy__weekday {
+  font-weight: var(--fw-semibold);
+}
+.td-copy__date {
+  color: var(--color-text-secondary);
+  font-size: var(--fs-sm);
+}
+.td-copy__status {
+  margin-top: auto;
+  color: var(--color-text-muted);
+  font-size: var(--fs-xs);
+}
+.td-copy__day--on {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+.td-copy__day--on .td-copy__check,
+.td-copy__day--replace .td-copy__check {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+}
+.td-copy__day--replace {
+  border-color: var(--color-warning);
+  background: var(--color-warning-bg);
+}
+.td-copy__day--replace .td-copy__status {
+  color: var(--color-warning-fg);
+  font-weight: var(--fw-semibold);
+}
+.td-copy__day--source {
+  border-style: dashed;
+  background: var(--color-surface-muted);
+  cursor: default;
+}
+.td-copy__day--source .td-copy__check {
+  border-color: var(--color-text-muted);
+  background: var(--color-text-muted);
+}
+.td-copy__day--off {
+  background: var(--color-surface-muted);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+.td-copy__day--source:hover,
+.td-copy__day--off:hover {
+  border-color: var(--color-border);
+}
+.td-copy__warn {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-warning-border);
+  border-radius: var(--radius-md);
+  background: var(--color-warning-bg);
+  color: var(--color-warning-fg);
+  font-size: var(--fs-sm);
+}
+.td-copy__warn svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+@media (max-width: 640px) {
+  .td-copy__days {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .td-copy__meals > div {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+/* Đầu cột ngày: tên thứ bên trái, nút "…" (Sửa ngày, Chép sang ngày…) bên phải */
+.td-week__day-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-1);
+}
+/* Lý do ngắn đầu cột ngày thay cho "N lưu ý" */
+.td-week__reasons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+/* Modal thông tin món mở từ lưới tuần */
+.td-dish-info {
+  display: grid;
+  gap: var(--space-4);
+}
+.td-dish-info__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-8);
+  margin: 0;
+}
+.td-dish-info__meta dt {
+  color: var(--color-text-muted);
+  font-size: var(--fs-sm);
+}
+.td-dish-info__meta dd {
+  margin: var(--space-1) 0 0;
+}
+.table .td-dish-info__total th,
+.table .td-dish-info__total td {
+  background: var(--color-surface-muted);
+  font-weight: var(--fw-semibold);
 }
 .td-dish-opt {
   display: block;

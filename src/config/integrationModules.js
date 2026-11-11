@@ -67,6 +67,8 @@ export const INTEGRATION_MODULES = {
       'POST /meal-handovers/{x}/confirm',
       'POST /meal-handovers/{x}/shortage',
       'POST /meal-handovers/{x}/supplement',
+      // Suất ăn lớp cho giáo viên: đã làm ở nhánh BE feature/G94-254-BE-FEAT-27-day-boarding, chưa merge dev
+      'GET /meal-counts/class',
     ],
   },
   'meal-handover': {
@@ -160,7 +162,8 @@ export const INTEGRATION_MODULES = {
   // Kế hoạch tuần theo khối + công bố trên BE /nutrition/meal-plans; thắng '/menu' của thực đơn mẫu còn demo
   'meal-plan': {
     source: 'api',
-    routes: ['/menu/weekly', '/menu/statistics'],
+    // Cân đối khẩu phần đọc/lưu kế hoạch tuần + menu-statistics (09/11/2026)
+    routes: ['/menu/weekly', '/menu/statistics', '/menu/nutrition'],
     files: ['src/services/mealPlanApi.js'],
   },
   // Mẫu thực đơn một ngày theo khối trên BE /nutrition/menu-templates (NUT-13, đổi 04/11)
