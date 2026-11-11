@@ -260,6 +260,33 @@ export const AI_DRAFT_STATUS = { PENDING_REVIEW: 'PENDING_REVIEW', APPLIED: 'APP
 export const AI_DRAFT_STATUS_LABELS = { PENDING_REVIEW: 'Chờ người duyệt', APPLIED: 'Đã dùng', DISMISSED: 'Đã bỏ qua' };
 export const AI_LABEL = 'Bản nháp AI – cần người duyệt';
 
+/* Nháp AI gợi ý thực đơn trên BE /nutrition/menu-ai-drafts (BE: specs/014-boarding-menu-ai/contracts/menu-ai-drafts.md) */
+export const MENU_AI_KIND = { WEEKLY: 'MENU_WEEKLY', DAILY: 'MENU_DAILY', DAY_FIX: 'MENU_DAY_FIX' };
+export const MENU_AI_STATUS = {
+  PENDING_REVIEW: 'PENDING_REVIEW',
+  APPLIED: 'APPLIED',
+  DISMISSED: 'DISMISSED',
+  NO_FEASIBLE: 'NO_FEASIBLE',
+};
+export const MENU_AI_STATUS_LABELS = {
+  PENDING_REVIEW: 'Chờ người duyệt',
+  APPLIED: 'Đã dùng',
+  DISMISSED: 'Đã bỏ',
+  NO_FEASIBLE: 'Không có phương án',
+};
+export const MENU_AI_SOURCE = { AI: 'AI', RULE_BASED: 'RULE_BASED' };
+export const MENU_AI_SOURCE_LABELS = { AI: 'AI gợi ý', RULE_BASED: 'Theo quy tắc' };
+// Lý do BE dùng phương án theo quy tắc thay AI (AI-03, AI-07)
+export const MENU_AI_FALLBACK_LABELS = {
+  AI_DISABLED: 'AI đang tắt',
+  AI_UNAVAILABLE: 'Dịch vụ AI không phản hồi',
+  AI_TIMEOUT: 'AI phản hồi quá lâu',
+  AI_INVALID: 'Kết quả AI chưa đạt kiểm tra',
+  AI_NOT_BETTER: 'Phương án AI không tốt hơn',
+};
+export const MENU_AI_CHECK_TONES = { PASS: 'green', WARN: 'orange', INFO: 'teal', FAIL: 'red' };
+export const MENU_AI_CHECK_LABELS = { PASS: 'Đạt', WARN: 'Cảnh báo', INFO: 'Thông tin', FAIL: 'Không đạt' };
+
 export const WEEKDAY_LABELS = ['Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu'];
 
 export { addDays, isMonday, mondayOf, schoolWeekStart, weekDates, weekLabel, weekOptions, weekShortLabel } from '@/utils/week';

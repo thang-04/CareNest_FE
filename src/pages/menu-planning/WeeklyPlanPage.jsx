@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTabParam } from '@/hooks/useTabParam';
 import { Tabs } from '@/components/ui/Tabs';
 import { useSearchParams } from 'react-router-dom';
-import { Lock, Save, Send } from '@/components/ui/icons';
+import { Lock, Save, Send, Sparkles } from '@/components/ui/icons';
 import { useToast } from '@/contexts/ToastContext';
 import { Breadcrumb, EmptyState, ErrorState, LoadingState } from '@/components';
 import { WeekPicker } from '@/components/form/WeekPicker';
@@ -15,6 +15,7 @@ import { MealPlanGrid } from '@/components/menu-planning/MealPlanGrid';
 import { MealPlanIssueList } from '@/components/menu-planning/MealPlanIssueList';
 import { MealPlanStatusBadge } from '@/components/menu-planning/MenuBadges';
 import { PublishWeekDialog } from '@/components/menu-planning/PublishWeekDialog';
+import { MenuAiWeekModal } from '@/components/menu-planning/MenuAiWeekModal';
 import { useActiveDishes, useBeAgeGroups, useMealPlan } from '@/hooks/menu-planning/useMealPlan';
 import { useMenuTemplates } from '@/hooks/menu-planning/useMenuTemplates';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
@@ -51,6 +52,7 @@ export default function WeeklyPlanPage() {
   // Mẫu ngày chờ xác nhận thay món: { day, template, count }
   const [pending, setPending] = useState(null);
   const [issuesOpen, setIssuesOpen] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
 
   // Kế hoạch mới về (đổi tuần, sau khi lưu, nạp lại) ⇒ bản nháp trên màn lấy lại từ BE
   useEffect(() => setDraft(saved), [saved]);
@@ -203,6 +205,11 @@ export default function WeeklyPlanPage() {
           )}
         </div>
         <div className="row td-week-toolbar__actions">
+          {editable && block && (
+            <button type="button" className="btn" disabled={busy} onClick={() => setAiOpen(true)}>
+              <Sparkles size={16} /> AI gợi ý
+            </button>
+          )}
           {editable && (
             <button type="button" className="btn" disabled={busy || !dirty} onClick={save}>
               <Save size={16} /> Lưu nháp
@@ -313,6 +320,19 @@ export default function WeeklyPlanPage() {
         }}
         onClose={() => setPending(null)}
       />
+      {editable && block && (
+        <MenuAiWeekModal
+          open={aiOpen}
+          onClose={() => setAiOpen(false)}
+          block={block}
+          week={week}
+          plan={plan}
+          dirty={dirty}
+          dishes={dishes}
+          kcalAgeGroup={kcalAgeGroup}
+          onApplied={() => planQ.reload({ silent: true })}
+        />
+      )}
       <LeaveConfirmModal {...guard.modal} />
     </div>
   );

@@ -217,7 +217,7 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
     const rows = new Map();
     (d.ingredients || []).forEach((r) => {
       const key = String(r.foodId);
-      if (!rows.has(key)) rows.set(key, { foodId: key, portions: {} });
+      if (!rows.has(key)) rows.set(key, { foodId: key, foodName: r.foodName || '', portions: {} });
       rows.get(key).portions[codeOf[String(r.ageGroupId)] || String(r.ageGroupId)] = r.gramsPerChild;
     });
     const ingredients = [...rows.values()].map((r) => {

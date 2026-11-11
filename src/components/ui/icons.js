@@ -94,6 +94,7 @@ export {
   IconGenderBigender as Gender,
   IconSettings as Gear,
   IconArrowsMoveVertical as DragHandle,
+  IconGripVertical as GripVertical,
   IconListNumbers as ListNumbers,
   IconHeartHandshake as Handshake,
   IconHeartbeat as HeartPulse,

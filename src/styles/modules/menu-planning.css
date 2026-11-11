@@ -3134,3 +3134,367 @@
   margin-left: var(--space-1);
   vertical-align: middle;
 }
+
+/* ===== AI gợi ý thực đơn tuần: bảng 7 phần + cột món 3 phần, kéo thả đổi món ===== */
+.td-aie {
+  display: grid;
+  gap: var(--space-3);
+}
+.td-aie__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.td-aie__score {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--fs-sm);
+  font-variant-numeric: tabular-nums;
+}
+.td-aie__stale {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--color-warning-fg);
+  font-size: var(--fs-sm);
+}
+.td-aie__checks {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+.td-aie__actions {
+  display: inline-flex;
+  gap: var(--space-1);
+  margin-left: auto;
+}
+.td-aie__body {
+  display: grid;
+  grid-template-columns: minmax(0, 7fr) minmax(0, 3fr);
+  gap: var(--space-4);
+  align-items: start;
+}
+.td-aie__main {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.td-aie__toggle {
+  justify-self: start;
+}
+.td-aie__foot {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+/* Lỗi do dữ liệu (đổi món không sửa được): nổi hơn dòng trạng thái thường */
+.td-aie__limit {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-warning-bg);
+  color: var(--color-warning-fg);
+}
+.td-aie__limit svg {
+  flex: none;
+  margin-top: 2px;
+}
+.td-aie__ghost {
+  display: inline-flex;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--color-primary);
+  border-left: 3px solid var(--dt, var(--tone-gray));
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  font-size: var(--fs-sm);
+  cursor: grabbing;
+}
+
+.td-aig-wrap {
+  margin: 0;
+}
+.td-aig {
+  min-width: 720px;
+}
+.td-aig__reason {
+  font-weight: var(--fw-regular);
+}
+/* Thẻ món như lưới kế hoạch tuần: tên một dòng riêng; dòng dưới kcal bên trái, cụm icon bên phải */
+.td-aig__dish {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  min-height: 34px;
+  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-2);
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--dt, var(--tone-gray));
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  font-size: var(--fs-sm);
+  line-height: 1.35;
+  text-align: left;
+}
+.td-aig__dish--empty {
+  border-style: dashed;
+}
+.td-aig__name {
+  flex: 1 1 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+/* Ô người duyệt đã đổi so với gợi ý gốc */
+.td-aig__dish--changed {
+  background: var(--color-primary-soft);
+}
+.td-aig__pick {
+  display: block;
+  padding: var(--space-0-5, 2px) 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: grab;
+  touch-action: manipulation;
+}
+.td-aig__pick:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+.td-aig__pick.is-dragging {
+  opacity: 0.4;
+}
+.td-aig__cell.is-selected {
+  box-shadow: inset 0 0 0 2px var(--color-primary);
+}
+.td-aig__cell.is-drop-ok {
+  outline: 1px dashed var(--color-primary);
+  outline-offset: -3px;
+}
+.td-aig__cell.is-drop-no {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.td-aig__cell.is-over {
+  background: var(--color-primary-soft);
+}
+/* TODO(merge dev): xóa khối này — `dev` đã có `.td-dish__actions`, `.td-dish-info*` (menu-planning.css) và `.icon-action` (components.css) */
+.td-dish__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+}
+.icon-action {
+  display: grid;
+  place-items: center;
+  width: var(--space-6);
+  height: var(--space-6);
+  flex-shrink: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+.icon-action:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-primary);
+}
+.icon-action:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--color-focus-ring);
+}
+.td-dish-info {
+  display: grid;
+  gap: var(--space-4);
+}
+.td-dish-info__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-8);
+  margin: 0;
+}
+.td-dish-info__meta dt {
+  color: var(--color-text-muted);
+  font-size: var(--fs-sm);
+}
+.td-dish-info__meta dd {
+  margin: var(--space-1) 0 0;
+}
+.table .td-dish-info__total th,
+.table .td-dish-info__total td {
+  background: var(--color-surface-muted);
+  font-weight: var(--fw-semibold);
+}
+/* Ô đang chọn để thay món: icon thay món sáng lên */
+.td-aig__cell.is-selected .icon-action[aria-pressed='true'] {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+/* Cột nhãn hàng: tên loại món dài ("Món bữa chiều") phải xuống dòng trong cột, không tràn sang cột ngày */
+.table.td-aig .td-week__label {
+  width: 128px;
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+.td-aig__band-note {
+  font-weight: var(--fw-regular);
+}
+/* Dinh dưỡng cả ngày: nhãn hàng ghi mức cần, ô ghi số thực tế + chữ trạng thái */
+.td-aig__nut .td-week__label small {
+  display: block;
+  margin-top: 2px;
+  color: var(--color-text-muted);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-regular);
+}
+.table.td-aig td.td-aig__nut-cell {
+  font-size: var(--fs-sm);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  vertical-align: middle;
+}
+.td-aig__nut-cell small {
+  display: block;
+  color: var(--color-text-muted);
+  font-size: var(--fs-xs);
+}
+.td-aig__nut-cell--ok small {
+  color: var(--tone-green-fg);
+}
+.table.td-aig td.td-aig__nut-cell--low {
+  background: var(--color-danger-bg);
+}
+.td-aig__nut-cell--low b,
+.td-aig__nut-cell--low small {
+  color: var(--color-danger-fg);
+}
+.table.td-aig td.td-aig__nut-cell--high {
+  background: var(--color-warning-bg);
+}
+.td-aig__nut-cell--high b,
+.td-aig__nut-cell--high small {
+  color: var(--color-warning-fg);
+}
+/* Bảng kiểm: nhãn trạng thái dài ngắn khác nhau ⇒ cột nhãn rộng cố định để chữ bên phải thẳng một lề */
+.td-checks .td-issue {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-3);
+}
+.td-checks .td-issue > :first-child {
+  justify-self: start;
+}
+
+.td-aip {
+  position: sticky;
+  top: 0;
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md, var(--radius-sm));
+  background: var(--color-surface-muted);
+}
+.td-aip__head {
+  display: grid;
+  gap: var(--space-1);
+}
+.td-aip__title {
+  margin: 0;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+}
+.td-aip__search {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.td-aip__search .input {
+  flex: 1;
+  min-width: 0;
+}
+.td-aip__scope {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+.td-aip__list {
+  display: grid;
+  gap: var(--space-1);
+  max-height: 52vh;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+.td-aip__dish {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: 40px;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--dt, var(--tone-gray));
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: inherit;
+  font: inherit;
+  font-size: var(--fs-sm);
+  text-align: left;
+  cursor: grab;
+  touch-action: manipulation;
+}
+.td-aip__dish .td-grow {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+.td-aip__dish:hover {
+  border-color: var(--color-primary);
+}
+.td-aip__dish:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+.td-aip__dish.is-used {
+  opacity: 0.6;
+}
+.td-aip__dish.is-dragging {
+  opacity: 0.4;
+}
+
+/* Màn hẹp: cột món xuống dưới bảng */
+@media (max-width: 1100px) {
+  .td-aie__body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .td-aip {
+    position: static;
+  }
+  .td-aip__list {
+    max-height: 40vh;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .td-aig__pick,
+  .td-aip__dish {
+    transition: none;
+  }
+}
+.td-aip__grip {
+  flex: none;
+  color: var(--color-text-muted);
+}
