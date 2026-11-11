@@ -116,7 +116,7 @@ export function DayMarketMoney({ data }) {
             <td>Tổng thu</td>
             <td className="num">{totals.servings}</td>
             <td />
-            <td className="num nowrap">{money(totals.revenue)}</td>
+            <td className="num nowrap">{formatMoney(totals.revenue)}</td>
           </tr>
           <tr>
             <td colSpan={3}>Chi mua chợ</td>
@@ -130,13 +130,10 @@ export function DayMarketMoney({ data }) {
             <td colSpan={3}>Tổng chi</td>
             <td className="num nowrap">{formatMoney(totals.cost)}</td>
           </tr>
-          {/* BE không trả phần thừa thiếu khi còn nhóm chưa có giá tiền ăn */}
-          {totals.balance != null && (
-            <tr className="kb-fc__total">
-              <td colSpan={3}>{totals.balance >= 0 ? 'Còn thừa' : 'Còn thiếu'}</td>
-              <td className={`num nowrap ${totals.balance < 0 ? 'kb-short' : ''}`}>{formatMoney(Math.abs(totals.balance))}</td>
-            </tr>
-          )}
+          <tr className="kb-fc__total">
+            <td colSpan={3}>{totals.balance >= 0 ? 'Còn thừa' : 'Còn thiếu'}</td>
+            <td className={`num nowrap ${totals.balance < 0 ? 'kb-short' : ''}`}>{formatMoney(Math.abs(totals.balance))}</td>
+          </tr>
         </tbody>
       </table>
     </div>

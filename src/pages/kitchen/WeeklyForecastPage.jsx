@@ -144,30 +144,8 @@ export default function WeeklyForecastPage() {
       <div>
         <h1 className="page__title">Dự trù & đi chợ</h1>
       </div>
-    </div>
-  );
-
-  const toolbar = (
-    // Căn đáy: mọi ô có nhãn phía trên, phần không nhãn cao bằng ô nhập để thẳng hàng
-    <div className="kb-toolbar">
-      <div className="date-filter">
-        Tuần
-        <span className="date-filter__static">
-          <WeekPicker value={weekStart} thisWeek={thisWeek} onChange={(week) => go({ week })} />
-        </span>
-      </div>
-      <KbCampusFilter campusId={campusId} onChange={setCampusId} canPick={canPick} />
-      {data && (
-        <span className="date-filter__static">
-          <StatusBadge
-            tone={menuPublished ? 'green' : 'gray'}
-            label={menuPublished ? 'Thực đơn tuần đã công bố' : 'Chưa có thực đơn tuần đã công bố'}
-          />
-        </span>
-      )}
-      {/* Nút thao tác cùng hàng với ô lọc thay vì nằm riêng phía trên */}
       {(ready || (canEdit && weekStart <= thisWeek)) && (
-        <div className="kb-toolbar__end">
+        <div className="page__actions">
           {ready && (
             <Link className="btn" to={`/kitchen/market-day?campusId=${campusId}&date=${dayInWeek}`}>
               <ShoppingBasket size={16} /> Đi chợ theo ngày
@@ -188,6 +166,27 @@ export default function WeeklyForecastPage() {
             </button>
           )}
         </div>
+      )}
+    </div>
+  );
+
+  const toolbar = (
+    // Căn đáy: mọi ô có nhãn phía trên, phần không nhãn cao bằng ô nhập để thẳng hàng
+    <div className="kb-toolbar">
+      <div className="date-filter">
+        Tuần
+        <span className="date-filter__static">
+          <WeekPicker value={weekStart} thisWeek={thisWeek} onChange={(week) => go({ week })} />
+        </span>
+      </div>
+      <KbCampusFilter campusId={campusId} onChange={setCampusId} canPick={canPick} />
+      {data && (
+        <span className="date-filter__static">
+          <StatusBadge
+            tone={menuPublished ? 'green' : 'gray'}
+            label={menuPublished ? 'Thực đơn tuần đã công bố' : 'Chưa có thực đơn tuần đã công bố'}
+          />
+        </span>
       )}
     </div>
   );

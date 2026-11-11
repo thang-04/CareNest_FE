@@ -35,6 +35,21 @@ export default function MenuListPage() {
         <div>
           <h1 className="page__title">Thực đơn mẫu</h1>
         </div>
+        <div className="page__actions">
+          <Link className="btn" to="/menu/setup">
+            <Gear size={16} /> Thiết lập bữa ăn
+          </Link>
+          {canManage && (
+            <>
+              <Link className="btn btn--outline-primary" to="/menu/menus/new?ai=1">
+                <Sparkles size={16} /> AI soạn mẫu mới
+              </Link>
+              <Link className="btn btn--primary" to="/menu/menus/new">
+                <Plus size={16} /> Thêm thực đơn mẫu
+              </Link>
+            </>
+          )}
+        </div>
       </div>
     </>
   );
@@ -59,21 +74,6 @@ export default function MenuListPage() {
       {head}
       <div className="filter-bar td-plain-filter">
         <SearchSubmit className="td-grow" value={keyword} placeholder="Tìm tên thực đơn" label="Tìm thực đơn" onSearch={setKeyword} />
-        <div className="filter-bar__end">
-          <Link className="btn" to="/menu/setup">
-            <Gear size={16} /> Thiết lập bữa ăn
-          </Link>
-          {canManage && (
-            <>
-              <Link className="btn btn--outline-primary" to="/menu/menus/new?ai=1">
-                <Sparkles size={16} /> AI soạn mẫu mới
-              </Link>
-              <Link className="btn btn--primary" to="/menu/menus/new">
-                <Plus size={16} /> Thêm thực đơn mẫu
-              </Link>
-            </>
-          )}
-        </div>
       </div>
       {groups.map((g) => {
         const list = menus
