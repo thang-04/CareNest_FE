@@ -17,7 +17,7 @@ export const DayMarketPrint = forwardRef(function DayMarketPrint({ data }, ref) 
         <h1>BẢNG ĐI CHỢ</h1>
         <div>
           Ngày {formatDate(data.date)} · {data.campusName}
-          {data.basis === 'FORECAST' ? ' · theo số suất dự trù' : ''}
+          {data.basis === 'FORECAST' ? ' · theo số trẻ đang học, chưa chốt suất' : ''}
         </div>
       </div>
       <p>
@@ -79,10 +79,13 @@ export const DayMarketPrint = forwardRef(function DayMarketPrint({ data }, ref) 
       </table>
       <p>
         Tổng thu: {num(totals.revenue)} đ · Chi mua chợ: {num(totals.marketCost)} đ · Chi xuất kho: {num(totals.stockCost)} đ · Tổng chi:{' '}
-        {num(totals.cost)} đ ·{' '}
-        <b>
-          {totals.balance >= 0 ? 'Còn thừa' : 'Còn thiếu'}: {num(Math.abs(totals.balance))} đ
-        </b>
+        {num(totals.cost)} đ
+        {totals.balance != null && (
+          <b>
+            {' '}
+            · {totals.balance >= 0 ? 'Còn thừa' : 'Còn thiếu'}: {num(Math.abs(totals.balance))} đ
+          </b>
+        )}
       </p>
       {data.menu.length > 0 && (
         <table className="ps-table">
