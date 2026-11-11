@@ -22,6 +22,7 @@ const VerifyOtpPage = lazyPage(() => import('@/pages/account/VerifyOtpPage'));
 const ResetPasswordPage = lazyPage(() => import('@/pages/account/ResetPasswordPage'));
 const ProfilePage = lazyPage(() => import('@/pages/account/ProfilePage'));
 const ChangePasswordPage = lazyPage(() => import('@/pages/account/ChangePasswordPage'));
+const MySignaturesPage = lazyPage(() => import('@/pages/account/MySignaturesPage'));
 const NotificationDetailPage = lazyPage(() => import('@/pages/account/NotificationDetailPage'));
 const AppearancePage = lazyPage(() => import('@/pages/settings/AppearancePage'));
 
@@ -111,8 +112,6 @@ const HealthCheckListPage = lazyPage(() => import('@/pages/children/HealthCheckL
 const HealthCheckFormPage = lazyPage(() => import('@/pages/children/HealthCheckFormPage'));
 const HealthCheckDetailPage = lazyPage(() => import('@/pages/children/HealthCheckDetailPage'));
 const HealthExamFormPage = lazyPage(() => import('@/pages/children/HealthExamFormPage'));
-const HealthFollowUpListPage = lazyPage(() => import('@/pages/children/HealthFollowUpListPage'));
-const HealthFollowUpDetailPage = lazyPage(() => import('@/pages/children/HealthFollowUpDetailPage'));
 const BoardingTodayPage = lazyPage(() => import('@/pages/boarding/BoardingTodayPage'));
 const DryStockLedgerPage = lazyPage(() => import('@/pages/kitchen/DryStockLedgerPage'));
 const StockReceiptEditorPage = lazyPage(() => import('@/pages/kitchen/StockReceiptEditorPage'));
@@ -120,19 +119,19 @@ const StockReceiptListPage = lazyPage(() => import('@/pages/kitchen/StockReceipt
 const StockReceiptFormPage = lazyPage(() => import('@/pages/kitchen/StockReceiptFormPage'));
 const SupplierListPage = lazyPage(() => import('@/pages/kitchen/SupplierListPage'));
 const SupplierDetailPage = lazyPage(() => import('@/pages/kitchen/SupplierDetailPage'));
-const SupplierFormPage = lazyPage(() => import('@/pages/kitchen/SupplierFormPage'));
 const KitchenFlowPage = lazyPage(() => import('@/pages/kitchen/KitchenFlowPage'));
 const DryStockPage = lazyPage(() => import('@/pages/kitchen/DryStockPage'));
 const FoodSampleLogPage = lazyPage(() => import('@/pages/kitchen/FoodSampleLogPage'));
 const WeeklyForecastPage = lazyPage(() => import('@/pages/kitchen/WeeklyForecastPage'));
 const FreshReceiptPage = lazyPage(() => import('@/pages/kitchen/FreshReceiptPage'));
+const DayMarketPage = lazyPage(() => import('@/pages/kitchen/DayMarketPage'));
 const FreshForecastPage = lazyPage(() => import('@/pages/kitchen/FreshForecastPage'));
 const FreshCheckPage = lazyPage(() => import('@/pages/kitchen/FreshCheckPage'));
 const PublishedMenuPage = lazyPage(() => import('@/pages/kitchen/PublishedMenuPage'));
 const KitchenTodayPage = lazyPage(() => import('@/pages/kitchen/KitchenTodayPage'));
 const FoodSampleQueuePage = lazyPage(() => import('@/pages/kitchen/FoodSampleQueuePage'));
+const InspectionDayPage = lazyPage(() => import('@/pages/kitchen/InspectionDayPage'));
 const MealPhotosPage = lazyPage(() => import('@/pages/kitchen/MealPhotosPage'));
-const MealPhotoWindowsPage = lazyPage(() => import('@/pages/kitchen/MealPhotoWindowsPage'));
 const ConfirmedMealCountPage = lazyPage(() => import('@/pages/kitchen/ConfirmedMealCountPage'));
 const RequiredFoodQuantityPage = lazyPage(() => import('@/pages/kitchen/RequiredFoodQuantityPage'));
 const MissingFoodReportPage = lazyPage(() => import('@/pages/kitchen/MissingFoodReportPage'));
@@ -142,8 +141,6 @@ const AssessmentDayUnlockPage = lazyPage(() => import('@/pages/assessment/Assess
 const ChildDevelopmentListPage = lazyPage(() => import('@/pages/assessment/ChildDevelopmentListPage'));
 const ChildDevelopmentProfilePage = lazyPage(() => import('@/pages/assessment/ChildDevelopmentProfilePage'));
 const ChildDevelopmentProgressPage = lazyPage(() => import('@/pages/assessment/ChildDevelopmentProgressPage'));
-const PeriodicEvaluationListPage = lazyPage(() => import('@/pages/assessment/PeriodicEvaluationListPage'));
-const PeriodicEvaluationDetailPage = lazyPage(() => import('@/pages/assessment/PeriodicEvaluationDetailPage'));
 const AiEvaluationDraftPage = lazyPage(() => import('@/pages/assessment/AiEvaluationDraftPage'));
 const ClassRatingsPage = lazyPage(() => import('@/pages/assessment/ClassRatingsPage'));
 const SemesterEvaluationListPage = lazyPage(() => import('@/pages/assessment/SemesterEvaluationListPage'));
@@ -182,15 +179,13 @@ const MenuTemplateEditorPage = lazyPage(() => import('@/pages/menu-planning/Menu
 const MenuStatisticsPage = lazyPage(() => import('@/pages/menu-planning/MenuStatisticsPage'));
 const MenuPlanListPage = lazyPage(() => import('@/pages/menu-planning/MenuPlanListPage'));
 const MenuPlanDetailPage = lazyPage(() => import('@/pages/menu-planning/MenuPlanDetailPage'));
-const VP_ONLY = [ROLES.VICE_PRINCIPAL];
 const R = ROLES;
 const CLASS_STAFF = [R.TEACHER, R.TEAM_LEADER];
 const LEADERS = [R.PRINCIPAL, R.VICE_PRINCIPAL];
 // Danh mục bán trú: HT, PHT đều xem; nút sửa theo NUTRITION_MANAGE khi dùng BE (BE vẫn kiểm). Form bản demo giữ phân quyền cũ.
 const CATALOG_API = !isDemoModule('nutrition-catalog');
 const CATALOG_READERS = LEADERS;
-const CATALOG_EDITORS = CATALOG_API ? LEADERS : VP_ONLY;
-const SUPPLIER_EDITORS = CATALOG_API ? LEADERS : [R.PRINCIPAL];
+const CATALOG_EDITORS = LEADERS;
 // Bán trú nối BE (hub, kế hoạch tuần, kho khô): build mock (VITE_USE_MOCK mặc định) giữ màn demo cũ, không có mock cho contract mới.
 const BOARDING_API = !isDemoModule('day-board');
 const MEAL_PLAN_API = !isDemoModule('meal-plan');
@@ -198,7 +193,7 @@ const TEMPLATE_API = !isDemoModule('menu-template');
 const DRY_STOCK_API = !isDemoModule('dry-stock');
 const FRESH_GOODS_API = !isDemoModule('fresh-goods');
 const KITCHEN_RECORDS_API = !isDemoModule('kitchen-records');
-const STOCK_RECEIPT_ROLES = DRY_STOCK_API ? LEADERS : VP_ONLY;
+const STOCK_RECEIPT_ROLES = LEADERS;
 const DENIED = 'Chức năng này không thuộc quyền của vai trò hiện tại (theo ma trận phân quyền của hệ thống).';
 
 /** Trang hồ sơ chủ đề đã bỏ (Tiền 04/11): link cũ .../review mở trang kế hoạch chủ đề. */
@@ -207,9 +202,9 @@ function ThemeReviewRedirect() {
   return <Navigate to={`/education/class/${classId}/themes/${themeId}`} replace />;
 }
 
-function SupplierRedirect({ suffix = '' }) {
+function SupplierRedirect() {
   const { id } = useParams();
-  return <Navigate to={`/menu/suppliers/${id}${suffix}`} replace />;
+  return <Navigate to={`/menu/suppliers/${id}`} replace />;
 }
 
 /** Route element limited to the roles allowed by the SRS permission matrix. */
@@ -374,11 +369,6 @@ export function AppRoutes() {
               path="health-checks/:campaignId/exam/:childId"
               element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <HealthExamFormPage />)}
             />
-            <Route path="health-follow-ups" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <HealthFollowUpListPage />)} />
-            <Route
-              path="health-follow-ups/:followUpId"
-              element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <HealthFollowUpDetailPage />)}
-            />
             <Route path=":id" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <ChildProfilePage />)} />
             <Route path=":id/edit" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL], <EditChildPage />)} />
             <Route
@@ -395,7 +385,7 @@ export function AppRoutes() {
             <Route path="today" element={only(LEADERS, BOARDING_API ? <BoardingTodayPage /> : <KitchenFlowPage />)} />
           </Route>
           <Route path="menu">
-            <Route path="flow" element={BOARDING_API ? <Navigate to="/boarding/today" replace /> : only(VP_ONLY, <NutritionFlowPage />)} />
+            <Route path="flow" element={BOARDING_API ? <Navigate to="/boarding/today" replace /> : only(LEADERS, <NutritionFlowPage />)} />
             <Route path="setup" element={only(LEADERS, <NutritionSetupPage />)} />
             <Route path="foods" element={only(CATALOG_READERS, <FoodListPage />)} />
             <Route path="foods/new" element={only(CATALOG_EDITORS, <FoodFormPage />)} />
@@ -406,10 +396,11 @@ export function AppRoutes() {
             <Route path="dishes/:id" element={only(CATALOG_READERS, <DishDetailPage />)} />
             <Route path="dishes/:id/edit" element={only(CATALOG_EDITORS, <DishFormPage />)} />
             <Route path="suppliers" element={only(LEADERS, <SupplierListPage />)} />
-            <Route path="suppliers/new" element={only(SUPPLIER_EDITORS, <SupplierFormPage />)} />
+            {/* Thêm/sửa nhà cung cấp mở bằng modal trên danh sách và trang chi tiết: link cũ về trang tương ứng */}
+            <Route path="suppliers/new" element={<Navigate to="/menu/suppliers" replace />} />
             <Route path="suppliers/:id" element={only(LEADERS, <SupplierDetailPage />)} />
-            <Route path="suppliers/:id/edit" element={only(SUPPLIER_EDITORS, <SupplierFormPage />)} />
-            {/* Bộ thực đơn mẫu 4 tuần trên BE (NUT-13) thay thực đơn mẫu một ngày của bản demo */}
+            <Route path="suppliers/:id/edit" element={<SupplierRedirect />} />
+            {/* Mẫu thực đơn một ngày trên BE (NUT-13) */}
             <Route
               path="templates"
               element={TEMPLATE_API ? only(LEADERS, <MenuTemplateListPage />) : <Navigate to="/menu/menus" replace />}
@@ -426,26 +417,27 @@ export function AppRoutes() {
               path="statistics"
               element={MEAL_PLAN_API ? only(LEADERS, <MenuStatisticsPage />) : <Navigate to="/menu/weekly" replace />}
             />
-            <Route path="menus" element={TEMPLATE_API ? <Navigate to="/menu/templates" replace /> : only(VP_ONLY, <MenuListPage />)} />
-            <Route path="menus/new" element={only(VP_ONLY, <MenuFormPage />)} />
-            <Route path="menus/:id" element={only(VP_ONLY, <MenuDetailPage />)} />
-            <Route path="menus/:id/edit" element={only(VP_ONLY, <MenuFormPage />)} />
-            <Route path="allergy-menus" element={only(VP_ONLY, <AllergyMenuListPage />)} />
-            <Route path="allergy-menus/new" element={only(VP_ONLY, <AllergyMenuFormPage />)} />
-            <Route path="allergy-menus/:id" element={only(VP_ONLY, <AllergyMenuDetailPage />)} />
-            <Route path="allergy-menus/:id/edit" element={only(VP_ONLY, <AllergyMenuFormPage />)} />
-            <Route path="ai-suggestion" element={only(VP_ONLY, <AiMenuSuggestionPage />)} />
+            {/* Hiệu trưởng và Phó hiệu trưởng thao tác bán trú trong bản demo; BE vẫn kiểm quyền khi nối API. */}
+            <Route path="menus" element={TEMPLATE_API ? <Navigate to="/menu/templates" replace /> : only(LEADERS, <MenuListPage />)} />
+            <Route path="menus/new" element={only(LEADERS, <MenuFormPage />)} />
+            <Route path="menus/:id" element={only(LEADERS, <MenuDetailPage />)} />
+            <Route path="menus/:id/edit" element={only(LEADERS, <MenuFormPage />)} />
+            <Route path="allergy-menus" element={only(LEADERS, <AllergyMenuListPage />)} />
+            <Route path="allergy-menus/new" element={only(LEADERS, <AllergyMenuFormPage />)} />
+            <Route path="allergy-menus/:id" element={only(LEADERS, <AllergyMenuDetailPage />)} />
+            <Route path="allergy-menus/:id/edit" element={only(LEADERS, <AllergyMenuFormPage />)} />
+            <Route path="ai-suggestion" element={only(LEADERS, <AiMenuSuggestionPage />)} />
             <Route path="weekly" element={only(LEADERS, MEAL_PLAN_API ? <WeeklyPlanPage /> : <WeeklyMenuListPage />)} />
             <Route
               path="weekly/new"
-              element={MEAL_PLAN_API ? <Navigate to="/menu/weekly" replace /> : only(VP_ONLY, <WeeklyMenuFormPage />)}
+              element={MEAL_PLAN_API ? <Navigate to="/menu/weekly" replace /> : only(LEADERS, <WeeklyMenuFormPage />)}
             />
-            <Route path="weekly/:id" element={only(VP_ONLY, <WeeklyMenuDetailPage />)} />
+            <Route path="weekly/:id" element={only(LEADERS, <WeeklyMenuDetailPage />)} />
             <Route
               path="weekly/:id/edit"
-              element={MEAL_PLAN_API ? <Navigate to="/menu/weekly" replace /> : only(VP_ONLY, <WeeklyMenuFormPage />)}
+              element={MEAL_PLAN_API ? <Navigate to="/menu/weekly" replace /> : only(LEADERS, <WeeklyMenuFormPage />)}
             />
-            <Route path="nutrition" element={only(VP_ONLY, <NutritionBalancePage />)} />
+            <Route path="nutrition" element={only(LEADERS, <NutritionBalancePage />)} />
             <Route
               path="plans"
               element={MEAL_PLAN_API ? <Navigate to="/menu/weekly" replace /> : only([R.PRINCIPAL], <MenuPlanListPage />)}
@@ -460,9 +452,9 @@ export function AppRoutes() {
               path="stock-shortfalls"
               element={only(LEADERS, DRY_STOCK_API ? <DryStockLedgerPage tab="shortfalls" /> : <DryStockPage />)}
             />
+            <Route path="inspections" element={only(LEADERS, <InspectionDayPage />)} />
             <Route path="food-samples" element={only(LEADERS, KITCHEN_RECORDS_API ? <FoodSampleQueuePage /> : <FoodSampleLogPage />)} />
             {KITCHEN_RECORDS_API && <Route path="meal-photos" element={only(LEADERS, <MealPhotosPage />)} />}
-            {KITCHEN_RECORDS_API && <Route path="photo-windows" element={only(LEADERS, <MealPhotoWindowsPage />)} />}
             <Route path="forecast" element={only(LEADERS, FRESH_GOODS_API ? <FreshForecastPage /> : <WeeklyForecastPage />)} />
             {FRESH_GOODS_API && <Route path="forecast/new" element={only(LEADERS, <FreshForecastPage mode="new" />)} />}
             {FRESH_GOODS_API && <Route path="forecast/:id" element={only(LEADERS, <FreshForecastPage mode="detail" />)} />}
@@ -482,13 +474,14 @@ export function AppRoutes() {
             )}
             {/* Nhà cung cấp chuyển sang Danh mục (/menu/suppliers): giữ đường dẫn cũ */}
             <Route path="suppliers" element={<Navigate to="/menu/suppliers" replace />} />
-            <Route path="suppliers/new" element={<Navigate to="/menu/suppliers/new" replace />} />
+            <Route path="suppliers/new" element={<Navigate to="/menu/suppliers" replace />} />
             <Route path="suppliers/:id" element={<SupplierRedirect />} />
-            <Route path="suppliers/:id/edit" element={<SupplierRedirect suffix="/edit" />} />
+            <Route path="suppliers/:id/edit" element={<SupplierRedirect />} />
             <Route path="published-menu" element={only(LEADERS, KITCHEN_RECORDS_API ? <KitchenTodayPage /> : <PublishedMenuPage />)} />
             <Route path="meal-count" element={only(LEADERS, <ConfirmedMealCountPage />)} />
-            <Route path="required-quantity" element={only(VP_ONLY, <RequiredFoodQuantityPage />)} />
-            <Route path="missing-food" element={only(VP_ONLY, <MissingFoodReportPage />)} />
+            <Route path="market-day" element={only(LEADERS, <DayMarketPage />)} />
+            <Route path="required-quantity" element={only(LEADERS, <RequiredFoodQuantityPage />)} />
+            <Route path="missing-food" element={only(LEADERS, <MissingFoodReportPage />)} />
           </Route>
           <Route path="assessment">
             <Route path="daily" element={only(CLASS_STAFF, <DailyAssessmentPage />)} />
@@ -501,9 +494,12 @@ export function AppRoutes() {
             <Route path="children" element={only([...LEADERS, ...CLASS_STAFF], <ChildDevelopmentListPage />)} />
             <Route path="children/:childId" element={only(CLASS_STAFF, <ChildDevelopmentProfilePage />)} />
             <Route path="children/:childId/progress" element={only(LEADERS, <ChildDevelopmentProgressPage />)} />
-            <Route path="periodic" element={only([...LEADERS, ...CLASS_STAFF], <PeriodicEvaluationListPage />)} />
-            <Route path="periodic/:id" element={only([...LEADERS, ...CLASS_STAFF], <PeriodicEvaluationDetailPage />)} />
-            <Route path="periodic/:id/ai-draft" element={only(CLASS_STAFF, <AiEvaluationDraftPage />)} />
+            <Route path="periodic" element={only([...LEADERS, ...CLASS_STAFF], <Navigate to="/assessment/children" replace />)} />
+            <Route path="periodic/:id" element={only([...LEADERS, ...CLASS_STAFF], <Navigate to="/assessment/children" replace />)} />
+            <Route
+              path="periodic/:id/ai-draft"
+              element={only([...LEADERS, ...CLASS_STAFF], <Navigate to="/assessment/children" replace />)}
+            />
             <Route path="semester" element={only([...LEADERS, ...CLASS_STAFF], <SemesterEvaluationListPage />)} />
             <Route path="semester/:id" element={only([...LEADERS, ...CLASS_STAFF], <SemesterEvaluationDetailPage />)} />
             <Route path="semester/:id/ai-draft" element={only(CLASS_STAFF, <AiEvaluationDraftPage />)} />
@@ -532,6 +528,7 @@ export function AppRoutes() {
           <Route path="notifications/:id" element={<NotificationDetailPage />} />
           <Route path="account/profile" element={<ProfilePage />} />
           <Route path="account/password" element={<ChangePasswordPage />} />
+          <Route path="account/signatures" element={<MySignaturesPage />} />
           <Route path="settings/appearance" element={<AppearancePage />} />
           {UiKitPage && <Route path="ui-kit" element={<UiKitPage />} />}
           <Route path="coming-soon/:slug" element={<ComingSoonPage />} />

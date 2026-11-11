@@ -2,9 +2,11 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { Clock } from '@/components/ui/icons';
 import { Breadcrumb, EmptyState, ErrorState, LoadingState } from '@/components';
 import { KbCampusFilter, KbDateFilter } from '@/components/kitchen/KitchenFilters';
+import { useAuth } from '@/contexts/AuthContext';
 import { useStockCampus } from '@/hooks/kitchen/useDryStock';
 import { useMealPhotos, useMealPhotoUrl } from '@/hooks/kitchen/useKitchenRecords';
-import { KITCHEN_RECORD_PAGES, MEAL_SESSION_LABELS } from '@/models/kitchen/kitchenRecordConstants';
+import { KITCHEN_RECORD_PAGES, MEAL_SESSION_LABELS, PHOTO_WINDOWS_SETTING_PATH } from '@/models/kitchen/kitchenRecordConstants';
+import { isPrincipal } from '@/utils/kitchen/kitchenPermissions';
 import { bySession } from '@/utils/kitchen/kitchenRecords';
 import { kitchenCrumbs } from '@/utils/kitchen/breadcrumbs';
 import { formatDate, formatDateTime, formatFileSize, isIsoDate, todayInput } from '@/utils/format';
@@ -36,6 +38,7 @@ function PhotoCard({ photo }) {
 /** Ảnh bữa ăn (`/kitchen/meal-photos`): ảnh bếp đăng theo điểm trường và ngày, tải nội dung qua client có token. */
 export default function MealPhotosPage() {
   const [params, setParams] = useSearchParams();
+  const { user } = useAuth();
   const campus = useStockCampus();
   const date = isIsoDate(params.get('date')) ? params.get('date') : todayInput();
   const photos = useMealPhotos(campus.campusId, date);
@@ -78,17 +81,18 @@ export default function MealPhotosPage() {
       <div className="page__head">
         <div>
           <h1 className="page__title">Ảnh bữa ăn</h1>
-          <p className="page__desc">Ảnh các bữa ăn bếp đã đăng trong ngày {formatDate(date)}.</p>
-        </div>
-        <div className="page__actions">
-          <Link className="btn" to={KITCHEN_RECORD_PAGES.photoWindows.to}>
-            <Clock size={16} /> Khung giờ đăng ảnh
-          </Link>
         </div>
       </div>
       <div className="kb-toolbar">
         <KbDateFilter value={date} onChange={setDate} />
         {campus.campusId && <KbCampusFilter campusId={campus.campusId} onChange={campus.setCampusId} canPick={campus.canPick} />}
+        <div className="kb-toolbar__end">
+          {isPrincipal(user) && (
+            <Link className="btn" to={PHOTO_WINDOWS_SETTING_PATH}>
+              <Clock size={16} /> Giờ đăng ảnh
+            </Link>
+          )}
+        </div>
       </div>
       {body}
     </div>

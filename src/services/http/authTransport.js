@@ -55,7 +55,7 @@ const FORBIDDEN = 1101;
 const isForbidden = (error) => error.response?.status === 403 && error.response?.data?.errorCode === FORBIDDEN;
 // Vẫn 1101 với CSRF mới ở đăng nhập, làm mới phiên, đổi mật khẩu lần đầu ⇒ tài khoản bếp/phụ huynh (AUTH-21)
 const APP_ONLY_PATHS = ['/auth/login', '/auth/refresh', '/auth/password/reset'];
-export const APP_ONLY_MESSAGE = 'Tài khoản này chỉ dùng trên ứng dụng di động CareNest, không đăng nhập được trên trang Web.';
+export const APP_ONLY_MESSAGE = 'Tài khoản này chỉ dùng trên ứng dụng di động CareNest';
 
 const toAuthError = (path, error) => {
   const normalized = normalizeApiError(error);

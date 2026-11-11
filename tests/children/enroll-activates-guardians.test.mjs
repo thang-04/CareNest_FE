@@ -42,7 +42,7 @@ const row = (list) => {
       fullName: `Trẻ thử kích hoạt ${seq}`,
       dateOfBirth: '2023-03-09',
       gender: 'MALE',
-      guardians: list,
+      guardians: list.map((g, i) => ({ ...g, accountRecipient: i === 0 })),
       profile: filledProfile(),
     },
     declaration: { ...emptyDeclaration(), medicalHistory: filledMedicalHistory() },
@@ -55,7 +55,7 @@ beforeEach(() => {
   ensureChildRecordsSeeded();
 });
 
-test('AC-1: lưu form tiếp nhận ⇒ tạo tài khoản cho mọi phụ huynh chưa có, gửi SMS, phụ huynh đang hoạt động', async () => {
+test('AC-1: lưu form tiếp nhận ⇒ tạo tài khoản cho phụ huynh được chọn, gửi SMS, phụ huynh đang hoạt động', async () => {
   const saved = await children.enrollChild(
     { ...row([guardian(1), guardian(2, { fullName: 'Bố kích hoạt', relation: 'Bố' })]), classId: '' },
     VP,
@@ -64,14 +64,14 @@ test('AC-1: lưu form tiếp nhận ⇒ tạo tài khoản cho mọi phụ huynh
     saved.guardianAccounts.map((a) => [a.result, a.smsStatus]),
     [
       ['CREATED', 'SENT'],
-      ['CREATED', 'SENT'],
     ],
   );
   assert.deepEqual(
     saved.guardians.map((g) => g.accountStatus),
-    ['ACTIVE', 'ACTIVE'],
+    ['ACTIVE', 'NOT_ACTIVATED'],
   );
-  [guardian(1), guardian(2)].forEach((g) => assert.ok(accountOfPhone(g.phone).childIds.includes(saved.id)));
+  assert.ok(accountOfPhone(guardian(1).phone).childIds.includes(saved.id));
+  assert.equal(accountOfPhone(guardian(2).phone), undefined);
 });
 
 test('AC-2: phụ huynh có CCCD khớp tài khoản có sẵn ⇒ chỉ liên kết, không tạo tài khoản, không gửi SMS', async () => {
@@ -140,7 +140,6 @@ test('P-18 A: không có quyền kích hoạt ⇒ phụ huynh trùng CCCD chỉ 
     saved.guardianAccounts.map((a) => [a.result, a.phoneChanged]),
     [
       ['LINKED', false],
-      ['NOT_ACTIVATED', false],
     ],
   );
   assert.equal(accountOfPhone(guardian(7).phone), undefined);

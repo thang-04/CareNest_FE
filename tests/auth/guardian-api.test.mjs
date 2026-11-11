@@ -35,6 +35,8 @@ beforeEach(() => {
     if (config.url === '/children')
       return envelope(config, { items: [child(11, 1), child(12, 0)], page: 0, size: 100, totalElements: 2, totalPages: 1 });
     if (config.url === '/children/11/guardians' && method === 'GET') return envelope(config, [guardian(21)]);
+    if (config.url === '/children/12/guardians' && method === 'GET') return envelope(config, []);
+    if (config.url.endsWith('/account-recipient')) return envelope(config, [{ id: 31, accountRecipient: true, fullName: 'Phụ huynh chọn', relation: 'MOTHER', phone: '0900000021' }]);
     if (config.url === '/parent-accounts/21/status')
       throw new AxiosError('Forbidden', AxiosError.ERR_BAD_REQUEST, config, null, {
         status: 403,
@@ -54,10 +56,12 @@ test('cấu trúc: điểm trường từ /campuses, lớp từ /school-structur
   assert.deepEqual(structure.classrooms, [{ id: 7, name: 'Lớp demo', campusId: 1 }]);
 });
 
-test('danh sách trẻ: chỉ đọc phụ huynh của trẻ đã có tài khoản, trẻ BE trả đều thao tác được', async () => {
+test('danh sách trẻ: đọc người được chọn và đếm đúng tài khoản đã liên kết', async () => {
   const page = await guardianApi.searchChildren({ campusId: 1, page: 0, size: 100 });
 
-  assert.deepEqual(calls, ['GET /children?campusId=1&page=0&size=100', 'GET /children/11/guardians']);
+  assert.deepEqual([...calls].sort(), ['GET /children?campusId=1&page=0&size=100', 'GET /children/11/guardians', 'GET /children/12/guardians', 'GET /children/11/account-recipient', 'GET /children/12/account-recipient'].sort());
+  assert.deepEqual(page.items.map(c => c.guardianCount), [1,0]);
+  assert.equal(page.items[1].accountRecipient.fullName, 'Phụ huynh chọn');
   assert.deepEqual(page.items[0].guardians, [guardian(21)]);
   assert.deepEqual(page.items[1].guardians, []);
   assert.ok(page.items.every((item) => item.canManage));
@@ -81,4 +85,9 @@ test('gỡ, khóa, cấp mật khẩu gọi đúng API; lỗi BE trả nguyên d
 
   assert.deepEqual(calls, ['DELETE /children/11/guardians/21', 'POST /parent-accounts/22/temporary-password', 'PATCH /parent-accounts/21/status']);
   assert.deepEqual(bodies, [{ status: 'INACTIVE' }]);
+});
+
+test('kích hoạt gửi guardianId được chọn để máy chủ chặn lựa chọn cũ', async () => {
+  await guardianApi.activateGuardians(11, null, 31);
+  assert.deepEqual(bodies, [{ guardianId: 31 }]);
 });

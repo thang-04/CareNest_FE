@@ -39,15 +39,17 @@ test('ngày nghỉ, ngày ngoài tuần hoặc nhóm tuổi không thuộc khố
   assert.deepEqual(planDayItems(plan, '2026-11-09', 99), []);
 });
 
-test('bộ mẫu lấy món theo tuần và thứ', () => {
+test('mẫu một ngày lấy đủ món của mẫu', () => {
   const template = {
     items: [
-      { weekNo: 2, weekday: 3, session: 'LUNCH', dishId: '7' },
-      { weekNo: 2, weekday: 4, session: 'LUNCH', dishId: '8' },
-      { weekNo: 1, weekday: 3, session: 'LUNCH', dishId: '9' },
+      { session: 'LUNCH', dishId: '7' },
+      { session: 'AFTERNOON', dishId: '8' },
     ],
   };
-  assert.deepEqual(templateDayItems(template, '2', 3), [{ session: 'LUNCH', dishId: 7 }]);
+  assert.deepEqual(templateDayItems(template), [
+    { session: 'LUNCH', dishId: 7 },
+    { session: 'AFTERNOON', dishId: 8 },
+  ]);
 });
 
 test('nhóm tuổi lấy tên từ danh mục, link thống kê bỏ tham số trống', () => {

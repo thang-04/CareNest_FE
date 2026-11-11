@@ -12,6 +12,7 @@ import {
   getTeacherAssignments,
   getTeamLeaders,
   getViceAssignments,
+  getVicePermissions,
   getStaffAccounts,
   getYearReadiness,
   getPlacements,
@@ -67,6 +68,27 @@ export function useCampusDetail(id, schoolYear) {
     enabled: !!id,
   });
   return { detail: data, loading, error, reload };
+}
+
+/** Việc của mọi PHT đang phân công: { [userId]: items }. Thẻ từng người và bảng "Ai phụ trách gì" dùng chung. */
+export function useVicesPermissions(userIds) {
+  const { user } = useAuth();
+  const { data, loading, error, reload } = useAsync(
+    async () => {
+      // Một người lỗi (vd. BE không đọc được tài khoản Keycloak) không làm hỏng thẻ của người khác
+      const results = await Promise.allSettled(userIds.map((id) => getVicePermissions(id, user)));
+      const itemsByUser = {};
+      const errorsByUser = {};
+      results.forEach((result, index) => {
+        if (result.status === 'fulfilled') itemsByUser[userIds[index]] = result.value.items;
+        else errorsByUser[userIds[index]] = result.reason;
+      });
+      return { itemsByUser, errorsByUser };
+    },
+    [userIds.join(','), user?.id],
+    { refreshOnDataChange: true, enabled: userIds.length > 0 },
+  );
+  return { itemsByUser: data?.itemsByUser || {}, errorsByUser: data?.errorsByUser || {}, loading, error, reload };
 }
 
 export function useViceAssignments(schoolYear) {

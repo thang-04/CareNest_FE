@@ -139,6 +139,14 @@ export default function AllergyMenuFormPage() {
       <Breadcrumb items={allergyMenuCrumbs(title)} />
       <h1 className="page__title">{id ? `Sửa thực đơn thay thế ${item?.code || ''}` : title}</h1>
       <form onSubmit={submit} noValidate>
+        <div className="page-actions page-actions--top">
+          <button type="button" className="btn" onClick={() => navigate(id ? `/menu/allergy-menus/${id}` : '/menu/allergy-menus')}>
+            <ArrowLeft size={16} /> Hủy
+          </button>
+          <button type="submit" className="btn btn--primary" disabled={busy}>
+            {busy ? <Spinner small /> : <Save size={16} />} Lưu thực đơn thay thế
+          </button>
+        </div>
         <div className="card wizard-card">
           <div className="card__header">
             <div className="card__title">Nhóm trẻ áp dụng</div>
@@ -324,15 +332,6 @@ export default function AllergyMenuFormPage() {
             </div>
           </div>
         )}
-
-        <div className="page-actions">
-          <button type="button" className="btn" onClick={() => navigate(id ? `/menu/allergy-menus/${id}` : '/menu/allergy-menus')}>
-            <ArrowLeft size={16} /> Hủy
-          </button>
-          <button type="submit" className="btn btn--primary" disabled={busy}>
-            {busy ? <Spinner small /> : <Save size={16} />} Lưu thực đơn thay thế
-          </button>
-        </div>
       </form>
     </div>
   );

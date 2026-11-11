@@ -1,3 +1,5 @@
+import { selectedRecipients, recipientError } from '@/utils/children/accountRecipient';
+import { uid } from '@/utils/id';
 import { readDb, writeDb, clone, ApiError, delay } from '@/mocks/mockDatabase';
 import { childrenMockRepository as children } from '@/services/children/mock/childrenMockRepository';
 import { canActivateParent, canViewChild, canViewChildren, canViewParentAccounts } from '@/utils/children/childrenPermissions';
@@ -32,16 +34,32 @@ const initialize = async (actor) => {
   requireView(actor);
   await children.listChildren({}, actor);
   if (readDb().guardianCompatibilityVersion !== 1) writeDb(migrateGuardianAccounts);
+  if (readDb().recipientSelectionVersion !== 1)
+    writeDb((db) => {
+      for (const child of db.children) {
+        const contacts = child.guardians || [];
+        contacts.forEach((g) => {
+          g.id ||= uid('cg');
+        });
+        if (contacts.some((g) => Object.hasOwn(g, 'accountRecipient'))) continue;
+        const linked = contacts.filter((g) => (accountOf(db, g)?.childIds || []).includes(child.id));
+        const chosen = contacts.length === 1 ? contacts[0] : linked.length === 1 ? linked[0] : null;
+        contacts.forEach((g) => {
+          g.accountRecipient = g === chosen;
+        });
+      }
+      db.recipientSelectionVersion = 1;
+    });
   return readDb();
 };
 const loadChild = (db, id, actor, writing = false) => {
   const child = db.children.find((row) => row.id === id);
-  if (!child || !visible(db, child, actor)) forbid();
+  if (!child || !visible(db, child, actor) || (child.status === 'LEFT' && actor.role !== 'PRINCIPAL')) forbid();
   if (writing && !canActivateParent(child, actor)) forbid();
   return child;
 };
 const guardiansOf = (db, child) =>
-  (child.guardians || []).flatMap((guardian) => {
+  selectedRecipients(child.guardians).flatMap((guardian) => {
     const account = accountOf(db, guardian);
     return account && (account.childIds || []).includes(child.id) ? [parentAccountView(account, guardian)] : [];
   });
@@ -51,7 +69,13 @@ const relatedChildren = (db, account) =>
   );
 const loadAccount = (db, id, actor) => {
   const account = db.parentAccounts.find((row) => row.id === id);
-  if (!account || !relatedChildren(db, account).some((child) => visible(db, child, actor) && canActivateParent(child, actor))) forbid();
+  if (
+    !account ||
+    !relatedChildren(db, account).some(
+      (child) => visible(db, child, actor) && (child.status !== 'LEFT' || actor.role === 'PRINCIPAL') && canActivateParent(child, actor),
+    )
+  )
+    forbid();
   return account;
 };
 const syncStatus = (db, account) =>
@@ -84,6 +108,8 @@ export const guardianMockRepository = {
           classroomId: child.classId || null,
           campusId: child.campusId,
           guardianCount: guardians.length,
+          accountRecipient: selectedRecipients(child.guardians)[0] || null,
+          selectionRequired: !!recipientError(child.guardians),
           guardians,
           canManage: canActivateParent(child, actor),
         };
@@ -96,6 +122,35 @@ export const guardianMockRepository = {
       totalPages: Math.max(1, Math.ceil(rows.length / size)),
     });
   },
+  async getAccountCandidates(childId, actor) {
+    const db = await initialize(actor);
+    return clone(loadChild(db, childId, actor, true).guardians || []);
+  },
+  async selectAccountRecipient(childId, guardianId, actor) {
+    await initialize(actor);
+    return writeDb((db) => {
+      const child = loadChild(db, childId, actor, true);
+      const chosen = child.guardians.find((g) => g.id === guardianId);
+      if (!chosen) throw new ApiError(400, 'Phụ huynh không thuộc hồ sơ trẻ.');
+      const old = child.guardians.find((g) => g.accountRecipient);
+      if (old && old !== chosen && (accountOf(db, old)?.childIds || []).includes(childId))
+        throw new ApiError(409, 'Phụ huynh nhận tài khoản đã được kích hoạt.');
+      if (old !== chosen) {
+        child.guardians.forEach((g) => {
+          g.accountRecipient = g === chosen;
+        });
+        child.history ||= [];
+        child.history.push({
+          action: 'UPDATED',
+          userId: actor.id,
+          at: new Date().toISOString(),
+          note: 'Chọn phụ huynh nhận tài khoản: ' + chosen.fullName,
+          changes: [{ field: 'accountRecipient', from: old?.id || null, to: chosen.id }],
+        });
+      }
+      return null;
+    });
+  },
   async listGuardians(childId, actor) {
     const db = await initialize(actor);
     return clone(guardiansOf(db, loadChild(db, childId, actor)));
@@ -106,6 +161,8 @@ export const guardianMockRepository = {
     const child = loadChild(db, childId, actor);
     return clone(
       pendingGuardiansOf(db, child).map((g) => ({
+        id: g.id,
+        accountRecipient: true,
         fullName: g.fullName,
         relation: g.relation,
         phone: g.phone,
@@ -118,11 +175,13 @@ export const guardianMockRepository = {
     );
   },
   /** Kích hoạt một lần cho mọi phụ huynh chưa có tài khoản của trẻ (user chốt 2026-10-23); lỗi một người thì không tạo ai. */
-  async activateGuardians(childId, actor) {
+  async activateGuardians(childId, actor, guardianId) {
     await initialize(actor);
     return writeDb((db) => {
       const child = loadChild(db, childId, actor, true);
-      if (!pendingGuardiansOf(db, child).length) throw new ApiError(409, 'Mọi phụ huynh trên hồ sơ của trẻ đã có tài khoản.');
+      const chosen = selectedRecipients(child.guardians);
+      if (recipientError(child.guardians) || (guardianId && chosen[0].id !== guardianId))
+        throw new ApiError(409, 'Người nhận tài khoản đã thay đổi. Tải lại và chọn đúng phụ huynh.');
       return clone(activatePendingGuardians(db, child));
     });
   },

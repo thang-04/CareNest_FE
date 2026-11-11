@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Check, Printer } from '@/components/ui/icons';
-import { Breadcrumb, EmptyState, ErrorState, LoadingState, Modal, PrintToolbar } from '@/components';
+import { Check, Download, Printer } from '@/components/ui/icons';
+import { Breadcrumb, EmptyState, ErrorState, LoadingState, Modal, PrintPaperFit, PrintToolbar } from '@/components';
 import { KbCampusFilter, KbDateFilter } from '@/components/kitchen/KitchenFilters';
 import { FoodSampleFormPrint } from '@/components/kitchen/FoodSampleFormPrint';
 import { SampleDisposalBadge, SampleStatusBadge } from '@/components/kitchen/SampleRecordBadges';
@@ -12,6 +12,8 @@ import { KITCHEN_RECORD_PAGES, MEAL_SESSION_LABELS } from '@/models/kitchen/kitc
 import { kitchenRecordsApi } from '@/services/kitchenRecordsApi';
 import { daysBefore, isPendingApproval, nextApproval, printableSamples, sortSamples } from '@/utils/kitchen/kitchenRecords';
 import { kitchenCrumbs } from '@/utils/kitchen/breadcrumbs';
+import { foodSampleCsvRows } from '@/utils/kitchen/kitchenExport';
+import { exportWithPreview } from '@/components/ui/ExportPreview';
 import { formatDate, formatDateTime, isIsoDate, todayInput } from '@/utils/format';
 import '@/styles/modules/kitchen.css';
 import '@/styles/modules/kitchen-records.css';
@@ -45,7 +47,7 @@ function SampleRow({ sample, busy, onApprove }) {
           <div className="text-xs muted">Hủy được từ {formatDateTime(sample.disposableFrom)}</div>
         )}
       </td>
-      <td>
+      <td className="cell--actions">
         {next && (
           <button type="button" className="btn btn--sm btn--primary" disabled={busy} onClick={() => onApprove(sample, next)}>
             <Check size={14} /> {next === 'sample' ? 'Duyệt lưu mẫu' : 'Duyệt hủy mẫu'}
@@ -139,9 +141,7 @@ export default function FoodSampleQueuePage() {
                 <th>Lấy mẫu lúc</th>
                 <th>Lưu mẫu</th>
                 <th>Hủy mẫu</th>
-                <th>
-                  <span className="sr-only">Duyệt</span>
-                </th>
+                <th className="cell--actions">Thao tác</th>
               </tr>
             </thead>
             <tbody>
@@ -160,14 +160,6 @@ export default function FoodSampleQueuePage() {
       <div className="page__head">
         <div>
           <h1 className="page__title">Lưu mẫu thức ăn</h1>
-          <p className="page__desc">
-            Duyệt bản lưu mẫu và hủy mẫu bếp đã ghi, từ {formatDate(from)} đến {formatDate(to)}.
-          </p>
-        </div>
-        <div className="page__actions">
-          <button type="button" className="btn" disabled={!printable.length} onClick={() => setPrinting(true)}>
-            <Printer size={16} /> In biểu mẫu
-          </button>
         </div>
       </div>
       <div className="kb-toolbar">
@@ -185,19 +177,32 @@ export default function FoodSampleQueuePage() {
             <option value="pending">Chỉ việc chờ duyệt</option>
           </select>
         </label>
+        <div className="kb-toolbar__end">
+          <button
+            type="button"
+            className="btn"
+            disabled={!rows.length}
+            onClick={() => exportWithPreview(foodSampleCsvRows(rows), `so-luu-mau-${from}-${to}.xlsx`)}
+          >
+            <Download size={16} /> Xuất Excel
+          </button>
+          <button type="button" className="btn" disabled={!printable.length} onClick={() => setPrinting(true)}>
+            <Printer size={16} /> In biểu mẫu
+          </button>
+        </div>
       </div>
       {body}
       <Modal
         open={printing}
         onClose={() => setPrinting(false)}
         size="xl"
-        className="kb-print-modal"
+        className="print-modal"
         title="Sổ lưu và hủy mẫu thức ăn"
         footer={<PrintToolbar sheetRef={sheetRef} fileBase={`So_luu_mau_${from}_${to}`} printLabel="In" />}
       >
-        <div className="print-preview__paper">
+        <PrintPaperFit>
           <FoodSampleFormPrint ref={sheetRef} samples={printable} campusName={printCampus} from={from} to={to} />
-        </div>
+        </PrintPaperFit>
       </Modal>
     </div>
   );

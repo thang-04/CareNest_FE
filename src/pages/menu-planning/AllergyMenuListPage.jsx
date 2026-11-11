@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { clickableRowProps } from '@/utils/clickableRow';
 import { Link, useNavigate } from 'react-router-dom';
 import { Plus, RotateCcw, ShieldCheck, ShieldAlert } from '@/components/ui/icons';
 import { useAllergyContext, useAllergyMenus, useMenuAccess, useMenuCatalog } from '@/hooks/menu-planning/useMenuPlanning';
@@ -148,7 +149,7 @@ export default function AllergyMenuListPage() {
                       .flatMap((r) => r.classes.filter((c) => c.ageGroupId === a.ageGroupId));
                     const childCount = concerned.reduce((s, c) => s + c.count, 0);
                     return (
-                      <tr key={a.id} className="row-click" onClick={() => navigate(`/menu/allergy-menus/${a.id}`)}>
+                      <tr key={a.id} className="row-click" {...clickableRowProps(() => navigate(`/menu/allergy-menus/${a.id}`))}>
                         <td className="fw-600 text-primary nowrap">{a.code}</td>
                         <td className="td-cell-wrap">{a.name}</td>
                         <td className="text-sm">{base ? `${base.code}` : '—'}</td>
@@ -162,11 +163,7 @@ export default function AllergyMenuListPage() {
                           <RecordStatusBadge status={a.status} />
                         </td>
                         <td className="cell--actions" onClick={(e) => e.stopPropagation()}>
-                          <RowActions
-                            view={{ to: `/menu/allergy-menus/${a.id}` }}
-                            edit={canManage ? { to: `/menu/allergy-menus/${a.id}/edit` } : null}
-                            name={a.code}
-                          />
+                          <RowActions edit={canManage ? { to: `/menu/allergy-menus/${a.id}/edit` } : null} name={a.code} />
                         </td>
                       </tr>
                     );

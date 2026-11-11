@@ -101,7 +101,14 @@ export function computeMarket(db, { date, counts, classById }) {
         const base = Object.hasOwn(counts, meal.code) ? meal.code : counts[mapped] ? mapped : 'LUNCH';
         const sv = servings[ag][base];
         if (!items.length || !sv) return;
-        meals.push({ ageGroupId: ag, code: meal.code, name: meal.name, countAs: base, servings: sv.normal + sv.substitute });
+        meals.push({
+          ageGroupId: ag,
+          code: meal.code,
+          name: meal.name,
+          countAs: base,
+          servings: sv.normal + sv.substitute,
+          dishes: items.map((it) => dishById[it.dishId]?.name).filter(Boolean),
+        });
         if (meal.code !== base) countedBy.push(`${meal.name} (${groupName(ag)}) tính theo số suất ${COUNTED_LABEL[base]}`);
         if (sv.substitute && !allergyMenus.length) subsWithoutMenu = true;
         items.forEach((it) => {
@@ -132,7 +139,7 @@ export function computeMarket(db, { date, counts, classById }) {
       const purchaseUnit = f.purchaseUnit || f.unit || '';
       const buyUnits = roundUp(buy / (Number(f.purchaseUnitSize) || 1), purchaseStep(purchaseUnit));
       // Xuất kho tính theo đơn vị kho (BA 02); thực phẩm cũ đơn vị kho = đơn vị mua nên trùng buyUnits
-      const { stockUnit, stockUnitSize } = foodUnits(f);
+      const { stockUnit, stockUnitSize, purchaseToStock } = foodUnits(f);
       const stockUnits = roundUp(buy / stockUnitSize, purchaseStep(stockUnit));
       const unitPrice = typeof f.unitPrice === 'number' ? f.unitPrice : null;
       return {
@@ -148,6 +155,8 @@ export function computeMarket(db, { date, counts, classById }) {
         stockUnit,
         stockUnits,
         unitPrice,
+        // Giá một đơn vị kho, quy từ giá một đơn vị mua (dùng khi tính tiền đồ khô xuất kho)
+        stockUnitPrice: unitPrice == null ? null : Math.round(unitPrice / purchaseToStock),
         amount: unitPrice == null ? null : Math.round(buyUnits * unitPrice),
       };
     })

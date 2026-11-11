@@ -1,8 +1,8 @@
 import { useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Printer, Trash2 } from '@/components/ui/icons';
-import { Breadcrumb, ConfirmationModal, EmptyState, ErrorState, LoadingState, Modal, PrintToolbar } from '@/components';
-import { ForecastCountsTable, ForecastLinesTable } from '@/components/kitchen/FreshForecastTables';
+import { Breadcrumb, ConfirmationModal, EmptyState, ErrorState, LoadingState, Modal, PrintPaperFit, PrintToolbar } from '@/components';
+import { ForecastCountsTable, ForecastDryCard, ForecastLinesTable } from '@/components/kitchen/FreshForecastTables';
 import { FreshForecastPrint } from '@/components/kitchen/FreshForecastPrint';
 import { useToast } from '@/contexts/ToastContext';
 import { useFreshForecast } from '@/hooks/kitchen/useFreshGoods';
@@ -11,7 +11,7 @@ import { kitchenCrumbs, KITCHEN_PAGES } from '@/utils/kitchen/breadcrumbs';
 import { personName } from '@/utils/kitchen/stockLots';
 import { formatDate, formatDateTime } from '@/utils/format';
 
-/** Một bản dự trù đã lưu: số trẻ, bảng thực phẩm theo ngày, in danh sách đặt hàng, xóa (có xác nhận). */
+/** Một bản dự trù đã lưu: số trẻ, hàng tươi theo ngày, hàng khô cần nhập thêm, in danh sách đặt hàng, xóa (có xác nhận). */
 export function FreshForecastDetail({ campus }) {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -26,7 +26,7 @@ export function FreshForecastDetail({ campus }) {
   const campusId = forecast ? String(forecast.campusId) : campus.campusId;
   const listPath = `/kitchen/forecast${campusId ? `?campusId=${campusId}` : ''}`;
   const campusName = campus.campuses.find((c) => String(c.id) === campusId);
-  const title = forecast ? `Bản dự trù ${formatDate(forecast.periodFrom)} – ${formatDate(forecast.periodTo)}` : 'Bản dự trù hàng tươi';
+  const title = forecast ? `Bản dự trù ${formatDate(forecast.periodFrom)} – ${formatDate(forecast.periodTo)}` : 'Bản dự trù';
 
   const remove = async () => {
     try {
@@ -57,9 +57,9 @@ export function FreshForecastDetail({ campus }) {
             <ForecastCountsTable counts={forecast.counts} />
           </section>
         )}
-        <section className="card">
+        <section className="card mb-16">
           <div className="card__header">
-            <div className="card__title">Thực phẩm cần đặt</div>
+            <div className="card__title">Hàng tươi cần đặt</div>
           </div>
           {forecast.lines.length ? (
             <ForecastLinesTable forecast={forecast} />
@@ -70,6 +70,7 @@ export function FreshForecastDetail({ campus }) {
             />
           )}
         </section>
+        <ForecastDryCard forecast={forecast} />
       </>
     );
 
@@ -91,7 +92,12 @@ export function FreshForecastDetail({ campus }) {
                 <Trash2 size={16} /> Xóa bản dự trù
               </button>
             )}
-            <button type="button" className="btn" disabled={!forecast.lines.length} onClick={() => setPrinting(true)}>
+            <button
+              type="button"
+              className="btn"
+              disabled={!forecast.lines.length && !forecast.dryLines.length}
+              onClick={() => setPrinting(true)}
+            >
               <Printer size={16} /> In danh sách đặt hàng
             </button>
           </div>
@@ -103,13 +109,13 @@ export function FreshForecastDetail({ campus }) {
           open={printing}
           onClose={() => setPrinting(false)}
           size="xl"
-          className="kb-print-modal"
-          title="Danh sách đặt hàng tươi"
-          footer={<PrintToolbar sheetRef={sheetRef} fileBase={`Dat_hang_tuoi_${forecast.periodFrom}`} printLabel="In danh sách" />}
+          className="print-modal"
+          title="Danh sách đặt hàng"
+          footer={<PrintToolbar sheetRef={sheetRef} fileBase={`Dat_hang_${forecast.periodFrom}`} printLabel="In danh sách" />}
         >
-          <div className="print-preview__paper">
+          <PrintPaperFit>
             <FreshForecastPrint ref={sheetRef} forecast={forecast} campusName={campusName?.shortName || campusName?.name} />
-          </div>
+          </PrintPaperFit>
         </Modal>
       )}
       <ConfirmationModal

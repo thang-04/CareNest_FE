@@ -1,3 +1,5 @@
+import { ChildAvatar } from '@/components/ChildAvatar';
+import { PortraitImage } from '@/components/PortraitImage';
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, Pencil, LayoutGrid, HeartPulse, LineChart, ClipboardList, KeyRound, AlertTriangle } from '@/components/ui/icons';
@@ -9,7 +11,7 @@ import { LoadingState } from '@/components/ui/States';
 import { ChildStatusBadge } from '@/components/children/ChildBadges';
 import { ChildAccessState } from '@/components/children/ChildAccessState';
 import { CHILD_STATUS, GENDER_LABELS, ageGroupById, ageLabel } from '@/models/School';
-import { avatarTone, formatDate, formatDateTime, initials } from '@/utils/format';
+import { formatDate, formatDateTime } from '@/utils/format';
 import { canEditChild, canPlaceChild } from '@/utils/children/childrenPermissions';
 import { ChildProfileSummary } from '@/components/children/ChildProfileSummary';
 import { canActivateParent, canRecordMeasurement, canViewParentAccounts } from '@/utils/children/childrenPermissions';
@@ -62,9 +64,7 @@ export default function ChildProfilePage() {
       <Breadcrumb items={crumbs} />
       <div className="page__head">
         <div className="row gap-4">
-          <span className={`avatar avatar--xl avatar--tone-${avatarTone(child.fullName)}`} aria-hidden="true">
-            {initials(child.fullName)}
-          </span>
+          <ChildAvatar child={child} size="xl" />
           <div className="stack gap-1">
             <div className="row row--wrap gap-3">
               <h1 className="page__title">{child.fullName}</h1>
@@ -203,7 +203,16 @@ export default function ChildProfilePage() {
                     <tbody>
                       {child.guardians.map((g) => (
                         <tr key={`${g.phone}${g.fullName}`}>
-                          <td className="fw-600">{g.fullName}</td>
+                          <td>
+                            <span className="row gap-3 fw-600">
+                              <PortraitImage
+                                source={g.photoUrl}
+                                alt={`Ảnh của ${g.fullName}`}
+                                className="avatar avatar--lg avatar--photo"
+                              />
+                              {g.fullName}
+                            </span>
+                          </td>
                           <td>{g.relation}</td>
                           <td className="nowrap">{g.phone ? <a href={`tel:${g.phone}`}>{g.phone}</a> : missing}</td>
                           <td className="nowrap">{g.idNumber || missing}</td>

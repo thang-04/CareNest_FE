@@ -6,7 +6,7 @@ import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { useTicketSummary } from '@/hooks/assessment/useAssessment';
 import { periodLabel } from '@/utils/assessment/assessmentPeriods';
 import { PERIOD_TYPE } from '@/models/assessment/assessmentConstants';
-import { downloadXlsx } from '@/utils/exportXlsx';
+import { exportWithPreview } from '@/components/ui/ExportPreview';
 
 const monthText = (m) => periodLabel(PERIOD_TYPE.MONTH, m, m);
 
@@ -33,7 +33,7 @@ export function TicketSummary({ classId }) {
   const rangeText = month ? monthText(month) : 'cả năm học';
 
   const exportCsv = () =>
-    downloadXlsx(
+    exportWithPreview(
       [
         [`Tổng hợp phiếu bé ngoan ${summary.cls.name} – ${rangeText}`],
         ['Mã trẻ', 'Họ tên', 'Bé ngoan', 'Bé ngoan toàn diện', 'Cờ bé ngoan'],
@@ -92,7 +92,7 @@ export function TicketSummary({ classId }) {
           <table className="table table--grid">
             <thead>
               <tr>
-                <th className="center dg-col-no">STT</th>
+                <th className="num dg-col-no">STT</th>
                 <th>Trẻ</th>
                 <th className="num">Bé ngoan</th>
                 <th className="num">Bé ngoan toàn diện</th>
@@ -111,7 +111,7 @@ export function TicketSummary({ classId }) {
               ) : (
                 rows.map((r, i) => (
                   <tr key={r.child.id}>
-                    <td className="center muted">{i + 1}</td>
+                    <td className="num muted">{i + 1}</td>
                     <td>
                       <ChildNameCell child={r.child} />
                     </td>

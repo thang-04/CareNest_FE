@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Plus } from '@/components/ui/icons';
+import { Plus, ShoppingBasket } from '@/components/ui/icons';
 import { Breadcrumb, EmptyState, ErrorState, LoadingState } from '@/components';
+import { FreshForecastCreateModal } from '@/components/kitchen/FreshForecastCreateModal';
 import { KbCampusFilter } from '@/components/kitchen/KitchenFilters';
 import { useCanManageStock } from '@/hooks/kitchen/useDryStock';
 import { useFreshForecasts } from '@/hooks/kitchen/useFreshGoods';
@@ -8,15 +10,22 @@ import { kitchenCrumbs, KITCHEN_PAGES } from '@/utils/kitchen/breadcrumbs';
 import { clickableRowProps } from '@/utils/clickableRow';
 import { formatDate, formatDateTime } from '@/utils/format';
 
-/** Các bản dự trù hàng tươi đã lưu của một điểm trường, mới nhất trước; mở một bản để xem, in hoặc xóa. */
-export function FreshForecastList({ campus }) {
+/** Các bản dự trù đã lưu của một điểm trường, mới nhất trước; mở một bản để xem, in hoặc xóa. */
+export function FreshForecastList({ campus, autoOpen = false }) {
   const navigate = useNavigate();
   const canManage = useCanManageStock();
   const forecasts = useFreshForecasts(campus.campusId);
+  // autoOpen: vào từ đường dẫn /forecast/new ⇒ mở sẵn hộp lập bản dự trù
+  const [creating, setCreating] = useState(autoOpen && canManage);
+  const listPath = `/kitchen/forecast?campusId=${campus.campusId}`;
+  const closeCreate = () => {
+    setCreating(false);
+    if (autoOpen) navigate(listPath, { replace: true });
+  };
   const create = (
-    <Link className="btn btn--primary" to={`/kitchen/forecast/new?campusId=${campus.campusId}`}>
+    <button type="button" className="btn btn--primary" onClick={() => setCreating(true)}>
       <Plus size={16} /> Lập bản dự trù
-    </Link>
+    </button>
   );
 
   let body;
@@ -25,7 +34,7 @@ export function FreshForecastList({ campus }) {
   else if (!forecasts.data.length)
     body = (
       <EmptyState
-        title="Chưa có bản dự trù hàng tươi"
+        title="Chưa có bản dự trù"
         description="Lập bản dự trù cho một kỳ để biết cần đặt bao nhiêu hàng tươi và làm căn cứ kiểm nhận lần 1."
         action={canManage && create}
       />
@@ -67,17 +76,26 @@ export function FreshForecastList({ campus }) {
       <Breadcrumb items={kitchenCrumbs(KITCHEN_PAGES.forecast)} />
       <div className="page__head">
         <div>
-          <h1 className="page__title">Bản dự trù hàng tươi</h1>
-          <p className="page__desc">
-            Lượng hàng tươi cần đặt theo kỳ, tính từ thực đơn và số trẻ dự kiến. Dùng làm căn cứ kiểm nhận lần 1.
-          </p>
+          <h1 className="page__title">Bản dự trù</h1>
         </div>
-        {canManage && <div className="page__actions">{create}</div>}
       </div>
       <div className="kb-toolbar">
         <KbCampusFilter campusId={campus.campusId} onChange={campus.setCampusId} canPick={campus.canPick} />
+        <div className="kb-toolbar__end">
+          <Link className="btn" to={`/kitchen/market-day?campusId=${campus.campusId}`}>
+            <ShoppingBasket size={16} /> Đi chợ theo ngày
+          </Link>
+          {canManage && create}
+        </div>
       </div>
       <section className="card">{body}</section>
+      {creating && (
+        <FreshForecastCreateModal
+          campusId={campus.campusId}
+          onClose={closeCreate}
+          onSaved={(id) => navigate(`/kitchen/forecast/${id}?campusId=${campus.campusId}`, { replace: true })}
+        />
+      )}
     </div>
   );
 }

@@ -16,7 +16,7 @@ const { guardianMockRepository: guardians } = await import('@/services/account/m
 
 /*
  * Kích hoạt tài khoản phụ huynh theo hồ sơ trẻ (user chốt 2026-10-23): thông tin lấy từ hồ sơ, không nhập ở màn tài khoản;
- * trẻ có 2 phụ huynh thì kích hoạt một lần tạo cả 2. Dữ liệu giả của seed (CCCD bắt đầu bằng 999).
+ * trẻ có 2 phụ huynh thì kích hoạt một lần tạo cho người được chọn. Dữ liệu giả của seed (CCCD bắt đầu bằng 999).
  */
 const VP = { id: 'u_lan', role: 'VICE_PRINCIPAL', campusId: 'c1' };
 const TEACHER = { id: 'u_minhanh', role: 'TEACHER', campusId: 'c1' };
@@ -34,6 +34,7 @@ beforeEach(() => {
     const target = d.children.find((c) => c.id === base.id);
     target.guardians.push({
       fullName: 'Phụ huynh thứ hai (giả)',
+      accountRecipient: true,
       relation: 'Ông',
       phone: '0900 000 301',
       idNumber: '999900000301',
@@ -46,20 +47,20 @@ beforeEach(() => {
 
 test('phụ huynh chưa có tài khoản lấy từ hồ sơ trẻ; kích hoạt một lần tạo cả 2, mật khẩu tạm gửi qua SMS', async () => {
   const pending = await guardians.listPendingGuardians(child.id, VP);
-  assert.equal(pending.length, 2);
+  assert.equal(pending.length, 1);
   assert.deepEqual(
     pending.map((p) => [p.fullName, p.relation, digits(p.phone)]),
-    child.guardians.map((g) => [g.fullName, g.relation, digits(g.phone)]),
+    child.guardians.filter((g) => g.accountRecipient).map((g) => [g.fullName, g.relation, digits(g.phone)]),
   );
   assert.ok(pending.every((p) => p.problems.length === 0 && !p.hasAccount));
   const results = await guardians.activateGuardians(child.id, VP);
-  assert.equal(results.length, 2);
+  assert.equal(results.length, 1);
   // Không trả mật khẩu về giao diện, không in phiếu (user bỏ màn in phiếu 2026-10-23).
   assert.ok(results.every((r) => r.newAccount && r.smsStatus === 'SENT' && !('temporaryPassword' in r)));
-  assert.equal(results[1].relation, 'Ông', 'giữ quan hệ như hồ sơ');
+  assert.equal(results[0].relation, 'Ông', 'giữ quan hệ như hồ sơ');
   assert.equal((await guardians.listPendingGuardians(child.id, VP)).length, 0);
-  assert.equal((await guardians.listGuardians(child.id, VP)).length, 2);
-  await assert.rejects(guardians.activateGuardians(child.id, VP), (err) => err.status === 409);
+  assert.equal((await guardians.listGuardians(child.id, VP)).length, 1);
+  assert.deepEqual(await guardians.activateGuardians(child.id, VP), []);
 });
 
 test('một phụ huynh thiếu CCCD trên hồ sơ ⇒ 400, không tạo tài khoản nào; giáo viên không kích hoạt được', async () => {
@@ -67,7 +68,7 @@ test('một phụ huynh thiếu CCCD trên hồ sơ ⇒ 400, không tạo tài k
     d.children.find((c) => c.id === child.id).guardians[1].idNumber = '';
   });
   const pending = await guardians.listPendingGuardians(child.id, VP);
-  assert.ok(pending[1].problems.length > 0);
+  assert.ok(pending[0].problems.length > 0);
   const before = readDb().parentAccounts.length;
   await assert.rejects(guardians.activateGuardians(child.id, VP), (err) => err.status === 400);
   assert.equal(readDb().parentAccounts.length, before, 'không tạo tài khoản cho người còn lại');
@@ -77,7 +78,7 @@ test('một phụ huynh thiếu CCCD trên hồ sơ ⇒ 400, không tạo tài k
 test('Hiệu trưởng kích hoạt được (toàn trường, user chốt 2026-10-23)', async () => {
   const PRINCIPAL = { id: 'u_hung', role: 'PRINCIPAL', campusId: null };
   const results = await guardians.activateGuardians(child.id, PRINCIPAL);
-  assert.equal(results.length, 2);
+  assert.equal(results.length, 1);
   const row = (await guardians.searchChildren({ campusId: child.campusId }, PRINCIPAL)).items.find((r) => r.id === child.id);
   assert.equal(row.canManage, true);
 });

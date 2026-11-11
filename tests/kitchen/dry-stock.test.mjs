@@ -45,8 +45,8 @@ test('kho khô xem chung: HT và PHT thấy cả hai cơ sở, chỉ đồ khô,
   });
   const forPrincipal = await repo.getDryStock(PRINCIPAL);
   assert.ok(
-    forPrincipal.campuses.every((c) => !c.canWrite),
-    'HT chỉ xem',
+    forPrincipal.campuses.every((c) => c.canWrite),
+    'HT có sẵn STOCK_MANAGE nên ghi được ở cả hai cơ sở',
   );
   await rejects(repo.getDryStock(COOK_A), 403);
 });
@@ -71,7 +71,7 @@ test('phiếu nhập: bắt NCC, lô, hạn, giá; chỉ đồ khô; PHT nhập 
   await rejects(repo.createStockReceipt({ ...base, items: [{ ...line, expiryDate: '2026-08-01' }] }, VP), 422);
   await rejects(repo.createStockReceipt({ ...base, items: [{ ...line, expiryDate: '' }] }, VP), 422);
   await rejects(repo.createStockReceipt({ ...base, items: [{ ...line, foodId: fresh.id }] }, VP), 422);
-  await rejects(repo.createStockReceipt(base, PRINCIPAL), 403);
+  await rejects(repo.createStockReceipt(base, COOK_A), 403);
 
   const before = stockOf('c2', food.foodId);
   const receipt = await repo.createStockReceipt(base, VP);

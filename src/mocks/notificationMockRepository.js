@@ -20,8 +20,10 @@ export const pushNotification = (db, { userId, type, title, message, link }) => 
 const ensureDemoNotifications = () => {
   if (!needsMockSeedMigration(readDb(), 'notifications', DEMO_NOTIFICATION_VERSION, ['notifications'])) return;
   writeDb((db) => {
-    const has = new Set((db.notifications || []).map((n) => n.id));
-    db.notifications = [...(db.notifications || []), ...buildDemoNotifications().filter((n) => !has.has(n.id))].sort((a, b) =>
+    // Phiếu theo dõi sức khỏe đã bỏ (HLT-16, 2026-11-04): xóa thông báo cũ trỏ tới màn không còn, kể cả bản demo cùng id.
+    const kept = (db.notifications || []).filter((n) => n.type !== 'HEALTH_FOLLOW_UP');
+    const has = new Set(kept.map((n) => n.id));
+    db.notifications = [...kept, ...buildDemoNotifications().filter((n) => !has.has(n.id))].sort((a, b) =>
       b.createdAt.localeCompare(a.createdAt),
     );
     db.mockSeedVersions = {

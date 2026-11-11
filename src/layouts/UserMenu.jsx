@@ -4,6 +4,7 @@ import { CaretUpDown, ArrowCounterClockwise, SignOut, Palette, UserCircle, Key, 
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useClickOutside } from '@/hooks/useClickOutside';
+import { useAccountScope } from '@/hooks/account/useAccountScope';
 import { IS_DEMO_MODE, resetDemoData } from '@/services/authService';
 import { ROLE_LABELS } from '@/models/User';
 import { Avatar } from '@/components/ui/Avatar';
@@ -13,6 +14,7 @@ import { useGuardedNavigate } from '@/hooks/useLeaveGuard';
 /** Account box ở đáy sidebar: profile info, own profile / password links, developer links, logout. Menu mở lên trên. */
 export function UserMenu({ collapsed = false }) {
   const { user, logout } = useAuth();
+  const scope = useAccountScope();
   const toast = useToast();
   // Chuyển màn từ menu hỏi trước nếu màn đang có thay đổi chưa lưu; sau đăng xuất thì đi thẳng
   const navigate = useGuardedNavigate();
@@ -59,13 +61,15 @@ export function UserMenu({ collapsed = false }) {
         <Avatar user={user} />
         <div className="user-box__text">
           <div className="user-box__name">{user.fullName}</div>
-          <div className="user-box__role">{ROLE_LABELS[user.role]}</div>
+          <div className="user-box__role" title={[ROLE_LABELS[user.role], scope.campusFull].filter(Boolean).join(' · ')}>
+            {[ROLE_LABELS[user.role], scope.campus].filter(Boolean).join(' · ')}
+          </div>
         </div>
         <CaretUpDown size={16} className="user-box__caret" />
       </button>
       {open && (
         <div className="dropdown__panel user-panel" role="menu">
-          {/* Tên, vai trò đã hiện ở hộp tài khoản; panel chỉ giữ email để biết đang đăng nhập tài khoản nào */}
+          {/* Tên, vai trò, điểm trường đã hiện ở hộp tài khoản; panel chỉ giữ email để biết đang đăng nhập tài khoản nào */}
           <div className="user-panel__email" title={user.email}>
             {user.email}
           </div>

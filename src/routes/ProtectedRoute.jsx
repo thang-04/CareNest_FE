@@ -24,6 +24,7 @@ export function ProtectedRoute() {
     return (
       <StandaloneStatus
         kind="403"
+        autoBack={false}
         title="Tài khoản chưa có màn hình phù hợp"
         description="Bạn đã đăng nhập thành công. Vui lòng liên hệ nhà trường hoặc dùng tài khoản khác để truy cập trang Web."
         action={

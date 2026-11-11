@@ -16,7 +16,7 @@ import { useAttendanceClasses, useAttendanceSummary, useAttendanceYear } from '@
 import { validateSummaryRange } from '@/utils/attendance/attendanceValidation';
 import { addDays } from '@/utils/attendance/attendanceTime';
 import { attendanceCrumbs } from '@/utils/attendance/breadcrumbs';
-import { downloadXlsx } from '@/utils/exportXlsx';
+import { exportWithPreviewWorkbook } from '@/components/ui/ExportPreview';
 import { formatDate, isIsoDate } from '@/utils/format';
 import '@/styles/modules/attendance.css';
 
@@ -97,21 +97,23 @@ export default function AttendanceSummaryPage() {
     if (next) applyRange(next);
   };
 
-  const exportCsv = () => {
+  const exportExcel = () => {
     if (!summary) return;
     const head = ['Ngày', 'Có mặt', 'Vắng có phép', 'Vắng không phép', 'Chưa điểm danh', 'Lượt trẻ ăn', 'Trong đó ăn suất thay thế'];
     const rows = summary.days.map((d) => [formatDate(d.date), d.present, d.excused, d.unexcused, d.missing, d.mealTotal, d.substitute]);
-    // Nhiều lớp: thêm bảng theo lớp sau bảng theo ngày
-    const byClass = multi
-      ? [
-          [],
-          ['Lớp', 'Điểm trường', 'Sĩ số', 'Có mặt', 'Vắng có phép', 'Vắng không phép', 'Lượt trẻ ăn'],
-          ...summary.classes.map((c) => [c.className, campusName(c.campusId), c.size, c.present, c.excused, c.unexcused, c.meals]),
-        ]
-      : [];
+    const detailHead = multi
+      ? ['Lớp', 'Điểm trường', 'Sĩ số', 'Có mặt', 'Vắng có phép', 'Vắng không phép', 'Lượt trẻ ăn']
+      : ['Trẻ', 'Có mặt', 'Vắng có phép', 'Vắng không phép', 'Lượt trẻ ăn'];
+    const detailRows = multi
+      ? summary.classes.map((c) => [c.className, campusName(c.campusId), c.size, c.present, c.excused, c.unexcused, c.meals])
+      : summary.children.map((c) => [c.child.fullName, c.present, c.excused, c.unexcused, c.meals]);
+    const title = [`Tổng hợp điểm danh ${scopeName} ${formatDate(range.from)} – ${formatDate(range.to)}`];
     const slug = (classId ? summary.className : campusId ? campusName(campusId) : 'toan-truong').replace(/\s+/g, '-');
-    downloadXlsx(
-      [[`Tổng hợp điểm danh ${scopeName} ${formatDate(range.from)} – ${formatDate(range.to)}`], head, ...rows, ...byClass],
+    exportWithPreviewWorkbook(
+      [
+        { sheetName: 'Theo ngày', rows: [title, head, ...rows], headerRow: 1 },
+        { sheetName: multi ? 'Theo lớp' : 'Theo trẻ', rows: [title, detailHead, ...detailRows], headerRow: 1 },
+      ],
       `diem-danh-${slug}-${range.from}-${range.to}.xlsx`,
     );
   };
@@ -138,7 +140,7 @@ export default function AttendanceSummaryPage() {
           )}
         </div>
         {summary?.days.length > 0 && (
-          <button className="btn mt-8" onClick={exportCsv}>
+          <button className="btn mt-8" onClick={exportExcel}>
             <Download size={16} /> Xuất Excel
           </button>
         )}
@@ -306,7 +308,7 @@ export default function AttendanceSummaryPage() {
                       <span className="dd-stat__value">{totals.meals}</span>
                       <span
                         className="dd-stat__label"
-                        title="Số lượt trẻ có ăn trong ngày (mỗi trẻ 1 lượt/ngày); số suất theo bữa xem ở Sổ báo ăn"
+                        title="Số lượt trẻ có ăn trong ngày (mỗi trẻ 1 lượt/ngày); số suất theo bữa xem ở Sổ suất ăn"
                       >
                         Lượt trẻ ăn
                       </span>
@@ -329,7 +331,7 @@ export default function AttendanceSummaryPage() {
                           <th className="num">Có phép</th>
                           <th className="num">Không phép</th>
                           <th className="num">Chưa ĐD</th>
-                          <th className="num" title="Mỗi trẻ có ăn 1 lượt/ngày; số suất theo bữa xem ở Sổ báo ăn">
+                          <th className="num" title="Mỗi trẻ có ăn 1 lượt/ngày; số suất theo bữa xem ở Sổ suất ăn">
                             Lượt trẻ ăn
                           </th>
                         </tr>
@@ -410,7 +412,7 @@ export default function AttendanceSummaryPage() {
                             <th className="num">Có mặt</th>
                             <th className="num">Có phép</th>
                             <th className="num">Không phép</th>
-                            <th className="num" title="Mỗi trẻ có ăn 1 lượt/ngày; số suất theo bữa xem ở Sổ báo ăn">
+                            <th className="num" title="Mỗi trẻ có ăn 1 lượt/ngày; số suất theo bữa xem ở Sổ suất ăn">
                               Lượt trẻ ăn
                             </th>
                           </tr>
@@ -470,7 +472,7 @@ export default function AttendanceSummaryPage() {
                             <th className="num">Có mặt</th>
                             <th className="num">Có phép</th>
                             <th className="num">Không phép</th>
-                            <th className="num" title="Mỗi trẻ có ăn 1 lượt/ngày; số suất theo bữa xem ở Sổ báo ăn">
+                            <th className="num" title="Mỗi trẻ có ăn 1 lượt/ngày; số suất theo bữa xem ở Sổ suất ăn">
                               Lượt trẻ ăn
                             </th>
                           </tr>

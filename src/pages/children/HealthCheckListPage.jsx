@@ -19,6 +19,9 @@ import '@/styles/modules/children.css';
 
 const COLS = 8;
 
+// Cộng 5 số BE trả ở progress.bmi (mỗi trẻ một mức) để hiện một dòng tổng ở danh sách; không tính lại từ số đo (HLT-18).
+const bmiWarningTotal = (progress) => Object.values(progress.bmi || {}).reduce((sum, n) => sum + n, 0);
+
 /**
  * Danh sách đợt khám sức khỏe và kỳ cân đo theo điểm trường (user chốt 2026-10-15, 2026-10-31; PROPOSED). Đợt khám thường
  * 1 lần/năm học, kỳ cân đo khoảng 3 tháng/lần; HT, PHT tạo.
@@ -128,16 +131,16 @@ export default function HealthCheckListPage() {
           <ErrorState error={error} onRetry={reload} />
         ) : (
           <div className="table-wrap tr-table-flat">
-            <table className="table table--grid">
+            <table className="table table--grid table--wrap-head">
               <thead>
                 <tr>
                   <th>Tên</th>
-                  <th>Loại</th>
+                  <th className="center">Loại</th>
                   <th>Điểm trường</th>
-                  <th>Ngày</th>
+                  <th className="center">Ngày</th>
                   <th className="center">Trạng thái</th>
-                  <th>Đã nhập kết quả</th>
-                  <th>Cần theo dõi</th>
+                  <th className="center">Đã nhập kết quả</th>
+                  <th>Cảnh báo</th>
                   <th className="cell--actions">Thao tác</th>
                 </tr>
               </thead>
@@ -175,23 +178,23 @@ export default function HealthCheckListPage() {
                 ) : (
                   pageRows.map((c) => (
                     <tr key={c.id}>
-                      <td>
+                      <td className="tr-campaign-name">
                         <Link className="fw-600 text-primary" to={`/children/health-checks/${c.id}`}>
                           {c.name}
                         </Link>
                         {c.examiner && <div className="muted text-xs">{c.examiner}</div>}
                       </td>
-                      <td>
+                      <td className="center">
                         <CampaignKindBadge status={c.kind} />
                       </td>
                       <td className="text-sm">{c.campusName.split(' - ')[0]}</td>
-                      <td className="nowrap text-sm">
+                      <td className="text-sm center">
                         {formatDate(c.startDate)} – {formatDate(c.endDate)}
                       </td>
                       <td className="center">
                         <CampaignStatusBadge status={c.status} />
                       </td>
-                      <td className="tr-progress-cell">
+                      <td className="tr-progress-cell center">
                         <ProgressBar
                           value={c.progress.recorded}
                           total={c.progress.total}
@@ -203,8 +206,15 @@ export default function HealthCheckListPage() {
                           </div>
                         )}
                       </td>
+                      {/* Đợt khám: theo kết luận bác sĩ; kỳ cân đo: số trẻ có cảnh báo BMI theo tuổi (HLT-19). */}
                       <td className="text-sm nowrap">
-                        {c.kind === CAMPAIGN_KIND.MEASUREMENT || c.progress.watch + c.progress.closeWatch === 0 ? (
+                        {c.kind === CAMPAIGN_KIND.MEASUREMENT ? (
+                          bmiWarningTotal(c.progress) > 0 ? (
+                            <div>{bmiWarningTotal(c.progress)} trẻ có cảnh báo BMI</div>
+                          ) : (
+                            <span className="muted">—</span>
+                          )
+                        ) : c.progress.watch + c.progress.closeWatch === 0 ? (
                           <span className="muted">—</span>
                         ) : (
                           <>

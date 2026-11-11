@@ -76,13 +76,6 @@ export function ClassTodayPanel() {
     (u) =>
       Promise.all([
         getEvaluations(
-          EVAL_KIND.PERIODIC,
-          {
-            classId,
-          },
-          u,
-        ),
-        getEvaluations(
           EVAL_KIND.SEMESTER,
           {
             classId,
@@ -129,9 +122,9 @@ export function ClassTodayPanel() {
   const lessonsWaiting = lessons.filter((l) => isEduReviewPending(l.status)).length;
   const pendingEvaluations = (evaluationsQ.data || []).filter((e) => e.status !== EVAL_STATUS.CONFIRMED);
   const evaluationsToReview = pendingEvaluations.length;
-  // Bấm vào mở thẳng loại đánh giá đang chờ (cuối năm > học kỳ > tháng)
+  // Chỉ dẫn tới các màn học kỳ và cuối năm còn sử dụng.
   const evaluationKind =
-    [PERIOD_TYPE.YEAR, PERIOD_TYPE.SEMESTER].find((t) => pendingEvaluations.some((e) => e.periodType === t)) || PERIOD_TYPE.MONTH;
+    [PERIOD_TYPE.YEAR, PERIOD_TYPE.SEMESTER].find((t) => pendingEvaluations.some((e) => e.periodType === t)) || PERIOD_TYPE.SEMESTER;
   const allergic = (childrenQ.data || []).filter((c) => (c.allergies || []).length).length;
   const schoolDay = sheet ? sheet.schoolDay : true;
   const attendanceHint = !sheet
@@ -242,9 +235,9 @@ export function ClassTodayPanel() {
             },
             {
               key: 'evaluations',
-              to: `/assessment/${{ [PERIOD_TYPE.YEAR]: 'year-end', [PERIOD_TYPE.SEMESTER]: 'semester' }[evaluationKind] || 'periodic'}`,
+              to: `/assessment/${{ [PERIOD_TYPE.YEAR]: 'year-end', [PERIOD_TYPE.SEMESTER]: 'semester' }[evaluationKind] || 'semester'}`,
               icon: Star,
-              title: 'Đánh giá tháng / học kỳ / cuối năm',
+              title: 'Đánh giá học kỳ / cuối năm',
               meta: metaOf(evaluationsQ, 'Bản nháp AI chờ giáo viên duyệt hoặc chưa có bản nháp'),
               end: endOf(evaluationsQ, evaluationsToReview),
             },

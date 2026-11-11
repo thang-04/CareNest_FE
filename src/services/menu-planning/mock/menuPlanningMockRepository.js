@@ -130,13 +130,14 @@ const isSharedServiceVp = (db, user) => {
 
 const requireManager = (db, user) => {
   requireUser(user);
+  if (user.role === ROLES.PRINCIPAL) return; // Hiệu trưởng làm thay Phó hiệu trưởng (BE: HT có sẵn mọi mã bán trú)
   if (user.role !== ROLES.VICE_PRINCIPAL) fail(403, MSG.denied);
   if (!isSharedServiceVp(db, user)) fail(403, MSG.sharedOnly);
 };
 
 const requireVp = (user) => {
   requireUser(user);
-  if (user.role !== ROLES.VICE_PRINCIPAL) fail(403, MSG.denied);
+  if (![ROLES.VICE_PRINCIPAL, ROLES.PRINCIPAL].includes(user.role)) fail(403, MSG.denied);
 };
 
 /** Catalog readers: planners, the Principal (menu plan) and kitchens (quantities). */
@@ -585,7 +586,7 @@ const notifyPublished = (db, wm, isReplacement) => {
   });
 };
 
-const visibleWeekly = (user, wm) => user.role === ROLES.VICE_PRINCIPAL || wm.status === WEEKLY_STATUS.PUBLISHED;
+const visibleWeekly = (user, wm) => [ROLES.VICE_PRINCIPAL, ROLES.PRINCIPAL].includes(user.role) || wm.status === WEEKLY_STATUS.PUBLISHED;
 
 /** Day of a published menu resolved for the kitchen: dish details and quantity per child. */
 const resolveMeals = (meals, ageGroupId, dishById, foodById) => {

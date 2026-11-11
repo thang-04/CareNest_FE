@@ -28,7 +28,7 @@ import {
 import { STAFF_ROLES, normalizePhone, staffExportRows, toCreatePayload, validateStaffAccount } from '@/utils/school-config/staffImport';
 import { staffCrumbs } from '@/utils/school-config/breadcrumbs';
 import { isPrincipal } from '@/utils/school-config/schoolConfigPermissions';
-import { downloadXlsx } from '@/utils/exportXlsx';
+import { exportWithPreview } from '@/components/ui/ExportPreview';
 import { todayInput } from '@/utils/format';
 
 const PAGE_SIZE = 10;
@@ -107,7 +107,7 @@ export function StaffAccountsBeView({ tabs = null }) {
     setExporting(true);
     try {
       const all = (await listAllStaffAccounts(filters)).map((a) => toStaffRow(a, lookups));
-      downloadXlsx(staffExportRows(all), `tai-khoan-nhan-su-${todayInput()}.xlsx`);
+      exportWithPreview(staffExportRows(all), `tai-khoan-nhan-su-${todayInput()}.xlsx`);
     } catch (err) {
       toast.error(err, 'Không xuất được danh sách');
     } finally {
@@ -225,7 +225,7 @@ export function StaffAccountsBeView({ tabs = null }) {
                   <th>Vai trò</th>
                   <th>Điểm trường</th>
                   <th>Đang phụ trách</th>
-                  <th>Số điện thoại</th>
+                  <th className="center">Số điện thoại</th>
                   <th className="center">Trạng thái</th>
                   {actions && <th className="cell--actions">Thao tác</th>}
                 </tr>
@@ -258,7 +258,7 @@ export function StaffAccountsBeView({ tabs = null }) {
                         <td>{ROLE_LABELS[u.role] || <span className="muted">—</span>}</td>
                         <td>{u.campusNames.join(', ') || <span className="muted">—</span>}</td>
                         <td className="text-sm sc-wrap">{u.duties.join(' · ') || <span className="muted">—</span>}</td>
-                        <td className="nowrap">{u.phone || <span className="muted">—</span>}</td>
+                        <td className="nowrap center">{u.phone || <span className="muted">—</span>}</td>
                         <td className="center">
                           <StaffStatusBadge status={u.status || 'ACTIVE'} />
                         </td>

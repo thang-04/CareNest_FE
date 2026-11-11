@@ -100,10 +100,12 @@ test('sửa lại giá đã áp dụng từ hôm nay phải có lý do', async (
   assert.equal(ag.prices[0].price, 33500);
 });
 
-test('HT chỉ xem được, không lưu được', async () => {
+test('HT xem và lưu được thiết lập nhóm tuổi; giáo viên không lưu được', async () => {
   const setups = await repo.listNutritionSetups(HT);
   assert.equal(setups.length, 4);
   // Số trẻ đang học của từng nhóm (để hiển thị), là số không âm
   assert.ok(setups.every((x) => Number.isInteger(x.childCount) && x.childCount >= 0));
-  await assert.rejects(repo.saveNutritionSetups(toSetupPayload(toSetupForm(setups, TODAY)), HT), (e) => e.status === 403);
+  const payload = toSetupPayload(toSetupForm(setups, TODAY));
+  await assert.doesNotReject(repo.saveNutritionSetups(payload, HT));
+  await assert.rejects(repo.saveNutritionSetups(payload, { id: 'u_teacher', role: 'TEACHER' }), (e) => e.status === 403);
 });

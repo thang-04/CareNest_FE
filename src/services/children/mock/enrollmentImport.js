@@ -10,8 +10,15 @@ import { parseCsv } from '@/utils/csv';
 export { parseCsv } from '@/utils/csv';
 
 const headerKey = (header) => {
-  const h = normalizeText(header).trim();
-  const col = IMPORT_COLUMNS.find((c) => h.startsWith(normalizeText(c.label.split(' (')[0])));
+  const h = normalizeText(String(header ?? '')).trim();
+  const col = [...IMPORT_COLUMNS]
+    .sort((a, b) => b.label.length - a.label.length)
+    .find(
+      (c) =>
+        h === normalizeText(c.label) ||
+        h === normalizeText(c.label.split(' (')[0]) ||
+        h.startsWith(normalizeText(c.label.split(' (')[0]) + ' ('),
+    );
   return col?.key || null;
 };
 
@@ -92,15 +99,16 @@ const toDeclaration = (allergies, diet, raw = {}) => {
 };
 
 /** CSV text -> { missingColumns, rows: [{ rowNo, raw, payload }] } (payload = enrollment payload without class). */
-export const readEnrollmentCsv = (text) => {
-  const table = parseCsv(text);
+export const readEnrollmentCsv = (text) => readEnrollmentTable(parseCsv(text));
+
+export const readEnrollmentTable = (table) => {
   if (table.length === 0) return { missingColumns: IMPORT_COLUMNS.filter((c) => c.required).map((c) => c.label), rows: [] };
   const keys = table[0].map(headerKey);
   const missingColumns = IMPORT_COLUMNS.filter((c) => c.required && !keys.includes(c.key)).map((c) => c.label);
   const rows = table.slice(1).map((cells, i) => {
     const raw = {};
     keys.forEach((k, idx) => {
-      if (k) raw[k] = (cells[idx] || '').trim();
+      if (k) raw[k] = (cells[idx] instanceof Date ? cells[idx].toISOString().slice(0, 10) : String(cells[idx] ?? '')).trim();
     });
     return {
       rowNo: i + 2,
@@ -110,15 +118,20 @@ export const readEnrollmentCsv = (text) => {
           fullName: raw.fullName || '',
           dateOfBirth: toIsoDate(raw.dateOfBirth),
           gender: toGender(raw.gender),
-          guardians: [
-            {
-              fullName: raw.guardianName || '',
-              relation: toRelation(raw.relation),
-              phone: raw.phone || '',
-              idNumber: raw.guardianIdNumber || '',
-              email: raw.email || '',
-            },
-          ],
+          guardians: ['', '2', '3']
+            .filter(
+              (suffix) => !suffix || ['guardianName', 'relation', 'phone', 'guardianIdNumber', 'email'].some((key) => raw[key + suffix]),
+            )
+            .map((suffix) => ({
+              fullName: raw['guardianName' + suffix] || '',
+              relation: toRelation(raw['relation' + suffix]),
+              phone: raw['phone' + suffix] || '',
+              idNumber: raw['guardianIdNumber' + suffix] || '',
+              email: raw['email' + suffix] || '',
+              accountRecipient:
+                !!raw.accountRecipientIdNumber &&
+                raw.accountRecipientIdNumber.replace(/\s/g, '') === (raw['guardianIdNumber' + suffix] || '').replace(/\s/g, ''),
+            })),
           profile: {
             idNumber: raw.idNumber || '',
             premature: toYesNo(raw.premature),

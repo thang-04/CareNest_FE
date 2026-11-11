@@ -1,13 +1,14 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Eye, Pencil, Plus, RotateCcw } from '@/components/ui/icons';
+import { useNavigate } from 'react-router-dom';
+import { Plus, RotateCcw } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSuppliers } from '@/hooks/kitchen/useKitchen';
 import { useFilterParams } from '@/hooks/useFilterParams';
-import { Breadcrumb, EmptyState, ErrorState, Pagination, RowMenu, SkeletonRows, paginate } from '@/components';
+import { Breadcrumb, EmptyState, ErrorState, Pagination, RowActions, SkeletonRows, paginate } from '@/components';
 import { FilterChips } from '@/components/ui/FilterChips';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { SupplierStatusBadge } from '@/components/kitchen/KitchenBadges';
+import { SupplierEditModal } from '@/components/kitchen/SupplierEditModal';
 import { canEditSuppliers } from '@/services/kitchen/kitchenService';
 import { supplierCrumbs } from '@/utils/kitchen/breadcrumbs';
 import { clickableRowProps } from '@/utils/clickableRow';
@@ -22,9 +23,13 @@ export default function SupplierListPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const canManage = canEditSuppliers(user);
+  // Chỉ xem ⇒ bỏ cột Thao tác; bấm dòng vẫn mở chi tiết
+  const colCount = canManage ? 7 : 6;
   const [filters, setFilters, resetFilters, activeKeys] = useFilterParams(FILTER_DEFAULTS);
   const { keyword, status } = filters;
   const [page, setPage] = useState(1);
+  // null = đóng; '' = thêm mới; id = sửa nhà cung cấp đó trong modal
+  const [editing, setEditing] = useState(null);
   const { data, loading, error, reload } = useSuppliers({ keyword, status });
   const rows = data || [];
   const filtered = activeKeys.length > 0;
@@ -47,22 +52,10 @@ export default function SupplierListPage() {
       <div className="page__head">
         <div>
           <h1 className="page__title">Nhà cung cấp</h1>
-          <p className="page__desc">
-            {canManage
-              ? 'Thông tin cơ bản của nhà cung cấp; phó hiệu trưởng chọn nhà cung cấp đang dùng khi lập phiếu nhập kho.'
-              : 'Danh mục do người có quyền quản lý danh mục bán trú cập nhật; chọn nhà cung cấp đang dùng khi lập phiếu nhập kho.'}
-          </p>
         </div>
-        {canManage && (
-          <div className="page__actions">
-            <Link className="btn btn--primary" to="/menu/suppliers/new">
-              <Plus size={16} /> Thêm nhà cung cấp
-            </Link>
-          </div>
-        )}
       </div>
       <section className="card">
-        <div className="filter-bar">
+        <div className="filter-bar filter-bar--aligned">
           <SearchSubmit
             className="flex-1"
             value={keyword}
@@ -81,6 +74,13 @@ export default function SupplierListPage() {
           <button type="button" className="btn" onClick={reset} disabled={!filtered}>
             <RotateCcw size={15} /> Đặt lại bộ lọc
           </button>
+          {canManage && (
+            <div className="filter-bar__end">
+              <button type="button" className="btn btn--primary" onClick={() => setEditing('')}>
+                <Plus size={16} /> Thêm nhà cung cấp
+              </button>
+            </div>
+          )}
         </div>
         <FilterChips count={loading ? null : rows.length} unit="nhà cung cấp" chips={chips} />
         {error ? (
@@ -90,21 +90,21 @@ export default function SupplierListPage() {
             <table className="table table--grid">
               <thead>
                 <tr>
-                  <th>Mã NCC</th>
+                  <th className="center">Mã NCC</th>
                   <th>Tên nhà cung cấp</th>
                   <th>Người liên hệ</th>
-                  <th>Số điện thoại</th>
+                  <th className="center">Số điện thoại</th>
                   <th className="num">Số phiếu nhập</th>
                   <th className="center">Trạng thái</th>
-                  <th className="td-num-col cell--actions" aria-label="Thao tác" />
+                  {canManage && <th className="cell--actions">Thao tác</th>}
                 </tr>
               </thead>
               <tbody>
                 {loading && !data ? (
-                  <SkeletonRows rows={5} cols={7} />
+                  <SkeletonRows rows={5} cols={colCount} />
                 ) : rows.length === 0 ? (
                   <tr>
-                    <td colSpan={7}>
+                    <td colSpan={colCount}>
                       <EmptyState
                         title={filtered ? 'Không có kết quả phù hợp' : 'Chưa có nhà cung cấp nào'}
                         description={
@@ -121,9 +121,9 @@ export default function SupplierListPage() {
                             </button>
                           ) : (
                             canManage && (
-                              <Link className="btn btn--primary" to="/menu/suppliers/new">
+                              <button type="button" className="btn btn--primary" onClick={() => setEditing('')}>
                                 <Plus size={16} /> Thêm nhà cung cấp
-                              </Link>
+                              </button>
                             )
                           )
                         }
@@ -133,23 +133,19 @@ export default function SupplierListPage() {
                 ) : (
                   paginate(rows, safePage, PAGE).map((s) => (
                     <tr key={s.id} className="row-click" {...clickableRowProps(() => open(s))}>
-                      <td className="fw-600 text-primary">{s.code || <span className="muted">—</span>}</td>
+                      <td className="fw-600 text-primary center">{s.code || <span className="muted">—</span>}</td>
                       <td>{s.name}</td>
                       <td>{s.contactName || <span className="muted">—</span>}</td>
-                      <td className="nowrap">{s.phone || <span className="muted">—</span>}</td>
+                      <td className="nowrap center">{s.phone || <span className="muted">—</span>}</td>
                       <td className="num">{s.receiptCount ?? <span className="muted">—</span>}</td>
                       <td className="center">
                         <SupplierStatusBadge status={s.status} />
                       </td>
-                      <td className="td-num-col cell--actions">
-                        <RowMenu
-                          label={`Thao tác ${s.name}`}
-                          items={[
-                            { label: 'Xem chi tiết', to: `/menu/suppliers/${s.id}`, icon: Eye },
-                            ...(canManage ? [{ label: 'Sửa', to: `/menu/suppliers/${s.id}/edit`, icon: Pencil }] : []),
-                          ]}
-                        />
-                      </td>
+                      {canManage && (
+                        <td className="cell--actions">
+                          <RowActions edit={{ onClick: () => setEditing(s.id) }} name={s.name} />
+                        </td>
+                      )}
                     </tr>
                   ))
                 )}
@@ -161,6 +157,9 @@ export default function SupplierListPage() {
           <Pagination page={safePage} total={rows.length} onChange={setPage} pageSize={PAGE} unit="nhà cung cấp" />
         )}
       </section>
+      {editing !== null && (
+        <SupplierEditModal supplierId={editing} onClose={() => setEditing(null)} onSaved={() => reload({ silent: true })} />
+      )}
     </div>
   );
 }

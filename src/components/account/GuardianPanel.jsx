@@ -3,11 +3,17 @@ import { Link } from 'react-router-dom';
 import { Info, KeyRound, Lock, Pencil, Trash2, Unlock, UserPlus } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
-import { useChildGuardians, usePendingGuardians } from '@/hooks/account/useGuardians';
+import { useAccountCandidates, useChildGuardians, usePendingGuardians } from '@/hooks/account/useGuardians';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { ErrorState, LoadingState } from '@/components/ui/States';
 import { AccountStatusBadge } from '@/components/account/AccountStatusBadge';
-import { activateGuardians, removeGuardian, resetParentPassword, updateParentStatus } from '@/services/account/guardianService';
+import {
+  selectAccountRecipient,
+  activateGuardians,
+  removeGuardian,
+  resetParentPassword,
+  updateParentStatus,
+} from '@/services/account/guardianService';
 import { GUARDIAN_RELATIONSHIP_LABELS } from '@/models/account/guardianConstants';
 import { avatarTone, formatDate, initials } from '@/utils/format';
 
@@ -17,7 +23,7 @@ const smsFailed = (rows) => rows.filter((r) => r.smsStatus === 'FAILED');
 // Tài khoản phụ huynh của một trẻ (AUTH-18, AUTH-19, AUTH-20), qua guardianService (mock hoặc BE).
 /**
  * Phụ huynh của bé: tài khoản đã liên kết (cấp mật khẩu, gỡ, khóa) và phụ huynh trên hồ sơ trẻ chưa có tài khoản.
- * Thông tin phụ huynh lấy từ hồ sơ trẻ, không sửa ở đây; có từ 2 phụ huynh thì chọn xem từng người, kích hoạt tạo cho tất cả
+ * Thông tin phụ huynh lấy từ hồ sơ trẻ, không sửa ở đây; có từ 2 phụ huynh thì chỉ người được chọn nhận tài khoản
  * (user chốt 2026-10-23). Mật khẩu tạm gửi qua SMS tới số đăng nhập, không in phiếu.
  */
 export function GuardianPanel({ child, classroomName, onChanged }) {
@@ -25,12 +31,15 @@ export function GuardianPanel({ child, classroomName, onChanged }) {
   const toast = useToast();
   const { data: guardians, loading, error, reload } = useChildGuardians(child.id);
   const pendingQ = usePendingGuardians(child.id);
+  const candidatesQ = useAccountCandidates(child.id);
+  const [recipientId, setRecipientId] = useState('');
   const [pick, setPick] = useState(0);
   const [saving, setSaving] = useState(false);
   const [confirm, setConfirm] = useState(null);
   const submitting = useRef(false);
 
   const refresh = () => {
+    candidatesQ.reload({ silent: true });
     reload({ silent: true });
     pendingQ.reload({ silent: true });
     onChanged();
@@ -41,7 +50,7 @@ export function GuardianPanel({ child, classroomName, onChanged }) {
     submitting.current = true;
     setSaving(true);
     try {
-      const results = await activateGuardians(child.id, user);
+      const results = await activateGuardians(child.id, user, pendingQ.data?.[0]?.id);
       refresh();
       setPick(0);
       const fresh = results.filter((r) => r.newAccount);
@@ -120,6 +129,21 @@ export function GuardianPanel({ child, classroomName, onChanged }) {
             message: `${target.status === 'ACTIVE' ? 'Khóa' : 'Mở khóa'} tài khoản ${target.fullName}?`,
             danger: target.status === 'ACTIVE',
           };
+  const candidates = candidatesQ.data || [];
+  const historicalLinks = candidates.filter((g) => !g.accountRecipient && g.accountStatus && g.accountStatus !== 'NOT_ACTIVATED').length;
+  const selectionRequired = candidates.length > 1 && !candidates.some((g) => g.accountRecipient);
+  const saveSelection = async () => {
+    setSaving(true);
+    try {
+      await selectAccountRecipient(child.id, candidates.find((g) => String(g.id) === String(recipientId)).id, user);
+      setRecipientId('');
+      refresh();
+    } catch (err) {
+      toast.error(err, 'Không lưu được phụ huynh nhận tài khoản');
+    } finally {
+      setSaving(false);
+    }
+  };
   const pending = pendingQ.data || [];
   const current = pending[Math.min(pick, pending.length - 1)];
   const blocked = pending.some((p) => p.problems.length > 0);
@@ -130,12 +154,39 @@ export function GuardianPanel({ child, classroomName, onChanged }) {
         {classroomName || 'Chưa xếp lớp'} · sinh {formatDate(child.dateOfBirth)}
       </p>
 
-      {error || pendingQ.error ? (
+      {error || pendingQ.error || candidatesQ.error ? (
         <ErrorState error={error || pendingQ.error} onRetry={refresh} />
-      ) : loading || pendingQ.loading ? (
+      ) : loading || pendingQ.loading || candidatesQ.loading ? (
         <LoadingState />
       ) : (
         <>
+          {historicalLinks > 0 && (
+            <div className="alert alert--info mb-16">
+              Hồ sơ còn {historicalLinks} liên kết tài khoản cũ. Lựa chọn người nhận tài khoản không tự gỡ các liên kết này.
+            </div>
+          )}
+          {candidates.length > 1 && !guardians.length && (
+            <section className="pa-pending">
+              <h3 className="section-title">Chọn phụ huynh nhận tài khoản</h3>
+              <p className="text-sm mb-12">Hồ sơ có nhiều phụ huynh. Chọn một người để kích hoạt tài khoản.</p>
+              <select
+                aria-label="Phụ huynh nhận tài khoản"
+                className="input"
+                value={recipientId || candidates.find((g) => g.accountRecipient)?.id || ''}
+                onChange={(e) => setRecipientId(e.target.value)}
+              >
+                <option value="">Chọn phụ huynh</option>
+                {candidates.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.fullName} · {g.relation} · {g.phone}
+                  </option>
+                ))}
+              </select>
+              <button type="button" className="btn btn--primary mt-12" disabled={saving || !recipientId} onClick={saveSelection}>
+                Lưu người nhận tài khoản
+              </button>
+            </section>
+          )}
           {!guardians.length && pending.length > 0 && (
             <div className="alert alert--warning mb-16">
               Bé chưa có tài khoản phụ huynh. Kiểm tra thông tin theo hồ sơ trẻ rồi kích hoạt.
@@ -153,7 +204,10 @@ export function GuardianPanel({ child, classroomName, onChanged }) {
                     <span className="pa-guardian__relation">{g.relation || GUARDIAN_RELATIONSHIP_LABELS[g.relationship]}</span>
                   </div>
                   <div className="pa-guardian__username">
-                    Tài khoản: {g.username} · {g.idNumber ? `CCCD ${g.idNumber}` : 'Chưa có CCCD'}
+                    Tài khoản: {g.username} ·{' '}
+                    {g.idNumber || candidates.find((p) => p.accountRecipient)?.idNumber
+                      ? `CCCD ${g.idNumber || candidates.find((p) => p.accountRecipient)?.idNumber}`
+                      : 'Chưa có CCCD'}
                   </div>
                 </div>
                 <AccountStatusBadge status={g.status} />
@@ -230,8 +284,7 @@ export function GuardianPanel({ child, classroomName, onChanged }) {
               )}
               <div className="row row--wrap gap-2 mt-16">
                 <button className="btn btn--primary" type="button" onClick={activate} disabled={saving || blocked}>
-                  <UserPlus size={16} />{' '}
-                  {pending.length > 1 ? `Kích hoạt tài khoản cho cả ${pending.length} phụ huynh` : 'Kích hoạt tài khoản'}
+                  <UserPlus size={16} /> Kích hoạt tài khoản cho phụ huynh được chọn
                 </button>
                 <Link className="btn" to={`/children/${child.id}/edit`}>
                   <Pencil size={16} /> Sửa thông tin ở hồ sơ trẻ
@@ -239,7 +292,7 @@ export function GuardianPanel({ child, classroomName, onChanged }) {
               </div>
             </section>
           )}
-          {!pending.length && !guardians.length && (
+          {!pending.length && !guardians.length && !selectionRequired && (
             <div className="alert alert--warning">
               Hồ sơ trẻ chưa có phụ huynh.{' '}
               <Link className="text-primary" to={`/children/${child.id}/edit`}>

@@ -1,6 +1,4 @@
-import { Link } from 'react-router-dom';
-import { SCHOOL_CONFIG_API } from '@/config/env';
-import { KeyRound, UserCog, Utensils } from '@/components/ui/icons';
+import { UserCog, Utensils } from '@/components/ui/icons';
 import { Avatar } from '@/components/ui/Avatar';
 import { UnassignedBadge } from '@/components/school-config/SchoolConfigBadges';
 import { areaTasks, scopeText, taskOn, visibleVpAreas, vpGrantsOf } from '@/utils/school-config/vpAssignmentView';
@@ -8,8 +6,8 @@ import { formatDateTime } from '@/utils/format';
 
 const lowerFirst = (s) => s.charAt(0).toLowerCase() + s.slice(1);
 
-/** Thẻ 1 Phó hiệu trưởng: điểm trường phụ trách + bảng công việc được giao, nói bằng lời thường. */
-export function VicePrincipalCard({ row, campusName, assignerName, readOnly, onEdit, permissionsLink }) {
+/** Thẻ 1 Phó hiệu trưởng (bản mock): điểm trường phụ trách + bảng công việc. Bản API dùng 2 tab Phân công điểm trường / Giao việc. */
+export function VicePrincipalCard({ row, campusName, assignerName, readOnly, onEdit }) {
   const a = row.assignment;
   const grants = vpGrantsOf(a);
 
@@ -28,12 +26,6 @@ export function VicePrincipalCard({ row, campusName, assignerName, readOnly, onE
         </div>
         {!readOnly && (
           <div className="row gap-2">
-            {/* Quyền thao tác thuộc màn Quyền ngoại lệ từng người (module phân quyền) */}
-            {a && permissionsLink && (
-              <Link className="btn btn--sm" to={permissionsLink}>
-                <KeyRound size={15} /> Chọn quyền
-              </Link>
-            )}
             <button className={`btn btn--sm ${a ? '' : 'btn--primary'}`} onClick={onEdit}>
               <UserCog size={15} /> {a ? 'Đổi phân công' : 'Phân công'}
             </button>
@@ -43,18 +35,14 @@ export function VicePrincipalCard({ row, campusName, assignerName, readOnly, onE
 
       <div className="sc-vp-card__tags">
         {a ? <span className="chip chip--blue">Phụ trách {campusName(a.campusId)}</span> : <UnassignedBadge />}
-        {!SCHOOL_CONFIG_API && a?.sharedService && (
+        {a?.sharedService && (
           <span className="chip chip--teal">
             <Utensils size={13} /> Phụ trách thực đơn bán trú
           </span>
         )}
       </div>
 
-      {a && SCHOOL_CONFIG_API ? (
-        <p className="text-sm muted">
-          Quyền thao tác: mặc định của vai trò Phó hiệu trưởng, bấm Chọn quyền để bật/tắt riêng cho người này.
-        </p>
-      ) : a ? (
+      {a ? (
         <div className="table-wrap">
           <table className="table table--grid table--compact sc-vp-table">
             <thead>

@@ -7,7 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { isLeader } from '@/utils/assessment/assessmentPermissions';
 import { useProgramCompletion, useQualityReport } from '@/hooks/assessment/useAssessment';
-import { downloadXlsx } from '@/utils/exportXlsx';
+import { exportWithPreview } from '@/components/ui/ExportPreview';
 import { formatDate } from '@/utils/format';
 import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';
 import '@/styles/modules/assessment.css';
@@ -92,7 +92,7 @@ export default function QualityReportPage() {
         x.notCompleted,
         x.unmarked,
       ];
-      downloadXlsx(
+      exportWithPreview(
         [
           [`Trẻ 5 tuổi hoàn thành chương trình GDMN${campusText}`],
           ['Lớp', ...(showCampus ? ['Điểm trường'] : []), 'Số trẻ', 'Hoàn thành', 'Tỷ lệ', 'Chưa hoàn thành', 'Chưa đánh giá'],
@@ -104,7 +104,7 @@ export default function QualityReportPage() {
       return;
     }
     if (view === 'year') {
-      downloadXlsx(
+      exportWithPreview(
         [
           [`Trẻ đến lớp hằng tháng${campusText}`],
           ['Lớp', ...(showCampus ? ['Điểm trường'] : []), ...months.map(monthLabel)],
@@ -134,7 +134,7 @@ export default function QualityReportPage() {
       x.allRoundChildren,
       pct(x.allRoundRate),
     ];
-    downloadXlsx(
+    exportWithPreview(
       [
         [`Theo dõi chất lượng ${monthLabel(report?.month).toLowerCase()}${campusText}`],
         [
@@ -240,12 +240,21 @@ export default function QualityReportPage() {
               <div className="alert alert--warning dg-alert-inset" role="status">
                 <AlertTriangle size={18} />
                 <div>
-                  Lớp chưa điểm danh (vẫn tính là ngày học, trẻ chưa có mặt):{' '}
-                  {rows
-                    .filter((r) => r.unrecordedDays?.length)
-                    .map((r) => `${r.className}: ${r.unrecordedDays.map((d) => formatDate(d)).join(', ')}`)
-                    .join('; ')}
-                  . Giáo viên bổ sung qua mở lại điểm danh.
+                  {rows.filter((r) => r.unrecordedDays?.length).length} lớp còn ngày chưa điểm danh, các ngày đó vẫn tính là ngày học. Giáo
+                  viên bổ sung qua mở lại điểm danh.
+                  <details className="mt-8">
+                    <summary>Xem từng lớp</summary>
+                    <ul className="dg-unrecorded">
+                      {rows
+                        .filter((r) => r.unrecordedDays?.length)
+                        .map((r) => (
+                          <li key={r.className}>
+                            <b>{r.className}</b> ({r.unrecordedDays.length} ngày):{' '}
+                            {r.unrecordedDays.map((d) => formatDate(d).slice(0, 5)).join(', ')}
+                          </li>
+                        ))}
+                    </ul>
+                  </details>
                 </div>
               </div>
             )}

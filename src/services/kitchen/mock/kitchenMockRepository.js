@@ -14,6 +14,7 @@ import { attendanceMockRepository } from '@/services/attendance/mock/attendanceM
 import { mealSessionsForCampus } from './attendanceSource';
 import { computeMarket, countedSession, purchaseStep } from '@/services/kitchen/mock/marketList';
 import { buildWeeklyForecast, knownOrderOf, sentSnapshot, storageOf } from '@/services/kitchen/mock/weeklyForecast';
+import { buildDayMarket } from '@/services/kitchen/mock/dayMarket';
 import { addDays as addIsoDays, mondayOf, schoolWeekStart } from '@/models/menu-planning/menuPlanningConstants';
 import { normalizeText, todayInput } from '@/utils/format';
 import { uid } from '@/utils/id';
@@ -37,7 +38,6 @@ import {
 } from '@/models/kitchen/kitchenConstants';
 import {
   canAccessCampus,
-  isVicePrincipal,
   canManageStock,
   canViewDryStock,
   canWriteStock,
@@ -121,6 +121,8 @@ const normalizeFood = (f) => {
     id: f.id,
     name: f.name || f.foodName || f.ingredientName || f.id,
     unit: u.stockUnit,
+    // Đơn vị định lượng món (g / ml một trẻ) — khác đơn vị kho (kg, lít) dùng khi đi chợ
+    baseUnit: f.unit || null,
     stockUnit: u.stockUnit,
     purchaseUnit: u.purchaseUnit,
     purchaseToStock: u.purchaseToStock,
@@ -1082,11 +1084,11 @@ const freshView = (db, campusId, date, user) => {
     lines,
     counts: Object.fromEntries(Object.values(FRESH_RESULT).map((r) => [r, lines.filter((l) => l.result === r).length])),
     canEdit: editable && isKitchenStaff(user) && canAccessCampus(user, campusId),
-    canReview: status === FRESH_RECEIPT_STATUS.SUBMITTED && isVicePrincipal(user) && canAccessCampus(user, campusId),
+    canReview: status === FRESH_RECEIPT_STATUS.SUBMITTED && canManageStock(user) && canAccessCampus(user, campusId),
     canMarkNotified:
       !!stored &&
       status !== FRESH_RECEIPT_STATUS.CONFIRMED &&
-      (isKitchenStaff(user) || isVicePrincipal(user)) &&
+      (isKitchenStaff(user) || canManageStock(user)) &&
       canAccessCampus(user, campusId),
   };
 };
@@ -1834,11 +1836,18 @@ const kitchenRepository = {
                     id,
                     name: dish?.name || id,
                     allergens: dish?.allergens || [],
-                    ingredients: (dish?.ingredients || []).map((i) => ({
-                      ...i,
-                      name: cat.foodById[i.foodId]?.name || i.foodId,
-                      unit: cat.foodById[i.foodId]?.unit || '',
-                    })),
+                    ingredients: (dish?.ingredients || []).map((i) => {
+                      const food = cat.foodById[i.foodId];
+                      // Món của Thực đơn: định lượng một trẻ theo nhóm tuổi của thực đơn (NUT định lượng món), đơn vị g / ml;
+                      // chưa nhập cho nhóm đó ⇒ null. Món mẫu của bếp (không có portions): khẩu phần chuẩn theo đơn vị kho.
+                      const qtyPerPortion = i.portions ? ingredientQty({ portions: i.portions }, m.ageGroupId) : i.qtyPerPortion;
+                      return {
+                        foodId: i.foodId,
+                        name: food?.name || i.foodId,
+                        qtyPerPortion,
+                        unit: (i.portions || cat.external ? food?.baseUnit : null) || food?.unit || '',
+                      };
+                    }),
                   };
                 }),
               })),
@@ -1899,6 +1908,26 @@ const kitchenRepository = {
       savedAt: record?.savedAt || null,
       canEdit: canEditForecast(user, campusId),
     });
+  },
+
+  /**
+   * Bảng đi chợ một ngày (tiền, chia nhóm tuổi, thu–chi, thực đơn). Kèm danh sách điểm trường người dùng xem được;
+   * `campusId` trống hoặc ngoài danh sách ⇒ lấy điểm trường đầu tiên xem được.
+   */
+  async getDayMarket({ campusId, date }, user) {
+    await delay();
+    guard(canViewForecast(user));
+    const db = readSeeded();
+    const campuses = (db.campuses || []).filter((c) => canAccessCampus(user, c.id)).map((c) => ({ id: c.id, name: c.shortName || c.name }));
+    const picked = campuses.find((c) => c.id === campusId) || (campusId ? null : campuses[0]);
+    guard(!!picked);
+    const view = buildDayMarket(db, {
+      campusId: picked.id,
+      date,
+      record: forecastRecord(db, picked.id, mondayOf(date)),
+      ctx: { today: todayInput(), isSchoolDay, mealCountOf: (day, session) => getMealCount(db, picked.id, day, session) },
+    });
+    return clone({ ...view, campusName: picked.name, campuses });
   },
 
   /** PHT sửa suất dự kiến của ngày chưa chốt; ngày đã chốt hoặc đã qua giữ nguyên. */
@@ -2051,7 +2080,7 @@ const kitchenRepository = {
   /** PHT xác nhận kết quả cuối (khóa phiếu) hoặc trả bếp kiểm lại kèm ghi chú. */
   async reviewFreshReceipt({ campusId, date, approve, note = '' }, user) {
     await delay();
-    guard(isVicePrincipal(user) && canAccessCampus(user, campusId));
+    guard(canManageStock(user) && canAccessCampus(user, campusId));
     if (!approve && !String(note).trim()) invalid({ note: 'Ghi điều bếp cần kiểm lại.' });
     if (String(note).length > NOTE_MAX) invalid({ note: `Ghi chú tối đa ${NOTE_MAX} ký tự.` });
     return writeDb((db) => {
@@ -2080,7 +2109,7 @@ const kitchenRepository = {
   /** Đánh dấu đã báo NCC dòng thiếu / trả lại (bếp hoặc PHT), tới khi PHT xác nhận. */
   async setFreshSupplierNotified({ campusId, date, foodId, notified }, user) {
     await delay();
-    guard((isKitchenStaff(user) || isVicePrincipal(user)) && canAccessCampus(user, campusId));
+    guard((isKitchenStaff(user) || canManageStock(user)) && canAccessCampus(user, campusId));
     return writeDb((db) => {
       ensureSeeded(db);
       const receipt = db.freshReceipts.find((r) => r.campusId === campusId && r.date === date);

@@ -1,13 +1,17 @@
 import { Link } from 'react-router-dom';
 import { SCHOOL_CONFIG_API } from '@/config/env';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { UserCog, AlertTriangle, Save, Utensils } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
+import { VpGapsNote, VpPeopleList, VpTaskEditor } from '@/components/permissions/VpTaskEditor';
+import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
+import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
+import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { useMasterData } from '@/hooks/useMasterData';
-import { useSchoolYears, useViceAssignments } from '@/hooks/school-config/useSchoolConfig';
+import { useSchoolYears, useViceAssignments, useVicesPermissions } from '@/hooks/school-config/useSchoolConfig';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Modal } from '@/components/ui/Modal';
 import { EmptyState, ErrorState, SkeletonRows, Spinner } from '@/components/ui/States';
@@ -114,7 +118,7 @@ function AssignModal({ row, year, campuses, sharedHolder, onClose }) {
       <p className="text-sm text-2 mb-12">
         Năm học <b>{year.name}</b>.{' '}
         {SCHOOL_CONFIG_API
-          ? 'Chọn điểm trường Phó hiệu trưởng phụ trách. Quyền thao tác của người này chỉnh ở màn Quyền ngoại lệ từng người.'
+          ? 'Chọn điểm trường Phó hiệu trưởng phụ trách. Việc được giao chỉnh ở khung bên phải khi chọn người này.'
           : 'Phó hiệu trưởng chỉ thấy và làm được những công việc Hiệu trưởng giao dưới đây.'}
       </p>
       {row.assignment?.campusId && form.campusId && row.assignment.campusId !== form.campusId && (
@@ -137,78 +141,72 @@ function AssignModal({ row, year, campuses, sharedHolder, onClose }) {
         </select>
       </FormField>
 
-      <div className="mt-16">
-        {SCHOOL_CONFIG_API ? (
-          <p className="text-sm muted">
-            Quyền thao tác chỉnh ở <Link to={`/permissions/overrides?userId=${row.user.id}`}>Quyền ngoại lệ từng người</Link>.
-          </p>
-        ) : (
-          <>
-            <span className="field__label">Công việc được giao</span>
-            <div className="field__hint mb-8">
-              Chọn &quot;Ở đâu&quot; cho từng việc; chọn &quot;Không giao&quot; thì Phó hiệu trưởng không thấy việc đó. Không tích ô nào =
-              chỉ được xem.
-            </div>
-            <div className="sc-vp-edit">
-              {visibleVpAreas.map((area) => {
-                const g = grants[area.key];
-                const lockMenu = area.key === 'menu' && menuHeldByOther;
-                return (
-                  <div key={area.key} className={`sc-vp-edit__row ${g ? '' : 'is-off'}`}>
-                    <div className="sc-vp-edit__name">
-                      <div className="fw-600">{area.label}</div>
-                      <div className="text-xs muted">{area.hint}</div>
-                    </div>
-                    <select
-                      className={`select ${errors.areas && g && !g.campusId ? 'is-invalid' : ''}`}
-                      aria-label={`Ở đâu: ${area.label}`}
-                      value={g ? g.campusId : NOT_GIVEN}
-                      onChange={(e) => setScope(area, e.target.value)}
-                    >
-                      <option value={NOT_GIVEN}>Không giao</option>
-                      {g && !g.campusId && <option value="">Chọn nơi…</option>}
-                      {area.scopes.includes('CAMPUS') &&
-                        campuses.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.shortName || c.name}
-                          </option>
-                        ))}
-                      {area.scopes.includes('ALL') && <option value={AREA_SCOPE_ALL}>Toàn trường</option>}
-                    </select>
-                    <div className="sc-vp-edit__tasks" role="group" aria-label={`Việc được làm: ${area.label}`}>
-                      {g ? (
-                        <>
-                          {areaTasks(area).map((t) => {
-                            const on = taskOn(t, g.actions);
-                            return (
-                              <label key={t.id} className={`sc-vp-task ${lockMenu && !on ? 'is-off' : ''}`}>
-                                <input type="checkbox" checked={on} disabled={lockMenu && !on} onChange={() => toggleTask(area, t)} />
-                                {t.label}
-                              </label>
-                            );
-                          })}
-                          {lockMenu && (
-                            <span className="sc-vp-edit__warn text-xs">
-                              <AlertTriangle size={13} /> {sharedHolder.fullName} đang quản lý thực đơn. Mỗi năm học chỉ 1 người.
-                            </span>
-                          )}
-                        </>
-                      ) : (
-                        <span className="muted text-sm">—</span>
-                      )}
-                    </div>
+      {!SCHOOL_CONFIG_API && (
+        <div className="mt-16">
+          <span className="field__label">Công việc được giao</span>
+          <div className="field__hint mb-8">
+            Chọn &quot;Ở đâu&quot; cho từng việc; chọn &quot;Không giao&quot; thì Phó hiệu trưởng không thấy việc đó. Không tích ô nào = chỉ
+            được xem.
+          </div>
+          <div className="sc-vp-edit">
+            {visibleVpAreas.map((area) => {
+              const g = grants[area.key];
+              const lockMenu = area.key === 'menu' && menuHeldByOther;
+              return (
+                <div key={area.key} className={`sc-vp-edit__row ${g ? '' : 'is-off'}`}>
+                  <div className="sc-vp-edit__name">
+                    <div className="fw-600">{area.label}</div>
+                    <div className="text-xs muted">{area.hint}</div>
                   </div>
-                );
-              })}
-            </div>
-            {errors.areas && (
-              <p className="field__error mt-8" role="alert">
-                {errors.areas}
-              </p>
-            )}
-          </>
-        )}
-      </div>
+                  <select
+                    className={`select ${errors.areas && g && !g.campusId ? 'is-invalid' : ''}`}
+                    aria-label={`Ở đâu: ${area.label}`}
+                    value={g ? g.campusId : NOT_GIVEN}
+                    onChange={(e) => setScope(area, e.target.value)}
+                  >
+                    <option value={NOT_GIVEN}>Không giao</option>
+                    {g && !g.campusId && <option value="">Chọn nơi…</option>}
+                    {area.scopes.includes('CAMPUS') &&
+                      campuses.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.shortName || c.name}
+                        </option>
+                      ))}
+                    {area.scopes.includes('ALL') && <option value={AREA_SCOPE_ALL}>Toàn trường</option>}
+                  </select>
+                  <div className="sc-vp-edit__tasks" role="group" aria-label={`Việc được làm: ${area.label}`}>
+                    {g ? (
+                      <>
+                        {areaTasks(area).map((t) => {
+                          const on = taskOn(t, g.actions);
+                          return (
+                            <label key={t.id} className={`sc-vp-task ${lockMenu && !on ? 'is-off' : ''}`}>
+                              <input type="checkbox" checked={on} disabled={lockMenu && !on} onChange={() => toggleTask(area, t)} />
+                              {t.label}
+                            </label>
+                          );
+                        })}
+                        {lockMenu && (
+                          <span className="sc-vp-edit__warn text-xs">
+                            <AlertTriangle size={13} /> {sharedHolder.fullName} đang quản lý thực đơn. Mỗi năm học chỉ 1 người.
+                          </span>
+                        )}
+                      </>
+                    ) : (
+                      <span className="muted text-sm">—</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {errors.areas && (
+            <p className="field__error mt-8" role="alert">
+              {errors.areas}
+            </p>
+          )}
+        </div>
+      )}
 
       <FormField label="Ghi chú" className="mt-12">
         <textarea
@@ -302,6 +300,25 @@ export default function VicePrincipalAssignmentPage({ embedded = false }) {
   const { data, loading, error, reload } = useViceAssignments(allowed ? yearId : null);
   const [editing, setEditing] = useState(null);
   const [choosingFor, setChoosingFor] = useState(null);
+  const [dirty, setDirty] = useState(false);
+  const year = data?.year;
+  const rows = useMemo(() => data?.rows || [], [data?.rows]);
+  const assignedIds = useMemo(() => (SCHOOL_CONFIG_API ? rows.filter((r) => r.assignment).map((r) => r.user.id) : []), [rows]);
+  const vices = useVicesPermissions(assignedIds);
+  const guard = useLeaveGuard({ when: dirty });
+  // Người đang được giao việc (cột phải) nằm trên URL để mở thẳng; đổi người khi còn nháp thì hỏi trước
+  const [switchTo, setSwitchTo] = useState(null);
+  const selectPerson = (userId) => {
+    const next = new URLSearchParams(params);
+    next.set('vp', String(userId));
+    guard.step(`?${next}`, { replace: true });
+  };
+  const askSelect = (userId) => (dirty && String(userId) !== params.get('vp') ? setSwitchTo(userId) : selectPerson(userId));
+  const pickYear = (v) => {
+    const next = new URLSearchParams(params);
+    next.set('year', v);
+    setParams(next);
+  };
 
   if (!allowed)
     return (
@@ -312,13 +329,36 @@ export default function VicePrincipalAssignmentPage({ embedded = false }) {
       </div>
     );
 
-  const year = data?.year;
-  const rows = data?.rows || [];
   const readOnly = year?.status === YEAR_STATUS.CLOSED;
   const sharedRow = rows.find((r) => r.assignment?.sharedService);
   // Điểm trường đã ngừng hoạt động không phân công PHT (BE từ chối)
   const uncovered = md.campuses.filter((c) => c.status !== 'INACTIVE' && !rows.some((r) => r.assignment?.campusId === c.id));
   const campusName = (id) => md.campusById(id)?.shortName || id;
+  const activeCampuses = md.campuses.filter((c) => c.status !== 'INACTIVE');
+  const assignedRows = rows.filter((r) => r.assignment);
+  const personOf = (r) => ({
+    userId: r.user.id,
+    fullName: r.user.fullName,
+    campusId: r.assignment.campusId,
+    campusName: campusName(r.assignment.campusId),
+    items: vices.itemsByUser[r.user.id],
+  });
+  // Người có điểm trường lên trước; chưa chọn ai thì mở người đầu tiên
+  const ordered = [...assignedRows, ...rows.filter((r) => !r.assignment)];
+  const selectedRow =
+    ordered.find((r) => String(r.user.id) === params.get('vp')) || ordered.find((r) => vices.itemsByUser[r.user.id]?.length) || ordered[0];
+  const selectedItems = selectedRow ? vices.itemsByUser[selectedRow.user.id] : null;
+  const switchName = rows.find((r) => r.user.id === switchTo)?.user.fullName;
+  const cardOf = (r) => (
+    <VicePrincipalCard
+      key={r.user.id}
+      row={r}
+      campusName={campusName}
+      assignerName={r.assignment ? md.userById(r.assignment.assignedBy)?.fullName : null}
+      readOnly={readOnly}
+      onEdit={() => setEditing(r)}
+    />
+  );
 
   return (
     <div className="page">
@@ -328,7 +368,7 @@ export default function VicePrincipalAssignmentPage({ embedded = false }) {
       {!embedded && (
         <div className="card mb-16">
           <div className="filter-bar">
-            <YearPicker years={years} value={yearId} onChange={(v) => setParams({ year: v })} />
+            <YearPicker years={years} value={yearId} onChange={pickYear} />
           </div>
         </div>
       )}
@@ -382,22 +422,108 @@ export default function VicePrincipalAssignmentPage({ embedded = false }) {
             }
           />
         </div>
-      ) : (
-        <div className="sc-vp-grid">
-          {rows.map((r) => (
-            <VicePrincipalCard
-              key={r.user.id}
-              row={r}
-              campusName={campusName}
-              assignerName={r.assignment ? md.userById(r.assignment.assignedBy)?.fullName : null}
-              readOnly={readOnly}
-              onEdit={() => setEditing(r)}
-              permissionsLink={SCHOOL_CONFIG_API ? `/permissions/overrides?userId=${r.user.id}` : undefined}
+      ) : SCHOOL_CONFIG_API ? (
+        <>
+          {!vices.loading && !vices.error && (
+            <VpGapsNote
+              people={assignedRows.map(personOf)}
+              campuses={activeCampuses}
+              missing={assignedRows.filter((r) => vices.errorsByUser[r.user.id]).map((r) => r.user.fullName)}
             />
-          ))}
-        </div>
+          )}
+          <div className="vp-split">
+            <aside className="card vp-split__list">
+              <VpPeopleList
+                people={ordered.map((r) => ({
+                  userId: r.user.id,
+                  user: r.user,
+                  campusName: r.assignment ? campusName(r.assignment.campusId) : null,
+                  items: vices.itemsByUser[r.user.id],
+                  loading: vices.loading,
+                  error: vices.error || vices.errorsByUser[r.user.id],
+                }))}
+                selectedId={selectedRow?.user.id}
+                onSelect={askSelect}
+                actionsOf={(p) => {
+                  const r = rows.find((row) => row.user.id === p.userId);
+                  if (readOnly) return null;
+                  return (
+                    <button
+                      type="button"
+                      className={`btn btn--sm ${r.assignment ? 'btn--ghost' : 'btn--primary'}`}
+                      onClick={() => setEditing(r)}
+                    >
+                      <UserCog size={15} /> {r.assignment ? 'Đổi điểm trường' : 'Phân công điểm trường'}
+                    </button>
+                  );
+                }}
+              />
+            </aside>
+            <section className="card vp-split__detail" aria-label="Giao việc">
+              {!selectedRow ? null : !selectedRow.assignment ? (
+                <EmptyState
+                  icon={UserCog}
+                  title={`${selectedRow.user.fullName} chưa có điểm trường`}
+                  description="Phân công điểm trường trước rồi mới giao việc."
+                  action={
+                    !readOnly && (
+                      <button type="button" className="btn btn--primary" onClick={() => setEditing(selectedRow)}>
+                        Phân công điểm trường
+                      </button>
+                    )
+                  }
+                />
+              ) : vices.loading ? (
+                <div className="table-wrap">
+                  <table className="table table--compact">
+                    <tbody>
+                      <SkeletonRows rows={8} cols={2} />
+                    </tbody>
+                  </table>
+                </div>
+              ) : vices.error || vices.errorsByUser[selectedRow.user.id] || !selectedItems ? (
+                <ErrorState error={vices.error || vices.errorsByUser[selectedRow.user.id]} onRetry={vices.reload} />
+              ) : selectedItems.length === 0 ? (
+                <EmptyState
+                  icon={UserCog}
+                  title="Chưa có việc nào để giao"
+                  description="Vai trò Phó hiệu trưởng chưa có việc cấu hình được."
+                />
+              ) : (
+                <VpTaskEditor
+                  key={selectedRow.user.id}
+                  person={personOf(selectedRow)}
+                  others={assignedRows.filter((r) => r !== selectedRow).map(personOf)}
+                  campuses={activeCampuses}
+                  // Việc giao theo người, không theo năm nên chỉ sửa ở năm đang hoạt động
+                  readOnly={year?.status !== YEAR_STATUS.ACTIVE}
+                  onSaved={() => vices.reload({ silent: true })}
+                  onDirty={setDirty}
+                />
+              )}
+            </section>
+          </div>
+        </>
+      ) : (
+        <div className="sc-vp-grid">{rows.map(cardOf)}</div>
       )}
 
+      <LeaveConfirmModal {...guard.modal} canSave={false} message="Việc vừa giao chưa được lưu. Rời trang sẽ mất các thay đổi này." />
+
+      <ConfirmationModal
+        open={switchTo !== null}
+        danger
+        title="Bỏ thay đổi chưa lưu?"
+        message={`Việc vừa chỉnh cho ${selectedRow?.user.fullName || ''} chưa được lưu. Chuyển sang ${switchName || 'người khác'} sẽ mất các thay đổi này.`}
+        confirmLabel="Bỏ thay đổi"
+        cancelLabel="Ở lại"
+        onClose={() => setSwitchTo(null)}
+        onConfirm={() => {
+          const target = switchTo;
+          setSwitchTo(null);
+          selectPerson(target);
+        }}
+      />
       {choosingFor && (
         <ChooseViceModal
           campus={choosingFor}

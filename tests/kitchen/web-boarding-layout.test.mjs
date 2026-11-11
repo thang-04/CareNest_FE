@@ -89,12 +89,13 @@ test('route bán trú chọn trang theo isDemoModule: build BE dùng trang mới
   assert.match(routes, /<Route path="stock-receipts\/:id" element=\{only\(STOCK_RECEIPT_ROLES, <StockReceiptEditorPage \/>\)\} \/>/);
 });
 
-test('NUT-16, NUT-21: HT, PHT có mục bếp hôm nay, lưu mẫu, ảnh bữa, khung giờ ảnh khi nối BE', () => {
+test('NUT-16, NUT-21: HT, PHT có mục bếp hôm nay, lưu mẫu, ảnh bữa khi nối BE; giờ đăng ảnh nằm ở Cấu hình thời gian', () => {
   const apiBuild = !USE_MOCK && INTEGRATION_MODULES['kitchen-records']?.source === 'api';
   for (const role of [ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL]) {
     const items = getMenuForRole(role).flatMap((entry) => (entry.children || []).map((child) => child.to));
     assert.ok(items.includes('/kitchen/published-menu'), role);
     assert.ok(items.includes('/kitchen/food-samples'), role);
-    for (const to of ['/kitchen/meal-photos', '/kitchen/photo-windows']) assert.equal(items.includes(to), apiBuild, `${role} ${to}`);
+    assert.equal(items.includes('/kitchen/meal-photos'), apiBuild, `${role} meal-photos`);
+    assert.ok(!items.includes('/kitchen/photo-windows'), role);
   }
 });

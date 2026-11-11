@@ -29,23 +29,17 @@ import { uid } from '@/utils/id';
 import { hasErrors } from '@/utils/children/childrenValidation';
 import { needsParentOpinion, validateHealthExam } from '@/utils/children/healthExamValidation';
 import { canRecordMeasurement, canViewHealth } from '@/utils/children/childrenPermissions';
-import {
-  ensureChildRecordsSeeded,
-  ensureDeclarationOf,
-  knownConditionOf,
-  notifyTbContactDateChanged,
-  toMeasurementView,
-} from './childrenMockRepository';
-import { conclusionBrief, openFollowUpBriefOf, previousExamOf } from './healthCheckMockRepository';
-import { campaignStatusOf, isOpenForEntry, trackFollowUp } from './healthCheckRule';
-import { examReferenceFor, examReviewPoints, screenMeasurement } from './healthScreeningRule';
+import { ensureChildRecordsSeeded, ensureDeclarationOf, notifyTbContactDateChanged, toMeasurementView } from './childrenMockRepository';
+import { previousExamOf } from './healthCheckMockRepository';
+import { campaignStatusOf, isOpenForEntry } from './healthCheckRule';
+import { conclusionBrief, examReferenceFor, examReviewPoints, screenMeasurement } from './healthScreeningRule';
 
 /*
  * Backend giả của phiếu kiểm tra sức khỏe Phụ lục II trong đợt khám (user chốt 2026-10-17, PROPOSED — chờ BE).
  * Phiếu là measurement có exam + examStatus (DRAFT/CONCLUDED); mỗi trẻ 1 phiếu mỗi đợt. Giáo viên phụ trách lớp nhập;
- * bác sĩ, nhân viên y tế không có tài khoản. Lưu kết luận ⇒ khóa phiếu, mức theo dõi theo kết luận, mở phiếu theo dõi.
- * Hành chính lấy từ hồ sơ trẻ, giáo viên không sửa; tiền sử giáo viên sửa được, lưu kết luận cập nhật vào khai báo sức khỏe
- * (user chốt 2026-10-22). Trẻ đang có phiếu theo dõi dùng mẫu kết luận FOLLOW_UP; lưu kết luận không đóng phiếu (2026-10-21).
+ * bác sĩ, nhân viên y tế không có tài khoản. Lưu kết luận ⇒ khóa phiếu; kết luận là cảnh báo của lần khám ở Sổ sức khỏe (HLT-19),
+ * không mở phiếu theo dõi (HLT-16 bỏ 2026-11-04). Hành chính lấy từ hồ sơ trẻ, giáo viên không sửa; tiền sử giáo viên sửa được,
+ * lưu kết luận cập nhật vào khai báo sức khỏe (user chốt 2026-10-22).
  * Phạm vi xem như Sổ sức khỏe. CCCD chỉ trả trong phiếu, không vào danh sách, thông báo, AI.
  */
 
@@ -76,17 +70,12 @@ const contextOf = (db, campaignId, childId, user) => {
 const clampDate = (campaign, today = todayInput()) =>
   today < campaign.startDate ? campaign.startDate : today > campaign.endDate ? campaign.endDate : today;
 
-const openFollowUpOfChild = (db, childId) => (db.healthFollowUps || []).find((f) => f.childId === childId && !f.closedAt) || null;
+/** Ngày khám do BE ghi (user chốt 2026-11-04): phiếu đã có giữ ngày; phiếu mới = hôm nay kẹp vào khoảng ngày của đợt. */
+const examDateOf = (campaign, m) => m?.date || clampDate(campaign);
 
-/**
- * Mẫu kết luận (user chốt 2026-10-21): phiếu đã kết luận giữ mẫu đã lưu; phiếu mới hoặc nháp dùng mẫu FOLLOW_UP khi trẻ có
- * phiếu theo dõi đang mở mà phiếu khám này không thuộc phiếu đó (phiếu khám đã mở ra phiếu theo dõi dùng mẫu thường).
- */
-const conclusionModeOf = (m, openCase) => {
-  if (m?.examStatus === EXAM_STATUS.CONCLUDED)
-    return m.exam?.conclusion?.followUpFinding ? CONCLUSION_MODE.FOLLOW_UP : CONCLUSION_MODE.STANDARD;
-  return openCase && !openCase.measurementIds.includes(m?.id) ? CONCLUSION_MODE.FOLLOW_UP : CONCLUSION_MODE.STANDARD;
-};
+/** Mẫu kết luận: phiếu đã kết luận theo mẫu FOLLOW_UP (trước 2026-11-04) giữ mẫu đó; phiếu mới, phiếu nháp dùng mẫu thường. */
+const conclusionModeOf = (m) =>
+  m?.examStatus === EXAM_STATUS.CONCLUDED && m.exam?.conclusion?.followUpFinding ? CONCLUSION_MODE.FOLLOW_UP : CONCLUSION_MODE.STANDARD;
 
 const PROFILE_ADMIN_KEYS = Object.keys(profileToExamAdmin());
 const HISTORY_KEYS = [
@@ -188,7 +177,7 @@ const pick = (template, raw, max) =>
   Object.fromEntries(Object.keys(template).map((k) => [k, typeof template[k] === 'string' ? str(raw?.[k], max) : template[k]]));
 
 /** Kết luận chỉ giữ ô của mẫu đang dùng (thường hoặc FOLLOW_UP). */
-const cleanConclusion = (c, mode, knownCondition) => {
+const cleanConclusion = (c, mode, keepsIssueKind) => {
   const base = {
     tbRisk: !!c.tbRisk,
     issueText: str(c.issueText, EXAM_FIELD_LIMITS.note),
@@ -212,19 +201,20 @@ const cleanConclusion = (c, mode, knownCondition) => {
     };
   }
   const action = str(c.action);
-  // Câu "mới hay đã biết" chỉ hỏi trẻ có vấn đề đã biết, có vấn đề mà không chuyển khám, không nguy cơ lao (user chốt 2026-10-21).
-  const asksKind = !!knownCondition && !!c.healthIssue && !c.tbRisk && action !== CONCLUSION_ACTION.REFERRAL;
+  // Như BE: bỏ câu "mới hay đã biết" (user 2026-11-04); chỉ phiếu cũ đã kết luận có câu trả lời giữ khi sửa (còn vấn đề, không
+  // chuyển khám, không nguy cơ lao).
+  const keepsKind = !!keepsIssueKind && !!c.healthIssue && !c.tbRisk && action !== CONCLUSION_ACTION.REFERRAL;
   return {
     ...base,
     normal: !!c.normal,
     healthIssue: !!c.healthIssue,
-    issueKind: asksKind ? str(c.issueKind) : '',
+    issueKind: keepsKind ? str(c.issueKind) : '',
     followUpFinding: '',
     action,
   };
 };
 
-const cleanExam = (raw, ref, { concluded, mode = CONCLUSION_MODE.STANDARD, knownCondition = null }) => {
+const cleanExam = (raw, ref, { concluded, mode = CONCLUSION_MODE.STANDARD, keepsIssueKind = false }) => {
   const t = buildEmptyExam();
   const r = raw || {};
   const num = (v, digits) => (concluded ? roundTo(v, digits) : isBlank(v) ? '' : String(v).slice(0, 10));
@@ -260,7 +250,7 @@ const cleanExam = (raw, ref, { concluded, mode = CONCLUSION_MODE.STANDARD, known
   };
   const development = pick(t.development, r.development);
   if (!ref.autismQuestion) development.autismRisk = '';
-  const conclusion = cleanConclusion(r.conclusion || {}, mode, knownCondition);
+  const conclusion = cleanConclusion(r.conclusion || {}, mode, keepsIssueKind);
   // Ý kiến phụ huynh chỉ giữ khi có người đi cùng và kết luận mức Cần theo dõi sát (user chốt 2026-10-23).
   if (!needsParentOpinion({ admin, conclusion }, mode)) conclusion.parentOpinion = '';
   return {
@@ -356,26 +346,17 @@ const diffExam = (before, after) => {
 const toExamView = (db, { campaign, child, cls, m }, user) => {
   const open = isOpenForEntry(campaign);
   const legacy = !!m && !m.exam;
-  const date = m?.date || clampDate(campaign);
+  const date = examDateOf(campaign, m);
   const reference = examReferenceFor(child.dateOfBirth, date);
-  const followUps = (db.healthFollowUps || []).filter((f) => f.childId === child.id);
-  const latestExternal = followUps
-    .flatMap((f) => f.history.filter((e) => e.action === 'EXTERNAL_RESULT').map((e) => ({ ...e, followUpId: f.id })))
-    .sort((a, b) => b.on.localeCompare(a.on) || b.at.localeCompare(a.at))[0];
   const prev = previousExamOf(db, child.id, date, m?.id);
   const prevCampaign = prev?.campaignId ? db.healthCheckCampaigns.find((c) => c.id === prev.campaignId) : null;
   const view = m && !legacy ? toMeasurementView(db, m) : null;
   // Phiếu nháp: hành chính theo hồ sơ hiện tại (có thể đã sửa sau lần lưu nháp); tiền sử giữ theo phiếu, mục trống lấy từ khai báo.
   if (view && m.examStatus === EXAM_STATUS.DRAFT)
     view.exam = { ...withProfile(child, view.exam), history: withDeclaredHistory(db, child, view.exam.history) };
-  const openCase = openFollowUpOfChild(db, child.id);
   return {
     // Mẫu kết luận do BE chọn; UI chỉ vẽ theo (user chốt 2026-10-21).
-    conclusionMode: conclusionModeOf(m, openCase),
-    // Vấn đề đã biết của trẻ: có thì mẫu thường hỏi "Vấn đề này" mới hay đã biết (user chốt 2026-10-21).
-    knownCondition: knownConditionOf(db, child),
-    // Phiếu theo dõi đang mở (không phải phiếu do chính phiếu khám này mở), để bác sĩ thấy trước khi kết luận.
-    openFollowUp: openCase && !openCase.measurementIds.includes(m?.id) ? openFollowUpBriefOf(db, openCase) : null,
+    conclusionMode: conclusionModeOf(m),
     campaign: {
       id: campaign.id,
       name: campaign.name,
@@ -404,24 +385,15 @@ const toExamView = (db, { campaign, child, cls, m }, user) => {
       ? { ...view, reviewPoints: examReviewPoints(m, child.dateOfBirth), measuredByName: userName(db, m.measuredBy) }
       : null,
     legacyMeasurementId: legacy ? m.id : null,
-    // Phiếu mới: Phần I theo hồ sơ trẻ; số đo để trống.
+    // Phiếu mới: Phần I theo hồ sơ trẻ; số đo để trống; date = ngày BE sẽ ghi khi lưu (chỉ để hiện).
     draft: m ? null : { date, heightCm: '', weightKg: '', headCircumferenceCm: '', exam: prefillExam(db, child) },
     reference,
     previous: prev
       ? {
           date: prev.date,
           campaignName: prevCampaign?.name || null,
-          followUpLevel: screenMeasurement(prev, child.dateOfBirth).followUpLevel,
+          followUpLevel: screenMeasurement(prev, child).followUpLevel,
           conclusion: conclusionBrief(prev),
-        }
-      : null,
-    latestExternalResult: latestExternal
-      ? {
-          followUpId: latestExternal.followUpId,
-          on: latestExternal.on,
-          note: latestExternal.note,
-          facility: latestExternal.facility || '',
-          nextVisitOn: latestExternal.nextVisitOn || null,
         }
       : null,
     // Gợi ý ô "Bác sĩ kết luận": các tên đã nhập trong đợt.
@@ -449,17 +421,18 @@ export const healthExamMockRepository = {
     await delay(80);
     const db = ensureChildRecordsSeeded();
     const { campaign, child, m } = contextOf(db, campaignId, childId, user);
-    const date = /^\d{4}-\d{2}-\d{2}$/.test(payload?.date || '') ? payload.date : clampDate(campaign);
-    const mode = conclusionModeOf(m, openFollowUpOfChild(db, childId));
+    const date = examDateOf(campaign, m);
+    const mode = conclusionModeOf(m);
     const cleaned = cleanExam(payload?.exam, examReferenceFor(child.dateOfBirth, date), { concluded: false, mode });
     const exam = withProfile(child, cleaned, m?.examStatus === EXAM_STATUS.CONCLUDED ? m.exam : null);
     return { reviewPoints: examReviewPoints({ date, exam }, child.dateOfBirth) };
   },
 
   /**
-   * payload: { date, heightCm, weightKg, headCircumferenceCm, exam, conclude, reason, conclusionMode }.
+   * payload: { heightCm, weightKg, headCircumferenceCm, exam, conclude, reason, conclusionMode } — không có date: BE ghi ngày khám
+   * (examDateOf), client gửi thì bỏ qua (user chốt 2026-11-04).
    * conclude=false: lưu nháp (không bắt buộc ô nào). conclude=true: kiểm đủ, khóa phiếu; sửa phiếu đã kết luận cần lý do (D12).
-   * conclusionMode: mẫu UI đang vẽ; khác mẫu BE chọn (phiếu theo dõi vừa mở hoặc đóng) ⇒ 409 để tải lại phiếu.
+   * conclusionMode: mẫu UI đang vẽ; khác mẫu BE chọn (phiếu vừa được người khác kết luận) ⇒ 409 để tải lại phiếu.
    */
   async saveHealthExam(campaignId, childId, payload, user) {
     await delay(payload?.conclude ? 350 : 120);
@@ -472,32 +445,35 @@ export const healthExamMockRepository = {
     if (m && !m.exam) throw new ApiError(409, 'Trẻ đã có kết quả nhập theo mẫu cũ trong đợt này. Xem ở Sổ sức khỏe.');
     const concluded = m?.examStatus === EXAM_STATUS.CONCLUDED;
     if (!payload.conclude && concluded) throw new ApiError(409, 'Phiếu đã có kết luận. Lưu lại kết luận kèm lý do sửa thay vì lưu nháp.');
-    const date = payload.date || m?.date || clampDate(campaign);
-    const reference = examReferenceFor(child.dateOfBirth, /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : clampDate(campaign));
-    const mode = conclusionModeOf(m, openFollowUpOfChild(db, childId));
+    const date = examDateOf(campaign, m);
+    const reference = examReferenceFor(child.dateOfBirth, date);
+    const mode = conclusionModeOf(m);
     if (payload.conclude && payload.conclusionMode && payload.conclusionMode !== mode)
-      throw new ApiError(409, 'Phiếu theo dõi của trẻ vừa thay đổi nên mẫu kết luận đã đổi. Tải lại phiếu khám rồi lưu lại.');
-    const knownCondition = knownConditionOf(db, child);
-    const cleaned = cleanExam(payload.exam, reference, { concluded: !!payload.conclude, mode, knownCondition });
+      throw new ApiError(409, 'Mẫu kết luận của phiếu đã thay đổi. Tải lại phiếu khám rồi lưu lại.');
+    // Câu "vấn đề mới hay đã biết" đã bỏ (user 2026-11-04): chỉ phiếu cũ đã trả lời giữ câu trả lời khi sửa, như BE.
+    const keepsIssueKind = concluded && !!m.exam?.conclusion?.issueKind;
+    const cleaned = cleanExam(payload.exam, reference, { concluded: !!payload.conclude, mode, keepsIssueKind });
     const exam = withProfile(child, cleaned, concluded ? m.exam : null);
+    // Mỗi trẻ một kết quả đo một ngày, cả phiếu nháp (như BE); ngày khám do BE ghi nên giáo viên không chọn lại được.
+    const dateTaken = db.healthMeasurements.some((x) => x.childId === childId && x.date === date && x.id !== m?.id)
+      ? `Ngày khám ${formatDate(date)} trẻ đã có kết quả đo khác. Báo Hiệu trưởng hoặc Phó hiệu trưởng.`
+      : null;
 
     if (payload.conclude) {
       const errors = validateHealthExam(
-        { ...payload, date, exam: cleaned },
+        { ...payload, exam: cleaned },
         {
           dateOfBirth: child.dateOfBirth,
-          campaign: { startDate: campaign.startDate, endDate: campaign.endDate },
+          examDate: date,
           reference,
           requireReason: concluded,
           conclusionMode: mode,
-          knownCondition,
           guardianCount: (child.guardians || []).length,
         },
       );
-      if (db.healthMeasurements.some((x) => x.childId === childId && x.date === date && x.id !== m?.id))
-        errors.date ||= 'Ngày này trẻ đã có kết quả đo khác. Chọn ngày khám khác trong đợt.';
+      if (dateTaken) errors.date = dateTaken;
       if (hasErrors(errors)) invalid(errors);
-    }
+    } else if (dateTaken) invalid({ date: dateTaken }, dateTaken);
 
     return writeDb((d) => {
       const num = (v) =>
@@ -537,7 +513,6 @@ export const healthExamMockRepository = {
       } else Object.assign(target, values);
       if (payload.conclude) {
         if (!concluded) target.concludedAt = nowIso();
-        trackFollowUp(d, freshChild, target, toMeasurementView(d, target).followUpLevel, user);
         // Lưu lại phiếu đã kết luận mà không sửa tiền sử thì không ghi đè khai báo (khai báo có thể đã sửa sau đó).
         if (!concluded || JSON.stringify(m.exam.history) !== JSON.stringify(exam.history)) writeBackHistory(d, freshChild, target, user);
         // Lưu kết luận là công bố cho phụ huynh, kể cả lưu lại sau sửa (BE gửi thông báo cập nhật); nháp không công bố (2026-10-23).

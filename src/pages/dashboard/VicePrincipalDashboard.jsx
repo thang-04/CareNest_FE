@@ -195,7 +195,7 @@ export default function VicePrincipalDashboard() {
               unit={lunch ? 'suất' : undefined}
               hint={
                 reconfirm
-                  ? 'Sổ báo ăn đã thay đổi sau khi xác nhận – cần xác nhận lại'
+                  ? 'Sổ suất ăn đã thay đổi sau khi xác nhận – cần xác nhận lại'
                   : lunch
                     ? `Sĩ số suất ăn: ${MEAL_COUNT_STATUS_LABELS[lunch.status] || lunch.status}`
                     : 'Hôm nay không có bữa trưa bán trú'

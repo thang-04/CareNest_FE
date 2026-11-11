@@ -7,6 +7,7 @@ import { useAllergyContext, useMenuAccess, useMenuCatalog, useWeeklyMenu, useWee
 import { getAiDraft, saveWeeklyMenu } from '@/services/menu-planning/menuPlanningService';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { FormField } from '@/components/form/FormField';
+import { WeekPicker } from '@/components/form/WeekPicker';
 import { SearchSelect } from '@/components/ui/SearchSelect';
 import { ErrorState, LoadingState, Spinner } from '@/components/ui/States';
 import { AiDraftLabel, NoManageAccess } from '@/components/menu-planning/MenuBadges';
@@ -178,6 +179,14 @@ export default function WeeklyMenuFormPage() {
         </div>
       )}
       <form onSubmit={submit} noValidate>
+        <div className="page-actions page-actions--top">
+          <button type="button" className="btn" onClick={() => navigate(id ? `/menu/weekly/${id}` : '/menu/weekly')}>
+            <ArrowLeft size={16} /> Hủy
+          </button>
+          <button type="submit" className="btn btn--primary" disabled={busy}>
+            {busy ? <Spinner small /> : <Save size={16} />} Lưu nháp
+          </button>
+        </div>
         <div className="card wizard-card">
           <div className="card__body td-form-grid">
             <FormField label="Nhóm tuổi" required error={show('ageGroupId')}>
@@ -190,8 +199,8 @@ export default function WeeklyMenuFormPage() {
                 ))}
               </select>
             </FormField>
-            <FormField label="Tuần (Thứ Hai)" required error={show('weekStart')} hint="Ngày chọn được tự chuyển về Thứ Hai của tuần">
-              <input type="date" className="input" value={form.weekStart} onChange={(e) => changeWeek(e.target.value)} disabled={locked} />
+            <FormField label="Tuần" required error={show('weekStart')}>
+              <WeekPicker value={form.weekStart} onChange={changeWeek} disabled={locked} />
             </FormField>
             <FormField label="Ghi chú">
               <input
@@ -273,15 +282,6 @@ export default function WeeklyMenuFormPage() {
             </div>
           </div>
         )}
-
-        <div className="page-actions">
-          <button type="button" className="btn" onClick={() => navigate(id ? `/menu/weekly/${id}` : '/menu/weekly')}>
-            <ArrowLeft size={16} /> Hủy
-          </button>
-          <button type="submit" className="btn btn--primary" disabled={busy}>
-            {busy ? <Spinner small /> : <Save size={16} />} Lưu nháp
-          </button>
-        </div>
       </form>
     </div>
   );

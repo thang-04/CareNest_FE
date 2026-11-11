@@ -192,31 +192,35 @@ export default function DishFormPage() {
             null
           }
           actions={
-            draftMode ? (
-              <>
-                <Link className="btn" to="/menu/dishes">
-                  <X size={16} /> Hủy
-                </Link>
-                <button type="button" className="btn" disabled={busy} onClick={() => submit(null, false, DISH_STATUS.DRAFT)}>
-                  <Save size={16} /> Lưu nháp
-                </button>
-                <button type="button" className="btn btn--primary" disabled={busy} onClick={() => submit(null, false, DISH_STATUS.ACTIVE)}>
-                  {busy ? <Spinner small /> : <Save size={16} />} Lưu và dùng cho thực đơn
-                </button>
-              </>
-            ) : (
-              <>
-                <Link className="btn" to="/menu/dishes">
-                  <X size={16} /> Hủy
-                </Link>
-                <button type="button" className="btn" disabled={busy} onClick={() => submit(null, true)}>
-                  <Save size={16} /> Lưu & thêm mới
-                </button>
-                <button type="submit" className="btn btn--primary" disabled={busy}>
-                  {busy ? <Spinner small /> : <Save size={16} />} Lưu
-                </button>
-              </>
-            )
+            <>
+              <Link className="btn" to="/menu/dishes">
+                <X size={16} /> Hủy
+              </Link>
+              {draftMode ? (
+                <>
+                  <button type="button" className="btn" disabled={busy} onClick={() => submit(null, false, DISH_STATUS.DRAFT)}>
+                    <Save size={16} /> Lưu nháp
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn--primary"
+                    disabled={busy}
+                    onClick={() => submit(null, false, DISH_STATUS.ACTIVE)}
+                  >
+                    {busy ? <Spinner small /> : <Save size={16} />} Lưu và dùng cho thực đơn
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button type="button" className="btn" disabled={busy} onClick={() => submit(null, true)}>
+                    <Save size={16} /> Lưu & thêm mới
+                  </button>
+                  <button type="submit" className="btn btn--primary" disabled={busy}>
+                    {busy ? <Spinner small /> : <Save size={16} />} Lưu
+                  </button>
+                </>
+              )}
+            </>
           }
         />
 
@@ -297,7 +301,8 @@ export default function DishFormPage() {
           </details>
         </section>
 
-        <div className="td-split-aside">
+        {/* Chưa có cảnh báo tự kiểm thì không chừa cột phải trống: bảng thành phần chiếm cả bề ngang */}
+        <div className={`td-split-aside ${checks.length ? '' : 'td-split-aside--solo'}`}>
           <section className="card">
             <div className="card__header">
               <h2 className="card__title">Thành phần và định lượng một trẻ</h2>
@@ -335,7 +340,7 @@ export default function DishFormPage() {
                       </option>
                     ))}
                 </select>
-                <button type="button" className="btn btn--sm" onClick={startCopy} disabled={!copyFrom || !copyTo || copyFrom === copyTo}>
+                <button type="button" className="btn" onClick={startCopy} disabled={!copyFrom || !copyTo || copyFrom === copyTo}>
                   <Copy size={15} /> Chép
                 </button>
               </div>
@@ -347,16 +352,16 @@ export default function DishFormPage() {
               </div>
             )}
             <div className="table-wrap td-recipe-wrap">
-              <table className="table table--grid table--compact td-recipe">
+              <table className="table table--grid table--compact table--wrap-head td-recipe">
                 <thead>
                   <tr>
                     <th className="num cell--fixed">#</th>
                     <th>
                       Thành phần <span className="req">*</span>
                     </th>
-                    <th className="cell--fixed">ĐVT</th>
+                    <th className="cell--fixed center">ĐVT</th>
                     {groups.map((a) => (
-                      <th key={a.id} className="center">
+                      <th key={a.id} className="num">
                         {ageAbbr(a.id)}
                         {copied.includes(a.id) && (
                           <span className="chip chip--orange td-copied-chip" title="Vừa chép — kiểm tra lại">
@@ -365,9 +370,7 @@ export default function DishFormPage() {
                         )}
                       </th>
                     ))}
-                    <th className="center">
-                      <span className="sr-only">Xóa</span>
-                    </th>
+                    <th className="cell--actions">Thao tác</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -395,12 +398,12 @@ export default function DishFormPage() {
                           )}
                           {err && <span className="field__error">{err}</span>}
                         </td>
-                        <td className="muted cell--fixed">{food?.unit || 'g'}</td>
+                        <td className="muted cell--fixed center">{food?.unit || 'g'}</td>
                         {groups.map((a) => {
                           const v = r.portions[a.id];
                           const bad = submitted && errors[`ing_${i}_${a.id}`];
                           return (
-                            <td key={a.id} className="center">
+                            <td key={a.id} className="num">
                               <input
                                 type="number"
                                 min="0"
@@ -415,7 +418,7 @@ export default function DishFormPage() {
                             </td>
                           );
                         })}
-                        <td className="center">
+                        <td className="cell--actions">
                           <button
                             type="button"
                             className="icon-btn"
@@ -444,7 +447,7 @@ export default function DishFormPage() {
                     {groups.map((a) => {
                       const t = dishTotals(preview, catalog.foodById, 1, a.id);
                       return (
-                        <td key={a.id} className="center nowrap cell--fixed">
+                        <td key={a.id} className="num nowrap cell--fixed">
                           {t.noQuantity ? <span className="td-warn">Thiếu</span> : `${g(t.totals.kcal)} kcal`}
                         </td>
                       );
@@ -462,9 +465,13 @@ export default function DishFormPage() {
             </div>
           </section>
 
-          <div className="td-aside-stack">{checks.length > 0 && <AutoChecks items={checks} />}</div>
+          {checks.length > 0 && (
+            <div className="td-aside-stack">
+              <AutoChecks items={checks} />
+            </div>
+          )}
         </div>
-        <section className="card">
+        <section className="card td-portion-card">
           <div className="card__header">
             <h2 className="card__title">Dinh dưỡng và chi phí 1 suất</h2>
             <span className="text-sm muted">Theo định lượng đang nhập; chi phí đã cộng hệ số thải bỏ</span>

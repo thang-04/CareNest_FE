@@ -97,7 +97,7 @@ export default function ChildDevelopmentListPage() {
               <thead>
                 <tr>
                   <th>Họ tên</th>
-                  <th>Ngày sinh</th>
+                  <th className="center">Ngày sinh</th>
                   <th>Tuổi</th>
                   <th>Lớp</th>
                   <th className="cell--actions">Thao tác</th>
@@ -143,7 +143,7 @@ export default function ChildDevelopmentListPage() {
                       <td>
                         <ChildNameCell child={ch} sub={null} />
                       </td>
-                      <td className="nowrap">{ch.dateOfBirth ? formatDate(ch.dateOfBirth) : '—'}</td>
+                      <td className="nowrap center">{ch.dateOfBirth ? formatDate(ch.dateOfBirth) : '—'}</td>
                       <td className="nowrap">{ch.dateOfBirth ? ageLabel(ch.dateOfBirth) : '—'}</td>
                       <td>
                         {ch.className || '—'}

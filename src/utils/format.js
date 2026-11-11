@@ -12,6 +12,15 @@ export const formatDate = (value) => {
   return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()}`;
 };
 
+const WEEKDAY_NAMES = ['Chủ nhật', 'thứ Hai', 'thứ Ba', 'thứ Tư', 'thứ Năm', 'thứ Sáu', 'thứ Bảy'];
+
+/** yyyy-mm-dd -> "thứ Tư 11/11" (thứ trong tuần + ngày/tháng). */
+export const formatWeekdayDate = (iso) => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso || '')) return '—';
+  const [y, m, d] = iso.split('-').map(Number);
+  return `${WEEKDAY_NAMES[new Date(y, m - 1, d).getDay()]} ${pad(d)}/${pad(m)}`;
+};
+
 /** dd/mm/yyyy -> yyyy-mm-dd; null when the text is not a real calendar date (31/02, 29/02 of a non-leap year…). */
 export const parseDisplayDate = (text) => {
   const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(text || '');
@@ -31,6 +40,14 @@ export const formatDateTime = (value) => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '—';
   return `${formatDate(value)} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+};
+
+/** ISO -> HH:mm (giờ máy, cùng cách formatDateTime) */
+export const formatTime = (value) => {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
 };
 
 export const formatFileSize = (bytes) => {
@@ -67,6 +84,12 @@ export const formatMoney = (n) => (typeof n === 'number' && !Number.isNaN(n) ? `
 /** Số lượng tối đa 3 số lẻ theo định dạng Việt Nam (2,4); không phải số -> '—'. */
 export const formatQty = (n) =>
   n === null || n === undefined || Number.isNaN(Number(n)) ? '—' : Number(n).toLocaleString('vi-VN', { maximumFractionDigits: 3 });
+
+/** Số có dấu và đủ số lẻ (z-score): 2.31 -> '+2,31', -0.5 -> '-0,50', 0 -> '0,00'; không phải số -> '—'. */
+export const formatSigned = (n, digits = 2) =>
+  n === null || n === undefined || n === '' || Number.isNaN(Number(n))
+    ? '—'
+    : Number(n).toLocaleString('vi-VN', { minimumFractionDigits: digits, maximumFractionDigits: digits, signDisplay: 'exceptZero' });
 
 /** Lower-case and strip Vietnamese accents for search. */
 export const normalizeText = (text) =>

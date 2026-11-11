@@ -5,10 +5,14 @@ import {
   logout as logoutRequest,
   endLocalSession,
   subscribeSessionEvents,
+  isLocalSessionExpired,
+  hasStoredSession,
 } from '@/services/authService';
 import { UNAUTHORIZED_EVENT } from '@/services/http/tokenStorage';
 
 const AuthContext = createContext(null);
+const EXPIRED_MESSAGE = 'Phiên đã hết hạn, hãy đăng nhập lại';
+const EXPIRY_CHECK_MS = 60_000;
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -20,6 +24,7 @@ export function AuthProvider({ children }) {
 
   const retrySession = useCallback(async () => {
     const version = ++epoch.current;
+    const hadSession = hasStoredSession();
     setStatus('loading');
     setSessionError(null);
     try {
@@ -32,6 +37,10 @@ export function AuthProvider({ children }) {
       setUser(null);
       setStatus(error.status === 401 ? 'anonymous' : 'unavailable');
       setSessionError(error.status === 401 ? null : error);
+      if (error.status === 401 && hadSession) {
+        endLocalSession({ broadcast: false });
+        setSessionMessage(EXPIRED_MESSAGE);
+      }
     }
   }, []);
 
@@ -72,9 +81,7 @@ export function AuthProvider({ children }) {
     setUser(null);
     setStatus('anonymous');
     setSessionError(null);
-    setSessionMessage(
-      error ? 'Đã thoát trên tab này nhưng chưa kết thúc được phiên trên máy chủ. Vui lòng thử lại khi có kết nối.' : message,
-    );
+    setSessionMessage(error ? 'Đã thoát trên tab này, chưa kết thúc được phiên trên máy chủ' : message);
   }, []);
 
   const refreshUser = useCallback(async () => {
@@ -85,7 +92,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   useEffect(() => {
-    const onUnauthorized = () => endSession('Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.');
+    const onUnauthorized = () => endSession(EXPIRED_MESSAGE);
     window.addEventListener(UNAUTHORIZED_EVENT, onUnauthorized);
     const unsubscribe = subscribeSessionEvents((type) => {
       if (type === 'login' && logoutInFlight.current) return;
@@ -102,6 +109,20 @@ export function AuthProvider({ children }) {
       unsubscribe();
     };
   }, [endSession, retrySession]);
+
+  // Mock không có request nào trả 401 khi token hết hạn ⇒ tự kiểm định kỳ và khi quay lại tab
+  useEffect(() => {
+    if (status !== 'authenticated') return undefined;
+    const check = () => {
+      if (document.visibilityState === 'visible' && isLocalSessionExpired()) endSession(EXPIRED_MESSAGE);
+    };
+    const timer = window.setInterval(check, EXPIRY_CHECK_MS);
+    document.addEventListener('visibilitychange', check);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', check);
+    };
+  }, [status, endSession]);
 
   const value = useMemo(
     () => ({

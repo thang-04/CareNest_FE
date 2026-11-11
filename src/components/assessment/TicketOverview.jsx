@@ -8,7 +8,7 @@ import { useTicketOverview } from '@/hooks/assessment/useAssessment';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { PERIOD_TYPE } from '@/models/assessment/assessmentConstants';
 import { periodLabel } from '@/utils/assessment/assessmentPeriods';
-import { downloadXlsx } from '@/utils/exportXlsx';
+import { exportWithPreview } from '@/components/ui/ExportPreview';
 
 const monthText = (m) => periodLabel(PERIOD_TYPE.MONTH, m, m);
 
@@ -34,7 +34,8 @@ export function TicketOverview() {
   const rows = overview?.rows || [];
   const rangeText = month ? monthText(month) : 'cả năm học';
   const campusName = (id) => overview?.campuses.find((c) => String(c.id) === String(id))?.name || id;
-  const multiCampus = (overview?.campuses.length || 0) > 1;
+  // Giáo viên không đọc được danh mục điểm trường nên thiếu tên: ẩn cột, không hiện mã số
+  const multiCampus = (overview?.campuses || []).filter((c) => c.name).length > 1;
 
   if (classId) {
     const cls = rows.find((r) => r.classId === classId);
@@ -52,7 +53,7 @@ export function TicketOverview() {
   }
 
   const exportCsv = () =>
-    downloadXlsx(
+    exportWithPreview(
       [
         [`Phiếu bé ngoan các lớp – ${rangeText}`],
         ['Điểm trường', 'Lớp', 'Sĩ số', 'Bé ngoan', 'Bé ngoan toàn diện', 'Trẻ có phiếu'],

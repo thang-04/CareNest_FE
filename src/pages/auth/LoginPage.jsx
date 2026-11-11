@@ -5,11 +5,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { AuthLayout } from '@/layouts/AuthLayout';
 import { Avatar, FormField, PasswordInput, Spinner } from '@/components';
-import { IS_DEMO_MODE, DEMO_LOGIN_PASSWORD, getDemoAccounts } from '@/services/authService';
+import { IS_DEMO_MODE, DEMO_LOGIN_PASSWORD, getDemoAccounts, getRememberedLogin, setRememberedLogin } from '@/services/authService';
 import { ROLE_LABELS } from '@/models/User';
 import { returnPath } from '@/routes/ProtectedRoute';
 
 import { setPasswordChallenge } from '@/services/authChallengeStore';
+import { loginErrorText } from '@/utils/auth/loginErrorText';
 
 const validate = ({ email, password }) => {
   const e = {};
@@ -54,7 +55,10 @@ export default function LoginPage() {
   const toast = useToast();
   const navigate = useNavigate();
   const location = useLocation();
-  const [form, setForm] = useState({ email: location.state?.email || '', password: '', remember: true });
+  const [rememberedLogin] = useState(getRememberedLogin);
+  const [form, setForm] = useState({ email: location.state?.email || rememberedLogin, password: '', remember: true });
+  // Tài khoản đã điền sẵn (ghi nhớ / quay lại từ quên mật khẩu) ⇒ con trỏ vào ô mật khẩu
+  const [startsWithLogin] = useState(() => !!form.email);
   const [errors, setErrors] = useState({});
   const [serverError, setServerError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -79,6 +83,7 @@ export default function LoginPage() {
     setBusy(true);
     try {
       const user = await login({ email: form.email.trim(), password: form.password, remember: form.remember }); // carenest:allow-secret – tên field, không phải giá trị bí mật
+      setRememberedLogin(form.email.trim(), form.remember);
       toast.success(`Xin chào ${user.fullName}`, 'Đăng nhập thành công');
       navigate(returnPath(location.state?.from), { replace: true });
     } catch (err) {
@@ -89,7 +94,7 @@ export default function LoginPage() {
         navigate('/reset-password', { state: { mode: 'first-login', email: form.email.trim() } });
         return;
       }
-      setServerError(err.message || 'Không đăng nhập được, vui lòng thử lại');
+      setServerError(loginErrorText(err));
       setForm((f) => ({ ...f, password: '' }));
     } finally {
       setBusy(false);
@@ -145,7 +150,7 @@ export default function LoginPage() {
             type="text"
             maxLength={255}
             autoComplete="username"
-            autoFocus
+            autoFocus={!startsWithLogin}
             placeholder="SĐT hoặc email"
             value={form.email}
             onChange={(e) => set({ email: e.target.value })}
@@ -153,7 +158,13 @@ export default function LoginPage() {
         </FormField>
 
         <FormField label="Mật khẩu" required error={errors.password}>
-          <PasswordInput autoComplete="current-password" placeholder="Nhập mật khẩu" value={form.password} onChange={onPasswordChange} />
+          <PasswordInput
+            autoComplete="current-password"
+            autoFocus={startsWithLogin}
+            placeholder="Nhập mật khẩu"
+            value={form.password}
+            onChange={onPasswordChange}
+          />
         </FormField>
 
         <div className="auth-form__row">

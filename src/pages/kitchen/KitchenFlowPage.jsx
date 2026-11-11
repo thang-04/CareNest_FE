@@ -14,6 +14,7 @@ import {
   Users,
   UtensilsCrossed,
   Warehouse,
+  Clock,
 } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMasterData } from '@/hooks/useMasterData';
@@ -31,6 +32,7 @@ import { kitchenCrumbs, KITCHEN_PAGES } from '@/utils/kitchen/breadcrumbs';
 import { formatDate, todayInput } from '@/utils/format';
 import '@/styles/modules/dashboard.css';
 import '@/styles/modules/kitchen.css';
+import { useClock } from '@/hooks/useClock';
 const firstLoad = (q) => q.loading && q.data == null;
 const groupOrder = (id) => (id ? AGE_GROUPS.findIndex((a) => a.id === id) : -1);
 
@@ -231,6 +233,18 @@ const todoRows = (day, user) => {
  * Quy trình bếp hôm nay (`/kitchen`): dòng thời gian các mốc của một cơ sở (kiểm nhận, chốt suất, xuất kho, lưu mẫu, dự trù) và việc cần xử lý.
  * Bếp mở trang chủ cũng vào trang này (`asHome`). Không có trạng thái nấu/giao: đến giờ ăn coi như bếp đã nấu xong.
  */
+/**
+ * Việc nên làm lúc này theo giờ dự kiến (chỉ để nhắc, không khóa thao tác): bước chưa xong đầu tiên đã tới giờ;
+ * chưa tới giờ bước nào thì bước chưa xong kế tiếp. Trả thêm vị trí chèn vạch "Bây giờ".
+ */
+const focusOf = (steps, now) => {
+  const open = steps.filter((s) => s.state !== 'done' && s.state !== 'skip');
+  const due = open.find((s) => s.time <= now);
+  const focus = due || open.find((s) => s.time > now) || null;
+  const nowIndex = steps.findIndex((s) => s.time > now);
+  return { focus, due: !!due, nowIndex: nowIndex < 0 ? steps.length : nowIndex };
+};
+
 export default function KitchenFlowPage({ asHome = false }) {
   const { user } = useAuth();
   const md = useMasterData();
@@ -243,6 +257,10 @@ export default function KitchenFlowPage({ asHome = false }) {
   const day = dayQ.data;
   const menuGrid = buildMenuGrid(menuQ.days?.[0]?.sessions || []);
   const showTodo = isVicePrincipal(user) || isKitchenStaff(user);
+  const now = useClock();
+  const isToday = date === today;
+  const steps = day ? buildSteps(day, user, date) : [];
+  const { focus, due, nowIndex } = isToday ? focusOf(steps, now) : { focus: null, due: false, nowIndex: -1 };
   return (
     <div className="page">
       {asHome ? (
@@ -253,7 +271,6 @@ export default function KitchenFlowPage({ asHome = false }) {
           <div className="page__head">
             <div>
               <h1 className="page__title">Quy trình bếp hôm nay</h1>
-              <p className="page__desc">Các mốc trong ngày của bếp và kho. Giờ là giờ dự kiến, không khóa thao tác nào.</p>
             </div>
           </div>
         </>
@@ -280,8 +297,8 @@ export default function KitchenFlowPage({ asHome = false }) {
         )}
       </div>
 
-      <div className="db-board mb-16">
-        <div className="db-board__main">
+      <div className="kb-flow-board mb-16">
+        <div className="kb-flow-board__main">
           <Widget
             title="Dòng thời gian"
             icon={ClipboardList}
@@ -290,122 +307,159 @@ export default function KitchenFlowPage({ asHome = false }) {
             onRetry={dayQ.reload}
           >
             {day && (
-              <ol className="kb-day">
-                {buildSteps(day, user, date).map((step) => {
-                  const Icon = step.icon;
-                  return (
-                    <li key={step.key} className={`kb-day__step kb-day__step--${step.state}`}>
-                      <span className="kb-day__time">{step.time}</span>
-                      <span className="kb-day__dot" aria-hidden="true" />
-                      <div className="kb-day__body">
-                        <div className="kb-day__head">
-                          <Icon size={18} aria-hidden="true" />
-                          <b>{step.title}</b>
-                          {step.badge}
-                        </div>
-                        {step.meta && <span className="kb-day__meta">{step.meta}</span>}
-                        {step.to && (
-                          <Link className="kb-day__link" to={step.to}>
-                            {step.linkLabel} <ArrowRight size={14} aria-hidden="true" />
+              <>
+                {isToday && (
+                  // Dải "bây giờ": giờ hiện tại và việc nên làm, để mở màn là biết đang ở bước nào
+                  <div className={`kb-now ${due ? 'kb-now--due' : ''}`} role="status">
+                    <span className="kb-now__clock">
+                      <Clock size={16} aria-hidden="true" /> Bây giờ {now}
+                    </span>
+                    {focus ? (
+                      <span className="kb-now__task">
+                        {due ? 'Cần làm' : 'Việc tiếp theo'}: <b>{focus.title}</b> ({focus.time})
+                        {focus.to && (
+                          <Link className="kb-day__link" to={focus.to}>
+                            {focus.linkLabel} <ArrowRight size={14} aria-hidden="true" />
                           </Link>
                         )}
-                      </div>
+                      </span>
+                    ) : (
+                      <span className="kb-now__task">Đã xong các việc trong ngày.</span>
+                    )}
+                  </div>
+                )}
+                <ol className="kb-day">
+                  {steps.map((step, i) => {
+                    const Icon = step.icon;
+                    const isFocus = focus?.key === step.key;
+                    return (
+                      <Fragment key={step.key}>
+                        {i === nowIndex && (
+                          <li className="kb-day__now" aria-label={`Bây giờ ${now}`}>
+                            <span className="kb-day__time">{now}</span>
+                            <span className="kb-day__now-line">Bây giờ</span>
+                          </li>
+                        )}
+                        <li className={`kb-day__step kb-day__step--${step.state} ${isFocus ? 'kb-day__step--focus' : ''}`}>
+                          <span className="kb-day__time">{step.time}</span>
+                          <span className="kb-day__dot" aria-hidden="true" />
+                          <div className="kb-day__body">
+                            <div className="kb-day__head">
+                              <Icon size={18} aria-hidden="true" />
+                              <b>{step.title}</b>
+                              {step.badge}
+                              {isFocus && <span className="chip chip--blue">{due ? 'Cần làm lúc này' : 'Việc tiếp theo'}</span>}
+                            </div>
+                            {step.meta && <span className="kb-day__meta">{step.meta}</span>}
+                            {step.to && (
+                              <Link className="kb-day__link" to={step.to}>
+                                {step.linkLabel} <ArrowRight size={14} aria-hidden="true" />
+                              </Link>
+                            )}
+                          </div>
+                        </li>
+                      </Fragment>
+                    );
+                  })}
+                  {nowIndex === steps.length && (
+                    <li className="kb-day__now" aria-label={`Bây giờ ${now}`}>
+                      <span className="kb-day__time">{now}</span>
+                      <span className="kb-day__now-line">Bây giờ</span>
                     </li>
-                  );
-                })}
-              </ol>
+                  )}
+                </ol>
+              </>
             )}
           </Widget>
-        </div>
-        <div className="db-board__aside">
           {showTodo && (
             <Widget title="Cần xử lý" icon={ListTodo} loading={!campusId || firstLoad(dayQ)} error={dayQ.error} onRetry={dayQ.reload}>
               {day && <ShortList rows={todoRows(day, user)} />}
             </Widget>
           )}
-          {false}
+        </div>
+        <div className="kb-flow-board__aside">
+          <Widget
+            title="Thực đơn trong ngày"
+            icon={UtensilsCrossed}
+            to={`/kitchen/published-menu?date=${date}`}
+            linkLabel="Xem thực đơn đã công bố"
+            loading={firstLoad(menuQ)}
+            error={menuQ.error}
+            onRetry={menuQ.reload}
+            empty={!menuGrid.rows.length}
+            emptyTitle="Chưa có thực đơn công bố cho ngày này"
+          >
+            {/* Bảng ngang nhóm tuổi × bữa thay cho danh sách chip dọc: cả ngày gói trong một màn hình */}
+            <div className="table-wrap" key={`${campusId}_${date}`}>
+              <table className="table table--grid table--compact kb-day-menu">
+                <thead>
+                  <tr>
+                    <th className="kb-day-menu__group">Nhóm tuổi</th>
+                    {menuGrid.sessions.map((s) => (
+                      <th key={s}>{MEAL_SESSION_LABELS[s] || s}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {menuGrid.rows.map((r) => {
+                    const group = ageGroupById(r.ageGroupId)?.shortName || 'Toàn trường';
+                    // Thay đổi dị ứng của nhóm tuổi: hàng riêng ngay dưới, ô món chỉ còn tên món
+                    const hasChanges = menuGrid.sessions.some((s) => r.bySession[s]?.allergyChanges?.length);
+                    return (
+                      <Fragment key={r.key}>
+                        <tr className={r.type === MENU_TYPE.ALLERGY ? 'kb-tr--allergy' : undefined}>
+                          <td>
+                            <div className="fw-600">{group}</div>
+                            {r.type === MENU_TYPE.ALLERGY && <div className="text-xs muted">Thực đơn thay thế (dị ứng)</div>}
+                          </td>
+                          {menuGrid.sessions.map((s) => {
+                            const m = r.bySession[s];
+                            return (
+                              <td key={s}>
+                                {m ? (
+                                  <ul className="kb-dishes text-sm">
+                                    {m.dishes.map((d) => (
+                                      <li key={d.id} className={d.allergens.length ? 'kb-day-menu__allergen' : undefined}>
+                                        {d.name}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                ) : (
+                                  <span className="muted">—</span>
+                                )}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                        {hasChanges && (
+                          <tr className="kb-tr--allergy">
+                            <td>
+                              <div className="kb-menu-table__type kb-menu-table__type--change text-sm fw-600">
+                                <AlertTriangle size={14} aria-hidden="true" />
+                                Thay đổi cho trẻ dị ứng
+                              </div>
+                            </td>
+                            {menuGrid.sessions.map((s) => (
+                              <td key={s}>
+                                <AllergyMenuChanges
+                                  compact
+                                  changes={r.bySession[s]?.allergyChanges}
+                                  date={date}
+                                  context={`${group} · ${MEAL_SESSION_LABELS[s]}`}
+                                />
+                              </td>
+                            ))}
+                          </tr>
+                        )}
+                      </Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </Widget>
         </div>
       </div>
-      <Widget
-        title="Thực đơn trong ngày"
-        icon={UtensilsCrossed}
-        to={`/kitchen/published-menu?date=${date}`}
-        linkLabel="Xem thực đơn đã công bố"
-        loading={firstLoad(menuQ)}
-        error={menuQ.error}
-        onRetry={menuQ.reload}
-        empty={!menuGrid.rows.length}
-        emptyTitle="Chưa có thực đơn công bố cho ngày này"
-      >
-        {/* Bảng ngang nhóm tuổi × bữa thay cho danh sách chip dọc: cả ngày gói trong một màn hình */}
-        <div className="table-wrap" key={`${campusId}_${date}`}>
-          <table className="table table--grid table--compact kb-day-menu">
-            <thead>
-              <tr>
-                <th className="kb-day-menu__group">Nhóm tuổi</th>
-                {menuGrid.sessions.map((s) => (
-                  <th key={s}>{MEAL_SESSION_LABELS[s] || s}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {menuGrid.rows.map((r) => {
-                const group = ageGroupById(r.ageGroupId)?.shortName || 'Toàn trường';
-                // Thay đổi dị ứng của nhóm tuổi: hàng riêng ngay dưới, ô món chỉ còn tên món
-                const hasChanges = menuGrid.sessions.some((s) => r.bySession[s]?.allergyChanges?.length);
-                return (
-                  <Fragment key={r.key}>
-                    <tr className={r.type === MENU_TYPE.ALLERGY ? 'kb-tr--allergy' : undefined}>
-                      <td>
-                        <div className="fw-600">{group}</div>
-                        {r.type === MENU_TYPE.ALLERGY && <div className="text-xs muted">Thực đơn thay thế (dị ứng)</div>}
-                      </td>
-                      {menuGrid.sessions.map((s) => {
-                        const m = r.bySession[s];
-                        return (
-                          <td key={s}>
-                            {m ? (
-                              <ul className="kb-dishes text-sm">
-                                {m.dishes.map((d) => (
-                                  <li key={d.id} className={d.allergens.length ? 'kb-day-menu__allergen' : undefined}>
-                                    {d.name}
-                                  </li>
-                                ))}
-                              </ul>
-                            ) : (
-                              <span className="muted">—</span>
-                            )}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                    {hasChanges && (
-                      <tr className="kb-tr--allergy">
-                        <td>
-                          <div className="kb-menu-table__type kb-menu-table__type--change text-sm fw-600">
-                            <AlertTriangle size={14} aria-hidden="true" />
-                            Thay đổi cho trẻ dị ứng
-                          </div>
-                        </td>
-                        {menuGrid.sessions.map((s) => (
-                          <td key={s}>
-                            <AllergyMenuChanges
-                              compact
-                              changes={r.bySession[s]?.allergyChanges}
-                              date={date}
-                              context={`${group} · ${MEAL_SESSION_LABELS[s]}`}
-                            />
-                          </td>
-                        ))}
-                      </tr>
-                    )}
-                  </Fragment>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </Widget>
     </div>
   );
 }

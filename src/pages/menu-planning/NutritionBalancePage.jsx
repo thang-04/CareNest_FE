@@ -15,34 +15,30 @@ import { menuDishesSavable, saveDayAdjustment, saveDish } from '@/services/menu-
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { EmptyState, ErrorState, LoadingState, Spinner } from '@/components/ui/States';
 import { NormStatusChip, WeeklyStatusBadge } from '@/components/menu-planning/MenuBadges';
+import { DayNutritionTable } from '@/components/menu-planning/DayNutritionTable';
 import { MealEditor } from '@/components/menu-planning/MealEditor';
 import { NutritionTable } from '@/components/menu-planning/NutritionTable';
 import { AllergenWarnings } from '@/components/menu-planning/AllergenWarnings';
-import { dayNormStatus } from '@/components/menu-planning/WeekDaysView';
 import {
   badPortionQty as badQty,
+  compareToNorm,
   ingredientBreakdown,
   ingredientQty,
   mealsTotals,
   normalizeMeals,
+  overallNormStatus,
   priceOn,
   withPortionDraft as withDraftQty,
 } from '@/utils/menu-planning/menuCalculations';
-import { daySummary } from '@/utils/menu-planning/daySummary';
 import { validateMenu } from '@/utils/menu-planning/menuPlanningValidation';
 import { canEditWeeklyMenu, canReplaceWeeklyMenu } from '@/utils/menu-planning/menuPlanningPermissions';
 import { menuCrumbs } from '@/utils/menu-planning/breadcrumbs';
 import { formatDate, todayInput } from '@/utils/format';
 import { AGE_GROUPS, ageGroupById } from '@/models/School';
-import {
-  FOOD_ORIGIN_LABELS,
-  WEEKDAY_LABELS,
-  WEEKLY_STATUS,
-  formatMoney,
-  mondayOf,
-  weekLabel,
-} from '@/models/menu-planning/menuPlanningConstants';
+import { FOOD_ORIGIN_LABELS, WEEKDAY_LABELS, WEEKLY_STATUS, mondayOf, weekLabel } from '@/models/menu-planning/menuPlanningConstants';
 import { mealCodesOf, mealLabel, mealsOf, normScopeMeals } from '@/utils/menu-planning/nutritionSetup';
+import { isDemoModule } from '@/services/demoSource';
+import DayBalancePage from '@/pages/menu-planning/DayBalancePage';
 import '@/styles/modules/menu-planning.css';
 
 const clone = (v) => JSON.parse(JSON.stringify(v || []));
@@ -53,7 +49,7 @@ const num = (v) => (Number(v) || 0).toLocaleString('vi-VN', { maximumFractionDig
  * (shared services) adjusts dishes or portions of a draft day and the values are recalculated (UC 6.11).
  * Định lượng từng thực phẩm của món đang xem sửa thử được ngay trên màn (chỉ tính ở trình duyệt); lưu vào món khi bấm lưu.
  */
-export default function NutritionBalancePage() {
+function LegacyNutritionBalance() {
   const [params, setParams] = useSearchParams();
   const { user } = useAuth();
   const toast = useToast();
@@ -73,6 +69,7 @@ export default function NutritionBalancePage() {
   const [qtyDrafts, setQtyDrafts] = useState({});
   const [reviewDishId, setReviewDishId] = useState('');
   const [dishBusy, setDishBusy] = useState(false);
+  const [view, setView] = useState('meals');
   const { rows: allergyRows } = useAllergyContext(wm?.ageGroupId || '');
 
   // Default: the coming draft, else this week's published menu.
@@ -128,6 +125,10 @@ export default function NutritionBalancePage() {
     wm && savedDay
       ? mealsTotals(normScopeMeals(meals, catalog.nutritionSetups, wm.ageGroupId), catalog.dishById, catalog.foodById, wm.ageGroupId)
       : null;
+  // Tóm tắt ngày đang sửa (theo món chưa lưu) cho đầu thẻ chi tiết
+  const liveRows = result ? compareToNorm(result.totals, wm.ageGroupId, result.missing.length > 0, catalog.norms) : [];
+  const liveKcal = liveRows.find((r) => r.key === 'kcal');
+  const live = result ? { kcal: result.totals.kcal, attainment: liveKcal?.attainment, status: overallNormStatus(liveRows) } : null;
   const errors = wm
     ? validateMenu(
         { name: 'x', ageGroupId: wm.ageGroupId, meals: normalizeMeals(meals, mealCodesOf(catalog.nutritionSetups, wm.ageGroupId)) },
@@ -263,65 +264,7 @@ export default function NutritionBalancePage() {
               </span>
             </div>
           </div>
-          <div className="td-week-cards" role="tablist" aria-label="Ngày trong tuần">
-            {wm.days.map((d, i) => {
-              // Ngày đang sửa tính theo món đang chỉnh (chưa lưu) để thẻ ngày đổi ngay
-              const sum = daySummary(d.date === date ? { ...d, meals } : d, wm, catalog);
-              const n = sum?.nutrients;
-              const t = sum?.totals;
-              const status = n ? dayNormStatus(Object.values(n)) : null;
-              return (
-                <button
-                  key={d.date}
-                  type="button"
-                  role="tab"
-                  aria-selected={d.date === date}
-                  className={`td-day-card ${d.date === date ? 'td-day-card--active' : ''}`}
-                  disabled={d.holiday}
-                  onClick={() => selectDay(d)}
-                >
-                  <span className="fw-600">
-                    {WEEKDAY_LABELS[i]} · {formatDate(d.date)}
-                  </span>
-                  {d.holiday ? (
-                    <span className="muted text-sm">Nghỉ: {d.note}</span>
-                  ) : !n ? (
-                    <span className="muted text-sm">Chưa có thực đơn</span>
-                  ) : (
-                    <>
-                      <span className="td-kv">
-                        <span>Năng lượng</span>
-                        <b>
-                          {num(n.kcal.value)} kcal{n.kcal.attainment != null ? ` · ${n.kcal.attainment}%` : ''}
-                        </b>
-                      </span>
-                      <span className="td-kv">
-                        <span>Đạm ĐV / TV</span>
-                        <span>
-                          {num(t.animalProtein)} / {num(t.plantProtein)} g
-                        </span>
-                      </span>
-                      <span className="td-kv">
-                        <span>Béo ĐV / TV</span>
-                        <span>
-                          {num(t.animalLipid)} / {num(t.plantLipid)} g
-                        </span>
-                      </span>
-                      <span className="td-kv">
-                        <span>Tinh bột</span>
-                        <span>{num(t.glucid)} g</span>
-                      </span>
-                      <span className="td-kv">
-                        <span>Tiền ăn</span>
-                        <span className={sum.overPrice ? 'td-week__sum--high' : undefined}>{formatMoney(sum.cost)}</span>
-                      </span>
-                      <NormStatusChip status={status} />
-                    </>
-                  )}
-                </button>
-              );
-            })}
-          </div>
+          <DayNutritionTable wm={wm} catalog={catalog} date={date} meals={meals} onSelect={selectDay} />
 
           {!editable && (
             <div className="alert alert--info mt-16">
@@ -340,14 +283,59 @@ export default function NutritionBalancePage() {
           )}
 
           {savedDay && (
-            <div className="td-split mt-16">
-              <div className="card">
-                <div className="card__header">
-                  <div className="card__title">
-                    Món và khẩu phần – {WEEKDAY_LABELS[wm.days.indexOf(savedDay)]} {formatDate(date)}
-                  </div>
+            <section className="card mt-16">
+              <div className="card__header td-wrap-head">
+                <h2 className="card__title">
+                  {WEEKDAY_LABELS[wm.days.indexOf(savedDay)]} {formatDate(date)}
+                </h2>
+                {/* Tóm tắt luôn hiện dù đang ở tab nào: sửa món ở tab này, số liệu đổi ngay ở đây */}
+                <div className="td-day-live">
+                  {live && (
+                    <>
+                      <span className="td-tag td-tag--orange">{num(live.kcal)} kcal</span>
+                      {live.attainment != null && <span className="text-sm muted">{live.attainment}% định mức</span>}
+                      <NormStatusChip status={live.status} />
+                    </>
+                  )}
+                  {(dirty || Object.keys(qtyDrafts).length > 0) && <span className="chip chip--orange">Chưa lưu</span>}
+                  {editable && (
+                    <>
+                      <button type="button" className="btn" disabled={!dirty || busy} onClick={() => selectDay(savedDay)}>
+                        <RotateCcw size={16} /> Khôi phục
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn--primary"
+                        disabled={!dirty || busy || Object.keys(errors).length > 0}
+                        onClick={save}
+                      >
+                        {busy ? <Spinner small /> : <Save size={16} />} Lưu điều chỉnh
+                      </button>
+                    </>
+                  )}
                 </div>
-                <div className="card__body">
+              </div>
+              <div className="td-day-tabs">
+                <div className="tabs" role="tablist" aria-label="Nội dung ngày">
+                  {[
+                    ['meals', 'Món và khẩu phần'],
+                    ['result', 'Kết quả tính lại'],
+                  ].map(([key, label]) => (
+                    <button
+                      key={key}
+                      type="button"
+                      role="tab"
+                      aria-selected={view === key}
+                      className={`tab ${view === key ? 'tab--active' : ''}`}
+                      onClick={() => setView(key)}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="card__body" role="tabpanel">
+                {view === 'meals' ? (
                   <MealEditor
                     meals={meals}
                     sessions={mealCodesOf(catalog.nutritionSetups, wm.ageGroupId)}
@@ -357,53 +345,48 @@ export default function NutritionBalancePage() {
                     errors={errors}
                     disabled={!access.canManage}
                   />
-                </div>
-              </div>
-              <div className="card">
-                <div className="card__header">
-                  <div className="card__title">Kết quả tính lại</div>
-                  {(dirty || Object.keys(qtyDrafts).length > 0) && <span className="chip chip--orange">Chưa lưu</span>}
-                </div>
-                <div className="card__body">
-                  <AllergenWarnings meals={meals} catalog={catalog} ageGroupId={wm.ageGroupId} contextRows={allergyRows} />
-                  <NutritionTable
-                    result={result}
-                    ageGroupId={wm.ageGroupId}
-                    norms={catalog.norms}
-                    setups={catalog.nutritionSetups}
-                    price={priceOn(catalog.mealPrices, wm.ageGroupId, date)?.price}
-                  />
-                  <div className="table-wrap mt-12">
-                    <table className="table table--grid table--compact">
-                      <thead>
-                        <tr>
-                          <th>Bữa</th>
-                          <th className="num">Năng lượng</th>
-                          <th className="num">Đạm ĐV / TV (g)</th>
-                          <th className="num">Béo ĐV / TV (g)</th>
-                          <th className="num">Tinh bột (g)</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {Object.entries(result.bySession).map(([s, t]) => (
-                          <tr key={s}>
-                            <td>{mealLabel(catalog.nutritionSetups, wm.ageGroupId, s)}</td>
-                            <td className="num">{num(t.kcal)} kcal</td>
-                            <td className="num">
-                              {num(t.animalProtein)} / {num(t.plantProtein)}
-                            </td>
-                            <td className="num">
-                              {num(t.animalLipid)} / {num(t.plantLipid)}
-                            </td>
-                            <td className="num">{num(t.glucid)}</td>
+                ) : (
+                  <>
+                    <AllergenWarnings meals={meals} catalog={catalog} ageGroupId={wm.ageGroupId} contextRows={allergyRows} />
+                    <NutritionTable
+                      result={result}
+                      ageGroupId={wm.ageGroupId}
+                      norms={catalog.norms}
+                      setups={catalog.nutritionSetups}
+                      price={priceOn(catalog.mealPrices, wm.ageGroupId, date)?.price}
+                    />
+                    <div className="table-wrap mt-12">
+                      <table className="table table--grid table--compact">
+                        <thead>
+                          <tr>
+                            <th>Bữa</th>
+                            <th className="num">Năng lượng</th>
+                            <th className="num td-col-p">Đạm ĐV / TV (g)</th>
+                            <th className="num td-col-l">Béo ĐV / TV (g)</th>
+                            <th className="num td-col-g">Tinh bột (g)</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
+                        </thead>
+                        <tbody>
+                          {Object.entries(result.bySession).map(([s, t]) => (
+                            <tr key={s}>
+                              <td>{mealLabel(catalog.nutritionSetups, wm.ageGroupId, s)}</td>
+                              <td className="num">{num(t.kcal)} kcal</td>
+                              <td className="num">
+                                {num(t.animalProtein)} / {num(t.plantProtein)}
+                              </td>
+                              <td className="num">
+                                {num(t.animalLipid)} / {num(t.plantLipid)}
+                              </td>
+                              <td className="num">{num(t.glucid)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                )}
               </div>
-            </div>
+            </section>
           )}
 
           {savedDay && reviewBreakdown && (
@@ -521,18 +504,13 @@ export default function NutritionBalancePage() {
               <div>Không lưu được thay đổi: {saveError}</div>
             </div>
           )}
-          {editable && savedDay && (
-            <div className="page-actions">
-              <button type="button" className="btn" disabled={!dirty || busy} onClick={() => selectDay(savedDay)}>
-                <RotateCcw size={16} /> Khôi phục số liệu đã lưu
-              </button>
-              <button type="button" className="btn btn--primary" disabled={!dirty || busy || Object.keys(errors).length > 0} onClick={save}>
-                {busy ? <Spinner small /> : <Save size={16} />} Lưu điều chỉnh
-              </button>
-            </div>
-          )}
         </>
       )}
     </div>
   );
+}
+
+// Nối BE kế hoạch tuần ⇒ cân đối trên dữ liệu thật (dùng chung nội dung modal Sửa ngày); chế độ mock giữ màn demo cũ
+export default function NutritionBalancePage() {
+  return isDemoModule('meal-plan') ? <LegacyNutritionBalance /> : <DayBalancePage />;
 }

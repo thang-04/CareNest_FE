@@ -1,6 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Breadcrumb, EmptyState, ErrorState, LoadingState } from '@/components';
+import { Breadcrumb, EmptyState, ErrorState, LoadingState, Modal, PrintPaperFit, PrintToolbar } from '@/components';
+import { Download, Printer } from '@/components/ui/icons';
+import { exportWithPreview } from '@/components/ui/ExportPreview';
+import { MenuStatisticsPrint } from '@/components/menu-planning/MenuStatisticsPrint';
 import { FormField } from '@/components/form/FormField';
 import { CampusFilter } from '@/components/ui/CampusFilter';
 import { StatCard } from '@/components/ui/StatCard';
@@ -12,13 +15,17 @@ import {
 } from '@/components/menu-planning/MenuStatistics';
 import { useMasterData } from '@/hooks';
 import { useBeAgeGroups, useMealPlan, useMenuStatistics } from '@/hooks/menu-planning/useMealPlan';
+import { useDishes } from '@/hooks/menu-planning/useMenuPlanning';
 import { useMenuTemplate } from '@/hooks/menu-planning/useMenuTemplates';
-import { WEEKDAY_LABELS, formatMoney, weekDates } from '@/models/menu-planning/menuPlanningConstants';
+import { WeekPicker } from '@/components/form/WeekPicker';
+import { WEEKDAY_LABELS, formatMoney, mondayOf, schoolWeekStart, weekDates } from '@/models/menu-planning/menuPlanningConstants';
 import { menuCrumbs } from '@/utils/menu-planning/breadcrumbs';
-import { TEMPLATE_WEEKS } from '@/utils/menu-planning/menuTemplateGrid';
-import { ageGroupOptions, planDayItems, templateDayItems } from '@/utils/menu-planning/menuStatistics';
-import { formatDate } from '@/utils/format';
+import { ageGroupOptions, planDayItems, statisticsExportRows, templateDayItems } from '@/utils/menu-planning/menuStatistics';
+import { formatDate, isIsoDate, todayInput } from '@/utils/format';
 import '@/styles/modules/menu-planning.css';
+
+// Tên màn theo việc người dùng làm (user chốt 09/11/2026, thay "Thống kê định lượng")
+const PAGE_TITLE = 'Định lượng & đi chợ';
 
 const CHILDREN_SOURCE = {
   INPUT: 'Số nhập tay',
@@ -27,21 +34,22 @@ const CHILDREN_SOURCE = {
 };
 
 /*
- * Thống kê định lượng một ngày thực đơn: nguồn là kế hoạch tuần (`?week=&date=`) hoặc bộ mẫu
- * (`?template=&weekNo=&weekday=`). Số trẻ để trống ⇒ BE lấy suất đã xác nhận, không có thì sĩ số.
+ * Định lượng & đi chợ của một ngày thực đơn (in, xuất Excel; tách hàng tươi / kho khô khi BE trả cờ): nguồn là kế hoạch tuần (`?week=&date=`) hoặc bộ mẫu
+ * (`?template=`, mẫu một ngày). Số trẻ để trống ⇒ BE lấy suất đã xác nhận, không có thì sĩ số.
  */
 export default function MenuStatisticsPage() {
   const [params, setParams] = useSearchParams();
   const templateId = params.get('template');
-  const week = params.get('week');
-  const date = params.get('date') || (week ? week : '');
-  const weekNo = Number(params.get('weekNo') || 1);
-  const weekday = Number(params.get('weekday') || 1);
+  // Mở từ menu (không ngữ cảnh) ⇒ tuần đang chạy, hôm nay nếu nằm trong tuần đó, không thì thứ Hai
+  const today = todayInput();
+  const week = templateId ? null : isIsoDate(params.get('week')) ? mondayOf(params.get('week')) : schoolWeekStart(today);
+  const date = templateId ? '' : params.get('date') || (weekDates(week).includes(today) ? today : week);
 
   const planQ = useMealPlan(templateId ? null : week);
   const templateQ = useMenuTemplate(templateId || null);
   const source = templateId ? templateQ : planQ;
   const { ageGroups } = useBeAgeGroups();
+  const { items: catalog } = useDishes({});
   const { campuses } = useMasterData();
 
   const options = useMemo(() => {
@@ -52,13 +60,15 @@ export default function MenuStatisticsPage() {
   const [ageGroupId, setAgeGroupId] = useState('');
   const [campusId, setCampusId] = useState('');
   const [children, setChildren] = useState('');
+  const [printing, setPrinting] = useState(false);
+  const sheetRef = useRef(null);
   useEffect(() => {
     if (options.length && !options.some((o) => o.id === ageGroupId)) setAgeGroupId(options[0].id);
   }, [options, ageGroupId]);
 
   const items = useMemo(
-    () => (templateId ? templateDayItems(source.data, weekNo, weekday) : planDayItems(source.data, date, ageGroupId)),
-    [templateId, source.data, weekNo, weekday, date, ageGroupId],
+    () => (templateId ? templateDayItems(source.data) : planDayItems(source.data, date, ageGroupId)),
+    [templateId, source.data, date, ageGroupId],
   );
   const query =
     ageGroupId && items.length
@@ -73,20 +83,15 @@ export default function MenuStatisticsPage() {
     setParams(next, { replace: true });
   };
 
+  // Ngữ cảnh (mẫu nào / ngày nào) nằm ở mục cuối breadcrumb thay cho dòng mô tả
+  const title = templateId ? `Mẫu · ${source.data?.name || ''}` : `Thực đơn ngày ${formatDate(date)}`;
   const crumbs = templateId
-    ? menuCrumbs('Bộ thực đơn mẫu', `/menu/templates/${templateId}`, 'Thống kê định lượng')
-    : menuCrumbs('Thực đơn tuần', '/menu/weekly', 'Thống kê định lượng');
-  const title = templateId
-    ? `${source.data?.name || 'Bộ mẫu'} · Tuần ${weekNo} · ${WEEKDAY_LABELS[weekday - 1] || ''}`
-    : `Thực đơn ngày ${formatDate(date)}`;
+    ? menuCrumbs('Mẫu thực đơn', `/menu/templates/${templateId}`, `${PAGE_TITLE} · ${title}`)
+    : menuCrumbs('Thực đơn tuần', '/menu/weekly', `${PAGE_TITLE} · ${title}`);
+  const fileBase = `Dinh_luong_di_cho_${templateId ? `mau_${templateId}` : date}`;
+  const exportExcel = () =>
+    exportWithPreview(statisticsExportRows(stats, `${PAGE_TITLE} · ${title} · ${stats.ageGroupName}`), `${fileBase}.xlsx`);
 
-  if (!templateId && !week)
-    return (
-      <div className="page">
-        <Breadcrumb items={menuCrumbs('Thực đơn tuần', '/menu/weekly', 'Thống kê định lượng')} />
-        <EmptyState title="Chưa chọn ngày" description="Mở thống kê từ đầu cột ngày của thực đơn tuần hoặc bộ mẫu." />
-      </div>
-    );
   if (source.error)
     return (
       <div className="page">
@@ -107,45 +112,35 @@ export default function MenuStatisticsPage() {
       <Breadcrumb items={crumbs} />
       <div className="page__head">
         <div>
-          <h1 className="page__title">Thống kê định lượng</h1>
-          <p className="page__desc">{title}. Lượng mua tính cả phần thải bỏ: lượng ăn ÷ (1 − % thải bỏ).</p>
+          <h1 className="page__title">{PAGE_TITLE}</h1>
         </div>
+        {stats && (
+          <div className="page__actions">
+            <button type="button" className="btn" onClick={exportExcel}>
+              <Download size={16} /> Xuất Excel
+            </button>
+            <button type="button" className="btn" onClick={() => setPrinting(true)}>
+              <Printer size={16} /> Xem trước bản in
+            </button>
+          </div>
+        )}
       </div>
 
       <section className="card">
         <div className="card__body td-stat-filters">
-          {templateId ? (
-            <>
-              <div className="tabs tabs--pill" role="tablist" aria-label="Tuần trong bộ">
-                {TEMPLATE_WEEKS.map((w) => (
-                  <button
-                    key={w}
-                    type="button"
-                    role="tab"
-                    aria-selected={w === weekNo}
-                    className={`tab ${w === weekNo ? 'tab--active' : ''}`}
-                    onClick={() => setParam('weekNo', w)}
-                  >
-                    Tuần {w}
-                  </button>
-                ))}
-              </div>
-              <div className="tabs tabs--pill" role="tablist" aria-label="Thứ">
-                {WEEKDAY_LABELS.map((label, i) => (
-                  <button
-                    key={label}
-                    type="button"
-                    role="tab"
-                    aria-selected={i + 1 === weekday}
-                    className={`tab ${i + 1 === weekday ? 'tab--active' : ''}`}
-                    onClick={() => setParam('weekday', i + 1)}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </>
-          ) : (
+          {templateId ? null : (
+            <WeekPicker
+              value={week}
+              thisWeek={schoolWeekStart(today)}
+              onChange={(next) => {
+                const p = new URLSearchParams(params);
+                p.set('week', next);
+                p.delete('date');
+                setParams(p, { replace: true });
+              }}
+            />
+          )}
+          {templateId ? null : (
             <div className="tabs tabs--pill" role="tablist" aria-label="Ngày trong tuần">
               {weekDates(week).map((d, i) => (
                 <button
@@ -202,24 +197,33 @@ export default function MenuStatisticsPage() {
       ) : (
         <>
           <div className="stat-grid">
-            <StatCard tone="blue" icon={false} label="Số trẻ" value={stats.children} />
-            <StatCard tone="green" icon={false} label="Tiền ăn 1 trẻ" value={formatMoney(stats.costPerChild)} />
+            <StatCard className="stat-card--fit" tone="blue" icon={false} label="Số trẻ" value={stats.children} />
+            <StatCard className="stat-card--fit" tone="green" icon={false} label="Tiền ăn 1 trẻ" value={formatMoney(stats.costPerChild)} />
             <StatCard
+              className="stat-card--fit"
               tone="purple"
               icon={false}
               label="Định mức tiền ăn"
               value={stats.mealPrice == null ? 'Chưa đặt' : formatMoney(stats.mealPrice)}
             />
-            <StatCard tone="orange" icon={false} label={`Tổng tiền ${stats.children} trẻ`} value={formatMoney(stats.totalCost)} />
+            <StatCard
+              className="stat-card--fit"
+              tone="orange"
+              icon={false}
+              label={`Tổng tiền ${stats.children} trẻ`}
+              value={formatMoney(stats.totalCost)}
+            />
           </div>
 
           <section className="card">
             <div className="card__header">
               <h2 className="card__title">Món ăn</h2>
             </div>
-            <div className="card__body">
-              <StatisticsDishes dishes={stats.dishes} />
-            </div>
+            <StatisticsDishes
+              dishes={stats.dishes}
+              catalog={catalog}
+              ageGroup={ageGroups.find((g) => String(g.id) === String(ageGroupId))}
+            />
           </section>
           <section className="card">
             <div className="card__header">
@@ -241,6 +245,18 @@ export default function MenuStatisticsPage() {
             </div>
             <StatisticsSessions sessions={stats.evaluation?.sessions} />
           </section>
+          <Modal
+            open={printing}
+            onClose={() => setPrinting(false)}
+            size="xl"
+            className="print-modal"
+            title={PAGE_TITLE}
+            footer={<PrintToolbar sheetRef={sheetRef} fileBase={fileBase} onCsv={exportExcel} printLabel="In phiếu" />}
+          >
+            <PrintPaperFit>
+              <MenuStatisticsPrint ref={sheetRef} stats={stats} title={title} />
+            </PrintPaperFit>
+          </Modal>
         </>
       )}
     </div>

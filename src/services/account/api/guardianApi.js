@@ -1,3 +1,5 @@
+import { validateGuardian } from '@/utils/account/guardianValidation';
+import { GUARDIAN_RELATIONSHIP_LABELS } from '@/models/guardianRelationships';
 import { axiosClient } from '@/services/http/axiosClient';
 
 /*
@@ -31,17 +33,41 @@ export const guardianApi = {
   searchChildren: async ({ campusId, page = 0, size = 100 } = {}) => {
     const result = await axiosClient.get('/children', { params: { campusId, page, size } });
     // BE chỉ trả trẻ trong phạm vi quản lý phụ huynh của người gọi (AUTH-18) và kiểm lại khi ghi
-    const items = await mapLimited(result.items, GUARDIAN_FETCH_LIMIT, async (child) => ({
-      ...child,
-      guardians: child.guardianCount > 0 ? await listGuardians(child.id) : [],
-      canManage: true,
-    }));
+    const items = await mapLimited(result.items, GUARDIAN_FETCH_LIMIT, async (child) => {
+      const [guardians, candidates] = await Promise.all([
+        listGuardians(child.id),
+        axiosClient.get(`/children/${child.id}/account-recipient`),
+      ]);
+      const recipient = candidates.find((g) => g.accountRecipient) || null;
+      return {
+        ...child,
+        guardians,
+        guardianCount: guardians.length,
+        accountRecipient: recipient
+          ? { ...recipient, relation: GUARDIAN_RELATIONSHIP_LABELS[recipient.relation] || recipient.relation }
+          : null,
+        selectionRequired: candidates.length > 1 && !recipient,
+        canManage: true,
+      };
+    });
     return { ...result, items };
   },
   listGuardians,
-  // AUTH-20: phụ huynh trên hồ sơ trẻ chờ kích hoạt; BE chưa có (pending trong integrationModules, docs/integration/CHILD_ENROLLMENT_BE_SPEC.md)
-  listPendingGuardians: (childId) => axiosClient.get(`/children/${childId}/guardians/pending`),
-  activateGuardians: (childId) => axiosClient.post(`/children/${childId}/guardians/activate`),
+  // Spec013: chỉ phụ huynh được chọn chờ kích hoạt; kiểm định dạng ở FE để hỗ trợ nhập, BE kiểm lại khi lưu.
+  listPendingGuardians: async (childId) =>
+    (await axiosClient.get(`/children/${childId}/guardians/pending`)).map((g) => ({
+      ...g,
+      relation: GUARDIAN_RELATIONSHIP_LABELS[g.relation] || g.relation,
+      problems: Object.values(validateGuardian({ ...g, relationship: g.relation })),
+      hasAccount: false,
+    })),
+  getAccountCandidates: async (childId) =>
+    (await axiosClient.get(`/children/${childId}/account-recipient`)).map((g) => ({
+      ...g,
+      relation: GUARDIAN_RELATIONSHIP_LABELS[g.relation] || g.relation,
+    })),
+  selectAccountRecipient: (childId, guardianId) => axiosClient.put(`/children/${childId}/account-recipient`, { guardianId }),
+  activateGuardians: (childId, _user, guardianId) => axiosClient.post(`/children/${childId}/guardians/activate`, { guardianId }),
   lookupGuardian: (childId, phone) => axiosClient.post(`/children/${childId}/guardians/lookup`, { phone }),
   // BE không lưu email phụ huynh; confirmUserId bắt buộc khi SĐT đã có tài khoản (AUTH-18)
   addGuardian: (childId, { phone, fullName, relationship, confirmUserId }) =>

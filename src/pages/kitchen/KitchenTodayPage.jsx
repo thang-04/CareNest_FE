@@ -1,9 +1,13 @@
+import { Fragment } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { Tabs } from '@/components/ui/Tabs';
+import { dishTypeClass } from '@/utils/dishTypeClass';
+import { useTabParam } from '@/hooks/useTabParam';
 import { Camera, ClipboardCheck } from '@/components/ui/icons';
-import { Breadcrumb, EmptyState, ErrorState, LoadingState } from '@/components';
+import { Breadcrumb, EmptyState, ErrorState, LoadingState, StatusBadge } from '@/components';
 import { KbCampusFilter, KbDateFilter, fmtQty } from '@/components/kitchen/KitchenFilters';
 import { useStockCampus } from '@/hooks/kitchen/useDryStock';
-import { useKitchenDay } from '@/hooks/kitchen/useKitchenRecords';
+import { useDishTypeById, useKitchenDay } from '@/hooks/kitchen/useKitchenRecords';
 import {
   FOOD_STORAGE_LABELS,
   KITCHEN_COUNT_STATUS_LABELS,
@@ -12,22 +16,28 @@ import {
   MEAL_BLOCK_LABELS,
   MEAL_SESSION_LABELS,
 } from '@/models/kitchen/kitchenRecordConstants';
-import { foodNeedRows, menuBlocks, menuBySession, servingsBySession } from '@/utils/kitchen/kitchenRecords';
+import { foodNeedRows, menuBlocks, menuBySession, menuRowsOf, servingsBySession } from '@/utils/kitchen/kitchenRecords';
 import { kitchenCrumbs } from '@/utils/kitchen/breadcrumbs';
 import { formatDate, formatDateTime, isIsoDate, todayInput } from '@/utils/format';
+import '@/styles/modules/menu-planning.css';
 import '@/styles/modules/kitchen.css';
 import '@/styles/modules/kitchen-records.css';
 
-function MenuCard({ menu }) {
+// Tông trạng thái như Bán trú hôm nay: xong xanh lá, đang chờ cam, chưa có xám
+const MENU_TONE = { PUBLISHED: 'green', DRAFT: 'orange', NONE: 'gray' };
+const COUNT_TONE = { CONFIRMED: 'green', PARTIAL: 'orange', NONE: 'gray' };
+
+function MenuCard({ menu, typeOf }) {
   const blocks = menuBlocks(menu);
   const rows = menuBySession(menu);
   if (!rows.length) return <p className="card__body muted">Ngày này không có món trong thực đơn đã công bố.</p>;
   return (
-    <div className="table-wrap">
-      <table className="table table--grid kr-table">
+    // Cùng kiểu lưới với thực đơn tuần: dải tên bữa, món có vạch màu theo loại
+    <div className="table-wrap td-week-wrap">
+      <table className="table table--grid td-week kr-menu">
         <thead>
           <tr>
-            <th>Bữa ăn</th>
+            <th className="td-week__label">Bữa ăn</th>
             {blocks.map((block) => (
               <th key={block}>{MEAL_BLOCK_LABELS[block] || block}</th>
             ))}
@@ -35,18 +45,31 @@ function MenuCard({ menu }) {
         </thead>
         <tbody>
           {rows.map((row) => (
-            <tr key={row.session}>
-              <th scope="row">{MEAL_SESSION_LABELS[row.session] || row.session}</th>
-              {blocks.map((block) => (
-                <td key={block}>
-                  <ul className="kr-dishes">
-                    {(row.byBlock[block] || []).map((dish) => (
-                      <li key={dish.id}>{dish.name}</li>
-                    ))}
-                  </ul>
-                </td>
+            <Fragment key={row.session}>
+              <tr className="td-week__band">
+                <th scope="colgroup" colSpan={blocks.length + 1}>
+                  {MEAL_SESSION_LABELS[row.session] || row.session}
+                </th>
+              </tr>
+              {menuRowsOf(row, blocks, typeOf).map((line) => (
+                <tr key={line.key}>
+                  <th scope="row" className="td-week__label">
+                    {line.label}
+                  </th>
+                  {blocks.map((block) => (
+                    <td key={block}>
+                      <ul className="td-week__dishes">
+                        {(row.byBlock[block] || []).filter(line.pick).map((dish) => (
+                          <li key={dish.id} className={`td-dish ${dishTypeClass(typeOf.get(String(dish.id)))}`}>
+                            <span className="td-grow">{dish.name}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </td>
+                  ))}
+                </tr>
               ))}
-            </tr>
+            </Fragment>
           ))}
         </tbody>
       </table>
@@ -56,7 +79,7 @@ function MenuCard({ menu }) {
 
 function ServingsCard({ servings }) {
   const sessions = servingsBySession(servings);
-  if (!sessions.length) return <p className="card__body muted">Chưa có bữa nào có số suất đã xác nhận.</p>;
+  if (!sessions.length) return <EmptyState title="Chưa có suất ăn" description="Chưa có bữa nào có số suất đã xác nhận." />;
   return (
     <div className="table-wrap">
       <table className="table table--grid kr-table">
@@ -123,10 +146,12 @@ function FoodsCard({ foods }) {
  * xác nhận theo lớp (không tên trẻ), lượng thực phẩm cần. Tất cả do BE trả (`GET /nutrition/kitchen/day`); bếp ghi nhận qua App.
  */
 export default function KitchenTodayPage() {
+  const [tab, setTab] = useTabParam(['menu', 'servings', 'foods']);
   const [params, setParams] = useSearchParams();
   const campus = useStockCampus();
   const date = isIsoDate(params.get('date')) ? params.get('date') : todayInput();
   const day = useKitchenDay(campus.campusId, date);
+  const dishTypeOf = useDishTypeById();
 
   const setDate = (next) =>
     setParams(
@@ -157,8 +182,14 @@ export default function KitchenTodayPage() {
     body = (
       <div className="kb-stack">
         <div className="kr-summary">
-          <span className="chip chip--teal">Thực đơn: {KITCHEN_MENU_STATUS_LABELS[data.menuStatus] || data.menuStatus}</span>
-          <span className="chip chip--teal">Số suất: {KITCHEN_COUNT_STATUS_LABELS[data.countStatus] || data.countStatus}</span>
+          <StatusBadge
+            tone={MENU_TONE[data.menuStatus] || 'gray'}
+            label={`Thực đơn: ${KITCHEN_MENU_STATUS_LABELS[data.menuStatus] || data.menuStatus}`}
+          />
+          <StatusBadge
+            tone={COUNT_TONE[data.countStatus] || 'gray'}
+            label={`Số suất: ${KITCHEN_COUNT_STATUS_LABELS[data.countStatus] || data.countStatus}`}
+          />
           {data.confirmedAt && <span className="text-sm muted">Xác nhận lúc {formatDateTime(data.confirmedAt)}</span>}
         </div>
         {!published && (
@@ -170,24 +201,22 @@ export default function KitchenTodayPage() {
           </section>
         )}
         {published && (
+          // Chia tab (DESIGN §6.3): món · suất theo lớp · thực phẩm cần — mỗi tab một câu hỏi của bếp
           <>
-            <section className="card" aria-label="Món theo bữa">
-              <div className="card__header">
-                <h2 className="card__title">Món ăn theo bữa</h2>
-              </div>
-              <MenuCard menu={data.menu} />
-            </section>
-            <section className="card" aria-label="Suất đã xác nhận">
-              <div className="card__header">
-                <h2 className="card__title">Suất ăn đã xác nhận theo lớp</h2>
-              </div>
-              <ServingsCard servings={data.servings} />
-            </section>
-            <section className="card" aria-label="Thực phẩm cần">
-              <div className="card__header">
-                <h2 className="card__title">Thực phẩm cần cho ngày</h2>
-              </div>
-              <FoodsCard foods={data.foods} />
+            <Tabs
+              ariaLabel="Phần bếp hôm nay"
+              value={tab}
+              onChange={setTab}
+              items={[
+                { key: 'menu', label: 'Món ăn theo bữa' },
+                { key: 'servings', label: 'Suất ăn theo lớp' },
+                { key: 'foods', label: 'Thực phẩm cần', count: data.foods?.length },
+              ]}
+            />
+            <section className="card">
+              {tab === 'menu' && <MenuCard menu={data.menu} typeOf={dishTypeOf} />}
+              {tab === 'servings' && <ServingsCard servings={data.servings} />}
+              {tab === 'foods' && <FoodsCard foods={data.foods} />}
             </section>
           </>
         )}
@@ -205,9 +234,13 @@ export default function KitchenTodayPage() {
       <div className="page__head">
         <div>
           <h1 className="page__title">Bếp hôm nay</h1>
-          <p className="page__desc">Món, số suất đã xác nhận và lượng thực phẩm của ngày {formatDate(date)}.</p>
         </div>
-        <div className="page__actions">
+      </div>
+      <div className="kb-toolbar">
+        <KbDateFilter value={date} onChange={setDate} />
+        {campus.campusId && <KbCampusFilter campusId={campus.campusId} onChange={campus.setCampusId} canPick={campus.canPick} />}
+        {/* Nút đứng cùng hàng bộ lọc, căn phải (như Kho khô), không treo riêng một hàng dưới breadcrumb */}
+        <div className="kb-toolbar__end">
           <Link className="btn" to={linkTo(KITCHEN_RECORD_PAGES.foodSamples)}>
             <ClipboardCheck size={16} /> Lưu mẫu thức ăn
           </Link>
@@ -215,10 +248,6 @@ export default function KitchenTodayPage() {
             <Camera size={16} /> Ảnh bữa ăn
           </Link>
         </div>
-      </div>
-      <div className="kb-toolbar">
-        <KbDateFilter value={date} onChange={setDate} />
-        {campus.campusId && <KbCampusFilter campusId={campus.campusId} onChange={campus.setCampusId} canPick={campus.canPick} />}
       </div>
       {body}
     </div>
