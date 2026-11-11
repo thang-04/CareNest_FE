@@ -11,6 +11,7 @@ export const checkDuplicateChild = (data, user, excludeId) => repo.checkDuplicat
 export const checkGuardianConflicts = (guardians, user) => repo.checkGuardianConflicts(guardians, user);
 export const readmitChild = (childId, body, user) => repo.readmitChild(childId, body, user);
 export const getPlacementClasses = (filters, user) => repo.getPlacementClasses(filters, user);
+export const getClassOptions = (schoolYear, user, options) => repo.getClassOptions(schoolYear, user, options);
 export const enrollChild = (payload, user) => repo.enrollChild(payload, user);
 export const updateChild = (id, body, user) => repo.updateChild(id, body, user);
 export const previewEnrollmentImport = (file, user) => repo.previewImport(file, user);

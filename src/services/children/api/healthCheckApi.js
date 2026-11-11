@@ -1,4 +1,7 @@
+import { SCHOOL_NAME } from '@/config/app';
 import { axiosClient } from '@/services/http/axiosClient';
+import { stringifyIds } from '@/services/http/idStrings';
+import { toBeSchoolYear } from '@/services/http/schoolYearIds';
 
 /**
  * Contract đợt khám sức khỏe, kỳ cân đo, phiếu khám Phụ lục II (BE sở hữu: `BE:docs/modules/health.md`; mock cùng tên, cùng dạng).
@@ -32,19 +35,37 @@ import { axiosClient } from '@/services/http/axiosClient';
  *   EXAM_IN_SCHOOL_YEAR, campaignId, name, kind, startDate }] }, không chặn lưu. Danh sách lớp của kỳ: result NOT_RECORDED | RECORDED |
  *   ABSENT.
  */
+// BE trả id số; màn và mock dùng id chuỗi (plan 2026-11-11-children-module-be-wiring)
+const read = (promise) => promise.then(stringifyIds);
+// Số nháp của phiếu khám: BE null, form dùng ô trống như mock
+const blankIfNull = (value) => (value == null ? '' : value);
+
 export const healthCheckApi = {
-  listHealthChecks: (filters) => axiosClient.get('/health-checks', { params: filters }),
-  getGrowthReport: (params) => axiosClient.get('/health-checks/growth-report', { params }),
-  scheduleWarnings: (params) => axiosClient.get('/health-checks/schedule-warnings', { params }),
-  getHealthCheck: (id) => axiosClient.get(`/health-checks/${id}`),
-  getHealthCheckClass: (id, classId) => axiosClient.get(`/health-checks/${id}/classes/${classId}/children`),
-  createHealthCheck: (payload) => axiosClient.post('/health-checks', payload),
-  updateHealthCheck: (id, payload) => axiosClient.put(`/health-checks/${id}`, payload),
-  cancelHealthCheck: (id) => axiosClient.post(`/health-checks/${id}/cancel`),
-  closeHealthCheck: (id) => axiosClient.post(`/health-checks/${id}/close`),
-  reopenHealthCheck: (id, body) => axiosClient.post(`/health-checks/${id}/reopen`, body),
-  getHealthExam: (campaignId, childId) => axiosClient.get(`/health-checks/${campaignId}/children/${childId}/exam`),
-  saveHealthExam: (campaignId, childId, payload) => axiosClient.put(`/health-checks/${campaignId}/children/${childId}/exam`, payload),
+  // Header năm học dùng tên "2026-2027" khi nối BE ⇒ đổi sang id BE
+  listHealthChecks: async (filters = {}) =>
+    read(axiosClient.get('/health-checks', { params: { ...filters, schoolYear: await toBeSchoolYear(filters.schoolYear) } })),
+  getGrowthReport: (params) => read(axiosClient.get('/health-checks/growth-report', { params })),
+  scheduleWarnings: (params) => read(axiosClient.get('/health-checks/schedule-warnings', { params })),
+  getHealthCheck: (id) => read(axiosClient.get(`/health-checks/${id}`)),
+  getHealthCheckClass: (id, classId) => read(axiosClient.get(`/health-checks/${id}/classes/${classId}/children`)),
+  createHealthCheck: (payload) => read(axiosClient.post('/health-checks', payload)),
+  updateHealthCheck: (id, payload) => read(axiosClient.put(`/health-checks/${id}`, payload)),
+  cancelHealthCheck: (id) => read(axiosClient.post(`/health-checks/${id}/cancel`)),
+  closeHealthCheck: (id) => read(axiosClient.post(`/health-checks/${id}/close`)),
+  reopenHealthCheck: (id, body) => read(axiosClient.post(`/health-checks/${id}/reopen`, body)),
+  // BE không trả tên trường của trẻ (mock có child.schoolName): lấy tên trường của ứng dụng
+  getHealthExam: (campaignId, childId) =>
+    read(axiosClient.get(`/health-checks/${campaignId}/children/${childId}/exam`)).then((view) => ({
+      ...view,
+      child: view.child && { ...view.child, schoolName: view.child.schoolName || SCHOOL_NAME },
+      draft: view.draft && {
+        ...view.draft,
+        heightCm: blankIfNull(view.draft.heightCm),
+        weightKg: blankIfNull(view.draft.weightKg),
+        headCircumferenceCm: blankIfNull(view.draft.headCircumferenceCm),
+      },
+    })),
+  saveHealthExam: (campaignId, childId, payload) => read(axiosClient.put(`/health-checks/${campaignId}/children/${childId}/exam`, payload)),
   previewHealthExamReview: (campaignId, childId, payload) =>
-    axiosClient.post(`/health-checks/${campaignId}/children/${childId}/exam/review-preview`, payload),
+    read(axiosClient.post(`/health-checks/${campaignId}/children/${childId}/exam/review-preview`, payload)),
 };

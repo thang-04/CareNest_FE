@@ -187,6 +187,10 @@ const ITEMS = {
     label: 'Xu hướng sức khỏe',
     to: '/children/health-trends',
   },
+  growthReport: {
+    label: 'Tổng hợp cân đo',
+    to: '/children/growth-report',
+  },
   attendance: {
     label: 'Điểm danh & báo ăn',
     to: '/attendance',
@@ -434,7 +438,7 @@ const MENUS = {
       'schoolRoles',
     ]),
     // Tiếp nhận trẻ, Xếp lớp như PHT trên mọi điểm trường (user chốt 2026-10-27)
-    group('children', ['childList', 'childEnroll', 'childPlacement', 'parentActivation', 'healthChecks', 'healthTrends']),
+    group('children', ['childList', 'childEnroll', 'childPlacement', 'parentActivation', 'healthChecks', 'healthTrends', 'growthReport']),
     group('attendance', ['attendanceSummary', 'leaveRequests', 'attendanceDayUnlocks', 'dailyHealthOverview']),
     group('education', [
       'eduSchoolYear',
@@ -481,7 +485,7 @@ const MENUS = {
       'schoolTeachers',
       'schoolStaffView',
     ]),
-    group('children', ['childList', 'childEnroll', 'childPlacement', 'parentActivation', 'healthChecks', 'healthTrends']),
+    group('children', ['childList', 'childEnroll', 'childPlacement', 'parentActivation', 'healthChecks', 'healthTrends', 'growthReport']),
     group('attendance', ['attendanceSummary', 'leaveRequests', 'attendanceDayUnlocks', 'dailyHealthOverview']),
     group('education', [
       'eduSchoolYear',

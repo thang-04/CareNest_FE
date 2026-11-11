@@ -17,11 +17,12 @@ import { ParentAccountBadge } from '@/components/children/ChildBadges';
 import { GuardianPanel } from '@/components/account/GuardianPanel';
 import { PeopleTabs } from '@/components/account/PeopleTabs';
 import { StatCard } from '@/components/ui/StatCard';
-import { IS_GUARDIAN_DEMO, resetParentPassword, updateParentStatus } from '@/services/account/guardianService';
+import { resetParentPassword, updateParentStatus } from '@/services/account/guardianService';
 import { getChildDetail } from '@/services/children/childrenService';
 import { GUARDIAN_RELATIONSHIP_LABELS } from '@/models/account/guardianConstants';
 import { groupChildrenByClass, missingAccount, NO_CLASS, sortMissingFirst } from '@/utils/account/guardianCoverage';
 import { childrenCrumbs } from '@/utils/children/breadcrumbs';
+import { sameId } from '@/services/http/idStrings';
 import { formatDate, normalizeText } from '@/utils/format';
 import '@/styles/modules/parent-accounts.css';
 
@@ -66,7 +67,8 @@ export default function ParentActivationPage() {
     };
   }, [targetId, user, structure.loading, structure.error, toast]);
   useEffect(() => {
-    const child = children.find((row) => row.id === targetId);
+    // id trẻ của BE là số, childId trên URL là chuỗi
+    const child = children.find((row) => sameId(row.id, targetId));
     if (!child || handledTarget.current === targetId || loading) return;
     handledTarget.current = targetId;
     setViewPick(child.classroomId || NO_CLASS);
@@ -169,15 +171,9 @@ export default function ParentActivationPage() {
   return (
     <div className="page">
       <Breadcrumb items={childrenCrumbs('Tài khoản phụ huynh')} />
-      {IS_GUARDIAN_DEMO && (
-        <div className="alert alert--info">
-          Bản demo Web: thao tác tài khoản chưa kết nối BE/App thật. Giữ phạm vi quản lý phụ huynh hiện tại của bạn.
-        </div>
-      )}
       <div className="pa-head">
         <div className="pa-head__title">
           <h1 className="page__title">Tài khoản phụ huynh</h1>
-          <p className="text-sm text-2">Tra cứu theo lớp để xem và quản lý tài khoản phụ huynh của từng bé.</p>
         </div>
         <SearchSubmit
           className="pa-head__search"
@@ -377,9 +373,7 @@ export default function ParentActivationPage() {
                                           </div>
                                         </div>
                                       ) : (
-                                        <span className="muted">
-                                          {child.selectionRequired ? 'Cần chọn phụ huynh nhận tài khoản' : 'Chưa có phụ huynh'}
-                                        </span>
+                                        <span className="muted">Chưa có phụ huynh</span>
                                       )}
                                     </div>
                                   )}
