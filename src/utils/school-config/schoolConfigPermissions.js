@@ -193,6 +193,8 @@ export const canViewTeacherAssignments = (campusId, user) => {
 export const canAssignTeachers = (campusId, user, action = true) => {
   const p = teacherAssignAccess(user);
   const ok = action === true ? p.access === PERMISSION_ACCESS.EDIT : !!p.actions?.[action];
+  // Đăng nhập BE: đúng phạm vi HT cấp (cơ sở được phân công — có thể nhiều — hoặc toàn trường), AUTH-20
+  if (isBeUser(user)) return ok && !!campusId && (isPrincipal(user) || inBePermissionScope(user, STAFF_ASSIGNMENT_MANAGE, campusId));
   return ok && inScope(p, campusId, user);
 };
 
