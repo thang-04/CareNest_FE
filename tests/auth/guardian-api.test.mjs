@@ -18,6 +18,10 @@ const guardian = (userId) => ({
   linkedAt: '2026-10-30T02:00:00Z',
 });
 
+// GET /children/guardian-overview: mục danh sách trẻ (guardians = phụ huynh trên hồ sơ) kèm tài khoản người nhận
+const contact = (id, fullName, accountRecipient) => ({ id, fullName, relation: 'MOTHER', phone: `09000000${id}`, accountRecipient });
+const overviewChild = (id, guardians, canManage = true) => ({ ...child(id, guardians.length), guardians, canManage });
+
 let calls;
 let bodies;
 const envelope = (config, data) => ({ status: 200, statusText: 'OK', headers: {}, config, data: { code: 200, desc: 'ok', data } });
@@ -34,6 +38,19 @@ beforeEach(() => {
     if (config.url === '/school-structure') return envelope(config, { year: null, ageGroups: [], classes: [{ id: 7, name: 'Lớp demo', campusId: 1 }] });
     if (config.url === '/children')
       return envelope(config, { items: [child(11, 1), child(12, 0)], page: 0, size: 100, totalElements: 2, totalPages: 1 });
+    if (config.url === '/children/guardian-overview')
+      return envelope(config, {
+        items: [
+          { child: overviewChild(11, [contact(30, 'Phụ huynh demo 21', true)]), account: guardian(21) },
+          { child: overviewChild(12, [contact(31, 'Phụ huynh chọn', true)]), account: null },
+          { child: overviewChild(13, [contact(32, 'Bố', false), contact(33, 'Mẹ', true)], false), account: null },
+          { child: overviewChild(14, [contact(34, 'Mẹ duy nhất', false)]), account: null },
+        ],
+        page: 0,
+        size: 100,
+        totalElements: 4,
+        totalPages: 1,
+      });
     if (config.url === '/children/11/guardians' && method === 'GET') return envelope(config, [guardian(21)]);
     if (config.url === '/children/12/guardians' && method === 'GET') return envelope(config, []);
     if (config.url.endsWith('/account-recipient')) return envelope(config, [{ id: 31, accountRecipient: true, fullName: 'Phụ huynh chọn', relation: 'MOTHER', phone: '0900000021' }]);
@@ -56,15 +73,21 @@ test('cấu trúc: điểm trường từ /campuses, lớp từ /school-structur
   assert.deepEqual(structure.classrooms, [{ id: 7, name: 'Lớp demo', campusId: 1 }]);
 });
 
-test('danh sách trẻ: đọc người được chọn và đếm đúng tài khoản đã liên kết', async () => {
+test('danh sách trẻ: một lần gọi guardian-overview cho cả trang, đọc người được chọn và tài khoản đã liên kết', async () => {
   const page = await guardianApi.searchChildren({ campusId: 1, page: 0, size: 100 });
 
-  assert.deepEqual([...calls].sort(), ['GET /children?campusId=1&page=0&size=100', 'GET /children/11/guardians', 'GET /children/12/guardians', 'GET /children/11/account-recipient', 'GET /children/12/account-recipient'].sort());
-  assert.deepEqual(page.items.map(c => c.guardianCount), [1,0]);
-  assert.equal(page.items[1].accountRecipient.fullName, 'Phụ huynh chọn');
+  assert.deepEqual(calls, ['GET /children/guardian-overview?campusId=1&page=0&size=100']);
+  assert.deepEqual(page.items.map((c) => c.guardianCount), [1, 0, 0, 0]);
   assert.deepEqual(page.items[0].guardians, [guardian(21)]);
   assert.deepEqual(page.items[1].guardians, []);
-  assert.ok(page.items.every((item) => item.canManage));
+  assert.equal(page.items[1].accountRecipient.fullName, 'Phụ huynh chọn');
+  assert.equal(page.items[1].accountRecipient.relation, 'Mẹ');
+  // Từ 2 phụ huynh: hiện người nhận; một phụ huynh: hiện người đó dù dữ liệu cũ chưa đánh dấu người nhận
+  assert.equal(page.items[2].accountRecipient.fullName, 'Mẹ');
+  assert.equal(page.items[3].accountRecipient.fullName, 'Mẹ duy nhất');
+  assert.ok(page.items.every((c) => !('selectionRequired' in c)));
+  assert.deepEqual(page.items.map((c) => c.canManage), [true, true, false, true]);
+  assert.equal(page.totalPages, 1);
 });
 
 test('thêm phụ huynh: tra SĐT trước, gửi confirmUserId khi đã có tài khoản, không gửi email', async () => {

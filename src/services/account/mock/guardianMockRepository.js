@@ -109,7 +109,6 @@ export const guardianMockRepository = {
           campusId: child.campusId,
           guardianCount: guardians.length,
           accountRecipient: selectedRecipients(child.guardians)[0] || null,
-          selectionRequired: !!recipientError(child.guardians),
           guardians,
           canManage: canActivateParent(child, actor),
         };

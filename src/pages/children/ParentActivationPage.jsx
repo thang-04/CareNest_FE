@@ -377,9 +377,7 @@ export default function ParentActivationPage() {
                                           </div>
                                         </div>
                                       ) : (
-                                        <span className="muted">
-                                          {child.selectionRequired ? 'Cần chọn phụ huynh nhận tài khoản' : 'Chưa có phụ huynh'}
-                                        </span>
+                                        <span className="muted">Chưa có phụ huynh</span>
                                       )}
                                     </div>
                                   )}
