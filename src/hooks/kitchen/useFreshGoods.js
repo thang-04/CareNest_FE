@@ -13,5 +13,8 @@ export const useFreshForecasts = (campusId) => useFreshQuery(() => freshGoodsApi
 
 export const useFreshForecast = (id) => useFreshQuery(() => freshGoodsApi.getForecast(id), [id], !!id);
 
+export const useDayMarket = (campusId, date) =>
+  useFreshQuery(() => freshGoodsApi.getDayMarket({ campusId, date }), [campusId, date], !!campusId && isIsoDate(date));
+
 export const useFreshCheck = (campusId, date) =>
   useFreshQuery(() => freshGoodsApi.getCheck({ campusId, date }), [campusId, date], !!campusId && isIsoDate(date));
