@@ -1,5 +1,5 @@
 import { Fragment, useState } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Pencil, Lock, Unlock, CircleX, Info, Users, CheckCircle2, ChevronDown, History } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -9,7 +9,7 @@ import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { Modal } from '@/components/ui/Modal';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { EmptyState, LoadingState, Spinner } from '@/components/ui/States';
-import { RowActions } from '@/components/ui/RowActions';
+import { clickableRowProps } from '@/utils/clickableRow';
 import { FormField } from '@/components/form/FormField';
 import { DateInput } from '@/components/form/DateInput';
 import {
@@ -133,6 +133,7 @@ function StatusBanner({ campaign, teacher, isRound }) {
 
 export default function HealthCheckDetailPage() {
   const { campaignId } = useParams();
+  const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const { user } = useAuth();
   const toast = useToast();
@@ -480,12 +481,12 @@ export default function HealthCheckDetailPage() {
                     <th className="center">Ngày đo</th>
                     <th className="num">BMI</th>
                     <th>Cảnh báo BMI</th>
-                    <th className="cell--actions">Thao tác</th>
                   </tr>
                 </thead>
                 <tbody>
                   {watchList.map((r) => (
-                    <tr key={r.childId}>
+                    // Bấm dòng mở sổ sức khỏe của trẻ (DESIGN §6.3), không cột icon Xem
+                    <tr key={r.childId} className="row-click" {...clickableRowProps(() => navigate(`/children/${r.childId}/health`))}>
                       <td>
                         <div className="fw-600">{r.fullName}</div>
                         <div className="muted text-xs">{r.code}</div>
@@ -495,9 +496,6 @@ export default function HealthCheckDetailPage() {
                       <td className="num">{formatNumber(r.bmi)}</td>
                       <td>
                         <BmiStatusBadge status={r.bmiStatus} />
-                      </td>
-                      <td className="cell--actions">
-                        <RowActions view={{ to: `/children/${r.childId}/health`, label: 'Mở sổ sức khỏe' }} name={r.fullName} />
                       </td>
                     </tr>
                   ))}
@@ -513,12 +511,12 @@ export default function HealthCheckDetailPage() {
                     <th>Lớp</th>
                     <th>Đợt này</th>
                     <th>Lần khám trước</th>
-                    <th className="cell--actions">Thao tác</th>
                   </tr>
                 </thead>
                 <tbody>
                   {watchList.map((r) => (
-                    <tr key={r.childId}>
+                    // Bấm dòng mở sổ sức khỏe của trẻ (DESIGN §6.3), không cột icon Xem
+                    <tr key={r.childId} className="row-click" {...clickableRowProps(() => navigate(`/children/${r.childId}/health`))}>
                       <td>
                         <div className="fw-600">{r.fullName}</div>
                         <div className="muted text-xs">{r.code}</div>
@@ -544,9 +542,6 @@ export default function HealthCheckDetailPage() {
                         ) : (
                           <span className="muted">Chưa có</span>
                         )}
-                      </td>
-                      <td className="cell--actions">
-                        <RowActions view={{ to: `/children/${r.childId}/health`, label: 'Mở sổ sức khỏe' }} name={r.fullName} />
                       </td>
                     </tr>
                   ))}
