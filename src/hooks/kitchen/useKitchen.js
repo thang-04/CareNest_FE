@@ -8,7 +8,6 @@ import { DB_CHANGED_EVENT } from '@/mocks/dbEvents';
 import { readSeenMealCounts, saveSeenMealCounts } from '@/services/kitchen/mealCountSeenStore';
 import {
   getConfirmedMealCount,
-  getDayMarket,
   getFoodCatalog,
   getFoodSampleLog,
   getKitchenDay,
@@ -156,10 +155,6 @@ export const useWeeklyForecast = (campusId, weekStart) =>
   useKitchenQuery((user) => getWeeklyForecast({ campusId, weekStart }, user), [campusId, weekStart], {
     enabled: !!campusId && !!weekStart,
   });
-
-/** campusId trống ⇒ service chọn điểm trường đầu tiên người dùng xem được. */
-export const useDayMarket = (campusId, date) =>
-  useKitchenQuery((user) => getDayMarket({ campusId, date }, user), [campusId, date], { enabled: !!date });
 
 export const useFreshReceipt = (campusId, date, opts) =>
   useKitchenQuery((user) => getFreshReceipt({ campusId, date }, user), [campusId, date], { enabled: !!campusId && !!date, ...opts });
