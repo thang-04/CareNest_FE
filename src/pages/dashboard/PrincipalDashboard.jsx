@@ -21,7 +21,7 @@ import { getPublishedMenu } from '@/services/kitchen/kitchenService';
 import { getEducationPlans } from '@/services/education-plan/educationPlanService';
 import { attendanceCompareText } from '@/services/dashboard/dashboardSummaryService';
 import { MENU_TYPE } from '@/models/kitchen/kitchenConstants';
-import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
+import { EDU_STATUS, isEduReviewPending } from '@/models/education-plan/educationPlanConstants';
 import { todayInput } from '@/utils/format';
 import '@/styles/modules/dashboard.css';
 const firstLoad = (q) => q.loading && q.data == null;
@@ -243,7 +243,7 @@ export default function PrincipalDashboard() {
                   to: '/education/plan-reviews',
                   icon: BookOpenCheck,
                   title: 'Kế hoạch chủ đề đã duyệt',
-                  meta: `${themes.filter((t) => t.status === EDU_STATUS.PENDING_VP).length} kế hoạch đang chờ Phó hiệu trưởng duyệt`,
+                  meta: `${themes.filter((t) => t.status === EDU_STATUS.PENDING_VP || (t.status === EDU_STATUS.REVIEW && (t.review?.waitingRole ?? t.waitingRole) === 'VICE_PRINCIPAL')).length} kế hoạch đang chờ Phó hiệu trưởng duyệt`,
                   end: <TaskCount value={themes.filter((t) => t.status === EDU_STATUS.APPROVED).length} />,
                 },
                 {
@@ -251,7 +251,7 @@ export default function PrincipalDashboard() {
                   to: '/education/plan-reviews',
                   icon: BookOpenCheck,
                   title: 'Giáo án đã duyệt',
-                  meta: `${lessons.filter((l) => [EDU_STATUS.PENDING_TL, EDU_STATUS.PENDING_VP].includes(l.status)).length} giáo án đang chờ duyệt`,
+                  meta: `${lessons.filter((l) => isEduReviewPending(l.status)).length} giáo án đang chờ duyệt`,
                   end: <TaskCount value={lessons.filter((l) => l.status === EDU_STATUS.APPROVED).length} />,
                 },
               ]}

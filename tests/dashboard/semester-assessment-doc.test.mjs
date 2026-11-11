@@ -48,7 +48,11 @@ test('semester print uses configured dates, paired columns and escapes child/not
     file.html,
     /GIÁO VIÊN CHỦ NHIỆM[\s\S]*DUYỆT KẾ HOẠCH[\s\S]*Từ ngày 15\/01\/2027 đến ngày 31\/05\/2027[\s\S]*Tổ trưởng chuyên môn[\s\S]*Phó hiệu trưởng/,
   );
-  assert.equal(file.html.match(/class="sign-space"/g)?.length, 3);
+  assert.equal(file.html.match(/class="sign"/g)?.length, 3);
+  // Chỗ ký sửa / thêm được ở hộp xem trước (Cần 10/11/2026): người đầu ký trên, còn lại ở Duyệt kế hoạch
+  const edited = file.withSigners([...file.signers, { title: 'Hiệu trưởng', name: 'Cô Lan' }]);
+  assert.equal(edited.match(/class="sign"/g)?.length, 4);
+  assert.ok(edited.includes('Hiệu trưởng') && edited.includes('Cô Lan'));
   const confirmed = semesterAssessmentFile({ ...board, status: 'CONFIRMED', confirmedAt: '2027-05-31T18:00:00Z' });
   assert.match(confirmed.html, /ngày 1 tháng 6 năm 2027/);
   const rows = semesterAssessmentRows(board);

@@ -1,6 +1,34 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { reconcileYearPlanIds, createSaveQueue } from '../../src/models/education-plan/yearPlanAutosave.mjs';
+import { reconcileYearPlanIds, createSaveQueue, yearPlanContentKey } from '../../src/models/education-plan/yearPlanAutosave.mjs';
+
+test('saving assigns branch and parent theme IDs without losing edits made while waiting', () => {
+  const snapshot = {
+    themes: [{ id: 'theme-local', name: 'Trường mầm non' }],
+    branchTemplates: [{ id: 'branch-local', themeId: 'theme-local', name: 'Nhánh đã gửi' }],
+  };
+  const current = structuredClone(snapshot);
+  current.branchTemplates[0].name = 'Nhánh đang gõ tiếp';
+  current.branchTemplates.push({ id: 'branch-next', themeId: 'theme-local', name: 'Thêm trong lúc lưu' });
+  const saved = {
+    themes: [{ id: '703', name: 'Trường mầm non' }],
+    branchTemplates: [{ id: '35', themeId: '703', name: 'Nhánh đã gửi' }],
+  };
+  const result = reconcileYearPlanIds(current, snapshot, saved);
+  assert.deepEqual(result.branchTemplates, [
+    { id: '35', themeId: '703', name: 'Nhánh đang gõ tiếp' },
+    { id: 'branch-next', themeId: '703', name: 'Thêm trong lúc lưu' },
+  ]);
+  const deleted = reconcileYearPlanIds({ ...current, branchTemplates: [] }, snapshot, saved);
+  assert.deepEqual(deleted.branchTemplates, []);
+});
+
+test('branch-only changes remain distinguishable from the saved document for recovery', () => {
+  const before = { branchTemplates: [{ id: '35', themeId: '703', name: 'Nhánh cũ', startDate: '', endDate: '' }] };
+  const after = structuredClone(before);
+  after.branchTemplates[0].name = 'Nội dung chưa lưu';
+  assert.notEqual(yearPlanContentKey(before), yearPlanContentKey(after));
+});
 
 test('autosave preserves text typed during a save while assigning server IDs and theme ticks', () => {
   const snapshot = {
@@ -178,4 +206,33 @@ test('offline Lưu keeps the edits unsaved; Lưu after reconnect saves the lates
   assert.deepEqual(writes, ['offline latest']);
   assert.equal(queue.dirty(), false);
   queue.dispose();
+});
+
+test('editing only an STT label is a content change before goal text is entered', () => {
+  const before = { domains: [{ name: 'A', rows: [{ id: 'pending', kind: 'goal', text: '', displayLabel: 'MT01', contents: [] }] }] };
+  const after = structuredClone(before);
+  after.domains[0].rows[0].displayLabel = 'MTR20';
+  assert.notEqual(yearPlanContentKey(before), yearPlanContentKey(after));
+});
+
+test('source/session conflicts retain local edits but do not replay a rejected snapshot after explicit recovery', async () => {
+  for (const status of [409, 403]) {
+    let doc = { title: 'Draft', source: 'old' };
+    let allowed = true;
+    const attempts = [];
+    const queue = createSaveQueue({ read: () => doc, enabled: () => allowed,
+      write: async (snapshot, requestId) => {
+        attempts.push({ snapshot, requestId });
+        if (snapshot.source === 'old') throw Object.assign(new Error('Source changed'), { status });
+        return snapshot;
+      }, accept: (saved) => saved, onState: (phase) => { if (phase === 'conflict') allowed = false; } });
+    queue.markClean(doc); doc = { title: 'Unsaved input', source: 'old' };
+    assert.equal(await queue.flush(), false); assert.equal(doc.title, 'Unsaved input');
+    assert.equal(await queue.flush(), false); assert.equal(attempts.length, 1);
+    doc = { ...doc, source: 'fresh' }; allowed = true;
+    assert.equal(await queue.flush(), true);
+    assert.equal(attempts[1].snapshot.source, 'fresh');
+    assert.notEqual(attempts[0].requestId, attempts[1].requestId);
+    queue.dispose();
+  }
 });

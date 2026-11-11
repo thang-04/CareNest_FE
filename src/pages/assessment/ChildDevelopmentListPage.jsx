@@ -8,6 +8,7 @@ import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { Pagination, paginate } from '@/components/ui/Pagination';
 import { RowActions } from '@/components/ui/RowActions';
 import { ChildNameCell } from '@/components/assessment/ChildNameCell';
+import { CampusFilter } from '@/components/ui/CampusFilter';
 import { ageLabel } from '@/models/School';
 import { formatDate, normalizeText } from '@/utils/format';
 import { isLeader } from '@/utils/assessment/assessmentPermissions';
@@ -19,26 +20,39 @@ export default function ChildDevelopmentListPage() {
   const { user } = useAuth();
   const leader = isLeader(user);
   const { children, loading, error, reload } = useDevelopmentChildren();
+  const [campusId, setCampusId] = useState('');
+  const [ageGroupId, setAgeGroupId] = useState('');
   const [classId, setClassId] = useState('');
   const [keyword, setKeyword] = useState('');
   // Mặc định trẻ đang học; trẻ đã chuyển lớp / nghỉ vẫn mở được hồ sơ cũ (BE trả current = false)
   const [state, setState] = useState('CURRENT');
   const [page, setPage] = useState(1);
-  // Lớp lấy từ chính danh sách trẻ trong phạm vi (cùng thứ tự BE trả)
-  const classes = useMemo(() => {
+  // Điểm trường, nhóm tuổi, lớp lấy từ chính danh sách trẻ trong phạm vi (cùng thứ tự BE trả)
+  const options = (list, key, label) => {
     const seen = new Map();
-    children.forEach((ch) => seen.has(String(ch.classId)) || seen.set(String(ch.classId), ch.className));
-    return [...seen].map(([id, name]) => ({ id, name }));
-  }, [children]);
+    list.forEach((ch) => ch[key] == null || seen.has(String(ch[key])) || seen.set(String(ch[key]), ch[label]));
+    return [...seen].map(([id, name]) => ({ id, name: name || id }));
+  };
+  // Tổ trưởng: lớp nhóm tuổi mình không dạy chỉ xem (BE trả teaches; mock không có cờ thì không đánh dấu)
+  const viewOnly = (id) => !leader && children.some((ch) => String(ch.classId) === id && ch.teaches === false);
+  const inCampus = useMemo(() => children.filter((ch) => !campusId || String(ch.campusId) === campusId), [children, campusId]);
+  const inGroup = inCampus.filter((ch) => !ageGroupId || String(ch.ageGroupId) === ageGroupId);
+  const campuses = useMemo(() => options(children, 'campusId', 'campusName'), [children]);
+  const ageGroups = useMemo(() => options(inCampus, 'ageGroupId', 'ageGroupName'), [inCampus]);
+  const classes = options(inGroup, 'classId', 'className');
+  const pick = (setter) => (value) => {
+    setter(value);
+    setPage(1);
+  };
 
-  const rows = children
+  const rows = inGroup
     .filter((ch) => !classId || String(ch.classId) === classId)
     .filter((ch) => !state || (state === 'CURRENT') === (ch.current !== false))
     .filter((ch) => !keyword || normalizeText(`${ch.fullName} ${ch.code || ''}`).includes(normalizeText(keyword)));
 
   const link = (ch) => (leader ? `/assessment/children/${ch.id}/progress` : `/assessment/children/${ch.id}`);
   const title = leader ? 'Tiến độ phát triển của trẻ' : 'Hồ sơ phát triển của trẻ';
-  const filtered = !!(keyword || classId || state !== 'CURRENT');
+  const filtered = !!(keyword || campusId || ageGroupId || classId || state !== 'CURRENT');
 
   return (
     <div className="page">
@@ -56,6 +70,34 @@ export default function ChildDevelopmentListPage() {
               setPage(1);
             }}
           />
+          <CampusFilter
+            hideLabel
+            campuses={campuses}
+            value={campusId}
+            onChange={(id) => {
+              pick(setCampusId)(id);
+              setAgeGroupId('');
+              setClassId('');
+            }}
+          />
+          {ageGroups.length > 1 && (
+            <select
+              className="select"
+              value={ageGroupId}
+              onChange={(e) => {
+                pick(setAgeGroupId)(e.target.value);
+                setClassId('');
+              }}
+              aria-label="Nhóm tuổi"
+            >
+              <option value="">Tất cả nhóm tuổi</option>
+              {ageGroups.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.name}
+                </option>
+              ))}
+            </select>
+          )}
           {/* Lọc lớp chỉ khi có từ 2 lớp (GV một lớp không cần) */}
           {classes.length > 1 && (
             <select
@@ -71,6 +113,7 @@ export default function ChildDevelopmentListPage() {
               {classes.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
+                  {viewOnly(c.id) ? ' (chỉ xem)' : ''}
                 </option>
               ))}
             </select>
@@ -114,7 +157,7 @@ export default function ChildDevelopmentListPage() {
                         title={filtered ? 'Không tìm thấy trẻ' : leader ? 'Chưa có trẻ trong phạm vi' : 'Lớp bạn phụ trách chưa có trẻ'}
                         description={
                           filtered
-                            ? 'Thử đổi từ khóa hoặc lớp.'
+                            ? 'Thử đổi từ khóa, điểm trường, nhóm tuổi hoặc lớp.'
                             : leader
                               ? 'Năm học đang chọn chưa có trẻ được xếp lớp.'
                               : 'Bạn chưa được phân công lớp ở năm học đang chọn, hoặc lớp chưa có trẻ.'
@@ -125,6 +168,8 @@ export default function ChildDevelopmentListPage() {
                               className="btn"
                               onClick={() => {
                                 setKeyword('');
+                                setCampusId('');
+                                setAgeGroupId('');
                                 setClassId('');
                                 setState('CURRENT');
                                 setPage(1);

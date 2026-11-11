@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, Download, Printer, Save } from '@/components/ui/icons';
 import ThemeEvaluationPreviewModal from '@/components/assessment/ThemeEvaluationPreviewModal';
+import { ThemeDailyCrossCheck } from '@/components/assessment/ThemeDailyCrossCheck';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
@@ -16,6 +17,8 @@ import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';
 import { themeEvaluationFile } from '@/utils/assessment/themeEvaluationDoc';
 import { downloadXlsx } from '@/utils/exportXlsx';
 import { formatDate, formatDateTime } from '@/utils/format';
+import { PERMISSIONS } from '@/models/bePermissions';
+import { hasBePermission } from '@/utils/bePermissions';
 import '@/styles/modules/assessment.css';
 
 const NOTE_MAX = 1000;
@@ -44,6 +47,8 @@ export default function ThemeEvaluationPage() {
   const defaultTheme = [...themes].reverse().find((t) => t.period === 'ENDED') || themes.find((t) => t.period === 'ONGOING') || themes[0];
   const currentThemeId = themeId || defaultTheme?.themeId || '';
   const { evaluation: ev, loading, error, reload, setEvaluation } = useThemeEvaluation(currentClassId, currentThemeId);
+  const canEdit = !!ev?.canEdit && hasBePermission(user, PERMISSIONS.ASSESSMENT_RECORD);
+  const canConfirm = !!ev?.canConfirm && hasBePermission(user, PERMISSIONS.ASSESSMENT_CONFIRM);
 
   // Ô sửa trên màn: key `${childId}:${goalId}` → true / false / null (null = bỏ sửa tay, về hệ thống tính khi lưu)
   const [edits, setEdits] = useState({});
@@ -87,10 +92,8 @@ export default function ThemeEvaluationPage() {
     });
 
   const run = async (kind, fn, message) => {
-    if (note.length > NOTE_MAX) {
-      toast.error(`Lưu ý tối đa ${NOTE_MAX} ký tự.`, 'Chưa lưu được');
-      return false;
-    }
+    // Quá dài: lỗi đỏ ngay dưới ô (không chặn gõ), không gửi BE
+    if (note.length > NOTE_MAX) return false;
     setBusy(kind);
     try {
       const saved = await fn({ classId: Number(currentClassId), themeId: Number(currentThemeId), note, cells: cellsBody() }, user);
@@ -134,6 +137,8 @@ export default function ThemeEvaluationPage() {
     );
   };
 
+  // Bấm tên trẻ: mở đối chiếu đánh giá hằng ngày trong thời gian chủ đề (Cần yêu cầu 10/11/2026)
+  const [xcheck, setXcheck] = useState(null);
   const goalTitle = useMemo(() => Object.fromEntries((ev?.goals || []).map((g) => [g.goalId, g.text])), [ev]);
 
   return (
@@ -160,7 +165,7 @@ export default function ThemeEvaluationPage() {
                 {classes.map((c) => (
                   <option key={c.classId} value={c.classId}>
                     {c.name}
-                    {c.teaches ? '' : ' (xem)'}
+                    {classes.some((x) => x.teaches) && !c.teaches ? ' (chỉ xem)' : ''}
                   </option>
                 ))}
               </select>
@@ -237,10 +242,11 @@ export default function ThemeEvaluationPage() {
                   </span>
                 )}
               </div>
-              {ev.canEdit && (
+              {canEdit && (
                 <p className="muted text-sm mt-8">
-                  Hệ thống điền từ Kiến thức kỹ năng hằng ngày: mục tiêu Đạt khi có ít nhất 50% hoạt động đã chấm là Đạt; chưa chấm hoặc trẻ
-                  vắng không tính. Bấm vào ô để sửa tay (đổi Đạt / Chưa đạt); bấm tiếp tới khi về kết quả hệ thống. Ô sửa tay có viền đậm.
+                  Hệ thống điền từ Kiến thức kỹ năng hằng ngày: mục tiêu Đạt khi có ít nhất một hoạt động trong thời gian chủ đề được chấm
+                  Đạt; trẻ vắng hoặc chưa có lần Đạt nào thì Chưa đạt. Bấm vào ô để sửa tay (đổi Đạt / Chưa đạt); bấm tiếp tới khi về kết
+                  quả hệ thống. Ô sửa tay có viền đậm.
                 </p>
               )}
             </div>
@@ -278,7 +284,16 @@ export default function ThemeEvaluationPage() {
                         ev.rows.map((r, i) => (
                           <tr key={r.childId}>
                             <td className="num">{i + 1}</td>
-                            <td className="nowrap">{r.fullName}</td>
+                            <td className="nowrap">
+                              <button
+                                type="button"
+                                className="dg-link-btn"
+                                title="Đối chiếu đánh giá hằng ngày trong thời gian chủ đề"
+                                onClick={() => setXcheck(r)}
+                              >
+                                {r.fullName}
+                              </button>
+                            </td>
                             {r.cells.map((c) => {
                               const value = valueOf(r.childId, c);
                               const manual = manualOf(r.childId, c);
@@ -296,7 +311,7 @@ export default function ThemeEvaluationPage() {
                               }`;
                               return (
                                 <td key={c.goalId} className="center">
-                                  {ev.canEdit ? (
+                                  {canEdit ? (
                                     <button
                                       disabled={!!busy}
                                       type="button"
@@ -360,33 +375,42 @@ export default function ThemeEvaluationPage() {
               <label className="field__label" htmlFor="theme-note">
                 Một số lưu ý
               </label>
-              {ev.canEdit ? (
+              {canEdit ? (
                 <textarea
                   disabled={!!busy}
                   id="theme-note"
                   className="textarea"
                   rows={3}
-                  maxLength={NOTE_MAX}
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
                   placeholder="Vd. Cô chú ý rèn những trẻ còn hạn chế, động viên khuyến khích trẻ."
+                  aria-invalid={note.length > NOTE_MAX}
                 />
               ) : (
                 <p className="text-sm">{ev.note || <span className="muted">—</span>}</p>
               )}
-              {ev.canEdit && (
+              {canEdit && note.length > NOTE_MAX && (
+                <span className="field__error" role="alert">
+                  {`Tối đa ${NOTE_MAX} ký tự (đang ${note.length}).`}
+                </span>
+              )}
+              {(canEdit || canConfirm) && (
                 <div className="row gap-2 mt-12 sc-end">
-                  <button className="btn" onClick={save} disabled={!!busy || !changed}>
-                    {busy === 'save' ? <Spinner small /> : <Save size={16} />} Lưu
-                  </button>
-                  <button
-                    className="btn btn--primary"
-                    onClick={() => setConfirmOpen(true)}
-                    disabled={!!busy || !ev.canConfirm}
-                    title={ev.canConfirm ? '' : 'Xác nhận được từ ngày kết thúc chủ đề'}
-                  >
-                    <CheckCircle2 size={16} /> Xác nhận
-                  </button>
+                  {canEdit && (
+                    <button className="btn" onClick={save} disabled={!!busy || !changed}>
+                      {busy === 'save' ? <Spinner small /> : <Save size={16} />} Lưu
+                    </button>
+                  )}
+                  {hasBePermission(user, PERMISSIONS.ASSESSMENT_CONFIRM) && (
+                    <button
+                      className="btn btn--primary"
+                      onClick={() => setConfirmOpen(true)}
+                      disabled={!!busy || !canConfirm}
+                      title={ev.canConfirm ? '' : 'Xác nhận được từ ngày kết thúc chủ đề'}
+                    >
+                      <CheckCircle2 size={16} /> Xác nhận
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -403,6 +427,7 @@ export default function ThemeEvaluationPage() {
       />
       <LeaveConfirmModal {...guard.modal} canSave message="Đánh giá cuối chủ đề có thay đổi chưa lưu." />
       {preview && <ThemeEvaluationPreviewModal file={preview} onClose={() => setPreview(null)} />}
+      {xcheck && ev && <ThemeDailyCrossCheck child={xcheck} theme={ev} onClose={() => setXcheck(null)} />}
     </div>
   );
 }

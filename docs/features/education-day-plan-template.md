@@ -1,0 +1,10 @@
+# Mẫu chung kế hoạch tuần, giáo án ngày và màn Kế hoạch quá hạn
+
+Nguồn nghiệp vụ: spec 005 (CareNest_BE/specs/005-day-plan-shared-template/spec.md), bản chuẩn `nghiep_vu_chuan/ke_hoach_giao_duc.md` mục "Mẫu chung kế hoạch tuần + giáo án ngày" và "Hiển thị trạng thái, mở hạn, bộ lọc, thông báo kiểm tra" (Tiền 11/11/2026); rule EDU-16, EDU-27 (SUPERSEDED), EDU-74, EDU-76 tại [business rules](../../../CareNest_BE/docs/business/BUSINESS_RULES.md).
+
+- **Kế hoạch tuần** (`/education/class/:classId/weeks/:weekStart`): I. Mục đích (không bắt buộc), II. Chuẩn bị 3 ô Đối với cô / trẻ / phụ huynh, III. bảng Thứ 2–6 (có dòng "Ăn, ngủ"; dòng Góc chỉ xem, sinh từ bảng góc), IV. bảng Hoạt động góc (Góc | Nội dung | Mục đích, yêu cầu | Chuẩn bị | Cách tiến hành; MT gắn ở từng góc; "Chép bảng góc tuần trước" khi bảng trống).
+- **Giáo án ngày** (`/education/day-plans/:classId`): mỗi ngày "I. Giáo án" 4 mục cố định (học / ngoài trời / góc / chiều), mỗi mục a) Mục đích, yêu cầu; b) Chuẩn bị; c) Tiến hành (bảng dòng có tên tùy chọn, thêm/xóa/đổi thứ tự; mục học tạo sẵn 3 dòng gợi ý xóa được). "II. Đánh giá trẻ trên ngày" 3 ô — đợt này chỉ giao diện, không gửi lên BE. Bỏ hẳn ô "Kế hoạch điều chỉnh và bổ sung". Xuất file một file cả tuần: Chuẩn bị tuần → bảng góc → Thứ 2…6.
+- **Trạng thái**: nhãn duyệt (Nháp / Chờ duyệt / Bị trả lại / Đã ban hành) và nhãn hạn ("Hạn: …") luôn ở hai chỗ riêng.
+- **Kế hoạch quá hạn** (`/education/overdue`, chỉ Hiệu trưởng): danh sách kế hoạch năm, tổ, gói học kỳ, hồ sơ chủ đề chưa ban hành đã tới hạn (`canExtend` / `timeLock.canUnlock` do BE trả); lọc Nhóm tuổi → Lớp, Loại, Học kỳ; thẻ Đang quá hạn / Đã mở hạn; tích nhiều dòng rồi "Mở hạn" (lý do + hạn mới chung). Không trang chi tiết nào có nút mở hạn; bản đã ban hành tới ngày bắt đầu là khóa cứng.
+- **Bộ lọc** các màn tài liệu lớp (Chủ đề / Chủ đề nhánh, Kế hoạch giáo dục chủ đề, Kế hoạch giáo dục ngày, Chờ duyệt): Nhóm tuổi trước rồi Lớp, ô chọn cùng cỡ trong `filter-bar`.
+- **Lỗi kiểm tra**: chữ đỏ tại dòng thiếu (gói học kỳ theo `missing`, hồ sơ chủ đề theo `details` của `DAY_PLAN_SECTION_EMPTY`) và dòng tổng trên đầu bảng; không chỉ báo bằng thông báo nổi.

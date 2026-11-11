@@ -39,6 +39,15 @@ export const toUiEduConfig = (config) => {
   return {
     domainLabels: Object.fromEntries(domains.filter((d) => d.displayLabel).map((d) => [d.name, d.displayLabel])),
     extraDomains: domains.filter((d) => !d.standard).map((d) => d.name),
+    workflowPolicy: config?.workflow?.policies || config?.workflowPolicy || null,
+    durationPolicyAvailable: config?.durationPolicyAvailable ?? true,
+    workflowRevision: config?.workflow?.revision ?? config?.workflowRevision ?? 1,
+    canConfigure: config?.workflow?.canConfigure ?? false,
+    ...(config?.durationPolicy ? { durationPolicy: config.durationPolicy } : {}),
+    ...(config?.schoolYearCreationScopes
+      ? { schoolYearCreationScopes: config.schoolYearCreationScopes.map((id) => buildRefs(config).ageGroupCode(id)).filter(Boolean) }
+      : {}),
+    yearCreationScopes: (config?.yearCreationScopes || []).map((id) => buildRefs(config).ageGroupCode(id)).filter(Boolean),
     ...(config?.signers ? { signers: config.signers } : {}),
     ...(config?.weekRows ? { weekRows: config.weekRows } : {}),
     // BE:EDU-21 — họ tên Hiệu trưởng, Phó HT đang hoạt động để in dưới chỗ ký tay
@@ -47,9 +56,6 @@ export const toUiEduConfig = (config) => {
 };
 
 const actor = (a) => (a ? { userId: a.userId, name: a.name, title: a.title || null, at: localDate(a.at) } : null);
-// Người đang giữ khóa "Đang sửa" (BE:EDU-10), at = giờ bắt đầu sửa
-const editor = (a) => (a ? { userId: a.userId, name: a.name, at: localDateTime(a.at) } : null);
-
 /** YearPlanDetailResponse → kế hoạch năm dạng UI. */
 export const toUiGoal = (detail, refs) => {
   const themes = (detail.themes || []).map((t) => ({
@@ -67,7 +73,10 @@ export const toUiGoal = (detail, refs) => {
       kind: r.kind,
       text: r.text,
       ...(r.kind === 'goal'
-        ? { contents: r.contents.map((c) => ({ id: String(c.id), text: c.text, themes: c.themeIds.map(String) })) }
+        ? {
+            displayLabel: r.displayLabel ?? null,
+            contents: r.contents.map((c) => ({ id: String(c.id), text: c.text, themes: c.themeIds.map(String) })),
+          }
         : {}),
       // Dòng lấy từ Chương trình của Bộ (BE:EDU-28): giữ liên kết nguồn để bỏ trùng khi lấy lại, không hiện nhãn
       ...(r.curriculumGoalId
@@ -85,31 +94,63 @@ export const toUiGoal = (detail, refs) => {
       rows,
       items: rows
         .filter((r) => r.kind === 'goal')
-        .map((r) => ({ id: r.id, code: `MT${goalNo[r.id]}`, text: r.text, contents: r.contents, requirements: [] })),
+        .map((r) => ({
+          id: r.id,
+          code: r.displayLabel?.trim() || `MT${goalNo[r.id]}`,
+          text: r.text,
+          contents: r.contents,
+          requirements: [],
+        })),
     };
   });
   return {
+    planLevel: detail.planType || detail.planLevel || 'TEAM',
+    planType: detail.planType || detail.planLevel || 'TEAM',
+    planTypeLabel: detail.planTypeLabel || ((detail.planType || detail.planLevel) === 'SCHOOL_YEAR' ? 'Kế hoạch năm học' : 'Kế hoạch tổ'),
+    previousSourcePlanId: detail.previousSourcePlanId == null ? null : String(detail.previousSourcePlanId),
+    contentRevision: detail.contentRevision ?? detail.revision ?? 0,
+    reviewItems: (detail.reviewItems || []).map((item) => ({
+      ...item,
+      reviewItemId: String(item.reviewItemId),
+      itemId: String(item.itemId),
+      sourcePlanId: String(item.sourcePlanId),
+    })),
+    newItems: (detail.newItems || []).map((item) => ({ ...item, itemId: String(item.itemId) })),
+    sourceMode: detail.sourceMode || 'LEGACY',
+    curriculumSourcePlanId: detail.curriculumSourcePlanId == null ? null : String(detail.curriculumSourcePlanId),
+    branchTemplates: (detail.branchTemplates || []).map((t) => ({ ...t, id: String(t.id), themeId: String(t.themeId) })),
+    durationPolicySnapshot: detail.durationPolicySnapshot,
+    sourceChanges: detail.sourceChanges || null,
+    remapWarnings: detail.remapWarnings || [],
     id: String(detail.id),
-    revision: detail.revision ?? 0,
+    revision: detail.contentRevision ?? detail.revision ?? 0,
     editExpiresAt: detail.editExpiresAt,
+    // Spec 004 Q3b/Q5: khóa từ ngày bắt đầu năm học, Hiệu trưởng mở khóa
+    timeLock: detail.timeLock || null,
     code: detail.code,
     schoolYear: toYearLabel(detail.schoolYearName),
     ageGroupId: refs.ageGroupCode(detail.ageGroupId),
     title: detail.title,
     description: detail.description || '',
-    status: detail.status,
+    status: detail.status === 'EDITING' ? EDU_STATUS.DRAFT : detail.status,
     createdAt: localDate(detail.createdAt),
-    sentAt: localDate(detail.sentBy?.at),
+    sentAt: localDate(detail.sentAt ?? detail.sentBy?.at),
     createdBy: detail.owner?.name || '',
     owner: actor(detail.owner),
     sentBy: actor(detail.sentBy),
     issued: actor(detail.issued),
-    editing: editor(detail.editing),
+    editing: null,
+    waitingRole: detail.review?.waitingRole ?? detail.waitingRole ?? null,
+    waitingRoleLabel: detail.waitingRoleLabel || null,
+    creationCapabilities: detail.creationCapabilities || null,
+    review: detail.review || null,
+    lastReturnNote: detail.lastReturnNote || null,
     history: (detail.history || []).map((h) => ({
       at: localDateTime(h.at),
       by: h.actorName,
       role: h.actorRoleLabel,
       action: h.label,
+      code: h.action,
       tone: h.tone,
       ...(h.note ? { note: h.note } : {}),
     })),
@@ -138,6 +179,17 @@ export const toUiGoal = (detail, refs) => {
 
 /** Kế hoạch năm dạng UI → YearPlanRequest (lưu cả văn bản). Lĩnh vực BE không có thì bỏ qua. */
 export const toYearPlanRequest = (goal, refs) => ({
+  planLevel: goal.planType || goal.planLevel || 'TEAM',
+  planType: goal.planType || goal.planLevel || 'TEAM',
+  ...(goal.curriculumSourcePlanId ? { curriculumSourcePlanId: serverId(goal.curriculumSourcePlanId) } : {}),
+  branchTemplates: (goal.branchTemplates || []).map((t) => ({
+    key: String(t.id),
+    id: serverId(t.id),
+    themeKey: String(t.themeId),
+    name: t.name,
+    startDate: t.startDate || null,
+    endDate: t.endDate || null,
+  })),
   schoolYearId: refs.schoolYearId(goal.schoolYear),
   ageGroupId: refs.ageGroupId(goal.ageGroupId),
   title: goal.title,
@@ -151,6 +203,7 @@ export const toYearPlanRequest = (goal, refs) => ({
         id: serverId(r.id),
         kind: r.kind,
         text: r.text,
+        ...(r.kind === 'goal' && r.displayLabel != null ? { displayLabel: r.displayLabel } : {}),
         contents: (r.contents || []).map((c) => ({ id: serverId(c.id), text: c.text, themeKeys: (c.themes || []).map(String) })),
         curriculumGoalId: r.kind === 'goal' ? (r.curriculumGoalId ?? null) : null,
         curriculumSubDomainId: r.kind === 'sub' ? (r.curriculumSubDomainId ?? null) : null,
@@ -185,9 +238,10 @@ export const planSteps = (prev, goal, changed = true) => {
   if (!prev) steps.push({ call: 'create' });
   else if (changed && canEdit && to !== EDU_STATUS.REJECTED) steps.push({ call: 'update' });
   if (to !== (from || EDU_STATUS.DRAFT)) {
-    if (to === EDU_STATUS.PENDING_VP) steps.push({ call: 'submit', note: lastNote(goal) });
+    if (to === EDU_STATUS.PENDING_VP || to === 'REVIEW') steps.push({ call: 'submit', note: lastNote(goal) });
     else if (to === EDU_STATUS.APPROVED) steps.push({ call: 'issue', note: lastNote(goal) });
-    else if (to === EDU_STATUS.REJECTED) steps.push({ call: 'return', note: lastNote(goal) });
+    else if (to === EDU_STATUS.REJECTED || (from === 'REVIEW' && to === EDU_STATUS.DRAFT))
+      steps.push({ call: 'return', note: lastNote(goal) });
   }
   return steps;
 };

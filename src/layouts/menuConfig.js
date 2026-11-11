@@ -158,6 +158,11 @@ const ITEMS = {
     label: 'Danh sách trẻ',
     to: '/children',
   },
+  // CFG-YR-05: GV xem lớp, trẻ năm đang chuẩn bị (chỉ xem)
+  childNewYearClass: {
+    label: 'Lớp năm học mới',
+    to: '/children/new-year-class',
+  },
   childEnroll: {
     label: 'Tiếp nhận trẻ',
     to: '/children/new',
@@ -216,21 +221,31 @@ const ITEMS = {
     label: 'Kế hoạch toàn trường',
     to: '/education/school',
   },
+  eduSchoolYear: { label: 'Kế hoạch năm học', icon: BookOpenText, to: '/education/school-year-plans' },
   eduGoals: {
-    label: 'Kế hoạch năm học',
+    label: 'Kế hoạch giáo dục tổ',
     to: '/education/goals',
   },
   eduBranch: {
-    label: 'Chủ đề nhánh',
+    label: 'Chủ đề / Chủ đề nhánh',
     to: '/education/branches',
   },
-  eduClass: {
-    label: 'Kế hoạch chủ đề',
-    to: '/education/class',
+  eduThemePlans: {
+    label: 'Kế hoạch giáo dục chủ đề',
+    to: '/education/theme-plans',
+    also: ['/education/class/'],
+  },
+  eduDayPlans: {
+    label: 'Kế hoạch giáo dục ngày',
+    to: '/education/day-plans',
   },
   eduPlanReviews: {
     label: 'Duyệt kế hoạch, giáo án',
     to: '/education/plan-reviews',
+  },
+  eduOverdue: {
+    label: 'Kế hoạch quá hạn',
+    to: '/education/overdue',
   },
   eduSettings: {
     label: 'Cấu hình kế hoạch',
@@ -421,6 +436,17 @@ const MENUS = {
     // Tiếp nhận trẻ, Xếp lớp như PHT trên mọi điểm trường (user chốt 2026-10-27)
     group('children', ['childList', 'childEnroll', 'childPlacement', 'parentActivation', 'healthChecks', 'healthTrends']),
     group('attendance', ['attendanceSummary', 'leaveRequests', 'attendanceDayUnlocks', 'dailyHealthOverview']),
+    group('education', [
+      'eduSchoolYear',
+      'eduGoals',
+      'eduBranch',
+      'eduThemePlans',
+      'eduDayPlans',
+      'eduPlanReviews',
+      'eduOverdue',
+      'eduSettings',
+      'eduCurriculum',
+    ]),
     group('assessment', [
       'assessOverview',
       'assessQuality',
@@ -433,7 +459,6 @@ const MENUS = {
       'assessRewards',
       'assessDayUnlocks',
     ]),
-    group('education', ['eduSchool', 'eduPlanReviews', 'eduSettings', 'eduCurriculum']),
     ...boardingSection({
       nutrition: ['weeklyMenus', 'menuStatistics', 'menus'],
       kitchenOps: ['mealCount', 'publishedMenu', 'forecast', 'freshReceipts'],
@@ -458,7 +483,16 @@ const MENUS = {
     ]),
     group('children', ['childList', 'childEnroll', 'childPlacement', 'parentActivation', 'healthChecks', 'healthTrends']),
     group('attendance', ['attendanceSummary', 'leaveRequests', 'attendanceDayUnlocks', 'dailyHealthOverview']),
-    group('education', ['eduGoals', 'eduPlanReviews', 'eduSettings', 'eduCurriculum']),
+    group('education', [
+      'eduSchoolYear',
+      'eduGoals',
+      'eduBranch',
+      'eduThemePlans',
+      'eduDayPlans',
+      'eduPlanReviews',
+      'eduSettings',
+      'eduCurriculum',
+    ]),
     group('assessment', [
       'assessOverview',
       'assessQuality',
@@ -486,7 +520,7 @@ const MENUS = {
     link('approvals'),
     group('children', ['childList', 'healthChecks', 'healthTrends']),
     group('attendance', ['attendance', 'attendanceSummary', 'leaveRequests', 'pickup']),
-    group('education', ['eduGoals', 'eduBranch', 'eduClass', 'eduPlanReviews', 'eduCurriculum']),
+    group('education', ['eduSchoolYear', 'eduGoals', 'eduBranch', 'eduThemePlans', 'eduDayPlans', 'eduPlanReviews', 'eduCurriculum']),
     group('assessment', [
       'assessOverview',
       'assessDaily',
@@ -504,9 +538,9 @@ const MENUS = {
   ],
   [ROLES.TEACHER]: [
     link('home'),
-    group('children', ['childList', 'healthChecks', 'healthTrends']),
+    group('children', ['childList', 'childNewYearClass', 'healthChecks', 'healthTrends']),
     group('attendance', ['attendance', 'attendanceSummary', 'leaveRequests', 'pickup']),
-    group('education', ['eduGoals', 'eduBranch', 'eduClass', 'eduCurriculum']),
+    group('education', ['eduSchoolYear', 'eduGoals', 'eduBranch', 'eduThemePlans', 'eduDayPlans', 'eduCurriculum']),
     group('assessment', [
       'assessDaily',
       'assessProfiles',
@@ -605,21 +639,42 @@ const withVpAreas = (menu, user) => {
 // Mục gắn với mã quyền BE thật: người dùng BE bị thu hồi quyền thì ẩn mục (BE vẫn chặn khi mở thẳng đường dẫn)
 const ITEM_BE_PERMISSIONS = {
   parentActivation: [PERMISSIONS.PARENT_ACCOUNT_MANAGE],
+  schoolPlacement: [PERMISSIONS.YEAR_PLACEMENT_MANAGE],
   childEnroll: [PERMISSIONS.CHILD_ENROLL],
   childPlacement: [PERMISSIONS.CHILD_PLACEMENT],
   schoolRoles: [PERMISSIONS.PERMISSION_MANAGE],
+  attendance: [PERMISSIONS.ATTENDANCE_RECORD, PERMISSIONS.DAILY_HEALTH_RECORD],
+  attendanceSummary: [PERMISSIONS.ATTENDANCE_VIEW],
+  attendanceDayUnlocks: [PERMISSIONS.ATTENDANCE_UNLOCK],
+  dailyHealthOverview: [PERMISSIONS.ATTENDANCE_VIEW],
+  leaveRequests: [PERMISSIONS.ATTENDANCE_VIEW],
+  pickup: [PERMISSIONS.PICKUP_RECORD],
+  assessDaily: [PERMISSIONS.ASSESSMENT_VIEW],
+  assessOverview: [PERMISSIONS.ASSESSMENT_VIEW],
+  assessQuality: [PERMISSIONS.ASSESSMENT_VIEW],
+  assessClassRatings: [PERMISSIONS.ASSESSMENT_VIEW],
+  assessThemes: [PERMISSIONS.ASSESSMENT_VIEW],
+  assessDayUnlocks: [PERMISSIONS.ASSESSMENT_UNLOCK],
+  assessProfiles: [PERMISSIONS.ASSESSMENT_VIEW],
+  assessProgress: [PERMISSIONS.ASSESSMENT_VIEW],
+  assessSemester: [PERMISSIONS.ASSESSMENT_VIEW],
+  assessYearEnd: [PERMISSIONS.ASSESSMENT_VIEW],
+  assessTickets: [PERMISSIONS.ASSESSMENT_VIEW],
+  assessRewards: [PERMISSIONS.ASSESSMENT_VIEW],
 };
 const withBePermissions = (menu, user) =>
-  menu
-    .map((e) =>
-      e.children
-        ? {
-            ...e,
-            children: e.children.filter((c) => !ITEM_BE_PERMISSIONS[c.key] || hasBePermission(user, ...ITEM_BE_PERMISSIONS[c.key])),
-          }
-        : e,
-    )
-    .filter((e) => !e.children || e.children.length > 0);
+  !Array.isArray(user?.bePermissions)
+    ? menu
+    : menu
+        .map((e) =>
+          e.children
+            ? {
+                ...e,
+                children: e.children.filter((c) => !ITEM_BE_PERMISSIONS[c.key] || hasBePermission(user, ...ITEM_BE_PERMISSIONS[c.key])),
+              }
+            : e,
+        )
+        .filter((e) => !e.children || e.children.length > 0);
 // Màn chỉ có khi nối BE (build mock không có route) ⇒ ẩn mục ở build demo
 // Không import demoSource ở đây: nó kéo mockDatabase (cần window) vào menu
 const KITCHEN_RECORDS_API = !USE_MOCK && INTEGRATION_MODULES['kitchen-records']?.source === 'api';

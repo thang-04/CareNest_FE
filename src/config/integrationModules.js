@@ -206,7 +206,8 @@ export const INTEGRATION_MODULES = {
     facades: ['src/services/kitchen/kitchenService.js'],
   },
   notifications: {
-    source: 'demo',
+    // Spec 003: thông báo kế hoạch giáo dục từ BE (GET /me/notifications)
+    source: 'api',
     routes: ['/notifications'],
     files: ['src/services/notificationService.js'],
     facades: ['src/services/notificationService.js'],

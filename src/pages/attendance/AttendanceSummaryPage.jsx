@@ -192,7 +192,7 @@ export default function AttendanceSummaryPage() {
                   <option value="">Toàn trường</option>
                   {campusOptions.map((c) => (
                     <option key={c.id} value={c.id}>
-                      {c.shortName || c.name}
+                      {c.name}
                     </option>
                   ))}
                 </select>

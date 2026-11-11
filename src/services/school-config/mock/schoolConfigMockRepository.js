@@ -1087,6 +1087,9 @@ export const schoolConfigMockRepository = {
   async assignSubstituteTeacher(body, user) {
     await delay();
     if (!canConfigureSchool(user) && user?.role !== 'VICE_PRINCIPAL') throw forbid();
+    // BE SCH-04 (Cần chốt 10/11/2026): bắt buộc chọn dạy thay cho GV đứng lớp nào
+    if (!body.replacedTeacherId)
+      throw new ApiError(400, 'Chọn giáo viên được dạy thay', { replacedTeacherId: 'Chọn giáo viên được dạy thay' });
     return clone({ ...body, substitute: true });
   },
   // BE giả: bản demo không có đánh giá học kỳ nên học kỳ chưa khóa

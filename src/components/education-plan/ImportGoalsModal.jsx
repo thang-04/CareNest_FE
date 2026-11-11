@@ -9,7 +9,7 @@ import { ErrorState, LoadingState } from '@/components/ui/States';
 import { GoalPicker } from '@/components/education-plan/GoalPicker';
 import { versionOf } from '@/models/education-plan/planVersions.mjs';
 
-export default function ImportGoalsModal({ excludeId, defaultAgeGroupId, defaultYear, onClose, onImport }) {
+export default function ImportGoalsModal({ planLevel = 'TEAM', excludeId, defaultAgeGroupId, defaultYear, onClose, onImport }) {
   const { schoolYears, user } = useEducationPlan();
   // Mặc định năm học của kế hoạch đang soạn (Tiền 31/10)
   const [year, setYear] = useState(schoolYears.includes(defaultYear) ? defaultYear : schoolYears[1] || schoolYears[0] || '');
@@ -22,6 +22,7 @@ export default function ImportGoalsModal({ excludeId, defaultAgeGroupId, default
   const [confirmError, setConfirmError] = useState('');
   const query = useGoalImportSources({
     schoolYear: year,
+    planLevel,
     ageGroupId,
     excludeId,
     sourceId,
@@ -132,7 +133,7 @@ export default function ImportGoalsModal({ excludeId, defaultAgeGroupId, default
   const ready = source && !query.loadingSource && !query.sourceError && !query.loadingList && !query.listError;
   return (
     <Modal
-      title="Lấy mục tiêu từ kế hoạch có sẵn"
+      title={planLevel === 'SCHOOL_YEAR' ? 'Lấy mục tiêu từ kế hoạch năm' : 'Lấy mục tiêu từ kế hoạch có sẵn'}
       width={1100}
       className="ga-cur-modal"
       onClose={close}
@@ -244,7 +245,7 @@ export default function ImportGoalsModal({ excludeId, defaultAgeGroupId, default
                   <span className="muted text-sm">
                     {source.schoolYear} · Phiên bản {versionOf(source)}
                   </span>
-                  <YearPlanStatusBadge status={source.status} />
+                  <YearPlanStatusBadge status={source.status} doc={source} />
                 </div>
                 {!goals.length ? (
                   <EmptyState title="Kế hoạch nguồn chưa có mục tiêu" />
