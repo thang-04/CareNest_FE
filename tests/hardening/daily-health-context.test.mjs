@@ -5,12 +5,17 @@ import { normalizeTemperatureInput, validateDailyHealth } from '@/utils/dailyHea
 
 test('health adapter preserves handover lock and guardian contacts from the authorized child context', async () => {
   const calls = [];
-  const api = createDailyHealthBeApi({ get: async (path, options) => {
-    calls.push([path, options.params]);
-    return { canRecord: false, handedOverAt: '2026-11-05T08:30:00Z', contacts: [
-      { fullName: 'TEST guardian', relationship: 'MOTHER', phone: '0900000001' },
-    ], entries: [] };
-  }});
+  const api = createDailyHealthBeApi({
+    get: async (path, options) => {
+      calls.push([path, options.params]);
+      return {
+        canRecord: false,
+        handedOverAt: '2026-11-05T08:30:00Z',
+        contacts: [{ fullName: 'TEST guardian', relationship: 'MOTHER', phone: '0900000001' }],
+        entries: [],
+      };
+    },
+  });
   const day = await api.getDailyHealth({ classId: '10', childId: '20', date: '2026-11-05' });
   assert.equal(day.canRecord, false);
   assert.equal(day.handedOverAt, '2026-11-05T08:30:00Z');
@@ -22,7 +27,11 @@ test('empty guardian information stays empty and request failure is not disguise
   const api = createDailyHealthBeApi({ get: async () => ({ canRecord: true, entries: [] }) });
   assert.deepEqual((await api.getDailyHealth({ classId: '10', childId: '20', date: '2026-11-05' })).contacts, []);
   const denied = new Error('TEST forbidden');
-  const failed = createDailyHealthBeApi({ get: async () => { throw denied; } });
+  const failed = createDailyHealthBeApi({
+    get: async () => {
+      throw denied;
+    },
+  });
   await assert.rejects(failed.getDailyHealth({ classId: '10', childId: '20', date: '2026-11-05' }), (e) => e === denied);
 });
 

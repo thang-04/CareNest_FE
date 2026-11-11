@@ -88,8 +88,8 @@ export const canConfigureCutoff = isPrincipal;
 
 /** "Campus – Create / Edit": Principal only. */
 export const canManageCampus = isPrincipal;
-/** Campus view is not in the matrix: assumed Principal (all) and Vice Principal (own campus). */
-export const canViewCampus = (campus, user) => isPrincipal(user) || (isVicePrincipal(user) && campus?.id === user.campusId);
+/** Như BE SchoolConfigAccess.canViewSchool (AUTH-20): HT và PHT xem cấu hình điểm trường ở mọi cơ sở; chỉ HT sửa. */
+export const canViewCampus = (campus, user) => !!campus && (isPrincipal(user) || isVicePrincipal(user));
 export const canListCampuses = (user) => is(user, ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL);
 
 /** "Permission – Assign to Vice Principal": Principal only. */
