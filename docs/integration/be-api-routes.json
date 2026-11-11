@@ -99,7 +99,6 @@
     "GET /nutrition/age-group-configs/{x}/versions",
     "GET /nutrition/allergens",
     "GET /nutrition/day-board",
-    "GET /nutrition/day-market",
     "GET /nutrition/dishes",
     "GET /nutrition/dishes/{x}",
     "GET /nutrition/food-samples",
