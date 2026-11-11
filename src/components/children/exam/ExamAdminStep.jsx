@@ -10,6 +10,7 @@ import {
   ExamSheetCard,
   ExamSheetChoiceCell,
   ExamSheetDetail,
+  ExamSheetListDetail,
   ExamSheetRows,
   ExamSheetTable,
 } from './ExamFields';
@@ -153,10 +154,10 @@ export function ExamAdminStep({ form, set, errors, child, campaign, examDate, ex
           disabled={disabled}
         >
           {yes && item.textKey && (
-            <ExamSheetDetail
+            <ExamSheetListDetail
               label={item.textLabel}
               required
-              size="short"
+              placeholder="Ví dụ: Hen phế quản"
               maxLength={300}
               value={h[item.textKey]}
               onChange={(v) => set(`exam.history.${item.textKey}`, v)}

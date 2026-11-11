@@ -1363,3 +1363,22 @@
   gap: var(--space-2);
   white-space: nowrap;
 }
+
+/* Tiền sử nhiều tên bệnh (ExamSheetListDetail): ô nhập + nút Thêm một dòng, chip bên dưới */
+.tr-exam-sheet__detail--list {
+  align-items: flex-start;
+}
+.tr-exam-sheet__detail--list > .tr-exam-sheet__detail-label {
+  padding-top: var(--space-2);
+}
+.tr-exam-list {
+  display: flex;
+  flex: 1 1 calc(var(--space-16) * 4);
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.tr-exam-list .input {
+  flex: 1;
+  min-width: 0;
+}
