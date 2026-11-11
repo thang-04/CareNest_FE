@@ -82,7 +82,7 @@ export function ChildInfoFields({
   const childBlock = (
     <>
       {!sheet && <h2 className="card__title mb-12">Thông tin của trẻ</h2>}
-      <div className={sheet ? undefined : 'tr-intake-person'}>
+      <div className={!sheet && photosEnabled ? 'tr-intake-person' : undefined}>
         {photosEnabled && !sheet && (
           <div className="mb-16">
             <PortraitPicker
@@ -250,7 +250,7 @@ export function ChildInfoFields({
                 </div>
               </div>
               {!sheet && !childId && recipientRadio(g, i)}
-              <div className={sheet ? undefined : 'tr-intake-person'}>
+              <div className={!sheet && photosEnabled ? 'tr-intake-person' : undefined}>
                 {photosEnabled && !sheet && (
                   <div className="mb-12">
                     <PortraitPicker
