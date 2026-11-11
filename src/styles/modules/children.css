@@ -29,6 +29,36 @@
   white-space: nowrap;
 }
 
+/* Thông tin chỉ xem của hồ sơ trẻ (ChildInfoTable): cột nhãn nền tiêu đề bảng, chữ thường; viền, lề ô theo .table--grid */
+.table.tr-info-table {
+  table-layout: fixed;
+}
+.tr-info-table__col--label {
+  width: 220px;
+}
+.detail-layout__aside .tr-info-table__col--label {
+  width: 42%;
+}
+.table.table--grid.tr-info-table tbody th {
+  background: var(--table-header-bg);
+  color: var(--text-2);
+  font-weight: var(--fw-medium);
+  white-space: normal;
+}
+.tr-info-table :is(th, td) {
+  overflow-wrap: anywhere;
+}
+/* Bảng nhãn – giá trị không sọc: mỗi dòng là một trường riêng */
+.table.table--grid.tr-info-table tbody tr td {
+  background: var(--color-surface);
+}
+@media (max-width: 640px) {
+  .tr-info-table__col--label,
+  .detail-layout__aside .tr-info-table__col--label {
+    width: 40%;
+  }
+}
+
 /* Form trong hộp xác nhận Cho nghỉ học: hộp căn giữa chữ, form căn trái */
 .tr-withdraw-form {
   text-align: left;
@@ -344,10 +374,11 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--space-3);
 }
+/* Lối tắt dạng nút (user yêu cầu 2026-11-11: nhìn ra bấm được): viền, ô icon nền nhạt, mũi tên › bên phải */
 .tr-quicklink {
   display: flex;
   gap: var(--space-3);
-  align-items: flex-start;
+  align-items: center;
   padding: var(--space-3) var(--space-4);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
@@ -355,37 +386,57 @@
   box-shadow: var(--shadow-sm);
   color: var(--text);
   text-decoration: none;
+  transition:
+    border-color var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out);
 }
-.tr-quicklink > svg {
-  color: var(--primary);
+.tr-quicklink__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
   flex-shrink: 0;
-  margin-top: 2px;
+  border-radius: var(--radius-md);
+  background: var(--color-primary-soft);
+  color: var(--primary);
 }
-.tr-quicklink > span {
+.tr-quicklink__text {
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: 2px;
   min-width: 0;
 }
+.tr-quicklink__go {
+  flex-shrink: 0;
+  color: var(--text-3);
+  transition:
+    color var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
+}
 .tr-quicklink:hover {
-  border-color: var(--color-primary-soft-hover);
+  border-color: var(--primary);
   background: var(--color-surface-hover);
+}
+.tr-quicklink:hover .tr-quicklink__go {
+  color: var(--primary);
+  transform: translateX(2px);
 }
 .tr-quicklink:focus-visible {
   outline: none;
   box-shadow: var(--focus-ring);
 }
+@media (prefers-reduced-motion: reduce) {
+  .tr-quicklink:hover .tr-quicklink__go {
+    transform: none;
+  }
+}
 
 /* Lối tắt dạng danh sách trong card cột phải của hồ sơ */
 .tr-quicklinks--list {
   grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-1);
-}
-.tr-quicklinks--list .tr-quicklink {
-  border-color: transparent;
-  background: transparent;
-  box-shadow: none;
-  padding: var(--space-2-5) var(--space-3);
+  gap: var(--space-2);
 }
 
 /* Placement split view */

@@ -1,5 +1,6 @@
 import { PREMATURE_LABELS, PROFILE_FIELD_LABELS, formatAddress, hasProfileData } from '@/models/children/childProfile';
 import { IntakeSheet, IntakeSheetValueRow } from './IntakeSheet';
+import { ChildInfoTable } from './ChildInfoTable';
 
 /**
  * Thông tin hành chính chỉ xem (bước Xem lại khi tiếp nhận, hồ sơ trẻ). Ô trống hiện "Chưa cung cấp". Tuần thai hiện cho mọi
@@ -34,14 +35,5 @@ export function ChildProfileSummary({ profile, sheet = false, title = 'Thông ti
     );
 
   if (!hasProfileData(profile)) return <p className="muted">Chưa cung cấp. Hiệu trưởng hoặc Phó hiệu trưởng bổ sung ở Sửa hồ sơ.</p>;
-  return (
-    <dl className="info-list info-list--wide">
-      {rows.map(([label, v]) => (
-        <div key={label} className="tr-dl-pair">
-          <dt>{label}</dt>
-          <dd>{v}</dd>
-        </div>
-      ))}
-    </dl>
-  );
+  return <ChildInfoTable label={title} rows={rows} />;
 }
