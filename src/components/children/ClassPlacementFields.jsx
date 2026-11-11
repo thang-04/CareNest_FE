@@ -33,31 +33,34 @@ export function ClassPlacementFields({
 
   return (
     <div className="stack gap-3-5">
-      {pickCampus && (
-        <FormField label="Điểm trường" required error={campusError} className="tr-field-narrow">
-          <select className="select" value={campusId} onChange={(e) => onCampusChange(e.target.value)}>
-            <option value="">Chọn điểm trường</option>
-            {campuses.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.shortName || c.name}
+      {/* Điểm trường, nhóm tuổi cùng một hàng khi đủ rộng; hẹp thì xếp dọc */}
+      <div className="tr-placement-filters">
+        {pickCampus && (
+          <FormField label="Điểm trường" required error={campusError}>
+            <select className="select" value={campusId} onChange={(e) => onCampusChange(e.target.value)}>
+              <option value="">Chọn điểm trường</option>
+              {campuses.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.shortName || c.name}
+                </option>
+              ))}
+            </select>
+          </FormField>
+        )}
+        <div className="field">
+          <label className="field__label" htmlFor="tr-age-group">
+            Nhóm tuổi{req}
+          </label>
+          <select id="tr-age-group" className="select" value={ageGroupId} onChange={(e) => onAgeGroupChange(e.target.value)}>
+            <option value="">Tất cả nhóm tuổi</option>
+            {AGE_GROUPS.map((g) => (
+              <option key={g.id} value={g.id}>
+                {g.name}
+                {g.id === suggestedAgeGroupId ? ' – phù hợp độ tuổi' : ''}
               </option>
             ))}
           </select>
-        </FormField>
-      )}
-      <div className="field tr-field-narrow">
-        <label className="field__label" htmlFor="tr-age-group">
-          Nhóm tuổi{req}
-        </label>
-        <select id="tr-age-group" className="select" value={ageGroupId} onChange={(e) => onAgeGroupChange(e.target.value)}>
-          <option value="">Tất cả nhóm tuổi</option>
-          {AGE_GROUPS.map((g) => (
-            <option key={g.id} value={g.id}>
-              {g.name}
-              {g.id === suggestedAgeGroupId ? ' – phù hợp độ tuổi' : ''}
-            </option>
-          ))}
-        </select>
+        </div>
       </div>
       {mismatch && (
         <div className="alert alert--warning">
@@ -81,10 +84,26 @@ export function ClassPlacementFields({
         )}
         {pickCampus && !campusId ? (
           <p className="muted text-sm">Chọn điểm trường để xem lớp.</p>
-        ) : inGroup.length === 0 ? (
+        ) : inCampus.length === 0 ? (
           <div className="alert alert--warning">
             <Info size={18} />
-            <div>Không có lớp nào phù hợp trong điểm trường và năm học này. Lớp do Hiệu trưởng mở ở màn Nhóm tuổi &amp; lớp.</div>
+            <div>Điểm trường này chưa có lớp nào trong năm học đang hoạt động. Lớp do Hiệu trưởng mở ở màn Nhóm tuổi &amp; lớp.</div>
+          </div>
+        ) : inGroup.length === 0 ? (
+          // Nhóm tuổi tự gợi ý theo ngày sinh có thể chưa có lớp: nói rõ nhóm nào và cho xem lớp mọi nhóm tuổi
+          <div className="alert alert--warning">
+            <Info size={18} />
+            <div className="stack gap-2">
+              <span>
+                Chưa có lớp <b>{ageGroupById(ageGroupId)?.name}</b> ở {pickCampus ? 'điểm trường này' : 'phạm vi của bạn'} trong năm học
+                đang hoạt động. Lớp do Hiệu trưởng mở ở màn Nhóm tuổi &amp; lớp.
+              </span>
+              <span>
+                <button type="button" className="btn btn--sm" onClick={() => onAgeGroupChange('')}>
+                  Xem lớp mọi nhóm tuổi
+                </button>
+              </span>
+            </div>
           </div>
         ) : (
           <div className="tr-class-grid" role="radiogroup">

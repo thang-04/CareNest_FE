@@ -178,61 +178,63 @@ export function HealthDeclarationFields({ value, onChange, errors = {}, dateOfBi
     return (
       <div className="tr-intake stack gap-5">
         {intro}
-        <section aria-label="Dị ứng và chế độ ăn">
-          <IntakeSheet title="I. Dị ứng và chế độ ăn">
-            <IntakeChoiceRow
-              label="Dị ứng thực phẩm / thuốc"
-              required
-              name="tr-allergy"
-              options={options(ALLERGY_STATE_LABELS, ALL_STATES)}
-              value={value.allergies.state}
-              onChange={(state) => set('allergies', { state })}
-              error={errors.allergies}
-            >
-              {allergyDetail || null}
-            </IntakeChoiceRow>
-            <IntakeChoiceRow
-              label="Chế độ ăn"
-              required
-              name="tr-diet"
-              options={options(DIET_STATE_LABELS, ALL_STATES)}
-              value={value.diet.state}
-              onChange={(state) => set('diet', { state })}
-              error={errors.diet}
-            >
-              {dietDetail || null}
-            </IntakeChoiceRow>
-            <IntakeChoiceRow
-              label="Thông tin sức khỏe khác"
-              name="tr-other"
-              options={options(NOTE_STATE_LABELS, ALL_STATES)}
-              value={value.otherNotes.state}
-              onChange={(state) => set('otherNotes', { state })}
-              error={errors.otherNotes}
-            >
-              {otherDetail || null}
-            </IntakeChoiceRow>
-          </IntakeSheet>
-        </section>
-        <section aria-label="Tiền sử">
-          <IntakeSheet title="II. Tiền sử">
-            {MEDICAL_HISTORY_ITEMS.map((it) => (
+        <div className="tr-intake-cols">
+          <section aria-label="Dị ứng và chế độ ăn">
+            <IntakeSheet title="I. Dị ứng và chế độ ăn">
               <IntakeChoiceRow
-                key={it.key}
-                label={it.label}
+                label="Dị ứng thực phẩm / thuốc"
                 required
-                name={`tr-history-${it.key}`}
-                options={options(MEDICAL_HISTORY_STATE_LABELS, HISTORY_STATES)}
-                value={history[it.key].state}
-                onChange={(state) => setHistory(it.key, { state })}
-                error={errors[`medicalHistory.${it.key}`]}
+                name="tr-allergy"
+                options={options(ALLERGY_STATE_LABELS, ALL_STATES)}
+                value={value.allergies.state}
+                onChange={(state) => set('allergies', { state })}
+                error={errors.allergies}
               >
-                {historyDetail(it)}
+                {allergyDetail || null}
               </IntakeChoiceRow>
-            ))}
-          </IntakeSheet>
-          <p className="muted text-sm mt-8">{HISTORY_NOTE}</p>
-        </section>
+              <IntakeChoiceRow
+                label="Chế độ ăn"
+                required
+                name="tr-diet"
+                options={options(DIET_STATE_LABELS, ALL_STATES)}
+                value={value.diet.state}
+                onChange={(state) => set('diet', { state })}
+                error={errors.diet}
+              >
+                {dietDetail || null}
+              </IntakeChoiceRow>
+              <IntakeChoiceRow
+                label="Thông tin sức khỏe khác"
+                name="tr-other"
+                options={options(NOTE_STATE_LABELS, ALL_STATES)}
+                value={value.otherNotes.state}
+                onChange={(state) => set('otherNotes', { state })}
+                error={errors.otherNotes}
+              >
+                {otherDetail || null}
+              </IntakeChoiceRow>
+            </IntakeSheet>
+          </section>
+          <section aria-label="Tiền sử">
+            <IntakeSheet title="II. Tiền sử">
+              {MEDICAL_HISTORY_ITEMS.map((it) => (
+                <IntakeChoiceRow
+                  key={it.key}
+                  label={it.label}
+                  required
+                  name={`tr-history-${it.key}`}
+                  options={options(MEDICAL_HISTORY_STATE_LABELS, HISTORY_STATES)}
+                  value={history[it.key].state}
+                  onChange={(state) => setHistory(it.key, { state })}
+                  error={errors[`medicalHistory.${it.key}`]}
+                >
+                  {historyDetail(it)}
+                </IntakeChoiceRow>
+              ))}
+            </IntakeSheet>
+            <p className="muted text-sm mt-8">{HISTORY_NOTE}</p>
+          </section>
+        </div>
       </div>
     );
 

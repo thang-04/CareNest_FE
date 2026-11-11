@@ -109,6 +109,114 @@
 .tr-intake section {
   min-width: 0;
 }
+/* Tiếp nhận trẻ: khung đủ rộng (≥ 2 cột × 544px) chia 2 cột trẻ | phụ huynh, hẹp hơn về 1 cột (user yêu cầu 2026-11-11).
+   auto-fit theo bề rộng khung, không theo màn hình, nên đóng/mở sidebar vẫn đúng. Không dùng container query: nó tạo
+   stacking context riêng, danh sách gợi ý (Dân tộc, Đối tượng) có thể bị phần tử nổi bên ngoài đè. */
+.tr-intake-cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, calc(var(--space-16) * 8.5)), 1fr));
+  gap: var(--space-5);
+  align-items: start;
+}
+.tr-intake-cols > * {
+  min-width: 0;
+}
+/* Lựa chọn trong bảng tiếp nhận (≥3 lựa chọn: dị ứng, chế độ ăn…): ô rộng ≥ 704px ⇒ 3 cột bằng nhau, các hàng thẳng cột;
+   hẹp hơn ⇒ 1 cột xếp dọc. Không có mức 2 cột lưng chừng (nhãn dài gãy dòng, lựa chọn thứ 3 lẻ xuống hàng):
+   (704px − 100%) × 999 dương khi ô hẹp nên bề rộng tối thiểu thành 100%, âm khi ô rộng nên lấy 1/3 ô. */
+.tr-intake .tr-exam-sheet__options {
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fill,
+    minmax(min(100%, max(calc((100% - 2 * var(--space-4)) / 3), calc((var(--space-16) * 11 - 100%) * 999))), 1fr)
+  );
+  gap: var(--space-2) var(--space-4);
+  align-items: center;
+}
+/* Hai lựa chọn (Có/Không, Nam/Nữ): nằm ngang cạnh nhau, không chiếm cả cột lưới */
+.tr-intake .tr-exam-sheet__options--pair {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-8);
+}
+/* Bảng trong khung 2 cột: thu cột nhãn để ô nhập đủ rộng */
+.tr-intake-cols .tr-exam-sheet__col--item {
+  width: 36%;
+}
+
+/* Đầu thẻ từng bước tiếp nhận: tiêu đề + gợi ý bên trái, trẻ đang tiếp nhận bên phải */
+.tr-step-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-5);
+  margin-bottom: var(--space-4);
+}
+.tr-child-brief {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  max-width: 100%;
+  padding: var(--space-1-5) var(--space-4) var(--space-1-5) var(--space-1-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+}
+
+/* Dải phần đứng ngoài bảng (III. Phụ huynh): cùng dáng dải phần trong bảng tiếp nhận */
+.tr-intake-band {
+  margin: 0;
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--color-text-disabled);
+  background: var(--color-primary);
+  color: var(--text-inverse);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-bold);
+  text-transform: uppercase;
+}
+/* Đầu thẻ phụ huynh: tên giữ một dòng; ô chọn người nhận + nút xóa xuống hàng riêng khi hẹp (điện thoại) */
+.tr-intake-guardian .tr-guardian__head {
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+}
+.tr-intake-guardian .tr-guardian__head h3 {
+  white-space: nowrap;
+}
+/* Thêm phụ huynh: ô viền đứt cuối danh sách, như chỗ trống chờ thêm */
+.btn.tr-add-guardian {
+  width: 100%;
+  justify-content: center;
+  border-style: dashed;
+  background: transparent;
+  color: var(--primary);
+}
+.btn.tr-add-guardian:hover {
+  border-color: var(--primary);
+  background: var(--color-primary-soft);
+}
+
+/* Bước Xem lại: tên nhóm + nút Sửa cùng hàng, kẻ dưới tách nhóm */
+.tr-review-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--border);
+}
+.tr-review-head__title {
+  margin: 0;
+  font-size: var(--fs-title-sm);
+  font-weight: var(--fw-semibold);
+}
+
+/* Xếp lớp: điểm trường, nhóm tuổi cùng hàng khi đủ rộng */
+.tr-placement-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, calc(var(--space-16) * 4)), calc(var(--space-16) * 5.5)));
+  gap: var(--space-3) var(--space-4);
+}
 .tr-intake-portrait > .field > .row {
   flex-direction: column;
   align-items: flex-start;
@@ -118,24 +226,34 @@
   height: calc(var(--space-16) * 1.75);
   border-radius: var(--radius-sm);
 }
+/* Ô ảnh trong bảng tiếp nhận: khung ảnh (hoặc khung trống) bên trái, nút tải + gợi ý bên phải; nút giữ cỡ theo chữ */
 .tr-intake .tr-portrait-picker {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   flex-wrap: wrap;
-  gap: var(--space-3);
+  gap: var(--space-3) var(--space-4);
 }
-.tr-intake .tr-portrait-picker .row {
+.tr-intake .tr-portrait-picker > .row {
   display: contents;
 }
-.tr-intake .tr-portrait-picker .avatar--photo {
-  width: calc(var(--space-16) * 1.5);
-  height: calc(var(--space-16) * 1.75);
+.tr-intake .tr-portrait-picker .avatar--photo,
+.tr-portrait-empty {
+  width: calc(var(--space-16) * 1.25);
+  height: calc(var(--space-16) * 1.5);
   flex: 0 0 auto;
   border-radius: var(--radius-sm);
 }
+.tr-portrait-empty {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed var(--border-strong);
+  background: var(--color-surface-muted);
+  color: var(--text-3);
+}
 .tr-intake .tr-portrait-picker .stack {
-  flex: 1 1 calc(var(--space-16) * 5);
-  min-width: min(100%, calc(var(--space-16) * 5));
+  flex: 1 1 calc(var(--space-16) * 3);
+  min-width: min(100%, calc(var(--space-16) * 3));
 }
 .tr-intake .tr-exam-sheet .field {
   margin: 0;

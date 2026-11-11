@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { Upload, Trash2 } from '@/components/ui/icons';
+import { Upload, Trash2, UserRound } from '@/components/ui/icons';
 import { PortraitImage } from '@/components/PortraitImage';
 import { PORTRAIT_ACCEPT, portraitFileError } from '@/utils/children/enrollmentPhotos';
 
@@ -18,9 +18,16 @@ export function PortraitPicker({ label, file, identity, onChange, error, disable
       )}
       <div className="row row--wrap gap-3">
         <PortraitImage source={file} alt={label} className="avatar avatar--xl avatar--photo">
-          <span className="avatar avatar--xl muted" aria-hidden="true">
-            —
-          </span>
+          {embedded ? (
+            // Khung ảnh trống cùng cỡ ảnh thật: biết trước chỗ ảnh sẽ hiện, không nhảy bố cục khi tải lên
+            <span className="tr-portrait-empty" aria-hidden="true">
+              <UserRound size={28} />
+            </span>
+          ) : (
+            <span className="avatar avatar--xl muted" aria-hidden="true">
+              —
+            </span>
+          )}
         </PortraitImage>
         <div className="stack gap-2">
           <input

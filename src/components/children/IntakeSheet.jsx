@@ -3,10 +3,11 @@ import { FormField } from '@/components/form/FormField';
 import { ExamSheetBand, ExamSheetTable } from './exam/ExamFields';
 import { PortraitPicker } from './PortraitPicker';
 
-export function IntakeSheet({ title, children }) {
+/** band=false: bỏ dải tiêu đề khi khung bọc ngoài đã có tên (thẻ phụ huynh); title vẫn là tên bảng cho trình đọc màn hình. */
+export function IntakeSheet({ title, children, band = true }) {
   return (
     <ExamSheetTable label={title}>
-      <ExamSheetBand primary>{title}</ExamSheetBand>
+      {band && <ExamSheetBand primary>{title}</ExamSheetBand>}
       {Children.toArray(children).map((child, index) => cloneElement(child, { sheet: true, number: index + 1 }))}
     </ExamSheetTable>
   );
@@ -85,7 +86,7 @@ export function IntakeChoiceField({ name, options, value, onChange, disabled, re
   return (
     <IntakeField required={required} {...props}>
       <fieldset className="tr-fieldset">
-        <div className="tr-exam-sheet__options">
+        <div className={`tr-exam-sheet__options${options.length <= 2 ? ' tr-exam-sheet__options--pair' : ''}`}>
           {options.map((option) => (
             <label key={option.value} className="radio">
               <input
@@ -122,7 +123,7 @@ export function IntakeChoiceRow({ number, label, name, options, value, onChange,
       </th>
       <td>
         <fieldset className="tr-fieldset" aria-labelledby={`${id}-label`} aria-describedby={describedBy}>
-          <div className="tr-exam-sheet__options">
+          <div className={`tr-exam-sheet__options${options.length <= 2 ? ' tr-exam-sheet__options--pair' : ''}`}>
             {options.map((o) => (
               <label key={o.value} className="radio">
                 <input type="radio" name={name} value={o.value} checked={value === o.value} onChange={() => onChange(o.value)} />

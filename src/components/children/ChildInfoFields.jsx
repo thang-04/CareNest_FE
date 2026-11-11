@@ -160,22 +160,48 @@ export function ChildInfoFields({
     </>
   );
 
+  const single = value.guardians.length === 1;
+  const addGuardian = value.guardians.length < MAX_GUARDIANS && (
+    <button
+      type="button"
+      className={sheet ? 'btn tr-add-guardian' : 'btn btn--sm'}
+      onClick={() => set('guardians', [...value.guardians, { ...emptyGuardian(), accountRecipient: false }])}
+    >
+      <Plus size={15} /> Thêm phụ huynh
+    </button>
+  );
+  const recipientRadio = (g, i) => (
+    <label className={sheet ? 'tr-intake-recipient radio' : 'row gap-2 mb-12'}>
+      <input
+        type="radio"
+        name="accountRecipient"
+        aria-label={`Phụ huynh ${i + 1} nhận tài khoản phụ huynh`}
+        checked={single || g.accountRecipient === true}
+        disabled={disabled || single}
+        onChange={() =>
+          set(
+            'guardians',
+            value.guardians.map((guardian, index) => ({ ...guardian, accountRecipient: index === i })),
+          )
+        }
+      />
+      Nhận tài khoản phụ huynh
+    </label>
+  );
+
   const guardianBlock = (
     <>
-      <div className={`row row--between row--wrap mb-12 ${sheet || split ? '' : 'mt-16'}`}>
-        <h2 className="card__title">{sheet ? 'III. Phụ huynh / người giám hộ' : 'Phụ huynh / người giám hộ'}</h2>
-        {value.guardians.length < MAX_GUARDIANS && (
-          <button
-            type="button"
-            className="btn btn--sm"
-            onClick={() => set('guardians', [...value.guardians, { ...emptyGuardian(), accountRecipient: false }])}
-          >
-            <Plus size={15} /> Thêm phụ huynh
-          </button>
-        )}
-      </div>
+      {sheet ? (
+        // Dải phần như I, II bên cột trái; nút thêm phụ huynh nằm cuối danh sách
+        <h2 className="tr-intake-band">III. Phụ huynh / người giám hộ</h2>
+      ) : (
+        <div className={`row row--between row--wrap mb-12 ${split ? '' : 'mt-16'}`}>
+          <h2 className="card__title">Phụ huynh / người giám hộ</h2>
+          {addGuardian}
+        </div>
+      )}
       {!childId && (
-        <p className="text-sm text-2 mb-12">
+        <p className={`text-sm text-2 mb-12${sheet ? ' mt-8' : ''}`}>
           Chọn một phụ huynh nhận tài khoản. Thông tin của những người còn lại vẫn được lưu để liên hệ và đón trẻ.
         </p>
       )}
@@ -205,38 +231,25 @@ export function ChildInfoFields({
               <div className="tr-guardian__head">
                 <div className="row row--wrap gap-2">
                   <h3 className="text-sm fw-600">Phụ huynh {i + 1}</h3>
-                  {sheet && recipient && <StatusBadge tone="teal" icon={UserCheck} label="Người nhận tài khoản" />}
+                  {/* Một phụ huynh: chỉ nhãn (không còn gì để chọn); từ 2 phụ huynh: ô chọn người nhận ở đầu thẻ */}
+                  {sheet && recipient && single && <StatusBadge tone="teal" icon={UserCheck} label="Người nhận tài khoản" />}
                 </div>
-                {value.guardians.length > 1 && !holder && (
-                  <button
-                    type="button"
-                    className="icon-btn"
-                    aria-label={`Xóa phụ huynh ${i + 1}`}
-                    title="Xóa phụ huynh"
-                    onClick={() => set('guardians', normalizeRecipients(value.guardians.filter((_, idx) => idx !== i)))}
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                )}
+                <div className="row row--wrap gap-2">
+                  {sheet && !childId && !single && recipientRadio(g, i)}
+                  {!single && !holder && (
+                    <button
+                      type="button"
+                      className="icon-btn"
+                      aria-label={`Xóa phụ huynh ${i + 1}`}
+                      title="Xóa phụ huynh"
+                      onClick={() => set('guardians', normalizeRecipients(value.guardians.filter((_, idx) => idx !== i)))}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  )}
+                </div>
               </div>
-              {!childId && (
-                <label className={sheet ? 'tr-intake-recipient radio mb-12' : 'row gap-2 mb-12'}>
-                  <input
-                    type="radio"
-                    name="accountRecipient"
-                    aria-label="Nhận tài khoản phụ huynh"
-                    checked={value.guardians.length === 1 || g.accountRecipient === true}
-                    disabled={disabled || value.guardians.length === 1}
-                    onChange={() =>
-                      set(
-                        'guardians',
-                        value.guardians.map((guardian, index) => ({ ...guardian, accountRecipient: index === i })),
-                      )
-                    }
-                  />
-                  Nhận tài khoản phụ huynh
-                </label>
-              )}
+              {!sheet && !childId && recipientRadio(g, i)}
               <div className={sheet ? undefined : 'tr-intake-person'}>
                 {photosEnabled && !sheet && (
                   <div className="mb-12">
@@ -250,7 +263,7 @@ export function ChildInfoFields({
                     />
                   </div>
                 )}
-                <Fields {...(sheet ? { title: 'Thông tin phụ huynh ' + (i + 1) } : { className: 'tr-guardian__grid' })}>
+                <Fields {...(sheet ? { title: 'Thông tin phụ huynh ' + (i + 1), band: false } : { className: 'tr-guardian__grid' })}>
                   {photosEnabled && sheet && (
                     <IntakePortraitField
                       label={`Ảnh phụ huynh ${i + 1}`}
@@ -357,17 +370,20 @@ export function ChildInfoFields({
             </div>
           );
         })}
+        {sheet && addGuardian}
       </div>
     </>
   );
 
   if (sheet)
     return (
-      <div className="tr-intake stack gap-5">
-        <section aria-label="Thông tin của trẻ">{childBlock}</section>
-        <section aria-label="Thông tin hành chính">
-          <ChildProfileFields sheet value={value.profile} onChange={(profile) => set('profile', profile)} errors={errors} />
-        </section>
+      <div className="tr-intake tr-intake-cols">
+        <div className="stack gap-5">
+          <section aria-label="Thông tin của trẻ">{childBlock}</section>
+          <section aria-label="Thông tin hành chính">
+            <ChildProfileFields sheet value={value.profile} onChange={(profile) => set('profile', profile)} errors={errors} />
+          </section>
+        </div>
         <section aria-label="Phụ huynh / người giám hộ">{guardianBlock}</section>
       </div>
     );
