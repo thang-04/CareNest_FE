@@ -7,6 +7,7 @@ import { useMasterData } from '@/hooks/useMasterData';
 import { useKitchenCampus, useWeeklyForecast } from '@/hooks/kitchen/useKitchen';
 import { Breadcrumb, ConfirmationModal, EmptyState, ErrorState, LoadingState, StatusBadge } from '@/components';
 import { Modal } from '@/components/ui/Modal';
+import { PrintPaperFit } from '@/components/print/PrintPaperFit';
 import { PrintToolbar } from '@/components/print/PrintToolbar';
 import { KbCampusFilter } from '@/components/kitchen/KitchenFilters';
 import { WeekPicker } from '@/components/form/WeekPicker';
@@ -393,9 +394,9 @@ export default function WeeklyForecastPage() {
           title="Phiếu đặt hàng tuần"
           footer={<PrintToolbar sheetRef={sheetRef} fileBase={`Phieu_dat_hang_tuan_${weekStart}`} printLabel="In phiếu" />}
         >
-          <div className="print-preview__paper">
+          <PrintPaperFit>
             <WeeklyOrderPrint ref={sheetRef} data={data} campusName={campus?.shortName || campus?.name} />
-          </div>
+          </PrintPaperFit>
         </Modal>
       )}
     </div>

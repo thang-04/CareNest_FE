@@ -5,6 +5,7 @@ import { useStockCampus } from '@/hooks/kitchen/useDryStock';
 import { useDayMarket } from '@/hooks/kitchen/useFreshGoods';
 import { Breadcrumb, EmptyState, ErrorState, LoadingState, StatusBadge } from '@/components';
 import { Modal } from '@/components/ui/Modal';
+import { PrintPaperFit } from '@/components/print/PrintPaperFit';
 import { PrintToolbar } from '@/components/print/PrintToolbar';
 import { exportWithPreview } from '@/components/ui/ExportPreview';
 import { KbCampusFilter, KbDateFilter } from '@/components/kitchen/KitchenFilters';
@@ -163,9 +164,9 @@ export default function DayMarketPage() {
           title="Bảng đi chợ"
           footer={<PrintToolbar sheetRef={sheetRef} fileBase={`Bang_di_cho_${date}`} printLabel="In bảng" orientation="landscape" />}
         >
-          <div className="print-preview__paper">
+          <PrintPaperFit>
             <DayMarketPrint ref={sheetRef} data={data} />
-          </div>
+          </PrintPaperFit>
         </Modal>
       )}
     </div>

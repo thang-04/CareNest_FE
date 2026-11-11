@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Breadcrumb, EmptyState, ErrorState, LoadingState, Modal, PrintToolbar } from '@/components';
+import { Breadcrumb, EmptyState, ErrorState, LoadingState, Modal, PrintPaperFit, PrintToolbar } from '@/components';
 import { Download, Printer } from '@/components/ui/icons';
 import { exportWithPreview } from '@/components/ui/ExportPreview';
 import { MenuStatisticsPrint } from '@/components/menu-planning/MenuStatisticsPrint';
@@ -253,9 +253,9 @@ export default function MenuStatisticsPage() {
             title={PAGE_TITLE}
             footer={<PrintToolbar sheetRef={sheetRef} fileBase={fileBase} onCsv={exportExcel} printLabel="In phiếu" />}
           >
-            <div className="print-preview__paper">
+            <PrintPaperFit>
               <MenuStatisticsPrint ref={sheetRef} stats={stats} title={title} />
-            </div>
+            </PrintPaperFit>
           </Modal>
         </>
       )}
