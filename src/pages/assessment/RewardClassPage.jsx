@@ -248,6 +248,8 @@ export default function RewardClassPage() {
 
   const vp = d.vpReview;
   const ht = d.principalDecision;
+  // HT duyệt thẳng khi PHT chưa xét (BE ghi DIRECT_APPROVED trong lịch sử)
+  const direct = (d.history || []).some((h) => h.action === 'DIRECT_APPROVED');
   const returnedBy = d.status === S.RETURNED ? (ht?.decision === 'RETURN' && (!vp || ht.at > vp.at) ? ht : vp) : null;
   const steps = [
     {
@@ -257,11 +259,11 @@ export default function RewardClassPage() {
     },
     {
       label: 'Phó hiệu trưởng xem xét',
-      sub: vp ? `${vp.byName || ''} · ${formatDateTime(vp.at)}` : '',
+      sub: vp ? `${vp.byName || ''} · ${formatDateTime(vp.at)}` : direct && d.status === S.APPROVED ? 'Bỏ qua: HT duyệt trực tiếp' : '',
       done: [S.PENDING_PRINCIPAL, S.APPROVED].includes(d.status) && vp?.decision === 'FORWARD',
     },
     {
-      label: 'Hiệu trưởng phê duyệt',
+      label: direct && d.status === S.APPROVED ? 'Hiệu trưởng duyệt trực tiếp' : 'Hiệu trưởng phê duyệt',
       sub: ht ? `${ht.byName || ''} · ${formatDateTime(ht.at)}` : '',
       done: d.status === S.APPROVED,
     },

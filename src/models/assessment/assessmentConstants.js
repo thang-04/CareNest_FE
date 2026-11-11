@@ -197,6 +197,8 @@ export const REWARD_HISTORY_LABELS = {
   FORWARDED: 'Phó hiệu trưởng chuyển Hiệu trưởng',
   RETURNED: 'Trả lại giáo viên',
   APPROVED: 'Hiệu trưởng phê duyệt',
+  // BE OBS-14 (Cần chốt 11/11/2026): HT duyệt thẳng khi Phó hiệu trưởng chưa xét
+  DIRECT_APPROVED: 'Hiệu trưởng duyệt trực tiếp (Phó hiệu trưởng chưa xét)',
   REJECTED: 'Hiệu trưởng từ chối',
 };
 
