@@ -33,7 +33,13 @@ const fillPackage = async (no) => {
   for (const m of pkg.missing || []) {
     if (m.kind === 'theme') {
       const res = await api(U.tl, 'PUT', `${DOCS}/theme/tp_${cls.id}_${m.themeId}`, {
-        body: { classId: String(cls.id), yearPlanId: String(pkg.yearPlanId), themeId: String(m.themeId), rows: {}, envIn: '[E2E] Góc chơi' },
+        body: {
+          classId: String(cls.id),
+          yearPlanId: String(pkg.yearPlanId),
+          themeId: String(m.themeId),
+          rows: {},
+          envIn: '[E2E] Góc chơi',
+        },
         headers: { 'X-Class-Doc-Version': '-1' },
       });
       expect(res.status, res.desc).toBe(200);
@@ -43,7 +49,13 @@ const fillPackage = async (no) => {
     if (m.kind !== 'week') continue;
     const root = await packageOf(U.tl, no);
     const res = await api(U.tl, 'PUT', `${DOCS}/week/wp_${cls.id}_${m.weekStart}`, {
-      body: { classId: String(cls.id), yearPlanId: String(root.yearPlanId), themeId: String(m.themeId), weekStart: m.weekStart, aims: { knowledge: '[E2E] Trẻ biết tên trường' } },
+      body: {
+        classId: String(cls.id),
+        yearPlanId: String(root.yearPlanId),
+        themeId: String(m.themeId),
+        weekStart: m.weekStart,
+        aims: { knowledge: '[E2E] Trẻ biết tên trường' },
+      },
       headers: { 'X-Class-Doc-Version': '-1', 'X-Dossier-Version': String(root.version) },
     });
     expect(res.status, res.desc).toBe(200);
@@ -124,7 +136,9 @@ test('ST-003-05 nhập tên chủ đề nhánh trước khi chọn ngày: tuần
   expect(doc.branches.find((b) => b.name === name)).toMatchObject({ startDate: target, endDate: addDays(target, 4) });
 });
 
-test('ST-004-01 trang Chủ đề / Chủ đề nhánh: không nút gửi duyệt, không trạng thái học kỳ, không liên kết sang trang khác', async ({ page }) => {
+test('ST-004-01 trang Chủ đề / Chủ đề nhánh: không nút gửi duyệt, không trạng thái học kỳ, không liên kết sang trang khác', async ({
+  page,
+}) => {
   await login(page, U.tl);
   await spaGo(page, `/education/branches/${cls.id}`);
   await expect(page.getByRole('button', { name: 'Chỉnh sửa' })).toBeVisible({ timeout: 30_000 });
@@ -190,7 +204,7 @@ test('ST-004-04 Kế hoạch giáo dục ngày: kế hoạch tuần đã duyệt
   await expect(weekCard).toBeVisible();
   await expect(weekCard.getByText('Kế hoạch tuần chưa được duyệt')).toHaveCount(0);
   await expect(weekCard.locator('textarea:not([disabled]), input:not([disabled])')).toHaveCount(0);
-  await expect(page.getByRole('combobox', { name: 'Chọn tuần' })).toHaveValue(week.weekStart);
+  await expect(page.getByRole('combobox', { name: 'Tuần' })).toHaveValue(week.weekStart);
 });
 
 test('ST-004-05 menu tách Kế hoạch giáo dục chủ đề và Kế hoạch giáo dục ngày; đường dẫn cũ chuyển hướng', async ({ page }) => {
@@ -205,13 +219,18 @@ test('ST-004-05 menu tách Kế hoạch giáo dục chủ đề và Kế hoạch
 test('ST-002-07 HT lọc nhóm tuổi rồi lớp; chỉ thấy lịch nhánh học kỳ đã duyệt, không có nút sửa', async ({ page }) => {
   await login(page, U.ht);
   await spaGo(page, '/education/branches');
-  const age = page.getByRole('combobox', { name: 'Chọn nhóm tuổi' });
+  const age = page.getByRole('combobox', { name: 'Nhóm tuổi' });
   // HT tải dữ liệu mọi lớp toàn trường ⇒ chờ lâu hơn mặc định
   await expect(age).toBeVisible({ timeout: 30_000 });
   await age.selectOption({ label: 'Mẫu giáo bé (3–4 tuổi)' });
-  const classSelect = page.getByRole('combobox', { name: 'Chọn lớp' });
+  const classSelect = page.getByRole('combobox', { name: 'Lớp', exact: true });
   // Danh sách lớp chỉ còn lớp của nhóm tuổi đã chọn
-  for (const label of await classSelect.locator('option').allInnerTexts()) expect(label).toMatch(/3–4 tuổi|Mẫu giáo bé|Lớp/);
+  // Đổi nhóm tuổi ⇒ trang chuyển sang lớp đầu của nhóm; chờ danh sách lớp cập nhật
+  await expect
+    .poll(async () => (await classSelect.locator('option').allInnerTexts()).every((l) => /3–4 tuổi|Mẫu giáo bé|Lớp/.test(l)), {
+      timeout: 30_000,
+    })
+    .toBe(true);
   await classSelect.selectOption(String(cls.id));
   await page.waitForURL((u) => u.pathname === `/education/branches/${cls.id}`);
   await expect(page.getByRole('button', { name: 'Chỉnh sửa' })).toHaveCount(0);
@@ -221,19 +240,24 @@ test('ST-002-07 HT lọc nhóm tuổi rồi lớp; chỉ thấy lịch nhánh h�
   await expect(page.getByText('[E2E] Nhánh 05/10')).toHaveCount(0);
 });
 
-test('ST-003-08 PHT mở khóa gói học kỳ 1 quá hạn bằng giao diện; GVCN gửi được; PHT trả lại phải ghi lý do', async ({ page, browser }) => {
-  const pkg = await packageOf(U.vp, 1);
+test('ST-003-08 Hiệu trưởng mở hạn gói học kỳ 1 quá hạn ở màn Kế hoạch quá hạn; GVCN gửi được; PHT trả lại phải ghi lý do', async ({
+  page,
+  browser,
+}) => {
+  const pkg = await packageOf(U.ht, 1);
   test.skip(!pkg?.canExtend, `gói học kỳ 1 không ở trạng thái quá hạn (${pkg?.deadlineState})`);
-  await login(page, U.vp);
-  await spaGo(page, `/education/theme-plans/${cls.id}?hk=1`);
-  await page.getByRole('button', { name: 'Mở khóa' }).click();
+  // Spec 005 FR-021a: mở hạn ở màn riêng của Hiệu trưởng
+  await login(page, U.ht);
+  await spaGo(page, '/education/overdue');
+  const row = page.locator('tr', { hasText: cls.name }).filter({ hasText: 'Học kỳ 1' }).first();
+  await row.getByRole('button', { name: 'Mở hạn' }).click({ timeout: 30_000 });
   const dialog = page.getByRole('dialog');
   await dialog.getByLabel('Hạn mới').fill(isoPlus(5));
   await dialog.getByLabel('Lý do').fill(`[E2E] Mở hạn ${run}`);
   const extended = page.waitForResponse((r) => r.url().endsWith('/actions'));
-  await dialog.getByRole('button', { name: 'Mở khóa' }).click();
+  await dialog.getByRole('button', { name: 'Mở hạn' }).click();
   expect((await extended).status()).toBe(200);
-  expect((await packageOf(U.vp, 1)).extendedTo).toBe(isoPlus(5));
+  expect((await packageOf(U.ht, 1)).extendedTo).toBe(isoPlus(5));
 
   await nameWeeks((s) => s.startDate < SEMESTER2_START);
   await fillPackage(1);

@@ -101,11 +101,7 @@ export function ThemePlanBody({
             {editable && (
               <div className="row row--between row--wrap row--middle gap-2">
                 <div className="row row--wrap row--middle gap-2">
-                  <button
-                    type="button"
-                    className="btn btn--outline-primary btn--sm"
-                    onClick={() => setShowGoalModal(true)}
-                  >
+                  <button type="button" className="btn btn--outline-primary btn--sm" onClick={() => setShowGoalModal(true)}>
                     <Adjustments size={16} aria-hidden /> Tùy chọn mục tiêu cho chủ đề này
                   </button>
                   <button

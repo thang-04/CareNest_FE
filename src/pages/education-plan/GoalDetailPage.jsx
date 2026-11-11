@@ -13,7 +13,7 @@ import { branchScheduleIssue } from '@/models/education-plan/branchTemplateSched
 import { GoalTable, ThemeEventTable } from '@/components/education-plan/GoalTables';
 import { yearPlanFile } from '@/utils/education-plan/yearPlanDoc';
 import { Card, Modal, Notice, PageHead, fmtDate } from '@/components/education-plan/eduUi';
-import { DeadlineBadge, ExtendDeadlineButton } from '@/components/education-plan/DeadlineWidgets';
+import { DeadlineBadge } from '@/components/education-plan/DeadlineWidgets';
 import { RejectedNotice, ReviewActions, ReviewHistory } from '@/components/education-plan/reviewUi';
 import { StatusPage } from '@/components/ui/StatusPage';
 import { LoadingState, Spinner } from '@/components/ui/States';
@@ -43,7 +43,6 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
     saveGoal,
     deleteGoal,
     createGoalVersion,
-    unlockGoal,
     toast,
     staff,
     refreshGoal,
@@ -112,8 +111,7 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
   const canSend = perm ? perm.canSubmit : free && isLeader;
   const canIssue = perm ? (perm.canApprove ?? perm.canIssue) : isReviewerForPlan;
   const canReturn = perm ? perm.canReturn : isReviewerForPlan;
-  const canDelete =
-    annual && (perm ? perm.canDelete : isVp && g.status === EDU_STATUS.DRAFT);
+  const canDelete = annual && (perm ? perm.canDelete : isVp && g.status === EDU_STATUS.DRAFT);
   // BE:EDU-25 — sửa bản đã ban hành = tạo phiên bản mới; bản đã ban hành giữ nguyên
   const canCreateVersion =
     annual &&
@@ -213,9 +211,8 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
         />
         <div className="ga-year-toolbar" role="group" aria-label={`Thao tác ${pageLabel.toLowerCase()}`}>
           <div className="ga-year-toolbar__group">
-            {/* Spec 004 Q3b: hạn ban hành = ngày bắt đầu năm học; quá hạn thì khóa tới khi Hiệu trưởng mở khóa */}
+            {/* Spec 005: mở hạn chỉ ở màn Kế hoạch quá hạn của Hiệu trưởng, không ở trang chi tiết */}
             <DeadlineBadge doc={g.timeLock} />
-            <ExtendDeadlineButton doc={g.timeLock} allowed={g.timeLock?.canUnlock} onExtend={(body) => unlockGoal(g.id, { note: body.note, deadline: body.deadline })} />
             {canDelete && (
               <button className="btn btn--sm btn--outline-danger" onClick={() => setModal('delete')}>
                 <Trash2 size={16} aria-hidden /> Xóa
@@ -277,14 +274,17 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
       {g.status === 'APPROVED' && (g.versions || []).some((v) => v.current && v.id !== g.id) && (
         <div className="mb-16">
           <Notice tone="warn">
-            Đã có bản mới hơn được ban hành.{' '}
-            <Link to={`${basePath}/${g.versions.find((v) => v.current).id}`}>Xem bản hiện hành</Link>
+            Đã có bản mới hơn được ban hành. <Link to={`${basePath}/${g.versions.find((v) => v.current).id}`}>Xem bản hiện hành</Link>
           </Notice>
         </div>
       )}
       {g.timeLock?.timeLocked && (
         <div className="mb-16">
-          <Notice tone="warn">Năm học đã bắt đầu, kế hoạch đã khóa: không gửi duyệt hay tạo phiên bản điều chỉnh được nữa. Cần Hiệu trưởng mở khóa.</Notice>
+          <Notice tone="warn">
+            {g.status === EDU_STATUS.APPROVED
+              ? 'Năm học đã bắt đầu, kế hoạch đã khóa: không tạo phiên bản điều chỉnh được nữa.'
+              : 'Quá hạn — chờ Hiệu trưởng mở hạn.'}
+          </Notice>
         </div>
       )}
       {isReview && !canIssue && (

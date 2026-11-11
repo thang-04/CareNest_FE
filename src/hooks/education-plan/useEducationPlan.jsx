@@ -170,6 +170,7 @@ export function EducationPlanProvider({ children }) {
           return saved;
         } catch (err) {
           toastApi.error(err.message, 'Không thực hiện được');
+          args[3]?.onError?.(err);
           if (err.status === 409 || err.status === 403) reload({ silent: true });
           return null;
         }
@@ -231,21 +232,6 @@ export function EducationPlanProvider({ children }) {
       },
       saveClassDoc: classCall(service.saveClassDoc),
       // BE:EDU-27 — ô điều chỉnh của kế hoạch ngày; trả bản đã lưu, lỗi thì báo và trả null
-      saveClassDocAdjustments: async (id, adjustments, expected) => {
-        try {
-          const current = (data?.dayPlans || []).find((doc) => doc.id === id) || data?.weekPlans.find((doc) => doc.id === id);
-          const saved = await service.saveClassDocAdjustments(id, adjustments, actor, {
-            version: expected?.version ?? current?.version,
-            dossierVersion: expected?.dossierVersion ?? current?.dossierVersion,
-          });
-          await reload({ silent: true });
-          return saved;
-        } catch (err) {
-          toastApi.error(err.message, 'Không lưu được kế hoạch điều chỉnh');
-          reload({ silent: true });
-          return null;
-        }
-      },
       // BE:EDU-25 — tạo phiên bản điều chỉnh của kế hoạch năm đã ban hành
       createGoalVersion: async (id, curriculumSourcePlanId) => {
         try {

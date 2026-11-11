@@ -114,23 +114,21 @@ test('ClassDoc API: saveClassDoc gửi X-Class-Doc-Version và X-Dossier-Version
   assert.equal(capturedHeaders['X-Dossier-Version'], '4');
 });
 
-test('ClassDoc API: saveClassDocAdjustments gửi X-Class-Doc-Version header', async () => {
-  let capturedHeaders = null;
+test('ClassDoc API: bỏ ô điều chỉnh (spec 005 FR-012) và không gửi phần II của giáo án ngày (FR-008a)', async () => {
+  assert.equal(educationPlanApi.saveClassDocAdjustments, undefined);
+  let sent = null;
   axiosClient.defaults.adapter = async (config) => {
-    capturedHeaders = config.headers;
-    return {
-      status: 200,
-      statusText: 'OK',
-      headers: {},
-      config,
-      data: { code: 200, desc: 'ok', data: { id: 'w-1', adjustments: 'Sửa ngày 2' } },
-    };
+    sent = JSON.parse(config.data);
+    return { status: 200, statusText: 'OK', headers: {}, config, data: { code: 200, desc: 'ok', data: { id: 'dd-1' } } };
   };
-
-  await educationPlanApi.saveClassDocAdjustments('w-1', 'Sửa ngày 2', { version: 5, dossierVersion: 8 });
-
-  assert.ok(capturedHeaders, 'Phải gửi headers');
-  assert.equal(capturedHeaders['X-Class-Doc-Version'], '5');
+  await educationPlanApi.saveClassDoc('day', {
+    id: 'dd-1',
+    version: 1,
+    dossierVersion: 2,
+    days: [{ date: '2026-11-16', sections: {}, review: { health: 'Khỏe' } }],
+  });
+  assert.equal(sent.days[0].review, undefined);
+  assert.deepEqual(sent.days[0].sections, {});
 });
 
 test('ClassDoc API: actOnClassDoc gửi Idempotency-Key và version headers', async () => {

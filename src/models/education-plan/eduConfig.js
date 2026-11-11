@@ -53,8 +53,9 @@ export const DEFAULT_WEEK_ROWS = [
   { key: 'the_duc', label: 'Thể dục sáng', canMerge: true, allWeek: true },
   { key: 'hoc', label: 'Hoạt động học', canMerge: false, allWeek: false },
   // extraLabel: dòng có thêm phần chung cả tuần dưới 5 ô ngày (mẫu Thái Dương: "Chơi tự do", "Chơi tự chọn", "Nêu gương")
-  { key: 'ngoai_troi', label: 'Chơi, hoạt động ngoài trời', canMerge: false, allWeek: false, extraLabel: 'Chơi tự do (cả tuần)' },
   { key: 'goc', label: 'Chơi, hoạt động ở các góc', canMerge: true, allWeek: true },
+  { key: 'ngoai_troi', label: 'Chơi, hoạt động ngoài trời', canMerge: false, allWeek: false, extraLabel: 'Chơi tự do (cả tuần)' },
+  { key: 'an_ngu', label: 'Ăn, ngủ', canMerge: true, allWeek: true },
   {
     key: 'chieu',
     label: 'Chơi, hoạt động buổi chiều',

@@ -394,7 +394,7 @@
 .table.ga-goal-table.ga-theme-edit-fixed.ga-branch-template-editable tbody tr td.ga-branch-template-cell,
 .table.ga-goal-table.ga-theme-edit-fixed.ga-branch-template-editable tbody tr:hover td.ga-branch-template-cell,
 .table.ga-goal-table.ga-theme-edit-fixed.ga-branch-template-editable tbody tr:nth-child(n) td.ga-branch-template-cell {
-  background: var(--color-surface, #fff);
+  background: var(--color-surface);
   cursor: text;
 }
 .ga-class-editor .ga-week-hero {
@@ -766,7 +766,7 @@
 .table.ga-goal-table th.ga-th-editable,
 .table.ga-goal-table thead th.ga-th-editable,
 .table.ga-goal-table:not(.ga-curriculum-fixed):not(.ga-theme-edit-fixed):not(.ga-table-readonly) thead th:not(.cell--fixed) {
-  background: var(--color-surface, #fff);
+  background: var(--color-surface);
   color: var(--color-text);
 }
 .table.ga-goal-table tbody tr td.ga-cell-editable,
@@ -775,7 +775,7 @@
 .table.ga-goal-table tbody tr:hover td.ga-goal-content-cell,
 .table.ga-goal-table tbody tr td.ga-theme-tick-cell,
 .table.ga-goal-table tbody tr:hover td.ga-theme-tick-cell {
-  background: var(--color-surface, #fff);
+  background: var(--color-surface);
 }
 .table.ga-goal-table tbody tr td.ga-cell-editable,
 .table.ga-goal-table tbody tr td.ga-goal-content-cell {
@@ -1571,7 +1571,7 @@ h2.ga-cur-domain__head {
   .ga-cur-modal .ga-cur-item {
     margin-left: var(--space-3);
   }
-  .ga-page .filter-bar .select[aria-label='Nhóm tuổi'] {
+  .ga-page .filter-bar .select:not([multiple]):not([size]) {
     width: 100%;
   }
 }
@@ -1972,6 +1972,11 @@ h2.ga-cur-domain__head {
   gap: var(--space-1);
 }
 
+/* Hàng lọc các màn kế hoạch giáo dục: mọi ô chọn cùng một cỡ ngắn (spec 005 FR-022a, Tiền 11/11/2026) */
+.ga-page .filter-bar .select:not([multiple]):not([size]) {
+  width: calc(var(--input-height) * 5);
+}
+
 /* Mọi ô chọn của module kế hoạch giáo dục (trang .ga-page, hộp .ga-modal): giá trị đang chọn một dòng, dài thì "…"
    (Tiền 03/11); danh sách khi mở vẫn đầy đủ. Bỏ base-select vì nó đặt chữ trong phần tử nội bộ, không cắt được */
 .ga-page .select:not([multiple]):not([size]),
@@ -2158,7 +2163,7 @@ h2.ga-cur-domain__head {
 .ga-goal-detail .table tbody tr:hover th,
 .ga-class-editor .table tbody tr:hover td,
 .ga-class-editor .table tbody tr:hover th {
-  background: var(--color-surface, #fff);
+  background: var(--color-surface);
   box-shadow: none;
 }
 
@@ -2248,7 +2253,7 @@ h2.ga-cur-domain__head {
 .table.ga-annual-theme-table tbody tr td.ga-branch-template-cell,
 .table.ga-annual-theme-table tbody tr:hover td.ga-branch-template-cell,
 .table.ga-annual-theme-table tbody tr:nth-child(even) td.ga-branch-template-cell {
-  background: var(--color-white, #fff);
+  background: var(--color-surface);
 }
 
 .ga-branch-range-label {
@@ -2256,7 +2261,7 @@ h2.ga-cur-domain__head {
   padding: 4px 8px;
 }
 .ga-branch-calendar-controls input:not(:disabled) {
-  background: var(--color-white, #fff);
+  background: var(--color-surface);
 }
 .ga-branch-calendar-controls input:disabled {
   background: var(--color-secondary);
@@ -2274,7 +2279,7 @@ h2.ga-cur-domain__head {
 .table.ga-goal-table.ga-curriculum-fixed tbody tr:hover td.ga-goal-content-cell,
 .table.ga-goal-table.ga-curriculum-fixed tbody tr td.ga-theme-tick-cell,
 .table.ga-goal-table.ga-curriculum-fixed tbody tr:hover td.ga-theme-tick-cell {
-  background: var(--color-surface, #fff);
+  background: var(--color-surface);
 }
 .table.ga-goal-table.ga-curriculum-fixed tbody tr td.ga-goal-content-cell {
   cursor: text;
@@ -2306,7 +2311,7 @@ h2.ga-cur-domain__head {
 }
 .table.ga-year-info.ga-info-annual thead th:last-child,
 .table.ga-year-info.ga-info-annual tbody td.ga-cell-editable {
-  background: var(--color-surface, #fff);
+  background: var(--color-surface);
 }
 .ga-info-fixed .ga-cell-input,
 .ga-info-fixed .ga-cell-input:hover,
@@ -2321,7 +2326,7 @@ h2.ga-cur-domain__head {
 .table.ga-goal-table.ga-branch-readonly tbody tr:hover td,
 .table.ga-goal-table.ga-branch-readonly tbody tr td.cell--fixed,
 .table.ga-goal-table.ga-branch-readonly tbody tr:hover td.cell--fixed {
-  background: var(--color-surface, #fff) !important;
+  background: var(--color-surface) !important;
   cursor: default !important;
 }
 
@@ -2581,7 +2586,7 @@ h2.ga-cur-domain__head {
 }
 .ga-theme-goal-preview .select {
   width: 100%;
-  background-color: var(--color-white, #fff);
+  background-color: var(--color-surface);
 }
 .ga-theme-goal-preview :is(p, li) {
   overflow-wrap: anywhere;
@@ -2609,7 +2614,7 @@ h2.ga-cur-domain__head {
 .ga-goal-detail .table.ga-curriculum-fixed tbody tr:hover td:not(.ga-goal-table__domain),
 .ga-goal-detail .table.ga-table-readonly thead th,
 .ga-goal-detail .table.ga-table-readonly tbody tr td:not(.ga-goal-table__domain) {
-  background: var(--color-surface, #fff) !important;
+  background: var(--color-surface) !important;
   color: var(--color-text);
   cursor: default !important;
 }
@@ -2631,7 +2636,7 @@ h2.ga-cur-domain__head {
 .ga-config-page.is-viewing .table.ga-goal-table tbody tr:hover td,
 .ga-config-page.is-viewing .table.ga-goal-table tbody tr:nth-child(even) td,
 .ga-config-page.is-viewing .table.ga-goal-table tbody tr:nth-child(even):hover td {
-  background: var(--color-surface, #fff) !important;
+  background: var(--color-surface) !important;
   color: var(--color-text);
   cursor: default !important;
 }
@@ -2655,9 +2660,9 @@ h2.ga-cur-domain__head {
 .ga-config-page.is-editing .table.ga-goal-table tbody tr:hover td.ga-cell-editable,
 .ga-config-page.is-editing .table.ga-goal-table tbody tr:nth-child(even) td.ga-cell-editable,
 .ga-config-page.is-editing .table.ga-goal-table tbody tr:nth-child(even):hover td.ga-cell-editable {
-  background: var(--color-surface, #fff) !important;
+  background: var(--color-surface) !important;
 }
-.ga-config-page.is-editing .table.ga-goal-table tbody td.ga-cell-editable:has(input[type="checkbox"]) {
+.ga-config-page.is-editing .table.ga-goal-table tbody td.ga-cell-editable:has(input[type='checkbox']) {
   cursor: pointer;
 }
 
@@ -2798,8 +2803,6 @@ h2.ga-cur-domain__head {
 .ga-theme-goal-head .subsection-title {
   margin-bottom: var(--space-2);
 }
-
-
 
 /* Hàng chờ duyệt (bảng cố định độ rộng): cột phụ theo tỉ lệ để cột Nội dung (ghi chú gửi) luôn còn ~30% ở mọi khổ màn */
 .ga-goal-table .ga-review-queue__short {

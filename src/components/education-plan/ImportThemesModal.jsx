@@ -231,7 +231,7 @@ export default function ImportThemesModal({ planLevel = 'TEAM', excludeId, defau
               <span className="muted text-sm">
                 {source.schoolYear} · Phiên bản {versionOf(source)}
               </span>
-                  <YearPlanStatusBadge status={source.status} doc={source} />
+              <YearPlanStatusBadge status={source.status} doc={source} />
             </div>
             {!rows.length ? (
               <EmptyState title="Kế hoạch nguồn chưa có chủ đề, đợt nghỉ" />

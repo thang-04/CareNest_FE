@@ -46,10 +46,6 @@ export const getClassPlans = (schoolYearId, user) =>
   USE_MOCK ? classPlanMockRepository.getAll(user) : educationPlanApi.getClassPlans(schoolYearId);
 export const saveClassDoc = (kind, doc, user, options) =>
   USE_MOCK ? classPlanMockRepository.saveDoc(kind, doc, user, options) : educationPlanApi.saveClassDoc(kind, doc, options);
-export const saveClassDocAdjustments = (id, adjustments, user, options) =>
-  USE_MOCK
-    ? classPlanMockRepository.saveAdjustments(id, adjustments, user, options)
-    : educationPlanApi.saveClassDocAdjustments(id, adjustments, options);
 export const actOnClassDoc = (kind, id, body, user, options) =>
   USE_MOCK ? classPlanMockRepository.act(kind, id, body, user, options) : educationPlanApi.actOnClassDoc(kind, id, body, options);
 

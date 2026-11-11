@@ -12,14 +12,7 @@ import { numberGoals } from '@/models/education-plan/goalTable';
  * - Có nút "Khôi phục về mặc định mục tiêu sẵn có của năm" để đưa toàn bộ lựa chọn
  *   về đúng các mục tiêu đã phân bổ cho chủ đề theo Kế hoạch năm.
  */
-export default function ThemeGoalPickerModal({
-  open,
-  onClose,
-  theme,
-  yearPlan,
-  customTicks = {},
-  onApply,
-}) {
+export default function ThemeGoalPickerModal({ open, onClose, theme, yearPlan, customTicks = {}, onApply }) {
   const tree = useMemo(() => {
     if (!yearPlan?.domains) return [];
     const numbers = numberGoals(yearPlan.domains);
@@ -82,8 +75,7 @@ export default function ThemeGoalPickerModal({
   const [picked, setPicked] = useState(() => {
     const set = new Set();
     allGoals.forEach((g) => {
-      const isTicked =
-        customTicks[g.id] !== undefined ? Boolean(customTicks[g.id]) : Boolean(g.defaultTicked);
+      const isTicked = customTicks[g.id] !== undefined ? Boolean(customTicks[g.id]) : Boolean(g.defaultTicked);
       if (isTicked) set.add(g.id);
     });
     return set;
@@ -151,9 +143,7 @@ export default function ThemeGoalPickerModal({
     >
       <div className="ga-cur-meta mb-2">
         <span className="chip chip--blue">{theme?.name || 'Chủ đề'}</span>
-        <span className="muted text-sm">
-          Kế hoạch năm học: {yearPlan?.schoolYear}
-        </span>
+        <span className="muted text-sm">Kế hoạch năm học: {yearPlan?.schoolYear}</span>
         {hasCustom && (
           <span className="chip chip--orange text-xs" title="Đang có mục tiêu chọn khác với phân bổ của Kế hoạch năm">
             Đã tùy chỉnh khác Kế hoạch năm
@@ -161,11 +151,7 @@ export default function ThemeGoalPickerModal({
         )}
       </div>
 
-      <GoalPicker
-        tree={tree}
-        picked={picked}
-        onToggle={toggle}
-      />
+      <GoalPicker tree={tree} picked={picked} onToggle={toggle} />
     </Modal>
   );
 }

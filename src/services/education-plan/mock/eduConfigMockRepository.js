@@ -62,8 +62,14 @@ const reconcile = (db, policies, revision) => {
               (role !== ROLES.TEAM_LEADER || user.ageGroupId === (cls?.ageGroupId || doc.ageGroupId)),
           );
         const missing = roles.filter(
-          (role) => !approvals.some((approval) => approval.userId != null && !authorIds.has(approval.userId) &&
-            approval.roleKey === role && (approval.round ?? doc.reviewRound) === doc.reviewRound),
+          (role) =>
+            !approvals.some(
+              (approval) =>
+                approval.userId != null &&
+                !authorIds.has(approval.userId) &&
+                approval.roleKey === role &&
+                (approval.round ?? doc.reviewRound) === doc.reviewRound,
+            ),
         );
         const waitingRole = missing.find((role) => eligible(role) || role === roles.at(-1)) || null;
         members.forEach((member) => {
@@ -184,9 +190,11 @@ export const eduConfigMockRepository = {
           throw eduError('INVALID_VALUE', 'vai trò');
       }
       if (policy.creators.some((role) => policy.reviewers.includes(role))) throw eduError('INVALID_VALUE', 'vai trò tạo và duyệt trùng');
-      if (policy.creators.length !== 1 || policy.reviewers.some(
-        (role) => CREATOR_ROLES.indexOf(role) <= CREATOR_ROLES.indexOf(policy.creators[0]),
-      )) throw eduError('INVALID_VALUE', 'người duyệt phải có cấp bậc cao hơn người soạn');
+      if (
+        policy.creators.length !== 1 ||
+        policy.reviewers.some((role) => CREATOR_ROLES.indexOf(role) <= CREATOR_ROLES.indexOf(policy.creators[0]))
+      )
+        throw eduError('INVALID_VALUE', 'người duyệt phải có cấp bậc cao hơn người soạn');
     }
     if (JSON.stringify(policies) === JSON.stringify(current.workflowPolicy)) return clone(view(current, user));
     return writeDb((db) => {

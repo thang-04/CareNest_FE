@@ -3,8 +3,7 @@ import { api, beReachable } from '../support/realBe.mjs';
 import { login, spaGo } from '../support/ui.mjs';
 
 // System spec 004 (BE thật, E2E_PG_DB=carenest_merge):
-// - Q3b/Q5/Q6: kế hoạch tổ khóa từ ngày bắt đầu năm học; Tổ trưởng thấy lý do khóa, không tạo phiên bản; chỉ Hiệu trưởng mở khóa
-//   (bắt buộc lý do + hạn mới sau hôm nay), mở xong thì tạo phiên bản được.
+// - Q3b/Q6 + spec 005: kế hoạch tổ đã ban hành khóa cứng từ ngày bắt đầu năm học, không ai mở lại.
 // - Q2: gói học kỳ đã ban hành, chưa tới ngày bắt đầu học kỳ ⇒ GVCN "Tạo phiên bản điều chỉnh" ⇒ gói về Nháp, sửa rồi gửi lại.
 test.describe.configure({ mode: 'serial' });
 
@@ -27,33 +26,23 @@ test.beforeAll(async () => {
   cls = (await api(U.tl, 'GET', DOCS)).data.classes.find((c) => String(c.homeroomTeacherId) === String(me.data.userId));
 });
 
-test('ST-004-10 kế hoạch tổ đã khóa: Tổ trưởng thấy lý do, không tạo phiên bản; Hiệu trưởng mở khóa bằng giao diện', async ({ page, browser }) => {
+// Spec 005 (Tiền 11/11): kế hoạch đã ban hành tới ngày bắt đầu là khóa cứng, không ai mở lại; trang chi tiết không có nút mở hạn
+test('ST-004-10 kế hoạch tổ đã ban hành bị khóa: không nút mở hạn ở trang chi tiết, Hiệu trưởng cũng không mở lại được', async ({
+  page,
+}) => {
   test.skip(!team, 'Chưa có kế hoạch tổ đã ban hành');
   const detail = (await api(U.tl, 'GET', `${GOALS}/${team.id}`)).data;
-  test.skip(!detail.timeLock?.timeLocked, 'Kế hoạch tổ đang không khóa (đã mở khóa trước đó hoặc năm học chưa bắt đầu)');
-  await login(page, U.tl);
+  test.skip(!detail.timeLock?.timeLocked, 'Kế hoạch tổ đang không khóa (năm học chưa bắt đầu)');
+  expect(detail.timeLock.canUnlock).toBe(false);
+  await login(page, U.ht);
   await spaGo(page, `/education/goals/${team.id}`);
   await expect(page.getByText('Năm học đã bắt đầu, kế hoạch đã khóa', { exact: false })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole('button', { name: /Mở hạn|Mở khóa/ })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Tạo phiên bản điều chỉnh' })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Mở khóa' })).toHaveCount(0);
-
-  const ht = await (await browser.newContext()).newPage();
-  await login(ht, U.ht);
-  await spaGo(ht, `/education/goals/${team.id}`);
-  await ht.getByRole('button', { name: 'Mở khóa' }).click({ timeout: 30_000 });
-  const dialog = ht.getByRole('dialog');
-  await dialog.getByRole('button', { name: 'Mở khóa' }).click();
-  await expect(dialog).toBeVisible(); // thiếu lý do / hạn thì chưa mở
-  await dialog.getByLabel('Hạn mới').fill(isoPlus(1));
-  await dialog.getByLabel('Lý do').fill('[E2E] Bổ sung chủ đề sau họp tổ');
-  const unlocked = ht.waitForResponse((r) => r.url().endsWith(`/goals/${team.id}/unlock`));
-  await dialog.getByRole('button', { name: 'Mở khóa' }).click();
-  expect((await unlocked).status()).toBe(200);
-  await expect(ht.getByText('Năm học đã bắt đầu, kế hoạch đã khóa', { exact: false })).toHaveCount(0);
-
-  const after = (await api(U.tl, 'GET', `${GOALS}/${team.id}`)).data;
-  expect(after.timeLock).toMatchObject({ timeLocked: false, extendedTo: isoPlus(1) });
-  expect(after.history.some((h) => /unlock/i.test(h.action || '') || /Mở khóa/.test(h.label || h.actionLabel || ''))).toBe(true);
+  const res = await api(U.ht, 'POST', `${GOALS}/${team.id}/unlock`, {
+    body: { note: '[E2E] thử mở bản đã ban hành', deadline: isoPlus(1) },
+  });
+  expect(res.status, res.desc).toBe(400);
 });
 
 test('ST-004-11 gói học kỳ 2 đã ban hành, chưa tới học kỳ: GVCN tạo phiên bản điều chỉnh ⇒ Nháp, gửi lại được', async ({ page }) => {

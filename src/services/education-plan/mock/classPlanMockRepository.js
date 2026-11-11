@@ -7,7 +7,15 @@ import { ensureSchoolSeeded } from '@/mocks/schoolMockRepository';
 import { EDU_SEED_VERSION, ensureEduDemo } from '@/mocks/educationPlanSeed';
 import { ROLES, ROLE_LABELS } from '@/models/User';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
-import { CLASS_DOC, createBlocker, dossierWeekDocs, isEditableStatus, submitBlocker, yearWeeks } from '@/models/education-plan/classPlan';
+import {
+  CLASS_DOC,
+  createBlocker,
+  dossierWeekDocs,
+  emptyDaySections,
+  isEditableStatus,
+  submitBlocker,
+  yearWeeks,
+} from '@/models/education-plan/classPlan';
 import { PENDING_OF, SIGN_ROLES, withDefaults } from '@/models/education-plan/eduConfig';
 import { toRows } from '@/models/education-plan/goalTable';
 import { currentPlanOf, diffPlans, unresolvedFlags, versionFlags, versionOf } from '@/models/education-plan/planVersions.mjs';
@@ -86,11 +94,7 @@ const authorsOf = (db, doc) =>
   ]);
 const canAuthor = (db, classId, user) => {
   const cls = classOf(db, classId);
-  return (
-    rolesOf(user).includes(ROLES.TEACHER) &&
-    teachesClass(cls, user) &&
-    String(cls?.homeroomTeacherId) === String(user?.id)
-  );
+  return rolesOf(user).includes(ROLES.TEACHER) && teachesClass(cls, user) && String(cls?.homeroomTeacherId) === String(user?.id);
 };
 const decorate = (db, doc, user, kind = doc.kind) => {
   const root =
@@ -117,15 +121,22 @@ const decorate = (db, doc, user, kind = doc.kind) => {
     dossierVersion: kind === 'week' ? (root?.version ?? null) : null,
     review,
     superseded: isSuperseded(db, doc.yearPlanId),
-    adjustments: doc.adjustments || {},
     ...(user
       ? {
           permissions: {
-            canEdit: author && doc.status !== 'REVIEW' && root?.status !== 'REVIEW' && !isSuperseded(db, doc.yearPlanId) && hasFutureClassContent(kind, doc, (db.eduGoals || []).find((plan) => plan.id === doc.yearPlanId)),
+            canEdit:
+              author &&
+              doc.status !== 'REVIEW' &&
+              root?.status !== 'REVIEW' &&
+              !isSuperseded(db, doc.yearPlanId) &&
+              hasFutureClassContent(
+                kind,
+                doc,
+                (db.eduGoals || []).find((plan) => plan.id === doc.yearPlanId),
+              ),
             canSubmit: kind !== 'week' && author && isEditableStatus(doc.status),
             canApprove: reviewer,
             canReject: reviewer,
-            canEditAdjustments: kind === 'week' && author,
           },
         }
       : {}),
@@ -219,31 +230,6 @@ export const classPlanMockRepository = {
     });
     return { matches, warnings };
   },
-  /** BE:EDU-27 — "Kế hoạch điều chỉnh và bổ sung" ghi được ở mọi trạng thái, chỉ giáo viên của lớp. */
-  async saveAdjustments(id, adjustments, user, options = {}) {
-    await delay();
-    ensureSchoolSeeded();
-    return writeDb((db) => {
-      const doc = findDoc(db, CLASS_DOC.WEEK, id);
-      assertVersion(doc, options.version);
-      bumpRoot(db, 'week', doc, options.dossierVersion);
-      if (!canAuthor(db, doc.classId, user)) throw eduError('CLASS_DOC_TEACHER_ONLY');
-      const days = new Set((doc.days || []).map((d) => d.date));
-      const next = {};
-      Object.entries(adjustments || {}).forEach(([day, text]) => {
-        const value = String(text || '').trim();
-        if (!days.has(day) || value.length > 4000) throw eduError('CLASS_DOC_ADJUSTMENT_INVALID');
-        if (value) next[day] = value;
-      });
-      if (JSON.stringify(next) !== JSON.stringify(doc.adjustments || {})) {
-        doc.adjustments = next;
-        doc.version = (doc.version || 0) + 1;
-        doc.history = [...(doc.history || []), entry(user, 'Cập nhật kế hoạch điều chỉnh và bổ sung')];
-      }
-      return clone(decorate(db, doc, user, 'week'));
-    });
-  },
-
   async getAll(user) {
     await delay();
     const db = readDb();
@@ -309,11 +295,18 @@ export const classPlanMockRepository = {
         if (members.some((member) => member.status === 'REVIEW')) throw eduError('CLASS_DOC_LOCKED');
         for (const member of members) {
           if (member.status !== EDU_STATUS.APPROVED) continue;
-          member.history = [...(member.history || []), {
-            action: 'revise_future', actorId: user.id, by: user.fullName, at: new Date().toISOString(),
-            round: member.reviewRound || 0, previousApprovals: clone(member.approvals || []),
-            previousPrintSnapshot: member.printSnapshot || null,
-          }];
+          member.history = [
+            ...(member.history || []),
+            {
+              action: 'revise_future',
+              actorId: user.id,
+              by: user.fullName,
+              at: new Date().toISOString(),
+              round: member.reviewRound || 0,
+              previousApprovals: clone(member.approvals || []),
+              previousPrintSnapshot: member.printSnapshot || null,
+            },
+          ];
           member.status = EDU_STATUS.DRAFT;
           member.waitingRole = null;
           member.approvals = [];
@@ -338,7 +331,6 @@ export const classPlanMockRepository = {
         version: (current?.version ?? -1) + 1,
         authorIds: [...new Set([...(current?.authorIds || []), user.id])],
         sourceDocKey: current ? current.sourceDocKey : body.sourceDocKey,
-        adjustments: current?.adjustments || {},
         status: current?.status || EDU_STATUS.DRAFT,
         printSnapshot: current?.printSnapshot || null,
         completionMode: current?.completionMode || null,
@@ -378,16 +370,25 @@ export const classPlanMockRepository = {
       const policy = withDefaults(db.eduConfig).workflowPolicy?.[kind === CLASS_DOC.BRANCH ? 'branch' : 'theme'];
       const rawChain = policy?.reviewers || withDefaults(db.eduConfig).signers[kind === CLASS_DOC.BRANCH ? 'branch' : 'week'] || [];
       // BE:EDU-54 — chỉ bỏ bước giữa thiếu người hợp lệ; bước cuối luôn giữ chờ.
-      const chain = rawChain.filter((role, index) => index === rawChain.length - 1 || (db.users || []).some(
-        (candidate) => candidate.status !== 'INACTIVE' && rolesOf(candidate).includes(role) &&
-          !authorsOf(db, doc).has(candidate.id) &&
-          (role !== ROLES.TEAM_LEADER || candidate.ageGroupId === cls?.ageGroupId),
-      ));
+      const chain = rawChain.filter(
+        (role, index) =>
+          index === rawChain.length - 1 ||
+          (db.users || []).some(
+            (candidate) =>
+              candidate.status !== 'INACTIVE' &&
+              rolesOf(candidate).includes(role) &&
+              !authorsOf(db, doc).has(candidate.id) &&
+              (role !== ROLES.TEAM_LEADER || candidate.ageGroupId === cls?.ageGroupId),
+          ),
+      );
       const waiting = doc.waitingRole || Object.keys(PENDING_OF).find((r) => PENDING_OF[r] === doc.status);
       // Người đang được chờ: đúng vai trò; tổ trưởng phải là tổ trưởng của khối
       const isWaitingFor =
-        waiting && user.status !== 'INACTIVE' && rolesOf(user).includes(waiting) &&
-        (waiting !== ROLES.TEAM_LEADER || isLeader) && !authorsOf(db, doc).has(user.id);
+        waiting &&
+        user.status !== 'INACTIVE' &&
+        rolesOf(user).includes(waiting) &&
+        (waiting !== ROLES.TEAM_LEADER || isLeader) &&
+        !authorsOf(db, doc).has(user.id);
       const lists = { branchPlans: db.eduClassBranch, weekPlans: db.eduClassWeek, classThemePlans: db.eduClassTheme, yearPlan };
       // Hồ sơ chủ đề: giáo án các tuần đi cùng trạng thái của kế hoạch chủ đề
       const weekDocs = kind === CLASS_DOC.THEME ? dossierWeekDocs(doc, yearPlan, db.eduClassWeek).map((x) => x.doc) : [];
@@ -440,6 +441,13 @@ export const classPlanMockRepository = {
         if (isSuperseded(db, doc.yearPlanId)) fail('YEAR_PLAN_SUPERSEDED');
         const blocker = submitBlocker(kind, doc, lists);
         if (blocker) fail('CLASS_DOC_NOT_READY', blocker);
+        // BE spec 005 FR-007a: mỗi mục hoạt động của ngày dạy phải có nội dung ở ô nào đó
+        const empty = kind === CLASS_DOC.THEME ? emptyDaySections(weekDocs, yearWeeks(yearPlan)) : [];
+        if (empty.length) {
+          const error = eduError('DAY_PLAN_SECTION_EMPTY', empty.length);
+          error.details = { details: empty };
+          throw error;
+        }
         const unresolved = all.reduce((n, d) => n + unresolvedOf(db, d.kind || (d === doc ? kind : CLASS_DOC.WEEK), d), 0);
         if (unresolved) fail('CLASS_DOC_VERSION_FIX_REQUIRED', unresolved);
         if (kind === CLASS_DOC.BRANCH) {

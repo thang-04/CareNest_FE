@@ -15,13 +15,7 @@ import { recoveryText } from '@/models/education-plan/yearPlanAutosave.mjs';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import { ROLES } from '@/models/User';
-import {
-  AGE_GROUPS,
-  DOMAINS,
-  EDU_STATUS,
-  SCHOOL_SCOPE,
-  isStandardDomain,
-} from '@/models/education-plan/educationPlanConstants';
+import { AGE_GROUPS, DOMAINS, EDU_STATUS, SCHOOL_SCOPE, isStandardDomain } from '@/models/education-plan/educationPlanConstants';
 import {
   duplicateAbbrThemeIds,
   duplicateNameIds,
@@ -215,9 +209,7 @@ export default function GoalFormPage({ planLevel = 'TEAM' }) {
     ? allowedAgeGroupIds.includes(form.ageGroupId) || (!form.ageGroupId && allowedAgeGroupIds.length > 0)
     : existing?.permissions
       ? existing.permissions.canEdit
-      : !isReviewStatus &&
-        editableStatus(existing?.status) &&
-        (isVp || (isLeader && form.ageGroupId === user.ageGroupId));
+      : !isReviewStatus && editableStatus(existing?.status) && (isVp || (isLeader && form.ageGroupId === user.ageGroupId));
 
   const [contentReady, setContentReady] = useState(true);
   const [contentError, setContentError] = useState('');
@@ -234,14 +226,21 @@ export default function GoalFormPage({ planLevel = 'TEAM' }) {
     [x.start, x.end].some((d) => d && (d < yearRange.start || d > yearRange.end)),
   );
   const outOfYearMsg = `Có chủ đề hoặc đợt nghỉ nằm ngoài năm học (${fmtDate(yearRange.start)} – ${fmtDate(yearRange.end)}).`;
-  const durationPolicy = form.durationPolicySnapshot || (existing
-    ? { mode: 'MISSING_OR_UNKNOWN' }
-    : { mode: 'BOUNDED', ...(eduConfig?.durationPolicy || { theme: { minWeeks: 2, maxWeeks: 4 }, branch: { minWeeks: 1, maxWeeks: 2 } }) });
+  const durationPolicy =
+    form.durationPolicySnapshot ||
+    (existing
+      ? { mode: 'MISSING_OR_UNKNOWN' }
+      : {
+          mode: 'BOUNDED',
+          ...(eduConfig?.durationPolicy || { theme: { minWeeks: 2, maxWeeks: 4 }, branch: { minWeeks: 1, maxWeeks: 2 } }),
+        });
   const durationTheme = themes
     .map((t) => durationRangeIssue(t, form.breaks, durationPolicy?.theme, `Chủ đề "${t.name || t.abbr}"`))
     .find(Boolean);
   const scheduleIssue =
-    themeScheduleIssue(themes, form.breaks) || durationTheme || branchScheduleIssue(form.branchTemplates || [], form.breaks, durationPolicy?.branch);
+    themeScheduleIssue(themes, form.breaks) ||
+    durationTheme ||
+    branchScheduleIssue(form.branchTemplates || [], form.breaks, durationPolicy?.branch);
   // EDU-52: chỉ khi bấm Ban hành mới bắt buộc chọn ngày cho mọi chủ đề
   const [requireDates, setRequireDates] = useState(false);
   const validate = (s, action) => {
@@ -423,7 +422,8 @@ export default function GoalFormPage({ planLevel = 'TEAM' }) {
   useEffect(() => {
     if (!id && currentPlanId && !saver.unsaved) {
       navigate(`${basePath}/${currentPlanId}/edit${location.search}`, {
-        replace: true, state: { backTo: location.state?.backTo },
+        replace: true,
+        state: { backTo: location.state?.backTo },
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -479,7 +479,9 @@ export default function GoalFormPage({ planLevel = 'TEAM' }) {
           });
     try {
       if (!(await saver.save())) {
-        const msg = saver.error ? 'Không thể lưu bản nháp. Vui lòng kiểm tra lại thông tin.' : 'Không thể lưu bản nháp trước khi gửi duyệt.';
+        const msg = saver.error
+          ? 'Không thể lưu bản nháp. Vui lòng kiểm tra lại thông tin.'
+          : 'Không thể lưu bản nháp trước khi gửi duyệt.';
         setReviewError(msg);
         toast(msg, 'err');
         throw new Error(msg);
@@ -1038,9 +1040,7 @@ export default function GoalFormPage({ planLevel = 'TEAM' }) {
             !errors.domains.includes('nội dung') &&
             !errors.domains.includes('mục tiêu') &&
             !errors.domains.includes('chủ đề') &&
-            !errors.domains.includes('nhóm') && (
-              <Notice tone="err">{errors.domains}</Notice>
-            )}
+            !errors.domains.includes('nhóm') && <Notice tone="err">{errors.domains}</Notice>}
           {!annual && themes.length === 0 && <p className="text-danger text-sm text-right">{NO_THEME_NOTE}</p>}
           <GoalTable
             reviewItems={form.reviewItems}
@@ -1076,9 +1076,7 @@ export default function GoalFormPage({ planLevel = 'TEAM' }) {
             !errors.themes.includes('Thứ 2') &&
             !errors.themes.includes('trùng thời gian') &&
             !errors.themes.includes('trống ngày') &&
-            !errors.themes.includes('kết thúc trước') && (
-              <Notice tone="err">{errors.themes}</Notice>
-            )}
+            !errors.themes.includes('kết thúc trước') && <Notice tone="err">{errors.themes}</Notice>}
           <ThemeEventTable
             reviewItems={form.reviewItems}
             newItems={form.newItems}

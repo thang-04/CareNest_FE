@@ -72,9 +72,9 @@ export const isEduReviewPending = (status) =>
 
 export function educationDisplayStatus(doc) {
   if (!doc || doc.status !== EDU_STATUS.DRAFT) return doc?.status;
-  const transition = [...(doc.history || [])].reverse().find((event) =>
-    /^(reject|return|submit|approve|issue|trả lại|gửi duyệt|ban hành)/i.test(event.action || event.label || ''),
-  );
+  const transition = [...(doc.history || [])]
+    .reverse()
+    .find((event) => /^(reject|return|submit|approve|issue|trả lại|gửi duyệt|ban hành)/i.test(event.action || event.label || ''));
   if (transition) return /^(reject|return|trả lại)/i.test(transition.action || transition.label || '') ? EDU_STATUS.REJECTED : doc.status;
   return doc.lastReturnNote ? EDU_STATUS.REJECTED : doc.status;
 }
@@ -173,6 +173,7 @@ export const themeCodes = (theme) =>
 export const EDU_ERROR_CODE = {
   REQUIRED_FIELD_MISSING: 9003,
   INVALID_VALUE: 9007,
+  DAY_PLAN_SECTION_EMPTY: 7390,
   CLASS_ACCESS_DENIED: 2201,
   YEAR_PLAN_NOT_FOUND: 7001,
   YEAR_PLAN_ACCESS_DENIED: 7004,
@@ -199,7 +200,6 @@ export const EDU_ERROR_CODE = {
   YEAR_PLAN_OPEN_VERSION_EXISTS: 7028,
   CLASS_DOC_VERSION_FIX_REQUIRED: 7121,
   YEAR_PLAN_SUPERSEDED: 7122,
-  CLASS_DOC_ADJUSTMENT_INVALID: 7123,
   BRANCH_FILE_UNSUPPORTED: 7124,
   BRANCH_FILE_NO_TABLE: 7125,
   BRANCH_FILE_TOO_LARGE: 7126,

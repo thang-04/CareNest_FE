@@ -19,20 +19,33 @@ export const CLASS_DOC_LABELS = {
 /** Các dòng của bảng tổ chức hoạt động trong tuần theo cấu hình của trường; canMerge = được gộp một ô cả tuần, allWeek = mặc định gộp. */
 export const weekRows = () => getEduConfig().weekRows;
 
-/** Các phần của bảng tiến trình kế hoạch ngày (Hoạt động của cô | Hoạt động của trẻ | Ghi chú). */
+/** 4 mục cố định của giáo án ngày (spec 005 FR-001); row = dòng bảng tuần cấp tên hoạt động và MT. */
 export const DAY_SECTIONS = [
-  {
-    key: 'hoc',
-    label: '1. Hoạt động học',
-    parts: [
-      { key: 'a', label: 'a) Ổn định tổ chức, gây hứng thú' },
-      { key: 'b', label: 'b) Nội dung trọng tâm' },
-      { key: 'c', label: 'c) Kết thúc' },
-    ],
-  },
-  { key: 'ngoai_troi', label: '2. Chơi, hoạt động ngoài trời', parts: [{ key: 'x', label: '' }] },
-  { key: 'chieu', label: '3. Chơi, hoạt động theo ý thích buổi chiều', parts: [{ key: 'x', label: '' }] },
+  { key: 'hoc', row: 'hoc', label: '1. Hoạt động học' },
+  { key: 'ngoai_troi', row: 'ngoai_troi', label: '2. Hoạt động ngoài trời' },
+  { key: 'goc', row: 'goc', label: '3. Hoạt động góc' },
+  { key: 'chieu', row: 'chieu', label: '4. Hoạt động chiều' },
 ];
+
+/** Dòng gợi ý của Tiến hành ở mục Hoạt động học: không đánh chữ, xóa/đổi tên được (FR-004). */
+export const HOC_SUGGESTED_ROWS = ['Ổn định tổ chức, gây hứng thú', 'Nội dung trọng tâm', 'Kết thúc'];
+
+/** Phần II của giáo án ngày, nhận xét chung cả lớp (FR-008). */
+export const DAY_REVIEW = [
+  { key: 'health', label: '1. Tình trạng sức khỏe của trẻ' },
+  { key: 'knowledge', label: '2. Kiến thức, kỹ năng, nhận thức của trẻ' },
+  { key: 'attitude', label: '3. Thái độ, cảm xúc, hành vi của trẻ' },
+];
+
+export const PREP_TARGETS = [
+  { key: 'teacher', label: '1. Đối với cô' },
+  { key: 'child', label: '2. Đối với trẻ' },
+  { key: 'parent', label: '3. Đối với phụ huynh' },
+];
+
+/** Giới hạn ô văn bản giáo án (spec 005: 4000 ký tự/ô, tên góc 200). */
+export const TEXT_MAX = 4000;
+export const NAME_MAX = 200;
 
 export const WEEKDAY_LABELS = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6'];
 
@@ -128,16 +141,18 @@ export const themeGoalBlocks = (domains, numbers, themeId, customTicks = null) =
         if (r.kind === 'sub') sub = r.text;
         if (r.kind !== 'goal' || !numbers[r.id]) return;
         const isGoalTicked = customTicks?.[r.id];
-        const contents = r.contents.filter((c) => {
-          if (!c.text.trim()) return false;
-          if (customTicks && customTicks[c.id] !== undefined) {
-            return customTicks[c.id];
-          }
-          if (isGoalTicked !== undefined) {
-            return isGoalTicked;
-          }
-          return c.themes.includes(themeId);
-        }).map((c) => c.text);
+        const contents = r.contents
+          .filter((c) => {
+            if (!c.text.trim()) return false;
+            if (customTicks && customTicks[c.id] !== undefined) {
+              return customTicks[c.id];
+            }
+            if (isGoalTicked !== undefined) {
+              return isGoalTicked;
+            }
+            return c.themes.includes(themeId);
+          })
+          .map((c) => c.text);
         if (!contents.length) return;
         let block = blocks.at(-1);
         if (!block || block.domain !== d.name || block.sub !== sub) blocks.push((block = { domain: d.name, sub, goals: [] }));
@@ -188,12 +203,76 @@ const emptyGrid = () =>
     ]),
   );
 
-const emptyDay = (date) => ({
+const newId = () => Math.random().toString(36).slice(2, 10);
+export const emptyRow = (title = '') => ({ id: newId(), title, teacher: '', child: '', note: '' });
+const emptySection = (key) => ({ aims: '', prep: '', rows: key === 'hoc' ? HOC_SUGGESTED_ROWS.map((t) => emptyRow(t)) : [emptyRow()] });
+const emptyReview = () => ({ health: '', knowledge: '', attitude: '' });
+
+export const emptyDay = (date) => ({
   date,
-  aims: '',
-  prep: '',
-  steps: Object.fromEntries(DAY_SECTIONS.flatMap((s) => s.parts.map((p) => [`${s.key}.${p.key}`, { teacher: '', child: '', note: '' }]))),
+  sections: Object.fromEntries(DAY_SECTIONS.map((s) => [s.key, emptySection(s.key)])),
+  review: emptyReview(),
 });
+
+const stepRow = (title, st) => ({ id: newId(), title, teacher: st?.teacher || '', child: st?.child || '', note: st?.note || '' });
+
+/**
+ * Ngày soạn theo bố cục cũ (mục đích/chuẩn bị chung, tiến trình steps 'hoc.a|b|c', 'ngoai_troi.x', 'chieu.x') sang 4 mục
+ * (FR-007): mục đích/chuẩn bị chung vào mục học, bước a/b/c thành 3 dòng mang tên gợi ý; không mất chữ.
+ */
+export function normalizeDay(d) {
+  if (!d) return d;
+  if (d.sections) {
+    const sections = Object.fromEntries(
+      DAY_SECTIONS.map((s) => {
+        const cur = d.sections[s.key];
+        return [
+          s.key,
+          cur ? { aims: cur.aims || '', prep: cur.prep || '', rows: Array.isArray(cur.rows) ? cur.rows : [] } : emptySection(s.key),
+        ];
+      }),
+    );
+    return { ...d, sections, review: { ...emptyReview(), ...(d.review || {}) } };
+  }
+  const steps = d.steps || {};
+  const { aims, prep, steps: _old, ...rest } = d;
+  const one = (k) => (steps[k] ? [stepRow('', steps[k])] : [emptyRow()]);
+  return {
+    ...rest,
+    sections: {
+      hoc: { aims: aims || '', prep: prep || '', rows: ['a', 'b', 'c'].map((p, i) => stepRow(HOC_SUGGESTED_ROWS[i], steps[`hoc.${p}`])) },
+      ngoai_troi: { aims: '', prep: '', rows: one('ngoai_troi.x') },
+      goc: emptySection('goc'),
+      chieu: { aims: '', prep: '', rows: one('chieu.x') },
+    },
+    review: { ...emptyReview(), ...(d.review || {}) },
+  };
+}
+
+/** Kế hoạch tuần cũ: chuẩn bị 1 ô vào "Đối với cô" (FR-013); thiếu bảng góc thì rỗng. */
+export function normalizeWeek(doc) {
+  if (!doc) return doc;
+  const prep = typeof doc.prep === 'string' || doc.prep == null ? { teacher: doc.prep || '', child: '', parent: '' } : doc.prep;
+  return { ...doc, prep: { teacher: '', child: '', parent: '', ...prep }, corners: Array.isArray(doc.corners) ? doc.corners : [] };
+}
+
+const hasText = (v) => typeof v === 'string' && v.trim() !== '';
+/** Mục chưa có nội dung của các ngày dạy (bỏ ngày nghỉ, ngày bố cục cũ) — BE:spec 005 FR-007a: [{ date, section }]. */
+export function emptyDaySections(docs, weeks = []) {
+  const off = new Set(weeks.flatMap((w) => (w.offDays || []).map((l, i) => (l ? addDays(w.start, i) : null)).filter(Boolean)));
+  return docs.flatMap((doc) =>
+    (doc?.days || []).flatMap((d) =>
+      d.sections && !off.has(d.date)
+        ? DAY_SECTIONS.filter((s) => !sectionHasContent(d.sections[s.key])).map((s) => ({ date: d.date, section: s.key }))
+        : [],
+    ),
+  );
+}
+
+/** Mục có nội dung ở bất kỳ ô nào; tên dòng không tính (FR-007a). */
+export const sectionHasContent = (sec) =>
+  !!sec &&
+  (hasText(sec.aims) || hasText(sec.prep) || (sec.rows || []).some((r) => hasText(r.teacher) || hasText(r.child) || hasText(r.note)));
 
 /** Ô của một dòng trong bảng tuần; dòng thêm vào cấu hình sau khi soạn giáo án thì trả ô trống. */
 export const rowCell = (doc, r) =>
@@ -215,7 +294,8 @@ export const emptyWeekPlan = ({ classId, yearPlanId, weekStart, weekNo, themeId,
   weekNo,
   themeId,
   aims: { knowledge: '', skills: '', attitude: '' },
-  prep: '',
+  prep: { teacher: '', child: '', parent: '' },
+  corners: [],
   grid: emptyGrid(),
   days: [0, 1, 2, 3, 4].map((i) => emptyDay(addDays(weekStart, i))),
   status: 'DRAFT',
@@ -404,9 +484,8 @@ export const dayGoalsOf = (doc) =>
   });
 
 /*
- * Khung kế hoạch ngày lấy từ ô kế hoạch tuần như file Thái Dương: mỗi dòng của ô HĐ học / ngoài trời / buổi chiều
- * thành "Hoạt động n: …"; mục đích, chuẩn bị mỗi hoạt động một dòng (mục đích kèm câu MT đã chọn để cô viết lại).
- * goals: [{ id, no, text }] của chủ đề. Trả { aims, prep, steps: { 'hoc.b', 'ngoai_troi.x', 'chieu.x' } }.
+ * Khung giáo án ngày theo 4 mục lấy từ kế hoạch tuần (FR-005, FR-006): tên hoạt động, MT, gợi ý mục đích (câu MT để cô
+ * viết lại) và dòng tiến hành; mục góc lấy từ bảng góc chi tiết. Trả { hoc|ngoai_troi|goc|chieu: { name, goals, aims, prep, rows } }.
  */
 /**
  * Tên giờ học như file Thái Dương: môn + nội dung chính (dòng đầu của đề tài); các dòng sau là nội dung kết hợp (NDKH).
@@ -459,31 +538,86 @@ export function dayDraftFromWeek(doc, i, goals = []) {
     const ids = [...new Set(keys.flatMap((k) => doc.picks?.[k] || []).map((p) => p.goalId))];
     return ids.map((id) => goals.find((g) => g.id === id)).filter(Boolean);
   };
-  const hoc = doc.grid.hoc?.days?.[i] || {};
-  const parts = [
-    {
-      key: 'hoc',
-      step: 'hoc.b',
-      name: ['Hoạt động học', hocTitle(hoc)].filter(Boolean).join(': '),
-    },
-    { key: 'ngoai_troi', step: 'ngoai_troi.x', label: 'Chơi, hoạt động ngoài trời' },
-    { key: 'chieu', step: 'chieu.x', label: 'Chơi, hoạt động buổi chiều' },
-  ]
-    .map((p) => ({ ...p, items: lines(textOf(p.key)) }))
-    // Ngoài trời, buổi chiều ghi kèm nội dung hoạt động để cô biết đang viết mục đích / chuẩn bị cho hoạt động nào
-    .map((p) => (p.name ? p : { ...p, name: [p.label, p.items.join('; ')].filter(Boolean).join(': ') }));
-  const used = parts.filter((p) => p.items.length);
+  const mtAims = (key) =>
+    goalsOf(key)
+      .map((g) => `- MT${g.no}: ${g.text}`)
+      .join('\n');
+  const steps = (items) => items.map((t, n) => `Hoạt động ${n + 1}: ${t}`).join('\n');
+  const hocItems = lines(textOf('hoc'));
+  const corners = (doc.corners || []).filter((c) => c.name?.trim() || c.content?.trim());
+  const plain = (key) => {
+    const items = lines(textOf(key));
+    return {
+      name: items.join('; '),
+      goals: goalsOf(key),
+      aims: mtAims(key),
+      prep: '',
+      rows: items.length ? [{ title: '', teacher: steps(items) }] : [],
+    };
+  };
   return {
-    aims: used
-      .map((p) => {
-        const mt = goalsOf(p.key).map((g) => `MT${g.no}: ${g.text}`);
-        return `- ${p.name}${mt.length ? ` (${mt.join('; ')})` : ''}: `;
-      })
-      .join('\n'),
-    prep: used.map((p) => `- ${p.name}: `).join('\n'),
-    steps: Object.fromEntries(used.map((p) => [p.step, p.items.map((t, n) => `Hoạt động ${n + 1}: ${t}`).join('\n')])),
+    hoc: {
+      name: hocTitle(doc.grid.hoc?.days?.[i] || {}),
+      goals: goalsOf('hoc'),
+      aims: mtAims('hoc'),
+      prep: '',
+      rows: hocItems.length ? HOC_SUGGESTED_ROWS.map((title, n) => ({ title, teacher: n === 1 ? steps(hocItems) : '' })) : [],
+    },
+    ngoai_troi: plain('ngoai_troi'),
+    // Mục góc lấy từ bảng góc chi tiết của tuần (FR-015)
+    goc: {
+      name: corners.map((c) => [c.name, c.content].filter((x) => x?.trim()).join(': ')).join('; '),
+      goals: goalsOf('goc'),
+      aims: corners
+        .filter((c) => c.aims?.trim())
+        .map((c) => `- ${c.name}: ${c.aims}`)
+        .join('\n'),
+      prep: corners
+        .filter((c) => c.prep?.trim())
+        .map((c) => `- ${c.name}: ${c.prep}`)
+        .join('\n'),
+      rows: corners.map((c) => ({ title: c.name || '', teacher: c.steps || c.content || '' })),
+    },
+    chieu: plain('chieu'),
   };
 }
+
+/** Chữ ký nội dung dòng tiến hành để biết cô đã sửa sau lần "Lấy từ kế hoạch tuần" chưa. */
+export const rowsSig = (rows = []) =>
+  rows.map((r) => [r.title, r.teacher, r.child, r.note].map((x) => x || '').join('\u0001')).join('\u0002');
+export const rowsFromDraft = (rows) => rows.map((r) => ({ ...emptyRow(r.title), teacher: r.teacher || '' }));
+
+/** Dòng Góc của bảng Thứ 2–6 sinh từ bảng góc chi tiết, chỉ xem (FR-015b). */
+export function cornersToGrid(doc) {
+  const r = weekRows().find((x) => x.key === 'goc');
+  if (!r || !doc.corners) return doc;
+  const g = (doc.grid.goc ||= rowCell(doc, r));
+  g.allWeek = true;
+  g.common = doc.corners
+    .filter((c) => c.name?.trim() || c.content?.trim())
+    .map((c) => [c.name?.trim(), c.content?.trim()].filter(Boolean).join(': '))
+    .join('\n');
+  return doc;
+}
+
+/**
+ * Chép bảng góc tuần trước vào tuần đang trống (FR-015c); MT chỉ giữ khi thuộc MT của chủ đề tuần mới.
+ * goalIds: Set id MT của chủ đề tuần mới.
+ */
+export function copyPrevCorners(doc, prev, goalIds) {
+  if (!prev?.corners?.length || doc.corners?.length) return doc;
+  const idMap = new Map();
+  doc.corners = prev.corners.map((c) => {
+    const id = newId();
+    idMap.set(c.id, id);
+    return { ...c, id };
+  });
+  const picks = (prev.picks?.['goc.all'] || []).filter((p) => idMap.has(p.cornerId) && goalIds.has(p.goalId));
+  (doc.picks ||= {})['goc.all'] = picks.map((p) => ({ ...p, cornerId: idMap.get(p.cornerId) }));
+  return cornersToGrid(doc);
+}
+
+export const newCorner = () => ({ id: newId(), name: '', content: '', aims: '', prep: '', steps: '' });
 
 /*
  * Theo mẫu Thái Dương, hoạt động cụ thể của kế hoạch chủ đề chỉ xếp vào MỘT ô ngày trong cả chủ đề (muốn lặp thì viết
@@ -584,11 +718,11 @@ export function copyMergedRows(doc, prev) {
   return doc;
 }
 
-const HOC_PARTS = ['hoc.a', 'hoc.b', 'hoc.c'];
+const hocRowsOf = (day) => normalizeDay(day)?.sections?.hoc?.rows || [];
 
 /**
  * Bài dạy đã soạn có cùng môn + nội dung chính với giờ học của ngày (ở giáo án khác: lớp khác, năm trước) để dùng lại
- * tiến trình a/b/c: [{ doc, index, date, steps }], mới nhất trước.
+ * dòng tiến hành của mục học: [{ doc, index, date, rows }], mới nhất trước.
  */
 export function lessonReuseFor(docs, doc, index) {
   const key = normText(
@@ -597,18 +731,21 @@ export function lessonReuseFor(docs, doc, index) {
   if (!key) return [];
   return docs
     .filter((x) => x && x.id !== doc.id)
-    .flatMap((x) => (x.days || []).map((d, i) => ({ doc: x, index: i, date: d.date, steps: d.steps, hoc: x.grid?.hoc?.days?.[i] })))
+    .flatMap((x) => (x.days || []).map((d, i) => ({ doc: x, index: i, date: d.date, rows: hocRowsOf(d), hoc: x.grid?.hoc?.days?.[i] })))
     .filter((x) => x.hoc && normText(hocTitle({ ...x.hoc, topic: String(x.hoc.topic || '').split('\n')[0] })) === key)
-    .filter((x) => HOC_PARTS.some((k) => x.steps?.[k]?.teacher?.trim()))
+    .filter((x) => x.rows.some((r) => r.teacher?.trim()))
     .sort((a, b) => b.date.localeCompare(a.date));
 }
 
-/** Chép tiến trình a/b/c (cô, trẻ, ghi chú) vào các ô còn trống của giờ học trong ngày. */
-export function copyLessonSteps(doc, index, steps) {
-  HOC_PARTS.forEach((k) => {
-    const cur = doc.days[index].steps[k];
+/** Chép dòng tiến hành của mục học vào các dòng còn trống theo thứ tự; thiếu dòng thì thêm (FR-006). */
+export function copyLessonSteps(doc, index, rows) {
+  const target = doc.days[index].sections.hoc.rows;
+  (rows || []).forEach((src, i) => {
+    if (!target[i]) target.push(emptyRow(src.title || ''));
+    const cur = target[i];
+    if (!cur.title?.trim() && src.title?.trim()) cur.title = src.title;
     ['teacher', 'child', 'note'].forEach((f) => {
-      if (!cur[f]?.trim() && steps?.[k]?.[f]?.trim()) cur[f] = steps[k][f];
+      if (!cur[f]?.trim() && src[f]?.trim()) cur[f] = src[f];
     });
   });
   return doc;

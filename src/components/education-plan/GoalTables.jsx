@@ -148,51 +148,94 @@ function Suggest({ query, options, onPick, label, children, context, status, err
   useEffect(() => {
     if (open && activeIndex >= 0) document.getElementById(`${listId}-${activeIndex}`)?.scrollIntoView({ block: 'nearest' });
   }, [open, activeIndex, listId]);
-  const pick = (option) => { onPick(option); setOpen(false); setActive(null); };
+  const pick = (option) => {
+    onPick(option);
+    setOpen(false);
+    setActive(null);
+  };
   const keys = (event) => {
     if (event.nativeEvent.isComposing || event.shiftKey || event.target.tagName === 'SELECT') return;
     if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && shown.length) {
-      event.preventDefault(); event.stopPropagation(); setOpen(true);
-      const i = activeIndex < 0 ? (event.key === 'ArrowDown' ? 0 : shown.length - 1) :
-        (activeIndex + (event.key === 'ArrowDown' ? 1 : -1) + shown.length) % shown.length;
+      event.preventDefault();
+      event.stopPropagation();
+      setOpen(true);
+      const i =
+        activeIndex < 0
+          ? event.key === 'ArrowDown'
+            ? 0
+            : shown.length - 1
+          : (activeIndex + (event.key === 'ArrowDown' ? 1 : -1) + shown.length) % shown.length;
       setActive(shown[i].key);
     } else if (open && event.key === 'Enter' && activeIndex >= 0) {
-      event.preventDefault(); event.stopPropagation(); pick(shown[activeIndex]);
+      event.preventDefault();
+      event.stopPropagation();
+      pick(shown[activeIndex]);
     } else if (open && event.key === 'Escape') {
-      event.preventDefault(); event.stopPropagation(); setOpen(false); setActive(null);
+      event.preventDefault();
+      event.stopPropagation();
+      setOpen(false);
+      setActive(null);
     }
   };
   return (
-    <div className="search-select ga-curriculum-suggest" ref={anchorRef} onKeyDownCapture={keys}
-      onClick={(e) => { if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') setOpen(true); }}
-      onFocus={() => setOpen(true)} onBlur={(e) => {
+    <div
+      className="search-select ga-curriculum-suggest"
+      ref={anchorRef}
+      onKeyDownCapture={keys}
+      onClick={(e) => {
+        if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') setOpen(true);
+      }}
+      onFocus={() => setOpen(true)}
+      onBlur={(e) => {
         if (!anchorRef.current?.contains(e.relatedTarget) && !panelRef.current?.contains(e.relatedTarget)) setOpen(false);
-      }}>
-      {cloneElement(children, { role: 'combobox', 'aria-autocomplete': 'list', 'aria-expanded': open,
+      }}
+    >
+      {cloneElement(children, {
+        role: 'combobox',
+        'aria-autocomplete': 'list',
+        'aria-expanded': open,
         'aria-controls': open ? listId : undefined,
-        'aria-activedescendant': open && activeIndex >= 0 ? `${listId}-${activeIndex}` : undefined })}
+        'aria-activedescendant': open && activeIndex >= 0 ? `${listId}-${activeIndex}` : undefined,
+      })}
       {open && (
         <FloatingPanel anchorRef={anchorRef} panelRef={panelRef}>
           {context}
-          {error ? <div className="ga-suggest-state" role="alert">Không tải được gợi ý. <button type="button" className="link-btn" onClick={onRetry}>Thử lại</button></div> :
-            status ? <div className="ga-suggest-state" role="status">{status}</div> :
-            !shown.length && <div className="ga-suggest-state" role="status">Không có gợi ý phù hợp trong phạm vi đang chọn.</div>}
-          <div id={listId} className="search-select__list ga-curriculum-options" role="listbox" aria-label={label}>
-            {!error && !status && shown.map((o, i) => (
-              <button
-                type="button"
-                key={o.key}
-                id={`${listId}-${i}`}
-                tabIndex={-1}
-                role="option"
-                aria-selected={i === activeIndex}
-                className="search-select__option"
-                onPointerDown={(e) => e.preventDefault()}
-                onClick={() => pick(o)}
-              >
-                {o.text}
+          {error ? (
+            <div className="ga-suggest-state" role="alert">
+              Không tải được gợi ý.{' '}
+              <button type="button" className="link-btn" onClick={onRetry}>
+                Thử lại
               </button>
-            ))}
+            </div>
+          ) : status ? (
+            <div className="ga-suggest-state" role="status">
+              {status}
+            </div>
+          ) : (
+            !shown.length && (
+              <div className="ga-suggest-state" role="status">
+                Không có gợi ý phù hợp trong phạm vi đang chọn.
+              </div>
+            )
+          )}
+          <div id={listId} className="search-select__list ga-curriculum-options" role="listbox" aria-label={label}>
+            {!error &&
+              !status &&
+              shown.map((o, i) => (
+                <button
+                  type="button"
+                  key={o.key}
+                  id={`${listId}-${i}`}
+                  tabIndex={-1}
+                  role="option"
+                  aria-selected={i === activeIndex}
+                  className="search-select__option"
+                  onPointerDown={(e) => e.preventDefault()}
+                  onClick={() => pick(o)}
+                >
+                  {o.text}
+                </button>
+              ))}
           </div>
         </FloatingPanel>
       )}
@@ -251,7 +294,10 @@ export function GoalTable({
     let sub = null;
     let group = null;
     for (const row of domains[di].rows) {
-      if (row.kind === 'sub') { sub = row; group = null; }
+      if (row.kind === 'sub') {
+        sub = row;
+        group = null;
+      }
       if (row.kind === 'group') group = row;
       if (row.id === rowId) break;
     }
@@ -260,39 +306,104 @@ export function GoalTable({
   const sourceSuggest = (input, di, sub, group, kind, rowKey, onPick) => {
     if (!edit || !canSuggest) return input;
     const domain = domains[di];
-    const key = JSON.stringify([suggestionScope, ageGroupId, domain.id, sub?.id, kind === 'group' ? null : group?.id, sub?.curriculumSubDomainId, kind === 'group' ? null : group?.curriculumExpectedResultId, rowKey]);
+    const key = JSON.stringify([
+      suggestionScope,
+      ageGroupId,
+      domain.id,
+      sub?.id,
+      kind === 'group' ? null : group?.id,
+      sub?.curriculumSubDomainId,
+      kind === 'group' ? null : group?.curriculumExpectedResultId,
+      rowKey,
+    ]);
     renderedContexts.current.add(key);
     const manual = sourceContexts[key] || {};
     const mine = catalog.goals.filter((g) => g.domainName === domain.name);
-    const linkedGroup = mine.find((g) => group?.curriculumExpectedResultId != null &&
-      String(g.expectedResultId) === String(group.curriculumExpectedResultId) &&
-      (sub?.curriculumSubDomainId == null || String(g.subDomainId) === String(sub.curriculumSubDomainId)));
-    const subId = sub?.curriculumSubDomainId ?? (manual.subDomainId !== undefined ? manual.subDomainId : linkedGroup?.subDomainId ??
-      (!sub && mine.some((g) => g.subDomainId == null) ? null : undefined));
+    const linkedGroup = mine.find(
+      (g) =>
+        group?.curriculumExpectedResultId != null &&
+        String(g.expectedResultId) === String(group.curriculumExpectedResultId) &&
+        (sub?.curriculumSubDomainId == null || String(g.subDomainId) === String(sub.curriculumSubDomainId)),
+    );
+    const subId =
+      sub?.curriculumSubDomainId ??
+      (manual.subDomainId !== undefined
+        ? manual.subDomainId
+        : (linkedGroup?.subDomainId ?? (!sub && mine.some((g) => g.subDomainId == null) ? null : undefined)));
     const groupId = linkedGroup?.expectedResultId ?? manual.expectedResultId;
     const updateContext = (patch) => setSourceContexts((old) => ({ ...old, [key]: { ...manual, ...patch } }));
     const subOptions = [...new Map(mine.map((g) => [g.subDomainId ?? '@none', g])).values()];
     const groupOptions = curriculumOptions(mine, { domainName: domain.name, subDomainId: subId }, 'group');
     const options = curriculumOptions(mine, { domainName: domain.name, subDomainId: subId, expectedResultId: groupId }, kind);
-    const context = <div className="ga-suggest-context">
-      {sub?.curriculumSubDomainId == null && !linkedGroup && subOptions.length > 0 && <label>Lĩnh vực con nguồn
-        <select className="select" aria-label="Lĩnh vực con nguồn" value={subId === null ? '@none' : subId ?? ''} onChange={(e) => updateContext({ subDomainId: e.target.value === '@none' ? null : e.target.value || undefined, expectedResultId: undefined })}>
-          <option value="">Chọn lĩnh vực con nguồn</option>
-          {subOptions.map((g) => <option key={g.subDomainId ?? '@none'} value={g.subDomainId ?? '@none'}>{g.subDomain || 'Không có lĩnh vực con'}</option>)}
-        </select>
-      </label>}
-      {kind !== 'group' && !linkedGroup && subId !== undefined && <label>Kết quả mong đợi nguồn
-        <select className="select" aria-label="Kết quả mong đợi nguồn" value={groupId ?? ''} onChange={(e) => updateContext({ expectedResultId: e.target.value || undefined })}>
-          <option value="">Chọn kết quả mong đợi nguồn</option>
-          {groupOptions.map((o) => <option key={o.key} value={o.patch.curriculumExpectedResultId}>{o.text}</option>)}
-        </select>
-      </label>}
-    </div>;
-    const status = catalog.loading ? 'Đang tải gợi ý…' : !catalog.goals.length ? 'Chưa có dữ liệu của Bộ cho nhóm tuổi này.' :
-      subId === undefined ? 'Chọn lĩnh vực con nguồn để xem gợi ý.' : kind !== 'group' && groupId == null ? 'Chọn kết quả mong đợi nguồn để xem gợi ý.' : '';
-    return <Suggest key={key} query={input.props.value} options={options} context={context} status={status}
-      error={catalog.error} onRetry={catalog.reload} label={`Gợi ý ${kind === 'group' ? 'kết quả mong đợi' : kind === 'goal' ? 'mục tiêu' : 'nội dung giáo dục'}`}
-      onPick={(option) => { if (canSuggest && edit && !catalog.loading && !catalog.error && !status && options.some((o) => o.key === option.key)) onPick(option); }}>{input}</Suggest>;
+    const context = (
+      <div className="ga-suggest-context">
+        {sub?.curriculumSubDomainId == null && !linkedGroup && subOptions.length > 0 && (
+          <label>
+            Lĩnh vực con nguồn
+            <select
+              className="select"
+              aria-label="Lĩnh vực con nguồn"
+              value={subId === null ? '@none' : (subId ?? '')}
+              onChange={(e) =>
+                updateContext({ subDomainId: e.target.value === '@none' ? null : e.target.value || undefined, expectedResultId: undefined })
+              }
+            >
+              <option value="">Chọn lĩnh vực con nguồn</option>
+              {subOptions.map((g) => (
+                <option key={g.subDomainId ?? '@none'} value={g.subDomainId ?? '@none'}>
+                  {g.subDomain || 'Không có lĩnh vực con'}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {kind !== 'group' && !linkedGroup && subId !== undefined && (
+          <label>
+            Kết quả mong đợi nguồn
+            <select
+              className="select"
+              aria-label="Kết quả mong đợi nguồn"
+              value={groupId ?? ''}
+              onChange={(e) => updateContext({ expectedResultId: e.target.value || undefined })}
+            >
+              <option value="">Chọn kết quả mong đợi nguồn</option>
+              {groupOptions.map((o) => (
+                <option key={o.key} value={o.patch.curriculumExpectedResultId}>
+                  {o.text}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+      </div>
+    );
+    const status = catalog.loading
+      ? 'Đang tải gợi ý…'
+      : !catalog.goals.length
+        ? 'Chưa có dữ liệu của Bộ cho nhóm tuổi này.'
+        : subId === undefined
+          ? 'Chọn lĩnh vực con nguồn để xem gợi ý.'
+          : kind !== 'group' && groupId == null
+            ? 'Chọn kết quả mong đợi nguồn để xem gợi ý.'
+            : '';
+    return (
+      <Suggest
+        key={key}
+        query={input.props.value}
+        options={options}
+        context={context}
+        status={status}
+        error={catalog.error}
+        onRetry={catalog.reload}
+        label={`Gợi ý ${kind === 'group' ? 'kết quả mong đợi' : kind === 'goal' ? 'mục tiêu' : 'nội dung giáo dục'}`}
+        onPick={(option) => {
+          if (canSuggest && edit && !catalog.loading && !catalog.error && !status && options.some((o) => o.key === option.key))
+            onPick(option);
+        }}
+      >
+        {input}
+      </Suggest>
+    );
   };
   const [labelFill, setLabelFill] = useState(null);
   const fillRef = useRef(null);
@@ -569,7 +680,7 @@ export function GoalTable({
       <>
         <td
           rowSpan={span}
-          className={`ga-stt${isEditing && fixedCells ? ' cell--fixed' : (isEditing ? ' ga-cell-editable' : '')}${edit && editLabels && no ? ` ga-goal-label-cell${fillIds.has(r.id) ? ' ga-goal-label-cell--fill' : ''}` : ''}`}
+          className={`ga-stt${isEditing && fixedCells ? ' cell--fixed' : isEditing ? ' ga-cell-editable' : ''}${edit && editLabels && no ? ` ga-goal-label-cell${fillIds.has(r.id) ? ' ga-goal-label-cell--fill' : ''}` : ''}`}
           onPointerEnter={() => {
             const range = fillRef.current;
             if (range && !range.keyboard && no) updateFill({ ...range, target: r.id });
@@ -614,15 +725,23 @@ export function GoalTable({
             </div>
           )}
         </td>
-        <td rowSpan={span} className={isEditing && fixedCells ? 'cell--fixed' : (isEditing ? 'ga-cell-editable' : '')}>
+        <td rowSpan={span} className={isEditing && fixedCells ? 'cell--fixed' : isEditing ? 'ga-cell-editable' : ''}>
           {edit ? (
             <>
-              {sourceSuggest(tierInput(di, r, `Mục tiêu ${no || 'mới'} lĩnh vực ${d.name}`, {
-                kind: 'goal',
-                after: r.id,
-                // Enter ở mục tiêu: thêm mục tiêu mới ngay dưới, cùng nhóm (mỗi tầng Enter thêm mục cùng tầng)
-                onEnter: () => insertAfter(di, r.id, [make('goal')]),
-              }), di, parent.sub, parent.group, 'goal', r.id, (o) => patchRow(di, r.id, { text: o.text, ...o.patch }))}
+              {sourceSuggest(
+                tierInput(di, r, `Mục tiêu ${no || 'mới'} lĩnh vực ${d.name}`, {
+                  kind: 'goal',
+                  after: r.id,
+                  // Enter ở mục tiêu: thêm mục tiêu mới ngay dưới, cùng nhóm (mỗi tầng Enter thêm mục cùng tầng)
+                  onEnter: () => insertAfter(di, r.id, [make('goal')]),
+                }),
+                di,
+                parent.sub,
+                parent.group,
+                'goal',
+                r.id,
+                (o) => patchRow(di, r.id, { text: o.text, ...o.patch }),
+              )}
               {!r.text.trim() && (
                 <div className="ga-goal-table__pad text-xs text-danger" role="alert">
                   Chưa nhập mục tiêu giáo dục
@@ -631,7 +750,10 @@ export function GoalTable({
               {dupHint(r.id, 'Mục tiêu đã có')}
             </>
           ) : (
-            <div className="ga-goal-table__pad">{r.text}<SourceItemMark itemKind="GOAL" itemId={r.id} reviewItems={reviewItems} newItems={newItems} /></div>
+            <div className="ga-goal-table__pad">
+              {r.text}
+              <SourceItemMark itemKind="GOAL" itemId={r.id} reviewItems={reviewItems} newItems={newItems} />
+            </div>
           )}
         </td>
       </>
@@ -665,23 +787,32 @@ export function GoalTable({
           <tr key={`new-content-${r.id}`}>
             {k === 0 && lead}
             {k === 0 && head}
-            <td className={editContent ? 'ga-goal-content-cell ga-cell-editable' : (isEditing && fixedCells ? 'cell--fixed' : '')}>
+            <td className={editContent ? 'ga-goal-content-cell ga-cell-editable' : isEditing && fixedCells ? 'cell--fixed' : ''}>
               {editContent && r.text.trim()
-                ? sourceSuggest(cellInput({
-                    'aria-label': `Nội dung đầu tiên của mục tiêu ${no}`,
-                    placeholder: 'Nhập nội dung',
-                    value: '',
-                    onChange: (e) => addContentsAfter(di, r, null, [e.target.value], false, nextContentId),
-                    onKeyDown: (e) => enterKey(e) && e.preventDefault(),
-                    onPaste: (e) => {
-                      const lines = pastedLines(e);
-                      if (!lines.length) return;
-                      e.preventDefault();
-                      addContentsAfter(di, r, null, lines, false, nextContentId);
+                ? sourceSuggest(
+                    cellInput({
+                      'aria-label': `Nội dung đầu tiên của mục tiêu ${no}`,
+                      placeholder: 'Nhập nội dung',
+                      value: '',
+                      onChange: (e) => addContentsAfter(di, r, null, [e.target.value], false, nextContentId),
+                      onKeyDown: (e) => enterKey(e) && e.preventDefault(),
+                      onPaste: (e) => {
+                        const lines = pastedLines(e);
+                        if (!lines.length) return;
+                        e.preventDefault();
+                        addContentsAfter(di, r, null, lines, false, nextContentId);
+                      },
+                    }),
+                    di,
+                    parent.sub,
+                    parent.group,
+                    'content',
+                    nextContentId,
+                    (o) => {
+                      if (!r.contents.some((c) => normalizeText(c.text) === normalizeText(o.text)))
+                        addContentsAfter(di, r, null, [o.text], false, nextContentId);
                     },
-                  }), di, parent.sub, parent.group, 'content', nextContentId, (o) => {
-                    if (!r.contents.some((c) => normalizeText(c.text) === normalizeText(o.text))) addContentsAfter(di, r, null, [o.text], false, nextContentId);
-                  })
+                  )
                 : dash}
               {r.text.trim() && !(r.contents || []).some((c) => c?.text?.trim()) && (
                 <div className="ga-goal-table__pad text-xs text-danger" role="alert">
@@ -697,39 +828,49 @@ export function GoalTable({
         <tr key={c.id}>
           {k === 0 && lead}
           {k === 0 && head}
-          <td className={editContent ? 'ga-goal-content-cell ga-cell-editable' : (isEditing && fixedCells ? 'cell--fixed' : '')}>
+          <td className={editContent ? 'ga-goal-content-cell ga-cell-editable' : isEditing && fixedCells ? 'cell--fixed' : ''}>
             {editContent ? (
               <>
                 <div className="ga-goal-line__text">
-                  {sourceSuggest(cellInput({
-                    'data-focus': c.id,
-                    'aria-label': `Nội dung ${k + 1} của mục tiêu ${no || 'mới'}`,
-                    placeholder: 'Nhập nội dung',
-                    value: c.text,
-                    onChange: (e) => mapContents(di, r.id, (cs) => cs.map((x) => (x.id === c.id ? { ...x, text: e.target.value } : x))),
-                    onKeyDown: contentKeys(di, r, c),
-                    onPaste: contentPaste(di, r, c),
-                  }), di, parent.sub, parent.group, 'content', c.id, (o) => {
-                    if (!r.contents.some((other) => other.id !== c.id && normalizeText(other.text) === normalizeText(o.text)))
-                      mapContents(di, r.id, (cs) => cs.map((x) => x.id === c.id ? { ...x, text: o.text } : x));
-                  })}
-                  {edit && <button
-                    type="button"
-                    className="icon-btn icon-btn--danger"
-                    onClick={() =>
-                      askDelete(
-                        'Xóa nội dung',
-                        `Xóa nội dung ${k + 1}${quoted(c.text)} của mục tiêu ${no ? `MT${no}` : 'mới'}?${
-                          c.themes.length ? ' Dấu tích chủ đề của nội dung này cũng bị bỏ.' : ''
-                        }`,
-                        () => mapContents(di, r.id, (cs) => cs.filter((x) => x.id !== c.id)),
-                      )
-                    }
-                    aria-label={`Xóa nội dung ${k + 1}`}
-                    title="Xóa nội dung"
-                  >
-                    <X size={16} aria-hidden />
-                  </button>}
+                  {sourceSuggest(
+                    cellInput({
+                      'data-focus': c.id,
+                      'aria-label': `Nội dung ${k + 1} của mục tiêu ${no || 'mới'}`,
+                      placeholder: 'Nhập nội dung',
+                      value: c.text,
+                      onChange: (e) => mapContents(di, r.id, (cs) => cs.map((x) => (x.id === c.id ? { ...x, text: e.target.value } : x))),
+                      onKeyDown: contentKeys(di, r, c),
+                      onPaste: contentPaste(di, r, c),
+                    }),
+                    di,
+                    parent.sub,
+                    parent.group,
+                    'content',
+                    c.id,
+                    (o) => {
+                      if (!r.contents.some((other) => other.id !== c.id && normalizeText(other.text) === normalizeText(o.text)))
+                        mapContents(di, r.id, (cs) => cs.map((x) => (x.id === c.id ? { ...x, text: o.text } : x)));
+                    },
+                  )}
+                  {edit && (
+                    <button
+                      type="button"
+                      className="icon-btn icon-btn--danger"
+                      onClick={() =>
+                        askDelete(
+                          'Xóa nội dung',
+                          `Xóa nội dung ${k + 1}${quoted(c.text)} của mục tiêu ${no ? `MT${no}` : 'mới'}?${
+                            c.themes.length ? ' Dấu tích chủ đề của nội dung này cũng bị bỏ.' : ''
+                          }`,
+                          () => mapContents(di, r.id, (cs) => cs.filter((x) => x.id !== c.id)),
+                        )
+                      }
+                      aria-label={`Xóa nội dung ${k + 1}`}
+                      title="Xóa nội dung"
+                    >
+                      <X size={16} aria-hidden />
+                    </button>
+                  )}
                 </div>
                 {!c.text.trim() && (
                   <div className="ga-goal-table__pad text-xs text-danger" role="alert">
@@ -745,7 +886,10 @@ export function GoalTable({
                 {dupHint(c.id, 'Nội dung đã có')}
               </>
             ) : (
-              <div className="ga-goal-table__pad">{c.text}<SourceItemMark itemKind="CONTENT" itemId={c.id} reviewItems={reviewItems} newItems={newItems} /></div>
+              <div className="ga-goal-table__pad">
+                {c.text}
+                <SourceItemMark itemKind="CONTENT" itemId={c.id} reviewItems={reviewItems} newItems={newItems} />
+              </div>
             )}
           </td>
           {themeCells(di, r, c, `nội dung ${k + 1} của mục tiêu ${no || 'mới'}`)}
@@ -813,7 +957,12 @@ export function GoalTable({
     );
   };
   const goalSpan = (r) =>
-    Math.max(readOnly && !editContent ? r.contents.filter((c) => c.text.trim()).length : r.contents.length + (editContent && r.text.trim() ? 1 : 0), 1);
+    Math.max(
+      readOnly && !editContent
+        ? r.contents.filter((c) => c.text.trim()).length
+        : r.contents.length + (editContent && r.text.trim() ? 1 : 0),
+      1,
+    );
   const groupSpan = (gr) => Math.max(gr.goals.reduce((n, r) => n + goalSpan(r), 0) + (edit ? 1 : 0), 1);
 
   /**
@@ -871,17 +1020,25 @@ export function GoalTable({
         const beforeId = edit && !gr.group && gr.goals.length ? allocateNewRowId(JSON.stringify([di, 'before', gr.goals[0].id])) : null;
         const nextGoalId = edit ? allocateNewRowId(JSON.stringify([di, 'goal', gr.last])) : null;
         let groupCell = (
-          <td key="group" rowSpan={groupSpan(gr)} className={isEditing && fixedCells ? 'cell--fixed' : (isEditing ? 'ga-cell-editable' : '')}>
+          <td key="group" rowSpan={groupSpan(gr)} className={isEditing && fixedCells ? 'cell--fixed' : isEditing ? 'ga-cell-editable' : ''}>
             {gr.group ? (
               edit ? (
                 <>
                   <div className="ga-goal-line__text">
-                    {sourceSuggest(tierInput(di, gr.group, 'Nhóm kết quả mong đợi', {
+                    {sourceSuggest(
+                      tierInput(di, gr.group, 'Nhóm kết quả mong đợi', {
                         kind: 'group',
                         after: gr.last,
                         placeholder: GROUP_HINT,
                         onEnter: () => insertAfter(di, gr.last, [make('group')]),
-                      }), di, b.sub, gr.group, 'group', gr.group.id, (o) => patchRow(di, gr.group.id, { text: o.text, ...o.patch }))}
+                      }),
+                      di,
+                      b.sub,
+                      gr.group,
+                      'group',
+                      gr.group.id,
+                      (o) => patchRow(di, gr.group.id, { text: o.text, ...o.patch }),
+                    )}
                     <button
                       type="button"
                       className="icon-btn icon-btn--danger"
@@ -912,13 +1069,21 @@ export function GoalTable({
               )
             ) : edit && gr.goals.length ? (
               // Mục tiêu chưa thuộc nhóm nào: gõ vào đây để bổ sung nhóm kết quả cho các mục tiêu này
-              sourceSuggest(cellInput({
+              sourceSuggest(
+                cellInput({
                   'aria-label': `Bổ sung kết quả mong đợi cho MT${numbers[gr.goals[0].id] || ''}`,
                   placeholder: GROUP_HINT,
                   value: '',
                   onChange: (e) => addGroupBefore(di, gr.goals[0].id, e.target.value, {}, beforeId),
                   onKeyDown: (e) => enterKey(e) && e.preventDefault(),
-                }), di, b.sub, null, 'group', beforeId, (o) => addGroupBefore(di, gr.goals[0].id, o.text, o.patch, beforeId))
+                }),
+                di,
+                b.sub,
+                null,
+                'group',
+                beforeId,
+                (o) => addGroupBefore(di, gr.goals[0].id, o.text, o.patch, beforeId),
+              )
             ) : (
               dash
             )}
@@ -934,9 +1099,20 @@ export function GoalTable({
           out.push(
             <tr key={`new-goal-${bi}-${gi}`}>
               {lead()}
-              <td className={`ga-stt${isEditing && fixedCells ? ' cell--fixed' : (isEditing ? ' ga-cell-editable' : '')}`}>{editLabels ? newGoalLabel(di, gr.last) : dash}</td>
-              <td colSpan={restSpan - 1} className={isEditing ? 'ga-cell-editable' : ''}>{sourceSuggest(newInput(di, 'goal', gr.last, `Thêm mục tiêu lĩnh vực ${d.name}`, NEW_GOAL_HINT, nextGoalId),
-                di, b.sub, gr.group, 'goal', nextGoalId, (o) => insertAfter(di, gr.last, [{ ...make('goal', o.text), id: nextGoalId, ...o.patch }]))}</td>
+              <td className={`ga-stt${isEditing && fixedCells ? ' cell--fixed' : isEditing ? ' ga-cell-editable' : ''}`}>
+                {editLabels ? newGoalLabel(di, gr.last) : dash}
+              </td>
+              <td colSpan={restSpan - 1} className={isEditing ? 'ga-cell-editable' : ''}>
+                {sourceSuggest(
+                  newInput(di, 'goal', gr.last, `Thêm mục tiêu lĩnh vực ${d.name}`, NEW_GOAL_HINT, nextGoalId),
+                  di,
+                  b.sub,
+                  gr.group,
+                  'goal',
+                  nextGoalId,
+                  (o) => insertAfter(di, gr.last, [{ ...make('goal', o.text), id: nextGoalId, ...o.patch }]),
+                )}
+              </td>
               <td className={isEditing ? 'ga-cell-editable' : ''} />
             </tr>,
           );
@@ -944,7 +1120,7 @@ export function GoalTable({
           out.push(
             <tr key={`empty-${bi}-${gi}`}>
               {lead()}
-              <td colSpan={restSpan} className={isEditing && fixedCells ? 'cell--fixed' : (isEditing ? 'ga-cell-editable' : '')}>
+              <td colSpan={restSpan} className={isEditing && fixedCells ? 'cell--fixed' : isEditing ? 'ga-cell-editable' : ''}>
                 <div className="ga-goal-table__pad text-xs text-danger" role="alert">
                   Nhóm kết quả cần ít nhất một mục tiêu
                 </div>
@@ -959,13 +1135,30 @@ export function GoalTable({
           // Luôn giữ ô trống cuối tầng để gõ thêm kết quả mong đợi, giống ô thêm mục tiêu.
           <tr key={`new-group-${bi}`}>
             <td className={isEditing ? 'ga-cell-editable' : ''}>
-              {sourceSuggest(newInput(di, 'group', b.last, `Thêm nhóm kết quả lĩnh vực ${d.name}`, GROUP_HINT, nextGroupId),
-                di, b.sub, null, 'group', nextGroupId, (o) => insertAfter(di, b.last, [{ ...make('group', o.text), id: nextGroupId, ...o.patch }]))}
+              {sourceSuggest(
+                newInput(di, 'group', b.last, `Thêm nhóm kết quả lĩnh vực ${d.name}`, GROUP_HINT, nextGroupId),
+                di,
+                b.sub,
+                null,
+                'group',
+                nextGroupId,
+                (o) => insertAfter(di, b.last, [{ ...make('group', o.text), id: nextGroupId, ...o.patch }]),
+              )}
             </td>
-            <td className={`ga-stt${isEditing && fixedCells ? ' cell--fixed' : (isEditing ? ' ga-cell-editable' : '')}`}>{editLabels && !b.groups.length ? newGoalLabel(di, b.last) : dash}</td>
+            <td className={`ga-stt${isEditing && fixedCells ? ' cell--fixed' : isEditing ? ' ga-cell-editable' : ''}`}>
+              {editLabels && !b.groups.length ? newGoalLabel(di, b.last) : dash}
+            </td>
             <td colSpan={restSpan - 1} className="ga-cell-editable">
-              {!b.groups.length && sourceSuggest(newInput(di, 'goal', b.last, `Thêm mục tiêu lĩnh vực ${d.name}`, NEW_GOAL_HINT, ungroupedGoalId),
-                di, b.sub, null, 'goal', ungroupedGoalId, (o) => insertAfter(di, b.last, [{ ...make('goal', o.text), id: ungroupedGoalId, ...o.patch }]))}
+              {!b.groups.length &&
+                sourceSuggest(
+                  newInput(di, 'goal', b.last, `Thêm mục tiêu lĩnh vực ${d.name}`, NEW_GOAL_HINT, ungroupedGoalId),
+                  di,
+                  b.sub,
+                  null,
+                  'goal',
+                  ungroupedGoalId,
+                  (o) => insertAfter(di, b.last, [{ ...make('goal', o.text), id: ungroupedGoalId, ...o.patch }]),
+                )}
             </td>
             <td className="ga-cell-editable" />
           </tr>,
@@ -974,7 +1167,9 @@ export function GoalTable({
         out.push(
           <tr key={`empty-${bi}`}>
             <td className="cell--fixed">{dash}</td>
-            <td colSpan={restSpan} className="cell--fixed">{dash}</td>
+            <td colSpan={restSpan} className="cell--fixed">
+              {dash}
+            </td>
           </tr>,
         );
     });
@@ -1017,20 +1212,50 @@ export function GoalTable({
           </colgroup>
           <thead>
             <tr>
-              <th rowSpan={headRows} className={isEditing && fixedCells ? 'cell--fixed' : (isEditing ? 'ga-th-editable' : '')}>
-                Nhóm kết quả mong đợi{edit && <><span className="req" aria-hidden="true"> *</span><span className="sr-only"> Bắt buộc khi gửi duyệt</span></>}
+              <th rowSpan={headRows} className={isEditing && fixedCells ? 'cell--fixed' : isEditing ? 'ga-th-editable' : ''}>
+                Nhóm kết quả mong đợi
+                {edit && (
+                  <>
+                    <span className="req" aria-hidden="true">
+                      {' '}
+                      *
+                    </span>
+                    <span className="sr-only"> Bắt buộc khi gửi duyệt</span>
+                  </>
+                )}
               </th>
-              <th rowSpan={headRows} className={`ga-stt${isEditing && fixedCells ? ' cell--fixed' : (isEditing ? ' ga-th-editable' : '')}`}>
+              <th rowSpan={headRows} className={`ga-stt${isEditing && fixedCells ? ' cell--fixed' : isEditing ? ' ga-th-editable' : ''}`}>
                 STT
               </th>
-              <th rowSpan={headRows} className={isEditing && fixedCells ? 'cell--fixed' : (isEditing ? 'ga-th-editable' : '')}>
-                Mục tiêu giáo dục{edit && <><span className="req" aria-hidden="true"> *</span><span className="sr-only"> Bắt buộc khi gửi duyệt</span></>}
+              <th rowSpan={headRows} className={isEditing && fixedCells ? 'cell--fixed' : isEditing ? 'ga-th-editable' : ''}>
+                Mục tiêu giáo dục
+                {edit && (
+                  <>
+                    <span className="req" aria-hidden="true">
+                      {' '}
+                      *
+                    </span>
+                    <span className="sr-only"> Bắt buộc khi gửi duyệt</span>
+                  </>
+                )}
               </th>
-              <th rowSpan={headRows} className={editContent ? 'ga-th-editable' : (isEditing && fixedCells ? 'cell--fixed' : '')}>
-                Nội dung giáo dục{edit && <><span className="req" aria-hidden="true"> *</span><span className="sr-only"> Bắt buộc khi gửi duyệt</span></>}
+              <th rowSpan={headRows} className={editContent ? 'ga-th-editable' : isEditing && fixedCells ? 'cell--fixed' : ''}>
+                Nội dung giáo dục
+                {edit && (
+                  <>
+                    <span className="req" aria-hidden="true">
+                      {' '}
+                      *
+                    </span>
+                    <span className="sr-only"> Bắt buộc khi gửi duyệt</span>
+                  </>
+                )}
               </th>
               {themes.length > 0 && (
-                <th colSpan={themes.length} className={`center ${isEditing && canAssignContents ? 'ga-th-editable' : (isEditing && fixedCells ? 'cell--fixed' : '')}`}>
+                <th
+                  colSpan={themes.length}
+                  className={`center ${isEditing && canAssignContents ? 'ga-th-editable' : isEditing && fixedCells ? 'cell--fixed' : ''}`}
+                >
                   Chủ đề thực hiện
                 </th>
               )}
@@ -1043,7 +1268,11 @@ export function GoalTable({
             {themes.length > 0 && (
               <tr>
                 {themes.map((t) => (
-                  <th key={t.id} className={`center text-xs ${isEditing && canAssignContents ? 'ga-th-editable' : (isEditing && fixedCells ? 'cell--fixed' : '')}`} title={t.name}>
+                  <th
+                    key={t.id}
+                    className={`center text-xs ${isEditing && canAssignContents ? 'ga-th-editable' : isEditing && fixedCells ? 'cell--fixed' : ''}`}
+                    title={t.name}
+                  >
                     {themeAbbr(t) || '?'}
                   </th>
                 ))}
@@ -1153,7 +1382,17 @@ function ThemeGoalPreview({ domains, theme }) {
   );
 }
 
-function BranchTemplateNames({ theme, templates, onChange, onDelete, readOnly, leadingCells, trailingCells, breaks = [], durationLimits = null }) {
+function BranchTemplateNames({
+  theme,
+  templates,
+  onChange,
+  onDelete,
+  readOnly,
+  leadingCells,
+  trailingCells,
+  breaks = [],
+  durationLimits = null,
+}) {
   const setFocusId = useCellFocus();
   const values = templates.filter((t) => String(t.themeId) === String(theme.id));
   const next = `branch-new-${theme.id}`;
@@ -1549,7 +1788,11 @@ export function ThemeEventTable({
                     {!readOnly && overlapOf(t).length > 0 && (
                       <div className="ga-goal-table__pad text-xs text-danger">Trùng thời gian với {overlapOf(t).join(', ')}</div>
                     )}
-                    {durationIssue && <div className="ga-goal-table__pad text-xs text-danger" role="alert">{durationIssue}</div>}
+                    {durationIssue && (
+                      <div className="ga-goal-table__pad text-xs text-danger" role="alert">
+                        {durationIssue}
+                      </div>
+                    )}
                     {!readOnly && !isWholeWeekTheme(t) && !themeSug.has(t.id) && (
                       <div className="ga-goal-table__pad text-xs text-danger">Bắt đầu Thứ 2, kết thúc Thứ 6</div>
                     )}
@@ -1641,7 +1884,10 @@ export function ThemeEventTable({
           labelOf={breakLabel}
           disabled={readOnly}
         >
-          <table className={`table ga-plan-table ga-goal-table${fixedFields ? ' ga-theme-edit-fixed' : ''}${readOnly && !fixedFields ? ' ga-table-readonly' : ''}`} onMouseDown={focusCell}>
+          <table
+            className={`table ga-plan-table ga-goal-table${fixedFields ? ' ga-theme-edit-fixed' : ''}${readOnly && !fixedFields ? ' ga-table-readonly' : ''}`}
+            onMouseDown={focusCell}
+          >
             <colgroup>
               <col className="ga-col-stt" />
               <col />
@@ -1688,7 +1934,9 @@ export function ThemeEventTable({
                     </div>
                     {breakSug.has(b.id) && suggestion(breakSug.get(b.id), () => patchBreak(b.id, breakSug.get(b.id)))}
                   </td>
-                  {!readOnly && <td className="cell--actions">{actionButtons(breakLabel(i), () => askDeleteBreak(b, i), `Xóa đợt nghỉ ${i + 1}`)}</td>}
+                  {!readOnly && (
+                    <td className="cell--actions">{actionButtons(breakLabel(i), () => askDeleteBreak(b, i), `Xóa đợt nghỉ ${i + 1}`)}</td>
+                  )}
                 </SortableRow>
               ))}
               {!readOnly && newRow(2, 'Thêm đợt nghỉ', NO_BREAKS_HINT, (label) => insertBreak(breaks.length - 1, label))}

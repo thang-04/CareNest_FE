@@ -48,8 +48,10 @@ export function BranchCalendarEditor({ plan, doc, editable, onChange, toast }) {
         const theme = plan.themes.find((t) => String(t.id) === String(schedule.themeId));
         if (!theme) return null;
         const templates = (plan.branchTemplates || []).filter((t) => String(t.themeId) === String(theme.id));
-        const themeDuration = limits?.mode === 'BOUNDED'
-          ? durationRangeIssue({ start: schedule.startDate, end: schedule.endDate }, plan.breaks || [], limits.theme, 'Chủ đề') : null;
+        const themeDuration =
+          limits?.mode === 'BOUNDED'
+            ? durationRangeIssue({ start: schedule.startDate, end: schedule.endDate }, plan.breaks || [], limits.theme, 'Chủ đề')
+            : null;
         return (
           <section key={theme.id} className="stack">
             <div className="row gap-2">
@@ -126,7 +128,11 @@ export function BranchCalendarEditor({ plan, doc, editable, onChange, toast }) {
                 </label>
               </div>
             )}
-            {editable && themeDuration && <div className="field__error" role="alert">{themeDuration}</div>}
+            {editable && themeDuration && (
+              <div className="field__error" role="alert">
+                {themeDuration}
+              </div>
+            )}
             {editable && (
               <div className="row gap-2">
                 {templates.map((t) => {
@@ -226,9 +232,12 @@ export function BranchCalendarEditor({ plan, doc, editable, onChange, toast }) {
                           Bỏ nhánh
                         </button>
                       </div>
-                      {limits?.mode === 'BOUNDED' && durationRangeIssue({ start: b.startDate, end: b.endDate }, plan.breaks || [], limits.branch, 'Nhánh') && (
-                        <div className="field__error" role="alert">{durationRangeIssue({ start: b.startDate, end: b.endDate }, plan.breaks || [], limits.branch, 'Nhánh')}</div>
-                      )}
+                      {limits?.mode === 'BOUNDED' &&
+                        durationRangeIssue({ start: b.startDate, end: b.endDate }, plan.breaks || [], limits.branch, 'Nhánh') && (
+                          <div className="field__error" role="alert">
+                            {durationRangeIssue({ start: b.startDate, end: b.endDate }, plan.breaks || [], limits.branch, 'Nhánh')}
+                          </div>
+                        )}
                     </div>
                   ))}
               </div>

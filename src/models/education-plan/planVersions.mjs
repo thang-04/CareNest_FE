@@ -142,7 +142,7 @@ const idMap = (list) => new Map((list || []).filter((x) => x.fromId != null && x
 
 const clone = (v) => JSON.parse(JSON.stringify(v ?? null));
 
-const SERVER_FIELDS = ['status', 'approvals', 'history', 'adjustments', 'superseded', 'yearPlanVersion', 'sourceDocKey', 'versionChecks'];
+const SERVER_FIELDS = ['status', 'approvals', 'history', 'superseded', 'yearPlanVersion', 'sourceDocKey', 'versionChecks'];
 
 /**
  * Bản chép Nháp trên phiên bản plan từ source (phiên bản cũ): đổi id MT/chủ đề theo lineage; tham chiếu tới mục bị bỏ

@@ -1,5 +1,5 @@
 import { adaptCalendar, calendarPlan, seedTeamBranchTemplates } from '@/models/education-plan/branchCalendar.mjs';
-import { useMemo } from 'react';
+import { useId, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Check, Eye, Send } from '@/components/ui/icons';
 import { SIGNER_SHORT } from '@/components/education-plan/reviewUi';
@@ -85,7 +85,9 @@ export function useClassPlanContext(classId) {
     users,
     isClassTeacher,
     isHomeroomTeacher,
-    canCreate: (kind) => canComposeClassDocs && creationCapabilities.some((cap) => String(cap.classId) === String(classId) && cap.kind === kind && cap.canCreate),
+    canCreate: (kind) =>
+      canComposeClassDocs &&
+      creationCapabilities.some((cap) => String(cap.classId) === String(classId) && cap.kind === kind && cap.canCreate),
     canComposeClassDocs,
     canPickClass,
     isGroupLeader,
@@ -185,17 +187,22 @@ export function DocReviewButton({
   );
 }
 
-/** Lọc nhóm tuổi trước rồi chọn lớp (HT/PHT, tổ trưởng); đổi nhóm tuổi ⇒ mở lớp đầu tiên của nhóm đó. */
+/** Lọc nhóm tuổi trước rồi chọn lớp (spec 005 FR-022); đổi nhóm tuổi ⇒ mở lớp đầu tiên của nhóm đó. */
 export function ClassPicker({ classes, classId, onPick }) {
+  const id = useId();
   const current = classes.find((c) => c.id === classId);
   const groups = AGE_GROUPS.filter((g) => classes.some((c) => c.ageGroupId === g.id));
   const inGroup = classes.filter((c) => c.ageGroupId === current?.ageGroupId);
   return (
     <>
-      {groups.length > 1 && (
+      <div className="field">
+        <label className="field__label" htmlFor={`${id}-age`}>
+          Nhóm tuổi
+        </label>
         <select
+          id={`${id}-age`}
           className="select"
-          aria-label="Chọn nhóm tuổi"
+          disabled={groups.length < 2}
           value={current?.ageGroupId || ''}
           onChange={(e) => {
             const first = classes.find((c) => c.ageGroupId === e.target.value);
@@ -208,14 +215,32 @@ export function ClassPicker({ classes, classId, onPick }) {
             </option>
           ))}
         </select>
-      )}
-      <select className="select" aria-label="Chọn lớp" value={classId} onChange={(e) => onPick(e.target.value)}>
-        {(inGroup.length ? inGroup : classes).map((c) => (
-          <option key={c.id} value={c.id}>
-            {c.name}
-          </option>
-        ))}
-      </select>
+      </div>
+      <div className="field">
+        <label className="field__label" htmlFor={`${id}-class`}>
+          Lớp
+        </label>
+        <select id={`${id}-class`} className="select" value={classId} onChange={(e) => onPick(e.target.value)}>
+          {(inGroup.length ? inGroup : classes).map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+      </div>
     </>
+  );
+}
+
+/** Hàng lọc chung của các màn tài liệu lớp: Nhóm tuổi → Lớp rồi các ô lọc riêng của màn; ô chọn cùng cỡ (FR-022a). */
+export function ClassFilterBar({ classes, classId, onPick, canPick = true, children }) {
+  if (!canPick && !children) return null;
+  return (
+    <div className="card mb-16">
+      <div className="filter-bar">
+        {canPick && <ClassPicker classes={classes} classId={classId} onPick={onPick} />}
+        {children}
+      </div>
+    </div>
   );
 }

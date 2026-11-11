@@ -1,8 +1,8 @@
 import { useEffect, useId, useState } from 'react';
 import { Navigate, useParams } from 'react-router-dom';
-import { ClassPicker, docReview } from '@/components/education-plan/planUi';
+import { ClassFilterBar, docReview } from '@/components/education-plan/planUi';
 import { ReviewActions } from '@/components/education-plan/reviewUi';
-import { BlockedNotice, DeadlineBadge, ExtendDeadlineButton } from '@/components/education-plan/DeadlineWidgets';
+import { BlockedNotice, DeadlineBadge } from '@/components/education-plan/DeadlineWidgets';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { Copy, FileDown, Save } from '@/components/ui/icons';
 import { Card, EduStatusBadge, Notice, PageHead, fmtDate } from '@/components/education-plan/eduUi';
@@ -20,6 +20,7 @@ import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
 import {
+  DAY_SECTIONS,
   WEEKDAY_LABELS,
   branchNumber,
   createBlocker,
@@ -28,14 +29,17 @@ import {
   emptyWeekPlan,
   isEditableStatus,
   lessonReuseFor,
+  normalizeDay,
+  normalizeWeek,
   placedInOtherWeeks,
+  sectionHasContent,
   themeCoverage,
   todayIso,
   themeActivities,
   themeGoalBlocks,
   yearWeeks,
 } from '@/models/education-plan/classPlan';
-import { leaderNameOf, weekFile } from '@/utils/education-plan/classPlanDoc';
+import { dayPlansFile, leaderNameOf, weekFile } from '@/utils/education-plan/classPlanDoc';
 import { DayTab, WeekTab } from '@/components/education-plan/WeekPlanBody';
 import { FinishedThemeNote, SupersededNote, VersionCopyOffer, VersionFlagsPanel } from '@/components/education-plan/VersionWidgets';
 import { useDocVersion } from '@/hooks/education-plan/useDocVersion';
@@ -43,12 +47,12 @@ import { checkFlag, dropReference, versionOf } from '@/models/education-plan/pla
 import DocPreviewModal from '@/components/education-plan/DocPreviewModal';
 import { dayKeyOf } from '@/models/education-plan/deadline.mjs';
 
-const DAY_FIELDS = ['days', 'dayGoals', 'adjustments'];
+const DAY_FIELDS = ['days', 'dayGoals'];
 const without = (doc, keys) => Object.fromEntries(Object.entries(doc).filter(([k]) => !keys.includes(k)));
 
 /**
  * Spec 003 (Q9): hai trang của một tuần — mode 'week' = Kế hoạch tuần (mục đích, chuẩn bị, bảng hoạt động Thứ 2–6),
- * mode 'days' = Giáo án ngày (5 kế hoạch ngày + điều chỉnh sau dạy). Mỗi phần theo trạng thái gói/hồ sơ chứa nó; gửi và
+ * mode 'days' = Giáo án ngày (5 kế hoạch ngày, mỗi ngày 4 mục + đánh giá trẻ trên ngày — spec 005). Mỗi phần theo trạng thái gói/hồ sơ chứa nó; gửi và
  * duyệt ở gói học kỳ hoặc hồ sơ chủ đề. review = đường dẫn duyệt cũ, chuyển sang trang tuần.
  */
 export default function WeekPlanPage({ review = false, mode = 'week' }) {
@@ -84,7 +88,6 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
     themeDossiers,
     semesterPackages,
     saveClassDoc,
-    saveClassDocAdjustments,
     actOnClassDoc,
     eduConfig,
     toast,
@@ -93,6 +96,8 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
   const [confirmRevise, setConfirmRevise] = useState(false);
   const [weekOpen, setWeekOpen] = useState(true);
   const [preview, setPreview] = useState(null);
+  // Mục còn trống BE trả khi gửi hồ sơ chủ đề (FR-007a): [{ date, section }], hiện chữ đỏ tới khi sửa xong
+  const [emptyErr, setEmptyErr] = useState([]);
   const ctx = useClassPlanContext(classId);
   const { cls, classes, yearPlan, canComposeClassDocs } = ctx;
   const savedWeek = weekPlans.find((w) => w.classId === classId && w.yearPlanId === yearPlan?.id && w.weekStart === weekStart) || null;
@@ -110,7 +115,7 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
   const week = weeks[idx];
   const [copying, setCopying] = useState(false);
   const version = useDocVersion('week', saved, ctx, weekPlans, { themeId: week?.theme.id, weekStart, weekNo: week?.no });
-  // Nội dung sửa khi Nháp / Bị trả lại trên phiên bản hiện hành; ô điều chỉnh của ngày ghi được ở mọi trạng thái (BE:EDU-27)
+  // Nội dung sửa khi Nháp / Bị trả lại trên phiên bản hiện hành
   const contentEditable =
     !ctx.superseded &&
     (saved?.permissions
@@ -118,19 +123,13 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
       : saved
         ? canComposeClassDocs && isEditableStatus(saved.status)
         : ctx.canCreate('week'));
-  const adjustEditable = !!saved && (saved.permissions ? saved.permissions.canEditAdjustments : canComposeClassDocs);
-  const sameAdjust = (a, b) => JSON.stringify(a || {}) === JSON.stringify(b || {});
 
   // Lưu tay (nút Lưu, Ctrl+S); rời trang khi chưa lưu thì hỏi
   const saver = useManualSave({
     doc: draft,
-    enabled: contentEditable || adjustEditable,
+    enabled: contentEditable,
     save: async (doc) => {
-      if (!split) {
-        let out = contentEditable ? await saveClassDoc('week', { ...doc, dayGoals: dayGoalsOf(doc) }) : saved;
-        if (out && !sameAdjust(doc.adjustments, out.adjustments)) out = await saveClassDocAdjustments(out.id, doc.adjustments || {}, out);
-        return out;
-      }
+      if (!split) return saveClassDoc('week', { ...doc, dayGoals: dayGoalsOf(doc) });
       if (!days) {
         const out = await saveClassDoc('week', without(doc, DAY_FIELDS));
         return out && { ...doc, ...out };
@@ -145,8 +144,7 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
         dayGoals: dayGoalsOf(doc),
         version: savedDay?.version,
       };
-      let out = contentEditable ? await saveClassDoc('day', dayDoc) : savedDay;
-      if (out && !sameAdjust(doc.adjustments, out.adjustments)) out = await saveClassDocAdjustments(out.id, doc.adjustments || {}, out);
+      const out = await saveClassDoc('day', dayDoc);
       return out && { ...doc, ...out };
     },
     onSaved: (same) => same && setDirty(false),
@@ -158,7 +156,7 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
   });
 
   const guard = useLeaveGuard({
-    when: (contentEditable || adjustEditable) && saver.unsaved,
+    when: contentEditable && saver.unsaved,
     onSave: saver.save,
   });
 
@@ -178,13 +176,14 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
           // Bản BE thiếu trường (tài liệu soạn ngoài màn này) vẫn đủ khung từ bản trống
           ...blank,
           ...savedWeek,
-          ...(savedDay
-            ? { days: savedDay.days?.length ? savedDay.days : blank.days, dayGoals: savedDay.dayGoals, adjustments: savedDay.adjustments }
-            : {}),
+          ...(savedDay ? { days: savedDay.days?.length ? savedDay.days : blank.days, dayGoals: savedDay.dayGoals } : {}),
         }
       : { ...blank, ...saved };
-    setDraft(doc);
-    saver.markClean(doc);
+    // Bản soạn theo bố cục cũ hiện đúng ở mẫu mới, không mất chữ (FR-007, FR-013)
+    const normalized = normalizeWeek(doc);
+    normalized.days = (normalized.days || []).map(normalizeDay);
+    setDraft(normalized);
+    saver.markClean(normalized);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [saved?.id, saved?.version, saved?.dossierVersion, saved?.status, saved?.history?.length, savedWeek?.version, week?.start, classId]);
 
@@ -221,21 +220,40 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
   const dossier = themeDossiers.find((d) => d.id === `ds_${classId}_${week.theme.id}`) || null;
   const weekPackage = semesterPackages.find((d) => d.id === savedWeek?.containerKey) || null;
   const weekApproved = savedWeek?.status === EDU_STATUS.APPROVED;
-  const dossierAct = (action, note, _saved, extra) =>
-    actOnClassDoc('dossier', dossier.id, { action, note, ...extra }, user, { version: dossier.version });
+  const dossierAct = async (action, note, _saved, extra) => {
+    const out = await actOnClassDoc('dossier', dossier.id, { action, note, ...extra }, user, {
+      version: dossier.version,
+      // BE 7390: data.details = [{ date, section }] (axiosClient đặt data vào err.details)
+      onError: (err) => setEmptyErr((err.details?.details || []).filter((x) => x?.section && x?.date)),
+    });
+    if (out) setEmptyErr([]);
+    return out;
+  };
+  // Lỗi mục trống tự mất khi mục đó đã có nội dung
+  const emptyNow = emptyErr.filter((e) => !sectionHasContent(draft.days.find((d) => d.date === e.date)?.sections?.[e.section]));
+  const sectionLabel = (key) => DAY_SECTIONS.find((s) => s.key === key)?.label.replace(/^\d+\.\s*/, '') || key;
   const dossierReview = dossier ? docReview('theme', dossier, ctx, user, eduConfig) : null;
   // Trang ngày: chọn lớp và tuần ngay đầu trang, kể cả khi tuần đó chưa soạn được
   const dayPicker = dayPage && (
-    <span className="row row--wrap gap-2">
-      {ctx.canPickClass && <ClassPicker classes={classes} classId={classId} onPick={(id) => guard.leave(`/education/day-plans/${id}`)} />}
-      <select className="select" aria-label="Chọn tuần" value={weekStart} onChange={(e) => guard.leave(dayUrl(e.target.value))}>
-        {weeks.map((w) => (
-          <option key={w.start} value={w.start}>
-            {w.theme.name} · Tuần {w.no} ({ddmm(w.start)})
-          </option>
-        ))}
-      </select>
-    </span>
+    <ClassFilterBar
+      classes={classes}
+      classId={classId}
+      canPick={ctx.canPickClass}
+      onPick={(id) => guard.leave(`/education/day-plans/${id}`)}
+    >
+      <div className="field">
+        <label className="field__label" htmlFor={`${tabId}-week`}>
+          Tuần
+        </label>
+        <select id={`${tabId}-week`} className="select" value={weekStart} onChange={(e) => guard.leave(dayUrl(e.target.value))}>
+          {weeks.map((w) => (
+            <option key={w.start} value={w.start}>
+              {w.theme.name} · Tuần {w.no} ({ddmm(w.start)})
+            </option>
+          ))}
+        </select>
+      </div>
+    </ClassFilterBar>
   );
   // Mở thẳng đường dẫn khi chưa tới bước này: không hiện biểu mẫu, chỉ ra bước còn thiếu
   const lock =
@@ -243,15 +261,9 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
   if (lock) {
     return (
       <div className="page ga-page">
-        <PageHead
-          crumbs={crumbs}
-          title={pageTitle}
-          desc={`${cls.name} · ${fmtDate(week.start)} → ${fmtDate(week.end)}`}
-          actions={dayPicker}
-        />
-        <Notice tone="warn">
-          Chưa thể bắt đầu: {lock.message}
-        </Notice>
+        <PageHead crumbs={crumbs} title={pageTitle} desc={`${cls.name} · ${fmtDate(week.start)} → ${fmtDate(week.end)}`} />
+        {dayPicker}
+        <Notice tone="warn">Chưa thể bắt đầu: {lock.message}</Notice>
       </div>
     );
   }
@@ -297,14 +309,12 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
           crumbs={crumbs}
           title={pageTitle}
           desc={dayPage ? undefined : `${cls.name} · ${fmtDate(week.start)} → ${fmtDate(week.end)}`}
-          actions={dayPicker}
         />
         {/* Thanh thao tác như màn Kế hoạch năm học: nút cỡ nhỏ viền xanh, nhóm lưu/xuất bên phải (Tiền 05/11) */}
         <div className="ga-year-toolbar" role="group" aria-label="Thao tác giáo án tuần">
           <div className="ga-year-toolbar__group">
             {/* Trạng thái theo kế hoạch chủ đề (giáo án tuần gửi / duyệt cùng kế hoạch chủ đề), đặt ở header như mục tiêu năm học */}
             <EduStatusBadge status={(container || themeDoc)?.status || EDU_STATUS.DRAFT} doc={container || themeDoc} />
-            {dayPage && dossier && <DeadlineBadge doc={dossier} />}
             <button
               type="button"
               className="btn btn--sm btn--outline-primary"
@@ -320,7 +330,7 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
             </button>
           </div>
           <div className="ga-year-toolbar__group ga-year-toolbar__group--end">
-            {(editable || adjustEditable) && (
+            {editable && (
               <>
                 <p className="muted text-sm ga-year-save-status" aria-live="polite">
                   {saver.label}
@@ -367,20 +377,26 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
                     <Copy size={16} aria-hidden /> Tạo phiên bản điều chỉnh
                   </button>
                 )}
-                <ExtendDeadlineButton
-                  doc={dossier}
-                  onExtend={(body) => dossierAct('extend', body.note, null, { deadline: body.deadline })}
-                />
               </>
             )}
             {/* In giáo án tuần ở mọi bước (đã duyệt thì in để dạy hằng ngày) */}
-            <button type="button" className="btn btn--sm btn--outline-primary" onClick={() => setPreview(weekFile(exportArgs))}>
+            <button
+              type="button"
+              className="btn btn--sm btn--outline-primary"
+              onClick={() => setPreview(days ? dayPlansFile(exportArgs) : weekFile(exportArgs))}
+            >
               <FileDown size={16} aria-hidden /> Xuất file
             </button>
             {preview && <DocPreviewModal file={preview} onClose={() => setPreview(null)} />}
           </div>
         </div>
       </div>
+      {dayPicker}
+      {dayPage && dossier && (
+        <div className="row row--wrap gap-2 mb-16">
+          <DeadlineBadge doc={dossier} />
+        </div>
+      )}
       <SupersededNote doc={saved || (ctx.superseded ? { superseded: true, yearPlanVersion: versionOf(yearPlan) } : null)} />
       {!saved && version.finished && <FinishedThemeNote />}
       {editable && (saved?.status === EDU_STATUS.APPROVED || themeDoc?.status === EDU_STATUS.APPROVED) && (
@@ -426,11 +442,7 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
             </span>
           }
         >
-          {!weekApproved && (
-            <Notice tone="warn">
-              Kế hoạch tuần chưa được duyệt.
-            </Notice>
-          )}
+          {!weekApproved && <Notice tone="warn">Kế hoạch tuần chưa được duyệt.</Notice>}
           {savedWeek ? (
             <WeekTab draft={draft} week={week} editable={false} update={() => {}} activities={activities} goals={goals} />
           ) : (
@@ -438,9 +450,7 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
           )}
         </Card>
       )}
-      <Card
-        bodyClass={null}
-      >
+      <Card bodyClass={null}>
         {/* Tên chủ đề nhánh nằm chung thẻ với tab tuần / ngày (Tiền 04/11) */}
         <div className="card__body">
           <div className="ga-week-hero__label">
@@ -490,6 +500,18 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
           </div>
         )}
         <div className="card__body stack" role="tabpanel" id={`${tabId}-panel-${tab}`} aria-labelledby={`${tabId}-${tab}`}>
+          {days && emptyNow.length > 0 && (
+            <p className="field__error" role="alert">
+              Còn {emptyNow.length} mục chưa có nội dung:{' '}
+              {emptyNow
+                .map((e) => {
+                  const i = draft.days.findIndex((d) => d.date === e.date);
+                  return `${WEEKDAY_LABELS[i] || ''} ${ddmm(e.date)}: ${sectionLabel(e.section)}`;
+                })
+                .join('; ')}
+              .
+            </p>
+          )}
           {day < 0 ? (
             <WeekTab
               draft={draft}
@@ -512,7 +534,7 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
               update={update}
               goals={goals}
               reuse={lessonReuseFor(split ? dayPlans : weekPlans, draft, day)}
-              adjustEditable={adjustEditable}
+              emptySections={emptyNow.filter((e) => e.date === draft.days[day].date).map((e) => e.section)}
               flagOf={(id) => version.unresolved.find((f) => f.goalId === String(id)) || null}
               offLabel={week?.offDays?.[day] || null}
               assessTo={

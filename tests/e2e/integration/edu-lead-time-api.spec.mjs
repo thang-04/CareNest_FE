@@ -64,17 +64,20 @@ test('IT-003-01 gói học kỳ có hạn = ngày bắt đầu học kỳ; đã 
   expect(sent.errorCode).toBe(7385);
 });
 
-test('IT-003-02 chỉ HT/PHT mở hạn, bắt buộc lý do + hạn mới sau hôm nay; GVCN nhận thông báo có đường dẫn', async () => {
-  const current = await packageOf(U.vp);
+// Spec 005 FR-021: chỉ Hiệu trưởng mở hạn (PHT bị từ chối 403)
+test('IT-003-02 chỉ HT mở hạn, bắt buộc lý do + hạn mới sau hôm nay; GVCN nhận thông báo có đường dẫn', async () => {
+  const current = await packageOf(U.ht);
   test.skip(current?.status !== 'DRAFT' || current.deadlineState !== 'OVERDUE', 'gói không còn quá hạn');
   expect(current.canExtend).toBe(true);
+  expect((await packageOf(U.vp)).canExtend).toBe(false);
   expect((await packageOf(U.tl)).canExtend).toBe(false);
   const act = (user, body) =>
     api(user, 'POST', `${DOCS}/semester/${current.id}/actions`, { body, headers: { 'X-Class-Doc-Version': String(current.version) } });
   expect((await act(U.tl, { action: 'extend', note: 'x', deadline: isoPlus(5) })).status).toBe(403);
-  expect((await act(U.vp, { action: 'extend', note: ' ', deadline: isoPlus(5) })).status).toBe(400);
-  expect((await act(U.vp, { action: 'extend', note: 'Lý do', deadline: isoPlus(0) })).status).toBe(400);
-  const ok = await act(U.vp, { action: 'extend', note: '[E2E] Lớp mới nhận GV', deadline: isoPlus(5) });
+  expect((await act(U.vp, { action: 'extend', note: 'x', deadline: isoPlus(5) })).status).toBe(403);
+  expect((await act(U.ht, { action: 'extend', note: ' ', deadline: isoPlus(5) })).status).toBe(400);
+  expect((await act(U.ht, { action: 'extend', note: 'Lý do', deadline: isoPlus(0) })).status).toBe(400);
+  const ok = await act(U.ht, { action: 'extend', note: '[E2E] Lớp mới nhận GV', deadline: isoPlus(5) });
   expect(ok.status, ok.desc).toBe(200);
   expect(ok.data.extendedTo).toBe(isoPlus(5));
   expect(ok.data.deadlineState).toBe('NEAR');
@@ -87,7 +90,7 @@ test('IT-003-03 sau mở hạn, lần gửi không còn bị chặn vì quá h�
   const current = await packageOf(U.tl);
   test.skip(current?.status !== 'DRAFT', `gói đang ${current?.status}`);
   const sent = await api(U.tl, 'POST', `${DOCS}/semester/${current.id}/actions`, {
-    body: { action: 'submit', note: '[E2E] Gửi gói học kỳ 1' },
+    body: { action: 'submit', note: '[E2E] Gửi học kỳ 1' },
     headers: { 'X-Class-Doc-Version': String(current.version) },
   });
   // Dữ liệu dev có thể còn tuần chưa đặt tên nhánh (7112) — miễn không còn bị chặn vì hạn

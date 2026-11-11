@@ -1,10 +1,18 @@
 import { useState } from 'react';
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Card, DocAvailabilityBadge, EduStatusBadge, EmptyState, Notice, PageHead, YearPlanStatusBadge } from '@/components/education-plan/eduUi';
-import { ClassPicker, docReview, useClassPlanContext } from '@/components/education-plan/planUi';
+import {
+  Card,
+  DocAvailabilityBadge,
+  EduStatusBadge,
+  EmptyState,
+  Notice,
+  PageHead,
+  YearPlanStatusBadge,
+} from '@/components/education-plan/eduUi';
+import { ClassFilterBar, docReview, useClassPlanContext } from '@/components/education-plan/planUi';
 import { RejectedNotice, ReviewActions, ReviewHistory } from '@/components/education-plan/reviewUi';
 import { submitEntryOf } from '@/models/education-plan/reviewHistory.mjs';
-import { BlockedNotice, DeadlineBadge, ExtendDeadlineButton } from '@/components/education-plan/DeadlineWidgets';
+import { BlockedNotice, DeadlineBadge } from '@/components/education-plan/DeadlineWidgets';
 import { LoadingState } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
 import { Tabs } from '@/components/ui/Tabs';
@@ -43,8 +51,18 @@ export default function ClassPlanPage() {
   const { classId } = useParams();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
-  const { user, branchPlans, classThemePlans, weekPlans, semesterPackages, semesterConfigMissing, staff, actOnClassDoc, eduConfig, refreshClassDocs } =
-    useEducationPlan();
+  const {
+    user,
+    branchPlans,
+    classThemePlans,
+    weekPlans,
+    semesterPackages,
+    semesterConfigMissing,
+    staff,
+    actOnClassDoc,
+    eduConfig,
+    refreshClassDocs,
+  } = useEducationPlan();
   const [preview, setPreview] = useState(null);
   const [confirmRevise, setConfirmRevise] = useState(false);
   const ctx = useClassPlanContext(classId);
@@ -58,16 +76,19 @@ export default function ClassPlanPage() {
   const base = `/education/class/${classId}`;
   const group = AGE_GROUPS.find((a) => a.id === cls.ageGroupId);
   const head = (
-    <PageHead
-      crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Kế hoạch giáo dục chủ đề' }]}
-      title={`Kế hoạch giáo dục chủ đề ${cls.name}`}
-      desc={`${group?.name || ''} · Giáo viên: ${teachers.map((t) => t.fullName).join(', ') || 'chưa phân công'}`}
-      actions={
-        ctx.canPickClass && (
-          <ClassPicker classes={classes} classId={classId} onPick={(id) => navigate(`/education/theme-plans/${id}`)} />
-        )
-      }
-    />
+    <>
+      <PageHead
+        crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Kế hoạch giáo dục chủ đề' }]}
+        title={`Kế hoạch giáo dục chủ đề ${cls.name}`}
+        desc={`${group?.name || ''} · Giáo viên: ${teachers.map((t) => t.fullName).join(', ') || 'chưa phân công'}`}
+      />
+      <ClassFilterBar
+        classes={classes}
+        classId={classId}
+        canPick={ctx.canPickClass}
+        onPick={(id) => navigate(`/education/theme-plans/${id}`)}
+      />
+    </>
   );
 
   if (!yearPlan) {
@@ -147,18 +168,21 @@ export default function ClassPlanPage() {
   const review = pkg ? docReview('branch', pkg, ctx, user, eduConfig) : null;
   const act = (action, note, _saved, extra) =>
     actOnClassDoc('semester', pkg.id, { action, note, ...extra }, user, { version: pkg.version });
-  const missing = pkg?.missing || [];
+  const missing = pkg && pkg.status !== 'APPROVED' ? pkg.missing || [] : [];
   const themeName = (id) => allThemes.find((t) => String(t.id) === String(id))?.name || 'Chủ đề';
+  // Mục thiếu ghi chữ đỏ ngay ở dòng tương ứng (FR-023); mục không có dòng trên trang thì nêu ở dòng tổng
+  const missingAt = (themeId, weekStart) =>
+    missing.filter((m) => String(m.themeId) === String(themeId) && (weekStart ? m.weekStart === weekStart : !m.weekStart));
+  const shownThemes = new Set(themes.map((t) => String(t.id)));
+  const orphan = missing.filter((m) => !shownThemes.has(String(m.themeId)));
+  const MissingNote = ({ items }) =>
+    items.length > 0 && <p className="field__error">Thiếu {items.map((m) => MISSING_LABEL[m.kind]).join(', ')}</p>;
 
   return (
     <div className="page ga-page">
       {preview && <DocPreviewModal file={preview} onClose={() => setPreview(null)} />}
       {head}
-      {semesterConfigMissing && (
-        <Notice tone="warn">
-          Năm học chưa cấu hình học kỳ.
-        </Notice>
-      )}
+      {semesterConfigMissing && <Notice tone="warn">Năm học chưa cấu hình học kỳ.</Notice>}
       {packages.length > 0 && (
         <Tabs
           ariaLabel="Học kỳ"
@@ -174,38 +198,33 @@ export default function ClassPlanPage() {
           actions={
             <span className="row row--wrap row--middle gap-2">
               <EduStatusBadge status={pkg.status} doc={pkg} />
-              <DeadlineBadge doc={pkg} />
             </span>
           }
         >
           <div className="stack">
+            <div className="row row--wrap gap-2">
+              <DeadlineBadge doc={pkg} />
+            </div>
             <RejectedNotice status={pkg.status} history={pkg.history} />
             {pkg.status === 'REVIEW' && submitEntryOf(pkg)?.note && (
               <Notice>{`Ghi chú khi gửi (${submitEntryOf(pkg).by || '—'}): ${submitEntryOf(pkg).note}`}</Notice>
             )}
             <BlockedNotice doc={pkg} author={canComposeClassDocs} />
             {pkg.timeLocked && pkg.status === 'APPROVED' && canComposeClassDocs && (
-              <Notice tone="warn">Học kỳ đã bắt đầu. Cần Hiệu trưởng hoặc Phó hiệu trưởng mở khóa để điều chỉnh.</Notice>
+              <Notice tone="warn">Học kỳ đã bắt đầu, không điều chỉnh được nữa.</Notice>
             )}
-            {missing.length > 0 && pkg.status !== 'APPROVED' && (
-              <details>
-                <summary>
-                  Còn thiếu {missing.length} mục trước khi gửi:{' '}
-                  {Object.entries(MISSING_LABEL)
-                    .map(([kind, label]) => [missing.filter((m) => m.kind === kind).length, label])
-                    .filter(([n]) => n > 0)
-                    .map(([n, label]) => `${n} ${label}`)
-                    .join(', ')}
-                </summary>
-                <ul className="stack mt-8">
-                  {missing.map((m) => (
-                    <li key={`${m.kind}-${m.themeId}-${m.weekStart || ''}`}>
-                      {MISSING_LABEL[m.kind]} · {themeName(m.themeId)}
-                      {m.weekStart ? ` · tuần ${ddmm(m.weekStart)}` : ''}
-                    </li>
-                  ))}
-                </ul>
-              </details>
+            {missing.length > 0 && (
+              <p className="field__error" role="alert">
+                Còn thiếu {missing.length} mục trước khi gửi:{' '}
+                {Object.entries(MISSING_LABEL)
+                  .map(([kind, label]) => [missing.filter((m) => m.kind === kind).length, label])
+                  .filter(([n]) => n > 0)
+                  .map(([n, label]) => `${n} ${label}`)
+                  .join(', ')}
+                {orphan.length > 0 &&
+                  ` (${orphan.map((m) => `${MISSING_LABEL[m.kind]} · ${themeName(m.themeId)}${m.weekStart ? ` · tuần ${ddmm(m.weekStart)}` : ''}`).join('; ')})`}
+                .
+              </p>
             )}
             <div className="row row--wrap gap-2">
               <ReviewActions
@@ -223,15 +242,12 @@ export default function ClassPlanPage() {
                   <Copy size={16} aria-hidden /> Tạo phiên bản điều chỉnh
                 </button>
               )}
-              <ExtendDeadlineButton doc={pkg} onExtend={(body) => act('extend', body.note, null, { deadline: body.deadline })} />
             </div>
           </div>
         </Card>
       )}
       {pkg?.history?.length > 0 && <ReviewHistory items={pkg.history} />}
-      {themes.length === 0 && (
-        <EmptyState title="Học kỳ chưa có chủ đề" />
-      )}
+      {themes.length === 0 && <EmptyState title="Học kỳ chưa có chủ đề" />}
       {themes.map((t) => {
         const ti = allThemes.indexOf(t);
         const doc = classThemePlans.find((x) => x.classId === classId && x.themeId === t.id) || null;
@@ -250,7 +266,11 @@ export default function ClassPlanPage() {
                 <span className="muted text-sm nowrap">
                   {ddmm(t.start)} → {ddmm(t.end)} · {themeWeeks.length} tuần
                 </span>
-                <button type="button" className="btn btn--outline-primary btn--sm nowrap" onClick={() => exportTheme(t, ti + 1, doc, themeWeeks)}>
+                <button
+                  type="button"
+                  className="btn btn--outline-primary btn--sm nowrap"
+                  onClick={() => exportTheme(t, ti + 1, doc, themeWeeks)}
+                >
                   <FileDown size={16} aria-hidden /> Xuất file
                 </button>
               </div>
@@ -276,7 +296,10 @@ export default function ClassPlanPage() {
                   <tbody>
                     <tr>
                       <td>
-                        <div className="ga-goal-table__pad fw-600">Kế hoạch giáo dục chủ đề</div>
+                        <div className="ga-goal-table__pad">
+                          <div className="fw-600">Kế hoạch giáo dục chủ đề</div>
+                          <MissingNote items={missingAt(t.id)} />
+                        </div>
                       </td>
                       <td>
                         <div className="ga-goal-table__pad">
@@ -301,7 +324,8 @@ export default function ClassPlanPage() {
                             </td>
                           </tr>
                         );
-                      const wdoc = weekPlans.find((w) => w.classId === classId && w.yearPlanId === yearPlan.id && w.weekStart === r.start) || null;
+                      const wdoc =
+                        weekPlans.find((w) => w.classId === classId && w.yearPlanId === yearPlan.id && w.weekStart === r.start) || null;
                       const name = branch?.names?.[r.start]?.trim();
                       const lock = !wdoc && weekLock;
                       return (
@@ -311,6 +335,7 @@ export default function ClassPlanPage() {
                               <div className={name ? 'fw-600' : 'muted'}>
                                 Kế hoạch tuần · nhánh {themeWeeks.indexOf(r) + 1}: {name || 'chưa đặt tên'}
                               </div>
+                              <MissingNote items={missingAt(t.id, r.start)} />
                             </div>
                           </td>
                           <td className="cell--fixed">

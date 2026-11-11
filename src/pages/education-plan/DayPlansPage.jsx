@@ -26,7 +26,10 @@ export default function DayPlansPage() {
   if (!weeks.length)
     return (
       <div className="page ga-page">
-        <PageHead crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Kế hoạch giáo dục ngày' }]} title={`Kế hoạch giáo dục ngày ${ctx.cls.name}`} />
+        <PageHead
+          crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Kế hoạch giáo dục ngày' }]}
+          title={`Kế hoạch giáo dục ngày ${ctx.cls.name}`}
+        />
         <EmptyState
           title="Chưa có tuần học"
           desc="Kế hoạch giáo dục tổ chưa ban hành hoặc chưa có chủ đề có ngày. Giáo án ngày soạn được khi đã có tuần học."

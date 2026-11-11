@@ -173,9 +173,7 @@ export function ReviewActions({
         >
           {actError && <Notice tone="err">{actError}</Notice>}
           {unsaved && action !== 'submit' && action !== 'reject' && (
-            <Notice tone="warn">
-              Còn thay đổi chưa lưu. Bấm "{withSave(approveLabel)}" để lưu rồi tiếp tục.
-            </Notice>
+            <Notice tone="warn">Còn thay đổi chưa lưu. Bấm "{withSave(approveLabel)}" để lưu rồi tiếp tục.</Notice>
           )}
           {notes[action] && <p>{notes[action]}</p>}
           <Field

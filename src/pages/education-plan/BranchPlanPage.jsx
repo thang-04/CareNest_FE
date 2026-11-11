@@ -1,4 +1,12 @@
-import { adaptCalendar, branchDisplayRows, branchWeeks, calendarDurationIssue, resizeBranch, seedTeamBranchTemplates, updateWeek } from '@/models/education-plan/branchCalendar.mjs';
+import {
+  adaptCalendar,
+  branchDisplayRows,
+  branchWeeks,
+  calendarDurationIssue,
+  resizeBranch,
+  seedTeamBranchTemplates,
+  updateWeek,
+} from '@/models/education-plan/branchCalendar.mjs';
 import { useEffect, useState } from 'react';
 import { Navigate, useParams } from 'react-router-dom';
 import { Check, Download, FileDown, Lightbulb, Pencil, Save, Trash2, Wand2, X } from '@/components/ui/icons';
@@ -8,7 +16,7 @@ import { Card, fmtDate, Notice, PageHead } from '@/components/education-plan/edu
 import DatePickerCell from '@/components/education-plan/DatePickerCell';
 import { VersionHistory } from '@/components/education-plan/VersionHistory';
 import { docLines } from '@/models/education-plan/planHistory.mjs';
-import { Cell, ClassPicker, focusCell, useClassPlanContext } from '@/components/education-plan/planUi';
+import { Cell, ClassFilterBar, focusCell, useClassPlanContext } from '@/components/education-plan/planUi';
 import { RejectedNotice } from '@/components/education-plan/reviewUi';
 import { LoadingState } from '@/components/ui/States';
 import { AiWorkingOverlay } from '@/components/ui/AiWorkingOverlay';
@@ -79,7 +87,11 @@ function BranchPlanInner({ classId }) {
   const version = useDocVersion('branch', saved, ctx, branchPlans);
   const autoOk =
     !ctx.superseded &&
-    (saved?.permissions ? saved.permissions.canEdit : saved ? canComposeClassDocs && isEditableStatus(saved.status) : ctx.canCreate('branch'));
+    (saved?.permissions
+      ? saved.permissions.canEdit
+      : saved
+        ? canComposeClassDocs && isEditableStatus(saved.status)
+        : ctx.canCreate('branch'));
   const payload = payloadOf(draft, pending);
   const hasPending = Object.keys(pending).length > 0;
   // Lưu tay (nút Lưu, Ctrl+S); rời trang khi chưa lưu thì hỏi
@@ -113,7 +125,8 @@ function BranchPlanInner({ classId }) {
   useEffect(() => {
     if (dirty) return;
     const doc = saved || (yearPlan ? emptyBranchPlan({ classId, yearPlanId: yearPlan.id }) : null);
-    const adapted = doc &&
+    const adapted =
+      doc &&
       (eduConfig.durationPolicyAvailable === false && saved
         ? doc
         : adaptCalendar(
@@ -153,8 +166,10 @@ function BranchPlanInner({ classId }) {
   };
   const editable = editing && canEdit;
   const dateIssue = calendarDurationIssue(draft, yearPlan);
-  const branchForWeek = (row) => draft.branches.find((branch) =>
-    String(branch.themeId) === String(row.theme.id) && row.start >= branch.startDate && row.start <= branch.endDate);
+  const branchForWeek = (row) =>
+    draft.branches.find(
+      (branch) => String(branch.themeId) === String(row.theme.id) && row.start >= branch.startDate && row.start <= branch.endDate,
+    );
   const displayRows = branchDisplayRows(yearPlan, draft);
   const mappedWeeks = displayRows.filter((r) => r.type === 'week' && branchForWeek(r));
   const weekCount = mappedWeeks.length;
@@ -303,11 +318,24 @@ function BranchPlanInner({ classId }) {
       confirmLabel: 'Dùng AI viết lại',
       run: () => rewrite(r),
     });
-  const editReason = ctx.superseded ? 'Đang xem phiên bản kế hoạch tổ cũ' : !canEdit ? 'Chỉ giáo viên chủ nhiệm của lớp được chỉnh sửa' : null;
-  const saveReason = editReason || dateIssue || (saver.saving ? 'Đang lưu' : !saver.unsaved && !saver.error ? 'Không có thay đổi cần lưu' : null);
+  const editReason = ctx.superseded
+    ? 'Đang xem phiên bản kế hoạch tổ cũ'
+    : !canEdit
+      ? 'Chỉ giáo viên chủ nhiệm của lớp được chỉnh sửa'
+      : null;
+  const saveReason =
+    editReason || dateIssue || (saver.saving ? 'Đang lưu' : !saver.unsaved && !saver.error ? 'Không có thay đổi cần lưu' : null);
   const resize = (branch, field, value) => {
     try {
-      flagEdit((doc) => resizeBranch(doc, yearPlan, branch.key, field === 'startDate' ? value : branch.startDate, field === 'endDate' ? value : branch.endDate));
+      flagEdit((doc) =>
+        resizeBranch(
+          doc,
+          yearPlan,
+          branch.key,
+          field === 'startDate' ? value : branch.startDate,
+          field === 'endDate' ? value : branch.endDate,
+        ),
+      );
     } catch (error) {
       toast(error.message, 'warn');
     }
@@ -323,7 +351,10 @@ function BranchPlanInner({ classId }) {
       const issue = calendarDurationIssue(mapped, yearPlan);
       if (issue) return toast(issue, 'warn');
       flagEdit(() => mapped);
-      setPendingDates((dates) => { const { [row.start]: _, ...rest } = dates; return rest; });
+      setPendingDates((dates) => {
+        const { [row.start]: _, ...rest } = dates;
+        return rest;
+      });
     } catch (error) {
       toast(error.message, 'warn');
     }
@@ -362,25 +393,20 @@ function BranchPlanInner({ classId }) {
           crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Chủ đề / Chủ đề nhánh' }, { label: cls.name }]}
           title={`Chủ đề / Chủ đề nhánh ${cls.name}`}
         />
+        <ClassFilterBar
+          classes={classes}
+          classId={classId}
+          canPick={ctx.canPickClass}
+          onPick={(id) => {
+            setEditing(false);
+            guard.leave(`/education/branches/${id}`);
+          }}
+        />
         {/* Thanh thao tác như màn Kế hoạch năm học: nút cỡ nhỏ viền xanh, nhóm lưu/gửi/xuất bên phải (Tiền 04/11) */}
         <div className="ga-year-toolbar" role="group" aria-label="Thao tác chủ đề nhánh">
           <div className="ga-year-toolbar__group">
-            {ctx.canPickClass && (
-              <ClassPicker
-                classes={classes}
-                classId={classId}
-                onPick={(id) => {
-                  setEditing(false);
-                  guard.leave(`/education/branches/${id}`);
-                }}
-              />
-            )}
             {!editing && canEdit && (
-              <button
-                type="button"
-                className="btn btn--sm btn--outline-primary"
-                onClick={() => setEditing(true)}
-              >
+              <button type="button" className="btn btn--sm btn--outline-primary" onClick={() => setEditing(true)}>
                 <Pencil size={16} aria-hidden /> Chỉnh sửa
               </button>
             )}
@@ -556,7 +582,8 @@ function BranchPlanInner({ classId }) {
                   const firstBranchWeek = branch && branchWeeks(branch, yearPlan, draft)[0]?.start === r.start;
                   const schedule = draft.themeSchedules.find((item) => String(item.themeId) === String(r.theme.id));
                   const dateRange = branch || pendingDates[r.start] || {};
-                  const takenDates = draft.branches.filter((item) => item.key !== branch?.key && item.startDate)
+                  const takenDates = draft.branches
+                    .filter((item) => item.key !== branch?.key && item.startDate)
                     .map((item) => ({ start: item.startDate, end: item.endDate, label: item.name || 'chủ đề nhánh khác' }));
                   if (r.type === 'break')
                     return (
@@ -624,9 +651,29 @@ function BranchPlanInner({ classId }) {
                         <div className="ga-goal-table__pad">
                           {editable && (firstBranchWeek || !branch) ? (
                             <div className="ga-branch-template-dates ga-branch-date-range ga-branch-week-dates">
-                              <DatePickerCell compact label={`Từ ngày chủ đề nhánh tuần ${r.no}`} value={dateRange.startDate || ''} range={{ start: dateRange.startDate, end: dateRange.endDate }} taken={takenDates} openAt={schedule?.startDate} min={schedule?.startDate} max={schedule?.endDate} onChange={(value) => branch ? resize(branch, 'startDate', value) : setUnmappedDate(r, 'startDate', value)} />
+                              <DatePickerCell
+                                compact
+                                label={`Từ ngày chủ đề nhánh tuần ${r.no}`}
+                                value={dateRange.startDate || ''}
+                                range={{ start: dateRange.startDate, end: dateRange.endDate }}
+                                taken={takenDates}
+                                openAt={schedule?.startDate}
+                                min={schedule?.startDate}
+                                max={schedule?.endDate}
+                                onChange={(value) => (branch ? resize(branch, 'startDate', value) : setUnmappedDate(r, 'startDate', value))}
+                              />
                               <span aria-hidden="true">–</span>
-                              <DatePickerCell compact label={`Đến ngày chủ đề nhánh tuần ${r.no}`} value={dateRange.endDate || ''} range={{ start: dateRange.startDate, end: dateRange.endDate }} taken={takenDates} openAt={dateRange.startDate || schedule?.startDate} min={dateRange.startDate || schedule?.startDate} max={schedule?.endDate} onChange={(value) => branch ? resize(branch, 'endDate', value) : setUnmappedDate(r, 'endDate', value)} />
+                              <DatePickerCell
+                                compact
+                                label={`Đến ngày chủ đề nhánh tuần ${r.no}`}
+                                value={dateRange.endDate || ''}
+                                range={{ start: dateRange.startDate, end: dateRange.endDate }}
+                                taken={takenDates}
+                                openAt={dateRange.startDate || schedule?.startDate}
+                                min={dateRange.startDate || schedule?.startDate}
+                                max={schedule?.endDate}
+                                onChange={(value) => (branch ? resize(branch, 'endDate', value) : setUnmappedDate(r, 'endDate', value))}
+                              />
                               {/* Nhánh lớp tự thêm xóa được; nhánh theo kế hoạch tổ chỉ đổi tên/ngày (BE spec 002 FR-016b) */}
                               {branch && branch.sourceTemplateId == null && (
                                 <button
@@ -639,7 +686,8 @@ function BranchPlanInner({ classId }) {
                                       title: 'Xóa chủ đề nhánh',
                                       message: `Xóa chủ đề nhánh "${draft.names[r.start] || 'chưa đặt tên'}"? Các tuần của nhánh này sẽ trống tên, cần chọn ngày lại.`,
                                       confirmLabel: 'Xóa',
-                                      run: () => flagEdit((doc) => ({ ...doc, branches: doc.branches.filter((b) => b.key !== branch.key) })),
+                                      run: () =>
+                                        flagEdit((doc) => ({ ...doc, branches: doc.branches.filter((b) => b.key !== branch.key) })),
                                     })
                                   }
                                 >
@@ -658,17 +706,21 @@ function BranchPlanInner({ classId }) {
                         </div>
                       </td>
                       <td className={editable && branch ? 'ga-cell-editable' : ''}>
-                        {branch ? branchWeeks(branch, yearPlan, draft).map((week, _, weeks) => (
-                          <div key={week.start}>
-                            {weeks.length > 1 && <span className="ga-goal-table__pad text-xs muted">Tuần {week.no}</span>}
-                            <Cell
-                              editable={editable}
-                              value={draft.notes?.[week.start]}
-                              label={`Ghi chú tuần ${week.no}`}
-                              onChange={(value) => set('notes', week.start, value)}
-                            />
-                          </div>
-                        )) : <Cell editable={false} value="" label="Ghi chú" />}
+                        {branch ? (
+                          branchWeeks(branch, yearPlan, draft).map((week, _, weeks) => (
+                            <div key={week.start}>
+                              {weeks.length > 1 && <span className="ga-goal-table__pad text-xs muted">Tuần {week.no}</span>}
+                              <Cell
+                                editable={editable}
+                                value={draft.notes?.[week.start]}
+                                label={`Ghi chú tuần ${week.no}`}
+                                onChange={(value) => set('notes', week.start, value)}
+                              />
+                            </div>
+                          ))
+                        ) : (
+                          <Cell editable={false} value="" label="Ghi chú" />
+                        )}
                       </td>
                     </tr>
                   );

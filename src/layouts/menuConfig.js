@@ -234,6 +234,10 @@ const ITEMS = {
     label: 'Duyệt kế hoạch, giáo án',
     to: '/education/plan-reviews',
   },
+  eduOverdue: {
+    label: 'Kế hoạch quá hạn',
+    to: '/education/overdue',
+  },
   eduSettings: {
     label: 'Cấu hình kế hoạch',
     to: '/education/settings',
@@ -426,7 +430,17 @@ const MENUS = {
       'healthTrends',
     ]),
     group('attendance', ['attendanceSummary', 'leaveRequests', 'attendanceDayUnlocks', 'dailyHealthOverview']),
-    group('education', ['eduSchoolYear', 'eduGoals', 'eduBranch', 'eduThemePlans', 'eduDayPlans', 'eduPlanReviews', 'eduSettings', 'eduCurriculum']),
+    group('education', [
+      'eduSchoolYear',
+      'eduGoals',
+      'eduBranch',
+      'eduThemePlans',
+      'eduDayPlans',
+      'eduPlanReviews',
+      'eduOverdue',
+      'eduSettings',
+      'eduCurriculum',
+    ]),
     group('assessment', [
       'assessOverview',
       'assessQuality',
@@ -472,7 +486,16 @@ const MENUS = {
       'healthTrends',
     ]),
     group('attendance', ['attendanceSummary', 'leaveRequests', 'attendanceDayUnlocks', 'dailyHealthOverview']),
-    group('education', ['eduSchoolYear', 'eduGoals', 'eduBranch', 'eduThemePlans', 'eduDayPlans', 'eduPlanReviews', 'eduSettings', 'eduCurriculum']),
+    group('education', [
+      'eduSchoolYear',
+      'eduGoals',
+      'eduBranch',
+      'eduThemePlans',
+      'eduDayPlans',
+      'eduPlanReviews',
+      'eduSettings',
+      'eduCurriculum',
+    ]),
     group('assessment', [
       'assessOverview',
       'assessQuality',

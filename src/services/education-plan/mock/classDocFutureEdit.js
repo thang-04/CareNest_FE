@@ -9,7 +9,37 @@ const future = (date, today) => {
 };
 const content = (doc = {}) => {
   const result = { ...doc };
-  for (const field of ['id', 'kind', 'classId', 'yearPlanId', 'themeId', 'weekStart', 'version', 'dossierVersion', 'status', 'approvals', 'history', 'permissions', 'review', 'superseded', 'sourceDocKey', 'adjustments', 'authorIds', 'createdBy', 'updatedBy', 'waitingRole', 'reviewRound', 'completionMode', 'completionPolicy', 'completedAt', 'printSnapshot', 'durationPolicySnapshot', 'calendarRevision', 'orderedThemeIds']) delete result[field];
+  for (const field of [
+    'id',
+    'kind',
+    'classId',
+    'yearPlanId',
+    'themeId',
+    'weekStart',
+    'version',
+    'dossierVersion',
+    'status',
+    'approvals',
+    'history',
+    'permissions',
+    'review',
+    'superseded',
+    'sourceDocKey',
+    'adjustments',
+    'authorIds',
+    'createdBy',
+    'updatedBy',
+    'waitingRole',
+    'reviewRound',
+    'completionMode',
+    'completionPolicy',
+    'completedAt',
+    'printSnapshot',
+    'durationPolicySnapshot',
+    'calendarRevision',
+    'orderedThemeIds',
+  ])
+    delete result[field];
   return result;
 };
 
@@ -31,8 +61,14 @@ export function validateFutureClassEdit(kind, current, incoming, plan, today = t
   if (kind === 'week') {
     const start = incoming.weekStart;
     if (!start) throw eduError('CLASS_DOC_LOCKED');
-    if (after.days !== undefined && (!Array.isArray(after.days) || after.days.length > 5 || after.days.some((day, i) => day.date !== addDays(start, i)))) throw eduError('CLASS_DOC_LOCKED');
-    for (const field of ['grid', 'picks', 'unlinked']) if (after[field] !== undefined && (!after[field] || typeof after[field] !== 'object' || Array.isArray(after[field]))) throw eduError('CLASS_DOC_LOCKED');
+    if (
+      after.days !== undefined &&
+      (!Array.isArray(after.days) || after.days.length > 5 || after.days.some((day, i) => day.date !== addDays(start, i)))
+    )
+      throw eduError('CLASS_DOC_LOCKED');
+    for (const field of ['grid', 'picks', 'unlinked'])
+      if (after[field] !== undefined && (!after[field] || typeof after[field] !== 'object' || Array.isArray(after[field])))
+        throw eduError('CLASS_DOC_LOCKED');
     if (after.dayGoals !== undefined && (!Array.isArray(after.dayGoals) || after.dayGoals.length > 5)) throw eduError('CLASS_DOC_LOCKED');
     if (start <= today) {
       for (let i = 0; i < 5; i++) {
@@ -95,7 +131,10 @@ export function validateFutureClassEdit(kind, current, incoming, plan, today = t
   }
   if (!same(before, after)) {
     if (!weeks.length) throw eduError('CLASS_DOC_LOCKED');
-    weeks.forEach((week) => { future(week.start, today); affected.add(week.theme.id); });
+    weeks.forEach((week) => {
+      future(week.start, today);
+      affected.add(week.theme.id);
+    });
   }
   return [...affected];
 }

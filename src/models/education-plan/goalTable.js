@@ -204,8 +204,16 @@ const weekdayOf = (iso) => toDate(iso).getUTCDay();
 export const isWholeWeekTheme = (theme) => !theme.start || !theme.end || (weekdayOf(theme.start) === 1 && weekdayOf(theme.end) === 5);
 
 export const durationRangeIssue = (range, breaks, limits, label) => {
-  if (!limits || !Number.isInteger(limits.minWeeks) || !Number.isInteger(limits.maxWeeks) ||
-      !range.start || !range.end || range.end < range.start || !isWholeWeekTheme(range)) return null;
+  if (
+    !limits ||
+    !Number.isInteger(limits.minWeeks) ||
+    !Number.isInteger(limits.maxWeeks) ||
+    !range.start ||
+    !range.end ||
+    range.end < range.start ||
+    !isWholeWeekTheme(range)
+  )
+    return null;
   const weeks = weekCount(range, breaks);
   return weeks < limits.minWeeks || weeks > limits.maxWeeks
     ? `${label} cần từ ${limits.minWeeks} đến ${limits.maxWeeks} tuần học (hiện tại ${weeks} tuần).`
@@ -220,9 +228,7 @@ export const overlappingThemes = (theme, themes) =>
 
 /** Kiểm tra khoảng trống ngày học (Thứ 2 đến Thứ 6) giữa các chủ đề liên tiếp. */
 export const themeGapIssue = (themes, breaks = []) => {
-  const dated = (themes || [])
-    .filter((t) => t.start && t.end && t.start <= t.end)
-    .sort((a, b) => a.start.localeCompare(b.start));
+  const dated = (themes || []).filter((t) => t.start && t.end && t.start <= t.end).sort((a, b) => a.start.localeCompare(b.start));
   if (dated.length < 2) return null;
 
   const minStart = dated[0].start;

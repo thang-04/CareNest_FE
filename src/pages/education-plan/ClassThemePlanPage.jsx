@@ -32,13 +32,7 @@ import { ActivityResources } from '@/components/education-plan/ActivityResources
 import { themeActivities } from '@/models/education-plan/classPlan';
 import { FinishedThemeNote, SupersededNote, VersionCopyOffer, VersionFlagsPanel } from '@/components/education-plan/VersionWidgets';
 import { useDocVersion } from '@/hooks/education-plan/useDocVersion';
-import {
-  addedGoalIds,
-  checkFlag,
-  danglingRows,
-  dropReference,
-  versionOf,
-} from '@/models/education-plan/planVersions.mjs';
+import { addedGoalIds, checkFlag, danglingRows, dropReference, versionOf } from '@/models/education-plan/planVersions.mjs';
 import DocPreviewModal from '@/components/education-plan/DocPreviewModal';
 import { BlockedNotice, DeadlineBadge } from '@/components/education-plan/DeadlineWidgets';
 
@@ -53,17 +47,7 @@ export default function ClassThemePlanPage() {
 
 function ThemePlanInner() {
   const { classId, themeId } = useParams();
-  const {
-    user,
-    classThemePlans,
-    branchPlans,
-    weekPlans,
-    dayPlans,
-    semesterPackages,
-    saveClassDoc,
-    toast,
-    staff,
-  } = useEducationPlan();
+  const { user, classThemePlans, branchPlans, weekPlans, dayPlans, semesterPackages, saveClassDoc, toast, staff } = useEducationPlan();
   const [preview, setPreview] = useState(null);
   const ctx = useClassPlanContext(classId);
   const { cls, yearPlan, canComposeClassDocs } = ctx;
@@ -83,7 +67,11 @@ function ThemePlanInner() {
   const version = useDocVersion('theme', saved, ctx, classThemePlans, { themeId });
   const canWrite =
     !ctx.superseded &&
-    (saved?.permissions ? saved.permissions.canEdit : saved ? canComposeClassDocs && isEditableStatus(saved.status) : ctx.canCreate('theme'));
+    (saved?.permissions
+      ? saved.permissions.canEdit
+      : saved
+        ? canComposeClassDocs && isEditableStatus(saved.status)
+        : ctx.canCreate('theme'));
 
   // Lưu tay (nút Lưu, Ctrl+S). Lưu cả các dòng chưa sửa để bản đã duyệt giữ nguyên nội dung dù kế hoạch năm đổi sau này
   const saver = useManualSave({
@@ -142,9 +130,7 @@ function ThemePlanInner() {
     return (
       <div className="page ga-page">
         <PageHead crumbs={crumbs} title={`Kế hoạch giáo dục chủ đề: ${theme.name}`} desc={cls.name} />
-        <Notice tone="warn">
-          Chưa thể bắt đầu: {lock.message}
-        </Notice>
+        <Notice tone="warn">Chưa thể bắt đầu: {lock.message}</Notice>
       </div>
     );
   }
@@ -175,7 +161,10 @@ function ThemePlanInner() {
         themeFile({
           ...exportArgs,
           themeDoc: { ...draft, ...content('theme') },
-          weekDocs: exportArgs.weekDocs.map((w) => ({ ...w, doc: weekContent(w.week.start) ? { ...w.doc, ...weekContent(w.week.start) } : undefined })),
+          weekDocs: exportArgs.weekDocs.map((w) => ({
+            ...w,
+            doc: weekContent(w.week.start) ? { ...w.doc, ...weekContent(w.week.start) } : undefined,
+          })),
           leaderName: leaderNameOf(staff, cls.ageGroupId, yearPlan?.schoolYear),
         }),
       );
@@ -185,7 +174,7 @@ function ThemePlanInner() {
   };
   const withDays = (weekDoc, start) => {
     const day = dayPlans.find((x) => x.classId === classId && x.yearPlanId === yearPlan.id && x.weekStart === start);
-    return weekDoc && day ? { ...weekDoc, days: day.days, dayGoals: day.dayGoals, adjustments: day.adjustments } : weekDoc;
+    return weekDoc && day ? { ...weekDoc, days: day.days, dayGoals: day.dayGoals } : weekDoc;
   };
   const exportArgs = {
     themeDoc: draft,
@@ -200,11 +189,13 @@ function ThemePlanInner() {
         week: w,
         branchNo: branchNumber(yearPlan, w.start, branch),
         branchName: branch?.names?.[w.start] || '',
-        doc: withDays(weekPlans.find((x) => x.classId === classId && x.yearPlanId === yearPlan.id && x.weekStart === w.start), w.start),
+        doc: withDays(
+          weekPlans.find((x) => x.classId === classId && x.yearPlanId === yearPlan.id && x.weekStart === w.start),
+          w.start,
+        ),
       }))
       .filter((w) => w.doc),
   };
-
 
   return (
     <div className="page ga-page ga-class-editor">

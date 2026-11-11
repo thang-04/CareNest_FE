@@ -191,12 +191,14 @@ export const educationPlanApi = {
   saveGoal: async (item, options = {}) => {
     const refs = buildRefs(await loadConfig());
     const explicit = options.edit;
-    const edit = explicit
-      ? { ...explicit }
-      : { revision: item.revision ?? 0, requestId: crypto.randomUUID() };
+    const edit = explicit ? { ...explicit } : { revision: item.revision ?? 0, requestId: crypto.randomUUID() };
     const id = serverId(item.id);
-    const reviewOnly = id != null && (known.get(String(id))?.status === 'REVIEW' ||
-      item.permissions?.canApprove || item.permissions?.canIssue || item.permissions?.canReturn);
+    const reviewOnly =
+      id != null &&
+      (known.get(String(id))?.status === 'REVIEW' ||
+        item.permissions?.canApprove ||
+        item.permissions?.canIssue ||
+        item.permissions?.canReturn);
     if (!explicit && id != null && !reviewOnly) {
       const current = await axiosClient.get(`${GOALS}/${id}`);
       if ((item.revision ?? 0) !== (current.contentRevision ?? current.revision ?? 0)) {
@@ -330,17 +332,9 @@ export const educationPlanApi = {
       delete content.calendarRevision;
       delete content.durationPolicySnapshot;
     }
+    // Phần II "Đánh giá trẻ trên ngày" đợt này chỉ là giao diện, chưa lưu ở BE (spec 005 FR-008a)
+    if (kind === 'day' && Array.isArray(content.days)) content.days = content.days.map(({ review: _review, ...d }) => d);
     return axiosClient.put(`/education-plans/class-docs/${kind}/${doc.id}`, content, { headers });
-  },
-  // BE:EDU-27 — ô "Kế hoạch điều chỉnh và bổ sung", ghi được cả khi đã duyệt
-  saveClassDocAdjustments: (id, adjustments, options = {}) => {
-    if (options.version == null || options.dossierVersion == null)
-      throw sourceError(409, 'Hãy tải lại hồ sơ chủ đề trước khi lưu điều chỉnh.');
-    const headers = { 'X-Class-Doc-Version': String(options.version) };
-    if (options?.dossierVersion != null) headers['X-Dossier-Version'] = String(options.dossierVersion);
-    if (options?.headers) Object.assign(headers, options.headers);
-    // EDU-27 ở giáo án ngày (spec 003 Q9); BE nhận cả khóa giáo án tuần cũ
-    return axiosClient.put(`/education-plans/class-docs/day/${id}/adjustments`, { adjustments }, { headers });
   },
   actOnClassDoc: (kind, id, body, options = {}) => {
     if (options.version == null) throw sourceError(409, 'Hãy tải lại tài liệu trước khi duyệt.');

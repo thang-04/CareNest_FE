@@ -67,6 +67,7 @@ const ClassThemePlanPage = lazyPage(() => import('@/pages/education-plan/ClassTh
 const TeachingPresentationPage = lazyPage(() => import('@/pages/education-plan/TeachingPresentationPage'));
 const WeekPlanPage = lazyPage(() => import('@/pages/education-plan/WeekPlanPage'));
 const PlanReviewQueuePage = lazyPage(() => import('@/pages/education-plan/PlanReviewQueuePage'));
+const OverduePlansPage = lazyPage(() => import('@/pages/education-plan/OverduePlansPage'));
 const EduConfigPage = lazyPage(() => import('@/pages/education-plan/EduConfigPage'));
 const CurriculumSourcesPage = lazyPage(() => import('@/pages/education-plan/CurriculumSourcesPage'));
 const SchoolPlansPage = lazyPage(() => import('@/pages/education-plan/SchoolPlansPage'));
@@ -297,6 +298,8 @@ export function AppRoutes() {
             <Route path="class/:classId/weeks/:weekStart/days" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <DayPlansLegacyRedirect />)} />
             <Route path="class/:classId/semesters/:no" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ClassPlanLegacyRedirect />)} />
             <Route path="plan-reviews" element={edu([ROLES.PRINCIPAL, ...EDU_VP_TL], <PlanReviewQueuePage />)} />
+            {/* Spec 005: mở hạn kế hoạch quá hạn — chỉ Hiệu trưởng */}
+            <Route path="overdue" element={edu([ROLES.PRINCIPAL], <OverduePlansPage />)} />
             <Route path="curriculum-sources" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <CurriculumSourcesPage />)} />
             <Route
               path="settings"

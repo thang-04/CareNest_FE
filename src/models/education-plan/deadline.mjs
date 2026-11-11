@@ -1,4 +1,4 @@
-// Spec 003: nhãn hạn của gói học kỳ / hồ sơ chủ đề. BE tính deadlineState, daysLeft; FE chỉ hiển thị.
+// Spec 003/005: nhãn hạn (tách khỏi trạng thái duyệt, tiền tố "Hạn:"). BE tính deadlineState, daysLeft; FE chỉ hiển thị.
 
 const ddmm = (iso) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}` : '');
 
@@ -8,21 +8,21 @@ export function deadlineLabel(doc) {
   const due = ddmm(doc.extendedTo || doc.deadline);
   switch (doc.deadlineState) {
     case 'NEAR':
-      return { tone: 'orange', label: doc.daysLeft == null ? `Gần đến hạn (${due})` : `Gần đến hạn · còn ${doc.daysLeft} ngày (${due})` };
+      return { tone: 'orange', label: doc.daysLeft == null ? `Hạn: Gần đến hạn (${due})` : `Hạn: Gần đến hạn · còn ${doc.daysLeft} ngày (${due})` };
     case 'OVERDUE':
-      return { tone: 'red', label: `Quá hạn (${due})` };
+      return { tone: 'red', label: `Hạn: Quá hạn (${due})` };
     case 'ON_TIME':
-      return { tone: 'green', label: 'Đúng hạn' };
+      return { tone: 'green', label: 'Hạn: Đúng hạn' };
     case 'LATE':
-      return { tone: 'teal', label: 'Ban hành trễ' };
+      return { tone: 'teal', label: 'Hạn: Ban hành trễ' };
     default:
-      return { tone: 'gray', label: `Hạn ${due}` };
+      return { tone: 'gray', label: `Hạn: ${due}` };
   }
 }
 
 /** Lý do không gửi được (blockedReason của BE). */
 export const BLOCKED_TEXT = {
-  DEADLINE_PASSED: 'Đã quá hạn. Cần Hiệu trưởng hoặc Phó hiệu trưởng mở khóa.',
+  DEADLINE_PASSED: 'Quá hạn — chờ Hiệu trưởng mở hạn.',
   SEMESTER_NOT_RELEASED: 'Học kỳ chưa được duyệt.',
 };
 

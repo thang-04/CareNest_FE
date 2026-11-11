@@ -18,9 +18,11 @@ import { chainOf, currentPlanOf, diffPlans, versionOf } from '@/models/education
 const COLLECTIONS = { goals: 'eduGoals', themes: 'eduThemes', lessons: 'eduLessons' };
 
 // EDU-65/57: tổ được sửa/thêm nội dung, giữ cấu trúc và không xóa nội dung nguồn.
-const teamStructure = (plan) => curriculumShape(plan).map((domain) => ({
-  ...domain, rows: domain.rows.map(({ contents, ...row }) => row),
-}));
+const teamStructure = (plan) =>
+  curriculumShape(plan).map((domain) => ({
+    ...domain,
+    rows: domain.rows.map(({ contents, ...row }) => row),
+  }));
 const validTeamContents = (baseline, item, plans) => {
   const rows = (plan) => (plan.domains || []).flatMap((domain) => domain.rows || []);
   const knownIds = new Set(plans.flatMap((plan) => rows(plan).flatMap((row) => (row.contents || []).map((c) => String(c.id)))));
@@ -440,24 +442,50 @@ const ensureTeamAfterPublication = (db, annual) => {
   if (planLevel(annual) !== 'SCHOOL_YEAR' || annual.status !== EDU_STATUS.APPROVED) return;
   const list = db.eduGoals;
   const sameScope = (plan) => plan.schoolYear === annual.schoolYear && plan.ageGroupId === annual.ageGroupId;
-  if (list.some((plan) => sameScope(plan) && planLevel(plan) === 'SCHOOL_YEAR' && plan.status === EDU_STATUS.APPROVED && versionOf(plan) > versionOf(annual))) return;
+  if (
+    list.some(
+      (plan) =>
+        sameScope(plan) && planLevel(plan) === 'SCHOOL_YEAR' && plan.status === EDU_STATUS.APPROVED && versionOf(plan) > versionOf(annual),
+    )
+  )
+    return;
   const teams = list.filter((plan) => sameScope(plan) && planLevel(plan) === 'TEAM').sort((a, b) => versionOf(b) - versionOf(a));
   const prior = teams.find((plan) => plan.status !== EDU_STATUS.APPROVED) || teams[0];
-  if (prior?.curriculumSourcePlanId === annual.id || prior && !prior.curriculumSourcePlanId) return;
+  if (prior?.curriculumSourcePlanId === annual.id || (prior && !prior.curriculumSourcePlanId)) return;
   if (!prior) {
-    const leaders = (db.users || []).filter((user) => user.status !== 'INACTIVE' && user.ageGroupId === annual.ageGroupId && mockRoles(user).includes(ROLES.TEAM_LEADER));
-    if (leaders.length !== 1) throw eduError('INVALID_VALUE', 'cần đúng một tổ trưởng đang được phân công cho nhóm tuổi để soạn kế hoạch tổ');
+    const leaders = (db.users || []).filter(
+      (user) => user.status !== 'INACTIVE' && user.ageGroupId === annual.ageGroupId && mockRoles(user).includes(ROLES.TEAM_LEADER),
+    );
+    if (leaders.length !== 1)
+      throw eduError('INVALID_VALUE', 'cần đúng một tổ trưởng đang được phân công cho nhóm tuổi để soạn kế hoạch tổ');
     const team = copyPlan({ ...annual, ...inheritAnnual(annual) }, leaders[0], 1, annual.code.replace(/^KHN-/, ''));
-    Object.assign(team, { id: newId('team'), title: 'Kế hoạch giáo dục tổ', description: '', sourcePlanId: null, authorIds: [leaders[0].id], durationPolicySnapshot: clone(annual.durationPolicySnapshot || { mode: 'MISSING_OR_UNKNOWN' }) });
+    Object.assign(team, {
+      id: newId('team'),
+      title: 'Kế hoạch giáo dục tổ',
+      description: '',
+      sourcePlanId: null,
+      authorIds: [leaders[0].id],
+      durationPolicySnapshot: clone(annual.durationPolicySnapshot || { mode: 'MISSING_OR_UNKNOWN' }),
+    });
     list.unshift(team);
     return;
   }
   const baseline = list.find((plan) => plan.id === prior.curriculumSourcePlanId);
   const inherited = inheritAnnual(annual, prior, baseline);
   if (prior.status !== EDU_STATUS.APPROVED) {
-    Object.assign(prior, inherited, { previousSourcePlanId: prior.curriculumSourcePlanId, status: EDU_STATUS.DRAFT, approvals: [], waitingRole: null, printSnapshot: null, revision: (prior.revision || 0) + 1 });
+    Object.assign(prior, inherited, {
+      previousSourcePlanId: prior.curriculumSourcePlanId,
+      status: EDU_STATUS.DRAFT,
+      approvals: [],
+      waitingRole: null,
+      printSnapshot: null,
+      revision: (prior.revision || 0) + 1,
+    });
   } else {
-    const owner = (db.users || []).find((user) => user.id === prior.owner?.userId) || { id: prior.owner?.userId, fullName: prior.owner?.name };
+    const owner = (db.users || []).find((user) => user.id === prior.owner?.userId) || {
+      id: prior.owner?.userId,
+      fullName: prior.owner?.name,
+    };
     const team = copyPlan({ ...prior, ...inherited }, owner, versionOf(prior) + 1, `${teams.at(-1).code}-V${versionOf(prior) + 1}`);
     team.previousSourcePlanId = prior.curriculumSourcePlanId;
     list.unshift(team);
@@ -563,11 +591,18 @@ export const educationPlanMockRepository = {
     const db = readDb();
     if (db.eduSeedVersion !== EDU_SEED_VERSION) writeDb(ensureSeeded);
     const current = readDb();
-    const published = current.eduGoals.filter((plan) => planLevel(plan) === 'SCHOOL_YEAR' && plan.status === EDU_STATUS.APPROVED && currentPlanOf(current.eduGoals, plan.ageGroupId, plan.schoolYear, 'SCHOOL_YEAR')?.id === plan.id);
+    const published = current.eduGoals.filter(
+      (plan) =>
+        planLevel(plan) === 'SCHOOL_YEAR' &&
+        plan.status === EDU_STATUS.APPROVED &&
+        currentPlanOf(current.eduGoals, plan.ageGroupId, plan.schoolYear, 'SCHOOL_YEAR')?.id === plan.id,
+    );
     const pending = published.filter((annual) => {
-      const teams = current.eduGoals.filter((plan) => planLevel(plan) === 'TEAM' && plan.ageGroupId === annual.ageGroupId && plan.schoolYear === annual.schoolYear).sort((a, b) => versionOf(b) - versionOf(a));
+      const teams = current.eduGoals
+        .filter((plan) => planLevel(plan) === 'TEAM' && plan.ageGroupId === annual.ageGroupId && plan.schoolYear === annual.schoolYear)
+        .sort((a, b) => versionOf(b) - versionOf(a));
       const prior = teams.find((plan) => plan.status !== EDU_STATUS.APPROVED) || teams[0];
-      return !prior || prior.curriculumSourcePlanId && prior.curriculumSourcePlanId !== annual.id;
+      return !prior || (prior.curriculumSourcePlanId && prior.curriculumSourcePlanId !== annual.id);
     });
     if (pending.length) writeDb((next) => pending.forEach((annual) => ensureTeamAfterPublication(next, annual)));
     const fresh = readDb();
@@ -595,7 +630,8 @@ export const educationPlanMockRepository = {
     return writeDb((db) => {
       const goal = ensureSeeded(db).eduGoals.find((item) => item.id === id);
       if (!goal) throw eduError('YEAR_PLAN_NOT_FOUND');
-      if (planLevel(goal) !== 'TEAM' || !authorOf(db, goal, actor) || !designatedAuthor(goal, actor)) throw eduError('YEAR_PLAN_EDIT_FORBIDDEN');
+      if (planLevel(goal) !== 'TEAM' || !authorOf(db, goal, actor) || !designatedAuthor(goal, actor))
+        throw eduError('YEAR_PLAN_EDIT_FORBIDDEN');
       if (!['DRAFT', 'EDITING'].includes(goal.status)) throw eduError('YEAR_PLAN_INVALID_STATUS', 'rà soát');
       if ((goal.revision ?? 0) !== (edit.revision ?? 0) || String(goal.curriculumSourcePlanId) !== String(expectedSourcePlanId))
         throw eduError('YEAR_PLAN_REVISION_STALE');

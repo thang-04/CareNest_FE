@@ -62,12 +62,10 @@ function WorkflowPolicyConfig({ docLabel, policy, onChange, editing, canEdit, as
           ) : (
             <label className="ga-workflow-add">
               <span className="sr-only">Chọn người tạo cho {docLabel}</span>
-              <select
-                className="select"
-                value={creators[0] || ''}
-                onChange={(event) => addRole(event.target.value, 'creator')}
-              >
-                <option value="" disabled>-- Chọn đúng 1 vai trò tạo --</option>
+              <select className="select" value={creators[0] || ''} onChange={(event) => addRole(event.target.value, 'creator')}>
+                <option value="" disabled>
+                  -- Chọn đúng 1 vai trò tạo --
+                </option>
                 {CREATOR_ROLES.filter((r) => !reviewers.includes(r)).map((role) => (
                   <option key={role} value={role}>
                     {WORKFLOW_ROLES[role]}
@@ -247,7 +245,9 @@ export default function EduConfigPage() {
     );
 
   return (
-    <div className={`page ga-page ga-config-page ga-class-editor ga-year-page${editing ? ' is-editing' : ' is-viewing'}${keyboardNavigation ? ' ga-keyboard-nav' : ''}`}>
+    <div
+      className={`page ga-page ga-config-page ga-class-editor ga-year-page${editing ? ' is-editing' : ' is-viewing'}${keyboardNavigation ? ' ga-keyboard-nav' : ''}`}
+    >
       <div className="ga-sticky-head">
         <PageHead crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Cấu hình' }]} title="Cấu hình kế hoạch giáo dục" />
         <div className="ga-year-toolbar" role="group" aria-label="Thao tác cấu hình kế hoạch giáo dục">
@@ -287,8 +287,20 @@ export default function EduConfigPage() {
               <thead>
                 <tr>
                   <th className={editing ? 'cell--fixed' : ''}>Loại chủ đề</th>
-                  <th className={editing ? (isPrincipal && eduConfig.durationPolicyAvailable !== false ? 'ga-th-editable' : 'cell--fixed') : ''}>Tối thiểu (tuần)</th>
-                  <th className={editing ? (isPrincipal && eduConfig.durationPolicyAvailable !== false ? 'ga-th-editable' : 'cell--fixed') : ''}>Tối đa (tuần)</th>
+                  <th
+                    className={
+                      editing ? (isPrincipal && eduConfig.durationPolicyAvailable !== false ? 'ga-th-editable' : 'cell--fixed') : ''
+                    }
+                  >
+                    Tối thiểu (tuần)
+                  </th>
+                  <th
+                    className={
+                      editing ? (isPrincipal && eduConfig.durationPolicyAvailable !== false ? 'ga-th-editable' : 'cell--fixed') : ''
+                    }
+                  >
+                    Tối đa (tuần)
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -303,7 +315,9 @@ export default function EduConfigPage() {
                     {['minWeeks', 'maxWeeks'].map((bound) => (
                       <td
                         key={bound}
-                        className={editing ? (isPrincipal && eduConfig.durationPolicyAvailable !== false ? 'ga-cell-editable' : 'cell--fixed') : ''}
+                        className={
+                          editing ? (isPrincipal && eduConfig.durationPolicyAvailable !== false ? 'ga-cell-editable' : 'cell--fixed') : ''
+                        }
                       >
                         {editing && isPrincipal && eduConfig.durationPolicyAvailable !== false ? (
                           <input
@@ -434,11 +448,7 @@ export default function EduConfigPage() {
                   {SIGN_DOCS.filter((doc) => doc.key !== 'week').map((doc) => {
                     const canEditDoc = isPrincipal && (doc.key !== 'schoolYear' || eduConfig.durationPolicyAvailable !== false);
                     return (
-                      <th
-                        key={doc.key}
-                        scope="col"
-                        className={editing ? (canEditDoc ? 'ga-th-editable' : 'cell--fixed') : ''}
-                      >
+                      <th key={doc.key} scope="col" className={editing ? (canEditDoc ? 'ga-th-editable' : 'cell--fixed') : ''}>
                         {doc.label}
                       </th>
                     );
@@ -459,10 +469,7 @@ export default function EduConfigPage() {
                         DEFAULT_WORKFLOW_POLICY[doc.key] || { creators: [], reviewers: draft.signers?.[doc.key] || [] };
                       const canEditDoc = isPrincipal && (doc.key !== 'schoolYear' || eduConfig.durationPolicyAvailable !== false);
                       return (
-                        <td
-                          key={doc.key}
-                          className={editing ? (canEditDoc ? 'ga-cell-editable' : 'cell--fixed') : ''}
-                        >
+                        <td key={doc.key} className={editing ? (canEditDoc ? 'ga-cell-editable' : 'cell--fixed') : ''}>
                           {row.key === 'creator' ? (
                             <WorkflowPolicyConfig
                               docKey={doc.key}

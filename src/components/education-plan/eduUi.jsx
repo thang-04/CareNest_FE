@@ -74,8 +74,9 @@ const BaseEduStatusBadge = createStatusBadge(
   },
   EDU_STATUS_LABELS,
 );
-export const EduStatusBadge = ({ status, doc, ...props }) =>
-  <BaseEduStatusBadge status={educationDisplayStatus({ ...doc, status })} {...props} />;
+export const EduStatusBadge = ({ status, doc, ...props }) => (
+  <BaseEduStatusBadge status={educationDisplayStatus({ ...doc, status })} {...props} />
+);
 
 /** Hạn gửi hồ sơ chủ đề chỉ để nhắc, không chặn. */
 export const DueStateBadge = createStatusBadge(
@@ -105,8 +106,9 @@ const BaseYearPlanStatusBadge = createStatusBadge(
   },
   { ...EDU_STATUS_LABELS, APPROVED: 'Đã ban hành', REPLACED: 'Đã thay thế' },
 );
-export const YearPlanStatusBadge = ({ status, doc, ...props }) =>
-  <BaseYearPlanStatusBadge status={educationDisplayStatus({ ...doc, status })} {...props} />;
+export const YearPlanStatusBadge = ({ status, doc, ...props }) => (
+  <BaseYearPlanStatusBadge status={educationDisplayStatus({ ...doc, status })} {...props} />
+);
 
 /** .card with optional numbered title, header actions and footer. bodyClass={null} renders children directly. */
 export function Card({ title, num, actions, children, foot, bodyClass = 'card__body', className = '', collapsed = false, onToggle }) {

@@ -161,7 +161,9 @@ test('TEAM ngày gửi ưu tiên sentAt, tương thích sentBy.at và chưa gử
 });
 
 const queueSource = await readFile(new URL('../../src/pages/education-plan/PlanReviewQueuePage.jsx', import.meta.url), 'utf8');
-const queueStubs = stubs.replace('useNavigate=()=>()=>{}', 'useNavigate=()=>to=>context.destination=to')
+// Trang gọi như hàm thường (không render React): hook trạng thái bộ lọc thay bằng giá trị ban đầu
+const queueStubs = stubs.replace("import React, {useMemo, useState} from 'react';", "import React, {useMemo} from 'react'; const useState=(v)=>[typeof v==='function'?v():v,()=>{}], useId=()=>'q';")
+  .replace('useNavigate=()=>()=>{}', 'useNavigate=()=>to=>context.destination=to')
   .replace('clickableRowProps=()=>({})', 'clickableRowProps=(onClick)=>({onClick})') + `
 const EduStatusBadge=YearPlanStatusBadge, fmtDateTime=(value)=>value, DeadlineBadge=()=>null, Eye=()=>null;
 const PENDING_OF={}, CLASS_DOC_LABELS={year:'Kế hoạch tổ', branch:'Nhánh', theme:'Chủ đề'};
