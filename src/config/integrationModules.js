@@ -145,10 +145,10 @@ export const INTEGRATION_MODULES = {
     routes: ['/kitchen/dry-stock', '/kitchen/stock-receipts', '/kitchen/stock-history', '/kitchen/stock-shortfalls'],
     files: ['src/services/dryStockApi.js'],
   },
-  // Hàng tươi trên BE: bản dự trù /nutrition/fresh-forecasts và kiểm nhận hai lần /nutrition/fresh-checks; route dài hơn nên thắng '/kitchen'
+  // Hàng tươi trên BE: bản dự trù /nutrition/fresh-forecasts, kiểm nhận hai lần /nutrition/fresh-checks, bảng đi chợ /nutrition/day-market; route dài hơn nên thắng '/kitchen'
   'fresh-goods': {
     source: 'api',
-    routes: ['/kitchen/forecast', '/kitchen/fresh-receipts'],
+    routes: ['/kitchen/forecast', '/kitchen/fresh-receipts', '/kitchen/market-day'],
     files: ['src/services/freshGoodsApi.js'],
   },
   // Bếp hôm nay (xem), lưu mẫu thức ăn (duyệt), ảnh bữa, khung giờ ảnh trên BE /nutrition/{kitchen/day,food-samples,meal-photos,meal-photo-windows}
