@@ -48,10 +48,9 @@ export const profileRows = ({ child, admin: a, campaign, dateCell, blank = missi
 /**
  * Bước 1 — Phần I (user chốt 2026-10-22). Hành chính lấy từ hồ sơ trẻ, chỉ xem; Hiệu trưởng, Phó hiệu trưởng sửa ở hồ sơ.
  * Ngày khám chỉ xem (user chốt 2026-11-04): examDate là ngày BE trả (phiếu đã lưu, hoặc ngày BE điền sẵn cho phiếu mới), BE ghi khi
- * lưu; examSaved: phiếu đã lưu (nháp hoặc kết luận). Giáo viên chọn người đi cùng trong phụ huynh của hồ sơ; tiền sử điền sẵn từ
- * khai báo, giáo viên sửa được.
+ * lưu. Giáo viên chọn người đi cùng trong phụ huynh của hồ sơ; tiền sử điền sẵn từ khai báo, giáo viên sửa được.
  */
-export function ExamAdminStep({ form, set, errors, child, campaign, examDate, examSaved, disabled }) {
+export function ExamAdminStep({ form, set, errors, child, campaign, examDate, disabled }) {
   const uid = useId();
   const id = (key) => `${uid}-${key}`;
   const a = form.exam.admin;
@@ -112,13 +111,9 @@ export function ExamAdminStep({ form, set, errors, child, campaign, examDate, ex
                     ))}
                   </div>
                 </fieldset>
-                {errors['exam.admin.companion'] ? (
+                {errors['exam.admin.companion'] && (
                   <span className="field__error" role="alert">
                     {errors['exam.admin.companion']}
-                  </span>
-                ) : (
-                  <span className="field__hint">
-                    Người đi cùng không có trong hồ sơ: báo Hiệu trưởng hoặc Phó hiệu trưởng thêm vào hồ sơ trẻ.
                   </span>
                 )}
               </>
@@ -185,14 +180,7 @@ export function ExamAdminStep({ form, set, errors, child, campaign, examDate, ex
   });
 
   return (
-    <ExamSheetCard
-      title={EXAM_STEPS[0].label}
-      info={
-        !disabled &&
-        'Hành chính lấy từ hồ sơ trẻ, không sửa ở phiếu khám; sai hoặc thiếu thì báo Hiệu trưởng hoặc Phó hiệu trưởng sửa ở hồ sơ trẻ. Tiền sử điền sẵn từ khai báo sức khỏe: hỏi lại người đi cùng, ghi đúng tên bệnh người nhà báo, không tự ghi chẩn đoán.'
-      }
-      note="Có người đi cùng: bác sĩ trao đổi kết luận tại buổi khám, hệ thống ghi lại lần trao đổi này. Lưu kết luận thì tiền sử được cập nhật vào khai báo sức khỏe của trẻ; đổi ngày tiếp xúc lao thì hệ thống báo Hiệu trưởng, Phó hiệu trưởng điểm trường."
-    >
+    <ExamSheetCard title={EXAM_STEPS[0].label}>
       <ExamSheetTable label={EXAM_SECTIONS.admin}>
         <ExamSheetBand primary>{EXAM_SECTIONS.admin}</ExamSheetBand>
         <ExamSheetRows
@@ -204,11 +192,6 @@ export function ExamAdminStep({ form, set, errors, child, campaign, examDate, ex
             dateCell: (
               <td>
                 {examDate ? formatDate(examDate) : '—'}
-                {!disabled && (
-                  <span className="field__hint">
-                    {examSaved ? 'Ngày khám đã ghi, không sửa được.' : 'Hệ thống ghi ngày khám khi lưu phiếu.'}
-                  </span>
-                )}
                 {/* BE vẫn có thể báo lỗi ngày (vd. trẻ đã có kết quả đo khác cùng ngày) */}
                 {errors.date && (
                   <span className="field__error" role="alert">

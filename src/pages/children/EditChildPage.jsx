@@ -137,9 +137,6 @@ export default function EditChildPage() {
         <div className="tr-step-head">
           <div className="stack gap-1">
             <h2 className="card__title">Thông tin hồ sơ</h2>
-            <p className="muted text-sm">
-              Các mục có dấu <span className="req">*</span> là bắt buộc.
-            </p>
           </div>
         </div>
         <ChildInfoFields
@@ -154,7 +151,7 @@ export default function EditChildPage() {
         />
       </section>
       <section className="card wizard-card">
-        <FormField label="Lý do chỉnh sửa" required error={errors.reason} hint="Được lưu vào lịch sử thay đổi của hồ sơ">
+        <FormField label="Lý do chỉnh sửa" required error={errors.reason}>
           <textarea
             className="textarea"
             rows={2}

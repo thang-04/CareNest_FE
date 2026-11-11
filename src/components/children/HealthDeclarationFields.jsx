@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, X, Info } from '@/components/ui/icons';
+import { Plus, X } from '@/components/ui/icons';
 import { FormField } from '@/components/form/FormField';
 import { IntakeSheet, IntakeChoiceRow } from './IntakeSheet';
 import { ALLERGY_STATE_LABELS, DECLARATION_STATE, DIET_STATE_LABELS, NOTE_STATE_LABELS } from '@/models/children/childrenConstants';
@@ -23,9 +23,6 @@ const ALL_STATES = Object.values(DECLARATION_STATE);
 // Tiền sử chỉ Có/Không, không còn Chưa cung cấp (user chốt 2026-10-22): phiếu khám điền sẵn từ đây.
 const HISTORY_STATES = [DECLARATION_STATE.REPORTED, DECLARATION_STATE.NONE_REPORTED];
 const options = (labels, states) => states.map((s) => ({ value: s, label: labels[s] }));
-
-const HISTORY_NOTE =
-  'Như phần Tiền sử của phiếu khám sức khỏe; phiếu khám điền sẵn từ đây, giáo viên sửa ở phiếu thì lưu kết luận cập nhật lại đây. Ghi đúng tên bệnh phụ huynh báo, không tự ghi chẩn đoán.';
 
 function FieldError({ error }) {
   return error ? (
@@ -134,12 +131,7 @@ export function HealthDeclarationFields({ value, onChange, errors = {}, dateOfBi
           />
         )}
         {it.dateLabel && (
-          <FormField
-            label={it.dateLabel}
-            required
-            error={errors[`medicalHistory.${it.key}Date`]}
-            hint="Theo lời phụ huynh; không nhớ chính xác thì ghi ngày ước lượng."
-          >
+          <FormField label={it.dateLabel} required error={errors[`medicalHistory.${it.key}Date`]}>
             <input
               type="date"
               className="input"
@@ -150,34 +142,13 @@ export function HealthDeclarationFields({ value, onChange, errors = {}, dateOfBi
             />
           </FormField>
         )}
-        {it.key === 'tbContact' && (
-          <div className="alert alert--info">
-            <Info size={18} />
-            <div>
-              Khi lưu, hệ thống báo Hiệu trưởng, Phó hiệu trưởng điểm trường và giáo viên lớp để trao đổi với phụ huynh về việc đưa trẻ đi
-              khám sàng lọc. Bác sĩ xem lại ở đợt khám tới. Sau này đổi ngày tiếp xúc (ở đây hoặc ở phiếu khám) thì hệ thống báo Hiệu
-              trưởng, Phó hiệu trưởng điểm trường.
-            </div>
-          </div>
-        )}
       </>
     );
   };
 
-  const intro = (
-    <div className="alert alert--info">
-      <Info size={18} />
-      <div>
-        Ghi đúng thông tin phụ huynh cung cấp. Dị ứng, chế độ ăn: nếu phụ huynh chưa cho biết, chọn <b>Chưa cung cấp</b> – không mặc định là
-        không có. Tiền sử bắt buộc chọn Có hoặc Không. Thông tin dị ứng có hiệu lực ngay khi lưu: bếp và điểm danh dùng danh sách này.
-      </div>
-    </div>
-  );
-
   if (sheet)
     return (
       <div className="tr-intake stack gap-5">
-        {intro}
         <div className="tr-intake-cols">
           <section aria-label="Dị ứng và chế độ ăn">
             <IntakeSheet title="I. Dị ứng và chế độ ăn">
@@ -232,7 +203,6 @@ export function HealthDeclarationFields({ value, onChange, errors = {}, dateOfBi
                 </IntakeChoiceRow>
               ))}
             </IntakeSheet>
-            <p className="muted text-sm mt-8">{HISTORY_NOTE}</p>
           </section>
         </div>
       </div>
@@ -240,8 +210,6 @@ export function HealthDeclarationFields({ value, onChange, errors = {}, dateOfBi
 
   return (
     <div className="stack gap-4">
-      {intro}
-
       <fieldset className="tr-fieldset">
         <legend className="field__label">
           Dị ứng thực phẩm / thuốc<span className="req">*</span>
@@ -277,10 +245,7 @@ export function HealthDeclarationFields({ value, onChange, errors = {}, dateOfBi
         <FieldError error={errors.otherNotes} />
       </fieldset>
 
-      <div>
-        <h3 className="subsection-title">Tiền sử</h3>
-        <p className="muted text-sm">{HISTORY_NOTE}</p>
-      </div>
+      <h3 className="subsection-title">Tiền sử</h3>
       {MEDICAL_HISTORY_ITEMS.map((it) => {
         const detail = historyDetail(it);
         return (

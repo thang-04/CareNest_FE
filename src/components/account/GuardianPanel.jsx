@@ -145,7 +145,6 @@ export function GuardianPanel({ child, classroomName, onChanged }) {
             message: `${target.status === 'ACTIVE' ? 'Khóa' : 'Mở khóa'} tài khoản ${target.fullName}?`,
             danger: target.status === 'ACTIVE',
           };
-  const historicalLinks = candidates.filter((g) => g !== recipient && g.accountStatus && g.accountStatus !== 'NOT_ACTIVATED').length;
 
   return (
     <>
@@ -159,11 +158,6 @@ export function GuardianPanel({ child, classroomName, onChanged }) {
         <LoadingState />
       ) : (
         <>
-          {historicalLinks > 0 && (
-            <div className="alert alert--info mb-16">
-              Hồ sơ còn {historicalLinks} liên kết tài khoản cũ. Lựa chọn người nhận tài khoản không tự gỡ các liên kết này.
-            </div>
-          )}
           {!guardians.length && chosen && (
             <div className="alert alert--warning mb-16">
               Bé chưa có tài khoản phụ huynh. Kiểm tra thông tin theo hồ sơ trẻ rồi kích hoạt.
@@ -233,10 +227,6 @@ export function GuardianPanel({ child, classroomName, onChanged }) {
           {!guardians.length && chosen && (
             <section className="pa-pending" aria-label="Kích hoạt tài khoản phụ huynh">
               <h3 className="subsection-title">Kích hoạt tài khoản phụ huynh</h3>
-              <p className="text-sm text-2 mb-12">
-                {candidates.length > 1 ? 'Chọn một phụ huynh nhận tài khoản. ' : ''}Thông tin lấy từ hồ sơ trẻ, không sửa ở đây; sai thì sửa
-                ở hồ sơ trẻ rồi kích hoạt.
-              </p>
               {/* Mọi phụ huynh trên hồ sơ trong một bảng; từ 2 người thì chọn người nhận bằng ô tròn đầu dòng hoặc bấm dòng */}
               <div className="table-wrap">
                 <table className="table table--grid pa-account-table">
@@ -300,9 +290,6 @@ export function GuardianPanel({ child, classroomName, onChanged }) {
               </Link>
               .
             </div>
-          )}
-          {guardians.length > 0 && (
-            <p className="text-sm text-2 mt-12">Cấp mật khẩu mới: mật khẩu tạm gửi qua SMS tới số đăng nhập, mật khẩu cũ hết hiệu lực.</p>
           )}
         </>
       )}

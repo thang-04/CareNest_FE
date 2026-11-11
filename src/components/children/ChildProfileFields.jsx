@@ -31,17 +31,8 @@ export function ChildProfileFields({ value, onChange, errors = {}, sheet = false
   return (
     <>
       {!sheet && <h2 className="card__title">Thông tin hành chính</h2>}
-      {!sheet && (
-        <p className="muted text-sm mt-8 mb-12">
-          Phiếu khám sức khỏe dùng đúng các thông tin này và giáo viên không sửa được khi khám. Hỏi đủ phụ huynh khi nhập học.
-        </p>
-      )}
-      <Fields {...(sheet ? { title: 'II. Thông tin hành chính' } : { className: 'grid-3' })}>
-        {text('idNumber', 'Số CC/CCCD/Hộ chiếu/Mã định danh', {
-          maxLength: 20,
-          hint: 'Không bắt buộc. 12 chữ số, hoặc số hộ chiếu',
-          required: false,
-        })}
+      <Fields {...(sheet ? { title: 'II. Thông tin hành chính' } : { className: 'grid-3 mt-12' })}>
+        {text('idNumber', 'Số CC/CCCD/Hộ chiếu/Mã định danh', { maxLength: 20, required: false })}
         <ChoiceField
           name="profile-premature"
           label="Sinh non"
@@ -59,7 +50,6 @@ export function ChildProfileFields({ value, onChange, errors = {}, sheet = false
           min="20"
           max="42"
           step="1"
-          hint="Từ 20 đến 42 tuần; dưới 37 tuần là sinh non"
         />
         {text('ethnicity', 'Dân tộc')}
         {text('beneficiary', 'Đối tượng')}

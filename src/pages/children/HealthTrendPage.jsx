@@ -317,8 +317,6 @@ export default function HealthTrendPage() {
                       <span>
                         <i className="tr-legend__dot tr-legend__dot--unavailable" /> Chưa có đánh giá
                       </span>
-                      <span className="muted">Chiều cao, cân nặng tô màu theo tình trạng dinh dưỡng bác sĩ ghi ở phiếu khám.</span>
-                      {ageGroup && <span className="muted">Thang đo dùng chung cho nhóm {ageGroup.shortName}.</span>}
                     </div>
                   </div>
                 ) : (

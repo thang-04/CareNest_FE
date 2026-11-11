@@ -280,28 +280,24 @@ export default function ChildProfilePage() {
                     to: `/children/${child.id}/health`,
                     icon: HeartPulse,
                     title: 'Sổ sức khỏe',
-                    hint: 'Chiều cao, cân nặng, tình trạng dinh dưỡng',
                   },
                   {
                     to: `/children/health-trends?childId=${child.id}`,
                     icon: LineChart,
                     title: 'Xu hướng sức khỏe',
-                    hint: 'Biểu đồ tăng trưởng và nhận định AI',
                   },
                   {
                     to: `/children/${child.id}/health-declaration`,
                     icon: ClipboardList,
                     title: 'Khai báo sức khỏe',
-                    hint: 'Dị ứng, chế độ ăn, tiền sử',
                   },
-                ].map(({ to, icon: Icon, title, hint }) => (
+                ].map(({ to, icon: Icon, title }) => (
                   <Link key={title} className="tr-quicklink" to={to}>
                     <span className="tr-quicklink__icon" aria-hidden="true">
                       <Icon size={20} />
                     </span>
                     <span className="tr-quicklink__text">
                       <span className="fw-600">{title}</span>
-                      <span className="muted text-sm">{hint}</span>
                     </span>
                     <ChevronRight size={18} className="tr-quicklink__go" aria-hidden="true" />
                   </Link>

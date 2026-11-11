@@ -1,6 +1,6 @@
 import { Fragment, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Pencil, Lock, Unlock, CircleX, Info, Users, CheckCircle2, ChevronDown, History } from '@/components/ui/icons';
+import { ArrowLeft, Pencil, Lock, Unlock, CircleX, Users, CheckCircle2, ChevronDown, History } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useHealthCheck } from '@/hooks/children/useHealthChecks';
@@ -85,51 +85,8 @@ function CountCell({ value, tone }) {
   return <span className={tone ? `tr-count tr-count--${tone}` : 'tr-count'}>{n}</span>;
 }
 
-function StatusBanner({ campaign, teacher, isRound }) {
-  const w = wordsOf(isRound);
-  // Đợt khám và kỳ cân đo cùng tự đóng sau ngày kết thúc (HLT-17; kỳ cân đo từ 2026-11-04).
-  const autoClose = `${w.title} tự đóng sau ngày ${formatDate(campaign.endDate)}`;
-  if (campaign.status === CAMPAIGN_STATUS.IN_PROGRESS)
-    return (
-      <div className="alert alert--info mb-16">
-        <Info size={18} />
-        <div>
-          {teacher &&
-            (isRound ? (
-              <>
-                Bấm <b>Nhập số đo</b> cạnh tên trẻ ở danh sách lớp bên dưới để nhập chiều cao, cân nặng. Lưu là công bố cho phụ huynh ngay.
-              </>
-            ) : (
-              <>
-                Bấm <b>Khám</b> cạnh tên trẻ ở danh sách lớp bên dưới để nhập phiếu theo mẫu Phụ lục II cùng bác sĩ. Lưu kết luận là công bố
-                cho phụ huynh ngay.
-              </>
-            ))}{' '}
-          {autoClose}; {w.results} sẽ khóa khi {w.unit} đóng, kể cả {w.unit} mở lại để nhập bù.
-        </div>
-      </div>
-    );
-  if (campaign.status === CAMPAIGN_STATUS.UPCOMING)
-    return (
-      <div className="alert alert--info mb-16">
-        <Info size={18} />
-        <div>
-          {w.title} chưa bắt đầu. Giáo viên nhập kết quả từ ngày {formatDate(campaign.startDate)}. {autoClose}.
-        </div>
-      </div>
-    );
-  if (campaign.status === CAMPAIGN_STATUS.CLOSED)
-    return (
-      <div className="alert alert--info mb-16">
-        <Lock size={18} />
-        <div>
-          {isRound ? 'Kỳ cân đo' : 'Đợt khám'} đã đóng, {w.results} đã khóa. Hiệu trưởng hoặc Phó hiệu trưởng mở lại {w.unit} nếu cần nhập
-          hoặc sửa.
-          {campaign.progress.absent > 0 && ` ${campaign.progress.absent} trẻ ${w.absent}.`}
-          {campaign.progress.notConcluded > 0 && ` ${campaign.progress.notConcluded} phiếu chưa kết luận.`}
-        </div>
-      </div>
-    );
+function StatusBanner({ campaign, isRound }) {
+  if (campaign.status !== CAMPAIGN_STATUS.CANCELLED) return null;
   return (
     <div className="alert alert--warning mb-16">
       <CircleX size={18} />
@@ -260,7 +217,7 @@ export default function HealthCheckDetailPage() {
         )}
       </div>
 
-      <StatusBanner campaign={campaign} teacher={teacher} isRound={isRound} />
+      <StatusBanner campaign={campaign} isRound={isRound} />
 
       {/* Một khối tổng quan thay cho thẻ thông tin + hàng thẻ số liệu + cột lịch sử (user yêu cầu 2026-11-11): thẻ số liệu lặp
           lại thanh tiến độ và bảng theo lớp; lịch sử chỉ vài dòng nên xem trong panel, không giữ cả một cột trống. */}
@@ -308,9 +265,6 @@ export default function HealthCheckDetailPage() {
                     </li>
                   ))}
                 </ul>
-                <p className="muted text-xs m-0">
-                  Hệ thống tính theo chuẩn WHO (BMI theo tuổi) từ số đo của kỳ, chỉ để sàng lọc, không phải chẩn đoán.
-                </p>
               </section>
             )}
           </div>

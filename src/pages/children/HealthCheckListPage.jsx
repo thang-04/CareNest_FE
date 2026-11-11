@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Plus, RotateCcw, Info, Search, Scale } from '@/components/ui/icons';
+import { Plus, RotateCcw, Search, Scale } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useMasterData } from '@/hooks/useMasterData';
@@ -13,7 +13,7 @@ import { clickableRowProps } from '@/utils/clickableRow';
 import { CampaignKindBadge, CampaignStatusBadge } from '@/components/children/ChildBadges';
 import { CAMPAIGN_KIND, CAMPAIGN_KIND_LABELS, CAMPAIGN_STATUS_LABELS } from '@/models/children/healthCheckConstants';
 import { formatDate } from '@/utils/format';
-import { canManageHealthCheck, isPrincipal, isTeacherRole } from '@/utils/children/childrenPermissions';
+import { canManageHealthCheck, isPrincipal } from '@/utils/children/childrenPermissions';
 import { healthCheckCrumbs } from '@/utils/children/breadcrumbs';
 import '@/styles/modules/children.css';
 
@@ -60,16 +60,6 @@ export default function HealthCheckListPage() {
       <div className="page__head">
         <h1 className="page__title">Đợt khám và kỳ cân đo</h1>
         {manage && <div className="row row--wrap gap-2">{createActions}</div>}
-      </div>
-
-      <div className="alert alert--info mb-16">
-        <Info size={18} />
-        <div>
-          {isTeacherRole(user)
-            ? 'Mở đợt khám hoặc kỳ cân đo đang diễn ra để nhập kết quả cho trẻ lớp bạn phụ trách.'
-            : 'Đợt khám sức khỏe thường 1 lần/năm học; kỳ cân đo khoảng 3 tháng/lần. Mỗi điểm trường chỉ có một đợt khám hoặc kỳ cân đo chưa đóng. Giáo viên phụ trách lớp nhập kết quả; Hiệu trưởng hoặc Phó hiệu trưởng đóng khi nhập xong.'}{' '}
-          Danh sách gồm các đợt, kỳ bắt đầu trong năm học {yearLabel}; chọn năm khác ở thanh trên để xem đợt cũ.
-        </div>
       </div>
 
       <div className="card">

@@ -1,4 +1,3 @@
-import { Lock } from '@/components/ui/icons';
 import { Modal } from '@/components/ui/Modal';
 import { formatDate } from '@/utils/format';
 import { PublishStatusBadge } from './ChildBadges';
@@ -14,12 +13,6 @@ export function MeasurementDetailModal({ measurement: m, ageText, onClose }) {
     <Modal open={!!m} size="lg" title={m ? `Lần đo ngày ${formatDate(m.date)}` : ''} onClose={onClose}>
       {m && (
         <>
-          {m.locked && (
-            <div className="alert alert--info mb-16">
-              <Lock size={18} />
-              <div>Đợt khám hoặc kỳ cân đo đã đóng, kết quả bị khóa. Hiệu trưởng hoặc Phó hiệu trưởng mở lại nếu cần sửa.</div>
-            </div>
-          )}
           <div className="stack gap-4">
             <ChildInfoTable
               label="Thông tin lần đo"

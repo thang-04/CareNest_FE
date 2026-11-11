@@ -38,7 +38,7 @@ export function PortraitPicker({ label, file, identity, onChange, error, disable
             accept={PORTRAIT_ACCEPT}
             disabled={disabled}
             aria-labelledby={labelledBy}
-            aria-describedby={`${id}-hint${localError || error ? ` ${id}-error` : ''}`}
+            aria-describedby={localError || error ? `${id}-error` : undefined}
             onChange={(event) => {
               const selected = event.target.files?.[0];
               event.target.value = '';
@@ -66,9 +66,6 @@ export function PortraitPicker({ label, file, identity, onChange, error, disable
               </button>
             )}
           </div>
-          <span id={`${id}-hint`} className="field__hint">
-            Không bắt buộc. JPG, PNG hoặc WEBP, tối đa 2 MB. Chọn ảnh rõ mặt.
-          </span>
         </div>
       </div>
       {(localError || error) && (

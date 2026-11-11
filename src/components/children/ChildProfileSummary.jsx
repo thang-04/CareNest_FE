@@ -34,6 +34,6 @@ export function ChildProfileSummary({ profile, sheet = false, title = 'Thông ti
       </IntakeSheet>
     );
 
-  if (!hasProfileData(profile)) return <p className="muted">Chưa cung cấp. Hiệu trưởng hoặc Phó hiệu trưởng bổ sung ở Sửa hồ sơ.</p>;
+  if (!hasProfileData(profile)) return <p className="muted">Chưa cung cấp.</p>;
   return <ChildInfoTable label={title} rows={rows} />;
 }

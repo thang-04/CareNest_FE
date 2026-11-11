@@ -76,14 +76,11 @@ export function ClassPlacementFields({
       )}
       <fieldset className="tr-fieldset">
         <legend className="field__label">Lớp{req}</legend>
-        {!required && (
+        {!required && classId && (
           <div className="row row--wrap gap-2 mb-12">
-            <span className="muted text-sm">Có thể bỏ trống: trẻ ở trạng thái Chờ xếp lớp, xếp lớp sau tại màn Xếp lớp.</span>
-            {classId && (
-              <button type="button" className="btn btn--sm btn--ghost" onClick={() => onClassChange('')}>
-                Bỏ chọn lớp
-              </button>
-            )}
+            <button type="button" className="btn btn--sm btn--ghost" onClick={() => onClassChange('')}>
+              Bỏ chọn lớp
+            </button>
           </div>
         )}
         {pickCampus && !campusId ? (

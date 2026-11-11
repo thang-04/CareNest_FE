@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Pencil, Save, Info, History } from '@/components/ui/icons';
+import { ArrowLeft, Pencil, Save, History } from '@/components/ui/icons';
 import { SidePanel } from '@/components/ui/SidePanel';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -143,14 +143,6 @@ export default function HealthDeclarationPage() {
         )}
       </div>
 
-      <div className="alert alert--info mb-16">
-        <Info size={18} />
-        <div>
-          Đây là thông tin phụ huynh cung cấp khi tiếp nhận, không phải kết quả khám hay chẩn đoán. Kết quả khám (số đo, vận động) do giáo
-          viên phụ trách lớp ghi ở <Link to={`/children/${child.id}/health`}>Sổ sức khỏe</Link>.
-        </div>
-      </div>
-
       {editing ? (
         <>
           <section className="card wizard-card">
@@ -166,12 +158,7 @@ export default function HealthDeclarationPage() {
           </section>
           {needsReason && (
             <section className="card wizard-card">
-              <FormField
-                label="Lý do thay đổi"
-                required
-                error={errors.reason}
-                hint="Thay đổi có hiệu lực ngay: bếp và điểm danh dùng thông tin dị ứng mới."
-              >
+              <FormField label="Lý do thay đổi" required error={errors.reason}>
                 <textarea className="textarea" rows={2} maxLength={300} value={reason} onChange={(e) => setReason(e.target.value)} />
               </FormField>
             </section>

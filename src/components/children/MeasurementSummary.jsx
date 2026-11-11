@@ -8,7 +8,6 @@ import {
   conclusionLabelOf,
   labelOf,
 } from '@/models/children/healthExamForm';
-import { formatSigned } from '@/utils/format';
 import { formatNumber } from '@/utils/children/childrenHelpers';
 import { BmiStatusBadge, ConclusionCategoryBadge, FollowUpLevelBadge, HeadCircumferenceBadge, MotorResultBadge } from './ChildBadges';
 import { ChildInfoTable } from './ChildInfoTable';
@@ -30,16 +29,7 @@ const headRow = (m) =>
 /** Mức BMI theo tuổi BE xếp (HLT-18) cho số đo của kỳ cân đo; null khi không xếp được (thiếu số đo, trẻ ngoài 0–84 tháng). */
 const bmiRow = (m) => ({
   label: 'BMI theo tuổi',
-  value: m.bmiStatus ? (
-    <div className="tr-cell-stack">
-      <BmiStatusBadge status={m.bmiStatus} />
-      <span className="muted text-xs">
-        Z-score {formatSigned(m.bmiZScore)} · hệ thống tính theo chuẩn WHO, chỉ để sàng lọc, không phải chẩn đoán
-      </span>
-    </div>
-  ) : (
-    <span className="muted">Không xếp mức (thiếu số đo hoặc trẻ ngoài 0–84 tháng tuổi)</span>
-  ),
+  value: m.bmiStatus ? <BmiStatusBadge status={m.bmiStatus} /> : <span className="muted">Không xếp mức</span>,
 });
 
 /** Kết luận bác sĩ của phiếu Phụ lục II (BE trả); mức theo dõi theo kết luận này (HLT-10). */
@@ -98,14 +88,7 @@ const legacyRows = (m) => [
   headRow(m),
   { label: 'Vận động thô', value: m.grossMotor ? <MotorResultBadge status={m.grossMotor} /> : NOT_SET },
   { label: 'Vận động tinh', value: m.fineMotor ? <MotorResultBadge status={m.fineMotor} /> : NOT_SET },
-  {
-    label: 'Mẫu nhập',
-    value: (
-      <span className="muted text-sm">
-        {MEASUREMENT_SOURCE_LABELS.LEGACY}: nhập trước khi có phiếu Phụ lục II, không có kết luận bác sĩ.
-      </span>
-    ),
-  },
+  { label: 'Mẫu nhập', value: <span className="muted">{MEASUREMENT_SOURCE_LABELS.LEGACY}</span> },
 ];
 
 /**

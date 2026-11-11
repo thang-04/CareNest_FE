@@ -214,20 +214,10 @@ export default function HealthCheckFormPage() {
           <Tabs items={KIND_TABS} value={form.kind} onChange={switchKind} ariaLabel="Loại đợt" />
         </div>
       )}
-      {locked ? (
+      {locked && (
         <div className="alert alert--warning mb-16">
           <Info size={18} />
           <div>{CAMPAIGN_KIND_LABELS[form.kind]} đã đóng hoặc đã hủy nên không sửa được thông tin.</div>
-        </div>
-      ) : (
-        <div className="alert alert--info mb-16">
-          <Info size={18} />
-          <div>
-            {isRound
-              ? 'Kỳ cân đo khoảng 3 tháng/lần: giáo viên phụ trách lớp nhập chiều cao, cân nặng của trẻ trong khoảng ngày cân đo. Kỳ cân đo tự đóng sau ngày kết thúc.'
-              : 'Đợt khám sức khỏe thường 1 lần/năm học: giáo viên phụ trách lớp nhập phiếu khám cùng bác sĩ trong khoảng ngày khám. Đợt khám tự đóng sau ngày kết thúc.'}{' '}
-            Mỗi điểm trường chỉ có một đợt khám hoặc kỳ cân đo chưa đóng.
-          </div>
         </div>
       )}
       <section className="card wizard-card">
@@ -242,18 +232,7 @@ export default function HealthCheckFormPage() {
               onBlur={() => blur('name')}
             />
           </FormField>
-          <FormField
-            label="Điểm trường"
-            required
-            error={errors.campusId}
-            hint={
-              editing
-                ? 'Không đổi được điểm trường sau khi tạo.'
-                : ownCampusId
-                  ? 'Phó hiệu trưởng tạo cho điểm trường của mình.'
-                  : undefined
-            }
-          >
+          <FormField label="Điểm trường" required error={errors.campusId}>
             <select
               className="select"
               value={form.campusId}
@@ -273,7 +252,7 @@ export default function HealthCheckFormPage() {
           {isRound ? (
             <div aria-hidden="true" />
           ) : (
-            <FormField label="Đơn vị khám / bác sĩ" error={errors.examiner} hint="Ví dụ: Trạm Y tế phường, bác sĩ khám định kỳ.">
+            <FormField label="Đơn vị khám / bác sĩ" error={errors.examiner}>
               <input
                 className="input"
                 maxLength={150}
@@ -302,12 +281,7 @@ export default function HealthCheckFormPage() {
             />
           </FormField>
         </div>
-        <FormField
-          label="Ghi chú"
-          error={errors.note}
-          className="mt-12"
-          hint={isRound ? 'Ví dụ: cân đo buổi sáng, trước giờ ăn.' : 'Ví dụ: giáo viên có mặt cùng bác sĩ để ghi kết quả.'}
-        >
+        <FormField label="Ghi chú" error={errors.note} className="mt-12">
           <textarea
             className="textarea"
             rows={2}

@@ -134,12 +134,6 @@ export default function ChildrenListPage() {
         )}
       </div>
 
-      {isTeacherRole(user) && (
-        <div className="alert alert--info mb-16">
-          <Info size={18} />
-          <div>Danh sách chỉ gồm trẻ của lớp bạn đang được phân công.</div>
-        </div>
-      )}
       {isVicePrincipal(user) && (pendingPlacement > 0 || notActivated > 0) && (
         <div className="alert alert--warning mb-16">
           <Info size={18} />

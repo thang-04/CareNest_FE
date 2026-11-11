@@ -1,18 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import {
-  ArrowLeft,
-  ArrowRight,
-  Save,
-  CheckCircle2,
-  KeyRound,
-  Eye,
-  Plus,
-  AlertTriangle,
-  RotateCcw,
-  Info,
-  Pencil,
-} from '@/components/ui/icons';
+import { ArrowLeft, ArrowRight, Save, CheckCircle2, KeyRound, Eye, Plus, AlertTriangle, RotateCcw, Pencil } from '@/components/ui/icons';
 import { ChildAvatar } from '@/components/ChildAvatar';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -82,12 +70,11 @@ function ReviewGroup({ title, onEdit, children }) {
 }
 
 /** Đầu thẻ bước 2–4: tên bước bên trái, trẻ đang tiếp nhận bên phải để chọn lớp, khai báo đúng trẻ. */
-function StepHead({ title, hint, info }) {
+function StepHead({ title, info }) {
   return (
     <div className="tr-step-head">
       <div className="stack gap-1">
         <h2 className="card__title">{title}</h2>
-        {hint && <p className="muted text-sm">{hint}</p>}
       </div>
       {info && (
         <div className="tr-child-brief">
@@ -379,7 +366,6 @@ export default function EnrollChildPage() {
       <div className="page__head">
         <div>
           <h1 className="page__title">Tiếp nhận trẻ</h1>
-          <p className="muted text-sm mt-8">Lập hồ sơ theo thông tin gia đình cung cấp, làm căn cứ chăm sóc và khám sức khỏe cho trẻ.</p>
         </div>
         <Link to="/children/import" className="btn">
           Nhập nhiều trẻ từ Excel
@@ -392,14 +378,7 @@ export default function EnrollChildPage() {
 
       {step === 0 && (
         <section className="card wizard-card">
-          <StepHead
-            title="Thông tin tiếp nhận"
-            hint={
-              <>
-                Điền lần lượt thông tin trẻ và gia đình. Các mục có dấu <span className="req">*</span> là bắt buộc.
-              </>
-            }
-          />
+          <StepHead title="Thông tin tiếp nhận" />
           <ChildInfoFields
             sheet
             photosEnabled
@@ -473,7 +452,7 @@ export default function EnrollChildPage() {
       )}
       {step === 1 && (
         <section className="card wizard-card">
-          <StepHead title={`Xếp lớp năm học ${yearLabel}`} hint="Nhóm tuổi được gợi ý theo ngày sinh của trẻ." info={info} />
+          <StepHead title={`Xếp lớp năm học ${yearLabel}`} info={info} />
           {classesLoading ? (
             <Spinner deferred />
           ) : (
@@ -509,15 +488,7 @@ export default function EnrollChildPage() {
 
       {step === 2 && (
         <section className="card wizard-card">
-          <StepHead
-            title="Khai báo sức khỏe khi tiếp nhận"
-            hint={
-              <>
-                Ghi theo lời phụ huynh. Các mục có dấu <span className="req">*</span> là bắt buộc.
-              </>
-            }
-            info={info}
-          />
+          <StepHead title="Khai báo sức khỏe khi tiếp nhận" info={info} />
           <HealthDeclarationFields
             sheet
             dateOfBirth={info.dateOfBirth}
@@ -533,10 +504,7 @@ export default function EnrollChildPage() {
 
       {step === 3 && (
         <section className="card wizard-card">
-          <StepHead
-            title="Xem lại & xác nhận"
-            hint="Kiểm tra lại toàn bộ thông tin trước khi lưu hồ sơ. Bấm Sửa để quay lại bước tương ứng."
-          />
+          <StepHead title="Xem lại & xác nhận" />
           <div className="tr-intake stack gap-5">
             <ReviewGroup title="Thông tin trẻ & phụ huynh" onEdit={() => goTo(0)}>
               <div className="tr-intake-cols">
@@ -587,24 +555,14 @@ export default function EnrollChildPage() {
                   })}
                 </div>
               </div>
-              {manageAccounts ? (
-                <div className="alert alert--info">
-                  <Info size={18} />
+              {!manageAccounts && waitingNames.length > 0 && (
+                <div className="alert alert--warning" role="status">
+                  <AlertTriangle size={18} />
                   <div>
-                    Khi lưu, phụ huynh được chọn sẽ nhận tài khoản và mật khẩu tạm qua SMS; nếu đã có tài khoản thì chỉ được liên kết thêm
-                    trẻ.
+                    Bạn không có quyền kích hoạt tài khoản phụ huynh ở điểm trường này. Khi lưu, {waitingNames.join(', ')} chưa có tài khoản
+                    sẽ ở trạng thái Chưa kích hoạt; người có quyền kích hoạt ở màn Tài khoản phụ huynh.
                   </div>
                 </div>
-              ) : (
-                waitingNames.length > 0 && (
-                  <div className="alert alert--warning" role="status">
-                    <AlertTriangle size={18} />
-                    <div>
-                      Bạn không có quyền kích hoạt tài khoản phụ huynh ở điểm trường này. Khi lưu, {waitingNames.join(', ')} chưa có tài
-                      khoản sẽ ở trạng thái Chưa kích hoạt; người có quyền kích hoạt ở màn Tài khoản phụ huynh.
-                    </div>
-                  </div>
-                )
               )}
             </ReviewGroup>
             <div className="tr-intake-cols">
