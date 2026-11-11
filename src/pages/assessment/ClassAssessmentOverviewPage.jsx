@@ -129,7 +129,9 @@ function ClassDetail({ classId, period, date, schoolYear, onBack }) {
                 {CRITERIA.map((c) => (
                   <th key={c.key}>{c.label}</th>
                 ))}
-                <th title="Số lượt mục tiêu theo từng ngày cô chấm Đạt / Chưa đạt (ngày trẻ vắng tính Chưa đạt). Bảng đánh giá chủ đề xét Đạt theo tỷ lệ cả chủ đề nên số có thể khác.">Kiến thức kỹ năng</th>
+                <th title="Số lượt mục tiêu theo từng ngày cô chấm Đạt / Chưa đạt (ngày trẻ vắng tính Chưa đạt). Bảng đánh giá chủ đề xét Đạt theo tỷ lệ cả chủ đề nên số có thể khác.">
+                  Kiến thức kỹ năng
+                </th>
                 <th className="num">Cờ</th>
                 <th>Nhận xét</th>
               </tr>
