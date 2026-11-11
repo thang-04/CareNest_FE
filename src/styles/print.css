@@ -63,6 +63,14 @@
   justify-content: center;
   overflow: auto;
 }
+/* Tờ giấy giữ khổ thật; PrintPaperFit phóng/thu cả tờ cho vừa khung (stage = kích thước sau khi scale) */
+.print-preview__stage {
+  flex: none;
+}
+.print-preview__scale {
+  width: max-content;
+  transform-origin: top left;
+}
 
 .print-sheet {
   width: 210mm;
@@ -263,6 +271,15 @@
   .print-preview__paper {
     background: none;
     padding: 0;
+  }
+  /* In ra giấy thật: bỏ phóng/thu của bản xem trước */
+  .print-preview__stage {
+    width: auto !important;
+    height: auto !important;
+  }
+  .print-preview__scale {
+    width: auto;
+    transform: none !important;
   }
   .print-sheet {
     width: auto;

@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { PrintPaperFit } from '@/components/print/PrintPaperFit';
 import { PrintToolbar } from '@/components/print/PrintToolbar';
 import { Modal } from '@/components/ui/Modal';
 import { Tabs } from '@/components/ui/Tabs';
@@ -33,7 +34,7 @@ export function InspectionPrintDialog({ tab, date, campusName, data, sampleData,
       {variants.length > 1 && (
         <Tabs ariaLabel="Bản in" value={variant} onChange={setVariant} items={variants.map((v) => ({ key: v.key, label: v.label }))} />
       )}
-      <div className="print-preview__paper">
+      <PrintPaperFit>
         {variant === 'label' ? (
           <InspectionLabelPrint ref={sheetRef} date={date} data={data} />
         ) : (
@@ -47,7 +48,7 @@ export function InspectionPrintDialog({ tab, date, campusName, data, sampleData,
             sampleData={sampleData}
           />
         )}
-      </div>
+      </PrintPaperFit>
     </Modal>
   );
 }
