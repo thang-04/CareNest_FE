@@ -92,10 +92,8 @@ export default function ThemeEvaluationPage() {
     });
 
   const run = async (kind, fn, message) => {
-    if (note.length > NOTE_MAX) {
-      toast.error(`Lưu ý tối đa ${NOTE_MAX} ký tự.`, 'Chưa lưu được');
-      return false;
-    }
+    // Quá dài: lỗi đỏ ngay dưới ô (không chặn gõ), không gửi BE
+    if (note.length > NOTE_MAX) return false;
     setBusy(kind);
     try {
       const saved = await fn({ classId: Number(currentClassId), themeId: Number(currentThemeId), note, cells: cellsBody() }, user);
@@ -383,13 +381,18 @@ export default function ThemeEvaluationPage() {
                   id="theme-note"
                   className="textarea"
                   rows={3}
-                  maxLength={NOTE_MAX}
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
                   placeholder="Vd. Cô chú ý rèn những trẻ còn hạn chế, động viên khuyến khích trẻ."
+                  aria-invalid={note.length > NOTE_MAX}
                 />
               ) : (
                 <p className="text-sm">{ev.note || <span className="muted">—</span>}</p>
+              )}
+              {canEdit && note.length > NOTE_MAX && (
+                <span className="field__error" role="alert">
+                  {`Tối đa ${NOTE_MAX} ký tự (đang ${note.length}).`}
+                </span>
               )}
               {(canEdit || canConfirm) && (
                 <div className="row gap-2 mt-12 sc-end">

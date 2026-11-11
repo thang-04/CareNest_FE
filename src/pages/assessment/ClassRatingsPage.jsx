@@ -82,10 +82,8 @@ export default function ClassRatingsPage() {
 
   const save = async () => {
     if (!changed.length || saving) return false;
-    if (changed.some((r) => valueOf(r).note.length > NOTE_MAX)) {
-      toast.error(`Ghi chú tối đa ${NOTE_MAX} ký tự.`, 'Chưa lưu được xếp loại');
-      return false;
-    }
+    // Ghi chú quá dài đã báo đỏ ngay dưới ô (không chặn gõ): không gửi BE
+    if (changed.some((r) => valueOf(r).note.length > NOTE_MAX)) return false;
     setSaving(true);
     try {
       await saveClassRatings(
@@ -310,13 +308,20 @@ export default function ClassRatingsPage() {
                         {FIELDS.map((f) => levelCell(r, f))}
                         <td>
                           {r.canEdit ? (
-                            <input
-                              className="input"
-                              aria-label={`Ghi chú – ${r.className}`}
-                              maxLength={NOTE_MAX}
-                              value={v.note}
-                              onChange={(e) => setField(r, { note: e.target.value })}
-                            />
+                            <>
+                              <input
+                                className="input"
+                                aria-label={`Ghi chú – ${r.className}`}
+                                aria-invalid={v.note.length > NOTE_MAX}
+                                value={v.note}
+                                onChange={(e) => setField(r, { note: e.target.value })}
+                              />
+                              {v.note.length > NOTE_MAX && (
+                                <span className="field__error" role="alert">
+                                  {`Tối đa ${NOTE_MAX} ký tự (đang ${v.note.length}).`}
+                                </span>
+                              )}
+                            </>
                           ) : (
                             r.note || <span className="muted">—</span>
                           )}
