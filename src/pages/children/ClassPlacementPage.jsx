@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useMasterData } from '@/hooks/useMasterData';
-import { useChildRecords, usePlacementClasses } from '@/hooks/children/useChildRecords';
+import { useChildRecords, useClassOptions, usePlacementClasses } from '@/hooks/children/useChildRecords';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
@@ -37,6 +37,9 @@ export default function ClassPlacementPage() {
   const [params, setParams] = useSearchParams();
   const { children, loading, error, reload } = useChildRecords({ schoolYear: yearId });
   const { classes } = usePlacementClasses();
+  // Nhóm tuổi của năm học đang hoạt động (BE /school-structure hoặc mock); năm sinh so với ngày bắt đầu năm học
+  const { ageGroups } = useClassOptions(yearId);
+  const yearStart = activeYear?.startDate || yearId;
   const [tab, setTab] = useState(CHILD_STATUS.PENDING_PLACEMENT);
   const [keyword, setKeyword] = useState('');
   const [ageGroupId, setAgeGroupId] = useState('');
@@ -48,19 +51,19 @@ export default function ClassPlacementPage() {
 
   const selectedId = params.get('childId') || '';
   const selected = children.find((c) => c.id === selectedId) || null;
-  const suggested = selected ? suggestAgeGroupId(selected.dateOfBirth, yearId) : '';
+  const suggested = selected ? suggestAgeGroupId(selected.dateOfBirth, yearStart, ageGroups) : '';
 
   useEffect(() => {
     if (!selected) return;
     setTab(selected.status === CHILD_STATUS.PENDING_PLACEMENT ? CHILD_STATUS.PENDING_PLACEMENT : CHILD_STATUS.ACTIVE);
-    setAgeGroupId(selected.ageGroupId || suggestAgeGroupId(selected.dateOfBirth, yearId));
+    setAgeGroupId(selected.ageGroupId || suggestAgeGroupId(selected.dateOfBirth, yearStart, ageGroups));
     setCampusId(selected.campusId || '');
     setClassId('');
     setReason('');
     setErrors({});
-    // Only when another child is chosen; reloads of the same child keep the form.
+    // Only when another child is chosen (or age groups arrive); reloads of the same child keep the form.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedId, !!selected]);
+  }, [selectedId, !!selected, ageGroups.length]);
 
   const list = useMemo(() => {
     const kw = normalizeText(keyword).trim();
@@ -247,6 +250,7 @@ export default function ClassPlacementPage() {
                   setErrors(({ classId: _c, ...rest }) => rest);
                 }}
                 suggestedAgeGroupId={suggested}
+                ageGroups={ageGroups}
                 currentClassId={selected.classId}
                 error={errors.classId}
                 userById={md.userById}

@@ -1,7 +1,7 @@
 # Thẻ hoạt động gắn MT, Bảng phủ MT, kế hoạch tuần theo hồ sơ chủ đề
 
 Nguồn: `BE:docs/business/BUSINESS_RULES.md` EDU-78, EDU-79, EDU-80; spec `specs/006-activity-cards-mt-map` (Tiền 12/11/2026).
-BE quyết định kiểm thẻ, MT của lượt xếp, bản tuần hiệu lực (`effectiveWeek`) và chặn gửi (7391/7392); màn chỉ hiển thị.
+BE quyết định kiểm thẻ, MT của lượt xếp, bản tuần hiệu lực (`effectiveWeek`) và chặn gửi (7396/7397); màn chỉ hiển thị.
 
 ## Kế hoạch chủ đề (`ClassThemePlanPage` → `ThemePlanBody`)
 
@@ -38,8 +38,8 @@ BE quyết định kiểm thẻ, MT của lượt xếp, bản tuần hiệu l�
 - Ô khác bản theo kỳ có chữ "Khác bản theo kỳ"; nhãn "Đã sửa theo chủ đề", "Bản theo kỳ đã đổi" (mốc `week.base`).
 - Mỗi ngày: dòng "MT trong ngày" (chip MT); mục có hoạt động gõ tay có chip "chưa gắn MT"; ô a) còn trống được điền sẵn
   "- MTn: câu MT" một lần; thẻ bị bỏ khỏi ô tuần sau khi soạn ngày ⇒ "Đã đổi ở kế hoạch tuần" (chữ cô viết giữ nguyên).
-- Gửi hồ sơ chủ đề bị 7391/7392 ⇒ chữ đỏ nhỏ căn phải "MT chưa được dạy ngày nào: MT…" (từ `data.details`).
+- Gửi hồ sơ chủ đề bị 7396/7397 ⇒ chữ đỏ nhỏ căn phải "MT chưa được dạy ngày nào: MT…" (từ `data.details`).
 
 ## Gói học kỳ (`ClassPlanPage`)
 
-- Hộp xác nhận gửi gói học kỳ liệt kê MT chưa dạy ngày nào (chỉ cảnh báo); học kỳ cuối BE chặn 7392.
+- Hộp xác nhận gửi gói học kỳ liệt kê MT chưa dạy ngày nào (chỉ cảnh báo); học kỳ cuối BE chặn 7397.

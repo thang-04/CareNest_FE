@@ -174,10 +174,10 @@ test('ST-004-02 gói thiếu phần thì chưa gửi được và liệt kê m�
     return sent;
   };
   let res = await send();
-  // EDU-80 (spec 006): học kỳ cuối còn MT của năm chưa dạy ngày nào ⇒ chặn 7392, liệt kê MT; xếp thẻ phủ MT rồi gửi lại
+  // EDU-80 (spec 006): học kỳ cuối còn MT của năm chưa dạy ngày nào ⇒ chặn 7397, liệt kê MT; xếp thẻ phủ MT rồi gửi lại
   if (res.status() === 400) {
     const body = await res.json();
-    expect(body.errorCode, JSON.stringify(body)).toBe(7392);
+    expect(body.errorCode, JSON.stringify(body)).toBe(7397);
     const goalIds = body.data.details.map((d) => String(d.goalId));
     expect(goalIds.length).toBeGreaterThan(0);
     const pkg = await packageOf(U.tl, 2);

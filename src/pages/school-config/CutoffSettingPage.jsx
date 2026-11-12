@@ -17,6 +17,7 @@ import { Pagination, paginate } from '@/components/ui/Pagination';
 import { ScNoAccess } from '@/components/school-config/ScNoAccess';
 import { HolidaySetting } from '@/components/school-config/HolidaySetting';
 import { SemesterSetting } from '@/components/school-config/SemesterSetting';
+import { PrepDateSetting } from '@/components/school-config/PrepDateSetting';
 import { MealPhotoWindowsSetting } from '@/components/MealPhotoWindowsSetting';
 import { Tabs } from '@/components/ui/Tabs';
 import { isDemoModule } from '@/services/demoSource';
@@ -35,10 +36,14 @@ const TABS = [
   ...(PHOTO_WINDOWS_API ? [{ key: 'photo', label: 'Giờ đăng ảnh' }] : []),
   { key: 'semester', label: 'Học kỳ' },
   { key: 'holidays', label: 'Ngày nghỉ' },
+  { key: 'prep', label: 'Mở chuẩn bị' },
 ];
 const OTHER_TABS = TABS.map((t) => t.key).filter((key) => key !== 'cutoff');
 
-/** #19 Cấu hình thời gian: giờ chốt (UC 2.7, GBR-CFG-02/03), giờ đăng ảnh bữa ăn, học kỳ I, II, ngày nghỉ. Principal only. */
+/**
+ * #19 Cấu hình thời gian: giờ chốt (UC 2.7, GBR-CFG-02/03), giờ đăng ảnh bữa ăn, học kỳ I, II, ngày nghỉ, ngày mở chuẩn
+ * bị (CFG-YR-05). Principal only.
+ */
 export default function CutoffSettingPage() {
   const { user } = useAuth();
   const toast = useToast();
@@ -150,6 +155,8 @@ export default function CutoffSettingPage() {
         <SemesterSetting yearId={yearId} onDirtyChange={setChildDirty} saveRef={childSave} />
       ) : tab === 'holidays' ? (
         <HolidaySetting yearId={yearId} onDirtyChange={setChildDirty} saveRef={childSave} />
+      ) : tab === 'prep' ? (
+        <PrepDateSetting yearId={yearId} onDirtyChange={setChildDirty} saveRef={childSave} />
       ) : error ? (
         <ErrorState error={error} onRetry={reload} />
       ) : loading || !year ? (

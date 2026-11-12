@@ -199,7 +199,7 @@ export default function ClassPlanPage() {
   const review = pkg ? docReview('branch', pkg, ctx, user, eduConfig) : null;
   const act = (action, note, _saved, extra) =>
     actOnClassDoc('semester', pkg.id, { action, note, ...extra }, user, { version: pkg.version });
-  // EDU-80 (FR-031): gói học kỳ thiếu MT chỉ cảnh báo trong hộp gửi; học kỳ cuối do BE chặn (7392)
+  // EDU-80 (FR-031): gói học kỳ thiếu MT chỉ cảnh báo trong hộp gửi; học kỳ cuối do BE chặn (7397)
   const untaught = themes.flatMap((t) => {
     const doc = classThemePlans.find((x) => x.classId === classId && x.themeId === t.id) || null;
     const gs = themeGoalBlocks(yearPlan.domains, numbers, t.id, doc?.customTicks).flatMap((b) => b.goals);

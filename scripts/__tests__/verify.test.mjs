@@ -122,3 +122,20 @@ test("quick: đổi pom/resources ⇒ cần full; class không có test ⇒ ch�
   assert.equal(selectQuickTests(["src/main/java/com/carenest/utils/NewUtil.java"], TESTS).allTests, true);
   assert.deepEqual(selectQuickTests([], TESTS), { tests: ["ArchitectureRulesTest"], needsFull: false, allTests: false });
 });
+
+test("selectQuickScripts: cổng tĩnh + bộ test khớp tên thư mục; đổi package.json ⇒ full", async () => {
+  const { selectQuickScripts } = await import("../verify.mjs");
+  const scripts = {
+    lint: "eslint",
+    "format:check": "prettier --check",
+    "check:design": "node scripts/check-design.mjs",
+    "check:api": "node scripts/check-api-contract.mjs",
+    "test:menu": "node --test tests/menu/*.test.mjs",
+    "test:children": "node --test tests/children/*.test.mjs",
+    "test:e2e": "playwright test",
+    build: "vite build",
+  };
+  assert.deepEqual(selectQuickScripts(["src/pages/menu-planning/DishListPage.jsx"], scripts), ["lint", "format:check", "check:design", "check:api", "test:menu"]);
+  assert.deepEqual(selectQuickScripts(["src/pages/HomePage.jsx"], scripts), ["lint", "format:check", "check:design", "check:api"]);
+  assert.equal(selectQuickScripts(["package.json", "src/a.js"], scripts), null);
+});

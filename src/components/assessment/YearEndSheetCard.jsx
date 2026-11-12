@@ -25,7 +25,7 @@ const commentsOf = (sheet) => Object.fromEntries((sheet?.domains || []).map((d) 
 
 /**
  * Phiếu đánh giá sự phát triển của trẻ cuối năm (BE OBS-28): MT kế hoạch năm theo lĩnh vực, ô Đạt / Chưa đạt điền sẵn từ
- * hoạt động cả năm, GV sửa tay; cân nặng – chiều cao từ phần sức khỏe; 4 lưu ý. sheetRef.current = { dirty, save } để màn đánh
+ * tỷ lệ chủ đề đã xong đạt MT (≥50%), GV sửa tay; cân nặng – chiều cao từ phần sức khỏe; 4 lưu ý. sheetRef.current = { dirty, save } để màn đánh
  * giá lưu phiếu trước khi xác nhận.
  */
 export function YearEndSheetCard({ evaluation, child, comment, sheetRef, onDirtyChange }) {
@@ -51,15 +51,9 @@ export function YearEndSheetCard({ evaluation, child, comment, sheetRef, onDirty
   const dirty = Object.keys(edits).length > 0 || NOTE_FIELDS.some(([k]) => notes[k] !== saved[k]) || commentsDirty;
 
   const save = async ({ silent = false } = {}) => {
-    const long = NOTE_FIELDS.find(([k]) => notes[k].trim().length > NOTE_MAX);
-    if (long) {
-      toast.error(`${long[1]}: tối đa ${NOTE_MAX} ký tự.`, 'Chưa lưu được phiếu');
-      return false;
-    }
-    if (Object.values(comments).some((c) => (c || '').trim().length > NOTE_MAX)) {
-      toast.error(`Nhận xét lĩnh vực: tối đa ${NOTE_MAX} ký tự.`, 'Chưa lưu được phiếu');
-      return false;
-    }
+    // Ô quá dài đã báo đỏ ngay dưới ô (không chặn gõ): không gửi BE
+    if (NOTE_FIELDS.some(([k]) => notes[k].trim().length > NOTE_MAX)) return false;
+    if (Object.values(comments).some((c) => (c || '').trim().length > NOTE_MAX)) return false;
     setBusy(true);
     try {
       await saveYearEndSheet(
@@ -147,8 +141,8 @@ export function YearEndSheetCard({ evaluation, child, comment, sheetRef, onDirty
         </p>
         {sheet.canEdit && (
           <p className="muted text-sm">
-            Hệ thống tổng hợp các hoạt động đã đánh giá trong cả năm học; mục tiêu Đạt khi có ít nhất 50% hoạt động đã chấm là Đạt. Bấm ô để
-            sửa tay; bấm lại ô đang chọn để về kết quả hệ thống. Ô sửa tay có viền đậm.
+            Hệ thống tổng hợp kết quả cuối các chủ đề đã xong; mục tiêu Đạt khi Đạt ở ít nhất 50% số chủ đề có gắn mục tiêu. Bấm ô để sửa
+            tay; bấm lại ô đang chọn để về kết quả hệ thống. Ô sửa tay có viền đậm.
           </p>
         )}
         {all.length === 0 ? (
@@ -217,7 +211,6 @@ export function YearEndSheetCard({ evaluation, child, comment, sheetRef, onDirty
                           id={`year-domain-${domainKey(d)}`}
                           className="textarea"
                           rows={2}
-                          maxLength={NOTE_MAX}
                           placeholder={`Nhận xét về ${(d.name || 'lĩnh vực').toLowerCase()} của trẻ (không bắt buộc)`}
                           value={comments[domainKey(d)] || ''}
                           onChange={(e) => setComments((prev) => ({ ...prev, [domainKey(d)]: e.target.value }))}
@@ -227,6 +220,11 @@ export function YearEndSheetCard({ evaluation, child, comment, sheetRef, onDirty
                         <div id={`year-domain-${domainKey(d)}`} className="text-sm dg-final">
                           {d.comment || <span className="muted">—</span>}
                         </div>
+                      )}
+                      {sheet.canEdit && (comments[domainKey(d)] || '').trim().length > NOTE_MAX && (
+                        <span className="field__error" role="alert">
+                          {`Tối đa ${NOTE_MAX} ký tự (đang ${(comments[domainKey(d)] || '').trim().length}).`}
+                        </span>
                       )}
                     </td>
                     <td />
@@ -253,7 +251,6 @@ export function YearEndSheetCard({ evaluation, child, comment, sheetRef, onDirty
                   id={`year-note-${key}`}
                   className="textarea"
                   rows={2}
-                  maxLength={NOTE_MAX}
                   value={notes[key]}
                   onChange={(e) => setNotes((prev) => ({ ...prev, [key]: e.target.value }))}
                   disabled={busy}
@@ -262,6 +259,11 @@ export function YearEndSheetCard({ evaluation, child, comment, sheetRef, onDirty
                 <div id={`year-note-${key}`} className="text-sm">
                   {saved[key] || <span className="muted">—</span>}
                 </div>
+              )}
+              {sheet.canEdit && notes[key].trim().length > NOTE_MAX && (
+                <span className="field__error" role="alert">
+                  {`Tối đa ${NOTE_MAX} ký tự (đang ${notes[key].trim().length}).`}
+                </span>
               )}
             </div>
           ))}

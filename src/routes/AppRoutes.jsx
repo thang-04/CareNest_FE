@@ -6,6 +6,8 @@ import { RoleGuard } from './RoleGuard';
 import { ProtectedRoute, GuestRoute } from './ProtectedRoute';
 import { AppSplash } from '@/components/ui/AppSplash';
 import { ROLES } from '@/models/User';
+import { PERMISSIONS } from '@/models/bePermissions';
+import { hasBePermission } from '@/utils/bePermissions';
 import HomePage from '@/pages/HomePage';
 import ComingSoonPage from '@/pages/ComingSoonPage';
 import NotificationsPage from '@/pages/NotificationsPage';
@@ -98,6 +100,7 @@ const PermissionHistoryPage = lazyPage(() => import('@/pages/school-config/Permi
 const TeacherAssignmentPage = lazyPage(() => import('@/pages/school-config/TeacherAssignmentPage'));
 const YearPlacementPage = lazyPage(() => import('@/pages/school-config/YearPlacementPage'));
 const ChildrenListPage = lazyPage(() => import('@/pages/children/ChildrenListPage'));
+const NewYearClassPage = lazyPage(() => import('@/pages/school-config/NewYearClassPage'));
 const EnrollChildPage = lazyPage(() => import('@/pages/children/EnrollChildPage'));
 const ImportChildrenPage = lazyPage(() => import('@/pages/children/ImportChildrenPage'));
 const ClassPlacementPage = lazyPage(() => import('@/pages/children/ClassPlacementPage'));
@@ -112,6 +115,7 @@ const HealthCheckListPage = lazyPage(() => import('@/pages/children/HealthCheckL
 const HealthCheckFormPage = lazyPage(() => import('@/pages/children/HealthCheckFormPage'));
 const HealthCheckDetailPage = lazyPage(() => import('@/pages/children/HealthCheckDetailPage'));
 const HealthExamFormPage = lazyPage(() => import('@/pages/children/HealthExamFormPage'));
+const GrowthReportPage = lazyPage(() => import('@/pages/children/GrowthReportPage'));
 const BoardingTodayPage = lazyPage(() => import('@/pages/boarding/BoardingTodayPage'));
 const DryStockLedgerPage = lazyPage(() => import('@/pages/kitchen/DryStockLedgerPage'));
 const StockReceiptEditorPage = lazyPage(() => import('@/pages/kitchen/StockReceiptEditorPage'));
@@ -210,6 +214,12 @@ function SupplierRedirect() {
 /** Route element limited to the roles allowed by the SRS permission matrix. */
 const only = (roles, page) => (
   <RoleGuard roles={roles} description={DENIED}>
+    {page}
+  </RoleGuard>
+);
+/** Route thuộc ba phân hệ nghiệp vụ: BE cấp quyền hiệu lực; mock vẫn dùng dữ liệu demo hiện có. */
+const permit = (codes, page) => (
+  <RoleGuard allow={(user) => hasBePermission(user, ...codes)} description={DENIED}>
     {page}
   </RoleGuard>
 );
@@ -342,6 +352,7 @@ export function AppRoutes() {
             <Route index element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <ChildrenListPage />)} />
             {/* Tiếp nhận, nhập Excel, xếp lớp: Hiệu trưởng như PHT (user chốt 2026-10-27) */}
             <Route path="new" element={only(LEADERS, <EnrollChildPage />)} />
+            <Route path="new-year-class" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <NewYearClassPage />)} />
             <Route path="import" element={only(LEADERS, <ImportChildrenPage />)} />
             <Route path="placement" element={only(LEADERS, <ClassPlacementPage />)} />
             <Route
@@ -353,6 +364,7 @@ export function AppRoutes() {
               }
             />
             <Route path="health-trends" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <HealthTrendPage />)} />
+            <Route path="growth-report" element={only(LEADERS, <GrowthReportPage />)} />
             <Route path="health-checks" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <HealthCheckListPage />)} />
             {/* Đợt khám, kỳ cân đo: Hiệu trưởng và PHT điểm trường quản lý (user chốt 2026-10-31) */}
             <Route path="health-checks/new" element={only(LEADERS, <HealthCheckFormPage />)} />
@@ -480,44 +492,45 @@ export function AppRoutes() {
             <Route path="missing-food" element={only(LEADERS, <MissingFoodReportPage />)} />
           </Route>
           <Route path="assessment">
-            <Route path="daily" element={only(CLASS_STAFF, <DailyAssessmentPage />)} />
-            <Route path="daily/skills" element={only(CLASS_STAFF, <DailyGoalAssessmentPage />)} />
-            <Route path="day-unlocks" element={only(LEADERS, <AssessmentDayUnlockPage />)} />
-            <Route path="overview" element={only([...LEADERS, R.TEAM_LEADER], <ClassAssessmentOverviewPage />)} />
-            <Route path="quality-report" element={only([...LEADERS, ...CLASS_STAFF], <QualityReportPage />)} />
-            <Route path="class-ratings" element={only([...LEADERS, ...CLASS_STAFF], <ClassRatingsPage />)} />
-            <Route path="themes" element={only([...LEADERS, ...CLASS_STAFF], <ThemeEvaluationPage />)} />
-            <Route path="children" element={only([...LEADERS, ...CLASS_STAFF], <ChildDevelopmentListPage />)} />
-            <Route path="children/:childId" element={only(CLASS_STAFF, <ChildDevelopmentProfilePage />)} />
-            <Route path="children/:childId/progress" element={only(LEADERS, <ChildDevelopmentProgressPage />)} />
-            <Route path="periodic" element={only([...LEADERS, ...CLASS_STAFF], <Navigate to="/assessment/children" replace />)} />
-            <Route path="periodic/:id" element={only([...LEADERS, ...CLASS_STAFF], <Navigate to="/assessment/children" replace />)} />
+            <Route path="daily" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <DailyAssessmentPage />)} />
+            <Route path="daily/skills" element={permit([PERMISSIONS.ASSESSMENT_RECORD], <DailyGoalAssessmentPage />)} />
+            <Route path="day-unlocks" element={permit([PERMISSIONS.ASSESSMENT_UNLOCK], <AssessmentDayUnlockPage />)} />
+            <Route path="overview" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <ClassAssessmentOverviewPage />)} />
+            <Route path="quality-report" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <QualityReportPage />)} />
+            <Route path="class-ratings" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <ClassRatingsPage />)} />
+            <Route path="themes" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <ThemeEvaluationPage />)} />
+            <Route path="children" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <ChildDevelopmentListPage />)} />
+            <Route path="children/:childId" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <ChildDevelopmentProfilePage />)} />
+            <Route path="children/:childId/progress" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <ChildDevelopmentProgressPage />)} />
+            <Route path="periodic" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <Navigate to="/assessment/children" replace />)} />
+            <Route path="periodic/:id" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <Navigate to="/assessment/children" replace />)} />
             <Route
               path="periodic/:id/ai-draft"
-              element={only([...LEADERS, ...CLASS_STAFF], <Navigate to="/assessment/children" replace />)}
+              element={permit([PERMISSIONS.ASSESSMENT_VIEW], <Navigate to="/assessment/children" replace />)}
             />
-            <Route path="semester" element={only([...LEADERS, ...CLASS_STAFF], <SemesterEvaluationListPage />)} />
-            <Route path="semester/:id" element={only([...LEADERS, ...CLASS_STAFF], <SemesterEvaluationDetailPage />)} />
-            <Route path="semester/:id/ai-draft" element={only(CLASS_STAFF, <AiEvaluationDraftPage />)} />
-            <Route path="year-end" element={only([...LEADERS, ...CLASS_STAFF], <YearEndEvaluationListPage />)} />
-            <Route path="year-end/:id" element={only([...LEADERS, ...CLASS_STAFF], <YearEndEvaluationDetailPage />)} />
-            <Route path="year-end/:id/ai-draft" element={only(CLASS_STAFF, <AiEvaluationDraftPage />)} />
-            <Route path="tickets" element={only([...LEADERS, ...CLASS_STAFF], <GoodBehaviourTicketsPage />)} />
-            <Route path="rewards" element={only([...LEADERS, ...CLASS_STAFF], <RewardListPage />)} />
-            <Route path="rewards/:classId" element={only([...LEADERS, ...CLASS_STAFF], <RewardClassPage />)} />
+            <Route path="semester" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <SemesterEvaluationListPage />)} />
+            <Route path="semester/:id" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <SemesterEvaluationDetailPage />)} />
+            <Route path="semester/:id/ai-draft" element={permit([PERMISSIONS.ASSESSMENT_RECORD], <AiEvaluationDraftPage />)} />
+            <Route path="year-end" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <YearEndEvaluationListPage />)} />
+            <Route path="year-end/:id" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <YearEndEvaluationDetailPage />)} />
+            <Route path="year-end/:id/ai-draft" element={permit([PERMISSIONS.ASSESSMENT_RECORD], <AiEvaluationDraftPage />)} />
+            <Route path="tickets" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <GoodBehaviourTicketsPage />)} />
+            <Route path="rewards" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <RewardListPage />)} />
+            <Route path="rewards/:classId" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <RewardClassPage />)} />
           </Route>
           <Route path="attendance">
-            <Route path="day-unlocks" element={only(LEADERS, <AttendanceDayUnlockPage />)} />
-            <Route index element={only(CLASS_STAFF, <AttendancePage />)} />
-            <Route path="summary" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <AttendanceSummaryPage />)} />
+            <Route path="day-unlocks" element={permit([PERMISSIONS.ATTENDANCE_UNLOCK], <AttendanceDayUnlockPage />)} />
+            <Route index element={permit([PERMISSIONS.ATTENDANCE_RECORD, PERMISSIONS.DAILY_HEALTH_RECORD], <AttendancePage />)} />
+            <Route path="summary" element={permit([PERMISSIONS.ATTENDANCE_VIEW], <AttendanceSummaryPage />)} />
+            {/* AUTH-20: BGH xem số suất mọi điểm trường; nút xác nhận theo MEAL_COUNT_CONFIRM và cờ BE từng bữa */}
             <Route path="meal-count" element={only(LEADERS, <MealCountPage />)} />
-            <Route path="health" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL], <DailyHealthOverviewPage />)} />
-            <Route path="leave-requests" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <LeaveRequestsPage />)} />
+            <Route path="health" element={permit([PERMISSIONS.ATTENDANCE_VIEW], <DailyHealthOverviewPage />)} />
+            <Route path="leave-requests" element={permit([PERMISSIONS.ATTENDANCE_VIEW], <LeaveRequestsPage />)} />
           </Route>
           <Route path="pickup">
-            <Route index element={only(CLASS_STAFF, <PickupListPage />)} />
-            <Route path=":childId/verify" element={only(CLASS_STAFF, <PickupVerifyPage />)} />
-            <Route path="result" element={only(CLASS_STAFF, <PickupResultPage />)} />
+            <Route index element={permit([PERMISSIONS.PICKUP_RECORD], <PickupListPage />)} />
+            <Route path=":childId/verify" element={permit([PERMISSIONS.PICKUP_RECORD], <PickupVerifyPage />)} />
+            <Route path="result" element={permit([PERMISSIONS.PICKUP_RECORD], <PickupResultPage />)} />
           </Route>
           <Route path="approvals" element={only([...LEADERS, R.TEAM_LEADER], <PendingApprovalsPage />)} />
           <Route path="notifications" element={<NotificationsPage />} />

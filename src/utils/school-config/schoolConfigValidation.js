@@ -19,7 +19,8 @@ export const normalizePhone = (raw) => {
 };
 export const isVnPhone = (raw) => VN_PHONE.test(normalizePhone(raw));
 // Số nguyên lớn nhất BE nhận cho sĩ số / sức chứa (@Max(Short.MAX_VALUE))
-export const MAX_SIZE = 32767;
+// Sĩ số tối đa / lớp 1–60 (Cần chốt 11/11/2026), như BE AgeGroupRequest / ClassRequest
+export const MAX_SIZE = 60;
 
 // Độ dài tối đa theo DTO BE (@Size): ô nhập không chặn gõ, vượt thì báo lỗi dưới ô
 export const CAMPUS_LIMITS = {
@@ -60,7 +61,15 @@ export const errorsAfterChange = (prev, patch, nextForm, limits) => {
 export const hasErrors = (e) => Object.keys(e).length > 0;
 export const firstError = (e) => Object.values(e)[0];
 
-export const validateSchoolYear = (form, others = [], { creating = false } = {}) => {
+/**
+ * prep: ngày mở chuẩn bị (BE CFG-YR-05). prepLocked = năm đã bắt đầu/kết thúc (chỉ xem); initialPrepDate = ngày đã lưu
+ * (đã qua vẫn giữ được); today = yyyy-mm-dd.
+ */
+export const validateSchoolYear = (
+  form,
+  others = [],
+  { creating = false, prepLocked = false, initialPrepDate = null, today = null } = {},
+) => {
   const e = {};
   const name = (form.name || '').trim();
   const m = YEAR_NAME.exec(name);
@@ -87,6 +96,21 @@ export const validateSchoolYear = (form, others = [], { creating = false } = {})
   }
   if (latest && !e.startDate && !e.endDate && form.startDate <= latest.endDate)
     e.startDate = `Ngày bắt đầu phải sau ngày kết thúc năm học ${latest.name} (${formatDate(latest.endDate)})`;
+  if (!prepLocked) {
+    const prep = form.prepDate;
+    if (!prep) e.prepDate = 'Chọn ngày mở chuẩn bị';
+    else if (!isIsoDate(prep)) e.prepDate = 'Ngày mở chuẩn bị không hợp lệ, nhập dạng dd/mm/yyyy (ví dụ 05/08/2027)';
+    else if (!e.startDate && isIsoDate(form.startDate) && prep >= form.startDate)
+      e.prepDate = `Ngày mở chuẩn bị phải trước ngày bắt đầu năm học (${formatDate(form.startDate)})`;
+    else {
+      const previous = isIsoDate(form.startDate)
+        ? [...others].filter((y) => y.endDate < form.startDate).sort((a, b) => b.endDate.localeCompare(a.endDate))[0]
+        : null;
+      if (previous && prep <= previous.endDate)
+        e.prepDate = `Ngày mở chuẩn bị phải sau ngày kết thúc năm học ${previous.name} (${formatDate(previous.endDate)})`;
+      else if (today && prep < today && prep !== initialPrepDate) e.prepDate = 'Ngày mở chuẩn bị không được trước hôm nay';
+    }
+  }
   return e;
 };
 
@@ -154,7 +178,7 @@ export const classSizeLimit = (ageGroup, room) => {
   const g = ageGroup?.maxClassSize || null;
   const r = room?.capacity || null;
   if (!g && !r) return { max: MAX_SIZE, reason: '' };
-  const max = Math.min(g || Infinity, r || Infinity);
+  const max = Math.min(g || Infinity, r || Infinity, MAX_SIZE);
   const parts = [g && `nhóm ${ageGroup.shortName} tối đa ${g}`, r && `phòng ${room.room} sức chứa ${r}`].filter(Boolean);
   const by = g && (!r || g <= r) ? 'theo nhóm tuổi' : 'theo sức chứa phòng';
   return { max, reason: `${by}: ${parts.join(', ')}` };
@@ -222,11 +246,14 @@ export const validateVpAssignment = (form) => {
 /**
  * Lớp có 0–2 giáo viên. Hộp phân công bắt buộc tích chủ nhiệm khi có giáo viên; gỡ giáo viên thì lớp được để trống
  * chủ nhiệm (`requireHomeroom: false`). Kích hoạt năm học cần mọi lớp có giáo viên và chủ nhiệm.
+ * yearActive: năm đang học mỗi lớp đúng 2 giáo viên, có chủ nhiệm (BE SCH-04, Cần chốt 10/11/2026).
  */
-export const validateClassTeachers = (form, { requireHomeroom = true } = {}) => {
+export const validateClassTeachers = (form, { requireHomeroom = true, yearActive = false } = {}) => {
   const e = {};
   const count = form.teacherIds?.length || 0;
   if (count > TEACHERS_PER_CLASS) e.teacherIds = `Mỗi lớp tối đa ${TEACHERS_PER_CLASS} giáo viên`;
+  else if (yearActive && count !== TEACHERS_PER_CLASS)
+    e.teacherIds = `Năm học đang diễn ra: mỗi lớp cần đúng ${TEACHERS_PER_CLASS} giáo viên (đang chọn ${count})`;
   if (requireHomeroom && count > 0 && !form.homeroomTeacherId) e.homeroomTeacherId = 'Chọn giáo viên chủ nhiệm';
   else if (form.homeroomTeacherId && !form.teacherIds?.includes(form.homeroomTeacherId))
     e.homeroomTeacherId = 'Giáo viên chủ nhiệm phải nằm trong danh sách giáo viên của lớp';

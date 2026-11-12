@@ -27,6 +27,9 @@ const repo = SCHOOL_CONFIG_API ? devBeRepo() : sourceOf('school-config', schoolC
 
 export const getSchoolYears = (user) => repo.getSchoolYears(user);
 export const getSchoolYearById = (id, user) => repo.getSchoolYearById(id, user);
+/** Lớp năm đang chuẩn bị (CFG-YR-05) của người xem kèm trẻ đã xếp vào: chỉ gọi BE thật, không có bản demo. */
+const prepApi = SCHOOL_CONFIG_API ? createSchoolConfigApi(beClient) : schoolConfigApi;
+export const getPrepClasses = (yearId) => prepApi.getPrepClasses(yearId);
 export const saveSchoolYear = (id, form, user) => repo.saveSchoolYear(id, form, user);
 /** payload: { confirmName } – năm học phải đủ các bước bắt buộc (getYearReadiness). */
 export const activateSchoolYear = (id, payload, user) => repo.activateSchoolYear(id, payload, user);

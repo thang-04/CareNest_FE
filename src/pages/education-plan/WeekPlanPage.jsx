@@ -51,6 +51,7 @@ import {
 } from '@/models/education-plan/classPlan';
 import { dayPlansFile, leaderNameOf, weekFile } from '@/utils/education-plan/classPlanDoc';
 import { DayTab, WeekTab } from '@/components/education-plan/WeekPlanBody';
+import { DayResources } from '@/components/education-plan/DayResources';
 import { FinishedThemeNote, SupersededNote, VersionCopyOffer, VersionFlagsPanel } from '@/components/education-plan/VersionWidgets';
 import { useDocVersion } from '@/hooks/education-plan/useDocVersion';
 import { checkFlag, dropReference, versionOf } from '@/models/education-plan/planVersions.mjs';
@@ -110,7 +111,7 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
   const [preview, setPreview] = useState(null);
   // Mục còn trống BE trả khi gửi hồ sơ chủ đề (FR-007a): [{ date, section }], hiện chữ đỏ tới khi sửa xong
   const [emptyErr, setEmptyErr] = useState([]);
-  // MT chưa dạy BE trả khi gửi hồ sơ chủ đề (EDU-80, 7391/7392): [{ goalId, goalNo }]
+  // MT chưa dạy BE trả khi gửi hồ sơ chủ đề (EDU-80, 7396/7397): [{ goalId, goalNo }]
   const [goalErr, setGoalErr] = useState([]);
   const [cardFor, setCardFor] = useState(null);
   // Tab tuần ở trang ngày đang sửa được theo hồ sơ chủ đề (tính khi render, đọc lúc lưu)
@@ -551,13 +552,13 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
             {/* Hạn cùng dòng với trạng thái, như trang Kế hoạch giáo dục chủ đề (Tiền 12/11/2026) */}
             {dayPage && dossier && <DeadlineBadge doc={dossier} />}
             <FoldAllButton />
-            {/* Dạy học / trình chiếu chỉ theo từng ngày (Tiền 12/11/2026): chỉ ở trang ngày, khi đang mở tab một ngày */}
+            {/* Dạy học / trình chiếu chỉ theo từng ngày (Tiền 12/11/2026), dùng học liệu của kế hoạch giáo dục ngày (BE:EDU-81) */}
             {dayPage && day >= 0 && (
               <button
                 type="button"
                 className="btn btn--sm btn--outline-primary"
-                disabled={!saved || !themeDoc}
-                title={!themeDoc ? 'Lưu kế hoạch chủ đề trước' : !saved ? 'Lưu kế hoạch trước để dạy học' : undefined}
+                disabled={!savedDay}
+                title={!savedDay ? 'Lưu kế hoạch giáo dục ngày trước để dạy học' : undefined}
                 onClick={() =>
                   guard.leave(
                     `/education/class/${classId}/themes/${week.theme.id}/teach?week=${encodeURIComponent(weekStart)}&date=${encodeURIComponent(draft.days[day].date)}`,
@@ -743,6 +744,10 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
           />
         )}
       </div>
+      {/* BE:EDU-81 — học liệu chỉ ở kế hoạch giáo dục ngày, theo từng mục của ngày đang mở */}
+      {split && day >= 0 && (
+        <DayResources user={user} docKey={savedDay?.id || null} date={draft.days[day].date} editable={dayEditable(day)} />
+      )}
       {cardFor && (
         <ActivityCardEditor
           goals={goals}

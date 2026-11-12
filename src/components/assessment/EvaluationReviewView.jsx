@@ -39,7 +39,7 @@ import { Pagination, paginate } from '@/components/ui/Pagination';
 import { EVAL_HISTORY_LABELS, EVAL_KIND, EVAL_STATUS, PERIOD_TYPE_LABELS } from '@/models/assessment/assessmentConstants';
 import { formatDate, formatDateTime } from '@/utils/format';
 import { evaluationPeriodLabel, periodLabel } from '@/utils/assessment/assessmentPeriods';
-import { canReviewEvaluation, canViewAiDraft, isClassTeacher } from '@/utils/assessment/assessmentPermissions';
+import { canConfirmEvaluation, canReviewEvaluation, canViewAiDraft, isClassTeacher } from '@/utils/assessment/assessmentPermissions';
 import { ChildAvatar } from '@/components/ChildAvatar';
 import { validateEvaluationContent, hasErrors } from '@/utils/assessment/assessmentValidation';
 
@@ -136,6 +136,7 @@ export function EvaluationReviewView({ kind, id }) {
   if (!detail) return null;
 
   const canReview = canReviewEvaluation(ev, detail.cls, user);
+  const canConfirm = canConfirmEvaluation(ev, detail.cls, user);
   const showDraft = canViewAiDraft(ev, detail.cls, user);
   const confirmed = ev.status === EVAL_STATUS.CONFIRMED;
   const label = evaluationPeriodLabel(ev);
@@ -539,18 +540,22 @@ export function EvaluationReviewView({ kind, id }) {
             </button>
           </div>
         )}
-        {canReview && (
+        {(canReview || canConfirm) && (
           <div className="row gap-2">
-            <button className="btn" onClick={save} disabled={!!busy}>
-              {busy === 'save' ? <Spinner small /> : <Save size={16} />} Lưu chỉnh sửa
-            </button>
-            <button
-              className="btn btn--primary"
-              onClick={() => [check(), checkProgram()].every(Boolean) && setConfirmOpen(true)}
-              disabled={!!busy}
-            >
-              <CheckCircle2 size={16} /> {yearEnd ? 'Xác nhận đánh giá' : 'Xác nhận và công bố'}
-            </button>
+            {canReview && (
+              <button className="btn" onClick={save} disabled={!!busy}>
+                {busy === 'save' ? <Spinner small /> : <Save size={16} />} Lưu chỉnh sửa
+              </button>
+            )}
+            {canConfirm && (
+              <button
+                className="btn btn--primary"
+                onClick={() => [check(), checkProgram()].every(Boolean) && setConfirmOpen(true)}
+                disabled={!!busy}
+              >
+                <CheckCircle2 size={16} /> {yearEnd ? 'Xác nhận đánh giá' : 'Xác nhận và công bố'}
+              </button>
+            )}
           </div>
         )}
       </div>
