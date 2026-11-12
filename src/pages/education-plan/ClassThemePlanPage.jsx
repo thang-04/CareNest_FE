@@ -28,8 +28,6 @@ import {
 } from '@/models/education-plan/classPlan';
 import { leaderNameOf, themeFile } from '@/utils/education-plan/classPlanDoc';
 import { ThemePlanBody, themeRowOf } from '@/components/education-plan/ThemePlanBody';
-import { ActivityResources } from '@/components/education-plan/ActivityResources';
-import { themeActivities } from '@/models/education-plan/classPlan';
 import { FinishedThemeNote, SupersededNote, VersionCopyOffer, VersionFlagsPanel } from '@/components/education-plan/VersionWidgets';
 import { useDocVersion } from '@/hooks/education-plan/useDocVersion';
 import { addedGoalIds, checkFlag, danglingRows, dropReference, versionOf } from '@/models/education-plan/planVersions.mjs';
@@ -122,7 +120,6 @@ function ThemePlanInner() {
     setDraft((d) => fn(d));
     setDirty(true);
   };
-  const base = `/education/class/${classId}`;
   const crumbs = [{ label: 'Kế hoạch giáo dục' }, { label: 'Kế hoạch giáo dục chủ đề' }, { label: theme.name }];
   // Mở thẳng đường dẫn khi chưa tới bước này: không hiện biểu mẫu, chỉ ra bước còn thiếu
   const lock = !saved && createBlocker('theme', { classId, yearPlanId: yearPlan.id, themeId }, { branchPlans, classThemePlans });
@@ -206,15 +203,6 @@ function ThemePlanInner() {
           <div className="ga-year-toolbar__group">
             <EduStatusBadge status={holder?.status || status} doc={holder} />
             <DeadlineBadge doc={semester} />
-            <button
-              type="button"
-              className="btn btn--sm btn--outline-primary"
-              disabled={!saved}
-              title={saved ? undefined : 'Lưu kế hoạch chủ đề trước để dạy học / trình chiếu'}
-              onClick={() => guard.leave(`${base}/themes/${themeId}/teach`)}
-            >
-              Dạy học / Trình chiếu
-            </button>
           </div>
           <div className="ga-year-toolbar__group ga-year-toolbar__group--end">
             {editable && (
@@ -310,14 +298,6 @@ function ThemePlanInner() {
         flagOf={(id) => version.unresolved.find((f) => f.goalId === String(id)) || null}
         added={draft.sourceDocKey ? addedGoalIds(version.changes) : null}
         heading="Mục tiêu, nội dung, hoạt động và môi trường giáo dục"
-      />
-      <ActivityResources
-        user={user}
-        doc={draft}
-        activities={themeActivities(blocks, rowOf)}
-        editable={editable}
-        exists={!!saved}
-        onSave={saver.save}
       />
       {holder?.history?.length > 0 && <ReviewHistory items={holder.history} open />}
       {holder?.releases?.length > 0 && (

@@ -41,6 +41,7 @@ import {
 } from '@/models/education-plan/classPlan';
 import { dayPlansFile, leaderNameOf, weekFile } from '@/utils/education-plan/classPlanDoc';
 import { DayTab, WeekTab } from '@/components/education-plan/WeekPlanBody';
+import { DayResources } from '@/components/education-plan/DayResources';
 import { FinishedThemeNote, SupersededNote, VersionCopyOffer, VersionFlagsPanel } from '@/components/education-plan/VersionWidgets';
 import { useDocVersion } from '@/hooks/education-plan/useDocVersion';
 import { checkFlag, dropReference, versionOf } from '@/models/education-plan/planVersions.mjs';
@@ -315,19 +316,22 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
           <div className="ga-year-toolbar__group">
             {/* Trạng thái theo kế hoạch chủ đề (giáo án tuần gửi / duyệt cùng kế hoạch chủ đề), đặt ở header như mục tiêu năm học */}
             <EduStatusBadge status={(container || themeDoc)?.status || EDU_STATUS.DRAFT} doc={container || themeDoc} />
-            <button
-              type="button"
-              className="btn btn--sm btn--outline-primary"
-              disabled={!saved || !themeDoc}
-              title={!themeDoc ? 'Lưu kế hoạch chủ đề trước' : !saved ? 'Lưu giáo án trước để dạy học' : undefined}
-              onClick={() =>
-                guard.leave(
-                  `/education/class/${classId}/themes/${week.theme.id}/teach?week=${encodeURIComponent(weekStart)}${day >= 0 ? `&date=${encodeURIComponent(draft.days[day].date)}` : ''}`,
-                )
-              }
-            >
-              Dạy học{day >= 0 ? ' ngày này' : ' tuần này'}
-            </button>
+            {/* Dạy học/trình chiếu chỉ theo ngày, dùng học liệu của kế hoạch giáo dục ngày (BE:EDU-81) */}
+            {day >= 0 && (
+              <button
+                type="button"
+                className="btn btn--sm btn--outline-primary"
+                disabled={!savedDay}
+                title={!savedDay ? 'Lưu kế hoạch giáo dục ngày trước để dạy học' : undefined}
+                onClick={() =>
+                  guard.leave(
+                    `/education/class/${classId}/themes/${week.theme.id}/teach?week=${encodeURIComponent(weekStart)}&date=${encodeURIComponent(draft.days[day].date)}`,
+                  )
+                }
+              >
+                Dạy học ngày này
+              </button>
+            )}
           </div>
           <div className="ga-year-toolbar__group ga-year-toolbar__group--end">
             {editable && (
@@ -546,6 +550,10 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
           )}
         </div>
       </Card>
+      {/* BE:EDU-81 — học liệu chỉ ở kế hoạch giáo dục ngày, theo từng mục của ngày đang mở */}
+      {split && day >= 0 && (
+        <DayResources user={user} docKey={savedDay?.id || null} date={draft.days[day].date} editable={dayEditable(day)} />
+      )}
       <ConfirmationModal
         open={confirmRevise}
         title={`Tạo phiên bản điều chỉnh hồ sơ chủ đề "${week.theme.name}"?`}

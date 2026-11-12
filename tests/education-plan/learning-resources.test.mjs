@@ -1,27 +1,22 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { activitySignature, matchDayActivities, resourceMatches, fileLimit } from '../../src/models/education-plan/learningResources.mjs';
+import { resourcesOf, sectionKey } from '../../src/models/education-plan/learningResources.mjs';
 import { themeActivities, teachingDayPicks, teachingDayUnlinked } from '../../src/models/education-plan/classPlan.js';
 
-test('fingerprint preserves content and normalizes CRLF only', async () => {
-  assert.equal(await activitySignature('A\r\nB'), await activitySignature('A\nB'));
-  assert.notEqual(await activitySignature('A\nB'), await activitySignature('B\nA'));
-});
-test('day does not substitute positional ID after theme reorder', () => {
-  const current = [
-    { id: '1#0', goalId: '1', text: 'B' },
-    { id: '1#1', goalId: '1', text: 'A' },
+// BE:EDU-81 — học liệu theo ngày + mục của kế hoạch giáo dục ngày
+test('resources are picked by day and section of the day plan', () => {
+  assert.equal(sectionKey('2026-09-07', 'hoc'), '2026-09-07#hoc');
+  const items = [
+    { id: 1, active: true, activityKey: '2026-09-07#hoc' },
+    { id: 2, active: true, activityKey: '2026-09-07#goc' },
+    { id: 3, active: false, activityKey: '2026-09-07#hoc' },
+    { id: 4, active: true, activityKey: '2026-09-08#hoc' },
   ];
-  const result = matchDayActivities(current, [{ id: '1#0', goalId: '1', text: 'A' }]);
-  assert.equal(result[0].text, 'A');
-  assert.equal(result[0].stale, true);
-  assert.equal(resourceMatches({ active: true, activityKey: '1#0', activitySignature: 'sig' }, result[0], 'sig'), false);
-  assert.equal(matchDayActivities(current, [current[1]])[0].stale, false);
-});
-test('resource needs both current key and full row signature', () => {
-  assert.equal(resourceMatches({ active: true, activityKey: '1#0', activitySignature: 'old' }, { id: '1#0' }, 'new'), false);
-  assert.equal(fileLimit('image/png'), 5 * 1024 * 1024);
-  assert.equal(fileLimit('video/mp4'), 100 * 1024 * 1024);
+  assert.deepEqual(
+    resourcesOf(items, '2026-09-07', 'hoc').map((r) => r.id),
+    [1],
+  );
+  assert.deepEqual(resourcesOf(items, '2026-09-09', 'hoc'), []);
 });
 
 test('heading/plus parser and day picks preserve existing activity IDs', () => {
@@ -39,7 +34,6 @@ test('heading/plus parser and day picks preserve existing activity IDs', () => {
     ['9#0'],
   );
   assert.deepEqual(teachingDayPicks(doc, 4), []);
-  assert.deepEqual(matchDayActivities([], []), []);
 });
 
 test('legacy typed day content remains teachable without guessing goal or media', () => {

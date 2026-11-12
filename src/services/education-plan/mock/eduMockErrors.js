@@ -47,6 +47,7 @@ const SPECS = {
   UNSUPPORTED_MEDIA_TYPE: [415, 'Định dạng tệp không được hỗ trợ'],
   FILE_TOO_LARGE: [413, 'Tệp vượt quá dung lượng cho phép'],
   FILE_EMPTY: [400, 'Tệp rỗng'],
+  STORAGE_NOT_CONFIGURED: [503, 'Chưa cấu hình kho lưu tệp, liên hệ quản trị'],
   EDU_CONFIG_FORBIDDEN: [403, 'Chỉ Hiệu trưởng hoặc Phó Hiệu trưởng sửa được cấu hình'],
   YEAR_PLAN_SIGNER_REQUIRED: [400, 'Kế hoạch năm học phải có Phó Hiệu trưởng ký'],
   CLASS_DOC_APPROVER_REQUIRED: [400, 'Mỗi loại tài liệu lớp cần ít nhất một người duyệt'],
