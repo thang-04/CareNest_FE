@@ -111,24 +111,31 @@ test('typing in the trailing corner keeps its row identity and enables Enter', (
 
 test('semester filter uses BE theme IDs in both layouts and preserves annual data', async () => {
   const page = await readFile(new URL('../../src/pages/education-plan/BranchPlanPage.jsx', import.meta.url), 'utf8');
-  const body = page.slice(page.indexOf('  const packages = semesterPackages.filter'), page.indexOf('  const canEdit = autoOk;'));
-  const filter = new Function('semesterPackages', 'classId', 'yearPlan', 'semesterNo', `${body}\nreturn inSemester;`);
-  const packages = [
-    { classId: 'c', yearPlanId: 'y', semesterNo: 1, themeIds: [11] },
-    { classId: 'c', yearPlanId: 'y', semesterNo: 2, themeIds: ['22'] },
-    { classId: 'other', yearPlanId: 'y', semesterNo: 1, themeIds: [22] },
+  const { semesterChoices } = await import('@/models/education-plan/classPlan');
+  const themes = [
+    { id: 11, start: '2026-09-07' },
+    { id: 22, start: '2027-01-11' },
   ];
-  const rows = [
-    { type: 'week', theme: { id: '11' } },
-    { type: 'break', theme: { id: 11 } },
-    { type: 'week', theme: { id: 22 } },
-  ];
-  const before = JSON.stringify({ rows, packages });
-  assert.deepEqual(rows.filter(filter(packages, 'c', { id: 'y' }, '1')), rows.slice(0, 2));
-  assert.deepEqual(rows.filter(filter(packages, 'c', { id: 'y' }, '2')), rows.slice(2));
-  assert.deepEqual(rows.filter(filter(packages, 'c', { id: 'y' }, '')), rows);
-  assert.deepEqual(rows.filter(filter([], 'c', { id: 'y' }, '1')), rows);
-  assert.equal(JSON.stringify({ rows, packages }), before);
+  const year = { semester1Start: '2026-09-05', semester1End: '2026-12-31', semester2Start: '2027-01-04', semester2End: '2027-05-31' };
+  // Gói học kỳ của BE thắng ngày; id chủ đề so theo chuỗi
+  const packages = [{ semesterNo: 2, themeIds: [11, '22'], deadline: '2026-12-20' }];
+  const before = JSON.stringify({ themes, packages });
+  const choices = semesterChoices(year, themes, packages);
+  assert.deepEqual(
+    choices.map((c) => [c.semesterNo, c.themeIds, c.deadline]),
+    [
+      [1, ['11'], '2026-09-05'],
+      [2, ['11', '22'], '2026-12-20'],
+    ],
+  );
+  // Chưa cấu hình ngày học kỳ: chỉ các học kỳ có gói
+  assert.deepEqual(
+    semesterChoices({}, themes, packages).map((c) => c.semesterNo),
+    [2],
+  );
+  assert.deepEqual(semesterChoices(undefined, themes, []), []);
+  assert.equal(JSON.stringify({ themes, packages }), before);
+  assert.match(page, /const inSemester = \(row\) => !visibleThemeIds \|\| visibleThemeIds\.has\(String\(row\.theme\.id\)\)/);
   assert.match(page, /const displayRows = allRows\.filter\(inSemester\)/);
   assert.match(page, /rows=\{teachingWeeks\(yearPlan, draft\)\.filter\(inSemester\)\}/);
 });
