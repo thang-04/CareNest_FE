@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { SidePanel } from '@/components/ui/SidePanel';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
 import { PeriodSummaryTable } from '@/components/assessment/PeriodSummaryTable';
@@ -7,8 +7,6 @@ import { formatDate, todayInput } from '@/utils/format';
 
 const dayMonth = (iso) => formatDate(iso).slice(0, 5);
 const goalLabel = (g) => g.name || g.description || `MT ${g.id}`;
-const commentRowId = (date) => `dg-xcheck-nx-${date}`;
-const commentText = (day) => [day.comment, day.behaviorNote && `Ghi chú hành vi: ${day.behaviorNote}`].filter(Boolean).join('\n');
 
 /**
  * Đối chiếu đánh giá hằng ngày của một trẻ trong thời gian chủ đề (Cần yêu cầu 10/11/2026): cô xem từng mục tiêu
@@ -44,11 +42,6 @@ export function ThemeDailyCrossCheck({ child, theme, onClose }) {
   }, [days]);
   // Nhận xét cô ghi ở Đánh giá hằng ngày (comment) và ghi chú hành vi (behaviorNote)
   const comments = useMemo(() => days.filter((day) => day.comment || day.behaviorNote), [days]);
-  const [activeDate, setActiveDate] = useState(null);
-  const openComment = (date) => {
-    setActiveDate(date);
-    document.getElementById(commentRowId(date))?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-  };
 
   return (
     <SidePanel open={!!child} wide title={child ? `Đối chiếu đánh giá hằng ngày · ${child.fullName}` : ''} onClose={onClose}>
@@ -113,27 +106,6 @@ export function ThemeDailyCrossCheck({ child, theme, onClose }) {
                       })}
                     </tr>
                   ))}
-                  <tr>
-                    <td className="dg-xcheck__goal">Nhận xét của cô</td>
-                    <td />
-                    {timeline.map((day) => {
-                      if (day.absent) {
-                        return (
-                          <td key={day.date} className="center dg-xcheck__absent" title="Vắng">
-                            V
-                          </td>
-                        );
-                      }
-                      if (!day.comment && !day.behaviorNote) return <td key={day.date} />;
-                      return (
-                        <td key={day.date} className="center dg-xcheck__nx" title={commentText(day)}>
-                          <button type="button" className="link-btn" onClick={() => openComment(day.date)}>
-                            NX
-                          </button>
-                        </td>
-                      );
-                    })}
-                  </tr>
                 </tbody>
               </table>
             </div>
@@ -155,11 +127,7 @@ export function ThemeDailyCrossCheck({ child, theme, onClose }) {
                   </thead>
                   <tbody>
                     {comments.map((day) => (
-                      <tr
-                        key={day.date}
-                        id={commentRowId(day.date)}
-                        className={activeDate === day.date ? 'dg-xcheck__nx-row--active' : undefined}
-                      >
+                      <tr key={day.date}>
                         <td className="nowrap">{formatDate(day.date)}</td>
                         <td>{day.comment || '—'}</td>
                         <td>{day.behaviorNote || '—'}</td>

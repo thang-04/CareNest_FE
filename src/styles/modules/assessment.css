@@ -1114,10 +1114,3 @@
   background: var(--color-surface-muted);
   color: var(--color-text-muted);
 }
-.dg-xcheck .dg-xcheck__wrap .dg-xcheck__grid .dg-xcheck__nx {
-  background: var(--color-primary-soft);
-}
-.dg-xcheck .dg-xcheck__nx-row--active td {
-  background: var(--color-primary-soft);
-  font-weight: var(--fw-medium);
-}
