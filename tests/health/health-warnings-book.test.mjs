@@ -109,16 +109,40 @@ test('AC-2 (HLT-19): Sổ sức khỏe trả latestExam, latestBmi; không còn 
   assert.equal(readDb().healthFollowUps, undefined);
 });
 
-test('HLT-18: kết quả mẫu cũ có mức BMI, mức theo dõi không còn theo ngưỡng tạm; vòng đầu, vận động vẫn xem được', async () => {
+test('Đợt khám đã đóng (seed v15+): kết quả là phiếu Phụ lục II đã kết luận như BE, không còn mẫu cũ; cân đo không có vòng đầu', async () => {
   const record = await children.getHealthRecord('ch_014', PRINCIPAL);
-  const legacy = record.measurements.filter((m) => m.source === 'LEGACY');
-  assert.ok(legacy.length >= 2);
-  assert.ok(legacy.every((m) => m.followUpLevel === 'UNAVAILABLE' && m.conclusionCategory === null));
-  assert.ok(legacy.every((m) => m.bmiStatus && typeof m.bmiZScore === 'number' && m.grossMotor && m.fineMotor));
-  assert.equal(legacy.find((m) => m.date === '2026-03-16').headCircumferenceStatus, 'LARGE', 'vòng đầu mẫu cũ vẫn hiện');
-  // Trẻ chỉ có phiếu nháp trong đợt đang diễn ra: chưa có kết luận bác sĩ; BMI lấy từ kết quả mẫu cũ gần nhất (mock).
-  assert.equal(record.latestExam, null);
-  assert.equal(record.latestBmi.measurementId, legacy.sort((a, b) => b.date.localeCompare(a.date))[0].id);
+  assert.ok(record.measurements.every((m) => m.source !== 'LEGACY' && m.grossMotor === null && m.fineMotor === null));
+  const past = record.measurements.filter((m) => m.campaignKind === 'EXAM' && m.campaignId !== C1_OPEN);
+  assert.ok(past.length >= 3);
+  assert.ok(past.every((m) => m.source === 'EXAM' && m.examStatus === 'CONCLUDED' && m.conclusionCategory && m.published));
+  // Tháng 3: vòng đầu to kèm vận động thô chưa theo kịp ⇒ bác sĩ chuyển khám phát triển.
+  const march = past.find((m) => m.date === '2026-03-16');
+  assert.equal(march.conclusionCategory, 'REFERRAL');
+  assert.equal(march.followUpLevel, 'CLOSE_WATCH');
+  assert.equal(march.headCircumferenceStatus, 'LARGE', 'phiếu Phụ lục II vẫn đo vòng đầu');
+  // Phiếu nháp của đợt đang diễn ra không tính; lần khám gần nhất có kết luận là đợt tháng 9.
+  assert.equal(record.latestExam.date, '2026-09-15');
+  const all = readDb().healthMeasurements;
+  assert.ok(
+    all.filter((m) => !m.exam).every((m) => m.headCircumferenceCm == null),
+    'kỳ cân đo, cân đo ngoài đợt không có vòng đầu',
+  );
+});
+
+test('DB demo v14: kết quả mẫu cũ chưa ai sửa của đợt đã đóng thành phiếu khám đã kết luận', async () => {
+  writeDb((d) => {
+    d.healthSeedVersion = 14;
+    Object.assign(
+      d.healthMeasurements.find((m) => m.id === 'hm_ch_014_0'),
+      { exam: null, examStatus: null, concludedAt: null, grossMotor: 'ABNORMAL', fineMotor: 'NO_ABNORMALITY' },
+    );
+  });
+  const db = ensureChildRecordsSeeded();
+  assert.equal(db.healthSeedVersion, 17);
+  const m = db.healthMeasurements.find((x) => x.id === 'hm_ch_014_0');
+  assert.equal(m.examStatus, 'CONCLUDED');
+  assert.ok(m.exam && m.concludedAt);
+  assert.deepEqual([m.grossMotor, m.fineMotor], [null, null]);
 });
 
 test('AC-4 (HLT-19): kỳ cân đo có số trẻ theo mức BMI, bmiWarning theo lớp, trẻ cần chú ý xếp theo mức nặng rồi tên', async () => {
@@ -172,12 +196,7 @@ test('AC-4: đợt khám giữ trẻ cần theo dõi theo kết luận bác sĩ;
 test('AC-3 (HLT-16 bỏ): lưu số đo kỳ cân đo trả mức BMI; kết luận theo dõi sát không mở phiếu, không gửi thông báo phiếu theo dõi', async () => {
   const roster = await checks.getHealthCheckClass(ROUND, 'cls_c2_m1', TUAN);
   const row = roster.children.find((r) => r.result === 'NOT_RECORDED');
-  const saved = await children.saveMeasurement(
-    row.childId,
-    null,
-    { campaignId: ROUND, heightCm: 98, weightKg: 22, note: '' },
-    TUAN,
-  );
+  const saved = await children.saveMeasurement(row.childId, null, { campaignId: ROUND, heightCm: 98, weightKg: 22, note: '' }, TUAN);
   assert.equal(saved.source, 'MEASUREMENT_ONLY');
   assert.equal(saved.bmi, 22.9);
   assert.equal(saved.bmiStatus, 'OBESE');
@@ -269,7 +288,7 @@ test('DB demo cũ (seed v13): bỏ phiếu theo dõi và thông báo của nó; 
     d.mockSeedVersions = { ...(d.mockSeedVersions || {}), notifications: 1 };
   });
   const db = ensureChildRecordsSeeded();
-  assert.equal(db.healthSeedVersion, 14);
+  assert.equal(db.healthSeedVersion, 17);
   assert.equal(db.healthFollowUps, undefined);
   const round = db.healthCheckCampaigns.find((c) => c.id === ROUND);
   const results = db.healthMeasurements.filter((m) => m.campaignId === ROUND);
