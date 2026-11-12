@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { ChildAvatar } from '@/components/ChildAvatar';
-import { ArrowRight, Flag, Lock, Save, UserX } from '@/components/ui/icons';
+import { Flag, Lock, Save, UserX } from '@/components/ui/icons';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
@@ -395,10 +395,7 @@ export default function DailyAssessmentPage() {
 
       {writable && (
         <div className="page-actions">
-          {/* Xong Hoạt động chung thì sang Kiến thức kỹ năng cùng lớp, ngày (hỏi nếu còn thay đổi chưa lưu) */}
-          <Link className="btn" to={`/assessment/daily/skills?classId=${currentClassId}&date=${shownDate}`}>
-            Sang Kiến thức kỹ năng <ArrowRight size={16} />
-          </Link>
+          {/* Chuyển Hoạt động chung / Kiến thức kỹ năng bằng ô "Nội dung đánh giá" (user chốt 12/11/2026 bỏ nút Sang) */}
           <div className="spacer" />
           <div className="row gap-2">
             {(dirty.size > 0 || classCommentDirty) && (
