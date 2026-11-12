@@ -8,16 +8,21 @@ import { EDU_SEED_VERSION, ensureEduDemo } from '@/mocks/educationPlanSeed';
 import { ROLES, ROLE_LABELS } from '@/models/User';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
 import {
+  CARD_NAME_MAX,
   CLASS_DOC,
+  coverageOf,
   createBlocker,
   dossierWeekDocs,
   emptyDaySections,
   isEditableStatus,
+  normalizeTheme,
   submitBlocker,
+  themeGoalBlocks,
+  weekRows,
   yearWeeks,
 } from '@/models/education-plan/classPlan';
 import { PENDING_OF, SIGN_ROLES, withDefaults } from '@/models/education-plan/eduConfig';
-import { toRows } from '@/models/education-plan/goalTable';
+import { numberGoals, toRows } from '@/models/education-plan/goalTable';
 import { currentPlanOf, diffPlans, unresolvedFlags, versionFlags, versionOf } from '@/models/education-plan/planVersions.mjs';
 import { parseCsv } from '@/utils/csv';
 
@@ -84,6 +89,26 @@ const unresolvedOf = (db, kind, doc) => {
   return unresolvedFlags(versionFlags(kind, doc, diffPlans(from, plan), plan, todayIso()), doc).length;
 };
 const rolesOf = (user) => [...(user?.roles || []), user?.role];
+// BE:EDU-78 R8 — MT của chủ đề như themeGoalBlocks; thẻ: id duy nhất, tên 1–300 ký tự, loại giờ thuộc cấu hình ("" chỉ thẻ cũ),
+// MT thuộc chủ đề, nội dung thuộc MT đã chọn
+const themeGoalsOf = (plan, themeId, customTicks) => {
+  const p = withRows(plan);
+  return p ? themeGoalBlocks(p.domains, numberGoals(p.domains), themeId, customTicks).flatMap((b) => b.goals) : [];
+};
+const validateCards = (cards, goalIds) => {
+  const ids = new Set();
+  const slots = new Set(weekRows().map((r) => r.key));
+  cards.forEach((c) => {
+    if (!c?.id || ids.has(c.id)) throw eduError('INVALID_VALUE', 'mã thẻ hoạt động');
+    ids.add(c.id);
+    if (!c.name?.trim() || c.name.length > CARD_NAME_MAX) throw eduError('INVALID_VALUE', 'tên hoạt động');
+    if (c.slot ? !slots.has(c.slot) : !c.legacy) throw eduError('INVALID_VALUE', 'loại giờ của hoạt động');
+    const own = (c.goalIds || []).map(String);
+    if (own.some((g) => !goalIds.has(g))) throw eduError('INVALID_VALUE', 'mục tiêu của hoạt động');
+    if ((c.contentRefs || []).some((r) => !own.includes(String(r).split(':')[0])))
+      throw eduError('INVALID_VALUE', 'nội dung của hoạt động');
+  });
+};
 // BE:EDU-03/12..18 — fake backend tính quyền, UI chỉ đọc capabilities.
 const authorsOf = (db, doc) =>
   new Set([
@@ -287,6 +312,11 @@ export const classPlanMockRepository = {
       const plan = (db.eduGoals || []).find((g) => g.id === doc.yearPlanId);
       if (!plan || plan.planLevel === 'SCHOOL_YEAR' || plan.status !== EDU_STATUS.APPROVED) throw eduError('YEAR_PLAN_NOT_ISSUED');
       const normalized = kind === 'branch' && body.schemaVersion === 2 ? projectCalendar(body, plan) : body;
+      if (kind === CLASS_DOC.THEME) {
+        const goalIds = new Set(themeGoalsOf(plan, body.themeId, body.customTicks).map((g) => String(g.id)));
+        normalized.activities = normalizeTheme(body, goalIds);
+        validateCards(normalized.activities, goalIds);
+      }
       const affected = validateFutureClassEdit(kind, current, normalized, plan);
       for (const themeId of affected) {
         const members = [...db.eduClassTheme, ...db.eduClassWeek].filter(
@@ -447,6 +477,28 @@ export const classPlanMockRepository = {
           const error = eduError('DAY_PLAN_SECTION_EMPTY', empty.length);
           error.details = { details: empty };
           throw error;
+        }
+        // BE:EDU-80 (FR-030) — hồ sơ chủ đề thiếu MT của chủ đề ở mọi ngày dạy ⇒ chặn; gõ tay không tính
+        if (kind === CLASS_DOC.THEME) {
+          const goals = themeGoalsOf(yearPlan, doc.themeId, doc.customTicks);
+          const weeks = dossierWeekDocs(doc, yearPlan, db.eduClassWeek).map((x) => ({
+            start: x.week.start,
+            offDays: x.week.offDays,
+            doc: x.doc,
+          }));
+          const missing = coverageOf(
+            goals,
+            normalizeTheme(
+              doc,
+              goals.map((g) => g.id),
+            ),
+            weeks,
+          ).missing;
+          if (missing.length) {
+            const error = eduError('THEME_GOALS_NOT_COVERED', missing.map((g) => `MT${g.no}`).join(', '));
+            error.details = { details: missing.map((g) => ({ goalId: g.id, goalNo: g.no })) };
+            throw error;
+          }
         }
         const unresolved = all.reduce((n, d) => n + unresolvedOf(db, d.kind || (d === doc ? kind : CLASS_DOC.WEEK), d), 0);
         if (unresolved) fail('CLASS_DOC_VERSION_FIX_REQUIRED', unresolved);

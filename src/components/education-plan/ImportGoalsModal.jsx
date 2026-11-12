@@ -191,7 +191,7 @@ export default function ImportGoalsModal({ planLevel = 'TEAM', excludeId, defaul
           </select>
         </div>
       </div>
-      {confirmError && <Notice tone="warn">{confirmError}</Notice>}
+      {confirmError && <Notice>{confirmError}</Notice>}
       {query.loadingList ? (
         <LoadingState />
       ) : query.listError ? (

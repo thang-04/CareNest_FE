@@ -2,7 +2,7 @@ import { planLevel, planRoute } from '@/models/education-plan/planLevel.mjs';
 import { useId, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, EduStatusBadge, EmptyState, PageHead, YearPlanStatusBadge, fmtDateTime } from '@/components/education-plan/eduUi';
-import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
+import { useEducationPlan, useGoalDetails } from '@/hooks/education-plan/useEducationPlan';
 import { ROLES } from '@/models/User';
 import { AGE_GROUPS } from '@/models/education-plan/educationPlanConstants';
 import { useAsync } from '@/hooks/useAsync';
@@ -45,6 +45,8 @@ export default function PlanReviewQueuePage() {
     }
     return doc.status === waiting && (user.role !== ROLES.TEAM_LEADER || cls.ageGroupId === user.ageGroupId);
   };
+  // Tên, số thứ tự chủ đề lấy từ chi tiết kế hoạch tổ của hồ sơ
+  useGoalDetails([...themeDossiers, ...classThemePlans].map((d) => d.yearPlanId));
   const themeName = (doc) => goals.find((g) => g.id === doc.yearPlanId)?.themes?.find((t) => t.id === doc.themeId)?.name || '—';
   const sentAt = (doc) => [...(doc.history || [])].reverse().find((h) => !h.tone);
   const items = [
@@ -74,7 +76,7 @@ export default function PlanReviewQueuePage() {
         kind: 'theme',
         label: 'Hồ sơ chủ đề',
         doc: d,
-        what: `Chủ đề ${themeNumber(plan, d.themeId)}: ${themeName(d)} · giáo án ngày`,
+        what: `Chủ đề ${themeNumber(plan, d.themeId)}: ${themeName(d)} · kế hoạch giáo dục ngày`,
         to: `/education/day-plans/${d.classId}?theme=${d.themeId}`,
       };
     }),
@@ -105,56 +107,58 @@ export default function PlanReviewQueuePage() {
 
   return (
     <div className="page ga-page">
-      <PageHead crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Duyệt kế hoạch, giáo án' }]} title="Duyệt kế hoạch, giáo án" />
-      {items.length > 0 && (
-        <div className="card mb-16">
-          <div className="filter-bar">
-            <div className="field">
-              <label className="field__label" htmlFor={`${filterId}-age`}>
-                Nhóm tuổi
-              </label>
-              <select
-                id={`${filterId}-age`}
-                className="select"
-                value={ageGroupId}
-                onChange={(e) => {
-                  setAgeGroupId(e.target.value);
-                  setClassId('');
-                }}
-              >
-                <option value="">Tất cả</option>
-                {groups.map((g) => (
-                  <option key={g.id} value={g.id}>
-                    {g.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="field">
-              <label className="field__label" htmlFor={`${filterId}-class`}>
-                Lớp
-              </label>
-              <select
-                id={`${filterId}-class`}
-                className="select"
-                value={classId}
-                disabled={!ageGroupId}
-                onChange={(e) => setClassId(e.target.value)}
-              >
-                <option value="">Tất cả</option>
-                {groupClasses.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
+      <div className="ga-sticky-head">
+        <PageHead crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Duyệt kế hoạch giáo dục' }]} title="Duyệt kế hoạch giáo dục" />
+        {items.length > 0 && (
+          <div className="card mb-16">
+            <div className="filter-bar">
+              <div className="field">
+                <label className="field__label" htmlFor={`${filterId}-age`}>
+                  Nhóm tuổi
+                </label>
+                <select
+                  id={`${filterId}-age`}
+                  className="select"
+                  value={ageGroupId}
+                  onChange={(e) => {
+                    setAgeGroupId(e.target.value);
+                    setClassId('');
+                  }}
+                >
+                  <option value="">Tất cả</option>
+                  {groups.map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="field">
+                <label className="field__label" htmlFor={`${filterId}-class`}>
+                  Lớp
+                </label>
+                <select
+                  id={`${filterId}-class`}
+                  className="select"
+                  value={classId}
+                  disabled={!ageGroupId}
+                  onChange={(e) => setClassId(e.target.value)}
+                >
+                  <option value="">Tất cả</option>
+                  {groupClasses.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
       <Card bodyClass={null}>
         {shown.length === 0 ? (
-          <EmptyState title="Không có tài liệu chờ duyệt" desc="Khi giáo viên gửi kế hoạch hoặc giáo án, tài liệu sẽ hiện ở đây." />
+          <EmptyState title="Không có tài liệu chờ duyệt" desc="Khi giáo viên gửi kế hoạch giáo dục, tài liệu sẽ hiện ở đây." />
         ) : (
           <div className="card__body">
             <div className="table-wrap">

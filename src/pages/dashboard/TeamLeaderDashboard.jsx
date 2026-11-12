@@ -5,7 +5,7 @@ import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { Widget, KpiCard, ShortList } from '@/components/dashboard/DashboardWidgets';
 import { ApprovalsWidget } from '@/components/dashboard/ApprovalsWidget';
 import { ClassTodayPanel } from '@/components/dashboard/ClassTodayPanel';
-import { getEducationPlans } from '@/services/education-plan/educationPlanService';
+import { getEducationLessons } from '@/services/education-plan/educationPlanService';
 import { EduStatusBadge } from '@/components/education-plan/eduUi';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
 import { ageGroupById } from '@/models/School';
@@ -21,7 +21,7 @@ export default function TeamLeaderDashboard() {
   const { user } = useAuth();
   const approvals = usePendingApprovals();
   const themesQ = useWidget(
-    () => getEducationPlans().then((d) => d.themes.filter((t) => t.ageGroupId === user.ageGroupId)),
+    () => getEducationLessons().then((d) => d.themes.filter((t) => t.ageGroupId === user.ageGroupId)),
     [user.ageGroupId],
   );
   const themes = themesQ.data || [];
@@ -38,12 +38,12 @@ export default function TeamLeaderDashboard() {
 
       <div className="stat-grid">
         <KpiCard
-          unit="giáo án"
+          unit="kế hoạch"
           action={!approvals.failed.length}
           icon={NotebookPen}
           to="/education/plan-reviews"
           tone="purple"
-          label="Giáo án chờ bạn duyệt"
+          label="Kế hoạch giáo dục ngày chờ bạn duyệt"
           value={approvals.total}
           hint={approvals.failed.length ? `${approvals.failed.length} nhóm không tải được` : undefined}
           loading={approvals.loading && !approvals.groups.length}

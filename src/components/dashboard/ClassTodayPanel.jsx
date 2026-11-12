@@ -9,7 +9,7 @@ import { getChildren } from '@/services/schoolService';
 import { getAttendanceClasses, getClassAttendance } from '@/services/attendance/attendanceService';
 import { isClassTeacher } from '@/utils/attendance/attendancePermissions';
 import { getPickupBoard } from '@/services/pickup/pickupService';
-import { getEducationPlans } from '@/services/education-plan/educationPlanService';
+import { getEducationLessons } from '@/services/education-plan/educationPlanService';
 import { getEvaluations } from '@/services/assessment/assessmentService';
 import { ATTENDANCE_STATUS } from '@/models/attendance/attendanceConstants';
 import { PICKUP_STATUS } from '@/models/pickup/pickupConstants';
@@ -71,7 +71,7 @@ export function ClassTodayPanel() {
       enabled: !!classId,
     },
   );
-  const lessonsQ = useWidget(() => getEducationPlans().then((d) => d.lessons.filter((l) => l.classId === user.classId)), [user.classId]);
+  const lessonsQ = useWidget(() => getEducationLessons().then((d) => d.lessons.filter((l) => l.classId === user.classId)), [user.classId]);
   const evaluationsQ = useWidget(
     (u) =>
       Promise.all([
@@ -222,8 +222,8 @@ export function ClassTodayPanel() {
               key: 'lessons',
               to: '/education/theme-plans',
               icon: BookOpenCheck,
-              title: 'Giáo án của lớp',
-              meta: metaOf(lessonsQ, `Nháp hoặc bị từ chối cần hoàn thiện · ${lessonsWaiting} giáo án đang chờ duyệt`),
+              title: 'Kế hoạch giáo dục ngày của lớp',
+              meta: metaOf(lessonsQ, `Nháp hoặc bị từ chối cần hoàn thiện · ${lessonsWaiting} kế hoạch giáo dục ngày đang chờ duyệt`),
               end: endOf(lessonsQ, lessonsToFix),
             },
             {

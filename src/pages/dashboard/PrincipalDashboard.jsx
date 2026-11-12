@@ -18,7 +18,7 @@ import { ApprovalsWidget } from '@/components/dashboard/ApprovalsWidget';
 import { AttentionWidget, ClassRankWidget } from '@/components/dashboard/TodayWidgets';
 import { getMealCounts } from '@/services/attendance/attendanceService';
 import { getPublishedMenu } from '@/services/kitchen/kitchenService';
-import { getEducationPlans } from '@/services/education-plan/educationPlanService';
+import { getEducationLessons } from '@/services/education-plan/educationPlanService';
 import { attendanceCompareText } from '@/services/dashboard/dashboardSummaryService';
 import { MENU_TYPE } from '@/models/kitchen/kitchenConstants';
 import { EDU_STATUS, isEduReviewPending } from '@/models/education-plan/educationPlanConstants';
@@ -81,7 +81,7 @@ export default function PrincipalDashboard() {
       ),
     [date],
   );
-  const eduQ = useWidget(() => getEducationPlans());
+  const eduQ = useWidget(() => getEducationLessons());
   const att = todayQ.data?.attendance;
   const health = todayQ.data?.health;
   const lunches = (countsQ.data?.counts || []).filter((c) => c.session === 'LUNCH' && (!campusId || c.campusId === campusId));
@@ -250,8 +250,8 @@ export default function PrincipalDashboard() {
                   key: 'lessons',
                   to: '/education/plan-reviews',
                   icon: BookOpenCheck,
-                  title: 'Giáo án đã duyệt',
-                  meta: `${lessons.filter((l) => isEduReviewPending(l.status)).length} giáo án đang chờ duyệt`,
+                  title: 'Kế hoạch giáo dục ngày đã duyệt',
+                  meta: `${lessons.filter((l) => isEduReviewPending(l.status)).length} kế hoạch giáo dục ngày đang chờ duyệt`,
                   end: <TaskCount value={lessons.filter((l) => l.status === EDU_STATUS.APPROVED).length} />,
                 },
               ]}

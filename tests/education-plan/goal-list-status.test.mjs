@@ -12,7 +12,7 @@ import React, {useMemo, useState} from 'react';
 import {planLevel, planLevel as levelOf, planRoute, inheritAnnual} from ${JSON.stringify(import.meta.resolve('../../src/models/education-plan/planLevel.mjs'))};
 import {currentPlanOf, versionOf} from ${JSON.stringify(import.meta.resolve('../../src/models/education-plan/planVersions.mjs'))};
 export const context={goals:[],schoolYear:'2026',role:'vp',user:{id:'test'},classes:[]};
-const useEducationPlan=()=>context, useNavigate=()=>()=>{};
+const useGoalDetails=()=>({loading:false});const useEducationPlan=()=>context, useNavigate=()=>()=>{};
 const ROLES={VICE_PRINCIPAL:'vp', PRINCIPAL:'principal', TEAM_LEADER:'leader'}, AGE_GROUPS=[], EDU_STATUS={APPROVED:'APPROVED',SENT:'SENT',PENDING_VP:'PENDING_VP'};
 const allGoalItems=()=>[], clickableRowProps=()=>({}), fmtDate=(value)=>value || '—';
 const Card=({children})=><section>{children}</section>, PageHead=({actions})=><header>{actions}</header>, StatCard=({label})=><span>{label}</span>, SearchSubmit=()=>null, EmptyState=()=>null;
@@ -60,9 +60,10 @@ test('hiệu trưởng thấy đúng danh sách BE trả (BE chỉ trả bản �
         plan('moi', 2, 'APPROVED', { planLevel: level, current: true, permissions: {} }),
       ];
       const html = renderToStaticMarkup(React.createElement(GoalListPage, { planLevel: level }));
-      assert.match(html, />cu</);
+      // Tiền 12/11/2026: bản thay thế gom vào "Hiện phiên bản cũ", danh sách mặc định chỉ còn bản đang dùng
+      assert.doesNotMatch(html, />cu</);
       assert.match(html, />moi</);
-      assert.match(html, /data-status="REPLACED"/);
+      assert.match(html, /Hiện phiên bản cũ \(1\)/);
     }
   } finally {
     Object.keys(context).forEach((key) => delete context[key]);
@@ -72,7 +73,8 @@ test('hiệu trưởng thấy đúng danh sách BE trả (BE chỉ trả bản �
 
 test('TEAM giữ trạng thái nhưng ẩn phiên bản và chỉ hiện năm cột', () => {
   const html = render([plan('v1', 1), plan('v2', 2), plan('v3', 3, 'EDITING')]);
-  assert.equal((html.match(/data-status="REPLACED"/g) || []).length, 1);
+  assert.equal((html.match(/data-status="REPLACED"/g) || []).length, 0);
+  assert.match(html, /Hiện phiên bản cũ \(1\)/);
   assert.equal((html.match(/data-status="APPROVED"/g) || []).length, 1);
   assert.match(html, /data-status="EDITING"/);
   assert.doesNotMatch(html, /Phiên bản/);
@@ -110,7 +112,10 @@ const { YearPlanVersionPanel } = await import(
 );
 
 test('bảng phiên bản chi tiết bỏ mã, giữ liên kết ở số phiên bản xanh và phân biệt trạng thái', () => {
-  const goals = [plan('v1', 1), plan('v4', 4, 'APPROVED', { current: true }), plan('v5', 5, 'EDITING')].map((p) => ({ ...p, planLevel: 'SCHOOL_YEAR' }));
+  const goals = [plan('v1', 1), plan('v4', 4, 'APPROVED', { current: true }), plan('v5', 5, 'EDITING')].map((p) => ({
+    ...p,
+    planLevel: 'SCHOOL_YEAR',
+  }));
   const html = renderToStaticMarkup(React.createElement(YearPlanVersionPanel, { plan: goals[1], goals }));
   assert.doesNotMatch(html, /KHNH-|<th>Mã<\/th>|hiện hành|đã thay thế|đang soạn/);
   assert.match(html, /href="\/education\/school-year-plans\/v1"><span class="text-xs text-primary">Phiên bản 1/);
@@ -155,32 +160,67 @@ test('TEAM ngày gửi ưu tiên sentAt, tương thích sentBy.at và chưa gử
     plan('old-date', 1, 'DRAFT', { sentBy: { at: '2026-11-07' } }),
     plan('never-sent', 1, 'DRAFT', { createdAt: '2026-11-06' }),
   ]);
-  assert.match(html, /2026-11-09/); assert.match(html, /2026-11-07/);
+  assert.match(html, /2026-11-09/);
+  assert.match(html, /2026-11-07/);
   assert.doesNotMatch(html, /2026-11-08|2026-11-06/);
   assert.match(html, /<td>—<\/td>/);
 });
 
 const queueSource = await readFile(new URL('../../src/pages/education-plan/PlanReviewQueuePage.jsx', import.meta.url), 'utf8');
 // Trang gọi như hàm thường (không render React): hook trạng thái bộ lọc thay bằng giá trị ban đầu
-const queueStubs = stubs.replace("import React, {useMemo, useState} from 'react';", "import React, {useMemo} from 'react'; const useState=(v)=>[typeof v==='function'?v():v,()=>{}], useId=()=>'q';")
-  .replace('useNavigate=()=>()=>{}', 'useNavigate=()=>to=>context.destination=to')
-  .replace('clickableRowProps=()=>({})', 'clickableRowProps=(onClick)=>({onClick})') + `
+const queueStubs =
+  stubs
+    .replace(
+      "import React, {useMemo, useState} from 'react';",
+      "import React, {useMemo} from 'react'; const useState=(v)=>[typeof v==='function'?v():v,()=>{}], useId=()=>'q';",
+    )
+    .replace('useNavigate=()=>()=>{}', 'useNavigate=()=>to=>context.destination=to')
+    .replace('clickableRowProps=()=>({})', 'clickableRowProps=(onClick)=>({onClick})') +
+  `
 const EduStatusBadge=YearPlanStatusBadge, fmtDateTime=(value)=>value, DeadlineBadge=()=>null, Eye=()=>null;
 const PENDING_OF={}, CLASS_DOC_LABELS={year:'Kế hoạch tổ', branch:'Nhánh', theme:'Chủ đề'};
 const themeNumber=()=>1, themeWeeksOf=()=>[];
 `;
-const queueCode = await transformWithOxc(queueStubs + queueSource.replace(/^import [\s\S]*? from '[^']+';\r?\n/gm, ''), 'PlanReviewQueuePage.jsx', { lang:'jsx', jsx:{runtime:'classic'} });
-const {default:PlanReviewQueuePage, context:queueContext} = await import(`data:text/javascript;base64,${Buffer.from(queueCode.code.replace('from "react"', `from ${JSON.stringify(import.meta.resolve('react'))}`)).toString('base64')}`);
+const queueCode = await transformWithOxc(
+  queueStubs + queueSource.replace(/^import [\s\S]*? from '[^']+';\r?\n/gm, ''),
+  'PlanReviewQueuePage.jsx',
+  { lang: 'jsx', jsx: { runtime: 'classic' } },
+);
+const { default: PlanReviewQueuePage, context: queueContext } = await import(
+  `data:text/javascript;base64,${Buffer.from(queueCode.code.replace('from "react"', `from ${JSON.stringify(import.meta.resolve('react'))}`)).toString('base64')}`
+);
 test('review queue uses exact annual/TEAM type, own title, sentBy.at fallback and routes for server-authorized team reviewers', () => {
-  queueContext.user={role:'leader'}; queueContext.classes=[]; queueContext.branchPlans=[]; queueContext.classThemePlans=[];
-  queueContext.goals=[plan('annual-exact', 2, 'REVIEW', {planType:'SCHOOL_YEAR',planLevel:'TEAM',title:'Tên riêng năm', permissions:{canApprove:true},sentBy:{name:'Người gửi năm',at:'2026-11-09'}}),
-    plan('team-exact',1,'REVIEW',{planType:'TEAM',title:'Tên riêng tổ',permissions:{canApprove:true},sentBy:{name:'Người gửi tổ',at:'2026-11-08'}})];
-  const tree=PlanReviewQueuePage(); const html=renderToStaticMarkup(tree);
-  assert.match(html,/Kế hoạch năm học/); assert.match(html,/Kế hoạch tổ/);
-  assert.match(html,/Tên riêng năm/); assert.match(html,/Tên riêng tổ/);
-  assert.match(html,/2026-11-09/); assert.match(html,/2026-11-08/);
-  const nodes=(node)=>!React.isValidElement(node)?[]:[node,...React.Children.toArray(node.props.children).flatMap(nodes)];
-  const rows=nodes(tree).filter((node)=>node.type==='tr'&&node.props.onClick);
-  rows[0].props.onClick(); assert.equal(queueContext.destination,'/education/school-year-plans/annual-exact');
-  rows[1].props.onClick(); assert.equal(queueContext.destination,'/education/goals/team-exact');
+  queueContext.user = { role: 'leader' };
+  queueContext.classes = [];
+  queueContext.branchPlans = [];
+  queueContext.classThemePlans = [];
+  queueContext.goals = [
+    plan('annual-exact', 2, 'REVIEW', {
+      planType: 'SCHOOL_YEAR',
+      planLevel: 'TEAM',
+      title: 'Tên riêng năm',
+      permissions: { canApprove: true },
+      sentBy: { name: 'Người gửi năm', at: '2026-11-09' },
+    }),
+    plan('team-exact', 1, 'REVIEW', {
+      planType: 'TEAM',
+      title: 'Tên riêng tổ',
+      permissions: { canApprove: true },
+      sentBy: { name: 'Người gửi tổ', at: '2026-11-08' },
+    }),
+  ];
+  const tree = PlanReviewQueuePage();
+  const html = renderToStaticMarkup(tree);
+  assert.match(html, /Kế hoạch năm học/);
+  assert.match(html, /Kế hoạch tổ/);
+  assert.match(html, /Tên riêng năm/);
+  assert.match(html, /Tên riêng tổ/);
+  assert.match(html, /2026-11-09/);
+  assert.match(html, /2026-11-08/);
+  const nodes = (node) => (!React.isValidElement(node) ? [] : [node, ...React.Children.toArray(node.props.children).flatMap(nodes)]);
+  const rows = nodes(tree).filter((node) => node.type === 'tr' && node.props.onClick);
+  rows[0].props.onClick();
+  assert.equal(queueContext.destination, '/education/school-year-plans/annual-exact');
+  rows[1].props.onClick();
+  assert.equal(queueContext.destination, '/education/goals/team-exact');
 });

@@ -27,7 +27,7 @@ test.beforeAll(async () => {
 
 const page404 = (page) => page.getByText(/Không tìm thấy|Đã có lỗi/);
 
-test('ST-002-01 GVCN lưu được trang Chủ đề / Chủ đề nhánh (Lưu đổi trạng thái, tải lại còn thay đổi)', async ({ page }) => {
+test('ST-002-01 GVCN lưu được trang Dự kiến chủ đề - chủ đề nhánh (Lưu đổi trạng thái, tải lại còn thay đổi)', async ({ page }) => {
   test.skip(!homeroomClass, 'Tổ trưởng teamlead34 không có lớp chủ nhiệm');
   const failures = [];
   page.on('response', async (r) => {
@@ -48,15 +48,33 @@ test('ST-002-01 GVCN lưu được trang Chủ đề / Chủ đề nhánh (Lưu 
   const saved = page.waitForResponse((r) => r.url().includes('/class-docs/branch/') && r.request().method() === 'PUT');
   await save.click();
   expect((await saved).status(), failures.join('\n')).toBe(200);
-  // Lưu xong trang thoát chế độ sửa (nhãn trạng thái chỉ hiện khi đang sửa)
-  await expect(page.getByRole('button', { name: 'Chỉnh sửa' })).toBeVisible({ timeout: 15_000 });
+  // Lưu xong vẫn ở chế độ sửa như các màn kế hoạch khác (Tiền 11/11/2026)
+  await expect(page.getByText(/Đã lưu lúc/)).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole('button', { name: 'Hủy', exact: true })).toBeVisible();
   const docs = await api(U.tl, 'GET', '/education-plans/class-docs');
   const branch = docs.data.branchPlans.find((b) => String(b.classId) === String(homeroomClass.id));
   expect(JSON.stringify(branch)).toContain(value);
   await expect(page.getByText(value).first()).toBeVisible();
+  // Lưu lần hai liên tiếp, không tải lại trang: bản đang sửa phải mang số phiên bản mới của lần lưu đầu
+  const value2 = `${value} lần 2`;
+  await page.locator('textarea[aria-label^="Chủ đề nhánh tuần"]').last().fill(value2);
+  const saved2 = page.waitForResponse((r) => r.url().includes('/class-docs/branch/') && r.request().method() === 'PUT');
+  await page.getByRole('button', { name: 'Lưu', exact: true }).click();
+  expect((await saved2).status(), failures.join(' | ')).toBe(200);
+  await expect(page.getByText(value2).first()).toBeVisible();
+  // Hủy: gõ thêm rồi bấm Hủy ⇒ hỏi lại, về bản đã lưu và thoát chế độ sửa, không gọi lưu
+  await page.locator('textarea[aria-label^="Chủ đề nhánh tuần"]').last().fill('[E2E] sẽ bị hủy');
+  await page.getByRole('button', { name: 'Hủy', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Hủy chỉnh sửa' }).click();
+  await expect(page.getByRole('button', { name: 'Chỉnh sửa' })).toBeVisible();
+  await expect(page.getByText(value2).first()).toBeVisible();
+  await expect(page.getByText('[E2E] sẽ bị hủy')).toHaveCount(0);
+  // Tab kiểu hiển thị nằm trên thẻ lọc; Xuất file ở thanh thao tác ghim
+  await expect(page.locator('.ga-sticky-head').getByRole('tab', { name: 'Bảng' })).toBeVisible();
+  await expect(page.locator('.ga-sticky-head .ga-year-toolbar').getByRole('button', { name: 'Xuất file' })).toHaveCount(1);
 });
 
-test('ST-002-02 GV thứ hai không có nút sửa ở Chủ đề / Chủ đề nhánh của lớp', async ({ page }) => {
+test('ST-002-02 GV thứ hai không có nút sửa ở Dự kiến chủ đề - chủ đề nhánh của lớp', async ({ page }) => {
   test.skip(!homeroomClass, 'Thiếu lớp');
   await login(page, U.gv2);
   await spaGo(page, `/education/branches/${homeroomClass.id}`);

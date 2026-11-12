@@ -6,13 +6,13 @@ import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Copy, FileDown, Pencil, Trash2 } from '@/components/ui/icons';
 import { ROLES } from '@/models/User';
-import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
+import { useEducationPlan, useGoalDetails } from '@/hooks/education-plan/useEducationPlan';
 import { AGE_GROUPS, DOMAINS, EDU_STATUS, SCHOOL_SCOPE } from '@/models/education-plan/educationPlanConstants';
 import { durationRangeIssue, goalIdsToTicks, numberGoals, themeWithoutDates, toRows } from '@/models/education-plan/goalTable';
 import { branchScheduleIssue } from '@/models/education-plan/branchTemplateSchedule.mjs';
 import { GoalTable, ThemeEventTable } from '@/components/education-plan/GoalTables';
 import { yearPlanFile } from '@/utils/education-plan/yearPlanDoc';
-import { Card, Modal, Notice, PageHead, fmtDate } from '@/components/education-plan/eduUi';
+import { Card, fmtDate, FoldAllButton, Modal, Notice, PageHead } from '@/components/education-plan/eduUi';
 import { DeadlineBadge } from '@/components/education-plan/DeadlineWidgets';
 import { RejectedNotice, ReviewActions, ReviewHistory } from '@/components/education-plan/reviewUi';
 import { StatusPage } from '@/components/ui/StatusPage';
@@ -26,7 +26,7 @@ import DocPreviewModal from '@/components/education-plan/DocPreviewModal';
 
 const uid = () => Math.random().toString(36).slice(2, 9);
 const ISSUE_NOTE =
-  'Sau khi ban hành, các lớp trong nhóm tuổi dùng kế hoạch này để lập kế hoạch chủ đề và giáo án. Xuất file để in và ký tay.';
+  'Sau khi ban hành, các lớp trong nhóm tuổi dùng kế hoạch này để lập kế hoạch giáo dục chủ đề và kế hoạch giáo dục ngày. Xuất file để in và ký tay.';
 const editable = (s) => s === EDU_STATUS.DRAFT || s === EDU_STATUS.REJECTED || s === EDU_STATUS.EDITING;
 
 /** Kế hoạch giáo dục năm học của một nhóm tuổi: bảng mục tiêu (A), chủ đề, sự kiện (B), người xây dựng và ban hành. */
@@ -62,8 +62,11 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
   // Bản Chờ duyệt (mở từ hàng chờ/thông báo) không có trong danh sách ⇒ hỏi BE theo id; người chỉ xem nhận 403 "chưa ban hành"
   const single = useAsync(() => (found ? Promise.resolve(null) : getGoal(id, user)), [id, !!found]);
   const g = found || single.data;
+  // Danh sách chỉ có bản tóm tắt ⇒ tải chi tiết kế hoạch đang xem (và kế hoạch năm học nguồn của kế hoạch tổ)
+  const details = useGoalDetails([found ? id : null, g?.curriculumSourcePlanId]);
 
   if (!g && single.loading) return <LoadingState />;
+  if (g?.summary && details.loading) return <LoadingState />;
   if (!g)
     return (
       <div className="page ga-page">
@@ -111,6 +114,8 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
   const canSend = perm ? perm.canSubmit : free && isLeader;
   const canIssue = perm ? (perm.canApprove ?? perm.canIssue) : isReviewerForPlan;
   const canReturn = perm ? perm.canReturn : isReviewerForPlan;
+  // Thông báo về khóa, hạn, rà soát chỉ dành cho người soạn (Tiền 11/11/2026); người khác thấy là thừa và lộ thông tin
+  const isAuthor = g.owner?.userId === user.id || (!annual && isLeader) || !!perm?.canEdit || !!perm?.canSubmit;
   const canDelete = annual && (perm ? perm.canDelete : isVp && g.status === EDU_STATUS.DRAFT);
   // BE:EDU-25 — sửa bản đã ban hành = tạo phiên bản mới; bản đã ban hành giữ nguyên
   const canCreateVersion =
@@ -204,15 +209,21 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
     <div className={`page ga-page ga-goal-detail ga-year-page ga-class-editor${annual ? ' ga-annual-plan' : ' ga-team-plan'}`}>
       <div className="ga-sticky-head">
         <PageHead
-          crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: pageLabel, to: basePath }, { label: g.code }]}
+          // Tên đọc được thay cho mã kế hoạch; nhãn phiên bản chuyển xuống hàng nút để bớt một dòng (Tiền 12/11/2026)
+          crumbs={[
+            { label: 'Kế hoạch giáo dục' },
+            { label: pageLabel, to: basePath },
+            { label: [g.title || g.code, !annual && ageName].filter(Boolean).join(' – ') },
+          ]}
           title={g.title}
-          // Đầu trang chỉ giữ nhãn phiên bản, bỏ nhãn trạng thái riêng (Tiền 31/10); trạng thái vẫn quyết định quyền và nút
-          desc={<VersionBadge plan={g} goals={goals} />}
         />
         <div className="ga-year-toolbar" role="group" aria-label={`Thao tác ${pageLabel.toLowerCase()}`}>
           <div className="ga-year-toolbar__group">
+            <span className="ga-year-toolbar__title">{pageLabel}</span>
+            <VersionBadge plan={g} goals={goals} />
             {/* Spec 005: mở hạn chỉ ở màn Kế hoạch quá hạn của Hiệu trưởng, không ở trang chi tiết */}
             <DeadlineBadge doc={g.timeLock} />
+            <FoldAllButton />
             {canDelete && (
               <button className="btn btn--sm btn--outline-danger" onClick={() => setModal('delete')}>
                 <Trash2 size={16} aria-hidden /> Xóa
@@ -223,13 +234,14 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
                 <Copy size={16} aria-hidden /> Tạo phiên bản điều chỉnh
               </button>
             )}
+          </div>
+          <div className="ga-year-toolbar__group ga-year-toolbar__group--end">
+            {/* Chỉnh sửa cùng chỗ với Lưu ở mọi trang (Tiền 12/11/2026) */}
             {canEditNow && (
               <Link className="btn btn--sm btn--outline-primary" to={`${basePath}/${g.id}/edit`} replace state={{ backTo: basePath }}>
                 <Pencil size={16} aria-hidden /> {pending ? 'Sửa trước khi duyệt' : 'Chỉnh sửa'}
               </Link>
             )}
-          </div>
-          <div className="ga-year-toolbar__group ga-year-toolbar__group--end">
             <ReviewActions
               name={pageLabel.toLowerCase()}
               approveLabel={g.review?.roles?.at(-1) === g.review?.waitingRole ? 'Ban hành' : 'Duyệt'}
@@ -273,28 +285,28 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
       )}
       {g.status === 'APPROVED' && (g.versions || []).some((v) => v.current && v.id !== g.id) && (
         <div className="mb-16">
-          <Notice tone="warn">
+          <Notice>
             Đã có bản mới hơn được ban hành. <Link to={`${basePath}/${g.versions.find((v) => v.current).id}`}>Xem bản hiện hành</Link>
           </Notice>
         </div>
       )}
-      {g.timeLock?.timeLocked && (
+      {isAuthor && g.timeLock?.timeLocked && (
         <div className="mb-16">
-          <Notice tone="warn">
+          <Notice>
             {g.status === EDU_STATUS.APPROVED
               ? 'Năm học đã bắt đầu, kế hoạch đã khóa: không tạo phiên bản điều chỉnh được nữa.'
               : 'Quá hạn — chờ Hiệu trưởng mở hạn.'}
           </Notice>
         </div>
       )}
-      {isReview && !canIssue && (
+      {isAuthor && isReview && !canIssue && (
         <div className="mb-16">
           <Notice>{`Đã gửi duyệt${g.waitingRoleLabel ? ` (${g.waitingRoleLabel})` : ''}. Kế hoạch bị khóa cho tới khi được ban hành hoặc bị trả lại.`}</Notice>
         </div>
       )}
 
       {actionError && (
-        <Notice tone="warn">
+        <Notice>
           <span>{actionError}</span>{' '}
           <button
             type="button"
@@ -368,7 +380,7 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
         />
       </Card>
 
-      {(g.remapWarnings || []).map((warning, i) => (
+      {(isAuthor ? g.remapWarnings || [] : []).map((warning, i) => (
         <Notice key={i} tone="warn">
           {typeof warning === 'string' ? warning : warning.message || 'Kiểm tra liên kết với nguồn mới trước khi gửi.'}
         </Notice>
@@ -423,9 +435,9 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
             </>
           }
         >
-          {deleteError && <Notice tone="err">{deleteError}</Notice>}
+          {deleteError && <Notice>{deleteError}</Notice>}
           {usedBy.length > 0 ? (
-            <Notice tone="err">Không xóa được vì đã có kế hoạch chủ đề sử dụng kế hoạch này.</Notice>
+            <Notice>Không xóa được vì đã có kế hoạch chủ đề sử dụng kế hoạch này.</Notice>
           ) : (
             <p>Bản nháp sẽ bị xóa khỏi hệ thống và không khôi phục lại được.</p>
           )}

@@ -1,13 +1,14 @@
 import { adaptCalendar, calendarPlan, seedTeamBranchTemplates } from '@/models/education-plan/branchCalendar.mjs';
-import { useId, useMemo } from 'react';
+import { useId, useMemo, useRef } from 'react';
+import { EmptyState, PageHead } from '@/components/education-plan/eduUi';
 import { useSearchParams } from 'react-router-dom';
 import { Check, Eye, Send } from '@/components/ui/icons';
 import { SIGNER_SHORT } from '@/components/education-plan/reviewUi';
 import { ROLES } from '@/models/User';
 import { AGE_GROUPS, EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
-import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
+import { useEducationPlan, useGoalDetails } from '@/hooks/education-plan/useEducationPlan';
 import { toRows } from '@/models/education-plan/goalTable';
-import { emptyBranchPlan } from '@/models/education-plan/classPlan';
+import { ddmm, emptyBranchPlan, themeBranchGroups, yearWeeks } from '@/models/education-plan/classPlan';
 import { PENDING_OF } from '@/models/education-plan/eduConfig';
 import { currentPlanOf, previousPlanOf } from '@/models/education-plan/planVersions.mjs';
 
@@ -40,23 +41,36 @@ export function useClassPlanContext(classId) {
         g.status === EDU_STATUS.APPROVED &&
         g.ageGroupId === current.ageGroupId,
     );
-  const raw = pinned || current;
-  const rawPrevious = raw ? previousPlanOf(goals, raw) : null;
+  const listed = pinned || current;
+  const listedPrevious = listed ? previousPlanOf(goals, listed) : null;
+  // Danh sách chỉ có bản tóm tắt ⇒ tải chi tiết kế hoạch tổ của lớp (và phiên bản trước để chép) khi vào trang; đang tải lại
+  // (kế hoạch vừa đổi) thì dùng tạm chi tiết đã có để trang đang sửa không bị dựng lại
+  const details = useGoalDetails([listed?.id, listedPrevious?.id]);
+  const lastDetail = useRef({});
+  const full = (p) => {
+    if (!p) return null;
+    if (!p.summary) lastDetail.current[p.id] = p;
+    return lastDetail.current[p.id] || p;
+  };
+  const raw = full(listed);
+  const rawPrevious = full(listedPrevious);
+  const waiting = (!!raw && raw.summary) || (!!rawPrevious && rawPrevious.summary);
   const asRows = (p) =>
     p ? { ...p, domains: p.domains.map((d) => ({ ...d, rows: toRows(d, () => Math.random().toString(36).slice(2, 9)) })) } : null;
   const branchPlan = useMemo(() => {
-    if (!raw) return null;
+    // Chưa có chi tiết: không dựng từ bản tóm tắt (thiếu chủ đề ⇒ trang dựng bản nháp sai, mất tên nhánh)
+    if (!raw || waiting) return null;
     const source = asRows(raw);
     const saved = branchPlans.find((b) => b.classId === classId && b.yearPlanId === raw.id);
     const base = adaptCalendar(saved || emptyBranchPlan({ classId, yearPlanId: raw.id }), source);
     return seedTeamBranchTemplates(base, source);
-  }, [raw, branchPlans, classId]);
+  }, [raw, branchPlans, classId, waiting]);
   // Kế hoạch năm dạng hàng của bảng (giống trang mục tiêu năm)
   const yearPlan = useMemo(() => {
     const approved = branchPlans.find((b) => b.classId === classId && b.yearPlanId === raw?.id && b.status === EDU_STATUS.APPROVED);
-    return raw ? calendarPlan(asRows(raw), approved) : null;
-  }, [raw, branchPlans, classId]);
-  const previousPlan = useMemo(() => asRows(rawPrevious), [rawPrevious]);
+    return raw && !waiting ? calendarPlan(asRows(raw), approved) : null;
+  }, [raw, branchPlans, classId, waiting]);
+  const previousPlan = useMemo(() => (waiting ? null : asRows(rawPrevious)), [rawPrevious, waiting]);
   const pending = cls
     ? goals.find((g) => (!g.planLevel || g.planLevel === 'TEAM') && g.ageGroupId === cls.ageGroupId && g.schoolYear === schoolYear)
     : null;
@@ -74,7 +88,7 @@ export function useClassPlanContext(classId) {
   return {
     cls,
     classes,
-    loading: false,
+    loading: waiting && details.loading,
     yearPlan,
     branchPlan,
     previousPlan,
@@ -195,32 +209,42 @@ export function ClassPicker({ classes, classId, onPick }) {
   const inGroup = classes.filter((c) => c.ageGroupId === current?.ageGroupId);
   return (
     <>
-      <div className="field">
-        <label className="field__label" htmlFor={`${id}-age`}>
-          Nhóm tuổi
-        </label>
-        <select
-          id={`${id}-age`}
-          className="select"
-          disabled={groups.length < 2}
-          value={current?.ageGroupId || ''}
-          onChange={(e) => {
-            const first = classes.find((c) => c.ageGroupId === e.target.value);
-            if (first) onPick(first.id);
-          }}
-        >
-          {groups.map((g) => (
-            <option key={g.id} value={g.id}>
-              {g.name}
-            </option>
-          ))}
-        </select>
-      </div>
+      {/* Chỉ một nhóm tuổi: hiện dạng chữ, không ô chọn bị khóa (Tiền 12/11/2026) */}
+      {groups.length < 2 ? (
+        <FilterText label="Nhóm tuổi" value={groups[0]?.name} />
+      ) : (
+        <div className="field">
+          <label className="field__label" htmlFor={`${id}-age`}>
+            Nhóm tuổi
+          </label>
+          <select
+            id={`${id}-age`}
+            className="select"
+            value={current?.ageGroupId || ''}
+            onChange={(e) => {
+              const first = classes.find((c) => c.ageGroupId === e.target.value);
+              if (first) onPick(first.id);
+            }}
+          >
+            {groups.map((g) => (
+              <option key={g.id} value={g.id}>
+                {g.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
       <div className="field">
         <label className="field__label" htmlFor={`${id}-class`}>
           Lớp
         </label>
-        <select id={`${id}-class`} className="select" value={classId} onChange={(e) => onPick(e.target.value)}>
+        <select
+          id={`${id}-class`}
+          className="select"
+          value={current ? classId : ''}
+          onChange={(e) => e.target.value && onPick(e.target.value)}
+        >
+          {!current && <option value="">Chọn lớp</option>}
           {(inGroup.length ? inGroup : classes).map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
@@ -232,15 +256,140 @@ export function ClassPicker({ classes, classId, onPick }) {
   );
 }
 
+/**
+ * Khung trang khi lớp / kế hoạch đang lọc không có dữ liệu: giữ đầu trang và hàng lọc (ghim), chỉ phần nội dung báo trống
+ * để người dùng chọn lại ngay trên trang (Tiền 11/11/2026).
+ */
+export function ClassPageEmpty({ crumbs, title, classes, classId, onPick, canPick = classes.length > 1, emptyTitle, emptyDesc, children }) {
+  return (
+    <div className="page ga-page">
+      <div className="ga-sticky-head">
+        <PageHead crumbs={crumbs} title={title} />
+        <ClassFilterBar classes={classes} classId={classId} canPick={canPick} onPick={onPick}>
+          {children}
+        </ClassFilterBar>
+      </div>
+      <EmptyState title={emptyTitle} desc={emptyDesc} />
+    </div>
+  );
+}
+
 /** Hàng lọc chung của các màn tài liệu lớp: Nhóm tuổi → Lớp rồi các ô lọc riêng của màn; ô chọn cùng cỡ (FR-022a). */
-export function ClassFilterBar({ classes, classId, onPick, canPick = true, children }) {
-  if (!canPick && !children) return null;
+export function ClassFilterBar({ classes, classId, onPick, canPick = true, children, footer = null }) {
+  const current = classes.find((c) => c.id === classId);
   return (
     <div className="card mb-16">
       <div className="filter-bar">
-        {canPick && <ClassPicker classes={classes} classId={classId} onPick={onPick} />}
+        {canPick ? (
+          <ClassPicker classes={classes} classId={classId} onPick={onPick} />
+        ) : (
+          // Không chọn được lớp (giáo viên một lớp): vẫn giữ hàng lọc, hiện lớp dạng chữ để các trang cùng khung (Tiền 12/11/2026)
+          current && (
+            <>
+              <FilterText label="Nhóm tuổi" value={AGE_GROUPS.find((g) => g.id === current.ageGroupId)?.name} />
+              <FilterText label="Lớp" value={current.name} />
+            </>
+          )
+        )}
         {children}
       </div>
+      {/* footer: phần nằm chung thẻ với hàng lọc (vd. tên chủ đề nhánh + tab tuần/ngày của trang Kế hoạch giáo dục ngày) */}
+      {footer}
+    </div>
+  );
+}
+
+/**
+ * Hàng tab của một chủ đề (Tiền 12/11/2026): "Kế hoạch chủ đề" đứng đầu, sau đó mỗi chủ đề nhánh một tab
+ * "Tuần a+b: tên" (Tiền 12/11/2026 bỏ chữ "Nhánh n"). current = 'theme' hoặc ngày bắt đầu tuần đang mở; nhánh nhiều tuần có thêm hàng chọn tuần.
+ * onGo(to) đi qua guard của trang để hỏi khi còn thay đổi chưa lưu.
+ */
+export function ThemeBranchTabs({ yearPlan, branchDoc, themeId, classId, current, onGo, weeksDisabledReason = '' }) {
+  const groups = themeBranchGroups(yearPlan, branchDoc, themeId);
+  const base = `/education/class/${classId}`;
+  const active = groups.find((g) => g.weeks.some((w) => w.start === current));
+  const tab = (key, selected, label, to, disabled = false) => (
+    <button
+      key={key}
+      type="button"
+      role="tab"
+      aria-selected={selected}
+      tabIndex={selected ? 0 : -1}
+      className={`tab ${selected ? 'tab--active' : ''}`}
+      disabled={disabled}
+      title={disabled ? weeksDisabledReason : label}
+      onClick={() => !selected && onGo(to)}
+    >
+      <span className="ga-theme-tabs__label">{label}</span>
+    </button>
+  );
+  return (
+    <>
+      <div className="tabs ga-class-tabs ga-theme-tabs" role="tablist" aria-label="Kế hoạch chủ đề và các chủ đề nhánh">
+        {tab('theme', current === 'theme', 'Kế hoạch chủ đề', `${base}/themes/${themeId}`)}
+        {groups.map((g) =>
+          tab(
+            g.weeks[0].start,
+            g === active,
+            `${g.label}${g.name ? `: ${g.name}` : ''}`,
+            `${base}/weeks/${g.weeks[0].start}`,
+            !!weeksDisabledReason,
+          ),
+        )}
+        {/* Spec 006 FR-013: tab riêng "Bảng phủ MT" sau tab tuần cuối */}
+        {tab('coverage', current === 'coverage', 'Bảng phủ MT', `${base}/themes/${themeId}?tab=coverage`)}
+      </div>
+      {active && active.weeks.length > 1 && (
+        <div className="tabs ga-class-tabs" role="tablist" aria-label={`Các tuần của nhánh ${active.no}`}>
+          {active.weeks.map((w) => tab(w.start, w.start === current, `Tuần ${w.themeNo} · ${ddmm(w.start)}`, `${base}/weeks/${w.start}`))}
+        </div>
+      )}
+    </>
+  );
+}
+
+/** Các chủ đề có tuần học của kế hoạch năm, theo thứ tự thời gian: [{ id, name }]. */
+export const themesWithWeeks = (yearPlan) => {
+  const seen = new Map();
+  for (const w of yearWeeks(yearPlan)) if (w.type === 'week' && !seen.has(w.theme.id)) seen.set(w.theme.id, w.theme);
+  return [...seen.values()];
+};
+
+/** Ô lọc chỉ có một giá trị: "Nhãn: giá trị" dạng chữ thay cho ô chọn bị khóa. */
+export function FilterText({ label, value }) {
+  if (!value) return null;
+  return (
+    <div className="field ga-filter-text">
+      <span className="field__label">{label}</span>
+      <span className="ga-filter-text__value">{value}</span>
+    </div>
+  );
+}
+
+/**
+ * Ô chọn trong hàng lọc dạng "Nhãn: ô chọn" (Chủ đề, Tuần…) dùng chung các trang tài liệu lớp, nằm cạnh Nhóm tuổi / Lớp
+ * (Tiền 12/11/2026). options: [{ value, label }].
+ */
+export function FilterSelect({ label, value, options, onChange }) {
+  const id = useId();
+  return (
+    <div className="field">
+      <label className="field__label" htmlFor={id}>
+        {label}
+      </label>
+      <select
+        id={id}
+        className="select"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        title={options.find((o) => o.value === value)?.label}
+      >
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
     </div>
   );
 }

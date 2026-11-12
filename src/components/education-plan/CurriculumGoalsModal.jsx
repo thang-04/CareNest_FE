@@ -191,7 +191,7 @@ export default function CurriculumGoalsModal({ ageGroupId, form, onClose, onImpo
         />
       ) : (
         <>
-          {!allTargets.length && <Notice tone="warn">Bản đang soạn chưa có mục tiêu.</Notice>}
+          {!allTargets.length && <Notice>Bản đang soạn chưa có mục tiêu.</Notice>}
           <div className="ga-cur-toolbar ga-cur-filters ga-cur-content-filters">
             <div className="field">
               <label className="field__label" htmlFor="cur-domain">
