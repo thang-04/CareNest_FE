@@ -1,6 +1,6 @@
 {
-  "source": "CareNest_BE docs/api/openapi.yaml (nhánh G94-180) hợp với bản chụp 2026-11-06 (route của nhánh BE khác chưa vào dev)",
-  "syncedAt": "2026-11-11",
+  "source": "CareNest_BE docs/api/openapi.yaml",
+  "syncedAt": "2026-11-12",
   "routes": [
     "DELETE /age-groups/{x}",
     "DELETE /campuses/{x}",
@@ -138,6 +138,7 @@
     "GET /permissions",
     "GET /pickups",
     "GET /pickups/children/{x}",
+    "GET /pickups/classes",
     "GET /role-permissions",
     "GET /role-permissions/{x}",
     "GET /school-structure",

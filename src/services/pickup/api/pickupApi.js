@@ -1,26 +1,42 @@
-import { axiosClient } from '@/services/http/axiosClient';
+import { beClient } from '@/services/http/beClient';
 import { GUARDIAN_RELATIONSHIP_LABELS } from '@/models/guardianRelationships';
+import { VERIFICATION } from '@/models/pickup/pickupConstants';
 
 /*
- * PROPOSED endpoints only – the backend contract is not agreed yet (CareNest_BE owns it).
- * Same function names and arguments as the mock repository; the user comes from the JWT.
- * Năm học (user chốt 2026-10-28, Y-1): chỉ lớp của năm học đang hoạt động (lớp năm khác ⇒ 422 classId); date không ở tương lai và
- * không trước ngày bắt đầu năm đang hoạt động khi năm đã bắt đầu (⇒ 422 date). Danh sách lớp lấy GET /classes?activeYear=true.
+ * Adapter BE đón trẻ (PickupController, BE:docs/modules/attendance.md): cùng tên hàm, shape với mock repository; BE đọc
+ * người dùng từ JWT và kiểm quyền PICKUP_RECORD + phân công lớp. beClient đổi id số <-> chuỗi; mã quan hệ đổi sang chữ ở đây.
+ * Danh sách lớp lấy GET /pickups/classes, không dùng /attendance/classes (cờ ở đó theo quyền điểm danh).
  */
-export const pickupApi = {
-  getPickupBoard: ({ classId, date }) => axiosClient.get(`/classes/${classId}/pickups`, { params: { date } }),
+const relationLabel = (code) => GUARDIAN_RELATIONSHIP_LABELS[code] || code || '';
+const toRecord = (record) => record && { ...record, pickupPersonRelation: relationLabel(record.pickupPersonRelationship) };
+const toRow = (row) => ({ ...row, pickup: toRecord(row.pickup) || null, attempts: (row.attempts || []).map(toRecord) });
+
+export const createPickupApi = (client) => ({
+  getPickupClasses: async () => (await client.get('/pickups/classes')) || [],
+  getPickupBoard: async ({ classId, date }) => {
+    const board = await client.get(`/classes/${classId}/pickups`, { params: { date } });
+    return { ...board, rows: (board.rows || []).map(toRow) };
+  },
   getPickupChild: async (childId) => {
-    const result = await axiosClient.get(`/pickups/children/${childId}`);
+    const result = await client.get(`/pickups/children/${childId}`);
     return {
       ...result,
-      ...(result.row || {}),
-      guardians: result.guardians.map((g) => ({
-        ...g,
-        index: g.position ?? g.index,
-        relation: GUARDIAN_RELATIONSHIP_LABELS[g.relationship] || g.relation || g.relationship,
-      })),
+      ...toRow(result.row || {}),
+      guardians: (result.guardians || []).map((g) => ({ ...g, index: g.position, relation: relationLabel(g.relationship) })),
     };
   },
-  recordPickupResult: (form) => axiosClient.post('/pickups', form),
-  getPickupResults: ({ date }) => axiosClient.get('/pickups', { params: { date } }),
-};
+  // BE chỉ nhận các field này; khớp ảnh gửi vị trí phụ huynh, BE tự chép họ tên, quan hệ, SĐT từ hồ sơ trẻ
+  recordPickupResult: async ({ childId, verification, guardianPosition, handoverTime, note }) =>
+    toRecord(
+      await client.post('/pickups', {
+        childId,
+        verification,
+        guardianPosition: verification === VERIFICATION.PHOTO_MATCH ? guardianPosition : null,
+        handoverTime: handoverTime || null,
+        note: note || '',
+      }),
+    ),
+  getPickupResults: async ({ date }) => ((await client.get('/pickups', { params: { date } })) || []).map(toRecord),
+});
+
+export const pickupApi = createPickupApi(beClient);

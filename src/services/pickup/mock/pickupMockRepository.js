@@ -107,6 +107,16 @@ const childInScope = (db, childId, user) => {
 };
 
 export const pickupMockRepository = {
+  /** Lớp năm học đang hoạt động người dùng trả trẻ được (như BE GET /pickups/classes, PCK-01). */
+  async getPickupClasses(user) {
+    await delay(120);
+    const db = ready();
+    return db.classes
+      .filter((c) => inActiveYear(db, c) && canHandOverChildren(c, user))
+      .sort((a, b) => a.campusId.localeCompare(b.campusId) || a.name.localeCompare(b.name, 'vi'))
+      .map((c) => ({ id: c.id, name: c.name, campusId: c.campusId, ageGroupId: c.ageGroupId }));
+  },
+
   /** #99 Pickup List: children of the class and their pickup status for a date. */
   async getPickupBoard({ classId, date }, user) {
     await delay(180);

@@ -6,9 +6,9 @@ File sinh tự động từ `BE:docs/api/openapi.yaml`, không sửa tay. Sinh l
 - Path đã bỏ tiền tố `/api` (trùng baseURL của Web/App). File controller tính từ gốc repo `CareNest_BE`.
 - Request/response chi tiết: đọc method trong controller và DTO nó dùng; lỗi theo `BE:docs/contracts/ERROR_CONTRACT.md`.
 
-Nguồn: CareNest_BE docs/api/openapi.yaml tại commit 39e34e5 2026-11-11
+Nguồn: CareNest_BE docs/api/openapi.yaml tại commit 7da421c 2026-11-12
 
-Tổng: 318 endpoint.
+Tổng: 319 endpoint.
 
 ```text
 GET /accounts · src/main/java/com/carenest/controller/account/AccountController.java#searchAccounts
@@ -293,6 +293,7 @@ GET /permissions · src/main/java/com/carenest/controller/account/PermissionCont
 GET /pickups · src/main/java/com/carenest/controller/attendance/PickupController.java#listResults
 POST /pickups · src/main/java/com/carenest/controller/attendance/PickupController.java#recordResult
 GET /pickups/children/{childId} · src/main/java/com/carenest/controller/attendance/PickupController.java#getChild
+GET /pickups/classes · src/main/java/com/carenest/controller/attendance/PickupController.java#listClasses
 GET /role-permissions · src/main/java/com/carenest/controller/account/PermissionController.java#getRolePermissions
 GET /role-permissions/{role} · src/main/java/com/carenest/controller/account/PermissionController.java#getRolePermission
 PUT /role-permissions/{role} · src/main/java/com/carenest/controller/account/PermissionController.java#updateRolePermissions

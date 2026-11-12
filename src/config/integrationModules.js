@@ -127,8 +127,9 @@ export const INTEGRATION_MODULES = {
     ],
     facades: ['src/services/children/childrenService.js', 'src/services/children/healthCheckService.js'],
   },
+  // Đón trẻ trên BE (PickupController); lớp lấy GET /pickups/classes theo quyền PICKUP_RECORD, không qua school-lookup
   pickup: {
-    source: 'demo',
+    source: 'api',
     routes: ['/pickup'],
     files: ['src/services/pickup/api/pickupApi.js'],
     facades: ['src/services/pickup/pickupService.js'],

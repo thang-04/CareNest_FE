@@ -4,7 +4,7 @@ import { enrollmentPhotoRequest, portraitFileError, PORTRAIT_MAX_BYTES } from '.
 import { axiosClient } from '../../src/services/http/axiosClient.js';
 import { childrenApi } from '../../src/services/children/api/childrenApi.js';
 import { fetchChildPhoto } from '../../src/services/privatePhotoService.js';
-import { pickupApi } from '../../src/services/pickup/api/pickupApi.js';
+import { createPickupApi } from '../../src/services/pickup/api/pickupApi.js';
 
 globalThis.window = new EventTarget();
 const respond = (config, data) => ({ status: 200, statusText: 'OK', headers: {}, config, data });
@@ -100,21 +100,16 @@ test('ảnh private tải blob qua API có token, từ chối URL ngoài hệ th
   assert.equal(sent.length, 1);
 });
 
-test('pickup adapter giữ ảnh, đưa row vào context và dùng đúng position phụ huynh BE', async (t) => {
-  const original = axiosClient.defaults.adapter;
-  t.after(() => {
-    axiosClient.defaults.adapter = original;
-  });
-  axiosClient.defaults.adapter = async (config) =>
-    respond(config, {
-      code: 200,
-      data: {
-        row: { child: { id: 1, fullName: 'Trẻ giả' }, status: 'WAITING' },
-        guardians: [{ position: 1, fullName: 'Mẹ giả', relationship: 'MOTHER', photoUrl: '/children/1/guardian-photos/7' }],
-      },
-    });
-  const result = await pickupApi.getPickupChild(1);
-  assert.equal(result.child.id, 1);
+test('pickup adapter giữ ảnh, đưa row vào context và dùng đúng position phụ huynh BE', async () => {
+  // beClient đã bóc envelope và đổi id sang chuỗi trước khi tới adapter
+  const client = {
+    get: async () => ({
+      row: { child: { id: '1', fullName: 'Trẻ giả' }, status: 'WAITING' },
+      guardians: [{ position: 1, fullName: 'Mẹ giả', relationship: 'MOTHER', photoUrl: '/children/1/guardian-photos/7' }],
+    }),
+  };
+  const result = await createPickupApi(client).getPickupChild('1');
+  assert.equal(result.child.id, '1');
   assert.equal(result.guardians[0].index, 1);
   assert.equal(result.guardians[0].relation, 'Mẹ');
   assert.equal(result.guardians[0].photoUrl, '/children/1/guardian-photos/7');
