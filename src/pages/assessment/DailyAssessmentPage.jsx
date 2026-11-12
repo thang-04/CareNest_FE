@@ -211,8 +211,8 @@ export default function DailyAssessmentPage() {
           {error ? (
             <ErrorState error={error} onRetry={reload} />
           ) : (
-            <div className="table-wrap dg-sheet-wrap">
-              <table className="table table--grid dg-sheet">
+            <div className="table-wrap dg-roll-wrap dg-sheet-wrap">
+              <table className="table table--grid dg-sheet dg-roll">
                 <thead>
                   <tr className="dg-head-cols">
                     <th className="dg-col-child dg-sticky-col cell--fixed">Trẻ</th>

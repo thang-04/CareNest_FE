@@ -334,8 +334,8 @@ export default function RewardClassPage() {
             </span>
           </div>
         )}
-        <div className="table-wrap">
-          <table className="table table--grid">
+        <div className="table-wrap dg-roll-wrap">
+          <table className="table table--grid dg-roll">
             <thead>
               <tr>
                 <th>Trẻ</th>

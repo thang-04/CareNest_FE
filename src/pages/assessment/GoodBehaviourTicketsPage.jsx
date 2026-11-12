@@ -234,8 +234,8 @@ function TeacherTicketsPage() {
                   description="Phiếu chỉ được phát sau khi tuần hoặc tháng kết thúc."
                 />
               ) : (
-                <div className="table-wrap">
-                  <table className="table table--grid">
+                <div className="table-wrap dg-roll-wrap">
+                  <table className="table table--grid dg-roll">
                     <thead>
                       <tr>
                         <th className="center dg-col-check">

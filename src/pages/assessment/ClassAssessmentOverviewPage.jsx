@@ -335,8 +335,8 @@ export default function ClassAssessmentOverviewPage() {
             {error ? (
               <ErrorState error={error} onRetry={reload} />
             ) : (
-              <div className="table-wrap">
-                <table className="table table--grid dg-ov-table">
+              <div className="table-wrap dg-roll-wrap">
+                <table className="table table--grid dg-ov-table dg-roll">
                   <thead>
                     <tr>
                       <th>Lớp</th>
