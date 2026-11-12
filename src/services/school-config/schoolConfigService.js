@@ -53,9 +53,10 @@ export const copyClasses = (targetYearId, payload, user) => repo.copyClasses(tar
 /**
  * Thiết lập năm học: payload { sourceYearId, parts } -> { copiedClasses, withoutRoom, teacherClasses, teamLeaders,
  * vicePrincipals, cutoffTime, semesterCopied, skipped: [{ part, name, reason }] }.
- * Phân công PHT chưa có ở BE nên chép ở đây qua get/saveViceAssignment (PHT đã khóa tài khoản bị bỏ, kèm lý do).
+ * BE chép cả phân công PHT (VICE_PRINCIPALS); bản demo (mock) chép PHT ở đây qua get/saveViceAssignment.
  */
 export const copyYear = async (targetYearId, { sourceYearId, parts }, user) => {
+  if (SCHOOL_CONFIG_API) return repo.copyYear(targetYearId, { sourceYearId, parts }, user);
   const beParts = parts.filter((p) => p !== 'VICE_PRINCIPALS');
   const result = beParts.length
     ? await repo.copyYear(targetYearId, { sourceYearId, parts: beParts }, user)
