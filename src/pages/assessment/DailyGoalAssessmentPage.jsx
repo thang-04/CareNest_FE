@@ -16,6 +16,7 @@ import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { EmptyState, ErrorState, SkeletonRows, Spinner } from '@/components/ui/States';
 import { AbsentRows, CellPopover } from '@/components/assessment/DailyAssessmentCells';
 import { Cell, focusCell } from '@/components/ui/TableCell';
+import { DAILY_COMMENT_MAX } from '@/models/assessment/assessmentConstants';
 import { PARTICIPATION_LABELS, YCCD_RESULT, YCCD_RESULT_LABELS } from '@/models/assessment/dailyObservationOptions';
 import { DateInput } from '@/components/form/DateInput';
 import { formatDate, formatDateTime, isIsoDate } from '@/utils/format';
@@ -403,7 +404,8 @@ export default function DailyGoalAssessmentPage() {
                       const id = r.childId;
                       const d = drafts[id] || (isSkillsRecorded(r) ? fromRow(r) : withDefaultMet(fromRow(r), activities));
                       const disabled = !writable || saving;
-                      const commentInvalid = !!commentError && !!dirty[id]?.has('_comment');
+                      const commentTooLong = (d.comment || '').length > DAILY_COMMENT_MAX;
+                      const commentInvalid = commentTooLong || (!!commentError && !!dirty[id]?.has('_comment'));
                       return (
                         <tr key={id} title={skillsRecorded(r) ? 'Đã ghi nhận' : 'Chưa ghi nhận'}>
                           <td className="cell--fixed">
@@ -428,7 +430,11 @@ export default function DailyGoalAssessmentPage() {
                               label={`Nhận xét trong ngày cho ${r.fullName}`}
                               onChange={(v) => setComment(id, v)}
                             />
-                            {commentInvalid && <div className="field__error">{commentError}</div>}
+                            {commentInvalid && (
+                              <div className="field__error">
+                                {commentTooLong ? `Nhận xét tối đa ${DAILY_COMMENT_MAX} ký tự` : commentError}
+                              </div>
+                            )}
                           </td>
                         </tr>
                       );

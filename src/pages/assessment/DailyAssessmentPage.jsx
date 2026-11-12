@@ -16,7 +16,7 @@ import { EmptyState, ErrorState, SkeletonRows, Spinner } from '@/components/ui/S
 import { StatusPage } from '@/components/ui/StatusPage';
 import { AbsentRows, BehaviorsCell, HealthCell, MealsCell } from '@/components/assessment/DailyAssessmentCells';
 import { Cell } from '@/components/ui/TableCell';
-import { EMOTION, EMOTION_LABELS } from '@/models/assessment/assessmentConstants';
+import { DAILY_COMMENT_MAX, EMOTION, EMOTION_LABELS } from '@/models/assessment/assessmentConstants';
 import { NAP, NAP_LABELS, PARTICIPATION, PARTICIPATION_LABELS } from '@/models/assessment/dailyObservationOptions';
 import { createGeneralDraft, getGeneralDirtyIds, getGeneralSaveEntries, isGeneralRecorded } from '@/utils/assessment/dailyGeneralDraft';
 import { DateInput } from '@/components/form/DateInput';
@@ -257,7 +257,8 @@ export default function DailyAssessmentPage() {
                       const d = drafts[id] || createGeneralDraft(r, sheet.mealSessions);
                       const disabled = !writable || saving;
                       const name = r.fullName;
-                      const commentInvalid = !!commentError && dirty.has(id) && !!d.comment.trim();
+                      const commentTooLong = (d.comment || '').length > DAILY_COMMENT_MAX;
+                      const commentInvalid = commentTooLong || (!!commentError && dirty.has(id) && !!d.comment.trim());
                       // Viền trái của dòng: chưa lưu / đã ghi nhận / chưa đánh giá
                       const status = dirty.has(id)
                         ? ['dirty', 'Đã thay đổi, chưa lưu']
@@ -363,7 +364,11 @@ export default function DailyAssessmentPage() {
                               label={`Nhận xét trong ngày cho ${name}`}
                               onChange={(v) => update(id, { comment: v })}
                             />
-                            {commentInvalid && <div className="field__error">{commentError}</div>}
+                            {commentInvalid && (
+                              <div className="field__error">
+                                {commentTooLong ? `Nhận xét tối đa ${DAILY_COMMENT_MAX} ký tự` : commentError}
+                              </div>
+                            )}
                           </td>
                         </tr>
                       );

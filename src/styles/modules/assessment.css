@@ -164,6 +164,20 @@
   outline: 2px solid var(--color-primary);
   outline-offset: -2px;
 }
+/* Cột Nhận xét tối thiểu ~280px, chữ dài không nới cột: các cột chọn không bị co; thiếu chỗ thì bảng cuộn ngang */
+.dg-sheet-wrap .dg-sheet th.dg-col-note,
+.dg-sheet-wrap .dg-sheet td.dg-col-note {
+  min-width: calc(var(--space-16) * 4.375);
+}
+/* Ô nhận xét: không lấy độ dài chữ làm độ rộng cột, hiện toàn bộ nội dung, chuỗi liền dài cũng ngắt dòng */
+.dg-sheet .dg-col-note .ga-cell-input {
+  contain: inline-size;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.dg-day-table--skills .ga-cell-input {
+  overflow-wrap: anywhere;
+}
 .dg-sheet .dg-col-note .ga-cell-text {
   white-space: pre-line;
 }
