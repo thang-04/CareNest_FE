@@ -1,16 +1,16 @@
 import { useState } from 'react';
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ClassFilterBar, ClassPageEmpty, docReview, useClassPlanContext } from '@/components/education-plan/planUi';
-import { Card, DocAvailabilityBadge, EduStatusBadge, EmptyState, FoldAllButton, PageHead } from '@/components/education-plan/eduUi';
+import { ClassFilterBar, ClassPageEmpty, FilterSelect, docReview, useClassPlanContext } from '@/components/education-plan/planUi';
+import { Card, DocAvailabilityBadge, EduStatusBadge, EmptyCard, FoldAllButton, PageHead } from '@/components/education-plan/eduUi';
 import { ReviewActions } from '@/components/education-plan/reviewUi';
 import { DeadlineBadge } from '@/components/education-plan/DeadlineWidgets';
 import { LoadingState } from '@/components/ui/States';
-import { Tabs } from '@/components/ui/Tabs';
 import { Eye, Plus } from '@/components/ui/icons';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { usePolling } from '@/hooks/usePolling';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
-import { ddmm, themeBranchGroups, todayIso, yearWeeks } from '@/models/education-plan/classPlan';
+import { ddmm, semesterChoices, themeBranchGroups, todayIso, yearWeeks } from '@/models/education-plan/classPlan';
+import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { WeekPlanInner } from '@/pages/education-plan/WeekPlanPage';
 
 /** Đường dẫn cũ /education/class/:classId/weeks/:weekStart/days ⇒ trang Kế hoạch giáo dục ngày của tuần đó. */
@@ -44,9 +44,6 @@ function DayPlansWeek({ classId, params }) {
         classId={classId}
         onPick={(id) => navigate(`/education/day-plans/${id}`)}
         emptyTitle={ctx.cls ? 'Chưa có tuần học' : 'Không tìm thấy lớp'}
-        emptyDesc={
-          ctx.cls ? 'Kế hoạch giáo dục tổ chưa ban hành hoặc chưa có chủ đề có ngày.' : 'Chọn nhóm tuổi và lớp ở hàng lọc phía trên.'
-        }
       />
     );
   const today = todayIso();
@@ -68,26 +65,28 @@ function DayPlansList({ classId }) {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const { user, branchPlans, dayPlans, themeDossiers, semesterPackages, actOnClassDoc, eduConfig, refreshClassDocs } = useEducationPlan();
+  const { schoolYear: yearId, schoolYears } = useSchoolYear();
   const [folded, setFolded] = useState(() => new Set());
   const ctx = useClassPlanContext(classId);
   const { cls, classes, yearPlan, canComposeClassDocs } = ctx;
   // Người khác gửi/duyệt/trả lại hồ sơ chủ đề thì trang tự cập nhật
   usePolling(() => refreshClassDocs?.().catch(() => {}));
   if (ctx.loading) return <LoadingState />;
-  const head = (tabs = null, extra = null) => (
+  const head = (filters = null, extra = null) => (
     <div className="ga-sticky-head">
       <PageHead
         crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Kế hoạch giáo dục ngày' }]}
         title={`Kế hoạch giáo dục ngày ${cls?.name || ''}`}
       />
-      {/* Khung chung (Tiền 12/11/2026): hàng lọc → tab học kỳ → hàng nút; Thu gọn ở bên trái hàng nút như trang chủ đề */}
+      {/* Học kỳ nằm cùng hàng lọc lớp (Tiền 13/11/2026). */}
       <ClassFilterBar
         classes={classes}
         classId={classId}
         canPick={ctx.canPickClass}
         onPick={(id) => navigate(`/education/day-plans/${id}`)}
-      />
-      {tabs && <div className="mb-16">{tabs}</div>}
+      >
+        {filters}
+      </ClassFilterBar>
       {extra && (
         <div className="ga-year-toolbar" role="group" aria-label="Thao tác">
           <div className="ga-year-toolbar__group">
@@ -102,7 +101,7 @@ function DayPlansList({ classId }) {
     return (
       <div className="page ga-page">
         {head()}
-        <EmptyState title={cls ? 'Kế hoạch giáo dục tổ của nhóm tuổi này chưa được ban hành' : 'Không tìm thấy lớp'} />
+        <EmptyCard title={cls ? 'Kế hoạch giáo dục tổ của nhóm tuổi này chưa được ban hành' : 'Không tìm thấy lớp'} />
       </div>
     );
   const packages = semesterPackages
@@ -110,13 +109,19 @@ function DayPlansList({ classId }) {
     .sort((a, b) => a.semesterNo - b.semesterNo);
   // Mặc định học kỳ đang diễn ra, chưa vào năm học thì học kỳ 1 (như trang Kế hoạch giáo dục chủ đề)
   const today = todayIso();
-  const current = [...packages].reverse().find((p) => p.deadline && p.deadline <= today) || packages[0];
+  const allThemesForHk = [...yearPlan.themes].filter((t) => t.start && t.end);
+  const choices = semesterChoices(
+    schoolYears.find((y) => String(y.id) === String(yearId)),
+    allThemesForHk,
+    packages,
+  );
+  const current = [...choices].reverse().find((c) => c.deadline && c.deadline <= today) || choices[0];
   const hk = params.get('hk') || (current ? String(current.semesterNo) : '');
-  const pkg = packages.find((p) => String(p.semesterNo) === hk) || null;
+  const choice = choices.find((c) => String(c.semesterNo) === hk) || null;
   const rows = yearWeeks(yearPlan);
   const branch = branchPlans.find((b) => b.classId === classId && b.yearPlanId === yearPlan.id) || null;
   const allThemes = [...yearPlan.themes].filter((t) => t.start && t.end).sort((a, b) => a.start.localeCompare(b.start));
-  const themeIds = pkg ? (pkg.themeIds || []).map(String) : null;
+  const themeIds = choice ? choice.themeIds : null;
   const themes = themeIds ? allThemes.filter((t) => themeIds.includes(String(t.id))) : allThemes;
   const viewer = !canComposeClassDocs;
   const dayUrl = (ws) => `/education/day-plans/${classId}?week=${ws}`;
@@ -132,17 +137,17 @@ function DayPlansList({ classId }) {
   return (
     <div className="page ga-page">
       {head(
-        packages.length > 0 && (
-          <Tabs
-            ariaLabel="Học kỳ"
+        choices.length > 0 && (
+          <FilterSelect
+            label="Học kỳ"
             value={hk}
             onChange={(key) => setParams({ hk: key }, { replace: true })}
-            items={packages.map((p) => ({ key: String(p.semesterNo), label: `Học kỳ ${p.semesterNo}`, count: (p.themeIds || []).length }))}
+            options={choices.map((c) => ({ value: String(c.semesterNo), label: `Học kỳ ${c.semesterNo} (${c.themeIds.length})` }))}
           />
         ),
         foldAll,
       )}
-      {themes.length === 0 && <EmptyState title="Học kỳ chưa có chủ đề" />}
+      {themes.length === 0 && <EmptyCard title="Chưa có chủ đề trong học kỳ" />}
       {themes.map((t) => {
         const ti = allThemes.indexOf(t);
         const dossier = themeDossiers.find((d) => d.id === `ds_${classId}_${t.id}`) || null;

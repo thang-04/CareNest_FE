@@ -14,6 +14,7 @@ import { CLASS_DOC_LABELS, themeNumber, themeWeeksOf } from '@/models/education-
 import { PENDING_OF } from '@/models/education-plan/eduConfig';
 import { clickableRowProps } from '@/utils/clickableRow';
 import { Eye } from '@/components/ui/icons';
+import { FilterText } from '@/components/education-plan/planUi';
 
 /**
  * Hộp duyệt: hồ sơ chủ đề (kế hoạch chủ đề + giáo án các nhánh) của các lớp trong khối đang chờ duyệt.
@@ -101,17 +102,26 @@ export default function PlanReviewQueuePage() {
   }));
 
   // Lọc nhóm tuổi trước rồi lớp (spec 005 FR-022); kế hoạch năm/tổ không theo lớp
-  const groups = AGE_GROUPS.filter((g) => items.some((it) => String(it.ageGroupId) === String(g.id)));
-  const groupClasses = classes.filter((c) => !ageGroupId || String(c.ageGroupId) === ageGroupId);
+  // Hiệu trưởng lọc theo nhóm tuổi; Phó hiệu trưởng lọc thêm theo lớp của năm học đang chọn (Tiền 12/11/2026)
+  const groups = AGE_GROUPS;
+  // Tổ trưởng chỉ duyệt nhóm tuổi của mình: nhóm tuổi hiện dạng chữ, chỉ chọn lớp
+  const isLeader = user.role === ROLES.TEAM_LEADER;
+  const canFilterClass = user.role === ROLES.VICE_PRINCIPAL || isLeader;
+  const leaderGroup = AGE_GROUPS.find((g) => String(g.id) === String(user.ageGroupId));
+  const groupClasses = classes.filter((c) =>
+    isLeader ? String(c.ageGroupId) === String(user.ageGroupId) : !ageGroupId || String(c.ageGroupId) === ageGroupId,
+  );
   const shown = items.filter((it) => (!ageGroupId || String(it.ageGroupId) === ageGroupId) && (!classId || it.doc.classId === classId));
 
   return (
     <div className="page ga-page">
       <div className="ga-sticky-head">
         <PageHead crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Duyệt kế hoạch giáo dục' }]} title="Duyệt kế hoạch giáo dục" />
-        {items.length > 0 && (
-          <div className="card mb-16">
-            <div className="filter-bar">
+        <div className="card mb-16">
+          <div className="filter-bar">
+            {isLeader ? (
+              <FilterText label="Nhóm tuổi" value={leaderGroup?.name} />
+            ) : (
               <div className="field">
                 <label className="field__label" htmlFor={`${filterId}-age`}>
                   Nhóm tuổi
@@ -121,8 +131,10 @@ export default function PlanReviewQueuePage() {
                   className="select"
                   value={ageGroupId}
                   onChange={(e) => {
-                    setAgeGroupId(e.target.value);
-                    setClassId('');
+                    const next = e.target.value;
+                    setAgeGroupId(next);
+                    // Đổi nhóm tuổi: giữ lớp đang chọn nếu lớp đó thuộc nhóm mới
+                    if (next && classOf(classId) && String(classOf(classId).ageGroupId) !== next) setClassId('');
                   }}
                 >
                   <option value="">Tất cả</option>
@@ -133,17 +145,13 @@ export default function PlanReviewQueuePage() {
                   ))}
                 </select>
               </div>
+            )}
+            {canFilterClass && (
               <div className="field">
                 <label className="field__label" htmlFor={`${filterId}-class`}>
                   Lớp
                 </label>
-                <select
-                  id={`${filterId}-class`}
-                  className="select"
-                  value={classId}
-                  disabled={!ageGroupId}
-                  onChange={(e) => setClassId(e.target.value)}
-                >
+                <select id={`${filterId}-class`} className="select" value={classId} onChange={(e) => setClassId(e.target.value)}>
                   <option value="">Tất cả</option>
                   {groupClasses.map((c) => (
                     <option key={c.id} value={c.id}>
@@ -152,93 +160,68 @@ export default function PlanReviewQueuePage() {
                   ))}
                 </select>
               </div>
-            </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
       <Card bodyClass={null}>
         {shown.length === 0 ? (
-          <EmptyState title="Không có tài liệu chờ duyệt" desc="Khi giáo viên gửi kế hoạch giáo dục, tài liệu sẽ hiện ở đây." />
+          <EmptyState title="Chưa có tài liệu chờ duyệt" />
         ) : (
-          <div className="card__body">
-            <div className="table-wrap">
-              <table className="table ga-plan-table ga-goal-table">
-                {/* Bảng cố định độ rộng: cột hẹp cho loại/người gửi/thời điểm, chừa phần lớn cho Nội dung (ghi chú gửi) */}
-                <colgroup>
-                  <col className="ga-review-queue__short" />
-                  <col className="ga-review-queue__class" />
-                  <col />
-                  <col className="ga-review-queue__short" />
-                  <col className="ga-review-queue__short" />
-                  <col className="ga-review-queue__status" />
-                  <col className="ga-review-queue__status" />
-                  <col className="ga-review-queue__actions" />
-                </colgroup>
-                <thead>
-                  <tr>
-                    <th>Loại</th>
-                    <th>Lớp</th>
-                    <th>Nội dung</th>
-                    <th>Người gửi</th>
-                    <th>Gửi lúc</th>
-                    <th className="center">Trạng thái</th>
-                    <th className="center">Hạn</th>
-                    <th className="cell--actions">Thao tác</th>
+          <div className="table-wrap">
+            <table className="table ga-plan-table ga-list-table">
+              <thead>
+                <tr>
+                  <th>Loại</th>
+                  <th>Lớp</th>
+                  <th>Nội dung</th>
+                  <th>Người gửi</th>
+                  <th>Gửi lúc</th>
+                  <th className="center">Trạng thái</th>
+                  <th className="center">Hạn</th>
+                  <th className="cell--actions">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody>
+                {shown.map((it) => (
+                  <tr key={it.key} className="row-click" {...clickableRowProps(() => navigate(it.to))}>
+                    <td className="nowrap">
+                      <div className="ga-cell-title">{it.label || CLASS_DOC_LABELS[it.kind]}</div>
+                    </td>
+                    <td className="nowrap">{it.cls}</td>
+                    <td>
+                      {it.what}
+                      {it.note && <div className="ga-cell-sub">Ghi chú: {it.note}</div>}
+                    </td>
+                    <td className="nowrap">{it.by || '—'}</td>
+                    <td className="nowrap">{it.at ? fmtDateTime(it.at) : '—'}</td>
+                    <td className="center nowrap">
+                      {it.kind === 'year' ? (
+                        <YearPlanStatusBadge status={it.doc.status} doc={it.doc} />
+                      ) : (
+                        <EduStatusBadge status={it.doc.status} doc={it.doc} />
+                      )}
+                    </td>
+                    <td className="center nowrap">
+                      <DeadlineBadge doc={it.kind === 'year' ? it.doc.timeLock : it.doc} />
+                    </td>
+                    <td className="cell--actions">
+                      {/* Cả dòng bấm được; nút cho thấy rõ chỗ mở và dùng được bằng bàn phím */}
+                      <button
+                        type="button"
+                        className="btn btn--sm btn--outline-primary nowrap"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(it.to);
+                        }}
+                      >
+                        <Eye size={16} aria-hidden /> Mở duyệt
+                      </button>
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {shown.map((it) => (
-                    <tr key={it.key} className="row-click" {...clickableRowProps(() => navigate(it.to))}>
-                      <td>
-                        <div className="ga-goal-table__pad fw-600">{it.label || CLASS_DOC_LABELS[it.kind]}</div>
-                      </td>
-                      <td>
-                        <div className="ga-goal-table__pad">{it.cls}</div>
-                      </td>
-                      <td>
-                        <div className="ga-goal-table__pad">
-                          {it.what}
-                          {it.note && <div className="muted text-sm">Ghi chú: {it.note}</div>}
-                        </div>
-                      </td>
-                      <td>
-                        <div className="ga-goal-table__pad">{it.by || '—'}</div>
-                      </td>
-                      <td>
-                        <div className="ga-goal-table__pad">{it.at ? fmtDateTime(it.at) : '—'}</div>
-                      </td>
-                      <td>
-                        <div className="ga-goal-table__pad">
-                          {it.kind === 'year' ? (
-                            <YearPlanStatusBadge status={it.doc.status} doc={it.doc} />
-                          ) : (
-                            <EduStatusBadge status={it.doc.status} doc={it.doc} />
-                          )}
-                        </div>
-                      </td>
-                      <td>
-                        <div className="ga-goal-table__pad">
-                          <DeadlineBadge doc={it.kind === 'year' ? it.doc.timeLock : it.doc} />
-                        </div>
-                      </td>
-                      <td className="cell--actions">
-                        {/* Cả dòng bấm được; nút cho thấy rõ chỗ mở và dùng được bằng bàn phím */}
-                        <button
-                          type="button"
-                          className="btn btn--sm btn--outline-primary"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(it.to);
-                          }}
-                        >
-                          <Eye size={16} aria-hidden /> Mở duyệt
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </Card>

@@ -182,7 +182,7 @@ export default function OverduePlansPage() {
           </div>
         )}
         {shown.length === 0 ? (
-          <EmptyState title={overdueTab ? 'Không có kế hoạch quá hạn' : 'Chưa mở hạn kế hoạch nào'} />
+          <EmptyState title={overdueTab ? 'Chưa có kế hoạch quá hạn' : 'Chưa mở hạn kế hoạch nào'} />
         ) : (
           <div className="card__body">
             <div className="table-wrap">

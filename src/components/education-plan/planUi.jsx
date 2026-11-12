@@ -1,6 +1,6 @@
 import { adaptCalendar, calendarPlan, seedTeamBranchTemplates } from '@/models/education-plan/branchCalendar.mjs';
 import { useId, useMemo, useRef } from 'react';
-import { EmptyState, PageHead } from '@/components/education-plan/eduUi';
+import { EmptyCard, PageHead } from '@/components/education-plan/eduUi';
 import { useSearchParams } from 'react-router-dom';
 import { Check, Eye, Send } from '@/components/ui/icons';
 import { SIGNER_SHORT } from '@/components/education-plan/reviewUi';
@@ -260,7 +260,7 @@ export function ClassPicker({ classes, classId, onPick }) {
  * Khung trang khi lớp / kế hoạch đang lọc không có dữ liệu: giữ đầu trang và hàng lọc (ghim), chỉ phần nội dung báo trống
  * để người dùng chọn lại ngay trên trang (Tiền 11/11/2026).
  */
-export function ClassPageEmpty({ crumbs, title, classes, classId, onPick, canPick = classes.length > 1, emptyTitle, emptyDesc, children }) {
+export function ClassPageEmpty({ crumbs, title, classes, classId, onPick, canPick = classes.length > 1, emptyTitle, children }) {
   return (
     <div className="page ga-page">
       <div className="ga-sticky-head">
@@ -269,7 +269,7 @@ export function ClassPageEmpty({ crumbs, title, classes, classId, onPick, canPic
           {children}
         </ClassFilterBar>
       </div>
-      <EmptyState title={emptyTitle} desc={emptyDesc} />
+      <EmptyCard title={emptyTitle} />
     </div>
   );
 }
