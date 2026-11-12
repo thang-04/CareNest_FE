@@ -42,3 +42,8 @@ playwright-report/
 # File test tạm (không push)
 *.tmp
 *.temp
+
+# Ghi chú/đầu ra tạm của công cụ AI và script một lần (không thuộc source)
+.superpowers/
+.playwright-mcp/
+*.pyc
