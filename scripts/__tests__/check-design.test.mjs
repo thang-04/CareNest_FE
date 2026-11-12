@@ -39,3 +39,41 @@ test("CLI: --update ghi baseline rồi pass; thêm vi phạm ⇒ exit 1", () => 
   assert.equal(res.status, 1);
   assert.match(res.stdout, /FAIL/);
 });
+
+test("measure: phần tử viết tay, CSS module đè class chung, px/z-index cứng, import CSS chéo module", () => {
+  const root = makeRepo({
+    "src/components/ui/Button.jsx": "export const Button = () => <button className=\"btn\" />;\n",
+    "src/pages/kitchen/A.jsx":
+      "import '@/styles/modules/kitchen.css';\nimport '@/styles/modules/menu-planning.css';\nexport default () => (<div onClick={go}><button>x</button><table /><input /></div>);\n",
+    "src/styles/components.css": ".btn { padding: 8px; }\n.table { z-index: 5; }\n",
+    "src/styles/modules/kitchen.css": ".kb-x .btn { margin-top: 4px; z-index: 9; color: var(--blue-700); }\n.btn-group { gap: 0; }\n",
+  });
+  const m = measure(root);
+  assert.deepEqual(m.rawButton, { "src/pages/kitchen/A.jsx": 1 }, "components/ui được viết <button>");
+  assert.deepEqual(m.rawTable, { "src/pages/kitchen/A.jsx": 1 });
+  assert.deepEqual(m.rawField, { "src/pages/kitchen/A.jsx": 1 });
+  assert.deepEqual(m.clickableDiv, { "src/pages/kitchen/A.jsx": 1 });
+  assert.deepEqual(m.crossCssImport, { "src/pages/kitchen/A.jsx": 1 }, "kitchen.css hợp lệ, menu-planning.css là của module khác");
+  assert.deepEqual(m.sharedOverride, { "src/styles/modules/kitchen.css": 1 }, ".btn-group và CSS chung không tính");
+  assert.deepEqual(m.spacingPx, { "src/styles/components.css": 1, "src/styles/modules/kitchen.css": 1 });
+  assert.deepEqual(m.zIndex, { "src/styles/components.css": 1, "src/styles/modules/kitchen.css": 1 });
+  assert.deepEqual(m.primitiveToken, { "src/styles/modules/kitchen.css": 1 });
+});
+
+test("CLI: --update chỉ hạ baseline, từ chối nâng; loại kiểm tra mới được ghi mốc", () => {
+  const root = makeRepo({
+    "src/styles/modules/a.css": ".a { color: #fff; color: #000; }\n",
+    "src/pages/A.jsx": "export default () => <button />;\n",
+    "scripts/design-baseline.json": JSON.stringify({ hex: { "src/styles/modules/a.css": 1 } }),
+  });
+  const refused = run(root, "--update");
+  assert.equal(refused.status, 1);
+  assert.match(refused.stdout, /từ chối nâng/);
+  const ok = makeRepo({
+    "src/styles/modules/a.css": ".a { color: #fff; }\n",
+    "src/pages/A.jsx": "export default () => <button />;\n",
+    "scripts/design-baseline.json": JSON.stringify({ hex: { "src/styles/modules/a.css": 2, "src/gone.css": 3 } }),
+  });
+  assert.equal(run(ok, "--update").status, 0);
+  assert.equal(run(ok).status, 0);
+});

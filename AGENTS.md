@@ -13,13 +13,14 @@ Quy ước đường dẫn: `BE:<path>` = `../CareNest_BE/<path>` (repo sibling)
 
 | Làn | Khi nào | Đọc | Plan · verify · báo cáo |
 | --- | --- | --- | --- |
-| **S** | ≤2 file, việc rõ, ngoài vùng rủi ro | File đích + test; bug: grep `ISSUE_INDEX.md` (+ BE nếu lỗi contract) | Không plan · `node scripts/verify.mjs` · ≤3 dòng |
+| **S** | ≤2 file, việc rõ, ngoài vùng rủi ro và vùng dùng chung | File đích + test; bug: grep `ISSUE_INDEX.md` (+ BE nếu lỗi contract) | Không plan · `node scripts/verify.mjs --quick` · ≤3 dòng |
 | **M** | 3–8 file; màn hình/hành vi trong 1 nhóm | `.ai/ROUTER.md` → grep `.ai/CONTEXT_MAP.yaml` → BE card + feature doc | Mini-plan chat · verify · ≤8 dòng |
-| **L** | Thư viện nền, auth/token, API client chung, điều hướng theo role, dependency, ≥2 nhóm màn hình, đổi contract BE, >8 file | + `.ai/ESCALATION.md` L3–L4 | Plan `.ai/workflows/plan-change.md` user duyệt · Progress log |
+| **L** | Vùng dùng chung (component/CSS chung, layout, route/menu, context, API client), thư viện nền, auth/token, dependency, ≥2 nhóm màn hình, đổi contract BE, >8 file | + `.ai/ESCALATION.md` L3–L4 | Plan `.ai/workflows/plan-change.md` được duyệt · Progress log |
 
 - Đổi nghiệp vụ/thứ người dùng thấy ⇒ `.ai/workflows/clarify-business.md` trước khi code. Vượt tiêu chí ⇒ nâng làn, không hạ làn.
 - Plan `docs/plans/active/` khớp branch ⇒ đọc Progress log cuối.
 - Grep, không đọc cả file: CONTEXT_MAP, ISSUE_INDEX, BE guide mục 7–8.
+- Việc chạm API/BE: grep path hoặc tên file trong `docs/integration/FE_API_CALLS.md` (file FE → endpoint → controller BE) và `docs/integration/BE_API_INDEX.md` (endpoint BE → `controller#method`); module nối BE hay demo: `src/config/integrationModules.js`. Không đọc `openapi.yaml`.
 - `.claude/rules/` theo file (Codex tự mở); `.agents/skills/` = mirror `.claude/skills/`.
 - Báo xong: `docs/quality/VERIFICATION.md` + DoD theo làn.
 
@@ -39,12 +40,25 @@ Quy ước đường dẫn: `BE:<path>` = `../CareNest_BE/<path>` (repo sibling)
 
 Đã có source: React 18 + Vite, **JavaScript/JSX** (không TypeScript), `react-router-dom` v7, axios, CSS thuần + `src/styles/tokens.css`, icon Tabler qua `src/components/ui/icons.js`; dữ liệu qua service facade → mock (localStorage, `VITE_USE_MOCK=true`) hoặc API thật. Auth: `VITE_AUTH_MODE=mock` mặc định, `gateway` đăng nhập qua BE theo `docs/integration/AUTH_FLOW.md` (token thật chỉ trong memory). Server state bằng `useAsync`, không thư viện cache; test `node:test` (`tests/`).
 - **Code** (thư mục, tầng, ranh giới module, thêm module 12 bước, CSS): `docs/architecture/CODING_GUIDE.md`.
-- **Giao diện** (token, danh mục component §6.3, công thức màn §8, trạng thái §9, tự kiểm §13): `DESIGN.md`. Không tự chế màu/nút/bảng/modal/badge — tra §6.3 trước, thiếu thì thêm vào phần dùng chung.
+- **Giao diện:** đọc `docs/design/UI_CARD.md` (1 trang: cần gì dùng component nào, luật cứng, tự kiểm) trước khi viết/sửa màn. Màn mới và màn đang sửa dùng `ListPage`, `DataTable`, `Button`, `TextField`… từ `@/components`; không viết tay `<button>/<table>/<input>` và không tự chế màu/nút/bảng/modal/badge. `DESIGN.md` chỉ để tra chi tiết (token §3, danh mục §6.3, công thức màn §8).
 - Đổi thư viện nền, cách lưu token/auth thật, thêm dependency ⇒ hỏi trước (làn L).
 
 ## Quy tắc chung CareNest (bắt buộc)
 
-Khối này giống nhau ở cả ba repo `CareNest_BE`, `CareNest_FE`, `CareNest_APP`; chỉ mục "Hỏi trước khi làm" và "Phạm vi" khác theo repo. Sửa ở một repo thì đồng bộ sang hai repo còn lại.
+Khối này giống nhau ở cả ba repo `CareNest_BE`, `CareNest_FE`, `CareNest_APP`; chỉ mục "Hỏi trước khi làm" và "Phạm vi" khác theo repo. Khối này và file harness dùng chung (hook, githook, `scripts/ai-layer/`): sửa ở `CareNest_BE` rồi trong FE/APP chạy `node scripts/ai-layer/sync-shared.mjs --from ../CareNest_BE`.
+
+### Chế độ làm việc — tự chạy, có điểm dừng
+
+Áp dụng cho mọi công cụ AI (Claude, Codex, công cụ khác); Claude hook chỉ là lớp chặn thêm.
+
+- Việc trong module mình phụ trách, làn S/M: làm một mạch tới bàn giao, không dừng hỏi yes/no. Kỹ thuật đã có convention ⇒ tự chọn. Mọi giả định ghi ở báo cáo bàn giao.
+- **Điểm dừng cứng** — dừng, trình bày, chờ người làm trả lời rồi mới sửa:
+  1. Các việc ở mục "Hỏi trước khi làm".
+  2. File thuộc **vùng dùng chung** (`guard.sharedGlobs` trong `.claude/hooks/harness.config.json`).
+  3. File thuộc module do thành viên khác phụ trách (`ownership` cùng file).
+  4. Nghiệp vụ `PENDING` / `OPEN` / lệch tài liệu.
+- Ở điểm dừng 2 và 3, in **bản tác động** (≤12 dòng) trước khi sửa: thay đổi gì · màn hình/route/role hoặc endpoint/client bị ảnh hưởng (dán output `node scripts/ai-layer/impact.mjs <file>`) · luồng người dùng đổi thế nào · module của ai · 2–3 phương án và đề xuất · cách kiểm. Mẫu: `.ai/workflows/clarify-business.md`.
+- Làn L: viết plan, trình bày tóm tắt kèm bản tác động, chờ duyệt rồi mới code.
 
 ### Git — nhánh và mã công việc
 
@@ -84,7 +98,7 @@ G94-182: Add lesson plan validation
 ### Cổng chất lượng
 
 - **Iron Law:** chưa có output `node scripts/verify.mjs` chạy sau lần sửa cuối ⇒ không báo "xong/pass/đã sửa"; skip = chưa kiểm chứng (`docs/quality/VERIFICATION.md`).
-- Làn L ⇒ plan user duyệt mới code. Sửa bug thất bại 3 lần ⇒ dừng, ghi Attempts, hỏi.
+- Làn L ⇒ plan được duyệt mới code (mục "Chế độ làm việc"). Sửa bug thất bại 3 lần ⇒ dừng, ghi Attempts, hỏi.
 - Sửa `.ai/ .claude/ .agents/ docs/` ⇒ `node scripts/check-ai-layer.mjs`. Cổng fail ⇒ sửa nguyên nhân, không lách.
 
 ### Hỏi trước khi làm
@@ -101,4 +115,4 @@ G94-182: Add lesson plan validation
 
 ### Giao tiếp
 
-- Trả lời user tiếng Việt; commit, branch, identifier tiếng Anh. Yêu cầu chưa rõ ⇒ hỏi trước. Báo kết quả đúng sự thật (test fail/skip/chưa chạy phải nói rõ).
+- Trả lời user tiếng Việt; commit, branch, identifier tiếng Anh. Yêu cầu chưa rõ về nghiệp vụ ⇒ hỏi trước. Báo kết quả đúng sự thật (test fail/skip/chưa chạy phải nói rõ).

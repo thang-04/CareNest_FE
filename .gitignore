@@ -27,7 +27,13 @@ Thumbs.db
 
 # Ghi chú/worktree tạm của phiên AI (không thuộc source)
 .commit-worktrees/
+.claude/worktrees/
+.claude/launch.json
 .continues-handoff.md
+
+# Ảnh chụp/tài liệu rà UI cục bộ (nặng, làm nhiễu tìm kiếm)
+ui-review/
+__pycache__/
 
 # Playwright (tests/e2e)
 test-results/
