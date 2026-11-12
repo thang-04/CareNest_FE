@@ -370,10 +370,20 @@ export function submitBlocker(kind, doc, { branchPlans = [], weekPlans = [], cla
  * Trình tự lập kế hoạch lớp: có thể soạn nhánh và kế hoạch chủ đề song song; giáo án cần hồ sơ chủ đề đã lưu.
  * Chỉ chặn tạo mới; các nhánh trong một chủ đề soạn song song. Trả { need: 'branch' | 'theme', message } hoặc null.
  */
-export function createBlocker(kind, { classId, yearPlanId, themeId }, { branchPlans: _branchPlans = [], classThemePlans = [] }) {
+export function createBlocker(
+  kind,
+  { classId, yearPlanId, themeId, weekStart },
+  { branchPlans = [], classThemePlans = [], yearPlan = null },
+) {
   if (kind === CLASS_DOC.BRANCH) return null;
   const theme = classThemePlans.some((t) => t.classId === classId && t.yearPlanId === yearPlanId && t.themeId === themeId);
   if (kind === CLASS_DOC.WEEK && !theme) return { need: 'theme', message: 'Cần lưu kế hoạch giáo dục chủ đề trước.' };
+  // EDU-14 (Tiền 13/11/2026): tuần chưa có tên chủ đề nhánh thì chưa lập kế hoạch tuần; BE chặn lại khi lưu (7112)
+  if (kind === CLASS_DOC.WEEK && weekStart && yearPlan) {
+    const branchDoc = branchPlans.find((b) => b.classId === classId && b.yearPlanId === yearPlanId) || null;
+    const group = themeBranchGroups(yearPlan, branchDoc, themeId).find((g) => g.weeks.some((w) => w.start === weekStart));
+    if (!group?.name?.trim()) return { need: 'branch', message: 'Cần đặt tên chủ đề nhánh của tuần này trước.' };
+  }
   return null;
 }
 
@@ -1024,4 +1034,26 @@ export function themeBranchGroups(yearPlan, branchDoc, themeId) {
     name: g.range?.name || branchDoc?.names?.[g.weeks[0].start] || '',
     label: `Tuần ${g.weeks.map((w) => w.themeNo).join('+')}`,
   }));
+}
+
+/**
+ * Học kỳ để lọc trang kế hoạch lớp (Tiền 13/11/2026): có đủ ngày học kỳ của năm học thì luôn có Học kỳ 1, 2, không chờ BE
+ * tạo gói học kỳ (gói chỉ có sau lần lưu đầu và gắn một phiên bản kế hoạch tổ). Gói đã có thì dùng danh sách chủ đề và hạn
+ * của gói; chưa có thì xếp chủ đề theo ngày bắt đầu như BE (EduSemesters.of: nghỉ giữa kỳ tính vào học kỳ sau).
+ * Trả [{ semesterNo, pkg, themeIds, deadline }].
+ */
+export function semesterChoices(year, themes, packages) {
+  const y = year || {};
+  const configured = !!(y.semester1Start && y.semester1End && y.semester2Start && y.semester2End);
+  const noOf = (d) => (!d || d < y.semester1Start || d > y.semester2End ? null : d > y.semester1End ? 2 : 1);
+  const nos = configured ? [1, 2] : [...new Set(packages.map((p) => Number(p.semesterNo)))].sort((a, b) => a - b);
+  return nos.map((no) => {
+    const pkg = packages.find((p) => Number(p.semesterNo) === no) || null;
+    return {
+      semesterNo: no,
+      pkg,
+      themeIds: pkg ? (pkg.themeIds || []).map(String) : themes.filter((t) => noOf(t.start) === no).map((t) => String(t.id)),
+      deadline: pkg?.deadline || (configured ? (no === 1 ? y.semester1Start : y.semester2Start) : null),
+    };
+  });
 }

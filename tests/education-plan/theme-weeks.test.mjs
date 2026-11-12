@@ -59,3 +59,16 @@ test('ngày nghỉ liền nhau cùng lý do gộp thành "Thứ 2, 3 (…)" (Ti�
   assert.equal(offDaysText(['A', 'B', 'B', 'B', null]), 'Thứ 2 (A), Thứ 3, 4, 5 (B)');
   assert.equal(offDaysText([]), '');
 });
+
+test('nextThemeDates chains a new theme after the previous one, skips whole-week breaks and stays in the school year', async () => {
+  const { nextThemeDates } = await import('../../src/models/education-plan/goalTable.js');
+  const year = { start: '2026-09-01', end: '2027-05-31' };
+  // Năm học bắt đầu Thứ 3 ⇒ chủ đề đầu từ Thứ 2 tuần sau
+  assert.deepEqual(nextThemeDates([], [], year, 2), { start: '2026-09-07', end: '2026-09-18' });
+  assert.deepEqual(nextThemeDates([{ start: '2026-09-07', end: '2026-10-02' }], [], year, 3), { start: '2026-10-05', end: '2026-10-23' });
+  const tet = [{ start: '2027-02-01', end: '2027-02-12' }];
+  assert.deepEqual(nextThemeDates([{ start: '2027-01-11', end: '2027-01-29' }], tet, year, 2), { start: '2027-02-15', end: '2027-02-26' });
+  assert.deepEqual(nextThemeDates([{ start: '2027-01-18', end: '2027-01-22' }], tet, year, 2), { start: '2027-01-25', end: '2027-02-19' });
+  assert.equal(nextThemeDates([{ start: '2027-05-17', end: '2027-05-21' }], [], year, 2), null);
+  assert.equal(nextThemeDates([{ start: '2026-09-07', end: '' }], [], year, 2), null);
+});

@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { ReviewActions } from '@/components/education-plan/reviewUi';
-import { Download, FileDown, Save } from '@/components/ui/icons';
+import { Download, FileDown, Save, X } from '@/components/ui/icons';
 import { yearPlanFile } from '@/utils/education-plan/yearPlanDoc';
 import { useEducationPlan, useGoalDetails } from '@/hooks/education-plan/useEducationPlan';
 import { ErrorState, LoadingState } from '@/components/ui/States';
@@ -184,9 +184,8 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
   const planRoot = useRef(null);
   const errorSummary = useRef(null);
   const focusValidation = useRef(false);
-  const planIssues = Object.entries(errors)
-    .filter(([key]) => key !== 'domains' && key !== 'themes')
-    .map(([key, message]) => ({
+  // Khung tổng kết đầu trang liệt kê cả lỗi phần mục tiêu, chủ đề (vẫn giữ chữ đỏ tại dòng/đầu bảng) để biết lỗi chặn gửi nằm ở đâu
+  const planIssues = Object.entries(errors).map(([key, message]) => ({
       key,
       message: typeof message === 'string' ? message : 'Có tên viết tắt chủ đề bị trùng. Kiểm tra các ô báo đỏ.',
       section: key === 'source' ? 'source' : ['title', 'ageGroupId'].includes(key) ? 'info' : key === 'domains' ? 'goals' : 'themes',
@@ -203,6 +202,16 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
   // BE:EDU-25 — phiên bản điều chỉnh dùng chung (năm học, nhóm tuổi) với các bản trước nên không tính là trùng
   const sameScope = existing && existing.schoolYear === form.schoolYear && existing.ageGroupId === form.ageGroupId;
   const dupGoal = !sameScope && goals.some((g) => g.id !== form.id && g.schoolYear === form.schoolYear && g.ageGroupId === form.ageGroupId);
+  // Gợi ý dùng lại mục tiêu của kế hoạch năm khác năm học, cùng nhóm tuổi (EDU-24; ưu tiên năm gần nhất, bản đã ban hành)
+  const reusePlan = form.ageGroupId
+    ? goals
+        .filter((g) => g.id !== form.id && g.ageGroupId === form.ageGroupId && g.schoolYear < form.schoolYear)
+        .sort(
+          (a, b) =>
+            b.schoolYear.localeCompare(a.schoolYear) ||
+            Number(b.status === EDU_STATUS.APPROVED) - Number(a.status === EDU_STATUS.APPROVED),
+        )[0]
+    : null;
   const [importing, setImporting] = useState(false);
   const [importingThemes, setImportingThemes] = useState(false);
   const [ministryOpen, setMinistryOpen] = useState(false);
@@ -243,6 +252,12 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
   const themes = form.themes.filter((t) => !isBlankTheme(t));
   const numbers = numberGoals(form.domains);
   const totalGoals = Object.keys(numbers).length;
+  // Dòng đếm tiến độ chữ xám luôn hiện (ngoại lệ Tiền 12/11/2026 của quy tắc chỉ báo điều kiện gửi khi gửi)
+  const goalsWithoutContent = form.domains.reduce(
+    (n, d) => n + d.rows.filter((r) => r.kind === 'goal' && r.text.trim() && !(r.contents || []).some((c) => c.text?.trim())).length,
+    0,
+  );
+  const namedThemes = themes.filter((t) => t.name?.trim() && t.abbr?.trim()).length;
 
   const outOfYear = [...form.themes, ...form.breaks].some((x) =>
     [x.start, x.end].some((d) => d && (d < yearRange.start || d > yearRange.end)),
@@ -263,7 +278,7 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
     themeScheduleIssue(themes, form.breaks) ||
     durationTheme ||
     branchScheduleIssue(form.branchTemplates || [], form.breaks, durationPolicy?.branch);
-  // EDU-52: chỉ khi bấm Ban hành mới bắt buộc chọn ngày cho mọi chủ đề
+  // Đã bấm Gửi duyệt / Ban hành: từ lúc này mới báo đỏ điều kiện gửi (thiếu ngày EDU-52, mục tiêu thiếu nội dung)
   const [requireDates, setRequireDates] = useState(false);
   const validate = (s, action) => {
     const e = {};
@@ -747,6 +762,17 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
                   }
                 />
               )}
+              {/* Hủy ở đúng chỗ nút Chỉnh sửa của trang xem; còn thay đổi chưa lưu thì hộp rời màn hỏi (Tiền 13/11/2026) */}
+              {existing && (
+                <button
+                  type="button"
+                  className="btn btn--sm btn--outline-primary"
+                  disabled={saver.saving || finishing}
+                  onClick={() => guard.leave(exitTo(`${basePath}/${existing.id}`))}
+                >
+                  <X size={16} aria-hidden /> Hủy
+                </button>
+              )}
               <button
                 type="button"
                 className="btn btn--sm btn--primary"
@@ -806,7 +832,7 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
                   <li key={issue.key}>
                     <button
                       type="button"
-                      className="link-btn"
+                      className="link-btn text-danger"
                       onClick={() => {
                         setFolded((current) => ({ ...current, [issue.section]: false }));
                         requestAnimationFrame(() => focusYearPlanIssue(planRoot.current, issue));
@@ -1044,7 +1070,23 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
           title="2. Mục tiêu nội dung giáo dục cuối độ tuổi"
           className="ga-plan-section--goals"
           {...fold('goals')}
-          actions={<span className="muted text-xs nowrap">{totalGoals} mục tiêu</span>}
+          actions={
+            <div className="row row--wrap">
+              {annual && canEdit && totalGoals === 0 && reusePlan && (
+                <button
+                  type="button"
+                  className="btn btn--sm btn--outline-primary"
+                  title={reusePlan.title}
+                  onClick={() => setImporting({ year: reusePlan.schoolYear, sourceId: reusePlan.id })}
+                >
+                  <Download size={16} aria-hidden /> Dùng lại mục tiêu năm {reusePlan.schoolYear}
+                </button>
+              )}
+              <span className="muted text-xs nowrap">
+                {totalGoals} mục tiêu{annual ? ` · ${goalsWithoutContent} chưa có nội dung` : ''}
+              </span>
+            </div>
+          }
         >
           {importReport?.unavailable.length > 0 && (
             <Notice>
@@ -1075,9 +1117,7 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
             canAssignContents={!annual}
             canEditContents={!annual}
             numbers={numbers}
-            ageGroupId={form.ageGroupId}
-            canSuggest={importState.current.allowed}
-            suggestionScope={form.id || id || 'new'}
+            showRequired={requireDates}
             onChange={(domains) => set({ domains })}
           />
         </Card>
@@ -1087,9 +1127,12 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
           {...fold('themes')}
           actions={
             annual && (
-              <button type="button" className="btn btn--sm btn--outline-primary" onClick={() => setImportingThemes(true)}>
-                <Download size={16} aria-hidden /> Lấy chủ đề từ kế hoạch có sẵn
-              </button>
+              <div className="row row--wrap">
+                <span className="muted text-xs nowrap">{namedThemes} chủ đề · tối thiểu 9</span>
+                <button type="button" className="btn btn--sm btn--outline-primary" onClick={() => setImportingThemes(true)}>
+                  <Download size={16} aria-hidden /> Lấy chủ đề từ kế hoạch có sẵn
+                </button>
+              </div>
             )
           }
         >
@@ -1156,7 +1199,8 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
             planLevel={planLevel}
             excludeId={form.id}
             defaultAgeGroupId={form.ageGroupId}
-            defaultYear={form.schoolYear}
+            defaultYear={importing.year || form.schoolYear}
+            defaultSourceId={importing.sourceId}
             onClose={() => setImporting(false)}
             onImport={importGoals}
           />

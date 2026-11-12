@@ -15,6 +15,8 @@ export function DayResources({ user, docKey, date, editable }) {
   const [version, setVersion] = useState(0);
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
+  // Phần III thu gọn / mở rộng như các phần khác, "Thu gọn tất cả" bấm được (Tiền 13/11/2026)
+  const [folded, setFolded] = useState(false);
   const [preview, setPreview] = useState(null);
   const [remove, setRemove] = useState(null);
   const attempt = useRef(null);
@@ -60,7 +62,7 @@ export function DayResources({ user, docKey, date, editable }) {
       input.value = '';
     });
   return (
-    <Card title="Học liệu theo mục hoạt động">
+    <Card title="III. Học liệu theo mục hoạt động" collapsed={folded} onToggle={() => setFolded((v) => !v)}>
       <p className="muted">Ảnh tối đa 5 MB · Video 100 MB · PDF/slide/tệp khác 20 MB. Dùng khi bấm "Dạy học ngày này".</p>
       {error && <Notice tone="warn">{error}</Notice>}
       {DAY_SECTIONS.map((section) => {
@@ -92,9 +94,7 @@ export function DayResources({ user, docKey, date, editable }) {
             ) : (
               <p className="muted">Chưa có học liệu.</p>
             )}
-            {preview && bound.some((r) => r.id === preview.id) && (
-              <LearningResourceViewer user={user} docKey={docKey} resource={preview} />
-            )}
+            {preview && bound.some((r) => r.id === preview.id) && <LearningResourceViewer user={user} docKey={docKey} resource={preview} />}
           </section>
         );
       })}

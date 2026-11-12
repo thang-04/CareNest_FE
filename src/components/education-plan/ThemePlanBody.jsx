@@ -3,9 +3,24 @@ import { Card } from '@/components/education-plan/eduUi';
 import { Cell, focusCell } from '@/components/education-plan/planUi';
 import { domainLabel } from '@/models/education-plan/educationPlanConstants';
 import { domainRoman, mtList, numberGoals } from '@/models/education-plan/goalTable';
-import { cardText, contentLinesOf, normalizeTheme, slotLabel, themeGoalBlocks, themeTree } from '@/models/education-plan/classPlan';
+import {
+  cardText,
+  contentLinesOf,
+  newCard,
+  normalizeTheme,
+  slotLabel,
+  themeGoalBlocks,
+  weekRows,
+} from '@/models/education-plan/classPlan';
+import { mapActivityCards } from '@/models/education-plan/activityImport.mjs';
 import { StatusBadge } from '@/components/ui/StatusBadge';
-import { Adjustments, RotateCcw } from '@/components/ui/icons';
+import { createPortal } from 'react-dom';
+import { Adjustments, Check, Download, Plus, RotateCcw, Sparkles, X } from '@/components/ui/icons';
+import { RowMenu } from '@/components/ui/RowMenu';
+import { Modal } from '@/components/ui/Modal';
+import { AiDraftTag } from '@/components/ui/AiDraftTag';
+import { AiWorkingOverlay } from '@/components/ui/AiWorkingOverlay';
+import ImportActivitiesModal from '@/components/education-plan/ImportActivitiesModal';
 import ThemeGoalPickerModal from '@/components/education-plan/ThemeGoalPickerModal';
 import ActivityCardEditor from '@/components/education-plan/ActivityCardEditor';
 
@@ -58,6 +73,12 @@ export function ThemePlanBody({
   flagOf = () => null,
   added = null,
   usedCellsOf = () => 0,
+  // Nhập nhanh (Tiền 13/11/2026): lấy hoạt động năm trước của lớp, AI gợi ý (bản giả), báo kết quả
+  loadPreviousActivities = null,
+  suggestActivities = null,
+  notify = () => {},
+  // Chỗ đặt menu "Lấy / gợi ý hoạt động" ở trái hàng nút của trang (phần tử DOM do trang cấp)
+  toolsTarget = null,
 }) {
   const blocks = themeGoalBlocks(yearPlan.domains, numberGoals(yearPlan.domains), themeId, draft?.customTicks);
   const goals = blocks.flatMap((b) => b.goals);
@@ -69,13 +90,56 @@ export function ThemePlanBody({
   );
   const cardsOf = (g) => cards.filter((c) => (c.goalIds || []).map(String).includes(String(g.id)));
   const [editing, setEditing] = useState(null);
-  const [view, setView] = useState('table');
-  const tree = themeTree(blocks, cards, (g) => contentLinesOf(rowOf(g).contents));
   const putCards = (next) => setField('activities', next);
+  // Nhớ loại giờ vừa dùng làm mặc định cho thẻ mới kế tiếp (nhập nhanh, Tiền 13/11/2026)
+  const [lastSlot, setLastSlot] = useState('');
   const saveCard = (card) => {
+    if (card.slot) setLastSlot(card.slot);
     putCards(cards.some((c) => c.id === card.id) ? cards.map((c) => (c.id === card.id ? card : c)) : [...cards, card]);
     setEditing(null);
   };
+  // Ô gõ nhanh: thẻ nhận loại giờ đang chọn, MT của dòng, tích sẵn mọi nội dung của MT; chưa chọn loại giờ ⇒ mở hộp đầy đủ
+  const allRefsOf = (g) => contentLinesOf(rowOf(g).contents).map((_, i) => `${g.id}:${i}`);
+  const quickAdd = (g, input) => {
+    const name = input.value.trim();
+    if (!name) return;
+    if (!lastSlot) setEditing({ card: null, goalIds: [g.id], name });
+    else putCards([...cards, newCard({ slot: lastSlot, name, goalIds: [g.id], contentRefs: allRefsOf(g) })]);
+    input.value = '';
+  };
+  const lineGoals = () => goals.map((g) => ({ id: g.id, no: g.no, text: g.text, lines: contentLinesOf(rowOf(g).contents) }));
+  const [importing, setImporting] = useState(false);
+  const importFrom = (source, picked) => {
+    const { cards: added, skipped } = mapActivityCards(picked, source.goals, lineGoals(), cards, newCard);
+    if (added.length) putCards([...cards, ...added]);
+    const skipText = skipped.map((x) => `${x.name} (${x.reason})`).join('; ');
+    notify(
+      `Đã thêm ${added.length} hoạt động${skipped.length ? ` · bỏ qua ${skipped.length}: ${skipText}` : ''}`,
+      added.length ? 'ok' : 'warn',
+    );
+    setImporting(false);
+  };
+  // AI gợi ý (EDU-20 mở rộng): chỉ cho MT chưa có hoạt động; mỗi gợi ý Dùng / Bỏ, chưa dùng thì chưa thành thẻ
+  const [ai, setAi] = useState({ busy: false, items: [] });
+  const askAi = async () => {
+    setAi({ busy: true, items: [] });
+    try {
+      const items = await suggestActivities({ themeName: currentTheme.name, goals: lineGoals().filter((g) => !cardsOf(g).length) });
+      setAi({ busy: false, items });
+    } catch (error) {
+      setAi({ busy: false, items: [] });
+      notify(error.message || 'Chưa gợi ý được, thử lại sau', 'err');
+    }
+  };
+  const takeAi = (list) => {
+    const next = list.map((it) => {
+      const g = goals.find((x) => String(x.id) === it.goalId);
+      return newCard({ slot: it.slot, name: it.name, goalIds: [it.goalId], contentRefs: g ? allRefsOf(g) : [] });
+    });
+    putCards([...cards, ...next]);
+    setAi((a) => ({ ...a, items: a.items.filter((it) => !list.includes(it)) }));
+  };
+  const dropAi = (list) => setAi((a) => ({ ...a, items: a.items.filter((it) => !list.includes(it)) }));
   // Trùng tên và loại giờ: chỉ cảnh báo (edge case)
   const dupes = cards.filter((c, i) => cards.findIndex((x) => x.slot === c.slot && x.name.trim() === c.name.trim()) !== i);
   // Mục I và II là hai thẻ riêng, mỗi thẻ thu gọn / mở được như các phần khác (Tiền 12/11/2026)
@@ -97,46 +161,100 @@ export function ThemePlanBody({
     <>
       <Card
         title="I. Mục tiêu, nội dung và hoạt động giáo dục"
+        // Dòng đếm tiến độ chữ xám luôn hiện như kế hoạch năm (Tiền 13/11/2026)
+        actions={
+          goals.length > 0 && (
+            <span className="muted text-xs nowrap">
+              {goals.length} mục tiêu · {goals.filter((g) => !cardsOf(g).length).length} chưa có hoạt động
+            </span>
+          )
+        }
         bodyClass={null}
         collapsed={foldedGoals}
         onToggle={() => setFoldedGoals((v) => !v)}
       >
         <div className="card__body">
-          <div className="ga-theme-goal-head mb-8">
-            {editable && (
-              <div className="row row--between row--wrap row--middle gap-2">
-                <div className="row row--wrap row--middle gap-2">
-                  <button type="button" className="btn btn--outline-primary btn--sm" onClick={() => setShowGoalModal(true)}>
-                    <Adjustments size={16} aria-hidden /> Tùy chọn mục tiêu cho chủ đề này
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn--outline-secondary btn--sm"
-                    onClick={resetToDefault}
-                    disabled={!hasCustomTicks}
-                    title="Khôi phục danh sách mục tiêu về nguyên bản theo kế hoạch năm"
+          {/* Gọn một dòng (Tiền 13/11/2026): menu Mục tiêu + loại giờ gõ nhanh; nút lấy/gợi ý hoạt động ở trái hàng nút */}
+          {editable && (
+            <div className="ga-theme-goal-head mb-8 row row--wrap row--middle gap-2">
+              <RowMenu
+                label="Mục tiêu của chủ đề"
+                text="Mục tiêu"
+                icon={<Adjustments size={16} aria-hidden />}
+                className="btn btn--sm btn--outline-primary"
+                items={[
+                  { label: 'Tùy chọn mục tiêu cho chủ đề này', icon: Adjustments, onClick: () => setShowGoalModal(true) },
+                  {
+                    label: 'Khôi phục mục tiêu mặc định của năm',
+                    icon: RotateCcw,
+                    onClick: resetToDefault,
+                    disabled: !hasCustomTicks,
+                  },
+                ]}
+              />
+              {goals.length > 0 && (
+                <label className="row row--middle gap-2 text-sm" title="Loại giờ gán cho hoạt động gõ nhanh trong bảng">
+                  <span className="nowrap">Gõ nhanh:</span>
+                  <select
+                    className="input"
+                    aria-label="Loại giờ khi gõ nhanh"
+                    value={lastSlot}
+                    onChange={(e) => setLastSlot(e.target.value)}
                   >
-                    <RotateCcw size={16} aria-hidden /> Khôi phục về mặc định mục tiêu sẵn có của năm
-                  </button>
-                </div>
-                {hasCustomTicks && (
-                  <div className="row row--wrap row--middle gap-2">
-                    <span className="chip chip--orange text-sm" title="Mục tiêu đã được tùy chỉnh khác với Kế hoạch năm">
-                      Đã tùy chỉnh mục tiêu
-                    </span>
-                  </div>
-                )}
-              </div>
+                    <option value="">Chọn loại giờ</option>
+                    {weekRows().map((r) => (
+                      <option key={r.key} value={r.key}>
+                        {r.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              {hasCustomTicks && (
+                <span className="chip chip--orange text-sm" title="Mục tiêu đã được tùy chỉnh khác với Kế hoạch năm">
+                  Đã tùy chỉnh mục tiêu
+                </span>
+              )}
+            </div>
+          )}
+          {editable &&
+            toolsTarget &&
+            (loadPreviousActivities || suggestActivities) &&
+            createPortal(
+              <RowMenu
+                label="Lấy và gợi ý hoạt động"
+                text="Lấy / gợi ý"
+                icon={<Download size={16} aria-hidden />}
+                className="btn btn--sm btn--outline-primary"
+                items={[
+                  ...(loadPreviousActivities
+                    ? [{ label: 'Lấy hoạt động năm trước', icon: Download, onClick: () => setImporting(true) }]
+                    : []),
+                  ...(suggestActivities
+                    ? [
+                        {
+                          label: 'Gợi ý hoạt động (AI)',
+                          icon: Sparkles,
+                          onClick: askAi,
+                          disabled: ai.busy || !goals.some((g) => !cardsOf(g).length),
+                        },
+                      ]
+                    : []),
+                ]}
+              />,
+              toolsTarget,
             )}
-          </div>
 
           {/* Nhắc dạng chữ đỏ nhỏ, căn phải như bước tạo chủ đề ở mục tiêu năm học, nằm ngay bên trên bảng */}
           {goals.length === 0 && <p className="text-danger text-sm text-right mb-8">Kế hoạch năm chưa tích nội dung nào vào chủ đề này.</p>}
           {/* MT chưa có thẻ thì kế hoạch tuần không có gợi ý, cuối chủ đề không phủ được MT đó */}
           {editable && goals.some((g) => !cardsOf(g).length) && (
-            <p className="text-danger text-sm text-right mb-8">
-              {mtList(goals.filter((g) => !cardsOf(g).length).map((g) => g.no))} chưa có hoạt động giáo dục nên kế hoạch tuần sẽ không có
-              gợi ý cho các MT này.
+            // Rút gọn: số MT + 5 MT đầu, đủ danh sách ở title (Tiền 13/11/2026)
+            <p className="text-danger text-sm text-right mb-8" title={mtList(goals.filter((g) => !cardsOf(g).length).map((g) => g.no))}>
+              {(() => {
+                const missing = goals.filter((g) => !cardsOf(g).length).map((g) => g.no);
+                return `${missing.length} MT chưa có hoạt động giáo dục (${mtList(missing.slice(0, 5))}${missing.length > 5 ? '…' : ''}) nên kế hoạch tuần sẽ không có gợi ý cho các MT này.`;
+              })()}
             </p>
           )}
           {editable && cards.some((c) => c.legacy && !c.slot) && (
@@ -145,30 +263,14 @@ export function ThemePlanBody({
           {editable && dupes.length > 0 && (
             <p className="text-danger text-sm text-right mb-8">Trùng hoạt động: {dupes.map((c) => cardText(c)).join('; ')}.</p>
           )}
-          {goals.length > 0 && (
-            <div className="row row--wrap gap-2 mb-8" role="group" aria-label="Cách xem">
-              {[
-                ['table', 'Bảng'],
-                ['tree', 'Dạng cây'],
-              ].map(([key, label]) => (
-                <button
-                  key={key}
-                  type="button"
-                  aria-pressed={view === key}
-                  className={`btn btn--sm ${view === key ? 'btn--primary' : 'btn--outline-primary'}`}
-                  onClick={() => setView(key)}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          )}
           {editing && (
             <ActivityCardEditor
               card={editing.card}
               goals={goals}
               contentsOf={(g) => rowOf(g).contents}
               defaultGoalIds={editing.goalIds || []}
+              defaultSlot={editing.card ? '' : lastSlot}
+              defaultName={editing.name || ''}
               usedCells={editing.card ? usedCellsOf(editing.card.id) : 0}
               onSave={saveCard}
               onDelete={(card) => {
@@ -179,6 +281,50 @@ export function ThemePlanBody({
             />
           )}
 
+          {importing && <ImportActivitiesModal load={loadPreviousActivities} onImport={importFrom} onClose={() => setImporting(false)} />}
+          {ai.busy && <AiWorkingOverlay text="AI đang gợi ý hoạt động…" />}
+          {ai.items.length > 0 && (
+            <Modal
+              open
+              size="xl"
+              title="Gợi ý hoạt động (AI)"
+              onClose={() => dropAi(ai.items)}
+              footer={
+                <>
+                  <button type="button" className="btn" onClick={() => dropAi(ai.items)}>
+                    <X size={16} aria-hidden /> Bỏ tất cả
+                  </button>
+                  <button type="button" className="btn btn--success" onClick={() => takeAi(ai.items)}>
+                    <Check size={16} aria-hidden /> Dùng tất cả
+                  </button>
+                </>
+              }
+            >
+              <AiDraftTag />
+              <p className="muted text-sm mb-12">Bấm ✓ để dùng, ✗ để bỏ. Hoạt động đã dùng vẫn sửa được như hoạt động gõ tay.</p>
+              <ul className="ga-ai-review">
+                {ai.items.map((it) => {
+                  const g = goals.find((x) => String(x.id) === it.goalId);
+                  return (
+                    <li key={it.goalId} className="ga-ai-review__item">
+                      <div className="ga-ai-review__week">
+                        <b>MT{g?.no}</b> <span className="muted text-sm">· {slotLabel(it.slot)}</span>
+                      </div>
+                      <div className="ga-ai-review__name">
+                        <ins>{it.name}</ins>
+                      </div>
+                      <button type="button" className="icon-btn" aria-label={`Dùng gợi ý cho MT${g?.no}`} onClick={() => takeAi([it])}>
+                        <Check size={16} aria-hidden />
+                      </button>
+                      <button type="button" className="icon-btn" aria-label={`Bỏ gợi ý cho MT${g?.no}`} onClick={() => dropAi([it])}>
+                        <X size={16} aria-hidden />
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </Modal>
+          )}
           {showGoalModal && (
             <ThemeGoalPickerModal
               open={showGoalModal}
@@ -192,34 +338,7 @@ export function ThemePlanBody({
               onResetDefault={resetToDefault}
             />
           )}
-          {view === 'tree' && (
-            // FR-004: MT → nội dung → thẻ; nội dung chưa có thẻ vàng, MT chưa có thẻ đỏ (chỉ cảnh báo)
-            <ul className="stack">
-              {tree.map((t) => (
-                <li key={t.goal.id}>
-                  <div className="fw-600">
-                    <span className="ga-goal-code">MT{t.goal.no}</span> {t.goal.text}{' '}
-                    {t.warn === 'red' && <span className="text-danger text-sm"> · chưa có hoạt động</span>}
-                  </div>
-                  <ul className="stack ga-goal-table__pad">
-                    {t.contents.map((c) => (
-                      <li key={c.index}>
-                        {c.text} {c.warn === 'yellow' && <span className="text-danger text-sm"> · chưa có hoạt động</span>}
-                        {c.cards.length > 0 && <CardChips cards={c.cards} editable={false} />}
-                      </li>
-                    ))}
-                    {t.unlinkedCards.length > 0 && (
-                      <li>
-                        <span className="muted">Chưa gắn nội dung</span>
-                        <CardChips cards={t.unlinkedCards} editable={false} />
-                      </li>
-                    )}
-                  </ul>
-                </li>
-              ))}
-            </ul>
-          )}
-          <div className="table-wrap" hidden={view === 'tree'}>
+          <div className="table-wrap">
             <table className="table ga-plan-table ga-goal-table" onMouseDown={focusCell}>
               <colgroup>
                 <col className="ga-goal-table__del" />
@@ -291,14 +410,28 @@ export function ThemePlanBody({
                             )
                           )}
                           {editable && (
-                            <div className="ga-goal-table__pad">
+                            <div className="ga-goal-table__pad row row--middle gap-1">
+                              <input
+                                className="input"
+                                name={`quick-activity-${g.id}`}
+                                autoComplete="off"
+                                aria-label={`Gõ nhanh hoạt động cho MT${g.no}`}
+                                placeholder="Gõ tên hoạt động, Enter"
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+                                    e.preventDefault();
+                                    quickAdd(g, e.currentTarget);
+                                  }
+                                }}
+                              />
                               <button
                                 type="button"
-                                className="btn btn--outline-primary btn--sm"
+                                className="icon-btn"
+                                title="Thêm hoạt động (chọn loại giờ, mục tiêu, nội dung)"
                                 aria-label={`Thêm hoạt động cho MT${g.no}`}
                                 onClick={() => setEditing({ card: null, goalIds: [g.id] })}
                               >
-                                + Thêm hoạt động
+                                <Plus size={16} aria-hidden />
                               </button>
                             </div>
                           )}

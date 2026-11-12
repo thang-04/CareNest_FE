@@ -29,7 +29,7 @@ const Card=({title,num,actions,children,className})=><section className={classNa
 const PageHead=({actions})=><header>{actions}</header>, FoldAllButton=()=>null, Field=({label,children})=><label>{label}{children}</label>, Notice=({children})=><p>{children}</p>;
 const GoalTable=({fixedCells,readOnly,canAssignContents})=> <div data-table="goals" data-fixed={fixedCells} data-locked={readOnly} data-assign={canAssignContents}/>, ThemeEventTable=({fixedFields,readOnly})=> <div data-table="themes" data-fixed={fixedFields} data-locked={readOnly}/>;
 const PlanTabs=()=> <div role="tablist"/>, Stepper=()=> <nav data-stepper="true"/>;
-const Download=()=>null, FileDown=()=>null, Save=()=>null, Upload=()=>null, ArrowLeft=()=>null, ArrowRight=()=>null;
+const Download=()=>null, FileDown=()=>null, Save=()=>null, X=()=>null, Upload=()=>null, ArrowLeft=()=>null, ArrowRight=()=>null;
 const ReviewActions=()=>null, VersionHistory=()=> <button data-history="true"/>, yearPlanLines=()=>[], LeaveConfirmModal=()=>null, fmtDate=(v)=>v;
 const Link=({to,children})=><a href={to}>{children}</a>;
 `;

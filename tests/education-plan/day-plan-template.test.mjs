@@ -164,21 +164,33 @@ test('FR-016, FR-017, SC-001, SC-005: file giáo án ngày cả tuần theo mẫ
     cls: { name: 'Chồi 1' },
   });
   const at = (s) => html.indexOf(s);
-  assert.ok(at('Đối với cô') > 0 && at('Góc phân vai') > at('Đối với cô') && at('KẾ HOẠCH NGÀY') > at('Góc phân vai'));
+  // Mẫu "Chủ đề gia đình ký số" (Tiền 13/11/2026): I. Chuẩn bị → II. Tiến hành (đón trẻ, thể dục sáng, bảng góc) → từng ngày I–V
+  assert.ok(at('I. Chuẩn bị') > 0 && at('Đối với cô') > at('I. Chuẩn bị') && at('II. Tiến hành') > at('Đối với phụ huynh'));
+  assert.ok(at('Góc phân vai') > at('3. Hoạt động góc') && at('Thứ hai') > at('Góc phân vai'));
   for (const s of [
-    '1. Hoạt động học',
-    '2. Hoạt động ngoài trời',
-    '3. Hoạt động góc',
-    '4. Hoạt động chiều',
-    'a) Mục đích, yêu cầu',
-    'b) Chuẩn bị',
-    'c) Tiến hành',
-    'II. Đánh giá trẻ trên ngày',
+    '1. Đón trẻ - trò chuyện sáng',
+    '2. Thể dục sáng',
+    'I. Hoạt động có chủ định',
+    'II. Hoạt động ngoài trời',
+    'III. Hoạt động góc',
+    'IV. Hoạt động chiều',
+    'V. Đánh giá trẻ trên ngày',
+    '1. Mục đích - yêu cầu',
+    '3. Tiến hành',
   ])
     assert.ok(html.includes(s), s);
-  assert.equal((html.match(/I\. Kế hoạch giáo dục ngày/g) || []).length, 5);
+  assert.equal((html.match(/V\. Đánh giá trẻ trên ngày/g) || []).length, 5);
   assert.ok(!html.includes('Kế hoạch điều chỉnh'));
   assert.ok(!html.includes('<th>Ghi chú</th>'));
+  // Góc trống không in thành dòng rỗng
+  const withEmpty = dayPlansFileHtml({
+    doc: { ...doc, corners: [...doc.corners, { id: 'b', name: '', content: '', aims: '', prep: '', steps: '' }] },
+    week: { no: 11, start: '2026-11-16', end: '2026-11-20', offDays: [] },
+    branchNo: 1,
+    branchName: 'Gia đình',
+    cls: { name: 'Chồi 1' },
+  });
+  assert.equal((withEmpty.match(/<td><b>\d+\. /g) || []).length, 1);
   const weekHtml = weekFileHtml({
     doc,
     week: { no: 11, start: '2026-11-16', end: '2026-11-20', offDays: [] },

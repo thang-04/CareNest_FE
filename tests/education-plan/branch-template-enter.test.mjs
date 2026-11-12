@@ -110,7 +110,7 @@ import {curriculumOptions} from ${JSON.stringify(import.meta.resolve('../../src/
 const useCurriculum=()=>({goals:[],contents:[],sources:[],loading:false,error:null,reload(){}});
 const useLayoutEffect=()=>{};
 import {removeThemeReferences} from ${JSON.stringify(import.meta.resolve('../../src/models/education-plan/planLevel.mjs'))};
-import {fillGoalLabels,goalDisplayLabel} from ${JSON.stringify(import.meta.resolve('../../src/models/education-plan/goalLabels.mjs'))};
+import {fillGoalLabels,goalDisplayLabel,isLabelGoal} from ${JSON.stringify(import.meta.resolve('../../src/models/education-plan/goalLabels.mjs'))};
 import {suggestBreakDates,suggestThemeDates} from ${JSON.stringify(import.meta.resolve('../../src/models/education-plan/importThemes.mjs'))};
 import {${source
   .match(/import \{([\s\S]*?)\} from '@\/models\/education-plan\/goalTable';/)[1]

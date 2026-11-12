@@ -1,6 +1,8 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowDown, ArrowUp, Check, Copy, Plus, Trash2 } from '@/components/ui/icons';
+import { createPortal } from 'react-dom';
+import { ArrowDown, ArrowUp, Check, Copy, Download, Plus, Sparkles, Trash2 } from '@/components/ui/icons';
+import { RowMenu } from '@/components/ui/RowMenu';
 import { AiDraftTag } from '@/components/ui/AiDraftTag';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { suggestLessonSteps } from '@/services/education-plan/educationPlanService';
@@ -253,15 +255,52 @@ export function WeekTab({
   const [focusCorner, setFocusCorner] = useState(null);
   useEffect(() => {
     if (!focusCorner) return;
-    document.querySelector(`textarea[aria-label="${CSS.escape(focusCorner)}"]`)?.focus();
+    document.querySelector(`[data-corner-id="${CSS.escape(focusCorner)}"] textarea`)?.focus();
     setFocusCorner(null);
   }, [focusCorner]);
+  // Bộ gõ tiếng Việt đang ghép chữ (Telex của Windows…) để trình duyệt chèn "\n" vào ô khi Enter: nhớ Enter thường rồi
+  // đổi "\n" đó thành thao tác Enter của bảng ở onChange (cornerInput). Shift+Enter vẫn xuống dòng trong ô nhiều dòng.
+  const plainEnter = useRef(false);
   const cornerKeys = (i) => (e) => {
-    if (e.key !== 'Enter' || e.shiftKey || e.nativeEvent.isComposing) return;
+    if (e.key !== 'Enter') {
+      plainEnter.current = false;
+      return;
+    }
+    plainEnter.current = !e.shiftKey;
+    if (e.shiftKey || e.isComposing || e.nativeEvent?.isComposing) return;
     e.preventDefault();
-    if (!corners0[i]?.name?.trim()) return;
-    editCorners((d) => (d.corners.splice(i + 1, 0, newCorner()), d));
-    setFocusCorner(`Tên góc ${i + 2}`);
+    plainEnter.current = false;
+    cornerEnter(i);
+  };
+  // fields: giá trị mới nhất của dòng (onChange chưa kịp vào draft) để Enter ngay sau khi gõ vẫn tạo dòng
+  const cornerEnter = (i, fields = corners0[i]) => {
+    const current = fields;
+    if (!current) return;
+    if (!['name', 'content', 'aims', 'prep', 'steps'].some((field) => current[field]?.trim())) return;
+    const next = corners0[i + 1];
+    if (next && !['name', 'content', 'aims', 'prep', 'steps'].some((field) => next[field]?.trim())) {
+      setFocusCorner(next.id);
+      return;
+    }
+    const corner = newCorner();
+    editCorners((d) => (d.corners.splice(i + 1, 0, corner), d));
+    setFocusCorner(corner.id);
+  };
+  /** onChange của ô bảng góc: bỏ "\n" do Enter qua bộ gõ (tên góc không bao giờ có xuống dòng) rồi xử lý như Enter. */
+  const cornerInput = (i, c, field, max) => (v) => {
+    const prev = c?.[field] || '';
+    let next = v;
+    let enter = false;
+    if (field === 'name' ? v.includes('\n') : plainEnter.current && v.split('\n').length > prev.split('\n').length) {
+      let at = 0;
+      while (at < prev.length && v[at] === prev[at]) at += 1;
+      next = field === 'name' ? v.replace(/\r?\n/g, '') : v.slice(0, at) + v.slice(at + 1);
+      enter = plainEnter.current || field === 'name';
+    }
+    plainEnter.current = false;
+    if (max) next = next.slice(0, max);
+    if (c) setCorner(c.id, field, next);
+    if (enter) cornerEnter(i, { ...c, [field]: next });
   };
   const moveCorner = (i, to) =>
     editCorners((d) => {
@@ -586,18 +625,20 @@ export function WeekTab({
               {(editable ? [...corners, { id: cornerTrail.current, trail: true }] : corners).map((c, i) => {
                 if (c.trail)
                   return (
-                    <tr key={c.id}>
+                    <tr key={c.id} data-corner-id={c.id}>
                       <td className="ga-cell-editable">
                         <Cell
                           editable
                           value=""
                           label="Tên góc mới"
                           placeholder="Nhập tên góc mới"
-                          onChange={(v) =>
-                            editCorners(
-                              (d) => ((d.corners = [...(d.corners || []), { ...newCorner(), id: c.id, name: v.slice(0, NAME_MAX) }]), d),
-                            )
-                          }
+                          onChange={(v) => {
+                            const name = v.replace(/\r?\n/g, '').slice(0, NAME_MAX);
+                            plainEnter.current = false;
+                            if (name.trim())
+                              editCorners((d) => ((d.corners = [...(d.corners || []), { ...newCorner(), id: c.id, name }]), d));
+                          }}
+                          onKeyDown={cornerKeys(i)}
                         />
                       </td>
                       <td colSpan={5} />
@@ -605,14 +646,14 @@ export function WeekTab({
                   );
                 const picks = (draft.picks?.['goc.all'] || []).filter((p) => p.cornerId === c.id);
                 return (
-                  <tr key={c.id}>
+                  <tr key={c.id} data-corner-id={c.id}>
                     <td className={editable ? 'ga-cell-editable' : ''}>
                       <Cell
                         editable={editable}
                         value={c.name}
                         label={`Tên góc ${i + 1}`}
                         placeholder="Tên góc"
-                        onChange={(v) => setCorner(c.id, 'name', v.slice(0, NAME_MAX))}
+                        onChange={cornerInput(i, c, 'name', NAME_MAX)}
                         onKeyDown={cornerKeys(i)}
                       />
                     </td>
@@ -631,7 +672,8 @@ export function WeekTab({
                           editable={editable}
                           value={c.content}
                           label={`Nội dung ${c.name || `góc ${i + 1}`}`}
-                          onChange={(v) => setCorner(c.id, 'content', v)}
+                          onChange={cornerInput(i, c, 'content')}
+                          onKeyDown={cornerKeys(i)}
                         />
                       </ActivityCell>
                     </td>
@@ -645,7 +687,8 @@ export function WeekTab({
                           editable={editable}
                           value={c[f]}
                           label={`${name} ${c.name || `góc ${i + 1}`}`}
-                          onChange={(v) => setCorner(c.id, f, v)}
+                          onChange={cornerInput(i, c, f)}
+                          onKeyDown={cornerKeys(i)}
                         />
                         {(c[f] || '').length > TEXT_MAX && <p className="field__error ga-goal-table__pad">Tối đa {TEXT_MAX} ký tự.</p>}
                       </td>
@@ -871,6 +914,8 @@ export function DayTab({
   flagOf = () => null,
   offLabel = null,
   emptySections = [],
+  // Chỗ đặt menu "Lấy / gợi ý nội dung" ở trái hàng nút của trang (phần tử DOM do trang cấp)
+  toolsTarget = null,
 }) {
   const [aiBusy, setAiBusy] = useState(false);
   const [askDelete, setAskDelete] = useState(null);
@@ -963,43 +1008,42 @@ export function DayTab({
       return x;
     });
   const missing = DAY_SECTIONS.filter((s) => emptySections.includes(s.key));
+  const toolsMenu = (
+    <RowMenu
+      label="Lấy và gợi ý nội dung ngày"
+      text={aiBusy ? 'AI đang soạn…' : 'Lấy / gợi ý'}
+      icon={<Download size={16} aria-hidden />}
+      className="btn btn--sm btn--outline-primary"
+      items={[
+        { label: 'Lấy từ kế hoạch tuần', icon: Download, onClick: fillFromWeek, disabled: !fills.length },
+        ...(reuse.length > 0
+          ? [
+              {
+                label: `Dùng lại bài đã soạn (${ddmm(reuse[0].date)})`,
+                icon: Copy,
+                onClick: () => update((x) => copyLessonSteps(x, index, reuse[0].rows)),
+              },
+            ]
+          : []),
+        ...(hoc.subject || hoc.topic ? [{ label: 'AI gợi ý tiến trình giờ học', icon: Sparkles, onClick: aiSteps, disabled: aiBusy }] : []),
+      ]}
+    />
+  );
   return (
     <>
+      {editable && toolsTarget && createPortal(toolsMenu, toolsTarget)}
       <div className="section-title center">{longDay(d.date, index)}</div>
       {/* BE:EDU-41: ngày trùng đợt nghỉ không bắt buộc soạn */}
       {offLabel && <p className="text-sm text-warning center">Ngày nghỉ: {offLabel}</p>}
-      {(editable || assessTo) && (
+      {(assessTo || (editable && !toolsTarget)) && (
         <div className="row row--wrap gap-2">
           {assessTo && (
             <Link className="btn btn--outline-primary btn--sm" to={assessTo}>
               Đánh giá trẻ ngày này
             </Link>
           )}
-          {editable && (
-            <button
-              type="button"
-              className="btn btn--outline-primary btn--sm"
-              disabled={!fills.length}
-              title={fills.length ? undefined : 'Kế hoạch tuần chưa có gì mới để lấy'}
-              onClick={fillFromWeek}
-            >
-              Lấy từ kế hoạch tuần
-            </button>
-          )}
-          {editable && reuse.length > 0 && (
-            <button
-              type="button"
-              className="btn btn--outline-primary btn--sm"
-              onClick={() => update((x) => copyLessonSteps(x, index, reuse[0].rows))}
-            >
-              Dùng lại bài đã soạn ({ddmm(reuse[0].date)})
-            </button>
-          )}
-          {editable && (hoc.subject || hoc.topic) && (
-            <button type="button" className="btn btn--outline-primary btn--sm" disabled={aiBusy} onClick={aiSteps}>
-              {aiBusy ? 'AI đang soạn…' : 'AI gợi ý tiến trình giờ học'}
-            </button>
-          )}
+          {/* Gom các nút lấy / gợi ý vào một menu ở trái hàng nút như trang kế hoạch chủ đề (Tiền 13/11/2026) */}
+          {editable && !toolsTarget && toolsMenu}
         </div>
       )}
       {d.aiSteps?.length > 0 && (
@@ -1026,11 +1070,14 @@ export function DayTab({
       {/* FR-024: MT trong ngày = hợp MT của các hoạt động xếp vào ngày (gồm ô cả tuần, bảng góc) */}
       {dayGoals.length > 0 && (
         <p className="text-sm">
-          MT trong ngày:{' '}
-          {dayGoals.map((g) => (
-            <span key={g.id} className="chip chip--blue" title={g.text}>
-              MT{g.no}
-            </span>
+          MT trong ngày: {/* Chữ xanh, cách nhau dấu phẩy như Bảng phủ MT (Tiền 13/11/2026) */}
+          {dayGoals.map((g, i) => (
+            <Fragment key={g.id}>
+              {i > 0 && ', '}
+              <span className="ga-goal-code" title={g.text}>
+                MT{g.no}
+              </span>
+            </Fragment>
           ))}
         </p>
       )}
