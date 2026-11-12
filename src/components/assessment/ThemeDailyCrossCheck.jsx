@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { SidePanel } from '@/components/ui/SidePanel';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
 import { PeriodSummaryTable } from '@/components/assessment/PeriodSummaryTable';
@@ -7,6 +7,8 @@ import { formatDate, todayInput } from '@/utils/format';
 
 const dayMonth = (iso) => formatDate(iso).slice(0, 5);
 const goalLabel = (g) => g.name || g.description || `MT ${g.id}`;
+const commentRowId = (date) => `dg-xcheck-nx-${date}`;
+const commentText = (day) => [day.comment, day.behaviorNote && `Ghi chú hành vi: ${day.behaviorNote}`].filter(Boolean).join('\n');
 
 /**
  * Đối chiếu đánh giá hằng ngày của một trẻ trong thời gian chủ đề (Cần yêu cầu 10/11/2026): cô xem từng mục tiêu
@@ -40,7 +42,13 @@ export function ThemeDailyCrossCheck({ child, theme, onClose }) {
     });
     return [...map.values()].sort((a, b) => a.key.localeCompare(b.key, 'vi', { numeric: true }));
   }, [days]);
-  const comments = useMemo(() => days.filter((day) => day.comment), [days]);
+  // Nhận xét cô ghi ở Đánh giá hằng ngày (comment) và ghi chú hành vi (behaviorNote)
+  const comments = useMemo(() => days.filter((day) => day.comment || day.behaviorNote), [days]);
+  const [activeDate, setActiveDate] = useState(null);
+  const openComment = (date) => {
+    setActiveDate(date);
+    document.getElementById(commentRowId(date))?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  };
 
   return (
     <SidePanel open={!!child} wide title={child ? `Đối chiếu đánh giá hằng ngày · ${child.fullName}` : ''} onClose={onClose}>
@@ -105,23 +113,63 @@ export function ThemeDailyCrossCheck({ child, theme, onClose }) {
                       })}
                     </tr>
                   ))}
+                  <tr>
+                    <td className="dg-xcheck__goal">Nhận xét của cô</td>
+                    <td />
+                    {timeline.map((day) => {
+                      if (day.absent) {
+                        return (
+                          <td key={day.date} className="center dg-xcheck__absent" title="Vắng">
+                            V
+                          </td>
+                        );
+                      }
+                      if (!day.comment && !day.behaviorNote) return <td key={day.date} />;
+                      return (
+                        <td key={day.date} className="center dg-xcheck__nx" title={commentText(day)}>
+                          <button type="button" className="link-btn" onClick={() => openComment(day.date)}>
+                            NX
+                          </button>
+                        </td>
+                      );
+                    })}
+                  </tr>
                 </tbody>
               </table>
             </div>
           )}
 
-          {comments.length > 0 && (
-            <section>
-              <h3 className="section-title">Nhận xét của cô</h3>
-              <ul className="dg-xcheck__comments">
-                {comments.map((day) => (
-                  <li key={day.date}>
-                    <span className="fw-600">{formatDate(day.date)}</span>: {day.comment}
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
+          <section>
+            <h3 className="section-title">Nhận xét của cô</h3>
+            {comments.length === 0 ? (
+              <p className="muted text-sm">Chưa có nhận xét trong thời gian chủ đề.</p>
+            ) : (
+              <div className="table-wrap">
+                <table className="table table--grid table--compact">
+                  <thead>
+                    <tr>
+                      <th>Ngày</th>
+                      <th>Nhận xét</th>
+                      <th>Ghi chú hành vi</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {comments.map((day) => (
+                      <tr
+                        key={day.date}
+                        id={commentRowId(day.date)}
+                        className={activeDate === day.date ? 'dg-xcheck__nx-row--active' : undefined}
+                      >
+                        <td className="nowrap">{formatDate(day.date)}</td>
+                        <td>{day.comment || '—'}</td>
+                        <td>{day.behaviorNote || '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
 
           <PeriodSummaryTable data={d.summary} />
         </div>
