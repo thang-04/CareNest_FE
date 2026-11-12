@@ -13,7 +13,7 @@ import { getEducationPlans } from '@/services/education-plan/educationPlanServic
 import { getEvaluations } from '@/services/assessment/assessmentService';
 import { ATTENDANCE_STATUS } from '@/models/attendance/attendanceConstants';
 import { PICKUP_STATUS } from '@/models/pickup/pickupConstants';
-import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
+import { EDU_STATUS, isEduReviewPending } from '@/models/education-plan/educationPlanConstants';
 import { EVAL_KIND, EVAL_STATUS, PERIOD_TYPE } from '@/models/assessment/assessmentConstants';
 import { todayInput } from '@/utils/format';
 import { needsDemoLabel } from '@/services/demoSource';
@@ -119,7 +119,7 @@ export function ClassTodayPanel() {
   const waitingPickup = (pickupQ.data?.rows || []).filter((r) => r.status === PICKUP_STATUS.WAITING).length;
   const lessons = lessonsQ.data || [];
   const lessonsToFix = lessons.filter((l) => [EDU_STATUS.DRAFT, EDU_STATUS.REJECTED].includes(l.status)).length;
-  const lessonsWaiting = lessons.filter((l) => [EDU_STATUS.PENDING_TL, EDU_STATUS.PENDING_VP].includes(l.status)).length;
+  const lessonsWaiting = lessons.filter((l) => isEduReviewPending(l.status)).length;
   const pendingEvaluations = (evaluationsQ.data || []).filter((e) => e.status !== EVAL_STATUS.CONFIRMED);
   const evaluationsToReview = pendingEvaluations.length;
   // Chỉ dẫn tới các màn học kỳ và cuối năm còn sử dụng.
@@ -220,7 +220,7 @@ export function ClassTodayPanel() {
             },
             {
               key: 'lessons',
-              to: '/education/class',
+              to: '/education/theme-plans',
               icon: BookOpenCheck,
               title: 'Giáo án của lớp',
               meta: metaOf(lessonsQ, `Nháp hoặc bị từ chối cần hoàn thiện · ${lessonsWaiting} giáo án đang chờ duyệt`),

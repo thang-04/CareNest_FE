@@ -10,7 +10,7 @@ import { Tabs } from '@/components/ui/Tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { ROLES } from '@/models/User';
-import { useClassAssessmentDetail, useClassAssessmentOverview } from '@/hooks/assessment/useAssessment';
+import { useClassAssessmentDetail, useClassAssessmentOverview, useDailyAssessmentClasses } from '@/hooks/assessment/useAssessment';
 import { OVERVIEW_PERIOD, OVERVIEW_PERIOD_LABELS } from '@/models/assessment/assessmentConstants';
 import { HEALTH_SYMPTOMS } from '@/utils/dailyHealthValidation';
 import { DateInput } from '@/components/form/DateInput';
@@ -33,13 +33,17 @@ const signsText = (signs) =>
     .map(([key, n]) => `${HEALTH_SYMPTOMS[key] || key} (${n})`)
     .join(', ');
 
+/**
+ * Kiến thức kỹ năng: số lượt mục tiêu Đạt / Chưa đạt trong kỳ (mỗi MT của mỗi hoạt động là một lượt). Ngày trẻ vắng BE
+ * tính mọi MT của giáo án ngày đó là Chưa đạt (OBS-01); trẻ có mặt chưa đánh giá không có lượt nào nên để "–".
+ */
 function SkillsCell({ dat, chuaDat }) {
   const total = dat + chuaDat;
   if (!total) return <span className="muted">–</span>;
   return (
-    <span className="row gap-1 nowrap" title={`Đạt ${pct(dat, total)} · Chưa đạt ${pct(chuaDat, total)}`}>
-      <span className="chip chip--green">{dat}</span>
-      <span className="chip chip--red">{chuaDat}</span>
+    <span className="row gap-1 nowrap" title={`${total} lượt mục tiêu: Đạt ${pct(dat, total)}, Chưa đạt ${pct(chuaDat, total)}`}>
+      {dat > 0 && <span className="chip chip--green">{dat} Đạt</span>}
+      {chuaDat > 0 && <span className="chip chip--red">{chuaDat} Chưa đạt</span>}
     </span>
   );
 }
@@ -58,7 +62,7 @@ const CRITERIA = [
 function CriteriaStrip({ values, notMet, flags }) {
   const items = [
     ...CRITERIA.map((c) => ({ key: c.key, label: c.label, value: values[c.key] || 0, danger: true })),
-    { key: 'skills', label: 'KTKN chưa đạt', value: notMet || 0, danger: true },
+    { key: 'skills', label: 'Lượt mục tiêu chưa đạt', value: notMet || 0, danger: true },
     { key: 'flags', label: 'Cờ', value: flags || 0 },
   ];
   return (
@@ -76,8 +80,9 @@ function CriteriaStrip({ values, notMet, flags }) {
 const DETAIL_COLS = 5 + CRITERIA.length;
 
 /** Một mục của một trẻ: vắng thì "–", không có gì thì trống, cần chú ý thì chữ đỏ (kỳ nhiều ngày: số ngày). */
-function ConcernCell({ days, present, multiDay, note }) {
-  if (!present) return <span className="muted">–</span>;
+// Trống = đã đánh giá và bình thường; "–" = vắng hoặc chưa được đánh giá ngày nào (Cần yêu cầu 10/11/2026)
+function ConcernCell({ days, present, assessed, multiDay, note }) {
+  if (!present || !assessed) return <span className="muted">–</span>;
   if (!days) return null;
   return <span className="text-danger">{multiDay ? `${days} ngày` : note}</span>;
 }
@@ -124,7 +129,9 @@ function ClassDetail({ classId, period, date, schoolYear, onBack }) {
                 {CRITERIA.map((c) => (
                   <th key={c.key}>{c.label}</th>
                 ))}
-                <th>Đạt / Chưa đạt</th>
+                <th title="Số lượt mục tiêu theo từng ngày cô chấm Đạt / Chưa đạt (ngày trẻ vắng tính Chưa đạt). Bảng đánh giá chủ đề xét Đạt theo tỷ lệ cả chủ đề nên số có thể khác.">
+                  Kiến thức kỹ năng
+                </th>
                 <th className="num">Cờ</th>
                 <th>Nhận xét</th>
               </tr>
@@ -155,6 +162,7 @@ function ClassDetail({ classId, period, date, schoolYear, onBack }) {
                         <ConcernCell
                           days={r[c.child] || 0}
                           present={r.presentDays}
+                          assessed={r.assessedDays}
                           multiDay={multiDay}
                           note={c.key === 'health' && r.healthDays ? signsText(r.signs) : c.note}
                         />
@@ -206,6 +214,9 @@ export default function ClassAssessmentOverviewPage() {
   const { schoolYear } = useSchoolYear();
   const { user } = useAuth();
   const isPrincipal = user?.role === ROLES.PRINCIPAL;
+  // Lớp mình dạy (GV, tổ trưởng): lớp khác trong ô chọn ghi "(chỉ xem)"; BGH không dạy lớp nên không ghi
+  const { classes: ownClasses } = useDailyAssessmentClasses({ enabled: !isLeader(user) });
+  const own = new Set(isLeader(user) ? [] : ownClasses.map((c) => String(c.id)));
   const today = todayIso();
   const [period, setPeriod] = useState(OVERVIEW_PERIOD.DAY);
   const [date, setDate] = useState(today);
@@ -289,7 +300,7 @@ export default function ClassAssessmentOverviewPage() {
                   <option value="">Tất cả điểm trường</option>
                   {campusOptions.map((c) => (
                     <option key={c.id} value={c.id}>
-                      {c.name}
+                      {c.fullName || c.name}
                     </option>
                   ))}
                 </select>
@@ -316,6 +327,7 @@ export default function ClassAssessmentOverviewPage() {
                   <option key={c.id} value={c.id}>
                     {c.name}
                     {multiCampus && !campusId ? ` · ${campusName(c.campusId)}` : ''}
+                    {own.size && !own.has(String(c.id)) ? ' (chỉ xem)' : ''}
                   </option>
                 ))}
               </select>

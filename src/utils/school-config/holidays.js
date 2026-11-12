@@ -16,12 +16,16 @@ export const holidayDays = ({ startDate, endDate }) => {
   return n;
 };
 
+// Như BE SchoolHolidayRequest.name @Size(max = 100)
+export const HOLIDAY_NAME_MAX = 100;
+
 /** Hỗ trợ nhập liệu đợt nghỉ (BE kiểm lại): đủ ô, từ ≤ đến, trong năm học, không quá dài, không chồng đợt đã có. */
 export function validateHoliday(draft, year, existing = []) {
   const e = {};
   if (!isIsoDate(draft.startDate)) e.startDate = 'Chọn ngày bắt đầu';
   if (!isIsoDate(draft.endDate)) e.endDate = 'Chọn ngày kết thúc';
   if (!draft.name?.trim()) e.name = 'Nhập tên đợt nghỉ';
+  else if (draft.name.trim().length > HOLIDAY_NAME_MAX) e.name = `Tên đợt nghỉ tối đa ${HOLIDAY_NAME_MAX} ký tự`;
   if (e.startDate || e.endDate) return e;
   if (draft.endDate < draft.startDate) e.endDate = 'Ngày kết thúc không được trước ngày bắt đầu';
   else if (draft.startDate < year.startDate || draft.endDate > year.endDate) e.startDate = 'Đợt nghỉ phải nằm trong năm học';

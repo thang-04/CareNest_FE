@@ -70,7 +70,11 @@ export function EvaluationListView({ kind }) {
   const campusClasses = scopedClasses.filter((c) => !campusId || String(c.campusId) === campusId);
   const groupOptions = (ageGroups || []).filter((g) => campusClasses.some((c) => String(c.ageGroupId) === String(g.id)));
   const classOptions = campusClasses.filter((c) => !ageGroupId || String(c.ageGroupId) === ageGroupId);
-  const selectedClass = classOptions.find((c) => String(c.classId ?? c.id) === classId);
+  // Tổ trưởng / GV vào thẳng lớp mình đang dạy (Cần chốt 10/11/2026); HT, PHT vẫn tự chọn điểm trường, lớp
+  const ownClass =
+    pickYearEndClass && !leader ? classOptions.find((c) => c.teaches) || (classOptions.length === 1 ? classOptions[0] : null) : null;
+  const shownClassId = classId || (ownClass ? String(ownClass.classId ?? ownClass.id) : '');
+  const selectedClass = classOptions.find((c) => String(c.classId ?? c.id) === shownClassId);
   const evaluationClassId = pickYearEndClass ? (selectedClass?.classId ?? selectedClass?.id) : classId;
   const yearEndReadOnly = pickYearEndClass && (leader || (SCHOOL_CONFIG_API && !selectedClass?.teaches));
   const periodType = defaultPeriodType;
@@ -227,7 +231,7 @@ export function EvaluationListView({ kind }) {
                 <select
                   className="select"
                   aria-label="Lớp"
-                  value={selectedClass ? classId : ''}
+                  value={selectedClass ? shownClassId : ''}
                   disabled={classScope.loading || !classOptions.length}
                   onChange={(e) => applyFilters({ classId: e.target.value, tab: 'ALL' })}
                 >
@@ -236,6 +240,7 @@ export function EvaluationListView({ kind }) {
                     <option key={c.classId ?? c.id} value={c.classId ?? c.id}>
                       {c.name}
                       {!campusId && campusOptions.length > 1 && campusName(c.campusId) ? ` · ${campusName(c.campusId)}` : ''}
+                      {!leader && c.teaches === false ? ' (chỉ xem)' : ''}
                     </option>
                   ))}
                 </select>,
@@ -357,7 +362,7 @@ export function EvaluationListView({ kind }) {
                             : filtered
                               ? 'Không có hồ sơ nào trong phạm vi hoặc kỳ đã chọn.'
                               : yearEnd
-                                ? 'Bản nháp cuối năm được tạo từ ngày 1 tháng cuối của năm học.'
+                                ? 'Bản nháp cuối năm được tạo khi học kỳ II kết thúc.'
                                 : semester
                                   ? 'Bản nháp được tạo khi học kỳ kết thúc. Nếu học kỳ đã kết thúc mà chưa có, kiểm tra ngày học kỳ ở Cấu hình thời gian.'
                                   : 'Bản nháp được tạo tự động khi tháng kết thúc.'

@@ -19,7 +19,10 @@ const toOption = (y) => ({
   id: y.id,
   label: (y.name || y.id).replace('-', ' - '),
   status: y.status,
-  statusLabel: STATUS_LABELS[y.status] || '',
+  // BE CFG-YR-05: năm sắp diễn ra đã tới ngày mở chuẩn bị
+  preparing: !!y.preparing,
+  prepDate: y.prepDate || null,
+  statusLabel: y.preparing ? 'Đang chuẩn bị' : STATUS_LABELS[y.status] || '',
   startDate: y.startDate || null,
   endDate: y.endDate || null,
   semester1Start: y.semester1Start || null,

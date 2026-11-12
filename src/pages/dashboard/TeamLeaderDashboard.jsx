@@ -99,7 +99,7 @@ export default function TeamLeaderDashboard() {
             <ShortList
               rows={toFix.slice(0, 5).map((t) => ({
                 key: t.id,
-                to: '/education/class',
+                to: '/education/theme-plans',
                 icon: BookOpenCheck,
                 code: t.code,
                 title: t.name,

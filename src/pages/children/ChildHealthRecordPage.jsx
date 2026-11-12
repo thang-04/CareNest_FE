@@ -27,8 +27,8 @@ const kindLabelOf = (m) =>
     .join(' · ');
 
 /**
- * Sổ sức khỏe tối giản (user yêu cầu 2026-11-04): một bảng các lần khám, cân đo với kết luận sức khỏe (bác sĩ hoặc mức BMI — HLT-19);
- * xem chi tiết theo loại: phiếu khám Phụ lục II đầy đủ, hoặc số đo của kỳ cân đo.
+ * Sổ sức khỏe tối giản (user yêu cầu 2026-11-04): một bảng các lần khám, cân đo kẻ ô như phiếu Tiếp nhận trẻ (2026-11-10) với kết luận
+ * sức khỏe (đợt khám: bác sĩ; kỳ cân đo: mức BMI — HLT-19); xem chi tiết theo loại: phiếu khám Phụ lục II đầy đủ, hoặc số đo.
  */
 export default function ChildHealthRecordPage() {
   const { id } = useParams();
@@ -161,21 +161,35 @@ export default function ChildHealthRecordPage() {
             }
           />
         ) : (
-          <div className="table-wrap tr-table-flat">
-            <table className="table table--grid">
+          <div className="table-wrap">
+            <table className="table table--grid tr-record-table">
               <caption className="sr-only">Các lần khám, cân đo của {child.fullName}</caption>
+              <colgroup>
+                <col className="tr-record-table__col--tt" />
+                <col />
+                <col />
+                <col />
+                <col />
+                <col />
+              </colgroup>
               <thead>
                 <tr>
-                  <th>Tên đợt khám</th>
-                  <th>Ngày khám</th>
-                  <th>Người nhập</th>
-                  <th>Kết luận sức khỏe</th>
-                  <th className="cell--actions">Thao tác</th>
+                  <th scope="col" className="num">
+                    TT
+                  </th>
+                  <th scope="col">Tên đợt khám</th>
+                  <th scope="col">Ngày khám</th>
+                  <th scope="col">Người nhập</th>
+                  <th scope="col">Kết luận sức khỏe</th>
+                  <th scope="col" className="cell--actions">
+                    Thao tác
+                  </th>
                 </tr>
               </thead>
               <tbody>
-                {measurements.map((m) => (
+                {measurements.map((m, i) => (
                   <tr key={m.id}>
+                    <td className="num">{i + 1}</td>
                     <td>
                       <div className="fw-600">{m.campaignName || 'Ngoài đợt khám'}</div>
                       {kindLabelOf(m) && <div className="muted text-xs">{kindLabelOf(m)}</div>}

@@ -311,42 +311,15 @@
   color: var(--color-danger-fg);
 }
 
-/* Sắp xếp kéo-thả (components/ui/Sortable, dnd-kit): tay nắm ↕ có viền; khi kéo, dòng gốc thành ô giữ chỗ tô xanh
-   (đi theo vị trí sẽ thả), bản nhấc lên bám theo chuột; dòng vừa đổi chỗ nháy sáng */
+/* Tay nắm dùng cùng nút icon; chỉ đổi con trỏ cho thao tác kéo-thả. */
 .drag-handle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   flex: none;
-  width: var(--space-8);
-  height: var(--space-8);
-  padding: 0;
-  border: 1px solid var(--color-primary-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-primary-soft);
-  color: var(--color-primary);
   cursor: grab;
   touch-action: none;
-  transition:
-    background var(--duration-fast) var(--ease-out),
-    color var(--duration-fast) var(--ease-out),
-    transform var(--duration-fast) var(--ease-out);
 }
-.drag-handle:hover {
-  background: var(--color-primary);
-  color: var(--color-primary-fg);
-  transform: scale(1.06);
-}
-.drag-handle:active {
-  cursor: grabbing;
-}
-.drag-handle:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 3px var(--color-focus-ring);
-}
+.drag-handle:active,
 .drag-handle--grabbed {
-  background: var(--color-primary);
-  color: var(--color-primary-fg);
+  cursor: grabbing;
 }
 .sortable-item {
   position: relative;
@@ -3249,6 +3222,99 @@ button.stat-card .stat-card__label::after {
   font-size: var(--fs-xs);
   color: var(--text-2);
   white-space: nowrap;
+}
+/* Thanh tiến độ nhiều trạng thái (SegmentedProgress): đoạn nối tiếp trên một rãnh, chú giải chấm màu + số đếm bên dưới */
+.seg-progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+/* Rãnh là SVG co theo bề rộng (preserveAspectRatio none); đoạn là <rect> tô bằng fill, chấm chú giải tô bằng nền cùng tông */
+.seg-progress__track {
+  display: block;
+  width: 100%;
+  height: 12px;
+  overflow: hidden;
+  border-radius: var(--radius-full);
+  background: var(--skeleton);
+}
+.seg-progress__bar--green {
+  fill: var(--tone-green);
+}
+.seg-progress__bar--blue {
+  fill: var(--tone-blue);
+}
+.seg-progress__bar--orange {
+  fill: var(--tone-orange);
+}
+.seg-progress__bar--red {
+  fill: var(--tone-red);
+}
+.seg-progress__bar--gray {
+  fill: var(--tone-gray);
+}
+.seg-progress__dot--green {
+  background: var(--tone-green);
+}
+.seg-progress__dot--blue {
+  background: var(--tone-blue);
+}
+.seg-progress__dot--orange {
+  background: var(--tone-orange);
+}
+.seg-progress__dot--red {
+  background: var(--tone-red);
+}
+.seg-progress__dot--gray {
+  background: var(--tone-gray);
+}
+.seg-progress__dot--rest {
+  background: var(--skeleton);
+  box-shadow: inset 0 0 0 1px var(--line-muted);
+}
+.seg-progress--compact {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: calc(var(--space-16) * 2);
+}
+.seg-progress--compact .seg-progress__track {
+  flex: 1;
+  height: 10px;
+}
+/* Chữ "x/y" cố định bề rộng, căn phải: các thanh trong cùng cột bảng dài bằng nhau */
+.seg-progress--compact .progress__label {
+  min-width: var(--space-10);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.seg-progress__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-6);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.seg-progress__legend li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  font-size: var(--fs-sm);
+}
+.seg-progress__dot {
+  flex: 0 0 auto;
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-full);
+}
+.seg-progress__name {
+  color: var(--text-2);
+}
+.seg-progress__value {
+  font-weight: var(--fw-semibold);
+  font-variant-numeric: tabular-nums;
 }
 
 /* ---------- Search box, form grid, misc (shared) ---------- */

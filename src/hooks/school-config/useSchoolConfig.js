@@ -1,21 +1,22 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { useAsync } from '@/hooks/useAsync';
 import {
-  searchStaffAccounts,
   getCampusDetail,
   getCampusesWithStats,
   getCutoffSetting,
+  getPlacements,
+  getPrepClasses,
   getRolePermissions,
   getSchoolYearById,
   getSchoolYears,
+  getStaffAccounts,
   getStructure,
   getTeacherAssignments,
   getTeamLeaders,
   getViceAssignments,
   getVicePermissions,
-  getStaffAccounts,
   getYearReadiness,
-  getPlacements,
+  searchStaffAccounts,
 } from '@/services/school-config/schoolConfigService';
 import { getRooms } from '@/services/masterDataService';
 
@@ -34,6 +35,16 @@ export function useSchoolYearItem(id, { live = true } = {}) {
     enabled: !!id,
   });
   return { year: data, loading: !!id && loading, error, reload };
+}
+
+/** Lớp năm đang chuẩn bị (CFG-YR-05) của người xem kèm trẻ đã xếp; yearId trống ⇒ không gọi. */
+export function usePrepClasses(yearId) {
+  const { user } = useAuth();
+  const { data, loading, error, reload } = useAsync(() => getPrepClasses(yearId, user), [yearId, user?.id], {
+    refreshOnDataChange: true,
+    enabled: !!yearId,
+  });
+  return { prep: data, loading: !!yearId && loading, error, reload };
 }
 
 export function useSchoolStructure(schoolYear, campusId) {

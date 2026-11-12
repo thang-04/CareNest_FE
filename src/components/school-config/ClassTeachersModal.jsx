@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Save } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useToast } from '@/contexts/ToastContext';
 import { Modal } from '@/components/ui/Modal';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
@@ -13,6 +14,10 @@ import { ClassTeachersPicker, toggleTeacher } from '@/components/school-config/C
 export function ClassTeachersModal({ cls, teachers, classesOf, onClose }) {
   const { user } = useAuth();
   const toast = useToast();
+  const { schoolYear, schoolYears } = useSchoolYear();
+  // Lớp của năm đang học: đúng 2 GV, có chủ nhiệm (BE SCH-04) — báo ngay dưới ô trước khi lưu
+  const yearId = cls.schoolYear ?? schoolYear;
+  const yearActive = schoolYears.find((y) => String(y.id) === String(yearId))?.status === 'ACTIVE';
   const [form, setForm] = useState({ teacherIds: [...cls.teacherIds], homeroomTeacherId: cls.homeroomTeacherId || '' });
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
@@ -25,7 +30,7 @@ export function ClassTeachersModal({ cls, teachers, classesOf, onClose }) {
   const [confirmRemove, setConfirmRemove] = useState(false);
 
   const submit = () => {
-    const e = validateClassTeachers(form);
+    const e = validateClassTeachers(form, { yearActive });
     setErrors(e);
     if (hasErrors(e)) return;
     // Bỏ chọn hết giáo viên = gỡ toàn bộ giáo viên khỏi lớp: hỏi lại trước khi lưu

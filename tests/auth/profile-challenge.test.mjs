@@ -21,11 +21,13 @@ test('profile normalizes account identity and prioritizes supported server roles
     username: 'staff-test',
     roles: ['TEACHER', 'PARENT', 'VICE_PRINCIPAL', 'PRINCIPAL', 'TEACHER', 'TEAM_LEADER'],
     assignments: [],
+    schoolWidePermissions: ['ATTENDANCE_VIEW', 'ATTENDANCE_VIEW'],
   });
   assert.equal(user.id, '17');
   assert.equal(user.role, 'PRINCIPAL');
   assert.deepEqual(user.roles, ['TEACHER', 'PARENT', 'VICE_PRINCIPAL', 'PRINCIPAL']);
   assert.equal(user.profileEditable, false);
+  assert.deepEqual(user.schoolWidePermissions, ['ATTENDANCE_VIEW']);
 });
 
 test('each supported web role has deterministic priority independent of server ordering', () => {

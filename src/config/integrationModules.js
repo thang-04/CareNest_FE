@@ -116,10 +116,15 @@ export const INTEGRATION_MODULES = {
     files: ['src/services/schoolService.js'],
     facades: ['src/services/schoolService.js'],
   },
+  // Hồ sơ trẻ, sức khỏe trên BE (nhánh G94-180): plan docs/plans/active/2026-11-11-children-module-be-wiring.md
   children: {
-    source: 'demo',
+    source: 'api',
     routes: ['/children'],
-    files: ['src/services/children/api/childrenApi.js', 'src/services/children/api/healthCheckApi.js'],
+    files: [
+      'src/services/children/api/childrenApi.js',
+      'src/services/children/api/healthCheckApi.js',
+      'src/services/http/schoolYearIds.js',
+    ],
     facades: ['src/services/children/childrenService.js', 'src/services/children/healthCheckService.js'],
   },
   pickup: {
@@ -206,7 +211,8 @@ export const INTEGRATION_MODULES = {
     facades: ['src/services/kitchen/kitchenService.js'],
   },
   notifications: {
-    source: 'demo',
+    // Spec 003: thông báo kế hoạch giáo dục từ BE (GET /me/notifications)
+    source: 'api',
     routes: ['/notifications'],
     files: ['src/services/notificationService.js'],
     facades: ['src/services/notificationService.js'],

@@ -7,7 +7,6 @@ import {
   CONCLUSION_MODE,
   EXAM_STEPS,
   FOLLOW_UP_FINDING,
-  FOLLOW_UP_FINDING_HINTS,
   FOLLOW_UP_FINDING_LABELS,
 } from '@/models/children/healthExamForm';
 import { needsParentOpinion } from '@/utils/children/healthExamValidation';
@@ -187,7 +186,6 @@ const followUpConclusionRows = ({ c, set, setMany, errors, disabled, id }) => {
           value={finding}
           onChange={(v) => set('exam.conclusion.followUpFinding', v)}
           error={errors['exam.conclusion.followUpFinding']}
-          hint={FOLLOW_UP_FINDING_HINTS[finding]}
           disabled={disabled}
         />
       ),
@@ -202,7 +200,6 @@ const followUpConclusionRows = ({ c, set, setMany, errors, disabled, id }) => {
           options={TB_OPTION}
           values={c.tbRisk ? ['tbRisk'] : []}
           onToggle={toggleTb}
-          hint={'Tích ô này thì không chọn được "Chưa ghi nhận thêm bất thường".'}
           disabled={disabled}
         />
       ),
@@ -236,7 +233,6 @@ const followUpConclusionRows = ({ c, set, setMany, errors, disabled, id }) => {
           value={c.specialty}
           onChange={(v) => set('exam.conclusion.specialty', v)}
           error={errors['exam.conclusion.specialty']}
-          hint="Ghi nếu bác sĩ đề nghị khám chuyên khoa, ví dụ Mắt"
           disabled={disabled}
         />
       ),
@@ -349,7 +345,6 @@ const standardConclusionRows = ({ c, set, setMany, errors, disabled, id }) => {
           value={c.specialty}
           onChange={(v) => set('exam.conclusion.specialty', v)}
           error={errors['exam.conclusion.specialty']}
-          hint="Ví dụ: Mắt, Tai mũi họng, Nhi khoa – khám phát triển"
           disabled={disabled}
         />
       ),
@@ -399,7 +394,6 @@ export function ExamConclusionStep({ form, set, setMany, errors, reviewPoints, r
           value={c.doctorName}
           onChange={(v) => set('exam.conclusion.doctorName', v)}
           error={errors['exam.conclusion.doctorName']}
-          hint="Họ tên bác sĩ ký phiếu"
           disabled={disabled}
         >
           <datalist id={id('doctors')}>
@@ -423,7 +417,6 @@ export function ExamConclusionStep({ form, set, setMany, errors, reviewPoints, r
           value={c.parentOpinion}
           onChange={(v) => set('exam.conclusion.parentOpinion', v)}
           error={errors['exam.conclusion.parentOpinion']}
-          hint={`Kết quả ở mức Cần theo dõi sát: ghi ý kiến của ${form.exam.admin.companion?.fullName || 'người đi cùng'} sau khi nghe bác sĩ, ví dụ đồng ý đưa trẻ đi khám chuyên khoa.`}
           disabled={disabled}
         />
       ),
@@ -441,7 +434,6 @@ export function ExamConclusionStep({ form, set, setMany, errors, reviewPoints, r
           value={form.reason}
           onChange={(v) => set('reason', v)}
           error={errors.reason}
-          hint="Lịch sử sửa lưu người sửa, thời điểm, giá trị cũ và mới."
           disabled={disabled}
         />
       ),
@@ -451,16 +443,7 @@ export function ExamConclusionStep({ form, set, setMany, errors, reviewPoints, r
   return (
     <>
       <ExamReviewCard points={reviewPoints} stale={reviewStale} />
-      <ExamSheetCard
-        title={EXAM_STEPS[4].label}
-        info={
-          <>
-            Ghi đúng lời bác sĩ đã kết luận và đã nói với người đi cùng trẻ. Hệ thống không tự kết luận.
-            {mode === CONCLUSION_MODE.FOLLOW_UP &&
-              ' Phiếu này đã kết luận theo mẫu cũ (so với vấn đề đang theo dõi), sửa phiếu vẫn giữ mẫu đó.'}
-          </>
-        }
-      >
+      <ExamSheetCard title={EXAM_STEPS[4].label}>
         <ExamSheetTable label={EXAM_SECTIONS.conclusion}>
           <ExamSheetBand primary>{EXAM_SECTIONS.conclusion}</ExamSheetBand>
           <ExamSheetRows rows={rows} />

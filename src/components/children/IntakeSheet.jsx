@@ -1,12 +1,13 @@
-import { Children, cloneElement, useId } from 'react';
+import { Children, cloneElement, useEffect, useId, useRef, useState } from 'react';
 import { FormField } from '@/components/form/FormField';
 import { ExamSheetBand, ExamSheetTable } from './exam/ExamFields';
 import { PortraitPicker } from './PortraitPicker';
 
-export function IntakeSheet({ title, children }) {
+/** band=false: bỏ dải tiêu đề khi khung bọc ngoài đã có tên (thẻ phụ huynh); title vẫn là tên bảng cho trình đọc màn hình. */
+export function IntakeSheet({ title, children, band = true }) {
   return (
     <ExamSheetTable label={title}>
-      <ExamSheetBand primary>{title}</ExamSheetBand>
+      {band && <ExamSheetBand primary>{title}</ExamSheetBand>}
       {Children.toArray(children).map((child, index) => cloneElement(child, { sheet: true, number: index + 1 }))}
     </ExamSheetTable>
   );
@@ -85,7 +86,7 @@ export function IntakeChoiceField({ name, options, value, onChange, disabled, re
   return (
     <IntakeField required={required} {...props}>
       <fieldset className="tr-fieldset">
-        <div className="tr-exam-sheet__options">
+        <div className={`tr-exam-sheet__options${options.length <= 2 ? ' tr-exam-sheet__options--pair' : ''}`}>
           {options.map((option) => (
             <label key={option.value} className="radio">
               <input
@@ -101,6 +102,162 @@ export function IntakeChoiceField({ name, options, value, onChange, disabled, re
           ))}
         </div>
       </fieldset>
+    </IntakeField>
+  );
+}
+
+/**
+ * Ô bảng cho một nhóm radio kèm chi tiết điều kiện (khai báo sức khỏe khi tiếp nhận: chọn "Có" ⇒ ô nhập thêm hiện ra).
+ * children = chi tiết hiện khi đang chọn (chips, ô nhập phụ, ngày); hiển thị ngay dưới nhóm radio trong cùng ô, như ô kết quả của
+ * phiếu khám. number do IntakeSheet ghi vào.
+ */
+export function IntakeChoiceRow({ number, label, name, options, value, onChange, required, error, hint, children }) {
+  const id = useId();
+  const describedBy = error ? `${id}-error` : hint ? `${id}-hint` : undefined;
+  return (
+    <tr>
+      <td className="num">{number}</td>
+      <th scope="row" id={`${id}-label`}>
+        {label}
+        {required && <span className="req">*</span>}
+      </th>
+      <td>
+        <fieldset className="tr-fieldset" aria-labelledby={`${id}-label`} aria-describedby={describedBy}>
+          <div className={`tr-exam-sheet__options${options.length <= 2 ? ' tr-exam-sheet__options--pair' : ''}`}>
+            {options.map((o) => (
+              <label key={o.value} className="radio">
+                <input type="radio" name={name} value={o.value} checked={value === o.value} onChange={() => onChange(o.value)} />
+                {o.label}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+        {children ? <div className="tr-exam-sheet__cell-detail">{children}</div> : null}
+        {error ? (
+          <span className="field__error" id={`${id}-error`} role="alert">
+            {error}
+          </span>
+        ) : (
+          hint && (
+            <span className="field__hint" id={`${id}-hint`}>
+              {hint}
+            </span>
+          )
+        )}
+      </td>
+    </tr>
+  );
+}
+
+/**
+ * Hàng giá trị chỉ xem của bảng tiếp nhận (bước Xem lại & xác nhận, tóm tắt khai báo): TT | nhãn | giá trị.
+ * Khác IntakeField (đóng FormField + ô nhập) ở chỗ ô kết quả chỉ hiện nội dung đọc, nên dùng cho màn xem lại.
+ */
+export function IntakeSheetValueRow({ number, label, children, required = false }) {
+  return (
+    <tr>
+      <td className="num">{number}</td>
+      <th scope="row">
+        {label}
+        {required && <span className="req">*</span>}
+      </th>
+      <td>{children}</td>
+    </tr>
+  );
+}
+
+/**
+ * Ô nhập tự do kèm dropdown gợi ý (click vào ô hiện danh sách, gõ để lọc; bỏ dấu, không phân biệt hoa thường).
+ * suggestions: danh sách chuỗi cố định. Giữ giá trị người nhập tự do — không chọn vẫn nhập được.
+ */
+export function IntakeSuggestField({ value, onChange, suggestions = [], maxLength = 100, placeholder, disabled, ...props }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const inputRef = useRef(null);
+  const blurTimer = useRef(null);
+  const valueRef = useRef(value);
+  valueRef.current = value;
+  const id = useId();
+  const norm = (s) =>
+    String(s || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .replace(/đ/g, 'd');
+  const q = norm(query.trim());
+  const filter = q ? suggestions.filter((s) => norm(s).includes(q)) : suggestions;
+  const showList = open && filter.length > 0;
+
+  // preventDefault trên mousedown giữ focus ở input, tránh blur đóng list trước khi chọn được.
+  const onItemMouseDown = (s) => {
+    onChange(s);
+    setQuery(s);
+    setOpen(false);
+  };
+  // Cleanup timer blur khi unmount.
+  useEffect(() => () => clearTimeout(blurTimer.current), []);
+  // Giá trị đổi từ ngoài (reset form, chọn tỉnh ⇒ xoá phường): ô cập nhật theo, trừ khi đang gõ.
+  useEffect(() => {
+    if (document.activeElement !== inputRef.current) setQuery(value ?? '');
+  }, [value]);
+
+  return (
+    <IntakeField {...props}>
+      <div className="tr-intake-suggest">
+        <div className={`tr-intake-suggest__control ${showList ? 'tr-intake-suggest__control--open' : ''}`}>
+          <input
+            id={id}
+            ref={inputRef}
+            className="input"
+            value={query}
+            maxLength={maxLength}
+            placeholder={placeholder}
+            disabled={disabled}
+            role="combobox"
+            aria-haspopup="listbox"
+            aria-expanded={showList}
+            aria-autocomplete="list"
+            onFocus={() => {
+              clearTimeout(blurTimer.current);
+              blurTimer.current = null;
+              setQuery(value ?? '');
+              setOpen(true);
+            }}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              onChange(e.target.value);
+              setOpen(true);
+            }}
+            onBlur={() => {
+              // Click ra ngoài: đóng list, đồng bộ ô về giá trị đang chọn (value) — không xoá.
+              blurTimer.current = setTimeout(() => {
+                setQuery(valueRef.current ?? '');
+                setOpen(false);
+                blurTimer.current = null;
+              }, 150);
+            }}
+          />
+          <span className="tr-intake-suggest__caret" aria-hidden="true" />
+        </div>
+        {showList && (
+          <ul className="tr-intake-suggest__list" role="listbox">
+            {filter.map((s) => (
+              <li key={s} role="option" aria-selected={String(value) === s}>
+                <button
+                  type="button"
+                  className="tr-intake-suggest__item"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    onItemMouseDown(s);
+                  }}
+                >
+                  {s}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </IntakeField>
   );
 }
