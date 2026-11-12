@@ -264,8 +264,10 @@ export default function ParentActivationPage() {
                   >
                     <span className="pa-class__top">
                       <span className="pa-class__name">{g.name}</span>
-                      {g.missing > 0 && <span className="pa-dot" aria-label="Còn bé chưa có tài khoản" />}
-                      <span className="pa-class__count">{g.total} bé</span>
+                      <span className="pa-class__meta">
+                        {g.missing > 0 && <span className="pa-dot" aria-label="Còn bé chưa có tài khoản" />}
+                        <span className="pa-class__count">{g.total} bé</span>
+                      </span>
                     </span>
                     <span className="pa-bar" aria-hidden="true">
                       <i style={{ width: `${Math.round((g.withAccount / g.total) * 100)}%` }} />

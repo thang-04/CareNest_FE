@@ -115,6 +115,8 @@
 }
 .pa-class {
   display: grid;
+  /* Phần tên giãn hết chỗ thừa ⇒ thanh tiến độ và dòng phụ cùng một độ cao giữa các thẻ trong hàng */
+  grid-template-rows: 1fr auto auto;
   gap: var(--space-3);
   width: 100%;
   min-height: 100%;
@@ -142,9 +144,10 @@
 .pa-todo__link:focus-visible {
   box-shadow: var(--focus-ring);
 }
+/* Tên lớp dài xuống dòng; chấm + số bé luôn thẳng hàng với dòng đầu của tên (baseline) ở mọi thẻ */
 .pa-class__top {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: var(--space-3);
 }
 .pa-class__name {
@@ -152,8 +155,16 @@
   min-width: 0;
   overflow-wrap: anywhere;
   font-weight: var(--fw-semibold);
-  text-overflow: ellipsis;
+}
+.pa-class__meta {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: baseline;
+  gap: var(--space-2);
   white-space: nowrap;
+}
+.pa-class__meta .pa-dot {
+  align-self: center;
 }
 .pa-class__count,
 .pa-class__sub {

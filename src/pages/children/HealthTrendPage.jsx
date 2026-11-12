@@ -92,8 +92,6 @@ export default function HealthTrendPage() {
   }, [record, period]);
 
   const child = record?.child;
-  // Lần đo mới nhất (mọi thời gian, không theo bộ lọc khoảng): chỉ hiển thị số BE trả, không tính chênh lệch
-  const latest = useMemo(() => [...(record?.measurements || [])].sort((a, b) => b.date.localeCompare(a.date))[0] || null, [record]);
   // Thang biểu đồ theo nhóm tuổi của lớp hiện tại; trẻ chưa xếp lớp thì theo năm sinh
   const ageGroupId =
     record?.cls?.ageGroupId ||
@@ -194,7 +192,7 @@ export default function HealthTrendPage() {
             </div>
           ) : (
             <>
-              {/* Thẻ đầu: trẻ đang xem + lần đo gần nhất, đọc nhanh trước khi xem biểu đồ (user yêu cầu 2026-11-11) */}
+              {/* Thẻ đầu: trẻ đang xem + chuyển trẻ trước/sau */}
               <section className="card tr-trend-head" aria-label={`Tổng quan ${child.fullName}`}>
                 <div className="tr-trend-head__top">
                   <div className="row gap-3">
@@ -218,38 +216,6 @@ export default function HealthTrendPage() {
                     </Link>
                   </div>
                 </div>
-                {latest ? (
-                  <dl className="tr-trend-kpis">
-                    <div>
-                      <dt>Lần đo gần nhất</dt>
-                      <dd>{formatDate(latest.date)}</dd>
-                    </div>
-                    <div>
-                      <dt>Chiều cao</dt>
-                      <dd>
-                        {formatNumber(latest.heightCm)} <small>cm</small>
-                      </dd>
-                    </div>
-                    <div>
-                      <dt>Cân nặng</dt>
-                      <dd>
-                        {formatNumber(latest.weightKg)} <small>kg</small>
-                      </dd>
-                    </div>
-                    <div>
-                      <dt>BMI</dt>
-                      <dd>{formatNumber(latest.bmi)}</dd>
-                    </div>
-                    <div className="tr-trend-kpis__warn">
-                      <dt>Cảnh báo</dt>
-                      <dd>
-                        <HealthWarningCell measurement={latest} />
-                      </dd>
-                    </div>
-                  </dl>
-                ) : (
-                  <p className="muted text-sm tr-trend-kpis">Trẻ chưa có số đo.</p>
-                )}
               </section>
               <section className="card mt-16">
                 <div className="tr-chart-toolbar">
