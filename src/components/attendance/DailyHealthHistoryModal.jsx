@@ -78,7 +78,7 @@ export function DailyHealthHistoryModal({ open, child, date, history, loading, e
           <NotificationLine entries={history.entries} />
           {/* Mỗi lần đo 1 dòng, mới nhất ở trên; 5–6 lần vẫn vừa một màn */}
           <div className="table-wrap dd-hist">
-            <table className="table table--grid table--compact">
+            <table className="table table--grid table--compact dd-roll">
               <thead>
                 <tr>
                   <th>Giờ</th>
