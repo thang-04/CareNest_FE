@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { ChildAvatar } from '@/components/ChildAvatar';
-import { ArrowLeft, ChevronDown, Lock, Save, UserX } from '@/components/ui/icons';
+import { ChevronDown, Lock, Save, UserX } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useDailyAssessment, useDailyAssessmentClasses } from '@/hooks/assessment/useAssessment';
@@ -464,10 +464,6 @@ export default function DailyGoalAssessmentPage() {
 
       {writable && rows.length > 0 && (
         <div className="page-actions">
-          {/* Quay lại Hoạt động chung cùng lớp, ngày (hỏi nếu còn thay đổi chưa lưu) */}
-          <Link className="btn" to={`/assessment/daily?classId=${currentClassId}&date=${shownDate}`}>
-            <ArrowLeft size={16} /> Quay lại Hoạt động chung
-          </Link>
           <div className="spacer" />
           <div className="row gap-2">
             {dirtyIds.length > 0 && (
