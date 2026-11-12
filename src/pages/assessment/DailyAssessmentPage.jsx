@@ -15,6 +15,7 @@ import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { EmptyState, ErrorState, SkeletonRows, Spinner } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
 import { AbsentRows, BehaviorsCell, HealthCell, MealsCell } from '@/components/assessment/DailyAssessmentCells';
+import { Cell } from '@/components/ui/TableCell';
 import { EMOTION, EMOTION_LABELS } from '@/models/assessment/assessmentConstants';
 import { NAP, NAP_LABELS, PARTICIPATION, PARTICIPATION_LABELS } from '@/models/assessment/dailyObservationOptions';
 import { createGeneralDraft, getGeneralDirtyIds, getGeneralSaveEntries, isGeneralRecorded } from '@/utils/assessment/dailyGeneralDraft';
@@ -355,15 +356,12 @@ export default function DailyAssessmentPage() {
                             </button>
                           </td>
                           <td className="dg-col-note">
-                            <input
-                              className={`input dg-input dg-note ${commentInvalid ? 'input--error' : ''}`}
+                            {/* Cùng ô nhận xét như màn Kiến thức kỹ năng (tự giãn dòng, BE giới hạn độ dài) */}
+                            <Cell
+                              editable={!disabled}
                               value={d.comment}
-                              maxLength={500}
-                              disabled={disabled}
-                              placeholder="Tùy chọn"
-                              onChange={(e) => update(id, { comment: e.target.value })}
-                              aria-label={`Nhận xét trong ngày cho ${name}`}
-                              aria-invalid={commentInvalid || undefined}
+                              label={`Nhận xét trong ngày cho ${name}`}
+                              onChange={(v) => update(id, { comment: v })}
                             />
                             {commentInvalid && <div className="field__error">{commentError}</div>}
                           </td>

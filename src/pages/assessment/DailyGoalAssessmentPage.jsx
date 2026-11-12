@@ -426,7 +426,6 @@ export default function DailyGoalAssessmentPage() {
                               editable={!disabled}
                               value={d.comment}
                               label={`Nhận xét trong ngày cho ${r.fullName}`}
-                              placeholder="Tùy chọn"
                               onChange={(v) => setComment(id, v)}
                             />
                             {commentInvalid && <div className="field__error">{commentError}</div>}
@@ -541,7 +540,6 @@ export default function DailyGoalAssessmentPage() {
                           editable={!disabled}
                           value={d.comment}
                           label={`Nhận xét trong ngày cho ${panelRow.fullName}`}
-                          placeholder="Tùy chọn"
                           onChange={(v) => setComment(id, v)}
                         />
                       </td>

@@ -141,12 +141,31 @@
   padding-right: var(--space-4);
   background-position: right var(--space-1) center;
 }
-.dg-note:focus {
-  position: absolute;
-  z-index: 3;
-  top: var(--space-1);
-  right: var(--space-2);
-  width: 16rem;
+/* Ô Nhận xét Hoạt động chung dùng chung Cell như màn Kiến thức kỹ năng: ô chữ tự giãn dòng trong ô bảng */
+.dg-sheet .dg-col-note .ga-cell-input {
+  display: block;
+  width: 100%;
+  min-height: var(--input-height);
+  padding: var(--space-2);
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: var(--lh-normal);
+  resize: none;
+  overflow: hidden;
+}
+@supports (field-sizing: content) {
+  .dg-sheet .dg-col-note textarea.ga-cell-input {
+    field-sizing: content;
+  }
+}
+.dg-sheet .dg-col-note .ga-cell-input:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+.dg-sheet .dg-col-note .ga-cell-text {
+  white-space: pre-line;
 }
 .dg-cell-btn {
   display: inline-flex;
