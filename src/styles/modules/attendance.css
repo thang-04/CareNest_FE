@@ -61,6 +61,10 @@
   top: 0;
   z-index: 1;
   background: var(--color-surface);
+  /* Bảng gộp viền: vạch của ô dính không đi theo khi cuộn, vẽ lại vạch trên/dưới để tách tiêu đề với dòng trẻ */
+  box-shadow:
+    inset 0 1px 0 var(--color-text-disabled),
+    inset 0 -1px 0 var(--color-text-disabled);
 }
 .dd-reception__table .table {
   width: 100%;

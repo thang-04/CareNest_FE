@@ -366,7 +366,7 @@ export default function DailyGoalAssessmentPage() {
             <EmptyState icon={UserX} title="Không có trẻ có mặt" description="Cả lớp vắng ngày này." />
           ) : (
             <div className="card__body">
-              <div className="table-wrap">
+              <div className="table-wrap dg-skills-wrap">
                 <table className="table ga-plan-table ga-goal-table dg-day-table dg-day-table--skills" onMouseDown={focusCell}>
                   {/* Độ rộng cột dùng lại lớp của bảng mục tiêu năm: Trẻ, các hoạt động chia đều, Nhận xét */}
                   <colgroup>
