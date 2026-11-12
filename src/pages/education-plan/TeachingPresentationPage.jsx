@@ -6,10 +6,9 @@ import { PageHead, Notice, EduStatusBadge } from '@/components/education-plan/ed
 import { LoadingState } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
 import { LearningResourceViewer } from '@/components/education-plan/LearningResourceViewer';
-import { themeRowOf } from '@/components/education-plan/ThemePlanBody';
 import { numberGoals } from '@/models/education-plan/goalTable';
-import { themeGoalBlocks, themeActivities, teachingDayPicks, teachingDayUnlinked } from '@/models/education-plan/classPlan';
-import { activitySignature, matchDayActivities, resourceMatches } from '@/models/education-plan/learningResources.mjs';
+import { addDays, themeGoalBlocks, themeActivities, teachingDayPicks, teachingDayUnlinked } from '@/models/education-plan/classPlan';
+import { activitySignature, activitySource, matchDayActivities, resourceMatches } from '@/models/education-plan/learningResources.mjs';
 import { learningResourceService } from '@/services/education-plan/learningResourceService';
 
 export default function TeachingPresentationPage() {
@@ -27,8 +26,9 @@ function Presentation() {
   const weekKey = query.get('week');
   const date = query.get('date');
   const week = weekPlans.find((w) => w.classId === classId && w.themeId === themeId && w.weekStart === weekKey);
-  const day = date ? week?.days?.findIndex((d) => d.date === date) : null;
-  const scopeValid = (!weekKey && !date) || (!!week && (!date || day >= 0));
+  // Dạy học / trình chiếu chỉ theo từng ngày (Tiền 12/11/2026): bắt buộc tuần + ngày (Thứ 2–6 của tuần đó)
+  const day = date && weekKey ? ([0, 1, 2, 3, 4].find((i) => addDays(weekKey, i) === date) ?? -1) : -1;
+  const scopeValid = !!week && day >= 0;
   const [items, setItems] = useState([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -40,16 +40,22 @@ function Presentation() {
   const [fullError, setFullError] = useState('');
   const activities = useMemo(() => {
     if (!doc || !yearPlan) return [];
-    const all = themeActivities(themeGoalBlocks(yearPlan.domains, numberGoals(yearPlan.domains), themeId), (g) => themeRowOf(doc, g));
-    return weekKey && week ? [...matchDayActivities(all, teachingDayPicks(week, day)), ...teachingDayUnlinked(week, day)] : all;
-  }, [doc, yearPlan, themeId, weekKey, week, day]);
+    const all = themeActivities(themeGoalBlocks(yearPlan.domains, numberGoals(yearPlan.domains), themeId), doc);
+    return week && day >= 0 ? [...matchDayActivities(all, teachingDayPicks(week, day)), ...teachingDayUnlinked(week, day)] : [];
+  }, [doc, yearPlan, themeId, week, day]);
   useEffect(() => {
     if (!doc) return undefined;
     let alive = true;
     setLoading(true);
     Promise.all([
       learningResourceService.list(user, doc.id),
-      Promise.all(Object.entries(doc.rows || {}).map(async ([id, row]) => [id, await activitySignature(row.activities)])),
+      // Chữ ký theo từng hoạt động (tên thẻ, hoặc ô chữ cũ của MT) — BE R9
+      Promise.all(
+        (yearPlan ? themeActivities(themeGoalBlocks(yearPlan.domains, numberGoals(yearPlan.domains), themeId), doc) : []).map(async (a) => [
+          a.id,
+          await activitySignature(activitySource(doc, a.id)),
+        ]),
+      ),
     ])
       .then(([rows, sigs]) => {
         if (alive) {
@@ -63,10 +69,10 @@ function Presentation() {
     return () => {
       alive = false;
     };
-  }, [doc, user]);
+  }, [doc, user, yearPlan, themeId]);
   const safeIndex = Math.min(index, Math.max(0, activities.length - 1));
   const activity = activities[safeIndex];
-  const media = activity ? items.filter((r) => resourceMatches(r, activity, signatures[activity.goalId])) : [];
+  const media = activity ? items.filter((r) => resourceMatches(r, activity, signatures[activity.id])) : [];
   const chosen = media[Math.min(mediaIndex, Math.max(0, media.length - 1))] || null;
   const move = (delta) => {
     setIndex((i) => Math.max(0, Math.min(activities.length - 1, i + delta)));
@@ -86,7 +92,7 @@ function Presentation() {
   }, [activities.length]);
   if (ctx.loading) return <LoadingState />;
   if (!cls || !theme || !doc) return <StatusPage kind="404" title="Chưa có kế hoạch chủ đề đã lưu để dạy học" />;
-  const back = weekKey ? `/education/class/${classId}/weeks/${weekKey}` : `/education/class/${classId}/themes/${themeId}`;
+  const back = `/education/day-plans/${classId}${weekKey ? `?week=${weekKey}` : ''}`;
   return (
     <div className="page ga-page ga-teaching ga-class-editor ga-year-page" ref={stage}>
       <div className="ga-sticky-head">
@@ -94,7 +100,7 @@ function Presentation() {
           title={theme.name}
           desc={
             <>
-              {cls.name} · {date || (weekKey ? `Tuần ${weekKey}` : 'Toàn chủ đề')} <EduStatusBadge status={doc.status} doc={doc} />
+              {cls.name} · {date} <EduStatusBadge status={doc.status} doc={doc} />
             </>
           }
         />
@@ -122,11 +128,11 @@ function Presentation() {
         </div>
       </div>
       {doc.status !== 'approved' && doc.status !== 'APPROVED' && (
-        <Notice tone="warn">Đây là bản chưa hoàn tất phê duyệt. Chế độ dạy học không thay đổi trạng thái hồ sơ.</Notice>
+        <Notice>Đây là bản chưa hoàn tất phê duyệt. Chế độ dạy học không thay đổi trạng thái hồ sơ.</Notice>
       )}
-      {fullError && <Notice tone="warn">{fullError}</Notice>}
+      {fullError && <Notice>{fullError}</Notice>}
       {!scopeValid ? (
-        <Notice tone="warn">Không tìm thấy tuần/ngày thuộc chủ đề này. Quay lại kế hoạch để chọn ngày.</Notice>
+        <Notice>Dạy học mở theo từng ngày: quay lại Kế hoạch giáo dục ngày và chọn một ngày.</Notice>
       ) : (
         <div className="ga-teaching-layout">
           <aside className="ga-teaching-nav" aria-label="Hoạt động dạy học">
@@ -144,7 +150,7 @@ function Presentation() {
                   setMediaIndex(0);
                 }}
               >
-                <span className="ga-teaching-mt">{a.unlinked ? 'Nội dung giáo án' : `MT${a.goalNo || '—'}`}</span>
+                <span className="ga-teaching-mt">{a.unlinked ? 'Nội dung kế hoạch' : `MT${a.goalNo || '—'}`}</span>
                 <span>{a.text}</span>
                 {a.stale && <small>Cần kiểm tra lại</small>}
               </button>
@@ -157,17 +163,17 @@ function Presentation() {
               <>
                 <p className="muted">
                   Hoạt động {safeIndex + 1}/{activities.length} ·{' '}
-                  {activity.unlinked ? 'Nội dung nhập trong giáo án' : `MT${activity.goalNo || '—'}`}
+                  {activity.unlinked ? 'Nội dung nhập trong kế hoạch giáo dục ngày' : `MT${activity.goalNo || '—'}`}
                 </p>
                 <h1 className="ga-teaching-title">{activity.text}</h1>
                 {activity.stale && (
-                  <Notice tone="warn">
-                    Hoạt động đã xếp trong ngày không còn khớp kế hoạch chủ đề hiện tại. Giữ nguyên nội dung đã chọn; kiểm tra lại giáo án
-                    trước khi dùng học liệu.
+                  <Notice>
+                    Hoạt động đã xếp trong ngày không còn khớp kế hoạch chủ đề hiện tại. Giữ nguyên nội dung đã chọn; kiểm tra lại kế hoạch
+                    giáo dục ngày trước khi dùng học liệu.
                   </Notice>
                 )}
                 {error ? (
-                  <Notice tone="warn">Chưa tải được học liệu: {error}</Notice>
+                  <Notice>Chưa tải được học liệu: {error}</Notice>
                 ) : loading ? (
                   <p role="status">Đang tải danh sách học liệu…</p>
                 ) : (

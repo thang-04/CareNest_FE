@@ -50,7 +50,9 @@ const openDay = async (page) => {
 test('ST-005-01 giáo án ngày có 4 mục a/b/c, mục học 3 dòng gợi ý, phần II; không còn ô điều chỉnh', async ({ page }) => {
   test.skip(!week, 'Không có tuần HK2 chưa dạy');
   await openDay(page);
-  for (const s of SECTIONS) await expect(page.getByRole('button', { name: new RegExp(`^${s}`) })).toBeVisible();
+  // Phần I là một bảng: mỗi mục một dòng tiêu đề
+  await expect(page.getByRole('button', { name: 'I. Kế hoạch giáo dục ngày' })).toBeVisible();
+  for (const s of SECTIONS) await expect(page.getByRole('columnheader', { name: new RegExp(`^${s}`) })).toBeVisible();
   await expect(page.getByText('a) Mục đích, yêu cầu').first()).toBeVisible();
   await expect(page.getByText('b) Chuẩn bị').first()).toBeVisible();
   await expect(page.getByText('c) Tiến hành').first()).toBeVisible();
@@ -67,7 +69,9 @@ test('ST-005-02 xóa hết dòng gợi ý, thêm "Hoạt động 1", lưu, tải
   test.skip(!week, 'Không có tuần HK2 chưa dạy');
   await openDay(page);
   // Chỉ xóa dòng của mục học: các nút xóa của mục học có nhãn ô tên bước "1. Hoạt động học"
-  for (let n = await page.locator('textarea[aria-label^="1. Hoạt động học – tên bước"]').count(); n > 0; n--) {
+  // Dòng trống cuối ("tên bước mới") luôn có để gõ thêm dòng, không tính là dòng thật (Tiền 11/11/2026)
+  const realRows = 'textarea[aria-label^="1. Hoạt động học – tên bước "]:not([aria-label$="mới"])';
+  for (let n = await page.locator(realRows).count(); n > 0; n--) {
     await page
       .locator('textarea[aria-label="1. Hoạt động học – tên bước 1"]')
       .locator('xpath=ancestor::tr')
@@ -76,26 +80,59 @@ test('ST-005-02 xóa hết dòng gợi ý, thêm "Hoạt động 1", lưu, tải
     const confirm = page.getByRole('dialog');
     if (await confirm.isVisible().catch(() => false)) await confirm.getByRole('button', { name: 'Xóa' }).click();
   }
-  await expect(page.locator('textarea[aria-label^="1. Hoạt động học – tên bước"]')).toHaveCount(0);
-  await page
-    .getByRole('button', { name: /^1\. Hoạt động học/ })
-    .locator('xpath=ancestor::div[contains(@class,"section-title")]/following-sibling::div[1]')
-    .getByRole('button', { name: 'Thêm dòng' })
-    .click();
-  await page.getByLabel('1. Hoạt động học – tên bước 1').fill('Hoạt động 1');
+  await expect(page.locator(realRows)).toHaveCount(0);
+  // Không còn nút Thêm dòng: gõ vào dòng trống cuối bảng thì thành dòng mới
+  await expect(page.getByRole('button', { name: /^Thêm dòng/ })).toHaveCount(0);
+  await page.getByLabel('1. Hoạt động học – tên bước mới').fill('Hoạt động 1');
+  await expect(page.getByLabel('1. Hoạt động học – tên bước 1')).toHaveValue('Hoạt động 1');
   await page.getByLabel('1. Hoạt động học – hoạt động của cô dòng 1').fill('[E2E] Cô giới thiệu bài');
   const saved = page.waitForResponse((r) => r.url().includes(`${DOCS}/day/`) && r.request().method() === 'PUT');
   await page.getByRole('button', { name: 'Lưu', exact: true }).click();
   expect((await saved).status()).toBe(200);
   await page.reload();
   await expect(page.getByRole('tab', { name: /Thứ 2/ })).toBeVisible({ timeout: 30_000 });
-  await expect(page.locator('textarea[aria-label^="1. Hoạt động học – tên bước"]')).toHaveCount(1);
+  await expect(page.locator(realRows)).toHaveCount(1);
   await expect(page.getByLabel('1. Hoạt động học – tên bước 1')).toHaveValue('Hoạt động 1');
   const day = (await api(U.tl, 'GET', DOCS)).data.dayPlans.find(
     (d) => String(d.classId) === String(cls.id) && d.weekStart === week.weekStart,
   );
   expect(day.days[0].sections.hoc.rows.map((r) => r.title)).toEqual(['Hoạt động 1']);
   expect(day.days[0].review).toBeUndefined();
+});
+
+// Tiền 11/11/2026: phần a/b/c của một mục không cố định — cô tự xóa được và thêm lại được; BE lưu phần đã xóa
+test('ST-005-18 xóa tay phần a) và c) của mục Hoạt động chiều, lưu, tải lại vẫn mất; thêm lại được', async ({ page }) => {
+  test.skip(!week, 'Không có tuần HK2 chưa dạy');
+  await openDay(page);
+  const sec = '4. Hoạt động chiều';
+  const confirmIfAsked = async () => {
+    const confirm = page.getByRole('dialog');
+    if (await confirm.isVisible().catch(() => false)) await confirm.getByRole('button', { name: 'Xóa' }).click();
+  };
+  await page.getByRole('button', { name: `Xóa phần a) Mục đích, yêu cầu – ${sec}` }).click();
+  await confirmIfAsked();
+  await page.getByRole('button', { name: `Xóa phần Tiến hành – ${sec}` }).click();
+  await confirmIfAsked();
+  await expect(page.getByLabel(`${sec} – mục đích, yêu cầu`)).toHaveCount(0);
+  await expect(page.getByLabel(`${sec} – tên bước mới`)).toHaveCount(0);
+  await expect(page.getByLabel(`${sec} – chuẩn bị`)).toBeVisible();
+  let saved = page.waitForResponse((r) => r.url().includes(`${DOCS}/day/`) && r.request().method() === 'PUT');
+  await page.getByRole('button', { name: 'Lưu', exact: true }).click();
+  expect((await saved).status()).toBe(200);
+  await page.reload();
+  await expect(page.getByRole('tab', { name: /Thứ 2/ })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByLabel(`${sec} – mục đích, yêu cầu`)).toHaveCount(0);
+  const day = (await api(U.tl, 'GET', DOCS)).data.dayPlans.find(
+    (d) => String(d.classId) === String(cls.id) && d.weekStart === week.weekStart,
+  );
+  expect(day.days[0].sections.chieu.off).toEqual(['aims', 'rows']);
+  // Thêm lại để các bước sau của chuỗi dùng đủ khung
+  await page.getByRole('button', { name: `Thêm lại a) Mục đích, yêu cầu – ${sec}` }).click();
+  await page.getByRole('button', { name: `Thêm lại c) Tiến hành – ${sec}` }).click();
+  await expect(page.getByLabel(`${sec} – mục đích, yêu cầu`)).toBeVisible();
+  saved = page.waitForResponse((r) => r.url().includes(`${DOCS}/day/`) && r.request().method() === 'PUT');
+  await page.getByRole('button', { name: 'Lưu', exact: true }).click();
+  expect((await saved).status()).toBe(200);
 });
 
 test('ST-005-03 gửi hồ sơ chủ đề còn mục trống ⇒ chữ đỏ đầu bảng và tại mục, không chỉ thông báo nổi', async ({ page }) => {
@@ -154,7 +191,7 @@ test('ST-005-04 xuất file ở trang Giáo án ngày: một file cả tuần th
   const frame = preview.frameLocator('iframe').first();
   const root = (await preview.locator('iframe').count()) ? frame.locator('body') : preview;
   await expect(root.getByText('I. Chuẩn bị').first()).toBeVisible();
-  await expect(root.getByText('I. Giáo án').first()).toBeVisible();
+  await expect(root.getByText('I. Kế hoạch giáo dục ngày').first()).toBeVisible();
   await expect(root.getByText('II. Đánh giá trẻ trên ngày').first()).toBeVisible();
   await expect(root.getByText(/Kế hoạch điều chỉnh/)).toHaveCount(0);
 });
@@ -162,6 +199,29 @@ test('ST-005-04 xuất file ở trang Giáo án ngày: một file cả tuần th
 test('ST-005-05 kế hoạch tuần (chỉ xem trên trang ngày): Chuẩn bị 3 đối tượng và bảng Hoạt động góc', async ({ page }) => {
   test.skip(!week, 'Không có tuần HK2 chưa dạy');
   await openDay(page);
+  // Kế hoạch tuần là tab đầu cùng cấp với Thứ 2–6, không còn thẻ riêng phía trên (Tiền 12/11/2026)
+  const tabs = page.getByRole('tab');
+  await expect(tabs.first()).toHaveText('Kế hoạch tuần');
+  await expect(tabs.nth(1)).toContainText('Thứ 2');
+  await tabs.first().click();
   for (const t of ['1. Đối với cô', '2. Đối với trẻ', '3. Đối với phụ huynh']) await expect(page.getByText(t).first()).toBeVisible();
   await expect(page.getByRole('button', { name: 'IV. Hoạt động góc' })).toBeVisible();
+});
+
+// Tiền 12/11/2026: trang ngoài Kế hoạch giáo dục ngày như trang chủ đề nhưng chỉ có giáo án ngày
+test('ST-005-21 trang ngoài Kế hoạch giáo dục ngày: tab học kỳ, mỗi chủ đề có trạng thái + Gửi duyệt riêng, dòng "Nhánh n: …"', async ({
+  page,
+}) => {
+  await login(page, U.tl);
+  await spaGo(page, `/education/day-plans/${cls.id}`);
+  await expect(page.getByRole('tab', { name: /Học kỳ 1/ })).toBeVisible({ timeout: 30_000 });
+  const firstCard = page
+    .locator('section.card')
+    .filter({ has: page.locator('.ga-class-plan-table') })
+    .first();
+  await expect(firstCard.locator('.card__title')).toContainText(/^Chủ đề \d+: /);
+  await expect(firstCard.locator('tbody tr').first()).toContainText(/^Nhánh /);
+  await expect(page.locator('.ga-class-plan-table').getByText('Kế hoạch giáo dục chủ đề', { exact: true })).toHaveCount(0);
+  await expect(page.getByText(/Kế hoạch tuần · nhánh/)).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /Gửi duyệt học kỳ/ })).toHaveCount(0);
 });

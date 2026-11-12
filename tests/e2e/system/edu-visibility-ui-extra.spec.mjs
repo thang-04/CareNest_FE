@@ -55,7 +55,9 @@ test('ST-002-09 GV thứ hai: chỉ thấy kế hoạch năm đã ban hành củ
   await expect(page.getByRole('link', { name: 'Về danh sách' })).toBeVisible({ timeout: 15_000 });
 });
 
-test('ST-003-09 trang kế hoạch chủ đề hiện hạn, không còn cách gửi và nút gửi (spec 004: gửi ở Kế hoạch giáo dục chủ đề)', async ({ page }) => {
+test('ST-003-09 trang kế hoạch chủ đề hiện hạn, không còn cách gửi và nút gửi (spec 004: gửi ở Kế hoạch giáo dục chủ đề)', async ({
+  page,
+}) => {
   test.skip(!cls, 'Thiếu lớp');
   const dossier = (await api(U.tl, 'GET', '/education-plans/class-docs')).data.themeDossiers?.find(
     (d) => String(d.classId) === String(cls.id),
@@ -64,7 +66,7 @@ test('ST-003-09 trang kế hoạch chủ đề hiện hạn, không còn cách g
   await login(page, U.tl);
   await spaGo(page, `/education/class/${cls.id}/themes/${dossier.themeId}`);
   await expect(page.getByText(/Gần đến hạn|Quá hạn|Đúng hạn|Ban hành trễ|Hạn/).first()).toBeVisible({ timeout: 30_000 });
-  await expect(page.locator('.ga-page a[href^="/education/"]')).toHaveCount(0);
+  await expect(page.locator('.ga-page a[href^="/education/"]:not(nav[aria-label="Breadcrumb"] a)')).toHaveCount(0);
   await expect(page.getByText('Cách gửi duyệt kế hoạch chủ đề và kế hoạch tuần')).toHaveCount(0);
   await expect(page.getByRole('button', { name: /^Gửi duyệt$|Gửi .* duyệt kế hoạch chủ đề/ })).toHaveCount(0);
 });
@@ -73,7 +75,7 @@ test('ST-003-10 GV thứ hai xem trang chủ đề nhánh: không sửa, không 
   test.skip(!cls, 'Thiếu lớp');
   await login(page, U.gv2);
   await spaGo(page, `/education/branches/${cls.id}`);
-  await expect(page.getByRole('heading', { level: 1 })).toContainText('Chủ đề / Chủ đề nhánh', { timeout: 15_000 });
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('Dự kiến chủ đề - chủ đề nhánh', { timeout: 15_000 });
   await expect(page.getByRole('button', { name: /Chỉnh sửa|Gửi duyệt|Mở khóa|Nhập file/ })).toHaveCount(0);
 });
 

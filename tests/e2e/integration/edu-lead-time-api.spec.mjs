@@ -69,7 +69,12 @@ test('IT-003-02 chỉ HT mở hạn, bắt buộc lý do + hạn mới sau hôm 
   const current = await packageOf(U.ht);
   test.skip(current?.status !== 'DRAFT' || current.deadlineState !== 'OVERDUE', 'gói không còn quá hạn');
   expect(current.canExtend).toBe(true);
-  expect((await packageOf(U.vp)).canExtend).toBe(false);
+  // Tiền 11/11/2026: PHT không soạn/duyệt chỉ thấy khung gói chưa ban hành (không trạng thái, hạn, nút mở hạn)
+  const vpView = await packageOf(U.vp);
+  expect(vpView.unreleased).toBe(true);
+  expect(vpView.status).toBeUndefined();
+  expect(vpView.deadlineState).toBeUndefined();
+  expect(vpView.canExtend).toBeUndefined();
   expect((await packageOf(U.tl)).canExtend).toBe(false);
   const act = (user, body) =>
     api(user, 'POST', `${DOCS}/semester/${current.id}/actions`, { body, headers: { 'X-Class-Doc-Version': String(current.version) } });
@@ -115,11 +120,12 @@ test('IT-003-04 hồ sơ chủ đề: hạn = ngày bắt đầu chủ đề, kh
   expect([400, 409]).toContain(res.status);
 });
 
-test('IT-003-05 GV thứ hai chỉ thấy lịch nhánh của học kỳ đã duyệt; không thấy nút mở hạn', async () => {
+test('IT-003-05 GV thứ hai thấy đủ lịch nhánh dự kiến (không cần ban hành), không sửa được; không thấy nút mở hạn', async () => {
   const docs = await api(U.gv2, 'GET', DOCS);
   const branch = docs.data.branchPlans.find((b) => String(b.classId) === String(cls.id));
-  expect(branch.releasedView).toBe(true);
-  expect(Array.isArray(branch.branchUnreleasedSemesters)).toBe(true);
+  expect(branch.branchUnreleasedSemesters).toBeUndefined();
+  expect(branch.permissions?.canEdit).toBe(false);
   const pkg = docs.data.semesterPackages.find((p) => String(p.classId) === String(cls.id) && p.semesterNo === 1);
-  if (pkg) expect(pkg.canExtend).toBe(false);
+  // Gói chưa ban hành: GV thứ hai chỉ nhận khung (không cờ canExtend); đã ban hành thì canExtend = false
+  if (pkg) expect(pkg.canExtend ?? false).toBe(false);
 });

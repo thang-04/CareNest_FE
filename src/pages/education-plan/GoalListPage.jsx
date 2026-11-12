@@ -41,6 +41,7 @@ export default function GoalListPage({ planLevel = 'TEAM' }) {
   const navigate = useNavigate();
   const [q, setQ] = useState('');
   const [age, setAge] = useState('');
+  const [showOld, setShowOld] = useState(false);
   const isVP = role === ROLES.VICE_PRINCIPAL;
   const isLeader = role === ROLES.TEAM_LEADER;
   const isPrincipal = role === ROLES.PRINCIPAL;
@@ -78,7 +79,16 @@ export default function GoalListPage({ planLevel = 'TEAM' }) {
       ? creationScopes.some((id) => !scoped.some((g) => g.ageGroupId === id))
       : isYearCreator && (!user.ageGroupId || !scoped.some((g) => g.ageGroupId === user.ageGroupId)));
 
-  const rows = scoped.filter((g) => (!age || g.ageGroupId === age) && (!q || (g.title + g.code).toLowerCase().includes(q.toLowerCase())));
+  // Bản đã ban hành nhưng có bản mới hơn thay thế: hiện "Đã thay thế", mặc định gom lại để danh sách chỉ còn bản đang dùng (Tiền 12/11/2026)
+  const replaced = (g) =>
+    g.status === EDU_STATUS.APPROVED && !(g.current ?? currentPlanOf(goals, g.ageGroupId, g.schoolYear, planLevel)?.id === g.id);
+  const matched = scoped.filter(
+    (g) => (!age || g.ageGroupId === age) && (!q || (g.title + g.code).toLowerCase().includes(q.toLowerCase())),
+  );
+  // Chỉ gom bản thay thế khi danh sách còn bản đang dùng của cùng nhóm tuổi; không thì vẫn hiện để danh sách không trống
+  const foldable = (g) => replaced(g) && matched.some((x) => !replaced(x) && x.ageGroupId === g.ageGroupId);
+  const oldCount = matched.filter(foldable).length;
+  const rows = showOld ? matched : matched.filter((g) => !foldable(g));
 
   const issued = scoped.filter((g) => g.status === EDU_STATUS.APPROVED || g.status === EDU_STATUS.SENT).length;
   const pending = (queue.data || []).filter((g) => levelOf(g) === planLevel).length;
@@ -190,7 +200,8 @@ export default function GoalListPage({ planLevel = 'TEAM' }) {
                     <td>{ageName(g.ageGroupId)}</td>
                     {annual && (
                       <td>
-                        {allGoalItems(g).length} mục tiêu · {(g.themes || []).length} chủ đề
+                        {g.summary ? g.goalCount : allGoalItems(g).length} mục tiêu · {g.summary ? g.themeCount : (g.themes || []).length}{' '}
+                        chủ đề
                       </td>
                     )}
                     <td>{fmtDate(g.sentAt ?? g.sentBy?.at)}</td>
@@ -198,20 +209,19 @@ export default function GoalListPage({ planLevel = 'TEAM' }) {
                       <Owner plan={g} />
                     </td>
                     <td className="center">
-                      <YearPlanStatusBadge
-                        doc={g}
-                        status={
-                          g.status === EDU_STATUS.APPROVED &&
-                          !(g.current ?? currentPlanOf(goals, g.ageGroupId, g.schoolYear, planLevel)?.id === g.id)
-                            ? 'REPLACED'
-                            : g.status
-                        }
-                      />
+                      <YearPlanStatusBadge doc={g} status={replaced(g) ? 'REPLACED' : g.status} />
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+        {oldCount > 0 && (
+          <div className="card__body">
+            <button type="button" className="link-btn" aria-expanded={showOld} onClick={() => setShowOld((v) => !v)}>
+              {showOld ? 'Ẩn phiên bản cũ' : `Hiện phiên bản cũ (${oldCount})`}
+            </button>
           </div>
         )}
       </Card>

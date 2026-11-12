@@ -73,7 +73,7 @@ export function ImportBranchFileModal({ classId, yearPlanId, user, draft, templa
       <p className="muted text-sm">
         Word, Excel hoặc CSV, tối đa 2 MB. Bảng cần cột Chủ đề và Chủ đề nhánh; ngày trong file không thay lịch.
       </p>
-      {USE_MOCK && <Notice tone="warn">Chế độ demo chỉ đọc CSV. Word và Excel cần kết nối máy chủ.</Notice>}
+      {USE_MOCK && <Notice>Chế độ demo chỉ đọc CSV. Word và Excel cần kết nối máy chủ.</Notice>}
       <div className="row row--wrap gap-2">
         <button
           type="button"
@@ -96,7 +96,7 @@ export function ImportBranchFileModal({ classId, yearPlanId, user, draft, templa
         />
       </div>
       {state.status === 'loading' && <LoadingState text="Đang đọc file…" />}
-      {state.status === 'error' && <Notice tone="err">{state.message}</Notice>}
+      {state.status === 'error' && <Notice>{state.message}</Notice>}
       {preview && (
         <>
           <p className="text-sm">
@@ -126,10 +126,10 @@ export function ImportBranchFileModal({ classId, yearPlanId, user, draft, templa
               </table>
             </div>
           ) : (
-            <Notice tone="warn">Không có tên nhánh khớp để thêm.</Notice>
+            <Notice>Không có tên nhánh khớp để thêm.</Notice>
           )}
           {preview.warnings?.length > 0 && (
-            <Notice tone="warn">
+            <Notice>
               <ul>
                 {preview.warnings.slice(0, SHOWN_WARNINGS).map((warning, i) => (
                   <li key={i}>

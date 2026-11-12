@@ -5,7 +5,7 @@ import { AiDraftTag } from '@/components/ui/AiDraftTag';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { suggestLessonSteps } from '@/services/education-plan/educationPlanService';
 import FloatingPanel from '@/components/education-plan/FloatingPanel';
-import { FoldSection } from '@/components/education-plan/eduUi';
+import { Card } from '@/components/education-plan/eduUi';
 import { Cell, focusCell } from '@/components/education-plan/planUi';
 import {
   DAY_REVIEW,
@@ -24,18 +24,25 @@ import {
   cellKey,
   dayDraftFromWeek,
   dayGoalsOf,
-  dayPlacedOf,
+  droppedFromWeek,
   copyLessonSteps,
   emptyRow,
   newCorner,
   rowsFromDraft,
   rowsSig,
   sectionHasContent,
+  SECTION_PARTS,
+  partsOff,
+  removePart,
+  restorePart,
   weekAimsFromGoals,
   ddmm,
   longDay,
   linkTypedActivities,
+  pickOf,
+  resolveGoals,
   rowCell,
+  teachingDayUnlinked,
   weekRows,
 } from '@/models/education-plan/classPlan';
 import { mtList } from '@/models/education-plan/goalTable';
@@ -44,7 +51,19 @@ import { mtList } from '@/models/education-plan/goalTable';
  * Ô của kế hoạch tuần có gợi ý hoạt động từ kế hoạch chủ đề (lọc theo loại giờ của dòng). Chọn gợi ý thì ghi nội dung
  * vào ô và nhớ MT của hoạt động; vẫn gõ tự do được. MT đã nhớ hiện thành nhãn dưới ô.
  */
-function ActivityCell({ editable, suggestions, picks, text, onPick, onUnpick, flagOf = () => null, children }) {
+function ActivityCell({
+  editable,
+  suggestions,
+  picks,
+  text,
+  onPick,
+  onUnpick,
+  flagOf = () => null,
+  goalsOfPick = (p) => (p.goalId != null ? [{ id: p.goalId, no: p.goalNo }] : []),
+  onCreateCard = null,
+  changed = false,
+  children,
+}) {
   const ref = useRef(null);
   const panelRef = useRef(null);
   const [open, setOpen] = useState(false);
@@ -61,7 +80,7 @@ function ActivityCell({ editable, suggestions, picks, text, onPick, onUnpick, fl
       document.removeEventListener('keydown', onKey);
     };
   }, [open]);
-  const pickedIds = new Set(picks.map((p) => p.id));
+  const pickedIds = new Set(picks.map((p) => p.cardId ?? p.id));
   return (
     <div ref={ref} className="ga-act-cell" onFocus={() => editable && suggestions.length > 0 && setOpen(true)}>
       {children}
@@ -69,24 +88,27 @@ function ActivityCell({ editable, suggestions, picks, text, onPick, onUnpick, fl
           thì không có gì để đánh giá trẻ: bấm để mở gợi ý */}
       {(picks.length > 0 || (editable && text?.trim())) && (
         <div className="ga-act-cell__foot">
-          {picks.map((p) => {
-            // Ô đỏ (BE:EDU-26): MT của hoạt động đổi / bị bỏ ở kế hoạch năm mới
-            const flag = flagOf(p.goalId);
-            const cls = `btn ${flag ? 'btn--outline-danger' : 'btn--outline-primary'} btn--sm`;
-            const label = flag ? `${flag.label} !` : `MT${p.goalNo}`;
+          {picks.map((p, i) => {
+            // Chip của lượt xếp: MT theo thẻ (FR-019, FR-026); ô đỏ (BE:EDU-26) khi MT đổi / bị bỏ ở kế hoạch năm mới
+            const goals = goalsOfPick(p);
+            const flag = goals.map((g) => flagOf(g.id)).find(Boolean);
+            const cls = `btn ${flag ? 'btn--outline-danger' : goals.length ? 'btn--outline-primary' : 'btn--outline-danger'} btn--sm`;
+            const mts = goals.map((g) => `MT${g.no}`).join(', ');
+            const label = flag ? `${flag.label} !` : mts || 'Chưa gắn MT';
+            const key = `${p.cardId ?? p.id ?? 'typed'}-${i}`;
             return editable ? (
               <button
-                key={p.id}
+                key={key}
                 type="button"
                 className={cls}
                 title={flag ? flag.message : `${p.text} (bấm để bỏ khỏi ô)`}
                 aria-label={`Bỏ ${label} khỏi ô`}
-                onClick={() => onUnpick(p.id)}
+                onClick={() => onUnpick(p.cardId ?? p.id)}
               >
                 {label} ×
               </button>
             ) : (
-              <span key={p.id} className={cls} title={flag ? flag.message : p.text}>
+              <span key={key} className={cls} title={flag ? flag.message : p.text}>
                 {label}
               </span>
             );
@@ -94,15 +116,22 @@ function ActivityCell({ editable, suggestions, picks, text, onPick, onUnpick, fl
           {!picks.length && (
             <button
               type="button"
-              className="btn btn--sm"
+              className="btn btn--sm btn--outline-danger"
               title="Chọn hoạt động từ gợi ý để ô nhớ MT (dùng cho kế hoạch ngày và đánh giá trẻ)"
               onClick={() => ref.current?.querySelector('.ga-cell-input')?.focus()}
             >
               Chưa gắn MT
             </button>
           )}
+          {/* FR-014: hoạt động gõ tay gắn MT bằng cách tạo thẻ, không chọn MT riêng tại ô */}
+          {editable && onCreateCard && !picks.length && text?.trim() && (
+            <button type="button" className="btn btn--sm btn--outline-primary" onClick={() => onCreateCard(text)}>
+              Tạo thẻ từ hoạt động này
+            </button>
+          )}
         </div>
       )}
+      {changed && <div className="text-xs text-warning ga-goal-table__pad">Khác bản theo kỳ</div>}
       {open && (
         <FloatingPanel anchorRef={ref} panelRef={panelRef} minWidth={420}>
           {/* Khung gợi ý (Tiền 21/10, phương án A): nhãn MT xanh dương, loại giờ chữ xám, tên hoạt động; đã chọn nền xanh lá + ✓,
@@ -110,26 +139,29 @@ function ActivityCell({ editable, suggestions, picks, text, onPick, onUnpick, fl
           <div className="card ga-sug-panel">
             <div className="text-xs ga-sug-panel__hint">Chọn hoạt động cho ô (hoặc gõ tự do)</div>
             <div className="search-select__list" role="listbox" aria-label="Gợi ý từ kế hoạch chủ đề">
-              {suggestions.map((a) => {
+              {suggestions.map((a, i) => {
                 const picked = pickedIds.has(a.id);
                 const colon = a.text.indexOf(':');
                 return (
-                  <button
-                    key={a.id}
-                    type="button"
-                    role="option"
-                    aria-selected={picked}
-                    className={`ga-sug ${picked ? 'ga-sug--on' : ''}`}
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => (picked ? onUnpick(a.id) : onPick(a))}
-                  >
-                    <span className="ga-sug__mt">MT{a.goalNo}</span>
-                    <span className="ga-sug__body">
-                      {colon > 0 && <span className="ga-sug__type">{a.text.slice(0, colon)}</span>}
-                      <span className="ga-sug__text">{activityBody(a.text)}</span>
-                    </span>
-                    {picked && <Check size={16} className="ga-sug__check" aria-hidden />}
-                  </button>
+                  <Fragment key={a.id}>
+                    {/* FR-019: thẻ khác loại giờ của dòng (cả thẻ "chưa rõ") ở nhóm "Khác" */}
+                    {a.other && !suggestions[i - 1]?.other && <div className="text-xs ga-sug-panel__hint">Khác</div>}
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={picked}
+                      className={`ga-sug ${picked ? 'ga-sug--on' : ''}`}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => (picked ? onUnpick(a.id) : onPick(a))}
+                    >
+                      <span className="ga-sug__mt">{a.goalNos?.length ? a.goalNos.map((n) => `MT${n}`).join(', ') : 'Chưa gắn MT'}</span>
+                      <span className="ga-sug__body">
+                        {colon > 0 && <span className="ga-sug__type">{a.text.slice(0, colon)}</span>}
+                        <span className="ga-sug__text">{activityBody(a.text)}</span>
+                      </span>
+                      {picked && <Check size={16} className="ga-sug__check" aria-hidden />}
+                    </button>
+                  </Fragment>
                 );
               })}
             </div>
@@ -172,6 +204,16 @@ function LabelTable({ rows, editable = false }) {
   );
 }
 
+/** Phần lớn của trang soạn: thẻ thu gọn được. */
+function Section({ title, children }) {
+  const [collapsed, setCollapsed] = useState(false);
+  return (
+    <Card title={title} bodyClass="card__body stack" collapsed={collapsed} onToggle={() => setCollapsed((v) => !v)}>
+      {children}
+    </Card>
+  );
+}
+
 export function WeekTab({
   draft,
   week,
@@ -179,21 +221,48 @@ export function WeekTab({
   dayEditable = () => editable,
   update: rawUpdate,
   activities = [],
-  placedElsewhere = new Set(),
+  cards = [],
   prevWeek = null,
-  coverage = null,
+  summary = null,
   goals = [],
   flagOf = () => null,
+  onCreateCard = null,
+  changedCells = null,
 }) {
   const [askDelete, setAskDelete] = useState(null);
-  // Mỗi lần sửa bảng tuần: ô gõ tay trùng nội dung hoạt động của kế hoạch chủ đề thì tự nhớ MT
+  // Mỗi lần sửa bảng tuần: ô gõ tay trùng tên thẻ của kế hoạch chủ đề thì tự nhớ thẻ (một thẻ xếp được nhiều ô — FR-009)
   const update = (fn) =>
-    rawUpdate((d) =>
-      linkTypedActivities(fn(d), activities, placedElsewhere, (day) => (typeof day === 'number' ? dayEditable(day) : editable)),
-    );
+    rawUpdate((d) => linkTypedActivities(fn(d), activities, (day) => (typeof day === 'number' ? dayEditable(day) : editable)));
+  const goalsOfPick = (p) =>
+    resolveGoals(p, cards)
+      .map((id) => goals.find((g) => String(g.id) === id))
+      .filter(Boolean);
+  // Bảng phủ MT mở tuần kèm #cov-day-n: cuộn tới đúng cột ngày (FR-023)
+  useEffect(() => {
+    const id = window.location.hash.slice(1);
+    if (id.startsWith('cov-day-')) document.getElementById(id)?.scrollIntoView({ block: 'center', inline: 'center' });
+  }, []);
   // Bảng góc là nguồn của dòng Góc trong bảng Thứ 2–6 (FR-015b)
   const editCorners = (fn) => rawUpdate((d) => cornersToGrid(fn(d)));
   const setCorner = (id, field, v) => editCorners((d) => ((d.corners.find((c) => c.id === id)[field] = v), d));
+  // Thêm góc như bảng kế hoạch năm học: gõ tên ở dòng trống cuối bảng, hoặc Enter ở ô tên góc (Tiền 11/11/2026).
+  // Dòng trống giữ sẵn id nên ô đang gõ không mất con trỏ khi thành góc thật
+  const cornerTrail = useRef(null);
+  const corners0 = draft.corners || [];
+  if (!cornerTrail.current || corners0.some((c) => c.id === cornerTrail.current)) cornerTrail.current = newCorner().id;
+  const [focusCorner, setFocusCorner] = useState(null);
+  useEffect(() => {
+    if (!focusCorner) return;
+    document.querySelector(`textarea[aria-label="${CSS.escape(focusCorner)}"]`)?.focus();
+    setFocusCorner(null);
+  }, [focusCorner]);
+  const cornerKeys = (i) => (e) => {
+    if (e.key !== 'Enter' || e.shiftKey || e.nativeEvent.isComposing) return;
+    e.preventDefault();
+    if (!corners0[i]?.name?.trim()) return;
+    editCorners((d) => (d.corners.splice(i + 1, 0, newCorner()), d));
+    setFocusCorner(`Tên góc ${i + 2}`);
+  };
   const moveCorner = (i, to) =>
     editCorners((d) => {
       [d.corners[i], d.corners[to]] = [d.corners[to], d.corners[i]];
@@ -208,15 +277,14 @@ export function WeekTab({
   const pickCorner = (id, a) =>
     rawUpdate((d) => {
       const list = ((d.picks ||= {})['goc.all'] ||= []);
-      if (!list.some((p) => p.id === a.id && p.cornerId === id))
-        list.push({ id: a.id, goalId: a.goalId, goalNo: a.goalNo, text: a.text, cornerId: id });
+      if (!list.some((p) => (p.cardId ?? p.id) === a.id && p.cornerId === id)) list.push(pickOf(a, id));
       const c = d.corners.find((x) => x.id === id);
       if (c && !c.content?.trim()) c.content = activityBody(a.text);
       return cornersToGrid(d);
     });
   const unpickCorner = (id, actId) =>
     rawUpdate((d) => {
-      d.picks['goc.all'] = (d.picks?.['goc.all'] || []).filter((p) => !(p.id === actId && p.cornerId === id));
+      d.picks['goc.all'] = (d.picks?.['goc.all'] || []).filter((p) => !((p.cardId ?? p.id) === actId && p.cornerId === id));
       return d;
     });
   const corners = draft.corners || [];
@@ -227,33 +295,39 @@ export function WeekTab({
     update((d) => {
       const key = cellKey(r.key, day);
       const list = (d.picks ||= {})[key] || [];
-      if (list.some((p) => p.id === a.id)) return d;
+      if (list.some((p) => (p.cardId ?? p.id) === a.id)) return d;
       if (d.unlinked?.[key]) d.unlinked[key] = d.unlinked[key].filter((x) => x !== a.id);
-      d.picks[key] = [...list, { id: a.id, goalId: a.goalId, goalNo: a.goalNo, text: a.text }];
+      d.picks[key] = [...list, pickOf(a)];
       const g = (d.grid[r.key] ||= rowCell(d, r));
-      const add = (old) => (old?.trim() ? `${old}\n${activityBody(a.text)}` : activityBody(a.text));
+      const body = activityBody(a.text);
+      const add = (old, v = body) => (old?.trim() ? `${old}\n${v}` : v);
       if (day === 'all') g.common = add(g.common);
       else if (day === 'extra') g.extra = add(g.extra);
-      else if (r.key === 'hoc') g.days[day].topic = add(g.days[day].topic);
-      else g.days[day] = add(g.days[day]);
+      else if (r.key === 'hoc') {
+        // FR-020: thẻ "Môn: đề tài" điền Môn và Đề tài; không có ":" thì chỉ điền Đề tài
+        const colon = a.card && !a.card.legacy ? body.indexOf(':') : -1;
+        if (colon > 0 && !g.days[day].subject?.trim()) {
+          g.days[day].subject = body.slice(0, colon).trim();
+          g.days[day].topic = add(g.days[day].topic, body.slice(colon + 1).trim());
+        } else g.days[day].topic = add(g.days[day].topic);
+      } else g.days[day] = add(g.days[day]);
       return d;
     });
   const unpick = (r, day, id) =>
     rawUpdate((d) => {
       const key = cellKey(r.key, day);
-      d.picks = { ...(d.picks || {}), [key]: (d.picks?.[key] || []).filter((p) => p.id !== id) };
+      d.picks = { ...(d.picks || {}), [key]: (d.picks?.[key] || []).filter((p) => (p.cardId ?? p.id) !== id) };
       d.unlinked = { ...(d.unlinked || {}), [key]: [...new Set([...(d.unlinked?.[key] || []), id])] };
       return d;
     });
-  // Hoạt động đã xếp vào ô ngày khác (tuần này hoặc tuần khác của chủ đề) thì không gợi ý lại; ô đang giữ vẫn thấy để bỏ chọn
-  const placedHere = dayPlacedOf(draft);
+  // FR-009: một thẻ xếp được nhiều ô, nhiều tuần nên luôn gợi ý đủ thẻ
   const cellProps = (r, day) => ({
     editable: typeof day === 'number' ? dayEditable(day) : editable,
-    suggestions: activitiesForRow(activities, r.key).filter((a) => {
-      const at = placedHere.get(a.id);
-      return at ? at === cellKey(r.key, day) : !placedElsewhere.has(a.id);
-    }),
+    suggestions: activitiesForRow(activities, r.key),
     picks: draft.picks?.[cellKey(r.key, day)] || [],
+    goalsOfPick,
+    changed: !!changedCells?.has(cellKey(r.key, day)),
+    onCreateCard: onCreateCard && ((text) => onCreateCard(r, day, text)),
     text: (() => {
       const g = rowCell(draft, r);
       if (day === 'all') return g.common;
@@ -267,14 +341,14 @@ export function WeekTab({
   });
   return (
     <>
-      <FoldSection title="I. Mục đích yêu cầu">
+      <Section title="I. Mục đích yêu cầu">
         {/* Gợi ý ô Kiến thức từ câu MT của các hoạt động đã xếp trong tuần (chỉ khi ô còn trống), cô viết lại thành câu */}
-        {editable && !draft.aims.knowledge?.trim() && weekAimsFromGoals(draft, goals) && (
+        {editable && !draft.aims.knowledge?.trim() && weekAimsFromGoals(draft, goals, cards) && (
           <div className="row row--wrap gap-2">
             <button
               type="button"
               className="btn btn--outline-primary btn--sm"
-              onClick={() => update((d) => ((d.aims.knowledge = weekAimsFromGoals(d, goals)), d))}
+              onClick={() => update((d) => ((d.aims.knowledge = weekAimsFromGoals(d, goals, cards)), d))}
             >
               Gợi ý Kiến thức từ MT đã xếp trong tuần
             </button>
@@ -294,8 +368,8 @@ export function WeekTab({
             ),
           }))}
         />
-      </FoldSection>
-      <FoldSection title="II. Chuẩn bị">
+      </Section>
+      <Section title="II. Chuẩn bị">
         <LabelTable
           editable={editable}
           rows={PREP_TARGETS.map((t) => ({
@@ -310,21 +384,15 @@ export function WeekTab({
             ),
           }))}
         />
-      </FoldSection>
-      <FoldSection title="III. Tổ chức hoạt động">
-        {(coverage || (editable && prevWeek)) && (
+      </Section>
+      <Section title="III. Tổ chức hoạt động">
+        {editable && prevWeek && (
           <div className="row row--wrap gap-2">
-            {coverage && (
-              <span className="muted text-sm">
-                Cả chủ đề: đã xếp {coverage.placed}/{coverage.total} hoạt động, phủ {coverage.covered}/{coverage.goals} MT
-                {coverage.missingGoals.length > 0 && ` · còn thiếu ${mtList(coverage.missingGoals.map((g) => g.no))}`}
-              </span>
-            )}
             {editable && prevWeek && (
               <button
                 type="button"
                 className="btn btn--outline-primary btn--sm"
-                title="Chép các dòng cả tuần (Đón trẻ, Trò chuyện, Thể dục sáng, Chơi ở các góc, Trả trẻ…) còn trống từ tuần trước"
+                title="Chép các dòng cả tuần (Đón trẻ, Trò chuyện, Thể dục sáng, Hoạt động góc, Trả trẻ…) còn trống từ tuần trước"
                 onClick={() => update((d) => copyMergedRows(d, prevWeek))}
               >
                 Lấy dòng cả tuần từ tuần trước
@@ -344,7 +412,7 @@ export function WeekTab({
               <tr>
                 <th className={editable ? 'cell--fixed' : ''}>Tên hoạt động</th>
                 {WEEKDAY_LABELS.map((l, i) => (
-                  <th key={l} className={`center ${editable ? 'ga-th-editable' : ''}`}>
+                  <th key={l} id={`cov-day-${i}`} className={`center ${editable ? 'ga-th-editable' : ''}`}>
                     {l} · {ddmm(addDays(week.start, i))}
                     {week.offDays?.[i] && <div className="text-xs text-warning">Nghỉ: {week.offDays[i]}</div>}
                   </th>
@@ -448,8 +516,30 @@ export function WeekTab({
             </tbody>
           </table>
         </div>
-      </FoldSection>
-      <FoldSection title="IV. Hoạt động góc">
+        {/* FR-022: dòng tổng dưới bảng tuần */}
+        {summary && (
+          <p className="muted text-sm">
+            Tuần này: {summary.week.placed} lượt xếp, phủ {summary.week.covered} MT
+            {summary.week.unlinked.length > 0 && `, ${summary.week.unlinked.length} ô gõ tay chưa gắn MT`} · Cả chủ đề: phủ{' '}
+            {summary.theme.covered}/{summary.theme.total} MT
+            {summary.theme.missing.length > 0 && (
+              <>
+                {' '}
+                · còn thiếu{' '}
+                {/* Sang tab Bảng phủ MT qua guard của trang (hỏi khi còn thay đổi chưa lưu); điều hướng bằng nút, không đặt liên kết */}
+                {summary.onOpenCoverage ? (
+                  <button type="button" className="btn btn--sm" onClick={summary.onOpenCoverage}>
+                    {mtList(summary.theme.missing.map((g) => g.no))}
+                  </button>
+                ) : (
+                  mtList(summary.theme.missing.map((g) => g.no))
+                )}
+              </>
+            )}
+          </p>
+        )}
+      </Section>
+      <Section title="IV. Hoạt động góc">
         {editable && corners.length === 0 && (
           <div className="row row--wrap gap-2">
             <button
@@ -465,6 +555,15 @@ export function WeekTab({
         )}
         <div className="table-wrap">
           <table className="table ga-plan-table ga-goal-table" onMouseDown={focusCell}>
+            {/* Bảng chia đều cột; cột Thao tác (3 nút lên / xuống / xóa) cần độ rộng riêng, không bị ép thành chữ dọc */}
+            <colgroup>
+              <col />
+              <col />
+              <col />
+              <col />
+              <col />
+              {editable && <col className="ga-col-row-actions" />}
+            </colgroup>
             <thead>
               <tr>
                 <th>Góc</th>
@@ -476,14 +575,34 @@ export function WeekTab({
               </tr>
             </thead>
             <tbody>
-              {corners.length === 0 && (
+              {!editable && corners.length === 0 && (
                 <tr>
                   <td colSpan={editable ? 6 : 5}>
                     <div className="ga-goal-table__pad muted">Chưa có góc nào</div>
                   </td>
                 </tr>
               )}
-              {corners.map((c, i) => {
+              {/* Dòng trống cuối nằm chung danh sách với các góc để ô tên đang gõ giữ con trỏ khi thành góc thật */}
+              {(editable ? [...corners, { id: cornerTrail.current, trail: true }] : corners).map((c, i) => {
+                if (c.trail)
+                  return (
+                    <tr key={c.id}>
+                      <td className="ga-cell-editable">
+                        <Cell
+                          editable
+                          value=""
+                          label="Tên góc mới"
+                          placeholder="Nhập tên góc mới"
+                          onChange={(v) =>
+                            editCorners(
+                              (d) => ((d.corners = [...(d.corners || []), { ...newCorner(), id: c.id, name: v.slice(0, NAME_MAX) }]), d),
+                            )
+                          }
+                        />
+                      </td>
+                      <td colSpan={5} />
+                    </tr>
+                  );
                 const picks = (draft.picks?.['goc.all'] || []).filter((p) => p.cornerId === c.id);
                 return (
                   <tr key={c.id}>
@@ -494,6 +613,7 @@ export function WeekTab({
                         label={`Tên góc ${i + 1}`}
                         placeholder="Tên góc"
                         onChange={(v) => setCorner(c.id, 'name', v.slice(0, NAME_MAX))}
+                        onKeyDown={cornerKeys(i)}
                       />
                     </td>
                     <td className={editable ? 'ga-cell-editable' : ''}>
@@ -501,6 +621,7 @@ export function WeekTab({
                         editable={editable}
                         suggestions={activitiesForRow(activities, 'goc')}
                         picks={picks}
+                        goalsOfPick={goalsOfPick}
                         text={c.content}
                         onPick={(a) => pickCorner(c.id, a)}
                         onUnpick={(id) => unpickCorner(c.id, id)}
@@ -570,18 +691,7 @@ export function WeekTab({
             </tbody>
           </table>
         </div>
-        {editable && (
-          <div className="row">
-            <button
-              type="button"
-              className="btn btn--sm btn--outline-primary"
-              onClick={() => editCorners((d) => ((d.corners = [...(d.corners || []), newCorner()]), d))}
-            >
-              <Plus size={16} aria-hidden /> Thêm góc
-            </button>
-          </div>
-        )}
-      </FoldSection>
+      </Section>
       <ConfirmationModal
         open={!!askDelete}
         danger
@@ -621,9 +731,29 @@ const STEP_FIELDS = [
   ['note', 'ghi chú'],
 ];
 
-/** Bảng Tiến hành của một mục: dòng có tên tùy chọn, thêm/xóa/đổi thứ tự (FR-003, FR-004). */
-function StepRows({ rows, editable, label, onChange, onAskDelete }) {
+/**
+ * Các dòng Tiến hành của một mục trong bảng chung của phần I: dòng có tên tùy chọn, xóa/đổi thứ tự (FR-003, FR-004).
+ * Thêm dòng như bảng kế hoạch năm học: gõ vào dòng trống luôn có ở cuối, hoặc Enter ở ô tên bước (Tiền 11/11/2026).
+ */
+function StepRows({ rows, editable, label, cols, onChange, onAskDelete, onRemovePart }) {
+  // Dòng trống cuối giữ sẵn id: gõ vào thì thành dòng thật cùng id nên ô đang gõ không mất con trỏ
+  const trailId = useRef(null);
+  if (!trailId.current || rows.some((r) => r.id === trailId.current)) trailId.current = emptyRow().id;
+  const [focusTitle, setFocusTitle] = useState(null);
+  useEffect(() => {
+    if (!focusTitle) return;
+    document.querySelector(`textarea[aria-label="${CSS.escape(focusTitle)}"]`)?.focus();
+    setFocusTitle(null);
+  }, [focusTitle]);
   const set = (i, field, v) => onChange(rows.map((r, n) => (n === i ? { ...r, [field]: v } : r)));
+  const addTrailing = (field, v) => onChange([...rows, { ...emptyRow(), id: trailId.current, [field]: v }]);
+  const titleKeys = (i) => (e) => {
+    if (e.key !== 'Enter' || e.shiftKey || e.nativeEvent.isComposing) return;
+    e.preventDefault();
+    if (!rows[i].title?.trim() && !sectionHasContent({ rows: [rows[i]] })) return;
+    onChange([...rows.slice(0, i + 1), emptyRow(), ...rows.slice(i + 1)]);
+    setFocusTitle(`${label} – tên bước ${i + 2}`);
+  };
   const move = (i, to) => {
     const next = [...rows];
     [next[i], next[to]] = [next[to], next[i]];
@@ -637,101 +767,94 @@ function StepRows({ rows, editable, label, onChange, onAskDelete }) {
   };
   return (
     <>
-      <div className="table-wrap">
-        <table className="table ga-plan-table ga-goal-table" onMouseDown={focusCell}>
-          <colgroup>
-            <col className="ga-goal-table__group" />
-            <col />
-            <col />
-            <col className="ga-goal-table__group" />
-            {editable && <col className="ga-goal-table__group" />}
-          </colgroup>
-          <thead>
-            <tr>
-              <th>Bước</th>
-              <th>Hoạt động của cô</th>
-              <th>Hoạt động của trẻ</th>
-              <th>Ghi chú</th>
-              {editable && <th className="cell--actions">Thao tác</th>}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.length === 0 && (
-              <tr>
-                <td colSpan={editable ? 5 : 4}>
-                  <div className="ga-goal-table__pad muted">Chưa có dòng nào</div>
-                </td>
-              </tr>
-            )}
-            {rows.map((r, i) => (
-              <tr key={r.id}>
-                <td className={editable ? 'ga-cell-editable' : ''}>
-                  <LimitedCell
-                    editable={editable}
-                    max={NAME_MAX}
-                    value={r.title}
-                    label={`${label} – tên bước ${i + 1}`}
-                    placeholder="Tên bước"
-                    onChange={(v) => set(i, 'title', v)}
-                  />
-                </td>
-                {STEP_FIELDS.map(([f, name]) => (
-                  <td key={f} className={editable ? 'ga-cell-editable' : ''}>
-                    <LimitedCell
-                      editable={editable}
-                      value={r[f]}
-                      label={`${label} – ${name} dòng ${i + 1}`}
-                      onChange={(v) => set(i, f, v)}
-                    />
-                  </td>
-                ))}
-                {editable && (
-                  <td className="cell--actions">
-                    <div className="row gap-1 ga-goal-table__pad">
-                      <button
-                        type="button"
-                        className="icon-btn"
-                        disabled={i === 0}
-                        aria-label={`Đưa dòng ${i + 1} lên`}
-                        title="Lên"
-                        onClick={() => move(i, i - 1)}
-                      >
-                        <ArrowUp size={16} aria-hidden />
-                      </button>
-                      <button
-                        type="button"
-                        className="icon-btn"
-                        disabled={i === rows.length - 1}
-                        aria-label={`Đưa dòng ${i + 1} xuống`}
-                        title="Xuống"
-                        onClick={() => move(i, i + 1)}
-                      >
-                        <ArrowDown size={16} aria-hidden />
-                      </button>
-                      <button
-                        type="button"
-                        className="icon-btn icon-btn--danger"
-                        aria-label={`Xóa dòng ${i + 1}`}
-                        title="Xóa dòng"
-                        onClick={() => remove(i)}
-                      >
-                        <Trash2 size={16} aria-hidden />
-                      </button>
-                    </div>
-                  </td>
-                )}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      {editable && (
-        <div className="row">
-          <button type="button" className="btn btn--sm btn--outline-primary" onClick={() => onChange([...rows, emptyRow()])}>
-            <Plus size={16} aria-hidden /> Thêm dòng
-          </button>
-        </div>
+      <tr>
+        <th scope="col">c) Tiến hành</th>
+        <th scope="col">Hoạt động của cô</th>
+        <th scope="col">Hoạt động của trẻ</th>
+        <th scope="col">Ghi chú</th>
+        {editable && (
+          <th scope="col" className="cell--actions">
+            <button
+              type="button"
+              className="icon-btn icon-btn--danger"
+              aria-label={`Xóa phần Tiến hành – ${label}`}
+              title="Xóa phần c)"
+              onClick={onRemovePart}
+            >
+              <Trash2 size={16} aria-hidden />
+            </button>
+          </th>
+        )}
+      </tr>
+      {!editable && rows.length === 0 && (
+        <tr>
+          <td colSpan={cols}>
+            <div className="ga-goal-table__pad muted">Chưa có dòng nào</div>
+          </td>
+        </tr>
       )}
+      {/* Dòng trống cuối nằm chung danh sách với các dòng thật để giữ nguyên ô đang gõ khi nó thành dòng thật */}
+      {(editable ? [...rows, { id: trailId.current, trail: true }] : rows).map((r, i) => (
+        <tr key={r.id}>
+          <td className={editable ? 'ga-cell-editable' : ''}>
+            <LimitedCell
+              editable={editable}
+              max={NAME_MAX}
+              value={r.trail ? '' : r.title}
+              label={r.trail ? `${label} – tên bước mới` : `${label} – tên bước ${i + 1}`}
+              placeholder={r.trail ? 'Tên bước mới' : 'Tên bước'}
+              onChange={(v) => (r.trail ? addTrailing('title', v) : set(i, 'title', v))}
+              onKeyDown={r.trail ? undefined : titleKeys(i)}
+            />
+          </td>
+          {STEP_FIELDS.map(([f, name]) => (
+            <td key={f} className={editable ? 'ga-cell-editable' : ''}>
+              <LimitedCell
+                editable={editable}
+                value={r.trail ? '' : r[f]}
+                label={`${label} – ${name} ${r.trail ? 'dòng mới' : `dòng ${i + 1}`}`}
+                onChange={(v) => (r.trail ? addTrailing(f, v) : set(i, f, v))}
+              />
+            </td>
+          ))}
+          {editable && r.trail && <td className="cell--actions" />}
+          {editable && !r.trail && (
+            <td className="cell--actions">
+              <div className="row gap-1 ga-goal-table__pad">
+                <button
+                  type="button"
+                  className="icon-btn"
+                  disabled={i === 0}
+                  aria-label={`Đưa dòng ${i + 1} lên`}
+                  title="Lên"
+                  onClick={() => move(i, i - 1)}
+                >
+                  <ArrowUp size={16} aria-hidden />
+                </button>
+                <button
+                  type="button"
+                  className="icon-btn"
+                  disabled={i === rows.length - 1}
+                  aria-label={`Đưa dòng ${i + 1} xuống`}
+                  title="Xuống"
+                  onClick={() => move(i, i + 1)}
+                >
+                  <ArrowDown size={16} aria-hidden />
+                </button>
+                <button
+                  type="button"
+                  className="icon-btn icon-btn--danger"
+                  aria-label={`Xóa dòng ${i + 1}`}
+                  title="Xóa dòng"
+                  onClick={() => remove(i)}
+                >
+                  <Trash2 size={16} aria-hidden />
+                </button>
+              </div>
+            </td>
+          )}
+        </tr>
+      ))}
     </>
   );
 }
@@ -742,6 +865,7 @@ export function DayTab({
   editable,
   update,
   goals = [],
+  cards = [],
   assessTo = null,
   reuse = [],
   flagOf = () => null,
@@ -752,13 +876,23 @@ export function DayTab({
   const [askDelete, setAskDelete] = useState(null);
   const d = draft.days[index];
   const hoc = draft.grid.hoc?.days?.[index] || {};
-  const dayGoalIds = dayGoalsOf(draft)[index];
-  const dayGoals = dayGoalIds.map((id) => goals.find((g) => g.id === id)).filter(Boolean);
+  const dayGoalIds = dayGoalsOf(draft, cards)[index];
+  const dayGoals = dayGoalIds.map((id) => goals.find((g) => String(g.id) === id)).filter(Boolean);
+  // Hoạt động gõ tay ở ô tuần của ngày: không có MT để đánh giá (FR-010, US6-AS2)
+  const typedRows = new Set(teachingDayUnlinked(draft, index).map((u) => u.id.split('/')[1]));
   // MT trong ngày đổi / bị bỏ ở kế hoạch năm mới (BE:EDU-26): nêu bằng chữ, sửa ở ô của kế hoạch tuần
   const dayFlags = [...new Set(dayGoalIds)].map((id) => flagOf(id)).filter(Boolean);
   const setSec = (key, field, v) => update((x) => ((x.days[index].sections[key][field] = v), x));
+  const dropPart = (sec, part, name) => {
+    const cur = d.sections[sec.key];
+    const run = () => update((x) => ((x.days[index].sections[sec.key] = removePart(x.days[index].sections[sec.key], part)), x));
+    const filled = part === 'rows' ? sectionHasContent({ rows: cur.rows }) : !!cur[part]?.trim();
+    if (filled) setAskDelete({ name: `phần ${name} của ${sec.label}`, run });
+    else run();
+  };
   // Lấy từ kế hoạch tuần: điền ô trống và ô còn nguyên chữ của lần lấy trước (pulled); ô cô đã sửa giữ nguyên (FR-006)
-  const fromWeek = dayDraftFromWeek(draft, index, goals);
+  const fromWeek = dayDraftFromWeek(draft, index, goals, cards);
+  const dropped = droppedFromWeek(d, fromWeek);
   const pulled = d.pulled || {};
   const fields = DAY_SECTIONS.flatMap((s) => {
     const sec = d.sections[s.key];
@@ -784,6 +918,7 @@ export function DayTab({
     update((x) => {
       fills.forEach((f) => f.set(x));
       x.days[index].pulled = { ...pulled, ...Object.fromEntries(fills.map((f) => [f.key, f.value])) };
+      x.days[index].basis = Object.fromEntries(DAY_SECTIONS.map((s) => [s.key, fromWeek[s.key].cards]));
       return x;
     });
   // AI gợi ý tiến trình giờ học: a/b/c của API vào 3 dòng đầu của mục học, chỉ ô trống; ghi lại để cô Giữ / Bỏ
@@ -888,66 +1023,135 @@ export function DayTab({
           Chưa có nội dung: {missing.map((s) => s.label.replace(/^\d+\.\s*/, '')).join(', ')}.
         </p>
       )}
+      {/* FR-024: MT trong ngày = hợp MT của các hoạt động xếp vào ngày (gồm ô cả tuần, bảng góc) */}
+      {dayGoals.length > 0 && (
+        <p className="text-sm">
+          MT trong ngày:{' '}
+          {dayGoals.map((g) => (
+            <span key={g.id} className="chip chip--blue" title={g.text}>
+              MT{g.no}
+            </span>
+          ))}
+        </p>
+      )}
       {dayFlags.map((f) => (
         <p key={f.ref} className="field__error">
           {f.label}: {f.message}
         </p>
       ))}
-      <div className="section-title">I. Giáo án</div>
-      {DAY_SECTIONS.map((s) => {
-        const sec = d.sections[s.key];
-        const fw = fromWeek[s.key];
-        return (
-          <FoldSection key={s.key} title={`${s.label}${fw.name ? `: ${fw.name}` : ''}`}>
-            {missing.some((m) => m.key === s.key) && <p className="field__error">Mục này chưa có nội dung.</p>}
-            {fw.goals.length > 0 && (
-              <div className="ga-cell-text">
-                {fw.goals.map((g) => (
-                  <div key={g.id}>
-                    <span className="ga-goal-code">MT{g.no}</span> {g.text}
-                  </div>
-                ))}
-              </div>
-            )}
-            <LabelTable
-              editable={editable}
-              rows={[
-                {
-                  label: 'a) Mục đích, yêu cầu',
-                  cell: (
-                    <LimitedCell
-                      editable={editable}
-                      value={sec.aims}
-                      label={`${s.label} – mục đích, yêu cầu`}
-                      onChange={(v) => setSec(s.key, 'aims', v)}
-                    />
-                  ),
-                },
-                {
-                  label: 'b) Chuẩn bị',
-                  cell: (
-                    <LimitedCell
-                      editable={editable}
-                      value={sec.prep}
-                      label={`${s.label} – chuẩn bị`}
-                      onChange={(v) => setSec(s.key, 'prep', v)}
-                    />
-                  ),
-                },
-              ]}
-            />
-            <div className="fw-600">c) Tiến hành</div>
-            <StepRows
-              rows={sec.rows}
-              editable={editable}
-              label={s.label}
-              onChange={(rows) => setSec(s.key, 'rows', rows)}
-              onAskDelete={(name, run) => setAskDelete({ name, run })}
-            />
-          </FoldSection>
-        );
-      })}
-      <FoldSection title="II. Đánh giá trẻ trên ngày">
+      <Section title="I. Kế hoạch giáo dục ngày">
+        <div className="table-wrap">
+          <table className="table ga-plan-table ga-goal-table" onMouseDown={focusCell}>
+            <colgroup>
+              <col className="ga-goal-table__group" />
+              <col />
+              <col />
+              <col className="ga-goal-table__group" />
+              {editable && <col className="ga-goal-table__group" />}
+            </colgroup>
+            <tbody>
+              {DAY_SECTIONS.map((s) => {
+                const sec = d.sections[s.key];
+                const fw = fromWeek[s.key];
+                const cols = editable ? 5 : 4;
+                const off = partsOff(sec);
+                return (
+                  <Fragment key={s.key}>
+                    <tr>
+                      <th scope="colgroup" colSpan={cols} className="cell--fixed">
+                        <div className="ga-goal-table__pad">
+                          {s.label}
+                          {s.key !== 'hoc' && fw.name ? `: ${fw.name}` : ''}
+                          {s.key === 'hoc' && fw.main && <div className="ga-cell-text">Hoạt động chính: {fw.main}</div>}
+                          {s.key === 'hoc' && fw.combined && <div className="ga-cell-text">Hoạt động kết hợp: {fw.combined}</div>}
+                          {missing.some((m) => m.key === s.key) && <p className="field__error">Mục này chưa có nội dung.</p>}
+                          {fw.goals.map((g) => (
+                            <div key={g.id} className="ga-cell-text">
+                              <span className="ga-goal-code">MT{g.no}</span> {g.text}
+                            </div>
+                          ))}
+                          {typedRows.has(s.row) && <p className="text-danger text-sm">Có hoạt động chưa gắn MT</p>}
+                          {dropped.includes(s.key) && <p className="text-xs text-warning">Đã đổi ở kế hoạch tuần</p>}
+                        </div>
+                      </th>
+                    </tr>
+                    {[
+                      ['aims', 'a) Mục đích, yêu cầu', 'mục đích, yêu cầu'],
+                      ['prep', 'b) Chuẩn bị', 'chuẩn bị'],
+                    ]
+                      .filter(([f]) => !off.includes(f))
+                      .map(([f, name, aria]) => (
+                        <tr key={f}>
+                          <td className={editable ? 'cell--fixed' : ''}>
+                            <div className="ga-goal-table__pad fw-600">{name}</div>
+                          </td>
+                          <td colSpan={editable ? cols - 2 : cols - 1} className={editable ? 'ga-cell-editable' : ''}>
+                            <LimitedCell
+                              editable={editable}
+                              value={sec[f]}
+                              label={`${s.label} – ${aria}`}
+                              onChange={(v) => setSec(s.key, f, v)}
+                            />
+                          </td>
+                          {editable && (
+                            <td className="cell--actions">
+                              <div className="ga-goal-table__pad">
+                                <button
+                                  type="button"
+                                  className="icon-btn icon-btn--danger"
+                                  aria-label={`Xóa phần ${name} – ${s.label}`}
+                                  title="Xóa phần này"
+                                  onClick={() => dropPart(s, f, name)}
+                                >
+                                  <Trash2 size={16} aria-hidden />
+                                </button>
+                              </div>
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                    {!off.includes('rows') && (
+                      <StepRows
+                        rows={sec.rows}
+                        editable={editable}
+                        label={s.label}
+                        cols={cols}
+                        onChange={(rows) => setSec(s.key, 'rows', rows)}
+                        onAskDelete={(name, run) => setAskDelete({ name, run })}
+                        onRemovePart={() => dropPart(s, 'rows', 'c) Tiến hành')}
+                      />
+                    )}
+                    {editable && off.length > 0 && (
+                      <tr>
+                        <td colSpan={cols}>
+                          <div className="ga-goal-table__pad row row--wrap gap-2">
+                            {SECTION_PARTS.filter((x) => off.includes(x.key)).map((x) => (
+                              <button
+                                key={x.key}
+                                type="button"
+                                className="btn btn--sm btn--outline-primary"
+                                aria-label={`Thêm lại ${x.label} – ${s.label}`}
+                                onClick={() =>
+                                  update(
+                                    (doc) => ((doc.days[index].sections[s.key] = restorePart(doc.days[index].sections[s.key], x.key)), doc),
+                                  )
+                                }
+                              >
+                                <Plus size={16} aria-hidden /> {x.label}
+                              </button>
+                            ))}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </Section>
+      <Section title="II. Đánh giá trẻ trên ngày">
         <LabelTable
           editable={editable}
           rows={DAY_REVIEW.map((r) => ({
@@ -962,7 +1166,7 @@ export function DayTab({
             ),
           }))}
         />
-      </FoldSection>
+      </Section>
       <ConfirmationModal
         open={!!askDelete}
         danger

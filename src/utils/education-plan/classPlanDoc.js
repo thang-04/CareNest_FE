@@ -12,10 +12,12 @@ import {
   DAY_REVIEW,
   DAY_SECTIONS,
   PREP_TARGETS,
+  partsOff,
   WEEKDAY_LABELS,
   addDays,
   branchNumber,
   dayDraftFromWeek,
+  themeActivities,
   longDay,
   monthOf,
   normalizeDay,
@@ -73,7 +75,7 @@ export const leaderNameOf = (staff = [], ageGroupId, schoolYear) =>
 const signCell = (x, top = '') => `<td class="c">${top}<b>${esc(x.title)}</b><br/><div class="sign"></div>${esc(x.name)}</td>`;
 
 /**
- * Khung duyệt cuối mỗi tuần theo mẫu Thái Dương: "Duyệt giáo án từ ngày … đến ngày …", ngày ký, người duyệt theo chuỗi
+ * Khung duyệt cuối mỗi tuần theo mẫu Thái Dương: "Duyệt kế hoạch giáo dục ngày từ ngày … đến ngày …", ngày ký, người duyệt theo chuỗi
  * đã cấu hình (chức danh, chỗ ký tay, họ tên).
  */
 const approvalBox = (doc, week, leaderName) => {
@@ -86,7 +88,7 @@ const approvalBox = (doc, week, leaderName) => {
   const cells = (people.length ? people : [{ title: 'Người duyệt', name: '' }])
     .map((x) => signCell(x, `<i>${BLANK_DATE}</i><br/>`))
     .join('');
-  return `<p>&nbsp;</p><p><b>Duyệt giáo án từ ngày ${fmt(week.start)} đến ngày ${fmt(week.end)}</b></p>
+  return `<p>&nbsp;</p><p><b>Duyệt kế hoạch giáo dục ngày từ ngày ${fmt(week.start)} đến ngày ${fmt(week.end)}</b></p>
 <table class="plain sign-block"><tr>${creators || '<td style="width:50%"></td>'}${cells}</tr></table>`;
 };
 
@@ -97,6 +99,19 @@ const approvalBox = (doc, week, leaderName) => {
 const themeSection = ({ doc, theme, themeNo, weeks, blocks, rowOf }) => {
   // TT đánh số liên tục trong chủ đề; câu mục tiêu giữ số MT của kế hoạch năm (như file mẫu)
   let tt = 0;
+  // FR-008: bản có thẻ in mỗi MT các thẻ của nó ("Loại giờ: tên", thẻ nhiều MT in ở mọi MT); bản cũ in nguyên ô chữ (FR-006)
+  // Server trả thẻ dựng từ ô chữ cho bản cũ: khi mọi thẻ là thẻ cũ và ô chữ còn đó thì in nguyên ô chữ như bản đã ban hành
+  const legacyOnly =
+    !Array.isArray(doc.activities) ||
+    (doc.activities.every((c) => c.legacy) && Object.values(doc.rows || {}).some((r) => r?.activities?.trim()));
+  const acts = legacyOnly ? null : themeActivities(blocks, doc);
+  const activitiesOf = (g, r) =>
+    acts
+      ? acts
+          .filter((a) => a.goalIds.includes(String(g.id)))
+          .map((a) => `- ${a.text}`)
+          .join('\n')
+      : r.activities;
   const rows = blocks
     .map((b, i) => {
       const band =
@@ -108,7 +123,7 @@ const themeSection = ({ doc, theme, themeNo, weeks, blocks, rowOf }) => {
       const goals = b.goals
         .map((g) => {
           const r = rowOf(g);
-          return `<tr><td class="c">${(tt += 1)}</td><td>${g.no}. ${esc(g.text)}</td><td>${text(r.contents)}</td><td>${text(r.activities)}</td></tr>`;
+          return `<tr><td class="c">${(tt += 1)}</td><td>${g.no}. ${esc(g.text)}</td><td>${text(r.contents)}</td><td>${text(activitiesOf(g, r))}</td></tr>`;
         })
         .join('');
       return band + sub + goals;
@@ -181,23 +196,23 @@ ${corners ? `<h2>${ROMAN[n(2)]}. Hoạt động góc</h2>${corners}` : ''}`;
 const ROMAN = ['I', 'II', 'III', 'IV', 'V'];
 const BLANK_LINES = '<br/><br/>';
 
-/** Bảng Tiến hành: dòng có tên in thành tiêu đề dòng; cột Ghi chú bỏ khi cả bảng trống (FR-017). */
+/**
+ * Bảng Tiến hành như file "Chủ đề gia đình": cột đầu là nội dung hoạt động (tên bước) khi có dòng đặt tên; cột Ghi chú bỏ khi
+ * cả bảng trống (FR-017).
+ */
 const stepTable = (rows) => {
+  const withName = rows.some((r) => r.title?.trim());
   const withNote = rows.some((r) => r.note?.trim());
-  const cols = withNote ? 3 : 2;
+  const cols = [withName && 'Nội dung hoạt động', 'Hoạt động của cô', 'Hoạt động của trẻ', withNote && 'Ghi chú'].filter(Boolean);
+  const cell = (r) =>
+    `${withName ? `<td><b>${esc(r.title || '')}</b></td>` : ''}<td>${text(r.teacher)}</td><td>${text(r.child)}</td>${withNote ? `<td>${text(r.note)}</td>` : ''}`;
   const body = rows.length
-    ? rows
-        .map(
-          (r) =>
-            `${r.title?.trim() ? `<tr><td colspan="${cols}"><b>${esc(r.title)}</b></td></tr>` : ''}<tr><td>${text(r.teacher)}</td><td>${text(r.child)}</td>${withNote ? `<td>${text(r.note)}</td>` : ''}</tr>`,
-        )
-        .join('')
-    : `<tr><td>${BLANK_LINES}</td><td>${BLANK_LINES}</td></tr>`;
-  const colgroup = withNote
-    ? '<col style="width:42%"/><col style="width:42%"/><col style="width:16%"/>'
-    : '<col style="width:50%"/><col style="width:50%"/>';
-  return `<table class="grid"><colgroup>${colgroup}</colgroup>
-<thead><tr><th>Hoạt động của cô</th><th>Hoạt động của trẻ</th>${withNote ? '<th>Ghi chú</th>' : ''}</tr></thead><tbody>${body}</tbody></table>`;
+    ? rows.map((r) => `<tr>${cell(r)}</tr>`).join('')
+    : `<tr>${cols.map(() => `<td>${BLANK_LINES}</td>`).join('')}</tr>`;
+  const width = { 'Nội dung hoạt động': 18, 'Ghi chú': 14 };
+  const flex = (100 - (withName ? 18 : 0) - (withNote ? 14 : 0)) / 2;
+  return `<table class="grid"><colgroup>${cols.map((c) => `<col style="width:${width[c] || flex}%"/>`).join('')}</colgroup>
+<thead><tr>${cols.map((c) => `<th>${c}</th>`).join('')}</tr></thead><tbody>${body}</tbody></table>`;
 };
 
 /** 5 giáo án ngày theo mẫu chung (spec 005): I. Giáo án 4 mục a/b/c (khung in cả khi trống), II. Đánh giá trẻ trên ngày. */
@@ -211,15 +226,22 @@ ${i === 0 ? '<h1>KẾ HOẠCH NGÀY</h1>' : ''}<p class="c"><b>${esc(longDay(d.d
       const fromWeek = dayDraftFromWeek(doc, i);
       const sections = DAY_SECTIONS.map((s) => {
         const sec = d.sections[s.key];
-        const name = fromWeek[s.key]?.name;
-        return `<p><b>${esc(s.label)}${name ? `: ${esc(name)}` : ''}</b></p>
-<p><b>a) Mục đích, yêu cầu</b><br/>${text(sec.aims) || BLANK_LINES}</p>
-<p><b>b) Chuẩn bị</b><br/>${text(sec.prep) || BLANK_LINES}</p>
-<p><b>c) Tiến hành</b></p>${stepTable(sec.rows)}`;
+        const off = partsOff(sec);
+        const fw = fromWeek[s.key] || {};
+        const head =
+          s.key === 'hoc'
+            ? `${fw.main ? `<br/>* Hoạt động chính: ${esc(fw.main)}` : ''}${fw.combined ? `<br/>* Hoạt động kết hợp: ${esc(fw.combined)}` : ''}`
+            : fw.name
+              ? `: ${esc(fw.name)}`
+              : '';
+        return `<p><b>${esc(s.label)}${head}</b></p>
+${off.includes('aims') ? '' : `<p><b>a) Mục đích, yêu cầu</b><br/>${text(sec.aims) || BLANK_LINES}</p>`}
+${off.includes('prep') ? '' : `<p><b>b) Chuẩn bị</b><br/>${text(sec.prep) || BLANK_LINES}</p>`}
+${off.includes('rows') ? '' : `<p><b>c) Tiến hành</b></p>${stepTable(sec.rows)}`}`;
       }).join('');
       const review = DAY_REVIEW.map((r) => `<p><b>${esc(r.label)}</b><br/>${text(d.review?.[r.key]) || BLANK_LINES}</p>`).join('');
       return `${heading}
-<h2>I. Giáo án</h2>${sections}
+<h2>I. Kế hoạch giáo dục ngày</h2>${sections}
 <h2>II. Đánh giá trẻ trên ngày</h2>${review}`;
     })
     .join('');
@@ -237,7 +259,7 @@ ${approvalBox(doc, week, leaderName)}`;
 export const dayPlansFileHtml = ({ doc, week, branchNo, branchName, cls, leaderName }) => {
   const corners = cornerTable(doc);
   return docShell(
-    `Giáo án ngày tuần ${week.no} ${cls.name}`,
+    `Kế hoạch giáo dục ngày tuần ${week.no} ${cls.name}`,
     `<h1>GIÁO ÁN TUẦN ${week.no}</h1>
 <p class="c"><b>Chủ đề nhánh ${branchNo}: ${esc(branchName || '…')}</b></p>
 <p class="c">Thời gian thực hiện: 1 tuần từ ${fmt(week.start)} → ${fmt(week.end)}</p>
@@ -250,7 +272,7 @@ ${approvalBox(doc, week, leaderName)}`,
 
 /**
  * Hồ sơ chủ đề đúng thứ tự file của trường: kế hoạch giáo dục chủ đề → từng tuần nhánh (kế hoạch tuần, 5 kế hoạch ngày,
- * khung "Duyệt giáo án từ ngày … đến ngày …" để ký tay). weekDocs: [{ week, branchNo, branchName, doc }] (tuần chưa soạn bỏ qua).
+ * khung "Duyệt kế hoạch giáo dục ngày từ ngày … đến ngày …" để ký tay). weekDocs: [{ week, branchNo, branchName, doc }] (tuần chưa soạn bỏ qua).
  */
 export const themeFileHtml = ({ themeDoc, theme, themeNo, cls, weeks, blocks, rowOf, weekDocs, leaderName }) =>
   docShell(
@@ -364,10 +386,10 @@ export const themeFile = (args) => ({
   html: themeFileHtml(args),
   name: fileTitle(`3. KHGD CĐ ${args.themeNo} ${args.theme.name} - ${args.cls.name}`),
 });
-export const weekFile = (args) => ({ html: weekFileHtml(args), name: fileTitle(`Giáo án tuần ${args.week.no} - ${args.cls.name}`) });
+export const weekFile = (args) => ({ html: weekFileHtml(args), name: fileTitle(`Kế hoạch tuần ${args.week.no} - ${args.cls.name}`) });
 export const dayPlansFile = (args) => ({
   html: dayPlansFileHtml(args),
-  name: fileTitle(`Giáo án ngày tuần ${args.week.no} - ${args.cls.name}`),
+  name: fileTitle(`Kế hoạch giáo dục ngày tuần ${args.week.no} - ${args.cls.name}`),
 });
 
 // Tên file theo bộ file mẫu của trường: "2. DỰ KIẾN CÁC CHỦ ĐỀ NHÁNH…", "3. KHGD CĐ n …"
@@ -377,4 +399,4 @@ export const exportBranchFile = (args, mode) =>
 export const exportThemeFile = (args, mode) =>
   output(themeFileHtml(args), `3. KHGD CĐ ${args.themeNo} ${args.theme.name} - ${args.cls.name}`, mode);
 
-export const exportWeekPlan = (args, mode) => output(weekFileHtml(args), `Giáo án tuần ${args.week.no} - ${args.cls.name}`, mode);
+export const exportWeekPlan = (args, mode) => output(weekFileHtml(args), `Kế hoạch tuần ${args.week.no} - ${args.cls.name}`, mode);

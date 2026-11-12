@@ -12,6 +12,10 @@ import { curriculumMockRepository } from '@/services/education-plan/mock/curricu
 const repo = USE_MOCK ? educationPlanMockRepository : educationPlanApi;
 
 export const getEducationPlans = (user) => repo.getAll(user);
+// Trang chủ chỉ cần chủ đề, giờ học: API thật chưa có hai phần này (getAll trả rỗng) nên không tải chi tiết từng kế hoạch
+// năm/tổ — tránh ~30 request tranh kết nối với trang kế hoạch giáo dục (FE-BUG-261111-dashboard-reload-burst)
+export const getEducationLessons = (user) =>
+  USE_MOCK ? repo.getAll(user).then(({ themes, lessons }) => ({ themes, lessons })) : Promise.resolve({ themes: [], lessons: [] });
 export const getReviewQueue = (user) => repo.getReviewQueue(user);
 export const getGoal = (id, user) => repo.getGoal(id, user);
 export const getClassDocRelease = (releaseId) => repo.getClassDocRelease(releaseId);

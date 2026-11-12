@@ -21,12 +21,12 @@ const useSchoolYear=()=>({schoolYears:[]}), useMediaQuery=()=>false;
 const ROLE_LABELS={};
 const ROLES={VICE_PRINCIPAL:'vp',TEAM_LEADER:'leader'}, AGE_GROUPS=[{id:'ag-5',name:'Mẫu giáo lớn (5–6 tuổi)'},{id:'ag-4',name:'Mẫu giáo nhỡ (4–5 tuổi)'}], DOMAINS=[], SCHOOL_SCOPE='Toàn trường', EDU_STATUS={EDITING:'EDITING',DRAFT:'DRAFT',PENDING_VP:'PENDING_VP'}, EDU_ERROR_CODE={};
 export const formContext={goals:[],user:{id:'test',name:'Người soạn',role:'vp'}};
-const useEducationPlan=()=>({...formContext,schoolYear:'2026 – 2027',staff:[]});
+const useGoalDetails=()=>({loading:false});const useEducationPlan=()=>({...formContext,schoolYear:'2026 – 2027',staff:[]});
 const useYearPlanAutosave=()=>({label:'Đã lưu',drafts:[],saved:()=>null}), useLeaveGuard=()=>({modal:{}});
 const goalIdsToTicks=(domains,themes)=>({domains,themes});
 const numberGoals=()=>({}), themeScheduleIssue=()=>'', isBlankTheme=()=>false, isBlankBreak=()=>false;
 const Card=({title,num,actions,children,className})=><section className={className}><h2>{num}. {title}</h2>{actions}{children}</section>;
-const PageHead=({actions})=><header>{actions}</header>, Field=({label,children})=><label>{label}{children}</label>, Notice=({children})=><p>{children}</p>;
+const PageHead=({actions})=><header>{actions}</header>, FoldAllButton=()=>null, Field=({label,children})=><label>{label}{children}</label>, Notice=({children})=><p>{children}</p>;
 const GoalTable=({fixedCells,readOnly,canAssignContents})=> <div data-table="goals" data-fixed={fixedCells} data-locked={readOnly} data-assign={canAssignContents}/>, ThemeEventTable=({fixedFields,readOnly})=> <div data-table="themes" data-fixed={fixedFields} data-locked={readOnly}/>;
 const PlanTabs=()=> <div role="tablist"/>, Stepper=()=> <nav data-stepper="true"/>;
 const Download=()=>null, FileDown=()=>null, Save=()=>null, Upload=()=>null, ArrowLeft=()=>null, ArrowRight=()=>null;
@@ -86,7 +86,10 @@ test('thông tin chung nhập trong bảng và các nút dùng cùng kiểu trê
   assert.doesNotMatch(html, /<textarea id="title"/);
 
   assert.match(html, /id="desc"/);
-  assert.doesNotMatch(html, /class="ga-year-toolbar__group">/);
+  // Kế hoạch tổ: bên trái hàng nút chỉ có tên ngắn (hiện khi dính), không có nút lấy nội dung
+  const left = html.match(/class="ga-year-toolbar__group">([\s\S]*?)<\/div>/)[1];
+  assert.match(left, /ga-year-toolbar__title/);
+  assert.doesNotMatch(left, /<button/);
   const right = html.match(/class="ga-year-toolbar__group ga-year-toolbar__group--end">([\s\S]*?)<\/div>/)[1];
   assert.doesNotMatch(right, /Nhập file/);
   assert.ok(right.indexOf('Lưu') < right.indexOf('Xuất file'));
@@ -106,10 +109,10 @@ const DeadlineBadge=()=>null, ExtendDeadlineButton=()=>null;
 const ROLE_LABELS={};
 const YearPlanSourceCard=({plan,source,children})=><section className="ga-plan-section--source" data-source-id={plan.curriculumSourcePlanId} data-source-title={source?.title}>{children}</section>;
 const ROLES={VICE_PRINCIPAL:'vp'}, AGE_GROUPS=[], DOMAINS=[], SCHOOL_SCOPE='Toàn trường', EDU_STATUS={DRAFT:'DRAFT',EDITING:'EDITING',APPROVED:'APPROVED'};
-const useEducationPlan=()=>({goals:[{id:'test',title:'Kế hoạch thử',status:'DRAFT',domains:[],themes:[],permissions:{canEdit:true}}],themes:[],user:{id:'vp',role:'vp'},staff:[]});
+const useGoalDetails=()=>({loading:false});const useEducationPlan=()=>({goals:[{id:'test',title:'Kế hoạch thử',status:'DRAFT',domains:[],themes:[],permissions:{canEdit:true}}],themes:[],user:{id:'vp',role:'vp'},staff:[]});
 const goalIdsToTicks=(domains,themes)=>({domains,themes}), numberGoals=()=>({}), chainOf=()=>[], currentPlanOf=()=>null;
 const Card=({title,num,children})=><section><h2>{num}. {title}</h2>{children}</section>;
-const PageHead=({actions})=><header>{actions}</header>, VersionBadge=()=>null, YearPlanVersionPanel=()=>null, ReviewHistory=()=>null, ReviewActions=()=>null, RejectedNotice=()=>null;
+const PageHead=({actions})=><header>{actions}</header>, FoldAllButton=()=>null, VersionBadge=()=>null, YearPlanVersionPanel=()=>null, ReviewHistory=()=>null, ReviewActions=()=>null, RejectedNotice=()=>null;
 const GoalTable=()=> <div data-table="goals"/>, ThemeEventTable=()=> <div data-table="themes"/>, PlanTabs=()=> <div role="tablist"/>;
 const Copy=()=>null, FileDown=()=>null, Pencil=()=>null, Trash2=()=>null, ArrowLeft=()=>null, fmtDate=()=> '—';
 const Link=({to,children,...props})=><a href={to} data-back-to={props.state?.backTo} data-replace={props.replace ? 'true' : 'false'} className={props.className}>{children}</a>;
@@ -237,7 +240,7 @@ let slots=[], cursor=0;
 const useState=initial=>{const index=cursor++; if(!(index in slots)) slots[index]=typeof initial==='function'?initial():initial; return [slots[index], value=>slots[index]=typeof value==='function'?value(slots[index]):value];};
 const useRef=initial=>{const index=cursor++; return slots[index] ||= {current:initial};};
 const useEffect=()=>{};
-export function renderAnnual(planLevel='SCHOOL_YEAR'){cursor=0;return GoalFormPage({planLevel});}
+export function renderAnnual(planLevel='SCHOOL_YEAR'){cursor=0;return GoalFormInner({planLevel});}
 export function disposeAnnual(){slots=[];cursor=0;}
 `;
 const annualCode = await transformWithOxc(

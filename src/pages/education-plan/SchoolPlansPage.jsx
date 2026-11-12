@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { RotateCcw } from '@/components/ui/icons';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
-import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
+import { useEducationPlan, useGoalDetails } from '@/hooks/education-plan/useEducationPlan';
 import { Card, EduStatusBadge, EmptyState, PageHead, YearPlanStatusBadge, fmtDate, fmtDateTime } from '@/components/education-plan/eduUi';
 import { AGE_GROUPS, EDU_STATUS, EDU_STATUS_LABELS, allGoalItems } from '@/models/education-plan/educationPlanConstants';
 import { themeNumber, themeWeeksOf, yearWeeks } from '@/models/education-plan/classPlan';
@@ -23,10 +23,12 @@ const sentEntry = (doc) => [...(doc.history || [])].reverse().find((h) => !h.ton
 
 /**
  * Hiệu trưởng: xem kế hoạch giáo dục toàn trường (kế hoạch năm theo nhóm tuổi, chủ đề nhánh và hồ sơ chủ đề của các lớp),
- * chỉ xem; duyệt theo chuỗi người ký ở trang Duyệt kế hoạch, giáo án.
+ * chỉ xem; duyệt theo chuỗi người ký ở trang Duyệt kế hoạch giáo dục.
  */
 export default function SchoolPlansPage() {
   const { goals, branchPlans, classThemePlans, schoolYear, classes } = useEducationPlan();
+  // Tên chủ đề, số tuần của tài liệu lớp lấy từ kế hoạch tổ ⇒ tải chi tiết các kế hoạch tổ được tài liệu lớp tham chiếu
+  useGoalDetails([...branchPlans, ...classThemePlans].map((d) => d.yearPlanId));
   const navigate = useNavigate();
   const [tab, setTab] = useState('goals');
   const [age, setAge] = useState('');
@@ -60,7 +62,7 @@ export default function SchoolPlansPage() {
           code: g.code,
           scope: ageName(g.ageGroupId),
           ageGroupId: g.ageGroupId,
-          detail: `${allGoalItems(g).length} mục tiêu · ${(g.themes || []).length} chủ đề`,
+          detail: `${g.summary ? g.goalCount : allGoalItems(g).length} mục tiêu · ${g.summary ? g.themeCount : (g.themes || []).length} chủ đề`,
           by: g.owner?.name || g.createdBy,
           at: fmtDate(g.sentAt),
           status: g.status,

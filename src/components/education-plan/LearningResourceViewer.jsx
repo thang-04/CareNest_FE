@@ -28,7 +28,7 @@ export function LearningResourceViewer({ user, docKey, resource }) {
   }, [user, docKey, resourceId]);
   if (!resource) return <p className="muted">Chọn học liệu để xem; hoạt động chưa có tệp vẫn dạy được từ nội dung kế hoạch.</p>;
   if (state.id !== resource.id || (!state.url && !state.error)) return <p role="status">Đang tải học liệu…</p>;
-  if (state.error) return <Notice tone="warn">{state.error}</Notice>;
+  if (state.error) return <Notice>{state.error}</Notice>;
   const kind = mediaKind(resource.contentType);
   const pdfViewerAvailable = typeof navigator !== 'undefined' && navigator.pdfViewerEnabled === true;
   return (

@@ -13,7 +13,7 @@ export const CLASS_DOC_LABELS = {
   year: 'Kế hoạch giáo dục tổ',
   branch: 'Chủ đề nhánh và thời gian',
   theme: 'Kế hoạch chủ đề',
-  week: 'Giáo án tuần (kế hoạch chủ đề)',
+  week: 'Kế hoạch tuần',
 };
 
 /** Các dòng của bảng tổ chức hoạt động trong tuần theo cấu hình của trường; canMerge = được gộp một ô cả tuần, allWeek = mặc định gộp. */
@@ -29,6 +29,9 @@ export const DAY_SECTIONS = [
 
 /** Dòng gợi ý của Tiến hành ở mục Hoạt động học: không đánh chữ, xóa/đổi tên được (FR-004). */
 export const HOC_SUGGESTED_ROWS = ['Ổn định tổ chức, gây hứng thú', 'Nội dung trọng tâm', 'Kết thúc'];
+/** Dòng gợi ý của mục ngoài trời theo file "Chủ đề gia đình": ba phần của một buổi ngoài trời; xóa/đổi tên được. */
+export const NGOAI_TROI_SUGGESTED_ROWS = ['Hoạt động có mục đích', 'Trò chơi vận động', 'Chơi theo ý thích'];
+const SUGGESTED_ROWS = { hoc: HOC_SUGGESTED_ROWS, ngoai_troi: NGOAI_TROI_SUGGESTED_ROWS };
 
 /** Phần II của giáo án ngày, nhận xét chung cả lớp (FR-008). */
 export const DAY_REVIEW = [
@@ -205,7 +208,11 @@ const emptyGrid = () =>
 
 const newId = () => Math.random().toString(36).slice(2, 10);
 export const emptyRow = (title = '') => ({ id: newId(), title, teacher: '', child: '', note: '' });
-const emptySection = (key) => ({ aims: '', prep: '', rows: key === 'hoc' ? HOC_SUGGESTED_ROWS.map((t) => emptyRow(t)) : [emptyRow()] });
+const emptySection = (key) => ({
+  aims: '',
+  prep: '',
+  rows: SUGGESTED_ROWS[key] ? SUGGESTED_ROWS[key].map((t) => emptyRow(t)) : [emptyRow()],
+});
 const emptyReview = () => ({ health: '', knowledge: '', attitude: '' });
 
 export const emptyDay = (date) => ({
@@ -228,7 +235,9 @@ export function normalizeDay(d) {
         const cur = d.sections[s.key];
         return [
           s.key,
-          cur ? { aims: cur.aims || '', prep: cur.prep || '', rows: Array.isArray(cur.rows) ? cur.rows : [] } : emptySection(s.key),
+          cur
+            ? { aims: cur.aims || '', prep: cur.prep || '', rows: Array.isArray(cur.rows) ? cur.rows : [], off: partsOff(cur) }
+            : emptySection(s.key),
         ];
       }),
     );
@@ -270,6 +279,21 @@ export function emptyDaySections(docs, weeks = []) {
 }
 
 /** Mục có nội dung ở bất kỳ ô nào; tên dòng không tính (FR-007a). */
+/** Phần a/b/c của một mục mà cô đã tự xóa (Tiền 11/11/2026): 'aims' | 'prep' | 'rows'; thêm lại được. */
+export const SECTION_PARTS = [
+  { key: 'aims', label: 'a) Mục đích, yêu cầu' },
+  { key: 'prep', label: 'b) Chuẩn bị' },
+  { key: 'rows', label: 'c) Tiến hành' },
+];
+export const partsOff = (sec) => (Array.isArray(sec?.off) ? sec.off.filter((k) => SECTION_PARTS.some((x) => x.key === k)) : []);
+/** Xóa một phần: bỏ nội dung của phần đó và đánh dấu đã xóa. */
+export const removePart = (sec, key) => ({ ...sec, [key]: key === 'rows' ? [] : '', off: [...new Set([...partsOff(sec), key])] });
+export const restorePart = (sec, key) => ({
+  ...sec,
+  rows: key === 'rows' ? [emptyRow()] : sec.rows,
+  off: partsOff(sec).filter((k) => k !== key),
+});
+
 export const sectionHasContent = (sec) =>
   !!sec &&
   (hasText(sec.aims) || hasText(sec.prep) || (sec.rows || []).some((r) => hasText(r.teacher) || hasText(r.child) || hasText(r.note)));
@@ -331,13 +355,14 @@ export function submitBlocker(kind, doc, { branchPlans = [], weekPlans = [], cla
   if (unnamed) return 'Cần tạo đủ chủ đề nhánh của chủ đề này trước khi gửi hồ sơ chủ đề.';
   if (kind === CLASS_DOC.WEEK) {
     const theme = classThemePlans.find((t) => t.classId === doc.classId && t.yearPlanId === doc.yearPlanId && t.themeId === doc.themeId);
-    if (!theme || theme.status === 'DRAFT') return 'Giáo án tuần được gửi cùng kế hoạch chủ đề.';
+    if (!theme || theme.status === 'DRAFT') return 'Kế hoạch tuần được gửi cùng kế hoạch chủ đề.';
     return null;
   }
   const missing = dossierWeekDocs(doc, yearPlan, weekPlans)
     .map((x, i) => (x.doc ? null : `nhánh ${i + 1}`))
     .filter(Boolean);
-  if (missing.length) return `Còn thiếu giáo án ${missing.join(', ')}. Soạn và lưu đủ giáo án các nhánh rồi mới gửi duyệt kế hoạch chủ đề.`;
+  if (missing.length)
+    return `Còn thiếu kế hoạch giáo dục ngày ${missing.join(', ')}. Soạn và lưu đủ kế hoạch giáo dục ngày các nhánh rồi mới gửi duyệt kế hoạch chủ đề.`;
   return null;
 }
 
@@ -411,18 +436,26 @@ const slotsOf = (head) => {
   return [...new Set([...byLabel, ...SLOT_WORDS.filter(([, re]) => re.test(head)).map(([k]) => k)])];
 };
 
+/* ---------- Thẻ hoạt động (BE:EDU-78, spec 006) ---------- */
+
+/** Tên thẻ tối đa (BE R8). */
+export const CARD_NAME_MAX = 300;
+
+const headOf = (text) => (text.includes(':') ? text.slice(0, text.indexOf(':')) : text);
+// Thẻ chỉ mang một loại giờ: loại giờ đầu tiên khớp mà trường đang có trong cấu hình; không khớp ⇒ "" (chưa rõ)
+const slotKeyOf = (head) => slotsOf(head).find((k) => weekRows().some((r) => r.key === k)) || '';
+
 /**
- * Tách các hoạt động của kế hoạch chủ đề: [{ id, goalId, goalNo, slots, text }]. rowOf(goal) → { activities }.
- * Trường viết kiểu đầu mục + dòng con ("- HĐ học:" rồi "+ VĐCB …"): dòng đầu mục không có nội dung thì không thành
- * hoạt động, các dòng "+" bên dưới mang loại giờ của đầu mục (ghi thành "HĐ học: VĐCB …").
+ * Dữ liệu cũ (ô chữ "Loại giờ: …" của từng MT) thành thẻ, cùng cách tách của bản cũ: đầu mục rỗng ("HĐ học:") cho các dòng
+ * con "+ …" loại giờ của nó. Id thẻ = "goalId#i" để lượt xếp và học liệu cũ vẫn trỏ đúng (BE research R2).
  */
-export function themeActivities(blocks, rowOf) {
-  return blocks
-    .flatMap((b) => b.goals)
-    .flatMap((g) => {
+function legacyCards(content, goalIds) {
+  return Object.entries(content?.rows || {})
+    .filter(([goalId]) => !goalIds || goalIds.has(String(goalId)))
+    .flatMap(([goalId, row]) => {
       let heading = null;
       const out = [];
-      String(rowOf(g)?.activities || '')
+      String(row?.activities || '')
         .split('\n')
         .forEach((raw) => {
           const sub = /^\s*\+/.test(raw);
@@ -430,30 +463,113 @@ export function themeActivities(blocks, rowOf) {
           if (!line) return;
           const colon = line.indexOf(':');
           const head = colon >= 0 ? line.slice(0, colon) : line;
-          // Đầu mục rỗng ("HĐ học:"): nhớ loại giờ cho các dòng con
           if (!sub && colon >= 0 && !line.slice(colon + 1).trim()) {
-            heading = { name: head.trim(), slots: slotsOf(head) };
+            heading = { name: head.trim(), slot: slotKeyOf(head) };
             return;
           }
           if (!sub) heading = null;
-          const own = slotsOf(head);
-          const inherit = sub && heading && !own.length;
+          const inherit = sub && heading && !slotsOf(head).length;
           out.push({
-            id: `${g.id}#${out.length}`,
-            goalId: g.id,
-            goalNo: g.no,
-            slots: inherit ? heading.slots : own,
-            text: inherit ? `${heading.name}: ${line}` : line,
+            id: `${goalId}#${out.length}`,
+            slot: inherit ? heading.slot : slotKeyOf(head),
+            name: inherit ? `${heading.name}: ${line}` : line,
+            goalIds: [String(goalId)],
+            contentRefs: [],
+            legacy: true,
           });
         });
       return out;
     });
 }
 
-/** Gợi ý cho một dòng của kế hoạch tuần: hoạt động đúng loại giờ trước, hoạt động chưa rõ loại giờ sau. */
+/** Thẻ của kế hoạch chủ đề; bản chưa có thẻ thì dựng từ ô chữ cũ (chỉ MT trong goalIds nếu truyền). */
+export const normalizeTheme = (content, goalIds = null) =>
+  Array.isArray(content?.activities) ? content.activities : legacyCards(content, goalIds && new Set([...goalIds].map(String)));
+
+/** Thẻ dùng ở tuần: thẻ của kế hoạch chủ đề + thẻ bổ sung theo hồ sơ chủ đề (day.content.week.cards, FR-014). */
+export const cardsOf = (themeContent, dayWeek = null, goalIds = null) => {
+  const own = normalizeTheme(themeContent, goalIds);
+  const ids = new Set(own.map((c) => c.id));
+  return [...own, ...(dayWeek?.cards || []).filter((c) => !ids.has(c.id))];
+};
+
+const cardMap = (cards) => (cards instanceof Map ? cards : new Map((cards || []).map((c) => [c.id, c])));
+
+/** MT của một lượt xếp = MT của thẻ (FR-026); thẻ không còn thì dùng bản chụp goalIds, bản cũ dùng goalId; gõ tay ⇒ []. */
+export const resolveGoals = (pick, cards = []) => {
+  const card = cardMap(cards).get(pick?.cardId ?? pick?.id);
+  if (card) return (card.goalIds || []).map(String);
+  if (Array.isArray(pick?.goalIds) && pick.goalIds.length) return pick.goalIds.map(String);
+  return pick?.goalId != null && pick.goalId !== '' ? [String(pick.goalId)] : [];
+};
+
+export const newCard = ({ slot, name, goalIds, contentRefs = [], origin }) => ({
+  id: `c-${crypto.randomUUID()}`,
+  slot,
+  name,
+  goalIds: goalIds.map(String),
+  contentRefs,
+  ...(origin ? { origin } : {}),
+});
+
+export const slotLabel = (slot) => weekRows().find((r) => r.key === slot)?.label || '';
+
+/** "Loại giờ: tên" như dòng của mẫu (FR-008); thẻ cũ đã mang sẵn đầu dòng của nó. */
+export const cardText = (card) => (card.legacy || !card.slot ? card.name : `${slotLabel(card.slot)}: ${card.name}`);
+
+/** Lượt xếp mới lưu vào ô tuần: MT chỉ là bản chụp, MT thật giải theo thẻ (BE R3). */
+export const pickOf = (a, cornerId) => ({ id: a.id, cardId: a.id, goalIds: a.goalIds, text: a.text, ...(cornerId ? { cornerId } : {}) });
+
+/**
+ * Hoạt động gợi ý cho kế hoạch tuần từ thẻ của kế hoạch chủ đề: [{ id, card, goalIds, goalNos, goalId, goalNo, slots, text }].
+ * source: tài liệu kế hoạch chủ đề, hoặc rowOf(goal) → { activities } (bản cũ). MT ngoài chủ đề bị bỏ khỏi thẻ.
+ */
+export function themeActivities(blocks, source, dayWeek = null) {
+  const goals = blocks.flatMap((b) => b.goals);
+  const byId = new Map(goals.map((g) => [String(g.id), g]));
+  const content = typeof source === 'function' ? { rows: Object.fromEntries(goals.map((g) => [g.id, source(g)])) } : source;
+  return cardsOf(content, dayWeek, new Set(byId.keys())).map((card) => {
+    const goalIds = (card.goalIds || []).map(String).filter((id) => byId.has(id));
+    return {
+      id: card.id,
+      card,
+      goalIds,
+      goalNos: goalIds.map((id) => byId.get(id).no),
+      goalId: goalIds[0] ?? null,
+      goalNo: goalIds.length ? byId.get(goalIds[0]).no : null,
+      slots: card.legacy ? slotsOf(headOf(card.name)) : card.slot ? [card.slot] : [],
+      text: cardText(card),
+      origin: card.origin || null,
+    };
+  });
+}
+
+/** Dạng cây MT → nội dung → thẻ (FR-004): warn 'red' = MT chưa có thẻ; nội dung chưa có thẻ ⇒ warn của dòng = 'yellow'. */
+export function themeTree(blocks, cards, contentLines = (g) => g.contents) {
+  return blocks
+    .flatMap((b) => b.goals)
+    .map((goal) => {
+      const own = cards.filter((c) => (c.goalIds || []).map(String).includes(String(goal.id)));
+      const contents = contentLines(goal).map((text, i) => {
+        const linked = own.filter((c) => (c.contentRefs || []).includes(`${goal.id}:${i}`));
+        return { text, index: i, cards: linked, warn: linked.length ? null : 'yellow' };
+      });
+      const unlinkedCards = own.filter((c) => !(c.contentRefs || []).some((r) => r.startsWith(`${goal.id}:`)));
+      return { goal, cards: own, contents, unlinkedCards, warn: own.length ? null : 'red' };
+    });
+}
+
+/** Dòng nội dung của bản chụp (bỏ gạch đầu dòng) để gắn thẻ theo chỉ số "goalId:i". */
+export const contentLinesOf = (text) =>
+  String(text || '')
+    .split('\n')
+    .map((l) => l.replace(/^[\s\-–•+*]+/, '').trim())
+    .filter(Boolean);
+
+/** Gợi ý cho một dòng của kế hoạch tuần (FR-019): thẻ đúng loại giờ trước, các thẻ khác (cả "chưa rõ") ở nhóm "Khác". */
 export const activitiesForRow = (activities, rowKey) => [
   ...activities.filter((a) => a.slots.includes(rowKey)),
-  ...activities.filter((a) => !a.slots.length),
+  ...activities.filter((a) => !a.slots.includes(rowKey)).map((a) => ({ ...a, other: true })),
 ];
 
 /** Khóa ô của kế hoạch tuần để nhớ hoạt động đã chọn: dòng + ngày (0–4) hoặc "all" khi gộp cả tuần. */
@@ -474,14 +590,16 @@ export const teachingDayPicks = (doc, day) =>
     .filter((cell) => day == null || cell.day === 'all' || cell.day === 'extra' || cell.day === String(day))
     .flatMap((cell) => cell.list);
 
-/** MT dạy trong từng ngày (0–4) từ các hoạt động đã chọn; ô gộp cả tuần tính cho mọi ngày. */
-export const dayGoalsOf = (doc) =>
-  [0, 1, 2, 3, 4].map((i) => {
+/** MT dạy trong từng ngày (0–4) = hợp MT của các thẻ xếp vào ngày (FR-024); ô gộp cả tuần, bảng góc tính cho mọi ngày. */
+export const dayGoalsOf = (doc, cards = []) => {
+  const map = cardMap(cards);
+  return [0, 1, 2, 3, 4].map((i) => {
     const ids = activeCells(doc)
       .filter(({ day }) => day === 'all' || day === 'extra' || day === String(i))
-      .flatMap(({ list }) => list.map((p) => p.goalId));
+      .flatMap(({ list }) => list.flatMap((p) => resolveGoals(p, map)));
     return [...new Set(ids)];
   });
+};
 
 /*
  * Khung giáo án ngày theo 4 mục lấy từ kế hoạch tuần (FR-005, FR-006): tên hoạt động, MT, gợi ý mục đích (câu MT để cô
@@ -515,7 +633,8 @@ export const teachingDayUnlinked = (doc, day) =>
       });
   });
 
-export function dayDraftFromWeek(doc, i, goals = []) {
+export function dayDraftFromWeek(doc, i, goals = [], cards = []) {
+  const map = cardMap(cards);
   const lines = (s) =>
     String(s || '')
       .split('\n')
@@ -531,54 +650,83 @@ export function dayDraftFromWeek(doc, i, goals = []) {
     const extra = !merged && r.extraLabel ? g.extra || '' : '';
     return [typeof v === 'string' ? v : v?.topic || '', extra].filter((x) => x.trim()).join('\n');
   };
-  const goalsOf = (key) => {
+  const picksOf = (key) => {
     const r = weekRows().find((x) => x.key === key);
     const merged = !!r?.canMerge && rowCell(doc, r).allWeek;
     const keys = merged ? [cellKey(key, 'all')] : [cellKey(key, i), cellKey(key, 'extra')];
-    const ids = [...new Set(keys.flatMap((k) => doc.picks?.[k] || []).map((p) => p.goalId))];
-    return ids.map((id) => goals.find((g) => g.id === id)).filter(Boolean);
+    return keys.flatMap((k) => doc.picks?.[k] || []);
   };
+  const goalsOf = (key) => {
+    const ids = [...new Set(picksOf(key).flatMap((p) => resolveGoals(p, map)))];
+    return ids.map((id) => goals.find((g) => String(g.id) === id)).filter(Boolean);
+  };
+  // Hoạt động (thẻ) đang xếp ở mục: để biết kế hoạch tuần đã đổi sau khi cô viết mục ngày (FR-027)
+  const cardIdsOf = (key) => [
+    ...new Set(
+      picksOf(key)
+        .map((p) => p.cardId ?? p.id)
+        .filter(Boolean),
+    ),
+  ];
   const mtAims = (key) =>
     goalsOf(key)
       .map((g) => `- MT${g.no}: ${g.text}`)
       .join('\n');
   const steps = (items) => items.map((t, n) => `Hoạt động ${n + 1}: ${t}`).join('\n');
-  const hocItems = lines(textOf('hoc'));
+  const bullets = (items) => items.map((t) => `- ${t}`).join('\n');
+  const hoc = doc.grid.hoc?.days?.[i] || {};
+  const hocItems = lines(hoc.topic);
+  // File "Chủ đề gia đình": giờ học ghi "Hoạt động chính" (môn + nội dung chính) và "Hoạt động kết hợp" (các dòng sau)
+  const main = [hoc.subject?.trim(), hocItems[0]].filter(Boolean).join(': ');
   const corners = (doc.corners || []).filter((c) => c.name?.trim() || c.content?.trim());
-  const plain = (key) => {
-    const items = lines(textOf(key));
-    return {
-      name: items.join('; '),
-      goals: goalsOf(key),
-      aims: mtAims(key),
-      prep: '',
-      rows: items.length ? [{ title: '', teacher: steps(items) }] : [],
-    };
-  };
+  // Ngoài trời: dòng đầu của ô ngày = hoạt động có mục đích, các dòng sau = trò chơi vận động, phần chung cả tuần = chơi theo ý thích
+  const outRow = weekRows().find((x) => x.key === 'ngoai_troi');
+  const outCell = outRow ? rowCell(doc, outRow) : null;
+  const outMerged = !!outRow?.canMerge && !!outCell?.allWeek;
+  const outItems = lines(outCell ? (outMerged ? outCell.common : outCell.days[i]) : '');
+  const outFree = lines(outCell && !outMerged ? outCell.extra : '');
+  const outParts = [outItems.slice(0, 1), outItems.slice(1), outFree];
+  const chieuItems = lines(textOf('chieu'));
   return {
     hoc: {
-      name: hocTitle(doc.grid.hoc?.days?.[i] || {}),
+      name: hocTitle(hoc),
+      main,
+      combined: hocItems.slice(1).join('; '),
       goals: goalsOf('hoc'),
+      cards: cardIdsOf('hoc'),
       aims: mtAims('hoc'),
       prep: '',
       rows: hocItems.length ? HOC_SUGGESTED_ROWS.map((title, n) => ({ title, teacher: n === 1 ? steps(hocItems) : '' })) : [],
     },
-    ngoai_troi: plain('ngoai_troi'),
-    // Mục góc lấy từ bảng góc chi tiết của tuần (FR-015)
-    goc: {
-      name: corners.map((c) => [c.name, c.content].filter((x) => x?.trim()).join(': ')).join('; '),
-      goals: goalsOf('goc'),
-      aims: corners
-        .filter((c) => c.aims?.trim())
-        .map((c) => `- ${c.name}: ${c.aims}`)
-        .join('\n'),
-      prep: corners
-        .filter((c) => c.prep?.trim())
-        .map((c) => `- ${c.name}: ${c.prep}`)
-        .join('\n'),
-      rows: corners.map((c) => ({ title: c.name || '', teacher: c.steps || c.content || '' })),
+    ngoai_troi: {
+      name: [...outItems, ...outFree].join('; '),
+      goals: goalsOf('ngoai_troi'),
+      cards: cardIdsOf('ngoai_troi'),
+      aims: mtAims('ngoai_troi'),
+      prep: '',
+      rows: outParts.some((x) => x.length) ? NGOAI_TROI_SUGGESTED_ROWS.map((title, n) => ({ title, teacher: outParts[n].join('\n') })) : [],
     },
-    chieu: plain('chieu'),
+    // Mục góc của ngày theo file: mỗi góc một dòng "tên góc: nội dung"; mục đích, chuẩn bị, cách tiến hành nằm ở bảng góc của tuần
+    goc: {
+      name: corners
+        .map((c) => c.name)
+        .filter((x) => x?.trim())
+        .join(', '),
+      goals: goalsOf('goc'),
+      cards: cardIdsOf('goc'),
+      aims: '',
+      prep: '',
+      rows: corners.map((c) => ({ title: c.name || '', teacher: c.content || '' })),
+    },
+    // Buổi chiều theo file: danh sách gạch đầu dòng
+    chieu: {
+      name: chieuItems.join('; '),
+      goals: goalsOf('chieu'),
+      cards: cardIdsOf('chieu'),
+      aims: mtAims('chieu'),
+      prep: '',
+      rows: chieuItems.length ? [{ title: '', teacher: bullets(chieuItems) }] : [],
+    },
   };
 }
 
@@ -612,24 +760,14 @@ export function copyPrevCorners(doc, prev, goalIds) {
     idMap.set(c.id, id);
     return { ...c, id };
   });
-  const picks = (prev.picks?.['goc.all'] || []).filter((p) => idMap.has(p.cornerId) && goalIds.has(p.goalId));
+  const picks = (prev.picks?.['goc.all'] || []).filter(
+    (p) => idMap.has(p.cornerId) && resolveGoals(p).some((id) => goalIds.has(id) || goalIds.has(Number(id))),
+  );
   (doc.picks ||= {})['goc.all'] = picks.map((p) => ({ ...p, cornerId: idMap.get(p.cornerId) }));
   return cornersToGrid(doc);
 }
 
 export const newCorner = () => ({ id: newId(), name: '', content: '', aims: '', prep: '', steps: '' });
-
-/*
- * Theo mẫu Thái Dương, hoạt động cụ thể của kế hoạch chủ đề chỉ xếp vào MỘT ô ngày trong cả chủ đề (muốn lặp thì viết
- * hoạt động riêng, vd. "Ôn …"); ô gộp cả tuần (TDS, góc, …) thì lặp lại được ở mọi tuần nên không tính là đã xếp.
- */
-/** Hoạt động đã xếp vào ô ngày của một giáo án tuần: Map id → khóa ô. */
-export const dayPlacedOf = (doc) =>
-  new Map(activeCells(doc).flatMap(({ key, day, list }) => (day === 'all' || day === 'extra' ? [] : list.map((p) => [p.id, key]))));
-
-/** Hoạt động đã xếp vào ô ngày ở các giáo án tuần khác của cùng chủ đề (Set id). */
-export const placedInOtherWeeks = (docs, weekStart) =>
-  new Set(docs.filter((d) => d && d.weekStart !== weekStart).flatMap((d) => [...dayPlacedOf(d).keys()]));
 
 /** Phần nội dung của hoạt động để ghi vào ô ("Trò chuyện: Ngày hội đến trường" → "Ngày hội đến trường"). */
 export const activityBody = (text) => (text.includes(':') ? text.slice(text.indexOf(':') + 1).trim() : text);
@@ -642,10 +780,10 @@ const normText = (s) =>
     .trim();
 
 /**
- * Ô gõ tay (không chọn gợi ý): hoạt động của kế hoạch chủ đề có nội dung nằm trong chữ của ô thì tự nhớ như đã chọn,
- * để kế hoạch ngày và đánh giá trẻ có đúng MT. Vẫn giữ quy tắc một hoạt động chỉ một ô ngày trong cả chủ đề.
+ * Ô gõ tay (không chọn gợi ý): thẻ của kế hoạch chủ đề có nội dung nằm trong chữ của ô thì tự nhớ như đã chọn, để kế hoạch
+ * ngày và đánh giá trẻ có đúng MT. Một thẻ xếp được nhiều ô, nhiều tuần (FR-009).
  */
-export function linkTypedActivities(doc, activities, placedElsewhere = new Set(), canEditCell = () => true) {
+export function linkTypedActivities(doc, activities, canEditCell = () => true) {
   if (!activities.length) return doc;
   weekRows().forEach((r) => {
     const g = rowCell(doc, r);
@@ -661,17 +799,13 @@ export function linkTypedActivities(doc, activities, placedElsewhere = new Set()
       const t = ` ${normText(text)} `;
       if (!t.trim()) return;
       const key = cellKey(r.key, day);
-      const placed = dayPlacedOf(doc);
       const list = doc.picks?.[key] || [];
       const add = activitiesForRow(activities, r.key).filter((a) => {
         const body = normText(activityBody(a.text));
         // Cô đã bỏ MT này khỏi ô (unlinked) thì không tự gắn lại
-        if (body.length < 6 || !t.includes(` ${body} `) || list.some((p) => p.id === a.id) || doc.unlinked?.[key]?.includes(a.id))
-          return false;
-        return day === 'all' || day === 'extra' || (!placed.has(a.id) && !placedElsewhere.has(a.id));
+        return !(body.length < 6 || !t.includes(` ${body} `) || list.some((p) => p.id === a.id) || doc.unlinked?.[key]?.includes(a.id));
       });
-      if (add.length)
-        (doc.picks ||= {})[key] = [...list, ...add.map((a) => ({ id: a.id, goalId: a.goalId, goalNo: a.goalNo, text: a.text }))];
+      if (add.length) (doc.picks ||= {})[key] = [...list, ...add.map((a) => pickOf(a))];
     });
   });
   return doc;
@@ -681,22 +815,98 @@ export function linkTypedActivities(doc, activities, placedElsewhere = new Set()
 export const pickedIdsOf = (doc) => new Set(activeCells(doc).flatMap(({ list }) => list.map((p) => p.id)));
 
 /**
- * Độ phủ của chủ đề qua các giáo án tuần: số hoạt động đã xếp, MT đã có trong tuần nào đó, MT chưa có trong tuần nào,
- * MT chưa có hoạt động nào ở kế hoạch chủ đề (nên tuần không có gợi ý). goals: MT của chủ đề.
+ * Bảng phủ MT × tuần (FR-013, FR-022, FR-023): weeks = [{ start, offDays, doc }] với doc là bản tuần đang xem (nháp của người
+ * soạn hoặc bản hiệu lực). Ô gộp cả tuần, bảng góc tính cho mọi ngày học; bỏ ngày nghỉ; hoạt động gõ tay không có MT.
+ * Trả { rows: [{ goal, weeks: { start: [day] }, count }], unlinked: [{ weekStart, day, rowKey, text }], covered, total, placed }.
  */
-export function themeCoverage(goals, activities, docs) {
-  const ids = new Set(docs.filter(Boolean).flatMap((d) => [...pickedIdsOf(d)]));
-  const placed = activities.filter((a) => ids.has(a.id));
-  const covered = new Set(placed.map((a) => a.goalId));
-  return {
-    placed: placed.length,
-    total: activities.length,
-    covered: goals.filter((g) => covered.has(g.id)).length,
-    goals: goals.length,
-    missingGoals: goals.filter((g) => !covered.has(g.id)),
-    noActivityGoals: goals.filter((g) => !activities.some((a) => a.goalId === g.id)),
-  };
+export function coverageOf(goals, cards, weeks) {
+  const map = cardMap(cards);
+  const rows = goals.map((goal) => ({ goal, weeks: {}, count: 0 }));
+  const byGoal = new Map(rows.map((r) => [String(r.goal.id), r]));
+  const unlinked = [];
+  let placed = 0;
+  weeks.forEach(({ start, offDays = [], doc }) => {
+    if (!doc) return;
+    const teaching = [0, 1, 2, 3, 4].filter((i) => !offDays[i]);
+    activeCells(doc).forEach(({ list, day }) => {
+      const days = day === 'all' || day === 'extra' ? teaching : teaching.filter((i) => String(i) === day);
+      list.forEach((p) => {
+        placed += 1;
+        resolveGoals(p, map).forEach((id) => {
+          const row = byGoal.get(id);
+          if (!row) return;
+          days.forEach((i) => {
+            const at = (row.weeks[start] ||= []);
+            if (!at.includes(i)) {
+              at.push(i);
+              row.count += 1;
+            }
+          });
+        });
+      });
+    });
+    teachingDayUnlinked(doc, null).forEach((u) => {
+      const [, rowKey, d] = u.id.split('/');
+      if (d === 'all' || d === 'extra' || teaching.includes(Number(d))) unlinked.push({ weekStart: start, day: d, rowKey, text: u.text });
+    });
+  });
+  rows.forEach((r) => Object.values(r.weeks).forEach((d) => d.sort()));
+  const covered = rows.filter((r) => r.count > 0).length;
+  return { rows, unlinked, covered, total: rows.length, placed, missing: rows.filter((r) => !r.count).map((r) => r.goal) };
 }
+
+/** Ô tuần khác nhau giữa hai bản (FR-017): khóa "dòng.ngày" | "dòng.all" | "dòng.extra" có chữ hoặc lượt xếp khác. */
+export function weekDiff(a, b) {
+  const textAt = (doc, r, d) => {
+    const g = rowCell({ ...doc, grid: doc?.grid || {} }, r);
+    const v = d === 'all' ? g.common : d === 'extra' ? g.extra : g.days?.[d];
+    return JSON.stringify(v ?? '');
+  };
+  const pickAt = (doc, key) => JSON.stringify((doc?.picks?.[key] || []).map((p) => [p.cardId ?? p.id, p.cornerId ?? null, p.text ?? '']));
+  const out = [];
+  weekRows().forEach((r) =>
+    [0, 1, 2, 3, 4, 'all', 'extra'].forEach((d) => {
+      const key = cellKey(r.key, d);
+      if (textAt(a, r, d) !== textAt(b, r, d) || pickAt(a, key) !== pickAt(b, key)) out.push(key);
+    }),
+  );
+  if (JSON.stringify(a?.corners || []) !== JSON.stringify(b?.corners || []) && !out.includes('goc.all')) out.push('goc.all');
+  return out;
+}
+
+/** Phần lịch của tuần lưu làm mốc khi bắt đầu sửa theo hồ sơ chủ đề (BE research R5). */
+export const weekBaseOf = (doc) => ({
+  grid: structuredClone(doc?.grid || {}),
+  picks: structuredClone(doc?.picks || {}),
+  unlinked: structuredClone(doc?.unlinked || {}),
+  corners: structuredClone(doc?.corners || []),
+});
+
+/**
+ * Điền sẵn ô a) Mục đích, yêu cầu bằng câu MT (FR-011, FR-025): chỉ khi ô trống và chưa từng điền, mỗi mục một lần; ghi
+ * "pulled" để nút "Lấy từ kế hoạch tuần" coi như đã lấy. Trả true khi có điền.
+ */
+export function prefillDayAims(day, fromWeek) {
+  let changed = false;
+  DAY_SECTIONS.forEach((s) => {
+    const sec = day.sections?.[s.key];
+    const aims = fromWeek[s.key]?.aims;
+    if (!sec || !aims || sec.aims?.trim() || partsOff(sec).includes('aims') || day.prefilled?.includes(s.key)) return;
+    sec.aims = aims;
+    day.prefilled = [...(day.prefilled || []), s.key];
+    day.pulled = { ...(day.pulled || {}), [`${s.key}.aims`]: aims };
+    changed = true;
+  });
+  return changed;
+}
+
+/** Mốc thẻ của từng mục lúc soạn ngày; mục có thẻ bị bỏ khỏi ô tuần sau đó ⇒ ghi chú "đã đổi ở kế hoạch tuần" (FR-027). */
+export const markDayBasis = (day, fromWeek) => {
+  day.basis = Object.fromEntries(DAY_SECTIONS.map((s) => [s.key, fromWeek[s.key]?.cards || []]));
+  return day;
+};
+export const droppedFromWeek = (day, fromWeek) =>
+  DAY_SECTIONS.filter((s) => (day.basis?.[s.key] || []).some((id) => !(fromWeek[s.key]?.cards || []).includes(id))).map((s) => s.key);
 
 /** Lấy từ tuần trước cho các dòng đang gộp cả tuần: chỉ điền ô gộp còn trống, kèm MT đã chọn. */
 export function copyMergedRows(doc, prev) {
@@ -752,10 +962,66 @@ export function copyLessonSteps(doc, index, rows) {
 }
 
 /** Mục đích tuần gợi ý từ câu MT của các hoạt động đã xếp trong tuần (mỗi MT một dòng), để cô viết lại. */
-export const weekAimsFromGoals = (doc, goals) => {
-  const ids = [...new Set(activeCells(doc).flatMap(({ list }) => list.map((p) => p.goalId)))];
+export const weekAimsFromGoals = (doc, goals, cards = []) => {
+  const map = cardMap(cards);
+  const ids = [...new Set(activeCells(doc).flatMap(({ list }) => list.flatMap((p) => resolveGoals(p, map))))];
   return goals
-    .filter((g) => ids.includes(g.id))
+    .filter((g) => ids.includes(String(g.id)))
     .map((g) => `- ${g.text}`)
     .join('\n');
 };
+
+/** Lịch tháng giữ đủ từng tuần; chỉ gộp các tuần liền nhau của cùng một nhánh. */
+export function branchGrid(rows, names, branches = []) {
+  const weeks = rows.filter((r) => r.type === 'week').sort((a, b) => a.start.localeCompare(b.start));
+  const months = [...new Set(weeks.map((r) => r.start.slice(0, 7)))];
+  return {
+    months: months.map((month) => {
+      const monthWeeks = weeks.filter((week) => week.start.startsWith(month));
+      const cells = [];
+      for (let slot = 1; slot <= 5; slot++) {
+        const week = monthWeeks.find((w) => Math.floor((Number(w.start.slice(8, 10)) - 1) / 7) + 1 === slot);
+        const owner =
+          week && branches.find((b) => String(b.themeId) === String(week.theme.id) && week.start >= b.startDate && week.end <= b.endDate);
+        const previous = cells.at(-1);
+        if (owner && previous?.branchKey === owner.key) {
+          previous.span++;
+          previous.end = week.end;
+        } else
+          cells.push({
+            slot,
+            span: 1,
+            week,
+            end: week?.end,
+            branchKey: owner?.key,
+            name: week ? names?.[week.start]?.trim() || owner?.name || '' : '',
+          });
+      }
+      return { month, cells };
+    }),
+  };
+}
+
+/**
+ * Các tuần của một chủ đề gom theo chủ đề nhánh (nhánh 1 hay nhiều tuần): [{ no, weeks, name, label }].
+ * label "Tuần 2+3" theo thứ tự tuần trong chủ đề; lịch nhánh cũ (không có branches) thì mỗi tuần một nhánh.
+ */
+export function themeBranchGroups(yearPlan, branchDoc, themeId) {
+  const weeks = yearPlan ? yearWeeks(yearPlan).filter((w) => w.type === 'week' && w.theme.id === themeId) : [];
+  const ranges = (branchDoc?.branches || [])
+    .filter((b) => String(b.themeId) === String(themeId))
+    .sort((a, b) => a.startDate.localeCompare(b.startDate));
+  const groups = [];
+  weeks.forEach((w, i) => {
+    const range = ranges.find((b) => w.start >= b.startDate && w.start <= b.endDate);
+    const last = groups[groups.length - 1];
+    if (range && last?.range === range) last.weeks.push({ ...w, themeNo: i + 1 });
+    else groups.push({ range, weeks: [{ ...w, themeNo: i + 1 }] });
+  });
+  return groups.map((g, i) => ({
+    no: i + 1,
+    weeks: g.weeks,
+    name: g.range?.name || branchDoc?.names?.[g.weeks[0].start] || '',
+    label: `Tuần ${g.weeks.map((w) => w.themeNo).join('+')}`,
+  }));
+}

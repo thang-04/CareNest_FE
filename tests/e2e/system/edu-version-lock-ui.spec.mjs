@@ -36,7 +36,9 @@ test('ST-004-10 kế hoạch tổ đã ban hành bị khóa: không nút mở h�
   expect(detail.timeLock.canUnlock).toBe(false);
   await login(page, U.ht);
   await spaGo(page, `/education/goals/${team.id}`);
-  await expect(page.getByText('Năm học đã bắt đầu, kế hoạch đã khóa', { exact: false })).toBeVisible({ timeout: 30_000 });
+  // Tiền 11/11/2026: thông báo khóa/hạn chỉ người soạn thấy ⇒ Hiệu trưởng chỉ thấy trang, không thấy thông báo, không nút mở
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText('Năm học đã bắt đầu, kế hoạch đã khóa', { exact: false })).toHaveCount(0);
   await expect(page.getByRole('button', { name: /Mở hạn|Mở khóa/ })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Tạo phiên bản điều chỉnh' })).toHaveCount(0);
   const res = await api(U.ht, 'POST', `${GOALS}/${team.id}/unlock`, {

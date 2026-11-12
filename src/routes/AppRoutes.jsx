@@ -298,11 +298,7 @@ export function AppRoutes() {
             <Route path="curriculum-sources" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <CurriculumSourcesPage />)} />
             <Route
               path="settings"
-              element={edu(
-                [ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL],
-                <EduConfigPage />,
-                'Cấu hình kế hoạch giáo dục dành cho Hiệu trưởng và Phó hiệu trưởng.',
-              )}
+              element={edu([ROLES.PRINCIPAL], <EduConfigPage />, 'Cấu hình kế hoạch giáo dục dành cho Hiệu trưởng.')}
             />
           </Route>
           <Route path="school">

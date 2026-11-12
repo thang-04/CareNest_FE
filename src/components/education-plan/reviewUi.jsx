@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Check, Send, Undo2 } from '@/components/ui/icons';
+import { Check, Send, Undo2, XCircle } from '@/components/ui/icons';
 import { Card, Field, History, Modal, Notice, fmtDateTime } from '@/components/education-plan/eduUi';
 
 /*
@@ -171,9 +171,9 @@ export function ReviewActions({
             </>
           }
         >
-          {actError && <Notice tone="err">{actError}</Notice>}
+          {actError && <Notice>{actError}</Notice>}
           {unsaved && action !== 'submit' && action !== 'reject' && (
-            <Notice tone="warn">Còn thay đổi chưa lưu. Bấm "{withSave(approveLabel)}" để lưu rồi tiếp tục.</Notice>
+            <Notice>Còn thay đổi chưa lưu. Bấm "{withSave(approveLabel)}" để lưu rồi tiếp tục.</Notice>
           )}
           {notes[action] && <p>{notes[action]}</p>}
           <Field
@@ -208,9 +208,13 @@ export function RejectedNotice({ status, history }) {
   const last = lastRejection(history);
   if (!['DRAFT', 'REJECTED'].includes(status) || !last?.note) return null;
   return (
-    <Notice tone="err">
-      Bị trả lại bởi {last.by} ({fmtDateTime(last.at)}): {last.note}
-    </Notice>
+    // Lý do trả lại: khung đỏ giống nhau ở mọi trang, ngay dưới hàng nút (Tiền 12/11/2026); thông báo khác vẫn là chữ đỏ
+    <div className="alert alert--danger ga-notice" role="status">
+      <XCircle size={18} aria-hidden />
+      <span>
+        Bị trả lại bởi {last.by} ({fmtDateTime(last.at)}): {last.note}
+      </span>
+    </div>
   );
 }
 

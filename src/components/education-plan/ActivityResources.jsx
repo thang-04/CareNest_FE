@@ -81,7 +81,7 @@ export function ActivityResources({ user, doc, activities, editable, exists, onS
       <p className="muted">
         Ảnh tối đa 5 MB · Video 100 MB · PDF/slide/tệp khác 20 MB. Học liệu dùng lại khi hoạt động được xếp vào tuần/ngày.
       </p>
-      {error && <Notice tone="warn">{error}</Notice>}
+      {error && <Notice>{error}</Notice>}
       {!activities.length ? (
         <Notice>Nhập hoạt động giáo dục để gắn học liệu.</Notice>
       ) : (

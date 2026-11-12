@@ -1,7 +1,7 @@
 import { readDb } from '@/mocks/mockDatabase';
 import { eduError } from './eduMockErrors';
 import { ROLES } from '@/models/User';
-import { activitySignature, fileLimit } from '@/models/education-plan/learningResources.mjs';
+import { activitySignature, activitySource, fileLimit } from '@/models/education-plan/learningResources.mjs';
 import { themeActivities, themeGoalBlocks, isEditableStatus } from '@/models/education-plan/classPlan';
 import { numberGoals } from '@/models/education-plan/goalTable';
 import { currentPlanOf, versionOf } from '@/models/education-plan/planVersions.mjs';
@@ -49,19 +49,19 @@ function access(user, docKey, write = false) {
 }
 async function active(doc, r) {
   if (!r.activityKey) return false;
+  // BE R9: thẻ có id khớp ⇒ ký theo tên thẻ; bản cũ ⇒ theo ô chữ của MT
   const goalId = r.activityKey.split('#')[0];
-  const row = doc.rows?.[goalId];
-  return (
-    themeActivities([{ goals: [{ id: goalId }] }], () => row).some((a) => a.id === r.activityKey) &&
-    r.activitySignature === (await activitySignature(row?.activities || ''))
-  );
+  const exists = Array.isArray(doc.activities)
+    ? doc.activities.some((c) => c.id === r.activityKey)
+    : themeActivities([{ goals: [{ id: goalId }] }], () => doc.rows?.[goalId]).some((a) => a.id === r.activityKey);
+  return exists && r.activitySignature === (await activitySignature(activitySource(doc, r.activityKey)));
 }
 async function validate(doc, plan, binding) {
   const blocks = themeGoalBlocks(plan?.domains || [], numberGoals(plan?.domains || []), doc.themeId);
-  const activities = themeActivities(blocks, (g) => doc.rows?.[g.id]);
+  const activities = themeActivities(blocks, doc);
   if (
     !activities.some((a) => a.id === binding.activityKey) ||
-    binding.activitySignature !== (await activitySignature(doc.rows?.[binding.activityKey.split('#')[0]]?.activities))
+    binding.activitySignature !== (await activitySignature(activitySource(doc, binding.activityKey)))
   )
     throw eduError('ACTIVITY_CHANGED');
 }

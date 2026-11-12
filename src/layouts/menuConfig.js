@@ -222,7 +222,7 @@ const ITEMS = {
     to: '/education/goals',
   },
   eduBranch: {
-    label: 'Chủ đề / Chủ đề nhánh',
+    label: 'Dự kiến chủ đề - chủ đề nhánh',
     to: '/education/branches',
   },
   eduThemePlans: {
@@ -235,7 +235,7 @@ const ITEMS = {
     to: '/education/day-plans',
   },
   eduPlanReviews: {
-    label: 'Duyệt kế hoạch, giáo án',
+    label: 'Duyệt kế hoạch giáo dục',
     to: '/education/plan-reviews',
   },
   eduOverdue: {
@@ -478,16 +478,7 @@ const MENUS = {
     ]),
     group('children', ['childList', 'childEnroll', 'childPlacement', 'parentActivation', 'healthChecks', 'healthTrends']),
     group('attendance', ['attendanceSummary', 'leaveRequests', 'attendanceDayUnlocks', 'dailyHealthOverview']),
-    group('education', [
-      'eduSchoolYear',
-      'eduGoals',
-      'eduBranch',
-      'eduThemePlans',
-      'eduDayPlans',
-      'eduPlanReviews',
-      'eduSettings',
-      'eduCurriculum',
-    ]),
+    group('education', ['eduSchoolYear', 'eduGoals', 'eduBranch', 'eduThemePlans', 'eduDayPlans', 'eduPlanReviews', 'eduCurriculum']),
     group('assessment', [
       'assessOverview',
       'assessQuality',
@@ -658,7 +649,7 @@ const withApiOnlyItems = (menu) =>
   API_ONLY_ITEMS.length
     ? menu.map((e) => (e.children ? { ...e, children: e.children.filter((c) => !API_ONLY_ITEMS.includes(c.key)) } : e))
     : menu;
-// hiddenItems: mục cần ẩn theo dữ liệu tải sau (vd. "Duyệt kế hoạch, giáo án" của Hiệu trưởng khi Hiệu trưởng không ký)
+// hiddenItems: mục cần ẩn theo dữ liệu tải sau (vd. "Duyệt kế hoạch giáo dục" của Hiệu trưởng khi Hiệu trưởng không ký)
 export const getMenuForRole = (role, user, hiddenItems = []) =>
   withApiOnlyItems(
     withBePermissions(withVpAreas(withTeacherAssignment(MENUS[role] || [link('home'), account, link('notifications')], user), user), user),
