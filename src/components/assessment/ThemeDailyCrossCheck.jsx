@@ -24,13 +24,15 @@ export function ThemeDailyCrossCheck({ child, theme, onClose }) {
     const absent = (d?.absentDays || []).filter((x) => !days.some((day) => day.date === x)).map((x) => ({ date: x, absent: true }));
     return [...days, ...absent].sort((a, b) => a.date.localeCompare(b.date));
   }, [d, days]);
-  // Gom theo mục tiêu: ngày Đạt / ngày Chưa đạt (cố gắng tính như chưa đạt, như bảng cuối chủ đề)
+  // Lưới mục tiêu × ngày (giống bảng giấy của trường): + Đạt, − Chưa đạt (cố gắng tính như chưa đạt), trống = hôm đó không có MT
   const goals = useMemo(() => {
     const map = new Map();
     const add = (g, date, met) => {
       const key = goalLabel(g);
-      if (!map.has(key)) map.set(key, { key, text: g.description, met: [], notMet: [] });
-      map.get(key)[met ? 'met' : 'notMet'].push(date);
+      if (!map.has(key)) map.set(key, { key, text: g.description, byDate: {}, metDays: 0 });
+      const row = map.get(key);
+      row.byDate[date] = met;
+      if (met) row.metDays += 1;
     };
     days.forEach((day) => {
       (day.met || []).forEach((g) => add(g, day.date, true));
@@ -38,6 +40,7 @@ export function ThemeDailyCrossCheck({ child, theme, onClose }) {
     });
     return [...map.values()].sort((a, b) => a.key.localeCompare(b.key, 'vi', { numeric: true }));
   }, [days]);
+  const comments = useMemo(() => days.filter((day) => day.comment), [days]);
 
   return (
     <SidePanel open={!!child} wide title={child ? `Đối chiếu đánh giá hằng ngày · ${child.fullName}` : ''} onClose={onClose}>
@@ -52,96 +55,71 @@ export function ThemeDailyCrossCheck({ child, theme, onClose }) {
             {days.length} ngày có đánh giá{d.absentDays?.length ? ` · Vắng ${d.absentDays.length} ngày` : ''}
           </p>
 
-          <section>
-            <h3 className="section-title">Kết quả theo mục tiêu</h3>
-            {goals.length === 0 ? (
-              <EmptyState title="Chưa có kết quả Kiến thức kỹ năng trong thời gian chủ đề" />
-            ) : (
-              <div className="table-wrap">
-                <table className="table table--grid table--compact">
-                  <thead>
-                    <tr>
-                      <th>Mục tiêu</th>
-                      <th>Ngày Đạt</th>
-                      <th>Ngày Chưa đạt</th>
-                      <th className="center">Gợi ý</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {goals.map((g) => (
-                      <tr key={g.key}>
-                        <td title={g.text}>{g.key}</td>
-                        <td>
-                          <span className="dg-xcheck__dates">
-                            {g.met.length
-                              ? g.met.map((x) => (
-                                  <span key={x} className="chip chip--green">
-                                    {dayMonth(x)}
-                                  </span>
-                                ))
-                              : '—'}
-                          </span>
-                        </td>
-                        <td>
-                          <span className="dg-xcheck__dates">
-                            {g.notMet.length
-                              ? g.notMet.map((x) => (
-                                  <span key={x} className="chip chip--red">
-                                    {dayMonth(x)}
-                                  </span>
-                                ))
-                              : '—'}
-                          </span>
-                        </td>
-                        {/* OBS-27: chỉ cần 1 lần Đạt trong chủ đề là Đạt */}
-                        <td className="center">
-                          <span className={`chip ${g.met.length ? 'chip--green' : 'chip--red'}`}>{g.met.length ? 'Đạt' : 'Chưa đạt'}</span>
-                        </td>
-                      </tr>
+          {goals.length === 0 ? (
+            <EmptyState title="Chưa có kết quả Kiến thức kỹ năng trong thời gian chủ đề" />
+          ) : (
+            <div className="table-wrap dg-xcheck__wrap">
+              <table className="table table--grid table--compact dg-xcheck__grid">
+                <thead>
+                  <tr>
+                    <th className="dg-xcheck__goal">Mục tiêu</th>
+                    <th>Kết quả</th>
+                    {timeline.map((day) => (
+                      <th key={day.date} className={`center${day.absent ? ' dg-xcheck__absent' : ''}`} title={formatDate(day.date)}>
+                        {dayMonth(day.date)}
+                      </th>
                     ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </section>
-
-          {timeline.length > 0 && (
-            <section>
-              <h3 className="section-title">Theo từng ngày</h3>
-              <div className="table-wrap">
-                <table className="table table--grid table--compact">
-                  <thead>
-                    <tr>
-                      <th>Ngày</th>
-                      <th>Đạt</th>
-                      <th>Chưa đạt</th>
-                      <th>Nhận xét của cô</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {timeline.map((day) =>
-                      day.absent ? (
-                        <tr key={day.date}>
-                          <td className="nowrap">{formatDate(day.date)}</td>
-                          {/* OBS-01: ngày vắng mọi mục tiêu của giáo án hôm đó tính Chưa đạt */}
-                          <td colSpan={2}>
-                            <span className="chip">Vắng</span>{' '}
-                            <span className="muted text-sm">mục tiêu của giáo án hôm đó tính Chưa đạt</span>
+                  </tr>
+                </thead>
+                <tbody>
+                  {goals.map((g) => (
+                    <tr key={g.key}>
+                      <td className="dg-xcheck__goal" title={g.text}>
+                        {g.key}
+                      </td>
+                      {/* OBS-27: chỉ cần 1 lần Đạt trong chủ đề là Đạt */}
+                      <td>
+                        <span className={`chip ${g.metDays ? 'chip--green' : 'chip--red'}`}>{g.metDays ? 'Đạt' : 'Chưa đạt'}</span>{' '}
+                        <span className="muted text-sm">
+                          {g.metDays}/{Object.keys(g.byDate).length} ngày Đạt
+                        </span>
+                      </td>
+                      {timeline.map((day) => {
+                        // OBS-01: ngày vắng, mục tiêu của giáo án hôm đó tính Chưa đạt
+                        if (day.absent) {
+                          return (
+                            <td key={day.date} className="center dg-xcheck__absent" title="Vắng">
+                              V
+                            </td>
+                          );
+                        }
+                        const met = g.byDate[day.date];
+                        return (
+                          <td
+                            key={day.date}
+                            className={`center dg-xcheck__mark ${met === true ? 'text-success' : met === false ? 'text-danger' : ''}`}
+                          >
+                            {met === true ? '+' : met === false ? '−' : ''}
                           </td>
-                          <td>—</td>
-                        </tr>
-                      ) : (
-                        <tr key={day.date}>
-                          <td className="nowrap">{formatDate(day.date)}</td>
-                          <td>{(day.met || []).map(goalLabel).join(', ') || '—'}</td>
-                          <td>{[...(day.effort || []), ...(day.notMet || [])].map(goalLabel).join(', ') || '—'}</td>
-                          <td>{day.comment || '—'}</td>
-                        </tr>
-                      ),
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {comments.length > 0 && (
+            <section>
+              <h3 className="section-title">Nhận xét của cô</h3>
+              <ul className="dg-xcheck__comments">
+                {comments.map((day) => (
+                  <li key={day.date}>
+                    <span className="fw-600">{formatDate(day.date)}</span>: {day.comment}
+                  </li>
+                ))}
+              </ul>
             </section>
           )}
 

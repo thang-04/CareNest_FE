@@ -1085,8 +1085,38 @@
 .dg-xcheck .section-title {
   margin-bottom: var(--space-2);
 }
-.dg-xcheck__dates {
-  display: inline-flex;
-  flex-wrap: wrap;
+/* Lưới mục tiêu × ngày: cột ngày hẹp, cột Mục tiêu dính khi cuộn ngang */
+.dg-xcheck__grid {
+  width: auto;
+}
+.dg-xcheck__grid th,
+.dg-xcheck__grid td {
+  white-space: nowrap;
+}
+.dg-xcheck__grid .dg-xcheck__goal {
+  position: sticky;
+  left: 0;
+  z-index: var(--z-base);
+  background: var(--color-surface);
+}
+.dg-xcheck__grid thead .dg-xcheck__goal {
+  background: var(--table-header-bg);
+}
+.dg-xcheck .dg-xcheck__wrap .dg-xcheck__grid th,
+.dg-xcheck .dg-xcheck__wrap .dg-xcheck__grid td {
+  padding: var(--space-1) var(--space-2);
+}
+.dg-xcheck__grid .dg-xcheck__mark {
+  font-size: var(--fs-md);
+  font-weight: var(--fw-bold);
+}
+.dg-xcheck .dg-xcheck__wrap .dg-xcheck__grid .dg-xcheck__absent {
+  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
+}
+.dg-xcheck__comments {
+  display: grid;
   gap: var(--space-1);
+  margin: 0;
+  padding-left: var(--space-5);
 }
