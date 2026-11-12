@@ -32,6 +32,8 @@ const loadConfig = (refresh = false) => {
   });
   return configCache;
 };
+/** Bảng đổi id UI ↔ BE (nhóm tuổi `ag-3` ↔ id số) cho service khác của module, vd. kho học liệu. */
+export const loadEduRefs = async () => buildRefs(await loadConfig());
 // Trạng thái + quyền trên BE của từng kế hoạch, để biết lần lưu là sửa, gửi, ban hành hay trả lại
 const known = new Map();
 

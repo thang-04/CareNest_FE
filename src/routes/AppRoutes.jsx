@@ -55,6 +55,7 @@ const ClassPlanLegacyRedirect = lazyPage(() =>
   })),
 );
 const DayPlansPage = lazyPage(() => import('@/pages/education-plan/DayPlansPage'));
+const ResourceLibraryPage = lazyPage(() => import('@/pages/education-plan/ResourceLibraryPage'));
 const DayPlansLegacyRedirect = lazyPage(() =>
   import('@/pages/education-plan/DayPlansPage').then((m) => ({
     default: m.DayPlansLegacyRedirect,
@@ -285,6 +286,8 @@ export function AppRoutes() {
               element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ClassPlanRedirect toOf={(id) => `/education/day-plans/${id}`} />)}
             />
             <Route path="day-plans/:classId" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <DayPlansPage />)} />
+            {/* Spec 900 (BE:EDU-88): kho học liệu dùng lại cho giáo án ngày */}
+            <Route path="resources" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ResourceLibraryPage />)} />
             <Route path="class" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ClassPlanRedirect />)} />
             <Route path="class/:classId" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ClassPlanLegacyRedirect />)} />
             <Route

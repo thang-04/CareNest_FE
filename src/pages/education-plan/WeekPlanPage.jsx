@@ -773,7 +773,19 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
       </div>
       {/* BE:EDU-81 — học liệu chỉ ở kế hoạch giáo dục ngày, theo từng mục của ngày đang mở */}
       {split && day >= 0 && (
-        <DayResources user={user} docKey={savedDay?.id || null} date={draft.days[day].date} editable={dayEditable(day)} />
+        <DayResources
+          user={user}
+          docKey={savedDay?.id || null}
+          date={draft.days[day].date}
+          editable={dayEditable(day)}
+          ageGroupId={cls.ageGroupId}
+          // BE:EDU-87 — nhãn học liệu = chủ đề của tuần + MT của các hoạt động đã xếp vào mục của ngày
+          tagsOf={(key) => ({
+            themeId: week.theme.id,
+            themeName: week.theme.name,
+            goalIds: (dayDraftFromWeek(draft, day, goals, cards)[key]?.goals || []).map((g) => g.id),
+          })}
+        />
       )}
       {cardFor && (
         <ActivityCardEditor
