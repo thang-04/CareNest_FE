@@ -41,3 +41,26 @@ test('focus đang ở ngoài modal thì kéo về trong; modal không có phần
   assert.equal(trapTabIndex(3, -1, true), 2);
   assert.equal(trapTabIndex(0, -1, false), -1);
 });
+
+test('có modal mở thì khóa cuộn trang phía sau, đóng modal cuối cùng thì trả lại như cũ', () => {
+  const html = { style: { overflow: '' }, clientWidth: 1000 };
+  const body = { style: { paddingRight: '' } };
+  globalThis.document = { documentElement: html, body };
+  globalThis.window = { innerWidth: 1015 };
+  try {
+    const a = {};
+    const b = {};
+    modalStack.push(a);
+    modalStack.push(b);
+    assert.equal(html.style.overflow, 'hidden');
+    assert.equal(body.style.paddingRight, '15px');
+    modalStack.remove(b);
+    assert.equal(html.style.overflow, 'hidden');
+    modalStack.remove(a);
+    assert.equal(html.style.overflow, '');
+    assert.equal(body.style.paddingRight, '');
+  } finally {
+    delete globalThis.document;
+    delete globalThis.window;
+  }
+});
