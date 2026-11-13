@@ -6,9 +6,9 @@ File sinh tự động từ `BE:docs/api/openapi.yaml`, không sửa tay. Sinh l
 - Path đã bỏ tiền tố `/api` (trùng baseURL của Web/App). File controller tính từ gốc repo `CareNest_BE`.
 - Request/response chi tiết: đọc method trong controller và DTO nó dùng; lỗi theo `BE:docs/contracts/ERROR_CONTRACT.md`.
 
-Nguồn: CareNest_BE docs/api/openapi.yaml tại commit e2c2b14 2026-11-14
+Nguồn: CareNest_BE docs/api/openapi.yaml tại commit b1eee92 2026-11-14
 
-Tổng: 335 endpoint.
+Tổng: 338 endpoint.
 
 ```text
 GET /accounts · src/main/java/com/carenest/controller/account/AccountController.java#searchAccounts
@@ -73,9 +73,11 @@ GET /assessment/theme-evaluations/themes · src/main/java/com/carenest/controlle
 GET /assessment/weekly-comments · src/main/java/com/carenest/controller/observation/WeeklyCommentController.java#getBoard
 PUT /assessment/weekly-comments · src/main/java/com/carenest/controller/observation/WeeklyCommentController.java#saveDraft
 POST /assessment/weekly-comments/drafts · src/main/java/com/carenest/controller/observation/WeeklyCommentController.java#writeDrafts
-POST /assessment/weekly-comments/reopen · src/main/java/com/carenest/controller/observation/WeeklyCommentController.java#reopen
-GET /assessment/weekly-comments/reopens · src/main/java/com/carenest/controller/observation/WeeklyCommentController.java#getReopens
+GET /assessment/weekly-comments/overview · src/main/java/com/carenest/controller/observation/WeeklyCommentController.java#getOverview
 POST /assessment/weekly-comments/send · src/main/java/com/carenest/controller/observation/WeeklyCommentController.java#send
+GET /assessment/weekly-comments/unlocks · src/main/java/com/carenest/controller/observation/WeeklyCommentController.java#getUnlocks
+POST /assessment/weekly-comments/unlocks · src/main/java/com/carenest/controller/observation/WeeklyCommentController.java#unlock
+POST /assessment/weekly-comments/unlocks/{unlockId}/revoke · src/main/java/com/carenest/controller/observation/WeeklyCommentController.java#revokeUnlock
 GET /attendance/classes · src/main/java/com/carenest/controller/attendance/AttendanceController.java#getClasses
 GET /attendance/day-info · src/main/java/com/carenest/controller/attendance/AttendanceController.java#getDayInfo
 GET /attendance/day-unlocks · src/main/java/com/carenest/controller/attendance/AttendanceController.java#getUnlocks
@@ -335,6 +337,7 @@ PUT /school-years/{schoolYearId}/semester · src/main/java/com/carenest/controll
 GET /school-years/{schoolYearId}/semester-locks · src/main/java/com/carenest/controller/organization/SchoolYearController.java#getSemesterLocks
 GET /school-years/{schoolYearId}/vice-principal-assignments · src/main/java/com/carenest/controller/organization/VicePrincipalAssignmentController.java#getAssignments
 PUT /school-years/{schoolYearId}/vice-principal-assignments/{userId} · src/main/java/com/carenest/controller/organization/VicePrincipalAssignmentController.java#assign
+PUT /school-years/{schoolYearId}/weekly-comment-deadline · src/main/java/com/carenest/controller/organization/SchoolYearController.java#updateWeeklyCommentDeadline
 GET /signatures/me · src/main/java/com/carenest/controller/account/UserSignatureController.java#listSignatures
 POST /signatures/me · src/main/java/com/carenest/controller/account/UserSignatureController.java#uploadSignature
 DELETE /signatures/me/{signatureId} · src/main/java/com/carenest/controller/account/UserSignatureController.java#deleteSignature

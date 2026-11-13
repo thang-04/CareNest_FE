@@ -25,6 +25,7 @@ import {
   WEEKLY_COMMENT_MAX,
   WEEKLY_STATUS,
   weekDataCells,
+  weekLocked,
   weekOptionLabel,
 } from '@/models/assessment/weeklyComments.mjs';
 import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';
@@ -57,7 +58,8 @@ export default function WeeklyCommentsPage() {
   const rows = useMemo(() => board?.children || [], [board]);
   const row = rows.find((r) => String(r.childId) === String(childId)) || rows[0];
   const counts = boardCounts(rows);
-  const editable = !!board?.canEdit && row?.status !== WEEKLY_STATUS.SENT;
+  // BE OBS-29: trong hạn (hoặc đang mở lại) GV sửa cả bản đã gửi; quá hạn BE trả canEdit=false
+  const editable = !!board?.canEdit;
   const saved = row?.content || '';
 
   // Đổi trẻ / tải lại: ô nhập lấy bản trên hệ thống
@@ -157,6 +159,10 @@ export default function WeeklyCommentsPage() {
               </span>
             )}
             {board?.week && !board.week.open && <StatusBadge tone="gray" label="Chưa tới cuối tuần" />}
+            {board?.week?.unlockedUntil && (
+              <StatusBadge tone="purple" label={`Đang mở lại đến ${formatDateTime(board.week.unlockedUntil)}`} />
+            )}
+            {board?.week && weekLocked(board.week) && <StatusBadge tone="red" label="Đã khóa" />}
             <div className="spacer" />
             {board && (
               <span className="text-sm muted">

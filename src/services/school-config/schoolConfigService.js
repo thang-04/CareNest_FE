@@ -90,6 +90,8 @@ export const copyYear = async (targetYearId, { sourceYearId, parts }, user) => {
 export const getCutoffSetting = (schoolYear) => repo.getCutoffSetting(schoolYear);
 export const saveCutoffSetting = (schoolYear, form, user) => repo.saveCutoffSetting(schoolYear, form, user);
 export const saveSemester = (schoolYear, form, user) => repo.saveSemester(schoolYear, form, user);
+/** Hạn nhận xét tuần: nhận xét khóa sau 23:59:59 của ngày học thứ deadlineDays sau tuần (BE OBS-29). */
+export const saveWeeklyCommentDeadline = (schoolYear, deadlineDays, user) => repo.saveWeeklyCommentDeadline(schoolYear, deadlineDays, user);
 /** { semester1Locked, semester2Locked }: học kỳ đã có đánh giá học kỳ thì không đổi ngày. */
 export const getSemesterLocks = (schoolYear, user) => repo.getSemesterLocks(schoolYear, user);
 /** Ngày nghỉ của năm học: [{ date, name }]. */

@@ -44,7 +44,8 @@
     "GET /assessment/theme-evaluations/classes",
     "GET /assessment/theme-evaluations/themes",
     "GET /assessment/weekly-comments",
-    "GET /assessment/weekly-comments/reopens",
+    "GET /assessment/weekly-comments/overview",
+    "GET /assessment/weekly-comments/unlocks",
     "GET /attendance/classes",
     "GET /attendance/day-info",
     "GET /attendance/day-unlocks",
@@ -194,8 +195,9 @@
     "POST /assessment/semester-evaluations/confirm",
     "POST /assessment/theme-evaluations/confirm",
     "POST /assessment/weekly-comments/drafts",
-    "POST /assessment/weekly-comments/reopen",
     "POST /assessment/weekly-comments/send",
+    "POST /assessment/weekly-comments/unlocks",
+    "POST /assessment/weekly-comments/unlocks/{x}/revoke",
     "POST /attendance/day-unlocks",
     "POST /attendance/day-unlocks/{x}/revoke",
     "POST /auth/login",
@@ -336,6 +338,7 @@
     "PUT /school-years/{x}/placements",
     "PUT /school-years/{x}/semester",
     "PUT /school-years/{x}/vice-principal-assignments/{x}",
+    "PUT /school-years/{x}/weekly-comment-deadline",
     "PUT /team-leader-assignments"
   ]
 }

@@ -169,12 +169,24 @@ export const createAssessmentBeApi = (client) => ({
     client.put('/assessment/weekly-comments', { classId, weekStart, childId, content }),
   sendWeeklyComments: ({ classId, weekStart, childId, content }) =>
     client.post('/assessment/weekly-comments/send', { classId, weekStart, childId: childId || null, content: content ?? null }),
-  // Mở lại nhận xét tuần đã gửi (HT / PHT có quyền mở lại): childIds trống = mọi bản đã gửi của lớp trong tuần
-  reopenWeeklyComments: ({ classId, weekStart, childIds, reason }) =>
-    client.post('/assessment/weekly-comments/reopen', { classId, weekStart, childIds: childIds?.length ? childIds : null, reason }),
-  listWeeklyCommentReopens: ({ campusId, classId, from, to } = {}) =>
-    client.get('/assessment/weekly-comments/reopens', {
-      params: { campusId: campusId || undefined, classId: classId || undefined, from: from || undefined, to: to || undefined },
+  // Mở lại lớp – tuần nhận xét tuần đã khóa (HT / PHT có quyền mở lại) tới validUntil, như mở lại ngày đánh giá
+  unlockWeeklyComments: ({ classId, weekStart, validUntil, reason }) =>
+    client.post('/assessment/weekly-comments/unlocks', { classId, weekStart, validUntil, reason }),
+  listWeeklyCommentUnlocks: ({ campusId, classId, active, from, to } = {}) =>
+    client.get('/assessment/weekly-comments/unlocks', {
+      params: {
+        campusId: campusId || undefined,
+        classId: classId || undefined,
+        active: active ?? undefined,
+        from: from || undefined,
+        to: to || undefined,
+      },
+    }),
+  revokeWeeklyCommentUnlock: (id) => client.post(`/assessment/weekly-comments/unlocks/${id}/revoke`),
+  // BGH: tình hình gửi nhận xét tuần của các lớp (đã gửi / tổng, quá hạn)
+  getWeeklyCommentOverview: ({ campusId, weekStart } = {}) =>
+    client.get('/assessment/weekly-comments/overview', {
+      params: { campusId: campusId || undefined, weekStart: weekStart || undefined },
     }),
   // Đánh giá tháng / cuối năm: BE tạo bản nháp khi tháng kết thúc (cuối năm: khi học kỳ II kết thúc)
   getEvaluations: (kind, { schoolYear, classId } = {}) =>

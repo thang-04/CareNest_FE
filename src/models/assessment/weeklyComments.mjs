@@ -15,7 +15,7 @@ export const contentError = (text, { sending = false } = {}) => {
 /** Chip trạng thái của từng trẻ trong danh sách bên trái. */
 export const statusChip = (row) => {
   if (row.status === WEEKLY_STATUS.SENT) return { label: 'Đã gửi', tone: 'green' };
-  if (row.status === WEEKLY_STATUS.DRAFT && row.reopened) return { label: 'Đã mở lại', tone: 'orange' };
+  if (row.status === WEEKLY_STATUS.DRAFT && row.reopened) return { label: 'Đã sửa, chưa gửi lại', tone: 'orange' };
   if (row.status === WEEKLY_STATUS.DRAFT && (row.content || '').trim())
     return { label: row.absentAllWeek ? 'Nháp · nghỉ cả tuần' : 'Nháp', tone: 'orange' };
   if (row.absentAllWeek) return { label: 'Nghỉ cả tuần', tone: 'gray' };
@@ -52,5 +52,10 @@ export const weekOptionLabel = (w) => {
   const range = `${dm(w.from)}–${dm(w.to)}`;
   const parts = [w.label ? `${w.label} · ${range}` : range];
   if (!w.open) parts.push('Chưa tới cuối tuần');
+  else if (w.unlockedUntil) parts.push('Đang mở lại');
+  else if (w.locked) parts.push('Đã khóa');
   return parts.join(' · ');
 };
+
+/** Tuần đã khóa (quá hạn) và không đang được mở lại: chọn được để mở lại nhận xét tuần. */
+export const weekLocked = (w) => !!w && !!w.locked && !w.unlockedUntil;

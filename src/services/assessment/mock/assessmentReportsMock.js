@@ -22,6 +22,11 @@ const invalid = (message) => {
 const pct = (n, d) => (d ? Math.round((n * 100) / d) : 0);
 const average = (n, d) => (d ? Math.round(n / d) : 0);
 const now = () => new Date().toISOString();
+// Lần mở lại nhận xét tuần còn hiệu lực của lớp, theo thứ Hai của tuần
+const activeWeekUnlocks = (db, classId) =>
+  Object.fromEntries(
+    (db.weeklyCommentUnlocks || []).filter((u) => u.classId === classId && u.validUntil > now()).map((u) => [u.weekStart, u.validUntil]),
+  );
 const roster = (db, cls) => db.children.filter((c) => c.classId === cls.id && c.status === 'ACTIVE');
 const yearOf = (db, cls) => db.schoolYears.find((y) => y.id === cls.schoolYear);
 const programClass = (db, cls) => (db.ageGroups.find((g) => g.id === cls.ageGroupId)?.ageFromMonths || 0) >= 60;
@@ -353,9 +358,13 @@ export const createAssessmentReportsMock = (ensureReady) => ({
     const to = [addDays(week, 4), todayIso(), year.endDate].sort()[0];
     const days = new Set(schoolDaysBetween(week < year.startDate ? year.startDate : week, to));
     const saved = (db.weeklyComments || []).filter((c) => c.classId === cls.id && c.weekStart === week);
-    // Demo chưa có giáo án tuần: tuần theo lịch thứ Hai–Sáu, mở viết từ thứ Sáu (BE OBS-29)
+    // Demo chưa có giáo án tuần: tuần theo lịch thứ Hai–Sáu, mở viết từ thứ Sáu; khóa sau ngày học thứ N sau tuần
+    // (N theo năm học, mặc định 1); lớp – tuần đang mở lại thì sửa được (BE OBS-29)
+    const deadlineDays = year.weeklyCommentDeadlineDays ?? 1;
+    const unlocks = activeWeekUnlocks(db, cls.id);
     const option = (monday) => {
       const end = [addDays(monday, 4), year.endDate].sort()[0];
+      const deadline = deadlineDays ? schoolDaysBetween(addDays(end, 1), addDays(end, 60))[deadlineDays - 1] || end : end;
       return {
         weekStart: monday,
         from: monday < year.startDate ? year.startDate : monday,
@@ -364,6 +373,9 @@ export const createAssessmentReportsMock = (ensureReady) => ({
         source: 'CALENDAR',
         openFrom: end,
         open: todayIso() >= end,
+        deadline,
+        locked: todayIso() > deadline,
+        unlockedUntil: unlocks[monday] || null,
       };
     };
     const weeks = [];
@@ -378,7 +390,7 @@ export const createAssessmentReportsMock = (ensureReady) => ({
       week: current,
       weeks,
       aiEnabled: false,
-      canEdit: teacher && year.status === 'ACTIVE' && current.open,
+      canEdit: teacher && year.status === 'ACTIVE' && current.open && (!current.locked || !!current.unlockedUntil),
       aiFallback: false,
       children: roster(db, cls).map((child) => {
         const c = saved.find((x) => x.childId === child.id);
@@ -450,7 +462,6 @@ Bố mẹ hãy trò chuyện với con về những điều con đã học trong
     if (!board.canEdit) deny();
     const row = board.children.find((r) => r.childId === body.childId);
     if (!row) invalid('Trẻ không thuộc lớp trong tuần này');
-    if (row.status === 'SENT') throw new ApiError(409, 'Nhận xét tuần đã gửi phụ huynh, không sửa được nữa');
     const text = (body.content ?? row.content ?? '').trim();
     if (send && !text) invalid('Nhập nội dung đánh giá');
     if (text.length > 2000) invalid('Nội dung đánh giá tối đa 2000 ký tự');
@@ -465,7 +476,8 @@ Bố mẹ hãy trò chuyện với con về những điều con đã học trong
         content: text,
         draftSource: row.draftSource || 'MANUAL',
         updatedAt: now(),
-        reopened: !send && !!row.reopened,
+        // Sửa bản đã gửi trong hạn: về nháp, chờ gửi lại
+        reopened: !send && (row.status === 'SENT' || !!row.reopened),
         ...(send ? { sentAt: now(), sentByName: user.fullName } : {}),
       },
     ];
@@ -482,60 +494,87 @@ Bố mẹ hãy trò chuyện với con về những điều con đã học trong
     for (const r of ready) await this.saveWeeklyComment({ ...body, childId: r.childId, content: r.content }, user, true);
     return this.getWeeklyComments(body, user);
   },
-  // BE giả OBS-29: HT / PHT có quyền mở lại đưa bản đã gửi về nháp (lý do bắt buộc ≤ 300 ký tự), lưu lịch sử
-  async reopenWeeklyComments(body, user) {
-    if (!isLeader(user)) throw new ApiError(403, 'Chỉ Hiệu trưởng hoặc Phó hiệu trưởng điểm trường của lớp được mở lại');
+  // BE giả OBS-29: HT / PHT có quyền mở lại lớp – tuần đã khóa tới hạn (lý do bắt buộc), như mở lại ngày đánh giá
+  async unlockWeeklyComments(body, user) {
+    if (!isLeader(user)) deny();
     const reason = (body.reason || '').trim();
-    if (!reason) invalid('Nhập lý do mở lại nhận xét tuần');
-    if (reason.length > 300) invalid('Lý do mở lại tối đa 300 ký tự');
+    if (!reason) invalid('Nhập lý do mở lại');
     const board = await this.getWeeklyComments(body, user);
-    const db = ensureReady();
-    const sent = (db.weeklyComments || []).filter(
-      (c) => c.classId === board.classId && c.weekStart === board.weekStart && c.status === 'SENT',
-    );
-    const picked = body.childIds?.length ? sent.filter((c) => body.childIds.includes(c.childId)) : sent;
-    if (!picked.length || (body.childIds?.length && picked.length !== body.childIds.length)) {
-      throw new ApiError(409, 'Nhận xét tuần của trẻ này chưa gửi phụ huynh, không cần mở lại');
+    if (!board.week.locked) throw new ApiError(409, 'Tuần này chưa khóa, giáo viên vẫn sửa và gửi được');
+    if (board.week.unlockedUntil) throw new ApiError(409, 'Lớp / tuần này đang có lần mở lại còn hiệu lực');
+    if (!body.validUntil || body.validUntil <= now()) {
+      invalid('Chọn hạn mở lại sau thời điểm hiện tại và không quá ngày kết thúc năm học');
     }
-    const names = Object.fromEntries(board.children.map((r) => [r.childId, r.fullName]));
-    const created = picked.map((c) => ({
+    const created = {
       id: uid(),
-      childId: c.childId,
-      childName: names[c.childId] || null,
       classId: board.classId,
       className: board.className,
       campusId: null,
       weekStart: board.weekStart,
       weekFrom: board.week.from,
       weekEnd: board.week.to,
+      validUntil: body.validUntil,
       reason,
-      reopenedByName: user.fullName,
-      reopenedAt: now(),
-      previousContent: c.content,
-      previousSentAt: c.sentAt,
-      previousSentByName: c.sentByName,
-    }));
+      unlockedByName: user.fullName,
+      unlockedAt: now(),
+      revokedByName: null,
+      revokedAt: null,
+    };
     writeDb((d) => {
-      d.weeklyComments = (d.weeklyComments || []).map((c) =>
-        picked.some((p) => p.childId === c.childId && p.weekStart === c.weekStart)
-          ? { ...c, status: 'DRAFT', sentAt: null, sentByName: null, reopened: true }
-          : c,
-      );
-      d.weeklyCommentReopens = [...created, ...(d.weeklyCommentReopens || [])];
+      d.weeklyCommentUnlocks = [created, ...(d.weeklyCommentUnlocks || [])];
     });
-    return clone(created);
+    return clone({ ...created, active: true });
   },
-  async listWeeklyCommentReopens(filters = {}, user) {
-    if (!isLeader(user) && !['TEACHER', 'TEAM_LEADER'].includes(user?.role)) deny();
+  async listWeeklyCommentUnlocks(filters = {}, user) {
+    if (!isLeader(user)) deny();
     const db = ensureReady();
+    const at = now();
     return clone(
-      (db.weeklyCommentReopens || []).filter(
-        (r) =>
-          (!filters.classId || r.classId === filters.classId) &&
-          (!filters.from || r.weekStart >= filters.from) &&
-          (!filters.to || r.weekStart <= filters.to),
-      ),
+      (db.weeklyCommentUnlocks || [])
+        .map((u) => ({ ...u, active: u.validUntil > at }))
+        .filter(
+          (u) =>
+            (!filters.classId || u.classId === filters.classId) &&
+            (filters.active == null || filters.active === u.active) &&
+            (!filters.from || u.weekEnd >= filters.from) &&
+            (!filters.to || u.weekStart <= filters.to),
+        ),
     );
+  },
+  async revokeWeeklyCommentUnlock(id, user) {
+    if (!isLeader(user)) deny();
+    const at = now();
+    let found = null;
+    writeDb((d) => {
+      d.weeklyCommentUnlocks = (d.weeklyCommentUnlocks || []).map((u) => {
+        if (u.id !== id) return u;
+        if (u.validUntil <= at) throw new ApiError(409, 'Lần mở lại này đã hết hiệu lực');
+        found = { ...u, validUntil: at, revokedAt: at, revokedByName: user.fullName };
+        return found;
+      });
+    });
+    if (!found) throw new ApiError(404, 'Không tìm thấy lần mở lại nhận xét tuần');
+    return clone({ ...found, active: false });
+  },
+  async getWeeklyCommentOverview({ campusId, weekStart: start } = {}, user) {
+    if (!isLeader(user)) deny();
+    const db = ensureReady();
+    const out = [];
+    for (const cls of scoped(db, null, user).filter((c) => !campusId || c.campusId === campusId)) {
+      const board = await this.getWeeklyComments({ classId: cls.id, weekStart: start }, user).catch(() => null);
+      if (!board) continue;
+      const sent = board.children.filter((r) => r.status === 'SENT').length;
+      out.push({
+        classId: cls.id,
+        className: cls.name,
+        campusId: cls.campusId,
+        week: board.week,
+        total: board.children.length,
+        sent,
+        overdue: board.week.locked && !board.week.unlockedUntil && sent < board.children.length,
+      });
+    }
+    return clone(out);
   },
   // BE giả OBS-24: HT, PHT xem mọi lớp; chấm: HT mọi lớp, PHT điểm trường mình; GV xem lớp mình
   async getClassRatings(params = {}, user) {

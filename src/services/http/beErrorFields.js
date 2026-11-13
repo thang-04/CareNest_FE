@@ -4,6 +4,7 @@
  */
 export const BE_ERROR_FIELDS = {
   2004: 'name', // SCHOOL_YEAR_NAME_INVALID
+  2040: 'deadlineDays', // WEEKLY_COMMENT_DEADLINE_DAYS_INVALID
   2005: 'endDate', // END_DATE_BEFORE_START
   2006: 'name', // SCHOOL_YEAR_EXISTS
   2007: 'endDate', // SCHOOL_YEAR_DATES_OVERLAP
@@ -88,10 +89,9 @@ export const BE_ERROR_FIELDS = {
   7315: 'date', // ASSESSMENT_DAY_NOT_LOCKED_YET
   7316: 'validUntil', // ASSESSMENT_UNLOCK_DEADLINE_INVALID
   7317: 'date', // ASSESSMENT_UNLOCK_ALREADY_ACTIVE
-  // Mở lại nhận xét tuần
-  7400: 'children', // WEEKLY_COMMENT_NOT_SENT
-  7401: 'reason', // WEEKLY_COMMENT_REOPEN_REASON_REQUIRED
-  7402: 'reason', // WEEKLY_COMMENT_REOPEN_REASON_TOO_LONG
+  // Mở lại nhận xét tuần theo lớp – tuần
+  7401: 'weekStart', // WEEKLY_COMMENT_NOT_LOCKED_YET
+  7402: 'weekStart', // WEEKLY_COMMENT_UNLOCK_ALREADY_ACTIVE
   9005: 'to', // INVALID_DATE_RANGE
   9006: 'to', // DATE_RANGE_TOO_LONG
 };

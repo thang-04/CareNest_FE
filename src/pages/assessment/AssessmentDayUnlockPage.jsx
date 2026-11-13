@@ -9,8 +9,9 @@ import { useAsync } from '@/hooks/useAsync';
 import { useDailyAssessmentClasses } from '@/hooks/assessment/useAssessment';
 import {
   getAssessmentDayUnlocks,
-  getWeeklyCommentReopens,
+  getWeeklyCommentUnlocks,
   revokeAssessmentDayUnlock,
+  revokeWeeklyCommentUnlock,
   unlockAssessmentDay,
 } from '@/services/assessment/assessmentService';
 import { WeeklyCommentReopenForm } from '@/components/assessment/WeeklyCommentReopenForm';
@@ -39,7 +40,7 @@ const lastLockedDay = (yearStart) => {
 
 const EMPTY_FILTERS = { kind: '', campusId: '', classId: '', active: '', from: '', to: '' };
 
-// Loại mở lại: ngày đánh giá đã khóa (OBS-19) hoặc nhận xét tuần đã gửi (OBS-29)
+// Loại mở lại: ngày đánh giá đã khóa (OBS-19) hoặc nhận xét tuần đã khóa của lớp – tuần (OBS-29)
 const KINDS = [
   { value: 'DAY', label: 'Đánh giá ngày' },
   { value: 'WEEK', label: 'Nhận xét tuần' },
@@ -48,7 +49,7 @@ const KIND_LABELS = Object.fromEntries(KINDS.map((k) => [k.value, k.label]));
 
 /**
  * Mở lại đánh giá: ngày đánh giá đã khóa (khóa sau 23:59:59 của ngày đó; chọn hạn, giáo viên đánh giá được đến hạn đó)
- * hoặc nhận xét tuần đã gửi phụ huynh (về nháp để giáo viên sửa, gửi lại). Người mở: PHT điểm trường hoặc Hiệu trưởng.
+ * hoặc nhận xét tuần đã khóa của lớp – tuần (chọn hạn như ngày). Người mở: PHT điểm trường hoặc Hiệu trưởng.
  */
 export default function AssessmentDayUnlockPage() {
   const { user } = useAuth();
@@ -117,40 +118,26 @@ export default function AssessmentDayUnlockPage() {
   } = useAsync(() => getAssessmentDayUnlocks(query, user), [JSON.stringify(query), user?.id], {
     enabled: !invalidRange && filters.kind !== 'WEEK',
   });
-  // Lịch sử mở lại nhận xét tuần: lọc lớp, khoảng ngày theo tuần; không có hiệu lực / kết thúc sớm
+  // Lịch sử mở lại nhận xét tuần theo lớp – tuần: cùng bộ lọc điểm trường, lớp, hiệu lực, khoảng ngày
   const {
-    data: reopens,
-    loading: reopensLoading,
-    error: reopensError,
-    reload: reloadReopens,
-  } = useAsync(() => getWeeklyCommentReopens(query, user), [JSON.stringify(query), user?.id], {
-    enabled: !invalidRange && filters.kind !== 'DAY' && !filters.active,
+    data: weekUnlocks,
+    loading: weekLoading,
+    error: weekError,
+    reload: reloadWeeks,
+  } = useAsync(() => getWeeklyCommentUnlocks(query, user), [JSON.stringify(query), user?.id], {
+    enabled: !invalidRange && filters.kind !== 'DAY',
   });
   const shown = useMemo(() => {
     if (invalidRange) return [];
     const days = filters.kind === 'WEEK' ? [] : (unlocks || []).map((u) => ({ ...u, kind: 'DAY', key: `d-${u.id}` }));
-    const weeks =
-      filters.kind === 'DAY' || filters.active
-        ? []
-        : (reopens || []).map((r) => ({
-            kind: 'WEEK',
-            key: `w-${r.id}`,
-            className: r.className,
-            campusId: r.campusId,
-            childName: r.childName,
-            weekFrom: r.weekFrom,
-            weekEnd: r.weekEnd,
-            unlockedByName: r.reopenedByName,
-            unlockedAt: r.reopenedAt,
-            reason: r.reason,
-          }));
+    const weeks = filters.kind === 'DAY' ? [] : (weekUnlocks || []).map((u) => ({ ...u, kind: 'WEEK', key: `w-${u.id}` }));
     return [...days, ...weeks].sort((a, b) => String(b.unlockedAt).localeCompare(String(a.unlockedAt)));
-  }, [invalidRange, filters.kind, filters.active, unlocks, reopens]);
-  const historyLoading = (filters.kind !== 'WEEK' && loading) || (filters.kind !== 'DAY' && !filters.active && reopensLoading);
-  const historyError = error || reopensError;
+  }, [invalidRange, filters.kind, unlocks, weekUnlocks]);
+  const historyLoading = (filters.kind !== 'WEEK' && loading) || (filters.kind !== 'DAY' && weekLoading);
+  const historyError = error || weekError;
   const reloadHistory = () => {
     reload({ silent: true });
-    reloadReopens({ silent: true });
+    reloadWeeks({ silent: true });
   };
   const filtered = Object.values(filters).some(Boolean);
   const filterClasses = scoped.filter((c) => !filters.campusId || c.campusId === filters.campusId);
@@ -186,9 +173,15 @@ export default function AssessmentDayUnlockPage() {
     }
   };
 
-  // Mở nhầm hoặc giáo viên đã xong: kết thúc sớm, ngày khóa lại, vẫn giữ trong lịch sử
+  // Mở nhầm hoặc giáo viên đã xong: kết thúc sớm, ngày / tuần khóa lại, vẫn giữ trong lịch sử
   const revoke = async (u) => {
     try {
+      if (u.kind === 'WEEK') {
+        await revokeWeeklyCommentUnlock(u.id, user);
+        toast.success(`Đã kết thúc mở lại nhận xét tuần ${formatDate(u.weekFrom)} – ${formatDate(u.weekEnd)} của ${u.className}.`);
+        reloadWeeks({ silent: true });
+        return;
+      }
       await revokeAssessmentDayUnlock(u.id, user);
       toast.success(`Đã kết thúc mở lại ngày ${formatDate(u.date)} của ${u.className}. Giáo viên được thông báo.`);
       reload({ silent: true });
@@ -227,6 +220,7 @@ export default function AssessmentDayUnlockPage() {
           classes={scoped}
           classesLoading={classesLoading}
           classLabel={classLabel}
+          yearEnd={yearEnd}
           user={user}
           onReopened={reloadHistory}
         />
@@ -404,31 +398,20 @@ export default function AssessmentDayUnlockPage() {
                         {multiCampus && <div className="text-sm muted">{campusLabel(u.campusId)}</div>}
                       </td>
                       <td className="nowrap">
-                        {u.kind === 'WEEK' ? (
-                          <>
-                            {formatDate(u.weekFrom)} – {formatDate(u.weekEnd)}
-                            <div className="text-sm muted">{u.childName}</div>
-                          </>
-                        ) : (
-                          formatDate(u.date)
-                        )}
+                        {u.kind === 'WEEK' ? `${formatDate(u.weekFrom)} – ${formatDate(u.weekEnd)}` : formatDate(u.date)}
                       </td>
                       <td>{u.unlockedByName}</td>
                       <td>{formatDateTime(u.unlockedAt)}</td>
                       <td>{u.reason || '—'}</td>
                       <td className="center">
-                        {u.kind === 'WEEK' ? (
-                          <span className="text-sm muted">Về nháp, chờ gửi lại</span>
-                        ) : (
-                          <UnlockWindowBadge
-                            status={u.active ? 'ACTIVE' : u.revokedAt ? 'REVOKED' : 'EXPIRED'}
-                            detail={formatDateTime(u.validUntil)}
-                          />
-                        )}
+                        <UnlockWindowBadge
+                          status={u.active ? 'ACTIVE' : u.revokedAt ? 'REVOKED' : 'EXPIRED'}
+                          detail={formatDateTime(u.validUntil)}
+                        />
                         {u.revokedByName && <div className="text-xs muted">bởi {u.revokedByName}</div>}
                       </td>
                       <td className="cell--actions">
-                        {u.kind === 'DAY' && u.active && (
+                        {u.active && (
                           <RowActions
                             name={u.className}
                             menu={[
@@ -438,8 +421,11 @@ export default function AssessmentDayUnlockPage() {
                                 danger: true,
                                 onClick: () => revoke(u),
                                 confirm: {
-                                  title: 'Kết thúc mở lại ngày đánh giá?',
-                                  message: `${u.className}, ngày ${formatDate(u.date)}: ngày khóa lại, giáo viên không sửa đánh giá được nữa. Lần mở lại vẫn lưu trong lịch sử.`,
+                                  title: u.kind === 'WEEK' ? 'Kết thúc mở lại nhận xét tuần?' : 'Kết thúc mở lại ngày đánh giá?',
+                                  message:
+                                    u.kind === 'WEEK'
+                                      ? `${u.className}, tuần ${formatDate(u.weekFrom)} – ${formatDate(u.weekEnd)}: tuần khóa lại, giáo viên không sửa, gửi nhận xét được nữa. Lần mở lại vẫn lưu trong lịch sử.`
+                                      : `${u.className}, ngày ${formatDate(u.date)}: ngày khóa lại, giáo viên không sửa đánh giá được nữa. Lần mở lại vẫn lưu trong lịch sử.`,
                                   confirmLabel: 'Kết thúc sớm',
                                 },
                               },
