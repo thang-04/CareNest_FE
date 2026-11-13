@@ -1,4 +1,4 @@
-import { AlertTriangle, BarChart3 } from '@/components/ui/icons';
+import { AlertTriangle, BarChart3, Utensils } from '@/components/ui/icons';
 import { Widget } from '@/components/dashboard/DashboardWidgets';
 import { AttentionList } from '@/components/dashboard/AttentionList';
 import { RankBars } from '@/components/charts/RankBars';
@@ -61,6 +61,30 @@ export function ClassRankWidget({ q, limit, campusName }) {
           to: `/attendance/summary?classId=${c.classId}&from=${date}&to=${date}`,
         }))}
       />
+    </Widget>
+  );
+}
+
+/** Bữa trưa hôm nay: món của thực đơn đã công bố + số thực đơn thay thế (service buildLunch). */
+export function LunchWidget({ q }) {
+  const lunch = q.lunch;
+  return (
+    <Widget
+      title="Bữa trưa hôm nay"
+      icon={Utensils}
+      to="/kitchen/published-menu"
+      linkLabel="Thực đơn"
+      loading={q.loading}
+      empty={!lunch?.dishes.length}
+      emptyTitle={lunch && !lunch.menuLoaded ? 'Không tải được thực đơn' : 'Chưa có thực đơn công bố cho hôm nay'}
+      emptyText="Thực đơn trưa bếp đã công bố sẽ hiện ở đây."
+    >
+      {lunch?.allergyMenus > 0 && <span className="chip chip--orange db-lunch__chip">{lunch.allergyMenus} thực đơn thay thế</span>}
+      <ul className="db-lunch">
+        {(lunch?.dishes || []).map((d) => (
+          <li key={d}>{d}</li>
+        ))}
+      </ul>
     </Widget>
   );
 }

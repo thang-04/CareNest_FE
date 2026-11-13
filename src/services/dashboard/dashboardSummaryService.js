@@ -139,8 +139,22 @@ export function buildDashboardToday({ date, now, today, lastWeek, health, cutoff
     takenClasses.reduce((t, c) => t + c.present, 0),
     takenClasses.reduce((t, c) => t + c.size, 0),
   );
+  const campuses = [...new Set(classes.map((c) => c.campusId))].sort().map((campusId) => {
+    const rows = classes.filter((c) => c.campusId === campusId && c.size > 0);
+    return {
+      campusId,
+      name: campusName(campusId),
+      present: rows.reduce((t, c) => t + c.present, 0),
+      total: rows.reduce((t, c) => t + c.size, 0),
+      classes: rows.length,
+      taken: rows.filter((c) => c.taken).length,
+    };
+  });
   return {
     date,
+    cutoff: cutoff || null,
+    pastCutoff: !!pastCutoff,
+    campuses,
     attendance: {
       ...att,
       lastWeek: prev && prev.rate != null ? { date: addDays(date, -7), rate: prev.rate } : null,
@@ -151,6 +165,130 @@ export function buildDashboardToday({ date, now, today, lastWeek, health, cutoff
     classAverage,
     attention,
   };
+}
+
+export const STEP_STATUS = { DONE: 'done', DOING: 'doing', LATE: 'late', TODO: 'todo', NONE: 'none', UNKNOWN: 'unknown' };
+const STEP_LABEL = { done: 'Xong', doing: 'Đang làm', todo: 'Chưa làm', none: 'Không có', unknown: 'Chưa tải được' };
+
+const progressStatus = (value, total) =>
+  !total ? STEP_STATUS.NONE : value >= total ? STEP_STATUS.DONE : value > 0 ? STEP_STATUS.DOING : STEP_STATUS.TODO;
+
+const step = (s) => ({ ...s, badge: s.badge || STEP_LABEL[s.status] });
+
+/**
+ * "Tiến độ trong ngày" 5 bước: điểm danh → khám đầu ngày → báo suất ăn trưa → bếp công bố thực đơn → đánh giá cuối ngày.
+ * today = buildDashboardToday(); lunch = buildLunch(); assessment = getClassAssessmentOverview({period: DAY}) (null = lỗi/không có quyền).
+ */
+export function buildDayProgress({ today, lunch, assessment }) {
+  const date = today?.date;
+  const classes = (today?.classes || []).filter((c) => c.size > 0);
+  const taken = classes.filter((c) => c.taken).length;
+  const notTaken = classes.filter((c) => !c.taken);
+  const attStatus = !today
+    ? STEP_STATUS.UNKNOWN
+    : notTaken.length && today.pastCutoff
+      ? STEP_STATUS.LATE
+      : progressStatus(taken, classes.length);
+  const attNote = !classes.length
+    ? 'Chưa có lớp trong phạm vi của bạn'
+    : !notTaken.length
+      ? 'Đã điểm danh đủ các lớp'
+      : [
+          today.cutoff ? `Hạn ${today.cutoff}` : null,
+          notTaken.length === 1 ? `Lớp ${shortClassName(notTaken[0].className)} chưa xong` : `${notTaken.length} lớp chưa xong`,
+        ]
+          .filter(Boolean)
+          .join(' · ');
+
+  const health = today?.health;
+  const healthStatus = !today ? STEP_STATUS.UNKNOWN : !health ? STEP_STATUS.UNKNOWN : progressStatus(health.checked, health.present);
+
+  const mealStatus =
+    lunch?.campuses == null ? STEP_STATUS.UNKNOWN : !lunch.campuses ? STEP_STATUS.NONE : progressStatus(lunch.confirmed, lunch.campuses);
+
+  const kitchenStatus = !lunch?.menuLoaded ? STEP_STATUS.UNKNOWN : lunch.published ? STEP_STATUS.DONE : STEP_STATUS.TODO;
+  const evalTotals = assessment?.totals;
+  const evalStatus = !evalTotals ? STEP_STATUS.UNKNOWN : progressStatus(evalTotals.complete, evalTotals.classes);
+
+  return [
+    step({
+      key: 'attendance',
+      label: 'Điểm danh đầu ngày',
+      value: today ? taken : null,
+      total: classes.length,
+      unit: 'lớp',
+      status: attStatus,
+      badge: attStatus === STEP_STATUS.LATE ? `Quá giờ ${notTaken.length} lớp` : null,
+      note: today ? attNote : 'Không tải được số điểm danh',
+      to: `/attendance/summary?from=${date}&to=${date}`,
+    }),
+    step({
+      key: 'health',
+      label: 'Khám đầu ngày',
+      value: health ? health.checked : null,
+      total: health?.present || 0,
+      unit: 'trẻ',
+      status: healthStatus,
+      note: !health
+        ? 'Không tải được số khám đầu ngày'
+        : !health.present
+          ? 'Chưa có trẻ có mặt để khám'
+          : health.noted
+            ? `${health.noted} trẻ có dấu hiệu cần lưu ý`
+            : 'Chưa có trẻ cần lưu ý',
+      to: `/attendance/health?date=${date}`,
+    }),
+    step({
+      key: 'meal',
+      label: 'Báo suất ăn trưa',
+      value: lunch?.meals ?? null,
+      total: null,
+      unit: 'suất',
+      progress: lunch?.campuses ? lunch.confirmed / lunch.campuses : null,
+      status: mealStatus,
+      badge:
+        mealStatus === STEP_STATUS.DOING || mealStatus === STEP_STATUS.TODO ? `${lunch.confirmed}/${lunch.campuses} điểm trường` : null,
+      note:
+        mealStatus === STEP_STATUS.UNKNOWN
+          ? 'Không tải được sổ báo ăn'
+          : mealStatus === STEP_STATUS.NONE
+            ? 'Hôm nay không có bữa trưa bán trú'
+            : lunch.pendingCampuses.length
+              ? `${lunch.pendingCampuses.join(', ')} chưa xác nhận sĩ số`
+              : 'Các điểm trường đã xác nhận sĩ số',
+      to: `/attendance/meal-count?date=${date}`,
+    }),
+    step({
+      key: 'kitchen',
+      label: 'Bếp',
+      text: kitchenStatus === STEP_STATUS.UNKNOWN ? '—' : lunch.published ? 'Đã công bố' : 'Chưa công bố',
+      progress: kitchenStatus === STEP_STATUS.UNKNOWN ? null : lunch.published ? 1 : 0,
+      status: kitchenStatus,
+      note:
+        kitchenStatus === STEP_STATUS.UNKNOWN
+          ? 'Không tải được thực đơn'
+          : !lunch.published
+            ? 'Chưa có thực đơn trưa hôm nay'
+            : lunch.allergyMenus
+              ? `Thực đơn hôm nay · ${lunch.allergyMenus} thực đơn thay thế`
+              : 'Thực đơn hôm nay',
+      to: '/kitchen/published-menu',
+    }),
+    step({
+      key: 'assessment',
+      label: 'Đánh giá cuối ngày',
+      value: evalTotals ? evalTotals.complete : null,
+      total: evalTotals?.classes || 0,
+      unit: 'lớp',
+      status: evalStatus,
+      note: !evalTotals
+        ? 'Không tải được tổng quan đánh giá'
+        : evalTotals.complete >= evalTotals.classes && evalTotals.classes
+          ? 'Các lớp đã đánh giá xong'
+          : 'Lớp đánh giá đủ trẻ có mặt mới tính là xong',
+      to: '/assessment/overview',
+    }),
+  ];
 }
 
 const WEEKDAYS = ['Chủ nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
