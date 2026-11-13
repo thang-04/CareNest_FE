@@ -341,6 +341,121 @@ export const createAssessmentReportsMock = (ensureReady) => ({
   async confirmClassMonthlyComment(body, user) {
     return this.saveClassMonthlyComment(body, user, true);
   },
+  // BE giả OBS-29: nhận xét tuần theo trẻ — GV lớp viết nháp (mẫu câu), lưu, gửi phụ huynh (khóa); BGH xem bản đã gửi
+  async getWeeklyComments({ classId, weekStart: start }, user) {
+    const db = ensureReady();
+    const cls = accessClass(db, classId, user);
+    const year = yearOf(db, cls);
+    const week = weekStart(start || todayIso());
+    if (week > todayIso()) invalid('Tuần này chưa bắt đầu, chưa viết nhận xét được');
+    if (addDays(week, 4) < year.startDate || week > year.endDate) invalid('Chọn tuần trong năm học của lớp');
+    const teacher = isClassTeacher(cls, user);
+    const to = [addDays(week, 4), todayIso(), year.endDate].sort()[0];
+    const days = new Set(schoolDaysBetween(week < year.startDate ? year.startDate : week, to));
+    const saved = (db.weeklyComments || []).filter((c) => c.classId === cls.id && c.weekStart === week);
+    return clone({
+      classId: cls.id,
+      className: cls.name,
+      weekStart: week,
+      weekEnd: addDays(week, 4),
+      aiEnabled: false,
+      canEdit: teacher && year.status === 'ACTIVE',
+      aiFallback: false,
+      children: roster(db, cls).map((child) => {
+        const c = saved.find((x) => x.childId === child.id);
+        const sent = c?.status === 'SENT';
+        const flags = flagsOf(db, child.id, days);
+        return {
+          childId: child.id,
+          fullName: child.fullName,
+          status: c?.status || 'NONE',
+          absentAllWeek: days.size === 0,
+          content: c && (teacher || sent) ? c.content : null,
+          draftSource: c && (teacher || sent) ? c.draftSource : null,
+          sentAt: sent ? c.sentAt : null,
+          sentByName: sent ? c.sentByName : null,
+          updatedAt: c?.updatedAt || null,
+          data: {
+            presentDays: days.size,
+            schoolDays: days.size,
+            goalsMet: 0,
+            goalsTotal: 0,
+            unmetGoals: [],
+            flagCount: flags,
+            weeklyTicket: false,
+            lunchFinished: 0,
+            lunchDays: 0,
+          },
+        };
+      }),
+    });
+  },
+  async writeWeeklyCommentDrafts(body, user) {
+    const board = await this.getWeeklyComments(body, user);
+    if (!board.canEdit) deny();
+    const db = ensureReady();
+    let list = db.weeklyComments || [];
+    board.children
+      .filter((r) => (body.childId ? r.childId === body.childId : !r.absentAllWeek))
+      .filter((r) => r.status !== 'SENT' && (body.overwrite || !(r.content || '').trim()))
+      .forEach((r) => {
+        const text = `Tuần này con đi học ${r.data.presentDays}/${r.data.schoolDays} ngày.
+
+Bố mẹ hãy trò chuyện với con về những điều con đã học trong tuần để con thêm tự tin nhé.`;
+        list = [
+          ...list.filter((c) => !(c.childId === r.childId && c.weekStart === board.weekStart)),
+          {
+            classId: board.classId,
+            childId: r.childId,
+            weekStart: board.weekStart,
+            status: 'DRAFT',
+            content: text,
+            draftSource: 'TEMPLATE',
+            updatedAt: now(),
+          },
+        ];
+      });
+    writeDb((d) => {
+      d.weeklyComments = list;
+    });
+    return this.getWeeklyComments(body, user);
+  },
+  async saveWeeklyComment(body, user, send = false) {
+    const board = await this.getWeeklyComments(body, user);
+    if (!board.canEdit) deny();
+    const row = board.children.find((r) => r.childId === body.childId);
+    if (!row) invalid('Trẻ không thuộc lớp trong tuần này');
+    if (row.status === 'SENT') throw new ApiError(409, 'Nhận xét tuần đã gửi phụ huynh, không sửa được nữa');
+    const text = (body.content ?? row.content ?? '').trim();
+    if (send && !text) invalid('Nhập nội dung đánh giá');
+    if (text.length > 2000) invalid('Nội dung đánh giá tối đa 2000 ký tự');
+    if (DIAGNOSTIC_TERMS.some((t) => text.toLowerCase().includes(t))) invalid('Nội dung có từ mang tính chẩn đoán');
+    const list = [
+      ...(ensureReady().weeklyComments || []).filter((c) => !(c.childId === body.childId && c.weekStart === board.weekStart)),
+      {
+        classId: board.classId,
+        childId: body.childId,
+        weekStart: board.weekStart,
+        status: send ? 'SENT' : 'DRAFT',
+        content: text,
+        draftSource: row.draftSource || 'MANUAL',
+        updatedAt: now(),
+        ...(send ? { sentAt: now(), sentByName: user.fullName } : {}),
+      },
+    ];
+    writeDb((d) => {
+      d.weeklyComments = list;
+    });
+    return this.getWeeklyComments(body, user);
+  },
+  async sendWeeklyComments(body, user) {
+    if (body.childId) return this.saveWeeklyComment(body, user, true);
+    const board = await this.getWeeklyComments(body, user);
+    const ready = board.children.filter((r) => r.status === 'DRAFT' && (r.content || '').trim());
+    if (!ready.length) invalid('Chưa có nhận xét nào viết xong để gửi phụ huynh');
+    for (const r of ready) await this.saveWeeklyComment({ ...body, childId: r.childId, content: r.content }, user, true);
+    return this.getWeeklyComments(body, user);
+  },
   // BE giả OBS-24: HT, PHT xem mọi lớp; chấm: HT mọi lớp, PHT điểm trường mình; GV xem lớp mình
   async getClassRatings(params = {}, user) {
     const db = ensureReady();

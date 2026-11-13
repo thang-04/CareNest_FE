@@ -74,6 +74,11 @@ export const getQualityReport = (params, user) => (be || repo).getQualityReport(
 export const getClassMonthlyComment = (params, user) => (be || repo).getClassMonthlyComment(params, user);
 export const saveClassMonthlyComment = (body, user) => (be || repo).saveClassMonthlyComment(body, user);
 export const confirmClassMonthlyComment = (body, user) => (be || repo).confirmClassMonthlyComment(body, user);
+// Nhận xét tuần theo trẻ (OBS-29): GV viết, gửi phụ huynh
+export const getWeeklyComments = (params, user) => (be || repo).getWeeklyComments(params, user);
+export const writeWeeklyCommentDrafts = (body, user) => (be || repo).writeWeeklyCommentDrafts(body, user);
+export const saveWeeklyComment = (body, user) => (be || repo).saveWeeklyComment(body, user);
+export const sendWeeklyComments = (body, user) => (be || repo).sendWeeklyComments(body, user);
 /** Xếp loại nhóm lớp theo kỳ: { rows: [{ classId, levels, note, canEdit, … }], campuses }. */
 export const getClassRatings = (params, user) => (be || repo).getClassRatings(params, user);
 /** Đánh giá cuối chủ đề (lớp mẫu giáo): danh sách chủ đề, bảng trẻ × MT, lưu ô sửa tay / ghi chú, xác nhận. */

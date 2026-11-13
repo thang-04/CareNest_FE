@@ -160,6 +160,15 @@ export const createAssessmentBeApi = (client) => ({
   saveClassMonthlyComment: ({ classId, month, content }) => client.put('/assessment/class-monthly-comments', { classId, month, content }),
   confirmClassMonthlyComment: ({ classId, month, content }) =>
     client.post('/assessment/class-monthly-comments/confirm', { classId, month, content }),
+  // Nhận xét tuần theo trẻ (BE OBS-29): weekStart = thứ Hai; childId trống = cả lớp
+  getWeeklyComments: ({ classId, weekStart }) =>
+    client.get('/assessment/weekly-comments', { params: { classId, weekStart: weekStart || undefined } }),
+  writeWeeklyCommentDrafts: ({ classId, weekStart, childId, overwrite = false, ai = false }) =>
+    client.post('/assessment/weekly-comments/drafts', { classId, weekStart, childId: childId || null, overwrite, ai }),
+  saveWeeklyComment: ({ classId, weekStart, childId, content }) =>
+    client.put('/assessment/weekly-comments', { classId, weekStart, childId, content }),
+  sendWeeklyComments: ({ classId, weekStart, childId, content }) =>
+    client.post('/assessment/weekly-comments/send', { classId, weekStart, childId: childId || null, content: content ?? null }),
   // Đánh giá tháng / cuối năm: BE tạo bản nháp khi tháng kết thúc (cuối năm: khi học kỳ II kết thúc)
   getEvaluations: (kind, { schoolYear, classId } = {}) =>
     client.get('/assessment/evaluations', {
