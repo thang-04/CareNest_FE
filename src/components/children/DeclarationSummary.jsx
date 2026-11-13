@@ -2,10 +2,14 @@ import { AllergyStateBadge, DietStateBadge, NoteStateBadge } from '@/components/
 import { DECLARATION_STATE } from '@/models/children/childrenConstants';
 import { MEDICAL_HISTORY_ITEMS, historyItemText } from '@/models/children/childProfile';
 import { formatDateTime } from '@/utils/format';
+import { EmptyState } from '@/components/ui/States';
 
 /** Read-only health declaration. Allergies saved by the Vice Principal are the official list used by the kitchen. */
 export function DeclarationSummary({ declaration }) {
-  if (!declaration) return <p className="muted">Chưa có khai báo sức khỏe khi tiếp nhận.</p>;
+  if (!declaration)
+    return (
+      <EmptyState title="Chưa có khai báo sức khỏe" description="Khai báo dị ứng, chế độ ăn và tiền sử bệnh khi tiếp nhận sẽ hiện ở đây." />
+    );
   const { allergies, diet, otherNotes, medicalHistory, declaredAt, declaredByName } = declaration;
   const reported = allergies.state === DECLARATION_STATE.REPORTED;
   return (

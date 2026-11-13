@@ -271,7 +271,7 @@ function InfoStep({ year, years, user, onSaved }) {
         </ul>
       </ConfirmationModal>
 
-      <div className="page-actions">
+      <div className="page-actions page-actions--plain">
         <Link className="btn wizard-actions__back" to="/school/years">
           <ArrowLeft size={16} /> Về danh sách
         </Link>
@@ -495,7 +495,7 @@ export default function SchoolYearSetupPage() {
       </div>
       {body}
       {id && step > 0 && year && (
-        <div className="page-actions">
+        <div className="page-actions page-actions--plain">
           <button className="btn wizard-actions__back" onClick={() => (step === 1 && part === 1 ? setPart(0) : goTo(step - 1))}>
             <ArrowLeft size={16} /> Quay lại
           </button>

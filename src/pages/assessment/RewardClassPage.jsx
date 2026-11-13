@@ -107,7 +107,7 @@ export default function RewardClassPage() {
     (isVicePrincipal(user) && r.status === S.PENDING_VP) || (isPrincipal(user) && [S.PENDING_VP, S.PENDING_PRINCIPAL].includes(r.status));
   const nextWaiting = leader ? lists.find((r) => String(r.classId) !== String(classId) && waitingForMe(r)) : null;
 
-  const crumbs = <Breadcrumb items={assessmentCrumbs(SECTIONS.rewards, d ? `Lớp ${d.className}` : 'Danh sách lớp')} />;
+  const crumbs = <Breadcrumb items={assessmentCrumbs(SECTIONS.rewards, d ? d.className : 'Danh sách lớp')} />;
   if (loading && !d)
     return (
       <div className="page">
@@ -267,15 +267,27 @@ export default function RewardClassPage() {
     },
   ];
   const cols = 6;
+  // Bảng tích dài hơn một màn hình: cùng cặp nút ở đầu trang và cuối trang, không dùng thanh nổi che bảng
+  const editActions = edit && (
+    <>
+      <button className="btn" onClick={() => save(false)} disabled={!!busy}>
+        {busy === 'save' ? <Spinner small /> : <Save size={16} />} Lưu nháp
+      </button>
+      <button className="btn btn--primary" disabled={!!busy} onClick={() => check(true) && setSubmitOpen(true)}>
+        <Send size={16} /> {d.status === S.RETURNED ? 'Gửi lại danh sách' : 'Gửi danh sách'}
+      </button>
+    </>
+  );
 
   return (
     <div className="page">
       {crumbs}
       <div className="page__head">
         <div>
-          <h1 className="page__title">Danh sách khen thưởng – Lớp {d.className}</h1>
+          <h1 className="page__title">Danh sách khen thưởng – {d.className}</h1>
           <RewardStatusBadge status={status} size="lg" />
         </div>
+        {edit && <div className="page__actions">{editActions}</div>}
       </div>
 
       <div className="card mt-16 dg-card-steps">
@@ -474,7 +486,7 @@ export default function RewardClassPage() {
         </div>
       )}
 
-      <div className="page-actions">
+      <div className="page-actions page-actions--plain">
         {/* GV một lớp mở thẳng màn này (danh sách lớp tự chuyển về đây), không cần nút quay lại danh sách */}
         {leader && (
           <button className="btn" onClick={() => guard.leave('/assessment/rewards')} disabled={!!busy}>
@@ -486,16 +498,7 @@ export default function RewardClassPage() {
             Lớp chờ duyệt tiếp theo: {nextWaiting.className} <ArrowRight size={16} />
           </Link>
         )}
-        {edit && (
-          <div className="row gap-2">
-            <button className="btn" onClick={() => save(false)} disabled={!!busy}>
-              {busy === 'save' ? <Spinner small /> : <Save size={16} />} Lưu nháp
-            </button>
-            <button className="btn btn--primary" disabled={!!busy} onClick={() => check(true) && setSubmitOpen(true)}>
-              <Send size={16} /> {d.status === S.RETURNED ? 'Gửi lại danh sách' : 'Gửi danh sách'}
-            </button>
-          </div>
-        )}
+        {edit && <div className="row gap-2">{editActions}</div>}
         {(d.canReview || d.canDecide) && (
           <div className="row gap-2">
             <button

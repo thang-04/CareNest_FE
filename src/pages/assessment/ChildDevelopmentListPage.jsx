@@ -6,7 +6,8 @@ import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { Pagination, paginate } from '@/components/ui/Pagination';
-import { RowActions } from '@/components/ui/RowActions';
+import { clickableRowProps } from '@/utils/clickableRow';
+import { useNavigate } from 'react-router-dom';
 import { ChildNameCell } from '@/components/assessment/ChildNameCell';
 import { ageLabel } from '@/models/School';
 import { formatDate, normalizeText } from '@/utils/format';
@@ -16,6 +17,7 @@ import '@/styles/modules/assessment.css';
 
 /** Entry list for #53 (teacher: own classes) and #54 (Principal / Vice Principal: school / campus). */
 export default function ChildDevelopmentListPage() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const leader = isLeader(user);
   const { children, loading, error, reload } = useDevelopmentChildren();
@@ -100,15 +102,14 @@ export default function ChildDevelopmentListPage() {
                   <th>Ngày sinh</th>
                   <th>Tuổi</th>
                   <th>Lớp</th>
-                  <th className="cell--actions">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <SkeletonRows rows={5} cols={5} />
+                  <SkeletonRows rows={5} cols={4} />
                 ) : rows.length === 0 ? (
                   <tr>
-                    <td colSpan={5}>
+                    <td colSpan={4}>
                       <EmptyState
                         icon={Users}
                         title={filtered ? 'Không tìm thấy trẻ' : leader ? 'Chưa có trẻ trong phạm vi' : 'Lớp bạn phụ trách chưa có trẻ'}
@@ -139,7 +140,7 @@ export default function ChildDevelopmentListPage() {
                   </tr>
                 ) : (
                   paginate(rows, page).map((ch) => (
-                    <tr key={`${ch.id}-${ch.classId}`}>
+                    <tr key={`${ch.id}-${ch.classId}`} className="row-click" {...clickableRowProps(() => navigate(link(ch)))}>
                       <td>
                         <ChildNameCell child={ch} sub={null} />
                       </td>
@@ -148,9 +149,6 @@ export default function ChildDevelopmentListPage() {
                       <td>
                         {ch.className || '—'}
                         {ch.current === false && <div className="muted">Đã chuyển lớp / nghỉ</div>}
-                      </td>
-                      <td className="cell--actions">
-                        <RowActions view={{ to: link(ch), label: leader ? 'Xem tiến độ' : 'Xem hồ sơ' }} name={ch.fullName} />
                       </td>
                     </tr>
                   ))

@@ -7,6 +7,7 @@ import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useChildRecords, useHealthRecord } from '@/hooks/children/useChildRecords';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { EmptyState, LoadingState } from '@/components/ui/States';
+import { Tabs } from '@/components/ui/Tabs';
 import { GrowthChart } from '@/components/children/GrowthChart';
 import { HealthWarningCell } from '@/components/children/HealthWarningCell';
 import { TrendChildList, sortByAttention } from '@/components/children/TrendChildList';
@@ -205,24 +206,15 @@ export default function HealthTrendPage() {
               </div>
               <section className="card">
                 <div className="tr-chart-toolbar">
-                  <div className="tabs" role="tablist" aria-label="Cách xem">
-                    <button
-                      role="tab"
-                      aria-selected={view === 'chart'}
-                      className={`tab ${view === 'chart' ? 'tab--active' : ''}`}
-                      onClick={() => setView('chart')}
-                    >
-                      Biểu đồ
-                    </button>
-                    <button
-                      role="tab"
-                      aria-selected={view === 'table'}
-                      className={`tab ${view === 'table' ? 'tab--active' : ''}`}
-                      onClick={() => setView('table')}
-                    >
-                      Bảng số liệu
-                    </button>
-                  </div>
+                  <Tabs
+                    items={[
+                      { key: 'chart', label: 'Biểu đồ' },
+                      { key: 'table', label: 'Bảng số liệu' },
+                    ]}
+                    value={view}
+                    onChange={setView}
+                    ariaLabel="Cách xem"
+                  />
                   <div className="tabs" role="group" aria-label="Khoảng thời gian">
                     {PERIODS.map((p) => (
                       <button

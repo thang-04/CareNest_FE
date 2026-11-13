@@ -2,27 +2,6 @@
  * Tài khoản phụ huynh
  * Cột lớp bên trái (chọn điểm trường, lọc lớp, tiến độ từng lớp), danh sách bé bên phải, panel trượt cho từng bé.
  */
-.pa-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: var(--card-padding-dense);
-  margin: var(--space-1) 0 var(--card-padding-dense);
-}
-.pa-head__title {
-  min-width: 0;
-}
-.pa-head__title h1 {
-  margin: 0;
-}
-.pa-head__title p {
-  margin: var(--space-3) 0 0;
-}
-.pa-head__search {
-  width: min(100%, 360px);
-  max-width: 100%;
-}
 .pa-todo {
   display: flex;
   flex-wrap: wrap;
@@ -385,9 +364,6 @@
   .pa-status {
     min-height: var(--btn-height-sm);
     white-space: normal;
-  }
-  .pa-head__search {
-    width: 100%;
   }
 }
 .pa-guard-fieldset {

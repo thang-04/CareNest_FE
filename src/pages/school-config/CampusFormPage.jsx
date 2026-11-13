@@ -128,7 +128,7 @@ function CampusForm({ campus, others, user }) {
         </div>
       </section>
 
-      <div className="page-actions">
+      <div className="page-actions page-actions--plain">
         <Link className="btn" to={campus ? `/school/campuses/${campus.id}` : '/school/campuses'}>
           <ArrowLeft size={16} /> Quay lại
         </Link>

@@ -7,6 +7,7 @@ import { useMasterData } from '@/hooks/useMasterData';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
+import { StatCard } from '@/components/ui/StatCard';
 import { MealAdjustModal, MealRegisterCard, dayStatus } from '@/components/attendance/MealRegisterCard';
 import { CampusFilter } from '@/components/ui/CampusFilter';
 import { DonutChart } from '@/components/charts/MiniCharts';
@@ -46,30 +47,12 @@ function DayOverview({ counts }) {
         />
       </div>
       <div className="dd-stats">
-        <div className="dd-stat">
-          <span className="dd-stat__value">{d.present + d.absent + d.missing}</span>
-          <span className="dd-stat__label">Sĩ số ({d.classes} lớp)</span>
-        </div>
-        <div className="dd-stat dd-stat--green">
-          <span className="dd-stat__value">{d.present}</span>
-          <span className="dd-stat__label">Có mặt</span>
-        </div>
-        <div className="dd-stat dd-stat--orange">
-          <span className="dd-stat__value">{d.absent}</span>
-          <span className="dd-stat__label">Vắng</span>
-        </div>
-        <div className={`dd-stat ${d.missing ? 'dd-stat--red' : 'dd-stat--gray'}`}>
-          <span className="dd-stat__value">{d.missing}</span>
-          <span className="dd-stat__label">Chưa điểm danh</span>
-        </div>
-        <div className="dd-stat dd-stat--blue">
-          <span className="dd-stat__value">{d.meals}</span>
-          <span className="dd-stat__label">Tổng suất cả ngày</span>
-        </div>
-        <div className="dd-stat">
-          <span className="dd-stat__value">{counts.length}</span>
-          <span className="dd-stat__label">Bữa trong ngày</span>
-        </div>
+        <StatCard tone="blue" label={<>Sĩ số ({d.classes} lớp)</>} value={d.present + d.absent + d.missing} />
+        <StatCard tone="green" label="Có mặt" value={d.present} />
+        <StatCard tone="orange" label="Vắng" value={d.absent} />
+        <StatCard tone={d.missing ? 'red' : 'gray'} label="Chưa điểm danh" value={d.missing} />
+        <StatCard tone="teal" label="Tổng suất cả ngày" value={d.meals} />
+        <StatCard tone="blue" label="Bữa trong ngày" value={counts.length} />
       </div>
     </div>
   );

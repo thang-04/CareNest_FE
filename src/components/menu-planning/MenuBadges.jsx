@@ -1,4 +1,5 @@
 import { CheckCircle2, FileEdit, FileQuestion, PauseCircle, Replace, Sparkles } from '@/components/ui/icons';
+import { EmptyState } from '@/components/ui/States';
 import { createStatusBadge } from '@/components/ui/StatusBadge';
 import { StatusPage } from '@/components/ui/StatusPage';
 import { useMasterData } from '@/hooks/useMasterData';
@@ -89,7 +90,7 @@ export function HistoryCard({ history }) {
       </div>
       <div className="card__body">
         {list.length === 0 ? (
-          <div className="muted">Chưa có lịch sử.</div>
+          <EmptyState title="Chưa có lịch sử" description="Mỗi lần tạo, sửa, duyệt sẽ được ghi lại ở đây." />
         ) : (
           <div className="table-wrap">
             <table className="table table--grid table--compact td-history-table">

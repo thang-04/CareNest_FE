@@ -87,14 +87,13 @@ export default function UserOverridesPage() {
           <h1 className="page__title">Quyền ngoại lệ từng người</h1>
           <p className="text-sm text-2">Danh sách nhân sự được cấp thêm (+) hoặc thu hồi (-) quyền đặc thù so với vai trò chuẩn.</p>
         </div>
-      </div>
-      <PermissionTabs
-        actions={
+        <div className="page__actions">
           <button className="btn btn--primary" type="button" onClick={() => setWizardStaff({})}>
             <Plus size={16} /> Thêm ngoại lệ cho nhân sự
           </button>
-        }
-      />
+        </div>
+      </div>
+      <PermissionTabs />
 
       {targetId && (
         <div className="alert alert--info">

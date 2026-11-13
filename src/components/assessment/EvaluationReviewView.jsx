@@ -25,7 +25,7 @@ import {
   saveEvaluationDraft,
 } from '@/services/assessment/assessmentService';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
-import { ErrorState, LoadingState, Spinner } from '@/components/ui/States';
+import { EmptyState, ErrorState, LoadingState, Spinner } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
 import { FormField } from '@/components/form/FormField';
 import { AiWorkingOverlay } from '@/components/ui/AiWorkingOverlay';
@@ -325,7 +325,7 @@ export function EvaluationReviewView({ kind, id }) {
                   </div>
                 </>
               ) : (
-                <div className="muted">Chưa có bản nháp AI. Cô tự viết đánh giá ở khung bên cạnh.</div>
+                <EmptyState title="Chưa có bản nháp AI" description="Cô tự viết đánh giá ở khung bên cạnh." />
               )}
             </div>
           </div>
@@ -435,7 +435,7 @@ export function EvaluationReviewView({ kind, id }) {
                 ))}
               </div>
             ) : (
-              <div className="muted">Chưa có đánh giá tháng nào được xác nhận trong kỳ này.</div>
+              <EmptyState title="Chưa có đánh giá tháng được xác nhận" description="Đánh giá tháng đã xác nhận trong kỳ sẽ hiện ở đây." />
             )}
           </div>
         </div>

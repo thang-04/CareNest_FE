@@ -242,7 +242,7 @@ export default function RoomListPage() {
       </div>
       <YearReadOnlyNotice />
 
-      <div className="card mb-16">
+      <div className="card">
         <div className="filter-bar">
           <SearchSubmit
             className="sc-search"
@@ -296,9 +296,6 @@ export default function RoomListPage() {
             </select>
           )}
         </div>
-      </div>
-
-      <div className="card">
         {error ? (
           <ErrorState error={error} onRetry={reload} />
         ) : loading ? (

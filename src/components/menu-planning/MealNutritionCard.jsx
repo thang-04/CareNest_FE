@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Tabs } from '@/components/ui/Tabs';
 import { ErrorState, LoadingState } from '@/components/ui/States';
 import { NormStatusChip } from '@/components/menu-planning/MenuBadges';
 import { StatisticsNutrition } from '@/components/menu-planning/MenuStatistics';
@@ -32,20 +33,13 @@ export function MealNutritionCard({ ageGroups, ageGroupId, onAgeGroup, statsQ, h
         <h2 className="card__title">Thông tin dinh dưỡng 1 trẻ / ngày</h2>
         {ev.status && <NormStatusChip status={ev.status} />}
         {ageGroups.length > 1 && (
-          <div className="tabs tabs--pill" role="tablist" aria-label="Nhóm tuổi">
-            {ageGroups.map((g) => (
-              <button
-                key={g.id}
-                type="button"
-                role="tab"
-                aria-selected={g.id === ageGroupId}
-                className={`tab ${g.id === ageGroupId ? 'tab--active' : ''}`}
-                onClick={() => onAgeGroup(g.id)}
-              >
-                {g.name}
-              </button>
-            ))}
-          </div>
+          <Tabs
+            variant="pill"
+            items={ageGroups.map((g) => ({ key: g.id, label: g.name }))}
+            value={ageGroupId}
+            onChange={onAgeGroup}
+            ariaLabel="Nhóm tuổi"
+          />
         )}
       </div>
       <div className="card__body">
@@ -58,20 +52,13 @@ export function MealNutritionCard({ ageGroups, ageGroupId, onAgeGroup, statsQ, h
         ) : (
           <>
             <div className="td-daynut__tabs">
-              <div className="tabs tabs--pill" role="tablist" aria-label="Cách xem">
-                {TABS.map(([k, label]) => (
-                  <button
-                    key={k}
-                    type="button"
-                    role="tab"
-                    aria-selected={tab === k}
-                    className={`tab ${tab === k ? 'tab--active' : ''}`}
-                    onClick={() => setTab(k)}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
+              <Tabs
+                variant="pill"
+                items={TABS.map(([key, label]) => ({ key, label }))}
+                value={tab}
+                onChange={setTab}
+                ariaLabel="Cách xem"
+              />
               <span className="td-daynut__legend text-sm">
                 <span>
                   <i className="td-eval__dot td-eval__dot--low" /> Thấp so với chuẩn

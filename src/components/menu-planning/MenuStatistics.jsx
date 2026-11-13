@@ -1,4 +1,5 @@
 import { StatusBadge } from '@/components/ui/StatusBadge';
+import { EmptyState } from '@/components/ui/States';
 import { MEAL_SESSION_LABELS, SESSION_ORDER, formatMoney } from '@/models/menu-planning/menuPlanningConstants';
 
 /*
@@ -43,7 +44,7 @@ export function StatisticsIngredients({ stats }) {
       <table className="table table--grid table--compact td-stat-table">
         <thead>
           <tr>
-            <th className="num">#</th>
+            <th className="num">STT</th>
             <th>Tên thực phẩm</th>
             <th className="num">Lượng ăn 1 trẻ</th>
             <th className="num">Lượng ăn {n} trẻ</th>
@@ -58,8 +59,11 @@ export function StatisticsIngredients({ stats }) {
         <tbody>
           {!stats.ingredients.length && (
             <tr>
-              <td colSpan={10} className="muted">
-                Các món chưa có định lượng cho {stats.ageGroupName || 'nhóm tuổi này'}. Nhập định lượng ở màn Món ăn để có số liệu.
+              <td colSpan={10}>
+                <EmptyState
+                  title={`Các món chưa có định lượng cho ${stats.ageGroupName || 'nhóm tuổi này'}`}
+                  description="Nhập định lượng ở màn Món ăn để có số liệu."
+                />
               </td>
             </tr>
           )}

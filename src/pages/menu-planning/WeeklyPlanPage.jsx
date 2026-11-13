@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useTabParam } from '@/hooks/useTabParam';
 import { Tabs } from '@/components/ui/Tabs';
+import { useTabParam } from '@/hooks/useTabParam';
 import { useSearchParams } from 'react-router-dom';
 import { Lock, Save, Send } from '@/components/ui/icons';
 import { useToast } from '@/contexts/ToastContext';
@@ -126,20 +126,13 @@ export default function WeeklyPlanPage() {
       </div>
       <div className="td-week-toolbar">
         {blocks.length > 0 && (
-          <div className="tabs tabs--pill" role="tablist" aria-label="Khối">
-            {blocks.map((key) => (
-              <button
-                key={key}
-                type="button"
-                role="tab"
-                aria-selected={key === block}
-                className={`tab ${key === block ? 'tab--active' : ''}`}
-                onClick={() => setBlockKey(key)}
-              >
-                {MEAL_BLOCK_LABELS[key] || key}
-              </button>
-            ))}
-          </div>
+          <Tabs
+            variant="pill"
+            items={blocks.map((key) => ({ key, label: MEAL_BLOCK_LABELS[key] || key }))}
+            value={block}
+            onChange={setBlockKey}
+            ariaLabel="Khối"
+          />
         )}
         <WeekPicker
           value={week}

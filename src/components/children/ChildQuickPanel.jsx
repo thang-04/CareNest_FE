@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useChildDetail } from '@/hooks/children/useChildRecords';
 import { SidePanel } from '@/components/ui/SidePanel';
-import { LoadingState } from '@/components/ui/States';
+import { EmptyState, LoadingState } from '@/components/ui/States';
 import { AllergyStateBadge, ChildStatusBadge, DietStateBadge, ParentAccountBadge } from '@/components/children/ChildBadges';
 import { ChildAccessState } from '@/components/children/ChildAccessState';
 import { DECLARATION_STATE } from '@/models/children/childrenConstants';
@@ -146,7 +146,7 @@ export function ChildQuickPanel({ childId: current, onClose }) {
           <section className="stack gap-2">
             <h3 className="subsection-title">Phụ huynh / người giám hộ</h3>
             {child.guardians.length === 0 ? (
-              <p className="muted">Chưa có thông tin phụ huynh.</p>
+              <EmptyState title="Chưa có thông tin phụ huynh" description="Thêm phụ huynh ở màn Sửa hồ sơ." />
             ) : (
               child.guardians.map((g) => (
                 <div key={`${g.phone}${g.fullName}`} className="tr-quick__guardian">

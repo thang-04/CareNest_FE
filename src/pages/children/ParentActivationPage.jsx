@@ -174,19 +174,11 @@ export default function ParentActivationPage() {
           Bản demo Web: thao tác tài khoản chưa kết nối BE/App thật. Giữ phạm vi quản lý phụ huynh hiện tại của bạn.
         </div>
       )}
-      <div className="pa-head">
-        <div className="pa-head__title">
+      <div className="page__head">
+        <div>
           <h1 className="page__title">Tài khoản phụ huynh</h1>
-          <p className="text-sm text-2">Tra cứu theo lớp để xem và quản lý tài khoản phụ huynh của từng bé.</p>
+          <p className="muted text-sm">Tra cứu theo lớp để xem và quản lý tài khoản phụ huynh của từng bé.</p>
         </div>
-        <SearchSubmit
-          className="pa-head__search"
-          value={keyword}
-          maxLength={100}
-          placeholder="Tìm bé theo tên"
-          label="Tìm bé theo tên"
-          onSearch={setKeyword}
-        />
       </div>
 
       {!error && !structure.error && (
@@ -225,6 +217,16 @@ export default function ParentActivationPage() {
       ) : (
         <section className="card people-list-workspace pa-workspace">
           <PeopleTabs embedded />
+          <div className="filter-bar">
+            <SearchSubmit
+              className="flex-1"
+              value={keyword}
+              maxLength={100}
+              placeholder="Tìm bé theo tên"
+              label="Tìm bé theo tên"
+              onSearch={setKeyword}
+            />
+          </div>
           <div className="pa-layout">
             <section className="pa-classes" aria-label="Lớp">
               <div className="pa-classes__toolbar">

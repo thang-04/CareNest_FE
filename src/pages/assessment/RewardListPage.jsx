@@ -7,7 +7,7 @@ import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { Pagination, paginate } from '@/components/ui/Pagination';
-import { RowActions } from '@/components/ui/RowActions';
+import { clickableRowProps } from '@/utils/clickableRow';
 import { RewardStatusBadge } from '@/components/assessment/AssessmentBadges';
 import { REWARD_STATUS as S, REWARD_STATUS_LABELS } from '@/models/assessment/assessmentConstants';
 import { formatDate, normalizeText } from '@/utils/format';
@@ -154,7 +154,7 @@ export default function RewardListPage() {
                     const a = action(r);
                     const to = `/assessment/rewards/${r.classId}`;
                     return (
-                      <tr key={r.classId} className="row-click" onClick={() => navigate(to)}>
+                      <tr key={r.classId} className="row-click" {...clickableRowProps(() => navigate(to))}>
                         <td className="fw-600">{r.className}</td>
                         {leader && multiCampus && <td>{r.campusName}</td>}
                         <td className="num">{r.children}</td>
@@ -164,12 +164,10 @@ export default function RewardListPage() {
                         </td>
                         <td className="nowrap">{r.submittedAt ? formatDate(r.submittedAt) : '—'}</td>
                         <td className="cell--actions" onClick={(e) => e.stopPropagation()}>
-                          {a.primary ? (
+                          {a.primary && (
                             <Link className="btn btn--primary btn--sm" to={to}>
                               <FileCheck2 size={15} /> {a.label}
                             </Link>
-                          ) : (
-                            <RowActions view={{ to, label: a.label }} name={r.className} />
                           )}
                         </td>
                       </tr>

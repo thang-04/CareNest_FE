@@ -223,8 +223,11 @@ export default function TeacherAssignmentPage() {
                 <tbody>
                   {groups.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="muted center">
-                        Năm học này chưa có lớp.
+                      <td colSpan={4}>
+                        <EmptyState
+                          title="Năm học này chưa có lớp"
+                          description="Tạo lớp ở màn Nhóm tuổi & lớp rồi quay lại phân công giáo viên."
+                        />
                       </td>
                     </tr>
                   ) : (

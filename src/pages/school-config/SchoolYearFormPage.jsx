@@ -207,7 +207,7 @@ function YearForm({ year, years, user }) {
         </section>
       )}
 
-      <div className="page-actions">
+      <div className="page-actions page-actions--plain">
         <Link className="btn" to="/school/years">
           <ArrowLeft size={16} /> Quay lại
         </Link>

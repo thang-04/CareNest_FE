@@ -551,7 +551,7 @@ export default function EnrollChildPage() {
         </>
       )}
 
-      <div className="page-actions">
+      <div className="page-actions page-actions--plain">
         {step === 0 ? (
           <button className="btn wizard-actions__back" onClick={() => (dirty ? setConfirmLeave(true) : navigate('/children'))}>
             <ArrowLeft size={16} /> Hủy

@@ -354,7 +354,7 @@ export default function DishFormPage() {
               <table className="table table--grid table--compact td-recipe">
                 <thead>
                   <tr>
-                    <th className="num cell--fixed">#</th>
+                    <th className="num cell--fixed">STT</th>
                     <th>
                       Thành phần <span className="req">*</span>
                     </th>

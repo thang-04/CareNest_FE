@@ -91,7 +91,7 @@ function StaffAccountsMockView() {
       parts.push(`Phụ trách ${md.campusById(a.campusId)?.shortName} (${a.schoolYear})${a.sharedService ? ' · dịch vụ chung' : ''}`),
     );
     if (u.classes.length) parts.push(`Dạy ${u.classes.map((c) => c.name).join(', ')}`);
-    u.leads.forEach((a) => parts.push(`Tổ trưởng ${md.campusById(a.campusId)?.shortName}`));
+    u.leads.forEach((a) => parts.push(['Tổ trưởng', md.campusById(a.campusId)?.shortName].filter(Boolean).join(' ')));
     return parts;
   };
 
@@ -108,7 +108,7 @@ function StaffAccountsMockView() {
       </div>
       <YearReadOnlyNotice />
 
-      <div className="card mb-16">
+      <div className="card">
         <PeopleTabs embedded />
         <div className="filter-bar">
           <SearchSubmit
@@ -157,9 +157,6 @@ function StaffAccountsMockView() {
             <option value="INACTIVE">Đã vô hiệu hóa</option>
           </select>
         </div>
-      </div>
-
-      <div className="card">
         {error ? (
           <ErrorState error={error} onRetry={reload} />
         ) : (

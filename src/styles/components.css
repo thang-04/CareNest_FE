@@ -4,8 +4,9 @@
  */
 
 /* ---------- Page ---------- */
+/* Đường dẫn đã lên thanh trên: nội dung bắt đầu ngay dưới thanh nổi nên cần khoảng trên đủ để không chạm bóng của thanh */
 .page {
-  padding: var(--space-2) var(--page-padding) var(--space-8);
+  padding: var(--space-4) var(--page-padding) var(--space-8);
   animation: slideInUp var(--duration-slow) var(--ease-out);
 }
 .page__title {
@@ -51,25 +52,14 @@
 .page__head > .page__title + :last-child:not(p) {
   margin-left: auto;
 }
-/* Màn rộng: nhóm nút (phần tử cuối, không phải mô tả) lên cùng hàng breadcrumb, bên phải */
-@media (min-width: 1024px) {
-  .breadcrumb + .page__head > :last-child:not(:first-child):not(p) {
-    position: absolute;
-    right: 0;
-    bottom: calc(100% + var(--space-2));
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: flex-end;
-    gap: var(--space-2);
-    min-height: var(--btn-height-lg);
-  }
-  /* Khu bán trú: nút giữ cùng hàng mô tả, sát nội dung, không đẩy lên hàng breadcrumb (góp ý 05/11) */
-  [data-area='boarding'] .breadcrumb + .page__head > :last-child:not(:first-child):not(p) {
-    position: static;
-    min-height: 0;
-    margin-left: auto;
-  }
+/* Nhóm nút của đầu trang (phần tử cuối, không phải mô tả) luôn sát mép phải, kể cả khi mô tả xuống dòng */
+.page__head > .page__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-left: auto;
 }
 .page-actions {
   display: flex;
@@ -93,8 +83,10 @@
   box-shadow: var(--card-shadow);
   backdrop-filter: var(--glass-blur);
 }
-/* Khu bán trú: không thanh nổi đè lên bảng (góp ý 05/11) — Hủy/Lưu nằm ở đầu trang; thanh còn lại ở cuối trang là hàng nút thường */
-[data-area='boarding'] .page-actions {
+/* Hàng nút thường, không nổi đè lên nội dung. Khu bán trú (góp ý 05/11) và các màn đã chuyển theo quy tắc vị trí nút Lưu 12/11
+   (.page-actions--plain): form ngắn và màn nhiều bước để nút cuối trang; màn dài có thêm nút ở đầu trang (.page__actions). */
+[data-area='boarding'] .page-actions,
+.page-actions.page-actions--plain {
   position: static;
   padding: 0;
   border: 0;
@@ -1611,6 +1603,11 @@ tr.sortable-item--moved > td {
 .import-guide__text {
   flex: 1 1 320px;
   min-width: 0;
+}
+.import-options {
+  display: grid;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
 }
 .import-drop {
   min-height: 260px;
@@ -3474,9 +3471,19 @@ button.stat-card .stat-card__label::after {
   backdrop-filter: var(--glass-blur);
 }
 
+/* Tên trang đã ở thanh trên (đường dẫn): h1 chỉ cho trình đọc màn hình, cùng khai báo .sr-only như .page__title */
 .edit-head h1 {
+  position: absolute;
+  width: 1px;
+  height: 1px;
   margin: 0;
-  font-size: var(--fs-h3);
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.edit-head__meta:first-of-type {
+  padding-left: 0;
+  border-left: 0;
 }
 
 .edit-head__meta {
@@ -3753,6 +3760,8 @@ button.stat-card .stat-card__label::after {
 }
 .tab-panel > * {
   margin-top: 0;
+  /* phần tử lưới mặc định không co dưới bề rộng nội dung: thẻ có bảng rộng làm tràn ngang trên điện thoại */
+  min-width: 0;
 }
 /* Tiêu đề "Thao tác" không gãy dòng kể cả khi bảng cho tiêu đề xuống dòng */
 .table thead th.cell--actions {

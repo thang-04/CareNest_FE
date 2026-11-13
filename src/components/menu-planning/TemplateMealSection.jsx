@@ -47,7 +47,7 @@ export function TemplateMealSection({ session, items, ingredients, editable, onA
           <table className="table table--grid td-meal__table">
             <thead>
               <tr>
-                <th className="td-meal__no">#</th>
+                <th className="td-meal__no">STT</th>
                 <th>Thực phẩm</th>
                 <th className="num">Lượng ăn (g)</th>
                 <th className="num">Thải bỏ (%)</th>

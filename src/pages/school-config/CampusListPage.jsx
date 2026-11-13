@@ -10,6 +10,7 @@ import { useCampusList } from '@/hooks/school-config/useSchoolConfig';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { RowActions } from '@/components/ui/RowActions';
+import { clickableRowProps } from '@/utils/clickableRow';
 import { ScNoAccess } from '@/components/school-config/ScNoAccess';
 import { UnassignedBadge } from '@/components/school-config/SchoolConfigBadges';
 import { canListCampuses, canManageCampus } from '@/utils/school-config/schoolConfigPermissions';
@@ -63,7 +64,7 @@ export default function CampusListPage() {
         )}
       </div>
       <YearReadOnlyNotice />
-      <div className="card mb-16">
+      <div className="card">
         <div className="filter-bar">
           <select
             className="select sc-inline-select"
@@ -76,9 +77,6 @@ export default function CampusListPage() {
             <option value="INACTIVE">Ngừng hoạt động</option>
           </select>
         </div>
-      </div>
-
-      <div className="card">
         {error ? (
           <ErrorState error={error} onRetry={reload} />
         ) : (
@@ -126,7 +124,7 @@ export default function CampusListPage() {
                     <tr
                       key={c.id}
                       className={`row-click${c.status === 'INACTIVE' ? ' muted' : ''}`}
-                      onClick={() => navigate(`/school/campuses/${c.id}`)}
+                      {...clickableRowProps(() => navigate(`/school/campuses/${c.id}`))}
                     >
                       <td className="fw-600 text-primary">{c.code}</td>
                       <td>
@@ -147,7 +145,6 @@ export default function CampusListPage() {
                       <td className="num">{c.childCount}</td>
                       <td className="cell--actions" onClick={(e) => e.stopPropagation()}>
                         <RowActions
-                          view={{ to: `/school/campuses/${c.id}` }}
                           edit={manage ? { to: `/school/campuses/${c.id}/edit` } : null}
                           menu={
                             manage

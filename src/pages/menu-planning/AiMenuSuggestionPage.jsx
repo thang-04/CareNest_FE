@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Tabs } from '@/components/ui/Tabs';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Sparkles, Wand2, XCircle, PencilLine, AlertOctagon, Info } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
@@ -163,24 +164,17 @@ export default function AiMenuSuggestionPage() {
           <div className="card__title">Yêu cầu gợi ý</div>
         </div>
         <div className="card__body">
-          <div className="tabs mb-16" role="tablist">
-            {Object.entries(KIND_LABELS).map(([k, label]) => (
-              <button
-                key={k}
-                type="button"
-                role="tab"
-                aria-selected={kind === k}
-                className={`tab ${kind === k ? 'tab--active' : ''}`}
-                onClick={() => {
-                  setKind(k);
-                  setDraft(null);
-                  setFailure(null);
-                }}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          <Tabs
+            className="mb-16"
+            items={Object.entries(KIND_LABELS).map(([key, label]) => ({ key, label }))}
+            value={kind}
+            onChange={(k) => {
+              setKind(k);
+              setDraft(null);
+              setFailure(null);
+            }}
+            ariaLabel="Loại gợi ý"
+          />
           <div className="td-form-grid">
             <FormField label="Nhóm tuổi" required error={submitted && !ageGroupId ? 'Trường này là bắt buộc.' : undefined}>
               <select className="select" value={ageGroupId} onChange={(e) => setAgeGroupId(e.target.value)}>

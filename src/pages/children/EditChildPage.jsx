@@ -124,10 +124,30 @@ export default function EditChildPage() {
     setErrors((e) => Object.fromEntries(Object.entries(e).filter(([k]) => k === 'reason' || now[k])));
   };
 
+  // Màn dài: cùng một cặp nút ở đầu trang và cuối trang để điền tới đâu cũng lưu được, không cần thanh nổi
+  const actions = (
+    <>
+      <button type="button" className="btn wizard-actions__back" onClick={() => navigate(`/children/${id}`)} disabled={busy}>
+        <ArrowLeft size={16} /> Hủy
+      </button>
+      <button type="button" className="btn btn--primary" onClick={save} disabled={busy}>
+        {busy ? <Spinner small /> : <Save size={16} />} Lưu thay đổi
+      </button>
+    </>
+  );
+
   return (
     <div className="page">
       <Breadcrumb items={crumbs} />
-      <h1 className="page__title">Sửa hồ sơ: {child.fullName}</h1>
+      <div className="page__head">
+        <div>
+          <h1 className="page__title">Sửa hồ sơ: {child.fullName}</h1>
+          <p className="muted text-sm">
+            {child.fullName} · {child.code}
+          </p>
+        </div>
+        <div className="page__actions">{actions}</div>
+      </div>
       <section className="card wizard-card">
         <ChildInfoFields
           value={form}
@@ -156,14 +176,7 @@ export default function EditChildPage() {
           />
         </FormField>
       </section>
-      <div className="page-actions">
-        <button className="btn wizard-actions__back" onClick={() => navigate(`/children/${id}`)} disabled={busy}>
-          <ArrowLeft size={16} /> Hủy
-        </button>
-        <button className="btn btn--primary" onClick={save} disabled={busy}>
-          {busy ? <Spinner small /> : <Save size={16} />} Lưu thay đổi
-        </button>
-      </div>
+      <div className="page-actions page-actions--plain">{actions}</div>
     </div>
   );
 }

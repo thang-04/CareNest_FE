@@ -1,6 +1,6 @@
 import { Fragment, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Pencil, Lock, Unlock, CircleX, Info, Users, CheckCircle2, ChevronDown } from '@/components/ui/icons';
+import { ArrowLeft, Pencil, Lock, Unlock, CircleX, Info, Users, CheckCircle2, ChevronDown, HeartPulse } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useHealthCheck } from '@/hooks/children/useHealthChecks';
@@ -9,6 +9,7 @@ import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { Modal } from '@/components/ui/Modal';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { EmptyState, LoadingState, Spinner } from '@/components/ui/States';
+import { Tabs } from '@/components/ui/Tabs';
 import { RowActions } from '@/components/ui/RowActions';
 import { FormField } from '@/components/form/FormField';
 import { DateInput } from '@/components/form/DateInput';
@@ -349,24 +350,15 @@ export default function HealthCheckDetailPage() {
         <section className="card mt-16">
           {/* Trẻ cần chú ý BE trả (watchList): đợt khám theo mức theo dõi, kỳ cân đo theo mức BMI (HLT-19). */}
           <div className="tr-chart-toolbar">
-            <div className="tabs" role="tablist" aria-label={`Nội dung ${w.name}`}>
-              <button
-                role="tab"
-                aria-selected={tab === 'classes'}
-                className={`tab ${tab === 'classes' ? 'tab--active' : ''}`}
-                onClick={() => setTab('classes')}
-              >
-                Tiến độ theo lớp
-              </button>
-              <button
-                role="tab"
-                aria-selected={tab === 'watch'}
-                className={`tab ${tab === 'watch' ? 'tab--active' : ''}`}
-                onClick={() => setTab('watch')}
-              >
-                {isRound ? 'Trẻ có cảnh báo BMI' : 'Trẻ cần theo dõi'} <span className="tab__count">{watchList.length}</span>
-              </button>
-            </div>
+            <Tabs
+              items={[
+                { key: 'classes', label: 'Tiến độ theo lớp' },
+                { key: 'watch', label: isRound ? 'Trẻ có cảnh báo BMI' : 'Trẻ cần theo dõi', count: watchList.length },
+              ]}
+              value={tab}
+              onChange={setTab}
+              ariaLabel={`Nội dung ${w.name}`}
+            />
           </div>
           {tab === 'classes' ? (
             classes.length === 0 ? (
@@ -478,7 +470,10 @@ export default function HealthCheckDetailPage() {
                         <BmiStatusBadge status={r.bmiStatus} />
                       </td>
                       <td className="cell--actions">
-                        <RowActions view={{ to: `/children/${r.childId}/health`, label: 'Mở sổ sức khỏe' }} name={r.fullName} />
+                        <RowActions
+                          extra={{ to: `/children/${r.childId}/health`, label: 'Mở sổ sức khỏe', icon: HeartPulse }}
+                          name={r.fullName}
+                        />
                       </td>
                     </tr>
                   ))}
@@ -527,7 +522,10 @@ export default function HealthCheckDetailPage() {
                         )}
                       </td>
                       <td className="cell--actions">
-                        <RowActions view={{ to: `/children/${r.childId}/health`, label: 'Mở sổ sức khỏe' }} name={r.fullName} />
+                        <RowActions
+                          extra={{ to: `/children/${r.childId}/health`, label: 'Mở sổ sức khỏe', icon: HeartPulse }}
+                          name={r.fullName}
+                        />
                       </td>
                     </tr>
                   ))}

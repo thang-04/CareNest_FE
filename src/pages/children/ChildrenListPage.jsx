@@ -1,6 +1,6 @@
 import { ChildAvatar } from '@/components/ChildAvatar';
 import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Plus, Search, RotateCcw, UserMinus, FileSpreadsheet, Baby, Info, LayoutGrid, KeyRound } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
@@ -15,6 +15,7 @@ import { PeopleTabs } from '@/components/account/PeopleTabs';
 import { Pagination, paginate } from '@/components/ui/Pagination';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { RowActions } from '@/components/ui/RowActions';
+import { clickableRowProps } from '@/utils/clickableRow';
 import { ChildStatusBadge } from '@/components/children/ChildBadges';
 import { ChildQuickPanel } from '@/components/children/ChildQuickPanel';
 import { WithdrawChildModal } from '@/components/children/WithdrawChildModal';
@@ -44,6 +45,7 @@ export default function ChildrenListPage() {
   const { status, keyword, campusId, classId } = filters;
   const [page, setPage] = useState(1);
   const [quickViewId, setQuickViewId] = useState(null);
+  const navigate = useNavigate();
   const [withdrawing, setWithdrawing] = useState(null);
 
   const { children: all, loading, error, reload } = useChildRecords({ schoolYear });
@@ -257,19 +259,22 @@ export default function ChildrenListPage() {
                   pageRows.map((c) => {
                     const g = c.guardians[0];
                     return (
-                      <tr key={c.id}>
+                      <tr key={c.id} className="row-click" {...clickableRowProps(() => navigate(`/children/${c.id}`))}>
                         <td>
                           {/* Mã trẻ đặt dưới tên như màn Nhân sự (email dưới tên) để bảng vừa khung 1440px */}
                           <span className="row gap-2-5">
                             <ChildAvatar child={c} size="sm" />
                             <span className="stack gap-0">
-                              {/* Bấm tên: xem nhanh trong panel; nút Xem ở cột thao tác mở trang hồ sơ đầy đủ */}
+                              {/* Bấm tên: xem nhanh trong panel; bấm chỗ khác trên dòng mở trang hồ sơ đầy đủ */}
                               <button
                                 type="button"
                                 className="link-btn fw-600 tr-name-btn"
                                 title="Xem nhanh"
                                 aria-label={`Xem nhanh hồ sơ ${c.fullName}`}
-                                onClick={() => setQuickViewId(c.id)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setQuickViewId(c.id);
+                                }}
                               >
                                 {c.fullName}
                               </button>
@@ -302,7 +307,6 @@ export default function ChildrenListPage() {
                         </td>
                         <td className="cell--actions">
                           <RowActions
-                            view={{ to: `/children/${c.id}`, label: 'Xem hồ sơ' }}
                             edit={canEditChild(c, user) ? { to: `/children/${c.id}/edit`, label: 'Sửa hồ sơ' } : null}
                             menu={
                               canWithdrawChild(c, user)

@@ -12,7 +12,7 @@ import { useThemeClasses, useThemeEvaluation, useThemeList } from '@/hooks/asses
 import { confirmThemeEvaluation, saveThemeEvaluation } from '@/services/assessment/assessmentService';
 import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';
 import { themeEvaluationFile } from '@/utils/assessment/themeEvaluationDoc';
-import { downloadXlsx } from '@/utils/exportXlsx';
+import { exportWithPreview } from '@/components/ui/ExportPreview';
 import { formatDate, formatDateTime } from '@/utils/format';
 import '@/styles/modules/assessment.css';
 
@@ -106,7 +106,7 @@ export default function ThemeEvaluationPage() {
   const exportExcel = () => {
     if (!ev) return;
     const head = ['STT', 'Họ và tên', ...ev.goals.map((g) => String(g.goalNo ?? '')), 'Đ', 'KĐ'];
-    downloadXlsx(
+    exportWithPreview(
       [
         ['BẢNG ĐÁNH GIÁ SỰ PHÁT TRIỂN CỦA TRẺ'],
         [`Chủ đề: ${ev.themeName}`],
@@ -122,7 +122,7 @@ export default function ThemeEvaluationPage() {
         [`Một số lưu ý: ${ev.note || ''}`],
       ],
       `danh-gia-cuoi-chu-de-${ev.className}-${ev.themeName}.xlsx`.replace(/\s+/g, '-'),
-      { headerRow: 3 },
+      { headerRow: 3, title: 'Đánh giá cuối chủ đề' },
     );
   };
 
@@ -362,7 +362,7 @@ export default function ThemeEvaluationPage() {
                     disabled={!!busy || !ev.canConfirm}
                     title={ev.canConfirm ? '' : 'Xác nhận được từ ngày kết thúc chủ đề'}
                   >
-                    <CheckCircle2 size={16} /> Xác nhận
+                    <CheckCircle2 size={16} /> Xác nhận đánh giá
                   </button>
                 </div>
               )}
@@ -374,7 +374,7 @@ export default function ThemeEvaluationPage() {
         open={confirmOpen}
         title="Xác nhận đánh giá cuối chủ đề?"
         message="Bảng sẽ được lưu cố định để in và cho tổ trưởng, Ban giám hiệu xem. Đã xác nhận thì không sửa được."
-        confirmLabel="Xác nhận"
+        confirmLabel="Xác nhận đánh giá"
         onConfirm={() => run('confirm', confirmThemeEvaluation, 'Đã xác nhận đánh giá cuối chủ đề.')}
         onClose={() => setConfirmOpen(false)}
       />

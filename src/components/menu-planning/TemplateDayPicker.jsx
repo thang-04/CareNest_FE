@@ -1,4 +1,5 @@
 import { WEEKDAY_LABELS } from '@/models/menu-planning/menuPlanningConstants';
+import { Tabs } from '@/components/ui/Tabs';
 import { TEMPLATE_WEEKDAYS, TEMPLATE_WEEKS } from '@/utils/menu-planning/menuTemplateGrid';
 
 /**
@@ -8,38 +9,31 @@ import { TEMPLATE_WEEKDAYS, TEMPLATE_WEEKS } from '@/utils/menu-planning/menuTem
 export function TemplateDayPicker({ value, onChange, counts = {} }) {
   return (
     <div className="td-tpl-days">
-      <div className="tabs tabs--pill" role="tablist" aria-label="Tuần trong bộ mẫu">
-        {TEMPLATE_WEEKS.map((weekNo) => (
-          <button
-            key={weekNo}
-            type="button"
-            role="tab"
-            aria-selected={weekNo === value.weekNo}
-            className={`tab ${weekNo === value.weekNo ? 'tab--active' : ''}`}
-            onClick={() => onChange({ ...value, weekNo })}
-          >
-            Tuần {weekNo}
-          </button>
-        ))}
-      </div>
-      <div className="tabs tabs--pill" role="tablist" aria-label="Ngày trong tuần">
-        {TEMPLATE_WEEKDAYS.map((weekday) => {
+      <Tabs
+        variant="pill"
+        items={TEMPLATE_WEEKS.map((weekNo) => ({ key: weekNo, label: `Tuần ${weekNo}` }))}
+        value={value.weekNo}
+        onChange={(weekNo) => onChange({ ...value, weekNo })}
+        ariaLabel="Tuần trong bộ mẫu"
+      />
+      <Tabs
+        variant="pill"
+        items={TEMPLATE_WEEKDAYS.map((weekday) => {
           const n = counts[`${value.weekNo}-${weekday}`] || 0;
-          return (
-            <button
-              key={weekday}
-              type="button"
-              role="tab"
-              aria-selected={weekday === value.weekday}
-              className={`tab ${weekday === value.weekday ? 'tab--active' : ''}`}
-              onClick={() => onChange({ ...value, weekday })}
-            >
-              {WEEKDAY_LABELS[weekday - 1]}
-              {n > 0 && <span className="muted"> · {n}</span>}
-            </button>
-          );
+          return {
+            key: weekday,
+            label: (
+              <>
+                {WEEKDAY_LABELS[weekday - 1]}
+                {n > 0 && <span className="muted"> · {n}</span>}
+              </>
+            ),
+          };
         })}
-      </div>
+        value={value.weekday}
+        onChange={(weekday) => onChange({ ...value, weekday })}
+        ariaLabel="Ngày trong tuần"
+      />
     </div>
   );
 }

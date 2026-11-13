@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Tabs } from '@/components/ui/Tabs';
 import { useSearchParams } from 'react-router-dom';
 import { Breadcrumb, EmptyState, ErrorState, LoadingState } from '@/components';
 import { FormField } from '@/components/form/FormField';
@@ -118,20 +119,20 @@ export default function MenuStatisticsPage() {
             />
           )}
           {templateId ? null : (
-            <div className="tabs tabs--pill" role="tablist" aria-label="Ngày trong tuần">
-              {weekDates(week).map((d, i) => (
-                <button
-                  key={d}
-                  type="button"
-                  role="tab"
-                  aria-selected={d === date}
-                  className={`tab ${d === date ? 'tab--active' : ''}`}
-                  onClick={() => setParam('date', d)}
-                >
-                  {WEEKDAY_LABELS[i]} <span className="muted">{formatDate(d).slice(0, 5)}</span>
-                </button>
-              ))}
-            </div>
+            <Tabs
+              variant="pill"
+              items={weekDates(week).map((d, i) => ({
+                key: d,
+                label: (
+                  <>
+                    {WEEKDAY_LABELS[i]} <span className="muted">{formatDate(d).slice(0, 5)}</span>
+                  </>
+                ),
+              }))}
+              value={date}
+              onChange={(d) => setParam('date', d)}
+              ariaLabel="Ngày trong tuần"
+            />
           )}
           <div className="td-stat-filters__row">
             <FormField label="Nhóm tuổi">

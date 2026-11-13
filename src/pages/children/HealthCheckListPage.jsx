@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Plus, RotateCcw, Info, Search, Scale } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
@@ -9,7 +9,7 @@ import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Pagination, paginate } from '@/components/ui/Pagination';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
-import { RowActions } from '@/components/ui/RowActions';
+import { clickableRowProps } from '@/utils/clickableRow';
 import { CampaignKindBadge, CampaignStatusBadge } from '@/components/children/ChildBadges';
 import { CAMPAIGN_KIND, CAMPAIGN_KIND_LABELS, CAMPAIGN_STATUS, CAMPAIGN_STATUS_LABELS } from '@/models/children/healthCheckConstants';
 import { formatDate } from '@/utils/format';
@@ -17,7 +17,7 @@ import { canManageHealthCheck, isPrincipal, isTeacherRole } from '@/utils/childr
 import { healthCheckCrumbs } from '@/utils/children/breadcrumbs';
 import '@/styles/modules/children.css';
 
-const COLS = 8;
+const COLS = 7;
 
 // Cộng 5 số BE trả ở progress.bmi (mỗi trẻ một mức) để hiện một dòng tổng ở danh sách; không tính lại từ số đo (HLT-18).
 const bmiWarningTotal = (progress) => Object.values(progress.bmi || {}).reduce((sum, n) => sum + n, 0);
@@ -28,6 +28,7 @@ const bmiWarningTotal = (progress) => Object.values(progress.bmi || {}).reduce((
  */
 export default function HealthCheckListPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const md = useMasterData();
   const [campusId, setCampusId] = useState('');
   const [kind, setKind] = useState('');
@@ -141,7 +142,6 @@ export default function HealthCheckListPage() {
                   <th className="center">Trạng thái</th>
                   <th>Đã nhập kết quả</th>
                   <th>Cảnh báo</th>
-                  <th className="cell--actions">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
@@ -177,9 +177,9 @@ export default function HealthCheckListPage() {
                   </tr>
                 ) : (
                   pageRows.map((c) => (
-                    <tr key={c.id}>
+                    <tr key={c.id} className="row-click" {...clickableRowProps(() => navigate(`/children/health-checks/${c.id}`))}>
                       <td>
-                        <Link className="fw-600 text-primary" to={`/children/health-checks/${c.id}`}>
+                        <Link className="fw-600 text-primary" to={`/children/health-checks/${c.id}`} onClick={(e) => e.stopPropagation()}>
                           {c.name}
                         </Link>
                         {c.examiner && <div className="muted text-xs">{c.examiner}</div>}
@@ -222,12 +222,6 @@ export default function HealthCheckListPage() {
                             <div className="text-danger">{c.progress.closeWatch} cần theo dõi sát</div>
                           </>
                         )}
-                      </td>
-                      <td className="cell--actions">
-                        <RowActions
-                          view={{ to: `/children/health-checks/${c.id}`, label: `Xem ${CAMPAIGN_KIND_LABELS[c.kind].toLowerCase()}` }}
-                          name={c.name}
-                        />
                       </td>
                     </tr>
                   ))

@@ -1,4 +1,5 @@
 import { formatDate, formatDateTime } from '@/utils/format';
+import { EmptyState } from '@/components/ui/States';
 
 const metadata = (comment) => `${comment.recordedByName || 'Giáo viên'} · ${formatDateTime(comment.updatedAt)}`;
 
@@ -34,7 +35,7 @@ export function ClassCommentList({ comments = [] }) {
     <section className="dg-class-comments" aria-label="Nhận xét chung của lớp">
       <h2 className="text-md mb-12">Nhận xét chung của lớp</h2>
       {!comments.length ? (
-        <p className="text-sm text-2">Chưa có nhận xét chung trong kỳ này.</p>
+        <EmptyState title="Chưa có nhận xét chung trong kỳ" description="Nhận xét chung giáo viên ghi cho cả lớp sẽ hiện ở đây." />
       ) : (
         comments.map((comment) => (
           <article key={comment.date} className="mb-12">

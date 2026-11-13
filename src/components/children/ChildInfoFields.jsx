@@ -82,7 +82,8 @@ export function ChildInfoFields({
   const childBlock = (
     <>
       {!sheet && <h2 className="card__title mb-12">Thông tin của trẻ</h2>}
-      <div className={sheet ? undefined : 'tr-intake-person'}>
+      {/* Lưới ảnh + ô nhập chỉ bật khi có ô ảnh; không thì ô nhập rơi vào cột hẹp dành cho ảnh */}
+      <div className={sheet || !photosEnabled ? undefined : 'tr-intake-person'}>
         {photosEnabled && !sheet && (
           <div className="mb-16">
             <PortraitPicker
@@ -237,7 +238,7 @@ export function ChildInfoFields({
                   Nhận tài khoản phụ huynh
                 </label>
               )}
-              <div className={sheet ? undefined : 'tr-intake-person'}>
+              <div className={sheet || !photosEnabled ? undefined : 'tr-intake-person'}>
                 {photosEnabled && !sheet && (
                   <div className="mb-12">
                     <PortraitPicker

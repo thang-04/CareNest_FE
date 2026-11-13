@@ -86,6 +86,21 @@ export default function AppearancePage() {
     }
   };
 
+  // Màn dài hơn hai màn hình: cùng thanh lưu ở đầu và cuối trang, không dùng thanh nổi che nội dung
+  const saveBar = (
+    <>
+      <span className="muted text-sm">{dirty ? 'Có thay đổi chưa lưu' : 'Chưa có thay đổi'}</span>
+      <div className="row gap-2">
+        <button type="button" className="btn" disabled={!dirty || busy} onClick={() => update(toForm(data))}>
+          Hoàn tác
+        </button>
+        <button type="button" className="btn btn--primary" disabled={!dirty || busy} onClick={save}>
+          {busy && <Spinner small />} Lưu giao diện
+        </button>
+      </div>
+    </>
+  );
+
   return (
     <div className="page">
       <Breadcrumb items={acCrumbs('Tùy chỉnh giao diện')} />
@@ -99,6 +114,7 @@ export default function AppearancePage() {
           </p>
         </div>
       </div>
+      {canEdit && <div className="page-actions page-actions--plain page-actions--top">{saveBar}</div>}
 
       {!canEdit && (
         <div className="alert alert--info">
@@ -201,19 +217,7 @@ export default function AppearancePage() {
         </div>
       </section>
 
-      {canEdit && (
-        <div className="page-actions">
-          <span className="muted text-sm">{dirty ? 'Có thay đổi chưa lưu' : 'Chưa có thay đổi'}</span>
-          <div className="row gap-2">
-            <button type="button" className="btn" disabled={!dirty || busy} onClick={() => update(toForm(data))}>
-              Hoàn tác
-            </button>
-            <button type="button" className="btn btn--primary" disabled={!dirty || busy} onClick={save}>
-              {busy && <Spinner small />} Lưu giao diện
-            </button>
-          </div>
-        </div>
-      )}
+      {canEdit && <div className="page-actions page-actions--plain">{saveBar}</div>}
     </div>
   );
 }

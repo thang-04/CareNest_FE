@@ -187,14 +187,31 @@ export default function ClassRatingsPage() {
     );
   };
 
+  // Bảng dài nhiều màn hình: cùng cặp nút ở đầu trang và cuối trang, không dùng thanh nổi che bảng
+  const saveActions = (
+    <>
+      {changed.length > 0 && (
+        <button className="btn" onClick={() => setDrafts({})} disabled={saving}>
+          Hủy thay đổi
+        </button>
+      )}
+      <button className="btn btn--primary" onClick={save} disabled={saving || !changed.length}>
+        {saving ? <Spinner small /> : <Save size={16} />} Lưu xếp loại{changed.length ? ` (${changed.length} lớp)` : ''}
+      </button>
+    </>
+  );
+
   return (
     <div className="page">
       <Breadcrumb items={assessmentCrumbs(SECTIONS.classRatings)} />
       <div className="page__head">
         <h1 className="page__title">Xếp loại nhóm lớp</h1>
-        <button className="btn" onClick={exportExcel} disabled={!rows.length}>
-          <Download size={16} /> Xuất Excel
-        </button>
+        <div className="page__actions">
+          <button className="btn" onClick={exportExcel} disabled={!rows.length}>
+            <Download size={16} /> Xuất Excel
+          </button>
+          {editable.length > 0 && saveActions}
+        </div>
       </div>
       <div className="card">
         <div className="filter-bar">
@@ -318,18 +335,9 @@ export default function ClassRatingsPage() {
       </div>
 
       {editable.length > 0 && (
-        <div className="page-actions">
+        <div className="page-actions page-actions--plain">
           <div className="spacer" />
-          <div className="row gap-2">
-            {changed.length > 0 && (
-              <button className="btn" onClick={() => setDrafts({})} disabled={saving}>
-                Hủy thay đổi
-              </button>
-            )}
-            <button className="btn btn--primary" onClick={save} disabled={saving || !changed.length}>
-              {saving ? <Spinner small /> : <Save size={16} />} Lưu xếp loại{changed.length ? ` (${changed.length} lớp)` : ''}
-            </button>
-          </div>
+          <div className="row gap-2">{saveActions}</div>
         </div>
       )}
 

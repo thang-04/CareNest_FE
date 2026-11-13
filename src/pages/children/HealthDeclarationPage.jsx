@@ -173,7 +173,7 @@ export default function HealthDeclarationPage() {
               </FormField>
             </section>
           )}
-          <div className="page-actions">
+          <div className="page-actions page-actions--plain">
             <button className="btn wizard-actions__back" onClick={leaveEditor} disabled={busy}>
               <ArrowLeft size={16} /> Hủy
             </button>
@@ -226,7 +226,7 @@ export default function HealthDeclarationPage() {
               </div>
             </section>
           )}
-          <div className="page-actions">
+          <div className="page-actions page-actions--plain">
             <Link className="btn" to={`/children/${child.id}`}>
               <ArrowLeft size={16} /> Về hồ sơ trẻ
             </Link>
