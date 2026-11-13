@@ -27,6 +27,7 @@ import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';
 import { exportWithPreview } from '@/components/ui/ExportPreview';
 import { formatDate, formatDateTime } from '@/utils/format';
 import '@/styles/modules/assessment.css';
+import { CampusFilter } from '@/components/ui/CampusFilter';
 
 const PERIODS = Object.values(CLASS_RATING_PERIOD).map((key) => ({ key, label: CLASS_RATING_PERIOD_LABELS[key] }));
 const FIELDS = [...CLASS_RATING_CRITERIA.map((c) => c.key), 'overall'];
@@ -220,22 +221,15 @@ export default function ClassRatingsPage() {
         <div className="filter-bar dg-rating-bar">
           <Tabs items={PERIODS} value={period} onChange={(v) => confirmChange(() => setPeriod(v))} ariaLabel="Kỳ xếp loại" />
           {multiCampus && (
-            <select
-              className="select"
-              aria-label="Điểm trường"
+            <CampusFilter
+              campuses={campuses}
               value={campusId}
-              onChange={(e) => {
-                const next = e.target.value;
+              onChange={(v) => {
+                const next = v;
                 confirmChange(() => setCampusId(next));
               }}
-            >
-              <option value="">Tất cả điểm trường</option>
-              {campuses.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.fullName || c.name}
-                </option>
-              ))}
-            </select>
+              hideLabel
+            />
           )}
           <div className="spacer" />
           {!loading && rows.length > 0 && (
@@ -352,7 +346,7 @@ export default function ClassRatingsPage() {
       </div>
 
       {editable.length > 0 && (
-        <div className="page-actions page-actions--plain">
+        <div className="page-actions">
           <div className="spacer" />
           <div className="row gap-2">{saveActions}</div>
         </div>

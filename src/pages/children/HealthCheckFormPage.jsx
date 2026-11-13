@@ -292,7 +292,7 @@ export default function HealthCheckFormPage() {
           />
         </FormField>
       </section>
-      <div className="page-actions page-actions--plain">
+      <div className="page-actions">
         <Link className="btn wizard-actions__back" to={back}>
           <ArrowLeft size={16} /> Hủy
         </Link>

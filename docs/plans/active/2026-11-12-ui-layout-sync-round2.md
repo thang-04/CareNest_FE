@@ -195,3 +195,21 @@ Mỗi phase độc lập theo thư mục module, dừng được sau bất kỳ 
 - Kiểm trên bản đã gộp (lệnh gốc, theo AGENTS.md mới): `npm run lint` 0 lỗi; `format:check` đạt; `check:design` ok; `check:api` 0 lỗi; `build` đạt; 9 nhóm test đạt (auth 93, menu 206, kitchen 167, merge 56, hardening 102, dashboard 58, health 111, children 121, edu 349).
 - Kiểm trên app sau gộp (1440 + 390): thanh trên 20/20 lượt; khu Trẻ, Cấu hình trường, Phân quyền, Đánh giá, Điểm danh, Đón trẻ — bấm dòng, vị trí nút, tab, thẻ số liệu đúng; 0 lỗi console; 0 tràn ngang.
 - Ghi nhận sau gộp: đường dẫn giờ theo sidebar nên sâu hơn (tới 5 cấp), các cấp cha bị cắt "…" nhiều ở màn sâu; `/assessment/periodic` chuyển hướng về Hồ sơ phát triển (thay đổi của nhóm).
+
+### 2026-11-13 — Sau gộp: phần lẻ trong module
+
+- Phiếu nhập kho (`StockReceiptEditorPage`): "Nhập từ Excel" mở `ImportDialog` (tệp mẫu → chọn tệp → xem trước Hợp lệ / Lỗi + danh sách dòng lỗi → "Thêm N dòng vào phiếu"); bỏ ô chọn tệp trần và cảnh báo dòng lỗi nằm dưới bảng. Nút dùng `Button` chung.
+- Lịch sử thay đổi quyền: "Bỏ lọc tài khoản" → "Đặt lại bộ lọc".
+- Soát lại, giữ nguyên: `.dd-seg` (Điểm danh) và `.dg-seg` (Đánh giá ngày) là ô chọn giá trị từng dòng (vai trò radio, màu theo giá trị), không phải tab; `.permission-page-head` / `.permission-filter-bar` đã là `page__head` / `filter-bar` kèm lớp tinh chỉnh; `account.css` đưa hàng nút về chân thẻ ở form ngắn — đúng quy tắc vị trí nút Lưu; `.bd-toolbar` trùng `.kb-toolbar` nhưng gộp cần đụng CSS chung hoặc nhập CSS chéo module.
+- Kiểm: kitchen 167, hardening 102 đạt; lint 0 lỗi; format, cổng thiết kế, build đạt. **Chưa kiểm trên giao diện** hộp nhập của Phiếu nhập kho: bản dữ liệu mẫu không có phiếu nháp mở được (`/new` dùng trang cũ ở bản mẫu).
+- Dừng ở điểm dừng cứng 2 (vùng dùng chung, AGENTS.md): Phase 7 và các việc promote lên `components/ui` chờ user duyệt bản tác động.
+
+### 2026-11-13 — Phase 7: bỏ thanh nổi mặc định, ô lọc điểm trường chung
+
+- User 13/11: "xử lý cho web thôi, app sau" ⇒ làm Phase 7 theo phương án 2 (đo màn dài trước).
+- Đo 3 màn dài: chi tiết đánh giá (2–3,5 màn hình) ⇒ `EvaluationReviewView` thêm nút Lưu/Xác nhận ở `.page__actions` đầu trang (cùng handler); Bản nháp AI (1,3 màn) và Đánh giá theo mục tiêu (1 màn) giữ nút cuối.
+- `components.css`: `.page-actions` mặc định là hàng nút thường (bỏ `:has(.btn--primary)` dính đáy); chỉ `.page-actions--sticky` (Phiếu khám) còn nổi. Bỏ lớp tạm `.page-actions--plain` ở 17 file và rule `[data-area='boarding'] .page-actions`; `account.css` bỏ các dòng tắt thanh nổi giờ thừa. `DESIGN.md` §6.3, khung layout, §8 Tạo/sửa cập nhật.
+- Đo lại 12 màn × 1440/390: 0 thanh nổi, 0 tràn ngang, 0 lỗi trang.
+- 9 ô lọc điểm trường viết tay → `ui/CampusFilter` (Danh sách trẻ, Báo cáo tăng trưởng, Đợt khám, Xu hướng sức khỏe, Khen thưởng, Xếp loại lớp, Báo cáo chất lượng, Tổng quan đánh giá lớp, Sức khỏe đầu ngày). Không sửa phần chung. Hệ quả: người chỉ có 1 điểm trường không thấy ô (luật sẵn của `CampusFilter`); ô hiện tên ngắn. Còn ô có `<label>` riêng (Chờ duyệt, Tổng hợp điểm danh) và ô trong form chọn điểm trường cho bản ghi — giữ.
+- Không gom `VersionHistory` (Đánh giá / KHGD gần như trùng): bản Đánh giá ghi "bản riêng theo Cần chốt 03/11" ⇒ quyết định của nhóm, chờ user.
+- VERIFY PASS full (sau lần sửa cuối).

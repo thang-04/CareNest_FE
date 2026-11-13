@@ -268,7 +268,7 @@ export default function ClassPlacementPage() {
                   />
                 </FormField>
               )}
-              <div className="page-actions page-actions--plain">
+              <div className="page-actions">
                 <Link className="btn" to={`/children/${selected.id}`}>
                   <ArrowLeft size={16} /> Xem hồ sơ
                 </Link>

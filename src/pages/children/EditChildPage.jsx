@@ -184,7 +184,7 @@ export default function EditChildPage() {
           />
         </FormField>
       </section>
-      <div className="page-actions page-actions--plain">{actions}</div>
+      <div className="page-actions">{actions}</div>
     </div>
   );
 }

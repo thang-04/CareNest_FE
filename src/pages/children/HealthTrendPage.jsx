@@ -22,6 +22,7 @@ import { ageGroupIn, formatNumber, suggestAgeGroupId } from '@/utils/children/ch
 import { childrenCrumbs } from '@/utils/children/breadcrumbs';
 import { isPrincipal, isVicePrincipal } from '@/utils/children/childrenPermissions';
 import '@/styles/modules/children.css';
+import { CampusFilter } from '@/components/ui/CampusFilter';
 
 const PERIODS = [
   { key: '6', label: '6 tháng', months: 6 },
@@ -133,24 +134,16 @@ export default function HealthTrendPage() {
             (leader || classOptions.length > 1) && (
               <>
                 {leader && (
-                  <select
-                    className="select"
+                  <CampusFilter
+                    campuses={campusOptions}
                     value={campusId}
-                    aria-label="Điểm trường"
-                    onChange={(e) => {
-                      const v = e.target.value;
+                    onChange={(v) => {
                       setCampusId(v);
                       setClassId('');
                       keepChildIf((c) => !v || c.campusId === v);
                     }}
-                  >
-                    <option value="">Tất cả điểm trường</option>
-                    {campusOptions.map((cp) => (
-                      <option key={cp.id} value={cp.id}>
-                        {cp.name}
-                      </option>
-                    ))}
-                  </select>
+                    hideLabel
+                  />
                 )}
                 <select
                   className="select"

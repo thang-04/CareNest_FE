@@ -261,7 +261,7 @@ export default function HealthMeasurementFormPage() {
             </div>
           </div>
         </section>
-        <div className="page-actions page-actions--plain">
+        <div className="page-actions">
           <div className="row gap-2">
             <button className="btn" onClick={() => setSaved(null)} disabled={busy}>
               <ArrowLeft size={16} /> Sửa lại
@@ -349,7 +349,7 @@ export default function HealthMeasurementFormPage() {
           </FormField>
         )}
       </section>
-      <div className="page-actions page-actions--plain">
+      <div className="page-actions">
         <Link className="btn wizard-actions__back" to={backTo}>
           <ArrowLeft size={16} /> Hủy
         </Link>

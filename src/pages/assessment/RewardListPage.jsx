@@ -14,6 +14,7 @@ import { formatDate, normalizeText } from '@/utils/format';
 import { isLeader, isPrincipal, isVicePrincipal } from '@/utils/assessment/assessmentPermissions';
 import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';
 import '@/styles/modules/assessment.css';
+import { CampusFilter } from '@/components/ui/CampusFilter';
 
 const STATUS_FILTERS = ['NONE', S.DRAFT, S.RETURNED, S.PENDING_VP, S.PENDING_PRINCIPAL, S.APPROVED];
 
@@ -70,22 +71,15 @@ export default function RewardListPage() {
               }}
             />
             {leader && multiCampus && (
-              <select
-                className="select"
+              <CampusFilter
+                campuses={campuses}
                 value={campusId}
-                aria-label="Điểm trường"
-                onChange={(e) => {
-                  setCampusId(e.target.value);
+                onChange={(v) => {
+                  setCampusId(v);
                   setPage(1);
                 }}
-              >
-                <option value="">Tất cả điểm trường</option>
-                {campuses.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.fullName || c.name}
-                  </option>
-                ))}
-              </select>
+                hideLabel
+              />
             )}
             <select
               className="select"

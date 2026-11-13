@@ -496,7 +496,7 @@ export default function RewardClassPage() {
         </div>
       )}
 
-      <div className="page-actions page-actions--plain">
+      <div className="page-actions">
         {/* GV một lớp mở thẳng màn này (danh sách lớp tự chuyển về đây), không cần nút quay lại danh sách */}
         {leader && (
           <button className="btn" onClick={() => guard.leave('/assessment/rewards')} disabled={!!busy}>

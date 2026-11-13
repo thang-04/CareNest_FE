@@ -21,6 +21,7 @@ import { attendanceCrumbs } from '@/utils/attendance/breadcrumbs';
 import { symptomLabels } from '@/utils/dailyHealthValidation';
 import { formatDate, formatDateTime, isIsoDate } from '@/utils/format';
 import '@/styles/modules/attendance.css';
+import { CampusFilter } from '@/components/ui/CampusFilter';
 
 const timeOf = (iso) => formatDateTime(iso).split(' ')[1] || '—';
 
@@ -277,19 +278,13 @@ export default function DailyHealthOverviewPage() {
   const filterBar = (
     <div className="dd-hov__filters" role="group" aria-label="Lọc theo điểm trường, nhóm tuổi và lớp">
       {isPrincipal && (
-        <select
-          className="select"
-          aria-label="Điểm trường"
+        <CampusFilter
+          campuses={md.campuses}
           value={campusId}
-          onChange={(e) => update({ campusId: e.target.value, ageGroupId: '', classId: '' })}
-        >
-          <option value="">Toàn trường</option>
-          {md.campuses.map((campus) => (
-            <option key={campus.id} value={campus.id}>
-              {campus.shortName || campus.name}
-            </option>
-          ))}
-        </select>
+          onChange={(v) => update({ campusId: v, ageGroupId: '', classId: '' })}
+          allLabel="Toàn trường"
+          hideLabel
+        />
       )}
       <select
         className="select"

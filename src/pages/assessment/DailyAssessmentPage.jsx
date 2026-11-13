@@ -394,7 +394,7 @@ export default function DailyAssessmentPage() {
       )}
 
       {writable && (
-        <div className="page-actions page-actions--plain">
+        <div className="page-actions">
           {/* Xong Hoạt động chung thì sang Kiến thức kỹ năng cùng lớp, ngày (hỏi nếu còn thay đổi chưa lưu) */}
           <Link className="btn" to={`/assessment/daily/skills?classId=${currentClassId}&date=${shownDate}`}>
             Sang Kiến thức kỹ năng <ArrowRight size={16} />

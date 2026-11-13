@@ -114,7 +114,7 @@ export default function AppearancePage() {
           </p>
         </div>
       </div>
-      {canEdit && <div className="page-actions page-actions--plain page-actions--top">{saveBar}</div>}
+      {canEdit && <div className="page-actions page-actions--top">{saveBar}</div>}
 
       {!canEdit && (
         <div className="alert alert--info">
@@ -217,7 +217,7 @@ export default function AppearancePage() {
         </div>
       </section>
 
-      {canEdit && <div className="page-actions page-actions--plain">{saveBar}</div>}
+      {canEdit && <div className="page-actions">{saveBar}</div>}
     </div>
   );
 }

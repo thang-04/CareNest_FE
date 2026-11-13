@@ -336,7 +336,7 @@ function TeacherTicketsPage() {
       )}
 
       {!summaryView && board?.period && (
-        <div className="page-actions page-actions--plain">
+        <div className="page-actions">
           <span className="muted text-sm">Đã chọn {selected.size} trẻ</span>
           <div className="row gap-2">
             <button

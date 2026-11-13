@@ -33,6 +33,7 @@ import { childrenCrumbs } from '@/utils/children/breadcrumbs';
 import { childrenOfStatus } from '@/utils/children/childrenHelpers';
 import '@/styles/modules/children.css';
 import { StatCard } from '@/components/ui/StatCard';
+import { CampusFilter } from '@/components/ui/CampusFilter';
 
 // Cảnh báo sức khỏe xem ở Sổ sức khỏe của từng trẻ, không ở danh sách (user yêu cầu 2026-10-31; HLT-19, 2026-11-04).
 const FILTER_DEFAULTS = { keyword: '', status: '', campusId: '', classId: '' };
@@ -183,19 +184,7 @@ export default function ChildrenListPage() {
             onSearch={(text) => setFilter({ keyword: text })}
           />
           {showCampus && (
-            <select
-              className="select"
-              value={campusId}
-              aria-label="Điểm trường"
-              onChange={(e) => setFilter({ campusId: e.target.value, classId: '' })}
-            >
-              <option value="">Tất cả điểm trường</option>
-              {campusOptions.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+            <CampusFilter campuses={campusOptions} value={campusId} onChange={(v) => setFilter({ campusId: v, classId: '' })} hideLabel />
           )}
           <select className="select" value={classId} aria-label="Lớp" onChange={(e) => setFilter({ classId: e.target.value })}>
             <option value="">Tất cả lớp</option>

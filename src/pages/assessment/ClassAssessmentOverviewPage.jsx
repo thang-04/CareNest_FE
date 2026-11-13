@@ -19,6 +19,7 @@ import { formatDate, formatDateTime, isIsoDate } from '@/utils/format';
 import { todayIso } from '@/utils/assessment/assessmentPeriods';
 import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';
 import '@/styles/modules/assessment.css';
+import { CampusFilter } from '@/components/ui/CampusFilter';
 
 const PAGE_SIZE = 10;
 // Chỉ xem theo ngày và tháng (user chốt 03/11/2026: bỏ "Tuần này" để không nhầm với đánh giá tuần đã bỏ)
@@ -289,22 +290,15 @@ export default function ClassAssessmentOverviewPage() {
                 )}
               </div>
               {multiCampus && (
-                <select
-                  className="select"
-                  aria-label="Điểm trường"
+                <CampusFilter
+                  campuses={campusOptions}
                   value={campusId}
-                  onChange={(e) => {
-                    filter(setCampusId)(e.target.value);
+                  onChange={(v) => {
+                    filter(setCampusId)(v);
                     setClassId('');
                   }}
-                >
-                  <option value="">Tất cả điểm trường</option>
-                  {campusOptions.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.fullName || c.name}
-                    </option>
-                  ))}
-                </select>
+                  hideLabel
+                />
               )}
               <select
                 className="select"

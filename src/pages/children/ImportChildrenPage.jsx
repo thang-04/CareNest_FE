@@ -420,7 +420,7 @@ export default function ImportChildrenPage() {
         </section>
       )}
 
-      <div className="page-actions page-actions--plain">
+      <div className="page-actions">
         <button className="btn wizard-actions__back" onClick={() => navigate('/children')}>
           <ArrowLeft size={16} /> Quay lại
         </button>

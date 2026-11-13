@@ -16,6 +16,7 @@ import { formatDate } from '@/utils/format';
 import { canManageHealthCheck, isPrincipal } from '@/utils/children/childrenPermissions';
 import { healthCheckCrumbs } from '@/utils/children/breadcrumbs';
 import '@/styles/modules/children.css';
+import { CampusFilter } from '@/components/ui/CampusFilter';
 
 const COLS = 7;
 
@@ -65,22 +66,15 @@ export default function HealthCheckListPage() {
       <div className="card">
         <div className="filter-bar">
           {isPrincipal(user) && (
-            <select
-              className="select"
+            <CampusFilter
+              campuses={md.campuses}
               value={campusId}
-              aria-label="Điểm trường"
-              onChange={(e) => {
-                setCampusId(e.target.value);
+              onChange={(v) => {
+                setCampusId(v);
                 setPage(1);
               }}
-            >
-              <option value="">Tất cả điểm trường</option>
-              {md.campuses.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+              hideLabel
+            />
           )}
           <select
             className="select"
