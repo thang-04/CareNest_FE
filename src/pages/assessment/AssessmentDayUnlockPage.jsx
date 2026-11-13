@@ -197,6 +197,21 @@ export default function AssessmentDayUnlockPage() {
     }
   };
 
+  // Ô Loại đứng đầu cùng hàng ở cả hai form, cùng bề rộng để đổi loại không xô bố cục
+  const kindField = (
+    <SelectField
+      label="Loại"
+      fieldClassName="dg-unlock-kind"
+      value={kind}
+      disabled={busy}
+      onChange={(e) => {
+        setKind(e.target.value);
+        setErrors({});
+      }}
+      options={KINDS}
+    />
+  );
+
   return (
     <div className="page">
       <Breadcrumb items={assessmentCrumbs(SECTIONS.unlocks)} />
@@ -207,13 +222,17 @@ export default function AssessmentDayUnlockPage() {
       {classesError ? (
         <ErrorState error={classesError} />
       ) : kind === 'WEEK' ? (
-        <div className="card stack">
-          <SelectField label="Loại" value={kind} onChange={(e) => setKind(e.target.value)} options={KINDS} />
-          <WeeklyCommentReopenForm classes={scoped} classLabel={classLabel} user={user} onReopened={reloadHistory} />
-        </div>
+        <WeeklyCommentReopenForm
+          kindField={kindField}
+          classes={scoped}
+          classesLoading={classesLoading}
+          classLabel={classLabel}
+          user={user}
+          onReopened={reloadHistory}
+        />
       ) : (
         <form className="card form-inline" onSubmit={submit} noValidate aria-busy={busy}>
-          <SelectField label="Loại" value={kind} onChange={(e) => setKind(e.target.value)} options={KINDS} />
+          {kindField}
           <FormField label="Lớp cần mở lại" required error={errors.classId} className="form-inline__class">
             <select
               className="select"
@@ -292,7 +311,12 @@ export default function AssessmentDayUnlockPage() {
             onChange={(e) => setFilter({ kind: e.target.value })}
             options={KINDS}
           />
-          <CampusFilter campuses={scopedCampuses} value={filters.campusId} onChange={(campusId) => setFilter({ campusId, classId: '' })} />
+          <CampusFilter
+            hideLabel
+            campuses={scopedCampuses}
+            value={filters.campusId}
+            onChange={(campusId) => setFilter({ campusId, classId: '' })}
+          />
           <select className="select" aria-label="Lọc lớp" value={filters.classId} onChange={(e) => setFilter({ classId: e.target.value })}>
             <option value="">Tất cả lớp</option>
             {filterClasses.map((c) => (

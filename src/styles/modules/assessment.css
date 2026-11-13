@@ -380,6 +380,14 @@
 .dg-unlock-filters .input {
   width: auto;
 }
+/* Ô Loại, Tuần, Trẻ trong form một hàng: cố định bề rộng để đổi loại không xô ô khác */
+.dg-unlock-kind {
+  width: calc(var(--space-16) * 3);
+}
+.dg-unlock-week,
+.dg-unlock-child {
+  width: calc(var(--space-16) * 4);
+}
 
 /* Bảng số liệu kỳ: cột nhãn vừa chữ, cột số liệu chiếm phần còn lại */
 .dg-summary th[scope='row'] {
