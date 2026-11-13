@@ -58,7 +58,7 @@ export function PermissionTable({ groups, catalog, columns, caption, collapsible
             {flows.map((flow) => (
               <Fragment key={flow.key}>
                 {/* Cấp 1: luồng lớn; ô tick tổng của cột chỉnh được, tick là tick cả luồng */}
-                <tr className="perm-table__flow">
+                <tr className={`perm-table__flow${isOpen(flow.key) ? '' : ' is-collapsed'}`}>
                   <th scope="colgroup" className="perm-table__task">
                     {collapsible ? (
                       <Button

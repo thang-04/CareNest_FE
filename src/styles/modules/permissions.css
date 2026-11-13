@@ -700,3 +700,19 @@
   font-size: var(--fs-xs);
   font-weight: var(--fw-medium);
 }
+
+/* Luồng đang thu gọn: nền trắng, chữ thường như dòng bảng; chỉ luồng đang mở mới tô xanh làm tiêu đề nhóm */
+.table.table--grid.perm-table .perm-table__flow.is-collapsed th,
+.table.table--grid.perm-table .perm-table__flow.is-collapsed td {
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.table.table--grid.perm-table .perm-table__flow.is-collapsed:hover th,
+.table.table--grid.perm-table .perm-table__flow.is-collapsed:hover td {
+  background: var(--color-surface-hover);
+}
+
+.table.table--grid.perm-table .perm-table__flow.is-collapsed .perm-table__col--fixed {
+  background: var(--color-surface-muted);
+}
