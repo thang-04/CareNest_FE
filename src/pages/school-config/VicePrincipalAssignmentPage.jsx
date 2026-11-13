@@ -28,6 +28,7 @@ import { canAssignVicePrincipal } from '@/utils/school-config/schoolConfigPermis
 import { validateVpAssignment, hasErrors } from '@/utils/school-config/schoolConfigValidation';
 import { areaTasks, taskOn, visibleVpAreas, vpGrantsOf } from '@/utils/school-config/vpAssignmentView';
 import { vpCrumbs } from '@/utils/school-config/breadcrumbs';
+import { formatDate, todayInput } from '@/utils/format';
 import '@/styles/modules/school-config.css';
 
 const NOT_GIVEN = 'NONE';
@@ -41,6 +42,12 @@ const SWAP_COLUMNS = [
   { key: 'after', header: 'Sau khi lưu', className: 'fw-600' },
 ];
 const writes = (actions) => Object.entries(actions).some(([k, on]) => k !== 'view' && on);
+
+// Ngày hiệu lực do BE tính (BE CFG-YR-05: năm sắp diễn ra từ ngày mở chuẩn bị, năm đang chạy từ hôm nay); FE chỉ ghi chú
+const startNoteOf = (year) =>
+  year.status === YEAR_STATUS.PLANNED
+    ? `Phân công có hiệu lực từ ngày mở chuẩn bị${year.prepDate ? ` ${formatDate(year.prepDate)}` : ''} để kịp xếp lớp và phân công.`
+    : 'Phân công có hiệu lực từ hôm nay.';
 
 function AssignModal({ row, rows, year, campuses, sharedHolder, onClose }) {
   const { user } = useAuth();
@@ -234,6 +241,7 @@ function AssignModal({ row, rows, year, campuses, sharedHolder, onClose }) {
         )}
       </div>
       <p className="text-sm text-2 mb-12">
+        {startNoteOf(year)}{' '}
         {SCHOOL_CONFIG_API
           ? 'Việc được giao chỉnh ở khung bên phải khi chọn người này.'
           : 'Phó hiệu trưởng chỉ thấy và làm được những công việc Hiệu trưởng giao dưới đây.'}
@@ -442,6 +450,7 @@ export default function VicePrincipalAssignmentPage({ embedded = false }) {
   const [choosingFor, setChoosingFor] = useState(null);
   const [dirty, setDirty] = useState(false);
   const year = data?.year;
+  const today = todayInput();
   const rows = useMemo(() => data?.rows || [], [data?.rows]);
   const assignedIds = useMemo(() => (SCHOOL_CONFIG_API ? rows.filter((r) => r.assignment).map((r) => r.user.id) : []), [rows]);
   const vices = useVicesPermissions(assignedIds);
@@ -577,7 +586,12 @@ export default function VicePrincipalAssignmentPage({ embedded = false }) {
                 people={ordered.map((r) => ({
                   userId: r.user.id,
                   user: r.user,
-                  campusName: r.assignment ? campusName(r.assignment.campusId) : null,
+                  // Phân công chưa tới ngày hiệu lực (vd. năm sau, từ ngày mở chuẩn bị) ghi kèm ngày bắt đầu
+                  campusName: r.assignment
+                    ? `${campusName(r.assignment.campusId)}${
+                        r.assignment.validFrom > today ? ` · từ ${formatDate(r.assignment.validFrom)}` : ''
+                      }`
+                    : null,
                   items: vices.itemsByUser[r.user.id],
                   loading: vices.loading,
                   error: vices.error || vices.errorsByUser[r.user.id],
