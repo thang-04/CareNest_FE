@@ -9,7 +9,7 @@ import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import { VersionHistory } from '@/components/assessment/VersionHistory';
 import { docLines } from '@/models/assessment/draftHistory.mjs';
-import { ErrorState, Spinner } from '@/components/ui/States';
+import { EmptyState, ErrorState, Spinner } from '@/components/ui/States';
 import { confirmClassMonthlyComment, getClassMonthlyComment, saveClassMonthlyComment } from '@/services/assessment/assessmentService';
 import { formatDateTime } from '@/utils/format';
 
@@ -109,21 +109,24 @@ export function ClassMonthlyCommentCard({ classId, month }) {
                 {busy === 'save' ? <Spinner small /> : <Save size={16} />} Lưu
               </button>
               <button className="btn btn--primary" onClick={() => setConfirmOpen(true)} disabled={!!busy}>
-                <CheckCircle2 size={16} /> Xác nhận
+                <CheckCircle2 size={16} /> Xác nhận nhận xét
               </button>
             </div>
           </>
         ) : data.content ? (
           <div className="dg-final text-sm">{data.content}</div>
         ) : (
-          <p className="muted">Giáo viên chưa xác nhận nhận xét chung của lớp tháng này.</p>
+          <EmptyState
+            title="Chưa có nhận xét chung tháng này"
+            description="Hiện ở đây sau khi giáo viên xác nhận nhận xét chung của lớp."
+          />
         )}
       </div>
       <ConfirmationModal
         open={confirmOpen}
         title="Xác nhận nhận xét chung của lớp?"
         message="Ban giám hiệu xem được nhận xét sau khi xác nhận. Đã xác nhận thì không sửa được."
-        confirmLabel="Xác nhận"
+        confirmLabel="Xác nhận nhận xét"
         onConfirm={() => run('confirm', confirmClassMonthlyComment, 'Đã xác nhận nhận xét chung của lớp.')}
         onClose={() => setConfirmOpen(false)}
       />

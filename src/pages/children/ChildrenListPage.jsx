@@ -15,12 +15,12 @@ import { PeopleTabs } from '@/components/account/PeopleTabs';
 import { Pagination, paginate } from '@/components/ui/Pagination';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { RowActions } from '@/components/ui/RowActions';
+import { clickableRowProps } from '@/utils/clickableRow';
 import { ChildStatusBadge } from '@/components/children/ChildBadges';
 import { WithdrawChildModal } from '@/components/children/WithdrawChildModal';
 import { CHILD_STATUS, CHILD_STATUS_LABELS, GENDER_LABELS, ageLabel } from '@/models/School';
 import { PARENT_ACCOUNT_STATUS } from '@/models/children/childrenConstants';
 import { formatDate, normalizeText } from '@/utils/format';
-import { clickableRowProps } from '@/utils/clickableRow';
 import {
   canEditChild,
   canEnrollChild,
@@ -33,6 +33,7 @@ import { childrenCrumbs } from '@/utils/children/breadcrumbs';
 import { childrenOfStatus } from '@/utils/children/childrenHelpers';
 import '@/styles/modules/children.css';
 import { StatCard } from '@/components/ui/StatCard';
+import { CampusFilter } from '@/components/ui/CampusFilter';
 
 // Cảnh báo sức khỏe xem ở Sổ sức khỏe của từng trẻ, không ở danh sách (user yêu cầu 2026-10-31; HLT-19, 2026-11-04).
 const FILTER_DEFAULTS = { keyword: '', status: '', campusId: '', classId: '' };
@@ -183,19 +184,7 @@ export default function ChildrenListPage() {
             onSearch={(text) => setFilter({ keyword: text })}
           />
           {showCampus && (
-            <select
-              className="select"
-              value={campusId}
-              aria-label="Điểm trường"
-              onChange={(e) => setFilter({ campusId: e.target.value, classId: '' })}
-            >
-              <option value="">Tất cả điểm trường</option>
-              {campusOptions.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+            <CampusFilter campuses={campusOptions} value={campusId} onChange={(v) => setFilter({ campusId: v, classId: '' })} hideLabel />
           )}
           <select className="select" value={classId} aria-label="Lớp" onChange={(e) => setFilter({ classId: e.target.value })}>
             <option value="">Tất cả lớp</option>

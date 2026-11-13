@@ -32,7 +32,7 @@ export const createSchoolConfigApi = (axiosClient) => ({
   deleteClass: (id) => axiosClient.delete(`/classes/${id}`),
   // PENDING BE: sao chép lớp từ năm học khác (chỉ tên, nhóm tuổi, điểm trường, phòng, sĩ số)
   copyClasses: (targetYearId, payload) => axiosClient.post(`/school-years/${targetYearId}/classes/copy`, payload),
-  // Thiết lập năm học: { sourceYearId, parts: CLASSES | TEACHERS | TEAM_LEADERS | CUTOFF | SEMESTER }
+  // Thiết lập năm học: { sourceYearId, parts: CLASSES | TEACHERS | TEAM_LEADERS | VICE_PRINCIPALS | CUTOFF | SEMESTER }
   copyYear: (targetYearId, payload) => axiosClient.post(`/school-years/${targetYearId}/copy`, payload),
 
   getCutoffSetting: (schoolYear) => axiosClient.get(`/school-years/${schoolYear}/cutoff`),

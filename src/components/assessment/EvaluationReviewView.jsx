@@ -25,7 +25,7 @@ import {
   saveEvaluationDraft,
 } from '@/services/assessment/assessmentService';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
-import { ErrorState, LoadingState, Spinner } from '@/components/ui/States';
+import { EmptyState, ErrorState, LoadingState, Spinner } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
 import { FormField } from '@/components/form/FormField';
 import { AiWorkingOverlay } from '@/components/ui/AiWorkingOverlay';
@@ -38,7 +38,7 @@ import { DailyDaysTable } from '@/components/assessment/DailyDaysTable';
 import { Pagination, paginate } from '@/components/ui/Pagination';
 import { EVAL_HISTORY_LABELS, EVAL_KIND, EVAL_STATUS, PERIOD_TYPE_LABELS } from '@/models/assessment/assessmentConstants';
 import { formatDate, formatDateTime } from '@/utils/format';
-import { evaluationPeriodLabel, periodLabel } from '@/utils/assessment/assessmentPeriods';
+import { evaluationPeriodLabel } from '@/utils/assessment/assessmentPeriods';
 import { canConfirmEvaluation, canReviewEvaluation, canViewAiDraft, isClassTeacher } from '@/utils/assessment/assessmentPermissions';
 import { ChildAvatar } from '@/components/ChildAvatar';
 import { validateEvaluationContent, hasErrors } from '@/utils/assessment/assessmentValidation';
@@ -237,6 +237,26 @@ export function EvaluationReviewView({ kind, id }) {
     return res;
   };
 
+  // Màn dài ~2 màn hình: nút Lưu/Xác nhận đặt cả đầu và cuối trang, cùng handler
+  const editActions = (canReview || canConfirm) && (
+    <div className="row gap-2">
+      {canReview && (
+        <button className="btn" onClick={save} disabled={!!busy}>
+          {busy === 'save' ? <Spinner small /> : <Save size={16} />} Lưu chỉnh sửa
+        </button>
+      )}
+      {canConfirm && (
+        <button
+          className="btn btn--primary"
+          onClick={() => [check(), checkProgram()].every(Boolean) && setConfirmOpen(true)}
+          disabled={!!busy}
+        >
+          <CheckCircle2 size={16} /> {yearEnd ? 'Xác nhận đánh giá' : 'Xác nhận và công bố'}
+        </button>
+      )}
+    </div>
+  );
+
   return (
     <>
       <div className={yearEnd ? 'card dg-year-review-head' : 'page__head'}>
@@ -283,6 +303,7 @@ export function EvaluationReviewView({ kind, id }) {
             <Award size={16} /> Đề xuất khen thưởng
           </Link>
         )}
+        {editActions && <div className="page__actions">{editActions}</div>}
       </div>
 
       {!yearEnd && confirmed && !detail.cls?.teaches && (
@@ -326,12 +347,8 @@ export function EvaluationReviewView({ kind, id }) {
                 <>
                   <div className="dg-ai-box text-sm">{ev.aiDraft.content}</div>
                   <div className="muted text-xs mt-8">
-                    {yearEnd
-                      ? `Tổng hợp từ ${detail.monthlyEvaluations.length} đánh giá tháng đã xác nhận`
-                      : `Tổng hợp từ ${detail.summary.assessedDays} ngày đánh giá hằng ngày${
-                          detail.monthlyEvaluations?.length ? ` và ${detail.monthlyEvaluations.length} đánh giá tháng` : ''
-                        }`}{' '}
-                    · tạo lúc {formatDateTime(ev.aiDraft.generatedAt)}
+                    {yearEnd ? 'Tổng hợp từ dữ liệu cả năm học' : `Tổng hợp từ ${detail.summary.assessedDays} ngày đánh giá hằng ngày`} ·
+                    tạo lúc {formatDateTime(ev.aiDraft.generatedAt)}
                   </div>
                   <div className="row row--wrap gap-2 mt-12">
                     <button
@@ -350,7 +367,7 @@ export function EvaluationReviewView({ kind, id }) {
                   </div>
                 </>
               ) : (
-                <div className="muted">Chưa có bản nháp AI. Cô tự viết đánh giá ở khung bên cạnh.</div>
+                <EmptyState title="Chưa có bản nháp AI" description="Cô tự viết đánh giá ở khung bên cạnh." />
               )}
             </div>
           </details>
@@ -447,29 +464,6 @@ export function EvaluationReviewView({ kind, id }) {
         </details>
       )}
 
-      {/* Nhận xét tháng trong chi tiết học kỳ cũ. */}
-      {kind === EVAL_KIND.SEMESTER && (
-        <div className="card mt-16">
-          <div className="card__header">
-            <div className="card__title">Đánh giá tháng đã xác nhận trong học kỳ</div>
-          </div>
-          <div className="card__body">
-            {detail.monthlyEvaluations.length ? (
-              <div className="stack">
-                {detail.monthlyEvaluations.map((m) => (
-                  <div key={m.id}>
-                    <div className="fw-600">{periodLabel(m.periodType, m.periodStart, m.periodEnd)}</div>
-                    <div className="dg-final text-sm text-2">{m.finalContent}</div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="muted">Chưa có đánh giá tháng nào được xác nhận trong kỳ này.</div>
-            )}
-          </div>
-        </div>
-      )}
-
       {!yearEnd && (
         <div className="card mt-16">
           <div className="card__header">
@@ -540,24 +534,7 @@ export function EvaluationReviewView({ kind, id }) {
             </button>
           </div>
         )}
-        {(canReview || canConfirm) && (
-          <div className="row gap-2">
-            {canReview && (
-              <button className="btn" onClick={save} disabled={!!busy}>
-                {busy === 'save' ? <Spinner small /> : <Save size={16} />} Lưu chỉnh sửa
-              </button>
-            )}
-            {canConfirm && (
-              <button
-                className="btn btn--primary"
-                onClick={() => [check(), checkProgram()].every(Boolean) && setConfirmOpen(true)}
-                disabled={!!busy}
-              >
-                <CheckCircle2 size={16} /> {yearEnd ? 'Xác nhận đánh giá' : 'Xác nhận và công bố'}
-              </button>
-            )}
-          </div>
-        )}
+        {editActions}
       </div>
 
       <ConfirmationModal

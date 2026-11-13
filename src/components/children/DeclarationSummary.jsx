@@ -2,6 +2,7 @@ import { AllergyStateBadge, DietStateBadge, NoteStateBadge } from '@/components/
 import { DECLARATION_STATE } from '@/models/children/childrenConstants';
 import { MEDICAL_HISTORY_ITEMS, historyItemText } from '@/models/children/childProfile';
 import { formatDateTime } from '@/utils/format';
+import { EmptyState } from '@/components/ui/States';
 import { IntakeSheet, IntakeSheetValueRow } from './IntakeSheet';
 import { ChildInfoTable } from './ChildInfoTable';
 
@@ -10,7 +11,10 @@ import { ChildInfoTable } from './ChildInfoTable';
  * sheet: bảng TT | nội dung | giá trị như bước 1 tiếp nhận (title = dải phần); mặc định bảng nhãn | giá trị (user chọn 2026-11-11).
  */
 export function DeclarationSummary({ declaration, sheet = false, title = 'Khai báo sức khỏe' }) {
-  if (!declaration) return <p className="muted">Chưa có khai báo sức khỏe khi tiếp nhận.</p>;
+  if (!declaration)
+    return (
+      <EmptyState title="Chưa có khai báo sức khỏe" description="Khai báo dị ứng, chế độ ăn và tiền sử bệnh khi tiếp nhận sẽ hiện ở đây." />
+    );
   const { allergies, diet, otherNotes, medicalHistory, declaredAt, declaredByName } = declaration;
   const reported = allergies.state === DECLARATION_STATE.REPORTED;
   const rows = [

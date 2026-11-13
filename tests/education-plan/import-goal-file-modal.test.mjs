@@ -13,9 +13,10 @@ export const h={states:[],refs:[],si:0,ri:0,started:false,cleanup:null,reader:()
 const useState=(initial)=>{const i=h.si++;if(!(i in h.states))h.states[i]=initial;return [h.states[i],v=>{h.states[i]=typeof v==='function'?v(h.states[i]):v;}];};
 const useRef=(v)=>h.refs[h.ri++] ||= {current:v};
 const useEffect=(f)=>{if(!h.started){h.started=true;h.cleanup=f();}};
-const previewGoalFile=(file)=>h.reader(file), Download=()=>null,Upload=()=>null,LoadingState=()=>null;
+const previewGoalFile=(file)=>h.reader(file);
 const fmtDate=(v)=>v||'—',downloadDoc=()=>{},goalTemplateFile=()=>({});
-const Modal=({children,footer})=><div role="dialog">{children}{footer}</div>, Notice=({children})=><div>{children}</div>;
+const Notice=({children})=><div>{children}</div>;
+const ImportDialog=({children,options,onFile,confirmLabel,confirmDisabled,onConfirm,onClose})=><div role="dialog">{options}<input type="file" onChange={(e)=>onFile(e.target.files?.[0])}/>{children}<button type="button" className="btn" onClick={onClose}>Hủy</button><button type="button" className="btn btn--primary" disabled={confirmDisabled} onClick={onConfirm}>{confirmLabel}</button></div>;
 `;
 const { code } = await transformWithOxc(stubs + isolated, 'ImportGoalFileModal.jsx', { lang: 'jsx', jsx: { runtime: 'classic' } });
 const { ImportGoalFileModal, h } = await import(
@@ -51,13 +52,14 @@ const reset = () => {
 const render = (props) => {
   h.si = 0;
   h.ri = 0;
-  return ImportGoalFileModal({
+  const dialog = ImportGoalFileModal({
     form,
     yearRange: { start: '2026-09-01', end: '2027-05-31' },
     onImport: () => true,
     onClose: () => {},
     ...props,
   });
+  return dialog.type(dialog.props);
 };
 const find = (node, predicate) => {
   if (!node || typeof node !== 'object') return null;
@@ -129,7 +131,7 @@ test('đóng hoặc unmount khi đọc: phản hồi muộn không trở thành 
     });
     const task = input(tree).props.onChange({ target: { files: [{ name: 'a.docx', size: 1024 }] } });
     if (unmount) h.cleanup();
-    else tree.props.onClose();
+    else find(tree, (node) => node.type === 'button' && node.props.className === 'btn').props.onClick();
     pending.resolve(preview);
     await task;
     assert.equal(h.states[0].status, 'loading');

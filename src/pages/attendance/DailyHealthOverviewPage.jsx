@@ -6,8 +6,9 @@ import { useMasterData } from '@/hooks/useMasterData';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { ChildAvatar } from '@/components/ChildAvatar';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
+import { StatCard } from '@/components/ui/StatCard';
 import { StatusPage } from '@/components/ui/StatusPage';
-import { RowActions } from '@/components/ui/RowActions';
+import { clickableRowProps } from '@/utils/clickableRow';
 import { Pagination, paginate } from '@/components/ui/Pagination';
 import { ClassDateBar } from '@/components/attendance/ClassDateBar';
 import { DailyHealthHistoryModal } from '@/components/attendance/DailyHealthHistoryModal';
@@ -20,24 +21,16 @@ import { attendanceCrumbs } from '@/utils/attendance/breadcrumbs';
 import { symptomLabels } from '@/utils/dailyHealthValidation';
 import { formatDate, formatDateTime, isIsoDate } from '@/utils/format';
 import '@/styles/modules/attendance.css';
+import { CampusFilter } from '@/components/ui/CampusFilter';
 
 const timeOf = (iso) => formatDateTime(iso).split(' ')[1] || '—';
 
 function StatTiles({ totals }) {
   return (
     <div className="dd-stats mb-16">
-      <div className="dd-stat">
-        <span className="dd-stat__value">{totals.present}</span>
-        <span className="dd-stat__label">Có mặt</span>
-      </div>
-      <div className="dd-stat dd-stat--blue">
-        <span className="dd-stat__value">{totals.checked}</span>
-        <span className="dd-stat__label">Đã kiểm tra</span>
-      </div>
-      <div className="dd-stat dd-stat--orange">
-        <span className="dd-stat__value">{totals.noted}</span>
-        <span className="dd-stat__label">Có dấu hiệu cần lưu ý</span>
-      </div>
+      <StatCard tone="blue" label="Có mặt" value={totals.present} />
+      <StatCard tone="teal" label="Đã kiểm tra" value={totals.checked} />
+      <StatCard tone="orange" label="Có dấu hiệu cần lưu ý" value={totals.noted} />
     </div>
   );
 }
@@ -182,13 +175,12 @@ function AttentionTable({ items, filtered, onClearFilter, onOpen }) {
                 <th>Ghi chú</th>
                 <th>Xử trí</th>
                 <th>Người ghi</th>
-                <th className="cell--actions">Thao tác</th>
               </tr>
             </thead>
             <tbody>
               {paginate(items, currentPage, ATTENTION_PAGE).map((item) => (
-                // Bấm cả dòng để xem chi tiết; nút cuối dòng giữ cho bàn phím
-                <tr key={item.childId} className="dd-hov__row" onClick={() => onOpen(item)}>
+                // Bấm cả dòng (chuột hoặc Enter/Space) để xem chi tiết
+                <tr key={item.childId} className="row-click dd-hov__row" {...clickableRowProps(() => onOpen(item))}>
                   <td className="nowrap">
                     <div className="dd-hov__child">
                       <ChildAvatar child={{ fullName: item.childName, photoUrl: item.photoUrl }} size="sm" />
@@ -227,9 +219,6 @@ function AttentionTable({ items, filtered, onClearFilter, onOpen }) {
                   <td className="nowrap">
                     {item.recordedByName}
                     <div className="muted text-xs">{timeOf(item.recordedAt)}</div>
-                  </td>
-                  <td className="cell--actions">
-                    <RowActions view={{ onClick: () => onOpen(item), label: 'Xem chi tiết' }} name={`sức khỏe của ${item.childName}`} />
                   </td>
                 </tr>
               ))}
@@ -289,19 +278,13 @@ export default function DailyHealthOverviewPage() {
   const filterBar = (
     <div className="dd-hov__filters" role="group" aria-label="Lọc theo điểm trường, nhóm tuổi và lớp">
       {isPrincipal && (
-        <select
-          className="select"
-          aria-label="Điểm trường"
+        <CampusFilter
+          campuses={md.campuses}
           value={campusId}
-          onChange={(e) => update({ campusId: e.target.value, ageGroupId: '', classId: '' })}
-        >
-          <option value="">Toàn trường</option>
-          {md.campuses.map((campus) => (
-            <option key={campus.id} value={campus.id}>
-              {campus.shortName || campus.name}
-            </option>
-          ))}
-        </select>
+          onChange={(v) => update({ campusId: v, ageGroupId: '', classId: '' })}
+          allLabel="Toàn trường"
+          hideLabel
+        />
       )}
       <select
         className="select"
