@@ -15,7 +15,8 @@ export const contentError = (text, { sending = false } = {}) => {
 /** Chip trạng thái của từng trẻ trong danh sách bên trái. */
 export const statusChip = (row) => {
   if (row.status === WEEKLY_STATUS.SENT) return { label: 'Đã gửi', tone: 'green' };
-  if (row.status === WEEKLY_STATUS.DRAFT && (row.content || '').trim()) return { label: 'Nháp', tone: 'orange' };
+  if (row.status === WEEKLY_STATUS.DRAFT && (row.content || '').trim())
+    return { label: row.absentAllWeek ? 'Nháp · nghỉ cả tuần' : 'Nháp', tone: 'orange' };
   if (row.absentAllWeek) return { label: 'Nghỉ cả tuần', tone: 'gray' };
   return { label: 'Chưa có', tone: 'gray' };
 };

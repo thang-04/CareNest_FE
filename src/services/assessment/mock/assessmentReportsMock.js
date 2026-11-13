@@ -415,10 +415,15 @@ export const createAssessmentReportsMock = (ensureReady) => ({
     const db = ensureReady();
     let list = db.weeklyComments || [];
     board.children
-      .filter((r) => (body.childId ? r.childId === body.childId : !r.absentAllWeek))
+      .filter((r) => (body.childId ? r.childId === body.childId : true))
       .filter((r) => r.status !== 'SENT' && (body.overwrite || !(r.content || '').trim()))
       .forEach((r) => {
-        const text = `Tuần này con đi học ${r.data.presentDays}/${r.data.schoolDays} ngày.
+        // Như BE: trẻ nghỉ cả tuần có nháp hỏi thăm
+        const text = r.absentAllWeek
+          ? `Tuần này con nghỉ học cả tuần nên cô chưa có nhận xét về các hoạt động của con ở lớp. Cô và các bạn rất nhớ con và mong con sớm trở lại lớp.
+
+Bố mẹ có thể cùng con đọc truyện, trò chuyện và giữ nếp ăn ngủ đều đặn ở nhà để con vào lớp thật vui nhé.`
+          : `Tuần này con đi học ${r.data.presentDays}/${r.data.schoolDays} ngày.
 
 Bố mẹ hãy trò chuyện với con về những điều con đã học trong tuần để con thêm tự tin nhé.`;
         list = [
