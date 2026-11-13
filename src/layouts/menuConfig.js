@@ -303,6 +303,10 @@ const ITEMS = {
     label: 'Phiếu bé ngoan',
     to: '/assessment/tickets',
   },
+  assessWeeklyComments: {
+    label: 'Nhận xét tuần',
+    to: '/assessment/weekly-comments',
+  },
   assessRewards: {
     label: 'Đề xuất khen thưởng',
     to: '/assessment/rewards',
@@ -460,6 +464,7 @@ const MENUS = {
       'assessThemes',
       'assessYearEnd',
       'assessTickets',
+      'assessWeeklyComments',
       'assessRewards',
       'assessDayUnlocks',
     ]),
@@ -497,6 +502,7 @@ const MENUS = {
       'assessThemes',
       'assessYearEnd',
       'assessTickets',
+      'assessWeeklyComments',
       'assessRewards',
       'assessDayUnlocks',
     ]),
@@ -526,6 +532,7 @@ const MENUS = {
       'assessQuality',
       'assessClassRatings',
       'assessTickets',
+      'assessWeeklyComments',
       'assessRewards',
     ]),
     account,
@@ -545,6 +552,7 @@ const MENUS = {
       'assessQuality',
       'assessClassRatings',
       'assessTickets',
+      'assessWeeklyComments',
       'assessRewards',
     ]),
     account,
@@ -655,6 +663,7 @@ const ITEM_BE_PERMISSIONS = {
   assessSemester: [PERMISSIONS.ASSESSMENT_VIEW],
   assessYearEnd: [PERMISSIONS.ASSESSMENT_VIEW],
   assessTickets: [PERMISSIONS.ASSESSMENT_VIEW],
+  assessWeeklyComments: [PERMISSIONS.ASSESSMENT_VIEW],
   assessRewards: [PERMISSIONS.ASSESSMENT_VIEW],
 };
 const withBePermissions = (menu, user) =>

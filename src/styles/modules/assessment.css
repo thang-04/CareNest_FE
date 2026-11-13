@@ -1195,3 +1195,84 @@
 .dg-roll-wrap .dg-roll.dg-theme-table tfoot tr:first-child > * {
   border-top: 2px solid var(--color-text-muted);
 }
+
+/* ---------- Nhận xét tuần (OBS-29) ---------- */
+.wc-bar {
+  flex-wrap: wrap;
+  align-items: center;
+}
+.wc-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+  gap: var(--space-4);
+  padding: var(--space-4);
+}
+.wc-children {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  border-right: 1px solid var(--border);
+  padding-right: var(--space-3);
+  max-height: 640px;
+  overflow-y: auto;
+}
+.wc-child {
+  justify-content: space-between;
+  width: 100%;
+  text-align: left;
+}
+.wc-child.is-active {
+  background: var(--color-primary-soft);
+  border-color: var(--color-primary-border);
+}
+.wc-child__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wc-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+.wc-panel__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+.wc-cells {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+.wc-cell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.wc-unmet__list {
+  margin: var(--space-1) 0 0;
+  padding-left: var(--space-6);
+}
+.wc-text {
+  white-space: pre-line;
+}
+@media (max-width: 760px) {
+  .wc-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .wc-children {
+    border-right: none;
+    padding-right: 0;
+    max-height: none;
+  }
+  .wc-cells {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

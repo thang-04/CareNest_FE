@@ -152,6 +152,7 @@ const SemesterEvaluationDetailPage = lazyPage(() => import('@/pages/assessment/S
 const YearEndEvaluationListPage = lazyPage(() => import('@/pages/assessment/YearEndEvaluationListPage'));
 const YearEndEvaluationDetailPage = lazyPage(() => import('@/pages/assessment/YearEndEvaluationDetailPage'));
 const GoodBehaviourTicketsPage = lazyPage(() => import('@/pages/assessment/GoodBehaviourTicketsPage'));
+const WeeklyCommentsPage = lazyPage(() => import('@/pages/assessment/WeeklyCommentsPage'));
 const ClassAssessmentOverviewPage = lazyPage(() => import('@/pages/assessment/ClassAssessmentOverviewPage'));
 const ThemeEvaluationPage = lazyPage(() => import('@/pages/assessment/ThemeEvaluationPage'));
 const QualityReportPage = lazyPage(() => import('@/pages/assessment/QualityReportPage'));
@@ -515,6 +516,7 @@ export function AppRoutes() {
             <Route path="year-end/:id" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <YearEndEvaluationDetailPage />)} />
             <Route path="year-end/:id/ai-draft" element={permit([PERMISSIONS.ASSESSMENT_RECORD], <AiEvaluationDraftPage />)} />
             <Route path="tickets" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <GoodBehaviourTicketsPage />)} />
+            <Route path="weekly-comments" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <WeeklyCommentsPage />)} />
             <Route path="rewards" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <RewardListPage />)} />
             <Route path="rewards/:classId" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <RewardClassPage />)} />
           </Route>
