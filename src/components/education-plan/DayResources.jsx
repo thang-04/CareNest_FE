@@ -1,13 +1,17 @@
-import { useEffect, useRef, useState } from 'react';
-import { Card, Notice } from './eduUi';
+import { useEffect, useId, useRef, useState } from 'react';
+import { Card, Modal, Notice } from './eduUi';
 import { Button } from '@/components/ui/Button';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { RowMenu } from '@/components/ui/RowMenu';
-import { SortButtons, SortHandle, SortableList, SortableRow } from '@/components/ui/Sortable';
-import { Eye, FileImage, FileText, Link2, Plus, Trash2 } from '@/components/ui/icons';
+import { LABELS } from '@/components/ui/labels';
+import { SortHandle, SortableList, SortableRow } from '@/components/ui/Sortable';
+import { Eye, FileImage, FileText, Link2, Pencil, Plus, Trash2 } from '@/components/ui/icons';
+import { TextField } from '@/components';
+import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { LearningResourceViewer } from './LearningResourceViewer';
 import { ResourcePickerModal } from './ResourcePickerModal';
 import { learningResourceService as api } from '@/services/education-plan/learningResourceService';
+import { resourceLibraryService as library } from '@/services/education-plan/resourceLibraryService';
 import { DAY_SECTIONS } from '@/models/education-plan/classPlan';
 import {
   KIND_LABELS,
@@ -37,6 +41,8 @@ export function DayResources({ user, docKey, date, editable, ageGroupId = null, 
   const [preview, setPreview] = useState(null);
   const [remove, setRemove] = useState(null);
   const [pickFor, setPickFor] = useState(null);
+  const [rename, setRename] = useState(null);
+  const { toast } = useEducationPlan();
   const attempt = useRef(null);
   useEffect(() => {
     if (!docKey) return undefined;
@@ -70,13 +76,14 @@ export function DayResources({ user, docKey, date, editable, ageGroupId = null, 
     }
   };
   const bindingOf = (section) => ({ activityKey: sectionKey(date, section.key), activityLabel: sectionName(section) });
-  const upload = (section, file) =>
+  // title: tên người dùng đặt khác tên tệp, gửi kèm lần xác nhận tải lên; null ⇒ BE lấy tên tệp
+  const upload = (section, file, title) =>
     run(section.key, async () => {
       const binding = bindingOf(section);
       // Cùng tệp + mục ⇒ giữ khóa gửi lại để BE không tạo trùng khi mạng chập chờn
       if (attempt.current?.file !== file || attempt.current?.key !== binding.activityKey)
         attempt.current = { file, key: binding.activityKey, id: crypto.randomUUID() };
-      await api.upload(user, docKey, file, binding, attempt.current.id, tagsOf(section.key));
+      await api.upload(user, docKey, file, binding, attempt.current.id, tagsOf(section.key), title);
       attempt.current = null;
     });
   const addLink = (section, { url, title }) =>
@@ -91,6 +98,8 @@ export function DayResources({ user, docKey, date, editable, ageGroupId = null, 
     run(section.key, () => api.reorder(user, docKey, { activityKey: sectionKey(date, section.key), ids }));
   };
   const nameOf = (r) => r.title || r.fileName;
+  // EDU-84: kho cá nhân, chỉ gắn được học liệu của mình ⇒ người gắn (uploadedBy) = chủ học liệu; chỉ chủ mới đổi tên
+  const mine = (r) => r.uploadedBy != null && String(r.uploadedBy) === String(user?.id);
 
   return (
     <Card title="III. Học liệu theo mục hoạt động" collapsed={folded} onToggle={() => setFolded((v) => !v)}>
@@ -107,7 +116,10 @@ export function DayResources({ user, docKey, date, editable, ageGroupId = null, 
         return (
           <section key={section.key} className="ga-media-unbound" aria-label={section.label}>
             <div className="ga-media-upload">
-              <h3>{section.label}</h3>
+              <h3 className="row gap-2">
+                {section.label}
+                <span className="chip chip--gray">{bound.length} học liệu</span>
+              </h3>
               {editable && (
                 <Button
                   variant="outline-primary"
@@ -132,13 +144,15 @@ export function DayResources({ user, docKey, date, editable, ageGroupId = null, 
                 onMove={(from, to) => move(section, bound, from, to)}
               >
                 <ul className="ga-resource-list stack" aria-label={`Học liệu của mục ${name}`}>
-                  {bound.map((r, at) => {
+                  {bound.map((r) => {
                     const kind = resourceKind(r);
                     const Icon = KIND_ICONS[kind] || FileText;
                     return (
                       <SortableRow key={r.id} id={r.id} as="li" className="file-row">
                         {sortable && <SortHandle label={nameOf(r)} />}
-                        <Icon size={22} aria-hidden />
+                        <span className="ga-resource-icon" aria-hidden>
+                          <Icon size={18} />
+                        </span>
                         <div className="flex-1 min-w-0">
                           <span className="file-row__name">{nameOf(r)}</span>
                           <span className="muted text-sm">
@@ -147,7 +161,6 @@ export function DayResources({ user, docKey, date, editable, ageGroupId = null, 
                           </span>
                         </div>
                         <span className="row gap-1">
-                          {sortable && <SortButtons index={at} label={nameOf(r)} />}
                           {editable ? (
                             <RowMenu
                               label={`Thao tác với ${nameOf(r)}`}
@@ -157,8 +170,14 @@ export function DayResources({ user, docKey, date, editable, ageGroupId = null, 
                                   icon: Eye,
                                   onClick: () => setPreview(preview?.id === r.id ? null : r),
                                 },
+                                mine(r) && {
+                                  label: 'Đổi tên',
+                                  icon: Pencil,
+                                  disabled: !!busy,
+                                  onClick: () => setRename({ id: r.itemId, title: nameOf(r) }),
+                                },
                                 { label: 'Gỡ khỏi mục', icon: Trash2, danger: true, disabled: !!busy, onClick: () => setRemove(r) },
-                              ]}
+                              ].filter(Boolean)}
                             />
                           ) : (
                             <Button
@@ -195,8 +214,20 @@ export function DayResources({ user, docKey, date, editable, ageGroupId = null, 
           context={{ docKey, activityKey: sectionKey(date, pickFor.key), ageGroupId, ...tagsOf(pickFor.key) }}
           onClose={() => setPickFor(null)}
           onAttach={(ids) => attach(pickFor, ids)}
-          onUpload={(file) => upload(pickFor, file)}
+          onUpload={(file, title) => upload(pickFor, file, title)}
           onAddLink={(link) => addLink(pickFor, link)}
+        />
+      )}
+      {rename && (
+        <ResourceRenameModal
+          user={user}
+          item={rename}
+          onClose={() => setRename(null)}
+          onDone={() => {
+            toast('Đã đổi tên học liệu');
+            setRename(null);
+            setVersion((v) => v + 1);
+          }}
         />
       )}
       <ConfirmationModal
@@ -215,5 +246,67 @@ export function DayResources({ user, docKey, date, editable, ageGroupId = null, 
         }
       />
     </Card>
+  );
+}
+
+/**
+ * BE:EDU-88 — đổi tên học liệu trong kho (dùng ở trang Kho và giáo án ngày); item: { id = id học liệu kho, title }.
+ * Bị khóa (giáo án Chờ duyệt / chưa qua ngày dạy ⇒ 7137) thì hiện lỗi BE trong hộp, giữ tên đang nhập.
+ */
+export function ResourceRenameModal({ user, item, onClose, onDone }) {
+  const id = useId();
+  const [title, setTitle] = useState(item.title);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const name = title.trim();
+  const save = async () => {
+    setBusy(true);
+    setError('');
+    try {
+      await library.update(user, item.id, { title: name });
+      onDone();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Modal
+      title="Đổi tên học liệu"
+      onClose={onClose}
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose} disabled={busy}>
+            {LABELS.cancel}
+          </Button>
+          <Button variant="primary" loading={busy} disabled={!name || name === item.title} onClick={save}>
+            {LABELS.save}
+          </Button>
+        </>
+      }
+    >
+      <div className="field">
+        <label className="field__label" htmlFor={`${id}-title`}>
+          Tên hiển thị
+        </label>
+        <TextField
+          id={`${id}-title`}
+          value={title}
+          maxLength={255}
+          required
+          autoFocus
+          aria-invalid={!!error}
+          aria-describedby={error ? `${id}-err` : undefined}
+          onChange={(e) => setTitle(e.target.value)}
+        />
+        {error && (
+          <p id={`${id}-err`} className="field__error" role="alert">
+            {error}
+          </p>
+        )}
+      </div>
+      <p className="muted text-sm">Tên mới hiện ở mọi giáo án đang dùng học liệu này.</p>
+    </Modal>
   );
 }

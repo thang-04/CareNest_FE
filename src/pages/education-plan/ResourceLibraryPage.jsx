@@ -1,13 +1,15 @@
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, EmptyState, Modal, Notice, PageHead, fmtDateTime } from '@/components/education-plan/eduUi';
 import { FilterSelect } from '@/components/education-plan/planUi';
 import { LearningResourceViewer } from '@/components/education-plan/LearningResourceViewer';
+import { ResourceRenameModal } from '@/components/education-plan/DayResources';
 import { ResourceTagsModal } from '@/components/education-plan/ResourceTagsModal';
 import { Button } from '@/components/ui/Button';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { FilterChips } from '@/components/ui/FilterChips';
 import { RowMenu } from '@/components/ui/RowMenu';
+import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { LoadingState } from '@/components/ui/States';
 import { LABELS } from '@/components/ui/labels';
 import { Eye, MapPin, Pencil, Tag, Trash2 } from '@/components/ui/icons';
@@ -24,7 +26,7 @@ import {
   resourceKind,
   taughtThemeGroups,
 } from '@/models/education-plan/learningResources.mjs';
-import { DataTable, TextField } from '@/components';
+import { DataTable } from '@/components';
 
 const KIND_OPTIONS = [
   { value: '', label: 'Tất cả' },
@@ -40,9 +42,7 @@ const themeLabel = (t) => (t.schoolYearName ? `${t.name} · ${t.schoolYearName}`
  * năm học. Đổi tên, sửa nhãn, xem nơi đang dùng, xóa vĩnh viễn (BE khóa khi giáo án Chờ duyệt / chưa qua ngày dạy — 7137).
  */
 export default function ResourceLibraryPage() {
-  const id = useId();
   const { user, toast } = useEducationPlan();
-  const [q, setQ] = useState('');
   const [query, setQuery] = useState('');
   const [kind, setKind] = useState('');
   const [ageGroupId, setAgeGroupId] = useState('');
@@ -51,10 +51,6 @@ export default function ResourceLibraryPage() {
   const [page, setPage] = useState(0);
   const [modal, setModal] = useState(null);
 
-  useEffect(() => {
-    const t = setTimeout(() => setQuery(q.trim()), 300);
-    return () => clearTimeout(t);
-  }, [q]);
   useEffect(() => setPage(0), [query, kind, ageGroupId, theme]);
   const chosen = themes.find((t) => themeKey(t) === theme);
   const list = useAsync(
@@ -95,6 +91,7 @@ export default function ResourceLibraryPage() {
     {
       key: 'title',
       header: 'Học liệu',
+      className: 'ga-resource-name',
       render: (r) => (
         <>
           <div className="fw-600">{r.title}</div>
@@ -162,10 +159,10 @@ export default function ResourceLibraryPage() {
         <div className="card mb-16">
           <div className="filter-bar">
             <div className="field">
-              <label className="field__label" htmlFor={`${id}-q`}>
+              <span className="field__label" aria-hidden>
                 Tìm theo tên
-              </label>
-              <TextField id={`${id}-q`} type="search" value={q} onChange={(e) => setQ(e.target.value)} />
+              </span>
+              <SearchSubmit value={query} placeholder="Tên học liệu" label="Tìm theo tên học liệu" maxLength={255} onSearch={setQuery} />
             </div>
             <FilterSelect
               label="Chủ đề đã dạy"
@@ -185,7 +182,7 @@ export default function ResourceLibraryPage() {
             count={total}
             unit="học liệu"
             chips={[
-              query && { key: 'q', label: `Tên: ${query}`, onRemove: () => setQ('') },
+              query && { key: 'q', label: `Tên: ${query}`, onRemove: () => setQuery('') },
               chosen && { key: 'theme', label: `Chủ đề: ${themeLabel(chosen)}`, onRemove: () => setTheme('') },
               kind && { key: 'kind', label: `Loại: ${KIND_OPTIONS.find((o) => o.value === kind).label}`, onRemove: () => setKind('') },
               ageGroupId && { key: 'age', label: `Nhóm tuổi: ${ageName(ageGroupId)}`, onRemove: () => setAgeGroupId('') },
@@ -254,10 +251,8 @@ export default function ResourceLibraryPage() {
 
 /** Hộp thoại của trang Kho: xem, đổi tên, sửa nhãn, nơi đang dùng, xóa vĩnh viễn (khóa ⇒ thông báo chặn). */
 function ResourceModals({ modal, user, taught, onClose, onDone }) {
-  const id = useId();
   const { classes } = useEducationPlan();
   const item = modal.item;
-  const [title, setTitle] = useState(item.title);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const usages = useAsync(
@@ -288,47 +283,7 @@ function ResourceModals({ modal, user, taught, onClose, onDone }) {
       </Modal>
     );
   if (modal.type === 'rename')
-    return (
-      <Modal
-        title="Đổi tên học liệu"
-        onClose={onClose}
-        footer={
-          <>
-            <Button variant="ghost" onClick={onClose} disabled={busy}>
-              {LABELS.cancel}
-            </Button>
-            <Button
-              variant="primary"
-              loading={busy}
-              disabled={!title.trim() || title.trim() === item.title}
-              onClick={() => save(() => api.update(user, item.id, { title: title.trim() }), 'Đã đổi tên học liệu')}
-            >
-              {LABELS.save}
-            </Button>
-          </>
-        }
-      >
-        <div className="field">
-          <label className="field__label" htmlFor={`${id}-title`}>
-            Tên hiển thị
-          </label>
-          <TextField
-            id={`${id}-title`}
-            value={title}
-            maxLength={255}
-            aria-invalid={!!error}
-            aria-describedby={error ? `${id}-err` : undefined}
-            onChange={(e) => setTitle(e.target.value)}
-          />
-          {error && (
-            <p id={`${id}-err`} className="field__error" role="alert">
-              {error}
-            </p>
-          )}
-        </div>
-        <p className="muted text-sm">Tên mới hiện ở mọi giáo án đang dùng học liệu này.</p>
-      </Modal>
-    );
+    return <ResourceRenameModal user={user} item={item} onClose={onClose} onDone={() => onDone('Đã đổi tên học liệu')} />;
   if (modal.type === 'tags')
     return (
       <ResourceTagsModal

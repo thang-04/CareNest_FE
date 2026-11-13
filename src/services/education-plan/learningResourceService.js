@@ -8,8 +8,11 @@ const base = (key) => `/education-plans/class-docs/day/${encodeURIComponent(key)
 
 export const learningResourceApi = {
   list: (_user, key) => axiosClient.get(base(key)),
-  /** Tải thẳng lên kho qua liên kết có hạn rồi xác nhận; BE kiểm lại dung lượng + nội dung thật, tạo học liệu + dòng gắn. */
-  upload: async (_user, key, file, binding, requestId, tags) => {
+  /**
+   * Tải thẳng lên kho qua liên kết có hạn rồi xác nhận; BE kiểm lại dung lượng + nội dung thật, tạo học liệu + dòng gắn.
+   * title = tên học liệu người dùng đặt; trống ⇒ BE lấy tên tệp bỏ đuôi.
+   */
+  upload: async (_user, key, file, binding, requestId, tags, title) => {
     const link = await axiosClient.post(`${base(key)}/upload-url`, {
       fileName: file.name,
       contentType: file.type,
@@ -19,7 +22,7 @@ export const learningResourceApi = {
     await axios.put(link.url, file, { headers: link.headers, timeout: 600000 });
     return axiosClient.post(
       `${base(key)}/confirm`,
-      { uploadId: link.uploadId, fileName: file.name, ...binding, tags },
+      { uploadId: link.uploadId, fileName: file.name, title: title || undefined, ...binding, tags },
       { headers: { 'Idempotency-Key': requestId }, timeout: 120000 },
     );
   },

@@ -27,7 +27,7 @@ test('upload goes upload-url → PUT to storage without BE token → confirm wit
   try {
     const file = new File(['%PDF-1.7'], 'demo.pdf', { type: 'application/pdf' });
     const binding = { activityKey: '2026-09-07#hoc', activityLabel: 'Hoạt động học' };
-    await learningResourceApi.upload(null, 'dd_1_2_2026-09-07', file, binding, 'request-demo');
+    await learningResourceApi.upload(null, 'dd_1_2_2026-09-07', file, binding, 'request-demo', undefined, 'Bài hát mùa thu');
     const [ask, put, confirm] = calls;
     assert.match(ask[1].url, /day\/dd_1_2_2026-09-07\/learning-resources\/upload-url$/);
     assert.deepEqual(JSON.parse(ask[1].data), { fileName: 'demo.pdf', contentType: 'application/pdf', size: 8 });
@@ -39,6 +39,7 @@ test('upload goes upload-url → PUT to storage without BE token → confirm wit
     assert.deepEqual(JSON.parse(confirm[1].data), {
       uploadId: 'hoclieu_8_20260907-080000_ab12.pdf',
       fileName: 'demo.pdf',
+      title: 'Bài hát mùa thu',
       activityKey: '2026-09-07#hoc',
       activityLabel: 'Hoạt động học',
     });

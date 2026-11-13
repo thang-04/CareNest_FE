@@ -10,7 +10,7 @@ import { LearningResourceViewer } from './LearningResourceViewer';
 import { ResourceLinkForm } from './ResourceLinkForm';
 import { resourceLibraryService as library } from '@/services/education-plan/resourceLibraryService';
 import { AGE_GROUPS } from '@/models/education-plan/educationPlanConstants';
-import { KIND_LABELS, MATCH_LABELS, MEDIA_ACCEPT, norm, resourceKind } from '@/models/education-plan/learningResources.mjs';
+import { KIND_LABELS, MATCH_LABELS, MEDIA_ACCEPT, formatBytes, norm, resourceKind } from '@/models/education-plan/learningResources.mjs';
 import { Checkbox, TextField } from '@/components';
 
 const ageName = (id) => AGE_GROUPS.find((g) => String(g.id) === String(id))?.name;
@@ -21,7 +21,7 @@ const themeLabel = (t) => (t.schoolYearName ? `${t.name} · ${t.schoolYearName}`
  * Hộp "+ Thêm học liệu" của một mục hoạt động (BE:EDU-82/83/87, spec 901): kho của tôi (BE xếp Cùng MT → Cùng chủ đề → mới
  * nhất, mọi năm), tìm, lọc chủ đề đã dạy + nhóm tuổi; kèm Tải lên và Dán link. Học liệu đã gắn vào mục ghi "Đã gắn".
  * context: { docKey, activityKey, ageGroupId, themeId, themeName, goalIds }; room = số học liệu mục còn nhận.
- * onUpload(file) / onAddLink({ url, title }) / onAttach(ids) trả true khi xong ⇒ đóng hộp.
+ * onUpload(file, title) — title = tên người dùng đặt khi khác tên tệp (bỏ đuôi), null khi giữ nguyên; onAddLink({ url, title }) / onAttach(ids) trả true khi xong ⇒ đóng hộp.
  */
 export function ResourcePickerModal({ user, context, sectionLabel, room, busy, error, onClose, onAttach, onUpload, onAddLink }) {
   const id = useId();
@@ -40,6 +40,8 @@ export function ResourcePickerModal({ user, context, sectionLabel, room, busy, e
   const [picked, setPicked] = useState(() => new Set());
   const [preview, setPreview] = useState(null);
   const [linkOpen, setLinkOpen] = useState(false);
+  // Tệp vừa chọn chờ đặt tên trước khi tải lên: { file, base, name, error }
+  const [pending, setPending] = useState(null);
 
   // Gõ tìm: chờ người dùng ngừng gõ 300 ms rồi mới hỏi BE
   useEffect(() => {
@@ -118,7 +120,10 @@ export function ResourcePickerModal({ user, context, sectionLabel, room, busy, e
         onChange={(e) => {
           const file = e.target.files?.[0];
           e.target.value = '';
-          if (file) done(() => onUpload(file));
+          if (!file) return;
+          const base = file.name.replace(/\.[^.]+$/, '');
+          setLinkOpen(false);
+          setPending({ file, base, name: base, error: '' });
         }}
       />
       <Button
@@ -127,11 +132,59 @@ export function ResourcePickerModal({ user, context, sectionLabel, room, busy, e
         icon={Link2}
         disabled={busy || room < 1}
         aria-expanded={linkOpen}
-        onClick={() => setLinkOpen((v) => !v)}
+        onClick={() => {
+          setPending(null);
+          setLinkOpen((v) => !v);
+        }}
       >
         Dán link
       </Button>
     </div>
+  );
+
+  const submitUpload = (e) => {
+    e.preventDefault();
+    const name = pending.name.trim();
+    if (!name) {
+      setPending({ ...pending, error: 'Nhập tên học liệu.' });
+      return;
+    }
+    done(() => onUpload(pending.file, name === pending.base ? null : name));
+  };
+  const uploadForm = pending && (
+    <form className="ga-resource-link" onSubmit={submitUpload} noValidate>
+      <div className="field">
+        <label className="field__label" htmlFor={`${id}-name`}>
+          Tên học liệu
+        </label>
+        <TextField
+          id={`${id}-name`}
+          value={pending.name}
+          maxLength={255}
+          required
+          autoFocus
+          aria-invalid={!!pending.error}
+          aria-describedby={`${id}-name-hint${pending.error ? ` ${id}-name-err` : ''}`}
+          onChange={(e) => setPending({ ...pending, name: e.target.value, error: '' })}
+        />
+        <p id={`${id}-name-hint`} className="muted text-sm">
+          Tệp: {pending.file.name} · {formatBytes(pending.file.size)}
+        </p>
+        {pending.error && (
+          <p id={`${id}-name-err`} className="field__error" role="alert">
+            {pending.error}
+          </p>
+        )}
+      </div>
+      <div className="row gap-2 mt-8">
+        <Button type="submit" size="sm" variant="primary" icon={Upload} loading={busy}>
+          Tải lên
+        </Button>
+        <Button type="button" size="sm" variant="ghost" onClick={() => setPending(null)} disabled={busy}>
+          {LABELS.cancel}
+        </Button>
+      </div>
+    </form>
   );
 
   return (
@@ -217,7 +270,7 @@ export function ResourcePickerModal({ user, context, sectionLabel, room, busy, e
             </p>
           )}
           {shown.length > 0 && (
-            <ul className="ga-resource-list" aria-label="Học liệu trong kho của tôi">
+            <ul className="ga-resource-list ga-resource-pick" aria-label="Học liệu trong kho của tôi">
               {shown.map((r) => (
                 <li key={r.id}>
                   <label className="row gap-2">
@@ -227,8 +280,8 @@ export function ResourcePickerModal({ user, context, sectionLabel, room, busy, e
                       onChange={() => toggle(r.id)}
                       aria-label={r.attached ? `${r.title} đã gắn vào mục` : `Chọn ${r.title}`}
                     />
-                    <span>
-                      <span className="fw-600">{r.title}</span>
+                    <span className="ga-resource-pick__text">
+                      <span className="fw-600 ga-resource-pick__name">{r.title}</span>
                       <span className="row gap-1 row--wrap text-sm">
                         <span className="chip chip--gray">{KIND_LABELS[resourceKind(r)]}</span>
                         {r.match === 'GOAL' && <span className="chip chip--green">{MATCH_LABELS.GOAL}</span>}
@@ -246,6 +299,7 @@ export function ResourcePickerModal({ user, context, sectionLabel, room, busy, e
                   <Button
                     variant="ghost"
                     size="sm"
+                    className="ga-resource-pick__view"
                     icon={Eye}
                     aria-expanded={preview?.id === r.id}
                     aria-label={`${preview?.id === r.id ? 'Ẩn xem' : 'Xem'} ${r.title}`}
@@ -268,6 +322,7 @@ export function ResourcePickerModal({ user, context, sectionLabel, room, busy, e
           {addControls}
         </>
       )}
+      {uploadForm}
       {linkOpen && <ResourceLinkForm busy={busy} onSubmit={(v) => done(() => onAddLink(v))} onCancel={() => setLinkOpen(false)} />}
     </Modal>
   );

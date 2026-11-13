@@ -127,10 +127,10 @@ const linkItem = (s, user, rawUrl, title) => {
   return existing || newItem(s, user, { kind: 'LINK', title: title?.trim() || defaultLinkTitle(url), url });
 };
 
-const fileItem = (s, user, file) => {
+const fileItem = (s, user, file, title) => {
   const item = newItem(s, user, {
     kind: 'FILE',
-    title: file.name.replace(/\.[^.]+$/, '') || file.name,
+    title: title?.trim().slice(0, 255) || file.name.replace(/\.[^.]+$/, '') || file.name,
     originalName: file.name,
     contentType: file.type || 'application/octet-stream',
     byteSize: file.size,
@@ -232,11 +232,11 @@ export const learningResourceMockRepository = {
       .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.id - b.id)
       .map((a) => rowOf(s, a));
   },
-  async upload(user, docKey, file, binding, _requestId, tags) {
+  async upload(user, docKey, file, binding, _requestId, tags, title) {
     await delay();
     return writeDb((db) => {
       const s = store(db);
-      return attachAll(db, s, user, docKey, binding, [fileItem(s, user, file)], tags)[0];
+      return attachAll(db, s, user, docKey, binding, [fileItem(s, user, file, title)], tags)[0];
     });
   },
   async addLink(user, docKey, { url, title, activityKey, activityLabel, tags }) {
