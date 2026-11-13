@@ -8,6 +8,7 @@ import { useChildRecords, useClassOptions, useHealthRecord } from '@/hooks/child
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { ChildAvatar } from '@/components/ChildAvatar';
 import { EmptyState, LoadingState } from '@/components/ui/States';
+import { Tabs } from '@/components/ui/Tabs';
 import { GrowthChart } from '@/components/children/GrowthChart';
 import { HealthWarningCell } from '@/components/children/HealthWarningCell';
 import { TrendChildList, sortByName } from '@/components/children/TrendChildList';
@@ -21,6 +22,7 @@ import { ageGroupIn, formatNumber, suggestAgeGroupId } from '@/utils/children/ch
 import { childrenCrumbs } from '@/utils/children/breadcrumbs';
 import { isPrincipal, isVicePrincipal } from '@/utils/children/childrenPermissions';
 import '@/styles/modules/children.css';
+import { CampusFilter } from '@/components/ui/CampusFilter';
 
 const PERIODS = [
   { key: '6', label: '6 tháng', months: 6 },
@@ -132,24 +134,16 @@ export default function HealthTrendPage() {
             (leader || classOptions.length > 1) && (
               <>
                 {leader && (
-                  <select
-                    className="select"
+                  <CampusFilter
+                    campuses={campusOptions}
                     value={campusId}
-                    aria-label="Điểm trường"
-                    onChange={(e) => {
-                      const v = e.target.value;
+                    onChange={(v) => {
                       setCampusId(v);
                       setClassId('');
                       keepChildIf((c) => !v || c.campusId === v);
                     }}
-                  >
-                    <option value="">Tất cả điểm trường</option>
-                    {campusOptions.map((cp) => (
-                      <option key={cp.id} value={cp.id}>
-                        {cp.name}
-                      </option>
-                    ))}
-                  </select>
+                    hideLabel
+                  />
                 )}
                 <select
                   className="select"
@@ -253,24 +247,15 @@ export default function HealthTrendPage() {
               </section>
               <section className="card mt-16">
                 <div className="tr-chart-toolbar">
-                  <div className="tabs" role="tablist" aria-label="Cách xem">
-                    <button
-                      role="tab"
-                      aria-selected={view === 'chart'}
-                      className={`tab ${view === 'chart' ? 'tab--active' : ''}`}
-                      onClick={() => setView('chart')}
-                    >
-                      Biểu đồ
-                    </button>
-                    <button
-                      role="tab"
-                      aria-selected={view === 'table'}
-                      className={`tab ${view === 'table' ? 'tab--active' : ''}`}
-                      onClick={() => setView('table')}
-                    >
-                      Bảng số liệu
-                    </button>
-                  </div>
+                  <Tabs
+                    items={[
+                      { key: 'chart', label: 'Biểu đồ' },
+                      { key: 'table', label: 'Bảng số liệu' },
+                    ]}
+                    value={view}
+                    onChange={setView}
+                    ariaLabel="Cách xem"
+                  />
                   <div className="tabs" role="group" aria-label="Khoảng thời gian">
                     {PERIODS.map((p) => (
                       <button

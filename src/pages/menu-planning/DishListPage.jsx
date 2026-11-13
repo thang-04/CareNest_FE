@@ -129,7 +129,7 @@ export default function DishListPage() {
               <table className="table table--grid td-dish-table">
                 <thead>
                   <tr>
-                    <th className="td-num-col num">#</th>
+                    <th className="td-num-col num">STT</th>
                     <th>Tên món ăn</th>
                     <th className="center">Loại món</th>
                     <th>Nhóm tuổi áp dụng</th>

@@ -4,6 +4,7 @@ import { RotateCcw } from '@/components/ui/icons';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { useEducationPlan, useGoalDetails } from '@/hooks/education-plan/useEducationPlan';
 import { Card, EduStatusBadge, EmptyState, PageHead, YearPlanStatusBadge, fmtDate, fmtDateTime } from '@/components/education-plan/eduUi';
+import { Tabs } from '@/components/ui/Tabs';
 import { AGE_GROUPS, EDU_STATUS, EDU_STATUS_LABELS, allGoalItems } from '@/models/education-plan/educationPlanConstants';
 import { themeNumber, themeWeeksOf, yearWeeks } from '@/models/education-plan/classPlan';
 import { StatCard } from '@/components/ui/StatCard';
@@ -130,20 +131,12 @@ export default function SchoolPlansPage() {
         ))}
       </div>
       <Card bodyClass={null}>
-        <div className="tabs" role="tablist">
-          {TABS.map((t) => (
-            <button
-              key={t.key}
-              type="button"
-              role="tab"
-              aria-selected={tab === t.key}
-              className={`tab ${tab === t.key ? 'tab--active' : ''}`}
-              onClick={() => switchTab(t.key)}
-            >
-              {t.label} <span className="tab__count">{data[t.key].length}</span>
-            </button>
-          ))}
-        </div>
+        <Tabs
+          items={TABS.map((t) => ({ key: t.key, label: t.label, count: data[t.key].length }))}
+          value={tab}
+          onChange={switchTab}
+          ariaLabel="Loại kế hoạch"
+        />
         <div className="filter-bar">
           <SearchSubmit value={q} placeholder="Tìm tên, mã, người lập" label="Tìm kế hoạch" onSearch={setQ} />
           <select className="select" value={age} onChange={(e) => setAge(e.target.value)} aria-label="Lọc theo nhóm tuổi">

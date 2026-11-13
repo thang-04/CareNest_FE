@@ -150,5 +150,6 @@ export const listAllStaffAccounts = async (filters = {}) => {
   return all;
 };
 export const createStaffAccount = (payload) => beClient.post('/accounts', payload);
+export const updateStaffAccountProfile = (id, payload) => beClient.patch(`/accounts/${id}/profile`, payload);
 export const setStaffAccountStatus = (id, status) => beClient.patch(`/accounts/${id}/status`, { status });
 export const resetStaffPassword = (id, temporaryPassword) => beClient.post(`/accounts/${id}/temporary-password`, { temporaryPassword });

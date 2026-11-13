@@ -1,13 +1,14 @@
 import { ROLES } from '@/models/User';
 import { formatDate } from '@/utils/format';
 import { getUsers } from '@/services/masterDataService';
-import { getEducationLessons } from '@/services/education-plan/educationPlanService';
-import { getRewardLists } from '@/services/assessment/assessmentService';
+import { getEducationPlans } from '@/services/education-plan/educationPlanService';
+import { getClassAssessmentOverview, getRewardLists } from '@/services/assessment/assessmentService';
 import { getMealCounts } from '@/services/attendance/attendanceService';
+import { getPublishedMenu } from '@/services/kitchen/kitchenService';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
-import { REWARD_STATUS_LABELS } from '@/models/assessment/assessmentConstants';
-import { MEAL_COUNT_STATUS_LABELS } from '@/models/attendance/attendanceConstants';
-import { MEAL_SESSION_LABELS } from '@/models/kitchen/kitchenConstants';
+import { OVERVIEW_PERIOD, REWARD_STATUS_LABELS } from '@/models/assessment/assessmentConstants';
+import { MEAL_COUNT_STATUS, MEAL_COUNT_STATUS_LABELS } from '@/models/attendance/attendanceConstants';
+import { MEAL_SESSION_LABELS, MENU_TYPE } from '@/models/kitchen/kitchenConstants';
 import { canConfirmMealCount } from '@/utils/attendance/attendancePermissions';
 import { APPROVAL_TYPE, APPROVAL_TYPES_BY_ROLE } from '@/models/dashboard/dashboardConstants';
 import { canViewPendingApprovals } from '@/utils/dashboard/dashboardPermissions';
@@ -34,13 +35,13 @@ const lessonPeriod = (l) => (l.type === 'day' ? `ngày ${formatDate(l.date)}` : 
 /** Each source: (user, ctx) → Promise<PendingApprovalItem[]>. ctx = { users, schoolYear, date } */
 const SOURCES = {
   [APPROVAL_TYPE.LESSON_REVIEW]: async (user) => {
-    const { lessons } = await getEducationLessons();
+    const { lessons } = await getEducationPlans();
     return lessons
       .filter((l) => l.status === EDU_STATUS.PENDING_TL && l.ageGroupId === user.ageGroupId)
       .map((l) => ({
         id: l.id,
         code: l.code,
-        title: `${LESSON_TYPE[l.type] || 'Kế hoạch giáo dục ngày'} ${lessonPeriod(l)}`.trim(),
+        title: `${LESSON_TYPE[l.type] || 'Giáo án'} ${lessonPeriod(l)}`.trim(),
         by: l.createdBy,
         at: lastAt(l.history),
         campusId: null,
@@ -49,7 +50,7 @@ const SOURCES = {
       }));
   },
   [APPROVAL_TYPE.THEME_PLAN]: async () => {
-    const { themes } = await getEducationLessons();
+    const { themes } = await getEducationPlans();
     return themes
       .filter((t) => t.status === EDU_STATUS.PENDING_VP)
       .map((t) => ({
@@ -64,13 +65,13 @@ const SOURCES = {
       }));
   },
   [APPROVAL_TYPE.LESSON_PLAN]: async () => {
-    const { lessons } = await getEducationLessons();
+    const { lessons } = await getEducationPlans();
     return lessons
       .filter((l) => l.status === EDU_STATUS.PENDING_VP)
       .map((l) => ({
         id: l.id,
         code: l.code,
-        title: `${LESSON_TYPE[l.type] || 'Kế hoạch giáo dục ngày'} ${lessonPeriod(l)}`.trim(),
+        title: `${LESSON_TYPE[l.type] || 'Giáo án'} ${lessonPeriod(l)}`.trim(),
         by: l.createdBy,
         at: lastAt(l.history),
         campusId: null,
@@ -157,4 +158,46 @@ export async function getPendingApprovals(user, { schoolYear, date }) {
       error: r.status === 'rejected' ? r.reason : null,
     };
   });
+}
+
+/**
+ * Bữa trưa hôm nay của trang chủ: tổng suất (thường + thay thế) theo sổ báo ăn, số điểm trường đã xác nhận, thực đơn đã công bố.
+ * counts = getMealCounts().counts, menu = getPublishedMenu({ view: 'day' }); null = nguồn đó không tải được.
+ */
+export function buildLunch({ counts, menu, campusId = '', campusName = (id) => id }) {
+  const lunches = counts ? counts.filter((c) => c.session === 'LUNCH' && (!campusId || c.campusId === campusId)) : null;
+  const session = menu ? (menu[0]?.sessions || []).find((s) => s.session === 'LUNCH' && s.menus.length) : null;
+  const normal = (session?.menus || []).filter((m) => m.type !== MENU_TYPE.ALLERGY);
+  const confirmed = (c) => c.status === MEAL_COUNT_STATUS.CONFIRMED;
+  return {
+    meals: lunches ? lunches.reduce((n, c) => n + c.totals.normal + c.totals.substitute, 0) : null,
+    campuses: lunches ? lunches.length : null,
+    confirmed: lunches ? lunches.filter(confirmed).length : null,
+    pendingCampuses: lunches ? lunches.filter((c) => !confirmed(c)).map((c) => campusName(c.campusId)) : [],
+    reconfirm: !!lunches?.some((c) => c.needsReconfirmation),
+    menuLoaded: !!menu,
+    published: !!session,
+    dishes: [...new Set(normal.flatMap((m) => m.dishes.map((d) => d.name)))],
+    allergyMenus: (session?.menus.length || 0) - normal.length,
+  };
+}
+
+/** Sổ báo ăn + thực đơn đã công bố hôm nay; nguồn lỗi hoặc 403 theo vai trò trả null. */
+export async function getLunchSources(user, { date }) {
+  const [counts, menu] = await Promise.all([
+    getMealCounts({ date }, user)
+      .then((r) => r?.counts || [])
+      .catch(() => null),
+    getPublishedMenu({ date, view: 'day' }, user).catch(() => null),
+  ]);
+  return { counts, menu };
+}
+
+/** Nguồn phụ của "Tiến độ trong ngày": mỗi nguồn lỗi (hoặc 403 với vai trò) trả null, không làm hỏng cả khối. */
+export async function getDayProgressSources(user, { date, schoolYear, campusId }) {
+  const [lunch, assessment] = await Promise.all([
+    getLunchSources(user, { date }),
+    getClassAssessmentOverview({ period: OVERVIEW_PERIOD.DAY, date, schoolYear, campusId: campusId || undefined }, user).catch(() => null),
+  ]);
+  return { ...lunch, assessment };
 }

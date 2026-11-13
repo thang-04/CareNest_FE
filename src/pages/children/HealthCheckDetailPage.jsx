@@ -8,6 +8,7 @@ import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { Modal } from '@/components/ui/Modal';
 import { EmptyState, LoadingState, Spinner } from '@/components/ui/States';
+import { Tabs } from '@/components/ui/Tabs';
 import { clickableRowProps } from '@/utils/clickableRow';
 import { FormField } from '@/components/form/FormField';
 import { DateInput } from '@/components/form/DateInput';
@@ -319,24 +320,15 @@ export default function HealthCheckDetailPage() {
         <section className="card mt-16">
           {/* Trẻ cần chú ý BE trả (watchList): đợt khám theo mức theo dõi, kỳ cân đo theo mức BMI (HLT-19). */}
           <div className="tr-chart-toolbar">
-            <div className="tabs" role="tablist" aria-label={`Nội dung ${w.name}`}>
-              <button
-                role="tab"
-                aria-selected={tab === 'classes'}
-                className={`tab ${tab === 'classes' ? 'tab--active' : ''}`}
-                onClick={() => setTab('classes')}
-              >
-                Tiến độ theo lớp
-              </button>
-              <button
-                role="tab"
-                aria-selected={tab === 'watch'}
-                className={`tab ${tab === 'watch' ? 'tab--active' : ''}`}
-                onClick={() => setTab('watch')}
-              >
-                {isRound ? 'Trẻ có cảnh báo BMI' : 'Trẻ cần theo dõi'} <span className="tab__count">{watchList.length}</span>
-              </button>
-            </div>
+            <Tabs
+              items={[
+                { key: 'classes', label: 'Tiến độ theo lớp' },
+                { key: 'watch', label: isRound ? 'Trẻ có cảnh báo BMI' : 'Trẻ cần theo dõi', count: watchList.length },
+              ]}
+              value={tab}
+              onChange={setTab}
+              ariaLabel={`Nội dung ${w.name}`}
+            />
           </div>
           {tab === 'classes' ? (
             classes.length === 0 ? (

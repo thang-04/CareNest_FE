@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { EmptyState } from '@/components/ui/States';
 import { AlertTriangle, Eye } from '@/components/ui/icons';
 import { Modal } from '@/components/ui/Modal';
 import { formatDate } from '@/utils/format';
@@ -114,7 +115,10 @@ export function AllergyMenuChanges({ changes = [], date, context, compact = fals
                 </table>
               </div>
             ) : (
-              <p className="muted">Chưa ghi nhận trẻ phù hợp với lý do dị ứng này trong nhóm tuổi và điểm trường đang xem.</p>
+              <EmptyState
+                title="Chưa ghi nhận trẻ phù hợp"
+                description="Không có trẻ nào có lý do dị ứng này trong nhóm tuổi và điểm trường đang xem."
+              />
             )}
           </>
         )}

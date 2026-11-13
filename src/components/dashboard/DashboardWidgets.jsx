@@ -18,6 +18,7 @@ export function Widget({
   emptyTitle = 'Không có việc cần xử lý',
   emptyText,
   emptyIcon,
+  actions,
   children,
 }) {
   let body = children;
@@ -41,6 +42,7 @@ export function Widget({
           {Icon && <Icon size={18} className="text-primary" aria-hidden="true" />}
           {title}
         </h2>
+        {actions}
         {to && (
           <Link to={to} className="db-widget__link">
             {linkLabel} <ArrowRight size={14} aria-hidden="true" />

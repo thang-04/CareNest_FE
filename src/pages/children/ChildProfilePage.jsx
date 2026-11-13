@@ -17,7 +17,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useChildDetail } from '@/hooks/children/useChildRecords';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
-import { LoadingState } from '@/components/ui/States';
+import { EmptyState, LoadingState } from '@/components/ui/States';
+import { Tabs } from '@/components/ui/Tabs';
 import { ChildStatusBadge } from '@/components/children/ChildBadges';
 import { ChildAccessState } from '@/components/children/ChildAccessState';
 import { CHILD_STATUS, GENDER_LABELS, ageGroupById, ageLabel } from '@/models/School';
@@ -114,20 +115,7 @@ export default function ChildProfilePage() {
         </div>
       )}
 
-      <div className="tabs mb-16" role="tablist" aria-label="Phần hồ sơ">
-        {TABS.map((t) => (
-          <button
-            key={t.key}
-            type="button"
-            role="tab"
-            aria-selected={tab === t.key}
-            className={`tab ${tab === t.key ? 'tab--active' : ''}`}
-            onClick={() => setTab(t.key)}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <Tabs className="mb-16" items={TABS} value={tab} onChange={setTab} ariaLabel="Phần hồ sơ" />
 
       {tab === 'overview' && (
         <div className="detail-layout" role="tabpanel">
@@ -197,7 +185,10 @@ export default function ChildProfilePage() {
                 )}
               </div>
               {child.guardians.length === 0 ? (
-                <div className="card__body muted">Chưa có thông tin phụ huynh.</div>
+                <EmptyState
+                  title="Chưa có thông tin phụ huynh"
+                  description="Thêm phụ huynh ở màn Sửa hồ sơ để nhà trường liên hệ khi cần."
+                />
               ) : (
                 <div className="table-wrap tr-table-flat">
                   <table className="table table--grid">
@@ -315,7 +306,7 @@ export default function ChildProfilePage() {
             </div>
             <div className="card__body">
               {placements.length === 0 ? (
-                <p className="muted">Chưa có thay đổi lớp nào được ghi nhận trên hệ thống.</p>
+                <EmptyState title="Chưa có thay đổi lớp" description="Mỗi lần xếp lớp hoặc chuyển lớp sẽ được ghi lại ở đây." />
               ) : (
                 <ul className="history-list">
                   {placements.map((p) => (

@@ -48,7 +48,7 @@ export function TemplateMealSection({ session, items, ingredients, loading, edit
             {!noLines && (
               <thead>
                 <tr>
-                  <th className="td-meal__no">#</th>
+                  <th className="td-meal__no">STT</th>
                   <th>Thực phẩm</th>
                   <th className="num">Lượng ăn (g)</th>
                   <th className="num">Thải bỏ (%)</th>

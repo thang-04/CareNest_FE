@@ -13,6 +13,7 @@ import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';
 import '@/styles/modules/assessment.css';
 import { SemesterSelect } from '@/components/form/SemesterSelect';
 import { monthInSemester, semestersOf } from '@/utils/semesters';
+import { CampusFilter } from '@/components/ui/CampusFilter';
 
 const VIEWS = [
   { key: 'month', label: 'Theo tháng' },
@@ -202,16 +203,7 @@ export default function QualityReportPage() {
               )}
             </div>
           )}
-          {multiCampus && (
-            <select className="select" aria-label="Điểm trường" value={campusId} onChange={(e) => setCampusId(e.target.value)}>
-              <option value="">Tất cả điểm trường</option>
-              {campusOptions.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.fullName || c.name}
-                </option>
-              ))}
-            </select>
-          )}
+          {multiCampus && <CampusFilter campuses={campusOptions} value={campusId} onChange={(v) => setCampusId(v)} hideLabel />}
           <div className="spacer" />
           {(program ? programRows : rows).length > 0 && (
             <button className="btn" onClick={exportCsv}>

@@ -5,7 +5,7 @@ import { useToast } from '@/contexts/ToastContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useRooms, useSchoolStructure } from '@/hooks/school-config/useSchoolConfig';
 import { FormField } from '@/components/form/FormField';
-import { ErrorState, LoadingState, Spinner } from '@/components/ui/States';
+import { EmptyState, ErrorState, LoadingState, Spinner } from '@/components/ui/States';
 import { saveClass } from '@/services/school-config/schoolConfigService';
 import { saveRoom } from '@/services/masterDataService';
 import { isActiveLocation, LOCATION_TYPES } from '@/models/Location';
@@ -233,8 +233,8 @@ export function YearClassesQuickEdit({ yearId, withRooms = false }) {
               <tbody>
                 {rooms.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="muted">
-                      Chưa có phòng học.
+                    <td colSpan={5}>
+                      <EmptyState title="Chưa có phòng học" description="Thêm phòng ở dòng nhập phía dưới." />
                     </td>
                   </tr>
                 )}
@@ -324,8 +324,8 @@ export function YearClassesQuickEdit({ yearId, withRooms = false }) {
             <tbody>
               {classes.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="muted">
-                    Chưa có lớp.
+                  <td colSpan={6}>
+                    <EmptyState title="Chưa có lớp" description="Thêm lớp ở dòng nhập phía dưới." />
                   </td>
                 </tr>
               )}
