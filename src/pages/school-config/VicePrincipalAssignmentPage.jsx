@@ -402,7 +402,7 @@ export default function VicePrincipalAssignmentPage({ embedded = false }) {
       ) : loading ? (
         <div className="card">
           <div className="table-wrap">
-            <table className="table table--compact">
+            <table className="table table--grid table--compact">
               <tbody>
                 <SkeletonRows rows={4} cols={3} />
               </tbody>

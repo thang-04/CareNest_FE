@@ -7,7 +7,7 @@ import { useConfigYear } from '@/hooks/school-config/useConfigYear';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useCutoffSetting } from '@/hooks/school-config/useSchoolConfig';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
-import { ErrorState, LoadingState, Spinner } from '@/components/ui/States';
+import { EmptyState, ErrorState, LoadingState, Spinner } from '@/components/ui/States';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
@@ -248,8 +248,8 @@ export default function CutoffSettingPage() {
                 <tbody>
                   {!setting?.history?.length ? (
                     <tr>
-                      <td colSpan={6} className="muted center">
-                        Chưa có thay đổi nào.
+                      <td colSpan={6}>
+                        <EmptyState title="Chưa có thay đổi nào" description="Mỗi lần đổi giờ chốt sẽ được ghi lại ở đây." />
                       </td>
                     </tr>
                   ) : (

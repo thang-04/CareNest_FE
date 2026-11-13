@@ -23,6 +23,7 @@ test('tổng quan toàn trường không hiển thị hồ sơ chờ duyệt', a
     const useEducationPlan=()=>({goals:[{id:'1',schoolYear:'2026',status:'REVIEW',title:'Demo',themes:[]}],branchPlans:[],classThemePlans:[],schoolYear:'2026',classes:[]});
     const useNavigate=()=>()=>{}, RotateCcw=()=>null, SearchSubmit=()=>null, PageHead=()=>null, EmptyState=()=>null;
     const Card=({children})=><section>{children}</section>, StatCard=({label,value})=><span>{label}: {value}</span>;
+    const Tabs=({items})=><div role="tablist">{items.map((t)=><button key={t.key} role="tab">{t.label} {t.count}</button>)}</div>;
     const EduStatusBadge=({status})=><span>{EDU_STATUS_LABELS[status]}</span>, YearPlanStatusBadge=EduStatusBadge;
     const AGE_GROUPS=[], allGoalItems=()=>[], themeNumber=()=>'', themeWeeksOf=()=>[], yearWeeks=()=>[], clickableRowProps=()=>({}), fmtDate=()=>'', fmtDateTime=()=>'';
   `;

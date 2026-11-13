@@ -2,14 +2,13 @@ import { useGuardedNavigate } from '@/hooks/useLeaveGuard';
 import { CalendarDays, SidebarExpand } from '@/components/ui/icons';
 import { NotificationBell } from './NotificationBell';
 import { HeaderSearch } from './HeaderSearch';
-import { QuickCreateMenu } from './QuickCreateMenu';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 
 /**
- * Header: năm học (ngữ cảnh dữ liệu) bên trái · ô tìm chức năng ở giữa · Tạo nhanh · thông báo (tài khoản ở đáy sidebar).
- * Nút thu gọn sidebar nằm trong sidebar; header chỉ có nút mở menu khi sidebar là ngăn kéo (màn hẹp).
+ * Header: đường dẫn + tên trang bên trái (trang đưa lên qua `crumbRef`) · ô tìm chức năng · năm học · thông báo
+ * (tài khoản ở đáy sidebar). Nút thu gọn sidebar nằm trong sidebar; header chỉ có nút mở menu khi sidebar là ngăn kéo.
  */
-export function Header({ role, showMenuButton, menuOpen, onToggleSidebar }) {
+export function Header({ role, showMenuButton, menuOpen, onToggleSidebar, crumbRef }) {
   const { schoolYear, setSchoolYear, schoolYears } = useSchoolYear();
   const guarded = useGuardedNavigate();
   return (
@@ -19,6 +18,10 @@ export function Header({ role, showMenuButton, menuOpen, onToggleSidebar }) {
           <SidebarExpand size={22} />
         </button>
       )}
+      <div className="header__crumb" ref={crumbRef} />
+      <div className="header__center">
+        <HeaderSearch role={role} />
+      </div>
       <label className="header__year" title="Năm học">
         <CalendarDays size={18} aria-hidden className="header__year-icon" />
         <select
@@ -38,10 +41,6 @@ export function Header({ role, showMenuButton, menuOpen, onToggleSidebar }) {
           ))}
         </select>
       </label>
-      <div className="header__center">
-        <HeaderSearch role={role} />
-      </div>
-      <QuickCreateMenu role={role} />
       <NotificationBell />
     </header>
   );

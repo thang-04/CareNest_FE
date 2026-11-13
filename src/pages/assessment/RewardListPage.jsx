@@ -7,13 +7,14 @@ import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { Pagination, paginate } from '@/components/ui/Pagination';
-import { RowActions } from '@/components/ui/RowActions';
+import { clickableRowProps } from '@/utils/clickableRow';
 import { RewardStatusBadge } from '@/components/assessment/AssessmentBadges';
 import { REWARD_STATUS as S, REWARD_STATUS_LABELS } from '@/models/assessment/assessmentConstants';
 import { formatDate, normalizeText } from '@/utils/format';
 import { isLeader, isPrincipal, isVicePrincipal } from '@/utils/assessment/assessmentPermissions';
 import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';
 import '@/styles/modules/assessment.css';
+import { CampusFilter } from '@/components/ui/CampusFilter';
 
 const STATUS_FILTERS = ['NONE', S.DRAFT, S.RETURNED, S.PENDING_VP, S.PENDING_PRINCIPAL, S.APPROVED];
 
@@ -70,22 +71,15 @@ export default function RewardListPage() {
               }}
             />
             {leader && multiCampus && (
-              <select
-                className="select"
+              <CampusFilter
+                campuses={campuses}
                 value={campusId}
-                aria-label="Điểm trường"
-                onChange={(e) => {
-                  setCampusId(e.target.value);
+                onChange={(v) => {
+                  setCampusId(v);
                   setPage(1);
                 }}
-              >
-                <option value="">Tất cả điểm trường</option>
-                {campuses.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.fullName || c.name}
-                  </option>
-                ))}
-              </select>
+                hideLabel
+              />
             )}
             <select
               className="select"
@@ -154,7 +148,7 @@ export default function RewardListPage() {
                     const a = action(r);
                     const to = `/assessment/rewards/${r.classId}`;
                     return (
-                      <tr key={r.classId} className="row-click" onClick={() => navigate(to)}>
+                      <tr key={r.classId} className="row-click" {...clickableRowProps(() => navigate(to))}>
                         <td className="fw-600">{r.className}</td>
                         {leader && multiCampus && <td>{r.campusName}</td>}
                         <td className="num">{r.children}</td>
@@ -164,12 +158,10 @@ export default function RewardListPage() {
                         </td>
                         <td className="nowrap">{r.submittedAt ? formatDate(r.submittedAt) : '—'}</td>
                         <td className="cell--actions" onClick={(e) => e.stopPropagation()}>
-                          {a.primary ? (
+                          {a.primary && (
                             <Link className="btn btn--primary btn--sm" to={to}>
                               <FileCheck2 size={15} /> {a.label}
                             </Link>
-                          ) : (
-                            <RowActions view={{ to, label: a.label }} name={r.className} />
                           )}
                         </td>
                       </tr>

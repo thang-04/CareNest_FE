@@ -9,6 +9,8 @@ import { useChildRecords, useClassOptions, usePlacementClasses } from '@/hooks/c
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
+import { Tabs } from '@/components/ui/Tabs';
+import { clickableRowProps } from '@/utils/clickableRow';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
 import { FormField } from '@/components/form/FormField';
@@ -131,20 +133,12 @@ export default function ClassPlacementPage() {
       <ActiveYearNotice action="Xếp lớp, chuyển lớp" />
       <div className="split-2 tr-split">
         <section className="card">
-          <div className="tabs" role="tablist">
-            {TABS.map((t) => (
-              <button
-                key={t.key}
-                role="tab"
-                aria-selected={tab === t.key}
-                className={`tab ${tab === t.key ? 'tab--active' : ''}`}
-                onClick={() => setTab(t.key)}
-              >
-                {t.label}
-                <span className="tab__count">{tabCount(t.key)}</span>
-              </button>
-            ))}
-          </div>
+          <Tabs
+            items={TABS.map((t) => ({ ...t, count: tabCount(t.key) }))}
+            value={tab}
+            onChange={setTab}
+            ariaLabel="Nhóm trẻ cần xếp lớp"
+          />
           <div className="filter-bar">
             <SearchSubmit
               className="flex-1"
@@ -195,12 +189,11 @@ export default function ClassPlacementPage() {
                       <tr
                         key={c.id}
                         className={`row-click ${c.id === selectedId ? 'row--selected' : ''}`}
-                        onClick={() => setParams({ childId: c.id })}
+                        aria-selected={c.id === selectedId}
+                        {...clickableRowProps(() => setParams({ childId: c.id }))}
                       >
                         <td>
-                          <button type="button" className="link-btn fw-600" onClick={() => setParams({ childId: c.id })}>
-                            {c.fullName}
-                          </button>
+                          <span className="fw-600">{c.fullName}</span>
                           <div className="muted text-xs">{c.code}</div>
                         </td>
                         <td className="nowrap">{ageLabel(c.dateOfBirth)}</td>
