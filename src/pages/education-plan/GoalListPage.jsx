@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Plus, RotateCcw } from '@/components/ui/icons';
 import { ROLES } from '@/models/User';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
+import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { AGE_GROUPS, EDU_STATUS, allGoalItems } from '@/models/education-plan/educationPlanConstants';
 import { Card, EmptyState, PageHead, YearPlanStatusBadge, fmtDate } from '@/components/education-plan/eduUi';
 import { StatCard } from '@/components/ui/StatCard';
@@ -38,6 +39,7 @@ export default function GoalListPage({ planLevel = 'TEAM' }) {
   const basePath = planRoute({ planLevel });
   const pageLabel = annual ? 'Kế hoạch năm học' : 'Kế hoạch giáo dục tổ';
   const { goals: allGoals, schoolYear, role, user, classes, eduConfig } = useEducationPlan();
+  const { schoolYears: yearOptions } = useSchoolYear();
   const goals = allGoals.filter((g) => levelOf(g) === planLevel);
   const navigate = useNavigate();
   const [q, setQ] = useState('');
@@ -73,8 +75,13 @@ export default function GoalListPage({ planLevel = 'TEAM' }) {
   usePolling(() => queue.reload({ silent: true }), { enabled: isVP || isPrincipal });
 
   const creationScopes = eduConfig?.[annual ? 'schoolYearCreationScopes' : 'yearCreationScopes'];
+  // EDU-89: năm đã kết thúc / năm sắp tới chưa tới ngày mở chuẩn bị ⇒ chỉ xem, không lập kế hoạch
+  const norm = (v) => String(v || '').replace(/\s*[-–]\s*/g, '-');
+  const yearOpt = yearOptions.find((y) => norm(y.label) === norm(schoolYear));
+  const yearWritable = !yearOpt || yearOpt.status === 'ACTIVE' || yearOpt.preparing;
   const canCreate =
     annual &&
+    yearWritable &&
     !principalViewer &&
     (creationScopes
       ? creationScopes.some((id) => !scoped.some((g) => g.ageGroupId === id))

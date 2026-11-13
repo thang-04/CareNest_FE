@@ -6,6 +6,7 @@ import { ReviewActions } from '@/components/education-plan/reviewUi';
 import { DeadlineBadge } from '@/components/education-plan/DeadlineWidgets';
 import { LoadingState } from '@/components/ui/States';
 import { Eye, Plus } from '@/components/ui/icons';
+import { DocTable } from '@/components/ui/DocTable';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { usePolling } from '@/hooks/usePolling';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
@@ -199,65 +200,63 @@ function DayPlansList({ classId }) {
             }
           >
             <div className="card__body">
-              <div className="table-wrap">
-                <table className="table ga-plan-table ga-goal-table ga-class-plan-table">
-                  <colgroup>
-                    <col className="ga-col-main" />
-                    <col className="ga-col-theme-time" />
-                    {showActions && <col className="ga-col-theme-actions" />}
-                  </colgroup>
-                  <thead>
-                    <tr>
-                      <th>Nội dung</th>
-                      <th>Thời gian</th>
-                      {showActions && <th className="cell--actions ga-col-theme-actions">Thao tác</th>}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {themeRows.map((r) => {
-                      if (r.type === 'break')
-                        return (
-                          <tr key={`b-${r.start}`}>
-                            <td colSpan={showActions ? 3 : 2}>
-                              <div className="ga-goal-table__pad muted">
-                                Nghỉ: {r.label || 'Đợt nghỉ'} ({ddmm(r.start)} → {ddmm(r.end)})
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      const g = branchOf(r.start);
-                      const name = g?.name?.trim();
-                      const saved = savedWeek(r.start);
+              <DocTable className="ga-plan-table ga-goal-table ga-class-plan-table">
+                <colgroup>
+                  <col className="ga-col-main" />
+                  <col className="ga-col-theme-time" />
+                  {showActions && <col className="ga-col-theme-actions" />}
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th>Nội dung</th>
+                    <th>Thời gian</th>
+                    {showActions && <th className="cell--actions ga-col-theme-actions">Thao tác</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {themeRows.map((r) => {
+                    if (r.type === 'break')
                       return (
-                        <tr key={r.start}>
-                          <td>
-                            <div className={`ga-goal-table__pad ${name ? 'fw-600' : 'muted'}`}>
-                              Nhánh {g?.no || '—'}: {name || 'chưa đặt tên'}
+                        <tr key={`b-${r.start}`}>
+                          <td colSpan={showActions ? 3 : 2}>
+                            <div className="ga-goal-table__pad muted">
+                              Nghỉ: {r.label || 'Đợt nghỉ'} ({ddmm(r.start)} → {ddmm(r.end)})
                             </div>
                           </td>
-                          <td className="cell--fixed">
-                            <div className="ga-goal-table__pad">
-                              Tuần {r.no}: {ddmm(r.start)} → {ddmm(r.end)}
-                            </div>
-                          </td>
-                          {showActions && (
-                            <td className="center cell--actions">
-                              <div className="ga-goal-table__pad">
-                                {(saved || !viewer) && (
-                                  <Link className="btn btn--outline-primary btn--sm" to={dayUrl(r.start)}>
-                                    {saved || viewer ? <Eye size={16} aria-hidden /> : <Plus size={16} aria-hidden />}{' '}
-                                    {saved || viewer ? 'Mở' : 'Soạn'}
-                                  </Link>
-                                )}
-                              </div>
-                            </td>
-                          )}
                         </tr>
                       );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                    const g = branchOf(r.start);
+                    const name = g?.name?.trim();
+                    const saved = savedWeek(r.start);
+                    return (
+                      <tr key={r.start}>
+                        <td>
+                          <div className={`ga-goal-table__pad ${name ? 'fw-600' : 'muted'}`}>
+                            Nhánh {g?.no || '—'}: {name || 'chưa đặt tên'}
+                          </div>
+                        </td>
+                        <td className="cell--fixed">
+                          <div className="ga-goal-table__pad">
+                            Tuần {r.no}: {ddmm(r.start)} → {ddmm(r.end)}
+                          </div>
+                        </td>
+                        {showActions && (
+                          <td className="center cell--actions">
+                            <div className="ga-goal-table__pad">
+                              {(saved || !viewer) && (
+                                <Link className="btn btn--outline-primary btn--sm" to={dayUrl(r.start)}>
+                                  {saved || viewer ? <Eye size={16} aria-hidden /> : <Plus size={16} aria-hidden />}{' '}
+                                  {saved || viewer ? 'Mở' : 'Soạn'}
+                                </Link>
+                              )}
+                            </div>
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </DocTable>
             </div>
           </Card>
         );

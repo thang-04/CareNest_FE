@@ -14,7 +14,7 @@ import { buildClassDay } from '@/services/dashboard/dashboardSummaryService';
 import { getAttendanceClasses, getClassAttendance } from '@/services/attendance/attendanceService';
 import { isClassTeacher } from '@/utils/attendance/attendancePermissions';
 import { getPickupBoard } from '@/services/pickup/pickupService';
-import { getEducationPlans } from '@/services/education-plan/educationPlanService';
+import { getEducationLessons } from '@/services/education-plan/educationPlanService';
 import { getDailyAssessment, getEvaluations } from '@/services/assessment/assessmentService';
 import { EDU_STATUS, isEduReviewPending } from '@/models/education-plan/educationPlanConstants';
 import { EVAL_KIND, EVAL_STATUS, PERIOD_TYPE } from '@/models/assessment/assessmentConstants';
@@ -102,7 +102,7 @@ export function ClassTodayPanel({ aside = null }) {
     [classId, date, schoolYear],
     enabled,
   );
-  const lessonsQ = useWidget(() => getEducationPlans().then((d) => d.lessons.filter((l) => l.classId === user.classId)), [user.classId]);
+  const lessonsQ = useWidget(() => getEducationLessons().then((d) => d.lessons.filter((l) => l.classId === user.classId)), [user.classId]);
   const evaluationsQ = useWidget(
     (u) =>
       Promise.all([getEvaluations(EVAL_KIND.SEMESTER, { classId }, u), getEvaluations(EVAL_KIND.YEAR_END, { classId }, u)]).then((lists) =>
@@ -176,8 +176,8 @@ export function ClassTodayPanel({ aside = null }) {
                   key: 'lessons',
                   to: '/education/theme-plans',
                   icon: BookOpenCheck,
-                  title: 'Giáo án của lớp',
-                  meta: metaOf(lessonsQ, `Nháp hoặc bị từ chối cần hoàn thiện · ${lessonsWaiting} giáo án đang chờ duyệt`),
+                  title: 'Kế hoạch giáo dục ngày của lớp',
+                  meta: metaOf(lessonsQ, `Nháp hoặc bị từ chối cần hoàn thiện · ${lessonsWaiting} kế hoạch giáo dục ngày đang chờ duyệt`),
                   end: endOf(lessonsQ, lessonsToFix),
                 },
                 {

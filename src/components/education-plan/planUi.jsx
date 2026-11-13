@@ -1,4 +1,5 @@
 import { adaptCalendar, calendarPlan, seedTeamBranchTemplates } from '@/models/education-plan/branchCalendar.mjs';
+import { Tabs } from '@/components/ui/Tabs';
 import { useId, useMemo, useRef } from 'react';
 import { EmptyCard, PageHead } from '@/components/education-plan/eduUi';
 import { useSearchParams } from 'react-router-dom';
@@ -247,41 +248,41 @@ export function ThemeBranchTabs({ yearPlan, branchDoc, themeId, classId, current
   const groups = themeBranchGroups(yearPlan, branchDoc, themeId);
   const base = `/education/class/${classId}`;
   const active = groups.find((g) => g.weeks.some((w) => w.start === current));
-  const tab = (key, selected, label, to, disabled = false) => (
-    <button
-      key={key}
-      type="button"
-      role="tab"
-      aria-selected={selected}
-      tabIndex={selected ? 0 : -1}
-      className={`tab ${selected ? 'tab--active' : ''}`}
-      disabled={disabled}
-      title={disabled ? weeksDisabledReason : label}
-      onClick={() => !selected && onGo(to)}
-    >
-      <span className="ga-theme-tabs__label">{label}</span>
-    </button>
-  );
+  const item = (key, label, to, disabled = false) => ({
+    key,
+    to,
+    disabled,
+    title: disabled ? weeksDisabledReason : label,
+    label: <span className="ga-theme-tabs__label">{label}</span>,
+  });
+  const go = (items, value) => (key) => key !== value && onGo(items.find((t) => t.key === key).to);
+  const branchItems = [
+    item('theme', 'Kế hoạch chủ đề', `${base}/themes/${themeId}`),
+    ...groups.map((g) =>
+      item(g.weeks[0].start, `${g.label}${g.name ? `: ${g.name}` : ''}`, `${base}/weeks/${g.weeks[0].start}`, !!weeksDisabledReason),
+    ),
+    // Spec 006 FR-013: tab riêng "Bảng phủ MT" sau tab tuần cuối
+    item('coverage', 'Bảng phủ MT', `${base}/themes/${themeId}?tab=coverage`),
+  ];
+  const branchValue = active ? active.weeks[0].start : current;
+  const weekItems = active?.weeks.map((w) => item(w.start, `Tuần ${w.themeNo} · ${ddmm(w.start)}`, `${base}/weeks/${w.start}`)) || [];
   return (
     <>
-      <div className="tabs ga-class-tabs ga-theme-tabs" role="tablist" aria-label="Kế hoạch chủ đề và các chủ đề nhánh">
-        {tab('theme', current === 'theme', 'Kế hoạch chủ đề', `${base}/themes/${themeId}`)}
-        {groups.map((g) =>
-          tab(
-            g.weeks[0].start,
-            g === active,
-            `${g.label}${g.name ? `: ${g.name}` : ''}`,
-            `${base}/weeks/${g.weeks[0].start}`,
-            !!weeksDisabledReason,
-          ),
-        )}
-        {/* Spec 006 FR-013: tab riêng "Bảng phủ MT" sau tab tuần cuối */}
-        {tab('coverage', current === 'coverage', 'Bảng phủ MT', `${base}/themes/${themeId}?tab=coverage`)}
-      </div>
-      {active && active.weeks.length > 1 && (
-        <div className="tabs ga-class-tabs" role="tablist" aria-label={`Các tuần của nhánh ${active.no}`}>
-          {active.weeks.map((w) => tab(w.start, w.start === current, `Tuần ${w.themeNo} · ${ddmm(w.start)}`, `${base}/weeks/${w.start}`))}
-        </div>
+      <Tabs
+        className="ga-class-tabs ga-theme-tabs"
+        ariaLabel="Kế hoạch chủ đề và các chủ đề nhánh"
+        items={branchItems}
+        value={branchValue}
+        onChange={go(branchItems, branchValue)}
+      />
+      {weekItems.length > 1 && (
+        <Tabs
+          className="ga-class-tabs"
+          ariaLabel={`Các tuần của nhánh ${active.no}`}
+          items={weekItems}
+          value={current}
+          onChange={go(weekItems, current)}
+        />
       )}
     </>
   );

@@ -132,11 +132,11 @@ export function ImportGoalFileModal({ form, themes = [], allowedAgeGroupIds, yea
         </fieldset>
       }
     >
-      {state.status === 'error' && <Notice tone="err">{state.message}</Notice>}
-      {applyError && <Notice tone="warn">{applyError}</Notice>}
+      {state.status === 'error' && <Notice>{state.message}</Notice>}
+      {applyError && <Notice>{applyError}</Notice>}
       {preview && (
         <div className="import-preview">
-          {prepared.error && <Notice tone="err">{prepared.error}</Notice>}
+          {prepared.error && <Notice>{prepared.error}</Notice>}
           <h3 className="text-md">Kế hoạch sau khi áp dụng</h3>
           <div className="table-wrap">
             <table className="table table--grid table--compact">
@@ -309,16 +309,16 @@ export function ImportGoalFileModal({ form, themes = [], allowedAgeGroupIds, yea
               </table>
             </div>
           ) : (
-            <Notice tone="warn">File không có mục tiêu. Phần này sẽ được xử lý theo cách nhập đã chọn ở trên.</Notice>
+            <Notice>File không có mục tiêu. Phần này sẽ được xử lý theo cách nhập đã chọn ở trên.</Notice>
           )}
           {prepared.missingThemes.length > 0 && (
-            <Notice tone="warn">
+            <Notice>
               Chưa có chủ đề {prepared.missingThemes.join(', ')}: không ghép được dấu tích tương ứng. Kiểm tra chủ đề trong file; nếu file
               thiếu danh sách chủ đề và muốn dùng chủ đề đang có, chọn “Chỉ thay phần có trong file”.
             </Notice>
           )}
           {prepared.warnings.length > 0 && (
-            <Notice tone="warn">
+            <Notice>
               <ul>
                 {prepared.warnings.slice(0, SHOWN_WARNINGS).map((w, i) => (
                   <li key={i}>{w.row ? `Dòng ${w.row}: ${w.message}` : w.message}</li>
