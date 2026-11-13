@@ -3,12 +3,8 @@ import { AUTH_USE_MOCK } from '@/config/env';
 export const AUTH_OPERATION_KEY = 'carenest.auth.operation';
 export const AUTH_TAB_ID = Math.random().toString(36).slice(2);
 const TYPES = ['login', 'logout', 'password'];
-const unavailable = () =>
-  Object.assign(
-    new Error('Trình duyệt chưa hỗ trợ phối hợp phiên an toàn. Vui lòng dùng trình duyệt cập nhật và cho phép dữ liệu trang.'),
-    { status: 503 },
-  );
-const changed = () => Object.assign(new Error('Phiên đăng nhập đã thay đổi ở tab khác. Vui lòng thực hiện lại.'), { status: 409 });
+const unavailable = () => Object.assign(new Error('Trình duyệt chưa hỗ trợ đăng nhập an toàn'), { status: 503 });
+const changed = () => Object.assign(new Error('Phiên đã đổi ở tab khác, hãy thử lại'), { status: 409 });
 
 export const readAuthOperation = () => {
   try {

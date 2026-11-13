@@ -1087,6 +1087,9 @@ export const schoolConfigMockRepository = {
   async assignSubstituteTeacher(body, user) {
     await delay();
     if (!canConfigureSchool(user) && user?.role !== 'VICE_PRINCIPAL') throw forbid();
+    // BE SCH-04 (Cần chốt 10/11/2026): bắt buộc chọn dạy thay cho GV đứng lớp nào
+    if (!body.replacedTeacherId)
+      throw new ApiError(400, 'Chọn giáo viên được dạy thay', { replacedTeacherId: 'Chọn giáo viên được dạy thay' });
     return clone({ ...body, substitute: true });
   },
   // BE giả: bản demo không có đánh giá học kỳ nên học kỳ chưa khóa
@@ -1453,6 +1456,12 @@ export const schoolConfigMockRepository = {
         return { user: u, assignment: assignment && { ...assignment, areas: vpAreasOf(assignment, roleGrants) } };
       });
     return clone({ year, rows });
+  },
+
+  // Bản demo giao việc theo mảng ngay trong phân công (areas) nên không có danh sách quyền riêng
+  async getVicePermissions() {
+    await delay();
+    return { items: [] };
   },
 
   /** campusList: điểm trường hợp lệ; khi nối BE thì là danh sách điểm trường thật, mặc định là điểm trường demo. */

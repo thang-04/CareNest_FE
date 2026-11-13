@@ -8,6 +8,8 @@ import { axiosClient } from '@/services/http/axiosClient';
 export const createSchoolConfigApi = (axiosClient) => ({
   getSchoolYears: () => axiosClient.get('/school-years'),
   getSchoolYearById: (id) => axiosClient.get(`/school-years/${id}`),
+  // BE CFG-YR-05: lớp năm đang chuẩn bị của GV / tổ trưởng kèm trẻ đã xếp (chỉ xem)
+  getPrepClasses: (yearId) => axiosClient.get(`/school-years/${yearId}/prep-classes`),
   saveSchoolYear: (id, form) => (id ? axiosClient.put(`/school-years/${id}`, form) : axiosClient.post('/school-years', form)),
   // PENDING BE: kích hoạt kiểm tra lại các bước bắt buộc, áp dụng bản xếp lớp; payload { confirmName }
   activateSchoolYear: (id, payload) => axiosClient.post(`/school-years/${id}/activate`, payload),
@@ -57,14 +59,41 @@ export const createSchoolConfigApi = (axiosClient) => ({
   updateStaffProfile: (id, form) => axiosClient.patch(`/users/${id}/profile`, form),
   setStaffStatus: (id, status, reason) => axiosClient.patch(`/users/${id}/status`, { status, reason }),
   getViceAssignments: (schoolYear) => axiosClient.get(`/school-years/${schoolYear}/vice-principal-assignments`),
+  // Quyền thao tác của một PHT = mặc định vai trò (ma trận) ± ngoại lệ theo người (BE PermissionController, AUTH-10)
+  getVicePermissions: async (userId) => {
+    const [catalog, roles, view] = await Promise.all([
+      axiosClient.get('/permissions'),
+      axiosClient.get('/role-permissions'),
+      axiosClient.get(`/accounts/${userId}/permission-overrides`),
+    ]);
+    const defaults = roles.find((r) => r.role === 'VICE_PRINCIPAL')?.permissions || [];
+    const overrides = view.overrides || [];
+    return {
+      items: (view.configurablePermissions || []).map((code) => {
+        const roleOn = defaults.includes(code);
+        const override = overrides.find((o) => o.permission === code);
+        const effect = override?.effect;
+        const permission = catalog.find((p) => p.code === code);
+        return {
+          code,
+          label: permission?.description || code,
+          roleOn,
+          on: effect === 'GRANT' ? true : effect === 'REVOKE' ? false : roleOn,
+          effect: effect || 'INHERIT',
+          scope: override?.scope ?? null,
+          campusScoped: !!permission?.campusScoped,
+        };
+      }),
+    };
+  },
   saveViceAssignment: (schoolYear, userId, form) =>
     axiosClient.put(`/school-years/${schoolYear}/vice-principal-assignments/${userId}`, form),
 
   getTeacherAssignments: (filters) => axiosClient.get('/teacher-assignments', { params: filters }),
   saveClassTeachers: (classId, form) => axiosClient.put(`/classes/${classId}/teachers`, form),
-  // GV dạy thay một lớp trong khoảng ngày (BE AUTH-24: substitute bắt buộc validTo)
-  assignSubstituteTeacher: ({ userId, classroomId, validFrom, validTo }) =>
-    axiosClient.post('/staff-assignments', { userId, classroomId, validFrom, validTo, substitute: true }),
+  // GV dạy thay một lớp trong khoảng ngày cho một GV đứng lớp (BE AUTH-24, SCH-04: bắt buộc validTo, replacedTeacherId)
+  assignSubstituteTeacher: ({ userId, classroomId, validFrom, validTo, replacedTeacherId }) =>
+    axiosClient.post('/staff-assignments', { userId, classroomId, validFrom, validTo, substitute: true, replacedTeacherId }),
   // PENDING BE: tổ trưởng 1 người / nhóm tuổi / năm học cho cả trường (không còn campusId trong payload)
   saveTeamLeader: (payload) => axiosClient.put('/team-leader-assignments', payload),
   getTeamLeaders: (filters) => axiosClient.get('/team-leader-assignments', { params: filters }),

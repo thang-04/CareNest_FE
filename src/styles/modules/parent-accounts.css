@@ -247,29 +247,6 @@
 .pa-panel__meta {
   margin: 0 0 var(--space-4);
 }
-.pa-guardian {
-  padding: var(--card-padding-dense);
-  border: 1px solid var(--color-border);
-  border-radius: var(--input-radius);
-}
-.pa-guardian + .pa-guardian {
-  margin-top: var(--space-3);
-}
-.pa-guardian__row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-}
-.pa-guardian__main {
-  flex: 1;
-  min-width: 0;
-}
-.pa-guardian__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-3);
-  margin-top: var(--card-padding-dense);
-}
 .pa-col-status {
   width: 150px;
 }
@@ -333,22 +310,27 @@
   max-height: 75vh;
   overflow-y: auto;
 }
-.pa-guardian__identity {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--space-3);
+/* Bảng phụ huynh trong hộp thoại (đã liên kết, chọn người nhận khi kích hoạt): dòng được chọn nền xanh nhạt rõ hơn mặc định */
+.table.pa-account-table tbody tr.row--selected td {
+  background: var(--color-primary-soft);
 }
-.pa-guardian__name {
-  color: var(--color-text);
-  font-size: var(--fs-title-sm);
-  font-weight: var(--fw-semibold);
-  overflow-wrap: anywhere;
+.pa-col-pick {
+  width: calc(var(--space-16) * 1.5);
 }
-.pa-guardian__relation,
-.pa-guardian__username {
-  color: var(--color-text-muted);
-  font-size: var(--fs-sm);
+/* Tên phụ huynh giữ một dòng cạnh chữ cái đầu; hẹp thì bảng cuộn ngang */
+.pa-person {
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+.pa-row-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  white-space: nowrap;
+}
+.pa-guardian-modal section + section,
+.pa-guardian-modal .alert + section {
+  margin-top: var(--space-4);
 }
 
 @media (max-width: 860px) {

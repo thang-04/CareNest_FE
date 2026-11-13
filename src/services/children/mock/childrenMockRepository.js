@@ -1,7 +1,7 @@
 import { normalizeRecipients } from '@/utils/children/accountRecipient';
 import { readDb, writeDb, clone, delay, ApiError } from '@/mocks/mockDatabase';
 import { prepareMockPortraits } from './enrollmentPhotoMock';
-import { ensureSchoolSeeded } from '@/mocks/schoolMockRepository';
+import { ensureSchoolSeeded, visibleClasses } from '@/mocks/schoolMockRepository';
 import { buildSeedChildRecords, seedChildProfileOf, seedMedicalHistoryOf } from '@/mocks/childrenSeed';
 import { PHONE_HAS_OTHER_ID, createBatchIdentityCheck, fillMissingCitizenIds, identityConflict } from '@/mocks/guardianIdentity';
 import { MEASUREMENT_ROUND, OPEN_CAMPAIGN, buildSeedHealthChecks } from '@/mocks/healthCheckSeed';
@@ -9,7 +9,7 @@ import { pushNotification } from '@/mocks/notificationMockRepository';
 import { activatePendingGuardians, applyGuardianEdits, differsFromAccount } from '@/mocks/parentAccountMock';
 import { activeYearId } from '@/mocks/roomManagers';
 import { schoolYearIdOfDate } from '@/mocks/schoolYearScope';
-import { CHILD_STATUS } from '@/models/School';
+import { AGE_GROUPS, CHILD_STATUS } from '@/models/School';
 import {
   AI_TREND_STATUS,
   DECLARATION_STATE,
@@ -94,8 +94,10 @@ const nowIso = () => new Date().toISOString();
 // v12: mọi kết quả đã kết luận đều đã công bố; phiếu mức Cần theo dõi sát có người đi cùng có ý kiến phụ huynh.
 // v13: đợt sắp diễn ra ở c2 thành kỳ cân đo đang diễn ra (kỳ cân đo, user chốt 2026-10-31).
 // v14: bỏ phiếu theo dõi (HLT-16 bỏ, 2026-11-04); kỳ cân đo c2 có số đo (Lớp Lá A, 2 trẻ Lớp Mầm 1) để thấy cảnh báo BMI (HLT-18).
-const HEALTH_SEED_VERSION = 14;
-const SEED_MANAGED_FIELDS = ['headCircumferenceCm', 'grossMotor', 'fineMotor', 'campaignId', 'note', 'exam', 'examStatus'];
+// v15: kết quả các đợt khám đã đóng là phiếu Phụ lục II đã kết luận như BE (bỏ mẫu cũ có vận động thô/tinh).
+// v16, v17: phiếu của đợt cũ ghi tiếp xúc người bệnh lao chỉ khi đã xảy ra trước ngày khám, khi đó bác sĩ kết luận nguy cơ lao.
+const HEALTH_SEED_VERSION = 17;
+const SEED_MANAGED_FIELDS = ['headCircumferenceCm', 'grossMotor', 'fineMotor', 'campaignId', 'note', 'exam', 'examStatus', 'concludedAt'];
 
 // Dữ liệu demo lưu bằng seed cũ: cập nhật bản ghi seed chưa bị sửa, thêm bản ghi seed còn thiếu; không xóa gì.
 const upgradeSeedMeasurements = (d, seedMeasurements) => {
@@ -398,12 +400,6 @@ const latestBmiOf = (db, child) => {
   };
 };
 
-// Danh sách trẻ (phần thêm của mock cho Xu hướng sức khỏe): mức theo lần khám gần nhất có kết luận, để xếp trẻ cần chú ý.
-const latestHealthOf = (db, child) => {
-  const exam = latestExamOf(db, child);
-  return exam ? { date: exam.date, followUpLevel: exam.followUpLevel, campaignName: exam.campaignName } : null;
-};
-
 /** Khai báo sức khỏe của trẻ; trẻ chưa có khai báo thì tạo phần trống để Chưa cung cấp (ghi tiền sử từ phiếu khám, điền dữ liệu demo). */
 export const ensureDeclarationOf = (d, childId) => {
   let decl = declarationOf(d, childId);
@@ -502,8 +498,6 @@ const toView = (db, child, user) => {
     ageGroupId: cls?.ageGroupId || '',
     schoolYear: cls?.schoolYear || '',
     hasDeclaration: !!decl,
-    // Xu hướng sức khỏe xếp trẻ cần chú ý theo mức của lần khám gần nhất (phần thêm của mock, BE chưa có).
-    latestHealth: latestHealthOf(db, child),
   };
 };
 
@@ -985,6 +979,18 @@ export const childrenMockRepository = {
       target.history = [...(target.history || []), { action: 'READMITTED', userId: user.id, at: nowIso(), note: text }];
       return toView(d, target, user);
     });
+  },
+
+  /**
+   * Lớp, nhóm tuổi của một năm học cho bộ lọc, gợi ý nhóm tuổi (BE: GET /school-structure). all: PHT xem hồ sơ trẻ toàn
+   * trường thấy lớp mọi điểm trường như useClasses({ all }).
+   */
+  async getClassOptions(schoolYear, user, { all = false } = {}) {
+    await delay(80);
+    const db = ensureSchoolSeeded();
+    const yearId = schoolYear || activeYearId(db);
+    const classes = (all ? db.classes || [] : visibleClasses(db, user)).filter((c) => c.schoolYear === yearId);
+    return clone({ year: { id: yearId, name: String(yearId).replace('-', ' - '), startDate: null }, ageGroups: AGE_GROUPS, classes });
   },
 
   /** Lớp để tiếp nhận, xếp lớp: chỉ lớp của năm học đang hoạt động (user chốt 2026-10-28, Y-3). */

@@ -4,7 +4,7 @@ import { Breadcrumb, EmptyState, ErrorState, LoadingState } from '@/components';
 import { FreshRoundCard } from '@/components/kitchen/FreshRoundCard';
 import { KbCampusFilter, KbDateFilter } from '@/components/kitchen/KitchenFilters';
 import { useStockCampus } from '@/hooks/kitchen/useDryStock';
-import { useFreshCheck } from '@/hooks/kitchen/useFreshGoods';
+import { useFoodGroupMap, useFreshCheck } from '@/hooks/kitchen/useFreshGoods';
 import { FRESH_ROUND_LABELS } from '@/models/kitchen/kitchenConstants';
 import { kitchenCrumbs, KITCHEN_PAGES } from '@/utils/kitchen/breadcrumbs';
 import { isIsoDate, todayInput } from '@/utils/format';
@@ -19,6 +19,7 @@ export default function FreshCheckPage() {
   const campus = useStockCampus();
   const date = isIsoDate(params.get('date')) ? params.get('date') : todayInput();
   const check = useFreshCheck(campus.campusId, date);
+  const foodGroups = useFoodGroupMap();
 
   const setDate = (next) =>
     setParams(
@@ -70,6 +71,7 @@ export default function FreshCheckPage() {
             campusId={campus.campusId}
             date={date}
             canManage={check.data.canManage}
+            groupOfFood={foodGroups}
             onSaved={check.setData}
             onStale={() => check.reload({ silent: true })}
           />
@@ -91,7 +93,7 @@ export default function FreshCheckPage() {
         {campus.campusId && (
           <div className="kb-toolbar__end">
             <Link className="btn" to={`/kitchen/forecast?campusId=${campus.campusId}`}>
-              <ShoppingBasket size={16} /> Bản dự trù hàng tươi
+              <ShoppingBasket size={16} /> Bản dự trù
             </Link>
           </div>
         )}

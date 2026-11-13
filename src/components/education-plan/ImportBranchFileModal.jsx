@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Notice } from '@/components/education-plan/eduUi';
 import { ImportDialog } from '@/components/upload/ImportDialog';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
@@ -12,6 +12,8 @@ import { PLAN_IMPORT_ACCEPT as ACCEPT, validatePlanImportFile } from '@/utils/ed
 const SHOWN_WARNINGS = 8;
 
 export function ImportBranchFileModal({ classId, yearPlanId, user, draft, templateArgs, onImport, onClose }) {
+  const latest = useRef(draft);
+  latest.current = draft;
   const [state, setState] = useState({ status: 'idle' });
   const [confirm, setConfirm] = useState(false);
   const preview = state.status === 'ready' ? state.preview : null;
@@ -19,17 +21,24 @@ export function ImportBranchFileModal({ classId, yearPlanId, user, draft, templa
   const overwrites = changes.filter((change) => change.overwrite).length;
   const read = async (file) => {
     if (!file) return;
+    const snapshot = draft;
     setState({ status: 'loading', name: file.name });
     try {
       const validation = validatePlanImportFile(file);
       if (validation) throw new Error(validation);
-      setState({ status: 'ready', name: file.name, preview: await previewBranchFile(file, { classId, yearPlanId }, user) });
+      const result = await previewBranchFile(file, { classId, yearPlanId, draftCalendar: snapshot }, user);
+      if (latest.current !== snapshot) throw new Error('Nội dung đã thay đổi. Chọn lại file để xem trước theo lịch mới.');
+      setState({ status: 'ready', name: file.name, preview: result, snapshot });
     } catch (error) {
       setState({ status: 'error', name: file.name, message: error.message || 'Không đọc được file' });
     }
   };
   const apply = () => {
     setConfirm(false);
+    if (state.snapshot !== latest.current) {
+      setState({ status: 'error', message: 'Nội dung đã thay đổi. Vui lòng đọc lại file.' });
+      return;
+    }
     if (onImport(preview, { classId, yearPlanId })) onClose();
   };
   const template = () => {

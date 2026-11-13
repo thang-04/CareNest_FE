@@ -8,73 +8,60 @@
   margin-bottom: var(--space-4);
 }
 
-/* Các điểm trường xếp cạnh nhau (một điểm trường thì chiếm cả bề ngang) */
-.bd-stack {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(480px, 1fr));
-  gap: var(--space-4);
-  align-items: start;
-  min-width: 0;
+/* Bảng việc × điểm trường: cột đầu là việc, mỗi điểm trường một cột; ô gồm huy hiệu, chi tiết, nút xử lý */
+.bd-matrix {
+  min-width: 640px;
+  table-layout: fixed;
 }
-@media (max-width: 600px) {
-  .bd-stack {
-    grid-template-columns: minmax(0, 1fr);
-  }
+.bd-matrix th:first-child {
+  width: 200px;
 }
-
-.bd-tasks {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+.bd-matrix td {
+  vertical-align: top;
 }
-
-.bd-task {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
-  padding: var(--space-3) var(--space-5);
-  border-top: 1px solid var(--color-border);
-}
-
-.bd-task__main {
-  display: grid;
-  gap: var(--space-1);
-  min-width: 0;
-}
-
-.bd-task__head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.bd-title {
+.bd-matrix__task {
+  vertical-align: top;
   font-weight: var(--fw-semibold);
+  text-align: left;
 }
-
+.bd-matrix__icon {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin-right: var(--space-2);
+  border-radius: var(--radius-md);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  vertical-align: middle;
+}
+.bd-cell {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-2);
+  padding-block: var(--space-1);
+}
 .bd-detail {
   margin: 0;
   color: var(--color-text-secondary);
   font-size: var(--fs-sm);
   overflow-wrap: anywhere;
 }
-
 .bd-actions {
   display: flex;
-  flex: none;
   flex-wrap: wrap;
-  justify-content: flex-end;
   gap: var(--space-2);
 }
 
-@media (max-width: 600px) {
-  .bd-task {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .bd-actions {
-    justify-content: flex-start;
-  }
+/* Dòng "Việc tiếp theo" (nền theo tông việc, dùng .alert chung) đặt trên dải số liệu */
+.bd-next {
+  flex-wrap: wrap;
+  margin-bottom: var(--space-4);
+}
+.bd-next__text {
+  flex: 1 1 240px;
+  color: var(--color-text);
+}
+.bd-next__action {
+  margin-left: auto;
 }

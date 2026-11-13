@@ -47,16 +47,12 @@ export function ExamClinicalStep({ form, set, errors, disabled }) {
         value={c.behaviorNote}
         onChange={(v) => set('exam.clinical.behaviorNote', v)}
         error={errors['exam.clinical.behaviorNote']}
-        hint="Bắt buộc khi trẻ có biểu hiện buồn bã, lo âu, mất ngủ kéo dài hoặc hành vi bất thường. Ghi đúng lời bác sĩ."
         disabled={disabled}
       />
     ),
   };
   return (
-    <ExamSheetCard
-      title={EXAM_STEPS[3].label}
-      info="Quan sát nét mặt, tư thế, tỷ lệ, sự đối xứng và chuyển động của trẻ. Các mục đã chọn sẵn kết quả bình thường; chỉ đổi mục bác sĩ nói bất thường."
-    >
+    <ExamSheetCard title={EXAM_STEPS[3].label}>
       <ExamSheetTable label={EXAM_SECTIONS.clinical}>
         <ExamSheetBand primary>{EXAM_SECTIONS.clinical}</ExamSheetBand>
         {CLINICAL_GROUPS.map((group) => (

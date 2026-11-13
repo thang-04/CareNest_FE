@@ -11,7 +11,7 @@ Làn S: tự kiểm 3 điểm (đúng phạm vi, không đổi contract, có tes
 5. **State & async:** race condition, stale cache sau mutation, double submit, cleanup effect, loading/empty/error đầy đủ.
 6. **UX/accessibility:** label, focus, keyboard, thông báo lỗi dễ hiểu (tiếng Việt), responsive cho bảng/form.
 7. **Test:** có test hành vi chính, lỗi API, ẩn/hiện theo permission, regression cho bug fix?
-8. **Design system & ranh giới module:** dựng lại component/class đã có ở `DESIGN.md` §6.3 hoặc mẫu trùng lặp §14.1? Import code riêng module khác (kể cả thêm dòng vào `CROSS_MODULE_DEBT`)? Bọc component chung chỉ để đổi tên prop? Hàm ngày/số viết lại thay vì `utils/format.js`? So `user.role` trực tiếp thay `canXxx`?
+8. **Design system & ranh giới module:** viết tay `<button>/<table>/<input>` thay vì component nền (`docs/design/UI_CARD.md` §1), dựng lại component/class đã có ở `DESIGN.md` §6.3 hoặc mẫu trùng lặp §14.1? Import code riêng module khác (kể cả thêm dòng vào `CROSS_MODULE_DEBT`)? Bọc component chung chỉ để đổi tên prop? Hàm ngày/số viết lại thay vì `utils/format.js`? So `user.role` trực tiếp thay `canXxx`?
 9. **Convention:** `.claude/rules/`, quy tắc comment/commit trong `AGENTS.md`.
 10. **Memory:** fix bug không hiển nhiên có incident + dòng `ISSUE_INDEX.md` chưa (theo `update-knowledge.md` T2)? Đối chiếu `docs/knowledge/PATTERNS.md`.
 

@@ -2,7 +2,7 @@
 
 Mức: L3.
 
-1. Đọc `../CareNest_BE/docs/system/CROSS_REPO_MAP.md`: ownership + điểm chạm. Không có sibling ⇒ đọc https://github.com/thang-04/CareNest_BE.git, nói rõ đã đọc remote.
+1. Tra bằng grep trước: `docs/integration/FE_API_CALLS.md` (file FE → endpoint → controller BE), `docs/integration/BE_API_INDEX.md` (endpoint BE → `controller#method`) — có sẵn trong repo này kể cả khi không có BE cạnh bên. Ownership + điểm chạm: `../CareNest_BE/docs/system/CROSS_REPO_MAP.md`. Không có sibling ⇒ đọc https://github.com/thang-04/CareNest_BE.git, nói rõ đã đọc remote.
 2. Liệt kê thay đổi thuộc FE / BE / APP / contract dùng chung.
 3. Nếu `../CareNest_APP` có sẵn và endpoint/auth dùng chung, đọc `AGENTS.md` + `.ai/ROUTER.md` của APP; không giả định cả ba repo được checkout.
 4. BE sở hữu rule + contract; FE sở hữu UI/route/state/integration. Không copy business rule sang FE; không "vá" ở FE để che lỗi contract/nghiệp vụ BE.

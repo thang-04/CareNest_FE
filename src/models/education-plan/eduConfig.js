@@ -7,16 +7,39 @@ import { DOMAINS, STANDARD_DOMAINS, setDomainLabelOverrides, setDomains } from '
 
 export const SIGN_ROLES = { TEAM_LEADER: 'Tổ trưởng', VICE_PRINCIPAL: 'Phó hiệu trưởng', PRINCIPAL: 'Hiệu trưởng' };
 
+export const WORKFLOW_ROLES = {
+  TEACHER: 'Giáo viên',
+  TEAM_LEADER: 'Tổ trưởng',
+  VICE_PRINCIPAL: 'Phó hiệu trưởng',
+  PRINCIPAL: 'Hiệu trưởng',
+};
+
+export const CREATOR_ROLES = ['TEACHER', 'TEAM_LEADER', 'VICE_PRINCIPAL', 'PRINCIPAL'];
+export const REVIEWER_ROLES = ['TEAM_LEADER', 'VICE_PRINCIPAL', 'PRINCIPAL'];
+
+export const DEFAULT_WORKFLOW_POLICY = {
+  schoolYear: { creators: ['VICE_PRINCIPAL'], reviewers: ['PRINCIPAL'] },
+  year: { creators: ['TEAM_LEADER'], reviewers: ['VICE_PRINCIPAL'] },
+  branch: { creators: ['TEACHER'], reviewers: ['TEAM_LEADER', 'VICE_PRINCIPAL'] },
+  theme: { creators: ['TEACHER'], reviewers: ['TEAM_LEADER', 'VICE_PRINCIPAL'] },
+};
+
 /** Trạng thái chờ của từng vai trò duyệt. */
 export const PENDING_OF = { TEAM_LEADER: 'PENDING_TL', VICE_PRINCIPAL: 'PENDING_VP', PRINCIPAL: 'PENDING_HT' };
 
 export const SIGN_DOCS = [
+  { key: 'schoolYear', label: 'Kế hoạch năm học', hint: 'Phó hiệu trưởng soạn; Hiệu trưởng duyệt.' },
   {
     key: 'year',
-    label: 'Kế hoạch năm học',
-    hint: 'Tổ trưởng hoặc Phó HT soạn; Tổ trưởng gửi, Phó HT duyệt ban hành; bản in có chỗ ký tay của những người này.',
+    label: 'Kế hoạch giáo dục tổ',
+    hint: 'Tổ trưởng chuyên môn soạn; Phó Hiệu trưởng hoặc Hiệu trưởng duyệt ban hành.',
   },
-  { key: 'branch', label: 'Chủ đề nhánh và thời gian', hint: 'Giáo viên soạn, gửi; người duyệt theo thứ tự rồi in ra ký tay.' },
+  { key: 'branch', label: 'Chủ đề nhánh và thời gian', hint: 'Giáo viên soạn, gửi; Tổ trưởng và Phó Hiệu trưởng duyệt theo thứ tự.' },
+  {
+    key: 'theme',
+    label: 'Kế hoạch giáo dục chủ đề (kế hoạch chủ đề + giáo án các tuần)',
+    hint: 'Giáo viên soạn và gửi hồ sơ; Tổ trưởng và Phó Hiệu trưởng duyệt theo thứ tự; giáo án tuần duyệt cùng hồ sơ chủ đề.',
+  },
   {
     key: 'week',
     label: 'Kế hoạch giáo dục chủ đề (kế hoạch chủ đề + giáo án các nhánh)',
@@ -30,8 +53,9 @@ export const DEFAULT_WEEK_ROWS = [
   { key: 'the_duc', label: 'Thể dục sáng', canMerge: true, allWeek: true },
   { key: 'hoc', label: 'Hoạt động học', canMerge: false, allWeek: false },
   // extraLabel: dòng có thêm phần chung cả tuần dưới 5 ô ngày (mẫu Thái Dương: "Chơi tự do", "Chơi tự chọn", "Nêu gương")
-  { key: 'ngoai_troi', label: 'Chơi, hoạt động ngoài trời', canMerge: false, allWeek: false, extraLabel: 'Chơi tự do (cả tuần)' },
   { key: 'goc', label: 'Chơi, hoạt động ở các góc', canMerge: true, allWeek: true },
+  { key: 'ngoai_troi', label: 'Chơi, hoạt động ngoài trời', canMerge: false, allWeek: false, extraLabel: 'Chơi tự do (cả tuần)' },
+  { key: 'an_ngu', label: 'Ăn, ngủ', canMerge: true, allWeek: true },
   {
     key: 'chieu',
     label: 'Chơi, hoạt động buổi chiều',
@@ -46,12 +70,15 @@ export const DEFAULT_EDU_CONFIG = {
   domainLabels: { 'Phát triển thẩm mỹ': 'Phát triển thẩm mỹ (Nghệ thuật)' },
   // Lĩnh vực trường thêm sau 5 lĩnh vực chuẩn (khi Bộ bổ sung), theo thứ tự hiển thị
   extraDomains: [],
+  workflowPolicy: DEFAULT_WORKFLOW_POLICY,
+  workflowRevision: 1,
   signers: {
     year: ['TEAM_LEADER', 'VICE_PRINCIPAL'],
     // Tiền chốt 16/10: chủ đề nhánh cũng Tổ trưởng duyệt rồi Phó HT (bỏ Tổ trưởng khi Tổ trưởng dạy lớp đó)
     branch: ['TEAM_LEADER', 'VICE_PRINCIPAL'],
     // Tiền chốt 15/10: giáo án tuần (tuần đầu kèm kế hoạch chủ đề) Tổ trưởng duyệt rồi Phó HT duyệt
     week: ['TEAM_LEADER', 'VICE_PRINCIPAL'],
+    theme: ['TEAM_LEADER', 'VICE_PRINCIPAL'],
   },
   weekRows: DEFAULT_WEEK_ROWS,
 };
@@ -60,6 +87,20 @@ export const DEFAULT_EDU_CONFIG = {
 export const withDefaults = (cfg) => ({
   domainLabels: { ...DEFAULT_EDU_CONFIG.domainLabels, ...(cfg?.domainLabels || {}) },
   extraDomains: (cfg?.extraDomains || []).filter((d) => d?.trim() && !STANDARD_DOMAINS.includes(d)),
+  workflowPolicy: cfg?.workflowPolicy
+    ? {
+        schoolYear: cfg.workflowPolicy.schoolYear || DEFAULT_WORKFLOW_POLICY.schoolYear,
+        year: cfg.workflowPolicy.year || DEFAULT_WORKFLOW_POLICY.year,
+        branch: cfg.workflowPolicy.branch || DEFAULT_WORKFLOW_POLICY.branch,
+        theme: cfg.workflowPolicy.theme || cfg.workflowPolicy.week || DEFAULT_WORKFLOW_POLICY.theme,
+      }
+    : DEFAULT_WORKFLOW_POLICY,
+  durationPolicyAvailable: cfg?.durationPolicyAvailable ?? true,
+  workflowRevision: cfg?.workflowRevision ?? 1,
+  durationPolicy: cfg?.durationPolicy || { revision: 1, theme: { minWeeks: 2, maxWeeks: 4 }, branch: { minWeeks: 1, maxWeeks: 2 } },
+  ...(cfg?.schoolYearCreationScopes ? { schoolYearCreationScopes: cfg.schoolYearCreationScopes } : {}),
+  canConfigure: cfg?.canConfigure ?? false,
+  ...(cfg?.yearCreationScopes ? { yearCreationScopes: cfg.yearCreationScopes } : {}),
   signers: { ...DEFAULT_EDU_CONFIG.signers, ...(cfg?.signers || {}) },
   // Cấu hình đã lưu trước khi có phần chung cả tuần: lấy extraLabel mặc định theo khóa dòng
   weekRows: cfg?.weekRows?.length
@@ -101,7 +142,10 @@ export const applyEduConfig = (cfg) => {
 };
 
 /** Hiệu trưởng có trong chuỗi ký của ít nhất một loại tài liệu (kế hoạch năm, chủ đề nhánh, giáo án tuần). */
-export const principalSigns = (cfg) => Object.values(withDefaults(cfg).signers).some((chain) => chain.includes('PRINCIPAL'));
+export const principalSigns = (cfg) =>
+  (cfg?.durationPolicyAvailable !== false &&
+    Object.values(withDefaults(cfg).workflowPolicy).some((policy) => policy.reviewers.includes('PRINCIPAL'))) ||
+  Object.values(withDefaults(cfg).signers).some((chain) => chain.includes('PRINCIPAL'));
 
 /** Vai trò của người ký đã lưu (bản ký cũ chỉ có chức danh). */
 export const roleOfSigner = (s) =>

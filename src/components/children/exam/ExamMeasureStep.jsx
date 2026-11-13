@@ -215,7 +215,6 @@ export function ExamMeasureStep({ form, set, setMany, errors, reference, disable
           values={n.statuses}
           onToggle={toggleStatus}
           error={errors['exam.nutrition.statuses']}
-          hint="Chọn theo lời bác sĩ. Hệ thống không tự gắn các nhãn này."
           disabled={disabled}
         />
       ),
@@ -223,13 +222,7 @@ export function ExamMeasureStep({ form, set, setMany, errors, reference, disable
   ];
 
   return (
-    <ExamSheetCard
-      title={EXAM_STEPS[1].label}
-      info={`Trẻ ${reference.ageMonths} tháng tuổi tại ngày khám. Trạng thái được chọn sẵn theo ${reference.label}. Bác sĩ nói khác thì chọn lại theo bác sĩ.`}
-      note={
-        reference.headApplies && 'Trạng thái vòng đầu được chọn sẵn theo khoảng tham khảo tạm; bác sĩ nói khác thì chọn lại theo bác sĩ.'
-      }
-    >
+    <ExamSheetCard title={EXAM_STEPS[1].label}>
       {/* Tên nhóm trạng thái sinh tồn đọc là "Trạng thái <chỉ số>" như khi còn cột Trạng thái */}
       <span id={id('status')} hidden>
         Trạng thái

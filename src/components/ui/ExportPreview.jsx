@@ -1,12 +1,14 @@
-import { useSyncExternalStore } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { Download, X } from '@/components/ui/icons';
 import { Modal } from '@/components/ui/Modal';
+import { Tabs } from '@/components/ui/Tabs';
 import { useToast } from '@/contexts/ToastContext';
-import { downloadXlsx } from '@/utils/exportXlsx';
+import { downloadWorkbookXlsx, downloadXlsx } from '@/utils/exportXlsx';
 
 /*
  * Xem trước khi xuất Excel (DESIGN §6.3): mọi nút "Xuất Excel" gọi exportWithPreview(rows, fileName) thay vì tải ngay;
  * hộp hiện đúng các dòng sẽ ghi ra file, người dùng bấm "Tải file Excel" mới tải. Host gắn một lần ở App.
+ * File nhiều sheet: exportWithPreviewWorkbook([{ sheetName, rows }], fileName, options).
  */
 const PREVIEW_LIMIT = 200;
 let request = null;
@@ -17,9 +19,15 @@ const subscribe = (fn) => {
   return () => listeners.delete(fn);
 };
 
-/** Mở hộp xem trước. rows: mảng các mảng (dòng một ô = tiêu đề / tên phần); options như downloadXlsx + `title`. */
+/** Mở hộp xem trước. rows: mảng các mảng (dòng một ô = tiêu đề / tên phần); options như downloadXlsx + `title`, `size`. */
 export const exportWithPreview = (rows, fileName, options = {}) => {
-  request = { rows, fileName: fileName.replace(/\.csv$/i, '.xlsx'), ...options };
+  request = { sheets: [{ rows, sheetName: options.sheetName }], fileName: fileName.replace(/\.csv$/i, '.xlsx'), ...options };
+  emit();
+};
+
+/** Mở hộp xem trước cho file nhiều sheet: sheets = [{ sheetName, rows, headerRow }]. */
+export const exportWithPreviewWorkbook = (sheets, fileName, options = {}) => {
+  request = { sheets, fileName: fileName.replace(/\.csv$/i, '.xlsx'), ...options };
   emit();
 };
 const close = () => {
@@ -32,22 +40,33 @@ const headerIndex = (rows, headerRow) => headerRow ?? (rows[0]?.length === 1 && 
 export function ExportPreviewHost() {
   const toast = useToast();
   const req = useSyncExternalStore(subscribe, () => request);
+  const [tab, setTab] = useState(0);
+  // Mỗi lần mở hộp mới bắt đầu từ sheet đầu tiên
+  useEffect(() => setTab(0), [req]);
   if (!req) return null;
-  const { rows, fileName, title, sheetName, headerRow } = req;
+  // `size: 'full'` cho bảng nhiều cột (vd. bảng đi chợ chia theo nhóm tuổi)
+  const { sheets, fileName, title, size = 'xl' } = req;
+  const sheet = sheets[tab] ?? sheets[0];
+  const { rows, sheetName, headerRow } = sheet;
   const head = headerIndex(rows, headerRow);
   const width = Math.max(1, ...rows.map((r) => r.length));
   // Dòng một ô (tiêu đề báo cáo, tên phần) trải hết bảng; dòng trống giữ làm khoảng cách như trong file
   const dataCount = rows.filter((r, i) => i > head && r.length > 1).length;
   const shown = rows.slice(0, PREVIEW_LIMIT);
   const download = () => {
-    downloadXlsx(rows, fileName, { sheetName, headerRow });
+    if (sheets.length > 1)
+      downloadWorkbookXlsx(
+        sheets.map((s) => ({ ...s, headerRow: headerIndex(s.rows, s.headerRow) })),
+        fileName,
+      );
+    else downloadXlsx(rows, fileName, { sheetName, headerRow });
     toast.success(`Đã tải ${fileName}`);
     close();
   };
   return (
     <Modal
       open
-      size="xl"
+      size={size}
       title={title || 'Xem trước khi xuất Excel'}
       onClose={close}
       footer={
@@ -65,6 +84,14 @@ export function ExportPreviewHost() {
         File <b>{fileName}</b> · {dataCount} dòng dữ liệu
         {rows.length > PREVIEW_LIMIT && ` · đang hiện ${PREVIEW_LIMIT} dòng đầu, file có đủ ${rows.length} dòng`}
       </p>
+      {sheets.length > 1 && (
+        <Tabs
+          items={sheets.map((s, i) => ({ key: String(i), label: s.sheetName || `Sheet${i + 1}` }))}
+          value={String(tab)}
+          onChange={(k) => setTab(Number(k))}
+          ariaLabel="Sheet trong file Excel"
+        />
+      )}
       <div className="table-wrap export-preview">
         <table className="table table--grid table--compact">
           <tbody>

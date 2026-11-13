@@ -166,14 +166,19 @@ const isBlank = (v) => v === '' || v == null;
  * Số đo của kỳ cân đo (HLT-01): chỉ chiều cao, cân nặng, ghi chú; không kết luận. Từ 2026-11-04 không còn vòng đầu, ngày đo do BE
  * ghi (số đo mới = hôm nay, sửa giữ ngày) nên không kiểm ngày ở đây.
  */
+// BE nhận tối đa 1 chữ số thập phân (HealthMeasurementRequest @Digits fraction = 1); mock trước đây tự làm tròn
+const moreThanOneDecimal = (value) => /[.,]\d{2,}$/.test(String(value).trim());
+
 export const validateMeasurement = (m, { requireReason } = {}) => {
   const errors = {};
   const h = Number(m.heightCm);
   if (isBlank(m.heightCm) || Number.isNaN(h)) errors.heightCm = 'Nhập chiều cao (cm)';
   else if (h < 40 || h > 150) errors.heightCm = 'Nhập chiều cao từ 40 đến 150 cm';
+  else if (moreThanOneDecimal(m.heightCm)) errors.heightCm = 'Chiều cao lấy tối đa 1 chữ số thập phân';
   const w = Number(m.weightKg);
   if (isBlank(m.weightKg) || Number.isNaN(w)) errors.weightKg = 'Nhập cân nặng (kg)';
   else if (w < 3 || w > 60) errors.weightKg = 'Nhập cân nặng từ 3 đến 60 kg';
+  else if (moreThanOneDecimal(m.weightKg)) errors.weightKg = 'Cân nặng lấy tối đa 1 chữ số thập phân';
   if ((m.note || '').length > 500) errors.note = 'Ghi chú tối đa 500 ký tự';
   if (requireReason && !m.reason?.trim()) errors.reason = 'Nhập lý do sửa kết quả đã công bố';
   return errors;

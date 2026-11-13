@@ -84,7 +84,7 @@ export default function CampusListPage() {
             <table className="table table--grid table--compact">
               <thead>
                 <tr>
-                  <th>Mã</th>
+                  <th className="center">Mã</th>
                   <th>Điểm trường</th>
                   <th>Địa chỉ</th>
                   <th>Phó hiệu trưởng phụ trách</th>
@@ -126,7 +126,7 @@ export default function CampusListPage() {
                       className={`row-click${c.status === 'INACTIVE' ? ' muted' : ''}`}
                       {...clickableRowProps(() => navigate(`/school/campuses/${c.id}`))}
                     >
-                      <td className="fw-600 text-primary">{c.code}</td>
+                      <td className="fw-600 text-primary nowrap center">{c.code}</td>
                       <td>
                         <div className="fw-600">{c.shortName}</div>
                         <div className="text-xs muted sc-wrap">{c.name}</div>

@@ -1,20 +1,22 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { useAsync } from '@/hooks/useAsync';
 import {
-  searchStaffAccounts,
   getCampusDetail,
   getCampusesWithStats,
   getCutoffSetting,
+  getPlacements,
+  getPrepClasses,
   getRolePermissions,
   getSchoolYearById,
   getSchoolYears,
+  getStaffAccounts,
   getStructure,
   getTeacherAssignments,
   getTeamLeaders,
   getViceAssignments,
-  getStaffAccounts,
+  getVicePermissions,
   getYearReadiness,
-  getPlacements,
+  searchStaffAccounts,
 } from '@/services/school-config/schoolConfigService';
 import { getRooms } from '@/services/masterDataService';
 
@@ -33,6 +35,16 @@ export function useSchoolYearItem(id, { live = true } = {}) {
     enabled: !!id,
   });
   return { year: data, loading: !!id && loading, error, reload };
+}
+
+/** Lớp năm đang chuẩn bị (CFG-YR-05) của người xem kèm trẻ đã xếp; yearId trống ⇒ không gọi. */
+export function usePrepClasses(yearId) {
+  const { user } = useAuth();
+  const { data, loading, error, reload } = useAsync(() => getPrepClasses(yearId, user), [yearId, user?.id], {
+    refreshOnDataChange: true,
+    enabled: !!yearId,
+  });
+  return { prep: data, loading: !!yearId && loading, error, reload };
 }
 
 export function useSchoolStructure(schoolYear, campusId) {
@@ -67,6 +79,27 @@ export function useCampusDetail(id, schoolYear) {
     enabled: !!id,
   });
   return { detail: data, loading, error, reload };
+}
+
+/** Việc của mọi PHT đang phân công: { [userId]: items }. Thẻ từng người và bảng "Ai phụ trách gì" dùng chung. */
+export function useVicesPermissions(userIds) {
+  const { user } = useAuth();
+  const { data, loading, error, reload } = useAsync(
+    async () => {
+      // Một người lỗi (vd. BE không đọc được tài khoản Keycloak) không làm hỏng thẻ của người khác
+      const results = await Promise.allSettled(userIds.map((id) => getVicePermissions(id, user)));
+      const itemsByUser = {};
+      const errorsByUser = {};
+      results.forEach((result, index) => {
+        if (result.status === 'fulfilled') itemsByUser[userIds[index]] = result.value.items;
+        else errorsByUser[userIds[index]] = result.reason;
+      });
+      return { itemsByUser, errorsByUser };
+    },
+    [userIds.join(','), user?.id],
+    { refreshOnDataChange: true, enabled: userIds.length > 0 },
+  );
+  return { itemsByUser: data?.itemsByUser || {}, errorsByUser: data?.errorsByUser || {}, loading, error, reload };
 }
 
 export function useViceAssignments(schoolYear) {

@@ -39,7 +39,7 @@ import { Pagination, paginate } from '@/components/ui/Pagination';
 import { EVAL_HISTORY_LABELS, EVAL_KIND, EVAL_STATUS, PERIOD_TYPE_LABELS } from '@/models/assessment/assessmentConstants';
 import { formatDate, formatDateTime } from '@/utils/format';
 import { evaluationPeriodLabel, periodLabel } from '@/utils/assessment/assessmentPeriods';
-import { canReviewEvaluation, canViewAiDraft, isClassTeacher } from '@/utils/assessment/assessmentPermissions';
+import { canConfirmEvaluation, canReviewEvaluation, canViewAiDraft, isClassTeacher } from '@/utils/assessment/assessmentPermissions';
 import { ChildAvatar } from '@/components/ChildAvatar';
 import { validateEvaluationContent, hasErrors } from '@/utils/assessment/assessmentValidation';
 
@@ -136,6 +136,7 @@ export function EvaluationReviewView({ kind, id }) {
   if (!detail) return null;
 
   const canReview = canReviewEvaluation(ev, detail.cls, user);
+  const canConfirm = canConfirmEvaluation(ev, detail.cls, user);
   const showDraft = canViewAiDraft(ev, detail.cls, user);
   const confirmed = ev.status === EVAL_STATUS.CONFIRMED;
   const label = evaluationPeriodLabel(ev);
@@ -238,31 +239,43 @@ export function EvaluationReviewView({ kind, id }) {
 
   return (
     <>
-      <div className="page__head">
+      <div className={yearEnd ? 'card dg-year-review-head' : 'page__head'}>
         <div className="dg-eval-head">
           <ChildAvatar child={detail.child || { fullName: ev.childName }} size="lg" />
           <div>
-            <h1 className="page__title">
+            <h1 className={yearEnd ? 'sr-only' : 'page__title'}>
               Đánh giá {PERIOD_TYPE_LABELS[ev.periodType].toLowerCase()} – {ev.childName}
             </h1>
             {/* Tiêu đề h1 chỉ cho trình đọc màn hình: hiện rõ họ tên, ngày sinh để GV biết đang đánh giá bé nào */}
             <div className="dg-eval-name">
               {detail.child?.fullName || ev.childName}
-              {detail.child?.dateOfBirth && <span className="muted text-sm"> · Sinh ngày {formatDate(detail.child.dateOfBirth)}</span>}
+              {yearEnd && <EvaluationStatusBadge status={ev.status} />}
+              {!yearEnd && detail.child?.dateOfBirth && (
+                <span className="muted text-sm"> · Sinh ngày {formatDate(detail.child.dateOfBirth)}</span>
+              )}
             </div>
             <div className="dg-eval-meta">
-              <EvaluationStatusBadge status={ev.status} />
+              {!yearEnd && <EvaluationStatusBadge status={ev.status} />}
+              {yearEnd && detail.child?.dateOfBirth && <span>Sinh ngày {formatDate(detail.child.dateOfBirth)}</span>}
               <span>{ev.className}</span>
               <span>{label}</span>
               {ev.themeName && <span>Chủ đề: {ev.themeName}</span>}
               <span>Có mặt {detail.summary.presentDays} ngày</span>
               {!yearEnd && <span>Đánh giá hằng ngày {detail.summary.assessedDays} ngày</span>}
-              {confirmed && (
+              {!yearEnd && confirmed && (
                 <span>
                   Xác nhận bởi {name(ev.confirmedBy, ev.confirmedByName)} · {formatDateTime(ev.confirmedAt)}
                 </span>
               )}
             </div>
+            {yearEnd && confirmed && (
+              <div className="dg-eval-meta mt-8">
+                <span>
+                  Xác nhận bởi {name(ev.confirmedBy, ev.confirmedByName)} · {formatDateTime(ev.confirmedAt)}
+                </span>
+                {!detail.cls?.teaches && <span className="chip">Chỉ xem</span>}
+              </div>
+            )}
           </div>
         </div>
         {yearEnd && confirmed && isClassTeacher(detail.cls, user) && (
@@ -272,8 +285,20 @@ export function EvaluationReviewView({ kind, id }) {
         )}
       </div>
 
-      {confirmed && !detail.cls?.teaches && (
+      {!yearEnd && confirmed && !detail.cls?.teaches && (
         <div className="alert alert--info mt-16">Đánh giá đã xác nhận · Chỉ xem lịch sử của trẻ, không chỉnh sửa nội dung.</div>
+      )}
+
+      {yearEnd && (
+        <YearEndSheetCard
+          // Xác nhận (đổi trạng thái) ⇒ tải lại phiếu: phiếu chuyển chỉ xem, có ngày ký trên bản in
+          key={`${ev.id}-${ev.status}`}
+          evaluation={ev}
+          child={detail.child}
+          comment={canReview ? content : ev.finalContent}
+          sheetRef={sheetRef}
+          onDirtyChange={setSheetEdited}
+        />
       )}
 
       {ev.status === EVAL_STATUS.AI_FAILED && canReview && (
@@ -290,12 +315,12 @@ export function EvaluationReviewView({ kind, id }) {
       )}
 
       {canReview ? (
-        <div className="split-2 mt-16">
-          <div className="card">
-            <div className="card__header">
-              <div className="card__title">Bản nháp AI</div>
+        <div className={yearEnd ? 'stack mt-16' : 'split-2 mt-16'}>
+          <details className="card">
+            <summary className="card__header">
+              <span className="card__title">Bản nháp AI làm căn cứ</span>
               <AiDraftTag />
-            </div>
+            </summary>
             <div className="card__body">
               {ev.aiDraft ? (
                 <>
@@ -328,7 +353,7 @@ export function EvaluationReviewView({ kind, id }) {
                 <EmptyState title="Chưa có bản nháp AI" description="Cô tự viết đánh giá ở khung bên cạnh." />
               )}
             </div>
-          </div>
+          </details>
           <div className="card">
             <div className="card__header">
               <div className="card__title">Đánh giá chính thức</div>
@@ -404,25 +429,29 @@ export function EvaluationReviewView({ kind, id }) {
         </div>
       )}
 
-      {yearEnd && (
-        <YearEndSheetCard
-          // Xác nhận (đổi trạng thái) ⇒ tải lại phiếu: phiếu chuyển chỉ xem, có ngày ký trên bản in
-          key={`${ev.id}-${ev.status}`}
-          evaluation={ev}
-          child={detail.child}
-          comment={canReview ? content : ev.finalContent}
-          sheetRef={sheetRef}
-          onDirtyChange={setSheetEdited}
-        />
+      {yearEnd ? (
+        detail.summary.structured?.observedDays ? (
+          <PeriodSummaryTable data={detail.summary.structured} />
+        ) : (
+          <section className="card mt-16">
+            <div className="card__header">
+              <h2 className="card__title">Số liệu từ đánh giá hằng ngày</h2>
+            </div>
+            <div className="card__body muted">Chưa có ghi nhận đánh giá hằng ngày trong năm học.</div>
+          </section>
+        )
+      ) : (
+        <details className="card mt-16">
+          <summary className="card__header">Xem dữ liệu làm căn cứ</summary>
+          <PeriodSummaryTable data={detail.summary.structured} />
+        </details>
       )}
 
-      <PeriodSummaryTable data={detail.summary.structured} />
-
-      {/* Học kỳ, cuối năm: các đánh giá tháng cô đã xác nhận trong kỳ để viết nhận xét chung */}
-      {kind !== EVAL_KIND.PERIODIC && (
+      {/* Nhận xét tháng trong chi tiết học kỳ cũ. */}
+      {kind === EVAL_KIND.SEMESTER && (
         <div className="card mt-16">
           <div className="card__header">
-            <div className="card__title">Đánh giá tháng đã xác nhận trong {yearEnd ? 'năm học' : 'học kỳ'}</div>
+            <div className="card__title">Đánh giá tháng đã xác nhận trong học kỳ</div>
           </div>
           <div className="card__body">
             {detail.monthlyEvaluations.length ? (
@@ -511,18 +540,22 @@ export function EvaluationReviewView({ kind, id }) {
             </button>
           </div>
         )}
-        {canReview && (
+        {(canReview || canConfirm) && (
           <div className="row gap-2">
-            <button className="btn" onClick={save} disabled={!!busy}>
-              {busy === 'save' ? <Spinner small /> : <Save size={16} />} Lưu chỉnh sửa
-            </button>
-            <button
-              className="btn btn--primary"
-              onClick={() => [check(), checkProgram()].every(Boolean) && setConfirmOpen(true)}
-              disabled={!!busy}
-            >
-              <CheckCircle2 size={16} /> {yearEnd ? 'Xác nhận đánh giá' : 'Xác nhận và công bố'}
-            </button>
+            {canReview && (
+              <button className="btn" onClick={save} disabled={!!busy}>
+                {busy === 'save' ? <Spinner small /> : <Save size={16} />} Lưu chỉnh sửa
+              </button>
+            )}
+            {canConfirm && (
+              <button
+                className="btn btn--primary"
+                onClick={() => [check(), checkProgram()].every(Boolean) && setConfirmOpen(true)}
+                disabled={!!busy}
+              >
+                <CheckCircle2 size={16} /> {yearEnd ? 'Xác nhận đánh giá' : 'Xác nhận và công bố'}
+              </button>
+            )}
           </div>
         )}
       </div>

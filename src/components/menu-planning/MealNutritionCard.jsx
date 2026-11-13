@@ -1,15 +1,15 @@
 import { useState } from 'react';
-import { Tabs } from '@/components/ui/Tabs';
 import { ErrorState, LoadingState } from '@/components/ui/States';
-import { NormStatusChip } from '@/components/menu-planning/MenuBadges';
+import { NormRowBadge, NormStatusChip } from '@/components/menu-planning/MenuBadges';
 import { StatisticsNutrition } from '@/components/menu-planning/MenuStatistics';
 import { MEAL_SESSION_LABELS, SESSION_ORDER, formatMoney } from '@/models/menu-planning/menuPlanningConstants';
 
 const num = (v) => (v == null ? '—' : Number(v).toLocaleString('vi-VN', { maximumFractionDigits: 2 }));
 const money = (v) => (v == null ? '—' : formatMoney(Number(v)));
 const range = (r) => (r && (r.min != null || r.max != null) ? `${num(r.min)}–${num(r.max)}` : '—');
-// Tô theo trạng thái BE trả cho chỉ số (LOW thấp, HIGH cao); không tự so định mức ở client
-const tone = (r) => (r?.status === 'LOW' ? 'td-daynut--low' : r?.status === 'HIGH' ? 'td-daynut--high' : '');
+// Tô theo trạng thái BE trả cho chỉ số; không tự so định mức ở client
+const TONE_CLASS = { OK: 'td-daynut--ok', LOW: 'td-daynut--low', HIGH: 'td-daynut--high' };
+const tone = (r) => TONE_CLASS[r?.status] || '';
 const TABS = [
   ['meal', 'Theo bữa'],
   ['origin', 'Động vật – thực vật'],
@@ -19,7 +19,14 @@ const TABS = [
  * Bảng "Thông tin dinh dưỡng 1 trẻ / ngày" của mẫu ngày: theo bữa (đạm, béo, bột đường g + % năng lượng, kcal, % nhu cầu năng lượng cả ngày (NUT-25), tiền)
  * và theo nguồn gốc. Mọi số lấy từ `POST /nutrition/menu-statistics` (evaluation.sessions, rows, totals) — BE tính.
  */
-export function MealNutritionCard({ ageGroups, ageGroupId, onAgeGroup, statsQ, hasItems }) {
+export function MealNutritionCard({
+  ageGroups,
+  ageGroupId,
+  onAgeGroup,
+  statsQ,
+  hasItems,
+  emptyText = 'Thêm món cho mẫu để xem dinh dưỡng.',
+}) {
   const [tab, setTab] = useState('meal');
   const stats = statsQ.data;
   const ev = stats?.evaluation || {};
@@ -32,42 +39,53 @@ export function MealNutritionCard({ ageGroups, ageGroupId, onAgeGroup, statsQ, h
       <div className="card__header td-daynut__head">
         <h2 className="card__title">Thông tin dinh dưỡng 1 trẻ / ngày</h2>
         {ev.status && <NormStatusChip status={ev.status} />}
-        {ageGroups.length > 1 && (
-          <Tabs
-            variant="pill"
-            items={ageGroups.map((g) => ({ key: g.id, label: g.name }))}
-            value={ageGroupId}
-            onChange={onAgeGroup}
-            ariaLabel="Nhóm tuổi"
-          />
-        )}
       </div>
-      <div className="card__body">
+      <div className={`card__body ${statsQ.loading && stats ? 'td-busy' : ''}`}>
+        {/* Một hàng công cụ: nhóm tuổi bên trái, cách xem bên phải; chú giải màu nằm dưới bảng */}
+        <div className="td-daynut__tabs">
+          {ageGroups.length > 1 ? (
+            <div className="tabs tabs--pill" role="tablist" aria-label="Nhóm tuổi">
+              {ageGroups.map((g) => (
+                <button
+                  key={g.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={g.id === ageGroupId}
+                  className={`tab ${g.id === ageGroupId ? 'tab--active' : ''}`}
+                  onClick={() => onAgeGroup(g.id)}
+                >
+                  {g.name}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <span />
+          )}
+          {hasItems && stats && !statsQ.error && (
+            <div className="tabs tabs--pill" role="tablist" aria-label="Cách xem">
+              {TABS.map(([k, label]) => (
+                <button
+                  key={k}
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === k}
+                  className={`tab ${tab === k ? 'tab--active' : ''}`}
+                  onClick={() => setTab(k)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         {!hasItems ? (
-          <p className="text-sm muted">Thêm món cho mẫu để xem dinh dưỡng.</p>
+          <p className="text-sm muted">{emptyText}</p>
         ) : statsQ.error ? (
           <ErrorState error={statsQ.error} onRetry={statsQ.reload} />
         ) : !stats ? (
           <LoadingState />
         ) : (
           <>
-            <div className="td-daynut__tabs">
-              <Tabs
-                variant="pill"
-                items={TABS.map(([key, label]) => ({ key, label }))}
-                value={tab}
-                onChange={setTab}
-                ariaLabel="Cách xem"
-              />
-              <span className="td-daynut__legend text-sm">
-                <span>
-                  <i className="td-eval__dot td-eval__dot--low" /> Thấp so với chuẩn
-                </span>
-                <span>
-                  <i className="td-eval__dot td-eval__dot--high" /> Cao so với chuẩn
-                </span>
-              </span>
-            </div>
             {tab === 'origin' ? (
               <StatisticsNutrition stats={stats} />
             ) : (
@@ -146,9 +164,31 @@ export function MealNutritionCard({ ageGroups, ageGroupId, onAgeGroup, statsQ, h
                       <td />
                       <td className="money nowrap">{stats.mealPrice == null ? 'Chưa đặt' : money(stats.mealPrice)}</td>
                     </tr>
+                    <tr className="td-daynut__verdict">
+                      <td>Đánh giá</td>
+                      {[row.protein, row.lipid, row.glucid, row.kcal].map((r, i) => (
+                        <td key={i} colSpan={2} className="center">
+                          {r?.status ? <NormRowBadge status={r.status} /> : '—'}
+                        </td>
+                      ))}
+                      <td />
+                    </tr>
                   </tbody>
                 </table>
               </div>
+            )}
+            {tab === 'meal' && (
+              <p className="td-daynut__legend text-sm">
+                <span>
+                  <i className="td-eval__dot td-eval__dot--ok" /> Đạt chuẩn
+                </span>
+                <span>
+                  <i className="td-eval__dot td-eval__dot--low" /> Thấp so với chuẩn
+                </span>
+                <span>
+                  <i className="td-eval__dot td-eval__dot--high" /> Cao so với chuẩn
+                </span>
+              </p>
             )}
           </>
         )}

@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, Download, Printer, Save } from '@/components/ui/icons';
 import ThemeEvaluationPreviewModal from '@/components/assessment/ThemeEvaluationPreviewModal';
+import { ThemeDailyCrossCheck } from '@/components/assessment/ThemeDailyCrossCheck';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import { EmptyState, ErrorState, LoadingState, Spinner } from '@/components/ui/States';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSchoolYear } from '@/contexts/SchoolYearContext';
+import { AssessmentFormHeading } from '@/components/assessment/AssessmentFormHeading';
 import { useToast } from '@/contexts/ToastContext';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { useThemeClasses, useThemeEvaluation, useThemeList } from '@/hooks/assessment/useAssessment';
@@ -14,6 +17,8 @@ import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';
 import { themeEvaluationFile } from '@/utils/assessment/themeEvaluationDoc';
 import { exportWithPreview } from '@/components/ui/ExportPreview';
 import { formatDate, formatDateTime } from '@/utils/format';
+import { PERMISSIONS } from '@/models/bePermissions';
+import { hasBePermission } from '@/utils/bePermissions';
 import '@/styles/modules/assessment.css';
 
 const NOTE_MAX = 1000;
@@ -30,16 +35,20 @@ const nextValue = (met, auto) => (met === true ? false : met === false ? (auto =
  */
 export default function ThemeEvaluationPage() {
   const { user } = useAuth();
+  const { schoolYear, schoolYears } = useSchoolYear();
+  const yearLabel = schoolYears.find((y) => String(y.id) === String(schoolYear))?.label;
   const toast = useToast();
   const { classes, loading: classesLoading, error: classesError } = useThemeClasses();
   const [classId, setClassId] = useState('');
   const [themeId, setThemeId] = useState('');
   const currentClassId = classId || classes[0]?.classId || '';
-  const { themes, loading: themesLoading, error: themesError } = useThemeList(currentClassId);
+  const { themes, loading: themesLoading, error: themesError, reload: reloadThemes } = useThemeList(currentClassId);
   // Mặc định chủ đề đã kết thúc gần nhất, chưa có thì chủ đề đang diễn ra
   const defaultTheme = [...themes].reverse().find((t) => t.period === 'ENDED') || themes.find((t) => t.period === 'ONGOING') || themes[0];
   const currentThemeId = themeId || defaultTheme?.themeId || '';
-  const { evaluation: ev, loading, error, reload } = useThemeEvaluation(currentClassId, currentThemeId);
+  const { evaluation: ev, loading, error, reload, setEvaluation } = useThemeEvaluation(currentClassId, currentThemeId);
+  const canEdit = !!ev?.canEdit && hasBePermission(user, PERMISSIONS.ASSESSMENT_RECORD);
+  const canConfirm = !!ev?.canConfirm && hasBePermission(user, PERMISSIONS.ASSESSMENT_CONFIRM);
 
   // Ô sửa trên màn: key `${childId}:${goalId}` → true / false / null (null = bỏ sửa tay, về hệ thống tính khi lưu)
   const [edits, setEdits] = useState({});
@@ -83,15 +92,17 @@ export default function ThemeEvaluationPage() {
     });
 
   const run = async (kind, fn, message) => {
-    if (note.length > NOTE_MAX) {
-      toast.error(`Lưu ý tối đa ${NOTE_MAX} ký tự.`, 'Chưa lưu được');
-      return false;
-    }
+    // Quá dài: lỗi đỏ ngay dưới ô (không chặn gõ), không gửi BE
+    if (note.length > NOTE_MAX) return false;
     setBusy(kind);
     try {
-      await fn({ classId: Number(currentClassId), themeId: Number(currentThemeId), note, cells: cellsBody() }, user);
+      const saved = await fn({ classId: Number(currentClassId), themeId: Number(currentThemeId), note, cells: cellsBody() }, user);
+      // Response lưu/xác nhận là nguồn trạng thái mới; không chờ GET rồi mới khóa phiếu.
+      setEvaluation(saved);
+      setEdits({});
+      setNote(saved.note || '');
+      await reloadThemes({ silent: true });
       toast.success(message);
-      await reload({ silent: true });
       return true;
     } catch (err) {
       toast.error(err, 'Chưa lưu được đánh giá cuối chủ đề');
@@ -126,6 +137,8 @@ export default function ThemeEvaluationPage() {
     );
   };
 
+  // Bấm tên trẻ: mở đối chiếu đánh giá hằng ngày trong thời gian chủ đề (Cần yêu cầu 10/11/2026)
+  const [xcheck, setXcheck] = useState(null);
   const goalTitle = useMemo(() => Object.fromEntries((ev?.goals || []).map((g) => [g.goalId, g.text])), [ev]);
 
   return (
@@ -141,6 +154,7 @@ export default function ThemeEvaluationPage() {
                 className="select"
                 aria-label="Lớp"
                 value={currentClassId}
+                disabled={!!busy}
                 onChange={(e) =>
                   guard.leave(() => {
                     setClassId(e.target.value);
@@ -151,7 +165,7 @@ export default function ThemeEvaluationPage() {
                 {classes.map((c) => (
                   <option key={c.classId} value={c.classId}>
                     {c.name}
-                    {c.teaches ? '' : ' (xem)'}
+                    {classes.some((x) => x.teaches) && !c.teaches ? ' (chỉ xem)' : ''}
                   </option>
                 ))}
               </select>
@@ -164,6 +178,7 @@ export default function ThemeEvaluationPage() {
                 className="select"
                 aria-label="Chủ đề"
                 value={currentThemeId}
+                disabled={!!busy}
                 onChange={(e) => guard.leave(() => setThemeId(e.target.value))}
               >
                 {themes.map((t) => (
@@ -179,13 +194,18 @@ export default function ThemeEvaluationPage() {
             <>
               <button
                 className="btn"
-                disabled={changed}
+                disabled={changed || !!busy}
                 title={changed ? 'Lưu thay đổi trước khi in' : undefined}
                 onClick={() => setPreview(themeEvaluationFile(ev))}
               >
                 <Printer size={16} /> Xem trước & In
               </button>
-              <button className="btn" disabled={changed} title={changed ? 'Lưu thay đổi trước khi xuất' : undefined} onClick={exportExcel}>
+              <button
+                className="btn"
+                disabled={changed || !!busy}
+                title={changed ? 'Lưu thay đổi trước khi xuất' : undefined}
+                onClick={exportExcel}
+              >
                 <Download size={16} /> Xuất Excel
               </button>
             </>
@@ -222,108 +242,125 @@ export default function ThemeEvaluationPage() {
                   </span>
                 )}
               </div>
-              {ev.canEdit && (
+              {canEdit && (
                 <p className="muted text-sm mt-8">
-                  Hệ thống điền từ Kiến thức kỹ năng hằng ngày (lần chấm cuối trong chủ đề). Bấm vào ô để sửa tay (đổi Đạt / Chưa đạt); bấm
-                  tiếp tới khi về kết quả hệ thống. Ô sửa tay có viền đậm.
+                  Hệ thống điền từ Kiến thức kỹ năng hằng ngày: mục tiêu Đạt khi có ít nhất một hoạt động trong thời gian chủ đề được chấm
+                  Đạt; trẻ vắng hoặc chưa có lần Đạt nào thì Chưa đạt. Bấm vào ô để sửa tay (đổi Đạt / Chưa đạt); bấm tiếp tới khi về kết
+                  quả hệ thống. Ô sửa tay có viền đậm.
                 </p>
               )}
             </div>
             {ev.goals.length === 0 ? (
               <EmptyState title="Chủ đề chưa có mục tiêu" description="Kế hoạch năm học chưa tích mục tiêu nào cho chủ đề này." />
             ) : (
-              <div className="table-wrap">
-                <table className="table table--grid table--compact dg-theme-table">
-                  <thead>
-                    <tr>
-                      <th className="num">STT</th>
-                      <th>Họ và tên</th>
-                      {ev.goals.map((g) => (
-                        <th key={g.goalId} className="center" title={g.text}>
-                          {g.goalNo}
-                        </th>
-                      ))}
-                      <th className="num">Đ</th>
-                      <th className="num">KĐ</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {ev.rows.length === 0 ? (
+              <>
+                <AssessmentFormHeading title="BẢNG ĐÁNH GIÁ SỰ PHÁT TRIỂN CỦA TRẺ CUỐI CHỦ ĐỀ">
+                  Chủ đề: {ev.themeName} · {ev.className}
+                  {yearLabel ? ` · Năm học ${yearLabel}` : ''}
+                </AssessmentFormHeading>
+                <div className="table-wrap">
+                  <table className="table table--grid table--compact dg-theme-table">
+                    <thead>
                       <tr>
-                        <td colSpan={ev.goals.length + 4}>
-                          <EmptyState title="Chưa có trẻ trong thời gian chủ đề" />
-                        </td>
+                        <th className="num">STT</th>
+                        <th>Họ và tên</th>
+                        {ev.goals.map((g) => (
+                          <th key={g.goalId} className="center" title={g.text}>
+                            MT{g.goalNo}
+                          </th>
+                        ))}
+                        <th className="num">Đ</th>
+                        <th className="num">KĐ</th>
                       </tr>
-                    ) : (
-                      ev.rows.map((r, i) => (
-                        <tr key={r.childId}>
-                          <td className="num">{i + 1}</td>
-                          <td className="nowrap">{r.fullName}</td>
-                          {r.cells.map((c) => {
-                            const value = valueOf(r.childId, c);
-                            const manual = manualOf(r.childId, c);
-                            // Bỏ sửa tay ô đã lưu: chưa biết kết quả hệ thống tính tới khi lưu
-                            // BE cũ chưa trả kết quả tự tính: bỏ sửa tay ô đã lưu thì chưa biết giá trị tới khi lưu
-                            const reverting = c.manual && !manual && c.auto === undefined;
-                            const label = `${r.fullName} – MT ${goalTitle[c.goalId] || ''}: ${
-                              reverting
-                                ? 'về kết quả hệ thống tính khi lưu'
-                                : value === true
-                                  ? 'Đạt'
-                                  : value === false
-                                    ? 'Chưa đạt'
-                                    : 'chưa chấm'
-                            }`;
-                            return (
-                              <td key={c.goalId} className="center">
-                                {ev.canEdit ? (
-                                  <button
-                                    type="button"
-                                    className={`dg-theme-cell ${manual ? 'is-manual' : ''} ${value === false ? 'is-not-met' : ''}`}
-                                    aria-label={label}
-                                    title={label}
-                                    onClick={() => toggle(r.childId, c)}
-                                  >
-                                    {reverting ? '↺' : mark(value) || '·'}
-                                  </button>
-                                ) : (
-                                  <span className={value === false ? 'text-danger' : ''} title={label}>
-                                    {mark(value)}
-                                  </span>
-                                )}
-                              </td>
-                            );
-                          })}
-                          <td className="num">{r.met}</td>
-                          <td className="num">{r.notMet}</td>
+                    </thead>
+                    <tbody>
+                      {ev.rows.length === 0 ? (
+                        <tr>
+                          <td colSpan={ev.goals.length + 4}>
+                            <EmptyState title="Chưa có trẻ trong thời gian chủ đề" />
+                          </td>
                         </tr>
-                      ))
-                    )}
-                  </tbody>
-                  <tfoot>
-                    <tr>
-                      <th colSpan={2}>Tổng số trẻ đạt</th>
-                      {ev.goals.map((g) => (
-                        <th key={g.goalId} className="center">
-                          {g.metChildren}
-                        </th>
-                      ))}
-                      <th />
-                      <th />
-                    </tr>
-                    <tr>
-                      <th colSpan={2}>Tỷ lệ (%)</th>
-                      {ev.goals.map((g) => (
-                        <th key={g.goalId} className="center">
-                          {g.rate == null ? '' : g.rate}
-                        </th>
-                      ))}
-                      <th />
-                      <th />
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
+                      ) : (
+                        ev.rows.map((r, i) => (
+                          <tr key={r.childId}>
+                            <td className="num">{i + 1}</td>
+                            <td className="nowrap">
+                              <button
+                                type="button"
+                                className="dg-link-btn"
+                                title="Đối chiếu đánh giá hằng ngày trong thời gian chủ đề"
+                                onClick={() => setXcheck(r)}
+                              >
+                                {r.fullName}
+                              </button>
+                            </td>
+                            {r.cells.map((c) => {
+                              const value = valueOf(r.childId, c);
+                              const manual = manualOf(r.childId, c);
+                              // Bỏ sửa tay ô đã lưu: chưa biết kết quả hệ thống tính tới khi lưu
+                              // BE cũ chưa trả kết quả tự tính: bỏ sửa tay ô đã lưu thì chưa biết giá trị tới khi lưu
+                              const reverting = c.manual && !manual && c.auto === undefined;
+                              const label = `${r.fullName} – MT ${goalTitle[c.goalId] || ''}: ${
+                                reverting
+                                  ? 'về kết quả hệ thống tính khi lưu'
+                                  : value === true
+                                    ? 'Đạt'
+                                    : value === false
+                                      ? 'Chưa đạt'
+                                      : 'chưa chấm'
+                              }`;
+                              return (
+                                <td key={c.goalId} className="center">
+                                  {canEdit ? (
+                                    <button
+                                      disabled={!!busy}
+                                      type="button"
+                                      className={`dg-theme-cell ${manual ? 'is-manual' : ''} ${value === false ? 'is-not-met' : ''}`}
+                                      aria-label={label}
+                                      title={label}
+                                      onClick={() => toggle(r.childId, c)}
+                                    >
+                                      {reverting ? '↺' : mark(value) || '·'}
+                                    </button>
+                                  ) : (
+                                    <span className={value === false ? 'text-danger' : ''} title={label}>
+                                      {mark(value)}
+                                    </span>
+                                  )}
+                                </td>
+                              );
+                            })}
+                            <td className="num">{r.met}</td>
+                            <td className="num">{r.notMet}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                    <tfoot>
+                      <tr>
+                        <th colSpan={2}>Tổng số trẻ đạt</th>
+                        {ev.goals.map((g) => (
+                          <th key={g.goalId} className="center">
+                            {g.metChildren}
+                          </th>
+                        ))}
+                        <th />
+                        <th />
+                      </tr>
+                      <tr>
+                        <th colSpan={2}>Tỷ lệ (%)</th>
+                        {ev.goals.map((g) => (
+                          <th key={g.goalId} className="center">
+                            {g.rate == null ? '' : g.rate}
+                          </th>
+                        ))}
+                        <th />
+                        <th />
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </>
             )}
             <div className="card__body dg-theme-summary">
               <p className="text-sm">
@@ -338,32 +375,42 @@ export default function ThemeEvaluationPage() {
               <label className="field__label" htmlFor="theme-note">
                 Một số lưu ý
               </label>
-              {ev.canEdit ? (
+              {canEdit ? (
                 <textarea
+                  disabled={!!busy}
                   id="theme-note"
                   className="textarea"
                   rows={3}
-                  maxLength={NOTE_MAX}
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
                   placeholder="Vd. Cô chú ý rèn những trẻ còn hạn chế, động viên khuyến khích trẻ."
+                  aria-invalid={note.length > NOTE_MAX}
                 />
               ) : (
                 <p className="text-sm">{ev.note || <span className="muted">—</span>}</p>
               )}
-              {ev.canEdit && (
+              {canEdit && note.length > NOTE_MAX && (
+                <span className="field__error" role="alert">
+                  {`Tối đa ${NOTE_MAX} ký tự (đang ${note.length}).`}
+                </span>
+              )}
+              {(canEdit || canConfirm) && (
                 <div className="row gap-2 mt-12 sc-end">
-                  <button className="btn" onClick={save} disabled={!!busy || !changed}>
-                    {busy === 'save' ? <Spinner small /> : <Save size={16} />} Lưu
-                  </button>
-                  <button
-                    className="btn btn--primary"
-                    onClick={() => setConfirmOpen(true)}
-                    disabled={!!busy || !ev.canConfirm}
-                    title={ev.canConfirm ? '' : 'Xác nhận được từ ngày kết thúc chủ đề'}
-                  >
-                    <CheckCircle2 size={16} /> Xác nhận đánh giá
-                  </button>
+                  {canEdit && (
+                    <button className="btn" onClick={save} disabled={!!busy || !changed}>
+                      {busy === 'save' ? <Spinner small /> : <Save size={16} />} Lưu
+                    </button>
+                  )}
+                  {hasBePermission(user, PERMISSIONS.ASSESSMENT_CONFIRM) && (
+                    <button
+                      className="btn btn--primary"
+                      onClick={() => setConfirmOpen(true)}
+                      disabled={!!busy || !canConfirm}
+                      title={ev.canConfirm ? '' : 'Xác nhận được từ ngày kết thúc chủ đề'}
+                    >
+                      <CheckCircle2 size={16} /> Xác nhận đánh giá
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -380,6 +427,7 @@ export default function ThemeEvaluationPage() {
       />
       <LeaveConfirmModal {...guard.modal} canSave message="Đánh giá cuối chủ đề có thay đổi chưa lưu." />
       {preview && <ThemeEvaluationPreviewModal file={preview} onClose={() => setPreview(null)} />}
+      {xcheck && ev && <ThemeDailyCrossCheck child={xcheck} theme={ev} onClose={() => setXcheck(null)} />}
     </div>
   );
 }

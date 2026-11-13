@@ -8,7 +8,7 @@ import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { RowActions } from '@/components/ui/RowActions';
-import { YearStatusBadge } from '@/components/school-config/SchoolConfigBadges';
+import { YearStatusBadge, yearBadgeStatus } from '@/components/school-config/SchoolConfigBadges';
 import { ScNoAccess } from '@/components/school-config/ScNoAccess';
 import { closeSchoolYear, deleteSchoolYear } from '@/services/school-config/schoolConfigService';
 import { ActivateYearModal, YearReadinessCard } from '@/components/school-config/YearReadiness';
@@ -130,9 +130,10 @@ export default function SchoolYearListPage() {
             <table className="table table--grid table--compact">
               <thead>
                 <tr>
-                  <th>Năm học</th>
-                  <th>Bắt đầu</th>
-                  <th>Kết thúc</th>
+                  <th className="center">Năm học</th>
+                  <th className="center">Bắt đầu</th>
+                  <th className="center">Kết thúc</th>
+                  <th className="center">Mở chuẩn bị</th>
                   <th className="num">Số lớp</th>
                   <th className="center">Trạng thái</th>
                   <th className="cell--actions">Thao tác</th>
@@ -140,10 +141,10 @@ export default function SchoolYearListPage() {
               </thead>
               <tbody>
                 {loading ? (
-                  <SkeletonRows rows={3} cols={6} />
+                  <SkeletonRows rows={3} cols={7} />
                 ) : years.length === 0 ? (
                   <tr>
-                    <td colSpan={6}>
+                    <td colSpan={7}>
                       <EmptyState
                         icon={CalendarRange}
                         title="Chưa có năm học"
@@ -161,7 +162,7 @@ export default function SchoolYearListPage() {
                 ) : (
                   years.map((y) => (
                     <tr key={y.id} className={y.id === preparing?.id ? 'is-selected' : undefined}>
-                      <td className="fw-600 text-primary">
+                      <td className="fw-600 text-primary center">
                         {canConfigureSchool(user) && y.status === YEAR_STATUS.PLANNED ? (
                           <button
                             type="button"
@@ -175,11 +176,12 @@ export default function SchoolYearListPage() {
                           y.name
                         )}
                       </td>
-                      <td>{formatDate(y.startDate)}</td>
-                      <td>{formatDate(y.endDate)}</td>
+                      <td className="center">{formatDate(y.startDate)}</td>
+                      <td className="center">{formatDate(y.endDate)}</td>
+                      <td className="center">{y.prepDate ? formatDate(y.prepDate) : '—'}</td>
                       <td className="num">{y.classCount}</td>
                       <td className="center">
-                        <YearStatusBadge status={y.status} />
+                        <YearStatusBadge status={yearBadgeStatus(y)} />
                       </td>
                       <td className="cell--actions">
                         <div className="row">

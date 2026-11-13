@@ -1,4 +1,6 @@
+import { StatusBadge } from '@/components/ui/StatusBadge';
 import { energyShares } from '@/utils/menu-planning/menuCalculations';
+import { coverageTone } from '@/utils/menu-planning/microGroups';
 import {
   MICRONUTRIENT_GROUPS,
   MICRONUTRIENT_LABELS,
@@ -38,7 +40,13 @@ export function NutrientTable({ values, caption }) {
               <thead>
                 <tr className="td-nutrient-table__group">
                   <th scope="colgroup" colSpan={3}>
-                    {g.label}
+                    <span className="td-nutrient-table__group-in">
+                      {g.label}
+                      <StatusBadge
+                        tone={coverageTone(g.items.filter((k) => typeof v[k] === 'number').length, g.items.length)}
+                        label={`${g.items.filter((k) => typeof v[k] === 'number').length}/${g.items.length} có số liệu`}
+                      />
+                    </span>
                   </th>
                 </tr>
                 <tr>
@@ -46,7 +54,9 @@ export function NutrientTable({ values, caption }) {
                   <th scope="col" className="num">
                     Hàm lượng
                   </th>
-                  <th scope="col">Đơn vị</th>
+                  <th scope="col" className="center">
+                    Số liệu
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -55,8 +65,18 @@ export function NutrientTable({ values, caption }) {
                   return (
                     <tr key={k}>
                       <th scope="row">{g.labels[k]}</th>
-                      <td className="num fw-600">{value ?? <span className="muted">Chưa có</span>}</td>
-                      <td className="muted">{g.units[k]}</td>
+                      <td className="num nowrap fw-600">
+                        {value == null ? (
+                          <span className="muted">—</span>
+                        ) : (
+                          <>
+                            {value} <span className="muted fw-400">{g.units[k]}</span>
+                          </>
+                        )}
+                      </td>
+                      <td className="center">
+                        {value == null ? <StatusBadge tone="gray" label="Chưa có" /> : <StatusBadge tone="green" label="Có" />}
+                      </td>
                     </tr>
                   );
                 })}

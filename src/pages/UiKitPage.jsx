@@ -1,5 +1,17 @@
 import { useCallback, useState } from 'react';
-import { Plus, Save, Send, Trash2, Printer, Info, AlertTriangle, CheckCircle2, XCircle, Inbox } from '@/components/ui/icons';
+import {
+  Plus,
+  Save,
+  Send,
+  Trash2,
+  Printer,
+  Info,
+  AlertTriangle,
+  ArrowLeftRight,
+  CheckCircle2,
+  XCircle,
+  Inbox,
+} from '@/components/ui/icons';
 import * as AppIcons from '@/components/ui/icons';
 import { useToast } from '@/contexts/ToastContext';
 import { useAiRun } from '@/hooks/useAiRun';
@@ -29,6 +41,11 @@ import {
   Pagination,
   RowActions,
   StatusPage,
+  Button,
+  DataTable,
+  TextField,
+  SelectField,
+  LABELS,
 } from '@/components';
 import './ui-kit.css';
 import { NutritionPrimitivesDemo } from '@/components/ui/NutritionPrimitivesDemo';
@@ -162,7 +179,17 @@ function Section({ id, title, children, code }) {
     </section>
   );
 }
+const DEMO_ROWS = [
+  { id: 1, code: 'NCC-01', name: 'Rau sạch Thượng Hồng', status: 'Đang dùng' },
+  { id: 2, code: 'NCC-02', name: 'Thực phẩm An Lành', status: 'Tạm ngưng' },
+];
+const DEMO_COLUMNS = [
+  { key: 'code', header: 'Mã', className: 'center' },
+  { key: 'name', header: 'Tên nhà cung cấp' },
+  { key: 'status', header: 'Trạng thái', className: 'center' },
+];
 const NAV = [
+  ['primitives', 'Component nền (dùng cho màn mới)'],
   ['colors', 'Màu sắc'],
   ['typography', 'Chữ'],
   ['scales', 'Khoảng cách, bo góc, đổ bóng'],
@@ -237,6 +264,43 @@ export default function UiKitPage() {
           gap: 16,
         }}
       >
+        <Section
+          id="primitives"
+          title="Component nền — màn mới và màn đang sửa bắt buộc dùng"
+          code={`import { ListPage, DataTable, Button, TextField, SelectField, LABELS } from '@/components';
+
+<ListPage crumbs={crumbs} title="Nhà cung cấp" filters={<div className="filter-bar">…</div>}>
+  <DataTable columns={columns} rows={data} loading={loading} error={error} onRetry={reload}
+    empty={{ title: 'Chưa có nhà cung cấp nào' }} onRowClick={open}
+    page={page} onPageChange={setPage} pageSize={10} unit="nhà cung cấp" />
+</ListPage>
+
+<Button variant="primary" type="submit" loading={saving} icon={Save}>{LABELS.save}</Button>
+<TextField label="Tên" required value={name} onChange={…} error={errors.name} />`}
+        >
+          <div className="row gap-2 mb-16">
+            <Button variant="primary" icon={Plus}>
+              {LABELS.add}
+            </Button>
+            <Button icon={Save} loading>
+              {LABELS.saving}
+            </Button>
+            <Button variant="danger" size="sm" icon={Trash2}>
+              {LABELS.delete}
+            </Button>
+            <Button disabled>{LABELS.cancel}</Button>
+          </div>
+          <div className="row gap-2 mb-16">
+            <TextField label="Tên nhà cung cấp" required defaultValue="" error="Nhập tên nhà cung cấp" />
+            <SelectField
+              label="Trạng thái"
+              defaultValue=""
+              placeholder="Tất cả trạng thái"
+              options={[{ value: 'ACTIVE', label: 'Đang dùng' }]}
+            />
+          </div>
+          <DataTable columns={DEMO_COLUMNS} rows={DEMO_ROWS} empty={{ title: LABELS.noResults }} />
+        </Section>
         <Section
           id="colors"
           title="Màu sắc (design tokens)"
@@ -477,6 +541,20 @@ export default function UiKitPage() {
               />
             </div>
             <div className="field">
+              <span className="field__label">SearchSelect variant=&quot;icon&quot; (Thay món)</span>
+              <SearchSelect
+                variant="icon"
+                icon={ArrowLeftRight}
+                ariaLabel="Thay Cơm tẻ"
+                heading="Thay Cơm tẻ · Cơm"
+                onChange={() => toast.info('Đã chọn món thay')}
+                options={[
+                  { value: 'x', label: 'Cơm gạo lứt' },
+                  { value: 'y', label: 'Cơm nếp' },
+                ]}
+              />
+            </div>
+            <div className="field">
               <label className="field__label" htmlFor="uk-text">
                 Textarea
               </label>
@@ -599,7 +677,7 @@ export default function UiKitPage() {
                 <table className="table table--grid">
                   <thead>
                     <tr>
-                      <th className="center">STT</th>
+                      <th className="num">STT</th>
                       <th>Mã</th>
                       <th>Tên mục minh họa</th>
                       <th className="center">Số lượng</th>
@@ -891,6 +969,9 @@ export default function UiKitPage() {
             <button className="btn" onClick={() => setModal(true)}>
               Mở Modal
             </button>
+            <button className="btn" onClick={() => setModal('full')}>
+              Mở Modal size=&quot;full&quot;
+            </button>
             <button className="btn btn--outline-danger" onClick={() => setConfirm(true)}>
               Mở ConfirmationModal (danger)
             </button>
@@ -918,8 +999,9 @@ export default function UiKitPage() {
             </button>
           </div>
           <Modal
-            open={modal}
-            title="Tiêu đề modal"
+            open={!!modal}
+            size={modal === 'full' ? 'full' : 'md'}
+            title={modal === 'full' ? 'Sửa nhiều một lần (size="full")' : 'Tiêu đề modal'}
             onClose={() => setModal(false)}
             footer={
               <>

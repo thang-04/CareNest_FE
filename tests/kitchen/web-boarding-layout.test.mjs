@@ -18,6 +18,7 @@ test('AUTH-21: route bán trú không mở cho bếp', () => {
   const kitchenBlock = routes.slice(routes.indexOf('<Route path="kitchen">'), routes.indexOf('<Route path="assessment">'));
   assert.ok(kitchenBlock.length > 0);
   assert.ok(!kitchenBlock.includes('KITCHEN_STAFF'));
+  // AUTH-20: BGH xem sổ suất; nút xác nhận theo MEAL_COUNT_CONFIRM ở từng bữa, bếp không vào
   assert.match(routes, /only\(LEADERS, <MealCountPage \/>\)/);
 });
 
@@ -89,12 +90,13 @@ test('route bán trú chọn trang theo isDemoModule: build BE dùng trang mới
   assert.match(routes, /<Route path="stock-receipts\/:id" element=\{only\(STOCK_RECEIPT_ROLES, <StockReceiptEditorPage \/>\)\} \/>/);
 });
 
-test('NUT-16, NUT-21: HT, PHT có mục bếp hôm nay, lưu mẫu, ảnh bữa, khung giờ ảnh khi nối BE', () => {
+test('NUT-16, NUT-21: HT, PHT có mục bếp hôm nay, lưu mẫu, ảnh bữa khi nối BE; giờ đăng ảnh nằm ở Cấu hình thời gian', () => {
   const apiBuild = !USE_MOCK && INTEGRATION_MODULES['kitchen-records']?.source === 'api';
   for (const role of [ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL]) {
     const items = getMenuForRole(role).flatMap((entry) => (entry.children || []).map((child) => child.to));
     assert.ok(items.includes('/kitchen/published-menu'), role);
     assert.ok(items.includes('/kitchen/food-samples'), role);
-    for (const to of ['/kitchen/meal-photos', '/kitchen/photo-windows']) assert.equal(items.includes(to), apiBuild, `${role} ${to}`);
+    assert.equal(items.includes('/kitchen/meal-photos'), apiBuild, `${role} meal-photos`);
+    assert.ok(!items.includes('/kitchen/photo-windows'), role);
   }
 });

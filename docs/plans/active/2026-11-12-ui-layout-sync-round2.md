@@ -179,3 +179,19 @@ Mỗi phase độc lập theo thư mục module, dừng được sau bất kỳ 
 - Chưa kiểm trên giao diện: 4 trạng thái rỗng mới (dữ liệu mẫu không có trường hợp rỗng tương ứng) — mới qua lint, build.
 - Còn của Phase 6: `.bd-toolbar`; ô chọn tệp trần ở Phiếu nhập kho; `account.css` ghi đè `.page-actions`.
 - **Commit:** user yêu cầu commit 13/11; đang ở `dev`, chưa có mã Jira và nhánh ⇒ chưa commit, đã hỏi user.
+
+### 2026-11-13 — Commit và gộp `origin/dev`
+
+- User cho mã `G94-340`, `FE-FEAT-56`, không commit `plans/`. Nhánh `feature/G94-340-FE-FEAT-56-ui-layout-sync` tạo từ `dev` trên máy; 3 commit: hộp tải tệp, thanh trên, đồng bộ bố cục các khu.
+- **Sự cố quy trình:** `dev` trên máy chậm 180 commit so với `origin/dev`; cả đợt làm trên bản cũ. 62/85 file đã sửa cũng đổi trên `origin/dev`. Gộp `origin/dev` vào nhánh: 23 file xung đột.
+- Cách xử lý xung đột:
+  - Lấy bản `origin/dev` ở chỗ nhóm đã làm lại theo quyết định mới hơn của user (11/11): Danh sách trẻ (bỏ xem nhanh khi bấm tên, mọi thao tác dòng vào menu "…", xóa `ChildQuickPanel`), Chi tiết và Danh sách đợt khám (bấm dòng, không cột Thao tác), `ChildInfoFields` (đã sửa lỗi bóp cột theo cách khác), `MealNutritionCard`, `TemplateDayPicker`, `MenuStatistics`.
+  - Ghép hai bên: `Breadcrumb` (tên theo sidebar của `origin/dev` + đưa lên thanh trên), `EditChildPage`, `DeclarationSummary`, `ThemeEvaluationPage` (kiểm quyền mới + câu nút), `AttendanceSummaryPage`, `DishListPage` và `TemplateMealSection` ("STT"), `ImportBranchFileModal`, `MenuStatisticsPage`, `DESIGN.md`.
+  - `ParentActivationPage`: theo `origin/dev` bỏ dải thông báo demo và dòng mô tả; giữ ô tìm trong thanh lọc của thẻ.
+  - `ClassRatingsPage`: bỏ nút "Xuất Excel" ở đầu trang vì `origin/dev` đã có ở thanh công cụ của bảng.
+  - **Không thuộc việc này:** `src/utils/exportXlsx.js`, `docs/knowledge/ISSUE_INDEX.md`, `docs/quality/VERIFICATION.md` xung đột giữa commit riêng trên máy `d13cfce` (G94-180 "Restore XLSX writer compatibility") và bản của nhóm ⇒ lấy bản `origin/dev`, cần user xác nhận.
+- Theo cổng mới của `origin/dev` (không `<button>` viết tay mới): nút tệp mẫu của `ImportDialog` dùng `Button`.
+- Test: thêm bản giả `Tabs` cho `tests/education-plan/review-status-label.test.mjs` (test mới của nhóm dựng `SchoolPlansPage` bằng thành phần giả).
+- Kiểm trên bản đã gộp (lệnh gốc, theo AGENTS.md mới): `npm run lint` 0 lỗi; `format:check` đạt; `check:design` ok; `check:api` 0 lỗi; `build` đạt; 9 nhóm test đạt (auth 93, menu 206, kitchen 167, merge 56, hardening 102, dashboard 58, health 111, children 121, edu 349).
+- Kiểm trên app sau gộp (1440 + 390): thanh trên 20/20 lượt; khu Trẻ, Cấu hình trường, Phân quyền, Đánh giá, Điểm danh, Đón trẻ — bấm dòng, vị trí nút, tab, thẻ số liệu đúng; 0 lỗi console; 0 tràn ngang.
+- Ghi nhận sau gộp: đường dẫn giờ theo sidebar nên sâu hơn (tới 5 cấp), các cấp cha bị cắt "…" nhiều ở màn sâu; `/assessment/periodic` chuyển hướng về Hồ sơ phát triển (thay đổi của nhóm).

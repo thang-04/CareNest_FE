@@ -34,7 +34,8 @@ export function TicketOverview() {
   const rows = overview?.rows || [];
   const rangeText = month ? monthText(month) : 'cả năm học';
   const campusName = (id) => overview?.campuses.find((c) => String(c.id) === String(id))?.name || id;
-  const multiCampus = (overview?.campuses.length || 0) > 1;
+  // Giáo viên không đọc được danh mục điểm trường nên thiếu tên: ẩn cột, không hiện mã số
+  const multiCampus = (overview?.campuses || []).filter((c) => c.name).length > 1;
 
   if (classId) {
     const cls = rows.find((r) => r.classId === classId);
@@ -55,7 +56,7 @@ export function TicketOverview() {
     exportWithPreview(
       [
         [`Phiếu bé ngoan các lớp – ${rangeText}`],
-        ['Điểm trường', 'Lớp', 'Sĩ số', 'Bé ngoan', 'Bé ngoan toàn diện', 'Trẻ có phiếu'],
+        ['Điểm trường', 'Lớp', 'Sĩ số', 'Phiếu bé ngoan (tuần)', 'Phiếu bé ngoan toàn diện (tháng)', 'Trẻ có phiếu'],
         ...rows.map((r) => [campusName(r.campusId), r.className, r.children, r.weekly, r.monthly, r.withTicket]),
       ],
       `phieu-be-ngoan-cac-lop-${month || 'nam-hoc'}.xlsx`,
@@ -69,7 +70,7 @@ export function TicketOverview() {
             <option value="">Tất cả điểm trường</option>
             {overview.campuses.map((c) => (
               <option key={c.id} value={c.id}>
-                {c.name}
+                {c.fullName || c.name}
               </option>
             ))}
           </select>
@@ -99,8 +100,8 @@ export function TicketOverview() {
                 <th>Lớp</th>
                 {multiCampus && <th>Điểm trường</th>}
                 <th className="num">Sĩ số</th>
-                <th className="num">Bé ngoan</th>
-                <th className="num">Bé ngoan toàn diện</th>
+                <th className="num">Phiếu bé ngoan (tuần)</th>
+                <th className="num">Phiếu bé ngoan toàn diện (tháng)</th>
                 <th className="num">Trẻ có phiếu</th>
               </tr>
             </thead>

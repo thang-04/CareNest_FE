@@ -207,7 +207,7 @@ export default function QualityReportPage() {
               <option value="">Tất cả điểm trường</option>
               {campusOptions.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.name}
+                  {c.fullName || c.name}
                 </option>
               ))}
             </select>
@@ -240,12 +240,21 @@ export default function QualityReportPage() {
               <div className="alert alert--warning dg-alert-inset" role="status">
                 <AlertTriangle size={18} />
                 <div>
-                  Lớp chưa điểm danh (vẫn tính là ngày học, trẻ chưa có mặt):{' '}
-                  {rows
-                    .filter((r) => r.unrecordedDays?.length)
-                    .map((r) => `${r.className}: ${r.unrecordedDays.map((d) => formatDate(d)).join(', ')}`)
-                    .join('; ')}
-                  . Giáo viên bổ sung qua mở lại điểm danh.
+                  {rows.filter((r) => r.unrecordedDays?.length).length} lớp còn ngày chưa điểm danh, các ngày đó vẫn tính là ngày học. Giáo
+                  viên bổ sung qua mở lại điểm danh.
+                  <details className="mt-8">
+                    <summary>Xem từng lớp</summary>
+                    <ul className="dg-unrecorded">
+                      {rows
+                        .filter((r) => r.unrecordedDays?.length)
+                        .map((r) => (
+                          <li key={r.className}>
+                            <b>{r.className}</b> ({r.unrecordedDays.length} ngày):{' '}
+                            {r.unrecordedDays.map((d) => formatDate(d).slice(0, 5)).join(', ')}
+                          </li>
+                        ))}
+                    </ul>
+                  </details>
                 </div>
               </div>
             )}

@@ -28,13 +28,15 @@ beforeEach(() => values.clear());
 
 test('nhà cung cấp ở /menu/suppliers; /kitchen/suppliers* chuyển hướng giữ đường dẫn cũ', () => {
   const menu = block('menu', 'kitchen');
-  for (const path of ['suppliers', 'suppliers/new', 'suppliers/:id', 'suppliers/:id/edit'])
-    assert.match(menu, new RegExp(`path="${path}" element=\\{only\\(`), path);
+  for (const path of ['suppliers', 'suppliers/:id']) assert.match(menu, new RegExp(`path="${path}" element=\\{only\\(`), path);
+  // Thêm/sửa NCC là modal: link form cũ về danh sách / chi tiết
+  assert.match(menu, /path="suppliers\/new" element=\{<Navigate to="\/menu\/suppliers" replace \/>\}/);
+  assert.match(menu, /path="suppliers\/:id\/edit" element=\{<SupplierRedirect \/>\}/);
   const kitchen = block('kitchen', 'assessment');
   assert.match(kitchen, /path="suppliers" element=\{<Navigate to="\/menu\/suppliers" replace \/>\}/);
-  assert.match(kitchen, /path="suppliers\/new" element=\{<Navigate to="\/menu\/suppliers\/new" replace \/>\}/);
+  assert.match(kitchen, /path="suppliers\/new" element=\{<Navigate to="\/menu\/suppliers" replace \/>\}/);
   assert.match(kitchen, /path="suppliers\/:id" element=\{<SupplierRedirect \/>\}/);
-  assert.match(kitchen, /path="suppliers\/:id\/edit" element=\{<SupplierRedirect suffix="\/edit" \/>\}/);
+  assert.match(kitchen, /path="suppliers\/:id\/edit" element=\{<SupplierRedirect \/>\}/);
   assert.ok(!kitchen.includes('<SupplierListPage'), 'không còn màn NCC dưới /kitchen');
   assert.ok(INTEGRATION_MODULES['nutrition-catalog'].routes.includes('/menu/suppliers'));
   assert.ok(!INTEGRATION_MODULES['nutrition-catalog'].routes.includes('/kitchen/suppliers'));

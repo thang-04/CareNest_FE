@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { Download, FileSpreadsheet, UploadCloud, Upload } from '@/components/ui/icons';
 import { Modal } from '@/components/ui/Modal';
+import { Button } from '@/components/ui/Button';
 import { Spinner } from '@/components/ui/States';
 import { LottiePlayer } from '@/components/ui/LottiePlayer';
 import { useToast } from '@/contexts/ToastContext';
@@ -88,9 +89,9 @@ export function ImportDialog({
           </a>
         )}
         {!templateHref && onTemplate && (
-          <button type="button" className="btn btn--outline-primary" onClick={onTemplate}>
-            <Download size={16} /> {templateLabel}
-          </button>
+          <Button variant="outline-primary" icon={Download} onClick={onTemplate}>
+            {templateLabel}
+          </Button>
         )}
       </div>
       {options && <div className="import-options">{options}</div>}

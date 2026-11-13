@@ -7,6 +7,7 @@ import { useMasterData } from '@/hooks/useMasterData';
 import { useKitchenCampus, useWeeklyForecast } from '@/hooks/kitchen/useKitchen';
 import { Breadcrumb, ConfirmationModal, EmptyState, ErrorState, LoadingState, StatusBadge } from '@/components';
 import { Modal } from '@/components/ui/Modal';
+import { PrintPaperFit } from '@/components/print/PrintPaperFit';
 import { PrintToolbar } from '@/components/print/PrintToolbar';
 import { KbCampusFilter } from '@/components/kitchen/KitchenFilters';
 import { WeekPicker } from '@/components/form/WeekPicker';
@@ -57,6 +58,8 @@ export default function WeeklyForecastPage() {
   const dirty = Object.values(draft).some((byDate) => Object.keys(byDate).length);
   const nextWeek = addDays(weekStart, 7);
   const menuPublished = ready;
+  // Mở bảng đi chợ ở hôm nay nếu hôm nay thuộc tuần đang xem, không thì ở ngày đầu tuần
+  const dayInWeek = today >= weekStart && today <= addDays(weekStart, 4) ? today : weekStart;
 
   const changeCell = (classId, date, value) => {
     setDraft((d) => ({ ...d, [classId]: { ...d[classId], [date]: value } }));
@@ -77,7 +80,7 @@ export default function WeeklyForecastPage() {
     setSaving(true);
     try {
       await saveWeeklyForecast({ campusId, weekStart, cells }, user);
-      toast.success(data.sent ? 'Đã lưu dự trù. Phần đổi so với phiếu đã gửi nằm ở tab Báo NCC thay đổi.' : 'Đã lưu dự trù tuần.');
+      toast.success('Đã lưu dự trù tuần.');
       setDraft({});
       setErrors({});
       reload({ silent: true });
@@ -142,24 +145,6 @@ export default function WeeklyForecastPage() {
       <div>
         <h1 className="page__title">Dự trù & đi chợ</h1>
       </div>
-      {(ready || (canEdit && weekStart <= thisWeek)) && (
-        <div className="page__actions">
-          {ready && (
-            <button
-              type="button"
-              className="btn"
-              onClick={() => exportWithPreview(weeklyOrderCsvRows(data), `phieu-dat-hang-tuan-${weekStart}.xlsx`)}
-            >
-              <Download size={16} /> Xuất Excel
-            </button>
-          )}
-          {canEdit && weekStart <= thisWeek && (
-            <button type="button" className="btn" onClick={() => go({ week: nextWeek, tab: 'tuan' })}>
-              <CalendarPlus size={16} /> Dự trù tuần sau · {formatDate(nextWeek).slice(0, 5)}–{formatDate(addDays(nextWeek, 4)).slice(0, 5)}
-            </button>
-          )}
-        </div>
-      )}
     </div>
   );
 
@@ -180,6 +165,30 @@ export default function WeeklyForecastPage() {
             label={menuPublished ? 'Thực đơn tuần đã công bố' : 'Chưa có thực đơn tuần đã công bố'}
           />
         </span>
+      )}
+      {/* Nút thao tác cùng hàng với ô lọc thay vì nằm riêng phía trên */}
+      {(ready || (canEdit && weekStart <= thisWeek)) && (
+        <div className="kb-toolbar__end">
+          {ready && (
+            <Link className="btn" to={`/kitchen/market-day?campusId=${campusId}&date=${dayInWeek}`}>
+              <ShoppingBasket size={16} /> Đi chợ theo ngày
+            </Link>
+          )}
+          {ready && (
+            <button
+              type="button"
+              className="btn"
+              onClick={() => exportWithPreview(weeklyOrderCsvRows(data), `phieu-dat-hang-tuan-${weekStart}.xlsx`)}
+            >
+              <Download size={16} /> Xuất Excel
+            </button>
+          )}
+          {canEdit && weekStart <= thisWeek && (
+            <button type="button" className="btn" onClick={() => go({ week: nextWeek, tab: 'tuan' })}>
+              <CalendarPlus size={16} /> Dự trù tuần sau · {formatDate(nextWeek).slice(0, 5)}–{formatDate(addDays(nextWeek, 4)).slice(0, 5)}
+            </button>
+          )}
+        </div>
       )}
     </div>
   );
@@ -381,13 +390,13 @@ export default function WeeklyForecastPage() {
           open={printing}
           onClose={() => setPrinting(false)}
           size="xl"
-          className="kb-print-modal"
+          className="print-modal"
           title="Phiếu đặt hàng tuần"
           footer={<PrintToolbar sheetRef={sheetRef} fileBase={`Phieu_dat_hang_tuan_${weekStart}`} printLabel="In phiếu" />}
         >
-          <div className="print-preview__paper">
+          <PrintPaperFit>
             <WeeklyOrderPrint ref={sheetRef} data={data} campusName={campus?.shortName || campus?.name} />
-          </div>
+          </PrintPaperFit>
         </Modal>
       )}
     </div>

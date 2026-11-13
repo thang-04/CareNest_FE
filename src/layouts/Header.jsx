@@ -1,3 +1,4 @@
+import { useGuardedNavigate } from '@/hooks/useLeaveGuard';
 import { CalendarDays, SidebarExpand } from '@/components/ui/icons';
 import { NotificationBell } from './NotificationBell';
 import { HeaderSearch } from './HeaderSearch';
@@ -9,6 +10,7 @@ import { useSchoolYear } from '@/contexts/SchoolYearContext';
  */
 export function Header({ role, showMenuButton, menuOpen, onToggleSidebar, crumbRef }) {
   const { schoolYear, setSchoolYear, schoolYears } = useSchoolYear();
+  const guarded = useGuardedNavigate();
   return (
     <header className="header no-print">
       {showMenuButton && (
@@ -26,7 +28,10 @@ export function Header({ role, showMenuButton, menuOpen, onToggleSidebar, crumbR
           className="select header__year-select"
           aria-label="Năm học"
           value={schoolYear}
-          onChange={(e) => setSchoolYear(e.target.value)}
+          onChange={(e) => {
+            const next = e.target.value;
+            guarded.run(() => setSchoolYear(next));
+          }}
         >
           {schoolYears.length === 0 && <option value="">Chưa có năm học</option>}
           {schoolYears.map((y) => (

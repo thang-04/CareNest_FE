@@ -2,7 +2,13 @@ import { useEffect, useMemo, useState } from 'react';
 import { Tabs } from '@/components/ui/Tabs';
 import { useTabParam } from '@/hooks/useTabParam';
 import { useSearchParams } from 'react-router-dom';
-import { Lock, Save, Send } from '@/components/ui/icons';
+import { Copy, Lock, Pencil, Save, Scale, Send } from '@/components/ui/icons';
+import { useAuth } from '@/contexts/AuthContext';
+import { DayEditorModal } from '@/components/menu-planning/DayEditorModal';
+import { CopyDayModal } from '@/components/menu-planning/CopyDayModal';
+import { PERMISSIONS } from '@/models/bePermissions';
+import { hasBePermission } from '@/utils/bePermissions';
+import { ageGroupOptions } from '@/utils/menu-planning/menuStatistics';
 import { useToast } from '@/contexts/ToastContext';
 import { Breadcrumb, EmptyState, ErrorState, LoadingState } from '@/components';
 import { WeekPicker } from '@/components/form/WeekPicker';
@@ -15,12 +21,22 @@ import { MealPlanGrid } from '@/components/menu-planning/MealPlanGrid';
 import { MealPlanIssueList } from '@/components/menu-planning/MealPlanIssueList';
 import { MealPlanStatusBadge } from '@/components/menu-planning/MenuBadges';
 import { PublishWeekDialog } from '@/components/menu-planning/PublishWeekDialog';
-import { useActiveDishes, useMealPlan } from '@/hooks/menu-planning/useMealPlan';
+import { useActiveDishes, useBeAgeGroups, useMealPlan } from '@/hooks/menu-planning/useMealPlan';
 import { useMenuTemplates } from '@/hooks/menu-planning/useMenuTemplates';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { mealPlanApi } from '@/services/mealPlanApi';
-import { MEAL_BLOCK_LABELS, MEAL_PLAN_STATUS, mondayOf } from '@/models/menu-planning/menuPlanningConstants';
-import { blockSessions, draftFromPlan, isDirty, planBlocks, resolveWeekStart } from '@/utils/menu-planning/mealPlanGrid';
+import { MEAL_BLOCK_LABELS, MEAL_PLAN_STATUS, WEEKDAY_LABELS, schoolWeekStart } from '@/models/menu-planning/menuPlanningConstants';
+import {
+  balanceHref,
+  blockSessions,
+  copyDay,
+  dayBlockItems,
+  draftFromPlan,
+  isDirty,
+  planBlocks,
+  resolveWeekStart,
+  setDayBlockItems,
+} from '@/utils/menu-planning/mealPlanGrid';
 import { applyTemplateDay, dayBlockItemCount, templateItemsForDate } from '@/utils/menu-planning/menuTemplateGrid';
 import { statisticsHref } from '@/utils/menu-planning/menuStatistics';
 import { weeklyCrumbs } from '@/utils/menu-planning/breadcrumbs';
@@ -40,15 +56,21 @@ export default function WeeklyPlanPage() {
   const planQ = useMealPlan(week);
   const plan = planQ.data;
   const { dishes } = useActiveDishes();
+  const { ageGroups } = useBeAgeGroups();
   const saved = useMemo(() => (plan ? draftFromPlan(plan) : null), [plan]);
   const [draft, setDraft] = useState(null);
   const [blockKey, setBlockKey] = useState('');
+  const [kcalGroupId, setKcalGroupId] = useState('');
   const [busy, setBusy] = useState(false);
   const [publishOpen, setPublishOpen] = useState(false);
   const [publishError, setPublishError] = useState('');
   // Mẫu ngày chờ xác nhận thay món: { day, template, count }
   const [pending, setPending] = useState(null);
   const [issuesOpen, setIssuesOpen] = useState(false);
+  // Ngày đang mở ở modal Sửa ngày / ngày nguồn khi chép (yyyy-mm-dd)
+  const [editingDay, setEditingDay] = useState(null);
+  const [copyFrom, setCopyFrom] = useState(null);
+  const { user } = useAuth();
 
   // Kế hoạch mới về (đổi tuần, sau khi lưu, nạp lại) ⇒ bản nháp trên màn lấy lại từ BE
   useEffect(() => setDraft(saved), [saved]);
@@ -57,19 +79,40 @@ export default function WeeklyPlanPage() {
   const block = blocks.includes(blockKey) ? blockKey : blocks[0];
   const editable = !!plan?.canEdit && plan.status !== MEAL_PLAN_STATUS.PUBLISHED;
   const dirty = !!draft && !!saved && isDirty(draft, saved);
+  // Một khối có thể gồm nhiều nhóm tuổi, kcal mỗi suất khác nhau nên phải nói rõ đang xem nhóm nào
+  const blockGroups = (plan?.blocks || []).find((b) => b.block === block)?.ageGroupIds || [];
+  const kcalGroups = ageGroups.filter((g) => blockGroups.some((id) => String(id) === String(g.id)));
+  const kcalAgeGroup = kcalGroups.find((g) => String(g.id) === kcalGroupId) || kcalGroups[0];
   const templatesQ = useMenuTemplates({ block, status: 'ACTIVE' });
   const templates = editable ? templatesQ.data || [] : [];
 
+  const groups = ageGroupOptions(blockGroups, ageGroups);
+  const dayTitle = (date) => {
+    const i = draft?.days.findIndex((d) => d.date === date) ?? -1;
+    return `${WEEKDAY_LABELS[i] || ''} ${date.slice(8, 10)}/${date.slice(5, 7)} · ${MEAL_BLOCK_LABELS[block] || block}`;
+  };
+  // Menu "…" đầu cột ngày: sửa trong modal to, chép ngày (khi sửa được); xem cân đối khi chỉ xem
+  const dayActions = (day) => {
+    const balance = { label: 'Mở ở Cân đối khẩu phần', icon: Scale, to: balanceHref({ week, block, date: day.date }) };
+    return editable
+      ? [
+          { label: 'Sửa ngày', icon: Pencil, onClick: () => setEditingDay(day.date) },
+          { label: 'Chép sang ngày…', icon: Copy, onClick: () => setCopyFrom(day.date) },
+          balance,
+        ]
+      : [{ label: 'Xem cân đối ngày', icon: Scale, onClick: () => setEditingDay(day.date) }, balance];
+  };
+
   const fillDay = (day, template) => {
     setDraft((d) => applyTemplateDay(d, day.date, template));
-    toast.success(`Đã điền món theo mẫu "${template.name}". Sửa từng món nếu cần rồi bấm Lưu nháp.`);
+    toast.success('Đã điền món theo mẫu.');
   };
   // Ngày đã có món của khối ⇒ hỏi trước khi thay bằng mẫu (agent chọn 2026-11-04, xem plan)
   const pickTemplate = (day, template) => {
     if (!template) return;
     // Bộ 4 tuần lấy Tuần 1 cùng thứ; thứ này chưa có món thì không thay gì, báo rõ thay vì xóa món đang có
     if (templateItemsForDate(template, day.date).length === 0) {
-      toast.error(`Mẫu "${template.name}" chưa có món cho ngày này (Tuần 1, cùng thứ).`, 'Chưa điền được theo mẫu');
+      toast.error('Mẫu chưa có món cho thứ này.', 'Chưa điền được theo mẫu');
       return;
     }
     const count = dayBlockItemCount(draft, day.date, block);
@@ -136,9 +179,21 @@ export default function WeeklyPlanPage() {
         )}
         <WeekPicker
           value={week}
-          thisWeek={mondayOf(today)}
+          thisWeek={schoolWeekStart(today)}
           onChange={(next) => guard.leave(`/menu/weekly?week=${next}`, { replace: true })}
         />
+        {kcalGroups.length > 1 && (
+          <label className="date-filter td-week-toolbar__group">
+            Kcal theo nhóm
+            <select className="select" value={kcalAgeGroup ? String(kcalAgeGroup.id) : ''} onChange={(e) => setKcalGroupId(e.target.value)}>
+              {kcalGroups.map((g) => (
+                <option key={g.id} value={String(g.id)}>
+                  {g.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
       </div>
     </>
   );
@@ -236,6 +291,8 @@ export default function WeeklyPlanPage() {
                 dayLink={plan.status === MEAL_PLAN_STATUS.NONE ? undefined : (day) => statisticsHref({ week, date: day.date })}
                 templates={templates}
                 onPickTemplate={pickTemplate}
+                kcalAgeGroup={kcalAgeGroup}
+                dayActions={plan.status === MEAL_PLAN_STATUS.NONE && !editable ? undefined : dayActions}
               />
             </section>
           ) : (
@@ -287,6 +344,44 @@ export default function WeeklyPlanPage() {
         }}
         onClose={() => setPending(null)}
       />
+      {editingDay && draft && (
+        <DayEditorModal
+          key={editingDay}
+          title={dayTitle(editingDay)}
+          date={editingDay}
+          initialItems={dayBlockItems(
+            draft.days.find((d) => d.date === editingDay),
+            block,
+          )}
+          editable={editable}
+          sessions={blockSessions(plan, block)}
+          groups={groups}
+          ageGroups={ageGroups}
+          dishes={dishes}
+          canEditRecipe={hasBePermission(user, PERMISSIONS.NUTRITION_MANAGE)}
+          balanceTo={balanceHref({ week, block, date: editingDay })}
+          onApply={(items) => {
+            setDraft((d) => setDayBlockItems(d, editingDay, block, items));
+            setEditingDay(null);
+            toast.success('Đã áp dụng vào tuần. Bấm Lưu nháp để lưu.');
+          }}
+          onClose={() => setEditingDay(null)}
+        />
+      )}
+      {copyFrom && draft && (
+        <CopyDayModal
+          draft={draft}
+          block={block}
+          from={copyFrom}
+          blockLabel={MEAL_BLOCK_LABELS[block] || block}
+          onCopy={(dates) => {
+            setDraft((d) => copyDay(d, copyFrom, dates, block));
+            setCopyFrom(null);
+            toast.success(`Đã chép món sang ${dates.length} ngày. Bấm Lưu nháp để lưu.`);
+          }}
+          onClose={() => setCopyFrom(null)}
+        />
+      )}
       <LeaveConfirmModal {...guard.modal} />
     </div>
   );

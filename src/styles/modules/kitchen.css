@@ -42,7 +42,7 @@
 
 .kb-num {
   width: 110px;
-  text-align: right;
+  text-align: center;
 }
 .kb-num--wide {
   width: 140px;
@@ -51,6 +51,41 @@
 .kb-short {
   color: var(--danger-700);
   font-weight: var(--fw-semibold);
+}
+.kb-gain {
+  color: var(--color-success-fg);
+  font-weight: var(--fw-semibold);
+}
+/* Lịch sử nhập/trừ: mỗi ngày một dải bấm được, mở ra các dòng của ngày đó */
+.table.table--grid th.kb-day-band {
+  padding: 0;
+  background: var(--table-header-bg);
+}
+.kb-day-band__btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  background: none;
+  color: var(--color-text);
+  font: inherit;
+  font-weight: var(--fw-semibold);
+  text-align: left;
+  cursor: pointer;
+}
+.kb-day-band__btn svg {
+  transition: transform var(--duration-fast, 0.15s) ease;
+}
+.kb-day-band__btn[aria-expanded='false'] svg {
+  transform: rotate(-90deg);
+}
+.kb-day-band__count {
+  margin-left: auto;
+  color: var(--color-text-muted);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-regular);
 }
 .kb-over {
   color: var(--warning-700);
@@ -311,30 +346,6 @@
   gap: var(--space-1);
   font-size: var(--fs-sm);
   font-weight: var(--fw-semibold);
-}
-
-/* Ô ký trên các phiếu in */
-.kb-print-sign {
-  margin-top: var(--space-6);
-}
-
-/* In từ modal xem trước: bỏ định vị của modal để phiếu bắt đầu ở đầu trang giấy */
-@media print {
-  .modal-backdrop:has(.kb-print-modal) {
-    position: absolute;
-    inset: 0 auto auto 0;
-    display: block;
-    width: 100%;
-    padding: 0;
-    background: none;
-  }
-
-  .kb-print-modal,
-  .kb-print-modal .modal__body {
-    position: static;
-    max-height: none;
-    overflow: visible;
-  }
 }
 
 /* Dự trù & đi chợ theo tuần */
@@ -764,6 +775,9 @@
 .kb-lot:first-of-type {
   border-top: 0;
 }
+.table .date-input {
+  min-width: 150px;
+}
 .kb-lot-input {
   width: 110px;
 }
@@ -802,7 +816,7 @@
   grid-column: 1 / -1;
 }
 
-/* Kho khô (BE): thanh lọc trong thẻ, dòng gom theo thực phẩm, lô thụt vào */
+/* Kho khô (BE): thanh lọc trong thẻ (Phiếu nhập, Lịch sử nhập/trừ) */
 .kb-toolbar--card {
   margin-bottom: 0;
   border-bottom: 1px solid var(--color-border);
@@ -810,24 +824,123 @@
 .kb-field-food {
   min-width: 220px;
 }
-.kb-check {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-height: var(--btn-height);
+/* Nhà cung cấp: form modal chia nhóm, trang chi tiết gồm thẻ đầu trang, lưới thông tin và bảng phiếu nhập */
+.kb-sup-form {
+  display: grid;
+  gap: var(--space-5);
+}
+.kb-sup-form__group {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.kb-sup-form__group + .kb-sup-form__group {
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+.kb-sup-form__group > legend {
+  margin-bottom: var(--space-3);
+  padding: 0;
+  color: var(--color-text-secondary);
   font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
 }
-.table.table--grid .kb-group-row th {
+.kb-sup-hero {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+  padding: var(--space-5);
+}
+.kb-sup-hero__avatar {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-lg);
   background: var(--color-primary-soft);
-  color: var(--color-text);
-  font-weight: var(--fw-bold);
-  text-align: left;
+  color: var(--color-primary);
 }
-.table.table--grid .kb-group-row th.num {
-  text-align: center;
+.kb-sup-hero__main {
+  display: grid;
+  flex: 1;
+  gap: var(--space-2);
+  min-width: 240px;
 }
-.kb-lot-name {
-  padding-left: var(--space-6);
+.kb-sup-hero__title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+/* Bỏ lề mặc định của tiêu đề để khối chữ cân đúng giữa so với biểu tượng bên trái */
+.kb-sup-hero .page__title {
+  margin: 0;
+}
+.kb-sup-hero__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+.kb-sup-hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.kb-sup-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-3);
+  margin: 0 0 var(--space-4);
+  padding: 0;
+  list-style: none;
+}
+.kb-sup-fact {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+.kb-sup-fact--wide {
+  grid-column: 1 / -1;
+}
+.kb-sup-fact__icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+.kb-sup-fact__body {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+.kb-sup-fact__label {
+  color: var(--color-text-muted);
+  font-size: var(--fs-xs);
+}
+.kb-sup-fact__value {
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+  overflow-wrap: anywhere;
+}
+
+/* Bảng tồn theo lô: mỗi lô một dòng, cột sát nhau để vừa khung không cuộn ngang */
+.table.kb-lots-table th,
+.table.kb-lots-table td {
+  padding-inline: var(--space-2);
 }
 
 /* Hàng tươi (BE): kết quả Đủ/Thiếu/Thừa, đầu cột ngày của bản dự trù, ô ghi chú trống khi in */
@@ -846,6 +959,50 @@
   color: var(--color-warning-fg);
   font-weight: var(--fw-semibold);
 }
+/* Bảng kiểm nhận hàng tươi: giá trị ngắn căn giữa, tên thực phẩm và ghi chú căn trái; thực phẩm chia hai cấp theo nhóm */
+.table.kb-fresh th,
+.table.kb-fresh td {
+  text-align: center;
+}
+.table.kb-fresh .kb-fresh__left {
+  text-align: left;
+}
+.table.kb-fresh tr.kb-fresh__group th {
+  padding-block: var(--space-2);
+  background: var(--color-surface-muted);
+  color: var(--color-text-secondary);
+  font-weight: var(--fw-bold);
+  text-align: left;
+}
+.kb-fresh__qty {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+}
+/* Dòng nguồn so sánh / người ghi nhận gọn một dòng, sát tiêu đề thẻ và bảng */
+.kb-fresh__meta {
+  margin: 0;
+  padding: var(--space-2) var(--space-6) var(--space-3);
+}
+.kb-fresh__foot {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-6) var(--space-5);
+}
+.kb-fresh__foot > p {
+  margin: 0;
+}
+.kb-fresh__actions {
+  display: flex;
+  justify-content: flex-end;
+}
+.kb-fresh__tally {
+  margin: var(--space-2) 0 0;
+}
+.kb-fresh__reason {
+  margin-top: var(--space-3);
+  text-align: left;
+}
 .kb-day-plan {
   margin-top: var(--space-1);
   font-weight: var(--fw-regular);
@@ -854,15 +1011,25 @@
   display: flex;
   align-items: flex-end;
 }
-/* Hộp lập dự trù: kỳ, ghi chú và nút Tính cùng một hàng, đáy các ô thẳng nhau; hẹp thì xếp dọc */
+/* Hộp lập dự trù: mỗi nhóm ô một hàng, căn đỉnh để lỗi dưới một ô không đẩy lệch ô bên cạnh */
 .kb-forecast-form {
   display: grid;
-  grid-template-columns: minmax(150px, 1fr) minmax(150px, 1fr) minmax(0, 2fr) auto;
-  gap: var(--space-3) var(--space-4);
-  align-items: end;
+  gap: var(--space-3);
 }
-@media (max-width: 900px) {
-  .kb-forecast-form {
+.kb-forecast-form__range {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 220px));
+  gap: var(--space-3);
+  align-items: start;
+}
+.kb-forecast-stale {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+@media (max-width: 640px) {
+  .kb-forecast-form__range {
     grid-template-columns: minmax(0, 1fr);
   }
 }

@@ -33,6 +33,16 @@ export const compressImage = async (file, { maxWidth = 800, maxHeight = 600, typ
 
 export const isImageFile = (file) => /^image\/(png|jpe?g|gif|webp)$/i.test(file?.type || '');
 
+/** `data:image/png;base64,...` → Blob để gửi multipart; chuỗi không phải data URL base64 ⇒ null. */
+export const dataUrlToBlob = (dataUrl) => {
+  const match = /^data:([\w/+.-]+);base64,(.*)$/s.exec(dataUrl || '');
+  if (!match) return null;
+  const binary = atob(match[2]);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+  return new Blob([bytes], { type: match[1] });
+};
+
 /** Triggers a browser download of a Blob. */
 export const downloadBlob = (blob, filename) => {
   const url = URL.createObjectURL(blob);

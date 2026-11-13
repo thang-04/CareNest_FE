@@ -4,6 +4,7 @@ import { createStatusBadge } from '@/components/ui/StatusBadge';
 import { StatusPage } from '@/components/ui/StatusPage';
 import { useMasterData } from '@/hooks/useMasterData';
 import { formatDateTime } from '@/utils/format';
+import { dishNutrition } from '@/utils/menu-planning/menuStatistics';
 import {
   AI_LABEL,
   DISH_STATUS_LABELS,
@@ -40,7 +41,7 @@ export const MealPlanStatusBadge = createStatusBadge(
 export const NormStatusChip = createStatusBadge(
   {
     OK: ['green', null],
-    LOW: ['orange', null],
+    LOW: ['red', null],
     HIGH: ['orange', null],
     NA: ['gray', null],
     INCOMPLETE: ['gray', null],
@@ -48,6 +49,19 @@ export const NormStatusChip = createStatusBadge(
   },
   NORM_STATUS_LABELS,
 );
+
+// Một chỉ số so định mức: cùng màu với NormStatusChip và ô tô màu trong bảng (thiếu đỏ, vượt cam, đạt xanh)
+export const NormRowBadge = createStatusBadge(
+  { OK: ['green', null], LOW: ['red', null], HIGH: ['orange', null], INCOMPLETE: ['gray', null], NA: ['gray', null] },
+  { OK: 'Đạt', LOW: 'Thiếu', HIGH: 'Vượt', INCOMPLETE: 'Thiếu số liệu', NA: 'Chưa đặt' },
+);
+
+/** Nhãn kcal một suất của món theo nhóm tuổi; món chưa có số liệu thì không hiện. */
+export function DishKcal({ dish, ageGroup }) {
+  const kcal = dishNutrition(dish, ageGroup)?.kcal;
+  if (kcal == null) return null;
+  return <span className="td-tag td-tag--orange td-kcal">{Number(kcal).toLocaleString('vi-VN', { maximumFractionDigits: 0 })} kcal</span>;
+}
 
 /** Allergens are a "needs attention" label (red), see DESIGN.md §3.2. */
 export function AllergenChips({ allergens, empty = '—' }) {

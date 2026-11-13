@@ -241,8 +241,6 @@ export default function HealthMeasurementFormPage() {
     }
   };
 
-  const inRound = !!round || existing?.campaignKind === CAMPAIGN_KIND.MEASUREMENT;
-
   if (saved)
     return (
       <div className="page">
@@ -288,28 +286,6 @@ export default function HealthMeasurementFormPage() {
       <p className="muted mb-16">
         {child.code} · {child.className} · sinh ngày {formatDate(child.dateOfBirth)} ({ageLabel(child.dateOfBirth)})
       </p>
-      <div className="alert alert--info mb-16">
-        <Info size={18} />
-        <div>
-          {inRound ? (
-            <>
-              {round ? (
-                <>
-                  Kỳ cân đo <b>{round.name}</b> ({formatDate(round.startDate)} – {formatDate(round.endDate)}):
-                </>
-              ) : (
-                <>Số đo của kỳ cân đo:</>
-              )}{' '}
-              chỉ chiều cao, cân nặng, ghi chú; không có kết luận bác sĩ. Hệ thống xếp mức BMI theo tuổi theo chuẩn WHO để sàng lọc.
-            </>
-          ) : existing?.campaignId ? (
-            <>Kết quả nhập theo mẫu cũ trong đợt khám: chỉ sửa được chiều cao, cân nặng và ghi chú.</>
-          ) : (
-            <>Số đo cũ ngoài đợt khám (trước khi có kỳ cân đo): không có kết luận bác sĩ.</>
-          )}{' '}
-          Lưu là công bố cho phụ huynh ngay; phụ huynh xem được số đo và ghi chú trên ứng dụng.
-        </div>
-      </div>
       {requireReason && (
         <div className="alert alert--warning mb-16">
           <Info size={18} />
@@ -322,9 +298,6 @@ export default function HealthMeasurementFormPage() {
         <div className="field mb-16">
           <span className="field__label">Ngày đo</span>
           <span className="fw-600">{formatDate(measureDate)}</span>
-          <span className="field__hint">
-            {existing ? 'Ngày đo đã ghi, không sửa được.' : 'Hệ thống tự ghi ngày đo khi lưu, không chọn được.'}
-          </span>
         </div>
         <div className="grid-2">
           <FormField label="Chiều cao (cm)" required error={errors.heightCm} hint="Từ 40 đến 150 cm">
@@ -360,7 +333,7 @@ export default function HealthMeasurementFormPage() {
             {errors.campaignId}
           </div>
         )}
-        <FormField label="Ghi chú" error={errors.note} hint="Ví dụ: cân đo tại lớp. Không ghi chẩn đoán." className="mt-12">
+        <FormField label="Ghi chú" error={errors.note} className="mt-12">
           <textarea className="textarea" rows={2} maxLength={500} value={form.note} onChange={(e) => set('note', e.target.value)} />
         </FormField>
         {requireReason && (

@@ -2,7 +2,17 @@ import { ChildAvatar } from '@/components/ChildAvatar';
 import { PortraitImage } from '@/components/PortraitImage';
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, Pencil, LayoutGrid, HeartPulse, LineChart, ClipboardList, KeyRound, AlertTriangle } from '@/components/ui/icons';
+import {
+  ArrowLeft,
+  Pencil,
+  LayoutGrid,
+  HeartPulse,
+  LineChart,
+  ClipboardList,
+  KeyRound,
+  AlertTriangle,
+  ChevronRight,
+} from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useChildDetail } from '@/hooks/children/useChildRecords';
@@ -15,6 +25,7 @@ import { CHILD_STATUS, GENDER_LABELS, ageGroupById, ageLabel } from '@/models/Sc
 import { formatDate, formatDateTime } from '@/utils/format';
 import { canEditChild, canPlaceChild } from '@/utils/children/childrenPermissions';
 import { ChildProfileSummary } from '@/components/children/ChildProfileSummary';
+import { ChildInfoTable } from '@/components/children/ChildInfoTable';
 import { canActivateParent, canRecordMeasurement, canViewParentAccounts } from '@/utils/children/childrenPermissions';
 import { SMS_STATUS } from '@/models/children/childrenConstants';
 import { AllergyStateBadge, ParentAccountBadge, SmsStatusBadge } from '@/components/children/ChildBadges';
@@ -114,40 +125,40 @@ export default function ChildProfilePage() {
                 <h2 className="card__title">Thông tin của trẻ</h2>
               </div>
               <div className="card__body">
-                <dl className="info-list info-list--wide">
-                  <dt>Mã trẻ</dt>
-                  <dd className="fw-600 text-primary">{child.code}</dd>
-                  <dt>Ngày sinh</dt>
-                  <dd>
-                    {child.dateOfBirth ? (
-                      <>
-                        {formatDate(child.dateOfBirth)} <span className="muted">({ageLabel(child.dateOfBirth)})</span>
-                      </>
-                    ) : (
-                      missing
-                    )}
-                  </dd>
-                  <dt>Giới tính</dt>
-                  <dd>{GENDER_LABELS[child.gender] || missing}</dd>
-                  <dt>Ngày tiếp nhận</dt>
-                  <dd>{child.enrolledAt ? formatDate(child.enrolledAt) : missing}</dd>
-                  <dt>Dị ứng đã xác nhận</dt>
-                  <dd>
-                    {child.allergies?.length ? (
-                      <span className="row row--wrap gap-1-5">
-                        {child.allergies.map((a) => (
-                          <span key={a} className="chip chip--red">
-                            {a}
-                          </span>
-                        ))}
-                      </span>
-                    ) : declaration?.allergies?.state ? (
-                      <AllergyStateBadge status={declaration.allergies.state} />
-                    ) : (
-                      <span className="muted">Chưa có khai báo</span>
-                    )}
-                  </dd>
-                </dl>
+                <ChildInfoTable
+                  label="Thông tin của trẻ"
+                  rows={[
+                    ['Mã trẻ', child.code],
+                    [
+                      'Ngày sinh',
+                      child.dateOfBirth ? (
+                        <>
+                          {formatDate(child.dateOfBirth)} <span className="muted">({ageLabel(child.dateOfBirth)})</span>
+                        </>
+                      ) : (
+                        missing
+                      ),
+                    ],
+                    ['Giới tính', GENDER_LABELS[child.gender] || missing],
+                    ['Ngày tiếp nhận', child.enrolledAt ? formatDate(child.enrolledAt) : missing],
+                    [
+                      'Dị ứng đã xác nhận',
+                      child.allergies?.length ? (
+                        <span className="row row--wrap gap-1-5">
+                          {child.allergies.map((a) => (
+                            <span key={a} className="chip chip--red">
+                              {a}
+                            </span>
+                          ))}
+                        </span>
+                      ) : declaration?.allergies?.state ? (
+                        <AllergyStateBadge status={declaration.allergies.state} />
+                      ) : (
+                        <span className="muted">Chưa có khai báo</span>
+                      ),
+                    ],
+                  ]}
+                />
               </div>
             </section>
             <section className="card">
@@ -159,7 +170,7 @@ export default function ChildProfilePage() {
                 {profileUpdate && (
                   <p className="muted text-xs mt-8">
                     Cập nhật gần nhất: {profileUpdate.action === 'UPDATED_FROM_EXAM' ? profileUpdate.note : 'Sửa hồ sơ'} ·{' '}
-                    {md.userById(profileUpdate.userId)?.fullName || '—'} · {formatDateTime(profileUpdate.at)}
+                    {profileUpdate.userName || md.userById(profileUpdate.userId)?.fullName || '—'} · {formatDateTime(profileUpdate.at)}
                   </p>
                 )}
               </div>
@@ -232,18 +243,17 @@ export default function ChildProfilePage() {
                 <h2 className="card__title">Lớp & năm học</h2>
               </div>
               <div className="card__body">
-                <dl className="info-list info-list--wide">
-                  <dt>Điểm trường</dt>
-                  <dd>{md.campusById(child.campusId)?.name || missing}</dd>
-                  <dt>Năm học</dt>
-                  <dd>{cls?.schoolYear || missing}</dd>
-                  <dt>Nhóm tuổi</dt>
-                  <dd>{ageGroupById(cls?.ageGroupId)?.name || missing}</dd>
-                  <dt>Lớp</dt>
-                  <dd className="fw-600">{cls?.name || <span className="muted">Chưa xếp lớp</span>}</dd>
-                  <dt>Giáo viên chủ nhiệm</dt>
-                  <dd>{md.userById(cls?.homeroomTeacherId)?.fullName || missing}</dd>
-                </dl>
+                <ChildInfoTable
+                  label="Lớp và năm học"
+                  rows={[
+                    ['Điểm trường', md.campusById(child.campusId)?.name || missing],
+                    // BE: tên năm học, nhóm tuổi, giáo viên do adapter thêm (cls.*Name); mock: tra danh mục mẫu
+                    ['Năm học', cls?.schoolYearName || cls?.schoolYear || missing],
+                    ['Nhóm tuổi', cls?.ageGroupName || ageGroupById(cls?.ageGroupId)?.name || missing],
+                    ['Lớp', cls?.name ? <span className="fw-600">{cls.name}</span> : <span className="muted">Chưa xếp lớp</span>],
+                    ['Giáo viên chủ nhiệm', cls?.homeroomTeacherName || md.userById(cls?.homeroomTeacherId)?.fullName || missing],
+                  ]}
+                />
               </div>
             </section>
             <section className="card">
@@ -256,27 +266,33 @@ export default function ChildProfilePage() {
                 )}
               </div>
               <div className="card__body tr-quicklinks tr-quicklinks--list">
-                <Link className="tr-quicklink" to={`/children/${child.id}/health`}>
-                  <HeartPulse size={20} />
-                  <span>
-                    <span className="fw-600">Sổ sức khỏe</span>
-                    <span className="muted text-sm">Chiều cao, cân nặng, tình trạng dinh dưỡng</span>
-                  </span>
-                </Link>
-                <Link className="tr-quicklink" to={`/children/health-trends?childId=${child.id}`}>
-                  <LineChart size={20} />
-                  <span>
-                    <span className="fw-600">Xu hướng sức khỏe</span>
-                    <span className="muted text-sm">Biểu đồ tăng trưởng và nhận định AI</span>
-                  </span>
-                </Link>
-                <Link className="tr-quicklink" to={`/children/${child.id}/health-declaration`}>
-                  <ClipboardList size={20} />
-                  <span>
-                    <span className="fw-600">Khai báo sức khỏe</span>
-                    <span className="muted text-sm">Dị ứng, chế độ ăn, tiền sử</span>
-                  </span>
-                </Link>
+                {[
+                  {
+                    to: `/children/${child.id}/health`,
+                    icon: HeartPulse,
+                    title: 'Sổ sức khỏe',
+                  },
+                  {
+                    to: `/children/health-trends?childId=${child.id}`,
+                    icon: LineChart,
+                    title: 'Xu hướng sức khỏe',
+                  },
+                  {
+                    to: `/children/${child.id}/health-declaration`,
+                    icon: ClipboardList,
+                    title: 'Khai báo sức khỏe',
+                  },
+                ].map(({ to, icon: Icon, title }) => (
+                  <Link key={title} className="tr-quicklink" to={to}>
+                    <span className="tr-quicklink__icon" aria-hidden="true">
+                      <Icon size={20} />
+                    </span>
+                    <span className="tr-quicklink__text">
+                      <span className="fw-600">{title}</span>
+                    </span>
+                    <ChevronRight size={18} className="tr-quicklink__go" aria-hidden="true" />
+                  </Link>
+                ))}
               </div>
             </section>
           </aside>

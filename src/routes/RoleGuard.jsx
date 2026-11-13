@@ -3,6 +3,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { StandaloneStatus } from '@/components/ui/StandaloneStatus';
 import { ROLE_LABELS } from '@/models/User';
 import { areaAccess } from '@/utils/school-config/schoolConfigPermissions';
+import { isVpReadOnlyPage } from '@/utils/account/vpReadOnlyPages';
+import '@/styles/modules/permissions.css';
 const DEFAULT_DESCRIPTION = 'Chức năng này chỉ dành cho Phó hiệu trưởng. Giáo viên / nhân viên chỉ xử lý phiếu được phân công cho mình.';
 
 /** Renders children only for allowed roles, or when `allow(user)` says so (permission-driven pages). */
@@ -55,7 +57,17 @@ const AREA_PREFIXES = [
 export function AreaGate({ path, children }) {
   const { user } = useAuth();
   const hit = AREA_PREFIXES.find(([prefix]) => path === prefix || path.startsWith(`${prefix}/`));
-  if (!hit || user?.role !== 'VICE_PRINCIPAL' || areaAccess(user, hit[1]).access !== 'NONE') return children;
+  if (!hit || user?.role !== 'VICE_PRINCIPAL' || areaAccess(user, hit[1]).access !== 'NONE') {
+    if (!isVpReadOnlyPage(user, path)) return children;
+    return (
+      <>
+        <div className="alert alert--info page-readonly-notice" role="status">
+          Bạn đang chỉ xem mục này. Muốn sửa, hãy nhờ Hiệu trưởng giao việc ở màn Phân công Phó hiệu trưởng.
+        </div>
+        {children}
+      </>
+    );
+  }
   return (
     <RoleGuard roles={[]} description="Hiệu trưởng chưa giao cho bạn mảng này (Phân công Phó hiệu trưởng).">
       {children}

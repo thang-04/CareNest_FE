@@ -67,6 +67,8 @@ export const INTEGRATION_MODULES = {
       'POST /meal-handovers/{x}/confirm',
       'POST /meal-handovers/{x}/shortage',
       'POST /meal-handovers/{x}/supplement',
+      // Suất ăn lớp cho giáo viên: đã làm ở nhánh BE feature/G94-254-BE-FEAT-27-day-boarding, chưa merge dev
+      'GET /meal-counts/class',
     ],
   },
   'meal-handover': {
@@ -114,10 +116,15 @@ export const INTEGRATION_MODULES = {
     files: ['src/services/schoolService.js'],
     facades: ['src/services/schoolService.js'],
   },
+  // Hồ sơ trẻ, sức khỏe trên BE (nhánh G94-180): plan docs/plans/active/2026-11-11-children-module-be-wiring.md
   children: {
-    source: 'demo',
+    source: 'api',
     routes: ['/children'],
-    files: ['src/services/children/api/childrenApi.js', 'src/services/children/api/healthCheckApi.js'],
+    files: [
+      'src/services/children/api/childrenApi.js',
+      'src/services/children/api/healthCheckApi.js',
+      'src/services/http/schoolYearIds.js',
+    ],
     facades: ['src/services/children/childrenService.js', 'src/services/children/healthCheckService.js'],
   },
   pickup: {
@@ -145,22 +152,23 @@ export const INTEGRATION_MODULES = {
     routes: ['/kitchen/dry-stock', '/kitchen/stock-receipts', '/kitchen/stock-history', '/kitchen/stock-shortfalls'],
     files: ['src/services/dryStockApi.js'],
   },
-  // Hàng tươi trên BE: bản dự trù /nutrition/fresh-forecasts và kiểm nhận hai lần /nutrition/fresh-checks; route dài hơn nên thắng '/kitchen'
+  // Hàng tươi trên BE: bản dự trù /nutrition/fresh-forecasts, kiểm nhận hai lần /nutrition/fresh-checks, bảng đi chợ /nutrition/day-market; route dài hơn nên thắng '/kitchen'
   'fresh-goods': {
     source: 'api',
-    routes: ['/kitchen/forecast', '/kitchen/fresh-receipts'],
+    routes: ['/kitchen/forecast', '/kitchen/fresh-receipts', '/kitchen/market-day'],
     files: ['src/services/freshGoodsApi.js'],
   },
   // Bếp hôm nay (xem), lưu mẫu thức ăn (duyệt), ảnh bữa, khung giờ ảnh trên BE /nutrition/{kitchen/day,food-samples,meal-photos,meal-photo-windows}
   'kitchen-records': {
     source: 'api',
-    routes: ['/kitchen/published-menu', '/kitchen/food-samples', '/kitchen/meal-photos', '/kitchen/photo-windows'],
+    routes: ['/kitchen/published-menu', '/kitchen/food-samples', '/kitchen/meal-photos'],
     files: ['src/services/kitchenRecordsApi.js'],
   },
   // Kế hoạch tuần theo khối + công bố trên BE /nutrition/meal-plans; thắng '/menu' của thực đơn mẫu còn demo
   'meal-plan': {
     source: 'api',
-    routes: ['/menu/weekly', '/menu/statistics'],
+    // Cân đối khẩu phần đọc/lưu kế hoạch tuần + menu-statistics (09/11/2026)
+    routes: ['/menu/weekly', '/menu/statistics', '/menu/nutrition'],
     files: ['src/services/mealPlanApi.js'],
   },
   // Mẫu thực đơn một ngày theo khối trên BE /nutrition/menu-templates (NUT-13, đổi 04/11)
@@ -182,6 +190,13 @@ export const INTEGRATION_MODULES = {
     files: ['src/services/menu-planning/api/menuPlanningApi.js'],
     facades: ['src/services/menu-planning/menuPlanningService.js'],
   },
+  // Biên bản kiểm thực M1–M3 và soát sổ lưu mẫu M5 (PHT điền, ký ảnh) trên BE /inspections/*
+  'kitchen-inspection': {
+    source: 'api',
+    routes: ['/kitchen/inspections'],
+    files: ['src/services/kitchen/api/inspectionApi.js'],
+    facades: ['src/services/kitchen/inspectionService.js'],
+  },
   // Sổ báo ăn đã xác nhận: BE có GET /meal-counts ⇒ màn này dùng số thật, các màn bếp khác còn demo
   'kitchen-meal-count': {
     source: 'api',
@@ -196,14 +211,15 @@ export const INTEGRATION_MODULES = {
     facades: ['src/services/kitchen/kitchenService.js'],
   },
   notifications: {
-    source: 'demo',
+    // Spec 003: thông báo kế hoạch giáo dục từ BE (GET /me/notifications)
+    source: 'api',
     routes: ['/notifications'],
     files: ['src/services/notificationService.js'],
     facades: ['src/services/notificationService.js'],
   },
-  // Nhãn ở SignaturePicker (dùng trong màn kế hoạch giáo dục)
+  // Chữ ký ảnh của tài khoản trên BE /signatures/me (SIG-01); biên bản kiểm thực ký bằng id chữ ký này
   signatures: {
-    source: 'demo',
+    source: 'api',
     files: ['src/services/signatureService.js'],
     facades: ['src/services/signatureService.js'],
   },

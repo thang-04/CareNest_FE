@@ -227,6 +227,7 @@
   --z-dropdown: 300;
   --z-drawer: 900;
   --z-modal: 1000;
+  --z-popover: 1020; /* danh sách xổ, menu "…" render ra body: phải nổi trên modal đang mở */
   --z-ai-veil: 1050; /* lớp phủ AI: trên modal đang mở, dưới toast báo lỗi */
   --z-toast: 1100;
 

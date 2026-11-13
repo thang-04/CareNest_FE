@@ -3,7 +3,7 @@ import { test } from 'node:test';
 
 globalThis.window = new EventTarget();
 
-const { buildDayBoardRows } = await import('@/utils/boarding/dayBoardRows');
+const { buildDayBoardRows, nextBoardTask } = await import('@/utils/boarding/dayBoardRows');
 const { createDayBoardApi } = await import('@/services/dayBoardApi');
 const { INTEGRATION_MODULES } = await import('@/config/integrationModules');
 
@@ -191,4 +191,58 @@ test('module day-board khai source api cho /boarding', () => {
   assert.equal(mod.source, 'api');
   assert.deepEqual(mod.routes, ['/boarding']);
   assert.deepEqual(mod.files, ['src/services/dayBoardApi.js']);
+});
+
+test('summarizeBoardRows đếm việc theo nhóm tông trạng thái của mọi điểm trường', async () => {
+  const { summarizeBoardRows } = await import('@/utils/boarding/dayBoardRows');
+  const rows = [{ tone: 'red' }, { tone: 'orange' }, { tone: 'purple' }, { tone: 'green' }, { tone: 'gray' }, { tone: 'unknown' }];
+  assert.deepEqual(summarizeBoardRows([rows, [{ tone: 'green' }]]), { attention: 1, waiting: 2, done: 2, idle: 2 });
+});
+
+test('NUT-11: kho khô sắp thiếu ⇒ thêm câu nhắc ngày bắt đầu thiếu và nút Bản dự trù; đủ kho thì không nhắc', () => {
+  const row = rowOf(
+    buildDayBoardRows(
+      campus({
+        dryStock: {
+          status: 'DEDUCTED',
+          foodCount: 8,
+          shortfallFoodCount: 0,
+          openShortfallCount: 0,
+          upcomingShortFoodCount: 3,
+          upcomingShortFrom: '2026-11-11',
+        },
+      }),
+    ),
+    'dryStock',
+  );
+  assert.equal(row.tone, 'green');
+  assert.match(row.detail, /Sắp thiếu 3 thực phẩm khô từ thứ Tư 11\/11/);
+  assert.deepEqual(
+    row.actions.map((a) => a.to),
+    ['/kitchen/stock-history?campusId=1', '/kitchen/forecast?campusId=1'],
+  );
+
+  const enough = rowOf(
+    buildDayBoardRows(campus({ dryStock: { status: 'DEDUCTED', foodCount: 8, upcomingShortFoodCount: 0, upcomingShortFrom: null } })),
+    'dryStock',
+  );
+  assert.doesNotMatch(enough.detail, /Sắp thiếu/);
+  assert.equal(enough.actions.length, 1);
+});
+
+test('AC-9: việc tiếp theo ưu tiên ô đỏ trước ô cam/tím, theo thứ tự hàng rồi điểm trường', () => {
+  const c1 = campus();
+  const c2 = campus({ campusId: '2', campusName: 'Cơ sở 2', dryStock: { status: 'SHORTFALL', shortfallFoodCount: 2 } });
+  const rows = [c1, c2].map((c) => buildDayBoardRows(c, { date: DATE }));
+  const next = nextBoardTask(rows, [c1, c2]);
+  assert.deepEqual([next.row.key, next.campus.campusId, next.action.to], ['dryStock', '2', '/kitchen/stock-shortfalls?campusId=2']);
+
+  const orangeOnly = [campus()].map((c) => buildDayBoardRows(c, { date: DATE }));
+  assert.equal(nextBoardTask(orangeOnly, [campus()]).row.key, 'freshReceipt');
+});
+
+test('AC-9: mọi việc xanh hoặc xám ⇒ không có việc tiếp theo', () => {
+  const done = campus({ freshReceiptStatus: 'DONE', foodSampleStatus: 'UP_TO_DATE' });
+  assert.equal(nextBoardTask([buildDayBoardRows(done, { date: DATE })], [done]), null);
+  assert.equal(nextBoardTask([], []), null);
 });

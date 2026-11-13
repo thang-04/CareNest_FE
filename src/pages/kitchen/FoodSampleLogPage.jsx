@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useFoodSampleLog, useKitchenCampus } from '@/hooks/kitchen/useKitchen';
-import { Breadcrumb, EmptyState, ErrorState, LoadingState, Modal, PrintToolbar } from '@/components';
+import { Breadcrumb, EmptyState, ErrorState, LoadingState, Modal, PrintPaperFit, PrintToolbar } from '@/components';
 import { FoodSampleStatusBadge } from '@/components/kitchen/KitchenBadges';
 import { KbCampusFilter, KbDateFilter } from '@/components/kitchen/KitchenFilters';
 import { SampleBookPrint, SampleLabelsPrint } from '@/components/kitchen/FoodSamplePrint';
@@ -300,13 +300,13 @@ export default function FoodSampleLogPage() {
           open={!!printing}
           onClose={() => setPrinting(null)}
           size="xl"
-          className="kb-print-modal"
+          className="print-modal"
           title={printing === 'label' ? 'Nhãn mẫu thức ăn lưu (Mẫu 4)' : 'Sổ lưu và hủy mẫu (Mẫu 5)'}
           footer={
             <PrintToolbar sheetRef={sheetRef} fileBase={`${printing === 'label' ? 'Nhan_mau_4' : 'So_mau_5'}_${date}`} printLabel="In" />
           }
         >
-          <div className="print-preview__paper">
+          <PrintPaperFit>
             {printing === 'label' ? (
               <SampleLabelsPrint
                 ref={sheetRef}
@@ -316,7 +316,7 @@ export default function FoodSampleLogPage() {
             ) : (
               <SampleBookPrint ref={sheetRef} log={data} campusName={campus?.shortName || campus?.name} />
             )}
-          </div>
+          </PrintPaperFit>
         </Modal>
       )}
     </div>

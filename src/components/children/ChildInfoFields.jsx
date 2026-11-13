@@ -14,11 +14,9 @@ import { PortraitPicker } from './PortraitPicker';
 
 /**
  * CCCD trùng tài khoản phụ huynh có sẵn (BE trả): ai, đang là phụ huynh của trẻ nào; lưu thì liên kết trẻ (user chốt 2026-10-23).
- * Sửa thông tin ở form thì tài khoản đổi theo; SĐT khác tài khoản ⇒ báo trước việc đổi tên đăng nhập, gửi mật khẩu mới (2026-10-28).
- * readOnly: người lưu không có quyền kích hoạt tài khoản phụ huynh ⇒ thông tin theo tài khoản, chỉ liên kết (P-18 A).
+ * SĐT tài khoản chỉ đổi qua yêu cầu đổi SĐT (G94-180/AUTH-21, sửa 2026-11-11).
  */
-function AccountNotice({ account, guardian, childId, readOnly }) {
-  const linkedHere = !!childId && account.children.some((c) => c.id === childId);
+function AccountNotice({ account, guardian }) {
   const kids = account.children.map((c) => `${c.fullName}${c.className ? ` (${c.className})` : ''}`);
   if (account.otherChildrenCount) kids.push(`${account.otherChildrenCount} trẻ ở điểm trường khác`);
   return (
@@ -29,16 +27,10 @@ function AccountNotice({ account, guardian, childId, readOnly }) {
           <b>CCCD này đã có tài khoản phụ huynh</b> <ParentAccountBadge status={account.status} />
         </span>
         {kids.length > 0 && <span className="text-sm">Đang là phụ huynh của: {kids.join(', ')}.</span>}
-        <span className="text-sm muted">
-          {linkedHere ? '' : 'Khi lưu, trẻ được liên kết vào tài khoản này, không tạo tài khoản mới. '}
-          {readOnly
-            ? 'Họ tên, số điện thoại, email theo tài khoản: bạn không có quyền sửa tài khoản phụ huynh.'
-            : 'Ô trống được điền theo tài khoản; sửa ở đây thì tài khoản và hồ sơ các trẻ khác của phụ huynh này đổi theo.'}
-        </span>
         {normalizePhone(guardian.phone) !== normalizePhone(account.phone) && (
           <span className="text-sm">
-            <b>Số điện thoại khác tài khoản ({account.phone}).</b> Lưu sẽ đổi tên đăng nhập sang số mới và gửi mật khẩu tạm mới qua SMS tới
-            số mới.
+            <b>Số điện thoại khác tài khoản ({account.phone}).</b> Lưu hồ sơ không đổi số điện thoại của tài khoản; đổi số qua yêu cầu đổi
+            SĐT.
           </span>
         )}
       </div>
@@ -82,8 +74,7 @@ export function ChildInfoFields({
   const childBlock = (
     <>
       {!sheet && <h2 className="card__title mb-12">Thông tin của trẻ</h2>}
-      {/* Lưới ảnh + ô nhập chỉ bật khi có ô ảnh; không thì ô nhập rơi vào cột hẹp dành cho ảnh */}
-      <div className={sheet || !photosEnabled ? undefined : 'tr-intake-person'}>
+      <div className={!sheet && photosEnabled ? 'tr-intake-person' : undefined}>
         {photosEnabled && !sheet && (
           <div className="mb-16">
             <PortraitPicker
@@ -161,24 +152,45 @@ export function ChildInfoFields({
     </>
   );
 
+  const single = value.guardians.length === 1;
+  const addGuardian = value.guardians.length < MAX_GUARDIANS && (
+    <button
+      type="button"
+      className={sheet ? 'btn tr-add-guardian' : 'btn btn--sm'}
+      onClick={() => set('guardians', [...value.guardians, { ...emptyGuardian(), accountRecipient: false }])}
+    >
+      <Plus size={15} /> Thêm phụ huynh
+    </button>
+  );
+  const recipientRadio = (g, i) => (
+    <label className={sheet ? 'tr-intake-recipient radio' : 'row gap-2 mb-12'}>
+      <input
+        type="radio"
+        name="accountRecipient"
+        aria-label={`Phụ huynh ${i + 1} nhận tài khoản phụ huynh`}
+        checked={single || g.accountRecipient === true}
+        disabled={disabled || single}
+        onChange={() =>
+          set(
+            'guardians',
+            value.guardians.map((guardian, index) => ({ ...guardian, accountRecipient: index === i })),
+          )
+        }
+      />
+      Nhận tài khoản phụ huynh
+    </label>
+  );
+
   const guardianBlock = (
     <>
-      <div className={`row row--between row--wrap mb-12 ${sheet || split ? '' : 'mt-16'}`}>
-        <h2 className="card__title">{sheet ? 'III. Phụ huynh / người giám hộ' : 'Phụ huynh / người giám hộ'}</h2>
-        {value.guardians.length < MAX_GUARDIANS && (
-          <button
-            type="button"
-            className="btn btn--sm"
-            onClick={() => set('guardians', [...value.guardians, { ...emptyGuardian(), accountRecipient: false }])}
-          >
-            <Plus size={15} /> Thêm phụ huynh
-          </button>
-        )}
-      </div>
-      {!childId && (
-        <p className="text-sm text-2 mb-12">
-          Chọn một phụ huynh nhận tài khoản. Thông tin của những người còn lại vẫn được lưu để liên hệ và đón trẻ.
-        </p>
+      {sheet ? (
+        // Dải phần như I, II bên cột trái; nút thêm phụ huynh nằm cuối danh sách
+        <h2 className="tr-intake-band">III. Phụ huynh / người giám hộ</h2>
+      ) : (
+        <div className={`row row--between row--wrap mb-12 ${split ? '' : 'mt-16'}`}>
+          <h2 className="card__title">Phụ huynh / người giám hộ</h2>
+          {addGuardian}
+        </div>
       )}
       {errors.accountRecipient && (
         <div className="alert alert--danger mb-12" role="alert">
@@ -206,39 +218,26 @@ export function ChildInfoFields({
               <div className="tr-guardian__head">
                 <div className="row row--wrap gap-2">
                   <h3 className="text-sm fw-600">Phụ huynh {i + 1}</h3>
-                  {sheet && recipient && <StatusBadge tone="teal" icon={UserCheck} label="Người nhận tài khoản" />}
+                  {/* Một phụ huynh: chỉ nhãn (không còn gì để chọn); từ 2 phụ huynh: ô chọn người nhận ở đầu thẻ */}
+                  {sheet && recipient && single && <StatusBadge tone="teal" icon={UserCheck} label="Người nhận tài khoản" />}
                 </div>
-                {value.guardians.length > 1 && !holder && (
-                  <button
-                    type="button"
-                    className="icon-btn"
-                    aria-label={`Xóa phụ huynh ${i + 1}`}
-                    title="Xóa phụ huynh"
-                    onClick={() => set('guardians', normalizeRecipients(value.guardians.filter((_, idx) => idx !== i)))}
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                )}
+                <div className="row row--wrap gap-2">
+                  {sheet && !childId && !single && recipientRadio(g, i)}
+                  {!single && !holder && (
+                    <button
+                      type="button"
+                      className="icon-btn"
+                      aria-label={`Xóa phụ huynh ${i + 1}`}
+                      title="Xóa phụ huynh"
+                      onClick={() => set('guardians', normalizeRecipients(value.guardians.filter((_, idx) => idx !== i)))}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  )}
+                </div>
               </div>
-              {!childId && (
-                <label className={sheet ? 'tr-intake-recipient radio mb-12' : 'row gap-2 mb-12'}>
-                  <input
-                    type="radio"
-                    name="accountRecipient"
-                    aria-label="Nhận tài khoản phụ huynh"
-                    checked={value.guardians.length === 1 || g.accountRecipient === true}
-                    disabled={disabled || value.guardians.length === 1}
-                    onChange={() =>
-                      set(
-                        'guardians',
-                        value.guardians.map((guardian, index) => ({ ...guardian, accountRecipient: index === i })),
-                      )
-                    }
-                  />
-                  Nhận tài khoản phụ huynh
-                </label>
-              )}
-              <div className={sheet || !photosEnabled ? undefined : 'tr-intake-person'}>
+              {!sheet && !childId && recipientRadio(g, i)}
+              <div className={!sheet && photosEnabled ? 'tr-intake-person' : undefined}>
                 {photosEnabled && !sheet && (
                   <div className="mb-12">
                     <PortraitPicker
@@ -251,7 +250,7 @@ export function ChildInfoFields({
                     />
                   </div>
                 )}
-                <Fields {...(sheet ? { title: 'Thông tin phụ huynh ' + (i + 1) } : { className: 'tr-guardian__grid' })}>
+                <Fields {...(sheet ? { title: 'Thông tin phụ huynh ' + (i + 1), band: false } : { className: 'tr-guardian__grid' })}>
                   {photosEnabled && sheet && (
                     <IntakePortraitField
                       label={`Ảnh phụ huynh ${i + 1}`}
@@ -262,17 +261,7 @@ export function ChildInfoFields({
                       disabled={disabled}
                     />
                   )}
-                  <IntakeField
-                    sheet={sheet}
-                    label="Số CCCD"
-                    required
-                    error={errors[`guardians.${i}.idNumber`]}
-                    hint={
-                      holder
-                        ? 'Đổi CCCD thì tài khoản phụ huynh đổi theo'
-                        : '12 chữ số trên căn cước; trùng tài khoản có sẵn thì tự điền thông tin tài khoản'
-                    }
-                  >
+                  <IntakeField sheet={sheet} label="Số CCCD" required error={errors[`guardians.${i}.idNumber`]}>
                     <input
                       className="input"
                       inputMode="numeric"
@@ -283,13 +272,7 @@ export function ChildInfoFields({
                       onBlur={() => onBlurField?.(`guardians.${i}.idNumber`)}
                     />
                   </IntakeField>
-                  <IntakeField
-                    sheet={sheet}
-                    label="Họ và tên"
-                    required
-                    error={errors[`guardians.${i}.fullName`]}
-                    hint={locked ? 'Theo tài khoản phụ huynh' : acc ? 'Điền theo tài khoản; sửa thì tài khoản đổi theo' : undefined}
-                  >
+                  <IntakeField sheet={sheet} label="Họ và tên" required error={errors[`guardians.${i}.fullName`]}>
                     <input
                       className="input"
                       value={shown.fullName}
@@ -298,27 +281,14 @@ export function ChildInfoFields({
                       onChange={(e) => setGuardian(i, 'fullName', e.target.value)}
                     />
                   </IntakeField>
-                  <IntakeField
-                    sheet={sheet}
-                    label="Số điện thoại"
-                    required
-                    error={errors[`guardians.${i}.phone`]}
-                    hint={
-                      locked
-                        ? 'Tên đăng nhập của tài khoản phụ huynh'
-                        : holder || acc
-                          ? 'Tên đăng nhập; đổi số thì tên đăng nhập đổi theo, mật khẩu tạm mới gửi SMS tới số mới'
-                          : sheet && !recipient
-                            ? 'Số điện thoại liên hệ với gia đình'
-                            : 'Dùng làm tên đăng nhập, nhận mật khẩu qua SMS'
-                    }
-                  >
+                  <IntakeField sheet={sheet} label="Số điện thoại" required error={errors[`guardians.${i}.phone`]}>
+                    {/* G94-180/AUTH-21: SĐT đã lưu không sửa ở hồ sơ; đổi số qua yêu cầu đổi SĐT do HT/PHT duyệt */}
                     <input
                       className="input"
                       inputMode="tel"
                       placeholder="0912 345 678"
                       value={shown.phone}
-                      readOnly={locked}
+                      readOnly={locked || !!g.savedPhone}
                       onChange={(e) => setGuardian(i, 'phone', e.target.value)}
                       onBlur={() => onBlurField?.(`guardians.${i}.phone`)}
                     />
@@ -352,23 +322,24 @@ export function ChildInfoFields({
                   </IntakeField>
                 </Fields>
               </div>
-              {acc && (childId || value.guardians.length === 1 || g.accountRecipient) && (
-                <AccountNotice account={acc} guardian={shown} childId={childId} readOnly={accountReadOnly} />
-              )}
+              {acc && (childId || value.guardians.length === 1 || g.accountRecipient) && <AccountNotice account={acc} guardian={shown} />}
             </div>
           );
         })}
+        {sheet && addGuardian}
       </div>
     </>
   );
 
   if (sheet)
     return (
-      <div className="tr-intake stack gap-5">
-        <section aria-label="Thông tin của trẻ">{childBlock}</section>
-        <section aria-label="Thông tin hành chính">
-          <ChildProfileFields sheet value={value.profile} onChange={(profile) => set('profile', profile)} errors={errors} />
-        </section>
+      <div className="tr-intake tr-intake-cols">
+        <div className="stack gap-5">
+          <section aria-label="Thông tin của trẻ">{childBlock}</section>
+          <section aria-label="Thông tin hành chính">
+            <ChildProfileFields sheet value={value.profile} onChange={(profile) => set('profile', profile)} errors={errors} />
+          </section>
+        </div>
         <section aria-label="Phụ huynh / người giám hộ">{guardianBlock}</section>
       </div>
     );

@@ -15,7 +15,7 @@ import { ClassDateBar } from '@/components/attendance/ClassDateBar';
 import { useMealCounts } from '@/hooks/attendance/useAttendance';
 import { confirmMealCount } from '@/services/attendance/attendanceService';
 import { ROLES } from '@/models/User';
-import { MEAL_SESSION_LABELS, MEAL_COUNT_STATUS_LABELS } from '@/models/attendance/attendanceConstants';
+import { MEAL_COUNT_TITLE, MEAL_SESSION_LABELS, MEAL_COUNT_STATUS_LABELS } from '@/models/attendance/attendanceConstants';
 import { schoolToday } from '@/utils/attendance/attendanceTime';
 import { attendanceCrumbs } from '@/utils/attendance/breadcrumbs';
 import { dayBySession, dayRegister } from '@/utils/attendance/mealRegister';
@@ -129,19 +129,14 @@ export default function MealCountPage() {
         ]),
       );
     });
-    exportWithPreview([[`Sổ báo ăn ngày ${formatDate(date)}`], ...rows], `so-bao-an-${date}.xlsx`);
+    exportWithPreview([[`Sổ suất ăn ngày ${formatDate(date)}`], ...rows], `so-suat-an-${date}.xlsx`);
   };
 
   return (
     <div className="page">
-      <Breadcrumb items={attendanceCrumbs('Sổ báo ăn', { linkParent: false })} />
+      <Breadcrumb items={attendanceCrumbs(MEAL_COUNT_TITLE, { linkParent: false })} />
       <div className="page__head">
-        <h1 className="page__title">{kitchen ? 'Sổ báo ăn đã xác nhận' : 'Sổ báo ăn'}</h1>
-        {data?.counts.length > 0 && (
-          <button className="btn mt-8" onClick={exportCsv}>
-            <Download size={16} /> Xuất Excel
-          </button>
-        )}
+        <h1 className="page__title">{kitchen ? `${MEAL_COUNT_TITLE} đã xác nhận` : MEAL_COUNT_TITLE}</h1>
       </div>
       <ClassDateBar date={date} maxDate={today} onDateChange={(v) => setParams({ date: v }, { replace: true })}>
         <CampusFilter
@@ -151,6 +146,12 @@ export default function MealCountPage() {
           onChange={setCampusFilter}
         />
         <div className="spacer" />
+        {/* Xuất Excel cùng hàng ngày, điểm trường (Cần yêu cầu 10/11/2026) */}
+        {data?.counts.length > 0 && (
+          <button className="btn" onClick={exportCsv}>
+            <Download size={16} /> Xuất Excel
+          </button>
+        )}
       </ClassDateBar>
       {error ? (
         <div className="card">

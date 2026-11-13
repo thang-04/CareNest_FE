@@ -1,11 +1,13 @@
-import { Fragment } from 'react';
+import { Fragment, useEffect, useRef } from 'react';
 import { Check } from '@/components/ui/icons';
-import { PERMISSION_TASKS } from '@/models/account/permissionConstants';
-import { permissionFeatureLabel } from '@/utils/account/permissionMatrix';
+import { PERMISSION_LEVELS, PERMISSION_TASKS } from '@/models/account/permissionConstants';
+import { groupByFlow, permissionFeatureLabel } from '@/utils/account/permissionMatrix';
 
 /**
- * Bảng việc × cột: mỗi dòng một việc bằng lời thường, nhóm theo nghiệp vụ; việc cần quyền xem thụt vào với "↳".
- * `columns`: [{ key, header, note?, fixed?, render(code) }] — ô do màn gọi tự vẽ (ô tick, ✓/—, badge).
+ * Bảng việc × cột, 2 cấp: luồng lớn (Bán trú, Hồ sơ trẻ…) rồi từng việc nhỏ bằng lời thường kèm ghi chú;
+ * việc cần quyền xem thụt vào với "↳".
+ * `columns`: [{ key, header, note?, fixed?, render(code), renderFlow?(flow) }] — ô do màn gọi tự vẽ (ô tick, ✓/—, badge);
+ * `renderFlow` vẽ ô tổng của dòng luồng (flow = { key, label, codes }), không có thì để trống.
  */
 export function PermissionTable({ groups, catalog, columns, caption }) {
   return (
@@ -26,34 +28,55 @@ export function PermissionTable({ groups, catalog, columns, caption }) {
           </tr>
         </thead>
         <tbody>
-          {groups.map(({ feature, rows }) => (
-            <Fragment key={feature.key}>
-              <tr className="perm-table__group">
-                <th scope="colgroup" colSpan={columns.length + 1}>
-                  {permissionFeatureLabel(feature, catalog)}
+          {groupByFlow(groups).map((flow) => (
+            <Fragment key={flow.key}>
+              {/* Cấp 1: luồng lớn; ô tick tổng của cột chỉnh được, tick là tick cả luồng */}
+              <tr className="perm-table__flow">
+                <th scope="colgroup" className="perm-table__task">
+                  {flow.label}
+                  {flow.codes.length > 1 && <small className="perm-table__note">{flow.codes.length} việc nhỏ bên trong</small>}
                 </th>
+                {columns.map((column) => (
+                  <td key={column.key} className={`perm-table__col${column.fixed ? ' perm-table__col--fixed' : ''}`}>
+                    {column.renderFlow?.(flow)}
+                  </td>
+                ))}
               </tr>
-              {rows.map(({ code, dependent }) => {
-                const task = PERMISSION_TASKS[code];
-                return (
-                  <tr key={code}>
-                    <th scope="row" className={`perm-table__task${dependent ? ' is-dependent' : ''}`} title={task?.hint}>
-                      {dependent && (
-                        <span className="perm-table__arrow" aria-hidden="true">
-                          ↳
-                        </span>
-                      )}
-                      {task?.label || catalog.find((permission) => permission.code === code)?.description || code}
-                      {dependent && <span className="sr-only"> (cần quyền xem của nhóm này)</span>}
-                    </th>
-                    {columns.map((column) => (
-                      <td key={column.key} className={`perm-table__col${column.fixed ? ' perm-table__col--fixed' : ''}`}>
-                        {column.render(code)}
-                      </td>
-                    ))}
-                  </tr>
-                );
-              })}
+              {flow.groups.map(({ feature, rows }) => (
+                <Fragment key={feature.key}>
+                  {/* Cấp 2: nhóm việc; ẩn khi luồng chỉ có 1 nhóm để khỏi lặp tên */}
+                  {flow.groups.length > 1 && (
+                    <tr className="perm-table__group">
+                      <th scope="colgroup" colSpan={columns.length + 1}>
+                        {permissionFeatureLabel(feature, catalog)}
+                      </th>
+                    </tr>
+                  )}
+                  {rows.map(({ code, dependent }) => {
+                    const task = PERMISSION_TASKS[code];
+                    return (
+                      <tr key={code}>
+                        <th scope="row" className={`perm-table__task${dependent ? ' is-dependent' : ''}`} title={task?.hint}>
+                          {dependent && (
+                            <span className="perm-table__arrow" aria-hidden="true">
+                              ↳
+                            </span>
+                          )}
+                          <PermissionLevelBadge level={task?.level} />
+                          {task?.label || catalog.find((permission) => permission.code === code)?.description || code}
+                          {dependent && <span className="sr-only"> (cần quyền xem của nhóm này)</span>}
+                          {task?.hint && <small className="perm-table__note">{task.hint}</small>}
+                        </th>
+                        {columns.map((column) => (
+                          <td key={column.key} className={`perm-table__col${column.fixed ? ' perm-table__col--fixed' : ''}`}>
+                            {column.render(code)}
+                          </td>
+                        ))}
+                      </tr>
+                    );
+                  })}
+                </Fragment>
+              ))}
             </Fragment>
           ))}
         </tbody>
@@ -62,11 +85,43 @@ export function PermissionTable({ groups, catalog, columns, caption }) {
   );
 }
 
+/** Badge màu cấp quyền (Xem / Thao tác / Duyệt / Quản trị); việc chưa gắn cấp thì không vẽ. */
+export function PermissionLevelBadge({ level }) {
+  const info = PERMISSION_LEVELS[level];
+  if (!info) return null;
+  return (
+    <span className={`chip chip--${info.tone} perm-level`} title={info.hint}>
+      {info.label}
+    </span>
+  );
+}
+
 /** Ô tick phủ cả ô bảng để dễ bấm; `changed` tô nền ô vừa đổi chưa lưu. */
 export function PermissionCheckCell({ checked, onChange, label, disabled = false, changed = false }) {
   return (
     <label className={`perm-check-cell${changed ? ' is-changed' : ''}`}>
       <input type="checkbox" checked={checked} disabled={disabled} onChange={(event) => onChange(event.target.checked)} />
+      <span className="sr-only">{label}</span>
+    </label>
+  );
+}
+
+/** Ô tick tổng của luồng: all = đủ, some = một phần (dấu gạch), none = không; bấm khi chưa đủ ⇒ tick cả luồng. */
+export function PermissionFlowCheckCell({ state, onChange, label, disabled = false }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    if (ref.current) ref.current.indeterminate = state === 'some';
+  }, [state]);
+  return (
+    <label className="perm-check-cell perm-check-cell--flow">
+      <input
+        ref={ref}
+        type="checkbox"
+        checked={state === 'all'}
+        disabled={disabled}
+        aria-checked={state === 'some' ? 'mixed' : state === 'all'}
+        onChange={() => onChange(state !== 'all')}
+      />
       <span className="sr-only">{label}</span>
     </label>
   );

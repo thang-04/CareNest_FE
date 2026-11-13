@@ -1,6 +1,6 @@
 import { SCHOOL_CONFIG_API, USE_MOCK } from '@/config/env';
 import { beClient } from '@/services/http/beClient';
-import { getChildren, getClasses } from '@/services/schoolService';
+import { getAgeGroups, getCampusList, getChildren, getClasses } from '@/services/schoolService';
 import { isClassTeacher, isLeader } from '@/utils/assessment/assessmentPermissions';
 import { assessmentMockRepository as mock } from '@/services/assessment/mock/assessmentMockRepository';
 import { createAssessmentBeApi } from '@/services/assessment/api/assessmentApi';
@@ -31,11 +31,27 @@ export const getChildDevelopment = (childId, params, user) => (be || repo).getCh
 /** Trẻ cho Hồ sơ / Tiến độ phát triển: BE trả trẻ trong phạm vi; mock lọc trẻ đang học theo lớp của người dùng. */
 export const getDevelopmentChildren = async (params, user) => {
   if (be) return be.getDevelopmentChildren(params);
-  const [classes, children] = await Promise.all([getClasses({ activeYear: true }, user), getChildren({ status: 'ACTIVE' }, user)]);
+  const [classes, children, campuses, ageGroups] = await Promise.all([
+    getClasses({ activeYear: true }, user),
+    getChildren({ status: 'ACTIVE' }, user),
+    getCampusList(params?.schoolYear, user).catch(() => []),
+    getAgeGroups().catch(() => []),
+  ]);
   const mine = new Map(classes.filter((c) => isLeader(user) || isClassTeacher(c, user)).map((c) => [c.id, c]));
   return children
     .filter((ch) => mine.has(ch.classId))
-    .map((ch) => ({ ...ch, className: mine.get(ch.classId).name, campusId: mine.get(ch.classId).campusId }));
+    .map((ch) => {
+      const cls = mine.get(ch.classId);
+      const campus = campuses.find((x) => String(x.id) === String(cls.campusId));
+      return {
+        ...ch,
+        className: cls.name,
+        campusId: cls.campusId,
+        campusName: campus?.name || '',
+        ageGroupId: cls.ageGroupId,
+        ageGroupName: ageGroups.find((g) => String(g.id) === String(cls.ageGroupId))?.name || '',
+      };
+    });
 };
 
 export const getEvaluations = (kind, filters, user) => (be ? be.getEvaluations(kind, filters) : repo.listEvaluations(kind, filters, user));
@@ -75,3 +91,9 @@ export const getRewardList = (classId, user) => (be || repo).getRewardList(class
 export const saveRewardList = (classId, items, options, user) => (be || repo).saveRewardList(classId, items, options, user);
 export const reviewRewardList = (id, body, user) => (be || repo).reviewRewardList(id, body, user);
 export const decideRewardList = (id, body, user) => (be || repo).decideRewardList(id, body, user);
+
+// Bảng học kỳ mới cần nguồn BE, không trộn dữ liệu mock cũ của nhận xét định kỳ.
+const semesterBackend = () => be || notConnected;
+export const getSemesterAssessment = (params) => semesterBackend().getSemesterAssessment(params);
+export const saveSemesterAssessment = (body) => semesterBackend().saveSemesterAssessment(body);
+export const confirmSemesterAssessment = (body) => semesterBackend().confirmSemesterAssessment(body);

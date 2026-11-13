@@ -270,7 +270,7 @@ export default function DailyHealthOverviewPage() {
     return { id: g?.id || 'other', name: g?.name || 'Khác', order: order < 0 ? 99 : order };
   };
 
-  const campusName = (id) => md.campusById?.(id)?.name || id;
+  const campusName = (id) => md.campusById?.(id)?.shortName || md.campusById?.(id)?.name || id;
   const forbidden = error?.status === 403;
 
   // Lọc nhóm tuổi / lớp đặt ngay đầu bảng "Theo lớp" (gần dữ liệu, đỡ cuộn); áp cho số tổng, bảng lớp và trẻ cần chú ý
@@ -286,7 +286,7 @@ export default function DailyHealthOverviewPage() {
           <option value="">Toàn trường</option>
           {md.campuses.map((campus) => (
             <option key={campus.id} value={campus.id}>
-              {campus.name}
+              {campus.shortName || campus.name}
             </option>
           ))}
         </select>

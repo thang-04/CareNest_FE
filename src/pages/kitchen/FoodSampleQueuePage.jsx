@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Check, Download, Printer } from '@/components/ui/icons';
-import { Breadcrumb, EmptyState, ErrorState, LoadingState, Modal, PrintToolbar } from '@/components';
+import { Breadcrumb, EmptyState, ErrorState, LoadingState, Modal, PrintPaperFit, PrintToolbar } from '@/components';
 import { KbCampusFilter, KbDateFilter } from '@/components/kitchen/KitchenFilters';
 import { FoodSampleFormPrint } from '@/components/kitchen/FoodSampleFormPrint';
 import { SampleDisposalBadge, SampleStatusBadge } from '@/components/kitchen/SampleRecordBadges';
@@ -196,13 +196,13 @@ export default function FoodSampleQueuePage() {
         open={printing}
         onClose={() => setPrinting(false)}
         size="xl"
-        className="kb-print-modal"
+        className="print-modal"
         title="Sổ lưu và hủy mẫu thức ăn"
         footer={<PrintToolbar sheetRef={sheetRef} fileBase={`So_luu_mau_${from}_${to}`} printLabel="In" />}
       >
-        <div className="print-preview__paper">
+        <PrintPaperFit>
           <FoodSampleFormPrint ref={sheetRef} samples={printable} campusName={printCampus} from={from} to={to} />
-        </div>
+        </PrintPaperFit>
       </Modal>
     </div>
   );

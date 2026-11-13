@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Plus } from '@/components/ui/icons';
+import { Link, useNavigate } from 'react-router-dom';
+import { Plus, ShoppingBasket } from '@/components/ui/icons';
 import { Breadcrumb, EmptyState, ErrorState, LoadingState } from '@/components';
 import { FreshForecastCreateModal } from '@/components/kitchen/FreshForecastCreateModal';
 import { KbCampusFilter } from '@/components/kitchen/KitchenFilters';
@@ -10,7 +10,7 @@ import { kitchenCrumbs, KITCHEN_PAGES } from '@/utils/kitchen/breadcrumbs';
 import { clickableRowProps } from '@/utils/clickableRow';
 import { formatDate, formatDateTime } from '@/utils/format';
 
-/** Các bản dự trù hàng tươi đã lưu của một điểm trường, mới nhất trước; mở một bản để xem, in hoặc xóa. */
+/** Các bản dự trù đã lưu của một điểm trường, mới nhất trước; mở một bản để xem, in hoặc xóa. */
 export function FreshForecastList({ campus, autoOpen = false }) {
   const navigate = useNavigate();
   const canManage = useCanManageStock();
@@ -34,7 +34,7 @@ export function FreshForecastList({ campus, autoOpen = false }) {
   else if (!forecasts.data.length)
     body = (
       <EmptyState
-        title="Chưa có bản dự trù hàng tươi"
+        title="Chưa có bản dự trù"
         description="Lập bản dự trù cho một kỳ để biết cần đặt bao nhiêu hàng tươi và làm căn cứ kiểm nhận lần 1."
         action={canManage && create}
       />
@@ -76,12 +76,17 @@ export function FreshForecastList({ campus, autoOpen = false }) {
       <Breadcrumb items={kitchenCrumbs(KITCHEN_PAGES.forecast)} />
       <div className="page__head">
         <div>
-          <h1 className="page__title">Bản dự trù hàng tươi</h1>
+          <h1 className="page__title">Bản dự trù</h1>
         </div>
       </div>
       <div className="kb-toolbar">
         <KbCampusFilter campusId={campus.campusId} onChange={campus.setCampusId} canPick={campus.canPick} />
-        {canManage && <div className="kb-toolbar__end">{create}</div>}
+        <div className="kb-toolbar__end">
+          <Link className="btn" to={`/kitchen/market-day?campusId=${campus.campusId}`}>
+            <ShoppingBasket size={16} /> Đi chợ theo ngày
+          </Link>
+          {canManage && create}
+        </div>
       </div>
       <section className="card">{body}</section>
       {creating && (

@@ -10,7 +10,8 @@ const PANEL_MAX = 320;
 /**
  * Ô chọn tự dựng thay `<select>` gốc: cùng dáng ô nhập, danh sách nổi (portal, không bị bảng cắt), phím ↑ ↓ Enter Esc.
  * options: [{ value, label, searchText?, render?, hint?, group? }]. Ô tìm tự hiện khi trên 8 mục (`searchable` ghi đè).
- * variant: 'field' (mặc định) | 'add' (nút "Thêm …" viền đứt, chọn xong không giữ giá trị — dùng cho chọn món).
+ * variant: 'field' (mặc định) | 'add' (nút "Thêm …" viền đứt, chọn xong không giữ giá trị — dùng cho chọn món)
+ * | 'icon' (nút chỉ có `icon`, tooltip = ariaLabel, không giữ giá trị — dùng cho "Thay món").
  */
 export function SearchSelect({
   options,
@@ -26,8 +27,10 @@ export function SearchSelect({
   heading,
   size,
   variant = 'field',
+  icon: Icon,
   className = '',
 }) {
+  const action = variant === 'add' || variant === 'icon';
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(-1);
@@ -44,7 +47,7 @@ export function SearchSelect({
     if (refocus) triggerRef.current?.focus();
   }, []);
 
-  const selected = variant === 'add' ? null : options.find((o) => o.value === value);
+  const selected = action ? null : options.find((o) => o.value === value);
   const filtered = useMemo(() => {
     const q = normalizeText(query);
     return q ? options.filter((o) => normalizeText(o.searchText || o.label).includes(q)) : options;
@@ -54,12 +57,12 @@ export function SearchSelect({
   const place = useCallback(() => {
     const r = triggerRef.current?.getBoundingClientRect();
     if (!r) return;
-    const width = Math.min(Math.max(r.width, variant === 'add' ? 320 : 200), window.innerWidth - 32);
+    const width = Math.min(Math.max(r.width, action ? 320 : 200), window.innerWidth - 32);
     const left = Math.min(Math.max(16, r.left), window.innerWidth - width - 16);
     const below = window.innerHeight - r.bottom;
     const up = below < PANEL_MAX && r.top > below;
     setPos(up ? { left, width, bottom: window.innerHeight - r.top + PANEL_GAP } : { left, width, top: r.bottom + PANEL_GAP });
-  }, [variant]);
+  }, [action]);
 
   useLayoutEffect(() => {
     if (open) place();
@@ -179,15 +182,24 @@ export function SearchSelect({
       <button
         type="button"
         ref={triggerRef}
-        className={variant === 'add' ? 'search-select__add' : `search-select__control ${error ? 'select--error' : ''}`}
+        className={
+          variant === 'add'
+            ? 'search-select__add'
+            : variant === 'icon'
+              ? 'search-select__icon'
+              : `search-select__control ${error ? 'select--error' : ''}`
+        }
         onClick={() => !disabled && (open ? close(false) : setOpen(true))}
         onKeyDown={onKeyDown}
         disabled={disabled}
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label={ariaLabel}
+        title={variant === 'icon' ? ariaLabel : undefined}
       >
-        {variant === 'add' ? (
+        {variant === 'icon' ? (
+          Icon && <Icon size={16} aria-hidden="true" />
+        ) : variant === 'add' ? (
           <>
             <Plus size={16} />
             {placeholder}

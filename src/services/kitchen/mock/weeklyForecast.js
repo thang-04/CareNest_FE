@@ -36,61 +36,78 @@ const forecastCounts = (db, classes, sessions, valueOf) =>
  * Dữ liệu tuần của một cơ sở. ctx: { today, isSchoolDay(date), mealCountOf(date, session), stockOf(foodId) }.
  * record: bản dự trù đã lưu `{ cells: {classId: {date: n}}, sentAt, sentBy, sentOrder: {date: {foodId: qty}}, sentTotals, notices }`.
  */
-export function buildWeeklyForecast(db, { campusId, weekStart, record, ctx }) {
+/** Lớp, bữa, số đăng ký ăn và ô dự trù đã lưu của một cơ sở: phần dùng chung cho mọi ngày. */
+export function forecastEnv(db, { campusId, record }) {
   const classes = activeKitchenClasses(db, campusId);
-  const sessions = mealSessionsForCampus(db, campusId);
-  const classById = Object.fromEntries((db.classes || []).map((c) => [c.id, c]));
-  const foodById = Object.fromEntries((db.foods || []).map((f) => [f.id, f]));
   const active = (db.children || []).filter((ch) => ch.status === 'ACTIVE' && ch.classId);
-  const registered = Object.fromEntries(classes.map((c) => [c.id, active.filter((ch) => ch.classId === c.id).length]));
-  const cells = record?.cells || {};
+  return {
+    campusId,
+    classes,
+    sessions: mealSessionsForCampus(db, campusId),
+    classById: Object.fromEntries((db.classes || []).map((c) => [c.id, c])),
+    registered: Object.fromEntries(classes.map((c) => [c.id, active.filter((ch) => ch.classId === c.id).length])),
+    cells: record?.cells || {},
+  };
+}
+
+/**
+ * Số suất của một ngày: ngày đã chốt dùng số chốt, chưa chốt dùng ô dự trù đã lưu hoặc gợi ý (đăng ký ăn − nghỉ đã báo).
+ * `counts` trả về là số dùng để tính thực phẩm (null khi ngày nghỉ).
+ */
+export function forecastDay(db, env, date, ctx) {
+  const { campusId, classes, sessions, registered, cells } = env;
+  const holiday = !ctx.isSchoolDay(date);
+  const real = Object.fromEntries(sessions.map((s) => [s, holiday ? null : ctx.mealCountOf(date, s)]));
+  const confirmed = !holiday && confirmedOf(real, sessions);
+  const chot = Object.fromEntries(
+    classes.map((cls) => {
+      const meals = classMealSessions(db, cls);
+      const base = meals.includes('LUNCH') ? 'LUNCH' : meals[0];
+      const row = real[base]?.classes?.find((line) => line.classId === cls.id);
+      return [cls.id, Number(row?.normal || 0) + Number(row?.substitute || 0)];
+    }),
+  );
+  // Nghỉ đã báo: bản ghi vắng đã có cho ngày đó (GV điểm danh hoặc báo trước)
+  const absent = {};
+  (db.attendance || []).forEach((a) => {
+    const cls = classes.find((item) => item.id === a.classId);
+    const noMeal = cls && a.meals && classMealSessions(db, cls).every((session) => !a.meals[session]);
+    if (a.date === date && a.campusId === campusId && (isAbsent(a.status) || noMeal)) absent[a.classId] = (absent[a.classId] || 0) + 1;
+  });
+  const suggested = (classId) => Math.max(0, (registered[classId] || 0) - (absent[classId] || 0));
+  const valueOf = (classId) => {
+    if (holiday) return 0;
+    if (confirmed) return chot[classId] || 0;
+    const saved = cells[classId]?.[date];
+    return saved == null ? suggested(classId) : saved;
+  };
+  return {
+    date,
+    holiday,
+    confirmed,
+    confirmedAt: confirmed
+      ? sessions
+          .map((session) => real[session]?.confirmedAt)
+          .filter(Boolean)
+          .sort()
+          .at(-1) || null
+      : null,
+    editable: !holiday && !confirmed && date >= ctx.today,
+    suggested,
+    valueOf,
+    counts: holiday ? null : confirmed ? real : forecastCounts(db, classes, sessions, valueOf),
+  };
+}
+
+export function buildWeeklyForecast(db, { campusId, weekStart, record, ctx }) {
+  const env = forecastEnv(db, { campusId, record });
+  const { classes, classById, registered, cells } = env;
+  const foodById = Object.fromEntries((db.foods || []).map((f) => [f.id, f]));
 
   const days = weekDays(weekStart).map((date) => {
-    const holiday = !ctx.isSchoolDay(date);
-    const counts = Object.fromEntries(sessions.map((s) => [s, holiday ? null : ctx.mealCountOf(date, s)]));
-    const confirmed = !holiday && confirmedOf(counts, sessions);
-    const chot = Object.fromEntries(
-      classes.map((cls) => {
-        const meals = classMealSessions(db, cls);
-        const base = meals.includes('LUNCH') ? 'LUNCH' : meals[0];
-        const row = counts[base]?.classes?.find((line) => line.classId === cls.id);
-        return [cls.id, Number(row?.normal || 0) + Number(row?.substitute || 0)];
-      }),
-    );
-    // Nghỉ đã báo: bản ghi vắng đã có cho ngày đó (GV điểm danh hoặc báo trước)
-    const absent = {};
-    (db.attendance || []).forEach((a) => {
-      const cls = classes.find((item) => item.id === a.classId);
-      const noMeal = cls && a.meals && classMealSessions(db, cls).every((session) => !a.meals[session]);
-      if (a.date === date && a.campusId === campusId && (isAbsent(a.status) || noMeal)) absent[a.classId] = (absent[a.classId] || 0) + 1;
-    });
-    const suggested = (classId) => Math.max(0, (registered[classId] || 0) - (absent[classId] || 0));
-    const valueOf = (classId) => {
-      if (holiday) return 0;
-      if (confirmed) return chot[classId] || 0;
-      const saved = cells[classId]?.[date];
-      return saved == null ? suggested(classId) : saved;
-    };
-    const market = holiday
-      ? null
-      : computeMarket(db, { date, counts: confirmed ? counts : forecastCounts(db, classes, sessions, valueOf), classById });
-    return {
-      date,
-      holiday,
-      hasMenu: !!market && market.status !== 'NO_MENU',
-      confirmed,
-      confirmedAt: confirmed
-        ? sessions
-            .map((session) => counts[session]?.confirmedAt)
-            .filter(Boolean)
-            .sort()
-            .at(-1) || null
-        : null,
-      editable: !holiday && !confirmed && date >= ctx.today,
-      suggested,
-      valueOf,
-      market,
-    };
+    const day = forecastDay(db, env, date, ctx);
+    const market = day.holiday ? null : computeMarket(db, { date, counts: day.counts, classById });
+    return { ...day, hasMenu: !!market && market.status !== 'NO_MENU', market };
   });
 
   const outDays = days.map((d) => ({

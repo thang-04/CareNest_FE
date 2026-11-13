@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Lock, Save } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -25,11 +25,14 @@ import { ageGroupOptions } from '@/utils/menu-planning/menuStatistics';
 import { TemplateDayPicker } from '@/components/menu-planning/TemplateDayPicker';
 import {
   DEFAULT_DAY,
+  TEMPLATE_KIND,
+  TEMPLATE_KIND_LABELS,
   dayCounts,
   dayItems,
   hasTemplateDays,
   itemsBySession,
   sameDay,
+  templateKind,
   toStatisticsItems,
   toTemplateRequest,
 } from '@/utils/menu-planning/menuTemplateGrid';
@@ -41,11 +44,12 @@ const BLOCK_OPTIONS = Object.values(MEAL_BLOCK).map((b) => ({ value: b, label: M
 const toForm = (data) => ({ ...data, items: data.items.map((item) => ({ ...item, dishId: String(item.dishId) })) });
 
 /**
- * Lập / sửa mẫu thực đơn một ngày (NUT-13): tên, nhãn mùa, khối; mỗi bữa của khối một khối món, mở món xem thành phần;
+ * Lập / sửa mẫu thực đơn ngày, tuần hoặc tháng (NUT-13): tên, nhãn mùa, khối; mỗi bữa của khối một khối món, mở món xem thành phần;
  * bảng dinh dưỡng 1 trẻ / ngày theo nhóm tuổi do BE tính trên các món đang chọn (kể cả chưa lưu).
  */
 export default function MenuTemplateEditorPage() {
   const { id } = useParams();
+  const [params] = useSearchParams();
   const navigate = useNavigate();
   const { user } = useAuth();
   const toast = useToast();
@@ -66,6 +70,8 @@ export default function MenuTemplateEditorPage() {
   }, [data]);
 
   const editable = id ? !!data?.canEdit : hasBePermission(user, PERMISSIONS.MENU_MANAGE);
+  // Sửa công thức món là quyền danh mục (NUTRITION_MANAGE), khác quyền sửa mẫu (MENU_MANAGE): form món chặn nếu thiếu
+  const canEditRecipe = hasBePermission(user, PERMISSIONS.NUTRITION_MANAGE);
   const sessions = data?.sessions?.length && data.block === form.block ? data.sessions : blockSessions(weekQ.data, form.block);
   const groupIds =
     data?.ageGroupIds?.length && data.block === form.block
@@ -75,6 +81,9 @@ export default function MenuTemplateEditorPage() {
   const currentGroup = groups.some((g) => g.id === ageGroupId) ? ageGroupId : groups[0]?.id;
   // Bộ 4 tuần (BE hiện tại): sửa từng ngày của bộ; mẫu mới cũng bắt đầu ở Tuần 1 · Thứ Hai
   const dayMode = !form.items.length || hasTemplateDays(form.items);
+  // Loại chọn lúc tạo đi theo URL; mở lại mẫu đã lưu thì suy từ các ngày có món
+  const kind = TEMPLATE_KIND[params.get('kind')] || (id ? templateKind(data?.items) : TEMPLATE_KIND.MONTH);
+  const kindLabel = TEMPLATE_KIND_LABELS[kind];
   const firstDay = useMemo(() => {
     const first = [...form.items].sort((a, b) => a.weekNo - b.weekNo || a.weekday - b.weekday)[0];
     return first?.weekNo != null ? { weekNo: first.weekNo, weekday: first.weekday } : DEFAULT_DAY;
@@ -84,6 +93,8 @@ export default function MenuTemplateEditorPage() {
   const bySession = itemsBySession(shownItems);
   const statsItems = useMemo(() => toStatisticsItems(shownItems).map((i) => ({ ...i, dishId: Number(i.dishId) })), [shownItems]);
   const statsQ = useMenuStatistics(currentGroup && statsItems.length ? { ageGroupId: Number(currentGroup), items: statsItems } : null);
+  // Đổi ngày/nhóm tuổi: giữ số liệu lần trước (làm mờ) tới khi BE trả số mới, không nhấp nháy khung chờ
+  const shownStats = statsQ.data ?? statsQ.stale;
   const dirty = JSON.stringify(toTemplateRequest(form)) !== JSON.stringify(toTemplateRequest(data ? toForm(data) : EMPTY));
   const set = (key, value) => setForm((f) => ({ ...f, [key]: value }));
 
@@ -95,9 +106,9 @@ export default function MenuTemplateEditorPage() {
     setBusy(true);
     try {
       const saved = await menuTemplateApi.saveTemplate(id, toTemplateRequest(form));
-      toast.success('Đã lưu mẫu thực đơn ngày.');
+      toast.success('Đã lưu mẫu thực đơn.');
       if (id) reload({ silent: true });
-      else navigate(`/menu/templates/${saved.id}`, { replace: true });
+      else navigate(`/menu/templates/${saved.id}?kind=${kind}`, { replace: true });
       return true;
     } catch (err) {
       if (err.details) setErrors(err.details);
@@ -140,7 +151,7 @@ export default function MenuTemplateEditorPage() {
       form.items.filter((i) => !(i.session === session && i.dishId === String(dishId) && sameDay(i, currentDay))),
     );
 
-  const crumbs = templateCrumbs(id ? data?.name || 'Mẫu ngày' : 'Tạo mẫu ngày');
+  const crumbs = templateCrumbs(id ? data?.name || 'Mẫu thực đơn' : `Tạo ${kindLabel.toLowerCase()}`);
   const canCreate = hasBePermission(user, PERMISSIONS.MENU_MANAGE);
   const body = () => {
     if (id && error) return <ErrorState error={error} onRetry={reload} />;
@@ -150,7 +161,7 @@ export default function MenuTemplateEditorPage() {
         <section className="card">
           <div className="card__header">
             <div>
-              <h2 className="card__title">{id ? data.name : 'Mẫu ngày mới'}</h2>
+              <h2 className="card__title">{id ? data.name : `${kindLabel} mới`}</h2>
               <span className="text-sm muted">Sửa mẫu không đổi các tuần đã điền món từ mẫu.</span>
             </div>
             <div className="page__actions">
@@ -203,14 +214,18 @@ export default function MenuTemplateEditorPage() {
             </FormField>
           </div>
         </section>
-        {dayMode && <TemplateDayPicker value={currentDay} onChange={setDay} counts={dayCounts(form.items)} />}
+        {dayMode && kind !== TEMPLATE_KIND.DAY && (
+          <TemplateDayPicker value={currentDay} onChange={setDay} counts={dayCounts(form.items)} oneWeek={kind === TEMPLATE_KIND.WEEK} />
+        )}
         {sessions.map((session) => (
           <TemplateMealSection
             key={session}
             session={session}
             items={bySession[session] || []}
-            ingredients={statsQ.data ? (statsQ.data.dishIngredients ?? null) : undefined}
+            ingredients={shownStats ? (shownStats.dishIngredients ?? null) : undefined}
+            loading={statsQ.loading}
             editable={editable}
+            canEditRecipe={canEditRecipe}
             onAdd={() => setAdding(session)}
             onRemove={(dishId) => removeDish(session, dishId)}
           />
@@ -229,16 +244,17 @@ export default function MenuTemplateEditorPage() {
           ageGroups={groups}
           ageGroupId={currentGroup}
           onAgeGroup={setAgeGroupId}
-          statsQ={statsQ}
+          statsQ={{ ...statsQ, data: shownStats }}
           hasItems={shownItems.length > 0}
         />
       )}
       {adding && (
         <AddDishesModal
           title="Thêm món ăn"
-          subtitle={`${MEAL_SESSION_LABELS[adding] || adding} · ${form.name || 'Mẫu ngày mới'}`}
+          subtitle={`${MEAL_SESSION_LABELS[adding] || adding} · ${form.name || `${kindLabel} mới`}`}
           dishes={dishes}
           selectedIds={(bySession[adding] || []).map((i) => i.dishId)}
+          ageGroup={ageGroups.find((g) => String(g.id) === String(currentGroup))}
           onSave={(picked) => saveMeal(adding, picked)}
           onClose={() => setAdding(null)}
         />

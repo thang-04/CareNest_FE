@@ -7,6 +7,7 @@ import { getMenuForRole } from './menuConfig';
 import { UserMenu } from './UserMenu';
 import { useAuth } from '@/contexts/AuthContext';
 import { prefetchPath, prefetchWhenIdle } from '@/routes/routePrefetch';
+import { menuEntryFor } from '@/utils/menuBreadcrumb';
 
 const OPEN_GROUPS_KEY = 'carenest.sidebar.openGroups';
 
@@ -19,8 +20,6 @@ const iconChip = (item) => {
     </span>
   );
 };
-
-const isActivePath = (pathname, to, exact = false) => (to === '/' || exact ? pathname === to : pathname.startsWith(to));
 
 const readOpenGroups = () => {
   try {
@@ -50,12 +49,14 @@ export function Sidebar({ role, collapsed, drawer = false, drawerOpen = false, o
   const hiddenItems = useEduMenuHidden(role);
   const menu = useMemo(() => getMenuForRole(role, user, hiddenItems), [role, user, hiddenItems]);
   const [open, setOpen] = useState(readOpenGroups);
+  // Chỉ một mục sáng: mục có đường dẫn dài nhất bao màn đang mở (cùng cách chọn với breadcrumb)
+  const activeKey = menuEntryFor(menu, pathname)?.item.key;
 
   // Open the group that contains the current page when navigating.
   useEffect(() => {
-    const group = menu.find((m) => m.children?.some((c) => isActivePath(pathname, c.to, c.exact)));
+    const group = menu.find((m) => m.children?.some((c) => c.key === activeKey));
     if (group) setOpen((o) => (o[group.label] ? o : { [group.label]: true }));
-  }, [pathname, menu]);
+  }, [activeKey, menu]);
 
   useEffect(() => {
     try {
@@ -116,7 +117,7 @@ export function Sidebar({ role, collapsed, drawer = false, drawerOpen = false, o
         </NavLink>
       );
     }
-    const groupActive = item.children.some((c) => isActivePath(pathname, c.to, c.exact));
+    const groupActive = item.children.some((c) => c.key === activeKey);
     const expanded = !!open[item.label] && !collapsed;
     const subId = `nav-sub-${item.label}`;
     return (
@@ -148,7 +149,7 @@ export function Sidebar({ role, collapsed, drawer = false, drawerOpen = false, o
                 to={child.to}
                 end={!!child.exact}
                 onClick={skipIfOpening(child.to)}
-                className={() => `nav-sub__item ${isActivePath(pathname, child.to, child.exact) ? 'nav-sub__item--active' : ''}`}
+                className={() => `nav-sub__item ${child.key === activeKey ? 'nav-sub__item--active' : ''}`}
               >
                 {child.label}
               </NavLink>
@@ -166,7 +167,7 @@ export function Sidebar({ role, collapsed, drawer = false, drawerOpen = false, o
                 end={!!child.exact}
                 role="menuitem"
                 onClick={skipIfOpening(child.to)}
-                className={() => `nav-sub__item ${isActivePath(pathname, child.to, child.exact) ? 'nav-sub__item--active' : ''}`}
+                className={() => `nav-sub__item ${child.key === activeKey ? 'nav-sub__item--active' : ''}`}
               >
                 {child.label}
               </NavLink>

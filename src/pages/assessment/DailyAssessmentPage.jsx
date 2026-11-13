@@ -14,7 +14,7 @@ import { saveDailyGeneral } from '@/services/assessment/assessmentService';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { EmptyState, ErrorState, SkeletonRows, Spinner } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
-import { BehaviorsCell, HealthCell, MealsCell } from '@/components/assessment/DailyAssessmentCells';
+import { AbsentRows, BehaviorsCell, HealthCell, MealsCell } from '@/components/assessment/DailyAssessmentCells';
 import { EMOTION, EMOTION_LABELS } from '@/models/assessment/assessmentConstants';
 import { NAP, NAP_LABELS, PARTICIPATION, PARTICIPATION_LABELS } from '@/models/assessment/dailyObservationOptions';
 import { createGeneralDraft, getGeneralDirtyIds, getGeneralSaveEntries, isGeneralRecorded } from '@/utils/assessment/dailyGeneralDraft';
@@ -244,7 +244,7 @@ export default function DailyAssessmentPage() {
                         />
                       </td>
                     </tr>
-                  ) : sheet.rows.length === 0 ? (
+                  ) : sheet.rows.length === 0 && !sheet.absentChildren?.length ? (
                     <tr>
                       <td colSpan={COLS}>
                         <EmptyState icon={UserX} title="Không có trẻ có mặt" description="Cả lớp vắng ngày này." />
@@ -370,6 +370,9 @@ export default function DailyAssessmentPage() {
                         </tr>
                       );
                     })
+                  )}
+                  {!loading && !classesLoading && sheet?.attendanceTaken && (
+                    <AbsentRows items={sheet.absentChildren} colSpan={COLS} firstClass="dg-col-child dg-sticky-col cell--fixed" />
                   )}
                 </tbody>
               </table>

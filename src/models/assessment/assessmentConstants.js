@@ -130,14 +130,15 @@ export const PERIOD_TYPE_LABELS = { WEEK: 'Tuần', MONTH: 'Tháng', SEMESTER: '
 // Xếp loại nhóm lớp (sổ chỉ đạo chuyên môn mục 7, BE OBS-24): kỳ, mức và 7 tiêu chí (key = field BE `levels`)
 export const CLASS_RATING_PERIOD = { SEMESTER_1: 'SEMESTER_1', SEMESTER_2: 'SEMESTER_2', YEAR: 'YEAR' };
 export const CLASS_RATING_PERIOD_LABELS = { SEMESTER_1: 'Học kỳ I', SEMESTER_2: 'Học kỳ II', YEAR: 'Cuối năm' };
-export const CLASS_RATING_LEVELS = ['TOT', 'KHA', 'DAT', 'CHUA_DAT'];
-export const CLASS_RATING_LEVEL_LABELS = { TOT: 'Tốt', KHA: 'Khá', DAT: 'Đạt', CHUA_DAT: 'Chưa đạt' };
+// BE OBS-24 (Cần chốt 10/11/2026): 4 mức
+export const CLASS_RATING_LEVELS = ['XUAT_SAC', 'TOT', 'KHA', 'TRUNG_BINH'];
+export const CLASS_RATING_LEVEL_LABELS = { XUAT_SAC: 'Xuất sắc', TOT: 'Tốt', KHA: 'Khá', TRUNG_BINH: 'Trung bình' };
 export const CLASS_RATING_CRITERIA = [
   { key: 'records', label: 'Hồ sơ sổ sách' },
   { key: 'program', label: 'Thực hiện chương trình' },
   { key: 'theme', label: 'Thực hiện chủ đề' },
   { key: 'environment', label: 'Tạo môi trường ĐDĐC' },
-  { key: 'routine', label: 'Nền nếp trẻ' },
+  { key: 'routine', label: 'Nề nếp trẻ' },
   { key: 'health', label: 'Sức khỏe' },
   { key: 'parents', label: 'Kết hợp với cha mẹ' },
 ];
@@ -166,7 +167,8 @@ export const TICKET_TYPE = { WEEKLY: 'WEEKLY', MONTHLY: 'MONTHLY' };
 export const TICKET_TYPE_LABELS = { WEEKLY: 'Bé ngoan', MONTHLY: 'Bé ngoan toàn diện' };
 
 /** GBR-REW-01 / GBR-REW-02 thresholds. */
-export const TICKET_RULES = { WEEK_MIN_PRESENT_DAYS: 4, WEEK_MIN_FLAGS: 3, MONTH_MIN_WEEKLY_TICKETS: 3 };
+// BE OBS-10 (Cần chốt 11/11/2026): phiếu tuần cần ≥3 cờ; phiếu tháng cần ≥3 phiếu tuần
+export const TICKET_RULES = { WEEK_MIN_FLAGS: 3, MONTH_MIN_WEEKLY_TICKETS: 3 };
 
 export const REWARD_STATUS = {
   DRAFT: 'DRAFT',
@@ -196,6 +198,8 @@ export const REWARD_HISTORY_LABELS = {
   FORWARDED: 'Phó hiệu trưởng chuyển Hiệu trưởng',
   RETURNED: 'Trả lại giáo viên',
   APPROVED: 'Hiệu trưởng phê duyệt',
+  // BE OBS-14 (Cần chốt 11/11/2026): HT duyệt thẳng khi Phó hiệu trưởng chưa xét
+  DIRECT_APPROVED: 'Hiệu trưởng duyệt trực tiếp (Phó hiệu trưởng chưa xét)',
   REJECTED: 'Hiệu trưởng từ chối',
 };
 

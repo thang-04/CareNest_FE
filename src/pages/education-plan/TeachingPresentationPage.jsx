@@ -88,22 +88,24 @@ function Presentation() {
   if (!cls || !theme || !doc) return <StatusPage kind="404" title="Chưa có kế hoạch chủ đề đã lưu để dạy học" />;
   const back = weekKey ? `/education/class/${classId}/weeks/${weekKey}` : `/education/class/${classId}/themes/${themeId}`;
   return (
-    <div className="page ga-page ga-teaching" ref={stage}>
-      <PageHead
-        title={theme.name}
-        desc={
-          <>
-            {cls.name} · {date || (weekKey ? `Tuần ${weekKey}` : 'Toàn chủ đề')} <EduStatusBadge status={doc.status} />
-          </>
-        }
-        actions={
-          <>
-            <Link className="btn btn--ghost" to={back}>
+    <div className="page ga-page ga-teaching ga-class-editor ga-year-page" ref={stage}>
+      <div className="ga-sticky-head">
+        <PageHead
+          title={theme.name}
+          desc={
+            <>
+              {cls.name} · {date || (weekKey ? `Tuần ${weekKey}` : 'Toàn chủ đề')} <EduStatusBadge status={doc.status} doc={doc} />
+            </>
+          }
+        />
+        <div className="ga-year-toolbar" role="group" aria-label="Thao tác dạy học">
+          <div className="ga-year-toolbar__group ga-year-toolbar__group--end">
+            <Link className="btn btn--sm btn--outline-primary" to={back}>
               Quay lại kế hoạch
             </Link>
             <button
               type="button"
-              className="btn btn--primary"
+              className="btn btn--sm btn--outline-primary"
               onClick={async () => {
                 try {
                   if (document.fullscreenElement) await document.exitFullscreen();
@@ -116,9 +118,9 @@ function Presentation() {
             >
               Toàn màn hình
             </button>
-          </>
-        }
-      />
+          </div>
+        </div>
+      </div>
       {doc.status !== 'approved' && doc.status !== 'APPROVED' && (
         <Notice tone="warn">Đây là bản chưa hoàn tất phê duyệt. Chế độ dạy học không thay đổi trạng thái hồ sơ.</Notice>
       )}
