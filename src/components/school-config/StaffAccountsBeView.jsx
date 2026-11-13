@@ -18,6 +18,7 @@ import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { ScNoAccess } from '@/components/school-config/ScNoAccess';
 import { StaffStatusBadge } from '@/components/school-config/SchoolConfigBadges';
 import { StaffImportPanel } from '@/components/school-config/StaffImportPanel';
+import { StaffAccountEditModal } from '@/components/school-config/StaffAccountEditModal';
 import { ROLES, ROLE_LABELS } from '@/models/User';
 import {
   createStaffAccount,
@@ -81,6 +82,7 @@ export function StaffAccountsBeView({ tabs = null }) {
   const [creating, setCreating] = useState(false);
   // PHT vừa tạo: BE đã phân công điểm trường kèm theo ⇒ dẫn sang màn Phân công để xem / điều chỉnh
   const [createdVice, setCreatedVice] = useState(null);
+  const [editingOf, setEditingOf] = useState(null);
   const [statusOf, setStatusOf] = useState(null);
   const [passwordOf, setPasswordOf] = useState(null);
   const [importing, setImporting] = useState(false);
@@ -273,6 +275,7 @@ export function StaffAccountsBeView({ tabs = null }) {
                           <td className="cell--actions">
                             {manageable && (
                               <RowActions
+                                edit={canCreate ? { label: 'Sửa thông tin', onClick: () => setEditingOf(u) } : undefined}
                                 menu={[
                                   ...(canCreate
                                     ? [{ label: 'Cấp lại mật khẩu tạm', icon: KeyRound, onClick: () => setPasswordOf(u) }]
@@ -312,6 +315,7 @@ export function StaffAccountsBeView({ tabs = null }) {
           }}
         />
       )}
+      {editingOf && <StaffAccountEditModal account={editingOf} onClose={done(setEditingOf)} />}
       {statusOf && <StaffStatusConfirm account={statusOf} onClose={done(setStatusOf)} />}
       {passwordOf && <StaffPasswordModal account={passwordOf} onClose={done(setPasswordOf)} />}
       <StaffImportPanel

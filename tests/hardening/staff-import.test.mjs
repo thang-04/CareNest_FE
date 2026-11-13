@@ -6,7 +6,9 @@ const {
   matchStaffRows,
   normalizePhone,
   toCreatePayload,
+  toProfilePayload,
   validateStaffAccount,
+  validateStaffProfile,
   staffExportRows,
 } = await import('@/utils/school-config/staffImport');
 
@@ -53,6 +55,19 @@ test('AUTH-15: email bắt buộc với Phó hiệu trưởng và Giáo viên, b
   assert.ok(validateStaffAccount({ ...base, email: 'a@x.vn', role: 'TEACHER', phone: '09689041301' }, { campuses }).phone);
   const rows = [STAFF_COLUMNS, ['Nguyễn Lan', '0912345678', '', 'Giáo viên', 'CS1']];
   assert.match(matchStaffRows(rows, { campuses }).errors[0].reason, /Vui lòng nhập email/);
+});
+
+test('AUTH-25: sửa thông tin tài khoản kiểm họ tên, email như lúc tạo; payload chỉ có họ tên và email', () => {
+  assert.deepEqual(validateStaffProfile({ fullName: '', email: 'x@' }, 'TEACHER'), {
+    fullName: 'Nhập họ tên',
+    email: 'Email không đúng định dạng',
+  });
+  assert.equal(validateStaffProfile({ fullName: 'A', email: '' }, 'VICE_PRINCIPAL').email, 'Vui lòng nhập email');
+  assert.deepEqual(validateStaffProfile({ fullName: 'A', email: '' }, 'KITCHEN_STAFF'), {});
+  assert.deepEqual(toProfilePayload({ fullName: ' Lan  Anh ', email: ' lan@x.vn ', phone: '0912345678' }), {
+    fullName: 'Lan Anh',
+    email: 'lan@x.vn',
+  });
 });
 
 test('AUTH-15: payload POST /accounts chỉ gửi điểm trường, không có classroomId; SĐT chuẩn hóa, email trống thành null', () => {

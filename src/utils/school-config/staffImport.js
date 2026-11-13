@@ -69,6 +69,9 @@ export const toCreatePayload = (form) => ({
   assignment: form.role === ROLES.TEACHER && !form.campusId ? null : { campusId: form.campusId },
 });
 
+/** Body PATCH /accounts/{id}/profile (AUTH-25): chỉ họ tên và email; SĐT là tên đăng nhập nên không sửa ở đây. */
+export const toProfilePayload = (form) => ({ fullName: text(form.fullName), email: text(form.email) || null });
+
 const findCampus = (campuses, v) => campuses.find((c) => [c.shortName, c.name, c.code].some((x) => x && key(x) === key(v))) || null;
 const roleOf = (v) => STAFF_ROLES.find((r) => key(ROLE_LABELS[r]) === key(v) || key(r) === key(v)) || '';
 
