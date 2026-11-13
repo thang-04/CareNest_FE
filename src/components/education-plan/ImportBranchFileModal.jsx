@@ -1,7 +1,6 @@
-import { useRef, useState } from 'react';
-import { Upload, Download } from '@/components/ui/icons';
-import { Modal, Notice } from '@/components/education-plan/eduUi';
-import { LoadingState } from '@/components/ui/States';
+import { useState } from 'react';
+import { Notice } from '@/components/education-plan/eduUi';
+import { ImportDialog } from '@/components/upload/ImportDialog';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { previewBranchFile } from '@/services/education-plan/educationPlanService';
 import { branchFileChanges } from '@/models/education-plan/importBranchFile.mjs';
@@ -13,7 +12,6 @@ import { PLAN_IMPORT_ACCEPT as ACCEPT, validatePlanImportFile } from '@/utils/ed
 const SHOWN_WARNINGS = 8;
 
 export function ImportBranchFileModal({ classId, yearPlanId, user, draft, templateArgs, onImport, onClose }) {
-  const fileRef = useRef(null);
   const [state, setState] = useState({ status: 'idle' });
   const [confirm, setConfirm] = useState(false);
   const preview = state.status === 'ready' ? state.preview : null;
@@ -27,9 +25,7 @@ export function ImportBranchFileModal({ classId, yearPlanId, user, draft, templa
       if (validation) throw new Error(validation);
       setState({ status: 'ready', name: file.name, preview: await previewBranchFile(file, { classId, yearPlanId }, user) });
     } catch (error) {
-      setState({ status: 'error', message: error.message || 'Không đọc được file' });
-    } finally {
-      if (fileRef.current) fileRef.current.value = '';
+      setState({ status: 'error', name: file.name, message: error.message || 'Không đọc được file' });
     }
   };
   const apply = () => {
@@ -41,61 +37,36 @@ export function ImportBranchFileModal({ classId, yearPlanId, user, draft, templa
     downloadDoc(file.html, file.name);
   };
   return (
-    <Modal
+    <ImportDialog
+      open
       title="Nhập file chủ đề nhánh"
-      width={720}
-      onClose={onClose}
-      footer={
+      guide={
         <>
-          <button type="button" className="btn" onClick={onClose}>
-            Hủy
-          </button>
-          <button
-            type="button"
-            className="btn btn--primary"
-            disabled={!changes.length}
-            onClick={() => (overwrites ? setConfirm(true) : apply())}
-          >
-            <Download size={16} aria-hidden /> Thêm {changes.length || ''} tên nhánh
-          </button>
+          Tải xuống <b>tệp mẫu</b>, điền tên chủ đề nhánh theo từng tuần rồi tải lên. Bảng cần cột Chủ đề và Chủ đề nhánh; ngày trong file
+          không thay lịch.
         </>
       }
+      onTemplate={template}
+      accept={ACCEPT}
+      hint="Word, Excel hoặc CSV, tối đa 2 MB."
+      maxSize={null}
+      uploadLabel="Tải lên tệp"
+      fileName={state.name || ''}
+      reading={state.status === 'loading'}
+      onFile={read}
+      confirmLabel={`Thêm ${changes.length || ''} tên nhánh`}
+      idleLabel="Thêm tên nhánh"
+      confirmDisabled={!changes.length}
+      onConfirm={() => (overwrites ? setConfirm(true) : apply())}
+      onClose={onClose}
+      options={USE_MOCK ? <Notice tone="warn">Chế độ demo chỉ đọc CSV. Word và Excel cần kết nối máy chủ.</Notice> : null}
     >
-      <p className="muted text-sm">
-        Word, Excel hoặc CSV, tối đa 2 MB. Bảng cần cột Chủ đề và Chủ đề nhánh; ngày trong file không thay lịch.
-      </p>
-      {USE_MOCK && <Notice tone="warn">Chế độ demo chỉ đọc CSV. Word và Excel cần kết nối máy chủ.</Notice>}
-      <div className="row row--wrap gap-2">
-        <button
-          type="button"
-          className="btn btn--outline-primary"
-          disabled={state.status === 'loading'}
-          onClick={() => fileRef.current?.click()}
-        >
-          <Upload size={16} aria-hidden /> Chọn file
-        </button>
-        <button type="button" className="btn btn--ghost" onClick={template}>
-          <Download size={16} aria-hidden /> Tải file mẫu
-        </button>
-        <input
-          ref={fileRef}
-          type="file"
-          accept={ACCEPT}
-          hidden
-          aria-label="Chọn file chủ đề nhánh"
-          onChange={(e) => read(e.target.files?.[0])}
-        />
-      </div>
-      {state.status === 'loading' && <LoadingState text="Đang đọc file…" />}
       {state.status === 'error' && <Notice tone="err">{state.message}</Notice>}
       {preview && (
-        <>
-          <p className="text-sm">
-            <b>{state.name}</b>
-          </p>
+        <div className="import-preview">
           {changes.length ? (
             <div className="table-wrap">
-              <table className="table ga-plan-table ga-list-table">
+              <table className="table table--grid table--compact">
                 <thead>
                   <tr>
                     <th>Chủ đề</th>
@@ -132,7 +103,7 @@ export function ImportBranchFileModal({ classId, yearPlanId, user, draft, templa
               </ul>
             </Notice>
           )}
-        </>
+        </div>
       )}
       <ConfirmationModal
         open={confirm}
@@ -142,6 +113,6 @@ export function ImportBranchFileModal({ classId, yearPlanId, user, draft, templa
         onConfirm={apply}
         onClose={() => setConfirm(false)}
       />
-    </Modal>
+    </ImportDialog>
   );
 }
