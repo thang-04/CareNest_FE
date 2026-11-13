@@ -1,3 +1,4 @@
+import { pushNotification } from '@/mocks/notificationMockRepository';
 import { readDb, writeDb, clone, delay } from '@/mocks/mockDatabase';
 import { ROLES } from '@/models/User';
 import { eduError } from './eduMockErrors';
@@ -158,7 +159,8 @@ const attachAll = (s, user, docKey, binding, items) => {
   if (items.some((i) => here.some((a) => a.itemId === i.id))) throw eduError('RESOURCE_ALREADY_ATTACHED');
   if (here.length + items.length > MAX_PER_SECTION) throw eduError('RESOURCE_SECTION_FULL', MAX_PER_SECTION);
   return items.map((i) => {
-    const a = { id: nextId(s), docKey, activityKey: binding.activityKey, activityLabel: binding.activityLabel, itemId: i.id, createdBy: user.id, createdAt: now() };
+    // Gắn sau đứng sau (BE:EDU-82: trùng số thì xếp theo id)
+    const a = { id: nextId(s), docKey, activityKey: binding.activityKey, activityLabel: binding.activityLabel, itemId: i.id, sortOrder: here.length, createdBy: user.id, createdAt: now() };
     s.attachments.push(a);
     return rowOf(s, a);
   });
@@ -168,7 +170,10 @@ export const learningResourceMockRepository = {
   async list(_user, docKey) {
     await delay();
     const s = store(clone(readDb()));
-    return s.attachments.filter((a) => a.docKey === docKey).map((a) => rowOf(s, a));
+    return s.attachments
+      .filter((a) => a.docKey === docKey)
+      .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.id - b.id)
+      .map((a) => rowOf(s, a));
   },
   async upload(user, docKey, file, binding, _requestId, tags) {
     await delay();
@@ -201,6 +206,19 @@ export const learningResourceMockRepository = {
       // BE:EDU-85 — chỉ xóa dòng gắn
       s.attachments.splice(at, 1);
     });
+  },
+  async reorder(user, docKey, { activityKey, ids }) {
+    await delay();
+    writeDb((db) => {
+      const s = store(db);
+      const here = s.attachments.filter((a) => a.docKey === docKey && a.activityKey === activityKey);
+      // BE:EDU-82 — phải gửi đủ đúng các dòng gắn đang có của mục
+      if (ids.length !== here.length || !here.every((a) => ids.map(Number).includes(a.id))) throw eduError('RESOURCE_ORDER_STALE');
+      here.forEach((a) => {
+        a.sortOrder = ids.map(Number).indexOf(a.id);
+      });
+    });
+    return this.list(user, docKey);
   },
   async contentUrl(_user, docKey, id) {
     await delay();
@@ -317,6 +335,14 @@ export const resourceLibraryMockRepository = {
       if (!approve && !reason?.trim()) throw eduError('RESOURCE_REVIEW_REASON_REQUIRED');
       if (approve) Object.assign(i, { scope: 'SCHOOL', classroomId: null, shareStatus: null, shareReason: null });
       else Object.assign(i, { shareStatus: 'REJECTED', shareReason: reason.trim() });
+      // BE:EDU-84 — báo người tạo kết quả duyệt
+      pushNotification(db, {
+        userId: i.ownerId,
+        type: approve ? 'EDU_RESOURCE_APPROVED' : 'EDU_RESOURCE_RETURNED',
+        title: approve ? 'Học liệu đã lên kho trường' : 'Học liệu bị trả lại',
+        message: approve ? `"${i.title}" đã được duyệt lên kho trường` : `"${i.title}": ${reason.trim()}`,
+        link: '/education/resources',
+      });
       i.updatedAt = now();
       return toItem(s, v, i);
     });

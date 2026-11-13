@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/Button';
 import { FormField } from '@/components/form/FormField';
 import { FileInput } from '@/components/form/FileInput';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
-import { Link2, Images } from '@/components/ui/icons';
+import { ArrowDown, ArrowUp, Link2, Images } from '@/components/ui/icons';
 import { LearningResourceViewer } from './LearningResourceViewer';
 import { ResourceLinkForm } from './ResourceLinkForm';
 import { ResourcePickerModal } from './ResourcePickerModal';
@@ -15,6 +15,7 @@ import {
   MAX_PER_SECTION,
   MEDIA_ACCEPT,
   formatBytes,
+  moveId,
   resourceKind,
   resourcesOf,
   sectionKey,
@@ -90,6 +91,11 @@ export function DayResources({ user, docKey, date, editable, ageGroupId = null, 
       setLinkFor('');
     });
   const attach = (section, itemIds) => run(section.key, () => api.attach(user, docKey, { itemIds, ...bindingOf(section) }));
+  // BE:EDU-82 — thứ tự học liệu trong mục = thứ tự xem/trình chiếu
+  const move = (section, bound, id, delta) =>
+    run(section.key, () =>
+      api.reorder(user, docKey, { activityKey: sectionKey(date, section.key), ids: moveId(bound.map((r) => r.id), id, delta) }),
+    );
 
   return (
     <Card title="III. Học liệu theo mục hoạt động" collapsed={folded} onToggle={() => setFolded((v) => !v)}>
@@ -137,16 +143,38 @@ export function DayResources({ user, docKey, date, editable, ageGroupId = null, 
             {busy === section.key && <p role="status">Đang lưu học liệu…</p>}
             {bound.length ? (
               <ul className="ga-resource-list">
-                {bound.map((r) => (
+                {bound.map((r, at) => (
                   <li key={r.id}>
                     <Button variant="ghost" onClick={() => setPreview(r)}>
                       {r.title || r.fileName} ·{' '}
                       {r.kind === 'LINK' ? KIND_LABELS[resourceKind(r)] : formatBytes(r.byteSize)}
                     </Button>
                     {editable && (
-                      <Button variant="ghost" disabled={!!busy} onClick={() => setRemove(r)}>
-                        Gỡ khỏi mục
-                      </Button>
+                      <span className="row gap-2">
+                        {bound.length > 1 && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              icon={ArrowUp}
+                              aria-label={`Đưa ${r.title || r.fileName} lên`}
+                              disabled={!!busy || at === 0}
+                              onClick={() => move(section, bound, r.id, -1)}
+                            />
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              icon={ArrowDown}
+                              aria-label={`Đưa ${r.title || r.fileName} xuống`}
+                              disabled={!!busy || at === bound.length - 1}
+                              onClick={() => move(section, bound, r.id, 1)}
+                            />
+                          </>
+                        )}
+                        <Button variant="ghost" disabled={!!busy} onClick={() => setRemove(r)}>
+                          Gỡ khỏi mục
+                        </Button>
+                      </span>
                     )}
                   </li>
                 ))}

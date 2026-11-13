@@ -28,6 +28,8 @@ export const learningResourceApi = {
   /** BE:EDU-82 — gắn học liệu có sẵn trong kho. */
   attach: (_user, key, body) => axiosClient.post(`${base(key)}/attach`, body),
   detach: (_user, key, id) => axiosClient.delete(`${base(key)}/${id}`),
+  /** BE:EDU-82 — thứ tự mới của mọi dòng gắn trong một mục ({ activityKey, ids }). */
+  reorder: (_user, key, body) => axiosClient.put(`${base(key)}/order`, body),
   /** Liên kết xem có hạn (~15 phút) để gắn thẳng vào img/video/object; học liệu link trả url gốc. */
   contentUrl: async (_user, key, id) => (await axiosClient.get(`${base(key)}/${id}/url`)).url,
 };

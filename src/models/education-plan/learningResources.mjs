@@ -5,6 +5,16 @@ export const sectionKey = (date, section) => `${date}#${section}`;
 export const resourcesOf = (items, date, section) =>
   items.filter((r) => r.active && r.activityKey === sectionKey(date, section));
 
+/** Thứ tự id mới khi đưa một học liệu lên (-1) / xuống (+1) trong mục; ra ngoài biên thì giữ nguyên. */
+export const moveId = (ids, id, delta) => {
+  const at = ids.indexOf(id);
+  const to = at + delta;
+  if (at < 0 || to < 0 || to >= ids.length) return ids;
+  const next = [...ids];
+  [next[at], next[to]] = [next[to], next[at]];
+  return next;
+};
+
 export const MEDIA_ACCEPT = '.jpg,.jpeg,.png,.gif,.webp,.mp4,.webm,.pdf,.pptx,.docx,.xlsx,.txt,.csv';
 export const mediaKind = (type = '') =>
   type.startsWith('image/') ? 'image' : type.startsWith('video/') ? 'video' : type === 'application/pdf' ? 'pdf' : 'file';

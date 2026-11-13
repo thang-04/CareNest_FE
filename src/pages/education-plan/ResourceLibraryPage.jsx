@@ -14,7 +14,9 @@ import { LABELS } from '@/components/ui/labels';
 import { FileInput } from '@/components/form/FileInput';
 import { Eye, EyeOff, Link2, Pencil, Send, Trash2, Upload, Users } from '@/components/ui/icons';
 import { useAsync } from '@/hooks/useAsync';
-import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
+import { useEducationPlan, useGoalDetails } from '@/hooks/education-plan/useEducationPlan';
+import { currentPlanOf } from '@/models/education-plan/planVersions.mjs';
+import { numberGoals, toRows } from '@/models/education-plan/goalTable';
 import { resourceLibraryService as api } from '@/services/education-plan/resourceLibraryService';
 import { AGE_GROUPS } from '@/models/education-plan/educationPlanConstants';
 import { mondayOf } from '@/models/education-plan/classPlan';
@@ -335,7 +337,13 @@ function ResourceModals({ modal, setModal, user, classes, busy, act, remove }) {
   const [text, setText] = useState('');
   const [age, setAge] = useState('');
   const [classId, setClassId] = useState('');
-  const [drop, setDrop] = useState({ theme: false, goals: false });
+  // Nhãn chủ đề / MT sửa bằng tay theo kế hoạch năm đã ban hành của nhóm tuổi (BE:EDU-87)
+  const [theme, setTheme] = useState('');
+  const [picked, setPicked] = useState([]);
+  const [dropOld, setDropOld] = useState(false);
+  const { goals: plans, schoolYear } = useEducationPlan();
+  const plan = age ? currentPlanOf(plans, age, schoolYear) : null;
+  const planLoad = useGoalDetails([plan?.id]);
   const usages = useAsync(
     () => (modal?.type === 'usages' ? api.usages(user, modal.item.id) : Promise.resolve([])),
     [modal?.type, modal?.item?.id],
@@ -344,24 +352,39 @@ function ResourceModals({ modal, setModal, user, classes, busy, act, remove }) {
     setText(modal?.type === 'edit' ? modal.item.title : '');
     setAge(modal?.type === 'edit' && modal.item.ageGroupId ? String(modal.item.ageGroupId) : '');
     setClassId('');
-    setDrop({ theme: false, goals: false });
+    const tags = modal?.type === 'edit' ? modal.item.tags || [] : [];
+    setTheme(tags.some((t) => t.kind === 'THEME') ? 'keep' : '');
+    setPicked(tags.filter((t) => t.kind === 'GOAL').map((t) => String(t.refId)));
+    setDropOld(false);
   }, [modal]);
   if (!modal) return null;
   const item = modal.item;
   const close = () => setModal(null);
   const themeTag = (item?.tags || []).find((t) => t.kind === 'THEME');
-  const goalTags = (item?.tags || []).filter((t) => t.kind === 'GOAL');
-  // Bỏ nhãn không đúng (spec 900 vòng 13): gửi lại toàn bộ nhãn còn giữ, BE thay nhãn cũ
-  const keptTags = () =>
-    drop.theme || drop.goals
-      ? {
-          tags: {
-            themeId: drop.theme ? null : (themeTag?.refId ?? null),
-            themeName: drop.theme ? null : (themeTag?.name ?? null),
-            goalIds: drop.goals ? [] : goalTags.map((t) => t.refId),
-          },
-        }
-      : {};
+  const detail = plan && !plan.summary ? plan : null;
+  const planThemes = detail?.themes || [];
+  const planGoals = detail
+    ? (() => {
+        const domains = detail.domains.map((d) => ({ ...d, rows: toRows(d, () => '') }));
+        const no = numberGoals(domains);
+        return domains.flatMap((d) => d.rows.filter((r) => no[r.id]).map((r) => ({ id: String(r.id), no: no[r.id], text: r.text })));
+      })()
+    : [];
+  // MT gắn từ kế hoạch khác (năm trước, nhóm tuổi khác) không có trong danh sách: giữ, hoặc bỏ cả nhóm
+  const themeInPlan = !!themeTag && planThemes.some((t) => t.id === String(themeTag.refId));
+  const oldGoals = picked.filter((g) => !planGoals.some((x) => x.id === g));
+  const togglePick = (gid) => setPicked((p) => (p.includes(gid) ? p.filter((x) => x !== gid) : [...p, gid]));
+  // Gửi lại toàn bộ nhãn, BE thay nhãn cũ
+  const tagsBody = () => {
+    const chosen = planThemes.find((t) => t.id === theme);
+    return {
+      tags: {
+        themeId: theme === 'keep' ? (themeTag?.refId ?? null) : chosen ? chosen.id : null,
+        themeName: theme === 'keep' ? (themeTag?.name ?? null) : (chosen?.name ?? null),
+        goalIds: picked.filter((g) => !(dropOld && oldGoals.includes(g))),
+      },
+    };
+  };
   const classOf = (cid) => classes.find((c) => String(c.id) === String(cid));
 
   if (modal.type === 'view')
@@ -414,7 +437,7 @@ function ResourceModals({ modal, setModal, user, classes, busy, act, remove }) {
                     api.update(user, item.id, {
                       title: text.trim(),
                       ...(age ? { ageGroupId: age } : { clearAgeGroup: true }),
-                      ...keptTags(),
+                      ...tagsBody(),
                     }),
                   'Đã lưu học liệu',
                 )
@@ -438,21 +461,43 @@ function ResourceModals({ modal, setModal, user, classes, busy, act, remove }) {
             onChange={setAge}
             options={[{ value: '', label: 'Mọi nhóm tuổi' }, ...AGE_GROUPS.map((g) => ({ value: String(g.id), label: g.name }))]}
           />
-          {(themeTag || goalTags.length > 0) && (
-            <div className="field">
-              <span className="field__label">Nhãn gợi ý (bấm để bỏ nhãn không đúng)</span>
-              <div className="row gap-2 row--wrap">
-                {themeTag && (
-                  <Button size="sm" variant="ghost" aria-pressed={drop.theme} onClick={() => setDrop((d) => ({ ...d, theme: !d.theme }))}>
-                    {drop.theme ? 'Giữ' : 'Bỏ'} chủ đề: {themeTag.name || 'chủ đề của giáo án'}
-                  </Button>
-                )}
-                {goalTags.length > 0 && (
-                  <Button size="sm" variant="ghost" aria-pressed={drop.goals} onClick={() => setDrop((d) => ({ ...d, goals: !d.goals }))}>
-                    {drop.goals ? 'Giữ' : 'Bỏ'} {goalTags.length} nhãn MT
-                  </Button>
-                )}
-              </div>
+          {age && planLoad.loading && <LoadingState />}
+          {age && !plan && <Notice>Nhóm tuổi chưa có kế hoạch năm học đã ban hành: chưa chọn được chủ đề, MT.</Notice>}
+          {detail && (
+            <FilterSelect
+              label="Chủ đề"
+              value={theme === 'keep' && themeInPlan ? String(themeTag.refId) : theme}
+              onChange={setTheme}
+              options={[
+                { value: '', label: 'Không gắn chủ đề' },
+                ...(themeTag && !themeInPlan
+                  ? [{ value: 'keep', label: `${themeTag.name || 'Chủ đề đang gắn'} (đang gắn)` }]
+                  : []),
+                ...planThemes.map((t) => ({ value: t.id, label: t.name })),
+              ]}
+            />
+          )}
+          {detail && planGoals.length > 0 && (
+            <fieldset className="ga-edit-fieldset stack">
+              <legend className="field__label">Mục tiêu (MT) học liệu phục vụ</legend>
+              {planGoals.map((g) => (
+                <label key={g.id} className="checkbox">
+                  <input type="checkbox" checked={picked.includes(g.id)} onChange={() => togglePick(g.id)} />
+                  <span>
+                    <span className="ga-goal-code">MT{g.no}</span> {g.text}
+                  </span>
+                </label>
+              ))}
+            </fieldset>
+          )}
+          {oldGoals.length > 0 && (
+            <div className="row gap-2 row--wrap">
+              <span className="muted">
+                {oldGoals.length} nhãn MT từ kế hoạch khác (năm trước) {dropOld ? 'sẽ bị bỏ' : 'vẫn giữ để gợi ý'}.
+              </span>
+              <Button size="sm" variant="ghost" aria-pressed={dropOld} onClick={() => setDropOld((v) => !v)}>
+                {dropOld ? 'Giữ' : 'Bỏ'} các nhãn này
+              </Button>
             </div>
           )}
         </div>

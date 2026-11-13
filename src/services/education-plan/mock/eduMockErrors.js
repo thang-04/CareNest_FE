@@ -60,6 +60,7 @@ const SPECS = {
   RESOURCE_SHARE_STATE: [409, 'Trạng thái chia sẻ học liệu đã đổi, tải lại trang'],
   RESOURCE_REVIEW_REASON_REQUIRED: [400, 'Cần ghi lý do trả lại'],
   RESOURCE_PENDING_REVIEW: [409, 'Học liệu đang chờ duyệt lên kho trường, rút đề nghị trước'],
+  RESOURCE_ORDER_STALE: [409, 'Học liệu của mục đã thay đổi, tải lại trang rồi sắp xếp lại'],
   EDU_CONFIG_FORBIDDEN: [403, 'Chỉ Hiệu trưởng hoặc Phó Hiệu trưởng sửa được cấu hình'],
   YEAR_PLAN_SIGNER_REQUIRED: [400, 'Kế hoạch năm học phải có Phó Hiệu trưởng ký'],
   CLASS_DOC_APPROVER_REQUIRED: [400, 'Mỗi loại tài liệu lớp cần ít nhất một người duyệt'],

@@ -107,7 +107,25 @@ test('FR-009/010 EDU-84: chia sẻ lớp chỉ lớp mình dạy; đề nghị l
   await lib.share(teacher, item.id, { scope: 'SCHOOL' });
   const approved = await lib.review(leader, item.id, { approve: true });
   assert.equal(approved.scope, 'SCHOOL');
+  // EDU-84: người tạo nhận thông báo trả lại (kèm lý do) và đã duyệt
+  const { readDb } = await import('../../src/mocks/mockDatabase.js');
+  const mine = readDb().notifications.filter((n) => n.userId === teacher.id && n.link === '/education/resources');
+  assert.deepEqual(mine.map((n) => n.type).slice(0, 2), ['EDU_RESOURCE_APPROVED', 'EDU_RESOURCE_RETURNED']);
+  assert.match(mine[1].message, /Video quảng cáo/);
   // PHT đưa thẳng lên trường
   const own = await lib.addLink(vice, { url: 'https://drive.google.com/file/d/vp/view' });
   assert.equal((await lib.share(vice, own.id, { scope: 'SCHOOL' })).scope, 'SCHOOL');
+});
+
+test('EDU-82: đổi thứ tự học liệu trong mục; danh sách cũ (thiếu dòng) bị từ chối', async () => {
+  assert.deepEqual(lr.moveId([1, 2, 3], 3, -1), [1, 3, 2]);
+  assert.deepEqual(lr.moveId([1, 2, 3], 1, -1), [1, 2, 3]);
+  const key = 'dd_order';
+  const ids = [];
+  for (const v of ['aaaaaaaaaa1', 'aaaaaaaaaa2', 'aaaaaaaaaa3'])
+    ids.push((await day.addLink(teacher, key, { url: `https://youtu.be/${v}`, ...binding('2026-09-09#hoc') })).id);
+  assert.deepEqual((await day.list(teacher, key)).map((r) => r.id), ids);
+  const next = lr.moveId(ids, ids[2], -1);
+  assert.deepEqual((await day.reorder(teacher, key, { activityKey: '2026-09-09#hoc', ids: next })).map((r) => r.id), next);
+  await assert.rejects(day.reorder(teacher, key, { activityKey: '2026-09-09#hoc', ids: ids.slice(1) }), /tải lại trang/);
 });
