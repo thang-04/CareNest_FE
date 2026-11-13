@@ -131,3 +131,72 @@ test('không có bữa trưa bán trú hôm nay thì bước báo ăn là "Khôn
   assert.equal(meal.status, 'none');
   assert.equal(meal.note, 'Hôm nay không có bữa trưa bán trú');
 });
+
+const { buildClassDay } = await import('@/services/dashboard/dashboardSummaryService');
+const child = (id, status, { allergies = [], checked = false, flagged = false, lunch = true, leave = false } = {}) => ({
+  child: { id, allergies },
+  record: status ? { status, meals: { LUNCH: lunch } } : null,
+  healthSummary: { checked, flagged },
+  leaveRequest: leave ? { id: `lr_${id}` } : null,
+});
+const SHEET = {
+  date: DATE,
+  classId: 'cls_a',
+  className: 'Lớp Mầm 1',
+  schoolDay: true,
+  locked: false,
+  cutoff: '08:45',
+  mealSessions: ['LUNCH'],
+  mealCountStatus: 'PENDING_CONFIRMATION',
+  children: [
+    child('k1', 'PRESENT', { checked: true, allergies: ['Tôm'] }),
+    child('k2', 'PRESENT', { checked: true, flagged: true }),
+    child('k3', 'PRESENT'),
+    child('k4', 'EXCUSED', { leave: true }),
+    child('k5', null),
+  ],
+};
+const PICKUP = { rows: [{ status: 'PICKED_UP' }, { status: 'WAITING' }, { status: 'WAITING' }, { status: 'ABSENT' }] };
+const DAILY = {
+  rows: [{ recorded: true }, { recorded: false }, { recorded: false }],
+  lesson: { weekLabel: 'Tuần 10', activities: [1, 2] },
+};
+
+test('lớp hôm nay: đếm có mặt / nghỉ / chưa điểm danh và trẻ dị ứng theo bảng điểm danh', () => {
+  const day = buildClassDay({ sheet: SHEET, pickup: PICKUP, daily: DAILY });
+  assert.deepEqual(day.attendance, { total: 5, present: 3, excused: 1, unexcused: 0, missing: 1, recorded: 4 });
+  assert.equal(day.allergic, 1);
+  assert.equal(day.lesson.weekLabel, 'Tuần 10');
+});
+
+test('lớp hôm nay: 5 bước điểm danh → khám → báo ăn → đánh giá → trả trẻ', () => {
+  const [att, health, meal, evaluation, pickup] = buildClassDay({ sheet: SHEET, pickup: PICKUP, daily: DAILY }).steps;
+  assert.equal(att.status, 'doing');
+  assert.equal(att.note, 'Hạn 08:45 · còn 1 trẻ');
+  assert.equal(health.value, 2);
+  assert.equal(health.total, 3);
+  assert.equal(health.note, '1 trẻ có dấu hiệu cần lưu ý');
+  assert.equal(meal.value, 3);
+  assert.equal(meal.badge, 'Chờ xác nhận');
+  assert.equal(evaluation.value, 1);
+  assert.equal(evaluation.total, 3);
+  assert.equal(pickup.value, 1);
+  assert.equal(pickup.total, 3);
+  assert.equal(pickup.note, '2 trẻ chờ đón');
+});
+
+test('lớp hôm nay: quá giờ chốt còn trẻ chưa điểm danh thì báo "Quá giờ"; nguồn đón trẻ lỗi chỉ hỏng bước đó', () => {
+  const day = buildClassDay({ sheet: { ...SHEET, locked: true }, pickup: null, daily: DAILY });
+  assert.equal(day.steps[0].badge, 'Quá giờ 1 trẻ');
+  assert.equal(day.steps[4].status, 'unknown');
+  assert.equal(day.steps[1].status, 'doing');
+});
+
+test('lớp hôm nay: cần chú ý gồm trẻ cần lưu ý khi khám, trẻ dị ứng, đơn nghỉ; không có tên trẻ', () => {
+  const { attention } = buildClassDay({ sheet: SHEET, pickup: PICKUP, daily: DAILY });
+  assert.deepEqual(
+    attention.map((a) => a.key),
+    ['health-noted', 'allergy', 'leave'],
+  );
+  assert.ok(!JSON.stringify(attention).includes('k1'));
+});

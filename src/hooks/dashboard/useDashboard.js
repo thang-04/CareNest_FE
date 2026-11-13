@@ -2,7 +2,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useAsync } from '@/hooks/useAsync';
 import { useMasterData } from '@/hooks/useMasterData';
-import { buildLunch, getDayProgressSources, getPendingApprovals } from '@/services/dashboard/dashboardService';
+import { buildLunch, getDayProgressSources, getLunchSources, getPendingApprovals } from '@/services/dashboard/dashboardService';
 import { buildDayProgress, getDashboardToday } from '@/services/dashboard/dashboardSummaryService';
 import { canViewPendingApprovals } from '@/utils/dashboard/dashboardPermissions';
 import { todayInput } from '@/utils/format';
@@ -69,5 +69,17 @@ export function useDayProgress(todayQ, campusId = '') {
       todayQ.reload();
       src.reload();
     },
+  };
+}
+
+/** Bữa trưa hôm nay (món đã công bố, thực đơn thay thế) cho trang chủ theo lớp; Giáo viên không đọc được sổ báo ăn toàn trường. */
+export function useLunchToday() {
+  const md = useMasterData();
+  const date = todayInput();
+  const src = useWidget((u) => getLunchSources(u, { date }), [date]);
+  const campusName = (id) => md.campusById?.(id)?.shortName || md.campusById?.(id)?.name || id;
+  return {
+    lunch: src.data ? buildLunch({ counts: src.data.counts, menu: src.data.menu, campusName }) : null,
+    loading: src.loading && src.data == null,
   };
 }

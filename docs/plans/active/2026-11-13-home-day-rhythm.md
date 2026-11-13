@@ -100,3 +100,14 @@ updated: 2026-11-13
 - Ảnh: HT 1440 + 390 trên bản local mock khớp `shots/home-new-a.png` (bộ lọc điểm trường ở đầu thẻ, 2 thẻ điểm trường, 5 bước, cần chú ý + xếp hạng lớp, chờ duyệt + bữa trưa).
 - Khác plan: `buildLunch` + `getDayProgressSources` đặt ở `dashboardService.js` (file đã được phép import assessment/attendance/kitchen) thay vì `dashboardSummaryService.js`, để không thêm nợ import chéo. Bỏ khối "Số liệu khác" (đếm kế hoạch/giáo án trong page) vì ảnh A không có và page đang tự tính. `Widget` thêm prop `actions` để đặt bộ lọc ở đầu thẻ.
 - Tiếp: Phase 2 (PHT, Tổ trưởng).
+### 2026-11-13 — Phase 2 + 3 (chờ review)
+- Commit: chưa commit (cùng PR với Phase 1, user yêu cầu làm đủ rồi mới tạo PR)
+- PHT: cùng khung HT, phạm vi điểm trường do BE trả, không bộ lọc; cột phải Chờ duyệt · Việc của bạn (trẻ chờ xếp lớp, tài khoản phụ huynh, bếp báo thiếu) · Bữa trưa. Cờ `needsReconfirmation` của sổ báo ăn hiện ở bước 3 "Cần xác nhận lại".
+- GV + Tổ trưởng: `ClassTodayPanel` thành khung theo lớp — "Lớp X hôm nay" + "Việc của bạn hôm nay", tiến độ 5 bước (điểm danh → khám → báo ăn → đánh giá → trả trẻ), cần chú ý, việc khác của lớp, kế hoạch tuần. Số tính ở `buildClassDay`.
+- Test: `tests/dashboard/home-day-rhythm.test.mjs` thêm 4 test `buildClassDay`; `npm run test:dashboard` 70/70.
+- Ảnh local mock 4 vai trò × 1440/390: không tràn ngang, không lỗi console.
+- Khác plan:
+  - Tổ trưởng: khối "Hôm nay" theo **lớp mình**, không theo nhóm tuổi — BE trả 403 cho tổng hợp điểm danh / sức khỏe / đánh giá cấp trường với tổ trưởng (probe mock 13/11). Muốn số cả nhóm tuổi cần BE mở scope ⇒ đề xuất, chưa làm.
+  - GV/Tổ trưởng: khối Bữa trưa chỉ hiện khi đọc được thực đơn đã công bố (route chỉ cho BGH); link khám đầu ngày / dị ứng về màn điểm danh của lớp vì `/attendance/health` đọc tổng hợp cấp trường.
+  - Nhân viên bếp: giữ "Quy trình bếp hôm nay" như đã chốt.
+  - Local không có BE: "Trẻ chờ xếp lớp", "Tài khoản phụ huynh" của PHT báo không tải được vì module trẻ đã nối BE (`integrationModules.children = api`); hành vi có từ trước, trên dev có số.

@@ -952,3 +952,57 @@ a.kpi-tile:hover .kpi-tile__chev {
   padding-left: var(--space-5);
   color: var(--color-text-secondary);
 }
+
+/* Trang chủ theo lớp (Giáo viên, Tổ trưởng): số của lớp + danh sách việc trong ngày */
+.db-today--class {
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+}
+.db-today__tasks {
+  display: grid;
+  align-content: start;
+  gap: var(--space-2);
+  padding-left: var(--space-5);
+  border-left: 1px solid var(--color-border);
+}
+.db-today__tasks ul {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.db-today__tasks a {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) 0;
+  color: var(--color-text);
+  text-decoration: none;
+}
+.db-today__tasks a:hover,
+.db-today__tasks a:focus-visible {
+  color: var(--color-primary);
+}
+.db-today__tasks li svg {
+  color: var(--color-border);
+}
+.db-today__tasks li.is-done svg {
+  color: var(--tone-green);
+}
+.db-today__tasks li.is-done span {
+  color: var(--color-text-muted);
+  text-decoration: line-through;
+}
+.db-class-pick {
+  max-width: calc(var(--space-16) * 4);
+  margin-bottom: var(--space-4);
+}
+@media (max-width: 760px) {
+  .db-today--class {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .db-today__tasks {
+    padding-left: 0;
+    border-left: 0;
+  }
+}

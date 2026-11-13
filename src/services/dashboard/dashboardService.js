@@ -174,6 +174,7 @@ export function buildLunch({ counts, menu, campusId = '', campusName = (id) => i
     campuses: lunches ? lunches.length : null,
     confirmed: lunches ? lunches.filter(confirmed).length : null,
     pendingCampuses: lunches ? lunches.filter((c) => !confirmed(c)).map((c) => campusName(c.campusId)) : [],
+    reconfirm: !!lunches?.some((c) => c.needsReconfirmation),
     menuLoaded: !!menu,
     published: !!session,
     dishes: [...new Set(normal.flatMap((m) => m.dishes.map((d) => d.name)))],
@@ -181,14 +182,22 @@ export function buildLunch({ counts, menu, campusId = '', campusName = (id) => i
   };
 }
 
-/** Nguồn phụ của "Tiến độ trong ngày": mỗi nguồn lỗi (hoặc 403 với vai trò) trả null, không làm hỏng cả khối. */
-export async function getDayProgressSources(user, { date, schoolYear, campusId }) {
-  const [counts, menu, assessment] = await Promise.all([
+/** Sổ báo ăn + thực đơn đã công bố hôm nay; nguồn lỗi hoặc 403 theo vai trò trả null. */
+export async function getLunchSources(user, { date }) {
+  const [counts, menu] = await Promise.all([
     getMealCounts({ date }, user)
       .then((r) => r?.counts || [])
       .catch(() => null),
     getPublishedMenu({ date, view: 'day' }, user).catch(() => null),
+  ]);
+  return { counts, menu };
+}
+
+/** Nguồn phụ của "Tiến độ trong ngày": mỗi nguồn lỗi (hoặc 403 với vai trò) trả null, không làm hỏng cả khối. */
+export async function getDayProgressSources(user, { date, schoolYear, campusId }) {
+  const [lunch, assessment] = await Promise.all([
+    getLunchSources(user, { date }),
     getClassAssessmentOverview({ period: OVERVIEW_PERIOD.DAY, date, schoolYear, campusId: campusId || undefined }, user).catch(() => null),
   ]);
-  return { counts, menu, assessment };
+  return { ...lunch, assessment };
 }
