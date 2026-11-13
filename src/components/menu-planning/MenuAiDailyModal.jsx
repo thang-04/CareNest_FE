@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Button, TextField } from '@/components';
 import { RotateCcw, Sparkles } from '@/components/ui/icons';
 import { useToast } from '@/contexts/ToastContext';
 import { Modal } from '@/components/ui/Modal';
@@ -62,26 +63,26 @@ export function MenuAiDailyModal({ open, onClose, block, seasonLabel, dayLabel, 
 
   const footer = draft ? (
     <>
-      <button type="button" className="btn btn--ghost" onClick={close} disabled={busy}>
+      <Button variant="ghost" onClick={close} disabled={busy}>
         Bỏ
-      </button>
-      <button type="button" className="btn" onClick={retry} disabled={busy || running}>
+      </Button>
+      <Button onClick={retry} disabled={busy || running}>
         <RotateCcw size={15} /> Gợi ý lại
-      </button>
+      </Button>
       {isPendingDraft(draft) && (
-        <button type="button" className="btn btn--primary" onClick={fill} disabled={busy || running}>
+        <Button variant="primary" onClick={fill} disabled={busy || running}>
           Điền vào {dayLabel || 'ngày đang sửa'}
-        </button>
+        </Button>
       )}
     </>
   ) : (
     <>
-      <button type="button" className="btn btn--ghost" onClick={onClose}>
+      <Button variant="ghost" onClick={onClose}>
         Hủy
-      </button>
-      <button type="button" className="btn btn--primary" onClick={create} disabled={running}>
+      </Button>
+      <Button variant="primary" onClick={create} disabled={running}>
         <Sparkles size={15} /> Gợi ý
-      </button>
+      </Button>
     </>
   );
 
@@ -99,26 +100,20 @@ export function MenuAiDailyModal({ open, onClose, block, seasonLabel, dayLabel, 
       ) : (
         <div className="td-ai-form">
           <div className="td-form-grid td-form-grid--2">
-            <label className="field">
-              <span className="field__label">Mùa</span>
-              <input
-                className="input"
-                maxLength={50}
-                placeholder="Ví dụ: Mùa đông"
-                value={season}
-                onChange={(e) => setSeason(e.target.value)}
-              />
-            </label>
-            <label className="field">
-              <span className="field__label">Mong muốn thêm</span>
-              <input
-                className="input"
-                maxLength={300}
-                placeholder="Ví dụ: có món nước"
-                value={wishes}
-                onChange={(e) => setWishes(e.target.value)}
-              />
-            </label>
+            <TextField
+              label="Mùa"
+              maxLength={50}
+              placeholder="Ví dụ: Mùa đông"
+              value={season}
+              onChange={(e) => setSeason(e.target.value)}
+            />
+            <TextField
+              label="Mong muốn thêm"
+              maxLength={300}
+              placeholder="Ví dụ: có món nước"
+              value={wishes}
+              onChange={(e) => setWishes(e.target.value)}
+            />
           </div>
           <p className="text-xs muted td-flat">
             AI chỉ chọn trong món đang dùng của trường; hệ thống kiểm định mức theo ngày hôm nay. Kết quả là bản nháp, món của{' '}

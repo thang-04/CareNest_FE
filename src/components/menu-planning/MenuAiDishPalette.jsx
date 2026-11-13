@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useDraggable } from '@dnd-kit/core';
-import { GripVertical, Search } from '@/components/ui/icons';
-import { ErrorState, LoadingState } from '@/components';
+import { DragHandle, Search } from '@/components/ui/icons';
+import { Button, ErrorState, LoadingState, TextField } from '@/components';
 import { DishKcal } from '@/components/menu-planning/MenuBadges';
 import { dishTypeClass } from '@/utils/dishTypeClass';
 import { DISH_TYPE_LABELS, MEAL_SESSION_LABELS } from '@/models/menu-planning/menuPlanningConstants';
@@ -49,16 +49,16 @@ export function MenuAiDishPalette({
       <label className="td-aip__search">
         <Search size={15} aria-hidden="true" />
         <span className="sr-only">Tìm món</span>
-        <input className="input" placeholder="Tìm món" value={query} onChange={(e) => setQuery(e.target.value)} />
+        <TextField placeholder="Tìm món" value={query} onChange={(e) => setQuery(e.target.value)} />
       </label>
       {selected ? (
         <div className="td-aip__scope">
           <span className="text-xs">
             Đang chọn ô: <strong>{selectedLabel}</strong>
           </span>
-          <button type="button" className="btn btn--ghost btn--sm" onClick={onClearSelection}>
+          <Button variant="ghost" size="sm" onClick={onClearSelection}>
             Bỏ chọn ô
-          </button>
+          </Button>
         </div>
       ) : (
         <div className="td-chips" role="group" aria-label="Lọc theo loại món">
@@ -121,7 +121,7 @@ function PaletteDish({ dish, used, dishById, kcalAgeGroup, pickable, onPick }) {
         {...drag.listeners}
         {...drag.attributes}
       >
-        <GripVertical size={16} className="td-aip__grip" aria-hidden="true" />
+        <DragHandle size={16} className="td-aip__grip" aria-hidden="true" />
         <span className="td-grow">
           <span>{dish.dishName}</span>
           {(notes.length > 0 || dish.outOfStock) && (

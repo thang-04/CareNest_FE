@@ -1,9 +1,16 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-const { STAFF_COLUMNS, matchStaffRows, normalizePhone, toCreatePayload, validateStaffAccount, staffExportRows } = await import(
-  '@/utils/school-config/staffImport'
-);
+const {
+  STAFF_COLUMNS,
+  matchStaffRows,
+  normalizePhone,
+  toCreatePayload,
+  toProfilePayload,
+  validateStaffAccount,
+  validateStaffProfile,
+  staffExportRows,
+} = await import('@/utils/school-config/staffImport');
 
 const campuses = [
   { id: '1', name: 'Cơ sở 1', shortName: 'CS1' },
@@ -22,7 +29,7 @@ test('SĐT di động Việt Nam: chuẩn hóa +84, dấu cách, mất số 0 đ
 
 test('AUTH-15: form tạo bắt buộc họ tên, SĐT, vai trò, điểm trường; không còn chọn lớp; email đúng định dạng', () => {
   const empty = validateStaffAccount({ role: 'TEACHER' }, { campuses, teacherCampusRequired: true });
-  assert.deepEqual(Object.keys(empty).sort(), ['campusId', 'fullName', 'phone']);
+  assert.deepEqual(Object.keys(empty).sort(), ['campusId', 'email', 'fullName', 'phone']);
   const vp = validateStaffAccount({ fullName: 'A', phone: '0912345678', email: 'x@', role: 'VICE_PRINCIPAL' }, { campuses });
   assert.deepEqual(Object.keys(vp).sort(), ['campusId', 'email']);
   assert.deepEqual(
@@ -34,10 +41,33 @@ test('AUTH-15: form tạo bắt buộc họ tên, SĐT, vai trò, điểm trư�
 });
 
 test('AUTH-15: Hiệu trưởng tạo GV được bỏ trống điểm trường; PHT, bếp vẫn bắt buộc', () => {
-  const base = { fullName: 'A', phone: '0912345678' };
+  const base = { fullName: 'A', phone: '0912345678', email: 'a@x.vn' };
   assert.deepEqual(validateStaffAccount({ ...base, role: 'TEACHER' }, { campuses }), {});
   assert.ok(validateStaffAccount({ ...base, role: 'KITCHEN_STAFF' }, { campuses }).campusId);
   assert.ok(validateStaffAccount({ ...base, role: 'TEACHER' }, { campuses, teacherCampusRequired: true }).campusId);
+});
+
+test('AUTH-15: email bắt buộc với Phó hiệu trưởng và Giáo viên, bếp được bỏ trống; SĐT 11 số bị từ chối', () => {
+  const base = { fullName: 'A', phone: '0912345678', campusId: '1' };
+  assert.equal(validateStaffAccount({ ...base, role: 'TEACHER' }, { campuses }).email, 'Vui lòng nhập email');
+  assert.equal(validateStaffAccount({ ...base, role: 'VICE_PRINCIPAL' }, { campuses }).email, 'Vui lòng nhập email');
+  assert.deepEqual(validateStaffAccount({ ...base, role: 'KITCHEN_STAFF' }, { campuses }), {});
+  assert.ok(validateStaffAccount({ ...base, email: 'a@x.vn', role: 'TEACHER', phone: '09689041301' }, { campuses }).phone);
+  const rows = [STAFF_COLUMNS, ['Nguyễn Lan', '0912345678', '', 'Giáo viên', 'CS1']];
+  assert.match(matchStaffRows(rows, { campuses }).errors[0].reason, /Vui lòng nhập email/);
+});
+
+test('AUTH-25: sửa thông tin tài khoản kiểm họ tên, email như lúc tạo; payload chỉ có họ tên và email', () => {
+  assert.deepEqual(validateStaffProfile({ fullName: '', email: 'x@' }, 'TEACHER'), {
+    fullName: 'Nhập họ tên',
+    email: 'Email không đúng định dạng',
+  });
+  assert.equal(validateStaffProfile({ fullName: 'A', email: '' }, 'VICE_PRINCIPAL').email, 'Vui lòng nhập email');
+  assert.deepEqual(validateStaffProfile({ fullName: 'A', email: '' }, 'KITCHEN_STAFF'), {});
+  assert.deepEqual(toProfilePayload({ fullName: ' Lan  Anh ', email: ' lan@x.vn ', phone: '0912345678' }), {
+    fullName: 'Lan Anh',
+    email: 'lan@x.vn',
+  });
 });
 
 test('AUTH-15: payload POST /accounts chỉ gửi điểm trường, không có classroomId; SĐT chuẩn hóa, email trống thành null', () => {
@@ -83,7 +113,7 @@ test('nhập Excel: file mẫu không còn cột Lớp; dòng hợp lệ, lỗi 
 test('AUTH-15: file mẫu cũ còn cột Lớp vẫn nhập được, cột Lớp bị bỏ qua và được báo lại', () => {
   const rows = [
     [...STAFF_COLUMNS, 'Lớp'],
-    ['Nguyễn Lan', '0912345678', '', 'Giáo viên', 'CS1', 'Mầm 1'],
+    ['Nguyễn Lan', '0912345678', 'lan@x.vn', 'Giáo viên', 'CS1', 'Mầm 1'],
   ];
   const { items, errors, ignoredColumns } = matchStaffRows(rows, { campuses });
   assert.equal(errors.length, 0);
@@ -93,7 +123,7 @@ test('AUTH-15: file mẫu cũ còn cột Lớp vẫn nhập được, cột Lớ
 });
 
 test('nhập Excel: GV không có điểm trường hợp lệ khi người nhập là Hiệu trưởng', () => {
-  const rows = [STAFF_COLUMNS, ['Nguyễn Lan', '0912345678', '', 'Giáo viên', '']];
+  const rows = [STAFF_COLUMNS, ['Nguyễn Lan', '0912345678', 'lan@x.vn', 'Giáo viên', '']];
   assert.equal(matchStaffRows(rows, { campuses }).items.length, 1);
   assert.equal(matchStaffRows(rows, { campuses, teacherCampusRequired: true }).errors.length, 1);
 });

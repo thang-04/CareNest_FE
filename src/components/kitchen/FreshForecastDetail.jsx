@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Printer, Trash2 } from '@/components/ui/icons';
-import { Breadcrumb, ConfirmationModal, EmptyState, ErrorState, LoadingState, Modal, PrintToolbar } from '@/components';
+import { Breadcrumb, ConfirmationModal, EmptyState, ErrorState, LoadingState, Modal, PrintPaperFit, PrintToolbar } from '@/components';
 import { ForecastCountsTable, ForecastDryCard, ForecastLinesTable } from '@/components/kitchen/FreshForecastTables';
 import { FreshForecastPrint } from '@/components/kitchen/FreshForecastPrint';
 import { useToast } from '@/contexts/ToastContext';
@@ -109,13 +109,13 @@ export function FreshForecastDetail({ campus }) {
           open={printing}
           onClose={() => setPrinting(false)}
           size="xl"
-          className="kb-print-modal"
+          className="print-modal"
           title="Danh sách đặt hàng"
           footer={<PrintToolbar sheetRef={sheetRef} fileBase={`Dat_hang_${forecast.periodFrom}`} printLabel="In danh sách" />}
         >
-          <div className="print-preview__paper">
+          <PrintPaperFit>
             <FreshForecastPrint ref={sheetRef} forecast={forecast} campusName={campusName?.shortName || campusName?.name} />
-          </div>
+          </PrintPaperFit>
         </Modal>
       )}
       <ConfirmationModal

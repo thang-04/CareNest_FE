@@ -19,7 +19,14 @@ const TABS = [
  * Bảng "Thông tin dinh dưỡng 1 trẻ / ngày" của mẫu ngày: theo bữa (đạm, béo, bột đường g + % năng lượng, kcal, % nhu cầu năng lượng cả ngày (NUT-25), tiền)
  * và theo nguồn gốc. Mọi số lấy từ `POST /nutrition/menu-statistics` (evaluation.sessions, rows, totals) — BE tính.
  */
-export function MealNutritionCard({ ageGroups, ageGroupId, onAgeGroup, statsQ, hasItems }) {
+export function MealNutritionCard({
+  ageGroups,
+  ageGroupId,
+  onAgeGroup,
+  statsQ,
+  hasItems,
+  emptyText = 'Thêm món cho mẫu để xem dinh dưỡng.',
+}) {
   const [tab, setTab] = useState('meal');
   const stats = statsQ.data;
   const ev = stats?.evaluation || {};
@@ -72,7 +79,7 @@ export function MealNutritionCard({ ageGroups, ageGroupId, onAgeGroup, statsQ, h
           )}
         </div>
         {!hasItems ? (
-          <p className="text-sm muted">Thêm món cho mẫu để xem dinh dưỡng.</p>
+          <p className="text-sm muted">{emptyText}</p>
         ) : statsQ.error ? (
           <ErrorState error={statsQ.error} onRetry={statsQ.reload} />
         ) : !stats ? (

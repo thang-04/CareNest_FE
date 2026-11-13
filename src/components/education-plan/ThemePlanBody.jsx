@@ -1,10 +1,12 @@
-import { Fragment, useRef, useState } from 'react';
+import { Fragment, useMemo, useRef, useState } from 'react';
 import { Card } from '@/components/education-plan/eduUi';
 import { Cell, focusCell } from '@/components/education-plan/planUi';
 import { domainLabel } from '@/models/education-plan/educationPlanConstants';
 import { domainRoman, mtList, numberGoals } from '@/models/education-plan/goalTable';
 import { themeGoalBlocks, weekRows } from '@/models/education-plan/classPlan';
 import { StatusBadge } from '@/components/ui/StatusBadge';
+import { Adjustments, RotateCcw } from '@/components/ui/icons';
+import ThemeGoalPickerModal from '@/components/education-plan/ThemeGoalPickerModal';
 
 /**
  * Dòng của một mục tiêu. Nội dung giáo dục do Phó HT / Tổ trưởng lập ở kế hoạch năm (các nội dung đã tích cho chủ đề),
@@ -12,7 +14,7 @@ import { StatusBadge } from '@/components/ui/StatusBadge';
  */
 export const themeRowOf = (draft, g) => ({
   activities: draft?.rows?.[g.id]?.activities || '',
-  contents: g.contents.map((c) => `- ${c}`).join('\n'),
+  contents: draft?.rows?.[g.id]?.contents !== undefined ? draft.rows[g.id].contents : g.contents.map((c) => `- ${c}`).join('\n'),
 });
 
 // Nút loại giờ của hoạt động giáo dục = các dòng của kế hoạch tuần theo cấu hình của trường, để chữ trước ":" khớp đúng
@@ -73,25 +75,79 @@ export function ThemePlanBody({
   added = null,
   heading = null,
 }) {
-  const blocks = themeGoalBlocks(yearPlan.domains, numberGoals(yearPlan.domains), themeId);
+  const blocks = themeGoalBlocks(yearPlan.domains, numberGoals(yearPlan.domains), themeId, draft?.customTicks);
   const goals = blocks.flatMap((b) => b.goals);
   const rowOf = (g) => themeRowOf(draft, g);
   // Một thẻ "CĐ n" chứa cả mục I và II; thu gọn / mở cả thẻ (Tiền 04/11)
   const [folded, setFolded] = useState(false);
+  const [showGoalModal, setShowGoalModal] = useState(false);
+
+  const currentTheme = yearPlan?.themes?.find((t) => t.id === themeId) || { id: themeId, name: '' };
+
+  const hasCustomTicks = useMemo(() => {
+    if (!draft?.customTicks) return false;
+    return Object.keys(draft.customTicks).length > 0;
+  }, [draft?.customTicks]);
+
+  const resetToDefault = () => {
+    if (setField) setField('customTicks', {});
+  };
   return (
     <>
       <Card title={heading} bodyClass={null} collapsed={folded} onToggle={heading ? () => setFolded((v) => !v) : undefined}>
         <div className="card__body">
-          {/* Nhắc dạng chữ đỏ nhỏ, căn phải như bước tạo chủ đề ở mục tiêu năm học nằm trong thẻ CĐ (Tiền 04/11) */}
-          {goals.length === 0 && <p className="text-danger text-sm text-right">Kế hoạch năm chưa tích nội dung nào vào chủ đề này.</p>}
+          <div className="ga-theme-goal-head mb-8">
+            <h3 className="subsection-title mb-8">I. Mục tiêu, nội dung và hoạt động giáo dục</h3>
+            {editable && (
+              <div className="row row--between row--wrap row--middle gap-2">
+                <div className="row row--wrap row--middle gap-2">
+                  <button type="button" className="btn btn--outline-primary btn--sm" onClick={() => setShowGoalModal(true)}>
+                    <Adjustments size={16} aria-hidden /> Tùy chọn mục tiêu cho chủ đề này
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn--outline-secondary btn--sm"
+                    onClick={resetToDefault}
+                    disabled={!hasCustomTicks}
+                    title="Khôi phục danh sách mục tiêu về nguyên bản theo kế hoạch năm"
+                  >
+                    <RotateCcw size={16} aria-hidden /> Khôi phục về mặc định mục tiêu sẵn có của năm
+                  </button>
+                </div>
+                {hasCustomTicks && (
+                  <div className="row row--wrap row--middle gap-2">
+                    <span className="chip chip--orange text-sm" title="Mục tiêu đã được tùy chỉnh khác với Kế hoạch năm">
+                      Đã tùy chỉnh mục tiêu
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Nhắc dạng chữ đỏ nhỏ, căn phải như bước tạo chủ đề ở mục tiêu năm học, nằm ngay bên trên bảng */}
+          {goals.length === 0 && <p className="text-danger text-sm text-right mb-8">Kế hoạch năm chưa tích nội dung nào vào chủ đề này.</p>}
           {/* MT chưa viết hoạt động thì kế hoạch tuần không có gợi ý, cuối chủ đề không phủ được MT đó */}
           {editable && goals.some((g) => !rowOf(g).activities.trim()) && (
-            <p className="text-danger text-sm text-right">
+            <p className="text-danger text-sm text-right mb-8">
               {mtList(goals.filter((g) => !rowOf(g).activities.trim()).map((g) => g.no))} chưa có hoạt động giáo dục nên kế hoạch tuần sẽ
               không có gợi ý cho các MT này.
             </p>
           )}
-          <h3 className="subsection-title">I. Mục tiêu, nội dung và hoạt động giáo dục</h3>
+
+          {showGoalModal && (
+            <ThemeGoalPickerModal
+              open={showGoalModal}
+              onClose={() => setShowGoalModal(false)}
+              theme={currentTheme}
+              yearPlan={yearPlan}
+              customTicks={draft?.customTicks || {}}
+              onApply={(nextTicks) => {
+                if (setField) setField('customTicks', nextTicks);
+              }}
+              onResetDefault={resetToDefault}
+            />
+          )}
           <div className="table-wrap">
             <table className="table ga-plan-table ga-goal-table" onMouseDown={focusCell}>
               <colgroup>
@@ -102,10 +158,10 @@ export function ThemePlanBody({
               </colgroup>
               <thead>
                 <tr>
-                  <th className="cell--fixed ga-stt">TT</th>
-                  <th className="cell--fixed">Mục tiêu giáo dục</th>
-                  <th>Nội dung giáo dục</th>
-                  <th>Hoạt động giáo dục</th>
+                  <th className={editable ? 'cell--fixed ga-stt' : 'ga-stt'}>TT</th>
+                  <th className={editable ? 'cell--fixed' : ''}>Mục tiêu giáo dục</th>
+                  <th className={editable ? 'ga-th-editable' : ''}>Nội dung giáo dục</th>
+                  <th className={editable ? 'ga-th-editable' : ''}>Hoạt động giáo dục</th>
                 </tr>
               </thead>
               <tbody>
@@ -131,7 +187,7 @@ export function ThemePlanBody({
                     )}
                     {b.goals.map((g) => (
                       <tr key={g.id}>
-                        <td className="cell--fixed ga-stt">
+                        <td className={editable ? 'cell--fixed ga-stt' : 'ga-stt'}>
                           <div className="ga-goal-table__pad">
                             <span className="ga-goal-code">MT{g.no}</span>
                             {/* Phiên bản kế hoạch năm mới (BE:EDU-26): MT đổi hiện đỏ, MT mới có nhãn "mới" */}
@@ -139,16 +195,21 @@ export function ThemePlanBody({
                             {added?.has(g.id) && <StatusBadge tone="blue" label="Mới" size="sm" />}
                           </div>
                         </td>
-                        <td className="cell--fixed">
+                        <td className={editable ? 'cell--fixed' : ''}>
                           <div className="ga-goal-table__pad">
                             {g.text}
                             {flagOf(g.id) && <div className="field__error">{flagOf(g.id).message}</div>}
                           </div>
                         </td>
-                        <td className="cell--fixed">
-                          <Cell editable={false} value={rowOf(g).contents} label={`Nội dung của MT${g.no}`} />
+                        <td className={editable ? 'ga-cell-editable' : ''}>
+                          <Cell
+                            editable={editable}
+                            value={rowOf(g).contents}
+                            label={`Nội dung của MT${g.no}`}
+                            onChange={(v) => setRow(g, 'contents', v)}
+                          />
                         </td>
-                        <td>
+                        <td className={editable ? 'ga-cell-editable' : ''}>
                           <ActivityCell
                             editable={editable}
                             value={rowOf(g).activities}

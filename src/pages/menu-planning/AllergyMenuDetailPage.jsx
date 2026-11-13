@@ -8,7 +8,7 @@ import { useMasterData } from '@/hooks/useMasterData';
 import { deleteAllergyMenu } from '@/services/menu-planning/menuPlanningService';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
-import { ErrorState, LoadingState } from '@/components/ui/States';
+import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
 import { AllergenChips, HistoryCard, RecordStatusBadge } from '@/components/menu-planning/MenuBadges';
 import { MealsView } from '@/components/menu-planning/MealsView';
 import { NutritionTable } from '@/components/menu-planning/NutritionTable';
@@ -170,8 +170,8 @@ export default function AllergyMenuDetailPage() {
             <tbody>
               {a.replacements.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="muted">
-                    Không thay món nào.
+                  <td colSpan={5}>
+                    <EmptyState title="Không thay món nào" description="Thực đơn thay thế này giữ nguyên các món của thực đơn gốc." />
                   </td>
                 </tr>
               ) : (

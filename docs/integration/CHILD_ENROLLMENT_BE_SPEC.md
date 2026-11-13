@@ -269,7 +269,7 @@ Chốt 28/10/2026: C-5 (mục 2), D-1, D-7 (mục 1), D-2 (mục 4), D-4 (mục 
 10. **Người vừa là nhân sự vừa là phụ huynh — đã chốt 29/10 (L-18):** tạo tài khoản phụ huynh như thường, không chặn SĐT/email trùng nhân sự. Không có màn chọn tài khoản: app đăng nhập bằng SĐT vào tài khoản phụ huynh, bằng email hoặc tên đăng nhập vào tài khoản nhân sự. Phần nối tài khoản BE làm thử trong ngày (AUTH-22, chưa commit) không dùng nữa.
 
 ## 8. Ngoài phạm vi tài liệu này
-Ngoài phần năm học ở mục 9, contract vẫn ở chú thích các file API: danh sách trẻ (`listChildren`, `latestHealth`), sổ sức khỏe, cân đo, phân tích xu hướng AI (`src/services/children/api/childrenApi.js`), đợt khám, kỳ cân đo, phiếu khám (`src/services/children/api/healthCheckApi.js`), đón trẻ (`src/services/pickup/api/pickupApi.js`). Quyền theo mảng của PHT (nhánh G94-179) chỉ ghi ở mục 7.1.
+Ngoài phần năm học ở mục 9, contract vẫn ở chú thích các file API: danh sách trẻ (`listChildren`), sổ sức khỏe, cân đo, phân tích xu hướng AI (`src/services/children/api/childrenApi.js`), đợt khám, kỳ cân đo, phiếu khám (`src/services/children/api/healthCheckApi.js`), đón trẻ (`src/services/pickup/api/pickupApi.js`). Quyền theo mảng của PHT (nhánh G94-179) chỉ ghi ở mục 7.1.
 
 ## 9. Năm học (user chốt 2026-10-28, Y-1..Y-5)
 

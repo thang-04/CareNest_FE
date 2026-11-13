@@ -1,5 +1,5 @@
 /*
- * Bản in "Phiếu đánh giá sự phát triển của trẻ" cuối năm theo mẫu giấy của trường (BE OBS-28): MT theo lĩnh vực, kết quả hoạt động cả năm, ô
+ * Bản in "Phiếu đánh giá sự phát triển của trẻ" cuối năm theo mẫu giấy của trường (BE OBS-28): MT theo lĩnh vực, kết quả tổng hợp từ các chủ đề đã xong, ô
  * Đạt / Chưa đạt, cân nặng – chiều cao, Nhận xét, 4 lưu ý; chỗ "Xác nhận của BGH nhà trường" và "Giáo viên" ký tay.
  * Dữ liệu giữ nguyên BE trả; một nguồn HTML cho khung xem trước, file .doc và trang in.
  */
@@ -25,7 +25,19 @@ export const ageTitle = (ageGroupName = '') => {
 const tick = (on) => (on ? 'x' : '');
 
 /** HTML phiếu cuối năm: sheet = GET /assessment/evaluations/{id}/year-sheet, ev = đánh giá, child = trẻ, comment = Nhận xét. */
-export const yearEndSheetHtml = ({ sheet, ev, child, comment }) => {
+/** Người ký mặc định: GV (ký bên phải, kèm ngày), BGH xác nhận (kí tên, đóng dấu); sửa / thêm ở hộp xem trước. */
+export const yearEndSigners = (sheet) => [
+  { title: 'Giáo viên', name: (sheet.teachers || []).join(', ') },
+  // Trường chỉ có 1 HT: điền sẵn tên HT (BE trả principal), sửa được ở hộp xem trước
+  { title: 'Xác nhận của BGH nhà trường', name: sheet.principal || '' },
+];
+
+export const yearEndSheetHtml = ({ sheet, ev, child, comment }, signers = yearEndSigners(sheet)) => {
+  const [teacher, ...others] = signers;
+  const width = Math.floor(100 / (others.length + 1));
+  // Ô BGH để trống tên: dòng hướng dẫn đóng dấu như mẫu giấy
+  const otherCell = (s) =>
+    `<td class="c" style="width:${width}%"><p><b>${esc(s.title)}</b></p><p><i>(${s.name ? 'Kí và ghi rõ họ tên' : 'Kí tên và đóng dấu'})</i></p><div class="sign"></div><p><b>${esc(s.name)}</b></p></td>`;
   const yearText = `${(ev.periodStart || '').slice(0, 4)} - ${(ev.periodEnd || '').slice(0, 4)}`;
   const m = sheet.measurement;
   const rows = [];
@@ -48,10 +60,9 @@ export const yearEndSheetHtml = ({ sheet, ev, child, comment }) => {
       no += 1;
     });
     // Như mẫu giấy: cuối mỗi lĩnh vực là các dòng chấm để ghi nhận xét; có nhận xét thì in nhận xét của cô
+    // Nhận xét lĩnh vực: giữ cột TT / Đạt / Chưa đạt; hai dòng chấm chung một ô, không kẻ ngăn giữa (Cần yêu cầu 10/11/2026)
     rows.push(
-      d.comment
-        ? `<tr class="cmt"><td></td><td><i>Nhận xét:</i> ${esc(d.comment)}</td><td></td><td></td></tr>`
-        : `<tr class="cmt"><td></td><td><i>Nhận xét:</i> ${dots}</td><td></td><td></td></tr><tr class="cmt"><td></td><td>${dots}</td><td></td><td></td></tr>`,
+      `<tr class="cmt"><td></td><td><i>Nhận xét:</i> ${d.comment ? esc(d.comment) : `${dots}<br/>${dots}`}</td><td></td><td></td></tr>`,
     );
   });
   const signed = localDate(sheet.confirmedAt);
@@ -80,9 +91,9 @@ ${note('Đối với nhà trường', notes.forSchool)}
 ${note('Đối với cha mẹ / người chăm sóc trẻ', notes.forParent)}
 </div>
 <table class="plain sign-row"><tr>
-<td class="c" style="width:50%"><p><b>Xác nhận của BGH nhà trường</b></p><p><i>(Kí tên và đóng dấu)</i></p></td>
-<td class="c" style="width:50%"><p><i>${esc(place)}, ${signDate}</i></p><p><b>Giáo viên</b></p><p><i>(Kí và ghi rõ họ tên)</i></p>
-<div class="sign"></div><p><b>${(sheet.teachers || []).map(esc).join('<br/>')}</b></p></td>
+${others.map(otherCell).join('')}
+<td class="c" style="width:${width}%"><p><i>${esc(place)}, ${signDate}</i></p><p><b>${esc(teacher?.title || '')}</b></p><p><i>(Kí và ghi rõ họ tên)</i></p>
+<div class="sign"></div><p><b>${esc(teacher?.name || '')}</b></p></td>
 </tr></table>`;
   return `<!DOCTYPE html>
 <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
@@ -101,6 +112,7 @@ table.grid td, table.grid th { border: 1px solid black; padding: 2pt 4pt; font-s
 table.grid th { font-weight: bold; text-align: center; }
 table.grid td.n { text-align: center; }
 table.grid tr.dom td { background: whitesmoke; }
+table.grid tr.cmt td { line-height: 1.8; padding: 2pt 4pt; }
 table.plain td { border: none; vertical-align: top; }
 .photo { border: 1px solid black; height: 90px; text-align: center; padding-top: 34px; font-size: 11pt; }
 .head { margin: 6pt 0; }
@@ -124,5 +136,8 @@ const fileTitle = (text) =>
 /** Tài liệu để xem trước rồi in / xuất: { html, name }. */
 export const yearEndSheetFile = (args) => ({
   html: yearEndSheetHtml(args),
+  // Hộp xem trước sửa / thêm người ký (Cần yêu cầu 10/11/2026); chỉ đổi file in
+  signers: yearEndSigners(args.sheet),
+  withSigners: (next) => yearEndSheetHtml(args, next),
   name: fileTitle(`Phiếu đánh giá sự phát triển - ${args.child?.fullName || args.ev.childName || ''} - ${args.ev.className || ''}`),
 });

@@ -14,7 +14,7 @@ import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { EmptyState, ErrorState, SkeletonRows, Spinner } from '@/components/ui/States';
-import { CellPopover } from '@/components/assessment/DailyAssessmentCells';
+import { AbsentRows, CellPopover } from '@/components/assessment/DailyAssessmentCells';
 import { Cell, focusCell } from '@/components/ui/TableCell';
 import { PARTICIPATION_LABELS, YCCD_RESULT, YCCD_RESULT_LABELS } from '@/models/assessment/dailyObservationOptions';
 import { DateInput } from '@/components/form/DateInput';
@@ -198,6 +198,7 @@ export default function DailyGoalAssessmentPage() {
   const saving = saveState.phase === 'saving';
 
   const rows = sheet?.rows || [];
+  const absentChildren = sheet?.absentChildren || [];
   // Đếm theo phần KTKN (BE cũ chỉ có recorded)
   const skillsRecorded = isSkillsRecorded;
   const recordedCount = rows.filter(skillsRecorded).length;
@@ -361,7 +362,7 @@ export default function DailyGoalAssessmentPage() {
               title="Chưa có giáo án tuần đã duyệt cho ngày này"
               description="Kiến thức kỹ năng chấm theo mục tiêu của giáo án đã duyệt; khi giáo án được duyệt, các hoạt động và mục tiêu sẽ hiện tại đây."
             />
-          ) : rows.length === 0 ? (
+          ) : rows.length === 0 && absentChildren.length === 0 ? (
             <EmptyState icon={UserX} title="Không có trẻ có mặt" description="Cả lớp vắng ngày này." />
           ) : (
             <div className="card__body">
@@ -433,6 +434,26 @@ export default function DailyGoalAssessmentPage() {
                         </tr>
                       );
                     })}
+                    {/* OBS-27 (Cần chốt 10/11/2026): trẻ vắng thì mục tiêu của ngày đó tính Chưa đạt; chỉ hiển thị, không chấm */}
+                    <AbsentRows
+                      items={absentChildren}
+                      colSpan={activities.length + 2}
+                      renderCells={(c, absence) => (
+                        <>
+                          {activities.map((a) => (
+                            <td key={a.key} className="dg-day-cell">
+                              {a.goals.map((g) => (
+                                <div key={g.id} title={`${goalName(g)}: ${g.text}`}>
+                                  <div className="dg-pop__label">{goalName(g)}</div>
+                                  <div className={LEVEL_CLASS.CHUA_DAT}>{YCCD_RESULT_LABELS.CHUA_DAT}</div>
+                                </div>
+                              ))}
+                            </td>
+                          ))}
+                          <td className="muted text-sm">{absence}</td>
+                        </>
+                      )}
+                    />
                   </tbody>
                 </table>
               </div>

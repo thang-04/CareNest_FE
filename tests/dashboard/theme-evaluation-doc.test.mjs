@@ -60,7 +60,7 @@ test('bản in đánh giá cuối chủ đề theo mẫu giấy: tiêu đề, c�
     'Rèn thêm',
     'Thượng Hồng, ngày 25 tháng 10 năm 2026',
     'GIÁO VIÊN CHỦ NHIỆM',
-    'Cô Hương<br/>Cô Anh',
+    'Cô Hương, Cô Anh',
     'DUYỆT KẾ HOẠCH',
     'Từ ngày 5/10 đến ngày 30/10/2026',
     'Tổ trưởng chuyên môn',

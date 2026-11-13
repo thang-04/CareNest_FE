@@ -11,7 +11,6 @@ import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { ErrorState, LoadingState, Spinner } from '@/components/ui/States';
 import { FormField } from '@/components/form/FormField';
 import { DateInput } from '@/components/form/DateInput';
-import { YearStatusBadge } from '@/components/school-config/SchoolConfigBadges';
 import { ScNoAccess } from '@/components/school-config/ScNoAccess';
 import { copyClasses, saveSchoolYear } from '@/services/school-config/schoolConfigService';
 import { copyResultMessage, copySourcesFor } from '@/components/school-config/CopyClassesModal';
@@ -19,16 +18,26 @@ import { YEAR_ACTION_LABELS, YEAR_STATUS } from '@/models/school-config/schoolCo
 import { canConfigureSchool, canEditYear } from '@/utils/school-config/schoolConfigPermissions';
 import { validateSchoolYear, hasErrors, errorsAfterChange } from '@/utils/school-config/schoolConfigValidation';
 import { yearCrumbs } from '@/utils/school-config/breadcrumbs';
-import { suggestNextYear } from '@/utils/school-config/yearSetup';
-import { formatDate, formatDateTime } from '@/utils/format';
+import { defaultPrepDate, suggestNextYear } from '@/utils/school-config/yearSetup';
+import { formatDate, formatDateTime, todayInput } from '@/utils/format';
 import '@/styles/modules/school-config.css';
 
 function YearForm({ year, years, user }) {
   const toast = useToast();
   const md = useMasterData();
   const others = years.filter((y) => y.id !== year?.id);
-  const [initial] = useState(() => (year ? { name: year.name, startDate: year.startDate, endDate: year.endDate } : suggestNextYear(years)));
+  const today = todayInput();
+  const [initial] = useState(() => {
+    if (year) return { name: year.name, startDate: year.startDate, endDate: year.endDate, prepDate: year.prepDate || '' };
+    const next = suggestNextYear(years);
+    return { ...next, prepDate: defaultPrepDate(next.startDate, years, today) };
+  });
   const [form, setForm] = useState(initial);
+  // CFG-YR-05: năm đã bắt đầu / kết thúc chỉ xem ngày mở chuẩn bị
+  const prepLocked = !!year && year.status !== YEAR_STATUS.PLANNED;
+  // Tạo năm mới, HT chưa tự chọn ngày mở chuẩn bị ⇒ ngày gợi ý đi theo ngày bắt đầu
+  const [prepTouched, setPrepTouched] = useState(!!year);
+  const ruleOptions = { creating: !year, prepLocked, initialPrepDate: year?.prepDate || null, today };
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(null);
@@ -41,21 +50,30 @@ function YearForm({ year, years, user }) {
   const copySource = sources.find((y) => y.id === copyFrom) || sources[0];
 
   const set = (patch) => {
-    setForm((f) => ({ ...f, ...patch }));
-    setErrors((e) => errorsAfterChange(e, patch, { ...form, ...patch }, {}));
+    const next = { ...patch };
+    if (patch.startDate !== undefined && !prepTouched) next.prepDate = defaultPrepDate(patch.startDate, others, today);
+    setForm((f) => ({ ...f, ...next }));
+    setErrors((e) => errorsAfterChange(e, next, { ...form, ...next }, {}));
   };
   const blurCheck = (field) => {
-    const e = validateSchoolYear(form, others, { creating: !year });
+    const e = validateSchoolYear(form, others, ruleOptions);
     if (e[field]) setErrors((prev) => ({ ...prev, [field]: e[field] }));
+    // Đổi ngày bắt đầu / kết thúc làm ngày mở chuẩn bị hết hợp lệ ⇒ báo ngay ở ô ngày mở chuẩn bị
+    if (field !== 'prepDate' && e.prepDate && form.prepDate) setErrors((prev) => ({ ...prev, prepDate: e.prepDate }));
   };
 
-  const dirty = !saved && (form.name !== initial.name || form.startDate !== initial.startDate || form.endDate !== initial.endDate);
+  const dirty =
+    !saved &&
+    (form.name !== initial.name ||
+      form.startDate !== initial.startDate ||
+      form.endDate !== initial.endDate ||
+      form.prepDate !== initial.prepDate);
   // Rời màn khi đang sửa ⇒ hỏi; "Lưu" trong hộp lưu rồi đi tiếp tới nơi người dùng bấm
   const guard = useLeaveGuard({ when: dirty && !saving, onSave: () => submit({ stay: true }) });
 
   // Trả true khi lưu được; stay: lưu từ hộp rời màn (không tự chuyển trang, không mở bước tiếp)
   const submit = async ({ stay = false } = {}) => {
-    const e = validateSchoolYear(form, others, { creating: !year });
+    const e = validateSchoolYear(form, others, ruleOptions);
     // Học kỳ đã đặt (Cấu hình thời gian) phải còn nằm trong năm sau khi đổi ngày, như BE SEMESTER_OUT_OF_YEAR
     const s1 = year?.semester1Start;
     const s2 = year?.semester2End;
@@ -127,12 +145,12 @@ function YearForm({ year, years, user }) {
             {errors._form}
           </div>
         )}
-        <div className="grid-3">
+        <div className="grid-4">
           <FormField
             label="Tên năm học"
             required
             error={errors.name}
-            hint={nameLocked ? 'Năm học đã bắt đầu nên không đổi tên được' : 'Dạng NNNN-NNNN, ví dụ 2027-2028'}
+            hint={nameLocked ? 'Năm học đã bắt đầu nên không đổi tên được' : undefined}
           >
             <input
               className="input"
@@ -151,6 +169,23 @@ function YearForm({ year, years, user }) {
               value={form.endDate}
               onChange={(v) => set({ endDate: v })}
               onBlur={() => blurCheck('endDate')}
+            />
+          </FormField>
+          <FormField
+            label="Ngày mở chuẩn bị"
+            required
+            error={errors.prepDate}
+            hint={prepLocked ? 'Năm học đã bắt đầu nên không đổi được' : undefined}
+          >
+            <DateInput
+              value={form.prepDate}
+              disabled={prepLocked}
+              max={form.startDate}
+              onChange={(v) => {
+                setPrepTouched(true);
+                set({ prepDate: v });
+              }}
+              onBlur={() => blurCheck('prepDate')}
             />
           </FormField>
         </div>
@@ -241,7 +276,6 @@ export default function SchoolYearFormPage() {
       <Breadcrumb items={yearCrumbs(id ? 'Sửa năm học' : 'Thêm năm học')} />
       <div className="row gap-3">
         <h1 className="page__title">{title}</h1>
-        {year && <YearStatusBadge status={year.status} size="lg" />}
       </div>
       {body}
     </div>

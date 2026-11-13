@@ -2,8 +2,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useAsync } from '@/hooks/useAsync';
 import { useMasterData } from '@/hooks/useMasterData';
-import { getPendingApprovals } from '@/services/dashboard/dashboardService';
-import { getDashboardToday } from '@/services/dashboard/dashboardSummaryService';
+import { buildLunch, getDayProgressSources, getLunchSources, getPendingApprovals } from '@/services/dashboard/dashboardService';
+import { buildDayProgress, getDashboardToday } from '@/services/dashboard/dashboardSummaryService';
 import { canViewPendingApprovals } from '@/utils/dashboard/dashboardPermissions';
 import { todayInput } from '@/utils/format';
 
@@ -46,4 +46,40 @@ export function useDashboardToday(campusId = '') {
   const md = useMasterData();
   const campusName = (id) => md.campusById?.(id)?.shortName || md.campusById?.(id)?.name || id;
   return useWidget((u) => getDashboardToday(u, { schoolYear, campusId, campusName }), [schoolYear, campusId, md.campuses?.length]);
+}
+
+/**
+ * "Tiến độ trong ngày" + "Bữa trưa hôm nay" của trang chủ; todayQ = useDashboardToday(campusId) để dùng chung số điểm danh, khám.
+ * Số do hàm service tính (buildLunch, buildDayProgress); hook chỉ ghép nguồn.
+ */
+export function useDayProgress(todayQ, campusId = '') {
+  const { schoolYear } = useSchoolYear();
+  const md = useMasterData();
+  const date = todayInput();
+  const src = useWidget((u) => getDayProgressSources(u, { date, schoolYear, campusId }), [date, schoolYear, campusId]);
+  const campusName = (id) => md.campusById?.(id)?.shortName || md.campusById?.(id)?.name || id;
+  const lunch = src.data ? buildLunch({ counts: src.data.counts, menu: src.data.menu, campusId, campusName }) : null;
+  const steps = todayQ.data ? buildDayProgress({ today: todayQ.data, lunch, assessment: src.data?.assessment }) : [];
+  return {
+    steps,
+    lunch,
+    loading: (todayQ.loading && todayQ.data == null) || (src.loading && src.data == null),
+    error: todayQ.error,
+    reload: () => {
+      todayQ.reload();
+      src.reload();
+    },
+  };
+}
+
+/** Bữa trưa hôm nay (món đã công bố, thực đơn thay thế) cho trang chủ theo lớp; Giáo viên không đọc được sổ báo ăn toàn trường. */
+export function useLunchToday() {
+  const md = useMasterData();
+  const date = todayInput();
+  const src = useWidget((u) => getLunchSources(u, { date }), [date]);
+  const campusName = (id) => md.campusById?.(id)?.shortName || md.campusById?.(id)?.name || id;
+  return {
+    lunch: src.data ? buildLunch({ counts: src.data.counts, menu: src.data.menu, campusName }) : null,
+    loading: src.loading && src.data == null,
+  };
 }

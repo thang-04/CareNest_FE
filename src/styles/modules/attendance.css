@@ -361,48 +361,8 @@
 }
 .dd-stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: var(--space-3);
-}
-.dd-stat {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: var(--space-3) var(--space-4);
-  /* Nền một màu phủ cả thẻ theo tone (không dùng vạch trái) */
-  background: var(--primary-50);
-  border: 1px solid var(--color-primary-border);
-  border-radius: var(--radius-lg);
-}
-.dd-stat--green {
-  background: var(--success-50);
-  border-color: var(--success-border);
-}
-.dd-stat--orange {
-  background: var(--warning-50);
-  border-color: var(--warning-border);
-}
-.dd-stat--red {
-  background: var(--danger-50);
-  border-color: var(--danger-border);
-}
-.dd-stat--gray {
-  background: var(--color-secondary);
-  border-color: var(--border);
-}
-.dd-stat--blue {
-  background: var(--color-info-bg);
-  border-color: var(--color-info-border);
-}
-.dd-stat__value {
-  font-size: var(--fs-h2);
-  font-weight: var(--fw-bold);
-  color: var(--text);
-  line-height: 1.2;
-}
-.dd-stat__label {
-  font-size: var(--fs-sm);
-  color: var(--text-2);
 }
 
 /* ---------- Attendance table ---------- */
@@ -766,4 +726,43 @@
     position: sticky;
     top: calc(var(--header-height) + var(--space-3));
   }
+}
+
+/* Chân bảng điểm danh: dòng "Còn N trẻ chưa điểm danh" cạnh nút lưu duy nhất */
+.dd-reception__save {
+  align-items: center;
+  justify-content: flex-end;
+}
+
+/* Thẻ "Suất ăn lớp hôm nay" của giáo viên: mỗi bữa một ô (số suất, trạng thái xác nhận) */
+.dd-meal-card {
+  margin-bottom: var(--space-4);
+}
+.dd-meal-card__list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.dd-meal-card__item {
+  display: grid;
+  gap: var(--space-1-5);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+.dd-meal-card__session {
+  font-weight: var(--fw-semibold);
+}
+.dd-meal-card__count b {
+  font-size: var(--fs-lg);
+  font-variant-numeric: tabular-nums;
+}
+.dd-meal-card__status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  color: var(--color-text-secondary);
 }

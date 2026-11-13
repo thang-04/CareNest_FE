@@ -7,6 +7,7 @@ import {
   getAttendanceClasses,
   getAttendanceSummary,
   getClassAttendance,
+  getClassMealCount,
   getMealCounts,
   getMealHandovers,
 } from '@/services/attendance/attendanceService';
@@ -60,6 +61,16 @@ export function useMealCounts(date) {
   const { schoolYear } = useSchoolYear();
   const { data, loading, error, reload } = useAsync(() => getMealCounts({ date, schoolYear }, user), [date, user?.id, schoolYear], {
     enabled: !!date,
+    refreshOnDataChange: true,
+  });
+  return { data, loading, error, reload };
+}
+
+/** Suất ăn từng bữa của lớp trong ngày (thẻ "Suất ăn lớp hôm nay" của giáo viên). */
+export function useClassMealCount(classId, date) {
+  const { user } = useAuth();
+  const { data, loading, error, reload } = useAsync(() => getClassMealCount({ classId, date }, user), [classId, date, user?.id], {
+    enabled: !!classId && !!date,
     refreshOnDataChange: true,
   });
   return { data, loading, error, reload };

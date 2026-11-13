@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Button } from '@/components';
 import { DndContext, DragOverlay, KeyboardSensor, MouseSensor, pointerWithin, useSensor, useSensors } from '@dnd-kit/core';
 import { AlertCircle, AlertTriangle, ChevronDown, ChevronUp, RotateCcw } from '@/components/ui/icons';
 import { useToast } from '@/contexts/ToastContext';
@@ -102,9 +103,9 @@ export function MenuAiWeekEditor({ draft, editor, dishById, kcalAgeGroup }) {
           {editor.evaluateError && (
             <span className="td-aie__stale">
               <AlertCircle size={15} aria-hidden="true" /> Chưa chấm lại được
-              <button type="button" className="btn btn--ghost btn--sm" onClick={editor.reevaluate}>
+              <Button variant="ghost" size="sm" onClick={editor.reevaluate}>
                 Chấm lại
-              </button>
+              </Button>
             </span>
           )}
           <span className="td-aie__checks">
@@ -119,12 +120,12 @@ export function MenuAiWeekEditor({ draft, editor, dishById, kcalAgeGroup }) {
               ))}
           </span>
           <span className="td-aie__actions">
-            <button type="button" className="btn btn--ghost btn--sm" onClick={editor.undo} disabled={!editor.canUndo}>
+            <Button variant="ghost" size="sm" onClick={editor.undo} disabled={!editor.canUndo}>
               <RotateCcw size={14} /> Hoàn tác
-            </button>
-            <button type="button" className="btn btn--ghost btn--sm" onClick={editor.reset} disabled={editor.edited === 0}>
+            </Button>
+            <Button variant="ghost" size="sm" onClick={editor.reset} disabled={editor.edited === 0}>
               Về gợi ý gốc
-            </button>
+            </Button>
           </span>
         </div>
         {draft.feasible === false && editor.edited === 0 && (
@@ -149,15 +150,16 @@ export function MenuAiWeekEditor({ draft, editor, dishById, kcalAgeGroup }) {
               kcalAgeGroup={kcalAgeGroup}
               editor={{ selected, onSelect: setSelected, dragging: !!active, canDropAt }}
             />
-            <button
-              type="button"
-              className="btn btn--ghost btn--sm td-aie__toggle"
+            <Button
+              variant="ghost"
+              size="sm"
+              className="td-aie__toggle"
               aria-expanded={showChecks}
               onClick={() => setShowChecks((v) => !v)}
             >
               {showChecks ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
               {showChecks ? 'Ẩn bảng kiểm' : `Xem ${assessment.checks.length} tiêu chí và lưu ý`}
-            </button>
+            </Button>
             {showChecks && (
               <section className="td-checks" aria-label="Bảng kiểm tiêu chí">
                 <ul className="td-issue-list">

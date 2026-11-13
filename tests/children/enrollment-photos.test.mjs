@@ -74,7 +74,8 @@ test('API tiếp nhận gửi FormData cùng một request, còn JSON không ả
   };
   const input = payload();
   input.child.photoFile = file('child.png');
-  assert.equal((await childrenApi.enrollChild(input)).id, 1);
+  // Adapter đổi id BE sang chuỗi (plan 2026-11-11-children-module-be-wiring)
+  assert.equal((await childrenApi.enrollChild(input)).id, '1');
   assert.ok(sent[0].data instanceof FormData);
   await childrenApi.enrollChild(payload());
   assert.equal(JSON.parse(sent[1].data).child.fullName, 'Trẻ giả');

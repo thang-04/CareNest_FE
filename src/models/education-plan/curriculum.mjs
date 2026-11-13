@@ -84,9 +84,58 @@ export function curriculumTree(goals) {
 
 /** Mục tiêu đang có trong bản soạn (để chọn đích cho gợi ý nội dung): [{ id, domainName, text }]. */
 export const goalTargets = (form) =>
-  (form?.domains || []).flatMap((d) =>
-    (d.rows || []).filter((r) => r.kind === 'goal' && norm(r.text)).map((r) => ({ id: r.id, domainName: d.name, text: r.text })),
-  );
+  (form?.domains || []).flatMap((d) => {
+    let sub = null;
+    let group = null;
+    return (d.rows || []).flatMap((r) => {
+      if (r.kind === 'sub') { sub = r; group = null; return []; }
+      if (r.kind === 'group') { group = r; return []; }
+      return r.kind === 'goal' && norm(r.text) ? [{
+        id: r.id, domainId: d.id, domainName: d.name, text: r.text,
+        subRowId: sub?.id ?? null, groupRowId: group?.id ?? null, sub, group,
+      }] : [];
+    });
+  });
+
+const matchesParent = (actual, filter) => !filter || (filter === '@none' ? actual == null : String(actual) === String(filter));
+
+export const filterGoalTargets = (form, filter = {}) => goalTargets(form).filter((t) =>
+  matchesParent(t.domainId, filter.domainId) && matchesParent(t.subRowId, filter.subRowId) && matchesParent(t.groupRowId, filter.groupRowId),
+);
+
+export function validContentSelection(form, filter, targetId, suggestions, picked) {
+  const target = filterGoalTargets(form, filter).find((t) => String(t.id) === String(targetId));
+  return { targetId: target?.id || '', items: target ? suggestions.filter((c) => picked.has(c.id)) : [] };
+}
+
+export function filterCurriculumContents(form, filter = {}, contents = []) {
+  const domain = (form.domains || []).find((d) => String(d.id) === String(filter.domainId));
+  if (filter.domainId && !domain) return [];
+  let subId;
+  if (filter.subRowId === '@none') subId = null;
+  else if (filter.subRowId) {
+    const sub = domain?.rows.find((r) => r.kind === 'sub' && String(r.id) === String(filter.subRowId));
+    if (!sub) return [];
+    subId = sub.curriculumSubDomainId ?? (filter.sourceSubId === '@none' ? null : filter.sourceSubId);
+    if (subId == null && filter.sourceSubId !== '@none') return [];
+  }
+  return contents.filter((c) => (!domain || c.domainName === domain.name) &&
+    (subId === undefined || (subId == null ? c.subDomainId == null : String(c.subDomainId) === String(subId))));
+}
+
+export function curriculumOptions(goals, scope, kind) {
+  if (!scope.domainName || scope.subDomainId === undefined || (kind !== 'group' && scope.expectedResultId == null)) return [];
+  const mine = goals.filter((g) => g.domainName === scope.domainName &&
+    (scope.subDomainId == null ? g.subDomainId == null : String(g.subDomainId) === String(scope.subDomainId)) &&
+    (kind === 'group' || String(g.expectedResultId) === String(scope.expectedResultId)));
+  if (kind === 'group') return [...new Map(mine.map((g) => [JSON.stringify([g.sourceId, g.expectedResultId]), {
+    key: JSON.stringify([g.sourceId, g.expectedResultId]), text: g.groupText,
+    patch: { curriculumExpectedResultId: g.expectedResultId, curriculumText: g.groupText },
+  }])).values()];
+  if (kind === 'goal') return mine.map((g) => ({ key: JSON.stringify([g.sourceId, g.id]), text: g.goalText,
+    patch: { curriculumGoalId: g.id, curriculumGoalText: g.goalText, curriculumSectionRef: g.sectionRef } }));
+  return mine.flatMap((g) => (g.contents || []).map((text, index) => ({ key: JSON.stringify([g.sourceId, g.id, index]), text })));
+}
 
 /** Thêm gợi ý nội dung vào một mục tiêu; bỏ câu đã có. Trả { domains, added, duplicates }. */
 export function addSuggestedContents(form, goalRowId, suggestions, makeId) {

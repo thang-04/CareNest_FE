@@ -137,8 +137,8 @@ test('AC-3, AC-6: nút AI chỉ hiện khi sửa được; dùng gợi ý tuần
   const template = readFileSync('src/pages/menu-planning/MenuTemplateEditorPage.jsx', 'utf8');
   const modal = readFileSync('src/components/menu-planning/MenuAiWeekModal.jsx', 'utf8');
 
-  assert.match(weekly, /\{editable && block && \(\s*<button[^>]*onClick=\{\(\) => setAiOpen\(true\)\}/);
-  assert.match(template, /\{editable && \(\s*<button[^>]*onClick=\{\(\) => setAiOpen\(true\)\}/);
+  assert.match(weekly, /\{editable && block && \(\s*<Button[^>]*onClick=\{\(\) => setAiOpen\(true\)\}/);
+  assert.match(template, /\{editable && \(\s*<Button[^>]*onClick=\{\(\) => setAiOpen\(true\)\}/);
   assert.match(modal, /disabled=\{busy \|\| running \|\| dirty \|\| unchecked\}/);
   // Chấm lại lỗi hoặc đang chấm ⇒ chưa cho dùng bản đang sửa
   assert.match(modal, /const unchecked = editor\.editable && \(editor\.evaluating \|\| !!editor\.evaluateError\)/);

@@ -7,7 +7,7 @@ import { Modal } from '@/components/ui/Modal';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { ErrorState, Spinner } from '@/components/ui/States';
 import { FormField } from '@/components/form/FormField';
-import { YearStatusBadge } from '@/components/school-config/SchoolConfigBadges';
+import { YearStatusBadge, yearBadgeStatus } from '@/components/school-config/SchoolConfigBadges';
 import { useYearReadiness } from '@/hooks/school-config/useSchoolConfig';
 import { activateSchoolYear } from '@/services/school-config/schoolConfigService';
 import { READINESS_STEPS } from '@/models/school-config/schoolConfigConstants';
@@ -44,11 +44,12 @@ export function YearReadinessCard({ year, blockedBy, onActivate, showSetup = tru
       <div className="sc-ready__head">
         <div className="sc-ready__title">
           <h2 className="section-title">
-            Chuẩn bị năm học {year.name} <YearStatusBadge status={year.status} />
+            Chuẩn bị năm học {year.name} <YearStatusBadge status={yearBadgeStatus(year)} />
           </h2>
           <span className="muted text-sm">
             {formatDate(year.startDate)} – {formatDate(year.endDate)}
           </span>
+          {year.prepDate && <span className="muted text-sm">Mở chuẩn bị từ {formatDate(year.prepDate)}</span>}
         </div>
         <div className="sc-ready__activate">
           {showSetup && (

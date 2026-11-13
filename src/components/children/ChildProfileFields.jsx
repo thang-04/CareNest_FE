@@ -1,5 +1,6 @@
-import { IntakeChoiceField, IntakeNumberField, IntakeSheet, IntakeTextField } from './IntakeSheet';
+import { IntakeChoiceField, IntakeNumberField, IntakeSheet, IntakeSuggestField, IntakeTextField } from './IntakeSheet';
 import { ExamChoiceField, ExamNumberField, ExamTextField } from './exam/ExamFields';
+import { filterVnProvinces, districtsOfVnProvince, VN_PROVINCES } from '@/data/vnAdministrative';
 
 const PREMATURE_CHOICES = [
   { value: 'NO', label: 'Không' },
@@ -18,6 +19,11 @@ export function ChildProfileFields({ value, onChange, errors = {}, sheet = false
   const Fields = sheet ? IntakeSheet : 'div';
   const set = (field, v) => onChange({ ...value, [field]: v });
   const setAddress = (field, v) => onChange({ ...value, address: { ...value.address, [field]: v } });
+  // Gợi ý tỉnh/thành + phường/xã (vẫn nhập tự do; danh sách chỉ gợi ý, BE là source of truth).
+  const provinceSuggestions = filterVnProvinces(value.address.province).map((p) => p.name);
+  const districtSuggestions = value.address.province
+    ? districtsOfVnProvince(value.address.province)
+    : VN_PROVINCES.flatMap((p) => p.districts);
   const text = (field, label, extra = {}) => (
     <TextField label={label} value={value[field]} onChange={(v) => set(field, v)} error={errors[`profile.${field}`]} required {...extra} />
   );
@@ -25,17 +31,8 @@ export function ChildProfileFields({ value, onChange, errors = {}, sheet = false
   return (
     <>
       {!sheet && <h2 className="card__title">Thông tin hành chính</h2>}
-      {!sheet && (
-        <p className="muted text-sm mt-8 mb-12">
-          Phiếu khám sức khỏe dùng đúng các thông tin này và giáo viên không sửa được khi khám. Hỏi đủ phụ huynh khi nhập học.
-        </p>
-      )}
-      <Fields {...(sheet ? { title: 'II. Thông tin hành chính' } : { className: 'grid-3' })}>
-        {text('idNumber', 'Số CC/CCCD/Hộ chiếu/Mã định danh', {
-          maxLength: 20,
-          hint: 'Không bắt buộc. 12 chữ số, hoặc số hộ chiếu',
-          required: false,
-        })}
+      <Fields {...(sheet ? { title: 'II. Thông tin hành chính' } : { className: 'grid-3 mt-12' })}>
+        {text('idNumber', 'Số CC/CCCD/Hộ chiếu/Mã định danh', { maxLength: 20, required: false })}
         <ChoiceField
           name="profile-premature"
           label="Sinh non"
@@ -53,25 +50,48 @@ export function ChildProfileFields({ value, onChange, errors = {}, sheet = false
           min="20"
           max="42"
           step="1"
-          hint="Từ 20 đến 42 tuần; dưới 37 tuần là sinh non"
         />
         {text('ethnicity', 'Dân tộc')}
         {text('beneficiary', 'Đối tượng')}
         {text('bloodType', 'Nhóm máu (nếu có)', { required: false })}
-        <TextField
-          label="Nơi ở — Tỉnh/thành"
-          required
-          value={value.address.province}
-          onChange={(v) => setAddress('province', v)}
-          error={errors['profile.address.province']}
-        />
-        <TextField
-          label="Nơi ở — Phường/xã"
-          required
-          value={value.address.ward}
-          onChange={(v) => setAddress('ward', v)}
-          error={errors['profile.address.ward']}
-        />
+        {sheet ? (
+          <IntakeSuggestField
+            label="Nơi ở — Tỉnh/thành"
+            required
+            value={value.address.province}
+            onChange={(v) => setAddress('province', v)}
+            error={errors['profile.address.province']}
+            suggestions={provinceSuggestions}
+            placeholder="Nhập hoặc chọn (vd: Hà)"
+          />
+        ) : (
+          <TextField
+            label="Nơi ở — Tỉnh/thành"
+            required
+            value={value.address.province}
+            onChange={(v) => setAddress('province', v)}
+            error={errors['profile.address.province']}
+          />
+        )}
+        {sheet ? (
+          <IntakeSuggestField
+            label="Nơi ở — Phường/xã"
+            required
+            value={value.address.ward}
+            onChange={(v) => setAddress('ward', v)}
+            error={errors['profile.address.ward']}
+            suggestions={districtSuggestions}
+            placeholder="Nhập hoặc chọn (vd: Lê Chân)"
+          />
+        ) : (
+          <TextField
+            label="Nơi ở — Phường/xã"
+            required
+            value={value.address.ward}
+            onChange={(v) => setAddress('ward', v)}
+            error={errors['profile.address.ward']}
+          />
+        )}
         <TextField
           label="Nơi ở — Số nhà/thôn/xóm"
           required

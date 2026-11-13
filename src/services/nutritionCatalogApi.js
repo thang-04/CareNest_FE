@@ -303,6 +303,14 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
     editable: !!v.editable,
   });
 
+  // Tên và độ tuổi nhóm tuổi do Cấu hình trường quản lý: mang theo để màn không tra danh sách tĩnh theo code
+  const groupFields = (g) => ({
+    groupName: g.name || '',
+    groupShortName: g.shortName || '',
+    ageFromMonths: g.ageFromMonths ?? null,
+    ageToMonths: g.ageToMonths ?? null,
+  });
+
   const toConfigRequest = (g, effectiveFrom, basis, ageGroupId) => ({
     ageGroupId,
     effectiveFrom,
@@ -477,6 +485,7 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
         const latest = versions[0];
         return {
           ageGroupId: g.code,
+          ...groupFields(g),
           enabled: true,
           mealsReadOnly: true,
           basis: latest?.basis || '',
@@ -541,6 +550,7 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
           const v = byGroup.get(String(g.id));
           return {
             ageGroupId: g.code,
+            ...groupFields(g),
             enabled: true,
             basis: v?.basis || '',
             price: v?.price ?? '',

@@ -26,9 +26,13 @@ import { ROOM_STATUS_LABELS } from '@/models/Location';
 
 /* Tones follow DESIGN.md §3.2: waiting = orange, done/valid = green, inactive = gray. */
 export const YearStatusBadge = createStatusBadge(
-  { PLANNED: ['orange', CalendarClock], ACTIVE: ['green', CalendarCheck2], CLOSED: ['gray', Archive] },
-  YEAR_STATUS_LABELS,
+  { PLANNED: ['orange', CalendarClock], PREPARING: ['blue', CalendarClock], ACTIVE: ['green', CalendarCheck2], CLOSED: ['gray', Archive] },
+  // PREPARING: năm sắp diễn ra đã tới ngày mở chuẩn bị (BE CFG-YR-05, cờ preparing), không phải trạng thái lưu
+  { ...YEAR_STATUS_LABELS, PREPARING: 'Đang chuẩn bị' },
 );
+
+/** Trạng thái hiển thị của năm học: "Đang chuẩn bị" khi BE báo preparing. */
+export const yearBadgeStatus = (year) => (year?.preparing ? 'PREPARING' : year?.status);
 
 export const PermissionLevelBadge = createStatusBadge(
   {

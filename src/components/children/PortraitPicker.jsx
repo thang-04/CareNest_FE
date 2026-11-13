@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { Upload, Trash2 } from '@/components/ui/icons';
+import { Upload, Trash2, UserRound } from '@/components/ui/icons';
 import { PortraitImage } from '@/components/PortraitImage';
 import { PORTRAIT_ACCEPT, portraitFileError } from '@/utils/children/enrollmentPhotos';
 
@@ -18,9 +18,16 @@ export function PortraitPicker({ label, file, identity, onChange, error, disable
       )}
       <div className="row row--wrap gap-3">
         <PortraitImage source={file} alt={label} className="avatar avatar--xl avatar--photo">
-          <span className="avatar avatar--xl muted" aria-hidden="true">
-            —
-          </span>
+          {embedded ? (
+            // Khung ảnh trống cùng cỡ ảnh thật: biết trước chỗ ảnh sẽ hiện, không nhảy bố cục khi tải lên
+            <span className="tr-portrait-empty" aria-hidden="true">
+              <UserRound size={28} />
+            </span>
+          ) : (
+            <span className="avatar avatar--xl muted" aria-hidden="true">
+              —
+            </span>
+          )}
         </PortraitImage>
         <div className="stack gap-2">
           <input
@@ -31,7 +38,7 @@ export function PortraitPicker({ label, file, identity, onChange, error, disable
             accept={PORTRAIT_ACCEPT}
             disabled={disabled}
             aria-labelledby={labelledBy}
-            aria-describedby={`${id}-hint${localError || error ? ` ${id}-error` : ''}`}
+            aria-describedby={localError || error ? `${id}-error` : undefined}
             onChange={(event) => {
               const selected = event.target.files?.[0];
               event.target.value = '';
@@ -59,9 +66,6 @@ export function PortraitPicker({ label, file, identity, onChange, error, disable
               </button>
             )}
           </div>
-          <span id={`${id}-hint`} className="field__hint">
-            Không bắt buộc. JPG, PNG hoặc WEBP, tối đa 2 MB. Chọn ảnh rõ mặt.
-          </span>
         </div>
       </div>
       {(localError || error) && (

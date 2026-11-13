@@ -33,3 +33,17 @@ test('mẫu nhập chủ đề nhánh giữ đúng bảng của file xuất, b�
   assert.doesNotMatch(file.html, /Lớp học của bé|ghi chú cũ|Trần Thị Mai|Nguyễn Thị Lan/);
   assert.deepEqual(doc.names, { '2098-09-08': 'Lớp học của bé' });
 });
+
+test('file xuất chỉ ghi một lần chủ đề nhánh hai tuần và giữ ghi chú của cả hai tuần', () => {
+  const branchDoc = {
+    ...doc,
+    schemaVersion: 2,
+    names: { '2098-09-08': 'Hai tuần', '2098-09-15': 'Hai tuần' },
+    notes: { '2098-09-08': 'Ghi chú một', '2098-09-15': 'Ghi chú hai' },
+    branches: [{ key: 'two', themeId: 't1', name: 'Hai tuần', startDate: '2098-09-08', endDate: '2098-09-19', weekNotes: { 0: 'Ghi chú một', 1: 'Ghi chú hai' } }],
+  };
+  const html = docs.branchFile({ ...args, doc: branchDoc }).html;
+  assert.equal(html.split('- Nhánh 1: Hai tuần').length - 1, 1);
+  assert.match(html, /Ghi chú một/);
+  assert.match(html, /Ghi chú hai/);
+});

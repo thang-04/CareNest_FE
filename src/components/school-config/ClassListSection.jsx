@@ -200,7 +200,7 @@ export function ClassListSection({
           <option value="">{principal ? 'Tất cả điểm trường' : 'Điểm trường của tôi'}</option>
           {campuses.map((c) => (
             <option key={c.id} value={c.id}>
-              {c.shortName || c.name}
+              {c.name}
             </option>
           ))}
         </select>

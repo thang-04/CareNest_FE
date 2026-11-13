@@ -1,8 +1,8 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import '@/styles/modules/permissions.css';
 
-/** Thanh 3 tab phân quyền; `actions` (nút của trang) nằm cùng hàng, bên phải. */
-export function PermissionTabs({ actions }) {
+/** Thanh 3 tab điều hướng giữa các trang phân quyền; nút của trang nằm ở đầu trang (`.page__head`), không chen vào hàng tab. */
+export function PermissionTabs() {
   const { pathname } = useLocation();
 
   const tabs = [
@@ -25,7 +25,6 @@ export function PermissionTabs({ actions }) {
           );
         })}
       </nav>
-      {actions && <div className="permission-header-actions">{actions}</div>}
     </div>
   );
 }

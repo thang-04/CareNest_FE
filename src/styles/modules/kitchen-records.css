@@ -8,6 +8,11 @@
   margin-bottom: var(--space-4);
 }
 
+/* Ô lý do nhiều dòng dùng .input (cao 1 dòng, padding dọc 0): thêm lề trên dưới để chữ không dính viền */
+.input.kr-reason {
+  padding-block: var(--space-2);
+}
+
 /* Lưới thực đơn bếp nhận dùng lớp td-week của thực đơn tuần; bỏ chiều rộng tối thiểu của lưới 5 ngày */
 .td-week.kr-menu {
   min-width: 0;
@@ -47,4 +52,523 @@
 
 .kr-window-time {
   width: 140px;
+}
+
+/* Kiểm thực ba bước M1–M3: thẻ chọn mẫu, hộp toàn màn hình, khung biểu mẫu */
+.kr-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: var(--space-4);
+}
+.kr-card {
+  display: flex;
+}
+.kr-card__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.kr-card__body > :last-child {
+  margin-top: auto;
+}
+.kr-card__top {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+.kr-card__name {
+  flex: 1;
+  min-width: 0;
+}
+
+.kr-form-modal .modal__body {
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+.kr-form {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+.kr-form__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-5);
+  border-bottom: 1px solid var(--color-border);
+}
+.kr-form__name {
+  flex: 1;
+  min-width: 220px;
+}
+.kr-form__title {
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
+}
+.kr-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.kr-form__scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--space-4) var(--space-5) var(--space-6);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-5);
+  align-content: start;
+}
+
+.kr-sheet__title {
+  position: relative;
+  text-align: center;
+  display: grid;
+  gap: 2px;
+  margin-bottom: var(--space-3);
+}
+.kr-sheet__title h2 {
+  margin: 0;
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
+}
+.kr-sheet__ref {
+  position: absolute;
+  top: 0;
+  right: 0;
+  text-align: right;
+  font-size: var(--fs-xs);
+}
+.kr-sheet__head {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: var(--space-2) var(--space-3);
+  margin-bottom: var(--space-2);
+}
+.kr-sheet__head .input {
+  height: 32px;
+  font-size: var(--fs-sm);
+}
+.kr-sheet__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+.kr-sheet__part {
+  font-weight: var(--fw-semibold);
+  font-size: var(--fs-sm);
+}
+.kr-sheet__scroll {
+  overflow: auto;
+  max-height: calc(100dvh - 270px);
+  min-height: 260px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+.table.kr-sheet__table {
+  min-width: 100%;
+  width: max-content;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+.table.kr-sheet__table thead {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+}
+.table.kr-sheet__table th,
+.table.kr-sheet__table td {
+  vertical-align: middle;
+  border-right: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+  padding: 3px 6px;
+  font-size: var(--fs-xs);
+}
+.table.kr-sheet__table td {
+  font-size: var(--fs-sm);
+}
+.table.kr-sheet__table th {
+  background: var(--color-surface-muted);
+  text-align: center;
+  white-space: normal;
+  min-width: 76px;
+  line-height: 1.25;
+}
+.kr-sheet__label {
+  font-weight: var(--fw-semibold);
+}
+/* Nhãn cột kèm biểu tượng bút điền chung cả cột */
+.kr-sheet__labelrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+}
+.icon-btn.kr-fillbtn {
+  flex: none;
+  width: 1.75rem;
+  height: 1.75rem;
+  color: var(--color-primary);
+}
+.icon-btn.kr-fillbtn:hover:not(:disabled) {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+.kr-sheet__tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+.kr-sheet__keys {
+  margin: var(--space-2) 0 0;
+}
+/* Phần đầu: đơn vị, người kiểm tra, thời gian (ngày + giờ + "Bây giờ"), địa điểm */
+.kr-when {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.kr-when .input:first-child {
+  flex: 1 1 7rem;
+  min-width: 7rem;
+}
+.kr-when .input:nth-child(2) {
+  flex: 0 1 5rem;
+  min-width: 4.5rem;
+}
+/* Dòng Không đạt: ô ghi chú bắt buộc nhập biện pháp xử lý (QĐ 1246) */
+.kr-sheet__table td .input.kr-need {
+  border-color: var(--color-danger);
+  background: var(--color-surface);
+}
+.kr-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
+}
+.kr-action {
+  min-height: 1.75rem;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--color-danger-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-danger-fg);
+  font-size: var(--fs-xs);
+  cursor: pointer;
+}
+.kr-action:hover:not(:disabled) {
+  background: var(--color-danger-bg);
+}
+.kr-action:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+/* Số liệu lưu mẫu ngoài mức QĐ 1246 (M5) */
+.kr-warn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--color-warning-fg);
+  font-weight: var(--fw-medium);
+}
+.kr-sheet__group {
+  background: var(--color-primary-soft);
+}
+.kr-sheet__sub {
+  font-weight: var(--fw-medium);
+}
+.kr-sheet__nums th {
+  font-weight: var(--fw-regular);
+  color: var(--color-text-muted);
+  padding-block: 1px;
+}
+.table.kr-sheet__table .kr-sheet__tt {
+  width: 40px;
+  min-width: 40px;
+  text-align: center;
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: var(--color-surface);
+}
+.table.kr-sheet__table thead .kr-sheet__tt {
+  background: var(--color-surface-muted);
+  z-index: 4;
+}
+.table.kr-sheet__table tbody td:nth-child(2) {
+  position: sticky;
+  left: 40px;
+  z-index: 1;
+  background: var(--color-surface);
+}
+.table.kr-sheet__table tbody tr.kr-row--fail td {
+  background: var(--color-danger-bg);
+}
+.kr-sheet__center {
+  text-align: center;
+}
+.kr-sheet__table td .input,
+.kr-sheet__table td .select {
+  min-width: 96px;
+  height: 28px;
+  padding-block: 0;
+  font-size: var(--fs-sm);
+}
+.kr-sheet__table td:not(.kr-sheet__center) .input {
+  min-width: 190px;
+}
+.kr-qty {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.kr-sheet__table td .kr-qty .input {
+  min-width: 70px;
+  width: 78px;
+}
+/* Cột có đơn vị (kg, lít, hộp, bìa 200 g...): ô số và cột đơn vị rộng cố định để ô nhập thẳng hàng giữa các dòng */
+.kr-qty--unit {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 4.875rem minmax(0, 1fr);
+  width: 100%;
+}
+/* Cột đệm bên trái rộng bằng cột đơn vị: ô nhập nằm đúng giữa ô bảng, đơn vị treo bên phải */
+.kr-qty--unit::before {
+  content: '';
+}
+.kr-qty__unit {
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Chấm kéo điền ở góc ô (như Excel): hiện khi trỏ chuột hoặc đang gõ ô, kéo xuống/lên để chép ô cho các dòng khác */
+.kr-fill-cell {
+  position: relative;
+}
+.kr-handle {
+  position: absolute;
+  right: var(--space-1);
+  bottom: var(--space-1);
+  z-index: 2;
+  display: none;
+  width: 0.75rem;
+  height: 0.75rem;
+  border: 2px solid var(--color-surface);
+  border-radius: var(--radius-sm);
+  background: var(--color-primary);
+  cursor: crosshair;
+  touch-action: none;
+}
+.kr-handle::after {
+  content: '';
+  position: absolute;
+  inset: -0.5rem;
+}
+.kr-sheet:not(.is-dragging) .kr-fill-cell:hover .kr-handle,
+.kr-sheet:not(.is-dragging) .kr-fill-cell:focus-within .kr-handle,
+.kr-sheet.is-dragging .kr-fill-src .kr-handle {
+  display: block;
+}
+.kr-sheet.is-dragging {
+  cursor: crosshair;
+  user-select: none;
+}
+.table.kr-sheet__table td.kr-fill-range {
+  background: var(--color-primary-soft);
+  outline: 1px dashed var(--color-primary);
+  outline-offset: -1px;
+}
+.table.kr-sheet__table td.kr-fill-src {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+.kr-tick {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--color-primary);
+}
+.kr-tick:disabled {
+  cursor: default;
+}
+.kr-tick-all {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-weight: var(--fw-regular);
+  cursor: pointer;
+}
+
+.kr-sign__row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-4);
+  text-align: center;
+}
+.kr-sign__box {
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: var(--space-1);
+  min-height: 140px;
+}
+.kr-sign__img {
+  max-width: 220px;
+  max-height: 90px;
+  object-fit: contain;
+}
+.kr-sign__empty {
+  margin-top: var(--space-6);
+}
+@media (max-width: 720px) {
+  .kr-sheet__head,
+  .kr-sign__row {
+    grid-template-columns: 1fr;
+  }
+  .kr-sheet__ref {
+    position: static;
+  }
+}
+
+.kr-progress {
+  cursor: default;
+}
+button.kr-progress {
+  cursor: pointer;
+}
+.kr-lock {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.kr-scope {
+  border: 0;
+  padding: 0;
+  margin: var(--space-4) 0 0;
+  display: grid;
+  gap: var(--space-2);
+}
+.kr-scope__legend {
+  margin-bottom: var(--space-2);
+  padding: 0;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+}
+.kr-scope--inline {
+  grid-template-columns: 1fr 1fr;
+  margin-top: 0;
+  margin-bottom: var(--space-4);
+}
+.kr-scope--inline .kr-scope__legend {
+  grid-column: 1 / -1;
+  margin-bottom: 0;
+}
+/* Danh sách dòng để tích chọn một số dòng khi điền hoặc xóa cột */
+.kr-pick {
+  margin-top: var(--space-3);
+}
+.kr-pick__tools {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+.kr-pick__tools .text-xs {
+  margin-left: auto;
+}
+.kr-pick__list {
+  max-height: 14rem;
+  margin: 0;
+  padding: var(--space-1);
+  overflow-y: auto;
+  list-style: none;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+.kr-pick__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.kr-pick__row:hover {
+  background: var(--color-surface-hover);
+}
+.kr-pick__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.kr-pick__value {
+  flex: none;
+}
+.kr-scope__opt {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  cursor: pointer;
+  transition:
+    border-color var(--duration-fast) ease,
+    background var(--duration-fast) ease;
+}
+.kr-scope__opt:hover {
+  border-color: var(--color-primary-border);
+}
+.kr-scope__opt.is-active {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+.kr-scope__opt input {
+  margin-top: var(--space-1);
+  accent-color: var(--color-primary);
+}
+.kr-scope__text {
+  display: grid;
+  gap: 2px;
+}
+/* Cột đang được điền, hiện ở đầu hộp thoại */
+.kr-fill__target {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+.kr-fill__target strong {
+  color: var(--color-text);
+}
+.kr-supplier-preview {
+  margin-bottom: var(--space-2);
+}
+.kr-history ul {
+  margin: var(--space-1) 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: var(--space-1);
 }

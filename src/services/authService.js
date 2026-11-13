@@ -93,7 +93,13 @@ export const endLocalSession = ({ broadcast = true, operation = null } = {}) => 
 // "Vai trò & quyền" của UI vẫn là demo ⇒ người dùng thật mang quyền mặc định của vai trò; quyền BE giữ ở bePermissions
 const toWebUser = (profile) => {
   const user = normalizeAccountProfile(profile);
-  return user.role ? { ...withPermissions(user), bePermissions: user.permissions } : user;
+  return user.role
+    ? {
+        ...withPermissions(user),
+        bePermissions: user.permissions,
+        beSchoolWidePermissions: user.schoolWidePermissions,
+      }
+    : user;
 };
 
 const keycloakDevLogin = async ({ identifier, email, password, remember }) => {

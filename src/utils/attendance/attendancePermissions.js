@@ -1,4 +1,6 @@
 import { ROLES } from '@/models/User';
+import { PERMISSIONS } from '@/models/bePermissions';
+import { hasBePermission, inBePermissionScope } from '@/utils/bePermissions';
 import { MEAL_COUNT_STATUS, HANDOVER_STATUS } from '@/models/attendance/attendanceConstants';
 
 /*
@@ -17,27 +19,37 @@ export const isClassTeacher = (cls, user) =>
   [ROLES.TEACHER, ROLES.TEAM_LEADER].includes(user?.role) &&
   (typeof cls.teaches === 'boolean' ? cls.teaches : (cls.teacherIds || []).includes(user.id));
 
-export const canRecordAttendance = (cls, user) => isClassTeacher(cls, user);
+export const canRecordAttendance = (cls, user) =>
+  hasBePermission(user, PERMISSIONS.ATTENDANCE_RECORD) && (cls?.canRecord ?? isClassTeacher(cls, user));
+
+export const canRecordDailyHealth = (cls, user) =>
+  hasBePermission(user, PERMISSIONS.DAILY_HEALTH_RECORD) && (cls?.canRecord ?? isClassTeacher(cls, user));
+
+export const canRecordPickup = (cls, user) =>
+  hasBePermission(user, PERMISSIONS.PICKUP_RECORD) && (cls?.canRecord ?? isClassTeacher(cls, user));
 
 // BA: Hiệu trưởng cấu hình giờ chốt và thời hạn mở lại; chỉ Phó hiệu trưởng của campus thực hiện mở lại
 // Cần chốt 21/10/2026: Hiệu trưởng mở lại được lớp ở cả 2 điểm trường; PHT chỉ lớp điểm trường mình
 export const canUnlockAttendanceDay = (cls, user) =>
-  typeof cls?.canUnlock === 'boolean'
+  hasBePermission(user, PERMISSIONS.ATTENDANCE_UNLOCK) &&
+  (typeof cls?.canUnlock === 'boolean'
     ? cls.canUnlock
-    : !!cls && (user?.role === ROLES.PRINCIPAL || (user?.role === ROLES.VICE_PRINCIPAL && cls.campusId === user.campusId));
+    : !!cls &&
+      (user?.role === ROLES.PRINCIPAL ||
+        (user?.role === ROLES.VICE_PRINCIPAL && inBePermissionScope(user, PERMISSIONS.ATTENDANCE_UNLOCK, cls.campusId))));
 
 export const canViewAttendance = (cls, user) => {
   if (!cls || !user) return false;
+  if (!hasBePermission(user, PERMISSIONS.ATTENDANCE_VIEW, PERMISSIONS.ATTENDANCE_RECORD)) return false;
   // BE chỉ trả lớp trong phạm vi người dùng
   if (typeof cls.canRecord === 'boolean') return true;
   if (user.role === ROLES.PRINCIPAL) return true;
-  if (user.role === ROLES.VICE_PRINCIPAL) return cls.campusId === user.campusId;
+  if (user.role === ROLES.VICE_PRINCIPAL) return inBePermissionScope(user, PERMISSIONS.ATTENDANCE_VIEW, cls.campusId);
   return isClassTeacher(cls, user);
 };
 
 /** Roles that can open the class attendance summary (#66). */
-export const canOpenAttendanceSummary = (user) =>
-  [ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL, ROLES.TEACHER, ROLES.TEAM_LEADER].includes(user?.role);
+export const canOpenAttendanceSummary = (user) => hasBePermission(user, PERMISSIONS.ATTENDANCE_VIEW);
 
 export const canViewMealCounts = (user) => [ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL, ROLES.KITCHEN_STAFF].includes(user?.role);
 
@@ -55,17 +67,19 @@ const confirmsCampus = (campusId, user) => user?.role === ROLES.PRINCIPAL || lea
 
 // BE trả cờ canConfirm / canAdjust (theo phân công + năm học); mock không có cờ thì xét theo vai trò
 export const canConfirmMealCount = (count, user) =>
-  count?.canConfirm ?? (confirmsCampus(count?.campusId, user) && count?.status === MEAL_COUNT_STATUS.PENDING_CONFIRMATION);
+  hasBePermission(user, PERMISSIONS.MEAL_COUNT_CONFIRM) &&
+  (count?.canConfirm ?? (confirmsCampus(count?.campusId, user) && count?.status === MEAL_COUNT_STATUS.PENDING_CONFIRMATION));
 
 /** Cảnh báo "cần xác nhận lại" chỉ cho người duyệt; bếp chỉ thấy số đã xác nhận. */
 export const canSeeMealReconfirmNotice = (user) => !!user && user.role !== ROLES.KITCHEN_STAFF;
 
 /** NUT-02: điều chỉnh suất thay thế từng lớp (ghi lý do): sau giờ khóa, cả khi đã xác nhận (chuyển sang chờ xác nhận lại). */
-// BE có cờ canAdjust (gồm PHT được cấp quyền cả trường) thì theo cờ; mock không có cờ thì xét theo vai trò
+// BE có cờ canAdjust (HT, PHT trong phạm vi được cấp) thì theo cờ; mock không có cờ thì xét theo vai trò (HT sửa được — Cần chốt 10/11/2026)
 export const canAdjustMealCount = (count, user) =>
   !!count?.id &&
   (count.canAdjust ??
-    (leadsCampus(count.campusId, user) && [MEAL_COUNT_STATUS.PENDING_CONFIRMATION, MEAL_COUNT_STATUS.CONFIRMED].includes(count.status)));
+    ((user?.role === ROLES.PRINCIPAL || leadsCampus(count.campusId, user)) &&
+      [MEAL_COUNT_STATUS.PENDING_CONFIRMATION, MEAL_COUNT_STATUS.CONFIRMED].includes(count.status)));
 
 export const canOpenMealHandover = (user) => [ROLES.TEACHER, ROLES.TEAM_LEADER, ROLES.KITCHEN_STAFF].includes(user?.role);
 

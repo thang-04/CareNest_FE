@@ -6,19 +6,12 @@
 import { GUARDIAN_TO_COMPANION_RELATION, buildEmptyExam } from '@/models/children/healthExamForm';
 import { historyToExam, profileToExamAdmin } from '@/models/children/childProfile';
 import { bmiForZScore, bmiLmsOf } from '@/services/children/mock/bmiForAgeRule';
-import {
-  C2_OCT_CAMPAIGN,
-  MEASUREMENT_ROUND,
-  OPEN_CAMPAIGN,
-  SEED_CAMPAIGN_DATES,
-  openCampaignDates,
-  seedCampaignId,
-} from './healthCheckSeed';
+import { C2_OCT_CAMPAIGN, MEASUREMENT_ROUND, OPEN_CAMPAIGN, openCampaignDates, seedCampaignId } from './healthCheckSeed';
 
 // Ngày khám của các đợt đã đóng (khớp healthCheckSeed); đợt tháng 9 là lần gần nhất.
 const DATES = ['2026-03-16', '2026-06-15', '2026-09-15'];
 const LATEST_DATE = '2026-09-15';
-// Cân đo tại lớp trước khi có vòng đầu/vận động: dữ liệu cũ chỉ có chiều cao, cân nặng (ngoài đợt khám).
+// Cân đo tại lớp ngoài đợt khám (dữ liệu cũ): chỉ chiều cao, cân nặng, không vòng đầu.
 const LEGACY_DATE = '2025-12-15';
 // Cân đo tại lớp sau khi có phiếu Phụ lục II (ngoài đợt khám).
 const CLASS_MEASURE_DATE = '2026-10-10';
@@ -26,8 +19,8 @@ const CLASS_MEASURE_DATE = '2026-10-10';
 const ABSENT_JUNE = ['ch_013', 'ch_029'];
 
 /*
- * Kết quả bất thường dựng sẵn cho đợt tháng 3 và tháng 6 (dữ liệu giả) để các đợt cũ có trẻ cần theo dõi
- * và thấy diễn biến qua các đợt. head: độ lệch vòng đầu (cm), gross/fine: vận động có bất thường.
+ * Bất thường dựng sẵn cho đợt tháng 3 và tháng 6 (dữ liệu giả) để các đợt cũ có trẻ cần theo dõi và thấy diễn biến
+ * qua các đợt. head: độ lệch vòng đầu (cm), gross/fine: vận động thô/tinh chưa theo kịp độ tuổi.
  */
 const PAST_ABNORMAL = {
   '2026-03-16': {
@@ -41,26 +34,83 @@ const PAST_ABNORMAL = {
   '2026-06-15': { 3: { fine: true }, 8: { head: 5.5 }, 19: { gross: true }, 25: { head: -3.2, gross: true } },
 };
 
-// Đợt tháng 9: vài trẻ có vòng đầu, vận động bất thường (kết quả mẫu cũ, chỉ để xem lại).
+// Đợt tháng 9: vài trẻ có vòng đầu, vận động bất thường.
 const latestAbnormal = (n) => ({
   head: n % 8 === 3 ? -3.2 : n % 12 === 7 ? 5.5 : 0,
   fine: n % 8 === 3 || n % 10 === 5,
   gross: n % 12 === 7 && n > 12,
 });
 
-const EXAM_NOTES = {
-  '2026-03-16': (idx) => (idx % 6 === 0 ? 'Răng miệng bình thường.' : ''),
-  '2026-06-15': (idx) => (idx % 7 === 3 ? 'Bác sĩ dặn nhắc trẻ uống đủ nước, ngủ trưa đủ giấc.' : ''),
-  '2026-09-15': (idx) => (idx % 8 === 5 ? 'Mắt, tai mũi họng bình thường.' : ''),
+// Lời dặn của bác sĩ cho vài trẻ bình thường ở các đợt đã đóng.
+const PAST_ADVICE = {
+  '2026-03-16': (idx) => (idx % 6 === 0 ? 'Nhắc trẻ đánh răng sau bữa ăn.' : ''),
+  '2026-06-15': (idx) => (idx % 7 === 3 ? 'Nhắc trẻ uống đủ nước, ngủ trưa đủ giấc.' : ''),
+  '2026-09-15': (idx) => (idx % 8 === 5 ? 'Cho trẻ đọc sách, xem tranh đủ ánh sáng.' : ''),
 };
 
 const DOCTOR = 'BS. Nguyễn Minh Tâm';
 const DOCTOR_C2 = 'BS. Đặng Quốc Việt';
 
 /*
+ * Phiếu Phụ lục II đã kết luận của một trẻ ở đợt đã đóng (BE chỉ có phiếu khám hoặc số đo kỳ cân đo, không có mẫu cũ).
+ * Đã tiếp xúc người bệnh lao trước ngày khám (tbKnown) ⇒ nguy cơ lao, chuyển khám sàng lọc như ca ch_006; vòng đầu kèm vận động
+ * (2 dấu hiệu) ⇒ chuyển khám phát triển; vấn đề khác ⇒ tư vấn; không vấn đề ⇒ bình thường.
+ */
+const pastExamSpec = ({ head = 0, gross = false, fine = false }, { headApplies, weightFactor, advice, tbKnown }) => {
+  const smallHead = headApplies && head < -3;
+  const largeHead = headApplies && head > 5;
+  const thin = weightFactor < 0.85;
+  const heavy = weightFactor > 1.2;
+  const found = [
+    smallHead && ['Vòng đầu nhỏ hơn khoảng tham khảo.', 'Đo lại vòng đầu ở lần khám sau.'],
+    largeHead && ['Vòng đầu lớn hơn khoảng tham khảo.', 'Đo lại vòng đầu ở lần khám sau.'],
+    gross && ['Vận động thô (chạy, nhảy) chưa theo kịp độ tuổi.', 'Cho trẻ chơi vận động ngoài trời mỗi ngày.'],
+    fine && ['Vận động tinh (cầm bút, xếp hình) chưa theo kịp độ tuổi.', 'Cho trẻ tô màu, xếp hình mỗi ngày.'],
+    thin && ['Thiếu cân so với tuổi.', 'Bổ sung bữa phụ, theo dõi cân nặng hằng tháng.'],
+    heavy && ['Thừa cân so với tuổi.', 'Giảm đồ ngọt, tăng vận động ngoài trời.'],
+  ].filter(Boolean);
+  const spec = {
+    headStatus: smallHead ? 'SMALL' : largeHead ? 'LARGE' : '',
+    development: gross || fine ? { motor: 'NO' } : undefined,
+    nutrition: thin ? { statuses: ['MALNUTRITION'] } : heavy ? { statuses: ['OVERWEIGHT'] } : undefined,
+  };
+  const issueText = found.map(([issue]) => issue).join(' ');
+  if (tbKnown)
+    return {
+      ...spec,
+      conclusion: {
+        normal: false,
+        tbRisk: true,
+        healthIssue: found.length > 0,
+        issueText,
+        action: 'REFERRAL',
+        specialty: 'Lao và bệnh phổi – Trung tâm Y tế',
+        adviceText: 'Đưa trẻ đến cơ sở y tế để được khám sàng lọc lao.',
+        parentOpinion: 'Phụ huynh đồng ý đưa trẻ đi khám sàng lọc lao.',
+      },
+    };
+  if (!found.length) return { ...spec, conclusion: advice ? { action: 'ADVICE', adviceText: advice } : undefined };
+  const referral = (smallHead || largeHead) && (gross || fine);
+  return {
+    ...spec,
+    conclusion: referral
+      ? {
+          normal: false,
+          healthIssue: true,
+          issueText,
+          action: 'REFERRAL',
+          specialty: 'Nhi khoa – khám phát triển',
+          adviceText: 'Phụ huynh đưa trẻ đi khám chuyên khoa và báo lại nhà trường.',
+          parentOpinion: 'Phụ huynh đồng ý đưa trẻ đi khám chuyên khoa.',
+        }
+      : { normal: false, healthIssue: true, issueText, action: 'ADVICE', adviceText: found.map(([, a]) => a).join(' ') },
+  };
+};
+
+/*
  * Phiếu Phụ lục II dựng sẵn để thử mọi trường hợp (dữ liệu giả). Mỗi trẻ 1 trường hợp, ghi ở `case`.
  * campaign: 'open' = đợt đang diễn ra ở điểm trường c1; C2_OCT_CAMPAIGN.id = đợt đã đóng đầu tháng 10 ở c2.
- * draft: phiếu nháp dừng ở bước đó (0–4); các bước trước đã nhập đủ. legacy: kết quả mẫu cũ nhập trong đợt.
+ * draft: phiếu nháp dừng ở bước đó (0–4); các bước trước đã nhập đủ.
  * Mọi kết quả đã kết luận là đã công bố (user chốt 2026-10-23). Có người đi cùng + mức Cần theo dõi sát thì có ý kiến phụ huynh.
  * Số định danh giả bắt đầu bằng 999 (không có mã tỉnh này). Lớp Chồi 1 để trống: khám từ đầu.
  */
@@ -196,7 +246,17 @@ const EXAM_CASES = {
       adviceText: 'Giảm đồ ngọt, nước ngọt; tăng vận động ngoài trời mỗi ngày.',
     },
   },
-  ch_018: { case: 'Kết quả mẫu cũ nhập trong đợt (trước phiếu Phụ lục II)', legacy: { gross: 'NO_ABNORMALITY', fine: 'ABNORMAL' } },
+  ch_018: {
+    case: 'Có vấn đề (vận động tinh), tư vấn',
+    development: { motor: 'NO' },
+    conclusion: {
+      normal: false,
+      healthIssue: true,
+      issueText: 'Vận động tinh (cầm bút, xếp hình) chưa theo kịp độ tuổi.',
+      action: 'ADVICE',
+      adviceText: 'Cho trẻ tô màu, xếp hình mỗi ngày; giáo viên theo dõi ở lớp.',
+    },
+  },
   /* ---------- Lớp Lá 1 (c1, cô Hoa; trẻ trên 60 tháng không đo vòng đầu, ví dụ ch_020) ---------- */
   ch_019: {
     case: 'Phiếu cũ mẫu FOLLOW_UP (kết luận khi trẻ còn phiếu theo dõi): "Chưa ghi nhận thêm bất thường", có ý kiến phụ huynh',
@@ -291,7 +351,7 @@ const ROUND_BMI_Z = { ch_026: 3.2, ch_029: 1.2, ch_031: -0.4, ch_032: 0.5, ch_03
 const pad5 = (n) => String(n).padStart(5, '0');
 
 /** Phiếu theo trường hợp; phiếu nháp chỉ có các bước trước bước đang dừng. Phần I lấy từ hồ sơ mẫu của trẻ như BE. */
-const seedExam = (ch, n, spec, { headApplies, doctor }) => {
+const seedExam = (ch, n, spec, { headApplies, doctor, date }) => {
   const e = buildEmptyExam();
   const g = ch.guardians?.[0];
   const stop = spec.draft ?? 5;
@@ -307,6 +367,8 @@ const seedExam = (ch, n, spec, { headApplies, doctor }) => {
     };
   if (stop === 0) return e;
   Object.assign(e.history, historyToExam(seedMedicalHistoryOf(ch)));
+  // Tiếp xúc người bệnh lao khai sau ngày khám thì lúc khám chưa có (phiếu của đợt cũ).
+  if (date && e.history.tbContactDate > date) Object.assign(e.history, { tbContact: 'NO', tbContactDate: '' });
   if (stop === 1) return e;
   Object.assign(e.vitals, {
     temperatureC: 36.8,
@@ -342,7 +404,6 @@ const ageMonthsOn = (dob, on) => {
 };
 
 const round1 = (n) => Math.round(n * 10) / 10;
-const motor = (abnormal) => (abnormal ? 'ABNORMAL' : 'NO_ABNORMALITY');
 
 const buildMeasurements = (children, classes) => {
   const classById = Object.fromEntries(classes.map((c) => [c.id, c]));
@@ -387,20 +448,27 @@ const buildMeasurements = (children, classes) => {
         const slow = n % 7 === 0 && date === LATEST_DATE ? -0.6 : 0;
         const special = date === LATEST_DATE ? latestAbnormal(n) : PAST_ABNORMAL[date]?.[n] || {};
         const head = 46.3 + (age - 24) * 0.075 + (special.head || ((n % 5) - 2) * 0.4);
+        const headApplies = age <= 60;
+        const tbDate = seedMedicalHistoryOf(ch).tbContact.contactDate;
+        const tbKnown = !!tbDate && tbDate <= date;
+        const spec = pastExamSpec(special, { headApplies, weightFactor, advice: PAST_ADVICE[date](idx), tbKnown });
         list.push({
           id: `hm_${ch.id}_${k}`,
           childId: ch.id,
           date,
           heightCm: round1(heightAt(age)),
           weightKg: round1(weightAt(age) + slow),
-          headCircumferenceCm: age > 60 ? null : round1(head),
-          grossMotor: motor(special.gross),
-          fineMotor: motor(special.fine),
-          note: EXAM_NOTES[date](idx),
-          campaignId: SEED_CAMPAIGN_DATES.includes(date) ? seedCampaignId(ch.campusId, date) : null,
+          headCircumferenceCm: headApplies ? round1(head) : null,
+          grossMotor: null,
+          fineMotor: null,
+          note: '',
+          exam: seedExam(ch, n, spec, { headApplies, doctor: ch.campusId === 'c2' ? DOCTOR_C2 : DOCTOR, date }),
+          examStatus: 'CONCLUDED',
+          concludedAt: `${date}T09:30:00.000Z`,
+          campaignId: seedCampaignId(ch.campusId, date),
           measuredBy: teacherId,
           published: true,
-          publishedAt: `${date}T09:00:00.000Z`,
+          publishedAt: `${date}T09:30:00.000Z`,
           createdAt: `${date}T08:30:00.000Z`,
           edits: [],
         });
@@ -463,7 +531,7 @@ const buildMeasurements = (children, classes) => {
         const headApplies = age <= 60;
         // Phiếu nháp chưa tới bước số đo thì chưa có chiều cao, cân nặng, vòng đầu.
         const withNumbers = spec.draft == null || spec.draft >= 2;
-        const concluded = spec.draft == null && !spec.legacy;
+        const concluded = spec.draft == null;
         const weightKg = withNumbers ? round1((12.2 + (age - 24) * 0.17) * (spec.weightFactor || weightFactor)) : '';
         list.push({
           id: `hm_${ch.id}_${spec.campaign === 'c2_oct' ? '2610' : 'open'}`,
@@ -472,17 +540,17 @@ const buildMeasurements = (children, classes) => {
           heightCm: withNumbers ? round1(heightAt(age) + 0.6) : '',
           weightKg,
           headCircumferenceCm: !withNumbers ? '' : headApplies ? round1(46.4 + (age - 24) * 0.075 + (spec.headOffset || 0)) : null,
-          grossMotor: spec.legacy?.gross ?? null,
-          fineMotor: spec.legacy?.fine ?? null,
-          note: spec.legacy ? 'Nhập theo mẫu cũ trước khi có phiếu Phụ lục II.' : '',
-          exam: spec.legacy ? null : seedExam(ch, n, spec, { headApplies, doctor: spec.campaign === 'c2_oct' ? DOCTOR_C2 : DOCTOR }),
-          examStatus: spec.legacy ? null : concluded ? 'CONCLUDED' : 'DRAFT',
+          grossMotor: null,
+          fineMotor: null,
+          note: '',
+          exam: seedExam(ch, n, spec, { headApplies, doctor: spec.campaign === 'c2_oct' ? DOCTOR_C2 : DOCTOR, date }),
+          examStatus: concluded ? 'CONCLUDED' : 'DRAFT',
           concludedAt: concluded ? `${date}T09:30:00.000Z` : null,
           campaignId: campaign.id,
           measuredBy: teacherId,
           // Lưu kết luận là công bố cho phụ huynh; phiếu nháp chưa công bố (user chốt 2026-10-23).
-          published: concluded || !!spec.legacy,
-          publishedAt: concluded || spec.legacy ? `${date}T09:30:00.000Z` : null,
+          published: concluded,
+          publishedAt: concluded ? `${date}T09:30:00.000Z` : null,
           createdAt: `${date}T08:30:00.000Z`,
           // Phiếu đã sửa sau khi kết luận: lịch sử có lý do, giá trị cũ và mới.
           edits: spec.edited

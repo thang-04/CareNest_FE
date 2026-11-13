@@ -3,6 +3,31 @@
  * bằng POST /school-years/{id}/copy (BE giữ nguyên dữ liệu năm đích đã có, dòng không chép được trả về kèm lý do).
  */
 
+/** Năm học liền trước ngày bắt đầu (kết thúc trước ngày đó, muộn nhất); không tính năm đang sửa. */
+export const previousYearOf = (years, startDate, excludeId = null) =>
+  [...years]
+    .filter((y) => y.id !== excludeId && y.endDate && startDate && y.endDate < startDate)
+    .sort((a, b) => b.endDate.localeCompare(a.endDate))[0] || null;
+
+const shiftIso = (iso, { months = 0, days = 0 }) => {
+  const [y, m, d] = iso.split('-').map(Number);
+  const date = new Date(y, m - 1 + months, d + days);
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+};
+
+/**
+ * Ngày mở chuẩn bị gợi ý (BE CFG-YR-05): 1 tháng trước ngày bắt đầu, không sớm hơn ngày sau khi năm liền trước kết thúc,
+ * không trước hôm nay. BE tính lại khi tạo năm không gửi ngày này.
+ */
+export const defaultPrepDate = (startDate, years, today, excludeId = null) => {
+  if (!startDate) return '';
+  let prep = shiftIso(startDate, { months: -1 });
+  const previous = previousYearOf(years, startDate, excludeId);
+  if (previous && prep <= previous.endDate) prep = shiftIso(previous.endDate, { days: 1 });
+  return today && prep < today ? today : prep;
+};
+
 /** Năm học liền sau năm mới nhất, để Hiệu trưởng ít phải gõ. */
 export const suggestNextYear = (years) => {
   const latest = [...years].sort((a, b) => b.startDate.localeCompare(a.startDate))[0];

@@ -1,23 +1,24 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Plus, RotateCcw, Info, Search, Scale } from '@/components/ui/icons';
+import { Link, useNavigate } from 'react-router-dom';
+import { Plus, RotateCcw, Search, Scale } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useHealthChecks } from '@/hooks/children/useHealthChecks';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Pagination, paginate } from '@/components/ui/Pagination';
-import { ProgressBar } from '@/components/ui/ProgressBar';
+import { SegmentedProgress } from '@/components/ui/SegmentedProgress';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
-import { RowActions } from '@/components/ui/RowActions';
+import { clickableRowProps } from '@/utils/clickableRow';
 import { CampaignKindBadge, CampaignStatusBadge } from '@/components/children/ChildBadges';
-import { CAMPAIGN_KIND, CAMPAIGN_KIND_LABELS, CAMPAIGN_STATUS, CAMPAIGN_STATUS_LABELS } from '@/models/children/healthCheckConstants';
+import { CAMPAIGN_KIND, CAMPAIGN_KIND_LABELS, CAMPAIGN_STATUS_LABELS } from '@/models/children/healthCheckConstants';
 import { formatDate } from '@/utils/format';
-import { canManageHealthCheck, isPrincipal, isTeacherRole } from '@/utils/children/childrenPermissions';
+import { canManageHealthCheck, isPrincipal } from '@/utils/children/childrenPermissions';
 import { healthCheckCrumbs } from '@/utils/children/breadcrumbs';
 import '@/styles/modules/children.css';
+import { CampusFilter } from '@/components/ui/CampusFilter';
 
-const COLS = 8;
+const COLS = 7;
 
 // Cộng 5 số BE trả ở progress.bmi (mỗi trẻ một mức) để hiện một dòng tổng ở danh sách; không tính lại từ số đo (HLT-18).
 const bmiWarningTotal = (progress) => Object.values(progress.bmi || {}).reduce((sum, n) => sum + n, 0);
@@ -28,6 +29,7 @@ const bmiWarningTotal = (progress) => Object.values(progress.bmi || {}).reduce((
  */
 export default function HealthCheckListPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const md = useMasterData();
   const [campusId, setCampusId] = useState('');
   const [kind, setKind] = useState('');
@@ -61,35 +63,18 @@ export default function HealthCheckListPage() {
         {manage && <div className="row row--wrap gap-2">{createActions}</div>}
       </div>
 
-      <div className="alert alert--info mb-16">
-        <Info size={18} />
-        <div>
-          {isTeacherRole(user)
-            ? 'Mở đợt khám hoặc kỳ cân đo đang diễn ra để nhập kết quả cho trẻ lớp bạn phụ trách.'
-            : 'Đợt khám sức khỏe thường 1 lần/năm học; kỳ cân đo khoảng 3 tháng/lần. Mỗi điểm trường chỉ có một đợt khám hoặc kỳ cân đo chưa đóng. Giáo viên phụ trách lớp nhập kết quả; Hiệu trưởng hoặc Phó hiệu trưởng đóng khi nhập xong.'}{' '}
-          Danh sách gồm các đợt, kỳ bắt đầu trong năm học {yearLabel}; chọn năm khác ở thanh trên để xem đợt cũ.
-        </div>
-      </div>
-
       <div className="card">
         <div className="filter-bar">
           {isPrincipal(user) && (
-            <select
-              className="select"
+            <CampusFilter
+              campuses={md.campuses}
               value={campusId}
-              aria-label="Điểm trường"
-              onChange={(e) => {
-                setCampusId(e.target.value);
+              onChange={(v) => {
+                setCampusId(v);
                 setPage(1);
               }}
-            >
-              <option value="">Tất cả điểm trường</option>
-              {md.campuses.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+              hideLabel
+            />
           )}
           <select
             className="select"
@@ -141,7 +126,6 @@ export default function HealthCheckListPage() {
                   <th className="center">Trạng thái</th>
                   <th className="center">Đã nhập kết quả</th>
                   <th>Cảnh báo</th>
-                  <th className="cell--actions">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
@@ -177,7 +161,8 @@ export default function HealthCheckListPage() {
                   </tr>
                 ) : (
                   pageRows.map((c) => (
-                    <tr key={c.id}>
+                    // Bấm dòng mở chi tiết đợt (DESIGN §6.3), không còn cột Thao tác
+                    <tr key={c.id} className="row-click" {...clickableRowProps(() => navigate(`/children/health-checks/${c.id}`))}>
                       <td className="tr-campaign-name">
                         <Link className="fw-600 text-primary" to={`/children/health-checks/${c.id}`}>
                           {c.name}
@@ -195,10 +180,21 @@ export default function HealthCheckListPage() {
                         <CampaignStatusBadge status={c.status} />
                       </td>
                       <td className="tr-progress-cell center">
-                        <ProgressBar
-                          value={c.progress.recorded}
+                        {/* Xanh lá: đã nhập; xám: vắng — đợt đã đóng có trẻ vắng vẫn đọc là đủ, không cả thanh xám (user yêu cầu 2026-11-11) */}
+                        <SegmentedProgress
+                          compact
+                          label="Đã nhập kết quả"
                           total={c.progress.total}
-                          ended={c.status === CAMPAIGN_STATUS.CLOSED || c.status === CAMPAIGN_STATUS.CANCELLED}
+                          text={c.progress.total ? `${c.progress.recorded}/${c.progress.total}` : '—'}
+                          segments={[
+                            { key: 'recorded', label: 'Đã nhập', value: c.progress.recorded, tone: 'green' },
+                            {
+                              key: 'absent',
+                              label: c.kind === CAMPAIGN_KIND.MEASUREMENT ? 'Vắng cân đo' : 'Vắng khám',
+                              value: c.progress.absent || 0,
+                              tone: 'gray',
+                            },
+                          ]}
                         />
                         {c.progress.absent > 0 && (
                           <div className="muted text-xs">
@@ -222,12 +218,6 @@ export default function HealthCheckListPage() {
                             <div className="text-danger">{c.progress.closeWatch} cần theo dõi sát</div>
                           </>
                         )}
-                      </td>
-                      <td className="cell--actions">
-                        <RowActions
-                          view={{ to: `/children/health-checks/${c.id}`, label: `Xem ${CAMPAIGN_KIND_LABELS[c.kind].toLowerCase()}` }}
-                          name={c.name}
-                        />
                       </td>
                     </tr>
                   ))

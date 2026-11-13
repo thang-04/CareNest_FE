@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { HeartPulse, RotateCcw, Search, Stethoscope, Users } from '@/components/ui/icons';
+import { useNavigate } from 'react-router-dom';
+import { FileText, RotateCcw, Search, Stethoscope, Users } from '@/components/ui/icons';
 import { useHealthCheckClass } from '@/hooks/children/useHealthChecks';
 import { useFilterParams } from '@/hooks/useFilterParams';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
-import { RowActions } from '@/components/ui/RowActions';
+import { clickableRowProps } from '@/utils/clickableRow';
+import { RosterActions } from './RosterActions';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { FilterChips } from '@/components/ui/FilterChips';
 import { Pagination, paginate } from '@/components/ui/Pagination';
@@ -17,6 +18,8 @@ import { formatDate, normalizeText } from '@/utils/format';
 const COLS = 6;
 // 10 trẻ một trang (user yêu cầu 2026-10-23).
 const PAGE_SIZE = 10;
+// Sổ dưới dòng lớp: 5 trẻ/trang để bảng lớp không bị đẩy quá dài (user yêu cầu 2026-11-11).
+const EMBEDDED_PAGE_SIZE = 5;
 // Bộ lọc lưu trên URL: mở phiếu khám rồi quay lại vẫn giữ. Không lọc theo công bố: lưu kết luận là công bố (2026-10-23).
 const FILTER_DEFAULTS = { keyword: '', result: '', conclusion: '' };
 
@@ -28,6 +31,8 @@ const conclusionNote = (c) => (c?.specialty ? `Chuyển khám: ${c.specialty}` :
  * embedded: sổ ngay dưới dòng lớp của bảng tiến độ (không khung card, không tiêu đề riêng).
  */
 export function HealthCheckClassRoster({ campaignId, classId, embedded = false }) {
+  const pageSize = embedded ? EMBEDDED_PAGE_SIZE : PAGE_SIZE;
+  const navigate = useNavigate();
   const { roster, loading, error, reload } = useHealthCheckClass(campaignId, classId);
   const rows = useMemo(() => roster?.children || [], [roster]);
   const concluded = rows.filter((r) => r.result === CHILD_RESULT_STATUS.RECORDED).length;
@@ -42,7 +47,7 @@ export function HealthCheckClassRoster({ campaignId, classId, embedded = false }
       .filter((r) => !conclusion || r.conclusionCategory === conclusion)
       .filter((r) => !kw || normalizeText(`${r.fullName} ${r.code}`).includes(kw));
   }, [rows, keyword, result, conclusion]);
-  const current = Math.min(page, Math.max(1, Math.ceil(visible.length / PAGE_SIZE)));
+  const current = Math.min(page, Math.max(1, Math.ceil(visible.length / pageSize)));
   const filtered = activeKeys.length > 0;
   const setFilter = (patch) => {
     setFilters(patch);
@@ -132,11 +137,26 @@ export function HealthCheckClassRoster({ campaignId, classId, embedded = false }
                 </td>
               </tr>
             ) : (
-              paginate(visible, current, PAGE_SIZE).map((r) => {
+              paginate(visible, current, pageSize).map((r) => {
                 const legacy = r.source === MEASUREMENT_SOURCE.LEGACY;
                 const hasExam = !!r.measurementId && !legacy;
+                const healthLink = `/children/${r.childId}/health`;
+                // Việc chính của dòng: giáo viên khám / khám tiếp; có phiếu thì xem phiếu. Bấm dòng làm việc chính, không có thì
+                // mở sổ sức khỏe (DESIGN §6.3: bấm dòng mở chi tiết, không icon Xem).
+                const primary =
+                  roster.canRecord && r.result === CHILD_RESULT_STATUS.NOT_RECORDED
+                    ? { label: 'Khám', strong: true }
+                    : roster.canRecord && r.result === CHILD_RESULT_STATUS.IN_PROGRESS
+                      ? { label: 'Tiếp tục khám', strong: true }
+                      : hasExam
+                        ? { label: 'Xem phiếu', strong: false }
+                        : null;
                 return (
-                  <tr key={r.childId}>
+                  <tr
+                    key={r.childId}
+                    className="row-click"
+                    {...clickableRowProps(() => navigate(primary ? examLink(r.childId) : healthLink))}
+                  >
                     <td>
                       <div className="fw-600">{r.fullName}</div>
                       <div className="muted text-xs">{r.code}</div>
@@ -178,24 +198,16 @@ export function HealthCheckClassRoster({ campaignId, classId, embedded = false }
                       )}
                     </td>
                     <td className="cell--actions">
-                      {roster.canRecord && r.result === CHILD_RESULT_STATUS.NOT_RECORDED && (
-                        <Link className="btn btn--primary btn--sm" to={examLink(r.childId)}>
-                          <Stethoscope size={14} /> Khám
-                        </Link>
-                      )}
-                      {roster.canRecord && r.result === CHILD_RESULT_STATUS.IN_PROGRESS && (
-                        <Link className="btn btn--primary btn--sm" to={examLink(r.childId)}>
-                          <Stethoscope size={14} /> Tiếp tục khám
-                        </Link>
-                      )}
-                      <RowActions
-                        view={
-                          hasExam && !(roster.canRecord && r.result === CHILD_RESULT_STATUS.IN_PROGRESS)
-                            ? { to: examLink(r.childId), label: 'Xem phiếu khám' }
-                            : null
-                        }
+                      <RosterActions
                         name={r.fullName}
-                        extra={{ label: 'Mở sổ sức khỏe', icon: HeartPulse, to: `/children/${r.childId}/health` }}
+                        primary={
+                          primary && {
+                            ...primary,
+                            to: examLink(r.childId),
+                            icon: primary.strong ? Stethoscope : FileText,
+                          }
+                        }
+                        healthLink={healthLink}
                       />
                     </td>
                   </tr>
@@ -206,7 +218,7 @@ export function HealthCheckClassRoster({ campaignId, classId, embedded = false }
         </table>
       </div>
       {!loading && visible.length > 0 && (
-        <Pagination page={current} total={visible.length} onChange={setPage} pageSize={PAGE_SIZE} unit="trẻ" />
+        <Pagination page={current} total={visible.length} onChange={setPage} pageSize={pageSize} unit="trẻ" />
       )}
     </>
   );

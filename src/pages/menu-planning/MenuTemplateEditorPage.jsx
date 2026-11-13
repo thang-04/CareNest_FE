@@ -3,7 +3,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Lock, Save, Sparkles } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
-import { Breadcrumb, ErrorState, LoadingState } from '@/components';
+import { Breadcrumb, Button, ErrorState, LoadingState } from '@/components';
 import { FormField } from '@/components/form/FormField';
 import { SearchSelect } from '@/components/ui/SearchSelect';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
@@ -175,19 +175,19 @@ export default function MenuTemplateEditorPage() {
                 </span>
               )}
               {editable && id && (
-                <button type="button" className="btn" disabled={busy} onClick={toggleStatus}>
+                <Button disabled={busy} onClick={toggleStatus}>
                   {data.status === RECORD_STATUS.ACTIVE ? 'Ngừng dùng' : 'Dùng lại'}
-                </button>
+                </Button>
               )}
               {editable && (
-                <button type="button" className="btn" disabled={busy} onClick={() => setAiOpen(true)}>
+                <Button disabled={busy} onClick={() => setAiOpen(true)}>
                   <Sparkles size={16} /> AI gợi ý ngày
-                </button>
+                </Button>
               )}
               {editable && (
-                <button type="button" className="btn btn--primary" disabled={busy || (id && !dirty)} onClick={save}>
+                <Button variant="primary" disabled={busy || (id && !dirty)} onClick={save}>
                   <Save size={16} /> Lưu mẫu
-                </button>
+                </Button>
               )}
             </div>
           </div>

@@ -1,4 +1,5 @@
 import { Fragment, useState } from 'react';
+import { Tabs } from '@/components/ui/Tabs';
 import { NormStatusChip } from '@/components/menu-planning/MenuBadges';
 import {
   EVAL_ROW_LABELS,
@@ -96,20 +97,13 @@ export function MealPlanEvaluations({ plan, block }) {
   return (
     <div className="td-eval-wrap">
       <div className="td-eval__bar">
-        <div className="tabs tabs--pill" role="tablist" aria-label="Nhóm tuổi">
-          {groups.map((g) => (
-            <button
-              key={g.ageGroupId}
-              type="button"
-              role="tab"
-              aria-selected={g === group}
-              className={`tab ${g === group ? 'tab--active' : ''}`}
-              onClick={() => setTab(g.ageGroupId)}
-            >
-              {g.ageGroupName}
-            </button>
-          ))}
-        </div>
+        <Tabs
+          variant="pill"
+          items={groups.map((g) => ({ key: g.ageGroupId, label: g.ageGroupName }))}
+          value={group?.ageGroupId}
+          onChange={setTab}
+          ariaLabel="Nhóm tuổi"
+        />
         <span className="td-eval__legend text-sm">
           <i className="td-eval__dot td-eval__dot--low" /> Thấp so với định mức
           <i className="td-eval__dot td-eval__dot--high" /> Cao so với định mức

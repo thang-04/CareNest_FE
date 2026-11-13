@@ -31,7 +31,7 @@ export function ClassDateBar({ classes, classId, onClassChange, date, onDateChan
               {classes.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
-                  {multiCampus ? ` – ${md.campusById?.(c.campusId)?.name || c.campusId}` : ''}
+                  {multiCampus ? ` – ${md.campusById?.(c.campusId)?.shortName || md.campusById?.(c.campusId)?.name || c.campusId}` : ''}
                 </option>
               ))}
             </select>

@@ -174,3 +174,21 @@ export const summarizeBoardRows = (rowsPerCampus) => {
   });
   return total;
 };
+
+// Thứ tự ưu tiên tông khi chọn "Việc tiếp theo": đỏ (cần xử lý) trước, rồi cam/tím (đang chờ người làm); xanh dương là chờ bước khác
+const NEXT_TONES = [['red'], ['orange', 'purple']];
+
+/**
+ * Chọn việc hiển thị ở dòng "Việc tiếp theo": việc đầu tiên theo thứ tự hàng cố định (thực đơn tuần → … → lưu mẫu), điểm trường
+ * theo thứ tự BE trả, có tông BE đã gán là đỏ, nếu không có thì cam/tím. Không có ⇒ null. Chỉ chọn để hiển thị, không đánh giá lại.
+ */
+export const nextBoardTask = (rowsPerCampus, campuses) => {
+  const taskCount = rowsPerCampus[0]?.length || 0;
+  for (const tones of NEXT_TONES)
+    for (let t = 0; t < taskCount; t += 1)
+      for (let c = 0; c < rowsPerCampus.length; c += 1) {
+        const row = rowsPerCampus[c][t];
+        if (row && tones.includes(row.tone)) return { row, campus: campuses[c], action: row.actions[0] };
+      }
+  return null;
+};

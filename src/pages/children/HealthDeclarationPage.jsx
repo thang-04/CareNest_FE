@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Pencil, Save, Info } from '@/components/ui/icons';
+import { ArrowLeft, Pencil, Save, History } from '@/components/ui/icons';
+import { SidePanel } from '@/components/ui/SidePanel';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useMasterData } from '@/hooks/useMasterData';
@@ -46,6 +47,7 @@ export default function HealthDeclarationPage() {
   const toast = useToast();
   const md = useMasterData();
   const [editing, setEditing] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const { detail, loading, error, reload } = useChildDetail(id, { live: !editing });
   const [form, setForm] = useState(null);
   const [reason, setReason] = useState('');
@@ -99,6 +101,7 @@ export default function HealthDeclarationPage() {
     );
 
   const { declaration } = detail;
+  const lastChange = declaration?.history?.[declaration.history.length - 1];
   const canEdit = canDeclareHealth(child, user);
   // Sửa khai báo đã có thì bắt buộc lý do; dữ liệu có hiệu lực ngay cho bếp.
   const needsReason = !!declaration;
@@ -140,14 +143,6 @@ export default function HealthDeclarationPage() {
         )}
       </div>
 
-      <div className="alert alert--info mb-16">
-        <Info size={18} />
-        <div>
-          Đây là thông tin phụ huynh cung cấp khi tiếp nhận, không phải kết quả khám hay chẩn đoán. Kết quả khám (số đo, vận động) do giáo
-          viên phụ trách lớp ghi ở <Link to={`/children/${child.id}/health`}>Sổ sức khỏe</Link>.
-        </div>
-      </div>
-
       {editing ? (
         <>
           <section className="card wizard-card">
@@ -163,12 +158,7 @@ export default function HealthDeclarationPage() {
           </section>
           {needsReason && (
             <section className="card wizard-card">
-              <FormField
-                label="Lý do thay đổi"
-                required
-                error={errors.reason}
-                hint="Thay đổi có hiệu lực ngay: bếp và điểm danh dùng thông tin dị ứng mới."
-              >
+              <FormField label="Lý do thay đổi" required error={errors.reason}>
                 <textarea className="textarea" rows={2} maxLength={300} value={reason} onChange={(e) => setReason(e.target.value)} />
               </FormField>
             </section>
@@ -184,6 +174,7 @@ export default function HealthDeclarationPage() {
         </>
       ) : (
         <>
+          {/* Lịch sử chỉ vài dòng: chân khối hiện thay đổi gần nhất, đủ lịch sử trong panel (user yêu cầu 2026-11-11) */}
           <section className="card">
             <div className="card__header">
               <h2 className="card__title">Thông tin khai báo</h2>
@@ -191,40 +182,50 @@ export default function HealthDeclarationPage() {
             <div className="card__body">
               <DeclarationSummary declaration={declaration} />
             </div>
+            {lastChange && (
+              <div className="tr-hc-overview__foot">
+                <History size={16} aria-hidden="true" />
+                <span className="text-sm">
+                  <span className="fw-600">{HISTORY_LABELS[lastChange.action] || lastChange.action}</span>
+                  <span className="muted">
+                    {' '}
+                    · {lastChange.userName || md.userById(lastChange.userId)?.fullName || '—'} · {formatDateTime(lastChange.at)}
+                  </span>
+                </span>
+                <button type="button" className="btn btn--sm" onClick={() => setHistoryOpen(true)}>
+                  Xem lịch sử ({declaration.history.length})
+                </button>
+              </div>
+            )}
           </section>
-          {declaration?.history?.length > 0 && (
-            <section className="card mt-16">
-              <div className="card__header">
-                <h2 className="card__title">Lịch sử thay đổi</h2>
-              </div>
-              <div className="card__body">
-                <ul className="history-list">
-                  {[...declaration.history].reverse().map((h, i) => (
-                    <li key={`${h.at}${i}`}>
-                      <span className="history-list__dot" />
-                      <div>
-                        <div>{HISTORY_LABELS[h.action] || h.action}</div>
-                        <div className="muted text-sm">
-                          {md.userById(h.userId)?.fullName || '—'} · {formatDateTime(h.at)}
-                          {h.note ? (SYSTEM_UPDATES.includes(h.action) ? ` · ${h.note}` : ` · Lý do: ${h.note}`) : ''}
-                        </div>
-                        {h.historyChange &&
-                          historyChangeLines(h.historyChange).map(([label, from, to]) => (
-                            <div key={label} className="muted text-sm">
-                              {label}: {from} → {to}
-                            </div>
-                          ))}
-                        {h.allergyChange && (
-                          <div className="muted text-sm">
-                            Dị ứng: {allergyText(h.allergyChange.from)} → {allergyText(h.allergyChange.to)}
-                          </div>
-                        )}
+          {lastChange && (
+            <SidePanel open={historyOpen} title="Lịch sử thay đổi khai báo" onClose={() => setHistoryOpen(false)}>
+              <ul className="history-list">
+                {[...declaration.history].reverse().map((h, i) => (
+                  <li key={`${h.at}${i}`}>
+                    <span className="history-list__dot" />
+                    <div>
+                      <div>{HISTORY_LABELS[h.action] || h.action}</div>
+                      <div className="muted text-sm">
+                        {h.userName || md.userById(h.userId)?.fullName || '—'} · {formatDateTime(h.at)}
+                        {h.note ? (SYSTEM_UPDATES.includes(h.action) ? ` · ${h.note}` : ` · Lý do: ${h.note}`) : ''}
                       </div>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </section>
+                      {h.historyChange &&
+                        historyChangeLines(h.historyChange).map(([label, from, to]) => (
+                          <div key={label} className="muted text-sm">
+                            {label}: {from} → {to}
+                          </div>
+                        ))}
+                      {h.allergyChange && (
+                        <div className="muted text-sm">
+                          Dị ứng: {allergyText(h.allergyChange.from)} → {allergyText(h.allergyChange.to)}
+                        </div>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </SidePanel>
           )}
           <div className="page-actions">
             <Link className="btn" to={`/children/${child.id}`}>

@@ -7,6 +7,7 @@ import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { Modal } from '@/components/ui/Modal';
 import { PickupCallFlow, PickupPhotoFlow } from '@/components/pickup/PickupVerifyFlow';
 import { EmptyState, ErrorState, LoadingState, SkeletonRows } from '@/components/ui/States';
+import { Tabs } from '@/components/ui/Tabs';
 import { PickupPerson, PickupStatusBadge, VerificationBadge } from '@/components/pickup/PickupBadges';
 import { usePickupBoard, usePickupClasses } from '@/hooks/pickup/usePickups';
 import { PICKUP_REASON_LABELS, PICKUP_STATUS } from '@/models/pickup/pickupConstants';
@@ -123,19 +124,12 @@ export default function PickupListPage() {
               </div>
               <SearchSubmit className="dt-search" value={keyword} placeholder="Tìm tên trẻ..." label="Tìm tên trẻ" onSearch={setKeyword} />
             </div>
-            <div className="tabs" role="tablist">
-              {TABS.map((t) => (
-                <button
-                  key={t.key}
-                  role="tab"
-                  aria-selected={tab === t.key}
-                  className={`tab ${tab === t.key ? 'tab--active' : ''}`}
-                  onClick={() => setTab(t.key)}
-                >
-                  {t.label} <span className="tab__count">{count(t.key)}</span>
-                </button>
-              ))}
-            </div>
+            <Tabs
+              items={TABS.map((t) => ({ key: t.key, label: t.label, count: count(t.key) }))}
+              value={tab}
+              onChange={setTab}
+              ariaLabel="Lọc theo trạng thái đón"
+            />
             {error ? (
               <ErrorState error={error} onRetry={reload} />
             ) : (

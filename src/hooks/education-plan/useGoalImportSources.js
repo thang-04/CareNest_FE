@@ -10,9 +10,9 @@ const keyed = async (key, load) => {
   }
 };
 
-export function useGoalImportSources({ schoolYear, ageGroupId, excludeId, sourceId, actor }) {
-  const listKey = JSON.stringify([schoolYear, ageGroupId, excludeId, actor.id, actor.role, actor.ageGroupId]);
-  const list = useAsync(() => keyed(listKey, () => listGoalSources({ schoolYear, ageGroupId, excludeId }, actor)), [listKey], {
+export function useGoalImportSources({ schoolYear, ageGroupId, excludeId, sourceId, actor, planLevel = 'TEAM' }) {
+  const listKey = JSON.stringify([schoolYear, ageGroupId, excludeId, planLevel, actor.id, actor.role, actor.ageGroupId]);
+  const list = useAsync(() => keyed(listKey, () => listGoalSources({ schoolYear, ageGroupId, excludeId, planLevel }, actor)), [listKey], {
     enabled: !!schoolYear,
   });
   const listError = list.error?.importKey === listKey ? list.error : null;

@@ -2,6 +2,7 @@ import { getAttendanceSummary } from '@/services/attendance/attendanceService';
 import { getDailyHealthOverview } from '@/services/dailyHealthService';
 import { getCutoffSetting } from '@/services/school-config/schoolConfigService';
 import { addDays, isSchoolDay, schoolNow } from '@/utils/attendance/attendanceTime';
+import { ATTENDANCE_STATUS } from '@/models/attendance/attendanceConstants';
 
 /*
  * Số "Hôm nay" + "Cần chú ý hôm nay" của dashboard BGH; scope do facade trả (AUTH-08), không đưa tên trẻ ra.
@@ -139,8 +140,22 @@ export function buildDashboardToday({ date, now, today, lastWeek, health, cutoff
     takenClasses.reduce((t, c) => t + c.present, 0),
     takenClasses.reduce((t, c) => t + c.size, 0),
   );
+  const campuses = [...new Set(classes.map((c) => c.campusId))].sort().map((campusId) => {
+    const rows = classes.filter((c) => c.campusId === campusId && c.size > 0);
+    return {
+      campusId,
+      name: campusName(campusId),
+      present: rows.reduce((t, c) => t + c.present, 0),
+      total: rows.reduce((t, c) => t + c.size, 0),
+      classes: rows.length,
+      taken: rows.filter((c) => c.taken).length,
+    };
+  });
   return {
     date,
+    cutoff: cutoff || null,
+    pastCutoff: !!pastCutoff,
+    campuses,
     attendance: {
       ...att,
       lastWeek: prev && prev.rate != null ? { date: addDays(date, -7), rate: prev.rate } : null,
@@ -151,6 +166,134 @@ export function buildDashboardToday({ date, now, today, lastWeek, health, cutoff
     classAverage,
     attention,
   };
+}
+
+export const STEP_STATUS = { DONE: 'done', DOING: 'doing', LATE: 'late', TODO: 'todo', NONE: 'none', UNKNOWN: 'unknown' };
+const STEP_LABEL = { done: 'Xong', doing: 'Đang làm', todo: 'Chưa làm', none: 'Không có', unknown: 'Chưa tải được' };
+
+const progressStatus = (value, total) =>
+  !total ? STEP_STATUS.NONE : value >= total ? STEP_STATUS.DONE : value > 0 ? STEP_STATUS.DOING : STEP_STATUS.TODO;
+
+const step = (s) => ({ ...s, badge: s.badge || STEP_LABEL[s.status] });
+
+/**
+ * "Tiến độ trong ngày" 5 bước: điểm danh → khám đầu ngày → báo suất ăn trưa → bếp công bố thực đơn → đánh giá cuối ngày.
+ * today = buildDashboardToday(); lunch = buildLunch(); assessment = getClassAssessmentOverview({period: DAY}) (null = lỗi/không có quyền).
+ */
+export function buildDayProgress({ today, lunch, assessment }) {
+  const date = today?.date;
+  const classes = (today?.classes || []).filter((c) => c.size > 0);
+  const taken = classes.filter((c) => c.taken).length;
+  const notTaken = classes.filter((c) => !c.taken);
+  const attStatus = !today
+    ? STEP_STATUS.UNKNOWN
+    : notTaken.length && today.pastCutoff
+      ? STEP_STATUS.LATE
+      : progressStatus(taken, classes.length);
+  const attNote = !classes.length
+    ? 'Chưa có lớp trong phạm vi của bạn'
+    : !notTaken.length
+      ? 'Đã điểm danh đủ các lớp'
+      : [
+          today.cutoff ? `Hạn ${today.cutoff}` : null,
+          notTaken.length === 1 ? `Lớp ${shortClassName(notTaken[0].className)} chưa xong` : `${notTaken.length} lớp chưa xong`,
+        ]
+          .filter(Boolean)
+          .join(' · ');
+
+  const health = today?.health;
+  const healthStatus = !today ? STEP_STATUS.UNKNOWN : !health ? STEP_STATUS.UNKNOWN : progressStatus(health.checked, health.present);
+
+  const mealStatus =
+    lunch?.campuses == null ? STEP_STATUS.UNKNOWN : !lunch.campuses ? STEP_STATUS.NONE : progressStatus(lunch.confirmed, lunch.campuses);
+
+  const kitchenStatus = !lunch?.menuLoaded ? STEP_STATUS.UNKNOWN : lunch.published ? STEP_STATUS.DONE : STEP_STATUS.TODO;
+  const evalTotals = assessment?.totals;
+  const evalStatus = !evalTotals ? STEP_STATUS.UNKNOWN : progressStatus(evalTotals.complete, evalTotals.classes);
+
+  return [
+    step({
+      key: 'attendance',
+      label: 'Điểm danh đầu ngày',
+      value: today ? taken : null,
+      total: classes.length,
+      unit: 'lớp',
+      status: attStatus,
+      badge: attStatus === STEP_STATUS.LATE ? `Quá giờ ${notTaken.length} lớp` : null,
+      note: today ? attNote : 'Không tải được số điểm danh',
+      to: `/attendance/summary?from=${date}&to=${date}`,
+    }),
+    step({
+      key: 'health',
+      label: 'Khám đầu ngày',
+      value: health ? health.checked : null,
+      total: health?.present || 0,
+      unit: 'trẻ',
+      status: healthStatus,
+      note: !health
+        ? 'Không tải được số khám đầu ngày'
+        : !health.present
+          ? 'Chưa có trẻ có mặt để khám'
+          : health.noted
+            ? `${health.noted} trẻ có dấu hiệu cần lưu ý`
+            : 'Chưa có trẻ cần lưu ý',
+      to: `/attendance/health?date=${date}`,
+    }),
+    step({
+      key: 'meal',
+      label: 'Báo suất ăn trưa',
+      value: lunch?.meals ?? null,
+      total: null,
+      unit: 'suất',
+      progress: lunch?.campuses ? lunch.confirmed / lunch.campuses : null,
+      status: mealStatus,
+      // Cờ BE: số suất đổi sau khi xác nhận (mở lại điểm danh / điều chỉnh) ⇒ phải xác nhận lại (NUT-03)
+      badge: lunch?.reconfirm
+        ? 'Cần xác nhận lại'
+        : mealStatus === STEP_STATUS.DOING || mealStatus === STEP_STATUS.TODO
+          ? `${lunch.confirmed}/${lunch.campuses} điểm trường`
+          : null,
+      note:
+        mealStatus === STEP_STATUS.UNKNOWN
+          ? 'Không tải được sổ báo ăn'
+          : mealStatus === STEP_STATUS.NONE
+            ? 'Hôm nay không có bữa trưa bán trú'
+            : lunch.pendingCampuses.length
+              ? `${lunch.pendingCampuses.join(', ')} chưa xác nhận sĩ số`
+              : 'Các điểm trường đã xác nhận sĩ số',
+      to: `/attendance/meal-count?date=${date}`,
+    }),
+    step({
+      key: 'kitchen',
+      label: 'Bếp',
+      text: kitchenStatus === STEP_STATUS.UNKNOWN ? '—' : lunch.published ? 'Đã công bố' : 'Chưa công bố',
+      progress: kitchenStatus === STEP_STATUS.UNKNOWN ? null : lunch.published ? 1 : 0,
+      status: kitchenStatus,
+      note:
+        kitchenStatus === STEP_STATUS.UNKNOWN
+          ? 'Không tải được thực đơn'
+          : !lunch.published
+            ? 'Chưa có thực đơn trưa hôm nay'
+            : lunch.allergyMenus
+              ? `Thực đơn hôm nay · ${lunch.allergyMenus} thực đơn thay thế`
+              : 'Thực đơn hôm nay',
+      to: '/kitchen/published-menu',
+    }),
+    step({
+      key: 'assessment',
+      label: 'Đánh giá cuối ngày',
+      value: evalTotals ? evalTotals.complete : null,
+      total: evalTotals?.classes || 0,
+      unit: 'lớp',
+      status: evalStatus,
+      note: !evalTotals
+        ? 'Không tải được tổng quan đánh giá'
+        : evalTotals.complete >= evalTotals.classes && evalTotals.classes
+          ? 'Các lớp đã đánh giá xong'
+          : 'Lớp đánh giá đủ trẻ có mặt mới tính là xong',
+      to: '/assessment/overview',
+    }),
+  ];
 }
 
 const WEEKDAYS = ['Chủ nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
@@ -185,4 +328,151 @@ export async function getDashboardToday(user, { date, schoolYear, campusId, camp
     cutoff: activeCutoff(cutoffRes?.setting, day),
     campusName,
   });
+}
+
+// Giá trị PICKUP_STATUS của module đón trẻ (models/pickup), chép giá trị vì service tổng hợp không import module pickup
+const PICKED_UP = 'PICKED_UP';
+const WAITING = 'WAITING';
+
+/**
+ * "Lớp tôi hôm nay" cho Giáo viên / Tổ trưởng (trang chủ phương án A): scope = lớp được phân công (BE chặn số cấp trường).
+ * sheet = getClassAttendance(); pickup = getPickupBoard(); daily = getDailyAssessment(); null = nguồn lỗi.
+ * Tiến độ 5 bước: điểm danh → khám đầu ngày → báo ăn → đánh giá cuối ngày → trả trẻ.
+ */
+export function buildClassDay({ sheet, pickup, daily }) {
+  if (!sheet) return null;
+  const date = sheet.date;
+  const classId = sheet.classId;
+  const rows = sheet.children || [];
+  const statusOf = (r) => r.record?.status;
+  const present = rows.filter((r) => statusOf(r) === ATTENDANCE_STATUS.PRESENT);
+  const missing = rows.filter((r) => !r.record).length;
+  const attendance = {
+    total: rows.length,
+    present: present.length,
+    excused: rows.filter((r) => statusOf(r) === ATTENDANCE_STATUS.EXCUSED).length,
+    unexcused: rows.filter((r) => statusOf(r) === ATTENDANCE_STATUS.UNEXCUSED).length,
+    missing,
+    recorded: rows.length - missing,
+  };
+  const allergic = rows.filter((r) => (r.child?.allergies || []).length).length;
+  const checked = present.filter((r) => r.healthSummary?.checked).length;
+  const flagged = rows.filter((r) => r.healthSummary?.flagged).length;
+  const leaves = rows.filter((r) => r.leaveRequest).length;
+  const lunch = present.filter((r) => r.record?.meals?.LUNCH).length;
+  const hasLunch = (sheet.mealSessions || []).includes('LUNCH');
+
+  const attStatus = !sheet.schoolDay
+    ? STEP_STATUS.NONE
+    : missing && sheet.locked
+      ? STEP_STATUS.LATE
+      : progressStatus(attendance.recorded, attendance.total);
+  const healthStatus = !attendance.present ? STEP_STATUS.NONE : progressStatus(checked, attendance.present);
+  const mealStatus = !hasLunch
+    ? STEP_STATUS.NONE
+    : sheet.mealCountStatus === 'CONFIRMED'
+      ? STEP_STATUS.DONE
+      : attendance.recorded
+        ? STEP_STATUS.DOING
+        : STEP_STATUS.TODO;
+  const dailyRows = daily?.rows || [];
+  const assessed = dailyRows.filter((r) => r.recorded).length;
+  const evalStatus = !daily ? STEP_STATUS.UNKNOWN : progressStatus(assessed, dailyRows.length);
+  const pickupRows = (pickup?.rows || []).filter((r) => r.status === PICKED_UP || r.status === WAITING);
+  const picked = pickupRows.filter((r) => r.status === PICKED_UP).length;
+  const pickupStatus = !pickup ? STEP_STATUS.UNKNOWN : progressStatus(picked, pickupRows.length);
+
+  const steps = [
+    step({
+      key: 'attendance',
+      label: 'Điểm danh đầu ngày',
+      value: attendance.recorded,
+      total: attendance.total,
+      unit: 'trẻ',
+      status: attStatus,
+      badge: attStatus === STEP_STATUS.LATE ? `Quá giờ ${missing} trẻ` : null,
+      note: !sheet.schoolDay
+        ? 'Hôm nay không phải ngày học'
+        : missing
+          ? `Hạn ${sheet.cutoff} · còn ${missing} trẻ`
+          : `${attendance.present} có mặt · ${attendance.excused + attendance.unexcused} nghỉ`,
+      to: `/attendance?classId=${classId}`,
+    }),
+    step({
+      key: 'health',
+      label: 'Khám đầu ngày',
+      value: checked,
+      total: attendance.present,
+      unit: 'trẻ',
+      status: healthStatus,
+      note: !attendance.present ? 'Chưa có trẻ có mặt để khám' : flagged ? `${flagged} trẻ có dấu hiệu cần lưu ý` : 'Chưa có trẻ cần lưu ý',
+      // Màn Sức khỏe trong ngày đọc tổng hợp cấp trường (chỉ BGH); giáo viên khám đầu ngày ngay trên màn điểm danh của lớp
+      to: `/attendance?classId=${classId}`,
+    }),
+    step({
+      key: 'meal',
+      label: 'Báo suất ăn trưa',
+      value: hasLunch ? lunch : null,
+      total: null,
+      unit: 'suất',
+      progress: mealStatus === STEP_STATUS.DONE ? 1 : attendance.total ? attendance.recorded / attendance.total : 0,
+      status: mealStatus,
+      badge: mealStatus === STEP_STATUS.DOING ? 'Chờ xác nhận' : null,
+      note: !hasLunch
+        ? 'Lớp không có bữa trưa bán trú hôm nay'
+        : [`Hạn ${sheet.cutoff}`, allergic ? `${allergic} trẻ dị ứng thực phẩm` : null].filter(Boolean).join(' · '),
+      to: `/attendance?classId=${classId}`,
+    }),
+    step({
+      key: 'assessment',
+      label: 'Đánh giá cuối ngày',
+      value: daily ? assessed : null,
+      total: dailyRows.length,
+      unit: 'trẻ',
+      status: evalStatus,
+      note: !daily ? 'Không tải được đánh giá hằng ngày' : 'Ghi nhận sức khỏe, cảm xúc, tiêu chí đạt của trẻ có mặt',
+      to: '/assessment/daily',
+    }),
+    step({
+      key: 'pickup',
+      label: 'Trả trẻ',
+      value: pickup ? picked : null,
+      total: pickupRows.length,
+      unit: 'trẻ',
+      status: pickupStatus,
+      note: !pickup ? 'Không tải được danh sách đón trẻ' : `${pickupRows.length - picked} trẻ chờ đón`,
+      to: `/pickup?classId=${classId}`,
+    }),
+  ];
+
+  const attention = [];
+  if (flagged)
+    attention.push({
+      key: 'health-noted',
+      tone: 'red',
+      title: `${flagged} trẻ có dấu hiệu cần lưu ý khi khám đầu ngày`,
+      meta: 'Mở điểm danh của lớp để xem lần khám',
+      to: `/attendance?classId=${classId}`,
+      badge: 'Cần xử lý',
+    });
+  if (allergic && hasLunch)
+    attention.push({
+      key: 'allergy',
+      tone: 'orange',
+      title: `${allergic} trẻ dị ứng thực phẩm cần món thay thế`,
+      meta: 'Kiểm tra suất thay thế khi báo ăn',
+      to: `/attendance?classId=${classId}`,
+      badge: null,
+    });
+  if (leaves)
+    attention.push({
+      key: 'leave',
+      tone: 'gray',
+      title: `${leaves} đơn xin nghỉ của phụ huynh`,
+      meta: 'Đơn nghỉ gắn với ngày hôm nay',
+      to: '/attendance/leave-requests',
+      badge: null,
+    });
+
+  return { classId, className: sheet.className, date, attendance, allergic, steps, attention, lesson: daily?.lesson || null };
 }

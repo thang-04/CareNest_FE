@@ -12,21 +12,25 @@ export const yearPlanContentKey = (doc) =>
         id: r.id,
         kind: r.kind,
         text: r.text,
+        displayLabel: r.displayLabel,
         contents: r.contents,
       })),
     })),
     themes: doc.themes || [],
+    branchTemplates: doc.branchTemplates || [],
     breaks: doc.breaks || [],
   });
 
 export function reconcileYearPlanIds(current, snapshot, saved) {
   const ids = new Map();
-  const pair = (before = [], after = []) =>
+  const branchIds = new Map();
+  const pair = (before = [], after = [], target = ids) =>
     before.forEach((item, i) => {
-      if (after[i]) ids.set(item.id, after[i].id);
+      if (after[i]) target.set(item.id, after[i].id);
     });
   pair(snapshot.themes, saved.themes);
   pair(snapshot.breaks, saved.breaks);
+  pair(snapshot.branchTemplates, saved.branchTemplates, branchIds);
   for (const domain of snapshot.domains || []) {
     const target = saved.domains?.find((d) => d.name === domain.name) || saved.domains?.[snapshot.domains.indexOf(domain)];
     pair(domain.rows, target?.rows);
@@ -37,10 +41,17 @@ export function reconcileYearPlanIds(current, snapshot, saved) {
     ...current,
     id: saved.id,
     revision: saved.revision,
+    contentRevision: saved.contentRevision,
+    previousSourcePlanId: saved.previousSourcePlanId,
+    reviewItems: saved.reviewItems,
+    newItems: saved.newItems,
     status: saved.status,
     permissions: saved.permissions,
     editing: saved.editing,
     themes: (current.themes || []).map((t) => ({ ...t, id: idOf(t.id) })),
+    branchTemplates: (current.branchTemplates || []).map((t) => ({
+      ...t, id: branchIds.get(t.id) ?? t.id, themeId: idOf(t.themeId),
+    })),
     breaks: (current.breaks || []).map((b) => ({ ...b, id: idOf(b.id) })),
     domains: (current.domains || []).map((d) => ({
       ...d,
@@ -77,7 +88,8 @@ export function createSaveQueue({ read, write, accept, onState, enabled = () => 
         onState('saved');
         return true;
       } catch (error) {
-        if (error.status >= 400 && error.status < 500 && error.status !== 409 && error.status !== 403) attempt = null;
+        // EDU-62: phản hồi từ chối xác định không được replay payload cũ sau khi đổi nguồn/phiên.
+        if (error.status >= 400 && error.status < 500) attempt = null;
         onState(error.status === 409 || error.status === 403 ? 'conflict' : 'error', error);
         return false;
       } finally {
@@ -117,7 +129,16 @@ export function recoveryText(doc) {
     doc.title || 'Kế hoạch đang soạn',
     doc.schoolYear,
     doc.description,
-    ...(doc.domains || []).flatMap((d) => [d.name, ...(d.rows || []).flatMap((r) => [r.text, ...(r.contents || []).map((c) => c.text)])]),
+    ...(doc.domains || []).flatMap((d) => [
+      d.name,
+      ...(d.rows || []).flatMap((r) => [
+        r.text,
+        ...(r.contents || []).map(
+          (c) =>
+            `${c.text}${c.themes?.length ? ` — Chủ đề: ${c.themes.map((id) => (doc.themes || []).find((theme) => String(theme.id) === String(id))?.name || id).join(', ')}` : ''}`,
+        ),
+      ]),
+    ]),
     ...(doc.themes || []).map((t) => `${t.name || ''} (${t.abbr || ''}) ${t.start || ''} — ${t.end || ''}\n${t.note || ''}`),
     ...(doc.breaks || []).map((b) => `${b.label || ''}: ${b.start || ''} — ${b.end || ''}`),
   ]

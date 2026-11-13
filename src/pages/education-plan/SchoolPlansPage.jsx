@@ -4,6 +4,7 @@ import { RotateCcw } from '@/components/ui/icons';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { Card, EduStatusBadge, EmptyState, PageHead, YearPlanStatusBadge, fmtDate, fmtDateTime } from '@/components/education-plan/eduUi';
+import { Tabs } from '@/components/ui/Tabs';
 import { AGE_GROUPS, EDU_STATUS, EDU_STATUS_LABELS, allGoalItems } from '@/models/education-plan/educationPlanConstants';
 import { themeNumber, themeWeeksOf, yearWeeks } from '@/models/education-plan/classPlan';
 import { StatCard } from '@/components/ui/StatCard';
@@ -17,9 +18,7 @@ const TABS = [
   { key: 'themes', label: 'Hồ sơ chủ đề' },
 ];
 
-// Bản nháp, bản đang sửa thuộc về người soạn; Hiệu trưởng chỉ xem những gì đã gửi hoặc đã duyệt (BE:EDU-06)
-const isShared = (status) => status !== EDU_STATUS.DRAFT && status !== EDU_STATUS.EDITING;
-const isPending = (status) => [EDU_STATUS.PENDING_TL, EDU_STATUS.PENDING_VP, EDU_STATUS.PENDING_HT].includes(status);
+const isShared = (status) => status === EDU_STATUS.APPROVED || status === 'REPLACED';
 // Lần gửi gần nhất (dòng lịch sử không có tone) và lần cập nhật cuối
 const sentEntry = (doc) => [...(doc.history || [])].reverse().find((h) => !h.tone);
 
@@ -103,18 +102,11 @@ export default function SchoolPlansPage() {
   );
   const statuses = [...new Set(all.map((r) => r.status))];
   const count = (list, s) => list.filter((r) => r.status === s).length;
-  const pendingCount = (list) => list.filter((r) => isPending(r.status)).length;
 
   const stats = [
     { label: 'Kế hoạch năm đã ban hành', value: count(data.goals, EDU_STATUS.APPROVED), tone: 'blue', tab: 'goals' },
     { label: 'Chủ đề nhánh đã duyệt', value: count(data.branches, EDU_STATUS.APPROVED), tone: 'green', tab: 'branches' },
     { label: 'Hồ sơ chủ đề đã duyệt', value: count(data.themes, EDU_STATUS.APPROVED), tone: 'purple', tab: 'themes' },
-    {
-      label: 'Đang chờ duyệt',
-      value: pendingCount(data.goals) + pendingCount(data.branches) + pendingCount(data.themes),
-      tone: 'orange',
-      tab: 'themes',
-    },
   ];
 
   const switchTab = (key) => {
@@ -137,20 +129,12 @@ export default function SchoolPlansPage() {
         ))}
       </div>
       <Card bodyClass={null}>
-        <div className="tabs" role="tablist">
-          {TABS.map((t) => (
-            <button
-              key={t.key}
-              type="button"
-              role="tab"
-              aria-selected={tab === t.key}
-              className={`tab ${tab === t.key ? 'tab--active' : ''}`}
-              onClick={() => switchTab(t.key)}
-            >
-              {t.label} <span className="tab__count">{data[t.key].length}</span>
-            </button>
-          ))}
-        </div>
+        <Tabs
+          items={TABS.map((t) => ({ key: t.key, label: t.label, count: data[t.key].length }))}
+          value={tab}
+          onChange={switchTab}
+          ariaLabel="Loại kế hoạch"
+        />
         <div className="filter-bar">
           <SearchSubmit value={q} placeholder="Tìm tên, mã, người lập" label="Tìm kế hoạch" onSearch={setQ} />
           <select className="select" value={age} onChange={(e) => setAge(e.target.value)} aria-label="Lọc theo nhóm tuổi">

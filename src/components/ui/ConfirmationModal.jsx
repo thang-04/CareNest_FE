@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Question, Warning } from '@/components/ui/icons';
+import { LABELS } from './labels';
 import { Modal } from './Modal';
 import { SubmitOverlay } from './States';
 
@@ -8,8 +9,8 @@ export function ConfirmationModal({
   open,
   title,
   message,
-  confirmLabel = 'Xác nhận',
-  cancelLabel = 'Quay lại',
+  confirmLabel = LABELS.confirm,
+  cancelLabel = LABELS.back,
   danger = false,
   onConfirm,
   onClose,

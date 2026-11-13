@@ -14,6 +14,7 @@ import { attendanceMockRepository } from '@/services/attendance/mock/attendanceM
 import { mealSessionsForCampus } from './attendanceSource';
 import { computeMarket, countedSession, purchaseStep } from '@/services/kitchen/mock/marketList';
 import { buildWeeklyForecast, knownOrderOf, sentSnapshot, storageOf } from '@/services/kitchen/mock/weeklyForecast';
+import { buildDayMarket } from '@/services/kitchen/mock/dayMarket';
 import { addDays as addIsoDays, mondayOf, schoolWeekStart } from '@/models/menu-planning/menuPlanningConstants';
 import { normalizeText, todayInput } from '@/utils/format';
 import { uid } from '@/utils/id';
@@ -1907,6 +1908,26 @@ const kitchenRepository = {
       savedAt: record?.savedAt || null,
       canEdit: canEditForecast(user, campusId),
     });
+  },
+
+  /**
+   * Bảng đi chợ một ngày (tiền, chia nhóm tuổi, thu–chi, thực đơn). Kèm danh sách điểm trường người dùng xem được;
+   * `campusId` trống hoặc ngoài danh sách ⇒ lấy điểm trường đầu tiên xem được.
+   */
+  async getDayMarket({ campusId, date }, user) {
+    await delay();
+    guard(canViewForecast(user));
+    const db = readSeeded();
+    const campuses = (db.campuses || []).filter((c) => canAccessCampus(user, c.id)).map((c) => ({ id: c.id, name: c.shortName || c.name }));
+    const picked = campuses.find((c) => c.id === campusId) || (campusId ? null : campuses[0]);
+    guard(!!picked);
+    const view = buildDayMarket(db, {
+      campusId: picked.id,
+      date,
+      record: forecastRecord(db, picked.id, mondayOf(date)),
+      ctx: { today: todayInput(), isSchoolDay, mealCountOf: (day, session) => getMealCount(db, picked.id, day, session) },
+    });
+    return clone({ ...view, campusName: picked.name, campuses });
   },
 
   /** PHT sửa suất dự kiến của ngày chưa chốt; ngày đã chốt hoặc đã qua giữ nguyên. */

@@ -3,7 +3,7 @@ import { test } from 'node:test';
 
 globalThis.window = new EventTarget();
 
-const { buildDayBoardRows } = await import('@/utils/boarding/dayBoardRows');
+const { buildDayBoardRows, nextBoardTask } = await import('@/utils/boarding/dayBoardRows');
 const { createDayBoardApi } = await import('@/services/dayBoardApi');
 const { INTEGRATION_MODULES } = await import('@/config/integrationModules');
 
@@ -228,4 +228,21 @@ test('NUT-11: kho khô sắp thiếu ⇒ thêm câu nhắc ngày bắt đầu th
   );
   assert.doesNotMatch(enough.detail, /Sắp thiếu/);
   assert.equal(enough.actions.length, 1);
+});
+
+test('AC-9: việc tiếp theo ưu tiên ô đỏ trước ô cam/tím, theo thứ tự hàng rồi điểm trường', () => {
+  const c1 = campus();
+  const c2 = campus({ campusId: '2', campusName: 'Cơ sở 2', dryStock: { status: 'SHORTFALL', shortfallFoodCount: 2 } });
+  const rows = [c1, c2].map((c) => buildDayBoardRows(c, { date: DATE }));
+  const next = nextBoardTask(rows, [c1, c2]);
+  assert.deepEqual([next.row.key, next.campus.campusId, next.action.to], ['dryStock', '2', '/kitchen/stock-shortfalls?campusId=2']);
+
+  const orangeOnly = [campus()].map((c) => buildDayBoardRows(c, { date: DATE }));
+  assert.equal(nextBoardTask(orangeOnly, [campus()]).row.key, 'freshReceipt');
+});
+
+test('AC-9: mọi việc xanh hoặc xám ⇒ không có việc tiếp theo', () => {
+  const done = campus({ freshReceiptStatus: 'DONE', foodSampleStatus: 'UP_TO_DATE' });
+  assert.equal(nextBoardTask([buildDayBoardRows(done, { date: DATE })], [done]), null);
+  assert.equal(nextBoardTask([], []), null);
 });

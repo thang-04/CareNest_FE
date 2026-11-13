@@ -9,6 +9,8 @@ const stubs = `import React from 'react';
 const useState=v=>{const i=globalThis.themeTest.index++; const slots=globalThis.themeTest.slots; if(!(i in slots))slots[i]=v;return [slots[i],next=>{slots[i]=typeof next==='function'?next(slots[i]):next;}];};
 const useSchoolYear=()=>({schoolYear:1,schoolYears:[{id:1,label:"2026 – 2027"}]}),AssessmentFormHeading=()=>null;
 const useEffect=()=>{},useMemo=f=>f(),useAuth=()=>({user:{id:'teacher'}});
+const PERMISSIONS={ASSESSMENT_RECORD:'ASSESSMENT_RECORD',ASSESSMENT_CONFIRM:'ASSESSMENT_CONFIRM'};
+const hasBePermission=()=>true;
 const useToast=()=>({success:m=>globalThis.themeTest.events.push('success'),error:e=>globalThis.themeTest.events.push('error')});
 const useLeaveGuard=()=>({leave:f=>f(),modal:{}});
 const useThemeClasses=()=>({classes:[{classId:1,name:'TEST class'}],loading:false});

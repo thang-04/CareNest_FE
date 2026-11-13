@@ -78,6 +78,83 @@ test('danh sách bản dự trù: GET /nutrition/fresh-forecasts?campusId, rỗn
   assert.deepEqual(await createFreshGoodsApi({ client: fakeClient() }).listForecasts({ campusId: '1' }), []);
 });
 
+test('bảng đi chợ: GET /nutrition/day-market, đổi lượng sang đơn vị mua, giữ nguyên tiền BE tính', async () => {
+  const beMarket = {
+    campusId: '1',
+    date: '2026-11-09',
+    status: 'READY',
+    basis: 'FORECAST',
+    confirmedAt: null,
+    groups: [
+      { ageGroupId: '2', name: 'Mẫu giáo bé', servings: 10, mealPrice: 30000, revenue: 300000 },
+      { ageGroupId: '3', name: 'Nhà trẻ', servings: 4, mealPrice: null, revenue: null },
+    ],
+    lines: [
+      {
+        food: EGG,
+        storage: 'FRESH',
+        unitPrice: 3500,
+        quantity: 620,
+        orderQuantity: 650,
+        cost: 43400,
+        groups: [
+          { ageGroupId: '2', quantity: 500, cost: 35000 },
+          { ageGroupId: '3', quantity: 120, cost: 8400 },
+        ],
+      },
+      {
+        food: RICE,
+        storage: 'DRY',
+        unitPrice: 18000,
+        quantity: 1500,
+        orderQuantity: 1500,
+        cost: 27000,
+        groups: [
+          { ageGroupId: '2', quantity: 1500, cost: 27000 },
+          { ageGroupId: '3', quantity: 0, cost: 0 },
+        ],
+      },
+    ],
+    totals: {
+      servings: 14,
+      revenue: 300000,
+      cost: 70400,
+      freshCost: 43400,
+      dryCost: 27000,
+      balance: null,
+      groups: [
+        { ageGroupId: '2', cost: 62000 },
+        { ageGroupId: '3', cost: 8400 },
+      ],
+    },
+    menu: [{ session: 'LUNCH', groups: [{ ageGroupId: '2', dishes: ['Cơm', 'Trứng rán'] }] }],
+  };
+  const client = fakeClient({ 'GET /nutrition/day-market': beMarket });
+  const view = await createFreshGoodsApi({ client }).getDayMarket({ campusId: '1', date: '2026-11-09' });
+  assert.deepEqual(client.calls[0].params, { campusId: '1', date: '2026-11-09' });
+  assert.deepEqual(
+    view.lines.map((l) => [l.name, l.unit, l.source, l.quantity, l.amount, l.groups.map((g) => g.quantity), l.groups.map((g) => g.amount)]),
+    [
+      ['Trứng gà', 'quả', 'MARKET', 13, 43400, [10, 2.4], [35000, 8400]],
+      ['Gạo tẻ', 'kg', 'STOCK', 1.5, 27000, [1.5, 0], [27000, 0]],
+    ],
+  );
+  assert.deepEqual(view.groups[0], { ageGroupId: '2', name: 'Mẫu giáo bé', servings: 10, price: 30000, revenue: 300000 });
+  assert.deepEqual(
+    [view.totals.marketCost, view.totals.stockCost, view.totals.cost, view.totals.revenue, view.totals.balance],
+    [43400, 27000, 70400, 300000, null],
+  );
+  assert.deepEqual(view.menu, [{ code: 'LUNCH', name: 'Bữa trưa', groups: [{ ageGroupId: '2', dishes: ['Cơm', 'Trứng rán'] }] }]);
+  assert.equal(view.warnings.length, 1, 'nhóm chưa có giá tiền ăn được nhắc');
+  assert.match(view.warnings[0], /Nhà trẻ/);
+
+  const off = { campusId: '1', date: '2026-11-14', status: 'DAY_OFF', basis: null, groups: [], lines: [], totals: { cost: 0 }, menu: [] };
+  const holiday = await createFreshGoodsApi({ client: fakeClient({ 'GET /nutrition/day-market': off }) }).getDayMarket({ campusId: '1' });
+  assert.equal(holiday.status, 'HOLIDAY');
+  assert.deepEqual([holiday.lines, holiday.totals.balance], [[], null]);
+  assert.ok(INTEGRATION_MODULES['fresh-goods'].routes.includes('/kitchen/market-day'), 'màn đi chợ thuộc module đã nối BE');
+});
+
 test('xem trước: POST preview không gửi counts ở lần đầu, kết quả thêm số theo đơn vị mua', async () => {
   const client = fakeClient({ 'POST /nutrition/fresh-forecasts/preview': beForecast() });
   const api = createFreshGoodsApi({ client });
@@ -190,10 +267,10 @@ test('form kiểm nhận: nạp từ BE theo đơn vị mua, mỗi thực phẩm
   assert.equal(roundState({ recorded: true, available: false }), 'RECORDED');
 });
 
-test('module fresh-goods khai source api với hai route hàng tươi, file adapter và route BE đã có trong ảnh chụp', () => {
+test('module fresh-goods khai source api với các route hàng tươi, file adapter và route BE đã có trong ảnh chụp', () => {
   const mod = INTEGRATION_MODULES['fresh-goods'];
   assert.equal(mod.source, 'api');
-  assert.deepEqual(mod.routes, ['/kitchen/forecast', '/kitchen/fresh-receipts']);
+  assert.deepEqual(mod.routes, ['/kitchen/forecast', '/kitchen/fresh-receipts', '/kitchen/market-day']);
   assert.deepEqual(mod.files, ['src/services/freshGoodsApi.js']);
   const snapshot = JSON.parse(readFileSync('docs/integration/be-api-routes.json', 'utf8')).routes;
   for (const route of [
@@ -203,6 +280,7 @@ test('module fresh-goods khai source api với hai route hàng tươi, file adap
     'GET /nutrition/fresh-forecasts/{x}',
     'DELETE /nutrition/fresh-forecasts/{x}',
     'GET /nutrition/fresh-checks',
+    'GET /nutrition/day-market',
     'PUT /nutrition/fresh-checks',
   ])
     assert.ok(snapshot.includes(route), route);

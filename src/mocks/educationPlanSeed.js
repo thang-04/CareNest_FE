@@ -9,11 +9,13 @@
  */
 import {
   cellKey,
+  cornersToGrid,
   dayDraftFromWeek,
   dayGoalsOf,
   emptyBranchPlan,
   emptyThemePlan,
   emptyWeekPlan,
+  rowsFromDraft,
   themeActivities,
   themeGoalBlocks,
   todayIso,
@@ -23,7 +25,7 @@ import { DOMAIN_SHORT } from '@/models/education-plan/educationPlanConstants';
 import { numberGoals } from '@/models/education-plan/goalTable';
 
 /** Đổi giá trị này khi thay bộ dữ liệu demo: trình duyệt đang giữ dữ liệu cũ sẽ tự nạp bộ mới. */
-export const EDU_SEED_VERSION = 'thai-duong-demo-2026-10-21-dev-merge';
+export const EDU_SEED_VERSION = 'thai-duong-demo-2026-11-11-day-template';
 
 const YEAR = '2026 – 2027';
 const PLAN_ID = 'g-mgn-2627';
@@ -345,7 +347,9 @@ const buildClassDocs = (plan, { pendingTeacher } = {}) => {
     'Nêu gương cuối tuần',
   ];
   week.grid.tra_tre.common = 'Vệ sinh cá nhân, trao đổi với phụ huynh về tình hình của trẻ trong ngày.';
-  const d1 = week.days[0];
+  // Ngày bố cục cũ (mục đích/chuẩn bị chung + tiến trình a/b/c) để thử hiển thị theo mẫu mới (spec 005 FR-007)
+  const d1 = { date: week.days[0].date, steps: {} };
+  week.days[0] = d1;
   d1.aims = '- Trẻ biết đi trên ghế thể dục, đầu đội túi cát, giữ được thăng bằng.\n- Trẻ hứng thú tham gia vận động.';
   d1.prep = '- 2 ghế thể dục, túi cát đủ cho trẻ; sân tập sạch, an toàn.';
   d1.steps['hoc.a'] = {
@@ -427,15 +431,37 @@ const buildCurrentWeekDemo = (plan, weeks) => {
     skills: '- Trẻ đi trên ghế thể dục giữ thăng bằng; rửa tay đúng cách.\n- Trẻ đọc thuộc bài thơ "Thương ông".',
     attitude: '- Trẻ yêu thương, lễ phép với ông bà, bố mẹ.',
   };
-  week.prep = '- Tranh ảnh về gia đình, 4 nhóm thực phẩm; ghế thể dục, túi cát; đất nặn.';
+  week.prep = {
+    teacher: '- Tranh ảnh về gia đình, 4 nhóm thực phẩm; ghế thể dục, túi cát; đất nặn.',
+    child: '- Trẻ mang ảnh gia đình đến lớp.',
+    parent: '- Phụ huynh trò chuyện với trẻ về các thành viên trong gia đình.',
+  };
+  week.corners = [
+    {
+      id: 'gc_pv',
+      name: 'Góc phân vai',
+      content: 'Gia đình nấu ăn, bán hàng',
+      aims: 'Trẻ biết nhận vai, thể hiện vai chơi.',
+      prep: 'Bộ đồ nấu ăn, quầy hàng.',
+      steps: 'Cô gợi ý trẻ thỏa thuận vai chơi, quan sát và giúp trẻ liên kết các nhóm chơi.',
+    },
+    {
+      id: 'gc_xd',
+      name: 'Góc xây dựng',
+      content: 'Xây ngôi nhà của bé',
+      aims: 'Trẻ biết dùng khối gỗ xây nhà.',
+      prep: 'Khối gỗ, cây xanh, hàng rào.',
+      steps: 'Cô gợi ý trẻ thảo luận cách xây, cùng trẻ nhận xét công trình.',
+    },
+  ];
+  cornersToGrid(week);
   week.grid.don.common = 'Cô đón trẻ, nhắc trẻ chào ông bà, bố mẹ; trao đổi với phụ huynh về tình hình của trẻ.';
   week.grid.tro_chuyen.common = 'Trò chuyện về gia đình bé: có những ai, mọi người làm gì, bé yêu ai nhất.';
   const tds = of('the_duc')[0];
   week.grid.the_duc.common = tds ? body(tds) : 'Tập theo nhạc';
   if (tds) week.picks[cellKey('the_duc', 'all')] = [pick(tds)];
   const pg = of('goc')[0];
-  week.grid.goc.common = pg ? body(pg) : 'Góc phân vai "Gia đình"';
-  if (pg) week.picks[cellKey('goc', 'all')] = [pick(pg)];
+  if (pg) week.picks[cellKey('goc', 'all')] = [{ ...pick(pg), cornerId: 'gc_pv' }];
   week.grid.tra_tre.common = 'Vệ sinh cá nhân, trao đổi với phụ huynh.';
   week.grid.ngoai_troi.extra = 'Chơi tự do với đồ chơi ngoài trời';
   week.grid.chieu.extra = 'Chơi tự chọn; nêu gương cuối ngày, vệ sinh, trả trẻ';
@@ -460,15 +486,18 @@ const buildCurrentWeekDemo = (plan, weeks) => {
     // Kế hoạch ngày điền khung như nút "Lấy từ kế hoạch tuần", kèm phần ổn định / kết thúc của giờ học
     const draft = dayDraftFromWeek(week, i, goals);
     const d = week.days[i];
-    d.aims = draft.aims.replace(/: $/gm, ': Trẻ hứng thú tham gia, thực hiện được theo hướng dẫn của cô.');
-    d.prep = draft.prep.replace(/: $/gm, ': Đồ dùng của cô và của trẻ đầy đủ.');
-    Object.entries(draft.steps).forEach(([k, v]) => (d.steps[k].teacher = v));
-    d.steps['hoc.a'] = {
+    Object.entries(draft).forEach(([k, f]) => {
+      const sec = d.sections[k];
+      sec.aims = f.aims || 'Trẻ hứng thú tham gia, thực hiện được theo hướng dẫn của cô.';
+      sec.prep = f.prep || 'Đồ dùng của cô và của trẻ đầy đủ.';
+      if (f.rows.length) sec.rows = rowsFromDraft(f.rows);
+    });
+    const hocRows = d.sections.hoc.rows;
+    Object.assign(hocRows[0], {
       teacher: 'Cô cho trẻ hát "Cả nhà thương nhau", trò chuyện về gia đình bé.',
       child: 'Trẻ hát, trò chuyện cùng cô.',
-      note: '',
-    };
-    d.steps['hoc.c'] = { teacher: 'Cô nhận xét, tuyên dương trẻ; chuyển hoạt động.', child: 'Trẻ lắng nghe.', note: '' };
+    });
+    Object.assign(hocRows[2], { teacher: 'Cô nhận xét, tuyên dương trẻ; chuyển hoạt động.', child: 'Trẻ lắng nghe.' });
   });
   week.dayGoals = dayGoalsOf(week);
   return { curTheme, curWeek: week };

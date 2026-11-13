@@ -83,3 +83,16 @@ test('mock source snapshots are isolated reads without mutation, locks or status
   assert.deepEqual(fresh.domains[0].rows[0].contents[0].themes, ['t1']);
   assert.equal(JSON.stringify(readDb()), before);
 });
+
+test('annual import lists annual sources only while TEAM keeps its own sources', async () => {
+  seed();
+  writeDb((db) => db.eduGoals.push({ ...source('annual', 'ag-4'), planLevel: 'SCHOOL_YEAR' }));
+  assert.deepEqual(
+    (await repo.listGoalSources({ planLevel: 'SCHOOL_YEAR' }, vp)).map((s) => s.id),
+    ['annual'],
+  );
+  assert.deepEqual(
+    (await repo.listGoalSources({ planLevel: 'TEAM' }, vp)).map((s) => s.id),
+    ['a', 'b', 'c'],
+  );
+});

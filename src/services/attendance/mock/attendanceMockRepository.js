@@ -853,6 +853,44 @@ export const attendanceMockRepository = {
     return { ...info, counts };
   },
 
+  /**
+   * BE giả của `GET /meal-counts/class` (NUT-02, ATT-02): suất ăn từng bữa của một lớp cho người xem được lớp, không tên
+   * trẻ. Sổ chưa lập ⇒ tạm tính từ điểm danh (OPEN); số chờ xác nhận lại ⇒ PENDING_CONFIRMATION (NUT-03).
+   */
+  async getClassMealCount({ classId, date }, user) {
+    await delay(120);
+    const db = readyFor(date);
+    const cls = findClass(db, classId);
+    if (!canViewAttendance(cls, user)) throw forbidden();
+    const info = dayInfo(db, date, cls);
+    const meals =
+      info.schoolDay && date <= info.today
+        ? classSessions(db, cls).map((session) => {
+            const stored = db.mealCounts.find((m) => m.campusId === cls.campusId && m.date === date && m.session === session);
+            const lines = stored ? stored.pendingClasses || stored.classes : buildCount(db, cls.campusId, date, session).classes;
+            const line = lines.find((l) => l.classId === classId);
+            return {
+              session,
+              normal: line?.normal ?? 0,
+              substitute: line?.substitute ?? 0,
+              status: !stored ? 'OPEN' : stored.needsReconfirmation ? MEAL_COUNT_STATUS.PENDING_CONFIRMATION : stored.status,
+              needsReconfirmation: !!stored?.needsReconfirmation,
+              confirmedAt: stored?.confirmedAt ?? null,
+            };
+          })
+        : [];
+    return clone({
+      classId,
+      className: cls.name,
+      date,
+      today: info.today,
+      cutoff: info.cutoff,
+      schoolDay: info.schoolDay,
+      locked: info.locked,
+      meals,
+    });
+  },
+
   async confirmMealCount(id, user) {
     await delay();
     return writeDb((db) => {
@@ -871,7 +909,7 @@ export const attendanceMockRepository = {
     return writeDb((db) => {
       ensureSeeded(db);
       const counts = db.mealCounts.filter((m) => m.campusId === campusId && m.date === date && (!session || m.session === session));
-      if (!counts.length) throw new ApiError(404, 'Không tìm thấy sổ báo ăn của ngày này');
+      if (!counts.length) throw new ApiError(404, 'Không tìm thấy sổ suất ăn của ngày này');
       if (!counts.every((c) => canAdjustMealCount(c, user))) throw forbidden();
       if (normal != null) throw new ApiError(422, 'Suất thường chỉ thay đổi qua điểm danh (mở lại điểm danh để giáo viên sửa).');
       const reason = String(note || '').trim();

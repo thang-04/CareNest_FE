@@ -4,8 +4,9 @@
  */
 
 /* ---------- Page ---------- */
+/* Đường dẫn đã lên thanh trên: nội dung bắt đầu ngay dưới thanh nổi nên cần khoảng trên đủ để không chạm bóng của thanh */
 .page {
-  padding: var(--space-2) var(--page-padding) var(--space-8);
+  padding: var(--space-4) var(--page-padding) var(--space-8);
   animation: slideInUp var(--duration-slow) var(--ease-out);
 }
 .page__title {
@@ -51,25 +52,14 @@
 .page__head > .page__title + :last-child:not(p) {
   margin-left: auto;
 }
-/* Màn rộng: nhóm nút (phần tử cuối, không phải mô tả) lên cùng hàng breadcrumb, bên phải */
-@media (min-width: 1024px) {
-  .breadcrumb + .page__head > :last-child:not(:first-child):not(p) {
-    position: absolute;
-    right: 0;
-    bottom: calc(100% + var(--space-2));
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: flex-end;
-    gap: var(--space-2);
-    min-height: var(--btn-height-lg);
-  }
-  /* Khu bán trú: nút giữ cùng hàng mô tả, sát nội dung, không đẩy lên hàng breadcrumb (góp ý 05/11) */
-  [data-area='boarding'] .breadcrumb + .page__head > :last-child:not(:first-child):not(p) {
-    position: static;
-    min-height: 0;
-    margin-left: auto;
-  }
+/* Nhóm nút của đầu trang (phần tử cuối, không phải mô tả) luôn sát mép phải, kể cả khi mô tả xuống dòng */
+.page__head > .page__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-left: auto;
 }
 .page-actions {
   display: flex;
@@ -79,9 +69,8 @@
   gap: var(--space-3);
   margin-top: var(--space-4);
 }
-/* Form (F1): thanh nút có nút chính dính đáy màn để luôn bấm được Lưu / Tiếp tục;
-   .page-actions--sticky: form nhiều bước giữ thanh dính đáy cả ở bước không có nút chính */
-.page-actions:has(.btn--primary),
+/* Mặc định là hàng nút thường cuối trang, không nổi đè nội dung (quy tắc vị trí nút Lưu 12/11: màn dài thêm nút ở đầu
+   trang qua .page__actions). Chỉ form chọn giữ thanh dính đáy mới gắn .page-actions--sticky (Phiếu khám, user chốt 04/11). */
 .page-actions--sticky {
   position: sticky;
   bottom: var(--space-3);
@@ -92,15 +81,6 @@
   background: color-mix(in srgb, var(--color-surface) 88%, transparent);
   box-shadow: var(--card-shadow);
   backdrop-filter: var(--glass-blur);
-}
-/* Khu bán trú: không thanh nổi đè lên bảng (góp ý 05/11) — Hủy/Lưu nằm ở đầu trang; thanh còn lại ở cuối trang là hàng nút thường */
-[data-area='boarding'] .page-actions {
-  position: static;
-  padding: 0;
-  border: 0;
-  background: none;
-  box-shadow: none;
-  backdrop-filter: none;
 }
 /* Điện thoại: thanh dính đáy của form nhiều bước gọn trên 1 hàng (nút sát hơn, không xuống dòng — Tiền 31/10) */
 @media (max-width: 767px) {
@@ -311,42 +291,15 @@
   color: var(--color-danger-fg);
 }
 
-/* Sắp xếp kéo-thả (components/ui/Sortable, dnd-kit): tay nắm ↕ có viền; khi kéo, dòng gốc thành ô giữ chỗ tô xanh
-   (đi theo vị trí sẽ thả), bản nhấc lên bám theo chuột; dòng vừa đổi chỗ nháy sáng */
+/* Tay nắm dùng cùng nút icon; chỉ đổi con trỏ cho thao tác kéo-thả. */
 .drag-handle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   flex: none;
-  width: var(--space-8);
-  height: var(--space-8);
-  padding: 0;
-  border: 1px solid var(--color-primary-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-primary-soft);
-  color: var(--color-primary);
   cursor: grab;
   touch-action: none;
-  transition:
-    background var(--duration-fast) var(--ease-out),
-    color var(--duration-fast) var(--ease-out),
-    transform var(--duration-fast) var(--ease-out);
 }
-.drag-handle:hover {
-  background: var(--color-primary);
-  color: var(--color-primary-fg);
-  transform: scale(1.06);
-}
-.drag-handle:active {
-  cursor: grabbing;
-}
-.drag-handle:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 3px var(--color-focus-ring);
-}
+.drag-handle:active,
 .drag-handle--grabbed {
-  background: var(--color-primary);
-  color: var(--color-primary-fg);
+  cursor: grabbing;
 }
 .sortable-item {
   position: relative;
@@ -548,6 +501,9 @@ tr.sortable-item--moved > td {
   /* base-select biến ô chọn thành flex, chữ dạt lên mép trên ⇒ căn giữa dọc như ô gốc */
   .select:not([multiple]):not([size]) {
     align-items: center;
+    /* base-select cho chữ xuống dòng khi tên dài hơn ô ⇒ giữ một dòng, phần thừa bị cắt; danh sách khi mở vẫn đủ chữ */
+    white-space: nowrap;
+    overflow: hidden;
   }
   .select::picker-icon {
     display: none; /* đã có mũi tên bằng background-image */
@@ -1240,14 +1196,15 @@ tr.sortable-item--moved > td {
 .modal--xl {
   max-width: 1100px;
 }
-/* Hộp thoại làm việc gần kín màn hình (bảng + cột phụ) */
-.modal--full {
-  max-width: min(1680px, 100%);
-  max-height: calc(100vh - 2 * var(--space-3));
+/* Hộp gần hết khung (biểu mẫu nhập nhiều cột, Sửa ngày của kế hoạch tuần); thân cuộn trong modal */
+.modal-backdrop:has(> .modal--full) {
+  padding: var(--space-2);
 }
-/* Lề quanh hộp thoại làm việc mỏng hơn để bảng có thêm chỗ */
-.modal-backdrop:has(.modal--full) {
-  padding: var(--space-3);
+.modal--full {
+  max-width: none;
+  width: 100%;
+  height: 100%;
+  max-height: none;
 }
 .modal__header {
   display: flex;
@@ -1638,6 +1595,11 @@ tr.sortable-item--moved > td {
 .import-guide__text {
   flex: 1 1 320px;
   min-width: 0;
+}
+.import-options {
+  display: grid;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
 }
 .import-drop {
   min-height: 260px;
@@ -2545,6 +2507,35 @@ a.file-row__name:hover {
   border-color: var(--color-focus);
   box-shadow: 0 0 0 3px var(--color-focus-ring);
 }
+/* Nút chỉ có icon mở danh sách chọn (vd. "Thay món" trên chip món) — cùng cỡ với `.icon-action` của chip */
+.search-select__icon,
+.icon-action {
+  display: grid;
+  place-items: center;
+  width: var(--space-6);
+  height: var(--space-6);
+  flex-shrink: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+.search-select__icon:hover,
+.icon-action:hover,
+.search-select__icon[aria-expanded='true'] {
+  background: var(--color-surface-hover);
+  color: var(--color-primary);
+}
+.icon-action--danger:hover {
+  color: var(--color-danger);
+}
+.search-select__icon:focus-visible,
+.icon-action:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--color-focus-ring);
+}
 .search-select__empty {
   padding: var(--space-4);
   text-align: center;
@@ -2809,6 +2800,14 @@ button.stat-card .stat-card__label::after {
   color: color-mix(in srgb, var(--stat-tone) 70%, var(--color-text));
   font-variant-numeric: tabular-nums;
 }
+/* Thẻ có số dài (tiền): số luôn một dòng, thẻ hẹp thì chữ số nhỏ lại theo bề rộng thẻ thay vì xuống dòng */
+.stat-card--fit {
+  container-type: inline-size;
+}
+.stat-card--fit .stat-card__value {
+  white-space: nowrap;
+  font-size: min(var(--stat-value-size), 16cqi);
+}
 /* Đang tải: vạch cao bằng dòng số để thẻ không nhảy khi số về */
 .stat-card__skeleton {
   display: block;
@@ -2848,6 +2847,16 @@ button.stat-card .stat-card__label::after {
   padding: var(--space-3-5) var(--space-4);
   align-items: flex-end;
   flex-wrap: wrap;
+}
+/* Nút thao tác của màn (Thêm, Nhập từ Excel…) nằm cuối hàng lọc, dồn sang phải; hẹp thì tự xuống hàng */
+.filter-bar__end {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+.filter-bar--aligned > .filter-bar__end > .btn {
+  height: var(--input-height);
 }
 .filter-bar .select {
   width: auto;
@@ -3199,6 +3208,99 @@ button.stat-card .stat-card__label::after {
   color: var(--text-2);
   white-space: nowrap;
 }
+/* Thanh tiến độ nhiều trạng thái (SegmentedProgress): đoạn nối tiếp trên một rãnh, chú giải chấm màu + số đếm bên dưới */
+.seg-progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+/* Rãnh là SVG co theo bề rộng (preserveAspectRatio none); đoạn là <rect> tô bằng fill, chấm chú giải tô bằng nền cùng tông */
+.seg-progress__track {
+  display: block;
+  width: 100%;
+  height: 12px;
+  overflow: hidden;
+  border-radius: var(--radius-full);
+  background: var(--skeleton);
+}
+.seg-progress__bar--green {
+  fill: var(--tone-green);
+}
+.seg-progress__bar--blue {
+  fill: var(--tone-blue);
+}
+.seg-progress__bar--orange {
+  fill: var(--tone-orange);
+}
+.seg-progress__bar--red {
+  fill: var(--tone-red);
+}
+.seg-progress__bar--gray {
+  fill: var(--tone-gray);
+}
+.seg-progress__dot--green {
+  background: var(--tone-green);
+}
+.seg-progress__dot--blue {
+  background: var(--tone-blue);
+}
+.seg-progress__dot--orange {
+  background: var(--tone-orange);
+}
+.seg-progress__dot--red {
+  background: var(--tone-red);
+}
+.seg-progress__dot--gray {
+  background: var(--tone-gray);
+}
+.seg-progress__dot--rest {
+  background: var(--skeleton);
+  box-shadow: inset 0 0 0 1px var(--line-muted);
+}
+.seg-progress--compact {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: calc(var(--space-16) * 2);
+}
+.seg-progress--compact .seg-progress__track {
+  flex: 1;
+  height: 10px;
+}
+/* Chữ "x/y" cố định bề rộng, căn phải: các thanh trong cùng cột bảng dài bằng nhau */
+.seg-progress--compact .progress__label {
+  min-width: var(--space-10);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.seg-progress__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-6);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.seg-progress__legend li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  font-size: var(--fs-sm);
+}
+.seg-progress__dot {
+  flex: 0 0 auto;
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-full);
+}
+.seg-progress__name {
+  color: var(--text-2);
+}
+.seg-progress__value {
+  font-weight: var(--fw-semibold);
+  font-variant-numeric: tabular-nums;
+}
 
 /* ---------- Search box, form grid, misc (shared) ---------- */
 .general-grid {
@@ -3504,9 +3606,19 @@ button.stat-card .stat-card__label::after {
   backdrop-filter: var(--glass-blur);
 }
 
+/* Tên trang đã ở thanh trên (đường dẫn): h1 chỉ cho trình đọc màn hình, cùng khai báo .sr-only như .page__title */
 .edit-head h1 {
+  position: absolute;
+  width: 1px;
+  height: 1px;
   margin: 0;
-  font-size: var(--fs-h3);
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.edit-head__meta:first-of-type {
+  padding-left: 0;
+  border-left: 0;
 }
 
 .edit-head__meta {
@@ -3764,6 +3876,14 @@ button.stat-card .stat-card__label::after {
   max-height: 60vh;
   overflow: auto;
 }
+/* Hộp toàn màn hình (bảng nhiều cột): bảng cao gần hết hộp, tiêu đề cột dài được xuống dòng để đỡ cuộn ngang */
+.modal--full .export-preview {
+  max-height: 74vh;
+}
+.modal--full .export-preview .export-preview__head th {
+  white-space: normal;
+  min-width: var(--space-16, 4rem);
+}
 .export-preview .export-preview__head th {
   position: sticky;
   top: 0;
@@ -3783,6 +3903,8 @@ button.stat-card .stat-card__label::after {
 }
 .tab-panel > * {
   margin-top: 0;
+  /* phần tử lưới mặc định không co dưới bề rộng nội dung: thẻ có bảng rộng làm tràn ngang trên điện thoại */
+  min-width: 0;
 }
 /* Tiêu đề "Thao tác" không gãy dòng kể cả khi bảng cho tiêu đề xuống dòng */
 .table thead th.cell--actions {
@@ -3797,6 +3919,10 @@ button.stat-card .stat-card__label::after {
 }
 .td-split-nav__main {
   min-width: 0;
+}
+/* Bảng cách mép card như thanh lọc và phân trang phía trên/dưới, không dính viền danh mục và mép phải */
+.td-split-nav__main > .table-wrap {
+  margin-inline: var(--space-4);
 }
 .td-cat-nav {
   padding: var(--space-4) var(--space-3);

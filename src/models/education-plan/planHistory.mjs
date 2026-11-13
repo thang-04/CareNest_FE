@@ -12,7 +12,7 @@ export function draftsOf(raw) {
   return raw?.doc ? [{ ...raw, session: 'legacy' }] : [];
 }
 
-const META = new Set(['id', 'key', 'status', 'history', 'revision', 'permissions', 'editing', 'version', 'signature', 'signers']);
+const META = new Set(['id', 'key', 'status', 'history', 'revision', 'permissions', 'editing', 'version', 'signature', 'signers', 'pulled', 'aiSteps']);
 const isMeta = (k) => META.has(k) || /(?:Id|Ids|At|Key)$/.test(k);
 
 /** Dòng nội dung của tài liệu lớp: mọi chuỗi chữ theo thứ tự trong tài liệu, bỏ trường kỹ thuật. */

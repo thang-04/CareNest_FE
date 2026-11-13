@@ -42,7 +42,7 @@ const render = (row) => {
         ...row,
       },
     ],
-    rules: { WEEK_MIN_PRESENT_DAYS: 4, WEEK_MIN_FLAGS: 3, MONTH_MIN_WEEKLY_TICKETS: 3 },
+    rules: { WEEK_MIN_FLAGS: 3, MONTH_MIN_WEEKLY_TICKETS: 3 },
   };
   try {
     return renderToStaticMarkup(TeacherTicketsPage());

@@ -11,13 +11,13 @@ import { StatCard } from '@/components/ui/StatCard';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { GrowthReportDataBadge } from '@/components/children/ChildBadges';
 import { CAMPAIGN_STATUS } from '@/models/children/healthCheckConstants';
+import { sameId } from '@/services/http/idStrings';
 import { canManageHealthCheck, isPrincipal } from '@/utils/children/childrenPermissions';
 import { childrenCrumbs } from '@/utils/children/breadcrumbs';
 import {
   GROWTH_COLUMN_COUNT,
   GROWTH_GROUPS,
   GROWTH_ITEMS,
-  GROWTH_REPORT_SUBTITLE,
   GROWTH_REPORT_TITLE,
   formatPct,
   growthReportNotesOf,
@@ -30,6 +30,7 @@ import {
 import { buildGrowthReportSheet, growthReportFileName } from '@/utils/children/growthReportSheet';
 import { downloadXlsx } from '@/utils/exportXlsx';
 import '@/styles/modules/children.css';
+import { CampusFilter } from '@/components/ui/CampusFilter';
 
 // Thẻ số liệu: số trẻ và tỉ lệ trên số trẻ được cân đo; tông theo mức BMI (gầy còm, thừa cân cam; béo phì đỏ) như BmiStatusBadge.
 const STATS = [
@@ -126,9 +127,10 @@ export default function GrowthReportPage() {
   // Hiệu trưởng: tất cả hoặc từng điểm trường; PHT: điểm trường được giao (1 điểm trường ⇒ chỉ hiện tên).
   const campusOptions = principal ? md.campuses : md.campuses.filter((c) => canManageHealthCheck(user, c.id));
   const campusSelectable = principal || campusOptions.length > 1;
-  const campusId = campusSelectable && campusOptions.some((c) => c.id === filters.campusId) ? filters.campusId : '';
+  // id /campuses là số khi nối BE, tham số URL là chuỗi
+  const campusId = campusSelectable && campusOptions.some((c) => sameId(c.id, filters.campusId)) ? filters.campusId : '';
   const scopeLabel = campusId
-    ? campusOptions.find((c) => c.id === campusId)?.name || ''
+    ? campusOptions.find((c) => sameId(c.id, campusId))?.name || ''
     : principal
       ? 'Tất cả điểm trường'
       : campusOptions.length === 1
@@ -149,9 +151,6 @@ export default function GrowthReportPage() {
       <Breadcrumb items={childrenCrumbs('Tổng hợp cân đo')} />
       <div className="page__head">
         <h1 className="page__title">Tổng hợp cân đo</h1>
-        <p className="page__desc">
-          Kết quả cân đo theo lớp từ các kỳ cân đo và đợt khám bắt đầu trong tháng, đánh giá theo chuẩn tăng trưởng WHO.
-        </p>
         {months.length > 0 && (
           <div className="page__actions">
             <button className="btn" onClick={exportExcel} disabled={!shown || busy}>
@@ -211,14 +210,13 @@ export default function GrowthReportPage() {
             ))}
           </select>
           {campusSelectable ? (
-            <select className="select" aria-label="Điểm trường" value={campusId} onChange={(e) => setFilters({ campusId: e.target.value })}>
-              <option value="">{principal ? 'Tất cả điểm trường' : 'Các điểm trường được giao'}</option>
-              {campusOptions.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+            <CampusFilter
+              campuses={campusOptions}
+              value={campusId}
+              onChange={(v) => setFilters({ campusId: v })}
+              allLabel={principal ? 'Tất cả điểm trường' : 'Các điểm trường được giao'}
+              hideLabel
+            />
           ) : (
             scopeLabel && (
               <p className="gr-scope m-0">
@@ -255,7 +253,6 @@ export default function GrowthReportPage() {
         <div className="card__header">
           <div>
             <h2 className="card__title">{GROWTH_REPORT_TITLE}</h2>
-            <p className="muted text-sm m-0">{GROWTH_REPORT_SUBTITLE}</p>
           </div>
         </div>
         {error ? (
@@ -318,11 +315,8 @@ export default function GrowthReportPage() {
         )}
         {shown && !busy && (
           <div className="gr-notes">
-            {growthReportNotesOf(shown).map((note) => (
-              <p key={note} className="muted text-xs m-0">
-                {note}
-              </p>
-            ))}
+            {/* Màn hình bỏ ghi chú giải thích (vẫn có trong file Excel); chỉ giữ dòng số trẻ chưa xếp nhóm — luôn là ghi chú cuối. */}
+            {shown.total?.unclassified > 0 && <p className="muted text-xs m-0">{growthReportNotesOf(shown).at(-1)}</p>}
             <p className="muted text-xs m-0">Kỳ/đợt dùng cho báo cáo:</p>
             <ul className="gr-notes__sources muted text-xs">
               {growthReportSourcesOf(shown).map((s) => (

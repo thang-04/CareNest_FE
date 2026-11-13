@@ -58,6 +58,8 @@ Mỗi dòng trẻ hiển thị tối đa một phụ huynh nhận tài khoản:
 | Trẻ B | Bố — họ tên | SĐT | Đã có tài khoản, chờ liên kết | Liên kết tài khoản |
 | Trẻ C | Bà — họ tên | SĐT | Đang hoạt động | Các thao tác tài khoản theo quyền hiện có |
 
+- Cột phụ huynh (user chốt 2026-11-11): hồ sơ một phụ huynh hiện người đó; từ hai phụ huynh hiện người nhận tài khoản.
+- Hộp kích hoạt (user chốt 2026-11-11): hồ sơ từ hai phụ huynh có dropdown chọn sẵn người nhận; đổi người thì hiện ngay thông tin người đó (SĐT/tên đăng nhập, họ tên, CCCD, quan hệ, email), không có nút lưu riêng. Bấm **Kích hoạt tài khoản** thì kích hoạt cho người đang hiện: người đó khác người nhận đã lưu thì FE lưu người nhận (`PUT /children/{id}/account-recipient`) rồi kích hoạt (`POST /children/{id}/guardians/activate`). Bước kích hoạt lỗi thì người nhận đã đổi, bấm lại là xong.
 - Panel/hộp xác nhận chỉ hiện người được chọn; bỏ câu chữ **kích hoạt tất cả phụ huynh/cả nhà**.
 - Bộ lọc **Chưa có tài khoản** và các số đếm dựa trên người được chọn, không dựa trên việc một người khác của trẻ đã có tài khoản hay chưa.
 - Tài khoản đã có được dùng lại; không tạo bản sao, không tự đổi mật khẩu hoặc mở khóa tài khoản đang bị khóa.
@@ -68,7 +70,7 @@ Mỗi dòng trẻ hiển thị tối đa một phụ huynh nhận tài khoản:
 
 - Không tự khóa hoặc xóa tài khoản, không tự thu hồi liên kết cũ khi nâng cấp.
 - Hồ sơ chỉ có một phụ huynh, hoặc chỉ có một phụ huynh đã liên kết tài khoản: có thể điền người đó khi chuyển dữ liệu.
-- Hồ sơ còn nhiều khả năng lựa chọn: ghi **Cần chọn phụ huynh nhận tài khoản**, cho mở hồ sơ để chọn; không đoán Bố/Mẹ hay người đứng đầu.
+- Tiếp nhận và nhập Excel luôn bắt có ít nhất một phụ huynh và đúng một người nhận tài khoản, nên màn Tài khoản phụ huynh không còn trạng thái **Cần chọn phụ huynh nhận tài khoản** (user chốt 2026-11-11). Seed dev (`R__dev_seed*.sql`) cũng chọn đủ: ưu tiên người đã liên kết, không ai thì người đầu trên hồ sơ.
 - Nếu hồ sơ cũ đã có nhiều liên kết, ghi rõ còn liên kết cũ; lựa chọn người nhận tài khoản không tự xóa các quyền truy cập cũ. Việc thu hồi các liên kết đó cần thao tác quản lý riêng.
 - Thay người trước kích hoạt: cho sửa theo quyền hồ sơ/quản lý phụ huynh. Sau kích hoạt: không thay ngầm; hiển thị tình trạng liên kết để người quản lý xử lý có chủ đích.
 

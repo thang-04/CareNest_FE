@@ -8,6 +8,7 @@ import { EDU_ERROR_CODE } from '@/models/education-plan/educationPlanConstants';
 const SPECS = {
   REQUIRED_FIELD_MISSING: [400, 'Thiếu thông tin bắt buộc: {0}'],
   YEAR_PLAN_NOT_FOUND: [404, 'Không tìm thấy kế hoạch năm học'],
+  YEAR_PLAN_ACCESS_DENIED: [403, 'Bạn không có quyền xem kế hoạch giáo dục này'],
   YEAR_PLAN_EDIT_FORBIDDEN: [403, 'Bạn không sửa được kế hoạch này'],
   YEAR_PLAN_LOCKED_BY_OTHER: [409, 'Đang được {0} sửa'],
   YEAR_PLAN_INVALID_STATUS: [409, 'Không thể {0} kế hoạch ở trạng thái hiện tại'],
@@ -40,7 +41,7 @@ const SPECS = {
   YEAR_PLAN_OPEN_VERSION_EXISTS: [409, 'Đã có phiên bản {0} đang soạn. Hãy sửa tiếp phiên bản đó'],
   CLASS_DOC_VERSION_FIX_REQUIRED: [409, 'Còn {0} mục đổi theo kế hoạch năm mới chưa sửa (ô đỏ). Sửa hết rồi mới gửi'],
   YEAR_PLAN_SUPERSEDED: [409, 'Kế hoạch năm đã có phiên bản mới. Tạo tài liệu trên phiên bản hiện hành'],
-  CLASS_DOC_ADJUSTMENT_INVALID: [400, 'Kế hoạch điều chỉnh chỉ ghi cho ngày Thứ 2–6 của tuần, tối đa 4000 ký tự'],
+  DAY_PLAN_SECTION_EMPTY: [400, 'Còn {0} mục hoạt động của giáo án ngày chưa có nội dung'],
   CLASS_ACCESS_DENIED: [403, 'Bạn không có quyền với lớp này'],
   THEME_PLAN_NOT_FOUND: [404, 'Không tìm thấy kế hoạch chủ đề'],
   UNSUPPORTED_MEDIA_TYPE: [415, 'Định dạng tệp không được hỗ trợ'],

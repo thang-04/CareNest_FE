@@ -22,9 +22,15 @@ const { assessmentMockRepository: repo } = await import('@/services/assessment/m
 const { createAssessmentBeApi } = await import('@/services/assessment/api/assessmentApi');
 const { readDb, writeDb, resetDb } = await import('@/mocks/mockDatabase');
 const { createGeneralDraft } = await import('@/utils/assessment/dailyGeneralDraft');
+const { PERMISSIONS } = await import('@/models/bePermissions');
 const TEACHER = { id: 'u_minhanh', role: 'TEACHER', campusId: 'c1' };
 const VP = { id: 'u_lan', role: 'VICE_PRINCIPAL', campusId: 'c1' };
 const OTHER_VP = { id: 'u_duc', role: 'VICE_PRINCIPAL', campusId: 'c2' };
+const SCHOOL_VP = {
+  ...OTHER_VP,
+  bePermissions: [PERMISSIONS.ASSESSMENT_VIEW],
+  beSchoolWidePermissions: [PERMISSIONS.ASSESSMENT_VIEW],
+};
 const HT = { id: 'u_hung', role: 'PRINCIPAL', campusId: null };
 const CLASS = 'cls_c1_c1';
 const TODAY = '2026-10-29';
@@ -60,7 +66,7 @@ test('lưu nhận xét chung cùng trẻ, sửa riêng và request cũ không x�
   assert.equal((await repo.getDailyAssessment({ classId: CLASS, date: TODAY }, TEACHER)).classComment.text, 'Đã ổn định nề nếp.');
 });
 
-test('nhận xét lớp không tăng số đã đánh giá; PHT mọi điểm trường/HT đọc được, chỉ GV lớp ghi', async () => {
+test('nhận xét lớp không tăng số đã đánh giá; PHT theo phạm vi/HT đọc được, chỉ GV lớp ghi', async () => {
   const before = await repo.getClassAssessmentOverview({ period: 'DAY', classId: CLASS }, HT);
   await repo.saveDailyGeneral({ classId: CLASS, date: TODAY, entries: [], classComment: NOTE }, TEACHER);
   const after = await repo.getClassAssessmentOverview({ period: 'DAY', classId: CLASS }, VP);
@@ -70,8 +76,8 @@ test('nhận xét lớp không tăng số đã đánh giá; PHT mọi điểm tr
   const detail = await repo.getClassAssessmentDetail({ classId: CLASS, period: 'DAY' }, HT);
   assert.equal(detail.classComments[0].text, NOTE);
   assert.ok(detail.children.every((child) => child.comments.every((c) => c.text !== NOTE)));
-  // AUTH-20 (Cần chốt 03/11/2026): PHT điểm trường khác xem được (chỉ xem)
-  assert.equal((await repo.getClassAssessmentDetail({ classId: CLASS, period: 'DAY' }, OTHER_VP)).classComments[0].text, NOTE);
+  await assert.rejects(repo.getClassAssessmentDetail({ classId: CLASS, period: 'DAY' }, OTHER_VP), { status: 403 });
+  assert.equal((await repo.getClassAssessmentDetail({ classId: CLASS, period: 'DAY' }, SCHOOL_VP)).classComments[0].text, NOTE);
   await assert.rejects(
     () => repo.saveDailyGeneral({ classId: CLASS, date: TODAY, entries: [], classComment: 'Ghi thay' }, VP),
     (e) => e.status === 403,

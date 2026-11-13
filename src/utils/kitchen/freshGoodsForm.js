@@ -54,6 +54,32 @@ export const validateRoundForm = (form) => {
   return errors;
 };
 
+/**
+ * Chia dòng cần nhận thành các nhóm thực phẩm (rau, thịt...) để bảng hiện hai cấp. `groupOfFood` = Map(foodId -> mã nhóm);
+ * thực phẩm chưa rõ nhóm vào "Khác". Nhóm theo thứ tự danh mục; `index` giữ vị trí dòng để khớp ô nhập.
+ */
+export const groupRoundLines = (lines, groupOfFood, labels) => {
+  const keys = Object.keys(labels);
+  const buckets = new Map();
+  lines.forEach((line, index) => {
+    const raw = groupOfFood?.get(String(line.food.id));
+    const key = keys.includes(raw) ? raw : 'OTHER';
+    if (!buckets.has(key)) buckets.set(key, []);
+    buckets.get(key).push({ line, index });
+  });
+  return keys.filter((key) => buckets.has(key)).map((key) => ({ key, label: labels[key], rows: buckets.get(key) }));
+};
+
+/** Đếm số dòng theo kết quả đã chọn trong ô nhập, để báo lại trong hộp xác nhận. */
+export const tallyResults = (form) =>
+  form.lines.reduce((acc, line) => (line.result ? { ...acc, [line.result]: (acc[line.result] || 0) + 1 } : acc), {});
+
+/** Sửa lại lần đã ghi: lý do được ghi vào đầu ghi chú chung (BE chưa có field riêng). */
+export const withEditReason = (note, reason) => {
+  const head = `Sửa lại: ${String(reason).trim()}`;
+  return note?.trim() ? `${head}. ${note.trim()}` : head;
+};
+
 /** Mã trạng thái hiển thị của một lần kiểm từ cờ BE trả. */
 export const roundState = (round) => {
   if (round.recorded) return 'RECORDED';

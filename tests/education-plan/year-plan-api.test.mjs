@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { AxiosError } from 'axios';
+import { reconcileYearPlanIds } from '../../src/models/education-plan/yearPlanAutosave.mjs';
 
 globalThis.window = new EventTarget();
 
@@ -18,6 +19,24 @@ const CONFIG = {
   ageGroups: [{ id: 3, code: 'ag-3', name: 'Mẫu giáo bé (3–4 tuổi)', shortName: 'Mẫu giáo bé', sortOrder: 2 }],
 };
 const refs = buildRefs(CONFIG);
+
+test('second annual save sends persisted branch IDs and matching parent keys after the first save', () => {
+  const snapshot = {
+    planLevel: 'SCHOOL_YEAR', schoolYear: '2026 – 2027', ageGroupId: 'ag-3', title: 'Kế hoạch năm',
+    themes: [{ id: 'theme-local', name: 'Trường mầm non', abbr: 'TMN' }],
+    branchTemplates: [{ id: 'branch-local', themeId: 'theme-local', name: 'Trường của bé' }],
+  };
+  const saved = { ...snapshot, id: '350', revision: 1,
+    themes: [{ ...snapshot.themes[0], id: '703' }],
+    branchTemplates: [{ ...snapshot.branchTemplates[0], id: '35', themeId: '703' }],
+  };
+  const current = reconcileYearPlanIds(snapshot, snapshot, saved);
+  const body = toYearPlanRequest(current, refs);
+  assert.equal(body.planLevel, 'SCHOOL_YEAR');
+  assert.equal(body.branchTemplates[0].id, 35);
+  assert.equal(body.branchTemplates[0].themeKey, body.themes[0].key);
+  assert.equal(body.branchTemplates[0].themeKey, '703');
+});
 
 const detail = (overrides = {}) => ({
   id: 41,
@@ -84,6 +103,19 @@ test('UI → BE: id UI tự sinh gửi null, tích chủ đề theo key, lĩnh v
   );
 });
 
+test('goal labels round-trip through the API; empty clears and missing remains omitted for legacy clients', () => {
+  const response = detail();
+  response.domains[0].rows[1].displayLabel = 'Mục tiêu 01';
+  const goal = toUiGoal(response, refs);
+  assert.equal(goal.domains[0].rows[1].displayLabel, 'Mục tiêu 01');
+  assert.equal(goal.domains[0].items[0].code, 'Mục tiêu 01');
+  assert.equal(toYearPlanRequest(goal, refs).domains[0].rows[1].displayLabel, 'Mục tiêu 01');
+  goal.domains[0].rows[1].displayLabel = '';
+  assert.equal(toYearPlanRequest(goal, refs).domains[0].rows[1].displayLabel, '');
+  delete goal.domains[0].rows[1].displayLabel;
+  assert.equal(Object.hasOwn(toYearPlanRequest(goal, refs).domains[0].rows[1], 'displayLabel'), false);
+});
+
 test('trạng thái UI → endpoint hành động của BE', () => {
   const draft = { status: 'DRAFT', permissions: { canEdit: true } };
   const pending = { status: 'PENDING_VP', permissions: { canEdit: true } };
@@ -144,14 +176,13 @@ test('lưu kế hoạch mới: POST rồi trả bản BE (id thật), bóc envel
   await assert.rejects(axiosClient.get('/education-plans/goals/999'), { status: 404, message: 'Year plan not found' });
 });
 
-test('BE:EDU-10 — khóa "Đang sửa": người giữ khóa; lưu khi đang sửa chỉ là update, gửi vẫn là submit', () => {
+test('EDU-70 — dữ liệu EDITING cũ hiển thị nháp, không giữ khóa sửa', () => {
   const goal = toUiGoal(
     detail({ status: 'EDITING', editing: { userId: 7, name: 'Demo leader', title: null, at: '2026-10-22T03:05:00Z' } }),
     refs,
   );
-  assert.equal(goal.status, 'EDITING');
-  assert.equal(goal.editing.name, 'Demo leader');
-  assert.match(goal.editing.at, /^2026-10-22 \d\d:05$/);
+  assert.equal(goal.status, 'DRAFT');
+  assert.equal(goal.editing, null);
   assert.equal(toUiGoal(detail(), refs).editing, null);
 
   const editing = { status: 'EDITING', permissions: { canEdit: true } };
@@ -165,7 +196,7 @@ test('BE:EDU-10 — khóa "Đang sửa": người giữ khóa; lưu khi đang s�
   );
 });
 
-test('BE:EDU-10 — vào / thoát trang soạn gọi start-editing / finish-editing', async () => {
+test('EDU-70 — adapter tương thích chỉ đọc bản mới, không mở hoặc đóng lease', async () => {
   const calls = [];
   axiosClient.defaults.adapter = async (config) => {
     calls.push(`${config.method.toUpperCase()} ${config.url}`);
@@ -177,10 +208,11 @@ test('BE:EDU-10 — vào / thoát trang soạn gọi start-editing / finish-edit
   await educationPlanApi.startEditingGoal('41', edit);
   await educationPlanApi.finishEditingGoal('41', { edit });
 
-  assert.deepEqual(calls.slice(-2), ['POST /education-plans/goals/41/start-editing', 'POST /education-plans/goals/41/finish-editing']);
+  assert.equal(calls.at(-1), 'GET /education-plans/goals/41');
+  assert.ok(!calls.some((call) => /start-editing|finish-editing/.test(call)));
 });
 
-test('trang chi tiết cũ không dùng revision mới nhận được để ghi đè; quyền tạm luôn được nhả', async () => {
+test('trang chi tiết cũ không dùng revision mới nhận được để ghi đè và không mở lease', async () => {
   const calls = [];
   axiosClient.defaults.adapter = async (config) => {
     calls.push(`${config.method.toUpperCase()} ${config.url}`);
@@ -189,7 +221,8 @@ test('trang chi tiết cũ không dùng revision mới nhận được để ghi
   };
   const stale = { ...toUiGoal(detail({ revision: 8 }), refs), status: 'APPROVED' };
   await assert.rejects(educationPlanApi.saveGoal(stale), { status: 409 });
-  assert.ok(calls.includes('POST /education-plans/goals/41/finish-editing'));
+  assert.ok(calls.includes('GET /education-plans/goals/41'));
+  assert.ok(!calls.some((call) => /start-editing|finish-editing/.test(call)));
   assert.ok(!calls.some((call) => call.startsWith('PUT ') || call.endsWith('/issue')));
 });
 
@@ -208,6 +241,11 @@ test('BE:EDU-11 — cấu hình: lĩnh vực thêm là lĩnh vực không chuẩ
   assert.deepEqual(toUiEduConfig(beConfig), {
     domainLabels: { 'Phát triển thể chất': 'Thể chất' },
     extraDomains: ['Lĩnh vực mới'],
+    workflowPolicy: null,
+    durationPolicyAvailable: true,
+    workflowRevision: 1,
+    canConfigure: false,
+    yearCreationScopes: [],
     signers,
     weekRows,
   });
@@ -284,7 +322,7 @@ test('import source detail stays fresh and does not overwrite the writer baselin
   const original = toUiGoal(detail({ id: 91 }), refs);
   axiosClient.defaults.adapter = async (config) => {
     calls.push(`${config.method} ${config.url}`);
-    const sourceRead = config.method === 'get';
+    const sourceRead = config.method === 'get' && config.signal === signal;
     if (sourceRead) assert.equal(config.signal, signal);
     return respond(
       config,
@@ -300,7 +338,7 @@ test('import source detail stays fresh and does not overwrite the writer baselin
   await educationPlanApi.saveGoal(original, { edit });
   assert.equal(calls.length, beforeSave);
   assert.deepEqual(calls, [
-    'post /education-plans/goals/91/start-editing',
+    'get /education-plans/goals/91',
     'get /education-plans/goals/91',
     'get /education-plans/goals/91',
   ]);
@@ -336,4 +374,117 @@ test('import sources: team leader chọn được nhóm tuổi khác; chi tiết
   assert.equal(sent.params.actor, undefined);
   await assert.rejects(educationPlanApi.getGoalSource('42', leader), { status: 403 });
   assert.equal((await educationPlanApi.getGoalSource('43', leader)).id, '43');
+});
+
+test('toUiGoal: giữ nguyên quyền permissions, waitingRole và creationCapabilities từ server detail', () => {
+  const serverDetail = detail({
+    id: 99,
+    status: 'REVIEW',
+    waitingRole: 'VICE_PRINCIPAL',
+    waitingRoleLabel: 'Phó hiệu trưởng',
+    creationCapabilities: { canCreate: false, reason: 'ALREADY_EXISTS' },
+    permissions: { canEdit: false, canSubmit: false, canIssue: true, canReturn: true, canDelete: false },
+  });
+  const ui = toUiGoal(serverDetail, refs);
+  assert.equal(ui.status, 'REVIEW');
+  assert.equal(ui.waitingRole, 'VICE_PRINCIPAL');
+  assert.equal(ui.waitingRoleLabel, 'Phó hiệu trưởng');
+  assert.equal(ui.permissions.canEdit, false);
+  assert.equal(ui.permissions.canIssue, true);
+  assert.equal(ui.permissions.canReturn, true);
+});
+
+test('old backend ignoring planLevel does not duplicate TEAM records or turn them into annual plans', async () => {
+  const detailReads = [];
+  axiosClient.defaults.adapter = async (config) => {
+    let data;
+    if (config.url.endsWith('/config')) data = CONFIG;
+    else if (config.url.endsWith('/workflow-policy')) data = { revision: 1, policies: {}, canConfigure: false };
+    else if (config.url.endsWith('/duration-policy'))
+      throw new AxiosError('not found', 'ERR_BAD_REQUEST', config, null, { status: 404, config, headers: {}, data: { desc: 'Not found' } });
+    else if (config.url.endsWith('/goals')) data = { items: [{ id: 41 }], totalPages: 1 };
+    else {
+      detailReads.push(config.url);
+      data = detail();
+    }
+    return { status: 200, statusText: 'OK', headers: {}, config, data: { code: 200, desc: 'ok', data } };
+  };
+  await educationPlanApi.getEduConfig();
+  const loaded = await educationPlanApi.getAll();
+  assert.equal(loaded.goals.length, 1);
+  assert.equal(loaded.goals[0].planLevel, 'TEAM');
+  assert.equal(detailReads.length, 1);
+});
+
+test('annual import sends SCHOOL_YEAR to the API list filter', async () => {
+  const calls = [];
+  axiosClient.defaults.adapter = async (config) => {
+    calls.push(config);
+    return respond(config, { items: [], totalPages: 1 });
+  };
+  await educationPlanApi.listGoalSources({ planLevel: 'SCHOOL_YEAR' }, sourceActor);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].params.planLevel, 'SCHOOL_YEAR');
+});
+
+test('label-only draft goals roundtrip without requiring text or replacing the entered STT', () => {
+  const goal = toUiGoal(detail(), refs);
+  goal.domains[0].rows.push({ id: 'pending-label', kind: 'goal', text: '', displayLabel: 'MTR20', contents: [] });
+  const body = toYearPlanRequest(goal, refs);
+  const pending = body.domains[0].rows.at(-1);
+  assert.equal(pending.text, '');
+  assert.equal(pending.displayLabel, 'MTR20');
+  const response = detail();
+  response.domains[0].rows.push({ ...pending, id: 103, goalNo: 2, contents: [] });
+  const restored = toUiGoal(response, refs).domains[0].rows.at(-1);
+  assert.equal(restored.displayLabel, 'MTR20');
+  assert.equal(restored.text, '');
+});
+
+test('annual source trusts server scope for a manager with a team-leader primary role', async () => {
+  axiosClient.defaults.adapter = async (config) => {
+    const data = config.url === '/education-plans/config' ? CONFIG : detail({ planLevel: 'SCHOOL_YEAR', status: 'REVIEW' });
+    return { status: 200, statusText: 'OK', headers: {}, config, data: { code: 200, desc: 'ok', data } };
+  };
+  const goal = await educationPlanApi.getGoalSource('41', { role: 'TEAM_LEADER', roles: ['VICE_PRINCIPAL'], ageGroupId: 'ag-4' });
+  assert.equal(goal.planLevel, 'SCHOOL_YEAR');
+  assert.equal(goal.status, 'REVIEW');
+});
+
+test('spec015 maps planType, sentAt, source baseline, distinct review IDs and revision aliases', () => {
+  const ui = toUiGoal(detail({ planType: 'SCHOOL_YEAR', planLevel: 'TEAM', sentAt: '2026-11-09T03:00:00Z',
+    previousSourcePlanId: 10, curriculumSourcePlanId: 20, contentRevision: 8, revision: 7,
+    reviewItems: [{ reviewItemId: 600, itemId: 200, itemKind: 'CONTENT', sourcePlanId: 20, reason: 'Nội dung đổi', resolved: false }],
+    newItems: [{ itemKind: 'GOAL', itemId: 102 }] }), refs);
+  assert.equal(ui.planLevel, 'SCHOOL_YEAR'); assert.equal(ui.planTypeLabel, 'Kế hoạch năm học');
+  assert.equal(ui.sentAt, '2026-11-09'); assert.equal(ui.previousSourcePlanId, '10');
+  assert.equal(ui.revision, 8); assert.equal(ui.contentRevision, 8);
+  assert.equal(ui.reviewItems[0].reviewItemId, '600'); assert.equal(ui.reviewItems[0].itemId, '200');
+  assert.equal(ui.newItems[0].itemId, '102');
+  assert.equal(toUiGoal(detail({ createdAt: '2026-11-09T03:00:00Z', sentBy: null }), refs).sentAt, null);
+  assert.equal(toUiGoal(detail({ sentBy: { at: '2026-11-08T03:00:00Z' } }), refs).sentAt, '2026-11-08');
+});
+
+test('resolve sends review primary key, current source and existing edit/revision/idempotency headers; conflicts propagate without retry', async () => {
+  const calls = [];
+  const edit = { sessionId: crypto.randomUUID(), revision: 8, requestId: crypto.randomUUID() };
+  axiosClient.defaults.adapter = async (config) => {
+    calls.push(config);
+    return respond(config, detail({ revision: 9, reviewItems: [{ reviewItemId: 600, itemId: 200, sourcePlanId: 20, resolved: true }] }));
+  };
+  const saved = await educationPlanApi.resolveGoalReview('41', '600', '20', edit);
+  const request = calls.at(-1);
+  assert.equal(request.url, '/education-plans/goals/41/review/600/resolve');
+  assert.deepEqual(JSON.parse(request.data), { expectedSourcePlanId: 20 });
+  assert.equal(request.headers.get('X-Edit-Session'), edit.sessionId);
+  assert.equal(request.headers.get('X-Plan-Revision'), '8');
+  assert.equal(request.headers.get('Idempotency-Key'), edit.requestId);
+  assert.equal(saved.reviewItems[0].resolved, true); assert.equal(saved.revision, 9);
+  let attempts = 0;
+  axiosClient.defaults.adapter = async (config) => {
+    attempts++;
+    throw new AxiosError('Conflict', 'ERR_BAD_REQUEST', config, null, { status: 409, config, headers: {}, data: { desc: 'Nguồn đã thay đổi' } });
+  };
+  await assert.rejects(educationPlanApi.resolveGoalReview('41', '600', '20', edit), { status: 409 });
+  assert.equal(attempts, 1);
 });

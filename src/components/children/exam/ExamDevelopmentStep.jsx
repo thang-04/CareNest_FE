@@ -24,11 +24,7 @@ export function ExamDevelopmentStep({ form, set, errors, reference, disabled }) 
       ),
     }));
   return (
-    <ExamSheetCard
-      title={EXAM_STEPS[2].label}
-      info="Phần IV theo đánh giá của bác sĩ về hành vi và năng lực của trẻ theo độ tuổi. Phần V kiểm tra sổ tiêm chủng người đi cùng mang theo."
-      note={!reference.autismQuestion && 'Câu nguy cơ tự kỷ chỉ hỏi với trẻ từ 16 đến 30 tháng tuổi.'}
-    >
+    <ExamSheetCard title={EXAM_STEPS[2].label}>
       <ExamSheetTable label={`${EXAM_SECTIONS.development}; ${EXAM_SECTIONS.immunization}`}>
         <ExamSheetBand primary>{EXAM_SECTIONS.development}</ExamSheetBand>
         <ExamSheetRows

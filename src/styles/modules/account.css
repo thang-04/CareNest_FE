@@ -64,18 +64,11 @@
 .stack.ac-form {
   gap: var(--space-4);
 }
-/* Form ngắn trong thẻ: thanh nút là chân thẻ, không thành thanh kính nổi như form dài.
-   account.css có thể nạp trước components.css (trang công khai import sớm) nên cần độ ưu tiên cao hơn .page-actions:has(.btn--primary) */
+/* Form ngắn trong thẻ: hàng nút là chân thẻ, ngăn với ô nhập bằng đường kẻ */
 .card .page-actions.ac-actions {
-  position: static;
   padding: var(--space-4) 0 0;
   margin-top: 0;
-  border: 0;
   border-top: 1px solid var(--border);
-  border-radius: 0;
-  background: none;
-  box-shadow: none;
-  backdrop-filter: none;
 }
 /* Chân thẻ riêng (Đổi mật khẩu, Chi tiết thông báo): lề trái/phải bằng thân thẻ để nút thẳng hàng với ô nhập */
 .card > .card__body.page-actions.ac-actions {

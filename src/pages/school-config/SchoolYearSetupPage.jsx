@@ -12,7 +12,6 @@ import { ErrorState, LoadingState, Spinner } from '@/components/ui/States';
 import { FormField } from '@/components/form/FormField';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { DateInput } from '@/components/form/DateInput';
-import { YearStatusBadge } from '@/components/school-config/SchoolConfigBadges';
 import { ScNoAccess } from '@/components/school-config/ScNoAccess';
 import { copySourcesFor } from '@/components/school-config/CopyClassesModal';
 import { ActivateYearModal, YearReadinessCard } from '@/components/school-config/YearReadiness';
@@ -23,7 +22,7 @@ import AgeGroupsClassesPage from '@/pages/school-config/AgeGroupsClassesPage';
 import TeacherAssignmentPage from '@/pages/school-config/TeacherAssignmentPage';
 import { copyYear, saveSchoolYear, saveSemester } from '@/services/school-config/schoolConfigService';
 import { YEAR_STATUS } from '@/models/school-config/schoolConfigConstants';
-import { formatDate } from '@/utils/format';
+import { formatDate, todayInput } from '@/utils/format';
 import { canConfigureSchool } from '@/utils/school-config/schoolConfigPermissions';
 import {
   SEMESTER_FIELDS,
@@ -38,6 +37,7 @@ import {
   SETUP_STEPS,
   completedSteps,
   copySummary,
+  defaultPrepDate,
   firstOpenStep,
   readCopyResult,
   shiftToYear,
@@ -68,11 +68,16 @@ function InfoStep({ year, years, user, onSaved }) {
   const others = years.filter((y) => y.id !== year?.id);
   const planned = !year || year.status === YEAR_STATUS.PLANNED;
   const nameLocked = !!year && !planned;
-  const [form, setForm] = useState(() =>
-    year
-      ? { name: year.name, startDate: year.startDate, endDate: year.endDate, ...semesterOf(year) }
-      : { ...suggestNextYear(years), ...semesterOf(null) },
-  );
+  const today = todayInput();
+  const [form, setForm] = useState(() => {
+    if (year)
+      return { name: year.name, startDate: year.startDate, endDate: year.endDate, prepDate: year.prepDate || '', ...semesterOf(year) };
+    const next = suggestNextYear(years);
+    return { ...next, prepDate: defaultPrepDate(next.startDate, years, today), ...semesterOf(null) };
+  });
+  // CFG-YR-05: năm đã bắt đầu chỉ xem ngày mở chuẩn bị; chưa tự chọn ⇒ ngày gợi ý đi theo ngày bắt đầu
+  const prepLocked = !planned;
+  const [prepTouched, setPrepTouched] = useState(!!year);
   const sources = useMemo(
     () => (planned ? copySourcesFor(years, { id: year?.id ?? null, startDate: form.startDate }) : []),
     [planned, years, year?.id, form.startDate],
@@ -96,7 +101,12 @@ function InfoStep({ year, years, user, onSaved }) {
   }, [source, form.startDate, form.endDate, semesterTouched]);
 
   const validate = (f = form) => {
-    const e = validateSchoolYear(f, others, { creating: !year });
+    const e = validateSchoolYear(f, others, {
+      creating: !year,
+      prepLocked,
+      initialPrepDate: year?.prepDate || null,
+      today,
+    });
     // Học kỳ không bắt buộc ở bước này; đã nhập ngày nào thì phải đủ và đúng cả 4 ngày
     if (hasSemester(f) && !e.startDate && !e.endDate) Object.assign(e, validateSemester(f, f));
     if (source && parts.size === 0) e.parts = 'Chọn ít nhất một phần để sao chép';
@@ -104,12 +114,16 @@ function InfoStep({ year, years, user, onSaved }) {
   };
   const set = (patch) => {
     if (SEMESTER_KEYS.some((k) => k in patch)) setSemesterTouched(true);
-    setForm((f) => ({ ...f, ...patch }));
-    setErrors((e) => errorsAfterChange(e, patch, { ...form, ...patch }, {}));
+    const next = { ...patch };
+    if (patch.startDate !== undefined && !prepTouched) next.prepDate = defaultPrepDate(patch.startDate, others, today);
+    setForm((f) => ({ ...f, ...next }));
+    setErrors((e) => errorsAfterChange(e, next, { ...form, ...next }, {}));
   };
   const blurCheck = (field) => {
     const e = validate();
     if (e[field]) setErrors((prev) => ({ ...prev, [field]: e[field] }));
+    // Đổi ngày năm học làm ngày mở chuẩn bị hết hợp lệ ⇒ báo ngay ở ô ngày mở chuẩn bị
+    if (field !== 'prepDate' && e.prepDate && form.prepDate) setErrors((prev) => ({ ...prev, prepDate: e.prepDate }));
   };
   const togglePart = (key) => {
     setParts((prev) => {
@@ -134,9 +148,18 @@ function InfoStep({ year, years, user, onSaved }) {
     setConfirming(false);
     setSaving(true);
     try {
-      const changed = !year || form.name !== year.name || form.startDate !== year.startDate || form.endDate !== year.endDate;
+      const changed =
+        !year ||
+        form.name !== year.name ||
+        form.startDate !== year.startDate ||
+        form.endDate !== year.endDate ||
+        form.prepDate !== (year.prepDate || '');
       const saved = changed
-        ? await saveSchoolYear(year?.id || null, { name: form.name, startDate: form.startDate, endDate: form.endDate }, user)
+        ? await saveSchoolYear(
+            year?.id || null,
+            { name: form.name, startDate: form.startDate, endDate: form.endDate, prepDate: form.prepDate || null },
+            user,
+          )
         : year;
       if (hasSemester(form) && SEMESTER_KEYS.some((k) => form[k] !== (year?.[k] || ''))) {
         try {
@@ -174,7 +197,7 @@ function InfoStep({ year, years, user, onSaved }) {
             {errors._form}
           </div>
         )}
-        <div className="grid-3">
+        <div className="grid-4">
           <FormField label="Tên năm học" required error={errors.name}>
             <input
               className="input"
@@ -193,6 +216,18 @@ function InfoStep({ year, years, user, onSaved }) {
               value={form.endDate}
               onChange={(v) => set({ endDate: v })}
               onBlur={() => blurCheck('endDate')}
+            />
+          </FormField>
+          <FormField label="Ngày mở chuẩn bị" required error={errors.prepDate}>
+            <DateInput
+              value={form.prepDate}
+              disabled={prepLocked}
+              max={form.startDate}
+              onChange={(v) => {
+                setPrepTouched(true);
+                set({ prepDate: v });
+              }}
+              onBlur={() => blurCheck('prepDate')}
             />
           </FormField>
         </div>
@@ -255,7 +290,8 @@ function InfoStep({ year, years, user, onSaved }) {
         <ul className="sc-setup__confirm">
           {!year && (
             <li>
-              Năm học <b>{form.name}</b>: {formatDate(form.startDate)} – {formatDate(form.endDate)}
+              Năm học <b>{form.name}</b>: {formatDate(form.startDate)} – {formatDate(form.endDate)}, mở chuẩn bị từ{' '}
+              {formatDate(form.prepDate)}
             </li>
           )}
           {source && parts.size ? (
@@ -480,10 +516,8 @@ export default function SchoolYearSetupPage() {
   return (
     <div className="page">
       <Breadcrumb items={yearCrumbs(id ? `Thiết lập năm học ${year?.name || ''}`.trim() : 'Tạo năm học')} />
-      <div className="row gap-3">
-        <h1 className="page__title">{id ? `Thiết lập năm học ${year?.name || ''}` : 'Tạo năm học'}</h1>
-        {year && <YearStatusBadge status={year.status} size="lg" />}
-      </div>
+      {/* Bỏ nhãn trạng thái năm (Sắp diễn ra…) trên màn thiết lập; header đã hiện trạng thái năm (Cần yêu cầu 11/11/2026) */}
+      <h1 className="page__title">{id ? `Thiết lập năm học ${year?.name || ''}` : 'Tạo năm học'}</h1>
       <div className="card stepper-card">
         <Stepper
           steps={SETUP_STEPS}

@@ -131,7 +131,7 @@ Nối với BE thật (đăng nhập qua gateway, chọn nguồn dữ liệu): [
 | Lệnh | Việc |
 | --- | --- |
 | `node scripts/verify.mjs` | **Cổng bắt buộc trước khi báo xong hoặc mở PR**: chạy `npm run verify` và tự bật git hook |
-| `npm run verify` | 7 bộ unit test (`tests/`) + `npm run check` |
+| `npm run verify` | Toàn bộ unit test (`tests/`, các script `test:*` trong `package.json`) + `npm run check` |
 | `npm run check` | ESLint, Prettier, kiểm tra design token, đối chiếu lời gọi API với snapshot OpenAPI của BE, build |
 | `npm run test:e2e` | Playwright; cần BE, Keycloak và PostgreSQL thật ([hướng dẫn](tests/e2e/README.md)) |
 

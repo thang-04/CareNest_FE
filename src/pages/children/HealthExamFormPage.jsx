@@ -42,7 +42,6 @@ import {
   conclusionLabelOf,
   stepOfField,
 } from '@/models/children/healthExamForm';
-import { PARENT_VISIBLE_HEALTH_TEXT } from '@/models/children/childrenConstants';
 import { CHILD_RESULT_STATUS } from '@/models/children/healthCheckConstants';
 import { ageLabel } from '@/models/School';
 import { formatDate, formatDateTime } from '@/utils/format';
@@ -454,12 +453,6 @@ export default function HealthExamFormPage() {
     return (
       <div className="page">
         {head}
-        {view.locked && (
-          <div className="alert alert--info mb-16">
-            <Lock size={18} />
-            <div>Đợt khám đã đóng, phiếu bị khóa. Hiệu trưởng mở lại đợt nếu cần sửa.</div>
-          </div>
-        )}
         {!concluded && (
           <div className="alert alert--warning mb-16">
             <Info size={18} />
@@ -559,15 +552,6 @@ export default function HealthExamFormPage() {
             requireReason={concluded}
             mode={view.conclusionMode}
           />
-        )}
-        {step === 4 && (
-          <div className="alert alert--info">
-            <Send size={18} />
-            <div>
-              Lưu kết luận là <b>công bố cho phụ huynh ngay</b>; phụ huynh xem được {PARENT_VISIBLE_HEALTH_TEXT} trên ứng dụng. Kết luận là
-              cảnh báo của lần khám ở Sổ sức khỏe.
-            </div>
-          </div>
         )}
       </div>
       {/* Điện thoại (user chọn 1 hàng, 2026-11-04): nút phụ chỉ còn biểu tượng, "Tiếp" bỏ tên bước; bước Kết luận khi khám theo lớp

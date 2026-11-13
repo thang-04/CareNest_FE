@@ -70,7 +70,7 @@ topics:
   screens:      [docs/architecture/ROUTE_MAP.md, docs/features/README.md]
   design:       [DESIGN.md]
   architecture: [docs/architecture/CODING_GUIDE.md, docs/architecture/FRONTEND_ARCHITECTURE.md, docs/architecture/FOLDER_STRUCTURE.md, docs/architecture/STATE_MANAGEMENT.md]
-  integration:  [docs/integration/BACKEND_INTEGRATION.md, docs/integration/AUTH_FLOW.md, ../CareNest_BE/docs/contracts/API_CONVENTIONS.md, ../CareNest_BE/docs/contracts/ERROR_CONTRACT.md]
+  integration:  [docs/integration/FE_API_CALLS.md, docs/integration/BE_API_INDEX.md, docs/integration/BACKEND_INTEGRATION.md, docs/integration/AUTH_FLOW.md, ../CareNest_BE/docs/contracts/API_CONVENTIONS.md, ../CareNest_BE/docs/contracts/ERROR_CONTRACT.md]
   cross-repo:   [../CareNest_BE/docs/system/CROSS_REPO_MAP.md, ../CareNest_BE/docs/knowledge/CROSS_MODULE_ISSUES.md]
   memory:       [docs/knowledge/ISSUE_INDEX.md, docs/knowledge/KNOWN_ISSUES.md, docs/knowledge/PATTERNS.md, docs/knowledge/TROUBLESHOOTING.md, ../CareNest_BE/docs/knowledge/ISSUE_INDEX.md]
   quality:      [docs/quality/DEFINITION_OF_DONE.md, docs/quality/VERIFICATION.md]

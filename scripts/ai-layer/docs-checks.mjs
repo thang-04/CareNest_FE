@@ -1,7 +1,8 @@
 // E1 mirror skills · E2 link/đường dẫn trong markdown · E7 frontmatter `paths` của rules
+import { execFileSync } from "node:child_process";
 import { existsSync, statSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { crossRepoRef, globToRegExp, isGitIgnored, matchAny, parseFrontmatter, readText, siblingPath } from "./lib.mjs";
+import { dirname, join, posix } from "node:path";
+import { crossRepoRef, globToRegExp, isGitIgnored, matchAny, parseFrontmatter, readText, siblingRoot } from "./lib.mjs";
 
 // E1 — `.agents/skills` phải là bản sao y hệt `.claude/skills` (Codex đọc bản .agents)
 export function checkSkillsMirror(root, files, report) {
@@ -35,8 +36,8 @@ function resolveToken(root, config, file, token) {
   const stripLine = (p) => p.replace(/#.*$/, "").replace(/:\d+(-\d+)?$/, "");
   const ref = crossRepoRef(token);
   if (ref) {
-    const abs = siblingPath(root, config, ref.repo, stripLine(ref.rel));
-    return abs ? (existsSync(abs) ? "ok" : "missing") : "skip";
+    const base = siblingRoot(root, config, ref.repo);
+    return base ? (existsSync(join(base, stripLine(ref.rel))) ? "ok" : "missing") : "skip";
   }
   const clean = stripLine(token);
   const bases = [dirname(file)];
@@ -45,8 +46,8 @@ function resolveToken(root, config, file, token) {
   if (bases.some((b) => existsSync(join(root, b, clean)))) return "ok";
   // Có ở repo sibling (vd. README_AI mô tả FE/APP) ⇒ không tính lỗi
   for (const repo of ["BE", "FE", "APP"]) {
-    const abs = repo === config.repo ? null : siblingPath(root, config, repo, clean);
-    if (abs && existsSync(abs)) return "ok";
+    const base = repo === config.repo ? null : siblingRoot(root, config, repo);
+    if (base && existsSync(join(base, clean))) return "ok";
   }
   return isGitIgnored(root, clean) ? "ok" : "missing";
 }
@@ -56,6 +57,23 @@ function isStrict(config, token) {
   const clean = token.replace(/#.*$/, "");
   const first = clean.split("/")[0];
   return config.checkAiLayer.strictRoots.includes(first) && (/\.[A-Za-z]{1,5}$/.test(clean) || clean.endsWith("/"));
+}
+
+// Repo cạnh bên đang ở nhánh nào (để báo rõ khi link sang repo đó thiếu file); không đọc được ⇒ ""
+function siblingBranch(base) {
+  try {
+    return execFileSync("git", ["branch", "--show-current"], { cwd: base, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+  } catch {
+    return "";
+  }
+}
+
+// Link sang repo khác chỉ cảnh báo: repo cạnh bên trên máy mỗi người có thể đang ở nhánh khác dev,
+// chặn commit vì vậy là báo sai. Tên nhánh kèm theo để người đọc tự đánh giá.
+function crossRepoNote(root, config, repo) {
+  const base = siblingRoot(root, config, repo);
+  const branch = base ? siblingBranch(base) : "";
+  return branch ? ` (repo ${repo} cạnh bên đang ở nhánh ${branch}; kiểm lại trên dev)` : ` (kiểm lại trên ${repo} dev)`;
 }
 
 export function checkLinks(root, config, files, planned, report) {
@@ -73,9 +91,10 @@ export function checkLinks(root, config, files, planned, report) {
         for (const m of line.matchAll(/\[[^\]]*\]\(([^)\s]+)\)/g)) {
           const target = m[1].replace(/#.*$/, "");
           if (!target || /^[a-z]+:/i.test(target)) continue;
-          if (!existsSync(join(root, dirname(file), target))) {
-            report("error", file, index + 1, `link không tồn tại: ${m[1]}`);
-          }
+          if (existsSync(join(root, dirname(file), target))) continue;
+          const sibling = posix.normalize(posix.join(dirname(file), target)).match(/^(?:\.\.\/)+CareNest_(BE|FE|APP)(?:-[\w-]+)?\//)?.[1];
+          if (sibling) report("warn", file, index + 1, `link sang repo khác không tồn tại: ${m[1]}${crossRepoNote(root, config, sibling)}`);
+          else report("error", file, index + 1, `link không tồn tại: ${m[1]}`);
         }
         for (const m of line.matchAll(/`([^`\n]+)`/g)) {
           const token = m[1].trim();
@@ -85,6 +104,10 @@ export function checkLinks(root, config, files, planned, report) {
           if (resolveToken(root, config, file, token) !== "missing") continue;
           const norm = token.replace(/\/$/, "");
           const isPlanned = planned.some((p) => norm === p || norm.startsWith(`${p}/`));
+          if (crossRef) {
+            report("warn", file, index + 1, `đường dẫn sang repo khác không tồn tại: ${token}${crossRepoNote(root, config, crossRef.repo)}`);
+            continue;
+          }
           const label = isPlanned ? "đường dẫn planned, chưa tồn tại" : inPlan ? "đường dẫn trong plan chưa/không còn tồn tại" : "đường dẫn không tồn tại";
           report(isPlanned || inPlan ? "warn" : "error", file, index + 1, `${label}: ${token}`);
         }

@@ -517,16 +517,54 @@
   cursor: pointer;
 }
 
-/* Topbar: năm học trái · ô tìm chức năng ở giữa (rộng tối đa 520px) · Tạo nhanh · chuông bên phải */
+/* Topbar: đường dẫn + tên trang bên trái (chiếm phần còn lại) · ô tìm chức năng gọn · năm học · chuông bên phải */
+.header__crumb {
+  flex: 1 1 auto;
+  min-width: 200px;
+}
+/* Thiếu chỗ: ô năm học co lại và cắt "…" trước khi tên trang bị cắt */
+.header .header__year {
+  flex: 0 3 auto;
+  min-width: 0;
+}
+.header .header__year .header__year-select {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.header__crumb .breadcrumb {
+  min-height: 0;
+  margin: 0;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.header__crumb .breadcrumb > svg {
+  flex: none;
+}
+/* Thiếu chỗ: các cấp cha co lại và cắt "…" trước, tên trang hiện tại giữ nguyên tới khi không còn gì để co */
+.header__crumb .breadcrumb > a,
+.header__crumb .breadcrumb > span {
+  flex: 0 100 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.header__crumb .breadcrumb > .breadcrumb__current:last-child {
+  flex: 0 0 auto;
+  max-width: 100%;
+}
 .header__center {
-  flex: 1;
+  flex: 0 3 240px;
   min-width: 0;
   display: flex;
-  justify-content: center;
+  justify-content: flex-end;
 }
 .header-search {
   position: relative;
-  width: min(520px, 100%);
+  width: 100%;
 }
 .header-search__box {
   display: flex;
@@ -662,22 +700,23 @@
   font-size: var(--fs-2xs);
   color: var(--color-text-muted);
 }
-/* Màn hẹp: bỏ chữ, chỉ giữ icon cho "Tạo nhanh", ẩn gợi ý phím tắt */
+/* Màn hẹp: ẩn gợi ý phím tắt; đường dẫn chỉ còn tên trang hiện tại */
 @media (max-width: 1024px) {
-  .header-search__kbd,
-  .header__create-label {
+  .header-search__kbd {
+    display: none;
+  }
+  .header__crumb .breadcrumb > :not(:last-child) {
     display: none;
   }
 }
-/* Điện thoại: header chỉ còn icon (tìm = kính lúp mở ô phủ header, Tạo nhanh = "+"); menu thả xuống rộng gần hết màn */
+/* Điện thoại: tên trang + icon (tìm = kính lúp mở ô phủ header); menu thả xuống rộng gần hết màn */
 @media (max-width: 640px) {
   .header {
     gap: var(--space-2);
     padding: 0 var(--space-3);
   }
   .header__center {
-    flex: 1 0 auto;
-    justify-content: flex-end;
+    flex: 0 0 auto;
   }
   .header-search--compact {
     width: auto;
@@ -701,22 +740,13 @@
     flex: 1;
     min-width: 0;
   }
-  /* Thêm tiền tố .header: layout.css có thể nạp trước components.css nên .btn/.select cùng độ ưu tiên sẽ đè */
-  .header .header__create {
-    width: 36px;
-    height: 36px;
-    padding: 0;
-    border-radius: var(--radius-full);
+  /* Chip năm học gọn: bỏ icon lịch, co lại và cắt "…" — select rộng theo option dài nhất từng đẩy chuông ra ngoài màn (FE-BUG-261028-header-mobile-overflow). Thêm tiền tố .header: layout.css có thể nạp trước components.css nên .select cùng độ ưu tiên sẽ đè */
+  /* Tên trang được ưu tiên chỗ hơn năm học */
+  .header__crumb {
+    min-width: 120px;
   }
-  .header .header__create svg {
-    flex: none;
-  }
-  .header__create-caret {
-    display: none;
-  }
-  /* Chip năm học gọn: bỏ icon lịch, co lại và cắt "…" — select rộng theo option dài nhất từng đẩy nút + và chuông ra ngoài màn (FE-BUG-261028-header-mobile-overflow) */
-  .header__year {
-    flex: 0 1 auto;
+  .header .header__year {
+    flex: 0 1 96px;
     min-width: 0;
     height: 36px;
     padding-left: var(--space-2-5);

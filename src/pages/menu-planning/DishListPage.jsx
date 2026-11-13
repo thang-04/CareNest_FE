@@ -28,6 +28,8 @@ const FILTER_DEFAULTS = { type: '', keyword: '', portion: '', allergen: '', stat
 export default function DishListPage() {
   const navigate = useNavigate();
   const { canManage } = useCatalogAccess();
+  // Chỉ xem (không có quyền sửa danh mục) ⇒ bỏ cột Thao tác; bấm dòng vẫn mở chi tiết
+  const colCount = canManage ? 6 : 5;
   const { catalog } = useCatalogLookups();
   // Bộ lọc lưu trên URL: mở món rồi Back vẫn giữ loại món, từ khóa và bộ lọc phụ
   const [filters, setFilters, resetFilters, activeKeys] = useFilterParams(FILTER_DEFAULTS);
@@ -127,20 +129,20 @@ export default function DishListPage() {
               <table className="table table--grid td-dish-table">
                 <thead>
                   <tr>
-                    <th className="td-num-col num">#</th>
+                    <th className="td-num-col num">STT</th>
                     <th>Tên món ăn</th>
                     <th className="center">Loại món</th>
                     <th>Nhóm tuổi áp dụng</th>
                     <th className="center">Định lượng</th>
-                    <th className="cell--actions">Thao tác</th>
+                    {canManage && <th className="cell--actions">Thao tác</th>}
                   </tr>
                 </thead>
                 <tbody>
                   {loading ? (
-                    <SkeletonRows rows={5} cols={6} />
+                    <SkeletonRows rows={5} cols={colCount} />
                   ) : rows.length === 0 ? (
                     <tr>
-                      <td colSpan={6}>
+                      <td colSpan={colCount}>
                         <EmptyState
                           icon={Soup}
                           title={filtered ? 'Không có kết quả phù hợp' : 'Chưa có món ăn nào'}
@@ -186,15 +188,15 @@ export default function DishListPage() {
                               <StatusBadge tone="green" icon={CircleCheck} label="Đủ" />
                             )}
                           </td>
-                          <td className="cell--actions">
-                            {canManage && (
+                          {canManage && (
+                            <td className="cell--actions">
                               <RowActions
                                 name={d.name}
                                 edit={{ to: `/menu/dishes/${d.id}/edit` }}
                                 extra={{ label: 'Nhân bản', icon: Copy, to: `/menu/dishes/new?from=${d.id}` }}
                               />
-                            )}
-                          </td>
+                            </td>
+                          )}
                         </tr>
                       );
                     })
