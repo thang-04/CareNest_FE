@@ -361,48 +361,8 @@
 }
 .dd-stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: var(--space-3);
-}
-.dd-stat {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: var(--space-3) var(--space-4);
-  /* Nền một màu phủ cả thẻ theo tone (không dùng vạch trái) */
-  background: var(--primary-50);
-  border: 1px solid var(--color-primary-border);
-  border-radius: var(--radius-lg);
-}
-.dd-stat--green {
-  background: var(--success-50);
-  border-color: var(--success-border);
-}
-.dd-stat--orange {
-  background: var(--warning-50);
-  border-color: var(--warning-border);
-}
-.dd-stat--red {
-  background: var(--danger-50);
-  border-color: var(--danger-border);
-}
-.dd-stat--gray {
-  background: var(--color-secondary);
-  border-color: var(--border);
-}
-.dd-stat--blue {
-  background: var(--color-info-bg);
-  border-color: var(--color-info-border);
-}
-.dd-stat__value {
-  font-size: var(--fs-h2);
-  font-weight: var(--fw-bold);
-  color: var(--text);
-  line-height: 1.2;
-}
-.dd-stat__label {
-  font-size: var(--fs-sm);
-  color: var(--text-2);
 }
 
 /* ---------- Attendance table ---------- */

@@ -1,14 +1,16 @@
-import { Fragment } from 'react';
+import { Fragment, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link, useLocation } from 'react-router-dom';
 import { ChevronRight, Home } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { getMenuForRole } from '@/layouts/menuConfig';
 import { alignCrumbs } from '@/utils/menuBreadcrumb';
+import { useHeaderSlot } from '@/contexts/HeaderSlotContext';
 
 /**
- * First line of every page in the app shell. items: [{ label, to? }] – the last item is the
- * current page and also becomes the browser tab title.
+ * Đường dẫn + tên trang của mọi trang trong vỏ app. items: [{ label, to? }] – mục cuối là trang hiện tại và thành
+ * tiêu đề tab. Trang vẫn khai báo ở đầu nội dung, nhưng phần hiển thị được đưa lên thanh trên (bớt một hàng).
  * Tên nhóm và tên mục lấy theo sidebar của vai trò đang đăng nhập (utils/menuBreadcrumb) để breadcrumb luôn khớp sidebar;
  * trang chỉ quyết định các cấp con phía sau.
  */
@@ -17,7 +19,14 @@ export function Breadcrumb({ items }) {
   const { pathname } = useLocation();
   const shown = alignCrumbs(items, getMenuForRole(user?.role, user), pathname);
   usePageTitle(shown[shown.length - 1]?.label);
-  return (
+  const slot = useHeaderSlot();
+  const mark = useRef(null);
+  // Màn con nhúng trong màn khác (bước thiết lập năm học) không ghi đè đường dẫn của màn mẹ
+  const [embedded, setEmbedded] = useState(false);
+  useLayoutEffect(() => {
+    setEmbedded(!!mark.current?.closest('.sc-setup__embed'));
+  }, []);
+  const nav = (
     <nav className="breadcrumb no-print" aria-label="Breadcrumb">
       <Home size={15} />
       {shown.map((item, i) => (
@@ -31,5 +40,12 @@ export function Breadcrumb({ items }) {
         </Fragment>
       ))}
     </nav>
+  );
+  if (!slot) return nav;
+  return (
+    <>
+      <span ref={mark} hidden />
+      {!embedded && createPortal(nav, slot)}
+    </>
   );
 }

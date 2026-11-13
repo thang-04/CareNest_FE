@@ -67,8 +67,8 @@ export function ClassTeachersPicker({ teachers, classesOf, classId, form, onTogg
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={4} className="muted center">
-                  Không có giáo viên phù hợp.
+                <td colSpan={4}>
+                  <EmptyState title="Không có giáo viên phù hợp" description="Thử từ khóa khác hoặc bỏ bớt điều kiện lọc." />
                 </td>
               </tr>
             ) : (

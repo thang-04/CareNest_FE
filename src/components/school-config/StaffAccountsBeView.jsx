@@ -171,7 +171,7 @@ export function StaffAccountsBeView({ tabs = null }) {
         </div>
       )}
 
-      <div className="card mb-16">
+      <div className="card">
         {tabs}
         <div className="filter-bar">
           <SearchSubmit
@@ -220,9 +220,6 @@ export function StaffAccountsBeView({ tabs = null }) {
             <option value="INACTIVE">Đã vô hiệu hóa</option>
           </select>
         </div>
-      </div>
-
-      <div className="card">
         {error ? (
           <ErrorState error={error} onRetry={reload} />
         ) : (

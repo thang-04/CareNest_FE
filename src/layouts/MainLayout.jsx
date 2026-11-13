@@ -11,6 +11,7 @@ import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { AreaGate } from '@/routes/RoleGuard';
 import { DemoDataBanner } from './DemoDataBanner';
 import { useMediaQuery } from '@/hooks';
+import { HeaderSlotContext } from '@/contexts/HeaderSlotContext';
 import './layout.css';
 
 const COLLAPSED_KEY = 'carenest.sidebar.collapsed';
@@ -40,6 +41,8 @@ export function MainLayout() {
   // Dưới 1024px sidebar thành drawer: ẩn mặc định, mở bằng nút menu
   const isNarrow = useMediaQuery(NARROW_QUERY);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  // Ô trên thanh trên nhận đường dẫn + tên trang do từng trang đưa lên (Breadcrumb)
+  const [crumbSlot, setCrumbSlot] = useState(null);
   const pageShown = useRef(false);
   const markPageShown = useRef(() => {
     pageShown.current = true;
@@ -78,30 +81,32 @@ export function MainLayout() {
       />
       {isNarrow && drawerOpen && <div className="drawer-backdrop no-print" onClick={() => setDrawerOpen(false)} />}
       <div className="app-main">
-        <Header role={user.role} showMenuButton={isNarrow} menuOpen={drawerOpen} onToggleSidebar={toggleSidebar} />
-        <main className="app-content" aria-busy={opening || undefined}>
-          <DemoDataBanner pathname={pathname} />
-          {/* Mở app/tải lại tab: splash phủ cả màn tới khi trang đầu có chunk (không lộ vỏ trống). Đổi trang sau đó: chờ giữa vùng nội dung, giữ sidebar.
+        <Header role={user.role} showMenuButton={isNarrow} menuOpen={drawerOpen} onToggleSidebar={toggleSidebar} crumbRef={setCrumbSlot} />
+        <HeaderSlotContext.Provider value={crumbSlot}>
+          <main className="app-content" aria-busy={opening || undefined}>
+            <DemoDataBanner pathname={pathname} />
+            {/* Mở app/tải lại tab: splash phủ cả màn tới khi trang đầu có chunk (không lộ vỏ trống). Đổi trang sau đó: chờ giữa vùng nội dung, giữ sidebar.
               Lỗi trang chỉ thay vùng nội dung, đổi route thì tự xóa. */}
-          <ErrorBoundary resetKey={pathname} wrap>
-            <Suspense
-              fallback={
-                pageShown.current ? (
-                  <div className="page">
-                    <LoadingState />
-                  </div>
-                ) : (
-                  <AppSplash />
-                )
-              }
-            >
-              <AreaGate path={pathname}>
-                <Outlet />
-              </AreaGate>
-              <PageShown onShown={markPageShown} />
-            </Suspense>
-          </ErrorBoundary>
-        </main>
+            <ErrorBoundary resetKey={pathname} wrap>
+              <Suspense
+                fallback={
+                  pageShown.current ? (
+                    <div className="page">
+                      <LoadingState />
+                    </div>
+                  ) : (
+                    <AppSplash />
+                  )
+                }
+              >
+                <AreaGate path={pathname}>
+                  <Outlet />
+                </AreaGate>
+                <PageShown onShown={markPageShown} />
+              </Suspense>
+            </ErrorBoundary>
+          </main>
+        </HeaderSlotContext.Provider>
         <Footer />
       </div>
     </div>

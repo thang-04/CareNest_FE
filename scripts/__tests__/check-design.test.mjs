@@ -60,6 +60,20 @@ test("measure: phần tử viết tay, CSS module đè class chung, px/z-index c
   assert.deepEqual(m.primitiveToken, { "src/styles/modules/kitchen.css": 1 });
 });
 
+test("measure: tab viết tay, thanh nút dính đáy, xuất Excel không xem trước", () => {
+  const root = makeRepo({
+    "src/components/ui/Tabs.jsx": "export const Tabs = () => <div role=\"tablist\" />;\n",
+    "src/components/ui/ExportPreview.jsx": "export const exportWithPreview = (r, f) => downloadXlsx(r, f);\n",
+    "src/pages/a/A.jsx":
+      "export default () => (<><div role=\"tablist\" /><div className=\"page-actions page-actions--sticky\" /><Button onClick={() => downloadXlsx(rows, 'a.xlsx')} /></>);\n",
+    "src/pages/a/B.jsx": "export default () => <Button onClick={() => downloadCsv(tpl, 'mau.csv')} />;\n",
+  });
+  const m = measure(root);
+  assert.deepEqual(m.handTablist, { "src/pages/a/A.jsx": 1 }, "components/ui được viết tablist");
+  assert.deepEqual(m.stickyActions, { "src/pages/a/A.jsx": 1 });
+  assert.deepEqual(m.directExport, { "src/pages/a/A.jsx": 1 }, "tải tệp mẫu CSV không tính");
+});
+
 test("CLI: --update chỉ hạ baseline, từ chối nâng; loại kiểm tra mới được ghi mốc", () => {
   const root = makeRepo({
     "src/styles/modules/a.css": ".a { color: #fff; color: #000; }\n",

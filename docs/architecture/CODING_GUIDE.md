@@ -91,7 +91,7 @@ src/
                          validation, permissions, breadcrumbs của module trong <module>/
   config/                env.js, app.js (tên app, tên trường, phiên bản, năm học), printTemplate.js
   contexts/              AuthContext (useAuth), ToastContext (useToast), SchoolYearContext (useSchoolYear)
-  layouts/               MainLayout, AuthLayout, Sidebar, Header, HeaderSearch, QuickCreateMenu, Footer,
+  layouts/               MainLayout, AuthLayout, Sidebar, Header, HeaderSearch, Footer,
                          NotificationBell, UserMenu, menuConfig.js (menu duy nhất cho mọi vai trò), quickActions.js
   mocks/                 "backend giả": mockDatabase, seed, *Seed, các *MockRepository dùng chung
   routes/                AppRoutes, ProtectedRoute / GuestRoute (bắt đăng nhập), RoleGuard (bắt vai trò)
