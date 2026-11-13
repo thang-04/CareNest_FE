@@ -40,9 +40,9 @@ test('ST-005-10 HT: màn Kế hoạch quá hạn có hai thẻ, lọc Nhóm tu�
     await age.selectOption({ index: 1 });
     await expect(cls).toBeEnabled();
   }
-  // Ô chọn của hàng lọc cùng cỡ (FR-022a)
+  // Ô chọn của hàng lọc đủ rộng, không cắt tên (Tiền 12/11/2026, thay "cùng cỡ" của FR-022a): tối thiểu 5 lần chiều cao ô
   const widths = await page.locator('.filter-bar .select').evaluateAll((els) => els.map((e) => e.getBoundingClientRect().width));
-  expect(new Set(widths).size).toBe(1);
+  expect(Math.min(...widths)).toBeGreaterThanOrEqual(180);
 });
 
 test('ST-005-11 PHT không vào được màn quá hạn và API mở hạn bị từ chối; menu chỉ HT có mục', async ({ page }) => {
@@ -97,13 +97,18 @@ test('ST-005-13 HT tích 2 dòng, Mở hạn một lần (lý do + hạn mới) 
   await expect(page.getByText(`[E2E] Mở hạn hàng loạt ${run}`).first()).toBeVisible();
 });
 
-test('ST-005-14 trang chi tiết không có nút mở hạn; nhãn hạn ("Hạn: …") tách khỏi nhãn trạng thái duyệt', async ({ page }) => {
+test('ST-005-14 trang chi tiết không có nút mở hạn; nhãn hạn ("Hạn: …") tách khỏi nhãn trạng thái duyệt', async ({ page: htPage, browser }) => {
   const me = await api(U.tl, 'GET', '/accounts/me');
   const cls = docs.classes.find((c) => String(c.homeroomTeacherId) === String(me.data.userId)) || docs.classes[0];
-  await login(page, U.ht);
+  await login(htPage, U.ht);
+  await spaGo(htPage, `/education/theme-plans/${cls.id}?hk=1`);
+  await expect(htPage.getByRole('combobox', { name: 'Học kỳ' })).toBeVisible({ timeout: 30_000 });
+  await expect(htPage.getByRole('button', { name: /Mở hạn|Mở khóa/ })).toHaveCount(0);
+  // HT chỉ thấy trạng thái/hạn của gói chưa ban hành khi gói quá hạn hoặc đã mở hạn (BE overdueRootNode, phụ thuộc dữ liệu);
+  // nhãn hạn kiểm bằng người soạn (luôn thấy)
+  const page = await (await browser.newContext()).newPage();
+  await login(page, U.tl);
   await spaGo(page, `/education/theme-plans/${cls.id}?hk=1`);
-  await expect(page.getByRole('tab', { name: /Học kỳ 1/ })).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByRole('button', { name: /Mở hạn|Mở khóa/ })).toHaveCount(0);
   const deadline = page.getByText(/^Hạn: /).first();
   await expect(deadline).toBeVisible();
   // Nhãn hạn nằm ngoài vùng tiêu đề thẻ (nơi đặt nhãn trạng thái duyệt)
@@ -139,18 +144,20 @@ test('ST-005-16 lớp không có trong phạm vi: trang vẫn có hàng lọc v�
 
 // Tiền 11/11/2026: trang Dự kiến chủ đề - chủ đề nhánh xem được dạng Danh sách hoặc Bảng (cột tuần của tháng, hàng chủ đề lớn)
 test('ST-005-17 chủ đề nhánh: chuyển Danh sách / Bảng, bảng có cột Tuần theo tháng', async ({ page }) => {
+  // Lớp chủ nhiệm của tổ trưởng (có kế hoạch tổ đã ban hành); lớp bất kỳ có thể chưa có kế hoạch tổ ⇒ trang trống
+  const me = await api(U.tl, 'GET', '/accounts/me');
+  const cls = docs.classes.find((c) => String(c.homeroomTeacherId) === String(me.data.userId)) || docs.classes[0];
   await login(page, U.ht);
-  await spaGo(page, '/education/branches/999999');
-  await page.getByRole('combobox', { name: /^Lớp:?$/ }).selectOption({ index: 1 });
-  await page.waitForURL((u) => /\/education\/branches\/\d+$/.test(u.pathname) && !u.pathname.endsWith('/999999'));
-  const grid = page.getByRole('tab', { name: 'Bảng' });
-  await expect(grid).toBeVisible({ timeout: 30_000 });
+  await spaGo(page, `/education/branches/${cls.id}`);
+  // Kiểu hiển thị là ô chọn trong thẻ lọc (13/11/2026)
+  const view = page.getByRole('combobox', { name: 'Kiểu hiển thị' });
+  await expect(view).toBeVisible({ timeout: 30_000 });
   await expect(page.getByRole('columnheader', { name: 'Chủ đề nhánh' })).toBeVisible();
-  await grid.click();
+  await view.selectOption({ label: 'Bảng' });
   await expect(page.getByRole('combobox', { name: 'Tháng' })).toHaveCount(0);
   await expect(page.getByRole('columnheader', { name: /^Tuần 1/ })).toBeVisible();
   await expect(page.getByRole('columnheader', { name: 'Chủ đề nhánh' })).toHaveCount(0);
-  await page.getByRole('tab', { name: 'Danh sách' }).click();
+  await view.selectOption({ label: 'Danh sách' });
   await expect(page.getByRole('columnheader', { name: 'Chủ đề nhánh' })).toBeVisible();
 });
 
@@ -191,7 +198,7 @@ test('ST-005-20 nút Hủy ở trang Cấu hình; Xuất file của Kế hoạch
 });
 
 // Tiền 11/11/2026: người chỉ xem thấy khung cả hai học kỳ ở trang Kế hoạch giáo dục chủ đề; phần chưa ban hành chỉ nhãn chung
-test('ST-005-21 PHT xem Kế hoạch giáo dục chủ đề: đủ tab học kỳ, gói chưa ban hành chỉ "Chưa ban hành", không hạn, không nút', async ({
+test('ST-005-21 PHT xem Kế hoạch giáo dục chủ đề: đủ học kỳ, gói chưa ban hành chỉ "Chưa ban hành", không hạn, không nút', async ({
   page,
 }) => {
   const me = await api(U.tl, 'GET', '/accounts/me');
@@ -207,8 +214,10 @@ test('ST-005-21 PHT xem Kế hoạch giáo dục chủ đề: đủ tab học k�
   await login(page, U.vp);
   const frame = pkgs.find((p) => p.unreleased);
   await spaGo(page, `/education/theme-plans/${cls.id}${frame ? `?hk=${frame.semesterNo}` : ''}`);
-  for (const p of pkgs)
-    await expect(page.getByRole('tab', { name: new RegExp(`Học kỳ ${p.semesterNo}`) })).toBeVisible({ timeout: 30_000 });
+  // Học kỳ là ô chọn trong thẻ lọc (13/11/2026): đủ mục cho mọi học kỳ
+  const hk = page.getByRole('combobox', { name: 'Học kỳ' });
+  await expect(hk).toBeVisible({ timeout: 30_000 });
+  for (const p of pkgs) await expect(hk.locator('option', { hasText: new RegExp(`Học kỳ ${p.semesterNo}`) })).toHaveCount(1);
   if (!frame) return;
   const toolbar = page.getByRole('group', { name: `Trạng thái và thao tác học kỳ ${frame.semesterNo}` });
   await expect(toolbar.getByText('Chưa ban hành')).toBeVisible();

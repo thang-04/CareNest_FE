@@ -18,7 +18,7 @@ import { moveItem } from '@/hooks/useSortableList';
 import { useManualSave } from '@/hooks/education-plan/useManualSave';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
-import { RenumberButton, SortButtons, SortHandle, SortIndex, SortableList, SortableRow } from '@/components/ui/Sortable';
+import { RenumberButton, SortHandle, SortIndex, SortableList, SortableRow } from '@/components/ui/Sortable';
 import { Button } from '@/components';
 
 /**
@@ -55,7 +55,6 @@ function WorkflowPolicyConfig({ docLabel, policy, onChange, editing, canEdit, as
         ),
     });
   };
-  const availableCreators = CREATOR_ROLES.filter((role) => !creators.includes(role) && !reviewers.includes(role));
   const availableReviewers = REVIEWER_ROLES.filter((role) => !reviewers.includes(role) && !creators.includes(role));
   const editable = editing && canEdit;
 
@@ -626,7 +625,6 @@ export default function EduConfigPage() {
                         <td className="center ga-cell-editable">
                           <div className="ga-goal-table__pad ga-sort-cell">
                             <SortHandle label={r.label} />
-                            <SortButtons index={i} label={r.label} />
                           </div>
                         </td>
                       )}

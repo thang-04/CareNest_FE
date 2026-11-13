@@ -789,13 +789,16 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
                 }}
                 onAct={finish}
               />
-              <Button
-                variant="outline-primary"
-                size="sm"
-                onClick={() => setPreview(yearPlanFile(build(existing?.status || EDU_STATUS.DRAFT), numbers, staff))}
-              >
-                <FileDown size={16} aria-hidden /> Xuất file
-              </Button>
+              {/* EDU-90: xuất file theo vai trò người tạo, BE trả cờ */}
+              {existing?.permissions?.canExport !== false && (
+                <Button
+                  variant="outline-primary"
+                  size="sm"
+                  onClick={() => setPreview(yearPlanFile(build(existing?.status || EDU_STATUS.DRAFT), numbers, staff))}
+                >
+                  <FileDown size={16} aria-hidden /> Xuất file
+                </Button>
+              )}
             </div>
           </div>
         </div>

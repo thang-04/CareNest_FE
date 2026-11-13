@@ -183,22 +183,21 @@ export default function ClassPlanPage() {
   const exportTheme = (t, themeNo, doc, themeWeeks) => setPreview(themeFile(themeArgs(t, themeNo, doc, themeWeeks)));
   // Người chỉ xem (không soạn được hồ sơ lớp): thấy khung trang, phần chưa ban hành chỉ một nhãn "Chưa ban hành", không nút Xem
   const viewer = !canComposeClassDocs;
-  const status = (doc, noneStatus) =>
-    doc ? <EduStatusBadge status={doc.status} doc={doc} /> : <DocAvailabilityBadge status={viewer ? 'UNRELEASED' : noneStatus} />;
   const lockOf = (kind, themeId) => createBlocker(kind, { classId, yearPlanId: yearPlan.id, themeId }, { branchPlans, classThemePlans });
-  // Một nút mỗi dòng: còn sửa được ⇒ Chỉnh sửa / Lập; còn lại ⇒ Xem (gửi, duyệt ở khối học kỳ phía trên)
-  const action = (doc, to, create, name, kind) => {
+  // Một nút mỗi dòng, chữ thống nhất với trang ngày: chưa có ⇒ Soạn, còn sửa được ⇒ Chỉnh sửa, còn lại ⇒ Xem (Tiền 14/11/2026)
+  const action = (doc, to, name, kind) => {
     if (doc?.permissions ? doc.permissions.canEdit : doc ? canComposeClassDocs && isEditableStatus(doc.status) : ctx.canCreate(kind))
       return doc ? (
         <Link className="btn btn--outline-primary btn--sm" to={to} title={`Chỉnh sửa ${name}`}>
           <Pencil size={16} aria-hidden /> Chỉnh sửa
         </Link>
       ) : (
-        <Link className="btn btn--outline-primary btn--sm" to={to}>
-          <Plus size={16} aria-hidden /> {create}
+        <Link className="btn btn--outline-primary btn--sm" to={to} title={`Soạn ${name}`}>
+          <Plus size={16} aria-hidden /> Soạn
         </Link>
       );
-    if (!doc) return viewer ? null : <span className="muted text-sm nowrap">Chưa lập</span>;
+    // Bỏ cột Trạng thái (Tiền 14/11/2026): người chỉ xem thấy nhãn "Chưa ban hành" ngay ở cột Thao tác
+    if (!doc) return viewer ? <DocAvailabilityBadge status="UNRELEASED" /> : <span className="muted text-sm nowrap">Chưa lập</span>;
     return (
       <Link className="btn btn--outline-primary btn--sm" to={to} title={`Xem ${name}`}>
         <Eye size={16} aria-hidden /> Xem
@@ -272,6 +271,7 @@ export default function ClassPlanPage() {
             <div className="ga-year-toolbar__group ga-year-toolbar__group--end">
               {pkg && !pkg.unreleased && (
                 <>
+                  {/* Một nút "Thao tác": gửi / duyệt học kỳ, tạo phiên bản điều chỉnh (Tiền 14/11/2026) */}
                   <ReviewActions
                     name={`học kỳ ${pkg.semesterNo}`}
                     sendTo={review.sendTo}
@@ -286,12 +286,12 @@ export default function ClassPlanPage() {
                     notes={untaught.length ? { submit: `MT chưa được dạy ngày nào: ${[...new Set(untaught)].join(', ')}.` } : {}}
                     onAct={act}
                     variant="btn--outline-primary"
+                    menu={{
+                      after: pkg.canRevise
+                        ? [{ label: 'Tạo phiên bản điều chỉnh', icon: Copy, onClick: () => setConfirmRevise(true) }]
+                        : [],
+                    }}
                   />
-                  {pkg.canRevise && (
-                    <button type="button" className="btn btn--sm btn--outline-primary" onClick={() => setConfirmRevise(true)}>
-                      <Copy size={16} aria-hidden /> Tạo phiên bản điều chỉnh
-                    </button>
-                  )}
                 </>
               )}
             </div>
@@ -334,8 +334,6 @@ export default function ClassPlanPage() {
         const weekLock = lockOf('week', t.id);
         const docOfWeek = (start) =>
           weekPlans.find((w) => w.classId === classId && w.yearPlanId === yearPlan.id && w.weekStart === start) || null;
-        // Người chỉ xem mà chủ đề chưa có tài liệu nào: không có thao tác ⇒ ẩn cột Thao tác trống (Tiền 12/11/2026)
-        const showActions = !viewer || !!doc || themeWeeks.some((r) => docOfWeek(r.start));
         // Một dòng mỗi chủ đề nhánh (nhánh nhiều tuần gộp "Tuần a+b"), xen đợt nghỉ theo ngày; mở tuần đầu, trang tuần có tab từng tuần (Tiền 13/11/2026)
         const branchRows = [
           ...themeBranchGroups(yearPlan, branch, t.id).map((g) => ({ type: 'branch', start: g.weeks[0].start, group: g })),
@@ -354,13 +352,16 @@ export default function ClassPlanPage() {
                 <span className="muted text-sm nowrap">
                   {ddmm(t.start)} → {ddmm(t.end)} · {themeWeeks.length} tuần
                 </span>
-                <button
-                  type="button"
-                  className="btn btn--outline-primary btn--sm nowrap"
-                  onClick={() => exportTheme(t, ti + 1, doc, themeWeeks)}
-                >
-                  <FileDown size={16} aria-hidden /> Xuất file
-                </button>
+                {/* EDU-90: xuất file theo vai trò người tạo, BE trả cờ */}
+                {doc?.permissions?.canExport !== false && (
+                  <button
+                    type="button"
+                    className="btn btn--outline-primary btn--sm nowrap"
+                    onClick={() => exportTheme(t, ti + 1, doc, themeWeeks)}
+                  >
+                    <FileDown size={16} aria-hidden /> Xuất file
+                  </button>
+                )}
               </div>
             }
           >
@@ -370,15 +371,13 @@ export default function ClassPlanPage() {
                   <colgroup>
                     <col className="ga-col-main" />
                     <col className="ga-col-theme-time" />
-                    <col className="ga-col-theme-status" />
-                    {showActions && <col className="ga-col-theme-actions" />}
+                    <col className="ga-col-theme-actions" />
                   </colgroup>
                   <thead>
                     <tr>
                       <th>Nội dung</th>
                       <th>Thời gian</th>
-                      <th className="center ga-col-theme-status">Trạng thái</th>
-                      {showActions && <th className="cell--actions ga-col-theme-actions">Thao tác</th>}
+                      <th className="cell--actions ga-col-theme-actions">Thao tác</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -394,20 +393,15 @@ export default function ClassPlanPage() {
                           {ddmm(t.start)} → {ddmm(t.end)}
                         </div>
                       </td>
-                      <td className="center ga-theme-status-cell">
-                        <div className="ga-goal-table__pad">{status(doc, 'NOT_PLANNED')}</div>
+                      <td className="center cell--actions">
+                        <div className="ga-goal-table__pad">{action(doc, to, `kế hoạch chủ đề ${t.name}`, 'theme')}</div>
                       </td>
-                      {showActions && (
-                        <td className="center cell--actions">
-                          <div className="ga-goal-table__pad">{action(doc, to, 'Lập', `kế hoạch chủ đề ${t.name}`, 'theme')}</div>
-                        </td>
-                      )}
                     </tr>
                     {branchRows.map((r) => {
                       if (r.type === 'break')
                         return (
                           <tr key={`b-${r.start}`}>
-                            <td colSpan={showActions ? 4 : 3}>
+                            <td colSpan={3}>
                               <div className="ga-goal-table__pad muted">
                                 Nghỉ: {r.label || 'Đợt nghỉ'} ({ddmm(r.start)} → {ddmm(r.end)})
                               </div>
@@ -428,7 +422,6 @@ export default function ClassPlanPage() {
                             { classId, yearPlanId: yearPlan.id, themeId: t.id, weekStart: first.start },
                             { branchPlans, classThemePlans, yearPlan },
                           ));
-                      const many = g.weeks.length > 1;
                       return (
                         <tr key={r.start}>
                           <td>
@@ -444,39 +437,26 @@ export default function ClassPlanPage() {
                               Tuần {g.weeks.map((w) => w.no).join('+')}: {ddmm(first.start)} → {ddmm(last.end)}
                             </div>
                           </td>
-                          <td className="center ga-theme-status-cell">
-                            <div className="ga-goal-table__pad" title={lock ? lock.message : undefined}>
-                              {lock ? (
-                                <DocAvailabilityBadge status="LOCKED" />
-                              ) : many ? (
-                                <div className="stack">
-                                  {g.weeks.map((w, k) => (
-                                    <div key={w.start} className="row row--middle gap-2 nowrap">
-                                      <span className="muted text-sm">Tuần {w.no}</span> {status(docs[k], 'NOT_DRAFTED')}
-                                    </div>
-                                  ))}
-                                </div>
-                              ) : (
-                                status(wdoc, 'NOT_DRAFTED')
+                          <td className="center cell--actions">
+                            <div className="ga-goal-table__pad">
+                              {!lock && action(wdoc, `${base}/weeks/${first.start}`, `kế hoạch tuần nhánh ${g.no}`, 'week')}
+                              {/* Khóa không theo ngày: tuần lấy gợi ý hoạt động từ thẻ của kế hoạch chủ đề nên cần lưu chủ đề trước */}
+                              {lock?.need === 'theme' && (
+                                <span className="muted text-sm" title={lock.message}>
+                                  Cần kế hoạch chủ đề
+                                </span>
+                              )}
+                              {lock?.need === 'branch' && (
+                                <Link
+                                  className="btn btn--outline-primary btn--sm"
+                                  to={`/education/branches/${classId}`}
+                                  title={lock.message}
+                                >
+                                  <Pencil size={16} aria-hidden /> Đặt tên nhánh
+                                </Link>
                               )}
                             </div>
                           </td>
-                          {showActions && (
-                            <td className="center cell--actions">
-                              <div className="ga-goal-table__pad">
-                                {!lock && action(wdoc, `${base}/weeks/${first.start}`, 'Tạo', `kế hoạch tuần nhánh ${g.no}`, 'week')}
-                                {lock?.need === 'branch' && (
-                                  <Link
-                                    className="btn btn--outline-primary btn--sm"
-                                    to={`/education/branches/${classId}`}
-                                    title={lock.message}
-                                  >
-                                    <Pencil size={16} aria-hidden /> Đặt tên nhánh
-                                  </Link>
-                                )}
-                              </div>
-                            </td>
-                          )}
                         </tr>
                       );
                     })}

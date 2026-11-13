@@ -265,9 +265,12 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
               }}
               onAct={act}
             />
-            <button className="btn btn--sm btn--outline-primary" onClick={() => setPreview(yearPlanFile(plan, numbers, staff))}>
-              <FileDown size={16} aria-hidden /> Xuất file
-            </button>
+            {/* EDU-90: xuất file theo vai trò người tạo, BE trả cờ */}
+            {plan.permissions?.canExport !== false && (
+              <button className="btn btn--sm btn--outline-primary" onClick={() => setPreview(yearPlanFile(plan, numbers, staff))}>
+                <FileDown size={16} aria-hidden /> Xuất file
+              </button>
+            )}
           </div>
         </div>
       </div>

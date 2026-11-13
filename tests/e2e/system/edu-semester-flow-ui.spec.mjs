@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { api, beReachable, sql } from '../support/realBe.mjs';
-import { login, spaGo } from '../support/ui.mjs';
+import { actionCount, clickAction, login, spaGo } from '../support/ui.mjs';
 
 // System spec 003/004 qua giao diện (BE thật, E2E_PG_DB=carenest_merge): gói học kỳ (nhánh + kế hoạch chủ đề + tuần) gửi/duyệt/
 // trả lại/mở khóa ở trang Kế hoạch giáo dục chủ đề; trang Dự kiến chủ đề - chủ đề nhánh chỉ để sửa; HT lọc nhóm tuổi → lớp (EDU-73/74).
@@ -143,7 +143,9 @@ test('ST-004-01 trang Dự kiến chủ đề - chủ đề nhánh: không nút 
   await spaGo(page, `/education/branches/${cls.id}`);
   await expect(page.getByRole('button', { name: 'Chỉnh sửa' })).toBeVisible({ timeout: 30_000 });
   await expect(page.getByRole('button', { name: /Gửi duyệt/ })).toHaveCount(0);
-  await expect(page.getByText(/Gói học kỳ|Học kỳ \d/)).toHaveCount(0);
+  // Ô lọc Học kỳ có mục "Học kỳ n" (13/11/2026); trang không có trạng thái / chữ gói học kỳ
+  await expect(page.getByText(/Gói học kỳ/)).toHaveCount(0);
+  await expect(page.locator('.ga-year-toolbar').getByText(/Học kỳ \d/)).toHaveCount(0);
   // Điều hướng chỉ bằng sidebar (Tiền 11/11)
   await expect(page.locator('.ga-page a[href^="/education/"]:not(nav[aria-label="Breadcrumb"] a)')).toHaveCount(0);
 });
@@ -153,10 +155,10 @@ test('ST-004-02 gói thiếu phần thì chưa gửi được và liệt kê m�
   const before = await packageOf(U.tl, 2);
   if ((before.missing || []).some((m) => m.kind !== 'branch')) {
     await spaGo(page, `/education/theme-plans/${cls.id}?hk=2`);
-    await expect(page.getByRole('tab', { name: /Học kỳ 2/ })).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByRole('combobox', { name: 'Học kỳ' })).toHaveValue('2');
     // Tiền 11/11/2026: điều kiện còn thiếu chỉ hiện (chữ đỏ) sau khi bấm Gửi duyệt, không mở hộp gửi
     await expect(page.getByText(/Còn thiếu \d+ mục trước khi gửi/)).toHaveCount(0);
-    await page.getByRole('button', { name: 'Gửi duyệt học kỳ 2' }).click();
+    await clickAction(page, 'Gửi duyệt học kỳ 2');
     await expect(page.getByRole('alert').filter({ hasText: /Còn thiếu \d+ mục trước khi gửi/ })).toBeVisible();
     await expect(page.getByRole('dialog')).toHaveCount(0);
   }
@@ -166,7 +168,7 @@ test('ST-004-02 gói thiếu phần thì chưa gửi được và liệt kê m�
   await page.goto(`/education/theme-plans/${cls.id}?hk=2`);
   await expect(page.getByText(/Còn thiếu \d+ mục/)).toHaveCount(0, { timeout: 30_000 });
   const send = async () => {
-    await page.getByRole('button', { name: 'Gửi duyệt học kỳ 2' }).click();
+    await clickAction(page, 'Gửi duyệt học kỳ 2');
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
     const sent = page.waitForResponse((r) => r.url().includes(`${DOCS}/semester/`) && r.url().endsWith('/actions'));
@@ -201,14 +203,14 @@ test('ST-004-02 gói thiếu phần thì chưa gửi được và liệt kê m�
   }
   expect(res.status(), await res.text()).toBe(200);
   expect((await packageOf(U.tl, 2)).status).toBe('REVIEW');
-  await expect(page.getByRole('button', { name: 'Gửi duyệt học kỳ 2' })).toHaveCount(0);
+  expect(await actionCount(page, 'Gửi duyệt học kỳ 2')).toBe(0);
 });
 
 test('ST-004-03 PHT mở gói từ hàng chờ duyệt, duyệt trên trang Kế hoạch giáo dục chủ đề ⇒ Đã ban hành', async ({ page }) => {
   test.skip((await packageOf(U.vp, 2))?.status !== 'REVIEW', 'gói học kỳ 2 chưa ở Chờ duyệt');
   await login(page, U.vp);
   await spaGo(page, `/education/theme-plans/${cls.id}?hk=2`);
-  await page.getByRole('button', { name: 'Duyệt', exact: true }).click();
+  await clickAction(page, 'Duyệt');
   const dialog = page.getByRole('dialog');
   const acted = page.waitForResponse((r) => r.url().includes(`${DOCS}/semester/`) && r.url().endsWith('/actions'));
   await dialog.getByRole('button', { name: 'Duyệt', exact: true }).click();
@@ -302,7 +304,7 @@ test('ST-003-08 Hiệu trưởng mở hạn gói học kỳ 1 quá hạn ở mà
   const tl = await (await browser.newContext()).newPage();
   await login(tl, U.tl);
   await spaGo(tl, `/education/theme-plans/${cls.id}?hk=1`);
-  await tl.getByRole('button', { name: 'Gửi duyệt học kỳ 1' }).click();
+  await clickAction(tl, 'Gửi duyệt học kỳ 1');
   const sent = tl.waitForResponse((r) => r.url().endsWith('/actions'));
   await tl.getByRole('dialog').getByRole('button', { name: 'Gửi duyệt' }).click();
   const res = await sent;
@@ -316,7 +318,7 @@ test('ST-003-08 Hiệu trưởng mở hạn gói học kỳ 1 quá hạn ở mà
   const vp = await (await browser.newContext()).newPage();
   await login(vp, U.vp);
   await spaGo(vp, `/education/theme-plans/${cls.id}?hk=1`);
-  await vp.getByRole('button', { name: 'Trả lại' }).click();
+  await clickAction(vp, 'Trả lại');
   const back = vp.getByRole('dialog');
   await back.getByRole('button', { name: 'Trả lại' }).click();
   await expect(back).toBeVisible(); // thiếu lý do thì chưa trả lại

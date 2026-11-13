@@ -9,6 +9,7 @@ import { StatusBadge } from '@/components/ui/StatusBadge';
 import { createPortal } from 'react-dom';
 import { Adjustments, Check, Download, Plus, RotateCcw, Sparkles, X } from '@/components/ui/icons';
 import { RowMenu } from '@/components/ui/RowMenu';
+import { ActionsMenu } from '@/components/education-plan/reviewUi';
 import { Modal } from '@/components/ui/Modal';
 import { AiDraftTag } from '@/components/ui/AiDraftTag';
 import { AiWorkingOverlay } from '@/components/ui/AiWorkingOverlay';
@@ -214,11 +215,7 @@ export function ThemePlanBody({
             toolsTarget &&
             (loadPreviousActivities || suggestActivities) &&
             createPortal(
-              <RowMenu
-                label="Lấy và gợi ý hoạt động"
-                text="Lấy / gợi ý"
-                icon={<Download size={16} aria-hidden />}
-                className="btn btn--sm btn--outline-primary"
+              <ActionsMenu
                 items={[
                   ...(loadPreviousActivities
                     ? [{ label: 'Lấy hoạt động năm trước', icon: Download, onClick: () => setImporting(true) }]

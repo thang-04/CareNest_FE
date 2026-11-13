@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { FileDown, Save, X } from '@/components/ui/icons';
-import { Card, EduStatusBadge, EmptyCard, fmtDate, FoldAllButton, Notice, PageHead } from '@/components/education-plan/eduUi';
+import { Card, EmptyCard, fmtDate, FoldAllButton, Notice, PageHead } from '@/components/education-plan/eduUi';
 import { getClassDocRelease, getClassPlans, getGoal, suggestActivityCards } from '@/services/education-plan/educationPlanService';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { submitEntryOf } from '@/models/education-plan/reviewHistory.mjs';
@@ -35,7 +35,7 @@ import { FinishedThemeNote, SupersededNote, VersionCopyOffer, VersionFlagsPanel 
 import { useDocVersion } from '@/hooks/education-plan/useDocVersion';
 import { addedGoalIds, checkFlag, danglingRows, dropReference, versionOf } from '@/models/education-plan/planVersions.mjs';
 import DocPreviewModal from '@/components/education-plan/DocPreviewModal';
-import { BlockedNotice, DeadlineBadge } from '@/components/education-plan/DeadlineWidgets';
+import { BlockedNotice } from '@/components/education-plan/DeadlineWidgets';
 import { Button } from '@/components';
 
 /**
@@ -161,7 +161,6 @@ function ThemePlanInner() {
   if (!cls || !yearPlan || !theme) return <StatusPage kind="404" title="Không tìm thấy chủ đề trong kế hoạch năm đã ban hành của lớp" />;
   if (!draft) return <LoadingState />;
 
-  const status = saved?.status || EDU_STATUS.DRAFT;
   const editable = canWrite;
   const copyOld = async () => {
     setCopying(true);
@@ -310,10 +309,10 @@ function ThemePlanInner() {
         <div className="ga-year-toolbar" role="group" aria-label="Thao tác kế hoạch chủ đề">
           <div className="ga-year-toolbar__group">
             <span className="ga-year-toolbar__title">Chủ đề: {theme.name}</span>
-            <EduStatusBadge status={holder?.status || status} doc={holder} />
-            <DeadlineBadge doc={semester} />
+            {/* Trạng thái, hạn chỉ ở thẻ học kỳ trang danh sách (Tiền 14/11/2026) */}
             <FoldAllButton />
-            <span ref={setToolsEl} className="row row--middle gap-2" />
+            {/* Nút "Thao tác" (Lấy / gợi ý) do ThemePlanBody đặt vào; Xuất file chủ đề chỉ ở thẻ chủ đề trang danh sách */}
+            {editable && <span ref={setToolsEl} className="row row--middle gap-2" />}
           </div>
           <div className="ga-year-toolbar__group ga-year-toolbar__group--end">
             {editable && (
@@ -349,15 +348,6 @@ function ThemePlanInner() {
                 </Button>
               </>
             )}
-            <Button
-              variant="outline-primary"
-              size="sm"
-              onClick={() =>
-                setPreview(themeFile({ ...exportArgs, leaderName: leaderNameOf(staff, cls.ageGroupId, yearPlan?.schoolYear) }))
-              }
-            >
-              <FileDown size={16} aria-hidden /> Xuất file
-            </Button>
             {preview && <DocPreviewModal file={preview} onClose={() => setPreview(null)} />}
           </div>
         </div>

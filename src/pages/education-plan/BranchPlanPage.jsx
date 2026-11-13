@@ -528,9 +528,12 @@ function BranchPlanInner({ classId }) {
               </>
             )}
             {/* Xuất / in ở mọi bước; đã duyệt thì Phó HT in ra ký, giáo viên in để dùng hằng ngày */}
-            <button type="button" className="btn btn--sm btn--outline-primary" onClick={() => setPreview(branchFile(printArgs))}>
-              <FileDown size={16} aria-hidden /> Xuất file
-            </button>
+            {/* EDU-90: xuất file theo vai trò người tạo, BE trả cờ */}
+            {saved?.permissions?.canExport !== false && (
+              <button type="button" className="btn btn--sm btn--outline-primary" onClick={() => setPreview(branchFile(printArgs))}>
+                <FileDown size={16} aria-hidden /> Xuất file
+              </button>
+            )}
             {preview && <DocPreviewModal file={preview} onClose={() => setPreview(null)} />}
           </div>
         </div>

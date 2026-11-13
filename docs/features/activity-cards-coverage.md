@@ -18,7 +18,7 @@ BE quyết định kiểm thẻ, MT của lượt xếp, bản tuần hiệu l�
 
 - Ô hiện chip MT của từng lượt xếp ("MT3, MT23", theo thẻ). Gợi ý: thẻ đúng loại giờ trước, nhóm "Khác" sau; một thẻ xếp được
   nhiều ô, nhiều tuần. Thẻ dòng học tên "Môn: đề tài" điền Môn và Đề tài.
-- Ô gõ tay: chip đỏ "Chưa gắn MT" + nút "Tạo thẻ từ hoạt động này". Trang Kế hoạch tuần: thẻ thêm vào kế hoạch chủ đề (lưu chủ đề
+- Ô gõ tay: chip đỏ "Chưa gắn MT" + nút "Gán mục tiêu" (đổi tên từ "Tạo thẻ từ hoạt động này", Tiền 14/11/2026). Trang Kế hoạch tuần: thẻ thêm vào kế hoạch chủ đề (lưu chủ đề
   ngay), ô trỏ tới thẻ, tuần lưu khi bấm Lưu. Trang ngày (sửa theo hồ sơ): thẻ lưu kèm `day.content.week.cards`, nhãn "Bổ sung theo
   hồ sơ chủ đề".
 - Dòng tổng dưới bảng: lượt xếp, MT tuần phủ, ô gõ tay chưa MT, MT cả chủ đề đã phủ/tổng, MT còn thiếu (link tab Bảng phủ MT).

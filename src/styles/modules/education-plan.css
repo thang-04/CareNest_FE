@@ -180,6 +180,12 @@
   font-size: var(--fs-sm);
   color: var(--primary);
 }
+.ga-mt-link {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  text-decoration: underline;
+  white-space: nowrap;
+}
 .ga-goal-check {
   display: grid;
   grid-template-columns: 20px 56px 1fr;
@@ -1110,7 +1116,52 @@
   margin-top: var(--space-3);
   padding: var(--space-3) var(--space-4);
   background: var(--color-surface-muted);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
+}
+/* Học liệu giáo án ngày (Tiền 14/11/2026): đầu mục tách khỏi danh sách; mỗi học liệu là thẻ nền trắng có ô biểu tượng loại */
+.ga-media-unbound > .ga-media-upload {
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+}
+.ga-media-unbound .ga-resource-list {
+  margin: var(--space-3) 0 0;
+}
+.ga-media-unbound .ga-resource-list > li {
+  flex-wrap: nowrap;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+}
+.ga-resource-icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--space-8);
+  height: var(--space-8);
+  border-radius: var(--radius-sm);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+/* Hộp Thêm học liệu: chỉ tên học liệu xuống dòng; nút Xem/Ẩn xem rộng cố định, không xuống dòng */
+.ga-resource-pick > li {
+  flex-wrap: nowrap;
+}
+.ga-resource-pick > li > label {
+  flex: 1;
+  min-width: 0;
+}
+.ga-resource-pick__text {
+  min-width: 0;
+}
+.ga-resource-pick__name {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.ga-resource-pick__view {
+  flex: none;
+  width: calc(var(--space-12) * 2);
+  white-space: nowrap;
 }
 .ga-media-viewer {
   display: grid;
@@ -2756,11 +2807,6 @@ h2.ga-cur-domain__head {
   min-width: 180px;
 }
 
-.ga-class-plan-table .ga-col-theme-status {
-  width: 190px;
-  min-width: 180px;
-}
-
 .ga-class-plan-table .ga-col-theme-actions {
   width: 160px;
   min-width: 150px;
@@ -2769,21 +2815,6 @@ h2.ga-cur-domain__head {
 /* Cột Thời gian: giữ ngày tháng thẳng hàng không rớt dòng */
 .ga-class-plan-table th:nth-child(2),
 .ga-class-plan-table td:nth-child(2) {
-  white-space: nowrap;
-}
-
-/* Cột Trạng thái: vừa vặn với badge, căn giữa cân đối */
-.ga-class-plan-table th.ga-col-theme-status,
-.ga-class-plan-table td.ga-theme-status-cell {
-  text-align: center;
-  vertical-align: middle;
-  white-space: nowrap;
-}
-
-.ga-class-plan-table td.ga-theme-status-cell .ga-goal-table__pad {
-  display: flex;
-  align-items: center;
-  justify-content: center;
   white-space: nowrap;
 }
 
@@ -2816,9 +2847,6 @@ h2.ga-cur-domain__head {
     min-width: 740px;
   }
   .ga-class-plan-table .ga-col-theme-time {
-    width: 180px;
-  }
-  .ga-class-plan-table .ga-col-theme-status {
     width: 180px;
   }
   .ga-class-plan-table .ga-col-theme-actions {
@@ -3024,4 +3052,9 @@ html:has(.ga-page) {
 /* Cột Thao tác có 3 nút biểu tượng (lên, xuống, xóa) trong bảng chia đều cột */
 .ga-col-row-actions {
   width: calc(var(--btn-height-sm) * 4);
+}
+/* Trang Kho: tên học liệu dài liền (không dấu cách) xuống dòng trong ô, bảng không cuộn ngang (Tiền 14/11/2026) */
+.ga-resource-name {
+  min-width: calc(var(--space-12) * 4);
+  overflow-wrap: anywhere;
 }

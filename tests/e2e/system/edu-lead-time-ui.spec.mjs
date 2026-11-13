@@ -41,11 +41,12 @@ test('ST-003-01 khối Học kỳ ở trang Kế hoạch giáo dục chủ đề
   test.skip(!cls, 'Thiếu lớp');
   await login(page, U.tl);
   await spaGo(page, `/education/theme-plans/${cls.id}?hk=1`);
-  await expect(page.getByRole('tab', { name: /Học kỳ 1/ })).toBeVisible({ timeout: 30_000 });
+  // Học kỳ là ô chọn trong thẻ lọc (Tiền 13/11/2026), không còn tab
+  await expect(page.getByRole('combobox', { name: 'Học kỳ' })).toBeVisible({ timeout: 30_000 });
   await expect(notFound(page)).toHaveCount(0);
-  await expect(page.getByRole('tab', { name: /Học kỳ 1/ })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('combobox', { name: 'Học kỳ' })).toHaveValue('1');
   await expect(page.getByText(/[Gg]ói học kỳ/)).toHaveCount(0);
-  await expect(page.getByText(/Gần đến hạn|Quá hạn|Đúng hạn|Ban hành trễ|Hạn \d\d\/\d\d/).first()).toBeVisible();
+  await expect(page.getByText(/Gần đến hạn|Quá hạn|Đúng hạn|Ban hành trễ|Hạn:? \d\d\/\d\d/).first()).toBeVisible();
 });
 
 // Spec 005 FR-021/FR-021a: mở hạn chỉ ở màn Kế hoạch quá hạn của Hiệu trưởng, không trang chi tiết nào có nút mở

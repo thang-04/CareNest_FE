@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { api, beReachable } from '../support/realBe.mjs';
-import { login, spaGo } from '../support/ui.mjs';
+import { actionCount, clickAction, login, spaGo } from '../support/ui.mjs';
 
 // System spec 004 (BE thật, E2E_PG_DB=carenest_merge):
 // - Q3b/Q6 + spec 005: kế hoạch tổ đã ban hành khóa cứng từ ngày bắt đầu năm học, không ai mở lại.
@@ -40,7 +40,7 @@ test('ST-004-10 kế hoạch tổ đã ban hành bị khóa: không nút mở h�
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 30_000 });
   await expect(page.getByText('Năm học đã bắt đầu, kế hoạch đã khóa', { exact: false })).toHaveCount(0);
   await expect(page.getByRole('button', { name: /Mở hạn|Mở khóa/ })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Tạo phiên bản điều chỉnh' })).toHaveCount(0);
+  expect(await actionCount(page, 'Tạo phiên bản điều chỉnh')).toBe(0);
   const res = await api(U.ht, 'POST', `${GOALS}/${team.id}/unlock`, {
     body: { note: '[E2E] thử mở bản đã ban hành', deadline: isoPlus(1) },
   });
@@ -55,7 +55,7 @@ test('ST-004-11 gói học kỳ 2 đã ban hành, chưa tới học kỳ: GVCN t
   test.skip(pkg?.status !== 'APPROVED' || !pkg.canRevise, 'Gói học kỳ 2 chưa ban hành (chạy edu-semester-flow-ui trước)');
   await login(page, U.tl);
   await spaGo(page, `/education/theme-plans/${cls.id}?hk=2`);
-  await page.getByRole('button', { name: 'Tạo phiên bản điều chỉnh' }).click({ timeout: 30_000 });
+  await clickAction(page, 'Tạo phiên bản điều chỉnh');
   const confirm = page.getByRole('dialog');
   await expect(confirm.getByText('Bản đã ban hành vẫn hiệu lực', { exact: false })).toBeVisible();
   const revised = page.waitForResponse((r) => r.url().includes(`${DOCS}/semester/`) && r.url().endsWith('/actions'));
@@ -64,9 +64,9 @@ test('ST-004-11 gói học kỳ 2 đã ban hành, chưa tới học kỳ: GVCN t
   const draft = await pkgOf();
   expect(draft.status).toBe('DRAFT');
   expect(draft.history.some((h) => h.action === 'revise_future' || h.action === 'revise')).toBe(true);
-  await expect(page.getByRole('button', { name: 'Gửi duyệt học kỳ 2' })).toBeVisible();
+  expect(await actionCount(page, 'Gửi duyệt học kỳ 2')).toBe(1);
   // Gửi lại ngay: gói vẫn đủ phần ⇒ Chờ duyệt; PHT duyệt để bộ test khác chạy tiếp như cũ
-  await page.getByRole('button', { name: 'Gửi duyệt học kỳ 2' }).click();
+  await clickAction(page, 'Gửi duyệt học kỳ 2');
   const sent = page.waitForResponse((r) => r.url().endsWith('/actions'));
   await page.getByRole('dialog').getByRole('button', { name: 'Gửi duyệt' }).click();
   expect((await sent).status()).toBe(200);
