@@ -7,7 +7,14 @@ import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useAsync } from '@/hooks/useAsync';
 import { useDailyAssessmentClasses } from '@/hooks/assessment/useAssessment';
-import { getAssessmentDayUnlocks, revokeAssessmentDayUnlock, unlockAssessmentDay } from '@/services/assessment/assessmentService';
+import {
+  getAssessmentDayUnlocks,
+  getWeeklyCommentReopens,
+  revokeAssessmentDayUnlock,
+  unlockAssessmentDay,
+} from '@/services/assessment/assessmentService';
+import { WeeklyCommentReopenForm } from '@/components/assessment/WeeklyCommentReopenForm';
+import { SelectField } from '@/components/form/Field';
 import { RowActions } from '@/components/ui/RowActions';
 import { getCampuses } from '@/services/masterDataService';
 import { UnlockWindowBadge } from '@/components/assessment/AssessmentBadges';
@@ -30,11 +37,18 @@ const lastLockedDay = (yearStart) => {
   return yearStart && d < yearStart ? '' : d;
 };
 
-const EMPTY_FILTERS = { campusId: '', classId: '', active: '', from: '', to: '' };
+const EMPTY_FILTERS = { kind: '', campusId: '', classId: '', active: '', from: '', to: '' };
+
+// Loại mở lại: ngày đánh giá đã khóa (OBS-19) hoặc nhận xét tuần đã gửi (OBS-29)
+const KINDS = [
+  { value: 'DAY', label: 'Đánh giá ngày' },
+  { value: 'WEEK', label: 'Nhận xét tuần' },
+];
+const KIND_LABELS = Object.fromEntries(KINDS.map((k) => [k.value, k.label]));
 
 /**
- * Mở lại ngày đánh giá đã khóa (khóa sau 23:59:59 của ngày đó). Giáo viên quên đánh giá thì gửi mail cho PHT điểm trường
- * hoặc Hiệu trưởng; người đó mở lại ngày cho lớp ở đây và chọn hạn (ngày giờ), giáo viên đánh giá được đến hạn đó.
+ * Mở lại đánh giá: ngày đánh giá đã khóa (khóa sau 23:59:59 của ngày đó; chọn hạn, giáo viên đánh giá được đến hạn đó)
+ * hoặc nhận xét tuần đã gửi phụ huynh (về nháp để giáo viên sửa, gửi lại). Người mở: PHT điểm trường hoặc Hiệu trưởng.
  */
 export default function AssessmentDayUnlockPage() {
   const { user } = useAuth();
@@ -68,6 +82,7 @@ export default function AssessmentDayUnlockPage() {
   }));
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
+  const [kind, setKind] = useState('DAY');
   const set = (patch) => {
     setForm((f) => ({ ...f, ...patch }));
     setErrors({});
@@ -99,8 +114,44 @@ export default function AssessmentDayUnlockPage() {
     loading,
     error,
     reload,
-  } = useAsync(() => getAssessmentDayUnlocks(query, user), [JSON.stringify(query), user?.id], { enabled: !invalidRange });
-  const shown = invalidRange ? [] : unlocks || [];
+  } = useAsync(() => getAssessmentDayUnlocks(query, user), [JSON.stringify(query), user?.id], {
+    enabled: !invalidRange && filters.kind !== 'WEEK',
+  });
+  // Lịch sử mở lại nhận xét tuần: lọc lớp, khoảng ngày theo tuần; không có hiệu lực / kết thúc sớm
+  const {
+    data: reopens,
+    loading: reopensLoading,
+    error: reopensError,
+    reload: reloadReopens,
+  } = useAsync(() => getWeeklyCommentReopens(query, user), [JSON.stringify(query), user?.id], {
+    enabled: !invalidRange && filters.kind !== 'DAY' && !filters.active,
+  });
+  const shown = useMemo(() => {
+    if (invalidRange) return [];
+    const days = filters.kind === 'WEEK' ? [] : (unlocks || []).map((u) => ({ ...u, kind: 'DAY', key: `d-${u.id}` }));
+    const weeks =
+      filters.kind === 'DAY' || filters.active
+        ? []
+        : (reopens || []).map((r) => ({
+            kind: 'WEEK',
+            key: `w-${r.id}`,
+            className: r.className,
+            campusId: r.campusId,
+            childName: r.childName,
+            weekFrom: r.weekFrom,
+            weekEnd: r.weekEnd,
+            unlockedByName: r.reopenedByName,
+            unlockedAt: r.reopenedAt,
+            reason: r.reason,
+          }));
+    return [...days, ...weeks].sort((a, b) => String(b.unlockedAt).localeCompare(String(a.unlockedAt)));
+  }, [invalidRange, filters.kind, filters.active, unlocks, reopens]);
+  const historyLoading = (filters.kind !== 'WEEK' && loading) || (filters.kind !== 'DAY' && !filters.active && reopensLoading);
+  const historyError = error || reopensError;
+  const reloadHistory = () => {
+    reload({ silent: true });
+    reloadReopens({ silent: true });
+  };
   const filtered = Object.values(filters).some(Boolean);
   const filterClasses = scoped.filter((c) => !filters.campusId || c.campusId === filters.campusId);
 
@@ -150,13 +201,19 @@ export default function AssessmentDayUnlockPage() {
     <div className="page">
       <Breadcrumb items={assessmentCrumbs(SECTIONS.unlocks)} />
       <div className="page__head">
-        <h1 className="page__title">Mở lại ngày đánh giá</h1>
+        <h1 className="page__title">Mở lại đánh giá</h1>
       </div>
 
       {classesError ? (
         <ErrorState error={classesError} />
+      ) : kind === 'WEEK' ? (
+        <div className="card stack">
+          <SelectField label="Loại" value={kind} onChange={(e) => setKind(e.target.value)} options={KINDS} />
+          <WeeklyCommentReopenForm classes={scoped} classLabel={classLabel} user={user} onReopened={reloadHistory} />
+        </div>
       ) : (
         <form className="card form-inline" onSubmit={submit} noValidate aria-busy={busy}>
+          <SelectField label="Loại" value={kind} onChange={(e) => setKind(e.target.value)} options={KINDS} />
           <FormField label="Lớp cần mở lại" required error={errors.classId} className="form-inline__class">
             <select
               className="select"
@@ -228,6 +285,13 @@ export default function AssessmentDayUnlockPage() {
           <h2 className="card__title">Các lần mở lại</h2>
         </div>
         <div className="filter-bar dg-unlock-filters">
+          <SelectField
+            aria-label="Lọc loại"
+            value={filters.kind}
+            placeholder="Tất cả loại"
+            onChange={(e) => setFilter({ kind: e.target.value })}
+            options={KINDS}
+          />
           <CampusFilter campuses={scopedCampuses} value={filters.campusId} onChange={(campusId) => setFilter({ campusId, classId: '' })} />
           <select className="select" aria-label="Lọc lớp" value={filters.classId} onChange={(e) => setFilter({ classId: e.target.value })}>
             <option value="">Tất cả lớp</option>
@@ -277,15 +341,16 @@ export default function AssessmentDayUnlockPage() {
             Nhập khoảng ngày hợp lệ theo dd/mm/yyyy, ngày bắt đầu không sau ngày kết thúc.
           </p>
         )}
-        {error ? (
-          <ErrorState error={error} onRetry={reload} />
+        {historyError ? (
+          <ErrorState error={historyError} onRetry={reloadHistory} />
         ) : (
           <div className="table-wrap dg-roll-wrap">
             <table className="table table--grid dg-roll">
               <thead>
                 <tr>
+                  <th>Loại</th>
                   <th>Lớp</th>
-                  <th>Ngày đánh giá</th>
+                  <th>Ngày / tuần</th>
                   <th>Người mở</th>
                   <th>Lúc mở</th>
                   <th>Lý do</th>
@@ -294,38 +359,52 @@ export default function AssessmentDayUnlockPage() {
                 </tr>
               </thead>
               <tbody>
-                {loading && !invalidRange ? (
-                  <SkeletonRows rows={3} cols={7} />
+                {historyLoading && !invalidRange ? (
+                  <SkeletonRows rows={3} cols={8} />
                 ) : !shown.length ? (
                   <tr>
-                    <td colSpan={7}>
+                    <td colSpan={8}>
                       <EmptyState
                         icon={Unlock}
-                        title={filtered ? 'Không có lần mở lại phù hợp bộ lọc' : 'Chưa mở lại ngày nào'}
-                        description={filtered ? undefined : 'Các ngày đã mở lại cho giáo viên hiện ở đây.'}
+                        title={filtered ? 'Không có lần mở lại phù hợp bộ lọc' : 'Chưa mở lại đánh giá nào'}
+                        description={filtered ? undefined : 'Các ngày đánh giá, nhận xét tuần đã mở lại hiện ở đây.'}
                       />
                     </td>
                   </tr>
                 ) : (
                   paginate(shown, page, 10).map((u) => (
-                    <tr key={u.id}>
+                    <tr key={u.key}>
+                      <td>{KIND_LABELS[u.kind]}</td>
                       <td className="fw-600">
                         {u.className}
                         {multiCampus && <div className="text-sm muted">{campusLabel(u.campusId)}</div>}
                       </td>
-                      <td className="nowrap">{formatDate(u.date)}</td>
+                      <td className="nowrap">
+                        {u.kind === 'WEEK' ? (
+                          <>
+                            {formatDate(u.weekFrom)} – {formatDate(u.weekEnd)}
+                            <div className="text-sm muted">{u.childName}</div>
+                          </>
+                        ) : (
+                          formatDate(u.date)
+                        )}
+                      </td>
                       <td>{u.unlockedByName}</td>
                       <td>{formatDateTime(u.unlockedAt)}</td>
                       <td>{u.reason || '—'}</td>
                       <td className="center">
-                        <UnlockWindowBadge
-                          status={u.active ? 'ACTIVE' : u.revokedAt ? 'REVOKED' : 'EXPIRED'}
-                          detail={formatDateTime(u.validUntil)}
-                        />
+                        {u.kind === 'WEEK' ? (
+                          <span className="text-sm muted">Về nháp, chờ gửi lại</span>
+                        ) : (
+                          <UnlockWindowBadge
+                            status={u.active ? 'ACTIVE' : u.revokedAt ? 'REVOKED' : 'EXPIRED'}
+                            detail={formatDateTime(u.validUntil)}
+                          />
+                        )}
                         {u.revokedByName && <div className="text-xs muted">bởi {u.revokedByName}</div>}
                       </td>
                       <td className="cell--actions">
-                        {u.active && (
+                        {u.kind === 'DAY' && u.active && (
                           <RowActions
                             name={u.className}
                             menu={[

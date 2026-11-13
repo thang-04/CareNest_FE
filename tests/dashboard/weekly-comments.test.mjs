@@ -70,11 +70,12 @@ test('Trạng thái và đếm: chỉ nháp có nội dung mới tính sẵn sà
     { status: 'DRAFT', content: '  ' },
     { status: 'NONE', absentAllWeek: true },
     { status: 'DRAFT', content: 'Tuần này con nghỉ học cả tuần', absentAllWeek: true },
+    { status: 'DRAFT', content: 'Bản đã gửi, BGH mở lại', reopened: true },
   ];
-  assert.deepEqual(boardCounts(rows), { total: 5, sent: 1, ready: 2 });
+  assert.deepEqual(boardCounts(rows), { total: 6, sent: 1, ready: 3 });
   assert.deepEqual(
     rows.map((r) => statusChip(r).label),
-    ['Đã gửi', 'Nháp', 'Chưa có', 'Nghỉ cả tuần', 'Nháp · nghỉ cả tuần'],
+    ['Đã gửi', 'Nháp', 'Chưa có', 'Nghỉ cả tuần', 'Nháp · nghỉ cả tuần', 'Đã mở lại'],
   );
   assert.deepEqual(
     weekDataCells({

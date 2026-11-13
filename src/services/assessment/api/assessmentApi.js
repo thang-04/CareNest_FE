@@ -169,6 +169,13 @@ export const createAssessmentBeApi = (client) => ({
     client.put('/assessment/weekly-comments', { classId, weekStart, childId, content }),
   sendWeeklyComments: ({ classId, weekStart, childId, content }) =>
     client.post('/assessment/weekly-comments/send', { classId, weekStart, childId: childId || null, content: content ?? null }),
+  // Mở lại nhận xét tuần đã gửi (HT / PHT có quyền mở lại): childIds trống = mọi bản đã gửi của lớp trong tuần
+  reopenWeeklyComments: ({ classId, weekStart, childIds, reason }) =>
+    client.post('/assessment/weekly-comments/reopen', { classId, weekStart, childIds: childIds?.length ? childIds : null, reason }),
+  listWeeklyCommentReopens: ({ campusId, classId, from, to } = {}) =>
+    client.get('/assessment/weekly-comments/reopens', {
+      params: { campusId: campusId || undefined, classId: classId || undefined, from: from || undefined, to: to || undefined },
+    }),
   // Đánh giá tháng / cuối năm: BE tạo bản nháp khi tháng kết thúc (cuối năm: khi học kỳ II kết thúc)
   getEvaluations: (kind, { schoolYear, classId } = {}) =>
     client.get('/assessment/evaluations', {

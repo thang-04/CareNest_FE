@@ -394,6 +394,7 @@ export const createAssessmentReportsMock = (ensureReady) => ({
           sentAt: sent ? c.sentAt : null,
           sentByName: sent ? c.sentByName : null,
           updatedAt: c?.updatedAt || null,
+          reopened: !sent && !!c?.reopened,
           data: {
             presentDays: days.size,
             schoolDays: days.size,
@@ -464,6 +465,7 @@ Bố mẹ hãy trò chuyện với con về những điều con đã học trong
         content: text,
         draftSource: row.draftSource || 'MANUAL',
         updatedAt: now(),
+        reopened: !send && !!row.reopened,
         ...(send ? { sentAt: now(), sentByName: user.fullName } : {}),
       },
     ];
@@ -479,6 +481,61 @@ Bố mẹ hãy trò chuyện với con về những điều con đã học trong
     if (!ready.length) invalid('Chưa có nhận xét nào viết xong để gửi phụ huynh');
     for (const r of ready) await this.saveWeeklyComment({ ...body, childId: r.childId, content: r.content }, user, true);
     return this.getWeeklyComments(body, user);
+  },
+  // BE giả OBS-29: HT / PHT có quyền mở lại đưa bản đã gửi về nháp (lý do bắt buộc ≤ 300 ký tự), lưu lịch sử
+  async reopenWeeklyComments(body, user) {
+    if (!isLeader(user)) throw new ApiError(403, 'Chỉ Hiệu trưởng hoặc Phó hiệu trưởng điểm trường của lớp được mở lại');
+    const reason = (body.reason || '').trim();
+    if (!reason) invalid('Nhập lý do mở lại nhận xét tuần');
+    if (reason.length > 300) invalid('Lý do mở lại tối đa 300 ký tự');
+    const board = await this.getWeeklyComments(body, user);
+    const db = ensureReady();
+    const sent = (db.weeklyComments || []).filter(
+      (c) => c.classId === board.classId && c.weekStart === board.weekStart && c.status === 'SENT',
+    );
+    const picked = body.childIds?.length ? sent.filter((c) => body.childIds.includes(c.childId)) : sent;
+    if (!picked.length || (body.childIds?.length && picked.length !== body.childIds.length)) {
+      throw new ApiError(409, 'Nhận xét tuần của trẻ này chưa gửi phụ huynh, không cần mở lại');
+    }
+    const names = Object.fromEntries(board.children.map((r) => [r.childId, r.fullName]));
+    const created = picked.map((c) => ({
+      id: uid(),
+      childId: c.childId,
+      childName: names[c.childId] || null,
+      classId: board.classId,
+      className: board.className,
+      campusId: null,
+      weekStart: board.weekStart,
+      weekFrom: board.week.from,
+      weekEnd: board.week.to,
+      reason,
+      reopenedByName: user.fullName,
+      reopenedAt: now(),
+      previousContent: c.content,
+      previousSentAt: c.sentAt,
+      previousSentByName: c.sentByName,
+    }));
+    writeDb((d) => {
+      d.weeklyComments = (d.weeklyComments || []).map((c) =>
+        picked.some((p) => p.childId === c.childId && p.weekStart === c.weekStart)
+          ? { ...c, status: 'DRAFT', sentAt: null, sentByName: null, reopened: true }
+          : c,
+      );
+      d.weeklyCommentReopens = [...created, ...(d.weeklyCommentReopens || [])];
+    });
+    return clone(created);
+  },
+  async listWeeklyCommentReopens(filters = {}, user) {
+    if (!isLeader(user) && !['TEACHER', 'TEAM_LEADER'].includes(user?.role)) deny();
+    const db = ensureReady();
+    return clone(
+      (db.weeklyCommentReopens || []).filter(
+        (r) =>
+          (!filters.classId || r.classId === filters.classId) &&
+          (!filters.from || r.weekStart >= filters.from) &&
+          (!filters.to || r.weekStart <= filters.to),
+      ),
+    );
   },
   // BE giả OBS-24: HT, PHT xem mọi lớp; chấm: HT mọi lớp, PHT điểm trường mình; GV xem lớp mình
   async getClassRatings(params = {}, user) {

@@ -79,6 +79,8 @@ export const getWeeklyComments = (params, user) => (be || repo).getWeeklyComment
 export const writeWeeklyCommentDrafts = (body, user) => (be || repo).writeWeeklyCommentDrafts(body, user);
 export const saveWeeklyComment = (body, user) => (be || repo).saveWeeklyComment(body, user);
 export const sendWeeklyComments = (body, user) => (be || repo).sendWeeklyComments(body, user);
+export const reopenWeeklyComments = (body, user) => (be || repo).reopenWeeklyComments(body, user);
+export const getWeeklyCommentReopens = (filters, user) => (be || repo).listWeeklyCommentReopens(filters, user);
 /** Xếp loại nhóm lớp theo kỳ: { rows: [{ classId, levels, note, canEdit, … }], campuses }. */
 export const getClassRatings = (params, user) => (be || repo).getClassRatings(params, user);
 /** Đánh giá cuối chủ đề (lớp mẫu giáo): danh sách chủ đề, bảng trẻ × MT, lưu ô sửa tay / ghi chú, xác nhận. */

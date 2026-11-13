@@ -280,7 +280,7 @@ const ITEMS = {
     to: '/assessment/themes',
   },
   assessDayUnlocks: {
-    label: 'Mở lại ngày đánh giá',
+    label: 'Mở lại đánh giá',
     to: '/assessment/day-unlocks',
   },
   assessProfiles: {
