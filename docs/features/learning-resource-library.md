@@ -1,36 +1,39 @@
-# Kho học liệu cho giáo án ngày (spec 900)
+# Kho học liệu cá nhân cho giáo án ngày (spec 900 → 901)
 
-Nguồn: `UI-giaoan/specs/900-learning-resource-library/` · rule `BE:EDU-81`, `EDU-82…88` (CONFIRMED, Tiền 13/11/2026) · Jira G94-900.
+Nguồn: `UI-giaoan/specs/901-personal-resource-library/` (thay phần phạm vi của `specs/900-learning-resource-library/`) ·
+rule `BE:EDU-81`, `EDU-82…88` (CONFIRMED, Tiền 13–14/11/2026) · Jira G94-900.
 
 ## Hành vi đã chốt
 
-- **Kho + dòng gắn** (EDU-82): tệp/link lưu một lần làm học liệu trong kho; giáo án ngày chỉ giữ dòng gắn theo mục hoạt động
-  `ngày#hoc|ngoai_troi|goc|chieu` (EDU-81). Một mục tối đa 20 học liệu, không gắn trùng.
-- **Ở mục III của kế hoạch giáo dục ngày** (`components/education-plan/DayResources.jsx`): mỗi mục có *Tải lên*, *Dán link*,
-  *Chọn từ kho*. Học liệu tạo từ mục tự mang nhãn nhóm tuổi của lớp, chủ đề của tuần, MT của các hoạt động đã xếp vào mục.
-- **Dán link** (EDU-83, `ResourceLinkForm.jsx`): chỉ https YouTube (chuẩn hóa `watch?v=<id>`; watch, youtu.be, shorts, embed,
-  live) và Google Drive/Docs; lỗi hiện dưới ô khi rời ô; dán lại link đã có trong kho của mình thì dùng lại học liệu cũ.
-- **Chọn từ kho** (EDU-87, `ResourcePickerModal.jsx`): tab Tất cả / Của tôi / Của lớp / Của trường, tìm theo tên (chờ 300 ms),
-  BE xếp Cùng MT (id hoặc mã mục tiêu Bộ, kể cả năm trước) → Cùng chủ đề (id hoặc tên) → mới nhất; học liệu đã gắn ghi
-  "Đã gắn", không tích được; xem trước trong modal; 50 dòng mỗi lần + "Xem thêm". Không bao giờ tự gắn.
-- **Thứ tự trong mục** (EDU-82): nút lên/xuống cạnh mỗi học liệu (người sửa giáo án); thứ tự dùng khi xem/trình chiếu;
-  danh sách đã đổi bởi người khác ⇒ lỗi 7136, tải lại.
-- **Gỡ / ẩn / xóa** (EDU-85): gỡ chỉ xóa dòng gắn; xóa khỏi kho bị chặn khi còn dùng ⇒ hộp thoại đề nghị *Ẩn khỏi kho*;
-  ẩn hiện lại được ở tab Đã ẩn; học liệu ẩn vẫn xem/trình chiếu được trong giáo án cũ (EDU-86).
-- **Trang Kho học liệu** `/education/resources` (menu Kế hoạch giáo dục, `pages/education-plan/ResourceLibraryPage.jsx`):
-  khung như các trang kế hoạch giáo dục (đầu trang → thẻ lọc → tab → hàng nút → thẻ bảng). Bảng: học liệu, nhãn, đang dùng
-  (bấm xem lớp – ngày – mục, mở giáo án ngày), phạm vi, cập nhật, menu thao tác.
-- **Phạm vi** (EDU-84): Của tôi → Chia sẻ cho lớp (lớp mình dạy) → Đề nghị lên kho trường; tổ trưởng nhóm tuổi (không tự duyệt)
-  hoặc PHT duyệt / trả lại (bắt buộc lý do) ở tab *Chờ duyệt*; PHT đưa thẳng và gỡ khỏi kho trường. Duyệt / trả lại gửi thông báo cho người tạo (trả lại kèm lý do).
+- **Kho chỉ cá nhân** (EDU-84): mỗi giáo viên (gồm tổ trưởng) một kho; không Của lớp / Của trường, không đề nghị/duyệt,
+  không thông báo duyệt, không Ẩn. PHT/HT không có trang Kho (route `resources` chỉ `TEAM_LEADER`, `TEACHER`).
+- **Học liệu tự vào kho** (EDU-88): chỉ thêm ở giáo án ngày (tải lên / dán link); trang Kho không có Tải lên / Dán link.
+- **Kho + dòng gắn** (EDU-82): tệp/link lưu một lần; giáo án ngày giữ dòng gắn theo mục `ngày#hoc|ngoai_troi|goc|chieu`
+  (EDU-81). Một mục tối đa 20 học liệu, không gắn trùng; chỉ gắn học liệu trong kho của mình.
+- **Mục III giáo án ngày** (`components/education-plan/DayResources.jsx`): mỗi mục một nút **"+ Thêm học liệu"** (tắt khi đủ 20)
+  mở hộp gộp `ResourcePickerModal.jsx`: tìm, lọc chủ đề đã dạy và nhóm tuổi (mặc định nhóm tuổi của lớp), Gợi ý / Tất cả
+  (`aria-pressed`), nhãn "Cùng MT" / "Cùng chủ đề · <năm>", "Đã gắn" (không chọn được), 50 dòng + "Xem thêm"; phía dưới
+  Tải lên và Dán link; kho trống ⇒ trạng thái trống kèm 2 thao tác đó. Học liệu đã gắn là thẻ `file-row` trong `SortableList`
+  (kéo + nút lên/xuống, lỗi 7136 khi danh sách đã đổi), menu Xem / Gỡ khỏi mục; chỉ xem khi giáo án không sửa được.
+- **Nhãn** (EDU-87): học liệu thêm/gắn từ mục tự mang nhãn chủ đề của ngày (kèm năm học) + MT của mục, gắn với dòng gắn
+  (gỡ là mất); nhãn thêm tay ở trang Kho chỉ bỏ bằng tay. BE xếp Cùng MT (id hoặc mã Bộ) → Cùng chủ đề (id hoặc tên, mọi năm).
+- **Dán link** (EDU-83, `ResourceLinkForm.jsx`): chỉ https YouTube (chuẩn hóa `watch?v=<id>`) và Google Drive/Docs.
+- **Trang Kho** `/education/resources` (`pages/education-plan/ResourceLibraryPage.jsx`): nhóm theo chủ đề đã dạy + năm học
+  ("Chưa ghi chủ đề" cuối), tìm, lọc chủ đề / loại / nhóm tuổi. Menu: Xem, Đổi tên, Sửa nhãn (`ResourceTagsModal.jsx`:
+  nhóm tuổi, chủ đề, MT; nhãn tự thêm không bỏ được), Nơi đang dùng, Xóa vĩnh viễn.
+- **Xóa / đổi tên** (EDU-85, EDU-88): gọi `usages` trước. Bị khóa (gắn giáo án Chờ duyệt, hoặc đã ban hành mà ngày dạy là
+  hôm nay hoặc chưa tới) ⇒ thông báo chặn nêu lớp – ngày – mục và "Xóa được từ dd/mm/yyyy" / "sau khi giáo án được duyệt
+  hoặc trả lại"; không khóa mà đang dùng ⇒ xác nhận kèm danh sách, xóa là gỡ khỏi mọi giáo án (trạng thái giáo án giữ nguyên).
+  BE chặn bằng 7137.
+- **Xem học liệu** (EDU-86): ai xem được giáo án ngày thì mở được học liệu đã gắn trong giáo án đó (kể cả của người khác).
 - **Trình chiếu / trình xem** (`LearningResourceViewer.jsx`): YouTube nhúng `youtube-nocookie.com`, không tự phát, nút
-  "Mở trên YouTube"; Drive/Docs thẻ "Mở trong tab mới".
-- File Word giáo án ngày không liệt kê học liệu (EDU-21).
+  "Mở trên YouTube"; Drive/Docs "Mở trong tab mới". File Word giáo án ngày không liệt kê học liệu (EDU-21).
 
 ## Kỹ thuật
 
-- Facade `services/education-plan/learningResourceService.js` (dòng gắn) và `resourceLibraryService.js` (kho); mock dùng chung
-  `mock/learningResourceMockRepository.js`. Lớp API đổi mã nhóm tuổi `ag-3` ↔ id số qua `loadEduRefs()`.
-- Model `models/education-plan/learningResources.mjs`: `normalizeLink` (cùng quy tắc BE), `youtubeEmbed`, `matchOf`, `rankResources`.
-- Test: `tests/education-plan/resource-library.test.mjs`.
-- Sửa ở trang kho: tên, nhóm tuổi, chủ đề (chọn) và MT (tích) theo kế hoạch năm học đã ban hành của nhóm tuổi; nhãn MT từ
-  kế hoạch khác (năm trước) giữ để gợi ý, bỏ được cả nhóm (EDU-87).
+- Facade `services/education-plan/learningResourceService.js` (dòng gắn) và `resourceLibraryService.js` (kho: `list`,
+  `update`, `remove`, `usages`, `contentUrl`); mock `mock/learningResourceMockRepository.js` theo cùng quy tắc khóa và nhãn.
+- Model `models/education-plan/learningResources.mjs`: `normalizeLink`, `youtubeEmbed`, `deleteLock`, `deletableText`,
+  `taughtThemeGroups`.
+- Test: `tests/education-plan/learning-resources.test.mjs`, `resource-library.test.mjs`, `learning-resources-api.test.mjs`.
+- Giới hạn: danh sách chủ đề để lọc lấy từ các trang học liệu đã tải (chưa có API "chủ đề đã dạy").

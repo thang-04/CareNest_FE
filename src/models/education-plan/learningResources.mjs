@@ -2,8 +2,7 @@
 export const sectionKey = (date, section) => `${date}#${section}`;
 
 /** Học liệu đang gắn đúng mục của ngày (BE trả `active` = mục còn hợp lệ trong tuần). */
-export const resourcesOf = (items, date, section) =>
-  items.filter((r) => r.active && r.activityKey === sectionKey(date, section));
+export const resourcesOf = (items, date, section) => items.filter((r) => r.active && r.activityKey === sectionKey(date, section));
 
 /** Thứ tự id mới khi đưa một học liệu lên (-1) / xuống (+1) trong mục; ra ngoài biên thì giữ nguyên. */
 export const moveId = (ids, id, delta) => {
@@ -59,13 +58,15 @@ export const youtubeEmbed = (url) => (youtubeId(url) ? `https://www.youtube-noco
 export const defaultLinkTitle = (url) => (youtubeId(url) ? 'Video YouTube' : 'Tài liệu Google');
 
 /** Loại hiển thị của học liệu kho / dòng gắn: youtube | google | image | video | pdf | file. */
-export const resourceKind = (r) =>
-  r?.kind === 'LINK' ? (youtubeId(r.url) ? 'youtube' : 'google') : mediaKind(r?.contentType || '');
+export const resourceKind = (r) => (r?.kind === 'LINK' ? (youtubeId(r.url) ? 'youtube' : 'google') : mediaKind(r?.contentType || ''));
 
 export const KIND_LABELS = { youtube: 'Video YouTube', google: 'Google Drive/Docs', image: 'Ảnh', video: 'Video', pdf: 'PDF', file: 'Tệp' };
-export const SCOPE_LABELS = { MINE: 'Của tôi', CLASS: 'Của lớp', SCHOOL: 'Của trường' };
 
-const norm = (s) => String(s || '').trim().replace(/\s+/g, ' ').toLowerCase();
+export const norm = (s) =>
+  String(s || '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLowerCase();
 
 /**
  * EDU-87 — mức gợi ý của một học liệu so với mục đang soạn: 'GOAL' (cùng id MT hoặc cùng mã mục tiêu Bộ) > 'THEME'
@@ -97,3 +98,65 @@ export const rankResources = (items) =>
   );
 
 export const MATCH_LABELS = { GOAL: 'Cùng MT', THEME: 'Cùng chủ đề' };
+
+/* ---------- Spec 901: kho cá nhân, chủ đề đã dạy, khóa xóa/đổi tên ---------- */
+
+/** Ngày hôm nay (yyyy-MM-dd) theo giờ Việt Nam. */
+export const todayVn = (at = new Date()) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).format(at);
+
+const nextDay = (iso) => new Date(Date.parse(`${iso}T00:00:00Z`) + 86400000).toISOString().slice(0, 10);
+export const dmy = (iso) => (iso ? iso.split('-').reverse().join('/') : '');
+
+/**
+ * EDU-85 (spec 901): học liệu bị khóa xóa/đổi tên khi gắn ở giáo án ngày Chờ duyệt, hoặc đã ban hành mà ngày dạy là hôm nay
+ * hoặc chưa tới. deletableFrom = ngày dạy bị khóa muộn nhất + 1; có Chờ duyệt ⇒ null (chờ duyệt hoặc trả lại).
+ */
+export function deleteLock(usages = [], today = todayVn()) {
+  const reasons = usages.filter((u) => u.status === 'REVIEW' || (u.status === 'APPROVED' && u.date >= today));
+  if (!reasons.length) return { locked: false, deletableFrom: null, reasons };
+  if (reasons.some((u) => u.status === 'REVIEW')) return { locked: true, deletableFrom: null, reasons };
+  return {
+    locked: true,
+    deletableFrom: nextDay(
+      reasons
+        .map((u) => u.date)
+        .sort()
+        .at(-1),
+    ),
+    reasons,
+  };
+}
+
+/** Câu "xóa được khi nào" của thông báo chặn (cùng câu với BE 7137). */
+export const deletableText = (deletableFrom) =>
+  deletableFrom ? `Xóa được từ ${dmy(deletableFrom)}.` : 'Xóa được sau khi giáo án được duyệt hoặc trả lại.';
+
+export const NO_THEME = 'Chưa ghi chủ đề';
+
+/**
+ * Nhóm học liệu theo chủ đề đã dạy + năm học (`taughtThemes`); một học liệu dạy nhiều chủ đề có ở mọi nhóm.
+ * Năm mới trước, tên A→Z; nhóm "Chưa ghi chủ đề" cuối.
+ */
+export function taughtThemeGroups(items = []) {
+  const groups = new Map();
+  const add = (key, base, item) => {
+    if (!groups.has(key)) groups.set(key, { key, ...base, items: [] });
+    groups.get(key).items.push(item);
+  };
+  for (const item of items) {
+    const themes = (item.taughtThemes || []).filter((t) => norm(t.name));
+    if (!themes.length) add('', { name: NO_THEME, schoolYearId: null, schoolYearName: null }, item);
+    for (const t of themes)
+      add(
+        `${norm(t.name)}|${t.schoolYearId ?? ''}`,
+        { name: t.name.trim(), schoolYearId: t.schoolYearId ?? null, schoolYearName: t.schoolYearName ?? null },
+        item,
+      );
+  }
+  return [...groups.values()].sort(
+    (a, b) =>
+      (a.key === '') - (b.key === '') ||
+      String(b.schoolYearName || '').localeCompare(String(a.schoolYearName || '')) ||
+      a.name.localeCompare(b.name, 'vi'),
+  );
+}

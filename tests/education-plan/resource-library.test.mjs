@@ -1,10 +1,14 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-// Spec 900 — kho học liệu cho giáo án ngày (BE:EDU-82…88)
+// Spec 900/901 — kho học liệu cá nhân cho giáo án ngày (BE:EDU-82…88)
 globalThis.window = new EventTarget();
 const storage = new Map();
-globalThis.localStorage = { getItem: (k) => storage.get(k) ?? null, setItem: (k, v) => storage.set(k, v), removeItem: (k) => storage.delete(k) };
+globalThis.localStorage = {
+  getItem: (k) => storage.get(k) ?? null,
+  setItem: (k, v) => storage.set(k, v),
+  removeItem: (k) => storage.delete(k),
+};
 
 const lr = await import('../../src/models/education-plan/learningResources.mjs');
 const { learningResourceMockRepository: day, resourceLibraryMockRepository: lib } = await import(
@@ -14,8 +18,6 @@ const { writeDb } = await import('../../src/mocks/mockDatabase.js');
 
 const teacher = { id: 'u-t1', role: 'TEACHER' };
 const other = { id: 'u-t2', role: 'TEACHER' };
-const leader = { id: 'u-tl', role: 'TEAM_LEADER' };
-const vice = { id: 'u-vp', role: 'VICE_PRINCIPAL' };
 const binding = (key) => ({ activityKey: key, activityLabel: 'Hoạt động học' });
 
 test('FR-005 EDU-83: link YouTube mọi dạng chuẩn hóa như BE; link khác bị chặn', () => {
@@ -30,7 +32,13 @@ test('FR-005 EDU-83: link YouTube mọi dạng chuẩn hóa như BE; link khác 
   ])
     assert.equal(lr.normalizeLink(raw), `https://www.youtube.com/watch?v=${id}`, raw);
   assert.equal(lr.normalizeLink(' https://drive.google.com/file/d/x/view '), 'https://drive.google.com/file/d/x/view');
-  for (const raw of ['http://www.youtube.com/watch?v=' + id, 'https://example.com/a', 'https://www.youtube.com/playlist?list=PL1', 'javascript:alert(1)', ''])
+  for (const raw of [
+    'http://www.youtube.com/watch?v=' + id,
+    'https://example.com/a',
+    'https://www.youtube.com/playlist?list=PL1',
+    'javascript:alert(1)',
+    '',
+  ])
     assert.equal(lr.normalizeLink(raw), null, raw);
   // FR-016: phát qua tên miền không cookie
   assert.equal(lr.youtubeEmbed(`https://www.youtube.com/watch?v=${id}`), `https://www.youtube-nocookie.com/embed/${id}?rel=0`);
@@ -48,7 +56,10 @@ test('FR-013 EDU-87 SC-005: Cùng MT (kể cả mã Bộ năm trước) → Cùn
     { id: 3, match: 'GOAL', updatedAt: '2025-11-01' },
     { id: 4, match: null, updatedAt: '2026-11-14' },
   ]);
-  assert.deepEqual(ranked.map((r) => r.id), [3, 2, 4, 1]);
+  assert.deepEqual(
+    ranked.map((r) => r.id),
+    [3, 2, 4, 1],
+  );
 });
 
 test('US1 FR-001/006 SC-004: tải một lần, gắn lại ngày khác; không gắn trùng; gỡ không mất ở ngày khác', async () => {
@@ -62,59 +73,101 @@ test('US1 FR-001/006 SC-004: tải một lần, gắn lại ngày khác; không 
   await day.detach(teacher, 'dd_a', link.id);
   assert.equal((await day.list(teacher, 'dd_a')).length, 0);
   assert.equal((await day.list(teacher, 'dd_b')).length, 1);
-  const page = await lib.list(teacher, { view: 'MINE' });
+  const page = await lib.list(teacher, {});
   assert.equal(page.items.length, 1);
   assert.equal(page.items[0].usageCount, 1);
 });
 
 test('FR-003: mỗi mục tối đa 20 học liệu', async () => {
   const ids = [];
-  for (let i = 0; i < 21; i++) ids.push((await lib.addLink(other, { url: `https://drive.google.com/file/d/f${i}/view` })).id);
+  for (let i = 0; i < 21; i++)
+    ids.push(
+      (await day.addLink(other, `dd_src${i}`, { url: `https://drive.google.com/file/d/f${i}/view`, ...binding('2026-09-07#hoc') })).itemId,
+    );
   await day.attach(other, 'dd_full', { itemIds: ids.slice(0, 20), ...binding('2026-09-07#goc') });
   await assert.rejects(day.attach(other, 'dd_full', { itemIds: [ids[20]], ...binding('2026-09-07#goc') }), /tối đa 20/);
 });
 
-test('FR-007 EDU-85: xóa khi còn dùng bị chặn, ẩn thì không hiện trong kho nhưng giáo án vẫn có', async () => {
-  const row = await day.addLink(teacher, 'dd_c', { url: 'https://docs.google.com/presentation/d/p1/edit', ...binding('2026-09-08#hoc') });
-  await assert.rejects(lib.remove(teacher, row.itemId), /đang dùng ở 1 mục/);
-  await lib.update(teacher, row.itemId, { hidden: true });
-  assert.ok(!(await lib.list(teacher, { view: 'ALL' })).items.some((r) => r.id === row.itemId));
-  assert.ok((await lib.list(teacher, { view: 'HIDDEN' })).items.some((r) => r.id === row.itemId));
-  assert.equal((await day.list(teacher, 'dd_c')).length, 1);
-  await day.detach(teacher, 'dd_c', row.id);
-  await lib.remove(teacher, row.itemId);
-  assert.ok(!(await lib.list(teacher, { view: 'HIDDEN' })).items.some((r) => r.id === row.itemId));
+test('901 FR-001/002 SC-004: kho chỉ của người tạo; không gắn, xem, sửa học liệu của người khác', async () => {
+  const mine = await day.addLink(teacher, 'dd_own', { url: 'https://drive.google.com/file/d/own/view', ...binding('2026-09-10#hoc') });
+  assert.ok(!(await lib.list(other, {})).items.some((r) => r.id === mine.itemId));
+  await assert.rejects(day.attach(other, 'dd_x', { itemIds: [mine.itemId], ...binding('2026-09-10#hoc') }), /Không tìm thấy học liệu/);
+  await assert.rejects(lib.update(other, mine.itemId, { title: 'X' }), /Không tìm thấy học liệu/);
+  await assert.rejects(lib.contentUrl(other, mine.itemId), /Không tìm thấy học liệu/);
+  // Dữ liệu mock cũ có phạm vi trường vẫn chỉ là học liệu của người tạo
+  writeDb((db) => {
+    db.eduResources.items.find((i) => i.id === mine.itemId).scope = 'SCHOOL';
+  });
+  assert.ok(!(await lib.list(other, {})).items.some((r) => r.id === mine.itemId));
+  for (const gone of ['upload', 'addLink', 'share', 'withdraw', 'review']) assert.equal(lib[gone], undefined, gone);
 });
 
-test('FR-009/010 EDU-84: chia sẻ lớp chỉ lớp mình dạy; đề nghị lên trường, tổ trưởng nhóm tuổi duyệt, trả lại cần lý do', async () => {
+test('901 FR-004: nhãn chủ đề + năm tự thêm theo dòng gắn, gỡ là mất; nhãn tay giữ; lọc theo chủ đề đã dạy', async () => {
   writeDb((db) => {
-    db.classes = [{ id: 'c1', name: 'A1', ageGroupId: 'ag-3', teacherIds: [teacher.id, other.id] }];
-    db.users = [...(db.users || []).filter((u) => u.id !== leader.id), { ...leader, ageGroupId: 'ag-3' }];
+    db.eduGoals = [...(db.eduGoals || []).filter((g) => g.id !== 'yp-t'), { id: 'yp-t', schoolYear: '2026-2027' }];
+    db.eduClassWeek = [
+      ...(db.eduClassWeek || []).filter((w) => w.id !== 'wp_tag'),
+      { id: 'wp_tag', classId: 'c1', yearPlanId: 'yp-t', themeId: 't1', status: 'DRAFT' },
+    ];
   });
-  const item = await lib.addLink(teacher, { url: 'https://drive.google.com/file/d/share/view', ageGroupId: 'ag-3' });
-  await assert.rejects(lib.share(teacher, item.id, { scope: 'CLASS', classroomId: 'c9' }), /không có quyền/);
-  await lib.share(teacher, item.id, { scope: 'CLASS', classroomId: 'c1' });
-  const seen = (await lib.list(other, { view: 'CLASS' })).items.find((r) => r.id === item.id);
-  assert.ok(seen && !seen.canEdit);
-  const pending = await lib.share(teacher, item.id, { scope: 'SCHOOL' });
-  assert.equal(pending.shareStatus, 'PENDING');
-  assert.equal(pending.scope, 'CLASS');
-  await assert.rejects(lib.remove(teacher, item.id), /rút đề nghị/);
-  assert.ok((await lib.list(leader, { view: 'PENDING' })).items.some((r) => r.id === item.id && r.canReview));
-  await assert.rejects(lib.review(leader, item.id, { approve: false, reason: ' ' }), /lý do/);
-  const rejected = await lib.review(leader, item.id, { approve: false, reason: 'Video quảng cáo' });
-  assert.equal(rejected.shareStatus, 'REJECTED');
-  await lib.share(teacher, item.id, { scope: 'SCHOOL' });
-  const approved = await lib.review(leader, item.id, { approve: true });
-  assert.equal(approved.scope, 'SCHOOL');
-  // EDU-84: người tạo nhận thông báo trả lại (kèm lý do) và đã duyệt
-  const { readDb } = await import('../../src/mocks/mockDatabase.js');
-  const mine = readDb().notifications.filter((n) => n.userId === teacher.id && n.link === '/education/resources');
-  assert.deepEqual(mine.map((n) => n.type).slice(0, 2), ['EDU_RESOURCE_APPROVED', 'EDU_RESOURCE_RETURNED']);
-  assert.match(mine[1].message, /Video quảng cáo/);
-  // PHT đưa thẳng lên trường
-  const own = await lib.addLink(vice, { url: 'https://drive.google.com/file/d/vp/view' });
-  assert.equal((await lib.share(vice, own.id, { scope: 'SCHOOL' })).scope, 'SCHOOL');
+  const tags = { themeId: 't1', themeName: 'Gia đình', goalIds: [] };
+  const row = await day.addLink(teacher, 'dd_tag', { url: 'https://drive.google.com/file/d/tag/view', ...binding('2026-09-11#hoc'), tags });
+  const find = async (q = {}) => (await lib.list(teacher, q)).items.find((r) => r.id === row.itemId);
+  let item = await find();
+  assert.deepEqual(item.taughtThemes, [{ name: 'Gia đình', schoolYearId: '2026-2027', schoolYearName: '2026-2027' }]);
+  assert.equal(item.tags[0].auto, true);
+  assert.ok(await find({ teachThemeName: ' gia đình ', schoolYearId: '2026-2027' }));
+  assert.equal(await find({ teachThemeName: 'Bản thân' }), undefined);
+  item = await lib.update(teacher, row.itemId, { themes: [{ name: 'Bản thân' }], removeTagIds: [item.tags[0].id] });
+  assert.equal(item.tags.length, 2, 'nhãn tự thêm không bỏ tay được');
+  await day.detach(teacher, 'dd_tag', row.id);
+  item = await find();
+  assert.deepEqual(
+    item.tags.map((t) => [t.name, t.auto]),
+    [['Bản thân', false]],
+  );
+  item = await lib.update(teacher, row.itemId, { removeTagIds: [item.tags[0].id] });
+  assert.deepEqual(item.taughtThemes, []);
+});
+
+test('901 FR-010 EDU-85: Chờ duyệt / đã ban hành chưa qua ngày dạy ⇒ chặn xóa và đổi tên (7137); qua ngày dạy ⇒ xóa cả dòng gắn', async () => {
+  const { todayVn } = lr;
+  const today = todayVn();
+  writeDb((db) => {
+    db.classes = [{ id: 'c1', name: 'A1', ageGroupId: 'ag-3', teacherIds: [teacher.id] }];
+    db.eduClassWeek = [
+      ...(db.eduClassWeek || []).filter((w) => !['wp_rv', 'wp_ap'].includes(w.id)),
+      { id: 'wp_rv', classId: 'c1', yearPlanId: 'yp-t', themeId: 't1', status: 'PENDING_TL' },
+      { id: 'wp_ap', classId: 'c1', yearPlanId: 'yp-t', themeId: 't2', status: 'APPROVED' },
+    ];
+  });
+  const url = 'https://docs.google.com/presentation/d/lock/edit';
+  const first = await day.addLink(teacher, 'dd_ap', { url, ...binding(`${today}#hoc`) });
+  let usages = await lib.usages(teacher, first.itemId);
+  assert.equal(usages.locked, true);
+  assert.equal(usages.rows[0].status, 'APPROVED');
+  assert.equal(usages.rows[0].classroomId, 'c1');
+  assert.equal(usages.deletableFrom > today, true);
+  await assert.rejects(
+    lib.remove(teacher, first.itemId),
+    (e) => e.errorCode === 7137 && /A1 – .* – Hoạt động học\. Xóa được từ/.test(e.message),
+  );
+  await assert.rejects(lib.update(teacher, first.itemId, { title: 'Tên mới' }), (e) => e.errorCode === 7137);
+  // Sửa nhãn vẫn được khi bị khóa
+  await lib.update(teacher, first.itemId, { ageGroupId: 'ag-3' });
+  await day.addLink(teacher, 'dd_rv', { url, ...binding('2020-01-01#goc') });
+  usages = await lib.usages(teacher, first.itemId);
+  assert.equal(usages.deletableFrom, null);
+  await assert.rejects(lib.remove(teacher, first.itemId), /sau khi giáo án được duyệt hoặc trả lại/);
+  // Hết khóa: còn dòng gắn ở giáo án nháp ⇒ xóa được, mọi dòng gắn mất
+  writeDb((db) => {
+    db.eduClassWeek.forEach((w) => {
+      if (w.id === 'wp_rv' || w.id === 'wp_ap') w.status = 'DRAFT';
+    });
+  });
+  await lib.remove(teacher, first.itemId);
+  assert.equal((await day.list(teacher, 'dd_ap')).length, 0);
+  assert.equal((await day.list(teacher, 'dd_rv')).length, 0);
 });
 
 test('EDU-82: đổi thứ tự học liệu trong mục; danh sách cũ (thiếu dòng) bị từ chối', async () => {
@@ -124,8 +177,14 @@ test('EDU-82: đổi thứ tự học liệu trong mục; danh sách cũ (thiế
   const ids = [];
   for (const v of ['aaaaaaaaaa1', 'aaaaaaaaaa2', 'aaaaaaaaaa3'])
     ids.push((await day.addLink(teacher, key, { url: `https://youtu.be/${v}`, ...binding('2026-09-09#hoc') })).id);
-  assert.deepEqual((await day.list(teacher, key)).map((r) => r.id), ids);
+  assert.deepEqual(
+    (await day.list(teacher, key)).map((r) => r.id),
+    ids,
+  );
   const next = lr.moveId(ids, ids[2], -1);
-  assert.deepEqual((await day.reorder(teacher, key, { activityKey: '2026-09-09#hoc', ids: next })).map((r) => r.id), next);
+  assert.deepEqual(
+    (await day.reorder(teacher, key, { activityKey: '2026-09-09#hoc', ids: next })).map((r) => r.id),
+    next,
+  );
   await assert.rejects(day.reorder(teacher, key, { activityKey: '2026-09-09#hoc', ids: ids.slice(1) }), /tải lại trang/);
 });

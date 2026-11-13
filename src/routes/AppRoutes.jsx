@@ -287,7 +287,7 @@ export function AppRoutes() {
             />
             <Route path="day-plans/:classId" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <DayPlansPage />)} />
             {/* Spec 900 (BE:EDU-88): kho học liệu dùng lại cho giáo án ngày */}
-            <Route path="resources" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ResourceLibraryPage />)} />
+            <Route path="resources" element={edu([ROLES.TEAM_LEADER, ROLES.TEACHER], <ResourceLibraryPage />)} />
             <Route path="class" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ClassPlanRedirect />)} />
             <Route path="class/:classId" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ClassPlanLegacyRedirect />)} />
             <Route

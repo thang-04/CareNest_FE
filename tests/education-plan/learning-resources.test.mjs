@@ -62,3 +62,46 @@ test('Word NBSP and BOM preserve heading/child parser parity', () => {
   assert.equal(themeActivities(blocks, () => ({ activities: '\u00a0+ A:' })).length, 1);
   assert.equal(themeActivities(blocks, () => ({ activities: '\ufeff+ A:' })).length, 1);
 });
+
+// Spec 901 — EDU-85: khóa xóa/đổi tên theo giáo án Chờ duyệt / đã ban hành chưa qua ngày dạy
+test('deleteLock: REVIEW khóa không có ngày; APPROVED khóa tới hết ngày dạy muộn nhất; DRAFT và ngày đã qua không khóa', async () => {
+  const { deleteLock, deletableText } = await import('../../src/models/education-plan/learningResources.mjs');
+  const today = '2026-11-14';
+  assert.deepEqual(deleteLock([], today), { locked: false, deletableFrom: null, reasons: [] });
+  const past = { status: 'APPROVED', date: '2026-11-13' };
+  const draft = { status: 'DRAFT', date: '2026-12-01' };
+  assert.equal(deleteLock([past, draft], today).locked, false);
+  const todayRow = { status: 'APPROVED', date: today };
+  const later = { status: 'APPROVED', date: '2026-12-31' };
+  const lock = deleteLock([past, todayRow, later], today);
+  assert.equal(lock.locked, true);
+  assert.equal(lock.deletableFrom, '2027-01-01');
+  assert.deepEqual(lock.reasons, [todayRow, later]);
+  const review = deleteLock([later, { status: 'REVIEW', date: '2026-10-01' }], today);
+  assert.equal(review.locked, true);
+  assert.equal(review.deletableFrom, null);
+  assert.equal(deletableText('2027-01-01'), 'Xóa được từ 01/01/2027.');
+  assert.equal(deletableText(null), 'Xóa được sau khi giáo án được duyệt hoặc trả lại.');
+});
+
+test('taughtThemeGroups: nhóm theo chủ đề + năm (tên chuẩn hóa), học liệu nhiều chủ đề ở mọi nhóm, "Chưa ghi chủ đề" cuối', async () => {
+  const { taughtThemeGroups, NO_THEME } = await import('../../src/models/education-plan/learningResources.mjs');
+  const a = { id: 1, taughtThemes: [{ name: 'Gia đình', schoolYearId: 'y1', schoolYearName: '2025-2026' }] };
+  const b = {
+    id: 2,
+    taughtThemes: [
+      { name: ' gia  đình ', schoolYearId: 'y1', schoolYearName: '2025-2026' },
+      { name: 'Trường mầm non', schoolYearId: 'y2', schoolYearName: '2026-2027' },
+    ],
+  };
+  const c = { id: 3, taughtThemes: [] };
+  const groups = taughtThemeGroups([a, b, c]);
+  assert.deepEqual(
+    groups.map((g) => [g.name, g.schoolYearName, g.items.map((i) => i.id)]),
+    [
+      ['Trường mầm non', '2026-2027', [2]],
+      ['Gia đình', '2025-2026', [1, 2]],
+      [NO_THEME, null, [3]],
+    ],
+  );
+});
