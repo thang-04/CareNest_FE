@@ -41,3 +41,14 @@ export const weekDataCells = (data) =>
         { key: 'lunch', label: 'Ăn hết suất trưa', value: data.lunchDays ? `${data.lunchFinished}/${data.lunchDays} ngày` : '—' },
       ]
     : [];
+
+const dm = (iso) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}` : '');
+
+/** Nhãn tuần trong ô chọn (BE OBS-29: tuần theo giáo án tuần đã duyệt, chưa có giáo án thì thứ Hai–Sáu). */
+export const weekOptionLabel = (w) => {
+  if (!w) return '';
+  const range = `${dm(w.from)}–${dm(w.to)}`;
+  const parts = [w.label ? `${w.label} · ${range}` : range];
+  if (!w.open) parts.push('Chưa tới cuối tuần');
+  return parts.join(' · ');
+};

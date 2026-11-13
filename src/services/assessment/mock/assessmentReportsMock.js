@@ -353,13 +353,32 @@ export const createAssessmentReportsMock = (ensureReady) => ({
     const to = [addDays(week, 4), todayIso(), year.endDate].sort()[0];
     const days = new Set(schoolDaysBetween(week < year.startDate ? year.startDate : week, to));
     const saved = (db.weeklyComments || []).filter((c) => c.classId === cls.id && c.weekStart === week);
+    // Demo chưa có giáo án tuần: tuần theo lịch thứ Hai–Sáu, mở viết từ thứ Sáu (BE OBS-29)
+    const option = (monday) => {
+      const end = [addDays(monday, 4), year.endDate].sort()[0];
+      return {
+        weekStart: monday,
+        from: monday < year.startDate ? year.startDate : monday,
+        to: end,
+        label: null,
+        source: 'CALENDAR',
+        openFrom: end,
+        open: todayIso() >= end,
+      };
+    };
+    const weeks = [];
+    const last = weekStart([todayIso(), year.endDate].sort()[0]);
+    for (let m = last; addDays(m, 4) >= year.startDate; m = addDays(m, -7)) weeks.push(option(m));
+    const current = option(week);
     return clone({
       classId: cls.id,
       className: cls.name,
       weekStart: week,
-      weekEnd: addDays(week, 4),
+      weekEnd: current.to,
+      week: current,
+      weeks,
       aiEnabled: false,
-      canEdit: teacher && year.status === 'ACTIVE',
+      canEdit: teacher && year.status === 'ACTIVE' && current.open,
       aiFallback: false,
       children: roster(db, cls).map((child) => {
         const c = saved.find((x) => x.childId === child.id);

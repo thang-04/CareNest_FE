@@ -13,7 +13,9 @@ globalThis.window = new EventTarget();
 const { createAssessmentBeApi } = await import('@/services/assessment/api/assessmentApi');
 const { BE_ERROR_FIELDS } = await import('@/services/http/beErrorFields');
 const { assessmentMockRepository: repo } = await import('@/services/assessment/mock/assessmentMockRepository');
-const { boardCounts, contentError, statusChip, weekDataCells, WEEKLY_COMMENT_MAX } = await import('@/models/assessment/weeklyComments.mjs');
+const { boardCounts, contentError, statusChip, weekDataCells, weekOptionLabel, WEEKLY_COMMENT_MAX } = await import(
+  '@/models/assessment/weeklyComments.mjs'
+);
 
 const fakeClient = () => {
   const calls = [];
@@ -88,19 +90,34 @@ test('Trạng thái và đếm: chỉ nháp có nội dung mới tính sẵn sà
   );
 });
 
-test('BE giả OBS-29: GV viết nháp, gửi thì khóa; tuần chưa bắt đầu bị chặn', async () => {
+test('Nhãn tuần: tên tuần giáo án, khoảng ngày, chưa tới cuối tuần', () => {
+  assert.equal(weekOptionLabel({ from: '2026-11-09', to: '2026-11-12', label: 'Tuần 10', open: true }), 'Tuần 10 · 09/11–12/11');
+  assert.equal(weekOptionLabel({ from: '2026-11-16', to: '2026-11-20', label: null, open: false }), '16/11–20/11 · Chưa tới cuối tuần');
+});
+
+test('BE giả OBS-29: GV viết nháp tuần đã xong, gửi thì khóa; tuần chưa bắt đầu bị chặn', async () => {
   const today = new Date();
-  if ([0, 6].includes(today.getDay())) return;
   const TEACHER = { id: 'u_minhanh', role: 'TEACHER', campusId: 'c1', fullName: 'Cô Minh Anh' };
   const classId = 'cls_c1_c1';
-  const board = await repo.writeWeeklyCommentDrafts({ classId }, TEACHER);
+  const current = await repo.getWeeklyComments({ classId }, TEACHER);
+  // Tuần trước đã qua ngày học cuối nên mở viết; tuần chưa tới thứ Sáu thì chỉ xem
+  const lastWeek = current.weeks.find((w) => w.weekStart < current.weekStart && w.open);
+  if (!lastWeek) return;
+  assert.equal(current.canEdit, current.week.open);
+  const board = await repo.writeWeeklyCommentDrafts({ classId, weekStart: lastWeek.weekStart }, TEACHER);
   assert.equal(board.canEdit, true);
   const first = board.children[0];
   assert.equal(first.status, 'DRAFT');
   assert.match(first.content, /^Tuần này con đi học/);
-  const sent = await repo.sendWeeklyComments({ classId, childId: first.childId, content: 'Con học tốt.' }, TEACHER);
+  const sent = await repo.sendWeeklyComments(
+    { classId, weekStart: lastWeek.weekStart, childId: first.childId, content: 'Con học tốt.' },
+    TEACHER,
+  );
   assert.equal(sent.children[0].status, 'SENT');
-  await assert.rejects(() => repo.saveWeeklyComment({ classId, childId: first.childId, content: 'Sửa' }, TEACHER), /đã gửi/);
+  await assert.rejects(
+    () => repo.saveWeeklyComment({ classId, weekStart: lastWeek.weekStart, childId: first.childId, content: 'Sửa' }, TEACHER),
+    /đã gửi/,
+  );
   const next = new Date(today);
   next.setDate(next.getDate() + 7);
   const pad = (n) => String(n).padStart(2, '0');

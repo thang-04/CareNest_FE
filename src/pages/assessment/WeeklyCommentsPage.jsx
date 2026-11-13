@@ -12,7 +12,6 @@ import { EmptyState, ErrorState, Spinner } from '@/components/ui/States';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { StatusPage } from '@/components/ui/StatusPage';
 import { SelectField, TextAreaField } from '@/components/form/Field';
-import { WeekPicker } from '@/components/form/WeekPicker';
 import {
   getWeeklyComments,
   saveWeeklyComment,
@@ -26,20 +25,20 @@ import {
   WEEKLY_COMMENT_MAX,
   WEEKLY_STATUS,
   weekDataCells,
+  weekOptionLabel,
 } from '@/models/assessment/weeklyComments.mjs';
 import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';
-import { formatDateTime, todayInput } from '@/utils/format';
-import { mondayOf } from '@/utils/week';
+import { formatDate, formatDateTime } from '@/utils/format';
 import '@/styles/modules/assessment.css';
 
 /** Nhận xét tuần theo trẻ (BE OBS-29): GV viết nháp từ số liệu tuần, sửa, gửi phụ huynh; BGH, tổ trưởng chỉ xem. */
 export default function WeeklyCommentsPage() {
   const { user } = useAuth();
   const toast = useToast();
-  const thisWeek = mondayOf(todayInput());
   const { classes, loading: classesLoading, error: classesError } = useDailyAssessmentClasses();
   const [classId, setClassId] = useState('');
-  const [weekStart, setWeekStart] = useState(thisWeek);
+  // Trống = tuần hiện tại (BE chọn); danh sách tuần lấy từ BE theo giáo án tuần của lớp
+  const [weekStart, setWeekStart] = useState('');
   const [childId, setChildId] = useState('');
   const [text, setText] = useState('');
   const [errors, setErrors] = useState({});
@@ -141,14 +140,23 @@ export default function WeeklyCommentsPage() {
             ) : (
               <span className="fw-600">{classes[0]?.name}</span>
             )}
-            <WeekPicker
-              value={weekStart}
-              thisWeek={thisWeek}
-              onChange={(w) => {
-                setWeekStart(w);
-                setChildId('');
-              }}
-            />
+            {board?.weeks?.length > 0 && (
+              <SelectField
+                aria-label="Tuần"
+                value={board.weekStart}
+                onChange={(e) => {
+                  setWeekStart(e.target.value);
+                  setChildId('');
+                }}
+                options={board.weeks.map((w) => ({ value: w.weekStart, label: weekOptionLabel(w) }))}
+              />
+            )}
+            {board?.week && (
+              <span className="text-sm muted">
+                {formatDate(board.week.from)} – {formatDate(board.week.to)}
+              </span>
+            )}
+            {board?.week && !board.week.open && <StatusBadge tone="gray" label="Chưa tới cuối tuần" />}
             <div className="spacer" />
             {board && (
               <span className="text-sm muted">
