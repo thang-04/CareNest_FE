@@ -17,10 +17,12 @@ export function ImportGoalFileModal({ form, themes = [], allowedAgeGroupIds, yea
   const [applyError, setApplyError] = useState('');
   const [mode, setMode] = useState(FILE_IMPORT_MODES.ALL);
   useEffect(() => {
+    // Giữ ref trong biến để cleanup dùng đúng đối tượng ref (react-hooks/exhaustive-deps)
+    const gen = generation;
     alive.current = true;
     return () => {
       alive.current = false;
-      generation.current++;
+      gen.current++;
     };
   }, []);
   const target = form || { themes, breaks: [], domains: [], ageGroupId: '', schoolYear: '' };

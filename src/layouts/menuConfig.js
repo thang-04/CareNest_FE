@@ -492,15 +492,7 @@ const MENUS = {
     ]),
     group('children', ['childList', 'childEnroll', 'childPlacement', 'parentActivation', 'healthChecks', 'healthTrends', 'growthReport']),
     group('attendance', ['attendanceSummary', 'leaveRequests', 'attendanceDayUnlocks', 'dailyHealthOverview']),
-    group('education', [
-      'eduSchoolYear',
-      'eduGoals',
-      'eduBranch',
-      'eduThemePlans',
-      'eduDayPlans',
-      'eduPlanReviews',
-      'eduCurriculum',
-    ]),
+    group('education', ['eduSchoolYear', 'eduGoals', 'eduBranch', 'eduThemePlans', 'eduDayPlans', 'eduPlanReviews', 'eduCurriculum']),
     group('assessment', [
       'assessOverview',
       'assessQuality',
