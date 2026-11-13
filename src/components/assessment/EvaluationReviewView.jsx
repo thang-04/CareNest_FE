@@ -25,7 +25,7 @@ import {
   saveEvaluationDraft,
 } from '@/services/assessment/assessmentService';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
-import { ErrorState, LoadingState, Spinner } from '@/components/ui/States';
+import { EmptyState, ErrorState, LoadingState, Spinner } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
 import { FormField } from '@/components/form/FormField';
 import { AiWorkingOverlay } from '@/components/ui/AiWorkingOverlay';
@@ -237,6 +237,26 @@ export function EvaluationReviewView({ kind, id }) {
     return res;
   };
 
+  // Màn dài ~2 màn hình: nút Lưu/Xác nhận đặt cả đầu và cuối trang, cùng handler
+  const editActions = (canReview || canConfirm) && (
+    <div className="row gap-2">
+      {canReview && (
+        <button className="btn" onClick={save} disabled={!!busy}>
+          {busy === 'save' ? <Spinner small /> : <Save size={16} />} Lưu chỉnh sửa
+        </button>
+      )}
+      {canConfirm && (
+        <button
+          className="btn btn--primary"
+          onClick={() => [check(), checkProgram()].every(Boolean) && setConfirmOpen(true)}
+          disabled={!!busy}
+        >
+          <CheckCircle2 size={16} /> {yearEnd ? 'Xác nhận đánh giá' : 'Xác nhận và công bố'}
+        </button>
+      )}
+    </div>
+  );
+
   return (
     <>
       <div className={yearEnd ? 'card dg-year-review-head' : 'page__head'}>
@@ -283,6 +303,7 @@ export function EvaluationReviewView({ kind, id }) {
             <Award size={16} /> Đề xuất khen thưởng
           </Link>
         )}
+        {editActions && <div className="page__actions">{editActions}</div>}
       </div>
 
       {!yearEnd && confirmed && !detail.cls?.teaches && (
@@ -346,7 +367,7 @@ export function EvaluationReviewView({ kind, id }) {
                   </div>
                 </>
               ) : (
-                <div className="muted">Chưa có bản nháp AI. Cô tự viết đánh giá ở khung bên cạnh.</div>
+                <EmptyState title="Chưa có bản nháp AI" description="Cô tự viết đánh giá ở khung bên cạnh." />
               )}
             </div>
           </details>
@@ -513,24 +534,7 @@ export function EvaluationReviewView({ kind, id }) {
             </button>
           </div>
         )}
-        {(canReview || canConfirm) && (
-          <div className="row gap-2">
-            {canReview && (
-              <button className="btn" onClick={save} disabled={!!busy}>
-                {busy === 'save' ? <Spinner small /> : <Save size={16} />} Lưu chỉnh sửa
-              </button>
-            )}
-            {canConfirm && (
-              <button
-                className="btn btn--primary"
-                onClick={() => [check(), checkProgram()].every(Boolean) && setConfirmOpen(true)}
-                disabled={!!busy}
-              >
-                <CheckCircle2 size={16} /> {yearEnd ? 'Xác nhận đánh giá' : 'Xác nhận và công bố'}
-              </button>
-            )}
-          </div>
-        )}
+        {editActions}
       </div>
 
       <ConfirmationModal
