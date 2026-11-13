@@ -25,7 +25,14 @@ import {
   resetStaffPassword,
   setStaffAccountStatus,
 } from '@/services/school-config/schoolConfigService';
-import { STAFF_ROLES, normalizePhone, staffExportRows, toCreatePayload, validateStaffAccount } from '@/utils/school-config/staffImport';
+import {
+  STAFF_ROLES,
+  emailRequired,
+  normalizePhone,
+  staffExportRows,
+  toCreatePayload,
+  validateStaffAccount,
+} from '@/utils/school-config/staffImport';
 import { staffCrumbs } from '@/utils/school-config/breadcrumbs';
 import { isPrincipal } from '@/utils/school-config/schoolConfigPermissions';
 import { exportWithPreview } from '@/components/ui/ExportPreview';
@@ -330,7 +337,8 @@ function StaffCreateModal({ campuses, onClose }) {
   const [saving, setSaving] = useState(false);
   const set = (patch) => {
     setForm((f) => ({ ...f, ...patch }));
-    setErrors((e) => Object.fromEntries(Object.entries(e).filter(([k]) => !(k in patch))));
+    // Đổi vai trò làm đổi luật bắt buộc email ⇒ bỏ cả lỗi email đang hiện
+    setErrors((e) => Object.fromEntries(Object.entries(e).filter(([k]) => !(k in patch) && !('role' in patch && k === 'email'))));
   };
   const blur = (field) => {
     const e = validateStaffAccount(form, { campuses, teacherCampusRequired });
@@ -395,7 +403,7 @@ function StaffCreateModal({ campuses, onClose }) {
             onBlur={() => blur('phone')}
           />
         </FormField>
-        <FormField label="Email" error={errors.email}>
+        <FormField label="Email" required={emailRequired(form.role)} error={errors.email}>
           <input
             className="input"
             type="email"

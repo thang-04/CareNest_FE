@@ -7,6 +7,9 @@ export const STAFF_SHEET = 'Nhân sự';
 // GV không chọn lớp khi tạo (BE AUTH-15 từ 01/11/2026): file cũ còn cột "Lớp" phía sau thì bị bỏ qua
 export const STAFF_COLUMNS = ['Họ tên', 'Số điện thoại', 'Email', 'Vai trò', 'Điểm trường'];
 export const STAFF_ROLES = [ROLES.VICE_PRINCIPAL, ROLES.TEACHER, ROLES.KITCHEN_STAFF];
+// AUTH-15: PHT và GV phải có email (nhận thư đặt mật khẩu, quên mật khẩu trên Web); bếp dùng tài khoản chung nên không bắt buộc
+const EMAIL_REQUIRED_ROLES = [ROLES.VICE_PRINCIPAL, ROLES.TEACHER];
+export const emailRequired = (role) => EMAIL_REQUIRED_ROLES.includes(role);
 export const NAME_MAX = 150;
 export const EMAIL_MAX = 255;
 
@@ -16,7 +19,7 @@ const text = (v) =>
     .replace(/\s+/g, ' ');
 const key = (v) => normalizeText(text(v));
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-// Di động 10 số đầu 03/05/07/08/09; BE nhận SĐT 10 số bắt đầu 0 làm tên đăng nhập (PhoneNumbers)
+// Di động 10 số đầu 03/05/07/08/09, cùng luật với BE (PhoneNumbers)
 const MOBILE = /^0[35789]\d{8}$/;
 
 /** "+84 912.345.678" → "0912345678"; trả '' khi không phải SĐT di động Việt Nam hợp lệ. */
@@ -29,16 +32,24 @@ export const normalizePhone = (raw) => {
   return MOBILE.test(digits) ? digits : '';
 };
 
-/** Lỗi theo ô của một tài khoản (form tạo và từng dòng Excel dùng chung). */
-export function validateStaffAccount(form, { campuses = [], teacherCampusRequired = false } = {}) {
+/** Lỗi họ tên, email của hồ sơ nhân sự (form tạo, form sửa thông tin và từng dòng Excel dùng chung). */
+export function validateStaffProfile(form, role) {
   const e = {};
   const name = text(form.fullName);
   if (!name) e.fullName = 'Nhập họ tên';
   else if (name.length > NAME_MAX) e.fullName = `Họ tên tối đa ${NAME_MAX} ký tự`;
+  const email = text(form.email);
+  if (!email) {
+    if (emailRequired(role)) e.email = 'Vui lòng nhập email';
+  } else if (email.length > EMAIL_MAX || !EMAIL.test(email)) e.email = 'Email không đúng định dạng';
+  return e;
+}
+
+/** Lỗi theo ô của một tài khoản (form tạo và từng dòng Excel dùng chung). */
+export function validateStaffAccount(form, { campuses = [], teacherCampusRequired = false } = {}) {
+  const e = validateStaffProfile(form, form.role);
   if (!text(form.phone)) e.phone = 'Nhập số điện thoại';
   else if (!normalizePhone(form.phone)) e.phone = 'Số điện thoại di động gồm 10 số, bắt đầu bằng 03, 05, 07, 08 hoặc 09';
-  const email = text(form.email);
-  if (email && (email.length > EMAIL_MAX || !EMAIL.test(email))) e.email = 'Email không đúng định dạng';
   if (!STAFF_ROLES.includes(form.role)) e.role = 'Chọn vai trò';
   // AUTH-15: GV tạo chưa gắn lớp; điểm trường chỉ để BE kiểm PHT tạo trong điểm trường mình (PHT bắt buộc chọn)
   else if (form.role === ROLES.TEACHER) {
