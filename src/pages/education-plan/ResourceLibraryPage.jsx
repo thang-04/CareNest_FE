@@ -20,14 +20,9 @@ import { numberGoals, toRows } from '@/models/education-plan/goalTable';
 import { resourceLibraryService as api } from '@/services/education-plan/resourceLibraryService';
 import { AGE_GROUPS } from '@/models/education-plan/educationPlanConstants';
 import { mondayOf } from '@/models/education-plan/classPlan';
-import {
-  KIND_LABELS,
-  MEDIA_ACCEPT,
-  SCOPE_LABELS,
-  formatBytes,
-  resourceKind,
-} from '@/models/education-plan/learningResources.mjs';
+import { KIND_LABELS, MEDIA_ACCEPT, SCOPE_LABELS, formatBytes, resourceKind } from '@/models/education-plan/learningResources.mjs';
 import { canPublishSchool, canReviewResources } from '@/utils/education-plan/resourcePermissions';
+import { Checkbox, DataTable, TextAreaField, TextField } from '@/components';
 
 const KIND_OPTIONS = [
   { value: '', label: 'Tất cả' },
@@ -106,35 +101,44 @@ export default function ResourceLibraryPage() {
     [
       { label: 'Xem', icon: Eye, onClick: () => setModal({ type: 'view', item: r }) },
       r.canEdit && { label: 'Sửa tên, nhóm tuổi, nhãn', icon: Pencil, onClick: () => setModal({ type: 'edit', item: r }) },
-      r.mine && !r.shareStatus && r.scope === 'MINE' && {
-        label: 'Chia sẻ cho lớp',
-        icon: Users,
-        onClick: () => setModal({ type: 'class', item: r }),
-      },
-      r.mine && r.scope === 'CLASS' && !r.shareStatus && {
-        label: 'Thôi chia sẻ cho lớp',
-        icon: Users,
-        onClick: () => act(() => api.share(user, r.id, { scope: 'MINE' }), 'Đã thôi chia sẻ'),
-      },
-      r.canEdit && r.scope !== 'SCHOOL' && r.shareStatus !== 'PENDING' && {
-        label: canPublishSchool(user) ? 'Đưa lên kho trường' : 'Đề nghị lên kho trường',
-        icon: Send,
-        onClick: () =>
-          act(
-            () => api.share(user, r.id, { scope: 'SCHOOL' }),
-            canPublishSchool(user) ? 'Đã đưa lên kho trường' : 'Đã gửi đề nghị, chờ tổ trưởng hoặc PHT duyệt',
-          ),
-      },
-      r.mine && r.shareStatus === 'PENDING' && {
-        label: 'Rút đề nghị',
-        icon: Send,
-        onClick: () => act(() => api.withdraw(user, r.id), 'Đã rút đề nghị'),
-      },
-      r.canEdit && r.scope === 'SCHOOL' && !r.mine && {
-        label: 'Gỡ khỏi kho trường',
-        icon: Users,
-        onClick: () => act(() => api.share(user, r.id, { scope: 'MINE' }), 'Đã gỡ khỏi kho trường'),
-      },
+      r.mine &&
+        !r.shareStatus &&
+        r.scope === 'MINE' && {
+          label: 'Chia sẻ cho lớp',
+          icon: Users,
+          onClick: () => setModal({ type: 'class', item: r }),
+        },
+      r.mine &&
+        r.scope === 'CLASS' &&
+        !r.shareStatus && {
+          label: 'Thôi chia sẻ cho lớp',
+          icon: Users,
+          onClick: () => act(() => api.share(user, r.id, { scope: 'MINE' }), 'Đã thôi chia sẻ'),
+        },
+      r.canEdit &&
+        r.scope !== 'SCHOOL' &&
+        r.shareStatus !== 'PENDING' && {
+          label: canPublishSchool(user) ? 'Đưa lên kho trường' : 'Đề nghị lên kho trường',
+          icon: Send,
+          onClick: () =>
+            act(
+              () => api.share(user, r.id, { scope: 'SCHOOL' }),
+              canPublishSchool(user) ? 'Đã đưa lên kho trường' : 'Đã gửi đề nghị, chờ tổ trưởng hoặc PHT duyệt',
+            ),
+        },
+      r.mine &&
+        r.shareStatus === 'PENDING' && {
+          label: 'Rút đề nghị',
+          icon: Send,
+          onClick: () => act(() => api.withdraw(user, r.id), 'Đã rút đề nghị'),
+        },
+      r.canEdit &&
+        r.scope === 'SCHOOL' &&
+        !r.mine && {
+          label: 'Gỡ khỏi kho trường',
+          icon: Users,
+          onClick: () => act(() => api.share(user, r.id, { scope: 'MINE' }), 'Đã gỡ khỏi kho trường'),
+        },
       r.canEdit && {
         label: r.hidden ? 'Hiện lại' : 'Ẩn khỏi kho',
         icon: r.hidden ? Eye : EyeOff,
@@ -142,6 +146,93 @@ export default function ResourceLibraryPage() {
       },
       r.canEdit && { label: 'Xóa khỏi kho', icon: Trash2, onClick: () => setModal({ type: 'delete', item: r }) },
     ].filter(Boolean);
+
+  const columns = [
+    {
+      key: 'title',
+      header: 'Học liệu',
+      render: (r) => (
+        <>
+          <div className="fw-600">{r.title}</div>
+          <span className="muted text-sm">
+            {KIND_LABELS[resourceKind(r)]}
+            {r.kind === 'FILE' && r.byteSize ? ` · ${formatBytes(r.byteSize)}` : ''}
+          </span>
+        </>
+      ),
+    },
+    {
+      key: 'tags',
+      header: 'Nhãn',
+      render: (r) => {
+        const themes = (r.tags || []).filter((t) => t.kind === 'THEME' && t.name).map((t) => t.name);
+        const goals = (r.tags || []).filter((t) => t.kind === 'GOAL').length;
+        return (
+          <div className="row gap-1 row--wrap">
+            <span className="chip chip--gray">{ageName(r.ageGroupId) || 'Mọi nhóm tuổi'}</span>
+            {themes.map((t) => (
+              <span key={t} className="chip chip--blue">
+                {t}
+              </span>
+            ))}
+            {goals > 0 && <span className="chip chip--green">{goals} MT</span>}
+          </div>
+        );
+      },
+    },
+    {
+      key: 'usage',
+      header: 'Đang dùng',
+      className: 'center',
+      render: (r) =>
+        r.usageCount > 0 ? (
+          <Button variant="ghost" size="sm" onClick={() => setModal({ type: 'usages', item: r })}>
+            {r.usageCount} mục
+          </Button>
+        ) : (
+          <span className="muted">0</span>
+        ),
+    },
+    {
+      key: 'scope',
+      header: 'Phạm vi',
+      render: (r) => (
+        <>
+          <span className="chip chip--gray">{SCOPE_LABELS[r.scope]}</span>
+          {r.shareStatus === 'PENDING' && <span className="chip chip--purple">Chờ duyệt lên trường</span>}
+          {r.shareStatus === 'REJECTED' && <p className="field__error">Bị trả lại: {r.shareReason}</p>}
+          {r.hidden && <span className="chip chip--orange">Đã ẩn</span>}
+        </>
+      ),
+    },
+    { key: 'updatedAt', header: 'Cập nhật', render: (r) => fmtDateTime(r.updatedAt) },
+    {
+      key: 'actions',
+      header: 'Thao tác',
+      className: 'cell--actions',
+      render: (r) =>
+        tab === 'PENDING' && r.canReview ? (
+          <div className="row gap-2">
+            <Button size="sm" variant="ghost" icon={Eye} onClick={() => setModal({ type: 'view', item: r })}>
+              Xem
+            </Button>
+            <Button
+              size="sm"
+              variant="primary"
+              loading={busy}
+              onClick={() => act(() => api.review(user, r.id, { approve: true }), 'Đã duyệt lên kho trường')}
+            >
+              Duyệt
+            </Button>
+            <Button size="sm" variant="outline-primary" onClick={() => setModal({ type: 'reject', item: r })}>
+              Trả lại
+            </Button>
+          </div>
+        ) : (
+          <RowMenu label={`Thao tác với ${r.title}`} items={menuOf(r)} />
+        ),
+    },
+  ];
 
   return (
     <div className="page ga-page">
@@ -157,7 +248,7 @@ export default function ResourceLibraryPage() {
               <label className="field__label" htmlFor={`${id}-q`}>
                 Tìm theo tên
               </label>
-              <input id={`${id}-q`} className="input" type="search" value={q} onChange={(e) => setQ(e.target.value)} />
+              <TextField id={`${id}-q`} type="search" value={q} onChange={(e) => setQ(e.target.value)} />
             </div>
             <FilterSelect label="Loại" value={kind} onChange={setKind} options={KIND_OPTIONS} />
             <FilterSelect
@@ -228,88 +319,7 @@ export default function ResourceLibraryPage() {
           />
         ) : (
           <div className="card__body">
-            <div className="table-wrap">
-              <table className="table table--grid">
-                <thead>
-                  <tr>
-                    <th>Học liệu</th>
-                    <th>Nhãn</th>
-                    <th className="center">Đang dùng</th>
-                    <th>Phạm vi</th>
-                    <th>Cập nhật</th>
-                    <th className="cell--actions">Thao tác</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((r) => {
-                    const themes = (r.tags || []).filter((t) => t.kind === 'THEME' && t.name).map((t) => t.name);
-                    const goals = (r.tags || []).filter((t) => t.kind === 'GOAL').length;
-                    return (
-                      <tr key={r.id}>
-                        <td>
-                          <div className="fw-600">{r.title}</div>
-                          <span className="muted text-sm">
-                            {KIND_LABELS[resourceKind(r)]}
-                            {r.kind === 'FILE' && r.byteSize ? ` · ${formatBytes(r.byteSize)}` : ''}
-                          </span>
-                        </td>
-                        <td>
-                          <div className="row gap-1 row--wrap">
-                            <span className="chip chip--gray">{ageName(r.ageGroupId) || 'Mọi nhóm tuổi'}</span>
-                            {themes.map((t) => (
-                              <span key={t} className="chip chip--blue">
-                                {t}
-                              </span>
-                            ))}
-                            {goals > 0 && <span className="chip chip--green">{goals} MT</span>}
-                          </div>
-                        </td>
-                        <td className="center">
-                          {r.usageCount > 0 ? (
-                            <Button variant="ghost" size="sm" onClick={() => setModal({ type: 'usages', item: r })}>
-                              {r.usageCount} mục
-                            </Button>
-                          ) : (
-                            <span className="muted">0</span>
-                          )}
-                        </td>
-                        <td>
-                          <span className="chip chip--gray">{SCOPE_LABELS[r.scope]}</span>
-                          {r.shareStatus === 'PENDING' && <span className="chip chip--purple">Chờ duyệt lên trường</span>}
-                          {r.shareStatus === 'REJECTED' && (
-                            <p className="field__error">Bị trả lại: {r.shareReason}</p>
-                          )}
-                          {r.hidden && <span className="chip chip--orange">Đã ẩn</span>}
-                        </td>
-                        <td>{fmtDateTime(r.updatedAt)}</td>
-                        <td className="cell--actions">
-                          {tab === 'PENDING' && r.canReview ? (
-                            <div className="row gap-2">
-                              <Button size="sm" variant="ghost" icon={Eye} onClick={() => setModal({ type: 'view', item: r })}>
-                                Xem
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="primary"
-                                loading={busy}
-                                onClick={() => act(() => api.review(user, r.id, { approve: true }), 'Đã duyệt lên kho trường')}
-                              >
-                                Duyệt
-                              </Button>
-                              <Button size="sm" variant="outline-primary" onClick={() => setModal({ type: 'reject', item: r })}>
-                                Trả lại
-                              </Button>
-                            </div>
-                          ) : (
-                            <RowMenu label={`Thao tác với ${r.title}`} items={menuOf(r)} />
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <DataTable rows={items} columns={columns} />
             {list.data?.totalPages > 1 && (
               <div className="row gap-2 mt-16">
                 <Button size="sm" variant="ghost" disabled={page === 0} onClick={() => setPage((p) => p - 1)}>
@@ -453,7 +463,7 @@ function ResourceModals({ modal, setModal, user, classes, busy, act, remove }) {
             <label className="field__label" htmlFor={`${id}-title`}>
               Tên hiển thị
             </label>
-            <input id={`${id}-title`} className="input" value={text} maxLength={255} onChange={(e) => setText(e.target.value)} />
+            <TextField id={`${id}-title`} value={text} maxLength={255} onChange={(e) => setText(e.target.value)} />
           </div>
           <FilterSelect
             label="Nhóm tuổi"
@@ -470,9 +480,7 @@ function ResourceModals({ modal, setModal, user, classes, busy, act, remove }) {
               onChange={setTheme}
               options={[
                 { value: '', label: 'Không gắn chủ đề' },
-                ...(themeTag && !themeInPlan
-                  ? [{ value: 'keep', label: `${themeTag.name || 'Chủ đề đang gắn'} (đang gắn)` }]
-                  : []),
+                ...(themeTag && !themeInPlan ? [{ value: 'keep', label: `${themeTag.name || 'Chủ đề đang gắn'} (đang gắn)` }] : []),
                 ...planThemes.map((t) => ({ value: t.id, label: t.name })),
               ]}
             />
@@ -482,7 +490,7 @@ function ResourceModals({ modal, setModal, user, classes, busy, act, remove }) {
               <legend className="field__label">Mục tiêu (MT) học liệu phục vụ</legend>
               {planGoals.map((g) => (
                 <label key={g.id} className="checkbox">
-                  <input type="checkbox" checked={picked.includes(g.id)} onChange={() => togglePick(g.id)} />
+                  <Checkbox checked={picked.includes(g.id)} onChange={() => togglePick(g.id)} />
                   <span>
                     <span className="ga-goal-code">MT{g.no}</span> {g.text}
                   </span>
@@ -556,12 +564,14 @@ function ResourceModals({ modal, setModal, user, classes, busy, act, remove }) {
           </>
         }
       >
-        <div className="field">
-          <label className="field__label" htmlFor={`${id}-reason`}>
-            Lý do trả lại (bắt buộc)
-          </label>
-          <textarea id={`${id}-reason`} className="textarea" rows={3} maxLength={1000} value={text} onChange={(e) => setText(e.target.value)} />
-        </div>
+        <TextAreaField
+          label="Lý do trả lại (bắt buộc)"
+          id={`${id}-reason`}
+          rows={3}
+          maxLength={1000}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+        />
       </Modal>
     );
   if (modal.type === 'delete')

@@ -560,9 +560,7 @@ export function GoalTable({
                   })
                 : dash}
               {showRequired && r.text.trim() && !(r.contents || []).some((c) => c?.text?.trim()) && (
-                <div className="ga-goal-table__pad text-xs text-danger">
-                  Mục tiêu cần ít nhất một nội dung
-                </div>
+                <div className="ga-goal-table__pad text-xs text-danger">Mục tiêu cần ít nhất một nội dung</div>
               )}
             </td>
             {themeCells(di, r, null)}
@@ -1270,8 +1268,7 @@ export function ThemeEventTable({
   // col: tiền tố data-focus của cột cần đặt con trỏ ở dòng mới ('' = ô tên)
   const insertTheme = (afterIdx, name = '', col = '') => {
     // Thêm vào cuối: tự điền ngày nối tiếp chủ đề trước, người lập vẫn sửa được (EDU-39)
-    const dates =
-      afterIdx === themes.length - 1 ? nextThemeDates(themes, breaks, yearRange, durationPolicy?.theme?.minWeeks ?? 2) : null;
+    const dates = afterIdx === themes.length - 1 ? nextThemeDates(themes, breaks, yearRange, durationPolicy?.theme?.minWeeks ?? 2) : null;
     const t = { ...blankTheme(), name, abbr: initialsOf(name), ...dates };
     onChange({ themes: [...themes.slice(0, afterIdx + 1), t, ...themes.slice(afterIdx + 1)] });
     setFocusId(`${col}${t.id}`);

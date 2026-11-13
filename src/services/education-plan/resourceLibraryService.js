@@ -39,7 +39,10 @@ export const resourceLibraryApi = {
   review: async (_user, id, body) => toUi(await axiosClient.post(`${BASE}/${id}/review`, body)),
   remove: (_user, id) => axiosClient.delete(`${BASE}/${id}`),
   usages: async (_user, id) =>
-    (await axiosClient.get(`${BASE}/${id}/usages`)).map((u) => ({ ...u, classroomId: u.classroomId == null ? null : String(u.classroomId) })),
+    (await axiosClient.get(`${BASE}/${id}/usages`)).map((u) => ({
+      ...u,
+      classroomId: u.classroomId == null ? null : String(u.classroomId),
+    })),
   contentUrl: async (_user, id) => (await axiosClient.get(`${BASE}/${id}/url`)).url,
 };
 export const resourceLibraryService = USE_MOCK ? mock : resourceLibraryApi;

@@ -13,8 +13,9 @@ Import từ `@/components` trừ khi cột "Từ" ghi khác.
 | Khung màn danh sách (đầu trang + thẻ + lọc + bảng) | `ListPage` | `@/components` |
 | Đầu trang (breadcrumb, tiêu đề, nút) | `PageHeader` | `@/components` |
 | Bảng danh sách có đang tải / trống / lỗi / phân trang | `DataTable` | `@/components` |
-| Nút (kể cả nút đang gửi) | `Button` — `variant`, `size`, `icon`, `loading` | `@/components` |
+| Nút (kể cả nút đang gửi); nút chỉ icon `variant="icon"` (`.icon-btn`), nút dạng chữ `variant="link"` (`.link-btn`) | `Button` — `variant`, `size`, `icon`, `loading` | `@/components` |
 | Ô nhập có nhãn + lỗi | `TextField`, `SelectField`, `TextAreaField`; ô đặc biệt bọc `FormField` | `@/components` |
+| Ô tích (nhãn bọc ngoài do nơi dùng đặt) | `Checkbox` | `@/components` |
 | Ngày, tuần, học kỳ, mật khẩu | `DateInput`, `WeekPicker`, `SemesterSelect`, `PasswordInput` | `@/components/form/…` |
 | Chọn có tìm kiếm | `SearchSelect` | `@/components` |
 | Ô tìm trong thanh lọc | `SearchSubmit` | `@/components/ui/SearchSubmit` |

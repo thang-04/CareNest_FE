@@ -57,6 +57,7 @@ import { useDocVersion } from '@/hooks/education-plan/useDocVersion';
 import { checkFlag, dropReference, versionOf } from '@/models/education-plan/planVersions.mjs';
 import DocPreviewModal from '@/components/education-plan/DocPreviewModal';
 import { dayKeyOf } from '@/models/education-plan/deadline.mjs';
+import { Button } from '@/components';
 
 const DAY_FIELDS = ['days', 'dayGoals', 'dossierCards'];
 // Phần kế hoạch tuần sửa được theo hồ sơ chủ đề, lưu ở day.content.week (BE:EDU-79, research R1)
@@ -568,9 +569,9 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
             <FoldAllButton />
             {/* Dạy học / trình chiếu chỉ theo từng ngày (Tiền 12/11/2026), dùng học liệu của kế hoạch giáo dục ngày (BE:EDU-81) */}
             {dayPage && day >= 0 && (
-              <button
-                type="button"
-                className="btn btn--sm btn--outline-primary"
+              <Button
+                variant="outline-primary"
+                size="sm"
                 disabled={!savedDay}
                 title={!savedDay ? 'Lưu kế hoạch giáo dục ngày trước để dạy học' : undefined}
                 onClick={() =>
@@ -580,7 +581,7 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
                 }
               >
                 Dạy học ngày này
-              </button>
+              </Button>
             )}
             <span ref={setToolsEl} className="row row--middle gap-2" />
           </div>
@@ -600,24 +601,24 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
                 />
                 {/* Trang luôn ở chế độ sửa: Hủy về Kế hoạch giáo dục chủ đề của lớp, còn thay đổi chưa lưu thì hỏi (Tiền 13/11/2026) */}
                 {!dayPage && (
-                  <button
-                    type="button"
-                    className="btn btn--sm btn--outline-primary"
+                  <Button
+                    variant="outline-primary"
+                    size="sm"
                     disabled={saver.saving}
                     onClick={() => guard.leave(`/education/theme-plans/${classId}`)}
                   >
                     <X size={16} aria-hidden /> Hủy
-                  </button>
+                  </Button>
                 )}
-                <button
-                  type="button"
-                  className="btn btn--sm btn--primary"
+                <Button
+                  variant="primary"
+                  size="sm"
                   onClick={saver.save}
                   disabled={saver.saving || (!saver.unsaved && !saver.error)}
                   title="Lưu (Ctrl+S)"
                 >
                   <Save size={16} aria-hidden /> Lưu
-                </button>
+                </Button>
               </>
             )}
             {dayPage && dossier && (
@@ -639,20 +640,16 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
                   variant="btn--outline-primary"
                 />
                 {dossier.canRevise && (
-                  <button type="button" className="btn btn--sm btn--outline-primary" onClick={() => setConfirmRevise(true)}>
+                  <Button variant="outline-primary" size="sm" onClick={() => setConfirmRevise(true)}>
                     <Copy size={16} aria-hidden /> Tạo phiên bản điều chỉnh
-                  </button>
+                  </Button>
                 )}
               </>
             )}
             {/* In giáo án tuần ở mọi bước (đã duyệt thì in để dạy hằng ngày) */}
-            <button
-              type="button"
-              className="btn btn--sm btn--outline-primary"
-              onClick={() => setPreview(days ? dayPlansFile(exportArgs) : weekFile(exportArgs))}
-            >
+            <Button variant="outline-primary" size="sm" onClick={() => setPreview(days ? dayPlansFile(exportArgs) : weekFile(exportArgs))}>
               <FileDown size={16} aria-hidden /> Xuất file
-            </button>
+            </Button>
             {preview && <DocPreviewModal file={preview} onClose={() => setPreview(null)} />}
           </div>
         </div>
@@ -708,7 +705,7 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
           <>
             {/* Trạng thái duyệt của hồ sơ đã ở thanh thao tác; tab tuần chỉ báo bằng chữ khi kế hoạch tuần chưa duyệt / chưa soạn */}
             {!savedWeek && <p className="muted text-sm">Chưa soạn kế hoạch tuần.</p>}
-            {/* Đã báo "Học kỳ chưa được duyệt" (hồ sơ bị chặn vì gói học kỳ chưa ban hành) thì không nhắc lại kế hoạch tuần (Tiền 12/11/2026) */}
+            {/* Đã báo gói học kỳ chưa ban hành (hồ sơ bị chặn vì gói học kỳ chưa ban hành) thì không nhắc lại kế hoạch tuần (Tiền 12/11/2026) */}
             {canComposeClassDocs &&
               savedWeek &&
               !weekApproved &&

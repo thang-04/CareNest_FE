@@ -2,7 +2,6 @@ import { adaptCalendar, calendarPlan, seedTeamBranchTemplates } from '@/models/e
 import { useId, useMemo, useRef } from 'react';
 import { EmptyCard, PageHead } from '@/components/education-plan/eduUi';
 import { useSearchParams } from 'react-router-dom';
-import { Check, Eye, Send } from '@/components/ui/icons';
 import { SIGNER_SHORT } from '@/components/education-plan/reviewUi';
 import { ROLES } from '@/models/User';
 import { AGE_GROUPS, EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
@@ -11,6 +10,7 @@ import { toRows } from '@/models/education-plan/goalTable';
 import { ddmm, emptyBranchPlan, themeBranchGroups, yearWeeks } from '@/models/education-plan/classPlan';
 import { PENDING_OF } from '@/models/education-plan/eduConfig';
 import { currentPlanOf, previousPlanOf } from '@/models/education-plan/planVersions.mjs';
+import { SelectField } from '@/components';
 
 /** Bước còn thiếu khi tài liệu chưa thể bắt đầu (lock = kết quả createBlocker). */
 export const lockTarget = (lock, base, themeId) =>
@@ -126,21 +126,6 @@ export const isMyReviewTurn = (doc, ctx, user) => {
 const isOpen = (doc) => !doc?.status || doc.status === EDU_STATUS.DRAFT || doc.status === EDU_STATUS.REJECTED;
 
 /**
- * Nhãn nút sang trang gửi / duyệt theo việc người dùng cần làm. Kế hoạch chủ đề chỉ gửi ở cuối trang xem cả tập,
- * nên ở trang soạn chỉ có nút "Xem cả kế hoạch chủ đề" (tên theo file mẫu "KHGD CĐ" của MN Thái Dương).
- */
-export function reviewLabel(doc, ctx, user, kind = 'branch') {
-  if (kind !== 'branch') {
-    if (isMyReviewTurn(doc, ctx, user)) return 'Duyệt kế hoạch chủ đề';
-    // Giáo án tuần/ngày không gửi riêng (EDU-74): nút dẫn sang trang chủ đề để gửi cả hồ sơ chủ đề
-    return ctx.canComposeClassDocs && isOpen(doc) ? 'Gửi hồ sơ chủ đề' : 'Xem kế hoạch chủ đề';
-  }
-  if (isMyReviewTurn(doc, ctx, user)) return 'Duyệt';
-  if (ctx.canComposeClassDocs && isOpen(doc)) return 'Gửi duyệt';
-  return 'Xem';
-}
-
-/**
  * Quyền hiển thị nút gửi / duyệt tài liệu của lớp theo mẫu chung (reviewUi) và người duyệt đầu tiên của chuỗi:
  * chủ đề nhánh theo eduConfig.signers.branch, hồ sơ chủ đề theo signers.week; bỏ Tổ trưởng khi ctx.skipLeader.
  * Chỉ là UX, service quyết định khi gửi.
@@ -161,46 +146,6 @@ export function docReview(kind, doc, ctx, user, eduConfig) {
   };
 }
 
-/**
- * Nút sang trang hồ sơ để xem / gửi / duyệt. Luôn bấm được (Tiền 05/11): còn thay đổi chưa lưu thì lưu trước (onSave)
- * rồi mới sang (onGoNow, không hỏi rời trang); lưu lỗi thì ở lại.
- */
-export function DocReviewButton({
-  kind,
-  doc,
-  dossier,
-  ctx,
-  user,
-  reviewTo,
-  dirty,
-  onGo,
-  onSave,
-  onGoNow,
-  className = 'btn btn--outline-primary btn--sm',
-}) {
-  const holder = kind === 'week' ? dossier : doc;
-  const label = reviewLabel(holder, ctx, user, kind === 'branch' ? 'branch' : 'theme');
-  const go = async () => {
-    if (dirty && onSave) {
-      if (!(await onSave())) return;
-      return (onGoNow || onGo)(reviewTo);
-    }
-    onGo(reviewTo);
-  };
-  return (
-    <button type="button" className={className} title={dirty && onSave ? 'Lưu rồi sang trang kế hoạch chủ đề' : undefined} onClick={go}>
-      {label.startsWith('Duyệt') ? (
-        <Check size={16} aria-hidden />
-      ) : label.includes('gửi') || label.startsWith('Gửi') ? (
-        <Send size={16} aria-hidden />
-      ) : (
-        <Eye size={16} aria-hidden />
-      )}{' '}
-      {label}
-    </button>
-  );
-}
-
 /** Lọc nhóm tuổi trước rồi chọn lớp (spec 005 FR-022); đổi nhóm tuổi ⇒ mở lớp đầu tiên của nhóm đó. */
 export function ClassPicker({ classes, classId, onPick }) {
   const id = useId();
@@ -217,9 +162,8 @@ export function ClassPicker({ classes, classId, onPick }) {
           <label className="field__label" htmlFor={`${id}-age`}>
             Nhóm tuổi
           </label>
-          <select
+          <SelectField
             id={`${id}-age`}
-            className="select"
             value={current?.ageGroupId || ''}
             onChange={(e) => {
               const first = classes.find((c) => c.ageGroupId === e.target.value);
@@ -231,26 +175,21 @@ export function ClassPicker({ classes, classId, onPick }) {
                 {g.name}
               </option>
             ))}
-          </select>
+          </SelectField>
         </div>
       )}
       <div className="field">
         <label className="field__label" htmlFor={`${id}-class`}>
           Lớp
         </label>
-        <select
-          id={`${id}-class`}
-          className="select"
-          value={current ? classId : ''}
-          onChange={(e) => e.target.value && onPick(e.target.value)}
-        >
+        <SelectField id={`${id}-class`} value={current ? classId : ''} onChange={(e) => e.target.value && onPick(e.target.value)}>
           {!current && <option value="">Chọn lớp</option>}
           {(inGroup.length ? inGroup : classes).map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
             </option>
           ))}
-        </select>
+        </SelectField>
       </div>
     </>
   );
@@ -377,19 +316,13 @@ export function FilterSelect({ label, value, options, onChange }) {
       <label className="field__label" htmlFor={id}>
         {label}
       </label>
-      <select
-        id={id}
-        className="select"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        title={options.find((o) => o.value === value)?.label}
-      >
+      <SelectField id={id} value={value} onChange={(e) => onChange(e.target.value)} title={options.find((o) => o.value === value)?.label}>
         {options.map((o) => (
           <option key={o.value} value={o.value}>
             {o.label}
           </option>
         ))}
-      </select>
+      </SelectField>
     </div>
   );
 }

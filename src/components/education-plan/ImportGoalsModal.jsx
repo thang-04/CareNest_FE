@@ -9,7 +9,15 @@ import { ErrorState, LoadingState } from '@/components/ui/States';
 import { GoalPicker } from '@/components/education-plan/GoalPicker';
 import { versionOf } from '@/models/education-plan/planVersions.mjs';
 
-export default function ImportGoalsModal({ planLevel = 'TEAM', excludeId, defaultAgeGroupId, defaultYear, defaultSourceId = '', onClose, onImport }) {
+export default function ImportGoalsModal({
+  planLevel = 'TEAM',
+  excludeId,
+  defaultAgeGroupId,
+  defaultYear,
+  defaultSourceId = '',
+  onClose,
+  onImport,
+}) {
   const { schoolYears, user } = useEducationPlan();
   // Mặc định năm học của kế hoạch đang soạn (Tiền 31/10)
   const [year, setYear] = useState(schoolYears.includes(defaultYear) ? defaultYear : schoolYears[1] || schoolYears[0] || '');

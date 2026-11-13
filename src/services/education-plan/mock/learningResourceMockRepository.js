@@ -2,13 +2,7 @@ import { pushNotification } from '@/mocks/notificationMockRepository';
 import { readDb, writeDb, clone, delay } from '@/mocks/mockDatabase';
 import { ROLES } from '@/models/User';
 import { eduError } from './eduMockErrors';
-import {
-  MAX_PER_SECTION,
-  defaultLinkTitle,
-  matchOf,
-  normalizeLink,
-  rankResources,
-} from '@/models/education-plan/learningResources.mjs';
+import { MAX_PER_SECTION, defaultLinkTitle, matchOf, normalizeLink, rankResources } from '@/models/education-plan/learningResources.mjs';
 
 /*
  * BE giả của kho học liệu (BE:EDU-82…88, spec 900). Học liệu = mục kho (tệp/link) + dòng gắn vào giáo án ngày.
@@ -74,7 +68,8 @@ const tagsFrom = (db, tags) => {
   if (!tags) return [];
   const goals = (db.eduGoals || []).flatMap((p) => p.rows || p.goals || []);
   const out = [];
-  if (tags.themeId != null || tags.themeName) out.push({ kind: 'THEME', refId: tags.themeId ?? null, curriculumGoalId: null, name: tags.themeName || null });
+  if (tags.themeId != null || tags.themeName)
+    out.push({ kind: 'THEME', refId: tags.themeId ?? null, curriculumGoalId: null, name: tags.themeName || null });
   for (const id of [...new Set(tags.goalIds || [])]) {
     const g = goals.find((x) => String(x.id) === String(id));
     out.push({ kind: 'GOAL', refId: id, curriculumGoalId: g?.curriculumGoalId ?? g?.curriculumId ?? null, name: null });
@@ -160,7 +155,16 @@ const attachAll = (s, user, docKey, binding, items) => {
   if (here.length + items.length > MAX_PER_SECTION) throw eduError('RESOURCE_SECTION_FULL', MAX_PER_SECTION);
   return items.map((i) => {
     // Gắn sau đứng sau (BE:EDU-82: trùng số thì xếp theo id)
-    const a = { id: nextId(s), docKey, activityKey: binding.activityKey, activityLabel: binding.activityLabel, itemId: i.id, sortOrder: here.length, createdBy: user.id, createdAt: now() };
+    const a = {
+      id: nextId(s),
+      docKey,
+      activityKey: binding.activityKey,
+      activityLabel: binding.activityLabel,
+      itemId: i.id,
+      sortOrder: here.length,
+      createdBy: user.id,
+      createdAt: now(),
+    };
     s.attachments.push(a);
     return rowOf(s, a);
   });
@@ -194,7 +198,13 @@ export const learningResourceMockRepository = {
     return writeDb((db) => {
       const s = store(db);
       const v = viewerOf(db, user);
-      return attachAll(s, user, docKey, { activityKey, activityLabel }, [...new Set(itemIds)].map((id) => requireItem(s, v, id)));
+      return attachAll(
+        s,
+        user,
+        docKey,
+        { activityKey, activityLabel },
+        [...new Set(itemIds)].map((id) => requireItem(s, v, id)),
+      );
     });
   },
   async detach(_user, docKey, id) {
@@ -242,7 +252,9 @@ export const resourceLibraryMockRepository = {
     const v = viewerOf(db, user);
     const q = (query.q || '').trim().toLowerCase();
     const goals = (db.eduGoals || []).flatMap((p) => p.rows || p.goals || []);
-    const curriculumIds = (query.goalIds || []).map((id) => goals.find((g) => String(g.id) === String(id))?.curriculumGoalId).filter((x) => x != null);
+    const curriculumIds = (query.goalIds || [])
+      .map((id) => goals.find((g) => String(g.id) === String(id))?.curriculumGoalId)
+      .filter((x) => x != null);
     const attached = new Set(
       s.attachments.filter((a) => a.docKey === query.docKey && a.activityKey === query.activityKey).map((a) => a.itemId),
     );
@@ -260,7 +272,13 @@ export const resourceLibraryMockRepository = {
     const size = Math.min(50, query.size || 50);
     const page = query.page || 0;
     const ranked = rankResources(rows);
-    return { items: ranked.slice(page * size, page * size + size), page, size, totalElements: ranked.length, totalPages: Math.ceil(ranked.length / size) };
+    return {
+      items: ranked.slice(page * size, page * size + size),
+      page,
+      size,
+      totalElements: ranked.length,
+      totalPages: Math.ceil(ranked.length / size),
+    };
   },
   async upload(user, file, { title, ageGroupId } = {}) {
     await delay();
@@ -366,7 +384,14 @@ export const resourceLibraryMockRepository = {
     requireItem(s, viewerOf(db, user), id);
     return s.attachments
       .filter((a) => a.itemId === Number(id))
-      .map((a) => ({ attachmentId: a.id, docKey: a.docKey, classroomId: null, date: a.activityKey.split('#')[0], activityKey: a.activityKey, activityLabel: a.activityLabel }));
+      .map((a) => ({
+        attachmentId: a.id,
+        docKey: a.docKey,
+        classroomId: null,
+        date: a.activityKey.split('#')[0],
+        activityKey: a.activityKey,
+        activityLabel: a.activityLabel,
+      }));
   },
   async contentUrl(user, id) {
     await delay();

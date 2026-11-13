@@ -8,6 +8,7 @@ import { Notice } from './eduUi';
 import { LearningResourceViewer } from './LearningResourceViewer';
 import { resourceLibraryService as library } from '@/services/education-plan/resourceLibraryService';
 import { KIND_LABELS, MATCH_LABELS, SCOPE_LABELS, resourceKind } from '@/models/education-plan/learningResources.mjs';
+import { Checkbox, TextField } from '@/components';
 
 const TABS = [
   { key: 'ALL', label: 'Tất cả' },
@@ -104,7 +105,7 @@ export function ResourcePickerModal({ open, user, context, sectionLabel, onClose
           <label className="field__label" htmlFor={`${id}-q`}>
             Tìm theo tên
           </label>
-          <input id={`${id}-q`} className="input" type="search" value={q} onChange={(e) => setQ(e.target.value)} />
+          <TextField id={`${id}-q`} type="search" value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
         <p className="muted text-sm">Học liệu cùng MT hoặc cùng chủ đề với mục đang soạn được xếp lên đầu, kể cả học liệu năm trước.</p>
         {error && <Notice>{error}</Notice>}
@@ -120,13 +121,7 @@ export function ResourcePickerModal({ open, user, context, sectionLabel, onClose
             {rows.map((r) => (
               <li key={r.id}>
                 <label className="row gap-2">
-                  <input
-                    type="checkbox"
-                    checked={picked.has(r.id)}
-                    disabled={r.attached}
-                    onChange={() => toggle(r.id)}
-                    aria-label={`Chọn ${r.title}`}
-                  />
+                  <Checkbox checked={picked.has(r.id)} disabled={r.attached} onChange={() => toggle(r.id)} aria-label={`Chọn ${r.title}`} />
                   <span>
                     <span className="fw-600">{r.title}</span>
                     <span className="row gap-1 row--wrap text-sm">
@@ -151,9 +146,7 @@ export function ResourcePickerModal({ open, user, context, sectionLabel, onClose
             ))}
           </ul>
         )}
-        {preview && (
-          <LearningResourceViewer user={user} resource={preview} load={() => library.contentUrl(user, preview.id)} />
-        )}
+        {preview && <LearningResourceViewer user={user} resource={preview} load={() => library.contentUrl(user, preview.id)} />}
         {loading && <p role="status">Đang tải học liệu…</p>}
         {!loading && rows.length < total && (
           <Button variant="outline-primary" size="sm" onClick={() => setPage((p) => p + 1)}>

@@ -3,6 +3,7 @@ import { Download } from '@/components/ui/icons';
 import { EmptyState, Modal } from '@/components/education-plan/eduUi';
 import { ErrorState, LoadingState } from '@/components/ui/States';
 import { cardText } from '@/models/education-plan/classPlan';
+import { Button, Checkbox, SelectField } from '@/components';
 
 /*
  * Lấy hoạt động từ kế hoạch chủ đề đã ban hành của chính lớp ở năm trước, cùng tên chủ đề (Tiền 13/11/2026).
@@ -36,12 +37,9 @@ export default function ImportActivitiesModal({ load, onImport, onClose }) {
       onClose={onClose}
       footer={
         <>
-          <button type="button" className="btn" onClick={onClose}>
-            Hủy
-          </button>
-          <button
-            type="button"
-            className="btn btn--primary"
+          <Button onClick={onClose}>Hủy</Button>
+          <Button
+            variant="primary"
             disabled={!source || !selected.length}
             onClick={() =>
               onImport(
@@ -51,7 +49,7 @@ export default function ImportActivitiesModal({ load, onImport, onClose }) {
             }
           >
             <Download size={16} aria-hidden /> Thêm {selected.length || ''} hoạt động
-          </button>
+          </Button>
         </>
       }
     >
@@ -68,13 +66,13 @@ export default function ImportActivitiesModal({ load, onImport, onClose }) {
               <label className="field__label" htmlFor="act-src">
                 Lấy từ
               </label>
-              <select id="act-src" className="input" value={source.key} onChange={(e) => setSourceKey(e.target.value)}>
+              <SelectField id="act-src" className="input" value={source.key} onChange={(e) => setSourceKey(e.target.value)}>
                 {state.sources.map((s) => (
                   <option key={s.key} value={s.key}>
                     {s.label}
                   </option>
                 ))}
-              </select>
+              </SelectField>
             </div>
           )}
           {state.sources.length === 1 && <p className="muted text-sm">{source.label}</p>}
@@ -82,7 +80,7 @@ export default function ImportActivitiesModal({ load, onImport, onClose }) {
             <legend className="field__label">Hoạt động ({source.cards.length})</legend>
             {source.cards.map((c) => (
               <label key={c.id} className="checkbox">
-                <input type="checkbox" checked={selected.includes(c.id)} onChange={() => toggle(c.id)} />
+                <Checkbox checked={selected.includes(c.id)} onChange={() => toggle(c.id)} />
                 <span>{cardText(c)}</span>
               </label>
             ))}

@@ -36,6 +36,7 @@ import { useDocVersion } from '@/hooks/education-plan/useDocVersion';
 import { addedGoalIds, checkFlag, danglingRows, dropReference, versionOf } from '@/models/education-plan/planVersions.mjs';
 import DocPreviewModal from '@/components/education-plan/DocPreviewModal';
 import { BlockedNotice, DeadlineBadge } from '@/components/education-plan/DeadlineWidgets';
+import { Button } from '@/components';
 
 /**
  * Kế hoạch giáo dục chủ đề của lớp theo mẫu MN Thái Dương: TT | Mục tiêu (giữ số MT năm) | Nội dung | Hoạt động giáo dục,
@@ -329,34 +330,34 @@ function ThemePlanInner() {
                   onUse={(entry) => (entry ? saver.restoreDraft(entry) : saver.restoreSaved())}
                 />
                 {/* Trang luôn ở chế độ sửa: Hủy về Kế hoạch giáo dục chủ đề của lớp, còn thay đổi chưa lưu thì hỏi (Tiền 13/11/2026) */}
-                <button
-                  type="button"
-                  className="btn btn--sm btn--outline-primary"
+                <Button
+                  variant="outline-primary"
+                  size="sm"
                   disabled={saver.saving}
                   onClick={() => guard.leave(`/education/theme-plans/${classId}`)}
                 >
                   <X size={16} aria-hidden /> Hủy
-                </button>
-                <button
-                  type="button"
-                  className="btn btn--sm btn--primary"
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
                   onClick={saver.save}
                   disabled={saver.saving || (!saver.unsaved && !saver.error)}
                   title="Lưu (Ctrl+S)"
                 >
                   <Save size={16} aria-hidden /> Lưu
-                </button>
+                </Button>
               </>
             )}
-            <button
-              type="button"
-              className="btn btn--sm btn--outline-primary"
+            <Button
+              variant="outline-primary"
+              size="sm"
               onClick={() =>
                 setPreview(themeFile({ ...exportArgs, leaderName: leaderNameOf(staff, cls.ageGroupId, yearPlan?.schoolYear) }))
               }
             >
               <FileDown size={16} aria-hidden /> Xuất file
-            </button>
+            </Button>
             {preview && <DocPreviewModal file={preview} onClose={() => setPreview(null)} />}
           </div>
         </div>
@@ -429,9 +430,9 @@ function ThemePlanInner() {
           <ul className="stack">
             {holder.releases.map((r, i) => (
               <li key={r.id}>
-                <button type="button" className="btn btn--sm btn--outline-primary" onClick={() => openRelease(r)}>
+                <Button variant="outline-primary" size="sm" onClick={() => openRelease(r)}>
                   <FileDown size={16} aria-hidden /> Bản ban hành {i + 1}
-                </button>{' '}
+                </Button>{' '}
                 <span className="muted text-sm">
                   {fmtDate(r.releasedAt)}
                   {r.approvedBy ? ` · ${r.approvedBy}` : ''}

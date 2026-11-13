@@ -1,10 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { Card, Notice } from './eduUi';
 import { Button } from '@/components/ui/Button';
-import { FormField } from '@/components/form/FormField';
 import { FileInput } from '@/components/form/FileInput';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
-import { ArrowDown, ArrowUp, Link2, Images } from '@/components/ui/icons';
+import { ArrowDown, ArrowUp, Link2, Images, Upload } from '@/components/ui/icons';
 import { LearningResourceViewer } from './LearningResourceViewer';
 import { ResourceLinkForm } from './ResourceLinkForm';
 import { ResourcePickerModal } from './ResourcePickerModal';
@@ -38,6 +37,7 @@ export function DayResources({ user, docKey, date, editable, ageGroupId = null, 
   const [linkFor, setLinkFor] = useState('');
   const [pickFor, setPickFor] = useState(null);
   const attempt = useRef(null);
+  const inputId = useId();
   useEffect(() => {
     if (!docKey) return undefined;
     let alive = true;
@@ -94,14 +94,21 @@ export function DayResources({ user, docKey, date, editable, ageGroupId = null, 
   // BE:EDU-82 — thứ tự học liệu trong mục = thứ tự xem/trình chiếu
   const move = (section, bound, id, delta) =>
     run(section.key, () =>
-      api.reorder(user, docKey, { activityKey: sectionKey(date, section.key), ids: moveId(bound.map((r) => r.id), id, delta) }),
+      api.reorder(user, docKey, {
+        activityKey: sectionKey(date, section.key),
+        ids: moveId(
+          bound.map((r) => r.id),
+          id,
+          delta,
+        ),
+      }),
     );
 
   return (
     <Card title="III. Học liệu theo mục hoạt động" collapsed={folded} onToggle={() => setFolded((v) => !v)}>
       <p className="muted">
-        Ảnh tối đa 5 MB · Video 100 MB · PDF/slide/tệp khác 20 MB · link YouTube, Google Drive. Học liệu lưu vào kho để dùng lại ở
-        ngày khác. Dùng khi bấm "Dạy học ngày này".
+        Ảnh tối đa 5 MB · Video 100 MB · PDF/slide/tệp khác 20 MB · link YouTube, Google Drive. Học liệu lưu vào kho để dùng lại ở ngày
+        khác. Dùng khi bấm "Dạy học ngày này".
       </p>
       {error && <Notice tone="warn">{error}</Notice>}
       {DAY_SECTIONS.map((section) => {
@@ -109,33 +116,41 @@ export function DayResources({ user, docKey, date, editable, ageGroupId = null, 
         const full = bound.length >= MAX_PER_SECTION;
         return (
           <section key={section.key} className="ga-media-unbound">
-            <h3>{section.label}</h3>
-            {editable && (
-              <div className="ga-media-upload" role="group" aria-label={`Thêm học liệu cho ${section.label}`}>
-                <FormField label="Tải lên ảnh, video, slide hoặc tệp">
-                  <FileInput accept={MEDIA_ACCEPT} disabled={!!busy || full} onChange={(e) => upload(section, e.target)} />
-                </FormField>
-                <Button
-                  variant="outline-primary"
-                  size="sm"
-                  icon={Link2}
-                  disabled={!!busy || full}
-                  aria-expanded={linkFor === section.key}
-                  onClick={() => setLinkFor(linkFor === section.key ? '' : section.key)}
-                >
-                  Dán link
-                </Button>
-                <Button
-                  variant="outline-primary"
-                  size="sm"
-                  icon={Images}
-                  disabled={!!busy || full}
-                  onClick={() => setPickFor(section)}
-                >
-                  Chọn từ kho
-                </Button>
-              </div>
-            )}
+            {/* Tiêu đề mục và 3 nút thêm cùng một hàng; nút Tải lên như trang Kho học liệu, thay ô chọn tệp tiếng Anh của trình duyệt */}
+            <div className="ga-media-upload" role="group" aria-label={`Thêm học liệu cho ${section.label}`}>
+              <h3>{section.label}</h3>
+              {editable && (
+                <span className="row row--wrap gap-2">
+                  <label
+                    className="btn btn--sm btn--outline-primary"
+                    htmlFor={`${inputId}-${section.key}`}
+                    aria-disabled={!!busy || full || undefined}
+                  >
+                    <Upload size={15} aria-hidden /> Tải lên
+                  </label>
+                  <FileInput
+                    id={`${inputId}-${section.key}`}
+                    className="sr-only"
+                    accept={MEDIA_ACCEPT}
+                    disabled={!!busy || full}
+                    onChange={(e) => upload(section, e.target)}
+                  />
+                  <Button
+                    variant="outline-primary"
+                    size="sm"
+                    icon={Link2}
+                    disabled={!!busy || full}
+                    aria-expanded={linkFor === section.key}
+                    onClick={() => setLinkFor(linkFor === section.key ? '' : section.key)}
+                  >
+                    Dán link
+                  </Button>
+                  <Button variant="outline-primary" size="sm" icon={Images} disabled={!!busy || full} onClick={() => setPickFor(section)}>
+                    Chọn từ kho
+                  </Button>
+                </span>
+              )}
+            </div>
             {full && editable && <p className="muted text-sm">Mục đã đủ {MAX_PER_SECTION} học liệu; gỡ bớt để thêm.</p>}
             {linkFor === section.key && (
               <ResourceLinkForm busy={busy === section.key} onSubmit={(v) => addLink(section, v)} onCancel={() => setLinkFor('')} />
@@ -146,8 +161,7 @@ export function DayResources({ user, docKey, date, editable, ageGroupId = null, 
                 {bound.map((r, at) => (
                   <li key={r.id}>
                     <Button variant="ghost" onClick={() => setPreview(r)}>
-                      {r.title || r.fileName} ·{' '}
-                      {r.kind === 'LINK' ? KIND_LABELS[resourceKind(r)] : formatBytes(r.byteSize)}
+                      {r.title || r.fileName} · {r.kind === 'LINK' ? KIND_LABELS[resourceKind(r)] : formatBytes(r.byteSize)}
                     </Button>
                     {editable && (
                       <span className="row gap-2">
@@ -180,7 +194,7 @@ export function DayResources({ user, docKey, date, editable, ageGroupId = null, 
                 ))}
               </ul>
             ) : (
-              <p className="muted">Chưa có học liệu.</p>
+              <p className="muted text-sm">Chưa có học liệu.</p>
             )}
             {preview && bound.some((r) => r.id === preview.id) && <LearningResourceViewer user={user} docKey={docKey} resource={preview} />}
           </section>

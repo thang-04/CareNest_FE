@@ -13,6 +13,7 @@ import { currentPlanOf, versionOf } from '@/models/education-plan/planVersions.m
 import { useAsync } from '@/hooks/useAsync';
 import { usePolling } from '@/hooks/usePolling';
 import { getReviewQueue } from '@/services/education-plan/educationPlanService';
+import { Button } from '@/components';
 
 const ageName = (id) => AGE_GROUPS.find((a) => a.id === id)?.name || '—';
 
@@ -142,15 +143,14 @@ export default function GoalListPage({ planLevel = 'TEAM' }) {
           <EmptyState
             title="Không có kết quả phù hợp"
             action={
-              <button
-                className="btn"
+              <Button
                 onClick={() => {
                   setQ('');
                   setAge('');
                 }}
               >
                 <RotateCcw size={15} /> Đặt lại bộ lọc
-              </button>
+              </Button>
             }
           />
         ) : rows.length === 0 ? (

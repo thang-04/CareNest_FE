@@ -30,6 +30,7 @@ export { PrintToolbar } from './print/PrintToolbar';
 export { PrintPaperFit } from './print/PrintPaperFit';
 export { FormField } from './form/FormField';
 export { TextField, TextAreaField, SelectField } from './form/Field';
+export { Checkbox } from './form/Checkbox';
 export { Button } from './ui/Button';
 export { DataTable } from './ui/DataTable';
 export { PageHeader } from './ui/PageHeader';

@@ -31,6 +31,8 @@ const GoalTable=({fixedCells,readOnly,canAssignContents})=> <div data-table="goa
 const PlanTabs=()=> <div role="tablist"/>, Stepper=()=> <nav data-stepper="true"/>;
 const Download=()=>null, FileDown=()=>null, Save=()=>null, X=()=>null, Upload=()=>null, ArrowLeft=()=>null, ArrowRight=()=>null;
 const ReviewActions=()=>null, VersionHistory=()=> <button data-history="true"/>, yearPlanLines=()=>[], LeaveConfirmModal=()=>null, fmtDate=(v)=>v;
+// Như Button thật (@/components/ui/Button): btn + biến thể + cỡ
+const Button = ({variant,size,icon:Icon,loading=false,disabled=false,type='button',className='',children,...rest}) => <button type={type} className={['btn',variant&&'btn--'+variant,size&&'btn--'+size,className].filter(Boolean).join(' ')} disabled={disabled||loading} {...rest}>{Icon && <Icon/>}{children}</button>;
 const Link=({to,children})=><a href={to}>{children}</a>;
 `;
 const { code } = await transformWithOxc(stubs + isolated, 'GoalFormPage.jsx', { lang: 'jsx', jsx: { runtime: 'classic' } });
@@ -79,7 +81,7 @@ test('thông tin chung nhập trong bảng và các nút dùng cùng kiểu trê
   assert.match(html, /ga-year-info ga-info-team/);
   assert.match(html, /<th[^>]*scope="row"/);
   assert.match(html, /class="ga-year-toolbar"/);
-  assert.doesNotMatch(html, /btn--ghost|btn--primary btn--sm/);
+  assert.doesNotMatch(html, /btn--ghost/);
   assert.match(html, /id="ag"/);
   assert.match(html, /id="title"/);
   assert.match(html, /<div class="ga-year-title-field"><input id="title" type="text"/);
@@ -211,7 +213,7 @@ test('annual improvements stay scoped to annual form and preserve all import opt
   assert.match(annual, /ga-plan-section--info/);
   assert.match(annual, /ga-plan-section--goals/);
   assert.match(annual, /ga-plan-section--themes/);
-  assert.match(annual, /class="btn btn--sm btn--primary"[^>]*title="Lưu/);
+  assert.match(annual, /class="btn btn--primary btn--sm"[^>]*title="Lưu/);
   const team = renderToStaticMarkup(React.createElement(GoalFormPage));
   assert.doesNotMatch(team, /ga-annual-plan|data-import-menu=|Lấy \/ nhập nội dung/);
   assert.match(team, /ga-team-plan/);

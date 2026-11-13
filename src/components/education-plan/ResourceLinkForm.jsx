@@ -2,6 +2,7 @@ import { useId, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { LABELS } from '@/components/ui/labels';
 import { LINK_ERROR, normalizeLink } from '@/models/education-plan/learningResources.mjs';
+import { TextField } from '@/components';
 
 /**
  * Dán link YouTube / Google Drive (BE:EDU-83). Kiểm dạng link khi rời ô để báo lỗi ngay cạnh ô; BE vẫn kiểm lại.
@@ -36,9 +37,8 @@ export function ResourceLinkForm({ onSubmit, onCancel, busy = false, submitLabel
           <label className="field__label" htmlFor={`${id}-url`}>
             Link YouTube hoặc Google Drive
           </label>
-          <input
+          <TextField
             id={`${id}-url`}
-            className="input"
             type="url"
             inputMode="url"
             placeholder="https://youtu.be/…"
@@ -63,13 +63,7 @@ export function ResourceLinkForm({ onSubmit, onCancel, busy = false, submitLabel
           <label className="field__label" htmlFor={`${id}-title`}>
             Tên hiển thị (không bắt buộc)
           </label>
-          <input
-            id={`${id}-title`}
-            className="input"
-            value={title}
-            maxLength={255}
-            onChange={(e) => setTitle(e.target.value)}
-          />
+          <TextField id={`${id}-title`} value={title} maxLength={255} onChange={(e) => setTitle(e.target.value)} />
         </div>
       </div>
       <div className="row gap-2 mt-8">

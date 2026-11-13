@@ -3,6 +3,7 @@ import { Card } from '@/components/education-plan/eduUi';
 import { domainLabel } from '@/models/education-plan/educationPlanConstants';
 import { domainRoman } from '@/models/education-plan/goalTable';
 import { WEEKDAY_LABELS, contentLinesOf, coverageOf, ddmm, themeTree } from '@/models/education-plan/classPlan';
+import { Button, SelectField } from '@/components';
 
 const dayShort = (i) => WEEKDAY_LABELS[i].replace('Thứ ', 'T');
 
@@ -47,11 +48,11 @@ export function CoverageTab({ blocks, cards, weeks, contentsOf, onOpen }) {
           <label className="row row--middle gap-2 text-sm">
             <span className="nowrap">Lọc mục tiêu:</span>
             <div>
-              <select className="input" value={filter} onChange={(e) => setFilter(e.target.value)}>
+              <SelectField className="input" value={filter} onChange={(e) => setFilter(e.target.value)}>
                 <option value="all">Tất cả</option>
                 <option value="missing">MT chưa dạy</option>
                 <option value="contents">Nội dung chưa có hoạt động</option>
-              </select>
+              </SelectField>
             </div>
           </label>
           <div className="table-wrap">
@@ -129,14 +130,13 @@ export function CoverageTab({ blocks, cards, weeks, contentsOf, onOpen }) {
                                   {(r.weeks[w.start] || []).map((i, n) => (
                                     <Fragment key={i}>
                                       {n > 0 && ', '}
-                                      <button
-                                        type="button"
-                                        className="link-btn"
+                                      <Button
+                                        variant="link"
                                         aria-label={`Mở tuần ${w.no}, ${WEEKDAY_LABELS[i]}`}
                                         onClick={() => onOpen(w.start, i)}
                                       >
                                         {dayShort(i)}
-                                      </button>
+                                      </Button>
                                     </Fragment>
                                   ))}
                                 </div>
@@ -167,9 +167,9 @@ export function CoverageTab({ blocks, cards, weeks, contentsOf, onOpen }) {
                             return (
                               <li key={`${u.weekStart}-${u.rowKey}-${u.day}`} className="row row--wrap row--middle gap-2 ga-coverage-days">
                                 {/* Chữ link xanh gạch chân như các thứ đã dạy trong bảng (Tiền 13/11/2026) */}
-                                <button type="button" className="link-btn" onClick={() => onOpen(u.weekStart, u.day)}>
+                                <Button variant="link" onClick={() => onOpen(u.weekStart, u.day)}>
                                   Tuần {w?.no} · {when}
-                                </button>
+                                </Button>
                                 <span>{u.text}</span>
                               </li>
                             );
