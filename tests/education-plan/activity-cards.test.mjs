@@ -100,7 +100,11 @@ test('US1 FR-002, FR-008: thẻ nhiều MT là một bản ghi, in ở mọi MT 
     rowOf: () => ({ contents: '', activities: '' }),
     weekDocs: [],
   });
-  assert.equal(html.split('Trò chuyện: Trò chuyện về đèn giao thông').length - 1, 2);
+  // Mẫu "Mục tiêu Giao Thông" (Tiền 13/11/2026): MỤC TIÊU giữ số MT năm; MẠNG HOẠT ĐỘNG in mỗi thẻ một lần trong lĩnh vực
+  assert.match(html, /MT3\. Trẻ đi bước lùi/);
+  assert.match(html, /MT23\. Trẻ biết luật giao thông/);
+  assert.ok(html.indexOf('MỤC TIÊU') < html.indexOf('MẠNG NỘI DUNG') && html.indexOf('MẠNG NỘI DUNG') < html.indexOf('MẠNG HOẠT ĐỘNG'));
+  assert.equal(html.split('Trò chuyện: Trò chuyện về đèn giao thông').length - 1, 1);
 });
 
 test('FR-004: dạng cây — nội dung chưa có thẻ vàng, MT chưa có thẻ đỏ, thẻ không gắn nội dung ở nhánh riêng', () => {

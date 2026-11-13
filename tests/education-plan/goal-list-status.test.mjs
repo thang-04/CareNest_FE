@@ -177,7 +177,7 @@ const queueStubs =
     .replace('useNavigate=()=>()=>{}', 'useNavigate=()=>to=>context.destination=to')
     .replace('clickableRowProps=()=>({})', 'clickableRowProps=(onClick)=>({onClick})') +
   `
-const EduStatusBadge=YearPlanStatusBadge, fmtDateTime=(value)=>value, DeadlineBadge=()=>null, Eye=()=>null;
+const EduStatusBadge=YearPlanStatusBadge, fmtDateTime=(value)=>value, DeadlineBadge=()=>null, Eye=()=>null, FilterText=()=>null;
 const PENDING_OF={}, CLASS_DOC_LABELS={year:'Kế hoạch tổ', branch:'Nhánh', theme:'Chủ đề'};
 const themeNumber=()=>1, themeWeeksOf=()=>[];
 `;

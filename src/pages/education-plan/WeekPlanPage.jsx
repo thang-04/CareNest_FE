@@ -1,12 +1,12 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import ActivityCardEditor from '@/components/education-plan/ActivityCardEditor';
-import { Navigate, useParams } from 'react-router-dom';
+import { Link, Navigate, useParams } from 'react-router-dom';
 import { ClassFilterBar, FilterSelect, ThemeBranchTabs, docReview, themesWithWeeks } from '@/components/education-plan/planUi';
 import { ReviewActions } from '@/components/education-plan/reviewUi';
 import { BlockedNotice, DeadlineBadge } from '@/components/education-plan/DeadlineWidgets';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
-import { Copy, FileDown, Save } from '@/components/ui/icons';
-import { EduStatusBadge, EmptyState, fmtDate, FoldAllButton, Notice, PageHead } from '@/components/education-plan/eduUi';
+import { Copy, FileDown, Save, X } from '@/components/ui/icons';
+import { EduStatusBadge, EmptyCard, fmtDate, FoldAllButton, Notice, PageHead } from '@/components/education-plan/eduUi';
 import { VersionHistory } from '@/components/education-plan/VersionHistory';
 import { docLines } from '@/models/education-plan/planHistory.mjs';
 import { useClassPlanContext } from '@/components/education-plan/planUi';
@@ -114,6 +114,8 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
   // MT chưa dạy BE trả khi gửi hồ sơ chủ đề (EDU-80, 7396/7397): [{ goalId, goalNo }]
   const [goalErr, setGoalErr] = useState([]);
   const [cardFor, setCardFor] = useState(null);
+  // Chỗ DayTab đặt menu "Lấy / gợi ý nội dung" ở trái hàng nút
+  const [toolsEl, setToolsEl] = useState(null);
   // Tab tuần ở trang ngày đang sửa được theo hồ sơ chủ đề (tính khi render, đọc lúc lưu)
   const weekEditableRef = useRef({ editable: false }).current;
   const ctx = useClassPlanContext(classId);
@@ -357,7 +359,12 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
   const dayPicker = dayFilter();
   // Mở thẳng đường dẫn khi chưa tới bước này: không hiện biểu mẫu, chỉ ra bước còn thiếu
   const lock =
-    !saved && createBlocker('week', { classId, yearPlanId: yearPlan.id, themeId: week.theme.id }, { branchPlans, classThemePlans });
+    !saved &&
+    createBlocker(
+      'week',
+      { classId, yearPlanId: yearPlan.id, themeId: week.theme.id, weekStart: week.start },
+      { branchPlans, classThemePlans, yearPlan },
+    );
   if (lock) {
     return (
       <div className="page ga-page">
@@ -365,9 +372,16 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
           <PageHead crumbs={crumbs} title={pageTitle} />
           {dayPicker}
         </div>
-        <EmptyState
+        <EmptyCard
           title={dayPage ? 'Chưa có kế hoạch giáo dục ngày của tuần này' : 'Chưa có kế hoạch tuần này'}
-          desc={canComposeClassDocs ? `Chưa thể bắt đầu: ${lock.message}` : undefined}
+          desc={lock.need === 'branch' ? lock.message : undefined}
+          action={
+            lock.need === 'branch' && (
+              <Link className="btn btn--outline-primary btn--sm" to={`/education/branches/${classId}`}>
+                Đặt tên nhánh
+              </Link>
+            )
+          }
         />
       </div>
     );
@@ -568,6 +582,7 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
                 Dạy học ngày này
               </button>
             )}
+            <span ref={setToolsEl} className="row row--middle gap-2" />
           </div>
           <div className="ga-year-toolbar__group ga-year-toolbar__group--end">
             {editable && (
@@ -583,6 +598,17 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
                   linesOf={docLines}
                   onUse={(entry) => (entry ? saver.restoreDraft(entry) : saver.restoreSaved())}
                 />
+                {/* Trang luôn ở chế độ sửa: Hủy về Kế hoạch giáo dục chủ đề của lớp, còn thay đổi chưa lưu thì hỏi (Tiền 13/11/2026) */}
+                {!dayPage && (
+                  <button
+                    type="button"
+                    className="btn btn--sm btn--outline-primary"
+                    disabled={saver.saving}
+                    onClick={() => guard.leave(`/education/theme-plans/${classId}`)}
+                  >
+                    <X size={16} aria-hidden /> Hủy
+                  </button>
+                )}
                 <button
                   type="button"
                   className="btn btn--sm btn--primary"
@@ -734,6 +760,7 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
             cards={cards}
             reuse={lessonReuseFor(split ? dayPlans : weekPlans, draft, day)}
             emptySections={emptyNow.filter((e) => e.date === draft.days[day].date).map((e) => e.section)}
+            toolsTarget={toolsEl}
             flagOf={(id) => version.unresolved.find((f) => f.goalId === String(id)) || null}
             offLabel={week?.offDays?.[day] || null}
             assessTo={

@@ -4,18 +4,18 @@ import {
   Card,
   DocAvailabilityBadge,
   EduStatusBadge,
+  EmptyCard,
   EmptyState,
   FoldAllButton,
   Notice,
   PageHead,
   YearPlanStatusBadge,
 } from '@/components/education-plan/eduUi';
-import { ClassFilterBar, ClassPageEmpty, docReview, useClassPlanContext } from '@/components/education-plan/planUi';
+import { ClassFilterBar, ClassPageEmpty, FilterSelect, docReview, useClassPlanContext } from '@/components/education-plan/planUi';
 import { RejectedNotice, ReviewActions, ReviewHistory } from '@/components/education-plan/reviewUi';
 import { submitEntryOf } from '@/models/education-plan/reviewHistory.mjs';
 import { BlockedNotice, DeadlineBadge } from '@/components/education-plan/DeadlineWidgets';
 import { LoadingState } from '@/components/ui/States';
-import { Tabs } from '@/components/ui/Tabs';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { Copy, Eye, FileDown, Pencil, Plus } from '@/components/ui/icons';
 import { themeRowOf } from '@/components/education-plan/ThemePlanBody';
@@ -23,6 +23,7 @@ import { numberGoals } from '@/models/education-plan/goalTable';
 import { leaderNameOf, themeFile } from '@/utils/education-plan/classPlanDoc';
 import DocPreviewModal from '@/components/education-plan/DocPreviewModal';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
+import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { usePolling } from '@/hooks/usePolling';
 import {
   coverageOf,
@@ -30,6 +31,8 @@ import {
   ddmm,
   isEditableStatus,
   normalizeTheme,
+  semesterChoices,
+  themeBranchGroups,
   themeGoalBlocks,
   todayIso,
   yearWeeks,
@@ -59,6 +62,7 @@ export default function ClassPlanPage() {
   const { classId } = useParams();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
+  const { schoolYear: yearId, schoolYears } = useSchoolYear();
   const {
     user,
     branchPlans,
@@ -99,13 +103,12 @@ export default function ClassPlanPage() {
         classId={classId}
         onPick={(id) => navigate(`/education/theme-plans/${id}`)}
         emptyTitle="Không tìm thấy lớp"
-        emptyDesc="Chọn nhóm tuổi và lớp ở hàng lọc phía trên."
       />
     );
 
   const base = `/education/class/${classId}`;
-  // Khung chung các trang kế hoạch giáo dục (Tiền 12/11/2026): đường dẫn → hàng lọc → tab học kỳ → hàng nút (chỉ hàng nút dính)
-  const headOf = (extra, tabs = null, toolbar = null) => (
+  // Học kỳ nằm trong card lọc chung (Tiền 13/11/2026).
+  const headOf = (extra, toolbar = null) => (
     <div className="ga-sticky-head">
       <PageHead
         crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Kế hoạch giáo dục chủ đề' }]}
@@ -119,7 +122,6 @@ export default function ClassPlanPage() {
       >
         {extra}
       </ClassFilterBar>
-      {tabs && <div className="mb-16">{tabs}</div>}
       {toolbar}
     </div>
   );
@@ -134,7 +136,7 @@ export default function ClassPlanPage() {
             Trạng thái kế hoạch giáo dục tổ: <YearPlanStatusBadge status={pendingYearPlan.status} doc={pendingYearPlan} />
           </Notice>
         )}
-        <EmptyState title="Kế hoạch giáo dục tổ của nhóm tuổi này chưa được ban hành" />
+        <EmptyCard title="Kế hoạch giáo dục tổ của nhóm tuổi này chưa được ban hành" />
       </div>
     );
   }
@@ -144,13 +146,20 @@ export default function ClassPlanPage() {
     .sort((a, b) => a.semesterNo - b.semesterNo);
   // Mặc định học kỳ đang diễn ra (hạn = ngày bắt đầu học kỳ đã tới), chưa vào năm học thì học kỳ 1
   const today = todayIso();
-  const current = [...packages].reverse().find((p) => p.deadline && p.deadline <= today) || packages[0];
+  const allThemesForHk = [...yearPlan.themes].filter((t) => t.start && t.end);
+  const choices = semesterChoices(
+    schoolYears.find((y) => String(y.id) === String(yearId)),
+    allThemesForHk,
+    packages,
+  );
+  const current = [...choices].reverse().find((c) => c.deadline && c.deadline <= today) || choices[0];
   const hk = params.get('hk') || (current ? String(current.semesterNo) : '');
-  const pkg = packages.find((p) => String(p.semesterNo) === hk) || null;
+  const choice = choices.find((c) => String(c.semesterNo) === hk) || null;
+  const pkg = choice?.pkg || null;
   const rows = yearWeeks(yearPlan);
   const branch = branchPlan;
   const allThemes = [...yearPlan.themes].filter((t) => t.start && t.end).sort((a, b) => a.start.localeCompare(b.start));
-  const themeIds = pkg ? (pkg.themeIds || []).map(String) : null;
+  const themeIds = choice ? choice.themeIds : null;
   const themes = themeIds ? allThemes.filter((t) => themeIds.includes(String(t.id))) : allThemes;
   const numbers = numberGoals(yearPlan.domains);
   const themeArgs = (t, themeNo, doc, themeWeeks) => ({
@@ -236,13 +245,12 @@ export default function ClassPlanPage() {
     <div className="page ga-page">
       {preview && <DocPreviewModal file={preview} onClose={() => setPreview(null)} />}
       {headOf(
-        null,
-        packages.length > 0 && (
-          <Tabs
-            ariaLabel="Học kỳ"
+        choices.length > 0 && (
+          <FilterSelect
+            label="Học kỳ"
             value={hk}
             onChange={(key) => setParams({ hk: key }, { replace: true })}
-            items={packages.map((p) => ({ key: String(p.semesterNo), label: `Học kỳ ${p.semesterNo}`, count: (p.themeIds || []).length }))}
+            options={choices.map((c) => ({ value: String(c.semesterNo), label: `Học kỳ ${c.semesterNo} (${c.themeIds.length})` }))}
           />
         ),
         (pkg || foldAll) && (
@@ -316,7 +324,7 @@ export default function ClassPlanPage() {
           )}
         </div>
       )}
-      {themes.length === 0 && <EmptyState title="Học kỳ chưa có chủ đề" />}
+      {themes.length === 0 && <EmptyCard title="Chưa có chủ đề trong học kỳ" />}
       {themes.map((t) => {
         const ti = allThemes.indexOf(t);
         const doc = classThemePlans.find((x) => x.classId === classId && x.themeId === t.id) || null;
@@ -328,6 +336,11 @@ export default function ClassPlanPage() {
           weekPlans.find((w) => w.classId === classId && w.yearPlanId === yearPlan.id && w.weekStart === start) || null;
         // Người chỉ xem mà chủ đề chưa có tài liệu nào: không có thao tác ⇒ ẩn cột Thao tác trống (Tiền 12/11/2026)
         const showActions = !viewer || !!doc || themeWeeks.some((r) => docOfWeek(r.start));
+        // Một dòng mỗi chủ đề nhánh (nhánh nhiều tuần gộp "Tuần a+b"), xen đợt nghỉ theo ngày; mở tuần đầu, trang tuần có tab từng tuần (Tiền 13/11/2026)
+        const branchRows = [
+          ...themeBranchGroups(yearPlan, branch, t.id).map((g) => ({ type: 'branch', start: g.weeks[0].start, group: g })),
+          ...themeRows.filter((r) => r.type === 'break'),
+        ].sort((a, b) => a.start.localeCompare(b.start));
         return (
           <Card
             key={t.id}
@@ -390,7 +403,7 @@ export default function ClassPlanPage() {
                         </td>
                       )}
                     </tr>
-                    {themeRows.map((r) => {
+                    {branchRows.map((r) => {
                       if (r.type === 'break')
                         return (
                           <tr key={`b-${r.start}`}>
@@ -401,33 +414,66 @@ export default function ClassPlanPage() {
                             </td>
                           </tr>
                         );
-                      const wdoc = docOfWeek(r.start);
-                      const name = branch?.names?.[r.start]?.trim();
-                      const lock = !wdoc && !viewer && weekLock;
+                      const g = r.group;
+                      const first = g.weeks[0];
+                      const last = g.weeks[g.weeks.length - 1];
+                      const docs = g.weeks.map((w) => docOfWeek(w.start));
+                      const wdoc = docs[0];
+                      const lock =
+                        !wdoc &&
+                        !viewer &&
+                        (weekLock ||
+                          createBlocker(
+                            'week',
+                            { classId, yearPlanId: yearPlan.id, themeId: t.id, weekStart: first.start },
+                            { branchPlans, classThemePlans, yearPlan },
+                          ));
+                      const many = g.weeks.length > 1;
                       return (
                         <tr key={r.start}>
                           <td>
                             <div className="ga-goal-table__pad">
-                              <div className={name ? 'fw-600' : 'muted'}>
-                                Kế hoạch tuần · nhánh {themeWeeks.indexOf(r) + 1}: {name || 'chưa đặt tên'}
+                              <div className={g.name ? 'fw-600' : 'muted'}>
+                                Kế hoạch tuần · nhánh {g.no}: {g.name || 'chưa đặt tên'}
                               </div>
-                              <MissingNote items={missingAt(t.id, r.start)} />
+                              <MissingNote items={g.weeks.flatMap((w) => missingAt(t.id, w.start))} />
                             </div>
                           </td>
                           <td className="cell--fixed">
                             <div className="ga-goal-table__pad">
-                              Tuần {r.no}: {ddmm(r.start)} → {ddmm(r.end)}
+                              Tuần {g.weeks.map((w) => w.no).join('+')}: {ddmm(first.start)} → {ddmm(last.end)}
                             </div>
                           </td>
                           <td className="center ga-theme-status-cell">
                             <div className="ga-goal-table__pad" title={lock ? lock.message : undefined}>
-                              {lock ? <DocAvailabilityBadge status="LOCKED" /> : status(wdoc, 'NOT_DRAFTED')}
+                              {lock ? (
+                                <DocAvailabilityBadge status="LOCKED" />
+                              ) : many ? (
+                                <div className="stack">
+                                  {g.weeks.map((w, k) => (
+                                    <div key={w.start} className="row row--middle gap-2 nowrap">
+                                      <span className="muted text-sm">Tuần {w.no}</span> {status(docs[k], 'NOT_DRAFTED')}
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                status(wdoc, 'NOT_DRAFTED')
+                              )}
                             </div>
                           </td>
                           {showActions && (
                             <td className="center cell--actions">
                               <div className="ga-goal-table__pad">
-                                {!lock && action(wdoc, `${base}/weeks/${r.start}`, 'Tạo', `kế hoạch tuần ${r.no}`, 'week')}
+                                {!lock && action(wdoc, `${base}/weeks/${first.start}`, 'Tạo', `kế hoạch tuần nhánh ${g.no}`, 'week')}
+                                {lock?.need === 'branch' && (
+                                  <Link
+                                    className="btn btn--outline-primary btn--sm"
+                                    to={`/education/branches/${classId}`}
+                                    title={lock.message}
+                                  >
+                                    <Pencil size={16} aria-hidden /> Đặt tên nhánh
+                                  </Link>
+                                )}
                               </div>
                             </td>
                           )}

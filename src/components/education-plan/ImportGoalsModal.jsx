@@ -9,12 +9,12 @@ import { ErrorState, LoadingState } from '@/components/ui/States';
 import { GoalPicker } from '@/components/education-plan/GoalPicker';
 import { versionOf } from '@/models/education-plan/planVersions.mjs';
 
-export default function ImportGoalsModal({ planLevel = 'TEAM', excludeId, defaultAgeGroupId, defaultYear, onClose, onImport }) {
+export default function ImportGoalsModal({ planLevel = 'TEAM', excludeId, defaultAgeGroupId, defaultYear, defaultSourceId = '', onClose, onImport }) {
   const { schoolYears, user } = useEducationPlan();
   // Mặc định năm học của kế hoạch đang soạn (Tiền 31/10)
   const [year, setYear] = useState(schoolYears.includes(defaultYear) ? defaultYear : schoolYears[1] || schoolYears[0] || '');
   const [ageGroupId, setAgeGroupId] = useState(defaultAgeGroupId || '');
-  const [sourceId, setSourceId] = useState('');
+  const [sourceId, setSourceId] = useState(defaultSourceId);
   const [picked, setPicked] = useState({ key: '', ids: [] });
   // Lĩnh vực con bỏ tích (khóa `${lĩnh vực}|${id dòng}`): chỉ lấy mục tiêu, không lấy lĩnh vực con (Tiền 05/11)
   const [dropped, setDropped] = useState({ key: '', subs: [] });

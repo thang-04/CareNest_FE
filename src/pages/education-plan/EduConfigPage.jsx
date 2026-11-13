@@ -243,19 +243,36 @@ export default function EduConfigPage() {
       <div className="ga-sticky-head">
         <PageHead crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Cấu hình' }]} title="Cấu hình kế hoạch giáo dục" />
         <div className="ga-year-toolbar" role="group" aria-label="Thao tác cấu hình kế hoạch giáo dục">
-          {/* Chỉnh sửa bên phải, cùng chỗ với Lưu như mọi trang kế hoạch giáo dục (Tiền 12/11/2026) */}
-          {!editing && (
-            <div className="ga-year-toolbar__group ga-year-toolbar__group--end">
-              <button type="button" className="btn btn--sm btn--outline-primary" onClick={() => setEditing(true)}>
-                <Pencil size={16} aria-hidden /> Chỉnh sửa
-              </button>
-            </div>
-          )}
-          {editing && (
+          {editing && isPrincipal && (
             <div className="ga-year-toolbar__group">
               <button
                 type="button"
-                className="btn btn--sm"
+                className="btn btn--sm btn--outline-primary"
+                onClick={() =>
+                  setConfirmDelete({
+                    title: 'Khôi phục mặc định',
+                    message:
+                      'Toàn bộ cấu hình (thời lượng, lĩnh vực, người tạo/duyệt, dòng kế hoạch tuần) sẽ về mặc định. Bấm Lưu để áp dụng.',
+                    confirmLabel: 'Khôi phục',
+                    run: () => setDraft((d) => resetEduConfig(d)),
+                  })
+                }
+              >
+                <RotateCcw size={16} aria-hidden /> Khôi phục mặc định
+              </button>
+            </div>
+          )}
+          {/* Chỉnh sửa / Hủy cùng một chỗ, Lưu đứng sau (Tiền 13/11/2026) */}
+          <div className="ga-year-toolbar__group ga-year-toolbar__group--end">
+            {editing && (
+              <p className="muted text-sm ga-year-save-status" aria-live="polite">
+                {saver.label}
+              </p>
+            )}
+            {editing ? (
+              <button
+                type="button"
+                className="btn btn--sm btn--outline-primary"
                 disabled={saver.saving}
                 onClick={() => {
                   const run = () => {
@@ -275,30 +292,12 @@ export default function EduConfigPage() {
               >
                 <X size={16} aria-hidden /> Hủy
               </button>
-            </div>
-          )}
-          {editing && (
-            <div className="ga-year-toolbar__group ga-year-toolbar__group--end">
-              <p className="muted text-sm ga-year-save-status" aria-live="polite">
-                {saver.label}
-              </p>
-              {isPrincipal && (
-                <button
-                  type="button"
-                  className="btn btn--sm btn--outline-primary"
-                  onClick={() =>
-                    setConfirmDelete({
-                      title: 'Khôi phục mặc định',
-                      message:
-                        'Toàn bộ cấu hình (thời lượng, lĩnh vực, người tạo/duyệt, dòng kế hoạch tuần) sẽ về mặc định. Bấm Lưu để áp dụng.',
-                      confirmLabel: 'Khôi phục',
-                      run: () => setDraft((d) => resetEduConfig(d)),
-                    })
-                  }
-                >
-                  <RotateCcw size={16} aria-hidden /> Khôi phục mặc định
-                </button>
-              )}
+            ) : (
+              <button type="button" className="btn btn--sm btn--outline-primary" onClick={() => setEditing(true)}>
+                <Pencil size={16} aria-hidden /> Chỉnh sửa
+              </button>
+            )}
+            {editing && (
               <button
                 type="button"
                 className="btn btn--sm btn--primary"
@@ -308,8 +307,8 @@ export default function EduConfigPage() {
               >
                 <Save size={16} aria-hidden /> Lưu
               </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
 

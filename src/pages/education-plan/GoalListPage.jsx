@@ -95,17 +95,7 @@ export default function GoalListPage({ planLevel = 'TEAM' }) {
 
   return (
     <div className="page ga-page">
-      <PageHead
-        crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: pageLabel }]}
-        title={pageLabel}
-        actions={
-          canCreate && (
-            <Link to={`${basePath}/new`} state={{ backTo: basePath }} className="btn btn--primary">
-              <Plus size={16} aria-hidden /> {annual ? 'Lập kế hoạch năm học' : 'Lập kế hoạch giáo dục tổ'}
-            </Link>
-          )
-        }
-      />
+      <PageHead crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: pageLabel }]} title={pageLabel} />
 
       {/* Tổ trưởng, giáo viên chỉ có 1–2 kế hoạch mỗi năm: không cần thẻ tổng quan, tìm kiếm, lọc */}
       {(isVP || isPrincipal) && (
@@ -123,23 +113,34 @@ export default function GoalListPage({ planLevel = 'TEAM' }) {
       )}
 
       <Card bodyClass={null}>
-        {(isVP || isPrincipal) && (
+        {(isVP || isPrincipal || canCreate) && (
           <div className="filter-bar">
-            <SearchSubmit value={q} placeholder="Tìm theo tên hoặc mã" label="Tìm kế hoạch" onSearch={setQ} />
-            <select className="select" value={age} onChange={(e) => setAge(e.target.value)} aria-label="Lọc theo nhóm tuổi">
-              <option value="">Tất cả nhóm tuổi</option>
-              {AGE_GROUPS.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
-                </option>
-              ))}
-            </select>
+            {(isVP || isPrincipal) && (
+              <>
+                <SearchSubmit value={q} placeholder="Tìm theo tên hoặc mã" label="Tìm kế hoạch" onSearch={setQ} />
+                <select className="select" value={age} onChange={(e) => setAge(e.target.value)} aria-label="Lọc theo nhóm tuổi">
+                  <option value="">Tất cả nhóm tuổi</option>
+                  {AGE_GROUPS.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                    </option>
+                  ))}
+                </select>
+              </>
+            )}
+            {canCreate && (
+              <div className="filter-bar__end">
+                <Link to={`${basePath}/new`} state={{ backTo: basePath }} className="btn btn--primary">
+                  <Plus size={16} aria-hidden /> {annual ? 'Lập kế hoạch năm học' : 'Lập kế hoạch giáo dục tổ'}
+                </Link>
+              </div>
+            )}
           </div>
         )}
         {rows.length === 0 && scoped.length > 0 ? (
           // Có kế hoạch nhưng bộ lọc loại hết: không báo "chưa có", cho đặt lại bộ lọc
           <EmptyState
-            title="Không có kế hoạch phù hợp"
+            title="Không có kết quả phù hợp"
             action={
               <button
                 className="btn"
@@ -156,22 +157,6 @@ export default function GoalListPage({ planLevel = 'TEAM' }) {
           <EmptyState
             // Người chỉ xem chỉ thấy bản đã ban hành (BE spec 002 FR-011)
             title={isYearCreator ? `Chưa có ${pageLabel.toLowerCase()}` : 'Chưa có bản ban hành'}
-            desc={
-              annual && eduConfig?.durationPolicyAvailable === false
-                ? 'Bạn có thể mở form kế hoạch năm học để xem trước. Thao tác lưu và gửi duyệt sẽ có khi máy chủ hỗ trợ; kế hoạch giáo dục tổ hiện có vẫn sử dụng bình thường.'
-                : !annual
-                  ? 'Kế hoạch tổ được tự tạo ở trạng thái Nháp khi kế hoạch năm học của nhóm tuổi được ban hành.'
-                  : canCreate
-                    ? 'Lập kế hoạch năm học cho nhóm tuổi.'
-                    : 'Chưa có kế hoạch năm học trong phạm vi được xem.'
-            }
-            action={
-              canCreate && (
-                <Link to={`${basePath}/new`} state={{ backTo: basePath }} className="btn btn--primary">
-                  <Plus size={16} aria-hidden /> {annual ? 'Lập kế hoạch năm học' : 'Lập kế hoạch giáo dục tổ'}
-                </Link>
-              )
-            }
           />
         ) : (
           <div className="table-wrap">

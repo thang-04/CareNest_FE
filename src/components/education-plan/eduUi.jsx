@@ -320,6 +320,15 @@ export function EmptyState({ title, desc, action, icon }) {
   return <SharedEmptyState icon={icon} title={title} description={desc} action={action} />;
 }
 
+/** Thông báo trống luôn nằm trong card (cùng khung với hàng lọc), chỉ có tiêu đề. */
+export function EmptyCard(props) {
+  return (
+    <Card bodyClass={null}>
+      <EmptyState {...props} />
+    </Card>
+  );
+}
+
 /** Thông báo trong trang của kế hoạch giáo dục: luôn là chữ đỏ, không dùng thẻ màu (Tiền 11/11/2026). */
 export function Notice({ children }) {
   return (

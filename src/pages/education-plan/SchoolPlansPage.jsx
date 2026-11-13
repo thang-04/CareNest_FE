@@ -169,7 +169,6 @@ export default function SchoolPlansPage() {
         {rows.length === 0 ? (
           <EmptyState
             title={all.length ? 'Không có kết quả phù hợp' : `Chưa có ${TABS.find((t) => t.key === tab).label.toLowerCase()} nào được gửi`}
-            desc={all.length ? 'Thử đổi từ khóa hoặc bộ lọc.' : `Năm học ${schoolYear} chưa có dữ liệu ở mục này.`}
           />
         ) : (
           <div className="table-wrap">

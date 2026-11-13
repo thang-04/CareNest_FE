@@ -416,6 +416,10 @@
   padding: 0;
   list-style: none;
 }
+/* Bảng phủ MT: các thứ đã dạy là chữ link gạch chân, cách nhau dấu phẩy (Tiền 13/11/2026) */
+.ga-coverage-days .link-btn {
+  text-decoration: underline;
+}
 /* Tuần nhánh là chữ link thường, có gạch chân; ngày cách ra bên phải (Tiền 04/11) */
 .ga-theme-weeks a {
   margin-right: var(--space-4);
@@ -580,6 +584,7 @@
   opacity: 0;
   pointer-events: none;
 }
+.ga-goal-label-cell:hover .ga-goal-label-fill,
 .ga-goal-label-cell:focus-within .ga-goal-label-fill {
   opacity: 1;
   pointer-events: auto;

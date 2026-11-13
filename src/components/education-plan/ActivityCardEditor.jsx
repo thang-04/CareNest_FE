@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { FormField } from '@/components/form/FormField';
@@ -26,9 +26,20 @@ export default function ActivityCardEditor({
   const [slot, setSlot] = useState(card?.slot || defaultSlot);
   const [name, setName] = useState(card?.name ?? defaultName);
   const [goalIds, setGoalIds] = useState(() => (card?.goalIds || defaultGoalIds).map(String));
-  const [refs, setRefs] = useState(() => card?.contentRefs || []);
+  // Thẻ mới: tích sẵn mọi nội dung của MT đang đứng, vẫn bỏ tích được (nội dung là tùy chọn, EDU-78; Tiền 13/11/2026)
+  const [refs, setRefs] = useState(
+    () =>
+      card?.contentRefs ||
+      defaultGoalIds.map(String).flatMap((id) => {
+        const g = goals.find((x) => String(x.id) === id);
+        return g ? contentLinesOf(contentsOf(g)).map((_, i) => `${id}:${i}`) : [];
+      }),
+  );
   const [tried, setTried] = useState(false);
   const [askDelete, setAskDelete] = useState(false);
+  const slotRef = useRef(null);
+  const nameRef = useRef(null);
+  const goalsRef = useRef(null);
   // Thẻ cũ "chưa rõ loại giờ" lưu lại được khi chưa đổi; thẻ mới bắt buộc chọn (FR-005, clarify 12/11)
   const slotOk = !!slot || (card?.legacy && !card.slot);
   const errors = {
@@ -45,7 +56,12 @@ export default function ActivityCardEditor({
   const toggleRef = (ref) => setRefs(refs.includes(ref) ? refs.filter((r) => r !== ref) : [...refs, ref]);
   const save = () => {
     setTried(true);
-    if (invalid) return;
+    if (invalid) {
+      // Lưu không được ⇒ đưa con trỏ tới ô lỗi đầu tiên
+      const first = errors.slot ? slotRef.current : errors.name ? nameRef.current : goalsRef.current?.querySelector('input');
+      first?.focus();
+      return;
+    }
     const fields = { slot, name: name.trim(), goalIds, contentRefs: refs };
     if (!card) onSave(newCard({ ...fields, origin }));
     else {
@@ -60,6 +76,8 @@ export default function ActivityCardEditor({
     <>
       <Modal
         open
+        // Cùng cỡ với modal Tùy chọn mục tiêu và các modal chọn mục tiêu khác (Tiền 13/11/2026)
+        size="xl"
         title={card ? 'Sửa hoạt động' : 'Thêm hoạt động'}
         onClose={onClose}
         footer={
@@ -80,7 +98,13 @@ export default function ActivityCardEditor({
       >
         <div className="stack">
           <FormField label="Loại giờ" required error={err('slot')}>
-            <select className="input" value={slot} onChange={(e) => setSlot(e.target.value)}>
+            <select
+              ref={slotRef}
+              className="input"
+              aria-invalid={!!err('slot') || undefined}
+              value={slot}
+              onChange={(e) => setSlot(e.target.value)}
+            >
               <option value="">{card?.legacy && !card.slot ? 'Chưa rõ loại giờ' : 'Chọn loại giờ'}</option>
               {weekRows().map((r) => (
                 <option key={r.key} value={r.key}>
@@ -91,9 +115,26 @@ export default function ActivityCardEditor({
           </FormField>
           {card?.legacy && !card.slot && !slot && <p className="text-danger text-sm text-right">Chưa rõ loại giờ</p>}
           <FormField label="Tên hoạt động" required error={err('name')}>
-            <input className="input" value={name} maxLength={CARD_NAME_MAX + 50} onChange={(e) => setName(e.target.value)} />
+            {/* Tắt tự điền: trình duyệt từng điền email đăng nhập vào ô này */}
+            <input
+              className="input"
+              ref={nameRef}
+              name="activity-name"
+              autoComplete="off"
+              aria-invalid={!!err('name') || undefined}
+              value={name}
+              maxLength={CARD_NAME_MAX + 50}
+              onChange={(e) => setName(e.target.value)}
+              // Enter ở ô tên: lưu luôn để nhập nhanh nhiều hoạt động
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+                  e.preventDefault();
+                  save();
+                }
+              }}
+            />
           </FormField>
-          <fieldset className="ga-edit-fieldset stack">
+          <fieldset ref={goalsRef} className="ga-edit-fieldset stack">
             <legend className="field__label">
               Mục tiêu<span className="req">*</span>
             </legend>

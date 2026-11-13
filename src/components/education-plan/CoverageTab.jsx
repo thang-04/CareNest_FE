@@ -12,8 +12,9 @@ const dayShort = (i) => WEEKDAY_LABELS[i].replace('Thứ ', 'T');
  * theo quyền và bản hiệu lực). onOpen(weekStart, day) mở đúng tuần, cuộn tới cột ngày.
  */
 export function CoverageTab({ blocks, cards, weeks, contentsOf, onOpen }) {
+  // Lọc và thu gọn nằm trong thẻ như các thẻ khác của trang; "Thu gọn tất cả" bấm được (Tiền 13/11/2026)
   const [filter, setFilter] = useState('all');
-  const [open, setOpen] = useState(() => new Set());
+  const [folded, setFolded] = useState(false);
   const goals = blocks.flatMap((b) => b.goals);
   const cov = coverageOf(goals, cards, weeks);
   const tree = new Map(themeTree(blocks, cards, (g) => contentLinesOf(contentsOf(g))).map((t) => [String(t.goal.id), t]));
@@ -23,43 +24,36 @@ export function CoverageTab({ blocks, cards, weeks, contentsOf, onOpen }) {
     if (filter === 'contents') return tree.get(String(g.id)).contents.some((c) => c.warn);
     return true;
   };
-  const toggle = (id) =>
-    setOpen((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
   const cols = weeks.length + 3;
   const shown = blocks.map((b) => b.goals.filter(show));
   return (
-    <Card title="Bảng phủ MT" bodyClass="card__body stack">
+    <Card
+      title="Bảng phủ mục tiêu"
+      bodyClass="card__body stack"
+      collapsed={folded}
+      onToggle={() => setFolded((v) => !v)}
+      actions={
+        goals.length > 0 && (
+          <span className="muted text-xs nowrap">
+            Đã phủ {cov.covered}/{cov.total} mục tiêu
+          </span>
+        )
+      }
+    >
       {goals.length === 0 ? (
         <p className="text-danger text-sm text-right">Kế hoạch năm chưa tích nội dung nào vào chủ đề này.</p>
       ) : (
         <>
-          <div className="row row--wrap row--between row--middle gap-2">
-            <div className="row row--wrap gap-2" role="group" aria-label="Lọc">
-              {[
-                ['all', 'Tất cả'],
-                ['missing', 'MT chưa dạy'],
-                ['contents', 'Nội dung chưa có hoạt động'],
-              ].map(([key, label]) => (
-                <button
-                  key={key}
-                  type="button"
-                  aria-pressed={filter === key}
-                  className={`btn btn--sm ${filter === key ? 'btn--primary' : 'btn--outline-primary'}`}
-                  onClick={() => setFilter(key)}
-                >
-                  {label}
-                </button>
-              ))}
+          <label className="row row--middle gap-2 text-sm">
+            <span className="nowrap">Lọc mục tiêu:</span>
+            <div>
+              <select className="input" value={filter} onChange={(e) => setFilter(e.target.value)}>
+                <option value="all">Tất cả</option>
+                <option value="missing">MT chưa dạy</option>
+                <option value="contents">Nội dung chưa có hoạt động</option>
+              </select>
             </div>
-            <span className="muted text-sm">
-              Đã phủ {cov.covered}/{cov.total} MT
-            </span>
-          </div>
+          </label>
           <div className="table-wrap">
             <table className="table ga-plan-table ga-goal-table">
               <colgroup>
@@ -112,67 +106,46 @@ export function CoverageTab({ blocks, cards, weeks, contentsOf, onOpen }) {
                         const id = String(g.id);
                         const r = rowOf.get(id);
                         const t = tree.get(id);
+                        // Như bảng kế hoạch năm học, mỗi MT một dòng, không cột nội dung (Tiền 13/11/2026)
                         const empty = t.contents.filter((c) => c.warn).length;
                         return (
-                          <Fragment key={id}>
-                            <tr>
-                              <td className="ga-stt">
-                                <div className="ga-goal-table__pad">
-                                  <span className="ga-goal-code">MT{g.no}</span>
-                                </div>
-                              </td>
-                              <td>
-                                <div className="ga-goal-table__pad stack">
-                                  <span>{g.text}</span>
-                                  {/* MT chưa dạy ngày nào: chữ đỏ nhỏ, chỉ cảnh báo (gói học kỳ không chặn — EDU-80) */}
-                                  {!r.count && <span className="text-danger text-sm">Chưa dạy</span>}
-                                  {t.contents.length > 0 && (
-                                    <div className="row row--wrap row--middle gap-2">
-                                      <button type="button" className="btn btn--sm" aria-expanded={open.has(id)} onClick={() => toggle(id)}>
-                                        {open.has(id) ? 'Ẩn nội dung' : `Xem ${t.contents.length} nội dung`}
-                                      </button>
-                                      {empty > 0 && <span className="text-danger text-sm">{empty} nội dung chưa có hoạt động</span>}
-                                    </div>
-                                  )}
-                                </div>
-                              </td>
-                              {weeks.map((w) => (
-                                <td key={w.start} className="center">
-                                  <div className="ga-goal-table__pad row row--wrap gap-1">
-                                    {(r.weeks[w.start] || []).map((i) => (
+                          <tr key={id}>
+                            <td className="ga-stt">
+                              <div className="ga-goal-table__pad">
+                                <span className="ga-goal-code">MT{g.no}</span>
+                              </div>
+                            </td>
+                            <td>
+                              <div className="ga-goal-table__pad">
+                                {g.text}
+                                {/* MT chưa dạy ngày nào: chữ đỏ nhỏ, chỉ cảnh báo (gói học kỳ không chặn — EDU-80) */}
+                                {!r.count && <div className="text-danger text-sm">Chưa dạy</div>}
+                                {empty > 0 && <div className="text-danger text-sm">{empty} nội dung chưa có hoạt động</div>}
+                              </div>
+                            </td>
+                            {weeks.map((w) => (
+                              <td key={w.start} className="center">
+                                <div className="ga-goal-table__pad ga-coverage-days">
+                                  {(r.weeks[w.start] || []).map((i, n) => (
+                                    <Fragment key={i}>
+                                      {n > 0 && ', '}
                                       <button
-                                        key={i}
                                         type="button"
-                                        className="btn btn--sm btn--outline-primary"
+                                        className="link-btn"
                                         aria-label={`Mở tuần ${w.no}, ${WEEKDAY_LABELS[i]}`}
                                         onClick={() => onOpen(w.start, i)}
                                       >
                                         {dayShort(i)}
                                       </button>
-                                    ))}
-                                  </div>
-                                </td>
-                              ))}
-                              <td className="center">
-                                <div className="ga-goal-table__pad">{r.count}</div>
+                                    </Fragment>
+                                  ))}
+                                </div>
                               </td>
-                            </tr>
-                            {open.has(id) && (
-                              <tr>
-                                <td />
-                                <td colSpan={cols - 1}>
-                                  <ul className="ga-goal-table__pad stack text-sm">
-                                    {t.contents.map((c) => (
-                                      <li key={c.index}>
-                                        {c.text}
-                                        {c.warn && <span className="text-danger"> · chưa có hoạt động</span>}
-                                      </li>
-                                    ))}
-                                  </ul>
-                                </td>
-                              </tr>
-                            )}
-                          </Fragment>
+                            ))}
+                            <td className="center">
+                              <div className="ga-goal-table__pad">{r.count}</div>
+                            </td>
+                          </tr>
                         );
                       })}
                     </Fragment>
@@ -192,12 +165,9 @@ export function CoverageTab({ blocks, cards, weeks, contentsOf, onOpen }) {
                             const w = weeks.find((x) => x.start === u.weekStart);
                             const when = /^\d$/.test(u.day) ? WEEKDAY_LABELS[Number(u.day)] : 'cả tuần';
                             return (
-                              <li key={`${u.weekStart}-${u.rowKey}-${u.day}`} className="row row--wrap row--middle gap-2">
-                                <button
-                                  type="button"
-                                  className="btn btn--sm btn--outline-primary"
-                                  onClick={() => onOpen(u.weekStart, u.day)}
-                                >
+                              <li key={`${u.weekStart}-${u.rowKey}-${u.day}`} className="row row--wrap row--middle gap-2 ga-coverage-days">
+                                {/* Chữ link xanh gạch chân như các thứ đã dạy trong bảng (Tiền 13/11/2026) */}
+                                <button type="button" className="link-btn" onClick={() => onOpen(u.weekStart, u.day)}>
                                   Tuần {w?.no} · {when}
                                 </button>
                                 <span>{u.text}</span>

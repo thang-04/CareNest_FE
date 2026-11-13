@@ -360,7 +360,6 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
           domains={domains}
           themes={annual ? [] : themes}
           numbers={numbers}
-          ageGroupId={g.ageGroupId}
           fixedCells={!annual}
           readOnly
         />

@@ -9,7 +9,6 @@ import {
   updateWeek,
 } from '@/models/education-plan/branchCalendar.mjs';
 import { useEffect, useState } from 'react';
-import { Tabs } from '@/components/ui/Tabs';
 import { Navigate, useParams } from 'react-router-dom';
 import { Check, Download, FileDown, Lightbulb, Pencil, Save, Wand2, X } from '@/components/ui/icons';
 import { branchFile, leaderNameOf } from '@/utils/education-plan/classPlanDoc';
@@ -18,7 +17,7 @@ import { Card, fmtDate, Notice, PageHead } from '@/components/education-plan/edu
 import DatePickerCell from '@/components/education-plan/DatePickerCell';
 import { VersionHistory } from '@/components/education-plan/VersionHistory';
 import { docLines } from '@/models/education-plan/planHistory.mjs';
-import { Cell, ClassFilterBar, ClassPageEmpty, focusCell, useClassPlanContext } from '@/components/education-plan/planUi';
+import { Cell, ClassFilterBar, ClassPageEmpty, FilterSelect, focusCell, useClassPlanContext } from '@/components/education-plan/planUi';
 import { RejectedNotice } from '@/components/education-plan/reviewUi';
 import { LoadingState } from '@/components/ui/States';
 import { AiWorkingOverlay } from '@/components/ui/AiWorkingOverlay';
@@ -31,7 +30,16 @@ import { usePolling } from '@/hooks/usePolling';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
-import { branchGrid, ddmm, emptyBranchPlan, isEditableStatus, monthOf, offDaysText } from '@/models/education-plan/classPlan';
+import {
+  branchGrid,
+  ddmm,
+  emptyBranchPlan,
+  isEditableStatus,
+  monthOf,
+  offDaysText,
+  semesterChoices,
+} from '@/models/education-plan/classPlan';
+import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { SupersededNote, VersionCopyOffer, VersionFlagsPanel } from '@/components/education-plan/VersionWidgets';
 import { useDocVersion } from '@/hooks/education-plan/useDocVersion';
 import { checkFlag, dropReference, versionOf } from '@/models/education-plan/planVersions.mjs';
@@ -86,6 +94,8 @@ function BranchPlanInner({ classId }) {
   const [confirm, setConfirm] = useState(null);
   const [copying, setCopying] = useState(false);
   const [view, setView] = useState('list');
+  const [semesterNo, setSemesterNo] = useState('');
+  const { schoolYear: yearId, schoolYears } = useSchoolYear();
   const version = useDocVersion('branch', saved, ctx, branchPlans);
   const autoOk =
     !ctx.superseded &&
@@ -157,13 +167,20 @@ function BranchPlanInner({ classId }) {
         classId={classId}
         onPick={(id) => guard.leave(`/education/branches/${id}`)}
         emptyTitle={cls ? 'Kế hoạch giáo dục tổ của nhóm tuổi này chưa được ban hành' : 'Không tìm thấy lớp'}
-        emptyDesc={cls ? undefined : 'Chọn nhóm tuổi và lớp ở hàng lọc phía trên.'}
       />
     );
   if (!draft) return <LoadingState />;
 
   const status = saved?.status || EDU_STATUS.DRAFT;
   const packages = semesterPackages.filter((p) => p.classId === classId && p.yearPlanId === yearPlan?.id);
+  const choices = semesterChoices(
+    schoolYears.find((y) => String(y.id) === String(yearId)),
+    yearPlan.themes.filter((t) => t.start && t.end),
+    packages,
+  );
+  const selectedPackage = choices.find((c) => String(c.semesterNo) === semesterNo) || null;
+  const visibleThemeIds = selectedPackage ? new Set(selectedPackage.themeIds) : null;
+  const inSemester = (row) => !visibleThemeIds || visibleThemeIds.has(String(row.theme.id));
   const canEdit = autoOk;
   // Chép chủ đề nhánh của phiên bản trước sang phiên bản mới (BE:EDU-26)
   const copyOld = async () => {
@@ -197,8 +214,9 @@ function BranchPlanInner({ classId }) {
     draft.branches.find(
       (branch) => String(branch.themeId) === String(row.theme.id) && row.start >= branch.startDate && row.start <= branch.endDate,
     );
-  const displayRows = branchDisplayRows(yearPlan, draft);
-  const mappedWeeks = displayRows.filter((r) => r.type === 'week' && branchForWeek(r));
+  const allRows = branchDisplayRows(yearPlan, draft);
+  const displayRows = allRows.filter(inSemester);
+  const mappedWeeks = allRows.filter((r) => r.type === 'week' && branchForWeek(r));
   const weekCount = mappedWeeks.length;
   const empty = mappedWeeks.filter((r) => !draft.names[r.start]?.trim()).length;
   const set = (field, key, value) => {
@@ -428,30 +446,32 @@ function BranchPlanInner({ classId }) {
             setEditing(false);
             guard.leave(`/education/branches/${id}`);
           }}
-        />
-        {/* Khung chung (Tiền 12/11/2026): hàng lọc → tab → hàng nút */}
-        {!editable && (
-          <div className="mb-16">
-            <Tabs
-              ariaLabel="Kiểu hiển thị"
+        >
+          <FilterSelect
+            label="Học kỳ"
+            value={selectedPackage ? semesterNo : ''}
+            onChange={setSemesterNo}
+            options={[
+              { value: '', label: 'Cả năm' },
+              ...choices.map((c) => ({ value: String(c.semesterNo), label: `Học kỳ ${c.semesterNo}` })),
+            ]}
+          />
+          {!editable && (
+            <FilterSelect
+              label="Kiểu hiển thị"
               value={view}
               onChange={setView}
-              items={[
-                { key: 'list', label: 'Danh sách' },
-                { key: 'grid', label: 'Bảng' },
+              options={[
+                { value: 'list', label: 'Danh sách' },
+                { value: 'grid', label: 'Bảng' },
               ]}
             />
-          </div>
-        )}
+          )}
+        </ClassFilterBar>
         {/* Thanh thao tác như màn Kế hoạch năm học: nút cỡ nhỏ viền xanh, nhóm lưu/gửi/xuất bên phải (Tiền 04/11) */}
         <div className="ga-year-toolbar" role="group" aria-label="Thao tác chủ đề nhánh">
           <div className="ga-year-toolbar__group">
             <span className="ga-year-toolbar__title">{cls.name}</span>
-            {editable && (
-              <button type="button" className="btn btn--sm" disabled={aiBusy || saver.saving} onClick={cancelEdit}>
-                <X size={16} aria-hidden /> Hủy
-              </button>
-            )}
             {editable && (
               <button
                 type="button"
@@ -464,12 +484,6 @@ function BranchPlanInner({ classId }) {
             )}
           </div>
           <div className="ga-year-toolbar__group ga-year-toolbar__group--end">
-            {/* Chỉnh sửa cùng chỗ với Lưu ở mọi trang (Tiền 12/11/2026) */}
-            {!editing && canEdit && (
-              <button type="button" className="btn btn--sm btn--outline-primary" onClick={() => setEditing(true)}>
-                <Pencil size={16} aria-hidden /> Chỉnh sửa
-              </button>
-            )}
             {editing && (
               <>
                 <p className="muted text-sm ga-year-save-status" aria-live="polite">
@@ -483,6 +497,23 @@ function BranchPlanInner({ classId }) {
                   linesOf={docLines}
                   onUse={(entry) => (entry ? saver.restoreDraft(entry) : saver.restoreSaved())}
                 />
+              </>
+            )}
+            {/* Chỉnh sửa / Hủy cùng một chỗ, Lưu đứng sau (Tiền 13/11/2026) */}
+            {editable ? (
+              <button type="button" className="btn btn--sm btn--outline-primary" disabled={aiBusy || saver.saving} onClick={cancelEdit}>
+                <X size={16} aria-hidden /> Hủy
+              </button>
+            ) : (
+              !editing &&
+              canEdit && (
+                <button type="button" className="btn btn--sm btn--outline-primary" onClick={() => setEditing(true)}>
+                  <Pencil size={16} aria-hidden /> Chỉnh sửa
+                </button>
+              )
+            )}
+            {editing && (
+              <>
                 <button
                   type="button"
                   className="btn btn--sm btn--primary"
@@ -573,7 +604,7 @@ function BranchPlanInner({ classId }) {
       >
         <div className="card__body stack">
           {view === 'grid' && !editable ? (
-            <BranchGridTable rows={teachingWeeks(yearPlan, draft)} names={draft.names} branches={draft.branches} />
+            <BranchGridTable rows={teachingWeeks(yearPlan, draft).filter(inSemester)} names={draft.names} branches={draft.branches} />
           ) : (
             <div className="table-wrap">
               <table
@@ -762,7 +793,11 @@ function BranchPlanInner({ classId }) {
                   {displayRows.length === 0 && (
                     <tr>
                       <td colSpan={5}>
-                        <div className="ga-goal-table__pad muted">Kế hoạch năm chưa có chủ đề nào có ngày bắt đầu và kết thúc.</div>
+                        <div className="ga-goal-table__pad muted">
+                          {selectedPackage
+                            ? 'Học kỳ này chưa có chủ đề nào có lịch.'
+                            : 'Kế hoạch năm chưa có chủ đề nào có ngày bắt đầu và kết thúc.'}
+                        </div>
                       </td>
                     </tr>
                   )}
