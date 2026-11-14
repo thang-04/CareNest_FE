@@ -37,7 +37,7 @@ test('IT-01 cấu hình kế hoạch: mọi vai trò đọc được, giáo viê
 
 test('IT-02 giáo viên không phải Tổ trưởng không lập được kế hoạch năm', async () => {
   // teacher2 là Tổ trưởng 4–5 tuổi từ dữ liệu dev 10/11 (BE:docs/TAI_KHOAN_DEMO.md) ⇒ dùng GV thường teacher6
-  const res = await api('thanh.phamthi@thuonghong.carenest.edu.vn', 'POST', GOALS, {
+  const res = await api('teacher2', 'POST', GOALS, {
     body: await yearPlanBody(`${E2E.titlePrefix} không được tạo`),
     headers: editHeaders(newSession(), 0),
   });

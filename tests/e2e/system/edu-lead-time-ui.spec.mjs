@@ -5,7 +5,7 @@ import { login, spaGo } from '../support/ui.mjs';
 // System spec 003 trên dữ liệu dev (chạy sau integration edu-lead-time-api: học kỳ đã cấu hình, gói học kỳ đã có).
 test.describe.configure({ mode: 'serial' });
 
-const U = { vp: 'tam.lethi@thuonghong.carenest.edu.vn', tl: 'lan.nguyenkim@thuonghong.carenest.edu.vn', gv2: 'thanh.phamthi@thuonghong.carenest.edu.vn' };
+const U = { vp: 'viceprincipal', tl: 'teacher1', gv2: 'teacher2' };
 let cls;
 let week;
 

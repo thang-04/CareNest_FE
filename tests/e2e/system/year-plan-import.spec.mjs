@@ -456,7 +456,7 @@ test('EDU-43 lấy chủ đề, đợt nghỉ từ kế hoạch khác năm/nhóm
 });
 
 test('EDU-06/43 Tổ trưởng: nhóm tuổi khác chỉ thấy bản đã ban hành (chỉ đọc) và lấy được chủ đề từ đó', async ({ page }) => {
-  const teacher1 = Number(sql(`select id from user_accounts where email = 'lan.nguyenkim@thuonghong.carenest.edu.vn'`));
+  const teacher1 = Number(sql(`select id from user_accounts where username = 'teacher1'`));
   sql(
     `insert into staff_assignments (user_id, staff_role, age_group_id, valid_from) values (${teacher1}, 'AGE_GROUP_TEAM_LEADER', ${Number(target.ageGroupId)}, '${E2E.markerDate}')`,
   );

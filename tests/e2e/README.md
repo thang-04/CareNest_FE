@@ -20,7 +20,7 @@ Chạy với **BE thật**: không dùng mock. Không nằm trong `scripts/verif
 - Bộ test chỉ dùng năm học 2027-2028, nhóm Mẫu giáo nhỡ, lớp B1 của năm đó. Kế hoạch năm do test tạo có tiêu đề bắt đầu bằng `[E2E]`.
 - Bộ test thêm phân công Tổ trưởng tạm (`valid_from = 2026-01-01`). Ở system test, phân công Tổ trưởng sẵn có của teacher1 bị dời `valid_from` +100 năm vì shim đăng nhập dev của Web chỉ đọc phân công Tổ trưởng đầu tiên.
 - `cleanup()` chạy trước và sau mỗi bộ: xóa đúng các dòng trên và khôi phục phân công Tổ trưởng cũ. Đặt `E2E_KEEP_DATA=1` để giữ dữ liệu lại khi cần soi lỗi.
-- Tài khoản dev là bộ dữ liệu của BE (`BE:docs/TAI_KHOAN_DEV.md`): `USERS` trong `support/realBe.mjs` = PHT Cơ sở 1, Hiệu trưởng, GV chủ nhiệm Lớp Chồi 1 kiêm tổ trưởng ag-4 (teacher1) và GV thứ hai lớp đó (teacher2), đăng nhập bằng email. Mật khẩu chung của realm dev: **bắt buộc** đặt biến môi trường `E2E_DEV_PASSWORD` trước khi chạy (local là mật khẩu ở `BE:docs/TAI_KHOAN_DEV.md`; thiếu biến thì test báo lỗi ngay).
+- Tài khoản dev là bộ dữ liệu của BE (`BE:docs/TAI_KHOAN_DEV.md`): `USERS` trong `support/realBe.mjs` dùng tên đăng nhập `viceprincipal` (PHT Cơ sở 1), `principal`, `teacher1` (GV chủ nhiệm Lớp Chồi 1, kiêm tổ trưởng ag-4), `teacher2` (GV thứ hai lớp đó). Mật khẩu chung của realm dev: **bắt buộc** đặt biến môi trường `E2E_DEV_PASSWORD` trước khi chạy (local `demo123`; thiếu biến thì test báo lỗi ngay).
 - Postgres: test đọc/xóa dữ liệu qua `docker exec <container> psql`. Mặc định container `carenest_be-postgres-1`, DB `carenest`, user `postgres`; đổi bằng `E2E_PG_CONTAINER`, `E2E_PG_DB`, `E2E_PG_USER` (ví dụ máy dùng DB riêng `carenest_local`, user `carenest`).
 
 ## Hồ sơ trẻ, sức khỏe (`system/children-records.spec.mjs`)
