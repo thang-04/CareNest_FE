@@ -219,14 +219,7 @@ export default function ClassRatingsPage() {
   const saveActions = (
     <>
       {changed.length > 0 && (
-        <button
-          className="btn"
-          onClick={() => {
-            setDrafts({});
-            setErrors({});
-          }}
-          disabled={saving}
-        >
+        <button className="btn" onClick={() => setDrafts({})} disabled={saving}>
           Hủy thay đổi
         </button>
       )}

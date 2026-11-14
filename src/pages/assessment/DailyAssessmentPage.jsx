@@ -106,8 +106,7 @@ export default function DailyAssessmentPage() {
       return true;
     } catch (err) {
       setSaveError(err);
-      // Lỗi theo ô đã hiện đỏ dưới ô đó; chỉ báo toast khi lỗi không gắn được vào ô nào
-      if (!err.details?.comment && !err.details?.classComment) toast.error(err, 'Không lưu được đánh giá');
+      toast.error(err, 'Không lưu được đánh giá');
       return false;
     } finally {
       setSaving(false);
