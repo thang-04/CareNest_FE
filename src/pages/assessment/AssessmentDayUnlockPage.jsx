@@ -9,12 +9,17 @@ import { useAsync } from '@/hooks/useAsync';
 import { useDailyAssessmentClasses } from '@/hooks/assessment/useAssessment';
 import {
   getAssessmentDayUnlocks,
+  getEvaluationUnlocks,
   getWeeklyCommentUnlocks,
   revokeAssessmentDayUnlock,
+  revokeEvaluationUnlock,
   revokeWeeklyCommentUnlock,
   unlockAssessmentDay,
 } from '@/services/assessment/assessmentService';
 import { WeeklyCommentReopenForm } from '@/components/assessment/WeeklyCommentReopenForm';
+import { EvaluationReopenForm } from '@/components/assessment/EvaluationReopenForm';
+import { OverdueClassesCard } from '@/components/assessment/OverdueClassesCard';
+import { EVALUATION_LOCK_KINDS } from '@/models/assessment/evaluationLocks.mjs';
 import { SelectField } from '@/components/form/Field';
 import { RowActions } from '@/components/ui/RowActions';
 import { getCampuses } from '@/services/masterDataService';
@@ -40,12 +45,10 @@ const lastLockedDay = (yearStart) => {
 
 const EMPTY_FILTERS = { kind: '', campusId: '', classId: '', active: '', from: '', to: '' };
 
-// Loại mở lại: ngày đánh giá đã khóa (OBS-19) hoặc nhận xét tuần đã khóa của lớp – tuần (OBS-29)
-const KINDS = [
-  { value: 'DAY', label: 'Đánh giá ngày' },
-  { value: 'WEEK', label: 'Nhận xét tuần' },
-];
+// Loại mở lại: ngày đánh giá (OBS-19), nhận xét tuần theo lớp – tuần (OBS-29), đánh giá kỳ theo lớp – kỳ (OBS-30)
+const KINDS = [{ value: 'DAY', label: 'Đánh giá ngày' }, { value: 'WEEK', label: 'Nhận xét tuần' }, ...EVALUATION_LOCK_KINDS];
 const KIND_LABELS = Object.fromEntries(KINDS.map((k) => [k.value, k.label]));
+const isEvaluationKind = (kind) => EVALUATION_LOCK_KINDS.some((k) => k.value === kind);
 
 /**
  * Mở lại đánh giá: ngày đánh giá đã khóa (khóa sau 23:59:59 của ngày đó; chọn hạn, giáo viên đánh giá được đến hạn đó)
@@ -70,7 +73,8 @@ export default function AssessmentDayUnlockPage() {
   // Ngày cần mở lại: từ đầu năm học đang hoạt động đến hôm qua; hạn không quá ngày kết thúc năm học
   const activeYear = useSchoolYear()?.schoolYears?.find((y) => y.status === 'ACTIVE');
   const yearStart = activeYear?.startDate || undefined;
-  const yearEnd = activeYear?.endDate || undefined;
+  // Đã qua ngày kết thúc mà HT chưa đóng năm: "Mở đến" không giới hạn theo ngày kết thúc (BE OBS-30)
+  const yearEnd = activeYear?.endDate && todayIso() <= activeYear.endDate ? activeYear.endDate : undefined;
   const yesterday = addDays(todayIso(), -1);
   // Mở từ Tổng quan đánh giá: điền sẵn lớp và ngày từ đường dẫn (?classId=&date=)
   const [search] = useSearchParams();
@@ -116,7 +120,7 @@ export default function AssessmentDayUnlockPage() {
     error,
     reload,
   } = useAsync(() => getAssessmentDayUnlocks(query, user), [JSON.stringify(query), user?.id], {
-    enabled: !invalidRange && filters.kind !== 'WEEK',
+    enabled: !invalidRange && (!filters.kind || filters.kind === 'DAY'),
   });
   // Lịch sử mở lại nhận xét tuần theo lớp – tuần: cùng bộ lọc điểm trường, lớp, hiệu lực, khoảng ngày
   const {
@@ -125,19 +129,41 @@ export default function AssessmentDayUnlockPage() {
     error: weekError,
     reload: reloadWeeks,
   } = useAsync(() => getWeeklyCommentUnlocks(query, user), [JSON.stringify(query), user?.id], {
-    enabled: !invalidRange && filters.kind !== 'DAY',
+    enabled: !invalidRange && (!filters.kind || filters.kind === 'WEEK'),
   });
+  // Mở lại đánh giá kỳ theo lớp – kỳ: lọc điểm trường, lớp, loại, hiệu lực (không theo khoảng ngày)
+  const evalQuery = useMemo(
+    () => ({
+      campusId: query.campusId,
+      classId: query.classId,
+      active: query.active,
+      kind: isEvaluationKind(filters.kind) ? filters.kind : '',
+    }),
+    [query, filters.kind],
+  );
+  const showEval = !invalidRange && !filters.from && !filters.to && (!filters.kind || isEvaluationKind(filters.kind));
+  const {
+    data: evalUnlocks,
+    loading: evalLoading,
+    error: evalError,
+    reload: reloadEvals,
+  } = useAsync(() => getEvaluationUnlocks(evalQuery, user), [JSON.stringify(evalQuery), user?.id], { enabled: showEval });
   const shown = useMemo(() => {
     if (invalidRange) return [];
-    const days = filters.kind === 'WEEK' ? [] : (unlocks || []).map((u) => ({ ...u, kind: 'DAY', key: `d-${u.id}` }));
-    const weeks = filters.kind === 'DAY' ? [] : (weekUnlocks || []).map((u) => ({ ...u, kind: 'WEEK', key: `w-${u.id}` }));
-    return [...days, ...weeks].sort((a, b) => String(b.unlockedAt).localeCompare(String(a.unlockedAt)));
-  }, [invalidRange, filters.kind, unlocks, weekUnlocks]);
-  const historyLoading = (filters.kind !== 'WEEK' && loading) || (filters.kind !== 'DAY' && weekLoading);
-  const historyError = error || weekError;
+    const days = filters.kind && filters.kind !== 'DAY' ? [] : (unlocks || []).map((u) => ({ ...u, kind: 'DAY', key: `d-${u.id}` }));
+    const weeks = filters.kind && filters.kind !== 'WEEK' ? [] : (weekUnlocks || []).map((u) => ({ ...u, kind: 'WEEK', key: `w-${u.id}` }));
+    const evals = showEval ? (evalUnlocks || []).map((u) => ({ ...u, key: `e-${u.id}` })) : [];
+    return [...days, ...weeks, ...evals].sort((a, b) => String(b.unlockedAt).localeCompare(String(a.unlockedAt)));
+  }, [invalidRange, filters.kind, unlocks, weekUnlocks, evalUnlocks, showEval]);
+  const historyLoading =
+    ((!filters.kind || filters.kind === 'DAY') && loading) ||
+    ((!filters.kind || filters.kind === 'WEEK') && weekLoading) ||
+    (showEval && evalLoading);
+  const historyError = error || weekError || evalError;
   const reloadHistory = () => {
     reload({ silent: true });
     reloadWeeks({ silent: true });
+    reloadEvals({ silent: true });
   };
   const filtered = Object.values(filters).some(Boolean);
   const filterClasses = scoped.filter((c) => !filters.campusId || c.campusId === filters.campusId);
@@ -176,6 +202,12 @@ export default function AssessmentDayUnlockPage() {
   // Mở nhầm hoặc giáo viên đã xong: kết thúc sớm, ngày / tuần khóa lại, vẫn giữ trong lịch sử
   const revoke = async (u) => {
     try {
+      if (isEvaluationKind(u.kind)) {
+        await revokeEvaluationUnlock(u.id, user);
+        toast.success(`Đã kết thúc mở lại ${u.periodLabel || KIND_LABELS[u.kind]} của ${u.className}.`);
+        reloadEvals({ silent: true });
+        return;
+      }
       if (u.kind === 'WEEK') {
         await revokeWeeklyCommentUnlock(u.id, user);
         toast.success(`Đã kết thúc mở lại nhận xét tuần ${formatDate(u.weekFrom)} – ${formatDate(u.weekEnd)} của ${u.className}.`);
@@ -212,8 +244,21 @@ export default function AssessmentDayUnlockPage() {
         <h1 className="page__title">Mở lại đánh giá</h1>
       </div>
 
+      <OverdueClassesCard user={user} campusLabel={multiCampus ? campusLabel : null} />
+
       {classesError ? (
         <ErrorState error={classesError} />
+      ) : isEvaluationKind(kind) ? (
+        <EvaluationReopenForm
+          key={kind}
+          kind={kind}
+          kindField={kindField}
+          classes={scoped}
+          classesLoading={classesLoading}
+          classLabel={classLabel}
+          user={user}
+          onReopened={reloadHistory}
+        />
       ) : kind === 'WEEK' ? (
         <WeeklyCommentReopenForm
           kindField={kindField}
@@ -368,7 +413,7 @@ export default function AssessmentDayUnlockPage() {
                 <tr>
                   <th>Loại</th>
                   <th>Lớp</th>
-                  <th>Ngày / tuần</th>
+                  <th>Ngày / kỳ</th>
                   <th>Người mở</th>
                   <th>Lúc mở</th>
                   <th>Lý do</th>
@@ -385,7 +430,7 @@ export default function AssessmentDayUnlockPage() {
                       <EmptyState
                         icon={Unlock}
                         title={filtered ? 'Không có lần mở lại phù hợp bộ lọc' : 'Chưa mở lại đánh giá nào'}
-                        description={filtered ? undefined : 'Các ngày đánh giá, nhận xét tuần đã mở lại hiện ở đây.'}
+                        description={filtered ? undefined : 'Các ngày đánh giá, nhận xét tuần, đánh giá kỳ đã mở lại hiện ở đây.'}
                       />
                     </td>
                   </tr>
@@ -398,7 +443,11 @@ export default function AssessmentDayUnlockPage() {
                         {multiCampus && <div className="text-sm muted">{campusLabel(u.campusId)}</div>}
                       </td>
                       <td className="nowrap">
-                        {u.kind === 'WEEK' ? `${formatDate(u.weekFrom)} – ${formatDate(u.weekEnd)}` : formatDate(u.date)}
+                        {u.kind === 'WEEK'
+                          ? `${formatDate(u.weekFrom)} – ${formatDate(u.weekEnd)}`
+                          : isEvaluationKind(u.kind)
+                            ? u.periodLabel || u.periodKey
+                            : formatDate(u.date)}
                       </td>
                       <td>{u.unlockedByName}</td>
                       <td>{formatDateTime(u.unlockedAt)}</td>
@@ -421,9 +470,14 @@ export default function AssessmentDayUnlockPage() {
                                 danger: true,
                                 onClick: () => revoke(u),
                                 confirm: {
-                                  title: u.kind === 'WEEK' ? 'Kết thúc mở lại nhận xét tuần?' : 'Kết thúc mở lại ngày đánh giá?',
-                                  message:
-                                    u.kind === 'WEEK'
+                                  title: isEvaluationKind(u.kind)
+                                    ? 'Kết thúc mở lại đánh giá?'
+                                    : u.kind === 'WEEK'
+                                      ? 'Kết thúc mở lại nhận xét tuần?'
+                                      : 'Kết thúc mở lại ngày đánh giá?',
+                                  message: isEvaluationKind(u.kind)
+                                    ? `${u.className}, ${u.periodLabel || KIND_LABELS[u.kind]}: kỳ khóa lại, giáo viên không sửa, xác nhận được nữa. Lần mở lại vẫn lưu trong lịch sử.`
+                                    : u.kind === 'WEEK'
                                       ? `${u.className}, tuần ${formatDate(u.weekFrom)} – ${formatDate(u.weekEnd)}: tuần khóa lại, giáo viên không sửa, gửi nhận xét được nữa. Lần mở lại vẫn lưu trong lịch sử.`
                                       : `${u.className}, ngày ${formatDate(u.date)}: ngày khóa lại, giáo viên không sửa đánh giá được nữa. Lần mở lại vẫn lưu trong lịch sử.`,
                                   confirmLabel: 'Kết thúc sớm',

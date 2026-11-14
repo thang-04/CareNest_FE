@@ -188,6 +188,22 @@ export const createAssessmentBeApi = (client) => ({
     client.get('/assessment/weekly-comments/overview', {
       params: { campusId: campusId || undefined, weekStart: weekStart || undefined },
     }),
+  // Hạn, khóa, mở lại đánh giá cuối chủ đề / học kỳ / cuối năm theo lớp – kỳ (BE OBS-30)
+  getEvaluationPeriods: ({ classId }) => client.get('/assessment/evaluation-periods', { params: { classId } }),
+  unlockEvaluation: ({ kind, classId, periodKey, validUntil, reason }) =>
+    client.post('/assessment/evaluation-unlocks', { kind, classId, periodKey, validUntil, reason }),
+  listEvaluationUnlocks: ({ campusId, classId, kind, active } = {}) =>
+    client.get('/assessment/evaluation-unlocks', {
+      params: {
+        campusId: campusId || undefined,
+        classId: classId || undefined,
+        kind: kind || undefined,
+        active: active ?? undefined,
+      },
+    }),
+  revokeEvaluationUnlock: (id) => client.post(`/assessment/evaluation-unlocks/${id}/revoke`),
+  // BGH: lớp quá hạn chưa xong (nhận xét tuần, chủ đề, học kỳ, cuối năm)
+  getOverdueClasses: ({ campusId } = {}) => client.get('/assessment/overdue', { params: { campusId: campusId || undefined } }),
   // Đánh giá tháng / cuối năm: BE tạo bản nháp khi tháng kết thúc (cuối năm: khi học kỳ II kết thúc)
   getEvaluations: (kind, { schoolYear, classId } = {}) =>
     client.get('/assessment/evaluations', {

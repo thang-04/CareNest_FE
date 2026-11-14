@@ -56,7 +56,7 @@ test('BE OBS-29: nhận xét tuần gọi đúng endpoint và body', async () =>
   assert.equal(BE_ERROR_FIELDS[7342], 'content');
 });
 
-test('BE OBS-29: mở lại nhận xét tuần theo lớp – tuần, kết thúc sớm, hạn nhận xét tuần theo năm học', async () => {
+test('BE OBS-29: mở lại nhận xét tuần theo lớp – tuần, kết thúc sớm', async () => {
   const client = fakeClient();
   const api = createAssessmentBeApi(client);
   await api.unlockWeeklyComments({ classId: '5', weekStart: '2026-10-26', validUntil: '2026-11-03T10:00:00.000Z', reason: 'Gửi nhầm' });

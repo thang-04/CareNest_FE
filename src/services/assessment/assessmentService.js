@@ -83,6 +83,12 @@ export const unlockWeeklyComments = (body, user) => (be || repo).unlockWeeklyCom
 export const revokeWeeklyCommentUnlock = (id, user) => (be || repo).revokeWeeklyCommentUnlock(id, user);
 export const getWeeklyCommentOverview = (params, user) => (be || repo).getWeeklyCommentOverview(params, user);
 export const getWeeklyCommentUnlocks = (filters, user) => (be || repo).listWeeklyCommentUnlocks(filters, user);
+// Đánh giá cuối chủ đề / học kỳ / cuối năm: kỳ của lớp, mở lại lớp – kỳ, lớp quá hạn (BE OBS-30)
+export const getEvaluationPeriods = (params, user) => (be || repo).getEvaluationPeriods(params, user);
+export const unlockEvaluation = (body, user) => (be || repo).unlockEvaluation(body, user);
+export const getEvaluationUnlocks = (filters, user) => (be || repo).listEvaluationUnlocks(filters, user);
+export const revokeEvaluationUnlock = (id, user) => (be || repo).revokeEvaluationUnlock(id, user);
+export const getOverdueClasses = (params, user) => (be || repo).getOverdueClasses(params, user);
 /** Xếp loại nhóm lớp theo kỳ: { rows: [{ classId, levels, note, canEdit, … }], campuses }. */
 export const getClassRatings = (params, user) => (be || repo).getClassRatings(params, user);
 /** Đánh giá cuối chủ đề (lớp mẫu giáo): danh sách chủ đề, bảng trẻ × MT, lưu ô sửa tay / ghi chú, xác nhận. */

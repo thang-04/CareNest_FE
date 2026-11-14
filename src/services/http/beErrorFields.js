@@ -91,6 +91,10 @@ export const BE_ERROR_FIELDS = {
   // Mở lại nhận xét tuần theo lớp – tuần
   7401: 'weekStart', // WEEKLY_COMMENT_NOT_LOCKED_YET
   7402: 'weekStart', // WEEKLY_COMMENT_UNLOCK_ALREADY_ACTIVE
+  // Mở lại đánh giá kỳ theo lớp – kỳ (BE OBS-30)
+  7405: 'periodKey', // EVALUATION_NOT_LOCKED_YET
+  7406: 'periodKey', // EVALUATION_UNLOCK_ALREADY_ACTIVE
+  7408: 'periodKey', // EVALUATION_PERIOD_NOT_FOUND
   9005: 'to', // INVALID_DATE_RANGE
   9006: 'to', // DATE_RANGE_TOO_LONG
 };

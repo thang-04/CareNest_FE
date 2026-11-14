@@ -576,6 +576,115 @@ Bố mẹ hãy trò chuyện với con về những điều con đã học trong
     }
     return clone(out);
   },
+  // BE giả OBS-30: kỳ học kỳ I, II, cuối năm của lớp (demo chưa có chủ đề đã duyệt); khóa sau ngày học thứ 5 kể từ
+  // ngày kết thúc kỳ
+  async getEvaluationPeriods({ classId }, user) {
+    const db = ensureReady();
+    const cls = accessClass(db, classId, user);
+    const year = yearOf(db, cls);
+    const unlocks = (db.evaluationUnlocks || []).filter((u) => u.classId === cls.id && u.validUntil > now());
+    const today = todayIso();
+    const period = (kind, periodKey, label, openFrom, days) => {
+      const deadline = schoolDaysBetween(addDays(openFrom, 1), addDays(openFrom, 60))[days - 1] || openFrom;
+      const unlock = unlocks.find((u) => u.kind === kind && u.periodKey === periodKey);
+      return {
+        kind,
+        periodKey,
+        label,
+        openFrom,
+        deadline,
+        open: today >= openFrom,
+        locked: today > deadline,
+        unlockedUntil: unlock?.validUntil || null,
+      };
+    };
+    const out = [];
+    if (year.semester1End) out.push(period('SEMESTER', '1', 'Đánh giá học kỳ I', year.semester1End, 5));
+    if (year.semester2End) out.push(period('SEMESTER', '2', 'Đánh giá học kỳ II', year.semester2End, 5));
+    const yearOpen = year.semester2End && year.semester2End < year.endDate ? year.semester2End : year.endDate;
+    out.push(period('YEAR', 'Y', 'Đánh giá cuối năm', yearOpen, 5));
+    return clone(out);
+  },
+  async unlockEvaluation(body, user) {
+    if (!isLeader(user)) deny();
+    const reason = (body.reason || '').trim();
+    if (!reason) invalid('Nhập lý do mở lại');
+    const periods = await this.getEvaluationPeriods({ classId: body.classId }, user);
+    const p = periods.find((x) => x.kind === body.kind && x.periodKey === body.periodKey);
+    if (!p) invalid('Chọn chủ đề / học kỳ / cuối năm của lớp');
+    if (!p.locked) throw new ApiError(409, `${p.label} chưa quá hạn, chưa cần mở lại`);
+    if (p.unlockedUntil) throw new ApiError(409, `${p.label} của lớp này đang được mở lại`);
+    if (!body.validUntil || body.validUntil <= now()) invalid('Chọn hạn mở lại sau thời điểm hiện tại');
+    const cls = ensureReady().classes.find((c) => c.id === body.classId);
+    const created = {
+      id: uid(),
+      kind: body.kind,
+      classId: cls.id,
+      className: cls.name,
+      campusId: cls.campusId,
+      periodKey: p.periodKey,
+      periodLabel: p.label,
+      validUntil: body.validUntil,
+      reason,
+      unlockedByName: user.fullName,
+      unlockedAt: now(),
+      revokedByName: null,
+      revokedAt: null,
+    };
+    writeDb((d) => {
+      d.evaluationUnlocks = [created, ...(d.evaluationUnlocks || [])];
+    });
+    return clone({ ...created, active: true });
+  },
+  async listEvaluationUnlocks(filters = {}, user) {
+    if (!isLeader(user)) deny();
+    const at = now();
+    return clone(
+      (ensureReady().evaluationUnlocks || [])
+        .map((u) => ({ ...u, active: u.validUntil > at }))
+        .filter(
+          (u) =>
+            (!filters.campusId || u.campusId === filters.campusId) &&
+            (!filters.classId || u.classId === filters.classId) &&
+            (!filters.kind || u.kind === filters.kind) &&
+            (filters.active == null || filters.active === u.active),
+        ),
+    );
+  },
+  async revokeEvaluationUnlock(id, user) {
+    if (!isLeader(user)) deny();
+    const at = now();
+    let found = null;
+    writeDb((d) => {
+      d.evaluationUnlocks = (d.evaluationUnlocks || []).map((u) => {
+        if (u.id !== id) return u;
+        if (u.validUntil <= at) throw new ApiError(409, 'Lần mở lại này đã hết hiệu lực');
+        found = { ...u, validUntil: at, revokedAt: at, revokedByName: user.fullName };
+        return found;
+      });
+    });
+    if (!found) throw new ApiError(404, 'Không tìm thấy lần mở lại đánh giá');
+    return clone({ ...found, active: false });
+  },
+  // BE giả OBS-30: lớp quá hạn nhận xét tuần của tuần trước (demo chưa tính đánh giá kỳ)
+  async getOverdueClasses({ campusId } = {}, user) {
+    const rows = await this.getWeeklyCommentOverview({ campusId, weekStart: addDays(weekStart(todayIso()), -7) }, user);
+    return clone(
+      rows
+        .filter((r) => r.overdue)
+        .map((r) => ({
+          kind: 'WEEKLY',
+          classId: r.classId,
+          className: r.className,
+          campusId: r.campusId,
+          periodKey: r.week.weekStart,
+          label: 'Nhận xét tuần',
+          deadline: r.week.deadline,
+          done: r.sent,
+          total: r.total,
+        })),
+    );
+  },
   // BE giả OBS-24: HT, PHT xem mọi lớp; chấm: HT mọi lớp, PHT điểm trường mình; GV xem lớp mình
   async getClassRatings(params = {}, user) {
     const db = ensureReady();
