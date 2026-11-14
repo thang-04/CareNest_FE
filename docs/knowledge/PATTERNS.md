@@ -25,3 +25,10 @@ Bài học tổng quát, mỗi pattern có nguồn. Pattern lấy từ thiết k
 - Bối cảnh / Quy tắc / Ví dụ sai
 - Nguồn: FE-BUG-YYMMDD-slug | FE-CASE-...
 ```
+
+## FP-TEST-WEEK-RELATIVE — Test thực đơn không dùng tuần cố định
+
+- Bối cảnh: seed thực đơn sinh tuần trước / tuần này / tuần sau theo ngày chạy (`buildRecentWeeklyMenus`), nên tuần cố định trong test sẽ trùng khi lịch trôi tới.
+- Quy tắc: test tạo thực đơn tuần lấy tuần theo hôm nay, cách ít nhất 2 tuần (`addDays(schoolWeekStart(todayInput()), 7 * n)`), hoặc cố định clock của test.
+- Ví dụ sai: `const WEEK = '2026-11-23'` ⇒ ngày 14/11 fail "Nhóm tuổi này đã có thực đơn tuần TT-20261123-MGN".
+- Nguồn: FE-CASE-261027-ai-week-seed-date, FE-BUG-261024-menu-ai-week-verification
