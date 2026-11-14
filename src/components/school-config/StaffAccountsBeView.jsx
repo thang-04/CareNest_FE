@@ -423,7 +423,6 @@ function StaffCreateModal({ campuses, onClose }) {
             ))}
           </select>
         </FormField>
-        {teacher && <p className="text-sm muted">Giáo viên tạo xong chưa gắn lớp; xếp lớp ở Phân công giáo viên.</p>}
         {(!teacher || teacherCampusRequired) && (
           <FormField label="Điểm trường" required error={errors.campusId}>
             <select

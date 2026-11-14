@@ -100,9 +100,6 @@ export function ClassFormModal({ open, onClose, cls, schoolYear, yearName, defau
     }
   };
 
-  const from = `Từ ${Math.max(1, enrolled)}${enrolled ? ' (số trẻ đang học)' : ''}`;
-  const capacityHint = limit.reason ? `${from} đến ${limit.max} (${limit.reason})` : undefined;
-
   return (
     <Modal
       open={open}
@@ -131,12 +128,7 @@ export function ClassFormModal({ open, onClose, cls, schoolYear, yearName, defau
         <FormField label="Năm học">
           <input className="input" value={yearName || schoolYear} disabled />
         </FormField>
-        <FormField
-          label="Nhóm tuổi"
-          required
-          error={errors.ageGroupId}
-          hint={locked ? 'Lớp đã có trẻ nên không đổi được nhóm tuổi' : undefined}
-        >
+        <FormField label="Nhóm tuổi" required error={errors.ageGroupId}>
           <select className="select" value={form.ageGroupId} disabled={locked} onChange={(e) => changeAgeGroup(e.target.value)}>
             <option value="">Chọn nhóm tuổi</option>
             {ageGroups.map((g) => (
@@ -146,12 +138,7 @@ export function ClassFormModal({ open, onClose, cls, schoolYear, yearName, defau
             ))}
           </select>
         </FormField>
-        <FormField
-          label="Điểm trường"
-          required
-          error={errors.campusId}
-          hint={locked ? 'Lớp đã có trẻ nên không đổi được điểm trường' : undefined}
-        >
+        <FormField label="Điểm trường" required error={errors.campusId}>
           <select
             className="select"
             value={form.campusId}
@@ -198,7 +185,7 @@ export function ClassFormModal({ open, onClose, cls, schoolYear, yearName, defau
             ))}
           </select>
         </FormField>
-        <FormField label="Sĩ số tối đa" required error={errors.capacity} hint={capacityHint}>
+        <FormField label="Sĩ số tối đa" required error={errors.capacity}>
           <input
             className="input"
             type="number"

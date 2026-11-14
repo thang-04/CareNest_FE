@@ -109,7 +109,6 @@ export function SemesterSetting({ yearId, onDirtyChange, saveRef }) {
         <h2 className="card__title">
           Học kỳ năm học {year.name} ({formatDate(year.startDate)} – {formatDate(year.endDate)})
         </h2>
-        {!closed && <span className="muted text-sm">Học kỳ đã có đánh giá học kỳ thì không đổi được ngày.</span>}
       </div>
       {(errors.semester || errors._form) && (
         <div className="card__body">
