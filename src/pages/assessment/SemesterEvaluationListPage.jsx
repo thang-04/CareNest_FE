@@ -281,9 +281,7 @@ export default function SemesterEvaluationListPage() {
                 </table>
               </div>
             )}
-            <p className="muted text-sm mt-8">
-              Bấm ô đánh giá để xem các mục tiêu làm căn cứ. {missing > 0 ? `${missing} trẻ còn mục tiêu chưa có kết quả.` : ''}
-            </p>
+            {missing > 0 && <p className="muted text-sm mt-8">{missing} trẻ còn mục tiêu chưa có kết quả.</p>}
             <div className="field mt-16">
               <label className="field__label" htmlFor="semester-note">
                 Một số lưu ý
@@ -316,9 +314,6 @@ export default function SemesterEvaluationListPage() {
                   </button>
                 )}
               </div>
-            )}
-            {hasBePermission(user, PERMISSIONS.ASSESSMENT_CONFIRM) && !board.canConfirm && (
-              <p className="muted text-sm">Chỉ xác nhận sau khi học kỳ kết thúc và các mục tiêu đã có đủ kết quả.</p>
             )}
           </div>
         )}

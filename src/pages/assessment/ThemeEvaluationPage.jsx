@@ -245,13 +245,6 @@ export default function ThemeEvaluationPage() {
                   </span>
                 )}
               </div>
-              {canEdit && (
-                <p className="muted text-sm mt-8">
-                  Hệ thống điền từ Kiến thức kỹ năng hằng ngày: mục tiêu Đạt khi có ít nhất một hoạt động trong thời gian chủ đề được chấm
-                  Đạt; trẻ vắng hoặc chưa có lần Đạt nào thì Chưa đạt. Bấm vào ô để sửa tay (đổi Đạt / Chưa đạt); bấm tiếp tới khi về kết
-                  quả hệ thống. Ô sửa tay có viền đậm.
-                </p>
-              )}
             </div>
             {ev.goals.length === 0 ? (
               <EmptyState title="Chủ đề chưa có mục tiêu" description="Kế hoạch năm học chưa tích mục tiêu nào cho chủ đề này." />

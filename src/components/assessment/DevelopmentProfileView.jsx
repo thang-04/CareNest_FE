@@ -225,7 +225,6 @@ export function DevelopmentProfileView({ childId, mode, evaluationLink }) {
                           </div>
                         );
                       })}
-                      <div className="muted text-xs">Tỉ lệ = số lượt đạt / số lượt được đánh giá trong kỳ.</div>
                     </div>
                   </div>
                 )}

@@ -380,7 +380,6 @@ export function EvaluationReviewView({ kind, id }) {
                 label="Nội dung đánh giá"
                 required
                 error={contentError}
-                hint="Sửa, bổ sung theo quan sát thực tế. Không dùng thuật ngữ chẩn đoán."
               >
                 <textarea
                   className="textarea dg-editor"
