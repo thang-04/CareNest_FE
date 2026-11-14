@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { api } from '../support/realBe.mjs';
 import { login, spaGo } from '../support/ui.mjs';
 
-const user = 'teamlead34@gmail.com';
+const user = 'lan.nguyenkim@thuonghong.carenest.edu.vn';
 const addDays = (iso, days) => new Date(Date.parse(iso) + days * 86400000).toISOString().slice(0, 10);
 const dmy = (iso) => iso.split('-').reverse().join('/');
 

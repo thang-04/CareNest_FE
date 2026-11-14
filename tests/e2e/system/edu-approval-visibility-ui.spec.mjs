@@ -6,7 +6,7 @@ import { login, saveStatus, spaGo } from '../support/ui.mjs';
 // GVCN lớp 1 cơ sở A, teacher6 = GV thứ hai lớp đó, viceprincipal = PHT duyệt kế hoạch tổ.
 test.describe.configure({ mode: 'serial' });
 
-const U = { vp: 'viceprincipal@gmail.com', ht: 'principal@gmail.com', tl: 'teamlead34@gmail.com', gv2: 'teacher6@gmail.com' };
+const U = { vp: 'tam.lethi@thuonghong.carenest.edu.vn', ht: 'tuyet.hoangminh@thuonghong.carenest.edu.vn', tl: 'lan.nguyenkim@thuonghong.carenest.edu.vn', gv2: 'thanh.phamthi@thuonghong.carenest.edu.vn' };
 const GOALS = '/education-plans/goals';
 let homeroomClass;
 let teamDraft;
