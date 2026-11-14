@@ -180,6 +180,12 @@
   font-size: var(--fs-sm);
   color: var(--primary);
 }
+.ga-mt-link {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  text-decoration: underline;
+  white-space: nowrap;
+}
 .ga-goal-check {
   display: grid;
   grid-template-columns: 20px 56px 1fr;
@@ -416,6 +422,10 @@
   padding: 0;
   list-style: none;
 }
+/* Bảng phủ MT: các thứ đã dạy là chữ link gạch chân, cách nhau dấu phẩy (Tiền 13/11/2026) */
+.ga-coverage-days .link-btn {
+  text-decoration: underline;
+}
 /* Tuần nhánh là chữ link thường, có gạch chân; ngày cách ra bên phải (Tiền 04/11) */
 .ga-theme-weeks a {
   margin-right: var(--space-4);
@@ -580,6 +590,7 @@
   opacity: 0;
   pointer-events: none;
 }
+.ga-goal-label-cell:hover .ga-goal-label-fill,
 .ga-goal-label-cell:focus-within .ga-goal-label-fill {
   opacity: 1;
   pointer-events: auto;
@@ -792,12 +803,17 @@
 }
 .ga-cal__trigger {
   display: flex;
+  min-width: 0;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-1);
   text-align: left;
   white-space: nowrap;
   cursor: pointer;
+}
+.ga-cal__trigger > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .ga-cal {
   padding: var(--space-3);
@@ -907,15 +923,9 @@
   outline: 2px solid var(--tone-green);
   outline-offset: -2px;
 }
-/* Ô đang nhập: khung xanh trùng đúng viền ô bảng như bảng tính (cả khi hàng cao hơn ô nhập), không hở khoảng trắng (Tiền 14/10) */
-.table.ga-goal-table td:not(.ga-goal-table__subband):focus-within {
-  outline: 2px solid var(--color-primary);
-  outline-offset: -2px;
-}
-.ga-config-page .table.ga-goal-table td:not(.ga-goal-table__subband):focus-within {
-  outline: none;
-}
-.ga-config-page.ga-keyboard-nav .table.ga-goal-table td:not(.ga-goal-table__subband):focus-within {
+/* Ô đang nhập: mọi bảng kế hoạch giáo dục giống nhau — bấm chuột không tô khung; đi bằng phím Tab thì khung xanh trùng
+   viền ô như bảng tính (Tiền 14/10, đồng bộ mọi trang 11/11/2026) */
+.ga-keyboard-nav .ga-goal-table.ga-goal-table td:not(.ga-goal-table__subband):focus-within {
   outline: 2px solid var(--color-primary);
   outline-offset: -2px;
 }
@@ -1073,6 +1083,22 @@
   gap: var(--space-3);
   margin-block: var(--space-4);
 }
+/* Mục học liệu của giáo án ngày gọn một hàng: tên mục bên trái, Tải lên · Dán link · Chọn từ kho bên phải (Tiền 13/11/2026) */
+.ga-media-unbound > .ga-media-upload {
+  justify-content: space-between;
+  margin-block: 0;
+}
+.ga-media-unbound h3 {
+  margin: 0;
+  font-size: var(--fs-sm);
+}
+.ga-media-unbound > p {
+  margin: var(--space-2) 0 0;
+}
+.ga-media-upload label[aria-disabled] {
+  opacity: 0.5;
+  pointer-events: none;
+}
 .ga-resource-list {
   list-style: none;
   padding: 0;
@@ -1087,10 +1113,55 @@
   border-bottom: 1px solid var(--color-border);
 }
 .ga-media-unbound {
-  margin-top: var(--space-6);
-  padding: var(--space-4);
+  margin-top: var(--space-3);
+  padding: var(--space-3) var(--space-4);
   background: var(--color-surface-muted);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
+}
+/* Học liệu giáo án ngày (Tiền 14/11/2026): đầu mục tách khỏi danh sách; mỗi học liệu là thẻ nền trắng có ô biểu tượng loại */
+.ga-media-unbound > .ga-media-upload {
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+}
+.ga-media-unbound .ga-resource-list {
+  margin: var(--space-3) 0 0;
+}
+.ga-media-unbound .ga-resource-list > li {
+  flex-wrap: nowrap;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+}
+.ga-resource-icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--space-8);
+  height: var(--space-8);
+  border-radius: var(--radius-sm);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+/* Hộp Thêm học liệu: chỉ tên học liệu xuống dòng; nút Xem/Ẩn xem rộng cố định, không xuống dòng */
+.ga-resource-pick > li {
+  flex-wrap: nowrap;
+}
+.ga-resource-pick > li > label {
+  flex: 1;
+  min-width: 0;
+}
+.ga-resource-pick__text {
+  min-width: 0;
+}
+.ga-resource-pick__name {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.ga-resource-pick__view {
+  flex: none;
+  width: calc(var(--space-12) * 2);
+  white-space: nowrap;
 }
 .ga-media-viewer {
   display: grid;
@@ -1581,6 +1652,11 @@ h2.ga-cur-domain__head {
 .table.ga-plan-table th,
 .table.ga-plan-table td {
   overflow-wrap: break-word;
+}
+/* Tiêu đề mục trải hết bảng (vd. "3. Hoạt động góc: tên các góc…") xuống dòng, không tràn khỏi thẻ */
+/* Lặp lớp ga-* (thay cho .table.ga-*) để giữ độ ưu tiên mà không viết đè lớp chung .table */
+.ga-plan-table.ga-plan-table th[scope='colgroup'] {
+  white-space: normal;
 }
 .table.ga-plan-table .ga-cell-input,
 .table.ga-plan-table input,
@@ -2325,7 +2401,10 @@ h2.ga-cur-domain__head {
 .table.ga-goal-table.ga-branch-readonly tbody tr td,
 .table.ga-goal-table.ga-branch-readonly tbody tr:hover td,
 .table.ga-goal-table.ga-branch-readonly tbody tr td.cell--fixed,
-.table.ga-goal-table.ga-branch-readonly tbody tr:hover td.cell--fixed {
+.ga-goal-table.ga-goal-table.ga-branch-readonly tbody tr:hover td.cell--fixed,
+/* Cột Tháng (th) của dạng Bảng: không sọc/tô theo dòng chẵn, giống các ô còn lại (Tiền 11/11/2026) */
+.ga-goal-table.ga-goal-table.ga-branch-readonly tbody tr th,
+.ga-goal-table.ga-goal-table.ga-branch-readonly tbody tr:hover th {
   background: var(--color-surface) !important;
   cursor: default !important;
 }
@@ -2370,9 +2449,41 @@ h2.ga-cur-domain__head {
   align-items: center;
 }
 .ga-branch-week-dates {
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   padding: 0;
+  white-space: normal;
+}
+.ga-branch-plan-table.ga-branch-plan-table {
+  min-width: 900px;
+}
+.ga-branch-grid-table.ga-branch-grid-table {
+  min-width: 720px;
+}
+.ga-branch-grid-table thead th:first-child {
+  width: 70px;
+}
+.ga-branch-grid-table th,
+.ga-branch-grid-table td {
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.ga-branch-plan-table .ga-branch-plan-table__weeks {
+  width: 22%;
+}
+.ga-branch-plan-table__week-cell .nowrap {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+/* Ô Tuần khi sửa: hai ngày đứng sát hai bên dấu "–" theo đúng độ rộng chữ, không giãn ra hai mép ô; ngày không bẻ
+   giữa chừng, hẹp quá thì cả ô ngày xuống dòng (Tiền 11/11/2026) */
+.ga-branch-week-dates > div {
+  min-width: 0;
+  flex: 0 0 auto;
+}
+.ga-branch-plan-table td .ga-branch-week-dates .ga-cal__trigger {
   white-space: nowrap;
+  padding-inline: var(--space-1);
 }
 .ga-branch-date-endpoint {
   flex: 0 1 auto;
@@ -2571,6 +2682,12 @@ h2.ga-cur-domain__head {
   max-height: none;
   overflow: visible;
 }
+/* Màn hẹp: bảng tổ rộng hơn màn ⇒ cuộn ngang trong khung bảng, không làm cả trang cuộn ngang (vẫn không cuộn dọc riêng) */
+@media (max-width: 1279px) {
+  .ga-team-plan .table-wrap:has(> .ga-goal-table) {
+    overflow-x: auto;
+  }
+}
 .table.ga-curriculum-fixed thead tr:first-child th.cell--fixed,
 .table.ga-curriculum-fixed thead tr:first-child th:nth-child(-n + 4),
 .table.ga-theme-edit-fixed thead th,
@@ -2690,11 +2807,6 @@ h2.ga-cur-domain__head {
   min-width: 180px;
 }
 
-.ga-class-plan-table .ga-col-theme-status {
-  width: 190px;
-  min-width: 180px;
-}
-
 .ga-class-plan-table .ga-col-theme-actions {
   width: 160px;
   min-width: 150px;
@@ -2703,21 +2815,6 @@ h2.ga-cur-domain__head {
 /* Cột Thời gian: giữ ngày tháng thẳng hàng không rớt dòng */
 .ga-class-plan-table th:nth-child(2),
 .ga-class-plan-table td:nth-child(2) {
-  white-space: nowrap;
-}
-
-/* Cột Trạng thái: vừa vặn với badge, căn giữa cân đối */
-.ga-class-plan-table th.ga-col-theme-status,
-.ga-class-plan-table td.ga-theme-status-cell {
-  text-align: center;
-  vertical-align: middle;
-  white-space: nowrap;
-}
-
-.ga-class-plan-table td.ga-theme-status-cell .ga-goal-table__pad {
-  display: flex;
-  align-items: center;
-  justify-content: center;
   white-space: nowrap;
 }
 
@@ -2750,9 +2847,6 @@ h2.ga-cur-domain__head {
     min-width: 740px;
   }
   .ga-class-plan-table .ga-col-theme-time {
-    width: 180px;
-  }
-  .ga-class-plan-table .ga-col-theme-status {
     width: 180px;
   }
   .ga-class-plan-table .ga-col-theme-actions {
@@ -2814,4 +2908,153 @@ h2.ga-cur-domain__head {
 }
 .ga-goal-table .ga-review-queue__status {
   width: 18%;
+}
+
+/* ---------- Đầu trang gọn để thấy nhiều nội dung hơn (Tiền 12/11/2026) ---------- */
+/* Hàng lọc: nhãn đứng trước ô chọn trên cùng một dòng, thẻ lọc thấp lại; màn hẹp vẫn xếp dọc như cũ */
+@media (min-width: 768px) {
+  .ga-page .filter-bar {
+    padding: var(--space-2) var(--space-3);
+    align-items: center;
+    gap: var(--space-2) var(--space-4);
+  }
+  .ga-page .filter-bar > .field,
+  .ga-page .filter-bar__end > .field {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .ga-page .filter-bar .field__label {
+    white-space: nowrap;
+  }
+  /* Dạng "Nhãn: ô chọn" (Tiền 12/11/2026) */
+  .ga-page .filter-bar > .field > .field__label::after,
+  .ga-page .filter-bar__end > .field > .field__label::after {
+    content: ':';
+  }
+}
+/* Khoảng cách giữa tab, thẻ lọc và thanh thao tác trong phần ghim đầu trang */
+.ga-sticky-head > .mb-16,
+.ga-sticky-head > .card:has(> .filter-bar) {
+  margin-bottom: var(--space-2);
+}
+/* Tiêu đề thẻ nội dung (lặp lại tên trang ở breadcrumb): chữ nhỏ hơn, lề trên ít hơn */
+.ga-page .card__header {
+  padding-top: var(--space-4);
+}
+.ga-page .card__title {
+  font-size: var(--fs-lg);
+}
+/* Hàng tab Kế hoạch chủ đề + các chủ đề nhánh: một hàng, tab chia đều, tên nhánh dài thì "…" (đủ tên ở title) */
+.ga-theme-tabs {
+  flex-wrap: nowrap;
+}
+.ga-theme-tabs .tab {
+  flex: 1 1 0;
+  min-width: 0;
+}
+.ga-theme-tabs__label {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (max-width: 767px) {
+  .ga-theme-tabs {
+    overflow-x: auto;
+  }
+  .ga-theme-tabs .tab {
+    flex: 0 0 auto;
+    max-width: 70vw;
+  }
+}
+
+/* ===== Đầu trang kế hoạch giáo dục (Tiền 12/11/2026, thay quyết định 12/10 và 03/11) =====
+   Breadcrumb, hàng lọc, thẻ tên, tab cuộn đi theo trang; chỉ hàng nút (.ga-year-toolbar) dính dưới thanh trên cùng.
+   display: contents để hàng nút dính theo cả trang, không bị giới hạn trong khung .ga-sticky-head. */
+.ga-sticky-head {
+  display: contents;
+}
+.ga-sticky-head > .ga-year-toolbar {
+  position: sticky;
+  top: var(--ga-stick-top);
+  z-index: var(--z-sticky);
+  margin-bottom: var(--space-2-5);
+  background: var(--color-bg);
+  border-bottom: 1px solid var(--color-border);
+  container-type: scroll-state;
+}
+.ga-page {
+  /* Mép dưới thanh trên cùng (thanh cao --header-height, cách mép trên --space-3) */
+  --ga-stick-top: calc(var(--header-height) + var(--space-3));
+}
+/* Tên ngắn của tài liệu trong hàng nút: chỉ hiện khi hàng nút đang dính (breadcrumb đã cuộn khuất) */
+.ga-year-toolbar__title {
+  display: none;
+  max-width: 16rem;
+  overflow: hidden;
+  font-weight: var(--fw-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Điện thoại không hiện tên ngắn để hàng nút dính ít dòng nhất */
+@media (min-width: 768px) {
+  @container scroll-state(stuck: top) {
+    .ga-year-toolbar__title {
+      display: inline;
+    }
+  }
+}
+/* Ô đang nhập (đi bằng Tab) không bị hàng nút dính che */
+html:has(.ga-page) {
+  scroll-padding-top: calc(var(--header-height) + var(--space-3) + var(--ga-bar-h, 0px) + var(--space-12));
+}
+/* Tiêu đề cột của bảng dính ngay dưới hàng nút (máy tính). Khung bảng không làm khung cuộn ngang ở màn rộng để tiêu đề
+   dính theo cuộn trang (không cuộn trong khung riêng). */
+@media (min-width: 1280px) {
+  .ga-page .table-wrap {
+    overflow-x: visible;
+  }
+  .ga-page .table-wrap > .table > thead {
+    position: sticky;
+    top: calc(var(--ga-stick-top) + var(--ga-bar-h, 0px));
+    z-index: calc(var(--z-base) + 1);
+    box-shadow: 0 1px 0 var(--color-text-disabled);
+  }
+}
+/* Hàng lọc có ô bị khóa (chỉ một lựa chọn): hiện dạng chữ */
+.ga-filter-text {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  min-height: var(--btn-height-sm);
+}
+.ga-filter-text__value {
+  font-weight: var(--fw-semibold);
+}
+/* Ô chọn trong hàng lọc đủ rộng để không cắt tên lớp, tên chủ đề */
+@media (min-width: 768px) {
+  .ga-page .filter-bar .select:not([multiple]):not([size]) {
+    width: auto;
+    min-width: calc(var(--input-height) * 5);
+    max-width: 24rem;
+  }
+}
+/* Trang Nguồn chương trình: thanh tìm + chip lĩnh vực (dính sẵn trong hộp thoại) dính ngay dưới thanh trên cùng khi cuộn trang */
+.ga-cur-page .ga-cur-toolbar {
+  top: var(--ga-stick-top);
+  z-index: var(--z-sticky);
+}
+/* Thông báo trong trang (lý do trả lại, cảnh báo) ở ngay dưới hàng nút, cách nội dung một khoảng */
+.ga-notice {
+  margin-bottom: var(--space-3);
+}
+/* Cột Thao tác có 3 nút biểu tượng (lên, xuống, xóa) trong bảng chia đều cột */
+.ga-col-row-actions {
+  width: calc(var(--btn-height-sm) * 4);
+}
+/* Trang Kho: tên học liệu dài liền (không dấu cách) xuống dòng trong ô, bảng không cuộn ngang (Tiền 14/11/2026) */
+.ga-resource-name {
+  min-width: calc(var(--space-12) * 4);
+  overflow-wrap: anywhere;
 }

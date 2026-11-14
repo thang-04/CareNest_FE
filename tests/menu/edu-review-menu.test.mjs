@@ -26,7 +26,7 @@ test('Hiệu trưởng ký khi có trong chuỗi ký của ít nhất một lo�
   assert.equal(principalSigns({ signers: { week: ['TEAM_LEADER', 'VICE_PRINCIPAL', 'PRINCIPAL'] } }), true);
 });
 
-test('mục Duyệt kế hoạch, giáo án chỉ ẩn khi được yêu cầu ẩn; mặc định vẫn hiện cho Hiệu trưởng', () => {
+test('mục Duyệt kế hoạch giáo dục chỉ ẩn khi được yêu cầu ẩn; mặc định vẫn hiện cho Hiệu trưởng', () => {
   assert.ok(eduKeys(ROLES.PRINCIPAL).includes('eduPlanReviews'));
   assert.ok(!eduKeys(ROLES.PRINCIPAL, ['eduPlanReviews']).includes('eduPlanReviews'));
   assert.ok(eduKeys(ROLES.PRINCIPAL, ['eduPlanReviews']).includes('eduSchoolYear'));

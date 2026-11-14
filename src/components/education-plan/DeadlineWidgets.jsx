@@ -13,7 +13,7 @@ export function DeadlineBadge({ doc }) {
 /** Lý do chưa gửi được (quá hạn, gói học kỳ chưa duyệt) — chỉ hiện cho người soạn khi gói/hồ sơ còn Nháp. */
 export function BlockedNotice({ doc, author }) {
   const text = author && doc?.status === 'DRAFT' ? BLOCKED_TEXT[doc.blockedReason] : null;
-  return text ? <Notice tone="warn">{text}</Notice> : null;
+  return text ? <Notice>{text}</Notice> : null;
 }
 
 /** Hộp mở hạn (spec 005 FR-021a, chỉ ở màn Kế hoạch quá hạn): lý do bắt buộc, hạn mới sau hôm nay, dùng chung cho các dòng đã chọn. */

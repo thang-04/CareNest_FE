@@ -5,7 +5,7 @@ import { transformWithOxc } from 'vite';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 const source = await readFile(new URL('../../src/hooks/education-plan/useEducationPlan.jsx', import.meta.url), 'utf8');
-const stubs = `import React,{createContext,useCallback,useContext,useMemo} from ${JSON.stringify(import.meta.resolve('react'))};
+const stubs = `import React,{createContext,useCallback,useContext,useMemo,useRef,useState} from ${JSON.stringify(import.meta.resolve('react'))};
 export let failure=null; export const setFailure=e=>failure=e;
 let retained={goals:[],eduConfig:{}};const effects=[];const useEffect=fn=>effects.push(fn);
 export const flushEffects=()=>effects.splice(0).forEach(fn=>fn());
@@ -13,7 +13,7 @@ export const setRetained=next=>{retained=next;effects.length=0;};
 const useAuth=()=>({user:{id:'test',role:'TEACHER',fullName:'Người thử'}}),useToast=()=>({}),useSchoolYear=()=>({schoolYear:1,schoolYears:[{id:1,label:'2098 - 2099'}],setSchoolYear:()=>{}});
 const useAsync=()=>({data:retained,loading:false,error:failure,setData:next=>{retained=next;},reload:()=>{}});
 const service=new Proxy({},{get:()=>()=>{}}),ROLES={TEACHER:'TEACHER',TEAM_LEADER:'TEAM_LEADER'},ROLE_LABELS={},AGE_GROUPS=[],CLASSES=[],EDU_STATUS={};
-const withDefaults=x=>x,applyEduConfig=()=>{},toEduYear=x=>x,fromEduYear=x=>x;
+const mergeGoals=(prev,next)=>next;const withDefaults=x=>x,applyEduConfig=()=>{},toEduYear=x=>x,fromEduYear=x=>x;
 const LoadingState=()=>null,ErrorState=()=> <p>ACCESS ERROR</p>;`;
 const transformed = await transformWithOxc(stubs + source.replace(/^import [\s\S]*? from '[^']+';\r?\n/gm, ''), 'Provider.jsx', {
   lang: 'jsx',

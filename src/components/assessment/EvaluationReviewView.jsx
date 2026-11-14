@@ -38,7 +38,7 @@ import { DailyDaysTable } from '@/components/assessment/DailyDaysTable';
 import { Pagination, paginate } from '@/components/ui/Pagination';
 import { EVAL_HISTORY_LABELS, EVAL_KIND, EVAL_STATUS, PERIOD_TYPE_LABELS } from '@/models/assessment/assessmentConstants';
 import { formatDate, formatDateTime } from '@/utils/format';
-import { evaluationPeriodLabel, periodLabel } from '@/utils/assessment/assessmentPeriods';
+import { evaluationPeriodLabel } from '@/utils/assessment/assessmentPeriods';
 import { canConfirmEvaluation, canReviewEvaluation, canViewAiDraft, isClassTeacher } from '@/utils/assessment/assessmentPermissions';
 import { ChildAvatar } from '@/components/ChildAvatar';
 import { validateEvaluationContent, hasErrors } from '@/utils/assessment/assessmentValidation';
@@ -347,12 +347,8 @@ export function EvaluationReviewView({ kind, id }) {
                 <>
                   <div className="dg-ai-box text-sm">{ev.aiDraft.content}</div>
                   <div className="muted text-xs mt-8">
-                    {yearEnd
-                      ? `Tổng hợp từ ${detail.monthlyEvaluations.length} đánh giá tháng đã xác nhận`
-                      : `Tổng hợp từ ${detail.summary.assessedDays} ngày đánh giá hằng ngày${
-                          detail.monthlyEvaluations?.length ? ` và ${detail.monthlyEvaluations.length} đánh giá tháng` : ''
-                        }`}{' '}
-                    · tạo lúc {formatDateTime(ev.aiDraft.generatedAt)}
+                    {yearEnd ? 'Tổng hợp từ dữ liệu cả năm học' : `Tổng hợp từ ${detail.summary.assessedDays} ngày đánh giá hằng ngày`} ·
+                    tạo lúc {formatDateTime(ev.aiDraft.generatedAt)}
                   </div>
                   <div className="row row--wrap gap-2 mt-12">
                     <button
@@ -466,29 +462,6 @@ export function EvaluationReviewView({ kind, id }) {
           <summary className="card__header">Xem dữ liệu làm căn cứ</summary>
           <PeriodSummaryTable data={detail.summary.structured} />
         </details>
-      )}
-
-      {/* Nhận xét tháng trong chi tiết học kỳ cũ. */}
-      {kind === EVAL_KIND.SEMESTER && (
-        <div className="card mt-16">
-          <div className="card__header">
-            <div className="card__title">Đánh giá tháng đã xác nhận trong học kỳ</div>
-          </div>
-          <div className="card__body">
-            {detail.monthlyEvaluations.length ? (
-              <div className="stack">
-                {detail.monthlyEvaluations.map((m) => (
-                  <div key={m.id}>
-                    <div className="fw-600">{periodLabel(m.periodType, m.periodStart, m.periodEnd)}</div>
-                    <div className="dg-final text-sm text-2">{m.finalContent}</div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <EmptyState title="Chưa có đánh giá tháng được xác nhận" description="Đánh giá tháng đã xác nhận trong kỳ sẽ hiện ở đây." />
-            )}
-          </div>
-        </div>
       )}
 
       {!yearEnd && (

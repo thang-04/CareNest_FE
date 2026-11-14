@@ -212,7 +212,7 @@ export default function ImportThemesModal({ planLevel = 'TEAM', excludeId, defau
           </div>
         )}
       </div>
-      {confirmError && <Notice tone="warn">{confirmError}</Notice>}
+      {confirmError && <Notice>{confirmError}</Notice>}
       {query.loadingList ? (
         <LoadingState />
       ) : query.listError ? (

@@ -1,5 +1,18 @@
 import { test, expect } from '@playwright/test';
-import { USERS, E2E, api, sql, cleanup, ids, newSession, editHeaders, yearPlanBody, devPassword, addTeamLeader, suspendOtherTeamLeads } from '../support/realBe.mjs';
+import {
+  USERS,
+  E2E,
+  api,
+  sql,
+  cleanup,
+  ids,
+  newSession,
+  editHeaders,
+  yearPlanBody,
+  devPassword,
+  addTeamLeader,
+  suspendOtherTeamLeads,
+} from '../support/realBe.mjs';
 import { login, spaGo, saveStatus } from '../support/ui.mjs';
 
 test.describe.configure({ mode: 'serial' });
@@ -12,8 +25,10 @@ let suggestion;
 test.beforeAll(async () => {
   devPassword();
   if (!process.env.E2E_PG_DB?.startsWith('carenest_014_e2e_')) throw new Error('Cần database riêng carenest_014_e2e_*');
-  sql("insert into school_years(name,start_date,end_date) values ('2027-2028','2027-09-01','2028-05-31') on conflict(name) do nothing;" +
-    "insert into classrooms(campus_id,school_year_id,name,age_group_id) select c.id,y.id,'Lớp B1',g.id from campuses c cross join school_years y cross join age_groups g where c.code='CS-B' and y.name='2027-2028' and g.code='ag-4' on conflict(school_year_id,campus_id,name) do nothing;");
+  sql(
+    "insert into school_years(name,start_date,end_date) values ('2027-2028','2027-09-01','2028-05-31') on conflict(name) do nothing;" +
+      "insert into classrooms(campus_id,school_year_id,name,age_group_id) select c.id,y.id,'Lớp B1',g.id from campuses c cross join school_years y cross join age_groups g where c.code='CS-B' and y.name='2027-2028' and g.code='ag-4' on conflict(school_year_id,campus_id,name) do nothing;",
+  );
   cleanup();
   addTeamLeader('teacher1');
   suspendOtherTeamLeads('teacher1');
@@ -24,14 +39,18 @@ test.beforeAll(async () => {
   const catalog = await api(USERS.vp, 'GET', `/education-plans/curriculum/goals?ageGroupId=${ids().ageGroup}`);
   selected = catalog.data.find((g) => g.domainId !== body.domains[0].domainId && g.subDomainId && g.expectedResultId);
   const contents = await api(USERS.vp, 'GET', `/education-plans/curriculum/contents?ageGroupId=${ids().ageGroup}`);
-  suggestion = contents.data.find((c) => c.domainId === selected.domainId && c.subDomainId === selected.subDomainId && !selected.contents.includes(c.text));
+  suggestion = contents.data.find(
+    (c) => c.domainId === selected.domainId && c.subDomainId === selected.subDomainId && !selected.contents.includes(c.text),
+  );
   expect(selected).toBeTruthy();
   expect(suggestion).toBeTruthy();
   const session = newSession();
   const created = await api(USERS.vp, 'POST', goalsPath, { body, headers: editHeaders(session, 0) });
   expect(created.status, created.desc).toBe(201);
   annual = created.data;
-  const finish = await api(USERS.vp, 'POST', `${goalsPath}/${annual.id}/finish-editing`, { headers: editHeaders(session, annual.revision) });
+  const finish = await api(USERS.vp, 'POST', `${goalsPath}/${annual.id}/finish-editing`, {
+    headers: editHeaders(session, annual.revision),
+  });
   expect(finish.status, finish.desc).toBe(200);
 });
 
@@ -61,7 +80,11 @@ test('EDU-61: lấy nguyên văn nguồn, lọc đích, lưu API và mở lại'
   await dialog.getByRole('button', { name: 'Đóng', exact: true }).last().click();
   const goalInputs = await page.locator('textarea').all();
   let goalInput;
-  for (const input of goalInputs) if (await input.inputValue() === selected.goalText) { goalInput = input; break; }
+  for (const input of goalInputs)
+    if ((await input.inputValue()) === selected.goalText) {
+      goalInput = input;
+      break;
+    }
   expect(goalInput).toBeTruthy();
   await goalInput.click();
   await page.getByRole('option', { name: selected.goalText, exact: true }).click();
@@ -81,17 +104,27 @@ test('EDU-61: bản mới giữ nguyên nguồn và không đổi bản đã ban
   const session = newSession();
   const current = (await api(USERS.vp, 'GET', `${goalsPath}/${annual.id}`)).data;
   let lease;
-  await expect.poll(async () => {
-    lease = await api(USERS.vp, 'POST', `${goalsPath}/${annual.id}/start-editing`, { headers: editHeaders(session, current.revision) });
-    return lease.status;
-  }, { timeout: 25_000 }).toBe(200);
+  await expect
+    .poll(
+      async () => {
+        lease = await api(USERS.vp, 'POST', `${goalsPath}/${annual.id}/start-editing`, { headers: editHeaders(session, current.revision) });
+        return lease.status;
+      },
+      { timeout: 25_000 },
+    )
+    .toBe(200);
   const review = await api(USERS.vp, 'POST', `${goalsPath}/${annual.id}/submit`, { headers: editHeaders(session, lease.data.revision) });
   expect(review.status, review.desc).toBe(200);
-  const issued = await api(USERS.principal, 'POST', `${goalsPath}/${annual.id}/issue`, { headers: editHeaders(session, review.data.revision) });
+  const issued = await api(USERS.principal, 'POST', `${goalsPath}/${annual.id}/issue`, {
+    headers: editHeaders(session, review.data.revision),
+  });
   expect(issued.status, issued.desc).toBe(200);
   const approved = (await api(USERS.vp, 'GET', `${goalsPath}/${annual.id}`)).data;
   const versionSession = newSession();
-  const version = await api(USERS.vp, 'POST', `${goalsPath}/${annual.id}/versions`, { body: {}, headers: editHeaders(versionSession, approved.revision) });
+  const version = await api(USERS.vp, 'POST', `${goalsPath}/${annual.id}/versions`, {
+    body: {},
+    headers: editHeaders(versionSession, approved.revision),
+  });
   expect(version.status, version.desc).toBe(201);
   const copied = version.data.domains.flatMap((d) => d.rows).find((r) => r.curriculumGoalId === selected.id);
   expect(copied.text).toBe(selected.goalText);
@@ -111,7 +144,9 @@ test('EDU-61: kế hoạch tổ không sửa cây nguồn và vẫn phân bổ n
   const session = newSession();
   const created = await api(USERS.teacher1, 'POST', goalsPath, { body, headers: editHeaders(session, 0) });
   expect(created.status, created.desc).toBe(201);
-  const finish = await api(USERS.teacher1, 'POST', `${goalsPath}/${created.data.id}/finish-editing`, { headers: editHeaders(session, created.data.revision) });
+  const finish = await api(USERS.teacher1, 'POST', `${goalsPath}/${created.data.id}/finish-editing`, {
+    headers: editHeaders(session, created.data.revision),
+  });
   expect(finish.status, finish.desc).toBe(200);
   await login(page, USERS.teacher1);
   await spaGo(page, `/education/goals/${created.data.id}/edit`);

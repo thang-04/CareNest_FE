@@ -23,7 +23,9 @@ export function deadlineLabel(doc) {
 /** Lý do không gửi được (blockedReason của BE). */
 export const BLOCKED_TEXT = {
   DEADLINE_PASSED: 'Quá hạn — chờ Hiệu trưởng mở hạn.',
-  SEMESTER_NOT_RELEASED: 'Học kỳ chưa được duyệt.',
+  // BE:EDU-75 — gói học kỳ chưa ban hành vẫn soạn/lưu được giáo án ngày, chỉ chưa gửi hồ sơ chủ đề
+  SEMESTER_NOT_RELEASED:
+    'Gói học kỳ chưa ban hành nên chưa gửi duyệt được hồ sơ chủ đề. Vẫn soạn và lưu giáo án ngày bình thường; gói học kỳ gửi ở trang Kế hoạch giáo dục chủ đề.',
 };
 
 /** Khóa gói học kỳ của lớp + kế hoạch tổ (sp_), hồ sơ chủ đề (ds_), giáo án ngày (dd_) theo khóa giáo án tuần. */

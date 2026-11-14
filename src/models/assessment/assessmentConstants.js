@@ -233,3 +233,6 @@ export const DIAGNOSTIC_TERMS = [
 /** Kỳ của màn Tổng quan đánh giá lớp: hôm nay, tuần học (T2–T6), tháng dương lịch. */
 export const OVERVIEW_PERIOD = { DAY: 'DAY', WEEK: 'WEEK', MONTH: 'MONTH' };
 export const OVERVIEW_PERIOD_LABELS = { DAY: 'Hôm nay', WEEK: 'Tuần này', MONTH: 'Tháng này' };
+
+/** Độ dài tối đa nhận xét hằng ngày của từng trẻ (BE SaveDailyGeneralRequest / SaveDailySkillsRequest @Size 500). */
+export const DAILY_COMMENT_MAX = 500;

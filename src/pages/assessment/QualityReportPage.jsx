@@ -250,8 +250,8 @@ export default function QualityReportPage() {
                 </div>
               </div>
             )}
-            <div className="table-wrap">
-              <table className="table table--grid dg-qr-table">
+            <div className="table-wrap dg-roll-wrap">
+              <table className="table table--grid dg-qr-table dg-roll">
                 <thead>
                   <tr>
                     <th rowSpan={view === 'year' ? 1 : 2}>Lớp</th>

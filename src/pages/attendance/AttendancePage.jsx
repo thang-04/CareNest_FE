@@ -471,7 +471,7 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
             )}
           </div>
           <div className="table-wrap dd-reception__table">
-            <table className="table table--grid">
+            <table className="table table--grid dd-roll">
               <thead>
                 <tr>
                   <th>Trẻ</th>

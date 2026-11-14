@@ -42,6 +42,7 @@ import {
   RowActions,
   StatusPage,
   Button,
+  Checkbox,
   DataTable,
   TextField,
   SelectField,
@@ -289,6 +290,14 @@ export default function UiKitPage() {
               {LABELS.delete}
             </Button>
             <Button disabled>{LABELS.cancel}</Button>
+            <Button variant="icon" aria-label={LABELS.delete}>
+              <Trash2 size={16} aria-hidden />
+            </Button>
+            <Button variant="link">Hiện phiên bản cũ</Button>
+            <label className="row gap-2">
+              <Checkbox defaultChecked />
+              <span>Ô tích (Checkbox)</span>
+            </label>
           </div>
           <div className="row gap-2 mb-16">
             <TextField label="Tên nhà cung cấp" required defaultValue="" error="Nhập tên nhà cung cấp" />

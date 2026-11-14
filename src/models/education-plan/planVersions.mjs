@@ -180,6 +180,21 @@ export function copyDocToVersion(kind, source, changes, plan, week = {}) {
   if (kind === CLASS_DOC.THEME) {
     doc.id = `tp_${source.classId}_${doc.themeId}`;
     doc.rows = Object.fromEntries(Object.entries(source.rows || {}).map(([id, row]) => [goals.get(id) || id, clone(row)]));
+    // Thẻ (EDU-78): MT theo phiên bản mới; MT không còn thì bỏ khỏi thẻ, giữ thẻ để cô xem lại
+    if (Array.isArray(source.activities))
+      doc.activities = source.activities.map((c) => {
+        const own = String(c.id).split('#');
+        const to = own.length === 2 ? goals.get(own[0]) : null;
+        return {
+          ...clone(c),
+          id: to ? `${to}#${own[1]}` : c.id,
+          goalIds: (c.goalIds || []).map((g) => goals.get(String(g))).filter(Boolean),
+          contentRefs: (c.contentRefs || []).flatMap((r) => {
+            const [g, i] = String(r).split(':');
+            return goals.get(g) ? [`${goals.get(g)}:${i}`] : [];
+          }),
+        };
+      });
     return doc;
   }
   const weekStart = week.weekStart || source.weekStart;
@@ -189,6 +204,12 @@ export function copyDocToVersion(kind, source, changes, plan, week = {}) {
     Object.entries(source.picks || {}).map(([cell, list]) => [
       cell,
       (list || []).map((p) => {
+        if (Array.isArray(p.goalIds)) {
+          const ids = p.goalIds.map((g) => goals.get(String(g))).filter(Boolean);
+          const head = String(p.cardId ?? p.id).split('#');
+          const cardId = head.length === 2 && goals.get(head[0]) ? `${goals.get(head[0])}#${head[1]}` : (p.cardId ?? p.id);
+          return { ...p, id: cardId, cardId, goalIds: ids };
+        }
         const to = goals.get(String(p.goalId));
         return to ? { ...p, goalId: to, goalNo: goalNo.get(to) ?? p.goalNo, id: String(p.id).replace(/^[^#]*/, to) } : { ...p };
       }),
@@ -213,7 +234,11 @@ const goalRefs = (kind, doc, plan) => {
   }
   const byGoal = new Map();
   Object.entries(doc.picks || {}).forEach(([cell, list]) =>
-    (list || []).forEach((p) => byGoal.set(String(p.goalId), [...(byGoal.get(String(p.goalId)) || []), cell])),
+    (list || []).forEach((p) =>
+      (Array.isArray(p.goalIds) ? p.goalIds : p.goalId != null ? [p.goalId] : []).forEach((g) =>
+        byGoal.set(String(g), [...(byGoal.get(String(g)) || []), cell]),
+      ),
+    ),
   );
   return [...byGoal].map(([goalId, cells]) => ({ goalId, cells: [...new Set(cells)] }));
 };
@@ -316,7 +341,12 @@ export function dropReference(kind, doc, flag) {
   return {
     ...doc,
     picks: Object.fromEntries(
-      Object.entries(doc.picks || {}).map(([cell, list]) => [cell, (list || []).filter((p) => String(p.goalId) !== flag.goalId)]),
+      Object.entries(doc.picks || {}).map(([cell, list]) => [
+        cell,
+        (list || [])
+          .map((p) => (Array.isArray(p.goalIds) ? { ...p, goalIds: p.goalIds.filter((g) => String(g) !== flag.goalId) } : p))
+          .filter((p) => (Array.isArray(p.goalIds) ? p.goalIds.length > 0 : String(p.goalId) !== flag.goalId)),
+      ]),
     ),
   };
 }
@@ -346,3 +376,14 @@ export function remapCriteriaToPlan(goals, targetPlanId, assessment) {
     criteriaOffered: map(assessment.criteriaOffered),
   };
 }
+
+/**
+ * Danh sách mới (bản tóm tắt, summary) gộp với kế hoạch đã tải chi tiết: bản chưa đổi (cùng phiên bản nội dung, trạng thái,
+ * số phiên bản) giữ chi tiết cũ, bản đã đổi để lại tóm tắt cho trang cần thì tải lại.
+ */
+export const mergeGoals = (prev = [], next = []) =>
+  next.map((g) => {
+    if (!g.summary) return g;
+    const old = prev.find((x) => x.id === g.id);
+    return old && !old.summary && old.revision === g.revision && old.status === g.status && old.versionNo === g.versionNo ? old : g;
+  });

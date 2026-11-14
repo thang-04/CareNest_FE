@@ -274,8 +274,8 @@ export default function ClassRatingsPage() {
         {error ? (
           <ErrorState error={error} onRetry={reload} />
         ) : (
-          <div className="table-wrap">
-            <table className="table table--grid table--compact table--wrap-head dg-rating-table">
+          <div className="table-wrap dg-roll-wrap">
+            <table className="table table--grid table--compact table--wrap-head dg-rating-table dg-roll">
               <thead>
                 <tr>
                   <th className="num">STT</th>
