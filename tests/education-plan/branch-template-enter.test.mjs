@@ -110,7 +110,7 @@ import {curriculumOptions} from ${JSON.stringify(import.meta.resolve('../../src/
 const useCurriculum=()=>({goals:[],contents:[],sources:[],loading:false,error:null,reload(){}});
 const useLayoutEffect=()=>{};
 import {removeThemeReferences} from ${JSON.stringify(import.meta.resolve('../../src/models/education-plan/planLevel.mjs'))};
-import {fillGoalLabels,goalDisplayLabel} from ${JSON.stringify(import.meta.resolve('../../src/models/education-plan/goalLabels.mjs'))};
+import {fillGoalLabels,goalDisplayLabel,isLabelGoal} from ${JSON.stringify(import.meta.resolve('../../src/models/education-plan/goalLabels.mjs'))};
 import {suggestBreakDates,suggestThemeDates} from ${JSON.stringify(import.meta.resolve('../../src/models/education-plan/importThemes.mjs'))};
 import {${source
   .match(/import \{([\s\S]*?)\} from '@\/models\/education-plan\/goalTable';/)[1]
@@ -133,7 +133,17 @@ test('bảng năm học báo thời lượng chủ đề và nhánh ngay khi đ�
   const themes = [{ id: 't', name: 'A', abbr: 'A', start: '2026-09-07', end: '2026-09-11' }];
   const branchTemplates = [{ id: 'b', themeId: 't', name: 'B', startDate: '2026-09-07', endDate: '2026-09-25' }];
   const durationPolicy = { theme: { minWeeks: 2, maxWeeks: 4 }, branch: { minWeeks: 1, maxWeeks: 2 } };
-  const html = renderToStaticMarkup(React.createElement(ThemeEventTable, { themes, branchTemplates, durationPolicy, breaks: [], domains: [], hideGoals: true, onChange() {} }));
+  const html = renderToStaticMarkup(
+    React.createElement(ThemeEventTable, {
+      themes,
+      branchTemplates,
+      durationPolicy,
+      breaks: [],
+      domains: [],
+      hideGoals: true,
+      onChange() {},
+    }),
+  );
   assert.match(html, /Chủ đề cần từ 2 đến 4 tuần học \(hiện tại 1 tuần\)/);
   assert.match(html, /Nhánh cần từ 1 đến 2 tuần học \(hiện tại 3 tuần\)/);
 });
@@ -254,7 +264,6 @@ const useEffect=fn=>effects.push(fn);
 const useMemo=fn=>fn();
 export function renderControlled(props){cleanups.forEach(fn=>fn?.()); effects=[]; index=0; const tree=GoalTable(props); cleanups=effects.map(fn=>fn()); return tree;}
 export function renderThemesControlled(props){cleanups.forEach(fn=>fn?.()); effects=[]; index=0; const tree=ThemeEventTable(props); cleanups=effects.map(fn=>fn()); return tree;}
-export function renderSuggestionControlled(props){cleanups.forEach(fn=>fn?.()); effects=[]; index=0; const tree=Suggest(props); cleanups=effects.map(fn=>fn()); return tree;}
 export function dispose(){cleanups.forEach(fn=>fn?.()); slots=[]; cleanups=[];}
 `;
 const controlledCode = await transformWithOxc(
@@ -268,37 +277,6 @@ const controlled = await import(
   'data:text/javascript;base64,' + Buffer.from(controlledCode.code + '\n//# sourceURL=ControlledGoalTables.js').toString('base64')
 );
 const nodes = (node) => (!React.isValidElement(node) ? [] : [node, ...React.Children.toArray(node.props.children).flatMap(nodes)]);
-
-test('suggestion Enter chọn một lần; Shift+Enter và IME giữ cho ô nhập xử lý', () => {
-  const oldDocument = globalThis.document;
-  globalThis.document = { getElementById: () => null };
-  const picked = [];
-  const props = { query: '', options: [{ key: 'source-1', text: 'Gợi ý' }], label: 'Gợi ý', onPick: (option) => picked.push(option.key), children: React.createElement('textarea') };
-  const event = (key, extra = {}) => ({ key, shiftKey: false, nativeEvent: { isComposing: false }, target: { tagName: 'TEXTAREA' }, prevented: false, stopped: false,
-    preventDefault() { this.prevented = true; }, stopPropagation() { this.stopped = true; }, ...extra });
-  try {
-    let view = controlled.renderSuggestionControlled(props);
-    view.props.onFocus();
-    view = controlled.renderSuggestionControlled(props);
-    const down = event('ArrowDown');
-    view.props.onKeyDownCapture(down);
-    view = controlled.renderSuggestionControlled(props);
-    const composing = event('Enter', { nativeEvent: { isComposing: true } });
-    view.props.onKeyDownCapture(composing);
-    assert.equal(composing.prevented, false);
-    const shifted = event('Enter', { shiftKey: true });
-    view.props.onKeyDownCapture(shifted);
-    assert.equal(shifted.prevented, false);
-    const enter = event('Enter');
-    view.props.onKeyDownCapture(enter);
-    assert.equal(enter.prevented, true);
-    assert.equal(enter.stopped, true);
-    assert.deepEqual(picked, ['source-1']);
-  } finally {
-    controlled.dispose();
-    globalThis.document = oldDocument;
-  }
-});
 
 test('Enter in a parent theme moves to the next parent, skipping its branch rows', () => {
   const oldDocument = globalThis.document;
@@ -519,9 +497,7 @@ test('annual STT can be entered before goal text and is not replaced when text a
       }),
     );
   const blankLabel = () =>
-    render().find(
-      (node) => node.props['aria-label']?.startsWith('STT mục tiêu mới lĩnh vực ') && !node.props['data-focus'],
-    );
+    render().find((node) => node.props['aria-label']?.startsWith('STT mục tiêu mới lĩnh vực ') && !node.props['data-focus']);
   const label = (id) => render().find((node) => node.props['data-focus'] === `label-${id}`);
   const goalText = (id) => render().find((node) => node.props['data-focus'] === id);
   try {

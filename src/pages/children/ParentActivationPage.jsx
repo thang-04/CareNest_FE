@@ -171,19 +171,7 @@ export default function ParentActivationPage() {
   return (
     <div className="page">
       <Breadcrumb items={childrenCrumbs('Tài khoản phụ huynh')} />
-      <div className="pa-head">
-        <div className="pa-head__title">
-          <h1 className="page__title">Tài khoản phụ huynh</h1>
-        </div>
-        <SearchSubmit
-          className="pa-head__search"
-          value={keyword}
-          maxLength={100}
-          placeholder="Tìm bé theo tên"
-          label="Tìm bé theo tên"
-          onSearch={setKeyword}
-        />
-      </div>
+      <h1 className="page__title">Tài khoản phụ huynh</h1>
 
       {!error && !structure.error && (
         <div className="stat-grid people-stats" aria-label="Tổng quan tài khoản phụ huynh">
@@ -221,6 +209,16 @@ export default function ParentActivationPage() {
       ) : (
         <section className="card people-list-workspace pa-workspace">
           <PeopleTabs embedded />
+          <div className="filter-bar">
+            <SearchSubmit
+              className="flex-1"
+              value={keyword}
+              maxLength={100}
+              placeholder="Tìm bé theo tên"
+              label="Tìm bé theo tên"
+              onSearch={setKeyword}
+            />
+          </div>
           <div className="pa-layout">
             <section className="pa-classes" aria-label="Lớp">
               <div className="pa-classes__toolbar">

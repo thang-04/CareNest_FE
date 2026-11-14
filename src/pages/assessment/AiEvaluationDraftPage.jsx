@@ -135,12 +135,6 @@ export default function AiEvaluationDraftPage() {
                     <dd>{src.structured?.observedDays || new Set(detail.assessments.map((a) => a.date)).size}</dd>
                   </>
                 )}
-                {kind === EVAL_KIND.YEAR_END && (
-                  <>
-                    <dt>Đánh giá tháng đã xác nhận:</dt>
-                    <dd>{src.monthlyCount}</dd>
-                  </>
-                )}
               </dl>
               {!src.structured?.observedDays && (
                 <div className="table-wrap mt-12">

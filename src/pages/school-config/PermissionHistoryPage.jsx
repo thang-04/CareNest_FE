@@ -60,7 +60,7 @@ export default function PermissionHistoryPage() {
           </select>
           {targetUserId && (
             <button className="btn" onClick={() => filterRole('')}>
-              Bỏ lọc tài khoản
+              Đặt lại bộ lọc
             </button>
           )}
         </div>

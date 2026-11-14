@@ -27,11 +27,6 @@
 .table.table--grid.dg-sheet td:last-child {
   padding-right: var(--space-2);
 }
-.dg-sheet thead th {
-  position: sticky;
-  z-index: 3;
-  top: 0;
-}
 .dg-sheet thead .dg-sticky-col {
   z-index: 4;
 }
@@ -146,12 +141,45 @@
   padding-right: var(--space-4);
   background-position: right var(--space-1) center;
 }
-.dg-note:focus {
-  position: absolute;
-  z-index: 3;
-  top: var(--space-1);
-  right: var(--space-2);
-  width: 16rem;
+/* Ô Nhận xét Hoạt động chung dùng chung Cell như màn Kiến thức kỹ năng: ô chữ tự giãn dòng trong ô bảng */
+.dg-sheet .dg-col-note .ga-cell-input {
+  display: block;
+  width: 100%;
+  min-height: var(--input-height);
+  padding: var(--space-2);
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: var(--lh-normal);
+  resize: none;
+  overflow: hidden;
+}
+@supports (field-sizing: content) {
+  .dg-sheet .dg-col-note textarea.ga-cell-input {
+    field-sizing: content;
+  }
+}
+.dg-sheet .dg-col-note .ga-cell-input:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+/* Cột Nhận xét tối thiểu ~280px, chữ dài không nới cột: các cột chọn không bị co; thiếu chỗ thì bảng cuộn ngang */
+.dg-sheet-wrap .dg-sheet th.dg-col-note,
+.dg-sheet-wrap .dg-sheet td.dg-col-note {
+  min-width: calc(var(--space-16) * 4.375);
+}
+/* Ô nhận xét: không lấy độ dài chữ làm độ rộng cột, hiện toàn bộ nội dung, chuỗi liền dài cũng ngắt dòng */
+.dg-sheet .dg-col-note .ga-cell-input {
+  contain: inline-size;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.dg-day-table--skills .ga-cell-input {
+  overflow-wrap: anywhere;
+}
+.dg-sheet .dg-col-note .ga-cell-text {
+  white-space: pre-line;
 }
 .dg-cell-btn {
   display: inline-flex;
@@ -718,6 +746,22 @@
   padding-inline: var(--space-2);
   white-space: nowrap;
 }
+/* Bảng cuộn trong khung như bảng điểm danh: dòng tiêu đề (Trẻ, hoạt động, Nhận xét) đứng yên khi cuộn */
+.table-wrap.dg-skills-wrap {
+  max-height: calc(100vh - 13rem);
+  overflow: auto;
+}
+/* Viền tách: vạch dưới của tiêu đề đi theo khi cuộn, vạch trên là viền khung (không vẽ thêm để khỏi thành 2 nét) */
+.dg-skills-wrap .dg-day-table--skills {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+.dg-skills-wrap .dg-day-table--skills thead th {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-base);
+  background: var(--table-header-bg);
+}
 .dg-day-table.dg-day-table--skills .dg-head-goal {
   flex-wrap: nowrap;
 }
@@ -1071,8 +1115,83 @@
 .dg-xcheck .section-title {
   margin-bottom: var(--space-2);
 }
-.dg-xcheck__dates {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: var(--space-1);
+/* Lưới mục tiêu × ngày: cột ngày hẹp, cột Mục tiêu dính khi cuộn ngang */
+.dg-xcheck__grid {
+  width: auto;
+}
+.dg-xcheck__grid th,
+.dg-xcheck__grid td {
+  white-space: nowrap;
+}
+.dg-xcheck__grid .dg-xcheck__goal {
+  position: sticky;
+  left: 0;
+  z-index: var(--z-base);
+  background: var(--color-surface);
+}
+.dg-xcheck__grid thead .dg-xcheck__goal {
+  background: var(--table-header-bg);
+}
+.dg-xcheck .dg-xcheck__wrap .dg-xcheck__grid th,
+.dg-xcheck .dg-xcheck__wrap .dg-xcheck__grid td {
+  padding: var(--space-1) var(--space-2);
+}
+.dg-xcheck__grid .dg-xcheck__mark {
+  font-size: var(--fs-md);
+  font-weight: var(--fw-bold);
+}
+.dg-xcheck .dg-xcheck__wrap .dg-xcheck__grid .dg-xcheck__absent {
+  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
+}
+
+/* ---------- Bảng danh sách cuộn trong khung (giống bảng Điểm danh) ---------- */
+/* Khung cuộn dọc có viền ngoài đứng yên; dòng tiêu đề (cả tiêu đề nhiều tầng) dính trên cùng khi cuộn */
+.table-wrap.dg-roll-wrap {
+  max-height: calc(100vh - 13rem);
+  overflow: auto;
+  border: 1px solid var(--color-text-disabled);
+  border-radius: 0;
+}
+.dg-roll-wrap .dg-roll {
+  border: 0;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+.dg-roll-wrap .dg-roll thead {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+}
+.dg-roll-wrap .dg-roll thead th {
+  background: var(--table-header-bg);
+}
+/* Viền tách: ô tự vẽ cạnh phải và dưới nên viền đi theo tiêu đề khi cuộn; khung ngoài là viền của khung cuộn */
+.dg-roll-wrap .dg-roll tr > th,
+.dg-roll-wrap .dg-roll tr > td,
+.dg-roll-wrap .dg-roll tbody tr:last-child > td {
+  border-style: solid;
+  border-color: var(--color-text-disabled);
+  border-width: 0 1px 1px 0;
+}
+.dg-roll-wrap .dg-roll tr > :last-child,
+.dg-roll-wrap .dg-roll tbody tr:last-child > td:last-child {
+  border-right-width: 0;
+}
+.dg-roll-wrap .dg-roll tbody tr:last-child > td {
+  border-bottom-width: 0;
+}
+/* Hàng tiêu đề thứ hai sau cột gộp dòng: vạch trái đã là cạnh phải của ô gộp, bỏ để không thành 2 nét */
+.dg-roll-wrap .dg-roll > thead > tr + tr > th:first-child {
+  border-left-width: 0;
+}
+/* Bảng cuối chủ đề giữ khung ngoài đậm như mẫu giấy: khung vẽ ở khung cuộn */
+.table-wrap.dg-roll-wrap:has(> .dg-theme-table) {
+  border: 2px solid var(--color-text-muted);
+}
+.dg-roll-wrap .dg-roll.dg-theme-table {
+  border: 0;
+}
+.dg-roll-wrap .dg-roll.dg-theme-table tfoot tr:first-child > * {
+  border-top: 2px solid var(--color-text-muted);
 }

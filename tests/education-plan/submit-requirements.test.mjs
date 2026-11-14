@@ -5,9 +5,11 @@ import { submissionRequirementsIssue } from '../../src/models/education-plan/sub
 test('year requires nine topics, dates, and content for every goal', () => {
   const themes = Array.from({ length: 9 }, (_, i) => ({ id: String(i), name: `Chủ đề ${i}`, abbr: `C${i}`, start: '2026-09-07', end: '2026-09-18' }));
   const domains = [{ rows: [{ kind: 'group', text: 'Kết quả' }, { kind: 'goal', text: 'Mục tiêu', contents: [{ text: 'Nội dung', themes: [] }] }] }];
-  assert.match(submissionRequirementsIssue({ planLevel: 'SCHOOL_YEAR', themes: themes.slice(0, 8), domains }), /Chưa đạt số lượng chủ đề cho phép/);
+  assert.match(submissionRequirementsIssue({ planLevel: 'SCHOOL_YEAR', themes: themes.slice(0, 8), domains }), /^Cần tối thiểu 9 chủ đề\.$/);
   assert.equal(submissionRequirementsIssue({ planLevel: 'SCHOOL_YEAR', themes, domains }), null);
   assert.match(submissionRequirementsIssue({ planLevel: 'SCHOOL_YEAR', themes, domains: [{ rows: [...domains[0].rows, { kind: 'goal', text: 'Chưa đủ', contents: [] }] }] }), /Chưa đủ/);
+  const twoEmpty = [...domains[0].rows, { kind: 'goal', text: 'Thiếu A', contents: [] }, { kind: 'goal', text: 'Thiếu B', contents: [{ text: ' ' }] }];
+  assert.match(submissionRequirementsIssue({ planLevel: 'SCHOOL_YEAR', themes, domains: [{ rows: twoEmpty }] }), /Còn 2 mục tiêu chưa có nội dung, đầu tiên: "Thiếu A"/);
 });
 
 test('team requires one ticked content for each goal', () => {

@@ -86,7 +86,11 @@ export const INTEGRATION_MODULES = {
   'education-plan': {
     source: 'api',
     routes: ['/education'],
-    files: ['src/services/education-plan/api/educationPlanApi.js', 'src/services/education-plan/learningResourceService.js'],
+    files: [
+      'src/services/education-plan/api/educationPlanApi.js',
+      'src/services/education-plan/learningResourceService.js',
+      'src/services/education-plan/resourceLibraryService.js',
+    ],
     pending: [
       'GET /education-plans/curriculum/{x}',
       'PUT /education-plans/themes/{x}',

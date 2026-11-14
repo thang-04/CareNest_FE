@@ -5,7 +5,7 @@ import { ExtendDeadlineModal } from '@/components/education-plan/DeadlineWidgets
 import { LoadingState } from '@/components/ui/States';
 import { Tabs } from '@/components/ui/Tabs';
 import { Eye } from '@/components/ui/icons';
-import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
+import { useEducationPlan, useGoalDetails } from '@/hooks/education-plan/useEducationPlan';
 import { AGE_GROUPS } from '@/models/education-plan/educationPlanConstants';
 import { todayIso } from '@/models/education-plan/classPlan';
 import { planRoute } from '@/models/education-plan/planLevel.mjs';
@@ -32,6 +32,9 @@ export default function OverduePlansPage() {
   const [selected, setSelected] = useState(() => new Set());
   const [target, setTarget] = useState(null);
   const [errors, setErrors] = useState({});
+
+  // Tên chủ đề lấy từ chi tiết kế hoạch tổ của hồ sơ
+  useGoalDetails(themeDossiers.map((d) => d.yearPlanId));
 
   if (loading) return <LoadingState />;
   const themeNameOf = (d) => goals.find((g) => g.id === d.yearPlanId)?.themes?.find((t) => t.id === d.themeId)?.name || 'Chủ đề';
@@ -76,90 +79,101 @@ export default function OverduePlansPage() {
   const overdueTab = tab === 'overdue';
   return (
     <div className="page ga-page">
-      <PageHead crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Kế hoạch quá hạn' }]} title="Kế hoạch quá hạn" />
-      <Tabs
-        ariaLabel="Kế hoạch quá hạn"
-        value={tab}
-        onChange={(key) => {
-          setTab(key);
-          setSelected(new Set());
-        }}
-        items={[
-          { key: 'overdue', label: 'Đang quá hạn', count: count('overdue') },
-          { key: 'extended', label: 'Đã mở hạn', count: count('extended') },
-        ]}
-      />
-      <Card bodyClass={null} className="mt-16">
-        <div className="filter-bar">
-          <div className="field">
-            <label className="field__label" htmlFor={`${id}-age`}>
-              Nhóm tuổi
-            </label>
-            <select
-              id={`${id}-age`}
-              className="select"
-              value={filter.ageGroupId}
-              onChange={(e) => setF({ ageGroupId: e.target.value, classId: '' })}
-            >
-              <option value="">Tất cả</option>
-              {groups.map((g) => (
-                <option key={g.id} value={g.id}>
-                  {g.name}
-                </option>
-              ))}
-            </select>
+      <div className="ga-sticky-head">
+        <PageHead crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Kế hoạch quá hạn' }]} title="Kế hoạch quá hạn" />
+        <div className="card mb-16">
+          <div className="filter-bar">
+            <div className="field">
+              <label className="field__label" htmlFor={`${id}-age`}>
+                Nhóm tuổi
+              </label>
+              <select
+                id={`${id}-age`}
+                className="select"
+                value={filter.ageGroupId}
+                onChange={(e) => setF({ ageGroupId: e.target.value, classId: '' })}
+              >
+                <option value="">Tất cả</option>
+                {groups.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label className="field__label" htmlFor={`${id}-class`}>
+                Lớp
+              </label>
+              <select
+                id={`${id}-class`}
+                className="select"
+                value={filter.classId}
+                disabled={!filter.ageGroupId}
+                onChange={(e) => setF({ classId: e.target.value })}
+              >
+                <option value="">Tất cả</option>
+                {groupClasses.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label className="field__label" htmlFor={`${id}-kind`}>
+                Loại
+              </label>
+              <select id={`${id}-kind`} className="select" value={filter.kind} onChange={(e) => setF({ kind: e.target.value })}>
+                <option value="">Tất cả</option>
+                {Object.entries(OVERDUE_KIND_LABEL).map(([k, label]) => (
+                  <option key={k} value={k}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label className="field__label" htmlFor={`${id}-hk`}>
+                Học kỳ
+              </label>
+              <select id={`${id}-hk`} className="select" value={filter.semesterNo} onChange={(e) => setF({ semesterNo: e.target.value })}>
+                <option value="">Tất cả</option>
+                {semesters.map((n) => (
+                  <option key={n} value={n}>
+                    Học kỳ {n}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
-          <div className="field">
-            <label className="field__label" htmlFor={`${id}-class`}>
-              Lớp
-            </label>
-            <select
-              id={`${id}-class`}
-              className="select"
-              value={filter.classId}
-              disabled={!filter.ageGroupId}
-              onChange={(e) => setF({ classId: e.target.value })}
-            >
-              <option value="">Tất cả</option>
-              {groupClasses.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="field">
-            <label className="field__label" htmlFor={`${id}-kind`}>
-              Loại
-            </label>
-            <select id={`${id}-kind`} className="select" value={filter.kind} onChange={(e) => setF({ kind: e.target.value })}>
-              <option value="">Tất cả</option>
-              {Object.entries(OVERDUE_KIND_LABEL).map(([k, label]) => (
-                <option key={k} value={k}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="field">
-            <label className="field__label" htmlFor={`${id}-hk`}>
-              Học kỳ
-            </label>
-            <select id={`${id}-hk`} className="select" value={filter.semesterNo} onChange={(e) => setF({ semesterNo: e.target.value })}>
-              <option value="">Tất cả</option>
-              {semesters.map((n) => (
-                <option key={n} value={n}>
-                  Học kỳ {n}
-                </option>
-              ))}
-            </select>
-          </div>
-          {overdueTab && (
-            <button type="button" className="btn btn--primary" disabled={!picked.length} onClick={() => setTarget(picked)}>
-              Mở hạn{picked.length ? ` (${picked.length})` : ''}
-            </button>
-          )}
         </div>
+        {/* Khung chung (Tiền 12/11/2026): hàng lọc → tab → hàng nút; nút làm hàng loạt ở hàng nút, không trong thẻ lọc */}
+        <div className="mb-16">
+          <Tabs
+            ariaLabel="Kế hoạch quá hạn"
+            value={tab}
+            onChange={(key) => {
+              setTab(key);
+              setSelected(new Set());
+            }}
+            items={[
+              { key: 'overdue', label: 'Đang quá hạn', count: count('overdue') },
+              { key: 'extended', label: 'Đã mở hạn', count: count('extended') },
+            ]}
+          />
+        </div>
+        {overdueTab && (
+          <div className="ga-year-toolbar" role="group" aria-label="Thao tác kế hoạch quá hạn">
+            <div className="ga-year-toolbar__group ga-year-toolbar__group--end">
+              <button type="button" className="btn btn--sm btn--primary" disabled={!picked.length} onClick={() => setTarget(picked)}>
+                Mở hạn{picked.length ? ` (${picked.length})` : ''}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+      <Card bodyClass={null}>
         {Object.keys(errors).length > 0 && (
           <div className="card__body">
             <p className="field__error" role="alert">
@@ -168,7 +182,7 @@ export default function OverduePlansPage() {
           </div>
         )}
         {shown.length === 0 ? (
-          <EmptyState title={overdueTab ? 'Không có kế hoạch quá hạn' : 'Chưa mở hạn kế hoạch nào'} />
+          <EmptyState title={overdueTab ? 'Chưa có kế hoạch quá hạn' : 'Chưa mở hạn kế hoạch nào'} />
         ) : (
           <div className="card__body">
             <div className="table-wrap">

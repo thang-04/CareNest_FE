@@ -78,7 +78,17 @@ jobs:
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -p "$VPS_PORT" -H "$VPS_HOST" >> ~/.ssh/known_hosts
 
-      # File bị loại theo .dockerignore không bị --delete xoá ở VPS (vd. .env đặt tay)
+      # deploy/ bị loại theo .dockerignore nên gửi riêng. Script phải lên trước source: bước prepare giữ image
+      # đang chạy và compose.yaml cũ, sau đó rsync mới ghi đè
+      - name: Keep running version for rollback
+        run: |
+          ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" "mkdir -p '$APP_DIR/.incoming'"
+          rsync -z -e "ssh -p $VPS_PORT" deploy/remote-deploy.sh \
+            "$VPS_USER@$VPS_HOST:$APP_DIR/.incoming/remote-deploy.sh"
+          ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" \
+            "cd '$APP_DIR' && COMPOSE_PROJECT='$COMPOSE_PROJECT' WEB_CONTAINER='$WEB_CONTAINER' WEB_IMAGE='$WEB_IMAGE' WEB_LISTEN='$WEB_LISTEN' bash .incoming/remote-deploy.sh prepare"
+
+      # File bị loại theo .dockerignore không bị --delete xoá ở VPS (vd. .env đặt tay, .incoming/, .rollback/)
       - name: Upload source
         run: |
           rsync -az --delete --exclude-from=.dockerignore \
@@ -97,14 +107,7 @@ jobs:
           VITE_AUTH_MODE: ${{ vars.VITE_AUTH_MODE || 'mock' }}
         run: |
           ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" \
-            "cd '$APP_DIR' && VITE_API_BASE_URL='$VITE_API_BASE_URL' VITE_USE_MOCK='$VITE_USE_MOCK' VITE_AUTH_MODE='$VITE_AUTH_MODE' COMPOSE_PROJECT='$COMPOSE_PROJECT' WEB_CONTAINER='$WEB_CONTAINER' WEB_IMAGE='$WEB_IMAGE' WEB_LISTEN='$WEB_LISTEN' bash -s" <<'EOF'
-          set -e
-          export WEB_CONTAINER WEB_IMAGE WEB_LISTEN
-          docker compose -p "$COMPOSE_PROJECT" up -d --build --remove-orphans
-          docker image prune -f
-          sleep 2
-          curl -fsS -o /dev/null "http://$WEB_LISTEN/"
-          EOF
+            "cd '$APP_DIR' && VITE_API_BASE_URL='$VITE_API_BASE_URL' VITE_USE_MOCK='$VITE_USE_MOCK' VITE_AUTH_MODE='$VITE_AUTH_MODE' COMPOSE_PROJECT='$COMPOSE_PROJECT' WEB_CONTAINER='$WEB_CONTAINER' WEB_IMAGE='$WEB_IMAGE' WEB_LISTEN='$WEB_LISTEN' bash .incoming/remote-deploy.sh deploy"
 
       # Caddy dùng chung với site khác: reload lỗi thì Caddy giữ cấu hình đang chạy,
       # nhưng file lỗi còn trên đĩa sẽ làm Caddy không lên sau reboot ⇒ khôi phục file cũ
@@ -129,7 +132,15 @@ jobs:
           EOF
 
       - name: Smoke test HTTPS
+        id: smoke
         run: curl -fsSI -o /dev/null --retry 10 --retry-delay 6 --retry-all-errors "$SITE_URL"
+
+      # Container đạt ở localhost nhưng site HTTPS không lên ⇒ quay về image trước; job vẫn đỏ
+      - name: Roll back after failed smoke test
+        if: failure() && steps.smoke.outcome == 'failure'
+        run: |
+          ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" \
+            "cd '$APP_DIR' && COMPOSE_PROJECT='$COMPOSE_PROJECT' WEB_CONTAINER='$WEB_CONTAINER' WEB_IMAGE='$WEB_IMAGE' WEB_LISTEN='$WEB_LISTEN' bash .incoming/remote-deploy.sh rollback 'smoke test failed'"
 
       # Proxy trước VPS (header x-cache-status) cache được /assets, nhưng file mới của mỗi bản deploy đều MISS và về VPS
       # (đường ra chậm, đo 03/11/2026: ~13–18 KB/s). Gọi trước từng file từ VPS để người dùng gặp HIT; lỗi không chặn deploy.

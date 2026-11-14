@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Plus, RotateCcw } from '@/components/ui/icons';
 import { ROLES } from '@/models/User';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
+import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { AGE_GROUPS, EDU_STATUS, allGoalItems } from '@/models/education-plan/educationPlanConstants';
 import { Card, EmptyState, PageHead, YearPlanStatusBadge, fmtDate } from '@/components/education-plan/eduUi';
 import { StatCard } from '@/components/ui/StatCard';
@@ -13,6 +14,7 @@ import { currentPlanOf, versionOf } from '@/models/education-plan/planVersions.m
 import { useAsync } from '@/hooks/useAsync';
 import { usePolling } from '@/hooks/usePolling';
 import { getReviewQueue } from '@/services/education-plan/educationPlanService';
+import { Button } from '@/components';
 
 const ageName = (id) => AGE_GROUPS.find((a) => a.id === id)?.name || '—';
 
@@ -37,10 +39,12 @@ export default function GoalListPage({ planLevel = 'TEAM' }) {
   const basePath = planRoute({ planLevel });
   const pageLabel = annual ? 'Kế hoạch năm học' : 'Kế hoạch giáo dục tổ';
   const { goals: allGoals, schoolYear, role, user, classes, eduConfig } = useEducationPlan();
+  const { schoolYears: yearOptions } = useSchoolYear();
   const goals = allGoals.filter((g) => levelOf(g) === planLevel);
   const navigate = useNavigate();
   const [q, setQ] = useState('');
   const [age, setAge] = useState('');
+  const [showOld, setShowOld] = useState(false);
   const isVP = role === ROLES.VICE_PRINCIPAL;
   const isLeader = role === ROLES.TEAM_LEADER;
   const isPrincipal = role === ROLES.PRINCIPAL;
@@ -71,31 +75,35 @@ export default function GoalListPage({ planLevel = 'TEAM' }) {
   usePolling(() => queue.reload({ silent: true }), { enabled: isVP || isPrincipal });
 
   const creationScopes = eduConfig?.[annual ? 'schoolYearCreationScopes' : 'yearCreationScopes'];
+  // EDU-89: năm đã kết thúc / năm sắp tới chưa tới ngày mở chuẩn bị ⇒ chỉ xem, không lập kế hoạch
+  const norm = (v) => String(v || '').replace(/\s*[-–]\s*/g, '-');
+  const yearOpt = yearOptions.find((y) => norm(y.label) === norm(schoolYear));
+  const yearWritable = !yearOpt || yearOpt.status === 'ACTIVE' || yearOpt.preparing;
   const canCreate =
     annual &&
+    yearWritable &&
     !principalViewer &&
     (creationScopes
       ? creationScopes.some((id) => !scoped.some((g) => g.ageGroupId === id))
       : isYearCreator && (!user.ageGroupId || !scoped.some((g) => g.ageGroupId === user.ageGroupId)));
 
-  const rows = scoped.filter((g) => (!age || g.ageGroupId === age) && (!q || (g.title + g.code).toLowerCase().includes(q.toLowerCase())));
+  // Bản đã ban hành nhưng có bản mới hơn thay thế: hiện "Đã thay thế", mặc định gom lại để danh sách chỉ còn bản đang dùng (Tiền 12/11/2026)
+  const replaced = (g) =>
+    g.status === EDU_STATUS.APPROVED && !(g.current ?? currentPlanOf(goals, g.ageGroupId, g.schoolYear, planLevel)?.id === g.id);
+  const matched = scoped.filter(
+    (g) => (!age || g.ageGroupId === age) && (!q || (g.title + g.code).toLowerCase().includes(q.toLowerCase())),
+  );
+  // Chỉ gom bản thay thế khi danh sách còn bản đang dùng của cùng nhóm tuổi; không thì vẫn hiện để danh sách không trống
+  const foldable = (g) => replaced(g) && matched.some((x) => !replaced(x) && x.ageGroupId === g.ageGroupId);
+  const oldCount = matched.filter(foldable).length;
+  const rows = showOld ? matched : matched.filter((g) => !foldable(g));
 
   const issued = scoped.filter((g) => g.status === EDU_STATUS.APPROVED || g.status === EDU_STATUS.SENT).length;
   const pending = (queue.data || []).filter((g) => levelOf(g) === planLevel).length;
 
   return (
     <div className="page ga-page">
-      <PageHead
-        crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: pageLabel }]}
-        title={pageLabel}
-        actions={
-          canCreate && (
-            <Link to={`${basePath}/new`} state={{ backTo: basePath }} className="btn btn--primary">
-              <Plus size={16} aria-hidden /> {annual ? 'Lập kế hoạch năm học' : 'Lập kế hoạch giáo dục tổ'}
-            </Link>
-          )
-        }
-      />
+      <PageHead crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: pageLabel }]} title={pageLabel} />
 
       {/* Tổ trưởng, giáo viên chỉ có 1–2 kế hoạch mỗi năm: không cần thẻ tổng quan, tìm kiếm, lọc */}
       {(isVP || isPrincipal) && (
@@ -113,55 +121,49 @@ export default function GoalListPage({ planLevel = 'TEAM' }) {
       )}
 
       <Card bodyClass={null}>
-        {(isVP || isPrincipal) && (
+        {(isVP || isPrincipal || canCreate) && (
           <div className="filter-bar">
-            <SearchSubmit value={q} placeholder="Tìm theo tên hoặc mã" label="Tìm kế hoạch" onSearch={setQ} />
-            <select className="select" value={age} onChange={(e) => setAge(e.target.value)} aria-label="Lọc theo nhóm tuổi">
-              <option value="">Tất cả nhóm tuổi</option>
-              {AGE_GROUPS.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
-                </option>
-              ))}
-            </select>
+            {(isVP || isPrincipal) && (
+              <>
+                <SearchSubmit value={q} placeholder="Tìm theo tên hoặc mã" label="Tìm kế hoạch" onSearch={setQ} />
+                <select className="select" value={age} onChange={(e) => setAge(e.target.value)} aria-label="Lọc theo nhóm tuổi">
+                  <option value="">Tất cả nhóm tuổi</option>
+                  {AGE_GROUPS.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                    </option>
+                  ))}
+                </select>
+              </>
+            )}
+            {canCreate && (
+              <div className="filter-bar__end">
+                <Link to={`${basePath}/new`} state={{ backTo: basePath }} className="btn btn--primary">
+                  <Plus size={16} aria-hidden /> {annual ? 'Lập kế hoạch năm học' : 'Lập kế hoạch giáo dục tổ'}
+                </Link>
+              </div>
+            )}
           </div>
         )}
         {rows.length === 0 && scoped.length > 0 ? (
           // Có kế hoạch nhưng bộ lọc loại hết: không báo "chưa có", cho đặt lại bộ lọc
           <EmptyState
-            title="Không có kế hoạch phù hợp"
+            title="Không có kết quả phù hợp"
             action={
-              <button
-                className="btn"
+              <Button
                 onClick={() => {
                   setQ('');
                   setAge('');
                 }}
               >
                 <RotateCcw size={15} /> Đặt lại bộ lọc
-              </button>
+              </Button>
             }
           />
         ) : rows.length === 0 ? (
           <EmptyState
             // Người chỉ xem chỉ thấy bản đã ban hành (BE spec 002 FR-011)
             title={isYearCreator ? `Chưa có ${pageLabel.toLowerCase()}` : 'Chưa có bản ban hành'}
-            desc={
-              annual && eduConfig?.durationPolicyAvailable === false
-                ? 'Bạn có thể mở form kế hoạch năm học để xem trước. Thao tác lưu và gửi duyệt sẽ có khi máy chủ hỗ trợ; kế hoạch giáo dục tổ hiện có vẫn sử dụng bình thường.'
-                : !annual
-                  ? 'Kế hoạch tổ được tự tạo ở trạng thái Nháp khi kế hoạch năm học của nhóm tuổi được ban hành.'
-                  : canCreate
-                    ? 'Lập kế hoạch năm học cho nhóm tuổi.'
-                    : 'Chưa có kế hoạch năm học trong phạm vi được xem.'
-            }
-            action={
-              canCreate && (
-                <Link to={`${basePath}/new`} state={{ backTo: basePath }} className="btn btn--primary">
-                  <Plus size={16} aria-hidden /> {annual ? 'Lập kế hoạch năm học' : 'Lập kế hoạch giáo dục tổ'}
-                </Link>
-              )
-            }
           />
         ) : (
           <div className="table-wrap">
@@ -190,7 +192,8 @@ export default function GoalListPage({ planLevel = 'TEAM' }) {
                     <td>{ageName(g.ageGroupId)}</td>
                     {annual && (
                       <td>
-                        {allGoalItems(g).length} mục tiêu · {(g.themes || []).length} chủ đề
+                        {g.summary ? g.goalCount : allGoalItems(g).length} mục tiêu · {g.summary ? g.themeCount : (g.themes || []).length}{' '}
+                        chủ đề
                       </td>
                     )}
                     <td>{fmtDate(g.sentAt ?? g.sentBy?.at)}</td>
@@ -198,20 +201,19 @@ export default function GoalListPage({ planLevel = 'TEAM' }) {
                       <Owner plan={g} />
                     </td>
                     <td className="center">
-                      <YearPlanStatusBadge
-                        doc={g}
-                        status={
-                          g.status === EDU_STATUS.APPROVED &&
-                          !(g.current ?? currentPlanOf(goals, g.ageGroupId, g.schoolYear, planLevel)?.id === g.id)
-                            ? 'REPLACED'
-                            : g.status
-                        }
-                      />
+                      <YearPlanStatusBadge doc={g} status={replaced(g) ? 'REPLACED' : g.status} />
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+        {oldCount > 0 && (
+          <div className="card__body">
+            <button type="button" className="link-btn" aria-expanded={showOld} onClick={() => setShowOld((v) => !v)}>
+              {showOld ? 'Ẩn phiên bản cũ' : `Hiện phiên bản cũ (${oldCount})`}
+            </button>
           </div>
         )}
       </Card>

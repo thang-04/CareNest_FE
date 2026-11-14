@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from '@/components/ui/icons';
+import { modalStack } from './modalStack';
 
 const EXIT_MS = 350;
 
@@ -32,10 +33,13 @@ export function SidePanel({ open, title, onClose, children, footer, wide = false
     if (!open || !mounted) return undefined;
     const previous = document.activeElement;
     const onKey = (e) => e.key === 'Escape' && onCloseRef.current?.();
+    const token = {};
+    modalStack.push(token); // khóa cuộn trang phía sau như modal
     document.addEventListener('keydown', onKey);
     ref.current?.focus();
     return () => {
       document.removeEventListener('keydown', onKey);
+      modalStack.remove(token);
       previous?.focus?.();
     };
   }, [open, mounted]);

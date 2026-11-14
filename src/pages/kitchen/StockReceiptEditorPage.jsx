@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Download, FileImport, PackagePlus, Plus, Save, Trash2, XCircle } from '@/components/ui/icons';
+import { ArrowLeft, FileImport, PackagePlus, Plus, Save, Trash2, XCircle } from '@/components/ui/icons';
 import { useToast } from '@/contexts/ToastContext';
 import {
   Breadcrumb,
@@ -21,6 +21,8 @@ import { emptyLine, emptyReceiptForm, mapReceiptErrors, receiptToForm, validateR
 import { RECEIPT_IMPORT_COLUMNS, readReceiptFile } from '@/utils/kitchen/stockReceiptImport';
 import { downloadCsv } from '@/utils/exportCsv';
 import { personName } from '@/utils/kitchen/stockLots';
+import { ImportDialog } from '@/components/upload/ImportDialog';
+import { Button } from '@/components/ui/Button';
 import { kitchenCrumbs, KITCHEN_PAGES } from '@/utils/kitchen/breadcrumbs';
 import { formatDate, formatDateTime, formatMoney, todayInput } from '@/utils/format';
 import '@/styles/modules/kitchen.css';
@@ -53,19 +55,25 @@ export default function StockReceiptEditorPage() {
   const [dialog, setDialog] = useState(null); // 'confirm' | 'delete' | 'cancel'
   const [dialogError, setDialogError] = useState('');
   const [reason, setReason] = useState('');
-  const [importNote, setImportNote] = useState(null); // { added, problems[] }
+  // Hộp nhập từ Excel: { open, fileName, reading, result: { lines, problems } }
+  const [importing, setImporting] = useState({ open: false });
 
   // Nhập dòng từ Excel/CSV: thêm vào form nháp (bỏ dòng trống), người dùng xem lại rồi lưu
-  const importFile = async (file) => {
-    if (!file) return;
+  const readImport = async (file) => {
+    setImporting({ open: true, fileName: file.name, reading: true });
     try {
-      const { lines, problems } = await readReceiptFile(file, Object.values(foodById));
-      setForm((f) => ({ ...f, lines: [...f.lines.filter((l) => l.foodId || l.purchaseQty || l.lotNo), ...lines] }));
-      setImportNote({ added: lines.length, problems });
-      if (lines.length) toast.success(`Đã thêm ${lines.length} dòng từ file.`);
+      const result = await readReceiptFile(file, Object.values(foodById));
+      setImporting({ open: true, fileName: file.name, result });
     } catch (err) {
       toast.error(err, 'Không đọc được file');
+      setImporting({ open: true });
     }
+  };
+  const applyImport = () => {
+    const lines = importing.result?.lines || [];
+    setForm((f) => ({ ...f, lines: [...f.lines.filter((l) => l.foodId || l.purchaseQty || l.lotNo), ...lines] }));
+    toast.success(`Đã thêm ${lines.length} dòng từ file.`);
+    setImporting({ open: false });
   };
   const downloadTemplate = () =>
     downloadCsv([RECEIPT_IMPORT_COLUMNS, ['TP001', 'Gạo tẻ', '50', 'L2611-01', '30/06/2027', '18000']], 'phieu-nhap-kho-mau.csv');
@@ -309,21 +317,9 @@ export default function StockReceiptEditorPage() {
               <div className="card__title">Thực phẩm nhập kho</div>
               {editable && (
                 <div className="row kb-line-actions">
-                  <button type="button" className="btn btn--sm btn--ghost" onClick={downloadTemplate}>
-                    <Download size={15} /> Tải file mẫu
-                  </button>
-                  <label className="btn btn--sm">
-                    <FileImport size={15} /> Nhập từ Excel
-                    <input
-                      type="file"
-                      accept=".xlsx,.csv"
-                      className="sr-only"
-                      onChange={(e) => {
-                        importFile(e.target.files?.[0]);
-                        e.target.value = '';
-                      }}
-                    />
-                  </label>
+                  <Button size="sm" icon={FileImport} onClick={() => setImporting({ open: true })}>
+                    Nhập từ Excel
+                  </Button>
                   <button
                     type="button"
                     className="btn btn--sm"
@@ -334,18 +330,6 @@ export default function StockReceiptEditorPage() {
                 </div>
               )}
             </div>
-            {importNote?.problems.length > 0 && (
-              <div className="alert alert--warning kb-card-error">
-                <div>
-                  <b>Có {importNote.problems.length} dòng chưa nhập được</b>
-                  <ul className="kb-import-problems">
-                    {importNote.problems.slice(0, 8).map((p) => (
-                      <li key={p}>{p}</li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            )}
             {errors.lines && <div className="field__error kb-card-error">{errors.lines}</div>}
             <div className="table-wrap">
               <table className="table table--grid">
@@ -518,6 +502,48 @@ export default function StockReceiptEditorPage() {
           </FormField>
         </div>
       </ConfirmationModal>
+      <ImportDialog
+        open={importing.open}
+        title="Nhập thực phẩm vào phiếu từ Excel"
+        guide={
+          <>
+            Tải xuống <b>tệp mẫu</b>, điền mỗi dòng một thực phẩm kho khô (mã hoặc tên, số lượng, số lô, hạn dùng, đơn giá) rồi tải lên. Các
+            dòng hợp lệ được thêm vào bảng của phiếu để kiểm tra trước khi lưu.
+          </>
+        }
+        onTemplate={downloadTemplate}
+        accept=".xlsx,.csv"
+        hint="Tệp .xlsx hoặc .csv, tối đa 10MB."
+        fileName={importing.fileName || ''}
+        reading={!!importing.reading}
+        onFile={readImport}
+        confirmLabel={`Thêm ${importing.result?.lines.length || 0} dòng vào phiếu`}
+        idleLabel="Thêm vào phiếu"
+        confirmDisabled={!importing.result?.lines.length}
+        onConfirm={applyImport}
+        onClose={() => setImporting({ open: false })}
+      >
+        {importing.result && (
+          <div className="import-preview">
+            <div className="row td-chips">
+              <span className="chip chip--green">Hợp lệ {importing.result.lines.length}</span>
+              <span className={`chip ${importing.result.problems.length ? 'chip--red' : 'chip--gray'}`}>
+                Lỗi {importing.result.problems.length}
+              </span>
+            </div>
+            {importing.result.problems.length > 0 && (
+              <section>
+                <h3>Dòng chưa nhập được</h3>
+                <ul className="kb-import-problems">
+                  {importing.result.problems.map((p) => (
+                    <li key={p}>{p}</li>
+                  ))}
+                </ul>
+              </section>
+            )}
+          </div>
+        )}
+      </ImportDialog>
     </div>
   );
 }

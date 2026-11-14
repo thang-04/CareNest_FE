@@ -6,6 +6,7 @@ globalThis.window = new EventTarget();
 const { createNutritionCatalogApi } = await import('@/services/nutritionCatalogApi');
 const { createDemoSource } = await import('@/services/demoSource');
 const { INTEGRATION_MODULES } = await import('@/config/integrationModules');
+const { setupGroupInfo, toSetupForm } = await import('@/utils/menu-planning/nutritionSetup');
 
 // Dữ liệu giả theo DTO BE /nutrition/* sau khi beClient đổi id số sang chuỗi
 const ALLERGENS = [
@@ -352,6 +353,39 @@ test('build nối BE: danh mục, kế hoạch tuần, kho khô, hàng tươi, b
   assert.equal(source.sourceOf('nutrition-catalog', mock, real), real);
   const mockBuild = createDemoSource({ useMock: true, modules: INTEGRATION_MODULES, loadUsers: () => [] });
   assert.equal(mockBuild.sourceOf('nutrition-catalog', mock, real), mock);
+});
+
+test('nhóm tuổi Hiệu trưởng thêm (code ngoài danh sách tĩnh): Thiết lập hiện tên và độ tuổi của BE, không hiện code', async () => {
+  const added = {
+    id: '15',
+    code: 'ag-5-1',
+    name: 'a',
+    shortName: 'a',
+    sortOrder: 5,
+    ageFromMonths: 1,
+    ageToMonths: 2,
+    mealSessions: ['LUNCH', 'AFTERNOON'],
+  };
+  AGE_GROUPS.push(added);
+  try {
+    const setup = (await api.listNutritionSetups()).find((x) => x.ageGroupId === 'ag-5-1');
+    assert.deepEqual(setupGroupInfo(setup), { short: 'a', name: 'a', range: '1–2 tháng', nursery: true });
+    assert.equal(toSetupForm([setup], '2026-11-13').groups[0].name, 'a');
+    assert.deepEqual(
+      setup.meals.map((m) => m.name),
+      ['Bữa trưa', 'Bữa chiều'],
+    );
+  } finally {
+    AGE_GROUPS.pop();
+  }
+  // Bản mock không có tên trong bản ghi ⇒ vẫn tra danh sách tĩnh
+  assert.deepEqual(setupGroupInfo({ ageGroupId: 'ag-2' }), {
+    short: 'Nhà trẻ',
+    name: 'Nhà trẻ (24–36 tháng)',
+    range: '24–36 tháng',
+    nursery: true,
+  });
+  assert.equal(setupGroupInfo({ ageGroupId: 'ag-4' }).nursery, false);
 });
 
 test('cấu hình nhóm tuổi BE → Thiết lập: id nhóm FE theo code, giá/ngày, định mức theo khóa FE, bữa chỉ đọc, phiên bản khóa/sửa được', async () => {

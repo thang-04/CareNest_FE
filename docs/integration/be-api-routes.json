@@ -1,6 +1,6 @@
 {
   "source": "CareNest_BE docs/api/openapi.yaml",
-  "syncedAt": "2026-11-12",
+  "syncedAt": "2026-11-13",
   "routes": [
     "DELETE /age-groups/{x}",
     "DELETE /campuses/{x}",

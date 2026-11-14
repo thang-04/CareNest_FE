@@ -1,17 +1,25 @@
 import { useEffect, useLayoutEffect, useState } from 'react';
-import { Check, Pencil, Save, Trash2, X } from '@/components/ui/icons';
+import { Check, Pencil, RotateCcw, Save, Trash2, X } from '@/components/ui/icons';
 import { Card, Notice, PageHead } from '@/components/education-plan/eduUi';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { Cell, focusCell } from '@/components/education-plan/planUi';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { STANDARD_DOMAINS } from '@/models/education-plan/educationPlanConstants';
 import { DOMAIN_ROMAN } from '@/models/education-plan/goalTable';
-import { DEFAULT_WORKFLOW_POLICY, WORKFLOW_ROLES, CREATOR_ROLES, REVIEWER_ROLES, SIGN_DOCS } from '@/models/education-plan/eduConfig';
+import {
+  DEFAULT_WORKFLOW_POLICY,
+  WORKFLOW_ROLES,
+  CREATOR_ROLES,
+  REVIEWER_ROLES,
+  SIGN_DOCS,
+  resetEduConfig,
+} from '@/models/education-plan/eduConfig';
 import { moveItem } from '@/hooks/useSortableList';
 import { useManualSave } from '@/hooks/education-plan/useManualSave';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
-import { RenumberButton, SortButtons, SortHandle, SortIndex, SortableList, SortableRow } from '@/components/ui/Sortable';
+import { RenumberButton, SortHandle, SortIndex, SortableList, SortableRow } from '@/components/ui/Sortable';
+import { Button } from '@/components';
 
 /**
  * Cấu hình người tạo và người duyệt của từng loại tài liệu (FR-001, FR-002, AC-01).
@@ -47,7 +55,6 @@ function WorkflowPolicyConfig({ docLabel, policy, onChange, editing, canEdit, as
         ),
     });
   };
-  const availableCreators = CREATOR_ROLES.filter((role) => !creators.includes(role) && !reviewers.includes(role));
   const availableReviewers = REVIEWER_ROLES.filter((role) => !reviewers.includes(role) && !creators.includes(role));
   const editable = editing && canEdit;
 
@@ -136,19 +143,6 @@ export default function EduConfigPage() {
   const [domainError, setDomainError] = useState('');
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null);
-  const [keyboardNavigation, setKeyboardNavigation] = useState(false);
-  useEffect(() => {
-    const onKey = (event) => {
-      if (event.key === 'Tab') setKeyboardNavigation(true);
-    };
-    const onPointer = () => setKeyboardNavigation(false);
-    document.addEventListener('keydown', onKey);
-    document.addEventListener('pointerdown', onPointer);
-    return () => {
-      document.removeEventListener('keydown', onKey);
-      document.removeEventListener('pointerdown', onPointer);
-    };
-  }, []);
   // Dòng tuần vừa thêm: chuyển con trỏ sang ngay sau khi vẽ, trước phím gõ tiếp theo (gõ nhanh, bộ gõ tiếng Việt)
   const [focusRowKey, setFocusRowKey] = useState(null);
   useLayoutEffect(() => {
@@ -245,35 +239,76 @@ export default function EduConfigPage() {
     );
 
   return (
-    <div
-      className={`page ga-page ga-config-page ga-class-editor ga-year-page${editing ? ' is-editing' : ' is-viewing'}${keyboardNavigation ? ' ga-keyboard-nav' : ''}`}
-    >
+    <div className={`page ga-page ga-config-page ga-class-editor ga-year-page${editing ? ' is-editing' : ' is-viewing'}`}>
       <div className="ga-sticky-head">
         <PageHead crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Cấu hình' }]} title="Cấu hình kế hoạch giáo dục" />
         <div className="ga-year-toolbar" role="group" aria-label="Thao tác cấu hình kế hoạch giáo dục">
-          {!editing && (
+          {editing && isPrincipal && (
             <div className="ga-year-toolbar__group">
-              <button type="button" className="btn btn--sm btn--outline-primary" onClick={() => setEditing(true)}>
-                <Pencil size={16} aria-hidden /> Chỉnh sửa
-              </button>
+              <Button
+                variant="outline-primary"
+                size="sm"
+                onClick={() =>
+                  setConfirmDelete({
+                    title: 'Khôi phục mặc định',
+                    message:
+                      'Toàn bộ cấu hình (thời lượng, lĩnh vực, người tạo/duyệt, dòng kế hoạch tuần) sẽ về mặc định. Bấm Lưu để áp dụng.',
+                    confirmLabel: 'Khôi phục',
+                    run: () => setDraft((d) => resetEduConfig(d)),
+                  })
+                }
+              >
+                <RotateCcw size={16} aria-hidden /> Khôi phục mặc định
+              </Button>
             </div>
           )}
-          {editing && (
-            <div className="ga-year-toolbar__group ga-year-toolbar__group--end">
+          {/* Chỉnh sửa / Hủy cùng một chỗ, Lưu đứng sau (Tiền 13/11/2026) */}
+          <div className="ga-year-toolbar__group ga-year-toolbar__group--end">
+            {editing && (
               <p className="muted text-sm ga-year-save-status" aria-live="polite">
                 {saver.label}
               </p>
-              <button
-                type="button"
-                className="btn btn--sm btn--primary"
+            )}
+            {editing ? (
+              <Button
+                variant="outline-primary"
+                size="sm"
+                disabled={saver.saving}
+                onClick={() => {
+                  const run = () => {
+                    saver.discardBackup?.();
+                    setDraft(saver.cleanDoc?.() || eduConfig);
+                    setEditing(false);
+                  };
+                  if (dirty)
+                    setConfirmDelete({
+                      title: 'Hủy chỉnh sửa',
+                      message: 'Các thay đổi chưa lưu sẽ bị bỏ.',
+                      confirmLabel: 'Hủy chỉnh sửa',
+                      run,
+                    });
+                  else run();
+                }}
+              >
+                <X size={16} aria-hidden /> Hủy
+              </Button>
+            ) : (
+              <Button variant="outline-primary" size="sm" onClick={() => setEditing(true)}>
+                <Pencil size={16} aria-hidden /> Chỉnh sửa
+              </Button>
+            )}
+            {editing && (
+              <Button
+                variant="primary"
+                size="sm"
                 onClick={saver.save}
                 disabled={saver.saving || (!dirty && !saver.error)}
                 title="Lưu (Ctrl+S)"
               >
                 <Save size={16} aria-hidden /> Lưu
-              </button>
-            </div>
-          )}
+              </Button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -431,13 +466,13 @@ export default function EduConfigPage() {
               </tbody>
             </table>
           </div>
-          {domainError && <Notice tone="err">{domainError}</Notice>}
+          {domainError && <Notice>{domainError}</Notice>}
         </div>
       </Card>
 
       <Card title="3. Người tạo/duyệt" bodyClass={null}>
         <div className="card__body stack gap-2">
-          {editing && !isPrincipal && <Notice tone="info">Chỉ Hiệu trưởng mới có quyền thay đổi cấu hình người tạo và người duyệt.</Notice>}
+          {editing && !isPrincipal && <Notice>Chỉ Hiệu trưởng mới có quyền thay đổi cấu hình người tạo và người duyệt.</Notice>}
           <div className="table-wrap">
             <table className="table ga-plan-table ga-goal-table ga-sortable-table">
               <thead>
@@ -590,7 +625,6 @@ export default function EduConfigPage() {
                         <td className="center ga-cell-editable">
                           <div className="ga-goal-table__pad ga-sort-cell">
                             <SortHandle label={r.label} />
-                            <SortButtons index={i} label={r.label} />
                           </div>
                         </td>
                       )}

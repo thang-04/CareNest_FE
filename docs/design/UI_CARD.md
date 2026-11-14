@@ -13,8 +13,9 @@ Import từ `@/components` trừ khi cột "Từ" ghi khác.
 | Khung màn danh sách (đầu trang + thẻ + lọc + bảng) | `ListPage` | `@/components` |
 | Đầu trang (breadcrumb, tiêu đề, nút) | `PageHeader` | `@/components` |
 | Bảng danh sách có đang tải / trống / lỗi / phân trang | `DataTable` | `@/components` |
-| Nút (kể cả nút đang gửi) | `Button` — `variant`, `size`, `icon`, `loading` | `@/components` |
+| Nút (kể cả nút đang gửi); nút chỉ icon `variant="icon"` (`.icon-btn`), nút dạng chữ `variant="link"` (`.link-btn`) | `Button` — `variant`, `size`, `icon`, `loading` | `@/components` |
 | Ô nhập có nhãn + lỗi | `TextField`, `SelectField`, `TextAreaField`; ô đặc biệt bọc `FormField` | `@/components` |
+| Ô tích (nhãn bọc ngoài do nơi dùng đặt) | `Checkbox` | `@/components` |
 | Ngày, tuần, học kỳ, mật khẩu | `DateInput`, `WeekPicker`, `SemesterSelect`, `PasswordInput` | `@/components/form/…` |
 | Chọn có tìm kiếm | `SearchSelect` | `@/components` |
 | Ô tìm trong thanh lọc | `SearchSubmit` | `@/components/ui/SearchSubmit` |
@@ -30,6 +31,8 @@ Import từ `@/components` trừ khi cột "Từ" ghi khác.
 | Thao tác trên dòng | `RowActions`, `RowMenu` | `@/components` |
 | Hàng bảng bấm được | `clickableRowProps` (hoặc `onRowClick` của `DataTable`) | `@/utils/clickableRow` |
 | Thẻ số liệu | `StatCard` | `@/components` |
+| Xuất Excel (luôn có bước xem trước) | `exportWithPreview`, `exportWithPreviewWorkbook` | `@/components/ui/ExportPreview` |
+| Nhập / tải tệp Excel (tệp mẫu → chọn tệp → xem trước hợp lệ/lỗi → xác nhận) | `ImportDialog` | `@/components/upload/ImportDialog` |
 | Icon | chỉ qua `@/components/ui/icons` | — |
 | Nhãn lặp lại (Lưu, Hủy, Đóng, Đang lưu…) | `LABELS` | `@/components` |
 
@@ -50,6 +53,10 @@ Thiếu component ⇒ thêm vào `src/components/ui` (vùng dùng chung: in bả
 11. Màu trạng thái luôn kèm chữ. Không tô màu đánh giá số đo sức khỏe khi BE không trả nhãn.
 12. Không dữ liệu/ảnh trẻ thật trong mock, test, ảnh chụp.
 13. Hàm ngày/số dùng `src/utils/format.js`; thiếu thì thêm một lần ở đó, không viết lại trong module.
+14. **Vị trí nút Lưu theo loại màn** (user chốt 12/11/2026, `DESIGN.md` §6.3): form ngắn → hàng `.page-actions` cuối form; nội dung dài (giáo án, hồ sơ nhiều khối, > ~1,5 màn hình) → **cả** đầu trang (`.page__head > .page__actions`) **và** cuối trang, cùng nhãn, cùng handler (gán JSX nút vào một biến rồi đặt hai chỗ); bảng/lưới nhập → đầu màn; nhiều bước → cuối bước; modal → chân modal. Không thanh nút nổi dính đáy (`.page-actions--sticky` chỉ Phiếu khám).
+15. **Danh sách:** bấm dòng mở chi tiết (`clickableRowProps`), không icon/nút "Xem"; cột thao tác tiêu đề "Thao tác"; cột đầu "STT"; một cột một thông tin; thanh lọc nằm cùng thẻ với bảng. Mỗi luồng giữ ô lọc nghiệp vụ riêng; nút "Đặt lại bộ lọc" không bắt buộc.
+16. **Đầu trang:** tên trang + đường dẫn tự lên thanh trên qua `Breadcrumb` — không vẽ thêm đường dẫn hay lặp tên trang trong thân; không thêm nút "Tạo nhanh" lên thanh trên.
+17. Trống ⇒ `EmptyState` (hình + tiêu đề + mô tả), không `<p className="muted">` hay `<td colSpan>` chữ trơn. Nhãn trạng thái vòng đời (nháp/chờ duyệt/đã duyệt) ⇒ `createStatusBadge`; nhãn riêng khác được giữ.
 
 ## 3. Tự kiểm trước khi báo xong
 
@@ -57,6 +64,8 @@ Thiếu component ⇒ thêm vào `src/components/ui` (vùng dùng chung: in bả
 - [ ] Một nút chính mỗi vùng; nhãn lấy từ `LABELS` khi có.
 - [ ] Đủ đang tải / trống / lỗi / 403 / 404; nút gửi khóa khi đang gửi; có hộp xác nhận cho thao tác không hoàn tác.
 - [ ] Có breadcrumb + tiêu đề trang (`PageHeader`/`ListPage`).
+- [ ] Nút Lưu đúng vị trí theo loại màn (luật 14); màn dài có nút ở cả đầu và cuối.
+- [ ] Danh sách: bấm dòng mở chi tiết, dùng được Tab/Enter; xuất Excel có xem trước; nhập tệp qua `ImportDialog`.
 - [ ] Mở màn ở 360, 768, 1440px: không tràn ngang; dùng được bằng bàn phím (Tab, Enter).
 - [ ] Thuật ngữ đúng `DESIGN.md` §10.2; không dữ liệu trẻ thật.
 - [ ] Component chung mới đã có trong `/ui-kit` và bảng mục 1.

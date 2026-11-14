@@ -4,8 +4,9 @@
  */
 
 /* ---------- Page ---------- */
+/* Đường dẫn đã lên thanh trên: nội dung bắt đầu ngay dưới thanh nổi nên cần khoảng trên đủ để không chạm bóng của thanh */
 .page {
-  padding: var(--space-2) var(--page-padding) var(--space-8);
+  padding: var(--space-4) var(--page-padding) var(--space-8);
   animation: slideInUp var(--duration-slow) var(--ease-out);
 }
 .page__title {
@@ -51,25 +52,14 @@
 .page__head > .page__title + :last-child:not(p) {
   margin-left: auto;
 }
-/* Màn rộng: nhóm nút (phần tử cuối, không phải mô tả) lên cùng hàng breadcrumb, bên phải */
-@media (min-width: 1024px) {
-  .breadcrumb + .page__head > :last-child:not(:first-child):not(p) {
-    position: absolute;
-    right: 0;
-    bottom: calc(100% + var(--space-2));
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: flex-end;
-    gap: var(--space-2);
-    min-height: var(--btn-height-lg);
-  }
-  /* Khu bán trú: nút giữ cùng hàng mô tả, sát nội dung, không đẩy lên hàng breadcrumb (góp ý 05/11) */
-  [data-area='boarding'] .breadcrumb + .page__head > :last-child:not(:first-child):not(p) {
-    position: static;
-    min-height: 0;
-    margin-left: auto;
-  }
+/* Nhóm nút của đầu trang (phần tử cuối, không phải mô tả) luôn sát mép phải, kể cả khi mô tả xuống dòng */
+.page__head > .page__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-left: auto;
 }
 .page-actions {
   display: flex;
@@ -79,9 +69,8 @@
   gap: var(--space-3);
   margin-top: var(--space-4);
 }
-/* Form (F1): thanh nút có nút chính dính đáy màn để luôn bấm được Lưu / Tiếp tục;
-   .page-actions--sticky: form nhiều bước giữ thanh dính đáy cả ở bước không có nút chính */
-.page-actions:has(.btn--primary),
+/* Mặc định là hàng nút thường cuối trang, không nổi đè nội dung (quy tắc vị trí nút Lưu 12/11: màn dài thêm nút ở đầu
+   trang qua .page__actions). Chỉ form chọn giữ thanh dính đáy mới gắn .page-actions--sticky (Phiếu khám, user chốt 04/11). */
 .page-actions--sticky {
   position: sticky;
   bottom: var(--space-3);
@@ -92,15 +81,6 @@
   background: color-mix(in srgb, var(--color-surface) 88%, transparent);
   box-shadow: var(--card-shadow);
   backdrop-filter: var(--glass-blur);
-}
-/* Khu bán trú: không thanh nổi đè lên bảng (góp ý 05/11) — Hủy/Lưu nằm ở đầu trang; thanh còn lại ở cuối trang là hàng nút thường */
-[data-area='boarding'] .page-actions {
-  position: static;
-  padding: 0;
-  border: 0;
-  background: none;
-  box-shadow: none;
-  backdrop-filter: none;
 }
 /* Điện thoại: thanh dính đáy của form nhiều bước gọn trên 1 hàng (nút sát hơn, không xuống dòng — Tiền 31/10) */
 @media (max-width: 767px) {
@@ -1615,6 +1595,11 @@ tr.sortable-item--moved > td {
 .import-guide__text {
   flex: 1 1 320px;
   min-width: 0;
+}
+.import-options {
+  display: grid;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
 }
 .import-drop {
   min-height: 260px;
@@ -3621,9 +3606,19 @@ button.stat-card .stat-card__label::after {
   backdrop-filter: var(--glass-blur);
 }
 
+/* Tên trang đã ở thanh trên (đường dẫn): h1 chỉ cho trình đọc màn hình, cùng khai báo .sr-only như .page__title */
 .edit-head h1 {
+  position: absolute;
+  width: 1px;
+  height: 1px;
   margin: 0;
-  font-size: var(--fs-h3);
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.edit-head__meta:first-of-type {
+  padding-left: 0;
+  border-left: 0;
 }
 
 .edit-head__meta {
@@ -3908,6 +3903,8 @@ button.stat-card .stat-card__label::after {
 }
 .tab-panel > * {
   margin-top: 0;
+  /* phần tử lưới mặc định không co dưới bề rộng nội dung: thẻ có bảng rộng làm tràn ngang trên điện thoại */
+  min-width: 0;
 }
 /* Tiêu đề "Thao tác" không gãy dòng kể cả khi bảng cho tiêu đề xuống dòng */
 .table thead th.cell--actions {

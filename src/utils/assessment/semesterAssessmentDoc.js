@@ -4,7 +4,7 @@ import { approveRow, defaultSigners, signerCell } from '@/utils/assessment/docSi
 const esc = (v = '') =>
   String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 export const semesterLabel = (n) => (n === 1 ? 'Học kỳ I' : 'Học kỳ II');
-const tick = (value, option) => (value === option ? 'x' : '');
+const tick = (value, option) => (value === option ? '✓' : '');
 const signingPlace = DEFAULT_PRINT_TEMPLATE.address.match(/xã ([^,]+)/i)?.[1] || '';
 
 function signingDate(confirmedAt) {

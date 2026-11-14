@@ -2,8 +2,9 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { RotateCcw } from '@/components/ui/icons';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
-import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
+import { useEducationPlan, useGoalDetails } from '@/hooks/education-plan/useEducationPlan';
 import { Card, EduStatusBadge, EmptyState, PageHead, YearPlanStatusBadge, fmtDate, fmtDateTime } from '@/components/education-plan/eduUi';
+import { Tabs } from '@/components/ui/Tabs';
 import { AGE_GROUPS, EDU_STATUS, EDU_STATUS_LABELS, allGoalItems } from '@/models/education-plan/educationPlanConstants';
 import { themeNumber, themeWeeksOf, yearWeeks } from '@/models/education-plan/classPlan';
 import { StatCard } from '@/components/ui/StatCard';
@@ -23,10 +24,12 @@ const sentEntry = (doc) => [...(doc.history || [])].reverse().find((h) => !h.ton
 
 /**
  * Hiệu trưởng: xem kế hoạch giáo dục toàn trường (kế hoạch năm theo nhóm tuổi, chủ đề nhánh và hồ sơ chủ đề của các lớp),
- * chỉ xem; duyệt theo chuỗi người ký ở trang Duyệt kế hoạch, giáo án.
+ * chỉ xem; duyệt theo chuỗi người ký ở trang Duyệt kế hoạch giáo dục.
  */
 export default function SchoolPlansPage() {
   const { goals, branchPlans, classThemePlans, schoolYear, classes } = useEducationPlan();
+  // Tên chủ đề, số tuần của tài liệu lớp lấy từ kế hoạch tổ ⇒ tải chi tiết các kế hoạch tổ được tài liệu lớp tham chiếu
+  useGoalDetails([...branchPlans, ...classThemePlans].map((d) => d.yearPlanId));
   const navigate = useNavigate();
   const [tab, setTab] = useState('goals');
   const [age, setAge] = useState('');
@@ -60,7 +63,7 @@ export default function SchoolPlansPage() {
           code: g.code,
           scope: ageName(g.ageGroupId),
           ageGroupId: g.ageGroupId,
-          detail: `${allGoalItems(g).length} mục tiêu · ${(g.themes || []).length} chủ đề`,
+          detail: `${g.summary ? g.goalCount : allGoalItems(g).length} mục tiêu · ${g.summary ? g.themeCount : (g.themes || []).length} chủ đề`,
           by: g.owner?.name || g.createdBy,
           at: fmtDate(g.sentAt),
           status: g.status,
@@ -128,20 +131,12 @@ export default function SchoolPlansPage() {
         ))}
       </div>
       <Card bodyClass={null}>
-        <div className="tabs" role="tablist">
-          {TABS.map((t) => (
-            <button
-              key={t.key}
-              type="button"
-              role="tab"
-              aria-selected={tab === t.key}
-              className={`tab ${tab === t.key ? 'tab--active' : ''}`}
-              onClick={() => switchTab(t.key)}
-            >
-              {t.label} <span className="tab__count">{data[t.key].length}</span>
-            </button>
-          ))}
-        </div>
+        <Tabs
+          items={TABS.map((t) => ({ key: t.key, label: t.label, count: data[t.key].length }))}
+          value={tab}
+          onChange={switchTab}
+          ariaLabel="Loại kế hoạch"
+        />
         <div className="filter-bar">
           <SearchSubmit value={q} placeholder="Tìm tên, mã, người lập" label="Tìm kế hoạch" onSearch={setQ} />
           <select className="select" value={age} onChange={(e) => setAge(e.target.value)} aria-label="Lọc theo nhóm tuổi">
@@ -167,7 +162,6 @@ export default function SchoolPlansPage() {
         {rows.length === 0 ? (
           <EmptyState
             title={all.length ? 'Không có kết quả phù hợp' : `Chưa có ${TABS.find((t) => t.key === tab).label.toLowerCase()} nào được gửi`}
-            desc={all.length ? 'Thử đổi từ khóa hoặc bộ lọc.' : `Năm học ${schoolYear} chưa có dữ liệu ở mục này.`}
           />
         ) : (
           <div className="table-wrap">

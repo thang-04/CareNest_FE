@@ -42,7 +42,7 @@ test('semester print uses configured dates, paired columns and escapes child/not
   assert.match(file.html, /TEST &amp; CHILD/);
   assert.match(file.html, /&lt;script&gt;/);
   assert.ok(!file.html.includes('<script>'));
-  assert.match(file.html, /<td>x<\/td><td><\/td><td><\/td><td><\/td>/);
+  assert.match(file.html, /<td>✓<\/td><td><\/td><td><\/td><td><\/td>/);
   assert.match(file.html, /ngày \.{5} tháng \.{5} năm \.{10}/);
   assert.match(
     file.html,
@@ -56,8 +56,8 @@ test('semester print uses configured dates, paired columns and escapes child/not
   const confirmed = semesterAssessmentFile({ ...board, status: 'CONFIRMED', confirmedAt: '2027-05-31T18:00:00Z' });
   assert.match(confirmed.html, /ngày 1 tháng 6 năm 2027/);
   const rows = semesterAssessmentRows(board);
-  assert.deepEqual(rows[4], [1, 'TEST & CHILD', 'x', '', '', '']);
-  assert.deepEqual(rows[5], [2, 'TEST B', '', 'x', 'x', '']);
+  assert.deepEqual(rows[4], [1, 'TEST & CHILD', '✓', '', '', '']);
+  assert.deepEqual(rows[5], [2, 'TEST B', '', '✓', '✓', '']);
 });
 test('semester facade calls dedicated read/save/confirm endpoints without computing results', async () => {
   const calls = [];

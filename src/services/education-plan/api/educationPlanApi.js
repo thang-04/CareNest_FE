@@ -32,6 +32,8 @@ const loadConfig = (refresh = false) => {
   });
   return configCache;
 };
+/** Bảng đổi id UI ↔ BE (nhóm tuổi `ag-3` ↔ id số) cho service khác của module, vd. kho học liệu. */
+export const loadEduRefs = async () => buildRefs(await loadConfig());
 // Trạng thái + quyền trên BE của từng kế hoạch, để biết lần lưu là sửa, gửi, ban hành hay trả lại
 const known = new Map();
 
@@ -41,7 +43,10 @@ const remember = (detail, refs) => {
   return goal;
 };
 const bodyKey = (goal, refs) => JSON.stringify(toYearPlanRequest(goal, refs));
-const fetchGoal = async (id, refs) => remember(await axiosClient.get(`${GOALS}/${id}`), refs);
+// Trang tải chi tiết từng kế hoạch cùng lúc; trình duyệt chỉ mở 6 kết nối nên yêu cầu xếp hàng có thể vượt 15 giây mặc định
+// ponytail: nới thời gian chờ; về lâu dài cần API danh sách trả đủ nội dung hoặc tải chi tiết khi mở
+const LIST_TIMEOUT = 60000;
+const fetchGoal = async (id, refs) => remember(await axiosClient.get(`${GOALS}/${id}`, { timeout: LIST_TIMEOUT }), refs);
 
 const editHeaders = (edit) => {
   const headers = {
@@ -160,10 +165,10 @@ export const educationPlanApi = {
   },
   getAll: async () => {
     const refs = buildRefs(await loadConfig());
-    // Danh sách đã theo phạm vi người xem (BE); màn hình cần cả văn bản nên lấy chi tiết từng kế hoạch
+    // Danh sách đã theo phạm vi người xem (BE)
     const pages = await Promise.all(
       ['TEAM', 'SCHOOL_YEAR'].map((planLevel) =>
-        axiosClient.get(GOALS, { params: { page: 0, size: 200, planLevel } }).catch((error) => {
+        axiosClient.get(GOALS, { params: { page: 0, size: 200, planLevel }, timeout: LIST_TIMEOUT }).catch((error) => {
           if (planLevel === 'SCHOOL_YEAR' && error.status === 404) return { items: [] };
           throw error;
         }),
@@ -174,7 +179,13 @@ export const educationPlanApi = {
         .flatMap((page, index) => page.items.filter((item) => index === 0 || (item.planType || item.planLevel) === 'SCHOOL_YEAR'))
         .map((item) => [String(item.id), item]),
     );
-    const goals = await Promise.all([...summaries.values()].map((p) => fetchGoal(p.id, refs)));
+    // Chỉ bản tóm tắt; trang nào cần nội dung thì tải chi tiết kế hoạch đó (useGoalDetails) — không tải hết khi vào module
+    const goals = [...summaries.values()].map((p) => ({
+      ...toUiGoal(p, refs),
+      summary: true,
+      goalCount: p.goalCount ?? 0,
+      themeCount: p.themeCount ?? 0,
+    }));
     return { goals, themes: [], lessons: [] };
   },
   // Mở một kế hoạch theo id (vd. bản Chờ duyệt từ hàng chờ, không có trong danh sách); BE trả 403 nếu chưa ban hành
@@ -255,7 +266,7 @@ export const educationPlanApi = {
   // Header giữ id số (API) hoặc tên năm "2027-2028" (nối thử qua beClient) ⇒ đổi tên sang id theo cấu hình
   getClassPlans: async (schoolYearId) => {
     const id = serverId(schoolYearId) ?? (schoolYearId ? buildRefs(await loadConfig()).schoolYearId(String(schoolYearId)) : null);
-    return axiosClient.get('/education-plans/class-docs', { params: id == null ? {} : { schoolYearId: id } });
+    return axiosClient.get('/education-plans/class-docs', { params: id == null ? {} : { schoolYearId: id }, timeout: LIST_TIMEOUT });
   },
   getEduConfig: async () => {
     const [config, workflow, durationPolicy] = await Promise.all([

@@ -22,11 +22,17 @@ const refs = buildRefs(CONFIG);
 
 test('second annual save sends persisted branch IDs and matching parent keys after the first save', () => {
   const snapshot = {
-    planLevel: 'SCHOOL_YEAR', schoolYear: '2026 – 2027', ageGroupId: 'ag-3', title: 'Kế hoạch năm',
+    planLevel: 'SCHOOL_YEAR',
+    schoolYear: '2026 – 2027',
+    ageGroupId: 'ag-3',
+    title: 'Kế hoạch năm',
     themes: [{ id: 'theme-local', name: 'Trường mầm non', abbr: 'TMN' }],
     branchTemplates: [{ id: 'branch-local', themeId: 'theme-local', name: 'Trường của bé' }],
   };
-  const saved = { ...snapshot, id: '350', revision: 1,
+  const saved = {
+    ...snapshot,
+    id: '350',
+    revision: 1,
     themes: [{ ...snapshot.themes[0], id: '703' }],
     branchTemplates: [{ ...snapshot.branchTemplates[0], id: '35', themeId: '703' }],
   };
@@ -337,11 +343,7 @@ test('import source detail stays fresh and does not overwrite the writer baselin
   const beforeSave = calls.length;
   await educationPlanApi.saveGoal(original, { edit });
   assert.equal(calls.length, beforeSave);
-  assert.deepEqual(calls, [
-    'get /education-plans/goals/91',
-    'get /education-plans/goals/91',
-    'get /education-plans/goals/91',
-  ]);
+  assert.deepEqual(calls, ['get /education-plans/goals/91', 'get /education-plans/goals/91', 'get /education-plans/goals/91']);
 });
 
 test('import source reads preserve forbidden, missing and network errors', async () => {
@@ -413,7 +415,9 @@ test('old backend ignoring planLevel does not duplicate TEAM records or turn the
   const loaded = await educationPlanApi.getAll();
   assert.equal(loaded.goals.length, 1);
   assert.equal(loaded.goals[0].planLevel, 'TEAM');
-  assert.equal(detailReads.length, 1);
+  // Danh sách chỉ bản tóm tắt; chi tiết tải khi trang cần (FE-BUG-261111-dashboard-reload-burst)
+  assert.equal(detailReads.length, 0);
+  assert.equal(loaded.goals[0].summary, true);
 });
 
 test('annual import sends SCHOOL_YEAR to the API list filter', async () => {
@@ -452,14 +456,28 @@ test('annual source trusts server scope for a manager with a team-leader primary
 });
 
 test('spec015 maps planType, sentAt, source baseline, distinct review IDs and revision aliases', () => {
-  const ui = toUiGoal(detail({ planType: 'SCHOOL_YEAR', planLevel: 'TEAM', sentAt: '2026-11-09T03:00:00Z',
-    previousSourcePlanId: 10, curriculumSourcePlanId: 20, contentRevision: 8, revision: 7,
-    reviewItems: [{ reviewItemId: 600, itemId: 200, itemKind: 'CONTENT', sourcePlanId: 20, reason: 'Nội dung đổi', resolved: false }],
-    newItems: [{ itemKind: 'GOAL', itemId: 102 }] }), refs);
-  assert.equal(ui.planLevel, 'SCHOOL_YEAR'); assert.equal(ui.planTypeLabel, 'Kế hoạch năm học');
-  assert.equal(ui.sentAt, '2026-11-09'); assert.equal(ui.previousSourcePlanId, '10');
-  assert.equal(ui.revision, 8); assert.equal(ui.contentRevision, 8);
-  assert.equal(ui.reviewItems[0].reviewItemId, '600'); assert.equal(ui.reviewItems[0].itemId, '200');
+  const ui = toUiGoal(
+    detail({
+      planType: 'SCHOOL_YEAR',
+      planLevel: 'TEAM',
+      sentAt: '2026-11-09T03:00:00Z',
+      previousSourcePlanId: 10,
+      curriculumSourcePlanId: 20,
+      contentRevision: 8,
+      revision: 7,
+      reviewItems: [{ reviewItemId: 600, itemId: 200, itemKind: 'CONTENT', sourcePlanId: 20, reason: 'Nội dung đổi', resolved: false }],
+      newItems: [{ itemKind: 'GOAL', itemId: 102 }],
+    }),
+    refs,
+  );
+  assert.equal(ui.planLevel, 'SCHOOL_YEAR');
+  assert.equal(ui.planTypeLabel, 'Kế hoạch năm học');
+  assert.equal(ui.sentAt, '2026-11-09');
+  assert.equal(ui.previousSourcePlanId, '10');
+  assert.equal(ui.revision, 8);
+  assert.equal(ui.contentRevision, 8);
+  assert.equal(ui.reviewItems[0].reviewItemId, '600');
+  assert.equal(ui.reviewItems[0].itemId, '200');
   assert.equal(ui.newItems[0].itemId, '102');
   assert.equal(toUiGoal(detail({ createdAt: '2026-11-09T03:00:00Z', sentBy: null }), refs).sentAt, null);
   assert.equal(toUiGoal(detail({ sentBy: { at: '2026-11-08T03:00:00Z' } }), refs).sentAt, '2026-11-08');
@@ -479,11 +497,17 @@ test('resolve sends review primary key, current source and existing edit/revisio
   assert.equal(request.headers.get('X-Edit-Session'), edit.sessionId);
   assert.equal(request.headers.get('X-Plan-Revision'), '8');
   assert.equal(request.headers.get('Idempotency-Key'), edit.requestId);
-  assert.equal(saved.reviewItems[0].resolved, true); assert.equal(saved.revision, 9);
+  assert.equal(saved.reviewItems[0].resolved, true);
+  assert.equal(saved.revision, 9);
   let attempts = 0;
   axiosClient.defaults.adapter = async (config) => {
     attempts++;
-    throw new AxiosError('Conflict', 'ERR_BAD_REQUEST', config, null, { status: 409, config, headers: {}, data: { desc: 'Nguồn đã thay đổi' } });
+    throw new AxiosError('Conflict', 'ERR_BAD_REQUEST', config, null, {
+      status: 409,
+      config,
+      headers: {},
+      data: { desc: 'Nguồn đã thay đổi' },
+    });
   };
   await assert.rejects(educationPlanApi.resolveGoalReview('41', '600', '20', edit), { status: 409 });
   assert.equal(attempts, 1);

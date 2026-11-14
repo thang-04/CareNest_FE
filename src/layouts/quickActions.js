@@ -7,13 +7,13 @@ const LEADERS = [R.PRINCIPAL, R.VICE_PRINCIPAL];
 const CLASS_STAFF = [R.TEACHER, R.TEAM_LEADER];
 
 /*
- * "Tạo nhanh" ở header: các trang tạo mới, theo thứ tự hay dùng.
+ * Nhóm "Tạo nhanh" trong ô tìm chức năng ở header (nút Tạo nhanh riêng đã bỏ): các trang tạo mới, theo thứ tự hay dùng.
  * `roles` chép đúng RoleGuard của route trong AppRoutes.jsx (chỉ để ẩn/hiện; BE vẫn kiểm quyền).
  * Đổi quyền một route thì sửa cả ở đây.
  */
 const QUICK_ACTIONS = [
   {
-    label: 'Soạn giáo án',
+    label: 'Soạn kế hoạch giáo dục ngày',
     to: '/education/day-plans',
     group: 'Kế hoạch giáo dục',
     icon: BookOpen,

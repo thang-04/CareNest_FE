@@ -30,6 +30,7 @@ import {
 import { buildGrowthReportSheet, growthReportFileName } from '@/utils/children/growthReportSheet';
 import { downloadXlsx } from '@/utils/exportXlsx';
 import '@/styles/modules/children.css';
+import { CampusFilter } from '@/components/ui/CampusFilter';
 
 // Thẻ số liệu: số trẻ và tỉ lệ trên số trẻ được cân đo; tông theo mức BMI (gầy còm, thừa cân cam; béo phì đỏ) như BmiStatusBadge.
 const STATS = [
@@ -209,14 +210,13 @@ export default function GrowthReportPage() {
             ))}
           </select>
           {campusSelectable ? (
-            <select className="select" aria-label="Điểm trường" value={campusId} onChange={(e) => setFilters({ campusId: e.target.value })}>
-              <option value="">{principal ? 'Tất cả điểm trường' : 'Các điểm trường được giao'}</option>
-              {campusOptions.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+            <CampusFilter
+              campuses={campusOptions}
+              value={campusId}
+              onChange={(v) => setFilters({ campusId: v })}
+              allLabel={principal ? 'Tất cả điểm trường' : 'Các điểm trường được giao'}
+              hideLabel
+            />
           ) : (
             scopeLabel && (
               <p className="gr-scope m-0">

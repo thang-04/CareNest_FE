@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { SCHOOL_CONFIG_API } from '@/config/env';
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { UserCog, AlertTriangle, Save, Utensils } from '@/components/ui/icons';
+import { UserCog, AlertTriangle, ArrowLeftRight, Check, Save, Utensils } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
@@ -14,6 +14,9 @@ import { useMasterData } from '@/hooks/useMasterData';
 import { useSchoolYears, useViceAssignments, useVicesPermissions } from '@/hooks/school-config/useSchoolConfig';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Modal } from '@/components/ui/Modal';
+import { DataTable } from '@/components/ui/DataTable';
+import { Button } from '@/components/ui/Button';
+import { Avatar } from '@/components/ui/Avatar';
 import { EmptyState, ErrorState, SkeletonRows, Spinner } from '@/components/ui/States';
 import { FormField } from '@/components/form/FormField';
 import { YearPicker } from '@/components/school-config/YearPicker';
@@ -28,10 +31,18 @@ import { vpCrumbs } from '@/utils/school-config/breadcrumbs';
 import '@/styles/modules/school-config.css';
 
 const NOT_GIVEN = 'NONE';
+// Lựa chọn gỡ Phó hiệu trưởng khỏi điểm trường đang phụ trách (BE nhận campusId = null)
+const NO_CAMPUS = 'NO_CAMPUS';
 const VIEW_ONLY = { view: true, create: false, update: false, delete: false };
+// Bảng trước → sau khi hai Phó hiệu trưởng đổi điểm trường cho nhau (cùng cách trình bày với bảng soát lại việc được giao)
+const SWAP_COLUMNS = [
+  { key: 'name', header: 'Phó hiệu trưởng' },
+  { key: 'before', header: 'Đang phụ trách', className: 'muted' },
+  { key: 'after', header: 'Sau khi lưu', className: 'fw-600' },
+];
 const writes = (actions) => Object.entries(actions).some(([k, on]) => k !== 'view' && on);
 
-function AssignModal({ row, year, campuses, sharedHolder, onClose }) {
+function AssignModal({ row, rows, year, campuses, sharedHolder, onClose }) {
   const { user } = useAuth();
   const toast = useToast();
   const [form, setForm] = useState({
@@ -42,7 +53,73 @@ function AssignModal({ row, year, campuses, sharedHolder, onClose }) {
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const menuHeldByOther = sharedHolder && sharedHolder.id !== row.user.id;
+  // Điểm trường chọn đang có Phó hiệu trưởng khác và người này cũng đang có điểm trường ⇒ hai người đổi chỗ cho nhau
+  const oldCampusId = row.assignment?.campusId;
+  const campusLabel = (id) => {
+    const c = campuses.find((x) => String(x.id) === String(id));
+    return c?.shortName || c?.name || 'điểm trường khác';
+  };
+  const removing = form.campusId === NO_CAMPUS;
+  const takenBy =
+    SCHOOL_CONFIG_API && form.campusId && !removing && String(oldCampusId) !== String(form.campusId)
+      ? rows.find((r) => r.user.id !== row.user.id && String(r.assignment?.campusId) === String(form.campusId))
+      : null;
+  const holder = oldCampusId ? takenBy : null;
   const menuClash = menuHeldByOther && !!grants.menu && writes(grants.menu.actions);
+  // Mỗi điểm trường một dòng: ai đang phụ trách và chọn thì chuyện gì xảy ra, để không phải đóng hộp thoại xem lại
+  const holderOf = (campusId) => rows.find((r) => r.user.id !== row.user.id && String(r.assignment?.campusId) === String(campusId));
+  const options = [
+    ...campuses
+      .filter((c) => c.status !== 'INACTIVE' || String(c.id) === String(oldCampusId))
+      .map((c) => {
+        const other = holderOf(c.id);
+        const current = String(c.id) === String(oldCampusId);
+        return {
+          id: c.id,
+          name: !c.shortName || c.name.startsWith(c.shortName) ? c.name : `${c.shortName} – ${c.name}`,
+          current,
+          holderName: current ? row.user.fullName : other?.user.fullName,
+          effect: current
+            ? 'Giữ nguyên'
+            : !other
+              ? 'Nhận phụ trách'
+              : SCHOOL_CONFIG_API && oldCampusId
+                ? `Hoán đổi với ${other.user.fullName}`
+                : `Cần gỡ ${other.user.fullName} trước`,
+        };
+      }),
+    ...(SCHOOL_CONFIG_API && oldCampusId
+      ? [{ id: NO_CAMPUS, name: 'Không phụ trách điểm trường nào', effect: `${campusLabel(oldCampusId)} sẽ chưa có Phó hiệu trưởng` }]
+      : []),
+  ];
+  const optionColumns = [
+    {
+      key: 'name',
+      header: 'Điểm trường',
+      render: (o) => (
+        <>
+          <span className="fw-600">{o.name}</span> {o.current && <span className="chip chip--teal">Đang phụ trách</span>}
+          <div className="text-xs muted">{o.effect}</div>
+        </>
+      ),
+    },
+    { key: 'holderName', header: 'Phó hiệu trưởng hiện tại' },
+    {
+      key: 'pick',
+      header: 'Thao tác',
+      className: 'cell--actions',
+      render: (o) =>
+        String(form.campusId) === String(o.id) ? (
+          <Button size="sm" variant="primary" icon={Check} aria-pressed="true" disabled={saving}>
+            Đã chọn
+          </Button>
+        ) : (
+          <Button size="sm" aria-pressed="false" disabled={saving} onClick={() => setCampus(o.id)}>
+            Chọn
+          </Button>
+        ),
+    },
+  ];
 
   const setGrant = (key, value) => {
     setErrors({});
@@ -88,8 +165,25 @@ function AssignModal({ row, year, campuses, sharedHolder, onClose }) {
           composeAreaGrant({ actions: g.actions, campusId: g.campusId === AREA_SCOPE_ALL ? null : g.campusId }),
         ]),
       );
-      await saveViceAssignment(year.id, row.user.id, { ...form, ...(!SCHOOL_CONFIG_API ? { areas } : {}) }, user);
-      toast.success(`Đã lưu phân công cho ${row.user.fullName}.`, 'Phân công Phó hiệu trưởng');
+      await saveViceAssignment(
+        year.id,
+        row.user.id,
+        {
+          ...form,
+          ...(removing ? { campusId: null } : {}),
+          ...(holder ? { swap: true } : {}),
+          ...(!SCHOOL_CONFIG_API ? { areas } : {}),
+        },
+        user,
+      );
+      toast.success(
+        holder
+          ? `Đã hoán đổi điểm trường giữa ${row.user.fullName} và ${holder.user.fullName}.`
+          : removing
+            ? `${row.user.fullName} không còn phụ trách điểm trường nào.`
+            : `Đã lưu phân công cho ${row.user.fullName}.`,
+        'Phân công Phó hiệu trưởng',
+      );
       onClose(true);
     } catch (err) {
       if (err.details) setErrors(err.details);
@@ -110,36 +204,82 @@ function AssignModal({ row, year, campuses, sharedHolder, onClose }) {
             Hủy
           </button>
           <button className="btn btn--primary" onClick={submit} disabled={saving}>
-            {saving ? <Spinner small /> : <Save size={16} />} Lưu phân công
+            {saving ? <Spinner small /> : holder ? <ArrowLeftRight size={16} /> : <Save size={16} />}{' '}
+            {holder ? 'Xác nhận hoán đổi' : 'Lưu phân công'}
           </button>
         </>
       }
     >
+      <div className="sc-assign-person mb-12">
+        <Avatar user={row.user} />
+        <div className="sc-assign-person__name">
+          <div className="fw-600">{row.user.fullName}</div>
+          <div className="text-xs muted">Năm học {year.name}</div>
+        </div>
+        {oldCampusId ? (
+          <span className="chip chip--teal chip--lg">Đang phụ trách: {campusLabel(oldCampusId)}</span>
+        ) : (
+          <span className="chip chip--gray chip--lg">Chưa phụ trách điểm trường nào</span>
+        )}
+      </div>
+      <div className="field__label mb-8">
+        Chọn điểm trường phụ trách <span aria-hidden="true">*</span>
+      </div>
+      <div className="mb-12">
+        <DataTable className="table--compact" columns={optionColumns} rows={options} />
+        {errors.campusId && (
+          <span className="field__error" role="alert">
+            {errors.campusId}
+          </span>
+        )}
+      </div>
       <p className="text-sm text-2 mb-12">
-        Năm học <b>{year.name}</b>.{' '}
         {SCHOOL_CONFIG_API
-          ? 'Chọn điểm trường Phó hiệu trưởng phụ trách. Việc được giao chỉnh ở khung bên phải khi chọn người này.'
+          ? 'Việc được giao chỉnh ở khung bên phải khi chọn người này.'
           : 'Phó hiệu trưởng chỉ thấy và làm được những công việc Hiệu trưởng giao dưới đây.'}
       </p>
-      {row.assignment?.campusId && form.campusId && row.assignment.campusId !== form.campusId && (
+      {holder ? (
+        <div className="mb-12">
+          <div className="alert alert--warning mb-8">
+            <ArrowLeftRight size={18} />
+            <div>
+              <b>
+                {campusLabel(form.campusId)} đang do {holder.user.fullName} phụ trách.
+              </b>{' '}
+              Lưu thì hai Phó hiệu trưởng đổi điểm trường cho nhau, mỗi điểm trường vẫn có một người phụ trách.
+            </div>
+          </div>
+          <DataTable
+            className="table--compact"
+            columns={SWAP_COLUMNS}
+            rows={[
+              { id: row.user.id, name: row.user.fullName, before: campusLabel(oldCampusId), after: campusLabel(form.campusId) },
+              { id: holder.user.id, name: holder.user.fullName, before: campusLabel(form.campusId), after: campusLabel(oldCampusId) },
+            ]}
+          />
+        </div>
+      ) : takenBy ? (
         <div className="alert alert--warning mb-12">
           <AlertTriangle size={18} />
           <div>
-            {row.user.fullName} đang phụ trách {campuses.find((c) => c.id === row.assignment.campusId)?.shortName || 'điểm trường khác'}.
-            Lưu phân công mới thì điểm trường đó sẽ chưa có Phó hiệu trưởng.
+            {campusLabel(form.campusId)} đang do {takenBy.user.fullName} phụ trách. Mở phân công của {takenBy.user.fullName}, chọn
+            &quot;Không phụ trách điểm trường nào&quot; rồi quay lại phân công {row.user.fullName}.
           </div>
         </div>
+      ) : (
+        oldCampusId &&
+        form.campusId &&
+        String(oldCampusId) !== String(form.campusId) && (
+          <div className="alert alert--warning mb-12">
+            <AlertTriangle size={18} />
+            <div>
+              {removing
+                ? `Lưu thì ${row.user.fullName} không còn phụ trách điểm trường nào và ${campusLabel(oldCampusId)} sẽ chưa có Phó hiệu trưởng.`
+                : `${row.user.fullName} đang phụ trách ${campusLabel(oldCampusId)}. Lưu phân công mới thì điểm trường đó sẽ chưa có Phó hiệu trưởng.`}
+            </div>
+          </div>
+        )
       )}
-      <FormField label="Điểm trường phụ trách" required error={errors.campusId}>
-        <select className="select" value={form.campusId} onChange={(e) => setCampus(e.target.value)}>
-          <option value="">Chọn điểm trường</option>
-          {campuses.map((c) => (
-            <option key={c.id} value={c.id}>
-              {!c.shortName || c.name.startsWith(c.shortName) ? c.name : `${c.shortName} – ${c.name}`}
-            </option>
-          ))}
-        </select>
-      </FormField>
 
       {!SCHOOL_CONFIG_API && (
         <div className="mt-16">
@@ -402,7 +542,7 @@ export default function VicePrincipalAssignmentPage({ embedded = false }) {
       ) : loading ? (
         <div className="card">
           <div className="table-wrap">
-            <table className="table table--compact">
+            <table className="table table--grid table--compact">
               <tbody>
                 <SkeletonRows rows={4} cols={3} />
               </tbody>
@@ -539,6 +679,7 @@ export default function VicePrincipalAssignmentPage({ embedded = false }) {
       {editing && year && (
         <AssignModal
           row={editing}
+          rows={rows}
           year={year}
           campuses={md.campuses}
           sharedHolder={sharedRow?.user}

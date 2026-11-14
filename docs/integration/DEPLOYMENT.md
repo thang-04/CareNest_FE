@@ -26,9 +26,10 @@ Thư mục trên VPS:
 | `.dockerignore` | Loại file khỏi docker build và khỏi rsync lên VPS |
 | `deploy/caddy/carenest-web.caddy` | Site Caddy cho subdomain; sửa ở repo, CI đẩy lên VPS (không sửa tay trên VPS — lần deploy sau sẽ ghi đè) |
 | `deploy/caddy/carenest-dev.caddy` | Site dev: `/api/*` tới API dev, còn lại tới FE dev |
-| `.github/workflows/deploy.yml` | verify → rsync source → `docker compose up -d --build` qua SSH → đồng bộ site Caddy (reload khi đổi, lỗi ⇒ khôi phục file cũ) → kiểm HTTPS |
+| `deploy/remote-deploy.sh` | Chạy trên VPS cho cả production và dev: `prepare` giữ image đang chạy và `compose.yaml` cũ; `deploy` build, chạy, chờ HTTP 200, không đạt ⇒ tự rollback (mục Rollback) |
+| `.github/workflows/deploy.yml` | verify → gửi script, `prepare` → rsync source → `remote-deploy.sh deploy` qua SSH → đồng bộ site Caddy (reload khi đổi, lỗi ⇒ khôi phục file cũ) → kiểm HTTPS (fail ⇒ rollback) |
 
-rsync dùng `--delete`: file trên VPS không còn trong repo sẽ bị xoá, trừ file khớp `.dockerignore` (vd. `.env` đặt tay). Không để dữ liệu khác trong `/data/thangnd/CAPSTONE/CareNest_FE`.
+rsync dùng `--delete`: file trên VPS không còn trong repo sẽ bị xoá, trừ file khớp `.dockerignore` (vd. `.env` đặt tay, `.incoming/` chứa script deploy, `.rollback/` chứa bản để quay lại). Không để dữ liệu khác trong `/data/thangnd/CAPSTONE/CareNest_FE`.
 
 Vì sao mạng host: VPS mất chain iptables của Docker (bridge không ra Internet, không tạo được network mới); gốc ở tầng k8s của server, ngoài quyền nhóm ⇒ không sửa iptables, không restart Docker — xem `docs/knowledge/TROUBLESHOOTING.md`.
 
@@ -125,7 +126,20 @@ Thư mục deploy cố định trong workflow (`APP_DIR` trong `.github/workflow
 
 ## Rollback
 
-VPS chỉ giữ bản source mới nhất. Quay về bản cũ: GitHub › Actions › mở run của commit cũ › Re-run jobs (rsync source và file Caddy cũ rồi build lại), hoặc revert qua PR vào `main`.
+**Tự động (`deploy/remote-deploy.sh`):** trước khi rsync source, bước `prepare` gắn tag `:previous` cho image đang chạy (`carenest-web:previous`, dev: `carenest-web-dev:previous`) và chép `compose.yaml` cũ vào `.rollback/`. Build lỗi ⇒ job đỏ, container cũ không bị đụng. Bản mới không trả 200 ở `127.0.0.1:<cổng>` trong khoảng 20 giây, hoặc smoke HTTPS fail ⇒ trả `compose.yaml` cũ, gắn lại `:latest` về image trước, tạo lại container, kiểm 200. Job luôn đỏ; log ghi `ROLLED BACK` hoặc `ROLLBACK FAILED`. `docker image prune` chỉ chạy sau khi bản mới đạt.
+
+Giới hạn: chỉ giữ **một** bản liền trước; sau rollback, source trên VPS vẫn là bản mới (chỉ `compose.yaml` và image quay về); file site Caddy không thuộc phần này (bước `Apply Caddy site` tự khôi phục khi reload lỗi); lần deploy đầu chưa có bản để quay lại.
+
+**Tay** (khi `ROLLBACK FAILED`, hoặc muốn về bản trước dù deploy đã xanh; dev đổi thư mục, `-p carenest-fe-dev` và ba biến theo mục Môi trường dev):
+```bash
+cd /data/thangnd/CAPSTONE/CareNest_FE
+docker image inspect carenest-web:previous --format '{{.Created}}'   # có image trước không
+docker tag carenest-web:previous carenest-web:latest
+docker compose -p carenest-fe up -d --no-build --force-recreate
+curl -sI http://127.0.0.1:18300/ | head -1
+```
+
+Về bản cũ hơn nữa: GitHub › Actions › mở run của commit cũ › Re-run jobs (rsync source và file Caddy cũ rồi build lại), hoặc revert qua PR vào `main`.
 
 Gỡ site: xoá dòng `import /data/thangnd/CAPSTONE/caddy/*.caddy` khỏi Caddyfile (hoặc khôi phục bản `.bak`), `caddy validate` rồi `systemctl reload caddy`.
 

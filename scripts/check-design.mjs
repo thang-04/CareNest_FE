@@ -87,6 +87,24 @@ export const CHECKS = {
       return [...text.matchAll(/styles\/modules\/([\w-]+)\.css/g)].filter((m) => !m[1].startsWith(mod) && !mod.startsWith(m[1])).length;
     },
   },
+  handTablist: {
+    label: 'role="tablist" viết tay — dùng <Tabs> từ @/components/ui/Tabs',
+    ext: /\.jsx$/,
+    skip: /^components\/ui\//,
+    re: /role="tablist"/g,
+  },
+  stickyActions: {
+    label: "thanh nút dính đáy (.page-actions--sticky) — nút Lưu theo loại màn (DESIGN §6.3): hàng nút cuối, màn dài thêm nút đầu trang",
+    ext: /\.jsx$/,
+    skip: /^$/,
+    re: /page-actions--sticky/g,
+  },
+  directExport: {
+    label: "xuất Excel thẳng (downloadXlsx) — dùng exportWithPreview để người dùng xem trước",
+    ext: /\.jsx$/,
+    skip: /^components\/ui\//,
+    re: /\bdownloadXlsx\(/g,
+  },
   localDateHelper: {
     label: "tự viết addDays/toIso/todayIso — thêm một lần vào utils/format.js rồi dùng chung",
     ext: /\.jsx?$/,

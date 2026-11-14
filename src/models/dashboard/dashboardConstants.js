@@ -31,8 +31,8 @@ export const APPROVAL_TYPE = {
 /** label: group title · tone: stat-card tone · listTo: the owning module's own list (link "Xem tất cả"). */
 export const APPROVAL_TYPE_META = {
   LESSON_REVIEW: {
-    label: 'Giáo án chờ tổ trưởng duyệt',
-    short: 'Giáo án',
+    label: 'Kế hoạch giáo dục ngày chờ tổ trưởng duyệt',
+    short: 'Kế hoạch giáo dục ngày',
     tone: 'orange',
     listTo: '/education/plan-reviews',
   },
@@ -43,8 +43,8 @@ export const APPROVAL_TYPE_META = {
     listTo: '/education/plan-reviews',
   },
   LESSON_PLAN: {
-    label: 'Giáo án chờ Phó hiệu trưởng duyệt',
-    short: 'Giáo án',
+    label: 'Kế hoạch giáo dục ngày chờ Phó hiệu trưởng duyệt',
+    short: 'Kế hoạch giáo dục ngày',
     tone: 'orange',
     listTo: '/education/plan-reviews',
   },

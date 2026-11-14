@@ -55,6 +55,7 @@ const ClassPlanLegacyRedirect = lazyPage(() =>
   })),
 );
 const DayPlansPage = lazyPage(() => import('@/pages/education-plan/DayPlansPage'));
+const ResourceLibraryPage = lazyPage(() => import('@/pages/education-plan/ResourceLibraryPage'));
 const DayPlansLegacyRedirect = lazyPage(() =>
   import('@/pages/education-plan/DayPlansPage').then((m) => ({
     default: m.DayPlansLegacyRedirect,
@@ -186,8 +187,7 @@ const MenuPlanDetailPage = lazyPage(() => import('@/pages/menu-planning/MenuPlan
 const R = ROLES;
 const CLASS_STAFF = [R.TEACHER, R.TEAM_LEADER];
 const LEADERS = [R.PRINCIPAL, R.VICE_PRINCIPAL];
-// Danh mục bán trú: HT, PHT đều xem; nút sửa theo NUTRITION_MANAGE khi dùng BE (BE vẫn kiểm). Form bản demo giữ phân quyền cũ.
-const CATALOG_API = !isDemoModule('nutrition-catalog');
+// Danh mục bán trú: HT, PHT đều xem; nút sửa theo NUTRITION_MANAGE khi dùng BE (BE vẫn kiểm).
 const CATALOG_READERS = LEADERS;
 const CATALOG_EDITORS = LEADERS;
 // Bán trú nối BE (hub, kế hoạch tuần, kho khô): build mock (VITE_USE_MOCK mặc định) giữ màn demo cũ, không có mock cho contract mới.
@@ -285,6 +285,8 @@ export function AppRoutes() {
               element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ClassPlanRedirect toOf={(id) => `/education/day-plans/${id}`} />)}
             />
             <Route path="day-plans/:classId" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <DayPlansPage />)} />
+            {/* Spec 900 (BE:EDU-88): kho học liệu dùng lại cho giáo án ngày */}
+            <Route path="resources" element={edu([ROLES.TEAM_LEADER, ROLES.TEACHER], <ResourceLibraryPage />)} />
             <Route path="class" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ClassPlanRedirect />)} />
             <Route path="class/:classId" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ClassPlanLegacyRedirect />)} />
             <Route
@@ -308,11 +310,7 @@ export function AppRoutes() {
             <Route path="curriculum-sources" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <CurriculumSourcesPage />)} />
             <Route
               path="settings"
-              element={edu(
-                [ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL],
-                <EduConfigPage />,
-                'Cấu hình kế hoạch giáo dục dành cho Hiệu trưởng và Phó hiệu trưởng.',
-              )}
+              element={edu([ROLES.PRINCIPAL], <EduConfigPage />, 'Cấu hình kế hoạch giáo dục dành cho Hiệu trưởng.')}
             />
           </Route>
           <Route path="school">

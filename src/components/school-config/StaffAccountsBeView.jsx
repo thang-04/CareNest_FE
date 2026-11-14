@@ -18,6 +18,7 @@ import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { ScNoAccess } from '@/components/school-config/ScNoAccess';
 import { StaffStatusBadge } from '@/components/school-config/SchoolConfigBadges';
 import { StaffImportPanel } from '@/components/school-config/StaffImportPanel';
+import { StaffAccountEditModal } from '@/components/school-config/StaffAccountEditModal';
 import { ROLES, ROLE_LABELS } from '@/models/User';
 import {
   createStaffAccount,
@@ -25,7 +26,14 @@ import {
   resetStaffPassword,
   setStaffAccountStatus,
 } from '@/services/school-config/schoolConfigService';
-import { STAFF_ROLES, normalizePhone, staffExportRows, toCreatePayload, validateStaffAccount } from '@/utils/school-config/staffImport';
+import {
+  STAFF_ROLES,
+  emailRequired,
+  normalizePhone,
+  staffExportRows,
+  toCreatePayload,
+  validateStaffAccount,
+} from '@/utils/school-config/staffImport';
 import { staffCrumbs } from '@/utils/school-config/breadcrumbs';
 import { isPrincipal } from '@/utils/school-config/schoolConfigPermissions';
 import { exportWithPreview } from '@/components/ui/ExportPreview';
@@ -74,6 +82,7 @@ export function StaffAccountsBeView({ tabs = null }) {
   const [creating, setCreating] = useState(false);
   // PHT vừa tạo: BE đã phân công điểm trường kèm theo ⇒ dẫn sang màn Phân công để xem / điều chỉnh
   const [createdVice, setCreatedVice] = useState(null);
+  const [editingOf, setEditingOf] = useState(null);
   const [statusOf, setStatusOf] = useState(null);
   const [passwordOf, setPasswordOf] = useState(null);
   const [importing, setImporting] = useState(false);
@@ -162,7 +171,7 @@ export function StaffAccountsBeView({ tabs = null }) {
         </div>
       )}
 
-      <div className="card mb-16">
+      <div className="card">
         {tabs}
         <div className="filter-bar">
           <SearchSubmit
@@ -211,9 +220,6 @@ export function StaffAccountsBeView({ tabs = null }) {
             <option value="INACTIVE">Đã vô hiệu hóa</option>
           </select>
         </div>
-      </div>
-
-      <div className="card">
         {error ? (
           <ErrorState error={error} onRetry={reload} />
         ) : (
@@ -266,6 +272,7 @@ export function StaffAccountsBeView({ tabs = null }) {
                           <td className="cell--actions">
                             {manageable && (
                               <RowActions
+                                edit={canCreate ? { label: 'Sửa thông tin', onClick: () => setEditingOf(u) } : undefined}
                                 menu={[
                                   ...(canCreate
                                     ? [{ label: 'Cấp lại mật khẩu tạm', icon: KeyRound, onClick: () => setPasswordOf(u) }]
@@ -305,6 +312,7 @@ export function StaffAccountsBeView({ tabs = null }) {
           }}
         />
       )}
+      {editingOf && <StaffAccountEditModal account={editingOf} onClose={done(setEditingOf)} />}
       {statusOf && <StaffStatusConfirm account={statusOf} onClose={done(setStatusOf)} />}
       {passwordOf && <StaffPasswordModal account={passwordOf} onClose={done(setPasswordOf)} />}
       <StaffImportPanel
@@ -330,7 +338,8 @@ function StaffCreateModal({ campuses, onClose }) {
   const [saving, setSaving] = useState(false);
   const set = (patch) => {
     setForm((f) => ({ ...f, ...patch }));
-    setErrors((e) => Object.fromEntries(Object.entries(e).filter(([k]) => !(k in patch))));
+    // Đổi vai trò làm đổi luật bắt buộc email ⇒ bỏ cả lỗi email đang hiện
+    setErrors((e) => Object.fromEntries(Object.entries(e).filter(([k]) => !(k in patch) && !('role' in patch && k === 'email'))));
   };
   const blur = (field) => {
     const e = validateStaffAccount(form, { campuses, teacherCampusRequired });
@@ -395,7 +404,7 @@ function StaffCreateModal({ campuses, onClose }) {
             onBlur={() => blur('phone')}
           />
         </FormField>
-        <FormField label="Email" error={errors.email}>
+        <FormField label="Email" required={emailRequired(form.role)} error={errors.email}>
           <input
             className="input"
             type="email"

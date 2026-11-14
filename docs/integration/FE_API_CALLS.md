@@ -6,7 +6,7 @@ File sinh tự động, không sửa tay. Sinh lại: `node scripts/check-api-co
 - Path đã chuẩn hóa tham số thành `{x}`. `[module: api|demo]` theo `src/config/integrationModules.js`.
 - Lời gọi có đường dẫn không phải chuỗi literal (vd. ghép từ biến) không nằm trong bảng.
 
-Tổng: 362 lời gọi.
+Tổng: 363 lời gọi.
 
 ```text
 DELETE /age-groups/{x} · src/services/school-config/api/schoolConfigApi.js [school-config: api] → src/main/java/com/carenest/controller/organization/AgeGroupController.java#deleteAgeGroup
@@ -208,6 +208,7 @@ GET /team-leader-assignments · src/services/school-config/api/schoolConfigApi.j
 GET /users · src/services/masterDataService.js [master-data: api] → (BE chưa có — pending)
 GET /users · src/services/school-config/api/schoolConfigApi.js [school-config: api] → (BE chưa có — pending)
 GET /users/{x}/role-change-impact · src/services/school-config/api/schoolConfigApi.js [school-config: api] → (BE chưa có — pending)
+PATCH /accounts/{x}/profile · src/services/school-config/schoolConfigService.js [school-config: api] → src/main/java/com/carenest/controller/account/AccountController.java#updateProfile
 PATCH /accounts/{x}/status · src/services/school-config/schoolConfigService.js [school-config: api] → src/main/java/com/carenest/controller/account/AccountController.java#updateAccountStatus
 PATCH /campuses/{x}/status · src/services/school-config/api/schoolConfigApi.js [school-config: api] → src/main/java/com/carenest/controller/organization/CampusController.java#changeCampusStatus
 PATCH /locations/{x}/status · src/services/masterDataService.js [master-data: api] → src/main/java/com/carenest/controller/organization/RoomController.java#changeRoomStatus
