@@ -73,7 +73,12 @@ export default function ClassRatingsPage() {
       return { ...all, [r.classId]: { levels: { ...cur.levels, ...patch.levels }, note: patch.note ?? cur.note } };
     });
   };
-  const missingOverall = (r) => errors.overall && changed.includes(r) && !valueOf(r).levels.overall;
+  // Như BE (OBS-24): đã chọn tiêu chí nào thì phải chọn xếp loại chung; chỉ sửa ghi chú / xóa hết mức thì không
+  const needsOverall = (r) => {
+    const levels = valueOf(r).levels;
+    return !levels.overall && CLASS_RATING_CRITERIA.some((c) => levels[c.key]);
+  };
+  const missingOverall = (r) => errors.overall && changed.includes(r) && needsOverall(r);
   // Ít thao tác: điền "Tốt" vào tiêu chí còn trống của lớp được chấm; xếp loại chung người chấm tự chọn (OBS-24)
   const fillEmpty = () =>
     setDrafts((all) => {
@@ -90,7 +95,7 @@ export default function ClassRatingsPage() {
     if (!changed.length || saving) return false;
     // Ghi chú quá dài đã báo đỏ ngay dưới ô (không chặn gõ): không gửi BE
     if (changed.some((r) => valueOf(r).note.length > NOTE_MAX)) return false;
-    if (changed.some((r) => !valueOf(r).levels.overall)) {
+    if (changed.some(needsOverall)) {
       setErrors({ overall: true });
       return false;
     }
