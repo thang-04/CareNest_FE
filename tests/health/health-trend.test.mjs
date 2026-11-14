@@ -14,7 +14,7 @@ const { axiosClient } = await import('@/services/http/axiosClient');
 const { childrenApi } = await import('@/services/children/api/childrenApi');
 const { resetDb, writeDb } = await import('@/mocks/mockDatabase');
 const { childrenMockRepository: children, ensureChildRecordsSeeded } = await import('@/services/children/mock/childrenMockRepository');
-const { validateTrendContent, normalizeTrendContent, isTrendStale } = await import('@/utils/children/healthTrend');
+const { validateTrendContent, normalizeTrendContent, isTrendStale, trendBlocks } = await import('@/utils/children/healthTrend');
 
 /*
  * Plan docs/plans/active/2026-11-14-health-trend-review.md, Phase 1 (BE HLT-21): nhận định xu hướng có cấu trúc, đọc bản mới nhất,
@@ -158,4 +158,24 @@ test('HLT-21: có số đo công bố mới sau lần phân tích ⇒ bản mớ
   });
 
   assert.equal((await children.getLatestHealthTrend(CHILD, AN)).stale, true);
+});
+
+test('HLT-21: khối hiển thị theo thứ tự cố định, bỏ khối rỗng, gợi ý kèm loại; bản cũ không có content ⇒ không có khối', () => {
+  const blocks = trendBlocks({
+    content: {
+      overview: 'Tăng đều.',
+      attentionPoints: [{ warningCode: 'WEIGHT_DROP', text: 'Giảm 0,5 kg.' }],
+      positives: [],
+      followUps: [{ type: 'TALK_TO_PARENT', text: 'Hỏi bữa ăn ở nhà.' }],
+      limitations: null,
+    },
+  });
+
+  assert.deepEqual(
+    blocks.map((b) => b.title),
+    ['Tổng quan', 'Cần chú ý', 'Gợi ý theo dõi'],
+  );
+  assert.deepEqual(blocks[1].items, [{ text: 'Giảm 0,5 kg.', code: 'WEIGHT_DROP' }]);
+  assert.deepEqual(blocks[2].items, [{ text: 'Hỏi bữa ăn ở nhà.', type: 'TALK_TO_PARENT' }]);
+  assert.deepEqual(trendBlocks({ summary: 'Bản cũ.', content: null }), []);
 });

@@ -106,7 +106,7 @@ Phần client của plan BE `BE:docs/plans/completed/2026-11-14-health-trend-str
 | AC | Rule | Test (tầng) | Phase | Kết quả |
 | --- | --- | --- | --- | --- |
 | AC-6, AC-8 | AI-02, HLT-21 | `tests/health/health-trend.test.mjs` (node) | 1 | PASS 6/6 |
-| AC-1..AC-4, AC-7 | HLT-05, HLT-21, AI-03 | hàm thuần (node) + kiểm tay trình duyệt | 2 | |
+| AC-1..AC-4, AC-7 | HLT-05, HLT-21, AI-03 | hàm thuần (node) + kiểm tay trình duyệt | 2 | PASS (`trendBlocks`; ảnh `docs/test-reports/2026-11-14-health-trend-{empty,draft,stale}.png`) |
 | AC-5, AC-6 | AI-02 | node + kiểm tay trên BE thật | 3 | |
 
 ## Rủi ro & rollback
@@ -141,3 +141,14 @@ Phần client của plan BE `BE:docs/plans/completed/2026-11-14-health-trend-str
   - Adapter thêm `readTrend`: `approvedBy` không khớp mẫu tên id của `stringifyIds` nên đổi riêng sang chuỗi.
   - Bản giả lập: luật cảnh báo đổi sang mã của BE (`WEIGHT_DROP`, `HEIGHT_STALL`, `NORMAL`); bỏ cảnh báo vòng đầu, BMI cũ của bản giả lập vì BE không có mã tương ứng.
 - Tiếp: Phase 2 (panel đọc bản mới nhất, hiển thị theo khối).
+
+### 2026-11-14 — Phase 2 (chờ review)
+- Commit Phase 1: `783decd1` (chưa push). Phase 2: chưa commit.
+- Verify: `npm run test:health` → 118/118 pass; `npm run check` → exit 0.
+- Kiểm tay (Vite giả lập :5190, HT `hung.pham`, trẻ mẫu `ch_001`, 1440px): mở trang ⇒ "Chưa có nhận định xu hướng" + nút "Phân tích" (không gọi AI); bấm ⇒ bản nháp 5 khối, nhãn "Bản nháp AI – chờ giáo viên duyệt"; tải lại ⇒ giữ bản nháp (GET); thêm lần đo công bố ⇒ banner `stale`. Ảnh: `docs/test-reports/2026-11-14-health-trend-{empty,draft,stale}.png` (dữ liệu mẫu, không có trẻ thật).
+- Khác plan:
+  - Panel dùng `Button`, `EmptyState`, `LoadingState` thay `<button>`, `<p className="muted">` tự viết (UI_CARD luật 17).
+  - Nhãn trạng thái qua `createStatusBadge` (`TrendReviewBadge`, `TREND_REVIEW_STATUS_LABELS`).
+  - Gợi ý theo dõi chỉ hiện câu chữ, không hiện nhãn loại ở đầu câu (lặp nghĩa khi xem thử); nhãn loại dùng ở form sửa Phase 3.
+- Ghi chú: lỗi console "trùng key 2026-11-13" ở `GrowthChart` chỉ do lần đo thử chèn tay trùng ngày lần đo mẫu, không phải lỗi panel.
+- Tiếp: Phase 3 (sửa, duyệt).

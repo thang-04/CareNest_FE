@@ -176,6 +176,9 @@ export const TREND_FOLLOW_UP_LABELS = {
 };
 
 /** Giới hạn nội dung nhận định xu hướng, giống BE `HealthTrendContentRules` (HLT-21). */
+/** Trạng thái bản nhận định xu hướng: nháp chờ GV phụ trách lớp duyệt, đã duyệt thì phụ huynh xem được (HLT-05, HLT-21). */
+export const TREND_REVIEW_STATUS_LABELS = { DRAFT: 'Bản nháp AI – chờ giáo viên duyệt', APPROVED: 'Đã duyệt' };
+
 export const TREND_CONTENT_LIMITS = { overview: 500, item: 300, positives: 3 };
 
 /** Columns of the enrollment template (CSV / Excel), in order. */

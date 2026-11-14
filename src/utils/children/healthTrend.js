@@ -79,3 +79,23 @@ export function isTrendStale(analyzedIds = [], currentIds = []) {
   const b = new Set(currentIds.map(String));
   return a.size !== b.size || [...a].some((id) => !b.has(id));
 }
+
+/**
+ * Khối hiển thị theo thứ tự cố định (HLT-21); khối rỗng bị bỏ. Bản trước HLT-21 (không có content) ⇒ [] để màn hiện summary.
+ * Điểm cần chú ý kèm mã cảnh báo để nối với cảnh báo xác định; gợi ý theo dõi kèm loại (form sửa dùng).
+ */
+export function trendBlocks(data) {
+  const c = data?.content;
+  if (!c) return [];
+  return [
+    { key: 'overview', title: 'Tổng quan', items: c.overview ? [{ text: c.overview }] : [] },
+    { key: 'attention', title: 'Cần chú ý', items: (c.attentionPoints || []).map((a) => ({ text: a.text, code: a.warningCode })) },
+    { key: 'positives', title: 'Điểm tích cực', items: (c.positives || []).map((text) => ({ text })) },
+    {
+      key: 'followUps',
+      title: 'Gợi ý theo dõi',
+      items: (c.followUps || []).map((f) => ({ text: f.text, type: f.type })),
+    },
+    { key: 'limitations', title: 'Lưu ý về dữ liệu', items: c.limitations ? [{ text: c.limitations }] : [] },
+  ].filter((b) => b.items.length);
+}
