@@ -557,6 +557,7 @@
   align-items: start;
 }
 .tr-trend-detail {
+  container: tr-trend-detail / inline-size;
   min-width: 0;
   scroll-margin-top: calc(var(--header-height) + var(--space-6));
 }
@@ -635,10 +636,17 @@
 .tr-trend-list__head .select {
   width: 100%;
 }
-/* Biểu đồ của trẻ: mỗi biểu đồ một dòng cho đủ rộng (user yêu cầu 2026-10-23) */
+/* Biểu đồ của trẻ: màn lớn 2 biểu đồ một dòng, màn nhỏ 1 biểu đồ một dòng (user chọn 2026-11-14).
+   Theo bề ngang khung chi tiết, không theo màn: thu gọn danh sách trẻ thì khung rộng ra, đủ chỗ cho 2 biểu đồ. */
 .tr-trend-charts {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-5);
+}
+@container tr-trend-detail (min-width: 800px) {
+  .tr-trend-charts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 .tr-trend-item__name {
   display: flex;
@@ -817,6 +825,12 @@
   stroke-width: 2.5;
   stroke-linejoin: round;
 }
+.tr-chart__value {
+  fill: var(--color-text);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  font-family: var(--font);
+}
 .tr-chart__pt {
   stroke: var(--surface);
   stroke-width: 2;
@@ -825,15 +839,17 @@
 .tr-chart__pt--alert {
   fill: var(--warning);
 }
+/* Chưa có đánh giá: tròn rỗng viền xám, phân biệt bằng hình chứ không chỉ bằng màu */
 .tr-chart__pt--unavailable {
-  fill: var(--disabled);
+  fill: var(--surface);
+  stroke: var(--color-text-muted);
 }
 .tr-legend {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-4);
-  margin-top: var(--space-3);
   align-items: center;
+  color: var(--color-text-secondary);
 }
 .tr-legend > span {
   display: inline-flex;
@@ -850,10 +866,14 @@
   background: var(--success);
 }
 .tr-legend__dot--alert {
+  border-radius: 0;
   background: var(--warning);
+  transform: rotate(45deg) scale(0.9);
 }
 .tr-legend__dot--unavailable {
-  background: var(--disabled);
+  box-sizing: border-box;
+  border: 2px solid var(--color-text-muted);
+  background: var(--surface);
 }
 
 /* AI draft panel */
@@ -907,6 +927,48 @@
 }
 .tr-ai__block .tr-ai__list {
   margin-top: 0;
+}
+.tr-ai__overview {
+  margin: 0;
+  max-width: 72ch;
+  font-size: var(--fs-md);
+  line-height: 1.6;
+  text-wrap: pretty;
+}
+/* Cần chú ý / Điểm tích cực / Gợi ý theo dõi chia cột, khung hẹp thì xếp dọc */
+.tr-ai__cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+.tr-ai__col {
+  padding: var(--space-3);
+  border-radius: var(--radius);
+  background: var(--color-surface-muted);
+}
+.tr-ai__col--attention {
+  background: var(--warning-25);
+}
+.tr-ai__col--attention .tr-ai__block-title {
+  color: var(--warning-800);
+}
+.tr-ai__col .tr-ai__list {
+  margin-top: 0;
+}
+.tr-ai__col .tr-ai__item {
+  padding: 0;
+  background: none;
+}
+.tr-ai__hint {
+  font-weight: var(--fw-regular);
+}
+.tr-ai__bullets {
+  margin: 0;
+  padding-left: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
 }
 .tr-ai__summary {
   white-space: pre-line;

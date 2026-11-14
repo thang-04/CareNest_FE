@@ -73,6 +73,9 @@ export function AiTrendPanel({ childId, user, period = 'ALL', canReview = false 
 
   const hasAnalysis = data?.status === AI_TREND_STATUS.OK;
   const blocks = hasAnalysis ? trendBlocks(data) : [];
+  const overview = blocks.find((b) => b.key === 'overview');
+  const columns = blocks.filter((b) => b.key === 'attention' || b.key === 'positives' || b.key === 'followUps');
+  const limitations = blocks.find((b) => b.key === 'limitations');
   const reviewable = canReview && hasAnalysis && data.draft && !editing;
   const selected = trendPeriodOf(period);
   const analyzeLabel = !hasAnalysis
@@ -183,23 +186,48 @@ export function AiTrendPanel({ childId, user, period = 'ALL', canReview = false 
                 onSubmit={(content) => setConfirm({ content })}
               />
             ) : blocks.length ? (
-              blocks.map((b) => (
-                <div key={b.key} className="tr-ai__block">
-                  <h3 className="tr-ai__block-title">{b.title}</h3>
-                  {b.key === 'overview' ? (
-                    <p>{b.items[0].text}</p>
-                  ) : (
-                    <ul className="tr-ai__list">
-                      {b.items.map((item, i) => (
-                        <li key={i} className={`tr-ai__item${b.key === 'attention' ? ' tr-ai__item--warning' : ''}`}>
-                          {b.key === 'attention' ? <AlertTriangle size={16} /> : <Info size={16} />}
-                          <span>{item.text}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              ))
+              // Tổng quan cả dòng; Cần chú ý / Điểm tích cực / Gợi ý theo dõi chia cột; lưu ý dữ liệu một dòng (phương án A, 14/11/2026)
+              <>
+                {overview && (
+                  <div className="tr-ai__block">
+                    <h3 className="tr-ai__block-title">{overview.title}</h3>
+                    <p className="tr-ai__overview">{overview.items[0].text}</p>
+                  </div>
+                )}
+                {columns.length > 0 && (
+                  <div className="tr-ai__cols">
+                    {columns.map((b) => (
+                      <div key={b.key} className={`tr-ai__col tr-ai__col--${b.key}`}>
+                        <h3 className="tr-ai__block-title">
+                          {b.title}
+                          {b.key === 'followUps' && <span className="tr-ai__hint"> · phụ huynh không xem</span>}
+                        </h3>
+                        {b.key === 'attention' ? (
+                          <ul className="tr-ai__list">
+                            {b.items.map((item, i) => (
+                              <li key={i} className="tr-ai__item tr-ai__item--warning">
+                                <AlertTriangle size={16} />
+                                <span>{item.text}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <ul className="tr-ai__bullets">
+                            {b.items.map((item, i) => (
+                              <li key={i}>{item.text}</li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {limitations && (
+                  <p className="muted text-sm mt-12">
+                    <strong>{limitations.title}:</strong> {limitations.items[0].text}
+                  </p>
+                )}
+              </>
             ) : (
               <>
                 {/* Bản lưu trước HLT-21 chỉ có đoạn văn và cảnh báo */}

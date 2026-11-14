@@ -4,7 +4,7 @@ import { LineChart, HeartPulse, ArrowLeft, ChevronLeft, ChevronRight } from '@/c
 import { useAuth } from '@/contexts/AuthContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
-import { useChildRecords, useClassOptions, useHealthRecord } from '@/hooks/children/useChildRecords';
+import { useChildRecords, useHealthRecord } from '@/hooks/children/useChildRecords';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { ChildAvatar } from '@/components/ChildAvatar';
 import { EmptyState, LoadingState } from '@/components/ui/States';
@@ -15,10 +15,10 @@ import { TrendChildList, sortByName } from '@/components/children/TrendChildList
 import { AiTrendPanel } from '@/components/children/AiTrendPanel';
 import { ChildAccessState } from '@/components/children/ChildAccessState';
 import { CHILD_STATUS } from '@/models/School';
-import { TREND_PERIODS, growthAxesFor } from '@/models/children/childrenConstants';
+import { TREND_PERIODS } from '@/models/children/childrenConstants';
 import { NUTRITION_STATUS, NUTRITION_STATUS_OPTIONS, labelOf } from '@/models/children/healthExamForm';
 import { formatDate } from '@/utils/format';
-import { ageGroupIn, formatNumber, suggestAgeGroupId } from '@/utils/children/childrenHelpers';
+import { formatNumber } from '@/utils/children/childrenHelpers';
 import { childrenCrumbs } from '@/utils/children/breadcrumbs';
 import { withinTrendPeriod } from '@/utils/children/healthTrend';
 import { canReviewHealthTrend, isPrincipal, isVicePrincipal } from '@/utils/children/childrenPermissions';
@@ -39,8 +39,6 @@ export default function HealthTrendPage() {
   const [classId, setClassId] = useState('');
   const { children, loading: listLoading } = useChildRecords({ schoolYear, status: CHILD_STATUS.ACTIVE });
   const { record, loading, error, reload } = useHealthRecord(childId);
-  // Nhóm tuổi của năm học (BE /school-structure hoặc mock): thang biểu đồ theo mã nhóm (ag-*), gợi ý theo ngày bắt đầu năm học
-  const { year: yearInfo, ageGroups } = useClassOptions(schoolYear);
 
   const active = useMemo(() => children.filter((c) => c.status === CHILD_STATUS.ACTIVE), [children]);
   // Lựa chọn điểm trường / lớp lấy từ danh sách trẻ BE trả về trong phạm vi người dùng
@@ -82,14 +80,6 @@ export default function HealthTrendPage() {
   }, [record, period]);
 
   const child = record?.child;
-  // Thang biểu đồ theo nhóm tuổi của lớp hiện tại; trẻ chưa xếp lớp thì theo năm sinh
-  const ageGroupId =
-    record?.cls?.ageGroupId ||
-    child?.ageGroupId ||
-    suggestAgeGroupId(child?.dateOfBirth, yearInfo?.startDate || schoolYear, ageGroups.length ? ageGroups : undefined);
-  // BE: nhóm tuổi id số, mã ag-* ở code; mock: id là ag-*
-  const ageGroup = ageGroupIn(ageGroups, ageGroupId);
-  const axes = growthAxesFor(ageGroup?.code || ageGroup?.id || ageGroupId);
   // Chiều cao, cân nặng tô màu theo tình trạng dinh dưỡng bác sĩ ghi ở phiếu khám (không còn phân loại BMI, user chốt 2026-10-17).
   const nutritionPoint = (m, value) => {
     const statuses = m.exam?.nutrition?.statuses || [];
@@ -210,18 +200,33 @@ export default function HealthTrendPage() {
                     onChange={setView}
                     ariaLabel="Cách xem"
                   />
-                  <div className="tabs" role="group" aria-label="Khoảng thời gian">
-                    {TREND_PERIODS.map((p) => (
-                      <button
-                        key={p.key}
-                        type="button"
-                        aria-pressed={period === p.key}
-                        className={`tab ${period === p.key ? 'tab--active' : ''}`}
-                        onClick={() => setPeriod(p.key)}
-                      >
-                        {p.label}
-                      </button>
-                    ))}
+                  <div className="row row--wrap gap-4">
+                    {view === 'chart' && points.length > 0 && (
+                      <div className="tr-legend text-sm">
+                        <span>
+                          <i className="tr-legend__dot tr-legend__dot--normal" /> Bình thường
+                        </span>
+                        <span>
+                          <i className="tr-legend__dot tr-legend__dot--alert" /> Có điểm cần chú ý
+                        </span>
+                        <span>
+                          <i className="tr-legend__dot tr-legend__dot--unavailable" /> Chưa có đánh giá
+                        </span>
+                      </div>
+                    )}
+                    <div className="tabs" role="group" aria-label="Khoảng thời gian">
+                      {TREND_PERIODS.map((p) => (
+                        <button
+                          key={p.key}
+                          type="button"
+                          aria-pressed={period === p.key}
+                          className={`tab ${period === p.key ? 'tab--active' : ''}`}
+                          onClick={() => setPeriod(p.key)}
+                        >
+                          {p.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
                 {points.length === 0 ? (
@@ -232,30 +237,10 @@ export default function HealthTrendPage() {
                   />
                 ) : view === 'chart' ? (
                   <div className="card__body">
+                    {/* Hai biểu đồ cạnh nhau, trục tự co theo số đo (user chọn phương án A 14/11/2026, thay chốt 23/10 mỗi biểu đồ một dòng) */}
                     <div className="tr-trend-charts">
-                      <GrowthChart
-                        title="Chiều cao"
-                        unit="cm"
-                        axis={axes.height}
-                        points={points.map((m) => nutritionPoint(m, m.heightCm))}
-                      />
-                      <GrowthChart
-                        title="Cân nặng"
-                        unit="kg"
-                        axis={axes.weight}
-                        points={points.map((m) => nutritionPoint(m, m.weightKg))}
-                      />
-                    </div>
-                    <div className="tr-legend text-sm">
-                      <span>
-                        <i className="tr-legend__dot tr-legend__dot--normal" /> Bình thường
-                      </span>
-                      <span>
-                        <i className="tr-legend__dot tr-legend__dot--alert" /> Có điểm cần chú ý
-                      </span>
-                      <span>
-                        <i className="tr-legend__dot tr-legend__dot--unavailable" /> Chưa có đánh giá
-                      </span>
+                      <GrowthChart title="Chiều cao" unit="cm" points={points.map((m) => nutritionPoint(m, m.heightCm))} />
+                      <GrowthChart title="Cân nặng" unit="kg" points={points.map((m) => nutritionPoint(m, m.weightKg))} />
                     </div>
                   </div>
                 ) : (
