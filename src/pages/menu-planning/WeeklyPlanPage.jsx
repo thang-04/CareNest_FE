@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTabParam } from '@/hooks/useTabParam';
 import { Tabs } from '@/components/ui/Tabs';
 import { useSearchParams } from 'react-router-dom';
-import { Copy, Lock, Pencil, Save, Scale, Send } from '@/components/ui/icons';
+import { Copy, FileDown, Lock, Pencil, Save, Scale, Send } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { DayEditorModal } from '@/components/menu-planning/DayEditorModal';
 import { CopyDayModal } from '@/components/menu-planning/CopyDayModal';
@@ -21,6 +21,7 @@ import { MealPlanGrid } from '@/components/menu-planning/MealPlanGrid';
 import { MealPlanIssueList } from '@/components/menu-planning/MealPlanIssueList';
 import { MealPlanStatusBadge } from '@/components/menu-planning/MenuBadges';
 import { PublishWeekDialog } from '@/components/menu-planning/PublishWeekDialog';
+import { WeeklyMenuExportModal } from '@/components/menu-planning/WeeklyMenuExportModal';
 import { useActiveDishes, useBeAgeGroups, useMealPlan } from '@/hooks/menu-planning/useMealPlan';
 import { useMenuTemplates } from '@/hooks/menu-planning/useMenuTemplates';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
@@ -63,6 +64,7 @@ export default function WeeklyPlanPage() {
   const [kcalGroupId, setKcalGroupId] = useState('');
   const [busy, setBusy] = useState(false);
   const [publishOpen, setPublishOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
   const [publishError, setPublishError] = useState('');
   // Mẫu ngày chờ xác nhận thay món: { day, template, count }
   const [pending, setPending] = useState(null);
@@ -240,6 +242,12 @@ export default function WeeklyPlanPage() {
           )}
         </div>
         <div className="row td-week-toolbar__actions">
+          {/* Chỉ bản đã công bố được xuất văn bản (MENU-14 SRS): văn bản gửi bếp, phụ huynh phải là bản chính thức */}
+          {plan.status === MEAL_PLAN_STATUS.PUBLISHED && (
+            <button type="button" className="btn" onClick={() => setExportOpen(true)}>
+              <FileDown size={16} /> Xuất văn bản
+            </button>
+          )}
           {editable && (
             <button type="button" className="btn" disabled={busy || !dirty} onClick={save}>
               <Save size={16} /> Lưu nháp
@@ -332,6 +340,14 @@ export default function WeeklyPlanPage() {
         onConfirm={publish}
         onClose={() => setPublishOpen(false)}
       />
+      {exportOpen && (
+        <WeeklyMenuExportModal
+          plan={plan}
+          week={week}
+          defaultPreparer={user?.fullName || user?.name || ''}
+          onClose={() => setExportOpen(false)}
+        />
+      )}
       <Modal open={issuesOpen} size="lg" title={`Lưu ý của tuần · ${plan.issues.length} lưu ý`} onClose={() => setIssuesOpen(false)}>
         <MealPlanIssueList issues={plan.issues} />
       </Modal>
