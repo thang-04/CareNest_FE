@@ -1,4 +1,5 @@
-import { TREND_CONTENT_LIMITS as LIMITS } from '@/models/children/childrenConstants';
+import { TREND_CONTENT_LIMITS as LIMITS, TREND_PERIODS } from '@/models/children/childrenConstants';
+import { todayInput } from '@/utils/format';
 
 /*
  * Nội dung nhận định xu hướng có cấu trúc (HLT-21, BE HealthTrendContentRules): tổng quan, điểm cần chú ý gắn mã cảnh báo,
@@ -72,6 +73,30 @@ export function renderTrendSummary(c) {
     (c.limitations ? `\n\nLưu ý về dữ liệu: ${c.limitations}` : '')
   );
 }
+
+/** Thông tin khoảng thời gian (nhãn, cụm câu); giá trị lạ hoặc thiếu ⇒ toàn bộ. */
+export const trendPeriodOf = (key) => TREND_PERIODS.find((p) => p.key === key) || TREND_PERIODS[TREND_PERIODS.length - 1];
+
+/**
+ * Ngày đầu khoảng (yyyy-mm-dd, gồm cả ngày đó), tính lùi từ hôm nay như BE `LocalDate.minusMonths` (ngày cuối tháng bị kẹp,
+ * vd. 31/08 lùi 6 tháng ⇒ 28/02); toàn bộ ⇒ ''.
+ */
+export function trendPeriodSince(key, today = todayInput()) {
+  const { months } = trendPeriodOf(key);
+  if (!months) return '';
+  const [y, m, d] = today.split('-').map(Number);
+  const total = y * 12 + (m - 1) - months;
+  const year = Math.floor(total / 12);
+  const month = (total % 12) + 1;
+  const day = Math.min(d, new Date(year, month, 0).getDate());
+  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+/** Lần đo (có `date`) nằm trong khoảng `key` tính lùi từ hôm nay. */
+export const withinTrendPeriod = (items, key, today = todayInput()) => {
+  const since = trendPeriodSince(key, today);
+  return since ? items.filter((m) => m.date >= since) : items;
+};
 
 /** Tập lần đo lúc phân tích khác tập lần đo đã công bố hiện tại ⇒ bản cần phân tích lại (HLT-21). */
 export function isTrendStale(analyzedIds = [], currentIds = []) {

@@ -74,6 +74,7 @@ const useMasterData=()=>({campuses:[]}), useChildRecords=()=>({children:[child],
 const useHealthRecord=()=>({record:{child,measurements:[context.measurement]},loading:false});
 const CHILD_STATUS={ACTIVE:'ACTIVE'}, isPrincipal=()=>false, isVicePrincipal=()=>false, canReviewHealthTrend=()=>false;
 const sortByName=(v)=>v, suggestAgeGroupId=()=>'', growthAxesFor=()=>({}), ageGroupById=()=>null;
+const TREND_PERIODS=[{key:'ALL',label:'Toàn bộ'}], withinTrendPeriod=(items)=>items;
 const useClassOptions=()=>({year:null,ageGroups:[]}), ageGroupIn=()=>null;
 const NUTRITION_STATUS={NORMAL:'NORMAL'}, NUTRITION_STATUS_OPTIONS=[], labelOf=()=>'';
 const formatDate=(v)=>v, formatNumber=(v)=>v ?? '—', childrenCrumbs=()=>[];

@@ -23,7 +23,7 @@ export const getParentAccounts = (filters, user) => repo.listParentAccounts(filt
 export const findParentAccountByCitizenId = (idNumber, user) => repo.findParentAccountByCitizenId(idNumber, user);
 export const getHealthRecord = (childId, user) => repo.getHealthRecord(childId, user);
 export const saveMeasurement = (childId, measurementId, payload, user) => repo.saveMeasurement(childId, measurementId, payload, user);
-export const analyzeHealthTrend = (childId, user) => repo.analyzeHealthTrend(childId, user);
+export const analyzeHealthTrend = (childId, period, user) => repo.analyzeHealthTrend(childId, period, user);
 export const getLatestHealthTrend = (childId, user) => repo.getLatestHealthTrend(childId, user);
 export const approveHealthTrend = (childId, interpretationId, content, user) =>
   repo.approveHealthTrend(childId, interpretationId, content, user);

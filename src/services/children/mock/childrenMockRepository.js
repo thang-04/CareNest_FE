@@ -56,7 +56,14 @@ import {
   isPrincipal,
   isVicePrincipal,
 } from '@/utils/children/childrenPermissions';
-import { isTrendStale, normalizeTrendContent, renderTrendSummary, validateTrendContent } from '@/utils/children/healthTrend';
+import {
+  isTrendStale,
+  normalizeTrendContent,
+  renderTrendSummary,
+  trendPeriodOf,
+  validateTrendContent,
+  withinTrendPeriod,
+} from '@/utils/children/healthTrend';
 import { conclusionBrief, screenMeasurement } from './healthScreeningRule';
 import {
   addDays,
@@ -1471,20 +1478,25 @@ export const childrenMockRepository = {
 
   /* ------------------------------ #35 Health trend (AI) ------------------------------ */
   // BE giả của HealthTrendServiceImpl (HLT-02, HLT-05, HLT-21): mỗi lần phân tích lưu một bản nháp; nhân viên đọc bản mới nhất.
-  async analyzeHealthTrend(childId, user) {
+  async analyzeHealthTrend(childId, period = 'ALL', user) {
     await delay(900);
     const db = ensureSeeded();
     const child = assertView(db, childId, user, canViewHealth);
-    const history = trendHistory(db, childId);
+    // HLT-21: chỉ lần đo trong khoảng đang chọn trên biểu đồ, tính lùi từ hôm nay
+    const history = withinTrendPeriod(trendHistory(db, childId), period);
     if (history.length < 2)
-      return { status: AI_TREND_STATUS.NOT_ENOUGH_DATA, draft: false, stale: false, warnings: [], summary: '', content: null };
+      return { status: AI_TREND_STATUS.NOT_ENOUGH_DATA, period, draft: false, stale: false, warnings: [], summary: '', content: null };
     // Demo: children whose code ends in 5 simulate an AI outage (MSG30 path).
     if (/5$/.test(child.code)) throw new ApiError(503, 'Không dùng được trợ lý AI. Bạn vẫn xem được số đo và kết luận khám.');
     // GBR-AI-05: chỉ gửi số đo, không gửi tên/liên hệ/kết luận khám (HLT-04)
-    const { warnings, content } = fakeTrendModel(history.map(({ date, heightCm, weightKg }) => ({ date, heightCm, weightKg })));
+    const { warnings, content } = fakeTrendModel(
+      history.map(({ date, heightCm, weightKg }) => ({ date, heightCm, weightKg })),
+      period,
+    );
     const saved = {
       id: uid('ai'),
       childId,
+      period,
       sourceMeasurementIds: history.map((m) => m.id),
       status: 'DRAFT',
       source: 'AI',
@@ -1555,13 +1567,14 @@ const latestTrend = (db, childId) =>
 const trendStaleOf = (db, t) =>
   isTrendStale(
     t.sourceMeasurementIds,
-    trendHistory(db, t.childId).map((m) => m.id),
+    withinTrendPeriod(trendHistory(db, t.childId), t.period || 'ALL').map((m) => m.id),
   );
 
 /** Cùng shape HealthTrendAnalysisResponse của BE; bản lưu trước HLT-21 (không có content) giữ summary cũ. */
 const toTrendView = (db, t, stale) => ({
   id: t.id,
   status: AI_TREND_STATUS.OK,
+  period: t.period || 'ALL',
   draft: t.status !== 'APPROVED',
   stale,
   generatedAt: t.createdAt,
@@ -1576,7 +1589,9 @@ const toTrendView = (db, t, stale) => ({
 });
 
 /** Fake AI theo luật cảnh báo của BE (HLT-02): chỉ mô tả số đo, không chẩn đoán, không khuyên điều trị (HLT-04, HLT-21). */
-const fakeTrendModel = (points) => {
+const fakeTrendModel = (points, period) => {
+  // HLT-21: tổng quan mở đầu bằng khoảng phân tích
+  const within = `Trong ${trendPeriodOf(period).phrase}`;
   const last = points[points.length - 1];
   const prev = points[points.length - 2];
   const num = (n) => n.toLocaleString('vi-VN', { maximumFractionDigits: 1 });
@@ -1597,9 +1612,9 @@ const fakeTrendModel = (points) => {
   ].filter(Boolean);
   const content = {
     overview: alerts.length
-      ? `Có ${alerts.length} điểm cần chú ý trong ${points.length} lần đo gần đây.`
-      : // HLT-21: chỉ NORMAL mới mở đầu "Trẻ phát triển ổn định" kèm số liệu
-        `Trẻ phát triển ổn định${changes.length ? `: so với lần đo trước, ${changes.join(', ')}` : ''}, các chỉ số trong khoảng chuẩn WHO.`,
+      ? `${within}, có ${alerts.length} điểm cần chú ý trong ${points.length} lần đo.`
+      : // HLT-21: chỉ NORMAL mới viết "trẻ phát triển ổn định" kèm số liệu
+        `${within}, trẻ phát triển ổn định${changes.length ? `: so với lần đo trước, ${changes.join(', ')}` : ''}, các chỉ số trong khoảng chuẩn WHO.`,
     attentionPoints: alerts.map((w) => ({ warningCode: w.code, text: w.text })),
     positives: dh > 0 ? [`Chiều cao tăng ${num(dh)} cm so với lần đo trước.`] : [],
     followUps: [

@@ -250,7 +250,9 @@ export const childrenApi = {
         ? axiosClient.put(`/children/${childId}/health/measurements/${measurementId}`, payload)
         : axiosClient.post(`/children/${childId}/health/measurements`, payload),
     ),
-  analyzeHealthTrend: (childId) => readTrend(axiosClient.post(`/children/${childId}/health/trend-analysis`)),
+  // HLT-21: period = khoảng đang chọn trên biểu đồ (MONTHS_6 | MONTHS_12 | ALL)
+  analyzeHealthTrend: (childId, period = 'ALL') =>
+    readTrend(axiosClient.post(`/children/${childId}/health/trend-analysis`, null, { params: { period } })),
   // HLT-21: bản mới nhất (nháp hoặc đã duyệt), null khi trẻ chưa có bản nào
   getLatestHealthTrend: (childId) => readTrend(axiosClient.get(`/children/${childId}/health/trend-analysis`)),
   // Chỉ GV phụ trách lớp hiện tại của trẻ (BE 403 5041); content trống ⇒ duyệt nguyên bản AI

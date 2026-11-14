@@ -9,21 +9,24 @@ import { AiWorkingOverlay } from '@/components/ui/AiWorkingOverlay';
 import { TrendReviewBadge } from '@/components/children/ChildBadges';
 import { analyzeHealthTrend, approveHealthTrend, getLatestHealthTrend } from '@/services/children/childrenService';
 import { AI_TREND_STATUS } from '@/models/children/childrenConstants';
-import { trendBlocks } from '@/utils/children/healthTrend';
+import { trendBlocks, trendPeriodOf } from '@/utils/children/healthTrend';
 import { formatDateTime } from '@/utils/format';
 
 /**
  * Nhận định xu hướng (HLT-05, HLT-21): mở trang chỉ đọc bản mới nhất, AI chạy khi bấm "Phân tích" (user 14/11, thay chốt 20/10).
  * AI lỗi không chặn trang: số đo, biểu đồ vẫn dùng được (GBR-AI-06, MSG30). `canReview`: GV phụ trách lớp hiện tại của trẻ được
- * sửa, duyệt bản nháp (BE HLT-21 vẫn kiểm, 403 5041); bản đã duyệt chỉ xem (user 14/11, Q4).
+ * sửa, duyệt bản nháp (BE HLT-21 vẫn kiểm, 403 5041); bản đã duyệt chỉ xem (user 14/11, Q4). `period`: khoảng đang chọn trên
+ * biểu đồ — AI chỉ phân tích lần đo trong khoảng đó (HLT-21).
  */
-export function AiTrendPanel({ childId, user, canReview = false }) {
+export function AiTrendPanel({ childId, user, period = 'ALL', canReview = false }) {
   const toast = useToast();
   const { data, loading, error, reload, setData } = useAsync(() => getLatestHealthTrend(childId, user), [childId, user?.id], {
     enabled: !!childId,
   });
   const [analyzing, setAnalyzing] = useState(false);
   const [analyzeError, setAnalyzeError] = useState(null);
+  // Khoảng vừa bấm phân tích có dưới 2 lần đo trong khi đang có bản cũ: giữ bản cũ, chỉ báo
+  const [shortage, setShortage] = useState(null);
   const [editing, setEditing] = useState(false);
   // null: không hỏi; { content }: đang hỏi xác nhận duyệt (content null = duyệt nguyên bản AI)
   const [confirm, setConfirm] = useState(null);
@@ -55,8 +58,11 @@ export function AiTrendPanel({ childId, user, canReview = false }) {
     setAnalyzeError(null);
     setEditing(false);
     setApproveError(null);
+    setShortage(null);
     try {
-      setData(await runWithAiHold(() => analyzeHealthTrend(childId, user)));
+      const result = await runWithAiHold(() => analyzeHealthTrend(childId, period, user));
+      if (result?.status === AI_TREND_STATUS.NOT_ENOUGH_DATA && data?.status === AI_TREND_STATUS.OK) setShortage(result.period || period);
+      else setData(result);
     } catch (err) {
       // AI-03: giữ bản đang hiển thị, chỉ báo lỗi trong card
       setAnalyzeError(err);
@@ -68,6 +74,12 @@ export function AiTrendPanel({ childId, user, canReview = false }) {
   const hasAnalysis = data?.status === AI_TREND_STATUS.OK;
   const blocks = hasAnalysis ? trendBlocks(data) : [];
   const reviewable = canReview && hasAnalysis && data.draft && !editing;
+  const selected = trendPeriodOf(period);
+  const analyzeLabel = !hasAnalysis
+    ? 'Phân tích'
+    : data.period && data.period !== period
+      ? `Phân tích lại (${selected.label.toLowerCase()})`
+      : 'Phân tích lại';
   return (
     <section className="card mt-16 tr-ai">
       <div className="card__header row row--between row--wrap gap-2">
@@ -75,6 +87,7 @@ export function AiTrendPanel({ childId, user, canReview = false }) {
           <Sparkles size={18} className="tr-ai__icon" />
           <h2 className="card__title">Nhận định xu hướng</h2>
           {hasAnalysis && <TrendReviewBadge status={data.draft ? 'DRAFT' : 'APPROVED'} />}
+          {hasAnalysis && <span className="muted text-sm">Phân tích {trendPeriodOf(data.period).label.toLowerCase()}</span>}
         </div>
         <div className="row gap-2">
           {reviewable && (
@@ -96,7 +109,7 @@ export function AiTrendPanel({ childId, user, canReview = false }) {
             onClick={analyze}
             disabled={loading || analyzing || editing}
           >
-            {hasAnalysis ? 'Phân tích lại' : 'Phân tích'}
+            {analyzeLabel}
           </Button>
         </div>
       </div>
@@ -105,6 +118,15 @@ export function AiTrendPanel({ childId, user, canReview = false }) {
           <div className="alert alert--warning mb-12" role="alert">
             <AlertTriangle size={18} />
             <div>{approveError.message || 'Không duyệt được nhận định xu hướng.'}</div>
+          </div>
+        )}
+        {shortage && (
+          <div className="alert alert--info mb-12" role="status">
+            <Info size={18} />
+            <div>
+              Chưa đủ số đo trong {trendPeriodOf(shortage).phrase} để phân tích (cần ít nhất 2 lần đo đã công bố). Chọn khoảng dài hơn rồi
+              bấm “Phân tích lại”.
+            </div>
           </div>
         )}
         {analyzeError && (
@@ -126,14 +148,17 @@ export function AiTrendPanel({ childId, user, canReview = false }) {
             </div>
           </div>
         ) : data?.status === AI_TREND_STATUS.NOT_ENOUGH_DATA ? (
-          <EmptyState title="Chưa đủ số đo" description="Cần ít nhất 2 lần đo đã công bố để phân tích xu hướng." />
+          <EmptyState
+            title="Chưa đủ số đo"
+            description={`Cần ít nhất 2 lần đo đã công bố trong ${trendPeriodOf(data.period).phrase} để phân tích xu hướng. Chọn khoảng dài hơn rồi bấm “Phân tích”.`}
+          />
         ) : !hasAnalysis ? (
           analyzing ? (
             <div className="tr-ai__wait" />
           ) : (
             <EmptyState
               title="Chưa có nhận định xu hướng"
-              description="Bấm “Phân tích” để trợ lý AI viết bản nháp từ các lần đo đã công bố."
+              description={`Bấm “Phân tích” để trợ lý AI viết bản nháp từ các lần đo đã công bố trong ${selected.phrase}.`}
             />
           )
         ) : (
@@ -141,7 +166,9 @@ export function AiTrendPanel({ childId, user, canReview = false }) {
             {data.stale && (
               <div className="alert alert--info mb-12" role="status">
                 <Info size={18} />
-                <div>Đã có số đo mới sau lần phân tích này. Bấm “Phân tích lại” để cập nhật.</div>
+                <div>
+                  Số đo trong khoảng phân tích đã thay đổi (có số đo mới hoặc lần đo cũ đã ra khỏi khoảng). Bấm “Phân tích lại” để cập nhật.
+                </div>
               </div>
             )}
             {editing ? (
@@ -193,7 +220,7 @@ export function AiTrendPanel({ childId, user, canReview = false }) {
               {data.source === 'HUMAN' ? 'AI tạo, giáo viên đã chỉnh sửa' : 'Do AI tạo'} lúc {formatDateTime(data.generatedAt)}
               {data.approvedAt && ` · ${data.approvedByName || 'Giáo viên'} duyệt lúc ${formatDateTime(data.approvedAt)}`}. Chỉ dùng số đo
               đã ghi (không gửi họ tên, liên hệ của trẻ); nội dung mô tả số liệu, không phải chẩn đoán. Phụ huynh chỉ xem bản đã duyệt,
-              không gồm mục “Gợi ý theo dõi”.
+              không gồm mục “Gợi ý theo dõi”, và nhận thông báo kèm phần tổng quan khi bản được duyệt.
             </p>
           </>
         )}
@@ -202,7 +229,7 @@ export function AiTrendPanel({ childId, user, canReview = false }) {
       <ConfirmationModal
         open={!!confirm}
         title="Duyệt nhận định xu hướng?"
-        message="Sau khi duyệt, phụ huynh xem được bản này trên ứng dụng (không gồm mục “Gợi ý theo dõi”) và bản này không sửa được nữa. Muốn đổi nội dung thì phân tích lại rồi duyệt bản mới."
+        message="Sau khi duyệt, phụ huynh nhận thông báo kèm phần tổng quan và xem được bản này trên ứng dụng (không gồm mục “Gợi ý theo dõi”); bản này không sửa được nữa. Muốn đổi nội dung thì phân tích lại rồi duyệt bản mới."
         confirmLabel="Duyệt"
         onConfirm={approve}
         onClose={() => setConfirm(null)}

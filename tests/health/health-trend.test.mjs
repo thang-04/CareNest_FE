@@ -14,7 +14,7 @@ const { axiosClient } = await import('@/services/http/axiosClient');
 const { childrenApi } = await import('@/services/children/api/childrenApi');
 const { resetDb, writeDb } = await import('@/mocks/mockDatabase');
 const { childrenMockRepository: children, ensureChildRecordsSeeded } = await import('@/services/children/mock/childrenMockRepository');
-const { validateTrendContent, normalizeTrendContent, isTrendStale, trendBlocks, toEditable, toPayload } = await import(
+const { validateTrendContent, normalizeTrendContent, isTrendStale, trendBlocks, toEditable, toPayload, trendPeriodSince } = await import(
   '@/utils/children/healthTrend'
 );
 const { canReviewHealthTrend } = await import('@/utils/children/childrenPermissions');
@@ -40,7 +40,12 @@ beforeEach(() => {
   ensureChildRecordsSeeded();
   calls = [];
   axiosClient.defaults.adapter = async (config) => {
-    calls.push({ method: config.method.toUpperCase(), url: config.url, body: config.data ? JSON.parse(config.data) : undefined });
+    calls.push({
+      method: config.method.toUpperCase(),
+      url: config.url,
+      params: config.params,
+      body: config.data ? JSON.parse(config.data) : undefined,
+    });
     return envelope(config, { id: 90, status: 'OK', draft: true, stale: false, approvedBy: 40, measurementIds: [1, 2] });
   };
 });
@@ -104,7 +109,7 @@ test('AI-02, HLT-21: kiểm bản sửa giống BE — tổng quan bắt buộc,
 test('HLT-21: bản giả lập — chưa có bản ⇒ null; phân tích ⇒ nháp có content, cảnh báo có mã; GET trả bản đó', async () => {
   assert.equal(await children.getLatestHealthTrend(CHILD, AN), null);
 
-  const draft = await children.analyzeHealthTrend(CHILD, PRINCIPAL);
+  const draft = await children.analyzeHealthTrend(CHILD, 'ALL', PRINCIPAL);
 
   assert.equal(draft.draft, true);
   assert.equal(draft.stale, false);
@@ -117,7 +122,7 @@ test('HLT-21: bản giả lập — chưa có bản ⇒ null; phân tích ⇒ nh
 });
 
 test('HLT-21: chỉ GV phụ trách lớp hiện tại của trẻ được duyệt; HT nhận 403', async () => {
-  const draft = await children.analyzeHealthTrend(CHILD, PRINCIPAL);
+  const draft = await children.analyzeHealthTrend(CHILD, 'ALL', PRINCIPAL);
 
   await assert.rejects(children.approveHealthTrend(CHILD, draft.id, null, PRINCIPAL), (err) => err.status === 403);
   const approved = await children.approveHealthTrend(CHILD, draft.id, null, AN);
@@ -127,7 +132,7 @@ test('HLT-21: chỉ GV phụ trách lớp hiện tại của trẻ được duy�
 });
 
 test('AI-02: duyệt có sửa ⇒ source HUMAN, summary ghép lại; bản sửa sai ⇒ 400 kèm ô lỗi, không duyệt', async () => {
-  const draft = await children.analyzeHealthTrend(CHILD, PRINCIPAL);
+  const draft = await children.analyzeHealthTrend(CHILD, 'ALL', PRINCIPAL);
 
   await assert.rejects(
     children.approveHealthTrend(CHILD, draft.id, { ...draft.content, overview: '' }, AN),
@@ -142,7 +147,7 @@ test('AI-02: duyệt có sửa ⇒ source HUMAN, summary ghép lại; bản sử
 });
 
 test('HLT-21: có số đo công bố mới sau lần phân tích ⇒ bản mới nhất stale', async () => {
-  await children.analyzeHealthTrend(CHILD, PRINCIPAL);
+  await children.analyzeHealthTrend(CHILD, 'ALL', PRINCIPAL);
   writeDb((d) => {
     d.healthMeasurements.push({
       id: 'hm_trend_test',
@@ -210,9 +215,9 @@ test('HLT-21: nút Sửa, Duyệt chỉ cho GV đang phân công lớp hiện t�
 });
 
 test('HLT-21: mock — chỉ NORMAL ⇒ tổng quan mở đầu "Trẻ phát triển ổn định"; có cảnh báo ⇒ không dùng cụm này', async () => {
-  const stableOf = (d) => d.content.overview.startsWith('Trẻ phát triển ổn định');
+  const stableOf = (d) => d.content.overview.startsWith('Trong toàn bộ quá trình theo dõi, trẻ phát triển ổn định');
   const normalOnly = (d) => d.warnings.every((w) => w.code === 'NORMAL');
-  const first = await children.analyzeHealthTrend(CHILD, PRINCIPAL);
+  const first = await children.analyzeHealthTrend(CHILD, 'ALL', PRINCIPAL);
   assert.equal(stableOf(first), normalOnly(first));
 
   writeDb((d) => {
@@ -228,7 +233,58 @@ test('HLT-21: mock — chỉ NORMAL ⇒ tổng quan mở đầu "Trẻ phát tri
       publishedAt: '2027-03-12T09:00:00.000Z',
     });
   });
-  const dropped = await children.analyzeHealthTrend(CHILD, PRINCIPAL);
+  const dropped = await children.analyzeHealthTrend(CHILD, 'ALL', PRINCIPAL);
   assert.ok(dropped.warnings.some((w) => w.code === 'WEIGHT_DROP'));
   assert.equal(dropped.content.overview.includes('phát triển ổn định'), false);
+});
+
+test('HLT-21: adapter gửi khoảng phân tích qua query period; không truyền ⇒ ALL', async () => {
+  await childrenApi.analyzeHealthTrend('11', 'MONTHS_6');
+  await childrenApi.analyzeHealthTrend('11');
+
+  assert.deepEqual(
+    calls.map((c) => [c.method, c.url, c.params]),
+    [
+      ['POST', '/children/11/health/trend-analysis', { period: 'MONTHS_6' }],
+      ['POST', '/children/11/health/trend-analysis', { period: 'ALL' }],
+    ],
+  );
+});
+
+test('HLT-21: ngày đầu khoảng tính lùi từ hôm nay như BE minusMonths (kẹp ngày cuối tháng); toàn bộ ⇒ rỗng', () => {
+  assert.equal(trendPeriodSince('MONTHS_6', '2026-11-14'), '2026-05-14');
+  assert.equal(trendPeriodSince('MONTHS_6', '2026-08-31'), '2026-02-28');
+  assert.equal(trendPeriodSince('MONTHS_12', '2026-01-15'), '2025-01-15');
+  assert.equal(trendPeriodSince('ALL', '2026-11-14'), '');
+});
+
+test('HLT-21: mock — chỉ phân tích lần đo trong khoảng; tổng quan mở đầu bằng khoảng; khoảng thiếu số đo ⇒ NOT_ENOUGH_DATA kèm khoảng', async () => {
+  const ago = (months) => {
+    const d = new Date();
+    d.setDate(1);
+    d.setMonth(d.getMonth() - months);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+  };
+  writeDb((d) => {
+    const base = d.healthMeasurements.find((m) => m.childId === CHILD && m.weightKg != null);
+    d.healthMeasurements = d.healthMeasurements.filter((m) => m.childId !== CHILD);
+    [
+      ['hm_p1', ago(10), 15.0],
+      ['hm_p2', ago(3), 15.6],
+      ['hm_p3', ago(1), 15.9],
+    ].forEach(([id, date, weightKg]) => d.healthMeasurements.push({ ...base, id, date, weightKg, published: true }));
+  });
+
+  const six = await children.analyzeHealthTrend(CHILD, 'MONTHS_6', PRINCIPAL);
+  assert.equal(six.period, 'MONTHS_6');
+  assert.ok(six.content.overview.startsWith('Trong 6 tháng qua, '));
+  assert.equal((await children.getLatestHealthTrend(CHILD, AN)).stale, false);
+
+  writeDb((d) => {
+    d.healthMeasurements = d.healthMeasurements.filter((m) => m.id !== 'hm_p2');
+  });
+  const short = await children.analyzeHealthTrend(CHILD, 'MONTHS_6', PRINCIPAL);
+  assert.equal(short.status, 'NOT_ENOUGH_DATA');
+  assert.equal(short.period, 'MONTHS_6');
+  assert.equal((await children.analyzeHealthTrend(CHILD, 'ALL', PRINCIPAL)).period, 'ALL');
 });

@@ -15,26 +15,15 @@ import { TrendChildList, sortByName } from '@/components/children/TrendChildList
 import { AiTrendPanel } from '@/components/children/AiTrendPanel';
 import { ChildAccessState } from '@/components/children/ChildAccessState';
 import { CHILD_STATUS } from '@/models/School';
-import { growthAxesFor } from '@/models/children/childrenConstants';
+import { TREND_PERIODS, growthAxesFor } from '@/models/children/childrenConstants';
 import { NUTRITION_STATUS, NUTRITION_STATUS_OPTIONS, labelOf } from '@/models/children/healthExamForm';
 import { formatDate } from '@/utils/format';
 import { ageGroupIn, formatNumber, suggestAgeGroupId } from '@/utils/children/childrenHelpers';
 import { childrenCrumbs } from '@/utils/children/breadcrumbs';
+import { withinTrendPeriod } from '@/utils/children/healthTrend';
 import { canReviewHealthTrend, isPrincipal, isVicePrincipal } from '@/utils/children/childrenPermissions';
 import '@/styles/modules/children.css';
 import { CampusFilter } from '@/components/ui/CampusFilter';
-
-const PERIODS = [
-  { key: '6', label: '6 tháng', months: 6 },
-  { key: '12', label: '12 tháng', months: 12 },
-  { key: 'ALL', label: 'Toàn bộ', months: null },
-];
-
-const monthsAgo = (n) => {
-  const d = new Date();
-  d.setMonth(d.getMonth() - n);
-  return d.toISOString().slice(0, 10);
-};
 
 export default function HealthTrendPage() {
   const { user } = useAuth();
@@ -88,9 +77,8 @@ export default function HealthTrendPage() {
   const prevChild = index > 0 ? ordered[index - 1] : null;
   const nextChild = index >= 0 && index < ordered.length - 1 ? ordered[index + 1] : null;
   const points = useMemo(() => {
-    const months = PERIODS.find((p) => p.key === period)?.months;
-    const since = months ? monthsAgo(months) : '';
-    return [...(record?.measurements || [])].filter((m) => !since || m.date >= since).sort((a, b) => a.date.localeCompare(b.date));
+    // HLT-21: cùng khoảng với phân tích AI (tính lùi từ hôm nay như BE)
+    return withinTrendPeriod(record?.measurements || [], period).sort((a, b) => a.date.localeCompare(b.date));
   }, [record, period]);
 
   const child = record?.child;
@@ -223,7 +211,7 @@ export default function HealthTrendPage() {
                     ariaLabel="Cách xem"
                   />
                   <div className="tabs" role="group" aria-label="Khoảng thời gian">
-                    {PERIODS.map((p) => (
+                    {TREND_PERIODS.map((p) => (
                       <button
                         key={p.key}
                         type="button"
@@ -300,7 +288,13 @@ export default function HealthTrendPage() {
                   </div>
                 )}
               </section>
-              <AiTrendPanel key={child.id} childId={child.id} user={user} canReview={canReviewHealthTrend(child, user, record?.cls)} />
+              <AiTrendPanel
+                key={child.id}
+                childId={child.id}
+                user={user}
+                period={period}
+                canReview={canReviewHealthTrend(child, user, record?.cls)}
+              />
               <div className="page-actions">
                 <Link className="btn" to={`/children/${child.id}`}>
                   <ArrowLeft size={16} /> Về hồ sơ trẻ

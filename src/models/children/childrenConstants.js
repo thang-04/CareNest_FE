@@ -181,6 +181,13 @@ export const TREND_REVIEW_STATUS_LABELS = { DRAFT: 'Bản nháp AI – chờ gi�
 
 export const TREND_CONTENT_LIMITS = { overview: 500, item: 300, positives: 3 };
 
+/** Khoảng thời gian của biểu đồ và của phân tích AI (HLT-21), giá trị khớp BE `HealthTrendPeriod`. */
+export const TREND_PERIODS = [
+  { key: 'MONTHS_6', label: '6 tháng', months: 6, phrase: '6 tháng qua' },
+  { key: 'MONTHS_12', label: '12 tháng', months: 12, phrase: '12 tháng qua' },
+  { key: 'ALL', label: 'Toàn bộ', months: null, phrase: 'toàn bộ quá trình theo dõi' },
+];
+
 /** Columns of the enrollment template (CSV / Excel), in order. */
 export const IMPORT_COLUMNS = [
   { key: 'fullName', label: 'Họ tên trẻ', required: true },
