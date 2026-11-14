@@ -1,4 +1,5 @@
-import { useRef, useState } from 'react';
+import { useId, useState } from 'react';
+import { FileInput } from '@/components/form/FileInput';
 import { Button } from '@/components/ui/Button';
 import { Camera, Trash2 } from '@/components/ui/icons';
 import { useToast } from '@/contexts/ToastContext';
@@ -11,7 +12,7 @@ const ACCEPT = 'image/jpeg,image/png,image/webp';
  * Tài khoản kiêm phụ huynh không xóa được (BE trả 403/1145, toast nêu lý do).
  */
 export function AccountPhotoActions({ user }) {
-  const inputRef = useRef(null);
+  const inputId = useId();
   const toast = useToast();
   const [busy, setBusy] = useState(null);
   if (!ACCOUNT_PHOTO_ENABLED || !user?.userId) return null;
@@ -42,7 +43,7 @@ export function AccountPhotoActions({ user }) {
         icon={Camera}
         loading={busy === 'upload'}
         disabled={busy !== null}
-        onClick={() => inputRef.current?.click()}
+        onClick={() => document.getElementById(inputId)?.click()}
       >
         Đổi ảnh
       </Button>
@@ -56,7 +57,7 @@ export function AccountPhotoActions({ user }) {
       >
         Xóa ảnh
       </Button>
-      <input ref={inputRef} type="file" accept={ACCEPT} hidden onChange={onPick} />
+      <FileInput id={inputId} accept={ACCEPT} hidden onChange={onPick} />
     </div>
   );
 }
