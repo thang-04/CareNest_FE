@@ -12,7 +12,7 @@ export const INTEGRATION_MODULES = {
   account: {
     source: 'api',
     routes: ['/account'],
-    files: ['src/services/account/api/accountApi.js', 'src/services/authService.js'],
+    files: ['src/services/account/api/accountApi.js', 'src/services/account/api/accountPhotoApi.js', 'src/services/authService.js'],
     pending: ['GET /notifications/{x}'],
   },
   permission: {
