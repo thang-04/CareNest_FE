@@ -650,3 +650,53 @@
 .page-readonly-notice {
   margin: var(--space-4) var(--space-6) 0;
 }
+
+/* Màn vai trò: luồng thu gọn mặc định, chú thích gập lại để bảng ngắn và ít chữ */
+.perm-legend-toggle {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.perm-legend-toggle > summary {
+  padding: var(--space-2) var(--card-padding-dense);
+  color: var(--color-text-secondary);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+}
+
+.perm-legend-toggle .perm-legend:last-child {
+  border-bottom: 0;
+}
+
+.perm-table-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  padding: var(--space-2) var(--card-padding-dense);
+}
+
+.perm-table .perm-table__flow-toggle {
+  margin-left: calc(var(--space-2) * -1);
+  color: inherit;
+  font-weight: var(--fw-bold);
+}
+
+.perm-table .perm-table__flow .perm-table__note {
+  padding-left: var(--space-6);
+}
+
+.perm-check-cell--flow {
+  flex-direction: column;
+  gap: var(--space-1);
+  padding-block: var(--space-1);
+}
+
+/* Dòng luồng đã có nền primary-soft ⇒ dùng tông cảnh báo để thấy luồng có thay đổi chưa lưu */
+.perm-check-cell--flow.is-changed {
+  background: var(--color-warning-bg);
+}
+
+.perm-flow-summary {
+  color: var(--color-text-muted);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+}

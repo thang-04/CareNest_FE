@@ -2,7 +2,6 @@
   "repo": "FE",
   "siblings": {
     "BE": [
-      "../CareNest_BE-main",
       "../CareNest_BE"
     ],
     "FE": [
@@ -22,7 +21,17 @@
       "yarn.lock",
       "bun.lock*",
       ".nvmrc",
-      ".npmrc"
+      ".npmrc",
+      "src/components/ui/**",
+      "src/components/form/**",
+      "src/styles/*.css",
+      "src/layouts/**",
+      "src/routes/**",
+      "src/contexts/**",
+      "src/utils/*.js",
+      "src/config/**",
+      "src/services/http/**",
+      "src/hooks/*.js"
     ]
   },
   "verify": {
@@ -50,24 +59,25 @@
     ],
     "immutableGlobs": [],
     "contractGlobs": [],
-    "highRisk": []
+    "highRisk": [],
+    "sharedGlobs": [
+      "src/components/ui/**",
+      "src/components/form/**",
+      "src/styles/*.css",
+      "src/layouts/**",
+      "src/routes/**",
+      "src/contexts/**",
+      "src/utils/*.js",
+      "src/config/**",
+      "src/services/http/**",
+      "src/hooks/*.js"
+    ]
   },
   "checkAiLayer": {
     "pathRoots": [
       "docs",
       ".ai"
     ],
-    "incidentIdPattern": "^FE-(BUG|CASE|ENV)-\\d{6}-[a-z0-9-]+$",
-    "sharedFiles": [
-      ".claude/settings.json",
-      ".claude/hooks/*.mjs",
-      ".claude/hooks/lib/**",
-      ".claude/hooks/__tests__/**",
-      ".githooks/**",
-      "scripts/**",
-      ".gitattributes",
-      ".editorconfig",
-      "docs/plans/_TEMPLATE.md"
-    ]
+    "incidentIdPattern": "^FE-(BUG|CASE|ENV)-\\d{6}-[a-z0-9-]+$"
   }
 }

@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { Download, FileSpreadsheet, UploadCloud, Upload } from '@/components/ui/icons';
 import { Modal } from '@/components/ui/Modal';
+import { Button } from '@/components/ui/Button';
 import { Spinner } from '@/components/ui/States';
 import { LottiePlayer } from '@/components/ui/LottiePlayer';
 import { useToast } from '@/contexts/ToastContext';
@@ -9,19 +10,27 @@ const MAX_SIZE = 10 * 1024 * 1024;
 const loadDocumentScan = () => import('@/assets/lottie/document-scan.json');
 
 /**
- * Hộp nhập từ Excel dùng chung (DESIGN §6.3): hướng dẫn + tải tệp mẫu → kéo thả / chọn tệp (≤10MB) → xem trước (children)
- * → Hủy / Xác nhận. Đọc và đối chiếu tệp do màn gọi (`onFile(file)`); hộp chỉ lo bố cục và chọn tệp.
+ * Hộp nhập từ tệp dùng chung (DESIGN §6.3): hướng dẫn + tải tệp mẫu → tùy chọn (`options`) → kéo thả / chọn tệp → xem trước
+ * (children) → Hủy / Xác nhận. Đọc và đối chiếu tệp do màn gọi (`onFile(file)`); hộp chỉ lo bố cục và chọn tệp.
+ * `maxSize={null}`: màn gọi tự kiểm dung lượng và báo lỗi trong hộp (kèm `hint` nói rõ giới hạn).
  */
 export function ImportDialog({
   open,
   title,
   guide,
   templateHref,
+  onTemplate,
+  templateLabel = 'Tải xuống tệp mẫu',
+  options,
   accept = '.xlsx',
+  hint,
+  maxSize = MAX_SIZE,
+  uploadLabel = 'Tải lên tệp Excel',
   fileName,
   reading,
   onFile,
   confirmLabel = 'Xác nhận',
+  idleLabel = 'Xác nhận',
   confirmDisabled,
   busy,
   onConfirm,
@@ -33,8 +42,8 @@ export function ImportDialog({
   const [dragging, setDragging] = useState(false);
   const take = (file) => {
     if (!file) return;
-    if (file.size > MAX_SIZE) {
-      toast.error(`${file.name} vượt quá 10MB`, 'Không đọc được tệp');
+    if (maxSize && file.size > maxSize) {
+      toast.error(`${file.name} vượt quá ${Math.round(maxSize / 1024 / 1024)}MB`, 'Không đọc được tệp');
       return;
     }
     onFile(file);
@@ -56,7 +65,7 @@ export function ImportDialog({
           </button>
           <button type="button" className="btn btn--primary" onClick={onConfirm} disabled={confirmDisabled || busy}>
             {/* Chưa chọn tệp thì không có số dòng để ghi: nút giữ nhãn chung */}
-            {busy ? <Spinner small /> : <Upload size={16} />} {hasFile ? confirmLabel : 'Xác nhận'}
+            {busy ? <Spinner small /> : <Upload size={16} />} {hasFile ? confirmLabel : idleLabel}
           </button>
         </>
       }
@@ -76,10 +85,16 @@ export function ImportDialog({
         <div className="import-guide__text">{guide}</div>
         {templateHref && (
           <a className="btn btn--outline-primary" href={templateHref} download>
-            <Download size={16} /> Tải xuống tệp mẫu
+            <Download size={16} /> {templateLabel}
           </a>
         )}
+        {!templateHref && onTemplate && (
+          <Button variant="outline-primary" icon={Download} onClick={onTemplate}>
+            {templateLabel}
+          </Button>
+        )}
       </div>
+      {options && <div className="import-options">{options}</div>}
 
       {hasFile ? (
         <div className="import-file">
@@ -118,9 +133,9 @@ export function ImportDialog({
               <span>
                 Kéo thả tệp vào đây hoặc <b>tải lên tệp</b> để xem trước
               </span>
-              <span className="text-xs muted">Tệp {accept} có dung lượng tối đa 10MB.</span>
+              <span className="text-xs muted">{hint || `Tệp ${accept} có dung lượng tối đa 10MB.`}</span>
               <span className="btn btn--primary import-drop__btn">
-                <Upload size={16} /> Tải lên tệp Excel
+                <Upload size={16} /> {uploadLabel}
               </span>
             </>
           )}

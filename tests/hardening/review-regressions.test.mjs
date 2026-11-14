@@ -13,6 +13,7 @@ const { assessmentMockRepository: mock } = await import('@/services/assessment/m
 const service = await import('@/services/assessment/assessmentService');
 const { getMenuForRole } = await import('@/layouts/menuConfig');
 const { ROLES } = await import('@/models/User');
+const { PERMISSIONS } = await import('@/models/bePermissions');
 const { csvCell } = await import('@/utils/exportCsv');
 const { defaultUnlockUntil, parseUnlockUntil } = await import('@/utils/assessment/unlockTime');
 const { REWARD_TITLES } = await import('@/models/assessment/assessmentConstants');
@@ -127,8 +128,13 @@ test('reward draft is private, rejects invalid children/titles and requires conf
   await assert.rejects(service.saveRewardList(cls.id, items, { submit: true }, teacher), { status: 422 });
 });
 
-test('mock quality report: leaders all campuses, teacher own classes without totals; HTCT leaders only', async () => {
-  for (const user of [vp, principal]) {
+test('mock quality report: leader scope follows dynamic permission; teacher only sees own classes', async () => {
+  const schoolVp = {
+    ...vp,
+    bePermissions: [PERMISSIONS.ASSESSMENT_VIEW],
+    beSchoolWidePermissions: [PERMISSIONS.ASSESSMENT_VIEW],
+  };
+  for (const user of [vp, schoolVp, principal]) {
     const q = await service.getQualityReport({ schoolYear: year.id }, user);
     assert.ok(q.rows.length);
     assert.ok(q.totals.length);
@@ -137,10 +143,13 @@ test('mock quality report: leaders all campuses, teacher own classes without tot
     assert.equal(p.totals.completed, 1);
     assert.ok(p.totals.children >= 1);
   }
-  // AUTH-20 (Cần chốt 03/11/2026): PHT xem báo cáo mọi điểm trường như HT
+  // PHT mặc định chỉ xem campus được phân công; HT có thể cấp phạm vi SCHOOL để xem toàn trường.
   const vpView = await service.getQualityReport({ schoolYear: year.id }, vp);
+  assert.ok(vpView.rows.every((row) => String(row.campusId) === String(vp.campusId)));
+  const schoolVpView = await service.getQualityReport({ schoolYear: year.id }, schoolVp);
   const htView = await service.getQualityReport({ schoolYear: year.id }, principal);
-  assert.equal(vpView.rows.length, htView.rows.length);
+  assert.ok(vpView.rows.length <= htView.rows.length);
+  assert.equal(schoolVpView.rows.length, htView.rows.length);
   // GV xem lớp mình (Cần chốt 03/11/2026), không có dòng tổng; HTCT vẫn chỉ BGH
   const own = await service.getQualityReport({ schoolYear: year.id }, teacher);
   assert.ok(own.rows.length <= htView.rows.length);

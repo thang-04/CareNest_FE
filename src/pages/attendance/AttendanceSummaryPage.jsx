@@ -7,6 +7,7 @@ import { useMasterData } from '@/hooks/useMasterData';
 import { ROLES } from '@/models/User';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { EmptyState, ErrorState, LoadingState, SkeletonRows } from '@/components/ui/States';
+import { StatCard } from '@/components/ui/StatCard';
 import { ClassDateBar } from '@/components/attendance/ClassDateBar';
 import { DateInput } from '@/components/form/DateInput';
 import { SemesterSelect } from '@/components/form/SemesterSelect';
@@ -192,7 +193,7 @@ export default function AttendanceSummaryPage() {
                   <option value="">Toàn trường</option>
                   {campusOptions.map((c) => (
                     <option key={c.id} value={c.id}>
-                      {c.shortName || c.name}
+                      {c.name}
                     </option>
                   ))}
                 </select>
@@ -284,35 +285,24 @@ export default function AttendanceSummaryPage() {
                     />
                   </div>
                   <div className="dd-stats">
-                    <div className="dd-stat">
-                      <span className="dd-stat__value">{summary.size}</span>
-                      <span className="dd-stat__label">{multi ? `Sĩ số (${summary.classes.length} lớp)` : 'Sĩ số lớp'}</span>
-                    </div>
-                    <div className="dd-stat">
-                      <span className="dd-stat__value">{summary.days.length}</span>
-                      <span className="dd-stat__label">Ngày học</span>
-                    </div>
-                    <div className="dd-stat dd-stat--green">
-                      <span className="dd-stat__value">{totals.present}</span>
-                      <span className="dd-stat__label">Lượt có mặt</span>
-                    </div>
-                    <div className="dd-stat dd-stat--orange">
-                      <span className="dd-stat__value">{totals.excused}</span>
-                      <span className="dd-stat__label">Vắng có phép</span>
-                    </div>
-                    <div className="dd-stat dd-stat--red">
-                      <span className="dd-stat__value">{totals.unexcused}</span>
-                      <span className="dd-stat__label">Vắng không phép</span>
-                    </div>
-                    <div className="dd-stat dd-stat--blue">
-                      <span className="dd-stat__value">{totals.meals}</span>
-                      <span
-                        className="dd-stat__label"
-                        title="Số lượt trẻ có ăn trong ngày (mỗi trẻ 1 lượt/ngày); số suất theo bữa xem ở Sổ suất ăn"
-                      >
-                        Lượt trẻ ăn
-                      </span>
-                    </div>
+                    <StatCard
+                      tone="blue"
+                      label={<>{multi ? `Sĩ số (${summary.classes.length} lớp)` : 'Sĩ số lớp'}</>}
+                      value={summary.size}
+                    />
+                    <StatCard tone="blue" label="Ngày học" value={summary.days.length} />
+                    <StatCard tone="green" label="Lượt có mặt" value={totals.present} />
+                    <StatCard tone="orange" label="Vắng có phép" value={totals.excused} />
+                    <StatCard tone="red" label="Vắng không phép" value={totals.unexcused} />
+                    <StatCard
+                      tone="teal"
+                      label={
+                        <span title="Số lượt trẻ có ăn trong ngày (mỗi trẻ 1 lượt/ngày); số suất theo bữa xem ở Sổ suất ăn">
+                          Lượt trẻ ăn
+                        </span>
+                      }
+                      value={totals.meals}
+                    />
                   </div>
                 </div>
               )}

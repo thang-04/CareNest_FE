@@ -8,6 +8,8 @@ import { axiosClient } from '@/services/http/axiosClient';
 export const createSchoolConfigApi = (axiosClient) => ({
   getSchoolYears: () => axiosClient.get('/school-years'),
   getSchoolYearById: (id) => axiosClient.get(`/school-years/${id}`),
+  // BE CFG-YR-05: lớp năm đang chuẩn bị của GV / tổ trưởng kèm trẻ đã xếp (chỉ xem)
+  getPrepClasses: (yearId) => axiosClient.get(`/school-years/${yearId}/prep-classes`),
   saveSchoolYear: (id, form) => (id ? axiosClient.put(`/school-years/${id}`, form) : axiosClient.post('/school-years', form)),
   // PENDING BE: kích hoạt kiểm tra lại các bước bắt buộc, áp dụng bản xếp lớp; payload { confirmName }
   activateSchoolYear: (id, payload) => axiosClient.post(`/school-years/${id}/activate`, payload),
@@ -30,7 +32,7 @@ export const createSchoolConfigApi = (axiosClient) => ({
   deleteClass: (id) => axiosClient.delete(`/classes/${id}`),
   // PENDING BE: sao chép lớp từ năm học khác (chỉ tên, nhóm tuổi, điểm trường, phòng, sĩ số)
   copyClasses: (targetYearId, payload) => axiosClient.post(`/school-years/${targetYearId}/classes/copy`, payload),
-  // Thiết lập năm học: { sourceYearId, parts: CLASSES | TEACHERS | TEAM_LEADERS | CUTOFF | SEMESTER }
+  // Thiết lập năm học: { sourceYearId, parts: CLASSES | TEACHERS | TEAM_LEADERS | VICE_PRINCIPALS | CUTOFF | SEMESTER }
   copyYear: (targetYearId, payload) => axiosClient.post(`/school-years/${targetYearId}/copy`, payload),
 
   getCutoffSetting: (schoolYear) => axiosClient.get(`/school-years/${schoolYear}/cutoff`),
@@ -89,9 +91,9 @@ export const createSchoolConfigApi = (axiosClient) => ({
 
   getTeacherAssignments: (filters) => axiosClient.get('/teacher-assignments', { params: filters }),
   saveClassTeachers: (classId, form) => axiosClient.put(`/classes/${classId}/teachers`, form),
-  // GV dạy thay một lớp trong khoảng ngày (BE AUTH-24: substitute bắt buộc validTo)
-  assignSubstituteTeacher: ({ userId, classroomId, validFrom, validTo }) =>
-    axiosClient.post('/staff-assignments', { userId, classroomId, validFrom, validTo, substitute: true }),
+  // GV dạy thay một lớp trong khoảng ngày cho một GV đứng lớp (BE AUTH-24, SCH-04: bắt buộc validTo, replacedTeacherId)
+  assignSubstituteTeacher: ({ userId, classroomId, validFrom, validTo, replacedTeacherId }) =>
+    axiosClient.post('/staff-assignments', { userId, classroomId, validFrom, validTo, substitute: true, replacedTeacherId }),
   // PENDING BE: tổ trưởng 1 người / nhóm tuổi / năm học cho cả trường (không còn campusId trong payload)
   saveTeamLeader: (payload) => axiosClient.put('/team-leader-assignments', payload),
   getTeamLeaders: (filters) => axiosClient.get('/team-leader-assignments', { params: filters }),

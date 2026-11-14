@@ -1,12 +1,14 @@
 import { axiosClient } from '@/services/http/axiosClient';
 import { enrollmentPhotoRequest } from '@/utils/children/enrollmentPhotos';
 import { GUARDIAN_RELATIONSHIP_LABELS } from '@/models/guardianRelationships';
+import { stringifyIds } from '@/services/http/idStrings';
+import { toBeSchoolYear } from '@/services/http/schoolYearIds';
 
 /**
- * PROPOSED Spring Boot contract for child records & child health (not agreed with CareNest_BE yet).
- * Same names and shapes as the mock repository; the backend reads the user's scope from the JWT.
- * Danh sách trẻ (mock) trả thêm latestHealth { date, followUpLevel, campaignName } của lần khám gần nhất có kết luận, để Xu hướng sức
- * khỏe xếp trẻ cần chú ý; BE chưa có trường này (đề xuất khi nối BE).
+ * Adapter BE (nhánh G94-180: ChildController, ChildEnrollmentController, ChildPhotoController, HealthMeasurementController...):
+ * cùng tên hàm, shape với mock repository; BE đọc phạm vi người dùng từ JWT. Từ 2026-11-11 (plan
+ * 2026-11-11-children-module-be-wiring) BE là nguồn đúng: id đổi sang chuỗi, mã quan hệ đổi sang chữ ở đây. Ghi chú bên dưới
+ * là lịch sử contract đề xuất trước khi BE làm.
  * Hành chính, tiền sử (2026-10-17, `models/children/childProfile.js`): child.profile trong GET profile, POST enrollments,
  * PUT /children/{id} (danh sách không trả); declaration.medicalHistory trong PUT health-declaration; file nhập thêm cột.
  * Khai tiếp xúc người bệnh lao ⇒ BE gửi thông báo CHILD_TB_CONTACT (cả người lưu, 2026-10-27). Từ 2026-10-22: bắt buộc trừ idNumber, bloodType (422 theo ô
@@ -68,14 +70,32 @@ import { GUARDIAN_RELATIONSHIP_LABELS } from '@/models/guardianRelationships';
  * GET health bỏ headCircumferenceUntil (mock: rules).
  */
 const PAGE_SIZE = 100;
+// Màn danh sách, xếp lớp tự lọc theo trạng thái; BE mặc định bỏ trẻ đã nghỉ nên gửi đủ 3 trạng thái như mock
+const ALL_STATUSES = ['ACTIVE', 'PENDING_PLACEMENT', 'LEFT'];
+
+const relationLabel = (relation) => GUARDIAN_RELATIONSHIP_LABELS[relation] || relation;
+const relationCode = (relation) =>
+  Object.keys(GUARDIAN_RELATIONSHIP_LABELS).find((key) => GUARDIAN_RELATIONSHIP_LABELS[key] === relation) || relation;
+const withRelationLabels = (guardians = []) => guardians.map((g) => ({ ...g, relation: relationLabel(g.relation) }));
+// Cùng cách hiển thị năm học với header (SchoolYearContext): "2026 - 2027"
+const yearLabel = (name) => (name ? String(name).replace('-', ' - ') : name);
+// BE trả id số; màn và mock dùng id chuỗi (plan 2026-11-11-children-module-be-wiring)
+const read = (promise) => promise.then(stringifyIds);
 
 /**
- * BE:ChildController.searchChildren (G94-60) trả trang {items, totalPages}, tối đa 100 trẻ/trang, chỉ lọc campusId,
- * classroomId, q. Màn hình cần cả danh sách ⇒ đọc hết các trang, đổi classroomId → classId như mock.
+ * BE:ChildController.searchChildren (G94-180/CHD-09) trả trang {items, totalPages}, tối đa 100 trẻ/trang; lọc theo
+ * schoolYear, campusId, classroomId, status, q. Màn hình cần cả danh sách ⇒ đọc hết các trang, đổi classroomId → classId
+ * và mã quan hệ → chữ như mock.
  */
 export async function listAllChildren(filters = {}) {
   const params = Object.fromEntries(
-    Object.entries({ campusId: filters.campusId, classroomId: filters.classId, q: filters.keyword }).filter(([, v]) => v),
+    Object.entries({
+      schoolYear: await toBeSchoolYear(filters.schoolYear),
+      campusId: filters.campusId,
+      classroomId: filters.classId,
+      q: filters.keyword,
+      status: filters.statuses?.join(','),
+    }).filter(([, v]) => v),
   );
   const items = [];
   let page = 0;
@@ -83,77 +103,150 @@ export async function listAllChildren(filters = {}) {
   do {
     const result = await axiosClient.get('/children', { params: { ...params, page, size: PAGE_SIZE } });
     // Bản cũ (mảng) vẫn đọc được
-    if (Array.isArray(result)) return result;
+    if (Array.isArray(result)) return stringifyIds(result);
     items.push(...(result?.items || []));
     totalPages = result?.totalPages || 0;
     page++;
   } while (page < totalPages);
-  // DTO chỉ có guardianCount, chưa có mã, trạng thái, giới tính, tên lớp, sức khỏe: để trống, không đoán
-  return items.map((child) => ({ ...child, classId: child.classId ?? child.classroomId, guardians: child.guardians || [] }));
+  return stringifyIds(
+    items.map((child) => ({ ...child, classId: child.classId ?? child.classroomId, guardians: withRelationLabels(child.guardians) })),
+  );
+}
+
+/** Lớp, nhóm tuổi, giáo viên của một năm học (BE:ClassController GET /school-structure, theo phạm vi người xem). */
+async function getClassOptions(schoolYear) {
+  const beYear = await toBeSchoolYear(schoolYear);
+  const structure = stringifyIds(await axiosClient.get('/school-structure', { params: beYear ? { schoolYear: beYear } : {} }));
+  const { year } = structure;
+  return {
+    year: year ? { id: year.id, name: yearLabel(year.name), startDate: year.startDate, status: year.status } : null,
+    ageGroups: (structure.ageGroups || []).map(({ id, code, name, shortName, ageFromMonths, ageToMonths }) => ({
+      id,
+      code,
+      name,
+      shortName,
+      ageFromMonths,
+      ageToMonths,
+    })),
+    classes: (structure.classes || []).map((c) => ({
+      id: c.id,
+      name: c.name,
+      campusId: c.campusId,
+      ageGroupId: c.ageGroupId,
+      schoolYear: c.schoolYearId,
+      capacity: c.capacity,
+      homeroomTeacherId: c.homeroomTeacherId,
+      homeroomTeacherName: (c.teachers || []).find((t) => t.id === c.homeroomTeacherId)?.fullName,
+      teacherIds: c.teacherIds || [],
+    })),
+  };
+}
+
+/** Tên năm học, nhóm tuổi, giáo viên chủ nhiệm cho lớp ở hồ sơ trẻ; không đọc được cấu trúc lớp thì để trống. */
+async function withClassNames(cls) {
+  if (!cls?.schoolYearId) return cls;
+  try {
+    const { year, ageGroups, classes } = await getClassOptions(cls.schoolYearId);
+    return {
+      ...cls,
+      schoolYearName: year?.name,
+      ageGroupName: ageGroups.find((g) => g.id === cls.ageGroupId)?.name,
+      homeroomTeacherName: classes.find((c) => c.id === cls.id)?.homeroomTeacherName,
+    };
+  } catch {
+    return cls;
+  }
+}
+
+/** Hồ sơ trẻ (BE GET /children/{id}/profile) về shape mock: { child, cls, declaration, placements }, chưa thêm tên lớp. */
+async function loadProfile(id) {
+  const result = stringifyIds(await axiosClient.get(`/children/${id}/profile`));
+  const child = {
+    ...result.child,
+    guardians: withRelationLabels(result.child?.guardians),
+    // Lịch sử hồ sơ BE ghi userFullName; màn đọc userName như lịch sử khai báo, xếp lớp
+    history: (result.child?.history || []).map((h) => ({ ...h, userName: h.userName ?? h.userFullName })),
+  };
+  const cls =
+    result.cls ||
+    (child.classId ? { id: child.classId, name: child.className, campusId: child.campusId, ageGroupId: child.ageGroupId } : null);
+  return { declaration: null, placements: [], ...result, cls, child };
 }
 
 export const childrenApi = {
-  listChildren: (filters) => listAllChildren(filters),
+  listChildren: (filters = {}) => listAllChildren({ ...filters, statuses: ALL_STATUSES }),
+  getClassOptions,
   getChildDetail: async (id) => {
-    const result = await axiosClient.get(`/children/${id}/profile`);
-    const child = {
-      ...result.child,
-      guardians: (result.child?.guardians || []).map((g) => ({ ...g, relation: GUARDIAN_RELATIONSHIP_LABELS[g.relation] || g.relation })),
-    };
-    const cls = child?.classId
-      ? { id: child.classId, name: child.className, campusId: child.campusId, ageGroupId: child.ageGroupId }
-      : null;
-    return { cls, declaration: null, placements: [], ...result, child };
+    const detail = await loadProfile(id);
+    return { ...detail, cls: await withClassNames(detail.cls) };
   },
   checkDuplicate: (data, _user, excludeId) =>
-    axiosClient.get('/children/duplicate-check', {
-      params: {
-        fullName: data.fullName,
-        dateOfBirth: data.dateOfBirth,
-        guardianIdNumbers: (data.guardianIdNumbers || []).join(','),
-        excludeId,
-      },
-    }),
+    read(
+      axiosClient.get('/children/duplicate-check', {
+        params: {
+          fullName: data.fullName,
+          dateOfBirth: data.dateOfBirth,
+          guardianIdNumbers: (data.guardianIdNumbers || []).join(','),
+          excludeId,
+        },
+      }),
+    ),
   // POST để CCCD, SĐT phụ huynh không nằm trên URL; lệch phụ huynh đã có ⇒ 409, details theo ô như khi lưu (2026-10-28).
   checkGuardianConflicts: (guardians) => axiosClient.post('/children/guardian-check', { guardians }),
-  readmitChild: (childId, body) => axiosClient.post(`/children/${childId}/readmit`, body),
-  getPlacementClasses: (filters) => axiosClient.get('/children/placement-classes', { params: filters }),
+  readmitChild: (childId, body) => read(axiosClient.post(`/children/${childId}/readmit`, body)),
+  getPlacementClasses: (filters) => read(axiosClient.get('/children/placement-classes', { params: filters })),
   enrollChild: (payload) => {
     const { body, config } = enrollmentPhotoRequest(payload);
-    return axiosClient.post('/children/enrollments', body, config);
+    return read(axiosClient.post('/children/enrollments', body, config));
   },
-  updateChild: (id, body) => axiosClient.put(`/children/${id}`, body),
+  // BE nhận mã quan hệ (FATHER...); savedPhone chỉ để form khóa ô SĐT đã lưu (G94-180/AUTH-21)
+  updateChild: (id, body) =>
+    read(
+      axiosClient.put(`/children/${id}`, {
+        ...body,
+        child: {
+          ...body.child,
+          guardians: (body.child?.guardians || []).map(({ savedPhone: _savedPhone, ...g }) => ({
+            ...g,
+            relation: relationCode(g.relation),
+          })),
+        },
+      }),
+    ),
   previewImport: (file) => {
     const form = new FormData();
     form.append('file', file);
-    return axiosClient.post('/children/enrollments/import/preview', form).then((preview) => ({
+    return read(axiosClient.post('/children/enrollments/import/preview', form)).then((preview) => ({
       ...preview,
       rows: preview.rows.map((row) => ({
         ...row,
         payload: {
           ...row.payload,
-          child: {
-            ...row.payload.child,
-            guardians: row.payload.child.guardians.map((g) => ({
-              ...g,
-              relation: GUARDIAN_RELATIONSHIP_LABELS[g.relation] || g.relation,
-            })),
-          },
+          child: { ...row.payload.child, guardians: withRelationLabels(row.payload.child.guardians) },
         },
       })),
     }));
   },
   importChildren: (rows, _user, campusId) =>
-    axiosClient.post('/children/enrollments/import', { rows: rows.map((row) => enrollmentPhotoRequest(row).body), campusId }),
-  placeChild: (childId, body) => axiosClient.post(`/children/${childId}/placement`, body),
-  withdrawChild: (childId, body) => axiosClient.post(`/children/${childId}/withdraw`, body),
-  saveDeclaration: (childId, body) => axiosClient.put(`/children/${childId}/health-declaration`, body),
-  listParentAccounts: (filters) => axiosClient.get('/children/parent-accounts', { params: filters }),
-  findParentAccountByCitizenId: (idNumber) => axiosClient.get('/children/parent-accounts/by-citizen-id', { params: { idNumber } }),
-  getHealthRecord: (childId) => axiosClient.get(`/children/${childId}/health`),
+    read(axiosClient.post('/children/enrollments/import', { rows: rows.map((row) => enrollmentPhotoRequest(row).body), campusId })),
+  placeChild: (childId, body) => read(axiosClient.post(`/children/${childId}/placement`, body)),
+  withdrawChild: (childId, body) => read(axiosClient.post(`/children/${childId}/withdraw`, body)),
+  saveDeclaration: (childId, body) => read(axiosClient.put(`/children/${childId}/health-declaration`, body)),
+  listParentAccounts: (filters) => read(axiosClient.get('/children/parent-accounts', { params: filters })),
+  findParentAccountByCitizenId: (idNumber) =>
+    read(axiosClient.get('/children/parent-accounts/by-citizen-id', { params: { idNumber } })).then(
+      (account) => account && { ...account, relation: relationLabel(account.relation) },
+    ),
+  // BE sổ sức khỏe không có thông tin trẻ, lớp (ChildHealthRecordResponse): ghép từ hồ sơ như mock; GV có CHILD_PROFILE_VIEW
+  getHealthRecord: async (childId) => {
+    const [record, detail] = await Promise.all([read(axiosClient.get(`/children/${childId}/health`)), loadProfile(childId)]);
+    return { ...record, child: detail.child, cls: detail.cls, declaration: detail.declaration };
+  },
   saveMeasurement: (childId, measurementId, payload) =>
-    measurementId
-      ? axiosClient.put(`/children/${childId}/health/measurements/${measurementId}`, payload)
-      : axiosClient.post(`/children/${childId}/health/measurements`, payload),
-  analyzeHealthTrend: (childId) => axiosClient.post(`/children/${childId}/health/trend-analysis`),
+    read(
+      measurementId
+        ? axiosClient.put(`/children/${childId}/health/measurements/${measurementId}`, payload)
+        : axiosClient.post(`/children/${childId}/health/measurements`, payload),
+    ),
+  analyzeHealthTrend: (childId) => read(axiosClient.post(`/children/${childId}/health/trend-analysis`)),
 };

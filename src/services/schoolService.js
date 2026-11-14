@@ -1,7 +1,7 @@
 import { sourceOf } from '@/services/demoSource';
 import { axiosClient } from '@/services/http/axiosClient';
 import { schoolMockRepository } from '@/mocks/schoolMockRepository';
-import { getAgeGroups as getConfiguredAgeGroups } from '@/services/school-config/schoolConfigService';
+import { getAgeGroups as getConfiguredAgeGroups, getCampusesWithStats } from '@/services/school-config/schoolConfigService';
 import { listAllChildren } from '@/services/children/api/childrenApi';
 
 /**
@@ -25,3 +25,5 @@ export const getChildById = (id, user) => repo.getChildById(id, user);
 
 /** Nhóm tuổi theo cấu hình trường (đọc chung cho mọi module, vd. chọn lớp theo nhóm tuổi). */
 export const getAgeGroups = () => getConfiguredAgeGroups();
+/** Danh mục điểm trường (id, name, shortName) cho ô lọc ở các module khác. */
+export const getCampusList = (schoolYear, user) => getCampusesWithStats(schoolYear, user);

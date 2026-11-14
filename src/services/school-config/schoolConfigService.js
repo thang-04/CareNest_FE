@@ -27,6 +27,9 @@ const repo = SCHOOL_CONFIG_API ? devBeRepo() : sourceOf('school-config', schoolC
 
 export const getSchoolYears = (user) => repo.getSchoolYears(user);
 export const getSchoolYearById = (id, user) => repo.getSchoolYearById(id, user);
+/** Lớp năm đang chuẩn bị (CFG-YR-05) của người xem kèm trẻ đã xếp vào: chỉ gọi BE thật, không có bản demo. */
+const prepApi = SCHOOL_CONFIG_API ? createSchoolConfigApi(beClient) : schoolConfigApi;
+export const getPrepClasses = (yearId) => prepApi.getPrepClasses(yearId);
 export const saveSchoolYear = (id, form, user) => repo.saveSchoolYear(id, form, user);
 /** payload: { confirmName } – năm học phải đủ các bước bắt buộc (getYearReadiness). */
 export const activateSchoolYear = (id, payload, user) => repo.activateSchoolYear(id, payload, user);
@@ -50,9 +53,10 @@ export const copyClasses = (targetYearId, payload, user) => repo.copyClasses(tar
 /**
  * Thiết lập năm học: payload { sourceYearId, parts } -> { copiedClasses, withoutRoom, teacherClasses, teamLeaders,
  * vicePrincipals, cutoffTime, semesterCopied, skipped: [{ part, name, reason }] }.
- * Phân công PHT chưa có ở BE nên chép ở đây qua get/saveViceAssignment (PHT đã khóa tài khoản bị bỏ, kèm lý do).
+ * BE chép cả phân công PHT (VICE_PRINCIPALS); bản demo (mock) chép PHT ở đây qua get/saveViceAssignment.
  */
 export const copyYear = async (targetYearId, { sourceYearId, parts }, user) => {
+  if (SCHOOL_CONFIG_API) return repo.copyYear(targetYearId, { sourceYearId, parts }, user);
   const beParts = parts.filter((p) => p !== 'VICE_PRINCIPALS');
   const result = beParts.length
     ? await repo.copyYear(targetYearId, { sourceYearId, parts: beParts }, user)
@@ -146,5 +150,6 @@ export const listAllStaffAccounts = async (filters = {}) => {
   return all;
 };
 export const createStaffAccount = (payload) => beClient.post('/accounts', payload);
+export const updateStaffAccountProfile = (id, payload) => beClient.patch(`/accounts/${id}/profile`, payload);
 export const setStaffAccountStatus = (id, status) => beClient.patch(`/accounts/${id}/status`, { status });
 export const resetStaffPassword = (id, temporaryPassword) => beClient.post(`/accounts/${id}/temporary-password`, { temporaryPassword });

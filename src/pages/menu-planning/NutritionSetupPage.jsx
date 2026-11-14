@@ -14,10 +14,16 @@ import { RowActions } from '@/components/ui/RowActions';
 import { FormField } from '@/components/form/FormField';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
 import { NutritionGroupList, NutritionSetupGroup, rangeLabel, versionState } from '@/components/menu-planning/NutritionSetupGroup';
-import { ageGroupById, isNurseryAgeGroup } from '@/models/School';
 import { MEAL_SESSION_LABELS, addDays, formatMoney } from '@/models/menu-planning/menuPlanningConstants';
 import { hasErrors, validateNutritionSetup } from '@/utils/menu-planning/menuPlanningValidation';
-import { KCAL_NORM, STRUCTURE_NORM_COLUMNS, priceStatus, toSetupForm, toSetupPayload } from '@/utils/menu-planning/nutritionSetup';
+import {
+  KCAL_NORM,
+  STRUCTURE_NORM_COLUMNS,
+  priceStatus,
+  setupGroupInfo,
+  toSetupForm,
+  toSetupPayload,
+} from '@/utils/menu-planning/nutritionSetup';
 import { setupCrumbs } from '@/utils/menu-planning/breadcrumbs';
 import { clickableRowProps } from '@/utils/clickableRow';
 import { formatDate, todayInput } from '@/utils/format';
@@ -29,11 +35,6 @@ const TABS = [
   { key: 'meals', label: 'Bữa ăn & chuẩn tạm' },
 ];
 const isSet = (range) => rangeLabel(range) !== '—';
-// Tên ngắn và độ tuổi tách từ tên nhóm "Nhà trẻ (24–36 tháng)"
-const groupInfo = (ageGroupId) => {
-  const g = ageGroupById(ageGroupId);
-  return { short: g?.shortName || ageGroupId, range: g?.name.match(/\((.+)\)/)?.[1] || '' };
-};
 // Trạng thái nhóm: chưa đủ năng lượng + P:L:G thì thực đơn chưa đánh giá được ⇒ báo vàng thay vì "Đang áp dụng"
 const groupStatus = (g) => {
   if (!g.enabled) return { tone: 'gray', label: 'Không áp dụng' };
@@ -200,6 +201,7 @@ export default function NutritionSetupPage() {
   };
 
   const setupOf = (ageGroupId) => items.find((s) => s.ageGroupId === ageGroupId);
+  const groupInfo = (ageGroupId) => setupGroupInfo(setupOf(ageGroupId), ageGroupId);
   const historyGroup = historyOf && setupOf(historyOf);
   const childCountOf = (ageGroupId) => setupOf(ageGroupId)?.childCount;
   const activeGroup = form.groups.find((g) => g.ageGroupId === groupKey) || form.groups[0];
@@ -318,13 +320,13 @@ export default function NutritionSetupPage() {
               </thead>
               <tbody>
                 <tr className="td-grp-row">
-                  <td colSpan={3}>Nhà trẻ (24–36 tháng)</td>
+                  <td colSpan={3}>Nhà trẻ (dưới 36 tháng)</td>
                 </tr>
-                {groupRows(form.groups.filter((g) => isNurseryAgeGroup(g.ageGroupId)))}
+                {groupRows(form.groups.filter((g) => groupInfo(g.ageGroupId).nursery))}
                 <tr className="td-grp-row">
-                  <td colSpan={3}>Mẫu giáo (3–6 tuổi)</td>
+                  <td colSpan={3}>Mẫu giáo (từ 36 tháng)</td>
                 </tr>
-                {groupRows(form.groups.filter((g) => !isNurseryAgeGroup(g.ageGroupId)))}
+                {groupRows(form.groups.filter((g) => !groupInfo(g.ageGroupId).nursery))}
               </tbody>
             </table>
           </div>

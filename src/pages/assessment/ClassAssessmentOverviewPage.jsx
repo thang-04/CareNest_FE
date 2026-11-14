@@ -1,16 +1,16 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, ChevronRight, Unlock } from '@/components/ui/icons';
+import { ArrowLeft, Unlock } from '@/components/ui/icons';
 import { inLeaderEditScope, isLeader } from '@/utils/assessment/assessmentPermissions';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Pagination, paginate } from '@/components/ui/Pagination';
 import { ClassCommentList } from '@/components/assessment/ClassComments';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
-import { Tabs } from '@/components/ui/Tabs';
+import { clickableRowProps } from '@/utils/clickableRow';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { ROLES } from '@/models/User';
-import { useClassAssessmentDetail, useClassAssessmentOverview } from '@/hooks/assessment/useAssessment';
+import { useClassAssessmentDetail, useClassAssessmentOverview, useDailyAssessmentClasses } from '@/hooks/assessment/useAssessment';
 import { OVERVIEW_PERIOD, OVERVIEW_PERIOD_LABELS } from '@/models/assessment/assessmentConstants';
 import { HEALTH_SYMPTOMS } from '@/utils/dailyHealthValidation';
 import { DateInput } from '@/components/form/DateInput';
@@ -18,10 +18,11 @@ import { formatDate, formatDateTime, isIsoDate } from '@/utils/format';
 import { todayIso } from '@/utils/assessment/assessmentPeriods';
 import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';
 import '@/styles/modules/assessment.css';
+import { CampusFilter } from '@/components/ui/CampusFilter';
 
 const PAGE_SIZE = 10;
-// Chỉ xem theo ngày và tháng (user chốt 03/11/2026: bỏ "Tuần này" để không nhầm với đánh giá tuần đã bỏ)
-const PERIODS = [OVERVIEW_PERIOD.DAY, OVERVIEW_PERIOD.MONTH].map((key) => ({ key, label: OVERVIEW_PERIOD_LABELS[key] }));
+// Chỉ xem theo ngày (user chốt 03/11/2026 bỏ "Tuần này"; 12/11/2026 bỏ "Tháng này" để không nhầm với đánh giá
+// tuần/tháng đã bỏ). Xem số liệu cả tháng ở Chất lượng tháng.
 
 const rangeText = (o) => (o.start === o.end ? formatDate(o.start) : `${formatDate(o.start)} – ${formatDate(o.end)}`);
 const pct = (n, total) => (total ? `${Math.round((n * 100) / total)}%` : '–');
@@ -33,13 +34,17 @@ const signsText = (signs) =>
     .map(([key, n]) => `${HEALTH_SYMPTOMS[key] || key} (${n})`)
     .join(', ');
 
+/**
+ * Kiến thức kỹ năng: số lượt mục tiêu Đạt / Chưa đạt trong kỳ (mỗi MT của mỗi hoạt động là một lượt). Ngày trẻ vắng BE
+ * tính mọi MT của giáo án ngày đó là Chưa đạt (OBS-01); trẻ có mặt chưa đánh giá không có lượt nào nên để "–".
+ */
 function SkillsCell({ dat, chuaDat }) {
   const total = dat + chuaDat;
   if (!total) return <span className="muted">–</span>;
   return (
-    <span className="row gap-1 nowrap" title={`Đạt ${pct(dat, total)} · Chưa đạt ${pct(chuaDat, total)}`}>
-      <span className="chip chip--green">{dat}</span>
-      <span className="chip chip--red">{chuaDat}</span>
+    <span className="row gap-1 nowrap" title={`${total} lượt mục tiêu: Đạt ${pct(dat, total)}, Chưa đạt ${pct(chuaDat, total)}`}>
+      {dat > 0 && <span className="chip chip--green">{dat} Đạt</span>}
+      {chuaDat > 0 && <span className="chip chip--red">{chuaDat} Chưa đạt</span>}
     </span>
   );
 }
@@ -58,7 +63,7 @@ const CRITERIA = [
 function CriteriaStrip({ values, notMet, flags }) {
   const items = [
     ...CRITERIA.map((c) => ({ key: c.key, label: c.label, value: values[c.key] || 0, danger: true })),
-    { key: 'skills', label: 'KTKN chưa đạt', value: notMet || 0, danger: true },
+    { key: 'skills', label: 'Lượt mục tiêu chưa đạt', value: notMet || 0, danger: true },
     { key: 'flags', label: 'Cờ', value: flags || 0 },
   ];
   return (
@@ -76,8 +81,9 @@ function CriteriaStrip({ values, notMet, flags }) {
 const DETAIL_COLS = 5 + CRITERIA.length;
 
 /** Một mục của một trẻ: vắng thì "–", không có gì thì trống, cần chú ý thì chữ đỏ (kỳ nhiều ngày: số ngày). */
-function ConcernCell({ days, present, multiDay, note }) {
-  if (!present) return <span className="muted">–</span>;
+// Trống = đã đánh giá và bình thường; "–" = vắng hoặc chưa được đánh giá ngày nào (Cần yêu cầu 10/11/2026)
+function ConcernCell({ days, present, assessed, multiDay, note }) {
+  if (!present || !assessed) return <span className="muted">–</span>;
   if (!days) return null;
   return <span className="text-danger">{multiDay ? `${days} ngày` : note}</span>;
 }
@@ -124,7 +130,9 @@ function ClassDetail({ classId, period, date, schoolYear, onBack }) {
                 {CRITERIA.map((c) => (
                   <th key={c.key}>{c.label}</th>
                 ))}
-                <th>Đạt / Chưa đạt</th>
+                <th title="Số lượt mục tiêu theo từng ngày cô chấm Đạt / Chưa đạt (ngày trẻ vắng tính Chưa đạt). Bảng đánh giá chủ đề xét Đạt theo tỷ lệ cả chủ đề nên số có thể khác.">
+                  Kiến thức kỹ năng
+                </th>
                 <th className="num">Cờ</th>
                 <th>Nhận xét</th>
               </tr>
@@ -155,6 +163,7 @@ function ClassDetail({ classId, period, date, schoolYear, onBack }) {
                         <ConcernCell
                           days={r[c.child] || 0}
                           present={r.presentDays}
+                          assessed={r.assessedDays}
                           multiDay={multiDay}
                           note={c.key === 'health' && r.healthDays ? signsText(r.signs) : c.note}
                         />
@@ -206,8 +215,11 @@ export default function ClassAssessmentOverviewPage() {
   const { schoolYear } = useSchoolYear();
   const { user } = useAuth();
   const isPrincipal = user?.role === ROLES.PRINCIPAL;
+  // Lớp mình dạy (GV, tổ trưởng): lớp khác trong ô chọn ghi "(chỉ xem)"; BGH không dạy lớp nên không ghi
+  const { classes: ownClasses } = useDailyAssessmentClasses({ enabled: !isLeader(user) });
+  const own = new Set(isLeader(user) ? [] : ownClasses.map((c) => String(c.id)));
   const today = todayIso();
-  const [period, setPeriod] = useState(OVERVIEW_PERIOD.DAY);
+  const period = OVERVIEW_PERIOD.DAY;
   const [date, setDate] = useState(today);
   const [dateInput, setDateInput] = useState(today);
   const [dateError, setDateError] = useState('');
@@ -259,7 +271,6 @@ export default function ClassAssessmentOverviewPage() {
         ) : (
           <>
             <div className="filter-bar dg-ov-toolbar">
-              <Tabs items={PERIODS} value={period} onChange={filter(setPeriod)} ariaLabel="Kỳ tổng hợp" />
               <div className="field">
                 <DateInput
                   className={dateError ? 'input--error' : ''}
@@ -277,22 +288,15 @@ export default function ClassAssessmentOverviewPage() {
                 )}
               </div>
               {multiCampus && (
-                <select
-                  className="select"
-                  aria-label="Điểm trường"
+                <CampusFilter
+                  campuses={campusOptions}
                   value={campusId}
-                  onChange={(e) => {
-                    filter(setCampusId)(e.target.value);
+                  onChange={(v) => {
+                    filter(setCampusId)(v);
                     setClassId('');
                   }}
-                >
-                  <option value="">Tất cả điểm trường</option>
-                  {campusOptions.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
+                  hideLabel
+                />
               )}
               <select
                 className="select"
@@ -316,6 +320,7 @@ export default function ClassAssessmentOverviewPage() {
                   <option key={c.id} value={c.id}>
                     {c.name}
                     {multiCampus && !campusId ? ` · ${campusName(c.campusId)}` : ''}
+                    {own.size && !own.has(String(c.id)) ? ' (chỉ xem)' : ''}
                   </option>
                 ))}
               </select>
@@ -325,11 +330,12 @@ export default function ClassAssessmentOverviewPage() {
             {error ? (
               <ErrorState error={error} onRetry={reload} />
             ) : (
-              <div className="table-wrap">
-                <table className="table table--grid dg-ov-table">
+              <div className="table-wrap dg-roll-wrap">
+                <table className="table table--grid dg-ov-table dg-roll">
                   <thead>
                     <tr>
                       <th>Lớp</th>
+                      {multiCampus && <th>Điểm trường</th>}
                       <th className="num">Đã đánh giá</th>
                       <th>{multiDay ? 'Nhận xét chung mới nhất' : 'Nhận xét chung hôm nay'}</th>
                       <th className="num">Cập nhật</th>
@@ -338,10 +344,10 @@ export default function ClassAssessmentOverviewPage() {
                   </thead>
                   <tbody>
                     {loading || !overview ? (
-                      <SkeletonRows rows={5} cols={5} />
+                      <SkeletonRows rows={5} cols={multiCampus ? 6 : 5} />
                     ) : rows.length === 0 ? (
                       <tr>
-                        <td colSpan={5}>
+                        <td colSpan={multiCampus ? 6 : 5}>
                           <EmptyState title="Không có lớp phù hợp" />
                         </td>
                       </tr>
@@ -349,16 +355,16 @@ export default function ClassAssessmentOverviewPage() {
                       paginate(rows, page, PAGE_SIZE).map((r) => {
                         const latest = latestComment(r.classComments);
                         return (
-                          <tr key={r.classId} onClick={() => setOpenClass(r.classId)}>
+                          <tr key={r.classId} className="row-click" {...clickableRowProps(() => setOpenClass(r.classId))}>
                             <td>
                               <strong>{r.className}</strong>
-                              {multiCampus && <div className="text-xs text-2">{campusName(r.campusId)}</div>}
                               {/* Lớp có trẻ mà chưa ai có mặt: thường là chưa điểm danh, không phải "đủ 0/0" */}
                               {!multiDay && r.size > 0 && r.present === 0 && <span className="chip chip--red">Chưa điểm danh</span>}
                               {r.reopenedDays > 0 && (
                                 <span className="chip chip--blue">Đã mở lại {multiDay ? `${r.reopenedDays} ngày` : ''}</span>
                               )}
                             </td>
+                            {multiCampus && <td>{campusName(r.campusId)}</td>}
                             <td className={`num ${missing(r) ? 'text-danger' : ''}`}>
                               {r.assessed}/{r.present}
                             </td>
@@ -380,16 +386,6 @@ export default function ClassAssessmentOverviewPage() {
                                   <Unlock size={14} /> Mở lại ngày
                                 </Link>
                               )}
-                              <button
-                                type="button"
-                                className="btn btn--sm btn--outline-primary"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setOpenClass(r.classId);
-                                }}
-                              >
-                                Xem chi tiết <ChevronRight size={14} />
-                              </button>
                             </td>
                           </tr>
                         );

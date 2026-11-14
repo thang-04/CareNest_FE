@@ -9,7 +9,6 @@ import { LoadingState, Spinner } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
 import { FormField } from '@/components/form/FormField';
 import { ChildInfoFields } from '@/components/children/ChildInfoFields';
-import { ChildProfileFields } from '@/components/children/ChildProfileFields';
 import { ChildAccessState } from '@/components/children/ChildAccessState';
 import { updateChild } from '@/services/children/childrenService';
 import { PARENT_ACCOUNT_STATUS } from '@/models/children/childrenConstants';
@@ -45,6 +44,8 @@ export default function EditChildPage() {
           fullName: g.fullName,
           relation: g.relation,
           phone: g.phone,
+          // G94-180/AUTH-21: SĐT đã lưu không sửa ở Sửa hồ sơ (đổi qua yêu cầu đổi SĐT); adapter bỏ trường này khi gửi
+          savedPhone: g.phone,
           idNumber: g.idNumber || '',
           email: g.email || '',
         })),
@@ -97,7 +98,9 @@ export default function EditChildPage() {
     if (hasErrors(errs)) return;
     setBusy(true);
     try {
-      const saved = await updateChild(id, { child: effective, reason }, user);
+      // savedPhone chỉ để khóa ô SĐT trên form, không gửi đi
+      const child = { ...effective, guardians: effective.guardians.map(({ savedPhone: _savedPhone, ...g }) => g) };
+      const saved = await updateChild(id, { child, reason }, user);
       // Đổi SĐT phụ huynh đã có tài khoản ⇒ BE đổi tên đăng nhập, gửi mật khẩu mới qua SMS (user chốt 2026-10-28).
       (saved.accountChanges || [])
         .filter((c) => c.phoneChanged)
@@ -124,12 +127,40 @@ export default function EditChildPage() {
     setErrors((e) => Object.fromEntries(Object.entries(e).filter(([k]) => k === 'reason' || now[k])));
   };
 
+  // Màn dài: cùng một cặp nút ở đầu trang và cuối trang để điền tới đâu cũng lưu được, không cần thanh nổi
+  const actions = (
+    <>
+      <button type="button" className="btn wizard-actions__back" onClick={() => navigate(`/children/${id}`)} disabled={busy}>
+        <ArrowLeft size={16} /> Hủy
+      </button>
+      <button type="button" className="btn btn--primary" onClick={save} disabled={busy}>
+        {busy ? <Spinner small /> : <Save size={16} />} Lưu thay đổi
+      </button>
+    </>
+  );
+
   return (
     <div className="page">
       <Breadcrumb items={crumbs} />
-      <h1 className="page__title">Sửa hồ sơ: {child.fullName}</h1>
+      <div className="page__head">
+        <div>
+          <h1 className="page__title">Sửa hồ sơ: {child.fullName}</h1>
+          <p className="muted text-sm">
+            {child.fullName} · {child.code}
+          </p>
+        </div>
+        <div className="page__actions">{actions}</div>
+      </div>
+      {/* Cùng bố cục bảng của bước 1 Tiếp nhận trẻ (user yêu cầu 2026-11-11): trẻ + hành chính | phụ huynh, hẹp thì 1 cột;
+          dạng ô nhập rời cũ dồn cả khối vào cột ảnh 192px khi màn sửa không có ảnh. */}
       <section className="card wizard-card">
+        <div className="tr-step-head">
+          <div className="stack gap-1">
+            <h2 className="card__title">Thông tin hồ sơ</h2>
+          </div>
+        </div>
         <ChildInfoFields
+          sheet
           value={form}
           onChange={change}
           errors={errors}
@@ -140,10 +171,7 @@ export default function EditChildPage() {
         />
       </section>
       <section className="card wizard-card">
-        <ChildProfileFields value={form.profile} onChange={(profile) => change({ ...form, profile })} errors={errors} />
-      </section>
-      <section className="card wizard-card">
-        <FormField label="Lý do chỉnh sửa" required error={errors.reason} hint="Được lưu vào lịch sử thay đổi của hồ sơ">
+        <FormField label="Lý do chỉnh sửa" required error={errors.reason}>
           <textarea
             className="textarea"
             rows={2}
@@ -156,14 +184,7 @@ export default function EditChildPage() {
           />
         </FormField>
       </section>
-      <div className="page-actions">
-        <button className="btn wizard-actions__back" onClick={() => navigate(`/children/${id}`)} disabled={busy}>
-          <ArrowLeft size={16} /> Hủy
-        </button>
-        <button className="btn btn--primary" onClick={save} disabled={busy}>
-          {busy ? <Spinner small /> : <Save size={16} />} Lưu thay đổi
-        </button>
-      </div>
+      <div className="page-actions">{actions}</div>
     </div>
   );
 }

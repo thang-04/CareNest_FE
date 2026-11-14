@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AlertTriangle, CheckCircle2, History, Info, Save } from '@/components/ui/icons';
+import { AlertTriangle, CheckCircle2, History, Info, RotateCcw, Save } from '@/components/ui/icons';
 import { useToast } from '@/contexts/ToastContext';
 import { Modal } from '@/components/ui/Modal';
 import { RowActions } from '@/components/ui/RowActions';
@@ -7,9 +7,14 @@ import { Spinner } from '@/components/ui/States';
 import { Tabs } from '@/components/ui/Tabs';
 import { FormField } from '@/components/form/FormField';
 import { MealCountStatusBadge } from '@/components/attendance/AttendanceBadges';
-import { adjustMealDay } from '@/services/attendance/attendanceService';
+import { adjustMealDay, unlockAttendanceDay } from '@/services/attendance/attendanceService';
 import { MEAL_COUNT_STATUS, MEAL_SESSION_LABELS } from '@/models/attendance/attendanceConstants';
-import { canAdjustMealCount, canConfirmMealCount, canSeeMealReconfirmNotice } from '@/utils/attendance/attendancePermissions';
+import {
+  canAdjustMealCount,
+  canConfirmMealCount,
+  canSeeMealReconfirmNotice,
+  canUnlockAttendanceDay,
+} from '@/utils/attendance/attendancePermissions';
 import { dayBySession, dayRegister } from '@/utils/attendance/mealRegister';
 import { formatDate, formatDateTime } from '@/utils/format';
 import { ROLE_LABELS } from '@/models/User';
@@ -59,8 +64,33 @@ const schoolToday = () => new Date().toLocaleDateString('en-CA', { timeZone: 'As
 const pastOpen = (count) => count.status === 'OPEN' && !!count.date && count.date < schoolToday();
 
 /** Bảng lớp của một bữa: số suất theo bữa BE trả, sửa riêng bữa này. Xác nhận theo cả ngày (BE NUT-02, D10). */
-function MealPanel({ count, user, md, onAdjust, counts }) {
+/** NUT-02: điểm danh đổi sau khi suất thay thế đã sửa tay ⇒ người duyệt kiểm tra lại số thay thế. */
+function ClassNameCell({ line }) {
+  return (
+    <td className="fw-600 nowrap">
+      {line.className}
+      {line.attendanceChanged && (
+        <>
+          {' '}
+          <span className="chip chip--orange">Điểm danh đã đổi, cần kiểm tra lại</span>
+        </>
+      )}
+    </td>
+  );
+}
+
+/** "Trả lại GV kiểm tra" (ATT-08, NUT-02): số sai không sửa tay, mở lại điểm danh lớp – ngày để giáo viên sửa. */
+function ReturnButton({ line, onReturn }) {
+  return (
+    <button type="button" className="btn btn--sm" onClick={() => onReturn(line)}>
+      <RotateCcw size={14} /> Trả lại GV kiểm tra
+    </button>
+  );
+}
+
+function MealPanel({ count, user, md, onAdjust, counts, onReturn }) {
   const adjustable = canAdjustMealCount(count, user);
+  const actions = adjustable || !!onReturn;
   return (
     <>
       <div className="dd-meal-head">
@@ -85,27 +115,32 @@ function MealPanel({ count, user, md, onAdjust, counts }) {
               <th className="num">Chưa ĐD</th>
               <th className="num">Suất thường</th>
               <th className="num">Suất thay thế</th>
-              {adjustable && <th className="cell--actions">Thao tác</th>}
+              {actions && <th className="cell--actions">Thao tác</th>}
             </tr>
           </thead>
           <tbody>
             {count.classes.map((l) => (
               <tr key={l.classId}>
-                <td className="fw-600 nowrap">{l.className}</td>
+                <ClassNameCell line={l} />
                 <td className="num">{l.present}</td>
                 <td className="num">{l.absent}</td>
                 <td className={`num ${l.missing ? 'text-danger' : 'muted'}`}>{l.missing || '—'}</td>
                 <td className="num fw-600">{l.normal}</td>
                 <td className="num">{l.substitute}</td>
-                {adjustable && (
+                {actions && (
                   <td className="cell--actions">
-                    <RowActions
-                      edit={{
-                        label: `Sửa suất thay thế ${mealName(count.session)}`,
-                        onClick: () => onAdjust({ counts, line: l, session: count.session }),
-                      }}
-                      name={l.className}
-                    />
+                    <div className="row">
+                      {onReturn && <ReturnButton line={l} onReturn={onReturn} />}
+                      {adjustable && (
+                        <RowActions
+                          edit={{
+                            label: `Sửa suất thay thế ${mealName(count.session)}`,
+                            onClick: () => onAdjust({ counts, line: l, session: count.session }),
+                          }}
+                          name={l.className}
+                        />
+                      )}
+                    </div>
                   </td>
                 )}
               </tr>
@@ -136,6 +171,15 @@ export function MealRegisterCard({ counts, campusName, user, md, onConfirm, onAd
   const adjustments = groupAdjustments(counts.flatMap((c) => c.adjustments.map((a) => ({ ...a, session: c.session }))));
   // NUT-02: PHT điểm trường chỉ điều chỉnh suất thay thế của lớp (có lý do) sau giờ chốt
   const adjustable = counts.some((c) => canAdjustMealCount(c, user));
+  // ATT-08: qua giờ chốt (sổ không còn OPEN), ngày không ở tương lai, người có quyền mở lại điểm danh ở cơ sở này
+  const [returning, setReturning] = useState(null);
+  const returnable =
+    !!first &&
+    first.date <= schoolToday() &&
+    counts.some((c) => c.status !== 'OPEN') &&
+    canUnlockAttendanceDay({ campusId: first.campusId }, user);
+  const onReturn = returnable ? setReturning : null;
+  const actions = adjustable || returnable;
   const meal = counts.find((c) => c.session === tab);
   const lastConfirmed = counts.filter((c) => c.confirmedAt).sort((x, y) => (x.confirmedAt < y.confirmedAt ? 1 : -1))[0];
   const tabs = [
@@ -219,7 +263,7 @@ export function MealRegisterCard({ counts, campusName, user, md, onConfirm, onAd
           )}
         </div>
         {meal ? (
-          <MealPanel count={meal} counts={counts} user={user} md={md} onAdjust={onAdjust} />
+          <MealPanel count={meal} counts={counts} user={user} md={md} onAdjust={onAdjust} onReturn={onReturn} />
         ) : (
           <div className="table-wrap mt-12">
             <table className="table table--grid table--compact table--wrap-head">
@@ -237,13 +281,13 @@ export function MealRegisterCard({ counts, campusName, user, md, onConfirm, onAd
                   <th className="num">Tổng suất</th>
                   <th className="num">Suất thay thế</th>
                   <th>Điểm danh</th>
-                  {adjustable && <th className="cell--actions">Thao tác</th>}
+                  {actions && <th className="cell--actions">Thao tác</th>}
                 </tr>
               </thead>
               <tbody>
                 {day.rows.map((l) => (
                   <tr key={l.classId}>
-                    <td className="fw-600 nowrap">{l.className}</td>
+                    <ClassNameCell line={l} />
                     <td className="num">{l.present}</td>
                     <td className="num">{l.absent}</td>
                     <td className={`num ${l.missing ? 'text-danger' : 'muted'}`}>{l.missing || '—'}</td>
@@ -255,12 +299,17 @@ export function MealRegisterCard({ counts, campusName, user, md, onConfirm, onAd
                     <td className="num fw-600">{l.normal + l.substitute}</td>
                     <td className="num">{l.substitute}</td>
                     <td className={l.missing ? 'text-danger' : 'muted'}>{l.missing ? 'Chưa hoàn thành' : 'Hoàn thành'}</td>
-                    {adjustable && (
+                    {actions && (
                       <td className="cell--actions">
-                        <RowActions
-                          edit={{ label: 'Sửa suất thay thế cả ngày', onClick: () => onAdjust({ counts, line: lineOf[l.classId] }) }}
-                          name={l.className}
-                        />
+                        <div className="row">
+                          {onReturn && <ReturnButton line={l} onReturn={onReturn} />}
+                          {adjustable && (
+                            <RowActions
+                              edit={{ label: 'Sửa suất thay thế cả ngày', onClick: () => onAdjust({ counts, line: lineOf[l.classId] }) }}
+                              name={l.className}
+                            />
+                          )}
+                        </div>
                       </td>
                     )}
                   </tr>
@@ -314,7 +363,83 @@ export function MealRegisterCard({ counts, campusName, user, md, onConfirm, onAd
           </div>
         )}
       </div>
+      {returning && (
+        <ReturnToTeacherModal
+          line={returning}
+          date={first.date}
+          user={user}
+          onClose={() => setReturning(null)}
+          onDone={() => setReturning(null)}
+        />
+      )}
     </div>
+  );
+}
+
+const REASON_MAX = 300; // BE DayUnlockRequest.reason @Size(max = 300)
+
+/**
+ * Trả lại GV kiểm tra (ATT-08): mở lại điểm danh lớp – ngày tới hết hôm nay, lý do bắt buộc; BE báo giáo viên lớp. Giáo
+ * viên sửa xong, sổ chuyển "chờ xác nhận lại" như khi mở lại ở màn Mở lại điểm danh.
+ */
+function ReturnToTeacherModal({ line, date, user, onClose, onDone }) {
+  const toast = useToast();
+  const [reason, setReason] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const check = (text) =>
+    !text.trim() ? 'Nhập lý do trả lại.' : text.trim().length > REASON_MAX ? `Lý do tối đa ${REASON_MAX} ký tự.` : '';
+  const submit = async () => {
+    const message = check(reason);
+    setError(message);
+    if (message) return;
+    setBusy(true);
+    try {
+      const today = schoolToday();
+      await unlockAttendanceDay(
+        { classId: line.classId, date, validUntil: new Date(`${today}T23:59:00+07:00`).toISOString(), reason: reason.trim() },
+        user,
+      );
+      toast.success(`Đã trả lại ${line.className} để giáo viên kiểm tra điểm danh ngày ${formatDate(date)}.`);
+      onDone();
+    } catch (err) {
+      setError(err.details?.reason || err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Modal
+      open
+      title={`Trả lại GV kiểm tra – ${line.className}`}
+      onClose={busy ? undefined : onClose}
+      footer={
+        <>
+          <button className="btn" onClick={onClose} disabled={busy}>
+            Hủy
+          </button>
+          <button className="btn btn--primary" onClick={submit} disabled={busy}>
+            {busy ? <Spinner small /> : <RotateCcw size={16} />} Trả lại
+          </button>
+        </>
+      }
+    >
+      <p className="muted text-sm mb-12">
+        Mở lại điểm danh ngày {formatDate(date)} của lớp tới hết hôm nay. Giáo viên nhận thông báo, sửa xong thì sổ chờ xác nhận lại.
+      </p>
+      <FormField label="Lý do" required error={error}>
+        <textarea
+          className="textarea"
+          rows={3}
+          value={reason}
+          onChange={(e) => {
+            setReason(e.target.value);
+            if (error) setError(check(e.target.value));
+          }}
+          onBlur={() => setError(check(reason))}
+        />
+      </FormField>
+    </Modal>
   );
 }
 

@@ -4,6 +4,7 @@ import { useAsync } from '@/hooks/useAsync';
 import {
   getChildDetail,
   getChildren,
+  getClassOptions,
   getHealthRecord,
   findParentAccountByCitizenId,
   getParentAccounts,
@@ -27,6 +28,18 @@ export function useChildDetail(id, { live = true } = {}) {
     enabled: !!id,
   });
   return { detail: data, loading, error, reload };
+}
+
+/**
+ * Lớp, nhóm tuổi của năm học (bộ lọc lớp, gợi ý nhóm tuổi): { year, ageGroups, classes }. all: lớp mọi điểm trường (mock;
+ * BE trả theo phạm vi người xem).
+ */
+export function useClassOptions(schoolYear, { all = false, enabled = true } = {}) {
+  const { user } = useAuth();
+  const { data, loading, error } = useAsync(() => getClassOptions(schoolYear, user, { all }), [schoolYear, all, user?.id], {
+    enabled: enabled && !!user,
+  });
+  return { year: data?.year || null, ageGroups: data?.ageGroups || [], classes: data?.classes || [], loading, error };
 }
 
 /** Lớp tiếp nhận, xếp lớp được (kèm sĩ số hiện tại): BE chỉ trả lớp của năm học đang hoạt động (user chốt 2026-10-28, Y-3). */

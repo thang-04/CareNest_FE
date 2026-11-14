@@ -3,6 +3,7 @@ import { authGet, authPost, refreshSession } from '@/services/http/authTransport
 import { withAuthOperation, completeAuthOperation } from '@/services/http/authBoundary';
 import { UNAUTHORIZED_EVENT } from '@/services/http/tokenStorage';
 import { endLocalSession } from '@/services/authService';
+import { getNotifications, markNotificationRead } from '@/services/notificationService';
 
 export const accountApi = {
   requestPasswordReset: (body) => authPost('/auth/password/forgot', body),
@@ -34,6 +35,13 @@ export const accountApi = {
     }),
   getProfile: () => axiosClient.get('/accounts/me'),
   updateProfile: () => Promise.reject(new Error('Chức năng cập nhật hồ sơ chưa được hỗ trợ. Vui lòng liên hệ nhà trường.')),
-  getNotification: (id) => axiosClient.get('/notifications/' + id),
+  // BE chỉ có danh sách /me/notifications (không có API chi tiết) ⇒ tìm trong danh sách rồi đánh dấu đã đọc
+  // ponytail: chỉ thấy thông báo nằm trong trang danh sách BE trả; cần API chi tiết nếu mở link thông báo cũ hơn
+  getNotification: async (id) => {
+    const found = (await getNotifications()).find((n) => String(n.id) === String(id));
+    if (!found) throw Object.assign(new Error('Thông báo không tồn tại hoặc đã bị xóa.'), { status: 404 });
+    if (!found.read) await markNotificationRead(id);
+    return { ...found, read: true };
+  },
   demoOtp: () => Promise.resolve(null),
 };

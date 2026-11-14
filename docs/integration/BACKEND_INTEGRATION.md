@@ -32,7 +32,7 @@
 | --- | --- |
 | 200 / 201 | Hiển thị `data`; sau mutation refetch dữ liệu liên quan |
 | 400 | Lỗi field (nếu có) hoặc thông báo chung |
-| 401 | Luồng auth (`AUTH_FLOW.md`, chưa chốt) |
+| 401 | Luồng auth (`AUTH_FLOW.md`): làm mới phiên 1 lần rồi về màn đăng nhập |
 | 403 | Màn hình "không có quyền"; không retry; không tự đổi sang dữ liệu khác |
 | 404 | "Không tìm thấy"; không suy luận là dữ liệu không tồn tại thật (có thể bị ẩn do scope) |
 | 409 | Hiển thị `desc`, refetch trạng thái mới |

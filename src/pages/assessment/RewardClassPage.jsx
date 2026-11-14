@@ -1,7 +1,7 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { AlertTriangle, ArrowLeft, ArrowRight, Check, Download, History, Save, Send, Sparkle, Undo2 } from '@/components/ui/icons';
+import { AlertTriangle, ArrowLeft, ArrowRight, Check, Download, History, Info, Save, Send, Sparkle, Undo2 } from '@/components/ui/icons';
 import { useToast } from '@/contexts/ToastContext';
 import { useRewardList, useRewardLists } from '@/hooks/assessment/useAssessment';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
@@ -23,7 +23,7 @@ import {
   REWARD_UNCLE_HO_TITLE,
   REWARD_PROGRAM_TITLES,
 } from '@/models/assessment/assessmentConstants';
-import { formatDate, formatDateTime } from '@/utils/format';
+import { formatDate, formatDateTime, todayInput } from '@/utils/format';
 import { exportWithPreview } from '@/components/ui/ExportPreview';
 import { findDiagnosticTerms, validateDecision } from '@/utils/assessment/assessmentValidation';
 import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';
@@ -107,7 +107,7 @@ export default function RewardClassPage() {
     (isVicePrincipal(user) && r.status === S.PENDING_VP) || (isPrincipal(user) && [S.PENDING_VP, S.PENDING_PRINCIPAL].includes(r.status));
   const nextWaiting = leader ? lists.find((r) => String(r.classId) !== String(classId) && waitingForMe(r)) : null;
 
-  const crumbs = <Breadcrumb items={assessmentCrumbs(SECTIONS.rewards, d ? `Lớp ${d.className}` : 'Danh sách lớp')} />;
+  const crumbs = <Breadcrumb items={assessmentCrumbs(SECTIONS.rewards, d ? d.className : 'Danh sách lớp')} />;
   if (loading && !d)
     return (
       <div className="page">
@@ -248,6 +248,8 @@ export default function RewardClassPage() {
 
   const vp = d.vpReview;
   const ht = d.principalDecision;
+  // HT duyệt thẳng khi PHT chưa xét (BE ghi DIRECT_APPROVED trong lịch sử)
+  const direct = (d.history || []).some((h) => h.action === 'DIRECT_APPROVED');
   const returnedBy = d.status === S.RETURNED ? (ht?.decision === 'RETURN' && (!vp || ht.at > vp.at) ? ht : vp) : null;
   const steps = [
     {
@@ -257,31 +259,50 @@ export default function RewardClassPage() {
     },
     {
       label: 'Phó hiệu trưởng xem xét',
-      sub: vp ? `${vp.byName || ''} · ${formatDateTime(vp.at)}` : '',
+      sub: vp ? `${vp.byName || ''} · ${formatDateTime(vp.at)}` : direct && d.status === S.APPROVED ? 'Bỏ qua: HT duyệt trực tiếp' : '',
       done: [S.PENDING_PRINCIPAL, S.APPROVED].includes(d.status) && vp?.decision === 'FORWARD',
     },
     {
-      label: 'Hiệu trưởng phê duyệt',
+      label: direct && d.status === S.APPROVED ? 'Hiệu trưởng duyệt trực tiếp' : 'Hiệu trưởng phê duyệt',
       sub: ht ? `${ht.byName || ''} · ${formatDateTime(ht.at)}` : '',
       done: d.status === S.APPROVED,
     },
   ];
   const cols = 6;
+  // Bảng tích dài hơn một màn hình: cùng cặp nút ở đầu trang và cuối trang, không dùng thanh nổi che bảng
+  const editActions = edit && (
+    <>
+      <button className="btn" onClick={() => save(false)} disabled={!!busy}>
+        {busy === 'save' ? <Spinner small /> : <Save size={16} />} Lưu nháp
+      </button>
+      <button className="btn btn--primary" disabled={!!busy} onClick={() => check(true) && setSubmitOpen(true)}>
+        <Send size={16} /> {d.status === S.RETURNED ? 'Gửi lại danh sách' : 'Gửi danh sách'}
+      </button>
+    </>
+  );
 
   return (
     <div className="page">
       {crumbs}
       <div className="page__head">
         <div>
-          <h1 className="page__title">Danh sách khen thưởng – Lớp {d.className}</h1>
+          <h1 className="page__title">Danh sách khen thưởng – {d.className}</h1>
           <RewardStatusBadge status={status} size="lg" />
         </div>
+        {edit && <div className="page__actions">{editActions}</div>}
       </div>
 
       <div className="card mt-16 dg-card-steps">
         <ProgressSteps steps={steps} />
       </div>
 
+      {/* OBS-14 (Cần chốt 10/11/2026): lập / gửi danh sách từ ngày kết thúc HK II; trước đó chỉ xem */}
+      {d.openFrom && d.openFrom > todayInput() && (
+        <div className="alert alert--info mt-16" role="status">
+          <Info size={18} />
+          <div>Danh sách khen thưởng cuối năm lập và gửi được từ {formatDate(d.openFrom)} (ngày kết thúc học kỳ II).</div>
+        </div>
+      )}
       {d.unrecordedDays?.length > 0 && (
         <div className="alert alert--warning mt-16" role="status">
           <AlertTriangle size={18} />
@@ -325,8 +346,8 @@ export default function RewardClassPage() {
             </span>
           </div>
         )}
-        <div className="table-wrap">
-          <table className="table table--grid">
+        <div className="table-wrap dg-roll-wrap">
+          <table className="table table--grid dg-roll">
             <thead>
               <tr>
                 <th>Trẻ</th>
@@ -389,7 +410,8 @@ export default function RewardClassPage() {
                           {edit ? (
                             <div className="stack gap-1">
                               {d.titleOptions.map((t) => {
-                                const disabled = !c.yearEnd || (REWARD_PROGRAM_TITLES.includes(t) && c.programCompleted !== true);
+                                // Luôn cho chọn danh hiệu (Cần chốt 10/11/2026); hoàn thành chương trình cần đánh giá cuối năm đã tích hoàn thành
+                                const disabled = REWARD_PROGRAM_TITLES.includes(t) && c.programCompleted !== true;
                                 return (
                                   <label key={t} className={`dg-tick ${disabled ? 'muted' : ''}`}>
                                     <input
@@ -486,16 +508,7 @@ export default function RewardClassPage() {
             Lớp chờ duyệt tiếp theo: {nextWaiting.className} <ArrowRight size={16} />
           </Link>
         )}
-        {edit && (
-          <div className="row gap-2">
-            <button className="btn" onClick={() => save(false)} disabled={!!busy}>
-              {busy === 'save' ? <Spinner small /> : <Save size={16} />} Lưu nháp
-            </button>
-            <button className="btn btn--primary" disabled={!!busy} onClick={() => check(true) && setSubmitOpen(true)}>
-              <Send size={16} /> {d.status === S.RETURNED ? 'Gửi lại danh sách' : 'Gửi danh sách'}
-            </button>
-          </div>
-        )}
+        {edit && <div className="row gap-2">{editActions}</div>}
         {(d.canReview || d.canDecide) && (
           <div className="row gap-2">
             <button

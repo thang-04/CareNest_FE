@@ -21,6 +21,7 @@ import {
   codeDiff,
   configurableCheck,
   flowCheckState,
+  flowCount,
   permissionTableRows,
   PERMISSION_MATRIX_ROLES,
   toggleFlow,
@@ -127,13 +128,17 @@ export default function RoleDefaultsPage() {
       fixed,
       renderFlow: (flow) => {
         const state = flowCheckState(flow.codes, codesOf(role), isConfigurable);
-        if (!state) return null;
+        const { on, total } = flowCount(flow.codes, codesOf(role));
+        const summary = `${on}/${total} việc`;
+        if (!state) return <small className="perm-flow-summary">{summary}</small>;
         return (
           <PermissionFlowCheckCell
             state={state}
             disabled={saving}
+            summary={summary}
+            changed={flow.codes.some((code) => codesOf(role).includes(code) !== originalOf(role).includes(code))}
             label={`Cả luồng ${flow.label} — ${PERMISSION_ROLE_LABELS[role]}`}
-            onChange={(on) => toggleWholeFlow(role, flow, on)}
+            onChange={(checked) => toggleWholeFlow(role, flow, checked)}
           />
         );
       },
@@ -181,35 +186,38 @@ export default function RoleDefaultsPage() {
       ) : (
         <>
           <section className="card perm-table-card">
-            <ul className="perm-legend" aria-label="Chú thích">
-              <li>
-                <span className="perm-legend__box" aria-hidden="true" /> Ô tick: Hiệu trưởng chọn được
-              </li>
-              <li>
-                <PermissionFixedCell has /> Luôn có
-              </li>
-              <li>
-                <PermissionFixedCell has={false} /> Không có
-              </li>
-              <li>
-                <span className="perm-table__arrow" aria-hidden="true">
-                  ↳
-                </span>{' '}
-                Cần quyền xem ở dòng đầu nhóm (tự tick kèm)
-              </li>
-            </ul>
-            <ul className="perm-legend perm-legend--levels" aria-label="Cấp quyền">
-              <li className="perm-legend__title">Cấp quyền:</li>
-              {Object.entries(PERMISSION_LEVELS).map(([level, info]) => (
-                <li key={level}>
-                  <PermissionLevelBadge level={level} /> {info.hint}
+            <details className="perm-legend-toggle">
+              <summary>Chú thích ký hiệu và cấp quyền</summary>
+              <ul className="perm-legend" aria-label="Chú thích">
+                <li>
+                  <span className="perm-legend__box" aria-hidden="true" /> Ô tick: Hiệu trưởng chọn được
                 </li>
-              ))}
-            </ul>
+                <li>
+                  <PermissionFixedCell has /> Luôn có
+                </li>
+                <li>
+                  <PermissionFixedCell has={false} /> Không có
+                </li>
+                <li>
+                  <span className="perm-table__arrow" aria-hidden="true">
+                    ↳
+                  </span>{' '}
+                  Cần quyền xem ở dòng đầu nhóm (tự tick kèm)
+                </li>
+              </ul>
+              <ul className="perm-legend perm-legend--levels" aria-label="Cấp quyền">
+                <li className="perm-legend__title">Cấp quyền:</li>
+                {Object.entries(PERMISSION_LEVELS).map(([level, info]) => (
+                  <li key={level}>
+                    <PermissionLevelBadge level={level} /> {info.hint}
+                  </li>
+                ))}
+              </ul>
+            </details>
             <p className="perm-notice" role="status" aria-live="polite">
               {notice}
             </p>
-            <PermissionTable groups={groups} catalog={catalog} columns={columns} caption="Việc được làm theo vai trò" />
+            <PermissionTable groups={groups} catalog={catalog} columns={columns} caption="Việc được làm theo vai trò" collapsible />
             <p className="perm-scope-note text-sm text-muted">
               Quyền chỉ cho biết được làm việc đó hay không. Phạm vi dữ liệu (điểm trường, lớp) vẫn theo phân công công tác của từng người.
             </p>

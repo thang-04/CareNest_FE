@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Tabs } from '@/components/ui/Tabs';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Save, RotateCcw, Info, Scale, CopyPlus } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
@@ -202,23 +203,16 @@ function LegacyNutritionBalance() {
       <h1 className="page__title">Cân đối khẩu phần thực đơn ngày</h1>
       {/* Thanh chọn cùng kiểu Thực đơn tuần: tab nhóm tuổi + chọn thực đơn tuần */}
       <div className="td-week-toolbar">
-        <div className="tabs tabs--pill" role="tablist" aria-label="Nhóm tuổi">
-          {[{ id: '', shortName: 'Tất cả' }, ...AGE_GROUPS].map((g) => (
-            <button
-              key={g.id || 'all'}
-              type="button"
-              role="tab"
-              aria-selected={g.id === ageGroupId}
-              className={`tab ${g.id === ageGroupId ? 'tab--active' : ''}`}
-              onClick={() => {
-                setAgeGroupId(g.id);
-                chooseWeek('');
-              }}
-            >
-              {g.shortName}
-            </button>
-          ))}
-        </div>
+        <Tabs
+          variant="pill"
+          items={[{ id: '', shortName: 'Tất cả' }, ...AGE_GROUPS].map((g) => ({ key: g.id, label: g.shortName }))}
+          value={ageGroupId}
+          onChange={(id) => {
+            setAgeGroupId(id);
+            chooseWeek('');
+          }}
+          ariaLabel="Nhóm tuổi"
+        />
         <div className="td-week-picker">
           <select
             className="select td-week-menu-select"

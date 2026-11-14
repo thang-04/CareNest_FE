@@ -59,8 +59,34 @@
 .dd-reception__table thead th {
   position: sticky;
   top: 0;
-  z-index: 1;
-  background: var(--color-surface);
+  z-index: var(--z-base);
+  background: var(--table-header-bg);
+}
+/* Bảng cuộn có tiêu đề dính (.dd-roll): viền tách, mỗi ô tự vẽ cạnh phải và dưới để viền tiêu đề đi theo khi cuộn,
+   vẫn một nét mỗi cạnh như bảng kẻ ô thường */
+.dd-reception__table .dd-roll,
+.dd-hist .dd-roll {
+  border: 0;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+.dd-reception__table .dd-roll tr > th,
+.dd-hist .dd-roll tr > th,
+.dd-reception__table .dd-roll tr > td,
+.dd-hist .dd-roll tr > td,
+.dd-reception__table .dd-roll tbody tr:last-child > td,
+.dd-hist .dd-roll tbody tr:last-child > td {
+  border-width: 0 1px 1px 0;
+}
+.dd-reception__table .dd-roll tr > :first-child,
+.dd-hist .dd-roll tr > :first-child,
+.dd-reception__table .dd-roll tbody tr:last-child > td:first-child,
+.dd-hist .dd-roll tbody tr:last-child > td:first-child {
+  border-left-width: 1px;
+}
+.dd-reception__table .dd-roll thead th,
+.dd-hist .dd-roll thead th {
+  border-top-width: 1px;
 }
 .dd-reception__table .table {
   width: 100%;
@@ -70,6 +96,11 @@
 }
 .dd-reception__col-status {
   width: calc(var(--space-16) * 2.625); /* đủ badge có icon "Chưa điểm danh" */
+}
+/* Cột Điểm danh: tiêu đề và nút Có mặt / Vắng cùng căn giữa */
+.dd-reception__table th.dd-reception__col-status,
+.dd-reception__table td:last-child {
+  text-align: center;
 }
 .dd-reception__table td:first-child {
   min-width: 0;
@@ -361,48 +392,8 @@
 }
 .dd-stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: var(--space-3);
-}
-.dd-stat {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: var(--space-3) var(--space-4);
-  /* Nền một màu phủ cả thẻ theo tone (không dùng vạch trái) */
-  background: var(--primary-50);
-  border: 1px solid var(--color-primary-border);
-  border-radius: var(--radius-lg);
-}
-.dd-stat--green {
-  background: var(--success-50);
-  border-color: var(--success-border);
-}
-.dd-stat--orange {
-  background: var(--warning-50);
-  border-color: var(--warning-border);
-}
-.dd-stat--red {
-  background: var(--danger-50);
-  border-color: var(--danger-border);
-}
-.dd-stat--gray {
-  background: var(--color-secondary);
-  border-color: var(--border);
-}
-.dd-stat--blue {
-  background: var(--color-info-bg);
-  border-color: var(--color-info-border);
-}
-.dd-stat__value {
-  font-size: var(--fs-h2);
-  font-weight: var(--fw-bold);
-  color: var(--text);
-  line-height: 1.2;
-}
-.dd-stat__label {
-  font-size: var(--fs-sm);
-  color: var(--text-2);
 }
 
 /* ---------- Attendance table ---------- */
@@ -597,6 +588,13 @@
   position: relative;
   max-height: calc(var(--space-16) * 6);
   overflow: auto;
+}
+/* Lịch sử sức khỏe cuộn trong khung: tiêu đề đứng yên như bảng điểm danh */
+.dd-hist thead th {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-base);
+  background: var(--table-header-bg);
 }
 .dd-hist tr.dd-hist__latest td {
   background: var(--color-primary-soft);

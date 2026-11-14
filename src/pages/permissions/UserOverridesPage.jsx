@@ -92,14 +92,13 @@ export default function UserOverridesPage() {
             Giáo viên được cấp thêm (+) hoặc thu hồi (-) quyền so với mặc định. Phó hiệu trưởng giao việc ở màn Phân công Phó hiệu trưởng.
           </p>
         </div>
-      </div>
-      <PermissionTabs
-        actions={
+        <div className="page__actions">
           <button className="btn btn--primary" type="button" onClick={() => setWizardStaff({})}>
             <Plus size={16} /> Thêm ngoại lệ cho nhân sự
           </button>
-        }
-      />
+        </div>
+      </div>
+      <PermissionTabs />
 
       {targetId && (
         <div className="alert alert--info">

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Cổng design system (DESIGN.md §13.1): đếm vi phạm theo từng file, so với scripts/design-baseline.json.
-// File vượt baseline hoặc file mới có vi phạm ⇒ exit 1. Sửa bớt nợ ⇒ chạy `--update` để hạ baseline (không dùng để nâng).
+// File vượt baseline hoặc file mới có vi phạm ⇒ exit 1. Sửa bớt nợ ⇒ chạy `--update` để hạ baseline; `--update` từ chối nâng.
+// Vi phạm cũ được giữ nguyên trong baseline (không bắt sửa hàng loạt); code mới phải dùng component/token chung (docs/design/UI_CARD.md).
 // Dùng: node scripts/check-design.mjs [--update] [--root <dir>]
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
@@ -26,6 +27,90 @@ export const CHECKS = {
     skip: /^$/,
     re: /style=\{\{/g,
   },
+  rawButton: {
+    label: "<button> viết tay — dùng <Button> từ @/components",
+    ext: /\.jsx$/,
+    skip: /^components\/(ui|form)\//,
+    re: /<button\b/g,
+  },
+  rawTable: {
+    label: "<table> viết tay — dùng <DataTable> từ @/components",
+    ext: /\.jsx$/,
+    skip: /^components\/ui\//,
+    re: /<table\b/g,
+  },
+  rawField: {
+    label: "<input>/<select>/<textarea> viết tay — dùng TextField/SelectField/TextAreaField hoặc FormField",
+    ext: /\.jsx$/,
+    skip: /^components\/(ui|form)\//,
+    re: /<(?:input|select|textarea)\b/g,
+  },
+  clickableDiv: {
+    label: "onClick trên phần tử không phải nút — dùng <Button> hoặc clickableRowProps (bàn phím)",
+    ext: /\.jsx$/,
+    skip: /^$/,
+    re: /<(?:div|span|tr|td|li|img)\b[^<>]*\bonClick=/g,
+  },
+  sharedOverride: {
+    label: "CSS module đè class chung .btn/.card/.table/.modal — thêm biến thể vào phần chung hoặc dùng class có tiền tố module",
+    ext: /\.css$/,
+    // CSS chung (styles/*.css, layouts) được định nghĩa các class này
+    skip: /^(styles\/(?!modules\/)|layouts\/)/,
+    re: /\.(?:btn|card|table|modal)(?![\w-])/g,
+  },
+  spacingPx: {
+    label: "padding/margin/gap bằng px — dùng var(--space-*)",
+    ext: /\.css$/,
+    skip: /(^|\/)styles\/tokens\.css$/,
+    re: /(?:padding|margin|gap)[a-z-]*: *[^;{}]*?\b[1-9]\d*px/g,
+  },
+  zIndex: {
+    label: "z-index số cứng — dùng var(--z-*)",
+    ext: /\.css$/,
+    skip: /(^|\/)styles\/tokens\.css$/,
+    re: /z-index: *\d+/g,
+  },
+  primitiveToken: {
+    label: "token nguyên thủy (--blue-700…) — dùng token semantic",
+    ext: /\.(css|jsx?)$/,
+    skip: /(^|\/)styles\/tokens\.css$/,
+    re: /var\(--(?:blue|gray|green|red|amber|coral|gold|grass|lavender|leaf|mint|neutral|pink|purple|skin|sky|sun|teal|wood)-\d+\)/g,
+  },
+  crossCssImport: {
+    label: "import CSS module của module khác — class dùng chung thì đưa vào styles/components.css",
+    ext: /\.jsx?$/,
+    skip: /^$/,
+    // Chỉ xét file nằm trong thư mục module (pages|components|hooks/<module>/…); CSS cùng tiền tố tên module là hợp lệ
+    count(text, inSrc) {
+      const mod = inSrc.match(/^(?:pages|components|hooks)\/([^/]+)\/.+/)?.[1];
+      if (!mod) return 0;
+      return [...text.matchAll(/styles\/modules\/([\w-]+)\.css/g)].filter((m) => !m[1].startsWith(mod) && !mod.startsWith(m[1])).length;
+    },
+  },
+  handTablist: {
+    label: 'role="tablist" viết tay — dùng <Tabs> từ @/components/ui/Tabs',
+    ext: /\.jsx$/,
+    skip: /^components\/ui\//,
+    re: /role="tablist"/g,
+  },
+  stickyActions: {
+    label: "thanh nút dính đáy (.page-actions--sticky) — nút Lưu theo loại màn (DESIGN §6.3): hàng nút cuối, màn dài thêm nút đầu trang",
+    ext: /\.jsx$/,
+    skip: /^$/,
+    re: /page-actions--sticky/g,
+  },
+  directExport: {
+    label: "xuất Excel thẳng (downloadXlsx) — dùng exportWithPreview để người dùng xem trước",
+    ext: /\.jsx$/,
+    skip: /^components\/ui\//,
+    re: /\bdownloadXlsx\(/g,
+  },
+  localDateHelper: {
+    label: "tự viết addDays/toIso/todayIso — thêm một lần vào utils/format.js rồi dùng chung",
+    ext: /\.jsx?$/,
+    skip: /^utils\/format\.js$/,
+    re: /\b(?:function|const)\s+(?:addDays|toIso|todayIso)\b/g,
+  },
 };
 
 const walk = (dir) =>
@@ -45,7 +130,7 @@ export function measure(root) {
     for (const [key, check] of Object.entries(CHECKS)) {
       if (!check.ext.test(rel) || check.skip.test(inSrc)) continue;
       text ??= readFileSync(abs, "utf8");
-      const count = (text.match(check.re) || []).length;
+      const count = check.count ? check.count(text, inSrc) : (text.match(check.re) || []).length;
       if (count) result[key][rel] = count;
     }
   }
@@ -71,6 +156,15 @@ function main(argv) {
   const baselinePath = join(root, "scripts", "design-baseline.json");
   const current = measure(root);
   if (argv.includes("--update")) {
+    // Chỉ hạ: loại kiểm tra đã có trong baseline mà file vượt mức ⇒ từ chối (loại kiểm tra mới thì ghi mức hiện tại làm mốc)
+    const old = existsSync(baselinePath) ? JSON.parse(readFileSync(baselinePath, "utf8")) : {};
+    const known = Object.fromEntries(Object.entries(current).filter(([key]) => old[key]));
+    const raised = compare(known, old);
+    if (raised.length) {
+      console.log(`check-design: --update từ chối nâng baseline (${raised.length} file vượt mức):`);
+      for (const p of raised.slice(0, 15)) console.log(`  ${p}`);
+      return 1;
+    }
     writeFileSync(baselinePath, `${JSON.stringify(current, null, 2)}\n`);
     console.log(`check-design: đã ghi baseline (${Object.entries(current).map(([k, v]) => `${k} ${total(v)}`).join(" · ")})`);
     return 0;
@@ -81,7 +175,7 @@ function main(argv) {
   if (problems.length) {
     console.log(`check-design: FAIL · ${summary}`);
     for (const p of problems.slice(0, 15)) console.log(`  ${p}`);
-    console.log("  Dùng token / class chung (DESIGN.md §2–3, §6.3). Sửa bớt nợ ⇒ node scripts/check-design.mjs --update");
+    console.log("  Dùng component / token chung (docs/design/UI_CARD.md). Sửa bớt nợ ⇒ node scripts/check-design.mjs --update");
     return 1;
   }
   console.log(`check-design: ok · ${summary} (hiện tại/baseline)`);

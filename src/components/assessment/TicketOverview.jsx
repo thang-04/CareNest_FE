@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ArrowLeft, Download } from '@/components/ui/icons';
-import { RowActions } from '@/components/ui/RowActions';
+import { clickableRowProps } from '@/utils/clickableRow';
 import { Pagination, paginate } from '@/components/ui/Pagination';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { TicketSummary } from '@/components/assessment/TicketSummary';
@@ -56,7 +56,7 @@ export function TicketOverview() {
     exportWithPreview(
       [
         [`Phiếu bé ngoan các lớp – ${rangeText}`],
-        ['Điểm trường', 'Lớp', 'Sĩ số', 'Bé ngoan', 'Bé ngoan toàn diện', 'Trẻ có phiếu'],
+        ['Điểm trường', 'Lớp', 'Sĩ số', 'Phiếu bé ngoan (tuần)', 'Phiếu bé ngoan toàn diện (tháng)', 'Trẻ có phiếu'],
         ...rows.map((r) => [campusName(r.campusId), r.className, r.children, r.weekly, r.monthly, r.withTicket]),
       ],
       `phieu-be-ngoan-cac-lop-${month || 'nam-hoc'}.xlsx`,
@@ -70,7 +70,7 @@ export function TicketOverview() {
             <option value="">Tất cả điểm trường</option>
             {overview.campuses.map((c) => (
               <option key={c.id} value={c.id}>
-                {c.name}
+                {c.fullName || c.name}
               </option>
             ))}
           </select>
@@ -100,24 +100,23 @@ export function TicketOverview() {
                 <th>Lớp</th>
                 {multiCampus && <th>Điểm trường</th>}
                 <th className="num">Sĩ số</th>
-                <th className="num">Bé ngoan</th>
-                <th className="num">Bé ngoan toàn diện</th>
+                <th className="num">Phiếu bé ngoan (tuần)</th>
+                <th className="num">Phiếu bé ngoan toàn diện (tháng)</th>
                 <th className="num">Trẻ có phiếu</th>
-                <th className="cell--actions">Thao tác</th>
               </tr>
             </thead>
             <tbody>
               {loading || !overview ? (
-                <SkeletonRows rows={5} cols={multiCampus ? 7 : 6} />
+                <SkeletonRows rows={5} cols={multiCampus ? 6 : 5} />
               ) : rows.length === 0 ? (
                 <tr>
-                  <td colSpan={multiCampus ? 7 : 6}>
+                  <td colSpan={multiCampus ? 6 : 5}>
                     <EmptyState title="Không có lớp trong phạm vi" />
                   </td>
                 </tr>
               ) : (
                 paginate(rows, Math.min(page, Math.max(1, Math.ceil(rows.length / PAGE))), PAGE).map((r) => (
-                  <tr key={r.classId}>
+                  <tr key={r.classId} className="row-click" {...clickableRowProps(() => setClassId(r.classId))}>
                     <td className="fw-600">{r.className}</td>
                     {multiCampus && <td>{campusName(r.campusId)}</td>}
                     <td className="num">{r.children}</td>
@@ -125,9 +124,6 @@ export function TicketOverview() {
                     <td className={`num ${r.monthly ? 'fw-600' : 'muted'}`}>{r.monthly}</td>
                     <td className="num">
                       {r.withTicket}/{r.children}
-                    </td>
-                    <td className="cell--actions">
-                      <RowActions view={{ label: 'Xem từng trẻ', onClick: () => setClassId(r.classId) }} name={r.className} />
                     </td>
                   </tr>
                 ))

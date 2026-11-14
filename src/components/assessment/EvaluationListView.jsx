@@ -9,7 +9,8 @@ import { useFilterParams } from '@/hooks/useFilterParams';
 import { SCHOOL_CONFIG_API } from '@/config/env';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { Pagination, paginate } from '@/components/ui/Pagination';
-import { RowActions } from '@/components/ui/RowActions';
+import { Tabs } from '@/components/ui/Tabs';
+import { clickableRowProps } from '@/utils/clickableRow';
 import { ChildNameCell, childOfRow } from '@/components/assessment/ChildNameCell';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { FilterChips } from '@/components/ui/FilterChips';
@@ -70,7 +71,11 @@ export function EvaluationListView({ kind }) {
   const campusClasses = scopedClasses.filter((c) => !campusId || String(c.campusId) === campusId);
   const groupOptions = (ageGroups || []).filter((g) => campusClasses.some((c) => String(c.ageGroupId) === String(g.id)));
   const classOptions = campusClasses.filter((c) => !ageGroupId || String(c.ageGroupId) === ageGroupId);
-  const selectedClass = classOptions.find((c) => String(c.classId ?? c.id) === classId);
+  // Tổ trưởng / GV vào thẳng lớp mình đang dạy (Cần chốt 10/11/2026); HT, PHT vẫn tự chọn điểm trường, lớp
+  const ownClass =
+    pickYearEndClass && !leader ? classOptions.find((c) => c.teaches) || (classOptions.length === 1 ? classOptions[0] : null) : null;
+  const shownClassId = classId || (ownClass ? String(ownClass.classId ?? ownClass.id) : '');
+  const selectedClass = classOptions.find((c) => String(c.classId ?? c.id) === shownClassId);
   const evaluationClassId = pickYearEndClass ? (selectedClass?.classId ?? selectedClass?.id) : classId;
   const yearEndReadOnly = pickYearEndClass && (leader || (SCHOOL_CONFIG_API && !selectedClass?.teaches));
   const periodType = defaultPeriodType;
@@ -171,7 +176,9 @@ export function EvaluationListView({ kind }) {
   // Tổ trưởng (GV) thấy đánh giá cuối năm của nhiều lớp trong tổ: hiện cột và ô lọc Lớp như BGH
   const showClass = leader || !!classId || new Set(evaluations.map((e) => e.classId)).size > 1;
   const showFlags = !leader && !yearEnd;
-  const cols = 5 + (showClass ? 1 : 0) + (showFlags ? 1 : 0);
+  // Cột Thao tác chỉ có nút "Xem xét" của giáo viên; tổ trưởng trở lên chỉ xem nên không có cột này
+  const showActions = !leader;
+  const cols = 4 + (showClass ? 1 : 0) + (showFlags ? 1 : 0) + (showActions ? 1 : 0);
   const link = (e) => `/assessment/${kind}/${e.id}`;
 
   // Đánh giá tháng: nhận xét chung của lớp cho tháng đang xem (GV lớp mình; BGH khi đã chọn lớp)
@@ -183,19 +190,12 @@ export function EvaluationListView({ kind }) {
       {monthKey && commentClassId && <ClassMonthlyCommentCard classId={commentClassId} month={monthKey} />}
       <div className="card">
         {tabs.length > 0 && (
-          <div className="tabs" role="tablist">
-            {tabs.map((t) => (
-              <button
-                key={t.key}
-                role="tab"
-                aria-selected={tab === t.key}
-                className={`tab ${tab === t.key ? 'tab--active' : ''}`}
-                onClick={() => applyFilters({ tab: t.key })}
-              >
-                {t.label} <span className="tab__count">{base.filter(t.match).length}</span>
-              </button>
-            ))}
-          </div>
+          <Tabs
+            items={tabs.map((t) => ({ key: t.key, label: t.label, count: base.filter(t.match).length }))}
+            value={tab}
+            onChange={(key) => applyFilters({ tab: key })}
+            ariaLabel="Lọc theo trạng thái"
+          />
         )}
         <div className="filter-bar">
           {pickYearEndClass && (
@@ -227,7 +227,7 @@ export function EvaluationListView({ kind }) {
                 <select
                   className="select"
                   aria-label="Lớp"
-                  value={selectedClass ? classId : ''}
+                  value={selectedClass ? shownClassId : ''}
                   disabled={classScope.loading || !classOptions.length}
                   onChange={(e) => applyFilters({ classId: e.target.value, tab: 'ALL' })}
                 >
@@ -236,6 +236,7 @@ export function EvaluationListView({ kind }) {
                     <option key={c.classId ?? c.id} value={c.classId ?? c.id}>
                       {c.name}
                       {!campusId && campusOptions.length > 1 && campusName(c.campusId) ? ` · ${campusName(c.campusId)}` : ''}
+                      {!leader && c.teaches === false ? ' (chỉ xem)' : ''}
                     </option>
                   ))}
                 </select>,
@@ -329,8 +330,8 @@ export function EvaluationListView({ kind }) {
         ) : error ? (
           <ErrorState error={error} onRetry={reload} />
         ) : (
-          <div className="table-wrap">
-            <table className="table table--grid">
+          <div className="table-wrap dg-roll-wrap">
+            <table className="table table--grid dg-roll">
               <thead>
                 <tr>
                   <th>Trẻ</th>
@@ -339,7 +340,7 @@ export function EvaluationListView({ kind }) {
                   {showFlags && <th className="center">Cờ bé ngoan</th>}
                   <th className="center">Trạng thái</th>
                   <th>Cập nhật</th>
-                  <th className="cell--actions">Thao tác</th>
+                  {showActions && <th className="cell--actions">Thao tác</th>}
                 </tr>
               </thead>
               <tbody>
@@ -357,7 +358,7 @@ export function EvaluationListView({ kind }) {
                             : filtered
                               ? 'Không có hồ sơ nào trong phạm vi hoặc kỳ đã chọn.'
                               : yearEnd
-                                ? 'Bản nháp cuối năm được tạo từ ngày 1 tháng cuối của năm học.'
+                                ? 'Bản nháp cuối năm được tạo khi học kỳ II kết thúc.'
                                 : semester
                                   ? 'Bản nháp được tạo khi học kỳ kết thúc. Nếu học kỳ đã kết thúc mà chưa có, kiểm tra ngày học kỳ ở Cấu hình thời gian.'
                                   : 'Bản nháp được tạo tự động khi tháng kết thúc.'
@@ -376,7 +377,7 @@ export function EvaluationListView({ kind }) {
                   paginate(rows, page).map((e) => {
                     const todo = !leader && !yearEndReadOnly && e.status !== EVAL_STATUS.CONFIRMED;
                     return (
-                      <tr key={e.id} className="row-click" onClick={() => navigate(link(e))}>
+                      <tr key={e.id} className="row-click" {...clickableRowProps(() => navigate(link(e)))}>
                         <td>
                           <ChildNameCell child={childOfRow(e)} />
                         </td>
@@ -398,15 +399,15 @@ export function EvaluationListView({ kind }) {
                         <td className="nowrap text-sm">
                           {formatDateTime(e.confirmedAt || e.aiDraft?.generatedAt || e.history.at(-1)?.at)}
                         </td>
-                        <td className="cell--actions" onClick={(ev) => ev.stopPropagation()}>
-                          {todo ? (
-                            <button className="btn btn--primary btn--sm" onClick={() => navigate(link(e))}>
-                              <FileCheck2 size={15} /> Xem xét
-                            </button>
-                          ) : (
-                            <RowActions view={{ to: link(e), label: 'Xem đánh giá' }} name={e.childName} />
-                          )}
-                        </td>
+                        {showActions && (
+                          <td className="cell--actions" onClick={(ev) => ev.stopPropagation()}>
+                            {todo && (
+                              <button className="btn btn--primary btn--sm" onClick={() => navigate(link(e))}>
+                                <FileCheck2 size={15} /> Xem xét
+                              </button>
+                            )}
+                          </td>
+                        )}
                       </tr>
                     );
                   })

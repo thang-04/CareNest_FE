@@ -86,7 +86,11 @@ export const INTEGRATION_MODULES = {
   'education-plan': {
     source: 'api',
     routes: ['/education'],
-    files: ['src/services/education-plan/api/educationPlanApi.js', 'src/services/education-plan/learningResourceService.js'],
+    files: [
+      'src/services/education-plan/api/educationPlanApi.js',
+      'src/services/education-plan/learningResourceService.js',
+      'src/services/education-plan/resourceLibraryService.js',
+    ],
     pending: [
       'GET /education-plans/curriculum/{x}',
       'PUT /education-plans/themes/{x}',
@@ -116,10 +120,15 @@ export const INTEGRATION_MODULES = {
     files: ['src/services/schoolService.js'],
     facades: ['src/services/schoolService.js'],
   },
+  // Hồ sơ trẻ, sức khỏe trên BE (nhánh G94-180): plan docs/plans/active/2026-11-11-children-module-be-wiring.md
   children: {
-    source: 'demo',
+    source: 'api',
     routes: ['/children'],
-    files: ['src/services/children/api/childrenApi.js', 'src/services/children/api/healthCheckApi.js'],
+    files: [
+      'src/services/children/api/childrenApi.js',
+      'src/services/children/api/healthCheckApi.js',
+      'src/services/http/schoolYearIds.js',
+    ],
     facades: ['src/services/children/childrenService.js', 'src/services/children/healthCheckService.js'],
   },
   pickup: {
@@ -185,9 +194,9 @@ export const INTEGRATION_MODULES = {
     files: ['src/services/menu-planning/api/menuPlanningApi.js'],
     facades: ['src/services/menu-planning/menuPlanningService.js'],
   },
-  // Kiểm thực ba bước M1–M3 (PHT điền, ký ảnh): BE chưa có API ⇒ demo
+  // Biên bản kiểm thực M1–M3 và soát sổ lưu mẫu M5 (PHT điền, ký ảnh) trên BE /inspections/*
   'kitchen-inspection': {
-    source: 'demo',
+    source: 'api',
     routes: ['/kitchen/inspections'],
     files: ['src/services/kitchen/api/inspectionApi.js'],
     facades: ['src/services/kitchen/inspectionService.js'],
@@ -206,14 +215,15 @@ export const INTEGRATION_MODULES = {
     facades: ['src/services/kitchen/kitchenService.js'],
   },
   notifications: {
-    source: 'demo',
+    // Spec 003: thông báo kế hoạch giáo dục từ BE (GET /me/notifications)
+    source: 'api',
     routes: ['/notifications'],
     files: ['src/services/notificationService.js'],
     facades: ['src/services/notificationService.js'],
   },
-  // Nhãn ở SignaturePicker (dùng trong màn kế hoạch giáo dục)
+  // Chữ ký ảnh của tài khoản trên BE /signatures/me (SIG-01); biên bản kiểm thực ký bằng id chữ ký này
   signatures: {
-    source: 'demo',
+    source: 'api',
     files: ['src/services/signatureService.js'],
     facades: ['src/services/signatureService.js'],
   },

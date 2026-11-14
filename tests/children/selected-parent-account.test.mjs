@@ -6,6 +6,7 @@ globalThis.window = new EventTarget();
 const { readDb, writeDb, resetDb } = await import('@/mocks/mockDatabase');
 const { childrenMockRepository: children, ensureChildRecordsSeeded } = await import('@/services/children/mock/childrenMockRepository');
 const { guardianMockRepository: accounts } = await import('@/services/account/mock/guardianMockRepository');
+const { activateChosenGuardian } = await import('@/services/account/guardianService');
 const { emptyChildInfo, emptyDeclaration } = await import('@/utils/children/childrenHelpers');
 const { readEnrollmentCsv } = await import('@/services/children/mock/enrollmentImport');
 const { IMPORT_COLUMNS } = await import('@/models/children/childrenConstants');
@@ -45,6 +46,29 @@ test('Excel: chỉ lưu hồ sơ, người được chọn kích hoạt sau; ch�
   assert.equal(readDb().parentAccounts.length, count + 1);
   assert.deepEqual(await accounts.activateGuardians(imported.ids[0], VP, next.id), []);
   await assert.rejects(accounts.selectAccountRecipient(imported.ids[0], old.id, VP), e => e.status === 409);
+});
+test('hộp thoại: kích hoạt thẳng người đang chọn ở dropdown; khác người nhận đã lưu thì đổi người nhận trước', async () => {
+  const count = readDb().parentAccounts.length;
+  const imported = await children.importChildren([payload([parent(1),parent(2,true)])], VP);
+  const childId = imported.ids[0];
+  const contacts = await accounts.getAccountCandidates(childId, VP);
+  const saved = contacts.find(g => g.accountRecipient);
+  const other = contacts.find(g => !g.accountRecipient);
+  const [result] = await activateChosenGuardian(childId, other.id, saved.id, VP);
+  assert.equal(result.username, parent(1).phone);
+  assert.equal(readDb().parentAccounts.length, count + 1);
+  const after = await accounts.getAccountCandidates(childId, VP);
+  assert.equal(after.find(g => g.accountRecipient).id, other.id);
+});
+test('hộp thoại: chọn đúng người nhận đã lưu thì chỉ kích hoạt, không ghi lịch sử đổi người nhận', async () => {
+  const imported = await children.importChildren([payload([parent(1),parent(2,true)])], VP);
+  const childId = imported.ids[0];
+  const saved = (await accounts.getAccountCandidates(childId, VP)).find(g => g.accountRecipient);
+  const history = () => (readDb().children.find(c => c.id === childId).history || []).length;
+  const before = history();
+  const [result] = await activateChosenGuardian(childId, saved.id, saved.id, VP);
+  assert.equal(result.username, parent(2).phone);
+  assert.equal(history(), before);
 });
 test('CSV: đọc riêng nhóm phụ huynh 2, 3 và CCCD chọn; file cũ một người vẫn dùng được', () => {
   const raw = { fullName:'Trẻ CSV',dateOfBirth:'05/05/2023',gender:'Nam',guardianName:'Mẹ CSV',relation:'Mẹ',phone:parent(1).phone,guardianIdNumber:parent(1).idNumber,guardianName2:'Bố CSV',relation2:'Bố',phone2:parent(2).phone,guardianIdNumber2:parent(2).idNumber,accountRecipientIdNumber:parent(2).idNumber,...filledImportColumns() };
