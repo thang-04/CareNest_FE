@@ -81,7 +81,8 @@ export default function DailyAssessmentPage() {
     setSaveError(null);
   };
 
-  const classCommentTooLong = classComment.length > CLASS_COMMENT_MAX;
+  // BE cắt khoảng trắng đầu / cuối rồi mới đếm
+  const classCommentTooLong = classComment.trim().length > CLASS_COMMENT_MAX;
   const save = async () => {
     if (saving || !writable || loading || classesLoading || error || !canSave || classCommentTooLong) return false;
     setSaving(true);
