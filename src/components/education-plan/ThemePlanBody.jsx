@@ -3,26 +3,20 @@ import { Card } from '@/components/education-plan/eduUi';
 import { Cell, focusCell } from '@/components/education-plan/planUi';
 import { domainLabel } from '@/models/education-plan/educationPlanConstants';
 import { domainRoman, mtList, numberGoals } from '@/models/education-plan/goalTable';
-import {
-  cardText,
-  contentLinesOf,
-  newCard,
-  normalizeTheme,
-  slotLabel,
-  themeGoalBlocks,
-  weekRows,
-} from '@/models/education-plan/classPlan';
+import { cardText, contentLinesOf, newCard, normalizeTheme, slotLabel, themeGoalBlocks, weekRows } from '@/models/education-plan/classPlan';
 import { mapActivityCards } from '@/models/education-plan/activityImport.mjs';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { createPortal } from 'react-dom';
 import { Adjustments, Check, Download, Plus, RotateCcw, Sparkles, X } from '@/components/ui/icons';
 import { RowMenu } from '@/components/ui/RowMenu';
+import { ActionsMenu } from '@/components/education-plan/reviewUi';
 import { Modal } from '@/components/ui/Modal';
 import { AiDraftTag } from '@/components/ui/AiDraftTag';
 import { AiWorkingOverlay } from '@/components/ui/AiWorkingOverlay';
 import ImportActivitiesModal from '@/components/education-plan/ImportActivitiesModal';
 import ThemeGoalPickerModal from '@/components/education-plan/ThemeGoalPickerModal';
 import ActivityCardEditor from '@/components/education-plan/ActivityCardEditor';
+import { Button, SelectField, TextField } from '@/components';
 
 /**
  * Dòng của một mục tiêu. Nội dung giáo dục do Phó HT / Tổ trưởng lập ở kế hoạch năm (các nội dung đã tích cho chủ đề),
@@ -195,7 +189,7 @@ export function ThemePlanBody({
               {goals.length > 0 && (
                 <label className="row row--middle gap-2 text-sm" title="Loại giờ gán cho hoạt động gõ nhanh trong bảng">
                   <span className="nowrap">Gõ nhanh:</span>
-                  <select
+                  <SelectField
                     className="input"
                     aria-label="Loại giờ khi gõ nhanh"
                     value={lastSlot}
@@ -207,7 +201,7 @@ export function ThemePlanBody({
                         {r.label}
                       </option>
                     ))}
-                  </select>
+                  </SelectField>
                 </label>
               )}
               {hasCustomTicks && (
@@ -221,11 +215,7 @@ export function ThemePlanBody({
             toolsTarget &&
             (loadPreviousActivities || suggestActivities) &&
             createPortal(
-              <RowMenu
-                label="Lấy và gợi ý hoạt động"
-                text="Lấy / gợi ý"
-                icon={<Download size={16} aria-hidden />}
-                className="btn btn--sm btn--outline-primary"
+              <ActionsMenu
                 items={[
                   ...(loadPreviousActivities
                     ? [{ label: 'Lấy hoạt động năm trước', icon: Download, onClick: () => setImporting(true) }]
@@ -291,12 +281,12 @@ export function ThemePlanBody({
               onClose={() => dropAi(ai.items)}
               footer={
                 <>
-                  <button type="button" className="btn" onClick={() => dropAi(ai.items)}>
+                  <Button onClick={() => dropAi(ai.items)}>
                     <X size={16} aria-hidden /> Bỏ tất cả
-                  </button>
-                  <button type="button" className="btn btn--success" onClick={() => takeAi(ai.items)}>
+                  </Button>
+                  <Button variant="success" onClick={() => takeAi(ai.items)}>
                     <Check size={16} aria-hidden /> Dùng tất cả
-                  </button>
+                  </Button>
                 </>
               }
             >
@@ -313,12 +303,12 @@ export function ThemePlanBody({
                       <div className="ga-ai-review__name">
                         <ins>{it.name}</ins>
                       </div>
-                      <button type="button" className="icon-btn" aria-label={`Dùng gợi ý cho MT${g?.no}`} onClick={() => takeAi([it])}>
+                      <Button variant="icon" aria-label={`Dùng gợi ý cho MT${g?.no}`} onClick={() => takeAi([it])}>
                         <Check size={16} aria-hidden />
-                      </button>
-                      <button type="button" className="icon-btn" aria-label={`Bỏ gợi ý cho MT${g?.no}`} onClick={() => dropAi([it])}>
+                      </Button>
+                      <Button variant="icon" aria-label={`Bỏ gợi ý cho MT${g?.no}`} onClick={() => dropAi([it])}>
                         <X size={16} aria-hidden />
-                      </button>
+                      </Button>
                     </li>
                   );
                 })}
@@ -411,8 +401,7 @@ export function ThemePlanBody({
                           )}
                           {editable && (
                             <div className="ga-goal-table__pad row row--middle gap-1">
-                              <input
-                                className="input"
+                              <TextField
                                 name={`quick-activity-${g.id}`}
                                 autoComplete="off"
                                 aria-label={`Gõ nhanh hoạt động cho MT${g.no}`}
@@ -424,15 +413,14 @@ export function ThemePlanBody({
                                   }
                                 }}
                               />
-                              <button
-                                type="button"
-                                className="icon-btn"
+                              <Button
+                                variant="icon"
                                 title="Thêm hoạt động (chọn loại giờ, mục tiêu, nội dung)"
                                 aria-label={`Thêm hoạt động cho MT${g.no}`}
                                 onClick={() => setEditing({ card: null, goalIds: [g.id] })}
                               >
                                 <Plus size={16} aria-hidden />
-                              </button>
+                              </Button>
                             </div>
                           )}
                         </td>

@@ -69,8 +69,8 @@ test('ST-002-01 GVCN lưu được trang Dự kiến chủ đề - chủ đề n
   await expect(page.getByRole('button', { name: 'Chỉnh sửa' })).toBeVisible();
   await expect(page.getByText(value2).first()).toBeVisible();
   await expect(page.getByText('[E2E] sẽ bị hủy')).toHaveCount(0);
-  // Tab kiểu hiển thị nằm trên thẻ lọc; Xuất file ở thanh thao tác ghim
-  await expect(page.locator('.ga-sticky-head').getByRole('tab', { name: 'Bảng' })).toBeVisible();
+  // Kiểu hiển thị (Danh sách / Bảng) là ô chọn trong thẻ lọc (G94-278, 13/11/2026); Xuất file ở thanh thao tác ghim
+  await expect(page.locator('.ga-sticky-head').getByRole('combobox', { name: 'Kiểu hiển thị' })).toBeVisible();
   await expect(page.locator('.ga-sticky-head .ga-year-toolbar').getByRole('button', { name: 'Xuất file' })).toHaveCount(1);
 });
 

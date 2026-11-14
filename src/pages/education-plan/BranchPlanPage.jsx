@@ -46,6 +46,7 @@ import { checkFlag, dropReference, versionOf } from '@/models/education-plan/pla
 import DocPreviewModal from '@/components/education-plan/DocPreviewModal';
 import { ImportBranchFileModal } from '@/components/education-plan/ImportBranchFileModal';
 import { applyBranchFile, branchPayload } from '@/models/education-plan/importBranchFile.mjs';
+import { DocTable } from '@/components/ui/DocTable';
 
 /**
  * "Dự kiến chủ đề - chủ đề nhánh" theo mẫu MN Thái Dương.
@@ -527,9 +528,12 @@ function BranchPlanInner({ classId }) {
               </>
             )}
             {/* Xuất / in ở mọi bước; đã duyệt thì Phó HT in ra ký, giáo viên in để dùng hằng ngày */}
-            <button type="button" className="btn btn--sm btn--outline-primary" onClick={() => setPreview(branchFile(printArgs))}>
-              <FileDown size={16} aria-hidden /> Xuất file
-            </button>
+            {/* EDU-90: xuất file theo vai trò người tạo, BE trả cờ */}
+            {saved?.permissions?.canExport !== false && (
+              <button type="button" className="btn btn--sm btn--outline-primary" onClick={() => setPreview(branchFile(printArgs))}>
+                <FileDown size={16} aria-hidden /> Xuất file
+              </button>
+            )}
             {preview && <DocPreviewModal file={preview} onClose={() => setPreview(null)} />}
           </div>
         </div>
@@ -913,40 +917,38 @@ function BranchGridTable({ rows, names, branches }) {
   const { months } = branchGrid(rows, names, branches);
   if (!months.length) return <p className="muted">Kế hoạch năm chưa có chủ đề nào có ngày bắt đầu và kết thúc.</p>;
   return (
-    <div className="table-wrap">
-      <table className="table ga-plan-table ga-goal-table ga-branch-readonly ga-branch-grid-table">
-        <thead>
-          <tr>
-            <th scope="col">Tháng</th>
-            {Array.from({ length: 5 }, (_, i) => (
-              <th key={i} scope="col">
-                Tuần {i + 1}
-              </th>
+    <DocTable className="ga-plan-table ga-goal-table ga-branch-readonly ga-branch-grid-table">
+      <thead>
+        <tr>
+          <th scope="col">Tháng</th>
+          {Array.from({ length: 5 }, (_, i) => (
+            <th key={i} scope="col">
+              Tuần {i + 1}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {months.map(({ month, cells }) => (
+          <tr key={month}>
+            <th scope="row">{Number(month.slice(5))}</th>
+            {cells.map(({ slot, span, week, end, name }) => (
+              <td key={slot} colSpan={span}>
+                {week && (
+                  <div className="ga-goal-table__pad">
+                    {span > 1 && <div className="fw-600">Tuần {Array.from({ length: span }, (_, i) => slot + i).join(' + ')}</div>}
+                    <div className="text-xs text-primary">
+                      {ddmm(week.start)} đến {ddmm(end)}
+                    </div>
+                    <div className="text-xs muted">{week.theme.name}</div>
+                    {name || <span className="muted">Chưa đặt tên</span>}
+                  </div>
+                )}
+              </td>
             ))}
           </tr>
-        </thead>
-        <tbody>
-          {months.map(({ month, cells }) => (
-            <tr key={month}>
-              <th scope="row">{Number(month.slice(5))}</th>
-              {cells.map(({ slot, span, week, end, name }) => (
-                <td key={slot} colSpan={span}>
-                  {week && (
-                    <div className="ga-goal-table__pad">
-                      {span > 1 && <div className="fw-600">Tuần {Array.from({ length: span }, (_, i) => slot + i).join(' + ')}</div>}
-                      <div className="text-xs text-primary">
-                        {ddmm(week.start)} đến {ddmm(end)}
-                      </div>
-                      <div className="text-xs muted">{week.theme.name}</div>
-                      {name || <span className="muted">Chưa đặt tên</span>}
-                    </div>
-                  )}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+        ))}
+      </tbody>
+    </DocTable>
   );
 }

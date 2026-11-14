@@ -42,10 +42,7 @@ function Presentation() {
   const stage = useRef(null);
   const [fullError, setFullError] = useState('');
   const activities = useMemo(
-    () =>
-      dayContent
-        ? DAY_SECTIONS.map((s) => ({ key: s.key, label: s.label, text: sectionTitle(dayContent.sections?.[s.key]) }))
-        : [],
+    () => (dayContent ? DAY_SECTIONS.map((s) => ({ key: s.key, label: s.label, text: sectionTitle(dayContent.sections?.[s.key]) })) : []),
     [dayContent],
   );
   useEffect(() => {

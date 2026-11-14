@@ -88,7 +88,7 @@ test('ST-BRANCH-18 đổi nhánh thành hai tuần, gộp bảng và báo trùng
   await expect(page.getByText(/Đã lưu lúc/)).toBeVisible();
   await page.getByRole('button', { name: 'Hủy', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Chỉnh sửa', exact: true })).toBeVisible();
-  await page.getByRole('tab', { name: 'Bảng', exact: true }).click();
+  await page.getByRole('combobox', { name: 'Kiểu hiển thị' }).selectOption({ label: 'Bảng' });
   const merged = page.locator('.ga-branch-grid-table td').filter({ hasText: '[E2E] Nhánh hai tuần' });
   await expect(merged).toHaveAttribute('colspan', '2');
   await expect(merged).toContainText(dmy(addDays(start, 11)).slice(0, 5));

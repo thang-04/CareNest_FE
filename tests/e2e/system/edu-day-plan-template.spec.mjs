@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { api, beReachable, sql } from '../support/realBe.mjs';
-import { login, spaGo } from '../support/ui.mjs';
+import { actionCount, clickAction, login, spaGo } from '../support/ui.mjs';
 
 // System spec 005 (BE thật): giáo án ngày theo mẫu chung — 4 mục a/b/c, dòng gợi ý xóa được, phần II Đánh giá trẻ trên ngày,
 // bỏ ô "Kế hoạch điều chỉnh và bổ sung", gửi hồ sơ chủ đề thiếu mục ⇒ chữ đỏ, xuất file cả tuần.
@@ -169,8 +169,14 @@ test('ST-005-03 gửi hồ sơ chủ đề còn mục trống ⇒ chữ đỏ đ
     expect(res.status, res.desc).toBe(200);
     version = (await api(U.tl, 'GET', DOCS)).data.themeDossiers.find((d) => d.id === dossier.id).version;
   }
-  await openDay(page);
-  await page.getByRole('button', { name: 'Gửi duyệt hồ sơ chủ đề' }).click();
+  // Gửi duyệt hồ sơ chủ đề chỉ ở đầu thẻ chủ đề trang danh sách Kế hoạch giáo dục ngày (Tiền 14/11/2026)
+  await login(page, U.tl);
+  await spaGo(page, `/education/day-plans/${cls.id}?hk=2`);
+  const card = page
+    .locator('.card')
+    .filter({ has: page.locator(`a[href*="week=${week.weekStart}"]`) })
+    .first();
+  await clickAction(page, 'Gửi duyệt', card);
   const sent = page.waitForResponse((r) => r.url().includes(`${DOCS}/dossier/`) && r.url().endsWith('/actions'));
   await page.getByRole('dialog').getByRole('button', { name: 'Gửi duyệt' }).click();
   const res = await sent;
@@ -178,21 +184,21 @@ test('ST-005-03 gửi hồ sơ chủ đề còn mục trống ⇒ chữ đỏ đ
   const body = await res.json();
   expect(body.errorCode).toBe(7390);
   expect(body.data.details[0]).toMatchObject({ date: expect.any(String), section: expect.any(String) });
-  await expect(page.getByRole('alert').filter({ hasText: /Còn \d+ mục chưa có nội dung/ })).toBeVisible();
-  await expect(page.getByText('Mục này chưa có nội dung.').first()).toBeVisible();
+  await expect(card.getByRole('alert').filter({ hasText: /Còn \d+ mục chưa có nội dung/ })).toBeVisible();
 });
 
 test('ST-005-04 xuất file ở trang Giáo án ngày: một file cả tuần theo mẫu, không còn ô điều chỉnh', async ({ page }) => {
   test.skip(!week, 'Không có tuần HK2 chưa dạy');
   await openDay(page);
-  await page.getByRole('button', { name: 'Xuất file' }).click();
+  await clickAction(page, 'Xuất file');
   const preview = page.getByRole('dialog');
   await expect(preview).toBeVisible();
   const frame = preview.frameLocator('iframe').first();
   const root = (await preview.locator('iframe').count()) ? frame.locator('body') : preview;
-  await expect(root.getByText('I. Chuẩn bị').first()).toBeVisible();
-  await expect(root.getByText('I. Kế hoạch giáo dục ngày').first()).toBeVisible();
-  await expect(root.getByText('II. Đánh giá trẻ trên ngày').first()).toBeVisible();
+  // Mẫu "Chủ đề gia đình ký số" (EDU-21, Tiền 13/11/2026): I. Chuẩn bị, II. Tiến hành; mỗi ngày … Đánh giá trẻ trên ngày
+  await expect(root.getByText(/I\. Chuẩn bị/).first()).toBeVisible();
+  await expect(root.getByText(/II\. Tiến hành/).first()).toBeVisible();
+  await expect(root.getByText(/Đánh giá trẻ trên ngày/).first()).toBeVisible();
   await expect(root.getByText(/Kế hoạch điều chỉnh/)).toHaveCount(0);
 });
 
@@ -209,12 +215,13 @@ test('ST-005-05 kế hoạch tuần (chỉ xem trên trang ngày): Chuẩn bị 
 });
 
 // Tiền 12/11/2026: trang ngoài Kế hoạch giáo dục ngày như trang chủ đề nhưng chỉ có giáo án ngày
-test('ST-005-21 trang ngoài Kế hoạch giáo dục ngày: tab học kỳ, mỗi chủ đề có trạng thái + Gửi duyệt riêng, dòng "Nhánh n: …"', async ({
+test('ST-005-21 trang ngoài Kế hoạch giáo dục ngày: ô chọn học kỳ, mỗi chủ đề có trạng thái + Gửi duyệt riêng, dòng "Nhánh n: …"', async ({
   page,
 }) => {
   await login(page, U.tl);
   await spaGo(page, `/education/day-plans/${cls.id}`);
-  await expect(page.getByRole('tab', { name: /Học kỳ 1/ })).toBeVisible({ timeout: 30_000 });
+  // Học kỳ là ô chọn trong thẻ lọc (Tiền 13/11/2026), không còn tab
+  await expect(page.getByRole('combobox', { name: 'Học kỳ' })).toBeVisible({ timeout: 30_000 });
   const firstCard = page
     .locator('section.card')
     .filter({ has: page.locator('.ga-class-plan-table') })
@@ -223,5 +230,5 @@ test('ST-005-21 trang ngoài Kế hoạch giáo dục ngày: tab học kỳ, m�
   await expect(firstCard.locator('tbody tr').first()).toContainText(/^Nhánh /);
   await expect(page.locator('.ga-class-plan-table').getByText('Kế hoạch giáo dục chủ đề', { exact: true })).toHaveCount(0);
   await expect(page.getByText(/Kế hoạch tuần · nhánh/)).toHaveCount(0);
-  await expect(page.getByRole('button', { name: /Gửi duyệt học kỳ/ })).toHaveCount(0);
+  expect(await actionCount(page, /Gửi duyệt học kỳ/)).toBe(0);
 });

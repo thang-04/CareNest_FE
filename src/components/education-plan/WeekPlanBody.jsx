@@ -1,12 +1,12 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { createPortal } from 'react-dom';
-import { ArrowDown, ArrowUp, Check, Copy, Download, Plus, Sparkles, Trash2 } from '@/components/ui/icons';
-import { RowMenu } from '@/components/ui/RowMenu';
+import { Copy, Download, Plus, Sparkles, Trash2 } from '@/components/ui/icons';
+import { SortHandle, SortableList, SortableRow } from '@/components/ui/Sortable';
+import { moveItem } from '@/hooks/useSortableList';
 import { AiDraftTag } from '@/components/ui/AiDraftTag';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { suggestLessonSteps } from '@/services/education-plan/educationPlanService';
-import FloatingPanel from '@/components/education-plan/FloatingPanel';
 import { Card } from '@/components/education-plan/eduUi';
 import { Cell, focusCell } from '@/components/education-plan/planUi';
 import {
@@ -48,6 +48,8 @@ import {
   weekRows,
 } from '@/models/education-plan/classPlan';
 import { mtList } from '@/models/education-plan/goalTable';
+import { ActionsMenu } from '@/components/education-plan/reviewUi';
+import { SelectField } from '@/components';
 
 /**
  * Ô của kế hoạch tuần có gợi ý hoạt động từ kế hoạch chủ đề (lọc theo loại giờ của dòng). Chọn gợi ý thì ghi nội dung
@@ -67,24 +69,9 @@ function ActivityCell({
   children,
 }) {
   const ref = useRef(null);
-  const panelRef = useRef(null);
-  const [open, setOpen] = useState(false);
-  useEffect(() => {
-    if (!open) return undefined;
-    const onDown = (e) => {
-      if (!ref.current?.contains(e.target) && !panelRef.current?.contains(e.target)) setOpen(false);
-    };
-    const onKey = (e) => e.key === 'Escape' && setOpen(false);
-    document.addEventListener('mousedown', onDown);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', onDown);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [open]);
   const pickedIds = new Set(picks.map((p) => p.cardId ?? p.id));
   return (
-    <div ref={ref} className="ga-act-cell" onFocus={() => editable && suggestions.length > 0 && setOpen(true)}>
+    <div ref={ref} className="ga-act-cell">
       {children}
       {/* Nhãn MT và "Chưa gắn MT" cùng một kiểu nút, luôn ở góc trái dưới của ô (Tiền 20/10). Ô có chữ mà chưa gắn MT
           thì không có gì để đánh giá trẻ: bấm để mở gợi ý */}
@@ -94,7 +81,9 @@ function ActivityCell({
             // Chip của lượt xếp: MT theo thẻ (FR-019, FR-026); ô đỏ (BE:EDU-26) khi MT đổi / bị bỏ ở kế hoạch năm mới
             const goals = goalsOfPick(p);
             const flag = goals.map((g) => flagOf(g.id)).find(Boolean);
-            const cls = `btn ${flag ? 'btn--outline-danger' : goals.length ? 'btn--outline-primary' : 'btn--outline-danger'} btn--sm`;
+            // Mã MT: bấm được ⇒ chữ xanh gạch chân, chỉ xem ⇒ chữ xanh (Tiền 14/11/2026); cảnh báo giữ nút viền đỏ
+            const warn = !!flag || !goals.length;
+            const cls = warn ? 'btn btn--outline-danger btn--sm' : editable ? 'link-btn ga-mt-link' : 'ga-goal-code';
             const mts = goals.map((g) => `MT${g.no}`).join(', ');
             const label = flag ? `${flag.label} !` : mts || 'Chưa gắn MT';
             const key = `${p.cardId ?? p.id ?? 'typed'}-${i}`;
@@ -120,7 +109,7 @@ function ActivityCell({
               type="button"
               className="btn btn--sm btn--outline-danger"
               title="Chọn hoạt động từ gợi ý để ô nhớ MT (dùng cho kế hoạch ngày và đánh giá trẻ)"
-              onClick={() => ref.current?.querySelector('.ga-cell-input')?.focus()}
+              onClick={() => (ref.current?.querySelector('select') || ref.current?.querySelector('.ga-cell-input'))?.focus()}
             >
               Chưa gắn MT
             </button>
@@ -128,51 +117,55 @@ function ActivityCell({
           {/* FR-014: hoạt động gõ tay gắn MT bằng cách tạo thẻ, không chọn MT riêng tại ô */}
           {editable && onCreateCard && !picks.length && text?.trim() && (
             <button type="button" className="btn btn--sm btn--outline-primary" onClick={() => onCreateCard(text)}>
-              Tạo thẻ từ hoạt động này
+              Gán mục tiêu
             </button>
           )}
         </div>
       )}
       {changed && <div className="text-xs text-warning ga-goal-table__pad">Khác bản theo kỳ</div>}
-      {open && (
-        <FloatingPanel anchorRef={ref} panelRef={panelRef} minWidth={420}>
-          {/* Khung gợi ý (Tiền 21/10, phương án A): nhãn MT xanh dương, loại giờ chữ xám, tên hoạt động; đã chọn nền xanh lá + ✓,
-              bấm lại để bỏ chọn */}
-          <div className="card ga-sug-panel">
-            <div className="text-xs ga-sug-panel__hint">Chọn hoạt động cho ô (hoặc gõ tự do)</div>
-            <div className="search-select__list" role="listbox" aria-label="Gợi ý từ kế hoạch chủ đề">
-              {suggestions.map((a, i) => {
-                const picked = pickedIds.has(a.id);
-                const colon = a.text.indexOf(':');
-                return (
-                  <Fragment key={a.id}>
-                    {/* FR-019: thẻ khác loại giờ của dòng (cả thẻ "chưa rõ") ở nhóm "Khác" */}
-                    {a.other && !suggestions[i - 1]?.other && <div className="text-xs ga-sug-panel__hint">Khác</div>}
-                    <button
-                      type="button"
-                      role="option"
-                      aria-selected={picked}
-                      className={`ga-sug ${picked ? 'ga-sug--on' : ''}`}
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => (picked ? onUnpick(a.id) : onPick(a))}
-                    >
-                      <span className="ga-sug__mt">{a.goalNos?.length ? a.goalNos.map((n) => `MT${n}`).join(', ') : 'Chưa gắn MT'}</span>
-                      <span className="ga-sug__body">
-                        {colon > 0 && <span className="ga-sug__type">{a.text.slice(0, colon)}</span>}
-                        <span className="ga-sug__text">{activityBody(a.text)}</span>
-                      </span>
-                      {picked && <Check size={16} className="ga-sug__check" aria-hidden />}
-                    </button>
-                  </Fragment>
-                );
-              })}
-            </div>
-          </div>
-        </FloatingPanel>
+      {/* Gợi ý từ kế hoạch chủ đề là ô chọn mặc định (Tiền 13/11/2026, thay khung nổi 21/10): chọn = thêm vào ô, bỏ bằng nhãn MT ×.
+          Thẻ khác loại giờ của dòng (cả thẻ "chưa rõ") ở nhóm "Khác" (FR-019) */}
+      {editable && suggestions.length > 0 && (
+        <div className="ga-act-cell__foot">
+          <SelectField
+            value=""
+            aria-label="Chọn hoạt động từ kế hoạch chủ đề cho ô"
+            onChange={(e) => {
+              const a = suggestions.find((x) => String(x.id) === e.target.value);
+              if (a && !pickedIds.has(a.id)) onPick(a);
+            }}
+          >
+            <option value="">+ Chọn hoạt động từ kế hoạch chủ đề…</option>
+            {[
+              ['Cùng loại giờ', suggestions.filter((a) => !a.other)],
+              ['Khác', suggestions.filter((a) => a.other)],
+            ]
+              .filter(([, list]) => list.length)
+              .map(([group, list]) => (
+                <optgroup key={group} label={group}>
+                  {list.map((a) => (
+                    <option key={a.id} value={String(a.id)} disabled={pickedIds.has(a.id)}>
+                      {pickedIds.has(a.id) ? '✓ ' : ''}
+                      {a.goalNos?.length ? a.goalNos.map((n) => `MT${n}`).join(', ') : 'Chưa gắn MT'} · {a.text}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+          </SelectField>
+        </div>
       )}
     </div>
   );
 }
+
+/** Bỏ dòng đầu tiên trùng `line` (bỏ khoảng trắng hai đầu) khỏi ô chữ; không có dòng đó ⇒ null. */
+const dropLine = (text, line) => {
+  const lines = String(text || '').split('\n');
+  const i = lines.findIndex((l) => l.trim() && l.trim() === String(line || '').trim());
+  if (i < 0) return null;
+  lines.splice(i, 1);
+  return lines.join('\n');
+};
 
 /* Nội dung giáo án một tuần (kế hoạch tuần, kế hoạch ngày) dùng ở trang soạn và trang duyệt hồ sơ chủ đề. */
 
@@ -253,6 +246,7 @@ export function WeekTab({
   const corners0 = draft.corners || [];
   if (!cornerTrail.current || corners0.some((c) => c.id === cornerTrail.current)) cornerTrail.current = newCorner().id;
   const [focusCorner, setFocusCorner] = useState(null);
+  const [showEmptyCorners, setShowEmptyCorners] = useState(false);
   useEffect(() => {
     if (!focusCorner) return;
     document.querySelector(`[data-corner-id="${CSS.escape(focusCorner)}"] textarea`)?.focus();
@@ -304,7 +298,7 @@ export function WeekTab({
   };
   const moveCorner = (i, to) =>
     editCorners((d) => {
-      [d.corners[i], d.corners[to]] = [d.corners[to], d.corners[i]];
+      d.corners = moveItem(d.corners, i, to);
       return d;
     });
   const removeCorner = (id) =>
@@ -318,15 +312,28 @@ export function WeekTab({
       const list = ((d.picks ||= {})['goc.all'] ||= []);
       if (!list.some((p) => (p.cardId ?? p.id) === a.id && p.cornerId === id)) list.push(pickOf(a, id));
       const c = d.corners.find((x) => x.id === id);
-      if (c && !c.content?.trim()) c.content = activityBody(a.text);
+      // Chọn thêm hoạt động thì xuống dòng ghi tiếp, như ô bảng hoạt động (trước đây chỉ ghi khi ô trống)
+      const body = activityBody(a.text);
+      if (c && dropLine(c.content, body) == null) c.content = c.content?.trim() ? `${c.content}\n${body}` : body;
       return cornersToGrid(d);
     });
   const unpickCorner = (id, actId) =>
     rawUpdate((d) => {
-      d.picks['goc.all'] = (d.picks?.['goc.all'] || []).filter((p) => !((p.cardId ?? p.id) === actId && p.cornerId === id));
-      return d;
+      const list = d.picks?.['goc.all'] || [];
+      const p = list.find((x) => (x.cardId ?? x.id) === actId && x.cornerId === id);
+      d.picks['goc.all'] = list.filter((x) => x !== p);
+      // Bỏ MT thì bỏ luôn dòng hoạt động đã ghi khi chọn (dòng cô đã sửa thì giữ)
+      const c = d.corners.find((x) => x.id === id);
+      const next = p && c ? dropLine(c.content, activityBody(p.text)) : null;
+      if (next != null) c.content = next;
+      return cornersToGrid(d);
     });
   const corners = draft.corners || [];
+  // Chỉ xem: ẩn góc chưa có nội dung (cả bảng toàn "—"), bấm nút để hiện lại
+  const cornerFilled = (c) =>
+    ['content', 'aims', 'prep', 'steps'].some((f) => c[f]?.trim()) || (draft.picks?.['goc.all'] || []).some((p) => p.cornerId === c.id);
+  const emptyCorners = editable ? 0 : corners.filter((c) => !cornerFilled(c)).length;
+  const shownCorners = editable || showEmptyCorners ? corners : corners.filter(cornerFilled);
   const goalIds = new Set(goals.map((g) => g.id));
   const prevCorners = prevWeek?.corners?.length ? prevWeek : null;
   // Chọn gợi ý: ghi nội dung vào ô (dòng mới) và nhớ MT của hoạt động cho ô đó
@@ -355,8 +362,33 @@ export function WeekTab({
   const unpick = (r, day, id) =>
     rawUpdate((d) => {
       const key = cellKey(r.key, day);
-      d.picks = { ...(d.picks || {}), [key]: (d.picks?.[key] || []).filter((p) => (p.cardId ?? p.id) !== id) };
-      d.unlinked = { ...(d.unlinked || {}), [key]: [...new Set([...(d.unlinked?.[key] || []), id])] };
+      const p = (d.picks?.[key] || []).find((x) => (x.cardId ?? x.id) === id);
+      d.picks = { ...(d.picks || {}), [key]: (d.picks?.[key] || []).filter((x) => x !== p) };
+      // Bỏ MT thì bỏ luôn dòng hoạt động đã ghi khi chọn; dòng cô đã sửa thì giữ chữ và không tự gắn lại MT
+      const g = d.grid[r.key];
+      const body = p ? activityBody(p.text) : '';
+      let removed = false;
+      const drop = (obj, field, line) => {
+        const next = obj && !removed ? dropLine(obj[field], line) : null;
+        if (next != null) {
+          obj[field] = next;
+          removed = true;
+        }
+      };
+      if (g && body) {
+        if (day === 'all') drop(g, 'common', body);
+        else if (day === 'extra') drop(g, 'extra', body);
+        else if (r.key === 'hoc') {
+          const cell = g.days[day];
+          const colon = body.indexOf(':');
+          drop(cell, 'topic', body);
+          if (colon > 0) {
+            drop(cell, 'topic', body.slice(colon + 1).trim());
+            if (removed && !cell.topic?.trim() && cell.subject?.trim() === body.slice(0, colon).trim()) cell.subject = '';
+          }
+        } else drop(g.days, day, body);
+      }
+      if (!removed) d.unlinked = { ...(d.unlinked || {}), [key]: [...new Set([...(d.unlinked?.[key] || []), id])] };
       return d;
     });
   // FR-009: một thẻ xếp được nhiều ô, nhiều tuần nên luôn gợi ý đủ thẻ
@@ -380,6 +412,28 @@ export function WeekTab({
   });
   return (
     <>
+      {/* FR-022: dòng tổng phủ MT ở đầu tab tuần, phần còn thiếu tô màu cảnh báo (Tiền 13/11/2026) */}
+      {summary && (
+        <p className="text-sm">
+          Tuần này: {summary.week.placed} lượt xếp, phủ {summary.week.covered} MT
+          {summary.week.unlinked.length > 0 && `, ${summary.week.unlinked.length} ô gõ tay chưa gắn MT`} · Cả chủ đề: phủ{' '}
+          {summary.theme.covered}/{summary.theme.total} MT
+          {summary.theme.missing.length > 0 && (
+            <span className="text-warning">
+              {' '}
+              · còn thiếu{' '}
+              {/* Sang tab Bảng phủ MT qua guard của trang (hỏi khi còn thay đổi chưa lưu); điều hướng bằng nút, không đặt liên kết */}
+              {summary.onOpenCoverage ? (
+                <button type="button" className="link-btn ga-mt-link" onClick={summary.onOpenCoverage}>
+                  {mtList(summary.theme.missing.map((g) => g.no))}
+                </button>
+              ) : (
+                mtList(summary.theme.missing.map((g) => g.no))
+              )}
+            </span>
+          )}
+        </p>
+      )}
       <Section title="I. Mục đích yêu cầu">
         {/* Gợi ý ô Kiến thức từ câu MT của các hoạt động đã xếp trong tuần (chỉ khi ô còn trống), cô viết lại thành câu */}
         {editable && !draft.aims.knowledge?.trim() && weekAimsFromGoals(draft, goals, cards) && (
@@ -555,28 +609,6 @@ export function WeekTab({
             </tbody>
           </table>
         </div>
-        {/* FR-022: dòng tổng dưới bảng tuần */}
-        {summary && (
-          <p className="muted text-sm">
-            Tuần này: {summary.week.placed} lượt xếp, phủ {summary.week.covered} MT
-            {summary.week.unlinked.length > 0 && `, ${summary.week.unlinked.length} ô gõ tay chưa gắn MT`} · Cả chủ đề: phủ{' '}
-            {summary.theme.covered}/{summary.theme.total} MT
-            {summary.theme.missing.length > 0 && (
-              <>
-                {' '}
-                · còn thiếu{' '}
-                {/* Sang tab Bảng phủ MT qua guard của trang (hỏi khi còn thay đổi chưa lưu); điều hướng bằng nút, không đặt liên kết */}
-                {summary.onOpenCoverage ? (
-                  <button type="button" className="btn btn--sm" onClick={summary.onOpenCoverage}>
-                    {mtList(summary.theme.missing.map((g) => g.no))}
-                  </button>
-                ) : (
-                  mtList(summary.theme.missing.map((g) => g.no))
-                )}
-              </>
-            )}
-          </p>
-        )}
       </Section>
       <Section title="IV. Hoạt động góc">
         {editable && corners.length === 0 && (
@@ -622,118 +654,114 @@ export function WeekTab({
                 </tr>
               )}
               {/* Dòng trống cuối nằm chung danh sách với các góc để ô tên đang gõ giữ con trỏ khi thành góc thật */}
-              {(editable ? [...corners, { id: cornerTrail.current, trail: true }] : corners).map((c, i) => {
-                if (c.trail)
+              {/* Đổi thứ tự góc chỉ bằng kéo thả tay nắm (bàn phím: Space rồi mũi tên) — Tiền 14/11/2026 */}
+              <SortableList
+                ids={corners.map((c) => c.id)}
+                onMove={moveCorner}
+                labelOf={(i) => corners[i]?.name || `góc ${i + 1}`}
+                disabled={!editable}
+              >
+                {(editable ? [...corners, { id: cornerTrail.current, trail: true }] : shownCorners).map((c, i) => {
+                  if (c.trail)
+                    return (
+                      <tr key={c.id} data-corner-id={c.id}>
+                        <td className="ga-cell-editable">
+                          <Cell
+                            editable
+                            value=""
+                            label="Tên góc mới"
+                            placeholder="Nhập tên góc mới"
+                            onChange={(v) => {
+                              const name = v.replace(/\r?\n/g, '').slice(0, NAME_MAX);
+                              plainEnter.current = false;
+                              if (name.trim())
+                                editCorners((d) => ((d.corners = [...(d.corners || []), { ...newCorner(), id: c.id, name }]), d));
+                            }}
+                            onKeyDown={cornerKeys(i)}
+                          />
+                        </td>
+                        <td colSpan={5} />
+                      </tr>
+                    );
+                  const picks = (draft.picks?.['goc.all'] || []).filter((p) => p.cornerId === c.id);
                   return (
-                    <tr key={c.id} data-corner-id={c.id}>
-                      <td className="ga-cell-editable">
+                    <SortableRow key={c.id} id={c.id} data-corner-id={c.id}>
+                      <td className={editable ? 'ga-cell-editable' : ''}>
                         <Cell
-                          editable
-                          value=""
-                          label="Tên góc mới"
-                          placeholder="Nhập tên góc mới"
-                          onChange={(v) => {
-                            const name = v.replace(/\r?\n/g, '').slice(0, NAME_MAX);
-                            plainEnter.current = false;
-                            if (name.trim())
-                              editCorners((d) => ((d.corners = [...(d.corners || []), { ...newCorner(), id: c.id, name }]), d));
-                          }}
+                          editable={editable}
+                          value={c.name}
+                          label={`Tên góc ${i + 1}`}
+                          placeholder="Tên góc"
+                          onChange={cornerInput(i, c, 'name', NAME_MAX)}
                           onKeyDown={cornerKeys(i)}
                         />
                       </td>
-                      <td colSpan={5} />
-                    </tr>
+                      <td className={editable ? 'ga-cell-editable' : ''}>
+                        <ActivityCell
+                          editable={editable}
+                          suggestions={activitiesForRow(activities, 'goc')}
+                          picks={picks}
+                          goalsOfPick={goalsOfPick}
+                          text={c.content}
+                          onPick={(a) => pickCorner(c.id, a)}
+                          onUnpick={(id) => unpickCorner(c.id, id)}
+                          flagOf={flagOf}
+                        >
+                          <Cell
+                            editable={editable}
+                            value={c.content}
+                            label={`Nội dung ${c.name || `góc ${i + 1}`}`}
+                            onChange={cornerInput(i, c, 'content')}
+                            onKeyDown={cornerKeys(i)}
+                          />
+                        </ActivityCell>
+                      </td>
+                      {[
+                        ['aims', 'Mục đích, yêu cầu'],
+                        ['prep', 'Chuẩn bị'],
+                        ['steps', 'Cách tiến hành'],
+                      ].map(([f, name]) => (
+                        <td key={f} className={editable ? 'ga-cell-editable' : ''}>
+                          <Cell
+                            editable={editable}
+                            value={c[f]}
+                            label={`${name} ${c.name || `góc ${i + 1}`}`}
+                            onChange={cornerInput(i, c, f)}
+                            onKeyDown={cornerKeys(i)}
+                          />
+                          {(c[f] || '').length > TEXT_MAX && <p className="field__error ga-goal-table__pad">Tối đa {TEXT_MAX} ký tự.</p>}
+                        </td>
+                      ))}
+                      {editable && (
+                        <td className="cell--actions">
+                          <div className="row gap-1 ga-goal-table__pad">
+                            <SortHandle label={c.name || `góc ${i + 1}`} />
+                            <button
+                              type="button"
+                              className="icon-btn icon-btn--danger"
+                              aria-label={`Xóa góc ${c.name || i + 1}`}
+                              title="Xóa góc"
+                              onClick={() => setAskDelete(c)}
+                            >
+                              <Trash2 size={16} aria-hidden />
+                            </button>
+                          </div>
+                        </td>
+                      )}
+                    </SortableRow>
                   );
-                const picks = (draft.picks?.['goc.all'] || []).filter((p) => p.cornerId === c.id);
-                return (
-                  <tr key={c.id} data-corner-id={c.id}>
-                    <td className={editable ? 'ga-cell-editable' : ''}>
-                      <Cell
-                        editable={editable}
-                        value={c.name}
-                        label={`Tên góc ${i + 1}`}
-                        placeholder="Tên góc"
-                        onChange={cornerInput(i, c, 'name', NAME_MAX)}
-                        onKeyDown={cornerKeys(i)}
-                      />
-                    </td>
-                    <td className={editable ? 'ga-cell-editable' : ''}>
-                      <ActivityCell
-                        editable={editable}
-                        suggestions={activitiesForRow(activities, 'goc')}
-                        picks={picks}
-                        goalsOfPick={goalsOfPick}
-                        text={c.content}
-                        onPick={(a) => pickCorner(c.id, a)}
-                        onUnpick={(id) => unpickCorner(c.id, id)}
-                        flagOf={flagOf}
-                      >
-                        <Cell
-                          editable={editable}
-                          value={c.content}
-                          label={`Nội dung ${c.name || `góc ${i + 1}`}`}
-                          onChange={cornerInput(i, c, 'content')}
-                          onKeyDown={cornerKeys(i)}
-                        />
-                      </ActivityCell>
-                    </td>
-                    {[
-                      ['aims', 'Mục đích, yêu cầu'],
-                      ['prep', 'Chuẩn bị'],
-                      ['steps', 'Cách tiến hành'],
-                    ].map(([f, name]) => (
-                      <td key={f} className={editable ? 'ga-cell-editable' : ''}>
-                        <Cell
-                          editable={editable}
-                          value={c[f]}
-                          label={`${name} ${c.name || `góc ${i + 1}`}`}
-                          onChange={cornerInput(i, c, f)}
-                          onKeyDown={cornerKeys(i)}
-                        />
-                        {(c[f] || '').length > TEXT_MAX && <p className="field__error ga-goal-table__pad">Tối đa {TEXT_MAX} ký tự.</p>}
-                      </td>
-                    ))}
-                    {editable && (
-                      <td className="cell--actions">
-                        <div className="row gap-1 ga-goal-table__pad">
-                          <button
-                            type="button"
-                            className="icon-btn"
-                            disabled={i === 0}
-                            aria-label={`Đưa góc ${i + 1} lên`}
-                            title="Lên"
-                            onClick={() => moveCorner(i, i - 1)}
-                          >
-                            <ArrowUp size={16} aria-hidden />
-                          </button>
-                          <button
-                            type="button"
-                            className="icon-btn"
-                            disabled={i === corners.length - 1}
-                            aria-label={`Đưa góc ${i + 1} xuống`}
-                            title="Xuống"
-                            onClick={() => moveCorner(i, i + 1)}
-                          >
-                            <ArrowDown size={16} aria-hidden />
-                          </button>
-                          <button
-                            type="button"
-                            className="icon-btn icon-btn--danger"
-                            aria-label={`Xóa góc ${c.name || i + 1}`}
-                            title="Xóa góc"
-                            onClick={() => setAskDelete(c)}
-                          >
-                            <Trash2 size={16} aria-hidden />
-                          </button>
-                        </div>
-                      </td>
-                    )}
-                  </tr>
-                );
-              })}
+                })}
+              </SortableList>
             </tbody>
           </table>
         </div>
+        {emptyCorners > 0 && (
+          <div>
+            <button type="button" className="btn btn--sm" onClick={() => setShowEmptyCorners((v) => !v)}>
+              {showEmptyCorners ? 'Ẩn' : 'Hiện'} {emptyCorners} góc chưa có nội dung
+            </button>
+          </div>
+        )}
       </Section>
       <ConfirmationModal
         open={!!askDelete}
@@ -797,17 +825,15 @@ function StepRows({ rows, editable, label, cols, onChange, onAskDelete, onRemove
     onChange([...rows.slice(0, i + 1), emptyRow(), ...rows.slice(i + 1)]);
     setFocusTitle(`${label} – tên bước ${i + 2}`);
   };
-  const move = (i, to) => {
-    const next = [...rows];
-    [next[i], next[to]] = [next[to], next[i]];
-    onChange(next);
-  };
+  const move = (i, to) => onChange(moveItem(rows, i, to));
   const remove = (i) => {
     const r = rows[i];
     const name = r.title?.trim() ? `"${r.title.trim()}"` : `dòng ${i + 1}`;
     if (sectionHasContent({ rows: [r] })) onAskDelete(name, () => onChange(rows.filter((_, n) => n !== i)));
     else onChange(rows.filter((_, n) => n !== i));
   };
+  // Chỉ xem: ẩn dòng bước trống
+  const shown = editable ? rows : rows.filter((r) => r.title?.trim() || sectionHasContent({ rows: [r] }));
   return (
     <>
       <tr>
@@ -829,7 +855,7 @@ function StepRows({ rows, editable, label, cols, onChange, onAskDelete, onRemove
           </th>
         )}
       </tr>
-      {!editable && rows.length === 0 && (
+      {!editable && shown.length === 0 && (
         <tr>
           <td colSpan={cols}>
             <div className="ga-goal-table__pad muted">Chưa có dòng nào</div>
@@ -837,67 +863,60 @@ function StepRows({ rows, editable, label, cols, onChange, onAskDelete, onRemove
         </tr>
       )}
       {/* Dòng trống cuối nằm chung danh sách với các dòng thật để giữ nguyên ô đang gõ khi nó thành dòng thật */}
-      {(editable ? [...rows, { id: trailId.current, trail: true }] : rows).map((r, i) => (
-        <tr key={r.id}>
-          <td className={editable ? 'ga-cell-editable' : ''}>
-            <LimitedCell
-              editable={editable}
-              max={NAME_MAX}
-              value={r.trail ? '' : r.title}
-              label={r.trail ? `${label} – tên bước mới` : `${label} – tên bước ${i + 1}`}
-              placeholder={r.trail ? 'Tên bước mới' : 'Tên bước'}
-              onChange={(v) => (r.trail ? addTrailing('title', v) : set(i, 'title', v))}
-              onKeyDown={r.trail ? undefined : titleKeys(i)}
-            />
-          </td>
-          {STEP_FIELDS.map(([f, name]) => (
-            <td key={f} className={editable ? 'ga-cell-editable' : ''}>
-              <LimitedCell
-                editable={editable}
-                value={r.trail ? '' : r[f]}
-                label={`${label} – ${name} ${r.trail ? 'dòng mới' : `dòng ${i + 1}`}`}
-                onChange={(v) => (r.trail ? addTrailing(f, v) : set(i, f, v))}
-              />
-            </td>
-          ))}
-          {editable && r.trail && <td className="cell--actions" />}
-          {editable && !r.trail && (
-            <td className="cell--actions">
-              <div className="row gap-1 ga-goal-table__pad">
-                <button
-                  type="button"
-                  className="icon-btn"
-                  disabled={i === 0}
-                  aria-label={`Đưa dòng ${i + 1} lên`}
-                  title="Lên"
-                  onClick={() => move(i, i - 1)}
-                >
-                  <ArrowUp size={16} aria-hidden />
-                </button>
-                <button
-                  type="button"
-                  className="icon-btn"
-                  disabled={i === rows.length - 1}
-                  aria-label={`Đưa dòng ${i + 1} xuống`}
-                  title="Xuống"
-                  onClick={() => move(i, i + 1)}
-                >
-                  <ArrowDown size={16} aria-hidden />
-                </button>
-                <button
-                  type="button"
-                  className="icon-btn icon-btn--danger"
-                  aria-label={`Xóa dòng ${i + 1}`}
-                  title="Xóa dòng"
-                  onClick={() => remove(i)}
-                >
-                  <Trash2 size={16} aria-hidden />
-                </button>
-              </div>
-            </td>
-          )}
-        </tr>
-      ))}
+      {/* Đổi thứ tự bước chỉ bằng kéo thả tay nắm (Tiền 14/11/2026) */}
+      <SortableList
+        ids={rows.map((r) => r.id)}
+        onMove={move}
+        labelOf={(i) => rows[i]?.title?.trim() || `dòng ${i + 1}`}
+        disabled={!editable}
+      >
+        {(editable ? [...rows, { id: trailId.current, trail: true }] : shown).map((r, i) => {
+          // Dòng trống cuối không kéo được
+          const Row = r.trail ? 'tr' : SortableRow;
+          return (
+            <Row key={r.id} {...(r.trail ? {} : { id: r.id })}>
+              <td className={editable ? 'ga-cell-editable' : ''}>
+                <LimitedCell
+                  editable={editable}
+                  max={NAME_MAX}
+                  value={r.trail ? '' : r.title}
+                  label={r.trail ? `${label} – tên bước mới` : `${label} – tên bước ${i + 1}`}
+                  placeholder={r.trail ? 'Tên bước mới' : 'Tên bước'}
+                  onChange={(v) => (r.trail ? addTrailing('title', v) : set(i, 'title', v))}
+                  onKeyDown={r.trail ? undefined : titleKeys(i)}
+                />
+              </td>
+              {STEP_FIELDS.map(([f, name]) => (
+                <td key={f} className={editable ? 'ga-cell-editable' : ''}>
+                  <LimitedCell
+                    editable={editable}
+                    value={r.trail ? '' : r[f]}
+                    label={`${label} – ${name} ${r.trail ? 'dòng mới' : `dòng ${i + 1}`}`}
+                    onChange={(v) => (r.trail ? addTrailing(f, v) : set(i, f, v))}
+                  />
+                </td>
+              ))}
+              {editable && r.trail && <td className="cell--actions" />}
+              {editable && !r.trail && (
+                <td className="cell--actions">
+                  <div className="row gap-1 ga-goal-table__pad">
+                    <SortHandle label={r.title?.trim() || `dòng ${i + 1}`} />
+                    <button
+                      type="button"
+                      className="icon-btn icon-btn--danger"
+                      aria-label={`Xóa dòng ${i + 1}`}
+                      title="Xóa dòng"
+                      onClick={() => remove(i)}
+                    >
+                      <Trash2 size={16} aria-hidden />
+                    </button>
+                  </div>
+                </td>
+              )}
+            </Row>
+          );
+        })}
+      </SortableList>
     </>
   );
 }
@@ -916,6 +935,7 @@ export function DayTab({
   emptySections = [],
   // Chỗ đặt menu "Lấy / gợi ý nội dung" ở trái hàng nút của trang (phần tử DOM do trang cấp)
   toolsTarget = null,
+  extraTools = [],
 }) {
   const [aiBusy, setAiBusy] = useState(false);
   const [askDelete, setAskDelete] = useState(null);
@@ -1008,12 +1028,9 @@ export function DayTab({
       return x;
     });
   const missing = DAY_SECTIONS.filter((s) => emptySections.includes(s.key));
+  // Một nút "Thao tác" cho cả trang: lấy / gợi ý của ngày rồi các mục trang truyền vào (Dạy học, Xuất file) — Tiền 14/11/2026
   const toolsMenu = (
-    <RowMenu
-      label="Lấy và gợi ý nội dung ngày"
-      text={aiBusy ? 'AI đang soạn…' : 'Lấy / gợi ý'}
-      icon={<Download size={16} aria-hidden />}
-      className="btn btn--sm btn--outline-primary"
+    <ActionsMenu
       items={[
         { label: 'Lấy từ kế hoạch tuần', icon: Download, onClick: fillFromWeek, disabled: !fills.length },
         ...(reuse.length > 0
@@ -1025,7 +1042,10 @@ export function DayTab({
               },
             ]
           : []),
-        ...(hoc.subject || hoc.topic ? [{ label: 'AI gợi ý tiến trình giờ học', icon: Sparkles, onClick: aiSteps, disabled: aiBusy }] : []),
+        ...(hoc.subject || hoc.topic
+          ? [{ label: aiBusy ? 'AI đang soạn…' : 'AI gợi ý tiến trình giờ học', icon: Sparkles, onClick: aiSteps, disabled: aiBusy }]
+          : []),
+        ...extraTools,
       ]}
     />
   );
@@ -1112,11 +1132,19 @@ export function DayTab({
                           {s.key === 'hoc' && fw.main && <div className="ga-cell-text">Hoạt động chính: {fw.main}</div>}
                           {s.key === 'hoc' && fw.combined && <div className="ga-cell-text">Hoạt động kết hợp: {fw.combined}</div>}
                           {missing.some((m) => m.key === s.key) && <p className="field__error">Mục này chưa có nội dung.</p>}
-                          {fw.goals.map((g) => (
-                            <div key={g.id} className="ga-cell-text">
-                              <span className="ga-goal-code">MT{g.no}</span> {g.text}
+                          {/* Chỉ mã MT, rê chuột xem câu MT: câu đầy đủ đã có ở a) Mục đích, yêu cầu (Tiền 13/11/2026) */}
+                          {fw.goals.length > 0 && (
+                            <div className="ga-cell-text">
+                              {fw.goals.map((g, i) => (
+                                <Fragment key={g.id}>
+                                  {i > 0 && ', '}
+                                  <span className="ga-goal-code" title={g.text}>
+                                    MT{g.no}
+                                  </span>
+                                </Fragment>
+                              ))}
                             </div>
-                          ))}
+                          )}
                           {typedRows.has(s.row) && <p className="text-danger text-sm">Có hoạt động chưa gắn MT</p>}
                           {dropped.includes(s.key) && <p className="text-xs text-warning">Đã đổi ở kế hoạch tuần</p>}
                         </div>

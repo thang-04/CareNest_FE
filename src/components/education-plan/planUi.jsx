@@ -1,8 +1,8 @@
 import { adaptCalendar, calendarPlan, seedTeamBranchTemplates } from '@/models/education-plan/branchCalendar.mjs';
+import { Tabs } from '@/components/ui/Tabs';
 import { useId, useMemo, useRef } from 'react';
 import { EmptyCard, PageHead } from '@/components/education-plan/eduUi';
 import { useSearchParams } from 'react-router-dom';
-import { Check, Eye, Send } from '@/components/ui/icons';
 import { SIGNER_SHORT } from '@/components/education-plan/reviewUi';
 import { ROLES } from '@/models/User';
 import { AGE_GROUPS, EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
@@ -11,6 +11,7 @@ import { toRows } from '@/models/education-plan/goalTable';
 import { ddmm, emptyBranchPlan, themeBranchGroups, yearWeeks } from '@/models/education-plan/classPlan';
 import { PENDING_OF } from '@/models/education-plan/eduConfig';
 import { currentPlanOf, previousPlanOf } from '@/models/education-plan/planVersions.mjs';
+import { SelectField } from '@/components';
 
 /** Bước còn thiếu khi tài liệu chưa thể bắt đầu (lock = kết quả createBlocker). */
 export const lockTarget = (lock, base, themeId) =>
@@ -126,21 +127,6 @@ export const isMyReviewTurn = (doc, ctx, user) => {
 const isOpen = (doc) => !doc?.status || doc.status === EDU_STATUS.DRAFT || doc.status === EDU_STATUS.REJECTED;
 
 /**
- * Nhãn nút sang trang gửi / duyệt theo việc người dùng cần làm. Kế hoạch chủ đề chỉ gửi ở cuối trang xem cả tập,
- * nên ở trang soạn chỉ có nút "Xem cả kế hoạch chủ đề" (tên theo file mẫu "KHGD CĐ" của MN Thái Dương).
- */
-export function reviewLabel(doc, ctx, user, kind = 'branch') {
-  if (kind !== 'branch') {
-    if (isMyReviewTurn(doc, ctx, user)) return 'Duyệt kế hoạch chủ đề';
-    // Giáo án tuần/ngày không gửi riêng (EDU-74): nút dẫn sang trang chủ đề để gửi cả hồ sơ chủ đề
-    return ctx.canComposeClassDocs && isOpen(doc) ? 'Gửi hồ sơ chủ đề' : 'Xem kế hoạch chủ đề';
-  }
-  if (isMyReviewTurn(doc, ctx, user)) return 'Duyệt';
-  if (ctx.canComposeClassDocs && isOpen(doc)) return 'Gửi duyệt';
-  return 'Xem';
-}
-
-/**
  * Quyền hiển thị nút gửi / duyệt tài liệu của lớp theo mẫu chung (reviewUi) và người duyệt đầu tiên của chuỗi:
  * chủ đề nhánh theo eduConfig.signers.branch, hồ sơ chủ đề theo signers.week; bỏ Tổ trưởng khi ctx.skipLeader.
  * Chỉ là UX, service quyết định khi gửi.
@@ -161,46 +147,6 @@ export function docReview(kind, doc, ctx, user, eduConfig) {
   };
 }
 
-/**
- * Nút sang trang hồ sơ để xem / gửi / duyệt. Luôn bấm được (Tiền 05/11): còn thay đổi chưa lưu thì lưu trước (onSave)
- * rồi mới sang (onGoNow, không hỏi rời trang); lưu lỗi thì ở lại.
- */
-export function DocReviewButton({
-  kind,
-  doc,
-  dossier,
-  ctx,
-  user,
-  reviewTo,
-  dirty,
-  onGo,
-  onSave,
-  onGoNow,
-  className = 'btn btn--outline-primary btn--sm',
-}) {
-  const holder = kind === 'week' ? dossier : doc;
-  const label = reviewLabel(holder, ctx, user, kind === 'branch' ? 'branch' : 'theme');
-  const go = async () => {
-    if (dirty && onSave) {
-      if (!(await onSave())) return;
-      return (onGoNow || onGo)(reviewTo);
-    }
-    onGo(reviewTo);
-  };
-  return (
-    <button type="button" className={className} title={dirty && onSave ? 'Lưu rồi sang trang kế hoạch chủ đề' : undefined} onClick={go}>
-      {label.startsWith('Duyệt') ? (
-        <Check size={16} aria-hidden />
-      ) : label.includes('gửi') || label.startsWith('Gửi') ? (
-        <Send size={16} aria-hidden />
-      ) : (
-        <Eye size={16} aria-hidden />
-      )}{' '}
-      {label}
-    </button>
-  );
-}
-
 /** Lọc nhóm tuổi trước rồi chọn lớp (spec 005 FR-022); đổi nhóm tuổi ⇒ mở lớp đầu tiên của nhóm đó. */
 export function ClassPicker({ classes, classId, onPick }) {
   const id = useId();
@@ -217,9 +163,8 @@ export function ClassPicker({ classes, classId, onPick }) {
           <label className="field__label" htmlFor={`${id}-age`}>
             Nhóm tuổi
           </label>
-          <select
+          <SelectField
             id={`${id}-age`}
-            className="select"
             value={current?.ageGroupId || ''}
             onChange={(e) => {
               const first = classes.find((c) => c.ageGroupId === e.target.value);
@@ -231,26 +176,21 @@ export function ClassPicker({ classes, classId, onPick }) {
                 {g.name}
               </option>
             ))}
-          </select>
+          </SelectField>
         </div>
       )}
       <div className="field">
         <label className="field__label" htmlFor={`${id}-class`}>
           Lớp
         </label>
-        <select
-          id={`${id}-class`}
-          className="select"
-          value={current ? classId : ''}
-          onChange={(e) => e.target.value && onPick(e.target.value)}
-        >
+        <SelectField id={`${id}-class`} value={current ? classId : ''} onChange={(e) => e.target.value && onPick(e.target.value)}>
           {!current && <option value="">Chọn lớp</option>}
           {(inGroup.length ? inGroup : classes).map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
             </option>
           ))}
-        </select>
+        </SelectField>
       </div>
     </>
   );
@@ -308,41 +248,41 @@ export function ThemeBranchTabs({ yearPlan, branchDoc, themeId, classId, current
   const groups = themeBranchGroups(yearPlan, branchDoc, themeId);
   const base = `/education/class/${classId}`;
   const active = groups.find((g) => g.weeks.some((w) => w.start === current));
-  const tab = (key, selected, label, to, disabled = false) => (
-    <button
-      key={key}
-      type="button"
-      role="tab"
-      aria-selected={selected}
-      tabIndex={selected ? 0 : -1}
-      className={`tab ${selected ? 'tab--active' : ''}`}
-      disabled={disabled}
-      title={disabled ? weeksDisabledReason : label}
-      onClick={() => !selected && onGo(to)}
-    >
-      <span className="ga-theme-tabs__label">{label}</span>
-    </button>
-  );
+  const item = (key, label, to, disabled = false) => ({
+    key,
+    to,
+    disabled,
+    title: disabled ? weeksDisabledReason : label,
+    label: <span className="ga-theme-tabs__label">{label}</span>,
+  });
+  const go = (items, value) => (key) => key !== value && onGo(items.find((t) => t.key === key).to);
+  const branchItems = [
+    item('theme', 'Kế hoạch chủ đề', `${base}/themes/${themeId}`),
+    ...groups.map((g) =>
+      item(g.weeks[0].start, `${g.label}${g.name ? `: ${g.name}` : ''}`, `${base}/weeks/${g.weeks[0].start}`, !!weeksDisabledReason),
+    ),
+    // Spec 006 FR-013: tab riêng "Bảng phủ MT" sau tab tuần cuối
+    item('coverage', 'Bảng phủ MT', `${base}/themes/${themeId}?tab=coverage`),
+  ];
+  const branchValue = active ? active.weeks[0].start : current;
+  const weekItems = active?.weeks.map((w) => item(w.start, `Tuần ${w.themeNo} · ${ddmm(w.start)}`, `${base}/weeks/${w.start}`)) || [];
   return (
     <>
-      <div className="tabs ga-class-tabs ga-theme-tabs" role="tablist" aria-label="Kế hoạch chủ đề và các chủ đề nhánh">
-        {tab('theme', current === 'theme', 'Kế hoạch chủ đề', `${base}/themes/${themeId}`)}
-        {groups.map((g) =>
-          tab(
-            g.weeks[0].start,
-            g === active,
-            `${g.label}${g.name ? `: ${g.name}` : ''}`,
-            `${base}/weeks/${g.weeks[0].start}`,
-            !!weeksDisabledReason,
-          ),
-        )}
-        {/* Spec 006 FR-013: tab riêng "Bảng phủ MT" sau tab tuần cuối */}
-        {tab('coverage', current === 'coverage', 'Bảng phủ MT', `${base}/themes/${themeId}?tab=coverage`)}
-      </div>
-      {active && active.weeks.length > 1 && (
-        <div className="tabs ga-class-tabs" role="tablist" aria-label={`Các tuần của nhánh ${active.no}`}>
-          {active.weeks.map((w) => tab(w.start, w.start === current, `Tuần ${w.themeNo} · ${ddmm(w.start)}`, `${base}/weeks/${w.start}`))}
-        </div>
+      <Tabs
+        className="ga-class-tabs ga-theme-tabs"
+        ariaLabel="Kế hoạch chủ đề và các chủ đề nhánh"
+        items={branchItems}
+        value={branchValue}
+        onChange={go(branchItems, branchValue)}
+      />
+      {weekItems.length > 1 && (
+        <Tabs
+          className="ga-class-tabs"
+          ariaLabel={`Các tuần của nhánh ${active.no}`}
+          items={weekItems}
+          value={current}
+          onChange={go(weekItems, current)}
+        />
       )}
     </>
   );
@@ -377,19 +317,13 @@ export function FilterSelect({ label, value, options, onChange }) {
       <label className="field__label" htmlFor={id}>
         {label}
       </label>
-      <select
-        id={id}
-        className="select"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        title={options.find((o) => o.value === value)?.label}
-      >
+      <SelectField id={id} value={value} onChange={(e) => onChange(e.target.value)} title={options.find((o) => o.value === value)?.label}>
         {options.map((o) => (
           <option key={o.value} value={o.value}>
             {o.label}
           </option>
         ))}
-      </select>
+      </SelectField>
     </div>
   );
 }

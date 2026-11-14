@@ -18,7 +18,8 @@ import { moveItem } from '@/hooks/useSortableList';
 import { useManualSave } from '@/hooks/education-plan/useManualSave';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
-import { RenumberButton, SortButtons, SortHandle, SortIndex, SortableList, SortableRow } from '@/components/ui/Sortable';
+import { RenumberButton, SortHandle, SortIndex, SortableList, SortableRow } from '@/components/ui/Sortable';
+import { Button } from '@/components';
 
 /**
  * Cấu hình người tạo và người duyệt của từng loại tài liệu (FR-001, FR-002, AC-01).
@@ -54,7 +55,6 @@ function WorkflowPolicyConfig({ docLabel, policy, onChange, editing, canEdit, as
         ),
     });
   };
-  const availableCreators = CREATOR_ROLES.filter((role) => !creators.includes(role) && !reviewers.includes(role));
   const availableReviewers = REVIEWER_ROLES.filter((role) => !reviewers.includes(role) && !creators.includes(role));
   const editable = editing && canEdit;
 
@@ -245,9 +245,9 @@ export default function EduConfigPage() {
         <div className="ga-year-toolbar" role="group" aria-label="Thao tác cấu hình kế hoạch giáo dục">
           {editing && isPrincipal && (
             <div className="ga-year-toolbar__group">
-              <button
-                type="button"
-                className="btn btn--sm btn--outline-primary"
+              <Button
+                variant="outline-primary"
+                size="sm"
                 onClick={() =>
                   setConfirmDelete({
                     title: 'Khôi phục mặc định',
@@ -259,7 +259,7 @@ export default function EduConfigPage() {
                 }
               >
                 <RotateCcw size={16} aria-hidden /> Khôi phục mặc định
-              </button>
+              </Button>
             </div>
           )}
           {/* Chỉnh sửa / Hủy cùng một chỗ, Lưu đứng sau (Tiền 13/11/2026) */}
@@ -270,9 +270,9 @@ export default function EduConfigPage() {
               </p>
             )}
             {editing ? (
-              <button
-                type="button"
-                className="btn btn--sm btn--outline-primary"
+              <Button
+                variant="outline-primary"
+                size="sm"
                 disabled={saver.saving}
                 onClick={() => {
                   const run = () => {
@@ -291,22 +291,22 @@ export default function EduConfigPage() {
                 }}
               >
                 <X size={16} aria-hidden /> Hủy
-              </button>
+              </Button>
             ) : (
-              <button type="button" className="btn btn--sm btn--outline-primary" onClick={() => setEditing(true)}>
+              <Button variant="outline-primary" size="sm" onClick={() => setEditing(true)}>
                 <Pencil size={16} aria-hidden /> Chỉnh sửa
-              </button>
+              </Button>
             )}
             {editing && (
-              <button
-                type="button"
-                className="btn btn--sm btn--primary"
+              <Button
+                variant="primary"
+                size="sm"
                 onClick={saver.save}
                 disabled={saver.saving || (!dirty && !saver.error)}
                 title="Lưu (Ctrl+S)"
               >
                 <Save size={16} aria-hidden /> Lưu
-              </button>
+              </Button>
             )}
           </div>
         </div>
@@ -625,7 +625,6 @@ export default function EduConfigPage() {
                         <td className="center ga-cell-editable">
                           <div className="ga-goal-table__pad ga-sort-cell">
                             <SortHandle label={r.label} />
-                            <SortButtons index={i} label={r.label} />
                           </div>
                         </td>
                       )}

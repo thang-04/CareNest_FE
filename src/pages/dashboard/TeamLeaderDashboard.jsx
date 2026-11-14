@@ -5,7 +5,7 @@ import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { Widget, Shortcuts, ShortList } from '@/components/dashboard/DashboardWidgets';
 import { ApprovalsWidget } from '@/components/dashboard/ApprovalsWidget';
 import { ClassTodayPanel } from '@/components/dashboard/ClassTodayPanel';
-import { getEducationPlans } from '@/services/education-plan/educationPlanService';
+import { getEducationLessons } from '@/services/education-plan/educationPlanService';
 import { EduStatusBadge } from '@/components/education-plan/eduUi';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
 import { ageGroupById } from '@/models/School';
@@ -15,13 +15,13 @@ const TO_FIX = [EDU_STATUS.DRAFT, EDU_STATUS.REJECTED];
 
 /**
  * #13 Trang chủ Tổ trưởng — phương án A (plan 2026-11-13-home-day-rhythm): cùng khung lớp hôm nay + tiến độ 5 bước của lớp mình
- * (số cấp nhóm tuổi BE chưa mở cho tổ trưởng), cột phải là việc chờ tổ trưởng: giáo án chờ duyệt, kế hoạch chủ đề cần hoàn thiện.
+ * (số cấp nhóm tuổi BE chưa mở cho tổ trưởng), cột phải là việc chờ tổ trưởng: kế hoạch giáo dục ngày chờ duyệt, kế hoạch chủ đề cần hoàn thiện.
  */
 export default function TeamLeaderDashboard() {
   const { user } = useAuth();
   const approvals = usePendingApprovals();
   const themesQ = useWidget(
-    () => getEducationPlans().then((d) => d.themes.filter((t) => t.ageGroupId === user.ageGroupId)),
+    () => getEducationLessons().then((d) => d.themes.filter((t) => t.ageGroupId === user.ageGroupId)),
     [user.ageGroupId],
   );
   const toFix = (themesQ.data || []).filter((t) => TO_FIX.includes(t.status));

@@ -3,6 +3,8 @@ import { Card } from '@/components/education-plan/eduUi';
 import { domainLabel } from '@/models/education-plan/educationPlanConstants';
 import { domainRoman } from '@/models/education-plan/goalTable';
 import { WEEKDAY_LABELS, contentLinesOf, coverageOf, ddmm, themeTree } from '@/models/education-plan/classPlan';
+import { Button, SelectField } from '@/components';
+import { DocTable } from '@/components/ui/DocTable';
 
 const dayShort = (i) => WEEKDAY_LABELS[i].replace('Thứ ', 'T');
 
@@ -47,141 +49,138 @@ export function CoverageTab({ blocks, cards, weeks, contentsOf, onOpen }) {
           <label className="row row--middle gap-2 text-sm">
             <span className="nowrap">Lọc mục tiêu:</span>
             <div>
-              <select className="input" value={filter} onChange={(e) => setFilter(e.target.value)}>
+              <SelectField className="input" value={filter} onChange={(e) => setFilter(e.target.value)}>
                 <option value="all">Tất cả</option>
                 <option value="missing">MT chưa dạy</option>
                 <option value="contents">Nội dung chưa có hoạt động</option>
-              </select>
+              </SelectField>
             </div>
           </label>
-          <div className="table-wrap">
-            <table className="table ga-plan-table ga-goal-table">
-              <colgroup>
-                <col className="ga-goal-table__del" />
-                <col className="ga-goal-table__goaltext" />
+          <DocTable className="ga-plan-table ga-goal-table">
+            <colgroup>
+              <col className="ga-goal-table__del" />
+              <col className="ga-goal-table__goaltext" />
+              {weeks.map((w) => (
+                <col key={w.start} />
+              ))}
+              <col className="ga-goal-table__del" />
+            </colgroup>
+            <thead>
+              <tr>
+                <th className="ga-stt">TT</th>
+                <th>Mục tiêu giáo dục</th>
                 {weeks.map((w) => (
-                  <col key={w.start} />
+                  <th key={w.start} className="center">
+                    Tuần {w.no} · {ddmm(w.start)}
+                    {w.edited && <div className="text-xs text-warning">Đã sửa theo chủ đề</div>}
+                  </th>
                 ))}
-                <col className="ga-goal-table__del" />
-              </colgroup>
-              <thead>
-                <tr>
-                  <th className="ga-stt">TT</th>
-                  <th>Mục tiêu giáo dục</th>
-                  {weeks.map((w) => (
-                    <th key={w.start} className="center">
-                      Tuần {w.no} · {ddmm(w.start)}
-                      {w.edited && <div className="text-xs text-warning">Đã sửa theo chủ đề</div>}
-                    </th>
-                  ))}
-                  <th className="center">Lần</th>
-                </tr>
-              </thead>
-              <tbody>
-                {blocks.map((b, bi) => {
-                  const list = shown[bi];
-                  if (!list.length) return null;
-                  const firstOfDomain = shown.findIndex((l, i) => l.length && blocks[i].domain === b.domain) === bi;
-                  return (
-                    <Fragment key={`${b.domain}-${b.sub}-${bi}`}>
-                      {firstOfDomain && (
-                        <tr>
-                          <td colSpan={cols} className="ga-goal-table__domain">
+                <th className="center">Lần</th>
+              </tr>
+            </thead>
+            <tbody>
+              {blocks.map((b, bi) => {
+                const list = shown[bi];
+                if (!list.length) return null;
+                const firstOfDomain = shown.findIndex((l, i) => l.length && blocks[i].domain === b.domain) === bi;
+                return (
+                  <Fragment key={`${b.domain}-${b.sub}-${bi}`}>
+                    {firstOfDomain && (
+                      <tr>
+                        <td colSpan={cols} className="ga-goal-table__domain">
+                          <div className="ga-goal-table__pad">
+                            <h3>
+                              {domainRoman(b.domain)}. {domainLabel(b.domain).toUpperCase()}
+                            </h3>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                    {b.sub && (
+                      <tr>
+                        <td colSpan={cols} className="ga-goal-table__subband">
+                          <div className="ga-goal-table__subname">{b.sub}</div>
+                        </td>
+                      </tr>
+                    )}
+                    {list.map((g) => {
+                      const id = String(g.id);
+                      const r = rowOf.get(id);
+                      const t = tree.get(id);
+                      // Như bảng kế hoạch năm học, mỗi MT một dòng, không cột nội dung (Tiền 13/11/2026)
+                      const empty = t.contents.filter((c) => c.warn).length;
+                      return (
+                        <tr key={id}>
+                          <td className="ga-stt">
                             <div className="ga-goal-table__pad">
-                              <h3>
-                                {domainRoman(b.domain)}. {domainLabel(b.domain).toUpperCase()}
-                              </h3>
+                              <span className="ga-goal-code">MT{g.no}</span>
                             </div>
                           </td>
-                        </tr>
-                      )}
-                      {b.sub && (
-                        <tr>
-                          <td colSpan={cols} className="ga-goal-table__subband">
-                            <div className="ga-goal-table__subname">{b.sub}</div>
+                          <td>
+                            <div className="ga-goal-table__pad">
+                              {g.text}
+                              {/* MT chưa dạy ngày nào: chữ đỏ nhỏ, chỉ cảnh báo (gói học kỳ không chặn — EDU-80) */}
+                              {!r.count && <div className="text-danger text-sm">Chưa dạy</div>}
+                              {empty > 0 && <div className="text-danger text-sm">{empty} nội dung chưa có hoạt động</div>}
+                            </div>
+                          </td>
+                          {weeks.map((w) => (
+                            <td key={w.start} className="center">
+                              <div className="ga-goal-table__pad ga-coverage-days">
+                                {(r.weeks[w.start] || []).map((i, n) => (
+                                  <Fragment key={i}>
+                                    {n > 0 && ', '}
+                                    <Button
+                                      variant="link"
+                                      aria-label={`Mở tuần ${w.no}, ${WEEKDAY_LABELS[i]}`}
+                                      onClick={() => onOpen(w.start, i)}
+                                    >
+                                      {dayShort(i)}
+                                    </Button>
+                                  </Fragment>
+                                ))}
+                              </div>
+                            </td>
+                          ))}
+                          <td className="center">
+                            <div className="ga-goal-table__pad">{r.count}</div>
                           </td>
                         </tr>
-                      )}
-                      {list.map((g) => {
-                        const id = String(g.id);
-                        const r = rowOf.get(id);
-                        const t = tree.get(id);
-                        // Như bảng kế hoạch năm học, mỗi MT một dòng, không cột nội dung (Tiền 13/11/2026)
-                        const empty = t.contents.filter((c) => c.warn).length;
-                        return (
-                          <tr key={id}>
-                            <td className="ga-stt">
-                              <div className="ga-goal-table__pad">
-                                <span className="ga-goal-code">MT{g.no}</span>
-                              </div>
-                            </td>
-                            <td>
-                              <div className="ga-goal-table__pad">
-                                {g.text}
-                                {/* MT chưa dạy ngày nào: chữ đỏ nhỏ, chỉ cảnh báo (gói học kỳ không chặn — EDU-80) */}
-                                {!r.count && <div className="text-danger text-sm">Chưa dạy</div>}
-                                {empty > 0 && <div className="text-danger text-sm">{empty} nội dung chưa có hoạt động</div>}
-                              </div>
-                            </td>
-                            {weeks.map((w) => (
-                              <td key={w.start} className="center">
-                                <div className="ga-goal-table__pad ga-coverage-days">
-                                  {(r.weeks[w.start] || []).map((i, n) => (
-                                    <Fragment key={i}>
-                                      {n > 0 && ', '}
-                                      <button
-                                        type="button"
-                                        className="link-btn"
-                                        aria-label={`Mở tuần ${w.no}, ${WEEKDAY_LABELS[i]}`}
-                                        onClick={() => onOpen(w.start, i)}
-                                      >
-                                        {dayShort(i)}
-                                      </button>
-                                    </Fragment>
-                                  ))}
-                                </div>
-                              </td>
-                            ))}
-                            <td className="center">
-                              <div className="ga-goal-table__pad">{r.count}</div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </Fragment>
-                  );
-                })}
-                {/* Hàng cuối: hoạt động gõ tay chưa gắn MT không tính vào MT nào (Tiền 12/11) */}
-                <tr>
-                  <td />
-                  <td colSpan={cols - 1}>
-                    <div className="ga-goal-table__pad stack">
-                      <span className="fw-600">Hoạt động chưa gắn MT</span>
-                      {cov.unlinked.length === 0 ? (
-                        <span className="muted text-sm">Không có</span>
-                      ) : (
-                        <ul className="stack text-sm">
-                          {cov.unlinked.map((u) => {
-                            const w = weeks.find((x) => x.start === u.weekStart);
-                            const when = /^\d$/.test(u.day) ? WEEKDAY_LABELS[Number(u.day)] : 'cả tuần';
-                            return (
-                              <li key={`${u.weekStart}-${u.rowKey}-${u.day}`} className="row row--wrap row--middle gap-2 ga-coverage-days">
-                                {/* Chữ link xanh gạch chân như các thứ đã dạy trong bảng (Tiền 13/11/2026) */}
-                                <button type="button" className="link-btn" onClick={() => onOpen(u.weekStart, u.day)}>
-                                  Tuần {w?.no} · {when}
-                                </button>
-                                <span>{u.text}</span>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+                      );
+                    })}
+                  </Fragment>
+                );
+              })}
+              {/* Hàng cuối: hoạt động gõ tay chưa gắn MT không tính vào MT nào (Tiền 12/11) */}
+              <tr>
+                <td />
+                <td colSpan={cols - 1}>
+                  <div className="ga-goal-table__pad stack">
+                    <span className="fw-600">Hoạt động chưa gắn MT</span>
+                    {cov.unlinked.length === 0 ? (
+                      <span className="muted text-sm">Không có</span>
+                    ) : (
+                      <ul className="stack text-sm">
+                        {cov.unlinked.map((u) => {
+                          const w = weeks.find((x) => x.start === u.weekStart);
+                          const when = /^\d$/.test(u.day) ? WEEKDAY_LABELS[Number(u.day)] : 'cả tuần';
+                          return (
+                            <li key={`${u.weekStart}-${u.rowKey}-${u.day}`} className="row row--wrap row--middle gap-2 ga-coverage-days">
+                              {/* Chữ link xanh gạch chân như các thứ đã dạy trong bảng (Tiền 13/11/2026) */}
+                              <Button variant="link" onClick={() => onOpen(u.weekStart, u.day)}>
+                                Tuần {w?.no} · {when}
+                              </Button>
+                              <span>{u.text}</span>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </DocTable>
         </>
       )}
     </Card>

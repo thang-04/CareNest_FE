@@ -243,6 +243,11 @@ const ITEMS = {
     label: 'Kế hoạch giáo dục ngày',
     to: '/education/day-plans',
   },
+  // Spec 900 (EDU-88): kho học liệu dùng lại cho giáo án ngày
+  eduResources: {
+    label: 'Kho học liệu',
+    to: '/education/resources',
+  },
   eduPlanReviews: {
     label: 'Duyệt kế hoạch giáo dục',
     to: '/education/plan-reviews',
@@ -521,7 +526,16 @@ const MENUS = {
     link('approvals'),
     group('children', ['childList', 'healthChecks', 'healthTrends']),
     group('attendance', ['attendance', 'attendanceSummary', 'leaveRequests', 'pickup']),
-    group('education', ['eduSchoolYear', 'eduGoals', 'eduBranch', 'eduThemePlans', 'eduDayPlans', 'eduPlanReviews', 'eduCurriculum']),
+    group('education', [
+      'eduSchoolYear',
+      'eduGoals',
+      'eduBranch',
+      'eduThemePlans',
+      'eduDayPlans',
+      'eduResources',
+      'eduPlanReviews',
+      'eduCurriculum',
+    ]),
     group('assessment', [
       'assessOverview',
       'assessDaily',
@@ -542,7 +556,7 @@ const MENUS = {
     link('home'),
     group('children', ['childList', 'childNewYearClass', 'healthChecks', 'healthTrends']),
     group('attendance', ['attendance', 'attendanceSummary', 'leaveRequests', 'pickup']),
-    group('education', ['eduSchoolYear', 'eduGoals', 'eduBranch', 'eduThemePlans', 'eduDayPlans', 'eduCurriculum']),
+    group('education', ['eduSchoolYear', 'eduGoals', 'eduBranch', 'eduThemePlans', 'eduDayPlans', 'eduResources', 'eduCurriculum']),
     group('assessment', [
       'assessDaily',
       'assessWeeklyComments',

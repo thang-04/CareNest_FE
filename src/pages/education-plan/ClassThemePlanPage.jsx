@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { FileDown, Save, X } from '@/components/ui/icons';
-import { Card, EduStatusBadge, EmptyCard, fmtDate, FoldAllButton, Notice, PageHead } from '@/components/education-plan/eduUi';
+import { Card, EmptyCard, fmtDate, FoldAllButton, Notice, PageHead } from '@/components/education-plan/eduUi';
 import { getClassDocRelease, getClassPlans, getGoal, suggestActivityCards } from '@/services/education-plan/educationPlanService';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { submitEntryOf } from '@/models/education-plan/reviewHistory.mjs';
@@ -35,7 +35,8 @@ import { FinishedThemeNote, SupersededNote, VersionCopyOffer, VersionFlagsPanel 
 import { useDocVersion } from '@/hooks/education-plan/useDocVersion';
 import { addedGoalIds, checkFlag, danglingRows, dropReference, versionOf } from '@/models/education-plan/planVersions.mjs';
 import DocPreviewModal from '@/components/education-plan/DocPreviewModal';
-import { BlockedNotice, DeadlineBadge } from '@/components/education-plan/DeadlineWidgets';
+import { BlockedNotice } from '@/components/education-plan/DeadlineWidgets';
+import { Button } from '@/components';
 
 /**
  * Kế hoạch giáo dục chủ đề của lớp theo mẫu MN Thái Dương: TT | Mục tiêu (giữ số MT năm) | Nội dung | Hoạt động giáo dục,
@@ -160,7 +161,6 @@ function ThemePlanInner() {
   if (!cls || !yearPlan || !theme) return <StatusPage kind="404" title="Không tìm thấy chủ đề trong kế hoạch năm đã ban hành của lớp" />;
   if (!draft) return <LoadingState />;
 
-  const status = saved?.status || EDU_STATUS.DRAFT;
   const editable = canWrite;
   const copyOld = async () => {
     setCopying(true);
@@ -309,10 +309,10 @@ function ThemePlanInner() {
         <div className="ga-year-toolbar" role="group" aria-label="Thao tác kế hoạch chủ đề">
           <div className="ga-year-toolbar__group">
             <span className="ga-year-toolbar__title">Chủ đề: {theme.name}</span>
-            <EduStatusBadge status={holder?.status || status} doc={holder} />
-            <DeadlineBadge doc={semester} />
+            {/* Trạng thái, hạn chỉ ở thẻ học kỳ trang danh sách (Tiền 14/11/2026) */}
             <FoldAllButton />
-            <span ref={setToolsEl} className="row row--middle gap-2" />
+            {/* Nút "Thao tác" (Lấy / gợi ý) do ThemePlanBody đặt vào; Xuất file chủ đề chỉ ở thẻ chủ đề trang danh sách */}
+            {editable && <span ref={setToolsEl} className="row row--middle gap-2" />}
           </div>
           <div className="ga-year-toolbar__group ga-year-toolbar__group--end">
             {editable && (
@@ -329,34 +329,25 @@ function ThemePlanInner() {
                   onUse={(entry) => (entry ? saver.restoreDraft(entry) : saver.restoreSaved())}
                 />
                 {/* Trang luôn ở chế độ sửa: Hủy về Kế hoạch giáo dục chủ đề của lớp, còn thay đổi chưa lưu thì hỏi (Tiền 13/11/2026) */}
-                <button
-                  type="button"
-                  className="btn btn--sm btn--outline-primary"
+                <Button
+                  variant="outline-primary"
+                  size="sm"
                   disabled={saver.saving}
                   onClick={() => guard.leave(`/education/theme-plans/${classId}`)}
                 >
                   <X size={16} aria-hidden /> Hủy
-                </button>
-                <button
-                  type="button"
-                  className="btn btn--sm btn--primary"
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
                   onClick={saver.save}
                   disabled={saver.saving || (!saver.unsaved && !saver.error)}
                   title="Lưu (Ctrl+S)"
                 >
                   <Save size={16} aria-hidden /> Lưu
-                </button>
+                </Button>
               </>
             )}
-            <button
-              type="button"
-              className="btn btn--sm btn--outline-primary"
-              onClick={() =>
-                setPreview(themeFile({ ...exportArgs, leaderName: leaderNameOf(staff, cls.ageGroupId, yearPlan?.schoolYear) }))
-              }
-            >
-              <FileDown size={16} aria-hidden /> Xuất file
-            </button>
             {preview && <DocPreviewModal file={preview} onClose={() => setPreview(null)} />}
           </div>
         </div>
@@ -429,9 +420,9 @@ function ThemePlanInner() {
           <ul className="stack">
             {holder.releases.map((r, i) => (
               <li key={r.id}>
-                <button type="button" className="btn btn--sm btn--outline-primary" onClick={() => openRelease(r)}>
+                <Button variant="outline-primary" size="sm" onClick={() => openRelease(r)}>
                   <FileDown size={16} aria-hidden /> Bản ban hành {i + 1}
-                </button>{' '}
+                </Button>{' '}
                 <span className="muted text-sm">
                   {fmtDate(r.releasedAt)}
                   {r.approvedBy ? ` · ${r.approvedBy}` : ''}

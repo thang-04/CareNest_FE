@@ -4,6 +4,7 @@ import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { FormField } from '@/components/form/FormField';
 import { Trash2 } from '@/components/ui/icons';
 import { CARD_NAME_MAX, contentLinesOf, newCard, weekRows } from '@/models/education-plan/classPlan';
+import { Button, Checkbox, SelectField, TextField } from '@/components';
 
 /**
  * Hộp thoại thẻ hoạt động (BE:EDU-78, FR-001…FR-003, FR-005): loại giờ, tên, MT (nhiều), nội dung của các MT đã chọn.
@@ -83,22 +84,20 @@ export default function ActivityCardEditor({
         footer={
           <>
             {card && onDelete && (
-              <button type="button" className="btn btn--outline-danger" onClick={() => setAskDelete(true)}>
+              <Button variant="outline-danger" onClick={() => setAskDelete(true)}>
                 <Trash2 size={16} aria-hidden /> Xóa
-              </button>
+              </Button>
             )}
-            <button type="button" className="btn" onClick={onClose}>
-              Hủy
-            </button>
-            <button type="button" className="btn btn--primary" onClick={save}>
+            <Button onClick={onClose}>Hủy</Button>
+            <Button variant="primary" onClick={save}>
               Lưu
-            </button>
+            </Button>
           </>
         }
       >
         <div className="stack">
           <FormField label="Loại giờ" required error={err('slot')}>
-            <select
+            <SelectField
               ref={slotRef}
               className="input"
               aria-invalid={!!err('slot') || undefined}
@@ -111,12 +110,12 @@ export default function ActivityCardEditor({
                   {r.label}
                 </option>
               ))}
-            </select>
+            </SelectField>
           </FormField>
           {card?.legacy && !card.slot && !slot && <p className="text-danger text-sm text-right">Chưa rõ loại giờ</p>}
           <FormField label="Tên hoạt động" required error={err('name')}>
             {/* Tắt tự điền: trình duyệt từng điền email đăng nhập vào ô này */}
-            <input
+            <TextField
               className="input"
               ref={nameRef}
               name="activity-name"
@@ -145,7 +144,7 @@ export default function ActivityCardEditor({
               return (
                 <div key={id} className="stack">
                   <label className="checkbox">
-                    <input type="checkbox" checked={on} onChange={() => toggleGoal(id)} />
+                    <Checkbox checked={on} onChange={() => toggleGoal(id)} />
                     <span>
                       <span className="ga-goal-code">MT{g.no}</span> {g.text}
                     </span>
@@ -153,7 +152,7 @@ export default function ActivityCardEditor({
                   {/* Nội dung gắn thẻ là tùy chọn (Q3), chỉ trong các MT đã chọn */}
                   {lines.map((text, i) => (
                     <label key={i} className="checkbox text-sm ga-goal-table__pad">
-                      <input type="checkbox" checked={refs.includes(`${id}:${i}`)} onChange={() => toggleRef(`${id}:${i}`)} />
+                      <Checkbox checked={refs.includes(`${id}:${i}`)} onChange={() => toggleRef(`${id}:${i}`)} />
                       <span>{text}</span>
                     </label>
                   ))}

@@ -12,7 +12,7 @@ import React, {useMemo, useState} from 'react';
 import {planLevel, planLevel as levelOf, planRoute, inheritAnnual} from ${JSON.stringify(import.meta.resolve('../../src/models/education-plan/planLevel.mjs'))};
 import {currentPlanOf, versionOf} from ${JSON.stringify(import.meta.resolve('../../src/models/education-plan/planVersions.mjs'))};
 export const context={goals:[],schoolYear:'2026',role:'vp',user:{id:'test'},classes:[]};
-const useGoalDetails=()=>({loading:false});const useEducationPlan=()=>context, useNavigate=()=>()=>{};
+const useGoalDetails=()=>({loading:false});const useSchoolYear=()=>({schoolYears:context.schoolYears||[]});const useEducationPlan=()=>context, useNavigate=()=>()=>{};
 const ROLES={VICE_PRINCIPAL:'vp', PRINCIPAL:'principal', TEAM_LEADER:'leader'}, AGE_GROUPS=[], EDU_STATUS={APPROVED:'APPROVED',SENT:'SENT',PENDING_VP:'PENDING_VP'};
 const allGoalItems=()=>[], clickableRowProps=()=>({}), fmtDate=(value)=>value || '—';
 const Card=({children})=><section>{children}</section>, PageHead=({actions})=><header>{actions}</header>, StatCard=({label})=><span>{label}</span>, SearchSubmit=()=>null, EmptyState=()=>null;
@@ -136,6 +136,27 @@ test('PHT sees annual create button even when duration API is unavailable; TEAM 
     assert.match(html, /Lập kế hoạch năm học/);
     context.role = 'teacher';
     assert.doesNotMatch(renderToStaticMarkup(React.createElement(GoalListPage, { planLevel: 'SCHOOL_YEAR' })), /school-year-plans\/new/);
+  } finally {
+    Object.keys(context).forEach((key) => delete context[key]);
+    Object.assign(context, previous);
+  }
+});
+test('EDU-89: chỉ lập kế hoạch khi năm đang hoạt động hoặc đã tới ngày mở chuẩn bị', () => {
+  const previous = { ...context };
+  const html = () => renderToStaticMarkup(React.createElement(GoalListPage, { planLevel: 'SCHOOL_YEAR' }));
+  try {
+    context.goals = [];
+    context.role = 'vp';
+    context.schoolYear = '2026-2027';
+    const year = (status, preparing = false) => [{ id: 1, label: '2026 - 2027', status, preparing }];
+    context.schoolYears = year('ACTIVE');
+    assert.match(html(), /school-year-plans\/new/);
+    context.schoolYears = year('PLANNED', true);
+    assert.match(html(), /school-year-plans\/new/);
+    context.schoolYears = year('PLANNED');
+    assert.doesNotMatch(html(), /school-year-plans\/new/);
+    context.schoolYears = year('CLOSED');
+    assert.doesNotMatch(html(), /school-year-plans\/new/);
   } finally {
     Object.keys(context).forEach((key) => delete context[key]);
     Object.assign(context, previous);

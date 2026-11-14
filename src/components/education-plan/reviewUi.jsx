@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import { Check, Send, Undo2, XCircle } from '@/components/ui/icons';
+import { Check, ListChecks, Send, Undo2, XCircle } from '@/components/ui/icons';
+import { RowMenu } from '@/components/ui/RowMenu';
+import { Button } from '@/components/ui/Button';
 import { Card, Field, History, Modal, Notice, fmtDateTime } from '@/components/education-plan/eduUi';
 
 /*
@@ -15,6 +17,23 @@ export const SIGNER_SHORT = { TEAM_LEADER: 'Tổ trưởng', VICE_PRINCIPAL: 'Ph
 export const lastRejection = (history) => [...(history || [])].reverse().find((h) => h.tone === 'err') || null;
 
 /**
+ * Nút "Thao tác" mở danh sách thao tác của trang (mục dạng RowMenu). Chỉ gom khi có từ 2 thao tác; 1 thao tác thì hiện
+ * thẳng nút đó (Tiền 14/11/2026); không có thì không hiện.
+ */
+export function ActionsMenu({ items, className = 'btn btn--sm btn--outline-primary' }) {
+  if (!items?.length) return null;
+  if (items.length === 1) {
+    const [{ label, icon, onClick, disabled }] = items;
+    return (
+      <Button variant="outline-primary" size="sm" icon={icon} onClick={onClick} disabled={disabled}>
+        {label}
+      </Button>
+    );
+  }
+  return <RowMenu label="Thao tác" text="Thao tác" icon={<ListChecks size={16} aria-hidden />} className={className} items={items} />;
+}
+
+/**
  * Nút gửi / trả lại / duyệt ở đầu trang và hộp xác nhận.
  * - name: tên tài liệu trong câu hỏi ("kế hoạch năm học", "chủ đề nhánh", "kế hoạch chủ đề").
  * - sendTo: người duyệt đầu tiên (vd. "Phó HT"); approveLabel: "Duyệt" hoặc "Ban hành".
@@ -24,6 +43,8 @@ export const lastRejection = (history) => [...(history || [])].reverse().find((h
  * - unsaved + onSave (Tiền 05/11): nút Gửi / Ban hành / Duyệt luôn bấm được; còn thay đổi chưa lưu thì hộp báo và nút xác
  *   nhận thành "Lưu và …": lưu trước (onSave trả kết quả khác false), rồi mới gửi / duyệt. Lý do khác chưa gửi được
  *   (sendBlocked, không có quyền) thì bấm vẫn được nhưng chỉ hiện thông báo lý do, không mờ nút.
+ * - menu (Tiền 14/11/2026): gom gửi/trả lại/duyệt vào một nút "Thao tác" mở danh sách; menu.before/after là các mục
+ *   khác của trang (dạng mục RowMenu) đứng trước/sau theo trình tự thao tác.
  */
 export function ReviewActions({
   name,
@@ -41,6 +62,7 @@ export function ReviewActions({
   variant = 'btn--primary',
   unsaved = false,
   onSave,
+  menu = null,
 }) {
   const [action, setAction] = useState(null);
   const [blocked, setBlocked] = useState(null);
@@ -121,25 +143,35 @@ export function ReviewActions({
   // Nhãn nút xác nhận: còn thay đổi chưa lưu thì "Lưu và …" (nhãn đã có chữ Lưu thì giữ)
   const withSave = (label) => (unsaved && !/^lưu/i.test(label) ? `Lưu và ${label.charAt(0).toLowerCase()}${label.slice(1)}` : label);
 
+  const sendClick = () => (sendReason ? setBlocked(sendReason) : open('submit'));
+  const menuItems = menu && [
+    ...(menu.before || []),
+    ...(can.send || showSend ? [{ label: sendLabel, icon: Send, onClick: sendClick }] : []),
+    ...(can.reject ? [{ label: 'Trả lại', icon: Undo2, onClick: () => open('reject') }] : []),
+    ...(can.approve ? [{ label: approveLabel, icon: Check, onClick: () => open('approve') }] : []),
+    ...(menu.after || []),
+  ];
+
   return (
     <>
-      {(can.send || showSend) && (
+      {menu && <ActionsMenu items={menuItems} className={btn(variant)} />}
+      {!menu && (can.send || showSend) && (
         <button
           type="button"
           className={btn(variant)}
           title={sendReason || undefined}
           aria-description={sendReason || undefined}
-          onClick={() => (sendReason ? setBlocked(sendReason) : open('submit'))}
+          onClick={sendClick}
         >
           <Send size={16} aria-hidden /> {sendLabel}
         </button>
       )}
-      {can.reject && (
+      {!menu && can.reject && (
         <button type="button" className={btn('btn--outline-danger')} onClick={() => open('reject')}>
           <Undo2 size={16} aria-hidden /> Trả lại
         </button>
       )}
-      {can.approve && (
+      {!menu && can.approve && (
         <button type="button" className={btn(variant)} onClick={() => open('approve')}>
           <Check size={16} aria-hidden /> {approveLabel}
         </button>

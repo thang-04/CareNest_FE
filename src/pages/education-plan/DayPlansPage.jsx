@@ -5,11 +5,21 @@ import { Card, DocAvailabilityBadge, EduStatusBadge, EmptyCard, FoldAllButton, P
 import { ReviewActions } from '@/components/education-plan/reviewUi';
 import { DeadlineBadge } from '@/components/education-plan/DeadlineWidgets';
 import { LoadingState } from '@/components/ui/States';
-import { Eye, Plus } from '@/components/ui/icons';
+import { Eye, Pencil, Plus } from '@/components/ui/icons';
+import { DocTable } from '@/components/ui/DocTable';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { usePolling } from '@/hooks/usePolling';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
-import { ddmm, semesterChoices, themeBranchGroups, todayIso, yearWeeks } from '@/models/education-plan/classPlan';
+import {
+  DAY_SECTIONS,
+  ddmm,
+  isEditableStatus,
+  semesterChoices,
+  themeBranchGroups,
+  todayIso,
+  yearWeeks,
+} from '@/models/education-plan/classPlan';
+import { BLOCKED_TEXT } from '@/models/education-plan/deadline.mjs';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { WeekPlanInner } from '@/pages/education-plan/WeekPlanPage';
 
@@ -67,6 +77,8 @@ function DayPlansList({ classId }) {
   const { user, branchPlans, dayPlans, themeDossiers, semesterPackages, actOnClassDoc, eduConfig, refreshClassDocs } = useEducationPlan();
   const { schoolYear: yearId, schoolYears } = useSchoolYear();
   const [folded, setFolded] = useState(() => new Set());
+  // Lỗi BE trả khi gửi hồ sơ chủ đề (7390 mục trống, 7396/7397 MT chưa dạy), theo từng chủ đề
+  const [sendErr, setSendErr] = useState({});
   const ctx = useClassPlanContext(classId);
   const { cls, classes, yearPlan, canComposeClassDocs } = ctx;
   // Người khác gửi/duyệt/trả lại hồ sơ chủ đề thì trang tự cập nhật
@@ -155,9 +167,19 @@ function DayPlansList({ classId }) {
         const branchOf = (ws) => groups.find((g) => g.weeks.some((w) => w.start === ws));
         const themeRows = rows.filter((r) => r.theme.id === t.id);
         const review = dossier ? docReview('theme', dossier, ctx, user, eduConfig) : null;
-        const act = (action, note, _saved, extra) =>
-          actOnClassDoc('dossier', dossier.id, { action, note, ...extra }, user, { version: dossier.version });
-        const savedWeek = (ws) => dayPlans.some((d) => d.classId === classId && d.yearPlanId === yearPlan.id && d.weekStart === ws);
+        const act = async (action, note, _saved, extra) => {
+          const out = await actOnClassDoc('dossier', dossier.id, { action, note, ...extra }, user, {
+            version: dossier.version,
+            onError: (err) => setSendErr((m) => ({ ...m, [t.id]: (err.details?.details || []).filter(Boolean) })),
+          });
+          if (out) setSendErr((m) => ({ ...m, [t.id]: [] }));
+          return out;
+        };
+        const errs = sendErr[t.id] || [];
+        const emptyErrs = errs.filter((x) => x.section && x.date);
+        const goalErrs = errs.filter((x) => x.goalNo != null);
+        const dayDoc = (ws) => dayPlans.find((d) => d.classId === classId && d.yearPlanId === yearPlan.id && d.weekStart === ws) || null;
+        const savedWeek = (ws) => !!dayDoc(ws);
         // Người chỉ xem mà chủ đề chưa có kế hoạch ngày nào: ẩn cột Thao tác trống (Tiền 12/11/2026)
         const showActions = !viewer || themeRows.some((r) => r.type !== 'break' && savedWeek(r.start));
         return (
@@ -186,78 +208,97 @@ function DayPlansList({ classId }) {
                     sendLabel="Gửi duyệt"
                     can={review.can}
                     showSend={canComposeClassDocs && dossier.status === EDU_STATUS.DRAFT}
-                    sendDisabledReason={
-                      dossier.blockedReason === 'SEMESTER_NOT_RELEASED'
-                        ? 'Kế hoạch chủ đề và kế hoạch tuần của học kỳ chưa được duyệt'
-                        : 'Chưa gửi được hồ sơ chủ đề này'
-                    }
+                    // Gói học kỳ chưa ban hành: không hiện dòng nhắc trên trang, bấm Gửi duyệt mới cảnh báo (Tiền 14/11/2026)
+                    sendDisabledReason={BLOCKED_TEXT[dossier.blockedReason] || 'Chưa gửi được hồ sơ chủ đề này'}
                     onAct={act}
                     variant="btn--outline-primary"
+                    menu={{}}
                   />
                 )}
               </div>
             }
           >
             <div className="card__body">
-              <div className="table-wrap">
-                <table className="table ga-plan-table ga-goal-table ga-class-plan-table">
-                  <colgroup>
-                    <col className="ga-col-main" />
-                    <col className="ga-col-theme-time" />
-                    {showActions && <col className="ga-col-theme-actions" />}
-                  </colgroup>
-                  <thead>
-                    <tr>
-                      <th>Nội dung</th>
-                      <th>Thời gian</th>
-                      {showActions && <th className="cell--actions ga-col-theme-actions">Thao tác</th>}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {themeRows.map((r) => {
-                      if (r.type === 'break')
-                        return (
-                          <tr key={`b-${r.start}`}>
-                            <td colSpan={showActions ? 3 : 2}>
-                              <div className="ga-goal-table__pad muted">
-                                Nghỉ: {r.label || 'Đợt nghỉ'} ({ddmm(r.start)} → {ddmm(r.end)})
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      const g = branchOf(r.start);
-                      const name = g?.name?.trim();
-                      const saved = savedWeek(r.start);
+              {goalErrs.length > 0 && (
+                <p className="field__error" role="alert">
+                  MT chưa được dạy ngày nào: {goalErrs.map((g) => `MT${g.goalNo}`).join(', ')}
+                </p>
+              )}
+              {emptyErrs.length > 0 && (
+                <p className="field__error" role="alert">
+                  Còn {emptyErrs.length} mục chưa có nội dung:{' '}
+                  {emptyErrs
+                    .map(
+                      (e) =>
+                        `${ddmm(e.date)}: ${(DAY_SECTIONS.find((x) => x.key === e.section)?.label || e.section).replace(/^\d+\.\s*/, '')}`,
+                    )
+                    .join('; ')}
+                  .
+                </p>
+              )}
+              <DocTable className="ga-plan-table ga-goal-table ga-class-plan-table">
+                <colgroup>
+                  <col className="ga-col-main" />
+                  <col className="ga-col-theme-time" />
+                  {showActions && <col className="ga-col-theme-actions" />}
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th>Nội dung</th>
+                    <th>Thời gian</th>
+                    {showActions && <th className="cell--actions ga-col-theme-actions">Thao tác</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {themeRows.map((r) => {
+                    if (r.type === 'break')
                       return (
-                        <tr key={r.start}>
-                          <td>
-                            <div className={`ga-goal-table__pad ${name ? 'fw-600' : 'muted'}`}>
-                              Nhánh {g?.no || '—'}: {name || 'chưa đặt tên'}
+                        <tr key={`b-${r.start}`}>
+                          <td colSpan={showActions ? 3 : 2}>
+                            <div className="ga-goal-table__pad muted">
+                              Nghỉ: {r.label || 'Đợt nghỉ'} ({ddmm(r.start)} → {ddmm(r.end)})
                             </div>
                           </td>
-                          <td className="cell--fixed">
-                            <div className="ga-goal-table__pad">
-                              Tuần {r.no}: {ddmm(r.start)} → {ddmm(r.end)}
-                            </div>
-                          </td>
-                          {showActions && (
-                            <td className="center cell--actions">
-                              <div className="ga-goal-table__pad">
-                                {(saved || !viewer) && (
-                                  <Link className="btn btn--outline-primary btn--sm" to={dayUrl(r.start)}>
-                                    {saved || viewer ? <Eye size={16} aria-hidden /> : <Plus size={16} aria-hidden />}{' '}
-                                    {saved || viewer ? 'Mở' : 'Soạn'}
-                                  </Link>
-                                )}
-                              </div>
-                            </td>
-                          )}
                         </tr>
                       );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                    const g = branchOf(r.start);
+                    const name = g?.name?.trim();
+                    const saved = dayDoc(r.start);
+                    // Chữ thống nhất với trang chủ đề: chưa có ⇒ Soạn, sửa được ⇒ Chỉnh sửa, chỉ xem ⇒ Xem (Tiền 14/11/2026)
+                    const canEdit = saved
+                      ? saved.permissions
+                        ? saved.permissions.canEdit
+                        : canComposeClassDocs && isEditableStatus(dossier?.status || 'DRAFT')
+                      : !viewer;
+                    const [Icon, label] = !saved ? [Plus, 'Soạn'] : canEdit ? [Pencil, 'Chỉnh sửa'] : [Eye, 'Xem'];
+                    return (
+                      <tr key={r.start}>
+                        <td>
+                          <div className={`ga-goal-table__pad ${name ? 'fw-600' : 'muted'}`}>
+                            Nhánh {g?.no || '—'}: {name || 'chưa đặt tên'}
+                          </div>
+                        </td>
+                        <td className="cell--fixed">
+                          <div className="ga-goal-table__pad">
+                            Tuần {r.no}: {ddmm(r.start)} → {ddmm(r.end)}
+                          </div>
+                        </td>
+                        {showActions && (
+                          <td className="center cell--actions">
+                            <div className="ga-goal-table__pad">
+                              {(saved || !viewer) && (
+                                <Link className="btn btn--outline-primary btn--sm" to={dayUrl(r.start)}>
+                                  <Icon size={16} aria-hidden /> {label}
+                                </Link>
+                              )}
+                            </div>
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </DocTable>
             </div>
           </Card>
         );
