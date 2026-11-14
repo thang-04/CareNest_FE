@@ -74,3 +74,6 @@ Link lịch sử tháng vẫn tồn tại: chuyển về hồ sơ thay vì xóa 
 - Source, menu và dashboard đã sửa theo AC-1..4. Test menu bốn vai trò đạt; route cũ dùng Navigate replace về hồ sơ, không lazy load màn tháng.
 - Verify: `node scripts/verify.mjs` → `VERIFY PASS full | npm run verify | log verify.log`. Check AI-layer 0 lỗi, 21 cảnh báo cũ. Chưa kiểm trình duyệt thật.
 - Khác plan: không xóa file page cũ hoặc dữ liệu; không commit/push. Chờ user review.
+
+### 2026-11-14 — Xóa hẳn màn
+- Theo review: xóa file trang danh sách/chi tiết tháng và route `/assessment/periodic*` (không còn chuyển hướng); hồ sơ phát triển bỏ nút "Xem chi tiết" của đánh giá tháng cũ. Giữ thẻ nhận xét chung lớp theo tháng và Chất lượng tháng.

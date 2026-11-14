@@ -503,12 +503,6 @@ export function AppRoutes() {
             <Route path="children" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <ChildDevelopmentListPage />)} />
             <Route path="children/:childId" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <ChildDevelopmentProfilePage />)} />
             <Route path="children/:childId/progress" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <ChildDevelopmentProgressPage />)} />
-            <Route path="periodic" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <Navigate to="/assessment/children" replace />)} />
-            <Route path="periodic/:id" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <Navigate to="/assessment/children" replace />)} />
-            <Route
-              path="periodic/:id/ai-draft"
-              element={permit([PERMISSIONS.ASSESSMENT_VIEW], <Navigate to="/assessment/children" replace />)}
-            />
             <Route path="semester" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <SemesterEvaluationListPage />)} />
             <Route path="semester/:id" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <SemesterEvaluationDetailPage />)} />
             <Route path="semester/:id/ai-draft" element={permit([PERMISSIONS.ASSESSMENT_RECORD], <AiEvaluationDraftPage />)} />

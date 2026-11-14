@@ -144,7 +144,7 @@ export const CLASS_RATING_CRITERIA = [
 ];
 
 // Giá trị = đoạn đường dẫn /assessment/<kind>
-export const EVAL_KIND = { PERIODIC: 'periodic', SEMESTER: 'semester', YEAR_END: 'year-end' };
+export const EVAL_KIND = { SEMESTER: 'semester', YEAR_END: 'year-end' };
 
 export const EVAL_STATUS = { AWAITING_REVIEW: 'AWAITING_REVIEW', AI_FAILED: 'AI_FAILED', CONFIRMED: 'CONFIRMED' };
 export const EVAL_STATUS_LABELS = {

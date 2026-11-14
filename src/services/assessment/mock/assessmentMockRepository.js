@@ -567,7 +567,7 @@ const runPeriodJobs = (db, { notify = true } = {}) => {
           title: 'Bản nháp đánh giá đã sẵn sàng',
           // MSG31
           message: `Bản nháp AI đã sẵn sàng để bạn xem xét – ${cls.name}, ${periodLabel(type, start, end)}.`,
-          link: '/assessment/periodic',
+          link: '/assessment/children',
         }),
       );
     }
@@ -1568,7 +1568,7 @@ export const assessmentMockRepository = {
           type: 'EVALUATION_CONFIRMED',
           title: yearEnd ? 'Đánh giá cuối năm đã xác nhận' : 'Đánh giá định kỳ đã công bố',
           message: `${child?.fullName} (${cls?.name}) – ${label}.`,
-          link: `/assessment/${yearEnd ? 'year-end' : 'periodic'}/${ev.id}`,
+          link: `/assessment/${yearEnd ? 'year-end' : 'semester'}/${ev.id}`,
         }),
       );
       return clone(ev);

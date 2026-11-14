@@ -285,7 +285,7 @@ export function DevelopmentProfileView({ childId, mode, evaluationLink }) {
                               <div className="fw-600">
                                 {PERIOD_TYPE_LABELS[e.periodType]} · {periodLabel(e.periodType, e.periodStart, e.periodEnd)}
                               </div>
-                              {evaluationLink && (
+                              {evaluationLink?.(e) && (
                                 <Link className="btn btn--sm" to={evaluationLink(e)}>
                                   Xem chi tiết
                                 </Link>
