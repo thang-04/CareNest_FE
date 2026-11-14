@@ -12,6 +12,7 @@ import { numberGoals } from '@/models/education-plan/goalTable';
 import { remapCriteriaToPlan } from '@/models/education-plan/planVersions.mjs';
 import { ROLES } from '@/models/User';
 import {
+  CLASS_COMMENT_MAX,
   EVAL_KIND,
   EVAL_STATUS,
   OVERVIEW_PERIOD,
@@ -1134,6 +1135,7 @@ export const assessmentMockRepository = {
         throw new ApiError(400, 'Chưa có thay đổi nào để lưu.', { _form: 'Chưa có thay đổi nào để lưu.' });
       if (classComment != null) {
         if (typeof classComment !== 'string') fail(400, 'Nhận xét chung của lớp phải là văn bản.', 'classComment');
+        if (classComment.length > CLASS_COMMENT_MAX) fail(400, `Nhận xét chung của lớp tối đa ${CLASS_COMMENT_MAX} ký tự`, 'classComment');
         if (findDiagnosticTerms(classComment).length)
           fail(400, 'Nhận xét chung của lớp không dùng thuật ngữ chẩn đoán, hãy mô tả điều quan sát được.', 'classComment');
       }
