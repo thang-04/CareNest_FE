@@ -48,6 +48,14 @@ test('fill supports upward direction and legacy MT labels; nonnumeric labels are
   assert.equal(goalDisplayLabel({ displayLabel: '  ' }, 2), 'MT2');
 });
 
+test('fill works from and onto goals that have a typed STT but no goal text yet', () => {
+  const before = tree();
+  before[0].rows[2] = { id: 'blank', kind: 'goal', text: '', displayLabel: '1', contents: [] };
+  const after = fillGoalLabels(before, 'blank', 'c', { a: 1, b: 2, c: 3 });
+  assert.deepEqual([after[0].rows[2].displayLabel, after[0].rows[3].displayLabel, after[1].rows[0].displayLabel], ['1', '2', '3']);
+  assert.equal(after[0].rows[1].displayLabel, 'Mục tiêu 009');
+});
+
 test('fill rejects labels exceeding the persisted limit and increments large counters without precision loss', () => {
   const before = tree();
   before[0].rows[1].displayLabel = '9'.repeat(100);

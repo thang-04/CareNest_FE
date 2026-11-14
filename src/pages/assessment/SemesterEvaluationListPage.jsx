@@ -216,8 +216,8 @@ export default function SemesterEvaluationListPage() {
                 description="Kiểm tra kế hoạch năm học đã duyệt và mục tiêu gắn chủ đề trong kỳ."
               />
             ) : (
-              <div className="table-wrap">
-                <table className="table table--grid table--compact dg-theme-table dg-semester-table">
+              <div className="table-wrap dg-roll-wrap">
+                <table className="table table--grid table--compact dg-theme-table dg-semester-table dg-roll">
                   <colgroup>
                     <col className="dg-eval-index-col" />
                     <col className="dg-semester-name-col" />

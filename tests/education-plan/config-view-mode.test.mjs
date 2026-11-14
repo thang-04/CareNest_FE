@@ -26,6 +26,8 @@ const useEffect = () => {}, useLayoutEffect = () => {};
 const useEducationPlan = () => ({ eduConfig: context.config });
 const useManualSave = (options) => { context.saver = options; return { unsaved: false, label: 'Đã lưu' }; };
 const useLeaveGuard = (options) => { context.guard = options; return { modal: {} }; };
+// Như Button thật (@/components/ui/Button): btn + biến thể + cỡ
+const Button = ({variant,size,icon:Icon,loading=false,disabled=false,type='button',className='',children,...rest}) => <button type={type} className={['btn',variant&&'btn--'+variant,size&&'btn--'+size,className].filter(Boolean).join(' ')} disabled={disabled||loading} {...rest}>{Icon && <Icon/>}{children}</button>;
 const Card = ({title,children}) => <section><h2>{title}</h2>{children}</section>;
 const Notice = ({children}) => <p>{children}</p>;
 const PageHead = ({title}) => <h1>{title}</h1>;
@@ -46,7 +48,7 @@ test('cấu hình mở ở chế độ xem, phải bấm Chỉnh sửa trước 
   for (const canConfigure of [true, false]) {
     context.config.canConfigure = canConfigure;
     const html = renderToStaticMarkup(React.createElement(EduConfigPage));
-    assert.match(html, /btn btn--sm btn--outline-primary[^>]*>\s*Chỉnh sửa<\/button>/);
+    assert.match(html, /btn btn--outline-primary btn--sm[^>]*>\s*Chỉnh sửa<\/button>/);
     assert.doesNotMatch(html, /<(?:input|textarea|select)\b|>Lưu<\/button>|>Xóa<\/th>|>Sắp xếp<\/th>/);
     assert.match(html, /Lĩnh vực giáo dục/);
     assert.match(html, /Các dòng hoạt động của kế hoạch tuần/);

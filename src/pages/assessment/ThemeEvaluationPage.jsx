@@ -258,8 +258,8 @@ export default function ThemeEvaluationPage() {
                   Chủ đề: {ev.themeName} · {ev.className}
                   {yearLabel ? ` · Năm học ${yearLabel}` : ''}
                 </AssessmentFormHeading>
-                <div className="table-wrap">
-                  <table className="table table--grid table--compact dg-theme-table">
+                <div className="table-wrap dg-roll-wrap">
+                  <table className="table table--grid table--compact dg-theme-table dg-roll">
                     <thead>
                       <tr>
                         <th className="num">STT</th>

@@ -6,7 +6,6 @@ import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Pagination, paginate } from '@/components/ui/Pagination';
 import { ClassCommentList } from '@/components/assessment/ClassComments';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
-import { Tabs } from '@/components/ui/Tabs';
 import { clickableRowProps } from '@/utils/clickableRow';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
@@ -22,8 +21,8 @@ import '@/styles/modules/assessment.css';
 import { CampusFilter } from '@/components/ui/CampusFilter';
 
 const PAGE_SIZE = 10;
-// Chỉ xem theo ngày và tháng (user chốt 03/11/2026: bỏ "Tuần này" để không nhầm với đánh giá tuần đã bỏ)
-const PERIODS = [OVERVIEW_PERIOD.DAY, OVERVIEW_PERIOD.MONTH].map((key) => ({ key, label: OVERVIEW_PERIOD_LABELS[key] }));
+// Chỉ xem theo ngày (user chốt 03/11/2026 bỏ "Tuần này"; 12/11/2026 bỏ "Tháng này" để không nhầm với đánh giá
+// tuần/tháng đã bỏ). Xem số liệu cả tháng ở Chất lượng tháng.
 
 const rangeText = (o) => (o.start === o.end ? formatDate(o.start) : `${formatDate(o.start)} – ${formatDate(o.end)}`);
 const pct = (n, total) => (total ? `${Math.round((n * 100) / total)}%` : '–');
@@ -220,7 +219,7 @@ export default function ClassAssessmentOverviewPage() {
   const { classes: ownClasses } = useDailyAssessmentClasses({ enabled: !isLeader(user) });
   const own = new Set(isLeader(user) ? [] : ownClasses.map((c) => String(c.id)));
   const today = todayIso();
-  const [period, setPeriod] = useState(OVERVIEW_PERIOD.DAY);
+  const period = OVERVIEW_PERIOD.DAY;
   const [date, setDate] = useState(today);
   const [dateInput, setDateInput] = useState(today);
   const [dateError, setDateError] = useState('');
@@ -272,7 +271,6 @@ export default function ClassAssessmentOverviewPage() {
         ) : (
           <>
             <div className="filter-bar dg-ov-toolbar">
-              <Tabs items={PERIODS} value={period} onChange={filter(setPeriod)} ariaLabel="Kỳ tổng hợp" />
               <div className="field">
                 <DateInput
                   className={dateError ? 'input--error' : ''}
@@ -332,8 +330,8 @@ export default function ClassAssessmentOverviewPage() {
             {error ? (
               <ErrorState error={error} onRetry={reload} />
             ) : (
-              <div className="table-wrap">
-                <table className="table table--grid dg-ov-table">
+              <div className="table-wrap dg-roll-wrap">
+                <table className="table table--grid dg-ov-table dg-roll">
                   <thead>
                     <tr>
                       <th>Lớp</th>
