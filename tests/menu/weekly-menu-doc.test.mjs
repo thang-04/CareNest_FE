@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
+// Cố định múi giờ trường để ca "công bố trước 7 giờ sáng" cho cùng kết quả trên máy dev và CI (UTC)
+process.env.TZ = 'Asia/Ho_Chi_Minh';
+
 const { weeklyMenuFile } = await import('@/utils/menu-planning/weeklyMenuDoc');
 
 const day = (date, items = [], extra = {}) => ({ date, off: false, note: '', items, ...extra });
@@ -57,6 +60,13 @@ test('chỗ ký người lập: ngày theo lúc công bố, có họ tên khi đ
   assert.match(blank, /NGƯỜI LẬP/);
   assert.match(blank, /<b><\/b><\/td><\/tr><\/table>/);
   assert.match(weeklyMenuFile(plan, '2026-11-16', { preparerName: '<b>x' }).html, /&lt;b&gt;x/);
+});
+
+test('ngày ở chỗ ký theo giờ Việt Nam khi BE trả Instant UTC', () => {
+  // 20:30 UTC ngày 12 = 03:30 sáng ngày 13 giờ Việt Nam
+  const html = weeklyMenuFile({ ...plan, publishedAt: '2026-11-12T20:30:00Z' }, '2026-11-16').html;
+  assert.match(html, /Thượng Hồng, ngày 13 tháng 11 năm 2026/);
+  assert.match(html, /Công bố lúc 13\/11\/2026 03:30/);
 });
 
 test('tiêu đề tuần, thời điểm công bố và tên file', () => {

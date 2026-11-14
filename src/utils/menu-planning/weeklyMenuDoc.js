@@ -6,7 +6,7 @@ import { escapeHtml as esc, fileTitle } from '@/components/print/docFile';
 import { DEFAULT_PRINT_TEMPLATE } from '@/config/printTemplate';
 import { MEAL_BLOCK_LABELS, MEAL_SESSION_LABELS, WEEKDAY_LABELS } from '@/models/menu-planning/menuPlanningConstants';
 import { blockSessions, dayBlockItems, planBlocks } from '@/utils/menu-planning/mealPlanGrid';
-import { formatDateTime } from '@/utils/format';
+import { formatDateTime, localDateOf } from '@/utils/format';
 
 const dmy = (iso, sep = '/') => (iso ? iso.split('-').reverse().join(sep) : '');
 const weekdayOf = (iso) => WEEKDAY_LABELS[new Date(`${iso}T00:00:00`).getDay() - 1] || '';
@@ -70,7 +70,8 @@ const commune = (DEFAULT_PRINT_TEMPLATE.address.match(/xã ([^,]+)/i) || [])[1] 
 
 /** Chỗ ký người lập: ngày theo thời điểm công bố; không có họ tên thì để trống cho ký tay. */
 const signBlock = (publishedAt, preparerName) => {
-  const [y, m, d] = (publishedAt || '').slice(0, 10).split('-');
+  // publishedAt là Instant UTC ("…Z") ⇒ đổi sang ngày địa phương, cắt chuỗi sẽ lùi một ngày khi công bố trước 7 giờ sáng
+  const [y, m, d] = publishedAt ? localDateOf(publishedAt).split('-') : [];
   const date = y ? `ngày ${d} tháng ${m} năm ${y}` : 'ngày …… tháng …… năm ……';
   return `<table class="sign"><tr><td><i>${esc(commune ? `${commune}, ${date}` : date)}</i></td></tr>
 <tr><td><b>NGƯỜI LẬP</b><br/><i>(Ký, ghi rõ họ tên)</i></td></tr>
