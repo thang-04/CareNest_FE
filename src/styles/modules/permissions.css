@@ -154,11 +154,11 @@
   text-align: left;
 }
 
-/* Cấp 1: luồng lớn, nổi hơn dòng nhóm cấp 2 */
-.table.table--grid.perm-table .perm-table__flow th,
-.table.table--grid.perm-table .perm-table__flow td,
-.table.table--grid.perm-table .perm-table__flow:hover th,
-.table.table--grid.perm-table .perm-table__flow:hover td {
+/* Cấp 1: luồng lớn, nổi hơn dòng nhóm cấp 2; luồng đang thu gọn để nền trắng cho đỡ nặng mắt */
+.table.table--grid.perm-table .perm-table__flow:not(.is-collapsed) th,
+.table.table--grid.perm-table .perm-table__flow:not(.is-collapsed) td,
+.table.table--grid.perm-table .perm-table__flow:not(.is-collapsed):hover th,
+.table.table--grid.perm-table .perm-table__flow:not(.is-collapsed):hover td {
   background: var(--color-primary-soft);
   color: var(--color-primary-active);
   font-weight: var(--fw-bold);

@@ -42,3 +42,13 @@ Test có seed theo ngày phải kiểm soát Date, không giả định tuần c
 ## Kết quả kiểm chứng 27/10/2026
 
 BE `VERIFY PASS full | tests 380 fail 0 err 0 skip 0 | archunit ok | snapshot ok | spotless ok`; FE verify chuẩn đạt sau sửa fixture Date. Bộ giáo dục gồm ca queue/retry/validation/offline mô phỏng, recovery và API stale revision; browser mock xác nhận tự lưu, bàn giao quyền, hai tab và mở lại có bản phục hồi. Không coi đây là kiểm chứng browser trên backend thật hoặc SLA mạng production.
+
+## Lặp lại 14/11/2026 — `weekly-day-draft-save.test.mjs`
+
+| Lần | Cách | Kết quả |
+| --- | --- | --- |
+| 1 | Chạy riêng test khi đã cất thay đổi phân quyền | Vẫn fail "đã có thực đơn tuần TT-20261123-MGN" ⇒ lỗi có sẵn, không do thay đổi đang làm |
+| 2 | Đối chiếu `buildRecentWeeklyMenus` (`src/mocks/menuPlanningSeed.js`) | Thứ Bảy 14/11 ⇒ `schoolWeekStart` = 16/11, nháp seed tuần sau 23/11 trùng `WEEK` cố định của test |
+| 3 | Đổi tuần trong test thành `addDays(schoolWeekStart(todayInput()), 7 * n)` với n = 3, 4, 5 | Test 3/3 pass, verify chuẩn đạt |
+
+Lesson: xem `FP-TEST-WEEK-RELATIVE` trong `docs/knowledge/PATTERNS.md`.
