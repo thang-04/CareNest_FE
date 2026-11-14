@@ -127,7 +127,7 @@ export default function CutoffSettingPage() {
     setSaving(true);
     try {
       await saveCutoffSetting(yearId, form, user);
-      toast.success('Đã lưu giờ chốt. Hãy báo trực tiếp cho các Phó hiệu trưởng và giáo viên.');
+      toast.success('Đã lưu giờ chốt.');
       setConfirmOpen(false);
       setInitial(form);
       reload({ silent: true });
@@ -290,8 +290,7 @@ export default function CutoffSettingPage() {
         title="Lưu giờ chốt"
         message={
           <>
-            Từ ngày <b>{formatDate(form.effectiveFrom)}</b>, điểm danh và suất ăn sẽ khóa lúc <b>{form.time}</b> mỗi ngày học. Hệ thống chưa
-            gửi thông báo; hãy báo trực tiếp cho các Phó hiệu trưởng và giáo viên.
+            Từ ngày <b>{formatDate(form.effectiveFrom)}</b>, điểm danh và suất ăn sẽ khóa lúc <b>{form.time}</b> mỗi ngày học.
           </>
         }
         confirmLabel="Lưu giờ chốt"
