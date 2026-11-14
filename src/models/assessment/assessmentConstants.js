@@ -144,7 +144,7 @@ export const CLASS_RATING_CRITERIA = [
 ];
 
 // Giá trị = đoạn đường dẫn /assessment/<kind>
-export const EVAL_KIND = { PERIODIC: 'periodic', SEMESTER: 'semester', YEAR_END: 'year-end' };
+export const EVAL_KIND = { SEMESTER: 'semester', YEAR_END: 'year-end' };
 
 export const EVAL_STATUS = { AWAITING_REVIEW: 'AWAITING_REVIEW', AI_FAILED: 'AI_FAILED', CONFIRMED: 'CONFIRMED' };
 export const EVAL_STATUS_LABELS = {
@@ -236,3 +236,6 @@ export const OVERVIEW_PERIOD_LABELS = { DAY: 'Hôm nay', WEEK: 'Tuần này', MO
 
 /** Độ dài tối đa nhận xét hằng ngày của từng trẻ (BE SaveDailyGeneralRequest / SaveDailySkillsRequest @Size 500). */
 export const DAILY_COMMENT_MAX = 500;
+
+/** Độ dài tối đa nhận xét chung của lớp trong ngày (BE CLASS_COMMENT_TOO_LONG). */
+export const CLASS_COMMENT_MAX = 500;

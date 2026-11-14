@@ -175,7 +175,6 @@ export function DevelopmentCharts({ weeks }) {
             </table>
           </div>
         )}
-        <div className="muted text-xs mt-8">Cột màu nhạt: tuần đang diễn ra, số liệu chưa đầy đủ.</div>
       </div>
     </div>
   );

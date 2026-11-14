@@ -42,6 +42,7 @@ export default function AttendanceDayUnlockPage() {
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(null);
   const [saveError, setSaveError] = useState(null);
+  const [revokeError, setRevokeError] = useState('');
   const submitting = useRef(false);
   const day = useAsync(
     async () => ({ ...(await getDayInfo(form.date, form.classId, user)), classId: form.classId }),
@@ -98,6 +99,8 @@ export default function AttendanceDayUnlockPage() {
     return () => clearInterval(timer);
   }, [reloadDay]);
 
+  // Đã qua ngày kết thúc mà HT chưa đóng năm: "Mở đến" không giới hạn theo ngày kết thúc (BE ATT-08, OBS-30)
+  const untilCap = day.data?.yearEnd && today <= day.data.yearEnd ? day.data.yearEnd : undefined;
   const requestUnlock = (event) => {
     event.preventDefault();
     if (submitting.current) return;
@@ -106,7 +109,7 @@ export default function AttendanceDayUnlockPage() {
     if (!isIsoDate(form.date) || form.date > today) next.date = 'Chọn ngày từ đầu năm học đến hôm nay.';
     if (!isIsoDate(form.untilDate) || !isValidTime(form.untilTime)) next.until = 'Nhập đủ ngày giờ hợp lệ.';
     const until = new Date(`${form.untilDate}T${form.untilTime}:00+07:00`);
-    const yearEnd = day.data?.yearEnd;
+    const yearEnd = untilCap;
     if (!next.until && (until <= new Date() || (yearEnd && form.untilDate > yearEnd)))
       next.until = `Hạn phải sau hiện tại${yearEnd ? `, không quá ngày kết thúc năm học ${formatDate(yearEnd)}` : ''}.`;
     if (!form.reason.trim() || form.reason.trim().length > 300) next.reason = 'Nhập lý do mở lại, tối đa 300 ký tự.';
@@ -122,13 +125,14 @@ export default function AttendanceDayUnlockPage() {
   };
   // Mở nhầm hoặc giáo viên đã xong: kết thúc sớm, vẫn giữ trong lịch sử
   const revoke = async (item) => {
+    setRevokeError('');
     try {
       await revokeAttendanceDayUnlock(item.id, user);
       setNow(new Date());
-      toast.success(`Đã kết thúc mở lại điểm danh ${item.className}. Hãy báo trực tiếp cho giáo viên lớp.`);
+      toast.success(`Đã kết thúc mở lại điểm danh ${item.className}.`);
       await Promise.all([history.reload({ silent: true }), day.reload({ silent: true })]);
     } catch (error) {
-      toast.error(error, 'Không kết thúc được');
+      setRevokeError(error.message || `Chưa kết thúc được mở lại ${item.className}, thử lại.`);
     }
   };
   const save = async () => {
@@ -138,13 +142,18 @@ export default function AttendanceDayUnlockPage() {
     setSaveError(null);
     try {
       const saved = await unlockAttendanceDay(confirming, user);
-      toast.success(`Đã mở lại ${saved.className}. Hãy báo trực tiếp cho giáo viên lớp để điểm danh trong hạn mở.`);
+      toast.success(`Đã mở lại ${saved.className}. Giáo viên lớp đã nhận thông báo.`);
       setConfirming(null);
       setForm((value) => ({ ...value, reason: '' }));
       await Promise.all([history.reload({ silent: true }), day.reload({ silent: true })]);
     } catch (error) {
       setConfirming(null);
-      setSaveError(error);
+      // Lỗi BE gắn được ô (ngày, hạn, lý do, lớp) thì đỏ dưới ô đó; còn lại hiện chung trên form
+      const fields = Object.fromEntries(
+        ['classId', 'date', 'until', 'reason'].filter((f) => error.details?.[f]).map((f) => [f, error.details[f]]),
+      );
+      if (Object.keys(fields).length) setErrors(fields);
+      else setSaveError(error);
     } finally {
       submitting.current = false;
       setBusy(false);
@@ -193,7 +202,7 @@ export default function AttendanceDayUnlockPage() {
                 aria-label="Mở đến ngày"
                 value={form.untilDate}
                 min={today}
-                max={day.data?.yearEnd || undefined}
+                max={untilCap}
                 disabled={busy}
                 onChange={(value) => set({ untilDate: value })}
               />
@@ -320,6 +329,11 @@ export default function AttendanceDayUnlockPage() {
             Nhập khoảng ngày hợp lệ theo dd/mm/yyyy, ngày bắt đầu không sau ngày kết thúc.
           </p>
         )}
+        {revokeError && (
+          <div className="alert alert--danger mb-12" role="alert">
+            {revokeError}
+          </div>
+        )}
         {history.error ? (
           <ErrorState error={history.error} onRetry={history.reload} />
         ) : (
@@ -407,7 +421,7 @@ export default function AttendanceDayUnlockPage() {
         title="Mở lại điểm danh cho lớp?"
         message={
           confirming
-            ? `${confirming.className}, ngày ${formatDate(confirming.date)}, mở đến ${formatDateTime(confirming.validUntil)}. Hệ thống chưa gửi thông báo, hãy báo trực tiếp cho giáo viên lớp. Số suất đã xác nhận không tự thay đổi; thay đổi điểm danh cần xác nhận lại.`
+            ? `${confirming.className}, ngày ${formatDate(confirming.date)}, mở đến ${formatDateTime(confirming.validUntil)}. Số suất đã xác nhận không tự thay đổi; thay đổi điểm danh cần xác nhận lại.`
             : ''
         }
         confirmLabel="Xác nhận mở lại"

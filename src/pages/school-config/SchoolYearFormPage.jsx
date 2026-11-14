@@ -146,12 +146,7 @@ function YearForm({ year, years, user }) {
           </div>
         )}
         <div className="grid-4">
-          <FormField
-            label="Tên năm học"
-            required
-            error={errors.name}
-            hint={nameLocked ? 'Năm học đã bắt đầu nên không đổi tên được' : undefined}
-          >
+          <FormField label="Tên năm học" required error={errors.name}>
             <input
               className="input"
               value={form.name}
@@ -171,12 +166,7 @@ function YearForm({ year, years, user }) {
               onBlur={() => blurCheck('endDate')}
             />
           </FormField>
-          <FormField
-            label="Ngày mở chuẩn bị"
-            required
-            error={errors.prepDate}
-            hint={prepLocked ? 'Năm học đã bắt đầu nên không đổi được' : undefined}
-          >
+          <FormField label="Ngày mở chuẩn bị" required error={errors.prepDate}>
             <DateInput
               value={form.prepDate}
               disabled={prepLocked}

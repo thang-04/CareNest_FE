@@ -153,6 +153,7 @@ const SemesterEvaluationDetailPage = lazyPage(() => import('@/pages/assessment/S
 const YearEndEvaluationListPage = lazyPage(() => import('@/pages/assessment/YearEndEvaluationListPage'));
 const YearEndEvaluationDetailPage = lazyPage(() => import('@/pages/assessment/YearEndEvaluationDetailPage'));
 const GoodBehaviourTicketsPage = lazyPage(() => import('@/pages/assessment/GoodBehaviourTicketsPage'));
+const WeeklyCommentsPage = lazyPage(() => import('@/pages/assessment/WeeklyCommentsPage'));
 const ClassAssessmentOverviewPage = lazyPage(() => import('@/pages/assessment/ClassAssessmentOverviewPage'));
 const ThemeEvaluationPage = lazyPage(() => import('@/pages/assessment/ThemeEvaluationPage'));
 const QualityReportPage = lazyPage(() => import('@/pages/assessment/QualityReportPage'));
@@ -497,6 +498,8 @@ export function AppRoutes() {
             <Route path="daily" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <DailyAssessmentPage />)} />
             <Route path="daily/skills" element={permit([PERMISSIONS.ASSESSMENT_RECORD], <DailyGoalAssessmentPage />)} />
             <Route path="day-unlocks" element={permit([PERMISSIONS.ASSESSMENT_UNLOCK], <AssessmentDayUnlockPage />)} />
+            {/* Đánh giá tháng đã bỏ (Cần chốt 14/11/2026): giữ chuyển hướng cho link thông báo cũ */}
+            <Route path="periodic/*" element={<Navigate to="/assessment/children" replace />} />
             <Route path="overview" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <ClassAssessmentOverviewPage />)} />
             <Route path="quality-report" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <QualityReportPage />)} />
             <Route path="class-ratings" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <ClassRatingsPage />)} />
@@ -504,12 +507,6 @@ export function AppRoutes() {
             <Route path="children" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <ChildDevelopmentListPage />)} />
             <Route path="children/:childId" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <ChildDevelopmentProfilePage />)} />
             <Route path="children/:childId/progress" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <ChildDevelopmentProgressPage />)} />
-            <Route path="periodic" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <Navigate to="/assessment/children" replace />)} />
-            <Route path="periodic/:id" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <Navigate to="/assessment/children" replace />)} />
-            <Route
-              path="periodic/:id/ai-draft"
-              element={permit([PERMISSIONS.ASSESSMENT_VIEW], <Navigate to="/assessment/children" replace />)}
-            />
             <Route path="semester" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <SemesterEvaluationListPage />)} />
             <Route path="semester/:id" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <SemesterEvaluationDetailPage />)} />
             <Route path="semester/:id/ai-draft" element={permit([PERMISSIONS.ASSESSMENT_RECORD], <AiEvaluationDraftPage />)} />
@@ -517,6 +514,7 @@ export function AppRoutes() {
             <Route path="year-end/:id" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <YearEndEvaluationDetailPage />)} />
             <Route path="year-end/:id/ai-draft" element={permit([PERMISSIONS.ASSESSMENT_RECORD], <AiEvaluationDraftPage />)} />
             <Route path="tickets" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <GoodBehaviourTicketsPage />)} />
+            <Route path="weekly-comments" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <WeeklyCommentsPage />)} />
             <Route path="rewards" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <RewardListPage />)} />
             <Route path="rewards/:classId" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <RewardClassPage />)} />
           </Route>

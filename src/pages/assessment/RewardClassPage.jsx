@@ -209,7 +209,6 @@ export default function RewardClassPage() {
       return true;
     } catch (err) {
       setListError(err.message);
-      toast.error(err, 'Không lưu được danh sách');
       return false;
     } finally {
       setBusy('');

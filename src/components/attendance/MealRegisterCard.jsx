@@ -424,9 +424,6 @@ function ReturnToTeacherModal({ line, date, user, onClose, onDone }) {
         </>
       }
     >
-      <p className="muted text-sm mb-12">
-        Mở lại điểm danh ngày {formatDate(date)} của lớp tới hết hôm nay. Giáo viên nhận thông báo, sửa xong thì sổ chờ xác nhận lại.
-      </p>
       <FormField label="Lý do" required error={error}>
         <textarea
           className="textarea"
@@ -504,10 +501,9 @@ export function MealAdjustModal({ target, user, onClose, onSaved }) {
       }
     >
       <p className="muted text-sm mb-12">
-        Ngày {formatDate(counts[0].date)} · đang tính {line.normal} suất thường, {line.substitute} suất thay thế (có mặt {line.present}).{' '}
-        {session ? `Chỉ áp cho ${mealName(session)} của lớp.` : 'Số mới áp cho mọi bữa của lớp trong ngày.'} Suất thường tính từ điểm danh;
-        số sai thì mở lại điểm danh để giáo viên sửa.
-        {confirmed && ' Bữa đã xác nhận: sửa xong cần xác nhận lại, bếp dùng số cũ đến khi xác nhận.'}
+        Ngày {formatDate(counts[0].date)}
+        {session ? ` · ${mealName(session)}` : ''} · đang tính {line.normal} suất thường, {line.substitute} suất thay thế (có mặt{' '}
+        {line.present}).
       </p>
       <FormField label="Suất thay thế" required error={errors.substitute}>
         <input type="number" min={0} step={1} className="input" {...field('substitute')} />
