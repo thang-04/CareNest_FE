@@ -9,6 +9,18 @@ export const useMealPlan = (weekStart) => {
   return useAsync(() => mealPlanApi.getPlan(weekStart), [user?.id, weekStart], { enabled: !!weekStart && !!user });
 };
 
+/** Đợt nghỉ năm học chạm tuần `weekStart`; chỉ để tự đánh dấu ngày nghỉ trên lưới. */
+export function useWeekHolidays(weekStart) {
+  const { user } = useAuth();
+  const { data, ...rest } = useAsync(
+    // Không đọc được (vd. 403 với vai trò không xem cấu hình năm học) ⇒ lưới vẫn dùng như cũ, người soạn tự tích nghỉ
+    () => mealPlanApi.listWeekHolidays(weekStart).catch(() => []),
+    [user?.id, weekStart],
+    { enabled: !!weekStart && !!user },
+  );
+  return { holidays: data, ...rest };
+}
+
 /** Món đang sử dụng để chọn vào lưới (món Ngừng sử dụng không chọn được). */
 export function useActiveDishes() {
   const { user } = useAuth();
