@@ -115,3 +115,9 @@ export const assessableActivities = (ageGroupId) =>
   slotsFor(ageGroupId)
     .map((s) => s.name)
     .filter((name) => !NON_ASSESSED_SLOT_KEYWORDS.some((k) => name.startsWith(k)));
+
+/** Lớp viết / xem nhận xét tháng trên Chất lượng tháng: lớp đã chọn nếu còn trong bảng; GV mặc định lớp đầu, BGH tự chọn. */
+export const monthlyCommentClassId = (rows = [], picked = '', leader = false) => {
+  if (picked && rows.some((r) => String(r.classId) === String(picked))) return String(picked);
+  return !leader && rows[0] ? String(rows[0].classId) : '';
+};

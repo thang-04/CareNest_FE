@@ -14,6 +14,9 @@ import '@/styles/modules/assessment.css';
 import { SemesterSelect } from '@/components/form/SemesterSelect';
 import { monthInSemester, semestersOf } from '@/utils/semesters';
 import { CampusFilter } from '@/components/ui/CampusFilter';
+import { SelectField } from '@/components/form/Field';
+import { ClassMonthlyCommentCard } from '@/components/assessment/ClassMonthlyCommentCard';
+import { monthlyCommentClassId, monthStart } from '@/utils/assessment/assessmentPeriods';
 
 const VIEWS = [
   { key: 'month', label: 'Theo tháng' },
@@ -69,6 +72,11 @@ export default function QualityReportPage() {
   const multiCampus = leader && (campusOptions.length > 1 || !!report?.allCampuses?.length);
   const showCampus = multiCampus && !campusId && (report?.campuses?.length || 0) > 1;
   const campusName = (id) => campusOptions.find((c) => String(c.id) === String(id))?.name || id;
+  // Nhận xét chung của lớp theo tháng (BE OBS-26) đặt dưới bảng tháng: GV lớp viết, xác nhận; BGH chọn lớp để xem
+  const [commentPick, setCommentPick] = useState('');
+  const commentClassId = monthlyCommentClassId(rows, commentPick, leader);
+  const reportMonth = month || report?.month;
+  const commentMonth = reportMonth ? monthStart(reportMonth) : null;
   const totalLabel = (t) => LEVEL_LABELS[t.level] || (leader && !campusId ? 'Toàn trường' : 'Tổng cộng');
 
   // Mục 8 sổ chỉ đạo chuyên môn: trẻ lớp 5–6 tuổi hoàn thành chương trình (đánh giá cuối năm đã xác nhận)
@@ -315,6 +323,21 @@ export default function QualityReportPage() {
           </>
         )}
       </div>
+      {view === 'month' && !loading && !error && rows.length > 0 && commentMonth && (
+        <div className="mt-16">
+          {(leader || rows.length > 1) && (
+            <SelectField
+              label="Nhận xét chung của lớp"
+              fieldClassName="mb-12"
+              value={commentClassId}
+              onChange={(e) => setCommentPick(e.target.value)}
+              placeholder="Chọn lớp"
+              options={rows.map((r) => ({ value: String(r.classId), label: r.className }))}
+            />
+          )}
+          <ClassMonthlyCommentCard classId={commentClassId} month={commentMonth} />
+        </div>
+      )}
     </div>
   );
 }
