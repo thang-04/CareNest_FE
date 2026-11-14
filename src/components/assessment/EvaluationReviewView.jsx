@@ -376,11 +376,7 @@ export function EvaluationReviewView({ kind, id }) {
               <div className="card__title">Đánh giá chính thức</div>
             </div>
             <div className="card__body">
-              <FormField
-                label="Nội dung đánh giá"
-                required
-                error={contentError}
-              >
+              <FormField label="Nội dung đánh giá" required error={contentError}>
                 <textarea
                   className="textarea dg-editor"
                   rows={10}
