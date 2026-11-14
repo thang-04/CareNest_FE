@@ -173,6 +173,24 @@ export const dayStatisticsQuery = (items, ageGroupId, date) =>
 export const setDayOff = (draft, date, off) => updateDay(draft, date, (day) => ({ ...day, off: !!off }));
 export const setDayNote = (draft, date, note) => updateDay(draft, date, (day) => ({ ...day, note }));
 
+/** Ngày của bản nháp rơi vào đợt nghỉ năm học (SCH-05): { [date]: tên đợt nghỉ }. */
+export const holidayNames = (draft, holidays = []) =>
+  Object.fromEntries(
+    (draft?.days || [])
+      .map((day) => [day.date, holidays.find((h) => h.startDate <= day.date && h.endDate >= day.date)?.name])
+      .filter(([, name]) => name),
+  );
+
+/** Tự đánh dấu nghỉ các ngày trùng đợt nghỉ năm học; lý do trống thì điền tên đợt nghỉ. Không có gì đổi ⇒ trả lại `draft`. */
+export const applyHolidays = (draft, names) => {
+  if (!draft || !Object.keys(names || {}).some((date) => draft.days.some((d) => d.date === date && !d.off))) return draft;
+  return {
+    days: draft.days.map((day) =>
+      names[day.date] && !day.off ? { ...day, off: true, note: text(day.note) ? day.note : names[day.date] } : day,
+    ),
+  };
+};
+
 /* ---------- cấu trúc khối / bữa / đánh giá do BE trả ---------- */
 export const planBlocks = (plan) => (plan?.blocks || []).map((b) => b.block);
 

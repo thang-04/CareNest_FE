@@ -197,6 +197,8 @@ const MEAL_PLAN_API = !isDemoModule('meal-plan');
 const TEMPLATE_API = !isDemoModule('menu-template');
 const DRY_STOCK_API = !isDemoModule('dry-stock');
 const FRESH_GOODS_API = !isDemoModule('fresh-goods');
+// Kiểm thực M1–M3 đã có BE /inspections/*: dùng màn thật, chỉ còn trang chờ khi module này vẫn demo.
+const INSPECTION_API = !isDemoModule('kitchen-inspection');
 const KITCHEN_RECORDS_API = !isDemoModule('kitchen-records');
 const STOCK_RECEIPT_ROLES = LEADERS;
 const DENIED = 'Chức năng này không thuộc quyền của vai trò hiện tại (theo ma trận phân quyền của hệ thống).';
@@ -495,7 +497,10 @@ export function AppRoutes() {
             />
             <Route
               path="inspections"
-              element={only(LEADERS, BOARDING_API ? <BoardingPendingPage feature="inspection" /> : <InspectionDayPage />)}
+              element={only(
+                LEADERS,
+                BOARDING_API && !INSPECTION_API ? <BoardingPendingPage feature="inspection" /> : <InspectionDayPage />,
+              )}
             />
             <Route path="food-samples" element={only(LEADERS, KITCHEN_RECORDS_API ? <FoodSampleQueuePage /> : <FoodSampleLogPage />)} />
             {KITCHEN_RECORDS_API && <Route path="meal-photos" element={only(LEADERS, <MealPhotosPage />)} />}
