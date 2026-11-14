@@ -1591,10 +1591,15 @@ const fakeTrendModel = (points) => {
   if (!warnings.length)
     warnings.push({ code: 'NORMAL', level: 'info', text: 'Các chỉ số lần đo gần nhất nằm trong khoảng bình thường theo chuẩn WHO.' });
   const alerts = warnings.filter((w) => w.code !== 'NORMAL');
+  const changes = [
+    Number.isFinite(dw) && `cân nặng ${dw >= 0 ? 'tăng' : 'giảm'} ${num(Math.abs(dw))} kg`,
+    Number.isFinite(dh) && `chiều cao tăng ${num(Math.max(dh, 0))} cm`,
+  ].filter(Boolean);
   const content = {
     overview: alerts.length
       ? `Có ${alerts.length} điểm cần chú ý trong ${points.length} lần đo gần đây.`
-      : `Chiều cao và cân nặng tăng đều qua ${points.length} lần đo.`,
+      : // HLT-21: chỉ NORMAL mới mở đầu "Trẻ phát triển ổn định" kèm số liệu
+        `Trẻ phát triển ổn định${changes.length ? `: so với lần đo trước, ${changes.join(', ')}` : ''}, các chỉ số trong khoảng chuẩn WHO.`,
     attentionPoints: alerts.map((w) => ({ warningCode: w.code, text: w.text })),
     positives: dh > 0 ? [`Chiều cao tăng ${num(dh)} cm so với lần đo trước.`] : [],
     followUps: [

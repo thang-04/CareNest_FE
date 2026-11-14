@@ -208,3 +208,27 @@ test('HLT-21: nút Sửa, Duyệt chỉ cho GV đang phân công lớp hiện t�
   assert.equal(canReviewHealthTrend(child, { id: 'u_other', role: 'TEACHER' }, cls), false);
   assert.equal(canReviewHealthTrend(child, PRINCIPAL, cls), false);
 });
+
+test('HLT-21: mock — chỉ NORMAL ⇒ tổng quan mở đầu "Trẻ phát triển ổn định"; có cảnh báo ⇒ không dùng cụm này', async () => {
+  const stableOf = (d) => d.content.overview.startsWith('Trẻ phát triển ổn định');
+  const normalOnly = (d) => d.warnings.every((w) => w.code === 'NORMAL');
+  const first = await children.analyzeHealthTrend(CHILD, PRINCIPAL);
+  assert.equal(stableOf(first), normalOnly(first));
+
+  writeDb((d) => {
+    const last = d.healthMeasurements
+      .filter((m) => m.childId === CHILD)
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .at(-1);
+    d.healthMeasurements.push({
+      ...last,
+      id: 'hm_drop',
+      date: '2027-03-12',
+      weightKg: last.weightKg - 1,
+      publishedAt: '2027-03-12T09:00:00.000Z',
+    });
+  });
+  const dropped = await children.analyzeHealthTrend(CHILD, PRINCIPAL);
+  assert.ok(dropped.warnings.some((w) => w.code === 'WEIGHT_DROP'));
+  assert.equal(dropped.content.overview.includes('phát triển ổn định'), false);
+});
