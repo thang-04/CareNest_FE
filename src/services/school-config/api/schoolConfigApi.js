@@ -38,9 +38,6 @@ export const createSchoolConfigApi = (axiosClient) => ({
   getCutoffSetting: (schoolYear) => axiosClient.get(`/school-years/${schoolYear}/cutoff`),
   saveCutoffSetting: (schoolYear, form) => axiosClient.put(`/school-years/${schoolYear}/cutoff`, form),
   saveSemester: (schoolYear, form) => axiosClient.put(`/school-years/${schoolYear}/semester`, form),
-  // Hạn nhận xét tuần (BE OBS-29): số ngày học sau tuần, 0–5
-  saveWeeklyCommentDeadline: (schoolYear, deadlineDays) =>
-    axiosClient.put(`/school-years/${schoolYear}/weekly-comment-deadline`, { deadlineDays }),
   // Học kỳ đã có đánh giá học kỳ thì khóa ngày (BE OBS-25)
   getSemesterLocks: (schoolYear) => axiosClient.get(`/school-years/${schoolYear}/semester-locks`),
   // Ngày nghỉ của năm học (BE SCH-05): thay cả danh sách

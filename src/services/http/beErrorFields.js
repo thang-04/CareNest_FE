@@ -4,7 +4,6 @@
  */
 export const BE_ERROR_FIELDS = {
   2004: 'name', // SCHOOL_YEAR_NAME_INVALID
-  2040: 'deadlineDays', // WEEKLY_COMMENT_DEADLINE_DAYS_INVALID
   2005: 'endDate', // END_DATE_BEFORE_START
   2006: 'name', // SCHOOL_YEAR_EXISTS
   2007: 'endDate', // SCHOOL_YEAR_DATES_OVERLAP

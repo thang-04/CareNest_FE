@@ -30,9 +30,12 @@
     "GET /assessment/class-monthly-comments",
     "GET /assessment/class-ratings",
     "GET /assessment/day-unlocks",
+    "GET /assessment/evaluation-periods",
+    "GET /assessment/evaluation-unlocks",
     "GET /assessment/evaluations",
     "GET /assessment/evaluations/{x}",
     "GET /assessment/evaluations/{x}/year-sheet",
+    "GET /assessment/overdue",
     "GET /assessment/overview",
     "GET /assessment/overview/classes/{x}",
     "GET /assessment/program-completion",
@@ -188,6 +191,8 @@
     "POST /assessment/class-monthly-comments/confirm",
     "POST /assessment/day-unlocks",
     "POST /assessment/day-unlocks/{x}/revoke",
+    "POST /assessment/evaluation-unlocks",
+    "POST /assessment/evaluation-unlocks/{x}/revoke",
     "POST /assessment/evaluations/{x}/confirm",
     "POST /assessment/evaluations/{x}/redraft",
     "POST /assessment/reward-lists/{x}/decision",
@@ -338,7 +343,6 @@
     "PUT /school-years/{x}/placements",
     "PUT /school-years/{x}/semester",
     "PUT /school-years/{x}/vice-principal-assignments/{x}",
-    "PUT /school-years/{x}/weekly-comment-deadline",
     "PUT /team-leader-assignments"
   ]
 }

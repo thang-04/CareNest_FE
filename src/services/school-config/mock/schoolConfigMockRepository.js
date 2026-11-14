@@ -1127,22 +1127,6 @@ export const schoolConfigMockRepository = {
     });
   },
 
-  // BE giả OBS-29: Hiệu trưởng đặt hạn nhận xét tuần 0–5 ngày học sau tuần, năm chưa kết thúc
-  async saveWeeklyCommentDeadline(schoolYear, deadlineDays, user) {
-    await delay();
-    if (!canConfigureSchool(user)) throw forbid();
-    seeded();
-    return writeDb((db) => {
-      const year = findYear(db, schoolYear);
-      assertOpenYear(year);
-      if (!Number.isInteger(deadlineDays) || deadlineDays < 0 || deadlineDays > 5) {
-        throw invalid({ deadlineDays: 'Hạn gửi nhận xét tuần từ 0 đến 5 ngày học sau tuần' });
-      }
-      year.weeklyCommentDeadlineDays = deadlineDays;
-      return clone(year);
-    });
-  },
-
   async saveCutoffSetting(schoolYear, form, user) {
     await delay();
     if (!canConfigureCutoff(user)) throw forbid();

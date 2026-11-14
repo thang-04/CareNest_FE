@@ -18,7 +18,6 @@ import { ScNoAccess } from '@/components/school-config/ScNoAccess';
 import { HolidaySetting } from '@/components/school-config/HolidaySetting';
 import { SemesterSetting } from '@/components/school-config/SemesterSetting';
 import { PrepDateSetting } from '@/components/school-config/PrepDateSetting';
-import { WeeklyCommentDeadlineSetting } from '@/components/school-config/WeeklyCommentDeadlineSetting';
 import { MealPhotoWindowsSetting } from '@/components/MealPhotoWindowsSetting';
 import { Tabs } from '@/components/ui/Tabs';
 import { isDemoModule } from '@/services/demoSource';
@@ -38,7 +37,6 @@ const TABS = [
   { key: 'semester', label: 'Học kỳ' },
   { key: 'holidays', label: 'Ngày nghỉ' },
   { key: 'prep', label: 'Mở chuẩn bị' },
-  { key: 'weekly', label: 'Hạn nhận xét tuần' },
 ];
 const OTHER_TABS = TABS.map((t) => t.key).filter((key) => key !== 'cutoff');
 
@@ -159,8 +157,6 @@ export default function CutoffSettingPage() {
         <HolidaySetting yearId={yearId} onDirtyChange={setChildDirty} saveRef={childSave} />
       ) : tab === 'prep' ? (
         <PrepDateSetting yearId={yearId} onDirtyChange={setChildDirty} saveRef={childSave} />
-      ) : tab === 'weekly' ? (
-        <WeeklyCommentDeadlineSetting yearId={yearId} onDirtyChange={setChildDirty} saveRef={childSave} />
       ) : error ? (
         <ErrorState error={error} onRetry={reload} />
       ) : loading || !year ? (

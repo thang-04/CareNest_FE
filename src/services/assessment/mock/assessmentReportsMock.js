@@ -359,8 +359,8 @@ export const createAssessmentReportsMock = (ensureReady) => ({
     const days = new Set(schoolDaysBetween(week < year.startDate ? year.startDate : week, to));
     const saved = (db.weeklyComments || []).filter((c) => c.classId === cls.id && c.weekStart === week);
     // Demo chưa có giáo án tuần: tuần theo lịch thứ Hai–Sáu, mở viết từ thứ Sáu; khóa sau ngày học thứ N sau tuần
-    // (N theo năm học, mặc định 1); lớp – tuần đang mở lại thì sửa được (BE OBS-29)
-    const deadlineDays = year.weeklyCommentDeadlineDays ?? 1;
+    // (N = 1 cố định); lớp – tuần đang mở lại thì sửa được (BE OBS-29, OBS-30)
+    const deadlineDays = 1;
     const unlocks = activeWeekUnlocks(db, cls.id);
     const option = (monday) => {
       const end = [addDays(monday, 4), year.endDate].sort()[0];

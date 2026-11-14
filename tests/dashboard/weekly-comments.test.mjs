@@ -13,7 +13,6 @@ globalThis.window = new EventTarget();
 const { createAssessmentBeApi } = await import('@/services/assessment/api/assessmentApi');
 const { BE_ERROR_FIELDS } = await import('@/services/http/beErrorFields');
 const { assessmentMockRepository: repo } = await import('@/services/assessment/mock/assessmentMockRepository');
-const { createSchoolConfigApi } = await import('@/services/school-config/api/schoolConfigApi');
 const { boardCounts, contentError, statusChip, weekDataCells, weekLocked, weekOptionLabel, WEEKLY_COMMENT_MAX } = await import(
   '@/models/assessment/weeklyComments.mjs'
 );
@@ -80,15 +79,6 @@ test('BE OBS-29: mở lại nhận xét tuần theo lớp – tuần, kết thú
     reason: 'Gửi nhầm',
   });
   assert.equal(client.calls[1].params.active, true);
-  const config = fakeClient();
-  await createSchoolConfigApi(config).saveWeeklyCommentDeadline('3', 2);
-  assert.deepEqual(config.calls[0], {
-    method: 'put',
-    url: '/school-years/3/weekly-comment-deadline',
-    body: { deadlineDays: 2 },
-    params: undefined,
-  });
-  assert.equal(BE_ERROR_FIELDS[2040], 'deadlineDays');
   assert.equal(BE_ERROR_FIELDS[7316], 'validUntil');
 });
 
