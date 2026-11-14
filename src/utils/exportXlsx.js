@@ -316,7 +316,8 @@ const zipStored = (files, now) => {
   });
   [0x06054b50].forEach(u32);
   [0, 0, entries.length, entries.length].forEach(u16);
-  [pos - centralStart, centralStart].forEach(u32);
+  // Dùng centralSize đã tính: lúc này pos đã vượt qua 12 byte đầu của EOCD, Excel từ chối file nếu lệch
+  [centralSize, centralStart].forEach(u32);
   u16(0);
   return out;
 };

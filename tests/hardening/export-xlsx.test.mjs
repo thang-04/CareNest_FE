@@ -39,3 +39,30 @@ test('workbook exports separate full daily and child tables without turning text
   assert.deepEqual(daily.at(-1), ['45/10/2026', 44]);
   assert.deepEqual(result[1].data[1], ['=1+1', 12]);
 });
+
+// Excel đọc ZIP theo central directory (read-excel-file thì không), nên kích thước/vị trí trong EOCD phải khớp từng byte
+test('xlsx zip end record points exactly at the central directory', async () => {
+  const { buildWorkbookXlsx } = await import('@/utils/exportXlsx');
+  const blobs = [
+    buildXlsx([['Tiêu đề'], ['A', 'B'], [1, 'x']], { headerRow: 1 }),
+    buildWorkbookXlsx([
+      { sheetName: 'M1', rows: [['A'], [1]] },
+      { sheetName: 'M2', rows: [['B'], [2]] },
+    ]),
+  ];
+  for (const blob of blobs) {
+    const bytes = Buffer.from(await blob.arrayBuffer());
+    const eocd = bytes.length - 22;
+    assert.equal(bytes.readUInt32LE(eocd), 0x06054b50);
+    const entries = bytes.readUInt16LE(eocd + 10);
+    const cdSize = bytes.readUInt32LE(eocd + 12);
+    const cdOffset = bytes.readUInt32LE(eocd + 16);
+    assert.equal(cdOffset + cdSize, eocd);
+    let pos = cdOffset;
+    for (let i = 0; i < entries; i += 1) {
+      assert.equal(bytes.readUInt32LE(pos), 0x02014b50);
+      pos += 46 + bytes.readUInt16LE(pos + 28) + bytes.readUInt16LE(pos + 30) + bytes.readUInt16LE(pos + 32);
+    }
+    assert.equal(pos, eocd);
+  }
+});
