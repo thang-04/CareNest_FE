@@ -15,7 +15,7 @@ import { formatDateTime } from '@/utils/format';
 import { inlineErrors } from '@/utils/assessment/assessmentValidation';
 
 /**
- * Nhận xét chung cả lớp của một tháng (BE OBS-26), đặt dưới bảng Chất lượng tháng: GV lớp sửa bản nháp hệ thống viết
+ * Nhận xét chung cả lớp của một tháng (BE OBS-26), đặt trên danh sách Đánh giá tháng: GV lớp sửa bản nháp hệ thống viết
  * rồi xác nhận; BGH xem bản đã xác nhận. month = ngày 1 của tháng (yyyy-MM-01). Đang soạn: giữ ẩn trên máy và Lịch sử
  * phiên bản như kế hoạch giáo dục; rời màn khi chưa lưu thì hỏi.
  */

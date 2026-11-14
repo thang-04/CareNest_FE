@@ -15,7 +15,6 @@ const useQualityReport=()=>({report:{months:['2027-09','2027-10','2028-02'],rows
 const Breadcrumb=()=>null,EmptyState=()=>null,ErrorState=()=>null,SkeletonRows=()=>null,Tabs=()=>null,Download=()=>null,SemesterSelect=()=>null;
 const assessmentCrumbs=()=>[],SECTIONS={},exportWithPreview=(rows)=>{globalThis.qualityExport=rows;};
 const {monthInSemester,semestersOf}=globalThis.qualitySemesterFns;
-const SelectField=()=>null,ClassMonthlyCommentCard=()=>null,monthlyCommentClassId=()=>'',monthStart=(m)=>m+'-01';
 `;
 const { code } = await transformWithOxc(stubs + source.replace(/^import[\s\S]*?;\r?\n/gm, ''), 'QualityReportPage.jsx', {
   lang: 'jsx',

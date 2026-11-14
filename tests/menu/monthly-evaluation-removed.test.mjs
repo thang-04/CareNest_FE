@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { test } from 'node:test';
-import { evaluationPath, monthlyCommentClassId, monthStart } from '@/utils/assessment/assessmentPeriods';
+import { evaluationPath } from '@/utils/assessment/assessmentPeriods';
 import { SECTIONS } from '@/utils/assessment/breadcrumbs';
 
 test('màn Đánh giá tháng đã xóa: không còn route, trang, mục breadcrumb', () => {
@@ -18,17 +18,4 @@ test('hồ sơ phát triển: đánh giá tháng cũ không còn link chi tiết
   assert.equal(evaluationPath({ id: '1', periodType: 'MONTH' }), null);
   assert.equal(evaluationPath({ id: '2', periodType: 'SEMESTER' }), '/assessment/semester/2');
   assert.equal(evaluationPath({ id: '3', periodType: 'YEAR' }), '/assessment/year-end/3');
-});
-
-test('nhận xét chung lớp theo tháng đặt trên Chất lượng tháng: GV lớp mình, BGH tự chọn lớp', () => {
-  const page = readFileSync('src/pages/assessment/QualityReportPage.jsx', 'utf8');
-  assert.ok(page.includes('<ClassMonthlyCommentCard classId={commentClassId} month={commentMonth} />'));
-  assert.equal(monthStart('2026-10'), '2026-10-01');
-  const rows = [{ classId: 5 }, { classId: 7 }];
-  assert.equal(monthlyCommentClassId(rows, '', false), '5');
-  assert.equal(monthlyCommentClassId(rows, '', true), '');
-  assert.equal(monthlyCommentClassId(rows, '7', true), '7');
-  // Lớp đã chọn không còn trong bảng (đổi điểm trường): BGH chọn lại
-  assert.equal(monthlyCommentClassId(rows, '9', true), '');
-  assert.equal(monthlyCommentClassId([], '', false), '');
 });
