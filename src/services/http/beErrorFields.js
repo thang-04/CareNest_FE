@@ -3,6 +3,25 @@
  * Mã không có ở đây hiện ở đầu form/hộp thoại (_form). desc của BE đã là câu tiếng Việt, FE hiện thẳng.
  */
 export const BE_ERROR_FIELDS = {
+  2028: 'startDate', // SCHOOL_YEAR_START_LOCKED
+  2029: 'endDate', // SCHOOL_YEAR_END_BEFORE_TODAY
+  2107: 'isMain', // MAIN_CAMPUS_REQUIRED
+  2320: 'userId', // SUBSTITUTE_TEACHER_ONLY
+  2321: 'validTo', // SUBSTITUTE_END_REQUIRED
+  2328: 'teacherIds', // CLASS_NEEDS_TWO_TEACHERS
+  2329: 'homeroomTeacherId', // HOMEROOM_REQUIRED
+  2330: 'replacedTeacherId', // SUBSTITUTE_REPLACED_REQUIRED
+  2331: 'replacedTeacherId', // SUBSTITUTE_REPLACED_NOT_IN_CLASS
+  2332: 'userId', // SUBSTITUTE_IS_CLASS_TEACHER
+  2333: 'validFrom', // SUBSTITUTE_ALREADY_COVERED
+  4029: 'effectiveFrom', // CUTOFF_DATE_PAST
+  7301: 'date', // ASSESSMENT_FUTURE_DATE
+  7302: 'date', // ASSESSMENT_NOT_SCHOOL_DAY
+  7303: 'date', // ASSESSMENT_DATE_OUT_OF_YEAR
+  7344: 'month', // EVALUATION_MONTH_INVALID
+  7365: 'weekStart', // WEEKLY_COMMENT_WEEK_INVALID
+  7366: 'weekStart', // WEEKLY_COMMENT_FUTURE_WEEK
+  7398: 'weekStart', // WEEKLY_COMMENT_WEEK_NOT_ENDED
   2004: 'name', // SCHOOL_YEAR_NAME_INVALID
   2005: 'endDate', // END_DATE_BEFORE_START
   2006: 'name', // SCHOOL_YEAR_EXISTS
@@ -59,7 +78,8 @@ export const BE_ERROR_FIELDS = {
   5005: 'note', // HEALTH_NOTE_REQUIRED
   5006: 'actions', // HEALTH_ACTIONS_NOT_ALLOWED
   5007: 'referral', // HEALTH_REFERRAL_INCOMPLETE
-  6006: 'normal', // MEAL_COUNT_UNCHANGED
+  6006: 'substitute', // MEAL_COUNT_UNCHANGED (hộp thoại điều chỉnh chỉ có ô suất thay thế)
+  6075: 'substitute', // MEAL_SUBSTITUTE_EXCEEDS_EATING
   6012: 'nutrientSource', // NUTRIENT_SOURCE_REQUIRED
   6013: 'allergens', // ALLERGEN_INVALID
   6018: 'ingredients', // DISH_INGREDIENT_INVALID
