@@ -98,6 +98,8 @@ export default function AttendanceDayUnlockPage() {
     return () => clearInterval(timer);
   }, [reloadDay]);
 
+  // Đã qua ngày kết thúc mà HT chưa đóng năm: "Mở đến" không giới hạn theo ngày kết thúc (BE ATT-08, OBS-30)
+  const untilCap = day.data?.yearEnd && today <= day.data.yearEnd ? day.data.yearEnd : undefined;
   const requestUnlock = (event) => {
     event.preventDefault();
     if (submitting.current) return;
@@ -106,7 +108,7 @@ export default function AttendanceDayUnlockPage() {
     if (!isIsoDate(form.date) || form.date > today) next.date = 'Chọn ngày từ đầu năm học đến hôm nay.';
     if (!isIsoDate(form.untilDate) || !isValidTime(form.untilTime)) next.until = 'Nhập đủ ngày giờ hợp lệ.';
     const until = new Date(`${form.untilDate}T${form.untilTime}:00+07:00`);
-    const yearEnd = day.data?.yearEnd;
+    const yearEnd = untilCap;
     if (!next.until && (until <= new Date() || (yearEnd && form.untilDate > yearEnd)))
       next.until = `Hạn phải sau hiện tại${yearEnd ? `, không quá ngày kết thúc năm học ${formatDate(yearEnd)}` : ''}.`;
     if (!form.reason.trim() || form.reason.trim().length > 300) next.reason = 'Nhập lý do mở lại, tối đa 300 ký tự.';
@@ -193,7 +195,7 @@ export default function AttendanceDayUnlockPage() {
                 aria-label="Mở đến ngày"
                 value={form.untilDate}
                 min={today}
-                max={day.data?.yearEnd || undefined}
+                max={untilCap}
                 disabled={busy}
                 onChange={(value) => set({ untilDate: value })}
               />
