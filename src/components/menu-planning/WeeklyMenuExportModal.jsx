@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import { FileDown, Printer } from '@/components/ui/icons';
 import { Modal } from '@/components/ui/Modal';
-import { FormField } from '@/components/form/FormField';
+import { Button } from '@/components/ui/Button';
+import { TextField } from '@/components/form/Field';
 import { useToast } from '@/contexts/ToastContext';
 import { downloadDoc, fileTitle, printDoc } from '@/components/print/docFile';
 import { weeklyMenuFile } from '@/utils/menu-planning/weeklyMenuDoc';
@@ -27,25 +28,25 @@ export function WeeklyMenuExportModal({ plan, week, defaultPreparer = '', onClos
       onClose={onClose}
       footer={
         <>
-          <button type="button" className="btn" onClick={onClose}>
-            Đóng
-          </button>
-          <button type="button" className="btn" onClick={() => printDoc(file.html) || toast.warning(POPUP_BLOCKED)}>
-            <Printer size={16} /> In / Lưu PDF
-          </button>
-          <button type="button" className="btn btn--primary" onClick={() => downloadDoc(file.html, baseName)}>
-            <FileDown size={16} /> Xuất Word
-          </button>
+          <Button onClick={onClose}>Đóng</Button>
+          <Button icon={Printer} onClick={() => printDoc(file.html) || toast.warning(POPUP_BLOCKED)}>
+            In / Lưu PDF
+          </Button>
+          <Button variant="primary" icon={FileDown} onClick={() => downloadDoc(file.html, baseName)}>
+            Xuất Word
+          </Button>
         </>
       }
     >
       <div className="td-form-grid td-form-grid--2">
-        <FormField label="Tên file">
-          <input className="input" value={name} maxLength={180} onChange={(e) => setName(e.target.value)} />
-        </FormField>
-        <FormField label="Họ tên người lập" hint="Để trống để ký tay">
-          <input className="input" value={preparer} maxLength={120} onChange={(e) => setPreparer(e.target.value)} />
-        </FormField>
+        <TextField label="Tên file" value={name} maxLength={180} onChange={(e) => setName(e.target.value)} />
+        <TextField
+          label="Họ tên người lập"
+          hint="Để trống để ký tay"
+          value={preparer}
+          maxLength={120}
+          onChange={(e) => setPreparer(e.target.value)}
+        />
       </div>
       <div className="td-doc-preview-scroll">
         <iframe className="td-doc-preview" title={`Xem trước ${baseName}`} srcDoc={file.html} />

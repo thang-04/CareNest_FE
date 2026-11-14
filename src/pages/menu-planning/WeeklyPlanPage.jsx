@@ -10,7 +10,7 @@ import { PERMISSIONS } from '@/models/bePermissions';
 import { hasBePermission } from '@/utils/bePermissions';
 import { ageGroupOptions } from '@/utils/menu-planning/menuStatistics';
 import { useToast } from '@/contexts/ToastContext';
-import { Breadcrumb, EmptyState, ErrorState, LoadingState } from '@/components';
+import { Breadcrumb, Button, EmptyState, ErrorState, LoadingState } from '@/components';
 import { WeekPicker } from '@/components/form/WeekPicker';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
@@ -237,9 +237,9 @@ export default function WeeklyPlanPage() {
         <div className="row td-week-toolbar__actions">
           {/* Chỉ bản đã công bố được xuất văn bản (MENU-14 SRS): văn bản gửi bếp, phụ huynh phải là bản chính thức */}
           {plan.status === MEAL_PLAN_STATUS.PUBLISHED && (
-            <button type="button" className="btn" onClick={() => setExportOpen(true)}>
-              <FileDown size={16} /> Xuất văn bản
-            </button>
+            <Button icon={FileDown} onClick={() => setExportOpen(true)}>
+              Xuất văn bản
+            </Button>
           )}
           {editable && (
             <button type="button" className="btn" disabled={busy || !dirty} onClick={save}>
