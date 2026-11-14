@@ -367,7 +367,7 @@ export default function EnrollChildPage() {
         <div>
           <h1 className="page__title">Tiếp nhận trẻ</h1>
         </div>
-        <Link to="/children/import" className="btn">
+        <Link to="/children?import=1" className="btn">
           Nhập nhiều trẻ từ Excel
         </Link>
       </div>

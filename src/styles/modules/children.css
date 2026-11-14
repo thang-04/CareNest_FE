@@ -1425,3 +1425,26 @@
   flex: 1;
   min-width: 0;
 }
+
+/* Hộp nhập Excel: 3 ý chính + hướng dẫn chi tiết thu gọn, nút bật/tắt luôn nằm cuối (ImportChildrenModal) */
+.tr-import-points {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding-left: var(--space-5);
+}
+.tr-import-details {
+  margin-top: var(--space-1);
+}
+.tr-import-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+  font-size: inherit;
+  font-weight: var(--fw-semibold);
+}
+.tr-import-toggle:focus-visible {
+  outline: 2px solid var(--primary);
+  border-radius: var(--radius-sm);
+}

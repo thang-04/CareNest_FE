@@ -1,6 +1,6 @@
 import { ChildAvatar } from '@/components/ChildAvatar';
-import { useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Plus, Search, RotateCcw, UserMinus, FileSpreadsheet, Baby, Info, LayoutGrid, KeyRound, Pencil } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
@@ -18,6 +18,8 @@ import { RowActions } from '@/components/ui/RowActions';
 import { clickableRowProps } from '@/utils/clickableRow';
 import { ChildStatusBadge } from '@/components/children/ChildBadges';
 import { WithdrawChildModal } from '@/components/children/WithdrawChildModal';
+import { ImportChildrenModal } from '@/components/children/ImportChildrenModal';
+import { Button } from '@/components/ui/Button';
 import { CHILD_STATUS, CHILD_STATUS_LABELS, GENDER_LABELS, ageLabel } from '@/models/School';
 import { PARENT_ACCOUNT_STATUS } from '@/models/children/childrenConstants';
 import { formatDate, normalizeText } from '@/utils/format';
@@ -47,6 +49,23 @@ export default function ChildrenListPage() {
   const { status, keyword, campusId, classId } = filters;
   const [page, setPage] = useState(1);
   const [withdrawing, setWithdrawing] = useState(null);
+  const [importOpen, setImportOpen] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const canImport = canEnrollChild(user);
+
+  // ?import=1 (từ Tiếp nhận trẻ, Xếp lớp, hoặc màn xem trước khi mất bản xem trước) ⇒ mở hộp nhập Excel rồi bỏ tham số khỏi URL.
+  useEffect(() => {
+    if (searchParams.get('import') !== '1') return;
+    if (canImport) setImportOpen(true);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('import');
+        return next;
+      },
+      { replace: true },
+    );
+  }, [searchParams, setSearchParams, canImport]);
 
   const { children: all, loading, error, reload } = useChildRecords({ schoolYear });
   // PHT được giao "Hồ sơ trẻ" toàn trường: bộ lọc lớp gồm lớp của cả 2 điểm trường
@@ -123,11 +142,11 @@ export default function ChildrenListPage() {
       <Breadcrumb items={childrenCrumbs()} />
       <div className="page__head">
         <h1 className="page__title">Danh sách trẻ</h1>
-        {canEnrollChild(user) && (
+        {canImport && (
           <div className="row gap-2">
-            <Link to="/children/import" className="btn">
-              <FileSpreadsheet size={16} /> Nhập từ Excel
-            </Link>
+            <Button icon={FileSpreadsheet} onClick={() => setImportOpen(true)}>
+              Nhập từ Excel
+            </Button>
             <Link to="/children/new" className="btn btn--primary">
               <Plus size={16} /> Tiếp nhận trẻ
             </Link>
@@ -322,6 +341,7 @@ export default function ChildrenListPage() {
           onDone={() => reload({ silent: true })}
         />
       )}
+      {importOpen && <ImportChildrenModal onClose={() => setImportOpen(false)} onChecked={() => navigate('/children/import')} />}
     </div>
   );
 }

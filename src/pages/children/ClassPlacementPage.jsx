@@ -176,7 +176,7 @@ export default function ClassPlacementPage() {
                           }
                           action={
                             tab === CHILD_STATUS.PENDING_PLACEMENT && (
-                              <Link className="btn" to="/children/import">
+                              <Link className="btn" to="/children?import=1">
                                 Nhập từ Excel
                               </Link>
                             )
