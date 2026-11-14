@@ -6,9 +6,9 @@ File sinh tự động từ `BE:docs/api/openapi.yaml`, không sửa tay. Sinh l
 - Path đã bỏ tiền tố `/api` (trùng baseURL của Web/App). File controller tính từ gốc repo `CareNest_BE`.
 - Request/response chi tiết: đọc method trong controller và DTO nó dùng; lỗi theo `BE:docs/contracts/ERROR_CONTRACT.md`.
 
-Nguồn: CareNest_BE docs/api/openapi.yaml tại commit b1eee92 2026-11-14
+Nguồn: CareNest_BE docs/api/openapi.yaml tại commit 23aec6a 2026-11-14
 
-Tổng: 342 endpoint.
+Tổng: 339 endpoint.
 
 ```text
 GET /accounts · src/main/java/com/carenest/controller/account/AccountController.java#searchAccounts
@@ -37,9 +37,6 @@ GET /assessment/behaviour-tickets/overview · src/main/java/com/carenest/control
 GET /assessment/behaviour-tickets/summary · src/main/java/com/carenest/controller/observation/BehaviourTicketController.java#getSummary
 GET /assessment/children · src/main/java/com/carenest/controller/observation/ChildEvaluationController.java#developmentChildren
 GET /assessment/children/{childId}/development · src/main/java/com/carenest/controller/observation/ChildEvaluationController.java#development
-GET /assessment/class-monthly-comments · src/main/java/com/carenest/controller/observation/ClassMonthlyCommentController.java#getComment
-PUT /assessment/class-monthly-comments · src/main/java/com/carenest/controller/observation/ClassMonthlyCommentController.java#saveComment
-POST /assessment/class-monthly-comments/confirm · src/main/java/com/carenest/controller/observation/ClassMonthlyCommentController.java#confirmComment
 GET /assessment/class-ratings · src/main/java/com/carenest/controller/observation/ClassRatingController.java#listRatings
 PUT /assessment/class-ratings · src/main/java/com/carenest/controller/observation/ClassRatingController.java#saveRatings
 GET /assessment/day-unlocks · src/main/java/com/carenest/controller/observation/AssessmentDayUnlockController.java#getUnlocks

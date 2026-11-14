@@ -6,7 +6,9 @@ import { SECTIONS } from '@/utils/assessment/breadcrumbs';
 
 test('màn Đánh giá tháng đã xóa: không còn route, trang, mục breadcrumb', () => {
   const routes = readFileSync('src/routes/AppRoutes.jsx', 'utf8');
-  assert.ok(!/path="periodic/.test(routes));
+  // Chỉ còn chuyển hướng cho link thông báo cũ, không còn trang
+  assert.ok(/path="periodic\/\*" element={<Navigate to="\/assessment\/children" replace \/>}/.test(routes));
+  assert.ok(!/PeriodicEvaluation/.test(routes));
   assert.ok(!existsSync('src/pages/assessment/PeriodicEvaluationListPage.jsx'));
   assert.ok(!existsSync('src/pages/assessment/PeriodicEvaluationDetailPage.jsx'));
   assert.equal(SECTIONS.periodic, undefined);
