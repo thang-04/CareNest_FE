@@ -55,6 +55,8 @@ export default function ClassRatingsPage() {
   // Bản đang sửa: classId -> { levels, note }; chỉ gửi các lớp có thay đổi
   const [drafts, setDrafts] = useState({});
   const [saving, setSaving] = useState(false);
+  // Lỗi hiện đỏ trên trang: _form ở đầu bảng; overall = đã bấm Lưu mà lớp có sửa chưa chọn xếp loại chung
+  const [errors, setErrors] = useState({});
   const [pending, setPending] = useState(null);
   const valueOf = (r) => drafts[r.classId] || { levels: r.levels || {}, note: r.note || '' };
   const changed = rows.filter((r) => {
@@ -64,11 +66,14 @@ export default function ClassRatingsPage() {
   const editable = rows.filter((r) => r.canEdit);
   const rated = rows.filter((r) => r.levels?.overall).length;
 
-  const setField = (r, patch) =>
-    setDrafts((all) => {
+  const setField = (r, patch) => {
+    setErrors((e) => (e._form ? { ...e, _form: '' } : e));
+    return setDrafts((all) => {
       const cur = all[r.classId] || { levels: { ...(r.levels || {}) }, note: r.note || '' };
       return { ...all, [r.classId]: { levels: { ...cur.levels, ...patch.levels }, note: patch.note ?? cur.note } };
     });
+  };
+  const missingOverall = (r) => errors.overall && changed.includes(r) && !valueOf(r).levels.overall;
   // Ít thao tác: điền "Tốt" vào tiêu chí còn trống của lớp được chấm; xếp loại chung người chấm tự chọn (OBS-24)
   const fillEmpty = () =>
     setDrafts((all) => {
@@ -85,7 +90,12 @@ export default function ClassRatingsPage() {
     if (!changed.length || saving) return false;
     // Ghi chú quá dài đã báo đỏ ngay dưới ô (không chặn gõ): không gửi BE
     if (changed.some((r) => valueOf(r).note.length > NOTE_MAX)) return false;
+    if (changed.some((r) => !valueOf(r).levels.overall)) {
+      setErrors({ overall: true });
+      return false;
+    }
     setSaving(true);
+    setErrors({});
     try {
       await saveClassRatings(
         {
@@ -103,7 +113,7 @@ export default function ClassRatingsPage() {
       await reload({ silent: true });
       return true;
     } catch (err) {
-      toast.error(err, 'Chưa lưu được xếp loại');
+      setErrors({ _form: err.message || 'Chưa lưu được xếp loại, thử lại.' });
       return false;
     } finally {
       setSaving(false);
@@ -143,6 +153,7 @@ export default function ClassRatingsPage() {
     if (changed.length) setPending(() => apply);
     else {
       setDrafts({});
+      setErrors({});
       apply();
     }
   };
@@ -177,11 +188,13 @@ export default function ClassRatingsPage() {
     const value = valueOf(r).levels[field] || '';
     if (!r.canEdit) return <td key={field}>{label(value) || <span className="muted">—</span>}</td>;
     const name = field === 'overall' ? 'Xếp loại chung' : CLASS_RATING_CRITERIA.find((c) => c.key === field).label;
+    const missing = field === 'overall' && missingOverall(r);
     return (
       <td key={field}>
         <select
-          className="select"
+          className={`select ${missing ? 'input--error' : ''}`}
           aria-label={`${name} – ${r.className}`}
+          aria-invalid={missing || undefined}
           value={value}
           onChange={(e) => setField(r, { levels: { [field]: e.target.value || null } })}
         >
@@ -192,6 +205,7 @@ export default function ClassRatingsPage() {
             </option>
           ))}
         </select>
+        {missing && <span className="field__error">Chọn xếp loại chung</span>}
       </td>
     );
   };
@@ -200,7 +214,14 @@ export default function ClassRatingsPage() {
   const saveActions = (
     <>
       {changed.length > 0 && (
-        <button className="btn" onClick={() => setDrafts({})} disabled={saving}>
+        <button
+          className="btn"
+          onClick={() => {
+            setDrafts({});
+            setErrors({});
+          }}
+          disabled={saving}
+        >
           Hủy thay đổi
         </button>
       )}
@@ -269,6 +290,11 @@ export default function ClassRatingsPage() {
             {ratings?.openFrom
               ? `${CLASS_RATING_PERIOD_LABELS[period]} xếp loại được từ ngày ${formatDate(ratings.openFrom)}.`
               : 'Chưa đặt ngày học kỳ ở Cấu hình thời gian nên chưa xếp loại được kỳ này.'}
+          </div>
+        )}
+        {errors._form && (
+          <div className="alert alert--danger mb-12" role="alert">
+            {errors._form}
           </div>
         )}
         {error ? (
@@ -371,6 +397,7 @@ export default function ClassRatingsPage() {
         onConfirm={() => {
           backup.clear();
           setDrafts({});
+          setErrors({});
           pending?.();
           setPending(null);
         }}

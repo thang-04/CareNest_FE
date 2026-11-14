@@ -15,6 +15,7 @@ import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { useThemeClasses } from '@/hooks/assessment/useAssessment';
 import { getSemesterAssessment, saveSemesterAssessment, confirmSemesterAssessment } from '@/services/assessment/assessmentService';
 import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';
+import { inlineErrors } from '@/utils/assessment/assessmentValidation';
 import { semesterAssessmentFile, semesterAssessmentRows, semesterLabel } from '@/utils/assessment/semesterAssessmentDoc';
 import { downloadXlsx } from '@/utils/exportXlsx';
 import { formatDate, formatDateTime } from '@/utils/format';
@@ -47,6 +48,7 @@ export default function SemesterEvaluationListPage() {
   });
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
+  const [errors, setErrors] = useState({});
   const scope = `${schoolYear}:${classId}:${selectedSemester}`;
   const scopeRef = useRef(scope);
   scopeRef.current = scope;
@@ -66,12 +68,14 @@ export default function SemesterEvaluationListPage() {
   useEffect(() => {
     setNote(board?.note || '');
     setDetail(null);
+    setErrors({});
   }, [board]);
   const dirty = !!board && canEdit && note !== (board.note || '');
   const run = async (confirm = false) => {
     if (!board || busy) return false;
     const requestScope = scope;
     setBusy(true);
+    setErrors({});
     try {
       const saved = await (confirm ? confirmSemesterAssessment : saveSemesterAssessment)({
         classId: board.classId,
@@ -85,7 +89,11 @@ export default function SemesterEvaluationListPage() {
       toast.success(confirm ? 'Đã xác nhận đánh giá học kỳ.' : 'Đã lưu đánh giá học kỳ.');
       return true;
     } catch (e) {
-      toast.error(e);
+      // Lỗi hiện đỏ ngay trên form (ô lưu ý hoặc đầu form), đóng hộp xác nhận để thấy lỗi
+      if (mounted.current && scopeRef.current === requestScope) {
+        setErrors(inlineErrors(e, ['note']));
+        setConfirmOpen(false);
+      }
       return false;
     } finally {
       setBusy(false);
@@ -282,6 +290,11 @@ export default function SemesterEvaluationListPage() {
               </div>
             )}
             {missing > 0 && <p className="muted text-sm mt-8">{missing} trẻ còn mục tiêu chưa có kết quả.</p>}
+            {errors._form && (
+              <div className="alert alert--danger mt-16" role="alert">
+                {errors._form}
+              </div>
+            )}
             <div className="field mt-16">
               <label className="field__label" htmlFor="semester-note">
                 Một số lưu ý
@@ -289,16 +302,21 @@ export default function SemesterEvaluationListPage() {
               {canEdit ? (
                 <textarea
                   id="semester-note"
-                  className="textarea"
+                  className={`textarea ${errors.note ? 'input--error' : ''}`}
                   rows={3}
                   maxLength={1000}
                   value={note}
                   disabled={busy}
-                  onChange={(e) => setNote(e.target.value)}
+                  aria-invalid={!!errors.note}
+                  onChange={(e) => {
+                    setNote(e.target.value);
+                    setErrors({});
+                  }}
                 />
               ) : (
                 <div className="text-sm">{board.note || '—'}</div>
               )}
+              {errors.note && <p className="field__error">{errors.note}</p>}
             </div>
             {(canEdit || hasBePermission(user, PERMISSIONS.ASSESSMENT_CONFIRM)) && (
               <div className="row gap-2 mt-16">

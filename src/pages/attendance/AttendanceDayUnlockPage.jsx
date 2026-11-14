@@ -42,6 +42,7 @@ export default function AttendanceDayUnlockPage() {
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(null);
   const [saveError, setSaveError] = useState(null);
+  const [revokeError, setRevokeError] = useState('');
   const submitting = useRef(false);
   const day = useAsync(
     async () => ({ ...(await getDayInfo(form.date, form.classId, user)), classId: form.classId }),
@@ -124,13 +125,14 @@ export default function AttendanceDayUnlockPage() {
   };
   // Mở nhầm hoặc giáo viên đã xong: kết thúc sớm, vẫn giữ trong lịch sử
   const revoke = async (item) => {
+    setRevokeError('');
     try {
       await revokeAttendanceDayUnlock(item.id, user);
       setNow(new Date());
       toast.success(`Đã kết thúc mở lại điểm danh ${item.className}.`);
       await Promise.all([history.reload({ silent: true }), day.reload({ silent: true })]);
     } catch (error) {
-      toast.error(error, 'Không kết thúc được');
+      setRevokeError(error.message || `Chưa kết thúc được mở lại ${item.className}, thử lại.`);
     }
   };
   const save = async () => {
@@ -146,7 +148,12 @@ export default function AttendanceDayUnlockPage() {
       await Promise.all([history.reload({ silent: true }), day.reload({ silent: true })]);
     } catch (error) {
       setConfirming(null);
-      setSaveError(error);
+      // Lỗi BE gắn được ô (ngày, hạn, lý do, lớp) thì đỏ dưới ô đó; còn lại hiện chung trên form
+      const fields = Object.fromEntries(
+        ['classId', 'date', 'until', 'reason'].filter((f) => error.details?.[f]).map((f) => [f, error.details[f]]),
+      );
+      if (Object.keys(fields).length) setErrors(fields);
+      else setSaveError(error);
     } finally {
       submitting.current = false;
       setBusy(false);
@@ -321,6 +328,11 @@ export default function AttendanceDayUnlockPage() {
           <p className="field__error" role="alert">
             Nhập khoảng ngày hợp lệ theo dd/mm/yyyy, ngày bắt đầu không sau ngày kết thúc.
           </p>
+        )}
+        {revokeError && (
+          <div className="alert alert--danger mb-12" role="alert">
+            {revokeError}
+          </div>
         )}
         {history.error ? (
           <ErrorState error={history.error} onRetry={history.reload} />
