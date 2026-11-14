@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { PenLine, Save, Send, Sparkles } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -37,9 +38,11 @@ export default function WeeklyCommentsPage() {
   const { user } = useAuth();
   const toast = useToast();
   const { classes, loading: classesLoading, error: classesError } = useDailyAssessmentClasses();
-  const [classId, setClassId] = useState('');
+  // Mở từ thông báo nhắc việc: điền sẵn lớp, tuần (?classId=&weekStart=)
+  const [search] = useSearchParams();
+  const [classId, setClassId] = useState(search.get('classId') || '');
   // Trống = tuần hiện tại (BE chọn); danh sách tuần lấy từ BE theo giáo án tuần của lớp
-  const [weekStart, setWeekStart] = useState('');
+  const [weekStart, setWeekStart] = useState(search.get('weekStart') || '');
   const [childId, setChildId] = useState('');
   const [text, setText] = useState('');
   const [errors, setErrors] = useState({});
