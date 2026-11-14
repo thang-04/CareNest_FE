@@ -666,6 +666,12 @@ const ITEM_BE_PERMISSIONS = {
   assessWeeklyComments: [PERMISSIONS.ASSESSMENT_VIEW],
   assessRewards: [PERMISSIONS.ASSESSMENT_VIEW],
 };
+// Riêng PHT: sổ suất ăn chỉ hiện khi được giao quyền xác nhận số suất; HT xem mọi điểm trường
+const VP_ITEM_BE_PERMISSIONS = {
+  mealCount: [PERMISSIONS.MEAL_COUNT_CONFIRM],
+};
+const itemBePermissions = (key, user) =>
+  ITEM_BE_PERMISSIONS[key] || (user.role === ROLES.VICE_PRINCIPAL ? VP_ITEM_BE_PERMISSIONS[key] : undefined);
 const withBePermissions = (menu, user) =>
   !Array.isArray(user?.bePermissions)
     ? menu
@@ -674,7 +680,9 @@ const withBePermissions = (menu, user) =>
           e.children
             ? {
                 ...e,
-                children: e.children.filter((c) => !ITEM_BE_PERMISSIONS[c.key] || hasBePermission(user, ...ITEM_BE_PERMISSIONS[c.key])),
+                children: e.children.filter(
+                  (c) => !itemBePermissions(c.key, user) || hasBePermission(user, ...itemBePermissions(c.key, user)),
+                ),
               }
             : e,
         )
