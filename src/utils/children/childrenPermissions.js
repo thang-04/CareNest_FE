@@ -94,6 +94,8 @@ export const canRecordMeasurement = (child, user, cls) =>
   !!child && child.status === CHILD_STATUS.ACTIVE && child.classId === cls?.id && teachesClass(cls, user);
 
 export const canEditMeasurement = canRecordMeasurement;
+/* Sửa, duyệt nhận định xu hướng: chỉ GV đang phân công lớp hiện tại của trẻ, cùng điều kiện nhập số đo (BE HLT-21, 403 5041). */
+export const canReviewHealthTrend = canRecordMeasurement;
 
 /*
  * Đợt khám, kỳ cân đo (user chốt 2026-10-31, PROPOSED): Hiệu trưởng mọi điểm trường, PHT điểm trường của mình; giáo viên xem.

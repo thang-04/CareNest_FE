@@ -65,7 +65,7 @@ DEGRADED, chạy được nhưng thiếu hoặc sai thông tin:
 3. Tiếp nhận và nhập Excel luôn có ít nhất một phụ huynh và đúng một người nhận tài khoản (user, 2026-11-11).
 4. Đổi SĐT phụ huynh: plan này chỉ khóa ô SĐT; UI gửi/duyệt yêu cầu làm plan riêng (user, Q1, 2026-11-11).
 5. Gợi ý khi nhập Excel: sửa BE theo mock, như một việc BE riêng trên nhánh G94-180, xong trước Phase 3 (user, Q2, 2026-11-11). Chi tiết ở mục "Việc BE kèm theo".
-6. Nút duyệt giải thích xu hướng AI: plan riêng (user, Q3, 2026-11-11).
+6. Nút duyệt giải thích xu hướng AI: plan riêng (user, Q3, 2026-11-11) — `docs/plans/active/2026-11-14-health-trend-review.md`.
 7. Khi bật BE gặp lỗi: sửa tiếp theo dữ liệu BE, không quay về dữ liệu mẫu (user, 2026-11-11). Dữ liệu mẫu chỉ còn cho `VITE_USE_MOCK=true` và test mock.
 
 ## Làm rõ nghiệp vụ

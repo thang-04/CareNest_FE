@@ -72,7 +72,7 @@ const useAuth=()=>({user:{}}), useSchoolYear=()=>({schoolYear:'2026 – 2027'});
 const useSearchParams=()=>[new URLSearchParams('childId=child-test'),()=>{}];
 const useMasterData=()=>({campuses:[]}), useChildRecords=()=>({children:[child],loading:false});
 const useHealthRecord=()=>({record:{child,measurements:[context.measurement]},loading:false});
-const CHILD_STATUS={ACTIVE:'ACTIVE'}, isPrincipal=()=>false, isVicePrincipal=()=>false;
+const CHILD_STATUS={ACTIVE:'ACTIVE'}, isPrincipal=()=>false, isVicePrincipal=()=>false, canReviewHealthTrend=()=>false;
 const sortByName=(v)=>v, suggestAgeGroupId=()=>'', growthAxesFor=()=>({}), ageGroupById=()=>null;
 const useClassOptions=()=>({year:null,ageGroups:[]}), ageGroupIn=()=>null;
 const NUTRITION_STATUS={NORMAL:'NORMAL'}, NUTRITION_STATUS_OPTIONS=[], labelOf=()=>'';

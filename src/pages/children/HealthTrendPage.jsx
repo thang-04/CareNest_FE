@@ -20,7 +20,7 @@ import { NUTRITION_STATUS, NUTRITION_STATUS_OPTIONS, labelOf } from '@/models/ch
 import { formatDate } from '@/utils/format';
 import { ageGroupIn, formatNumber, suggestAgeGroupId } from '@/utils/children/childrenHelpers';
 import { childrenCrumbs } from '@/utils/children/breadcrumbs';
-import { isPrincipal, isVicePrincipal } from '@/utils/children/childrenPermissions';
+import { canReviewHealthTrend, isPrincipal, isVicePrincipal } from '@/utils/children/childrenPermissions';
 import '@/styles/modules/children.css';
 import { CampusFilter } from '@/components/ui/CampusFilter';
 
@@ -300,7 +300,7 @@ export default function HealthTrendPage() {
                   </div>
                 )}
               </section>
-              <AiTrendPanel key={child.id} childId={child.id} user={user} />
+              <AiTrendPanel key={child.id} childId={child.id} user={user} canReview={canReviewHealthTrend(child, user, record?.cls)} />
               <div className="page-actions">
                 <Link className="btn" to={`/children/${child.id}`}>
                   <ArrowLeft size={16} /> Về hồ sơ trẻ

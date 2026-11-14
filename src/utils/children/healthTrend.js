@@ -99,3 +99,31 @@ export function trendBlocks(data) {
     { key: 'limitations', title: 'Lưu ý về dữ liệu', items: c.limitations ? [{ text: c.limitations }] : [] },
   ].filter((b) => b.items.length);
 }
+
+let editKey = 0;
+const nextKey = () => `tr${++editKey}`;
+
+/** Bản để sửa trong form (key ổn định cho từng dòng; câu null ⇒ chuỗi rỗng). */
+export function toEditable(content) {
+  return {
+    overview: content?.overview || '',
+    attentionPoints: (content?.attentionPoints || []).map((a) => ({ key: nextKey(), warningCode: a.warningCode, text: a.text || '' })),
+    positives: (content?.positives || []).map((text) => ({ key: nextKey(), text: text || '' })),
+    followUps: (content?.followUps || []).map((f) => ({ key: nextKey(), type: f.type, text: f.text || '' })),
+    limitations: content?.limitations || '',
+  };
+}
+
+/** Thân gửi BE (`{ content }` của approve): bỏ key form; thứ tự dòng giữ nguyên để ô lỗi `content.positives.0` khớp dòng đang hiện. */
+export function toPayload(editable) {
+  return {
+    overview: editable.overview,
+    attentionPoints: editable.attentionPoints.map(({ warningCode, text }) => ({ warningCode, text })),
+    positives: editable.positives.map(({ text }) => text),
+    followUps: editable.followUps.map(({ type, text }) => ({ type, text })),
+    limitations: editable.limitations,
+  };
+}
+
+/** Thêm một dòng điểm tích cực trống cho form (key mới). */
+export const newPositive = () => ({ key: nextKey(), text: '' });

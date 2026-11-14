@@ -14,7 +14,10 @@ const { axiosClient } = await import('@/services/http/axiosClient');
 const { childrenApi } = await import('@/services/children/api/childrenApi');
 const { resetDb, writeDb } = await import('@/mocks/mockDatabase');
 const { childrenMockRepository: children, ensureChildRecordsSeeded } = await import('@/services/children/mock/childrenMockRepository');
-const { validateTrendContent, normalizeTrendContent, isTrendStale, trendBlocks } = await import('@/utils/children/healthTrend');
+const { validateTrendContent, normalizeTrendContent, isTrendStale, trendBlocks, toEditable, toPayload } = await import(
+  '@/utils/children/healthTrend'
+);
+const { canReviewHealthTrend } = await import('@/utils/children/childrenPermissions');
 
 /*
  * Plan docs/plans/active/2026-11-14-health-trend-review.md, Phase 1 (BE HLT-21): nhận định xu hướng có cấu trúc, đọc bản mới nhất,
@@ -178,4 +181,30 @@ test('HLT-21: khối hiển thị theo thứ tự cố định, bỏ khối rỗ
   assert.deepEqual(blocks[1].items, [{ text: 'Giảm 0,5 kg.', code: 'WEIGHT_DROP' }]);
   assert.deepEqual(blocks[2].items, [{ text: 'Hỏi bữa ăn ở nhà.', type: 'TALK_TO_PARENT' }]);
   assert.deepEqual(trendBlocks({ summary: 'Bản cũ.', content: null }), []);
+});
+
+test('AI-02: form sửa — toEditable có key từng dòng, toPayload bỏ key, giữ mã cảnh báo, loại gợi ý và thứ tự dòng', () => {
+  const content = {
+    overview: 'Tăng đều.',
+    attentionPoints: [{ warningCode: 'WEIGHT_DROP', text: 'Giảm 0,5 kg.' }],
+    positives: ['Cao thêm.', 'Ăn tốt.'],
+    followUps: [{ type: 'TALK_TO_PARENT', text: 'Hỏi bữa ăn.' }],
+    limitations: null,
+  };
+  const form = toEditable(content);
+
+  assert.ok(form.positives.every((p) => p.key));
+  assert.notEqual(form.positives[0].key, form.positives[1].key);
+  assert.equal(form.limitations, '');
+  form.positives = form.positives.slice(1);
+  assert.deepEqual(toPayload(form), { ...content, positives: ['Ăn tốt.'], limitations: '' });
+});
+
+test('HLT-21: nút Sửa, Duyệt chỉ cho GV đang phân công lớp hiện tại của trẻ; HT, GV lớp khác không thấy', () => {
+  const child = { id: 'ch_x', status: 'ACTIVE', classId: 'cls_x' };
+  const cls = { id: 'cls_x', teacherIds: ['u_an'] };
+
+  assert.equal(canReviewHealthTrend(child, AN, cls), true);
+  assert.equal(canReviewHealthTrend(child, { id: 'u_other', role: 'TEACHER' }, cls), false);
+  assert.equal(canReviewHealthTrend(child, PRINCIPAL, cls), false);
 });

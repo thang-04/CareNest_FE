@@ -107,7 +107,7 @@ Phần client của plan BE `BE:docs/plans/completed/2026-11-14-health-trend-str
 | --- | --- | --- | --- | --- |
 | AC-6, AC-8 | AI-02, HLT-21 | `tests/health/health-trend.test.mjs` (node) | 1 | PASS 6/6 |
 | AC-1..AC-4, AC-7 | HLT-05, HLT-21, AI-03 | hàm thuần (node) + kiểm tay trình duyệt | 2 | PASS (`trendBlocks`; ảnh `docs/test-reports/2026-11-14-health-trend-{empty,draft,stale}.png`) |
-| AC-5, AC-6 | AI-02 | node + kiểm tay trên BE thật | 3 | |
+| AC-5, AC-6 | AI-02 | node + kiểm tay trên BE thật | 3 | Node PASS (`toEditable`/`toPayload`, `canReviewHealthTrend`, mock approve 400/403); kiểm tay CHƯA làm |
 
 ## Rủi ro & rollback
 | Rủi ro | Tác động | Giảm thiểu | Rollback |
@@ -152,3 +152,13 @@ Phần client của plan BE `BE:docs/plans/completed/2026-11-14-health-trend-str
   - Gợi ý theo dõi chỉ hiện câu chữ, không hiện nhãn loại ở đầu câu (lặp nghĩa khi xem thử); nhãn loại dùng ở form sửa Phase 3.
 - Ghi chú: lỗi console "trùng key 2026-11-13" ở `GrowthChart` chỉ do lần đo thử chèn tay trùng ngày lần đo mẫu, không phải lỗi panel.
 - Tiếp: Phase 3 (sửa, duyệt).
+
+### 2026-11-14 — Phase 3 (chờ review)
+- Commit Phase 2: `67abca69` (chưa push). Phase 3: chưa commit.
+- Verify: `npm run test:health` → 120/120 pass; `npm run check` → exit 0; `node scripts/check-api-contract.mjs --consumers` sinh lại `FE_API_CALLS.md` (thêm GET latest, POST approve).
+- Code: `AiTrendEditor.jsx` (sửa từng mục, kiểm trước, lỗi 400 BE theo ô); `AiTrendPanel` thêm "Sửa", "Duyệt", `ConfirmationModal`, báo 403 trong card; `HealthTrendPage` truyền `canReview = canReviewHealthTrend(child, user, record.cls)`; `childrenPermissions.canReviewHealthTrend` (= `canRecordMeasurement`).
+- Khác plan:
+  - Duyệt luôn qua `ConfirmationModal` (UI_CARD luật 7: sau duyệt không sửa được, phụ huynh xem được).
+  - `tests/health/measurement-head-display.test.mjs` thêm giả `canReviewHealthTrend` (test này tự giả lập import của trang).
+- Chưa kiểm chứng: kiểm tay luồng Sửa → Lưu và duyệt → Đã duyệt. Trình duyệt MCP với Vite giả lập (:5190) không đăng nhập được (bấm "Đăng nhập" không chuyển trang, không lỗi console; lần đầu DB giả gần chạm quota localStorage); chưa kiểm trên BE thật.
+- Tiếp: user kiểm tay (giả lập hoặc BE nhánh G94-180), review, commit.
