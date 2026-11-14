@@ -127,7 +127,7 @@ export default function AttendanceDayUnlockPage() {
     try {
       await revokeAttendanceDayUnlock(item.id, user);
       setNow(new Date());
-      toast.success(`Đã kết thúc mở lại điểm danh ${item.className}. Hãy báo trực tiếp cho giáo viên lớp.`);
+      toast.success(`Đã kết thúc mở lại điểm danh ${item.className}.`);
       await Promise.all([history.reload({ silent: true }), day.reload({ silent: true })]);
     } catch (error) {
       toast.error(error, 'Không kết thúc được');
@@ -140,7 +140,7 @@ export default function AttendanceDayUnlockPage() {
     setSaveError(null);
     try {
       const saved = await unlockAttendanceDay(confirming, user);
-      toast.success(`Đã mở lại ${saved.className}. Hãy báo trực tiếp cho giáo viên lớp để điểm danh trong hạn mở.`);
+      toast.success(`Đã mở lại ${saved.className}. Giáo viên lớp đã nhận thông báo.`);
       setConfirming(null);
       setForm((value) => ({ ...value, reason: '' }));
       await Promise.all([history.reload({ silent: true }), day.reload({ silent: true })]);
@@ -409,7 +409,7 @@ export default function AttendanceDayUnlockPage() {
         title="Mở lại điểm danh cho lớp?"
         message={
           confirming
-            ? `${confirming.className}, ngày ${formatDate(confirming.date)}, mở đến ${formatDateTime(confirming.validUntil)}. Hệ thống chưa gửi thông báo, hãy báo trực tiếp cho giáo viên lớp. Số suất đã xác nhận không tự thay đổi; thay đổi điểm danh cần xác nhận lại.`
+            ? `${confirming.className}, ngày ${formatDate(confirming.date)}, mở đến ${formatDateTime(confirming.validUntil)}. Số suất đã xác nhận không tự thay đổi; thay đổi điểm danh cần xác nhận lại.`
             : ''
         }
         confirmLabel="Xác nhận mở lại"

@@ -187,7 +187,7 @@ export default function AssessmentDayUnlockPage() {
         user,
       );
       toast.success(
-        `Đã mở lại ngày ${formatDate(u.date)} cho ${u.className} đến ${formatDateTime(u.validUntil)}. Giáo viên của lớp đã được thông báo.`,
+        `Đã mở lại ngày ${formatDate(u.date)} cho ${u.className} đến ${formatDateTime(u.validUntil)}. Giáo viên lớp đã nhận thông báo.`,
       );
       setForm((f) => ({ ...f, reason: '', ...defaultUntil(yearEnd) }));
       reload({ silent: true });
@@ -215,7 +215,7 @@ export default function AssessmentDayUnlockPage() {
         return;
       }
       await revokeAssessmentDayUnlock(u.id, user);
-      toast.success(`Đã kết thúc mở lại ngày ${formatDate(u.date)} của ${u.className}. Giáo viên được thông báo.`);
+      toast.success(`Đã kết thúc mở lại ngày ${formatDate(u.date)} của ${u.className}.`);
       reload({ silent: true });
     } catch (err) {
       toast.error(err, 'Không kết thúc được');
