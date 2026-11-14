@@ -104,7 +104,7 @@ Parent (thuộc APP; gửi báo nghỉ qua app) · Kitchen: chỉ App, gateway W
 
 ## Bỏ màn đánh giá tháng — 05/11/2026
 
-User chốt bỏ màn `/assessment/periodic` cho GV (cả tổ trưởng), PHT, HT. Menu không còn mục đánh giá tháng; 14/11/2026 xóa hẳn màn và route `/assessment/periodic` (danh sách, chi tiết, AI-draft); đánh giá tháng cũ trong hồ sơ phát triển không còn nút "Xem chi tiết". Dashboard chỉ tải và nhắc đánh giá học kỳ/cuối năm. Giữ chất lượng tháng, phiếu bé ngoan, dữ liệu đánh giá tháng cũ và phần tổng hợp lịch sử trong hồ sơ/học kỳ/cuối năm. Không thay API hoặc xóa dữ liệu BE.
+User chốt bỏ màn `/assessment/periodic` cho GV (cả tổ trưởng), PHT, HT. Menu không còn mục đánh giá tháng; 14/11/2026 xóa hẳn màn và route `/assessment/periodic` (danh sách, chi tiết, AI-draft); đánh giá tháng cũ trong hồ sơ phát triển không còn nút "Xem chi tiết". Cùng ngày bỏ hẳn nhận xét chung lớp theo tháng (OBS-26): FE không còn gọi `/assessment/class-monthly-comments*`. Dashboard chỉ tải và nhắc đánh giá học kỳ/cuối năm. Giữ chất lượng tháng, phiếu bé ngoan, dữ liệu đánh giá tháng cũ và phần tổng hợp lịch sử trong hồ sơ/học kỳ/cuối năm. Không thay API hoặc xóa dữ liệu BE.
 
 ## Kết quả mục tiêu cuối chủ đề — 05/11/2026
 

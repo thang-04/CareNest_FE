@@ -71,9 +71,6 @@ export const getTicketOverview = (params, user) => (be || repo).getTicketOvervie
 export const getClassAssessmentOverview = (params, user) => (be || repo).getClassAssessmentOverview(params, user);
 export const getQualityReport = (params, user) => (be || repo).getQualityReport(params, user);
 /** Nhận xét chung cả lớp theo tháng: { status, draft, content, canEdit, … }. */
-export const getClassMonthlyComment = (params, user) => (be || repo).getClassMonthlyComment(params, user);
-export const saveClassMonthlyComment = (body, user) => (be || repo).saveClassMonthlyComment(body, user);
-export const confirmClassMonthlyComment = (body, user) => (be || repo).confirmClassMonthlyComment(body, user);
 // Nhận xét tuần theo trẻ (OBS-29): GV viết, gửi phụ huynh
 export const getWeeklyComments = (params, user) => (be || repo).getWeeklyComments(params, user);
 export const writeWeeklyCommentDrafts = (body, user) => (be || repo).writeWeeklyCommentDrafts(body, user);

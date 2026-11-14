@@ -77,3 +77,4 @@ Link lịch sử tháng vẫn tồn tại: chuyển về hồ sơ thay vì xóa 
 
 ### 2026-11-14 — Xóa hẳn màn
 - Theo review: xóa file trang danh sách/chi tiết tháng và route `/assessment/periodic*` (không còn chuyển hướng); hồ sơ phát triển bỏ nút "Xem chi tiết" của đánh giá tháng cũ. Giữ thẻ nhận xét chung lớp theo tháng và Chất lượng tháng.
+- Cần chốt cùng ngày: bỏ hẳn nhận xét chung lớp theo tháng (OBS-26) — xóa thẻ, facade/api/mock và 3 lời gọi `/assessment/class-monthly-comments` (GET, PUT, POST `/confirm`); Chất lượng tháng giữ nguyên.

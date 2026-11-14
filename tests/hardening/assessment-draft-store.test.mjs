@@ -9,7 +9,7 @@ test('class-level drafts are stored per user and document; an empty list removes
     setItem: (key, value) => values.set(key, String(value)),
     removeItem: (key) => values.delete(key),
   };
-  const key = 'class-monthly-comment:1:2026-10-01';
+  const key = 'class-ratings:2026:SEMESTER_1:all';
   writeDrafts('u1', key, [{ session: 's', doc: 'Lớp ngoan', savedAt: 1 }]);
   assert.equal(readDrafts('u1', key)[0].doc, 'Lớp ngoan');
   assert.deepEqual(readDrafts('u2', key), []);

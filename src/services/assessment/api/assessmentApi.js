@@ -155,11 +155,6 @@ export const createAssessmentBeApi = (client) => ({
   getThemeEvaluation: ({ classId, themeId }) => client.get('/assessment/theme-evaluations', { params: { classId, themeId } }),
   saveThemeEvaluation: (body) => client.put('/assessment/theme-evaluations', body),
   confirmThemeEvaluation: (body) => client.post('/assessment/theme-evaluations/confirm', body),
-  // Nhận xét chung cả lớp theo tháng (BE OBS-26); month = ngày 1 của tháng
-  getClassMonthlyComment: ({ classId, month }) => client.get('/assessment/class-monthly-comments', { params: { classId, month } }),
-  saveClassMonthlyComment: ({ classId, month, content }) => client.put('/assessment/class-monthly-comments', { classId, month, content }),
-  confirmClassMonthlyComment: ({ classId, month, content }) =>
-    client.post('/assessment/class-monthly-comments/confirm', { classId, month, content }),
   // Nhận xét tuần theo trẻ (BE OBS-29): weekStart = thứ Hai; childId trống = cả lớp
   getWeeklyComments: ({ classId, weekStart }) =>
     client.get('/assessment/weekly-comments', { params: { classId, weekStart: weekStart || undefined } }),

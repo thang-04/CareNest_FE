@@ -10,8 +10,8 @@ test('màn Đánh giá tháng đã xóa: không còn route, trang, mục breadcr
   assert.ok(!existsSync('src/pages/assessment/PeriodicEvaluationListPage.jsx'));
   assert.ok(!existsSync('src/pages/assessment/PeriodicEvaluationDetailPage.jsx'));
   assert.equal(SECTIONS.periodic, undefined);
-  // Nhận xét chung của lớp theo tháng vẫn giữ
-  assert.ok(existsSync('src/components/assessment/ClassMonthlyCommentCard.jsx'));
+  // Nhận xét chung của lớp theo tháng (OBS-26) cũng đã bỏ
+  assert.ok(!existsSync('src/components/assessment/ClassMonthlyCommentCard.jsx'));
 });
 
 test('hồ sơ phát triển: đánh giá tháng cũ không còn link chi tiết, học kỳ và cuối năm vẫn có', () => {

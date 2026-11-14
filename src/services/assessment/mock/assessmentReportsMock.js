@@ -303,49 +303,6 @@ export const createAssessmentReportsMock = (ensureReady) => ({
   async saveYearEndSheet() {
     throw new ApiError(404, 'Chưa có phiếu đánh giá sự phát triển (bản demo)');
   },
-  // BE giả OBS-26: GV lớp soạn, xác nhận nhận xét chung tháng (tháng đã kết thúc); BGH xem bản đã xác nhận
-  async getClassMonthlyComment({ classId, month }, user) {
-    const db = ensureReady();
-    const cls = db.classes.find((c) => c.id === classId);
-    if (!cls) throw new ApiError(404, 'Không tìm thấy lớp.');
-    const teacher = isClassTeacher(cls, user);
-    if (!teacher && !isLeader(user)) deny();
-    const ended = monthEnd(month) < todayIso();
-    const saved = (db.classMonthlyComments || []).find((c) => c.classId === classId && c.month === month);
-    const confirmed = !!saved?.confirmedAt;
-    return clone({
-      classId,
-      className: cls.name,
-      month,
-      status: !ended ? 'NOT_READY' : confirmed ? 'CONFIRMED' : 'AWAITING_REVIEW',
-      draft:
-        teacher && ended ? `Tháng ${month.slice(5, 7)}/${month.slice(0, 4)}, lớp ${cls.name}: cô bổ sung nhận xét chung của lớp.` : null,
-      content: teacher || confirmed ? saved?.content || null : null,
-      confirmedAt: saved?.confirmedAt || null,
-      confirmedByName: confirmed ? saved.confirmedByName : null,
-      canEdit: teacher && ended && !confirmed,
-    });
-  },
-  async saveClassMonthlyComment(body, user, confirm = false) {
-    const db = ensureReady();
-    const current = await this.getClassMonthlyComment(body, user);
-    if (!current.canEdit) deny();
-    if ((body.content || '').trim().length < 20) invalid('Nội dung đánh giá cần ít nhất 20 ký tự');
-    db.classMonthlyComments = [
-      ...(db.classMonthlyComments || []).filter((c) => c.classId !== body.classId || c.month !== body.month),
-      {
-        classId: body.classId,
-        month: body.month,
-        content: body.content.trim(),
-        ...(confirm ? { confirmedAt: new Date().toISOString(), confirmedByName: user.fullName } : {}),
-      },
-    ];
-    writeDb(db);
-    return this.getClassMonthlyComment(body, user);
-  },
-  async confirmClassMonthlyComment(body, user) {
-    return this.saveClassMonthlyComment(body, user, true);
-  },
   // BE giả OBS-29: nhận xét tuần theo trẻ — GV lớp viết nháp (mẫu câu), lưu, gửi phụ huynh (khóa); BGH xem bản đã gửi
   async getWeeklyComments({ classId, weekStart: start }, user) {
     const db = ensureReady();
