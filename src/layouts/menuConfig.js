@@ -666,9 +666,9 @@ const ITEM_BE_PERMISSIONS = {
   assessWeeklyComments: [PERMISSIONS.ASSESSMENT_VIEW],
   assessRewards: [PERMISSIONS.ASSESSMENT_VIEW],
 };
-// Riêng PHT: sổ suất ăn chỉ hiện khi được giao quyền xác nhận số suất; HT xem mọi điểm trường
+// Riêng PHT (NUT-02, AUTH-20): sổ suất ăn hiện khi có quyền xem điểm danh (chỉ xem) hoặc xác nhận số suất, như BE
 const VP_ITEM_BE_PERMISSIONS = {
-  mealCount: [PERMISSIONS.MEAL_COUNT_CONFIRM],
+  mealCount: [PERMISSIONS.ATTENDANCE_VIEW, PERMISSIONS.MEAL_COUNT_CONFIRM],
 };
 const itemBePermissions = (key, user) =>
   ITEM_BE_PERMISSIONS[key] || (user.role === ROLES.VICE_PRINCIPAL ? VP_ITEM_BE_PERMISSIONS[key] : undefined);
