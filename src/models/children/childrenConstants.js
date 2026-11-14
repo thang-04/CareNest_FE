@@ -168,6 +168,16 @@ export const MAX_GUARDIANS = 3;
 
 export const AI_TREND_STATUS = { OK: 'OK', NOT_ENOUGH_DATA: 'NOT_ENOUGH_DATA', FAILED: 'FAILED' };
 
+/** Loại gợi ý theo dõi trong nhận định xu hướng; hệ thống (BE) quyết định loại được dùng, không có loại "đi khám" (HLT-21). */
+export const TREND_FOLLOW_UP_LABELS = {
+  RECHECK_NEXT_ROUND: 'Theo dõi ở kỳ cân đo sau',
+  TALK_TO_PARENT: 'Trao đổi với phụ huynh',
+  REMEASURE: 'Đo lại để xác nhận',
+};
+
+/** Giới hạn nội dung nhận định xu hướng, giống BE `HealthTrendContentRules` (HLT-21). */
+export const TREND_CONTENT_LIMITS = { overview: 500, item: 300, positives: 3 };
+
 /** Columns of the enrollment template (CSV / Excel), in order. */
 export const IMPORT_COLUMNS = [
   { key: 'fullName', label: 'Họ tên trẻ', required: true },

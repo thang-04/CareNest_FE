@@ -56,6 +56,7 @@ import {
   isPrincipal,
   isVicePrincipal,
 } from '@/utils/children/childrenPermissions';
+import { isTrendStale, normalizeTrendContent, renderTrendSummary, validateTrendContent } from '@/utils/children/healthTrend';
 import { conclusionBrief, screenMeasurement } from './healthScreeningRule';
 import {
   addDays,
@@ -1469,72 +1470,138 @@ export const childrenMockRepository = {
   },
 
   /* ------------------------------ #35 Health trend (AI) ------------------------------ */
+  // BE giả của HealthTrendServiceImpl (HLT-02, HLT-05, HLT-21): mỗi lần phân tích lưu một bản nháp; nhân viên đọc bản mới nhất.
   async analyzeHealthTrend(childId, user) {
     await delay(900);
     const db = ensureSeeded();
     const child = assertView(db, childId, user, canViewHealth);
-    const history = db.healthMeasurements
-      .filter((m) => m.childId === childId && !isExamDraft(m))
-      .sort((a, b) => a.date.localeCompare(b.date))
-      .map((m) => toMeasurementView(db, m));
-    if (history.length < 2) return { status: AI_TREND_STATUS.NOT_ENOUGH_DATA, warnings: [], summary: '' };
+    const history = trendHistory(db, childId);
+    if (history.length < 2)
+      return { status: AI_TREND_STATUS.NOT_ENOUGH_DATA, draft: false, stale: false, warnings: [], summary: '', content: null };
     // Demo: children whose code ends in 5 simulate an AI outage (MSG30 path).
     if (/5$/.test(child.code)) throw new ApiError(503, 'Không dùng được trợ lý AI. Bạn vẫn xem được số đo và kết luận khám.');
-    // GBR-AI-05: chỉ gửi mã nội bộ và số đo, không gửi tên/liên hệ. Không gửi phát triển, khám lâm sàng, kết luận
-    // để AI không viết lời chẩn đoán (HLT-04, user chốt 2026-10-17).
-    const aiInput = {
-      ref: child.code,
-      sex: child.gender,
-      points: history.map(({ date, heightCm, weightKg, headCircumferenceCm, bmi }) => ({
-        date,
-        heightCm,
-        weightKg,
-        headCircumferenceCm,
-        bmi,
-      })),
+    // GBR-AI-05: chỉ gửi số đo, không gửi tên/liên hệ/kết luận khám (HLT-04)
+    const { warnings, content } = fakeTrendModel(history.map(({ date, heightCm, weightKg }) => ({ date, heightCm, weightKg })));
+    const saved = {
+      id: uid('ai'),
+      childId,
+      sourceMeasurementIds: history.map((m) => m.id),
+      status: 'DRAFT',
+      source: 'AI',
+      model: 'mock-trend',
+      warnings,
+      content,
+      summary: renderTrendSummary(content),
+      createdAt: nowIso(),
+      requestedBy: user.id,
+      approvedBy: null,
+      approvedAt: null,
     };
-    const result = fakeTrendModel(aiInput);
     writeDb((d) => {
-      d.healthTrendDrafts.push({
-        id: uid('ai'),
-        childId,
-        sourceMeasurementIds: history.map((m) => m.id),
-        ...result,
-        createdAt: nowIso(),
-        requestedBy: user.id,
-      });
+      d.healthTrendDrafts.push(saved);
     });
-    return { status: AI_TREND_STATUS.OK, draft: true, generatedAt: nowIso(), ...result };
+    return toTrendView(db, saved, false);
+  },
+
+  async getLatestHealthTrend(childId, user) {
+    await delay(150);
+    const db = ensureSeeded();
+    assertView(db, childId, user, canViewHealth);
+    const latest = latestTrend(db, childId);
+    return latest ? toTrendView(db, latest, trendStaleOf(db, latest)) : null;
+  },
+
+  async approveHealthTrend(childId, interpretationId, content, user) {
+    await delay(300);
+    const db = ensureSeeded();
+    const child = assertView(db, childId, user, canViewHealth);
+    // HLT-21: chỉ GV đang phân công lớp hiện tại của trẻ được sửa, duyệt (cùng điều kiện nhập số đo HLT-09)
+    if (!canRecordMeasurement(child, user, classOf(db, child)))
+      throw new ApiError(403, 'Chỉ giáo viên phụ trách lớp của trẻ được sửa và duyệt giải thích xu hướng');
+    const draft = (db.healthTrendDrafts || []).find((t) => t.id === interpretationId && t.childId === childId);
+    if (!draft) throw new ApiError(404, 'Không tìm thấy bản giải thích xu hướng sức khỏe');
+    if (draft.status === 'APPROVED') return toTrendView(db, draft, trendStaleOf(db, draft));
+    let patch = {};
+    if (content) {
+      const errors = validateTrendContent(content, draft.warnings);
+      if (Object.keys(errors).length) throw new ApiError(400, 'Dữ liệu không hợp lệ', errors);
+      const edited = normalizeTrendContent(content);
+      // AI-02: nhân sự sửa nội dung ⇒ chịu trách nhiệm nội dung (source HUMAN)
+      if (JSON.stringify(edited) !== JSON.stringify(draft.content))
+        patch = { content: edited, summary: renderTrendSummary(edited), source: 'HUMAN' };
+    }
+    let approved;
+    writeDb((d) => {
+      const target = d.healthTrendDrafts.find((t) => t.id === interpretationId);
+      Object.assign(target, patch, { status: 'APPROVED', approvedBy: user.id, approvedAt: nowIso() });
+      approved = { ...target };
+    });
+    return toTrendView(db, approved, trendStaleOf(db, approved));
   },
 };
 
-/** Fake AI: describes recorded changes only – no diagnosis, no treatment advice (GBR-AI-03). */
-const fakeTrendModel = ({ points }) => {
+const trendHistory = (db, childId) =>
+  db.healthMeasurements
+    .filter((m) => m.childId === childId && !isExamDraft(m))
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .map((m) => toMeasurementView(db, m));
+
+const latestTrend = (db, childId) =>
+  (db.healthTrendDrafts || [])
+    .filter((t) => t.childId === childId)
+    .reduce((latest, t) => (!latest || t.createdAt >= latest.createdAt ? t : latest), null);
+
+// HLT-21: đã có số đo công bố khác lúc phân tích ⇒ cần phân tích lại
+const trendStaleOf = (db, t) =>
+  isTrendStale(
+    t.sourceMeasurementIds,
+    trendHistory(db, t.childId).map((m) => m.id),
+  );
+
+/** Cùng shape HealthTrendAnalysisResponse của BE; bản lưu trước HLT-21 (không có content) giữ summary cũ. */
+const toTrendView = (db, t, stale) => ({
+  id: t.id,
+  status: AI_TREND_STATUS.OK,
+  draft: t.status !== 'APPROVED',
+  stale,
+  generatedAt: t.createdAt,
+  summary: t.summary,
+  content: t.content || null,
+  warnings: t.warnings || [],
+  source: t.source || 'AI',
+  model: t.model || null,
+  approvedBy: t.approvedBy || null,
+  approvedByName: t.approvedBy ? userName(db, t.approvedBy) : null,
+  approvedAt: t.approvedAt || null,
+});
+
+/** Fake AI theo luật cảnh báo của BE (HLT-02): chỉ mô tả số đo, không chẩn đoán, không khuyên điều trị (HLT-04, HLT-21). */
+const fakeTrendModel = (points) => {
   const last = points[points.length - 1];
   const prev = points[points.length - 2];
   const num = (n) => n.toLocaleString('vi-VN', { maximumFractionDigits: 1 });
-  const months = Math.max(1, Math.round((new Date(last.date) - new Date(prev.date)) / (30.4 * 86400000)));
+  const days = Math.round((new Date(last.date) - new Date(prev.date)) / 86400000);
   const dw = Math.round((last.weightKg - prev.weightKg) * 10) / 10;
   const dh = Math.round((last.heightCm - prev.heightCm) * 10) / 10;
   const warnings = [];
-  if (dw < 0)
-    warnings.push({
-      level: 'warning',
-      text: `Cân nặng giảm ${num(Math.abs(dw))} kg so với lần đo trước (${months} tháng). Nên đo lại ở lần khám tiếp theo.`,
-    });
-  else if (dw / months < 0.1)
-    warnings.push({ level: 'warning', text: `Cân nặng tăng chậm: +${num(dw)} kg trong ${months} tháng. Nên tiếp tục theo dõi.` });
-  if (dh <= 0) warnings.push({ level: 'info', text: 'Chiều cao không thay đổi so với lần đo trước. Có thể kiểm tra lại cách đo.' });
-  if (last.headCircumferenceCm != null && prev.headCircumferenceCm != null && last.headCircumferenceCm < prev.headCircumferenceCm)
-    warnings.push({ level: 'info', text: 'Vòng đầu nhỏ hơn lần đo trước. Có thể kiểm tra lại cách đo ở lần khám tiếp theo.' });
-  if (last.bmi != null && prev.bmi != null && Math.abs(last.bmi - prev.bmi) >= 1.5)
-    warnings.push({
-      level: 'info',
-      text: `Chỉ số BMI thay đổi ${num(Math.abs(last.bmi - prev.bmi))} so với lần đo trước. Nên xem cùng tình trạng dinh dưỡng bác sĩ ghi ở lần khám.`,
-    });
-  const summary =
-    warnings.length === 0
-      ? `Chiều cao (+${num(dh)} cm) và cân nặng (+${num(dw)} kg) tăng đều qua ${points.length} lần đo, không thấy thay đổi bất thường.`
-      : `Có ${warnings.length} điểm cần chú ý trong ${points.length} lần đo gần đây.`;
-  return { summary, warnings };
+  if (dw <= -0.2)
+    warnings.push({ code: 'WEIGHT_DROP', level: 'warning', text: `Cân nặng giảm ${num(Math.abs(dw))} kg so với lần đo trước.` });
+  if (dh <= 0 && days >= 90)
+    warnings.push({ code: 'HEIGHT_STALL', level: 'warning', text: 'Chiều cao chưa tăng giữa hai lần đo gần nhất.' });
+  if (!warnings.length)
+    warnings.push({ code: 'NORMAL', level: 'info', text: 'Các chỉ số lần đo gần nhất nằm trong khoảng bình thường theo chuẩn WHO.' });
+  const alerts = warnings.filter((w) => w.code !== 'NORMAL');
+  const content = {
+    overview: alerts.length
+      ? `Có ${alerts.length} điểm cần chú ý trong ${points.length} lần đo gần đây.`
+      : `Chiều cao và cân nặng tăng đều qua ${points.length} lần đo.`,
+    attentionPoints: alerts.map((w) => ({ warningCode: w.code, text: w.text })),
+    positives: dh > 0 ? [`Chiều cao tăng ${num(dh)} cm so với lần đo trước.`] : [],
+    followUps: [
+      { type: 'RECHECK_NEXT_ROUND', text: 'Theo dõi tiếp ở kỳ cân đo sau.' },
+      ...(alerts.length ? [{ type: 'TALK_TO_PARENT', text: 'Trao đổi với phụ huynh về ăn uống, giấc ngủ ở nhà.' }] : []),
+    ],
+    limitations: points.length <= 2 ? 'Mới có 2 lần đo, xu hướng chưa chắc chắn.' : null,
+  };
+  return { warnings, content };
 };

@@ -81,6 +81,8 @@ const withRelationLabels = (guardians = []) => guardians.map((g) => ({ ...g, rel
 const yearLabel = (name) => (name ? String(name).replace('-', ' - ') : name);
 // BE trả id số; màn và mock dùng id chuỗi (plan 2026-11-11-children-module-be-wiring)
 const read = (promise) => promise.then(stringifyIds);
+// approvedBy không theo mẫu tên id ⇒ đổi riêng để so với user.id (chuỗi) như mock
+const readTrend = (promise) => read(promise).then((t) => (t && t.approvedBy != null ? { ...t, approvedBy: String(t.approvedBy) } : t));
 
 /**
  * BE:ChildController.searchChildren (G94-180/CHD-09) trả trang {items, totalPages}, tối đa 100 trẻ/trang; lọc theo
@@ -248,5 +250,10 @@ export const childrenApi = {
         ? axiosClient.put(`/children/${childId}/health/measurements/${measurementId}`, payload)
         : axiosClient.post(`/children/${childId}/health/measurements`, payload),
     ),
-  analyzeHealthTrend: (childId) => read(axiosClient.post(`/children/${childId}/health/trend-analysis`)),
+  analyzeHealthTrend: (childId) => readTrend(axiosClient.post(`/children/${childId}/health/trend-analysis`)),
+  // HLT-21: bản mới nhất (nháp hoặc đã duyệt), null khi trẻ chưa có bản nào
+  getLatestHealthTrend: (childId) => readTrend(axiosClient.get(`/children/${childId}/health/trend-analysis`)),
+  // Chỉ GV phụ trách lớp hiện tại của trẻ (BE 403 5041); content trống ⇒ duyệt nguyên bản AI
+  approveHealthTrend: (childId, interpretationId, content) =>
+    readTrend(axiosClient.post(`/children/${childId}/health/trend-analysis/${interpretationId}/approve`, content ? { content } : {})),
 };
