@@ -103,7 +103,7 @@ test.describe.serial('Hồ sơ trẻ, sức khỏe trên BE thật', () => {
     const [id, name, campusId] = sql(
       `SELECT c.id, c.name, c.campus_id FROM staff_assignments s JOIN classrooms c ON c.id = s.classroom_id
        JOIN school_years y ON y.id = c.school_year_id AND y.status = 'ACTIVE'
-       JOIN user_accounts u ON u.id = s.user_id WHERE u.username = 'teacher1' AND s.staff_role = 'TEACHER' ORDER BY c.id LIMIT 1`,
+       JOIN user_accounts u ON u.id = s.user_id WHERE u.email = 'lan.nguyenkim@thuonghong.carenest.edu.vn' AND s.staff_role = 'TEACHER' ORDER BY c.id LIMIT 1`,
     ).split('|');
     klass = { id, name, campusId };
     const [fullName, phone, idNumber] = sql(

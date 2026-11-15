@@ -7,7 +7,7 @@ import { actionCount, clickAction, login, spaGo } from '../support/ui.mjs';
 // teamlead34 = GVCN lớp 3–4 tuổi; chạy sau edu-semester-flow-ui (gói học kỳ 2 đã ban hành).
 test.describe.configure({ mode: 'serial' });
 
-const U = { tl: 'teamlead34@gmail.com' };
+const U = { tl: 'lan.nguyenkim@thuonghong.carenest.edu.vn' };
 const DOCS = '/education-plans/class-docs';
 const SECTIONS = ['1. Hoạt động học', '2. Hoạt động ngoài trời', '3. Hoạt động góc', '4. Hoạt động chiều'];
 const SUGGESTED = ['Ổn định tổ chức, gây hứng thú', 'Nội dung trọng tâm', 'Kết thúc'];

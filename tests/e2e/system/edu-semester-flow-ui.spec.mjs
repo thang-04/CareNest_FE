@@ -7,7 +7,7 @@ import { actionCount, clickAction, login, spaGo } from '../support/ui.mjs';
 // teamlead34 = GVCN lớp 3–4 tuổi cơ sở A (kiêm Tổ trưởng ⇒ chuỗi nhánh bỏ bước Tổ trưởng, gửi thẳng PHT).
 test.describe.configure({ mode: 'serial' });
 
-const U = { vp: 'viceprincipal@gmail.com', ht: 'principal@gmail.com', tl: 'teamlead34@gmail.com' };
+const U = { vp: 'tam.lethi@thuonghong.carenest.edu.vn', ht: 'tuyet.hoangminh@thuonghong.carenest.edu.vn', tl: 'lan.nguyenkim@thuonghong.carenest.edu.vn' };
 const DOCS = '/education-plans/class-docs';
 const SEMESTER2_START = '2027-01-18';
 const run = Date.now() % 100000;

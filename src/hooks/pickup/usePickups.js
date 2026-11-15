@@ -1,16 +1,12 @@
-import { useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAsync } from '@/hooks/useAsync';
-import { useClasses } from '@/hooks/useSchool';
-import { getPickupBoard, getPickupChild, getPickupResults } from '@/services/pickup/pickupService';
-import { canHandOverChildren } from '@/utils/pickup/pickupPermissions';
+import { getPickupBoard, getPickupChild, getPickupClasses, getPickupResults } from '@/services/pickup/pickupService';
 
-/** Classes whose children the user hands over (own classes only), chỉ năm học đang hoạt động như điểm danh (user chốt 2026-10-28, Y-1). */
+/** Lớp người dùng trả trẻ được, năm học đang hoạt động (user chốt 2026-10-28, Y-1); BE quyết định phạm vi (PCK-01). */
 export function usePickupClasses() {
   const { user } = useAuth();
-  const { classes, loading, error, reload } = useClasses({ activeYear: true });
-  const own = useMemo(() => classes.filter((c) => canHandOverChildren(c, user)), [classes, user]);
-  return { classes: own, loading, error, reload };
+  const { data, loading, error, reload } = useAsync(() => getPickupClasses(user), [user?.id], { refreshOnDataChange: true });
+  return { classes: data || [], loading, error, reload };
 }
 
 export function usePickupBoard(classId, date) {

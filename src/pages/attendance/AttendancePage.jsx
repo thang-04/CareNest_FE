@@ -654,7 +654,6 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
               {formatDate(leaveFor.leaveRequest.fromDate)} – {formatDate(leaveFor.leaveRequest.toDate)}
             </p>
             <p>{leaveFor.leaveRequest.reason || 'Không có ghi chú.'}</p>
-            <p className="muted text-sm">Phụ huynh cần hủy đơn trước giờ chốt để giáo viên điểm danh lại.</p>
           </>
         )}
       </Modal>

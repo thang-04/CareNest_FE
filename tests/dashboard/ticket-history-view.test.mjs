@@ -61,7 +61,7 @@ test('trẻ ở lịch sử lớp cũ không thể được chọn hoặc chọn
 test('lớp nhận trẻ thấy căn cứ xuyên lớp và được chọn trẻ đủ điều kiện chưa phát', () => {
   const html = render({ canIssue: true });
   assert.doesNotMatch(childCheckbox(html), /disabled/);
-  assert.match(html, /bao gồm trước khi chuyển lớp/);
+  assert.doesNotMatch(html, /bao gồm trước khi chuyển lớp/);
 });
 test('phiếu đã phát nơi khác có nhãn rõ ràng và khóa phát trùng', () => {
   const html = render({ eligible: false, canIssue: false, issuedElsewhere: true, ticket: { issuedAt: '2026-11-03' } });

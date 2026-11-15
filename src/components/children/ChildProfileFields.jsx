@@ -20,7 +20,8 @@ export function ChildProfileFields({ value, onChange, errors = {}, sheet = false
   const set = (field, v) => onChange({ ...value, [field]: v });
   const setAddress = (field, v) => onChange({ ...value, address: { ...value.address, [field]: v } });
   // Gợi ý tỉnh/thành + phường/xã (vẫn nhập tự do; danh sách chỉ gợi ý, BE là source of truth).
-  const provinceSuggestions = filterVnProvinces(value.address.province).map((p) => p.name);
+  const provinceSuggestions = VN_PROVINCES.map((p) => p.name);
+  const filterProvinces = (q) => filterVnProvinces(q).map((p) => p.name);
   const districtSuggestions = value.address.province
     ? districtsOfVnProvince(value.address.province)
     : VN_PROVINCES.flatMap((p) => p.districts);
@@ -62,6 +63,7 @@ export function ChildProfileFields({ value, onChange, errors = {}, sheet = false
             onChange={(v) => setAddress('province', v)}
             error={errors['profile.address.province']}
             suggestions={provinceSuggestions}
+            filterSuggestions={filterProvinces}
             placeholder="Nhập hoặc chọn (vd: Hà)"
           />
         ) : (

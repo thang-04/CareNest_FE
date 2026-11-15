@@ -44,10 +44,7 @@ export function DailyHealthHistoryModal({ open, child, date, history, loading, e
         </button>
       }
     >
-      <p className="muted text-sm mb-12">
-        {[child?.childCode, child?.className, formatDate(date)].filter(Boolean).join(' · ')}. Chỉ xem, giáo viên lớp ghi nhận ở màn Điểm
-        danh &amp; sức khỏe.
-      </p>
+      <p className="muted text-sm mb-12">{[child?.childCode, child?.className, formatDate(date)].filter(Boolean).join(' · ')}</p>
       {error ? (
         <ErrorState error={error} onRetry={error.status === 403 || error.status === 404 ? undefined : onRetry} />
       ) : loading || !history ? (
