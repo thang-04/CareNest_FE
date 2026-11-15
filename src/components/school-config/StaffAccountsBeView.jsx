@@ -35,6 +35,8 @@ import { ScNoAccess } from '@/components/school-config/ScNoAccess';
 import { StaffStatusBadge } from '@/components/school-config/SchoolConfigBadges';
 import { StaffImportPanel } from '@/components/school-config/StaffImportPanel';
 import { StaffAccountEditModal } from '@/components/school-config/StaffAccountEditModal';
+import { StaffAccountDetailModal } from '@/components/school-config/StaffAccountDetailModal';
+import { clickableRowProps } from '@/utils/clickableRow';
 import { ROLES, ROLE_LABELS } from '@/models/User';
 import {
   createStaffAccount,
@@ -101,6 +103,7 @@ export function StaffAccountsBeView({ tabs = null }) {
   const [creating, setCreating] = useState(false);
   // PHT vừa tạo: BE đã phân công điểm trường kèm theo ⇒ dẫn sang màn Phân công để xem / điều chỉnh
   const [createdVice, setCreatedVice] = useState(null);
+  const [detailOf, setDetailOf] = useState(null);
   const [editingOf, setEditingOf] = useState(null);
   const [statusOf, setStatusOf] = useState(null);
   const [passwordOf, setPasswordOf] = useState(null);
@@ -158,21 +161,6 @@ export function StaffAccountsBeView({ tabs = null }) {
       <Breadcrumb items={staffCrumbs()} />
       <div className="page__head">
         <h1 className="page__title">Tài khoản nhân sự</h1>
-        <div className="row">
-          <button className="btn" onClick={exportExcel} disabled={exporting}>
-            {exporting ? <Spinner small /> : <Download size={16} />} Xuất Excel
-          </button>
-          {canCreate && (
-            <>
-              <button className="btn" onClick={() => setImporting(true)}>
-                <FileSpreadsheet size={16} /> Nhập từ Excel
-              </button>
-              <button className="btn btn--primary btn--lg" onClick={() => setCreating(true)}>
-                <Plus size={18} /> Thêm tài khoản
-              </button>
-            </>
-          )}
-        </div>
       </div>
       {createdVice && (
         <div className="alert alert--info mb-12" role="status">
@@ -252,6 +240,21 @@ export function StaffAccountsBeView({ tabs = null }) {
             <option value="ACTIVE">Đang hoạt động</option>
             <option value="INACTIVE">Đã vô hiệu hóa</option>
           </select>
+          <div className="filter-bar__end">
+            <button className="btn" onClick={exportExcel} disabled={exporting}>
+              {exporting ? <Spinner small /> : <Download size={16} />} Xuất Excel
+            </button>
+            {canCreate && (
+              <>
+                <button className="btn" onClick={() => setImporting(true)}>
+                  <FileSpreadsheet size={16} /> Nhập từ Excel
+                </button>
+                <button className="btn btn--primary" onClick={() => setCreating(true)}>
+                  <Plus size={16} /> Thêm tài khoản
+                </button>
+              </>
+            )}
+          </div>
         </div>
         {error ? (
           <ErrorState error={error} onRetry={reload} />
@@ -284,7 +287,7 @@ export function StaffAccountsBeView({ tabs = null }) {
                     const self = String(u.userId) === String(user?.id);
                     const manageable = !self && u.role !== ROLES.PRINCIPAL;
                     return (
-                      <tr key={u.userId} className={active ? undefined : 'muted'}>
+                      <tr key={u.userId} className={active ? 'row-click' : 'row-click muted'} {...clickableRowProps(() => setDetailOf(u))}>
                         <td>
                           <div className="sc-person">
                             <Avatar user={u} size="sm" />
@@ -343,6 +346,20 @@ export function StaffAccountsBeView({ tabs = null }) {
             done(setCreating)(changed);
             if ([ROLES.VICE_PRINCIPAL, ROLES.TEACHER].includes(created?.role)) setCreatedVice(created);
           }}
+        />
+      )}
+      {detailOf && (
+        <StaffAccountDetailModal
+          account={detailOf}
+          onClose={() => setDetailOf(null)}
+          onEdit={
+            canCreate && detailOf.role !== ROLES.PRINCIPAL && String(detailOf.userId) !== String(user?.id)
+              ? () => {
+                  setEditingOf(detailOf);
+                  setDetailOf(null);
+                }
+              : undefined
+          }
         />
       )}
       {editingOf && <StaffAccountEditModal account={editingOf} onClose={done(setEditingOf)} />}

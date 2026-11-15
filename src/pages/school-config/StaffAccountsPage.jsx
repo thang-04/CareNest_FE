@@ -100,11 +100,6 @@ function StaffAccountsMockView() {
       <Breadcrumb items={staffCrumbs()} />
       <div className="page__head">
         <h1 className="page__title">{title}</h1>
-        {manage && (
-          <button className="btn btn--primary btn--lg" onClick={() => setEditing({ account: null })}>
-            <Plus size={18} /> Thêm tài khoản
-          </button>
-        )}
       </div>
       <YearReadOnlyNotice />
 
@@ -156,6 +151,13 @@ function StaffAccountsMockView() {
             <option value="ACTIVE">Đang hoạt động</option>
             <option value="INACTIVE">Đã vô hiệu hóa</option>
           </select>
+          {manage && (
+            <div className="filter-bar__end">
+              <button className="btn btn--primary" onClick={() => setEditing({ account: null })}>
+                <Plus size={16} /> Thêm tài khoản
+              </button>
+            </div>
+          )}
         </div>
         {error ? (
           <ErrorState error={error} onRetry={reload} />

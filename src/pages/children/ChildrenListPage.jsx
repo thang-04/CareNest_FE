@@ -142,16 +142,6 @@ export default function ChildrenListPage() {
       <Breadcrumb items={childrenCrumbs()} />
       <div className="page__head">
         <h1 className="page__title">Danh sách trẻ</h1>
-        {canImport && (
-          <div className="row gap-2">
-            <Button icon={FileSpreadsheet} onClick={() => setImportOpen(true)}>
-              Nhập từ Excel
-            </Button>
-            <Link to="/children/new" className="btn btn--primary">
-              <Plus size={16} /> Tiếp nhận trẻ
-            </Link>
-          </div>
-        )}
       </div>
 
       {isVicePrincipal(user) && (pendingPlacement > 0 || notActivated > 0) && (
@@ -217,6 +207,16 @@ export default function ChildrenListPage() {
           <button className="btn" onClick={resetFilters} disabled={!filtered}>
             <RotateCcw size={15} /> Đặt lại bộ lọc
           </button>
+          {canImport && (
+            <div className="filter-bar__end">
+              <Button icon={FileSpreadsheet} onClick={() => setImportOpen(true)}>
+                Nhập từ Excel
+              </Button>
+              <Link to="/children/new" className="btn btn--primary">
+                <Plus size={16} /> Tiếp nhận trẻ
+              </Link>
+            </div>
+          )}
         </div>
         <FilterChips count={loading ? null : rows.length} unit="trẻ" chips={chips} />
         {error ? (
