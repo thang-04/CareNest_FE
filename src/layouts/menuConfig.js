@@ -48,6 +48,9 @@ const LINKS = {
     icon: Bell,
     to: '/notifications',
   },
+  announcements: { label: 'Thông báo nhà trường', icon: Bell, to: '/announcements' },
+  notificationRules: { label: 'Quy tắc thông báo', icon: Gear, to: '/notification-rules' },
+  announcementSchedules: { label: 'Lịch thông báo', icon: CalendarDots, to: '/announcement-schedules' },
   // BE meal-management-permissions.md mục 1: "Bán trú hôm nay" là một trang, không có mục con
   boardingToday: {
     label: 'Bán trú hôm nay',
@@ -435,6 +438,9 @@ const MENUS = {
   [ROLES.PRINCIPAL]: [
     link('home'),
     link('approvals'),
+    link('announcements'),
+    link('notificationRules'),
+    link('announcementSchedules'),
     group('school', [
       'schoolYears',
       'schoolPlacement',
@@ -486,6 +492,7 @@ const MENUS = {
   [ROLES.VICE_PRINCIPAL]: [
     link('home'),
     link('approvals'),
+    link('announcements'),
     group('school', [
       'schoolYears',
       'schoolPlacement',

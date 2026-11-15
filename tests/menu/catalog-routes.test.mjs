@@ -24,6 +24,19 @@ const routes = readFileSync('src/routes/AppRoutes.jsx', 'utf8');
 const block = (name, next) => routes.slice(routes.indexOf(`<Route path="${name}">`), routes.indexOf(`<Route path="${next}">`));
 const VP = { id: 'u_lan', role: 'VICE_PRINCIPAL' };
 
+test('quản trị thông báo mở cho BGH, quy tắc và lịch chỉ hiện cho hiệu trưởng', () => {
+  const paths = (role) => getMenuForRole(role, { role }).flatMap((item) => [item.to, ...(item.children || []).map((child) => child.to)]);
+  const principal = paths(ROLES.PRINCIPAL);
+  const vice = paths(ROLES.VICE_PRINCIPAL);
+  assert.ok(principal.includes('/announcements'));
+  assert.ok(principal.includes('/notification-rules'));
+  assert.ok(principal.includes('/announcement-schedules'));
+  assert.ok(vice.includes('/announcements'));
+  assert.ok(!vice.includes('/notification-rules'));
+  assert.ok(!vice.includes('/announcement-schedules'));
+  assert.ok(!paths(ROLES.TEACHER).includes('/announcements'));
+});
+
 beforeEach(() => values.clear());
 
 test('nhà cung cấp ở /menu/suppliers; /kitchen/suppliers* chuyển hướng giữ đường dẫn cũ', () => {
