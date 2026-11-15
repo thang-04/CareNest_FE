@@ -3436,3 +3436,18 @@
   margin-left: var(--space-1);
   vertical-align: middle;
 }
+
+/* Xem trước văn bản thực đơn tuần trước khi xuất Word / in: khung A4 ngang, cuộn ngang trên màn hẹp */
+.td-doc-preview-scroll {
+  overflow-x: auto;
+  margin-top: var(--space-3);
+}
+.td-doc-preview {
+  display: block;
+  width: 100%;
+  min-width: calc(var(--space-16) * 16);
+  height: 65vh;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}

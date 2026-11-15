@@ -6,9 +6,10 @@ File sinh tự động, không sửa tay. Sinh lại: `node scripts/check-api-co
 - Path đã chuẩn hóa tham số thành `{x}`. `[module: api|demo]` theo `src/config/integrationModules.js`.
 - Lời gọi có đường dẫn không phải chuỗi literal (vd. ghép từ biến) không nằm trong bảng.
 
-Tổng: 372 lời gọi.
+Tổng: 377 lời gọi.
 
 ```text
+DELETE /accounts/me/photo · src/services/account/api/accountPhotoApi.js [account: api] → (BE chưa có)
 DELETE /age-groups/{x} · src/services/school-config/api/schoolConfigApi.js [school-config: api] → src/main/java/com/carenest/controller/organization/AgeGroupController.java#deleteAgeGroup
 DELETE /campuses/{x} · src/services/school-config/api/schoolConfigApi.js [school-config: api] → src/main/java/com/carenest/controller/organization/CampusController.java#deleteCampus
 DELETE /children/{x}/guardians/{x} · src/services/account/api/guardianApi.js [guardian: api] → src/main/java/com/carenest/controller/child/GuardianController.java#removeGuardian
@@ -194,9 +195,11 @@ GET /school-structure · src/services/children/api/childrenApi.js [children: api
 GET /school-structure · src/services/school-config/api/schoolConfigApi.js [school-config: api] → src/main/java/com/carenest/controller/organization/ClassController.java#getSchoolStructure
 GET /school-years · src/services/http/beClient.js [school-config: api] → src/main/java/com/carenest/controller/organization/SchoolYearController.java#getSchoolYears
 GET /school-years · src/services/http/schoolYearIds.js [children: api] → src/main/java/com/carenest/controller/organization/SchoolYearController.java#getSchoolYears
+GET /school-years · src/services/mealPlanApi.js [meal-plan: api] → src/main/java/com/carenest/controller/organization/SchoolYearController.java#getSchoolYears
 GET /school-years · src/services/school-config/api/schoolConfigApi.js [school-config: api] → src/main/java/com/carenest/controller/organization/SchoolYearController.java#getSchoolYears
 GET /school-years/{x} · src/services/school-config/api/schoolConfigApi.js [school-config: api] → src/main/java/com/carenest/controller/organization/SchoolYearController.java#getSchoolYear
 GET /school-years/{x}/cutoff · src/services/school-config/api/schoolConfigApi.js [school-config: api] → src/main/java/com/carenest/controller/organization/AttendanceCutoffController.java#getCutoff
+GET /school-years/{x}/holidays · src/services/mealPlanApi.js [meal-plan: api] → src/main/java/com/carenest/controller/organization/SchoolYearController.java#getHolidays
 GET /school-years/{x}/holidays · src/services/school-config/api/schoolConfigApi.js [school-config: api] → src/main/java/com/carenest/controller/organization/SchoolYearController.java#getHolidays
 GET /school-years/{x}/placements · src/services/school-config/api/schoolConfigApi.js [school-config: api] → src/main/java/com/carenest/controller/child/YearTransitionController.java#getPlacements
 GET /school-years/{x}/prep-classes · src/services/school-config/api/schoolConfigApi.js [school-config: api] → src/main/java/com/carenest/controller/child/YearTransitionController.java#getPrepClasses
@@ -225,6 +228,7 @@ PATCH /signatures/me/{x}/default · src/services/signatureService.js [signatures
 PATCH /users/{x}/profile · src/services/school-config/api/schoolConfigApi.js [school-config: api] → (BE chưa có — pending)
 PATCH /users/{x}/status · src/services/school-config/api/schoolConfigApi.js [school-config: api] → (BE chưa có — pending)
 POST /accounts · src/services/school-config/schoolConfigService.js [school-config: api] → src/main/java/com/carenest/controller/account/AccountController.java#createAccount
+POST /accounts/photos/urls · src/services/account/api/accountPhotoApi.js [account: api] → (BE chưa có)
 POST /accounts/{x}/temporary-password · src/services/school-config/schoolConfigService.js [school-config: api] → src/main/java/com/carenest/controller/account/AccountController.java#resetTemporaryPassword
 POST /age-groups · src/services/school-config/api/schoolConfigApi.js [school-config: api] → src/main/java/com/carenest/controller/organization/AgeGroupController.java#createAgeGroup
 POST /assessment/behaviour-tickets · src/services/assessment/api/assessmentApi.js [assessment: api] → src/main/java/com/carenest/controller/observation/BehaviourTicketController.java#issue
@@ -320,6 +324,7 @@ POST /school-years/{x}/placements/auto · src/services/school-config/api/schoolC
 POST /signatures/me · src/services/signatureService.js [signatures: api] → src/main/java/com/carenest/controller/account/UserSignatureController.java#uploadSignature
 POST /staff-assignments · src/services/school-config/api/schoolConfigApi.js [school-config: api] → src/main/java/com/carenest/controller/organization/StaffAssignmentController.java#assignStaff
 POST /users · src/services/school-config/api/schoolConfigApi.js [school-config: api] → (BE chưa có — pending)
+PUT /accounts/me/photo · src/services/account/api/accountPhotoApi.js [account: api] → src/main/java/com/carenest/controller/account/AccountPhotoController.java#updateMyPhoto
 PUT /accounts/{x}/permission-overrides · src/services/account/api/permissionApi.js [permission: api] → src/main/java/com/carenest/controller/account/PermissionController.java#updatePermissionOverrides
 PUT /age-groups/{x} · src/services/school-config/api/schoolConfigApi.js [school-config: api] → src/main/java/com/carenest/controller/organization/AgeGroupController.java#updateAgeGroup
 PUT /assessment/class-ratings · src/services/assessment/api/assessmentApi.js [assessment: api] → src/main/java/com/carenest/controller/observation/ClassRatingController.java#saveRatings

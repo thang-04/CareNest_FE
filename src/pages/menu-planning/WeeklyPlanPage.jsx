@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Tabs } from '@/components/ui/Tabs';
 import { useTabParam } from '@/hooks/useTabParam';
 import { useSearchParams } from 'react-router-dom';
-import { Copy, Lock, Pencil, Save, Scale, Send } from '@/components/ui/icons';
+import { Copy, FileDown, Lock, Pencil, Save, Scale, Send } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { DayEditorModal } from '@/components/menu-planning/DayEditorModal';
 import { CopyDayModal } from '@/components/menu-planning/CopyDayModal';
@@ -10,7 +10,7 @@ import { PERMISSIONS } from '@/models/bePermissions';
 import { hasBePermission } from '@/utils/bePermissions';
 import { ageGroupOptions } from '@/utils/menu-planning/menuStatistics';
 import { useToast } from '@/contexts/ToastContext';
-import { Breadcrumb, EmptyState, ErrorState, LoadingState } from '@/components';
+import { Breadcrumb, Button, EmptyState, ErrorState, LoadingState } from '@/components';
 import { WeekPicker } from '@/components/form/WeekPicker';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
@@ -21,17 +21,20 @@ import { MealPlanGrid } from '@/components/menu-planning/MealPlanGrid';
 import { MealPlanIssueList } from '@/components/menu-planning/MealPlanIssueList';
 import { MealPlanStatusBadge } from '@/components/menu-planning/MenuBadges';
 import { PublishWeekDialog } from '@/components/menu-planning/PublishWeekDialog';
-import { useActiveDishes, useBeAgeGroups, useMealPlan } from '@/hooks/menu-planning/useMealPlan';
+import { WeeklyMenuExportModal } from '@/components/menu-planning/WeeklyMenuExportModal';
+import { useActiveDishes, useBeAgeGroups, useMealPlan, useWeekHolidays } from '@/hooks/menu-planning/useMealPlan';
 import { useMenuTemplates } from '@/hooks/menu-planning/useMenuTemplates';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { mealPlanApi } from '@/services/mealPlanApi';
 import { MEAL_BLOCK_LABELS, MEAL_PLAN_STATUS, WEEKDAY_LABELS, schoolWeekStart } from '@/models/menu-planning/menuPlanningConstants';
 import {
+  applyHolidays,
   balanceHref,
   blockSessions,
   copyDay,
   dayBlockItems,
   draftFromPlan,
+  holidayNames,
   isDirty,
   planBlocks,
   resolveWeekStart,
@@ -58,11 +61,15 @@ export default function WeeklyPlanPage() {
   const { dishes } = useActiveDishes();
   const { ageGroups } = useBeAgeGroups();
   const saved = useMemo(() => (plan ? draftFromPlan(plan) : null), [plan]);
+  const { holidays } = useWeekHolidays(week);
+  // Ngày trùng đợt nghỉ năm học (HT cấu hình ở Thiết lập năm học): { [date]: tên đợt nghỉ }
+  const holidayMap = useMemo(() => holidayNames(saved, holidays || []), [saved, holidays]);
   const [draft, setDraft] = useState(null);
   const [blockKey, setBlockKey] = useState('');
   const [kcalGroupId, setKcalGroupId] = useState('');
   const [busy, setBusy] = useState(false);
   const [publishOpen, setPublishOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
   const [publishError, setPublishError] = useState('');
   // Mẫu ngày chờ xác nhận thay món: { day, template, count }
   const [pending, setPending] = useState(null);
@@ -79,6 +86,11 @@ export default function WeeklyPlanPage() {
   const block = blocks.includes(blockKey) ? blockKey : blocks[0];
   const editable = !!plan?.canEdit && plan.status !== MEAL_PLAN_STATUS.PUBLISHED;
   const dirty = !!draft && !!saved && isDirty(draft, saved);
+  // Bản nháp sửa được ⇒ ngày lễ tự thành ngày nghỉ (chạy sau effect nạp lại bản nháp ở trên, kể cả khi ngày nghỉ về muộn)
+  useEffect(() => {
+    if (editable) setDraft((d) => applyHolidays(d, holidayMap));
+  }, [holidayMap, editable]);
+  const autoOff = editable ? Object.keys(holidayMap).filter((date) => !saved?.days.find((d) => d.date === date)?.off) : [];
   // Một khối có thể gồm nhiều nhóm tuổi, kcal mỗi suất khác nhau nên phải nói rõ đang xem nhóm nào
   const blockGroups = (plan?.blocks || []).find((b) => b.block === block)?.ageGroupIds || [];
   const kcalGroups = ageGroups.filter((g) => blockGroups.some((id) => String(id) === String(g.id)));
@@ -233,6 +245,12 @@ export default function WeeklyPlanPage() {
           )}
         </div>
         <div className="row td-week-toolbar__actions">
+          {/* Chỉ bản đã công bố được xuất văn bản (MENU-14 SRS): văn bản gửi bếp, phụ huynh phải là bản chính thức */}
+          {plan.status === MEAL_PLAN_STATUS.PUBLISHED && (
+            <Button icon={FileDown} onClick={() => setExportOpen(true)}>
+              Xuất văn bản
+            </Button>
+          )}
           {editable && (
             <button type="button" className="btn" disabled={busy || !dirty} onClick={save}>
               <Save size={16} /> Lưu nháp
@@ -251,6 +269,14 @@ export default function WeeklyPlanPage() {
           )}
         </div>
       </div>
+      {dirty && autoOff.length > 0 && (
+        <div className="alert alert--info">
+          <div>
+            Đã tự đánh dấu nghỉ {autoOff.length} ngày trùng ngày nghỉ của năm học (
+            {[...new Set(autoOff.map((date) => holidayMap[date]))].join(', ')}). Bấm Lưu nháp để lưu.
+          </div>
+        </div>
+      )}
       {dirty && (
         <div className="alert alert--warning">
           <div>Có thay đổi chưa lưu. Bảng kiểm và lưu ý bên dưới tính theo bản đã lưu; lưu nháp để cập nhật và công bố.</div>
@@ -293,6 +319,7 @@ export default function WeeklyPlanPage() {
                 onPickTemplate={pickTemplate}
                 kcalAgeGroup={kcalAgeGroup}
                 dayActions={plan.status === MEAL_PLAN_STATUS.NONE && !editable ? undefined : dayActions}
+                holidays={holidayMap}
               />
             </section>
           ) : (
@@ -325,6 +352,14 @@ export default function WeeklyPlanPage() {
         onConfirm={publish}
         onClose={() => setPublishOpen(false)}
       />
+      {exportOpen && (
+        <WeeklyMenuExportModal
+          plan={plan}
+          week={week}
+          defaultPreparer={user?.fullName || user?.name || ''}
+          onClose={() => setExportOpen(false)}
+        />
+      )}
       <Modal open={issuesOpen} size="lg" title={`Lưu ý của tuần · ${plan.issues.length} lưu ý`} onClose={() => setIssuesOpen(false)}>
         <MealPlanIssueList issues={plan.issues} />
       </Modal>
