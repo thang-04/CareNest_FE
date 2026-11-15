@@ -7,9 +7,7 @@ export function DemoDataBanner({ pathname }) {
   // Các đường dẫn cũ hiện trang trạng thái thay vì tải dữ liệu mẫu khi bán trú đã nối BE.
   if (
     !isDemoModule('day-board') &&
-    ['/kitchen/inspections', '/menu/allergy-menus', '/menu/ai-suggestion'].some(
-      (route) => pathname === route || pathname.startsWith(`${route}/`),
-    )
+    ['/menu/allergy-menus', '/menu/ai-suggestion'].some((route) => pathname === route || pathname.startsWith(`${route}/`))
   )
     return null;
   if (!demoModuleOfPath(pathname)) return null;

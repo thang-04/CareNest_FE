@@ -316,22 +316,36 @@ const zipStored = (files, now) => {
   });
   [0x06054b50].forEach(u32);
   [0, 0, entries.length, entries.length].forEach(u16);
-  [pos - centralStart, centralStart].forEach(u32);
+  // Dùng centralSize đã tính: lúc này pos đã vượt qua 12 byte đầu của EOCD, Excel từ chối file nếu lệch
+  [centralSize, centralStart].forEach(u32);
   u16(0);
   return out;
 };
 
+/** Gắn kiểu cho ô thô; ô đã là { v, s } thì giữ nguyên kiểu người gọi chọn. */
+const styled = (raw, s) => (raw != null && typeof raw === 'object' ? raw : { v: raw ?? null, s });
+
 /**
- * Mảng dòng -> sheet: dòng `headerRow` in đậm, độ rộng cột theo nội dung (8–60 ký tự). Dùng cho xuất dữ liệu bảng đơn giản
- * (xem trước xuất file, báo cáo chủ đề); báo cáo có ô gộp, viền, cố định dòng truyền thẳng sheet.
+ * Mảng dòng -> sheet có kẻ bảng giống hộp xem trước (ExportPreview): dòng một ô là tiêu đề ('title' trước dòng tiêu đề cột,
+ * 'bold' cho tên phần), không viền; dòng `headerRow` kiểu 'head'; dòng còn lại kẻ đủ `width` ô, số 'num', chữ 'cell'.
+ * Độ rộng cột theo nội dung (8–60 ký tự); báo cáo có ô gộp, cố định dòng truyền thẳng sheet.
  */
 export const rowsToSheet = (rows, { sheetName = 'Sheet1', headerRow = -1 } = {}) => {
   const width = Math.max(1, ...rows.map((r) => r.length));
-  const cols = Array.from({ length: width }, (_, c) => Math.min(60, Math.max(8, ...rows.map((r) => String(r[c] ?? '').length + 2))));
+  // Dòng một ô không tính vào độ rộng cột: tiêu đề dài tràn sang ô trống bên phải như màn xem trước
+  const cols = Array.from({ length: width }, (_, c) =>
+    Math.min(60, Math.max(8, ...rows.filter((r) => r.length > 1).map((r) => String(cellOf(r[c]).v ?? '').length + 2))),
+  );
   return {
     name: sheetName,
     cols,
-    rows: rows.map((r, ri) => (ri === headerRow ? r.map((v) => (v == null || v === '' ? v : { v, s: 'bold' })) : r)),
+    rows: rows.map((r, ri) => {
+      if (r.length <= 1) return r.length ? [styled(r[0], ri < headerRow ? 'title' : 'bold')] : r;
+      return Array.from({ length: width }, (_, c) => {
+        if (ri === headerRow) return styled(r[c], 'head');
+        return styled(r[c], typeof cellOf(r[c]).v === 'number' ? 'num' : 'cell');
+      });
+    }),
   };
 };
 
@@ -349,12 +363,45 @@ export const buildXlsx = (sheet, options = {}) => {
 
 export const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
+const STAMPED = /-\d{14}\.xlsx$/i;
+// Ngày dữ liệu dạng yyyy-MM-dd hoặc yyyy-MM trong tên (không ăn năm học 2026-2027)
+const DATA_DATE = /-?(?<!\d)\d{4}-\d{2}(?:-\d{2})?(?!\d)/g;
+
+/**
+ * Tên file tải về: bỏ ngày/tháng dữ liệu, gắn dấu thời gian yyyyMMddHHmmss giờ Việt Nam, vd. so-suat-an-20261115094500.xlsx.
+ * Tên đã có dấu thời gian thì giữ nguyên để gọi lại không gắn đôi.
+ */
+export const stampFileName = (filename, now = new Date()) => {
+  const name = filename.replace(/\.csv$/i, '.xlsx');
+  if (STAMPED.test(name)) return name;
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hourCycle: 'h23',
+    })
+      .formatToParts(now)
+      .map((p) => [p.type, p.value]),
+  );
+  const stamp = `${parts.year}${parts.month}${parts.day}${parts.hour}${parts.minute}${parts.second}`;
+  const base = name
+    .replace(/\.xlsx$/i, '')
+    .replace(DATA_DATE, '')
+    .replace(/[-_]+$/, '');
+  return `${base}-${stamp}.xlsx`;
+};
+
 /**
  * Tải file .xlsx về máy. Nhận sheet (báo cáo có định dạng) hoặc mảng dòng; với mảng dòng, `headerRow` mặc định là dòng 1 khi dòng 0
  * là tiêu đề báo cáo một ô, ngược lại dòng 0.
  */
 export const downloadXlsx = (input, filename, { sheetName, headerRow } = {}) => {
-  const name = filename.replace(/\.csv$/i, '.xlsx');
+  const name = stampFileName(filename);
   if (!Array.isArray(input)) return downloadBlob(new Blob([buildXlsx(input)], { type: XLSX_MIME }), name);
   const header = headerRow ?? (input[0]?.length === 1 && input.length > 1 ? 1 : 0);
   return downloadBlob(buildXlsx(input, { sheetName, headerRow: header }), name);
@@ -378,6 +425,6 @@ export const buildWorkbookXlsx = (sheets, options = {}) => {
 
 /** Tải file .xlsx nhiều sheet về máy. */
 export const downloadWorkbookXlsx = (sheets, filename, options = {}) => {
-  const name = filename.replace(/\.csv$/i, '.xlsx');
+  const name = stampFileName(filename);
   downloadBlob(buildWorkbookXlsx(sheets, options), name);
 };

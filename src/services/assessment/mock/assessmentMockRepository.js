@@ -12,6 +12,7 @@ import { numberGoals } from '@/models/education-plan/goalTable';
 import { remapCriteriaToPlan } from '@/models/education-plan/planVersions.mjs';
 import { ROLES } from '@/models/User';
 import {
+  CLASS_COMMENT_MAX,
   EVAL_KIND,
   EVAL_STATUS,
   OVERVIEW_PERIOD,
@@ -566,7 +567,7 @@ const runPeriodJobs = (db, { notify = true } = {}) => {
           title: 'Bản nháp đánh giá đã sẵn sàng',
           // MSG31
           message: `Bản nháp AI đã sẵn sàng để bạn xem xét – ${cls.name}, ${periodLabel(type, start, end)}.`,
-          link: '/assessment/periodic',
+          link: '/assessment/children',
         }),
       );
     }
@@ -1134,6 +1135,7 @@ export const assessmentMockRepository = {
         throw new ApiError(400, 'Chưa có thay đổi nào để lưu.', { _form: 'Chưa có thay đổi nào để lưu.' });
       if (classComment != null) {
         if (typeof classComment !== 'string') fail(400, 'Nhận xét chung của lớp phải là văn bản.', 'classComment');
+        if (classComment.length > CLASS_COMMENT_MAX) fail(400, `Nhận xét chung của lớp tối đa ${CLASS_COMMENT_MAX} ký tự`, 'classComment');
         if (findDiagnosticTerms(classComment).length)
           fail(400, 'Nhận xét chung của lớp không dùng thuật ngữ chẩn đoán, hãy mô tả điều quan sát được.', 'classComment');
       }
@@ -1566,7 +1568,7 @@ export const assessmentMockRepository = {
           type: 'EVALUATION_CONFIRMED',
           title: yearEnd ? 'Đánh giá cuối năm đã xác nhận' : 'Đánh giá định kỳ đã công bố',
           message: `${child?.fullName} (${cls?.name}) – ${label}.`,
-          link: `/assessment/${yearEnd ? 'year-end' : 'periodic'}/${ev.id}`,
+          link: `/assessment/${yearEnd ? 'year-end' : 'semester'}/${ev.id}`,
         }),
       );
       return clone(ev);

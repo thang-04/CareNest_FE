@@ -162,3 +162,9 @@ Phần client của plan BE `BE:docs/plans/completed/2026-11-14-health-trend-str
   - `tests/health/measurement-head-display.test.mjs` thêm giả `canReviewHealthTrend` (test này tự giả lập import của trang).
 - Chưa kiểm chứng: kiểm tay luồng Sửa → Lưu và duyệt → Đã duyệt. Trình duyệt MCP với Vite giả lập (:5190) không đăng nhập được (bấm "Đăng nhập" không chuyển trang, không lỗi console; lần đầu DB giả gần chạm quota localStorage); chưa kiểm trên BE thật.
 - Tiếp: user kiểm tay (giả lập hoặc BE nhánh G94-180), review, commit.
+
+### 2026-11-15 — Merge `dev` (`0d9bea4e`) trước PR
+- Conflict: `ISSUE_INDEX.md` giữ cả mục mới của `dev` và `FE-BUG-261112-pickup-demo-no-class`; `BE_API_INDEX.md`, `be-api-routes.json`, `FE_API_CALLS.md` sinh lại từ BE nhánh G94-180 đã merge `dev` (351 endpoint, 380 lời gọi).
+- Verify (PowerShell): 9 nhóm `npm run test:*` đều 0 fail (edu 386/386); `lint`, `format:check`, `check:design`, `build` qua; `check:api` 0 lỗi, 2 cảnh báo (BE cạnh bên chưa có G94-180; `pending GET /meal-counts/class` có sẵn trên `dev`).
+- Chạy test từ Git Bash (`d:` chữ thường) làm React nạp hai lần ⇒ 6 test edu báo `Cannot read properties of null (reading 'useState')`; chạy từ PowerShell thì qua.
+- Merge FE chỉ sau khi PR BE G94-180 vào `dev`.

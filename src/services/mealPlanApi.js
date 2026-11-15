@@ -1,5 +1,6 @@
 import { beClient } from '@/services/http/beClient';
 import { toPlanRequest } from '@/utils/menu-planning/mealPlanGrid';
+import { addDays } from '@/models/menu-planning/menuPlanningConstants';
 
 /*
  * Kế hoạch tuần theo khối trên BE `/nutrition/meal-plans`: một lưới cho cả tuần (thứ Hai–thứ Sáu), lưu nháp ghi đè cả lưới,
@@ -53,6 +54,17 @@ export const createMealPlanApi = ({ client = beClient } = {}) => ({
   /** Nhóm tuổi của trường (id BE, tên) để chọn nhóm khi xem thống kê. */
   async listAgeGroups() {
     return (await client.get('/age-groups')) || [];
+  },
+
+  /**
+   * Đợt nghỉ (SCH-05, HT cấu hình theo năm học) chạm tuần `weekStart` (thứ Hai–thứ Sáu): [{ startDate, endDate, name }].
+   * Đọc từ GET /school-years rồi GET /school-years/{id}/holidays của năm học chứa tuần đó.
+   */
+  async listWeekHolidays(weekStart) {
+    const weekEnd = addDays(weekStart, 4);
+    const years = ((await client.get('/school-years')) || []).filter((y) => y.startDate <= weekEnd && y.endDate >= weekStart);
+    const lists = await Promise.all(years.map((y) => client.get(`/school-years/${y.id}/holidays`)));
+    return lists.flat().filter((h) => h && h.startDate <= weekEnd && h.endDate >= weekStart);
   },
 
   /** Công bố cả tuần; còn lỗi chặn thì BE trả 409 (màn nạp lại kế hoạch để hiện `issues`). */

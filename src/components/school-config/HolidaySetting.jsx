@@ -81,7 +81,6 @@ export function HolidaySetting({ yearId, onDirtyChange, saveRef }) {
         <h2 className="card__title">
           Ngày nghỉ năm học {year.name} ({formatDate(year.startDate)} – {formatDate(year.endDate)})
         </h2>
-        <span className="muted text-sm">Ngày nghỉ không tính là ngày học: không điểm danh, không báo ăn, không đánh giá.</span>
       </div>
       {errors._form && (
         <div className="card__body">

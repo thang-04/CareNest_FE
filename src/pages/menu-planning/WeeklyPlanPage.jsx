@@ -22,17 +22,19 @@ import { MealPlanIssueList } from '@/components/menu-planning/MealPlanIssueList'
 import { MealPlanStatusBadge } from '@/components/menu-planning/MenuBadges';
 import { PublishWeekDialog } from '@/components/menu-planning/PublishWeekDialog';
 import { WeeklyMenuExportModal } from '@/components/menu-planning/WeeklyMenuExportModal';
-import { useActiveDishes, useBeAgeGroups, useMealPlan } from '@/hooks/menu-planning/useMealPlan';
+import { useActiveDishes, useBeAgeGroups, useMealPlan, useWeekHolidays } from '@/hooks/menu-planning/useMealPlan';
 import { useMenuTemplates } from '@/hooks/menu-planning/useMenuTemplates';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { mealPlanApi } from '@/services/mealPlanApi';
 import { MEAL_BLOCK_LABELS, MEAL_PLAN_STATUS, WEEKDAY_LABELS, schoolWeekStart } from '@/models/menu-planning/menuPlanningConstants';
 import {
+  applyHolidays,
   balanceHref,
   blockSessions,
   copyDay,
   dayBlockItems,
   draftFromPlan,
+  holidayNames,
   isDirty,
   planBlocks,
   resolveWeekStart,
@@ -59,6 +61,9 @@ export default function WeeklyPlanPage() {
   const { dishes } = useActiveDishes();
   const { ageGroups } = useBeAgeGroups();
   const saved = useMemo(() => (plan ? draftFromPlan(plan) : null), [plan]);
+  const { holidays } = useWeekHolidays(week);
+  // Ngày trùng đợt nghỉ năm học (HT cấu hình ở Thiết lập năm học): { [date]: tên đợt nghỉ }
+  const holidayMap = useMemo(() => holidayNames(saved, holidays || []), [saved, holidays]);
   const [draft, setDraft] = useState(null);
   const [blockKey, setBlockKey] = useState('');
   const [kcalGroupId, setKcalGroupId] = useState('');
@@ -81,6 +86,11 @@ export default function WeeklyPlanPage() {
   const block = blocks.includes(blockKey) ? blockKey : blocks[0];
   const editable = !!plan?.canEdit && plan.status !== MEAL_PLAN_STATUS.PUBLISHED;
   const dirty = !!draft && !!saved && isDirty(draft, saved);
+  // Bản nháp sửa được ⇒ ngày lễ tự thành ngày nghỉ (chạy sau effect nạp lại bản nháp ở trên, kể cả khi ngày nghỉ về muộn)
+  useEffect(() => {
+    if (editable) setDraft((d) => applyHolidays(d, holidayMap));
+  }, [holidayMap, editable]);
+  const autoOff = editable ? Object.keys(holidayMap).filter((date) => !saved?.days.find((d) => d.date === date)?.off) : [];
   // Một khối có thể gồm nhiều nhóm tuổi, kcal mỗi suất khác nhau nên phải nói rõ đang xem nhóm nào
   const blockGroups = (plan?.blocks || []).find((b) => b.block === block)?.ageGroupIds || [];
   const kcalGroups = ageGroups.filter((g) => blockGroups.some((id) => String(id) === String(g.id)));
@@ -259,6 +269,14 @@ export default function WeeklyPlanPage() {
           )}
         </div>
       </div>
+      {dirty && autoOff.length > 0 && (
+        <div className="alert alert--info">
+          <div>
+            Đã tự đánh dấu nghỉ {autoOff.length} ngày trùng ngày nghỉ của năm học (
+            {[...new Set(autoOff.map((date) => holidayMap[date]))].join(', ')}). Bấm Lưu nháp để lưu.
+          </div>
+        </div>
+      )}
       {dirty && (
         <div className="alert alert--warning">
           <div>Có thay đổi chưa lưu. Bảng kiểm và lưu ý bên dưới tính theo bản đã lưu; lưu nháp để cập nhật và công bố.</div>
@@ -301,6 +319,7 @@ export default function WeeklyPlanPage() {
                 onPickTemplate={pickTemplate}
                 kcalAgeGroup={kcalAgeGroup}
                 dayActions={plan.status === MEAL_PLAN_STATUS.NONE && !editable ? undefined : dayActions}
+                holidays={holidayMap}
               />
             </section>
           ) : (
