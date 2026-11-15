@@ -363,12 +363,45 @@ export const buildXlsx = (sheet, options = {}) => {
 
 export const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
+const STAMPED = /-\d{14}\.xlsx$/i;
+// Ngày dữ liệu dạng yyyy-MM-dd hoặc yyyy-MM trong tên (không ăn năm học 2026-2027)
+const DATA_DATE = /-?(?<!\d)\d{4}-\d{2}(?:-\d{2})?(?!\d)/g;
+
+/**
+ * Tên file tải về: bỏ ngày/tháng dữ liệu, gắn dấu thời gian yyyyMMddHHmmss giờ Việt Nam, vd. so-suat-an-20261115094500.xlsx.
+ * Tên đã có dấu thời gian thì giữ nguyên để gọi lại không gắn đôi.
+ */
+export const stampFileName = (filename, now = new Date()) => {
+  const name = filename.replace(/\.csv$/i, '.xlsx');
+  if (STAMPED.test(name)) return name;
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hourCycle: 'h23',
+    })
+      .formatToParts(now)
+      .map((p) => [p.type, p.value]),
+  );
+  const stamp = `${parts.year}${parts.month}${parts.day}${parts.hour}${parts.minute}${parts.second}`;
+  const base = name
+    .replace(/\.xlsx$/i, '')
+    .replace(DATA_DATE, '')
+    .replace(/[-_]+$/, '');
+  return `${base}-${stamp}.xlsx`;
+};
+
 /**
  * Tải file .xlsx về máy. Nhận sheet (báo cáo có định dạng) hoặc mảng dòng; với mảng dòng, `headerRow` mặc định là dòng 1 khi dòng 0
  * là tiêu đề báo cáo một ô, ngược lại dòng 0.
  */
 export const downloadXlsx = (input, filename, { sheetName, headerRow } = {}) => {
-  const name = filename.replace(/\.csv$/i, '.xlsx');
+  const name = stampFileName(filename);
   if (!Array.isArray(input)) return downloadBlob(new Blob([buildXlsx(input)], { type: XLSX_MIME }), name);
   const header = headerRow ?? (input[0]?.length === 1 && input.length > 1 ? 1 : 0);
   return downloadBlob(buildXlsx(input, { sheetName, headerRow: header }), name);
@@ -392,6 +425,6 @@ export const buildWorkbookXlsx = (sheets, options = {}) => {
 
 /** Tải file .xlsx nhiều sheet về máy. */
 export const downloadWorkbookXlsx = (sheets, filename, options = {}) => {
-  const name = filename.replace(/\.csv$/i, '.xlsx');
+  const name = stampFileName(filename);
   downloadBlob(buildWorkbookXlsx(sheets, options), name);
 };
