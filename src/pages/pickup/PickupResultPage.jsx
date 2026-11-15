@@ -1,31 +1,14 @@
-import { useEffect, useState } from 'react';
-import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, ClipboardList, Save, ShieldCheck, ShieldAlert } from '@/components/ui/icons';
-import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from '@/contexts/ToastContext';
+import { Link, Navigate, useSearchParams } from 'react-router-dom';
+import { ClipboardList } from '@/components/ui/icons';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
-import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { EmptyState, ErrorState, LoadingState, SkeletonRows } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
-import { FormField } from '@/components/form/FormField';
 import { PickupOutcomeBadge, PickupPerson, VerificationBadge } from '@/components/pickup/PickupBadges';
 import { usePickupChild, usePickupResults } from '@/hooks/pickup/usePickups';
-import { recordPickupResult } from '@/services/pickup/pickupService';
-import {
-  PICKUP_OUTCOME,
-  PICKUP_STATUS,
-  PICKUP_STATUS_MESSAGES,
-  RELATIONS,
-  VERIFICATION,
-  VERIFICATION_LABELS,
-  outcomeOf,
-} from '@/models/pickup/pickupConstants';
-import { validatePickupResult } from '@/utils/pickup/pickupValidation';
+import { VERIFICATION } from '@/models/pickup/pickupConstants';
 import { pickupCrumbs } from '@/utils/pickup/breadcrumbs';
 import { formatDate, formatDateTime, todayInput } from '@/utils/format';
 import '@/styles/modules/pickup.css';
-
-const nowTime = () => new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 
 /** Today's results of the teacher's classes (shown when no child is selected). */
 function ResultList() {
@@ -96,228 +79,46 @@ function ResultList() {
   );
 }
 
-function ResultForm({ childId, verification, guardianIndex }) {
-  const { user } = useAuth();
-  const toast = useToast();
-  const navigate = useNavigate();
-  // Nội dung cuộc gọi ghi ở modal "Gọi phụ huynh" (danh sách Đón trẻ) chuyển sang đây.
-  const callNote = useLocation().state?.note || '';
+/**
+ * Link cũ của form ghi kết quả (?childId&verification): từ 2026-10-24 ghi nhận trong modal của danh sách Đón trẻ
+ * ⇒ chuyển về đúng lớp, mở modal Trả trẻ (khớp ảnh) hoặc Gọi phụ huynh.
+ */
+function LegacyResultRedirect({ childId, verification }) {
   const { context, loading, error, reload } = usePickupChild(childId, { live: false });
-  const [form, setForm] = useState(null);
-  const [errors, setErrors] = useState({});
-  const [confirmOpen, setConfirmOpen] = useState(false);
-
-  useEffect(() => {
-    if (!context || form) return;
-    const g = guardianIndex != null ? context.guardians.find((x) => x.index === guardianIndex) : null;
-    // Phụ huynh gọi lại đồng ý: điền sẵn người đón đã ghi ở lần "không liên lạc được" gần nhất hôm nay
-    const waiting = [...(context.attempts || [])].reverse().find((a) => a.verification === VERIFICATION.PHONE_UNREACHABLE);
-    const prior = verification === VERIFICATION.PHONE_CONFIRMED ? waiting : null;
-    setForm({
-      childId,
-      verification,
-      pickupPersonName: g?.fullName || prior?.pickupPersonName || '',
-      pickupPersonRelation: g?.relation || prior?.pickupPersonRelation || '',
-      pickupPersonPhone: prior?.pickupPersonPhone || '',
-      handoverTime: nowTime(),
-      note: callNote,
-    });
-  }, [context, form, childId, verification, guardianIndex, callNote]);
-
-  if (loading || (!form && !error)) return <LoadingState />;
-  if (error)
-    return (
-      <div className="card">
-        {error.status === 404 || error.status === 403 ? (
-          <StatusPage bare kind={String(error.status)} title="Không tìm thấy trẻ" description={error.message} />
-        ) : (
-          <ErrorState error={error} onRetry={reload} />
-        )}
-      </div>
-    );
-
-  const handedOver = outcomeOf(verification) === PICKUP_OUTCOME.HANDED_OVER;
-  const fromPhoto = verification === VERIFICATION.PHOTO_MATCH;
-  const unreachable = verification === VERIFICATION.PHONE_UNREACHABLE;
-  const byPhone = verification === VERIFICATION.PHONE_CONFIRMED || verification === VERIFICATION.PHONE_DECLINED;
-  const backTo = `/pickup?classId=${context?.classId}&${byPhone ? 'call' : 'verify'}=${childId}`;
-  const selfDeclared = unreachable ? ' (theo lời người đón)' : '';
-  const set = (k) => (e) => {
-    setForm({ ...form, [k]: e.target.value });
-    if (errors[k]) setErrors({ ...errors, [k]: undefined });
-  };
-
-  if (context.status !== PICKUP_STATUS.WAITING)
-    return (
-      <div className="card">
-        <EmptyState
-          title={PICKUP_STATUS_MESSAGES[context.status]}
+  if (loading) return <LoadingState />;
+  const modal = verification === VERIFICATION.PHOTO_MATCH ? 'verify' : 'call';
+  if (context) return <Navigate replace to={`/pickup?classId=${context.classId}&${modal}=${childId}`} />;
+  return (
+    <div className="card">
+      {error && (error.status === 404 || error.status === 403) ? (
+        <StatusPage
+          bare
+          kind={String(error.status)}
+          title="Không tìm thấy trẻ"
+          description={error.message}
           action={
-            <Link className="btn" to={`/pickup?classId=${context.classId}`}>
+            <Link className="btn" to="/pickup">
               Quay lại danh sách
             </Link>
           }
         />
-      </div>
-    );
-
-  const openConfirm = () => {
-    const errs = validatePickupResult(form);
-    setErrors(errs);
-    if (Object.keys(errs).length === 0) setConfirmOpen(true);
-  };
-
-  const save = async () => {
-    try {
-      await recordPickupResult(form, user);
-      toast.success(
-        handedOver ? 'Đã ghi nhận trả trẻ và thông báo cho phụ huynh.' : 'Đã ghi nhận không trả trẻ và thông báo cho phụ huynh.',
-        'Ghi nhận thành công',
-      );
-      navigate(`/pickup?classId=${context.classId}`);
-    } catch (err) {
-      setConfirmOpen(false);
-      if (err.details) setErrors(err.details);
-      toast.error(err, 'Không ghi nhận được kết quả');
-    }
-  };
-
-  return (
-    <>
-      <div className={`alert ${handedOver ? 'alert--success' : 'alert--danger'} mb-16`}>
-        {handedOver ? <ShieldCheck size={18} /> : <ShieldAlert size={18} />}
-        <div>
-          <b>{VERIFICATION_LABELS[verification]}.</b>{' '}
-          {handedOver
-            ? 'Trẻ được trả cho người đón.'
-            : unreachable
-              ? 'Chưa trả trẻ. Người đón có thể chờ; khi phụ huynh gọi lại đồng ý, bấm "Gọi phụ huynh" ở danh sách đón để trả trẻ.'
-              : 'Không trả trẻ. Trẻ ở lại lớp.'}
-        </div>
-      </div>
-      <div className="card wizard-card">
-        <div className="card__header">
-          <div className="card__title">
-            {context.child.fullName} · {context.className}
-          </div>
-          <PickupOutcomeBadge status={outcomeOf(verification)} />
-        </div>
-        <div className="card__body">
-          <div className="grid-2">
-            <FormField
-              label={`Họ tên người đón${selfDeclared}`}
-              required={fromPhoto}
-              error={errors.pickupPersonName}
-              hint={unreachable ? 'Không bắt buộc' : undefined}
-            >
-              <input
-                className="input"
-                value={form.pickupPersonName}
-                onChange={set('pickupPersonName')}
-                readOnly={fromPhoto}
-                maxLength={100}
-              />
-            </FormField>
-            <FormField
-              label={`Quan hệ với trẻ${selfDeclared}`}
-              required={fromPhoto}
-              error={errors.pickupPersonRelation}
-              hint={unreachable ? 'Không bắt buộc' : undefined}
-            >
-              {fromPhoto ? (
-                <input className="input" value={form.pickupPersonRelation} readOnly />
-              ) : (
-                <select className="select" value={form.pickupPersonRelation} onChange={set('pickupPersonRelation')}>
-                  <option value="">Chọn quan hệ</option>
-                  {RELATIONS.map((r) => (
-                    <option key={r} value={r}>
-                      {r}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </FormField>
-            {!fromPhoto && (
-              <FormField label="Số điện thoại người đón" error={errors.pickupPersonPhone} hint="Không bắt buộc">
-                <input
-                  className="input"
-                  type="tel"
-                  value={form.pickupPersonPhone}
-                  onChange={set('pickupPersonPhone')}
-                  placeholder="09xx xxx xxx"
-                />
-              </FormField>
-            )}
-            {handedOver && (
-              <FormField label="Giờ trả trẻ" required error={errors.handoverTime}>
-                <input className="input" type="time" value={form.handoverTime} onChange={set('handoverTime')} />
-              </FormField>
-            )}
-          </div>
-          <div className="dt-confirm-row mt-12">
-            <span className="text-sm text-2">Xác nhận qua điện thoại:</span>{' '}
-            <b>{verification === VERIFICATION.PHONE_CONFIRMED ? 'Có – phụ huynh đồng ý' : fromPhoto ? 'Không cần (khớp ảnh)' : 'Không'}</b>
-          </div>
-          <FormField
-            label={byPhone ? 'Nội dung cuộc gọi' : 'Ghi chú'}
-            required={byPhone}
-            error={errors.note}
-            className="mt-12"
-            hint={unreachable ? 'Không bắt buộc' : undefined}
-          >
-            <textarea
-              className="textarea"
-              rows={3}
-              maxLength={500}
-              value={form.note}
-              onChange={set('note')}
-              placeholder={unreachable ? 'Ví dụ: Đã gọi mẹ 2 lần lúc 16:40, không nghe máy; người đón chờ ở phòng bảo vệ' : ''}
-            />
-          </FormField>
-        </div>
-      </div>
-      <div className="page-actions">
-        <Link className="btn" to={backTo}>
-          <ArrowLeft size={16} /> Quay lại xác minh
-        </Link>
-        <button className={`btn btn--lg ${handedOver ? 'btn--primary' : 'btn--danger'}`} onClick={openConfirm}>
-          <Save size={18} /> {handedOver ? 'Ghi nhận trả trẻ' : 'Ghi nhận không trả trẻ'}
-        </button>
-      </div>
-      <ConfirmationModal
-        open={confirmOpen}
-        title={handedOver ? 'Ghi nhận trả trẻ' : 'Ghi nhận không trả trẻ'}
-        message={
-          handedOver
-            ? `Trả ${context.child.fullName} cho ${form.pickupPersonName} (${form.pickupPersonRelation}) lúc ${form.handoverTime}? Phụ huynh sẽ nhận thông báo.`
-            : `Ghi nhận chưa trả ${context.child.fullName}${form.pickupPersonName.trim() ? ` cho ${form.pickupPersonName.trim()}` : ''} vì chưa liên lạc được phụ huynh? Phụ huynh sẽ nhận thông báo.`
-        }
-        confirmLabel={handedOver ? 'Ghi nhận trả trẻ' : 'Ghi nhận không trả trẻ'}
-        danger={!handedOver}
-        onConfirm={save}
-        onClose={() => setConfirmOpen(false)}
-      />
-    </>
+      ) : (
+        <ErrorState error={error} onRetry={reload} />
+      )}
+    </div>
   );
 }
 
-/** #101 Pickup Result (UC 3.16): records the pickup person, time and phone confirmation; the parent is notified. */
+/** #101 Pickup Result (UC 3.16): kết quả trả trẻ hôm nay; ghi nhận nằm ở modal của danh sách Đón trẻ. */
 export default function PickupResultPage() {
   const [params] = useSearchParams();
   const childId = params.get('childId');
-  const verification = params.get('verification');
-  const guardian = params.get('guardian');
-  const validStart = childId && Object.values(VERIFICATION).includes(verification);
   const title = 'Kết quả trả trẻ';
   return (
     <div className="page">
       <Breadcrumb items={pickupCrumbs(title)} />
-      <h1 className="page__title">{validStart ? 'Ghi nhận kết quả trả trẻ' : title}</h1>
-      {validStart ? (
-        <ResultForm childId={childId} verification={verification} guardianIndex={guardian != null ? Number(guardian) : null} />
-      ) : (
-        <ResultList />
-      )}
+      <h1 className="page__title">{title}</h1>
+      {childId ? <LegacyResultRedirect childId={childId} verification={params.get('verification')} /> : <ResultList />}
     </div>
   );
 }

@@ -15,6 +15,7 @@ import {
   Info,
   Send,
   Scale,
+  Sparkles,
 } from '@/components/ui/icons';
 import { StatusBadge, createStatusBadge } from '@/components/ui/StatusBadge';
 import { CHILD_STATUS_LABELS } from '@/models/School';
@@ -37,6 +38,7 @@ import {
   MEASUREMENT_RESULT_STATUS_LABELS,
 } from '@/models/children/healthCheckConstants';
 import { CONCLUSION_CATEGORY_LABELS } from '@/models/children/healthExamForm';
+import { TREND_REVIEW_STATUS_LABELS } from '@/models/children/childrenConstants';
 
 /* Tones follow DESIGN.md §3.2. */
 export const ChildStatusBadge = createStatusBadge(
@@ -197,4 +199,13 @@ export const PublishStatusBadge = createStatusBadge(
     UNPUBLISHED: ['gray', MinusCircle],
   },
   { PUBLISHED: 'Đã công bố', UNPUBLISHED: 'Chưa công bố' },
+);
+
+/* Nhận định xu hướng: nháp AI chờ duyệt (purple), đã duyệt (green) — HLT-05, HLT-21. */
+export const TrendReviewBadge = createStatusBadge(
+  {
+    DRAFT: ['purple', Sparkles],
+    APPROVED: ['green', CheckCircle2],
+  },
+  TREND_REVIEW_STATUS_LABELS,
 );

@@ -1,78 +1,40 @@
 import { recipientError } from '@/utils/children/accountRecipient';
-import { useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import {
-  UploadCloud,
-  Download,
-  FileSpreadsheet,
-  AlertTriangle,
-  CheckCircle2,
-  ArrowLeft,
-  Upload,
-  LayoutGrid,
-  Info,
-} from '@/components/ui/icons';
+import { useEffect, useState } from 'react';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { FileSpreadsheet, AlertTriangle, CheckCircle2, ArrowLeft, Upload, LayoutGrid } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useToast } from '@/contexts/ToastContext';
-import { useMasterData } from '@/hooks/useMasterData';
 import { ActiveYearNotice } from '@/components/children/ActiveYearNotice';
+import { ImportChildrenModal } from '@/components/children/ImportChildrenModal';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
-import { FormField } from '@/components/form/FormField';
+import { Button } from '@/components/ui/Button';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
-import { Spinner } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
-import { importChildren, previewEnrollmentImport } from '@/services/children/childrenService';
+import { importChildren } from '@/services/children/childrenService';
 import { GENDER_LABELS } from '@/models/School';
 import { AllergyStateBadge, ImportRowResultBadge } from '@/components/children/ChildBadges';
-import { DECLARATION_STATE, IMPORT_COLUMNS } from '@/models/children/childrenConstants';
-import { downloadCsv } from '@/utils/exportCsv';
+import { DECLARATION_STATE } from '@/models/children/childrenConstants';
 import { formatDate, formatFileSize } from '@/utils/format';
-import { canEnrollChild, childCampusesOf } from '@/utils/children/childrenPermissions';
-import { defaultCampusId } from '@/utils/children/childrenHelpers';
+import { canEnrollChild } from '@/utils/children/childrenPermissions';
 import { childrenCrumbs } from '@/utils/children/breadcrumbs';
+import { clearImportDraft, peekImportDraft } from '@/utils/children/importDraft';
 import '@/styles/modules/children.css';
-import { LottiePlayer } from '@/components/ui/LottiePlayer';
 
-const loadDocumentScan = () => import('@/assets/lottie/document-scan.json');
-
-const MAX_SIZE = 10 * 1024 * 1024;
-const ACCEPT = '.csv,.xlsx,.xls';
-
-const downloadTemplate = () =>
-  downloadCsv(
-    [
-      IMPORT_COLUMNS.map((c) => c.label),
-      // Dòng mẫu: hành chính và tiền sử bắt buộc trừ CCCD trẻ, nhóm máu (user chốt 2026-10-22; tuần thai từ 2026-11-04); mỗi giá
-      // trị ứng 1 cột IMPORT_COLUMNS.
-      [
-        ...['Nguyễn Minh An', '15/04/2022', 'Nam', 'Nguyễn Văn Bình', 'Bố', '0912 000 111', '9999 1200 0111'],
-        ...['phuhuynh.mau@example.com', 'Không', ''],
-        ...['', 'Không', '39', 'Kinh', 'Trẻ em dưới 6 tuổi', '', 'Hải Phòng', 'Phường Thượng Hồng', 'Số 1 đường mẫu'],
-        ...['Không', 'Không', 'Không', ''],
-        ...['', '', '', '', '', '', '', '', '', '', ''],
-      ],
-    ],
-    'mau-tiep-nhan-tre.csv',
-  );
-
+/** Bước 2 nhập trẻ từ Excel: xem trước kết quả kiểm tra file (chọn file ở ImportChildrenModal) ⇒ nhập ⇒ kết quả. */
 export default function ImportChildrenPage() {
   const { user } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
-  const md = useMasterData();
   const { yearReadOnly } = useSchoolYear();
-  const inputRef = useRef(null);
-  const [campusPick, setCampusPick] = useState(null);
-  const [campusError, setCampusError] = useState('');
-  const [dragging, setDragging] = useState(false);
-  const [file, setFile] = useState(null);
-  const [preview, setPreview] = useState(null);
-  const [fileError, setFileError] = useState('');
-  const [reading, setReading] = useState(false);
+  const [draft, setDraft] = useState(peekImportDraft);
+  const [reupload, setReupload] = useState(false);
   const [onlyErrors, setOnlyErrors] = useState(false);
   const [confirm, setConfirm] = useState(false);
   const [imported, setImported] = useState(null);
+
+  // Rời màn là bỏ bản xem trước: quay lại màn này phải tải file lại (user chốt 14/11/2026, phương án 1a).
+  useEffect(() => clearImportDraft, []);
 
   if (!canEnrollChild(user))
     return (
@@ -86,75 +48,6 @@ export default function ImportChildrenPage() {
         />
       </div>
     );
-
-  // Hiệu trưởng, PHT toàn trường chọn điểm trường cho cả file; PHT một điểm trường dùng điểm trường của mình (BE kiểm lại).
-  const campusOptions = childCampusesOf(user, md.campuses);
-  const pickCampus = campusOptions.length > 1;
-  const campusId = campusPick ?? defaultCampusId(campusOptions, user);
-  const campusName = md.campusById(campusId)?.shortName || md.campusById(campusId)?.name || '';
-
-  const readFile = async (f) => {
-    if (!f) return;
-    setFileError('');
-    setPreview(null);
-    setFile(f);
-    if (f.size > MAX_SIZE) {
-      setFileError(`${f.name} vượt quá 10MB. Chọn file nhỏ hơn.`);
-      return;
-    }
-    setReading(true);
-    try {
-      setPreview(await previewEnrollmentImport(f, user));
-      setOnlyErrors(false);
-    } catch (err) {
-      setFileError(err.details?.file ? `${err.message} ${err.details.file}.` : err.message);
-    } finally {
-      setReading(false);
-    }
-  };
-
-  const selectRecipient = (rowNo, idNumber) =>
-    setPreview((previous) => ({
-      ...previous,
-      rows: previous.rows.map((row) => {
-        if (row.rowNo !== rowNo) return row;
-        const guardians = row.payload.child.guardians.map((g) => ({ ...g, accountRecipient: g.idNumber === idNumber }));
-        return {
-          ...row,
-          selectionError: recipientError(guardians),
-          payload: { ...row.payload, child: { ...row.payload.child, guardians } },
-        };
-      }),
-    }));
-  const rows = (preview?.rows || []).map((row) => ({
-    ...row,
-    errors: [...row.errors, ...(row.selectionError ? [row.selectionError] : [])],
-  }));
-  const errorRows = rows.filter((r) => r.errors.length > 0);
-  const validRows = rows.filter((r) => r.errors.length === 0);
-  const shown = onlyErrors ? errorRows : rows;
-
-  const askImport = () => {
-    if (pickCampus && !campusId) setCampusError('Chọn điểm trường tiếp nhận trẻ');
-    else setConfirm(true);
-  };
-
-  const doImport = async () => {
-    try {
-      const result = await importChildren(
-        validRows.map((r) => r.payload),
-        user,
-        campusId || undefined,
-      );
-      setImported(result);
-      setConfirm(false);
-      toast.success(`Đã nhập ${result.created} hồ sơ trẻ.`, 'Nhập danh sách thành công');
-    } catch (err) {
-      setConfirm(false);
-      if (err.details?.campusId) setCampusError(err.details.campusId);
-      toast.error(err, 'Không nhập được danh sách');
-    }
-  };
 
   if (imported)
     return (
@@ -193,248 +86,212 @@ export default function ImportChildrenPage() {
       </div>
     );
 
+  // Chưa có bản xem trước (F5, mở link trực tiếp, quay lại bằng lịch sử) ⇒ về Danh sách trẻ và mở sẵn hộp chọn file.
+  if (!draft) return <Navigate to="/children?import=1" replace />;
+
+  const selectRecipient = (rowNo, idNumber) =>
+    setDraft((previous) => ({
+      ...previous,
+      preview: {
+        ...previous.preview,
+        rows: previous.preview.rows.map((row) => {
+          if (row.rowNo !== rowNo) return row;
+          const guardians = row.payload.child.guardians.map((g) => ({ ...g, accountRecipient: g.idNumber === idNumber }));
+          return {
+            ...row,
+            selectionError: recipientError(guardians),
+            payload: { ...row.payload, child: { ...row.payload.child, guardians } },
+          };
+        }),
+      },
+    }));
+  const rows = draft.preview.rows.map((row) => ({
+    ...row,
+    errors: [...row.errors, ...(row.selectionError ? [row.selectionError] : [])],
+  }));
+  const errorRows = rows.filter((r) => r.errors.length > 0);
+  const validRows = rows.filter((r) => r.errors.length === 0);
+  const shown = onlyErrors ? errorRows : rows;
+
+  const doImport = async () => {
+    try {
+      const result = await importChildren(
+        validRows.map((r) => r.payload),
+        user,
+        draft.campusId || undefined,
+      );
+      clearImportDraft();
+      setImported(result);
+      setConfirm(false);
+      toast.success(`Đã nhập ${result.created} hồ sơ trẻ.`, 'Nhập danh sách thành công');
+    } catch (err) {
+      setConfirm(false);
+      toast.error(err, 'Không nhập được danh sách');
+    }
+  };
+
   return (
     <div className="page">
       <Breadcrumb items={childrenCrumbs('Nhập từ Excel')} />
       <div className="page__head">
-        <h1 className="page__title">Nhập danh sách trẻ từ Excel</h1>
-        <button className="btn" onClick={downloadTemplate}>
-          <Download size={16} /> Tải file mẫu
-        </button>
-      </div>
-      <ActiveYearNotice action="Nhập danh sách trẻ" />
-      <div className="alert alert--info mb-16">
-        <Info size={18} />
-        <div>
-          Dùng file theo mẫu của trường (.xlsx hoặc .csv), mỗi dòng một trẻ. Hệ thống kiểm tra từng dòng: thông tin bắt buộc, số điện thoại,
-          số CCCD phụ huynh (12 chữ số; để ô dạng chữ để Excel không bỏ số 0 đầu), email và hồ sơ trùng. File mẫu cũ chưa có cột &quot;Số
-          CCCD phụ huynh&quot; thì tải lại file mẫu. Có thể nhập thêm phụ huynh 2, 3 và chọn một người nhận tài khoản ở bản xem trước hoặc
-          cột CCCD phụ huynh nhận tài khoản. Sửa các lỗi thông tin trong file rồi tải lên lại. Sau khi nhập, trẻ cần được xếp lớp để hoàn
-          tất tiếp nhận. Số CCCD phụ huynh trùng tài khoản phụ huynh có sẵn thì dùng họ tên, số điện thoại, email của tài khoản và liên kết
-          người được chọn với trẻ khi kích hoạt sau khi nhập. Các cột hành chính và tiền sử bắt buộc (trừ CCCD trẻ, nhóm máu) vì phiếu khám
-          sức khỏe lấy từ hồ sơ; file mẫu cũ thiếu cột thì tải lại file mẫu. Trẻ khai có tiếp xúc với người bệnh lao thì phải ghi ngày tiếp
-          xúc gần nhất (dd/mm/yyyy); hệ thống báo Hiệu trưởng và Phó hiệu trưởng điểm trường khi nhập.
-        </div>
+        <h1 className="page__title">Kiểm tra danh sách nhập</h1>
+        <Button icon={Upload} onClick={() => setReupload(true)}>
+          Tải file khác
+        </Button>
       </div>
 
-      <section className="card wizard-card">
-        {pickCampus && (
-          <FormField
-            label="Điểm trường tiếp nhận"
-            required
-            error={campusError}
-            hint="Trẻ trong file vào điểm trường này, ở trạng thái Chờ xếp lớp."
-            className="tr-field-narrow mb-16"
-          >
-            <select
-              className="select"
-              value={campusId}
-              onChange={(e) => {
-                setCampusPick(e.target.value);
-                setCampusError('');
-              }}
-            >
-              <option value="">Chọn điểm trường</option>
-              {campusOptions.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.shortName || c.name}
-                </option>
-              ))}
-            </select>
-          </FormField>
-        )}
-        <div
-          className={`dropzone ${dragging ? 'dropzone--active' : ''}`}
-          role="button"
-          tabIndex={0}
-          aria-label="Chọn file danh sách trẻ"
-          onClick={() => inputRef.current?.click()}
-          onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && inputRef.current?.click()}
-          onDragOver={(e) => {
-            e.preventDefault();
-            setDragging(true);
-          }}
-          onDragLeave={() => setDragging(false)}
-          onDrop={(e) => {
-            e.preventDefault();
-            setDragging(false);
-            readFile(e.dataTransfer.files?.[0]);
-          }}
-        >
-          {reading ? (
-            <LottiePlayer load={loadDocumentScan} speed={0.6} className="import-reading" fallback={<Spinner />} />
-          ) : (
-            <UploadCloud size={30} className="text-primary" />
-          )}
-          <div>
-            Kéo thả file hoặc <span className="text-primary">chọn file</span>
-          </div>
-          <div className="muted text-sm">(.xlsx hoặc .csv theo mẫu – tối đa 10MB)</div>
-          <input
-            ref={inputRef}
-            type="file"
-            accept={ACCEPT}
-            hidden
-            onChange={(e) => {
-              readFile(e.target.files?.[0]);
-              e.target.value = '';
-            }}
-          />
-        </div>
-        {file && (
-          <div className="file-row mt-12">
-            <FileSpreadsheet size={26} color="var(--file-sheet)" />
-            <div className="flex-1 min-w-0">
-              <div className="file-row__name">{file.name}</div>
-              <div className="muted text-sm">{formatFileSize(file.size)}</div>
-            </div>
-          </div>
-        )}
-        {fileError && (
-          <div className="alert alert--danger mt-12" role="alert">
-            <AlertTriangle size={18} />
-            <div>{fileError}</div>
-          </div>
-        )}
-        {preview && !preview.supported && (
-          <div className="alert alert--warning mt-12" role="status">
-            <AlertTriangle size={18} />
-            <div>{preview.message}</div>
-          </div>
-        )}
-      </section>
-
-      {preview?.supported && (
-        <section className="card">
-          <div className="card__header row row--between row--wrap gap-3">
+      <section className="card">
+        <div className="card__header row row--between row--wrap gap-3">
+          <div className="stack gap-1">
             <div className="row row--wrap gap-2">
               <h2 className="card__title">Kết quả kiểm tra</h2>
               <span className="chip chip--blue">{rows.length} dòng</span>
               <span className="chip chip--green">{validRows.length} hợp lệ</span>
               {errorRows.length > 0 && <span className="chip chip--red">{errorRows.length} dòng lỗi</span>}
             </div>
-            {errorRows.length > 0 && (
-              <label className="checkbox">
-                <input type="checkbox" checked={onlyErrors} onChange={(e) => setOnlyErrors(e.target.checked)} />
-                Chỉ hiện dòng lỗi
-              </label>
-            )}
+            <div className="row row--wrap gap-2 muted text-sm">
+              <FileSpreadsheet size={16} color="var(--file-sheet)" aria-hidden="true" />
+              <span>
+                {draft.fileName} ({formatFileSize(draft.fileSize)})
+              </span>
+              {draft.campusName && (
+                <span>
+                  · Điểm trường tiếp nhận: <b>{draft.campusName}</b>
+                </span>
+              )}
+            </div>
           </div>
           {errorRows.length > 0 && (
-            <div className="alert alert--danger tr-alert-flat" role="alert">
-              <AlertTriangle size={18} />
-              <div>File còn {errorRows.length} dòng lỗi. Sửa các dòng này trong file rồi tải lên lại để nhập.</div>
-            </div>
+            <label className="checkbox">
+              <input type="checkbox" checked={onlyErrors} onChange={(e) => setOnlyErrors(e.target.checked)} />
+              Chỉ hiện dòng lỗi
+            </label>
           )}
-          <div className="table-wrap tr-table-flat">
-            <table className="table table--grid table--compact">
-              <thead>
-                <tr>
-                  <th className="center">Dòng</th>
-                  <th>Họ tên trẻ</th>
-                  <th>Ngày sinh</th>
-                  <th>Giới tính</th>
-                  <th>Phụ huynh</th>
-                  <th>Phụ huynh nhận tài khoản</th>
-                  <th>Số điện thoại</th>
-                  <th>CCCD phụ huynh</th>
-                  <th>Dị ứng</th>
-                  <th className="tr-col-result">Kết quả</th>
-                </tr>
-              </thead>
-              <tbody>
-                {shown.map((r) => {
-                  const c = r.payload.child;
-                  const g = c.guardians[0];
-                  const a = r.payload.declaration.allergies;
-                  return (
-                    <tr key={r.rowNo} className={r.errors.length ? 'tr-row-error' : ''}>
-                      <td className="center">{r.rowNo}</td>
-                      <td className="fw-600">{c.fullName || <span className="muted">(trống)</span>}</td>
-                      <td className="nowrap">
-                        {c.dateOfBirth ? formatDate(c.dateOfBirth) : r.raw.dateOfBirth || <span className="muted">(trống)</span>}
-                      </td>
-                      <td>{GENDER_LABELS[c.gender] || r.raw.gender || <span className="muted">(trống)</span>}</td>
-                      <td>
-                        {c.guardians.map((guardian, index) => (
-                          <div key={index}>
-                            {guardian.fullName} <span className="muted">({guardian.relation})</span>
-                          </div>
-                        ))}
-                      </td>
-                      <td>
-                        <select
-                          className="input"
-                          aria-label={`Phụ huynh nhận tài khoản dòng ${r.rowNo}`}
-                          value={
-                            c.guardians.find((guardian) => guardian.accountRecipient)?.idNumber ||
-                            (c.guardians.length === 1 ? g.idNumber : '')
-                          }
-                          onChange={(e) => selectRecipient(r.rowNo, e.target.value)}
-                          disabled={c.guardians.length === 1}
-                        >
-                          <option value="">Chọn phụ huynh</option>
-                          {c.guardians.map((guardian, index) => (
-                            <option key={index} value={guardian.idNumber}>
-                              {guardian.fullName} · {guardian.relation}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
-                      <td className="nowrap">
-                        {c.guardians.map((guardian, index) => (
-                          <div key={index}>{guardian.phone}</div>
-                        ))}
-                      </td>
-                      <td className="nowrap">
-                        {c.guardians.map((guardian, index) => (
-                          <div key={index}>{guardian.idNumber || <span className="muted">(trống)</span>}</div>
-                        ))}
-                      </td>
-                      <td className="text-sm">
-                        {a.state === DECLARATION_STATE.REPORTED ? a.items.join(', ') : <AllergyStateBadge status={a.state} />}
-                      </td>
-                      <td>
-                        <div className="stack gap-1-5">
-                          <ImportRowResultBadge errorCount={r.errors.length} />
-                          {r.errors.length > 0 && (
-                            <ul className="tr-error-list">
-                              {r.errors.map((e) => (
-                                <li key={e}>{e}</li>
-                              ))}
-                            </ul>
-                          )}
-                          {(r.notes || []).map((n) => (
-                            <span key={n} className="text-xs muted">
-                              {n}
-                            </span>
-                          ))}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+        </div>
+        {errorRows.length > 0 && (
+          <div className="alert alert--danger tr-alert-flat" role="alert">
+            <AlertTriangle size={18} />
+            <div>File còn {errorRows.length} dòng lỗi. Sửa các dòng này trong file rồi bấm Tải file khác để kiểm tra lại.</div>
           </div>
-        </section>
-      )}
+        )}
+        <div className="table-wrap tr-table-flat">
+          <table className="table table--grid table--compact">
+            <thead>
+              <tr>
+                <th className="center">Dòng</th>
+                <th>Họ tên trẻ</th>
+                <th>Ngày sinh</th>
+                <th>Giới tính</th>
+                <th>Phụ huynh</th>
+                <th>Phụ huynh nhận tài khoản</th>
+                <th>Số điện thoại</th>
+                <th>CCCD phụ huynh</th>
+                <th>Dị ứng</th>
+                <th className="tr-col-result">Kết quả</th>
+              </tr>
+            </thead>
+            <tbody>
+              {shown.map((r) => {
+                const c = r.payload.child;
+                const g = c.guardians[0];
+                const a = r.payload.declaration.allergies;
+                return (
+                  <tr key={r.rowNo} className={r.errors.length ? 'tr-row-error' : ''}>
+                    <td className="center">{r.rowNo}</td>
+                    <td className="fw-600">{c.fullName || <span className="muted">(trống)</span>}</td>
+                    <td className="nowrap">
+                      {c.dateOfBirth ? formatDate(c.dateOfBirth) : r.raw.dateOfBirth || <span className="muted">(trống)</span>}
+                    </td>
+                    <td>{GENDER_LABELS[c.gender] || r.raw.gender || <span className="muted">(trống)</span>}</td>
+                    <td>
+                      {c.guardians.map((guardian, index) => (
+                        <div key={index}>
+                          {guardian.fullName} <span className="muted">({guardian.relation})</span>
+                        </div>
+                      ))}
+                    </td>
+                    <td>
+                      <select
+                        className="input"
+                        aria-label={`Phụ huynh nhận tài khoản dòng ${r.rowNo}`}
+                        value={
+                          c.guardians.find((guardian) => guardian.accountRecipient)?.idNumber ||
+                          (c.guardians.length === 1 ? g.idNumber : '')
+                        }
+                        onChange={(e) => selectRecipient(r.rowNo, e.target.value)}
+                        disabled={c.guardians.length === 1}
+                      >
+                        <option value="">Chọn phụ huynh</option>
+                        {c.guardians.map((guardian, index) => (
+                          <option key={index} value={guardian.idNumber}>
+                            {guardian.fullName} · {guardian.relation}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="nowrap">
+                      {c.guardians.map((guardian, index) => (
+                        <div key={index}>{guardian.phone}</div>
+                      ))}
+                    </td>
+                    <td className="nowrap">
+                      {c.guardians.map((guardian, index) => (
+                        <div key={index}>{guardian.idNumber || <span className="muted">(trống)</span>}</div>
+                      ))}
+                    </td>
+                    <td className="text-sm">
+                      {a.state === DECLARATION_STATE.REPORTED ? a.items.join(', ') : <AllergyStateBadge status={a.state} />}
+                    </td>
+                    <td>
+                      <div className="stack gap-1-5">
+                        <ImportRowResultBadge errorCount={r.errors.length} />
+                        {r.errors.length > 0 && (
+                          <ul className="tr-error-list">
+                            {r.errors.map((e) => (
+                              <li key={e}>{e}</li>
+                            ))}
+                          </ul>
+                        )}
+                        {(r.notes || []).map((n) => (
+                          <span key={n} className="text-xs muted">
+                            {n}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </section>
 
       <div className="page-actions">
-        <button className="btn wizard-actions__back" onClick={() => navigate('/children')}>
-          <ArrowLeft size={16} /> Quay lại
-        </button>
-        {preview?.supported && (
-          <button className="btn btn--primary" disabled={validRows.length === 0 || errorRows.length > 0} onClick={askImport}>
-            <Upload size={16} /> Nhập {validRows.length} trẻ
-          </button>
-        )}
+        <Button className="wizard-actions__back" icon={ArrowLeft} onClick={() => navigate('/children')}>
+          Quay lại
+        </Button>
+        <Button variant="primary" icon={Upload} disabled={validRows.length === 0 || errorRows.length > 0} onClick={() => setConfirm(true)}>
+          Nhập {validRows.length} trẻ
+        </Button>
       </div>
+
+      {reupload && (
+        <ImportChildrenModal
+          initialCampusId={draft.campusId}
+          onClose={() => setReupload(false)}
+          onChecked={(next) => {
+            setDraft(next);
+            setOnlyErrors(false);
+            setReupload(false);
+          }}
+        />
+      )}
 
       <ConfirmationModal
         open={confirm}
         title="Nhập danh sách trẻ?"
-        message={`Hệ thống sẽ tạo ${validRows.length} hồ sơ trẻ ở trạng thái Chờ xếp lớp${pickCampus ? ` tại ${campusName}` : ''}, kèm khai báo sức khỏe theo file. Tài khoản phụ huynh kích hoạt sau ở màn Tài khoản phụ huynh.`}
+        message={`Hệ thống sẽ tạo ${validRows.length} hồ sơ trẻ ở trạng thái Chờ xếp lớp${draft.campusName ? ` tại ${draft.campusName}` : ''}, kèm khai báo sức khỏe theo file. Tài khoản phụ huynh kích hoạt sau ở màn Tài khoản phụ huynh.`}
         confirmLabel={`Nhập ${validRows.length} trẻ`}
         onConfirm={doImport}
         onClose={() => setConfirm(false)}

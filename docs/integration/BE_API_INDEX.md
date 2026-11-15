@@ -6,9 +6,9 @@ File sinh tự động từ `BE:docs/api/openapi.yaml`, không sửa tay. Sinh l
 - Path đã bỏ tiền tố `/api` (trùng baseURL của Web/App). File controller tính từ gốc repo `CareNest_BE`.
 - Request/response chi tiết: đọc method trong controller và DTO nó dùng; lỗi theo `BE:docs/contracts/ERROR_CONTRACT.md`.
 
-Nguồn: CareNest_BE docs/api/openapi.yaml tại commit 5bfd9ba 2026-11-14
+Nguồn: CareNest_BE docs/api/openapi.yaml tại commit 4fc70344 2026-11-15
 
-Tổng: 346 endpoint.
+Tổng: 351 endpoint.
 
 ```text
 GET /accounts · src/main/java/com/carenest/controller/account/AccountController.java#searchAccounts
@@ -23,9 +23,11 @@ PATCH /accounts/{userId}/status · src/main/java/com/carenest/controller/account
 POST /accounts/{userId}/temporary-password · src/main/java/com/carenest/controller/account/AccountController.java#resetTemporaryPassword
 POST /accounts/lookup · src/main/java/com/carenest/controller/account/AccountController.java#findAccountCandidate
 GET /accounts/me · src/main/java/com/carenest/controller/account/AccountController.java#getMyAccount
+DELETE /accounts/me/photo · src/main/java/com/carenest/controller/account/AccountPhotoController.java#deleteMyPhoto
 GET /accounts/me/photo · src/main/java/com/carenest/controller/account/AccountPhotoController.java#getMyPhoto
 PUT /accounts/me/photo · src/main/java/com/carenest/controller/account/AccountPhotoController.java#updateMyPhoto
 GET /accounts/me/photo/url · src/main/java/com/carenest/controller/account/AccountPhotoController.java#getMyPhotoUrl
+POST /accounts/photos/urls · src/main/java/com/carenest/controller/account/AccountPhotoController.java#findPhotoUrls
 GET /age-groups · src/main/java/com/carenest/controller/organization/AgeGroupController.java#getAgeGroups
 POST /age-groups · src/main/java/com/carenest/controller/organization/AgeGroupController.java#createAgeGroup
 DELETE /age-groups/{ageGroupId} · src/main/java/com/carenest/controller/organization/AgeGroupController.java#deleteAgeGroup
@@ -310,16 +312,19 @@ POST /nutrition/suppliers · src/main/java/com/carenest/controller/meals/Supplie
 GET /nutrition/suppliers/{supplierId} · src/main/java/com/carenest/controller/meals/SupplierController.java#getSupplier
 PUT /nutrition/suppliers/{supplierId} · src/main/java/com/carenest/controller/meals/SupplierController.java#updateSupplier
 PATCH /nutrition/suppliers/{supplierId}/status · src/main/java/com/carenest/controller/meals/SupplierController.java#changeSupplierStatus
+POST /parent-accounts/{userId}/activation-code · src/main/java/com/carenest/controller/child/GuardianController.java#resendActivationCode
 PATCH /parent-accounts/{userId}/status · src/main/java/com/carenest/controller/child/GuardianController.java#updateParentStatus
 POST /parent-accounts/{userId}/temporary-password · src/main/java/com/carenest/controller/child/GuardianController.java#resetParentPassword
 GET /parent-accounts/phone-change-requests · src/main/java/com/carenest/controller/account/GuardianPhoneChangeController.java#listPhoneChangeRequests
 POST /parent-accounts/phone-change-requests/{requestId}/approve · src/main/java/com/carenest/controller/account/GuardianPhoneChangeController.java#approve
 POST /parent-accounts/phone-change-requests/{requestId}/reject · src/main/java/com/carenest/controller/account/GuardianPhoneChangeController.java#reject
+POST /parent-activation · src/main/java/com/carenest/controller/account/ParentActivationController.java#activateParentAccount
 GET /permission-change-logs · src/main/java/com/carenest/controller/account/PermissionController.java#getPermissionChangeLogs
 GET /permissions · src/main/java/com/carenest/controller/account/PermissionController.java#getPermissionCatalog
 GET /pickups · src/main/java/com/carenest/controller/attendance/PickupController.java#listResults
 POST /pickups · src/main/java/com/carenest/controller/attendance/PickupController.java#recordResult
 GET /pickups/children/{childId} · src/main/java/com/carenest/controller/attendance/PickupController.java#getChild
+GET /pickups/classes · src/main/java/com/carenest/controller/attendance/PickupController.java#listClasses
 GET /role-permissions · src/main/java/com/carenest/controller/account/PermissionController.java#getRolePermissions
 GET /role-permissions/{role} · src/main/java/com/carenest/controller/account/PermissionController.java#getRolePermission
 PUT /role-permissions/{role} · src/main/java/com/carenest/controller/account/PermissionController.java#updateRolePermissions
