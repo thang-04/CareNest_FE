@@ -66,3 +66,18 @@ test('xlsx zip end record points exactly at the central directory', async () => 
     assert.equal(pos, eocd);
   }
 });
+
+// File tải từ hộp xem trước phải kẻ bảng giống màn xem trước: tiêu đề không viền, tiêu đề cột 'head', dữ liệu đủ ô có viền
+test('rowsToSheet styles title, header and data rows like the export preview', async () => {
+  const { rowsToSheet } = await import('@/utils/exportXlsx');
+  const sheet = rowsToSheet(
+    [['Báo cáo tháng 10'], ['Trẻ', 'Số ngày', 'Ghi chú'], ['Lớp A1'], ['Bé A', 2], ['Bé B', 0, { v: 'x', s: 'note' }]],
+    { headerRow: 1 },
+  );
+  assert.deepEqual(sheet.rows[0], [{ v: 'Báo cáo tháng 10', s: 'title' }]);
+  assert.deepEqual(sheet.rows[1].map((c) => c.s), ['head', 'head', 'head']);
+  assert.deepEqual(sheet.rows[2], [{ v: 'Lớp A1', s: 'bold' }]);
+  assert.deepEqual(sheet.rows[3], [{ v: 'Bé A', s: 'cell' }, { v: 2, s: 'num' }, { v: null, s: 'cell' }]);
+  assert.deepEqual(sheet.rows[4][2], { v: 'x', s: 'note' });
+  assert.ok(sheet.cols[0] < 'Báo cáo tháng 10'.length + 2);
+});
