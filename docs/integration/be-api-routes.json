@@ -157,6 +157,7 @@
     "GET /permissions",
     "GET /pickups",
     "GET /pickups/children/{x}",
+    "GET /pickups/classes",
     "GET /role-permissions",
     "GET /role-permissions/{x}",
     "GET /school-structure",

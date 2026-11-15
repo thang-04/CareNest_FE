@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import {
   Download,
   FileSpreadsheet,
-  Info,
   KeyRound,
   PauseCircle,
   Phone,
@@ -435,11 +434,6 @@ function StaffCreateModal({ campuses, onClose }) {
               onChange={(e) => set({ campusId: e.target.value })}
               onBlur={() => blur('campusId')}
             />
-          )}
-          {teacher && (
-            <p className="sc-form-note">
-              <Info size={16} aria-hidden="true" /> Giáo viên tạo xong chưa gắn lớp; xếp lớp ở Phân công giáo viên.
-            </p>
           )}
         </StaffFormSection>
         <StaffFormSection icon={UserRound} title="Thông tin cá nhân">

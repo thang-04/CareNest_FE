@@ -1096,10 +1096,16 @@ const stripAccents = (s) =>
  * @param {string} query
  * @returns {VnProvince[]}
  */
+// Bỏ tiền tố hành chính để 'Thành phố Hải Phòng', 'TP. Hải Phòng', 'Hải Phòng' đều khớp 'TP Hải Phòng'.
+const provinceKey = (s) =>
+  stripAccents(s)
+    .trim()
+    .replace(/^(thanh pho|tp\.?|tinh)\s+/, '');
+
 export const filterVnProvinces = (query) => {
-  const q = stripAccents(query).trim();
+  const q = provinceKey(query);
   if (!q) return VN_PROVINCES;
-  return VN_PROVINCES.filter((p) => stripAccents(p.name).includes(q) || p.districts.some((d) => stripAccents(d).includes(q)));
+  return VN_PROVINCES.filter((p) => provinceKey(p.name).includes(q) || p.districts.some((d) => stripAccents(d).includes(q)));
 };
 
 /** Lọc các quận/huyện gợi ý của 1 tỉnh (theo tên, bỏ dấu); rỗng nếu không có tỉnh nào khớp.
@@ -1107,6 +1113,6 @@ export const filterVnProvinces = (query) => {
  * @returns {string[]}
  */
 export const districtsOfVnProvince = (provinceName) => {
-  const p = VN_PROVINCES.find((x) => x.name === provinceName || stripAccents(x.name) === stripAccents(provinceName));
+  const p = VN_PROVINCES.find((x) => x.name === provinceName || provinceKey(x.name) === provinceKey(provinceName));
   return p ? p.districts : [];
 };

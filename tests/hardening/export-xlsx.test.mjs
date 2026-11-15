@@ -66,3 +66,35 @@ test('xlsx zip end record points exactly at the central directory', async () => 
     assert.equal(pos, eocd);
   }
 });
+
+// File tải từ hộp xem trước phải kẻ bảng giống màn xem trước: tiêu đề không viền, tiêu đề cột 'head', dữ liệu đủ ô có viền
+test('rowsToSheet styles title, header and data rows like the export preview', async () => {
+  const { rowsToSheet } = await import('@/utils/exportXlsx');
+  const sheet = rowsToSheet(
+    [['Báo cáo tháng 10'], ['Trẻ', 'Số ngày', 'Ghi chú'], ['Lớp A1'], ['Bé A', 2], ['Bé B', 0, { v: 'x', s: 'note' }]],
+    { headerRow: 1 },
+  );
+  assert.deepEqual(sheet.rows[0], [{ v: 'Báo cáo tháng 10', s: 'title' }]);
+  assert.deepEqual(sheet.rows[1].map((c) => c.s), ['head', 'head', 'head']);
+  assert.deepEqual(sheet.rows[2], [{ v: 'Lớp A1', s: 'bold' }]);
+  assert.deepEqual(sheet.rows[3], [{ v: 'Bé A', s: 'cell' }, { v: 2, s: 'num' }, { v: null, s: 'cell' }]);
+  assert.deepEqual(sheet.rows[4][2], { v: 'x', s: 'note' });
+  assert.ok(sheet.cols[0] < 'Báo cáo tháng 10'.length + 2);
+});
+
+// Tên file tải về: bỏ phần ngày/tháng dữ liệu, chỉ gắn dấu thời gian yyyyMMddHHmmss giờ Việt Nam để mỗi lần tải một tên
+test('stampFileName replaces data dates with a Vietnam-time yyyyMMddHHmmss stamp', async () => {
+  const { stampFileName } = await import('@/utils/exportXlsx');
+  const now = new Date('2026-11-15T02:45:00Z'); // 09:45:00 giờ Việt Nam
+  assert.equal(stampFileName('so-suat-an-2026-11-15.xlsx', now), 'so-suat-an-20261115094500.xlsx');
+  assert.equal(stampFileName('don-nghi-2026-11-01-2026-11-15.xlsx', now), 'don-nghi-20261115094500.xlsx');
+  assert.equal(stampFileName('phieu-be-ngoan-Lop-A-2026-11.xlsx', now), 'phieu-be-ngoan-Lop-A-20261115094500.xlsx');
+  assert.equal(stampFileName('chat-luong-thang-.xlsx', now), 'chat-luong-thang-20261115094500.xlsx');
+  assert.equal(stampFileName('Dinh_luong_di_cho_2026-11-15.xlsx', now), 'Dinh_luong_di_cho-20261115094500.xlsx');
+  assert.equal(stampFileName('tre-den-lop-hang-thang.csv', now), 'tre-den-lop-hang-thang-20261115094500.xlsx');
+  // Nửa đêm giờ Việt Nam đã sang ngày mới theo UTC+7
+  assert.equal(stampFileName('a.xlsx', new Date('2026-11-14T17:00:05Z')), 'a-20261115000005.xlsx');
+  // Đã có dấu thời gian thì không gắn lần hai; năm học 2026-2027 không bị coi là ngày
+  assert.equal(stampFileName('a-20261115094500.xlsx', now), 'a-20261115094500.xlsx');
+  assert.equal(stampFileName('ke-hoach-2026-2027.xlsx', now), 'ke-hoach-2026-2027-20261115094500.xlsx');
+});

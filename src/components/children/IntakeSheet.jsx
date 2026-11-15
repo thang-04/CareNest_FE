@@ -1,4 +1,7 @@
-import { Children, cloneElement, useEffect, useId, useRef, useState } from 'react';
+import { Children, cloneElement, useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { Check, ChevronDown } from '@/components/ui/icons';
+import { normalizeText } from '@/utils/format';
 import { FormField } from '@/components/form/FormField';
 import { ExamSheetBand, ExamSheetTable } from './exam/ExamFields';
 import { PortraitPicker } from './PortraitPicker';
@@ -166,30 +169,82 @@ export function IntakeSheetValueRow({ number, label, children, required = false 
   );
 }
 
+// Khớp SearchSelect: khoảng cách panel–ô và chiều cao tối đa panel (list 300 + đệm) để quyết định mở lên/xuống.
+const SUGGEST_PANEL_GAP = 6;
+const SUGGEST_PANEL_MAX = 320;
+
 /**
  * Ô nhập tự do kèm dropdown gợi ý (click vào ô hiện danh sách, gõ để lọc; bỏ dấu, không phân biệt hoa thường).
- * suggestions: danh sách chuỗi cố định. Giữ giá trị người nhập tự do — không chọn vẫn nhập được.
+ * suggestions: danh sách chuỗi cố định; filterSuggestions(query) thay cách lọc mặc định khi cần.
+ * Giữ giá trị người nhập tự do — không chọn vẫn nhập được. Danh sách nổi qua portal (cùng panel với SearchSelect)
+ * để bảng/khung cuộn không cắt mất; thiếu chỗ phía dưới thì mở lên trên.
  */
-export function IntakeSuggestField({ value, onChange, suggestions = [], maxLength = 100, placeholder, disabled, ...props }) {
+export function IntakeSuggestField({
+  value,
+  onChange,
+  suggestions = [],
+  filterSuggestions,
+  maxLength = 100,
+  placeholder,
+  disabled,
+  ...props
+}) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
+  // Vừa focus (chưa gõ) ⇒ hiện đủ danh sách; chỉ lọc khi người dùng gõ. Sửa hồ sơ có sẵn giá trị vẫn mở được dropdown.
+  const [typed, setTyped] = useState(false);
+  const [active, setActive] = useState(-1);
+  const [pos, setPos] = useState(null);
   const inputRef = useRef(null);
+  const controlRef = useRef(null);
+  const listRef = useRef(null);
   const blurTimer = useRef(null);
   const valueRef = useRef(value);
   valueRef.current = value;
   const id = useId();
-  const norm = (s) =>
-    String(s || '')
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[̀-ͯ]/g, '')
-      .replace(/đ/g, 'd');
-  const q = norm(query.trim());
-  const filter = q ? suggestions.filter((s) => norm(s).includes(q)) : suggestions;
+  const q = normalizeText(query.trim());
+  const filter =
+    !typed || !q ? suggestions : filterSuggestions ? filterSuggestions(query) : suggestions.filter((s) => normalizeText(s).includes(q));
   const showList = open && filter.length > 0;
 
-  // preventDefault trên mousedown giữ focus ở input, tránh blur đóng list trước khi chọn được.
-  const onItemMouseDown = (s) => {
+  const place = useCallback(() => {
+    const r = controlRef.current?.getBoundingClientRect();
+    if (!r) return;
+    const below = window.innerHeight - r.bottom;
+    const up = below < SUGGEST_PANEL_MAX && r.top > below;
+    setPos(
+      up
+        ? { left: r.left, width: r.width, bottom: window.innerHeight - r.top + SUGGEST_PANEL_GAP }
+        : { left: r.left, width: r.width, top: r.bottom + SUGGEST_PANEL_GAP },
+    );
+  }, []);
+
+  useLayoutEffect(() => {
+    if (showList) place();
+  }, [showList, place]);
+
+  useEffect(() => {
+    if (!showList) return undefined;
+    window.addEventListener('scroll', place, true);
+    window.addEventListener('resize', place);
+    return () => {
+      window.removeEventListener('scroll', place, true);
+      window.removeEventListener('resize', place);
+    };
+  }, [showList, place]);
+
+  // Mở hoặc đổi từ khóa: sáng mục đang chọn (nếu có) và cuộn tới nó.
+  useEffect(() => {
+    if (!open) return;
+    const i = filter.indexOf(value);
+    setActive(i >= 0 ? i : typed && filter.length ? 0 : -1);
+  }, [open, query]); // eslint-disable-line react-hooks/exhaustive-deps -- chỉ đặt lại mục sáng khi mở hoặc đổi từ khóa
+
+  useEffect(() => {
+    listRef.current?.querySelector('[data-active="true"]')?.scrollIntoView({ block: 'nearest' });
+  }, [active, pos]);
+
+  const pick = (s) => {
     onChange(s);
     setQuery(s);
     setOpen(false);
@@ -201,10 +256,59 @@ export function IntakeSuggestField({ value, onChange, suggestions = [], maxLengt
     if (document.activeElement !== inputRef.current) setQuery(value ?? '');
   }, [value]);
 
+  const onKeyDown = (e) => {
+    if (e.key === 'Escape' && showList) {
+      e.stopPropagation();
+      setOpen(false);
+    } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (!showList) {
+        setOpen(true);
+        return;
+      }
+      const step = e.key === 'ArrowDown' ? 1 : -1;
+      setActive((i) => (i + step + filter.length) % filter.length);
+    } else if (e.key === 'Enter' && showList && filter[active] != null) {
+      e.preventDefault();
+      pick(filter[active]);
+    }
+  };
+
+  const panel =
+    showList && pos
+      ? createPortal(
+          <div className="search-select__panel" style={pos}>
+            <div className="search-select__list" role="listbox" id={`${id}-list`} ref={listRef}>
+              {filter.map((s, i) => (
+                <button
+                  key={s}
+                  type="button"
+                  role="option"
+                  tabIndex={-1}
+                  aria-selected={String(value) === s}
+                  data-active={i === active}
+                  className="search-select__option"
+                  onMouseEnter={() => setActive(i)}
+                  // preventDefault giữ focus ở input, tránh blur đóng list trước khi chọn được.
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    pick(s);
+                  }}
+                >
+                  <span className="search-select__text">{s}</span>
+                  {String(value) === s && <Check size={16} className="search-select__check" />}
+                </button>
+              ))}
+            </div>
+          </div>,
+          document.body,
+        )
+      : null;
+
   return (
     <IntakeField {...props}>
       <div className="tr-intake-suggest">
-        <div className={`tr-intake-suggest__control ${showList ? 'tr-intake-suggest__control--open' : ''}`}>
+        <div ref={controlRef} className={`tr-intake-suggest__control ${showList ? 'tr-intake-suggest__control--open' : ''}`}>
           <input
             id={id}
             ref={inputRef}
@@ -216,18 +320,22 @@ export function IntakeSuggestField({ value, onChange, suggestions = [], maxLengt
             role="combobox"
             aria-haspopup="listbox"
             aria-expanded={showList}
+            aria-controls={showList ? `${id}-list` : undefined}
             aria-autocomplete="list"
             onFocus={() => {
               clearTimeout(blurTimer.current);
               blurTimer.current = null;
               setQuery(value ?? '');
+              setTyped(false);
               setOpen(true);
             }}
             onChange={(e) => {
               setQuery(e.target.value);
+              setTyped(true);
               onChange(e.target.value);
               setOpen(true);
             }}
+            onKeyDown={onKeyDown}
             onBlur={() => {
               // Click ra ngoài: đóng list, đồng bộ ô về giá trị đang chọn (value) — không xoá.
               blurTimer.current = setTimeout(() => {
@@ -237,26 +345,9 @@ export function IntakeSuggestField({ value, onChange, suggestions = [], maxLengt
               }, 150);
             }}
           />
-          <span className="tr-intake-suggest__caret" aria-hidden="true" />
+          <ChevronDown size={16} className="muted tr-intake-suggest__chevron" aria-hidden="true" />
         </div>
-        {showList && (
-          <ul className="tr-intake-suggest__list" role="listbox">
-            {filter.map((s) => (
-              <li key={s} role="option" aria-selected={String(value) === s}>
-                <button
-                  type="button"
-                  className="tr-intake-suggest__item"
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    onItemMouseDown(s);
-                  }}
-                >
-                  {s}
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
+        {panel}
       </div>
     </IntakeField>
   );
