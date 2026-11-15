@@ -43,7 +43,7 @@ export function ClassTeachersModal({ cls, teachers, classesOf, onClose }) {
     setSaving(true);
     try {
       await saveClassTeachers(cls.id, form, user);
-      toast.success('Đã lưu. Hãy báo trực tiếp cho giáo viên được phân công.', cls.name);
+      toast.success('Đã lưu.', cls.name);
       onClose(true);
     } catch (err) {
       setErrors(err.details || { _form: err.message });

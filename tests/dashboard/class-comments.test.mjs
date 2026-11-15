@@ -116,10 +116,7 @@ test('xóa trắng được, ngày khóa/lớp khác và nhận xét không hợ
   await repo.saveDailyGeneral({ classId: CLASS, date: TODAY, entries: [], classComment: '' }, TEACHER);
   assert.equal((await repo.getDailyAssessment({ classId: CLASS, date: TODAY }, TEACHER)).classComment.text, '');
   assert.deepEqual((await repo.getClassAssessmentDetail({ classId: CLASS, period: 'DAY' }, VP)).classComments, []);
-  const longComment = 'x'.repeat(10000);
-  await repo.saveDailyGeneral({ classId: CLASS, date: TODAY, entries: [], classComment: longComment }, TEACHER);
-  assert.equal((await repo.getDailyAssessment({ classId: CLASS, date: TODAY }, TEACHER)).classComment.text, longComment);
-  for (const classComment of ['Lớp có trẻ tự kỷ']) {
+  for (const classComment of ['Lớp có trẻ tự kỷ', 'x'.repeat(10000)]) {
     await assert.rejects(
       () => repo.saveDailyGeneral({ classId: CLASS, date: TODAY, entries: [], classComment }, TEACHER),
       (e) => e.status === 400 && !!e.details.classComment,
@@ -176,4 +173,19 @@ test('transport BE giữ chuỗi rỗng để xóa nhận xét, các trường r
   } finally {
     axios.defaults.adapter = previousAdapter;
   }
+});
+
+test('nhận xét chung của lớp quá 500 ký tự: báo lỗi dưới ô nhận xét chung, không lưu', async () => {
+  const { CLASS_COMMENT_MAX } = await import('@/models/assessment/assessmentConstants');
+  const { BE_ERROR_FIELDS } = await import('@/services/http/beErrorFields');
+  assert.equal(CLASS_COMMENT_MAX, 500);
+  assert.equal(BE_ERROR_FIELDS[7322], 'classComment');
+  await repo.getDailyAssessment({ classId: CLASS, date: TODAY }, TEACHER);
+  await assert.rejects(
+    repo.saveDailyGeneral({ classId: CLASS, date: TODAY, entries: [], classComment: 'a'.repeat(CLASS_COMMENT_MAX + 1) }, TEACHER),
+    (err) => err.status === 400 && /500 ký tự/.test(err.details?.classComment),
+  );
+  assert.equal((readDb().classDailyComments || []).length, 0);
+  await repo.saveDailyGeneral({ classId: CLASS, date: TODAY, entries: [], classComment: 'a'.repeat(CLASS_COMMENT_MAX) }, TEACHER);
+  assert.equal(readDb().classDailyComments.length, 1);
 });

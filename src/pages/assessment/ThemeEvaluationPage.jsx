@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { CheckCircle2, Download, Printer, Save } from '@/components/ui/icons';
 import ThemeEvaluationPreviewModal from '@/components/assessment/ThemeEvaluationPreviewModal';
 import { ThemeDailyCrossCheck } from '@/components/assessment/ThemeDailyCrossCheck';
@@ -39,8 +40,10 @@ export default function ThemeEvaluationPage() {
   const yearLabel = schoolYears.find((y) => String(y.id) === String(schoolYear))?.label;
   const toast = useToast();
   const { classes, loading: classesLoading, error: classesError } = useThemeClasses();
-  const [classId, setClassId] = useState('');
-  const [themeId, setThemeId] = useState('');
+  // Mở từ thông báo nhắc việc: điền sẵn lớp, chủ đề (?classId=&period=)
+  const [search] = useSearchParams();
+  const [classId, setClassId] = useState(search.get('classId') || '');
+  const [themeId, setThemeId] = useState(search.get('period') || '');
   const currentClassId = classId || classes[0]?.classId || '';
   const { themes, loading: themesLoading, error: themesError, reload: reloadThemes } = useThemeList(currentClassId);
   // Mặc định chủ đề đã kết thúc gần nhất, chưa có thì chủ đề đang diễn ra
@@ -242,13 +245,6 @@ export default function ThemeEvaluationPage() {
                   </span>
                 )}
               </div>
-              {canEdit && (
-                <p className="muted text-sm mt-8">
-                  Hệ thống điền từ Kiến thức kỹ năng hằng ngày: mục tiêu Đạt khi có ít nhất một hoạt động trong thời gian chủ đề được chấm
-                  Đạt; trẻ vắng hoặc chưa có lần Đạt nào thì Chưa đạt. Bấm vào ô để sửa tay (đổi Đạt / Chưa đạt); bấm tiếp tới khi về kết
-                  quả hệ thống. Ô sửa tay có viền đậm.
-                </p>
-              )}
             </div>
             {ev.goals.length === 0 ? (
               <EmptyState title="Chủ đề chưa có mục tiêu" description="Kế hoạch năm học chưa tích mục tiêu nào cho chủ đề này." />

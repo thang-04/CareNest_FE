@@ -85,7 +85,7 @@ function CampusForm({ campus, others, user }) {
           <FormField label="Mã điểm trường" required error={errors.code}>
             <input className="input" value={form.code} onChange={(e) => set({ code: e.target.value })} onBlur={() => blurCheck('code')} />
           </FormField>
-          <FormField label="Tên ngắn" required error={errors.shortName} hint="Hiển thị trong menu, bảng">
+          <FormField label="Tên ngắn" required error={errors.shortName}>
             <input
               className="input"
               value={form.shortName}
@@ -119,11 +119,6 @@ function CampusForm({ campus, others, user }) {
             <input type="checkbox" checked={form.isMain} disabled={!!campus?.isMain} onChange={(e) => set({ isMain: e.target.checked })} />
             Điểm trường chính
           </label>
-          <div className="field__hint">
-            {campus?.isMain
-              ? 'Trường luôn có đúng một điểm trường chính. Muốn đổi, hãy đánh dấu điểm trường khác là điểm trường chính.'
-              : 'Đánh dấu điểm trường này là điểm trường chính sẽ bỏ dấu ở điểm trường chính hiện tại.'}
-          </div>
           {errors.isMain && <span className="field__error">{errors.isMain}</span>}
         </div>
       </section>
