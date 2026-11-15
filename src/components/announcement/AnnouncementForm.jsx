@@ -1,3 +1,4 @@
+import { Button, SelectField, TextAreaField, TextField } from '@/components';
 import { useEffect, useRef, useState } from 'react';
 import RecipientTargetForm, { emptyTarget } from './RecipientTargetForm';
 import AnnouncementAttachments from './AnnouncementAttachments';
@@ -76,7 +77,7 @@ export default function AnnouncementForm({ initial, onSave, busy, serverErrors =
     <form className="card card__body stack gap-4" onSubmit={submit}>
       <label className="field">
         Dùng mẫu{' '}
-        <select
+        <SelectField
           className="select"
           defaultValue=""
           onChange={(e) => {
@@ -93,11 +94,11 @@ export default function AnnouncementForm({ initial, onSave, busy, serverErrors =
               {t.name}
             </option>
           ))}
-        </select>
+        </SelectField>
       </label>
       <label className="field">
         Tiêu đề{' '}
-        <input
+        <TextField
           className="input"
           required
           aria-invalid={!!serverErrors.title}
@@ -109,7 +110,7 @@ export default function AnnouncementForm({ initial, onSave, busy, serverErrors =
       </label>
       <label className="field">
         Nội dung{' '}
-        <textarea
+        <TextAreaField
           className="textarea"
           required
           aria-invalid={!!serverErrors.body}
@@ -122,9 +123,9 @@ export default function AnnouncementForm({ initial, onSave, busy, serverErrors =
       </label>
       <RecipientTargetForm value={target} onChange={updateTarget} />
       {serverErrors.target && <p className="field__error">{serverErrors.target}</p>}
-      <button type="button" className="btn" onClick={loadPreview}>
+      <Button type="button" className="btn" onClick={loadPreview}>
         Xem trước người nhận
-      </button>
+      </Button>
       {preview && (
         <p>
           Tổng số người nhận: {preview.total}{' '}
@@ -135,14 +136,14 @@ export default function AnnouncementForm({ initial, onSave, busy, serverErrors =
       )}
       <label className="field">
         Hẹn gửi (giờ Việt Nam; để trống để gửi ngay){' '}
-        <input className="input" type="datetime-local" value={sendAt} onChange={(e) => setSendAt(e.target.value)} />
+        <TextField className="input" type="datetime-local" value={sendAt} onChange={(e) => setSendAt(e.target.value)} />
         {serverErrors.sendAt && <span className="field__error">{serverErrors.sendAt}</span>}
       </label>
       <AnnouncementAttachments existing={initial?.attachments} keepIds={keepIds} onKeepChange={setKeepIds} onFilesChange={setFiles} />
       {error && <p role="alert">{error}</p>}
-      <button className="btn btn--primary" disabled={busy || !preview?.total}>
+      <Button type="submit" variant="primary" disabled={busy || !preview?.total}>
         {busy ? 'Đang lưu…' : 'Lưu thông báo'}
-      </button>
+      </Button>
     </form>
   );
 }

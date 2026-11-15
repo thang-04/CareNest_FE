@@ -1,3 +1,4 @@
+import { Button, TextField } from '@/components';
 import { useEffect, useRef, useState } from 'react';
 import { announcements } from '@/services/announcement/announcementService';
 
@@ -35,7 +36,8 @@ export default function AnnouncementAttachments({ existing = [], keepIds = [], o
         <div key={file.id}>
           {!readOnly && (
             <label className="field">
-              <input
+              <TextField
+                className=""
                 type="checkbox"
                 checked={keepIds.includes(file.id)}
                 onChange={(e) => onKeepChange(e.target.checked ? [...keepIds, file.id] : keepIds.filter((id) => id !== file.id))}
@@ -43,16 +45,16 @@ export default function AnnouncementAttachments({ existing = [], keepIds = [], o
               Giữ{' '}
             </label>
           )}
-          <button type="button" className="btn" onClick={() => download(file)}>
+          <Button type="button" className="btn" onClick={() => download(file)}>
             {file.fileName}
-          </button>
+          </Button>
         </div>
       ))}
       {!readOnly && (
         <>
           <label className="field">
             Thêm tệp{' '}
-            <input
+            <TextField
               className="input"
               type="file"
               multiple

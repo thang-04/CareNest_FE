@@ -1,3 +1,4 @@
+import { Button } from '@/components';
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, ExternalLink } from '@/components/ui/icons';
@@ -68,9 +69,9 @@ export default function NotificationDetailPage() {
             <div>
               <h3>Tệp đính kèm</h3>
               {n.attachments.map((attachment) => (
-                <button key={attachment.id} type="button" className="btn" onClick={() => openAttachment(attachment)}>
+                <Button key={attachment.id} type="button" className="btn" onClick={() => openAttachment(attachment)}>
                   {attachment.fileName}
-                </button>
+                </Button>
               ))}
               {attachmentError && <p role="alert">{attachmentError}</p>}
             </div>
@@ -79,9 +80,9 @@ export default function NotificationDetailPage() {
         <div className="card__body page-actions ac-actions">
           {back}
           {n.link ? (
-            <button type="button" className="btn btn--primary" onClick={() => navigate(n.link)}>
+            <Button type="button" className="btn btn--primary" onClick={() => navigate(n.link)}>
               <ExternalLink size={16} /> Mở nội dung liên quan
-            </button>
+            </Button>
           ) : (
             <span className="muted text-sm">Thông báo này không gắn với hồ sơ nào.</span>
           )}

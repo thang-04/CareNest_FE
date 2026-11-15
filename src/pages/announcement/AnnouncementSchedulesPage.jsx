@@ -1,3 +1,4 @@
+import { Button, SelectField, TextField } from '@/components';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { useCallback, useEffect, useState } from 'react';
 import RecipientTargetForm, { emptyTarget } from '@/components/announcement/RecipientTargetForm';
@@ -79,7 +80,7 @@ export default function AnnouncementSchedulesPage() {
         {items.map((item) => (
           <div key={item.id}>
             <strong>{item.templateName}</strong> · {item.active ? 'Đang bật' : 'Đã tắt'} · Lần gửi tiếp: {item.nextRunAt || '—'}{' '}
-            <button
+            <Button
               className="btn"
               onClick={() => {
                 setId(item.id);
@@ -87,13 +88,13 @@ export default function AnnouncementSchedulesPage() {
               }}
             >
               Sửa
-            </button>
-            <button className="btn" onClick={() => toggle(item)}>
+            </Button>
+            <Button className="btn" onClick={() => toggle(item)}>
               {item.active ? 'Tắt' : 'Bật'}
-            </button>
-            <button className="btn" onClick={() => remove(item)}>
+            </Button>
+            <Button className="btn" onClick={() => remove(item)}>
               Xóa
-            </button>
+            </Button>
           </div>
         ))}
       </div>
@@ -101,27 +102,32 @@ export default function AnnouncementSchedulesPage() {
         <h2>{id ? 'Sửa lịch' : 'Tạo lịch'}</h2>
         <label className="field">
           Mẫu{' '}
-          <select className="select" required value={form.templateId} onChange={(e) => setForm({ ...form, templateId: e.target.value })}>
+          <SelectField
+            className="select"
+            required
+            value={form.templateId}
+            onChange={(e) => setForm({ ...form, templateId: e.target.value })}
+          >
             <option value="">Chọn mẫu</option>
             {templates.map((t) => (
               <option value={t.id} key={t.id}>
                 {t.name}
               </option>
             ))}
-          </select>
+          </SelectField>
         </label>
         <RecipientTargetForm value={form.target} onChange={(target) => setForm({ ...form, target })} />
         <label className="field">
           Tần suất{' '}
-          <select className="select" value={form.frequency} onChange={(e) => setForm({ ...form, frequency: e.target.value })}>
+          <SelectField className="select" value={form.frequency} onChange={(e) => setForm({ ...form, frequency: e.target.value })}>
             <option value="WEEKLY">Hàng tuần</option>
             <option value="MONTHLY">Hàng tháng</option>
-          </select>
+          </SelectField>
         </label>
         {form.frequency === 'WEEKLY' ? (
           <label className="field">
             Thứ{' '}
-            <select
+            <SelectField
               className="select"
               value={form.dayOfWeek ?? 1}
               onChange={(e) => setForm({ ...form, dayOfWeek: Number(e.target.value) })}
@@ -131,12 +137,12 @@ export default function AnnouncementSchedulesPage() {
                   {d === 7 ? 'Chủ nhật' : `Thứ ${d + 1}`}
                 </option>
               ))}
-            </select>
+            </SelectField>
           </label>
         ) : (
           <label className="field">
             Ngày trong tháng{' '}
-            <input
+            <TextField
               className="input"
               type="number"
               required
@@ -149,7 +155,7 @@ export default function AnnouncementSchedulesPage() {
         )}
         <label className="field">
           Giờ gửi (giờ Việt Nam){' '}
-          <input
+          <TextField
             className="input"
             required
             type="time"
@@ -158,11 +164,14 @@ export default function AnnouncementSchedulesPage() {
           />
         </label>
         <label className="field">
-          <input type="checkbox" checked={form.active} onChange={(e) => setForm({ ...form, active: e.target.checked })} /> Bật lịch
+          <TextField className="" type="checkbox" checked={form.active} onChange={(e) => setForm({ ...form, active: e.target.checked })} />{' '}
+          Bật lịch
         </label>
-        <button className="btn btn--primary">Lưu lịch</button>
+        <Button type="submit" variant="primary">
+          Lưu lịch
+        </Button>
         {id && (
-          <button
+          <Button
             type="button"
             className="btn"
             onClick={() => {
@@ -171,7 +180,7 @@ export default function AnnouncementSchedulesPage() {
             }}
           >
             Hủy sửa
-          </button>
+          </Button>
         )}
       </form>
     </div>

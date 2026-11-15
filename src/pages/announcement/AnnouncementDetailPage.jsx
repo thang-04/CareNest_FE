@@ -1,3 +1,5 @@
+import '@/styles/modules/announcement.css';
+import { Button } from '@/components';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
@@ -55,16 +57,16 @@ export default function AnnouncementDetailPage() {
           <p>
             Trạng thái: {data.status} · Người nhận: {data.recipientCount}
           </p>
-          <p style={{ whiteSpace: 'pre-wrap' }}>{data.body}</p>
+          <p className="announcement-body">{data.body}</p>
           <AnnouncementAttachments existing={data.attachments || []} readOnly />
           {data.canEdit && (
             <div className="row gap-2">
               <Link className="btn" to={`/announcements/${id}/edit`}>
                 Sửa
               </Link>
-              <button className="btn" onClick={cancel}>
+              <Button className="btn" onClick={cancel}>
                 Hủy lịch
-              </button>
+              </Button>
             </div>
           )}
         </div>

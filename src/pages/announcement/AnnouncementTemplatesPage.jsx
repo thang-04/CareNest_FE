@@ -1,3 +1,4 @@
+import { Button, SelectField, TextAreaField, TextField } from '@/components';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -59,7 +60,7 @@ export default function AnnouncementTemplatesPage() {
             <strong>{item.name}</strong> — {item.title}{' '}
             {item.canEdit && (
               <>
-                <button
+                <Button
                   className="btn"
                   onClick={() => {
                     setId(item.id);
@@ -67,10 +68,10 @@ export default function AnnouncementTemplatesPage() {
                   }}
                 >
                   Sửa
-                </button>
-                <button className="btn" onClick={() => remove(item)}>
+                </Button>
+                <Button className="btn" onClick={() => remove(item)}>
                   Xóa
-                </button>
+                </Button>
               </>
             )}
           </div>
@@ -80,7 +81,7 @@ export default function AnnouncementTemplatesPage() {
         <h2>{id ? 'Sửa mẫu' : 'Tạo mẫu'}</h2>
         <label className="field">
           Tên mẫu{' '}
-          <input
+          <TextField
             className="input"
             required
             maxLength={100}
@@ -90,7 +91,7 @@ export default function AnnouncementTemplatesPage() {
         </label>
         <label className="field">
           Tiêu đề{' '}
-          <input
+          <TextField
             className="input"
             required
             maxLength={150}
@@ -100,7 +101,7 @@ export default function AnnouncementTemplatesPage() {
         </label>
         <label className="field">
           Nội dung{' '}
-          <textarea
+          <TextAreaField
             className="textarea"
             required
             maxLength={4000}
@@ -110,7 +111,7 @@ export default function AnnouncementTemplatesPage() {
         </label>
         <label className="field">
           Điểm trường{' '}
-          <select
+          <SelectField
             className="select"
             required={user?.role === 'VICE_PRINCIPAL'}
             value={form.campusId ?? ''}
@@ -122,11 +123,13 @@ export default function AnnouncementTemplatesPage() {
                 {x.name}
               </option>
             ))}
-          </select>
+          </SelectField>
         </label>
-        <button className="btn btn--primary">Lưu mẫu</button>
+        <Button type="submit" variant="primary">
+          Lưu mẫu
+        </Button>
         {id && (
-          <button
+          <Button
             type="button"
             className="btn"
             onClick={() => {
@@ -135,7 +138,7 @@ export default function AnnouncementTemplatesPage() {
             }}
           >
             Hủy sửa
-          </button>
+          </Button>
         )}
       </form>
     </div>

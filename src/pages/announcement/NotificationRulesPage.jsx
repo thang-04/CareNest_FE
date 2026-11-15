@@ -1,3 +1,4 @@
+import { Button, TextAreaField, TextField } from '@/components';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { useEffect, useState } from 'react';
 import { announcements } from '@/services/announcement/announcementService';
@@ -46,7 +47,8 @@ export default function NotificationRulesPage() {
             {item.mandatory ? 'Bắt buộc' : 'Tùy chọn'} · {item.customized ? 'Đã tùy chỉnh' : 'Mặc định'}
           </p>
           <label className="field">
-            <input
+            <TextField
+              className=""
               type="checkbox"
               disabled={!item.editable || item.mandatory}
               checked={item.enabled}
@@ -56,7 +58,7 @@ export default function NotificationRulesPage() {
           </label>
           <label className="field">
             Tiêu đề{' '}
-            <input
+            <TextField
               className="input"
               disabled={!item.editable}
               maxLength={150}
@@ -66,7 +68,7 @@ export default function NotificationRulesPage() {
           </label>
           <label className="field">
             Nội dung{' '}
-            <textarea
+            <TextAreaField
               className="textarea"
               disabled={!item.editable}
               maxLength={500}
@@ -76,9 +78,9 @@ export default function NotificationRulesPage() {
           </label>
           <p>Biến được hỗ trợ: {(item.variables || []).join(', ') || 'Không có'}</p>
           {item.editable && (
-            <button className="btn" onClick={() => save(i)}>
+            <Button className="btn" onClick={() => save(i)}>
               Lưu
-            </button>
+            </Button>
           )}
         </section>
       ))}
