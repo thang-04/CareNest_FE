@@ -322,17 +322,30 @@ const zipStored = (files, now) => {
   return out;
 };
 
+/** Gắn kiểu cho ô thô; ô đã là { v, s } thì giữ nguyên kiểu người gọi chọn. */
+const styled = (raw, s) => (raw != null && typeof raw === 'object' ? raw : { v: raw ?? null, s });
+
 /**
- * Mảng dòng -> sheet: dòng `headerRow` in đậm, độ rộng cột theo nội dung (8–60 ký tự). Dùng cho xuất dữ liệu bảng đơn giản
- * (xem trước xuất file, báo cáo chủ đề); báo cáo có ô gộp, viền, cố định dòng truyền thẳng sheet.
+ * Mảng dòng -> sheet có kẻ bảng giống hộp xem trước (ExportPreview): dòng một ô là tiêu đề ('title' trước dòng tiêu đề cột,
+ * 'bold' cho tên phần), không viền; dòng `headerRow` kiểu 'head'; dòng còn lại kẻ đủ `width` ô, số 'num', chữ 'cell'.
+ * Độ rộng cột theo nội dung (8–60 ký tự); báo cáo có ô gộp, cố định dòng truyền thẳng sheet.
  */
 export const rowsToSheet = (rows, { sheetName = 'Sheet1', headerRow = -1 } = {}) => {
   const width = Math.max(1, ...rows.map((r) => r.length));
-  const cols = Array.from({ length: width }, (_, c) => Math.min(60, Math.max(8, ...rows.map((r) => String(r[c] ?? '').length + 2))));
+  // Dòng một ô không tính vào độ rộng cột: tiêu đề dài tràn sang ô trống bên phải như màn xem trước
+  const cols = Array.from({ length: width }, (_, c) =>
+    Math.min(60, Math.max(8, ...rows.filter((r) => r.length > 1).map((r) => String(cellOf(r[c]).v ?? '').length + 2))),
+  );
   return {
     name: sheetName,
     cols,
-    rows: rows.map((r, ri) => (ri === headerRow ? r.map((v) => (v == null || v === '' ? v : { v, s: 'bold' })) : r)),
+    rows: rows.map((r, ri) => {
+      if (r.length <= 1) return r.length ? [styled(r[0], ri < headerRow ? 'title' : 'bold')] : r;
+      return Array.from({ length: width }, (_, c) => {
+        if (ri === headerRow) return styled(r[c], 'head');
+        return styled(r[c], typeof cellOf(r[c]).v === 'number' ? 'num' : 'cell');
+      });
+    }),
   };
 };
 
