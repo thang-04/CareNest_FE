@@ -178,7 +178,7 @@ export default function TeacherAssignmentPage() {
   const onSaveLeader = async (group, userId) => {
     try {
       await saveTeamLeader({ schoolYear: yearId, ageGroupId: group.id, userId }, user);
-      toast.success(userId ? 'Đã lưu. Hãy báo trực tiếp cho tổ trưởng.' : 'Đã bỏ phân công tổ trưởng.', group.name);
+      toast.success(userId ? 'Đã lưu. Tổ trưởng đã nhận thông báo.' : 'Đã bỏ phân công tổ trưởng.', group.name);
       leaders.reload({ silent: true });
       return true;
     } catch (err) {
@@ -223,8 +223,11 @@ export default function TeacherAssignmentPage() {
                 <tbody>
                   {groups.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="muted center">
-                        Năm học này chưa có lớp.
+                      <td colSpan={4}>
+                        <EmptyState
+                          title="Năm học này chưa có lớp"
+                          description="Tạo lớp ở màn Nhóm tuổi & lớp rồi quay lại phân công giáo viên."
+                        />
                       </td>
                     </tr>
                   ) : (

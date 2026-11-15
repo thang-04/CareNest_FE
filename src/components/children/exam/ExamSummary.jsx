@@ -1,8 +1,7 @@
-import { Link } from 'react-router-dom';
-import { GENDER_LABELS } from '@/models/School';
-import { PARENT_CONTACT_STATUS } from '@/models/children/healthCheckConstants';
+import { Fragment } from 'react';
 import {
   CLINICAL_GROUPS,
+  COMPANION_OPTIONS,
   DEVELOPMENT_ITEMS,
   HEAD_STATUS_OPTIONS,
   HISTORY_ITEMS,
@@ -13,215 +12,170 @@ import {
   YES_NO,
   conclusionActionLabelOf,
   conclusionLabelOf,
+  labelOf,
 } from '@/models/children/healthExamForm';
 import { formatDate, formatDateTime } from '@/utils/format';
 import { formatDecimal } from '@/utils/children/healthExamHints';
-import { ParentContactBadge } from '../ChildBadges';
-import { SplitInfoList } from './SplitInfoList';
+import { profileRows } from './ExamAdminStep';
+import { vitalReferenceText } from './ExamMeasureStep';
+import { EXAM_SECTIONS, ExamSheetBand, ExamSheetRows, ExamSheetTable } from './ExamFields';
 
 const isBlank = (v) => v === '' || v == null;
-const show = (v, unit = '') => (isBlank(v) ? <span className="muted">—</span> : `${typeof v === 'number' ? formatDecimal(v) : v}${unit}`);
-const yesNo = (v) => (v === YES_NO.YES ? 'Có' : v === YES_NO.NO ? 'Không' : null);
+const blank = <span className="muted">—</span>;
+const show = (v, unit = '') => (isBlank(v) ? blank : `${typeof v === 'number' ? formatDecimal(v) : v}${unit}`);
 
 /** Giá trị một câu theo lựa chọn của mẫu; lựa chọn bất thường hiện dạng chip cảnh báo. */
 function Choice({ options, value }) {
   const o = options.find((x) => x.value === value);
-  if (!o) return <span className="muted">—</span>;
+  if (!o) return blank;
   return o.abnormal ? <span className="chip chip--orange">{o.label}</span> : o.label;
 }
 
-const row = (key, label, value, className) => ({ key, label, value, className });
+const textRow = (key, label, value, className) => ({ key, label, cell: <td className={className}>{value}</td> });
+const choiceRows = (items, values) =>
+  items.map((item) => textRow(item.key, item.label, <Choice options={item.options} value={values[item.key]} />));
 
-/** Phiếu mức Cần theo dõi sát: đã trao đổi với phụ huynh chưa (BE trả parentContact, user chốt 2026-10-23). */
-function ParentContact({ contact, followUpId }) {
-  return (
-    <div className="tr-cell-stack">
-      <ParentContactBadge status={contact.contacted ? PARENT_CONTACT_STATUS.CONTACTED : PARENT_CONTACT_STATUS.NOT_CONTACTED} />
-      <span className="muted text-sm">
-        {contact.atExam
-          ? 'Tại buổi khám, với người đi cùng.'
-          : contact.contacted
-            ? `Ngày ${formatDate(contact.on)}, ghi trong phiếu theo dõi.`
-            : 'Không có người đi cùng: giáo viên trao đổi với phụ huynh rồi ghi vào phiếu theo dõi.'}{' '}
-        {followUpId && (
-          <Link className="text-primary" to={`/children/health-follow-ups/${followUpId}`}>
-            Mở phiếu theo dõi
-          </Link>
-        )}
-      </span>
-    </div>
-  );
-}
-
-/** Một phần của phiếu; màn rộng chia đôi danh sách cho đỡ trống (user yêu cầu 2026-10-22). */
-function Section({ title, rows }) {
-  return (
-    <section className="tr-exam-section">
-      <h3 className="subsection-title">{title}</h3>
-      <SplitInfoList rows={rows} />
-    </section>
-  );
-}
-
-/** Phiếu Phụ lục II chỉ đọc (đã kết luận, hoặc người xem không nhập được). CCCD chỉ hiện ở đây. */
-export function ExamSummary({ measurement: m, child, campaign }) {
+/**
+ * Phiếu Phụ lục II chỉ đọc (đã kết luận, hoặc người xem không nhập được): một bảng liền như form (TT, nội dung kiểm tra, kết quả;
+ * không dòng tiêu đề cột), dải phần I → VI → Kết luận, giá trị là chữ. CCCD chỉ hiện ở đây. framed=false (hộp xem phiếu ở Sổ sức khỏe): chỉ bảng, không card.
+ * reference: khoảng tham khảo BE trả theo tuổi ở ngày khám, hiện dưới số sinh tồn.
+ */
+export function ExamSummary({ measurement: m, child, campaign, reference, framed = true }) {
   const e = m.exam;
   const a = e.admin;
+  const h = e.history;
+  const n = e.nutrition;
   const c = e.conclusion;
-  const choiceRow = (prefix, values) => (i) =>
-    row(
-      `${prefix}.${i.key}`,
-      prefix === 'immunization' ? `Tiêm chủng — ${i.label}` : i.label,
-      <Choice options={i.options} value={values[i.key]} />,
-    );
-  return (
-    <div className="tr-exam-summary">
-      <Section
-        title="I. Thông tin hành chính"
-        rows={[
-          row('name', 'Họ và tên', child.fullName.toUpperCase(), 'fw-600'),
-          row('idNumber', 'Số CC/CCCD/Hộ chiếu/Mã định danh', show(a.childIdNumber)),
-          row('dob', 'Ngày sinh · Giới', `${formatDate(child.dateOfBirth)} · ${GENDER_LABELS[child.gender] || child.gender}`),
-          row(
-            'premature',
-            'Sinh non · Tuần thai khi sinh',
-            <>
-              {yesNo(a.premature) || '—'} · {show(a.gestationWeeks, ' tuần')}
-            </>,
-          ),
-          row(
-            'ethnicity',
-            'Dân tộc · Đối tượng',
-            <>
-              {show(a.ethnicity)} · {show(a.beneficiary)}
-            </>,
-          ),
-          row('bloodType', 'Nhóm máu', show(a.bloodType)),
-          row('address', 'Nơi ở hiện tại', show([a.address.street, a.address.ward, a.address.province].filter(Boolean).join(', '))),
-          row('school', 'Cơ sở giáo dục', `${child.schoolName} · ${child.className}`),
-          row(
-            'companion',
-            'Người đi cùng trẻ',
-            a.hasCompanion === YES_NO.YES ? (
-              <>
-                {a.companion.fullName} ({a.companion.relation}){a.companion.phone ? ` · ${a.companion.phone}` : ''}
-                {a.companion.idNumber ? ` · CCCD ${a.companion.idNumber}` : ''}
-              </>
-            ) : (
-              'Không có người đi cùng'
-            ),
-          ),
-          row('examDate', 'Ngày · Cơ sở kiểm tra sức khỏe', `${formatDate(m.date)} · ${campaign.examiner || '—'}`),
-          ...HISTORY_ITEMS.map((i) =>
-            row(
-              `history.${i.key}`,
-              i.label,
-              <>
-                <Choice options={i.options} value={e.history[i.key]} />
-                {i.textKey && e.history[i.textKey] ? ` — ${e.history[i.textKey]}` : ''}
-                {i.dateKey && e.history[i.dateKey] ? ` — gần nhất ngày ${formatDate(e.history[i.dateKey])}` : ''}
-              </>,
-            ),
-          ),
-        ]}
-      />
+  const companion = a.hasCompanion === YES_NO.YES;
 
-      <Section
-        title="II. Dấu hiệu sinh tồn"
-        rows={VITAL_ITEMS.map((i) =>
-          row(
-            i.key,
-            i.label,
-            <>
-              {show(e.vitals[i.key])} · <Choice options={i.options} value={e.vitals[i.statusKey]} />
-            </>,
-          ),
+  const companionRows = [
+    textRow('hasCompanion', 'Có người đi cùng trẻ khi khám', labelOf(COMPANION_OPTIONS, a.hasCompanion) || blank),
+    companion && textRow('companionName', 'Họ tên', show(a.companion.fullName), 'fw-600'),
+    companion && textRow('companionRelation', 'Mối quan hệ với trẻ', show(a.companion.relation)),
+    companion && textRow('companionPhone', 'Số điện thoại liên hệ', show(a.companion.phone)),
+    companion && textRow('companionId', 'Số CC/CCCD/Mã định danh', show(a.companion.idNumber)),
+  ];
+  const historyRows = HISTORY_ITEMS.map((item) => {
+    const detail = h[item.key] === YES_NO.YES && (h[item.textKey] || (h[item.dateKey] && formatDate(h[item.dateKey])));
+    return textRow(
+      item.key,
+      item.label,
+      <>
+        <Choice options={item.options} value={h[item.key]} />
+        {detail && ` · ${item.textKey ? item.textLabel : item.dateLabel}: ${detail}`}
+      </>,
+    );
+  });
+  const vitalRows = VITAL_ITEMS.map((item) =>
+    textRow(
+      item.key,
+      item.label,
+      <>
+        {show(e.vitals[item.key])} · <Choice options={item.options} value={e.vitals[item.statusKey]} />
+        {reference && <span className="field__hint">{vitalReferenceText(item, reference.vitals)}</span>}
+      </>,
+    ),
+  );
+  const nutritionRows = [
+    textRow('height', 'Chiều cao/chiều dài (cm)', show(m.heightCm)),
+    textRow('lengthForAge', 'Chiều dài/Tuổi (SD)', show(n.lengthForAgeSd)),
+    textRow('weight', 'Cân nặng (kg)', show(m.weightKg)),
+    textRow('weightForAge', 'Cân nặng/Tuổi (SD)', show(n.weightForAgeSd)),
+    textRow(
+      'head',
+      'Vòng đầu (cm)',
+      m.headCircumferenceCm == null ? (
+        <span className="muted">Không đo</span>
+      ) : (
+        <>
+          {show(m.headCircumferenceCm)} · <Choice options={HEAD_STATUS_OPTIONS} value={n.headStatus} />
+        </>
+      ),
+    ),
+    textRow('arm', 'Chu vi vòng cánh tay (mm)', show(n.armCircumferenceMm)),
+    textRow('bmi', 'BMI (hệ thống tính)', show(m.bmi)),
+    textRow(
+      'statuses',
+      'Tình trạng dinh dưỡng (theo bác sĩ)',
+      n.statuses.length === 0 ? (
+        blank
+      ) : (
+        <div className="row row--wrap gap-2">
+          {n.statuses.map((st) => (
+            <Fragment key={st}>
+              <Choice options={NUTRITION_STATUS_OPTIONS} value={st} />
+            </Fragment>
+          ))}
+        </div>
+      ),
+    ),
+  ];
+  const conclusionRows = [
+    textRow(
+      'conclusion',
+      c.followUpFinding ? 'So với vấn đề đang theo dõi' : 'Kết luận về sức khỏe',
+      conclusionLabelOf(c) || blank,
+      'fw-600',
+    ),
+    c.issueText && textRow('issueText', c.followUpFinding ? 'Ghi rõ vấn đề' : 'Ghi rõ vấn đề sức khỏe', c.issueText, 'tr-pre-line'),
+    c.issueKind && textRow('issueKind', 'Vấn đề này', ISSUE_KIND_LABELS[c.issueKind]),
+    textRow('action', 'Cần được tư vấn/chuyển khám chuyên khoa', conclusionActionLabelOf(c) || blank),
+    c.adviceText && textRow('adviceText', 'Lời tư vấn của bác sĩ', c.adviceText, 'tr-pre-line'),
+    textRow('doctor', 'Bác sĩ kết luận', c.doctorName || blank),
+    c.parentOpinion && textRow('parentOpinion', 'Ý kiến phụ huynh', c.parentOpinion, 'tr-pre-line'),
+    textRow(
+      'measuredBy',
+      'Người nhập phiếu',
+      `${m.measuredByName || '—'}${m.concludedAt ? ` · lưu kết luận ${formatDateTime(m.concludedAt)}` : ''}`,
+    ),
+  ];
+
+  const sheet = (
+    <ExamSheetTable label="Phiếu kiểm tra sức khỏe">
+      <ExamSheetBand primary>{EXAM_SECTIONS.admin}</ExamSheetBand>
+      <ExamSheetRows rows={profileRows({ child, admin: a, campaign, blank, dateCell: <td>{formatDate(m.date)}</td> })} />
+      <ExamSheetBand>Người đi cùng trẻ</ExamSheetBand>
+      <ExamSheetRows rows={companionRows} />
+      <ExamSheetBand>Tiền sử</ExamSheetBand>
+      <ExamSheetRows rows={historyRows} />
+      <ExamSheetBand primary>{EXAM_SECTIONS.vitals}</ExamSheetBand>
+      <ExamSheetRows rows={vitalRows} />
+      <ExamSheetBand primary>{EXAM_SECTIONS.nutrition}</ExamSheetBand>
+      <ExamSheetRows rows={nutritionRows} />
+      <ExamSheetBand primary>{EXAM_SECTIONS.development}</ExamSheetBand>
+      <ExamSheetRows
+        rows={choiceRows(
+          DEVELOPMENT_ITEMS.filter((i) => !i.ageMonths || e.development[i.key]),
+          e.development,
         )}
       />
-
-      <Section
-        title="III. Dinh dưỡng"
-        rows={[
-          row(
-            'height',
-            'Chiều cao/chiều dài · Chiều dài/Tuổi',
-            <>
-              {show(m.heightCm, ' cm')} · {show(e.nutrition.lengthForAgeSd, ' SD')}
-            </>,
-          ),
-          row(
-            'weight',
-            'Cân nặng · Cân nặng/Tuổi',
-            <>
-              {show(m.weightKg, ' kg')} · {show(e.nutrition.weightForAgeSd, ' SD')}
-            </>,
-          ),
-          row(
-            'head',
-            'Vòng đầu',
-            m.headCircumferenceCm == null ? (
-              <span className="muted">Không đo</span>
-            ) : (
-              <>
-                {show(m.headCircumferenceCm, ' cm')} · <Choice options={HEAD_STATUS_OPTIONS} value={e.nutrition.headStatus} />
-              </>
-            ),
-          ),
-          row('arm', 'Chu vi vòng cánh tay', show(e.nutrition.armCircumferenceMm, ' mm')),
-          row('bmi', 'BMI (hệ thống tính)', show(m.bmi)),
-          row(
-            'statuses',
-            'Tình trạng dinh dưỡng',
-            e.nutrition.statuses.length === 0 ? (
-              <span className="muted">—</span>
-            ) : (
-              e.nutrition.statuses.map((st) => <Choice key={st} options={NUTRITION_STATUS_OPTIONS} value={st} />)
-            ),
-            'row row--wrap gap-2',
-          ),
-        ]}
-      />
-
-      <Section
-        title="IV–V. Phát triển và tiêm chủng"
-        rows={[
-          ...DEVELOPMENT_ITEMS.filter((i) => !i.ageMonths || e.development[i.key]).map(choiceRow('development', e.development)),
-          ...IMMUNIZATION_ITEMS.map(choiceRow('immunization', e.immunization)),
-        ]}
-      />
-
-      <Section
-        title="VI. Khám lâm sàng"
-        rows={[
-          ...CLINICAL_GROUPS.flatMap((g) => g.items).map(choiceRow('clinical', e.clinical)),
-          e.clinical.behaviorNote && row('behaviorNote', 'Ghi rõ', e.clinical.behaviorNote),
-        ]}
-      />
-
-      <Section
-        title="Kết luận và tư vấn"
-        rows={[
-          row(
-            'conclusion',
-            c.followUpFinding ? 'So với vấn đề đang theo dõi' : 'Kết luận về sức khỏe',
-            conclusionLabelOf(c) || '—',
-            'fw-600',
-          ),
-          c.issueText && row('issueText', 'Ghi rõ', c.issueText),
-          c.issueKind && row('issueKind', 'Vấn đề này', ISSUE_KIND_LABELS[c.issueKind]),
-          row('action', 'Tư vấn / chuyển khám', conclusionActionLabelOf(c) || '—'),
-          c.adviceText && row('adviceText', 'Lời tư vấn', c.adviceText),
-          row('doctor', 'Người kết luận', c.doctorName || '—'),
-          m.parentContact &&
-            row('parentContact', 'Trao đổi phụ huynh', <ParentContact contact={m.parentContact} followUpId={m.followUpId} />),
-          c.parentOpinion && row('parentOpinion', 'Ý kiến phụ huynh', c.parentOpinion),
-          row(
-            'measuredBy',
-            'Người nhập phiếu',
-            `${m.measuredByName || '—'}${m.concludedAt ? ` · lưu kết luận ${formatDateTime(m.concludedAt)}` : ''}`,
-          ),
-        ]}
-      />
-    </div>
+      <ExamSheetBand primary>{EXAM_SECTIONS.immunization}</ExamSheetBand>
+      <ExamSheetRows rows={choiceRows(IMMUNIZATION_ITEMS, e.immunization)} />
+      <ExamSheetBand primary>{EXAM_SECTIONS.clinical}</ExamSheetBand>
+      {CLINICAL_GROUPS.map((group, gi) => (
+        <Fragment key={group.key}>
+          <ExamSheetBand>{group.title}</ExamSheetBand>
+          <ExamSheetRows
+            rows={[
+              ...choiceRows(group.items, e.clinical),
+              gi === CLINICAL_GROUPS.length - 1 &&
+                e.clinical.behaviorNote &&
+                textRow('behaviorNote', 'Nếu có, ghi rõ', e.clinical.behaviorNote, 'tr-pre-line'),
+            ]}
+          />
+        </Fragment>
+      ))}
+      <ExamSheetBand primary>{EXAM_SECTIONS.conclusion}</ExamSheetBand>
+      <ExamSheetRows rows={conclusionRows} />
+    </ExamSheetTable>
+  );
+  if (!framed) return sheet;
+  return (
+    <section className="card">
+      <div className="card__header">
+        <h2 className="card__title">Phiếu kiểm tra sức khỏe</h2>
+      </div>
+      <div className="card__body">{sheet}</div>
+    </section>
   );
 }

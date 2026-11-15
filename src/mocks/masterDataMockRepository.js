@@ -64,11 +64,11 @@ const largestClassIn = (db, id) => {
   );
 };
 
-/** Reasons that forbid deactivating or deleting the room: a class of an open year still uses it. */
+/** Names of the open-year classes still using the room (forbid deactivating or deleting it). */
 const blockersOf = (db, id) => {
   const open = openYearIds(db);
   const classes = (db.classes || []).filter((c) => c.locationId === id && (open.size === 0 || open.has(c.schoolYear)));
-  return classes.length ? [`đang là phòng của ${classes.map((c) => `${c.name} (${c.schoolYear})`).join(', ')}`] : [];
+  return [...new Set(classes.map((c) => c.name))];
 };
 
 const findRoom = (db, id) => {
@@ -174,7 +174,7 @@ export const masterDataMockRepository = {
       if (room.status === ROOM_STATUS.DELETED || status === ROOM_STATUS.DELETED) throw notFound();
       if (status === ROOM_STATUS.INACTIVE) {
         const blockers = blockersOf(db, id);
-        if (blockers.length) throw new ApiError(409, `Không ngừng sử dụng được: phòng ${blockers.join('; ')}.`);
+        if (blockers.length) throw new ApiError(409, `Phòng đang là phòng học của ${blockers.join(', ')}, không thể ngừng sử dụng`);
       }
       room.status = status;
       (room.history ||= []).push({ action: status === ROOM_STATUS.INACTIVE ? 'DEACTIVATED' : 'ACTIVATED', userId: user.id, at: now() });
@@ -189,7 +189,7 @@ export const masterDataMockRepository = {
       assertManage(user, room.campusId, 'delete');
       if (room.status === ROOM_STATUS.DELETED) throw notFound();
       const blockers = blockersOf(db, id);
-      if (blockers.length) throw new ApiError(409, `Không xóa được: phòng ${blockers.join('; ')}.`);
+      if (blockers.length) throw new ApiError(409, `Phòng đang là phòng học của ${blockers.join(', ')}, không thể xóa`);
       // Xóa mềm: giữ bản ghi để phiếu luân chuyển, kiểm kê, lớp năm cũ vẫn hiện tên phòng
       room.status = ROOM_STATUS.DELETED;
       room.deletedAt = now();

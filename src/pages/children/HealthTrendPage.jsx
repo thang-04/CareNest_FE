@@ -6,37 +6,24 @@ import { useMasterData } from '@/hooks/useMasterData';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useChildRecords, useHealthRecord } from '@/hooks/children/useChildRecords';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
+import { ChildAvatar } from '@/components/ChildAvatar';
 import { EmptyState, LoadingState } from '@/components/ui/States';
-import { ConclusionCategoryBadge, FollowUpLevelShortBadge, MotorResultBadge } from '@/components/children/ChildBadges';
+import { Tabs } from '@/components/ui/Tabs';
 import { GrowthChart } from '@/components/children/GrowthChart';
-import { TrendChildList, sortByAttention } from '@/components/children/TrendChildList';
+import { HealthWarningCell } from '@/components/children/HealthWarningCell';
+import { TrendChildList, sortByName } from '@/components/children/TrendChildList';
 import { AiTrendPanel } from '@/components/children/AiTrendPanel';
 import { ChildAccessState } from '@/components/children/ChildAccessState';
-import { CHILD_STATUS, ageGroupById } from '@/models/School';
-import {
-  HEAD_CIRCUMFERENCE_STATUS_LABELS,
-  MEASUREMENT_SOURCE,
-  MEASUREMENT_SOURCE_LABELS,
-  growthAxesFor,
-} from '@/models/children/childrenConstants';
+import { CHILD_STATUS } from '@/models/School';
+import { TREND_PERIODS } from '@/models/children/childrenConstants';
 import { NUTRITION_STATUS, NUTRITION_STATUS_OPTIONS, labelOf } from '@/models/children/healthExamForm';
 import { formatDate } from '@/utils/format';
-import { formatNumber, screeningTone, suggestAgeGroupId } from '@/utils/children/childrenHelpers';
+import { formatNumber } from '@/utils/children/childrenHelpers';
 import { childrenCrumbs } from '@/utils/children/breadcrumbs';
-import { isPrincipal, isVicePrincipal } from '@/utils/children/childrenPermissions';
+import { withinTrendPeriod } from '@/utils/children/healthTrend';
+import { canReviewHealthTrend, isPrincipal, isVicePrincipal } from '@/utils/children/childrenPermissions';
 import '@/styles/modules/children.css';
-
-const PERIODS = [
-  { key: '6', label: '6 tháng', months: 6 },
-  { key: '12', label: '12 tháng', months: 12 },
-  { key: 'ALL', label: 'Toàn bộ', months: null },
-];
-
-const monthsAgo = (n) => {
-  const d = new Date();
-  d.setMonth(d.getMonth() - n);
-  return d.toISOString().slice(0, 10);
-};
+import { CampusFilter } from '@/components/ui/CampusFilter';
 
 export default function HealthTrendPage() {
   const { user } = useAuth();
@@ -63,9 +50,9 @@ export default function HealthTrendPage() {
       .forEach((c) => seen.set(c.classId, { id: c.classId, name: c.className, campusId: c.campusId }));
     return [...seen.values()].sort((a, b) => a.name.localeCompare(b.name, 'vi'));
   }, [active, campusId]);
-  // Danh sách cột trái: trẻ cần chú ý nhất lên đầu (user chọn 2026-10-23).
+  // Danh sách cột trái xếp theo tên (không xếp theo mức cần chú ý từ 2026-11-10).
   const ordered = useMemo(
-    () => sortByAttention(active.filter((c) => (!campusId || c.campusId === campusId) && (!classId || c.classId === classId))),
+    () => sortByName(active.filter((c) => (!campusId || c.campusId === campusId) && (!classId || c.classId === classId))),
     [active, campusId, classId],
   );
   // Mở trang hoặc đổi lớp mà chưa có trẻ đang xem thì tự chọn trẻ đầu danh sách.
@@ -88,15 +75,11 @@ export default function HealthTrendPage() {
   const prevChild = index > 0 ? ordered[index - 1] : null;
   const nextChild = index >= 0 && index < ordered.length - 1 ? ordered[index + 1] : null;
   const points = useMemo(() => {
-    const months = PERIODS.find((p) => p.key === period)?.months;
-    const since = months ? monthsAgo(months) : '';
-    return [...(record?.measurements || [])].filter((m) => !since || m.date >= since).sort((a, b) => a.date.localeCompare(b.date));
+    // HLT-21: cùng khoảng với phân tích AI (tính lùi từ hôm nay như BE)
+    return withinTrendPeriod(record?.measurements || [], period).sort((a, b) => a.date.localeCompare(b.date));
   }, [record, period]);
 
   const child = record?.child;
-  // Thang biểu đồ theo nhóm tuổi của lớp hiện tại; trẻ chưa xếp lớp thì theo năm sinh
-  const ageGroupId = record?.cls?.ageGroupId || child?.ageGroupId || suggestAgeGroupId(child?.dateOfBirth, schoolYear);
-  const axes = growthAxesFor(ageGroupId);
   // Chiều cao, cân nặng tô màu theo tình trạng dinh dưỡng bác sĩ ghi ở phiếu khám (không còn phân loại BMI, user chốt 2026-10-17).
   const nutritionPoint = (m, value) => {
     const statuses = m.exam?.nutrition?.statuses || [];
@@ -107,15 +90,6 @@ export default function HealthTrendPage() {
       statusLabel: statuses.length ? statuses.map((s) => labelOf(NUTRITION_STATUS_OPTIONS, s)).join(', ') : 'Chưa có đánh giá của bác sĩ',
     };
   };
-  // Lần đo không có vòng đầu (dữ liệu cũ, trẻ trên 60 tháng) thì biểu đồ bỏ qua điểm đó
-  const headPoints = points
-    .filter((m) => m.headCircumferenceCm != null)
-    .map((m) => ({
-      date: m.date,
-      value: m.headCircumferenceCm,
-      tone: screeningTone(m.headCircumferenceStatus),
-      statusLabel: HEAD_CIRCUMFERENCE_STATUS_LABELS[m.headCircumferenceStatus],
-    }));
 
   return (
     <div className="page">
@@ -136,24 +110,16 @@ export default function HealthTrendPage() {
             (leader || classOptions.length > 1) && (
               <>
                 {leader && (
-                  <select
-                    className="select"
+                  <CampusFilter
+                    campuses={campusOptions}
                     value={campusId}
-                    aria-label="Điểm trường"
-                    onChange={(e) => {
-                      const v = e.target.value;
+                    onChange={(v) => {
                       setCampusId(v);
                       setClassId('');
                       keepChildIf((c) => !v || c.campusId === v);
                     }}
-                  >
-                    <option value="">Tất cả điểm trường</option>
-                    {campusOptions.map((cp) => (
-                      <option key={cp.id} value={cp.id}>
-                        {cp.name}
-                      </option>
-                    ))}
-                  </select>
+                    hideLabel
+                  />
                 )}
                 <select
                   className="select"
@@ -198,57 +164,69 @@ export default function HealthTrendPage() {
             </div>
           ) : (
             <>
-              <div className="row row--between row--wrap mb-12 gap-2">
-                <h2 className="section-title">
-                  {child.fullName}{' '}
-                  <span className="muted text-sm">
-                    ({child.code} · {child.className || 'Chưa xếp lớp'})
-                  </span>
-                </h2>
-                <div className="row row--wrap gap-2">
-                  <button type="button" className="btn btn--sm" disabled={!prevChild} onClick={() => selectChild(prevChild.id)}>
-                    <ChevronLeft size={15} /> Trẻ trước
-                  </button>
-                  <button type="button" className="btn btn--sm" disabled={!nextChild} onClick={() => selectChild(nextChild.id)}>
-                    Trẻ sau <ChevronRight size={15} />
-                  </button>
-                  <Link className="btn btn--sm" to={`/children/${child.id}/health`}>
-                    <HeartPulse size={15} /> Mở sổ sức khỏe
-                  </Link>
-                </div>
-              </div>
-              <section className="card">
-                <div className="tr-chart-toolbar">
-                  <div className="tabs" role="tablist" aria-label="Cách xem">
-                    <button
-                      role="tab"
-                      aria-selected={view === 'chart'}
-                      className={`tab ${view === 'chart' ? 'tab--active' : ''}`}
-                      onClick={() => setView('chart')}
-                    >
-                      Biểu đồ
-                    </button>
-                    <button
-                      role="tab"
-                      aria-selected={view === 'table'}
-                      className={`tab ${view === 'table' ? 'tab--active' : ''}`}
-                      onClick={() => setView('table')}
-                    >
-                      Bảng số liệu
-                    </button>
+              {/* Thẻ đầu: trẻ đang xem + chuyển trẻ trước/sau */}
+              <section className="card tr-trend-head" aria-label={`Tổng quan ${child.fullName}`}>
+                <div className="tr-trend-head__top">
+                  <div className="row gap-3">
+                    <ChildAvatar child={child} size="lg" />
+                    <div className="stack gap-0">
+                      <h2 className="tr-trend-head__name">{child.fullName}</h2>
+                      <span className="muted text-sm">
+                        {child.code} · {child.className || 'Chưa xếp lớp'}
+                      </span>
+                    </div>
                   </div>
-                  <div className="tabs" role="group" aria-label="Khoảng thời gian">
-                    {PERIODS.map((p) => (
-                      <button
-                        key={p.key}
-                        type="button"
-                        aria-pressed={period === p.key}
-                        className={`tab ${period === p.key ? 'tab--active' : ''}`}
-                        onClick={() => setPeriod(p.key)}
-                      >
-                        {p.label}
-                      </button>
-                    ))}
+                  <div className="row row--wrap gap-2">
+                    <button type="button" className="btn btn--sm" disabled={!prevChild} onClick={() => selectChild(prevChild.id)}>
+                      <ChevronLeft size={15} /> Trẻ trước
+                    </button>
+                    <button type="button" className="btn btn--sm" disabled={!nextChild} onClick={() => selectChild(nextChild.id)}>
+                      Trẻ sau <ChevronRight size={15} />
+                    </button>
+                    <Link className="btn btn--sm" to={`/children/${child.id}/health`}>
+                      <HeartPulse size={15} /> Mở sổ sức khỏe
+                    </Link>
+                  </div>
+                </div>
+              </section>
+              <section className="card mt-16">
+                <div className="tr-chart-toolbar">
+                  <Tabs
+                    items={[
+                      { key: 'chart', label: 'Biểu đồ' },
+                      { key: 'table', label: 'Bảng số liệu' },
+                    ]}
+                    value={view}
+                    onChange={setView}
+                    ariaLabel="Cách xem"
+                  />
+                  <div className="row row--wrap gap-4">
+                    {view === 'chart' && points.length > 0 && (
+                      <div className="tr-legend text-sm">
+                        <span>
+                          <i className="tr-legend__dot tr-legend__dot--normal" /> Bình thường
+                        </span>
+                        <span>
+                          <i className="tr-legend__dot tr-legend__dot--alert" /> Có điểm cần chú ý
+                        </span>
+                        <span>
+                          <i className="tr-legend__dot tr-legend__dot--unavailable" /> Chưa có đánh giá
+                        </span>
+                      </div>
+                    )}
+                    <div className="tabs" role="group" aria-label="Khoảng thời gian">
+                      {TREND_PERIODS.map((p) => (
+                        <button
+                          key={p.key}
+                          type="button"
+                          aria-pressed={period === p.key}
+                          className={`tab ${period === p.key ? 'tab--active' : ''}`}
+                          onClick={() => setPeriod(p.key)}
+                        >
+                          {p.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
                 {points.length === 0 ? (
@@ -259,38 +237,10 @@ export default function HealthTrendPage() {
                   />
                 ) : view === 'chart' ? (
                   <div className="card__body">
+                    {/* Hai biểu đồ cạnh nhau, trục tự co theo số đo (user chọn phương án A 14/11/2026, thay chốt 23/10 mỗi biểu đồ một dòng) */}
                     <div className="tr-trend-charts">
-                      <GrowthChart
-                        title="Chiều cao"
-                        unit="cm"
-                        axis={axes.height}
-                        points={points.map((m) => nutritionPoint(m, m.heightCm))}
-                      />
-                      <GrowthChart
-                        title="Cân nặng"
-                        unit="kg"
-                        axis={axes.weight}
-                        points={points.map((m) => nutritionPoint(m, m.weightKg))}
-                      />
-                      {headPoints.length > 0 && <GrowthChart title="Vòng đầu" unit="cm" axis={axes.head} points={headPoints} />}
-                    </div>
-                    <div className="tr-legend text-sm">
-                      <span>
-                        <i className="tr-legend__dot tr-legend__dot--normal" /> Bình thường
-                      </span>
-                      <span>
-                        <i className="tr-legend__dot tr-legend__dot--alert" /> Có điểm cần chú ý
-                      </span>
-                      <span>
-                        <i className="tr-legend__dot tr-legend__dot--unavailable" /> Chưa có đánh giá
-                      </span>
-                      <span className="muted">
-                        Chiều cao, cân nặng tô màu theo tình trạng dinh dưỡng bác sĩ ghi ở phiếu khám; vòng đầu theo lựa chọn ở phiếu khám
-                        (kết quả mẫu cũ: theo ngưỡng tham chiếu tạm, không phải chẩn đoán).
-                      </span>
-                      {ageGroupById(ageGroupId) && (
-                        <span className="muted">Thang đo dùng chung cho nhóm {ageGroupById(ageGroupId).shortName}.</span>
-                      )}
+                      <GrowthChart title="Chiều cao" unit="cm" points={points.map((m) => nutritionPoint(m, m.heightCm))} />
+                      <GrowthChart title="Cân nặng" unit="kg" points={points.map((m) => nutritionPoint(m, m.weightKg))} />
                     </div>
                   </div>
                 ) : (
@@ -299,38 +249,22 @@ export default function HealthTrendPage() {
                       <caption className="sr-only">Số đo của {child.fullName} theo thời gian</caption>
                       <thead>
                         <tr>
-                          <th>Ngày đo</th>
+                          <th className="center">Ngày đo</th>
                           <th className="num">Chiều cao (cm)</th>
                           <th className="num">Cân nặng (kg)</th>
-                          <th className="num">Vòng đầu (cm)</th>
                           <th className="num">BMI</th>
-                          <th>Kết luận</th>
-                          <th>Mức theo dõi</th>
+                          <th>Cảnh báo</th>
                         </tr>
                       </thead>
                       <tbody>
                         {points.map((m) => (
                           <tr key={m.id}>
-                            <td>{formatDate(m.date)}</td>
+                            <td className="center">{formatDate(m.date)}</td>
                             <td className="num">{formatNumber(m.heightCm)}</td>
                             <td className="num">{formatNumber(m.weightKg)}</td>
-                            <td className="num">{formatNumber(m.headCircumferenceCm)}</td>
                             <td className="num">{formatNumber(m.bmi)}</td>
                             <td>
-                              {m.source === MEASUREMENT_SOURCE.EXAM ? (
-                                <ConclusionCategoryBadge status={m.conclusionCategory} />
-                              ) : m.source === MEASUREMENT_SOURCE.LEGACY ? (
-                                <div className="tr-cell-stack text-sm">
-                                  <span className="muted text-xs">{MEASUREMENT_SOURCE_LABELS.LEGACY}</span>
-                                  <span>Thô: {m.grossMotor ? <MotorResultBadge status={m.grossMotor} /> : '—'}</span>
-                                  <span>Tinh: {m.fineMotor ? <MotorResultBadge status={m.fineMotor} /> : '—'}</span>
-                                </div>
-                              ) : (
-                                <span className="muted text-xs tr-note">{MEASUREMENT_SOURCE_LABELS.MEASUREMENT_ONLY}</span>
-                              )}
-                            </td>
-                            <td className="center">
-                              <FollowUpLevelShortBadge status={m.followUpLevel} />
+                              <HealthWarningCell measurement={m} />
                             </td>
                           </tr>
                         ))}
@@ -339,7 +273,13 @@ export default function HealthTrendPage() {
                   </div>
                 )}
               </section>
-              <AiTrendPanel key={child.id} childId={child.id} user={user} />
+              <AiTrendPanel
+                key={child.id}
+                childId={child.id}
+                user={user}
+                period={period}
+                canReview={canReviewHealthTrend(child, user, record?.cls)}
+              />
               <div className="page-actions">
                 <Link className="btn" to={`/children/${child.id}`}>
                   <ArrowLeft size={16} /> Về hồ sơ trẻ

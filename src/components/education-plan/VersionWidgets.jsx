@@ -1,3 +1,4 @@
+import { planRoute } from '@/models/education-plan/planLevel.mjs';
 import { Link } from 'react-router-dom';
 import { Check, Copy, FileText, Trash2 } from '@/components/ui/icons';
 import { StatusBadge } from '@/components/ui/StatusBadge';
@@ -12,6 +13,42 @@ import { CHANGE, chainOf, currentPlanOf, unresolvedFlags, versionOf } from '@/mo
 
 export function VersionBadge({ plan }) {
   return <span className="text-xs text-primary">Phiên bản {versionOf(plan)}</span>;
+}
+
+/** Các bản đã ban hành của kế hoạch (BE trả theo quyền xem); mở từng bản ở chế độ chỉ đọc (BE spec 002 FR-018). */
+export function ReleasedVersionsPanel({ plan }) {
+  const released = (plan.versions || []).filter((v) => v.status === 'APPROVED');
+  if (!released.length) return null;
+  return (
+    <Card title="Các bản đã ban hành" className="mt-16">
+      <div className="table-wrap">
+        <table className="table ga-plan-table ga-version-table">
+          <thead>
+            <tr>
+              <th>Phiên bản</th>
+              <th>Ngày ban hành</th>
+              <th>Người ban hành</th>
+            </tr>
+          </thead>
+          <tbody>
+            {released.map((v) => (
+              <tr key={v.id}>
+                <td>
+                  {v.id === plan.id ? (
+                    `Phiên bản ${v.versionNo}${v.current ? ' (hiện hành)' : ''}`
+                  ) : (
+                    <Link to={`${planRoute(plan)}/${v.id}`}>{`Phiên bản ${v.versionNo}${v.current ? ' (hiện hành)' : ''}`}</Link>
+                  )}
+                </td>
+                <td>{v.issuedAt ? fmtDate(v.issuedAt) : '—'}</td>
+                <td>{v.issuedByName || '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Card>
+  );
 }
 
 const CHANGE_LABEL = { CHANGED: 'Đổi', REMOVED: 'Bỏ', ADDED: 'Mới' };
@@ -67,13 +104,14 @@ export function YearPlanVersionPanel({ plan, goals }) {
                       {v.id === plan.id ? (
                         <VersionBadge plan={v} />
                       ) : (
-                        <Link to={`/education/goals/${v.id}`}>
+                        <Link to={`${planRoute(plan)}/${v.id}`}>
                           <VersionBadge plan={v} />
                         </Link>
                       )}
                     </td>
                     <td>
                       <YearPlanStatusBadge
+                        doc={goals.find((goal) => String(goal.id) === String(v.id)) || v}
                         status={
                           v.status === 'APPROVED' && !(v.current ?? currentPlanOf(goals, v.ageGroupId, v.schoolYear)?.id === v.id)
                             ? 'REPLACED'
@@ -97,7 +135,7 @@ export function YearPlanVersionPanel({ plan, goals }) {
             <strong>Thay đổi so với phiên bản {versionOf(plan) - 1}</strong>
             {loading && <span className="muted">Đang so sánh…</span>}
             {error && (
-              <Notice tone="err">
+              <Notice>
                 Không tải được so sánh.{' '}
                 <button type="button" className="btn btn--sm" onClick={() => reload()}>
                   Thử lại
@@ -148,7 +186,7 @@ export function YearPlanVersionPanel({ plan, goals }) {
  */
 export function VersionCopyOffer({ plan, previous, prevDoc, canCreate, busy, onTemplate, onCopy }) {
   return (
-    <Notice tone="warn">
+    <Notice>
       <div className="stack">
         <span>
           Kế hoạch năm đã có phiên bản {versionOf(plan)} (ban hành thay phiên bản {versionOf(previous)}). Tài liệu cũ giữ nguyên để xem; tài

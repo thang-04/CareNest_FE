@@ -43,16 +43,36 @@ test('teachers and team leaders see the monthly quality report in the assessment
   }
 });
 
-test('teachers and leaders see semester evaluations next to monthly ones', () => {
+test('teachers and leaders no longer see monthly evaluations but keep other assessment screens', () => {
   for (const role of ['TEACHER', 'TEAM_LEADER', 'VICE_PRINCIPAL', 'PRINCIPAL']) {
     const menu = keys(getMenuForRole(role, { role }));
-    assert.ok(menu.indexOf('assessSemester') === menu.indexOf('assessPeriodic') + 1, role);
+    assert.ok(!menu.includes('assessPeriodic'), role);
+    for (const key of ['assessSemester', 'assessYearEnd', 'assessQuality', 'assessTickets']) {
+      assert.ok(menu.includes(key), `${role}: ${key}`);
+    }
   }
 });
 
-test('class ratings sit after the monthly quality report for teachers and leaders', () => {
+test('assessment menu follows evaluation periods: day, week, theme, month, semester, year', () => {
+  const order = [
+    'assessDaily',
+    'assessWeeklyComments',
+    'assessTickets',
+    'assessThemes',
+    'assessQuality',
+    'assessSemester',
+    'assessYearEnd',
+    'assessRewards',
+    'assessClassRatings',
+  ];
   for (const role of ['TEACHER', 'TEAM_LEADER', 'VICE_PRINCIPAL', 'PRINCIPAL']) {
     const menu = keys(getMenuForRole(role, { role }));
-    assert.equal(menu.indexOf('assessClassRatings'), menu.indexOf('assessQuality') + 1, role);
+    const present = order.filter((k) => menu.includes(k));
+    assert.deepEqual(
+      present.map((k) => menu.indexOf(k)),
+      [...present.map((k) => menu.indexOf(k))].sort((x, y) => x - y),
+      role,
+    );
+    assert.ok(present.includes('assessWeeklyComments'), role);
   }
 });

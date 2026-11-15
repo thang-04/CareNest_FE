@@ -69,14 +69,14 @@ export const ReceiptStatusBadge = createStatusBadge(
   RECEIPT_STATUS_LABELS,
 );
 
-// Biến động kho khô: nhập vào = xanh lá, trừ theo suất = xanh dương, điều chỉnh / trừ phần thiếu = cam, hủy phiếu = xám
+// Biến động kho khô: nhập vào = xanh lá, trừ theo suất = xanh ngọc (đã xong, không dùng xanh dương "đang chạy"), điều chỉnh / trừ phần thiếu = cam, hủy phiếu = xám
 export const StockMovementBadge = createStatusBadge(
   {
-    RECEIPT: ['green', PackageCheck],
-    DEDUCT: ['blue', null],
+    RECEIPT: ['green', null],
+    DEDUCT: ['teal', null],
     ADJUST: ['orange', null],
     SHORTFALL_DEDUCT: ['orange', null],
-    RECEIPT_CANCEL: ['gray', CircleX],
+    RECEIPT_CANCEL: ['gray', null],
   },
   STOCK_MOVEMENT_LABELS,
 );

@@ -11,12 +11,6 @@ import { buildRefs, planSteps, serverId, toUiEduConfig, toUiGoal, toYearPlanRequ
 const GOALS = '/education-plans/goals';
 
 const sourceError = (status, message) => Object.assign(new Error(message), { status });
-// BE:EDU-06 — Tổ trưởng chọn được nhóm tuổi khác; BE chỉ trả bản đã ban hành của nhóm đó
-const sourceGroup = (actor, requested) => {
-  if (actor?.role === ROLES.VICE_PRINCIPAL) return requested;
-  if (actor?.role === ROLES.TEAM_LEADER && actor.ageGroupId) return requested;
-  throw sourceError(403, 'Bạn không có quyền lấy mục tiêu từ kế hoạch này.');
-};
 const sourceSummary = (item, refs) => ({
   id: String(item.id),
   code: item.code,
@@ -30,13 +24,16 @@ const sourceSummary = (item, refs) => ({
 
 // Dữ liệu tham chiếu (năm học, nhóm tuổi, lĩnh vực) để đổi id UI ↔ BE; nạp một lần mỗi phiên trang
 let configCache = null;
-const loadConfig = () => {
+const loadConfig = (refresh = false) => {
+  if (refresh) configCache = null;
   configCache ||= axiosClient.get('/education-plans/config').catch((err) => {
     configCache = null;
     throw err;
   });
   return configCache;
 };
+/** Bảng đổi id UI ↔ BE (nhóm tuổi `ag-3` ↔ id số) cho service khác của module, vd. kho học liệu. */
+export const loadEduRefs = async () => buildRefs(await loadConfig());
 // Trạng thái + quyền trên BE của từng kế hoạch, để biết lần lưu là sửa, gửi, ban hành hay trả lại
 const known = new Map();
 
@@ -46,19 +43,36 @@ const remember = (detail, refs) => {
   return goal;
 };
 const bodyKey = (goal, refs) => JSON.stringify(toYearPlanRequest(goal, refs));
-const fetchGoal = async (id, refs) => remember(await axiosClient.get(`${GOALS}/${id}`), refs);
+// Trang tải chi tiết từng kế hoạch cùng lúc; trình duyệt chỉ mở 6 kết nối nên yêu cầu xếp hàng có thể vượt 15 giây mặc định
+// ponytail: nới thời gian chờ; về lâu dài cần API danh sách trả đủ nội dung hoặc tải chi tiết khi mở
+const LIST_TIMEOUT = 60000;
+const fetchGoal = async (id, refs) => remember(await axiosClient.get(`${GOALS}/${id}`, { timeout: LIST_TIMEOUT }), refs);
 
-const editHeaders = (edit) => ({
-  'X-Edit-Session': edit.sessionId,
+const editHeaders = (edit) => {
+  const headers = {
+    'X-Plan-Revision': String(edit?.revision ?? 0),
+    'Idempotency-Key': edit?.requestId || crypto.randomUUID(),
+  };
+  if (edit?.sessionId) {
+    headers['X-Edit-Session'] = edit.sessionId;
+  }
+  return headers;
+};
+
+const reviewHeaders = (edit) => ({
   'X-Plan-Revision': String(edit.revision ?? 0),
   'Idempotency-Key': edit.requestId || crypto.randomUUID(),
 });
 
-const runSteps = async (goal, refs, edit, forceSave = false) => {
+const runSteps = async (goal, refs, edit, forceSave = false, action) => {
   let id = serverId(goal.id);
   let detail = null;
   const prev = id == null ? null : known.get(String(id));
-  for (const step of planSteps(prev, goal, forceSave || !prev || prev.body !== bodyKey(goal, refs))) {
+  const actionCall = { submit: 'submit', approve: 'issue', reject: 'return' }[action];
+  const steps = actionCall
+    ? [{ call: actionCall, note: goal.history?.at(-1)?.note || null }]
+    : planSteps(prev, goal, forceSave || !prev || prev.body !== bodyKey(goal, refs));
+  for (const step of steps) {
     if (step.call === 'create') detail = await axiosClient.post(GOALS, toYearPlanRequest(goal, refs), { headers: editHeaders(edit) });
     else if (step.call === 'update')
       detail = await axiosClient.put(`${GOALS}/${id}`, toYearPlanRequest(goal, refs), { headers: editHeaders(edit) });
@@ -66,9 +80,9 @@ const runSteps = async (goal, refs, edit, forceSave = false) => {
       detail = await axiosClient.post(
         `${GOALS}/${id}/${step.call}`,
         { note: step.note },
-        { headers: editHeaders({ ...edit, requestId: crypto.randomUUID() }) },
+        { headers: (step.call === 'submit' ? editHeaders : reviewHeaders)({ ...edit, requestId: crypto.randomUUID() }) },
       );
-    edit.revision = detail.revision;
+    edit.revision = detail.contentRevision ?? detail.revision;
     id = detail.id;
     remember(detail, refs);
   }
@@ -83,7 +97,8 @@ const curriculumOf = async (path, ageGroupCode, options = {}) => {
 };
 
 export const educationPlanApi = {
-  previewBranchFile: (file, { classId, yearPlanId }) => {
+  previewClassCalendar: (request) => axiosClient.post('/education-plans/class-docs/branch/calendar-preview', request),
+  previewBranchFile: (file, { classId, yearPlanId, draftCalendar }) => {
     const cls = serverId(classId);
     const plan = serverId(yearPlanId);
     if (cls == null || plan == null) throw sourceError(400, 'Lớp hoặc kế hoạch năm không hợp lệ.');
@@ -91,6 +106,7 @@ export const educationPlanApi = {
     data.append('file', file);
     data.append('classId', String(cls));
     data.append('yearPlanId', String(plan));
+    if (draftCalendar) data.append('draftCalendar', JSON.stringify(draftCalendar));
     return axiosClient.post('/education-plans/class-docs/branch/file-preview', data, {
       headers: { 'Content-Type': undefined },
       timeout: 60000,
@@ -105,10 +121,10 @@ export const educationPlanApi = {
   getCurriculumSources: (options = {}) => axiosClient.get('/education-plans/curriculum/sources', { signal: options.signal }),
   getCurriculumGoals: (ageGroupCode, options) => curriculumOf('goals', ageGroupCode, options),
   getCurriculumContents: (ageGroupCode, options) => curriculumOf('contents', ageGroupCode, options),
-  listGoalSources: async ({ schoolYear, ageGroupId, excludeId } = {}, actor, options = {}) => {
-    const group = sourceGroup(actor, ageGroupId);
+  listGoalSources: async ({ schoolYear, ageGroupId, excludeId, planLevel } = {}, actor, options = {}) => {
+    const group = ageGroupId;
     const refs = buildRefs(await loadConfig());
-    const params = {};
+    const params = planLevel ? { planLevel } : {};
     if (schoolYear) {
       params.schoolYearId = refs.schoolYearId(schoolYear);
       if (params.schoolYearId == null) throw sourceError(400, 'Năm học đã chọn không hợp lệ.');
@@ -132,11 +148,15 @@ export const educationPlanApi = {
     return [...sources.values()];
   },
   getGoalSource: async (id, actor, options = {}) => {
-    sourceGroup(actor);
     const refs = buildRefs(await loadConfig());
     const goal = toUiGoal(await axiosClient.get(`${GOALS}/${id}`, { signal: options.signal }), refs);
     // BE:EDU-06/24 — giới hạn UX của import; quyền đọc thực tế vẫn do BE kiểm qua token.
-    if (actor.role === ROLES.TEAM_LEADER && goal.ageGroupId !== actor.ageGroupId && goal.status !== EDU_STATUS.APPROVED)
+    if (
+      goal.planLevel !== 'SCHOOL_YEAR' &&
+      actor.role === ROLES.TEAM_LEADER &&
+      goal.ageGroupId !== actor.ageGroupId &&
+      goal.status !== EDU_STATUS.APPROVED
+    )
       throw sourceError(403, 'Nhóm tuổi khác chỉ lấy được từ kế hoạch đã ban hành.');
     return {
       ...goal,
@@ -145,65 +165,98 @@ export const educationPlanApi = {
   },
   getAll: async () => {
     const refs = buildRefs(await loadConfig());
-    // Danh sách đã theo phạm vi người xem (BE); màn hình cần cả văn bản nên lấy chi tiết từng kế hoạch
-    const page = await axiosClient.get(GOALS, { params: { page: 0, size: 200 } });
-    const goals = await Promise.all(page.items.map((p) => fetchGoal(p.id, refs)));
+    // Danh sách đã theo phạm vi người xem (BE)
+    const pages = await Promise.all(
+      ['TEAM', 'SCHOOL_YEAR'].map((planLevel) =>
+        axiosClient.get(GOALS, { params: { page: 0, size: 200, planLevel }, timeout: LIST_TIMEOUT }).catch((error) => {
+          if (planLevel === 'SCHOOL_YEAR' && error.status === 404) return { items: [] };
+          throw error;
+        }),
+      ),
+    );
+    const summaries = new Map(
+      pages
+        .flatMap((page, index) => page.items.filter((item) => index === 0 || (item.planType || item.planLevel) === 'SCHOOL_YEAR'))
+        .map((item) => [String(item.id), item]),
+    );
+    // Chỉ bản tóm tắt; trang nào cần nội dung thì tải chi tiết kế hoạch đó (useGoalDetails) — không tải hết khi vào module
+    const goals = [...summaries.values()].map((p) => ({
+      ...toUiGoal(p, refs),
+      summary: true,
+      goalCount: p.goalCount ?? 0,
+      themeCount: p.themeCount ?? 0,
+    }));
     return { goals, themes: [], lessons: [] };
   },
+  // Mở một kế hoạch theo id (vd. bản Chờ duyệt từ hàng chờ, không có trong danh sách); BE trả 403 nếu chưa ban hành
+  getGoal: async (id) => fetchGoal(serverId(id) ?? id, buildRefs(await loadConfig())),
+  // Kế hoạch năm/tổ chờ đúng người gọi duyệt; danh sách thường chỉ có bản đã ban hành (BE spec 002 FR-007)
+  getReviewQueue: async () => {
+    const refs = buildRefs(await loadConfig());
+    const items = await axiosClient.get(`${GOALS}/review-queue`);
+    return Promise.all(items.map((p) => fetchGoal(p.id, refs)));
+  },
+  // Một bản hồ sơ chủ đề đã ban hành trước đây (nội dung + chuỗi ký), chỉ đọc
+  getClassDocRelease: (releaseId) => axiosClient.get(`/education-plans/class-docs/releases/${releaseId}`),
   // Trả kế hoạch đã lưu (id do BE cấp) để trang lập kế hoạch dùng tiếp id thật
   saveGoal: async (item, options = {}) => {
     const refs = buildRefs(await loadConfig());
     const explicit = options.edit;
-    const edit = explicit
-      ? { ...explicit }
-      : { sessionId: crypto.randomUUID(), revision: item.revision ?? 0, requestId: crypto.randomUUID() };
+    const edit = explicit ? { ...explicit } : { revision: item.revision ?? 0, requestId: crypto.randomUUID() };
     const id = serverId(item.id);
-    let acquired = false;
-    try {
-      if (!explicit && id != null) {
-        const current = await axiosClient.post(`${GOALS}/${id}/start-editing`, null, { headers: editHeaders(edit) });
-        acquired = true;
-        if ((item.revision ?? 0) !== (current.revision ?? 0)) {
-          throw Object.assign(new Error('Kế hoạch đã thay đổi. Hãy tải lại và xem nội dung mới trước khi thao tác.'), { status: 409 });
-        }
-        remember(current, refs);
+    const reviewOnly =
+      id != null &&
+      (known.get(String(id))?.status === 'REVIEW' ||
+        item.permissions?.canApprove ||
+        item.permissions?.canIssue ||
+        item.permissions?.canReturn);
+    if (!explicit && id != null && !reviewOnly) {
+      const current = await axiosClient.get(`${GOALS}/${id}`);
+      if ((item.revision ?? 0) !== (current.contentRevision ?? current.revision ?? 0)) {
+        throw Object.assign(new Error('Kế hoạch đã thay đổi. Hãy tải lại và xem nội dung mới trước khi thao tác.'), { status: 409 });
       }
-      const detail = await runSteps(item, refs, edit, !!options.silent);
-      return detail ? toUiGoal(detail, refs) : item;
-    } finally {
-      if (acquired) await axiosClient.post(`${GOALS}/${id}/finish-editing`, null, { headers: editHeaders(edit) }).catch(() => {});
+      remember(current, refs);
     }
+    const detail = await runSteps(item, refs, edit, !!options.silent, options.action);
+    return detail ? toUiGoal(detail, refs) : item;
   },
-  startEditingGoal: async (id, edit) => {
+  // Tương thích caller cũ; EDU-70 không còn tạo hoặc gia hạn phiên sửa.
+  startEditingGoal: async (id) => fetchGoal(serverId(id) ?? id, buildRefs(await loadConfig())),
+  resolveGoalReview: async (id, reviewItemId, expectedSourcePlanId, edit) => {
     const refs = buildRefs(await loadConfig());
-    return remember(await axiosClient.post(`${GOALS}/${serverId(id) ?? id}/start-editing`, null, { headers: editHeaders(edit) }), refs);
+    return remember(
+      await axiosClient.post(
+        `${GOALS}/${serverId(id) ?? id}/review/${encodeURIComponent(String(reviewItemId))}/resolve`,
+        { expectedSourcePlanId: serverId(expectedSourcePlanId) },
+        { headers: editHeaders(edit) },
+      ),
+      refs,
+    );
   },
-  heartbeatGoal: async (id, edit) => {
-    const refs = buildRefs(await loadConfig());
-    return toUiGoal(await axiosClient.post(`${GOALS}/${serverId(id) ?? id}/editing-heartbeat`, null, { headers: editHeaders(edit) }), refs);
-  },
-  finishEditingGoal: async (id, { keepalive = false, edit } = {}) => {
-    const options = { headers: editHeaders(edit), ...(keepalive ? { adapter: 'fetch', fetchOptions: { keepalive: true } } : {}) };
-    return axiosClient.post(`${GOALS}/${serverId(id) ?? id}/finish-editing`, null, options);
-  },
+  heartbeatGoal: async (id) => fetchGoal(serverId(id) ?? id, buildRefs(await loadConfig())),
+  finishEditingGoal: async () => {},
   // BE:EDU-25 — phiên bản n+1 chép từ bản ban hành mới nhất; người tạo giữ phiên sửa của bản mới
   createGoalVersion: async (id, edit) => {
     const refs = buildRefs(await loadConfig());
-    return remember(await axiosClient.post(`${GOALS}/${serverId(id) ?? id}/versions`, null, { headers: editHeaders(edit) }), refs);
+    return remember(
+      await axiosClient.post(
+        `${GOALS}/${serverId(id) ?? id}/versions`,
+        edit?.curriculumSourcePlanId ? { curriculumSourcePlanId: serverId(edit.curriculumSourcePlanId) } : null,
+        { headers: editHeaders(edit) },
+      ),
+      refs,
+    );
+  },
+  unlockGoal: async (id, body) => {
+    const refs = buildRefs(await loadConfig());
+    await axiosClient.post(`${GOALS}/${serverId(id) ?? id}/unlock`, body);
+    return fetchGoal(serverId(id) ?? id, refs);
   },
   getGoalChanges: (id, fromId) =>
     axiosClient.get(`${GOALS}/${serverId(id) ?? id}/changes`, { params: fromId ? { fromPlanId: serverId(fromId) ?? fromId } : {} }),
   deleteGoal: async (id, revision) => {
-    const edit = { sessionId: crypto.randomUUID(), revision: revision ?? 0 };
-    const current = await axiosClient.post(`${GOALS}/${serverId(id) ?? id}/start-editing`, null, { headers: editHeaders(edit) });
-    try {
-      if (edit.revision !== current.revision)
-        throw Object.assign(new Error('Kế hoạch đã thay đổi. Hãy xem lại trước khi xóa.'), { status: 409 });
-      await axiosClient.delete(`${GOALS}/${serverId(id) ?? id}`, { headers: editHeaders(edit) });
-      known.delete(String(id));
-    } finally {
-      await axiosClient.post(`${GOALS}/${serverId(id) ?? id}/finish-editing`, null, { headers: editHeaders(edit) }).catch(() => {});
-    }
+    await axiosClient.delete(`${GOALS}/${serverId(id) ?? id}`, { headers: editHeaders({ revision: revision ?? 0 }) });
+    known.delete(String(id));
   },
   saveTheme: (item) => axiosClient.put(`/education-plans/themes/${item.id}`, item),
   deleteTheme: (id) => axiosClient.delete(`/education-plans/themes/${id}`),
@@ -213,24 +266,95 @@ export const educationPlanApi = {
   // Header giữ id số (API) hoặc tên năm "2027-2028" (nối thử qua beClient) ⇒ đổi tên sang id theo cấu hình
   getClassPlans: async (schoolYearId) => {
     const id = serverId(schoolYearId) ?? (schoolYearId ? buildRefs(await loadConfig()).schoolYearId(String(schoolYearId)) : null);
-    return axiosClient.get('/education-plans/class-docs', { params: id == null ? {} : { schoolYearId: id } });
+    return axiosClient.get('/education-plans/class-docs', { params: id == null ? {} : { schoolYearId: id }, timeout: LIST_TIMEOUT });
   },
-  getEduConfig: async () => toUiEduConfig(await loadConfig()),
+  getEduConfig: async () => {
+    const [config, workflow, durationPolicy] = await Promise.all([
+      loadConfig(true),
+      axiosClient.get('/education-plans/workflow-policy'),
+      axiosClient.get('/education-plans/duration-policy').catch((error) => {
+        if (error.status === 404) return null;
+        throw error;
+      }),
+    ]);
+    const fresh = {
+      ...config,
+      workflow,
+      durationPolicyAvailable: !!durationPolicy?.theme && !!durationPolicy?.branch,
+      ...(durationPolicy?.theme && durationPolicy?.branch ? { durationPolicy } : {}),
+    };
+    configCache = Promise.resolve(fresh);
+    return toUiEduConfig(fresh);
+  },
+  saveWorkflowPolicy: async (cfg) => {
+    try {
+      const policies = { ...cfg.workflowPolicy };
+      if (cfg.durationPolicyAvailable === false) delete policies.schoolYear;
+      await axiosClient.put('/education-plans/workflow-policy', { revision: cfg.workflowRevision, policies });
+    } finally {
+      configCache = null;
+      known.clear();
+    }
+    return educationPlanApi.getEduConfig();
+  },
   // BE:EDU-11 — lưu xong thì dùng luôn bản BE trả về làm dữ liệu tham chiếu của phiên
   saveEduConfig: async (cfg) => {
+    const current = await loadConfig();
+    let durationPolicy = current.durationPolicy;
+    if (
+      cfg.durationPolicyAvailable !== false &&
+      cfg.durationPolicy &&
+      JSON.stringify(cfg.durationPolicy) !== JSON.stringify(durationPolicy)
+    ) {
+      const { revision, theme, branch } = cfg.durationPolicy;
+      durationPolicy = await axiosClient.put('/education-plans/duration-policy', { revision, theme, branch });
+    }
     const saved = await axiosClient.put('/education-plans/config', {
       domainLabels: cfg.domainLabels || {},
       extraDomains: cfg.extraDomains || [],
-      signers: cfg.signers,
+      // API cấu hình vẫn bắt buộc ô ký; lấy từ policy vừa lưu để khớp projection trên server.
+      signers: cfg.workflowPolicy
+        ? {
+            year: cfg.workflowPolicy.year.reviewers,
+            branch: cfg.workflowPolicy.branch.reviewers,
+            week: cfg.workflowPolicy.theme.reviewers,
+          }
+        : cfg.signers,
       weekRows: cfg.weekRows,
     });
-    configCache = Promise.resolve(saved);
-    return toUiEduConfig(saved);
+    const fresh = {
+      ...saved,
+      durationPolicyAvailable: current.durationPolicyAvailable ?? true,
+      ...(durationPolicy ? { durationPolicy } : {}),
+    };
+    configCache = Promise.resolve(fresh);
+    return toUiEduConfig(fresh);
   },
-  saveClassDoc: (kind, doc) => axiosClient.put(`/education-plans/class-docs/${kind}/${doc.id}`, doc),
-  // BE:EDU-27 — ô "Kế hoạch điều chỉnh và bổ sung", ghi được cả khi đã duyệt
-  saveClassDocAdjustments: (id, adjustments) => axiosClient.put(`/education-plans/class-docs/week/${id}/adjustments`, { adjustments }),
-  actOnClassDoc: (kind, id, body) => axiosClient.post(`/education-plans/class-docs/${kind}/${id}/actions`, body),
+  saveClassDoc: (kind, doc, options = {}) => {
+    const headers = { 'X-Class-Doc-Version': String(doc?.version ?? -1) };
+    if (doc?.dossierVersion != null) headers['X-Dossier-Version'] = String(doc.dossierVersion);
+    if (options?.headers) Object.assign(headers, options.headers);
+    if ((kind === 'week' || kind === 'day') && doc?.dossierVersion == null)
+      throw sourceError(409, 'Hãy tải lại hồ sơ chủ đề trước khi lưu tuần.');
+    const { version, dossierVersion, review, permissions, ...content } = doc;
+    if (kind === 'branch' && content.schemaVersion === 2) {
+      delete content.names;
+      delete content.notes;
+      delete content.calendarRevision;
+      delete content.durationPolicySnapshot;
+    }
+    // Phần II "Đánh giá trẻ trên ngày" đợt này chỉ là giao diện, chưa lưu ở BE (spec 005 FR-008a)
+    if (kind === 'day' && Array.isArray(content.days)) content.days = content.days.map(({ review: _review, ...d }) => d);
+    return axiosClient.put(`/education-plans/class-docs/${kind}/${doc.id}`, content, { headers });
+  },
+  actOnClassDoc: (kind, id, body, options = {}) => {
+    if (options.version == null) throw sourceError(409, 'Hãy tải lại tài liệu trước khi duyệt.');
+    const headers = { 'Idempotency-Key': options?.requestId || crypto.randomUUID() };
+    if (options?.version != null) headers['X-Class-Doc-Version'] = String(options.version);
+    if (options?.dossierVersion != null) headers['X-Dossier-Version'] = String(options.dossierVersion);
+    if (options?.headers) Object.assign(headers, options.headers);
+    return axiosClient.post(`/education-plans/class-docs/${kind}/${id}/actions`, body, { headers });
+  },
   suggestBranchNames: (input) => axiosClient.post('/education-plans/ai/branch-names', input),
   rewriteBranchName: (input) => axiosClient.post('/education-plans/ai/branch-names/rewrite', input),
   suggestLessonSteps: (input) => axiosClient.post('/education-plans/ai/lesson-steps', input),

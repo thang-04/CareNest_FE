@@ -31,6 +31,8 @@ export const normalizeAccountProfile = (profile) => {
     roles,
     // Quyền hiệu lực BE tính (ADR-0017); chỉ dùng ẩn/hiện UI, BE vẫn kiểm từng API
     permissions: Array.isArray(profile.permissions) ? [...new Set(profile.permissions)] : [],
+    // Quyền mà HT cấp phạm vi toàn trường. Quyền không có trong mảng này mặc định chỉ áp dụng tại campus được phân công.
+    schoolWidePermissions: Array.isArray(profile.schoolWidePermissions) ? [...new Set(profile.schoolWidePermissions)] : [],
     role: webRoleOf(roles, assignments),
     assignments,
     ageGroupId: assignments.find((a) => a.staffRole === TEAM_LEADER_ASSIGNMENT && a.ageGroupId != null)?.ageGroupId ?? null,

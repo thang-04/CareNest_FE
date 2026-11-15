@@ -3,6 +3,7 @@
  * Thay đổi giữa hai phiên bản do BE so sánh (GET /goals/{id}/changes); ở đây chỉ chép tài liệu sang id mới và chỉ ra ô
  * cần sửa để hiển thị. BE kiểm lại khi gửi duyệt. diffPlans chỉ dùng cho mock (BE giả).
  */
+import { planLevel } from './planLevel.mjs';
 import { DOMAINS } from '@/models/education-plan/educationPlanConstants';
 import { numberGoals, toRows } from '@/models/education-plan/goalTable';
 import { addDays, CLASS_DOC, themeGoalBlocks, yearWeeks } from '@/models/education-plan/classPlan';
@@ -11,15 +12,15 @@ export const CHANGE = { UNCHANGED: 'UNCHANGED', CHANGED: 'CHANGED', REMOVED: 'RE
 
 export const versionOf = (plan) => Number(plan?.versionNo) || 1;
 
-const sameChain = (a, b) => a.ageGroupId === b.ageGroupId && a.schoolYear === b.schoolYear;
+const sameChain = (a, b) => a.ageGroupId === b.ageGroupId && a.schoolYear === b.schoolYear && planLevel(a) === planLevel(b);
 
 /** Các phiên bản cùng (năm học, nhóm tuổi), theo số phiên bản tăng dần. */
 export const chainOf = (goals, plan) => (plan ? goals.filter((g) => sameChain(g, plan)).sort((a, b) => versionOf(a) - versionOf(b)) : []);
 
 /** Phiên bản hiện hành: đã ban hành, số lớn nhất (BE:EDU-25). */
-export const currentPlanOf = (goals, ageGroupId, schoolYear) =>
+export const currentPlanOf = (goals, ageGroupId, schoolYear, level = 'TEAM') =>
   goals
-    .filter((g) => g.ageGroupId === ageGroupId && g.schoolYear === schoolYear && g.status === 'APPROVED')
+    .filter((g) => g.ageGroupId === ageGroupId && g.schoolYear === schoolYear && g.status === 'APPROVED' && planLevel(g) === level)
     .sort((a, b) => versionOf(b) - versionOf(a))[0] || null;
 
 /** Phiên bản đã ban hành ngay trước plan (nguồn để chép tài liệu lớp). */
@@ -141,7 +142,7 @@ const idMap = (list) => new Map((list || []).filter((x) => x.fromId != null && x
 
 const clone = (v) => JSON.parse(JSON.stringify(v ?? null));
 
-const SERVER_FIELDS = ['status', 'approvals', 'history', 'adjustments', 'superseded', 'yearPlanVersion', 'sourceDocKey', 'versionChecks'];
+const SERVER_FIELDS = ['status', 'approvals', 'history', 'superseded', 'yearPlanVersion', 'sourceDocKey', 'versionChecks'];
 
 /**
  * Bản chép Nháp trên phiên bản plan từ source (phiên bản cũ): đổi id MT/chủ đề theo lineage; tham chiếu tới mục bị bỏ
@@ -163,12 +164,37 @@ export function copyDocToVersion(kind, source, changes, plan, week = {}) {
   });
   if (kind === CLASS_DOC.BRANCH) {
     doc.id = `bp_${source.classId}_${plan.id}`;
+    if (doc.schemaVersion === 2) {
+      const template = (id) =>
+        plan.branchTemplates?.find((t) => String(t.lineageId || t.id) === String(id) || String(t.sourceTemplateId) === String(id));
+      doc.themeSchedules = (doc.themeSchedules || []).map((t) => ({ ...t, themeId: themes.get(String(t.themeId)) || t.themeId }));
+      doc.branches = (doc.branches || []).map((b) => ({
+        ...b,
+        themeId: themes.get(String(b.themeId)) || b.themeId,
+        sourceTemplateId: b.sourceTemplateId ? template(b.sourceTemplateId)?.id || b.sourceTemplateId : null,
+      }));
+    }
     return doc;
   }
   doc.themeId = kind === CLASS_DOC.WEEK && week.themeId ? week.themeId : themes.get(String(source.themeId)) || source.themeId;
   if (kind === CLASS_DOC.THEME) {
     doc.id = `tp_${source.classId}_${doc.themeId}`;
     doc.rows = Object.fromEntries(Object.entries(source.rows || {}).map(([id, row]) => [goals.get(id) || id, clone(row)]));
+    // Thẻ (EDU-78): MT theo phiên bản mới; MT không còn thì bỏ khỏi thẻ, giữ thẻ để cô xem lại
+    if (Array.isArray(source.activities))
+      doc.activities = source.activities.map((c) => {
+        const own = String(c.id).split('#');
+        const to = own.length === 2 ? goals.get(own[0]) : null;
+        return {
+          ...clone(c),
+          id: to ? `${to}#${own[1]}` : c.id,
+          goalIds: (c.goalIds || []).map((g) => goals.get(String(g))).filter(Boolean),
+          contentRefs: (c.contentRefs || []).flatMap((r) => {
+            const [g, i] = String(r).split(':');
+            return goals.get(g) ? [`${goals.get(g)}:${i}`] : [];
+          }),
+        };
+      });
     return doc;
   }
   const weekStart = week.weekStart || source.weekStart;
@@ -178,6 +204,12 @@ export function copyDocToVersion(kind, source, changes, plan, week = {}) {
     Object.entries(source.picks || {}).map(([cell, list]) => [
       cell,
       (list || []).map((p) => {
+        if (Array.isArray(p.goalIds)) {
+          const ids = p.goalIds.map((g) => goals.get(String(g))).filter(Boolean);
+          const head = String(p.cardId ?? p.id).split('#');
+          const cardId = head.length === 2 && goals.get(head[0]) ? `${goals.get(head[0])}#${head[1]}` : (p.cardId ?? p.id);
+          return { ...p, id: cardId, cardId, goalIds: ids };
+        }
         const to = goals.get(String(p.goalId));
         return to ? { ...p, goalId: to, goalNo: goalNo.get(to) ?? p.goalNo, id: String(p.id).replace(/^[^#]*/, to) } : { ...p };
       }),
@@ -202,7 +234,11 @@ const goalRefs = (kind, doc, plan) => {
   }
   const byGoal = new Map();
   Object.entries(doc.picks || {}).forEach(([cell, list]) =>
-    (list || []).forEach((p) => byGoal.set(String(p.goalId), [...(byGoal.get(String(p.goalId)) || []), cell])),
+    (list || []).forEach((p) =>
+      (Array.isArray(p.goalIds) ? p.goalIds : p.goalId != null ? [p.goalId] : []).forEach((g) =>
+        byGoal.set(String(g), [...(byGoal.get(String(g)) || []), cell]),
+      ),
+    ),
   );
   return [...byGoal].map(([goalId, cells]) => ({ goalId, cells: [...new Set(cells)] }));
 };
@@ -305,7 +341,12 @@ export function dropReference(kind, doc, flag) {
   return {
     ...doc,
     picks: Object.fromEntries(
-      Object.entries(doc.picks || {}).map(([cell, list]) => [cell, (list || []).filter((p) => String(p.goalId) !== flag.goalId)]),
+      Object.entries(doc.picks || {}).map(([cell, list]) => [
+        cell,
+        (list || [])
+          .map((p) => (Array.isArray(p.goalIds) ? { ...p, goalIds: p.goalIds.filter((g) => String(g) !== flag.goalId) } : p))
+          .filter((p) => (Array.isArray(p.goalIds) ? p.goalIds.length > 0 : String(p.goalId) !== flag.goalId)),
+      ]),
     ),
   };
 }
@@ -335,3 +376,14 @@ export function remapCriteriaToPlan(goals, targetPlanId, assessment) {
     criteriaOffered: map(assessment.criteriaOffered),
   };
 }
+
+/**
+ * Danh sách mới (bản tóm tắt, summary) gộp với kế hoạch đã tải chi tiết: bản chưa đổi (cùng phiên bản nội dung, trạng thái,
+ * số phiên bản) giữ chi tiết cũ, bản đã đổi để lại tóm tắt cho trang cần thì tải lại.
+ */
+export const mergeGoals = (prev = [], next = []) =>
+  next.map((g) => {
+    if (!g.summary) return g;
+    const old = prev.find((x) => x.id === g.id);
+    return old && !old.summary && old.revision === g.revision && old.status === g.status && old.versionNo === g.versionNo ? old : g;
+  });

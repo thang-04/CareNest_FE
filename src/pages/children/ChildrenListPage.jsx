@@ -1,11 +1,12 @@
-import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Plus, Search, RotateCcw, UserMinus, FileSpreadsheet, Baby, Info, LayoutGrid, KeyRound } from '@/components/ui/icons';
+import { ChildAvatar } from '@/components/ChildAvatar';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Plus, Search, RotateCcw, UserMinus, FileSpreadsheet, Baby, Info, LayoutGrid, KeyRound, Pencil } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useMasterData } from '@/hooks/useMasterData';
-import { useClasses } from '@/hooks/useSchool';
-import { useChildRecords } from '@/hooks/children/useChildRecords';
+import { useChildRecords, useClassOptions } from '@/hooks/children/useChildRecords';
+import { sameId } from '@/services/http/idStrings';
 import { useFilterParams } from '@/hooks/useFilterParams';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
@@ -14,12 +15,14 @@ import { PeopleTabs } from '@/components/account/PeopleTabs';
 import { Pagination, paginate } from '@/components/ui/Pagination';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { RowActions } from '@/components/ui/RowActions';
+import { clickableRowProps } from '@/utils/clickableRow';
 import { ChildStatusBadge } from '@/components/children/ChildBadges';
-import { ChildQuickPanel } from '@/components/children/ChildQuickPanel';
 import { WithdrawChildModal } from '@/components/children/WithdrawChildModal';
+import { ImportChildrenModal } from '@/components/children/ImportChildrenModal';
+import { Button } from '@/components/ui/Button';
 import { CHILD_STATUS, CHILD_STATUS_LABELS, GENDER_LABELS, ageLabel } from '@/models/School';
 import { PARENT_ACCOUNT_STATUS } from '@/models/children/childrenConstants';
-import { avatarTone, formatDate, initials, normalizeText } from '@/utils/format';
+import { formatDate, normalizeText } from '@/utils/format';
 import {
   canEditChild,
   canEnrollChild,
@@ -29,36 +32,65 @@ import {
   seesAllCampusChildren,
 } from '@/utils/children/childrenPermissions';
 import { childrenCrumbs } from '@/utils/children/breadcrumbs';
+import { childrenOfStatus } from '@/utils/children/childrenHelpers';
 import '@/styles/modules/children.css';
 import { StatCard } from '@/components/ui/StatCard';
+import { CampusFilter } from '@/components/ui/CampusFilter';
 
-// Theo dõi sức khỏe (mức, phiếu theo dõi) xem ở Sổ sức khỏe của từng trẻ, không ở danh sách (user yêu cầu 2026-10-31).
+// Cảnh báo sức khỏe xem ở Sổ sức khỏe của từng trẻ, không ở danh sách (user yêu cầu 2026-10-31; HLT-19, 2026-11-04).
 const FILTER_DEFAULTS = { keyword: '', status: '', campusId: '', classId: '' };
 
 export default function ChildrenListPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { schoolYear } = useSchoolYear();
   const md = useMasterData();
   const [filters, setFilters, resetFilterParams, activeKeys] = useFilterParams(FILTER_DEFAULTS);
   const { status, keyword, campusId, classId } = filters;
   const [page, setPage] = useState(1);
-  const [quickViewId, setQuickViewId] = useState(null);
   const [withdrawing, setWithdrawing] = useState(null);
+  const [importOpen, setImportOpen] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const canImport = canEnrollChild(user);
+
+  // ?import=1 (từ Tiếp nhận trẻ, Xếp lớp, hoặc màn xem trước khi mất bản xem trước) ⇒ mở hộp nhập Excel rồi bỏ tham số khỏi URL.
+  useEffect(() => {
+    if (searchParams.get('import') !== '1') return;
+    if (canImport) setImportOpen(true);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('import');
+        return next;
+      },
+      { replace: true },
+    );
+  }, [searchParams, setSearchParams, canImport]);
 
   const { children: all, loading, error, reload } = useChildRecords({ schoolYear });
   // PHT được giao "Hồ sơ trẻ" toàn trường: bộ lọc lớp gồm lớp của cả 2 điểm trường
   const allCampuses = isVicePrincipal(user) && seesAllCampusChildren(user);
-  const { classes } = useClasses({ ...(campusId ? { campusId } : {}), ...(allCampuses ? { all: true } : {}) });
-  const scopeCampusIds = useMemo(() => new Set(all.map((child) => child.campusId).filter(Boolean)), [all]);
-  const campusOptions = md.campuses.filter((campus) => scopeCampusIds.has(campus.id));
-  const yearClasses = classes.filter((c) => c.schoolYear === schoolYear);
+  // Lớp của năm học đang xem (mock hoặc BE /school-structure); id điểm trường của /campuses là số khi nối BE ⇒ so bằng sameId
+  const { classes: yearOptions } = useClassOptions(schoolYear, { all: allCampuses });
+  const scopeCampusIds = useMemo(
+    () =>
+      new Set(
+        all
+          .map((child) => child.campusId)
+          .filter(Boolean)
+          .map(String),
+      ),
+    [all],
+  );
+  const campusOptions = md.campuses.filter((campus) => scopeCampusIds.has(String(campus.id)));
+  const yearClasses = yearOptions.filter((c) => !campusId || sameId(c.campusId, campusId));
 
+  const current = useMemo(() => childrenOfStatus(all, ''), [all]);
   const rows = useMemo(() => {
     const kw = normalizeText(keyword).trim();
-    return all
-      .filter((c) => !status || c.status === status)
-      .filter((c) => !campusId || c.campusId === campusId)
-      .filter((c) => !classId || c.classId === classId)
+    return childrenOfStatus(all, status)
+      .filter((c) => !campusId || sameId(c.campusId, campusId))
+      .filter((c) => !classId || sameId(c.classId, classId))
       .filter((c) => !kw || normalizeText(`${c.fullName} ${c.code}`).includes(kw));
   }, [all, status, campusId, classId, keyword]);
   const pageRows = paginate(rows, page);
@@ -74,7 +106,7 @@ export default function ChildrenListPage() {
 
   const count = (s) => all.filter((c) => c.status === s).length;
   const stats = [
-    { key: '', label: 'Tổng số trẻ', value: all.length, tone: 'blue' },
+    { key: '', label: 'Tổng số trẻ', value: current.length, tone: 'blue' },
     { key: CHILD_STATUS.ACTIVE, label: CHILD_STATUS_LABELS.ACTIVE, value: count(CHILD_STATUS.ACTIVE), tone: 'green' },
     {
       key: CHILD_STATUS.PENDING_PLACEMENT,
@@ -89,12 +121,14 @@ export default function ChildrenListPage() {
     (c) => c.status !== CHILD_STATUS.LEFT && c.guardians.some((g) => g.accountStatus === PARENT_ACCOUNT_STATUS.NOT_ACTIVATED),
   ).length;
   const showCampus = seesAllCampusChildren(user);
-  const cols = showCampus ? 7 : 6;
+  // Giáo viên không có thao tác dòng (Sửa, Cho nghỉ học) nên bỏ cả cột; bấm dòng mở hồ sơ (DESIGN §6.3)
+  const showActions = !isTeacherRole(user);
+  const cols = 5 + (showCampus ? 1 : 0) + (showActions ? 1 : 0);
   const chipLabels = {
     keyword: `Từ khóa: ${keyword}`,
     status: `Trạng thái: ${CHILD_STATUS_LABELS[status] || status}`,
     campusId: `Điểm trường: ${md.campusById(campusId)?.name?.split(' - ')[0] || 'đã chọn'}`,
-    classId: `Lớp: ${yearClasses.find((c) => c.id === classId)?.name || 'đã chọn'}`,
+    classId: `Lớp: ${yearClasses.find((c) => sameId(c.id, classId))?.name || 'đã chọn'}`,
   };
   // Bỏ điểm trường thì bỏ luôn lớp như khi đổi ô chọn điểm trường
   const chips = activeKeys.map((key) => ({
@@ -108,24 +142,8 @@ export default function ChildrenListPage() {
       <Breadcrumb items={childrenCrumbs()} />
       <div className="page__head">
         <h1 className="page__title">Danh sách trẻ</h1>
-        {canEnrollChild(user) && (
-          <div className="row gap-2">
-            <Link to="/children/import" className="btn">
-              <FileSpreadsheet size={16} /> Nhập từ Excel
-            </Link>
-            <Link to="/children/new" className="btn btn--primary">
-              <Plus size={16} /> Tiếp nhận trẻ
-            </Link>
-          </div>
-        )}
       </div>
 
-      {isTeacherRole(user) && (
-        <div className="alert alert--info mb-16">
-          <Info size={18} />
-          <div>Danh sách chỉ gồm trẻ của lớp bạn đang được phân công.</div>
-        </div>
-      )}
       {isVicePrincipal(user) && (pendingPlacement > 0 || notActivated > 0) && (
         <div className="alert alert--warning mb-16">
           <Info size={18} />
@@ -175,19 +193,7 @@ export default function ChildrenListPage() {
             onSearch={(text) => setFilter({ keyword: text })}
           />
           {showCampus && (
-            <select
-              className="select"
-              value={campusId}
-              aria-label="Điểm trường"
-              onChange={(e) => setFilter({ campusId: e.target.value, classId: '' })}
-            >
-              <option value="">Tất cả điểm trường</option>
-              {campusOptions.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+            <CampusFilter campuses={campusOptions} value={campusId} onChange={(v) => setFilter({ campusId: v, classId: '' })} hideLabel />
           )}
           <select className="select" value={classId} aria-label="Lớp" onChange={(e) => setFilter({ classId: e.target.value })}>
             <option value="">Tất cả lớp</option>
@@ -201,6 +207,16 @@ export default function ChildrenListPage() {
           <button className="btn" onClick={resetFilters} disabled={!filtered}>
             <RotateCcw size={15} /> Đặt lại bộ lọc
           </button>
+          {canImport && (
+            <div className="filter-bar__end">
+              <Button icon={FileSpreadsheet} onClick={() => setImportOpen(true)}>
+                Nhập từ Excel
+              </Button>
+              <Link to="/children/new" className="btn btn--primary">
+                <Plus size={16} /> Tiếp nhận trẻ
+              </Link>
+            </div>
+          )}
         </div>
         <FilterChips count={loading ? null : rows.length} unit="trẻ" chips={chips} />
         {error ? (
@@ -216,7 +232,7 @@ export default function ChildrenListPage() {
                   {showCampus && <th>Điểm trường</th>}
                   <th>Phụ huynh</th>
                   <th className="center">Trạng thái</th>
-                  <th className="cell--actions">Thao tác</th>
+                  {showActions && <th className="cell--actions">Thao tác</th>}
                 </tr>
               </thead>
               <tbody>
@@ -240,7 +256,7 @@ export default function ChildrenListPage() {
                         <EmptyState
                           icon={Baby}
                           title="Chưa có hồ sơ trẻ"
-                          description="Không có hồ sơ trẻ nào trong phạm vi và năm học đã chọn."
+                          description="Không có trẻ đang học hoặc chờ xếp lớp trong phạm vi và năm học đã chọn."
                           action={
                             canEnrollChild(user) && (
                               <Link to="/children/new" className="btn btn--primary">
@@ -256,24 +272,13 @@ export default function ChildrenListPage() {
                   pageRows.map((c) => {
                     const g = c.guardians[0];
                     return (
-                      <tr key={c.id}>
+                      <tr key={c.id} className="row-click" {...clickableRowProps(() => navigate(`/children/${c.id}`))}>
                         <td>
                           {/* Mã trẻ đặt dưới tên như màn Nhân sự (email dưới tên) để bảng vừa khung 1440px */}
                           <span className="row gap-2-5">
-                            <span className={`avatar avatar--sm avatar--tone-${avatarTone(c.fullName)}`} aria-hidden="true">
-                              {initials(c.fullName)}
-                            </span>
+                            <ChildAvatar child={c} size="sm" />
                             <span className="stack gap-0">
-                              {/* Bấm tên: xem nhanh trong panel; nút Xem ở cột thao tác mở trang hồ sơ đầy đủ */}
-                              <button
-                                type="button"
-                                className="link-btn fw-600 tr-name-btn"
-                                title="Xem nhanh"
-                                aria-label={`Xem nhanh hồ sơ ${c.fullName}`}
-                                onClick={() => setQuickViewId(c.id)}
-                              >
-                                {c.fullName}
-                              </button>
+                              <span className="fw-600 text-primary tr-child-name">{c.fullName}</span>
                               <span className="text-xs muted">{c.code}</span>
                             </span>
                           </span>
@@ -301,18 +306,23 @@ export default function ChildrenListPage() {
                         <td className="center">
                           <ChildStatusBadge status={c.status} />
                         </td>
-                        <td className="cell--actions">
-                          <RowActions
-                            view={{ to: `/children/${c.id}`, label: 'Xem hồ sơ' }}
-                            edit={canEditChild(c, user) ? { to: `/children/${c.id}/edit`, label: 'Sửa hồ sơ' } : null}
-                            menu={
-                              canWithdrawChild(c, user)
-                                ? [{ label: 'Cho nghỉ học', icon: UserMinus, danger: true, onClick: () => setWithdrawing(c) }]
-                                : []
-                            }
-                            name={c.fullName}
-                          />
-                        </td>
+                        {showActions && (
+                          <td className="cell--actions">
+                            {/* Mọi thao tác dòng gom vào menu "…" (user chọn 2026-11-11) */}
+                            <RowActions
+                              menu={[
+                                canEditChild(c, user) && { label: 'Sửa hồ sơ', icon: Pencil, to: `/children/${c.id}/edit` },
+                                canWithdrawChild(c, user) && {
+                                  label: 'Cho nghỉ học',
+                                  icon: UserMinus,
+                                  danger: true,
+                                  onClick: () => setWithdrawing(c),
+                                },
+                              ].filter(Boolean)}
+                              name={c.fullName}
+                            />
+                          </td>
+                        )}
                       </tr>
                     );
                   })
@@ -323,7 +333,6 @@ export default function ChildrenListPage() {
         )}
         {!loading && rows.length > 0 && <Pagination page={page} total={rows.length} onChange={setPage} unit="trẻ" />}
       </div>
-      <ChildQuickPanel childId={quickViewId} onClose={() => setQuickViewId(null)} />
       {withdrawing && (
         <WithdrawChildModal
           key={withdrawing.id}
@@ -332,6 +341,7 @@ export default function ChildrenListPage() {
           onDone={() => reload({ silent: true })}
         />
       )}
+      {importOpen && <ImportChildrenModal onClose={() => setImportOpen(false)} onChecked={() => navigate('/children/import')} />}
     </div>
   );
 }

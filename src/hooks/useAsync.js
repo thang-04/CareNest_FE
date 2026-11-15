@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DB_CHANGED_EVENT } from '@/mocks/dbEvents';
+import { coalesce } from './coalesce';
+
+const DATA_CHANGE_COALESCE_MS = 500;
 import { deriveAsyncState } from './asyncState';
 import { createLatestRequest } from './latestRequest';
 import { loadWithHold } from './loadingTiming';
@@ -69,10 +72,13 @@ export function useAsync(loader, deps = [], { refreshOnDataChange = false, enabl
 
   useEffect(() => {
     if (!refreshOnDataChange) return undefined;
-    const handler = () => run({ silent: true });
+    // Một loạt lần ghi liền nhau chỉ tải lại một lần (vd. thực đơn giả ghi 13 lần khi đọc ⇒ 13 lần tải lại cả trang chủ)
+    const reload = coalesce(() => run({ silent: true }), DATA_CHANGE_COALESCE_MS);
+    const handler = reload.trigger;
     window.addEventListener(DB_CHANGED_EVENT, handler);
     window.addEventListener('storage', handler);
     return () => {
+      reload.cancel();
       window.removeEventListener(DB_CHANGED_EVENT, handler);
       window.removeEventListener('storage', handler);
     };

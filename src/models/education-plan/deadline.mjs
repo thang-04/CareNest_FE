@@ -1,0 +1,34 @@
+// Spec 003/005: nhãn hạn (tách khỏi trạng thái duyệt, tiền tố "Hạn:"). BE tính deadlineState, daysLeft; FE chỉ hiển thị.
+
+const ddmm = (iso) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}` : '');
+
+/** { tone, label } cho StatusBadge; null khi không có hạn (năm chưa cấu hình học kỳ). */
+export function deadlineLabel(doc) {
+  if (!doc?.deadline) return null;
+  const due = ddmm(doc.extendedTo || doc.deadline);
+  switch (doc.deadlineState) {
+    case 'NEAR':
+      return { tone: 'orange', label: doc.daysLeft == null ? `Hạn: Gần đến hạn (${due})` : `Hạn: Gần đến hạn · còn ${doc.daysLeft} ngày (${due})` };
+    case 'OVERDUE':
+      return { tone: 'red', label: `Hạn: Quá hạn (${due})` };
+    case 'ON_TIME':
+      return { tone: 'green', label: 'Hạn: Đúng hạn' };
+    case 'LATE':
+      return { tone: 'teal', label: 'Hạn: Ban hành trễ' };
+    default:
+      return { tone: 'gray', label: `Hạn: ${due}` };
+  }
+}
+
+/** Lý do không gửi được (blockedReason của BE). */
+export const BLOCKED_TEXT = {
+  DEADLINE_PASSED: 'Quá hạn — chờ Hiệu trưởng mở hạn.',
+  // BE:EDU-75 — gói học kỳ chưa ban hành vẫn soạn/lưu được giáo án ngày, chỉ chưa gửi hồ sơ chủ đề
+  SEMESTER_NOT_RELEASED:
+    'Gói học kỳ chưa ban hành nên chưa gửi duyệt được hồ sơ chủ đề. Vẫn soạn và lưu giáo án ngày bình thường; gói học kỳ gửi ở trang Kế hoạch giáo dục chủ đề.',
+};
+
+/** Khóa gói học kỳ của lớp + kế hoạch tổ (sp_), hồ sơ chủ đề (ds_), giáo án ngày (dd_) theo khóa giáo án tuần. */
+export const semesterKey = (classId, yearPlanId, no) => `sp_${classId}_${yearPlanId}_${no}`;
+export const dossierKey = (classId, themeId) => `ds_${classId}_${themeId}`;
+export const dayKeyOf = (weekKey) => (weekKey?.startsWith('wp_') ? `dd_${weekKey.slice(3)}` : weekKey);

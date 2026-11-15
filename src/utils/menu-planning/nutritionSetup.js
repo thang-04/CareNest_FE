@@ -53,6 +53,26 @@ export const migrateNormKeys = (norms = {}) =>
 /** Tên viết tắt nhóm tuổi dùng trong bảng (Nhà trẻ, MG bé, MG nhỡ, MG lớn). */
 export const ageAbbr = (ageGroupId) => (ageGroupById(ageGroupId)?.shortName || ageGroupId).replace('Mẫu giáo', 'MG');
 
+const NURSERY_BEFORE_MONTHS = 36;
+
+/**
+ * Tên, độ tuổi, khối của nhóm tuổi trên màn Thiết lập. Bản nối BE có sẵn trong bản ghi thiết lập (nhóm do Hiệu trưởng
+ * thêm không nằm trong danh sách tĩnh); bản mock tra danh sách tĩnh theo id.
+ */
+export const setupGroupInfo = (setup, ageGroupId = setup?.ageGroupId) => {
+  const fixed = ageGroupById(ageGroupId);
+  const from = setup?.ageFromMonths ?? fixed?.ageFromMonths;
+  return {
+    short: setup?.groupShortName || setup?.groupName || fixed?.shortName || ageGroupId,
+    name: setup?.groupName || fixed?.name || ageGroupId,
+    range:
+      setup?.ageFromMonths != null && setup?.ageToMonths != null
+        ? `${setup.ageFromMonths}–${setup.ageToMonths} tháng`
+        : fixed?.name.match(/\((.+)\)/)?.[1] || '',
+    nursery: from != null ? from < NURSERY_BEFORE_MONTHS : false,
+  };
+};
+
 /** Nhóm tuổi đang bật ở Thiết lập; chưa có thiết lập thì là cả 4 nhóm. */
 export const activeAgeGroups = (nutritionSetups = []) =>
   AGE_GROUPS.filter((g) => nutritionSetups.find((s) => s.ageGroupId === g.id)?.enabled !== false);
@@ -99,7 +119,7 @@ export const toSetupForm = (setups, today) => ({
   basis: setups.find((s) => s.basis)?.basis || '',
   groups: setups.map((s) => ({
     ageGroupId: s.ageGroupId,
-    name: ageGroupById(s.ageGroupId)?.name || s.ageGroupId,
+    name: setupGroupInfo(s).name,
     enabled: s.enabled,
     price: String(s.price ?? ''),
     meals: s.meals.map((m) => ({ code: m.code, name: m.name, countAs: m.countAs })),

@@ -128,14 +128,14 @@ test('AC-3: giá trị kích hoạt từ chối vì định dạng thì tiếp n
 test('AC-4: tiếp nhận ở form kích hoạt ngay khi lưu; nhập Excel xong thì kích hoạt ngay được', async () => {
   const saved = await children.enrollChild(
     payload([
-      guardian({ phone: '0900 000 404', idNumber: '999900000404', email: 'me.thu@example.invalid' }),
+      guardian({ accountRecipient: true, phone: '0900 000 404', idNumber: '999900000404', email: 'me.thu@example.invalid' }),
       guardian({ fullName: 'Bố thử', relation: 'Bố', phone: '0900 000 405', idNumber: '999900000405' }),
     ]),
     VP,
   );
   assert.deepEqual(
     saved.guardianAccounts.map((a) => a.result),
-    ['CREATED', 'CREATED'],
+    ['CREATED'],
   );
   const { rows } = await preview([importRow({ email: 'nhap.thu@example.invalid' })]);
   assert.deepEqual(rows[0].errors, []);

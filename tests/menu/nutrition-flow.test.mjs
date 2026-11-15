@@ -19,7 +19,7 @@ test('PHT: khu bán trú gồm Bán trú hôm nay và năm nhóm theo việc', (
   // PHT xem Bếp hôm nay như HT (GET /nutrition/kitchen/day cho HT, PHT)
   assert.deepEqual(keysOf(ROLES.VICE_PRINCIPAL, 'kitchenOps'), ['mealCount', 'publishedMenu', 'forecast', 'freshReceipts']);
   assert.deepEqual(keysOf(ROLES.VICE_PRINCIPAL, 'stock'), ['dryStock', 'stockReceipts', 'stockHistory', 'stockShortfalls']);
-  assert.deepEqual(keysOf(ROLES.VICE_PRINCIPAL, 'foodSafety'), ['foodSamples']);
+  assert.deepEqual(keysOf(ROLES.VICE_PRINCIPAL, 'foodSafety'), ['inspections', 'foodSamples']);
   assert.deepEqual(keysOf(ROLES.VICE_PRINCIPAL, 'catalog'), ['foods', 'dishes', 'nutritionSetup', 'suppliers']);
   assert.deepEqual(
     menuGroup(ROLES.VICE_PRINCIPAL).children.map((entry) => entry.to),

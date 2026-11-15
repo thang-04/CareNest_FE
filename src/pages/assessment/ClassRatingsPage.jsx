@@ -1,11 +1,13 @@
 import { useCallback, useMemo, useState } from 'react';
-import { Download, Save, Wand2 } from '@/components/ui/icons';
+import { Download, Printer, Save, Wand2 } from '@/components/ui/icons';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import { EmptyState, ErrorState, SkeletonRows, Spinner } from '@/components/ui/States';
 import { Tabs } from '@/components/ui/Tabs';
 import { VersionHistory } from '@/components/assessment/VersionHistory';
+import ThemeEvaluationPreviewModal from '@/components/assessment/ThemeEvaluationPreviewModal';
+import { classRatingFile } from '@/utils/assessment/classRatingDoc';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -20,11 +22,12 @@ import {
   CLASS_RATING_PERIOD,
   CLASS_RATING_PERIOD_LABELS,
 } from '@/models/assessment/assessmentConstants';
-import { isLeader } from '@/utils/assessment/assessmentPermissions';
+import { isLeader, isPrincipal, isVicePrincipal } from '@/utils/assessment/assessmentPermissions';
 import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';
 import { exportWithPreview } from '@/components/ui/ExportPreview';
 import { formatDate, formatDateTime } from '@/utils/format';
 import '@/styles/modules/assessment.css';
+import { CampusFilter } from '@/components/ui/CampusFilter';
 
 const PERIODS = Object.values(CLASS_RATING_PERIOD).map((key) => ({ key, label: CLASS_RATING_PERIOD_LABELS[key] }));
 const FIELDS = [...CLASS_RATING_CRITERIA.map((c) => c.key), 'overall'];
@@ -52,6 +55,8 @@ export default function ClassRatingsPage() {
   // Bản đang sửa: classId -> { levels, note }; chỉ gửi các lớp có thay đổi
   const [drafts, setDrafts] = useState({});
   const [saving, setSaving] = useState(false);
+  // Lỗi hiện đỏ trên trang: _form ở đầu bảng; overall = đã bấm Lưu mà lớp có sửa chưa chọn xếp loại chung
+  const [errors, setErrors] = useState({});
   const [pending, setPending] = useState(null);
   const valueOf = (r) => drafts[r.classId] || { levels: r.levels || {}, note: r.note || '' };
   const changed = rows.filter((r) => {
@@ -61,11 +66,19 @@ export default function ClassRatingsPage() {
   const editable = rows.filter((r) => r.canEdit);
   const rated = rows.filter((r) => r.levels?.overall).length;
 
-  const setField = (r, patch) =>
-    setDrafts((all) => {
+  const setField = (r, patch) => {
+    setErrors((e) => (e._form ? { ...e, _form: '' } : e));
+    return setDrafts((all) => {
       const cur = all[r.classId] || { levels: { ...(r.levels || {}) }, note: r.note || '' };
       return { ...all, [r.classId]: { levels: { ...cur.levels, ...patch.levels }, note: patch.note ?? cur.note } };
     });
+  };
+  // Như BE (OBS-24): đã chọn tiêu chí nào thì phải chọn xếp loại chung; chỉ sửa ghi chú / xóa hết mức thì không
+  const needsOverall = (r) => {
+    const levels = valueOf(r).levels;
+    return !levels.overall && CLASS_RATING_CRITERIA.some((c) => levels[c.key]);
+  };
+  const missingOverall = (r) => errors.overall && changed.includes(r) && needsOverall(r);
   // Ít thao tác: điền "Tốt" vào tiêu chí còn trống của lớp được chấm; xếp loại chung người chấm tự chọn (OBS-24)
   const fillEmpty = () =>
     setDrafts((all) => {
@@ -80,11 +93,14 @@ export default function ClassRatingsPage() {
 
   const save = async () => {
     if (!changed.length || saving) return false;
-    if (changed.some((r) => valueOf(r).note.length > NOTE_MAX)) {
-      toast.error(`Ghi chú tối đa ${NOTE_MAX} ký tự.`, 'Chưa lưu được xếp loại');
+    // Ghi chú quá dài đã báo đỏ ngay dưới ô (không chặn gõ): không gửi BE
+    if (changed.some((r) => valueOf(r).note.length > NOTE_MAX)) return false;
+    if (changed.some(needsOverall)) {
+      setErrors({ overall: true });
       return false;
     }
     setSaving(true);
+    setErrors({});
     try {
       await saveClassRatings(
         {
@@ -102,7 +118,7 @@ export default function ClassRatingsPage() {
       await reload({ silent: true });
       return true;
     } catch (err) {
-      toast.error(err, 'Chưa lưu được xếp loại');
+      setErrors({ _form: err.message || 'Chưa lưu được xếp loại, thử lại.' });
       return false;
     } finally {
       setSaving(false);
@@ -142,37 +158,48 @@ export default function ClassRatingsPage() {
     if (changed.length) setPending(() => apply);
     else {
       setDrafts({});
+      setErrors({});
       apply();
     }
   };
 
+  // Bảng đang thấy (kể cả ô vừa sửa chưa lưu) dùng chung cho Xuất Excel và bản in
+  const table = () => ({
+    title: `Xếp loại nhóm lớp – ${CLASS_RATING_PERIOD_LABELS[period]}${campusId ? ` – ${campusName(campusId)}` : ''}`,
+    headers: ['STT', 'Tên nhóm, lớp', ...CLASS_RATING_CRITERIA.map((c) => c.label), 'Xếp loại chung', 'Ghi chú'],
+    rows: rows.map((r, i) => [
+      i + 1,
+      multiCampus ? `${r.className} (${campusName(r.campusId)})` : r.className,
+      ...FIELDS.map((f) => label(valueOf(r).levels[f])),
+      valueOf(r).note,
+    ]),
+  });
   const exportExcel = () => {
-    const title = `Xếp loại nhóm lớp – ${CLASS_RATING_PERIOD_LABELS[period]}${campusId ? ` – ${campusName(campusId)}` : ''}`;
-    exportWithPreview(
-      [
-        [title],
-        ['STT', 'Tên nhóm, lớp', ...CLASS_RATING_CRITERIA.map((c) => c.label), 'Xếp loại chung', 'Ghi chú'],
-        ...rows.map((r, i) => [
-          i + 1,
-          multiCampus ? `${r.className} (${campusName(r.campusId)})` : r.className,
-          // Xuất đúng những gì đang thấy trên bảng (kể cả ô vừa sửa chưa lưu)
-          ...FIELDS.map((f) => label(valueOf(r).levels[f])),
-          valueOf(r).note,
-        ]),
-      ],
-      `xep-loai-nhom-lop-${period.toLowerCase()}.xlsx`,
-    );
+    const t = table();
+    exportWithPreview([[t.title], t.headers, ...t.rows], `xep-loai-nhom-lop-${period.toLowerCase()}.xlsx`);
   };
+  // Bản in có chỗ ký Ban giám hiệu (Cần yêu cầu 10/11/2026): trường chỉ có 1 HT nên tên HT luôn điền sẵn (BE trả
+  // principalName); PHT điền tên người đang đăng nhập nếu đúng chức danh; sửa / thêm / bỏ được
+  const [printing, setPrinting] = useState(null);
+  const openPrint = () =>
+    setPrinting(
+      classRatingFile(table(), [
+        { title: 'Hiệu trưởng', name: ratings?.principalName || (isPrincipal(user) ? user.fullName || '' : '') },
+        { title: 'Phó hiệu trưởng', name: isVicePrincipal(user) ? user.fullName || '' : '' },
+      ]),
+    );
 
   const levelCell = (r, field) => {
     const value = valueOf(r).levels[field] || '';
     if (!r.canEdit) return <td key={field}>{label(value) || <span className="muted">—</span>}</td>;
     const name = field === 'overall' ? 'Xếp loại chung' : CLASS_RATING_CRITERIA.find((c) => c.key === field).label;
+    const missing = field === 'overall' && missingOverall(r);
     return (
       <td key={field}>
         <select
-          className="select"
+          className={`select ${missing ? 'input--error' : ''}`}
           aria-label={`${name} – ${r.className}`}
+          aria-invalid={missing || undefined}
           value={value}
           onChange={(e) => setField(r, { levels: { [field]: e.target.value || null } })}
         >
@@ -183,39 +210,45 @@ export default function ClassRatingsPage() {
             </option>
           ))}
         </select>
+        {missing && <span className="field__error">Chọn xếp loại chung</span>}
       </td>
     );
   };
+
+  // Bảng dài nhiều màn hình: cùng cặp nút ở đầu trang và cuối trang, không dùng thanh nổi che bảng
+  const saveActions = (
+    <>
+      {changed.length > 0 && (
+        <button className="btn" onClick={() => setDrafts({})} disabled={saving}>
+          Hủy thay đổi
+        </button>
+      )}
+      <button className="btn btn--primary" onClick={save} disabled={saving || !changed.length}>
+        {saving ? <Spinner small /> : <Save size={16} />} Lưu xếp loại{changed.length ? ` (${changed.length} lớp)` : ''}
+      </button>
+    </>
+  );
 
   return (
     <div className="page">
       <Breadcrumb items={assessmentCrumbs(SECTIONS.classRatings)} />
       <div className="page__head">
         <h1 className="page__title">Xếp loại nhóm lớp</h1>
-        <button className="btn" onClick={exportExcel} disabled={!rows.length}>
-          <Download size={16} /> Xuất Excel
-        </button>
+        {editable.length > 0 && <div className="page__actions">{saveActions}</div>}
       </div>
       <div className="card">
-        <div className="filter-bar">
+        <div className="filter-bar dg-rating-bar">
           <Tabs items={PERIODS} value={period} onChange={(v) => confirmChange(() => setPeriod(v))} ariaLabel="Kỳ xếp loại" />
           {multiCampus && (
-            <select
-              className="select"
-              aria-label="Điểm trường"
+            <CampusFilter
+              campuses={campuses}
               value={campusId}
-              onChange={(e) => {
-                const next = e.target.value;
+              onChange={(v) => {
+                const next = v;
                 confirmChange(() => setCampusId(next));
               }}
-            >
-              <option value="">Tất cả điểm trường</option>
-              {campuses.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+              hideLabel
+            />
           )}
           <div className="spacer" />
           {!loading && rows.length > 0 && (
@@ -238,9 +271,16 @@ export default function ClassRatingsPage() {
           )}
           {editable.length > 0 && (
             <button className="btn" onClick={fillEmpty} title="Điền Tốt vào các tiêu chí còn trống; xếp loại chung bạn tự chọn">
-              <Wand2 size={16} /> Điền &quot;Tốt&quot; vào tiêu chí trống
+              <Wand2 size={16} /> Điền &quot;Tốt&quot; ô trống
             </button>
           )}
+          {/* Lọc, In, Xuất Excel cùng một hàng trên đầu bảng (Cần yêu cầu 10/11/2026) */}
+          <button className="btn" onClick={openPrint} disabled={!rows.length}>
+            <Printer size={16} /> In
+          </button>
+          <button className="btn" onClick={exportExcel} disabled={!rows.length}>
+            <Download size={16} /> Xuất Excel
+          </button>
         </div>
         {/* Kỳ chưa mở chấm (BE OBS-24): HK theo ngày học kỳ, cuối năm từ tháng cuối năm học */}
         {leader && !loading && rows.length > 0 && editable.length === 0 && (
@@ -250,11 +290,16 @@ export default function ClassRatingsPage() {
               : 'Chưa đặt ngày học kỳ ở Cấu hình thời gian nên chưa xếp loại được kỳ này.'}
           </div>
         )}
+        {errors._form && (
+          <div className="alert alert--danger mb-12" role="alert">
+            {errors._form}
+          </div>
+        )}
         {error ? (
           <ErrorState error={error} onRetry={reload} />
         ) : (
-          <div className="table-wrap">
-            <table className="table table--grid table--compact dg-rating-table">
+          <div className="table-wrap dg-roll-wrap">
+            <table className="table table--grid table--compact table--wrap-head dg-rating-table dg-roll">
               <thead>
                 <tr>
                   <th className="num">STT</th>
@@ -296,13 +341,20 @@ export default function ClassRatingsPage() {
                         {FIELDS.map((f) => levelCell(r, f))}
                         <td>
                           {r.canEdit ? (
-                            <input
-                              className="input"
-                              aria-label={`Ghi chú – ${r.className}`}
-                              maxLength={NOTE_MAX}
-                              value={v.note}
-                              onChange={(e) => setField(r, { note: e.target.value })}
-                            />
+                            <>
+                              <input
+                                className="input"
+                                aria-label={`Ghi chú – ${r.className}`}
+                                aria-invalid={v.note.length > NOTE_MAX}
+                                value={v.note}
+                                onChange={(e) => setField(r, { note: e.target.value })}
+                              />
+                              {v.note.length > NOTE_MAX && (
+                                <span className="field__error" role="alert">
+                                  {`Tối đa ${NOTE_MAX} ký tự (đang ${v.note.length}).`}
+                                </span>
+                              )}
+                            </>
                           ) : (
                             r.note || <span className="muted">—</span>
                           )}
@@ -320,16 +372,7 @@ export default function ClassRatingsPage() {
       {editable.length > 0 && (
         <div className="page-actions">
           <div className="spacer" />
-          <div className="row gap-2">
-            {changed.length > 0 && (
-              <button className="btn" onClick={() => setDrafts({})} disabled={saving}>
-                Hủy thay đổi
-              </button>
-            )}
-            <button className="btn btn--primary" onClick={save} disabled={saving || !changed.length}>
-              {saving ? <Spinner small /> : <Save size={16} />} Lưu xếp loại{changed.length ? ` (${changed.length} lớp)` : ''}
-            </button>
-          </div>
+          <div className="row gap-2">{saveActions}</div>
         </div>
       )}
 
@@ -342,6 +385,7 @@ export default function ClassRatingsPage() {
           guard.modal.onDiscard();
         }}
       />
+      {printing && <ThemeEvaluationPreviewModal file={printing} onClose={() => setPrinting(null)} />}
       <ConfirmationModal
         open={!!pending}
         title="Bỏ các thay đổi chưa lưu?"
@@ -351,6 +395,7 @@ export default function ClassRatingsPage() {
         onConfirm={() => {
           backup.clear();
           setDrafts({});
+          setErrors({});
           pending?.();
           setPending(null);
         }}

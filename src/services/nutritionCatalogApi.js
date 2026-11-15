@@ -217,7 +217,7 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
     const rows = new Map();
     (d.ingredients || []).forEach((r) => {
       const key = String(r.foodId);
-      if (!rows.has(key)) rows.set(key, { foodId: key, portions: {} });
+      if (!rows.has(key)) rows.set(key, { foodId: key, foodName: r.foodName || '', portions: {} });
       rows.get(key).portions[codeOf[String(r.ageGroupId)] || String(r.ageGroupId)] = r.gramsPerChild;
     });
     const ingredients = [...rows.values()].map((r) => {
@@ -269,8 +269,11 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
   const dish = withFields(DISH_FIELDS);
 
   /* ---------- nhà cung cấp ---------- */
+  // BE chưa có mã NCC: mã hiển thị sinh từ id (NCC001, NCC002…) — cố định, không trùng, cùng dạng mã của bản demo
+  const supplierCode = (id) => `NCC${String(id).padStart(3, '0')}`;
   const toSupplier = (s) => ({
     id: s.id,
+    code: supplierCode(s.id),
     name: s.name,
     phone: s.phone || '',
     address: s.address || '',
@@ -298,6 +301,14 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
         .map(([key, stem]) => [key, [v[`${stem}Min`] ?? '', v[`${stem}Max`] ?? '']]),
     ),
     editable: !!v.editable,
+  });
+
+  // Tên và độ tuổi nhóm tuổi do Cấu hình trường quản lý: mang theo để màn không tra danh sách tĩnh theo code
+  const groupFields = (g) => ({
+    groupName: g.name || '',
+    groupShortName: g.shortName || '',
+    ageFromMonths: g.ageFromMonths ?? null,
+    ageToMonths: g.ageToMonths ?? null,
   });
 
   const toConfigRequest = (g, effectiveFrom, basis, ageGroupId) => ({
@@ -474,6 +485,7 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
         const latest = versions[0];
         return {
           ageGroupId: g.code,
+          ...groupFields(g),
           enabled: true,
           mealsReadOnly: true,
           basis: latest?.basis || '',
@@ -538,6 +550,7 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
           const v = byGroup.get(String(g.id));
           return {
             ageGroupId: g.code,
+            ...groupFields(g),
             enabled: true,
             basis: v?.basis || '',
             price: v?.price ?? '',

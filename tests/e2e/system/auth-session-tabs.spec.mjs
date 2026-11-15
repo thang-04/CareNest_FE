@@ -7,7 +7,7 @@ import { spaGo } from '../support/ui.mjs';
 test('ST-16 hai tab cùng phiên làm mới token không bị đăng xuất', async ({ page, context }) => {
   test.skip(!(await beReachable()), 'BE thật không chạy');
   await page.goto('/login');
-  await page.getByPlaceholder('ten@carenest.edu.vn').fill(USERS.teacher1);
+  await page.getByPlaceholder(/SĐT hoặc email|ten@carenest\.edu\.vn/).fill(USERS.teacher1);
   await page.getByPlaceholder('Nhập mật khẩu').fill(devPassword());
   await page.locator('input[type=checkbox]').first().uncheck();
   await page.getByRole('button', { name: 'Đăng nhập' }).click();

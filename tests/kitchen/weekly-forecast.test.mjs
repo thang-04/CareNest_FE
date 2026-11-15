@@ -54,7 +54,7 @@ test('tuần đang chạy: đã gửi NCC theo dữ liệu mẫu, có lưới su
   const forCook = await repo.getWeeklyForecast({ campusId: 'c1', weekStart: THIS_WEEK }, COOK_A);
   assert.equal(forCook.canEdit, false);
   const forPrincipal = await repo.getWeeklyForecast({ campusId: 'c2', weekStart: THIS_WEEK }, PRINCIPAL);
-  assert.equal(forPrincipal.canEdit, false);
+  assert.equal(forPrincipal.canEdit, true, 'HT có sẵn STOCK_MANAGE, sửa được dự trù mọi cơ sở');
   await rejects(repo.getWeeklyForecast({ campusId: 'c1', weekStart: THIS_WEEK }, COOK_B), 403);
 });
 

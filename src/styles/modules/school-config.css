@@ -45,6 +45,21 @@
   margin: var(--space-2) 0 0;
   padding-left: var(--space-5);
 }
+/* Hộp thoại phân công PHT: người đang phân công và điểm trường hiện tại luôn nằm trên cùng */
+.sc-assign-person {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+}
+.sc-assign-person__name {
+  flex: 1 1 var(--space-16);
+  min-width: 0;
+}
 .sc-inline-select {
   width: auto;
   min-width: 180px;
@@ -835,7 +850,7 @@
   margin: 0;
 }
 
-/* Phân công PHT: mỗi PHT 1 thẻ; màn rộng 2 thẻ cạnh nhau, hẹp thì xếp dọc */
+/* Phân công PHT (bản mock): mỗi PHT 1 thẻ; màn rộng 2 thẻ cạnh nhau, hẹp thì xếp dọc */
 .sc-vp-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 560px), 1fr));
@@ -866,6 +881,12 @@
 }
 .sc-vp-table th:nth-child(2) {
   width: 18%;
+}
+.sc-vp-table--perms th:first-child {
+  width: 50%;
+}
+.sc-vp-table--perms th:nth-child(2) {
+  width: 22%;
 }
 .sc-vp-table td {
   white-space: normal;
@@ -1116,4 +1137,184 @@
 }
 .sc-holiday-form__add {
   margin-top: calc(var(--fs-sm) * 1.5 + var(--space-1-5));
+}
+
+/* Xếp lớp năm mới: lớp gom theo nhóm tuổi, nút xếp cả nhóm (Cần đề xuất 10/11/2026) */
+.sc-plc__group {
+  display: grid;
+  gap: var(--space-1);
+}
+.sc-plc__group + .sc-plc__group {
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border);
+}
+.sc-plc__group-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  padding: var(--space-1) var(--space-2);
+}
+.sc-plc__group-name {
+  font-weight: var(--fw-semibold);
+}
+/* Ô "Cả lớp lên" đủ rộng, tên lớp · điểm trường không xuống dòng */
+.sc-plc-page .sc-plc__toolbar .sc-placement__select {
+  width: calc(var(--space-16) * 3.5);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+/* Cột danh sách lớp rộng hơn để trạng thái và nút xếp cả nhóm không bị cắt */
+.sc-plc-page .sc-plc {
+  grid-template-columns: minmax(calc(var(--space-16) * 4.5), 1.15fr) 3fr;
+}
+.sc-plc__group-auto {
+  width: 100%;
+  justify-content: center;
+}
+/* Ô chọn lớp năm mới trong bảng co theo cột để không phải cuộn ngang */
+.sc-plc-page .sc-plc__table .sc-placement__select {
+  min-width: calc(var(--space-16) * 3);
+  width: 100%;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Modal tạo / sửa tài khoản nhân sự: chia khối có tiêu đề, chọn vai trò bằng thẻ */
+.sc-account-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.sc-form-section + .sc-form-section {
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--color-border);
+}
+
+.sc-form-section__head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.sc-form-section__icon {
+  display: inline-flex;
+  width: var(--space-8);
+  height: var(--space-8);
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+.sc-form-section__title {
+  margin: 0;
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+}
+
+.sc-form-section__desc {
+  margin: var(--space-1) 0 0;
+  color: var(--color-text-secondary);
+  font-size: var(--fs-sm);
+}
+
+.sc-form-section__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.sc-role-picker {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.sc-role-picker .sc-role-option {
+  display: flex;
+  height: auto;
+  min-height: calc(var(--space-16) + var(--space-2));
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-weight: var(--fw-regular);
+  text-align: left;
+  text-decoration: none;
+  white-space: normal;
+}
+
+.sc-role-picker .sc-role-option:hover {
+  border-color: var(--color-primary);
+  text-decoration: none;
+}
+
+.sc-role-picker .sc-role-option.is-selected {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+  box-shadow: 0 0 0 1px var(--color-primary);
+}
+
+.sc-role-option__icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+}
+
+.sc-role-option.is-selected .sc-role-option__icon {
+  color: var(--color-primary);
+}
+
+.sc-role-option__text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.sc-role-option__label {
+  font-weight: var(--fw-semibold);
+}
+
+.sc-role-option__hint {
+  color: var(--color-text-secondary);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-regular);
+}
+
+.sc-form-note {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-primary-soft);
+  color: var(--color-text-secondary);
+  font-size: var(--fs-sm);
+}
+
+.sc-identity-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-muted);
+}
+
+@media (max-width: 640px) {
+  .sc-role-picker {
+    grid-template-columns: 1fr;
+  }
 }

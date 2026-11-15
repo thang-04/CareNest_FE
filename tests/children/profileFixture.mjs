@@ -1,10 +1,11 @@
 /*
- * Hành chính và tiền sử giả đủ ô bắt buộc khi tiếp nhận (user chốt 2026-10-22). Dữ liệu giả: CCCD bắt đầu 999.
+ * Hành chính và tiền sử giả đủ ô bắt buộc khi tiếp nhận (user chốt 2026-10-22; tuần thai bắt buộc mọi trẻ từ 2026-11-04).
+ * Dữ liệu giả: CCCD bắt đầu 999.
  */
 export const filledProfile = (patch = {}) => ({
   idNumber: '',
   premature: 'NO',
-  gestationWeeks: '',
+  gestationWeeks: 39,
   ethnicity: 'Kinh',
   beneficiary: 'Trẻ em dưới 6 tuổi',
   bloodType: '',
@@ -22,6 +23,7 @@ export const filledMedicalHistory = (patch = {}) => ({
 /** Các cột hành chính, tiền sử bắt buộc của file nhập Excel. */
 export const filledImportColumns = (patch = {}) => ({
   premature: 'Không',
+  gestationWeeks: '39',
   ethnicity: 'Kinh',
   beneficiary: 'Trẻ em dưới 6 tuổi',
   province: 'Hải Phòng',

@@ -756,3 +756,253 @@ a.kpi-tile:hover .kpi-tile__chev {
   color: var(--color-text-muted);
   font-variant-numeric: tabular-nums;
 }
+
+/* ---------- Trang chủ phương án A "Nhịp một ngày": Hôm nay + Tiến độ trong ngày ---------- */
+.db-day {
+  display: grid;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+.db-today__filter {
+  margin-left: auto;
+}
+.db-today {
+  display: grid;
+  gap: var(--space-5);
+}
+.db-today--split {
+  grid-template-columns: minmax(0, 2fr) repeat(2, minmax(0, 1fr));
+}
+.db-today__value,
+.db-today__campus-value {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: var(--fw-bold);
+  font-variant-numeric: tabular-nums;
+  color: var(--tone-green-fg);
+  line-height: 1.1;
+}
+.db-today__value {
+  font-size: var(--fs-display);
+}
+.db-today__campus-value {
+  font-size: var(--fs-2xl);
+  color: var(--color-text);
+}
+.db-today__unit {
+  font-family: var(--font-sans);
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-regular);
+  color: var(--color-text-muted);
+}
+.db-today__compare {
+  display: inline-block;
+  margin: var(--space-2) 0 var(--space-3);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-full);
+  background: var(--color-success-bg);
+  color: var(--color-success-fg);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+}
+.db-today__campus {
+  display: grid;
+  align-content: start;
+  gap: var(--space-2);
+  padding-left: var(--space-5);
+  border-left: 1px solid var(--color-border);
+}
+.db-today__campus-head {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+.db-today__campus .progress__label {
+  display: none;
+}
+.db-today__campus-meta {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--color-text-secondary);
+}
+@media (max-width: 1100px) {
+  .db-today--split {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .db-today--split .db-today__main {
+    grid-column: 1 / -1;
+  }
+  .db-today__campus:nth-child(2) {
+    padding-left: 0;
+    border-left: 0;
+  }
+}
+@media (max-width: 560px) {
+  .db-today--split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .db-today__campus {
+    padding-left: 0;
+    border-left: 0;
+  }
+  .db-today__value {
+    font-size: var(--fs-display-sm);
+  }
+}
+
+.db-steps__note {
+  margin: 0 0 var(--space-3);
+}
+.db-steps {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.db-steps__item + .db-steps__item {
+  border-left: 1px solid var(--color-border);
+}
+.db-step {
+  display: grid;
+  gap: var(--space-1-5);
+  height: 100%;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-sm);
+  color: inherit;
+  text-decoration: none;
+  transition: background var(--duration-base) var(--ease-out);
+}
+.db-step:hover,
+.db-step:focus-visible {
+  background: var(--color-primary-soft);
+}
+.db-step__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+.db-step__index {
+  display: inline-grid;
+  place-items: center;
+  width: var(--space-6);
+  height: var(--space-6);
+  border-radius: var(--radius-full);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-bold);
+}
+.db-step__label {
+  font-size: var(--fs-sm);
+  color: var(--color-text-secondary);
+}
+.db-step__value {
+  font-family: var(--font-display);
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-bold);
+  font-variant-numeric: tabular-nums;
+}
+.db-step__unit {
+  font-family: var(--font-sans);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-regular);
+  color: var(--color-text-muted);
+}
+.db-step__track {
+  display: block;
+  width: 100%;
+  height: var(--space-1-5);
+  border-radius: var(--radius-full);
+  background: var(--color-surface-muted);
+  overflow: hidden;
+}
+.db-step__bar--green {
+  fill: var(--tone-green);
+}
+.db-step__bar--blue {
+  fill: var(--tone-blue);
+}
+.db-step__bar--red {
+  fill: var(--tone-orange);
+}
+.db-step__bar--gray {
+  fill: var(--tone-gray);
+}
+.db-step__note {
+  font-size: var(--fs-xs);
+  color: var(--color-text-muted);
+}
+@media (max-width: 1100px) {
+  .db-steps {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .db-steps__item + .db-steps__item {
+    border-left: 0;
+    border-top: 1px solid var(--color-border);
+  }
+}
+
+.db-lunch__chip {
+  margin-bottom: var(--space-2);
+}
+.db-lunch {
+  margin: 0;
+  padding-left: var(--space-5);
+  color: var(--color-text-secondary);
+}
+
+/* Trang chủ theo lớp (Giáo viên, Tổ trưởng): số của lớp + danh sách việc trong ngày */
+.db-today--class {
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+}
+.db-today__tasks {
+  display: grid;
+  align-content: start;
+  gap: var(--space-2);
+  padding-left: var(--space-5);
+  border-left: 1px solid var(--color-border);
+}
+.db-today__tasks ul {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.db-today__tasks a {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) 0;
+  color: var(--color-text);
+  text-decoration: none;
+}
+.db-today__tasks a:hover,
+.db-today__tasks a:focus-visible {
+  color: var(--color-primary);
+}
+.db-today__tasks li svg {
+  color: var(--color-border);
+}
+.db-today__tasks li.is-done svg {
+  color: var(--tone-green);
+}
+.db-today__tasks li.is-done span {
+  color: var(--color-text-muted);
+  text-decoration: line-through;
+}
+.db-class-pick {
+  max-width: calc(var(--space-16) * 4);
+  margin-bottom: var(--space-4);
+}
+@media (max-width: 760px) {
+  .db-today--class {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .db-today__tasks {
+    padding-left: 0;
+    border-left: 0;
+  }
+}

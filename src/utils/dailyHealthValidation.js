@@ -43,6 +43,14 @@ export const actionSummary = (entries = []) => {
   return parts.join(' · ');
 };
 
+// Gõ nhanh ba chữ số: 385 → 38.5; không đổi số có dấu thập phân hoặc chuỗi sai định dạng.
+export const normalizeTemperatureInput = (value) => {
+  const raw = String(value ?? '')
+    .trim()
+    .replace(',', '.');
+  return /^\d{3}$/.test(raw) ? `${raw.slice(0, 2)}.${raw[2]}` : raw;
+};
+
 export const validateDailyHealth = ({ temperature, observation, symptoms = [], note = '', actions = [], referral = null }) => {
   const errors = {};
   const raw = String(temperature ?? '')
@@ -50,6 +58,8 @@ export const validateDailyHealth = ({ temperature, observation, symptoms = [], n
     .replace(',', '.');
   if (raw && (!/^\d{2}(\.\d)?$/.test(raw) || !Number.isFinite(Number(raw))))
     errors.temperature = 'Nhập thân nhiệt bằng hai chữ số, tối đa một số thập phân.';
+  // BE DailyHealthRequest (Cần chốt 11/11/2026): 20,0–45,0 °C
+  else if (raw && (Number(raw) < 20 || Number(raw) > 45)) errors.temperature = 'Thân nhiệt phải từ 20,0 đến 45,0 °C.';
   if (!['NO_CONCERN', 'NOTED'].includes(observation)) errors.observation = 'Chọn kết quả quan sát sau khi kiểm tra trẻ.';
   if (symptoms.some((symptom) => !Object.hasOwn(HEALTH_SYMPTOMS, symptom))) errors.symptoms = 'Chọn biểu hiện trong danh sách.';
   if (observation === 'NOTED' && !symptoms.length && !note.trim()) errors.note = 'Ghi biểu hiện hoặc ghi chú cần lưu ý.';

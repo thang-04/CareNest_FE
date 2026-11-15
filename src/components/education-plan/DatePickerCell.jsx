@@ -27,7 +27,20 @@ const monthGrid = (first) => {
  * range: khoảng của chính dòng này (tô xanh lá). Ngày đỏ vẫn chọn được, bảng tự báo trùng.
  * min / max (yyyy-mm-dd): chỉ chọn, gõ được ngày trong khoảng này (vd. ngày bắt đầu, kết thúc năm học).
  */
-export default function DatePickerCell({ value, onChange, label, taken = [], range = {}, openAt, min, max }) {
+export default function DatePickerCell({
+  value,
+  onChange,
+  label,
+  taken = [],
+  range = {},
+  openAt,
+  min,
+  max,
+  disabled = false,
+  compact = false,
+  // false: chỉ đổi ngày, không xóa trắng (vd. chủ đề nhánh: xóa ngày làm mất tên nhánh)
+  clearable = true,
+}) {
   const [open, setOpen] = useState(false);
   const [typeError, setTypeError] = useState(null);
   const [view, setView] = useState(() => monthStart(value || range.start));
@@ -95,22 +108,24 @@ export default function DatePickerCell({ value, onChange, label, taken = [], ran
   // Khoảng của chính dòng; mới có Từ ngày thì vẫn đánh dấu ngày bắt đầu để chọn Đến ngày cho dễ
   const inRange = (iso) => range.start && (range.end ? range.start <= iso && iso <= range.end : iso === range.start);
   const today = isoOf(new Date());
+  const displayDate = value ? fmtDate(value) : '';
 
   return (
     <div ref={ref}>
       <button
         type="button"
         className="ga-cell-input ga-cal__trigger"
+        disabled={disabled}
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-label={label}
         onClick={toggle}
       >
-        {value ? <span>{fmtDate(value)}</span> : <span className="muted">Chọn ngày</span>}
+        {value ? <span>{displayDate}</span> : <span className="muted">{compact ? 'dd/mm/yyyy' : 'Chọn ngày'}</span>}
         {/* Đã chọn ngày thì bỏ icon lịch cho gọn (Tiền 03/11); bấm / Enter vào ô vẫn mở lịch */}
-        {!value && <CalendarDays size={15} className="muted" aria-hidden />}
+        {!value && !compact && <CalendarDays size={15} className="muted" aria-hidden />}
       </button>
-      {open && (
+      {open && !disabled && (
         <FloatingPanel anchorRef={ref} panelRef={panelRef} minWidth={360}>
           <div className="ga-cal" role="dialog" aria-label={label}>
             <input
@@ -197,7 +212,7 @@ export default function DatePickerCell({ value, onChange, label, taken = [], ran
                 <span className="ga-cal__swatch" />
                 Còn trống
               </span>
-              {value && (
+              {value && clearable && (
                 <button type="button" className="btn btn--sm btn--ghost" onClick={() => pick('')}>
                   Xóa ngày
                 </button>

@@ -1,4 +1,6 @@
 import { ROLES } from '@/models/User';
+import { PERMISSIONS } from '@/models/bePermissions';
+import { hasBePermission, hasSchoolWideBePermission, inBePermissionScope, inOwnCampus } from '@/utils/bePermissions';
 import {
   AREA_SCOPE_ALL,
   PERMISSION_ACCESS,
@@ -56,12 +58,28 @@ export const canManageAgeGroups = isPrincipal;
 /** Rooms (PROPOSED, outside SRS): Principal manages; a Vice Principal views the rooms of the assigned campus. */
 /** Phòng ban: Hiệu trưởng toàn quyền; PHT theo quyền "Quản lý phòng ban" được giao (mặc định chỉ xem campus mình). */
 // action: 'create' thêm phòng, 'update' sửa, 'delete' ngừng dùng / dùng lại / xóa; true = có ít nhất 1 thao tác ghi
-export const canManageRooms = (user, campusId, action = true) => areaAllows(user, 'rooms', campusId, action);
+export const canManageRooms = (user, campusId, action = true) => {
+  if (!isBeUser(user)) return areaAllows(user, 'rooms', campusId, action);
+  if (!hasBePermission(user, PERMISSIONS.ROOM_MANAGE)) return false;
+  return isPrincipal(user) || (isVicePrincipal(user) && inBePermissionScope(user, PERMISSIONS.ROOM_MANAGE, campusId));
+};
+// Như BE RoomServiceImpl.visibleTo: HT xem mọi cơ sở; PHT luôn xem phòng cơ sở mình, thêm cơ sở trong phạm vi ROOM_MANAGE
 export const canViewRooms = (user) =>
-  isPrincipal(user) || (isVicePrincipal(user) && areaAccess(user, 'rooms').access !== PERMISSION_ACCESS.NONE);
-/** Điểm trường có phòng mà người dùng xem / sửa được. */
+  isBeUser(user)
+    ? isPrincipal(user) || isVicePrincipal(user)
+    : isPrincipal(user) || (isVicePrincipal(user) && areaAccess(user, 'rooms').access !== PERMISSION_ACCESS.NONE);
+const canViewRoomsOf = (user, campusId) =>
+  isPrincipal(user) ||
+  (isVicePrincipal(user) &&
+    (inOwnCampus(user, campusId) ||
+      (hasBePermission(user, PERMISSIONS.ROOM_MANAGE) && inBePermissionScope(user, PERMISSIONS.ROOM_MANAGE, campusId))));
+/** Điểm trường có phòng mà người dùng xem (need = false) / sửa được. */
 export const roomCampusIds = (user, campuses, need = false) =>
-  campuses.filter((c) => areaAllows(user, 'rooms', c.id, need)).map((c) => c.id);
+  campuses
+    .filter((c) =>
+      isBeUser(user) ? (need ? canManageRooms(user, c.id, need) : canViewRoomsOf(user, c.id)) : areaAllows(user, 'rooms', c.id, need),
+    )
+    .map((c) => c.id);
 
 /** UC 2.7 / GBR-CFG-03. */
 /** Cấu hình thời gian (giờ chốt, học kỳ, ngày nghỉ): chỉ Hiệu trưởng (user chốt 03/11/2026). */
@@ -70,8 +88,8 @@ export const canConfigureCutoff = isPrincipal;
 
 /** "Campus – Create / Edit": Principal only. */
 export const canManageCampus = isPrincipal;
-/** Campus view is not in the matrix: assumed Principal (all) and Vice Principal (own campus). */
-export const canViewCampus = (campus, user) => isPrincipal(user) || (isVicePrincipal(user) && campus?.id === user.campusId);
+/** Như BE SchoolConfigAccess.canViewSchool (AUTH-20): HT và PHT xem cấu hình điểm trường ở mọi cơ sở; chỉ HT sửa. */
+export const canViewCampus = (campus, user) => !!campus && (isPrincipal(user) || isVicePrincipal(user));
 export const canListCampuses = (user) => is(user, ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL);
 
 /** "Permission – Assign to Vice Principal": Principal only. */
@@ -95,6 +113,8 @@ export const areaAccess = (user, key) => {
   if (!isVicePrincipal(user)) return parseAreaGrant(PERMISSION_LEVEL.NONE);
   // Người dùng BE: theo quyền BE, không theo mảng mock
   if (isBeUser(user) && BE_VIEW_ALL_AREAS.includes(key)) return parseAreaGrant(`${PERMISSION_ACCESS.VIEW}@${AREA_SCOPE_ALL}`);
+  // Hồ sơ trẻ: PHT xem mọi điểm trường (AUTH-20); nút sửa theo từng mã CHILD_* ở childrenPermissions
+  if (isBeUser(user) && key === 'children') return parseAreaGrant(`${PERMISSION_ACCESS.VIEW}@${AREA_SCOPE_ALL}`);
   if (isBeUser(user) && key === 'staff') {
     const allowed = user.bePermissions.some((code) => STAFF_VIEW_PERMISSIONS.includes(code));
     return parseAreaGrant(allowed ? `${PERMISSION_ACCESS.VIEW}@${AREA_SCOPE_ALL}` : PERMISSION_LEVEL.NONE);
@@ -118,8 +138,14 @@ export const areaAllows = (user, key, campusId, need = false) => {
  * Xếp lớp năm học mới: Hiệu trưởng toàn trường; PHT theo mảng "Xếp lớp năm học mới" Hiệu trưởng giao
  * (1 điểm trường hoặc toàn trường; Xem hoặc Xem + Sửa).
  */
-export const canViewYearPlacement = (user, campusId) => isPrincipal(user) || areaAllows(user, 'yearPlacement', campusId);
-export const canEditYearPlacement = (user, campusId) => isPrincipal(user) || areaAllows(user, 'yearPlacement', campusId, 'update');
+// Nối BE (Cần chốt 10/11/2026): mã YEAR_PLACEMENT_MANAGE HT cấp kèm phạm vi; BE lọc lớp theo phạm vi và chặn lưu ngoài phạm vi
+const placesWithBe = (user, campusId) =>
+  hasBePermission(user, PERMISSIONS.YEAR_PLACEMENT_MANAGE) &&
+  (isPrincipal(user) || !campusId || inBePermissionScope(user, PERMISSIONS.YEAR_PLACEMENT_MANAGE, campusId));
+export const canViewYearPlacement = (user, campusId) =>
+  isPrincipal(user) || (isBeUser(user) ? placesWithBe(user, campusId) : areaAllows(user, 'yearPlacement', campusId));
+export const canEditYearPlacement = (user, campusId) =>
+  isPrincipal(user) || (isBeUser(user) ? placesWithBe(user, campusId) : areaAllows(user, 'yearPlacement', campusId, 'update'));
 /** Điểm trường PHT được xếp (null = toàn trường). */
 export const yearPlacementCampus = (user) => {
   if (isPrincipal(user)) return null;
@@ -150,8 +176,8 @@ const teacherAssignAccess = (user) => {
   }
   return {
     access: PERMISSION_ACCESS.EDIT,
-    scope: isPrincipal(user) ? PERMISSION_SCOPE.ALL : PERMISSION_SCOPE.CAMPUS,
-    campusId: isPrincipal(user) ? null : user?.campusId || null,
+    scope: isPrincipal(user) || hasSchoolWideBePermission(user, STAFF_ASSIGNMENT_MANAGE) ? PERMISSION_SCOPE.ALL : PERMISSION_SCOPE.CAMPUS,
+    campusId: isPrincipal(user) || hasSchoolWideBePermission(user, STAFF_ASSIGNMENT_MANAGE) ? null : user?.campusId || null,
     actions: { create: true, update: true, delete: true },
   };
 };
@@ -167,6 +193,8 @@ export const canViewTeacherAssignments = (campusId, user) => {
 export const canAssignTeachers = (campusId, user, action = true) => {
   const p = teacherAssignAccess(user);
   const ok = action === true ? p.access === PERMISSION_ACCESS.EDIT : !!p.actions?.[action];
+  // Đăng nhập BE: đúng phạm vi HT cấp (cơ sở được phân công — có thể nhiều — hoặc toàn trường), AUTH-20
+  if (isBeUser(user)) return ok && !!campusId && (isPrincipal(user) || inBePermissionScope(user, STAFF_ASSIGNMENT_MANAGE, campusId));
   return ok && inScope(p, campusId, user);
 };
 

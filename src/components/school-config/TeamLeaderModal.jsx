@@ -103,8 +103,11 @@ export function TeamLeaderModal({ group, current, teachers, campuses, campusName
               <tbody>
                 {rows.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="muted center">
-                      Không có giáo viên phù hợp.
+                    <td colSpan={4}>
+                      <EmptyState
+                        title="Không có giáo viên phù hợp"
+                        description="Thử từ khóa khác hoặc kiểm tra giáo viên đã được phân công lớp."
+                      />
                     </td>
                   </tr>
                 ) : (

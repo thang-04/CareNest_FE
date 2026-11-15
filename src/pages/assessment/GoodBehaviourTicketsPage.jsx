@@ -25,10 +25,8 @@ const periodText = (pType, p) =>
 /** Lý do chưa đủ điều kiện, nói rõ còn thiếu bao nhiêu (thay cho khung giải thích quy tắc). */
 const missingText = (r, rules, weekly) => {
   if (!weekly) return `Thiếu ${rules.MONTH_MIN_WEEKLY_TICKETS - r.weeklyTickets} phiếu Bé ngoan`;
-  const parts = [
-    r.presentDays < rules.WEEK_MIN_PRESENT_DAYS && `thiếu ${rules.WEEK_MIN_PRESENT_DAYS - r.presentDays} ngày có mặt`,
-    r.flagCount < rules.WEEK_MIN_FLAGS && `thiếu ${rules.WEEK_MIN_FLAGS - r.flagCount} cờ`,
-  ].filter(Boolean);
+  // BE OBS-10 (Cần chốt 11/11/2026): phiếu tuần chỉ cần đủ cờ, không còn điều kiện số ngày có mặt
+  const parts = [r.flagCount < rules.WEEK_MIN_FLAGS && `thiếu ${rules.WEEK_MIN_FLAGS - r.flagCount} cờ`].filter(Boolean);
   const text = parts.join(', ');
   return text.charAt(0).toUpperCase() + text.slice(1);
 };
@@ -170,6 +168,7 @@ function TeacherTicketsPage() {
                     {classes.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.name}
+                        {classes.some((x) => x.teaches) && !c.teaches ? ' (chỉ xem)' : ''}
                       </option>
                     ))}
                   </select>
@@ -215,17 +214,12 @@ function TeacherTicketsPage() {
                 <div className="spacer" />
                 {board?.period && (
                   <div className="dg-ticket-stats">
-                    <TicketBadge status="ELIGIBLE" detail={`${rows.filter((r) => r.eligible).length}/${rows.length}`} />
+                    <TicketBadge status="ELIGIBLE_UNISSUED" detail={rows.filter((r) => r.eligible && !r.ticket).length} />
                     <TicketBadge status="ISSUED" detail={issued} />
                     {issuable.length > 0 && <TicketBadge status="PENDING_ISSUE" detail={issuable.length} />}
                   </div>
                 )}
               </div>
-              {weekly && !error && board?.period && (
-                <p className="muted text-sm">
-                  Ngày có mặt và cờ trong tuần đi theo trẻ, bao gồm trước khi chuyển lớp. Mỗi trẻ chỉ nhận một phiếu trong kỳ.
-                </p>
-              )}
               {error ? (
                 <ErrorState error={error} onRetry={reload} />
               ) : !loading && board && !board.period ? (
@@ -235,8 +229,8 @@ function TeacherTicketsPage() {
                   description="Phiếu chỉ được phát sau khi tuần hoặc tháng kết thúc."
                 />
               ) : (
-                <div className="table-wrap">
-                  <table className="table table--grid">
+                <div className="table-wrap dg-roll-wrap">
+                  <table className="table table--grid dg-roll">
                     <thead>
                       <tr>
                         <th className="center dg-col-check">
@@ -251,9 +245,7 @@ function TeacherTicketsPage() {
                         <th>Trẻ</th>
                         {weekly ? (
                           <>
-                            <th className="num" title={`Cần ít nhất ${board?.rules?.WEEK_MIN_PRESENT_DAYS ?? 4} ngày`}>
-                              Ngày có mặt <span className="muted">(cần {board?.rules?.WEEK_MIN_PRESENT_DAYS ?? 4})</span>
-                            </th>
+                            <th className="num">Ngày có mặt</th>
                             <th className="num" title={`Cần ít nhất ${board?.rules?.WEEK_MIN_FLAGS ?? 3} cờ`}>
                               Cờ bé ngoan <span className="muted">(cần {board?.rules?.WEEK_MIN_FLAGS ?? 3})</span>
                             </th>
@@ -263,7 +255,7 @@ function TeacherTicketsPage() {
                             Bé ngoan trong tháng <span className="muted">(cần {board?.rules?.MONTH_MIN_WEEKLY_TICKETS ?? 3})</span>
                           </th>
                         )}
-                        <th className="center">Điều kiện</th>
+                        <th>Điều kiện</th>
                         <th>Phiếu</th>
                       </tr>
                     </thead>
@@ -293,9 +285,7 @@ function TeacherTicketsPage() {
                             </td>
                             {weekly ? (
                               <>
-                                <td className={`num ${r.presentDays < board.rules.WEEK_MIN_PRESENT_DAYS ? 'text-danger' : ''}`}>
-                                  {r.presentDays}/5
-                                </td>
+                                <td className="num">{r.presentDays}/5</td>
                                 <td className={`num ${r.flagCount < board.rules.WEEK_MIN_FLAGS ? 'text-danger' : ''}`}>
                                   <span className="dg-flag-count">
                                     <Flag size={14} aria-hidden="true" /> {r.flagCount}

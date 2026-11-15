@@ -6,6 +6,8 @@ const campusLabel = (campuses, id) => {
   const c = campuses.find((x) => String(x.id) === String(id));
   return c?.shortName || c?.name;
 };
+// Ô lọc điểm trường hiện đủ tên (Cần chốt 10/11/2026)
+const campusFull = (campuses, id) => campuses.find((x) => String(x.id) === String(id))?.name;
 
 const GOAL_LISTS = ['goalsMet', 'goalsNotMet'];
 // beClient đổi `id` số thành chuỗi nhưng không đổi phần tử của goalsMet/…: đưa về chuỗi để so với goals[].id
@@ -30,10 +32,15 @@ const nameOf = (list, item) => item.name || list.find((x) => x.id === item.id)?.
 /** Tổng quan đánh giá: điền tên điểm trường / nhóm tuổi từ danh mục (BE trả name null). */
 export const withNames = (overview, campuses = [], ageGroups = []) => ({
   ...overview,
-  campuses: (overview.campuses || []).map((c) => ({ ...c, name: campusLabel(campuses, c.id) || nameOf(campuses, c) })),
+  // Thiếu danh mục (giáo viên, tổ trưởng) thì để tên trống, không hiện mã số thay tên
+  campuses: (overview.campuses || []).map((c) => ({
+    ...c,
+    name: campusLabel(campuses, c.id) || c.name || null,
+    fullName: campusFull(campuses, c.id),
+  })),
   ageGroups: (overview.ageGroups || []).map((g) => ({ ...g, name: nameOf(ageGroups, g) })),
   // Đủ danh mục điểm trường cho ô lọc của Hiệu trưởng (kể cả điểm trường chưa có lớp)
-  allCampuses: campuses.map((c) => ({ id: c.id, name: c.shortName || c.name })),
+  allCampuses: campuses.map((c) => ({ id: c.id, name: c.shortName || c.name, fullName: c.name })),
 });
 
 const pickGoals = (a) => Object.fromEntries(GOAL_LISTS.map((k) => [k, a[k] || []]));
@@ -124,8 +131,8 @@ export const createAssessmentBeApi = (client) => ({
       isLeader(user) && (campusId || (report.campusIds || []).length > 1) ? await client.get('/campuses').catch(() => []) : [];
     return {
       ...report,
-      campuses: (report.campusIds || []).map((id) => ({ id, name: campusLabel(campuses, id) || id })),
-      allCampuses: campuses.map((c) => ({ id: c.id, name: c.shortName || c.name })),
+      campuses: (report.campusIds || []).map((id) => ({ id, name: campusLabel(campuses, id) || id, fullName: campusFull(campuses, id) })),
+      allCampuses: campuses.map((c) => ({ id: c.id, name: c.shortName || c.name, fullName: c.name })),
     };
   },
   // Xếp loại nhóm lớp: ghép tên ngắn điểm trường cho cột / bộ lọc
@@ -137,7 +144,7 @@ export const createAssessmentBeApi = (client) => ({
     const campuses = isLeader(user) && (result.campusIds || []).length > 1 ? await client.get('/campuses').catch(() => []) : [];
     return {
       ...result,
-      campuses: (result.campusIds || []).map((id) => ({ id, name: campusLabel(campuses, id) || id })),
+      campuses: (result.campusIds || []).map((id) => ({ id, name: campusLabel(campuses, id) || id, fullName: campusFull(campuses, id) })),
     };
   },
   saveClassRatings: ({ period, items }) => client.put('/assessment/class-ratings', { period, items }),
@@ -148,12 +155,51 @@ export const createAssessmentBeApi = (client) => ({
   getThemeEvaluation: ({ classId, themeId }) => client.get('/assessment/theme-evaluations', { params: { classId, themeId } }),
   saveThemeEvaluation: (body) => client.put('/assessment/theme-evaluations', body),
   confirmThemeEvaluation: (body) => client.post('/assessment/theme-evaluations/confirm', body),
-  // Nhận xét chung cả lớp theo tháng (BE OBS-26); month = ngày 1 của tháng
-  getClassMonthlyComment: ({ classId, month }) => client.get('/assessment/class-monthly-comments', { params: { classId, month } }),
-  saveClassMonthlyComment: ({ classId, month, content }) => client.put('/assessment/class-monthly-comments', { classId, month, content }),
-  confirmClassMonthlyComment: ({ classId, month, content }) =>
-    client.post('/assessment/class-monthly-comments/confirm', { classId, month, content }),
-  // Đánh giá tháng / cuối năm: BE tạo bản nháp khi tháng kết thúc (cuối năm: từ tháng cuối năm học)
+  // Nhận xét tuần theo trẻ (BE OBS-29): weekStart = thứ Hai; childId trống = cả lớp
+  getWeeklyComments: ({ classId, weekStart }) =>
+    client.get('/assessment/weekly-comments', { params: { classId, weekStart: weekStart || undefined } }),
+  writeWeeklyCommentDrafts: ({ classId, weekStart, childId, overwrite = false, ai = false }) =>
+    client.post('/assessment/weekly-comments/drafts', { classId, weekStart, childId: childId || null, overwrite, ai }),
+  saveWeeklyComment: ({ classId, weekStart, childId, content }) =>
+    client.put('/assessment/weekly-comments', { classId, weekStart, childId, content }),
+  sendWeeklyComments: ({ classId, weekStart, childId, content }) =>
+    client.post('/assessment/weekly-comments/send', { classId, weekStart, childId: childId || null, content: content ?? null }),
+  // Mở lại lớp – tuần nhận xét tuần đã khóa (HT / PHT có quyền mở lại) tới validUntil, như mở lại ngày đánh giá
+  unlockWeeklyComments: ({ classId, weekStart, validUntil, reason }) =>
+    client.post('/assessment/weekly-comments/unlocks', { classId, weekStart, validUntil, reason }),
+  listWeeklyCommentUnlocks: ({ campusId, classId, active, from, to } = {}) =>
+    client.get('/assessment/weekly-comments/unlocks', {
+      params: {
+        campusId: campusId || undefined,
+        classId: classId || undefined,
+        active: active ?? undefined,
+        from: from || undefined,
+        to: to || undefined,
+      },
+    }),
+  revokeWeeklyCommentUnlock: (id) => client.post(`/assessment/weekly-comments/unlocks/${id}/revoke`),
+  // BGH: tình hình gửi nhận xét tuần của các lớp (đã gửi / tổng, quá hạn)
+  getWeeklyCommentOverview: ({ campusId, weekStart } = {}) =>
+    client.get('/assessment/weekly-comments/overview', {
+      params: { campusId: campusId || undefined, weekStart: weekStart || undefined },
+    }),
+  // Hạn, khóa, mở lại đánh giá cuối chủ đề / học kỳ / cuối năm theo lớp – kỳ (BE OBS-30)
+  getEvaluationPeriods: ({ classId }) => client.get('/assessment/evaluation-periods', { params: { classId } }),
+  unlockEvaluation: ({ kind, classId, periodKey, validUntil, reason }) =>
+    client.post('/assessment/evaluation-unlocks', { kind, classId, periodKey, validUntil, reason }),
+  listEvaluationUnlocks: ({ campusId, classId, kind, active } = {}) =>
+    client.get('/assessment/evaluation-unlocks', {
+      params: {
+        campusId: campusId || undefined,
+        classId: classId || undefined,
+        kind: kind || undefined,
+        active: active ?? undefined,
+      },
+    }),
+  revokeEvaluationUnlock: (id) => client.post(`/assessment/evaluation-unlocks/${id}/revoke`),
+  // BGH: lớp quá hạn chưa xong (nhận xét tuần, chủ đề, học kỳ, cuối năm)
+  getOverdueClasses: ({ campusId } = {}) => client.get('/assessment/overdue', { params: { campusId: campusId || undefined } }),
+  // Đánh giá tháng / cuối năm: BE tạo bản nháp khi tháng kết thúc (cuối năm: khi học kỳ II kết thúc)
   getEvaluations: (kind, { schoolYear, classId } = {}) =>
     client.get('/assessment/evaluations', {
       params: {
@@ -168,11 +214,31 @@ export const createAssessmentBeApi = (client) => ({
   regenerateEvaluationDraft: (kind, id) => client.post(`/assessment/evaluations/${id}/redraft`),
   markProgramCompletion: (id, completed) => client.put(`/assessment/evaluations/${id}/program-completion`, { completed }),
   // Phiếu đánh giá sự phát triển cuối năm (BE OBS-28)
+  getSemesterAssessment: (params) => client.get('/assessment/semester-evaluations', { params }),
+  saveSemesterAssessment: (body) => client.put('/assessment/semester-evaluations', body),
+  confirmSemesterAssessment: (body) => client.post('/assessment/semester-evaluations/confirm', body),
   getYearEndSheet: (id) => client.get(`/assessment/evaluations/${id}/year-sheet`),
   saveYearEndSheet: (id, body) => client.put(`/assessment/evaluations/${id}/year-sheet`, body),
   // Hồ sơ / tiến độ phát triển: trẻ trong phạm vi của năm học, số liệu của trẻ theo khoảng ngày
-  getDevelopmentChildren: ({ schoolYear, classId } = {}) =>
-    client.get('/assessment/children', { params: { schoolYearId: schoolYear || undefined, classId: classId || undefined } }),
+  // Ghép điểm trường (tên đủ) và nhóm tuổi của lớp cho ô lọc; thiếu danh mục thì để trống, không chặn danh sách
+  getDevelopmentChildren: async ({ schoolYear, classId } = {}) => {
+    const [rows, classes, campuses, ageGroups] = await Promise.all([
+      client.get('/assessment/children', { params: { schoolYearId: schoolYear || undefined, classId: classId || undefined } }),
+      client.get('/assessment/theme-evaluations/classes', { params: { schoolYearId: schoolYear || undefined } }).catch(() => []),
+      client.get('/campuses').catch(() => []),
+      client.get('/age-groups').catch(() => []),
+    ]);
+    const classOf = new Map(classes.map((c) => [String(c.classId), c]));
+    return rows.map((r) => {
+      const ageGroupId = classOf.get(String(r.classId))?.ageGroupId ?? null;
+      return {
+        ...r,
+        campusName: campusFull(campuses, r.campusId) || '',
+        ageGroupId,
+        ageGroupName: ageGroups.find((g) => String(g.id) === String(ageGroupId))?.name || '',
+      };
+    });
+  },
   getChildDevelopment: (childId, { start, end }) => client.get(`/assessment/children/${childId}/development`, { params: { start, end } }),
   // Trẻ lớp 5–6 tuổi hoàn thành chương trình (sổ chỉ đạo chuyên môn mục 8): ghép tên điểm trường
   getProgramCompletion: async ({ schoolYear, campusId } = {}) => {
@@ -184,7 +250,7 @@ export const createAssessmentBeApi = (client) => ({
     ]);
     return {
       ...report,
-      campuses: (report.campusIds || []).map((id) => ({ id, name: campusLabel(campuses, id) || id })),
+      campuses: (report.campusIds || []).map((id) => ({ id, name: campusLabel(campuses, id) || id, fullName: campusFull(campuses, id) })),
     };
   },
   // Đề xuất khen thưởng theo danh sách lớp: ghép tên điểm trường cho HT lọc
@@ -214,7 +280,12 @@ export const createAssessmentBeApi = (client) => ({
     ]);
     return {
       ...overview,
-      campuses: (overview.campusIds || []).map((id) => ({ id, name: campusLabel(campuses, id) || id })),
+      // Không đọc được danh mục điểm trường (giáo viên): tên trống để màn ẩn cột, không hiện mã số
+      campuses: (overview.campusIds || []).map((id) => ({
+        id,
+        name: campusLabel(campuses, id) || null,
+        fullName: campusFull(campuses, id),
+      })),
     };
   },
 });

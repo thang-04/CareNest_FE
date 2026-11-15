@@ -41,7 +41,7 @@ export const saveStockReceipt = (payload, user) => repo.saveStockReceipt(payload
  * tạo/sửa ({ id?, ... }), xóa (mock: khi chưa có phiếu; BE: chuyển Ngừng dùng).
  */
 const supplierRepo = sourceOf('nutrition-catalog', mock, nutritionCatalogApi);
-/** Danh mục NCC dùng BE: không có mã NCC, số phiếu nhập; có CCCD người giao hàng. */
+/** Danh mục NCC dùng BE: mã NCC FE sinh từ id, chưa có số phiếu nhập; có CCCD nhà cung cấp. */
 export const suppliersUseApi = () => !isDemoModule('nutrition-catalog');
 /** Ẩn/hiện nút sửa NCC: BE theo NUTRITION_MANAGE (HT luôn có, PHT khi được cấp); mock theo vai trò. */
 export const canEditSuppliers = (user) =>
@@ -68,6 +68,8 @@ export const getConfirmedMealCount = withBeMealCounts((filters, user) => mealCou
 /** Dự trù tuần: { status, days, classes, fresh, dry, changes, pendingChanges, sent, canEdit }. */
 export const getWeeklyForecast = (filters, user) => repo.getWeeklyForecast(filters, user);
 export const saveWeeklyForecast = (payload, user) => repo.saveWeeklyForecast(payload, user);
+/** Bảng đi chợ một ngày: { status, basis, groups, lines, totals, menu, warnings, campuses, campusId, campusName }. */
+export const getDayMarket = (filters, user) => repo.getDayMarket(filters, user);
 export const markWeeklyOrderSent = (filters, user) => repo.markWeeklyOrderSent(filters, user);
 export const setSupplierNotified = (payload, user) => repo.setSupplierNotified(payload, user);
 /** Kiểm nhận hàng tươi một ngày: { status, lines, counts, canEdit, canReview, canMarkNotified, … }. */

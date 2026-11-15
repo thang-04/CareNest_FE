@@ -91,7 +91,7 @@ function StaffAccountsMockView() {
       parts.push(`Phụ trách ${md.campusById(a.campusId)?.shortName} (${a.schoolYear})${a.sharedService ? ' · dịch vụ chung' : ''}`),
     );
     if (u.classes.length) parts.push(`Dạy ${u.classes.map((c) => c.name).join(', ')}`);
-    u.leads.forEach((a) => parts.push(`Tổ trưởng ${md.campusById(a.campusId)?.shortName}`));
+    u.leads.forEach((a) => parts.push(['Tổ trưởng', md.campusById(a.campusId)?.shortName].filter(Boolean).join(' ')));
     return parts;
   };
 
@@ -100,15 +100,10 @@ function StaffAccountsMockView() {
       <Breadcrumb items={staffCrumbs()} />
       <div className="page__head">
         <h1 className="page__title">{title}</h1>
-        {manage && (
-          <button className="btn btn--primary btn--lg" onClick={() => setEditing({ account: null })}>
-            <Plus size={18} /> Thêm tài khoản
-          </button>
-        )}
       </div>
       <YearReadOnlyNotice />
 
-      <div className="card mb-16">
+      <div className="card">
         <PeopleTabs embedded />
         <div className="filter-bar">
           <SearchSubmit
@@ -156,10 +151,14 @@ function StaffAccountsMockView() {
             <option value="ACTIVE">Đang hoạt động</option>
             <option value="INACTIVE">Đã vô hiệu hóa</option>
           </select>
+          {manage && (
+            <div className="filter-bar__end">
+              <button className="btn btn--primary" onClick={() => setEditing({ account: null })}>
+                <Plus size={16} /> Thêm tài khoản
+              </button>
+            </div>
+          )}
         </div>
-      </div>
-
-      <div className="card">
         {error ? (
           <ErrorState error={error} onRetry={reload} />
         ) : (
@@ -171,7 +170,7 @@ function StaffAccountsMockView() {
                   <th>Vai trò</th>
                   <th>Điểm trường</th>
                   <th>Đang phụ trách</th>
-                  <th>Số điện thoại</th>
+                  <th className="center">Số điện thoại</th>
                   <th className="center">Trạng thái</th>
                   {cols === 7 && <th className="cell--actions">Thao tác</th>}
                 </tr>
@@ -207,7 +206,7 @@ function StaffAccountsMockView() {
                         </td>
                         <td>{md.campusById(u.campusId)?.shortName || <span className="muted">—</span>}</td>
                         <td className="text-sm sc-wrap">{list.length ? list.join(' · ') : <span className="muted">—</span>}</td>
-                        <td className="nowrap">{u.phone || <span className="muted">—</span>}</td>
+                        <td className="nowrap center">{u.phone || <span className="muted">—</span>}</td>
                         <td className="center">
                           <StaffStatusBadge status={u.status || 'ACTIVE'} />
                         </td>

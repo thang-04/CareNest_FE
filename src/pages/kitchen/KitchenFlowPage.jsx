@@ -297,8 +297,8 @@ export default function KitchenFlowPage({ asHome = false }) {
         )}
       </div>
 
-      <div className="db-board mb-16">
-        <div className="db-board__main">
+      <div className="kb-flow-board mb-16">
+        <div className="kb-flow-board__main">
           <Widget
             title="Dòng thời gian"
             icon={ClipboardList}
@@ -371,96 +371,95 @@ export default function KitchenFlowPage({ asHome = false }) {
               </>
             )}
           </Widget>
-        </div>
-        <div className="db-board__aside">
           {showTodo && (
             <Widget title="Cần xử lý" icon={ListTodo} loading={!campusId || firstLoad(dayQ)} error={dayQ.error} onRetry={dayQ.reload}>
               {day && <ShortList rows={todoRows(day, user)} />}
             </Widget>
           )}
-          {false}
+        </div>
+        <div className="kb-flow-board__aside">
+          <Widget
+            title="Thực đơn trong ngày"
+            icon={UtensilsCrossed}
+            to={`/kitchen/published-menu?date=${date}`}
+            linkLabel="Xem thực đơn đã công bố"
+            loading={firstLoad(menuQ)}
+            error={menuQ.error}
+            onRetry={menuQ.reload}
+            empty={!menuGrid.rows.length}
+            emptyTitle="Chưa có thực đơn công bố cho ngày này"
+          >
+            {/* Bảng ngang nhóm tuổi × bữa thay cho danh sách chip dọc: cả ngày gói trong một màn hình */}
+            <div className="table-wrap" key={`${campusId}_${date}`}>
+              <table className="table table--grid table--compact kb-day-menu">
+                <thead>
+                  <tr>
+                    <th className="kb-day-menu__group">Nhóm tuổi</th>
+                    {menuGrid.sessions.map((s) => (
+                      <th key={s}>{MEAL_SESSION_LABELS[s] || s}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {menuGrid.rows.map((r) => {
+                    const group = ageGroupById(r.ageGroupId)?.shortName || 'Toàn trường';
+                    // Thay đổi dị ứng của nhóm tuổi: hàng riêng ngay dưới, ô món chỉ còn tên món
+                    const hasChanges = menuGrid.sessions.some((s) => r.bySession[s]?.allergyChanges?.length);
+                    return (
+                      <Fragment key={r.key}>
+                        <tr className={r.type === MENU_TYPE.ALLERGY ? 'kb-tr--allergy' : undefined}>
+                          <td>
+                            <div className="fw-600">{group}</div>
+                            {r.type === MENU_TYPE.ALLERGY && <div className="text-xs muted">Thực đơn thay thế (dị ứng)</div>}
+                          </td>
+                          {menuGrid.sessions.map((s) => {
+                            const m = r.bySession[s];
+                            return (
+                              <td key={s}>
+                                {m ? (
+                                  <ul className="kb-dishes text-sm">
+                                    {m.dishes.map((d) => (
+                                      <li key={d.id} className={d.allergens.length ? 'kb-day-menu__allergen' : undefined}>
+                                        {d.name}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                ) : (
+                                  <span className="muted">—</span>
+                                )}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                        {hasChanges && (
+                          <tr className="kb-tr--allergy">
+                            <td>
+                              <div className="kb-menu-table__type kb-menu-table__type--change text-sm fw-600">
+                                <AlertTriangle size={14} aria-hidden="true" />
+                                Thay đổi cho trẻ dị ứng
+                              </div>
+                            </td>
+                            {menuGrid.sessions.map((s) => (
+                              <td key={s}>
+                                <AllergyMenuChanges
+                                  compact
+                                  changes={r.bySession[s]?.allergyChanges}
+                                  date={date}
+                                  context={`${group} · ${MEAL_SESSION_LABELS[s]}`}
+                                />
+                              </td>
+                            ))}
+                          </tr>
+                        )}
+                      </Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </Widget>
         </div>
       </div>
-      <Widget
-        title="Thực đơn trong ngày"
-        icon={UtensilsCrossed}
-        to={`/kitchen/published-menu?date=${date}`}
-        linkLabel="Xem thực đơn đã công bố"
-        loading={firstLoad(menuQ)}
-        error={menuQ.error}
-        onRetry={menuQ.reload}
-        empty={!menuGrid.rows.length}
-        emptyTitle="Chưa có thực đơn công bố cho ngày này"
-      >
-        {/* Bảng ngang nhóm tuổi × bữa thay cho danh sách chip dọc: cả ngày gói trong một màn hình */}
-        <div className="table-wrap" key={`${campusId}_${date}`}>
-          <table className="table table--grid table--compact kb-day-menu">
-            <thead>
-              <tr>
-                <th className="kb-day-menu__group">Nhóm tuổi</th>
-                {menuGrid.sessions.map((s) => (
-                  <th key={s}>{MEAL_SESSION_LABELS[s] || s}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {menuGrid.rows.map((r) => {
-                const group = ageGroupById(r.ageGroupId)?.shortName || 'Toàn trường';
-                // Thay đổi dị ứng của nhóm tuổi: hàng riêng ngay dưới, ô món chỉ còn tên món
-                const hasChanges = menuGrid.sessions.some((s) => r.bySession[s]?.allergyChanges?.length);
-                return (
-                  <Fragment key={r.key}>
-                    <tr className={r.type === MENU_TYPE.ALLERGY ? 'kb-tr--allergy' : undefined}>
-                      <td>
-                        <div className="fw-600">{group}</div>
-                        {r.type === MENU_TYPE.ALLERGY && <div className="text-xs muted">Thực đơn thay thế (dị ứng)</div>}
-                      </td>
-                      {menuGrid.sessions.map((s) => {
-                        const m = r.bySession[s];
-                        return (
-                          <td key={s}>
-                            {m ? (
-                              <ul className="kb-dishes text-sm">
-                                {m.dishes.map((d) => (
-                                  <li key={d.id} className={d.allergens.length ? 'kb-day-menu__allergen' : undefined}>
-                                    {d.name}
-                                  </li>
-                                ))}
-                              </ul>
-                            ) : (
-                              <span className="muted">—</span>
-                            )}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                    {hasChanges && (
-                      <tr className="kb-tr--allergy">
-                        <td>
-                          <div className="kb-menu-table__type kb-menu-table__type--change text-sm fw-600">
-                            <AlertTriangle size={14} aria-hidden="true" />
-                            Thay đổi cho trẻ dị ứng
-                          </div>
-                        </td>
-                        {menuGrid.sessions.map((s) => (
-                          <td key={s}>
-                            <AllergyMenuChanges
-                              compact
-                              changes={r.bySession[s]?.allergyChanges}
-                              date={date}
-                              context={`${group} · ${MEAL_SESSION_LABELS[s]}`}
-                            />
-                          </td>
-                        ))}
-                      </tr>
-                    )}
-                  </Fragment>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </Widget>
     </div>
   );
 }

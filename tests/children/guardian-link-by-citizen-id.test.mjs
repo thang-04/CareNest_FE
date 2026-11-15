@@ -94,7 +94,7 @@ test('AC-3: CCCD mới nhưng SĐT của phụ huynh có CCCD khác ⇒ 409 dư�
   );
 });
 
-test('AC-4: sửa hồ sơ, thêm phụ huynh có CCCD trùng tài khoản ⇒ liên kết', async () => {
+test('AC-4: sửa hồ sơ, thêm liên hệ khác giữ nguyên người nhận tài khoản', async () => {
   const saved = await children.enrollChild(payload([guardian()]), VP);
   const acc = structuredClone(readDb().parentAccounts.find((a) => a.status === 'ACTIVE' && a.idNumber && !a.childIds.includes(saved.id)));
   const form = {
@@ -106,9 +106,9 @@ test('AC-4: sửa hồ sơ, thêm phụ huynh có CCCD trùng tài khoản ⇒ l
   };
   const updated = await children.updateChild(saved.id, { child: form, reason: 'Thêm bố (giả)' }, VP);
   assert.equal(updated.guardians[1].fullName, acc.fullName);
-  assert.equal(updated.guardians[1].accountStatus, 'ACTIVE');
+  assert.equal(updated.guardians[1].accountStatus, 'NOT_ACTIVATED');
   assert.ok(
-    readDb()
+    !readDb()
       .parentAccounts.find((a) => a.id === acc.id)
       .childIds.includes(saved.id),
   );
@@ -119,7 +119,7 @@ const csvOf = (rows) =>
     .map((cells) => cells.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(','))
     .join('\n');
 
-test('AC-5: Excel: dòng có CCCD trùng tài khoản không lỗi, có ghi chú; nhập thì liên kết tài khoản', async () => {
+test('AC-5: Excel: dòng có CCCD trùng tài khoản không lỗi, có ghi chú; chờ kích hoạt sau', async () => {
   const acc = activeAccount();
   const text = csvOf([
     {
@@ -139,7 +139,7 @@ test('AC-5: Excel: dòng có CCCD trùng tài khoản không lỗi, có ghi chú
   assert.equal(rows[0].payload.child.guardians[0].fullName, acc.fullName);
   const done = await children.importChildren([rows[0].payload], VP);
   assert.ok(
-    readDb()
+    !readDb()
       .parentAccounts.find((a) => a.id === acc.id)
       .childIds.includes(done.ids[0]),
   );

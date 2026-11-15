@@ -36,7 +36,7 @@ test('CSS chung: cột thao tác thu vừa nội dung và căn giữa', () => {
   assert.match(rule, /text-align:\s*center/);
 });
 
-// User đổi quyết định 20/10/2026: số đếm/số lượng căn giữa (.num), tiền căn phải (.money); tiêu đề cùng class với ô
+// User chốt 08/11/2026 (cách lai): chữ dài căn trái, mọi giá trị ngắn (số, tiền, ngày, trạng thái, mã) căn giữa; tiêu đề cùng class với ô
 test('cột số hiển thị căn giữa cả tiêu đề bằng .num (ô nhập số giữ căn theo ô nhập)', () => {
   const NUMERIC = {
     'pages/school-config/AgeGroupsClassesPage.jsx': ['Sĩ số tối đa/lớp', 'Số lớp'],
@@ -58,3 +58,15 @@ test('cột số hiển thị căn giữa cả tiêu đề bằng .num (ô nhậ
   }
   assert.deepEqual(bad, []);
 });
+
+test('bảng kẻ ô: mọi ô tự có đủ 4 cạnh, ô cạnh cột gộp rowSpan không mất vạch', () => {
+  const css = readFileSync(join(SRC, 'styles/components.css'), 'utf8');
+  assert.match(css, /\.table\.table--grid th,\s*\.table\.table--grid td,\s*\.table\.table--grid tr:last-child td \{\s*border: 1px solid/);
+  assert.doesNotMatch(css, /\.table\.table--grid td \+ td/);
+});
+
+test('CSS chung: số, tiền, giá trị ngắn căn giữa, không còn căn phải theo loại dữ liệu', () => {
+  const css = readFileSync(join(SRC, 'styles/components.css'), 'utf8');
+  assert.match(css, /\.table \.center,\s*\.table \.num,\s*\.table \.money \{\s*text-align: center;/);
+});
+

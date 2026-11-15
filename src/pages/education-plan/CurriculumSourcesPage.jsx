@@ -41,38 +41,52 @@ export default function CurriculumSourcesPage() {
   };
 
   return (
-    <div className="page ga-page">
-      <PageHead crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Nguồn chương trình của Bộ' }]} title="Nguồn chương trình của Bộ" />
-      <Card bodyClass={null}>
-        <div className="card__body stack">
-          <div className="ga-cur-meta">
-            <select
-              className="select ga-cur-age"
-              aria-label="Nhóm tuổi"
-              value={ageGroupId}
-              onChange={(e) => {
-                setParam('ageGroup', e.target.value);
-                setDomainFilter('');
-                setSubFilter('');
-              }}
-            >
-              {AGE_GROUPS.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
-                </option>
-              ))}
-            </select>
+    <div className="page ga-page ga-cur-page">
+      {/* Khung chung các trang kế hoạch giáo dục: đầu trang → thẻ lọc → tab → thẻ nội dung (Tiền 14/11/2026) */}
+      <div className="ga-sticky-head">
+        <PageHead
+          crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Nguồn chương trình của Bộ' }]}
+          title="Nguồn chương trình của Bộ"
+          desc="Đối chiếu mục tiêu và gợi ý nội dung trong Chương trình GDMN của Bộ theo nhóm tuổi. Chỉ xem."
+        />
+        <div className="card mb-16">
+          <div className="filter-bar">
+            <div className="field">
+              <label className="field__label" htmlFor="src-age">
+                Nhóm tuổi
+              </label>
+              <select
+                id="src-age"
+                className="select"
+                value={ageGroupId}
+                onChange={(e) => {
+                  setParam('ageGroup', e.target.value);
+                  setDomainFilter('');
+                  setSubFilter('');
+                }}
+              >
+                {AGE_GROUPS.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}
+                  </option>
+                ))}
+              </select>
+            </div>
             {source && (
-              <span className="muted text-sm ga-cur-meta__source" title={`${source.title} — ${source.issuer}`}>
-                {source.documentNo} · {fmtIso(source.issuedDate)}
-              </span>
-            )}
-            {source?.officialUrl && (
-              <a className="text-sm" href={source.officialUrl} target="_blank" rel="noopener noreferrer">
-                Bản gốc
-              </a>
+              <div className="filter-bar__end ga-cur-meta">
+                <span className="muted text-sm ga-cur-meta__source" title={`${source.title} — ${source.issuer}`}>
+                  {source.documentNo} · {fmtIso(source.issuedDate)}
+                </span>
+                {source.officialUrl && (
+                  <a className="text-sm" href={source.officialUrl} target="_blank" rel="noopener noreferrer">
+                    Bản gốc
+                  </a>
+                )}
+              </div>
             )}
           </div>
+        </div>
+        <div className="mb-16">
           <Tabs
             ariaLabel="Danh mục"
             value={tab}
@@ -82,6 +96,10 @@ export default function CurriculumSourcesPage() {
               { key: 'contents', label: 'Gợi ý nội dung', count: data.contents.length || null },
             ]}
           />
+        </div>
+      </div>
+      <Card bodyClass={null}>
+        <div className="card__body stack">
           {data.loading ? (
             <LoadingState />
           ) : data.error ? (

@@ -29,29 +29,15 @@ const roleOf = (account) => {
   return null;
 };
 
+// Đăng nhập Keycloak dev dựng user như bản thật (toWebUser) để mã quyền BE ẩn/hiện nút giống hệt khi deploy
 const keycloakDevUser = async () => {
   const account = await beClient.get('/accounts/me');
-  const role = roleOf(account);
-  if (!role) {
-    const err = new Error('Tài khoản này không dùng được trên web (chỉ dành cho Hiệu trưởng, Phó hiệu trưởng, giáo viên, nhân viên bếp).');
+  if (!roleOf(account)) {
+    const err = new Error('Tài khoản này không dùng được trên web');
     err.status = 403;
     throw err;
   }
-  const assignments = account.assignments || [];
-  const scoped = assignments.find((a) => a.campusId) || {};
-  const leader = assignments.find((a) => a.staffRole === 'AGE_GROUP_TEAM_LEADER');
-  const homeroom = assignments.find((a) => a.classroomId);
-  return withPermissions({
-    id: account.userId,
-    fullName: account.fullName,
-    name: account.fullName,
-    email: account.email,
-    role,
-    campusId: scoped.campusId || null,
-    ageGroupId: leader?.ageGroupId,
-    classId: homeroom?.classroomId,
-    locationIds: [],
-  });
+  return toWebUser(account);
 };
 
 export const broadcastSessionEvent = (type, operation = null) => {
@@ -107,7 +93,13 @@ export const endLocalSession = ({ broadcast = true, operation = null } = {}) => 
 // "Vai trò & quyền" của UI vẫn là demo ⇒ người dùng thật mang quyền mặc định của vai trò; quyền BE giữ ở bePermissions
 const toWebUser = (profile) => {
   const user = normalizeAccountProfile(profile);
-  return user.role ? { ...withPermissions(user), bePermissions: user.permissions } : user;
+  return user.role
+    ? {
+        ...withPermissions(user),
+        bePermissions: user.permissions,
+        beSchoolWidePermissions: user.schoolWidePermissions,
+      }
+    : user;
 };
 
 const keycloakDevLogin = async ({ identifier, email, password, remember }) => {

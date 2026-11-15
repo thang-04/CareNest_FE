@@ -79,7 +79,7 @@ export const WeeklyOrderPrint = forwardRef(function WeeklyOrderPrint({ data, cam
           </table>
         </>
       )}
-      <table className="ps-table ps-sign kb-print-sign">
+      <table className="ps-table ps-sign ps-sign--spaced">
         <tbody>
           <tr>
             {['Người lập', 'Nhà cung cấp', 'Hiệu trưởng'].map((t) => (

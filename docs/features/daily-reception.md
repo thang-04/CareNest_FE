@@ -93,3 +93,12 @@ Cần chốt 2026-10-15, căn cứ TTLT 13/2016/TTLT-BYT-BGDĐT Điều 9 (theo 
 ## Nhãn nhắc bổ sung sau lưu — user chốt 02/11/2026
 
 Web bỏ hai câu hướng dẫn tiếp nhận và thứ tự lưu khỏi màn điểm danh. Nhãn nhắc chỉ hiện cho trẻ đã lưu Có mặt: dùng nhắc chưa khám từ dữ liệu sức khỏe; nếu đã ghi nhận nhưng lần mới nhất thiếu thân nhiệt thì hiện “Chưa đo thân nhiệt”. Dữ liệu tóm tắt chỉ có lần mới nhất nên nhãn phản ánh lần ghi nhận đó, không suy ra toàn bộ lịch sử. Trẻ chưa lưu, trẻ vắng hoặc response chưa có dữ liệu sức khỏe không được gắn nhãn thiếu số đo. Nhãn mở khung sức khỏe để bổ sung, không chặn lưu, không đổi contract hay tính bắt buộc của API (tham chiếu BE HLT-07).
+
+
+## Đồng bộ BE thật — 05/11/2026
+
+- Tham chiếu BE HLT-15 và PCK-02: `ChildDay` trả `handedOverAt` và `contacts` tối thiểu từ hồ sơ sau kiểm phạm vi. Panel dùng giờ trả để khóa nhập, vẫn xem lịch sử; API mới tiếp tục bị BE chặn sau trả.
+- Khi quay lại cửa sổ, tải lại context sức khỏe; dữ liệu form đang soạn không bị ghi đè. Lỗi tải không được coi là hồ sơ không có số.
+- Liên hệ chưa có dữ liệu hiện thông báo bổ sung hồ sơ, từng người thiếu số hiện “Chưa có số”. Không tạo danh bạ riêng hay cuộc gọi/thông báo thật.
+- Nhập nhanh `385` hiển thị thành `38.5`; `38.5`/`38,5` cũng hiển thị `38.5`. Để trống vẫn là chưa đo. User chọn chờ loại nhiệt kế trước khi đổi dải nhập; không coi 30–45°C là quy định Bộ Y tế, không đổi phân mức đang có.
+- Export tổng hợp: một lớp gồm “Theo ngày” và “Theo trẻ”; nhiều lớp gồm “Theo ngày” và “Theo lớp”. Xuất toàn bộ khoảng lọc, giữ số liệu lịch sử từ BE, không tính lại số suất trên client.

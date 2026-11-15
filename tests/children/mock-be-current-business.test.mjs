@@ -113,7 +113,7 @@ test('AC-4: người chỉ có quyền Sửa hồ sơ trẻ tra được tài kh
 });
 
 test('AC-5: Sửa hồ sơ không bỏ được phụ huynh đã liên kết tài khoản; gỡ ở màn Tài khoản phụ huynh rồi mới bỏ', async () => {
-  const saved = await children.enrollChild(row([guardian(1), guardian(2, { fullName: 'Bố nghiệp vụ', relation: 'Bố' })]), VP);
+  const saved = await children.enrollChild(row([guardian(1), guardian(2, { fullName: 'Bố nghiệp vụ', relation: 'Bố', accountRecipient: true })]), VP);
   await rejects(edit(saved, [saved.guardians[0]]), 422, 'guardians');
   assert.equal(readDb().children.find((c) => c.id === saved.id).guardians.length, 2);
   const father = (await guardians.listGuardians(saved.id, VP)).find((g) => g.fullName === 'Bố nghiệp vụ');

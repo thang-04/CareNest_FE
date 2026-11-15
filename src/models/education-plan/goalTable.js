@@ -3,6 +3,7 @@
  * (lĩnh vực con, nhóm kết quả mong đợi, mục tiêu kèm các nội dung); bảng hiển thị mỗi tầng một cột. Nội dung tích vào chủ đề ở phần B.
  */
 import { DOMAINS } from '@/models/education-plan/educationPlanConstants';
+import { goalDisplayLabel } from '@/models/education-plan/goalLabels.mjs';
 
 export const DOMAIN_ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
 export const domainRoman = (name) => DOMAIN_ROMAN[DOMAINS.indexOf(name)] || String(DOMAINS.indexOf(name) + 1 || '');
@@ -117,7 +118,7 @@ export const mixedSubDomains = (domains) =>
     })
     .map((d) => d.name);
 
-/** BE:EDU-52 (7037) — chủ đề chưa chọn đủ Từ ngày, Đến ngày: chặn ban hành. */
+/** BE:EDU-52 (7037) — chủ đề chưa chọn đủ Từ ngày, Đến ngày: chặn gửi duyệt và ban hành. */
 export const themeWithoutDates = (themes) => themes.find((t) => !t.start || !t.end) || null;
 
 /** Dòng chủ đề / đợt nghỉ chưa gõ gì (dòng vừa thêm bằng Enter): không lưu, không thành cột tích ở bảng mục tiêu. */
@@ -148,7 +149,10 @@ export const goalIdsToTicks = (domains, themes) => {
 
 /** "MT 1, 2, 4 (3 MT)"; mục tiêu đã xóa (không còn số) tự bỏ qua. */
 export const themeGoalLabel = (domains, numbers, theme) => {
-  const nos = themeGoalIds(domains, theme)
+  const ids = themeGoalIds(domains, theme).filter((id) => numbers[id]);
+  const rows = domains.flatMap((d) => d.rows.filter((r) => ids.includes(r.id) && r.kind === 'goal'));
+  if (rows.some((r) => r.displayLabel?.trim())) return rows.map((r) => goalDisplayLabel(r, numbers[r.id])).join(', ');
+  const nos = ids
     .map((id) => numbers[id])
     .filter(Boolean)
     .sort((a, b) => a - b);
@@ -184,6 +188,27 @@ export const weekBreaks = (breaks, monday) => [0, 1, 2, 3, 4].map((i) => breakOn
 /** BE:EDU-41 — tuần chỉ bị bỏ khi đợt nghỉ phủ cả Thứ 2 → Thứ 6; nghỉ vài ngày vẫn là tuần học. */
 export const isWholeWeekOff = (breaks, monday) => weekBreaks(breaks, monday).every(Boolean);
 
+/**
+ * Ngày gợi ý cho chủ đề thêm vào cuối (Tiền 12/11/2026): Thứ 2 sau chủ đề trước (hoặc tuần học đầu năm), bỏ tuần nghỉ trọn tuần,
+ * kéo đủ `weeks` tuần học tới Thứ 6. Không có chỗ trong năm học hoặc chủ đề trước thiếu ngày ⇒ null (để người lập tự chọn, EDU-39).
+ */
+export const nextThemeDates = (themes, breaks = [], yearRange = {}, weeks = 2) => {
+  const last = themes[themes.length - 1];
+  if (last && !last.end) return null;
+  if (!last && !yearRange.start) return null;
+  let start = last ? addDays(mondayOf(last.end), 7) : firstTeachingMonday(yearRange.start);
+  if (yearRange.start && start < yearRange.start) start = addDays(start, 7);
+  while (isWholeWeekOff(breaks, start)) start = addDays(start, 7);
+  let monday = start;
+  // ponytail: tối đa 60 tuần lịch để không lặp mãi khi đợt nghỉ phủ hết phần còn lại
+  for (let n = 0, guard = 0; guard < 60; monday = addDays(monday, 7), guard += 1) {
+    if (!isWholeWeekOff(breaks, monday)) n += 1;
+    if (n >= Math.max(1, weeks)) break;
+  }
+  const end = addDays(monday, 4);
+  return yearRange.end && end > yearRange.end ? null : { start, end };
+};
+
 /** Số tuần học (Thứ 2 → Thứ 6) của chủ đề, bỏ các tuần nghỉ trọn tuần. */
 export const weekCount = (theme, breaks = []) => {
   if (!theme.start || !theme.end || theme.end < theme.start) return 0;
@@ -199,18 +224,76 @@ const weekdayOf = (iso) => toDate(iso).getUTCDay();
 /** BE:EDU-40 — chủ đề trọn tuần học: bắt đầu Thứ 2, kết thúc Thứ 6. */
 export const isWholeWeekTheme = (theme) => !theme.start || !theme.end || (weekdayOf(theme.start) === 1 && weekdayOf(theme.end) === 5);
 
+export const durationRangeIssue = (range, breaks, limits, label) => {
+  if (
+    !limits ||
+    !Number.isInteger(limits.minWeeks) ||
+    !Number.isInteger(limits.maxWeeks) ||
+    !range.start ||
+    !range.end ||
+    range.end < range.start ||
+    !isWholeWeekTheme(range)
+  )
+    return null;
+  const weeks = weekCount(range, breaks);
+  return weeks < limits.minWeeks || weeks > limits.maxWeeks
+    ? `${label} cần từ ${limits.minWeeks} đến ${limits.maxWeeks} tuần học (hiện tại ${weeks} tuần).`
+    : null;
+};
+
 /** BE:EDU-39 — tên các chủ đề khác trùng thời gian với chủ đề này. */
 export const overlappingThemes = (theme, themes) =>
   theme.start && theme.end
     ? themes.filter((x) => x.id !== theme.id && x.start && x.end && x.start <= theme.end && theme.start <= x.end)
     : [];
 
+/** Kiểm tra khoảng trống ngày học (Thứ 2 đến Thứ 6) giữa các chủ đề liên tiếp. */
+export const themeGapIssue = (themes, breaks = []) => {
+  const dated = (themes || []).filter((t) => t.start && t.end && t.start <= t.end).sort((a, b) => a.start.localeCompare(b.start));
+  if (dated.length < 2) return null;
+
+  const minStart = dated[0].start;
+  const maxEnd = dated.reduce((max, t) => (t.end > max ? t.end : max), dated[0].end);
+
+  let gapStart = null;
+  let gapEnd = null;
+
+  for (let d = minStart; d <= maxEnd; d = addDays(d, 1)) {
+    const w = weekdayOf(d);
+    if (w >= 1 && w <= 5) {
+      const inTheme = dated.some((t) => d >= t.start && d <= t.end);
+      const inBreak = (breaks || []).some((b) => b.start && d >= b.start && d <= (b.end || b.start));
+      if (!inTheme && !inBreak) {
+        if (!gapStart) {
+          gapStart = d;
+        }
+        gapEnd = d;
+      } else if (gapStart) {
+        break;
+      }
+    }
+  }
+
+  if (gapStart && gapEnd) {
+    const fmt = (iso) => {
+      const [y, m, day] = iso.slice(0, 10).split('-');
+      return `${day}/${m}/${y}`;
+    };
+    return gapStart === gapEnd
+      ? `Bị trống ngày chưa tạo chủ đề (ngày ${fmt(gapStart)}).`
+      : `Bị trống ngày chưa tạo chủ đề (từ ${fmt(gapStart)} đến ${fmt(gapEnd)}).`;
+  }
+  return null;
+};
+
 /** Lỗi lịch chủ đề kiểm khi gửi / ban hành (EDU-39, EDU-40); nháp vẫn lưu được (EDU-23). */
-export const themeScheduleIssue = (themes) => {
+export const themeScheduleIssue = (themes, breaks = []) => {
   const misaligned = themes.find((t) => !isWholeWeekTheme(t));
   if (misaligned) return `Chủ đề "${misaligned.name || misaligned.abbr}" phải bắt đầu vào Thứ 2 và kết thúc vào Thứ 6.`;
   const overlapped = themes.find((t) => overlappingThemes(t, themes).length > 0);
   if (overlapped) return `Chủ đề "${overlapped.name || overlapped.abbr}" trùng thời gian với chủ đề khác.`;
+  const gap = themeGapIssue(themes, breaks);
+  if (gap) return gap;
   return null;
 };
 

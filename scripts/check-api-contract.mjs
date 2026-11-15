@@ -31,7 +31,11 @@ const openapiRoutes = (file) => {
   for (const line of fs.readFileSync(file, 'utf8').split(/\r?\n/)) {
     if (/^paths:/.test(line)) inPaths = true;
     else if (/^\S/.test(line)) inPaths = false;
-    else if (inPaths && /^ {2}\//.test(line)) current = line.trim().replace(/:$/, '').replace(/^\/api(?=\/)/, '');
+    else if (inPaths && /^ {2}\//.test(line))
+      current = line
+        .trim()
+        .replace(/:$/, '')
+        .replace(/^\/api(?=\/)/, '');
     else if (inPaths && current && /^ {4}(get|post|put|patch|delete):/.test(line))
       routes.add(`${line.trim().replace(':', '').toUpperCase()} ${norm(current)}`);
   }
@@ -43,7 +47,8 @@ if (process.argv[2] === '--sync') {
   const routes = openapiRoutes(source);
   fs.writeFileSync(
     path.join(root, SNAPSHOT),
-    JSON.stringify({ source: 'CareNest_BE docs/api/openapi.yaml', syncedAt: new Date().toLocaleDateString('sv-SE'), routes }, null, 2) + '\n',
+    JSON.stringify({ source: 'CareNest_BE docs/api/openapi.yaml', syncedAt: new Date().toLocaleDateString('sv-SE'), routes }, null, 2) +
+      '\n',
   );
   console.log(`check-api-contract: đã chụp ${routes.length} route BE vào ${SNAPSHOT}`);
   process.exit(0);
@@ -104,9 +109,48 @@ for (const { file, text } of sources) {
   }
 }
 
+// Bảng tra "file FE gọi endpoint nào → controller BE nào" (ghép với ảnh chụp BE_API_INDEX.md), mỗi lời gọi 1 dòng để grep
+if (process.argv[2] === '--consumers') {
+  const INDEX = 'docs/integration/BE_API_INDEX.md';
+  const OUT = 'docs/integration/FE_API_CALLS.md';
+  const controllerOf = new Map();
+  if (fs.existsSync(path.join(root, INDEX)))
+    for (const line of fs.readFileSync(path.join(root, INDEX), 'utf8').split(/\r?\n/)) {
+      const row = line.match(/^(GET|POST|PUT|PATCH|DELETE) (\S+) · (.+)$/);
+      if (row) controllerOf.set(`${row[1]} ${norm(row[2])}`, row[3]);
+    }
+  const rows = sources
+    .flatMap(({ file, text }) =>
+      [...new Set(callsOf(text))].map((call) => {
+        const key = owner.get(file);
+        const where = controllerOf.get(call) ?? (modules[key]?.pending?.includes(call) ? '(BE chưa có — pending)' : '(BE chưa có)');
+        return `${call} · ${file} [${key ?? 'chưa thuộc module'}: ${modules[key]?.source ?? '?'}] → ${where}`;
+      }),
+    )
+    .sort();
+  const text = [
+    '# Bảng tra lời gọi API của Web — file FE → controller BE',
+    '',
+    'File sinh tự động, không sửa tay. Sinh lại: `node scripts/check-api-contract.mjs --consumers` (sau khi cập nhật `BE_API_INDEX.md`).',
+    '',
+    '- Cách dùng: grep path (vd. `grep "meal-counts"`) hoặc tên file service để biết file FE nào gọi endpoint nào và controller BE xử lý.',
+    '- Path đã chuẩn hóa tham số thành `{x}`. `[module: api|demo]` theo `src/config/integrationModules.js`.',
+    '- Lời gọi có đường dẫn không phải chuỗi literal (vd. ghép từ biến) không nằm trong bảng.',
+    '',
+    `Tổng: ${rows.length} lời gọi.`,
+    '',
+    '```text',
+    ...rows,
+    '```',
+    '',
+  ].join('\n');
+  fs.writeFileSync(path.join(root, OUT), text);
+  console.log(`check-api-contract: đã ghi ${rows.length} lời gọi vào ${OUT}`);
+  process.exit(0);
+}
+
 for (const [key, mod] of Object.entries(modules)) {
-  for (const call of mod.pending || [])
-    if (beRoutes.has(call)) warnings.push(`${key}: pending ${call} đã có ở BE ⇒ bỏ khỏi pending`);
+  for (const call of mod.pending || []) if (beRoutes.has(call)) warnings.push(`${key}: pending ${call} đã có ở BE ⇒ bỏ khỏi pending`);
   if (mod.source !== 'demo') continue;
   for (const facade of mod.facades || []) {
     const text = sources.find((s) => s.file === facade)?.text || '';

@@ -1,5 +1,7 @@
 import { FormField } from '@/components/form/FormField';
 import { SearchSelect } from '@/components/ui/SearchSelect';
+import { StatusBadge } from '@/components/ui/StatusBadge';
+import { coverageTone } from '@/utils/menu-planning/microGroups';
 import {
   ALLERGENS,
   FOOD_GROUP_LABELS,
@@ -7,6 +9,7 @@ import {
   FOOD_STORAGE_LABELS,
   FOOD_UNIT_LABELS,
   MICRONUTRIENT_GROUPS,
+  MICRONUTRIENTS,
   MICRONUTRIENT_LABELS,
   MICRONUTRIENT_UNITS,
   RECORD_STATUS_LABELS,
@@ -38,6 +41,8 @@ export function FoodEditor({ f }) {
       ? `1 ${form.purchaseUnit} = ${num(form.purchaseToStock)} ${form.stockUnit} = ${num(payload.purchaseUnitSize)} ${form.unit}`
       : null;
   const lockHint = 'Đã có lô tồn kho hoặc phiếu nhập: không đổi được';
+  const isFilled = (k) => String(form.nutrition[k] ?? '').trim() !== '';
+  const filledMicro = MICRONUTRIENTS.filter(isFilled).length;
 
   return (
     <div className="td-food-editor">
@@ -199,11 +204,23 @@ export function FoodEditor({ f }) {
         </div>
         <p className="text-xs muted">Để trống nếu chưa có số liệu – thực đơn dùng thực phẩm này sẽ được báo là chưa đủ dữ liệu.</p>
         <details className="td-food-more">
-          <summary>8 vi chất và nguồn số liệu</summary>
+          <summary>
+            8 vi chất và nguồn số liệu{' '}
+            <StatusBadge
+              tone={coverageTone(filledMicro, MICRONUTRIENTS.length)}
+              label={`${filledMicro}/${MICRONUTRIENTS.length} đã nhập`}
+            />
+          </summary>
           {/* Vi chất theo bảng PMS (BE NUT-26): không bắt buộc, trên 100 g ăn được */}
           {MICRONUTRIENT_GROUPS.map((g) => (
             <fieldset key={g.key} className="td-micro-fieldset">
-              <legend className="fw-600">{g.label}</legend>
+              <legend className="fw-600">
+                {g.label}{' '}
+                <StatusBadge
+                  tone={coverageTone(g.items.filter(isFilled).length, g.items.length)}
+                  label={`${g.items.filter(isFilled).length}/${g.items.length} đã nhập`}
+                />
+              </legend>
               <div className="td-food-grid">
                 {g.items.map((k) => (
                   <FormField key={k} label={MICRONUTRIENT_LABELS[k]} error={show(k)}>

@@ -41,7 +41,7 @@ export default function ResetPasswordPage() {
   const [values, setValues] = useState({ newPassword: '', confirmPassword: '' });
   const [errors, setErrors] = useState({});
   const [serverError, setServerError] = useState('');
-  const [gone, setGone] = useState(token ? '' : 'Phiên đặt mật khẩu không còn hiệu lực. Vui lòng thực hiện lại từ đầu.');
+  const [gone, setGone] = useState(token ? '' : 'Phiên đặt mật khẩu đã hết hiệu lực, hãy làm lại từ đầu');
   const [busy, setBusy] = useState(false);
 
   const change = (patch) => {
@@ -80,8 +80,8 @@ export default function ResetPasswordPage() {
         setValues({ newPassword: '', confirmPassword: '' });
         setGone(
           err.status === 503 || !err.status
-            ? 'Chưa xác định được kết quả đổi mật khẩu. Vui lòng đăng nhập bằng mật khẩu mới; nếu không được, bắt đầu lại.'
-            : 'Phiên đặt mật khẩu không còn hiệu lực. Vui lòng bắt đầu lại.',
+            ? 'Chưa rõ kết quả đổi mật khẩu, hãy đăng nhập bằng mật khẩu mới'
+            : 'Phiên đặt mật khẩu đã hết hiệu lực',
         );
       } else if (Object.keys(err.details || {}).length) setErrors(err.details);
       else setServerError(err.message || 'Chưa lưu được mật khẩu mới. Vui lòng thử lại.');

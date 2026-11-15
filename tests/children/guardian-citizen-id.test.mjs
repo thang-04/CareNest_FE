@@ -250,9 +250,10 @@ test('AC-8: kích hoạt ở màn tài khoản: bắt CCCD; lệch ⇒ 409; tài
   const activateWith = (patch = {}) => {
     writeDb((d) => {
       d.children.find((c) => c.id === child.id).guardians = [
-        ...structuredClone(base),
+        ...structuredClone(base).map((g) => ({ ...g, accountRecipient: false })),
         {
           fullName: 'Liên hệ thử',
+          accountRecipient: true,
           relation: 'Mẹ',
           phone: '0900000003',
           email: '',

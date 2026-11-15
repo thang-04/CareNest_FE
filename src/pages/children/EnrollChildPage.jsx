@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, Save, CheckCircle2, KeyRound, Eye, Plus, AlertTriangle, RotateCcw, Info } from '@/components/ui/icons';
+import { ArrowLeft, ArrowRight, Save, CheckCircle2, KeyRound, Eye, Plus, AlertTriangle, RotateCcw, Pencil } from '@/components/ui/icons';
+import { ChildAvatar } from '@/components/ChildAvatar';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useMasterData } from '@/hooks/useMasterData';
-import { useCitizenIdAccounts, usePlacementClasses } from '@/hooks/children/useChildRecords';
+import { useCitizenIdAccounts, useClassOptions, usePlacementClasses } from '@/hooks/children/useChildRecords';
+import { sameId } from '@/services/http/idStrings';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Stepper } from '@/components/ui/Stepper';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
@@ -13,14 +15,15 @@ import { Spinner } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
 import { ActiveYearNotice } from '@/components/children/ActiveYearNotice';
 import { ChildInfoFields } from '@/components/children/ChildInfoFields';
-import { ChildProfileFields } from '@/components/children/ChildProfileFields';
+import { PortraitImage } from '@/components/PortraitImage';
 import { ChildProfileSummary } from '@/components/children/ChildProfileSummary';
 import { ClassPlacementFields } from '@/components/children/ClassPlacementFields';
 import { HealthDeclarationFields } from '@/components/children/HealthDeclarationFields';
 import { DeclarationSummary } from '@/components/children/DeclarationSummary';
+import { IntakeSheet, IntakeSheetValueRow } from '@/components/children/IntakeSheet';
 import { checkDuplicateChild, checkGuardianConflicts, enrollChild, readmitChild } from '@/services/children/childrenService';
 import { FormField } from '@/components/form/FormField';
-import { GENDER_LABELS, ageGroupById, ageLabel } from '@/models/School';
+import { GENDER_LABELS, ageLabel } from '@/models/School';
 import { formatDate } from '@/utils/format';
 import { hasErrors, validateChildInfo, validateDeclaration } from '@/utils/children/childrenValidation';
 import { canActivateParentsAt, canEnrollChild, childCampusesOf } from '@/utils/children/childrenPermissions';
@@ -51,6 +54,44 @@ const splitServerErrors = (details = {}) => {
   return out;
 };
 
+/** Nhóm của bước Xem lại: tên bước + nút Sửa quay lại bước đó, bên dưới là các bảng như bước 1. */
+function ReviewGroup({ title, onEdit, children }) {
+  return (
+    <section aria-label={title} className="stack gap-3">
+      <div className="tr-review-head">
+        <h3 className="tr-review-head__title">{title}</h3>
+        <button type="button" className="btn btn--sm" onClick={onEdit} aria-label={`Sửa ${title}`}>
+          <Pencil size={14} /> Sửa
+        </button>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+/** Đầu thẻ bước 2–4: tên bước bên trái, trẻ đang tiếp nhận bên phải để chọn lớp, khai báo đúng trẻ. */
+function StepHead({ title, info }) {
+  return (
+    <div className="tr-step-head">
+      <div className="stack gap-1">
+        <h2 className="card__title">{title}</h2>
+      </div>
+      {info && (
+        <div className="tr-child-brief">
+          <ChildAvatar child={{ fullName: info.fullName, photoUrl: info.photoFile }} size="lg" />
+          <span className="stack gap-0">
+            <span className="fw-600">{info.fullName}</span>
+            <span className="muted text-xs">
+              {formatDate(info.dateOfBirth)} · {ageLabel(info.dateOfBirth)}
+              {GENDER_LABELS[info.gender] ? ` · ${GENDER_LABELS[info.gender]}` : ''}
+            </span>
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function EnrollChildPage() {
   const { user } = useAuth();
   const toast = useToast();
@@ -58,6 +99,8 @@ export default function EnrollChildPage() {
   const { schoolYear, activeYear, yearReadOnly } = useSchoolYear();
   const md = useMasterData();
   const { classes, loading: classesLoading } = usePlacementClasses();
+  // Nhóm tuổi của năm học đang hoạt động (BE /school-structure hoặc mock) cho gợi ý nhóm tuổi, tên nhóm của lớp
+  const { ageGroups } = useClassOptions(activeYear?.id || schoolYear);
 
   const [step, setStep] = useState(0);
   const [maxReached, setMaxReached] = useState(0);
@@ -98,8 +141,9 @@ export default function EnrollChildPage() {
   // Xếp lớp khi tiếp nhận luôn vào năm học đang hoạt động (user chốt 2026-10-28, Y-3).
   const yearId = activeYear?.id || schoolYear;
   const yearLabel = activeYear?.label || schoolYear;
-  const suggested = suggestAgeGroupId(info.dateOfBirth, yearId);
+  const suggested = suggestAgeGroupId(info.dateOfBirth, activeYear?.startDate || yearId, ageGroups);
   const selectedClass = classes.find((c) => c.id === classId);
+  const selectedGroup = ageGroups.find((g) => sameId(g.id, selectedClass?.ageGroupId));
   // Hiệu trưởng, PHT toàn trường chọn điểm trường: trẻ chưa xếp lớp thuộc điểm trường này (BE kiểm lại).
   const campusOptions = childCampusesOf(user, md.campuses);
   const pickCampus = campusOptions.length > 1;
@@ -108,7 +152,12 @@ export default function EnrollChildPage() {
   // tài khoản chỉ liên kết, thông tin theo tài khoản (P-18 A, user chốt 2026-10-28; BE kiểm lại).
   const manageAccounts = canActivateParentsAt(selectedClass?.campusId || campusId, user);
   const campusLabel = (id) => md.campusById(id)?.shortName || md.campusById(id)?.name || '';
-  const dirty = !!(info.fullName || info.dateOfBirth || info.guardians.some((g) => g.fullName || g.phone || g.idNumber));
+  const dirty = !!(
+    info.fullName ||
+    info.dateOfBirth ||
+    info.photoFile ||
+    info.guardians.some((g) => g.fullName || g.phone || g.idNumber || g.photoFile)
+  );
 
   // Phụ huynh có CCCD trùng tài khoản: họ tên, SĐT, email theo tài khoản; BE vẫn tự liên kết theo CCCD khi lưu.
   const withAccounts = (value) => ({
@@ -117,7 +166,9 @@ export default function EnrollChildPage() {
   });
   const effectiveInfo = withAccounts(info);
   // Phụ huynh chưa có tài khoản (theo tra CCCD): báo trước ở bước Xem lại khi người lưu không có quyền kích hoạt.
-  const waitingNames = effectiveInfo.guardians.filter((g) => !accountOf(g.idNumber)).map((g) => g.fullName);
+  const waitingNames = effectiveInfo.guardians
+    .filter((g) => (effectiveInfo.guardians.length === 1 || g.accountRecipient) && !accountOf(g.idNumber))
+    .map((g) => g.fullName);
   const validateInfo = (value) => validateChildInfo(value);
 
   const goTo = (i) => {
@@ -216,7 +267,7 @@ export default function EnrollChildPage() {
       toast.success(`Đã lưu hồ sơ ${child.fullName} (${child.code}).`, 'Tiếp nhận thành công');
     } catch (err) {
       // 409 trùng CCCD/SĐT với phụ huynh khác cũng trả lỗi theo ô (details).
-      if ((err.status === 422 || err.status === 409) && err.details) {
+      if ([400, 422, 409].includes(err.status) && err.details) {
         setErrors(splitServerErrors(err.details));
         goTo(Math.min(...Object.keys(err.details).map(stepOfField)));
       }
@@ -313,8 +364,10 @@ export default function EnrollChildPage() {
     <div className="page">
       <Breadcrumb items={childrenCrumbs('Tiếp nhận trẻ')} />
       <div className="page__head">
-        <h1 className="page__title">Tiếp nhận trẻ</h1>
-        <Link to="/children/import" className="btn">
+        <div>
+          <h1 className="page__title">Tiếp nhận trẻ</h1>
+        </div>
+        <Link to="/children?import=1" className="btn">
           Nhập nhiều trẻ từ Excel
         </Link>
       </div>
@@ -325,8 +378,11 @@ export default function EnrollChildPage() {
 
       {step === 0 && (
         <section className="card wizard-card">
+          <StepHead title="Thông tin tiếp nhận" />
           <ChildInfoFields
-            split
+            sheet
+            photosEnabled
+            disabled={busy}
             value={info}
             onChange={changeInfo}
             errors={errors.info}
@@ -394,15 +450,9 @@ export default function EnrollChildPage() {
           )}
         </section>
       )}
-      {step === 0 && (
-        <section className="card wizard-card">
-          <ChildProfileFields value={info.profile} onChange={(profile) => changeInfo({ ...info, profile })} errors={errors.info} />
-        </section>
-      )}
-
       {step === 1 && (
         <section className="card wizard-card">
-          <h2 className="card__title mb-12">Xếp lớp năm học {yearLabel}</h2>
+          <StepHead title={`Xếp lớp năm học ${yearLabel}`} info={info} />
           {classesLoading ? (
             <Spinner deferred />
           ) : (
@@ -419,6 +469,7 @@ export default function EnrollChildPage() {
                 setErrors((e) => ({ ...e, placement: {} }));
               }}
               suggestedAgeGroupId={suggested}
+              ageGroups={ageGroups}
               error={errors.placement.classId}
               userById={md.userById}
               required={false}
@@ -437,8 +488,9 @@ export default function EnrollChildPage() {
 
       {step === 2 && (
         <section className="card wizard-card">
-          <h2 className="card__title mb-12">Khai báo sức khỏe khi tiếp nhận</h2>
+          <StepHead title="Khai báo sức khỏe khi tiếp nhận" info={info} />
           <HealthDeclarationFields
+            sheet
             dateOfBirth={info.dateOfBirth}
             value={declaration}
             onChange={(v) => {
@@ -451,87 +503,92 @@ export default function EnrollChildPage() {
       )}
 
       {step === 3 && (
-        <>
-          <section className="card wizard-card">
-            <div className="row row--between mb-12">
-              <h2 className="card__title">Thông tin trẻ</h2>
-              <button className="btn btn--sm btn--ghost" onClick={() => goTo(0)}>
-                Sửa
-              </button>
-            </div>
-            <dl className="info-list info-list--wide">
-              <dt>Họ và tên</dt>
-              <dd className="fw-600">{info.fullName}</dd>
-              <dt>Ngày sinh</dt>
-              <dd>
-                {formatDate(info.dateOfBirth)} <span className="muted">({ageLabel(info.dateOfBirth)})</span>
-              </dd>
-              <dt>Giới tính</dt>
-              <dd>{GENDER_LABELS[info.gender]}</dd>
-              {effectiveInfo.guardians.map((g, i) => (
-                <div key={i} className="tr-dl-pair">
-                  <dt>Phụ huynh {i + 1}</dt>
-                  <dd>
-                    {g.fullName} ({g.relation}) · {g.phone} · CCCD {g.idNumber}
-                    {g.email ? ` · ${g.email}` : ''}
-                    {accountOf(g.idNumber) && <span className="muted"> · tài khoản có sẵn, liên kết khi lưu</span>}
-                  </dd>
+        <section className="card wizard-card">
+          <StepHead title="Xem lại & xác nhận" />
+          <div className="tr-intake stack gap-5">
+            <ReviewGroup title="Thông tin trẻ & phụ huynh" onEdit={() => goTo(0)}>
+              <div className="tr-intake-cols">
+                <div className="stack gap-5">
+                  <IntakeSheet title="I. Thông tin của trẻ">
+                    <IntakeSheetValueRow label="Ảnh của trẻ">
+                      <PortraitImage source={info.photoFile} alt="Ảnh của trẻ" className="avatar avatar--xl avatar--photo">
+                        <span className="muted">Chưa có ảnh</span>
+                      </PortraitImage>
+                    </IntakeSheetValueRow>
+                    <IntakeSheetValueRow label="Họ và tên trẻ">
+                      <span className="fw-600">{info.fullName}</span>
+                    </IntakeSheetValueRow>
+                    <IntakeSheetValueRow label="Ngày sinh">
+                      {formatDate(info.dateOfBirth)} <span className="muted">({ageLabel(info.dateOfBirth)})</span>
+                    </IntakeSheetValueRow>
+                    <IntakeSheetValueRow label="Giới tính">{GENDER_LABELS[info.gender]}</IntakeSheetValueRow>
+                  </IntakeSheet>
+                  <ChildProfileSummary sheet title="II. Thông tin hành chính" profile={info.profile} />
                 </div>
-              ))}
-            </dl>
-            {manageAccounts ? (
-              <div className="alert alert--info mt-12">
-                <Info size={18} />
-                <div>
-                  Khi lưu, phụ huynh chưa có tài khoản được tạo tài khoản ngay và nhận mật khẩu tạm qua SMS; phụ huynh đã có tài khoản chỉ
-                  được liên kết thêm trẻ.
+                <div className="stack gap-5">
+                  {effectiveInfo.guardians.map((g, i) => {
+                    const recipient = effectiveInfo.guardians.length === 1 || g.accountRecipient;
+                    return (
+                      <IntakeSheet key={i} title={`${i === 0 ? 'III. ' : ''}Thông tin phụ huynh ${i + 1}`}>
+                        <IntakeSheetValueRow label={`Ảnh phụ huynh ${i + 1}`}>
+                          <PortraitImage source={g.photoFile} alt={`Ảnh phụ huynh ${i + 1}`} className="avatar avatar--xl avatar--photo">
+                            <span className="muted">Chưa có ảnh</span>
+                          </PortraitImage>
+                        </IntakeSheetValueRow>
+                        <IntakeSheetValueRow label="Số CCCD">{g.idNumber}</IntakeSheetValueRow>
+                        <IntakeSheetValueRow label="Họ và tên">{g.fullName}</IntakeSheetValueRow>
+                        <IntakeSheetValueRow label="Số điện thoại">{g.phone}</IntakeSheetValueRow>
+                        <IntakeSheetValueRow label="Quan hệ với trẻ">{g.relation}</IntakeSheetValueRow>
+                        <IntakeSheetValueRow label="Email">{g.email || <span className="muted">Chưa cung cấp</span>}</IntakeSheetValueRow>
+                        <IntakeSheetValueRow label="Tài khoản phụ huynh">
+                          {recipient ? (
+                            <>
+                              <strong>Nhận tài khoản phụ huynh</strong>
+                              {accountOf(g.idNumber) && <span className="muted"> · tài khoản có sẵn, liên kết khi lưu</span>}
+                            </>
+                          ) : (
+                            <span className="muted">Không nhận tài khoản</span>
+                          )}
+                        </IntakeSheetValueRow>
+                      </IntakeSheet>
+                    );
+                  })}
                 </div>
               </div>
-            ) : (
-              waitingNames.length > 0 && (
-                <div className="alert alert--warning mt-12" role="status">
+              {!manageAccounts && waitingNames.length > 0 && (
+                <div className="alert alert--warning" role="status">
                   <AlertTriangle size={18} />
                   <div>
                     Bạn không có quyền kích hoạt tài khoản phụ huynh ở điểm trường này. Khi lưu, {waitingNames.join(', ')} chưa có tài khoản
                     sẽ ở trạng thái Chưa kích hoạt; người có quyền kích hoạt ở màn Tài khoản phụ huynh.
                   </div>
                 </div>
-              )
-            )}
-            <h3 className="subsection-title mt-16">Thông tin hành chính</h3>
-            <ChildProfileSummary profile={info.profile} />
-          </section>
-          <section className="card wizard-card">
-            <div className="row row--between mb-12">
-              <h2 className="card__title">Lớp</h2>
-              <button className="btn btn--sm btn--ghost" onClick={() => goTo(1)}>
-                Sửa
-              </button>
+              )}
+            </ReviewGroup>
+            <div className="tr-intake-cols">
+              <ReviewGroup title="Xếp lớp" onEdit={() => goTo(1)}>
+                <IntakeSheet title={`IV. Xếp lớp năm học ${yearLabel}`}>
+                  {pickCampus && (
+                    <IntakeSheetValueRow label="Điểm trường">{campusLabel(selectedClass?.campusId || campusId)}</IntakeSheetValueRow>
+                  )}
+                  <IntakeSheetValueRow label="Lớp">
+                    {selectedClass ? (
+                      <>
+                        <b>{selectedClass.name}</b> – {selectedGroup?.name} · sĩ số hiện tại {selectedClass.enrolledCount}/
+                        {selectedClass.capacity}
+                      </>
+                    ) : (
+                      <span className="muted">Chưa xếp lớp. Trẻ ở trạng thái Chờ xếp lớp, xếp lớp sau tại màn Xếp lớp.</span>
+                    )}
+                  </IntakeSheetValueRow>
+                </IntakeSheet>
+              </ReviewGroup>
+              <ReviewGroup title="Khai báo sức khỏe" onEdit={() => goTo(2)}>
+                <DeclarationSummary sheet title="V. Khai báo sức khỏe" declaration={declaration} />
+              </ReviewGroup>
             </div>
-            {pickCampus && (
-              <p className="mb-12">
-                Điểm trường: <b>{campusLabel(selectedClass?.campusId || campusId)}</b>
-              </p>
-            )}
-            {selectedClass ? (
-              <p>
-                <b>{selectedClass.name}</b> – {ageGroupById(selectedClass.ageGroupId)?.name} · năm học {yearLabel} · sĩ số hiện tại{' '}
-                {selectedClass.enrolledCount}/{selectedClass.capacity}
-              </p>
-            ) : (
-              <p className="muted">Chưa xếp lớp. Trẻ ở trạng thái Chờ xếp lớp, xếp lớp sau tại màn Xếp lớp.</p>
-            )}
-          </section>
-          <section className="card wizard-card">
-            <div className="row row--between mb-12">
-              <h2 className="card__title">Khai báo sức khỏe</h2>
-              <button className="btn btn--sm btn--ghost" onClick={() => goTo(2)}>
-                Sửa
-              </button>
-            </div>
-            <DeclarationSummary declaration={declaration} />
-          </section>
-        </>
+          </div>
+        </section>
       )}
 
       <div className="page-actions">

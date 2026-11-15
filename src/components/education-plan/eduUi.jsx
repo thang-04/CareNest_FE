@@ -1,13 +1,13 @@
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import {
-  AlertOctagon,
   AlertTriangle,
   CheckCircle2,
   ChevronDown,
+  ChevronsDownUp,
+  ChevronsUpDown,
   Clock,
   FileEdit,
   FileText,
-  Info,
   Lock,
   Send,
   XCircle,
@@ -22,7 +22,7 @@ import {
 } from '@/components';
 import { createStatusBadge } from '@/components/ui/StatusBadge';
 import { formatDate, formatFileSize } from '@/utils/format';
-import { EDU_STATUS_LABELS } from '@/models/education-plan/educationPlanConstants';
+import { EDU_STATUS_LABELS, educationDisplayStatus } from '@/models/education-plan/educationPlanConstants';
 
 /*
  * Thin wrappers that keep the lesson-plan screens on the shared components and classes of
@@ -61,9 +61,10 @@ export function PageHead({ crumbs, title, desc, actions }) {
 }
 
 // DESIGN.md §3.2: waiting for approval = purple, done = green, returned = red, draft = gray.
-export const EduStatusBadge = createStatusBadge(
+const BaseEduStatusBadge = createStatusBadge(
   {
     DRAFT: ['gray', FileEdit],
+    REVIEW: ['purple', Clock],
     SENT: ['green', Send],
     PENDING_TL: ['purple', Clock],
     PENDING_VP: ['purple', Clock],
@@ -72,6 +73,9 @@ export const EduStatusBadge = createStatusBadge(
     REJECTED: ['red', XCircle],
   },
   EDU_STATUS_LABELS,
+);
+export const EduStatusBadge = ({ status, doc, ...props }) => (
+  <BaseEduStatusBadge status={educationDisplayStatus({ ...doc, status })} {...props} />
 );
 
 /** Hạn gửi hồ sơ chủ đề chỉ để nhắc, không chặn. */
@@ -82,14 +86,16 @@ export const DueStateBadge = createStatusBadge(
 
 /** Dòng chưa có hồ sơ: chưa lập / chưa soạn, hoặc chưa tới lượt (khóa). */
 export const DocAvailabilityBadge = createStatusBadge(
-  { NOT_PLANNED: ['gray', FileText], NOT_DRAFTED: ['gray', FileText], LOCKED: ['gray', Lock] },
-  { NOT_PLANNED: 'Chưa lập', NOT_DRAFTED: 'Chưa soạn', LOCKED: 'Chưa thể bắt đầu' },
+  { NOT_PLANNED: ['gray', FileText], NOT_DRAFTED: ['gray', FileText], LOCKED: ['gray', Lock], UNRELEASED: ['gray', FileText] },
+  // UNRELEASED: nhãn chung cho người chỉ xem, không lộ chưa lập / nháp / chờ duyệt (Tiền 11/11/2026)
+  { NOT_PLANNED: 'Chưa lập', NOT_DRAFTED: 'Chưa soạn', LOCKED: 'Chưa thể bắt đầu', UNRELEASED: 'Chưa ban hành' },
 );
 
 /** Trạng thái kế hoạch năm: Tổ trưởng gửi Phó HT, Phó HT duyệt ban hành (ký tay trên bản in). */
-export const YearPlanStatusBadge = createStatusBadge(
+const BaseYearPlanStatusBadge = createStatusBadge(
   {
     DRAFT: ['gray', FileEdit],
+    REVIEW: ['purple', Clock],
     EDITING: ['orange', Lock],
     SENT: ['green', Send],
     PENDING_TL: ['purple', Clock],
@@ -99,7 +105,10 @@ export const YearPlanStatusBadge = createStatusBadge(
     REPLACED: ['gray', FileText],
     REJECTED: ['red', XCircle],
   },
-  { ...EDU_STATUS_LABELS, PENDING_VP: 'Chờ Phó HT ban hành', APPROVED: 'Đã ban hành', REPLACED: 'Đã thay thế' },
+  { ...EDU_STATUS_LABELS, APPROVED: 'Đã ban hành', REPLACED: 'Đã thay thế' },
+);
+export const YearPlanStatusBadge = ({ status, doc, ...props }) => (
+  <BaseYearPlanStatusBadge status={educationDisplayStatus({ ...doc, status })} {...props} />
 );
 
 /** .card with optional numbered title, header actions and footer. bodyClass={null} renders children directly. */
@@ -140,22 +149,43 @@ export function Card({ title, num, actions, children, foot, bodyClass = 'card__b
   );
 }
 
-/** Mục có tiêu đề thu gọn / mở được trong thân thẻ (kế hoạch tuần, ngày), cùng kiểu nút với Card (Tiền 04/11). */
-export function FoldSection({ title, children }) {
-  const [open, setOpen] = useState(true);
-  const bodyId = useId();
+/**
+ * Nút "Thu gọn tất cả / Mở rộng tất cả" dùng chung mọi trang, tab kế hoạch giáo dục (Tiền 12/11/2026): bấm lần lượt các nút
+ * thu gọn thẻ (.ga-card-toggle) trong trang (trừ hộp thoại) nên mỗi thẻ vẫn giữ trạng thái của nó. Không có thẻ nào ⇒ ẩn.
+ * ponytail: đọc trạng thái từ aria-expanded trên DOM thay vì nâng state mọi thẻ lên trang; đổi sang context nếu cần điều khiển từ dữ liệu.
+ */
+export function FoldAllButton() {
+  const ref = useRef(null);
+  const [state, setState] = useState({ any: false, allClosed: false });
+  const toggles = () =>
+    [...(ref.current?.closest('.ga-page')?.querySelectorAll('.ga-card-toggle[aria-expanded]') || [])].filter(
+      (b) => !b.closest('[role="dialog"], .modal'),
+    );
+  useEffect(() => {
+    const root = ref.current?.closest('.ga-page');
+    if (!root) return undefined;
+    const read = () => {
+      const list = toggles();
+      const next = { any: list.length > 0, allClosed: list.length > 0 && list.every((b) => b.getAttribute('aria-expanded') === 'false') };
+      setState((s) => (s.any === next.any && s.allClosed === next.allClosed ? s : next));
+    };
+    read();
+    const observer = new MutationObserver(read);
+    observer.observe(root, { subtree: true, childList: true, attributes: true, attributeFilter: ['aria-expanded'] });
+    return () => observer.disconnect();
+  }, []);
+  const open = state.allClosed;
   return (
-    <>
-      <div className={`section-title ${open ? '' : 'ga-card--collapsed'}`}>
-        <button type="button" className="ga-card-toggle" aria-expanded={open} aria-controls={bodyId} onClick={() => setOpen((o) => !o)}>
-          <ChevronDown size={18} aria-hidden className="ga-card-toggle__icon" />
-          {title}
-        </button>
-      </div>
-      <div id={bodyId} className="stack" hidden={!open}>
-        {children}
-      </div>
-    </>
+    <button
+      ref={ref}
+      type="button"
+      className="btn btn--sm btn--outline-primary"
+      hidden={!state.any}
+      onClick={() => toggles().forEach((b) => (b.getAttribute('aria-expanded') === 'true') === open || b.click())}
+    >
+      {open ? <ChevronsUpDown size={16} aria-hidden /> : <ChevronsDownUp size={16} aria-hidden />}{' '}
+      {open ? 'Mở rộng tất cả' : 'Thu gọn tất cả'}
+    </button>
   );
 }
 
@@ -290,21 +320,21 @@ export function EmptyState({ title, desc, action, icon }) {
   return <SharedEmptyState icon={icon} title={title} description={desc} action={action} />;
 }
 
-const NOTICE = {
-  info: ['alert--info', Info],
-  ok: ['alert--success', CheckCircle2],
-  warn: ['alert--warning', AlertTriangle],
-  err: ['alert--danger', AlertOctagon],
-};
-
-/** In-page alert. tone: 'info' (default) | 'ok' | 'warn' | 'err'. */
-export function Notice({ tone, children }) {
-  const [cls, Icon] = NOTICE[tone] || NOTICE.info;
+/** Thông báo trống luôn nằm trong card (cùng khung với hàng lọc), chỉ có tiêu đề. */
+export function EmptyCard(props) {
   return (
-    <div className={`alert ${cls}`}>
-      <Icon size={18} />
-      <div>{children}</div>
-    </div>
+    <Card bodyClass={null}>
+      <EmptyState {...props} />
+    </Card>
+  );
+}
+
+/** Thông báo trong trang của kế hoạch giáo dục: luôn là chữ đỏ, không dùng thẻ màu (Tiền 11/11/2026). */
+export function Notice({ children }) {
+  return (
+    <p className="field__error" role="status">
+      {children}
+    </p>
   );
 }
 

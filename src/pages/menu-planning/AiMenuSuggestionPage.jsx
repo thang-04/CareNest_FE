@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Tabs } from '@/components/ui/Tabs';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Sparkles, Wand2, XCircle, PencilLine, AlertOctagon, Info } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
@@ -7,6 +8,7 @@ import { useAllergyContext, useMenuAccess, useMenuCatalog, useWeeklyMenus } from
 import { dismissAiDraft, generateAiSuggestion } from '@/services/menu-planning/menuPlanningService';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { FormField } from '@/components/form/FormField';
+import { WeekPicker } from '@/components/form/WeekPicker';
 import { LoadingState } from '@/components/ui/States';
 import { Modal } from '@/components/ui/Modal';
 import { AiWorkingOverlay } from '@/components/ui/AiWorkingOverlay';
@@ -39,7 +41,7 @@ export default function AiMenuSuggestionPage() {
   const { catalog, loading: catLoading } = useMenuCatalog();
   const [kind, setKind] = useState(params.get('kind') === AI_DRAFT_KIND.DAILY ? AI_DRAFT_KIND.DAILY : AI_DRAFT_KIND.WEEKLY);
   const [ageGroupId, setAgeGroupId] = useState(params.get('ageGroupId') || '');
-  const [weekStart, setWeekStart] = useState(params.get('weekStart') || addDays(mondayOf(todayInput()), 7));
+  const [weekStart, setWeekStart] = useState(mondayOf(params.get('weekStart') || addDays(todayInput(), 7)));
   const [avoidAllergens, setAvoidAllergens] = useState(true);
   const [draft, setDraft] = useState(null);
   const [failure, setFailure] = useState(null);
@@ -71,7 +73,7 @@ export default function AiMenuSuggestionPage() {
       /* Dismissing is best effort: the draft is never applied anyway. */
     }
     setDraft(null);
-    toast.info('Đã bỏ qua gợi ý. Không có thay đổi nào được áp dụng.');
+    toast.info('Đã bỏ qua gợi ý.');
   };
 
   const manualPath = kind === AI_DRAFT_KIND.WEEKLY ? '/menu/weekly/new' : '/menu/menus/new';
@@ -163,24 +165,17 @@ export default function AiMenuSuggestionPage() {
           <div className="card__title">Yêu cầu gợi ý</div>
         </div>
         <div className="card__body">
-          <div className="tabs mb-16" role="tablist">
-            {Object.entries(KIND_LABELS).map(([k, label]) => (
-              <button
-                key={k}
-                type="button"
-                role="tab"
-                aria-selected={kind === k}
-                className={`tab ${kind === k ? 'tab--active' : ''}`}
-                onClick={() => {
-                  setKind(k);
-                  setDraft(null);
-                  setFailure(null);
-                }}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          <Tabs
+            className="mb-16"
+            items={Object.entries(KIND_LABELS).map(([key, label]) => ({ key, label }))}
+            value={kind}
+            onChange={(k) => {
+              setKind(k);
+              setDraft(null);
+              setFailure(null);
+            }}
+            ariaLabel="Loại gợi ý"
+          />
           <div className="td-form-grid">
             <FormField label="Nhóm tuổi" required error={submitted && !ageGroupId ? 'Trường này là bắt buộc.' : undefined}>
               <select className="select" value={ageGroupId} onChange={(e) => setAgeGroupId(e.target.value)}>
@@ -193,13 +188,8 @@ export default function AiMenuSuggestionPage() {
               </select>
             </FormField>
             {kind === AI_DRAFT_KIND.WEEKLY ? (
-              <FormField label="Tuần (Thứ Hai)" required hint="Ngày chọn được tự chuyển về Thứ Hai">
-                <input
-                  type="date"
-                  className="input"
-                  value={weekStart}
-                  onChange={(e) => e.target.value && setWeekStart(mondayOf(e.target.value))}
-                />
+              <FormField label="Tuần" required>
+                <WeekPicker value={weekStart} onChange={setWeekStart} />
               </FormField>
             ) : (
               <div className="field">

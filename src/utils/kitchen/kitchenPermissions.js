@@ -20,11 +20,15 @@ export const canViewMealCount = (user) => is(user, ROLES.PRINCIPAL, ROLES.VICE_P
 
 // Dự trù & đi chợ theo tuần (S1): HT, PHT, Bếp xem; chỉ PHT của cơ sở sửa dự trù, gửi NCC, đánh dấu đã báo.
 export const canViewForecast = (user) => is(user, ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL, ROLES.KITCHEN_STAFF);
-export const canEditForecast = (user, campusId) => isVicePrincipal(user) && canAccessCampus(user, campusId);
+export const canEditForecast = (user, campusId) => (isVicePrincipal(user) || isPrincipal(user)) && canAccessCampus(user, campusId);
 
 // Trang Quy trình bếp hôm nay, Sổ lưu mẫu: HT xem mọi cơ sở, PHT và Bếp xem cơ sở mình. Chỉ Bếp của cơ sở ghi lưu mẫu, hủy mẫu.
 export const canViewKitchenDay = (user) => is(user, ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL, ROLES.KITCHEN_STAFF);
 export const canEditFoodSample = (user, campusId) => isKitchenStaff(user) && canAccessCampus(user, campusId);
+
+// Kiểm thực ba bước M1–M3 (P-27): PHT của cơ sở (và HT) điền và ký; bếp ghi lưu mẫu trên App, không vào màn này.
+export const canViewInspection = (user) => is(user, ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL);
+export const canFillInspection = (user, campusId) => (isVicePrincipal(user) || isPrincipal(user)) && canAccessCampus(user, campusId);
 
 // Kiểm nhận hàng tươi (S5–S6): bếp cơ sở kiểm và gửi, PHT cơ sở xác nhận; HT xem.
 export const canViewFreshReceipt = (user) => is(user, ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL, ROLES.KITCHEN_STAFF);
@@ -34,10 +38,10 @@ export const canManageSuppliers = (user) => isPrincipal(user);
 export const canViewSuppliers = (user) => is(user, ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL);
 
 // UC 6.23: the campus Vice Principal records receipts.
-export const canManageStock = (user) => isVicePrincipal(user);
+export const canManageStock = (user) => isVicePrincipal(user) || isPrincipal(user); // HT có sẵn STOCK_MANAGE
 // Kho khô xem chung hai cơ sở (S4): HT và PHT xem; PHT ghi (nhập kho) cho cơ sở BE cho phép — mock: cả hai cơ sở.
 export const canViewDryStock = (user) => is(user, ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL);
-export const canWriteStock = (user, campusId) => isVicePrincipal(user) && !!campusId;
+export const canWriteStock = (user, campusId) => (isVicePrincipal(user) || isPrincipal(user)) && !!campusId;
 // Phiếu xuất kho tự sinh lúc chốt suất (S8): HT, PHT, Bếp xem và in.
 export const canViewStockIssue = (user) => is(user, ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL, ROLES.KITCHEN_STAFF);
 // BA: nhân viên bếp của cơ sở chọn lô cho phiếu xuất; hệ thống ghi xuất khi đủ điều kiện.
@@ -48,7 +52,7 @@ export const KITCHEN_ROUTE_ROLES = {
   kitchenDay: [ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL],
   foodSamples: [ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL],
   dryStock: [ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL],
-  stockReceipts: [ROLES.VICE_PRINCIPAL],
+  stockReceipts: [ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL],
   suppliers: [ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL],
   supplierForm: [ROLES.PRINCIPAL],
   publishedMenu: [ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL],

@@ -201,7 +201,7 @@ test('hàng chờ duyệt: việc kế tiếp theo cờ canApprove của BE, l�
 test('module kitchen-records: source api, route Web, file adapter và route BE có trong ảnh chụp', () => {
   const mod = INTEGRATION_MODULES['kitchen-records'];
   assert.equal(mod.source, 'api');
-  assert.deepEqual(mod.routes, ['/kitchen/published-menu', '/kitchen/food-samples', '/kitchen/meal-photos', '/kitchen/photo-windows']);
+  assert.deepEqual(mod.routes, ['/kitchen/published-menu', '/kitchen/food-samples', '/kitchen/meal-photos']);
   assert.deepEqual(mod.files, ['src/services/kitchenRecordsApi.js']);
   const snapshot = JSON.parse(readFileSync('docs/integration/be-api-routes.json', 'utf8')).routes;
   for (const route of [
@@ -223,5 +223,8 @@ test('route bếp chọn trang theo isDemoModule: build BE dùng trang mới, bu
   assert.match(routes, /KITCHEN_RECORDS_API \? <KitchenTodayPage \/> : <PublishedMenuPage \/>/);
   assert.match(routes, /KITCHEN_RECORDS_API \? <FoodSampleQueuePage \/> : <FoodSampleLogPage \/>/);
   assert.match(routes, /KITCHEN_RECORDS_API && <Route path="meal-photos"/);
-  assert.match(routes, /KITCHEN_RECORDS_API && <Route path="photo-windows"/);
+  assert.doesNotMatch(routes, /path="photo-windows"/);
+  const cutoff = readFileSync('src/pages/school-config/CutoffSettingPage.jsx', 'utf8');
+  assert.match(cutoff, /const PHOTO_WINDOWS_API = !isDemoModule\('kitchen-records'\);/);
+  assert.match(cutoff, /PHOTO_WINDOWS_API \? \[\{ key: 'photo'/);
 });

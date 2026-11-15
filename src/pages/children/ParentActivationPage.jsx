@@ -17,11 +17,12 @@ import { ParentAccountBadge } from '@/components/children/ChildBadges';
 import { GuardianPanel } from '@/components/account/GuardianPanel';
 import { PeopleTabs } from '@/components/account/PeopleTabs';
 import { StatCard } from '@/components/ui/StatCard';
-import { IS_GUARDIAN_DEMO, resetParentPassword, updateParentStatus } from '@/services/account/guardianService';
+import { resetParentPassword, updateParentStatus } from '@/services/account/guardianService';
 import { getChildDetail } from '@/services/children/childrenService';
 import { GUARDIAN_RELATIONSHIP_LABELS } from '@/models/account/guardianConstants';
 import { groupChildrenByClass, missingAccount, NO_CLASS, sortMissingFirst } from '@/utils/account/guardianCoverage';
 import { childrenCrumbs } from '@/utils/children/breadcrumbs';
+import { sameId } from '@/services/http/idStrings';
 import { formatDate, normalizeText } from '@/utils/format';
 import '@/styles/modules/parent-accounts.css';
 
@@ -66,7 +67,8 @@ export default function ParentActivationPage() {
     };
   }, [targetId, user, structure.loading, structure.error, toast]);
   useEffect(() => {
-    const child = children.find((row) => row.id === targetId);
+    // id trẻ của BE là số, childId trên URL là chuỗi
+    const child = children.find((row) => sameId(row.id, targetId));
     if (!child || handledTarget.current === targetId || loading) return;
     handledTarget.current = targetId;
     setViewPick(child.classroomId || NO_CLASS);
@@ -169,25 +171,7 @@ export default function ParentActivationPage() {
   return (
     <div className="page">
       <Breadcrumb items={childrenCrumbs('Tài khoản phụ huynh')} />
-      {IS_GUARDIAN_DEMO && (
-        <div className="alert alert--info">
-          Bản demo Web: thao tác tài khoản chưa kết nối BE/App thật. Giữ phạm vi quản lý phụ huynh hiện tại của bạn.
-        </div>
-      )}
-      <div className="pa-head">
-        <div className="pa-head__title">
-          <h1 className="page__title">Tài khoản phụ huynh</h1>
-          <p className="text-sm text-2">Tra cứu theo lớp để xem và quản lý tài khoản phụ huynh của từng bé.</p>
-        </div>
-        <SearchSubmit
-          className="pa-head__search"
-          value={keyword}
-          maxLength={100}
-          placeholder="Tìm bé theo tên"
-          label="Tìm bé theo tên"
-          onSearch={setKeyword}
-        />
-      </div>
+      <h1 className="page__title">Tài khoản phụ huynh</h1>
 
       {!error && !structure.error && (
         <div className="stat-grid people-stats" aria-label="Tổng quan tài khoản phụ huynh">
@@ -225,6 +209,16 @@ export default function ParentActivationPage() {
       ) : (
         <section className="card people-list-workspace pa-workspace">
           <PeopleTabs embedded />
+          <div className="filter-bar">
+            <SearchSubmit
+              className="flex-1"
+              value={keyword}
+              maxLength={100}
+              placeholder="Tìm bé theo tên"
+              label="Tìm bé theo tên"
+              onSearch={setKeyword}
+            />
+          </div>
           <div className="pa-layout">
             <section className="pa-classes" aria-label="Lớp">
               <div className="pa-classes__toolbar">
@@ -268,8 +262,10 @@ export default function ParentActivationPage() {
                   >
                     <span className="pa-class__top">
                       <span className="pa-class__name">{g.name}</span>
-                      {g.missing > 0 && <span className="pa-dot" aria-label="Còn bé chưa có tài khoản" />}
-                      <span className="pa-class__count">{g.total} bé</span>
+                      <span className="pa-class__meta">
+                        {g.missing > 0 && <span className="pa-dot" aria-label="Còn bé chưa có tài khoản" />}
+                        <span className="pa-class__count">{g.total} bé</span>
+                      </span>
                     </span>
                     <span className="pa-bar" aria-hidden="true">
                       <i style={{ width: `${Math.round((g.withAccount / g.total) * 100)}%` }} />
@@ -368,7 +364,18 @@ export default function ParentActivationPage() {
                                       </div>
                                     ))
                                   ) : (
-                                    <div className="pa-line muted">Chưa có phụ huynh</div>
+                                    <div className="pa-line">
+                                      {child.accountRecipient ? (
+                                        <div className="pa-guardian-info">
+                                          <strong>{child.accountRecipient.fullName}</strong>
+                                          <div className="pa-guardian-meta">
+                                            {child.accountRecipient.relation} · {child.accountRecipient.phone}
+                                          </div>
+                                        </div>
+                                      ) : (
+                                        <span className="muted">Chưa có phụ huynh</span>
+                                      )}
+                                    </div>
                                   )}
                                 </td>
                                 <td className="pa-col-status">

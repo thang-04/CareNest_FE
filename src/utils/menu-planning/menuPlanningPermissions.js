@@ -17,10 +17,11 @@ export const isPrincipal = (user) => user?.role === ROLES.PRINCIPAL;
 
 /** Read the planning data (foods, dishes, prices, sample and weekly menus). */
 // Quyền riêng của Phó hiệu trưởng (mảng Thực đơn): Không có thì không xem dữ liệu thực đơn
-export const canViewMenuData = (user) => isVicePrincipal(user) && areaAccess(user, 'menu').access !== 'NONE';
+export const canViewMenuData = (user) => isPrincipal(user) || (isVicePrincipal(user) && areaAccess(user, 'menu').access !== 'NONE');
 
 /** Create / edit / delete foods, dishes, prices, menus; request AI suggestions; balance nutrition. */
-export const canManageMenuData = (user, access) => isVicePrincipal(user) && !!access?.sharedService;
+// Hiệu trưởng có sẵn mọi mã bán trú (BE:docs/business/flows/meal-management-permissions.md §4, user chốt 2026-11-06)
+export const canManageMenuData = (user, access) => isPrincipal(user) || (isVicePrincipal(user) && !!access?.sharedService);
 
 /** Principal follows the published weekly menus (UC 6.1, view only). */
 export const canViewMenuPlan = (user) => isPrincipal(user);

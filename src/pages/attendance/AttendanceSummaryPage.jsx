@@ -7,6 +7,7 @@ import { useMasterData } from '@/hooks/useMasterData';
 import { ROLES } from '@/models/User';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { EmptyState, ErrorState, LoadingState, SkeletonRows } from '@/components/ui/States';
+import { StatCard } from '@/components/ui/StatCard';
 import { ClassDateBar } from '@/components/attendance/ClassDateBar';
 import { DateInput } from '@/components/form/DateInput';
 import { SemesterSelect } from '@/components/form/SemesterSelect';
@@ -16,7 +17,7 @@ import { useAttendanceClasses, useAttendanceSummary, useAttendanceYear } from '@
 import { validateSummaryRange } from '@/utils/attendance/attendanceValidation';
 import { addDays } from '@/utils/attendance/attendanceTime';
 import { attendanceCrumbs } from '@/utils/attendance/breadcrumbs';
-import { exportWithPreview } from '@/components/ui/ExportPreview';
+import { exportWithPreviewWorkbook } from '@/components/ui/ExportPreview';
 import { formatDate, isIsoDate } from '@/utils/format';
 import '@/styles/modules/attendance.css';
 
@@ -97,21 +98,23 @@ export default function AttendanceSummaryPage() {
     if (next) applyRange(next);
   };
 
-  const exportCsv = () => {
+  const exportExcel = () => {
     if (!summary) return;
     const head = ['Ngày', 'Có mặt', 'Vắng có phép', 'Vắng không phép', 'Chưa điểm danh', 'Lượt trẻ ăn', 'Trong đó ăn suất thay thế'];
     const rows = summary.days.map((d) => [formatDate(d.date), d.present, d.excused, d.unexcused, d.missing, d.mealTotal, d.substitute]);
-    // Nhiều lớp: thêm bảng theo lớp sau bảng theo ngày
-    const byClass = multi
-      ? [
-          [],
-          ['Lớp', 'Điểm trường', 'Sĩ số', 'Có mặt', 'Vắng có phép', 'Vắng không phép', 'Lượt trẻ ăn'],
-          ...summary.classes.map((c) => [c.className, campusName(c.campusId), c.size, c.present, c.excused, c.unexcused, c.meals]),
-        ]
-      : [];
+    const detailHead = multi
+      ? ['Lớp', 'Điểm trường', 'Sĩ số', 'Có mặt', 'Vắng có phép', 'Vắng không phép', 'Lượt trẻ ăn']
+      : ['Trẻ', 'Có mặt', 'Vắng có phép', 'Vắng không phép', 'Lượt trẻ ăn'];
+    const detailRows = multi
+      ? summary.classes.map((c) => [c.className, campusName(c.campusId), c.size, c.present, c.excused, c.unexcused, c.meals])
+      : summary.children.map((c) => [c.child.fullName, c.present, c.excused, c.unexcused, c.meals]);
+    const title = [`Tổng hợp điểm danh ${scopeName} ${formatDate(range.from)} – ${formatDate(range.to)}`];
     const slug = (classId ? summary.className : campusId ? campusName(campusId) : 'toan-truong').replace(/\s+/g, '-');
-    exportWithPreview(
-      [[`Tổng hợp điểm danh ${scopeName} ${formatDate(range.from)} – ${formatDate(range.to)}`], head, ...rows, ...byClass],
+    exportWithPreviewWorkbook(
+      [
+        { sheetName: 'Theo ngày', rows: [title, head, ...rows], headerRow: 1 },
+        { sheetName: multi ? 'Theo lớp' : 'Theo trẻ', rows: [title, detailHead, ...detailRows], headerRow: 1 },
+      ],
       `diem-danh-${slug}-${range.from}-${range.to}.xlsx`,
     );
   };
@@ -138,7 +141,7 @@ export default function AttendanceSummaryPage() {
           )}
         </div>
         {summary?.days.length > 0 && (
-          <button className="btn mt-8" onClick={exportCsv}>
+          <button className="btn mt-8" onClick={exportExcel}>
             <Download size={16} /> Xuất Excel
           </button>
         )}
@@ -190,7 +193,7 @@ export default function AttendanceSummaryPage() {
                   <option value="">Toàn trường</option>
                   {campusOptions.map((c) => (
                     <option key={c.id} value={c.id}>
-                      {c.shortName || c.name}
+                      {c.name}
                     </option>
                   ))}
                 </select>
@@ -282,35 +285,24 @@ export default function AttendanceSummaryPage() {
                     />
                   </div>
                   <div className="dd-stats">
-                    <div className="dd-stat">
-                      <span className="dd-stat__value">{summary.size}</span>
-                      <span className="dd-stat__label">{multi ? `Sĩ số (${summary.classes.length} lớp)` : 'Sĩ số lớp'}</span>
-                    </div>
-                    <div className="dd-stat">
-                      <span className="dd-stat__value">{summary.days.length}</span>
-                      <span className="dd-stat__label">Ngày học</span>
-                    </div>
-                    <div className="dd-stat dd-stat--green">
-                      <span className="dd-stat__value">{totals.present}</span>
-                      <span className="dd-stat__label">Lượt có mặt</span>
-                    </div>
-                    <div className="dd-stat dd-stat--orange">
-                      <span className="dd-stat__value">{totals.excused}</span>
-                      <span className="dd-stat__label">Vắng có phép</span>
-                    </div>
-                    <div className="dd-stat dd-stat--red">
-                      <span className="dd-stat__value">{totals.unexcused}</span>
-                      <span className="dd-stat__label">Vắng không phép</span>
-                    </div>
-                    <div className="dd-stat dd-stat--blue">
-                      <span className="dd-stat__value">{totals.meals}</span>
-                      <span
-                        className="dd-stat__label"
-                        title="Số lượt trẻ có ăn trong ngày (mỗi trẻ 1 lượt/ngày); số suất theo bữa xem ở Sổ báo ăn"
-                      >
-                        Lượt trẻ ăn
-                      </span>
-                    </div>
+                    <StatCard
+                      tone="blue"
+                      label={<>{multi ? `Sĩ số (${summary.classes.length} lớp)` : 'Sĩ số lớp'}</>}
+                      value={summary.size}
+                    />
+                    <StatCard tone="blue" label="Ngày học" value={summary.days.length} />
+                    <StatCard tone="green" label="Lượt có mặt" value={totals.present} />
+                    <StatCard tone="orange" label="Vắng có phép" value={totals.excused} />
+                    <StatCard tone="red" label="Vắng không phép" value={totals.unexcused} />
+                    <StatCard
+                      tone="teal"
+                      label={
+                        <span title="Số lượt trẻ có ăn trong ngày (mỗi trẻ 1 lượt/ngày); số suất theo bữa xem ở Sổ suất ăn">
+                          Lượt trẻ ăn
+                        </span>
+                      }
+                      value={totals.meals}
+                    />
                   </div>
                 </div>
               )}
@@ -329,7 +321,7 @@ export default function AttendanceSummaryPage() {
                           <th className="num">Có phép</th>
                           <th className="num">Không phép</th>
                           <th className="num">Chưa ĐD</th>
-                          <th className="num" title="Mỗi trẻ có ăn 1 lượt/ngày; số suất theo bữa xem ở Sổ báo ăn">
+                          <th className="num" title="Mỗi trẻ có ăn 1 lượt/ngày; số suất theo bữa xem ở Sổ suất ăn">
                             Lượt trẻ ăn
                           </th>
                         </tr>
@@ -410,7 +402,7 @@ export default function AttendanceSummaryPage() {
                             <th className="num">Có mặt</th>
                             <th className="num">Có phép</th>
                             <th className="num">Không phép</th>
-                            <th className="num" title="Mỗi trẻ có ăn 1 lượt/ngày; số suất theo bữa xem ở Sổ báo ăn">
+                            <th className="num" title="Mỗi trẻ có ăn 1 lượt/ngày; số suất theo bữa xem ở Sổ suất ăn">
                               Lượt trẻ ăn
                             </th>
                           </tr>
@@ -470,7 +462,7 @@ export default function AttendanceSummaryPage() {
                             <th className="num">Có mặt</th>
                             <th className="num">Có phép</th>
                             <th className="num">Không phép</th>
-                            <th className="num" title="Mỗi trẻ có ăn 1 lượt/ngày; số suất theo bữa xem ở Sổ báo ăn">
+                            <th className="num" title="Mỗi trẻ có ăn 1 lượt/ngày; số suất theo bữa xem ở Sổ suất ăn">
                               Lượt trẻ ăn
                             </th>
                           </tr>

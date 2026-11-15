@@ -1,0 +1,14 @@
+# VPS: /data/thangnd/CAPSTONE/caddy/carenest-dev.caddy, CI đồng bộ khi push nhánh dev (.github/workflows/deploy.yml).
+# Môi trường dev chạy cạnh production: FE dev 18301 (compose.yaml, project carenest-fe-dev), API dev 18311 (BE:compose.dev.yaml).
+dev.carenest.edu.vn {
+	encode gzip
+
+	# Giữ nguyên prefix /api như site production
+	handle /api/* {
+		reverse_proxy 127.0.0.1:18311
+	}
+
+	handle {
+		reverse_proxy 127.0.0.1:18301
+	}
+}

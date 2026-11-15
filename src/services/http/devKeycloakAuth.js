@@ -75,10 +75,10 @@ const requestToken = async (params, remember) => {
     const status = error.response?.status ?? 0;
     const err = new Error(
       status === 0
-        ? 'Không kết nối được máy chủ đăng nhập (Keycloak). Kiểm tra Keycloak đang chạy.'
+        ? 'Không kết nối được máy chủ đăng nhập'
         : params.grant_type === 'password'
-          ? 'Email hoặc mật khẩu không đúng'
-          : 'Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại',
+          ? 'Sai tài khoản hoặc mật khẩu'
+          : 'Phiên đã hết hạn, hãy đăng nhập lại',
     );
     err.status = status === 0 ? 0 : 401;
     throw err;

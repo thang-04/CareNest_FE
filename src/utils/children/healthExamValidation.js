@@ -9,13 +9,11 @@ import {
   HEAD_STATUS_OPTIONS,
   HISTORY_ITEMS,
   IMMUNIZATION_ITEMS,
-  ISSUE_KIND,
   NUTRITION_STATUS,
   NUTRITION_STATUS_OPTIONS,
   VITAL_ITEMS,
   YES_NO,
 } from '@/models/children/healthExamForm';
-import { todayInput } from '@/utils/format';
 import { tbContactDateError } from './childrenValidation';
 
 /*
@@ -23,7 +21,6 @@ import { tbContactDateError } from './childrenValidation';
  * Chỉ hỗ trợ nhập liệu; phiếu nháp không bắt buộc ô nào. BE vẫn là chủ rule.
  */
 
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const YES_NO_VALUES = Object.values(YES_NO);
 
 const isBlank = (v) => v === '' || v == null;
@@ -47,8 +44,8 @@ const checkLength = (errors, key, value, max) => {
 };
 
 /**
- * Có người đi cùng và kết luận ở mức "Cần theo dõi sát" (nguy cơ lao, chuyển khám, hoặc mẫu FOLLOW_UP — mức theo kết luận D9)
- * ⇒ ghi ý kiến phụ huynh tại buổi khám (user chốt 2026-10-23). mode: conclusionMode BE trả.
+ * Có người đi cùng và kết luận ở mức "Cần theo dõi sát" (nguy cơ lao, chuyển khám, hoặc phiếu cũ mẫu FOLLOW_UP — mức theo kết luận
+ * D9) ⇒ ghi ý kiến phụ huynh tại buổi khám (user chốt 2026-10-23; BE vẫn kiểm sau khi bỏ phiếu theo dõi). mode: conclusionMode BE trả.
  */
 export const needsParentOpinion = (exam, mode) => {
   const c = exam?.conclusion || {};
@@ -56,7 +53,7 @@ export const needsParentOpinion = (exam, mode) => {
   return exam?.admin?.hasCompanion === YES_NO.YES && closeWatch;
 };
 
-/** Kết luận mẫu FOLLOW_UP: 1 câu so với vấn đề đang theo dõi (user chốt 2026-10-21). */
+/** Kết luận phiếu cũ mẫu FOLLOW_UP: 1 câu so với vấn đề đang theo dõi (user chốt 2026-10-21). */
 const validateFollowUpConclusion = (errors, c, L) => {
   if (!Object.values(FOLLOW_UP_FINDING).includes(c.followUpFinding))
     errors['exam.conclusion.followUpFinding'] = 'Chọn kết luận của bác sĩ so với vấn đề đang theo dõi';
@@ -74,7 +71,7 @@ const validateFollowUpConclusion = (errors, c, L) => {
   checkLength(errors, 'exam.conclusion.specialty', c.specialty, 150);
 };
 
-const validateStandardConclusion = (errors, c, L, knownCondition) => {
+const validateStandardConclusion = (errors, c, L) => {
   if (!c.normal && !c.tbRisk && !c.healthIssue) errors['exam.conclusion.flags'] = 'Chọn kết luận của bác sĩ';
   else if (c.normal && (c.tbRisk || c.healthIssue)) errors['exam.conclusion.flags'] = '"Bình thường" không chọn cùng các kết luận khác';
   if (c.healthIssue && !text(c.issueText)) errors['exam.conclusion.issueText'] = 'Ghi rõ vấn đề sức khỏe bác sĩ kết luận';
@@ -83,15 +80,7 @@ const validateStandardConclusion = (errors, c, L, knownCondition) => {
   // Có nguy cơ lao hoặc có vấn đề thì phải tư vấn hoặc chuyển khám (user chốt 2026-10-21).
   else if ((c.tbRisk || c.healthIssue) && c.action === CONCLUSION_ACTION.NONE)
     errors['exam.conclusion.action'] = 'Có nguy cơ lao hoặc có vấn đề sức khỏe: chọn Tư vấn hoặc Chuyển khám chuyên khoa';
-  // Trẻ có vấn đề đã biết, lần này có vấn đề mà không chuyển khám, không nguy cơ lao: bác sĩ nói mới hay đã biết, không chọn sẵn.
-  if (
-    knownCondition &&
-    c.healthIssue &&
-    !c.tbRisk &&
-    c.action !== CONCLUSION_ACTION.REFERRAL &&
-    !Object.values(ISSUE_KIND).includes(c.issueKind)
-  )
-    errors['exam.conclusion.issueKind'] = 'Chọn vấn đề mới hay vấn đề đã biết';
+  // Không còn câu "vấn đề mới hay đã biết" (user bỏ 2026-11-04, như BE).
   if (c.action === CONCLUSION_ACTION.ADVICE && !text(c.adviceText)) errors['exam.conclusion.adviceText'] = 'Ghi lời tư vấn của bác sĩ';
   checkLength(errors, 'exam.conclusion.adviceText', c.adviceText, L.note);
   if (c.action === CONCLUSION_ACTION.REFERRAL && !text(c.specialty))
@@ -100,24 +89,15 @@ const validateStandardConclusion = (errors, c, L, knownCondition) => {
 };
 
 /**
- * payload: { date, heightCm, weightKg, headCircumferenceCm, exam, reason }.
- * ctx: { dateOfBirth, campaign: { startDate, endDate }, reference (BE trả: headApplies, autismQuestion), requireReason,
- *   conclusionMode (BE trả: STANDARD | FOLLOW_UP), knownCondition (BE trả: vấn đề đã biết của trẻ hoặc null), guardianCount }.
+ * payload: { heightCm, weightKg, headCircumferenceCm, exam, reason } — không có ngày khám: BE ghi (user chốt 2026-11-04).
+ * ctx: { dateOfBirth, examDate (ngày khám BE trả hoặc BE ghi, để kiểm ngày tiếp xúc lao), reference (BE trả: headApplies,
+ *   autismQuestion), requireReason, conclusionMode (BE trả: STANDARD | FOLLOW_UP), guardianCount }.
  */
-export const validateHealthExam = (
-  payload,
-  { dateOfBirth, campaign, reference, requireReason, conclusionMode, knownCondition, guardianCount } = {},
-) => {
+export const validateHealthExam = (payload, { dateOfBirth, examDate, reference, requireReason, conclusionMode, guardianCount } = {}) => {
   const errors = {};
   const exam = payload.exam || {};
   const a = exam.admin || {};
   const L = EXAM_FIELD_LIMITS;
-
-  if (!payload.date || !DATE_RE.test(payload.date)) errors.date = 'Chọn ngày khám';
-  else if (payload.date > todayInput()) errors.date = 'Ngày khám không được ở tương lai';
-  else if (dateOfBirth && payload.date < dateOfBirth) errors.date = 'Ngày khám không được trước ngày sinh của trẻ';
-  else if (campaign && (payload.date < campaign.startDate || payload.date > campaign.endDate))
-    errors.date = 'Chọn ngày khám trong khoảng ngày khám của đợt';
 
   // I. Hành chính lấy từ hồ sơ trẻ, giáo viên không sửa (user chốt 2026-10-22); kiểm người đi cùng và tiền sử.
   // Người đi cùng chọn trong phụ huynh của hồ sơ (guardianCount: số phụ huynh BE trả).
@@ -133,7 +113,7 @@ export const validateHealthExam = (
     if (item.textKey && v === YES_NO.YES && !text(exam.history[item.textKey])) errors[`exam.history.${item.textKey}`] = 'Ghi rõ tên bệnh';
     if (item.textKey) checkLength(errors, `exam.history.${item.textKey}`, exam.history?.[item.textKey], L.text);
     if (item.dateKey && v === YES_NO.YES) {
-      const dateError = tbContactDateError(exam.history[item.dateKey], { dateOfBirth, notAfter: payload.date });
+      const dateError = tbContactDateError(exam.history[item.dateKey], { dateOfBirth, notAfter: examDate });
       if (dateError) errors[`exam.history.${item.dateKey}`] = dateError;
     }
   });
@@ -199,7 +179,7 @@ export const validateHealthExam = (
   // Kết luận và tư vấn
   const c = exam.conclusion || {};
   if (conclusionMode === CONCLUSION_MODE.FOLLOW_UP) validateFollowUpConclusion(errors, c, L);
-  else validateStandardConclusion(errors, c, L, knownCondition);
+  else validateStandardConclusion(errors, c, L);
   if (!text(c.doctorName)) errors['exam.conclusion.doctorName'] = 'Nhập họ tên bác sĩ kết luận';
   else checkLength(errors, 'exam.conclusion.doctorName', c.doctorName, L.short);
   if (needsParentOpinion(exam, conclusionMode)) {

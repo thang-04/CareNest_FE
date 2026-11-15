@@ -10,6 +10,7 @@ import { ROLE_LABELS } from '@/models/User';
 import { returnPath } from '@/routes/ProtectedRoute';
 
 import { setPasswordChallenge } from '@/services/authChallengeStore';
+import { loginErrorText } from '@/utils/auth/loginErrorText';
 
 const validate = ({ email, password }) => {
   const e = {};
@@ -93,7 +94,7 @@ export default function LoginPage() {
         navigate('/reset-password', { state: { mode: 'first-login', email: form.email.trim() } });
         return;
       }
-      setServerError(err.message || 'Không đăng nhập được, vui lòng thử lại');
+      setServerError(loginErrorText(err));
       setForm((f) => ({ ...f, password: '' }));
     } finally {
       setBusy(false);

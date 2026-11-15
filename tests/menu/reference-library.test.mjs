@@ -44,5 +44,5 @@ test('chép món: thêm thực phẩm còn thiếu (chưa có đơn giá), món 
   assert.deepEqual(missingPortionGroups(dish, ['ag-2', 'ag-3', 'ag-4', 'ag-5']), []);
   assert.equal((await repo.listReferenceDishes({ keyword: 'Vịt om' }, VP))[0].inCatalog, true);
   await assert.rejects(repo.copyReferenceDish('rd02', VP), (e) => e.status === 409);
-  await assert.rejects(repo.copyReferenceDish('rd01', HT), (e) => e.status === 403);
+  await assert.rejects(repo.copyReferenceDish('rd01', { id: 'u_teacher', role: 'TEACHER' }), (e) => e.status === 403);
 });

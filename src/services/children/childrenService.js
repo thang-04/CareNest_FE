@@ -11,6 +11,7 @@ export const checkDuplicateChild = (data, user, excludeId) => repo.checkDuplicat
 export const checkGuardianConflicts = (guardians, user) => repo.checkGuardianConflicts(guardians, user);
 export const readmitChild = (childId, body, user) => repo.readmitChild(childId, body, user);
 export const getPlacementClasses = (filters, user) => repo.getPlacementClasses(filters, user);
+export const getClassOptions = (schoolYear, user, options) => repo.getClassOptions(schoolYear, user, options);
 export const enrollChild = (payload, user) => repo.enrollChild(payload, user);
 export const updateChild = (id, body, user) => repo.updateChild(id, body, user);
 export const previewEnrollmentImport = (file, user) => repo.previewImport(file, user);
@@ -22,4 +23,7 @@ export const getParentAccounts = (filters, user) => repo.listParentAccounts(filt
 export const findParentAccountByCitizenId = (idNumber, user) => repo.findParentAccountByCitizenId(idNumber, user);
 export const getHealthRecord = (childId, user) => repo.getHealthRecord(childId, user);
 export const saveMeasurement = (childId, measurementId, payload, user) => repo.saveMeasurement(childId, measurementId, payload, user);
-export const analyzeHealthTrend = (childId, user) => repo.analyzeHealthTrend(childId, user);
+export const analyzeHealthTrend = (childId, period, user) => repo.analyzeHealthTrend(childId, period, user);
+export const getLatestHealthTrend = (childId, user) => repo.getLatestHealthTrend(childId, user);
+export const approveHealthTrend = (childId, interpretationId, content, user) =>
+  repo.approveHealthTrend(childId, interpretationId, content, user);

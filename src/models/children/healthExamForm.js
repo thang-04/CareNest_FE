@@ -35,7 +35,7 @@
  * @property {boolean} tbRisk
  * @property {boolean} healthIssue
  * @property {'NEW'|'KNOWN'|''} issueKind        mẫu thường: vấn đề mới hay đã biết (khi có vấn đề, không chuyển khám)
- * @property {'NO_NEW_FINDING'|'ADVICE'|'NEW_FINDING'|''} followUpFinding  mẫu FOLLOW_UP (trẻ đang có phiếu theo dõi)
+ * @property {'NO_NEW_FINDING'|'ADVICE'|'NEW_FINDING'|''} followUpFinding  mẫu FOLLOW_UP, chỉ còn ở phiếu đã kết luận trước 2026-11-04
  * @property {string} issueText
  * @property {'NONE'|'ADVICE'|'REFERRAL'|''} action
  * @property {string} adviceText
@@ -268,10 +268,13 @@ export const ISSUE_KIND_LABELS = {
   KNOWN: 'Vấn đề đã biết, không thay đổi so với trước',
 };
 
-/** Mẫu kết luận BE chọn: FOLLOW_UP khi trẻ có phiếu theo dõi đang mở do lần khám khác mở (user chốt 2026-10-21). */
+/**
+ * Mẫu kết luận BE chọn. Bỏ phiếu theo dõi (HLT-16, 2026-11-04): phiếu mới và phiếu nháp luôn STANDARD; FOLLOW_UP chỉ còn ở phiếu đã
+ * kết luận theo mẫu đó trước 2026-11-04, xem và sửa vẫn giữ mẫu.
+ */
 export const CONCLUSION_MODE = { STANDARD: 'STANDARD', FOLLOW_UP: 'FOLLOW_UP' };
 
-// Mẫu FOLLOW_UP: một câu so với vấn đề đang theo dõi thay cho 2 nhóm Kết luận, Hướng xử lý; lưu không đóng phiếu.
+// Mẫu FOLLOW_UP (dữ liệu cũ): một câu so với vấn đề đang theo dõi thay cho 2 nhóm Kết luận, Hướng xử lý.
 export const FOLLOW_UP_FINDING = { NO_NEW_FINDING: 'NO_NEW_FINDING', ADVICE: 'ADVICE', NEW_FINDING: 'NEW_FINDING' };
 
 export const FOLLOW_UP_FINDING_LABELS = {
@@ -281,12 +284,12 @@ export const FOLLOW_UP_FINDING_LABELS = {
 };
 
 export const FOLLOW_UP_FINDING_HINTS = {
-  NO_NEW_FINDING: 'Phiếu theo dõi giữ nguyên.',
-  ADVICE: 'Có vấn đề nhỏ mới, bác sĩ chỉ tư vấn. Phiếu theo dõi giữ nguyên.',
-  NEW_FINDING: 'Phiếu theo dõi sang vòng mới: trao đổi lại với phụ huynh.',
+  NO_NEW_FINDING: 'Không có vấn đề mới so với lần khám trước.',
+  ADVICE: 'Có vấn đề nhỏ mới, bác sĩ chỉ tư vấn.',
+  NEW_FINDING: 'Ghi rõ bất thường mới; có đề nghị khám chuyên khoa thì ghi chuyên khoa.',
 };
 
-/** Câu kết luận để hiển thị; mẫu FOLLOW_UP hiện lựa chọn so với vấn đề đang theo dõi. */
+/** Câu kết luận để hiển thị; phiếu cũ mẫu FOLLOW_UP hiện lựa chọn so với vấn đề đang theo dõi. */
 export const conclusionLabelOf = (c) => {
   if (!c) return '';
   if (c.followUpFinding)
@@ -306,7 +309,7 @@ export const conclusionActionLabelOf = (c) => {
   return c.action === CONCLUSION_ACTION.REFERRAL && c.specialty ? `${label}: ${c.specialty}` : label;
 };
 
-/** Nhóm kết luận BE trả cho thống kê đợt; nguy cơ lao đứng trước chuyển khám. */
+/** Nhóm kết luận BE trả (cảnh báo của đợt khám, HLT-19); nguy cơ lao đứng trước chuyển khám. FOLLOWING_* chỉ ở dữ liệu cũ. */
 export const CONCLUSION_CATEGORY = {
   NORMAL: 'NORMAL',
   ISSUE: 'ISSUE',
@@ -369,10 +372,10 @@ export const buildEmptyExam = () => ({
   },
 });
 
-/** Bước chứa một ô (theo khóa lỗi BE trả), để form mở đúng bước có lỗi. */
+/** Bước chứa một ô (theo khóa lỗi BE trả), để form mở đúng bước có lỗi. Lỗi `date` (BE ghi ngày khám) hiện ở dòng ngày của bước 1. */
 export const stepOfField = (key) => {
-  if (/^exam\.(admin|history)\b/.test(key)) return 0;
-  if (/^(date|heightCm|weightKg|headCircumferenceCm)$/.test(key) || /^exam\.(vitals|nutrition)\b/.test(key)) return 1;
+  if (key === 'date' || /^exam\.(admin|history)\b/.test(key)) return 0;
+  if (/^(heightCm|weightKg|headCircumferenceCm)$/.test(key) || /^exam\.(vitals|nutrition)\b/.test(key)) return 1;
   if (/^exam\.(development|immunization)\b/.test(key)) return 2;
   if (/^exam\.clinical\b/.test(key)) return 3;
   return 4;

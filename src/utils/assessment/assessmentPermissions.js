@@ -1,4 +1,6 @@
 import { ROLES } from '@/models/User';
+import { PERMISSIONS } from '@/models/bePermissions';
+import { hasBePermission, inBePermissionScope } from '@/utils/bePermissions';
 import { EVAL_STATUS, REWARD_STATUS } from '@/models/assessment/assessmentConstants';
 
 /*
@@ -47,22 +49,34 @@ export const isTeamLeader = (user) => user?.role === ROLES.TEAM_LEADER;
 /** Tổng quan đánh giá lớp: PHT, Hiệu trưởng; tổ trưởng xem các lớp nhóm tuổi mình. */
 export const canViewClassAssessmentOverview = (user) => isLeader(user) || isTeamLeader(user);
 // AUTH-20 (Cần chốt 03/11/2026): HT, PHT xem dữ liệu đánh giá mọi điểm trường; ghi theo inLeaderEditScope
-export const inLeaderScope = (campusId, user) => isLeader(user);
+export const inLeaderScope = (campusId, user) =>
+  isPrincipal(user) || (isVicePrincipal(user) && inBePermissionScope(user, PERMISSIONS.ASSESSMENT_VIEW, campusId));
 /** Mở lại ngày, xét duyệt: Hiệu trưởng cả trường, PHT điểm trường mình. */
 export const inLeaderEditScope = (campusId, user) =>
-  isPrincipal(user) || (isVicePrincipal(user) && user.campusId != null && String(user.campusId) === String(campusId));
+  isPrincipal(user) || (isVicePrincipal(user) && inBePermissionScope(user, PERMISSIONS.ASSESSMENT_UNLOCK, campusId));
 
 /* ---------- Daily assessment / profile ---------- */
-export const canRecordDailyAssessment = (cls, user) => isClassTeacher(cls, user);
+export const canRecordDailyAssessment = (cls, user) =>
+  hasBePermission(user, PERMISSIONS.ASSESSMENT_RECORD) && (cls?.canEdit ?? isClassTeacher(cls, user));
 /** Mở lại ngày đánh giá đã khóa: Hiệu trưởng (cả trường) hoặc PHT của điểm trường có lớp. */
-export const canUnlockAssessmentDay = (cls, user) => !!cls && inLeaderEditScope(cls.campusId, user);
+export const canUnlockAssessmentDay = (cls, user) =>
+  hasBePermission(user, PERMISSIONS.ASSESSMENT_UNLOCK) && !!cls && inLeaderEditScope(cls.campusId, user);
 export const canViewDevelopmentProfile = (cls, user) => isClassTeacher(cls, user);
 export const canViewDevelopmentProgress = (child, user) => !!child && inLeaderScope(child.campusId, user);
 
 /* ---------- Evaluations ---------- */
 // BE: canEdit = GV đang phụ trách lớp của năm đang hoạt động
 export const canReviewEvaluation = (ev, cls, user) =>
-  !!ev && ev.status !== EVAL_STATUS.CONFIRMED && (cls?.canEdit ?? isClassTeacher(cls, user));
+  hasBePermission(user, PERMISSIONS.ASSESSMENT_RECORD) &&
+  !!ev &&
+  ev.status !== EVAL_STATUS.CONFIRMED &&
+  (cls?.canEdit ?? isClassTeacher(cls, user));
+
+export const canConfirmEvaluation = (ev, cls, user) =>
+  hasBePermission(user, PERMISSIONS.ASSESSMENT_CONFIRM) &&
+  !!ev &&
+  ev.status !== EVAL_STATUS.CONFIRMED &&
+  (cls?.canEdit ?? isClassTeacher(cls, user));
 
 export const canViewEvaluation = (ev, cls, user) =>
   !!ev && (isClassTeacher(cls, user) || (ev.status === EVAL_STATUS.CONFIRMED && inLeaderScope(ev.campusId, user)));
@@ -71,10 +85,10 @@ export const canViewEvaluation = (ev, cls, user) =>
 export const canViewAiDraft = (ev, cls, user) => !!ev && isClassTeacher(cls, user);
 
 /* ---------- Good behaviour tickets ---------- */
-export const canIssueTickets = (cls, user) => isClassTeacher(cls, user);
+export const canIssueTickets = (cls, user) => hasBePermission(user, PERMISSIONS.ASSESSMENT_RECORD) && isClassTeacher(cls, user);
 
 /* ---------- Year-end reward proposals ---------- */
-export const canCreateRewardProposal = (user) => has(user, CLASS_ROLES);
+export const canCreateRewardProposal = (user) => hasBePermission(user, PERMISSIONS.ASSESSMENT_RECORD) && has(user, CLASS_ROLES);
 
 export const canEditRewardProposal = (p, user) =>
   !!p && p.createdBy === user?.id && [REWARD_STATUS.DRAFT, REWARD_STATUS.RETURNED].includes(p.status);
@@ -82,7 +96,11 @@ export const canEditRewardProposal = (p, user) =>
 export const canDeleteRewardProposal = (p, user) => !!p && p.createdBy === user?.id && p.status === REWARD_STATUS.DRAFT;
 
 export const canReviewRewardProposal = (p, user) =>
-  !!p && isVicePrincipal(user) && user.campusId === p.campusId && p.status === REWARD_STATUS.PENDING_VP;
+  hasBePermission(user, PERMISSIONS.REWARD_REVIEW) &&
+  !!p &&
+  isVicePrincipal(user) &&
+  inBePermissionScope(user, PERMISSIONS.REWARD_REVIEW, p.campusId) &&
+  p.status === REWARD_STATUS.PENDING_VP;
 
 export const canDecideRewardProposal = (p, user) => !!p && isPrincipal(user) && p.status === REWARD_STATUS.PENDING_PRINCIPAL;
 

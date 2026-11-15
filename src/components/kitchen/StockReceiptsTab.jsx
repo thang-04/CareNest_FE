@@ -41,7 +41,7 @@ export function StockReceiptsTab({ campusId }) {
         <table className="table table--grid">
           <thead>
             <tr>
-              <th>Ngày nhập</th>
+              <th className="center">Ngày nhập</th>
               <th>Nhà cung cấp</th>
               <th className="num">Số thực phẩm</th>
               <th className="money">Tổng tiền</th>
@@ -51,7 +51,7 @@ export function StockReceiptsTab({ campusId }) {
           <tbody>
             {receipts.data.map((r) => (
               <tr key={r.id} className="row-click" {...clickableRowProps(() => navigate(`/kitchen/stock-receipts/${r.id}`))}>
-                <td className="fw-600 text-primary">{formatDate(r.receivedDate)}</td>
+                <td className="fw-600 text-primary center">{formatDate(r.receivedDate)}</td>
                 <td>{r.supplierName}</td>
                 <td className="num">{r.lines.length}</td>
                 <td className="money nowrap">{formatMoney(r.totalValue)}</td>
@@ -83,7 +83,7 @@ export function StockReceiptsTab({ campusId }) {
   return (
     <section className="card">
       <div className="card__body kb-toolbar kb-toolbar--card">
-        <button type="button" className="btn btn--sm kb-export" onClick={exportCsv} disabled={!receipts.data?.length}>
+        <button type="button" className="btn kb-export" onClick={exportCsv} disabled={!receipts.data?.length}>
           <Download size={15} /> Xuất Excel
         </button>
         <label className="date-filter">

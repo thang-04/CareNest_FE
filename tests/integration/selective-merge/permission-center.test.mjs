@@ -40,7 +40,7 @@ test('UI mới nhận catalog, sáu vai trò; ma trận có cột HT đối chi�
   const catalog = await repo.getPermissionCatalog(principal);
   const roles = await repo.getRolePermissions(principal);
   assert.equal(roles.length, 6);
-  assert.equal(catalog.length, 8);
+  assert.equal(catalog.length, 11);
   const rows = permissionMatrixRows(catalog, roles);
   assert.deepEqual(Object.keys(rows[0].cells), ['PRINCIPAL', 'VICE_PRINCIPAL', 'TEACHER', 'KITCHEN_STAFF']);
   const permissionManage = rows.find((row) => row.code === 'PERMISSION_MANAGE');
@@ -56,7 +56,7 @@ test('AUTH-10: bảng nhóm theo nghiệp vụ, dòng xem đứng đầu, việc
   const groups = permissionTableRows(catalog);
   assert.deepEqual(
     groups.map((g) => g.feature.key),
-    ['child-profile', 'staff', 'parent-account', 'permission'],
+    ['child-profile', 'staff', 'parent-account', 'meal-catalog', 'meal-stock', 'meal-menu', 'permission'],
   );
   const staff = groups.find((g) => g.feature.key === 'staff');
   assert.deepEqual(
@@ -286,9 +286,20 @@ test('đường sidebar cũ mở UI mới, non-mock chỉ gọi endpoint BE đã
   const api = readFileSync(new URL('../../../src/services/account/api/permissionApi.js', import.meta.url), 'utf8');
   // Endpoint của BE PermissionController, AccountController, SchoolStructureController; không tự chế
   const paths = [...api.matchAll(/axiosClient\.\w+\(\s*[`'"]([^`'"]+)/g)].map((m) => m[1].replace(/\$\{[^}]+\}/g, '{id}'));
-  const known = ['/permissions', '/role-permissions', '/role-permissions/{id}', '/accounts', '/accounts/{id}/permission-overrides', '/permission-change-logs', '/campuses/options'];
+  const known = [
+    '/permissions',
+    '/role-permissions',
+    '/role-permissions/{id}',
+    '/accounts',
+    '/accounts/{id}/permission-overrides',
+    '/permission-change-logs',
+    '/campuses/options',
+  ];
   assert.ok(paths.length > 0);
-  assert.deepEqual(paths.filter((path) => !known.includes(path)), []);
+  assert.deepEqual(
+    paths.filter((path) => !known.includes(path)),
+    [],
+  );
 });
 
 test('wizard 2→3→2→3 giữ payload và giữ được draft reset rỗng', () => {

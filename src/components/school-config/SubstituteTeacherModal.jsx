@@ -10,17 +10,19 @@ import { assignSubstituteTeacher } from '@/services/school-config/schoolConfigSe
 import { formatDate, isIsoDate, todayInput } from '@/utils/format';
 
 /**
- * Dạy thay (BE AUTH-16, AUTH-24): GV khác dạy thay lớp trong khoảng ngày (vd. cô nghỉ ốm, nghỉ sinh); không đổi phân
- * công chính của lớp. BE kiểm năm học, tài khoản, điểm trường và bắt buộc ngày kết thúc.
+ * Dạy thay (BE AUTH-16, AUTH-24, SCH-04): GV khác dạy thay một GV đứng lớp trong khoảng ngày (vd. cô nghỉ ốm, nghỉ sinh);
+ * không đổi phân công chính của lớp. BE kiểm năm học, tài khoản, điểm trường, người được thay và ngày kết thúc.
  */
 export function SubstituteTeacherModal({ cls, teachers, yearEnd, onClose }) {
   const { user } = useAuth();
   const toast = useToast();
   const today = todayInput();
-  const [form, setForm] = useState({ userId: '', validFrom: today, validTo: '' });
+  const [form, setForm] = useState({ userId: '', replacedTeacherId: '', validFrom: today, validTo: '' });
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const candidates = teachers.filter((t) => !cls.teacherIds.includes(t.id));
+  // Người được thay: GV đang đứng lớp
+  const classTeachers = teachers.filter((t) => cls.teacherIds.includes(t.id));
   const set = (patch) => {
     setForm((f) => ({ ...f, ...patch }));
     setErrors({});
@@ -28,6 +30,7 @@ export function SubstituteTeacherModal({ cls, teachers, yearEnd, onClose }) {
 
   const save = async () => {
     const e = {};
+    if (!form.replacedTeacherId) e.replacedTeacherId = 'Chọn giáo viên được dạy thay';
     if (!form.userId) e.userId = 'Chọn giáo viên dạy thay';
     if (!isIsoDate(form.validFrom)) e.validFrom = 'Chọn ngày bắt đầu';
     else if (form.validFrom < today) e.validFrom = 'Không chọn ngày đã qua';
@@ -40,7 +43,8 @@ export function SubstituteTeacherModal({ cls, teachers, yearEnd, onClose }) {
     try {
       await assignSubstituteTeacher({ ...form, classroomId: cls.id }, user);
       const name = candidates.find((t) => String(t.id) === String(form.userId))?.fullName || '';
-      toast.success(`${name} dạy thay lớp ${cls.name} từ ${formatDate(form.validFrom)} đến ${formatDate(form.validTo)}.`);
+      const replaced = classTeachers.find((t) => String(t.id) === String(form.replacedTeacherId))?.fullName || '';
+      toast.success(`${name} dạy thay ${replaced} lớp ${cls.name} từ ${formatDate(form.validFrom)} đến ${formatDate(form.validTo)}.`);
       onClose(true);
     } catch (err) {
       setErrors(err.details || { _form: err.message });
@@ -72,6 +76,16 @@ export function SubstituteTeacherModal({ cls, teachers, yearEnd, onClose }) {
           {errors._form}
         </div>
       )}
+      <FormField label="Dạy thay cho" required error={errors.replacedTeacherId}>
+        <select className="select" value={form.replacedTeacherId} onChange={(e) => set({ replacedTeacherId: e.target.value })}>
+          <option value="">Chọn giáo viên đứng lớp</option>
+          {classTeachers.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.fullName}
+            </option>
+          ))}
+        </select>
+      </FormField>
       <FormField label="Giáo viên dạy thay" required error={errors.userId}>
         <select className="select" value={form.userId} onChange={(e) => set({ userId: e.target.value })}>
           <option value="">Chọn giáo viên</option>

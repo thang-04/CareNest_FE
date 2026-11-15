@@ -1,5 +1,6 @@
 import { axiosClient } from '@/services/http/axiosClient';
 import { dailyHealthSummary } from '@/mocks/dailyHealthSummary';
+import { GUARDIAN_RELATIONSHIP_LABELS } from '@/models/guardianRelationships';
 import { actionSummary } from '@/utils/dailyHealthValidation';
 
 /*
@@ -35,6 +36,13 @@ const toEntry = (entry) => ({
   notificationStatus: 'NOT_REQUIRED',
 });
 
+const contactsOf = (day) =>
+  (day.contacts || []).map((contact) => ({
+    fullName: contact.fullName,
+    relation: GUARDIAN_RELATIONSHIP_LABELS[contact.relationship] || 'Người giám hộ',
+    phone: contact.phone,
+  }));
+
 const toTemperature = (value) => {
   const raw = String(value ?? '')
     .trim()
@@ -50,7 +58,16 @@ export const createDailyHealthBeApi = (client) => ({
   getDailyHealth: async ({ classId, childId, date }) => {
     const day = await client.get(`/classes/${classId}/children/${childId}/daily-health`, { params: { date } });
     const entries = day.entries.map(toEntry);
-    return { classId, childId, date, canRecord: day.canRecord, healthSummary: dailyHealthSummary(entries), contacts: [], entries };
+    return {
+      classId,
+      childId,
+      date,
+      canRecord: day.canRecord,
+      handedOverAt: day.handedOverAt,
+      healthSummary: dailyHealthSummary(entries),
+      contacts: contactsOf(day),
+      entries,
+    };
   },
   addDailyHealth: async (payload) => {
     const noted = payload.observation === 'NOTED';
@@ -106,6 +123,6 @@ export const createDailyHealthBeApi = (client) => ({
   },
   getChildDailyHealthHistory: async ({ childId, date }) => {
     const day = await client.get(`/children/${childId}/daily-health`, { params: { date } });
-    return { ...day, childCode: '', contacts: [], entries: day.entries.map(toEntry) };
+    return { ...day, childCode: '', contacts: contactsOf(day), entries: day.entries.map(toEntry) };
   },
 });

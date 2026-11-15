@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Check, Download, Printer } from '@/components/ui/icons';
-import { Breadcrumb, EmptyState, ErrorState, LoadingState, Modal, PrintToolbar } from '@/components';
+import { Breadcrumb, EmptyState, ErrorState, LoadingState, Modal, PrintPaperFit, PrintToolbar } from '@/components';
 import { KbCampusFilter, KbDateFilter } from '@/components/kitchen/KitchenFilters';
 import { FoodSampleFormPrint } from '@/components/kitchen/FoodSampleFormPrint';
 import { SampleDisposalBadge, SampleStatusBadge } from '@/components/kitchen/SampleRecordBadges';
@@ -161,19 +161,6 @@ export default function FoodSampleQueuePage() {
         <div>
           <h1 className="page__title">Lưu mẫu thức ăn</h1>
         </div>
-        <div className="page__actions">
-          <button
-            type="button"
-            className="btn"
-            disabled={!rows.length}
-            onClick={() => exportWithPreview(foodSampleCsvRows(rows), `so-luu-mau-${from}-${to}.xlsx`)}
-          >
-            <Download size={16} /> Xuất Excel
-          </button>
-          <button type="button" className="btn" disabled={!printable.length} onClick={() => setPrinting(true)}>
-            <Printer size={16} /> In biểu mẫu
-          </button>
-        </div>
       </div>
       <div className="kb-toolbar">
         <KbDateFilter label="Từ ngày" value={from} onChange={(next) => setParam('from', next)} />
@@ -190,19 +177,32 @@ export default function FoodSampleQueuePage() {
             <option value="pending">Chỉ việc chờ duyệt</option>
           </select>
         </label>
+        <div className="kb-toolbar__end">
+          <button
+            type="button"
+            className="btn"
+            disabled={!rows.length}
+            onClick={() => exportWithPreview(foodSampleCsvRows(rows), `so-luu-mau-${from}-${to}.xlsx`)}
+          >
+            <Download size={16} /> Xuất Excel
+          </button>
+          <button type="button" className="btn" disabled={!printable.length} onClick={() => setPrinting(true)}>
+            <Printer size={16} /> In biểu mẫu
+          </button>
+        </div>
       </div>
       {body}
       <Modal
         open={printing}
         onClose={() => setPrinting(false)}
         size="xl"
-        className="kb-print-modal"
+        className="print-modal"
         title="Sổ lưu và hủy mẫu thức ăn"
         footer={<PrintToolbar sheetRef={sheetRef} fileBase={`So_luu_mau_${from}_${to}`} printLabel="In" />}
       >
-        <div className="print-preview__paper">
+        <PrintPaperFit>
           <FoodSampleFormPrint ref={sheetRef} samples={printable} campusName={printCampus} from={from} to={to} />
-        </div>
+        </PrintPaperFit>
       </Modal>
     </div>
   );

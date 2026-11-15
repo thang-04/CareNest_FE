@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Download, Upload } from '@/components/ui/icons';
-import { Modal, Notice, fmtDate } from '@/components/education-plan/eduUi';
-import { LoadingState } from '@/components/ui/States';
+import { Notice, fmtDate } from '@/components/education-plan/eduUi';
+import { ImportDialog } from '@/components/upload/ImportDialog';
 import { previewGoalFile } from '@/services/education-plan/educationPlanService';
 import { prepareFileImport, previewSummary, FILE_IMPORT_MODES } from '@/models/education-plan/importGoalFile.mjs';
 import { AGE_GROUPS, domainLabel } from '@/models/education-plan/educationPlanConstants';
@@ -11,7 +10,6 @@ import { PLAN_IMPORT_ACCEPT as ACCEPT, validatePlanImportFile } from '@/utils/ed
 const SHOWN_WARNINGS = 8;
 
 export function ImportGoalFileModal({ form, themes = [], allowedAgeGroupIds, yearRange, onImport, onClose }) {
-  const fileRef = useRef(null);
   const generation = useRef(0);
   const alive = useRef(true);
   const applying = useRef(false);
@@ -19,10 +17,12 @@ export function ImportGoalFileModal({ form, themes = [], allowedAgeGroupIds, yea
   const [applyError, setApplyError] = useState('');
   const [mode, setMode] = useState(FILE_IMPORT_MODES.ALL);
   useEffect(() => {
+    // Giữ ref trong biến để cleanup dùng đúng đối tượng ref (react-hooks/exhaustive-deps)
+    const gen = generation;
     alive.current = true;
     return () => {
       alive.current = false;
-      generation.current++;
+      gen.current++;
     };
   }, []);
   const target = form || { themes, breaks: [], domains: [], ageGroupId: '', schoolYear: '' };
@@ -53,8 +53,6 @@ export function ImportGoalFileModal({ form, themes = [], allowedAgeGroupIds, yea
     } catch (error) {
       if (alive.current && current === generation.current)
         setState({ status: 'error', name: file.name, message: error.message || 'Không đọc được file' });
-    } finally {
-      if (alive.current && current === generation.current && fileRef.current) fileRef.current.value = '';
     }
   };
   const apply = () => {
@@ -74,92 +72,76 @@ export function ImportGoalFileModal({ form, themes = [], allowedAgeGroupIds, yea
     downloadDoc(file.html, file.name);
   };
   return (
-    <Modal
+    <ImportDialog
+      open
       title="Nhập file mục tiêu"
-      width={720}
-      onClose={close}
-      footer={
+      guide={
         <>
-          <button type="button" className="btn" onClick={close}>
-            Hủy
-          </button>
-          <button type="button" className="btn btn--primary" disabled={!canAdd} onClick={apply}>
-            <Download size={16} aria-hidden /> Áp dụng vào kế hoạch
-          </button>
+          Tải xuống <b>tệp mẫu</b>, điền chủ đề, đợt nghỉ và mục tiêu rồi tải lên. Hệ thống cho xem trước, bấm “Áp dụng vào kế hoạch” mới
+          thay đổi.
         </>
       }
+      onTemplate={template}
+      accept={ACCEPT}
+      hint="Word, Excel hoặc CSV, tối đa 2 MB."
+      maxSize={null}
+      uploadLabel="Tải lên tệp"
+      fileName={state.name || ''}
+      reading={state.status === 'loading'}
+      onFile={read}
+      confirmLabel="Áp dụng vào kế hoạch"
+      idleLabel="Áp dụng vào kế hoạch"
+      confirmDisabled={!canAdd}
+      onConfirm={apply}
+      onClose={close}
+      options={
+        <fieldset className="ga-edit-fieldset stack">
+          <legend className="field__label">Cách nhập file</legend>
+          <label className="radio">
+            <input
+              type="radio"
+              name="goal-file-mode"
+              value={FILE_IMPORT_MODES.ALL}
+              checked={mode === FILE_IMPORT_MODES.ALL}
+              onChange={() => {
+                setMode(FILE_IMPORT_MODES.ALL);
+                setApplyError('');
+              }}
+            />
+            <span>
+              <b>Thay toàn bộ theo file</b>
+              <br />
+              <span className="muted text-sm">Phần file không có sẽ để trống.</span>
+            </span>
+          </label>
+          <label className="radio">
+            <input
+              type="radio"
+              name="goal-file-mode"
+              value={FILE_IMPORT_MODES.PRESENT}
+              checked={mode === FILE_IMPORT_MODES.PRESENT}
+              onChange={() => {
+                setMode(FILE_IMPORT_MODES.PRESENT);
+                setApplyError('');
+              }}
+            />
+            <span>
+              <b>Chỉ thay phần có trong file</b>
+              <br />
+              <span className="muted text-sm">Phần file có thay nguyên phần cũ; phần thiếu giữ hiện có.</span>
+            </span>
+          </label>
+        </fieldset>
+      }
     >
-      <p className="muted text-sm">Word, Excel hoặc CSV, tối đa 2 MB.</p>
-      <fieldset className="ga-edit-fieldset stack">
-        <legend className="field__label">Cách nhập file</legend>
-        <label className="radio">
-          <input
-            type="radio"
-            name="goal-file-mode"
-            value={FILE_IMPORT_MODES.ALL}
-            checked={mode === FILE_IMPORT_MODES.ALL}
-            onChange={() => {
-              setMode(FILE_IMPORT_MODES.ALL);
-              setApplyError('');
-            }}
-          />
-          <span>
-            <b>Thay toàn bộ theo file</b>
-            <br />
-            <span className="muted text-sm">Phần file không có sẽ để trống.</span>
-          </span>
-        </label>
-        <label className="radio">
-          <input
-            type="radio"
-            name="goal-file-mode"
-            value={FILE_IMPORT_MODES.PRESENT}
-            checked={mode === FILE_IMPORT_MODES.PRESENT}
-            onChange={() => {
-              setMode(FILE_IMPORT_MODES.PRESENT);
-              setApplyError('');
-            }}
-          />
-          <span>
-            <b>Chỉ thay phần có trong file</b>
-            <br />
-            <span className="muted text-sm">Phần file có thay nguyên phần cũ; phần thiếu giữ hiện có.</span>
-          </span>
-        </label>
-      </fieldset>
-      <div className="row row--wrap gap-2">
-        <button
-          type="button"
-          className="btn btn--outline-primary"
-          disabled={state.status === 'loading'}
-          onClick={() => fileRef.current?.click()}
-        >
-          <Upload size={16} aria-hidden /> Chọn file
-        </button>
-        <button type="button" className="btn btn--ghost" onClick={template}>
-          <Download size={16} aria-hidden /> Tải file mẫu
-        </button>
-        <input
-          ref={fileRef}
-          type="file"
-          accept={ACCEPT}
-          hidden
-          aria-label="Chọn file mục tiêu"
-          onChange={(e) => read(e.target.files?.[0])}
-        />
-      </div>
-      {state.status === 'loading' && <LoadingState text="Đang đọc file…" />}
-      {state.status === 'error' && <Notice tone="err">{state.message}</Notice>}
-      {applyError && <Notice tone="warn">{applyError}</Notice>}
+      {state.status === 'error' && <Notice>{state.message}</Notice>}
+      {applyError && <Notice>{applyError}</Notice>}
       {preview && (
-        <>
-          <p className="text-sm">
-            <b>{state.name}</b>
-          </p>
-          {prepared.error && <Notice tone="err">{prepared.error}</Notice>}
+        <div className="import-preview">
+          {prepared.error && <Notice>{prepared.error}</Notice>}
           <h3 className="text-md">Kế hoạch sau khi áp dụng</h3>
           <div className="table-wrap">
-            <table className="table ga-plan-table ga-list-table">
+            <table className="table table--grid table--compact">
               <thead>
                 <tr>
                   <th>Phần nội dung</th>
@@ -208,7 +190,7 @@ export function ImportGoalFileModal({ form, themes = [], allowedAgeGroupIds, yea
             <>
               <h3 className="text-md">Thông tin chung</h3>
               <div className="table-wrap">
-                <table className="table ga-plan-table ga-list-table">
+                <table className="table table--grid table--compact">
                   <thead>
                     <tr>
                       <th>Thông tin</th>
@@ -246,7 +228,7 @@ export function ImportGoalFileModal({ form, themes = [], allowedAgeGroupIds, yea
             <>
               <h3 className="text-md">Chủ đề sau khi áp dụng</h3>
               <div className="table-wrap">
-                <table className="table ga-plan-table ga-list-table">
+                <table className="table table--grid table--compact">
                   <thead>
                     <tr>
                       <th>Chủ đề</th>
@@ -279,7 +261,7 @@ export function ImportGoalFileModal({ form, themes = [], allowedAgeGroupIds, yea
             <>
               <h3 className="text-md">Đợt nghỉ sau khi áp dụng</h3>
               <div className="table-wrap">
-                <table className="table ga-plan-table ga-list-table">
+                <table className="table table--grid table--compact">
                   <thead>
                     <tr>
                       <th>Đợt nghỉ</th>
@@ -307,7 +289,7 @@ export function ImportGoalFileModal({ form, themes = [], allowedAgeGroupIds, yea
           <h3 className="text-md">Mục tiêu và dấu tích</h3>
           {goals ? (
             <div className="table-wrap">
-              <table className="table ga-plan-table ga-list-table">
+              <table className="table table--grid table--compact">
                 <thead>
                   <tr>
                     <th>Lĩnh vực</th>
@@ -329,16 +311,16 @@ export function ImportGoalFileModal({ form, themes = [], allowedAgeGroupIds, yea
               </table>
             </div>
           ) : (
-            <Notice tone="warn">File không có mục tiêu. Phần này sẽ được xử lý theo cách nhập đã chọn ở trên.</Notice>
+            <Notice>File không có mục tiêu. Phần này sẽ được xử lý theo cách nhập đã chọn ở trên.</Notice>
           )}
           {prepared.missingThemes.length > 0 && (
-            <Notice tone="warn">
+            <Notice>
               Chưa có chủ đề {prepared.missingThemes.join(', ')}: không ghép được dấu tích tương ứng. Kiểm tra chủ đề trong file; nếu file
               thiếu danh sách chủ đề và muốn dùng chủ đề đang có, chọn “Chỉ thay phần có trong file”.
             </Notice>
           )}
           {prepared.warnings.length > 0 && (
-            <Notice tone="warn">
+            <Notice>
               <ul>
                 {prepared.warnings.slice(0, SHOWN_WARNINGS).map((w, i) => (
                   <li key={i}>{w.row ? `Dòng ${w.row}: ${w.message}` : w.message}</li>
@@ -356,8 +338,8 @@ export function ImportGoalFileModal({ form, themes = [], allowedAgeGroupIds, yea
               )}
             </Notice>
           )}
-        </>
+        </div>
       )}
-    </Modal>
+    </ImportDialog>
   );
 }

@@ -11,9 +11,12 @@ const GoalChip = ({ goal, tone }) => (
   </span>
 );
 
+import { EmptyState } from '@/components/ui/States';
+
 /** Đánh giá hằng ngày trong kỳ, mỗi ngày một dòng, cùng cột với màn Đánh giá hằng ngày (căn cứ của bản nháp AI). */
 export function DailyDaysTable({ days, mealSessions, classId, linkDays }) {
-  if (!days.length) return <div className="muted">Không có đánh giá hằng ngày nào trong kỳ.</div>;
+  if (!days.length)
+    return <EmptyState title="Chưa có đánh giá hằng ngày trong kỳ" description="Đánh giá giáo viên ghi mỗi ngày sẽ hiện ở đây." />;
   const dash = <span className="muted">—</span>;
   return (
     <div className="table-wrap">

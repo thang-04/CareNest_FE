@@ -72,7 +72,7 @@ test('DB demo mới: id/mã trẻ duy nhất, SĐT/email phụ huynh không trù
   assert.equal(young.id, 'ch_902');
   const exam = db.healthMeasurements.find((m) => m.childId === young.id && m.id === 'hm_ch_902_open');
   assert.equal(exam.exam.development.autismRisk, 'YES');
-  assert.ok(db.healthFollowUps.some((f) => f.childId === young.id && f.measurementIds.includes(exam.id)));
+  assert.equal(db.healthFollowUps, undefined, 'không còn phiếu theo dõi (HLT-16 bỏ 2026-11-04)');
 });
 
 test('DB demo cũ (SĐT giáo viên theo công thức cũ, hai trẻ cùng ch_037) được nâng cấp một lần', () => {
@@ -99,11 +99,6 @@ test('DB demo cũ (SĐT giáo viên theo công thức cũ, hai trẻ cùng ch_03
     const open = d.healthMeasurements.find((m) => m.id === 'hm_ch_037_open');
     const firstOld = d.healthMeasurements.findIndex((m) => m.childId === 'ch_037');
     d.healthMeasurements.splice(firstOld, 0, structuredClone(open));
-    d.healthFollowUps.forEach((f) => {
-      if (f.childId !== 'ch_902') return;
-      f.childId = 'ch_037';
-      f.measurementIds = f.measurementIds.map((id) => id.replace('ch_902', 'ch_037'));
-    });
     d.healthDeclarations.forEach((x) => {
       if (x.childId === 'ch_902') x.childId = 'ch_037';
     });
@@ -121,6 +116,5 @@ test('DB demo cũ (SĐT giáo viên theo công thức cũ, hai trẻ cùng ch_03
   assert.ok(db.healthMeasurements.some((m) => m.id === 'hm_ch_902_open' && m.childId === 'ch_902'));
   assert.ok(!db.healthMeasurements.some((m) => m.id === 'hm_ch_037_open'), 'bỏ phiếu gắn nhầm cho trẻ bổ sung');
   assert.equal(db.healthDeclarations.filter((x) => x.childId === 'ch_037').length, 1);
-  assert.ok(db.healthFollowUps.some((f) => f.childId === 'ch_902' && f.measurementIds.includes('hm_ch_902_open')));
   assert.ok(db.parentAccounts.some((a) => a.childIds.includes('ch_902')));
 });

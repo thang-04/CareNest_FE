@@ -15,8 +15,9 @@ import { StatCard } from '@/components/ui/StatCard';
 
 const DESCRIPTIONS = {
   PRINCIPAL: 'Đề xuất khen thưởng cuối năm đang chờ Hiệu trưởng quyết định.',
-  VICE_PRINCIPAL: 'Kế hoạch chủ đề, giáo án, đề xuất khen thưởng, sĩ số suất ăn và phiếu xuất kho của điểm trường đang chờ bạn.',
-  TEAM_LEADER: 'Giáo án của giáo viên trong nhóm tuổi đang chờ tổ trưởng xem xét trước khi chuyển Phó hiệu trưởng.',
+  VICE_PRINCIPAL:
+    'Kế hoạch giáo dục chủ đề, kế hoạch giáo dục ngày, đề xuất khen thưởng, sĩ số suất ăn và phiếu xuất kho của điểm trường đang chờ bạn.',
+  TEAM_LEADER: 'Kế hoạch giáo dục của giáo viên trong nhóm tuổi đang chờ tổ trưởng xem xét trước khi chuyển Phó hiệu trưởng.',
 };
 
 /**

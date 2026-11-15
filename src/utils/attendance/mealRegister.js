@@ -33,6 +33,8 @@ export function dayBySession(counts) {
       row.meals[c.session] = { normal: l.normal, substitute: l.substitute, before };
       row.normal += l.normal;
       row.substitute += l.substitute;
+      // NUT-02: điểm danh đổi sau khi suất thay thế đã sửa tay ở bữa nào đó ⇒ cả ngày cần kiểm tra lại
+      row.attendanceChanged = !!(row.attendanceChanged || l.attendanceChanged);
       byClass.set(l.classId, row);
     }),
   );

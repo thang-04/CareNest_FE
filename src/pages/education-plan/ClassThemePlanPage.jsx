@@ -1,11 +1,14 @@
-import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { FileDown, Save } from '@/components/ui/icons';
-import { Card, EduStatusBadge, Notice, PageHead } from '@/components/education-plan/eduUi';
+import { useCallback, useEffect, useState } from 'react';
+import { useParams, useSearchParams } from 'react-router-dom';
+import { FileDown, Save, X } from '@/components/ui/icons';
+import { Card, EmptyCard, fmtDate, FoldAllButton, Notice, PageHead } from '@/components/education-plan/eduUi';
+import { getClassDocRelease, getClassPlans, getGoal, suggestActivityCards } from '@/services/education-plan/educationPlanService';
+import { useSchoolYear } from '@/contexts/SchoolYearContext';
+import { submitEntryOf } from '@/models/education-plan/reviewHistory.mjs';
 import { VersionHistory } from '@/components/education-plan/VersionHistory';
 import { docLines } from '@/models/education-plan/planHistory.mjs';
-import { docReview, lockTarget, useClassPlanContext } from '@/components/education-plan/planUi';
-import { RejectedNotice, ReviewActions, ReviewHistory } from '@/components/education-plan/reviewUi';
+import { ClassFilterBar, FilterSelect, ThemeBranchTabs, themesWithWeeks, useClassPlanContext } from '@/components/education-plan/planUi';
+import { RejectedNotice, ReviewHistory } from '@/components/education-plan/reviewUi';
 import { LoadingState } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
@@ -15,32 +18,25 @@ import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
 import { numberGoals } from '@/models/education-plan/goalTable';
 import {
+  branchNumber,
   createBlocker,
-  ddmm,
+  contentLinesOf,
   emptyThemePlan,
   isEditableStatus,
-  submitBlocker,
+  normalizeTheme,
   themeNumber,
-  todayIso,
   themeGoalBlocks,
   yearWeeks,
 } from '@/models/education-plan/classPlan';
 import { leaderNameOf, themeFile } from '@/utils/education-plan/classPlanDoc';
 import { ThemePlanBody, themeRowOf } from '@/components/education-plan/ThemePlanBody';
-import { ActivityResources } from '@/components/education-plan/ActivityResources';
-import { themeActivities } from '@/models/education-plan/classPlan';
+import { CoverageTab } from '@/components/education-plan/CoverageTab';
 import { FinishedThemeNote, SupersededNote, VersionCopyOffer, VersionFlagsPanel } from '@/components/education-plan/VersionWidgets';
 import { useDocVersion } from '@/hooks/education-plan/useDocVersion';
-import {
-  addedGoalIds,
-  checkFlag,
-  danglingRows,
-  dropReference,
-  unresolvedFlags,
-  versionFlags,
-  versionOf,
-} from '@/models/education-plan/planVersions.mjs';
+import { addedGoalIds, checkFlag, danglingRows, dropReference, versionOf } from '@/models/education-plan/planVersions.mjs';
 import DocPreviewModal from '@/components/education-plan/DocPreviewModal';
+import { BlockedNotice } from '@/components/education-plan/DeadlineWidgets';
+import { Button } from '@/components';
 
 /**
  * Kế hoạch giáo dục chủ đề của lớp theo mẫu MN Thái Dương: TT | Mục tiêu (giữ số MT năm) | Nội dung | Hoạt động giáo dục,
@@ -53,29 +49,55 @@ export default function ClassThemePlanPage() {
 
 function ThemePlanInner() {
   const { classId, themeId } = useParams();
-  const { user, classThemePlans, branchPlans, weekPlans, saveClassDoc, actOnClassDoc, toast, eduConfig, staff } = useEducationPlan();
+  const [query] = useSearchParams();
+  const coverageTab = query.get('tab') === 'coverage';
+  const { user, classThemePlans, branchPlans, weekPlans, dayPlans, semesterPackages, saveClassDoc, toast, staff } = useEducationPlan();
   const [preview, setPreview] = useState(null);
   const ctx = useClassPlanContext(classId);
-  const { cls, yearPlan, isClassTeacher } = ctx;
+  const { schoolYears } = useSchoolYear();
+  const { cls, yearPlan, canComposeClassDocs } = ctx;
   const theme = yearPlan?.themes.find((t) => t.id === themeId);
   const saved = classThemePlans.find((t) => t.classId === classId && t.themeId === themeId) || null;
+  // Spec 003: gửi/duyệt theo hồ sơ chủ đề (gốc ds_); bản mock cũ chưa có thì vẫn theo kế hoạch chủ đề
+  // Spec 004: kế hoạch chủ đề gửi/duyệt trong học kỳ (gốc sp_) ⇒ trạng thái, hạn, lịch sử lấy theo học kỳ
+  const semester =
+    semesterPackages.find((p) => p.id === saved?.containerKey) ||
+    semesterPackages.find((p) => p.classId === classId && (p.themeIds || []).map(String).includes(String(themeId))) ||
+    null;
+  const holder = semester || saved;
   const [draft, setDraft] = useState(null);
   const [dirty, setDirty] = useState(false);
+  // Chỗ ThemePlanBody đặt menu "Lấy / gợi ý hoạt động" ở trái hàng nút
+  const [toolsEl, setToolsEl] = useState(null);
   const [copying, setCopying] = useState(false);
-  const [branchFolded, setBranchFolded] = useState(false);
   const version = useDocVersion('theme', saved, ctx, classThemePlans, { themeId });
-  const canWrite = isClassTeacher && !ctx.superseded && isEditableStatus(saved?.status || EDU_STATUS.DRAFT);
+  const canWrite =
+    !ctx.superseded &&
+    (saved?.permissions
+      ? saved.permissions.canEdit
+      : saved
+        ? canComposeClassDocs && isEditableStatus(saved.status)
+        : ctx.canCreate('theme'));
 
   // Lưu tay (nút Lưu, Ctrl+S). Lưu cả các dòng chưa sửa để bản đã duyệt giữ nguyên nội dung dù kế hoạch năm đổi sau này
   const saver = useManualSave({
     doc: draft,
     enabled: canWrite,
     save: (doc) => {
-      const gs = themeGoalBlocks(yearPlan.domains, numberGoals(yearPlan.domains), themeId).flatMap((b) => b.goals);
+      const gs = themeGoalBlocks(yearPlan.domains, numberGoals(yearPlan.domains), themeId, doc?.customTicks).flatMap((b) => b.goals);
       // Bản chép: dòng MT đã bị bỏ ở phiên bản mới giữ lại (đỏ) tới khi giáo viên bỏ (BE:EDU-26)
+      // EDU-78: hoạt động lưu thành thẻ (bản cũ chuyển khi lưu); dòng MT chỉ giữ nội dung (bản chụp)
       return saveClassDoc('theme', {
         ...doc,
-        rows: { ...danglingRows(doc, yearPlan), ...Object.fromEntries(gs.map((g) => [g.id, themeRowOf(doc, g)])) },
+        // Thẻ cũ của MT ngoài chủ đề (server dựng khi đọc) không lưu thành thẻ rỗng MT
+        activities: normalizeTheme(
+          doc,
+          gs.map((g) => g.id),
+        ).filter((c) => !c.legacy || (c.goalIds || []).some((id) => gs.some((g) => String(g.id) === String(id)))),
+        rows: {
+          ...danglingRows(doc, yearPlan),
+          ...Object.fromEntries(gs.map((g) => [g.id, { contents: themeRowOf(doc, g).contents }])),
+        },
       });
     },
     onSaved: (same) => same && setDirty(false),
@@ -85,6 +107,41 @@ function ThemePlanInner() {
       setDirty(true);
     },
   });
+
+  // Lấy hoạt động năm trước (Tiền 13/11/2026): kế hoạch chủ đề đã ban hành cùng tên chủ đề của lớp mình ở các năm trước.
+  // "Lớp mình" theo phạm vi BE trả về cho người dùng ở từng năm (GV chỉ nhận hồ sơ lớp được phân công)
+  const loadPreviousActivities = useCallback(async () => {
+    const norm = (t) =>
+      String(t || '')
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, ' ');
+    const current = String(yearPlan?.schoolYear || '').replace(/\s*[–-]\s*/, '-');
+    const name = norm(yearPlan?.themes.find((t) => t.id === themeId)?.name);
+    const prior = schoolYears.filter((y) => String(y.id) < current).sort((a, b) => String(b.id).localeCompare(String(a.id)));
+    const sources = [];
+    for (const year of prior) {
+      const docs = await getClassPlans(year.id, user);
+      for (const doc of (docs?.classThemePlans || []).filter((d) => d.status === EDU_STATUS.APPROVED)) {
+        const plan = await getGoal(doc.yearPlanId, user);
+        if (norm(plan?.themes?.find((t) => String(t.id) === String(doc.themeId))?.name) !== name) continue;
+        const goals = themeGoalBlocks(plan.domains, numberGoals(plan.domains), doc.themeId, doc.customTicks).flatMap((b) => b.goals);
+        const cards = normalizeTheme(
+          doc,
+          goals.map((g) => g.id),
+        ).filter((c) => c.slot && c.name?.trim());
+        if (!cards.length) continue;
+        const cls = (docs.classes || []).find((c) => String(c.id) === String(doc.classId));
+        sources.push({
+          key: doc.id,
+          label: `Năm học ${year.label || year.id}${cls?.name ? ` · ${cls.name}` : ''}`,
+          cards,
+          goals: goals.map((g) => ({ id: g.id, text: g.text, lines: contentLinesOf(themeRowOf(doc, g).contents) })),
+        });
+      }
+    }
+    return sources;
+  }, [schoolYears, user, yearPlan, themeId]);
 
   const guard = useLeaveGuard({
     when: canWrite && saver.unsaved,
@@ -96,14 +153,14 @@ function ThemePlanInner() {
     const doc = saved || emptyThemePlan({ classId, yearPlanId: yearPlan.id, themeId });
     setDraft(doc);
     saver.markClean(doc);
+    // dirty: lưu xong phải nạp lại bản đã lưu để mang số phiên bản mới, nếu không lần lưu kế tiếp bị từ chối (409)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [saved?.id, saved?.status, saved?.history?.length, yearPlan?.id, classId, themeId]);
+  }, [saved?.id, saved?.version, saved?.dossierVersion, saved?.status, saved?.history?.length, yearPlan?.id, classId, themeId, dirty]);
 
   if (ctx.loading) return <LoadingState />;
   if (!cls || !yearPlan || !theme) return <StatusPage kind="404" title="Không tìm thấy chủ đề trong kế hoạch năm đã ban hành của lớp" />;
   if (!draft) return <LoadingState />;
 
-  const status = saved?.status || EDU_STATUS.DRAFT;
   const editable = canWrite;
   const copyOld = async () => {
     setCopying(true);
@@ -115,23 +172,19 @@ function ThemePlanInner() {
     setDraft((d) => fn(d));
     setDirty(true);
   };
-  const base = `/education/class/${classId}`;
-  const crumbs = [{ label: 'Kế hoạch giáo dục' }, { label: `Kế hoạch ${cls.name}`, to: base }, { label: theme.name }];
+  const crumbs = [{ label: 'Kế hoạch giáo dục' }, { label: 'Kế hoạch giáo dục chủ đề' }, { label: theme.name }];
   // Mở thẳng đường dẫn khi chưa tới bước này: không hiện biểu mẫu, chỉ ra bước còn thiếu
   const lock = !saved && createBlocker('theme', { classId, yearPlanId: yearPlan.id, themeId }, { branchPlans, classThemePlans });
   if (lock) {
-    const target = lockTarget(lock, base, themeId);
     return (
       <div className="page ga-page">
-        <PageHead crumbs={crumbs} title={`Kế hoạch giáo dục chủ đề: ${theme.name}`} desc={cls.name} />
-        <Notice tone="warn">
-          Chưa thể bắt đầu: {lock.message} <Link to={target.to}>{target.label}</Link>
-        </Notice>
+        <PageHead crumbs={crumbs} title={`Kế hoạch giáo dục chủ đề: ${theme.name}`} />
+        <EmptyCard title="Chưa có kế hoạch chủ đề này" />
       </div>
     );
   }
   const numbers = numberGoals(yearPlan.domains);
-  const blocks = themeGoalBlocks(yearPlan.domains, numbers, themeId);
+  const blocks = themeGoalBlocks(yearPlan.domains, numbers, themeId, draft?.customTicks);
   const branch = branchPlans.find((b) => b.classId === classId && b.yearPlanId === yearPlan.id);
   const weeks = yearWeeks(yearPlan).filter((w) => w.type === 'week' && w.theme.id === themeId);
   // Nội dung lấy nguyên từ kế hoạch năm (không sửa); giáo viên viết hoạt động giáo dục
@@ -145,6 +198,47 @@ function ThemePlanInner() {
     setDirty(true);
   };
   // Hồ sơ chủ đề như file của trường: kế hoạch chủ đề rồi từng tuần nhánh đã soạn (kèm khung duyệt của tuần)
+  const openRelease = async (release) => {
+    try {
+      const snap = await getClassDocRelease(release.id);
+      const content = (kind, weekStart) =>
+        (snap.members || []).find((m) => m.kind === kind && (!weekStart || m.weekStart === weekStart))?.content;
+      // Bản ban hành của hồ sơ chủ đề có giáo án ngày tách riêng (Q9): ghép lại cho bản xem như file của trường
+      const weekContent = (start) =>
+        content('week', start) || content('day', start) ? { ...content('week', start), ...content('day', start) } : undefined;
+      setPreview(
+        themeFile({
+          ...exportArgs,
+          themeDoc: { ...draft, ...content('theme') },
+          weekDocs: exportArgs.weekDocs.map((w) => ({
+            ...w,
+            doc: weekContent(w.week.start) ? { ...w.doc, ...weekContent(w.week.start) } : undefined,
+          })),
+          leaderName: leaderNameOf(staff, cls.ageGroupId, yearPlan?.schoolYear),
+        }),
+      );
+    } catch (err) {
+      toast(err.message || 'Không mở được bản đã ban hành', 'warn');
+    }
+  };
+  const withDays = (weekDoc, start) => {
+    const day = dayPlans.find((x) => x.classId === classId && x.yearPlanId === yearPlan.id && x.weekStart === start);
+    return weekDoc && day ? { ...weekDoc, days: day.days, dayGoals: day.dayGoals } : weekDoc;
+  };
+  // FR-023: người soạn thấy bản lưu mới nhất (kể cả bản tuần sửa theo hồ sơ đang nháp); người khác thấy bản hiệu lực (BE effectiveWeek)
+  const coverageWeeks = weeks.map((w) => {
+    const wp = weekPlans.find((x) => x.classId === classId && x.yearPlanId === yearPlan.id && x.weekStart === w.start) || null;
+    const dp = dayPlans.find((x) => x.classId === classId && x.yearPlanId === yearPlan.id && x.weekStart === w.start) || null;
+    const edited = !!dp?.week && (canComposeClassDocs || dp.effectiveWeek === 'dossier');
+    return { start: w.start, no: w.no, offDays: w.offDays, doc: edited ? { ...wp, ...dp.week } : wp, edited };
+  });
+  const coverageCards = [
+    ...normalizeTheme(
+      draft,
+      blocks.flatMap((b) => b.goals.map((g) => g.id)),
+    ),
+    ...coverageWeeks.flatMap((w) => (w.edited ? w.doc.cards || [] : [])),
+  ];
   const exportArgs = {
     themeDoc: draft,
     theme,
@@ -154,55 +248,71 @@ function ThemePlanInner() {
     blocks,
     rowOf,
     weekDocs: weeks
-      .map((w, i) => ({
+      .map((w) => ({
         week: w,
-        branchNo: i + 1,
+        branchNo: branchNumber(yearPlan, w.start, branch),
         branchName: branch?.names?.[w.start] || '',
-        doc: weekPlans.find((x) => x.classId === classId && x.yearPlanId === yearPlan.id && x.weekStart === w.start),
+        doc: withDays(
+          weekPlans.find((x) => x.classId === classId && x.yearPlanId === yearPlan.id && x.weekStart === w.start),
+          w.start,
+        ),
       }))
       .filter((w) => w.doc),
   };
-
-  // Gửi / duyệt / trả lại cả kế hoạch chủ đề (kèm giáo án các tuần nhánh) ngay tại trang này; trang hồ sơ đã bỏ (Tiền 04/11)
-  const review = docReview('theme', saved, ctx, user, eduConfig);
-  const weekDocs = weeks
-    .map((w) => weekPlans.find((x) => x.classId === classId && x.yearPlanId === yearPlan.id && x.weekStart === w.start))
-    .filter(Boolean);
-  const checkBeforeOpen = (action) => {
-    if (action !== 'submit') return true;
-    const block = submitBlocker('theme', saved || draft, { branchPlans, weekPlans, classThemePlans, yearPlan });
-    if (block) {
-      toast(block, 'warn');
-      return false;
-    }
-    // BE:EDU-26 — bản chép còn ô đỏ (kế hoạch chủ đề và các tuần) thì chưa gửi; BE cũng kiểm lại
-    const today = todayIso();
-    const red =
-      version.unresolved.length +
-      weekDocs
-        .filter((d) => d.sourceDocKey && version.changes)
-        .reduce((n, d) => n + unresolvedFlags(versionFlags('week', d, version.changes, yearPlan, today), d).length, 0);
-    if (red) toast(`Còn ${red} mục đổi theo kế hoạch năm mới chưa sửa (ô đỏ). Sửa ở kế hoạch chủ đề / giáo án tuần rồi gửi.`, 'warn');
-    return !red;
-  };
-  const act = (action, note, savedDoc) => actOnClassDoc('theme', savedDoc?.id || saved?.id, { action, note });
 
   return (
     <div className="page ga-page ga-class-editor">
       <div className="ga-sticky-head">
         <PageHead crumbs={crumbs} title={`Kế hoạch giáo dục chủ đề: ${theme.name}`} />
+        {/* Thẻ đầu trang như Kế hoạch tuần / giáo án ngày: hàng lọc Nhóm tuổi · Lớp · Chủ đề, tên chủ đề và tab Kế hoạch chủ đề
+            rồi các chủ đề nhánh (Tiền 12/11/2026) */}
+        <ClassFilterBar
+          classes={ctx.classes}
+          classId={classId}
+          canPick={ctx.canPickClass}
+          onPick={(id) => guard.leave(`/education/theme-plans/${id}`)}
+          footer={
+            <>
+              <div className="card__body">
+                {/* Thẻ tên một dòng (Tiền 13/11/2026): lớp, chủ đề đã có ở hàng lọc nên không lặp lại */}
+                <div className="ga-week-hero__name">
+                  {theme.name}
+                  {weeks.length > 0 && (
+                    <span className="ga-week-hero__meta">
+                      {' '}
+                      · {fmtDate(weeks[0].start)} → {fmtDate(weeks[weeks.length - 1].end)} · {weeks.length} tuần
+                    </span>
+                  )}
+                </div>
+              </div>
+              <ThemeBranchTabs
+                yearPlan={yearPlan}
+                branchDoc={branch}
+                themeId={themeId}
+                classId={classId}
+                current={coverageTab ? 'coverage' : 'theme'}
+                onGo={guard.leave}
+                weeksDisabledReason={saved ? '' : 'Lưu kế hoạch chủ đề trước'}
+              />
+            </>
+          }
+        >
+          <FilterSelect
+            label="Chủ đề"
+            value={String(themeId)}
+            options={themesWithWeeks(yearPlan).map((t) => ({ value: String(t.id), label: t.name }))}
+            onChange={(id) => guard.leave(`/education/class/${classId}/themes/${id}`)}
+          />
+          {/* Lọc mục tiêu nằm trong thẻ Bảng phủ MT; bỏ "Kiểu hiển thị" dạng cây (Tiền 13/11/2026) */}
+        </ClassFilterBar>
         {/* Thanh thao tác như màn Kế hoạch năm học: nút cỡ nhỏ viền xanh, nhóm lưu/gửi/xuất bên phải (Tiền 05/11) */}
         <div className="ga-year-toolbar" role="group" aria-label="Thao tác kế hoạch chủ đề">
           <div className="ga-year-toolbar__group">
-            <EduStatusBadge status={status} />
-            <button
-              type="button"
-              className="btn btn--sm btn--outline-primary"
-              disabled={!saved}
-              onClick={() => guard.leave(`${base}/themes/${themeId}/teach`)}
-            >
-              Dạy học / Trình chiếu
-            </button>
+            <span className="ga-year-toolbar__title">Chủ đề: {theme.name}</span>
+            {/* Trạng thái, hạn chỉ ở thẻ học kỳ trang danh sách (Tiền 14/11/2026) */}
+            <FoldAllButton />
+            {/* Nút "Thao tác" (Lấy / gợi ý) do ThemePlanBody đặt vào; Xuất file chủ đề chỉ ở thẻ chủ đề trang danh sách */}
+            {editable && <span ref={setToolsEl} className="row row--middle gap-2" />}
           </div>
           <div className="ga-year-toolbar__group ga-year-toolbar__group--end">
             {editable && (
@@ -218,48 +328,34 @@ function ThemePlanInner() {
                   linesOf={docLines}
                   onUse={(entry) => (entry ? saver.restoreDraft(entry) : saver.restoreSaved())}
                 />
-                <button
-                  type="button"
-                  className="btn btn--sm btn--outline-primary"
+                {/* Trang luôn ở chế độ sửa: Hủy về Kế hoạch giáo dục chủ đề của lớp, còn thay đổi chưa lưu thì hỏi (Tiền 13/11/2026) */}
+                <Button
+                  variant="outline-primary"
+                  size="sm"
+                  disabled={saver.saving}
+                  onClick={() => guard.leave(`/education/theme-plans/${classId}`)}
+                >
+                  <X size={16} aria-hidden /> Hủy
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
                   onClick={saver.save}
                   disabled={saver.saving || (!saver.unsaved && !saver.error)}
                   title="Lưu (Ctrl+S)"
                 >
                   <Save size={16} aria-hidden /> Lưu
-                </button>
+                </Button>
               </>
             )}
-            <ReviewActions
-              name="kế hoạch chủ đề"
-              sendTo={review.sendTo}
-              can={{ ...review.can, send: review.can.send || (!saved && canWrite) }}
-              showSend={canWrite}
-              unsaved={canWrite && (saver.unsaved || saver.saving || !saved)}
-              onSave={canWrite ? saver.save : undefined}
-              beforeOpen={checkBeforeOpen}
-              notes={{
-                submit: `Gửi cả kế hoạch chủ đề và giáo án ${weekDocs.length} tuần nhánh. Kế hoạch bị khóa cho tới khi được duyệt hoặc bị trả lại.`,
-                approve: 'Duyệt cả kế hoạch chủ đề và giáo án các tuần nhánh.',
-                reject: 'Trả lại để giáo viên sửa rồi gửi lại.',
-              }}
-              onAct={act}
-              variant="btn--outline-primary"
-            />
-            <button
-              type="button"
-              className="btn btn--sm btn--outline-primary"
-              onClick={() =>
-                setPreview(themeFile({ ...exportArgs, leaderName: leaderNameOf(staff, cls.ageGroupId, yearPlan?.schoolYear) }))
-              }
-            >
-              <FileDown size={16} aria-hidden /> Xuất file
-            </button>
             {preview && <DocPreviewModal file={preview} onClose={() => setPreview(null)} />}
           </div>
         </div>
       </div>
-      <SupersededNote doc={saved || (ctx.superseded ? { superseded: true, yearPlanVersion: versionOf(yearPlan) } : null)} />
-      {!saved && version.finished && <FinishedThemeNote />}
+      {canComposeClassDocs && (
+        <SupersededNote doc={saved || (ctx.superseded ? { superseded: true, yearPlanVersion: versionOf(yearPlan) } : null)} />
+      )}
+      {canComposeClassDocs && !saved && version.finished && <FinishedThemeNote />}
       {!saved && !version.finished && version.prevDoc && !dirty && (
         <VersionCopyOffer
           plan={yearPlan}
@@ -278,53 +374,64 @@ function ThemePlanInner() {
         onCheck={(f) => flagEdit((d) => checkFlag(d, f))}
         onDrop={(f) => flagEdit((d) => dropReference('theme', d, f))}
       />
-      <RejectedNotice status={saved?.status} history={saved?.history} />
-      {/* Chủ đề nhánh: chữ link xếp dọc như danh sách phiên bản mục tiêu năm học, không dùng thẻ / nút (Tiền 04/11) */}
-      <Card title="Chủ đề nhánh" bodyClass={null} collapsed={branchFolded} onToggle={() => setBranchFolded((v) => !v)}>
-        <div className="card__body">
-          {weeks.length ? (
-            <ul className="ga-theme-weeks">
-              {weeks.map((w) => (
-                <li key={w.start}>
-                  <Link to={`/education/class/${classId}/weeks/${w.start}`}>
-                    Tuần {w.no}: {branch?.names?.[w.start] || 'chưa đặt tên nhánh'}
-                  </Link>
-                  <span className="muted text-sm">
-                    {ddmm(w.start)} → {ddmm(w.end)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <span className="muted">Chủ đề chưa có tuần học.</span>
-          )}
-        </div>
-      </Card>
-      <ThemePlanBody
-        yearPlan={yearPlan}
-        themeId={themeId}
-        draft={draft}
-        editable={editable}
-        setRow={setRow}
-        setField={setField}
-        flagOf={(id) => version.unresolved.find((f) => f.goalId === String(id)) || null}
-        added={draft.sourceDocKey ? addedGoalIds(version.changes) : null}
-        heading={
-          <>
-            <span className="chip chip--blue">CĐ {themeNumber(yearPlan, themeId)}</span>
-            {'Mục tiêu, nội dung, hoạt động và môi trường giáo dục'}
-          </>
-        }
-      />
-      <ActivityResources
-        user={user}
-        doc={draft}
-        activities={themeActivities(blocks, rowOf)}
-        editable={editable}
-        exists={!!saved}
-        onSave={saver.save}
-      />
-      {saved && <ReviewHistory items={saved.history} />}
+      <RejectedNotice status={holder?.status} history={holder?.history} />
+      <BlockedNotice doc={semester} author={canComposeClassDocs} />
+      {holder?.status === 'REVIEW' && submitEntryOf(holder)?.note && (
+        // Ghi chú người gửi cho người duyệt (BE spec 002 FR-005)
+        <Notice>{`Ghi chú khi gửi (${submitEntryOf(holder).by || '—'}): ${submitEntryOf(holder).note}`}</Notice>
+      )}
+      {coverageTab && (
+        <CoverageTab
+          blocks={blocks}
+          cards={coverageCards}
+          weeks={coverageWeeks}
+          contentsOf={(g) => rowOf(g).contents}
+          onOpen={(start, day) => guard.leave(`/education/class/${classId}/weeks/${start}#cov-day-${day}`)}
+        />
+      )}
+      {!coverageTab && (
+        <ThemePlanBody
+          yearPlan={yearPlan}
+          themeId={themeId}
+          draft={draft}
+          editable={editable}
+          setRow={setRow}
+          setField={setField}
+          flagOf={(id) => version.unresolved.find((f) => f.goalId === String(id)) || null}
+          added={draft.sourceDocKey ? addedGoalIds(version.changes) : null}
+          loadPreviousActivities={editable ? loadPreviousActivities : null}
+          suggestActivities={editable ? suggestActivityCards : null}
+          notify={toast}
+          toolsTarget={toolsEl}
+          usedCellsOf={(cardId) =>
+            weekPlans
+              .filter((w) => w.classId === classId && w.yearPlanId === yearPlan.id && w.themeId === themeId)
+              .reduce(
+                (n, w) => n + Object.values(w.picks || {}).filter((list) => (list || []).some((p) => (p.cardId ?? p.id) === cardId)).length,
+                0,
+              )
+          }
+        />
+      )}
+      {holder?.history?.length > 0 && <ReviewHistory items={holder.history} open />}
+      {holder?.releases?.length > 0 && (
+        // Các bản hồ sơ đã ban hành (BE spec 002 FR-018): mở bản xem trước chỉ đọc từ nội dung lúc ban hành
+        <Card title="Các bản đã ban hành" className="mt-16">
+          <ul className="stack">
+            {holder.releases.map((r, i) => (
+              <li key={r.id}>
+                <Button variant="outline-primary" size="sm" onClick={() => openRelease(r)}>
+                  <FileDown size={16} aria-hidden /> Bản ban hành {i + 1}
+                </Button>{' '}
+                <span className="muted text-sm">
+                  {fmtDate(r.releasedAt)}
+                  {r.approvedBy ? ` · ${r.approvedBy}` : ''}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
       <LeaveConfirmModal
         {...guard.modal}
         onDiscard={() => {

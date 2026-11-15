@@ -12,6 +12,7 @@ import { numberGoals } from '@/models/education-plan/goalTable';
 import { remapCriteriaToPlan } from '@/models/education-plan/planVersions.mjs';
 import { ROLES } from '@/models/User';
 import {
+  CLASS_COMMENT_MAX,
   EVAL_KIND,
   EVAL_STATUS,
   OVERVIEW_PERIOD,
@@ -566,7 +567,7 @@ const runPeriodJobs = (db, { notify = true } = {}) => {
           title: 'Bản nháp đánh giá đã sẵn sàng',
           // MSG31
           message: `Bản nháp AI đã sẵn sàng để bạn xem xét – ${cls.name}, ${periodLabel(type, start, end)}.`,
-          link: '/assessment/periodic',
+          link: '/assessment/children',
         }),
       );
     }
@@ -766,7 +767,7 @@ const weekStats = (db, childId, monday, att) => {
   return {
     presentDays,
     flagCount,
-    eligible: presentDays >= TICKET_RULES.WEEK_MIN_PRESENT_DAYS && flagCount >= TICKET_RULES.WEEK_MIN_FLAGS,
+    eligible: flagCount >= TICKET_RULES.WEEK_MIN_FLAGS,
   };
 };
 
@@ -1111,6 +1112,12 @@ export const assessmentMockRepository = {
       mealSessions: mealSessionsOf(db, cls),
       lesson: dayLessonOf(db, cls, day),
       rows,
+      // OBS-01 (Cần chốt 10/11/2026): lớp đã điểm danh thì hiện cả trẻ vắng / chưa điểm danh, không đánh giá được
+      absentChildren: kids.some((child) => att.has(`${day}|${child.id}`))
+        ? kids
+            .filter((child) => att.get(`${day}|${child.id}`) !== 'PRESENT')
+            .map((child) => ({ childId: child.id, fullName: child.fullName, attendanceStatus: att.get(`${day}|${child.id}`) || null }))
+        : [],
       classComment: classCommentView(
         db,
         (db.classDailyComments || []).find((note) => note.classId === classId && note.date === day),
@@ -1128,6 +1135,7 @@ export const assessmentMockRepository = {
         throw new ApiError(400, 'Chưa có thay đổi nào để lưu.', { _form: 'Chưa có thay đổi nào để lưu.' });
       if (classComment != null) {
         if (typeof classComment !== 'string') fail(400, 'Nhận xét chung của lớp phải là văn bản.', 'classComment');
+        if (classComment.length > CLASS_COMMENT_MAX) fail(400, `Nhận xét chung của lớp tối đa ${CLASS_COMMENT_MAX} ký tự`, 'classComment');
         if (findDiagnosticTerms(classComment).length)
           fail(400, 'Nhận xét chung của lớp không dùng thuật ngữ chẩn đoán, hãy mô tả điều quan sát được.', 'classComment');
       }
@@ -1431,6 +1439,8 @@ export const assessmentMockRepository = {
       cls,
       range: { start, end: to },
       presentDays: to >= start ? countPresentDays(db, childId, start, to, att) : 0,
+      // Ngày đã điểm danh vắng (có phép / không phép)
+      absentDays: to >= start ? schoolDaysBetween(start, to).filter((d) => (att.get(`${d}|${childId}`) || 'PRESENT') !== 'PRESENT') : [],
       flagCount: to >= start ? flagDaysOf(db, childId, start, to) : 0,
       summary: to >= start ? periodSummaryOf(db, childId, start, to) : null,
       days,
@@ -1558,7 +1568,7 @@ export const assessmentMockRepository = {
           type: 'EVALUATION_CONFIRMED',
           title: yearEnd ? 'Đánh giá cuối năm đã xác nhận' : 'Đánh giá định kỳ đã công bố',
           message: `${child?.fullName} (${cls?.name}) – ${label}.`,
-          link: `/assessment/${yearEnd ? 'year-end' : 'periodic'}/${ev.id}`,
+          link: `/assessment/${yearEnd ? 'year-end' : 'semester'}/${ev.id}`,
         }),
       );
       return clone(ev);

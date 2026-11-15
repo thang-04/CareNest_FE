@@ -262,7 +262,7 @@ test('tuần mở từ URL luôn quy về thứ Hai; thiếu hoặc sai ngày th
   assert.equal(resolveWeekStart('2026-11-04', '2026-11-03'), '2026-11-02');
   assert.equal(resolveWeekStart('2026-11-02', '2026-11-10'), '2026-11-02');
   assert.equal(resolveWeekStart(null, '2026-11-05'), '2026-11-02');
-  assert.equal(resolveWeekStart('abc', '2026-11-08'), '2026-11-02');
+  assert.equal(resolveWeekStart('abc', '2026-11-08'), '2026-11-09');
 });
 
 test('adapter: đúng đường dẫn BE; lưu nháp gửi body từ bản nháp; công bố POST /publish', async () => {
@@ -303,9 +303,9 @@ test('công bố bị BE từ chối (409) thì lỗi giữ nguyên status để
   assert.equal(groupIssuesByDate(issuesBySeverity(refreshed.issues).blocking).length, 1);
 });
 
-test('module meal-plan khai source api cho /menu/weekly và /menu/statistics', () => {
+test('module meal-plan khai source api cho /menu/weekly, /menu/statistics và /menu/nutrition (Cân đối khẩu phần)', () => {
   const mod = INTEGRATION_MODULES['meal-plan'];
   assert.equal(mod.source, 'api');
-  assert.deepEqual(mod.routes, ['/menu/weekly', '/menu/statistics']);
+  assert.deepEqual(mod.routes, ['/menu/weekly', '/menu/statistics', '/menu/nutrition']);
   assert.deepEqual(mod.files, ['src/services/mealPlanApi.js']);
 });

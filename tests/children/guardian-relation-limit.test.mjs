@@ -79,9 +79,9 @@ test('D-5b: mỗi trẻ tối đa 3 phụ huynh (form và BE giả)', async () =
 
 test('D-5a: quan hệ chỉ 6 loại; tài khoản dùng đúng loại của hồ sơ', async () => {
   await rejects(children.enrollChild(payload([guardian(5, { relation: 'Dì' })]), VP), 422, 'guardians.0.relation');
-  const saved = await children.enrollChild(payload([guardian(6, { relation: 'Ông' }), guardian(7, { relation: 'Anh/chị' })]), VP);
+  const saved = await children.enrollChild(payload([guardian(6, { relation: 'Ông', accountRecipient: true }), guardian(7, { relation: 'Anh/chị' })]), VP);
   const linked = await guardians.listGuardians(saved.id, VP);
-  assert.deepEqual(linked.map((g) => g.relationship).sort(), ['GRANDFATHER', 'SIBLING']);
+  assert.deepEqual(linked.map((g) => g.relationship).sort(), ['GRANDFATHER']);
 });
 
 test('D-5a: file Excel nhận quan hệ không dấu, không phân biệt hoa thường; giá trị khác báo lỗi ở dòng đó', () => {

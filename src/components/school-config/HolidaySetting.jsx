@@ -10,9 +10,8 @@ import { getHolidays, getSchoolYearById, saveHolidays } from '@/services/school-
 import { YEAR_STATUS } from '@/models/school-config/schoolConfigConstants';
 import { canManageSchoolCalendar } from '@/utils/school-config/schoolConfigPermissions';
 import { formatDate, isIsoDate } from '@/utils/format';
-import { holidayDays, validateHoliday } from '@/utils/school-config/holidays';
+import { HOLIDAY_NAME_MAX, holidayDays, validateHoliday } from '@/utils/school-config/holidays';
 
-const NAME_MAX = 100;
 const EMPTY = { startDate: '', endDate: '', name: '' };
 
 /**
@@ -82,7 +81,6 @@ export function HolidaySetting({ yearId, onDirtyChange, saveRef }) {
         <h2 className="card__title">
           Ngày nghỉ năm học {year.name} ({formatDate(year.startDate)} – {formatDate(year.endDate)})
         </h2>
-        <span className="muted text-sm">Ngày nghỉ không tính là ngày học: không điểm danh, không báo ăn, không đánh giá.</span>
       </div>
       {errors._form && (
         <div className="card__body">
@@ -116,9 +114,13 @@ export function HolidaySetting({ yearId, onDirtyChange, saveRef }) {
               className="input"
               aria-label="Tên đợt nghỉ"
               placeholder="Vd. Quốc khánh, Tết Nguyên đán"
-              maxLength={NAME_MAX}
               value={draft.name}
-              onChange={(e) => setField({ name: e.target.value })}
+              onChange={(e) => {
+                setField({ name: e.target.value });
+                // Quá dài: báo ngay dưới ô, không chặn gõ
+                if (e.target.value.trim().length > HOLIDAY_NAME_MAX)
+                  setErrors((prev) => ({ ...prev, name: `Tên đợt nghỉ tối đa ${HOLIDAY_NAME_MAX} ký tự` }));
+              }}
               onKeyDown={(e) => e.key === 'Enter' && add()}
             />
           </FormField>

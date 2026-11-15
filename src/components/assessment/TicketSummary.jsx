@@ -36,7 +36,7 @@ export function TicketSummary({ classId }) {
     exportWithPreview(
       [
         [`Tổng hợp phiếu bé ngoan ${summary.cls.name} – ${rangeText}`],
-        ['Mã trẻ', 'Họ tên', 'Bé ngoan', 'Bé ngoan toàn diện', 'Cờ bé ngoan'],
+        ['Mã trẻ', 'Họ tên', 'Phiếu bé ngoan (tuần)', 'Phiếu bé ngoan toàn diện (tháng)', 'Cờ bé ngoan'],
         ...rows.map((r) => [r.child.code, r.child.fullName, r.weekly, r.monthly, r.flags]),
       ],
       `phieu-be-ngoan-${summary.cls.name}-${month || 'nam-hoc'}.xlsx`,
@@ -45,8 +45,8 @@ export function TicketSummary({ classId }) {
   // Thẻ tổng số phiếu của khoảng đang chọn (số do service tính)
   const kpis = t
     ? [
-        { key: 'weekly', tone: 'teal', icon: Ticket, value: t.weekly, label: 'Bé ngoan' },
-        { key: 'monthly', tone: 'blue', icon: Award, value: t.monthly, label: 'Bé ngoan toàn diện' },
+        { key: 'weekly', tone: 'teal', icon: Ticket, value: t.weekly, label: 'Phiếu bé ngoan (tuần)' },
+        { key: 'monthly', tone: 'blue', icon: Award, value: t.monthly, label: 'Phiếu bé ngoan toàn diện (tháng)' },
         { key: 'total', tone: 'gray', icon: BadgeCheck, value: t.weekly + t.monthly, label: 'Tổng phiếu đã phát' },
         { key: 'children', tone: 'green', value: `${t.children}/${t.total}`, label: 'Trẻ có phiếu' },
       ]
@@ -92,10 +92,10 @@ export function TicketSummary({ classId }) {
           <table className="table table--grid">
             <thead>
               <tr>
-                <th className="center dg-col-no">STT</th>
+                <th className="num dg-col-no">STT</th>
                 <th>Trẻ</th>
-                <th className="num">Bé ngoan</th>
-                <th className="num">Bé ngoan toàn diện</th>
+                <th className="num">Phiếu bé ngoan (tuần)</th>
+                <th className="num">Phiếu bé ngoan toàn diện (tháng)</th>
                 <th className="num">Cờ bé ngoan</th>
               </tr>
             </thead>
@@ -111,7 +111,7 @@ export function TicketSummary({ classId }) {
               ) : (
                 rows.map((r, i) => (
                   <tr key={r.child.id}>
-                    <td className="center muted">{i + 1}</td>
+                    <td className="num muted">{i + 1}</td>
                     <td>
                       <ChildNameCell child={r.child} />
                     </td>

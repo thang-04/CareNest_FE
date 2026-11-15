@@ -13,6 +13,7 @@ import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';
 import '@/styles/modules/assessment.css';
 import { SemesterSelect } from '@/components/form/SemesterSelect';
 import { monthInSemester, semestersOf } from '@/utils/semesters';
+import { CampusFilter } from '@/components/ui/CampusFilter';
 
 const VIEWS = [
   { key: 'month', label: 'Theo tháng' },
@@ -202,16 +203,7 @@ export default function QualityReportPage() {
               )}
             </div>
           )}
-          {multiCampus && (
-            <select className="select" aria-label="Điểm trường" value={campusId} onChange={(e) => setCampusId(e.target.value)}>
-              <option value="">Tất cả điểm trường</option>
-              {campusOptions.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          )}
+          {multiCampus && <CampusFilter campuses={campusOptions} value={campusId} onChange={(v) => setCampusId(v)} hideLabel />}
           <div className="spacer" />
           {(program ? programRows : rows).length > 0 && (
             <button className="btn" onClick={exportCsv}>
@@ -240,17 +232,26 @@ export default function QualityReportPage() {
               <div className="alert alert--warning dg-alert-inset" role="status">
                 <AlertTriangle size={18} />
                 <div>
-                  Lớp chưa điểm danh (vẫn tính là ngày học, trẻ chưa có mặt):{' '}
-                  {rows
-                    .filter((r) => r.unrecordedDays?.length)
-                    .map((r) => `${r.className}: ${r.unrecordedDays.map((d) => formatDate(d)).join(', ')}`)
-                    .join('; ')}
-                  . Giáo viên bổ sung qua mở lại điểm danh.
+                  {rows.filter((r) => r.unrecordedDays?.length).length} lớp còn ngày chưa điểm danh, các ngày đó vẫn tính là ngày học. Giáo
+                  viên bổ sung qua mở lại điểm danh.
+                  <details className="mt-8">
+                    <summary>Xem từng lớp</summary>
+                    <ul className="dg-unrecorded">
+                      {rows
+                        .filter((r) => r.unrecordedDays?.length)
+                        .map((r) => (
+                          <li key={r.className}>
+                            <b>{r.className}</b> ({r.unrecordedDays.length} ngày):{' '}
+                            {r.unrecordedDays.map((d) => formatDate(d).slice(0, 5)).join(', ')}
+                          </li>
+                        ))}
+                    </ul>
+                  </details>
                 </div>
               </div>
             )}
-            <div className="table-wrap">
-              <table className="table table--grid dg-qr-table">
+            <div className="table-wrap dg-roll-wrap">
+              <table className="table table--grid dg-qr-table dg-roll">
                 <thead>
                   <tr>
                     <th rowSpan={view === 'year' ? 1 : 2}>Lớp</th>

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { ChildAvatar } from '@/components/ChildAvatar';
-import { ArrowLeft, ChevronDown, Lock, Save, UserX } from '@/components/ui/icons';
+import { ChevronDown, Lock, Save, UserX } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useDailyAssessment, useDailyAssessmentClasses } from '@/hooks/assessment/useAssessment';
@@ -14,8 +14,9 @@ import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { EmptyState, ErrorState, SkeletonRows, Spinner } from '@/components/ui/States';
-import { CellPopover } from '@/components/assessment/DailyAssessmentCells';
+import { AbsentRows, CellPopover } from '@/components/assessment/DailyAssessmentCells';
 import { Cell, focusCell } from '@/components/ui/TableCell';
+import { DAILY_COMMENT_MAX } from '@/models/assessment/assessmentConstants';
 import { PARTICIPATION_LABELS, YCCD_RESULT, YCCD_RESULT_LABELS } from '@/models/assessment/dailyObservationOptions';
 import { DateInput } from '@/components/form/DateInput';
 import { formatDate, formatDateTime, isIsoDate } from '@/utils/format';
@@ -198,6 +199,7 @@ export default function DailyGoalAssessmentPage() {
   const saving = saveState.phase === 'saving';
 
   const rows = sheet?.rows || [];
+  const absentChildren = sheet?.absentChildren || [];
   // Đếm theo phần KTKN (BE cũ chỉ có recorded)
   const skillsRecorded = isSkillsRecorded;
   const recordedCount = rows.filter(skillsRecorded).length;
@@ -361,11 +363,11 @@ export default function DailyGoalAssessmentPage() {
               title="Chưa có giáo án tuần đã duyệt cho ngày này"
               description="Kiến thức kỹ năng chấm theo mục tiêu của giáo án đã duyệt; khi giáo án được duyệt, các hoạt động và mục tiêu sẽ hiện tại đây."
             />
-          ) : rows.length === 0 ? (
+          ) : rows.length === 0 && absentChildren.length === 0 ? (
             <EmptyState icon={UserX} title="Không có trẻ có mặt" description="Cả lớp vắng ngày này." />
           ) : (
             <div className="card__body">
-              <div className="table-wrap">
+              <div className="table-wrap dg-skills-wrap">
                 <table className="table ga-plan-table ga-goal-table dg-day-table dg-day-table--skills" onMouseDown={focusCell}>
                   {/* Độ rộng cột dùng lại lớp của bảng mục tiêu năm: Trẻ, các hoạt động chia đều, Nhận xét */}
                   <colgroup>
@@ -402,7 +404,8 @@ export default function DailyGoalAssessmentPage() {
                       const id = r.childId;
                       const d = drafts[id] || (isSkillsRecorded(r) ? fromRow(r) : withDefaultMet(fromRow(r), activities));
                       const disabled = !writable || saving;
-                      const commentInvalid = !!commentError && !!dirty[id]?.has('_comment');
+                      const commentTooLong = (d.comment || '').length > DAILY_COMMENT_MAX;
+                      const commentInvalid = commentTooLong || (!!commentError && !!dirty[id]?.has('_comment'));
                       return (
                         <tr key={id} title={skillsRecorded(r) ? 'Đã ghi nhận' : 'Chưa ghi nhận'}>
                           <td className="cell--fixed">
@@ -425,14 +428,37 @@ export default function DailyGoalAssessmentPage() {
                               editable={!disabled}
                               value={d.comment}
                               label={`Nhận xét trong ngày cho ${r.fullName}`}
-                              placeholder="Tùy chọn"
                               onChange={(v) => setComment(id, v)}
                             />
-                            {commentInvalid && <div className="field__error">{commentError}</div>}
+                            {commentInvalid && (
+                              <div className="field__error">
+                                {commentTooLong ? `Nhận xét tối đa ${DAILY_COMMENT_MAX} ký tự` : commentError}
+                              </div>
+                            )}
                           </td>
                         </tr>
                       );
                     })}
+                    {/* OBS-27 (Cần chốt 10/11/2026): trẻ vắng thì mục tiêu của ngày đó tính Chưa đạt; chỉ hiển thị, không chấm */}
+                    <AbsentRows
+                      items={absentChildren}
+                      colSpan={activities.length + 2}
+                      renderCells={(c, absence) => (
+                        <>
+                          {activities.map((a) => (
+                            <td key={a.key} className="dg-day-cell">
+                              {a.goals.map((g) => (
+                                <div key={g.id} title={`${goalName(g)}: ${g.text}`}>
+                                  <div className="dg-pop__label">{goalName(g)}</div>
+                                  <div className={LEVEL_CLASS.CHUA_DAT}>{YCCD_RESULT_LABELS.CHUA_DAT}</div>
+                                </div>
+                              ))}
+                            </td>
+                          ))}
+                          <td className="muted text-sm">{absence}</td>
+                        </>
+                      )}
+                    />
                   </tbody>
                 </table>
               </div>
@@ -443,10 +469,6 @@ export default function DailyGoalAssessmentPage() {
 
       {writable && rows.length > 0 && (
         <div className="page-actions">
-          {/* Quay lại Hoạt động chung cùng lớp, ngày (hỏi nếu còn thay đổi chưa lưu) */}
-          <Link className="btn" to={`/assessment/daily?classId=${currentClassId}&date=${shownDate}`}>
-            <ArrowLeft size={16} /> Quay lại Hoạt động chung
-          </Link>
           <div className="spacer" />
           <div className="row gap-2">
             {dirtyIds.length > 0 && (
@@ -524,7 +546,6 @@ export default function DailyGoalAssessmentPage() {
                           editable={!disabled}
                           value={d.comment}
                           label={`Nhận xét trong ngày cho ${panelRow.fullName}`}
-                          placeholder="Tùy chọn"
                           onChange={(v) => setComment(id, v)}
                         />
                       </td>

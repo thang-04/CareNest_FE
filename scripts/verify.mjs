@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 // Cổng kiểm chứng (ADR-0012): chạy build/test, ghi log đầy đủ ra file, chỉ in tóm tắt ≤10 dòng để tiết kiệm token.
-// Dùng: node scripts/verify.mjs            (full: mvnw verify = test + ArchUnit + snapshot OpenAPI + Spotless)
-//       node scripts/verify.mjs --quick    (làn S: test liên quan file đổi + ArchUnit + Spotless)
+// Dùng: node scripts/verify.mjs            (full: npm run verify = mọi bộ test + lint + format + check design/api + build)
+//       node scripts/verify.mjs --quick    (làn S: lint + format + check design/api + bộ test có tên khớp file đổi; không build)
 // Luôn in 1 dòng `VERIFY PASS|FAIL|SKIP <mode> | ...` — hook đọc dòng này làm bằng chứng.
 import { execFileSync, spawn } from "node:child_process";
-import { createWriteStream, existsSync, mkdirSync } from "node:fs";
+import { createWriteStream, existsSync, mkdirSync, readFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { findJunk, reportJunk } from "./ai-layer/junk-files.mjs";
 import { ensureGitHooks } from "./ai-layer/lib.mjs";
 
 const SUMMARY = /^\[(?:INFO|WARNING|ERROR)\]\s+Tests run:\s*(\d+),\s*Failures:\s*(\d+),\s*Errors:\s*(\d+),\s*Skipped:\s*(\d+)\s*$/;
@@ -152,6 +153,27 @@ function mavenCommand(root, quick) {
   };
 }
 
+// Làn S của repo npm: các cổng tĩnh + bộ test `test:<x>` có thư mục `tests/<dir>/` trùng tên trong đường dẫn file đổi.
+// Đổi package.json/lockfile ⇒ null (chạy full).
+export function selectQuickScripts(changed, scripts) {
+  if (changed.some((f) => /^(package(-lock)?\.json|vite\.config\.\w+)$/.test(f))) return null;
+  const gates = ["lint", "format:check", "check:design", "check:api"].filter((name) => scripts[name]);
+  const tests = Object.entries(scripts)
+    .filter(([name]) => /^test:(?!e2e)/.test(name))
+    .filter(([, cmd]) => {
+      const dir = cmd.match(/tests\/([\w-]+)\//)?.[1];
+      return dir && changed.some((f) => f.includes(dir));
+    })
+    .map(([name]) => name);
+  return [...gates, ...tests];
+}
+
+function quickNpmScripts(root) {
+  const changed = [...gitLines(root, ["diff", "--name-only", "HEAD"]), ...gitLines(root, ["ls-files", "--others", "--exclude-standard"])];
+  const scripts = JSON.parse(readFileSync(join(root, "package.json"), "utf8")).scripts ?? {};
+  return selectQuickScripts(changed, scripts);
+}
+
 function runToLog(root, exe, args, logFile) {
   mkdirSync(dirname(join(root, logFile)), { recursive: true });
   const log = createWriteStream(join(root, logFile));
@@ -198,16 +220,38 @@ async function main(argv) {
   if (existsSync(join(root, "package.json"))) {
     const exe = process.platform === "win32" ? "npm.cmd" : "npm"; // npm nằm trên PATH, không ở thư mục repo
     const logFile = "verify.log";
-    const { code } = await runToLog(root, exe, ["run", "verify"], logFile);
-    console.log(`VERIFY ${code === 0 ? "PASS" : "FAIL"} full | npm run verify | log ${logFile}`);
-    return code === 0 ? 0 : 1;
+    const scripts = argv.includes("--quick") ? quickNpmScripts(root) : null;
+    if (!scripts) {
+      const { code } = await runToLog(root, exe, ["run", "verify"], logFile);
+      console.log(`VERIFY ${code === 0 ? "PASS" : "FAIL"} full | npm run verify | log ${logFile}`);
+      return code === 0 ? 0 : 1;
+    }
+    // Chạy lần lượt, dừng ở script fail đầu tiên; log của script cuối nằm trong verify.log
+    for (const script of scripts) {
+      const { code } = await runToLog(root, exe, ["run", script], logFile);
+      if (code !== 0) {
+        console.log(`VERIFY FAIL quick | npm run ${script} | log ${logFile}`);
+        return 1;
+      }
+    }
+    console.log(`VERIFY PASS quick | ${scripts.join(" + ")} | không build, không chạy bộ test khác`);
+    return 0;
   }
   console.log("VERIFY SKIP | chưa có code (không có pom.xml/package.json)");
   return 0;
 }
 
+// Cổng file rác chạy sau build/test: có lỗi ⇒ verify fail dù dòng VERIFY ở trên là PASS (hook đọc exit code)
+async function mainWithJunkGate(argv) {
+  const code = await main(argv);
+  const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+  const junkErrors = reportJunk(findJunk({ root }));
+  if (junkErrors) console.log(`VERIFY FAIL junk | ${junkErrors} file rác trong nhánh — xử lý theo các dòng [JUNK] ở trên`);
+  return junkErrors ? 1 : code;
+}
+
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
-  main(process.argv.slice(2)).then(
+  mainWithJunkGate(process.argv.slice(2)).then(
     (code) => (process.exitCode = code),
     (err) => {
       console.error(`VERIFY FAIL | verify.mjs crash: ${err.stack ?? err}`);

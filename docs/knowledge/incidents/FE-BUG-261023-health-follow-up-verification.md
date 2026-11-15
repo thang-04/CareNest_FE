@@ -3,8 +3,8 @@ id: FE-BUG-261023-health-follow-up-verification
 type: bug
 screens: [health-exam, health-follow-up]
 be_modules: [health]
-rules: []
-status: open
+rules: [HLT-16]
+status: fixed
 date: 2026-10-23
 keywords: [follow-up-exam, verify, Phiếu chưa đủ thông tin, FOLLOW_UP_CONTACT_REQUIRED]
 similar_to: []
@@ -42,6 +42,8 @@ Chưa rõ. Stack validation tại `src/services/children/mock/healthExamMockRepo
 ## Fix
 
 Chưa sửa; ngoài phạm vi xuất sơ đồ. Cần điều tra riêng dữ liệu đầu vào bắt buộc và điều kiện công bố trước khi sửa code hoặc fixture.
+
+2026-11-04: không còn áp dụng. User bỏ phiếu theo dõi sức khỏe (BE HLT-16 REMOVED); mã phiếu theo dõi và `tests/health/follow-up-exam.test.mjs` đã xóa (plan `docs/plans/active/2026-11-04-health-warnings-book.md`). Đóng incident ở trạng thái `fixed` vì lỗi không thể tái hiện nữa, không phải vì đã tìm ra nguyên nhân.
 
 ## Regression test
 

@@ -8,14 +8,23 @@ import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { ErrorState, LoadingState } from '@/components/ui/States';
 import { ReasonModal } from '@/components/permissions/ReasonModal';
 import { PermissionTabs } from '@/components/permissions/PermissionTabs';
-import { PermissionCheckCell, PermissionFixedCell, PermissionTable } from '@/components/permissions/PermissionTable';
+import {
+  PermissionCheckCell,
+  PermissionFixedCell,
+  PermissionFlowCheckCell,
+  PermissionLevelBadge,
+  PermissionTable,
+} from '@/components/permissions/PermissionTable';
 import { updateRolePermissions } from '@/services/account/permissionService';
-import { PERMISSION_ROLE_LABELS, PERMISSION_TASKS } from '@/models/account/permissionConstants';
+import { PERMISSION_LEVELS, PERMISSION_ROLE_LABELS, PERMISSION_TASKS } from '@/models/account/permissionConstants';
 import {
   codeDiff,
   configurableCheck,
+  flowCheckState,
+  flowCount,
   permissionTableRows,
   PERMISSION_MATRIX_ROLES,
+  toggleFlow,
   toggleWithRequires,
 } from '@/utils/account/permissionMatrix';
 import { permissionCrumbs } from '@/utils/school-config/breadcrumbs';
@@ -38,14 +47,26 @@ export default function RoleDefaultsPage() {
   const originalOf = (role) => roleEntry(role)?.permissions || [];
   const codesOf = (role) => drafts[role] ?? originalOf(role);
 
-  const toggle = (role, code, on) => {
-    const result = toggleWithRequires(catalog, codesOf(role), code, on, configurableCheck(roleEntry(role)));
+  const setRoleCodes = (role, codes) =>
     setDrafts((current) => {
       const copy = { ...current };
-      if (sameCodes(result.codes, originalOf(role))) delete copy[role];
-      else copy[role] = result.codes;
+      if (sameCodes(codes, originalOf(role))) delete copy[role];
+      else copy[role] = codes;
       return copy;
     });
+
+  // Tick cả luồng lớn: mọi việc nhỏ chỉnh được của luồng đổi theo
+  const toggleWholeFlow = (role, flow, on) => {
+    const result = toggleFlow(catalog, codesOf(role), flow.codes, on, configurableCheck(roleEntry(role)));
+    setRoleCodes(role, result.codes);
+    setNotice(
+      `Đã ${on ? 'tick' : 'bỏ tick'} cả luồng “${flow.label}” cho ${PERMISSION_ROLE_LABELS[role]} (${on ? result.added.length : result.removed.length} việc đổi).`,
+    );
+  };
+
+  const toggle = (role, code, on) => {
+    const result = toggleWithRequires(catalog, codesOf(role), code, on, configurableCheck(roleEntry(role)));
+    setRoleCodes(role, result.codes);
     // Báo việc tự tick/bỏ tick kèm theo để người dùng không bất ngờ
     const roleName = PERMISSION_ROLE_LABELS[role];
     if (result.added.length)
@@ -105,6 +126,22 @@ export default function RoleDefaultsPage() {
       header: PERMISSION_ROLE_LABELS[role],
       note: fixed ? 'Cố định' : null,
       fixed,
+      renderFlow: (flow) => {
+        const state = flowCheckState(flow.codes, codesOf(role), isConfigurable);
+        const { on, total } = flowCount(flow.codes, codesOf(role));
+        const summary = `${on}/${total} việc`;
+        if (!state) return <small className="perm-flow-summary">{summary}</small>;
+        return (
+          <PermissionFlowCheckCell
+            state={state}
+            disabled={saving}
+            summary={summary}
+            changed={flow.codes.some((code) => codesOf(role).includes(code) !== originalOf(role).includes(code))}
+            label={`Cả luồng ${flow.label} — ${PERMISSION_ROLE_LABELS[role]}`}
+            onChange={(checked) => toggleWholeFlow(role, flow, checked)}
+          />
+        );
+      },
       render: (code) => {
         const checked = codesOf(role).includes(code);
         if (!isConfigurable(code)) {
@@ -130,13 +167,13 @@ export default function RoleDefaultsPage() {
 
   return (
     <div className="page permission-center">
-      <Breadcrumb items={permissionCrumbs('Quyền theo vai trò')} />
+      <Breadcrumb items={permissionCrumbs('Mặc định theo vai trò')} />
       <div className="page__head permission-page-head">
         <div>
-          <h1 className="page__title">Quyền theo vai trò</h1>
+          <h1 className="page__title">Mặc định theo vai trò</h1>
           <p className="text-sm text-2">
             Tick việc mà từng vai trò được làm. Áp dụng chung cho Phó hiệu trưởng, Giáo viên và Nhân viên bếp toàn trường; ngoại lệ cho từng
-            người ở tab “Quyền ngoại lệ từng người”.
+            người ở màn Phân công Phó hiệu trưởng hoặc tab “Ngoại lệ giáo viên”.
           </p>
         </div>
       </div>
@@ -149,27 +186,38 @@ export default function RoleDefaultsPage() {
       ) : (
         <>
           <section className="card perm-table-card">
-            <ul className="perm-legend" aria-label="Chú thích">
-              <li>
-                <span className="perm-legend__box" aria-hidden="true" /> Ô tick: Hiệu trưởng chọn được
-              </li>
-              <li>
-                <PermissionFixedCell has /> Luôn có
-              </li>
-              <li>
-                <PermissionFixedCell has={false} /> Không có
-              </li>
-              <li>
-                <span className="perm-table__arrow" aria-hidden="true">
-                  ↳
-                </span>{' '}
-                Cần quyền xem ở dòng đầu nhóm (tự tick kèm)
-              </li>
-            </ul>
+            <details className="perm-legend-toggle">
+              <summary>Chú thích ký hiệu và cấp quyền</summary>
+              <ul className="perm-legend" aria-label="Chú thích">
+                <li>
+                  <span className="perm-legend__box" aria-hidden="true" /> Ô tick: Hiệu trưởng chọn được
+                </li>
+                <li>
+                  <PermissionFixedCell has /> Luôn có
+                </li>
+                <li>
+                  <PermissionFixedCell has={false} /> Không có
+                </li>
+                <li>
+                  <span className="perm-table__arrow" aria-hidden="true">
+                    ↳
+                  </span>{' '}
+                  Cần quyền xem ở dòng đầu nhóm (tự tick kèm)
+                </li>
+              </ul>
+              <ul className="perm-legend perm-legend--levels" aria-label="Cấp quyền">
+                <li className="perm-legend__title">Cấp quyền:</li>
+                {Object.entries(PERMISSION_LEVELS).map(([level, info]) => (
+                  <li key={level}>
+                    <PermissionLevelBadge level={level} /> {info.hint}
+                  </li>
+                ))}
+              </ul>
+            </details>
             <p className="perm-notice" role="status" aria-live="polite">
               {notice}
             </p>
-            <PermissionTable groups={groups} catalog={catalog} columns={columns} caption="Việc được làm theo vai trò" />
+            <PermissionTable groups={groups} catalog={catalog} columns={columns} caption="Việc được làm theo vai trò" collapsible />
             <p className="perm-scope-note text-sm text-muted">
               Quyền chỉ cho biết được làm việc đó hay không. Phạm vi dữ liệu (điểm trường, lớp) vẫn theo phân công công tác của từng người.
             </p>

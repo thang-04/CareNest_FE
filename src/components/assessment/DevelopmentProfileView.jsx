@@ -225,7 +225,6 @@ export function DevelopmentProfileView({ childId, mode, evaluationLink }) {
                           </div>
                         );
                       })}
-                      <div className="muted text-xs">Tỉ lệ = số lượt đạt / số lượt được đánh giá trong kỳ.</div>
                     </div>
                   </div>
                 )}
@@ -237,7 +236,10 @@ export function DevelopmentProfileView({ childId, mode, evaluationLink }) {
                   </div>
                   <div className="card__body">
                     {tickets.length === 0 && rewards.length === 0 ? (
-                      <div className="muted">Chưa có phiếu bé ngoan hoặc khen thưởng trong kỳ.</div>
+                      <EmptyState
+                        title="Chưa có phiếu bé ngoan, khen thưởng"
+                        description="Phiếu bé ngoan và khen thưởng trong kỳ sẽ hiện ở đây."
+                      />
                     ) : (
                       <ul className="stack dg-plain-list">
                         {rewards.map((r) => (
@@ -270,7 +272,10 @@ export function DevelopmentProfileView({ childId, mode, evaluationLink }) {
                 </div>
                 <div className="card__body">
                   {published.length === 0 ? (
-                    <div className="muted">Chưa có đánh giá tháng, học kỳ hoặc cuối năm được giáo viên xác nhận trong kỳ.</div>
+                    <EmptyState
+                      title="Chưa có đánh giá được xác nhận"
+                      description="Đánh giá tháng, học kỳ, cuối năm hiện ở đây sau khi giáo viên xác nhận."
+                    />
                   ) : (
                     <div className="stack">
                       {published.map((e) => (
@@ -280,7 +285,7 @@ export function DevelopmentProfileView({ childId, mode, evaluationLink }) {
                               <div className="fw-600">
                                 {PERIOD_TYPE_LABELS[e.periodType]} · {periodLabel(e.periodType, e.periodStart, e.periodEnd)}
                               </div>
-                              {evaluationLink && (
+                              {evaluationLink?.(e) && (
                                 <Link className="btn btn--sm" to={evaluationLink(e)}>
                                   Xem chi tiết
                                 </Link>

@@ -21,6 +21,7 @@ import { hasBePermission } from '@/utils/account/accountPermissions';
 import { PERMISSIONS } from '@/models/account/permissionConstants';
 import { USE_MOCK } from '@/config/env';
 import { INTEGRATION_MODULES } from '@/config/integrationModules';
+import { MEAL_COUNT_TITLE } from '@/models/attendance/attendanceConstants';
 
 /*
  * Sidebar menu – single source of truth.
@@ -104,6 +105,9 @@ const GROUPS = {
   },
 };
 
+// Không import demoSource ở đây: nó kéo mockDatabase (cần window) vào menu
+const MENU_TEMPLATE_API = !USE_MOCK && INTEGRATION_MODULES['menu-template']?.source === 'api';
+
 /** Sub-menu items. */
 const ITEMS = {
   schoolYears: {
@@ -154,6 +158,11 @@ const ITEMS = {
     label: 'Danh sách trẻ',
     to: '/children',
   },
+  // CFG-YR-05: GV xem lớp, trẻ năm đang chuẩn bị (chỉ xem)
+  childNewYearClass: {
+    label: 'Lớp năm học mới',
+    to: '/children/new-year-class',
+  },
   childEnroll: {
     label: 'Tiếp nhận trẻ',
     to: '/children/new',
@@ -178,6 +187,10 @@ const ITEMS = {
     label: 'Xu hướng sức khỏe',
     to: '/children/health-trends',
   },
+  growthReport: {
+    label: 'Tổng hợp cân đo',
+    to: '/children/growth-report',
+  },
   attendance: {
     label: 'Điểm danh & báo ăn',
     to: '/attendance',
@@ -193,7 +206,7 @@ const ITEMS = {
     to: '/attendance/day-unlocks',
   },
   mealCount: {
-    label: 'Sổ suất ăn',
+    label: MEAL_COUNT_TITLE,
     to: '/attendance/meal-count',
   },
   dailyHealthOverview: {
@@ -212,21 +225,36 @@ const ITEMS = {
     label: 'Kế hoạch toàn trường',
     to: '/education/school',
   },
+  eduSchoolYear: { label: 'Kế hoạch năm học', icon: BookOpenText, to: '/education/school-year-plans' },
   eduGoals: {
-    label: 'Kế hoạch năm học',
+    label: 'Kế hoạch giáo dục tổ',
     to: '/education/goals',
   },
   eduBranch: {
-    label: 'Chủ đề nhánh',
+    label: 'Dự kiến chủ đề - chủ đề nhánh',
     to: '/education/branches',
   },
-  eduClass: {
-    label: 'Kế hoạch chủ đề',
-    to: '/education/class',
+  eduThemePlans: {
+    label: 'Kế hoạch giáo dục chủ đề',
+    to: '/education/theme-plans',
+    also: ['/education/class/'],
+  },
+  eduDayPlans: {
+    label: 'Kế hoạch giáo dục ngày',
+    to: '/education/day-plans',
+  },
+  // Spec 900 (EDU-88): kho học liệu dùng lại cho giáo án ngày
+  eduResources: {
+    label: 'Kho học liệu',
+    to: '/education/resources',
   },
   eduPlanReviews: {
-    label: 'Duyệt kế hoạch, giáo án',
+    label: 'Duyệt kế hoạch giáo dục',
     to: '/education/plan-reviews',
+  },
+  eduOverdue: {
+    label: 'Kế hoạch quá hạn',
+    to: '/education/overdue',
   },
   eduSettings: {
     label: 'Cấu hình kế hoạch',
@@ -257,7 +285,7 @@ const ITEMS = {
     to: '/assessment/themes',
   },
   assessDayUnlocks: {
-    label: 'Mở lại ngày đánh giá',
+    label: 'Mở lại đánh giá',
     to: '/assessment/day-unlocks',
   },
   assessProfiles: {
@@ -267,10 +295,6 @@ const ITEMS = {
   assessProgress: {
     label: 'Tiến độ phát triển',
     to: '/assessment/children',
-  },
-  assessPeriodic: {
-    label: 'Đánh giá tháng',
-    to: '/assessment/periodic',
   },
   assessSemester: {
     label: 'Đánh giá học kỳ',
@@ -283,6 +307,10 @@ const ITEMS = {
   assessTickets: {
     label: 'Phiếu bé ngoan',
     to: '/assessment/tickets',
+  },
+  assessWeeklyComments: {
+    label: 'Nhận xét tuần',
+    to: '/assessment/weekly-comments',
   },
   assessRewards: {
     label: 'Đề xuất khen thưởng',
@@ -301,12 +329,17 @@ const ITEMS = {
     to: '/menu/dishes',
   },
   menus: {
-    label: 'Mẫu thực đơn ngày',
-    to: '/menu/menus',
+    label: 'Mẫu thực đơn',
+    // Bản nối BE: /menu/menus chuyển hướng sang /menu/templates ⇒ trỏ thẳng để mục sáng đúng và breadcrumb khớp
+    to: MENU_TEMPLATE_API ? '/menu/templates' : '/menu/menus',
   },
   weeklyMenus: {
     label: 'Kế hoạch tuần & công bố',
     to: '/menu/weekly',
+  },
+  menuStatistics: {
+    label: 'Định lượng & đi chợ',
+    to: '/menu/statistics',
   },
   nutrition: {
     label: 'Cân đối khẩu phần',
@@ -319,10 +352,6 @@ const ITEMS = {
   mealPhotos: {
     label: 'Ảnh bữa ăn',
     to: '/kitchen/meal-photos',
-  },
-  photoWindows: {
-    label: 'Khung giờ ảnh bữa',
-    to: '/kitchen/photo-windows',
   },
   stockReceipts: {
     label: 'Phiếu nhập',
@@ -348,12 +377,16 @@ const ITEMS = {
     label: 'Kiểm nhận hàng tươi',
     to: '/kitchen/fresh-receipts',
   },
+  inspections: {
+    label: 'Kiểm thực ba bước',
+    to: '/kitchen/inspections',
+  },
   foodSamples: {
     label: 'Lưu mẫu thực phẩm',
     to: '/kitchen/food-samples',
   },
   forecast: {
-    label: 'Bản dự trù hàng tươi',
+    label: 'Bản dự trù',
     to: '/kitchen/forecast',
   },
   profile: {
@@ -363,6 +396,10 @@ const ITEMS = {
   password: {
     label: 'Đổi mật khẩu',
     to: '/account/password',
+  },
+  signatures: {
+    label: 'Chữ ký của tôi',
+    to: '/account/signatures',
   },
 };
 const link = (key) => ({
@@ -377,7 +414,7 @@ const group = (key, itemKeys) => ({
     key: k,
   })),
 });
-const account = group('system', ['profile', 'password']);
+const account = group('system', ['profile', 'signatures', 'password']);
 // Nhãn khu trên sidebar: các mục liền nhau cùng `section` được Sidebar gom dưới một nhãn
 const BOARDING_SECTION = 'Bán trú';
 // Khu bán trú: "Bán trú hôm nay" đứng đầu, rồi năm nhóm theo thứ tự cố định; nhóm không có mục nào thì bỏ
@@ -410,35 +447,37 @@ const MENUS = {
       'schoolRoles',
     ]),
     // Tiếp nhận trẻ, Xếp lớp như PHT trên mọi điểm trường (user chốt 2026-10-27)
-    group('children', [
-      'childList',
-      'childEnroll',
-      'childPlacement',
-      'parentActivation',
-      'healthChecks',
-      'healthFollowUps',
-      'healthTrends',
-    ]),
+    group('children', ['childList', 'childEnroll', 'childPlacement', 'parentActivation', 'healthChecks', 'healthTrends', 'growthReport']),
     group('attendance', ['attendanceSummary', 'leaveRequests', 'attendanceDayUnlocks', 'dailyHealthOverview']),
+    group('education', [
+      'eduSchoolYear',
+      'eduGoals',
+      'eduBranch',
+      'eduThemePlans',
+      'eduDayPlans',
+      'eduPlanReviews',
+      'eduOverdue',
+      'eduSettings',
+      'eduCurriculum',
+    ]),
     group('assessment', [
       'assessOverview',
+      'assessWeeklyComments',
+      'assessTickets',
+      'assessThemes',
       'assessQuality',
+      'assessSemester',
+      'assessYearEnd',
+      'assessRewards',
       'assessClassRatings',
       'assessProgress',
-      'assessPeriodic',
-      'assessSemester',
-      'assessThemes',
-      'assessYearEnd',
-      'assessTickets',
-      'assessRewards',
       'assessDayUnlocks',
     ]),
-    group('education', ['eduSchool', 'eduPlanReviews', 'eduSettings', 'eduCurriculum']),
     ...boardingSection({
-      nutrition: ['weeklyMenus', 'menus'],
+      nutrition: ['weeklyMenus', 'menuStatistics', 'menus'],
       kitchenOps: ['mealCount', 'publishedMenu', 'forecast', 'freshReceipts'],
       stock: ['dryStock', 'stockReceipts', 'stockHistory', 'stockShortfalls'],
-      foodSafety: ['foodSamples', 'mealPhotos', 'photoWindows'],
+      foodSafety: ['inspections', 'foodSamples', 'mealPhotos'],
       catalog: ['foods', 'dishes', 'nutritionSetup', 'suppliers'],
     }),
     account,
@@ -456,35 +495,27 @@ const MENUS = {
       'schoolTeachers',
       'schoolStaffView',
     ]),
-    group('children', [
-      'childList',
-      'childEnroll',
-      'childPlacement',
-      'parentActivation',
-      'healthChecks',
-      'healthFollowUps',
-      'healthTrends',
-    ]),
+    group('children', ['childList', 'childEnroll', 'childPlacement', 'parentActivation', 'healthChecks', 'healthTrends', 'growthReport']),
     group('attendance', ['attendanceSummary', 'leaveRequests', 'attendanceDayUnlocks', 'dailyHealthOverview']),
-    group('education', ['eduGoals', 'eduPlanReviews', 'eduSettings', 'eduCurriculum']),
+    group('education', ['eduSchoolYear', 'eduGoals', 'eduBranch', 'eduThemePlans', 'eduDayPlans', 'eduPlanReviews', 'eduCurriculum']),
     group('assessment', [
       'assessOverview',
+      'assessWeeklyComments',
+      'assessTickets',
+      'assessThemes',
       'assessQuality',
+      'assessSemester',
+      'assessYearEnd',
+      'assessRewards',
       'assessClassRatings',
       'assessProgress',
-      'assessPeriodic',
-      'assessSemester',
-      'assessThemes',
-      'assessYearEnd',
-      'assessTickets',
-      'assessRewards',
       'assessDayUnlocks',
     ]),
     ...boardingSection({
-      nutrition: ['weeklyMenus', 'menus', 'nutrition'],
+      nutrition: ['weeklyMenus', 'menuStatistics', 'menus', 'nutrition'],
       kitchenOps: ['mealCount', 'publishedMenu', 'forecast', 'freshReceipts'],
       stock: ['dryStock', 'stockReceipts', 'stockHistory', 'stockShortfalls'],
-      foodSafety: ['foodSamples', 'mealPhotos', 'photoWindows'],
+      foodSafety: ['inspections', 'foodSamples', 'mealPhotos'],
       catalog: ['foods', 'dishes', 'nutritionSetup', 'suppliers'],
     }),
     account,
@@ -493,41 +524,50 @@ const MENUS = {
   [ROLES.TEAM_LEADER]: [
     link('home'),
     link('approvals'),
-    group('children', ['childList', 'healthChecks', 'healthFollowUps', 'healthTrends']),
+    group('children', ['childList', 'healthChecks', 'healthTrends']),
     group('attendance', ['attendance', 'attendanceSummary', 'leaveRequests', 'pickup']),
-    group('education', ['eduGoals', 'eduBranch', 'eduClass', 'eduPlanReviews', 'eduCurriculum']),
+    group('education', [
+      'eduSchoolYear',
+      'eduGoals',
+      'eduBranch',
+      'eduThemePlans',
+      'eduDayPlans',
+      'eduResources',
+      'eduPlanReviews',
+      'eduCurriculum',
+    ]),
     group('assessment', [
       'assessOverview',
       'assessDaily',
-      'assessProfiles',
-      'assessPeriodic',
-      'assessSemester',
-      'assessThemes',
-      'assessYearEnd',
-      'assessQuality',
-      'assessClassRatings',
+      'assessWeeklyComments',
       'assessTickets',
+      'assessThemes',
+      'assessQuality',
+      'assessSemester',
+      'assessYearEnd',
       'assessRewards',
+      'assessClassRatings',
+      'assessProfiles',
     ]),
     account,
     link('notifications'),
   ],
   [ROLES.TEACHER]: [
     link('home'),
-    group('children', ['childList', 'healthChecks', 'healthFollowUps', 'healthTrends']),
+    group('children', ['childList', 'childNewYearClass', 'healthChecks', 'healthTrends']),
     group('attendance', ['attendance', 'attendanceSummary', 'leaveRequests', 'pickup']),
-    group('education', ['eduGoals', 'eduBranch', 'eduClass', 'eduCurriculum']),
+    group('education', ['eduSchoolYear', 'eduGoals', 'eduBranch', 'eduThemePlans', 'eduDayPlans', 'eduResources', 'eduCurriculum']),
     group('assessment', [
       'assessDaily',
-      'assessProfiles',
-      'assessPeriodic',
-      'assessSemester',
-      'assessThemes',
-      'assessYearEnd',
-      'assessQuality',
-      'assessClassRatings',
+      'assessWeeklyComments',
       'assessTickets',
+      'assessThemes',
+      'assessQuality',
+      'assessSemester',
+      'assessYearEnd',
       'assessRewards',
+      'assessClassRatings',
+      'assessProfiles',
     ]),
     account,
     link('notifications'),
@@ -595,10 +635,12 @@ const withVpAreas = (menu, user) => {
   const hiddenItems = Object.entries(AREA_ITEMS)
     .filter(([area]) => none(area))
     .flatMap(([, items]) => items);
-  // Mục tạo mới cần đúng quyền Thêm của mảng
+  // Mục tạo mới cần đúng quyền Thêm của mảng; người dùng BE theo mã quyền ở withBePermissions
   const kids = areaAccess(user, 'children').actions || {};
-  if (!kids.create) hiddenItems.push('childEnroll');
-  if (!kids.update) hiddenItems.push('childPlacement', 'parentActivation');
+  if (!Array.isArray(user.bePermissions)) {
+    if (!kids.create) hiddenItems.push('childEnroll');
+    if (!kids.update) hiddenItems.push('childPlacement', 'parentActivation');
+  }
   return menu
     .filter((e) => !hidden.includes(e.key))
     .map((e) =>
@@ -614,28 +656,61 @@ const withVpAreas = (menu, user) => {
 // Mục gắn với mã quyền BE thật: người dùng BE bị thu hồi quyền thì ẩn mục (BE vẫn chặn khi mở thẳng đường dẫn)
 const ITEM_BE_PERMISSIONS = {
   parentActivation: [PERMISSIONS.PARENT_ACCOUNT_MANAGE],
+  schoolPlacement: [PERMISSIONS.YEAR_PLACEMENT_MANAGE],
+  childEnroll: [PERMISSIONS.CHILD_ENROLL],
+  childPlacement: [PERMISSIONS.CHILD_PLACEMENT],
   schoolRoles: [PERMISSIONS.PERMISSION_MANAGE],
+  attendance: [PERMISSIONS.ATTENDANCE_RECORD, PERMISSIONS.DAILY_HEALTH_RECORD],
+  attendanceSummary: [PERMISSIONS.ATTENDANCE_VIEW],
+  attendanceDayUnlocks: [PERMISSIONS.ATTENDANCE_UNLOCK],
+  dailyHealthOverview: [PERMISSIONS.ATTENDANCE_VIEW],
+  leaveRequests: [PERMISSIONS.ATTENDANCE_VIEW],
+  pickup: [PERMISSIONS.PICKUP_RECORD],
+  assessDaily: [PERMISSIONS.ASSESSMENT_VIEW],
+  assessOverview: [PERMISSIONS.ASSESSMENT_VIEW],
+  assessQuality: [PERMISSIONS.ASSESSMENT_VIEW],
+  assessClassRatings: [PERMISSIONS.ASSESSMENT_VIEW],
+  assessThemes: [PERMISSIONS.ASSESSMENT_VIEW],
+  assessDayUnlocks: [PERMISSIONS.ASSESSMENT_UNLOCK],
+  assessProfiles: [PERMISSIONS.ASSESSMENT_VIEW],
+  assessProgress: [PERMISSIONS.ASSESSMENT_VIEW],
+  assessSemester: [PERMISSIONS.ASSESSMENT_VIEW],
+  assessYearEnd: [PERMISSIONS.ASSESSMENT_VIEW],
+  assessTickets: [PERMISSIONS.ASSESSMENT_VIEW],
+  assessWeeklyComments: [PERMISSIONS.ASSESSMENT_VIEW],
+  assessRewards: [PERMISSIONS.ASSESSMENT_VIEW],
 };
+// Riêng PHT (NUT-02, AUTH-20): sổ suất ăn hiện khi có quyền xem điểm danh (chỉ xem) hoặc xác nhận số suất, như BE
+const VP_ITEM_BE_PERMISSIONS = {
+  mealCount: [PERMISSIONS.ATTENDANCE_VIEW, PERMISSIONS.MEAL_COUNT_CONFIRM],
+};
+const itemBePermissions = (key, user) =>
+  ITEM_BE_PERMISSIONS[key] || (user.role === ROLES.VICE_PRINCIPAL ? VP_ITEM_BE_PERMISSIONS[key] : undefined);
 const withBePermissions = (menu, user) =>
-  menu
-    .map((e) =>
-      e.children
-        ? {
-            ...e,
-            children: e.children.filter((c) => !ITEM_BE_PERMISSIONS[c.key] || hasBePermission(user, ...ITEM_BE_PERMISSIONS[c.key])),
-          }
-        : e,
-    )
-    .filter((e) => !e.children || e.children.length > 0);
+  !Array.isArray(user?.bePermissions)
+    ? menu
+    : menu
+        .map((e) =>
+          e.children
+            ? {
+                ...e,
+                children: e.children.filter(
+                  (c) => !itemBePermissions(c.key, user) || hasBePermission(user, ...itemBePermissions(c.key, user)),
+                ),
+              }
+            : e,
+        )
+        .filter((e) => !e.children || e.children.length > 0);
 // Màn chỉ có khi nối BE (build mock không có route) ⇒ ẩn mục ở build demo
 // Không import demoSource ở đây: nó kéo mockDatabase (cần window) vào menu
 const KITCHEN_RECORDS_API = !USE_MOCK && INTEGRATION_MODULES['kitchen-records']?.source === 'api';
-const API_ONLY_ITEMS = !KITCHEN_RECORDS_API ? ['mealPhotos', 'photoWindows'] : [];
+const MEAL_PLAN_API = !USE_MOCK && INTEGRATION_MODULES['meal-plan']?.source === 'api';
+const API_ONLY_ITEMS = [...(!KITCHEN_RECORDS_API ? ['mealPhotos'] : []), ...(!MEAL_PLAN_API ? ['menuStatistics'] : [])];
 const withApiOnlyItems = (menu) =>
   API_ONLY_ITEMS.length
     ? menu.map((e) => (e.children ? { ...e, children: e.children.filter((c) => !API_ONLY_ITEMS.includes(c.key)) } : e))
     : menu;
-// hiddenItems: mục cần ẩn theo dữ liệu tải sau (vd. "Duyệt kế hoạch, giáo án" của Hiệu trưởng khi Hiệu trưởng không ký)
+// hiddenItems: mục cần ẩn theo dữ liệu tải sau (vd. "Duyệt kế hoạch giáo dục" của Hiệu trưởng khi Hiệu trưởng không ký)
 export const getMenuForRole = (role, user, hiddenItems = []) =>
   withApiOnlyItems(
     withBePermissions(withVpAreas(withTeacherAssignment(MENUS[role] || [link('home'), account, link('notifications')], user), user), user),

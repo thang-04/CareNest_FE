@@ -39,9 +39,33 @@ export const storageKeys = (page, part) => page.evaluate((p) => Object.keys(loca
 
 /** Bấm nút hành động duyệt (ReviewActions) rồi xác nhận trong hộp; note cho Trả lại. */
 export async function review(page, button, confirm, note) {
-  await page.getByRole('button', { name: button, exact: typeof button === 'string' }).first().click();
+  await clickAction(page, button);
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible();
   if (note !== undefined) await dialog.locator('#review-note').fill(note);
   await dialog.getByRole('button', { name: confirm, exact: true }).click();
+}
+
+/** Bấm thao tác: nút hiện sẵn, không có thì mở nút "Thao tác" rồi chọn mục (Tiền 14/11/2026 gom thao tác vào menu). */
+export async function clickAction(page, name, scope = page) {
+  const exact = typeof name === 'string';
+  const btn = scope.getByRole('button', { name, exact });
+  const menu = scope.getByRole('button', { name: 'Thao tác', exact: true });
+  // Chờ trang hiện nút đích hoặc nút "Thao tác" rồi mới chọn (đếm ngay lúc trang chưa tải xong sẽ sai)
+  await btn.or(menu).first().waitFor({ timeout: 30_000 });
+  if (await btn.count()) return btn.first().click();
+  await menu.first().click();
+  await page.getByRole('menuitem', { name, exact }).click();
+}
+
+/** Số thao tác tên `name` đang có (nút hiện sẵn hoặc mục trong nút "Thao tác"); đóng menu sau khi đếm. */
+export async function actionCount(page, name, scope = page) {
+  const exact = typeof name === 'string';
+  const shown = await scope.getByRole('button', { name, exact }).count();
+  const menu = scope.getByRole('button', { name: 'Thao tác', exact: true }).first();
+  if (shown || !(await menu.count())) return shown;
+  await menu.click();
+  const n = await page.getByRole('menuitem', { name, exact }).count();
+  await page.keyboard.press('Escape');
+  return n;
 }

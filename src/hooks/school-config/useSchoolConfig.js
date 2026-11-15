@@ -1,20 +1,23 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { useAsync } from '@/hooks/useAsync';
+import { ROLES } from '@/models/User';
 import {
-  searchStaffAccounts,
   getCampusDetail,
   getCampusesWithStats,
   getCutoffSetting,
+  getPlacements,
+  getPrepClasses,
   getRolePermissions,
   getSchoolYearById,
   getSchoolYears,
+  getStaffAccounts,
   getStructure,
   getTeacherAssignments,
   getTeamLeaders,
   getViceAssignments,
-  getStaffAccounts,
+  getVicePermissions,
   getYearReadiness,
-  getPlacements,
+  searchStaffAccounts,
 } from '@/services/school-config/schoolConfigService';
 import { getRooms } from '@/services/masterDataService';
 
@@ -33,6 +36,16 @@ export function useSchoolYearItem(id, { live = true } = {}) {
     enabled: !!id,
   });
   return { year: data, loading: !!id && loading, error, reload };
+}
+
+/** Lớp năm đang chuẩn bị (CFG-YR-05) của người xem kèm trẻ đã xếp; yearId trống ⇒ không gọi. */
+export function usePrepClasses(yearId) {
+  const { user } = useAuth();
+  const { data, loading, error, reload } = useAsync(() => getPrepClasses(yearId, user), [yearId, user?.id], {
+    refreshOnDataChange: true,
+    enabled: !!yearId,
+  });
+  return { prep: data, loading: !!yearId && loading, error, reload };
 }
 
 export function useSchoolStructure(schoolYear, campusId) {
@@ -67,6 +80,27 @@ export function useCampusDetail(id, schoolYear) {
     enabled: !!id,
   });
   return { detail: data, loading, error, reload };
+}
+
+/** Việc của mọi PHT đang phân công: { [userId]: items }. Thẻ từng người và bảng "Ai phụ trách gì" dùng chung. */
+export function useVicesPermissions(userIds) {
+  const { user } = useAuth();
+  const { data, loading, error, reload } = useAsync(
+    async () => {
+      // Một người lỗi (vd. BE không đọc được tài khoản Keycloak) không làm hỏng thẻ của người khác
+      const results = await Promise.allSettled(userIds.map((id) => getVicePermissions(id, user)));
+      const itemsByUser = {};
+      const errorsByUser = {};
+      results.forEach((result, index) => {
+        if (result.status === 'fulfilled') itemsByUser[userIds[index]] = result.value.items;
+        else errorsByUser[userIds[index]] = result.reason;
+      });
+      return { itemsByUser, errorsByUser };
+    },
+    [userIds.join(','), user?.id],
+    { refreshOnDataChange: true, enabled: userIds.length > 0 },
+  );
+  return { itemsByUser: data?.itemsByUser || {}, errorsByUser: data?.errorsByUser || {}, loading, error, reload };
 }
 
 export function useViceAssignments(schoolYear) {
@@ -141,6 +175,21 @@ export function usePlacements(yearId, { live = true } = {}) {
 }
 
 /** Tài khoản nhân sự trên BE: 1 trang 10 dòng theo bộ lọc (page bắt đầu từ 1). */
+/** Thẻ tổng quan tài khoản nhân sự: lấy `totalElements` BE trả theo từng bộ lọc (size 1), không tự đếm ở client. */
+export function useStaffAccountStats() {
+  const { user } = useAuth();
+  return useAsync(async () => {
+    const count = (filters) => searchStaffAccounts({ ...filters, page: 0, size: 1 }).then((res) => res?.totalElements || 0);
+    const [total, teachers, kitchen, inactive] = await Promise.all([
+      count({}),
+      count({ role: ROLES.TEACHER }),
+      count({ role: ROLES.KITCHEN_STAFF }),
+      count({ status: 'INACTIVE' }),
+    ]);
+    return { total, teachers, kitchen, inactive };
+  }, [user?.id]);
+}
+
 export function useStaffAccountPage(filters, page) {
   const { user } = useAuth();
   const { data, loading, error, reload } = useAsync(

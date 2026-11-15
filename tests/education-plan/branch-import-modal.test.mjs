@@ -9,8 +9,8 @@ const source = await readFile(new URL('../../src/components/education-plan/Impor
 const stubs = `import React from 'react';
 import {PLAN_IMPORT_ACCEPT as ACCEPT,validatePlanImportFile} from '${new URL('../../src/utils/education-plan/planImportFile.js', import.meta.url).href}';
 const useRef = () => ({current:null}), useState = value => [value?.status ? (globalThis.branchModalTestState || value) : value, () => {}];
-const Upload=()=>null, Download=()=>null, LoadingState=()=>null, ConfirmationModal=()=>null;
-const Modal=({children,footer,width})=>React.createElement('section',{'data-width':width},children,footer);
+const ConfirmationModal=()=>null;
+const ImportDialog=({children,options,onFile})=>React.createElement('section',{},options,React.createElement('input',{type:'file',onChange:(e)=>onFile(e.target.files?.[0])}),children);
 const Notice=({children})=>React.createElement('aside',{},children);
 export const reads=[];
 const USE_MOCK=false, previewBranchFile=async file=>{reads.push(file);return {matches:[],warnings:[]};}, branchFileChanges=(_draft,preview)=>preview.matches;
@@ -25,26 +25,16 @@ const module = await import(
   `data:text/javascript;base64,${Buffer.from(code.replace('from "react"', `from ${JSON.stringify(import.meta.resolve('react'))}`)).toString('base64')}`
 );
 const props = { classId: '1', yearPlanId: '2', templateArgs: { cls: { name: 'Mẫu' } }, draft: { names: {} }, onImport: () => true };
-const buttons = (element) => {
-  if (!React.isValidElement(element)) return [];
-  return [
-    ...(element.type === 'button' ? [element] : []),
-    ...React.Children.toArray(element.props.children).flatMap(buttons),
-    ...React.Children.toArray(element.props.footer).flatMap(buttons),
-  ];
-};
+const expand = (dialog) => dialog.type(dialog.props);
 
-test('modal giống mục tiêu: width720, chọn file và tải mẫu cùng hàng, nút tải dùng dữ liệu tuần', () => {
+test('dùng hộp nhập chung như mục tiêu: tệp mẫu theo dữ liệu tuần, tự kiểm dung lượng 2 MB', () => {
   const element = module.ImportBranchFileModal(props);
-  assert.equal(element.props.width, 720);
-  const download = buttons(element).find((button) => React.Children.toArray(button.props.children).join('').includes('Tải file mẫu'));
-  assert.ok(download);
-  assert.equal(download.props.className, 'btn btn--ghost');
-  download.props.onClick();
+  assert.equal(element.props.title, 'Nhập file chủ đề nhánh');
+  assert.equal(element.props.maxSize, null);
+  assert.match(element.props.hint, /tối đa 2 MB/);
+  assert.equal(element.props.confirmDisabled, true);
+  element.props.onTemplate();
   assert.deepEqual(module.downloads.at(-1), { html: 'template-Mẫu', name: 'Mẫu nhập chủ đề nhánh' });
-  const html = renderToStaticMarkup(element);
-  assert.match(html, /class="row row--wrap gap-2"/);
-  assert.match(html, /Chọn file/);
 });
 
 test('modal rút gọn cảnh báo còn8 dòng và báo số còn lại như mục tiêu', () => {
@@ -74,9 +64,9 @@ test('nhập nhánh chặn file sai trước API và chấp nhận file hợp l�
     { name: 'plan.docx', size: 0 },
     { name: 'plan.docx', size: 2097153 },
   ]) {
-    await findInput(module.ImportBranchFileModal(props)).props.onChange({ target: { files: [file] } });
+    await findInput(expand(module.ImportBranchFileModal(props))).props.onChange({ target: { files: [file] } });
   }
   assert.equal(module.reads.length, before);
-  await findInput(module.ImportBranchFileModal(props)).props.onChange({ target: { files: [{ name: 'plan.DOCX', size: 2097152 }] } });
+  await findInput(expand(module.ImportBranchFileModal(props))).props.onChange({ target: { files: [{ name: 'plan.DOCX', size: 2097152 }] } });
   assert.equal(module.reads.length, before + 1);
 });

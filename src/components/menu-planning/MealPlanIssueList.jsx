@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { groupIssuesByDate } from '@/utils/menu-planning/mealPlanGrid';
 
@@ -17,6 +18,12 @@ export function MealPlanIssueList({ issues }) {
                 <li key={`${issue.code}-${issue.ageGroupId}-${issue.dishId}-${i}`} className="td-issue">
                   <StatusBadge tone={tone} label={label} />
                   <span className="td-issue__text">{issue.message}</span>
+                  {/* Kho khô sắp thiếu (NUT-11): lượng cần nhập thêm nằm ở bản dự trù */}
+                  {issue.code === 'DRY_STOCK_SHORT' && (
+                    <Link className="link-btn nowrap" to="/kitchen/forecast">
+                      Xem bản dự trù
+                    </Link>
+                  )}
                 </li>
               );
             })}

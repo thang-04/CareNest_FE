@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAsync } from './useAsync';
+import { usePolling } from './usePolling';
 import { getNotifications, markAllNotificationsRead, markNotificationRead } from '@/services/notificationService';
 
 export function useNotifications() {
@@ -9,6 +10,9 @@ export function useNotifications() {
     refreshOnDataChange: true,
     enabled: !!user,
   });
+
+  // Spec 003 FR-012: chuông tự cập nhật ≤30 giây khi có gói/hồ sơ gửi tới
+  usePolling(() => reload({ silent: true }), { enabled: !!user });
 
   const markRead = useCallback(
     async (id) => {

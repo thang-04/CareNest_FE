@@ -42,10 +42,10 @@ export function useAssessmentClasses() {
  * Lớp của đánh giá hằng ngày / mở lại ngày đánh giá theo năm học ở header. BE trả lớp trong phạm vi kèm cờ teaches /
  * canUnlock; mock dùng phân công lớp. Giáo viên chỉ thấy lớp mình dạy, PHT / Hiệu trưởng thấy lớp trong phạm vi.
  */
-export function useDailyAssessmentClasses() {
+export function useDailyAssessmentClasses({ enabled = true } = {}) {
   const { user } = useAuth();
   const { schoolYear } = useSchoolYear();
-  const { data, loading, error, reload } = useAsync(() => getDailyAssessmentClasses(schoolYear, user), [schoolYear, user?.id]);
+  const { data, loading, error, reload } = useAsync(() => getDailyAssessmentClasses(schoolYear, user), [schoolYear, user?.id], { enabled });
   const classes = useMemo(
     () => (isLeader(user) ? data || [] : (data || []).filter((c) => c.teaches ?? isClassTeacher(c, user))),
     [data, user],
@@ -191,10 +191,14 @@ export function useThemeList(classId) {
 
 export function useThemeEvaluation(classId, themeId) {
   const { user } = useAuth();
-  const { data, loading, error, reload } = useAsync(() => getThemeEvaluation({ classId, themeId }, user), [classId, themeId, user?.id], {
-    enabled: !!classId && !!themeId,
-  });
-  return { evaluation: data, loading, error, reload };
+  const { data, loading, error, reload, setData } = useAsync(
+    () => getThemeEvaluation({ classId, themeId }, user),
+    [classId, themeId, user?.id],
+    {
+      enabled: !!classId && !!themeId,
+    },
+  );
+  return { evaluation: data, loading, error, reload, setEvaluation: setData };
 }
 
 /** Phiếu đánh giá sự phát triển cuối năm của một đánh giá cuối năm. */

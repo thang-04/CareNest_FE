@@ -128,7 +128,7 @@ test('AC-3 (Y-3): chỉ tiếp nhận, xếp lớp vào lớp của năm học �
   assert.equal(placed.status, 'ACTIVE');
 });
 
-test('AC-4 (Y-4): đợt khám theo năm của ngày bắt đầu; phiếu theo dõi đang mở luôn hiện, phiếu đã đóng theo năm', async () => {
+test('AC-4 (Y-4): đợt khám theo năm của ngày bắt đầu (phiếu theo dõi đã bỏ cùng HLT-16, 2026-11-04)', async () => {
   const all = await healthChecks.listHealthChecks({}, principal);
   const now = await healthChecks.listHealthChecks({ schoolYear: ACTIVE }, principal);
   const old = await healthChecks.listHealthChecks({ schoolYear: CLOSED }, principal);
@@ -136,21 +136,7 @@ test('AC-4 (Y-4): đợt khám theo năm của ngày bắt đầu; phiếu theo 
   assert.ok(now.every((c) => c.startDate >= '2026-09-05'));
   assert.ok(old.every((c) => c.startDate >= '2025-09-05' && c.startDate < '2026-09-05'));
   assert.equal(now.length + old.length, all.filter((c) => c.startDate >= '2025-09-05').length);
-
-  const db = readDb();
-  const raw = new Map(db.healthFollowUps.map((f) => [f.id, f]));
-  for (const year of [ACTIVE, CLOSED]) {
-    const { items } = await healthChecks.listHealthFollowUps({ schoolYear: year }, principal);
-    const openIds = db.healthFollowUps.filter((f) => !f.closedAt).map((f) => f.id);
-    assert.ok(
-      openIds.every((id) => items.some((f) => f.id === id)),
-      `${year}: đủ phiếu đang mở`,
-    );
-    assert.ok(
-      items.every((f) => !raw.get(f.id).closedAt || overlapsSchoolYear(db, year, raw.get(f.id).openedAt, raw.get(f.id).closedAt)),
-      `${year}: phiếu đã đóng thuộc năm`,
-    );
-  }
+  assert.equal(healthChecks.listHealthFollowUps, undefined, 'không còn API phiếu theo dõi');
 });
 
 test('AC-1 (Y-1): đón trẻ chỉ lớp năm đang hoạt động; ngày trong năm đang hoạt động, không ở tương lai', async () => {

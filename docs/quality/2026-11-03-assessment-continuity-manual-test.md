@@ -19,25 +19,25 @@ Script chỉ thêm một trẻ `TEST Lịch sử ...`; không sửa trẻ có s�
 
 ## 2. GV-A: lớp cũ
 
-| Màn / thao tác | Kết quả mong đợi |
-| --- | --- |
-| Điểm danh → Tổng hợp lớp A, lọc 26–30/10 | Trẻ TEST vẫn có trong tổng hợp; 3 ngày có mặt tại A, không tính 29/30 là thiếu điểm danh ở A |
-| Đánh giá trẻ → Đánh giá tháng, lớp A, tháng 10 | Có nhận xét đã xác nhận của trẻ; nguồn ngày/cờ riêng A, không lấy 2 ngày hoặc cờ của B |
+| Màn / thao tác                                      | Kết quả mong đợi                                                                                                                |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Điểm danh → Tổng hợp lớp A, lọc 26–30/10            | Trẻ TEST vẫn có trong tổng hợp; 3 ngày có mặt tại A, không tính 29/30 là thiếu điểm danh ở A                                    |
+| Đánh giá trẻ → Đánh giá tháng, lớp A, tháng 10      | Có nhận xét đã xác nhận của trẻ; nguồn ngày/cờ riêng A, không lấy 2 ngày hoặc cờ của B                                          |
 | Phiếu bé ngoan → phát phiếu → lớp A → tuần 26–30/10 | Vẫn thấy trẻ trong lịch sử; căn cứ tuần có mặt 5, cờ 3; ô chọn bị khóa vì trẻ không thuộc A cuối kỳ, hiển thị “Chỉ xem lịch sử” |
-| Tổng hợp phiếu lớp A, tháng 10 | Cờ lớp A là 2; phiếu do B phát không cộng thành phiếu A |
+| Tổng hợp phiếu lớp A, tháng 10                      | Cờ lớp A là 2; phiếu do B phát không cộng thành phiếu A                                                                         |
 
 ## 3. GV-B: cô đang nhận trẻ
 
-| Màn / thao tác | Kết quả mong đợi |
-| --- | --- |
-| Hồ sơ phát triển `/assessment/children` → trẻ TEST → lọc 01–31/10 | Thấy cả dữ liệu A và B; 5 ngày có mặt, 3 cờ từ fixture |
-| Bảng đánh giá ngày trong hồ sơ | Dòng 26–28/10 ghi lớp A, 29–30/10 ghi lớp B; nhận xét cũ không thay đổi; ngày A không có link mở nhầm vào bảng đánh giá của B |
-| Mở nhận xét tháng cũ của A từ hồ sơ, hoặc `/assessment/periodic/<old_confirmed_evaluation_id>` | Mở được, đúng nội dung A; hiện chỉ xem; không có ô sửa/lưu/xác nhận/tạo lại bản nháp riêng của A |
-| Thử sửa qua API cũ bằng phiên GV-B (người test API) | Server từ chối; không chỉ ẩn nút trên FE. Nội dung A và lịch sử không đổi |
-| Phiếu bé ngoan → lớp B → tuần 26–30/10 | Thấy đủ 5 ngày, 3 cờ, bao gồm A. Có thể chọn trẻ chưa nhận phiếu; không phải tự nhập lại cờ A |
-| Chọn trẻ → phát phiếu → tải lại trang | Có đúng một phiếu; checkbox bị khóa, trạng thái đã phát; phát lần nữa bị server chặn |
-| Quay lại bảng phiếu A, cùng tuần | Phiếu vẫn được nhìn thấy với nhãn “Đã phát tại lớp khác”, không cho phát thêm; tổng hợp A không nhận phiếu của B |
-| Tổng hợp phiếu B, tháng 10 | Cờ riêng B là 1, phiếu B vừa phát là 1 |
+| Màn / thao tác                                                                                 | Kết quả mong đợi                                                                                                              |
+| ---------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Hồ sơ phát triển `/assessment/children` → trẻ TEST → lọc 01–31/10                              | Thấy cả dữ liệu A và B; 5 ngày có mặt, 3 cờ từ fixture                                                                        |
+| Bảng đánh giá ngày trong hồ sơ                                                                 | Dòng 26–28/10 ghi lớp A, 29–30/10 ghi lớp B; nhận xét cũ không thay đổi; ngày A không có link mở nhầm vào bảng đánh giá của B |
+| Mở nhận xét tháng cũ của A từ hồ sơ, hoặc `/assessment/periodic/<old_confirmed_evaluation_id>` | Mở được, đúng nội dung A; hiện chỉ xem; không có ô sửa/lưu/xác nhận/tạo lại bản nháp riêng của A                              |
+| Thử sửa qua API cũ bằng phiên GV-B (người test API)                                            | Server từ chối; không chỉ ẩn nút trên FE. Nội dung A và lịch sử không đổi                                                     |
+| Phiếu bé ngoan → lớp B → tuần 26–30/10                                                         | Thấy đủ 5 ngày, 3 cờ, bao gồm A. Có thể chọn trẻ chưa nhận phiếu; không phải tự nhập lại cờ A                                 |
+| Chọn trẻ → phát phiếu → tải lại trang                                                          | Có đúng một phiếu; checkbox bị khóa, trạng thái đã phát; phát lần nữa bị server chặn                                          |
+| Quay lại bảng phiếu A, cùng tuần                                                               | Phiếu vẫn được nhìn thấy với nhãn “Đã phát tại lớp khác”, không cho phát thêm; tổng hợp A không nhận phiếu của B              |
+| Tổng hợp phiếu B, tháng 10                                                                     | Cờ riêng B là 1, phiếu B vừa phát là 1                                                                                        |
 
 Kiểm tra thêm quyền bằng tài khoản GV không liên quan: mở URL nhận xét cũ phải bị từ chối. Nếu kết thúc phân công GV-B bằng luồng phân công hợp lệ, phiên GV-B cũng không còn được mở lịch sử theo quyền nhận trẻ; HT vẫn xem theo quyền của HT. Không thử bằng tài khoản đồng thời mang vai trò HT/PHT.
 
@@ -75,4 +75,3 @@ Test tự động `AssessmentContinuityIntegrationTest` bao phủ thêm: cô nh�
 - Chrome đã kiểm actual DailyDaysTable: lớp nguồn, mục tiêu cũ và link đúng lớp; không lỗi trang. Đây không phải test trình duyệt đầy đủ qua API thật cho cả ba vai trò.
 - Fixture SQL đã được chạy bằng psql trong PostgreSQL Testcontainers; dữ liệu sau commit đọc lại được từ kết nối JDBC khác. Cặp lớp sai bị chặn, không thêm trẻ.
 - Hướng dẫn trên là các bước test tay để người dùng tiếp tục kiểm tra trên môi trường của mình; không tuyên bố mọi bước đã được thao tác thủ công trong lượt này.
-

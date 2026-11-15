@@ -9,8 +9,13 @@ test('toast luôn ghi rõ trạng thái theo loại', () => {
   assert.equal(toastStatusText('info'), 'Thông báo');
 });
 
-test('toast lỗi có mã thì ghi kèm mã; mã 0 là mất kết nối', () => {
+test('lỗi 400, 404, 409, 422 không ghi mã kỹ thuật', () => {
+  [400, 404, 409, 422].forEach((code) => assert.equal(toastStatusText('error', code), 'Thất bại'));
+});
+
+test('toast lỗi quyền, máy chủ có mã thì ghi kèm mã; mã 0 là mất kết nối', () => {
   assert.equal(toastStatusText('error', 403), 'Thất bại · Mã 403');
+  assert.equal(toastStatusText('error', 500), 'Thất bại · Mã 500');
   assert.equal(toastStatusText('error', 0), 'Thất bại · Mất kết nối');
   assert.equal(toastStatusText('success', 200), 'Thành công');
 });

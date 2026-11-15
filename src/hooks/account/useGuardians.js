@@ -1,6 +1,13 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { useGuardianQuery } from '@/hooks/account/useGuardianQuery';
-import { listAllChildrenForGuardians, listGuardians, listPendingGuardians, getGuardianStructure } from '@/services/account/guardianService';
+import { sameId } from '@/services/http/idStrings';
+import {
+  getAccountCandidates,
+  listAllChildrenForGuardians,
+  listGuardians,
+  listPendingGuardians,
+  getGuardianStructure,
+} from '@/services/account/guardianService';
 export function useChildGuardians(id) {
   const { user } = useAuth();
   return useGuardianQuery(() => listGuardians(id, user), [id], { enabled: !!id && !!user });
@@ -23,7 +30,13 @@ export function useGuardianStructure() {
     ...query,
     campuses,
     classrooms,
-    campusName: (id) => campuses.find((row) => row.id === id)?.name || '',
-    classroomName: (id) => classrooms.find((row) => row.id === id)?.name || '',
+    // id từ module trẻ là chuỗi, từ /campuses, /school-structure là số
+    campusName: (id) => campuses.find((row) => sameId(row.id, id))?.name || '',
+    classroomName: (id) => classrooms.find((row) => sameId(row.id, id))?.name || '',
   };
+}
+
+export function useAccountCandidates(id) {
+  const { user } = useAuth();
+  return useGuardianQuery(() => getAccountCandidates(id, user), [id], { enabled: !!id && !!user });
 }

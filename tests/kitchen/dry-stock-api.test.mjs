@@ -227,3 +227,24 @@ test('module dry-stock khai source api với bốn route kho và file adapter', 
   assert.deepEqual(mod.routes, ['/kitchen/dry-stock', '/kitchen/stock-receipts', '/kitchen/stock-history', '/kitchen/stock-shortfalls']);
   assert.deepEqual(mod.files, ['src/services/dryStockApi.js']);
 });
+
+test('biến động kho đọc theo đơn vị gốc, ngày gom theo ngày ăn hoặc ngày ghi', async () => {
+  const { formatStockChange } = await import('../../src/utils/kitchen/stockUnits.js');
+  const { groupMovementsByDay } = await import('../../src/utils/kitchen/stockLots.js');
+  assert.equal(formatStockChange(-502, { unit: 'g' }), '−502 g');
+  assert.equal(formatStockChange(-5289, { unit: 'g' }), '−5,29 kg');
+  assert.equal(formatStockChange(1500, { unit: 'ml' }), '+1,5 lít');
+  assert.equal(formatStockChange(-500, { purchaseUnit: 'chai', purchaseUnitSize: 500 }), '−1 chai');
+  const groups = groupMovementsByDay([
+    { id: 1, mealDate: '2026-10-30' },
+    { id: 2, mealDate: '2026-10-30' },
+    { id: 3, createdAt: '2026-10-26T03:00:00Z' },
+  ]);
+  assert.deepEqual(
+    groups.map((g) => [g.label, g.items.length]),
+    [
+      ['Ngày ăn 30/10/2026', 2],
+      ['Ngày ghi 26/10/2026', 1],
+    ],
+  );
+});

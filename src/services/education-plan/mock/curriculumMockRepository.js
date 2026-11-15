@@ -11,6 +11,18 @@ const requireAge = (code) => {
   if (!AGE_GROUPS.has(code)) throw eduError('REQUIRED_FIELD_MISSING', 'nhóm tuổi');
 };
 
+// EDU-61: danh tính chỉ thuộc nguồn mock, ổn định qua reload và không đổi mã mục tiêu seed.
+const withParents = (row) => {
+  const domain = [row.ageGroup, row.sourceId, row.domainName];
+  const sub = [...domain, row.subDomain || null];
+  return {
+    ...row,
+    domainId: `mock-domain:${JSON.stringify(domain)}`,
+    subDomainId: row.subDomain ? `mock-sub:${JSON.stringify(sub)}` : null,
+    ...(row.goalText != null ? { expectedResultId: `mock-result:${JSON.stringify([...sub, row.groupNo, row.groupText])}` } : {}),
+  };
+};
+
 export const curriculumMockRepository = {
   async getCurriculumSources() {
     await delay();
@@ -19,11 +31,11 @@ export const curriculumMockRepository = {
   async getCurriculumGoals(ageGroupCode) {
     await delay();
     requireAge(ageGroupCode);
-    return seed.goals.filter((g) => g.ageGroup === ageGroupCode).map((g) => ({ ...g, contents: [...g.contents] }));
+    return seed.goals.filter((g) => g.ageGroup === ageGroupCode).map((g) => ({ ...withParents(g), contents: [...g.contents] }));
   },
   async getCurriculumContents(ageGroupCode) {
     await delay();
     requireAge(ageGroupCode);
-    return seed.contents.filter((c) => c.ageGroup === ageGroupCode).map((c) => ({ ...c }));
+    return seed.contents.filter((c) => c.ageGroup === ageGroupCode).map(withParents);
   },
 };

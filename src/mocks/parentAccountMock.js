@@ -1,3 +1,4 @@
+import { selectedRecipients } from '@/utils/children/accountRecipient';
 import { ApiError } from '@/mocks/mockDatabase';
 import { issuePassword } from '@/mocks/authMockRepository';
 import { identityConflict } from '@/mocks/guardianIdentity';
@@ -66,7 +67,7 @@ export const guardianForm = (g) => ({
 });
 
 export const pendingGuardiansOf = (db, child) =>
-  (child.guardians || []).filter((g) => {
+  selectedRecipients(child.guardians).filter((g) => {
     const account = parentAccountOf(db, g);
     return !account || !(account.childIds || []).includes(child.id);
   });
