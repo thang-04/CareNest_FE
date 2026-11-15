@@ -1,4 +1,5 @@
 import { AtSign, Building, Mail, Phone, School, Utensils } from '@/components/ui/icons';
+import { AccountPhotoActions } from '@/components/account/AccountPhotoActions';
 import { Avatar } from '@/components/ui/Avatar';
 import { useAuth } from '@/contexts/AuthContext';
 import { ROLES, ROLE_LABELS } from '@/models/User';
@@ -16,6 +17,7 @@ export function AccountSideCard({ profile, children }) {
     <aside className="card ac-side">
       <div className="ac-side__top">
         <Avatar user={profile} size="2xl" />
+        <AccountPhotoActions user={profile} />
         <div className="ac-side__name">{profile.fullName}</div>
         <div className="ac-side__tags">
           <span className="chip chip--teal">

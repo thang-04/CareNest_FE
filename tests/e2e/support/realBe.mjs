@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { request } from '@playwright/test';
 
-// Môi trường dev của CareNest_BE (docs/system/KEYCLOAK.md): user <tên>@gmail.com, mật khẩu chung của realm dev
+// Bộ dữ liệu dev của CareNest_BE (BE docs/TAI_KHOAN_DEV.md, sinh bởi scripts/dev/gen-dev-dataset.mjs): nhân sự đăng nhập bằng email/SĐT, mật khẩu chung của realm dev
 export const BE_URL = process.env.E2E_BE_URL || 'http://localhost:8080/api';
 const KC_TOKEN_URL = process.env.E2E_KC_TOKEN_URL || 'http://localhost:8180/realms/carenest/protocol/openid-connect/token';
 // Mật khẩu chung của realm dev chỉ lấy từ môi trường, không ghi trong repo
@@ -16,18 +16,18 @@ const PG_DB = process.env.E2E_PG_DB || 'carenest';
 const PG_USER = process.env.E2E_PG_USER || 'postgres';
 
 export const USERS = {
-  vp: 'viceprincipal@gmail.com',
-  principal: 'principal@gmail.com',
-  teacher1: 'teacher1@gmail.com',
-  teacher2: 'teacher2@gmail.com',
+  vp: 'tam.lethi@thuonghong.carenest.edu.vn',
+  principal: 'tuyet.hoangminh@thuonghong.carenest.edu.vn',
+  teacher1: 'lan.nguyenkim@thuonghong.carenest.edu.vn',
+  teacher2: 'thanh.phamthi@thuonghong.carenest.edu.vn',
 };
 
-// Dữ liệu riêng của bộ test: năm học 2027-2028, nhóm Mẫu giáo nhỡ (ag-4), lớp B1 của năm đó (teacher2 dạy)
+// Dữ liệu riêng của bộ test: năm học 2027-2028 (đang chuẩn bị), nhóm Mẫu giáo nhỡ (ag-4), Lớp Chồi 1 của năm đó (teacher1 chủ nhiệm, teacher2 dạy cùng)
 export const E2E = {
   titlePrefix: '[E2E]',
   schoolYear: '2027-2028',
   ageGroupCode: 'ag-4',
-  classroomName: 'Lớp B1',
+  classroomName: 'Lớp Chồi 1',
   weekStart: '2027-09-06',
   // Phân công tạm do bộ test thêm; valid_from đặc biệt để nhận diện và xóa đúng các dòng này
   markerDate: '2026-01-01',
@@ -97,7 +97,7 @@ export async function beReachable() {
   }
 }
 
-const userId = (username) => sql(`select id from user_accounts where username = '${username}'`);
+const userId = (key) => sql(`select id from user_accounts where email = '${USERS[key]}'`);
 export const ids = () => {
   const year = sql(`select id from school_years where name = '${E2E.schoolYear}'`);
   const ageGroup = sql(`select id from age_groups where code = '${E2E.ageGroupCode}'`);

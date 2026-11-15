@@ -31,6 +31,7 @@ const ddmm = (iso) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
  * `onEdit(fn)` nhận hàm biến đổi bản nháp; `editable` false ⇒ chỉ xem (đã công bố hoặc không có quyền sửa).
  * `templates` + `onPickTemplate(day, template)`: ô chọn mẫu ngày ở đầu mỗi cột (NUT-13).
  * `dayActions(day, index)`: mục menu "…" đầu cột ngày (Sửa ngày, Chép sang ngày…, Mở ở Cân đối khẩu phần) theo dạng `RowMenu`.
+ * `holidays`: { [date]: tên đợt nghỉ năm học } — ngày đó hiện nhãn ngày lễ và khóa ô "Nghỉ" (trang đã tự đánh dấu nghỉ).
  */
 export function MealPlanGrid({
   draft,
@@ -48,6 +49,7 @@ export function MealPlanGrid({
   onPickTemplate,
   kcalAgeGroup,
   dayActions,
+  holidays = {},
 }) {
   const dishById = useMemo(() => Object.fromEntries(dishes.map((dish) => [String(dish.id), dish])), [dishes]);
   // Món đang xem thông tin: { id, name }
@@ -184,6 +186,11 @@ export function MealPlanGrid({
                       </b>
                       {!day.off && dayActions && <RowMenu label={`Thao tác ${WEEKDAY_LABELS[i]}`} items={dayActions(day, i)} />}
                     </div>
+                    {holidays[day.date] && (
+                      <span title={`Ngày nghỉ của năm học: ${holidays[day.date]}`}>
+                        <StatusBadge tone="gray" label={`Nghỉ lễ · ${holidays[day.date]}`} />
+                      </span>
+                    )}
                     {day.off &&
                       (editable ? (
                         <input
@@ -243,11 +250,14 @@ export function MealPlanGrid({
                         </Link>
                       )}
                       {editable && allowOff && (
-                        <label className="checkbox text-xs">
+                        <label
+                          className="checkbox text-xs"
+                          title={holidays[day.date] ? `Ngày nghỉ của năm học (${holidays[day.date]}), không bỏ nghỉ được` : undefined}
+                        >
                           <input
                             type="checkbox"
                             checked={day.off}
-                            disabled={busy}
+                            disabled={busy || !!holidays[day.date]}
                             onChange={(e) => onEdit((d) => setDayOff(d, day.date, e.target.checked))}
                           />{' '}
                           Nghỉ

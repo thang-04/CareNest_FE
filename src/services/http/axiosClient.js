@@ -20,6 +20,8 @@ axiosClient.interceptors.request.use(async (config) => {
   if (token) config.headers.Authorization = `Bearer ${token}`;
   else delete config.headers.Authorization;
   config.authGeneration ??= tokenStorage.getGeneration();
+  // Header mặc định JSON khiến axios đổi FormData thành chuỗi JSON (BE trả 415) ⇒ để trình duyệt tự đặt multipart + boundary
+  if (config.data instanceof FormData) config.headers.delete('Content-Type');
   return config;
 });
 

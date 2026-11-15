@@ -6,7 +6,7 @@ import { login, spaGo } from '../support/ui.mjs';
 // (chọn nhiều dòng, một lý do + hạn mới); bản đã ban hành không mở lại; lọc Nhóm tuổi → Lớp; hàng chờ duyệt có cột Hạn.
 test.describe.configure({ mode: 'serial' });
 
-const U = { ht: 'principal@gmail.com', vp: 'viceprincipal@gmail.com', tl: 'teamlead34@gmail.com' };
+const U = { ht: 'tuyet.hoangminh@thuonghong.carenest.edu.vn', vp: 'tam.lethi@thuonghong.carenest.edu.vn', tl: 'lan.nguyenkim@thuonghong.carenest.edu.vn' };
 const DOCS = '/education-plans/class-docs';
 const run = Date.now() % 100000;
 const isoPlus = (days) => {

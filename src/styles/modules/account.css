@@ -99,6 +99,12 @@
   justify-content: center;
   gap: var(--space-2);
 }
+.ac-photo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
+}
 .ac-side__name {
   font-family: var(--font-display);
   font-size: var(--fs-h3);
