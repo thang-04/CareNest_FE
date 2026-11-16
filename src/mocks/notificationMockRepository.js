@@ -2,7 +2,7 @@ import { readDb, writeDb, clone, delay, needsMockSeedMigration } from './mockDat
 import { DEMO_NOTIFICATION_VERSION, buildDemoNotifications } from './notificationSeed';
 import { uid } from '@/utils/id';
 /** Server-side helper: called inside writeDb by other repositories. */
-export const pushNotification = (db, { userId, type, title, message, link }) => {
+export const pushNotification = (db, { userId, type, title, message, link, announcementId = null, childId = null }) => {
   if (!userId) return;
   db.notifications.unshift({
     id: uid('n'),
@@ -11,6 +11,8 @@ export const pushNotification = (db, { userId, type, title, message, link }) => 
     title,
     message,
     link,
+    announcementId,
+    childId,
     read: false,
     createdAt: new Date().toISOString(),
   });
@@ -33,6 +35,16 @@ const ensureDemoNotifications = () => {
   });
 };
 export const notificationMockRepository = {
+  async feed(userId) {
+    const items = await this.list(userId);
+    return { items, unreadCount: items.filter((item) => !item.read).length };
+  },
+  async detail(id, userId) {
+    ensureDemoNotifications();
+    const found = readDb().notifications.find((item) => String(item.id) === String(id) && item.userId === userId);
+    if (!found) throw Object.assign(new Error('Không tìm thấy thông báo'), { status: 404 });
+    return clone(found);
+  },
   async list(userId) {
     await delay(80);
     ensureDemoNotifications();

@@ -4,14 +4,18 @@ import { useNotifications } from '@/hooks/useNotifications';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
 import { formatDateTime } from '@/utils/format';
+import { notificationTarget } from '@/utils/notifications/notificationTarget.mjs';
 import '@/styles/modules/account.css';
 
 export default function NotificationsPage() {
   const navigate = useNavigate();
-  const { notifications, unreadCount, loading, error, reload, markAllRead } = useNotifications();
+  const { notifications, unreadCount, loading, error, reload, markRead, markAllRead } = useNotifications();
 
   // Screen 9: the detail page shows the content, marks it read and links to the related record.
-  const open = (n) => navigate(`/notifications/${n.id}`);
+  const open = async (n) => {
+    if (!n.read) await markRead(n.id);
+    navigate(notificationTarget(n));
+  };
 
   return (
     <div className="page">

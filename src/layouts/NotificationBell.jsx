@@ -4,6 +4,7 @@ import { useNotifications } from '@/hooks/useNotifications';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { timeAgo } from '@/utils/format';
 import { useGuardedNavigate } from '@/hooks/useLeaveGuard';
+import { notificationTarget } from '@/utils/notifications/notificationTarget.mjs';
 
 export function NotificationBell() {
   const [open, setOpen] = useState(false);
@@ -24,7 +25,7 @@ export function NotificationBell() {
   const openNotification = async (n) => {
     setOpen(false);
     if (!n.read) await markRead(n.id);
-    if (n.link) navigate(n.link);
+    navigate(notificationTarget(n));
   };
 
   return (
