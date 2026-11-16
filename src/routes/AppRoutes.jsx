@@ -26,6 +26,12 @@ const ProfilePage = lazyPage(() => import('@/pages/account/ProfilePage'));
 const ChangePasswordPage = lazyPage(() => import('@/pages/account/ChangePasswordPage'));
 const MySignaturesPage = lazyPage(() => import('@/pages/account/MySignaturesPage'));
 const NotificationDetailPage = lazyPage(() => import('@/pages/account/NotificationDetailPage'));
+const AnnouncementsPage = lazyPage(() => import('@/pages/announcement/AnnouncementsPage'));
+const AnnouncementDetailPage = lazyPage(() => import('@/pages/announcement/AnnouncementDetailPage'));
+const AnnouncementEditPage = lazyPage(() => import('@/pages/announcement/AnnouncementEditPage'));
+const AnnouncementTemplatesPage = lazyPage(() => import('@/pages/announcement/AnnouncementTemplatesPage'));
+const NotificationRulesPage = lazyPage(() => import('@/pages/announcement/NotificationRulesPage'));
+const AnnouncementSchedulesPage = lazyPage(() => import('@/pages/announcement/AnnouncementSchedulesPage'));
 const AppearancePage = lazyPage(() => import('@/pages/settings/AppearancePage'));
 
 /** Public page for signed-out users only (login, password recovery). */
@@ -580,6 +586,13 @@ export function AppRoutes() {
           <Route path="approvals" element={only([...LEADERS, R.TEAM_LEADER], <PendingApprovalsPage />)} />
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="notifications/:id" element={<NotificationDetailPage />} />
+          <Route path="announcements" element={only(LEADERS, <AnnouncementsPage />)} />
+          <Route path="announcements/new" element={only(LEADERS, <AnnouncementEditPage />)} />
+          <Route path="announcements/:id" element={only(LEADERS, <AnnouncementDetailPage />)} />
+          <Route path="announcements/:id/edit" element={only(LEADERS, <AnnouncementEditPage />)} />
+          <Route path="announcement-templates" element={only(LEADERS, <AnnouncementTemplatesPage />)} />
+          <Route path="notification-rules" element={only([R.PRINCIPAL], <NotificationRulesPage />)} />
+          <Route path="announcement-schedules" element={only([R.PRINCIPAL], <AnnouncementSchedulesPage />)} />
           <Route path="account/profile" element={<ProfilePage />} />
           <Route path="account/password" element={<ChangePasswordPage />} />
           <Route path="account/signatures" element={<MySignaturesPage />} />

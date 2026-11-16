@@ -13,7 +13,12 @@ export const INTEGRATION_MODULES = {
     source: 'api',
     routes: ['/account'],
     files: ['src/services/account/api/accountApi.js', 'src/services/account/api/accountPhotoApi.js', 'src/services/authService.js'],
-    pending: ['GET /notifications/{x}'],
+  },
+  announcements: {
+    source: 'api',
+    routes: ['/announcements', '/announcement-templates', '/notification-rules', '/announcement-schedules'],
+    files: ['src/services/announcement/api/announcementApi.js'],
+    facades: ['src/services/announcement/announcementService.js'],
   },
   permission: {
     source: 'api',
@@ -219,7 +224,7 @@ export const INTEGRATION_MODULES = {
     // Spec 003: thông báo kế hoạch giáo dục từ BE (GET /me/notifications)
     source: 'api',
     routes: ['/notifications'],
-    files: ['src/services/notificationService.js'],
+    files: ['src/services/notificationService.js', 'src/services/notificationApi.mjs'],
     facades: ['src/services/notificationService.js'],
   },
   // Chữ ký ảnh của tài khoản trên BE /signatures/me (SIG-01); biên bản kiểm thực ký bằng id chữ ký này
