@@ -164,17 +164,27 @@ export default function VerifyOtpPage() {
           />
         </FormField>
 
-        <button type="submit" className="btn btn--primary btn--lg btn--block" disabled={busy || expired}>
-          {busy ? <Spinner small /> : <ShieldCheck size={18} />} {busy ? 'Đang xác thực...' : 'Xác thực mã'}
-        </button>
+        {expired ? (
+          // Mã hết hạn: nút chính là gửi lại mã mới, không để người dùng đứng trước ô nhập bị khóa
+          <button type="button" className="btn btn--primary btn--lg btn--block" onClick={resend} disabled={resending || resendIn > 0}>
+            {resending ? <Spinner small /> : <RotateCw size={18} />}{' '}
+            {resending ? 'Đang gửi lại...' : resendIn > 0 ? `Gửi lại mã sau ${resendIn}s` : 'Gửi lại mã mới'}
+          </button>
+        ) : (
+          <button type="submit" className="btn btn--primary btn--lg btn--block" disabled={busy}>
+            {busy ? <Spinner small /> : <ShieldCheck size={18} />} {busy ? 'Đang xác thực...' : 'Xác thực mã'}
+          </button>
+        )}
 
         <div className="auth-form__row">
           <Link to="/login" className="ac-back-link">
             <ArrowLeft size={16} /> Hủy
           </Link>
-          <button type="button" className="link-btn" onClick={resend} disabled={resending || resendIn > 0}>
-            {resending ? 'Đang gửi lại...' : resendIn > 0 ? `Gửi lại mã sau ${resendIn}s` : 'Gửi lại mã'}
-          </button>
+          {!expired && (
+            <button type="button" className="link-btn" onClick={resend} disabled={resending || resendIn > 0}>
+              {resending ? 'Đang gửi lại...' : resendIn > 0 ? `Gửi lại mã sau ${resendIn}s` : 'Gửi lại mã'}
+            </button>
+          )}
         </div>
       </form>
     </AuthLayout>
