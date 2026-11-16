@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Save, ShieldAlert, ShieldCheck } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -7,6 +7,8 @@ import { useAllergyContext, useAllergyMenu, useMenuAccess, useMenuCatalog } from
 import { saveAllergyMenu } from '@/services/menu-planning/menuPlanningService';
 import { useMasterData } from '@/hooks/useMasterData';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
+import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
+import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { FormField } from '@/components/form/FormField';
 import { SearchSelect } from '@/components/ui/SearchSelect';
 import { ErrorState, LoadingState, Spinner } from '@/components/ui/States';
@@ -39,25 +41,29 @@ const EMPTY = { name: '', baseMenuId: '', groupType: 'ALLERGY', restrictions: []
 export default function AllergyMenuFormPage() {
   const { id } = useParams();
   const [params] = useSearchParams();
-  const navigate = useNavigate();
   const { user } = useAuth();
   const toast = useToast();
   const md = useMasterData();
   const access = useMenuAccess();
   const { catalog, loading: catLoading } = useMenuCatalog({ live: false });
   const { item, loading, error, reload } = useAllergyMenu(id, { live: false });
-  const [form, setForm] = useState(() => ({
+  // Giá trị gốc để so sánh "đã sửa chưa": form trống (mới, có thể điền sẵn từ URL) hoặc dữ liệu nạp từ server
+  const [initial, setInitial] = useState(() => ({
     ...EMPTY,
     baseMenuId: params.get('baseMenuId') || '',
     restrictions: params.get('restriction') ? [params.get('restriction')] : [],
   }));
+  const [form, setForm] = useState(initial);
   const [submitted, setSubmitted] = useState(false);
   const [busy, setBusy] = useState(false);
   const base = catalog.menuById[form.baseMenuId];
   const { rows: allergyRows } = useAllergyContext(base?.ageGroupId || '');
 
   useEffect(() => {
-    if (item) setForm({ ...EMPTY, ...item });
+    if (!item) return;
+    const loaded = { ...EMPTY, ...item };
+    setForm(loaded);
+    setInitial(loaded);
   }, [item]);
 
   const menuOptions = useMemo(
@@ -101,17 +107,25 @@ export default function AllergyMenuFormPage() {
   const title = id ? 'Sửa thực đơn thay thế' : 'Tạo thực đơn thay thế';
   const show = (k) => (submitted ? errors[k] : undefined);
 
-  const submit = async (e) => {
-    e.preventDefault();
+  const dirty =
+    ['name', 'baseMenuId', 'groupType', 'note', 'status'].some((k) => form[k] !== initial[k]) ||
+    JSON.stringify([form.restrictions, form.replacements]) !== JSON.stringify([initial.restrictions, initial.replacements]);
+  const guard = useLeaveGuard({ when: dirty && !busy, onSave: () => submit(null, { stay: true }) });
+
+  // Trả true khi lưu được; stay: lưu từ hộp rời màn (hộp tự chuyển tới nơi người dùng bấm)
+  const submit = async (e, { stay = false } = {}) => {
+    e?.preventDefault();
     setSubmitted(true);
-    if (hasErrors(errors)) return;
+    if (hasErrors(errors)) return false;
     setBusy(true);
     try {
       const saved = await saveAllergyMenu(id, form, user);
       toast.success('Lưu thay đổi thành công.');
-      navigate(`/menu/allergy-menus/${saved.id}`);
+      if (!stay) guard.leaveNow(`/menu/allergy-menus/${saved.id}`);
+      return true;
     } catch (err) {
       toast.error(err, 'Không lưu được thay đổi');
+      return false;
     } finally {
       setBusy(false);
     }
@@ -140,7 +154,7 @@ export default function AllergyMenuFormPage() {
       <h1 className="page__title">{id ? `Sửa thực đơn thay thế ${item?.code || ''}` : title}</h1>
       <form onSubmit={submit} noValidate>
         <div className="page-actions page-actions--top">
-          <button type="button" className="btn" onClick={() => navigate(id ? `/menu/allergy-menus/${id}` : '/menu/allergy-menus')}>
+          <button type="button" className="btn" onClick={() => guard.leave(id ? `/menu/allergy-menus/${id}` : '/menu/allergy-menus')}>
             <ArrowLeft size={16} /> Hủy
           </button>
           <button type="submit" className="btn btn--primary" disabled={busy}>
@@ -333,6 +347,7 @@ export default function AllergyMenuFormPage() {
           </div>
         )}
       </form>
+      <LeaveConfirmModal {...guard.modal} />
     </div>
   );
 }

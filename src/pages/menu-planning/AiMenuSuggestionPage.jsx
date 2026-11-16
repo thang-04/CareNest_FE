@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Tabs } from '@/components/ui/Tabs';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Sparkles, Wand2, XCircle, PencilLine, AlertOctagon, Info } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -11,8 +11,10 @@ import { FormField } from '@/components/form/FormField';
 import { WeekPicker } from '@/components/form/WeekPicker';
 import { LoadingState } from '@/components/ui/States';
 import { Modal } from '@/components/ui/Modal';
+import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import { AiWorkingOverlay } from '@/components/ui/AiWorkingOverlay';
 import { useAiRun } from '@/hooks/useAiRun';
+import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { AiDraftLabel, AllergenChips, NoManageAccess } from '@/components/menu-planning/MenuBadges';
 import { MealsView } from '@/components/menu-planning/MealsView';
 import { NutritionTable } from '@/components/menu-planning/NutritionTable';
@@ -34,7 +36,6 @@ const KIND_LABELS = { WEEKLY: 'Sắp xếp thực đơn Thứ Hai – Thứ Sáu
  */
 export default function AiMenuSuggestionPage() {
   const [params] = useSearchParams();
-  const navigate = useNavigate();
   const { user } = useAuth();
   const toast = useToast();
   const access = useMenuAccess();
@@ -50,6 +51,8 @@ export default function AiMenuSuggestionPage() {
   const [submitted, setSubmitted] = useState(false);
   const { rows: allergyRows } = useAllergyContext(ageGroupId);
   const { items: sameGroup } = useWeeklyMenus({ ageGroupId: ageGroupId || '__none__' });
+  // Trang không lưu gì: "chưa lưu" = bản nháp AI đã tạo mà chưa mở sang biểu mẫu để dùng, cũng chưa bỏ qua
+  const guard = useLeaveGuard({ when: !!draft && !busy });
 
   const generate = async (e) => {
     e.preventDefault();
@@ -143,7 +146,7 @@ export default function AiMenuSuggestionPage() {
       <button type="button" className="btn" onClick={dismiss}>
         <XCircle size={16} /> Bỏ qua gợi ý
       </button>
-      <button type="button" className="btn btn--primary" onClick={() => navigate(usePath)}>
+      <button type="button" className="btn btn--primary" onClick={() => guard.leaveNow(usePath)}>
         <PencilLine size={16} /> Xem xét và chỉnh sửa trong biểu mẫu
       </button>
     </>
@@ -269,6 +272,11 @@ export default function AiMenuSuggestionPage() {
         {resultBody}
       </Modal>
       {busy && <AiWorkingOverlay kind="cooking" text="Đang nấu gợi ý thực đơn…" />}
+      <LeaveConfirmModal
+        {...guard.modal}
+        canSave={false}
+        message="Gợi ý AI chưa được dùng hoặc bỏ qua. Rời trang thì gợi ý này sẽ bị mất."
+      />
     </div>
   );
 }

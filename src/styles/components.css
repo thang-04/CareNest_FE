@@ -1284,6 +1284,49 @@ tr.sortable-item--moved > td {
 .confirm__form {
   text-align: left;
 }
+/* Hộp hỏi nhiều lựa chọn: mỗi nút ở chân hộp kèm một ô nói rõ chọn thì điều gì xảy ra; ô của nút chính nổi bật */
+.confirm__choices {
+  list-style: none;
+  padding: 0;
+  margin: var(--space-4) 0 0;
+  display: grid;
+  gap: var(--space-2);
+  text-align: left;
+}
+.confirm__choice {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+}
+.confirm__choice--primary {
+  border-color: color-mix(in srgb, var(--color-primary) 40%, var(--color-border));
+  background: color-mix(in srgb, var(--color-brand) 8%, var(--color-surface));
+}
+.confirm__choice-icon {
+  flex: none;
+  color: var(--color-text-secondary);
+}
+.confirm__choice--primary .confirm__choice-icon {
+  color: var(--color-primary);
+}
+.confirm__choice-title {
+  font-weight: var(--fw-semibold);
+  color: var(--color-text);
+}
+.confirm__choice-desc {
+  margin-top: var(--space-1);
+  font-size: var(--fs-sm);
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+.confirm__hint {
+  margin-top: var(--space-3);
+  font-size: var(--fs-sm);
+  color: var(--color-text-secondary);
+}
 @media (prefers-reduced-motion: reduce) {
   .page,
   .modal,

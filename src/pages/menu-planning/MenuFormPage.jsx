@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useState } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { AlertTriangle, Bowl, ChevronDown, Copy, Plus, Save, Sparkles, Trash2, X } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -14,6 +14,8 @@ import {
 import { getAiDraft, saveSampleMenu } from '@/services/menu-planning/menuPlanningService';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { EditHead } from '@/components/ui/EditHead';
+import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
+import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { FormField } from '@/components/form/FormField';
 import { ErrorState, LoadingState, Spinner } from '@/components/ui/States';
 import { NoManageAccess } from '@/components/menu-planning/MenuBadges';
@@ -41,7 +43,6 @@ const kcalOf = (t) => Math.round(t.totals.kcal).toLocaleString('vi-VN');
 export default function MenuFormPage() {
   const { id } = useParams();
   const [params] = useSearchParams();
-  const navigate = useNavigate();
   const { user } = useAuth();
   const toast = useToast();
   const access = useMenuAccess();
@@ -49,7 +50,9 @@ export default function MenuFormPage() {
   const copyOf = params.get('copyOf');
   const { item, loading, error, reload } = useSampleMenu(id || copyOf, { live: false });
   const { items: others } = useSampleMenus({});
-  const [form, setForm] = useState({ ...EMPTY, ageGroupId: params.get('ageGroupId') || '' });
+  // Giá trị gốc để so sánh "đã sửa chưa": form trống (mới) hoặc dữ liệu nạp từ server
+  const [initial, setInitial] = useState(() => ({ ...EMPTY, ageGroupId: params.get('ageGroupId') || '' }));
+  const [form, setForm] = useState(initial);
   const [aiDraft, setAiDraft] = useState(null);
   const [beforeAi, setBeforeAi] = useState(null);
   const [aiOpen, setAiOpen] = useState(params.get('ai') === '1');
@@ -63,13 +66,15 @@ export default function MenuFormPage() {
 
   useEffect(() => {
     if (!item) return;
-    setForm({
+    const loaded = {
       name: copyOf && !id ? `${item.name} (bản sao)` : item.name,
       ageGroupId: item.ageGroupId,
       note: item.note,
       status: item.status,
       meals: item.meals,
-    });
+    };
+    setForm(loaded);
+    setInitial(loaded);
   }, [item, copyOf, id]);
 
   // Mở từ màn gợi ý AI cũ (?aiDraftId=) vẫn nạp bản nháp vào trang này
@@ -137,21 +142,30 @@ export default function MenuFormPage() {
     setBeforeAi(null);
   };
 
-  const submit = async (e) => {
+  // So bữa đã chuẩn hóa theo nhóm tuổi hiện tại để thêm rồi bỏ món không tính là đã sửa
+  const dirty =
+    ['name', 'ageGroupId', 'note', 'status'].some((k) => form[k] !== initial[k]) ||
+    JSON.stringify(meals) !== JSON.stringify(normalizeMeals(initial.meals, codes));
+  const guard = useLeaveGuard({ when: dirty && !busy, onSave: () => submit(null, { stay: true }) });
+
+  // Trả true khi lưu được; stay: lưu từ hộp rời màn (hộp tự chuyển tới nơi người dùng bấm)
+  const submit = async (e, { stay = false } = {}) => {
     e?.preventDefault();
     setSubmitted(true);
     if (hasErrors(errors)) {
       toast.error('Hãy kiểm tra các ô được đánh dấu.', 'Chưa lưu được');
-      return;
+      return false;
     }
     setBusy(true);
     try {
       await saveSampleMenu(id, { ...form, meals, aiDraftId: aiDraft?.id }, user);
       toast.success('Lưu thay đổi thành công.');
-      navigate('/menu/menus');
+      if (!stay) guard.leaveNow('/menu/menus');
+      return true;
     } catch (err) {
       if (err.details) setServerErrors(err.details);
       toast.error(err, 'Không lưu được thay đổi');
+      return false;
     } finally {
       setBusy(false);
     }
@@ -391,6 +405,7 @@ export default function MenuFormPage() {
           </div>
         )}
       </form>
+      <LeaveConfirmModal {...guard.modal} />
     </div>
   );
 }
