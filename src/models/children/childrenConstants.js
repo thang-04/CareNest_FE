@@ -250,3 +250,17 @@ export const GROWTH_CHART_AXES = {
 };
 
 export const growthAxesFor = (ageGroupId) => GROWTH_CHART_AXES[ageGroupId] || GROWTH_CHART_AXES.DEFAULT;
+
+/** BE:CHD-11 — yêu cầu sửa hồ sơ/khai báo trẻ do GV gửi, HT/PHT duyệt. Giá trị khớp `ProfileChangeKind`/`ProfileChangeStatus`. */
+export const PROFILE_CHANGE_KIND = { PROFILE: 'PROFILE', HEALTH_DECLARATION: 'HEALTH_DECLARATION' };
+export const PROFILE_CHANGE_KIND_LABELS = {
+  PROFILE: 'Sửa hồ sơ',
+  HEALTH_DECLARATION: 'Sửa khai báo sức khỏe',
+};
+export const PROFILE_CHANGE_STATUS = { PENDING: 'PENDING', APPROVED: 'APPROVED', REJECTED: 'REJECTED', CANCELLED: 'CANCELLED' };
+export const PROFILE_CHANGE_STATUS_LABELS = {
+  PENDING: 'Chờ duyệt',
+  APPROVED: 'Đã duyệt',
+  REJECTED: 'Bị từ chối',
+  CANCELLED: 'Đã thay bằng yêu cầu mới',
+};

@@ -1510,3 +1510,17 @@
   outline: 2px solid var(--primary);
   border-radius: var(--radius-sm);
 }
+
+/* BE:CHD-11 — chi tiết đề xuất sửa hồ sơ ở màn duyệt */
+.tr-proposal {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+}
+.tr-proposal dt {
+  color: var(--color-text-muted);
+}
+.tr-proposal dd {
+  margin: 0;
+}

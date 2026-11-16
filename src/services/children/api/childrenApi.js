@@ -175,6 +175,18 @@ async function loadProfile(id) {
   return { declaration: null, placements: [], ...result, cls, child };
 }
 
+// BE nhận mã quan hệ (FATHER...); savedPhone chỉ để form khóa ô SĐT đã lưu (G94-180/AUTH-21)
+const childUpdateBody = (body) => ({
+  ...body,
+  child: {
+    ...body.child,
+    guardians: (body.child?.guardians || []).map(({ savedPhone: _savedPhone, ...g }) => ({
+      ...g,
+      relation: relationCode(g.relation),
+    })),
+  },
+});
+
 export const childrenApi = {
   listChildren: (filters = {}) => listAllChildren({ ...filters, statuses: ALL_STATUSES }),
   getClassOptions,
@@ -201,20 +213,20 @@ export const childrenApi = {
     const { body, config } = enrollmentPhotoRequest(payload);
     return read(axiosClient.post('/children/enrollments', body, config));
   },
-  // BE nhận mã quan hệ (FATHER...); savedPhone chỉ để form khóa ô SĐT đã lưu (G94-180/AUTH-21)
-  updateChild: (id, body) =>
+  updateChild: (id, body) => read(axiosClient.put(`/children/${id}`, childUpdateBody(body))),
+  // CHD-11: GV được cấp CHILD_PROFILE_EDIT gửi yêu cầu, HT/PHT điểm trường duyệt mới ghi vào hồ sơ
+  submitProfileChange: (childId, { kind, profile, declaration }) =>
     read(
-      axiosClient.put(`/children/${id}`, {
-        ...body,
-        child: {
-          ...body.child,
-          guardians: (body.child?.guardians || []).map(({ savedPhone: _savedPhone, ...g }) => ({
-            ...g,
-            relation: relationCode(g.relation),
-          })),
-        },
+      axiosClient.post(`/children/${childId}/profile-change-requests`, {
+        kind,
+        profile: profile ? childUpdateBody(profile) : null,
+        declaration: declaration || null,
       }),
     ),
+  getLatestProfileChanges: (childId) => read(axiosClient.get(`/children/${childId}/profile-change-requests/latest`)),
+  listProfileChanges: (status) => read(axiosClient.get('/children/profile-change-requests', { params: { status } })),
+  approveProfileChange: (requestId) => read(axiosClient.post(`/children/profile-change-requests/${requestId}/approve`)),
+  rejectProfileChange: (requestId, note) => read(axiosClient.post(`/children/profile-change-requests/${requestId}/reject`, { note })),
   previewImport: (file) => {
     const form = new FormData();
     form.append('file', file);

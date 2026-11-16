@@ -4,6 +4,8 @@ import { useAsync } from '@/hooks/useAsync';
 import {
   getChildDetail,
   getChildren,
+  getLatestProfileChanges,
+  getProfileChanges,
   getClassOptions,
   getHealthRecord,
   findParentAccountByCitizenId,
@@ -43,6 +45,25 @@ export function useClassOptions(schoolYear, { all = false, enabled = true } = {}
 }
 
 /** Lớp tiếp nhận, xếp lớp được (kèm sĩ số hiện tại): BE chỉ trả lớp của năm học đang hoạt động (user chốt 2026-10-28, Y-3). */
+/** BE:CHD-11 — yêu cầu sửa hồ sơ/khai báo mới nhất của trẻ (GV gửi xem trạng thái, lý do từ chối). */
+export function useLatestProfileChanges(childId, { enabled = true } = {}) {
+  const { user } = useAuth();
+  const { data, loading, error, reload } = useAsync(() => getLatestProfileChanges(childId, user), [childId, user?.id], {
+    enabled: enabled && !!childId,
+  });
+  return { changes: data || [], loading, error, reload };
+}
+
+/** BE:CHD-11 — yêu cầu sửa hồ sơ trong phạm vi duyệt của HT/PHT. */
+export function useProfileChanges(status = 'PENDING', { enabled = true } = {}) {
+  const { user } = useAuth();
+  const { data, loading, error, reload } = useAsync(() => getProfileChanges(status, user), [status, user?.id], {
+    enabled,
+    refreshOnDataChange: true,
+  });
+  return { requests: data || [], loading, error, reload };
+}
+
 export function usePlacementClasses() {
   const { user } = useAuth();
   const { data, loading, error, reload } = useAsync(() => getPlacementClasses({}, user), [user?.id], {

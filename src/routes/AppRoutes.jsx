@@ -106,6 +106,7 @@ const EnrollChildPage = lazyPage(() => import('@/pages/children/EnrollChildPage'
 const ImportChildrenPage = lazyPage(() => import('@/pages/children/ImportChildrenPage'));
 const ClassPlacementPage = lazyPage(() => import('@/pages/children/ClassPlacementPage'));
 const ParentActivationPage = lazyPage(() => import('@/pages/children/ParentActivationPage'));
+const ProfileChangeReviewPage = lazyPage(() => import('@/pages/children/ProfileChangeReviewPage'));
 const ChildProfilePage = lazyPage(() => import('@/pages/children/ChildProfilePage'));
 const EditChildPage = lazyPage(() => import('@/pages/children/EditChildPage'));
 const HealthDeclarationPage = lazyPage(() => import('@/pages/children/HealthDeclarationPage'));
@@ -361,6 +362,8 @@ export function AppRoutes() {
             <Route path="new-year-class" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <NewYearClassPage />)} />
             <Route path="import" element={only(LEADERS, <ImportChildrenPage />)} />
             <Route path="placement" element={only(LEADERS, <ClassPlacementPage />)} />
+            {/* BE:CHD-11 — HT, PHT duyệt yêu cầu sửa hồ sơ GV gửi; BE lọc phạm vi duyệt */}
+            <Route path="profile-changes" element={only(LEADERS, <ProfileChangeReviewPage />)} />
             <Route
               path="activation"
               element={
@@ -384,7 +387,8 @@ export function AppRoutes() {
               element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <HealthExamFormPage />)}
             />
             <Route path=":id" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <ChildProfilePage />)} />
-            <Route path=":id/edit" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL], <EditChildPage />)} />
+            {/* GV được cấp CHILD_PROFILE_EDIT vào để gửi yêu cầu chờ duyệt (BE:CHD-11); trang tự kiểm quyền */}
+            <Route path=":id/edit" element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <EditChildPage />)} />
             <Route
               path=":id/health-declaration"
               element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <HealthDeclarationPage />)}
