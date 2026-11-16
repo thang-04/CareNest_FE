@@ -9,10 +9,10 @@ test.describe.configure({ mode: 'serial' });
 
 const GOALS = '/education-plans/goals';
 const U = {
-  vp: 'tam.lethi@thuonghong.carenest.edu.vn',
-  ht: 'tuyet.hoangminh@thuonghong.carenest.edu.vn',
-  tl: 'lan.nguyenkim@thuonghong.carenest.edu.vn',
-  gv2: 'thanh.phamthi@thuonghong.carenest.edu.vn',
+  vp: 'viceprincipal',
+  ht: 'principal',
+  tl: 'teacher1',
+  gv2: 'teacher2',
 };
 const NOTE = '[E2E] Nhờ duyệt bản điều chỉnh, xem lại chủ đề Tết';
 const headers = (rev) => ({ 'X-Plan-Revision': String(rev ?? 0), 'Idempotency-Key': randomUUID(), 'X-Edit-Session': newSession() });

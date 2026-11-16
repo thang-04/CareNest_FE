@@ -2,13 +2,14 @@ import { AUTH_USE_MOCK, USE_MOCK } from '@/config/env';
 import { accountMockRepository as mock } from '@/services/account/mock/accountMockRepository';
 import { normalizeAccountProfile } from '@/services/authProfile';
 import { accountApi as api } from '@/services/account/api/accountApi';
+import { withLocalOtpDeadlines } from '@/utils/account/otpDeadlines';
 
 const authRepo = AUTH_USE_MOCK ? mock : api;
 const businessRepo = USE_MOCK ? mock : api;
 
-export const requestPasswordReset = (body) => authRepo.requestPasswordReset(body);
-export const getOtpRequest = (requestId) => authRepo.getOtpRequest(requestId);
-export const resendOtp = (requestId) => authRepo.resendOtp(requestId);
+export const requestPasswordReset = (body) => authRepo.requestPasswordReset(body).then((r) => withLocalOtpDeadlines(r));
+export const getOtpRequest = (requestId) => authRepo.getOtpRequest(requestId).then((r) => withLocalOtpDeadlines(r));
+export const resendOtp = (requestId) => authRepo.resendOtp(requestId).then((r) => withLocalOtpDeadlines(r));
 export const verifyOtp = (body) => authRepo.verifyOtp(body);
 export const setPasswordWithToken = (body) => authRepo.setPasswordWithToken(body);
 export const changePassword = (body, user) => authRepo.changePassword(body, user);
