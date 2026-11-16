@@ -1,3 +1,4 @@
+import { ResponsiveToolbar } from '@/components/ui/ResponsiveToolbar';
 import { useEffect, useId, useRef, useState } from 'react';
 import ActivityCardEditor from '@/components/education-plan/ActivityCardEditor';
 import { Link, Navigate, useParams } from 'react-router-dom';
@@ -567,23 +568,8 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
     <div className="page ga-page ga-class-editor">
       <div className="ga-sticky-head">
         <PageHead crumbs={crumbs} title={pageTitle} />
-        {dayPage && dayFilter(weekHead)}
-        {/* Trang Kế hoạch tuần (Kế hoạch giáo dục chủ đề): thẻ tên chủ đề nhánh ở đầu trang như trang ngày, tab sang các tuần
-            khác của cùng chủ đề (Tiền 12/11/2026) */}
-        {!dayPage &&
-          dayFilter(
-            <>
-              {weekHead}
-              {split && !days && themeWeekTabs}
-            </>,
-          )}
-        {/* Thanh thao tác như màn Kế hoạch năm học: nút cỡ nhỏ viền xanh, nhóm lưu/xuất bên phải (Tiền 05/11) */}
-        <div className="ga-year-toolbar" role="group" aria-label="Thao tác kế hoạch tuần">
+        <ResponsiveToolbar className="ga-year-toolbar" role="group" aria-label="Thao tác kế hoạch tuần">
           <div className="ga-year-toolbar__group">
-            {/* Tên ngắn hiện khi hàng nút đang dính, thay cho phần đầu trang đã cuộn khuất (Tiền 12/11/2026) */}
-            <span className="ga-year-toolbar__title">
-              Tuần {week.no} · {week.theme.name}
-            </span>
             {/* Trạng thái, hạn chỉ ở trang danh sách (thẻ học kỳ / thẻ chủ đề), không lặp ở trang trong (Tiền 14/11/2026) */}
             <FoldAllButton />
             {/* Một nút "Thao tác" mở danh sách: Lấy / gợi ý → Dạy học → Xuất file → Tạo phiên bản (Tiền 14/11/2026); ngày đang
@@ -629,7 +615,18 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
             )}
             {preview && <DocPreviewModal file={preview} onClose={() => setPreview(null)} />}
           </div>
-        </div>
+        </ResponsiveToolbar>
+        {dayPage && dayFilter(weekHead)}
+        {/* Trang Kế hoạch tuần (Kế hoạch giáo dục chủ đề): thẻ tên chủ đề nhánh ở đầu trang như trang ngày, tab sang các tuần
+            khác của cùng chủ đề (Tiền 12/11/2026) */}
+        {!dayPage &&
+          dayFilter(
+            <>
+              {weekHead}
+              {split && !days && themeWeekTabs}
+            </>,
+          )}
+        {/* Thanh thao tác như màn Kế hoạch năm học: nút cỡ nhỏ viền xanh, nhóm lưu/xuất bên phải (Tiền 05/11) */}
       </div>
       {canComposeClassDocs && (
         <SupersededNote doc={saved || (ctx.superseded ? { superseded: true, yearPlanVersion: versionOf(yearPlan) } : null)} />

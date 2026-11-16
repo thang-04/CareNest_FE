@@ -1,3 +1,4 @@
+import { ResponsiveToolbar } from '@/components/ui/ResponsiveToolbar';
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { FileDown, Save, X } from '@/components/ui/icons';
@@ -264,6 +265,50 @@ function ThemePlanInner() {
     <div className="page ga-page ga-class-editor">
       <div className="ga-sticky-head">
         <PageHead crumbs={crumbs} title={`Kế hoạch giáo dục chủ đề: ${theme.name}`} />
+        <ResponsiveToolbar className="ga-year-toolbar" role="group" aria-label="Thao tác kế hoạch chủ đề">
+          <div className="ga-year-toolbar__group">
+            {/* Trạng thái, hạn chỉ ở thẻ học kỳ trang danh sách (Tiền 14/11/2026) */}
+            <FoldAllButton />
+            {/* Nút "Thao tác" (Lấy / gợi ý) do ThemePlanBody đặt vào; Xuất file chủ đề chỉ ở thẻ chủ đề trang danh sách */}
+            {editable && <span ref={setToolsEl} className="row row--middle gap-2" />}
+          </div>
+          <div className="ga-year-toolbar__group ga-year-toolbar__group--end">
+            {editable && (
+              <>
+                <p className="muted text-sm ga-year-save-status" aria-live="polite">
+                  {saver.label}
+                </p>
+                <VersionHistory
+                  drafts={saver.drafts}
+                  saved={saver.cleanDoc()}
+                  current={draft}
+                  unsaved={saver.unsaved}
+                  linesOf={docLines}
+                  onUse={(entry) => (entry ? saver.restoreDraft(entry) : saver.restoreSaved())}
+                />
+                {/* Trang luôn ở chế độ sửa: Hủy về Kế hoạch giáo dục chủ đề của lớp, còn thay đổi chưa lưu thì hỏi (Tiền 13/11/2026) */}
+                <Button
+                  variant="outline-primary"
+                  size="sm"
+                  disabled={saver.saving}
+                  onClick={() => guard.leave(`/education/theme-plans/${classId}`)}
+                >
+                  <X size={16} aria-hidden /> Hủy
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={saver.save}
+                  disabled={saver.saving || (!saver.unsaved && !saver.error)}
+                  title="Lưu (Ctrl+S)"
+                >
+                  <Save size={16} aria-hidden /> Lưu
+                </Button>
+              </>
+            )}
+            {preview && <DocPreviewModal file={preview} onClose={() => setPreview(null)} />}
+          </div>
+        </ResponsiveToolbar>
         {/* Thẻ đầu trang như Kế hoạch tuần / giáo án ngày: hàng lọc Nhóm tuổi · Lớp · Chủ đề, tên chủ đề và tab Kế hoạch chủ đề
             rồi các chủ đề nhánh (Tiền 12/11/2026) */}
         <ClassFilterBar
@@ -306,51 +351,6 @@ function ThemePlanInner() {
           {/* Lọc mục tiêu nằm trong thẻ Bảng phủ MT; bỏ "Kiểu hiển thị" dạng cây (Tiền 13/11/2026) */}
         </ClassFilterBar>
         {/* Thanh thao tác như màn Kế hoạch năm học: nút cỡ nhỏ viền xanh, nhóm lưu/gửi/xuất bên phải (Tiền 05/11) */}
-        <div className="ga-year-toolbar" role="group" aria-label="Thao tác kế hoạch chủ đề">
-          <div className="ga-year-toolbar__group">
-            <span className="ga-year-toolbar__title">Chủ đề: {theme.name}</span>
-            {/* Trạng thái, hạn chỉ ở thẻ học kỳ trang danh sách (Tiền 14/11/2026) */}
-            <FoldAllButton />
-            {/* Nút "Thao tác" (Lấy / gợi ý) do ThemePlanBody đặt vào; Xuất file chủ đề chỉ ở thẻ chủ đề trang danh sách */}
-            {editable && <span ref={setToolsEl} className="row row--middle gap-2" />}
-          </div>
-          <div className="ga-year-toolbar__group ga-year-toolbar__group--end">
-            {editable && (
-              <>
-                <p className="muted text-sm ga-year-save-status" aria-live="polite">
-                  {saver.label}
-                </p>
-                <VersionHistory
-                  drafts={saver.drafts}
-                  saved={saver.cleanDoc()}
-                  current={draft}
-                  unsaved={saver.unsaved}
-                  linesOf={docLines}
-                  onUse={(entry) => (entry ? saver.restoreDraft(entry) : saver.restoreSaved())}
-                />
-                {/* Trang luôn ở chế độ sửa: Hủy về Kế hoạch giáo dục chủ đề của lớp, còn thay đổi chưa lưu thì hỏi (Tiền 13/11/2026) */}
-                <Button
-                  variant="outline-primary"
-                  size="sm"
-                  disabled={saver.saving}
-                  onClick={() => guard.leave(`/education/theme-plans/${classId}`)}
-                >
-                  <X size={16} aria-hidden /> Hủy
-                </Button>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={saver.save}
-                  disabled={saver.saving || (!saver.unsaved && !saver.error)}
-                  title="Lưu (Ctrl+S)"
-                >
-                  <Save size={16} aria-hidden /> Lưu
-                </Button>
-              </>
-            )}
-            {preview && <DocPreviewModal file={preview} onClose={() => setPreview(null)} />}
-          </div>
-        </div>
       </div>
       {canComposeClassDocs && (
         <SupersededNote doc={saved || (ctx.superseded ? { superseded: true, yearPlanVersion: versionOf(yearPlan) } : null)} />
