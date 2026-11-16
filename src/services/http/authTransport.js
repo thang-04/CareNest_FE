@@ -13,6 +13,11 @@ let csrf = null;
 let csrfPromise = null;
 let refreshPromise = null;
 let transportGeneration = 0;
+// errorCode của lần làm mới phiên thất bại gần nhất: AuthContext dùng để báo đúng lý do khi phiên kết thúc
+let lastRefreshRejection = null;
+// BE AUTH-28: tài khoản vừa đăng nhập Web ở trình duyệt khác ⇒ phiên này bị thay thế
+export const SESSION_REPLACED = 1016;
+export const lastRefreshErrorCode = () => lastRefreshRejection;
 
 const canceled = () => new axios.CanceledError('Phiên đăng nhập đã thay đổi');
 transport.interceptors.request.use((config) => {
@@ -97,6 +102,15 @@ export const refreshSession = ({ force = false } = {}) => {
     if (refreshPromise === pending) refreshPromise = null;
   };
   pending.then(clearPending, clearPending);
+  // Gắn trước khi trả pending ⇒ chạy trước người gọi await, kịp ghi lý do trước khi họ phát sự kiện hết phiên
+  pending.then(
+    () => {
+      lastRefreshRejection = null;
+    },
+    (error) => {
+      if (currentTransportGeneration === transportGeneration) lastRefreshRejection = error?.errorCode ?? null;
+    },
+  );
   return pending;
 };
 
@@ -105,4 +119,5 @@ export const resetAuthTransport = () => {
   csrf = null;
   csrfPromise = null;
   refreshPromise = null;
+  lastRefreshRejection = null;
 };

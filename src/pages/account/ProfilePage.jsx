@@ -19,6 +19,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { Breadcrumb, ErrorState, FormField, LoadingState, Spinner } from '@/components';
 import { AccountSideCard } from '@/components/account/AccountSideCard';
+import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
+import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { useProfile } from '@/hooks/account/useAccount';
 import { updateProfile } from '@/services/account/accountService';
 import { validateProfile } from '@/utils/account/accountValidation';
@@ -61,11 +63,16 @@ export default function ProfilePage() {
     setErrors((prev) => ({ ...prev, [field]: e[field] }));
   };
 
-  const save = async (event) => {
-    event.preventDefault();
+  // Đang sửa và có ô khác với hồ sơ đã tải từ server
+  const baseline = formFrom(profile);
+  const dirty = editing && Object.keys(baseline).some((key) => form[key] !== baseline[key]);
+  const guard = useLeaveGuard({ when: dirty && !busy, onSave: () => submit() });
+
+  // Trả true khi lưu được (hộp rời màn tự chuyển tới nơi người dùng bấm)
+  const submit = async () => {
     const e = validateProfile(form);
     setErrors(e);
-    if (Object.keys(e).length) return;
+    if (Object.keys(e).length) return false;
     setBusy(true);
     try {
       const updated = await updateProfile(form, user);
@@ -74,12 +81,18 @@ export default function ProfilePage() {
       // Header shows name / phone from the auth context; refresh it when the context supports it.
       await refreshUser?.();
       toast.success('Đã lưu thông tin hồ sơ');
+      return true;
     } catch (err) {
       if (err.details && typeof err.details === 'object') setErrors(err.details);
       toast.error(err, 'Không lưu được hồ sơ');
+      return false;
     } finally {
       setBusy(false);
     }
+  };
+  const save = (event) => {
+    event.preventDefault();
+    submit();
   };
 
   const crumbs = acCrumbs('Hồ sơ cá nhân');
@@ -343,6 +356,7 @@ export default function ProfilePage() {
           </section>
         </div>
       </div>
+      <LeaveConfirmModal {...guard.modal} />
     </div>
   );
 }

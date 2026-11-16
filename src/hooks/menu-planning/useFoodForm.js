@@ -54,9 +54,13 @@ export function useFoodForm(id, { onSaved } = {}) {
   const [submitted, setSubmitted] = useState(false);
   const [serverErrors, setServerErrors] = useState({});
   const [busy, setBusy] = useState(false);
+  // Giá trị đã tải từ server (hoặc form trống): so với form để biết còn thay đổi chưa lưu
+  const [initial, setInitial] = useState(EMPTY);
 
   useEffect(() => {
-    setForm(item ? toForm(item) : EMPTY);
+    const loaded = item ? toForm(item) : EMPTY;
+    setForm(loaded);
+    setInitial(loaded);
   }, [item]);
 
   // Số g/ml trong 1 đơn vị mua suy ra từ hai tỷ lệ, không nhập riêng
@@ -77,15 +81,18 @@ export function useFoodForm(id, { onSaved } = {}) {
     e?.preventDefault();
     setSubmitted(true);
     const clean = Object.fromEntries(Object.entries(errors).filter(([, v]) => v));
-    if (hasErrors(clean)) return;
+    if (hasErrors(clean)) return false;
     setBusy(true);
     try {
       const saved = await saveFood(id, payload, user);
       toast.success('Lưu thay đổi thành công.');
+      setInitial(form);
       onSaved?.(saved);
+      return true;
     } catch (err) {
       if (err.details) setServerErrors(err.details);
       toast.error(err, 'Không lưu được thay đổi');
+      return false;
     } finally {
       setBusy(false);
     }
@@ -105,6 +112,7 @@ export function useFoodForm(id, { onSaved } = {}) {
     toggleAllergen,
     submit,
     busy,
+    dirty: JSON.stringify(form) !== JSON.stringify(initial),
     locked: !!item?.unitsLocked,
   };
 }

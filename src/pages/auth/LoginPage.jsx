@@ -5,7 +5,15 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { AuthLayout } from '@/layouts/AuthLayout';
 import { Avatar, FormField, PasswordInput, Spinner } from '@/components';
-import { IS_DEMO_MODE, DEMO_LOGIN_PASSWORD, getDemoAccounts, getRememberedLogin, setRememberedLogin } from '@/services/authService';
+import {
+  IS_DEMO_MODE,
+  DEMO_LOGIN_PASSWORD,
+  getDemoAccounts,
+  getRememberedLogin,
+  setRememberedLogin,
+  SESSION_CONFLICT,
+} from '@/services/authService';
+import { TakeoverConfirmModal } from '@/components/auth/TakeoverConfirmModal';
 import { ROLE_LABELS } from '@/models/User';
 import { returnPath } from '@/routes/ProtectedRoute';
 
@@ -51,7 +59,7 @@ function DemoAccounts({ onPick }) {
 }
 
 export default function LoginPage() {
-  const { login, sessionMessage, sessionError, retrySession } = useAuth();
+  const { login, confirmTakeover, sessionMessage, sessionError, retrySession } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
   const location = useLocation();
@@ -62,6 +70,7 @@ export default function LoginPage() {
   const [errors, setErrors] = useState({});
   const [serverError, setServerError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [takeover, setTakeover] = useState(null);
   // Shown after a password reset / first-login change (account module).
   const notice = location.state?.notice || '';
 
@@ -75,6 +84,12 @@ export default function LoginPage() {
     setServerError('');
   };
 
+  const welcome = (user) => {
+    setRememberedLogin(form.email.trim(), form.remember);
+    toast.success(`Xin chào ${user.fullName}`, 'Đăng nhập thành công');
+    navigate(returnPath(location.state?.from), { replace: true });
+  };
+
   const submit = async (event) => {
     event.preventDefault();
     const e = validate(form);
@@ -82,11 +97,14 @@ export default function LoginPage() {
     if (Object.keys(e).length) return;
     setBusy(true);
     try {
-      const user = await login({ email: form.email.trim(), password: form.password, remember: form.remember }); // carenest:allow-secret – tên field, không phải giá trị bí mật
-      setRememberedLogin(form.email.trim(), form.remember);
-      toast.success(`Xin chào ${user.fullName}`, 'Đăng nhập thành công');
-      navigate(returnPath(location.state?.from), { replace: true });
+      welcome(await login({ email: form.email.trim(), password: form.password, remember: form.remember })); // carenest:allow-secret – tên field, không phải giá trị bí mật
     } catch (err) {
+      // AUTH-28: tài khoản đang dùng ở trình duyệt khác ⇒ hỏi dùng ở đâu, chưa đăng xuất bên kia
+      if (err.errorCode === SESSION_CONFLICT) {
+        setTakeover({ expiresAt: err.details?.takeover?.expiresAt, remember: form.remember });
+        setForm((f) => ({ ...f, password: '' }));
+        return;
+      }
       // Issued password (SRS 1.1 step 7): no session yet, the user must set a new password first.
       if (err.details?.passwordChangeRequired && err.details?.changeToken) {
         setPasswordChallenge({ token: err.details.changeToken, mode: 'first-login', email: form.email.trim() });
@@ -181,6 +199,13 @@ export default function LoginPage() {
           {busy ? <Spinner small /> : <LogIn size={18} />} {busy ? 'Đang đăng nhập...' : 'Đăng nhập'}
         </button>
       </form>
+      {takeover && (
+        <TakeoverConfirmModal
+          expiresAt={takeover.expiresAt}
+          onConfirm={async () => welcome(await confirmTakeover({ remember: takeover.remember }))}
+          onClose={() => setTakeover(null)}
+        />
+      )}
     </AuthLayout>
   );
 }

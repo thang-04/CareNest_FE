@@ -6,6 +6,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useAsync } from '@/hooks/useAsync';
+import { useLeaveGuard } from '@/hooks/useLeaveGuard';
+import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import { useDailyAssessmentClasses } from '@/hooks/assessment/useAssessment';
 import {
   getAssessmentDayUnlocks,
@@ -88,6 +90,8 @@ export default function AssessmentDayUnlockPage() {
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
   const [kind, setKind] = useState('DAY');
+  // Lý do là phần tự nhập (lớp/ngày/hạn có mặc định); không có nút Lưu trong hộp vì gửi sẽ mở lại ngày và báo giáo viên
+  const guard = useLeaveGuard({ when: !!form.reason.trim() && !busy });
   const set = (patch) => {
     setForm((f) => ({ ...f, ...patch }));
     setErrors({});
@@ -496,6 +500,7 @@ export default function AssessmentDayUnlockPage() {
         )}
         {shown.length > 10 && <Pagination page={page} total={shown.length} pageSize={10} onChange={setPage} unit="lần" />}
       </div>
+      <LeaveConfirmModal {...guard.modal} canSave={false} />
     </div>
   );
 }
