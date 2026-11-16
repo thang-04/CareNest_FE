@@ -1,188 +1,257 @@
-import { Button, SelectField, TextField } from '@/components';
-import { Breadcrumb } from '@/components/ui/Breadcrumb';
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
+import { Button, Checkbox, ConfirmationModal, DataTable, Modal, RowActions, SelectField, StatusBadge, TextField } from '@/components';
+import { Plus, Save } from '@/components/ui/icons';
+import { AnnouncementAlert, AnnouncementHeader } from '@/components/announcement/announcementUi';
 import RecipientTargetForm, { emptyTarget } from '@/components/announcement/RecipientTargetForm';
 import { announcements } from '@/services/announcement/announcementService';
+import { useAsync } from '@/hooks/useAsync';
+import { formatDateTime } from '@/utils/format';
 
 const blank = () => ({
   templateId: '',
-  target: emptyTarget,
+  target: { ...emptyTarget, roles: [] },
   frequency: 'WEEKLY',
   dayOfWeek: 1,
   dayOfMonth: null,
   sendTime: '08:00',
   active: true,
 });
+const payload = (item) => ({
+  templateId: Number(item.templateId),
+  target: item.target,
+  frequency: item.frequency,
+  dayOfWeek: item.frequency === 'WEEKLY' ? Number(item.dayOfWeek) : null,
+  dayOfMonth: item.frequency === 'MONTHLY' ? Number(item.dayOfMonth) : null,
+  sendTime: item.sendTime,
+  active: item.active,
+});
+const weekday = (day) => (Number(day) === 7 ? 'Chủ nhật' : `Thứ ${Number(day) + 1}`);
+
 export default function AnnouncementSchedulesPage() {
-  const [items, setItems] = useState([]);
-  const [templates, setTemplates] = useState([]);
-  const [form, setForm] = useState(blank);
-  const [id, setId] = useState(null);
-  const [error, setError] = useState('');
-  const reload = useCallback(async () => {
-    try {
-      const [list, tpl] = await Promise.all([announcements.schedules(), announcements.templates()]);
-      setItems(list);
-      setTemplates(tpl);
-    } catch (e) {
-      setError(e.message);
-    }
+  const { data, loading, error, reload } = useAsync(async () => {
+    const [items, templates] = await Promise.all([announcements.schedules(), announcements.templates()]);
+    return { items, templates };
   }, []);
-  useEffect(() => {
-    reload();
-  }, [reload]);
-  const payload = (item) => ({
-    templateId: Number(item.templateId),
-    target: item.target,
-    frequency: item.frequency,
-    dayOfWeek: item.frequency === 'WEEKLY' ? Number(item.dayOfWeek) : null,
-    dayOfMonth: item.frequency === 'MONTHLY' ? Number(item.dayOfMonth) : null,
-    sendTime: item.sendTime,
-    active: item.active,
-  });
-  const save = async (e) => {
-    e.preventDefault();
+  const [form, setForm] = useState(null);
+  const [id, setId] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [pending, setPending] = useState(null);
+  const [actionError, setActionError] = useState('');
+  const [notice, setNotice] = useState('');
+  const edit = (item) => {
+    setActionError('');
+    setId(item?.id || null);
+    setForm(item ? payload(item) : blank());
+  };
+  const save = async (event) => {
+    event.preventDefault();
+    if (busy) return;
+    setBusy(true);
+    setActionError('');
     try {
       if (id) await announcements.updateSchedule(id, payload(form));
       else await announcements.createSchedule(payload(form));
-      setForm(blank());
-      setId(null);
-      setError('');
-      await reload();
-    } catch (ex) {
-      setError(ex.message);
+      setForm(null);
+      setNotice(id ? 'Đã lưu thay đổi lịch gửi.' : 'Đã tạo lịch gửi thông báo.');
+      await reload({ silent: true });
+    } catch (e) {
+      setActionError(e.message);
+    } finally {
+      setBusy(false);
     }
   };
   const toggle = async (item) => {
+    if (busy) return;
+    setBusy(true);
+    setActionError('');
     try {
       await announcements.updateSchedule(item.id, payload({ ...item, active: !item.active }));
-      await reload();
+      setNotice(item.active ? 'Đã tắt lịch gửi.' : 'Đã bật lịch gửi.');
+      await reload({ silent: true });
     } catch (e) {
-      setError(e.message);
+      setActionError(e.message);
+    } finally {
+      setBusy(false);
     }
   };
-  const remove = async (item) => {
-    if (!window.confirm('Xóa lịch này?')) return;
+  const remove = async () => {
+    setActionError('');
     try {
-      await announcements.deleteSchedule(item.id);
-      await reload();
+      await announcements.deleteSchedule(pending.id);
+      setPending(null);
+      setNotice('Đã xóa lịch gửi.');
+      await reload({ silent: true });
     } catch (e) {
-      setError(e.message);
+      setActionError(e.message);
     }
   };
   return (
-    <div className="page">
-      <Breadcrumb items={[{ label: 'Trang chủ', to: '/' }, { label: 'Lịch thông báo' }]} />
-      <h1 className="page__title">Lịch thông báo</h1>
-      {error && <p role="alert">{error}</p>}
-      <div className="card card__body">
-        {items.length === 0 && <p>Chưa có lịch.</p>}
-        {items.map((item) => (
-          <div key={item.id}>
-            <strong>{item.templateName}</strong> · {item.active ? 'Đang bật' : 'Đã tắt'} · Lần gửi tiếp: {item.nextRunAt || '—'}{' '}
-            <Button
-              className="btn"
-              onClick={() => {
-                setId(item.id);
-                setForm(payload(item));
-              }}
-            >
-              Sửa
+    <div className="page page--toolbar announcement-page">
+      <AnnouncementHeader
+        title="Lịch gửi thông báo"
+        summary="Gửi lặp theo tuần hoặc tháng"
+        actions={
+          <Button icon={Plus} variant="outline-primary" size="sm" disabled={busy} onClick={() => edit(null)}>
+            Tạo lịch gửi
+          </Button>
+        }
+      />
+      <AnnouncementAlert info>{notice}</AnnouncementAlert>
+      {!form && !pending && <AnnouncementAlert>{actionError}</AnnouncementAlert>}
+      <section className="card">
+        <div className="filter-bar">
+          <span className="text-sm muted">Gửi lặp theo tuần hoặc tháng; bỏ qua lần trúng ngày nghỉ</span>
+        </div>
+        <DataTable
+          rows={data?.items}
+          loading={loading}
+          error={error}
+          onRetry={reload}
+          empty={{
+            title: 'Chưa có lịch gửi thông báo',
+            description: 'Tạo mẫu thông báo trước, sau đó chọn mẫu để thiết lập lịch gửi lặp.',
+          }}
+          columns={[
+            { key: 'index', header: 'STT', className: 'center', render: (item) => data.items.indexOf(item) + 1 },
+            { key: 'templateName', header: 'Mẫu thông báo', render: (item) => <span className="fw-600">{item.templateName}</span> },
+            {
+              key: 'frequency',
+              header: 'Lặp lại',
+              render: (item) =>
+                item.frequency === 'WEEKLY' ? `${weekday(item.dayOfWeek)} hằng tuần` : `Ngày ${item.dayOfMonth} hằng tháng`,
+            },
+            { key: 'sendTime', header: 'Giờ gửi', render: (item) => item.sendTime?.slice(0, 5) || '—' },
+            { key: 'nextRunAt', header: 'Lần gửi tiếp theo', render: (item) => formatDateTime(item.nextRunAt) },
+            {
+              key: 'active',
+              header: 'Trạng thái',
+              render: (item) => <StatusBadge tone={item.active ? 'green' : 'gray'} label={item.active ? 'Đang bật' : 'Đã tắt'} />,
+            },
+            {
+              key: 'actions',
+              header: 'Thao tác',
+              className: 'cell--actions',
+              render: (item) => (
+                <RowActions
+                  name={item.templateName}
+                  edit={busy ? undefined : { onClick: () => edit(item) }}
+                  menu={[
+                    { label: item.active ? 'Tắt lịch gửi' : 'Bật lịch gửi', disabled: busy, onClick: () => toggle(item) },
+                    {
+                      label: 'Xóa lịch gửi',
+                      danger: true,
+                      disabled: busy,
+                      onClick: () => {
+                        setActionError('');
+                        setPending(item);
+                      },
+                    },
+                  ]}
+                />
+              ),
+            },
+          ]}
+        />
+      </section>
+      <Modal
+        open={!!form}
+        title={id ? 'Sửa lịch gửi' : 'Tạo lịch gửi'}
+        size="lg"
+        onClose={busy ? undefined : () => setForm(null)}
+        footer={
+          <>
+            <Button size="sm" disabled={busy} onClick={() => setForm(null)}>
+              Hủy
             </Button>
-            <Button className="btn" onClick={() => toggle(item)}>
-              {item.active ? 'Tắt' : 'Bật'}
+            <Button size="sm" type="submit" form="announcement-schedule-form" icon={Save} variant="outline-primary" loading={busy}>
+              Lưu lịch gửi
             </Button>
-            <Button className="btn" onClick={() => remove(item)}>
-              Xóa
-            </Button>
-          </div>
-        ))}
-      </div>
-      <form className="card card__body stack gap-4" onSubmit={save}>
-        <h2>{id ? 'Sửa lịch' : 'Tạo lịch'}</h2>
-        <label className="field">
-          Mẫu{' '}
-          <SelectField
-            className="select"
-            required
-            value={form.templateId}
-            onChange={(e) => setForm({ ...form, templateId: e.target.value })}
-          >
-            <option value="">Chọn mẫu</option>
-            {templates.map((t) => (
-              <option value={t.id} key={t.id}>
-                {t.name}
-              </option>
-            ))}
-          </SelectField>
-        </label>
-        <RecipientTargetForm value={form.target} onChange={(target) => setForm({ ...form, target })} />
-        <label className="field">
-          Tần suất{' '}
-          <SelectField className="select" value={form.frequency} onChange={(e) => setForm({ ...form, frequency: e.target.value })}>
-            <option value="WEEKLY">Hàng tuần</option>
-            <option value="MONTHLY">Hàng tháng</option>
-          </SelectField>
-        </label>
-        {form.frequency === 'WEEKLY' ? (
-          <label className="field">
-            Thứ{' '}
+          </>
+        }
+      >
+        {form && (
+          <form id="announcement-schedule-form" className="announcement-form" onSubmit={save}>
+            <AnnouncementAlert>{actionError}</AnnouncementAlert>
             <SelectField
-              className="select"
-              value={form.dayOfWeek ?? 1}
-              onChange={(e) => setForm({ ...form, dayOfWeek: Number(e.target.value) })}
+              fieldClassName="announcement-field--medium"
+              disabled={busy}
+              label="Mẫu thông báo"
+              required
+              value={form.templateId}
+              onChange={(e) => setForm({ ...form, templateId: e.target.value })}
             >
-              {[1, 2, 3, 4, 5, 6, 7].map((d) => (
-                <option value={d} key={d}>
-                  {d === 7 ? 'Chủ nhật' : `Thứ ${d + 1}`}
+              <option value="">Chọn mẫu thông báo</option>
+              {(data?.templates || []).map((template) => (
+                <option key={template.id} value={template.id}>
+                  {template.name}
                 </option>
               ))}
             </SelectField>
-          </label>
-        ) : (
-          <label className="field">
-            Ngày trong tháng{' '}
-            <TextField
-              className="input"
-              type="number"
-              required
-              min="1"
-              max="31"
-              value={form.dayOfMonth ?? ''}
-              onChange={(e) => setForm({ ...form, dayOfMonth: Number(e.target.value) })}
-            />
-          </label>
+            <RecipientTargetForm disabled={busy} value={form.target} onChange={(target) => setForm({ ...form, target })} />
+            <div className="announcement-fields">
+              <SelectField
+                disabled={busy}
+                label="Tần suất"
+                value={form.frequency}
+                onChange={(e) => setForm({ ...form, frequency: e.target.value })}
+              >
+                <option value="WEEKLY">Hằng tuần</option>
+                <option value="MONTHLY">Hằng tháng</option>
+              </SelectField>
+              {form.frequency === 'WEEKLY' ? (
+                <SelectField
+                  disabled={busy}
+                  label="Ngày gửi trong tuần"
+                  value={form.dayOfWeek ?? 1}
+                  onChange={(e) => setForm({ ...form, dayOfWeek: Number(e.target.value) })}
+                >
+                  {[1, 2, 3, 4, 5, 6, 7].map((day) => (
+                    <option key={day} value={day}>
+                      {weekday(day)}
+                    </option>
+                  ))}
+                </SelectField>
+              ) : (
+                <TextField
+                  disabled={busy}
+                  label="Ngày gửi trong tháng"
+                  fieldClassName="announcement-field--short"
+                  type="number"
+                  required
+                  min="1"
+                  max="31"
+                  value={form.dayOfMonth ?? ''}
+                  onChange={(e) => setForm({ ...form, dayOfMonth: Number(e.target.value) })}
+                  hint="Nếu tháng không có ngày đã chọn, lịch dùng ngày cuối tháng."
+                />
+              )}
+              <TextField
+                disabled={busy}
+                label="Giờ gửi (giờ Việt Nam)"
+                fieldClassName="announcement-field--short"
+                required
+                type="time"
+                value={form.sendTime}
+                onChange={(e) => setForm({ ...form, sendTime: e.target.value })}
+              />
+            </div>
+            <label className="announcement-check">
+              <Checkbox disabled={busy} checked={form.active} onChange={(e) => setForm({ ...form, active: e.target.checked })} />
+              <span>Bật lịch gửi</span>
+            </label>
+          </form>
         )}
-        <label className="field">
-          Giờ gửi (giờ Việt Nam){' '}
-          <TextField
-            className="input"
-            required
-            type="time"
-            value={form.sendTime}
-            onChange={(e) => setForm({ ...form, sendTime: e.target.value })}
-          />
-        </label>
-        <label className="field">
-          <TextField className="" type="checkbox" checked={form.active} onChange={(e) => setForm({ ...form, active: e.target.checked })} />{' '}
-          Bật lịch
-        </label>
-        <Button type="submit" variant="primary">
-          Lưu lịch
-        </Button>
-        {id && (
-          <Button
-            type="button"
-            className="btn"
-            onClick={() => {
-              setId(null);
-              setForm(blank());
-            }}
-          >
-            Hủy sửa
-          </Button>
-        )}
-      </form>
+      </Modal>
+      <ConfirmationModal
+        open={!!pending}
+        title="Xóa lịch gửi?"
+        message={`Lịch gửi từ mẫu “${pending?.templateName || ''}” sẽ bị xóa. Những thông báo đã gửi vẫn được giữ lại.`}
+        confirmLabel="Xóa lịch gửi"
+        danger
+        onConfirm={remove}
+        onClose={() => setPending(null)}
+        error={actionError}
+      />
     </div>
   );
 }

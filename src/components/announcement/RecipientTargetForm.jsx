@@ -1,4 +1,4 @@
-import { SelectField, TextField } from '@/components';
+import { Checkbox, SelectField } from '@/components';
 import { useEffect, useState } from 'react';
 import { announcements } from '@/services/announcement/announcementService';
 import { useAuth } from '@/contexts/AuthContext';
@@ -11,7 +11,7 @@ const roles = [
 ];
 export const emptyTarget = { scopeType: 'SCHOOL', campusId: null, ageGroupId: null, classroomId: null, roles: [] };
 
-export default function RecipientTargetForm({ value, onChange }) {
+export default function RecipientTargetForm({ value, onChange, hideLegend = false, disabled = false }) {
   const { user } = useAuth();
   const vicePrincipal = user?.role === 'VICE_PRINCIPAL';
   const [catalog, setCatalog] = useState({ campuses: [], ageGroups: [], classes: [] });
@@ -31,13 +31,16 @@ export default function RecipientTargetForm({ value, onChange }) {
   }, []);
   const change = (key, raw) => onChange({ ...value, [key]: raw ? Number(raw) : null });
   return (
-    <fieldset className="stack gap-2">
-      <legend>Người nhận</legend>
-      {error && <p role="alert">Không tải được danh mục: {error}</p>}
-      <label className="field">
-        Phạm vi{' '}
+    <fieldset className="announcement-fieldset" disabled={disabled}>
+      <legend className={hideLegend ? 'sr-only' : undefined}>Người nhận</legend>
+      {error && (
+        <div className="alert alert--danger" role="alert">
+          Không tải được danh mục: {error}
+        </div>
+      )}
+      <div className="announcement-fields">
         <SelectField
-          className="select"
+          label="Phạm vi"
           value={value.scopeType}
           onChange={(e) => onChange({ ...value, scopeType: e.target.value, campusId: null, ageGroupId: null, classroomId: null })}
         >
@@ -48,61 +51,52 @@ export default function RecipientTargetForm({ value, onChange }) {
           <option value="AGE_GROUP">Nhóm tuổi</option>
           <option value="CLASSROOM">Lớp</option>
         </SelectField>
-      </label>
-      {['CAMPUS', 'AGE_GROUP'].includes(value.scopeType) && (
-        <label className="field">
-          Điểm trường{' '}
+        {['CAMPUS', 'AGE_GROUP'].includes(value.scopeType) && (
           <SelectField
-            className="select"
+            label="Điểm trường"
             required={value.scopeType === 'CAMPUS' || vicePrincipal}
             value={value.campusId ?? ''}
             onChange={(e) => change('campusId', e.target.value)}
           >
             <option value="">Chọn điểm trường</option>
-            {catalog.campuses.map((x) => (
-              <option value={x.id} key={x.id}>
-                {x.name}
+            {catalog.campuses.map((site) => (
+              <option key={site.id} value={site.id}>
+                {site.name}
               </option>
             ))}
           </SelectField>
-        </label>
-      )}
-      {value.scopeType === 'AGE_GROUP' && (
-        <label className="field">
-          Nhóm tuổi{' '}
-          <SelectField className="select" required value={value.ageGroupId ?? ''} onChange={(e) => change('ageGroupId', e.target.value)}>
+        )}
+        {value.scopeType === 'AGE_GROUP' && (
+          <SelectField label="Nhóm tuổi" required value={value.ageGroupId ?? ''} onChange={(e) => change('ageGroupId', e.target.value)}>
             <option value="">Chọn nhóm tuổi</option>
-            {catalog.ageGroups.map((x) => (
-              <option value={x.id} key={x.id}>
-                {x.name}
+            {catalog.ageGroups.map((group) => (
+              <option key={group.id} value={group.id}>
+                {group.name}
               </option>
             ))}
           </SelectField>
-        </label>
-      )}
-      {value.scopeType === 'CLASSROOM' && (
-        <label className="field">
-          Lớp{' '}
-          <SelectField className="select" required value={value.classroomId ?? ''} onChange={(e) => change('classroomId', e.target.value)}>
+        )}
+        {value.scopeType === 'CLASSROOM' && (
+          <SelectField label="Lớp" required value={value.classroomId ?? ''} onChange={(e) => change('classroomId', e.target.value)}>
             <option value="">Chọn lớp</option>
-            {catalog.classes.map((x) => (
-              <option value={x.id} key={x.id}>
-                {x.name}
+            {catalog.classes.map((classroom) => (
+              <option key={classroom.id} value={classroom.id}>
+                {classroom.name}
               </option>
             ))}
           </SelectField>
-        </label>
-      )}
-      <div>
+        )}
+      </div>
+      <div className="announcement-roles">
         {roles.map(([id, label]) => (
-          <label key={id}>
-            <TextField
-              className=""
-              type="checkbox"
+          <label key={id} className="announcement-check">
+            <Checkbox
               checked={value.roles.includes(id)}
-              onChange={(e) => onChange({ ...value, roles: e.target.checked ? [...value.roles, id] : value.roles.filter((r) => r !== id) })}
-            />{' '}
-            {label}{' '}
+              onChange={(e) =>
+                onChange({ ...value, roles: e.target.checked ? [...value.roles, id] : value.roles.filter((role) => role !== id) })
+              }
+            />
+            <span>{label}</span>
           </label>
         ))}
       </div>

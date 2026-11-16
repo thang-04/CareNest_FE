@@ -42,6 +42,7 @@ import {
   RowActions,
   StatusPage,
   Button,
+  PageToolbar,
   Checkbox,
   DataTable,
   TextField,
@@ -1070,6 +1071,29 @@ export default function UiKitPage() {
           }
         >
           <NutritionPrimitivesDemo />
+        </Section>
+
+        <Section
+          id="responsive-toolbar"
+          title="Header một hàng, menu ba gạch khi thiếu chỗ"
+          code={
+            '<PageToolbar summary="Thông tin trang">…các nút…</PageToolbar> // ghim dưới header; ResponsiveToolbar dùng cho vùng không ghim'
+          }
+        >
+          <PageToolbar aria-label="Thao tác kế hoạch" summary="Header dùng chung">
+            <Button variant="outline-primary" size="sm" icon={Save}>
+              Lưu kế hoạch
+            </Button>
+            <Button variant="outline-primary" size="sm" icon={Send}>
+              Gửi kế hoạch để duyệt
+            </Button>
+            <Button variant="outline-primary" size="sm" icon={Printer}>
+              Xuất file kế hoạch
+            </Button>
+            <Button variant="outline-danger" size="sm" icon={Trash2} disabled>
+              Xóa kế hoạch
+            </Button>
+          </PageToolbar>
         </Section>
 
         <Section

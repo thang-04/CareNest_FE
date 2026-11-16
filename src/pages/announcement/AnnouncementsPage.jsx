@@ -1,65 +1,59 @@
-import { Breadcrumb } from '@/components/ui/Breadcrumb';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Pagination } from '@/components/ui/Pagination';
-import { DataTable } from '@/components/ui/DataTable';
+import { DataTable, Pagination } from '@/components';
+import { Plus, FileText } from '@/components/ui/icons';
+import { AnnouncementHeader, AnnouncementStatusBadge, scopeLabels } from '@/components/announcement/announcementUi';
 import { announcements } from '@/services/announcement/announcementService';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAsync } from '@/hooks/useAsync';
+import { formatDateTime } from '@/utils/format';
 
 export default function AnnouncementsPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [page, setPage] = useState(1);
-  const [data, setData] = useState(null);
-  const [error, setError] = useState('');
-  useEffect(() => {
-    let active = true;
-    setError('');
-    announcements
-      .list({ page: page - 1, size: 20 }, user)
-      .then((v) => {
-        if (active) setData(v);
-      })
-      .catch((e) => {
-        if (active) setError(e.message);
-      });
-    return () => {
-      active = false;
-    };
-  }, [page, user]);
+  const { data, loading, error, reload } = useAsync(() => announcements.list({ page: page - 1, size: 20 }, user), [page, user]);
   return (
-    <div className="page">
-      <Breadcrumb items={[{ label: 'Trang chủ', to: '/' }, { label: 'Thông báo nhà trường' }]} />
-      <h1 className="page__title">Thông báo nhà trường</h1>
-      <div className="row gap-2">
-        <Link className="btn btn--primary" to="/announcements/new">
-          Soạn thông báo
-        </Link>
-        <Link className="btn" to="/announcement-templates">
-          Mẫu thông báo
-        </Link>
-      </div>
-      {error && <p role="alert">{error}</p>}
-      {!data && !error && <p>Đang tải…</p>}
-      {data && (
-        <div className="card card__body">
-          {data.items.length === 0 ? (
-            <p>Chưa có thông báo.</p>
-          ) : (
-            <DataTable
-              columns={[
-                { key: 'title', header: 'Tiêu đề' },
-                { key: 'senderName', header: 'Người gửi' },
-                { key: 'status', header: 'Trạng thái' },
-                { key: 'recipientCount', header: 'Người nhận' },
-              ]}
-              rows={data.items}
-              onRowClick={(item) => navigate(`/announcements/${item.id}`)}
-            />
-          )}
-          <Pagination page={page} pageSize={data.size} total={data.totalElements} onChange={setPage} unit="thông báo" />
-        </div>
-      )}
+    <div className="page page--toolbar announcement-page">
+      <AnnouncementHeader
+        title="Thông báo nhà trường"
+        summary={data ? `${data.totalElements} thông báo` : 'Thông báo đã tạo'}
+        actions={
+          <>
+            <Link className="btn btn--sm btn--outline-primary" to="/announcement-templates">
+              <FileText size={15} aria-hidden="true" /> Mẫu thông báo
+            </Link>
+            <Link className="btn btn--sm btn--outline-primary" to="/announcements/new">
+              <Plus size={15} aria-hidden="true" /> Soạn thông báo
+            </Link>
+          </>
+        }
+      />
+      <section className="card">
+        <DataTable
+          loading={loading}
+          error={error}
+          onRetry={reload}
+          rows={data?.items}
+          empty={{ title: 'Chưa có thông báo nhà trường', description: 'Soạn thông báo và chọn người nhận để bắt đầu.' }}
+          columns={[
+            { key: 'index', header: 'STT', className: 'center', render: (item) => (page - 1) * 20 + data.items.indexOf(item) + 1 },
+            { key: 'title', header: 'Tiêu đề', render: (item) => <span className="fw-600">{item.title}</span> },
+            { key: 'scope', header: 'Phạm vi', render: (item) => scopeLabels[item.target?.scopeType] || '—' },
+            { key: 'senderName', header: 'Người gửi' },
+            { key: 'sendAt', header: 'Thời gian gửi', render: (item) => formatDateTime(item.sentAt || item.sendAt) },
+            { key: 'recipientCount', header: 'Số người nhận', className: 'center' },
+            {
+              key: 'status',
+              header: 'Trạng thái',
+              className: 'center',
+              render: (item) => <AnnouncementStatusBadge status={item.status} />,
+            },
+          ]}
+          onRowClick={(item) => navigate(`/announcements/${item.id}`)}
+        />
+        {data && !error && <Pagination page={page} pageSize={data.size} total={data.totalElements} onChange={setPage} unit="thông báo" />}
+      </section>
     </div>
   );
 }

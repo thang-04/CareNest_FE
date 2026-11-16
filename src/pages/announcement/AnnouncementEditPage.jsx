@@ -1,34 +1,22 @@
-import { Breadcrumb } from '@/components/ui/Breadcrumb';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { ArrowLeft } from '@/components/ui/icons';
+import { EmptyState, ErrorState, LoadingState } from '@/components';
+import { AnnouncementAlert, AnnouncementHeader, announcementStatusLabels } from '@/components/announcement/announcementUi';
 import AnnouncementForm from '@/components/announcement/AnnouncementForm';
 import { announcements } from '@/services/announcement/announcementService';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAsync } from '@/hooks/useAsync';
 
 export default function AnnouncementEditPage() {
   const { user } = useAuth();
   const { id } = useParams();
   const navigate = useNavigate();
-  const [data, setData] = useState(null);
+  const { data, loading, error: loadError, reload } = useAsync(() => announcements.detail(id, user), [id, user], { enabled: !!id });
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
   const [busy, setBusy] = useState(false);
   const [current, setCurrent] = useState(null);
-  useEffect(() => {
-    if (!id) return undefined;
-    let active = true;
-    announcements
-      .detail(id, user)
-      .then((x) => {
-        if (active) setData(x);
-      })
-      .catch((e) => {
-        if (active) setError(e.message);
-      });
-    return () => {
-      active = false;
-    };
-  }, [id, user]);
   const save = async (value, files) => {
     setBusy(true);
     setError('');
@@ -51,14 +39,42 @@ export default function AnnouncementEditPage() {
     }
   };
   return (
-    <div className="page">
-      <Breadcrumb items={[{ label: 'Trang chủ', to: '/' }, { label: 'Soạn hoặc sửa thông báo' }]} />
-      <Link to="/announcements">← Danh sách</Link>
-      <h1 className="page__title">{id ? 'Sửa thông báo' : 'Soạn thông báo'}</h1>
-      {error && <p role="alert">{error}</p>}
-      {current && <p>Trạng thái hiện tại trên máy chủ: {current.status}. Nội dung bạn đang nhập được giữ lại để đối chiếu.</p>}
-      {(!id || data?.canEdit) && <AnnouncementForm initial={data} onSave={save} busy={busy} serverErrors={fieldErrors} />}
-      {id && data && !data.canEdit && <p>Thông báo không còn cho phép sửa.</p>}
+    <div className="page page--toolbar announcement-page">
+      <AnnouncementHeader
+        title={id ? 'Sửa thông báo' : 'Soạn thông báo'}
+        detail
+        back={
+          (loadError || (id && !data?.canEdit)) && (
+            <Link className="btn btn--sm btn--outline-primary" to="/announcements">
+              <ArrowLeft size={15} aria-hidden="true" /> Quay lại
+            </Link>
+          )
+        }
+      />
+      <AnnouncementAlert>{error}</AnnouncementAlert>
+      {current && (
+        <AnnouncementAlert info>
+          Trạng thái hiện tại: {announcementStatusLabels[current.status] || current.status}. Nội dung đang nhập được giữ lại để đối chiếu.
+        </AnnouncementAlert>
+      )}
+      {loadError ? (
+        <div className="card">
+          <ErrorState error={loadError} onRetry={reload} />
+        </div>
+      ) : id && loading && !data ? (
+        <div className="card">
+          <LoadingState />
+        </div>
+      ) : id && data && !data.canEdit ? (
+        <div className="card">
+          <EmptyState
+            title="Thông báo không còn cho phép sửa"
+            description="Chỉ có thể sửa thông báo còn hẹn gửi. Hãy quay lại danh sách để xem trạng thái mới nhất."
+          />
+        </div>
+      ) : (
+        (!id || data?.canEdit) && <AnnouncementForm key={id || 'new'} initial={data} onSave={save} busy={busy} serverErrors={fieldErrors} />
+      )}
     </div>
   );
 }

@@ -4,6 +4,142 @@
  */
 
 /* ---------- Page ---------- */
+.page.page--toolbar {
+  padding-top: 0;
+}
+.page--toolbar > .page__head:not(:has(.page__subtitle, .page__desc, .page__actions)) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.responsive-toolbar.page-toolbar {
+  position: sticky;
+  top: calc(var(--header-height) + var(--space-3));
+  z-index: var(--z-sticky);
+  padding-block: var(--space-2);
+  margin-bottom: var(--space-2-5);
+  background: var(--color-bg);
+  border-bottom: 1px solid var(--color-border);
+}
+.page-toolbar__summary {
+  min-width: 0;
+  color: var(--color-text-muted);
+  font-size: var(--fs-sm);
+}
+.page-toolbar__leading,
+.page-toolbar__actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: var(--space-2);
+}
+.page-toolbar__actions {
+  margin-left: auto;
+}
+.page-toolbar .btn {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+.page-toolbar[data-compact] .page-toolbar__leading,
+.page-toolbar[data-compact] .page-toolbar__actions {
+  flex-direction: column;
+  align-items: stretch;
+  margin-left: 0;
+}
+.page-toolbar .responsive-toolbar__content[data-measuring] .page-toolbar__leading,
+.page-toolbar .responsive-toolbar__content[data-measuring] .page-toolbar__actions {
+  flex-direction: row !important;
+  align-items: center !important;
+}
+.responsive-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  position: relative;
+  min-width: 0;
+  flex-wrap: nowrap;
+}
+.responsive-toolbar__content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: nowrap;
+  gap: var(--space-2);
+  width: 100%;
+  min-width: 0;
+}
+.responsive-toolbar__content > * {
+  flex-shrink: 0;
+}
+.responsive-toolbar__content > .row {
+  flex-wrap: nowrap;
+}
+.page__head > .responsive-toolbar {
+  flex: 1;
+  max-width: 100%;
+  flex-wrap: nowrap;
+}
+.page__head > .responsive-toolbar > .responsive-toolbar__content {
+  justify-content: flex-end;
+}
+.responsive-toolbar__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+}
+.responsive-toolbar__trigger {
+  flex-shrink: 0;
+  margin-left: auto;
+  min-width: calc(var(--space-10) + var(--space-1));
+  min-height: calc(var(--space-10) + var(--space-1));
+}
+.responsive-toolbar[data-compact] > .responsive-toolbar__content {
+  display: none;
+}
+.responsive-toolbar[data-compact] > .responsive-toolbar__content[data-open] {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  position: absolute;
+  top: 100%;
+  right: 0;
+  width: max-content;
+  max-width: 100%;
+  max-height: 70vh;
+  overflow: auto;
+  padding: var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--tile-radius);
+  box-shadow: var(--shadow-lg);
+  z-index: var(--z-popover);
+}
+.responsive-toolbar[data-compact] > .responsive-toolbar__content[data-open] > .row {
+  flex-direction: column;
+  align-items: stretch;
+}
+.responsive-toolbar > .responsive-toolbar__content[data-measuring] {
+  display: flex !important;
+  position: absolute !important;
+  visibility: hidden !important;
+  flex-direction: row !important;
+  width: max-content !important;
+  max-width: none !important;
+  max-height: none !important;
+  padding: 0 !important;
+  border: 0 !important;
+}
+.responsive-toolbar > .responsive-toolbar__content[data-measuring] > .row {
+  flex-direction: row !important;
+}
+
 /* Đường dẫn đã lên thanh trên: nội dung bắt đầu ngay dưới thanh nổi nên cần khoảng trên đủ để không chạm bóng của thanh */
 .page {
   padding: var(--space-4) var(--page-padding) var(--space-8);

@@ -1,6 +1,9 @@
+import { notificationTypeLabel } from '../utils/notificationLabel.mjs';
+
 const toUi = (n) => ({
   id: n.id,
   type: n.type,
+  typeLabel: notificationTypeLabel(n.type, n.typeLabel),
   title: n.title,
   message: n.body,
   link: n.link || null,
