@@ -1,6 +1,6 @@
 # Deploy Web lên VPS (Docker + Caddy + GitHub Actions)
 
-Luồng: push lên `main` (merge PR từ `release/*`; PR vào `main` chỉ chạy verify, commit chỉ sửa tài liệu không chạy) ⇒ `.github/workflows/deploy.yml` chạy `npm run verify` ⇒ rsync source lên `/data/thangnd/CAPSTONE/CareNest_FE` ⇒ VPS chạy `docker compose up -d --build` (build Vite trong Docker ngay trên VPS) ⇒ CI đồng bộ file site Caddy và reload nếu file đổi ⇒ Caddy trên host phục vụ `https://web.carenest.edu.vn`.
+Luồng: push lên `main` (merge PR từ `release/*`; PR vào `main` chỉ chạy verify, commit chỉ sửa tài liệu không chạy) ⇒ `.github/workflows/deploy.yml` chạy `npm run verify` ⇒ rsync source lên `/data/thangnd/CAPSTONE/CareNest_FE` ⇒ VPS chạy `docker compose up -d --build` (build Vite trong Docker ngay trên VPS) ⇒ CI đồng bộ file site Caddy và reload nếu file đổi ⇒ Caddy trên host phục vụ `https://thuonghong.carenest.edu.vn`.
 
 ```
 Trình duyệt ─HTTPS─▶ Caddy host (giữ 80/443 cho mọi site trên server, HTTPS tự động)
@@ -43,9 +43,9 @@ Mọi service CareNest trên VPS (FE, sau này BE, Keycloak, Postgres, AI) chạ
 
 | Service | Cổng `127.0.0.1` | Site Caddy |
 | --- | --- | --- |
-| `carenest-web` (FE) | 18300 | `web.carenest.edu.vn` |
+| `carenest-web` (FE) | 18300 | `thuonghong.carenest.edu.vn` |
 | `carenest-web-dev` (FE nhánh dev) | 18301 | `dev.carenest.edu.vn` (`deploy/caddy/carenest-dev.caddy`) |
-| api (BE) | 18310 (`BE:compose.vps.yaml`, prefix `/api`; route `/api/*` trong site FE; 8080 của server là app khác) | dùng chung `web.carenest.edu.vn` |
+| api (BE) | 18310 (`BE:compose.vps.yaml`, prefix `/api`; route `/api/*` trong site FE; 8080 của server là app khác) | dùng chung `thuonghong.carenest.edu.vn` |
 | api dev (BE nhánh dev) | 18311 (`BE:compose.dev.yaml`) | route `/api/*` của `dev.carenest.edu.vn` |
 | Keycloak dev | 18322, management 18323 | `auth-dev.carenest.edu.vn` (site repo BE) |
 | Keycloak, Postgres, AI | chưa chốt — điền khi deploy BE | Keycloak: file site riêng của repo BE |
@@ -56,13 +56,13 @@ Mặc định (chưa đặt Variables) image build với `VITE_AUTH_MODE=mock`, 
 
 Bản dev đọc Variables của environment `dev` (`VITE_AUTH_MODE=gateway`, `VITE_USE_MOCK=false`, `VITE_API_BASE_URL=/api`); production đọc Variables cấp repo như cũ.
 
-Nối BE thật (BE chạy ở `127.0.0.1:18310`, đã bật gateway `CARENEST_AUTH_ENABLED=true` theo `BE:docs/system/DEPLOYMENT.md`): GitHub › Settings › Secrets and variables › Actions › **Variables** › đặt `VITE_AUTH_MODE=gateway`, `VITE_USE_MOCK=false`, `VITE_API_BASE_URL=/api` (khớp `handle /api/*` của Caddy, cùng origin nên cookie phiên gateway path `/api/auth` dùng được), rồi chạy lại workflow. `gateway` đăng nhập qua `/api/auth/*` (`docs/integration/AUTH_FLOW.md`) và bật luôn các màn đã nối BE qua `beClient` (`SCHOOL_CONFIG_API` trong `src/config/env.js`). Kiểm tra: `curl -s https://web.carenest.edu.vn/api/auth/csrf` trả 200 `{code, desc, data}`. Phía BE: `CARENEST_AUTH_WEB_ORIGIN=https://web.carenest.edu.vn`.
+Nối BE thật (BE chạy ở `127.0.0.1:18310`, đã bật gateway `CARENEST_AUTH_ENABLED=true` theo `BE:docs/system/DEPLOYMENT.md`): GitHub › Settings › Secrets and variables › Actions › **Variables** › đặt `VITE_AUTH_MODE=gateway`, `VITE_USE_MOCK=false`, `VITE_API_BASE_URL=/api` (khớp `handle /api/*` của Caddy, cùng origin nên cookie phiên gateway path `/api/auth` dùng được), rồi chạy lại workflow. `gateway` đăng nhập qua `/api/auth/*` (`docs/integration/AUTH_FLOW.md`) và bật luôn các màn đã nối BE qua `beClient` (`SCHOOL_CONFIG_API` trong `src/config/env.js`). Kiểm tra: `curl -s https://thuonghong.carenest.edu.vn/api/auth/csrf` trả 200 `{code, desc, data}`. Phía BE: `CARENEST_AUTH_WEB_ORIGIN=https://thuonghong.carenest.edu.vn`.
 
 ## Cài một lần trên VPS
 
 Server hiện tại (`k8selchat`): Caddy chạy bằng systemd (`/etc/caddy/Caddyfile`) giữ cổng 80/443 cho các site khác; SELinux `Disabled`. Không cài/bật nginx host, không certbot.
 
-1. **DNS:** bản ghi A `web` của `carenest.edu.vn` trỏ IP VPS. Kiểm tra: `dig +short web.carenest.edu.vn` ra đúng IP **trước** khi thêm site vào Caddy (sai DNS ⇒ Caddy xin chứng chỉ thất bại và thử lại liên tục).
+1. **DNS:** bản ghi A `thuonghong` của `carenest.edu.vn` trỏ IP VPS. Kiểm tra: `dig +short thuonghong.carenest.edu.vn` ra đúng IP **trước** khi thêm site vào Caddy (sai DNS ⇒ Caddy xin chứng chỉ thất bại và thử lại liên tục).
 2. **Gói cần có:** `docker compose version` chạy được; `rsync` (`sudo dnf install -y rsync`).
 3. **User `thangnd` (CI SSH bằng user này) dùng được Docker không cần sudo:**
    ```bash
@@ -118,9 +118,9 @@ Thư mục deploy cố định trong workflow (`APP_DIR` trong `.github/workflow
 
 ## Kiểm tra sau deploy
 
-- Tab Actions: 2 job `verify`, `deploy` xanh (bước `Smoke test HTTPS` gọi `https://web.carenest.edu.vn/` từ runner).
+- Tab Actions: 2 job `verify`, `deploy` xanh (bước `Smoke test HTTPS` gọi `https://thuonghong.carenest.edu.vn/` từ runner).
 - VPS: `sudo ss -ltnp | grep 18300` chỉ thấy `127.0.0.1:18300`.
-- VPS: `cd /data/thangnd/CAPSTONE/CareNest_FE && docker compose ps` thấy `carenest-web` Up; `curl -I https://web.carenest.edu.vn` trả 200.
+- VPS: `cd /data/thangnd/CAPSTONE/CareNest_FE && docker compose ps` thấy `carenest-web` Up; `curl -I https://thuonghong.carenest.edu.vn` trả 200.
 - Trình duyệt: F5 ở route con (vd. `/children`, `/login`) không 404.
 - Lỗi HTTPS: `journalctl -u caddy -n 50 --no-pager | grep -i carenest`.
 

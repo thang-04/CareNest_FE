@@ -74,3 +74,13 @@ export const validateDecision = ({ negative, comment }) => {
 };
 
 export const hasErrors = (errors) => Object.keys(errors || {}).length > 0;
+
+/**
+ * Lỗi BE (err.details theo ô) → lỗi đỏ inline: giữ các ô form có hiển thị; lỗi không gắn được ô nào hiện ở đầu form (_form).
+ */
+export const inlineErrors = (err, fields = []) => {
+  const details = err?.details || {};
+  const out = Object.fromEntries(fields.filter((f) => details[f]).map((f) => [f, details[f]]));
+  if (!hasErrors(out)) out._form = details._form || err?.message || 'Chưa lưu được, thử lại.';
+  return out;
+};

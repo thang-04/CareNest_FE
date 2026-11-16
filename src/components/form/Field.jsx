@@ -10,7 +10,7 @@ import { FormField } from './FormField';
  */
 const split = ({ label, required, error, hint, fieldClassName, ...control }) => ({
   field: { label, required, error, hint, className: fieldClassName },
-  control,
+  control: { required, ...control },
 });
 // Không nhãn, không lỗi, không gợi ý (ô lọc trong .filter-bar, dùng aria-label) ⇒ không bọc .field để giữ bố cục hàng lọc
 const wrap = (field, control) => (field.label || field.error || field.hint ? <FormField {...field}>{control}</FormField> : control);

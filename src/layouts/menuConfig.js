@@ -48,6 +48,9 @@ const LINKS = {
     icon: Bell,
     to: '/notifications',
   },
+  announcements: { label: 'Thông báo nhà trường', icon: Bell, to: '/announcements' },
+  notificationRules: { label: 'Quy tắc thông báo', icon: Gear, to: '/notification-rules' },
+  announcementSchedules: { label: 'Lịch thông báo', icon: CalendarDots, to: '/announcement-schedules' },
   // BE meal-management-permissions.md mục 1: "Bán trú hôm nay" là một trang, không có mục con
   boardingToday: {
     label: 'Bán trú hôm nay',
@@ -285,7 +288,7 @@ const ITEMS = {
     to: '/assessment/themes',
   },
   assessDayUnlocks: {
-    label: 'Mở lại ngày đánh giá',
+    label: 'Mở lại đánh giá',
     to: '/assessment/day-unlocks',
   },
   assessProfiles: {
@@ -307,6 +310,10 @@ const ITEMS = {
   assessTickets: {
     label: 'Phiếu bé ngoan',
     to: '/assessment/tickets',
+  },
+  assessWeeklyComments: {
+    label: 'Nhận xét tuần',
+    to: '/assessment/weekly-comments',
   },
   assessRewards: {
     label: 'Đề xuất khen thưởng',
@@ -431,6 +438,9 @@ const MENUS = {
   [ROLES.PRINCIPAL]: [
     link('home'),
     link('approvals'),
+    link('announcements'),
+    link('notificationRules'),
+    link('announcementSchedules'),
     group('school', [
       'schoolYears',
       'schoolPlacement',
@@ -458,14 +468,15 @@ const MENUS = {
     ]),
     group('assessment', [
       'assessOverview',
+      'assessWeeklyComments',
+      'assessTickets',
+      'assessThemes',
       'assessQuality',
+      'assessSemester',
+      'assessYearEnd',
+      'assessRewards',
       'assessClassRatings',
       'assessProgress',
-      'assessSemester',
-      'assessThemes',
-      'assessYearEnd',
-      'assessTickets',
-      'assessRewards',
       'assessDayUnlocks',
     ]),
     ...boardingSection({
@@ -481,6 +492,7 @@ const MENUS = {
   [ROLES.VICE_PRINCIPAL]: [
     link('home'),
     link('approvals'),
+    link('announcements'),
     group('school', [
       'schoolYears',
       'schoolPlacement',
@@ -495,14 +507,15 @@ const MENUS = {
     group('education', ['eduSchoolYear', 'eduGoals', 'eduBranch', 'eduThemePlans', 'eduDayPlans', 'eduPlanReviews', 'eduCurriculum']),
     group('assessment', [
       'assessOverview',
+      'assessWeeklyComments',
+      'assessTickets',
+      'assessThemes',
       'assessQuality',
+      'assessSemester',
+      'assessYearEnd',
+      'assessRewards',
       'assessClassRatings',
       'assessProgress',
-      'assessSemester',
-      'assessThemes',
-      'assessYearEnd',
-      'assessTickets',
-      'assessRewards',
       'assessDayUnlocks',
     ]),
     ...boardingSection({
@@ -533,14 +546,15 @@ const MENUS = {
     group('assessment', [
       'assessOverview',
       'assessDaily',
-      'assessProfiles',
-      'assessSemester',
-      'assessThemes',
-      'assessYearEnd',
-      'assessQuality',
-      'assessClassRatings',
+      'assessWeeklyComments',
       'assessTickets',
+      'assessThemes',
+      'assessQuality',
+      'assessSemester',
+      'assessYearEnd',
       'assessRewards',
+      'assessClassRatings',
+      'assessProfiles',
     ]),
     account,
     link('notifications'),
@@ -552,14 +566,15 @@ const MENUS = {
     group('education', ['eduSchoolYear', 'eduGoals', 'eduBranch', 'eduThemePlans', 'eduDayPlans', 'eduResources', 'eduCurriculum']),
     group('assessment', [
       'assessDaily',
-      'assessProfiles',
-      'assessSemester',
-      'assessThemes',
-      'assessYearEnd',
-      'assessQuality',
-      'assessClassRatings',
+      'assessWeeklyComments',
       'assessTickets',
+      'assessThemes',
+      'assessQuality',
+      'assessSemester',
+      'assessYearEnd',
       'assessRewards',
+      'assessClassRatings',
+      'assessProfiles',
     ]),
     account,
     link('notifications'),
@@ -669,8 +684,15 @@ const ITEM_BE_PERMISSIONS = {
   assessSemester: [PERMISSIONS.ASSESSMENT_VIEW],
   assessYearEnd: [PERMISSIONS.ASSESSMENT_VIEW],
   assessTickets: [PERMISSIONS.ASSESSMENT_VIEW],
+  assessWeeklyComments: [PERMISSIONS.ASSESSMENT_VIEW],
   assessRewards: [PERMISSIONS.ASSESSMENT_VIEW],
 };
+// Riêng PHT (NUT-02, AUTH-20): sổ suất ăn hiện khi có quyền xem điểm danh (chỉ xem) hoặc xác nhận số suất, như BE
+const VP_ITEM_BE_PERMISSIONS = {
+  mealCount: [PERMISSIONS.ATTENDANCE_VIEW, PERMISSIONS.MEAL_COUNT_CONFIRM],
+};
+const itemBePermissions = (key, user) =>
+  ITEM_BE_PERMISSIONS[key] || (user.role === ROLES.VICE_PRINCIPAL ? VP_ITEM_BE_PERMISSIONS[key] : undefined);
 const withBePermissions = (menu, user) =>
   !Array.isArray(user?.bePermissions)
     ? menu
@@ -679,7 +701,9 @@ const withBePermissions = (menu, user) =>
           e.children
             ? {
                 ...e,
-                children: e.children.filter((c) => !ITEM_BE_PERMISSIONS[c.key] || hasBePermission(user, ...ITEM_BE_PERMISSIONS[c.key])),
+                children: e.children.filter(
+                  (c) => !itemBePermissions(c.key, user) || hasBePermission(user, ...itemBePermissions(c.key, user)),
+                ),
               }
             : e,
         )

@@ -220,11 +220,6 @@ function TeacherTicketsPage() {
                   </div>
                 )}
               </div>
-              {weekly && !error && board?.period && (
-                <p className="muted text-sm">
-                  Ngày có mặt và cờ trong tuần đi theo trẻ, bao gồm trước khi chuyển lớp. Mỗi trẻ chỉ nhận một phiếu trong kỳ.
-                </p>
-              )}
               {error ? (
                 <ErrorState error={error} onRetry={reload} />
               ) : !loading && board && !board.period ? (

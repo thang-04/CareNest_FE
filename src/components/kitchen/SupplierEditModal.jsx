@@ -3,6 +3,7 @@ import { Save } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useSupplier } from '@/hooks/kitchen/useKitchen';
+import { useUnsavedMark } from '@/hooks/useLeaveGuard';
 import { ErrorState, FormField, LoadingState, Modal, Spinner } from '@/components';
 import { saveSupplier, suppliersUseApi } from '@/services/kitchen/kitchenService';
 import { validateSupplier } from '@/utils/kitchen/kitchenValidation';
@@ -28,6 +29,10 @@ export function SupplierEditModal({ supplierId, onClose, onSaved }) {
   useEffect(() => {
     if (existing.data) setForm(pick(existing.data));
   }, [existing.data]);
+
+  // So với bản đã tải (sửa) hoặc mẫu trống (thêm); đang tải thì chưa tính. Đang lưu vẫn đánh dấu để lưu lỗi 401 không mất dữ liệu
+  const baseline = existing.data ? pick(existing.data) : EMPTY;
+  useUnsavedMark(!(supplierId && existing.loading) && Object.keys(EMPTY).some((k) => form[k] !== baseline[k]));
 
   const errors = { ...validateSupplier(form), ...serverErrors };
   const show = (k) => (submitted || touched[k] ? errors[k] : undefined);

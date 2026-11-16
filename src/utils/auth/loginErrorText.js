@@ -5,6 +5,8 @@ const BY_CODE = {
   1013: 'Dịch vụ đăng nhập đang gián đoạn',
   1014: 'Tài khoản chưa được cấp quyền',
   1015: 'Tài khoản của bạn đã bị vô hiệu hóa. Vui lòng liên hệ Ban Giám hiệu để được hỗ trợ mở lại.',
+  1018: 'Trình duyệt đang dùng tài khoản đã chọn tiếp tục dùng, lần đăng nhập này đã bị hủy',
+  1019: 'Hết thời gian chờ xác nhận, vui lòng đăng nhập lại',
 };
 
 /** Chữ hiện ở hộp lỗi trang đăng nhập: ưu tiên câu ngắn theo mã lỗi, không có thì dùng câu của lỗi. */

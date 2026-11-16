@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Save, Sparkles, Info } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useAllergyContext, useMenuAccess, useMenuCatalog, useWeeklyMenu, useWeeklyMenus } from '@/hooks/menu-planning/useMenuPlanning';
 import { getAiDraft, saveWeeklyMenu } from '@/services/menu-planning/menuPlanningService';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
+import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
+import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { FormField } from '@/components/form/FormField';
 import { WeekPicker } from '@/components/form/WeekPicker';
 import { SearchSelect } from '@/components/ui/SearchSelect';
@@ -32,18 +34,19 @@ const nextMonday = () => addDays(mondayOf(todayInput()), 7);
 export default function WeeklyMenuFormPage() {
   const { id } = useParams();
   const [params] = useSearchParams();
-  const navigate = useNavigate();
   const { user } = useAuth();
   const toast = useToast();
   const access = useMenuAccess();
   const { catalog, loading: catLoading } = useMenuCatalog({ live: false });
   const { item, loading, error, reload } = useWeeklyMenu(id, { live: false });
-  const [form, setForm] = useState(() => ({
+  // Giá trị gốc để so sánh "đã sửa chưa": form trống (mới) hoặc dữ liệu nạp từ server
+  const [initial, setInitial] = useState(() => ({
     ageGroupId: params.get('ageGroupId') || '',
     weekStart: nextMonday(),
     days: blankDays(nextMonday()),
     note: '',
   }));
+  const [form, setForm] = useState(initial);
   const [aiDraft, setAiDraft] = useState(null);
   const [submitted, setSubmitted] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -52,7 +55,10 @@ export default function WeeklyMenuFormPage() {
   const aiDraftId = params.get('aiDraftId');
 
   useEffect(() => {
-    if (item) setForm({ ageGroupId: item.ageGroupId, weekStart: item.weekStart, days: item.days, note: item.note || '' });
+    if (!item) return;
+    const loaded = { ageGroupId: item.ageGroupId, weekStart: item.weekStart, days: item.days, note: item.note || '' };
+    setForm(loaded);
+    setInitial(loaded);
   }, [item]);
 
   useEffect(() => {
@@ -96,18 +102,26 @@ export default function WeeklyMenuFormPage() {
   };
   const changeAgeGroup = (ageGroupId) => setForm((f) => ({ ...f, ageGroupId, days: blankDays(f.weekStart) }));
 
-  const submit = async (e) => {
-    e.preventDefault();
+  const dirty =
+    ['ageGroupId', 'weekStart', 'note'].some((k) => form[k] !== initial[k]) || JSON.stringify(form.days) !== JSON.stringify(initial.days);
+  const guard = useLeaveGuard({ when: dirty && !busy, onSave: () => submit(null, { stay: true }) });
+
+  // Trả true khi lưu được; stay: lưu từ hộp rời màn (hộp tự chuyển tới nơi người dùng bấm)
+  const submit = async (e, { stay = false } = {}) => {
+    e?.preventDefault();
     setSubmitted(true);
-    if (hasErrors(errors)) return;
+    if (hasErrors(errors)) return false;
     setBusy(true);
     try {
       const saved = await saveWeeklyMenu(id, { ...form, aiDraftId: aiDraft?.id }, user);
       toast.success('Lưu thay đổi thành công.');
-      navigate(`/menu/weekly/${saved.id}`);
+      if (!stay) guard.leaveNow(`/menu/weekly/${saved.id}`);
+      return true;
     } catch (err) {
       toast.error(err, 'Không lưu được thay đổi');
-      if (err.details?.existingId) navigate(`/menu/weekly/${err.details.existingId}`);
+      // Tuần này đã có thực đơn: chuyển sang thực đơn đó
+      if (!stay && err.details?.existingId) guard.leaveNow(`/menu/weekly/${err.details.existingId}`);
+      return false;
     } finally {
       setBusy(false);
     }
@@ -180,7 +194,7 @@ export default function WeeklyMenuFormPage() {
       )}
       <form onSubmit={submit} noValidate>
         <div className="page-actions page-actions--top">
-          <button type="button" className="btn" onClick={() => navigate(id ? `/menu/weekly/${id}` : '/menu/weekly')}>
+          <button type="button" className="btn" onClick={() => guard.leave(id ? `/menu/weekly/${id}` : '/menu/weekly')}>
             <ArrowLeft size={16} /> Hủy
           </button>
           <button type="submit" className="btn btn--primary" disabled={busy}>
@@ -283,6 +297,7 @@ export default function WeeklyMenuFormPage() {
           </div>
         )}
       </form>
+      <LeaveConfirmModal {...guard.modal} />
     </div>
   );
 }

@@ -16,7 +16,7 @@ import { EmptyState, ErrorState, SkeletonRows, Spinner } from '@/components/ui/S
 import { StatusPage } from '@/components/ui/StatusPage';
 import { AbsentRows, BehaviorsCell, HealthCell, MealsCell } from '@/components/assessment/DailyAssessmentCells';
 import { Cell } from '@/components/ui/TableCell';
-import { DAILY_COMMENT_MAX, EMOTION, EMOTION_LABELS } from '@/models/assessment/assessmentConstants';
+import { CLASS_COMMENT_MAX, DAILY_COMMENT_MAX, EMOTION, EMOTION_LABELS } from '@/models/assessment/assessmentConstants';
 import { NAP, NAP_LABELS, PARTICIPATION, PARTICIPATION_LABELS } from '@/models/assessment/dailyObservationOptions';
 import { createGeneralDraft, getGeneralDirtyIds, getGeneralSaveEntries, isGeneralRecorded } from '@/utils/assessment/dailyGeneralDraft';
 import { DateInput } from '@/components/form/DateInput';
@@ -81,8 +81,10 @@ export default function DailyAssessmentPage() {
     setSaveError(null);
   };
 
+  // BE cắt khoảng trắng đầu / cuối rồi mới đếm
+  const classCommentTooLong = classComment.trim().length > CLASS_COMMENT_MAX;
   const save = async () => {
-    if (saving || !writable || loading || classesLoading || error || !canSave) return false;
+    if (saving || !writable || loading || classesLoading || error || !canSave || classCommentTooLong) return false;
     setSaving(true);
     setSaveError(null);
     try {
@@ -113,7 +115,9 @@ export default function DailyAssessmentPage() {
 
   const recordedCount = sheet?.rows.filter(isGeneralRecorded).length || 0;
   const commentError = saveError?.details?.comment;
-  const classCommentError = saveError?.details?.classComment;
+  const classCommentError = classCommentTooLong
+    ? `Nhận xét chung của lớp tối đa ${CLASS_COMMENT_MAX} ký tự`
+    : saveError?.details?.classComment;
   // Lỗi không gắn được vào một ô (trẻ chưa có mặt, ngày đã khóa…): hiện ở đầu bảng
   const formError = saveError && !commentError && !classCommentError ? saveError.message : null;
 
@@ -406,7 +410,11 @@ export default function DailyAssessmentPage() {
                 Hủy thay đổi
               </button>
             )}
-            <button className="btn btn--primary" onClick={save} disabled={saving || loading || classesLoading || !!error || !canSave}>
+            <button
+              className="btn btn--primary"
+              onClick={save}
+              disabled={saving || loading || classesLoading || !!error || !canSave || classCommentTooLong}
+            >
               {saving ? <Spinner small /> : <Save size={16} />} Lưu đánh giá{saveEntries.length ? ` (${saveEntries.length})` : ''}
             </button>
           </div>

@@ -1,5 +1,6 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { useAsync } from '@/hooks/useAsync';
+import { ROLES } from '@/models/User';
 import {
   getCampusDetail,
   getCampusesWithStats,
@@ -174,6 +175,21 @@ export function usePlacements(yearId, { live = true } = {}) {
 }
 
 /** Tài khoản nhân sự trên BE: 1 trang 10 dòng theo bộ lọc (page bắt đầu từ 1). */
+/** Thẻ tổng quan tài khoản nhân sự: lấy `totalElements` BE trả theo từng bộ lọc (size 1), không tự đếm ở client. */
+export function useStaffAccountStats() {
+  const { user } = useAuth();
+  return useAsync(async () => {
+    const count = (filters) => searchStaffAccounts({ ...filters, page: 0, size: 1 }).then((res) => res?.totalElements || 0);
+    const [total, teachers, kitchen, inactive] = await Promise.all([
+      count({}),
+      count({ role: ROLES.TEACHER }),
+      count({ role: ROLES.KITCHEN_STAFF }),
+      count({ status: 'INACTIVE' }),
+    ]);
+    return { total, teachers, kitchen, inactive };
+  }, [user?.id]);
+}
+
 export function useStaffAccountPage(filters, page) {
   const { user } = useAuth();
   const { data, loading, error, reload } = useAsync(
