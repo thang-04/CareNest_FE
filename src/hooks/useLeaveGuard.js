@@ -151,6 +151,26 @@ export function useLeaveGuard({ when, onSave, inPageBack }) {
   };
 }
 
+// Modal sửa đang mở có thay đổi chưa lưu (useUnsavedMark)
+const marks = new Set();
+
+/**
+ * Báo "còn thay đổi chưa lưu" cho modal sửa: không chặn link/quay lại như useLeaveGuard (modal đã che màn,
+ * và 2 guard cùng đặt mục lịch sử phụ sẽ lệch nhau), chỉ để phiên kết thúc thì đăng nhập lại tại chỗ.
+ */
+export function useUnsavedMark(when) {
+  const latest = useRef(when);
+  latest.current = when;
+  useEffect(() => {
+    const mark = { isOn: () => !!latest.current };
+    marks.add(mark);
+    return () => marks.delete(mark);
+  }, []);
+}
+
+/** Màn đang mở có thay đổi chưa lưu không (AuthContext: phiên kết thúc thì hỏi đăng nhập lại tại chỗ thay vì rời màn). */
+export const hasUnsavedChanges = () => !!active?.isOn() || [...marks].some((mark) => mark.isOn());
+
 /** navigate() cho phần dùng chung ngoài màn (header, thông báo, menu user): màn đang có thay đổi chưa lưu thì hỏi trước. */
 export function useGuardedNavigate() {
   const navigate = useNavigate();

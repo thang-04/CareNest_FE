@@ -265,7 +265,7 @@ export function YearSetupImportPanel({ open, mode, yearId, onClose }) {
             <>
               <PreviewTable
                 title="Giáo viên"
-                head={['Dòng', 'Điểm trường', 'Lớp', 'Giáo viên', 'Chủ nhiệm']}
+                head={['Dòng', 'Điểm trường', 'Lớp', 'Giáo viên', 'Phụ trách chính']}
                 rows={(result.classes || []).map((c) => [c.row, c.campusName, c.name, c.teacherNames.join(', '), c.homeroomName])}
               />
               <PreviewTable

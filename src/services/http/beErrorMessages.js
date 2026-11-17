@@ -106,7 +106,7 @@ const RULES = [
   [
     /^Homeroom teacher must be one of the class teachers/,
     'homeroomTeacherId',
-    () => 'Giáo viên chủ nhiệm phải là một trong 2 giáo viên của lớp',
+    () => 'GV phụ trách chính phải là một trong 2 giáo viên của lớp',
   ],
   [/^Only teachers of the class campus can be assigned/, 'teacherIds', () => 'Chỉ phân công giáo viên thuộc điểm trường của lớp'],
 

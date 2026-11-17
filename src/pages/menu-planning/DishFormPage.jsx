@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { AlertTriangle, ChevronDown, Copy, Plus, Save, Trash2, X } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -10,6 +10,8 @@ import { FormField } from '@/components/form/FormField';
 import { SearchSelect } from '@/components/ui/SearchSelect';
 import { ErrorState, LoadingState, Spinner } from '@/components/ui/States';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
+import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
+import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { NoManageAccess } from '@/components/menu-planning/MenuBadges';
 import { EditHead } from '@/components/ui/EditHead';
 import { AutoChecks } from '@/components/menu-planning/AutoChecks';
@@ -41,7 +43,6 @@ const g = (v) => v.toLocaleString('vi-VN', { maximumFractionDigits: 1 });
 /** Bước 2 luồng dinh dưỡng – trang sửa món: định lượng từng nhóm tuổi, cột phải là dinh dưỡng 1 suất và kiểm tra tự động. */
 export default function DishFormPage() {
   const { id } = useParams();
-  const navigate = useNavigate();
   const { user } = useAuth();
   const toast = useToast();
   const access = useCatalogAccess();
@@ -52,6 +53,8 @@ export default function DishFormPage() {
   const fromId = id ? null : params.get('from');
   const source = useDish(fromId, { live: false });
   const { items: others } = useDishes({});
+  // Giá trị gốc để so sánh "đã sửa chưa": form trống (mới) hoặc dữ liệu nạp từ server
+  const [initial, setInitial] = useState(EMPTY);
   const [form, setForm] = useState(EMPTY);
   const [submitted, setSubmitted] = useState(false);
   const [touched, setTouched] = useState({});
@@ -64,19 +67,26 @@ export default function DishFormPage() {
   const [statusError, setStatusError] = useState('');
 
   useEffect(() => {
-    if (source.item) setForm(duplicateDishForm(source.item, AGE_IDS, NEW_STATUS));
+    if (!source.item) return;
+    const loaded = duplicateDishForm(source.item, AGE_IDS, NEW_STATUS);
+    setForm(loaded);
+    setInitial(loaded);
   }, [source.item]);
 
   useEffect(() => {
+    let loaded = null;
     if (item)
-      setForm({
+      loaded = {
         name: item.name,
         type: item.type,
         description: item.description,
         status: item.status,
         ingredients: item.ingredients.map(toRow),
-      });
-    else if (!id && !fromId) setForm(EMPTY);
+      };
+    else if (!id && !fromId) loaded = EMPTY;
+    if (!loaded) return;
+    setForm(loaded);
+    setInitial(loaded);
   }, [item, id, fromId]);
 
   const groups = activeAgeGroups(catalog.nutritionSetups);
@@ -135,28 +145,39 @@ export default function DishFormPage() {
   if (!checks.length && preview.ingredients.length)
     checks.push({ tone: 'ok', text: `Đủ định lượng và số liệu cho ${groups.length} nhóm tuổi.` });
 
-  const submit = async (e, again = false, status = form.status) => {
+  const dirty =
+    ['name', 'type', 'description', 'status'].some((k) => form[k] !== initial[k]) ||
+    JSON.stringify(form.ingredients) !== JSON.stringify(initial.ingredients);
+  // Lưu từ hộp rời màn: giữ trạng thái hiện tại (món mới/nháp ⇒ lưu nháp, không tự kích hoạt)
+  const guard = useLeaveGuard({ when: dirty && !busy, onSave: () => submit(null, false, form.status, true) });
+
+  // Trả true khi lưu được; stay: lưu từ hộp rời màn (hộp tự chuyển tới nơi người dùng bấm)
+  const submit = async (e, again = false, status = form.status, stay = false) => {
     e?.preventDefault();
     setSubmitted(true);
-    if (hasErrors(Object.fromEntries(Object.entries(errors).filter(([, v]) => v)))) return;
+    if (hasErrors(Object.fromEntries(Object.entries(errors).filter(([, v]) => v)))) return false;
     const activating = status === DISH_STATUS.ACTIVE && draftMode;
     const statusCheck = activating ? validateDish({ ...form, status, id }, others, { requireGroups }).status : '';
     setStatusError(statusCheck || '');
-    if (statusCheck) return;
+    if (statusCheck) return false;
     setBusy(true);
     try {
       await saveDish(id, { ...form, status }, user);
       toast.success('Lưu thay đổi thành công.');
+      if (stay) return true;
       if (again) {
         setForm(EMPTY);
+        setInitial(EMPTY);
         setSubmitted(false);
         setTouched({});
-        navigate('/menu/dishes/new');
-      } else navigate('/menu/dishes');
+        guard.leaveNow('/menu/dishes/new');
+      } else guard.leaveNow('/menu/dishes');
+      return true;
     } catch (err) {
       if (err.details) setServerErrors(err.details);
       if (err.details?.status) setStatusError(err.details.status);
       toast.error(err, 'Không lưu được thay đổi');
+      return false;
     } finally {
       setBusy(false);
     }
@@ -490,6 +511,7 @@ export default function DishFormPage() {
         onConfirm={() => applyCopy(pendingCopy.from, pendingCopy.to)}
         onClose={() => setPendingCopy(null)}
       />
+      <LeaveConfirmModal {...guard.modal} />
     </div>
   );
 }

@@ -61,7 +61,7 @@ export function ClassTeachersPicker({ teachers, classesOf, classId, form, onTogg
               <th className="center">Phụ trách lớp</th>
               <th>Giáo viên</th>
               <th>Lớp phụ trách</th>
-              <th className="center">Chủ nhiệm</th>
+              <th className="center">Phụ trách chính</th>
             </tr>
           </thead>
           <tbody>
@@ -107,7 +107,7 @@ export function ClassTeachersPicker({ teachers, classesOf, classId, form, onTogg
                         // Bấm lại vào nút đang chọn thì bỏ chọn chủ nhiệm
                         onChange={() => {}}
                         onClick={() => onHomeroom(form.homeroomTeacherId === t.id ? '' : t.id)}
-                        aria-label={`${form.homeroomTeacherId === t.id ? 'Bỏ chọn' : 'Chọn'} ${t.fullName} làm chủ nhiệm`}
+                        aria-label={`${form.homeroomTeacherId === t.id ? 'Bỏ chọn' : 'Chọn'} ${t.fullName} làm GV phụ trách chính`}
                       />
                     </td>
                   </tr>

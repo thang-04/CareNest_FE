@@ -144,7 +144,9 @@ export function ClassPlacementFields({
                       )}
                       {isCurrent && <span className="chip chip--teal tr-chip-gap">Lớp hiện tại</span>}
                     </span>
-                    {c.homeroomTeacherId && <span className="muted text-xs">GVCN: {userById?.(c.homeroomTeacherId)?.fullName || '—'}</span>}
+                    {c.homeroomTeacherId && (
+                      <span className="muted text-xs">GV phụ trách chính: {userById?.(c.homeroomTeacherId)?.fullName || '—'}</span>
+                    )}
                   </span>
                 </label>
               );

@@ -14,7 +14,7 @@ updated: 2026-11-15
 
 ## Context
 
-Plan chính [BE](../../../../CareNest_BE/docs/plans/active/2026-11-15-notification-client-readiness.md); thiết kế [902](../../../../specs/902-notification-client-readiness/plan.md), map [API](../../../../specs/902-notification-client-readiness/contracts/backend-api-map.md).
+Plan chính [BE](../../../../CareNest_BE/docs/plans/active/2026-11-15-notification-client-readiness.md); thiết kế 902 (`specs/902-notification-client-readiness/plan.md`), map API (`specs/902-notification-client-readiness/contracts/backend-api-map.md`).
 notificationService.js:6–16 bỏ announcementId/count; account/api/accountApi.js:38–45 tìm detail trong list; NotificationBell.jsx:24–27 chỉ navigate link; useNotifications.js:31 đếm trên list giới hạn. Các path tương đối src/services, src/layouts, src/hooks.
 
 ## Quyết định đã chốt
@@ -49,7 +49,7 @@ Không có câu hỏi nghiệp vụ mới. Plan draft chưa được duyệt tri
 ### W1 — nền, gửi và đọc
 
 - C pages/components/services announcement và tests/notifications; M routes/menu/integrationModules, notificationService/accountApi/useNotifications/bell/list/detail.
-- Route/DTO/behavior cụ thể theo [client-integration](../../../../specs/902-notification-client-readiness/contracts/client-integration.md).
+- Route/DTO/behavior cụ thể theo client-integration (`specs/902-notification-client-readiness/contracts/client-integration.md`).
 - M apiError.js giữ non-enumerable blobErrorBody; không đổi auth flow. DataTable không bật phân trang nội bộ với server rows, Pagination riêng map API page 0→UI 1; dùng ErrorState/FormField, không Notice education.
 - Test AC-W1/2/4; lệnh node:test notifications + menu/account liên quan, npm run lint/build theo quickstart. Không tự e2e/browser.
 - Exit: contract tests/lint/build đạt, ghi giới hạn chưa e2e; dừng review.

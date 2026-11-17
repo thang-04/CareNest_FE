@@ -317,7 +317,7 @@ export default function TeacherAssignmentPage() {
                   <option value="FULL">Đủ giáo viên</option>
                   <option value="MISSING">Thiếu 1 GV</option>
                   <option value="NONE">Chưa có giáo viên</option>
-                  <option value="NO_HOMEROOM">Chưa có chủ nhiệm</option>
+                  <option value="NO_HOMEROOM">Chưa có GV phụ trách chính</option>
                 </select>
                 <SearchSubmit
                   className="sc-head-search"
@@ -345,7 +345,7 @@ export default function TeacherAssignmentPage() {
                     {allCampuses && <th>Điểm trường</th>}
                     <th>Nhóm tuổi</th>
                     <th className="num">Sĩ số</th>
-                    <th>Chủ nhiệm</th>
+                    <th>Phụ trách chính</th>
                     <th>Giáo viên</th>
                     <th className="cell--actions">Thao tác</th>
                   </tr>
@@ -390,7 +390,7 @@ export default function TeacherAssignmentPage() {
                           {c.teacherIds.length > 0 && !c.homeroomTeacherId && (
                             <>
                               {' '}
-                              <span className="chip chip--orange">Chưa có chủ nhiệm</span>
+                              <span className="chip chip--orange">Chưa có GV phụ trách chính</span>
                             </>
                           )}
                           {c.teacherIds.length > 0 && c.teacherIds.length < TEACHERS_PER_CLASS && (

@@ -2,6 +2,7 @@ import { useId, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { LABELS } from '@/components/ui/labels';
 import { LoadingState } from '@/components/ui/States';
+import { useUnsavedMark } from '@/hooks/useLeaveGuard';
 import { Modal, Notice } from './eduUi';
 import { FilterSelect } from './planUi';
 import { useEducationPlan, useGoalDetails } from '@/hooks/education-plan/useEducationPlan';
@@ -29,6 +30,9 @@ export function ResourceTagsModal({ item, taught, busy, error, onSave, onClose }
   const [pick, setPick] = useState('');
   const [typed, setTyped] = useState('');
   const [addGoals, setAddGoals] = useState([]);
+  // Chỉ tính phần sẽ gửi khi lưu: nhóm tuổi đổi, nhãn thêm mới, nhãn tay đánh dấu bỏ
+  const initialAge = item.ageGroupId ? String(item.ageGroupId) : '';
+  useUnsavedMark(age !== initialAge || dropped.size > 0 || addThemes.length > 0 || addGoals.length > 0);
   const plan = age ? currentPlanOf(plans, age, schoolYear) : null;
   const planLoad = useGoalDetails([plan?.id]);
   const detail = plan && !plan.summary ? plan : null;

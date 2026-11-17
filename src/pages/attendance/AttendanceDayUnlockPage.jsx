@@ -11,6 +11,8 @@ import { FormField } from '@/components/form/FormField';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useAsync } from '@/hooks/useAsync';
+import { useLeaveGuard } from '@/hooks/useLeaveGuard';
+import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import { useAttendanceClasses } from '@/hooks/attendance/useAttendance';
 import { getCampuses } from '@/services/masterDataService';
 import {
@@ -44,6 +46,8 @@ export default function AttendanceDayUnlockPage() {
   const [saveError, setSaveError] = useState(null);
   const [revokeError, setRevokeError] = useState('');
   const submitting = useRef(false);
+  // Lý do là phần tự nhập (lớp/ngày/hạn có mặc định); không có nút Lưu trong hộp vì gửi sẽ mở lại điểm danh
+  const guard = useLeaveGuard({ when: !!form.reason.trim() && !busy });
   const day = useAsync(
     async () => ({ ...(await getDayInfo(form.date, form.classId, user)), classId: form.classId }),
     [form.date, form.classId, user.id],
@@ -428,6 +432,7 @@ export default function AttendanceDayUnlockPage() {
         onConfirm={save}
         onClose={() => !busy && setConfirming(null)}
       />
+      <LeaveConfirmModal {...guard.modal} canSave={false} />
     </div>
   );
 }

@@ -37,7 +37,7 @@ export const LOCATION_TYPE_LABELS = {
 
 /** Label of the person suggested as responsible for a location type. */
 export const MANAGER_LABELS = {
-  CLASS: 'Giáo viên chủ nhiệm lớp',
+  CLASS: 'GV phụ trách chính của lớp',
   KITCHEN: 'Nhân viên bếp phụ trách',
   FUNCTION_ROOM: 'Người phụ trách phòng',
   DEPARTMENT: 'Người phụ trách phòng ban',

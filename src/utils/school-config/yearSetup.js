@@ -63,7 +63,7 @@ export const shiftToYear = (date, sourceStart, targetStart) => {
 export const COPY_PARTS = [
   { key: 'CLASSES', label: 'Lớp học (tên, nhóm tuổi, điểm trường, phòng, sĩ số)', step: 1 },
   { key: 'TEAM_LEADERS', label: 'Tổ trưởng nhóm tuổi', step: 2 },
-  { key: 'TEACHERS', label: 'Giáo viên và chủ nhiệm từng lớp', step: 2 },
+  { key: 'TEACHERS', label: 'Giáo viên và GV phụ trách chính từng lớp', step: 2 },
   { key: 'VICE_PRINCIPALS', label: 'Phó hiệu trưởng và quyền được giao', step: 3 },
   { key: 'CUTOFF', label: 'Giờ chốt điểm danh', step: 4 },
 ];

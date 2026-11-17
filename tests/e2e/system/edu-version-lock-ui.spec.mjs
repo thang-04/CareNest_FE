@@ -7,7 +7,7 @@ import { actionCount, clickAction, login, spaGo } from '../support/ui.mjs';
 // - Q2: gói học kỳ đã ban hành, chưa tới ngày bắt đầu học kỳ ⇒ GVCN "Tạo phiên bản điều chỉnh" ⇒ gói về Nháp, sửa rồi gửi lại.
 test.describe.configure({ mode: 'serial' });
 
-const U = { ht: 'tuyet.hoangminh@thuonghong.carenest.edu.vn', vp: 'tam.lethi@thuonghong.carenest.edu.vn', tl: 'lan.nguyenkim@thuonghong.carenest.edu.vn' };
+const U = { ht: 'principal', vp: 'viceprincipal', tl: 'teacher1' };
 const GOALS = '/education-plans/goals';
 const DOCS = '/education-plans/class-docs';
 const isoPlus = (days) => {

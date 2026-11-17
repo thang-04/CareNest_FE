@@ -181,7 +181,7 @@ export default function RoomListPage() {
       <td>{r.yearClasses.length ? r.yearClasses.join(', ') : <span className="muted">—</span>}</td>
       <td>
         {r.managerName || md.userById(r.managerUserId)?.fullName || <span className="muted">—</span>}
-        {r.managerFromClass && r.managerUserId && <div className="text-xs muted">Chủ nhiệm lớp</div>}
+        {r.managerFromClass && r.managerUserId && <div className="text-xs muted">GV phụ trách chính của lớp</div>}
       </td>
       {!yearReadOnly && (
         <td className="center">

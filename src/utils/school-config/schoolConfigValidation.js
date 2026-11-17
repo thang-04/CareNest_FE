@@ -254,9 +254,9 @@ export const validateClassTeachers = (form, { requireHomeroom = true, yearActive
   if (count > TEACHERS_PER_CLASS) e.teacherIds = `Mỗi lớp tối đa ${TEACHERS_PER_CLASS} giáo viên`;
   else if (yearActive && count !== TEACHERS_PER_CLASS)
     e.teacherIds = `Năm học đang diễn ra: mỗi lớp cần đúng ${TEACHERS_PER_CLASS} giáo viên (đang chọn ${count})`;
-  if (requireHomeroom && count > 0 && !form.homeroomTeacherId) e.homeroomTeacherId = 'Chọn giáo viên chủ nhiệm';
+  if (requireHomeroom && count > 0 && !form.homeroomTeacherId) e.homeroomTeacherId = 'Chọn GV phụ trách chính';
   else if (form.homeroomTeacherId && !form.teacherIds?.includes(form.homeroomTeacherId))
-    e.homeroomTeacherId = 'Giáo viên chủ nhiệm phải nằm trong danh sách giáo viên của lớp';
+    e.homeroomTeacherId = 'GV phụ trách chính phải nằm trong danh sách giáo viên của lớp';
   return e;
 };
 

@@ -7,7 +7,7 @@ export const ROOM_CLASS_TEMPLATE_URL = '/templates/phong-lop-mau.xlsx';
 export const TEACHER_TEMPLATE_URL = '/templates/giao-vien-to-truong-mau.xlsx';
 export const ROOM_COLUMNS = ['Điểm trường', 'Mã phòng', 'Tên phòng', 'Sức chứa'];
 export const CLASS_COLUMNS = ['Điểm trường', 'Tên lớp', 'Nhóm tuổi', 'Mã phòng', 'Sĩ số tối đa'];
-export const TEACHER_COLUMNS = ['Điểm trường', 'Tên lớp', 'Giáo viên 1', 'Giáo viên 2', 'Chủ nhiệm'];
+export const TEACHER_COLUMNS = ['Điểm trường', 'Tên lớp', 'Giáo viên 1', 'Giáo viên 2', 'Phụ trách chính'];
 export const LEADER_COLUMNS = ['Nhóm tuổi', 'Tổ trưởng'];
 export const SHEETS = { rooms: 'Phòng', classes: 'Lớp', teachers: 'Giáo viên', leaders: 'Tổ trưởng' };
 
@@ -206,7 +206,7 @@ export function matchTeacherRows(sheets, { campuses, ageGroups, classes: savedCl
       : picked.length === 1
         ? picked[0]
         : null;
-    if (!problems.length && text(homeroom) && !head) problems.push('Chủ nhiệm phải là Giáo viên 1 hoặc Giáo viên 2');
+    if (!problems.length && text(homeroom) && !head) problems.push('GV phụ trách chính phải là Giáo viên 1 hoặc Giáo viên 2');
     const form = { teacherIds: picked.map((t) => t.id), homeroomTeacherId: head?.id || '' };
     const e = problems.length ? {} : validateClassTeachers(form);
     if (problems.length || hasErrors(e))
