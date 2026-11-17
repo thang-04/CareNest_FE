@@ -10,32 +10,44 @@ import { ChildInfoTable } from './ChildInfoTable';
  * Read-only health declaration. Allergies saved by the Vice Principal are the official list used by the kitchen.
  * sheet: bảng TT | nội dung | giá trị như bước 1 tiếp nhận (title = dải phần); mặc định bảng nhãn | giá trị (user chọn 2026-11-11).
  */
-export function DeclarationSummary({ declaration, sheet = false, title = 'Khai báo sức khỏe' }) {
+export function DeclarationSummary({
+  declaration,
+  sheet = false,
+  title = 'Khai báo sức khỏe',
+  mealRegistered = declaration?.mealRegistered ?? true,
+}) {
   if (!declaration)
     return (
       <EmptyState title="Chưa có khai báo sức khỏe" description="Khai báo dị ứng, chế độ ăn và tiền sử bệnh khi tiếp nhận sẽ hiện ở đây." />
     );
   const { allergies, diet, otherNotes, medicalHistory, declaredAt, declaredByName } = declaration;
   const reported = allergies.state === DECLARATION_STATE.REPORTED;
+  // CHD-13: chỉ false mới là không báo ăn (null/thiếu = báo ăn); không báo ăn thì ẩn dị ứng và chế độ ăn.
+  const eats = mealRegistered !== false;
   const rows = [
-    [
-      'Dị ứng',
-      <>
-        <div>
-          <AllergyStateBadge status={allergies.state} />
-        </div>
-        {reported && (
-          <div className="row row--wrap mt-8 gap-1-5">
-            {allergies.items.map((x) => (
-              <span key={x} className="chip chip--red">
-                {x}
-              </span>
-            ))}
-          </div>
-        )}
-      </>,
-    ],
-    ['Chế độ ăn', diet.state === DECLARATION_STATE.REPORTED ? diet.text : <DietStateBadge status={diet.state} />],
+    ['Báo ăn', eats ? 'Có' : 'Không'],
+    ...(eats
+      ? [
+          [
+            'Dị ứng',
+            <>
+              <div>
+                <AllergyStateBadge status={allergies.state} />
+              </div>
+              {reported && (
+                <div className="row row--wrap mt-8 gap-1-5">
+                  {allergies.items.map((x) => (
+                    <span key={x} className="chip chip--red">
+                      {x}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </>,
+          ],
+          ['Chế độ ăn', diet.state === DECLARATION_STATE.REPORTED ? diet.text : <DietStateBadge status={diet.state} />],
+        ]
+      : []),
     [
       'Thông tin khác',
       otherNotes?.state === DECLARATION_STATE.REPORTED ? (
