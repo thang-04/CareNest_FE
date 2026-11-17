@@ -13,7 +13,9 @@ import {
   MEAL_SESSIONS,
   MEAL_SESSION_LABELS,
   allMeals,
+  eatsAny,
   isAbsent,
+  mealsIn,
   needsSubstitute,
   orderSessions,
 } from '@/models/attendance/attendanceConstants';
@@ -43,7 +45,7 @@ import { kidAvatar } from '@/mocks/kidAvatars';
  * Fake backend for attendance, meal participation, meal counts and meal handover.
  * Business rules that the Spring Boot backend must re-implement live here:
  *  - lock at the configured cut-off (GBR-ATT-02/04/08), absent => no meal (GBR-ATT-03);
- *  - ATT-02: present = eats every meal session of the class's age group; `meals` from the client is ignored;
+ *  - ATT-02: present defaults to every meal session of the class's age group; the teacher may turn participation off;
  *  - ATT-09: "Vắng có phép" only comes from a parent's leave request; the teacher cannot send EXCUSED without one;
  *  - meal count aggregated per campus/date/session at the cut-off (GBR-ATT-07), confirmed by the VP only (GBR-ATT-06);
  *  - NUT-02: confirm is blocked while a class of the campus-day still has children not marked; only the substitute
@@ -154,17 +156,16 @@ const ensureLeaveDemo = (db) => {
   return db;
 };
 
-/** Totals of one class for a date, built from the attendance records (same for every meal session of the class, ATT-02). */
-const classLine = (db, cls, date) => {
+/** Totals of one class for a date and meal session, built from the saved meal participation. */
+const classLine = (db, cls, date, session) => {
   const line = { classId: cls.id, className: cls.name, present: 0, absent: 0, missing: 0, normal: 0, substitute: 0 };
   activeChildrenOf(db, cls.id).forEach((ch) => {
     const rec = recordOf(db, ch.id, date);
     if (!rec) line.missing += 1;
     else if (isAbsent(rec.status)) line.absent += 1;
     else {
-      // ATT-02: có mặt là ăn mọi bữa của nhóm tuổi (buildCount chỉ gọi với bữa của lớp), không xét meals cũ
       line.present += 1;
-      line[needsSubstitute(ch) ? 'substitute' : 'normal'] += 1;
+      if (rec.meals?.[session]) line[needsSubstitute(ch) ? 'substitute' : 'normal'] += 1;
     }
   });
   return line;
@@ -173,7 +174,7 @@ const classLine = (db, cls, date) => {
 const buildCount = (db, campusId, date, session) => {
   const classes = currentClasses(db)
     .filter((c) => c.campusId === campusId && classSessions(db, c).includes(session))
-    .map((c) => classLine(db, c, date));
+    .map((c) => classLine(db, c, date, session));
   return { campusId, date, session, classes };
 };
 
@@ -523,13 +524,15 @@ const classSummary = (db, cls, from, to) => {
       const key = rec.status === ATTENDANCE_STATUS.PRESENT ? 'present' : rec.status === ATTENDANCE_STATUS.EXCUSED ? 'excused' : 'unexcused';
       row[key] += 1;
       perChild[ch.id][key] += 1;
-      // ATT-02: có mặt là ăn đủ các bữa của nhóm tuổi
-      if (rec.status === ATTENDANCE_STATUS.PRESENT) {
+      const participates = rec.status === ATTENDANCE_STATUS.PRESENT && eatsAny(rec.meals, sessions);
+      if (participates) {
         row.mealTotal += 1;
         perChild[ch.id].meals += 1;
         if (needsSubstitute(ch)) row.substitute += 1;
-        sessions.forEach((s) => (row.meals[s] += 1));
       }
+      Object.entries(mealsIn(rec.meals, sessions)).forEach(([session, eats]) => {
+        if (eats) row.meals[session] += 1;
+      });
     });
     return row;
   });
@@ -724,8 +727,9 @@ export const attendanceMockRepository = {
       const at = new Date().toISOString();
       let attendanceChanged = false;
       entries.forEach((e) => {
-        // ATT-02: có mặt là ăn đủ các bữa của nhóm tuổi, bỏ qua meals client gửi
-        const meals = Object.fromEntries(sessions.map((s) => [s, e.status === ATTENDANCE_STATUS.PRESENT]));
+        // Client cũ không gửi meals: Có mặt mặc định ăn đủ. Client mới gửi rõ true/false để giáo viên có thể tắt.
+        const requested = e.meals && Object.keys(e.meals).length ? e.meals : allMeals(true, sessions);
+        const meals = isAbsent(e.status) ? allMeals(false, sessions) : mealsIn(requested, sessions);
         const existing = recordOf(db, e.childId, date);
         if (existing) {
           const changed = existing.status !== e.status || sessions.some((s) => !!existing.meals?.[s] !== meals[s]);

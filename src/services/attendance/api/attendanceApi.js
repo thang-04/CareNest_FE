@@ -9,7 +9,10 @@ export const attendanceApi = {
   getDayInfo: (date) => axiosClient.get('/attendance/day-info', { params: { date } }),
   getClassAttendance: (classId, date) => axiosClient.get(`/classes/${classId}/attendance`, { params: { date } }),
   saveClassAttendance: ({ classId, date, entries }) =>
-    axiosClient.put(`/classes/${classId}/attendance`, { date, entries: entries.map(({ childId, status }) => ({ childId, status })) }),
+    axiosClient.put(`/classes/${classId}/attendance`, {
+      date,
+      entries: entries.map(({ childId, status, meals }) => ({ childId, status, meals })),
+    }),
   // PENDING BE: không có classId = tổng hợp nhiều lớp trong phạm vi người gọi (campusId tùy chọn, BE tự giới hạn phạm vi)
   getAttendanceSummary: ({ classId, campusId, from, to }) =>
     classId
@@ -80,11 +83,11 @@ export const createAttendanceBeApi = (client) => ({
   unlockAttendanceDay: (body) => client.post('/attendance/day-unlocks', body),
   revokeAttendanceDayUnlock: (id) => client.post(`/attendance/day-unlocks/${id}/revoke`),
   getClassAttendance: async (classId, date) => toSheet(await client.get(`/classes/${classId}/attendance`, { params: { date } })),
-  // ATT-02: BE tự tính suất từ status (bỏ qua meals) ⇒ chỉ gửi trẻ + trạng thái
+  // Có mặt mặc định ăn đủ bữa; giáo viên có thể tắt báo ăn nên phải gửi cả meals.
   saveClassAttendance: ({ classId, date, entries }) =>
     client.put(`/classes/${classId}/attendance`, {
       date,
-      entries: entries.map(({ childId, status }) => ({ childId, status })),
+      entries: entries.map(({ childId, status, meals }) => ({ childId, status, meals })),
     }),
   getAttendanceSummary: async ({ classId, campusId, schoolYear, from, to }) =>
     classId

@@ -184,7 +184,7 @@ export default function CampusDetailPage() {
                     <th>Nhóm tuổi</th>
                     <th className="center">Phòng</th>
                     <th className="num">Sĩ số</th>
-                    <th>Chủ nhiệm</th>
+                    <th>Phụ trách chính</th>
                   </tr>
                 </thead>
                 <tbody>
