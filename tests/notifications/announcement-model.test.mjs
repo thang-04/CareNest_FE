@@ -32,6 +32,20 @@ test('form chỉ có một thanh thao tác và nút gửi không bị khóa vì 
     assert.ok(submit);
     assert.doesNotMatch(submit, /\sdisabled=/);
     assert.match(render(true).match(/<button\b[^>]*type="submit"[^>]*>/)[0], /\sdisabled=/);
+    const recurring = renderToStaticMarkup(
+      React.createElement(
+        MemoryRouter,
+        null,
+        React.createElement(AuthProvider, null, React.createElement(AnnouncementForm, { recurring: true, onSave: () => {} })),
+      ),
+    );
+    assert.match(recurring, /Tạo lịch gửi/);
+    assert.match(recurring, /href="\/announcement-schedules"/);
+    assert.match(recurring, /Tiêu đề/);
+    assert.match(recurring, /Nội dung/);
+    assert.match(recurring, /Thêm tệp/);
+    assert.match(recurring, /type="time"/);
+    assert.doesNotMatch(recurring, /type="datetime-local"/);
     const { default: Attachments } = await server.ssrLoadModule('/src/components/announcement/AnnouncementAttachments.jsx');
     const existing = [{ id: 7, fileName: 'lich-hop.pdf', sizeBytes: 1024 }];
     const selected = renderToStaticMarkup(
@@ -61,6 +75,8 @@ test('form chỉ có một thanh thao tác và nút gửi không bị khóa vì 
       ['/src/pages/announcement/AnnouncementTemplatesPage.jsx', '/announcement-templates', '/announcement-templates'],
       ['/src/pages/announcement/NotificationRulesPage.jsx', '/notification-rules', '/notification-rules'],
       ['/src/pages/announcement/AnnouncementSchedulesPage.jsx', '/announcement-schedules', '/announcement-schedules'],
+      ['/src/pages/announcement/AnnouncementScheduleEditPage.jsx', '/announcement-schedules/new', '/announcement-schedules/new'],
+      ['/src/pages/announcement/AnnouncementScheduleEditPage.jsx', '/announcement-schedules/:id/edit', '/announcement-schedules/1/edit'],
     ];
     for (const [module, path, url] of pages) {
       const { default: Page } = await server.ssrLoadModule(module);
@@ -77,6 +93,7 @@ test('form chỉ có một thanh thao tác và nút gửi không bị khóa vì 
       );
       assert.equal((page.match(/class="[^"]*\bpage-toolbar\b/g) || []).length, 1, `${url}: một header dùng chung`);
       assert.doesNotMatch(page, /class="page-actions"/, `${url}: không lặp nút cuối trang`);
+      assert.doesNotMatch(page, />Bỏ chọn<|Tick các thông báo đã hủy cần xóa/, `${url}: chọn bằng checkbox`);
     }
   } finally {
     await server.close();

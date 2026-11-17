@@ -10,6 +10,11 @@ export const AnnouncementStatusBadge = createStatusBadge(
   announcementStatusLabels,
 );
 
+export const scheduleRepeatLabel = (item) =>
+  item.frequency === 'WEEKLY'
+    ? `${Number(item.dayOfWeek) === 7 ? 'Chủ nhật' : `Thứ ${Number(item.dayOfWeek) + 1}`} hằng tuần`
+    : `Ngày ${item.dayOfMonth} hằng tháng`;
+
 export function AnnouncementHeader({ title, actions, back, summary, detail = false }) {
   return (
     <>

@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Button, ConfirmationModal, ErrorState, LoadingState } from '@/components';
-import { ArrowLeft, Pencil, CalendarX } from '@/components/ui/icons';
+import { ArrowLeft, Pencil, CalendarX, Trash2 } from '@/components/ui/icons';
 import {
   AnnouncementAlert,
   AnnouncementHeader,
@@ -18,6 +18,7 @@ import { formatDateTime } from '@/utils/format';
 
 export default function AnnouncementDetailPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { data, setData, loading, error, reload } = useAsync(() => announcements.detail(id, user), [id, user]);
   const [confirm, setConfirm] = useState(false);
@@ -25,7 +26,10 @@ export default function AnnouncementDetailPage() {
   const cancel = async () => {
     setActionError('');
     try {
-      setData(await announcements.cancel(id, user));
+      if (confirm === 'delete') {
+        await announcements.delete(id, user);
+        navigate('/announcements', { replace: true });
+      } else setData(await announcements.cancel(id, user));
       setConfirm(false);
     } catch (e) {
       setActionError(e.message);
@@ -44,6 +48,19 @@ export default function AnnouncementDetailPage() {
         }
         actions={
           <>
+            {data?.canDelete && (
+              <Button
+                variant="outline-danger"
+                size="sm"
+                icon={Trash2}
+                onClick={() => {
+                  setActionError('');
+                  setConfirm('delete');
+                }}
+              >
+                Xóa thông báo đã hủy
+              </Button>
+            )}
             {data?.canEdit && (
               <>
                 <Button
@@ -52,7 +69,7 @@ export default function AnnouncementDetailPage() {
                   icon={CalendarX}
                   onClick={() => {
                     setActionError('');
-                    setConfirm(true);
+                    setConfirm('cancel');
                   }}
                 >
                   Hủy lịch gửi
@@ -118,10 +135,14 @@ export default function AnnouncementDetailPage() {
       )}
       {!confirm && <AnnouncementAlert>{actionError}</AnnouncementAlert>}
       <ConfirmationModal
-        open={confirm}
-        title="Hủy lịch gửi thông báo?"
-        message="Thông báo này sẽ không được gửi theo lịch đã hẹn."
-        confirmLabel="Hủy lịch gửi"
+        open={!!confirm}
+        title={confirm === 'delete' ? 'Xóa thông báo đã hủy?' : 'Hủy lịch gửi thông báo?'}
+        message={
+          confirm === 'delete'
+            ? 'Thông báo và tệp đính kèm sẽ bị xóa. Không thể hoàn tác.'
+            : 'Thông báo này sẽ không được gửi theo lịch đã hẹn.'
+        }
+        confirmLabel={confirm === 'delete' ? 'Xóa thông báo' : 'Hủy lịch gửi'}
         danger
         onConfirm={cancel}
         onClose={() => setConfirm(false)}

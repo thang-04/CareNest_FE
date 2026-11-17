@@ -15,7 +15,7 @@ Chưa xác minh trên môi trường thật, điện thoại hoặc e2e; xem `sp
 - Danh sách nhà trường đưa Soạn thông báo/Mẫu thông báo lên PageToolbar ghim dưới header (theo yêu cầu tiếp 17/11); trạng thái hiện bằng tiếng Việt, thời gian dùng formatter chung. Không tính tổng người nhận từ dữ liệu trang ở client.
 - Form soạn/sửa chia khối nội dung, người nhận, thời gian, đính kèm. Tiền chốt tiếp 17/11/2026: chỉ một thanh header gồm Quay lại và Gửi thông báo/Hẹn gửi thông báo/Lưu thay đổi, bỏ nút cuối form. Dùng chung ResponsiveToolbar với giáo dục, nút outline-primary cỡ sm; thiếu chiều rộng thì chuyển thành menu ba gạch, không xuống hàng. Ngoại lệ này thay quy tắc nút đầu/cuối của form dài tại UI_CARD §2.14 cho riêng form thông báo.
 - Bấm gửi/lưu tự gọi preview mới, hiển thị số người nhận trong hộp xác nhận; chỉ xác nhận mới gọi create/update. Không bắt buộc bấm Xem trước người nhận thủ công để mở khóa nút. Nhóm trống/chưa chọn vai trò/lỗi API báo rõ, giữ nội dung; khóa thao tác khi kiểm tra/gửi, bỏ kết quả preview cũ. Người nhận cuối cùng vẫn do BE xác định theo PAR-05/07/08, không đổi payload hoặc quyền.
-- Mẫu và lịch gửi dùng bảng cùng form modal; quy tắc dùng bảng, bấm dòng mở xem/sửa, quyền theo trường backend. Xóa/hủy dùng ConfirmationModal; lưu/tải có trạng thái đang xử lý.
+- Mẫu dùng bảng cùng form modal; lịch gửi tạo/sửa ở trang riêng `/announcement-schedules/new` và `/:id/edit` dùng chung form soạn thông báo (chọn mẫu để điền nhanh hoặc soạn riêng); quy tắc dùng bảng, xem/sửa qua cột Thao tác, quyền theo trường backend. Xóa/hủy dùng ConfirmationModal; lưu/tải có trạng thái đang xử lý.
 - Hai màn thông báo cá nhân dùng thẻ và nút chung, nội dung giữ xuống dòng; tệp tải bằng API có xác thực. Tiền điều chỉnh mới nhất 17/11: danh sách Thông báo của tôi dùng nền xanh nhạt cho cả dòng chưa đọc kèm chấm xanh (aria-label Chưa đọc), tin đã đọc nền trắng; hover giữ nguyên màu theo trạng thái. Bỏ badge Chưa đọc. Icon chuông nền trong suốt/màu trung tính, giữ nhãn loại thông báo và focus bàn phím. Giữ Đánh dấu tất cả đã đọc và hành vi mở/đánh dấu đã đọc. Module account tiếp tục dùng service và style account, không import component riêng của announcement.
 - Chưa kiểm trực quan ở các kích thước màn hình, chưa thử trên môi trường thật hoặc chạy e2e. Kết quả native checks ghi ở plan `docs/plans/completed/2026-11-17-notification-ui-consistency.md`.
 
@@ -56,3 +56,24 @@ Test thủ công thêm: cuộn trang dài để kiểm thanh thao tác ghim; thu
 3. Bấm Gửi và xác nhận: khi API thành công chuyển sang chi tiết thông báo. Kiểm tra trạng thái Đã gửi; dùng tài khoản người nhận thuộc nhóm để kiểm tra tin trong Thông báo của tôi. Chỉ thực hiện trên môi trường thử với tài khoản/dữ liệu thử.
 4. Bỏ chọn hết vai trò rồi bấm Gửi: báo chọn vai trò. Nhóm không có người nhận hoặc API preview lỗi: báo rõ, không mở hộp xác nhận/gọi tạo thông báo, không mất nội dung.
 5. Chọn thời gian tương lai theo giờ Việt Nam: nhãn thành Hẹn gửi thông báo. Xác nhận xong mở chi tiết trạng thái Đã hẹn gửi; mở sửa lịch, kiểm tra cùng một header và thao tác Lưu thay đổi.
+
+## Xóa thông báo đã hủy — PAR-13 (Tiền chốt 17/11/2026)
+
+Danh sách nhà trường có tìm theo tiêu đề/nội dung (Enter hoặc Tìm) và lọc trạng thái; đổi filter về trang 1. Danh sách có checkbox cho tin canDelete; header checkbox chọn mọi tin đã hủy khớp filter trên mọi trang. Có thể bỏ tick từng tin sau chọn tất cả; giữ lựa chọn khi đổi trang và bỏ chọn khi đổi bộ lọc. Header chỉ có Xóa đã chọn (N), không có Xóa tất cả; chi tiết vẫn có nút Xóa một thông báo đã hủy. Tổng tin chọn được do BE trả cancelledCount, không lấy số dòng trang làm tổng. Cả hai có xác nhận nêu không hoàn tác và tệp đính kèm sẽ bị xóa. Thành công giữ bộ lọc, tải lại/về trang 1; lỗi giữ filter và báo ở modal, timeout yêu cầu tải lại kiểm tra thay vì tự retry. Mock và API cùng contract; canDelete do BE trả. Không xóa thông báo đã gửi hoặc mẫu/lịch.
+
+Test tay: tạo/hẹn rồi hủy ít nhất 2 tin với tiêu đề riêng → tìm từ khóa và chọn Đã hủy → xóa 1 ở menu dòng/chi tiết → kiểm tin còn lại → Xóa tất cả đã hủy, kiểm nội dung xác nhận áp mọi trang → xác nhận và kiểm không còn kết quả. Tin đã gửi hoặc ngoài filter/scope phải giữ nguyên. Dùng tài khoản thử trên môi trường thử; thao tác thật là xóa vĩnh viễn.
+
+PAR-07 không tự nhận đã được BE resolver và mock áp dụng trước đếm/ngay/hẹn/lặp; regression kiểm người gửi mang nhiều vai trò. Nhắc điểm danh OBS-30 mới: từ 08:00 đến trước giờ khóa cấu hình, mỗi 5 phút cho lớp chưa điểm danh, dừng khi đã điểm danh/khóa/ngày nghỉ. Thử với cutoff 08:12 trên môi trường thử: dự kiến lượt 08:00, 08:05, 08:10; không có lượt 08:15.
+
+## Test chọn dòng / cấu hình thời gian — 17/11/2026
+
+Lọc Đã hủy với hơn 20 kết quả → tick header, kiểm số đã chọn là tổng mọi trang → đổi trang, bỏ tick một tin → Xóa đã chọn, xác nhận → chỉ tin bỏ tick còn lại. Chọn riêng các tin trên nhiều trang rồi xóa cũng chỉ xóa đúng ids; lọc mới phải bỏ lựa chọn cũ. Dữ liệu sai trạng thái/ngoài scope chặn ở BE trước mọi thao tác xóa.
+Cấu hình đọc ở CareNest_BE/src/main/resources/application.yml, các nhóm push/announcement/notification-reminders; comment ghi đơn vị, cron 6 phần, giờ Việt Nam và restart. Ví dụ đổi attendance-interval-minutes từ 5 thành 10: cron và slot dedupe cùng đổi, không sửa Java. Giờ khóa điểm danh vẫn theo cấu hình trường, giờ hẹn/lặp vẫn theo lịch đã lưu.
+
+## Lịch gửi: checkbox và công tắc (Tiền 17/11/2026)
+
+Danh sách lịch có cột checkbox như trang thông báo nhà trường: tick từng lịch hoặc header chọn tất cả (list không phân trang). Header có Bật đã chọn, Tắt đã chọn, Xóa đã chọn (N); xóa một (menu dòng) và xóa nhiều dùng chung hộp xác nhận, BE `POST /announcement-schedules/delete-selection` xóa nguyên tử. Form lịch có công tắc Bật lịch gửi, lịch mới mặc định bật; tắt thì lưu lịch nhưng không gửi tới khi bật lại. Test tay: tạo lịch không mẫu và từ mẫu, tắt công tắc khi tạo; tick 2 lịch → Xóa đã chọn → xác nhận → toast và danh sách còn lại đúng.
+
+## Cột Thao tác và tick (Tiền 17/11/2026, bản sau)
+
+Mọi bảng (thông báo nhà trường, mẫu, quy tắc, lịch gửi) có cột Thao tác: Xem chi tiết (icon mắt), Sửa khi có quyền, menu "…" cho thao tác khác. Bấm vào dòng không mở chi tiết nữa để không lẫn với tick. Header checkbox trang thông báo luôn bấm được khi có dữ liệu: chọn mọi tin đã hủy; không có tin đã hủy thì báo toast. Trang lịch: tick được mọi lịch, header chọn tất cả; Bật đã chọn áp cho lịch đã tắt trong lựa chọn, Tắt đã chọn áp cho lịch đang bật; Xóa đã chọn chỉ bấm được khi mọi lịch đã chọn đều đã tắt; xóa lịch đang bật bị khóa (BE 1215). Mẫu/quy tắc xem ở modal chỉ đọc; lịch có trang chi tiết riêng.

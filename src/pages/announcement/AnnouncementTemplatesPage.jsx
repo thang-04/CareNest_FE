@@ -1,3 +1,4 @@
+import { useToast } from '@/contexts/ToastContext';
 import { useState } from 'react';
 import { Button, ConfirmationModal, DataTable, Modal, RowActions, SelectField, TextAreaField, TextField } from '@/components';
 import { Plus, Save } from '@/components/ui/icons';
@@ -18,11 +19,11 @@ export default function AnnouncementTemplatesPage() {
   const [pending, setPending] = useState(null);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState('');
-  const [notice, setNotice] = useState('');
-  const edit = (item) => {
+  const toast = useToast();
+  const edit = (item, readOnly = false) => {
     setActionError('');
     setId(item?.id || null);
-    setForm(item ? { name: item.name, title: item.title, body: item.body, campusId: item.campusId } : { ...blank });
+    setForm(item ? { name: item.name, title: item.title, body: item.body, campusId: item.campusId, readOnly } : { ...blank });
   };
   const save = async (event) => {
     event.preventDefault();
@@ -33,7 +34,7 @@ export default function AnnouncementTemplatesPage() {
       if (id) await announcements.updateTemplate(id, form, user);
       else await announcements.createTemplate(form, user);
       setForm(null);
-      setNotice(id ? 'Đã lưu thay đổi mẫu thông báo.' : 'Đã tạo mẫu thông báo.');
+      toast?.success('Đã lưu.');
       await reload({ silent: true });
     } catch (e) {
       setActionError(e.message);
@@ -46,7 +47,7 @@ export default function AnnouncementTemplatesPage() {
     try {
       await announcements.deleteTemplate(pending.id, user);
       setPending(null);
-      setNotice('Đã xóa mẫu thông báo.');
+      toast?.success('Đã xóa.');
       await reload({ silent: true });
     } catch (e) {
       setActionError(e.errorCode === 1209 ? 'Mẫu đang được lịch sử dụng. Hãy kiểm tra lịch trước.' : e.message);
@@ -63,7 +64,6 @@ export default function AnnouncementTemplatesPage() {
           </Button>
         }
       />
-      <AnnouncementAlert info>{notice}</AnnouncementAlert>
       <section className="card">
         <DataTable
           rows={data?.items}
@@ -87,42 +87,46 @@ export default function AnnouncementTemplatesPage() {
               key: 'actions',
               header: 'Thao tác',
               className: 'cell--actions',
-              render: (item) =>
-                item.canEdit ? (
-                  <RowActions
-                    name={item.name}
-                    edit={{ onClick: () => edit(item) }}
-                    menu={[
-                      {
-                        label: 'Xóa mẫu',
-                        danger: true,
-                        onClick: () => {
-                          setActionError('');
-                          setPending(item);
-                        },
-                      },
-                    ]}
-                  />
-                ) : (
-                  <span className="muted text-sm">Chỉ xem</span>
-                ),
+              render: (item) => (
+                <RowActions
+                  name={item.name}
+                  view={{ onClick: () => edit(item, true), label: 'Xem chi tiết' }}
+                  edit={item.canEdit ? { onClick: () => edit(item) } : undefined}
+                  menu={
+                    item.canEdit
+                      ? [
+                          {
+                            label: 'Xóa mẫu',
+                            danger: true,
+                            onClick: () => {
+                              setActionError('');
+                              setPending(item);
+                            },
+                          },
+                        ]
+                      : []
+                  }
+                />
+              ),
             },
           ]}
         />
       </section>
       <Modal
         open={!!form}
-        title={id ? 'Sửa mẫu thông báo' : 'Tạo mẫu thông báo'}
+        title={form?.readOnly ? 'Chi tiết mẫu thông báo' : id ? 'Sửa mẫu thông báo' : 'Tạo mẫu thông báo'}
         size="lg"
         onClose={busy ? undefined : () => setForm(null)}
         footer={
           <>
             <Button size="sm" disabled={busy} onClick={() => setForm(null)}>
-              Hủy
+              {form?.readOnly ? 'Đóng' : 'Hủy'}
             </Button>
-            <Button size="sm" type="submit" form="announcement-template-form" variant="outline-primary" icon={Save} loading={busy}>
-              Lưu mẫu
-            </Button>
+            {!form?.readOnly && (
+              <Button size="sm" type="submit" form="announcement-template-form" variant="outline-primary" icon={Save} loading={busy}>
+                Lưu mẫu
+              </Button>
+            )}
           </>
         }
       >
@@ -131,7 +135,7 @@ export default function AnnouncementTemplatesPage() {
             <AnnouncementAlert>{actionError}</AnnouncementAlert>
             <TextField
               fieldClassName="announcement-field--medium"
-              disabled={busy}
+              disabled={busy || form.readOnly}
               label="Tên mẫu"
               required
               maxLength={100}
@@ -140,7 +144,7 @@ export default function AnnouncementTemplatesPage() {
             />
             <SelectField
               fieldClassName="announcement-field--medium"
-              disabled={busy}
+              disabled={busy || form.readOnly}
               label="Phạm vi mẫu"
               required={user?.role === 'VICE_PRINCIPAL'}
               value={form.campusId ?? ''}
@@ -154,7 +158,7 @@ export default function AnnouncementTemplatesPage() {
               ))}
             </SelectField>
             <TextField
-              disabled={busy}
+              disabled={busy || form.readOnly}
               label="Tiêu đề thông báo"
               required
               maxLength={150}
@@ -162,7 +166,7 @@ export default function AnnouncementTemplatesPage() {
               onChange={(e) => setForm({ ...form, title: e.target.value })}
             />
             <TextAreaField
-              disabled={busy}
+              disabled={busy || form.readOnly}
               label="Nội dung"
               required
               rows={8}

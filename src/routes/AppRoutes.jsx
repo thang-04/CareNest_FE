@@ -32,6 +32,8 @@ const AnnouncementEditPage = lazyPage(() => import('@/pages/announcement/Announc
 const AnnouncementTemplatesPage = lazyPage(() => import('@/pages/announcement/AnnouncementTemplatesPage'));
 const NotificationRulesPage = lazyPage(() => import('@/pages/announcement/NotificationRulesPage'));
 const AnnouncementSchedulesPage = lazyPage(() => import('@/pages/announcement/AnnouncementSchedulesPage'));
+const AnnouncementScheduleDetailPage = lazyPage(() => import('@/pages/announcement/AnnouncementScheduleDetailPage'));
+const AnnouncementScheduleEditPage = lazyPage(() => import('@/pages/announcement/AnnouncementScheduleEditPage'));
 const AppearancePage = lazyPage(() => import('@/pages/settings/AppearancePage'));
 
 /** Public page for signed-out users only (login, password recovery). */
@@ -593,6 +595,9 @@ export function AppRoutes() {
           <Route path="announcement-templates" element={only(LEADERS, <AnnouncementTemplatesPage />)} />
           <Route path="notification-rules" element={only([R.PRINCIPAL], <NotificationRulesPage />)} />
           <Route path="announcement-schedules" element={only([R.PRINCIPAL], <AnnouncementSchedulesPage />)} />
+          <Route path="announcement-schedules/new" element={only([R.PRINCIPAL], <AnnouncementScheduleEditPage />)} />
+          <Route path="announcement-schedules/:id" element={only([R.PRINCIPAL], <AnnouncementScheduleDetailPage />)} />
+          <Route path="announcement-schedules/:id/edit" element={only([R.PRINCIPAL], <AnnouncementScheduleEditPage />)} />
           <Route path="account/profile" element={<ProfilePage />} />
           <Route path="account/password" element={<ChangePasswordPage />} />
           <Route path="account/signatures" element={<MySignaturesPage />} />

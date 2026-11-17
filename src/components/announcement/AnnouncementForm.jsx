@@ -5,16 +5,25 @@ import { ArrowLeft, Eye, Save, Send, CalendarClock } from '@/components/ui/icons
 import { AnnouncementAlert, AnnouncementSection, recipientRoleLabels } from './announcementUi';
 import RecipientTargetForm, { emptyTarget } from './RecipientTargetForm';
 import AnnouncementAttachments from './AnnouncementAttachments';
+import AnnouncementScheduleFields from './AnnouncementScheduleFields';
 import { announcements } from '@/services/announcement/announcementService';
 import { createPreviewCoordinator } from './previewCoordinator.mjs';
 import { prepareAnnouncementSubmission } from './prepareSubmission.mjs';
 import { useAuth } from '@/contexts/AuthContext';
 
 const vietnamInput = (instant) => (instant ? new Date(new Date(instant).getTime() + 7 * 3600000).toISOString().slice(0, 16) : '');
-export default function AnnouncementForm({ initial, onSave, busy, serverErrors = {} }) {
+export default function AnnouncementForm({ initial, onSave, busy, serverErrors = {}, recurring = false }) {
   const { user } = useAuth();
   const [title, setTitle] = useState(initial?.title || '');
   const [body, setBody] = useState(initial?.body || '');
+  const [templateId, setTemplateId] = useState(initial?.templateId ?? '');
+  const [schedule, setSchedule] = useState({
+    frequency: initial?.frequency || 'WEEKLY',
+    dayOfWeek: initial?.dayOfWeek || 1,
+    dayOfMonth: initial?.dayOfMonth ?? '',
+    sendTime: initial?.sendTime?.slice(0, 5) || '08:00',
+    active: initial?.active ?? true,
+  });
   const [target, setTarget] = useState(
     initial?.target || { ...emptyTarget, scopeType: user?.role === 'VICE_PRINCIPAL' ? 'CAMPUS' : 'SCHOOL' },
   );
@@ -70,10 +79,23 @@ export default function AnnouncementForm({ initial, onSave, busy, serverErrors =
     setPreview(null);
     setPreviewBusy(true);
     try {
-      const result = await prepareAnnouncementSubmission({ title, body, target, sendAt, keepIds, files }, coordinator.current);
+      const result = await prepareAnnouncementSubmission(
+        { title, body, target, sendAt: recurring ? '' : sendAt, keepIds, files },
+        coordinator.current,
+      );
       if (result) {
         setPreview(result.preview);
-        setPending(result.data);
+        if (recurring) {
+          const value = {
+            ...result.data,
+            templateId: templateId ? Number(templateId) : null,
+            ...schedule,
+            dayOfWeek: schedule.frequency === 'WEEKLY' ? schedule.dayOfWeek : null,
+            dayOfMonth: schedule.frequency === 'MONTHLY' ? Number(schedule.dayOfMonth) : null,
+          };
+          delete value.sendAt;
+          setPending(value);
+        } else setPending(result.data);
       }
     } catch (e) {
       setError(e.message);
@@ -82,14 +104,22 @@ export default function AnnouncementForm({ initial, onSave, busy, serverErrors =
       setPreviewBusy(false);
     }
   };
-  const saveLabel = sendAt ? (initial ? 'Lưu thay đổi' : 'Hẹn gửi thông báo') : 'Gửi thông báo';
+  const saveLabel = recurring
+    ? initial
+      ? 'Lưu lịch gửi'
+      : 'Tạo lịch gửi'
+    : sendAt
+      ? initial
+        ? 'Lưu thay đổi'
+        : 'Hẹn gửi thông báo'
+      : 'Gửi thông báo';
   const saveAction = (
     <Button
       type="submit"
       form="announcement-compose"
       variant="outline-primary"
       size="sm"
-      icon={initial ? Save : sendAt ? CalendarClock : Send}
+      icon={recurring ? CalendarClock : initial ? Save : sendAt ? CalendarClock : Send}
       loading={busy || previewBusy}
       disabled={!!pending}
     >
@@ -103,7 +133,7 @@ export default function AnnouncementForm({ initial, onSave, busy, serverErrors =
           className="announcement-compose-toolbar"
           aria-label="Thao tác thông báo"
           leading={
-            <Link className="btn btn--sm btn--outline-primary" to="/announcements">
+            <Link className="btn btn--sm btn--outline-primary" to={recurring ? '/announcement-schedules' : '/announcements'}>
               <ArrowLeft size={15} aria-hidden="true" /> Quay lại
             </Link>
           }
@@ -118,8 +148,9 @@ export default function AnnouncementForm({ initial, onSave, busy, serverErrors =
               <SelectField
                 fieldClassName="announcement-field--medium"
                 label="Dùng mẫu thông báo"
-                defaultValue=""
+                value={templateId}
                 onChange={(e) => {
+                  setTemplateId(e.target.value);
                   const item = templates.find((template) => String(template.id) === e.target.value);
                   if (item) {
                     setTitle(item.title);
@@ -181,17 +212,23 @@ export default function AnnouncementForm({ initial, onSave, busy, serverErrors =
               )}
             </div>
           </AnnouncementSection>
-          <AnnouncementSection title="Thời gian gửi" description="Để trống thời gian để gửi ngay sau khi xác nhận thao tác.">
-            <TextField
-              fieldClassName="announcement-compose-time"
-              label="Hẹn gửi (giờ Việt Nam)"
-              type="datetime-local"
-              value={sendAt}
-              onChange={(e) => setSendAt(e.target.value)}
-              error={serverErrors.sendAt}
-              hint="Có thể sửa hoặc hủy khi thông báo còn hẹn gửi."
-            />
-          </AnnouncementSection>
+          {recurring ? (
+            <AnnouncementSection title="Lịch gửi">
+              <AnnouncementScheduleFields value={schedule} onChange={setSchedule} />
+            </AnnouncementSection>
+          ) : (
+            <AnnouncementSection title="Thời gian gửi" description="Để trống thời gian để gửi ngay sau khi xác nhận thao tác.">
+              <TextField
+                fieldClassName="announcement-compose-time"
+                label="Hẹn gửi (giờ Việt Nam)"
+                type="datetime-local"
+                value={sendAt}
+                onChange={(e) => setSendAt(e.target.value)}
+                error={serverErrors.sendAt}
+                hint="Có thể sửa hoặc hủy khi thông báo còn hẹn gửi."
+              />
+            </AnnouncementSection>
+          )}
           <AnnouncementSection title="Tệp đính kèm">
             <AnnouncementAttachments
               existing={initial?.attachments}
@@ -207,9 +244,11 @@ export default function AnnouncementForm({ initial, onSave, busy, serverErrors =
         open={!!pending}
         title={`${saveLabel}?`}
         message={
-          pending?.sendAt
-            ? `Thông báo sẽ được hẹn gửi tới nhóm hiện có ${preview?.total ?? 0} người nhận. Danh sách được chốt tại thời điểm gửi.`
-            : `Thông báo sẽ được gửi ngay tới nhóm đã chọn, hiện có ${preview?.total ?? 0} người nhận.`
+          recurring
+            ? `Lịch sẽ gửi theo thời gian đã chọn. Nhóm nhận hiện có ${preview?.total ?? 0} người.`
+            : pending?.sendAt
+              ? `Thông báo sẽ được hẹn gửi tới nhóm hiện có ${preview?.total ?? 0} người nhận. Danh sách được chốt tại thời điểm gửi.`
+              : `Thông báo sẽ được gửi ngay tới nhóm đã chọn, hiện có ${preview?.total ?? 0} người nhận.`
         }
         confirmLabel={saveLabel}
         onClose={() => setPending(null)}
