@@ -43,8 +43,8 @@ export const deleteSchoolYear = (id, user) => repo.deleteSchoolYear(id, user);
 
 export const getStructure = (filters, user) => repo.getStructure(filters, user);
 export const getAgeGroups = () => repo.getAgeGroups();
-export const saveAgeGroup = (id, form, user) => repo.saveAgeGroup(id, form, user);
-export const deleteAgeGroup = (id, user) => repo.deleteAgeGroup(id, user);
+export const saveAgeGroup = (id, form, user, schoolYearId) => repo.saveAgeGroup(id, form, user, schoolYearId);
+export const deleteAgeGroup = (id, user, schoolYearId) => repo.deleteAgeGroup(id, user, schoolYearId);
 export const saveClass = (id, form, user) => repo.saveClass(id, form, user);
 export const deleteClass = (id, user) => repo.deleteClass(id, user);
 /** payload: { sourceYearId, classIds? } -> { copied: string[], skipped: { name, reason }[] } */

@@ -82,7 +82,7 @@ export default function AgeGroupsClassesPage({ embedded = false }) {
   const confirmRemove = async () => {
     try {
       if (removing.kind === 'class') await deleteClass(removing.item.id, user);
-      else await deleteAgeGroup(removing.item.id, user);
+      else await deleteAgeGroup(removing.item.id, user, yearId);
       toast.success('Đã xóa bản ghi.');
       setRemoving(null);
       reload({ silent: true });
@@ -262,6 +262,7 @@ export default function AgeGroupsClassesPage({ embedded = false }) {
         group={groupModal?.group}
         existing={ageGroups}
         classes={classes}
+        yearId={yearId}
         yearName={year?.name}
       />
       <CopyClassesModal open={copyOpen} onClose={closeCopy} target={year} years={years} />
