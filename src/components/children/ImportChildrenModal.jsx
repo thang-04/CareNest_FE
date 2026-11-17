@@ -8,7 +8,7 @@ import { ImportDialog } from '@/components/upload/ImportDialog';
 import { SelectField } from '@/components/form/Field';
 import { ActiveYearNotice } from '@/components/children/ActiveYearNotice';
 import { previewEnrollmentImport } from '@/services/children/childrenService';
-import { IMPORT_COLUMNS } from '@/models/children/childrenConstants';
+import { importTemplateRows } from '@/utils/children/importTemplate';
 import { downloadCsv } from '@/utils/exportCsv';
 import { childCampusesOf } from '@/utils/children/childrenPermissions';
 import { saveImportDraft } from '@/utils/children/importDraft';
@@ -16,22 +16,7 @@ import { saveImportDraft } from '@/utils/children/importDraft';
 const MAX_SIZE = 10 * 1024 * 1024;
 const ACCEPT = '.csv,.xlsx,.xls';
 
-const downloadTemplate = () =>
-  downloadCsv(
-    [
-      IMPORT_COLUMNS.map((c) => c.label),
-      // Dòng mẫu: hành chính và tiền sử bắt buộc trừ CCCD trẻ, nhóm máu (user chốt 2026-10-22; tuần thai từ 2026-11-04); mỗi giá
-      // trị ứng 1 cột IMPORT_COLUMNS.
-      [
-        ...['Nguyễn Minh An', '15/04/2022', 'Nam', 'Nguyễn Văn Bình', 'Bố', '0912 000 111', '9999 1200 0111'],
-        ...['phuhuynh.mau@example.com', 'Không', ''],
-        ...['', 'Không', '39', 'Kinh', 'Trẻ em dưới 6 tuổi', '', 'Hải Phòng', 'Phường Thượng Hồng', 'Số 1 đường mẫu'],
-        ...['Không', 'Không', 'Không', ''],
-        ...['', '', '', '', '', '', '', '', '', '', ''],
-      ],
-    ],
-    'mau-tiep-nhan-tre.csv',
-  );
+const downloadTemplate = () => downloadCsv(importTemplateRows(), 'mau-tiep-nhan-tre.csv');
 
 // Quy tắc chi tiết ẩn sau "Xem hướng dẫn chi tiết" (user chốt 14/11/2026); khung chính chỉ giữ 3 ý.
 const GUIDE_DETAILS = [
