@@ -11,11 +11,12 @@ const stubs = `
 import React, {useMemo, useState} from 'react';
 import {planLevel, planLevel as levelOf, planRoute, inheritAnnual} from ${JSON.stringify(import.meta.resolve('../../src/models/education-plan/planLevel.mjs'))};
 import {currentPlanOf, versionOf} from ${JSON.stringify(import.meta.resolve('../../src/models/education-plan/planVersions.mjs'))};
+import {isReviewTurn} from ${JSON.stringify(import.meta.resolve('../../src/models/education-plan/reviewTurn.mjs'))};
 export const context={goals:[],schoolYear:'2026',role:'vp',user:{id:'test'},classes:[]};
 const useGoalDetails=()=>({loading:false});const useSchoolYear=()=>({schoolYears:context.schoolYears||[]});const useEducationPlan=()=>context, useNavigate=()=>()=>{};
 const ROLES={VICE_PRINCIPAL:'vp', PRINCIPAL:'principal', TEAM_LEADER:'leader'}, AGE_GROUPS=[], EDU_STATUS={APPROVED:'APPROVED',SENT:'SENT',PENDING_VP:'PENDING_VP'};
 const allGoalItems=()=>[], clickableRowProps=()=>({}), fmtDate=(value)=>value || '—';
-const Card=({children})=><section>{children}</section>, PageHead=({actions})=><header>{actions}</header>, StatCard=({label})=><span>{label}</span>, SearchSubmit=()=>null, EmptyState=()=>null;
+const Card=({children})=><section>{children}</section>, PageHead=({actions})=><header>{actions}</header>, StatCard=({label,value})=><span data-value={value}>{label}</span>, SearchSubmit=()=>null, EmptyState=()=>null;
 const Link=({children,to})=><a href={to}>{children}</a>, Plus=()=>null, RotateCcw=()=>null;
 const YearPlanStatusBadge=({status})=><span data-status={status}>{status}</span>;
 const VersionBadge=()=> <span className="chip">Phiên bản màu</span>;
@@ -187,6 +188,23 @@ test('TEAM ngày gửi ưu tiên sentAt, tương thích sentBy.at và chưa gử
   assert.match(html, /<td>—<\/td>/);
 });
 
+test('EDU-93: thẻ "Chờ bạn duyệt" chỉ đếm hồ sơ đúng lượt, bỏ hồ sơ của bước khác trong hàng chờ', () => {
+  const previous = { ...context };
+  try {
+    context.role = 'vp';
+    context.queue = [
+      plan('dung-luot', 1, 'REVIEW', { planLevel: 'TEAM', permissions: { canApprove: true } }),
+      plan('buoc-khac', 1, 'REVIEW', { planLevel: 'TEAM', permissions: { canApprove: false, canReturn: false } }),
+      plan('du-lieu-cu', 1, 'REVIEW', { planLevel: 'TEAM' }),
+    ];
+    const html = renderToStaticMarkup(React.createElement(GoalListPage, { planLevel: 'TEAM' }));
+    assert.match(html, /data-value="2">Chờ bạn duyệt</);
+  } finally {
+    Object.keys(context).forEach((key) => delete context[key]);
+    Object.assign(context, previous);
+  }
+});
+
 const queueSource = await readFile(new URL('../../src/pages/education-plan/PlanReviewQueuePage.jsx', import.meta.url), 'utf8');
 // Trang gọi như hàm thường (không render React): hook trạng thái bộ lọc thay bằng giá trị ban đầu
 const queueStubs =
@@ -201,6 +219,7 @@ const queueStubs =
 const EduStatusBadge=YearPlanStatusBadge, fmtDateTime=(value)=>value, DeadlineBadge=()=>null, Eye=()=>null, FilterText=()=>null;
 const PENDING_OF={}, CLASS_DOC_LABELS={year:'Kế hoạch tổ', branch:'Nhánh', theme:'Chủ đề'};
 const themeNumber=()=>1, themeWeeksOf=()=>[];
+import { isChainReviewer } from ${JSON.stringify(new URL('../../src/models/education-plan/reviewTurn.mjs', import.meta.url).href)};
 `;
 const queueCode = await transformWithOxc(
   queueStubs + queueSource.replace(/^import [\s\S]*? from '[^']+';\r?\n/gm, ''),
@@ -244,4 +263,43 @@ test('review queue uses exact annual/TEAM type, own title, sentBy.at fallback an
   assert.equal(queueContext.destination, '/education/school-year-plans/annual-exact');
   rows[1].props.onClick();
   assert.equal(queueContext.destination, '/education/goals/team-exact');
+});
+
+test('EDU-93: hàng chờ hiện hồ sơ cho người duyệt bước khác (nút Xem) và mở trang xem giáo án ngày của chủ đề', () => {
+  const dossier = (id, permissions) => ({
+    id,
+    classId: 'c1',
+    themeId: 't1',
+    yearPlanId: 'y1',
+    status: 'REVIEW',
+    review: { roles: ['leader', 'vp'], waitingRole: 'leader' },
+    permissions,
+  });
+  Object.assign(queueContext, {
+    user: { role: 'vp' },
+    queue: [],
+    goals: [],
+    branchPlans: [],
+    classThemePlans: [],
+    classes: [{ id: 'c1', name: 'Lớp Lá 1', ageGroupId: 4 }],
+    semesterPackages: [{ id: 'sp1', classId: 'c1', themeIds: ['t1'], semesterNo: 2, status: 'APPROVED', permissions: {} }],
+    themeDossiers: [dossier('ds-other-step', { canApprove: false, canReturn: false })],
+  });
+  try {
+    const tree = PlanReviewQueuePage();
+    const html = renderToStaticMarkup(tree);
+    assert.match(html, /Hồ sơ chủ đề/);
+    assert.match(html, />\s*Xem<\/button>/);
+    assert.doesNotMatch(html, /Mở duyệt/);
+    const nodes = (node) => (!React.isValidElement(node) ? [] : [node, ...React.Children.toArray(node.props.children).flatMap(nodes)]);
+    nodes(tree)
+      .find((node) => node.type === 'tr' && node.props.onClick)
+      .props.onClick();
+    assert.equal(queueContext.destination, '/education/day-plans/c1?theme=t1');
+
+    queueContext.themeDossiers = [dossier('ds-my-turn', { canApprove: true, canReturn: true })];
+    assert.match(renderToStaticMarkup(PlanReviewQueuePage()), /Mở duyệt/);
+  } finally {
+    for (const key of ['queue', 'classes', 'semesterPackages', 'themeDossiers']) delete queueContext[key];
+  }
 });

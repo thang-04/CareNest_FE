@@ -17,19 +17,17 @@ export const SIGNER_SHORT = { TEAM_LEADER: 'Tổ trưởng', VICE_PRINCIPAL: 'Ph
 export const lastRejection = (history) => [...(history || [])].reverse().find((h) => h.tone === 'err') || null;
 
 /**
- * Nút "Thao tác" mở danh sách thao tác của trang (mục dạng RowMenu). Chỉ gom khi có từ 2 thao tác; 1 thao tác thì hiện
- * thẳng nút đó (Tiền 14/11/2026); không có thì không hiện.
+ * Nút "Thao tác" mở danh sách thao tác của trang (mục dạng RowMenu). Chỉ gom khi có từ 3 thao tác; tối đa 2 thì hiện
+ * thẳng các nút (Tiền 18/11/2026, trước là 1); không có thì không hiện.
  */
 export function ActionsMenu({ items, className = 'btn btn--sm btn--outline-primary' }) {
   if (!items?.length) return null;
-  if (items.length === 1) {
-    const [{ label, icon, onClick, disabled }] = items;
-    return (
-      <Button variant="outline-primary" size="sm" icon={icon} onClick={onClick} disabled={disabled}>
+  if (items.length <= 2)
+    return items.map(({ label, icon, onClick, disabled }) => (
+      <Button key={label} variant="outline-primary" size="sm" icon={icon} onClick={onClick} disabled={disabled}>
         {label}
       </Button>
-    );
-  }
+    ));
   return <RowMenu label="Thao tác" text="Thao tác" icon={<ListChecks size={16} aria-hidden />} className={className} items={items} />;
 }
 
@@ -43,8 +41,8 @@ export function ActionsMenu({ items, className = 'btn btn--sm btn--outline-prima
  * - unsaved + onSave (Tiền 05/11): nút Gửi / Ban hành / Duyệt luôn bấm được; còn thay đổi chưa lưu thì hộp báo và nút xác
  *   nhận thành "Lưu và …": lưu trước (onSave trả kết quả khác false), rồi mới gửi / duyệt. Lý do khác chưa gửi được
  *   (sendBlocked, không có quyền) thì bấm vẫn được nhưng chỉ hiện thông báo lý do, không mờ nút.
- * - menu (Tiền 14/11/2026): gom gửi/trả lại/duyệt vào một nút "Thao tác" mở danh sách; menu.before/after là các mục
- *   khác của trang (dạng mục RowMenu) đứng trước/sau theo trình tự thao tác.
+ * - menu (Tiền 14/11/2026): gom gửi duyệt vào một nút "Thao tác" mở danh sách; menu.before/after là các mục khác của
+ *   trang (dạng mục RowMenu) đứng trước/sau theo trình tự thao tác. Trả lại / Duyệt luôn là nút riêng (Tiền 18/11/2026).
  */
 export function ReviewActions({
   name,
@@ -147,8 +145,6 @@ export function ReviewActions({
   const menuItems = menu && [
     ...(menu.before || []),
     ...(can.send || showSend ? [{ label: sendLabel, icon: Send, onClick: sendClick }] : []),
-    ...(can.reject ? [{ label: 'Trả lại', icon: Undo2, onClick: () => open('reject') }] : []),
-    ...(can.approve ? [{ label: approveLabel, icon: Check, onClick: () => open('approve') }] : []),
     ...(menu.after || []),
   ];
 
@@ -166,12 +162,12 @@ export function ReviewActions({
           <Send size={16} aria-hidden /> {sendLabel}
         </button>
       )}
-      {!menu && can.reject && (
+      {can.reject && (
         <button type="button" className={btn('btn--outline-danger')} onClick={() => open('reject')}>
           <Undo2 size={16} aria-hidden /> Trả lại
         </button>
       )}
-      {!menu && can.approve && (
+      {can.approve && (
         <button type="button" className={btn(variant)} onClick={() => open('approve')}>
           <Check size={16} aria-hidden /> {approveLabel}
         </button>

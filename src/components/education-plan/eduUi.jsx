@@ -20,10 +20,12 @@ import {
   SignaturePicker,
   Stepper as SharedStepper,
 } from '@/components';
-import { createStatusBadge } from '@/components/ui/StatusBadge';
+import { StatusBadge, createStatusBadge } from '@/components/ui/StatusBadge';
 import { ResponsiveToolbar } from '@/components/ui/ResponsiveToolbar';
 import { formatDate, formatFileSize } from '@/utils/format';
 import { EDU_STATUS_LABELS, educationDisplayStatus } from '@/models/education-plan/educationPlanConstants';
+import { WORKFLOW_ROLES } from '@/models/education-plan/eduConfig';
+import { waitingLabel } from '@/models/education-plan/reviewTurn.mjs';
 
 /*
  * Thin wrappers that keep the lesson-plan screens on the shared components and classes of
@@ -79,9 +81,14 @@ const BaseEduStatusBadge = createStatusBadge(
   },
   EDU_STATUS_LABELS,
 );
-export const EduStatusBadge = ({ status, doc, ...props }) => (
-  <BaseEduStatusBadge status={educationDisplayStatus({ ...doc, status })} {...props} />
-);
+// EDU-93: người không đúng lượt thấy "Đang chờ <vai trò> duyệt", cùng tông chờ duyệt
+const WaitingBadge = ({ label, size }) => <StatusBadge tone="purple" icon={Clock} label={label} size={size} />;
+
+export const EduStatusBadge = ({ status, doc, ...props }) => {
+  const waiting = waitingLabel({ ...doc, status }, WORKFLOW_ROLES);
+  if (waiting) return <WaitingBadge label={waiting} size={props.size} />;
+  return <BaseEduStatusBadge status={educationDisplayStatus({ ...doc, status })} {...props} />;
+};
 
 /** Hạn gửi hồ sơ chủ đề chỉ để nhắc, không chặn. */
 export const DueStateBadge = createStatusBadge(
@@ -112,9 +119,11 @@ const BaseYearPlanStatusBadge = createStatusBadge(
   },
   { ...EDU_STATUS_LABELS, APPROVED: 'Đã ban hành', REPLACED: 'Đã thay thế' },
 );
-export const YearPlanStatusBadge = ({ status, doc, ...props }) => (
-  <BaseYearPlanStatusBadge status={educationDisplayStatus({ ...doc, status })} {...props} />
-);
+export const YearPlanStatusBadge = ({ status, doc, ...props }) => {
+  const waiting = waitingLabel({ ...doc, status }, WORKFLOW_ROLES);
+  if (waiting) return <WaitingBadge label={waiting} size={props.size} />;
+  return <BaseYearPlanStatusBadge status={educationDisplayStatus({ ...doc, status })} {...props} />;
+};
 
 /** .card with optional numbered title, header actions and footer. bodyClass={null} renders children directly. */
 export function Card({ title, num, actions, children, foot, bodyClass = 'card__body', className = '', collapsed = false, onToggle }) {

@@ -1,6 +1,5 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { createPortal } from 'react-dom';
 import { Copy, Download, Plus, Sparkles, Trash2 } from '@/components/ui/icons';
 import { SortHandle, SortableList, SortableRow } from '@/components/ui/Sortable';
 import { moveItem } from '@/hooks/useSortableList';
@@ -934,8 +933,6 @@ export function DayTab({
   offLabel = null,
   emptySections = [],
   // Chỗ đặt menu "Lấy / gợi ý nội dung" ở trái hàng nút của trang (phần tử DOM do trang cấp)
-  toolsTarget = null,
-  extraTools = [],
 }) {
   const [aiBusy, setAiBusy] = useState(false);
   const [askDelete, setAskDelete] = useState(null);
@@ -1028,7 +1025,7 @@ export function DayTab({
       return x;
     });
   const missing = DAY_SECTIONS.filter((s) => emptySections.includes(s.key));
-  // Một nút "Thao tác" cho cả trang: lấy / gợi ý của ngày rồi các mục trang truyền vào (Dạy học, Xuất file) — Tiền 14/11/2026
+  // Lấy / dùng lại / AI gợi ý của ngày ở card "I. Kế hoạch giáo dục ngày" (Tiền 18/11/2026); ≤2 mục hiện thẳng nút
   const toolsMenu = (
     <ActionsMenu
       items={[
@@ -1045,25 +1042,19 @@ export function DayTab({
         ...(hoc.subject || hoc.topic
           ? [{ label: aiBusy ? 'AI đang soạn…' : 'AI gợi ý tiến trình giờ học', icon: Sparkles, onClick: aiSteps, disabled: aiBusy }]
           : []),
-        ...extraTools,
       ]}
     />
   );
   return (
     <>
-      {editable && toolsTarget && createPortal(toolsMenu, toolsTarget)}
       <div className="section-title center">{longDay(d.date, index)}</div>
       {/* BE:EDU-41: ngày trùng đợt nghỉ không bắt buộc soạn */}
       {offLabel && <p className="text-sm text-warning center">Ngày nghỉ: {offLabel}</p>}
-      {(assessTo || (editable && !toolsTarget)) && (
+      {assessTo && (
         <div className="row row--wrap gap-2">
-          {assessTo && (
-            <Link className="btn btn--outline-primary btn--sm" to={assessTo}>
-              Đánh giá trẻ ngày này
-            </Link>
-          )}
-          {/* Gom các nút lấy / gợi ý vào một menu ở trái hàng nút như trang kế hoạch chủ đề (Tiền 13/11/2026) */}
-          {editable && !toolsTarget && toolsMenu}
+          <Link className="btn btn--outline-primary btn--sm" to={assessTo}>
+            Đánh giá trẻ ngày này
+          </Link>
         </div>
       )}
       {d.aiSteps?.length > 0 && (
@@ -1107,6 +1098,7 @@ export function DayTab({
         </p>
       ))}
       <Section title="I. Kế hoạch giáo dục ngày">
+        {editable && <div className="row row--wrap row--middle gap-2">{toolsMenu}</div>}
         <div className="table-wrap">
           <table className="table ga-plan-table ga-goal-table" onMouseDown={focusCell}>
             <colgroup>

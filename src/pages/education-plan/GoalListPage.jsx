@@ -14,6 +14,7 @@ import { currentPlanOf, versionOf } from '@/models/education-plan/planVersions.m
 import { useAsync } from '@/hooks/useAsync';
 import { usePolling } from '@/hooks/usePolling';
 import { getReviewQueue } from '@/services/education-plan/educationPlanService';
+import { isReviewTurn } from '@/models/education-plan/reviewTurn.mjs';
 import { Button } from '@/components';
 
 const ageName = (id) => AGE_GROUPS.find((a) => a.id === id)?.name || '—';
@@ -99,7 +100,8 @@ export default function GoalListPage({ planLevel = 'TEAM' }) {
   const rows = showOld ? matched : matched.filter((g) => !foldable(g));
 
   const issued = scoped.filter((g) => g.status === EDU_STATUS.APPROVED || g.status === EDU_STATUS.SENT).length;
-  const pending = (queue.data || []).filter((g) => levelOf(g) === planLevel).length;
+  // EDU-93: hàng chờ có cả hồ sơ của bước khác (chỉ xem); "Chờ bạn duyệt" chỉ đếm hồ sơ đúng lượt
+  const pending = (queue.data || []).filter((g) => levelOf(g) === planLevel && isReviewTurn(g) !== false).length;
 
   return (
     <div className="page ga-page">

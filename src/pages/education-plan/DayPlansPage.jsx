@@ -199,12 +199,13 @@ function DayPlansList({ classId }) {
                 ) : (
                   <DocAvailabilityBadge status={viewer ? 'UNRELEASED' : 'NOT_DRAFTED'} />
                 )}
-                {review && (
+                {/* Thẻ chủ đề chỉ để GVCN gửi duyệt; duyệt/trả lại ở trang xem giáo án ngày, nơi thấy nội dung (EDU-93) */}
+                {review && (review.can.send || (canComposeClassDocs && dossier.status === EDU_STATUS.DRAFT)) && (
                   <ReviewActions
                     name={`hồ sơ chủ đề ${t.name}`}
                     sendTo={review.sendTo}
                     sendLabel="Gửi duyệt"
-                    can={review.can}
+                    can={{ ...review.can, approve: false, reject: false }}
                     showSend={canComposeClassDocs && dossier.status === EDU_STATUS.DRAFT}
                     // Gói học kỳ chưa ban hành: không hiện dòng nhắc trên trang, bấm Gửi duyệt mới cảnh báo (Tiền 14/11/2026)
                     sendDisabledReason={BLOCKED_TEXT[dossier.blockedReason] || 'Chưa gửi được hồ sơ chủ đề này'}

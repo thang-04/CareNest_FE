@@ -10,7 +10,7 @@ import { EmptyCard, fmtDate, FoldAllButton, Notice, PageHead } from '@/component
 import { VersionHistory } from '@/components/education-plan/VersionHistory';
 import { docLines } from '@/models/education-plan/planHistory.mjs';
 import { useClassPlanContext } from '@/components/education-plan/planUi';
-import { ActionsMenu, RejectedNotice } from '@/components/education-plan/reviewUi';
+import { ActionsMenu, RejectedNotice, ReviewActions } from '@/components/education-plan/reviewUi';
 import { themeRowOf } from '@/components/education-plan/ThemePlanBody';
 import { numberGoals } from '@/models/education-plan/goalTable';
 import { LoadingState } from '@/components/ui/States';
@@ -115,7 +115,6 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
   const [goalErr, setGoalErr] = useState([]);
   const [cardFor, setCardFor] = useState(null);
   // Chỗ DayTab đặt menu "Lấy / gợi ý nội dung" ở trái hàng nút
-  const [toolsEl, setToolsEl] = useState(null);
   // Tab tuần ở trang ngày đang sửa được theo hồ sơ chủ đề (tính khi render, đọc lúc lưu)
   const weekEditableRef = useRef({ editable: false }).current;
   const ctx = useClassPlanContext(classId);
@@ -322,6 +321,14 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
     }
     return out;
   };
+  // EDU-93: người đúng lượt duyệt hồ sơ chủ đề ngay tại trang xem giáo án ngày (thấy nội dung mới duyệt); quyền do BE trả
+  const dossierPerm = dayPage && dossier?.status === EDU_STATUS.REVIEW ? dossier.permissions : null;
+  const dossierCan = dossierPerm && {
+    approve: !!(dossierPerm.canApprove ?? dossierPerm.canIssue),
+    reject: !!(dossierPerm.canReject ?? dossierPerm.canReturn),
+  };
+  const reviewTurn = !!dossierCan && (dossierCan.approve || dossierCan.reject);
+  const lastReviewStep = dossier?.review?.roles?.at(-1) === dossier?.review?.waitingRole;
   // Lỗi mục trống tự mất khi mục đó đã có nội dung
   const emptyNow = emptyErr.filter((e) => !sectionHasContent(draft.days.find((d) => d.date === e.date)?.sections?.[e.section]));
   const sectionLabel = (key) => DAY_SECTIONS.find((s) => s.key === key)?.label.replace(/^\d+\.\s*/, '') || key;
@@ -456,26 +463,23 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
   const branchNo = branchNumber(yearPlan, weekStart, branch);
   const exportArgs = { doc: draft, week, cls, branchNo, branchName, leaderName: leaderNameOf(staff, cls.ageGroupId, yearPlan?.schoolYear) };
 
-  // Mục của nút "Thao tác" ở trang ngày (Dạy học đứng trước Xuất file — Tiền 14/11/2026)
+  // Mục của nút "Thao tác" ở trang ngày; Xuất file là nút riêng ở góc phải ngoài cùng (Tiền 18/11/2026)
   const pageTools = dayPage
     ? [
         // Dạy học / trình chiếu chỉ theo từng ngày (Tiền 12/11/2026), dùng học liệu của kế hoạch giáo dục ngày (BE:EDU-81)
-        ...(day >= 0
+        // Chỉ hiện khi giáo án ngày đã ban hành; chỉ người soạn (GVCN) bấm được (Tiền 18/11/2026)
+        ...(day >= 0 && savedDay?.status === EDU_STATUS.APPROVED
           ? [
               {
-                label: savedDay ? 'Dạy học ngày này' : 'Dạy học ngày này (lưu trước)',
+                label: canComposeClassDocs ? 'Dạy học ngày này' : 'Dạy học ngày này (chỉ người soạn)',
                 icon: ChalkboardTeacher,
-                disabled: !savedDay,
+                disabled: !canComposeClassDocs,
                 onClick: () =>
                   guard.leave(
                     `/education/class/${classId}/themes/${week.theme.id}/teach?week=${encodeURIComponent(weekStart)}&date=${encodeURIComponent(draft.days[day].date)}`,
                   ),
               },
             ]
-          : []),
-        // EDU-90: xuất file theo vai trò người tạo, BE trả cờ
-        ...(saved?.permissions?.canExport !== false
-          ? [{ label: 'Xuất file', icon: FileDown, onClick: () => setPreview(dayPlansFile(exportArgs)) }]
           : []),
         ...(dossier?.canRevise ? [{ label: 'Tạo phiên bản điều chỉnh', icon: Copy, onClick: () => setConfirmRevise(true) }] : []),
       ]
@@ -572,12 +576,27 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
           <div className="ga-year-toolbar__group">
             {/* Trạng thái, hạn chỉ ở trang danh sách (thẻ học kỳ / thẻ chủ đề), không lặp ở trang trong (Tiền 14/11/2026) */}
             <FoldAllButton />
-            {/* Một nút "Thao tác" mở danh sách: Lấy / gợi ý → Dạy học → Xuất file → Tạo phiên bản (Tiền 14/11/2026); ngày đang
-                sửa thì DayTab đặt nút vào chỗ này kèm các mục của ngày */}
-            {dayPage && <span ref={setToolsEl} className="row row--middle gap-2" />}
-            {dayPage && !(editable && day >= 0) && <ActionsMenu items={pageTools} />}
+            {/* Lấy / gợi ý của ngày nằm trong card I của ngày (Tiền 18/11/2026) */}
+            {/* Trả lại ở trái; Duyệt/Ban hành ở phải, luôn là nút riêng (Tiền 18/11/2026) */}
+            {dayPage && reviewTurn && (
+              <ReviewActions name={`hồ sơ chủ đề ${week.theme.name}`} can={{ reject: dossierCan.reject }} onAct={dossierAct} />
+            )}
           </div>
           <div className="ga-year-toolbar__group ga-year-toolbar__group--end">
+            {dayPage && (
+              <>
+                <ActionsMenu items={pageTools} />
+                {reviewTurn && (
+                  <ReviewActions
+                    name={`hồ sơ chủ đề ${week.theme.name}`}
+                    approveLabel={lastReviewStep ? 'Ban hành' : 'Duyệt'}
+                    can={{ approve: dossierCan.approve }}
+                    onAct={dossierAct}
+                    variant="btn--outline-primary"
+                  />
+                )}
+              </>
+            )}
             {editable && (
               <>
                 <p className="muted text-sm ga-year-save-status" aria-live="polite">
@@ -612,6 +631,12 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
                   <Save size={16} aria-hidden /> Lưu
                 </Button>
               </>
+            )}
+            {/* EDU-90: xuất file theo vai trò người tạo, BE trả cờ; luôn ở góc phải ngoài cùng (Tiền 18/11/2026) */}
+            {dayPage && saved?.permissions?.canExport !== false && (
+              <Button variant="outline-primary" size="sm" icon={FileDown} onClick={() => setPreview(dayPlansFile(exportArgs))}>
+                Xuất file
+              </Button>
             )}
             {preview && <DocPreviewModal file={preview} onClose={() => setPreview(null)} />}
           </div>
@@ -734,8 +759,6 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
             cards={cards}
             reuse={lessonReuseFor(split ? dayPlans : weekPlans, draft, day)}
             emptySections={emptyNow.filter((e) => e.date === draft.days[day].date).map((e) => e.section)}
-            toolsTarget={toolsEl}
-            extraTools={pageTools}
             flagOf={(id) => version.unresolved.find((f) => f.goalId === String(id)) || null}
             offLabel={week?.offDays?.[day] || null}
             assessTo={

@@ -69,7 +69,6 @@ function ThemePlanInner() {
   const [draft, setDraft] = useState(null);
   const [dirty, setDirty] = useState(false);
   // Chỗ ThemePlanBody đặt menu "Lấy / gợi ý hoạt động" ở trái hàng nút
-  const [toolsEl, setToolsEl] = useState(null);
   const [copying, setCopying] = useState(false);
   const version = useDocVersion('theme', saved, ctx, classThemePlans, { themeId });
   const canWrite =
@@ -269,8 +268,7 @@ function ThemePlanInner() {
           <div className="ga-year-toolbar__group">
             {/* Trạng thái, hạn chỉ ở thẻ học kỳ trang danh sách (Tiền 14/11/2026) */}
             <FoldAllButton />
-            {/* Nút "Thao tác" (Lấy / gợi ý) do ThemePlanBody đặt vào; Xuất file chủ đề chỉ ở thẻ chủ đề trang danh sách */}
-            {editable && <span ref={setToolsEl} className="row row--middle gap-2" />}
+            {/* Lấy / gợi ý hoạt động ở nút "Thao tác" trong card I (Tiền 18/11/2026); Xuất file chủ đề chỉ ở thẻ chủ đề trang danh sách */}
           </div>
           <div className="ga-year-toolbar__group ga-year-toolbar__group--end">
             {editable && (
@@ -402,7 +400,6 @@ function ThemePlanInner() {
           loadPreviousActivities={editable ? loadPreviousActivities : null}
           suggestActivities={editable ? suggestActivityCards : null}
           notify={toast}
-          toolsTarget={toolsEl}
           usedCellsOf={(cardId) =>
             weekPlans
               .filter((w) => w.classId === classId && w.yearPlanId === yearPlan.id && w.themeId === themeId)
