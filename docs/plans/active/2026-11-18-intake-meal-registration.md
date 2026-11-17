@@ -230,11 +230,11 @@ Xem plan BE (mục "Làm rõ nghiệp vụ"). FE bị ảnh hưởng: `/children
 
 | AC | Rule | Test (tầng) | Phase | Kết quả |
 | --- | --- | --- | --- | --- |
-| AC-W1 | CHD-13 | `tests/children/health-declaration-fields-meal.test.mjs` (component) | A | |
-| AC-W2 | CHD-13 | `tests/children/meal-registration-declaration.test.mjs` (util) | A | |
-| AC-W3 | CHD-13 | `tests/children/declaration-summary-meal.test.mjs` (component) | A | |
-| AC-W4 | CHD-13, HLT-06 | `tests/children/meal-registration-mock.test.mjs` (mock) | A | |
-| AC-W5 | CHD-13 | `tests/children/meal-registration-import.test.mjs` (mock) | A | |
+| AC-W1 | CHD-13 | `tests/children/health-declaration-fields-meal.test.mjs` (component) | A | Pass |
+| AC-W2 | CHD-13 | `tests/children/meal-registration-declaration.test.mjs` (util) | A | Pass |
+| AC-W3 | CHD-13 | `tests/children/declaration-summary-meal.test.mjs` (component) | A | Pass |
+| AC-W4 | CHD-13, HLT-06 | `tests/children/meal-registration-mock.test.mjs` (mock) | A | Pass |
+| AC-W5 | CHD-13 | `tests/children/meal-registration-import.test.mjs` (mock) | A | Pass |
 | AC-W6 | ATT-02a, CHD-13 | `tests/hardening/attendance-meal-registration.test.mjs` (model + mock) | B | |
 | AC-W7 | NUT-07, CHD-13 | `tests/kitchen/weekly-forecast-meal-registration.test.mjs`, `tests/kitchen/published-allergy-menu.test.mjs` | B | |
 
@@ -260,3 +260,9 @@ Xem plan BE (mục "Làm rõ nghiệp vụ"). FE bị ảnh hưởng: `/children
 - Commit: chưa commit
 - Verify: chưa chạy (plan)
 - User trả lời "Câu hỏi mở", duyệt, chọn Subagent-driven. Chạy sau plan BE.
+
+### 2026-11-18 — Phase A (xong; chạy tiếp Phase B theo yêu cầu user)
+- Commit: `1d337723` (Task 1) · `350cbb7c` (Task 2) · `209ab1b5`, `488d9cf8` (Task 3) · `185da113`, `da1ed319`, `92232161` (Task 4) · `edf5fdd6`, `2f4dcdde` (Task 5)
+- Verify: `npm run verify` → 9 bộ test `# fail 0` (children 146 pass) · `All matched files use Prettier code style!` · `check-design: ok` · `check-api-contract (FE): 0 lỗi, 2 cảnh báo` · `✓ built in 4.01s`
+- Khác plan: không dừng sau Phase A (user 18/11: làm liền Phase A và B). Thêm test: fieldset mode (Task 2), dòng mẫu Excel khớp cột (Task 5). Dòng mẫu Excel chuyển sang `src/utils/children/importTemplate.js` để test không cần DOM. Task 1 RED là 3 fail + 1 pass (test 3 giữ hành vi cũ).
+- Tiếp: Phase B (Task 6, 7).
