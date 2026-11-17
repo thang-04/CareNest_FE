@@ -486,6 +486,8 @@ const toView = (db, child, user) => {
   const showAccounts = canViewParentAccounts(user);
   return {
     ...clone(child),
+    // CHD-13: BE luôn trả boolean, trẻ chưa có cờ đọc là báo ăn.
+    mealRegistered: child.mealRegistered !== false,
     profile: child.profile ? clone(child.profile) : emptyChildProfile(),
     guardians: (child.guardians || []).map((g) => {
       const { smsStatus, smsAt, ...rest } = g;
@@ -631,7 +633,9 @@ const cleanMedicalHistory = (mh) => {
   };
 };
 
+// CHD-13: cờ Báo ăn do cleanDeclaration trả riêng; BE lưu trên hồ sơ trẻ, không lưu trong bản khai. Thiếu/null ⇒ báo ăn.
 const cleanDeclaration = (d) => ({
+  mealRegistered: d.mealRegistered !== false,
   allergies: {
     state: d.allergies.state,
     items: d.allergies.state === DECLARATION_STATE.REPORTED ? d.allergies.items.map((x) => x.trim()).filter(Boolean) : [],
@@ -796,7 +800,15 @@ const validateEnrollment = (db, { child, declaration }, excludeId) => {
 const prefix = (p, errors) => Object.fromEntries(Object.entries(errors).map(([k, v]) => [`${p}.${k}`, v]));
 
 const createChild = (db, { child, declaration }, { classId, campusId, user }) => {
-  const decl = cleanDeclaration(declaration);
+  const { mealRegistered, ...cleaned } = cleanDeclaration(declaration);
+  // CHD-13: không báo ăn ⇒ dị ứng, chế độ ăn lưu Chưa cung cấp.
+  const decl = mealRegistered
+    ? cleaned
+    : {
+        ...cleaned,
+        allergies: { state: DECLARATION_STATE.NOT_PROVIDED, items: [] },
+        diet: { state: DECLARATION_STATE.NOT_PROVIDED, text: '' },
+      };
   const record = {
     id: uid('ch'),
     code: nextCode(db),
@@ -808,6 +820,7 @@ const createChild = (db, { child, declaration }, { classId, campusId, user }) =>
     campusId,
     status: classId ? CHILD_STATUS.ACTIVE : CHILD_STATUS.PENDING_PLACEMENT,
     enrolledAt: todayInput(),
+    mealRegistered,
     // Người tiếp nhận chốt dị ứng ngay khi tiếp nhận, không chờ Hiệu trưởng duyệt (quyết định user 2026-10-14).
     allergies: [...decl.allergies.items],
     guardians: cleanGuardians(child.guardians),
@@ -1269,12 +1282,14 @@ export const childrenMockRepository = {
     if (current && !reason?.trim()) errors.reason = 'Nhập lý do thay đổi khai báo';
     if (hasErrors(errors)) invalid(errors);
     return writeDb((d) => {
-      const clean = cleanDeclaration(declaration);
+      const { mealRegistered, ...cleaned } = cleanDeclaration(declaration);
       let decl = declarationOf(d, childId);
       if (!decl) {
         decl = { childId, history: [] };
         d.healthDeclarations.push(decl);
       }
+      // CHD-13: bỏ báo ăn chỉ đổi cờ, giữ dị ứng và chế độ ăn đang lưu (báo ăn lại thì khai bình thường).
+      const clean = mealRegistered || !decl.allergies ? cleaned : { ...cleaned, allergies: clone(decl.allergies), diet: clone(decl.diet) };
       const allergyChanged = JSON.stringify(decl.allergies) !== JSON.stringify(clean.allergies);
       const entry = { action: 'UPDATED', userId: user.id, at: nowIso(), note: reason?.trim() || '' };
       if (allergyChanged) entry.allergyChange = { from: decl.allergies ? clone(decl.allergies) : null, to: clone(clean.allergies) };
@@ -1290,7 +1305,9 @@ export const childrenMockRepository = {
       if (newTbContact) notifyTbContactReported(d, target, user.id, dateChange.to);
       else notifyTbContactDateChanged(d, target, dateChange, user.id);
       // Khai báo của Phó hiệu trưởng có hiệu lực ngay: bếp và điểm danh đọc danh sách mới.
-      findChild(d, childId).allergies = [...clean.allergies.items];
+      const owner = findChild(d, childId);
+      owner.allergies = [...clean.allergies.items];
+      owner.mealRegistered = mealRegistered;
       return clone(decl);
     });
   },
