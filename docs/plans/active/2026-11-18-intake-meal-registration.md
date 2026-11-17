@@ -235,8 +235,8 @@ Xem plan BE (mục "Làm rõ nghiệp vụ"). FE bị ảnh hưởng: `/children
 | AC-W3 | CHD-13 | `tests/children/declaration-summary-meal.test.mjs` (component) | A | Pass |
 | AC-W4 | CHD-13, HLT-06 | `tests/children/meal-registration-mock.test.mjs` (mock) | A | Pass |
 | AC-W5 | CHD-13 | `tests/children/meal-registration-import.test.mjs` (mock) | A | Pass |
-| AC-W6 | ATT-02a, CHD-13 | `tests/hardening/attendance-meal-registration.test.mjs` (model + mock) | B | |
-| AC-W7 | NUT-07, CHD-13 | `tests/kitchen/weekly-forecast-meal-registration.test.mjs`, `tests/kitchen/published-allergy-menu.test.mjs` | B | |
+| AC-W6 | ATT-02a, CHD-13 | `tests/hardening/attendance-meal-registration.test.mjs` (model + mock) | B | Pass |
+| AC-W7 | NUT-07, CHD-13 | `tests/kitchen/weekly-forecast-meal-registration.test.mjs`, `tests/kitchen/published-allergy-menu.test.mjs` | B | Pass |
 
 ## Rủi ro & rollback
 
@@ -266,3 +266,9 @@ Xem plan BE (mục "Làm rõ nghiệp vụ"). FE bị ảnh hưởng: `/children
 - Verify: `npm run verify` → 9 bộ test `# fail 0` (children 146 pass) · `All matched files use Prettier code style!` · `check-design: ok` · `check-api-contract (FE): 0 lỗi, 2 cảnh báo` · `✓ built in 4.01s`
 - Khác plan: không dừng sau Phase A (user 18/11: làm liền Phase A và B). Thêm test: fieldset mode (Task 2), dòng mẫu Excel khớp cột (Task 5). Dòng mẫu Excel chuyển sang `src/utils/children/importTemplate.js` để test không cần DOM. Task 1 RED là 3 fail + 1 pass (test 3 giữ hành vi cũ).
 - Tiếp: Phase B (Task 6, 7).
+
+### 2026-11-18 — Phase B (chờ review toàn nhánh)
+- Commit: `9564fb4a`, `0bcd95a0`, `de044ce1` (Task 6) · `b1766366`, `4066cd0d` (Task 7)
+- Verify: `npm run verify` → 9 bộ test `# fail 0` (kitchen 169, hardening 124, children 146 pass) · `All matched files use Prettier code style!` · `check-design: ok` · `check-api-contract (FE): 0 lỗi, 2 cảnh báo` · `✓ built in 1.61s`
+- Khác plan: mỗi task tách commit nhỏ theo yêu cầu user. API điểm danh thật đã giữ nguyên `child.mealRegistered` (spread `...child`), không phải sửa. Dự trù tuần bỏ bản ghi điểm danh của trẻ không báo ăn khỏi đếm vắng để không trừ 2 lần; chợ ngày dùng chung `forecastEnv` nên cũng đúng.
+- Tiếp: review toàn nhánh Web, sửa 1 lượt nếu cần, rồi dừng chờ user.
