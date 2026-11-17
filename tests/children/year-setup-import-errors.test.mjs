@@ -30,3 +30,26 @@ test('bảng lỗi dùng tiêu đề tiếng Việt, cột tên theo loại file
   assert.match(panel, /'Trang tính', 'Dòng', nameHead, 'Lý do'/);
   assert.match(panel, /isRooms \? 'Phòng \/ lớp' : 'Lớp \/ nhóm tuổi'/);
 });
+
+// Màn Phòng ban: nhập chỉ sheet Phòng; tệp xuất (4 cột mẫu + Loại phòng, Trạng thái) nhập lại được, giữ loại phòng
+test('nhập phòng ở màn Phòng ban: không cần sheet Lớp, phòng đã có giữ loại phòng', () => {
+  const office = { id: 'r2', campusId: 'c1', room: 'VP1', name: 'Văn phòng', capacity: 5, type: LOCATION_TYPES.OFFICE || 'OFFICE' };
+  const sheets = {
+    [SHEETS.rooms]: [
+      [...ROOM_COLUMNS, 'Loại phòng', 'Trạng thái'],
+      ['CS1', 'VP1', 'Văn phòng mới', 6, 'Văn phòng', 'Đang dùng'],
+      ['CS1', 'P201', 'Phòng Lan', 20, 'Phòng học', 'Đang dùng'],
+    ],
+  };
+  const { rooms: out, errors } = matchRoomClassRows(sheets, {
+    campuses,
+    ageGroups: [],
+    rooms: [...rooms, office],
+    classes: [],
+    schoolYear: 'y1',
+    roomsOnly: true,
+  });
+  assert.deepEqual(errors, []);
+  assert.equal(out.find((r) => r.form.room === 'VP1').form.type, office.type);
+  assert.equal(out.find((r) => r.form.room === 'P201').form.type, LOCATION_TYPES.CLASS);
+});

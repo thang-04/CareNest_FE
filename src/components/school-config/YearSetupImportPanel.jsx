@@ -24,6 +24,8 @@ import '@/styles/modules/menu-planning.css';
 
 const MODES = {
   rooms: { title: 'Nhập phòng và lớp từ Excel', template: ROOM_CLASS_TEMPLATE_URL, sheets: [SHEETS.rooms, SHEETS.classes] },
+  // Màn Phòng ban: chỉ đọc sheet Phòng của tệp mẫu (hoặc tệp xuất từ màn này)
+  roomList: { title: 'Nhập phòng từ Excel', template: ROOM_CLASS_TEMPLATE_URL, sheets: [SHEETS.rooms] },
   teachers: { title: 'Nhập giáo viên và tổ trưởng từ Excel', template: TEACHER_TEMPLATE_URL, sheets: [SHEETS.teachers, SHEETS.leaders] },
 };
 
@@ -64,8 +66,7 @@ function PreviewTable({ title, head, rows }) {
  * dòng BE từ chối hiện lỗi đỏ ở bảng kết quả.
  */
 // Lỗi BE khi lưu (vd. trùng tên) kèm điểm trường và giá trị trong file để đối chiếu
-const withPlace = (message, form, kind, value) => {
-  const campus = form.campusName || '';
+const withPlace = (message, campus, kind, value) => {
   return value ? `${message} (${campus ? `${campus}, ` : ''}${kind} "${value}")` : message;
 };
 
@@ -80,7 +81,8 @@ export function YearSetupImportPanel({ open, mode, yearId, onClose }) {
   const [saving, setSaving] = useState(false);
   const [changed, setChanged] = useState(false);
 
-  const isRooms = mode === 'rooms';
+  const roomsOnly = mode === 'roomList';
+  const isRooms = mode === 'rooms' || roomsOnly;
   const valid = result ? (isRooms ? result.rooms.length + result.classes.length : result.classes.length + result.leaders.length) : 0;
 
   const close = (savedNow = false) => {
@@ -103,6 +105,7 @@ export function YearSetupImportPanel({ open, mode, yearId, onClose }) {
         rooms: rooms || [],
         classes: structure?.classes || [],
         schoolYear: yearId,
+        roomsOnly,
       });
     }
     const [assign, leaders] = await Promise.all([

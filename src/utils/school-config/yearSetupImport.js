@@ -59,7 +59,11 @@ const sameNumber = (a, b) => Number(a) === Number(b);
  * Sheet Phòng + Lớp → { rooms, classes, errors }. Phòng/lớp đã có (cùng mã phòng / tên lớp trong điểm trường) thì cập nhật
  * các ô khác đi, giống hệt thì bỏ qua. Lớp được trỏ tới phòng mới ở cùng file. Kiểm tra như form; BE kiểm lại khi lưu.
  */
-export function matchRoomClassRows(sheets, { campuses, ageGroups, rooms: savedRooms, classes: savedClasses, schoolYear }) {
+// roomsOnly (màn Phòng ban): chỉ sheet Phòng, phòng đã có giữ nguyên loại phòng
+export function matchRoomClassRows(
+  sheets,
+  { campuses, ageGroups, rooms: savedRooms, classes: savedClasses, schoolYear, roomsOnly = false },
+) {
   const errors = [];
   const rooms = [];
   const classes = [];
@@ -81,7 +85,8 @@ export function matchRoomClassRows(sheets, { campuses, ageGroups, rooms: savedRo
     if (existing && rooms.some((r) => r.id === existing.id))
       return errors.push({ sheet: SHEETS.rooms, row, name: label, reason: `Mã phòng "${text(code)}" bị lặp trong file` });
     const { id: _id, ...base } = existing || { managerUserId: '', note: '' };
-    const form = { ...base, campusId: campus.id, type: LOCATION_TYPES.CLASS, room: text(code), name: text(name), capacity: capacity ?? '' };
+    const type = roomsOnly && existing ? existing.type : LOCATION_TYPES.CLASS;
+    const form = { ...base, campusId: campus.id, type, room: text(code), name: text(name), capacity: capacity ?? '' };
     const others = allRooms.filter((r) => r !== existing);
     const used = savedClasses.filter((c) => existing && c.locationId === existing.id).map((c) => Number(c.capacity) || 0);
     const e = validateRoom(form, others, { minCapacity: used.length ? Math.max(...used) : 0 });
@@ -101,6 +106,7 @@ export function matchRoomClassRows(sheets, { campuses, ageGroups, rooms: savedRo
   });
 
   const allClasses = savedClasses.map((c) => ({ ...c, schoolYear }));
+  if (roomsOnly) return { rooms, classes, errors };
   bodyOf(sheets[SHEETS.classes], CLASS_COLUMNS, SHEETS.classes, errors).forEach(({ row, cells }) => {
     const [campusName, name, groupName, code, capacity] = cells;
     const label = text(name);

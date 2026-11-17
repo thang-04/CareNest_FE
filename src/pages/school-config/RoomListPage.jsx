@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, Trash2, DoorOpen, PauseCircle, RotateCcw, ChevronDown } from '@/components/ui/icons';
+import { Plus, Trash2, DoorOpen, PauseCircle, RotateCcw, ChevronDown, Download, FileSpreadsheet } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
@@ -23,6 +23,10 @@ import { normalizeText } from '@/utils/format';
 import { Pagination, paginate } from '@/components/ui/Pagination';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { YearReadOnlyNotice } from '@/components/school-config/YearReadOnlyNotice';
+import { YearSetupImportPanel } from '@/components/school-config/YearSetupImportPanel';
+import { exportWithPreview } from '@/components/ui/ExportPreview';
+import { Button } from '@/components/ui/Button';
+import { ROOM_COLUMNS, SHEETS } from '@/utils/school-config/yearSetupImport';
 import '@/styles/modules/school-config.css';
 
 /**
@@ -45,6 +49,7 @@ export default function RoomListPage() {
   const [pending, setPending] = useState(null); // { kind: 'delete' | 'deactivate' | 'activate', room }
   const [pendingError, setPendingError] = useState('');
   const [blocked, setBlocked] = useState(null); // { room, actionLabel }
+  const [importing, setImporting] = useState(false);
   // Điểm trường xem / sửa được theo quyền "Quản lý phòng ban" (Hiệu trưởng: tất cả)
   const viewIds = roomCampusIds(user, md.campuses);
   const editIds = yearReadOnly ? [] : roomCampusIds(user, md.campuses, true);
@@ -229,6 +234,23 @@ export default function RoomListPage() {
     );
   };
 
+  const exportRooms = () =>
+    exportWithPreview(
+      [
+        [...ROOM_COLUMNS, 'Loại phòng', 'Trạng thái'],
+        ...shown.map((r) => [
+          campusShort(r) || md.campusById(r.campusId)?.name || '',
+          r.room || '',
+          r.name || '',
+          r.capacity ?? '',
+          LOCATION_TYPE_LABELS[r.type] || '',
+          ROOM_STATUS_LABELS[r.status] || '',
+        ]),
+      ],
+      'phong-ban.xlsx',
+      { sheetName: SHEETS.rooms },
+    );
+
   return (
     <div className="page">
       <Breadcrumb items={roomCrumbs()} />
@@ -295,6 +317,16 @@ export default function RoomListPage() {
               ))}
             </select>
           )}
+          <div className="spacer" />
+          {/* Nhập: người được thêm phòng; tệp xuất đọc lại được bằng Nhập (4 cột đầu như tệp mẫu, sheet Phòng) */}
+          {createIds.length > 0 && (
+            <Button icon={FileSpreadsheet} onClick={() => setImporting(true)}>
+              Nhập Excel
+            </Button>
+          )}
+          <Button icon={Download} disabled={!shown.length} onClick={exportRooms}>
+            Xuất Excel
+          </Button>
         </div>
         {error ? (
           <ErrorState error={error} onRetry={reload} />
@@ -387,6 +419,15 @@ export default function RoomListPage() {
         onClose={() => {
           setPending(null);
           setPendingError('');
+        }}
+      />
+      <YearSetupImportPanel
+        open={importing}
+        mode="roomList"
+        yearId={schoolYear}
+        onClose={(changed) => {
+          setImporting(false);
+          if (changed) reload({ silent: true });
         }}
       />
     </div>
