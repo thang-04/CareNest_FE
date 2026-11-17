@@ -496,6 +496,7 @@ const childView = (ch) => ({
   fullName: ch.fullName,
   gender: ch.gender,
   allergies: ch.allergies || [],
+  mealRegistered: ch.mealRegistered !== false,
   photoUrl: ch.photoUrl || kidAvatar(ch),
 });
 
@@ -729,7 +730,9 @@ export const attendanceMockRepository = {
       entries.forEach((e) => {
         // Client cũ không gửi meals: Có mặt mặc định ăn đủ. Client mới gửi rõ true/false để giáo viên có thể tắt.
         const requested = e.meals && Object.keys(e.meals).length ? e.meals : allMeals(true, sessions);
-        const meals = isAbsent(e.status) ? allMeals(false, sessions) : mealsIn(requested, sessions);
+        // ATT-02a/CHD-13: trẻ không báo ăn không có suất, bỏ qua meals client gửi (không báo lỗi)
+        const registered = db.children.find((c) => c.id === e.childId)?.mealRegistered !== false;
+        const meals = isAbsent(e.status) || !registered ? allMeals(false, sessions) : mealsIn(requested, sessions);
         const existing = recordOf(db, e.childId, date);
         if (existing) {
           const changed = existing.status !== e.status || sessions.some((s) => !!existing.meals?.[s] !== meals[s]);

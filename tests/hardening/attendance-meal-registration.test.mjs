@@ -63,3 +63,47 @@ test('mealsWhenPresent tắt suất cho trẻ không báo ăn', () => {
   assert.deepEqual(mealsWhenPresent({}, ['LUNCH']), { LUNCH: true });
   assert.deepEqual(mealsWhenPresent({ mealRegistered: true }, ['LUNCH']), { LUNCH: true });
 });
+
+test('lưu điểm danh luôn tắt suất trẻ không báo ăn', async () => {
+  const [noMeal, eats] = childIds;
+  writeDb((d) => {
+    d.children.find((ch) => ch.id === noMeal).mealRegistered = false;
+  });
+  const sessions = (await repo.getClassAttendance(cls.id, date, teacher)).mealSessions;
+  const all = Object.fromEntries(sessions.map((s) => [s, true]));
+  await repo.saveClassAttendance(
+    {
+      classId: cls.id,
+      date,
+      entries: [
+        { childId: noMeal, status: 'PRESENT', meals: all },
+        { childId: eats, status: 'PRESENT', meals: all },
+      ],
+    },
+    teacher,
+  );
+  const sheet = await repo.getClassAttendance(cls.id, date, teacher);
+  const rowOf = (id) => sheet.children.find((row) => row.child.id === id);
+  assert.equal(rowOf(noMeal).child.mealRegistered, false);
+  assert.equal(rowOf(eats).child.mealRegistered, true);
+  assert.ok(sessions.every((s) => rowOf(noMeal).record.meals[s] === false), 'trẻ không báo ăn không có suất');
+  assert.ok(sessions.every((s) => rowOf(eats).record.meals[s] === true), 'trẻ báo ăn vẫn ăn đủ');
+
+  // Client không gửi meals: vẫn không có suất cho trẻ không báo ăn
+  await repo.saveClassAttendance({ classId: cls.id, date, entries: [{ childId: noMeal, status: 'UNEXCUSED' }] }, teacher);
+  await repo.saveClassAttendance({ classId: cls.id, date, entries: [{ childId: noMeal, status: 'PRESENT' }] }, teacher);
+  const again = (await repo.getClassAttendance(cls.id, date, teacher)).children.find((row) => row.child.id === noMeal);
+  assert.ok(sessions.every((s) => again.record.meals[s] === false));
+});
+
+test('điểm danh demo seed không cho suất trẻ không báo ăn', () => {
+  const classes = [{ id: 'k1', homeroomTeacherId: 't1' }];
+  const sessionsOf = () => ['LUNCH'];
+  const children = [
+    { id: 'a', classId: 'k1', campusId: 'c1', mealRegistered: false },
+    { id: 'b', classId: 'k1', campusId: 'c1' },
+  ];
+  const [a, b] = buildDayAttendance({ classes, children, date, sessionsOf, status: 'PRESENT' });
+  assert.deepEqual(a.meals, { LUNCH: false });
+  assert.deepEqual(b.meals, { LUNCH: true });
+});
