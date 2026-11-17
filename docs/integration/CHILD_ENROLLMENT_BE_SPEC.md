@@ -87,6 +87,7 @@ Xếp lớp mở enrollment mới; chuyển lớp đóng enrollment đang mở r
 ### 3.6 `child_health_declarations` — khai báo sức khỏe, 1–1 với trẻ (mới, CHD-06, HLT-06)
 Trạng thái mỗi mục: `REPORTED` (Có) / `NONE_REPORTED` (Không có) / `NOT_PROVIDED` (Chưa cung cấp).
 - Dị ứng: `allergies_state` + danh sách tên (bảng con `child_allergies` hoặc JSON). Bếp và điểm danh đọc danh sách này ngay khi lưu (không chờ duyệt).
+- Báo ăn (CHD-13): cờ `meal_registered` nằm trên bản ghi trẻ (không trong khai báo), mặc định `TRUE`; `FALSE` = trẻ không ăn ở trường. Bỏ báo ăn không xóa dị ứng, chế độ ăn đã lưu; báo ăn lại thì dùng lại.
 - Chế độ ăn: `diet_state`, `diet_text` (≤500). Thông tin khác: `other_notes_state`, `other_notes_text` (≤500).
 - Tiền sử bản thân, gia đình: `*_state` chỉ `REPORTED`/`NONE_REPORTED` khi lưu, `*_text` (≤300, bắt buộc khi `REPORTED`).
 - Tiếp xúc người bệnh lao: `tb_contact_state` (`REPORTED`/`NONE_REPORTED`), `tb_contact_date` (bắt buộc khi `REPORTED`).
@@ -110,13 +111,13 @@ Trạng thái mỗi mục: `REPORTED` (Có) / `NONE_REPORTED` (Không có) / `NO
 Chung:
 - Envelope `{ code, desc, data }` như hiện tại. ID theo kiểu BE (Long); FE giữ nguyên giá trị nhận được.
 - **Lỗi theo ô:** BE giả trả `422` (thiếu/sai nghiệp vụ) và `409` (trùng) với `details` dạng map `{ "<đường dẫn ô>": "<câu lỗi>" }`; contract BE hiện là `400` + `data` danh sách `{ field, message }` ⇒ mục 7.2.
-- Đường dẫn ô FE dùng: `fullName`, `dateOfBirth`, `gender`, `guardians` (lỗi chung của danh sách), `guardians.{i}.fullName|relation|phone|email|idNumber`, `profile.idNumber|premature|gestationWeeks|ethnicity|beneficiary|bloodType|address.province|address.ward|address.street`, `declaration.allergies|diet|otherNotes|medicalHistory.self|medicalHistory.family|medicalHistory.tbContact|medicalHistory.tbContactDate`, `classId`, `campusId`, `reason`, `leftAt`, `file`.
+- Đường dẫn ô FE dùng: `fullName`, `dateOfBirth`, `gender`, `guardians` (lỗi chung của danh sách), `guardians.{i}.fullName|relation|phone|email|idNumber`, `profile.idNumber|premature|gestationWeeks|ethnicity|beneficiary|bloodType|address.province|address.ward|address.street`, `declaration.mealRegistered|allergies|diet|otherNotes|medicalHistory.self|medicalHistory.family|medicalHistory.tbContact|medicalHistory.tbContactDate`, `classId`, `campusId`, `reason`, `leftAt`, `file`.
 
 Kiểu dữ liệu dùng lại:
 - `Guardian` (gửi lên): `{ fullName, relation, phone, idNumber, email }` — họ tên ≤150; quan hệ bắt buộc, một trong Bố, Mẹ, Ông, Bà, Anh/chị, Người giám hộ (D-5a B; khác ⇒ 422 `guardians.{i}.relation`); SĐT 10 số bắt đầu 0 (nhận cả `+84`, khoảng trắng, dấu chấm, gạch); CCCD đúng 12 chữ số, bắt buộc; email tùy chọn, đúng định dạng. Mỗi trẻ 1–3 phụ huynh (D-5b A; quá 3 ⇒ 422 `guardians`).
 - `Profile`: `{ idNumber, premature, gestationWeeks, ethnicity, beneficiary, bloodType, address: { province, ward, street } }` (mục 3.2; `paymentSource` BE tự đặt `BHYT`).
-- `Declaration`: `{ allergies: { state, items[] }, diet: { state, text }, otherNotes: { state, text }, medicalHistory: { self: { state, text }, family: { state, text }, tbContact: { state, contactDate } } }` (mục 3.6). Ngày tiếp xúc lao: không ở tương lai, không trước ngày sinh.
-- `ChildView` (trả về): trường hiện có + `code`, `gender`, `status`, `campusId`, `classId`, `className`, `schoolYear`, `enrolledAt`, `leftAt`, `leftReason`, `readmittedAt`, `allergies[]`, `hasDeclaration`, `profile` (chỉ khi xem hồ sơ, không có ở danh sách), `history[]`, `guardians[]` = `{ fullName, relation, phone, idNumber, email, accountStatus, smsStatus, smsAt }` (HT/PHT); vai khác chỉ `{ fullName, relation, phone, idNumber, email }` (CCCD phụ huynh mọi vai xem như SĐT — user chốt 2026-10-21).
+- `Declaration`: `{ mealRegistered?, allergies: { state, items[] }, diet: { state, text }, otherNotes: { state, text }, medicalHistory: { self: { state, text }, family: { state, text }, tbContact: { state, contactDate } } }` (mục 3.6). `mealRegistered` boolean, thiếu/null = `true` (CHD-13); `false` thì dị ứng, chế độ ăn không bắt buộc. Ngày tiếp xúc lao: không ở tương lai, không trước ngày sinh.
+- `ChildView` (trả về): trường hiện có + `code`, `gender`, `status`, `campusId`, `classId`, `className`, `schoolYear`, `enrolledAt`, `leftAt`, `leftReason`, `readmittedAt`, `allergies[]`, `mealRegistered` (boolean, luôn có), `hasDeclaration`, `profile` (chỉ khi xem hồ sơ, không có ở danh sách), `history[]`, `guardians[]` = `{ fullName, relation, phone, idNumber, email, accountStatus, smsStatus, smsAt }` (HT/PHT); vai khác chỉ `{ fullName, relation, phone, idNumber, email }` (CCCD phụ huynh mọi vai xem như SĐT — user chốt 2026-10-21).
 - Trẻ: họ tên ≤100; ngày sinh không ở tương lai, từ 2018-01-01; giới tính bắt buộc.
 
 ### 4.1 Tiếp nhận bằng form
@@ -136,7 +137,7 @@ Kiểu dữ liệu dùng lại:
 **`POST /children/enrollments`** (mới; BE giả `enrollChild`)
 - Body: `{ child: { fullName, dateOfBirth, gender, guardians: [Guardian], profile: Profile }, declaration: Declaration, classId?, campusId? }`.
 - Lớp không bắt buộc. Có `classId`: lớp đang hoạt động, thuộc năm học đang hoạt động (mục 9), chưa đủ sĩ số (`capacity`), thuộc phạm vi; trẻ theo điểm trường của lớp; `campusId` khác điểm trường của lớp ⇒ 422 `classId`. Không có lớp: `campusId` bắt buộc với người được giao toàn trường; PHT một điểm trường bỏ trống = điểm trường của mình; điểm trường không tồn tại/ngừng hoạt động/ngoài phạm vi ⇒ 422 `campusId` (L-03, CHD-02).
-- Lưu trong một giao dịch: trẻ (`code`, `status` = `ACTIVE` nếu có lớp, không thì `PENDING_PLACEMENT`, `enrolled_on` = hôm nay), hành chính, khai báo sức khỏe (dị ứng có hiệu lực ngay — CHD-06), lịch sử `ENROLLED`, enrollment nếu có lớp, phụ huynh (mục 5.1–5.3, 5.5).
+- Lưu trong một giao dịch: trẻ (`code`, `status` = `ACTIVE` nếu có lớp, không thì `PENDING_PLACEMENT`, `enrolled_on` = hôm nay), hành chính, cờ báo ăn, khai báo sức khỏe (dị ứng có hiệu lực ngay — CHD-06; không báo ăn ⇒ dị ứng, chế độ ăn lưu `NOT_PROVIDED`, `allergies[]` rỗng — CHD-13), lịch sử `ENROLLED`, enrollment nếu có lớp, phụ huynh (mục 5.1–5.3, 5.5).
 - Trả `ChildView` + `guardianAccounts: [{ fullName, phone, result, phoneChanged, smsStatus }]` theo thứ tự phụ huynh: `result` = `CREATED` (tạo tài khoản, gửi SMS) / `LINKED` (liên kết tài khoản có sẵn) / `NOT_ACTIVATED` (người lưu không có quyền kích hoạt); `phoneChanged` = tài khoản có sẵn đổi tên đăng nhập sang SĐT mới (mục 5.4); `smsStatus` = `SENT` / `FAILED` / `null`.
 - Lỗi: 403 · 422 theo ô · 409 trùng hồ sơ (CHD-04; câu lỗi, không `details`) · 409 `guardians.{i}.phone|idNumber` (mục 5.2).
 - Tác dụng phụ: thông báo `CHILD_TB_CONTACT` nếu khai Có tiếp xúc lao; `CHILD_PLACED` cho giáo viên lớp nếu có lớp (mục 6.2); SMS (mục 6.1).
@@ -178,6 +179,7 @@ Kiểu dữ liệu dùng lại:
 ### 4.5 Khai báo sức khỏe — `PUT /children/{id}/health-declaration` (mới; BE giả `saveDeclaration`)
 - Body `{ declaration: Declaration, reason }`; `reason` bắt buộc khi đã có khai báo; lỗi 422 theo ô (không tiền tố `declaration.`).
 - Ghi lịch sử kèm `allergyChange` / `historyChange`; dị ứng mới có hiệu lực ngay cho bếp, điểm danh.
+- `declaration.mealRegistered` cập nhật cờ trên trẻ (CHD-13): `false` ⇒ giữ nguyên dị ứng, chế độ ăn đang lưu (và `allergies[]` của trẻ), chỉ đổi cờ; `true` ⇒ lưu dị ứng, chế độ ăn như thường.
 - Thông báo: chuyển sang Có tiếp xúc lao ⇒ `CHILD_TB_CONTACT`; đã có ngày mà đổi ngày ⇒ `CHILD_TB_CONTACT_DATE_CHANGED`; lưu lại không đổi thì không báo.
 - Trả khai báo đã lưu.
 
