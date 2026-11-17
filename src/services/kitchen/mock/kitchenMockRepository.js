@@ -304,7 +304,8 @@ const publishedAllergyChanges = (db, cat, menu, date, campusId, published) => {
       if (!replacements.length) return [];
       const restrictions = a.restrictions || [];
       const children = (db.children || [])
-        .filter((c) => c.status === 'ACTIVE' && classById[c.classId])
+        // NUT-07/CHD-13: bếp không đếm dị ứng của trẻ không báo ăn
+        .filter((c) => c.status === 'ACTIVE' && classById[c.classId] && c.mealRegistered !== false)
         .map((c) => ({
           id: c.id,
           fullName: c.fullName,
