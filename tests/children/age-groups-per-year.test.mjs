@@ -58,3 +58,16 @@ test('xóa nhóm tuổi ở năm sắp tới không bị chặn bởi tổ trư�
     return true;
   });
 });
+
+test('menu "…" của bảng Nhóm tuổi có thao tác tổ trưởng như màn Phân công', async () => {
+  const { readFileSync } = await import('node:fs');
+  const page = readFileSync('src/pages/school-config/AgeGroupsClassesPage.jsx', 'utf8');
+  const order = ["label: 'Thêm lớp'", "label: 'Lịch sử phân công'", "label: 'Gỡ tổ trưởng'", "label: 'Xóa nhóm tuổi'"].map((l) =>
+    page.indexOf(l),
+  );
+  assert.ok(order.every((i) => i > 0));
+  assert.deepEqual(
+    [...order].sort((a, b) => a - b),
+    order,
+  );
+});
