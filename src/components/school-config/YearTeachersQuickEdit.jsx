@@ -179,7 +179,7 @@ export function YearTeachersQuickEdit({ yearId }) {
                 <th>Nhóm tuổi</th>
                 <th>Giáo viên 1</th>
                 <th>Giáo viên 2</th>
-                <th>Chủ nhiệm</th>
+                <th>Phụ trách chính</th>
               </tr>
             </thead>
             <tbody>
@@ -224,12 +224,12 @@ export function YearTeachersQuickEdit({ yearId }) {
                     <FormField error={errors[c.id]?.homeroomTeacherId}>
                       <select
                         className="select"
-                        aria-label={`Chủ nhiệm lớp ${c.name}`}
+                        aria-label={`GV phụ trách chính lớp ${c.name}`}
                         value={c.homeroomTeacherId || ''}
                         disabled={!c.teacherIds.length}
                         onChange={(e) => editClass(c, { homeroomTeacherId: e.target.value })}
                       >
-                        <option value="">{c.teacherIds.length ? 'Chọn chủ nhiệm' : '—'}</option>
+                        <option value="">{c.teacherIds.length ? 'Chọn GV phụ trách chính' : '—'}</option>
                         {c.teacherIds.map((id) => (
                           <option key={id} value={id}>
                             {nameOf(id)}

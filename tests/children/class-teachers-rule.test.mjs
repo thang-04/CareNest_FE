@@ -8,7 +8,7 @@ test('năm đang học: thiếu hoặc bỏ hết giáo viên báo lỗi ngay d�
   assert.match(validateClassTeachers({ teacherIds: [], homeroomTeacherId: '' }, { yearActive: true }).teacherIds, /đúng 2/);
   assert.equal(
     validateClassTeachers({ teacherIds: ['a', 'b'], homeroomTeacherId: '' }, { yearActive: true }).homeroomTeacherId,
-    'Chọn giáo viên chủ nhiệm',
+    'Chọn GV phụ trách chính',
   );
   assert.deepEqual(validateClassTeachers({ teacherIds: ['a', 'b'], homeroomTeacherId: 'a' }, { yearActive: true }), {});
 });

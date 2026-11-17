@@ -306,10 +306,13 @@ const buildReadiness = (db, year) => {
         detail: !classes.length
           ? 'Chưa có lớp'
           : !ok
-            ? [empty.length && `${empty.length} lớp chưa có giáo viên`, noHomeroom.length && `${noHomeroom.length} lớp chưa có chủ nhiệm`]
+            ? [
+                empty.length && `${empty.length} lớp chưa có giáo viên`,
+                noHomeroom.length && `${noHomeroom.length} lớp chưa có GV phụ trách chính`,
+              ]
                 .filter(Boolean)
                 .join(' · ')
-            : ['Tất cả lớp có GV và chủ nhiệm', short.length && `${short.length} lớp thiếu 1 GV`].filter(Boolean).join(' · '),
+            : ['Tất cả lớp có GV và GV phụ trách chính', short.length && `${short.length} lớp thiếu 1 GV`].filter(Boolean).join(' · '),
       };
     })(),
     placement: {
@@ -448,7 +451,7 @@ const staffImpact = (db, u, next) => {
       .forEach((c) =>
         items.push({
           kind: 'CLASS',
-          text: `Dạy ${c.name} (${campusName(db, c.campusId)}, ${c.schoolYear})${c.homeroomTeacherId === u.id ? ' – chủ nhiệm' : ''}: lớp sẽ thiếu giáo viên`,
+          text: `Dạy ${c.name} (${campusName(db, c.campusId)}, ${c.schoolYear})${c.homeroomTeacherId === u.id ? ' – phụ trách chính' : ''}: lớp sẽ thiếu giáo viên`,
         }),
       );
     db.teamLeaderAssignments
@@ -1638,7 +1641,7 @@ export const schoolConfigMockRepository = {
           db,
           t,
           'Bạn được phân công lớp mới',
-          `Năm học ${year.name}: bạn phụ trách ${cls.name}${t === cls.homeroomTeacherId ? ' (chủ nhiệm)' : ''}.`,
+          `Năm học ${year.name}: bạn phụ trách ${cls.name}${t === cls.homeroomTeacherId ? ' (phụ trách chính)' : ''}.`,
         ),
       );
       return clone(cls);
