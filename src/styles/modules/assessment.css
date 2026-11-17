@@ -380,6 +380,10 @@
 .dg-unlock-filters .input {
   width: auto;
 }
+/* BUG-30: khung "Lọc thêm" nổi trên đầu bảng dính (thead sticky) bên dưới */
+.dg-unlock-filters .filter-more__panel {
+  z-index: var(--z-dropdown);
+}
 /* Ô Loại, Tuần, Trẻ trong form một hàng: cố định bề rộng để đổi loại không xô ô khác */
 .dg-unlock-kind {
   width: calc(var(--space-16) * 3);

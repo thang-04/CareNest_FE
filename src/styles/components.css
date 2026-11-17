@@ -1754,7 +1754,22 @@ tr.sortable-item--moved > td {
   padding: var(--space-4);
 }
 .form-inline .field {
+  position: relative;
   margin: 0;
+}
+/* BUG-29: lỗi đỏ nằm dưới ô, không đẩy ô đó lên làm lệch hàng; hàng dưới chừa chỗ cho một dòng lỗi */
+.form-inline {
+  row-gap: var(--space-6);
+  padding-bottom: var(--space-8);
+}
+.form-inline .field__error {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: max-content;
+  min-width: 100%;
+  max-width: 40ch;
+  margin-top: var(--space-1);
 }
 .form-inline__class {
   min-width: 300px;
