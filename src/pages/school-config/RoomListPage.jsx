@@ -26,7 +26,7 @@ import { YearReadOnlyNotice } from '@/components/school-config/YearReadOnlyNotic
 import { YearSetupImportPanel } from '@/components/school-config/YearSetupImportPanel';
 import { exportWithPreview } from '@/components/ui/ExportPreview';
 import { Button } from '@/components/ui/Button';
-import { ROOM_COLUMNS, SHEETS } from '@/utils/school-config/yearSetupImport';
+import { ROOM_LIST_COLUMNS, SHEETS } from '@/utils/school-config/yearSetupImport';
 import '@/styles/modules/school-config.css';
 
 /**
@@ -234,16 +234,19 @@ export default function RoomListPage() {
     );
   };
 
+  // Xuất đúng bảng trên màn (đang lọc, cùng thứ tự), thêm cột Điểm trường; bỏ cột Thao tác
   const exportRooms = () =>
     exportWithPreview(
       [
-        [...ROOM_COLUMNS, 'Loại phòng', 'Trạng thái'],
+        ROOM_LIST_COLUMNS.map((c) => (c === 'Lớp' ? `Lớp (${schoolYear})` : c)),
         ...shown.map((r) => [
-          campusShort(r) || md.campusById(r.campusId)?.name || '',
+          md.campusById(r.campusId)?.name || campusShort(r),
           r.room || '',
           r.name || '',
-          r.capacity ?? '',
           LOCATION_TYPE_LABELS[r.type] || '',
+          r.capacity ?? '',
+          r.yearClasses?.length ? r.yearClasses.join(', ') : '',
+          r.managerName || md.userById(r.managerUserId)?.fullName || '',
           ROOM_STATUS_LABELS[r.status] || '',
         ]),
       ],

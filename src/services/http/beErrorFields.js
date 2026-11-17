@@ -53,6 +53,7 @@ export const BE_ERROR_FIELDS = {
   2120: 'locationId', // ROOM_NOT_IN_CAMPUS
   2121: 'locationId', // ROOM_INACTIVE
   2122: 'locationId', // ROOM_TAKEN
+  2123: 'managerUserId', // ROOM_KITCHEN_MANAGER_INVALID
   2204: 'name', // AGE_GROUP_NAME_EXISTS
   2205: 'ageToMonths', // AGE_RANGE_INVALID
   2206: 'ageToMonths', // AGE_RANGE_OVERLAP

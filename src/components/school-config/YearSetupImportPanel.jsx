@@ -106,6 +106,7 @@ export function YearSetupImportPanel({ open, mode, yearId, onClose }) {
         classes: structure?.classes || [],
         schoolYear: yearId,
         roomsOnly,
+        users: md.users || [],
       });
     }
     const [assign, leaders] = await Promise.all([
