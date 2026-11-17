@@ -174,6 +174,7 @@ export default function QualityReportPage() {
             <SemesterSelect
               value={semKey}
               emptyLabel="Cả năm học"
+              yearOption={false}
               onChange={(key) => {
                 setSemKey(key);
               }}
