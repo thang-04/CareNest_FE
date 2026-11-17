@@ -670,6 +670,11 @@
 .dg-ov-toolbar .tabs {
   margin: 0;
 }
+/* Dòng trạng thái / lỗi dưới thanh lọc Chất lượng tháng: hiện đủ, không bị bảng che */
+.dg-ov-state {
+  margin: 0;
+  padding: 0 var(--space-6) var(--space-3);
+}
 .dg-ov-block {
   margin: 0 var(--space-6);
   border: 1px solid var(--border);

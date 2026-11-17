@@ -8,7 +8,7 @@ import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { isLeader } from '@/utils/assessment/assessmentPermissions';
 import { useProgramCompletion, useQualityReport } from '@/hooks/assessment/useAssessment';
 import { exportWithPreview } from '@/components/ui/ExportPreview';
-import { formatDate } from '@/utils/format';
+import { formatDate, todayInput } from '@/utils/format';
 import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';
 import '@/styles/modules/assessment.css';
 import { SemesterSelect } from '@/components/form/SemesterSelect';
@@ -160,6 +160,19 @@ export default function QualityReportPage() {
     );
   };
 
+  // Trạng thái hiện dưới thanh lọc theo đúng nguyên nhân (năm chưa bắt đầu / chưa có lớp / tháng chưa có số liệu)
+  const selectedYear = schoolYears.find((y) => String(y.id) === String(schoolYear));
+  const notStarted = !!selectedYear?.startDate && todayInput() < selectedYear.startDate;
+  const noMonth = !months.length && !report?.month;
+  const shownMonth = month || report?.month || '';
+  const noData = view === 'month' && rows.length > 0 && rows.every((r) => !r.leftChildren && !r.mealChildren && !r.diligentChildren);
+  const stateLine = notStarted
+    ? `Năm học chưa bắt đầu, bắt đầu từ ${formatDate(selectedYear.startDate)}`
+    : !loading && !error && rows.length === 0
+      ? 'Năm học chưa có lớp'
+      : noData && shownMonth
+        ? `Chưa có số liệu ${monthLabel(shownMonth).toLowerCase()}`
+        : '';
   const monthCols = view === 'year' ? months.length : 1 + GROUPS.length * 2;
   const cols = 1 + (showCampus ? 1 : 0) + monthCols;
 
@@ -180,29 +193,26 @@ export default function QualityReportPage() {
               }}
             />
           )}
+          {/* Ô tháng cùng hàng với các tab; lỗi và trạng thái hiện dưới thanh lọc để không lệch hàng */}
           {view === 'month' && (
-            <div className="field">
-              <select
-                className={`select ${monthError ? 'input--error' : ''}`}
-                aria-label="Tháng"
-                aria-invalid={!!monthError}
-                aria-describedby={monthError ? 'qr-month-error' : undefined}
-                value={month || report?.month || ''}
-                onChange={(e) => setMonth(e.target.value)}
-              >
-                {months.length === 0 && report?.month && <option value={report.month}>{monthLabel(report.month)}</option>}
-                {[...months].reverse().map((m) => (
+            <select
+              className={`select ${monthError ? 'input--error' : ''}`}
+              aria-label="Tháng"
+              aria-invalid={!!monthError}
+              aria-describedby={monthError ? 'qr-month-error' : undefined}
+              value={noMonth || notStarted ? '' : shownMonth}
+              disabled={noMonth || notStarted}
+              onChange={(e) => setMonth(e.target.value)}
+            >
+              {(noMonth || notStarted) && <option value="">Chưa có tháng khả dụng</option>}
+              {!notStarted && months.length === 0 && report?.month && <option value={report.month}>{monthLabel(report.month)}</option>}
+              {!notStarted &&
+                [...months].reverse().map((m) => (
                   <option key={m} value={m}>
                     {monthLabel(m)}
                   </option>
                 ))}
-              </select>
-              {monthError && (
-                <p className="field__error" id="qr-month-error">
-                  {monthError}
-                </p>
-              )}
-            </div>
+            </select>
           )}
           {multiCampus && <CampusFilter campuses={campusOptions} value={campusId} onChange={(v) => setCampusId(v)} hideLabel />}
           <div className="spacer" />
@@ -212,6 +222,16 @@ export default function QualityReportPage() {
             </button>
           )}
         </div>
+        {!program && monthError && (
+          <p className="field__error dg-ov-state" id="qr-month-error" role="alert">
+            {monthError}
+          </p>
+        )}
+        {!program && !monthError && stateLine && (
+          <p className="muted dg-ov-state" role="status">
+            {stateLine}
+          </p>
+        )}
         {program ? (
           <ProgramTable
             report={programReport}
@@ -224,9 +244,7 @@ export default function QualityReportPage() {
           />
         ) : error && !monthError ? (
           <ErrorState error={error} onRetry={reload} />
-        ) : !loading && rows.length === 0 ? (
-          <EmptyState title="Chưa có lớp" description="Năm học này chưa có lớp trong phạm vi bạn xem." />
-        ) : (
+        ) : notStarted || (!loading && rows.length === 0) ? null : (
           <>
             {/* Ngày học theo lịch năm học: ngày lớp quên điểm danh vẫn tính (BE OBS-23, Cần chốt 04/11) */}
             {view !== 'year' && rows.some((r) => r.unrecordedDays?.length) && (
