@@ -20,6 +20,15 @@ const key = (v) => normalizeText(text(v));
 const personKey = (v) => text(v).toLowerCase();
 const blankRow = (cells) => (cells || []).every((v) => text(v) === '');
 const reasonOf = (errors) => [...new Set(Object.values(errors).filter(Boolean))].join('; ');
+// Lỗi trùng ghi rõ điểm trường và giá trị trong file để người dùng đối chiếu sửa tệp
+const campusLabel = (campus) => campus.shortName || campus.name;
+const DUPLICATE_TEXT = {
+  'Điểm trường đã có phòng cùng mã': (c, f) => `${campusLabel(c)} đã có phòng mã "${f.room}"`,
+  'Điểm trường đã có phòng cùng tên': (c, f) => `${campusLabel(c)} đã có phòng tên "${f.name}"`,
+  'Điểm trường đã có lớp cùng tên trong năm học này': (c, f) => `${campusLabel(c)} đã có lớp "${f.name}" trong năm học này`,
+};
+const specific = (errors, campus, form) =>
+  Object.fromEntries(Object.entries(errors).map(([k, v]) => [k, DUPLICATE_TEXT[v] ? DUPLICATE_TEXT[v](campus, form) : v]));
 
 /** Đọc các sheet của file .xlsx theo tên sheet trong file mẫu (thư viện chỉ tải khi dùng). */
 export async function readWorkbook(file, names) {
@@ -70,13 +79,13 @@ export function matchRoomClassRows(sheets, { campuses, ageGroups, rooms: savedRo
       });
     const existing = roomInCampus(campus.id, code);
     if (existing && rooms.some((r) => r.id === existing.id))
-      return errors.push({ sheet: SHEETS.rooms, row, name: label, reason: 'Mã phòng bị lặp trong file' });
+      return errors.push({ sheet: SHEETS.rooms, row, name: label, reason: `Mã phòng "${text(code)}" bị lặp trong file` });
     const { id: _id, ...base } = existing || { managerUserId: '', note: '' };
     const form = { ...base, campusId: campus.id, type: LOCATION_TYPES.CLASS, room: text(code), name: text(name), capacity: capacity ?? '' };
     const others = allRooms.filter((r) => r !== existing);
     const used = savedClasses.filter((c) => existing && c.locationId === existing.id).map((c) => Number(c.capacity) || 0);
     const e = validateRoom(form, others, { minCapacity: used.length ? Math.max(...used) : 0 });
-    if (hasErrors(e)) return errors.push({ sheet: SHEETS.rooms, row, name: label, reason: reasonOf(e) });
+    if (hasErrors(e)) return errors.push({ sheet: SHEETS.rooms, row, name: label, reason: reasonOf(specific(e, campus, form)) });
     if (existing && existing.name === form.name && sameNumber(existing.capacity, form.capacity) && existing.type === LOCATION_TYPES.CLASS)
       return;
     const item = {
@@ -111,7 +120,7 @@ export function matchRoomClassRows(sheets, { campuses, ageGroups, rooms: savedRo
       return errors.push({ sheet: SHEETS.classes, row, name: label, reason: `Điểm trường chưa có phòng "${text(code)}"` });
     const existing = allClasses.find((c) => c.campusId === campus.id && key(c.name) === key(name)) || null;
     if (existing && classes.some((c) => c.id === existing.id))
-      return errors.push({ sheet: SHEETS.classes, row, name: label, reason: 'Tên lớp bị lặp trong file' });
+      return errors.push({ sheet: SHEETS.classes, row, name: label, reason: `Tên lớp "${label}" bị lặp trong file` });
     const form = {
       campusId: campus.id,
       name: label,
@@ -127,7 +136,7 @@ export function matchRoomClassRows(sheets, { campuses, ageGroups, rooms: savedRo
     );
     const other = room && allClasses.find((c) => c !== existing && c.locationId === room.id);
     if (!e.locationId && other) e.locationId = `Phòng ${room.room} đã có lớp ${other.name}`;
-    if (hasErrors(e)) return errors.push({ sheet: SHEETS.classes, row, name: label, reason: reasonOf(e) });
+    if (hasErrors(e)) return errors.push({ sheet: SHEETS.classes, row, name: label, reason: reasonOf(specific(e, campus, form)) });
     if (
       existing &&
       existing.ageGroupId === form.ageGroupId &&
@@ -188,7 +197,7 @@ export function matchTeacherRows(sheets, { campuses, ageGroups, classes: savedCl
         reason: label ? `Năm học chưa có lớp "${label}" ở ${campus.shortName || campus.name}` : 'Nhập tên lớp',
       });
     if (classes.some((c) => c.id === cls.id))
-      return errors.push({ sheet: SHEETS.teachers, row, name: label, reason: 'Lớp bị lặp trong file' });
+      return errors.push({ sheet: SHEETS.teachers, row, name: label, reason: `Lớp "${label}" bị lặp trong file` });
     const picked = [];
     const problems = [];
     [t1, t2]
@@ -236,7 +245,7 @@ export function matchTeacherRows(sheets, { campuses, ageGroups, classes: savedCl
     if (!group)
       return errors.push({ sheet: SHEETS.leaders, row, name: label, reason: label ? `Không có nhóm tuổi "${label}"` : 'Nhập nhóm tuổi' });
     if (leaders.some((l) => l.ageGroupId === group.id))
-      return errors.push({ sheet: SHEETS.leaders, row, name: label, reason: 'Nhóm tuổi bị lặp trong file' });
+      return errors.push({ sheet: SHEETS.leaders, row, name: label, reason: `Nhóm tuổi "${label}" bị lặp trong file` });
     if (!text(leaderName)) return errors.push({ sheet: SHEETS.leaders, row, name: label, reason: 'Nhập tổ trưởng' });
     const { teacher, error } = byName(leaderName, null);
     if (error) return errors.push({ sheet: SHEETS.leaders, row, name: label, reason: error });
