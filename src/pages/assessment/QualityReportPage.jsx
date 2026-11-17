@@ -222,12 +222,12 @@ export default function QualityReportPage() {
             </button>
           )}
         </div>
-        {!program && monthError && (
+        {!program && monthError && !notStarted && (
           <p className="field__error dg-ov-state" id="qr-month-error" role="alert">
             {monthError}
           </p>
         )}
-        {!program && !monthError && stateLine && (
+        {!program && (!monthError || notStarted) && stateLine && (
           <p className="muted dg-ov-state" role="status">
             {stateLine}
           </p>
