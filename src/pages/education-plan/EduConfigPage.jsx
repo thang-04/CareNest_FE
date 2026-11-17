@@ -680,6 +680,34 @@ export default function EduConfigPage() {
         </div>
       </Card>
 
+      <Card title="5. Gửi lại khi bị trả lại sau hạn">
+        <div className="stack">
+          <p className="muted text-sm">
+            Người duyệt trả lại khi tài liệu đã quá hạn thì người soạn được gửi lại thêm số ngày dưới đây, tính từ lần trả lại trễ đầu
+            tiên và chỉ một lần cho mỗi tài liệu. Hết số ngày này, tài liệu chờ Hiệu trưởng mở hạn.
+          </p>
+          {editing && isPrincipal ? (
+            <label className="row row--middle gap-2">
+              <span>Số ngày được gửi lại</span>
+              <input
+                className="input w-110"
+                type="number"
+                min="0"
+                max="30"
+                step="1"
+                value={draft.lateReturnGraceDays ?? 2}
+                onChange={(e) => set((x) => ((x.lateReturnGraceDays = Math.max(0, Math.min(30, Number(e.target.value) || 0))), x))}
+              />
+              <span>ngày</span>
+            </label>
+          ) : (
+            <p>
+              Số ngày được gửi lại: <strong>{draft.lateReturnGraceDays ?? 2} ngày</strong>
+            </p>
+          )}
+        </div>
+      </Card>
+
       <ConfirmationModal
         open={!!confirmDelete}
         danger

@@ -31,3 +31,11 @@ test('khóa gốc và giáo án ngày khớp BE', () => {
   // Spec 005 FR-021: chỉ Hiệu trưởng mở hạn
   assert.equal(BLOCKED_TEXT.DEADLINE_PASSED, 'Quá hạn — chờ Hiệu trưởng mở hạn.');
 });
+
+// Trả lại sau hạn (Tiền 18/11/2026): BE trả graceTo = ngày đầu quá hạn của lần gửi lại
+test('trả lại sau hạn: nhãn hiện hạn gửi lại, hết hạn thì Quá hạn theo graceTo', () => {
+  const doc = { deadline: '2026-11-30', graceTo: '2026-12-07', daysLeft: 2 };
+  assert.deepEqual(deadlineLabel({ ...doc, deadlineState: 'NEAR' }), { tone: 'orange', label: 'Hạn: Gửi lại trước hết 06/12' });
+  assert.equal(deadlineLabel({ ...doc, deadlineState: 'OVERDUE' }).label, 'Hạn: Quá hạn (07/12)');
+  assert.equal(deadlineLabel({ ...doc, deadlineState: 'LATE' }).label, 'Hạn: Ban hành trễ');
+});

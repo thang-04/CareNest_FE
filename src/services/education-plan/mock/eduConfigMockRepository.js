@@ -158,6 +158,7 @@ export const eduConfigMockRepository = {
       domainLabels: cfg.domainLabels,
       extraDomains: cfg.extraDomains,
       weekRows: cfg.weekRows,
+      lateReturnGraceDays: cfg.lateReturnGraceDays ?? current.lateReturnGraceDays ?? 2,
     });
     if (!next.weekRows.some((row) => row.key === 'hoc')) throw eduError('LESSON_ROW_REQUIRED');
     if (next.weekRows.some((row) => !row.label.trim())) throw eduError('REQUIRED_FIELD_MISSING', 'tên dòng hoạt động');

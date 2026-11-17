@@ -321,6 +321,7 @@ export const educationPlanApi = {
           }
         : cfg.signers,
       weekRows: cfg.weekRows,
+      lateReturnGraceDays: cfg.lateReturnGraceDays,
     });
     const fresh = {
       ...saved,

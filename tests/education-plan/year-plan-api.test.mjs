@@ -254,6 +254,7 @@ test('BE:EDU-11 — cấu hình: lĩnh vực thêm là lĩnh vực không chuẩ
     yearCreationScopes: [],
     signers,
     weekRows,
+    lateReturnGraceDays: 2,
   });
 
   let sent = null;
