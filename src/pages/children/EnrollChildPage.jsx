@@ -218,7 +218,11 @@ export default function EnrollChildPage() {
 
   const readmit = async () => {
     try {
-      const child = await readmitChild(duplicate.id, { reason: readmitReason }, user);
+      const child = await readmitChild(
+        duplicate.id,
+        { reason: readmitReason, ...(planned && { schoolYearId: intakeYear.id, startDate }) },
+        user,
+      );
       toast.success(
         `Đã mở lại hồ sơ ${child.fullName} (${child.code}): trẻ ở trạng thái Chờ xếp lớp. Cập nhật hồ sơ, khai báo sức khỏe nếu có thay đổi rồi xếp lớp.`,
         'Tiếp nhận lại',

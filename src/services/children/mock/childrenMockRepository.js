@@ -1036,7 +1036,7 @@ export const childrenMockRepository = {
   },
 
   /** Mở lại hồ sơ trẻ đã nghỉ học (user chốt 2026-10-23): về Chờ xếp lớp, giữ mã, lịch sử, sức khỏe, tài khoản phụ huynh. */
-  async readmitChild(childId, { reason } = {}, user) {
+  async readmitChild(childId, { reason, schoolYearId, startDate } = {}, user) {
     await delay();
     const db = ensureSeeded();
     const child = findChild(db, childId);
@@ -1047,12 +1047,16 @@ export const childrenMockRepository = {
     const text = String(reason || '').trim();
     if (!text) invalid({ reason: 'Nhập lý do tiếp nhận lại' });
     if (text.length > 300) invalid({ reason: 'Lý do tối đa 300 ký tự' });
+    // CHD-11: mở lại vào năm sau đã mở chuẩn bị ⇒ trẻ giữ điểm trường cũ, có đăng ký PENDING (BE 2412 nếu chưa tới ngày).
+    const { targetYearId, planned } = intakeYearOf(db, schoolYearId);
+    if (planned && !startDate) invalid({ startDate: 'Chọn ngày bắt đầu học' });
     return writeDb((d) => {
       const target = findChild(d, childId);
       Object.assign(target, { status: CHILD_STATUS.PENDING_PLACEMENT, classId: null, readmittedAt: todayInput() });
       delete target.leftAt;
       delete target.leftReason;
       target.history = [...(target.history || []), { action: 'READMITTED', userId: user.id, at: nowIso(), note: text }];
+      if (planned) openNextYearAdmission(d, target.id, { schoolYearId: targetYearId, campusId: target.campusId, startDate });
       return toView(d, target, user);
     });
   },

@@ -148,3 +148,28 @@ test('CHD-11: nhập Excel năm chưa mở ⇒ 409', async () => {
   );
   assert.equal(readDb().children.length, before);
 });
+
+test('CHD-11: mở lại hồ sơ vào năm sau ⇒ đăng ký PENDING', async () => {
+  seedNextYear(todayInput());
+  const old = await children.enrollChild(payload(7, { schoolYearId: undefined, startDate: undefined }), PRINCIPAL);
+  await children.withdrawChild(old.id, { leftAt: todayInput(), reason: 'Chuyển nơi ở (giả)' }, PRINCIPAL);
+  const back = await children.readmitChild(old.id, { reason: 'Quay lại học', schoolYearId: NEXT_YEAR, startDate: START_DATE }, PRINCIPAL);
+  assert.equal(back.status, 'PENDING_PLACEMENT');
+  assert.equal(back.campusId, old.campusId);
+  assert.equal(back.plannedAdmission.schoolYearId, NEXT_YEAR);
+  assert.equal(back.plannedAdmission.classId, null);
+  const [admission] = readDb().plannedAdmissions.filter((a) => a.childId === old.id);
+  assert.equal(admission.status, 'PENDING');
+  assert.equal(admission.startDate, START_DATE);
+});
+
+test('CHD-11: mở lại hồ sơ vào năm chưa mở ⇒ 409, trẻ vẫn Đã nghỉ', async () => {
+  seedNextYear(dayShift(30));
+  const old = await children.enrollChild(payload(8, { schoolYearId: undefined, startDate: undefined }), PRINCIPAL);
+  await children.withdrawChild(old.id, { leftAt: todayInput(), reason: 'Chuyển nơi ở (giả)' }, PRINCIPAL);
+  await assert.rejects(
+    children.readmitChild(old.id, { reason: 'Quay lại học', schoolYearId: NEXT_YEAR, startDate: START_DATE }, PRINCIPAL),
+    (err) => err.status === 409,
+  );
+  assert.equal(readDb().children.find((c) => c.id === old.id).status, 'LEFT');
+});
