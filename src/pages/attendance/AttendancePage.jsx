@@ -723,7 +723,7 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
       <ConfirmationModal
         open={confirmAll}
         title="Chọn Có mặt cho tất cả trẻ chưa điểm danh?"
-        message="Áp dụng cho toàn bộ lớp, kể cả trẻ ngoài bộ lọc hiện tại. Giữ nguyên các lựa chọn Có mặt/Vắng đã có; bật tham gia ăn đủ các bữa của nhóm tuổi. Đây chỉ là bản nháp, chưa lưu và chưa ghi nhận sức khỏe."
+        message="Áp dụng cho toàn bộ lớp, kể cả trẻ ngoài bộ lọc hiện tại. Giữ nguyên các lựa chọn Có mặt/Vắng đã có; bật tham gia ăn đủ các bữa của nhóm tuổi (trừ trẻ không báo ăn). Đây chỉ là bản nháp, chưa lưu và chưa ghi nhận sức khỏe."
         confirmLabel="Chọn Có mặt"
         onClose={() => setConfirmAll(false)}
         onConfirm={markAllPresent}

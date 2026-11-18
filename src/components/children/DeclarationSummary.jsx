@@ -48,6 +48,7 @@ export function DeclarationSummary({
           ['Chế độ ăn', diet.state === DECLARATION_STATE.REPORTED ? diet.text : <DietStateBadge status={diet.state} />],
         ]
       : []),
+    ...MEDICAL_HISTORY_ITEMS.map((it) => [it.label, historyItemText(it, medicalHistory)]),
     [
       'Thông tin khác',
       otherNotes?.state === DECLARATION_STATE.REPORTED ? (
@@ -56,7 +57,6 @@ export function DeclarationSummary({
         <NoteStateBadge status={otherNotes?.state || DECLARATION_STATE.NOT_PROVIDED} />
       ),
     ],
-    ...MEDICAL_HISTORY_ITEMS.map((it) => [it.label, historyItemText(it, medicalHistory)]),
     ...(declaredAt ? [['Người chốt', `${declaredByName || '—'} · ${formatDateTime(declaredAt)}`]] : []),
   ];
 

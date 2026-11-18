@@ -61,3 +61,8 @@ test('prop mealRegistered ghi đè khai báo; null/undefined coi là báo ăn', 
   assert.match(render({ declaration: declaration({ mealRegistered: null }) }), /<b>Báo ăn<\/b>Có/);
   assert.match(render({ declaration: declaration(), mealRegistered: null }), /<b>Báo ăn<\/b>Có/);
 });
+
+test('dòng Thông tin khác nằm sau các dòng tiền sử, cùng thứ tự với form', () => {
+  const html = render({ declaration: declaration() });
+  assert.ok(html.indexOf('Thông tin khác') > html.indexOf('Tiền sử'));
+});

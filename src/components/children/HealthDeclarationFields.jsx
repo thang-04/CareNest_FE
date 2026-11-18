@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { Plus, X } from '@/components/ui/icons';
 import { FormField } from '@/components/form/FormField';
 import { Checkbox } from '@/components';
@@ -40,6 +40,7 @@ function FieldError({ error }) {
  */
 export function HealthDeclarationFields({ value, onChange, errors = {}, dateOfBirth, sheet = false }) {
   const [item, setItem] = useState('');
+  const mealHintId = useId();
   const set = (block, patch) => onChange({ ...value, [block]: { ...value[block], ...patch } });
   // Khai báo cũ chưa có tiền sử ⇒ chưa chọn, phải chọn Có/Không khi lưu.
   const history = value.medicalHistory || emptyMedicalHistory();
@@ -152,10 +153,16 @@ export function HealthDeclarationFields({ value, onChange, errors = {}, dateOfBi
   const mealToggle = (
     <div className="stack gap-1">
       <label className="checkbox">
-        <Checkbox checked={mealRegistered} onChange={(e) => onChange({ ...value, mealRegistered: e.target.checked })} />
+        <Checkbox
+          checked={mealRegistered}
+          aria-describedby={mealHintId}
+          onChange={(e) => onChange({ ...value, mealRegistered: e.target.checked })}
+        />
         Báo ăn
       </label>
-      <p className="field__hint">Trẻ ăn ở trường. Bỏ tích: không khai dị ứng, chế độ ăn và trẻ không có suất ăn.</p>
+      <p id={mealHintId} className="field__hint">
+        Trẻ ăn ở trường. Bỏ tích: không khai dị ứng, chế độ ăn và trẻ không có suất ăn.
+      </p>
     </div>
   );
   const otherNotesRow = (
@@ -257,7 +264,7 @@ export function HealthDeclarationFields({ value, onChange, errors = {}, dateOfBi
         </>
       )}
 
-      <h3 className="subsection-title">Tiền sử</h3>
+      <h3 className="subsection-title">Tiền sử và sức khỏe khác</h3>
       {MEDICAL_HISTORY_ITEMS.map((it) => {
         const detail = historyDetail(it);
         return (
