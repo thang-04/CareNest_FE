@@ -3,6 +3,8 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Pencil, Save, History } from '@/components/ui/icons';
 import { SidePanel } from '@/components/ui/SidePanel';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSchoolYear } from '@/contexts/SchoolYearContext';
+import { YearLockedNotice } from '@/components/children/YearLockedNotice';
 import { useToast } from '@/contexts/ToastContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useChildDetail } from '@/hooks/children/useChildRecords';
@@ -44,6 +46,9 @@ const allergyText = (a) =>
 export default function HealthDeclarationPage() {
   const { id } = useParams();
   const { user } = useAuth();
+  // Năm sắp diễn ra chưa tới ngày mở chuẩn bị (CHD-12): khai báo chỉ xem
+  const { yearLocked } = useSchoolYear();
+  const mayDeclare = (c) => !yearLocked && canDeclareHealth(c, user);
   const toast = useToast();
   const md = useMasterData();
   const [editing, setEditing] = useState(false);
@@ -79,14 +84,14 @@ export default function HealthDeclarationPage() {
   useEffect(() => {
     if (!directEdit || autoOpened.current || !detail?.child) return;
     autoOpened.current = true;
-    if (canDeclareHealth(detail.child, user)) openEditor(detail.declaration || undefined);
+    if (mayDeclare(detail.child)) openEditor(detail.declaration || undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [directEdit, detail, user]);
 
   const leaveEditor = () => (directEdit ? navigate(`/children/${id}`) : setEditing(false));
 
   // Tránh nháy chế độ xem trước khi form tự mở
-  const waitingEditor = directEdit && !autoOpened.current && !!child && canDeclareHealth(child, user);
+  const waitingEditor = directEdit && !autoOpened.current && !!child && mayDeclare(child);
   if (loading || waitingEditor)
     return (
       <div className="page">
@@ -104,7 +109,7 @@ export default function HealthDeclarationPage() {
 
   const { declaration } = detail;
   const lastChange = declaration?.history?.[declaration.history.length - 1];
-  const canEdit = canDeclareHealth(child, user);
+  const canEdit = mayDeclare(child);
   // Sửa khai báo đã có thì bắt buộc lý do; dữ liệu có hiệu lực ngay cho bếp.
   const needsReason = !!declaration;
 
@@ -144,6 +149,7 @@ export default function HealthDeclarationPage() {
           </div>
         )}
       </div>
+      <YearLockedNotice action="Khai báo sức khỏe" />
 
       {editing ? (
         <>

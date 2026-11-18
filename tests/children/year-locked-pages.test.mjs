@@ -27,3 +27,28 @@ test('tiếp nhận, xếp lớp, nhập Excel: khối chỉ xem gộp yearReadO
 test('hộp nhập Excel: nút tải lên tắt khi năm bị khóa', () => {
   assert.match(read('src/components/children/ImportChildrenModal.jsx'), /yearReadOnly \|\| yearLocked/);
 });
+
+const HEALTH_PAGES = [
+  'ChildHealthRecordPage',
+  'HealthDeclarationPage',
+  'HealthCheckListPage',
+  'HealthCheckDetailPage',
+  'HealthCheckFormPage',
+  'HealthExamFormPage',
+  'HealthMeasurementFormPage',
+  'HealthTrendPage',
+];
+
+test('màn sức khỏe: có yearLocked và banner YearLockedNotice', () => {
+  for (const name of HEALTH_PAGES) {
+    const src = read(`src/pages/children/${name}.jsx`);
+    assert.match(src, /yearLocked/, `${name} thiếu yearLocked`);
+    assert.match(src, /YearLockedNotice/, `${name} thiếu YearLockedNotice`);
+  }
+});
+
+test('danh sách nhập số đo, kết quả khám theo lớp: có yearLocked', () => {
+  for (const name of ['HealthCheckClassRoster', 'MeasurementRoundRoster']) {
+    assert.match(read(`src/components/children/${name}.jsx`), /yearLocked/, `${name} thiếu yearLocked`);
+  }
+});

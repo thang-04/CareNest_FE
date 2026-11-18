@@ -81,7 +81,7 @@ const formatDate=(v)=>v, formatNumber=(v)=>v ?? '—', childrenCrumbs=()=>[];
 const GrowthChart=({title,points})=><figure><figcaption>{title}</figcaption><span>{points.map(p=>p.value).join(',')}</span></figure>;
 const Link=({to,children,...props})=><a href={to} {...props}>{children}</a>;
 const Breadcrumb=()=>null, TrendChildList=()=>null, AiTrendPanel=()=>null, HealthWarningCell=()=>null, ChildAccessState=()=>null, ChildAvatar=()=>null;
-const EmptyState=()=>null, LoadingState=()=>null;
+const EmptyState=()=>null, LoadingState=()=>null, YearLockedNotice=()=>null;
 const Tabs=({items})=>React.createElement('div',{role:'tablist'},items.map((t)=>React.createElement('button',{key:t.key,role:'tab'},t.label)));
 const LineChart=()=>null, HeartPulse=()=>null, ArrowLeft=()=>null, ChevronLeft=()=>null, ChevronRight=()=>null;
 `,

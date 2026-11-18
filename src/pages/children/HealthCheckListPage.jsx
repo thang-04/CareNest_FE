@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Plus, RotateCcw, Search, Scale } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
+import { YearLockedNotice } from '@/components/children/YearLockedNotice';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useHealthChecks } from '@/hooks/children/useHealthChecks';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
@@ -36,10 +37,12 @@ export default function HealthCheckListPage() {
   const [status, setStatus] = useState('');
   const [page, setPage] = useState(1);
   // Đợt khám theo năm học chọn ở header, tính theo ngày bắt đầu khám (user chốt 2026-10-28, Y-4).
-  const { schoolYear, schoolYears } = useSchoolYear();
+  const { schoolYear, schoolYears, yearLocked } = useSchoolYear();
   const yearLabel = schoolYears.find((y) => y.id === schoolYear)?.label || schoolYear;
   const { campaigns, loading, error, reload } = useHealthChecks({ campusId, kind, status, schoolYear });
   const manage = canManageHealthCheck(user);
+  // Năm sắp diễn ra chưa tới ngày mở chuẩn bị (CHD-12): không tạo đợt
+  const canCreate = manage && !yearLocked;
   const filtered = !!(campusId || kind || status);
   const pageRows = paginate(campaigns, page);
   const resetFilters = () => {
@@ -49,7 +52,7 @@ export default function HealthCheckListPage() {
     setPage(1);
   };
   // Một nút tạo; trong form chuyển qua lại đợt khám / kỳ cân đo
-  const createActions = manage && (
+  const createActions = canCreate && (
     <Link to="/children/health-checks/new" className="btn btn--primary">
       <Plus size={16} /> Tạo đợt khám
     </Link>
@@ -60,8 +63,9 @@ export default function HealthCheckListPage() {
       <Breadcrumb items={healthCheckCrumbs()} />
       <div className="page__head">
         <h1 className="page__title">Đợt khám và kỳ cân đo</h1>
-        {manage && <div className="row row--wrap gap-2">{createActions}</div>}
+        {canCreate && <div className="row row--wrap gap-2">{createActions}</div>}
       </div>
+      <YearLockedNotice action="Tạo đợt khám, kỳ cân đo" />
 
       <div className="card">
         <div className="filter-bar">
@@ -154,7 +158,7 @@ export default function HealthCheckListPage() {
                               ? 'Tạo đợt khám hoặc kỳ cân đo cho từng điểm trường để giáo viên nhập kết quả.'
                               : 'Hiệu trưởng hoặc Phó hiệu trưởng tạo đợt khám, kỳ cân đo; chúng sẽ hiện ở đây để bạn theo dõi hoặc nhập kết quả.'
                           }
-                          action={manage && <div className="row row--wrap gap-2">{createActions}</div>}
+                          action={canCreate && <div className="row row--wrap gap-2">{createActions}</div>}
                         />
                       )}
                     </td>

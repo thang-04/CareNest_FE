@@ -14,6 +14,8 @@ import {
   Stethoscope,
 } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSchoolYear } from '@/contexts/SchoolYearContext';
+import { YearLockedNotice } from '@/components/children/YearLockedNotice';
 import { useToast } from '@/contexts/ToastContext';
 import { useHealthCheckClass, useHealthExam } from '@/hooks/children/useHealthChecks';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
@@ -124,7 +126,10 @@ export default function HealthExamFormPage() {
   const navigate = useNavigate();
   const { examView: view, setExamView, loading, error, reload } = useHealthExam(campaignId, childId);
   const classIdParam = params.get('classId') || view?.child.classId || '';
-  const { roster } = useHealthCheckClass(view?.canEdit && classIdParam ? campaignId : null, classIdParam);
+  // Năm sắp diễn ra chưa tới ngày mở chuẩn bị (CHD-12): phiếu chỉ xem dù BE cho nhập
+  const { yearLocked } = useSchoolYear();
+  const canEdit = !!view?.canEdit && !yearLocked;
+  const { roster } = useHealthCheckClass(canEdit && classIdParam ? campaignId : null, classIdParam);
   const [form, setForm] = useState(null);
   const [step, setStep] = useState(0);
   const [maxReached, setMaxReached] = useState(0);
@@ -163,13 +168,13 @@ export default function HealthExamFormPage() {
   const editRequested = params.get('edit') === '1';
   const [editApplied, setEditApplied] = useState(false);
   useEffect(() => {
-    if (!editRequested || editApplied || !view?.canEdit || view.measurement?.examStatus !== EXAM_STATUS.CONCLUDED) return;
+    if (!editRequested || editApplied || !canEdit || view.measurement?.examStatus !== EXAM_STATUS.CONCLUDED) return;
     setEditApplied(true);
     setEditing(true);
     setPreviewPoints(null);
     setStep(0);
     setMaxReached(4);
-  }, [editRequested, editApplied, view]);
+  }, [editRequested, editApplied, view, canEdit]);
 
   // Giữ lớp và bộ lọc danh sách lớp (keyword, result…) khi qua lại giữa đợt khám và phiếu.
   const listParams = new URLSearchParams(params);
@@ -200,7 +205,7 @@ export default function HealthExamFormPage() {
 
   const m = view.measurement;
   const concluded = m?.examStatus === EXAM_STATUS.CONCLUDED;
-  const editable = view.canEdit && (!concluded || editing);
+  const editable = canEdit && (!concluded || editing);
   // Bước Kết luận khi khám theo lớp có 2 nút lưu kết luận: điện thoại gom Lưu nháp, Lưu kết luận vào nút "…"
   const saveMenu = step === 4 && !concluded && !!roster;
   const back = (
@@ -220,6 +225,7 @@ export default function HealthExamFormPage() {
       <p className="muted mb-16">
         {child.code} · {child.className} · sinh ngày {formatDate(child.dateOfBirth)} ({ageLabel(child.dateOfBirth)}) · {view.campaign.name}
       </p>
+      <YearLockedNotice />
     </>
   );
 
@@ -245,7 +251,7 @@ export default function HealthExamFormPage() {
       </div>
     );
 
-  if (!m && !view.canEdit)
+  if (!m && !canEdit)
     return (
       <div className="page">
         {head}
@@ -399,7 +405,7 @@ export default function HealthExamFormPage() {
 
   // Màn kết quả ngay sau khi lưu kết luận: hệ thống đã làm gì, việc tiếp theo.
   if (saved && concluded) {
-    const next = view.canEdit ? nextChildId() : null;
+    const next = canEdit ? nextChildId() : null;
     return (
       <div className="page">
         {head}
@@ -502,7 +508,7 @@ export default function HealthExamFormPage() {
         </div>
         <div className="page-actions">
           {back}
-          {concluded && view.canEdit && (
+          {concluded && canEdit && (
             <div className="row gap-2">
               <button
                 className="btn"

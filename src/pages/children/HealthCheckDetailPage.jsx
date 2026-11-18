@@ -2,6 +2,8 @@ import { Fragment, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Pencil, Lock, Unlock, CircleX, Users, CheckCircle2, ChevronDown, History } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSchoolYear } from '@/contexts/SchoolYearContext';
+import { YearLockedNotice } from '@/components/children/YearLockedNotice';
 import { useToast } from '@/contexts/ToastContext';
 import { useHealthCheck } from '@/hooks/children/useHealthChecks';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
@@ -101,6 +103,7 @@ export default function HealthCheckDetailPage() {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const { user } = useAuth();
+  const { yearLocked } = useSchoolYear();
   const toast = useToast();
   const { detail, loading, error, reload } = useHealthCheck(campaignId);
   const [tab, setTab] = useState('classes');
@@ -128,7 +131,8 @@ export default function HealthCheckDetailPage() {
     );
 
   const { classes, watchList } = detail;
-  const manage = canManageHealthCheck(user, campaign.campusId);
+  // Năm sắp diễn ra chưa tới ngày mở chuẩn bị (CHD-12): đợt chỉ xem
+  const manage = canManageHealthCheck(user, campaign.campusId) && !yearLocked;
   const teacher = isTeacherRole(user);
   const isRound = campaign.kind === CAMPAIGN_KIND.MEASUREMENT;
   // Đợt/kỳ đã qua ngày kết thúc: mở lại phải chọn ngày kết thúc mới từ hôm nay (HLT-17, cả kỳ cân đo từ 2026-11-04).
@@ -218,6 +222,7 @@ export default function HealthCheckDetailPage() {
         )}
       </div>
 
+      <YearLockedNotice />
       <StatusBanner campaign={campaign} isRound={isRound} />
 
       {/* Một khối tổng quan thay cho thẻ thông tin + hàng thẻ số liệu + cột lịch sử (user yêu cầu 2026-11-11): thẻ số liệu lặp

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { FileText, RotateCcw, Search, Stethoscope, Users } from '@/components/ui/icons';
 import { useHealthCheckClass } from '@/hooks/children/useHealthChecks';
 import { useFilterParams } from '@/hooks/useFilterParams';
@@ -34,6 +35,9 @@ export function HealthCheckClassRoster({ campaignId, classId, embedded = false }
   const pageSize = embedded ? EMBEDDED_PAGE_SIZE : PAGE_SIZE;
   const navigate = useNavigate();
   const { roster, loading, error, reload } = useHealthCheckClass(campaignId, classId);
+  // Năm sắp diễn ra chưa tới ngày mở chuẩn bị (CHD-12): chỉ xem
+  const { yearLocked } = useSchoolYear();
+  const canRecord = !!roster?.canRecord && !yearLocked;
   const rows = useMemo(() => roster?.children || [], [roster]);
   const concluded = rows.filter((r) => r.result === CHILD_RESULT_STATUS.RECORDED).length;
   const [filters, setFilters, resetFilterParams, activeKeys] = useFilterParams(FILTER_DEFAULTS);
@@ -144,9 +148,9 @@ export function HealthCheckClassRoster({ campaignId, classId, embedded = false }
                 // Việc chính của dòng: giáo viên khám / khám tiếp; có phiếu thì xem phiếu. Bấm dòng làm việc chính, không có thì
                 // mở sổ sức khỏe (DESIGN §6.3: bấm dòng mở chi tiết, không icon Xem).
                 const primary =
-                  roster.canRecord && r.result === CHILD_RESULT_STATUS.NOT_RECORDED
+                  canRecord && r.result === CHILD_RESULT_STATUS.NOT_RECORDED
                     ? { label: 'Khám', strong: true }
-                    : roster.canRecord && r.result === CHILD_RESULT_STATUS.IN_PROGRESS
+                    : canRecord && r.result === CHILD_RESULT_STATUS.IN_PROGRESS
                       ? { label: 'Tiếp tục khám', strong: true }
                       : hasExam
                         ? { label: 'Xem phiếu', strong: false }
