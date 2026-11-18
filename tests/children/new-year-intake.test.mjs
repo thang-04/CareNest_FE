@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { beforeEach, test } from 'node:test';
 
 const storage = new Map();
@@ -100,4 +101,11 @@ test('CHD-11: phụ huynh mới của trẻ năm sau được tạo tài khoản
     saved.guardianAccounts.map((a) => a.result),
     ['CREATED'],
   );
+});
+
+// CHD-11: ô Năm học tiếp nhận chỉ liệt kê năm đang mở tiếp nhận, mặc định theo năm ở header
+test('CHD-11: màn tiếp nhận dùng intakeYearOptions và defaultIntakeYearId cho ô Năm học tiếp nhận', () => {
+  const page = readFileSync('src/pages/children/EnrollChildPage.jsx', 'utf8');
+  assert.match(page, /intakeYearOptions\(/);
+  assert.match(page, /defaultIntakeYearId\(/);
 });

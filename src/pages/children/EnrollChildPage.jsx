@@ -38,6 +38,7 @@ import {
   withGuardianAccounts,
 } from '@/utils/children/childrenHelpers';
 import { childrenCrumbs } from '@/utils/children/breadcrumbs';
+import { defaultIntakeYearId, intakeYearOptions } from '@/utils/schoolYearPrep';
 import '@/styles/modules/children.css';
 
 const STEPS = ['Thông tin trẻ & phụ huynh', 'Xếp lớp', 'Báo ăn và sức khỏe', 'Xem lại & xác nhận'];
@@ -131,8 +132,14 @@ export default function EnrollChildPage() {
   );
 
   useEffect(() => {
-    if (!intakeYearId && activeYear?.id) setIntakeYearId(activeYear.id);
-  }, [activeYear?.id, intakeYearId]);
+    // CHD-11: mặc định năm đang xem ở header nếu tiếp nhận được, không thì năm đang hoạt động.
+    if (intakeYearId) return;
+    const id = defaultIntakeYearId(schoolYears, schoolYear);
+    if (id == null) return;
+    setIntakeYearId(id);
+    const year = schoolYears.find((y) => sameId(y.id, id));
+    if (year?.status === 'PLANNED') setStartDate(year.startDate || '');
+  }, [schoolYears, schoolYear, intakeYearId]);
 
   if (!canEnrollChild(user)) {
     return (
@@ -483,9 +490,7 @@ export default function EnrollChildPage() {
               required
               error={errors.placement.schoolYearId}
               value={intakeYear?.id || ''}
-              options={schoolYears
-                .filter((y) => y.status === 'ACTIVE' || y.status === 'PLANNED')
-                .map((y) => ({ value: y.id, label: `${y.label} · ${y.status === 'ACTIVE' ? 'Đang hoạt động' : 'Sắp diễn ra'}` }))}
+              options={intakeYearOptions(schoolYears).map((y) => ({ value: y.id, label: `${y.label} · ${y.status === 'ACTIVE' ? 'Đang hoạt động' : 'Sắp diễn ra'}` }))}
               onChange={(e) => {
                 const nextYear = schoolYears.find((y) => sameId(y.id, e.target.value));
                 setIntakeYearId(nextYear?.id || '');
