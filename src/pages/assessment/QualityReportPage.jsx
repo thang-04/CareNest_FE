@@ -14,6 +14,8 @@ import '@/styles/modules/assessment.css';
 import { SemesterSelect } from '@/components/form/SemesterSelect';
 import { monthInSemester, semestersOf } from '@/utils/semesters';
 import { CampusFilter } from '@/components/ui/CampusFilter';
+import { useYearCampuses } from '@/hooks/useYearCampuses';
+import { PERMISSIONS } from '@/models/bePermissions';
 
 const VIEWS = [
   { key: 'month', label: 'Theo tháng' },
@@ -65,8 +67,10 @@ export default function QualityReportPage() {
   const [semKey, setSemKey] = useState('');
   const sem = semestersOf(schoolYears.find((y) => String(y.id) === String(schoolYear))).find((s) => s.key === semKey) || null;
   const months = (report?.months || []).filter((m) => view !== 'year' || monthInSemester(m, sem));
-  const campusOptions = leader && report?.allCampuses?.length ? report.allCampuses : report?.campuses || [];
-  const multiCampus = leader && (campusOptions.length > 1 || !!report?.allCampuses?.length);
+  // HT: đủ điểm trường của năm đang chọn, kể cả khi báo cáo chỉ có 1 điểm trường; PHT: theo phạm vi quyền được cấp
+  const yearCampuses = useYearCampuses(PERMISSIONS.ASSESSMENT_VIEW);
+  const campusOptions = (leader && yearCampuses) || (leader && report?.allCampuses?.length ? report.allCampuses : report?.campuses || []);
+  const multiCampus = leader && (campusOptions.length > 1 || (!yearCampuses && !!report?.allCampuses?.length));
   const showCampus = multiCampus && !campusId && (report?.campuses?.length || 0) > 1;
   const campusName = (id) => campusOptions.find((c) => String(c.id) === String(id))?.name || id;
   const totalLabel = (t) => LEVEL_LABELS[t.level] || (leader && !campusId ? 'Toàn trường' : 'Tổng cộng');

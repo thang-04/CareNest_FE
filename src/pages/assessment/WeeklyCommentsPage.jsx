@@ -5,6 +5,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useAsync } from '@/hooks/useAsync';
 import { useDailyAssessmentClasses } from '@/hooks/assessment/useAssessment';
+import { useYearCampuses } from '@/hooks/useYearCampuses';
+import { PERMISSIONS } from '@/models/bePermissions';
+import { CampusFilter } from '@/components/ui/CampusFilter';
+import { getCampuses } from '@/services/masterDataService';
 import { AiDraftTag } from '@/components/ui/AiDraftTag';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Button } from '@/components/ui/Button';
@@ -44,11 +48,20 @@ export default function WeeklyCommentsPage() {
   // Trống = tuần hiện tại (BE chọn); danh sách tuần lấy từ BE theo giáo án tuần của lớp
   const [weekStart, setWeekStart] = useState(search.get('weekStart') || '');
   const [childId, setChildId] = useState('');
+  // Lọc điểm trường: Hiệu trưởng có đủ điểm trường của năm đang chọn; PHT chỉ điểm trường của lớp trong phạm vi
+  const [campusId, setCampusId] = useState('');
+  const yearCampuses = useYearCampuses(PERMISSIONS.ASSESSMENT_VIEW);
+  const { data: campuses } = useAsync(() => getCampuses(), []);
+  const campusOptions = useMemo(
+    () => yearCampuses || (campuses || []).filter((c) => classes.some((cls) => cls.campusId === c.id)),
+    [yearCampuses, campuses, classes],
+  );
+  const campusClasses = useMemo(() => classes.filter((c) => !campusId || c.campusId === campusId), [classes, campusId]);
   const [text, setText] = useState('');
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState('');
   const [confirm, setConfirm] = useState(null);
-  const currentClassId = classId || classes[0]?.id || '';
+  const currentClassId = campusClasses.some((c) => String(c.id) === String(classId)) ? classId : campusClasses[0]?.id || '';
   const {
     data: board,
     loading,
@@ -132,7 +145,16 @@ export default function WeeklyCommentsPage() {
       ) : (
         <div className="card">
           <div className="filter-bar wc-bar">
-            {classes.length > 1 ? (
+            <CampusFilter
+              hideLabel
+              campuses={campusOptions}
+              value={campusId}
+              onChange={(id) => {
+                setCampusId(id);
+                setChildId('');
+              }}
+            />
+            {campusClasses.length > 1 ? (
               <SelectField
                 aria-label="Lớp"
                 value={currentClassId}
@@ -140,10 +162,12 @@ export default function WeeklyCommentsPage() {
                   setClassId(e.target.value);
                   setChildId('');
                 }}
-                options={classes.map((c) => ({ value: c.id, label: c.name }))}
+                options={campusClasses.map((c) => ({ value: c.id, label: c.name }))}
               />
+            ) : campusClasses.length ? (
+              <span className="fw-600">{campusClasses[0].name}</span>
             ) : (
-              <span className="fw-600">{classes[0]?.name}</span>
+              <span className="text-sm muted">Điểm trường chưa có lớp</span>
             )}
             {board?.weeks?.length > 0 && (
               <SelectField
@@ -188,7 +212,9 @@ export default function WeeklyCommentsPage() {
               {errors._form}
             </p>
           )}
-          {error ? (
+          {!classesLoading && !currentClassId ? (
+            <EmptyState title="Điểm trường chưa có lớp trong năm học này" />
+          ) : error ? (
             <ErrorState error={error} onRetry={reload} />
           ) : loading || classesLoading || !board ? (
             <Spinner deferred />
