@@ -624,7 +624,11 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
                         <td className="center">
                           <div className="dd-reception__mealcell">
                             {row.child.mealRegistered === false ? (
-                              <span className="text-xs">Không báo ăn</span>
+                              // CHD-13: hồ sơ trẻ không báo ăn ⇒ nút gạt về Không và khóa; HT/PHT sửa hồ sơ thì mới bật được
+                              <span className="dd-reception__meal">
+                                <Switch label={`Tham gia ăn: ${row.child.fullName}`} disabled checked={false} onChange={() => {}} />
+                                <span className="text-xs">Không báo ăn</span>
+                              </span>
                             ) : editable && !row.leaveRequest ? (
                               <span className="dd-reception__meal">
                                 <Switch
