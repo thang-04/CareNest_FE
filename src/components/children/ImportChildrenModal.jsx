@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AlertTriangle, ChevronDown, ChevronUp } from '@/components/ui/icons';
 import { Button } from '@/components/ui/Button';
 import { useAuth } from '@/contexts/AuthContext';
@@ -88,6 +88,15 @@ export function ImportChildrenModal({ initialCampusId, onClose, onChecked }) {
   const planned = intakeYear?.status === 'PLANNED';
   const [startDate, setStartDate] = useState(() => (intakeYear?.status === 'PLANNED' ? intakeYear.startDate || '' : ''));
   const [startDateError, setStartDateError] = useState('');
+  // Danh sách năm học tải sau khi hộp đã mở: điền mặc định khi chưa có lựa chọn, không ghi đè lựa chọn của người dùng.
+  useEffect(() => {
+    if (yearPick) return;
+    const id = defaultIntakeYearId(schoolYears, schoolYear);
+    if (id == null) return;
+    setYearPick(String(id));
+    const year = intakeYearOptions(schoolYears).find((y) => String(y.id) === String(id));
+    if (year?.status === 'PLANNED') setStartDate((d) => d || year.startDate || '');
+  }, [schoolYears, schoolYear, yearPick]);
   const [file, setFile] = useState(null);
   const [fileError, setFileError] = useState('');
   const [unsupported, setUnsupported] = useState('');
