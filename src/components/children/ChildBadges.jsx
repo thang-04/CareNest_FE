@@ -50,6 +50,9 @@ export const ChildStatusBadge = createStatusBadge(
   CHILD_STATUS_LABELS,
 );
 
+/* Nhãn Sắp nhập học: trẻ có plannedAdmission (CHD-11), không phải trạng thái của trẻ. */
+export const PlannedAdmissionBadge = ({ size }) => <StatusBadge tone="blue" icon={CalendarClock} label="Sắp nhập học" size={size} />;
+
 /* Kết quả sàng lọc do BE trả; UI không tự tính. Ngoài khoảng bình thường = cần để ý (orange), không dùng màu chẩn đoán. */
 export const HeadCircumferenceBadge = createStatusBadge(
   {

@@ -144,3 +144,61 @@ test('CHD-11: cho nghỉ học ⇒ đăng ký CANCELLED, rời danh sách năm s
     false,
   );
 });
+
+/* UI: danh sách và hồ sơ dựng từ child.plannedAdmission, không có trạng thái UPCOMING (CHD-11). */
+const { childrenOfStatus, PLANNED_ADMISSION_FILTER, plannedClassLabel, plannedAdmissionNotice } = await import(
+  '@/utils/children/childrenHelpers'
+);
+const { readFileSync } = await import('node:fs');
+
+const adm = (patch = {}) => ({
+  schoolYearId: NEXT_YEAR,
+  schoolYearName: NEXT_YEAR,
+  campusId: 'c1',
+  classId: NEXT_CLASS,
+  className: 'Lớp năm sau',
+  startDate: START_DATE,
+  status: 'PLACED',
+  ...patch,
+});
+
+test('CHD-11: nhãn ô lớp và câu ở hồ sơ theo plannedAdmission', () => {
+  assert.equal(plannedClassLabel(adm()), 'Lớp năm sau (dự kiến)');
+  assert.equal(plannedClassLabel(adm({ classId: null, className: null, status: 'PENDING' })), 'Chưa xếp lớp');
+  assert.equal(
+    plannedAdmissionNotice(adm()),
+    'Đăng ký năm học 2027-2028, lớp dự kiến Lớp năm sau, vào học từ 05/09/2027. Xếp, đổi lớp dự kiến ở Xếp lớp năm học mới.',
+  );
+  assert.equal(
+    plannedAdmissionNotice(adm({ classId: null, className: null, status: 'PENDING' })),
+    'Đăng ký năm học 2027-2028, chưa xếp lớp, vào học từ 05/09/2027. Xếp, đổi lớp dự kiến ở Xếp lớp năm học mới.',
+  );
+});
+
+test('CHD-11: lọc Sắp nhập học theo plannedAdmission, không lẫn vào Chờ xếp lớp', () => {
+  const list = [
+    { id: 'a', status: 'ACTIVE', plannedAdmission: null },
+    { id: 'b', status: 'PENDING_PLACEMENT', plannedAdmission: null },
+    { id: 'c', status: 'PENDING_PLACEMENT', plannedAdmission: adm() },
+  ];
+  assert.deepEqual(
+    childrenOfStatus(list, PLANNED_ADMISSION_FILTER).map((c) => c.id),
+    ['c'],
+  );
+  assert.deepEqual(
+    childrenOfStatus(list, 'PENDING_PLACEMENT').map((c) => c.id),
+    ['b'],
+  );
+  assert.equal(childrenOfStatus(list, '').length, 3);
+});
+
+test('CHD-11: danh sách, hồ sơ, nhãn dùng plannedAdmission; không thêm UPCOMING', () => {
+  const read = (f) => readFileSync(f, 'utf8');
+  assert.match(read('src/pages/children/ChildrenListPage.jsx'), /plannedAdmission/);
+  assert.match(read('src/pages/children/ChildrenListPage.jsx'), /plannedClassLabel\(/);
+  assert.match(read('src/pages/children/ChildProfilePage.jsx'), /plannedAdmissionNotice\(/);
+  assert.match(read('src/components/children/ChildBadges.jsx'), /Sắp nhập học/);
+  for (const f of ['src/pages/children/ChildrenListPage.jsx', 'src/pages/children/ChildProfilePage.jsx', 'src/models/School.js']) {
+    assert.doesNotMatch(read(f), /UPCOMING/);
+  }
+});

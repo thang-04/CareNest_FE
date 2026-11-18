@@ -21,8 +21,25 @@ export const suggestAgeGroupId = (dateOfBirth, yearStart, ageGroups = AGE_GROUPS
  * Danh sách trẻ theo trạng thái đang lọc: chưa chọn ⇒ chỉ trẻ đang học, chờ xếp lớp; trẻ đã nghỉ chỉ hiện khi chọn
  * "Đã nghỉ" (user chốt 2026-11-11, G94-180/CHD-09 giữ nguyên, chỉ đổi mặc định hiển thị).
  */
-export const childrenOfStatus = (children, status) =>
-  status ? children.filter((c) => c.status === status) : children.filter((c) => c.status !== CHILD_STATUS.LEFT);
+/** Giá trị lọc trạng thái cho trẻ có đăng ký năm học sau (nhãn Sắp nhập học); không phải trạng thái của trẻ. */
+export const PLANNED_ADMISSION_FILTER = 'PLANNED';
+
+/**
+ * Trẻ theo thẻ thống kê: Chờ xếp lớp không gồm trẻ đã đăng ký năm sau (xếp ở màn Xếp lớp năm học mới), Sắp nhập học gồm trẻ có
+ * plannedAdmission (CHD-11).
+ */
+export const childrenOfStatus = (children, status) => {
+  if (status === PLANNED_ADMISSION_FILTER) return children.filter((c) => c.plannedAdmission);
+  if (status === CHILD_STATUS.PENDING_PLACEMENT) return children.filter((c) => c.status === status && !c.plannedAdmission);
+  return status ? children.filter((c) => c.status === status) : children.filter((c) => c.status !== CHILD_STATUS.LEFT);
+};
+
+/** Ô lớp của trẻ Sắp nhập học (CHD-11): lớp dự kiến hoặc chưa xếp lớp. */
+export const plannedClassLabel = (planned) => (planned.className ? `${planned.className} (dự kiến)` : 'Chưa xếp lớp');
+
+/** Câu ở hồ sơ trẻ có đăng ký năm học sau (CHD-11). */
+export const plannedAdmissionNotice = (planned) =>
+  `Đăng ký năm học ${planned.schoolYearName}, ${planned.className ? `lớp dự kiến ${planned.className}` : 'chưa xếp lớp'}, vào học từ ${formatDate(planned.startDate)}. Xếp, đổi lớp dự kiến ở Xếp lớp năm học mới.`;
 
 /** Nhóm tuổi theo id trong danh sách (BE id số/chuỗi, mock 'ag-*'); không có ⇒ null. */
 export const ageGroupIn = (ageGroups, id) => ageGroups.find((g) => id != null && String(g.id) === String(id)) || null;

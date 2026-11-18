@@ -17,7 +17,7 @@ import { Pagination, paginate } from '@/components/ui/Pagination';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { RowActions } from '@/components/ui/RowActions';
 import { clickableRowProps } from '@/utils/clickableRow';
-import { ChildStatusBadge } from '@/components/children/ChildBadges';
+import { ChildStatusBadge, PlannedAdmissionBadge } from '@/components/children/ChildBadges';
 import { WithdrawChildModal } from '@/components/children/WithdrawChildModal';
 import { ImportChildrenModal } from '@/components/children/ImportChildrenModal';
 import { Button } from '@/components/ui/Button';
@@ -33,7 +33,7 @@ import {
   seesAllCampusChildren,
 } from '@/utils/children/childrenPermissions';
 import { childrenCrumbs } from '@/utils/children/breadcrumbs';
-import { childrenOfStatus } from '@/utils/children/childrenHelpers';
+import { PLANNED_ADMISSION_FILTER, childrenOfStatus, plannedClassLabel } from '@/utils/children/childrenHelpers';
 import '@/styles/modules/children.css';
 import { StatCard } from '@/components/ui/StatCard';
 import { CampusFilter } from '@/components/ui/CampusFilter';
@@ -44,7 +44,7 @@ const FILTER_DEFAULTS = { keyword: '', status: '', campusId: '', classId: '' };
 export default function ChildrenListPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { schoolYear, yearLocked } = useSchoolYear();
+  const { schoolYear, yearLocked, preparingYear } = useSchoolYear();
   const md = useMasterData();
   const [filters, setFilters, resetFilterParams, activeKeys] = useFilterParams(FILTER_DEFAULTS);
   const { status, keyword, campusId, classId } = filters;
@@ -106,7 +106,7 @@ export default function ChildrenListPage() {
     setPage(1);
   };
 
-  const count = (s) => all.filter((c) => c.status === s).length;
+  const count = (s) => childrenOfStatus(all, s).length;
   const stats = [
     { key: '', label: 'Tổng số trẻ', value: current.length, tone: 'blue' },
     { key: CHILD_STATUS.ACTIVE, label: CHILD_STATUS_LABELS.ACTIVE, value: count(CHILD_STATUS.ACTIVE), tone: 'green' },
@@ -118,6 +118,10 @@ export default function ChildrenListPage() {
     },
     { key: CHILD_STATUS.LEFT, label: CHILD_STATUS_LABELS.LEFT, value: count(CHILD_STATUS.LEFT), tone: 'purple' },
   ];
+  // Năm sắp diễn ra: danh sách là trẻ Sắp nhập học của năm đó (CHD-09, CHD-11); thẻ chỉ hiện khi có trẻ hoặc năm đang chuẩn bị
+  const plannedCount = count(PLANNED_ADMISSION_FILTER);
+  if (plannedCount > 0 || preparingYear || yearLocked)
+    stats.splice(3, 0, { key: PLANNED_ADMISSION_FILTER, label: 'Sắp nhập học', value: plannedCount, tone: 'blue' });
   const pendingPlacement = count(CHILD_STATUS.PENDING_PLACEMENT);
   const notActivated = all.filter(
     (c) => c.status !== CHILD_STATUS.LEFT && c.guardians.some((g) => g.accountStatus === PARENT_ACCOUNT_STATUS.NOT_ACTIVATED),
@@ -128,7 +132,7 @@ export default function ChildrenListPage() {
   const cols = 5 + (showCampus ? 1 : 0) + (showActions ? 1 : 0);
   const chipLabels = {
     keyword: `Từ khóa: ${keyword}`,
-    status: `Trạng thái: ${CHILD_STATUS_LABELS[status] || status}`,
+    status: `Trạng thái: ${status === PLANNED_ADMISSION_FILTER ? 'Sắp nhập học' : CHILD_STATUS_LABELS[status] || status}`,
     campusId: `Điểm trường: ${md.campusById(campusId)?.name?.split(' - ')[0] || 'đã chọn'}`,
     classId: `Lớp: ${yearClasses.find((c) => sameId(c.id, classId))?.name || 'đã chọn'}`,
   };
@@ -259,7 +263,11 @@ export default function ChildrenListPage() {
                         <EmptyState
                           icon={Baby}
                           title="Chưa có hồ sơ trẻ"
-                          description="Không có trẻ đang học hoặc chờ xếp lớp trong phạm vi và năm học đã chọn."
+                          description={
+                            preparingYear || yearLocked
+                              ? 'Chưa có trẻ Sắp nhập học trong phạm vi và năm học đã chọn.'
+                              : 'Không có trẻ đang học hoặc chờ xếp lớp trong phạm vi và năm học đã chọn.'
+                          }
                           action={
                             canImport && (
                               <Link to="/children/new" className="btn btn--primary">
@@ -292,7 +300,11 @@ export default function ChildrenListPage() {
                             {ageLabel(c.dateOfBirth)} · {GENDER_LABELS[c.gender]}
                           </div>
                         </td>
-                        <td className="nowrap">{c.className || <span className="muted">Chưa xếp lớp</span>}</td>
+                        <td className="nowrap">
+                          {c.plannedAdmission
+                            ? plannedClassLabel(c.plannedAdmission)
+                            : c.className || <span className="muted">Chưa xếp lớp</span>}
+                        </td>
                         {showCampus && <td className="text-sm">{md.campusById(c.campusId)?.name?.split(' - ')[0] || '—'}</td>}
                         <td className="text-sm">
                           {g ? (
@@ -307,7 +319,7 @@ export default function ChildrenListPage() {
                           )}
                         </td>
                         <td className="center">
-                          <ChildStatusBadge status={c.status} />
+                          {c.plannedAdmission ? <PlannedAdmissionBadge /> : <ChildStatusBadge status={c.status} />}
                         </td>
                         {showActions && (
                           <td className="cell--actions">
