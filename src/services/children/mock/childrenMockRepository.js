@@ -553,6 +553,13 @@ const classInYear = (db, child, yearId) => {
  * hoạt động; trẻ nghỉ khi chưa có lớp ở năm của ngày nghỉ. Trạng thái giữ trạng thái hiện tại.
  */
 const inSchoolYear = (db, view, child, yearId) => {
+  // CHD-09, CHD-11: trẻ có đăng ký mở chỉ ở danh sách năm đăng ký, kể cả khi chờ xếp lớp (không vào năm đang hoạt động).
+  const adm = openAdmissionOf(db, child.id);
+  if (adm) {
+    if (adm.schoolYearId !== yearId) return null;
+    const planned = adm.classId ? db.classes.find((c) => c.id === adm.classId) : null;
+    return { ...view, classId: planned?.id || null, className: planned?.name || '', campusId: adm.campusId };
+  }
   const cls = classInYear(db, child, yearId);
   if (cls)
     return {
@@ -1265,6 +1272,10 @@ export const childrenMockRepository = {
     const db = ensureSeeded();
     const child = findChild(db, childId);
     if (!canPlaceChild(child, user)) forbid();
+    // CHD-11 (BE 2414): trẻ đã đăng ký năm học sau chỉ xếp lớp ở màn Xếp lớp năm học mới.
+    if (openAdmissionOf(db, childId)) {
+      throw new ApiError(409, `${child.fullName} đã đăng ký cho năm học sắp tới, xếp lớp tại màn Xếp lớp năm học mới`);
+    }
     if (!classId) invalid({ classId: 'Chọn lớp cho trẻ' });
     if (child.classId === classId) invalid({ classId: 'Trẻ đang học lớp này. Chọn lớp khác.' });
     if (child.classId && !reason?.trim()) invalid({ reason: 'Nhập lý do chuyển lớp' });
@@ -1310,6 +1321,9 @@ export const childrenMockRepository = {
       target.leftAt = leftAt;
       target.leftReason = reason.trim();
       target.history = [...(target.history || []), { action: 'WITHDRAWN', userId: user.id, at: nowIso(), note: reason.trim() }];
+      // CHD-11: nghỉ học hủy đăng ký năm học sau còn mở.
+      const adm = openAdmissionOf(d, childId);
+      if (adm) adm.status = 'CANCELLED';
       const cls = classOf(d, target);
       (cls?.teacherIds || []).forEach((teacherId) =>
         pushNotification(d, {

@@ -104,3 +104,43 @@ test('CHD-11: đăng ký đã hủy không còn là plannedAdmission', async () 
   assert.equal(child.plannedAdmission, null);
   assert.equal(readDb().plannedAdmissions.length, 1);
 });
+
+test('CHD-09, CHD-11: trẻ năm sau chỉ ở danh sách năm đó, có plannedAdmission', async () => {
+  seedNextYear();
+  const saved = await children.enrollChild(payload(4, { classId: NEXT_CLASS }), PRINCIPAL);
+  const pending = await children.enrollChild(payload(5), PRINCIPAL);
+  const activeYear = readDb().classes.find((c) => c.id === readDb().children[0].classId).schoolYear;
+  const current = await children.listChildren({ schoolYear: activeYear }, PRINCIPAL);
+  assert.equal(
+    current.some((c) => c.id === saved.id || c.id === pending.id),
+    false,
+  );
+  const next = await children.listChildren({ schoolYear: NEXT_YEAR }, PRINCIPAL);
+  assert.deepEqual(next.map((c) => c.id).sort(), [saved.id, pending.id].sort());
+  assert.equal(next.find((c) => c.id === saved.id).plannedAdmission.className, 'Lớp năm sau');
+  assert.equal(next.find((c) => c.id === pending.id).plannedAdmission.status, 'PENDING');
+});
+
+test('CHD-11: xếp lớp năm nay cho trẻ năm sau ⇒ 409', async () => {
+  seedNextYear();
+  const saved = await children.enrollChild(payload(6), PRINCIPAL);
+  const currentClass = readDb().classes.find((c) => c.id === readDb().children[0].classId);
+  await assert.rejects(
+    children.placeChild(saved.id, { classId: currentClass.id }, PRINCIPAL),
+    (err) => err.status === 409 && err.message === 'Trẻ năm sau 6 đã đăng ký cho năm học sắp tới, xếp lớp tại màn Xếp lớp năm học mới',
+  );
+  assert.equal(readDb().children.find((c) => c.id === saved.id).classId, null);
+});
+
+test('CHD-11: cho nghỉ học ⇒ đăng ký CANCELLED, rời danh sách năm sau', async () => {
+  seedNextYear();
+  const saved = await children.enrollChild(payload(7, { classId: NEXT_CLASS }), PRINCIPAL);
+  const left = await children.withdrawChild(saved.id, { leftAt: todayInput(), reason: 'Gia đình đổi ý' }, PRINCIPAL);
+  assert.equal(left.plannedAdmission, null);
+  assert.equal(readDb().plannedAdmissions.find((a) => a.childId === saved.id).status, 'CANCELLED');
+  const next = await children.listChildren({ schoolYear: NEXT_YEAR }, PRINCIPAL);
+  assert.equal(
+    next.some((c) => c.id === saved.id),
+    false,
+  );
+});
