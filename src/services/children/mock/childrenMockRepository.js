@@ -1052,7 +1052,10 @@ export const childrenMockRepository = {
       if (targetYearId !== activeYearId(d) && !planned) invalid({ schoolYearId: 'Năm học không nhận trẻ' });
       // CHD-11/CFG-YR-05 (BE 2412): năm sau chỉ nhận trẻ từ ngày mở chuẩn bị.
       if (planned && !isPreparingYear(targetYear, todayInput())) {
-        throw new ApiError(409, `Năm học ${targetYear.name} chưa tới ngày mở chuẩn bị (${targetYear.prepDate ? formatDate(targetYear.prepDate) : 'chưa đặt'})`);
+        throw new ApiError(
+          409,
+          `Năm học ${targetYear.name} chưa tới ngày mở chuẩn bị (${targetYear.prepDate ? formatDate(targetYear.prepDate) : 'chưa đặt'})`,
+        );
       }
       const cls = payload.classId ? assertClassAvailable(d, payload.classId, user, targetYearId) : null;
       if (cls && payload.campusId && cls.campusId !== payload.campusId) invalid({ classId: 'Lớp không thuộc điểm trường đã chọn' });

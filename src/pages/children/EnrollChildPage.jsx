@@ -490,7 +490,10 @@ export default function EnrollChildPage() {
               required
               error={errors.placement.schoolYearId}
               value={intakeYear?.id || ''}
-              options={intakeYearOptions(schoolYears).map((y) => ({ value: y.id, label: `${y.label} · ${y.status === 'ACTIVE' ? 'Đang hoạt động' : 'Sắp diễn ra'}` }))}
+              options={intakeYearOptions(schoolYears).map((y) => ({
+                value: y.id,
+                label: `${y.label} · ${y.status === 'ACTIVE' ? 'Đang hoạt động' : 'Sắp diễn ra'}`,
+              }))}
               onChange={(e) => {
                 const nextYear = schoolYears.find((y) => sameId(y.id, e.target.value));
                 setIntakeYearId(nextYear?.id || '');
