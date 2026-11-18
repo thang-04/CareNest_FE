@@ -86,7 +86,7 @@ function TeamLeaderRow({ group, classCount, current, campusName, readOnly, acts,
  * #26 Teacher Assignment (UC 2.6). Teacher part follows "Phân công giáo viên"; team leaders follow the separate VP area "Phân công tổ trưởng nhóm tuổi":
  * FULL (always the Principal) chooses any campus, RESTRICTED works on the own campus.
  */
-// Lọc tình trạng: đủ = 2 giáo viên + chủ nhiệm; lớp được lưu với 0–2 giáo viên
+// Lọc tình trạng: đủ = từ 2 giáo viên + phụ trách chính; lớp được lưu với 0–3 giáo viên
 const STATUS_MATCH = {
   FULL: (c) => c.teacherIds.length >= TEACHERS_PER_CLASS && !!c.homeroomTeacherId,
   MISSING: (c) => c.teacherIds.length > 0 && c.teacherIds.length < TEACHERS_PER_CLASS,

@@ -4,7 +4,7 @@
  * Rules: Academic Year / Age Group / Class / Campus entities (SRS 3.2), UC 2.1–2.7, screens 4.1.2–4.1.5, GBR-CFG-02, MSG19/MSG20.
  */
 import { formatDate, isIsoDate, normalizeText } from '@/utils/format';
-import { MEAL_SESSION_OPTIONS, TEACHERS_PER_CLASS } from '@/models/school-config/schoolConfigConstants';
+import { MAX_TEACHERS_PER_CLASS, MEAL_SESSION_OPTIONS, TEACHERS_PER_CLASS } from '@/models/school-config/schoolConfigConstants';
 
 const same = (a, b) => normalizeText((a || '').trim()) === normalizeText((b || '').trim());
 const YEAR_NAME = /^(\d{4})-(\d{4})$/;
@@ -244,16 +244,15 @@ export const validateVpAssignment = (form) => {
 };
 
 /**
- * Lớp có 0–2 giáo viên. Hộp phân công bắt buộc tích chủ nhiệm khi có giáo viên; gỡ giáo viên thì lớp được để trống
+ * Lớp có 0–3 giáo viên. Hộp phân công bắt buộc tích chủ nhiệm khi có giáo viên; gỡ giáo viên thì lớp được để trống
  * chủ nhiệm (`requireHomeroom: false`). Kích hoạt năm học cần mọi lớp có giáo viên và chủ nhiệm.
- * yearActive: năm đang học mỗi lớp đúng 2 giáo viên, có chủ nhiệm (BE SCH-04, Cần chốt 10/11/2026).
+ * yearActive: năm đang học mỗi lớp 2–3 giáo viên, có GV phụ trách chính (BE SCH-04, Cần chốt 18/11/2026).
  */
 export const validateClassTeachers = (form, { requireHomeroom = true, yearActive = false } = {}) => {
   const e = {};
   const count = form.teacherIds?.length || 0;
-  if (count > TEACHERS_PER_CLASS) e.teacherIds = `Mỗi lớp tối đa ${TEACHERS_PER_CLASS} giáo viên`;
-  else if (yearActive && count !== TEACHERS_PER_CLASS)
-    e.teacherIds = `Năm học đang diễn ra: mỗi lớp cần đúng ${TEACHERS_PER_CLASS} giáo viên (đang chọn ${count})`;
+  if (count > MAX_TEACHERS_PER_CLASS) e.teacherIds = `Mỗi lớp tối đa ${MAX_TEACHERS_PER_CLASS} giáo viên đứng lớp`;
+  else if (yearActive && count < TEACHERS_PER_CLASS) e.teacherIds = `Mỗi lớp phải có ít nhất ${TEACHERS_PER_CLASS} giáo viên đứng lớp`;
   if (requireHomeroom && count > 0 && !form.homeroomTeacherId) e.homeroomTeacherId = 'Chọn GV phụ trách chính';
   else if (form.homeroomTeacherId && !form.teacherIds?.includes(form.homeroomTeacherId))
     e.homeroomTeacherId = 'GV phụ trách chính phải nằm trong danh sách giáo viên của lớp';

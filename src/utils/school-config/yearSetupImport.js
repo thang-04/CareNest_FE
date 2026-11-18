@@ -250,7 +250,7 @@ export function matchTeacherRows(sheets, { campuses, ageGroups, classes: savedCl
       .forEach((v) => {
         const { teacher, error } = byName(v, campus.id);
         if (error) problems.push(error);
-        else if (picked.includes(teacher)) problems.push('Chọn 2 giáo viên khác nhau cho lớp');
+        else if (picked.includes(teacher)) problems.push('Chọn các giáo viên khác nhau cho lớp');
         else if (usedBy.has(teacher.id)) problems.push(`${teacher.fullName} đã được xếp lớp ${usedBy.get(teacher.id)} trong file`);
         else picked.push(teacher);
       });
