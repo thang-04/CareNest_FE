@@ -37,7 +37,7 @@ import {
 import { childrenCrumbs } from '@/utils/children/breadcrumbs';
 import '@/styles/modules/children.css';
 
-const STEPS = ['Thông tin trẻ & phụ huynh', 'Xếp lớp', 'Khai báo sức khỏe', 'Xem lại & xác nhận'];
+const STEPS = ['Thông tin trẻ & phụ huynh', 'Xếp lớp', 'Báo ăn và sức khỏe', 'Xem lại & xác nhận'];
 
 const PLACEMENT_FIELDS = ['classId', 'campusId'];
 
@@ -488,7 +488,7 @@ export default function EnrollChildPage() {
 
       {step === 2 && (
         <section className="card wizard-card">
-          <StepHead title="Khai báo sức khỏe khi tiếp nhận" info={info} />
+          <StepHead title="Báo ăn và sức khỏe khi tiếp nhận" info={info} />
           <HealthDeclarationFields
             sheet
             dateOfBirth={info.dateOfBirth}
@@ -583,8 +583,8 @@ export default function EnrollChildPage() {
                   </IntakeSheetValueRow>
                 </IntakeSheet>
               </ReviewGroup>
-              <ReviewGroup title="Khai báo sức khỏe" onEdit={() => goTo(2)}>
-                <DeclarationSummary sheet title="V. Khai báo sức khỏe" declaration={declaration} />
+              <ReviewGroup title="Báo ăn và sức khỏe" onEdit={() => goTo(2)}>
+                <DeclarationSummary sheet title="V. Báo ăn và sức khỏe" declaration={declaration} />
               </ReviewGroup>
             </div>
           </div>

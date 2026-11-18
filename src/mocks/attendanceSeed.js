@@ -42,7 +42,9 @@ const attendanceRecord = (
   status = statusFor(dayIndex, childIndex),
 ) => {
   const cls = classes.find((c) => c.id === ch.classId);
-  const meals = Object.fromEntries(sessionsOf(cls).map((s) => [s, status === 'PRESENT']));
+  // CHD-13: trẻ không báo ăn không có suất
+  const eats = ch.mealRegistered !== false;
+  const meals = Object.fromEntries(sessionsOf(cls).map((s) => [s, eats && status === 'PRESENT']));
   const recordedBy = teacherOf(classes, ch.classId);
   const recordedAt = new Date(`${date}T${recordedTime}:00+07:00`).toISOString();
   return {

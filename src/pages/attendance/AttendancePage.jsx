@@ -26,7 +26,7 @@ import {
   mealSessionsOf,
   reconcileAttendanceDraft,
 } from '@/utils/attendance/reconcileAttendance';
-import { ATTENDANCE_STATUS, allMeals, eatsAny, isAbsent, mealsIn } from '@/models/attendance/attendanceConstants';
+import { ATTENDANCE_STATUS, allMeals, eatsAny, isAbsent, mealsIn, mealsWhenPresent } from '@/models/attendance/attendanceConstants';
 import { schoolToday } from '@/utils/attendance/attendanceTime';
 import { validateClassAttendance } from '@/utils/attendance/attendanceValidation';
 import { attendanceCrumbs } from '@/utils/attendance/breadcrumbs';
@@ -280,7 +280,7 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
     const current = draft[row.child.id];
     update(row, {
       status: present ? ATTENDANCE_STATUS.PRESENT : ATTENDANCE_STATUS.UNEXCUSED,
-      meals: present ? (current?.status === ATTENDANCE_STATUS.PRESENT ? current.meals : allIn) : noneIn,
+      meals: present ? (current?.status === ATTENDANCE_STATUS.PRESENT ? current.meals : mealsWhenPresent(row.child, sessions)) : noneIn,
     });
   };
   const markAllPresent = () => {
@@ -290,7 +290,7 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
       const next = { ...current };
       rows.forEach((row) => {
         if (current[row.child.id]?.status || row.record || row.leaveRequest) return;
-        next[row.child.id] = { childId: row.child.id, status: ATTENDANCE_STATUS.PRESENT, meals: allIn };
+        next[row.child.id] = { childId: row.child.id, status: ATTENDANCE_STATUS.PRESENT, meals: mealsWhenPresent(row.child, sessions) };
       });
       return next;
     });
@@ -623,7 +623,9 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
                         </td>
                         <td className="center">
                           <div className="dd-reception__mealcell">
-                            {editable && !row.leaveRequest ? (
+                            {row.child.mealRegistered === false ? (
+                              <span className="text-xs">Không báo ăn</span>
+                            ) : editable && !row.leaveRequest ? (
                               <span className="dd-reception__meal">
                                 <Switch
                                   label={`Tham gia ăn: ${row.child.fullName}`}
@@ -721,7 +723,7 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
       <ConfirmationModal
         open={confirmAll}
         title="Chọn Có mặt cho tất cả trẻ chưa điểm danh?"
-        message="Áp dụng cho toàn bộ lớp, kể cả trẻ ngoài bộ lọc hiện tại. Giữ nguyên các lựa chọn Có mặt/Vắng đã có; bật tham gia ăn đủ các bữa của nhóm tuổi. Đây chỉ là bản nháp, chưa lưu và chưa ghi nhận sức khỏe."
+        message="Áp dụng cho toàn bộ lớp, kể cả trẻ ngoài bộ lọc hiện tại. Giữ nguyên các lựa chọn Có mặt/Vắng đã có; bật tham gia ăn đủ các bữa của nhóm tuổi (trừ trẻ không báo ăn). Đây chỉ là bản nháp, chưa lưu và chưa ghi nhận sức khỏe."
         confirmLabel="Chọn Có mặt"
         onClose={() => setConfirmAll(false)}
         onConfirm={markAllPresent}
