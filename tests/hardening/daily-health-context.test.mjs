@@ -35,14 +35,14 @@ test('empty guardian information stays empty and request failure is not disguise
   await assert.rejects(failed.getDailyHealth({ classId: '10', childId: '20', date: '2026-11-05' }), (e) => e === denied);
 });
 
-test('three digit shortcut and decimal input produce the same explicit temperature; blank stays unmeasured', () => {
+test('three digit shortcut and decimal input produce the same explicit temperature; blank is required (Cần chốt 18/11/2026)', () => {
   for (const value of ['385', '38.5', '38,5']) {
     const temperature = normalizeTemperatureInput(value);
     assert.equal(temperature, '38.5');
     assert.equal(validateDailyHealth({ temperature, observation: 'NO_CONCERN' }).temperature, undefined);
   }
   assert.equal(normalizeTemperatureInput(''), '');
-  assert.equal(validateDailyHealth({ temperature: '', observation: 'NO_CONCERN' }).temperature, undefined);
+  assert.equal(validateDailyHealth({ temperature: '', observation: 'NO_CONCERN' }).temperature, 'Vui lòng nhập thân nhiệt.');
   for (const raw of ['38.55', '3855', '-385', '3e2', 'abc']) {
     assert.ok(validateDailyHealth({ temperature: normalizeTemperatureInput(raw), observation: 'NO_CONCERN' }).temperature);
   }
