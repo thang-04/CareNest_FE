@@ -154,9 +154,11 @@ export default function HealthCheckListPage() {
                           icon={Scale}
                           title={`Năm học ${yearLabel} chưa có đợt khám, kỳ cân đo`}
                           description={
-                            manage
+                            canCreate
                               ? 'Tạo đợt khám hoặc kỳ cân đo cho từng điểm trường để giáo viên nhập kết quả.'
-                              : 'Hiệu trưởng hoặc Phó hiệu trưởng tạo đợt khám, kỳ cân đo; chúng sẽ hiện ở đây để bạn theo dõi hoặc nhập kết quả.'
+                              : yearLocked
+                                ? 'Năm học này chưa tới ngày mở chuẩn bị nên chưa có đợt khám, kỳ cân đo.'
+                                : 'Hiệu trưởng hoặc Phó hiệu trưởng tạo đợt khám, kỳ cân đo; chúng sẽ hiện ở đây để bạn theo dõi hoặc nhập kết quả.'
                           }
                           action={canCreate && <div className="row row--wrap gap-2">{createActions}</div>}
                         />
