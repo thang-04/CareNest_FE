@@ -4,7 +4,8 @@ import { Plus, Building2, Star, PauseCircle, RotateCcw, Trash2, UserMinus, UserP
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
-import { deleteCampus, saveViceAssignment, setCampusStatus } from '@/services/school-config/schoolConfigService';
+import { deleteCampus, setCampusStatus } from '@/services/school-config/schoolConfigService';
+import { UnassignViceDialog } from '@/components/school-config/UnassignViceDialog';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useCampusList } from '@/hooks/school-config/useSchoolConfig';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
@@ -48,17 +49,7 @@ export default function CampusListPage() {
       setActionError(err.message);
     }
   };
-  const confirmUnassign = async () => {
-    try {
-      // BE: campusId = null ⇒ gỡ phân công PHT của năm học
-      await saveViceAssignment(schoolYear, unassigning.vp.id, { campusId: null }, user);
-      toast.success(`Đã gỡ ${unassigning.vp.fullName} khỏi ${unassigning.campus.shortName}`);
-      closeAction();
-      reload({ silent: true });
-    } catch (err) {
-      setActionError(err.message);
-    }
-  };
+
   const shown = campuses.filter((c) => !statusFilter || (c.status || 'ACTIVE') === statusFilter);
   const confirmStatus = async () => {
     try {
@@ -277,22 +268,15 @@ export default function CampusListPage() {
         error={actionError}
         onClose={closeAction}
       />
-      <ConfirmationModal
-        open={!!unassigning}
-        title="Gỡ Phó hiệu trưởng phụ trách"
-        message={
-          unassigning && (
-            <>
-              Gỡ <b>{unassigning.vp.fullName}</b> khỏi <b>{unassigning.campus.shortName}</b> trong năm học đang xem? Người này không còn phụ
-              trách điểm trường nào của năm học này cho tới khi được phân công lại.
-            </>
-          )
-        }
-        confirmLabel="Gỡ phân công"
-        danger
-        onConfirm={confirmUnassign}
-        error={actionError}
+      <UnassignViceDialog
+        target={unassigning}
+        schoolYear={schoolYear}
+        user={user}
         onClose={closeAction}
+        onDone={() => {
+          closeAction();
+          reload({ silent: true });
+        }}
       />
     </div>
   );

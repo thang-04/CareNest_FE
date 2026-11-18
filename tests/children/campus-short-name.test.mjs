@@ -20,5 +20,13 @@ test('màn Điểm trường: menu có Xóa điểm trường và Gỡ PHT', () 
   const src = readFileSync('src/pages/school-config/CampusListPage.jsx', 'utf8');
   assert.match(src, /label: 'Xóa điểm trường'/);
   assert.match(src, /label: `Gỡ PHT \$\{v\.fullName\}`/);
-  assert.match(src, /saveViceAssignment\(schoolYear, unassigning\.vp\.id, \{ campusId: null \}, user\)/);
+  assert.match(src, /<UnassignViceDialog/);
+});
+
+test('chi tiết điểm trường: nút Gỡ PHT dùng chung hộp xác nhận + API, chỉ HT và năm chưa kết thúc', () => {
+  const page = readFileSync('src/pages/school-config/CampusDetailPage.jsx', 'utf8');
+  assert.match(page, /canAssignVicePrincipal\(user\) &&\s*!yearReadOnly/);
+  assert.match(page, /<UnassignViceDialog/);
+  const dialog = readFileSync('src/components/school-config/UnassignViceDialog.jsx', 'utf8');
+  assert.match(dialog, /saveViceAssignment\(schoolYear, target\.vp\.id, \{ campusId: null \}, user\)/);
 });

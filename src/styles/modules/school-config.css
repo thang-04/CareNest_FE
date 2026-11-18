@@ -365,6 +365,10 @@
   min-width: 0;
   overflow-wrap: anywhere;
 }
+/* Nút thao tác của dòng người (vd. Gỡ PHT) nằm sát phải */
+.sc-person__action {
+  margin-left: auto;
+}
 
 /* ---------- Roles & permissions ---------- */
 .sc-role-grid {
