@@ -286,7 +286,7 @@ export default function RoomListPage() {
               <option value="">Tất cả điểm trường</option>
               {campuses.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.name}
+                  {c.shortName || c.name}
                 </option>
               ))}
             </select>

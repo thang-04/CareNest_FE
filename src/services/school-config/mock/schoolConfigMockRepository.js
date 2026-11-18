@@ -520,6 +520,23 @@ const assignVp = (db, u, campusId, user) => {
   });
 };
 
+// BE giả (Cần chốt 19/11/2026): lý do chưa xóa được điểm trường; null = trống, xóa được
+const deleteBlockedReason = (db, campus) => {
+  if (campus.isMain) return 'Điểm trường chính, không xóa được';
+  const parts = [];
+  const classes = db.classes.filter((c) => c.campusId === campus.id).length;
+  if (classes) parts.push(`${classes} lớp`);
+  const rooms = (db.locations || []).filter((l) => l.campusId === campus.id).length;
+  if (rooms) parts.push(`${rooms} phòng`);
+  const children = (db.children || []).filter((ch) => ch.campusId === campus.id).length;
+  if (children) parts.push(`${children} trẻ`);
+  const staff = db.users.filter((u) => u.campusId === campus.id);
+  const vps = staff.filter((u) => u.role === ROLES.VICE_PRINCIPAL).map((u) => u.fullName);
+  if (vps.length) parts.push(`PHT ${vps.join(', ')}`);
+  if (staff.length > vps.length) parts.push(`${staff.length - vps.length} nhân sự khác`);
+  return parts.length ? parts.join(', ') : null;
+};
+
 export const schoolConfigMockRepository = {
   /* ---------------- School years (#16, #17) ---------------- */
   async getSchoolYears(user) {
@@ -1290,6 +1307,7 @@ export const schoolConfigMockRepository = {
             vicePrincipals: db.users
               .filter((u) => u.role === ROLES.VICE_PRINCIPAL && u.campusId === c.id)
               .map((u) => ({ id: u.id, fullName: u.fullName })),
+            deleteBlockedReason: deleteBlockedReason(db, c),
           };
         }),
     );

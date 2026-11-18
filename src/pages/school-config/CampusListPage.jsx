@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Plus, Building2, Star, PauseCircle, RotateCcw } from '@/components/ui/icons';
+import { Plus, Building2, Star, PauseCircle, RotateCcw, Trash2, UserMinus, UserPlus } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
-import { setCampusStatus } from '@/services/school-config/schoolConfigService';
+import { deleteCampus, saveViceAssignment, setCampusStatus } from '@/services/school-config/schoolConfigService';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useCampusList } from '@/hooks/school-config/useSchoolConfig';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
@@ -29,6 +29,36 @@ export default function CampusListPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [pending, setPending] = useState(null);
   const [pendingError, setPendingError] = useState('');
+  // Xóa điểm trường (chỉ khi chưa có dữ liệu, BE báo lý do) và gỡ Phó hiệu trưởng phụ trách
+  const [removing, setRemoving] = useState(null);
+  const [unassigning, setUnassigning] = useState(null);
+  const [actionError, setActionError] = useState('');
+  const closeAction = () => {
+    setRemoving(null);
+    setUnassigning(null);
+    setActionError('');
+  };
+  const confirmDelete = async () => {
+    try {
+      await deleteCampus(removing.id, user);
+      toast.success(`Đã xóa ${removing.shortName}`);
+      closeAction();
+      reload({ silent: true });
+    } catch (err) {
+      setActionError(err.message);
+    }
+  };
+  const confirmUnassign = async () => {
+    try {
+      // BE: campusId = null ⇒ gỡ phân công PHT của năm học
+      await saveViceAssignment(schoolYear, unassigning.vp.id, { campusId: null }, user);
+      toast.success(`Đã gỡ ${unassigning.vp.fullName} khỏi ${unassigning.campus.shortName}`);
+      closeAction();
+      reload({ silent: true });
+    } catch (err) {
+      setActionError(err.message);
+    }
+  };
   const shown = campuses.filter((c) => !statusFilter || (c.status || 'ACTIVE') === statusFilter);
   const confirmStatus = async () => {
     try {
@@ -149,6 +179,21 @@ export default function CampusListPage() {
                           menu={
                             manage
                               ? [
+                                  ...(c.vicePrincipals.length
+                                    ? c.vicePrincipals.map((v) => ({
+                                        label: `Gỡ PHT ${v.fullName}`,
+                                        icon: UserMinus,
+                                        onClick: () => setUnassigning({ campus: c, vp: v }),
+                                      }))
+                                    : c.status !== 'INACTIVE'
+                                      ? [
+                                          {
+                                            label: 'Phân công Phó hiệu trưởng',
+                                            icon: UserPlus,
+                                            to: `/school/vice-principals?year=${schoolYear}`,
+                                          },
+                                        ]
+                                      : []),
                                   c.status === 'INACTIVE'
                                     ? { label: 'Hoạt động lại', icon: RotateCcw, onClick: () => setPending(c) }
                                     : {
@@ -158,6 +203,7 @@ export default function CampusListPage() {
                                         disabled: c.isMain,
                                         onClick: () => setPending(c),
                                       },
+                                  { label: 'Xóa điểm trường', icon: Trash2, danger: true, onClick: () => setRemoving(c) },
                                 ]
                               : []
                           }
@@ -197,6 +243,56 @@ export default function CampusListPage() {
           setPending(null);
           setPendingError('');
         }}
+      />
+      {/* Còn dữ liệu (BE trả lý do): chỉ báo, không có nút xóa */}
+      <ConfirmationModal
+        open={!!removing && !!removing.deleteBlockedReason}
+        title={`Chưa xóa được ${removing?.shortName || ''}`}
+        message={
+          removing && (
+            <>
+              <b>{removing.shortName}</b> còn {removing.deleteBlockedReason}. Chỉ xóa được điểm trường chưa có dữ liệu. Nếu không dùng nữa,
+              chọn <b>Ngừng hoạt động</b>.
+            </>
+          )
+        }
+        confirmLabel="Đã hiểu"
+        onConfirm={closeAction}
+        onClose={closeAction}
+      />
+      <ConfirmationModal
+        open={!!removing && !removing.deleteBlockedReason}
+        title="Xóa điểm trường"
+        message={
+          removing && (
+            <>
+              Xóa hẳn <b>{removing.shortName}</b> ({removing.code})? Điểm trường chưa có lớp, phòng, trẻ hay nhân sự nên xóa không mất dữ
+              liệu. Không hoàn tác được.
+            </>
+          )
+        }
+        confirmLabel={`Xóa ${removing?.shortName || ''}`}
+        danger
+        onConfirm={confirmDelete}
+        error={actionError}
+        onClose={closeAction}
+      />
+      <ConfirmationModal
+        open={!!unassigning}
+        title="Gỡ Phó hiệu trưởng phụ trách"
+        message={
+          unassigning && (
+            <>
+              Gỡ <b>{unassigning.vp.fullName}</b> khỏi <b>{unassigning.campus.shortName}</b> trong năm học đang xem? Người này không còn phụ
+              trách điểm trường nào của năm học này cho tới khi được phân công lại.
+            </>
+          )
+        }
+        confirmLabel="Gỡ phân công"
+        danger
+        onConfirm={confirmUnassign}
+        error={actionError}
+        onClose={closeAction}
       />
     </div>
   );
