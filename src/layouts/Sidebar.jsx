@@ -88,8 +88,8 @@ export function Sidebar({ role, collapsed, drawer = false, drawerOpen = false, o
     setOpen((o) => (o[label] ? {} : { [label]: true }));
   };
 
-  // Mục "chung" (thông báo, tài khoản) tách xuống section dưới như design.md; danh sách mục vẫn theo role
-  const isGeneral = (item) => item.to === '/notifications' || item.key === 'system';
+  // Thông báo là module trong menu chính; tài khoản giữ trong khu Chung.
+  const isGeneral = (item) => item.key === 'system';
   // Mục liền nhau cùng `section` (vd. khu Bán trú) gom dưới một nhãn; mục không có section nằm dưới "Menu"
   const sections = menu
     .filter((item) => !isGeneral(item))

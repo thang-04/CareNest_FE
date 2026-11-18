@@ -1,146 +1,192 @@
-import { Button, SelectField, TextAreaField, TextField } from '@/components';
-import { Breadcrumb } from '@/components/ui/Breadcrumb';
-import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useToast } from '@/contexts/ToastContext';
+import { useState } from 'react';
+import { Button, ConfirmationModal, DataTable, Modal, RowActions, SelectField, TextAreaField, TextField } from '@/components';
+import { Plus, Save } from '@/components/ui/icons';
+import { AnnouncementAlert, AnnouncementHeader } from '@/components/announcement/announcementUi';
 import { announcements } from '@/services/announcement/announcementService';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAsync } from '@/hooks/useAsync';
 
 const blank = { name: '', title: '', body: '', campusId: null };
 export default function AnnouncementTemplatesPage() {
   const { user } = useAuth();
-  const [items, setItems] = useState([]);
-  const [campuses, setCampuses] = useState([]);
-  const [form, setForm] = useState(blank);
-  const [id, setId] = useState(null);
-  const [error, setError] = useState('');
-  const reload = useCallback(async () => {
-    try {
-      const [list, sites] = await Promise.all([announcements.templates(user), announcements.campuses()]);
-      setItems(list);
-      setCampuses(sites);
-    } catch (e) {
-      setError(e.message);
-    }
+  const { data, loading, error, reload } = useAsync(async () => {
+    const [items, campuses] = await Promise.all([announcements.templates(user), announcements.campuses()]);
+    return { items, campuses };
   }, [user]);
-  useEffect(() => {
-    reload();
-  }, [reload]);
-  const save = async (e) => {
-    e.preventDefault();
-    setError('');
+  const [form, setForm] = useState(null);
+  const [id, setId] = useState(null);
+  const [pending, setPending] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [actionError, setActionError] = useState('');
+  const toast = useToast();
+  const edit = (item, readOnly = false) => {
+    setActionError('');
+    setId(item?.id || null);
+    setForm(item ? { name: item.name, title: item.title, body: item.body, campusId: item.campusId, readOnly } : { ...blank });
+  };
+  const save = async (event) => {
+    event.preventDefault();
+    if (busy) return;
+    setBusy(true);
+    setActionError('');
     try {
       if (id) await announcements.updateTemplate(id, form, user);
       else await announcements.createTemplate(form, user);
-      setForm(blank);
-      setId(null);
-      await reload();
-    } catch (ex) {
-      setError(ex.message);
+      setForm(null);
+      toast?.success('Đã lưu.');
+      await reload({ silent: true });
+    } catch (e) {
+      setActionError(e.message);
+    } finally {
+      setBusy(false);
     }
   };
-  const remove = async (item) => {
-    if (!window.confirm(`Xóa mẫu “${item.name}”?`)) return;
+  const remove = async () => {
+    setActionError('');
     try {
-      await announcements.deleteTemplate(item.id, user);
-      await reload();
+      await announcements.deleteTemplate(pending.id, user);
+      setPending(null);
+      toast?.success('Đã xóa.');
+      await reload({ silent: true });
     } catch (e) {
-      setError(e.errorCode === 1209 ? 'Mẫu đang được lịch sử dụng. Hãy kiểm tra lịch trước.' : e.message);
+      setActionError(e.errorCode === 1209 ? 'Mẫu đang được lịch sử dụng. Hãy kiểm tra lịch trước.' : e.message);
     }
   };
   return (
-    <div className="page">
-      <Breadcrumb items={[{ label: 'Trang chủ', to: '/' }, { label: 'Mẫu thông báo' }]} />
-      <Link to="/announcements">← Thông báo</Link>
-      <h1 className="page__title">Mẫu thông báo</h1>
-      {error && <p role="alert">{error}</p>}
-      <div className="card card__body">
-        {items.length === 0 && <p>Chưa có mẫu.</p>}
-        {items.map((item) => (
-          <div key={item.id}>
-            <strong>{item.name}</strong> — {item.title}{' '}
-            {item.canEdit && (
-              <>
-                <Button
-                  className="btn"
-                  onClick={() => {
-                    setId(item.id);
-                    setForm({ name: item.name, title: item.title, body: item.body, campusId: item.campusId });
-                  }}
-                >
-                  Sửa
-                </Button>
-                <Button className="btn" onClick={() => remove(item)}>
-                  Xóa
-                </Button>
-              </>
-            )}
-          </div>
-        ))}
-      </div>
-      <form className="card card__body stack gap-4" onSubmit={save}>
-        <h2>{id ? 'Sửa mẫu' : 'Tạo mẫu'}</h2>
-        <label className="field">
-          Tên mẫu{' '}
-          <TextField
-            className="input"
-            required
-            maxLength={100}
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-          />
-        </label>
-        <label className="field">
-          Tiêu đề{' '}
-          <TextField
-            className="input"
-            required
-            maxLength={150}
-            value={form.title}
-            onChange={(e) => setForm({ ...form, title: e.target.value })}
-          />
-        </label>
-        <label className="field">
-          Nội dung{' '}
-          <TextAreaField
-            className="textarea"
-            required
-            maxLength={4000}
-            value={form.body}
-            onChange={(e) => setForm({ ...form, body: e.target.value })}
-          />
-        </label>
-        <label className="field">
-          Điểm trường{' '}
-          <SelectField
-            className="select"
-            required={user?.role === 'VICE_PRINCIPAL'}
-            value={form.campusId ?? ''}
-            onChange={(e) => setForm({ ...form, campusId: e.target.value ? Number(e.target.value) : null })}
-          >
-            <option value="">{user?.role === 'VICE_PRINCIPAL' ? 'Chọn điểm trường' : 'Toàn trường'}</option>
-            {campuses.map((x) => (
-              <option value={x.id} key={x.id}>
-                {x.name}
-              </option>
-            ))}
-          </SelectField>
-        </label>
-        <Button type="submit" variant="primary">
-          Lưu mẫu
-        </Button>
-        {id && (
-          <Button
-            type="button"
-            className="btn"
-            onClick={() => {
-              setId(null);
-              setForm(blank);
-            }}
-          >
-            Hủy sửa
+    <div className="page page--toolbar announcement-page">
+      <AnnouncementHeader
+        title="Mẫu thông báo"
+        summary="Nội dung dùng lại cho thông báo và lịch gửi"
+        actions={
+          <Button variant="outline-primary" size="sm" icon={Plus} onClick={() => edit(null)}>
+            Tạo mẫu thông báo
           </Button>
+        }
+      />
+      <section className="card">
+        <DataTable
+          rows={data?.items}
+          loading={loading}
+          error={error}
+          onRetry={reload}
+          empty={{ title: 'Chưa có mẫu thông báo', description: 'Tạo mẫu để dùng lại nội dung cho những lần gửi sau.' }}
+          columns={[
+            { key: 'index', header: 'STT', className: 'center', render: (item) => data.items.indexOf(item) + 1 },
+            { key: 'name', header: 'Tên mẫu', render: (item) => <span className="fw-600">{item.name}</span> },
+            { key: 'title', header: 'Tiêu đề thông báo' },
+            {
+              key: 'campus',
+              header: 'Phạm vi mẫu',
+              render: (item) =>
+                item.campusId == null
+                  ? 'Toàn trường'
+                  : data.campuses.find((campus) => String(campus.id) === String(item.campusId))?.name || 'Điểm trường',
+            },
+            {
+              key: 'actions',
+              header: 'Thao tác',
+              className: 'cell--actions',
+              render: (item) => (
+                <RowActions
+                  name={item.name}
+                  view={{ onClick: () => edit(item, true), label: 'Xem chi tiết' }}
+                  edit={item.canEdit ? { onClick: () => edit(item) } : undefined}
+                  menu={
+                    item.canEdit
+                      ? [
+                          {
+                            label: 'Xóa mẫu',
+                            danger: true,
+                            onClick: () => {
+                              setActionError('');
+                              setPending(item);
+                            },
+                          },
+                        ]
+                      : []
+                  }
+                />
+              ),
+            },
+          ]}
+        />
+      </section>
+      <Modal
+        open={!!form}
+        title={form?.readOnly ? 'Chi tiết mẫu thông báo' : id ? 'Sửa mẫu thông báo' : 'Tạo mẫu thông báo'}
+        size="lg"
+        onClose={busy ? undefined : () => setForm(null)}
+        footer={
+          <>
+            <Button size="sm" disabled={busy} onClick={() => setForm(null)}>
+              {form?.readOnly ? 'Đóng' : 'Hủy'}
+            </Button>
+            {!form?.readOnly && (
+              <Button size="sm" type="submit" form="announcement-template-form" variant="outline-primary" icon={Save} loading={busy}>
+                Lưu mẫu
+              </Button>
+            )}
+          </>
+        }
+      >
+        {form && (
+          <form id="announcement-template-form" className="announcement-form" onSubmit={save}>
+            <AnnouncementAlert>{actionError}</AnnouncementAlert>
+            <TextField
+              fieldClassName="announcement-field--medium"
+              disabled={busy || form.readOnly}
+              label="Tên mẫu"
+              required
+              maxLength={100}
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+            />
+            <SelectField
+              fieldClassName="announcement-field--medium"
+              disabled={busy || form.readOnly}
+              label="Phạm vi mẫu"
+              required={user?.role === 'VICE_PRINCIPAL'}
+              value={form.campusId ?? ''}
+              onChange={(e) => setForm({ ...form, campusId: e.target.value ? Number(e.target.value) : null })}
+            >
+              <option value="">{user?.role === 'VICE_PRINCIPAL' ? 'Chọn điểm trường' : 'Toàn trường'}</option>
+              {(data?.campuses || []).map((site) => (
+                <option value={site.id} key={site.id}>
+                  {site.name}
+                </option>
+              ))}
+            </SelectField>
+            <TextField
+              disabled={busy || form.readOnly}
+              label="Tiêu đề thông báo"
+              required
+              maxLength={150}
+              value={form.title}
+              onChange={(e) => setForm({ ...form, title: e.target.value })}
+            />
+            <TextAreaField
+              disabled={busy || form.readOnly}
+              label="Nội dung"
+              required
+              rows={8}
+              maxLength={4000}
+              value={form.body}
+              onChange={(e) => setForm({ ...form, body: e.target.value })}
+            />
+          </form>
         )}
-      </form>
+      </Modal>
+      <ConfirmationModal
+        open={!!pending}
+        title="Xóa mẫu thông báo?"
+        message={`Mẫu “${pending?.name || ''}” sẽ bị xóa. Thông báo đã gửi không bị ảnh hưởng.`}
+        confirmLabel="Xóa mẫu"
+        danger
+        error={actionError}
+        onConfirm={remove}
+        onClose={() => setPending(null)}
+      />
     </div>
   );
 }

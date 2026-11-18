@@ -115,6 +115,8 @@ const recipients = (target, actor) => {
   return { total: all.size, byRole, ids: [...all] };
 };
 const actorCampus = (actor) => catalog().campuses.find((campus) => campus.key === actor?.campusId)?.id ?? null;
+const matchesMessageFilter = (item, { q = '', status } = {}) =>
+  (!status || item.status === status) && `${item.title}\n${item.body}`.toLocaleLowerCase('vi').includes(q.trim().toLocaleLowerCase('vi'));
 const canManageMessage = (item, actor) =>
   !actor ||
   actor.role === 'PRINCIPAL' ||
@@ -126,9 +128,15 @@ const assertAllowed = (allowed) => {
   if (!allowed) throw Object.assign(new Error('Bạn không có quyền với dữ liệu này.'), { status: 403 });
 };
 export const announcementMockRepository = {
-  list: async ({ page = 0, size = 20 } = {}, actor) => {
-    const visible = messages.filter((item) => canManageMessage(item, actor));
-    return { items: copy(visible.slice(page * size, (page + 1) * size)), page, size, totalElements: visible.length };
+  list: async ({ page = 0, size = 20, ...filters } = {}, actor) => {
+    const visible = messages.filter((item) => canManageMessage(item, actor) && matchesMessageFilter(item, filters));
+    return {
+      items: copy(visible.slice(page * size, (page + 1) * size)),
+      page,
+      size,
+      totalElements: visible.length,
+      cancelledCount: visible.filter((item) => item.status === 'CANCELLED').length,
+    };
   },
   detail: async (id, actor) => {
     const item = find(messages, id);
@@ -151,6 +159,7 @@ export const announcementMockRepository = {
       attachments: addFiles(files),
       status: data.sendAt ? 'SCHEDULED' : 'SENT',
       canEdit: !!data.sendAt,
+      canDelete: false,
     };
     if (item.target.scopeType === 'CLASSROOM') {
       const { classes, campuses } = catalog();
@@ -187,7 +196,58 @@ export const announcementMockRepository = {
     if (!item.canEdit) throw Object.assign(new Error('Thông báo không còn hủy được.'), { status: 409 });
     item.status = 'CANCELLED';
     item.canEdit = false;
+    item.canDelete = true;
     return copy(item);
+  },
+  delete: async (id, actor) => {
+    assertAllowed(!actor || ['PRINCIPAL', 'VICE_PRINCIPAL'].includes(actor.role));
+    const item = find(messages, id);
+    assertAllowed(canManageMessage(item, actor));
+    if (item.status !== 'CANCELLED') throw Object.assign(new Error('Chỉ được xóa thông báo đã hủy.'), { status: 409, errorCode: 1214 });
+    item.attachments.forEach((file) => filesById.delete(file.id));
+    messages.splice(messages.indexOf(item), 1);
+  },
+  deleteCancelled: async (filters = {}, actor) => {
+    assertAllowed(!actor || ['PRINCIPAL', 'VICE_PRINCIPAL'].includes(actor.role));
+    const selected = messages.filter(
+      (item) => item.status === 'CANCELLED' && canManageMessage(item, actor) && matchesMessageFilter(item, filters),
+    );
+    selected.forEach((item) => {
+      item.attachments.forEach((file) => filesById.delete(file.id));
+      messages.splice(messages.indexOf(item), 1);
+    });
+    return selected.length;
+  },
+  deleteSelection: async (selection, actor) => {
+    assertAllowed(!actor || ['PRINCIPAL', 'VICE_PRINCIPAL'].includes(actor.role));
+    const ids = [...new Set(selection?.ids || [])];
+    const excluded = selection?.excludedIds || [];
+    if (
+      !selection ||
+      [...ids, ...excluded].some((id) => !Number.isInteger(id) || id <= 0) ||
+      (selection.allMatching && ids.length) ||
+      (!selection.allMatching && (!ids.length || excluded.length))
+    ) {
+      throw Object.assign(new Error('Lựa chọn xóa không hợp lệ.'), { status: 400 });
+    }
+    const selected = selection.allMatching
+      ? messages.filter(
+          (item) =>
+            item.status === 'CANCELLED' &&
+            canManageMessage(item, actor) &&
+            matchesMessageFilter(item, selection) &&
+            !excluded.includes(item.id),
+        )
+      : ids.map((id) => find(messages, id));
+    selected.forEach((item) => {
+      assertAllowed(canManageMessage(item, actor));
+      if (item.status !== 'CANCELLED') throw Object.assign(new Error('Chỉ được xóa thông báo đã hủy.'), { status: 409, errorCode: 1214 });
+    });
+    selected.forEach((item) => {
+      item.attachments.forEach((file) => filesById.delete(file.id));
+      messages.splice(messages.indexOf(item), 1);
+    });
+    return selected.length;
   },
   myAnnouncement: async (id) => copy(find(messages, id)),
   attachment: async (id) => filesById.get(Number(id)) || missing(),
@@ -231,19 +291,68 @@ export const announcementMockRepository = {
     return copy(item);
   },
   schedules: async () => copy(schedules),
-  createSchedule: async (data) => {
-    const item = { ...copy(data), id: nextId++, templateName: find(templates, data.templateId).name, nextRunAt: null };
+  schedule: async (id, actor) => {
+    assertAllowed(!actor || actor.role === 'PRINCIPAL');
+    return copy(find(schedules, id));
+  },
+  createSchedule: async (data, files = [], actor) => {
+    assertAllowed(!actor || actor.role === 'PRINCIPAL');
+    const template = data.templateId ? find(templates, data.templateId) : null;
+    const title = data.title ?? template?.title;
+    const body = data.body ?? template?.body;
+    if (!title?.trim() || !body?.trim() || title.length > 150 || body.length > 4000)
+      throw Object.assign(new Error('Nhập tiêu đề và nội dung hợp lệ.'), { status: 400 });
+    const item = {
+      ...copy(data),
+      title,
+      body,
+      id: nextId++,
+      templateName: template?.name || null,
+      active: data.active ?? true,
+      attachments: addFiles(files),
+      nextRunAt: null,
+    };
     schedules.push(item);
     return copy(item);
   },
-  updateSchedule: async (id, data) => {
+  updateSchedule: async (id, data, files = [], actor) => {
+    assertAllowed(!actor || actor.role === 'PRINCIPAL');
     const item = find(schedules, id);
-    Object.assign(item, copy(data));
+    const template = data.templateId ? find(templates, data.templateId) : null;
+    const title = data.title ?? template?.title ?? item.title;
+    const body = data.body ?? template?.body ?? item.body;
+    if (!title?.trim() || !body?.trim()) throw Object.assign(new Error('Nhập tiêu đề và nội dung.'), { status: 400 });
+    const kept = item.attachments.filter((file) => data.keepAttachmentIds == null || data.keepAttachmentIds.includes(file.id));
+    Object.assign(item, copy(data), { title, body, templateName: template?.name || null, attachments: [...kept, ...addFiles(files)] });
     return copy(item);
   },
-  deleteSchedule: async (id) => {
-    find(schedules, id);
-    schedules = remove(schedules, id);
+  activateSchedules: async (ids, active, actor) => {
+    assertAllowed(!actor || actor.role === 'PRINCIPAL');
+    if (!ids?.length || typeof active !== 'boolean') throw Object.assign(new Error('Chọn lịch gửi.'), { status: 400 });
+    const items = [...new Set(ids)].map((id) => find(schedules, id));
+    let changed = 0;
+    items.forEach((item) => {
+      if (item.active !== active) {
+        item.active = active;
+        changed++;
+      }
+    });
+    return changed;
+  },
+  deleteSchedule: async (id, actor) => announcementMockRepository.deleteSchedules([id], actor),
+  deleteSchedules: async (ids, actor) => {
+    assertAllowed(!actor || actor.role === 'PRINCIPAL');
+    if (!ids?.length) throw Object.assign(new Error('Chọn lịch gửi.'), { status: 400 });
+    // Tìm đủ trước khi xóa: thiếu một lịch thì không xóa lịch nào (giống BE).
+    const items = [...new Set(ids)].map((id) => find(schedules, id));
+    // PAR-10: chỉ xóa lịch đã tắt; còn một lịch đang bật thì không xóa lịch nào.
+    if (items.some((item) => item.active))
+      throw Object.assign(new Error('Chỉ được xóa lịch gửi đã tắt, hãy tắt lịch trước'), { status: 409, errorCode: 1215 });
+    items.forEach((item) => {
+      item.attachments?.forEach((file) => filesById.delete(file.id));
+      schedules = remove(schedules, item.id);
+    });
+    return items.length;
   },
   campuses: async () => copy(catalog().campuses),
   ageGroups: async () => copy(catalog().ageGroups),

@@ -1,3 +1,4 @@
+import { ResponsiveToolbar } from '@/components/ui/ResponsiveToolbar';
 import { useState } from 'react';
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ClassFilterBar, ClassPageEmpty, FilterSelect, docReview, useClassPlanContext } from '@/components/education-plan/planUi';
@@ -90,6 +91,11 @@ function DayPlansList({ classId }) {
         crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Kế hoạch giáo dục ngày' }]}
         title={`Kế hoạch giáo dục ngày ${cls?.name || ''}`}
       />
+      {extra && (
+        <ResponsiveToolbar className="ga-year-toolbar" role="group" aria-label="Thao tác">
+          <div className="ga-year-toolbar__group">{extra}</div>
+        </ResponsiveToolbar>
+      )}
       {/* Học kỳ nằm cùng hàng lọc lớp (Tiền 13/11/2026). */}
       <ClassFilterBar
         classes={classes}
@@ -99,14 +105,6 @@ function DayPlansList({ classId }) {
       >
         {filters}
       </ClassFilterBar>
-      {extra && (
-        <div className="ga-year-toolbar" role="group" aria-label="Thao tác">
-          <div className="ga-year-toolbar__group">
-            <span className="ga-year-toolbar__title">{cls?.name}</span>
-            {extra}
-          </div>
-        </div>
-      )}
     </div>
   );
   if (!cls || !yearPlan)

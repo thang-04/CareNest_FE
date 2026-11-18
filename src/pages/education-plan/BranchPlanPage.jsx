@@ -1,3 +1,4 @@
+import { ResponsiveToolbar } from '@/components/ui/ResponsiveToolbar';
 import {
   adaptCalendar,
   branchDisplayRows,
@@ -439,40 +440,8 @@ function BranchPlanInner({ classId }) {
           crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Dự kiến chủ đề - chủ đề nhánh' }, { label: cls.name }]}
           title={`Dự kiến chủ đề - chủ đề nhánh ${cls.name}`}
         />
-        <ClassFilterBar
-          classes={classes}
-          classId={classId}
-          canPick={ctx.canPickClass}
-          onPick={(id) => {
-            setEditing(false);
-            guard.leave(`/education/branches/${id}`);
-          }}
-        >
-          <FilterSelect
-            label="Học kỳ"
-            value={selectedPackage ? semesterNo : ''}
-            onChange={setSemesterNo}
-            options={[
-              { value: '', label: 'Cả năm' },
-              ...choices.map((c) => ({ value: String(c.semesterNo), label: `Học kỳ ${c.semesterNo}` })),
-            ]}
-          />
-          {!editable && (
-            <FilterSelect
-              label="Kiểu hiển thị"
-              value={view}
-              onChange={setView}
-              options={[
-                { value: 'list', label: 'Danh sách' },
-                { value: 'grid', label: 'Bảng' },
-              ]}
-            />
-          )}
-        </ClassFilterBar>
-        {/* Thanh thao tác như màn Kế hoạch năm học: nút cỡ nhỏ viền xanh, nhóm lưu/gửi/xuất bên phải (Tiền 04/11) */}
-        <div className="ga-year-toolbar" role="group" aria-label="Thao tác chủ đề nhánh">
+        <ResponsiveToolbar className="ga-year-toolbar" role="group" aria-label="Thao tác chủ đề nhánh">
           <div className="ga-year-toolbar__group">
-            <span className="ga-year-toolbar__title">{cls.name}</span>
             {editable && (
               <button
                 type="button"
@@ -536,7 +505,38 @@ function BranchPlanInner({ classId }) {
             )}
             {preview && <DocPreviewModal file={preview} onClose={() => setPreview(null)} />}
           </div>
-        </div>
+        </ResponsiveToolbar>
+        <ClassFilterBar
+          classes={classes}
+          classId={classId}
+          canPick={ctx.canPickClass}
+          onPick={(id) => {
+            setEditing(false);
+            guard.leave(`/education/branches/${id}`);
+          }}
+        >
+          <FilterSelect
+            label="Học kỳ"
+            value={selectedPackage ? semesterNo : ''}
+            onChange={setSemesterNo}
+            options={[
+              { value: '', label: 'Cả năm' },
+              ...choices.map((c) => ({ value: String(c.semesterNo), label: `Học kỳ ${c.semesterNo}` })),
+            ]}
+          />
+          {!editable && (
+            <FilterSelect
+              label="Kiểu hiển thị"
+              value={view}
+              onChange={setView}
+              options={[
+                { value: 'list', label: 'Danh sách' },
+                { value: 'grid', label: 'Bảng' },
+              ]}
+            />
+          )}
+        </ClassFilterBar>
+        {/* Thanh thao tác như màn Kế hoạch năm học: nút cỡ nhỏ viền xanh, nhóm lưu/gửi/xuất bên phải (Tiền 04/11) */}
       </div>
       {canEdit && <SupersededNote doc={saved || (ctx.superseded ? { superseded: true, yearPlanVersion: versionOf(yearPlan) } : null)} />}
       {!saved && version.prevDoc && !dirty && (

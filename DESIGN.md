@@ -473,6 +473,8 @@ Tông = tổng mã ký tự của tên mod 5 (web `avatarTone` trong `src/utils/
 | Định dạng ngày, giờ, tìm bỏ dấu                    | `utils/format.js`                                                                                                                                               |
 | Icon                                               | `components/ui/icons.js` (ESLint chặn import Tabler ở nơi khác)                                                                                                 |
 
+Header giáo dục (Tiền 17/11/2026, EDU-92): dùng `ResponsiveToolbar` để giữ nút trên một hàng; khi không đủ chiều rộng thực tế thì hiện biểu tượng ba gạch mở lựa chọn. Giữ đầy đủ handler, quyền, disabled và hộp xác nhận; không nhân đôi component để đo chiều rộng. Mẫu tại `/ui-kit#responsive-toolbar`.
+
 ### 6.4 Câu trên nút và hộp thoại
 
 - Nút ghi động từ cụ thể: "Gửi phiếu", "Lưu nháp", "Duyệt", "Hủy thông báo nghỉ". **KHÔNG** "OK", "Đồng ý", "Có", "Submit", "Xác nhận" chung chung.

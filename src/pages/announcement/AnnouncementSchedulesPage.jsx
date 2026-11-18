@@ -1,188 +1,190 @@
-import { Button, SelectField, TextField } from '@/components';
-import { Breadcrumb } from '@/components/ui/Breadcrumb';
-import { useCallback, useEffect, useState } from 'react';
-import RecipientTargetForm, { emptyTarget } from '@/components/announcement/RecipientTargetForm';
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { Button, Checkbox, ConfirmationModal, DataTable, RowActions, StatusBadge } from '@/components';
+import { Plus, Check, Trash2, PauseCircle } from '@/components/ui/icons';
+import { AnnouncementAlert, AnnouncementHeader, scheduleRepeatLabel } from '@/components/announcement/announcementUi';
 import { announcements } from '@/services/announcement/announcementService';
+import { useAsync } from '@/hooks/useAsync';
+import { useToast } from '@/contexts/ToastContext';
+import { formatDateTime } from '@/utils/format';
 
-const blank = () => ({
-  templateId: '',
-  target: emptyTarget,
-  frequency: 'WEEKLY',
-  dayOfWeek: 1,
-  dayOfMonth: null,
-  sendTime: '08:00',
-  active: true,
-});
 export default function AnnouncementSchedulesPage() {
-  const [items, setItems] = useState([]);
-  const [templates, setTemplates] = useState([]);
-  const [form, setForm] = useState(blank);
-  const [id, setId] = useState(null);
-  const [error, setError] = useState('');
-  const reload = useCallback(async () => {
+  const toast = useToast();
+  const { data, loading, error, reload } = useAsync(() => announcements.schedules(), []);
+  const [selected, setSelected] = useState([]);
+  const [busy, setBusy] = useState(false);
+  const [pending, setPending] = useState(null);
+  const [actionError, setActionError] = useState('');
+  const rows = data || [];
+  // PAR-10: tick mọi lịch để bật/tắt hàng loạt; chỉ xóa được khi mọi lịch đã chọn đều đã tắt (BE 1215).
+  const picked = selected.filter((id) => rows.some((row) => row.id === id));
+  const pickedOn = picked.filter((id) => rows.find((row) => row.id === id).active);
+  const pickedOff = picked.filter((id) => !pickedOn.includes(id));
+  const allSelected = rows.length > 0 && picked.length === rows.length;
+  const toggleSelected = (id) => setSelected((ids) => (ids.includes(id) ? ids.filter((key) => key !== id) : [...ids, id]));
+  const activate = async (ids, active) => {
+    if (busy || !ids.length) return;
+    setBusy(true);
+    setActionError('');
     try {
-      const [list, tpl] = await Promise.all([announcements.schedules(), announcements.templates()]);
-      setItems(list);
-      setTemplates(tpl);
+      await announcements.activateSchedules(ids, active);
+      setSelected([]);
+      toast?.success('Đã cập nhật.');
+      await reload({ silent: true });
     } catch (e) {
-      setError(e.message);
-    }
-  }, []);
-  useEffect(() => {
-    reload();
-  }, [reload]);
-  const payload = (item) => ({
-    templateId: Number(item.templateId),
-    target: item.target,
-    frequency: item.frequency,
-    dayOfWeek: item.frequency === 'WEEKLY' ? Number(item.dayOfWeek) : null,
-    dayOfMonth: item.frequency === 'MONTHLY' ? Number(item.dayOfMonth) : null,
-    sendTime: item.sendTime,
-    active: item.active,
-  });
-  const save = async (e) => {
-    e.preventDefault();
-    try {
-      if (id) await announcements.updateSchedule(id, payload(form));
-      else await announcements.createSchedule(payload(form));
-      setForm(blank());
-      setId(null);
-      setError('');
-      await reload();
-    } catch (ex) {
-      setError(ex.message);
+      setActionError(e.message);
+    } finally {
+      setBusy(false);
     }
   };
-  const toggle = async (item) => {
+  const remove = async () => {
+    setBusy(true);
+    setActionError('');
     try {
-      await announcements.updateSchedule(item.id, payload({ ...item, active: !item.active }));
-      await reload();
+      await announcements.deleteSchedules(pending.ids);
+      setSelected((ids) => ids.filter((id) => !pending.ids.includes(id)));
+      setPending(null);
+      toast?.success('Đã xóa.');
+      await reload({ silent: true });
     } catch (e) {
-      setError(e.message);
-    }
-  };
-  const remove = async (item) => {
-    if (!window.confirm('Xóa lịch này?')) return;
-    try {
-      await announcements.deleteSchedule(item.id);
-      await reload();
-    } catch (e) {
-      setError(e.message);
+      setActionError(e.message);
+    } finally {
+      setBusy(false);
     }
   };
   return (
-    <div className="page">
-      <Breadcrumb items={[{ label: 'Trang chủ', to: '/' }, { label: 'Lịch thông báo' }]} />
-      <h1 className="page__title">Lịch thông báo</h1>
-      {error && <p role="alert">{error}</p>}
-      <div className="card card__body">
-        {items.length === 0 && <p>Chưa có lịch.</p>}
-        {items.map((item) => (
-          <div key={item.id}>
-            <strong>{item.templateName}</strong> · {item.active ? 'Đang bật' : 'Đã tắt'} · Lần gửi tiếp: {item.nextRunAt || '—'}{' '}
+    <div className="page page--toolbar announcement-page">
+      <AnnouncementHeader
+        title="Lịch gửi thông báo"
+        summary={`${rows.length} lịch gửi`}
+        actions={
+          <>
             <Button
-              className="btn"
+              size="sm"
+              variant="outline-primary"
+              icon={Check}
+              disabled={busy || loading || !pickedOff.length}
+              onClick={() => activate(pickedOff, true)}
+            >
+              Bật đã chọn{pickedOff.length ? ` (${pickedOff.length})` : ''}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline-primary"
+              icon={PauseCircle}
+              disabled={busy || loading || !pickedOn.length}
+              onClick={() => activate(pickedOn, false)}
+            >
+              Tắt đã chọn{pickedOn.length ? ` (${pickedOn.length})` : ''}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline-danger"
+              icon={Trash2}
+              title={pickedOn.length ? 'Tắt các lịch đang bật trước khi xóa' : undefined}
+              disabled={busy || loading || !picked.length || pickedOn.length > 0}
               onClick={() => {
-                setId(item.id);
-                setForm(payload(item));
+                setActionError('');
+                setPending({ ids: picked });
               }}
             >
-              Sửa
+              Xóa đã chọn{picked.length ? ` (${picked.length})` : ''}
             </Button>
-            <Button className="btn" onClick={() => toggle(item)}>
-              {item.active ? 'Tắt' : 'Bật'}
-            </Button>
-            <Button className="btn" onClick={() => remove(item)}>
-              Xóa
-            </Button>
-          </div>
-        ))}
-      </div>
-      <form className="card card__body stack gap-4" onSubmit={save}>
-        <h2>{id ? 'Sửa lịch' : 'Tạo lịch'}</h2>
-        <label className="field">
-          Mẫu{' '}
-          <SelectField
-            className="select"
-            required
-            value={form.templateId}
-            onChange={(e) => setForm({ ...form, templateId: e.target.value })}
-          >
-            <option value="">Chọn mẫu</option>
-            {templates.map((t) => (
-              <option value={t.id} key={t.id}>
-                {t.name}
-              </option>
-            ))}
-          </SelectField>
-        </label>
-        <RecipientTargetForm value={form.target} onChange={(target) => setForm({ ...form, target })} />
-        <label className="field">
-          Tần suất{' '}
-          <SelectField className="select" value={form.frequency} onChange={(e) => setForm({ ...form, frequency: e.target.value })}>
-            <option value="WEEKLY">Hàng tuần</option>
-            <option value="MONTHLY">Hàng tháng</option>
-          </SelectField>
-        </label>
-        {form.frequency === 'WEEKLY' ? (
-          <label className="field">
-            Thứ{' '}
-            <SelectField
-              className="select"
-              value={form.dayOfWeek ?? 1}
-              onChange={(e) => setForm({ ...form, dayOfWeek: Number(e.target.value) })}
-            >
-              {[1, 2, 3, 4, 5, 6, 7].map((d) => (
-                <option value={d} key={d}>
-                  {d === 7 ? 'Chủ nhật' : `Thứ ${d + 1}`}
-                </option>
-              ))}
-            </SelectField>
-          </label>
-        ) : (
-          <label className="field">
-            Ngày trong tháng{' '}
-            <TextField
-              className="input"
-              type="number"
-              required
-              min="1"
-              max="31"
-              value={form.dayOfMonth ?? ''}
-              onChange={(e) => setForm({ ...form, dayOfMonth: Number(e.target.value) })}
-            />
-          </label>
-        )}
-        <label className="field">
-          Giờ gửi (giờ Việt Nam){' '}
-          <TextField
-            className="input"
-            required
-            type="time"
-            value={form.sendTime}
-            onChange={(e) => setForm({ ...form, sendTime: e.target.value })}
-          />
-        </label>
-        <label className="field">
-          <TextField className="" type="checkbox" checked={form.active} onChange={(e) => setForm({ ...form, active: e.target.checked })} />{' '}
-          Bật lịch
-        </label>
-        <Button type="submit" variant="primary">
-          Lưu lịch
-        </Button>
-        {id && (
-          <Button
-            type="button"
-            className="btn"
-            onClick={() => {
-              setId(null);
-              setForm(blank());
-            }}
-          >
-            Hủy sửa
-          </Button>
-        )}
-      </form>
+            <Link className="btn btn--sm btn--outline-primary" to="/announcement-schedules/new">
+              <Plus size={15} aria-hidden="true" /> Tạo lịch gửi
+            </Link>
+          </>
+        }
+      />
+      {!pending && <AnnouncementAlert>{actionError}</AnnouncementAlert>}
+      <section className="card">
+        <DataTable
+          rows={rows}
+          loading={loading}
+          error={error}
+          onRetry={reload}
+          empty={{ title: 'Chưa có lịch gửi thông báo', description: 'Tạo lịch gửi để bắt đầu.' }}
+          columns={[
+            {
+              key: 'selection',
+              className: 'center',
+              header: (
+                <Checkbox
+                  aria-label="Chọn tất cả lịch gửi"
+                  checked={allSelected}
+                  aria-checked={picked.length > 0 && !allSelected ? 'mixed' : allSelected}
+                  disabled={busy || loading || !rows.length}
+                  ref={(node) => {
+                    if (node) node.indeterminate = picked.length > 0 && !allSelected;
+                  }}
+                  onChange={(event) => setSelected(event.target.checked ? rows.map((row) => row.id) : [])}
+                />
+              ),
+              render: (item) => (
+                <Checkbox
+                  aria-label={`Chọn lịch ${item.title || item.templateName}`}
+                  checked={picked.includes(item.id)}
+                  disabled={busy || loading}
+                  onClick={(event) => event.stopPropagation()}
+                  onChange={() => toggleSelected(item.id)}
+                />
+              ),
+            },
+            { key: 'index', header: 'STT', className: 'center', render: (item) => rows.indexOf(item) + 1 },
+            {
+              key: 'title',
+              header: 'Tiêu đề thông báo',
+              render: (item) => <span className="fw-600">{item.title || item.templateName}</span>,
+            },
+            { key: 'frequency', header: 'Lặp lại', render: scheduleRepeatLabel },
+            { key: 'sendTime', header: 'Giờ gửi', render: (item) => item.sendTime?.slice(0, 5) || '—' },
+            { key: 'nextRunAt', header: 'Lần gửi tiếp theo', render: (item) => (item.active ? formatDateTime(item.nextRunAt) : '—') },
+            {
+              key: 'active',
+              header: 'Trạng thái',
+              render: (item) => <StatusBadge tone={item.active ? 'green' : 'gray'} label={item.active ? 'Đang bật' : 'Đã tắt'} />,
+            },
+            {
+              key: 'actions',
+              header: 'Thao tác',
+              className: 'cell--actions',
+              render: (item) => (
+                <RowActions
+                  name={item.title || item.templateName}
+                  view={{ to: `/announcement-schedules/${item.id}`, label: 'Xem chi tiết' }}
+                  edit={{ to: `/announcement-schedules/${item.id}/edit` }}
+                  menu={[
+                    {
+                      label: item.active ? 'Tắt lịch gửi' : 'Bật lịch gửi',
+                      disabled: busy,
+                      onClick: () => activate([item.id], !item.active),
+                    },
+                    {
+                      label: item.active ? 'Xóa lịch gửi (tắt lịch trước)' : 'Xóa lịch gửi',
+                      danger: true,
+                      disabled: busy || item.active,
+                      onClick: () => {
+                        setActionError('');
+                        setPending({ ids: [item.id] });
+                      },
+                    },
+                  ]}
+                />
+              ),
+            },
+          ]}
+        />
+      </section>
+      <ConfirmationModal
+        open={!!pending}
+        title={pending?.ids.length > 1 ? `Xóa ${pending.ids.length} lịch gửi đã chọn?` : 'Xóa lịch gửi?'}
+        message="Lịch gửi và tệp đính kèm của lịch sẽ bị xóa. Các thông báo đã gửi vẫn được giữ lại. Không thể hoàn tác."
+        confirmLabel={pending?.ids.length > 1 ? 'Xóa đã chọn' : 'Xóa lịch gửi'}
+        danger
+        error={actionError}
+        onConfirm={remove}
+        onClose={() => setPending(null)}
+      />
     </div>
   );
 }
