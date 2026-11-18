@@ -1,6 +1,6 @@
 ---
 title: Tiếp nhận trẻ cho năm học sắp tới từ ngày mở chuẩn bị — phần Web
-status: approved     # user duyệt 2026-11-18 kèm trả lời Q1–Q5 (BE plan), chạy Subagent-driven
+status: done         # xong 2026-11-18: Phase A + Phase B, npm run verify exit 0 tại 06cdcac6
 owner: Giáp
 jira: G94-180 / FE-FEAT-43
 branch: feature/G94-180-FE-FEAT-43-new-year-intake   # tạo từ f0ca4ca0 (nhánh G94-179 của Cần)
@@ -168,3 +168,22 @@ updated: 2026-11-18
 ### 2026-11-18 — Plan approved
 
 - User duyệt, chọn Subagent-driven; Q2 = b ⇒ bỏ phần chờ kích hoạt tài khoản; Q5 ⇒ bỏ task mock của Cần, thử với BE thật + dữ liệu dev; nhắc chia commit nhỏ. Nhánh `feature/G94-180-FE-FEAT-43-new-year-intake` tạo từ `f0ca4ca0`.
+
+### 2026-11-18 — Phase A và Phase B xong
+
+- Chạy Subagent-driven song song với BE plan: mỗi task một implementer và một reviewer (sonnet). Review cuối toàn nhánh chạy trên sonnet vì opus hết hạn mức 5 giờ và fable cần credit trả phí.
+- Không dừng chờ review sau Phase A vì user đã trả lời Q3 "có".
+- 20 commit code chia nhỏ theo task, từ `cf63bb2a` đến `06cdcac6`.
+- Phase A (Task 1–4): `npm run verify` exit 0 tại `a9e2cbf8`.
+- Phase B (Task 5): `npm run verify` exit 0 tại `4387b6dc`.
+- Sau review cuối (4 commit sửa): `npm run verify` exit 0 tại `06cdcac6`, 1486 test, 0 lỗi; lint, prettier, check:design, check:api, build đạt.
+- Khác plan:
+  - Lỗi Prettier của Task 3 sửa bằng commit riêng `5c0a3419`, không amend, nên riêng `de9acc19` và `a1cd7ce7` không qua `format:check`.
+  - Mock danh sách trả `classId` và `className` null cho trẻ năm sau, giống BE (`a9e2cbf8`).
+  - Mock nhập Excel và mở lại hồ sơ lấy ngày đầu năm học làm ngày bắt đầu khi bỏ trống, giống BE (`4387b6dc`).
+  - Sau review cuối: empty state Sức khỏe bỏ gợi ý "Tạo đợt khám" khi năm học khóa; test quét source kiểm biểu thức khóa thật; `ImportChildrenModal` điền năm và ngày mặc định khi danh sách năm học tải xong.
+
+## Kết quả
+
+- Xong 5 task theo plan. Mỗi task qua review spec và chất lượng. Review cuối toàn nhánh đạt sau 1 đợt sửa.
+- Chưa kiểm: xem giao diện trên trình duyệt với BE thật (mục "Cách thử với BE thật").
