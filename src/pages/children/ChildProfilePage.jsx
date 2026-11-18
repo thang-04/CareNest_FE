@@ -14,6 +14,8 @@ import {
   ChevronRight,
 } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSchoolYear } from '@/contexts/SchoolYearContext';
+import { YearLockedNotice } from '@/components/children/YearLockedNotice';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useChildDetail } from '@/hooks/children/useChildRecords';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
@@ -44,6 +46,8 @@ export default function ChildProfilePage() {
   const { id } = useParams();
   const { user } = useAuth();
   const md = useMasterData();
+  // Năm sắp diễn ra chưa tới ngày mở chuẩn bị (CHD-12): hồ sơ chỉ xem
+  const { yearLocked } = useSchoolYear();
   const { detail, loading, error, reload } = useChildDetail(id);
   const child = detail?.child;
   const crumbs = childrenCrumbs(child?.fullName || 'Hồ sơ trẻ');
@@ -89,12 +93,12 @@ export default function ChildProfilePage() {
           </div>
         </div>
         <div className="row row--wrap gap-2">
-          {canPlaceChild(child, user) && (
+          {!yearLocked && canPlaceChild(child, user) && (
             <Link className="btn" to={`/children/placement?childId=${child.id}`}>
               <LayoutGrid size={16} /> {child.classId ? 'Chuyển lớp' : 'Xếp lớp'}
             </Link>
           )}
-          {canEditChild(child, user) && (
+          {!yearLocked && canEditChild(child, user) && (
             <Link className="btn btn--primary" to={`/children/${child.id}/edit`}>
               <Pencil size={16} /> Sửa hồ sơ
             </Link>
@@ -102,6 +106,7 @@ export default function ChildProfilePage() {
         </div>
       </div>
 
+      <YearLockedNotice action="Sửa hồ sơ, xếp lớp" />
       {child.status === CHILD_STATUS.PENDING_PLACEMENT && (
         <div className="alert alert--warning mb-16">
           <AlertTriangle size={18} />
@@ -181,7 +186,7 @@ export default function ChildProfilePage() {
             <section className="card">
               <div className="card__header row row--between">
                 <h2 className="card__title">Phụ huynh / người giám hộ</h2>
-                {canActivateParent(child, user) && (
+                {!yearLocked && canActivateParent(child, user) && (
                   <Link className="btn btn--sm" to={`/children/activation?childId=${child.id}`}>
                     <KeyRound size={15} /> Tài khoản phụ huynh
                   </Link>
@@ -262,7 +267,7 @@ export default function ChildProfilePage() {
             <section className="card">
               <div className="card__header">
                 <h2 className="card__title">Sức khỏe & theo dõi</h2>
-                {canRecordMeasurement(child, user, cls) && (
+                {!yearLocked && canRecordMeasurement(child, user, cls) && (
                   <Link className="btn btn--sm" to={`/children/${child.id}/health/new`}>
                     Nhập số đo
                   </Link>

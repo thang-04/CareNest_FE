@@ -4,6 +4,8 @@ import { AlertCircle, Filter, KeyRound, Lock, Unlock, UserPlus, Users } from '@/
 import { useCampusGuardianChildren } from '@/hooks/account/useGuardians';
 import { useGuardianStructure } from '@/hooks/account/useGuardians';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSchoolYear } from '@/contexts/SchoolYearContext';
+import { YearLockedNotice } from '@/components/children/YearLockedNotice';
 import { useToast } from '@/contexts/ToastContext';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
@@ -34,6 +36,9 @@ const CLASS_FILTER_MIN = 8;
 export default function ParentActivationPage() {
   const { user } = useAuth();
   const toast = useToast();
+  // Năm sắp diễn ra chưa tới ngày mở chuẩn bị (CHD-12): chỉ xem dù BE cho quản lý
+  const { yearLocked } = useSchoolYear();
+  const canManage = (child) => !yearLocked && !!child.canManage;
   const [params] = useSearchParams();
   const targetId = params.get('childId');
   const handledTarget = useRef('');
@@ -172,6 +177,7 @@ export default function ParentActivationPage() {
     <div className="page">
       <Breadcrumb items={childrenCrumbs('Tài khoản phụ huynh')} />
       <h1 className="page__title">Tài khoản phụ huynh</h1>
+      <YearLockedNotice action="Kích hoạt tài khoản phụ huynh" />
 
       {!error && !structure.error && (
         <div className="stat-grid people-stats" aria-label="Tổng quan tài khoản phụ huynh">
@@ -400,7 +406,7 @@ export default function ParentActivationPage() {
                                           <RowActions
                                             name={g.fullName}
                                             menu={
-                                              child.canManage
+                                              canManage(child)
                                                 ? [
                                                     {
                                                       label: 'Cấp lại mật khẩu tạm',
@@ -425,7 +431,7 @@ export default function ParentActivationPage() {
                                       <button
                                         type="button"
                                         className="btn btn--sm btn--primary"
-                                        disabled={!child.canManage}
+                                        disabled={!canManage(child)}
                                         onClick={() => openChildProfile(child)}
                                       >
                                         <UserPlus size={13} /> Kích hoạt tài khoản
@@ -456,7 +462,7 @@ export default function ParentActivationPage() {
           className="pa-guardian-modal"
           onClose={() => setOpenChild(null)}
         >
-          <fieldset disabled={!openChild.canManage} className="pa-guard-fieldset">
+          <fieldset disabled={!canManage(openChild)} className="pa-guard-fieldset">
             <GuardianPanel
               key={openChild.id}
               child={openChild}

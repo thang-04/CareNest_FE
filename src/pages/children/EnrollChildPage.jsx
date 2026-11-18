@@ -14,6 +14,7 @@ import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { Spinner } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
 import { ActiveYearNotice } from '@/components/children/ActiveYearNotice';
+import { YearLockedNotice } from '@/components/children/YearLockedNotice';
 import { ChildInfoFields } from '@/components/children/ChildInfoFields';
 import { PortraitImage } from '@/components/PortraitImage';
 import { ChildProfileSummary } from '@/components/children/ChildProfileSummary';
@@ -98,7 +99,7 @@ export default function EnrollChildPage() {
   const { user } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
-  const { schoolYear, schoolYears, activeYear, yearReadOnly } = useSchoolYear();
+  const { schoolYear, schoolYears, activeYear, yearReadOnly, yearLocked } = useSchoolYear();
   const md = useMasterData();
   const [intakeYearId, setIntakeYearId] = useState('');
   const intakeYear = schoolYears.find((y) => sameId(y.id, intakeYearId)) || activeYear || null;
@@ -373,12 +374,13 @@ export default function EnrollChildPage() {
     );
   }
 
-  if (yearReadOnly)
+  // Năm đã kết thúc hoặc năm sắp diễn ra chưa tới ngày mở chuẩn bị (CHD-12): chỉ xem
+  if (yearReadOnly || yearLocked)
     return (
       <div className="page">
         <Breadcrumb items={childrenCrumbs('Tiếp nhận trẻ')} />
         <h1 className="page__title">Tiếp nhận trẻ</h1>
-        <ActiveYearNotice action="Tiếp nhận trẻ" />
+        {yearLocked ? <YearLockedNotice action="Tiếp nhận trẻ" /> : <ActiveYearNotice action="Tiếp nhận trẻ" />}
       </div>
     );
 

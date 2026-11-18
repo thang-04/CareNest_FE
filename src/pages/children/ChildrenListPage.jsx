@@ -4,6 +4,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Plus, Search, RotateCcw, UserMinus, FileSpreadsheet, Baby, Info, LayoutGrid, KeyRound, Pencil } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
+import { YearLockedNotice } from '@/components/children/YearLockedNotice';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useChildRecords, useClassOptions } from '@/hooks/children/useChildRecords';
 import { sameId } from '@/services/http/idStrings';
@@ -43,7 +44,7 @@ const FILTER_DEFAULTS = { keyword: '', status: '', campusId: '', classId: '' };
 export default function ChildrenListPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { schoolYear } = useSchoolYear();
+  const { schoolYear, yearLocked } = useSchoolYear();
   const md = useMasterData();
   const [filters, setFilters, resetFilterParams, activeKeys] = useFilterParams(FILTER_DEFAULTS);
   const { status, keyword, campusId, classId } = filters;
@@ -51,7 +52,8 @@ export default function ChildrenListPage() {
   const [withdrawing, setWithdrawing] = useState(null);
   const [importOpen, setImportOpen] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
-  const canImport = canEnrollChild(user);
+  // Năm sắp diễn ra chưa tới ngày mở chuẩn bị (CHD-12): chỉ xem
+  const canImport = canEnrollChild(user) && !yearLocked;
 
   // ?import=1 (từ Tiếp nhận trẻ, Xếp lớp, hoặc màn xem trước khi mất bản xem trước) ⇒ mở hộp nhập Excel rồi bỏ tham số khỏi URL.
   useEffect(() => {
@@ -121,8 +123,8 @@ export default function ChildrenListPage() {
     (c) => c.status !== CHILD_STATUS.LEFT && c.guardians.some((g) => g.accountStatus === PARENT_ACCOUNT_STATUS.NOT_ACTIVATED),
   ).length;
   const showCampus = seesAllCampusChildren(user);
-  // Giáo viên không có thao tác dòng (Sửa, Cho nghỉ học) nên bỏ cả cột; bấm dòng mở hồ sơ (DESIGN §6.3)
-  const showActions = !isTeacherRole(user);
+  // Giáo viên, năm bị khóa (CHD-12) không có thao tác dòng (Sửa, Cho nghỉ học) nên bỏ cả cột; bấm dòng mở hồ sơ (DESIGN §6.3)
+  const showActions = !isTeacherRole(user) && !yearLocked;
   const cols = 5 + (showCampus ? 1 : 0) + (showActions ? 1 : 0);
   const chipLabels = {
     keyword: `Từ khóa: ${keyword}`,
@@ -144,7 +146,8 @@ export default function ChildrenListPage() {
         <h1 className="page__title">Danh sách trẻ</h1>
       </div>
 
-      {isVicePrincipal(user) && (pendingPlacement > 0 || notActivated > 0) && (
+      <YearLockedNotice action="Tiếp nhận, sửa hồ sơ trẻ" />
+      {!yearLocked && isVicePrincipal(user) && (pendingPlacement > 0 || notActivated > 0) && (
         <div className="alert alert--warning mb-16">
           <Info size={18} />
           <div className="stack gap-1">
@@ -258,7 +261,7 @@ export default function ChildrenListPage() {
                           title="Chưa có hồ sơ trẻ"
                           description="Không có trẻ đang học hoặc chờ xếp lớp trong phạm vi và năm học đã chọn."
                           action={
-                            canEnrollChild(user) && (
+                            canImport && (
                               <Link to="/children/new" className="btn btn--primary">
                                 <Plus size={16} /> Tiếp nhận trẻ
                               </Link>

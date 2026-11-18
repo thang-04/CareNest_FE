@@ -70,7 +70,7 @@ function ImportGuide() {
 export function ImportChildrenModal({ initialCampusId, onClose, onChecked }) {
   const { user } = useAuth();
   const md = useMasterData();
-  const { yearReadOnly } = useSchoolYear();
+  const { yearReadOnly, yearLocked } = useSchoolYear();
   const campusOptions = childCampusesOf(user, md.campuses);
   // Có từ 2 điểm trường được tiếp nhận (Hiệu trưởng, PHT được phân 2 điểm trường) ⇒ bắt buộc chọn, không chọn sẵn; 1 điểm trường ⇒ dùng luôn.
   const pickCampus = campusOptions.length > 1;
@@ -162,7 +162,7 @@ export function ImportChildrenModal({ initialCampusId, onClose, onChecked }) {
       onFile={takeFile}
       confirmLabel="Tải lên và kiểm tra"
       idleLabel="Tải lên và kiểm tra"
-      confirmDisabled={!file || tooLarge || yearReadOnly}
+      confirmDisabled={!file || tooLarge || yearReadOnly || yearLocked}
       busy={reading}
       onConfirm={check}
       onClose={onClose}
