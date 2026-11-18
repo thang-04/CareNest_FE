@@ -2178,6 +2178,20 @@
   gap: var(--space-3);
 }
 
+/* Hàng đầu thẻ lọc: chọn tuần bên trái, nút Xuất Excel / Xem trước bản in sát mép phải */
+.td-stat-filters__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+.td-stat-filters__top:empty {
+  display: none;
+}
+.td-stat-filters__actions {
+  margin-left: auto;
+}
+
 .td-stat-filters__row {
   display: flex;
   flex-wrap: wrap;

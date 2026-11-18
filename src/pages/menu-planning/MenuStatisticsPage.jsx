@@ -122,36 +122,34 @@ export default function MenuStatisticsPage() {
   return (
     <div className="page td-sections">
       <Breadcrumb items={crumbs} />
-      <div className="page__head">
-        <div>
-          <h1 className="page__title">{PAGE_TITLE}</h1>
-        </div>
-        {stats && (
-          <div className="page__actions">
-            <Button onClick={exportExcel}>
-              <Download size={16} /> Xuất Excel
-            </Button>
-            <Button onClick={() => setPrinting(true)}>
-              <Printer size={16} /> Xem trước bản in
-            </Button>
-          </div>
-        )}
-      </div>
+      <h1 className="page__title">{PAGE_TITLE}</h1>
 
       <section className="card">
         <div className="card__body td-stat-filters">
-          {templateId ? null : (
-            <WeekPicker
-              value={week}
-              thisWeek={schoolWeekStart(today)}
-              onChange={(next) => {
-                const p = new URLSearchParams(params);
-                p.set('week', next);
-                p.delete('date');
-                setParams(p, { replace: true });
-              }}
-            />
-          )}
+          <div className="td-stat-filters__top">
+            {templateId ? null : (
+              <WeekPicker
+                value={week}
+                thisWeek={schoolWeekStart(today)}
+                onChange={(next) => {
+                  const p = new URLSearchParams(params);
+                  p.set('week', next);
+                  p.delete('date');
+                  setParams(p, { replace: true });
+                }}
+              />
+            )}
+            {stats && (
+              <div className="page__actions td-stat-filters__actions">
+                <Button onClick={exportExcel}>
+                  <Download size={16} /> Xuất Excel
+                </Button>
+                <Button onClick={() => setPrinting(true)}>
+                  <Printer size={16} /> Xem trước bản in
+                </Button>
+              </div>
+            )}
+          </div>
           {templateId ? null : (
             <Tabs
               variant="pill"
