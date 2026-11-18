@@ -17,14 +17,13 @@ export const suggestAgeGroupId = (dateOfBirth, yearStart, ageGroups = AGE_GROUPS
   return (match || (months < sorted[0].ageFromMonths ? sorted[0] : sorted[sorted.length - 1])).id;
 };
 
-/**
- * Danh sách trẻ theo trạng thái đang lọc: chưa chọn ⇒ chỉ trẻ đang học, chờ xếp lớp; trẻ đã nghỉ chỉ hiện khi chọn
- * "Đã nghỉ" (user chốt 2026-11-11, G94-180/CHD-09 giữ nguyên, chỉ đổi mặc định hiển thị).
- */
 /** Giá trị lọc trạng thái cho trẻ có đăng ký năm học sau (nhãn Sắp nhập học); không phải trạng thái của trẻ. */
 export const PLANNED_ADMISSION_FILTER = 'PLANNED';
 
 /**
+ * Danh sách trẻ theo trạng thái đang lọc: chưa chọn ⇒ chỉ trẻ đang học, chờ xếp lớp; trẻ đã nghỉ chỉ hiện khi chọn
+ * "Đã nghỉ" (user chốt 2026-11-11, G94-180/CHD-09 giữ nguyên, chỉ đổi mặc định hiển thị).
+ *
  * Trẻ theo thẻ thống kê: Chờ xếp lớp không gồm trẻ đã đăng ký năm sau (xếp ở màn Xếp lớp năm học mới), Sắp nhập học gồm trẻ có
  * plannedAdmission (CHD-11).
  */
