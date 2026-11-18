@@ -5,7 +5,8 @@ import { Link, Navigate, useParams } from 'react-router-dom';
 import { ClassFilterBar, FilterSelect, ThemeBranchTabs, themesWithWeeks } from '@/components/education-plan/planUi';
 import { BlockedNotice } from '@/components/education-plan/DeadlineWidgets';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
-import { ChalkboardTeacher, Copy, FileDown, Save, X } from '@/components/ui/icons';
+import { ChalkboardTeacher, Copy, FileDown, ListChecks, Save, X } from '@/components/ui/icons';
+import { ReviewAssistPanel } from '@/components/education-plan/ReviewAssistPanel';
 import { EmptyCard, fmtDate, FoldAllButton, Notice, PageHead } from '@/components/education-plan/eduUi';
 import { VersionHistory } from '@/components/education-plan/VersionHistory';
 import { docLines } from '@/models/education-plan/planHistory.mjs';
@@ -109,6 +110,9 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
   } = useEducationPlan();
   const [confirmRevise, setConfirmRevise] = useState(false);
   const [preview, setPreview] = useState(null);
+  // BE:EDU-96: khung Kiểm tra / Tóm tắt và nháp ghi chú Trả lại gom từ Tóm tắt AI
+  const [assistOpen, setAssistOpen] = useState(false);
+  const [noteDraft, setNoteDraft] = useState('');
   // Mục còn trống BE trả khi gửi hồ sơ chủ đề (FR-007a): [{ date, section }], hiện chữ đỏ tới khi sửa xong
   const [emptyErr, setEmptyErr] = useState([]);
   // MT chưa dạy BE trả khi gửi hồ sơ chủ đề (EDU-80, 7396/7397): [{ goalId, goalNo }]
@@ -318,6 +322,7 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
     if (out) {
       setEmptyErr([]);
       setGoalErr([]);
+      setNoteDraft('');
     }
     return out;
   };
@@ -579,12 +584,23 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
             {/* Lấy / gợi ý của ngày nằm trong card I của ngày (Tiền 18/11/2026) */}
             {/* Trả lại ở trái; Duyệt/Ban hành ở phải, luôn là nút riêng (Tiền 18/11/2026) */}
             {dayPage && reviewTurn && (
-              <ReviewActions name={`hồ sơ chủ đề ${week.theme.name}`} can={{ reject: dossierCan.reject }} onAct={dossierAct} />
+              <ReviewActions
+                name={`hồ sơ chủ đề ${week.theme.name}`}
+                can={{ reject: dossierCan.reject }}
+                onAct={dossierAct}
+                defaultNote={noteDraft}
+              />
             )}
           </div>
           <div className="ga-year-toolbar__group ga-year-toolbar__group--end">
             {dayPage && (
               <>
+                {/* BE:EDU-96: khung Kiểm tra / Tóm tắt (AI) bên phải cho người duyệt và người soạn */}
+                {dossier && (
+                  <Button variant="outline-primary" size="sm" icon={ListChecks} onClick={() => setAssistOpen(true)}>
+                    Kiểm tra
+                  </Button>
+                )}
                 <ActionsMenu items={pageTools} />
                 {reviewTurn && (
                   <ReviewActions
@@ -639,6 +655,18 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
               </Button>
             )}
             {preview && <DocPreviewModal file={preview} onClose={() => setPreview(null)} />}
+            {dayPage && dossier && (
+              <ReviewAssistPanel
+                open={assistOpen}
+                onClose={() => setAssistOpen(false)}
+                dossierKey={dossier.id}
+                dayKey={savedDay?.id}
+                canSummarize={!!savedDay?.id && (reviewTurn || canComposeClassDocs)}
+                canNote={reviewTurn && !!dossierCan.reject}
+                noteDraft={noteDraft}
+                onNoteDraft={setNoteDraft}
+              />
+            )}
           </div>
         </ResponsiveToolbar>
         {dayPage && dayFilter(weekHead)}
@@ -761,6 +789,8 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
             emptySections={emptyNow.filter((e) => e.date === draft.days[day].date).map((e) => e.section)}
             flagOf={(id) => version.unresolved.find((f) => f.goalId === String(id)) || null}
             offLabel={week?.offDays?.[day] || null}
+            aiDocKey={split && savedDay?.id && dayEditable(day) ? savedDay.id : null}
+            unsaved={saver.unsaved}
             assessTo={
               (split ? savedDay?.status : status) === EDU_STATUS.APPROVED
                 ? `/assessment/daily/skills?classId=${classId}&date=${draft.days[day].date}`

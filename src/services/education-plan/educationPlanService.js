@@ -6,6 +6,7 @@ import { classPlanMockRepository } from '@/services/education-plan/mock/classPla
 import { eduConfigMockRepository } from '@/services/education-plan/mock/eduConfigMockRepository';
 import { branchAiMock } from '@/services/education-plan/mock/branchAiMock';
 import { activityAiMock } from '@/services/education-plan/mock/activityAiMock';
+import { reviewAiMock } from '@/services/education-plan/mock/reviewAiMock';
 import { lessonAiMock } from '@/services/education-plan/mock/lessonAiMock';
 import { curriculumMockRepository } from '@/services/education-plan/mock/curriculumMockRepository';
 
@@ -65,8 +66,15 @@ export const suggestBranchNames = (input) =>
 export const suggestLessonSteps = (input) =>
   USE_MOCK ? lessonAiMock.suggestLessonSteps(input) : educationPlanApi.suggestLessonSteps(input);
 export const rewriteBranchName = (input) => (USE_MOCK ? branchAiMock.rewriteBranchName(input) : educationPlanApi.rewriteBranchName(input));
-// AI gợi ý thẻ hoạt động cho MT chưa có hoạt động (EDU-20 mở rộng, Tiền 13/11/2026). BE chưa có API ⇒ luôn dùng bản giả, chưa nối API thật
-export const suggestActivityCards = (input) => activityAiMock.suggestActivityCards(input);
+// AI gợi ý thẻ hoạt động cho MT chưa có hoạt động (BE:EDU-95): BE chỉ trả MT, loại giờ có trong yêu cầu
+export const suggestActivityCards = (input) =>
+  USE_MOCK ? activityAiMock.suggestActivityCards(input) : educationPlanApi.suggestActivityCards(input);
+// BE:EDU-96 — khung Kiểm tra / Tóm tắt cho người duyệt; BE:EDU-95 — Sửa theo yêu cầu
+export const getClassDocChecks = (kind, docKey) =>
+  USE_MOCK ? reviewAiMock.getClassDocChecks(kind, docKey) : educationPlanApi.getClassDocChecks(kind, docKey);
+export const editDayByRequest = (docKey, prompt) =>
+  USE_MOCK ? reviewAiMock.editDayByRequest(docKey, prompt) : educationPlanApi.editDayByRequest(docKey, prompt);
+export const reviewDay = (docKey) => (USE_MOCK ? reviewAiMock.reviewDay(docKey) : educationPlanApi.reviewDay(docKey));
 
 export const saveWorkflowPolicy = (cfg, user) =>
   USE_MOCK ? eduConfigMockRepository.saveWorkflowPolicy(cfg, user) : educationPlanApi.saveWorkflowPolicy(cfg);

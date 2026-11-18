@@ -20,7 +20,7 @@ import { useManualSave } from '@/hooks/education-plan/useManualSave';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import { RenumberButton, SortHandle, SortIndex, SortableList, SortableRow } from '@/components/ui/Sortable';
-import { Button } from '@/components';
+import { Button, TextField } from '@/components';
 
 /**
  * Cấu hình người tạo và người duyệt của từng loại tài liệu (FR-001, FR-002, AC-01).
@@ -687,19 +687,16 @@ export default function EduConfigPage() {
             tiên và chỉ một lần cho mỗi tài liệu. Hết số ngày này, tài liệu chờ Hiệu trưởng mở hạn.
           </p>
           {editing && isPrincipal ? (
-            <label className="row row--middle gap-2">
-              <span>Số ngày được gửi lại</span>
-              <input
-                className="input w-110"
-                type="number"
-                min="0"
-                max="30"
-                step="1"
-                value={draft.lateReturnGraceDays ?? 2}
-                onChange={(e) => set((x) => ((x.lateReturnGraceDays = Math.max(0, Math.min(30, Number(e.target.value) || 0))), x))}
-              />
-              <span>ngày</span>
-            </label>
+            <TextField
+              label="Số ngày được gửi lại (0–30 ngày)"
+              fieldClassName="w-110"
+              type="number"
+              min="0"
+              max="30"
+              step="1"
+              value={draft.lateReturnGraceDays ?? 2}
+              onChange={(e) => set((x) => ((x.lateReturnGraceDays = Math.max(0, Math.min(30, Number(e.target.value) || 0))), x))}
+            />
           ) : (
             <p>
               Số ngày được gửi lại: <strong>{draft.lateReturnGraceDays ?? 2} ngày</strong>

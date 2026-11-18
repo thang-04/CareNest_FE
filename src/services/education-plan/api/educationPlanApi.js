@@ -359,4 +359,12 @@ export const educationPlanApi = {
   suggestBranchNames: (input) => axiosClient.post('/education-plans/ai/branch-names', input),
   rewriteBranchName: (input) => axiosClient.post('/education-plans/ai/branch-names/rewrite', input),
   suggestLessonSteps: (input) => axiosClient.post('/education-plans/ai/lesson-steps', input),
+  // BE:EDU-95 — gợi ý thẻ hoạt động cho MT chưa có hoạt động
+  suggestActivityCards: (input) => axiosClient.post('/education-plans/ai/activities', input),
+  // BE:EDU-96 — tiêu chí gửi duyệt đạt / chưa đạt (khung Kiểm tra)
+  getClassDocChecks: (kind, docKey) => axiosClient.get(`/education-plans/class-docs/${kind}/${docKey}/checks`),
+  // BE:EDU-95 — sửa giáo án ngày theo một câu yêu cầu: trả danh sách ô cũ → mới, không lưu
+  editDayByRequest: (docKey, prompt) => axiosClient.post(`/education-plans/ai/class-docs/day/${docKey}/edit`, { prompt }),
+  // BE:EDU-96 — tóm tắt giáo án ngày cho người duyệt: gợi ý, không lưu
+  reviewDay: (docKey) => axiosClient.post(`/education-plans/ai/class-docs/day/${docKey}/review`),
 };

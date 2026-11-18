@@ -43,6 +43,7 @@ export function ActionsMenu({ items, className = 'btn btn--sm btn--outline-prima
  *   (sendBlocked, không có quyền) thì bấm vẫn được nhưng chỉ hiện thông báo lý do, không mờ nút.
  * - menu (Tiền 14/11/2026): gom gửi duyệt vào một nút "Thao tác" mở danh sách; menu.before/after là các mục khác của
  *   trang (dạng mục RowMenu) đứng trước/sau theo trình tự thao tác. Trả lại / Duyệt luôn là nút riêng (Tiền 18/11/2026).
+ * - defaultNote: nháp ghi chú điền sẵn khi mở hộp Trả lại (gom từ khung Tóm tắt AI, BE:EDU-96).
  */
 export function ReviewActions({
   name,
@@ -61,6 +62,7 @@ export function ReviewActions({
   unsaved = false,
   onSave,
   menu = null,
+  defaultNote = '',
 }) {
   const [action, setAction] = useState(null);
   const [blocked, setBlocked] = useState(null);
@@ -82,7 +84,7 @@ export function ReviewActions({
       });
       return;
     }
-    setNote('');
+    setNote(next === 'reject' ? defaultNote : '');
     setTried(false);
     setActError('');
     setAction(next);

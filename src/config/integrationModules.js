@@ -102,9 +102,6 @@ export const INTEGRATION_MODULES = {
       'DELETE /education-plans/themes/{x}',
       'PUT /education-plans/lessons/{x}',
       'DELETE /education-plans/lessons/{x}',
-      'POST /education-plans/ai/branch-names',
-      'POST /education-plans/ai/branch-names/rewrite',
-      'POST /education-plans/ai/lesson-steps',
     ],
   },
   'master-data': {
