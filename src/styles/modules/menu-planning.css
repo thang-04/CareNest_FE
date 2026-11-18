@@ -2455,6 +2455,77 @@
 .td-affix.is-invalid {
   border-color: var(--color-danger);
 }
+.td-affix.is-disabled {
+  background: var(--color-surface-muted);
+}
+.td-affix.is-disabled .input {
+  color: var(--color-text-muted);
+}
+.td-affix__prefix {
+  padding: 0 var(--space-3);
+  border-right: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  font-size: var(--fs-sm);
+  white-space: nowrap;
+}
+/* Quy đổi đơn vị: hai dòng "1 mua = … kho", "1 kho = … g"; nhãn dài chỉ để trình đọc màn hình */
+.td-food-conv {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-muted);
+}
+.td-food-conv > legend {
+  float: left;
+  padding: 0;
+}
+.td-food-conv__row > .field__label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.td-food-conv__lock {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin: 0;
+  color: var(--color-warning-fg);
+}
+/* Vi chất hiện sẵn thành badge theo nhóm */
+.td-food-micro {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-muted);
+}
+.td-food-micro__grp {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.td-food-micro__lbl {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 9rem;
+  color: var(--color-text-secondary);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+}
+.td-food-micro__miss {
+  border: 1px dashed var(--color-border-dashed);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+}
 
 /* ---------- Kế hoạch tuần: dải 5 ngày, khối thu gọn ---------- */
 .td-days {
