@@ -272,3 +272,8 @@ Xem plan BE (mục "Làm rõ nghiệp vụ"). FE bị ảnh hưởng: `/children
 - Verify: `npm run verify` → 9 bộ test `# fail 0` (kitchen 169, hardening 124, children 146 pass) · `All matched files use Prettier code style!` · `check-design: ok` · `check-api-contract (FE): 0 lỗi, 2 cảnh báo` · `✓ built in 1.61s`
 - Khác plan: mỗi task tách commit nhỏ theo yêu cầu user. API điểm danh thật đã giữ nguyên `child.mealRegistered` (spread `...child`), không phải sửa. Dự trù tuần bỏ bản ghi điểm danh của trẻ không báo ăn khỏi đếm vắng để không trừ 2 lần; chợ ngày dùng chung `forecastEnv` nên cũng đúng.
 - Tiếp: review toàn nhánh Web, sửa 1 lượt nếu cần, rồi dừng chờ user.
+
+### 2026-11-18 — Review toàn nhánh và sửa (chờ user)
+- Review toàn nhánh: "Yes" — chỉ merge cùng hoặc sau nhánh BE (BE cũ bỏ qua `declaration.mealRegistered`). Không có lỗi nghiêm trọng/quan trọng; 6 lỗi nhỏ + 3 mục nên sửa đã sửa: dị ứng ở lên thực đơn (menu-planning) và trang chủ giáo viên (BE giả) bỏ trẻ không báo ăn; dữ liệu mẫu điểm danh không cho suất trẻ không báo ăn; ghi chú dòng khi nhập Excel bỏ qua cột Dị ứng/Chế độ ăn; câu hướng dẫn nhập Excel; spec tích hợp; thứ tự và tiêu đề nhóm tiền sử; `aria-describedby` cho dòng gợi ý; test trẻ có sẵn đọc ra báo ăn.
+- Commit sửa: `96ce976e`, `5b7cf42c`, `f79ec96f`, `eaffd60f`, `237a6c9c`, `b4527988`; review lại phần sửa: đạt, không lỗi mới.
+- Chờ user: push, PR (merge sau BE); App giáo viên chưa làm.
