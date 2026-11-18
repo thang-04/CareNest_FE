@@ -1,11 +1,14 @@
 import { forwardRef } from 'react';
 import { PrintHeader } from '@/components/print/PrintHeader';
+import { PrintSignRow } from '@/components/print/PrintSignRow';
 import { fmtQty } from '@/components/kitchen/KitchenFilters';
 import { DishLines, groupCell } from '@/components/kitchen/DayMarketBlocks';
 import { formatDate } from '@/utils/format';
 
 const num = (n) => (n == null ? '' : Math.round(n).toLocaleString('vi-VN'));
 const qty = (n) => (n ? fmtQty(n) : '');
+// Ba ô ký tay sau khi in; người kiểm tra (cột phải) là người ký chính, có dòng nơi, ngày ký
+const SIGNERS = [{ title: 'Người đi chợ' }, { title: 'Người giám sát' }, { title: 'Người kiểm tra' }];
 
 /** Bảng đi chợ một ngày, A4 ngang (mẫu `.print-sheet`): thực phẩm, thu–chi, thực đơn theo bữa, ba ô ký tay. */
 export const DayMarketPrint = forwardRef(function DayMarketPrint({ data }, ref) {
@@ -111,18 +114,7 @@ export const DayMarketPrint = forwardRef(function DayMarketPrint({ data }, ref) 
           </tbody>
         </table>
       )}
-      <table className="ps-table ps-sign kb-print-sign">
-        <tbody>
-          <tr>
-            {['Người đi chợ', 'Người giám sát', 'Người kiểm tra'].map((t) => (
-              <td key={t}>
-                <div className="ps-sign__title">{t}</div>
-                <div className="ps-sign__role">(Ký, ghi rõ họ tên)</div>
-              </td>
-            ))}
-          </tr>
-        </tbody>
-      </table>
+      <PrintSignRow signers={SIGNERS} />
     </div>
   );
 });

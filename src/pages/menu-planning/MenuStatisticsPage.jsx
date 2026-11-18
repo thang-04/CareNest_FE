@@ -9,13 +9,14 @@ import {
   LoadingState,
   Modal,
   PrintPaperFit,
+  PrintSignerFields,
   PrintToolbar,
   SelectField,
   TextField,
 } from '@/components';
 import { Download, Printer } from '@/components/ui/icons';
 import { exportWithPreview } from '@/components/ui/ExportPreview';
-import { MenuStatisticsPrint } from '@/components/menu-planning/MenuStatisticsPrint';
+import { MENU_STAT_SIGNERS, MenuStatisticsPrint } from '@/components/menu-planning/MenuStatisticsPrint';
 import { FormField } from '@/components/form/FormField';
 import { CampusFilter } from '@/components/ui/CampusFilter';
 import { StatCard } from '@/components/ui/StatCard';
@@ -73,6 +74,7 @@ export default function MenuStatisticsPage() {
   const [campusId, setCampusId] = useState('');
   const [children, setChildren] = useState('');
   const [printing, setPrinting] = useState(false);
+  const [signers, setSigners] = useState(MENU_STAT_SIGNERS);
   const sheetRef = useRef(null);
   useEffect(() => {
     if (options.length && !options.some((o) => o.id === ageGroupId)) setAgeGroupId(options[0].id);
@@ -261,10 +263,11 @@ export default function MenuStatisticsPage() {
             size="xl"
             className="print-modal"
             title={PAGE_TITLE}
-            footer={<PrintToolbar sheetRef={sheetRef} fileBase={fileBase} onCsv={exportExcel} printLabel="In phiếu" />}
+            footer={<PrintToolbar sheetRef={sheetRef} fileBase={fileBase} onClose={() => setPrinting(false)} onCsv={exportExcel} />}
           >
+            <PrintSignerFields signers={signers} onChange={setSigners} />
             <PrintPaperFit>
-              <MenuStatisticsPrint ref={sheetRef} stats={stats} title={title} />
+              <MenuStatisticsPrint ref={sheetRef} stats={stats} title={title} signers={signers} />
             </PrintPaperFit>
           </Modal>
         </>

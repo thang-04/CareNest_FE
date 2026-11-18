@@ -293,7 +293,11 @@ export default function FoodSampleLogPage() {
           className="print-modal"
           title={printing === 'label' ? 'Nhãn mẫu thức ăn lưu (Mẫu 4)' : 'Sổ lưu và hủy mẫu (Mẫu 5)'}
           footer={
-            <PrintToolbar sheetRef={sheetRef} fileBase={`${printing === 'label' ? 'Nhan_mau_4' : 'So_mau_5'}_${date}`} printLabel="In" />
+            <PrintToolbar
+              sheetRef={sheetRef}
+              fileBase={`${printing === 'label' ? 'Nhan_mau_4' : 'So_mau_5'}_${date}`}
+              onClose={() => setPrinting(null)}
+            />
           }
         >
           <PrintPaperFit>

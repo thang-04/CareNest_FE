@@ -197,7 +197,7 @@ export default function FoodSampleQueuePage() {
         size="xl"
         className="print-modal"
         title="Sổ lưu và hủy mẫu thức ăn"
-        footer={<PrintToolbar sheetRef={sheetRef} fileBase={`So_luu_mau_${from}_${to}`} printLabel="In" />}
+        footer={<PrintToolbar sheetRef={sheetRef} fileBase={`So_luu_mau_${from}_${to}`} onClose={() => setPrinting(false)} />}
       >
         <PrintPaperFit>
           <FoodSampleFormPrint ref={sheetRef} samples={printable} campusName={printCampus} from={from} to={to} />

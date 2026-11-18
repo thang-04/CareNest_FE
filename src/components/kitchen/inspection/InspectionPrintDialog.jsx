@@ -29,7 +29,7 @@ export function InspectionPrintDialog({ tab, date, campusName, data, sampleData,
       className="kb-print-modal"
       title={`In / xuất · ${INSPECTION_TAB_LABELS[tab]}`}
       onClose={onClose}
-      footer={<PrintToolbar sheetRef={sheetRef} fileBase={excel.fileBase} printLabel="In" orientation="landscape" onCsv={exportExcel} />}
+      footer={<PrintToolbar sheetRef={sheetRef} fileBase={excel.fileBase} onClose={onClose} orientation="landscape" onCsv={exportExcel} />}
     >
       {variants.length > 1 && (
         <Tabs ariaLabel="Bản in" value={variant} onChange={setVariant} items={variants.map((v) => ({ key: v.key, label: v.label }))} />
