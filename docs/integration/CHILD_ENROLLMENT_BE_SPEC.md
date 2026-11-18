@@ -61,6 +61,7 @@ Tên bảng/cột là đề xuất; giữ nguyên ý nghĩa nếu BE đặt tên
 | `enrolled_on` | DATE | Ngày tiếp nhận | — |
 | `left_on`, `left_reason` | DATE, VARCHAR(300), NULL | Ngày, lý do nghỉ học | CHD-03 |
 | `readmitted_on` | DATE NULL | Ngày mở lại hồ sơ | CHD-03 |
+| `meal_registered` | BOOLEAN NOT NULL DEFAULT TRUE | `FALSE` = trẻ không ăn ở trường; thiếu = báo ăn (mục 3.6, 4.5) | CHD-13 |
 
 FE đọc `campusId` của trẻ = điểm trường hiện tại (theo lớp nếu có lớp, không thì `intake_campus_id`).
 
@@ -156,7 +157,8 @@ Kiểu dữ liệu dùng lại:
 **`POST /children/enrollments/import/preview`** multipart `file` (mới; BE giả `previewImport`, `enrollmentImport.js`)
 - Nhận `.xlsx` (BE đọc) và `.csv`; cột theo mẫu `IMPORT_COLUMNS` (`src/models/children/childrenConstants.js`, mỗi dòng 1 trẻ + tối đa 3 phụ huynh, nhóm 2/3 tùy chọn; có cột CCCD phụ huynh nhận tài khoản tùy chọn; cột bắt buộc có "Số CCCD phụ huynh", hành chính, tiền sử, tiếp xúc lao); ngày `dd/mm/yyyy`; "Không" = không có, để trống = chưa cung cấp. Cột quan hệ nhận 6 giá trị, so không dấu, không phân biệt hoa thường, bỏ khoảng trắng/dấu "/" ("anh chị" = "Anh/chị"); giá trị khác báo lỗi ở dòng đó (D-5a B; BE giả `toRelation`). Tối đa 500 dòng.
 - Thiếu cột / không có dòng / quá 500 dòng / sai loại file ⇒ 422 `file`.
-- Trả `{ supported, fileName, rows: [{ rowNo, raw, payload: { child, declaration }, errors: [string], selectionError: string | null, notes: [string] }] }`. `errors`: lỗi như tiếp nhận + trùng hồ sơ (CHD-04) + trùng dòng khác trong file + CCCD/SĐT lệch dòng trước trong file. `notes`: phụ huynh trùng CCCD tài khoản (dùng thông tin tài khoản, liên kết khi kích hoạt sau khi nhập); trẻ trùng hồ sơ đã nghỉ (nên mở lại hồ sơ cũ).
+- Trả `{ supported, fileName, rows: [{ rowNo, raw, payload: { child, declaration }, errors: [string], selectionError: string | null, notes: [string] }] }`. `errors`: lỗi như tiếp nhận + trùng hồ sơ (CHD-04) + trùng dòng khác trong file + CCCD/SĐT lệch dòng trước trong file. `notes`: phụ huynh trùng CCCD tài khoản (dùng thông tin tài khoản, liên kết khi kích hoạt sau khi nhập); trẻ trùng hồ sơ đã nghỉ (nên mở lại hồ sơ cũ); dòng Báo ăn = Không mà ô Dị ứng hoặc Chế độ ăn có chữ ⇒ `Không báo ăn: bỏ qua cột Dị ứng, Chế độ ăn`.
+- Cột Báo ăn (CHD-13, key `mealRegistered`, trước cột Dị ứng, không bắt buộc): `Có` / `Không` không phân biệt hoa thường, để trống = Có. `Không` ⇒ bỏ qua ô Dị ứng, Chế độ ăn (lưu Chưa cung cấp) và thêm ghi chú trên; chữ khác ⇒ lỗi dòng `Báo ăn ghi Có hoặc Không` ở `declaration.mealRegistered`.
 
 **`POST /children/enrollments/import`** body `{ rows: [{ child, declaration }], campusId }` (mới; BE giả `importChildren`)
 - `campusId` như tiếp nhận không có lớp. Kiểm lại mọi dòng; một dòng lỗi ⇒ 422 `file`, không nhập dòng nào.
@@ -179,7 +181,7 @@ Kiểu dữ liệu dùng lại:
 ### 4.5 Khai báo sức khỏe — `PUT /children/{id}/health-declaration` (mới; BE giả `saveDeclaration`)
 - Body `{ declaration: Declaration, reason }`; `reason` bắt buộc khi đã có khai báo; lỗi 422 theo ô (không tiền tố `declaration.`).
 - Ghi lịch sử kèm `allergyChange` / `historyChange`; dị ứng mới có hiệu lực ngay cho bếp, điểm danh.
-- `declaration.mealRegistered` cập nhật cờ trên trẻ (CHD-13): `false` ⇒ giữ nguyên dị ứng, chế độ ăn đang lưu (và `allergies[]` của trẻ), chỉ đổi cờ; `true` ⇒ lưu dị ứng, chế độ ăn như thường.
+- `declaration.mealRegistered` cập nhật cờ trên trẻ (CHD-13): `false` ⇒ giữ nguyên dị ứng, chế độ ăn đang lưu (và `allergies[]` của trẻ), chỉ đổi cờ; `true` ⇒ lưu dị ứng, chế độ ăn như thường. Trẻ chưa có khai báo lưu mà `mealRegistered=false` ⇒ BE dùng giá trị trên form.
 - Thông báo: chuyển sang Có tiếp xúc lao ⇒ `CHILD_TB_CONTACT`; đã có ngày mà đổi ngày ⇒ `CHILD_TB_CONTACT_DATE_CHANGED`; lưu lại không đổi thì không báo.
 - Trả khai báo đã lưu.
 
