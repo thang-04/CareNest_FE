@@ -26,6 +26,7 @@ const GUIDE_DETAILS = [
   'Có thể nhập thêm phụ huynh 2, 3. Chọn một người nhận tài khoản ở cột CCCD phụ huynh nhận tài khoản hoặc ở bản xem trước.',
   'Số CCCD phụ huynh trùng tài khoản có sẵn: hệ thống dùng họ tên, số điện thoại, email của tài khoản và liên kết người được chọn với trẻ khi kích hoạt.',
   'Trẻ có tiếp xúc với người bệnh lao phải ghi ngày tiếp xúc gần nhất (dd/mm/yyyy). Hệ thống báo Hiệu trưởng và Phó hiệu trưởng điểm trường khi nhập.',
+  'Cột Báo ăn: Có hoặc để trống là trẻ ăn ở trường; Không thì bỏ qua cột Dị ứng, Chế độ ăn.',
   'File mẫu cũ thiếu cột (vd. "Số CCCD phụ huynh") thì tải lại file mẫu.',
 ];
 

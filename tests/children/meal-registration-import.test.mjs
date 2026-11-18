@@ -89,3 +89,17 @@ test('file mẫu: dòng mẫu đủ số cột và ô Báo ăn là Có', () => {
   assert.equal(sample[IMPORT_COLUMNS.findIndex((c) => c.key === 'mealRegistered')], 'Có');
   assert.equal(sample[IMPORT_COLUMNS.findIndex((c) => c.key === 'allergies')], 'Không', 'ô sau cột mới không bị lệch');
 });
+
+test('xem trước: Báo ăn = Không mà ô Dị ứng, Chế độ ăn có chữ thì dòng có ghi chú bỏ qua', async () => {
+  const vp = await vpC1();
+  const csv = csvOf([
+    importRow(1, { mealRegistered: 'Không', allergies: 'Trứng' }),
+    importRow(2, { mealRegistered: 'Không', allergies: '', diet: '' }),
+    importRow(3, { mealRegistered: 'Có', allergies: 'Trứng' }),
+  ]);
+  const { rows } = await children.previewImport({ name: 'bao-an.csv', text: async () => csv }, vp);
+  const NOTE = 'Không báo ăn: bỏ qua cột Dị ứng, Chế độ ăn';
+  assert.ok(rows[0].notes.includes(NOTE));
+  assert.ok(!rows[1].notes.includes(NOTE), 'ô trống thì không có gì để bỏ qua');
+  assert.ok(!rows[2].notes.includes(NOTE));
+});

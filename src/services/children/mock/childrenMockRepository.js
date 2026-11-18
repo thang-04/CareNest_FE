@@ -1161,6 +1161,9 @@ export const childrenMockRepository = {
       const left = dup ? null : sameChildOf(db, r.payload.child, { left: true });
       if (left)
         notes.push(`Trẻ từng học ở trường (hồ sơ cũ ${left.code}, đã nghỉ học): nên mở lại hồ sơ cũ ở Tiếp nhận trẻ thay vì nhập mới.`);
+      // CHD-13: giống BE, báo cho người nhập biết ô Dị ứng, Chế độ ăn đã bị bỏ qua.
+      if (r.payload.declaration?.mealRegistered === false && (r.raw?.allergies || r.raw?.diet))
+        notes.push('Không báo ăn: bỏ qua cột Dị ứng, Chế độ ăn');
       const duplicateRow = batchDuplicateOf(seen, r.payload.child);
       if (duplicateRow) messages.push(`Trùng với dòng ${duplicateRow.rowNo} trong file`);
       seen.push({ child: r.payload.child, rowNo: r.rowNo });
