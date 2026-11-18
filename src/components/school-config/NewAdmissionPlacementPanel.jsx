@@ -11,8 +11,11 @@ import { formatDate } from '@/utils/format';
 
 const initialRows = (admissions) => Object.fromEntries(admissions.map((item) => [item.admissionId, item.targetClassId || '']));
 
-/** Trẻ mới đã tiếp nhận cho năm sắp diễn ra: xếp vào lớp năm mới hoặc để chờ xếp. */
-export function NewAdmissionPlacementPanel({ yearId, admissions, targets, campusName, editable, onDirty, onSaved }) {
+/**
+ * Trẻ mới đã tiếp nhận cho năm sắp diễn ra: xếp vào lớp năm mới hoặc để chờ xếp.
+ * Nhóm tuổi do BE tính tại ngày bắt đầu năm mới (ageGroupId; null = không khớp nhóm nào); danh sách gom theo nhóm tuổi.
+ */
+export function NewAdmissionPlacementPanel({ yearId, admissions, targets, ageGroups, campusName, groupName, editable, onDirty, onSaved }) {
   const { user } = useAuth();
   const toast = useToast();
   const saved = useMemo(() => initialRows(admissions), [admissions]);
@@ -36,8 +39,28 @@ export function NewAdmissionPlacementPanel({ yearId, admissions, targets, campus
   }, [admissions, rows, targets]);
   const over = targets.filter((item) => seats[item.id] > item.capacity);
 
+  // Chỉ lớp đúng nhóm tuổi và đúng điểm trường đăng ký của trẻ (BE vẫn chặn: 2415, 2416, 2408)
   const optionsFor = (item) =>
-    targets.filter((target) => String(target.campusId) === String(item.campusId)).sort((a, b) => a.name.localeCompare(b.name, 'vi'));
+    item.ageGroupId
+      ? targets
+          .filter((target) => String(target.campusId) === String(item.campusId) && String(target.ageGroupId) === String(item.ageGroupId))
+          .sort((a, b) => a.name.localeCompare(b.name, 'vi'))
+      : [];
+  const sections = useMemo(() => {
+    const order = (id) => {
+      const i = ageGroups.findIndex((g) => String(g.id) === String(id));
+      return i < 0 ? ageGroups.length : i;
+    };
+    const map = new Map();
+    [...admissions]
+      .sort((a, b) => order(a.ageGroupId) - order(b.ageGroupId) || a.fullName.localeCompare(b.fullName, 'vi'))
+      .forEach((item) => {
+        const key = item.ageGroupId ? String(item.ageGroupId) : '';
+        if (!map.has(key)) map.set(key, []);
+        map.get(key).push(item);
+      });
+    return [...map.entries()].map(([id, list]) => ({ id, list }));
+  }, [admissions, ageGroups]);
 
   const submit = async () => {
     if (!dirty || over.length) return;
@@ -72,6 +95,16 @@ export function NewAdmissionPlacementPanel({ yearId, admissions, targets, campus
         </>
       ),
     },
+    {
+      key: 'ageGroup',
+      header: 'Nhóm tuổi',
+      render: (item) =>
+        item.ageGroupId ? (
+          groupName(item.ageGroupId)
+        ) : (
+          <span className="field-error">Không khớp nhóm tuổi nào tại ngày bắt đầu năm học</span>
+        ),
+    },
     { key: 'campus', header: 'Điểm trường', render: (item) => campusName(item.campusId) },
     { key: 'startDate', header: 'Ngày bắt đầu', className: 'nowrap', render: (item) => formatDate(item.startDate) },
     {
@@ -85,7 +118,7 @@ export function NewAdmissionPlacementPanel({ yearId, admissions, targets, campus
             <SelectField
               aria-label={`Lớp năm học mới của ${item.fullName}`}
               value={value}
-              disabled={!editable}
+              disabled={!editable || !item.ageGroupId}
               placeholder="Chờ xếp lớp"
               onChange={(event) => {
                 setRows((current) => ({ ...current, [item.admissionId]: event.target.value }));
@@ -98,7 +131,7 @@ export function NewAdmissionPlacementPanel({ yearId, admissions, targets, campus
                   value={target.id}
                   disabled={String(target.id) !== String(value) && seats[target.id] >= target.capacity}
                 >
-                  {target.name} · {seats[target.id]}/{target.capacity}
+                  {target.name} · {campusName(target.campusId)} · {seats[target.id]}/{target.capacity}
                 </option>
               ))}
             </SelectField>
@@ -110,7 +143,7 @@ export function NewAdmissionPlacementPanel({ yearId, admissions, targets, campus
   ];
 
   return (
-    <section className="card card__body mb-16" aria-labelledby="new-admission-title">
+    <section className="card card__body sc-plc-new" aria-labelledby="new-admission-title">
       <div className="page__head mb-12">
         <div>
           <h2 id="new-admission-title" className="section-title">
@@ -140,7 +173,24 @@ export function NewAdmissionPlacementPanel({ yearId, admissions, targets, campus
         <EmptyState icon={Users} title="Chưa có trẻ mới tiếp nhận cho năm học này" />
       ) : (
         <>
-          <DataTable columns={columns} rows={admissions} rowKey="admissionId" className="table--compact" />
+          <div className="sc-plc-new__body">
+            {sections.map((section) => (
+              <div
+                key={section.id || 'none'}
+                className="sc-plc-new__group"
+                role="group"
+                aria-label={`Nhóm ${section.id ? groupName(section.id) : 'chưa khớp'}`}
+              >
+                <h3 className="sc-plc__group-name">
+                  {section.id ? groupName(section.id) : 'Chưa khớp nhóm tuổi'}{' '}
+                  <span className="muted text-xs">
+                    {section.list.length} trẻ · chưa xếp {section.list.filter((item) => !rows[item.admissionId]).length}
+                  </span>
+                </h3>
+                <DataTable columns={columns} rows={section.list} rowKey="admissionId" className="table--compact" />
+              </div>
+            ))}
+          </div>
           {editable && (
             <div className="form-actions mt-12">
               <Button disabled={!dirty || saving} onClick={() => setRows(saved)}>

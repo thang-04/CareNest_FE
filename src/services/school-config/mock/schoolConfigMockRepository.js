@@ -231,6 +231,15 @@ const nextGroupId = (db, groupId) => {
   const i = list.findIndex((g) => g.id === groupId);
   return i >= 0 && i < list.length - 1 ? list[i + 1].id : null;
 };
+/** Nhóm tuổi của trẻ tại ngày bắt đầu năm học mới (như BE YearTransitionServiceImpl.ageGroupOf); không khớp ⇒ null. */
+const admissionAgeGroup = (db, child, yearStart) => {
+  const birth = child?.dateOfBirth || child?.birthDate;
+  if (!birth || !yearStart) return null;
+  const [by, bm, bd] = birth.split('-').map(Number);
+  const [sy, sm, sd] = yearStart.split('-').map(Number);
+  const months = (sy - by) * 12 + (sm - bm) - (sd < bd ? 1 : 0);
+  return groupsByAge(db).find((g) => g.ageFromMonths != null && months >= g.ageFromMonths && months < g.ageToMonths)?.id || null;
+};
 /** Trẻ được xếp từ năm đang hoạt động sang năm sắp diễn ra. */
 const placementSource = (db, target) => {
   const active = activeYearOf(db);
@@ -685,6 +694,7 @@ export const schoolConfigMockRepository = {
             campusId: item.campusId,
             targetClassId: item.classId || null,
             startDate: item.startDate,
+            ageGroupId: admissionAgeGroup(db, child, target.startDate),
           };
         }),
     };
@@ -729,8 +739,13 @@ export const schoolConfigMockRepository = {
           return (errors[`admission.${item.admissionId}`] = 'Trẻ thuộc điểm trường bạn không được giao xếp lớp');
         if (item.toClassId) {
           const to = db.classes.find((candidate) => candidate.id === item.toClassId && candidate.schoolYear === target.id);
+          const child = db.children.find((candidate) => candidate.id === admission.childId);
           if (!to || to.campusId !== admission.campusId)
-            return (errors[`admission.${item.admissionId}`] = 'Chọn lớp năm học mới cùng điểm trường tiếp nhận');
+            return (errors[`admission.${item.admissionId}`] =
+              `Lớp ${to?.name || ''} không thuộc điểm trường đăng ký của ${child?.fullName || 'trẻ'}`);
+          // BE 2416: lớp phải đúng nhóm tuổi của trẻ tại ngày bắt đầu năm học mới
+          if (to.ageGroupId !== admissionAgeGroup(db, child, target.startDate))
+            return (errors[`admission.${item.admissionId}`] = `${child?.fullName || 'Trẻ'} không thuộc nhóm tuổi của ${to.name}`);
         }
         return null;
       });
