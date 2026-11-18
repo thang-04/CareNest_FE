@@ -41,7 +41,7 @@ export default function CampusListPage() {
   };
   const confirmDelete = async () => {
     try {
-      await deleteCampus(removing.id, user);
+      await deleteCampus(removing.id, user, schoolYear);
       toast.success(`Đã xóa ${removing.shortName}`);
       closeAction();
       reload({ silent: true });
@@ -242,8 +242,8 @@ export default function CampusListPage() {
         message={
           removing && (
             <>
-              <b>{removing.shortName}</b> còn {removing.deleteBlockedReason}. Chỉ xóa được điểm trường chưa có dữ liệu. Nếu không dùng nữa,
-              chọn <b>Ngừng hoạt động</b>.
+              <b>{removing.shortName}</b> còn {removing.deleteBlockedReason}. Chỉ xóa được điểm trường chưa có dữ liệu ở năm học này. Nếu
+              không dùng nữa, chọn <b>Ngừng hoạt động</b>.
             </>
           )
         }
@@ -257,8 +257,8 @@ export default function CampusListPage() {
         message={
           removing && (
             <>
-              Xóa hẳn <b>{removing.shortName}</b> ({removing.code})? Điểm trường chưa có lớp, phòng, trẻ hay nhân sự nên xóa không mất dữ
-              liệu. Không hoàn tác được.
+              Xóa <b>{removing.shortName}</b> ({removing.code}) khỏi năm học đang chọn? Năm học khác không đổi; điểm trường không còn ở năm
+              nào thì bị xóa hẳn (chỉ khi chưa có dữ liệu).
             </>
           )
         }
