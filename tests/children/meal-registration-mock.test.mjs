@@ -10,7 +10,7 @@ globalThis.localStorage = {
 };
 globalThis.window = new EventTarget();
 
-const { resetDb } = await import('@/mocks/mockDatabase');
+const { readDb, resetDb, writeDb } = await import('@/mocks/mockDatabase');
 const { childrenMockRepository: children, ensureChildRecordsSeeded } = await import('@/services/children/mock/childrenMockRepository');
 const { emptyChildInfo, emptyDeclaration } = await import('@/utils/children/childrenHelpers');
 const { filledMedicalHistory, filledProfile } = await import('./profileFixture.mjs');
@@ -65,10 +65,19 @@ test('tiếp nhận không báo ăn: hồ sơ ghi cờ, dị ứng Chưa cung c�
   assert.deepEqual(child.allergies, []);
 });
 
-test('thiếu cờ ⇒ báo ăn; trẻ có sẵn đọc ra báo ăn', async () => {
+test('thiếu cờ khi tiếp nhận ⇒ báo ăn', async () => {
   const { mealRegistered: _flag, ...withoutFlag } = decl();
   const saved = await children.enrollChild({ ...row(), declaration: withoutFlag }, VP);
   assert.equal((await children.getChildDetail(saved.id, VP)).child.mealRegistered, true);
+});
+
+test('trẻ có sẵn trong mock (hoặc localStorage cũ, chưa có cờ) đọc ra báo ăn', async () => {
+  const seeded = readDb().children.find((ch) => ch.campusId === VP.campusId && ch.status === 'ACTIVE');
+  writeDb((db) => {
+    delete db.children.find((ch) => ch.id === seeded.id).mealRegistered;
+  });
+  const { child } = await children.getChildDetail(seeded.id, VP);
+  assert.equal(child.mealRegistered, true);
 });
 
 test('bỏ báo ăn giữ dị ứng, báo ăn lại vẫn còn', async () => {
