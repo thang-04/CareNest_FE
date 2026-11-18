@@ -480,6 +480,26 @@ const linkAccounts = (db, record, guardians) =>
     record.guardians[i].accountStatus = acc.status;
   });
 
+/** Đăng ký năm học sau còn mở (PENDING / PLACED); CANCELLED, COMPLETED không tính (BE CHD-11). */
+const openAdmissionOf = (db, childId) =>
+  (db.plannedAdmissions || []).find((a) => a.childId === childId && (a.status === 'PENDING' || a.status === 'PLACED')) || null;
+
+/** plannedAdmission như BE trả ở hồ sơ và danh sách: null khi trẻ không có đăng ký mở. */
+const plannedAdmissionOf = (db, childId) => {
+  const adm = openAdmissionOf(db, childId);
+  if (!adm) return null;
+  const cls = adm.classId ? db.classes.find((c) => c.id === adm.classId) : null;
+  return {
+    schoolYearId: adm.schoolYearId,
+    schoolYearName: schoolYearOf(db, adm.schoolYearId)?.name || adm.schoolYearId,
+    campusId: adm.campusId,
+    classId: adm.classId || null,
+    className: cls?.name || null,
+    startDate: adm.startDate,
+    status: adm.status,
+  };
+};
+
 /** Child as returned to the UI: account internals only for Principal / VP. */
 const toView = (db, child, user) => {
   const cls = classOf(db, child);
@@ -487,6 +507,8 @@ const toView = (db, child, user) => {
   const showAccounts = canViewParentAccounts(user);
   return {
     ...clone(child),
+    // CHD-11: đăng ký năm học sau (BE trả plannedAdmission, null khi không có).
+    plannedAdmission: plannedAdmissionOf(db, child.id),
     // CHD-13: BE luôn trả boolean, trẻ chưa có cờ đọc là báo ăn.
     mealRegistered: child.mealRegistered !== false,
     profile: child.profile ? clone(child.profile) : emptyChildProfile(),
