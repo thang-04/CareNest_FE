@@ -87,6 +87,7 @@ export function NewAdmissionPlacementPanel({ yearId, admissions, targets, ageGro
   const columns = [
     {
       key: 'child',
+      className: 'sc-plc-new__c-child',
       header: 'Trẻ',
       render: (item) => (
         <>
@@ -97,18 +98,20 @@ export function NewAdmissionPlacementPanel({ yearId, admissions, targets, ageGro
     },
     {
       key: 'ageGroup',
+      className: 'sc-plc-new__c-group',
       header: 'Nhóm tuổi',
       render: (item) =>
         item.ageGroupId ? (
           groupName(item.ageGroupId)
         ) : (
-          <span className="field-error">Không khớp nhóm tuổi nào tại ngày bắt đầu năm học</span>
+          <span className="text-danger">Không khớp nhóm tuổi nào tại ngày bắt đầu năm học</span>
         ),
     },
-    { key: 'campus', header: 'Điểm trường', render: (item) => campusName(item.campusId) },
-    { key: 'startDate', header: 'Ngày bắt đầu', className: 'nowrap', render: (item) => formatDate(item.startDate) },
+    { key: 'campus', header: 'Điểm trường', className: 'sc-plc-new__c-campus', render: (item) => campusName(item.campusId) },
+    { key: 'startDate', header: 'Ngày bắt đầu', className: 'nowrap sc-plc-new__c-date', render: (item) => formatDate(item.startDate) },
     {
       key: 'classroom',
+      className: 'sc-plc-new__c-class',
       header: 'Lớp năm học mới',
       render: (item) => {
         const value = rows[item.admissionId] || '';
@@ -135,7 +138,7 @@ export function NewAdmissionPlacementPanel({ yearId, admissions, targets, ageGro
                 </option>
               ))}
             </SelectField>
-            {selected && seats[selected.id] > selected.capacity && <div className="field-error">Lớp đã vượt sĩ số tối đa</div>}
+            {selected && seats[selected.id] > selected.capacity && <div className="field__error">Lớp đã vượt sĩ số tối đa</div>}
           </>
         );
       },
@@ -187,7 +190,7 @@ export function NewAdmissionPlacementPanel({ yearId, admissions, targets, ageGro
                     {section.list.length} trẻ · chưa xếp {section.list.filter((item) => !rows[item.admissionId]).length}
                   </span>
                 </h3>
-                <DataTable columns={columns} rows={section.list} rowKey="admissionId" className="table--compact" />
+                <DataTable columns={columns} rows={section.list} rowKey="admissionId" className="table--compact sc-plc-new__table" />
               </div>
             ))}
           </div>

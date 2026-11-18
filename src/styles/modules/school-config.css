@@ -866,6 +866,25 @@
 .sc-plc-new__group .sc-plc__group-name {
   margin: 0 0 var(--space-2);
 }
+/* Mỗi nhóm tuổi một bảng: cùng tỉ lệ cột để các bảng thẳng hàng */
+.sc-plc-new__table {
+  table-layout: fixed;
+  width: 100%;
+}
+.sc-plc-new__c-child {
+  width: 24%;
+}
+.sc-plc-new__c-group,
+.sc-plc-new__c-campus,
+.sc-plc-new__c-date {
+  width: 16%;
+}
+.sc-plc-new__c-class {
+  width: 28%;
+}
+.sc-plc-new__group td {
+  overflow-wrap: anywhere;
+}
 .sc-plc__toolbar .select,
 .sc-plc__bulk .select {
   width: auto;
