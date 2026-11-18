@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Plus, ShoppingBasket } from '@/components/ui/icons';
-import { Breadcrumb, EmptyState, ErrorState, LoadingState } from '@/components';
+import { Breadcrumb, Button, EmptyState, ErrorState, LoadingState } from '@/components';
 import { FreshForecastCreateModal } from '@/components/kitchen/FreshForecastCreateModal';
 import { KbCampusFilter } from '@/components/kitchen/KitchenFilters';
 import { useCanManageStock } from '@/hooks/kitchen/useDryStock';
@@ -23,9 +23,9 @@ export function FreshForecastList({ campus, autoOpen = false }) {
     if (autoOpen) navigate(listPath, { replace: true });
   };
   const create = (
-    <button type="button" className="btn btn--primary" onClick={() => setCreating(true)}>
-      <Plus size={16} /> Lập bản dự trù
-    </button>
+    <Button variant="primary" icon={Plus} onClick={() => setCreating(true)}>
+      Lập bản dự trù
+    </Button>
   );
 
   let body;

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { PackageCheck } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
-import { ConfirmationModal, Spinner } from '@/components';
+import { Button, ConfirmationModal } from '@/components';
 import { fmtQty } from '@/components/kitchen/KitchenFilters';
 import { allocateIssueLots } from '@/services/kitchen/kitchenService';
 import { formatDate } from '@/utils/format';
@@ -67,9 +67,9 @@ export function IssueLotAllocation({ issue, onPosted }) {
     <div className="kb-stack">
       <div className="row row--between">
         <span className="text-sm muted">Nhập lượng lấy từ từng lô cho đủ lượng cần xuất.</span>
-        <button type="button" className="btn btn--sm" onClick={fillByExpiry} disabled={saving}>
+        <Button size="sm" onClick={fillByExpiry} disabled={saving}>
           Điền theo hạn gần trước
-        </button>
+        </Button>
       </div>
       {issue.items.map((it) => {
         const sum = picked(it);
@@ -127,9 +127,9 @@ export function IssueLotAllocation({ issue, onPosted }) {
         );
       })}
       <div className="row">
-        <button type="button" className="btn btn--primary" onClick={() => setConfirming(true)} disabled={!ready || saving}>
-          {saving ? <Spinner small /> : <PackageCheck size={16} />} Ghi xuất kho
-        </button>
+        <Button variant="primary" icon={PackageCheck} loading={saving} onClick={() => setConfirming(true)} disabled={!ready}>
+          Ghi xuất kho
+        </Button>
       </div>
       <ConfirmationModal
         open={confirming}

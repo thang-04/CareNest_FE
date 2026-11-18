@@ -39,6 +39,32 @@ export const toPlanRequest = (draft) => ({
   })),
 });
 
+/** Ngày đã sửa -> body PUT .../days/{date}/amend (cả ngày, mọi khối) kèm lý do. */
+export const toAmendRequest = (day, reason) => ({
+  note: text(day.note),
+  items: day.items.map(({ session, block, dishId }) => ({ session, block, dishId })),
+  reason: text(reason),
+});
+
+/**
+ * So món trước/sau của một lần sửa (hoặc của ngày đang sửa) theo khối × bữa, chỉ giữ ô có đổi:
+ * [{ block, session, before: [tên món], after: [tên món] }]. Chỉ để hiển thị.
+ */
+export const dayItemChanges = (beforeItems = [], afterItems = []) => {
+  const cells = new Map();
+  const put = (side) => (item) => {
+    const key = `${item.block}|${item.session}`;
+    if (!cells.has(key)) cells.set(key, { block: item.block, session: item.session, before: [], after: [] });
+    cells.get(key)[side].push(item.dishName || `Món #${item.dishId}`);
+  };
+  beforeItems.forEach(put('before'));
+  afterItems.forEach(put('after'));
+  const sameDishes = (a, b) => [...a].sort().join('|') === [...b].sort().join('|');
+  return [...cells.values()]
+    .filter((cell) => !sameDishes(cell.before, cell.after))
+    .sort((a, b) => a.block.localeCompare(b.block) || SESSION_ORDER.indexOf(a.session) - SESSION_ORDER.indexOf(b.session));
+};
+
 /** Có thay đổi chưa lưu so với bản đã lưu (so nội dung sẽ gửi, bỏ qua món của ngày nghỉ). */
 export const isDirty = (draft, saved) => JSON.stringify(toPlanRequest(draft)) !== JSON.stringify(toPlanRequest(saved));
 

@@ -48,6 +48,9 @@ import {
   TextField,
   SelectField,
   LABELS,
+  PrintHeader,
+  PrintSignRow,
+  PrintPaperFit,
 } from '@/components';
 import './ui-kit.css';
 import { NutritionPrimitivesDemo } from '@/components/ui/NutritionPrimitivesDemo';
@@ -1099,7 +1102,7 @@ export default function UiKitPage() {
         <Section
           id="brand"
           title="Logo"
-          code={`<Logo />            // sidebar\n<Logo collapsed />  // chỉ biểu tượng\n<LogoFull width={160} />  // logo gốc (đăng nhập, splash)\n<PrintHeader />     // đầu mọi bản in A4`}
+          code={`<Logo />            // sidebar\n<Logo collapsed />  // chỉ biểu tượng\n<LogoFull width={160} />  // logo gốc (đăng nhập, splash)`}
         >
           <div
             className="row row--wrap"
@@ -1127,6 +1130,24 @@ export default function UiKitPage() {
               />
             </div>
           </div>
+        </Section>
+
+        <Section
+          id="print"
+          title="Mẫu in · Văn bản trường"
+          code={`<div className="print-sheet">\n  <PrintHeader />  // quốc hiệu 2 cột\n  …tiêu đề, nội dung…\n  <PrintSignRow signers={[{ title: 'Người lập' }, { title: 'Hiệu trưởng', name }]} date={ngayKy} />  // luôn ở cuối\n</div>\n<PrintToolbar sheetRef={ref} fileBase="..." onClose={close} />  // Đóng · Xuất Excel · Xuất PDF · In\n// Bản Word: docHeaderHtml(), signRowHtml(), DOC_TEMPLATE_CSS (components/print/docTemplate.js)`}
+        >
+          <PrintPaperFit>
+            <div className="print-sheet">
+              <PrintHeader />
+              <div className="ps-title">
+                <h1>TIÊU ĐỀ VĂN BẢN</h1>
+                <div className="ps-version">Dòng phụ: kỳ, ngày, điểm trường</div>
+              </div>
+              <p>Nội dung văn bản…</p>
+              <PrintSignRow signers={[{ title: 'Người lập' }, { title: 'Hiệu trưởng', name: 'Họ tên người ký' }]} />
+            </div>
+          </PrintPaperFit>
         </Section>
       </div>
     </div>

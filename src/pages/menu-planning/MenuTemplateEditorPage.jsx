@@ -3,7 +3,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Lock, Save } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
-import { Breadcrumb, ErrorState, LoadingState } from '@/components';
+import { Breadcrumb, Button, ErrorState, LoadingState, TextField } from '@/components';
 import { FormField } from '@/components/form/FormField';
 import { SearchSelect } from '@/components/ui/SearchSelect';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
@@ -172,20 +172,20 @@ export default function MenuTemplateEditorPage() {
                 </span>
               )}
               {editable && id && (
-                <button type="button" className="btn" disabled={busy} onClick={toggleStatus}>
+                <Button disabled={busy} onClick={toggleStatus}>
                   {data.status === RECORD_STATUS.ACTIVE ? 'Ngừng dùng' : 'Dùng lại'}
-                </button>
+                </Button>
               )}
               {editable && (
-                <button type="button" className="btn btn--primary" disabled={busy || (id && !dirty)} onClick={save}>
+                <Button variant="primary" disabled={busy || (id && !dirty)} onClick={save}>
                   <Save size={16} /> Lưu mẫu
-                </button>
+                </Button>
               )}
             </div>
           </div>
           <div className="card__body td-tpl-form">
             <FormField label="Tên mẫu" required error={errors.name}>
-              <input
+              <TextField
                 className="input"
                 maxLength={100}
                 value={form.name}
@@ -204,7 +204,7 @@ export default function MenuTemplateEditorPage() {
               />
             </FormField>
             <FormField label="Nhãn mùa" error={errors.seasonLabel} hint="Ví dụ: Mùa đông, Mùa hè">
-              <input
+              <TextField
                 className="input"
                 maxLength={50}
                 value={form.seasonLabel}

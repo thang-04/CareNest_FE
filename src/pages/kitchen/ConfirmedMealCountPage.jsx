@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { AlertTriangle, Lock, Users } from '@/components/ui/icons';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useConfirmedMealCount, useKitchenCampus, useNewMealCounts } from '@/hooks/kitchen/useKitchen';
-import { Breadcrumb, EmptyState, ErrorState, LoadingState } from '@/components';
+import { Breadcrumb, EmptyState, ErrorState, LoadingState, SelectField } from '@/components';
 import { MealCountStatusBadge } from '@/components/kitchen/KitchenBadges';
 import { KbCampusFilter, KbDateFilter, KbSessionFilter } from '@/components/kitchen/KitchenFilters';
 import { kitchenCrumbs, KITCHEN_PAGES } from '@/utils/kitchen/breadcrumbs';
@@ -48,14 +48,14 @@ export default function ConfirmedMealCountPage() {
         <KbSessionFilter value={session} onChange={setSession} withAll />
         <label className="date-filter">
           Lớp
-          <select className="select" value={classId} onChange={(e) => setClassId(e.target.value)}>
+          <SelectField value={classId} onChange={(e) => setClassId(e.target.value)}>
             <option value="ALL">Tất cả lớp</option>
             {classOptions.map(([id, name]) => (
               <option key={id} value={id}>
                 {name}
               </option>
             ))}
-          </select>
+          </SelectField>
         </label>
         <div className="kb-toolbar__end">
           <KbCampusFilter campusId={campusId} onChange={setCampusId} canPick={canPick} />

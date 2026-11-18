@@ -28,6 +28,8 @@ export { FileUploader } from './upload/FileUploader';
 export { ImageUploader } from './upload/ImageUploader';
 export { PrintHeader } from './print/PrintHeader';
 export { PrintToolbar } from './print/PrintToolbar';
+export { PrintSignRow } from './print/PrintSignRow';
+export { PrintSignerFields } from './print/PrintSignerFields';
 export { PrintPaperFit } from './print/PrintPaperFit';
 export { FormField } from './form/FormField';
 export { TextField, TextAreaField, SelectField } from './form/Field';

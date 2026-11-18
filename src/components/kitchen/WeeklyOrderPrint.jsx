@@ -1,7 +1,11 @@
 import { forwardRef } from 'react';
 import { PrintHeader } from '@/components/print/PrintHeader';
+import { PrintSignRow } from '@/components/print/PrintSignRow';
 import { fmtQty } from '@/components/kitchen/KitchenFilters';
 import { dayShort, weekLabel } from '@/components/kitchen/ForecastBlocks';
+
+// Hiệu trưởng (cột phải) là người ký chính, có dòng nơi, ngày ký
+const SIGNERS = [{ title: 'Người lập' }, { title: 'Nhà cung cấp' }, { title: 'Hiệu trưởng' }];
 
 /** Phiếu đặt hàng tuần A4 (mẫu `.print-sheet`): hàng tươi theo ngày giao, đồ khô cần mua, chữ ký. */
 export const WeeklyOrderPrint = forwardRef(function WeeklyOrderPrint({ data, campusName }, ref) {
@@ -79,18 +83,7 @@ export const WeeklyOrderPrint = forwardRef(function WeeklyOrderPrint({ data, cam
           </table>
         </>
       )}
-      <table className="ps-table ps-sign ps-sign--spaced">
-        <tbody>
-          <tr>
-            {['Người lập', 'Nhà cung cấp', 'Hiệu trưởng'].map((t) => (
-              <td key={t}>
-                <div className="ps-sign__title">{t}</div>
-                <div className="ps-sign__role">(Ký, ghi rõ họ tên)</div>
-              </td>
-            ))}
-          </tr>
-        </tbody>
-      </table>
+      <PrintSignRow signers={SIGNERS} />
     </div>
   );
 });

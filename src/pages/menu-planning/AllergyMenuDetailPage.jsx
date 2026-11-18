@@ -19,6 +19,7 @@ import { ageGroupById } from '@/models/School';
 import { ALLERGY_GROUP_LABELS } from '@/models/menu-planning/menuPlanningConstants';
 import { mealLabel, normScopeMeals } from '@/utils/menu-planning/nutritionSetup';
 import '@/styles/modules/menu-planning.css';
+import { Button } from '@/components';
 
 /** Screen #82 – one alternative menu. */
 export default function AllergyMenuDetailPage() {
@@ -74,9 +75,9 @@ export default function AllergyMenuDetailPage() {
         </div>
         {canManage && (
           <div className="row row--wrap td-actions">
-            <button className="btn btn--outline-danger" onClick={() => setConfirm(true)}>
+            <Button variant="outline-danger" onClick={() => setConfirm(true)}>
               <Trash2 size={16} /> Xóa
-            </button>
+            </Button>
             <Link className="btn btn--primary" to={`/menu/allergy-menus/${id}/edit`}>
               <Pencil size={16} /> Sửa thực đơn thay thế
             </Link>

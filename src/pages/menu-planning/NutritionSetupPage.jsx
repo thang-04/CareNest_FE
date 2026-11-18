@@ -28,6 +28,7 @@ import { setupCrumbs } from '@/utils/menu-planning/breadcrumbs';
 import { clickableRowProps } from '@/utils/clickableRow';
 import { formatDate, todayInput } from '@/utils/format';
 import '@/styles/modules/menu-planning.css';
+import { Button, TextAreaField, TextField } from '@/components';
 
 const TABS = [
   { key: 'overview', label: 'Tổng quan' },
@@ -105,12 +106,12 @@ export default function NutritionSetupPage() {
           (canEdit ? (
             <div className="page__actions">
               {dirty && <span className="text-sm muted">Có thay đổi chưa lưu</span>}
-              <button type="button" className="btn" disabled={!dirty} onClick={() => cancel()}>
+              <Button disabled={!dirty} onClick={() => cancel()}>
                 <X size={16} /> Hủy
-              </button>
-              <button type="button" className="btn btn--primary" disabled={!dirty} onClick={() => submit()}>
+              </Button>
+              <Button variant="primary" disabled={!dirty} onClick={() => submit()}>
                 <Save size={16} /> Lưu
-              </button>
+              </Button>
             </div>
           ) : (
             <span className="chip chip--gray">
@@ -235,9 +236,9 @@ export default function NutritionSetupPage() {
       {header}
       <div className="td-setup-bar">
         <Tabs items={tabs} value={tab} onChange={setTab} variant="pill" ariaLabel="Phần thiết lập" />
-        <button type="button" className="link-btn" onClick={() => setBasisOpen(true)}>
+        <Button variant="link" onClick={() => setBasisOpen(true)}>
           <Question size={16} /> Căn cứ và hướng dẫn tổ chức bữa ăn
-        </button>
+        </Button>
       </div>
 
       {tab === 'overview' ? (
@@ -382,7 +383,7 @@ export default function NutritionSetupPage() {
       >
         <div className="td-confirm-fields">
           <FormField label={usesApi ? 'Áp dụng từ ngày' : 'Giá mới áp dụng từ ngày'} required error={err('effectiveFrom')}>
-            <input
+            <TextField
               type="date"
               className="input"
               min={firstDate}
@@ -392,7 +393,7 @@ export default function NutritionSetupPage() {
           </FormField>
           {!usesApi && (
             <FormField label="Lý do thay đổi" error={err('reason')} hint="Bắt buộc khi sửa giá đã áp dụng">
-              <input
+              <TextField
                 className="input"
                 maxLength={200}
                 value={form.reason}
@@ -407,7 +408,7 @@ export default function NutritionSetupPage() {
         <div className="td-basis">
           {canEdit ? (
             <FormField label="Căn cứ (văn bản quy định)" hint="Lưu cùng thiết lập khi bấm Lưu">
-              <textarea
+              <TextAreaField
                 className="textarea"
                 rows={4}
                 maxLength={300}
