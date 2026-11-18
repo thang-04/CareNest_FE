@@ -3,10 +3,17 @@
  * Each function returns { field: message }; `others` are the existing records used for duplicate checks.
  * Rules: Academic Year / Age Group / Class / Campus entities (SRS 3.2), UC 2.1–2.7, screens 4.1.2–4.1.5, GBR-CFG-02, MSG19/MSG20.
  */
-import { formatDate, isIsoDate, normalizeText } from '@/utils/format';
+import { formatDate, isIsoDate } from '@/utils/format';
 import { MAX_TEACHERS_PER_CLASS, MEAL_SESSION_OPTIONS, TEACHERS_PER_CLASS } from '@/models/school-config/schoolConfigConstants';
 
-const same = (a, b) => normalizeText((a || '').trim()) === normalizeText((b || '').trim());
+// So trùng tên như BE (Cần chốt 19/11/2026): bỏ khoảng trắng đầu/cuối, gộp khoảng trắng, dấu NFC, không phân biệt hoa thường
+export const nameKey = (text) =>
+  String(text || '')
+    .normalize('NFC')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLowerCase();
+const same = (a, b) => nameKey(a) === nameKey(b);
 const YEAR_NAME = /^(\d{4})-(\d{4})$/;
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 // Số điện thoại Việt Nam (như CampusRequest.phone của BE): di động 10 số 03/05/07/08/09, cố định 11 số 02x
