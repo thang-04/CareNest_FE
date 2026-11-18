@@ -14,6 +14,7 @@ import { sameAllergen } from '@/utils/menu-planning/menuCalculations';
 import { AGE_GROUPS, ageGroupById } from '@/models/School';
 import { ALLERGENS, ALLERGY_GROUP_LABELS } from '@/models/menu-planning/menuPlanningConstants';
 import '@/styles/modules/menu-planning.css';
+import { Button, SelectField } from '@/components';
 
 /** Screen #80 – alternative menus for allergy or health groups (UC 6.7). */
 export default function AllergyMenuListPage() {
@@ -73,25 +74,30 @@ export default function AllergyMenuListPage() {
               setPage(1);
             }}
           />
-          <select className="select" value={ageGroupId} onChange={(e) => setAgeGroupId(e.target.value)} aria-label="Nhóm tuổi">
+          <SelectField className="select" value={ageGroupId} onChange={(e) => setAgeGroupId(e.target.value)} aria-label="Nhóm tuổi">
             <option value="">Tất cả nhóm tuổi</option>
             {AGE_GROUPS.map((g) => (
               <option key={g.id} value={g.id}>
                 {g.name}
               </option>
             ))}
-          </select>
-          <select className="select" value={restriction} onChange={(e) => setRestriction(e.target.value)} aria-label="Thành phần cần tránh">
+          </SelectField>
+          <SelectField
+            className="select"
+            value={restriction}
+            onChange={(e) => setRestriction(e.target.value)}
+            aria-label="Thành phần cần tránh"
+          >
             <option value="">Mọi thành phần cần tránh</option>
             {ALLERGENS.map((a) => (
               <option key={a} value={a}>
                 Không {a}
               </option>
             ))}
-          </select>
-          <button className="btn" onClick={reset} disabled={!filtered}>
+          </SelectField>
+          <Button onClick={reset} disabled={!filtered}>
             <RotateCcw size={15} /> Đặt lại bộ lọc
-          </button>
+          </Button>
         </div>
         {error ? (
           <ErrorState error={error} onRetry={reload} />
@@ -127,9 +133,9 @@ export default function AllergyMenuListPage() {
                         }
                         action={
                           filtered ? (
-                            <button className="btn" onClick={reset}>
+                            <Button onClick={reset}>
                               <RotateCcw size={15} /> Đặt lại bộ lọc
-                            </button>
+                            </Button>
                           ) : (
                             canManage && (
                               <Link className="btn btn--primary" to="/menu/allergy-menus/new">

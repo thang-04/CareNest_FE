@@ -14,6 +14,7 @@ import {
   isBaseMeal,
 } from '@/utils/menu-planning/nutritionSetup';
 import { formatDate } from '@/utils/format';
+import { Button, SelectField, TextField } from '@/components';
 
 const NORM_TONE = { protein: 'td-col-p', lipid: 'td-col-l', glucid: 'td-col-g' };
 // Cột bảng định mức theo bảng dinh dưỡng PMS: đạm, béo tách ĐV/TV (gam), bột đường (gam), năng lượng (kcal)
@@ -56,7 +57,7 @@ function MinMaxCells({ value = ['', ''], readOnly, label, invalid, onChange }) {
     readOnly ? (
       <span>{value[i] === '' || value[i] == null ? '—' : value[i]}</span>
     ) : (
-      <input
+      <TextField
         type="number"
         min="0"
         className={`input td-norm__input ${invalid ? 'is-invalid' : ''}`}
@@ -197,9 +198,9 @@ export function NutritionSetupGroup({ group: g, info, childCount, setup, usesApi
           <span className="text-sm muted">{[info.range, `${childCount ?? '—'} trẻ`].filter(Boolean).join(' · ')}</span>
         </div>
         <div className="row td-card-tools">
-          <button type="button" className="link-btn text-sm" onClick={onHistory}>
+          <Button variant="link" className="text-sm" onClick={onHistory}>
             <History size={15} /> {usesApi ? 'Lịch sử phiên bản' : 'Lịch sử giá'}
-          </button>
+          </Button>
           {!usesApi && (
             <span className="row td-switch-row fw-600 text-sm">
               Áp dụng
@@ -227,7 +228,7 @@ export function NutritionSetupGroup({ group: g, info, childCount, setup, usesApi
             >
               {canEdit ? (
                 <span className={`input-unit ${errorOf('price') ? 'is-invalid' : ''}`}>
-                  <input
+                  <TextField
                     inputMode="numeric"
                     value={money(g.price)}
                     aria-label={`Giá suất ăn một ngày ${info.short}`}
@@ -241,7 +242,7 @@ export function NutritionSetupGroup({ group: g, info, childCount, setup, usesApi
             </FormField>
             <FormField label="Nhu cầu năng lượng cả ngày" error={errorOf('dailyKcalNeed')}>
               <span className={`input-unit ${errorOf('dailyKcalNeed') ? 'is-invalid' : ''}`}>
-                <input
+                <TextField
                   type="number"
                   min={1}
                   max={5000}
@@ -294,7 +295,7 @@ export function NutritionSetupGroup({ group: g, info, childCount, setup, usesApi
                             <th scope="row">
                               {canEdit && !usesApi ? (
                                 <div className="td-meal-cell">
-                                  <input
+                                  <TextField
                                     className={`input ${errorOf(`${k}.name`) ? 'is-invalid' : ''}`}
                                     value={m.name}
                                     maxLength={50}
@@ -304,7 +305,7 @@ export function NutritionSetupGroup({ group: g, info, childCount, setup, usesApi
                                   {!base && (
                                     <label className="td-count-as">
                                       Tính suất theo
-                                      <select
+                                      <SelectField
                                         className="select"
                                         value={m.countAs}
                                         onChange={(e) => setGroup(g.ageGroupId, (x) => (x.meals[i].countAs = e.target.value))}
@@ -314,7 +315,7 @@ export function NutritionSetupGroup({ group: g, info, childCount, setup, usesApi
                                             {MEAL_SESSION_LABELS[c]}
                                           </option>
                                         ))}
-                                      </select>
+                                      </SelectField>
                                     </label>
                                   )}
                                   {(errorOf(`${k}.name`) || errorOf(`${k}.countAs`)) && (
@@ -343,15 +344,15 @@ export function NutritionSetupGroup({ group: g, info, childCount, setup, usesApi
                             {removable && (
                               <td className="cell--actions">
                                 {!base && (
-                                  <button
-                                    type="button"
-                                    className="icon-btn icon-btn--danger"
+                                  <Button
+                                    variant="icon"
+                                    className="icon-btn--danger"
                                     aria-label={`Bỏ ${m.name || 'bữa'}`}
                                     title="Bỏ bữa"
                                     onClick={() => setGroup(g.ageGroupId, (x) => x.meals.splice(i, 1))}
                                   >
                                     <Trash2 size={16} />
-                                  </button>
+                                  </Button>
                                 )}
                               </td>
                             )}
@@ -363,13 +364,13 @@ export function NutritionSetupGroup({ group: g, info, childCount, setup, usesApi
                 </div>
                 {usesApi && <p className="text-sm muted td-setup-parts__hint">Tên và số bữa chỉnh ở Cấu hình trường.</p>}
                 {canEdit && !usesApi && (
-                  <button
-                    type="button"
-                    className="link-btn td-setup-parts__hint"
+                  <Button
+                    variant="link"
+                    className="td-setup-parts__hint"
                     onClick={() => setGroup(g.ageGroupId, (x) => x.meals.push({ code: '', name: '', countAs: baseCodes.at(-1) }))}
                   >
                     <Plus size={16} /> Thêm bữa ăn
-                  </button>
+                  </Button>
                 )}
               </>
             ) : (

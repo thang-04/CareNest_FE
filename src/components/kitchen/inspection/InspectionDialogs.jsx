@@ -1,8 +1,12 @@
 import { useState } from 'react';
 import { DateInput } from '@/components/kitchen/inspection/InspectionInputs';
 import { FormField } from '@/components/form/FormField';
-import { PenLine } from '@/components/ui/icons';
+import { SelectField, TextAreaField, TextField } from '@/components/form/Field';
+import { Checkbox } from '@/components/form/Checkbox';
+import { Building, Lock, MapPin, PenLine, Truck, Unlock } from '@/components/ui/icons';
+import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
+import { SearchSelect } from '@/components/ui/SearchSelect';
 import { ErrorState, LoadingState } from '@/components/ui/States';
 import { useInspectionSuppliers } from '@/hooks/kitchen/useInspectionDay';
 import { formatDateTime } from '@/utils/format';
@@ -39,12 +43,10 @@ function ScopeChoice({ value, onChange }) {
 function DialogFooter({ onClose, onApply, disabled, applyLabel, danger }) {
   return (
     <>
-      <button type="button" className="btn" onClick={onClose}>
-        Hủy
-      </button>
-      <button type="button" className={`btn ${danger ? 'btn--danger' : 'btn--primary'}`} disabled={disabled} onClick={onApply}>
+      <Button onClick={onClose}>Hủy</Button>
+      <Button variant={danger ? 'danger' : 'primary'} disabled={disabled} onClick={onApply}>
         {applyLabel}
-      </button>
+      </Button>
     </>
   );
 }
@@ -78,12 +80,12 @@ function RowPicker({ col, rows, picked, onChange }) {
   return (
     <div className="kr-pick">
       <div className="kr-pick__tools">
-        <button type="button" className="btn btn--sm btn--ghost" onClick={() => onChange(new Set(rows.map((r) => r.key)))}>
+        <Button size="sm" variant="ghost" onClick={() => onChange(new Set(rows.map((r) => r.key)))}>
           Chọn tất cả
-        </button>
-        <button type="button" className="btn btn--sm btn--ghost" onClick={() => onChange(new Set())}>
+        </Button>
+        <Button size="sm" variant="ghost" onClick={() => onChange(new Set())}>
           Bỏ chọn
-        </button>
+        </Button>
         <span className="text-xs muted">
           Đã chọn {picked.size}/{rows.length} dòng
         </span>
@@ -92,7 +94,7 @@ function RowPicker({ col, rows, picked, onChange }) {
         {rows.map((row, index) => (
           <li key={row.key}>
             <label className="checkbox kr-pick__row">
-              <input type="checkbox" checked={picked.has(row.key)} onChange={() => toggle(row.key)} />
+              <Checkbox checked={picked.has(row.key)} onChange={() => toggle(row.key)} />
               <span className="kr-pick__name">
                 {index + 1}. {row.name}
               </span>
@@ -140,22 +142,24 @@ export function ColumnFillDialog({ col, defaultYear, rows, onApply, onClose }) {
     e.preventDefault();
     apply();
   };
+  // Ô nằm trong FormField: FormField ghi lại className của ô con nên phải truyền class "input"/"select" rõ ràng
   let field;
   if (col.type === 'select') {
     field = (
-      <select className="select" value={value} onChange={(e) => setValue(e.target.value)} aria-label={col.label} autoFocus>
-        <option value="">— Chọn —</option>
-        {col.options.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
+      <SelectField
+        className="select"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        aria-label={col.label}
+        autoFocus
+        placeholder="— Chọn —"
+        options={col.options}
+      />
     );
   } else if (col.type === 'time') {
     // Ô giờ gốc của trình duyệt: bấm biểu tượng đồng hồ để chọn, hoặc gõ giờ, phút
     field = (
-      <input
+      <TextField
         className="input"
         type="time"
         value={value}
@@ -179,7 +183,7 @@ export function ColumnFillDialog({ col, defaultYear, rows, onApply, onClose }) {
     );
   } else {
     field = (
-      <input
+      <TextField
         className="input"
         type={col.type === 'number' ? 'number' : 'text'}
         {...(col.type === 'number' ? { min: 0, step: 'any' } : {})}
@@ -240,21 +244,41 @@ export function SupplierFillDialog({ onApply, onClose }) {
   else
     body = (
       <>
-        <FormField label="Nhà cung cấp" hint="Điền tên cơ sở, địa chỉ + điện thoại và người giao hàng; sửa riêng từng dòng được.">
-          <select className="select" value={id} onChange={(e) => setId(e.target.value)} autoFocus>
-            <option value="">— Chọn nhà cung cấp —</option>
-            {suppliers.data.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
+        <FormField label="Nhà cung cấp" hint="Sửa riêng từng dòng được sau khi điền.">
+          <SearchSelect
+            options={suppliers.data.map((s) => ({ value: String(s.id), label: s.name }))}
+            value={id}
+            onChange={setId}
+            placeholder="Chọn nhà cung cấp"
+            ariaLabel="Nhà cung cấp"
+            searchable
+          />
         </FormField>
-        {chosen && (
-          <div className="text-sm muted kr-supplier-preview">
-            {[chosen.address, chosen.phone].filter(Boolean).join(' · ') || 'Chưa có địa chỉ, điện thoại'}
-            {chosen.contactName && <div>Người giao hàng: {chosen.contactName}</div>}
-          </div>
+        {chosen ? (
+          <dl className="kr-supplier-card" aria-label="Thông tin sẽ điền vào bảng">
+            <div>
+              <dt>
+                <Building size={16} aria-hidden="true" /> Tên cơ sở
+              </dt>
+              <dd>{chosen.name}</dd>
+            </div>
+            <div>
+              <dt>
+                <MapPin size={16} aria-hidden="true" /> Địa chỉ, điện thoại
+              </dt>
+              <dd>{[chosen.address, chosen.phone].filter(Boolean).join(' · ') || <span className="muted">Chưa có</span>}</dd>
+            </div>
+            <div>
+              <dt>
+                <Truck size={16} aria-hidden="true" /> Người giao hàng
+              </dt>
+              <dd>{chosen.contactName || <span className="muted">Chưa có</span>}</dd>
+            </div>
+          </dl>
+        ) : (
+          <p className="kr-supplier-card kr-supplier-card--empty text-sm muted">
+            Chọn nhà cung cấp để xem tên cơ sở, địa chỉ + điện thoại và người giao hàng sẽ điền vào bảng.
+          </p>
         )}
         <ScopeChoice value={onlyEmpty} onChange={setOnlyEmpty} />
       </>
@@ -272,10 +296,16 @@ export function SupplierFillDialog({ onApply, onClose }) {
   );
 }
 
-/** Sửa lại mẫu đã ký: bắt buộc ghi lý do; chữ ký cũ vào lịch sử, mẫu về chưa ký và phải ký lại. */
-export function ReopenDialog({ busy, onConfirm, onClose }) {
+const REASON_MAX = 300;
+
+/**
+ * Sửa lại mẫu đã ký: bắt buộc ghi lý do; chữ ký cũ vào lịch sử, mẫu về chưa ký và phải ký lại.
+ * `formLabel` + `history` chỉ để nhắc mẫu nào, ai đã ký lúc nào.
+ */
+export function ReopenDialog({ busy, formLabel, history, onConfirm, onClose }) {
   const [reason, setReason] = useState('');
   const [error, setError] = useState('');
+  const signed = [...(history || [])].reverse().find((h) => h.action === 'SIGNED');
   const confirm = async () => {
     if (reason.trim().length < 3) {
       setError('Nhập lý do sửa lại (ít nhất 3 ký tự).');
@@ -288,25 +318,60 @@ export function ReopenDialog({ busy, onConfirm, onClose }) {
       open
       size="sm"
       title="Sửa lại mẫu đã ký"
-      onClose={onClose}
-      footer={<DialogFooter onClose={onClose} onApply={confirm} disabled={busy} applyLabel="Mở khóa để sửa" />}
+      onClose={busy ? undefined : onClose}
+      closeOnBackdrop={false}
+      footer={
+        <>
+          <Button disabled={busy} onClick={onClose}>
+            Hủy
+          </Button>
+          <Button variant="primary" icon={Unlock} loading={busy} onClick={confirm}>
+            Mở khóa để sửa
+          </Button>
+        </>
+      }
     >
-      <p className="text-sm">
-        Mẫu đang khóa vì đã ký. Mở khóa thì chữ ký hiện tại được giữ trong lịch sử, mẫu về trạng thái chưa ký và cần ký lại sau khi sửa.
-      </p>
-      <FormField label="Lý do sửa lại" required error={error}>
-        <textarea
-          className="input kr-reason"
+      <div className="kr-reopen">
+        {(formLabel || signed) && (
+          <p className="kr-reopen__ctx">
+            {formLabel && <b>{formLabel}</b>}
+            {signed && (
+              <>
+                {formLabel && ' · '}
+                {signed.byName} đã ký lúc {formatDateTime(signed.at)}
+              </>
+            )}
+          </p>
+        )}
+        <div className="alert alert--warning kr-reopen__alert" role="note">
+          <Lock size={18} />
+          <div>
+            <b>Mở khóa thì:</b>
+            <ul>
+              <li>Chữ ký hiện tại chuyển vào lịch sử của mẫu.</li>
+              <li>Mẫu về trạng thái chưa ký.</li>
+              <li>Sửa xong phải ký xác nhận lại.</li>
+            </ul>
+          </div>
+        </div>
+        <TextAreaField
+          label="Lý do sửa lại"
+          required
           rows={3}
-          maxLength={300}
+          maxLength={REASON_MAX}
           value={reason}
+          error={error}
+          hint="Ghi rõ sửa gì, ví dụ: nhập nhầm khối lượng dòng Thịt lợn nạc."
           autoFocus
           onChange={(e) => {
             setReason(e.target.value);
             setError('');
           }}
         />
-      </FormField>
+        <div className="char-count kr-reopen__count">
+          {reason.length}/{REASON_MAX}
+        </div>
+      </div>
     </Modal>
   );
 }

@@ -5,6 +5,7 @@ import { IndicatorAmounts } from '@/components/menu-planning/NutritionTable';
 import { daySummary, fmtNum } from '@/utils/menu-planning/daySummary';
 import { dayLabel } from '@/utils/menu-planning/menuChecks';
 import { formatMoney } from '@/models/menu-planning/menuPlanningConstants';
+import { Button } from '@/components';
 
 const pct = (v, scale) => `${Math.max(0, Math.min(100, (v / scale) * 100))}%`;
 
@@ -41,11 +42,7 @@ export function DayNormDetail({ open, day, wm, catalog, menuName, issues = [], o
       open={open && !!day}
       title={day ? `${dayLabel(day.date)}${menuName ? ` · ${menuName}` : ''}` : ''}
       onClose={onClose}
-      footer={
-        <button type="button" className="btn" onClick={onClose}>
-          Đóng
-        </button>
-      }
+      footer={<Button onClick={onClose}>Đóng</Button>}
     >
       {!sum ? (
         <p className="muted">{day?.holiday ? `Nghỉ: ${day.note}` : 'Ngày này chưa có món.'}</p>

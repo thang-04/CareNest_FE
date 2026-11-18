@@ -2,6 +2,7 @@ import { forwardRef, useState } from 'react';
 import { PrintHeader } from '@/components/print/PrintHeader';
 import { MEAL_SESSION_LABELS, SESSION_ORDER, formatMoney } from '@/models/menu-planning/menuPlanningConstants';
 import { storageGroups } from '@/utils/menu-planning/menuStatistics';
+import { TextField } from '@/components';
 
 const num = (v, digits = 2) => (v == null || v === '' ? '' : Number(v).toLocaleString('vi-VN', { maximumFractionDigits: digits }));
 const SIGNERS = ['Người lập', 'Người duyệt'];
@@ -90,7 +91,7 @@ export const MenuStatisticsPrint = forwardRef(function MenuStatisticsPrint({ sta
               <td key={t}>
                 <div className="ps-sign__title">{t}</div>
                 <div className="ps-sign__role">(Ký, ghi rõ họ tên)</div>
-                <input
+                <TextField
                   className="ps-sign__input"
                   aria-label={`Họ tên ${t.toLowerCase()}`}
                   placeholder="Gõ họ tên"
