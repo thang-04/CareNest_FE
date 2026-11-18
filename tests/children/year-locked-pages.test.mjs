@@ -52,3 +52,11 @@ test('danh sách nhập số đo, kết quả khám theo lớp: có yearLocked',
     assert.match(read(`src/components/children/${name}.jsx`), /yearLocked/, `${name} thiếu yearLocked`);
   }
 });
+
+test('đón trẻ: chỉ xem khi năm bị khóa, dùng lockedYearMessage và không phụ thuộc module children', () => {
+  const src = read('src/pages/pickup/PickupListPage.jsx');
+  assert.match(src, /yearLocked/);
+  assert.match(src, /lockedYearMessage\(lockedYear\)/);
+  assert.match(src, /Chuyển sang năm học \{activeYear\.label\}/);
+  assert.doesNotMatch(src, /@\/components\/children/);
+});
