@@ -29,6 +29,8 @@ import { UnlockWindowBadge } from '@/components/assessment/AssessmentBadges';
 import { DateInput } from '@/components/form/DateInput';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { CampusFilter } from '@/components/ui/CampusFilter';
+import { useYearCampuses } from '@/hooks/useYearCampuses';
+import { PERMISSIONS } from '@/models/bePermissions';
 import { FormField } from '@/components/form/FormField';
 import { FilterMore } from '@/components/ui/FilterMore';
 import { Pagination, paginate } from '@/components/ui/Pagination';
@@ -61,9 +63,21 @@ export default function AssessmentDayUnlockPage() {
   const toast = useToast();
   const { classes, loading: classesLoading, error: classesError } = useDailyAssessmentClasses();
   // BE trả cờ canUnlock theo lớp; mock dùng phạm vi PHT / Hiệu trưởng
-  const scoped = useMemo(() => classes.filter((c) => c.canUnlock ?? canUnlockAssessmentDay(c, user)), [classes, user]);
+  // Năm đang hoạt động: lớp được mở lại (cờ canUnlock). Năm đã đóng / sắp diễn ra: vẫn hiện đủ lớp của năm để xem,
+  // nút mở lại khóa (BE chỉ cho mở lại năm đang hoạt động)
+  const { schoolYears: allYears, schoolYear: headerYear } = useSchoolYear();
+  const headerYearOpen = (allYears || []).find((y) => y.id === headerYear)?.status === 'ACTIVE';
+  const scoped = useMemo(
+    () => (headerYearOpen ? classes.filter((c) => c.canUnlock ?? canUnlockAssessmentDay(c, user)) : classes),
+    [classes, user, headerYearOpen],
+  );
   const { data: campuses } = useAsync(() => getCampuses(), []);
-  const scopedCampuses = useMemo(() => (campuses || []).filter((c) => scoped.some((cls) => cls.campusId === c.id)), [campuses, scoped]);
+  // Hiệu trưởng: đủ điểm trường của năm đang chọn (kể cả điểm trường chưa có lớp); PHT: điểm trường của lớp trong phạm vi
+  const yearCampuses = useYearCampuses(PERMISSIONS.ASSESSMENT_UNLOCK);
+  const scopedCampuses = useMemo(
+    () => yearCampuses || (campuses || []).filter((c) => scoped.some((cls) => cls.campusId === c.id)),
+    [yearCampuses, campuses, scoped],
+  );
   // Hiệu trưởng thấy lớp cả 2 điểm trường (trùng tên) nên ghi kèm điểm trường
   const multiCampus = scopedCampuses.length > 1;
   const campusLabel = (id) => {
@@ -264,32 +278,54 @@ export default function AssessmentDayUnlockPage() {
       <Breadcrumb items={assessmentCrumbs(SECTIONS.unlocks)} />
       <div className="page__head">
         <h1 className="page__title">Mở lại đánh giá</h1>
+        {/* Điểm trường chung cho lớp quá hạn, lớp cần mở lại và lịch sử (HT: đủ điểm trường của năm; PHT 1 điểm trường thì ẩn) */}
+        <CampusFilter
+          campuses={scopedCampuses}
+          value={filters.campusId}
+          onChange={(campusId) => {
+            setFilter({ campusId, classId: '' });
+            set({ classId: '' });
+          }}
+        />
       </div>
 
-      <OverdueClassesCard user={user} campusLabel={multiCampus ? campusLabel : null} />
+      {!yearOpen && (
+        <div className="alert alert--info mb-12" role="status">
+          Năm học {selectedYear?.label || ''} {selectedYear?.status === 'CLOSED' ? 'đã kết thúc' : 'chưa bắt đầu'}: chỉ xem lớp và lịch sử,
+          không mở lại đánh giá được.
+        </div>
+      )}
+      <OverdueClassesCard
+        user={user}
+        campusLabel={multiCampus && !filters.campusId ? campusLabel : null}
+        schoolYear={schoolYear}
+        campusId={filters.campusId}
+      />
 
       {classesError ? (
         <ErrorState error={classesError} />
       ) : isEvaluationKind(kind) ? (
         <EvaluationReopenForm
-          key={`${kind}-${schoolYear}`}
+          key={`${kind}-${schoolYear}-${filters.campusId}`}
           kind={kind}
           kindField={kindField}
-          classes={scoped}
+          classes={filterClasses}
           classesLoading={classesLoading}
           classLabel={classLabel}
           user={user}
+          readOnly={!yearOpen}
           onReopened={reloadHistory}
         />
       ) : kind === 'WEEK' ? (
         <WeeklyCommentReopenForm
-          key={schoolYear}
+          key={`${schoolYear}-${filters.campusId}`}
           kindField={kindField}
-          classes={scoped}
+          classes={filterClasses}
           classesLoading={classesLoading}
           classLabel={classLabel}
           yearEnd={yearEnd}
           user={user}
+          readOnly={!yearOpen}
           onReopened={reloadHistory}
         />
       ) : (
@@ -303,7 +339,7 @@ export default function AssessmentDayUnlockPage() {
               onChange={(e) => set({ classId: e.target.value })}
             >
               <option value="">{classesLoading ? 'Đang tải lớp...' : 'Chọn lớp'}</option>
-              {scoped.map((c) => (
+              {filterClasses.map((c) => (
                 <option key={c.id} value={c.id}>
                   {classLabel(c)}
                 </option>
@@ -350,7 +386,7 @@ export default function AssessmentDayUnlockPage() {
               onChange={(e) => set({ reason: e.target.value })}
             />
           </FormField>
-          <button className="btn btn--primary" type="submit" disabled={busy || !scoped.length}>
+          <button className="btn btn--primary" type="submit" disabled={busy || !filterClasses.length || !yearOpen}>
             {busy ? <Spinner small /> : <Unlock size={16} />} Mở lại ngày
           </button>
           {errors._form && (
@@ -373,12 +409,7 @@ export default function AssessmentDayUnlockPage() {
             onChange={(e) => setFilter({ kind: e.target.value })}
             options={KINDS}
           />
-          <CampusFilter
-            hideLabel
-            campuses={scopedCampuses}
-            value={filters.campusId}
-            onChange={(campusId) => setFilter({ campusId, classId: '' })}
-          />
+
           <select className="select" aria-label="Lọc lớp" value={filters.classId} onChange={(e) => setFilter({ classId: e.target.value })}>
             <option value="">Tất cả lớp</option>
             {filterClasses.map((c) => (

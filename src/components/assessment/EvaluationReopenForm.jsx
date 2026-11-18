@@ -18,7 +18,7 @@ const REASON_MAX = 300;
  * Mở lại đánh giá cuối chủ đề / học kỳ / cuối năm đã khóa của một lớp – kỳ (BE OBS-30), cùng bố cục form mở lại ngày:
  * lớp, kỳ đã khóa, mở đến, lý do. Quyền, phạm vi, kỳ hợp lệ do BE kiểm.
  */
-export function EvaluationReopenForm({ kind, kindField, classes, classesLoading, classLabel, user, onReopened }) {
+export function EvaluationReopenForm({ kind, kindField, classes, classesLoading, classLabel, user, onReopened, readOnly = false }) {
   const toast = useToast();
   const [form, setForm] = useState(() => ({ classId: '', periodKey: '', reason: '', ...defaultUnlockUntil() }));
   const [errors, setErrors] = useState({});
@@ -124,7 +124,7 @@ export function EvaluationReopenForm({ kind, kindField, classes, classesLoading,
         placeholder="Ví dụ: cô nghỉ ốm, chưa kịp xác nhận"
         onChange={(e) => set({ reason: e.target.value })}
       />
-      <Button variant="primary" type="submit" icon={Unlock} loading={busy} disabled={!classes.length}>
+      <Button variant="primary" type="submit" icon={Unlock} loading={busy} disabled={!classes.length || readOnly}>
         Mở lại kỳ
       </Button>
       {errors._form && (
