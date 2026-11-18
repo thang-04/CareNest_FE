@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Save, Lock, HeartPulse, CheckCircle2, BarChart3, ArrowRight } from '@/components/ui/icons';
+import { Save, Lock, HeartPulse, CheckCircle2, BarChart3, ArrowRight, AlertTriangle } from '@/components/ui/icons';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { AttendanceRowBadge } from '@/components/attendance/AttendanceBadges';
@@ -538,15 +538,37 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
                           {/* Ảnh | tên trên, mã · trạng thái lưu và thẻ sức khỏe cùng một dòng dưới — hàng thấp, lớp đông vẫn thấy nhiều trẻ */}
                           <div className="dd-reception__who">
                             <ChildAvatar child={row.child} size="sm" />
-                            <button
-                              className="dd-reception__child"
-                              type="button"
-                              disabled={busy}
-                              aria-pressed={selectedId === row.child.id}
-                              onClick={() => selectChild(row.child.id)}
-                            >
-                              <strong>{row.child.fullName}</strong>
-                            </button>
+                            {/* Tên và nhãn báo ăn / dị ứng cùng hàng; dòng dưới là mã, trạng thái lưu, sức khỏe */}
+                            <span className="dd-reception__nameline">
+                              <button
+                                className="dd-reception__child"
+                                type="button"
+                                disabled={busy}
+                                aria-pressed={selectedId === row.child.id}
+                                onClick={() => selectChild(row.child.id)}
+                              >
+                                <strong>{row.child.fullName}</strong>
+                              </button>
+                              {/* CHD-13: trẻ không báo ăn ghi ở ô Trẻ; trẻ có ăn mà có dị ứng thì nhắc để GV biết suất thay thế */}
+                              {row.child.mealRegistered === false ? (
+                                <span className="dd-reception__mealtag">
+                                  <StatusBadge tone="gray" label="Không báo ăn" />
+                                </span>
+                              ) : (
+                                (row.child.hasAllergy || row.child.allergies?.length > 0) && (
+                                  <span
+                                    className="dd-reception__mealtag"
+                                    title={row.child.allergies?.length ? `Dị ứng: ${row.child.allergies.join(', ')}` : 'Có dị ứng'}
+                                  >
+                                    <StatusBadge
+                                      tone="orange"
+                                      icon={AlertTriangle}
+                                      label={row.child.allergies?.length ? `Dị ứng: ${row.child.allergies.join(', ')}` : 'Có dị ứng'}
+                                    />
+                                  </span>
+                                )
+                              )}
+                            </span>
                             <div className="dd-reception__tags">
                               <span className="muted text-xs nowrap">{row.child.code}</span>
                               {/* Chỉ báo dòng cần chú ý; dòng đã lưu không gắn badge để danh sách đỡ rối */}
@@ -623,24 +645,22 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
                         </td>
                         <td className="center">
                           <div className="dd-reception__mealcell">
-                            {row.child.mealRegistered === false ? (
-                              // CHD-13: hồ sơ trẻ không báo ăn ⇒ nút gạt về Không và khóa; HT/PHT sửa hồ sơ thì mới bật được
-                              <span className="dd-reception__meal">
-                                <Switch label={`Tham gia ăn: ${row.child.fullName}`} disabled checked={false} onChange={() => {}} />
-                                <span className="text-xs">Không báo ăn</span>
-                              </span>
+                            {/* ATT-02a: chỉ trẻ có mặt mới có nút Tham gia ăn (mặc định bật); chưa điểm danh / vắng ⇒ "—".
+                                CHD-13 (Cần chốt 18/11/2026): trẻ không báo ăn luôn "—", nhãn "Không báo ăn" ở ô Trẻ */}
+                            {entry.status !== ATTENDANCE_STATUS.PRESENT || row.child.mealRegistered === false ? (
+                              <span className="muted">—</span>
                             ) : editable && !row.leaveRequest ? (
                               <span className="dd-reception__meal">
                                 <Switch
                                   label={`Tham gia ăn: ${row.child.fullName}`}
-                                  disabled={busy || entry.status !== ATTENDANCE_STATUS.PRESENT}
+                                  disabled={busy}
                                   checked={eatsAny(entry.meals, sessions)}
                                   onChange={(on) => update(row, { meals: on ? allIn : noneIn })}
                                 />
                                 <span className="text-xs">{eatsAny(entry.meals, sessions) ? 'Có' : 'Không'}</span>
                               </span>
                             ) : (
-                              <span>{eatsAny(entry.meals, sessions) ? 'Có' : '—'}</span>
+                              <span>{eatsAny(entry.meals, sessions) ? 'Có' : 'Không'}</span>
                             )}
                             {rowErrors[row.child.id]?.meals && <p className="field__error">{rowErrors[row.child.id].meals}</p>}
                           </div>

@@ -498,6 +498,7 @@ const childView = (ch) => ({
   // CHD-13: bếp không tính dị ứng của trẻ không báo ăn
   allergies: ch.mealRegistered === false ? [] : ch.allergies || [],
   mealRegistered: ch.mealRegistered !== false,
+  hasAllergy: ch.mealRegistered !== false && (ch.allergies || []).length > 0,
   photoUrl: ch.photoUrl || kidAvatar(ch),
 });
 
