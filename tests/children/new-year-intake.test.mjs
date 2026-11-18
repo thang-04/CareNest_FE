@@ -173,3 +173,20 @@ test('CHD-11: mở lại hồ sơ vào năm chưa mở ⇒ 409, trẻ vẫn Đã
   );
   assert.equal(readDb().children.find((c) => c.id === old.id).status, 'LEFT');
 });
+
+// CHD-11 (BE plannedTarget): thiếu startDate ⇒ ngày bắt đầu năm học, không 422
+test('CHD-11: nhập Excel vào năm sau thiếu ngày bắt đầu ⇒ lấy ngày bắt đầu năm học', async () => {
+  seedNextYear(todayInput());
+  const done = await children.importChildren([importRow(9)], PRINCIPAL, 'c1', { schoolYearId: NEXT_YEAR });
+  const [admission] = readDb().plannedAdmissions.filter((a) => a.childId === done.ids[0]);
+  assert.equal(admission.startDate, START_DATE);
+});
+
+test('CHD-11: mở lại hồ sơ vào năm sau thiếu ngày bắt đầu ⇒ lấy ngày bắt đầu năm học', async () => {
+  seedNextYear(todayInput());
+  const old = await children.enrollChild(payload(10, { schoolYearId: undefined, startDate: undefined }), PRINCIPAL);
+  await children.withdrawChild(old.id, { leftAt: todayInput(), reason: 'Chuyển nơi ở (giả)' }, PRINCIPAL);
+  await children.readmitChild(old.id, { reason: 'Quay lại học', schoolYearId: NEXT_YEAR }, PRINCIPAL);
+  const [admission] = readDb().plannedAdmissions.filter((a) => a.childId === old.id);
+  assert.equal(admission.startDate, START_DATE);
+});

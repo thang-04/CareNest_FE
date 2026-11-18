@@ -1048,15 +1048,17 @@ export const childrenMockRepository = {
     if (!text) invalid({ reason: 'Nhập lý do tiếp nhận lại' });
     if (text.length > 300) invalid({ reason: 'Lý do tối đa 300 ký tự' });
     // CHD-11: mở lại vào năm sau đã mở chuẩn bị ⇒ trẻ giữ điểm trường cũ, có đăng ký PENDING (BE 2412 nếu chưa tới ngày).
-    const { targetYearId, planned } = intakeYearOf(db, schoolYearId);
-    if (planned && !startDate) invalid({ startDate: 'Chọn ngày bắt đầu học' });
+    // Thiếu startDate ⇒ ngày bắt đầu năm học (BE plannedTarget, CHD-11).
+    const { targetYearId, targetYear, planned } = intakeYearOf(db, schoolYearId);
+    const admissionStart = startDate || targetYear?.startDate;
     return writeDb((d) => {
       const target = findChild(d, childId);
       Object.assign(target, { status: CHILD_STATUS.PENDING_PLACEMENT, classId: null, readmittedAt: todayInput() });
       delete target.leftAt;
       delete target.leftReason;
       target.history = [...(target.history || []), { action: 'READMITTED', userId: user.id, at: nowIso(), note: text }];
-      if (planned) openNextYearAdmission(d, target.id, { schoolYearId: targetYearId, campusId: target.campusId, startDate });
+      if (planned)
+        openNextYearAdmission(d, target.id, { schoolYearId: targetYearId, campusId: target.campusId, startDate: admissionStart });
       return toView(d, target, user);
     });
   },
@@ -1276,11 +1278,12 @@ export const childrenMockRepository = {
       seen.push({ child: r.child, rowNo: i + 1 });
     });
     return writeDb((d) => {
-      const { targetYearId, planned } = intakeYearOf(d, schoolYearId);
-      if (planned && !startDate) invalid({ startDate: 'Chọn ngày bắt đầu học' });
+      const { targetYearId, targetYear, planned } = intakeYearOf(d, schoolYearId);
+      const admissionStart = startDate || targetYear?.startDate;
       const created = resolved.map((r) => {
         const record = createChild(d, r, { classId: null, campusId: targetCampusId, user });
-        if (planned) openNextYearAdmission(d, record.id, { schoolYearId: targetYearId, campusId: targetCampusId, startDate });
+        if (planned)
+          openNextYearAdmission(d, record.id, { schoolYearId: targetYearId, campusId: targetCampusId, startDate: admissionStart });
         return record;
       });
       return { created: created.length, ids: created.map((c) => c.id) };

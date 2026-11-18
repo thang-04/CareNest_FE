@@ -291,7 +291,7 @@ Header có ô chọn năm học (mặc định năm đang hoạt động). Dữ 
 
 Ngoài năm đang hoạt động, tiếp nhận, nhập Excel và mở lại hồ sơ nhận thêm năm sau (`PLANNED`) khi đã tới ngày mở chuẩn bị. Phụ huynh vẫn xử lý như tiếp nhận thường (không đổi luồng tài khoản).
 
-- **Nhập Excel:** body `POST /children/enrollments/import` thêm `schoolYearId`, `startDate` (tùy chọn; bỏ trống ⇒ năm đang hoạt động). Năm sau mà thiếu `startDate` ⇒ 422 `startDate`. Mỗi trẻ ở `PENDING_PLACEMENT`, điểm trường theo `campusId`, kèm một đăng ký năm sau `PENDING` (chưa lớp) với `startDate` chung của file.
-- **Mở lại hồ sơ:** body `POST /children/{id}/readmit` thêm `schoolYearId`, `startDate` (tùy chọn). Năm sau ⇒ trẻ `PENDING_PLACEMENT`, giữ điểm trường cũ, có đăng ký `PENDING` với `startDate`; thiếu `startDate` ⇒ 422 `startDate`.
+- **Nhập Excel:** body `POST /children/enrollments/import` thêm `schoolYearId`, `startDate` (tùy chọn; bỏ trống ⇒ năm đang hoạt động). Năm sau mà thiếu `startDate` ⇒ ngày bắt đầu năm học. Mỗi trẻ ở `PENDING_PLACEMENT`, điểm trường theo `campusId`, kèm một đăng ký năm sau `PENDING` (chưa lớp) với `startDate` chung của file.
+- **Mở lại hồ sơ:** body `POST /children/{id}/readmit` thêm `schoolYearId`, `startDate` (tùy chọn). Năm sau ⇒ trẻ `PENDING_PLACEMENT`, giữ điểm trường cũ, có đăng ký `PENDING` với `startDate`; thiếu `startDate` ⇒ ngày bắt đầu năm học.
 - **Năm chưa tới ngày mở chuẩn bị (hoặc thiếu `prepDate`):** 409, `errorCode` 2412, `desc` dạng `Năm học {name} chưa tới ngày mở chuẩn bị ({dd/mm/yyyy})`; không tạo, không đổi hồ sơ nào. FE hiện `desc` của BE, không so chữ.
 - Xếp, đổi lớp dự kiến của các trẻ này ở màn Xếp lớp năm học mới; `POST /children/{id}/placement` với trẻ đã có đăng ký năm sau ⇒ 409 (BE 2414).
