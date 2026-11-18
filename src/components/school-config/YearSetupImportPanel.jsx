@@ -24,6 +24,8 @@ import '@/styles/modules/menu-planning.css';
 
 const MODES = {
   rooms: { title: 'Nhập phòng và lớp từ Excel', template: ROOM_CLASS_TEMPLATE_URL, sheets: [SHEETS.rooms, SHEETS.classes] },
+  // Màn Phòng ban: chỉ đọc sheet Phòng của tệp mẫu (hoặc tệp xuất từ màn này)
+  roomList: { title: 'Nhập phòng từ Excel', template: ROOM_CLASS_TEMPLATE_URL, sheets: [SHEETS.rooms] },
   teachers: { title: 'Nhập giáo viên và tổ trưởng từ Excel', template: TEACHER_TEMPLATE_URL, sheets: [SHEETS.teachers, SHEETS.leaders] },
 };
 
@@ -63,6 +65,11 @@ function PreviewTable({ title, head, rows }) {
  * mode "teachers": sheet Giáo viên + Tổ trưởng (bước Tổ trưởng & giáo viên). Xem trước rồi ghi các dòng hợp lệ;
  * dòng BE từ chối hiện lỗi đỏ ở bảng kết quả.
  */
+// Lỗi BE khi lưu (vd. trùng tên) kèm điểm trường và giá trị trong file để đối chiếu
+const withPlace = (message, campus, kind, value) => {
+  return value ? `${message} (${campus ? `${campus}, ` : ''}${kind} "${value}")` : message;
+};
+
 export function YearSetupImportPanel({ open, mode, yearId, onClose }) {
   const { user } = useAuth();
   const toast = useToast();
@@ -74,7 +81,8 @@ export function YearSetupImportPanel({ open, mode, yearId, onClose }) {
   const [saving, setSaving] = useState(false);
   const [changed, setChanged] = useState(false);
 
-  const isRooms = mode === 'rooms';
+  const roomsOnly = mode === 'roomList';
+  const isRooms = mode === 'rooms' || roomsOnly;
   const valid = result ? (isRooms ? result.rooms.length + result.classes.length : result.classes.length + result.leaders.length) : 0;
 
   const close = (savedNow = false) => {
@@ -97,6 +105,8 @@ export function YearSetupImportPanel({ open, mode, yearId, onClose }) {
         rooms: rooms || [],
         classes: structure?.classes || [],
         schoolYear: yearId,
+        roomsOnly,
+        users: md.users || [],
       });
     }
     const [assign, leaders] = await Promise.all([
@@ -134,6 +144,10 @@ export function YearSetupImportPanel({ open, mode, yearId, onClose }) {
     }
   };
 
+  const campusOf = (form) => {
+    const c = md.campuses.find((x) => x.id === form.campusId);
+    return c ? c.shortName || c.name : '';
+  };
   const save = async () => {
     setSaving(true);
     const failed = [];
@@ -146,7 +160,12 @@ export function YearSetupImportPanel({ open, mode, yearId, onClose }) {
           idOf[r.key] = res?.id;
           saved += 1;
         } catch (err) {
-          failed.push({ sheet: SHEETS.rooms, row: r.row, name: r.form.room, reason: err.message });
+          failed.push({
+            sheet: SHEETS.rooms,
+            row: r.row,
+            name: r.form.room,
+            reason: withPlace(err.message, campusOf(r.form), 'phòng', r.form.room),
+          });
         }
       }
       for (const c of result.classes) {
@@ -164,7 +183,12 @@ export function YearSetupImportPanel({ open, mode, yearId, onClose }) {
           await saveClass(c.id, { ...c.form, locationId }, user);
           saved += 1;
         } catch (err) {
-          failed.push({ sheet: SHEETS.classes, row: c.row, name: c.form.name, reason: err.message });
+          failed.push({
+            sheet: SHEETS.classes,
+            row: c.row,
+            name: c.form.name,
+            reason: withPlace(err.message, campusOf(c.form), 'lớp', c.form.name),
+          });
         }
       }
     } else {
@@ -204,6 +228,8 @@ export function YearSetupImportPanel({ open, mode, yearId, onClose }) {
   };
 
   const errorRows = (result?.errors || []).map((e) => [e.sheet, e.row, e.name || '—', e.reason]);
+  // Cột tên theo loại file: phòng / lớp (sheet Phòng, Lớp) hoặc lớp / nhóm tuổi (sheet Giáo viên, Tổ trưởng)
+  const nameHead = isRooms ? 'Phòng / lớp' : 'Lớp / nhóm tuổi';
   return (
     <ImportDialog
       open={open}
@@ -232,7 +258,7 @@ export function YearSetupImportPanel({ open, mode, yearId, onClose }) {
           {!valid && !result.errors.length && (
             <p className="text-sm muted">Tệp chưa có dòng dữ liệu nào. Điền vào tệp mẫu rồi tải lên lại.</p>
           )}
-          <PreviewTable title="Dòng lỗi (không lưu)" head={['Sheet', 'Dòng', 'Tên', 'Lý do']} rows={errorRows} />
+          <PreviewTable title="Dòng lỗi (không lưu)" head={['Trang tính', 'Dòng', nameHead, 'Lý do']} rows={errorRows} />
           {isRooms ? (
             <>
               <PreviewTable

@@ -102,11 +102,11 @@ const RULES = [
   [/^Cutoff time and effective date have not changed/, 'time', () => 'Giờ chốt và ngày áp dụng chưa thay đổi'],
   [/^Effective date must be inside school year (\S+)/, 'effectiveFrom', (m) => `Ngày áp dụng phải nằm trong năm học ${m[1]}`],
   // Phân công giáo viên / tổ trưởng
-  [/^Choose 2 different teachers for the class/, 'teacherIds', () => 'Chọn 2 giáo viên khác nhau cho lớp'],
+  [/^Choose 2 different teachers for the class/, 'teacherIds', () => 'Chọn các giáo viên khác nhau cho lớp'],
   [
     /^Homeroom teacher must be one of the class teachers/,
     'homeroomTeacherId',
-    () => 'GV phụ trách chính phải là một trong 2 giáo viên của lớp',
+    () => 'GV phụ trách chính phải là một trong các giáo viên của lớp',
   ],
   [/^Only teachers of the class campus can be assigned/, 'teacherIds', () => 'Chỉ phân công giáo viên thuộc điểm trường của lớp'],
 

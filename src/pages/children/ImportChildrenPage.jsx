@@ -240,7 +240,13 @@ export default function ImportChildrenPage() {
                       ))}
                     </td>
                     <td className="text-sm">
-                      {a.state === DECLARATION_STATE.REPORTED ? a.items.join(', ') : <AllergyStateBadge status={a.state} />}
+                      {r.payload.declaration.mealRegistered === false ? (
+                        <span className="muted">Không báo ăn</span>
+                      ) : a.state === DECLARATION_STATE.REPORTED ? (
+                        a.items.join(', ')
+                      ) : (
+                        <AllergyStateBadge status={a.state} />
+                      )}
                     </td>
                     <td>
                       <div className="stack gap-1-5">

@@ -75,7 +75,9 @@ export const emptyChildInfo = () => ({
   profile: emptyChildProfile(),
 });
 
+// CHD-13: mặc định trẻ ăn ở trường (báo ăn).
 export const emptyDeclaration = () => ({
+  mealRegistered: true,
   allergies: { state: 'NOT_PROVIDED', items: [] },
   diet: { state: 'NOT_PROVIDED', text: '' },
   otherNotes: { state: 'NOT_PROVIDED', text: '' },

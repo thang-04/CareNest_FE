@@ -256,7 +256,14 @@ export function EvaluationListView({ kind }) {
           )}
           {!moreFilters && periodTypeSelect}
           {!moreFilters && themeSelect}
-          {monthly && <SemesterSelect value={semKey} onChange={(key) => applyFilters({ sem: key, period: '' })} />}
+          {monthly && (
+            <SemesterSelect
+              value={semKey}
+              emptyLabel="Cả năm học"
+              yearOption={false}
+              onChange={(key) => applyFilters({ sem: key, period: '' })}
+            />
+          )}
           {!yearEnd && (
             <div className="dg-period-nav">
               <button

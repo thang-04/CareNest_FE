@@ -1,5 +1,5 @@
 import { defaultUnlockUntil as defaultUntil, parseUnlockUntil } from '@/utils/assessment/unlockTime';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Lock, RotateCcw, Unlock } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
@@ -72,11 +72,13 @@ export default function AssessmentDayUnlockPage() {
   };
   const classLabel = (c) => (multiCampus && campusLabel(c.campusId) ? `${c.name} · ${campusLabel(c.campusId)}` : c.name);
 
-  // Ngày cần mở lại: từ đầu năm học đang hoạt động đến hôm qua; hạn không quá ngày kết thúc năm học
-  const activeYear = useSchoolYear()?.schoolYears?.find((y) => y.status === 'ACTIVE');
-  const yearStart = activeYear?.startDate || undefined;
+  // BUG-28: lớp, ngày, lịch sử theo năm học đang chọn ở thanh trên (không lấy cố định năm đang diễn ra)
+  const { schoolYear, schoolYears } = useSchoolYear();
+  const selectedYear = (schoolYears || []).find((y) => y.id === schoolYear);
+  const yearOpen = selectedYear?.status === 'ACTIVE';
+  const yearStart = selectedYear?.startDate || undefined;
   // Đã qua ngày kết thúc mà HT chưa đóng năm: "Mở đến" không giới hạn theo ngày kết thúc (BE OBS-30)
-  const yearEnd = activeYear?.endDate && todayIso() <= activeYear.endDate ? activeYear.endDate : undefined;
+  const yearEnd = selectedYear?.endDate && todayIso() <= selectedYear.endDate ? selectedYear.endDate : undefined;
   const yesterday = addDays(todayIso(), -1);
   // Mở từ Tổng quan đánh giá: điền sẵn lớp và ngày từ đường dẫn (?classId=&date=)
   const [search] = useSearchParams();
@@ -100,6 +102,16 @@ export default function AssessmentDayUnlockPage() {
   // Lọc "Các lần mở lại" ở BE: điểm trường (Hiệu trưởng), lớp, hiệu lực, khoảng ngày đánh giá
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [page, setPage] = useState(1);
+  // Đổi năm học: bỏ lớp, ngày, bộ lọc, lỗi của năm trước (lần đầu giữ lớp / ngày điền sẵn từ đường dẫn)
+  const shownYear = useRef(schoolYear);
+  useEffect(() => {
+    if (shownYear.current === schoolYear) return;
+    shownYear.current = schoolYear;
+    setForm((f) => ({ ...f, classId: '', date: lastLockedDay(yearStart), ...defaultUntil(yearEnd) }));
+    setErrors({});
+    setFilters(EMPTY_FILTERS);
+    setPage(1);
+  }, [schoolYear, yearStart, yearEnd]);
   const setFilter = (patch) => {
     setFilters((f) => ({ ...f, ...patch }));
     setPage(1);
@@ -152,14 +164,19 @@ export default function AssessmentDayUnlockPage() {
     error: evalError,
     reload: reloadEvals,
   } = useAsync(() => getEvaluationUnlocks(evalQuery, user), [JSON.stringify(evalQuery), user?.id], { enabled: showEval });
+  // BE trả lần mở lại của mọi năm: chỉ hiện lần của lớp thuộc năm học đang chọn
+  const yearClassIds = useMemo(() => new Set(classes.map((c) => String(c.id))), [classes]);
   const shown = useMemo(() => {
     if (invalidRange) return [];
     const days = filters.kind && filters.kind !== 'DAY' ? [] : (unlocks || []).map((u) => ({ ...u, kind: 'DAY', key: `d-${u.id}` }));
     const weeks = filters.kind && filters.kind !== 'WEEK' ? [] : (weekUnlocks || []).map((u) => ({ ...u, kind: 'WEEK', key: `w-${u.id}` }));
     const evals = showEval ? (evalUnlocks || []).map((u) => ({ ...u, key: `e-${u.id}` })) : [];
-    return [...days, ...weeks, ...evals].sort((a, b) => String(b.unlockedAt).localeCompare(String(a.unlockedAt)));
-  }, [invalidRange, filters.kind, unlocks, weekUnlocks, evalUnlocks, showEval]);
+    return [...days, ...weeks, ...evals]
+      .filter((u) => yearClassIds.has(String(u.classId)))
+      .sort((a, b) => String(b.unlockedAt).localeCompare(String(a.unlockedAt)));
+  }, [invalidRange, filters.kind, unlocks, weekUnlocks, evalUnlocks, showEval, yearClassIds]);
   const historyLoading =
+    classesLoading ||
     ((!filters.kind || filters.kind === 'DAY') && loading) ||
     ((!filters.kind || filters.kind === 'WEEK') && weekLoading) ||
     (showEval && evalLoading);
@@ -177,6 +194,7 @@ export default function AssessmentDayUnlockPage() {
     if (busy) return;
     // Chỉ kiểm tra nhập đủ; ngày học, khóa, hạn hợp lệ do BE quyết định
     const errs = {};
+    if (!yearOpen) errs._form = `Năm học ${selectedYear?.label || ''} chưa bắt đầu hoặc đã đóng, không mở lại đánh giá được.`;
     if (!form.classId) errs.classId = 'Chọn lớp.';
     if (!isIsoDate(form.date)) errs.date = 'Chọn ngày cần mở lại.';
     const until = parseUnlockUntil(form.untilDate, form.untilTime);
@@ -254,7 +272,7 @@ export default function AssessmentDayUnlockPage() {
         <ErrorState error={classesError} />
       ) : isEvaluationKind(kind) ? (
         <EvaluationReopenForm
-          key={kind}
+          key={`${kind}-${schoolYear}`}
           kind={kind}
           kindField={kindField}
           classes={scoped}
@@ -265,6 +283,7 @@ export default function AssessmentDayUnlockPage() {
         />
       ) : kind === 'WEEK' ? (
         <WeeklyCommentReopenForm
+          key={schoolYear}
           kindField={kindField}
           classes={scoped}
           classesLoading={classesLoading}

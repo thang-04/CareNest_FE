@@ -8,6 +8,7 @@ import { MEASUREMENT_ROUND, OPEN_CAMPAIGN, buildSeedHealthChecks } from '@/mocks
 import { pushNotification } from '@/mocks/notificationMockRepository';
 import { activatePendingGuardians, applyGuardianEdits, differsFromAccount } from '@/mocks/parentAccountMock';
 import { activeYearId } from '@/mocks/roomManagers';
+import { buildSeedSchoolConfig } from '@/mocks/schoolConfigSeed';
 import { schoolYearIdOfDate } from '@/mocks/schoolYearScope';
 import { AGE_GROUPS, CHILD_STATUS } from '@/models/School';
 import {
@@ -486,6 +487,8 @@ const toView = (db, child, user) => {
   const showAccounts = canViewParentAccounts(user);
   return {
     ...clone(child),
+    // CHD-13: BE luôn trả boolean, trẻ chưa có cờ đọc là báo ăn.
+    mealRegistered: child.mealRegistered !== false,
     profile: child.profile ? clone(child.profile) : emptyChildProfile(),
     guardians: (child.guardians || []).map((g) => {
       const { smsStatus, smsAt, ...rest } = g;
@@ -631,7 +634,9 @@ const cleanMedicalHistory = (mh) => {
   };
 };
 
+// CHD-13: cờ Báo ăn do cleanDeclaration trả riêng; BE lưu trên hồ sơ trẻ, không lưu trong bản khai. Thiếu/null ⇒ báo ăn.
 const cleanDeclaration = (d) => ({
+  mealRegistered: d.mealRegistered !== false,
   allergies: {
     state: d.allergies.state,
     items: d.allergies.state === DECLARATION_STATE.REPORTED ? d.allergies.items.map((x) => x.trim()).filter(Boolean) : [],
@@ -726,11 +731,13 @@ const tbContactDateOf = (mh) => (tbReported(mh) ? mh.tbContact.contactDate || ''
  * Placement checks (UC 3.10 step 4): class of the VP's campus, active, not full; chỉ lớp của năm học đang hoạt động — xếp lớp
  * năm sau ở màn Xếp lớp năm học mới (user chốt 2026-10-28, Y-3).
  */
-const assertClassAvailable = (db, classId, user) => {
+// Kho trẻ chưa có danh sách năm học thì lấy theo seed cấu hình trường, như activeYearId
+const schoolYearOf = (db, id) => (db.schoolYears || buildSeedSchoolConfig().schoolYears).find((y) => y.id === id);
+
+const assertClassAvailable = (db, classId, user, schoolYearId = activeYearId(db)) => {
   const cls = db.classes.find((c) => c.id === classId);
   if (!cls || cls.status === 'INACTIVE') invalid({ classId: 'Lớp không tồn tại hoặc đã ngừng hoạt động' });
-  if (cls.schoolYear !== activeYearId(db))
-    invalid({ classId: 'Chỉ xếp vào lớp của năm học đang hoạt động. Xếp lớp cho năm học sau ở màn Xếp lớp năm học mới.' });
+  if (cls.schoolYear !== schoolYearId) invalid({ classId: 'Lớp không thuộc năm học tiếp nhận đã chọn' });
   if (!areaAllows(user, 'children', cls.campusId, true)) invalid({ classId: 'Chỉ xếp được vào lớp thuộc điểm trường bạn được giao' });
   if (activeCount(db, cls.id) >= cls.capacity) invalid({ classId: `${cls.name} đã đủ ${cls.capacity} trẻ. Chọn lớp khác.` });
   return cls;
@@ -796,7 +803,15 @@ const validateEnrollment = (db, { child, declaration }, excludeId) => {
 const prefix = (p, errors) => Object.fromEntries(Object.entries(errors).map(([k, v]) => [`${p}.${k}`, v]));
 
 const createChild = (db, { child, declaration }, { classId, campusId, user }) => {
-  const decl = cleanDeclaration(declaration);
+  const { mealRegistered, ...cleaned } = cleanDeclaration(declaration);
+  // CHD-13: không báo ăn ⇒ dị ứng, chế độ ăn lưu Chưa cung cấp.
+  const decl = mealRegistered
+    ? cleaned
+    : {
+        ...cleaned,
+        allergies: { state: DECLARATION_STATE.NOT_PROVIDED, items: [] },
+        diet: { state: DECLARATION_STATE.NOT_PROVIDED, text: '' },
+      };
   const record = {
     id: uid('ch'),
     code: nextCode(db),
@@ -808,6 +823,7 @@ const createChild = (db, { child, declaration }, { classId, campusId, user }) =>
     campusId,
     status: classId ? CHILD_STATUS.ACTIVE : CHILD_STATUS.PENDING_PLACEMENT,
     enrolledAt: todayInput(),
+    mealRegistered,
     // Người tiếp nhận chốt dị ứng ngay khi tiếp nhận, không chờ Hiệu trưởng duyệt (quyết định user 2026-10-14).
     allergies: [...decl.allergies.items],
     guardians: cleanGuardians(child.guardians),
@@ -1002,11 +1018,13 @@ export const childrenMockRepository = {
   },
 
   /** Lớp để tiếp nhận, xếp lớp: chỉ lớp của năm học đang hoạt động (user chốt 2026-10-28, Y-3). */
-  async getPlacementClasses(_filters, user) {
+  async getPlacementClasses(filters, user) {
     await delay(100);
     if (!isVicePrincipal(user) && !isPrincipal(user)) forbid();
     const db = ensureSeeded();
-    const year = activeYearId(db);
+    const year = filters?.schoolYearId || activeYearId(db);
+    const schoolYear = schoolYearOf(db, year);
+    if (!schoolYear || !['ACTIVE', 'PLANNED'].includes(schoolYear.status)) return [];
     return db.classes
       .filter((c) => areaAllows(user, 'children', c.campusId, true) && c.status !== 'INACTIVE' && c.schoolYear === year)
       .map((c) => ({ ...clone(c), enrolledCount: activeCount(db, c.id) }));
@@ -1028,10 +1046,26 @@ export const childrenMockRepository = {
     resolved = { ...resolved, child: await prepareMockPortraits(resolved.child) };
     return writeDb((d) => {
       // Lớp không bắt buộc khi tiếp nhận; có lớp thì vẫn kiểm sức chứa và campus, trẻ thuộc điểm trường của lớp.
-      const cls = payload.classId ? assertClassAvailable(d, payload.classId, user) : null;
+      const targetYearId = payload.schoolYearId || activeYearId(d);
+      const targetYear = schoolYearOf(d, targetYearId);
+      const planned = targetYear?.status === 'PLANNED';
+      if (targetYearId !== activeYearId(d) && !planned) invalid({ schoolYearId: 'Năm học không nhận trẻ' });
+      const cls = payload.classId ? assertClassAvailable(d, payload.classId, user, targetYearId) : null;
       if (cls && payload.campusId && cls.campusId !== payload.campusId) invalid({ classId: 'Lớp không thuộc điểm trường đã chọn' });
       const campusId = cls?.campusId || enrollCampusOf(d, payload.campusId, user);
-      const record = createChild(d, resolved, { classId: cls?.id || null, campusId, user });
+      const record = createChild(d, resolved, { classId: planned ? null : cls?.id || null, campusId, user });
+      if (planned) {
+        d.plannedAdmissions ||= [];
+        d.plannedAdmissions.push({
+          id: uid('adm'),
+          childId: record.id,
+          schoolYearId: targetYearId,
+          campusId,
+          classId: cls?.id || null,
+          startDate: payload.startDate,
+          status: cls ? 'PLACED' : 'PENDING',
+        });
+      }
       // Tài khoản có sẵn: liên kết ngay khi lưu, không tạo tài khoản mới, không gửi mật khẩu (UC 3.9 nhánh đã có tài khoản).
       linkAccounts(d, record, guardians);
       // Thông tin sửa khác tài khoản có sẵn ⇒ tài khoản đổi theo; làm trước kích hoạt để phụ huynh đổi SĐT không bị coi là người mới.
@@ -1043,7 +1077,7 @@ export const childrenMockRepository = {
         : [];
       // Form tiếp nhận: tạo tài khoản cho phụ huynh chưa có và gửi SMS ngay; nhập Excel vẫn kích hoạt sau (user chốt 2026-10-28, L-14).
       const activated = manageAccounts ? activatePendingGuardians(d, record) : [];
-      if (cls) notifyClassTeachers(d, cls, record);
+      if (cls && !planned) notifyClassTeachers(d, cls, record);
       return { ...toView(d, record, user), guardianAccounts: guardianAccountsOf(record, activated, edited) };
     });
   },
@@ -1148,6 +1182,9 @@ export const childrenMockRepository = {
       const left = dup ? null : sameChildOf(db, r.payload.child, { left: true });
       if (left)
         notes.push(`Trẻ từng học ở trường (hồ sơ cũ ${left.code}, đã nghỉ học): nên mở lại hồ sơ cũ ở Tiếp nhận trẻ thay vì nhập mới.`);
+      // CHD-13: giống BE, báo cho người nhập biết ô Dị ứng, Chế độ ăn đã bị bỏ qua.
+      if (r.payload.declaration?.mealRegistered === false && (r.raw?.allergies || r.raw?.diet))
+        notes.push('Không báo ăn: bỏ qua cột Dị ứng, Chế độ ăn');
       const duplicateRow = batchDuplicateOf(seen, r.payload.child);
       if (duplicateRow) messages.push(`Trùng với dòng ${duplicateRow.rowNo} trong file`);
       seen.push({ child: r.payload.child, rowNo: r.rowNo });
@@ -1269,12 +1306,14 @@ export const childrenMockRepository = {
     if (current && !reason?.trim()) errors.reason = 'Nhập lý do thay đổi khai báo';
     if (hasErrors(errors)) invalid(errors);
     return writeDb((d) => {
-      const clean = cleanDeclaration(declaration);
+      const { mealRegistered, ...cleaned } = cleanDeclaration(declaration);
       let decl = declarationOf(d, childId);
       if (!decl) {
         decl = { childId, history: [] };
         d.healthDeclarations.push(decl);
       }
+      // CHD-13: bỏ báo ăn chỉ đổi cờ, giữ dị ứng và chế độ ăn đang lưu (báo ăn lại thì khai bình thường).
+      const clean = mealRegistered || !decl.allergies ? cleaned : { ...cleaned, allergies: clone(decl.allergies), diet: clone(decl.diet) };
       const allergyChanged = JSON.stringify(decl.allergies) !== JSON.stringify(clean.allergies);
       const entry = { action: 'UPDATED', userId: user.id, at: nowIso(), note: reason?.trim() || '' };
       if (allergyChanged) entry.allergyChange = { from: decl.allergies ? clone(decl.allergies) : null, to: clone(clean.allergies) };
@@ -1290,7 +1329,9 @@ export const childrenMockRepository = {
       if (newTbContact) notifyTbContactReported(d, target, user.id, dateChange.to);
       else notifyTbContactDateChanged(d, target, dateChange, user.id);
       // Khai báo của Phó hiệu trưởng có hiệu lực ngay: bếp và điểm danh đọc danh sách mới.
-      findChild(d, childId).allergies = [...clean.allergies.items];
+      const owner = findChild(d, childId);
+      owner.allergies = [...clean.allergies.items];
+      owner.mealRegistered = mealRegistered;
       return clone(decl);
     });
   },

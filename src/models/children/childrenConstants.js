@@ -199,6 +199,8 @@ export const IMPORT_COLUMNS = [
   // CCCD phụ huynh bắt buộc cả khi nhập Excel (user chốt 2026-10-21); file mẫu cũ thiếu cột này không nhập được.
   { key: 'guardianIdNumber', label: 'Số CCCD phụ huynh', required: true },
   { key: 'email', label: 'Email', required: false },
+  // Báo ăn = trẻ ăn ở trường; Không thì bỏ qua dị ứng, chế độ ăn (CHD-13).
+  { key: 'mealRegistered', label: 'Báo ăn (Có/Không, để trống = Có)', required: false },
   { key: 'allergies', label: 'Dị ứng (để trống = chưa cung cấp, "Không" = không có)', required: false },
   { key: 'diet', label: 'Chế độ ăn (để trống = chưa cung cấp, "Không" = không có)', required: false },
   // Hành chính và tiền sử bắt buộc trừ CCCD trẻ, nhóm máu (user chốt 2026-10-22); file mẫu cũ thiếu cột không nhập được.

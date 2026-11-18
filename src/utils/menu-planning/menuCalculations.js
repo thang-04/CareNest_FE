@@ -419,7 +419,8 @@ export const allergyContext = (classes, children, ageGroupId) => {
   const classById = byId(classes);
   const rows = [];
   (children || [])
-    .filter((ch) => ch.status === 'ACTIVE' && (ch.allergies || []).length)
+    // NUT-07/CHD-13: trẻ không báo ăn không có suất ăn nên bếp không tính dị ứng
+    .filter((ch) => ch.status === 'ACTIVE' && ch.mealRegistered !== false && (ch.allergies || []).length)
     .forEach((ch) => {
       const cls = classById[ch.classId];
       if (!cls || (ageGroupId && cls.ageGroupId !== ageGroupId)) return;

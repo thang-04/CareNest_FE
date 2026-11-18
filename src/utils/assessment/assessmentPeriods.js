@@ -92,11 +92,8 @@ export const evaluationPeriodLabel = (e) =>
     ? `Tuần ${e.weekNo} (${dm(e.periodStart)} – ${dm(e.periodEnd)}/${e.periodEnd.slice(0, 4)})`
     : periodLabel(e.periodType, e.periodStart, e.periodEnd);
 
-/**
- * Week -> month assignment for the monthly ticket: the month that holds the Monday.
- * Assumption – GBR-REW-02 leaves the cross-month rule open.
- */
-export const monthOfWeek = (monday) => monthStart(monday);
+// OBS-10 (Cần chốt 18/11/2026): tuần thuộc tháng chứa thứ Sáu của tuần (ngày phát phiếu tuần)
+export const monthOfWeek = (monday) => monthStart(addDays(monday, 4));
 
 /**
  * Đánh giá ngày khóa sau 23:59:59 của chính ngày đó (Cần chốt 15/10/2026, thay GBR-OBS-03 "hết ngày học tiếp theo").
