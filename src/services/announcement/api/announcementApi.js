@@ -31,6 +31,9 @@ export const announcementApi = {
   create: (data, files) => axiosClient.post('/announcements', multipart(data, files), multipartConfig),
   update: (id, data, files) => axiosClient.put(`/announcements/${id}`, multipart(data, files), multipartConfig),
   cancel: (id) => axiosClient.post(`/announcements/${id}/cancel`),
+  delete: (id) => axiosClient.delete(`/announcements/${id}`),
+  deleteCancelled: (params = {}) => axiosClient.delete('/announcements/cancelled', { params }),
+  deleteSelection: (selection) => axiosClient.post('/announcements/delete-selection', selection),
   myAnnouncement: (id) => axiosClient.get(`/me/announcements/${id}`),
   attachment,
   templates: () => axiosClient.get('/announcement-templates'),
@@ -40,9 +43,18 @@ export const announcementApi = {
   rules: () => axiosClient.get('/notification-rules'),
   updateRule: (type, data) => axiosClient.put(`/notification-rules/${encodeURIComponent(type)}`, data),
   schedules: () => axiosClient.get('/announcement-schedules'),
-  createSchedule: (data) => axiosClient.post('/announcement-schedules', data),
-  updateSchedule: (id, data) => axiosClient.put(`/announcement-schedules/${id}`, data),
+  schedule: (id) => axiosClient.get(`/announcement-schedules/${id}`),
+  createSchedule: (data, files) =>
+    files === undefined
+      ? axiosClient.post('/announcement-schedules', data)
+      : axiosClient.post('/announcement-schedules', multipart(data, files), multipartConfig),
+  updateSchedule: (id, data, files) =>
+    files === undefined
+      ? axiosClient.put(`/announcement-schedules/${id}`, data)
+      : axiosClient.put(`/announcement-schedules/${id}`, multipart(data, files), multipartConfig),
+  activateSchedules: (ids, active) => axiosClient.post('/announcement-schedules/activation', { ids, active }),
   deleteSchedule: (id) => axiosClient.delete(`/announcement-schedules/${id}`),
+  deleteSchedules: (ids) => axiosClient.post('/announcement-schedules/delete-selection', { ids }),
   campuses: () => axiosClient.get('/campuses'),
   ageGroups: () => axiosClient.get('/age-groups'),
   schoolStructure: (params = {}) => axiosClient.get('/school-structure', { params }),

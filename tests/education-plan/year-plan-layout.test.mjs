@@ -26,6 +26,7 @@ const useYearPlanAutosave=()=>({label:'Đã lưu',drafts:[],saved:()=>null}), us
 const goalIdsToTicks=(domains,themes)=>({domains,themes});
 const numberGoals=()=>({}), themeScheduleIssue=()=>'', isBlankTheme=()=>false, isBlankBreak=()=>false;
 const Card=({title,num,actions,children,className})=><section className={className}><h2>{num}. {title}</h2>{actions}{children}</section>;
+const ResponsiveToolbar = ({children, ...props}) => <div {...props}>{children}</div>;
 const PageHead=({actions})=><header>{actions}</header>, FoldAllButton=()=>null, Field=({label,children})=><label>{label}{children}</label>, Notice=({children})=><p>{children}</p>;
 const GoalTable=({fixedCells,readOnly,canAssignContents})=> <div data-table="goals" data-fixed={fixedCells} data-locked={readOnly} data-assign={canAssignContents}/>, ThemeEventTable=({fixedFields,readOnly})=> <div data-table="themes" data-fixed={fixedFields} data-locked={readOnly}/>;
 const PlanTabs=()=> <div role="tablist"/>, Stepper=()=> <nav data-stepper="true"/>;
@@ -88,9 +89,9 @@ test('thông tin chung nhập trong bảng và các nút dùng cùng kiểu trê
   assert.doesNotMatch(html, /<textarea id="title"/);
 
   assert.match(html, /id="desc"/);
-  // Kế hoạch tổ: bên trái hàng nút chỉ có tên ngắn (hiện khi dính), không có nút lấy nội dung
+  // Kế hoạch tổ không hiện tên lặp lại khi cuộn và không có nút lấy nội dung.
   const left = html.match(/class="ga-year-toolbar__group">([\s\S]*?)<\/div>/)[1];
-  assert.match(left, /ga-year-toolbar__title/);
+  assert.doesNotMatch(left, /ga-year-toolbar__title/);
   assert.doesNotMatch(left, /<button/);
   const right = html.match(/class="ga-year-toolbar__group ga-year-toolbar__group--end">([\s\S]*?)<\/div>/)[1];
   assert.doesNotMatch(right, /Nhập file/);
@@ -114,6 +115,7 @@ const ROLES={VICE_PRINCIPAL:'vp'}, AGE_GROUPS=[], DOMAINS=[], SCHOOL_SCOPE='Toà
 const useGoalDetails=()=>({loading:false});const useEducationPlan=()=>({goals:[{id:'test',title:'Kế hoạch thử',status:'DRAFT',domains:[],themes:[],permissions:{canEdit:true}}],themes:[],user:{id:'vp',role:'vp'},staff:[]});
 const goalIdsToTicks=(domains,themes)=>({domains,themes}), numberGoals=()=>({}), chainOf=()=>[], currentPlanOf=()=>null;
 const Card=({title,num,children})=><section><h2>{num}. {title}</h2>{children}</section>;
+const ResponsiveToolbar = ({children, ...props}) => <div {...props}>{children}</div>;
 const PageHead=({actions})=><header>{actions}</header>, FoldAllButton=()=>null, VersionBadge=()=>null, YearPlanVersionPanel=()=>null, ReviewHistory=()=>null, ReviewActions=()=>null, RejectedNotice=()=>null;
 const GoalTable=()=> <div data-table="goals"/>, ThemeEventTable=()=> <div data-table="themes"/>, PlanTabs=()=> <div role="tablist"/>;
 const Copy=()=>null, FileDown=()=>null, Pencil=()=>null, Trash2=()=>null, ArrowLeft=()=>null, fmtDate=()=> '—';

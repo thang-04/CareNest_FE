@@ -1765,6 +1765,22 @@ h2.ga-cur-domain__head {
 .ga-year-toolbar__group--end {
   margin-left: auto;
 }
+.ga-year-toolbar.responsive-toolbar,
+.ga-year-toolbar.responsive-toolbar .ga-year-toolbar__group,
+.ga-year-toolbar.responsive-toolbar .row {
+  flex-wrap: nowrap;
+}
+.ga-year-toolbar.responsive-toolbar[data-compact] .ga-year-toolbar__group,
+.ga-year-toolbar.responsive-toolbar[data-compact] .row {
+  flex-direction: column;
+  align-items: stretch;
+  margin-left: 0;
+}
+.ga-year-toolbar.responsive-toolbar .responsive-toolbar__content[data-measuring] .ga-year-toolbar__group,
+.ga-year-toolbar.responsive-toolbar .responsive-toolbar__content[data-measuring] .row {
+  flex-direction: row !important;
+  align-items: center !important;
+}
 .ga-year-toolbar .btn {
   flex: 0 0 auto;
 }
@@ -2969,11 +2985,22 @@ h2.ga-cur-domain__head {
   }
 }
 
-/* ===== Đầu trang kế hoạch giáo dục (Tiền 12/11/2026, thay quyết định 12/10 và 03/11) =====
-   Breadcrumb, hàng lọc, thẻ tên, tab cuộn đi theo trang; chỉ hàng nút (.ga-year-toolbar) dính dưới thanh trên cùng.
+/* ===== Đầu trang kế hoạch giáo dục (Tiền điều chỉnh tiếp 17/11/2026) =====
+   Hàng nút sát header chung, trước bộ lọc/tab; chỉ hàng nút (.ga-year-toolbar) dính khi cuộn.
    display: contents để hàng nút dính theo cả trang, không bị giới hạn trong khung .ga-sticky-head. */
 .ga-sticky-head {
   display: contents;
+}
+.ga-page:has(.ga-year-toolbar) {
+  padding-top: 0;
+}
+.ga-page:has(.ga-year-toolbar) .page__head:not(:has(.page__desc, .page__actions)) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
 }
 .ga-sticky-head > .ga-year-toolbar {
   position: sticky;
@@ -2982,28 +3009,10 @@ h2.ga-cur-domain__head {
   margin-bottom: var(--space-2-5);
   background: var(--color-bg);
   border-bottom: 1px solid var(--color-border);
-  container-type: scroll-state;
 }
 .ga-page {
   /* Mép dưới thanh trên cùng (thanh cao --header-height, cách mép trên --space-3) */
   --ga-stick-top: calc(var(--header-height) + var(--space-3));
-}
-/* Tên ngắn của tài liệu trong hàng nút: chỉ hiện khi hàng nút đang dính (breadcrumb đã cuộn khuất) */
-.ga-year-toolbar__title {
-  display: none;
-  max-width: 16rem;
-  overflow: hidden;
-  font-weight: var(--fw-semibold);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-/* Điện thoại không hiện tên ngắn để hàng nút dính ít dòng nhất */
-@media (min-width: 768px) {
-  @container scroll-state(stuck: top) {
-    .ga-year-toolbar__title {
-      display: inline;
-    }
-  }
 }
 /* Ô đang nhập (đi bằng Tab) không bị hàng nút dính che */
 html:has(.ga-page) {

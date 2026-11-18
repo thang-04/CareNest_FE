@@ -1,3 +1,4 @@
+import { ResponsiveToolbar } from '@/components/ui/ResponsiveToolbar';
 import TeamSourceReview from '@/components/education-plan/TeamSourceReview';
 import YearPlanSourceCard from '@/components/education-plan/YearPlanSourceCard';
 import { RowMenu } from '@/components/ui/RowMenu';
@@ -708,10 +709,13 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
             ]}
             title={`${existing ? 'Chỉnh sửa' : 'Lập'} ${pageLabel.toLowerCase()}`}
           />
-          <div className="ga-year-toolbar" role="group" aria-label={annual ? 'Thao tác kế hoạch năm học' : 'Thao tác kế hoạch giáo dục tổ'}>
-            {/* Bên trái: tên ngắn (hiện khi hàng nút đang dính) rồi các nút lấy nội dung (Tiền 12/11/2026) */}
+          <ResponsiveToolbar
+            className="ga-year-toolbar"
+            role="group"
+            aria-label={annual ? 'Thao tác kế hoạch năm học' : 'Thao tác kế hoạch giáo dục tổ'}
+          >
+            {/* Bên trái giữ các thao tác lấy nội dung; tên tài liệu chỉ ở header chung. */}
             <div className="ga-year-toolbar__group">
-              <span className="ga-year-toolbar__title">{pageLabel}</span>
               <FoldAllButton />
               {annual && (
                 <RowMenu
@@ -800,7 +804,7 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
                 </Button>
               )}
             </div>
-          </div>
+          </ResponsiveToolbar>
         </div>
 
         {reviewError && <Notice>{reviewError}</Notice>}
