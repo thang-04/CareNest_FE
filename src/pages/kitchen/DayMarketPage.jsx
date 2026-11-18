@@ -162,7 +162,9 @@ export default function DayMarketPage() {
           size="full"
           className="kb-print-modal"
           title="Bảng đi chợ"
-          footer={<PrintToolbar sheetRef={sheetRef} fileBase={`Bang_di_cho_${date}`} printLabel="In bảng" orientation="landscape" />}
+          footer={
+            <PrintToolbar sheetRef={sheetRef} fileBase={`Bang_di_cho_${date}`} onClose={() => setPrinting(false)} orientation="landscape" />
+          }
         >
           <PrintPaperFit>
             <DayMarketPrint ref={sheetRef} data={data} />

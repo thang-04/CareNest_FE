@@ -116,7 +116,7 @@ export function FreshForecastDetail({ campus }) {
           size="xl"
           className="print-modal"
           title="Danh sách đặt hàng"
-          footer={<PrintToolbar sheetRef={sheetRef} fileBase={`Dat_hang_${forecast.periodFrom}`} printLabel="In danh sách" />}
+          footer={<PrintToolbar sheetRef={sheetRef} fileBase={`Dat_hang_${forecast.periodFrom}`} onClose={() => setPrinting(false)} />}
         >
           <PrintPaperFit>
             <FreshForecastPrint ref={sheetRef} forecast={forecast} campusName={campusName?.shortName || campusName?.name} />
