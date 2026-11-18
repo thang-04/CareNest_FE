@@ -67,7 +67,9 @@ test('mealsWhenPresent tắt suất cho trẻ không báo ăn', () => {
 test('lưu điểm danh luôn tắt suất trẻ không báo ăn', async () => {
   const [noMeal, eats] = childIds;
   writeDb((d) => {
-    d.children.find((ch) => ch.id === noMeal).mealRegistered = false;
+    const child = d.children.find((ch) => ch.id === noMeal);
+    child.mealRegistered = false;
+    child.allergies = ['Tôm'];
   });
   const sessions = (await repo.getClassAttendance(cls.id, date, teacher)).mealSessions;
   const all = Object.fromEntries(sessions.map((s) => [s, true]));
@@ -86,6 +88,7 @@ test('lưu điểm danh luôn tắt suất trẻ không báo ăn', async () => {
   const rowOf = (id) => sheet.children.find((row) => row.child.id === id);
   assert.equal(rowOf(noMeal).child.mealRegistered, false);
   assert.equal(rowOf(eats).child.mealRegistered, true);
+  assert.deepEqual(rowOf(noMeal).child.allergies, [], 'CHD-13: bếp không tính dị ứng của trẻ không báo ăn');
   assert.ok(sessions.every((s) => rowOf(noMeal).record.meals[s] === false), 'trẻ không báo ăn không có suất');
   assert.ok(sessions.every((s) => rowOf(eats).record.meals[s] === true), 'trẻ báo ăn vẫn ăn đủ');
 

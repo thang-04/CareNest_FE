@@ -495,7 +495,8 @@ const childView = (ch) => ({
   code: ch.code,
   fullName: ch.fullName,
   gender: ch.gender,
-  allergies: ch.allergies || [],
+  // CHD-13: bếp không tính dị ứng của trẻ không báo ăn
+  allergies: ch.mealRegistered === false ? [] : ch.allergies || [],
   mealRegistered: ch.mealRegistered !== false,
   photoUrl: ch.photoUrl || kidAvatar(ch),
 });
