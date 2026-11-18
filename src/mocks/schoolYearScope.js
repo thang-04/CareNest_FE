@@ -12,6 +12,9 @@ const yearsOf = (db) =>
 
 const dayOf = (value) => (/^\d{4}-\d{2}-\d{2}$/.test(String(value || '')) ? value : localDateOf(value));
 
+/** CHD-11/CFG-YR-05: năm sắp diễn ra (PLANNED) đã tới ngày mở chuẩn bị (thiếu prepDate ⇒ chưa tới), như BE `preparing`. */
+export const isPreparingYear = (year, today) => year?.status === 'PLANNED' && !!year.prepDate && today >= year.prepDate;
+
 /** Mã năm học chứa ngày (YYYY-MM-DD hoặc thời điểm ISO), hoặc null khi trước mọi năm học. */
 export const schoolYearIdOfDate = (db, value) => {
   const day = value ? dayOf(value) : '';

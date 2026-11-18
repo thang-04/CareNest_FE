@@ -9,7 +9,7 @@ import { pushNotification } from '@/mocks/notificationMockRepository';
 import { activatePendingGuardians, applyGuardianEdits, differsFromAccount } from '@/mocks/parentAccountMock';
 import { activeYearId } from '@/mocks/roomManagers';
 import { buildSeedSchoolConfig } from '@/mocks/schoolConfigSeed';
-import { schoolYearIdOfDate } from '@/mocks/schoolYearScope';
+import { isPreparingYear, schoolYearIdOfDate } from '@/mocks/schoolYearScope';
 import { AGE_GROUPS, CHILD_STATUS } from '@/models/School';
 import {
   AI_TREND_STATUS,
@@ -1050,6 +1050,10 @@ export const childrenMockRepository = {
       const targetYear = schoolYearOf(d, targetYearId);
       const planned = targetYear?.status === 'PLANNED';
       if (targetYearId !== activeYearId(d) && !planned) invalid({ schoolYearId: 'Năm học không nhận trẻ' });
+      // CHD-11/CFG-YR-05 (BE 2412): năm sau chỉ nhận trẻ từ ngày mở chuẩn bị.
+      if (planned && !isPreparingYear(targetYear, todayInput())) {
+        throw new ApiError(409, `Năm học ${targetYear.name} chưa tới ngày mở chuẩn bị (${targetYear.prepDate ? formatDate(targetYear.prepDate) : 'chưa đặt'})`);
+      }
       const cls = payload.classId ? assertClassAvailable(d, payload.classId, user, targetYearId) : null;
       if (cls && payload.campusId && cls.campusId !== payload.campusId) invalid({ classId: 'Lớp không thuộc điểm trường đã chọn' });
       const campusId = cls?.campusId || enrollCampusOf(d, payload.campusId, user);
