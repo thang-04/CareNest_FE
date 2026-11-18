@@ -557,8 +557,8 @@ const inSchoolYear = (db, view, child, yearId) => {
   const adm = openAdmissionOf(db, child.id);
   if (adm) {
     if (adm.schoolYearId !== yearId) return null;
-    const planned = adm.classId ? db.classes.find((c) => c.id === adm.classId) : null;
-    return { ...view, classId: planned?.id || null, className: planned?.name || '', campusId: adm.campusId };
+    // Như BE: classId, className của trẻ vẫn null, lớp dự kiến chỉ nằm trong plannedAdmission.
+    return { ...view, classId: null, className: null, campusId: adm.campusId };
   }
   const cls = classInYear(db, child, yearId);
   if (cls)
@@ -941,7 +941,7 @@ export const childrenMockRepository = {
       .filter((c) => !filters.classId || c.classId === filters.classId)
       .filter((c) => !filters.status || c.status === filters.status)
       .filter((c) => !kw || normalizeText(`${c.fullName} ${c.code}`).includes(kw));
-    return list.sort((a, b) => a.className.localeCompare(b.className, 'vi') || a.fullName.localeCompare(b.fullName, 'vi'));
+    return list.sort((a, b) => (a.className || '').localeCompare(b.className || '', 'vi') || a.fullName.localeCompare(b.fullName, 'vi'));
   },
 
   /* ------------------------------ #32 Child profile ------------------------------ */

@@ -118,6 +118,12 @@ test('CHD-09, CHD-11: trẻ năm sau chỉ ở danh sách năm đó, có planned
   const next = await children.listChildren({ schoolYear: NEXT_YEAR }, PRINCIPAL);
   assert.deepEqual(next.map((c) => c.id).sort(), [saved.id, pending.id].sort());
   assert.equal(next.find((c) => c.id === saved.id).plannedAdmission.className, 'Lớp năm sau');
+  // BE giữ classId, className null cho trẻ năm sau; lớp dự kiến chỉ nằm trong plannedAdmission.
+  for (const id of [saved.id, pending.id]) {
+    const item = next.find((c) => c.id === id);
+    assert.equal(item.classId, null);
+    assert.equal(item.className, null);
+  }
   assert.equal(next.find((c) => c.id === pending.id).plannedAdmission.status, 'PENDING');
 });
 
