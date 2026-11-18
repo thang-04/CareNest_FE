@@ -1229,8 +1229,16 @@ export const schoolConfigMockRepository = {
       if (hasErrors(errors)) throw invalid(errors);
       let setting = db.cutoffSettings.find((s) => s.schoolYear === schoolYear);
       const previousTime = setting?.time || null;
-      if (setting && setting.time === form.time && setting.effectiveFrom === form.effectiveFrom)
+      const latestAfternoonArrival = form.latestAfternoonArrival || setting?.latestAfternoonArrival || '14:00';
+      if (
+        setting &&
+        setting.time === form.time &&
+        setting.effectiveFrom === form.effectiveFrom &&
+        (setting.latestAfternoonArrival || '14:00') === latestAfternoonArrival
+      )
         throw invalid({ time: 'Giờ chốt và ngày áp dụng chưa thay đổi' });
+      // Màn điểm danh demo đọc giờ đến muộn nhất buổi chiều (ATT-13)
+      db.latestAfternoonArrival = latestAfternoonArrival;
       if (!setting) {
         setting = { schoolYear, history: [] };
         db.cutoffSettings.push(setting);
@@ -1238,12 +1246,14 @@ export const schoolConfigMockRepository = {
       Object.assign(setting, {
         time: form.time,
         effectiveFrom: form.effectiveFrom,
+        latestAfternoonArrival,
         updatedBy: user.id,
         updatedAt: now(),
       });
       setting.history.unshift({
         time: form.time,
         effectiveFrom: form.effectiveFrom,
+        latestAfternoonArrival,
         previousTime,
         userId: user.id,
         at: now(),

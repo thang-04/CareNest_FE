@@ -188,6 +188,16 @@
   gap: var(--space-2);
   white-space: nowrap;
 }
+/* ATT-13: trẻ nghỉ buổi sáng — trạng thái theo đơn và nút Đã đến cùng ô */
+.dd-reception__arrival {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+}
+.dd-reception__xe-off {
+  white-space: nowrap;
+}
 /* Chữ Có / Không cùng độ rộng để nút gạt các dòng thẳng hàng */
 .dd-reception__meal > .text-xs {
   min-width: 4.5ch;
@@ -205,10 +215,7 @@
   margin: var(--space-2) 0 0;
 }
 .dd-reception__footer {
-  /* Dính đáy màn hình: lớp đông trẻ vẫn thấy nút Lưu mà không phải cuộn xuống */
-  position: sticky;
-  bottom: 0;
-  z-index: 2;
+  /* Nằm ngay dưới khung bảng (khung tự cuộn, cao vừa màn hình): không dính đáy để khỏi che các dòng cuối của bảng */
   padding-top: var(--space-3);
   padding-bottom: var(--space-3);
   background: var(--color-surface);

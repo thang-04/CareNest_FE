@@ -191,6 +191,12 @@ export const validateCutoff = (form, year) => {
   if (!form.effectiveFrom) e.effectiveFrom = 'Chọn ngày áp dụng';
   else if (year && (form.effectiveFrom < year.startDate || form.effectiveFrom > year.endDate))
     e.effectiveFrom = `Ngày áp dụng phải nằm trong năm học ${year.name}`;
+  // Như BE CUTOFF_LATEST_ARRIVAL_INVALID (ATT-13): giờ đến muộn nhất buổi chiều phải sau giờ chốt
+  if (form.latestAfternoonArrival) {
+    if (!TIME.test(form.latestAfternoonArrival)) e.latestAfternoonArrival = 'Nhập giờ hợp lệ dạng HH:mm, ví dụ 14:00';
+    else if (form.time && TIME.test(form.time) && form.latestAfternoonArrival <= form.time)
+      e.latestAfternoonArrival = `Giờ đến muộn nhất buổi chiều phải sau giờ chốt ${form.time}`;
+  }
   return withLength(e, form, CUTOFF_LIMITS);
 };
 
