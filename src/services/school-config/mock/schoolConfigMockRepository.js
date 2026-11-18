@@ -673,11 +673,25 @@ export const schoolConfigMockRepository = {
         .map((c) => ({ id: c.id, name: campusLabel(db, c.id) })),
       classes,
       targets,
+      newAdmissions: (db.plannedAdmissions || [])
+        .filter((item) => item.schoolYearId === yearId && ['PENDING', 'PLACED'].includes(item.status) && mine(item))
+        .map((item) => {
+          const child = db.children.find((candidate) => candidate.id === item.childId);
+          return {
+            admissionId: item.id,
+            childId: item.childId,
+            fullName: child?.fullName || '—',
+            birthDate: child?.dateOfBirth || child?.birthDate || null,
+            campusId: item.campusId,
+            targetClassId: item.classId || null,
+            startDate: item.startDate,
+          };
+        }),
     };
   },
 
   /** items: [{ childId, action, toClassId }] – ghi đè theo từng trẻ; trẻ không có trong items giữ nguyên. */
-  async savePlacements(yearId, { items } = {}, user) {
+  async savePlacements(yearId, { items, newAdmissions } = {}, user) {
     await delay();
     if (!canEditYearPlacement(user, yearPlacementCampus(user) || undefined)) throw forbid();
     seeded();
@@ -706,6 +720,20 @@ export const schoolConfigMockRepository = {
         }
         return null;
       });
+      (newAdmissions || []).forEach((item) => {
+        const admission = (db.plannedAdmissions || []).find(
+          (candidate) => candidate.id === item.admissionId && candidate.schoolYearId === target.id,
+        );
+        if (!admission) return (errors[`admission.${item.admissionId}`] = 'Trẻ mới tiếp nhận không thuộc năm học này');
+        if (!canEditYearPlacement(user, admission.campusId))
+          return (errors[`admission.${item.admissionId}`] = 'Trẻ thuộc điểm trường bạn không được giao xếp lớp');
+        if (item.toClassId) {
+          const to = db.classes.find((candidate) => candidate.id === item.toClassId && candidate.schoolYear === target.id);
+          if (!to || to.campusId !== admission.campusId)
+            return (errors[`admission.${item.admissionId}`] = 'Chọn lớp năm học mới cùng điểm trường tiếp nhận');
+        }
+        return null;
+      });
       if (hasErrors(errors)) throw new ApiError(422, 'Kiểm tra lại các trẻ được đánh dấu.', errors);
       const at = now();
       db.classPlacements ||= [];
@@ -723,6 +751,11 @@ export const schoolConfigMockRepository = {
         if (i >= 0) db.classPlacements[i] = { ...db.classPlacements[i], ...record };
         else db.classPlacements.push({ id: uid('plc'), ...record });
       });
+      (newAdmissions || []).forEach((item) => {
+        const admission = db.plannedAdmissions.find((candidate) => candidate.id === item.admissionId);
+        admission.classId = item.toClassId || null;
+        admission.status = item.toClassId ? 'PLACED' : 'PENDING';
+      });
       // Không vượt sĩ số tối đa của lớp năm mới (đã ≤ min(nhóm tuổi, sức chứa phòng))
       const over = yearClasses(db, target.id).filter((c) => seatsTaken(db, target.id, c.id) > c.capacity);
       if (over.length)
@@ -730,7 +763,7 @@ export const schoolConfigMockRepository = {
           409,
           `Vượt sĩ số tối đa: ${over.map((c) => `${c.name} (${seatsTaken(db, target.id, c.id)}/${c.capacity})`).join(', ')}. Chọn lớp khác cho một số trẻ.`,
         );
-      return { saved: (items || []).length };
+      return { saved: (items || []).length + (newAdmissions || []).length };
     });
   },
 

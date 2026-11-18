@@ -8,6 +8,7 @@ import { MEASUREMENT_ROUND, OPEN_CAMPAIGN, buildSeedHealthChecks } from '@/mocks
 import { pushNotification } from '@/mocks/notificationMockRepository';
 import { activatePendingGuardians, applyGuardianEdits, differsFromAccount } from '@/mocks/parentAccountMock';
 import { activeYearId } from '@/mocks/roomManagers';
+import { buildSeedSchoolConfig } from '@/mocks/schoolConfigSeed';
 import { schoolYearIdOfDate } from '@/mocks/schoolYearScope';
 import { AGE_GROUPS, CHILD_STATUS } from '@/models/School';
 import {
@@ -730,11 +731,13 @@ const tbContactDateOf = (mh) => (tbReported(mh) ? mh.tbContact.contactDate || ''
  * Placement checks (UC 3.10 step 4): class of the VP's campus, active, not full; chỉ lớp của năm học đang hoạt động — xếp lớp
  * năm sau ở màn Xếp lớp năm học mới (user chốt 2026-10-28, Y-3).
  */
-const assertClassAvailable = (db, classId, user) => {
+// Kho trẻ chưa có danh sách năm học thì lấy theo seed cấu hình trường, như activeYearId
+const schoolYearOf = (db, id) => (db.schoolYears || buildSeedSchoolConfig().schoolYears).find((y) => y.id === id);
+
+const assertClassAvailable = (db, classId, user, schoolYearId = activeYearId(db)) => {
   const cls = db.classes.find((c) => c.id === classId);
   if (!cls || cls.status === 'INACTIVE') invalid({ classId: 'Lớp không tồn tại hoặc đã ngừng hoạt động' });
-  if (cls.schoolYear !== activeYearId(db))
-    invalid({ classId: 'Chỉ xếp vào lớp của năm học đang hoạt động. Xếp lớp cho năm học sau ở màn Xếp lớp năm học mới.' });
+  if (cls.schoolYear !== schoolYearId) invalid({ classId: 'Lớp không thuộc năm học tiếp nhận đã chọn' });
   if (!areaAllows(user, 'children', cls.campusId, true)) invalid({ classId: 'Chỉ xếp được vào lớp thuộc điểm trường bạn được giao' });
   if (activeCount(db, cls.id) >= cls.capacity) invalid({ classId: `${cls.name} đã đủ ${cls.capacity} trẻ. Chọn lớp khác.` });
   return cls;
@@ -1015,11 +1018,13 @@ export const childrenMockRepository = {
   },
 
   /** Lớp để tiếp nhận, xếp lớp: chỉ lớp của năm học đang hoạt động (user chốt 2026-10-28, Y-3). */
-  async getPlacementClasses(_filters, user) {
+  async getPlacementClasses(filters, user) {
     await delay(100);
     if (!isVicePrincipal(user) && !isPrincipal(user)) forbid();
     const db = ensureSeeded();
-    const year = activeYearId(db);
+    const year = filters?.schoolYearId || activeYearId(db);
+    const schoolYear = schoolYearOf(db, year);
+    if (!schoolYear || !['ACTIVE', 'PLANNED'].includes(schoolYear.status)) return [];
     return db.classes
       .filter((c) => areaAllows(user, 'children', c.campusId, true) && c.status !== 'INACTIVE' && c.schoolYear === year)
       .map((c) => ({ ...clone(c), enrolledCount: activeCount(db, c.id) }));
@@ -1041,10 +1046,26 @@ export const childrenMockRepository = {
     resolved = { ...resolved, child: await prepareMockPortraits(resolved.child) };
     return writeDb((d) => {
       // Lớp không bắt buộc khi tiếp nhận; có lớp thì vẫn kiểm sức chứa và campus, trẻ thuộc điểm trường của lớp.
-      const cls = payload.classId ? assertClassAvailable(d, payload.classId, user) : null;
+      const targetYearId = payload.schoolYearId || activeYearId(d);
+      const targetYear = schoolYearOf(d, targetYearId);
+      const planned = targetYear?.status === 'PLANNED';
+      if (targetYearId !== activeYearId(d) && !planned) invalid({ schoolYearId: 'Năm học không nhận trẻ' });
+      const cls = payload.classId ? assertClassAvailable(d, payload.classId, user, targetYearId) : null;
       if (cls && payload.campusId && cls.campusId !== payload.campusId) invalid({ classId: 'Lớp không thuộc điểm trường đã chọn' });
       const campusId = cls?.campusId || enrollCampusOf(d, payload.campusId, user);
-      const record = createChild(d, resolved, { classId: cls?.id || null, campusId, user });
+      const record = createChild(d, resolved, { classId: planned ? null : cls?.id || null, campusId, user });
+      if (planned) {
+        d.plannedAdmissions ||= [];
+        d.plannedAdmissions.push({
+          id: uid('adm'),
+          childId: record.id,
+          schoolYearId: targetYearId,
+          campusId,
+          classId: cls?.id || null,
+          startDate: payload.startDate,
+          status: cls ? 'PLACED' : 'PENDING',
+        });
+      }
       // Tài khoản có sẵn: liên kết ngay khi lưu, không tạo tài khoản mới, không gửi mật khẩu (UC 3.9 nhánh đã có tài khoản).
       linkAccounts(d, record, guardians);
       // Thông tin sửa khác tài khoản có sẵn ⇒ tài khoản đổi theo; làm trước kích hoạt để phụ huynh đổi SĐT không bị coi là người mới.
@@ -1056,7 +1077,7 @@ export const childrenMockRepository = {
         : [];
       // Form tiếp nhận: tạo tài khoản cho phụ huynh chưa có và gửi SMS ngay; nhập Excel vẫn kích hoạt sau (user chốt 2026-10-28, L-14).
       const activated = manageAccounts ? activatePendingGuardians(d, record) : [];
-      if (cls) notifyClassTeachers(d, cls, record);
+      if (cls && !planned) notifyClassTeachers(d, cls, record);
       return { ...toView(d, record, user), guardianAccounts: guardianAccountsOf(record, activated, edited) };
     });
   },
