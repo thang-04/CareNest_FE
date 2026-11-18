@@ -13,6 +13,9 @@ import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useAsync } from '@/hooks/useAsync';
 import { useAttendanceClasses } from '@/hooks/attendance/useAttendance';
 import { useAgeGroupOptions } from '@/hooks/attendance/useAgeGroupOptions';
+import { useYearCampuses } from '@/hooks/useYearCampuses';
+import { campusOptionLabel } from '@/utils/campusLabel';
+import { PERMISSIONS } from '@/models/bePermissions';
 import { getCampuses } from '@/services/masterDataService';
 import { getLeaveRequests } from '@/services/attendance/attendanceService';
 import { canFilterLeaveByCampus } from '@/utils/attendance/attendancePermissions';
@@ -59,11 +62,15 @@ export default function LeaveRequestsPage() {
     () =>
       classesQuery.classes.filter(
         (c) =>
-          (!filters.campusId || c.campusId === filters.campusId) && (!filters.ageGroupId || String(c.ageGroupId) === filters.ageGroupId),
+          (!filters.campusId || String(c.campusId) === String(filters.campusId)) &&
+          (!filters.ageGroupId || String(c.ageGroupId) === filters.ageGroupId),
       ),
     [classesQuery.classes, filters.campusId, filters.ageGroupId],
   );
-  const campusIds = new Set(classesQuery.classes.map((c) => c.campusId));
+  // HT: đủ điểm trường của năm đang chọn; người khác: điểm trường có lớp trong phạm vi xem
+  const yearCampuses = useYearCampuses(PERMISSIONS.ATTENDANCE_VIEW);
+  const campusIds = new Set(yearCampuses ? yearCampuses.map((c) => String(c.id)) : classesQuery.classes.map((c) => String(c.campusId)));
+  const campusList = [...campusIds].map((id) => (yearCampuses || campuses || []).find((c) => String(c.id) === id) || { id, name: id });
   const invalidRange = !isIsoDate(filters.from) || !isIsoDate(filters.to) || filters.from > filters.to;
   const query = invalidRange
     ? null
@@ -88,7 +95,7 @@ export default function LeaveRequestsPage() {
     setPage(1);
   };
   const campusName = (id) => {
-    const c = (campuses || []).find((x) => x.id === id);
+    const c = [...(yearCampuses || []), ...(campuses || [])].find((x) => String(x.id) === String(id));
     return c?.shortName || c?.name || '';
   };
   // Hủy một phần: BE giữ ACTIVE, effectiveTo là ngày cuối còn hiệu lực
@@ -193,9 +200,9 @@ export default function LeaveRequestsPage() {
               onChange={(e) => setFilter({ campusId: e.target.value })}
             >
               <option value="">Tất cả điểm trường</option>
-              {[...campusIds].map((id) => (
-                <option key={id} value={id}>
-                  {campusName(id) || id}
+              {campusList.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {campusOptionLabel(c, campusList)}
                 </option>
               ))}
             </select>
@@ -263,7 +270,11 @@ export default function LeaveRequestsPage() {
                 ) : rows.length === 0 ? (
                   <tr>
                     <td colSpan={9}>
-                      <EmptyState title="Không có đơn nghỉ" description="Chưa có phụ huynh nào gửi đơn nghỉ trong khoảng đã chọn." />
+                      {filters.campusId && !classes.length ? (
+                        <EmptyState title="Chưa có dữ liệu" description="Điểm trường này chưa có lớp trong năm học đang chọn." />
+                      ) : (
+                        <EmptyState title="Không có đơn nghỉ" description="Chưa có phụ huynh nào gửi đơn nghỉ trong khoảng đã chọn." />
+                      )}
                     </td>
                   </tr>
                 ) : (

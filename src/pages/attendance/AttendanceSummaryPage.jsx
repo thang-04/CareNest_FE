@@ -16,6 +16,9 @@ import { semesterRange } from '@/utils/semesters';
 import { paginate } from '@/components/ui/Pagination';
 import { useAttendanceClasses, useAttendanceSummary, useAttendanceYear } from '@/hooks/attendance/useAttendance';
 import { useAgeGroupOptions } from '@/hooks/attendance/useAgeGroupOptions';
+import { useYearCampuses } from '@/hooks/useYearCampuses';
+import { campusOptionLabel } from '@/utils/campusLabel';
+import { PERMISSIONS } from '@/models/bePermissions';
 import { MEAL_SESSION_LABELS } from '@/models/attendance/attendanceConstants';
 import { validateSummaryRange } from '@/utils/attendance/attendanceValidation';
 import { addDays } from '@/utils/attendance/attendanceTime';
@@ -43,13 +46,15 @@ export default function AttendanceSummaryPage() {
   const { classes, loading: loadingClasses, error: classError, reload: reloadClasses } = useAttendanceClasses();
   const manager = [ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL].includes(user?.role);
   // Điểm trường chọn được = điểm trường có lớp trong phạm vi xem (PHT thường chỉ điểm trường của mình)
-  const campusOptions = md.campuses.filter((c) => classes.some((cls) => cls.campusId === c.id));
+  // HT: đủ điểm trường của năm đang chọn (kể cả chưa có lớp); PHT: điểm trường có lớp trong phạm vi xem
+  const yearCampuses = useYearCampuses(PERMISSIONS.ATTENDANCE_VIEW);
+  const campusOptions = yearCampuses || md.campuses.filter((c) => classes.some((cls) => String(cls.campusId) === String(c.id)));
   const campusId = manager ? (campusOptions.length === 1 ? campusOptions[0].id : params.get('campus') || '') : '';
   // Lọc nhóm tuổi (ATT-14): lớp chọn được và tổng hợp nhiều lớp chỉ gồm lớp của nhóm tuổi đó
-  const ageGroupOptions = useAgeGroupOptions(classes.filter((c) => !campusId || c.campusId === campusId));
+  const ageGroupOptions = useAgeGroupOptions(classes.filter((c) => !campusId || String(c.campusId) === String(campusId)));
   const ageGroupId = manager && ageGroupOptions.some((g) => g.id === params.get('ageGroup')) ? params.get('ageGroup') : '';
   const campusClasses = classes.filter(
-    (c) => (!campusId || c.campusId === campusId) && (!ageGroupId || String(c.ageGroupId) === ageGroupId),
+    (c) => (!campusId || String(c.campusId) === String(campusId)) && (!ageGroupId || String(c.ageGroupId) === ageGroupId),
   );
   const paramClass = params.get('classId') || '';
   // Tổ trưởng chuyên môn: xem lớp mình hoặc tổng hợp các lớp nhóm tuổi mình (BE lọc theo nhóm tuổi, Cần chốt 04/11)
@@ -86,7 +91,7 @@ export default function AttendanceSummaryPage() {
     reload,
   } = useAttendanceSummary(valid ? { classId, campusId, ageGroupId: multi ? ageGroupId : '', multi, ...range } : {});
   const sameScope = multi
-    ? loadedSummary?.scope === 'MULTI' && (loadedSummary.campusId || '') === campusId
+    ? loadedSummary?.scope === 'MULTI' && String(loadedSummary.campusId || '') === String(campusId || '')
     : loadedSummary?.scope === 'CLASS' && loadedSummary.classId === classId;
   const summary =
     valid && !loading && !error && sameScope && loadedSummary.from === range.from && loadedSummary.to === range.to ? loadedSummary : null;
@@ -247,7 +252,7 @@ export default function AttendanceSummaryPage() {
                   <option value="">Toàn trường</option>
                   {campusOptions.map((c) => (
                     <option key={c.id} value={c.id}>
-                      {c.shortName || c.name}
+                      {campusOptionLabel(c, campusOptions)}
                     </option>
                   ))}
                 </select>
@@ -326,7 +331,11 @@ export default function AttendanceSummaryPage() {
             )}
           </ClassDateBar>
 
-          {!valid ? (
+          {campusId && !campusClasses.length ? (
+            <div className="card">
+              <EmptyState title="Chưa có dữ liệu" description="Điểm trường này chưa có lớp trong năm học đang chọn." />
+            </div>
+          ) : !valid ? (
             <div className="card">
               <EmptyState title="Chọn khoảng ngày hợp lệ" description="Nhập đủ ngày bắt đầu và kết thúc để xem tổng hợp." />
             </div>

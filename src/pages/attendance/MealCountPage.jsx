@@ -15,6 +15,8 @@ import { ClassDateBar } from '@/components/attendance/ClassDateBar';
 import { SelectField } from '@/components/form/Field';
 import { useAttendanceClasses, useMealCounts } from '@/hooks/attendance/useAttendance';
 import { useAgeGroupOptions } from '@/hooks/attendance/useAgeGroupOptions';
+import { useYearCampuses } from '@/hooks/useYearCampuses';
+import { PERMISSIONS } from '@/models/bePermissions';
 import { confirmMealCount } from '@/services/attendance/attendanceService';
 import { ROLES } from '@/models/User';
 import { MEAL_COUNT_TITLE, MEAL_SESSION_LABELS, MEAL_COUNT_STATUS_LABELS } from '@/models/attendance/attendanceConstants';
@@ -96,7 +98,9 @@ export default function MealCountPage() {
   const [ageGroupFilter, setAgeGroupFilter] = useState('');
   const { classes: yearClasses } = useAttendanceClasses();
   const ageGroupOptions = useAgeGroupOptions(yearClasses);
-  const allCampuses = [...new Set((data?.counts || []).map((c) => c.campusId))];
+  // HT: đủ điểm trường của năm đang chọn (kể cả chưa có số suất); người khác: điểm trường có số suất
+  const yearCampuses = useYearCampuses(PERMISSIONS.MEAL_COUNT_CONFIRM);
+  const allCampuses = [...new Set([...(yearCampuses || []).map((c) => c.id), ...(data?.counts || []).map((c) => c.campusId)])];
   const shownCounts = useMemo(() => {
     const byCampus = (data?.counts || []).filter((c) => !campusFilter || c.campusId === campusFilter);
     if (!ageGroupFilter) return byCampus;
@@ -217,6 +221,11 @@ export default function MealCountPage() {
             </div>
           )}
           <DayOverview counts={shownCounts} />
+          {!campuses.length && (
+            <div className="card">
+              <EmptyState title="Điểm trường chưa có số suất ngày này" description="Điểm trường chưa có lớp hoặc chưa điểm danh." />
+            </div>
+          )}
           {campuses.map((campusId) => (
             <section key={campusId} className="mb-16">
               <MealRegisterCard

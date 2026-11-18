@@ -12,7 +12,8 @@ const pickers = [
 for (const file of pickers) {
   test(`ô chọn điểm trường dùng tên ngắn: ${file}`, () => {
     const src = readFileSync(file, 'utf8');
-    assert.match(src, /\{c\.shortName \|\| c\.name\}/);
+    // Trùng tên ngắn trong năm thì campusOptionLabel ghi kèm mã (BUG-48)
+    assert.match(src, /\{c\.shortName \|\| c\.name\}|\{campusOptionLabel\(c, /);
   });
 }
 
@@ -29,4 +30,16 @@ test('chi tiết điểm trường: nút Gỡ PHT dùng chung hộp xác nhận 
   assert.match(page, /<UnassignViceDialog/);
   const dialog = readFileSync('src/components/school-config/UnassignViceDialog.jsx', 'utf8');
   assert.match(dialog, /saveViceAssignment\(schoolYear, target\.vp\.id, \{ campusId: null \}, user\)/);
+});
+
+test('BUG-48: hai điểm trường trùng tên ngắn thì nhãn ghi kèm mã', async () => {
+  const { campusOptionLabel } = await import('@/utils/campusLabel');
+  const list = [
+    { id: 1, code: 'CS-A', name: 'Cơ sở Một', shortName: 'Cơ sở 1' },
+    { id: 3, code: 'CS-C', name: 'Cơ sở Ba', shortName: 'Cơ sở 1' },
+    { id: 2, code: 'CS-B', name: 'Cơ sở Hai', shortName: 'Cơ sở 2' },
+  ];
+  assert.equal(campusOptionLabel(list[0], list), 'CS-A – Cơ sở 1');
+  assert.equal(campusOptionLabel(list[1], list), 'CS-C – Cơ sở 1');
+  assert.equal(campusOptionLabel(list[2], list), 'Cơ sở 2');
 });
