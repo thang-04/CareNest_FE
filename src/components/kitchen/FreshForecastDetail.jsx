@@ -1,7 +1,17 @@
 import { useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Printer, Trash2 } from '@/components/ui/icons';
-import { Breadcrumb, ConfirmationModal, EmptyState, ErrorState, LoadingState, Modal, PrintPaperFit, PrintToolbar } from '@/components';
+import {
+  Breadcrumb,
+  Button,
+  ConfirmationModal,
+  EmptyState,
+  ErrorState,
+  LoadingState,
+  Modal,
+  PrintPaperFit,
+  PrintToolbar,
+} from '@/components';
 import { ForecastCountsTable, ForecastDryCard, ForecastLinesTable } from '@/components/kitchen/FreshForecastTables';
 import { FreshForecastPrint } from '@/components/kitchen/FreshForecastPrint';
 import { useToast } from '@/contexts/ToastContext';
@@ -88,18 +98,13 @@ export function FreshForecastDetail({ campus }) {
         {forecast && (
           <div className="row">
             {forecast.canManage && (
-              <button type="button" className="btn btn--outline-danger" onClick={() => setDeleting(true)}>
-                <Trash2 size={16} /> Xóa bản dự trù
-              </button>
+              <Button variant="outline-danger" icon={Trash2} onClick={() => setDeleting(true)}>
+                Xóa bản dự trù
+              </Button>
             )}
-            <button
-              type="button"
-              className="btn"
-              disabled={!forecast.lines.length && !forecast.dryLines.length}
-              onClick={() => setPrinting(true)}
-            >
-              <Printer size={16} /> In danh sách đặt hàng
-            </button>
+            <Button icon={Printer} disabled={!forecast.lines.length && !forecast.dryLines.length} onClick={() => setPrinting(true)}>
+              In danh sách đặt hàng
+            </Button>
           </div>
         )}
       </div>

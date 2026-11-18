@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Modal } from '@/components/ui/Modal';
+import { Button } from '@/components/ui/Button';
 import { DayBalanceView } from '@/components/menu-planning/DayBalanceView';
 
 /**
@@ -25,13 +26,11 @@ export function DayEditorModal({ title, initialItems, editable, balanceTo, onApp
             </Link>
           )}
           <span className="td-grow" />
-          <button type="button" className="btn" onClick={onClose}>
-            {editable ? 'Hủy' : 'Đóng'}
-          </button>
+          <Button onClick={onClose}>{editable ? 'Hủy' : 'Đóng'}</Button>
           {editable && (
-            <button type="button" className="btn btn--primary" disabled={!changed} onClick={() => onApply(items)}>
+            <Button variant="primary" disabled={!changed} onClick={() => onApply(items)}>
               Áp dụng vào tuần
-            </button>
+            </Button>
           )}
         </>
       }

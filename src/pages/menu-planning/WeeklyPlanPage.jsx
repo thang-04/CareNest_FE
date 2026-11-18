@@ -10,7 +10,7 @@ import { PERMISSIONS } from '@/models/bePermissions';
 import { hasBePermission } from '@/utils/bePermissions';
 import { ageGroupOptions } from '@/utils/menu-planning/menuStatistics';
 import { useToast } from '@/contexts/ToastContext';
-import { Breadcrumb, Button, EmptyState, ErrorState, LoadingState } from '@/components';
+import { Breadcrumb, Button, EmptyState, ErrorState, LoadingState, SelectField } from '@/components';
 import { WeekPicker } from '@/components/form/WeekPicker';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
@@ -197,13 +197,17 @@ export default function WeeklyPlanPage() {
         {kcalGroups.length > 1 && (
           <label className="date-filter td-week-toolbar__group">
             Kcal theo nhóm
-            <select className="select" value={kcalAgeGroup ? String(kcalAgeGroup.id) : ''} onChange={(e) => setKcalGroupId(e.target.value)}>
+            <SelectField
+              className="select"
+              value={kcalAgeGroup ? String(kcalAgeGroup.id) : ''}
+              onChange={(e) => setKcalGroupId(e.target.value)}
+            >
               {kcalGroups.map((g) => (
                 <option key={g.id} value={String(g.id)}>
                   {g.name}
                 </option>
               ))}
-            </select>
+            </SelectField>
           </label>
         )}
       </div>
@@ -252,20 +256,19 @@ export default function WeeklyPlanPage() {
             </Button>
           )}
           {editable && (
-            <button type="button" className="btn" disabled={busy || !dirty} onClick={save}>
+            <Button disabled={busy || !dirty} onClick={save}>
               <Save size={16} /> Lưu nháp
-            </button>
+            </Button>
           )}
           {plan.canPublish && (
-            <button
-              type="button"
-              className="btn btn--primary"
+            <Button
+              variant="primary"
               disabled={busy || dirty}
               title={dirty ? 'Lưu nháp trước khi công bố' : undefined}
               onClick={openPublish}
             >
               <Send size={16} /> Công bố tuần
-            </button>
+            </Button>
           )}
         </div>
       </div>

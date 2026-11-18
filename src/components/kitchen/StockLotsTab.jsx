@@ -7,7 +7,7 @@ import { FilterChips } from '@/components/ui/FilterChips';
 import { Pagination, paginate } from '@/components/ui/Pagination';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { FOOD_GROUP_LABELS } from '@/models/foodGroups';
-import { EmptyState, ErrorState, LoadingState, StatusBadge } from '@/components';
+import { Button, EmptyState, ErrorState, LoadingState, StatusBadge } from '@/components';
 import { useCanManageStock, useDryFoods, useLots } from '@/hooks/kitchen/useDryStock';
 import { expiryStatus, groupLotsByFood } from '@/utils/kitchen/stockLots';
 import { formatPurchaseQty } from '@/utils/kitchen/stockUnits';
@@ -94,9 +94,9 @@ export function StockLotsTab({ campusId }) {
         description={filtered ? 'Thử đổi từ khóa hoặc bộ lọc.' : 'Tồn kho tăng khi phiếu nhập được xác nhận.'}
         action={
           filtered ? (
-            <button type="button" className="btn" onClick={reset}>
-              <RotateCcw size={15} /> Đặt lại bộ lọc
-            </button>
+            <Button icon={RotateCcw} onClick={reset}>
+              Đặt lại bộ lọc
+            </Button>
           ) : (
             canManage && (
               <Link className="btn btn--primary" to={`/kitchen/stock-receipts/new?campusId=${campusId}`}>
@@ -184,12 +184,12 @@ export function StockLotsTab({ campusId }) {
           >
             Hiện cả lô đã hết
           </button>
-          <button type="button" className="btn btn--ghost" onClick={reset} disabled={!filtered}>
-            <RotateCcw size={15} /> Đặt lại bộ lọc
-          </button>
-          <button type="button" className="btn" onClick={exportCsv} disabled={!rows.length}>
-            <Download size={16} /> Xuất Excel
-          </button>
+          <Button variant="ghost" icon={RotateCcw} onClick={reset} disabled={!filtered}>
+            Đặt lại bộ lọc
+          </Button>
+          <Button icon={Download} onClick={exportCsv} disabled={!rows.length}>
+            Xuất Excel
+          </Button>
         </div>
         <FilterChips count={lots.loading ? null : rows.length} unit="lô" chips={chips} />
         {body}

@@ -1,7 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Tabs } from '@/components/ui/Tabs';
 import { useSearchParams } from 'react-router-dom';
-import { Breadcrumb, EmptyState, ErrorState, LoadingState, Modal, PrintPaperFit, PrintToolbar } from '@/components';
+import {
+  Breadcrumb,
+  Button,
+  EmptyState,
+  ErrorState,
+  LoadingState,
+  Modal,
+  PrintPaperFit,
+  PrintToolbar,
+  SelectField,
+  TextField,
+} from '@/components';
 import { Download, Printer } from '@/components/ui/icons';
 import { exportWithPreview } from '@/components/ui/ExportPreview';
 import { MenuStatisticsPrint } from '@/components/menu-planning/MenuStatisticsPrint';
@@ -117,12 +128,12 @@ export default function MenuStatisticsPage() {
         </div>
         {stats && (
           <div className="page__actions">
-            <button type="button" className="btn" onClick={exportExcel}>
+            <Button onClick={exportExcel}>
               <Download size={16} /> Xuất Excel
-            </button>
-            <button type="button" className="btn" onClick={() => setPrinting(true)}>
+            </Button>
+            <Button onClick={() => setPrinting(true)}>
               <Printer size={16} /> Xem trước bản in
-            </button>
+            </Button>
           </div>
         )}
       </div>
@@ -159,20 +170,20 @@ export default function MenuStatisticsPage() {
           )}
           <div className="td-stat-filters__row">
             <FormField label="Nhóm tuổi">
-              <select className="select" value={ageGroupId} onChange={(e) => setAgeGroupId(e.target.value)}>
+              <SelectField className="select" value={ageGroupId} onChange={(e) => setAgeGroupId(e.target.value)}>
                 {options.map((o) => (
                   <option key={o.id} value={o.id}>
                     {o.name}
                   </option>
                 ))}
-              </select>
+              </SelectField>
             </FormField>
             {!templateId && <CampusFilter campuses={campuses} value={campusId} onChange={setCampusId} allLabel="Cả trường" />}
             <FormField
               label="Số trẻ"
               hint={stats ? CHILDREN_SOURCE[stats.childrenSource] || stats.childrenSource : 'Để trống để lấy theo suất hoặc sĩ số'}
             >
-              <input
+              <TextField
                 className="input"
                 type="number"
                 min={0}

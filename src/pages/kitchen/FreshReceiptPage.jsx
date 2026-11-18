@@ -5,8 +5,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useFreshReceipt, useKitchenCampus } from '@/hooks/kitchen/useKitchen';
-import { Breadcrumb, EmptyState, ErrorState, LoadingState, Modal, StatusBadge } from '@/components';
+import { Breadcrumb, Button, Checkbox, EmptyState, ErrorState, LoadingState, StatusBadge, TextField } from '@/components';
 import { FreshReceiptStatusBadge } from '@/components/kitchen/KitchenBadges';
+import { FreshReturnModal } from '@/components/kitchen/FreshReturnModal';
 import { KbCampusFilter, KbDateFilter, fmtQty } from '@/components/kitchen/KitchenFilters';
 import { reviewFreshReceipt, saveFreshReceipt, setFreshSupplierNotified } from '@/services/kitchen/kitchenService';
 import { itemError } from '@/utils/kitchen/kitchenValidation';
@@ -61,7 +62,6 @@ export default function FreshReceiptPage() {
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
   const [returning, setReturning] = useState(false);
-  const [returnNote, setReturnNote] = useState('');
 
   useEffect(() => {
     if (data) setForm(toForm(data));
@@ -91,16 +91,18 @@ export default function FreshReceiptPage() {
     }
   };
 
-  const review = async (approve) => {
+  // Trả về true khi BE nhận, để modal trả bếp xóa ghi chú; lỗi thì giữ nguyên chữ đã gõ
+  const review = async (approve, note = '') => {
     setBusy(true);
     try {
-      await reviewFreshReceipt({ campusId, date, approve, note: approve ? '' : returnNote }, user);
+      await reviewFreshReceipt({ campusId, date, approve, note: approve ? '' : note }, user);
       toast.success(approve ? 'Đã xác nhận kết quả kiểm nhận.' : 'Đã trả bếp kiểm lại.');
       setReturning(false);
-      setReturnNote('');
       reload({ silent: true });
+      return true;
     } catch (err) {
       toast.error(err.message || 'Không lưu được. Vui lòng thử lại.', 'Không lưu được');
+      return false;
     } finally {
       setBusy(false);
     }
@@ -155,7 +157,7 @@ export default function FreshReceiptPage() {
             <div className="kb-fr-fields">
               <label className="kb-field">
                 <span>Phiếu giao hàng</span>
-                <input
+                <TextField
                   className={`input ${errors.deliveryNote ? 'input--error' : ''}`}
                   value={form.header.deliveryNote}
                   disabled={!editable}
@@ -167,7 +169,7 @@ export default function FreshReceiptPage() {
               </label>
               <label className="kb-field kb-field--wide">
                 <span>NCC</span>
-                <input
+                <TextField
                   className="input"
                   value={form.header.supplierName}
                   disabled={!editable}
@@ -176,7 +178,7 @@ export default function FreshReceiptPage() {
               </label>
               <label className="kb-field">
                 <span>Giờ giao</span>
-                <input
+                <TextField
                   type="time"
                   className="input"
                   value={form.header.deliveredAt}
@@ -191,8 +193,10 @@ export default function FreshReceiptPage() {
         {data.returnNote && data.status === 'DRAFT' && (
           <div className="alert alert--warning">
             <Undo2 size={18} />
-            <div>
-              <b>PHT trả bếp kiểm lại:</b> {data.returnNote}
+            <div className="kb-return-msg">
+              <b>PHT trả bếp kiểm lại:</b>
+              {'\n'}
+              {data.returnNote}
             </div>
           </div>
         )}
@@ -227,7 +231,7 @@ export default function FreshReceiptPage() {
                       <td className="num cell--fixed">{fmtQty(l.ordered)}</td>
                       <td className="num">
                         {editable ? (
-                          <input
+                          <TextField
                             className={`input kb-fc__input ${itemError(errors, i, 'delivered') ? 'input--error' : ''}`}
                             inputMode="decimal"
                             value={f.delivered}
@@ -240,7 +244,7 @@ export default function FreshReceiptPage() {
                       </td>
                       <td className="num">
                         {editable ? (
-                          <input
+                          <TextField
                             className={`input kb-fc__input ${itemError(errors, i, 'received') ? 'input--error' : ''}`}
                             inputMode="decimal"
                             value={f.received}
@@ -263,7 +267,7 @@ export default function FreshReceiptPage() {
                         {!odd ? (
                           <span className="muted">—</span>
                         ) : editable ? (
-                          <input
+                          <TextField
                             className={`input kb-fr__reason ${itemError(errors, i, 'reason') ? 'input--error' : ''}`}
                             value={f.reason}
                             placeholder="Lý do"
@@ -283,8 +287,7 @@ export default function FreshReceiptPage() {
                             className="checkbox"
                             title={l.supplierNotifiedAt ? `Báo lúc ${formatDateTime(l.supplierNotifiedAt)}` : undefined}
                           >
-                            <input
-                              type="checkbox"
+                            <Checkbox
                               checked={!!l.supplierNotifiedAt}
                               disabled={!data.canMarkNotified}
                               onChange={(e) => toggleNotified(l.foodId, e.target.checked)}
@@ -306,22 +309,22 @@ export default function FreshReceiptPage() {
             <div className="kb-actions">
               {editable && (
                 <>
-                  <button type="button" className="btn" disabled={busy} onClick={() => save(false)}>
+                  <Button disabled={busy} onClick={() => save(false)}>
                     Lưu nháp
-                  </button>
-                  <button type="button" className="btn btn--primary" disabled={busy} onClick={() => save(true)}>
-                    <Check size={16} /> Gửi PHT xác nhận
-                  </button>
+                  </Button>
+                  <Button variant="primary" icon={Check} disabled={busy} onClick={() => save(true)}>
+                    Gửi PHT xác nhận
+                  </Button>
                 </>
               )}
               {data.canReview && (
                 <>
-                  <button type="button" className="btn btn--ghost" disabled={busy} onClick={() => setReturning(true)}>
+                  <Button variant="ghost" disabled={busy} onClick={() => setReturning(true)}>
                     Trả bếp kiểm lại
-                  </button>
-                  <button type="button" className="btn btn--primary" disabled={busy} onClick={() => review(true)}>
-                    <Check size={16} /> Xác nhận kết quả
-                  </button>
+                  </Button>
+                  <Button variant="primary" icon={Check} disabled={busy} onClick={() => review(true)}>
+                    Xác nhận kết quả
+                  </Button>
                 </>
               )}
               {!editable && !data.canReview && data.status === 'SUBMITTED' && (
@@ -345,32 +348,26 @@ export default function FreshReceiptPage() {
           <h1 className="page__title">Kiểm nhận hàng tươi</h1>
         </div>
       </div>
-      <div className="kb-toolbar kb-toolbar--center">
+      <div className="kb-toolbar">
         <KbDateFilter value={date} onChange={(d) => setParams({ date: d }, { replace: true })} />
         <KbCampusFilter campusId={campusId} onChange={setCampusId} canPick={canPick} />
-        {data && <FreshReceiptStatusBadge status={data.status} />}
+        {/* Nhãn không có dòng tiêu đề ⇒ đặt trong hàng cao bằng ô nhập để thẳng hàng với ngày và điểm trường */}
+        {data && (
+          <span className="date-filter__static">
+            <FreshReceiptStatusBadge status={data.status} />
+          </span>
+        )}
       </div>
       {body}
-      <Modal
+      <FreshReturnModal
         open={returning}
+        campusName={md.campuses.find((c) => String(c.id) === String(campusId))?.name}
+        date={date}
+        lines={data?.lines}
+        busy={busy}
+        onSubmit={(note) => review(false, note)}
         onClose={() => setReturning(false)}
-        title="Trả bếp kiểm lại"
-        footer={
-          <>
-            <button type="button" className="btn" onClick={() => setReturning(false)}>
-              Quay lại
-            </button>
-            <button type="button" className="btn btn--primary" disabled={busy || !returnNote.trim()} onClick={() => review(false)}>
-              Trả bếp kiểm lại
-            </button>
-          </>
-        }
-      >
-        <label className="kb-field kb-field--block">
-          <span>Bếp cần kiểm lại điều gì?</span>
-          <textarea className="input" rows={3} maxLength={500} value={returnNote} onChange={(e) => setReturnNote(e.target.value)} />
-        </label>
-      </Modal>
+      />
     </div>
   );
 }
