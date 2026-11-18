@@ -500,6 +500,29 @@ const plannedAdmissionOf = (db, childId) => {
   };
 };
 
+/**
+ * Năm nhận trẻ cho tiếp nhận, nhập Excel, mở lại hồ sơ: năm đang hoạt động hoặc năm sau (PLANNED).
+ * CHD-11/CFG-YR-05 (BE 2412): năm sau chỉ nhận trẻ từ ngày mở chuẩn bị.
+ */
+const intakeYearOf = (db, schoolYearId) => {
+  const targetYearId = schoolYearId || activeYearId(db);
+  const targetYear = schoolYearOf(db, targetYearId);
+  const planned = targetYear?.status === 'PLANNED';
+  if (targetYearId !== activeYearId(db) && !planned) invalid({ schoolYearId: 'Năm học không nhận trẻ' });
+  if (planned && !isPreparingYear(targetYear, todayInput())) {
+    throw new ApiError(
+      409,
+      `Năm học ${targetYear.name} chưa tới ngày mở chuẩn bị (${targetYear.prepDate ? formatDate(targetYear.prepDate) : 'chưa đặt'})`,
+    );
+  }
+  return { targetYearId, targetYear, planned };
+};
+
+/** CHD-11: đăng ký năm sau còn mở, chưa xếp lớp (PENDING); lớp dự kiến xếp ở Xếp lớp năm học mới. */
+const openNextYearAdmission = (db, childId, { schoolYearId, campusId, startDate }) => {
+  db.plannedAdmissions ||= [];
+  db.plannedAdmissions.push({ id: uid('adm'), childId, schoolYearId, campusId, classId: null, startDate, status: 'PENDING' });
+};
 /** Child as returned to the UI: account internals only for Principal / VP. */
 const toView = (db, child, user) => {
   const cls = classOf(db, child);
@@ -1075,17 +1098,7 @@ export const childrenMockRepository = {
     resolved = { ...resolved, child: await prepareMockPortraits(resolved.child) };
     return writeDb((d) => {
       // Lớp không bắt buộc khi tiếp nhận; có lớp thì vẫn kiểm sức chứa và campus, trẻ thuộc điểm trường của lớp.
-      const targetYearId = payload.schoolYearId || activeYearId(d);
-      const targetYear = schoolYearOf(d, targetYearId);
-      const planned = targetYear?.status === 'PLANNED';
-      if (targetYearId !== activeYearId(d) && !planned) invalid({ schoolYearId: 'Năm học không nhận trẻ' });
-      // CHD-11/CFG-YR-05 (BE 2412): năm sau chỉ nhận trẻ từ ngày mở chuẩn bị.
-      if (planned && !isPreparingYear(targetYear, todayInput())) {
-        throw new ApiError(
-          409,
-          `Năm học ${targetYear.name} chưa tới ngày mở chuẩn bị (${targetYear.prepDate ? formatDate(targetYear.prepDate) : 'chưa đặt'})`,
-        );
-      }
+      const { targetYearId, planned } = intakeYearOf(d, payload.schoolYearId);
       const cls = payload.classId ? assertClassAvailable(d, payload.classId, user, targetYearId) : null;
       if (cls && payload.campusId && cls.campusId !== payload.campusId) invalid({ classId: 'Lớp không thuộc điểm trường đã chọn' });
       const campusId = cls?.campusId || enrollCampusOf(d, payload.campusId, user);
@@ -1236,8 +1249,9 @@ export const childrenMockRepository = {
   /**
    * Valid rows become children waiting for placement; their declaration is saved as entered (UC 3.8 alt flow).
    * campusId: điểm trường của cả file (bắt buộc với người được giao toàn trường, như enrollCampusOf).
+   * schoolYearId, startDate: năm sau đã mở chuẩn bị ⇒ mỗi trẻ có đăng ký PENDING (CHD-11); bỏ trống ⇒ năm đang hoạt động.
    */
-  async importChildren(rows, user, campusId) {
+  async importChildren(rows, user, campusId, { schoolYearId, startDate } = {}) {
     await delay();
     if (!canEnrollChild(user)) forbid();
     const db = ensureSeeded();
@@ -1258,8 +1272,11 @@ export const childrenMockRepository = {
       seen.push({ child: r.child, rowNo: i + 1 });
     });
     return writeDb((d) => {
+      const { targetYearId, planned } = intakeYearOf(d, schoolYearId);
+      if (planned && !startDate) invalid({ startDate: 'Chọn ngày bắt đầu học' });
       const created = resolved.map((r) => {
         const record = createChild(d, r, { classId: null, campusId: targetCampusId, user });
+        if (planned) openNextYearAdmission(d, record.id, { schoolYearId: targetYearId, campusId: targetCampusId, startDate });
         return record;
       });
       return { created: created.length, ids: created.map((c) => c.id) };

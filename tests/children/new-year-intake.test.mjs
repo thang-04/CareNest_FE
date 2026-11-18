@@ -109,3 +109,42 @@ test('CHD-11: màn tiếp nhận dùng intakeYearOptions và defaultIntakeYearId
   assert.match(page, /intakeYearOptions\(/);
   assert.match(page, /defaultIntakeYearId\(/);
 });
+
+// CHD-11: nhập Excel vào năm sau ⇒ mỗi trẻ Chờ xếp lớp + đăng ký PENDING (chưa lớp) với ngày bắt đầu của cả file
+const importRow = (n) => {
+  const { child, declaration } = payload(n);
+  return { child, declaration };
+};
+
+test('CHD-11: nhập Excel vào năm sau ⇒ đăng ký PENDING', async () => {
+  seedNextYear(todayInput());
+  const done = await children.importChildren([importRow(4), importRow(5)], PRINCIPAL, 'c1', {
+    schoolYearId: NEXT_YEAR,
+    startDate: START_DATE,
+  });
+  assert.equal(done.created, 2);
+  const admissions = readDb().plannedAdmissions.filter((a) => done.ids.includes(a.childId));
+  assert.equal(admissions.length, 2);
+  for (const a of admissions) {
+    assert.equal(a.schoolYearId, NEXT_YEAR);
+    assert.equal(a.status, 'PENDING');
+    assert.equal(a.classId, null);
+    assert.equal(a.startDate, START_DATE);
+    assert.equal(a.campusId, 'c1');
+  }
+  assert.ok(
+    readDb()
+      .children.filter((c) => done.ids.includes(c.id))
+      .every((c) => c.status === 'PENDING_PLACEMENT'),
+  );
+});
+
+test('CHD-11: nhập Excel năm chưa mở ⇒ 409', async () => {
+  seedNextYear(dayShift(30));
+  const before = readDb().children.length;
+  await assert.rejects(
+    children.importChildren([importRow(6)], PRINCIPAL, 'c1', { schoolYearId: NEXT_YEAR, startDate: START_DATE }),
+    (err) => err.status === 409 && /^Năm học 2027-2028 chưa tới ngày mở chuẩn bị \(\d{2}\/\d{2}\/\d{4}\)$/.test(err.message),
+  );
+  assert.equal(readDb().children.length, before);
+});

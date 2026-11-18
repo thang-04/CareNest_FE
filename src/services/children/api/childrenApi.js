@@ -232,8 +232,16 @@ export const childrenApi = {
       })),
     }));
   },
-  importChildren: (rows, _user, campusId) =>
-    read(axiosClient.post('/children/enrollments/import', { rows: rows.map((row) => enrollmentPhotoRequest(row).body), campusId })),
+  // schoolYearId, startDate: nhập vào năm sau đã mở chuẩn bị (CHD-11); bỏ trống ⇒ năm đang hoạt động
+  importChildren: (rows, _user, campusId, { schoolYearId, startDate } = {}) =>
+    read(
+      axiosClient.post('/children/enrollments/import', {
+        rows: rows.map((row) => enrollmentPhotoRequest(row).body),
+        campusId,
+        schoolYearId,
+        startDate,
+      }),
+    ),
   placeChild: (childId, body) => read(axiosClient.post(`/children/${childId}/placement`, body)),
   withdrawChild: (childId, body) => read(axiosClient.post(`/children/${childId}/withdraw`, body)),
   saveDeclaration: (childId, body) => read(axiosClient.put(`/children/${childId}/health-declaration`, body)),
