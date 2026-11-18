@@ -33,6 +33,7 @@ import {
 } from '@/models/menu-planning/menuPlanningConstants';
 import { TEMPLATE_KIND_LABELS, dayItems, hasTemplateDays, itemsBySession, templateKind } from '@/utils/menu-planning/menuTemplateGrid';
 import { normalizeText } from '@/utils/format';
+import { Button, TextField } from '@/components';
 
 const SHOWN_DISHES = 3;
 const MEAL_ICONS = { [MEAL_SESSION.MORNING]: Sun, [MEAL_SESSION.LUNCH]: Soup, [MEAL_SESSION.AFTERNOON]: Sunset };
@@ -138,9 +139,9 @@ export function TemplateCards({ canCreate, onOpen }) {
   const [copyId, setCopyId] = useState(null);
   const [choosing, setChoosing] = useState(false);
   const create = (
-    <button type="button" className="btn btn--primary" onClick={() => setChoosing(true)}>
+    <Button variant="primary" onClick={() => setChoosing(true)}>
       <Plus size={16} /> Tạo mẫu
-    </button>
+    </Button>
   );
   const all = useMemo(() => data || [], [data]);
   const rows = useMemo(() => {
@@ -175,7 +176,7 @@ export function TemplateCards({ canCreate, onOpen }) {
         <Tabs items={tabs} value={block} onChange={setBlock} ariaLabel="Lọc theo khối" variant="pill" />
         <label className="td-search td-tpl-toolbar__search">
           <Search size={16} className="muted" />
-          <input
+          <TextField
             className="input"
             placeholder="Tìm mẫu theo tên"
             value={keyword}

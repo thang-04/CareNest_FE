@@ -4,7 +4,7 @@ import { AlertTriangle, IdCard, MapPin, Pencil, Phone, Trash2, Truck, UserRound 
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useSupplier } from '@/hooks/kitchen/useKitchen';
-import { Breadcrumb, ConfirmationModal, EmptyState, ErrorState, LoadingState } from '@/components';
+import { Breadcrumb, Button, ConfirmationModal, EmptyState, ErrorState, LoadingState } from '@/components';
 import { ReceiptStatusBadge, SupplierStatusBadge } from '@/components/kitchen/KitchenBadges';
 import { SupplierEditModal } from '@/components/kitchen/SupplierEditModal';
 import { canEditSuppliers, deleteSupplier, saveSupplier } from '@/services/kitchen/kitchenService';
@@ -92,16 +92,14 @@ export default function SupplierDetailPage() {
         {canManage && (
           <div className="kb-sup-hero__actions">
             {s.receiptCount === 0 && (
-              <button className="btn btn--outline-danger" onClick={() => setAsk('delete')}>
-                <Trash2 size={16} /> Xóa
-              </button>
+              <Button variant="outline-danger" icon={Trash2} onClick={() => setAsk('delete')}>
+                Xóa
+              </Button>
             )}
-            <button className="btn" onClick={() => setAsk('toggle')}>
-              {active ? 'Ngừng dùng' : 'Dùng lại'}
-            </button>
-            <button type="button" className="btn btn--primary" onClick={() => setEditing(true)}>
-              <Pencil size={16} /> Sửa nhà cung cấp
-            </button>
+            <Button onClick={() => setAsk('toggle')}>{active ? 'Ngừng dùng' : 'Dùng lại'}</Button>
+            <Button variant="primary" icon={Pencil} onClick={() => setEditing(true)}>
+              Sửa nhà cung cấp
+            </Button>
           </div>
         )}
       </section>

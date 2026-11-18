@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { Download, Printer, ShoppingBasket } from '@/components/ui/icons';
 import { useStockCampus } from '@/hooks/kitchen/useDryStock';
 import { useDayMarket } from '@/hooks/kitchen/useFreshGoods';
-import { Breadcrumb, EmptyState, ErrorState, LoadingState, StatusBadge } from '@/components';
+import { Breadcrumb, Button, EmptyState, ErrorState, LoadingState, StatusBadge } from '@/components';
 import { Modal } from '@/components/ui/Modal';
 import { PrintPaperFit } from '@/components/print/PrintPaperFit';
 import { PrintToolbar } from '@/components/print/PrintToolbar';
@@ -147,9 +147,9 @@ export default function DayMarketPage() {
             >
               <Download size={16} /> Xuất Excel
             </button>
-            <button type="button" className="btn" onClick={() => setPrinting(true)}>
-              <Printer size={16} /> In bảng đi chợ
-            </button>
+            <Button icon={Printer} onClick={() => setPrinting(true)}>
+              In bảng đi chợ
+            </Button>
           </div>
         )}
       </div>

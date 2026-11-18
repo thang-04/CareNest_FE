@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Plus } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
-import { Breadcrumb } from '@/components';
+import { Breadcrumb, Button } from '@/components';
 import { TemplateCards } from '@/components/menu-planning/TemplateCards';
 import { TemplateKindModal } from '@/components/menu-planning/TemplateKindModal';
 import { TemplatePreviewModal } from '@/components/menu-planning/TemplatePreviewModal';
@@ -35,9 +35,9 @@ export function TemplateHead({ canCreate }) {
       </div>
       {canCreate && (
         <div className="page__actions">
-          <button type="button" className="btn btn--primary" onClick={() => setChoosing(true)}>
+          <Button variant="primary" onClick={() => setChoosing(true)}>
             <Plus size={16} /> Tạo mẫu
-          </button>
+          </Button>
         </div>
       )}
       {choosing && <TemplateKindModal onClose={() => setChoosing(false)} />}

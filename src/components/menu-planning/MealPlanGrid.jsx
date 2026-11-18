@@ -21,6 +21,7 @@ import {
   setDayOff,
 } from '@/utils/menu-planning/mealPlanGrid';
 import { LUNCH_TYPES } from '@/utils/menu-planning/weekGridLayout';
+import { Checkbox, TextField } from '@/components';
 
 const NOTE_MAX = 200;
 const ddmm = (iso) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
@@ -193,7 +194,7 @@ export function MealPlanGrid({
                     )}
                     {day.off &&
                       (editable ? (
-                        <input
+                        <TextField
                           className="input"
                           maxLength={NOTE_MAX}
                           placeholder="Lý do nghỉ"
@@ -254,8 +255,7 @@ export function MealPlanGrid({
                           className="checkbox text-xs"
                           title={holidays[day.date] ? `Ngày nghỉ của năm học (${holidays[day.date]}), không bỏ nghỉ được` : undefined}
                         >
-                          <input
-                            type="checkbox"
+                          <Checkbox
                             checked={day.off}
                             disabled={busy || !!holidays[day.date]}
                             onChange={(e) => onEdit((d) => setDayOff(d, day.date, e.target.checked))}

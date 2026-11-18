@@ -15,6 +15,7 @@ import {
   RECORD_STATUS_LABELS,
   defaultStorageOf,
 } from '@/models/menu-planning/menuPlanningConstants';
+import { Checkbox, TextAreaField, TextField } from '@/components';
 
 const toOptions = (labels) => Object.entries(labels).map(([value, label]) => ({ value, label }));
 const num = (v) => Number(v).toLocaleString('vi-VN', { maximumFractionDigits: 3 });
@@ -50,7 +51,7 @@ export function FoodEditor({ f }) {
         <h3>Thông tin chung</h3>
         <div className="td-food-grid td-food-grid--general">
           <FormField label="Tên thực phẩm" required error={show('name')}>
-            <input
+            <TextField
               className="input"
               value={form.name}
               maxLength={100}
@@ -86,7 +87,7 @@ export function FoodEditor({ f }) {
           </FormField>
         </div>
         <label className="checkbox">
-          <input type="checkbox" checked={!!form.favorite} onChange={(e) => set('favorite', e.target.checked)} />
+          <Checkbox checked={!!form.favorite} onChange={(e) => set('favorite', e.target.checked)} />
           Hay dùng (lọc nhanh khi lập món)
         </label>
       </section>
@@ -106,7 +107,7 @@ export function FoodEditor({ f }) {
             />
           </FormField>
           <FormField label="Đơn vị mua" required error={show('purchaseUnit')} hint="Ví dụ: kg, lít, thùng">
-            <input
+            <TextField
               className="input"
               value={form.purchaseUnit}
               maxLength={30}
@@ -115,7 +116,7 @@ export function FoodEditor({ f }) {
             />
           </FormField>
           <FormField label="Đơn vị kho" required error={show('stockUnit')} hint={locked ? lockHint : undefined}>
-            <input
+            <TextField
               className="input"
               value={form.stockUnit}
               maxLength={30}
@@ -129,7 +130,7 @@ export function FoodEditor({ f }) {
             required
             error={show('purchaseToStock')}
           >
-            <input
+            <TextField
               type="number"
               min="0"
               step="any"
@@ -145,7 +146,7 @@ export function FoodEditor({ f }) {
             error={show('stockUnitSize')}
             hint={locked ? lockHint : undefined}
           >
-            <input
+            <TextField
               type="number"
               min="0"
               step="any"
@@ -243,7 +244,7 @@ export function FoodEditor({ f }) {
               error={show('nutrientSource')}
               hint="Ví dụ: Bảng thành phần thực phẩm Việt Nam"
             >
-              <input
+              <TextField
                 className="input"
                 value={form.nutrientSource}
                 maxLength={200}
@@ -252,7 +253,7 @@ export function FoodEditor({ f }) {
               />
             </FormField>
             <FormField label="Phiên bản nguồn" error={show('nutrientSourceVersion')}>
-              <input
+              <TextField
                 className="input"
                 value={form.nutrientSourceVersion}
                 maxLength={50}
@@ -270,12 +271,12 @@ export function FoodEditor({ f }) {
           <legend className="sr-only">Chọn chất gây dị ứng có trong thực phẩm</legend>
           {ALLERGENS.map((a) => (
             <label key={a}>
-              <input type="checkbox" checked={form.allergens.includes(a)} onChange={() => toggleAllergen(a)} /> {a}
+              <Checkbox checked={form.allergens.includes(a)} onChange={() => toggleAllergen(a)} /> {a}
             </label>
           ))}
         </fieldset>
         <FormField label="Ghi chú">
-          <textarea className="textarea" rows={2} value={form.note} onChange={(e) => set('note', e.target.value)} />
+          <TextAreaField className="textarea" rows={2} value={form.note} onChange={(e) => set('note', e.target.value)} />
         </FormField>
       </section>
     </div>

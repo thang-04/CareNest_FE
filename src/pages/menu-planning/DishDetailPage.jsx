@@ -26,6 +26,7 @@ import {
   formatMoney,
 } from '@/models/menu-planning/menuPlanningConstants';
 import '@/styles/modules/menu-planning.css';
+import { Button } from '@/components';
 
 const n1 = (v) => (typeof v === 'number' ? (Math.round(v * 10) / 10).toLocaleString('vi-VN') : '—');
 const n2 = (v) => (typeof v === 'number' ? v.toLocaleString('vi-VN', { maximumFractionDigits: 2 }) : '—');
@@ -116,9 +117,9 @@ export default function DishDetailPage() {
         {canManage && (
           <div className="row row--wrap td-actions">
             {!(softDelete && d.status === 'INACTIVE') && (
-              <button type="button" className="btn btn--outline-danger" onClick={() => setConfirm(true)}>
+              <Button variant="outline-danger" onClick={() => setConfirm(true)}>
                 <Trash2 size={16} /> {softDelete ? 'Ngừng sử dụng' : 'Xóa'}
-              </button>
+              </Button>
             )}
             <Link className="btn" to={`/menu/dishes/new?from=${id}`}>
               <Copy size={16} /> Nhân bản

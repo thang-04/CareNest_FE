@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { EmptyState } from '@/components/ui/States';
 import { AlertTriangle, Eye } from '@/components/ui/icons';
 import { Modal } from '@/components/ui/Modal';
+import { Button } from '@/components/ui/Button';
 import { formatDate } from '@/utils/format';
 
 /** compact: nằm trong hàng "Thay đổi cho trẻ dị ứng" của bảng tuần, nhãn đã có ở đầu hàng nên bỏ tiêu đề và khung. */
@@ -54,16 +55,15 @@ export function AllergyMenuChanges({ changes = [], date, context, compact = fals
           <div className="kb-menu-change__meta">
             <span>{change.restrictions.length ? `Lý do: dị ứng ${change.restrictions.join(', ')}` : 'Chưa ghi lý do dị ứng'}</span>
             {change.childrenAvailable ? (
-              <button
-                type="button"
-                className="btn btn--sm"
+              <Button
+                size="sm"
+                icon={Eye}
                 aria-label={`Xem trẻ cần suất thay thế: ${change.restrictions.join(', ')}`}
                 title="Xem tên trẻ, lớp và chất dị ứng"
                 onClick={() => setSelectedId(change.id)}
               >
-                <Eye size={16} aria-hidden="true" />
                 {change.childCount} trẻ / {change.classCount} lớp
-              </button>
+              </Button>
             ) : (
               <span>Chưa có danh sách trẻ theo điểm trường.</span>
             )}
@@ -75,11 +75,7 @@ export function AllergyMenuChanges({ changes = [], date, context, compact = fals
         open={!!selected}
         title="Trẻ cần suất thay thế"
         onClose={() => setSelectedId(null)}
-        footer={
-          <button type="button" className="btn" onClick={() => setSelectedId(null)}>
-            Đóng
-          </button>
-        }
+        footer={<Button onClick={() => setSelectedId(null)}>Đóng</Button>}
       >
         {selected && (
           <>
