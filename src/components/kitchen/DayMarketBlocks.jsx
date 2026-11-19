@@ -57,7 +57,10 @@ export function DayMarketTable({ data }) {
           {data.lines.map((line, i) => (
             <tr key={line.foodId}>
               <td className="num">{i + 1}</td>
-              <td>{line.name}</td>
+              <td>
+                {line.name}
+                {line.supplierName && <div className="text-sm muted">{line.supplierName}</div>}
+              </td>
               <td className="center">{line.unit}</td>
               <td className="num nowrap">{money(line.unitPrice)}</td>
               <td className="num">{line.source === SOURCE_STOCK ? qty(line.quantity) : dash}</td>

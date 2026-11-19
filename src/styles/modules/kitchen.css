@@ -973,6 +973,18 @@
 .table.kb-lots-table td {
   padding-inline: var(--space-2);
 }
+/* Tồn kho khô gộp theo thực phẩm: dòng thực phẩm nổi, dòng lô thụt vào và nền nhạt */
+.kb-lots-table .kb-lots-toggle {
+  font-weight: var(--fw-semibold);
+  color: var(--color-text);
+}
+.kb-lots-table .kb-lots-lot td {
+  background: var(--color-surface-muted);
+  font-size: var(--fs-sm);
+}
+.kb-lots-table .kb-lots-lot td:first-child {
+  padding-left: var(--space-8);
+}
 
 /* Hàng tươi (BE): kết quả Đủ/Thiếu/Thừa, đầu cột ngày của bản dự trù, ô ghi chú trống khi in */
 .kb-res.kb-res--fresh button[aria-pressed='true'][data-r='ENOUGH'] {
