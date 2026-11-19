@@ -31,15 +31,17 @@ const OrderTable = ({ rows, needLabel }) => (
 );
 
 /**
- * Danh sách đặt hàng A4 (mẫu `.print-sheet`) của một bản dự trù: hàng tươi tổng cả kỳ và hàng khô cần nhập thêm, theo đơn
+ * Danh sách đặt hàng A4 (mẫu `.print-sheet`) của một bản dự trù: hàng tươi tổng cả kỳ và hàng khô đặt cho kỳ, theo đơn
  * vị mua; cột ghi chú nhà cung cấp để trống. Phần nào không có dòng thì bỏ.
  */
 export const FreshForecastPrint = forwardRef(function FreshForecastPrint({ forecast, campusName }, ref) {
   const fresh = forecast.lines.map((line) => ({ food: line.food, qty: line.purchaseTotal }));
-  const dry = forecast.dryLines.map((line) => ({
+  // Hàng khô in theo lượng đặt đã chốt; "Cần trước" lấy ngày bắt đầu thiếu BE tính lúc xem (không còn thiếu thì để trống)
+  const shortFrom = Object.fromEntries(forecast.dryLines.map((line) => [String(line.food.id), line.shortFrom]));
+  const dry = forecast.dryOrder.map((line) => ({
     food: line.food,
-    qty: line.purchaseShortQty,
-    need: formatWeekdayDate(line.shortFrom),
+    qty: line.purchaseQuantity,
+    need: shortFrom[String(line.food.id)] ? formatWeekdayDate(shortFrom[String(line.food.id)]) : '',
   }));
   return (
     <div className="print-sheet" ref={ref}>
@@ -60,7 +62,7 @@ export const FreshForecastPrint = forwardRef(function FreshForecastPrint({ forec
       )}
       {dry.length > 0 && (
         <>
-          <h2 className="ps-section">Hàng khô cần nhập thêm</h2>
+          <h2 className="ps-section">Hàng khô</h2>
           <OrderTable rows={dry} needLabel="Cần trước" />
         </>
       )}
