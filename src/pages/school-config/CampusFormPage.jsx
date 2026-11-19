@@ -168,7 +168,7 @@ export default function CampusFormPage() {
   const { id } = useParams();
   const { user } = useAuth();
   const { schoolYear, yearReadOnly } = useSchoolYear();
-  const md = useMasterData();
+  const md = useMasterData(schoolYear);
   const { detail, loading, error, reload } = useCampusDetail(id, schoolYear);
   const campus = detail?.campus;
 

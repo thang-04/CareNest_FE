@@ -23,7 +23,7 @@ const leaderKey = (groupId) => `leader-${groupId}`;
 export function YearTeachersQuickEdit({ yearId }) {
   const { user } = useAuth();
   const toast = useToast();
-  const md = useMasterData();
+  const md = useMasterData(yearId);
   const campuses = useMemo(() => md.campuses.filter((c) => c.status !== 'INACTIVE'), [md.campuses]);
   const [campusPick, setCampusPick] = useState('');
   const campusId = campusPick || campuses[0]?.id || '';

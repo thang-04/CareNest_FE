@@ -43,7 +43,7 @@ export default function AgeGroupsClassesPage({ embedded = false }) {
   const yearId = useConfigYear();
   // Bộ lọc nằm trên URL để tải lại trang vẫn giữ (?campus=&q=&group=&status=); năm học theo header
   const campusId = params.get('campus') || '';
-  const md = useMasterData();
+  const md = useMasterData(yearId);
   const { years, error: yearsError } = useSchoolYears();
   const { structure, loading, error, reload } = useSchoolStructure(yearId, campusId);
   const [classModal, setClassModal] = useState(null); // { cls, defaults }
