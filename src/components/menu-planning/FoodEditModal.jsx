@@ -1,8 +1,10 @@
 import { Save } from '@/components/ui/icons';
 import { Modal } from '@/components/ui/Modal';
-import { ErrorState, LoadingState, Spinner } from '@/components/ui/States';
+import { ErrorState, LoadingState } from '@/components/ui/States';
+import { Button } from '@/components/ui/Button';
 import { FoodEditor } from '@/components/menu-planning/FoodEditor';
 import { useFoodForm } from '@/hooks/menu-planning/useFoodForm';
+import { useUnsavedMark } from '@/hooks/useLeaveGuard';
 
 /** Sửa / thêm thực phẩm ngay trên danh sách, không rời trang. `foodId` rỗng = thêm mới. */
 export function FoodEditModal({ foodId, onClose, onSaved }) {
@@ -14,6 +16,8 @@ export function FoodEditModal({ foodId, onClose, onSaved }) {
   });
   const title = foodId ? 'Sửa thực phẩm' : 'Thêm thực phẩm';
 
+  useUnsavedMark(f.dirty);
+
   return (
     <Modal
       open
@@ -23,12 +27,12 @@ export function FoodEditModal({ foodId, onClose, onSaved }) {
       closeOnBackdrop={false}
       footer={
         <>
-          <button type="button" className="btn" onClick={onClose}>
+          <Button disabled={f.busy} onClick={onClose}>
             Hủy
-          </button>
-          <button type="submit" form="td-food-modal-form" className="btn btn--primary" disabled={f.busy || f.loading}>
-            {f.busy ? <Spinner small /> : <Save size={16} />} Lưu
-          </button>
+          </Button>
+          <Button type="submit" form="td-food-modal-form" variant="primary" icon={Save} loading={f.busy} disabled={f.loading}>
+            Lưu
+          </Button>
         </>
       }
     >

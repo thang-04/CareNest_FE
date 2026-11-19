@@ -1,7 +1,7 @@
 import { ROLES } from '@/models/User';
 import { formatDate } from '@/utils/format';
 import { getUsers } from '@/services/masterDataService';
-import { getEducationPlans } from '@/services/education-plan/educationPlanService';
+import { getEducationLessons } from '@/services/education-plan/educationPlanService';
 import { getClassAssessmentOverview, getRewardLists } from '@/services/assessment/assessmentService';
 import { getMealCounts } from '@/services/attendance/attendanceService';
 import { getPublishedMenu } from '@/services/kitchen/kitchenService';
@@ -35,13 +35,13 @@ const lessonPeriod = (l) => (l.type === 'day' ? `ngày ${formatDate(l.date)}` : 
 /** Each source: (user, ctx) → Promise<PendingApprovalItem[]>. ctx = { users, schoolYear, date } */
 const SOURCES = {
   [APPROVAL_TYPE.LESSON_REVIEW]: async (user) => {
-    const { lessons } = await getEducationPlans();
+    const { lessons } = await getEducationLessons();
     return lessons
       .filter((l) => l.status === EDU_STATUS.PENDING_TL && l.ageGroupId === user.ageGroupId)
       .map((l) => ({
         id: l.id,
         code: l.code,
-        title: `${LESSON_TYPE[l.type] || 'Giáo án'} ${lessonPeriod(l)}`.trim(),
+        title: `${LESSON_TYPE[l.type] || 'Kế hoạch giáo dục ngày'} ${lessonPeriod(l)}`.trim(),
         by: l.createdBy,
         at: lastAt(l.history),
         campusId: null,
@@ -50,7 +50,7 @@ const SOURCES = {
       }));
   },
   [APPROVAL_TYPE.THEME_PLAN]: async () => {
-    const { themes } = await getEducationPlans();
+    const { themes } = await getEducationLessons();
     return themes
       .filter((t) => t.status === EDU_STATUS.PENDING_VP)
       .map((t) => ({
@@ -65,13 +65,13 @@ const SOURCES = {
       }));
   },
   [APPROVAL_TYPE.LESSON_PLAN]: async () => {
-    const { lessons } = await getEducationPlans();
+    const { lessons } = await getEducationLessons();
     return lessons
       .filter((l) => l.status === EDU_STATUS.PENDING_VP)
       .map((l) => ({
         id: l.id,
         code: l.code,
-        title: `${LESSON_TYPE[l.type] || 'Giáo án'} ${lessonPeriod(l)}`.trim(),
+        title: `${LESSON_TYPE[l.type] || 'Kế hoạch giáo dục ngày'} ${lessonPeriod(l)}`.trim(),
         by: l.createdBy,
         at: lastAt(l.history),
         campusId: null,

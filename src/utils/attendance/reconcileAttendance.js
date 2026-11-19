@@ -1,16 +1,27 @@
-const entryOf = ({ child, record }) => ({ childId: child.id, status: record?.status || '' });
+// Bữa của lớp = bữa cấu hình cho nhóm tuổi (BE / mock luôn trả); sheet mới thiếu thì giữ của sheet trước, không tự đặt bữa.
+export const mealSessionsOf = (sheet, previous) => sheet?.mealSessions || previous?.mealSessions || [];
+
+const entryOf = ({ child, record }, sessions) => ({
+  childId: child.id,
+  status: record?.status || '',
+  meals: Object.fromEntries(sessions.map((session) => [session, !!record?.meals?.[session]])),
+});
 
 // Sheet mới là nguồn trạng thái đơn nghỉ; chỉ giữ nháp của các trẻ không bị đơn nghỉ thay đổi.
 export function reconcileAttendanceDraft(draft, previous, fresh, savedIds = []) {
   const oldRows = new Map((previous?.children || []).map((row) => [row.child.id, row]));
+  const sessions = mealSessionsOf(fresh, previous);
   const saved = new Set(savedIds);
   return Object.fromEntries(
     (fresh?.children || []).map((row) => {
       const id = row.child.id;
       const old = oldRows.get(id);
-      const edited = draft[id]?.status && draft[id].status !== (old?.record?.status || '');
+      const edited =
+        draft[id]?.status &&
+        (draft[id].status !== (old?.record?.status || '') ||
+          sessions.some((session) => !!draft[id].meals?.[session] !== !!old?.record?.meals?.[session]));
       const keep = edited && !saved.has(id) && !row.leaveRequest && !old?.leaveRequest;
-      return [id, keep ? draft[id] : entryOf(row)];
+      return [id, keep ? draft[id] : entryOf(row, sessions)];
     }),
   );
 }

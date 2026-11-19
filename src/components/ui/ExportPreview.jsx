@@ -3,7 +3,7 @@ import { Download, X } from '@/components/ui/icons';
 import { Modal } from '@/components/ui/Modal';
 import { Tabs } from '@/components/ui/Tabs';
 import { useToast } from '@/contexts/ToastContext';
-import { downloadWorkbookXlsx, downloadXlsx } from '@/utils/exportXlsx';
+import { downloadWorkbookXlsx, downloadXlsx, stampFileName } from '@/utils/exportXlsx';
 
 /*
  * Xem trước khi xuất Excel (DESIGN §6.3): mọi nút "Xuất Excel" gọi exportWithPreview(rows, fileName) thay vì tải ngay;
@@ -21,13 +21,13 @@ const subscribe = (fn) => {
 
 /** Mở hộp xem trước. rows: mảng các mảng (dòng một ô = tiêu đề / tên phần); options như downloadXlsx + `title`, `size`. */
 export const exportWithPreview = (rows, fileName, options = {}) => {
-  request = { sheets: [{ rows, sheetName: options.sheetName }], fileName: fileName.replace(/\.csv$/i, '.xlsx'), ...options };
+  request = { sheets: [{ rows, sheetName: options.sheetName }], fileName: stampFileName(fileName), ...options };
   emit();
 };
 
 /** Mở hộp xem trước cho file nhiều sheet: sheets = [{ sheetName, rows, headerRow }]. */
 export const exportWithPreviewWorkbook = (sheets, fileName, options = {}) => {
-  request = { sheets, fileName: fileName.replace(/\.csv$/i, '.xlsx'), ...options };
+  request = { sheets, fileName: stampFileName(fileName), ...options };
   emit();
 };
 const close = () => {

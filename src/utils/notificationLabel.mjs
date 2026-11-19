@@ -1,0 +1,36 @@
+// Nhãn từ BE là nguồn chính; fallback dành cho mock và backend chưa bổ sung typeLabel.
+export const NOTIFICATION_GROUPS = [
+  { prefix: 'SCHOOL_ANNOUNCEMENT', label: 'Thông báo nhà trường' },
+  { prefix: 'EDU_', label: 'Kế hoạch giáo dục' },
+  { prefix: 'REVISION_', label: 'Kế hoạch giáo dục' },
+  { prefix: 'PLAN_', label: 'Kế hoạch giáo dục' },
+  { prefix: 'DAILY_HEALTH_', label: 'Sức khỏe trong ngày' },
+  { prefix: 'HEALTH_', label: 'Sức khỏe' },
+  { prefix: 'CHILD_TB_', label: 'Sức khỏe' },
+  { prefix: 'CHILD_PICKED_UP', label: 'Đón trẻ' },
+  { prefix: 'PICKUP', label: 'Đón trẻ' },
+  { prefix: 'MENU_', label: 'Thực đơn' },
+  { prefix: 'MEAL_COUNT', label: 'Suất ăn' },
+  { prefix: 'LEAVE_REQUEST', label: 'Đơn nghỉ' },
+  { prefix: 'CHILD_EVALUATION_', label: 'Đánh giá trẻ' },
+  { prefix: 'THEME_EVALUATION_', label: 'Đánh giá trẻ' },
+  { prefix: 'ASSESSMENT_', label: 'Đánh giá trẻ' },
+  { prefix: 'WEEKLY_COMMENT_', label: 'Nhận xét tuần' },
+  { prefix: 'ATTENDANCE_', label: 'Điểm danh' },
+  { prefix: 'CHILD_', label: 'Hồ sơ trẻ' },
+  { prefix: 'GUARDIAN_', label: 'Tài khoản phụ huynh' },
+  { prefix: 'ACCOUNT_', label: 'Tài khoản' },
+  { prefix: 'STAFF_', label: 'Phân công' },
+  { prefix: 'CUTOFF_', label: 'Thời gian chốt' },
+  { prefix: 'REWARD_', label: 'Khen thưởng' },
+  { prefix: 'SCHOOL_YEAR_', label: 'Năm học' },
+  { prefix: 'LEADER_', label: 'Nhắc việc' },
+  { prefix: 'TRANSFER_', label: 'Luân chuyển tài sản' },
+  { prefix: 'HANDOVER_', label: 'Luân chuyển tài sản' },
+  { prefix: 'DISCREPANCY_', label: 'Luân chuyển tài sản' },
+  { prefix: 'SUPPLEMENT_', label: 'Luân chuyển tài sản' },
+  { prefix: 'INSPECTION_', label: 'Kiểm kê tài sản' },
+];
+
+export const notificationTypeLabel = (type, serverLabel) =>
+  serverLabel?.trim() || NOTIFICATION_GROUPS.find((group) => String(type || '').startsWith(group.prefix))?.label || 'Thông báo hệ thống';

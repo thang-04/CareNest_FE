@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
@@ -8,6 +8,7 @@ import { ROLES, ROLE_LABELS } from '@/models/User';
 import * as service from '@/services/education-plan/educationPlanService';
 import { AGE_GROUPS, CLASSES, EDU_STATUS, toEduYear, fromEduYear } from '@/models/education-plan/educationPlanConstants';
 import { applyEduConfig, withDefaults } from '@/models/education-plan/eduConfig';
+import { mergeGoals } from '@/models/education-plan/planVersions.mjs';
 
 const EducationPlanContext = createContext(null);
 
@@ -76,11 +77,30 @@ export function EducationPlanProvider({ children }) {
         ([plans, classDocs, eduConfig]) => {
           // Cấu hình áp dụng trước khi vẽ để bảng, nhãn lĩnh vực và file xuất dùng cùng một bản
           applyEduConfig(eduConfig);
-          return { ...plans, ...classDocs, eduConfig };
+          return { ...plans, goals: mergeGoals(goalsRef.current, plans.goals), ...classDocs, eduConfig };
         },
       ),
     [yearId, authUser.id],
     { refreshOnDataChange: true },
+  );
+
+  const goalsRef = useRef([]);
+  goalsRef.current = data?.goals || [];
+  // Chi tiết kế hoạch năm/tổ tải khi trang cần (useGoalDetails); một id chỉ tải một lần cùng lúc
+  const loadingGoals = useRef(new Set());
+  const ensureGoals = useCallback(
+    async (ids) => {
+      const need = ids.filter((id) => id && !loadingGoals.current.has(id));
+      if (!need.length) return;
+      need.forEach((id) => loadingGoals.current.add(id));
+      try {
+        const details = await Promise.all(need.map((id) => service.getGoal(id, authUser)));
+        setData((prev) => (prev ? { ...prev, goals: details.reduce((list, goal) => upsert(list, goal), prev.goals) } : prev));
+      } finally {
+        need.forEach((id) => loadingGoals.current.delete(id));
+      }
+    },
+    [setData, authUser],
   );
 
   const toast = useCallback((message, tone = 'ok') => toastApi[TOAST_TYPES[tone] || 'success'](message), [toastApi]);
@@ -132,7 +152,7 @@ export function EducationPlanProvider({ children }) {
     const actor = { id: user.id, fullName: user.name, role: user.role, roles: user.roles, ageGroupId: user.ageGroupId };
     const refreshPlans = async () => {
       const plans = await service.getEducationPlans(actor);
-      setData((prev) => (prev ? { ...prev, ...plans } : prev));
+      setData((prev) => (prev ? { ...prev, ...plans, goals: mergeGoals(prev.goals, plans.goals) } : prev));
       return plans;
     };
     const classCall =
@@ -187,10 +207,13 @@ export function EducationPlanProvider({ children }) {
       },
       refreshGoal: async (id) => {
         const plans = await refreshPlans();
-        const goal = plans.goals.find((item) => item.id === id);
-        if (!goal) throw new Error('Kế hoạch không còn trong phạm vi truy cập.');
+        if (!plans.goals.some((item) => item.id === id)) throw new Error('Kế hoạch không còn trong phạm vi truy cập.');
+        // Danh sách chỉ có bản tóm tắt ⇒ lấy chi tiết mới nhất của đúng kế hoạch này
+        const goal = await service.getGoal(id, actor);
+        setData((prev) => (prev ? { ...prev, goals: upsert(prev.goals, goal) } : prev));
         return goal;
       },
+      ensureGoals,
       goals: data?.goals || [],
       themes: data?.themes || [],
       lessons: data?.lessons || [],
@@ -316,7 +339,7 @@ export function EducationPlanProvider({ children }) {
       saveLesson: saveIn('lessons', service.saveLesson),
       deleteLesson: deleteIn('lessons', service.deleteLesson),
     };
-  }, [data, setData, reload, user, toast, toastApi, yearId, schoolYears, setSchoolYear]);
+  }, [data, setData, reload, user, toast, toastApi, yearId, schoolYears, setSchoolYear, ensureGoals]);
 
   useEffect(() => {
     if (error?.status === 403) setData(null);
@@ -325,6 +348,22 @@ export function EducationPlanProvider({ children }) {
   if (loading && !data) return <LoadingState />;
   if (error && (!data || error.status === 403)) return <ErrorState error={error} onRetry={reload} />;
   return <EducationPlanContext.Provider value={value}>{children}</EducationPlanContext.Provider>;
+}
+
+/**
+ * Tải chi tiết các kế hoạch năm/tổ mà trang đang mở cần (danh sách chỉ có bản tóm tắt). loading = còn kế hoạch chưa tải xong.
+ */
+export function useGoalDetails(ids) {
+  const { goals, ensureGoals } = useContext(EducationPlanContext);
+  const missing = [...new Set(ids.filter(Boolean).map(String))].filter((id) => goals.find((g) => g.id === id)?.summary);
+  const key = missing.join(',');
+  const [error, setError] = useState(null);
+  useEffect(() => {
+    if (!key) return;
+    setError(null);
+    ensureGoals(key.split(',')).catch(setError);
+  }, [key, ensureGoals]);
+  return { loading: !!key && !error, error };
 }
 
 /** Data and actions of the education-plan module. Only valid inside EducationPlanProvider. */

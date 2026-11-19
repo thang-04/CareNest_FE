@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { ChildAvatar } from '@/components/ChildAvatar';
-import { ArrowRight, Flag, Lock, Save, UserX } from '@/components/ui/icons';
+import { Flag, Lock, Save, UserX } from '@/components/ui/icons';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
@@ -15,7 +15,8 @@ import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { EmptyState, ErrorState, SkeletonRows, Spinner } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
 import { AbsentRows, BehaviorsCell, HealthCell, MealsCell } from '@/components/assessment/DailyAssessmentCells';
-import { EMOTION, EMOTION_LABELS } from '@/models/assessment/assessmentConstants';
+import { Cell } from '@/components/ui/TableCell';
+import { CLASS_COMMENT_MAX, DAILY_COMMENT_MAX, EMOTION, EMOTION_LABELS } from '@/models/assessment/assessmentConstants';
 import { NAP, NAP_LABELS, PARTICIPATION, PARTICIPATION_LABELS } from '@/models/assessment/dailyObservationOptions';
 import { createGeneralDraft, getGeneralDirtyIds, getGeneralSaveEntries, isGeneralRecorded } from '@/utils/assessment/dailyGeneralDraft';
 import { DateInput } from '@/components/form/DateInput';
@@ -80,8 +81,10 @@ export default function DailyAssessmentPage() {
     setSaveError(null);
   };
 
+  // BE cắt khoảng trắng đầu / cuối rồi mới đếm
+  const classCommentTooLong = classComment.trim().length > CLASS_COMMENT_MAX;
   const save = async () => {
-    if (saving || !writable || loading || classesLoading || error || !canSave) return false;
+    if (saving || !writable || loading || classesLoading || error || !canSave || classCommentTooLong) return false;
     setSaving(true);
     setSaveError(null);
     try {
@@ -112,7 +115,9 @@ export default function DailyAssessmentPage() {
 
   const recordedCount = sheet?.rows.filter(isGeneralRecorded).length || 0;
   const commentError = saveError?.details?.comment;
-  const classCommentError = saveError?.details?.classComment;
+  const classCommentError = classCommentTooLong
+    ? `Nhận xét chung của lớp tối đa ${CLASS_COMMENT_MAX} ký tự`
+    : saveError?.details?.classComment;
   // Lỗi không gắn được vào một ô (trẻ chưa có mặt, ngày đã khóa…): hiện ở đầu bảng
   const formError = saveError && !commentError && !classCommentError ? saveError.message : null;
 
@@ -211,8 +216,8 @@ export default function DailyAssessmentPage() {
           {error ? (
             <ErrorState error={error} onRetry={reload} />
           ) : (
-            <div className="table-wrap dg-sheet-wrap">
-              <table className="table table--grid dg-sheet">
+            <div className="table-wrap dg-roll-wrap dg-sheet-wrap">
+              <table className="table table--grid dg-sheet dg-roll">
                 <thead>
                   <tr className="dg-head-cols">
                     <th className="dg-col-child dg-sticky-col cell--fixed">Trẻ</th>
@@ -256,7 +261,8 @@ export default function DailyAssessmentPage() {
                       const d = drafts[id] || createGeneralDraft(r, sheet.mealSessions);
                       const disabled = !writable || saving;
                       const name = r.fullName;
-                      const commentInvalid = !!commentError && dirty.has(id) && !!d.comment.trim();
+                      const commentTooLong = (d.comment || '').length > DAILY_COMMENT_MAX;
+                      const commentInvalid = commentTooLong || (!!commentError && dirty.has(id) && !!d.comment.trim());
                       // Viền trái của dòng: chưa lưu / đã ghi nhận / chưa đánh giá
                       const status = dirty.has(id)
                         ? ['dirty', 'Đã thay đổi, chưa lưu']
@@ -355,17 +361,18 @@ export default function DailyAssessmentPage() {
                             </button>
                           </td>
                           <td className="dg-col-note">
-                            <input
-                              className={`input dg-input dg-note ${commentInvalid ? 'input--error' : ''}`}
+                            {/* Cùng ô nhận xét như màn Kiến thức kỹ năng (tự giãn dòng, BE giới hạn độ dài) */}
+                            <Cell
+                              editable={!disabled}
                               value={d.comment}
-                              maxLength={500}
-                              disabled={disabled}
-                              placeholder="Tùy chọn"
-                              onChange={(e) => update(id, { comment: e.target.value })}
-                              aria-label={`Nhận xét trong ngày cho ${name}`}
-                              aria-invalid={commentInvalid || undefined}
+                              label={`Nhận xét trong ngày cho ${name}`}
+                              onChange={(v) => update(id, { comment: v })}
                             />
-                            {commentInvalid && <div className="field__error">{commentError}</div>}
+                            {commentInvalid && (
+                              <div className="field__error">
+                                {commentTooLong ? `Nhận xét tối đa ${DAILY_COMMENT_MAX} ký tự` : commentError}
+                              </div>
+                            )}
                           </td>
                         </tr>
                       );
@@ -395,10 +402,7 @@ export default function DailyAssessmentPage() {
 
       {writable && (
         <div className="page-actions">
-          {/* Xong Hoạt động chung thì sang Kiến thức kỹ năng cùng lớp, ngày (hỏi nếu còn thay đổi chưa lưu) */}
-          <Link className="btn" to={`/assessment/daily/skills?classId=${currentClassId}&date=${shownDate}`}>
-            Sang Kiến thức kỹ năng <ArrowRight size={16} />
-          </Link>
+          {/* Chuyển Hoạt động chung / Kiến thức kỹ năng bằng ô "Nội dung đánh giá" (user chốt 12/11/2026 bỏ nút Sang) */}
           <div className="spacer" />
           <div className="row gap-2">
             {(dirty.size > 0 || classCommentDirty) && (
@@ -406,7 +410,11 @@ export default function DailyAssessmentPage() {
                 Hủy thay đổi
               </button>
             )}
-            <button className="btn btn--primary" onClick={save} disabled={saving || loading || classesLoading || !!error || !canSave}>
+            <button
+              className="btn btn--primary"
+              onClick={save}
+              disabled={saving || loading || classesLoading || !!error || !canSave || classCommentTooLong}
+            >
               {saving ? <Spinner small /> : <Save size={16} />} Lưu đánh giá{saveEntries.length ? ` (${saveEntries.length})` : ''}
             </button>
           </div>

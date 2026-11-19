@@ -11,6 +11,7 @@ import { StatusBadge } from '@/components/ui/StatusBadge';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
 import { ScNoAccess } from '@/components/school-config/ScNoAccess';
 import { PlacementClassPanel } from '@/components/school-config/PlacementClassPanel';
+import { NewAdmissionPlacementPanel } from '@/components/school-config/NewAdmissionPlacementPanel';
 import { PlacementActionBadge } from '@/components/school-config/SchoolConfigBadges';
 import { usePlacements, useSchoolYears } from '@/hooks/school-config/useSchoolConfig';
 import { autoPlace } from '@/services/school-config/schoolConfigService';
@@ -39,7 +40,9 @@ export default function YearPlacementPage() {
   const filtered = !!(campusId || groupId);
   const { plan, loading, error, reload } = usePlacements(yearId, { live: false });
   const [selectedId, setSelectedId] = useState('');
-  const [dirty, setDirty] = useState(false);
+  const [classDirty, setClassDirty] = useState(false);
+  const [admissionDirty, setAdmissionDirty] = useState(false);
+  const dirty = classDirty || admissionDirty;
   const [pendingId, setPendingId] = useState(null);
   const [confirmAuto, setConfirmAuto] = useState(false);
   const [autoGroup, setAutoGroup] = useState(null);
@@ -85,7 +88,8 @@ export default function YearPlacementPage() {
       classes.filter((c) => !c.graduating && !c.suggestedTargetId).map((c) => `${groupName(c.nextAgeGroupId)} (${campusName(c.campusId)})`),
     ),
   ];
-  const onDirty = useCallback((value) => setDirty(value), []);
+  const onClassDirty = useCallback((value) => setClassDirty(value), []);
+  const onAdmissionDirty = useCallback((value) => setAdmissionDirty(value), []);
   // Rời màn / đổi bước wizard khi lớp đang chọn còn thay đổi chưa lưu: hỏi trước (lưu ở khung lớp)
   const guard = useLeaveGuard({ when: dirty });
 
@@ -98,14 +102,15 @@ export default function YearPlacementPage() {
   // Đổi bộ lọc / xếp tự động làm khung lớp nạp lại: còn chọn chưa lưu thì hỏi trước (bỏ thay đổi mới làm tiếp)
   const unlessDirty = (run) =>
     guard.leave(() => {
-      setDirty(false);
+      setClassDirty(false);
+      setAdmissionDirty(false);
       run();
     });
   const setParam = (key, value) => unlessDirty(() => applyParam(key, value));
   // Đổi lớp khi đang sửa dở thì hỏi trước để không mất thay đổi
   const pick = (id) => {
     if (id === selected?.id) return;
-    if (dirty) setPendingId(id);
+    if (classDirty) setPendingId(id);
     else setSelectedId(id);
   };
   const onListKey = (event) => {
@@ -273,118 +278,129 @@ export default function YearPlacementPage() {
               />
             </div>
           ) : (
-            <div className="sc-plc">
-              <nav className="card sc-plc__list" aria-label="Lớp năm học cũ" onKeyDown={onListKey}>
-                {missingTargets.length > 0 && (
-                  <p className="sc-plc__missing text-xs" role="note">
-                    <AlertTriangle size={14} /> Năm {plan.year.name} chưa có lớp: {missingTargets.join(', ')}.{' '}
-                    <Link to={`/school/classes?year=${plan.year.id}`}>Thêm lớp</Link>
-                  </p>
-                )}
-                {groups.map((g) => (
-                  <div key={g.id || 'none'} className="sc-plc__group" role="group" aria-label={`Nhóm ${groupName(g.id)}`}>
-                    <div className="sc-plc__group-head">
-                      <span className="sc-plc__group-name">{groupName(g.id)}</span>
-                      <span className="muted text-xs">
-                        {g.list.length} lớp{g.left ? ` · chưa xếp ${g.left}` : ' · đã xếp hết'}
-                      </span>
-                      {plan.editable && g.id && g.left > 0 && (g.graduating || g.nextId) && (
-                        <button
-                          type="button"
-                          className="btn btn--sm sc-plc__group-auto"
-                          title={
-                            g.graduating
-                              ? 'Trẻ đã hoàn thành chương trình ra trường; trẻ khác bạn chọn'
-                              : 'Trẻ chưa xếp của cả nhóm lên nhóm tuổi kế tiếp'
-                          }
-                          onClick={() =>
-                            unlessDirty(() => {
-                              setAutoGroup({
-                                ageGroupId: g.id,
-                                label: g.graduating ? groupAutoLabel(g) : `Cả nhóm ${groupName(g.id)} lên ${groupName(g.nextId)}`,
-                              });
-                              setConfirmAuto(true);
-                            })
-                          }
-                        >
-                          <Wand2 size={14} /> {groupAutoLabel(g)}
-                        </button>
-                      )}
-                    </div>
-                    {g.list.map((c) => {
-                      const done = placedOf(c);
-                      const complete = done === c.children.length;
-                      return (
-                        <button
-                          key={c.id}
-                          id={`plc-class-${c.id}`}
-                          type="button"
-                          className={`sc-plc__class ${c.id === selected?.id ? 'is-active' : ''}`}
-                          aria-current={c.id === selected?.id ? 'true' : undefined}
-                          onClick={() => pick(c.id)}
-                        >
-                          <span className="sc-plc__class-name">{c.name}</span>
-                          <span className="muted text-xs sc-plc__class-meta">{campusName(c.campusId)}</span>
-                          <span className="sc-plc__class-chip">
-                            <StatusBadge
-                              tone={complete ? 'green' : done ? 'orange' : 'red'}
-                              icon={complete ? CircleCheck : done ? Clock : AlertTriangle}
-                              label={complete ? `Đã xếp ${done}/${c.children.length}` : `Chưa xếp ${c.children.length - done}`}
-                            />
-                          </span>
-                          {!c.graduating && !c.suggestedTargetId && (
-                            <span
-                              className="sc-plc__warn-icon"
-                              title={`Năm mới chưa có lớp ${groupName(c.nextAgeGroupId)} ở ${campusName(c.campusId)}`}
-                              aria-label={`Năm mới chưa có lớp ${groupName(c.nextAgeGroupId)}`}
-                            >
-                              <AlertTriangle size={14} />
-                            </span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                ))}
-              </nav>
-              <section className="card sc-plc__main" aria-label={selected ? `Trẻ lớp ${selected.name}` : 'Trẻ của lớp'}>
-                {selected && (
-                  <>
-                    {!selected.children.length && (
-                      <div className="sc-plc__head">
-                        <h2 className="section-title">
-                          {selected.name} · {campusName(selected.campusId)}
-                        </h2>
+            <>
+              <NewAdmissionPlacementPanel
+                yearId={yearId}
+                admissions={(plan.newAdmissions || []).filter((item) => !campusId || String(item.campusId) === String(campusId))}
+                targets={plan.targets}
+                campusName={campusName}
+                editable={plan.editable}
+                onDirty={onAdmissionDirty}
+                onSaved={() => reload({ silent: true })}
+              />
+              <div className="sc-plc">
+                <nav className="card sc-plc__list" aria-label="Lớp năm học cũ" onKeyDown={onListKey}>
+                  {missingTargets.length > 0 && (
+                    <p className="sc-plc__missing text-xs" role="note">
+                      <AlertTriangle size={14} /> Năm {plan.year.name} chưa có lớp: {missingTargets.join(', ')}.{' '}
+                      <Link to={`/school/classes?year=${plan.year.id}`}>Thêm lớp</Link>
+                    </p>
+                  )}
+                  {groups.map((g) => (
+                    <div key={g.id || 'none'} className="sc-plc__group" role="group" aria-label={`Nhóm ${groupName(g.id)}`}>
+                      <div className="sc-plc__group-head">
+                        <span className="sc-plc__group-name">{groupName(g.id)}</span>
+                        <span className="muted text-xs">
+                          {g.list.length} lớp{g.left ? ` · chưa xếp ${g.left}` : ' · đã xếp hết'}
+                        </span>
+                        {plan.editable && g.id && g.left > 0 && (g.graduating || g.nextId) && (
+                          <button
+                            type="button"
+                            className="btn btn--sm sc-plc__group-auto"
+                            title={
+                              g.graduating
+                                ? 'Trẻ đã hoàn thành chương trình ra trường; trẻ khác bạn chọn'
+                                : 'Trẻ chưa xếp của cả nhóm lên nhóm tuổi kế tiếp'
+                            }
+                            onClick={() =>
+                              unlessDirty(() => {
+                                setAutoGroup({
+                                  ageGroupId: g.id,
+                                  label: g.graduating ? groupAutoLabel(g) : `Cả nhóm ${groupName(g.id)} lên ${groupName(g.nextId)}`,
+                                });
+                                setConfirmAuto(true);
+                              })
+                            }
+                          >
+                            <Wand2 size={14} /> {groupAutoLabel(g)}
+                          </button>
+                        )}
                       </div>
-                    )}
-                    {selected.children.length ? (
-                      <PlacementClassPanel
-                        heading={
-                          <span className="sc-plc__title">
-                            <b>
-                              {selected.name} · {campusName(selected.campusId)}
-                            </b>
-                            <span className="muted text-sm" title={groupName(selected.ageGroupId)}>
-                              {selected.children.length} trẻ
+                      {g.list.map((c) => {
+                        const done = placedOf(c);
+                        const complete = done === c.children.length;
+                        return (
+                          <button
+                            key={c.id}
+                            id={`plc-class-${c.id}`}
+                            type="button"
+                            className={`sc-plc__class ${c.id === selected?.id ? 'is-active' : ''}`}
+                            aria-current={c.id === selected?.id ? 'true' : undefined}
+                            onClick={() => pick(c.id)}
+                          >
+                            <span className="sc-plc__class-name">{c.name}</span>
+                            <span className="muted text-xs sc-plc__class-meta">{campusName(c.campusId)}</span>
+                            <span className="sc-plc__class-chip">
+                              <StatusBadge
+                                tone={complete ? 'green' : done ? 'orange' : 'red'}
+                                icon={complete ? CircleCheck : done ? Clock : AlertTriangle}
+                                label={complete ? `Đã xếp ${done}/${c.children.length}` : `Chưa xếp ${c.children.length - done}`}
+                              />
                             </span>
-                          </span>
-                        }
-                        key={`${selected.id}:${selected.children.map((ch) => ch.placement?.updatedAt || '').join()}`}
-                        yearId={yearId}
-                        from={selected}
-                        targets={plan.targets}
-                        campusName={campusName}
-                        editable={plan.editable}
-                        onDirty={onDirty}
-                        onSaved={() => reload({ silent: true })}
-                      />
-                    ) : (
-                      <EmptyState icon={Users} title="Lớp không có trẻ đang học" />
-                    )}
-                  </>
-                )}
-              </section>
-            </div>
+                            {!c.graduating && !c.suggestedTargetId && (
+                              <span
+                                className="sc-plc__warn-icon"
+                                title={`Năm mới chưa có lớp ${groupName(c.nextAgeGroupId)} ở ${campusName(c.campusId)}`}
+                                aria-label={`Năm mới chưa có lớp ${groupName(c.nextAgeGroupId)}`}
+                              >
+                                <AlertTriangle size={14} />
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </nav>
+                <section className="card sc-plc__main" aria-label={selected ? `Trẻ lớp ${selected.name}` : 'Trẻ của lớp'}>
+                  {selected && (
+                    <>
+                      {!selected.children.length && (
+                        <div className="sc-plc__head">
+                          <h2 className="section-title">
+                            {selected.name} · {campusName(selected.campusId)}
+                          </h2>
+                        </div>
+                      )}
+                      {selected.children.length ? (
+                        <PlacementClassPanel
+                          heading={
+                            <span className="sc-plc__title">
+                              <b>
+                                {selected.name} · {campusName(selected.campusId)}
+                              </b>
+                              <span className="muted text-sm" title={groupName(selected.ageGroupId)}>
+                                {selected.children.length} trẻ
+                              </span>
+                            </span>
+                          }
+                          key={`${selected.id}:${selected.children.map((ch) => ch.placement?.updatedAt || '').join()}`}
+                          yearId={yearId}
+                          from={selected}
+                          targets={plan.targets}
+                          campusName={campusName}
+                          editable={plan.editable}
+                          onDirty={onClassDirty}
+                          onSaved={() => reload({ silent: true })}
+                        />
+                      ) : (
+                        <EmptyState icon={Users} title="Lớp không có trẻ đang học" />
+                      )}
+                    </>
+                  )}
+                </section>
+              </div>
+            </>
           )}
         </>
       )}
@@ -398,7 +414,7 @@ export default function YearPlacementPage() {
         onConfirm={() => {
           setSelectedId(pendingId);
           setPendingId(null);
-          setDirty(false);
+          setClassDirty(false);
         }}
         onClose={() => setPendingId(null)}
       />

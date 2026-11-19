@@ -72,5 +72,3 @@ export const PICKUP_STATUS_MESSAGES = {
   ABSENT: 'Trẻ vắng mặt hôm nay',
   UNMARKED: 'Trẻ chưa được điểm danh có mặt hôm nay',
 };
-
-export const RELATIONS = ['Bố', 'Mẹ', 'Ông', 'Bà', 'Anh/chị', 'Cô/dì/chú/bác', 'Khác'];

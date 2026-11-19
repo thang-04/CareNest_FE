@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { Plus, X } from '@/components/ui/icons';
 import { FormField } from '@/components/form/FormField';
+import { Checkbox } from '@/components';
 import { IntakeSheet, IntakeChoiceRow } from './IntakeSheet';
 import { ALLERGY_STATE_LABELS, DECLARATION_STATE, DIET_STATE_LABELS, NOTE_STATE_LABELS } from '@/models/children/childrenConstants';
 import { MEDICAL_HISTORY_ITEMS, MEDICAL_HISTORY_STATE_LABELS, emptyMedicalHistory } from '@/models/children/childProfile';
@@ -39,6 +40,7 @@ function FieldError({ error }) {
  */
 export function HealthDeclarationFields({ value, onChange, errors = {}, dateOfBirth, sheet = false }) {
   const [item, setItem] = useState('');
+  const mealHintId = useId();
   const set = (block, patch) => onChange({ ...value, [block]: { ...value[block], ...patch } });
   // Khai báo cũ chưa có tiền sử ⇒ chưa chọn, phải chọn Có/Không khi lưu.
   const history = value.medicalHistory || emptyMedicalHistory();
@@ -146,48 +148,71 @@ export function HealthDeclarationFields({ value, onChange, errors = {}, dateOfBi
     );
   };
 
+  // CHD-13: thiếu cờ ⇒ báo ăn. Bỏ tích chỉ ẩn dị ứng/chế độ ăn, dữ liệu đã gõ vẫn giữ để tích lại.
+  const mealRegistered = value.mealRegistered !== false;
+  const mealToggle = (
+    <div className="stack gap-1">
+      <label className="checkbox">
+        <Checkbox
+          checked={mealRegistered}
+          aria-describedby={mealHintId}
+          onChange={(e) => onChange({ ...value, mealRegistered: e.target.checked })}
+        />
+        Báo ăn
+      </label>
+      <p id={mealHintId} className="field__hint">
+        Trẻ ăn ở trường. Bỏ tích: không khai dị ứng, chế độ ăn và trẻ không có suất ăn.
+      </p>
+    </div>
+  );
+  const otherNotesRow = (
+    <IntakeChoiceRow
+      label="Thông tin sức khỏe khác"
+      name="tr-other"
+      options={options(NOTE_STATE_LABELS, ALL_STATES)}
+      value={value.otherNotes.state}
+      onChange={(state) => set('otherNotes', { state })}
+      error={errors.otherNotes}
+    >
+      {otherDetail || null}
+    </IntakeChoiceRow>
+  );
+
   if (sheet)
     return (
       <div className="tr-intake stack gap-5">
+        {mealToggle}
         <div className="tr-intake-cols">
-          <section aria-label="Dị ứng và chế độ ăn">
-            <IntakeSheet title="I. Dị ứng và chế độ ăn">
-              <IntakeChoiceRow
-                label="Dị ứng thực phẩm / thuốc"
-                required
-                name="tr-allergy"
-                options={options(ALLERGY_STATE_LABELS, ALL_STATES)}
-                value={value.allergies.state}
-                onChange={(state) => set('allergies', { state })}
-                error={errors.allergies}
-              >
-                {allergyDetail || null}
-              </IntakeChoiceRow>
-              <IntakeChoiceRow
-                label="Chế độ ăn"
-                required
-                name="tr-diet"
-                options={options(DIET_STATE_LABELS, ALL_STATES)}
-                value={value.diet.state}
-                onChange={(state) => set('diet', { state })}
-                error={errors.diet}
-              >
-                {dietDetail || null}
-              </IntakeChoiceRow>
-              <IntakeChoiceRow
-                label="Thông tin sức khỏe khác"
-                name="tr-other"
-                options={options(NOTE_STATE_LABELS, ALL_STATES)}
-                value={value.otherNotes.state}
-                onChange={(state) => set('otherNotes', { state })}
-                error={errors.otherNotes}
-              >
-                {otherDetail || null}
-              </IntakeChoiceRow>
-            </IntakeSheet>
-          </section>
-          <section aria-label="Tiền sử">
-            <IntakeSheet title="II. Tiền sử">
+          {mealRegistered && (
+            <section aria-label="Dị ứng và chế độ ăn">
+              <IntakeSheet title="I. Dị ứng và chế độ ăn">
+                <IntakeChoiceRow
+                  label="Dị ứng thực phẩm / thuốc"
+                  required
+                  name="tr-allergy"
+                  options={options(ALLERGY_STATE_LABELS, ALL_STATES)}
+                  value={value.allergies.state}
+                  onChange={(state) => set('allergies', { state })}
+                  error={errors.allergies}
+                >
+                  {allergyDetail || null}
+                </IntakeChoiceRow>
+                <IntakeChoiceRow
+                  label="Chế độ ăn"
+                  required
+                  name="tr-diet"
+                  options={options(DIET_STATE_LABELS, ALL_STATES)}
+                  value={value.diet.state}
+                  onChange={(state) => set('diet', { state })}
+                  error={errors.diet}
+                >
+                  {dietDetail || null}
+                </IntakeChoiceRow>
+              </IntakeSheet>
+            </section>
+          )}
+          <section aria-label="Tiền sử và sức khỏe khác">
+            <IntakeSheet title={`${mealRegistered ? 'II' : 'I'}. Tiền sử và sức khỏe khác`}>
               {MEDICAL_HISTORY_ITEMS.map((it) => (
                 <IntakeChoiceRow
                   key={it.key}
@@ -202,6 +227,7 @@ export function HealthDeclarationFields({ value, onChange, errors = {}, dateOfBi
                   {historyDetail(it)}
                 </IntakeChoiceRow>
               ))}
+              {otherNotesRow}
             </IntakeSheet>
           </section>
         </div>
@@ -210,42 +236,35 @@ export function HealthDeclarationFields({ value, onChange, errors = {}, dateOfBi
 
   return (
     <div className="stack gap-4">
-      <fieldset className="tr-fieldset">
-        <legend className="field__label">
-          Dị ứng thực phẩm / thuốc<span className="req">*</span>
-        </legend>
-        <StateRadios
-          name="tr-allergy"
-          labels={ALLERGY_STATE_LABELS}
-          value={value.allergies.state}
-          onChange={(state) => set('allergies', { state })}
-        />
-        {allergyDetail && <div className="mt-12">{allergyDetail}</div>}
-        <FieldError error={errors.allergies} />
-      </fieldset>
+      {mealToggle}
+      {mealRegistered && (
+        <>
+          <fieldset className="tr-fieldset">
+            <legend className="field__label">
+              Dị ứng thực phẩm / thuốc<span className="req">*</span>
+            </legend>
+            <StateRadios
+              name="tr-allergy"
+              labels={ALLERGY_STATE_LABELS}
+              value={value.allergies.state}
+              onChange={(state) => set('allergies', { state })}
+            />
+            {allergyDetail && <div className="mt-12">{allergyDetail}</div>}
+            <FieldError error={errors.allergies} />
+          </fieldset>
 
-      <fieldset className="tr-fieldset">
-        <legend className="field__label">
-          Chế độ ăn<span className="req">*</span>
-        </legend>
-        <StateRadios name="tr-diet" labels={DIET_STATE_LABELS} value={value.diet.state} onChange={(state) => set('diet', { state })} />
-        {dietDetail && <div className="mt-12">{dietDetail}</div>}
-        <FieldError error={errors.diet} />
-      </fieldset>
+          <fieldset className="tr-fieldset">
+            <legend className="field__label">
+              Chế độ ăn<span className="req">*</span>
+            </legend>
+            <StateRadios name="tr-diet" labels={DIET_STATE_LABELS} value={value.diet.state} onChange={(state) => set('diet', { state })} />
+            {dietDetail && <div className="mt-12">{dietDetail}</div>}
+            <FieldError error={errors.diet} />
+          </fieldset>
+        </>
+      )}
 
-      <fieldset className="tr-fieldset">
-        <legend className="field__label">Thông tin sức khỏe khác</legend>
-        <StateRadios
-          name="tr-other"
-          labels={NOTE_STATE_LABELS}
-          value={value.otherNotes.state}
-          onChange={(state) => set('otherNotes', { state })}
-        />
-        {otherDetail && <div className="mt-12">{otherDetail}</div>}
-        <FieldError error={errors.otherNotes} />
-      </fieldset>
-
-      <h3 className="subsection-title">Tiền sử</h3>
+      <h3 className="subsection-title">Tiền sử và sức khỏe khác</h3>
       {MEDICAL_HISTORY_ITEMS.map((it) => {
         const detail = historyDetail(it);
         return (
@@ -266,6 +285,18 @@ export function HealthDeclarationFields({ value, onChange, errors = {}, dateOfBi
           </fieldset>
         );
       })}
+
+      <fieldset className="tr-fieldset">
+        <legend className="field__label">Thông tin sức khỏe khác</legend>
+        <StateRadios
+          name="tr-other"
+          labels={NOTE_STATE_LABELS}
+          value={value.otherNotes.state}
+          onChange={(state) => set('otherNotes', { state })}
+        />
+        {otherDetail && <div className="mt-12">{otherDetail}</div>}
+        <FieldError error={errors.otherNotes} />
+      </fieldset>
     </div>
   );
 }

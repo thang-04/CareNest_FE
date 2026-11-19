@@ -24,19 +24,15 @@ import '@/styles/modules/assessment.css';
 const MSG30 = 'Trợ lý AI hiện không khả dụng. Bạn có thể tiếp tục viết đánh giá thủ công.';
 
 /**
- * #57 AI Evaluation Draft (UC 4.7): the weekly, monthly or year-end draft written by the AI service and its sources.
+ * #57 AI Evaluation Draft (UC 4.7): the semester or year-end draft written by the AI service and its sources.
  * The draft is never official; the teacher can request a new one and confirms on the detail page.
  */
 export default function AiEvaluationDraftPage() {
   const { id } = useParams();
   const { pathname } = useLocation();
-  const kind = pathname.includes('/year-end/')
-    ? EVAL_KIND.YEAR_END
-    : pathname.includes('/semester/')
-      ? EVAL_KIND.SEMESTER
-      : EVAL_KIND.PERIODIC;
+  const kind = pathname.includes('/year-end/') ? EVAL_KIND.YEAR_END : EVAL_KIND.SEMESTER;
   const base = `/assessment/${kind}`;
-  const section = { [EVAL_KIND.YEAR_END]: SECTIONS.yearEnd, [EVAL_KIND.SEMESTER]: SECTIONS.semester }[kind] || SECTIONS.periodic;
+  const section = kind === EVAL_KIND.YEAR_END ? SECTIONS.yearEnd : SECTIONS.semester;
   const { user } = useAuth();
   const toast = useToast();
   const { detail, loading, error, reload } = useEvaluation(kind, id);
@@ -133,12 +129,6 @@ export default function AiEvaluationDraftPage() {
                   <>
                     <dt>Ngày có đánh giá hằng ngày:</dt>
                     <dd>{src.structured?.observedDays || new Set(detail.assessments.map((a) => a.date)).size}</dd>
-                  </>
-                )}
-                {kind === EVAL_KIND.YEAR_END && (
-                  <>
-                    <dt>Đánh giá tháng đã xác nhận:</dt>
-                    <dd>{src.monthlyCount}</dd>
                   </>
                 )}
               </dl>

@@ -56,6 +56,9 @@ test('ghi, xác nhận và duyệt khen thưởng dùng đúng quyền đánh gi
   assert.equal(canReviewEvaluation(ev, cls, teacher), true);
   assert.equal(canConfirmEvaluation(ev, cls, teacher), false);
   assert.equal(canConfirmEvaluation(ev, cls, confirmer), true);
+  // OBS-33: BE trả canConfirm = false cho GV không chủ nhiệm ⇒ ẩn nút xác nhận
+  assert.equal(canConfirmEvaluation(ev, { ...cls, canConfirm: false }, confirmer), false);
+  assert.equal(canConfirmEvaluation(ev, { ...cls, canConfirm: true }, confirmer), true);
 
   const proposal = { campusId: 1, status: 'PENDING_VP' };
   const vp = live(ROLES.VICE_PRINCIPAL, [PERMISSIONS.REWARD_REVIEW], { campusId: 1 });

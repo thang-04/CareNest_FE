@@ -4,7 +4,7 @@ import { approveRow, defaultSigners, signerCell } from '@/utils/assessment/docSi
 const esc = (v = '') =>
   String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 export const semesterLabel = (n) => (n === 1 ? 'Học kỳ I' : 'Học kỳ II');
-const tick = (value, option) => (value === option ? 'x' : '');
+const tick = (value, option) => (value === option ? '✓' : '');
 const signingPlace = DEFAULT_PRINT_TEMPLATE.address.match(/xã ([^,]+)/i)?.[1] || '';
 
 function signingDate(confirmedAt) {
@@ -31,7 +31,7 @@ export function semesterAssessmentRows(board) {
     ['Một số lưu ý', board.note || ''],
   ];
 }
-/** signers: [{ title, name }] (mặc định GV chủ nhiệm, tổ trưởng, PHT từ BE); người đầu ký trên, còn lại ở "Duyệt kế hoạch". */
+/** signers: [{ title, name }] (mặc định giáo viên phụ trách lớp, tổ trưởng, PHT từ BE); người đầu ký trên, còn lại ở "Duyệt kế hoạch". */
 export function semesterAssessmentFile(board, signers = defaultSigners(board.signers)) {
   const [head, ...approvers] = signers;
   const headers = board.domains.map((d) => `<th colspan="2">${esc(d.name)}</th>`).join('');

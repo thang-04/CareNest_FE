@@ -26,13 +26,15 @@ export const createSchoolConfigApi = (axiosClient) => ({
   getStructure: (filters) => axiosClient.get('/school-structure', { params: filters }),
   getAgeGroups: () => axiosClient.get('/age-groups'),
   // PENDING BE: nhóm tuổi gửi mealSessions (MORNING | LUNCH | AFTERNOON), mealsPerDay = số phần tử
-  saveAgeGroup: (id, form) => (id ? axiosClient.put(`/age-groups/${id}`, form) : axiosClient.post('/age-groups', form)),
-  deleteAgeGroup: (id) => axiosClient.delete(`/age-groups/${id}`),
+  // Nhóm tuổi theo năm học (Cần chốt 22/10/2026): thêm / xóa chỉ ở năm đang chọn
+  saveAgeGroup: (id, form, _user, schoolYearId) =>
+    id ? axiosClient.put(`/age-groups/${id}`, form) : axiosClient.post('/age-groups', form, { params: { schoolYearId } }),
+  deleteAgeGroup: (id, _user, schoolYearId) => axiosClient.delete(`/age-groups/${id}`, { params: { schoolYearId } }),
   saveClass: (id, form) => (id ? axiosClient.put(`/classes/${id}`, form) : axiosClient.post('/classes', form)),
   deleteClass: (id) => axiosClient.delete(`/classes/${id}`),
   // PENDING BE: sao chép lớp từ năm học khác (chỉ tên, nhóm tuổi, điểm trường, phòng, sĩ số)
   copyClasses: (targetYearId, payload) => axiosClient.post(`/school-years/${targetYearId}/classes/copy`, payload),
-  // Thiết lập năm học: { sourceYearId, parts: CLASSES | TEACHERS | TEAM_LEADERS | CUTOFF | SEMESTER }
+  // Thiết lập năm học: { sourceYearId, parts: CLASSES | TEACHERS | TEAM_LEADERS | VICE_PRINCIPALS | CUTOFF | SEMESTER }
   copyYear: (targetYearId, payload) => axiosClient.post(`/school-years/${targetYearId}/copy`, payload),
 
   getCutoffSetting: (schoolYear) => axiosClient.get(`/school-years/${schoolYear}/cutoff`),

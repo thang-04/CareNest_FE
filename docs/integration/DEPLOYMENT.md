@@ -1,6 +1,6 @@
 # Deploy Web lên VPS (Docker + Caddy + GitHub Actions)
 
-Luồng: push lên `main` (merge PR từ `release/*`; PR vào `main` chỉ chạy verify, commit chỉ sửa tài liệu không chạy) ⇒ `.github/workflows/deploy.yml` chạy `npm run verify` ⇒ rsync source lên `/data/thangnd/CAPSTONE/CareNest_FE` ⇒ VPS chạy `docker compose up -d --build` (build Vite trong Docker ngay trên VPS) ⇒ CI đồng bộ file site Caddy và reload nếu file đổi ⇒ Caddy trên host phục vụ `https://web.carenest.edu.vn`.
+Luồng: push lên `main` (merge PR từ `release/*`; PR vào `main` chỉ chạy verify, commit chỉ sửa tài liệu không chạy) ⇒ `.github/workflows/deploy.yml` chạy `npm run verify` ⇒ rsync source lên `/data/thangnd/CAPSTONE/CareNest_FE` ⇒ VPS chạy `docker compose up -d --build` (build Vite trong Docker ngay trên VPS) ⇒ CI đồng bộ file site Caddy và reload nếu file đổi ⇒ Caddy trên host phục vụ `https://thuonghong.carenest.edu.vn`.
 
 ```
 Trình duyệt ─HTTPS─▶ Caddy host (giữ 80/443 cho mọi site trên server, HTTPS tự động)
@@ -26,9 +26,10 @@ Thư mục trên VPS:
 | `.dockerignore` | Loại file khỏi docker build và khỏi rsync lên VPS |
 | `deploy/caddy/carenest-web.caddy` | Site Caddy cho subdomain; sửa ở repo, CI đẩy lên VPS (không sửa tay trên VPS — lần deploy sau sẽ ghi đè) |
 | `deploy/caddy/carenest-dev.caddy` | Site dev: `/api/*` tới API dev, còn lại tới FE dev |
-| `.github/workflows/deploy.yml` | verify → rsync source → `docker compose up -d --build` qua SSH → đồng bộ site Caddy (reload khi đổi, lỗi ⇒ khôi phục file cũ) → kiểm HTTPS |
+| `deploy/remote-deploy.sh` | Chạy trên VPS cho cả production và dev: `prepare` giữ image đang chạy và `compose.yaml` cũ; `deploy` build, chạy, chờ HTTP 200, không đạt ⇒ tự rollback (mục Rollback) |
+| `.github/workflows/deploy.yml` | verify → gửi script, `prepare` → rsync source → `remote-deploy.sh deploy` qua SSH → đồng bộ site Caddy (reload khi đổi, lỗi ⇒ khôi phục file cũ) → kiểm HTTPS (fail ⇒ rollback) |
 
-rsync dùng `--delete`: file trên VPS không còn trong repo sẽ bị xoá, trừ file khớp `.dockerignore` (vd. `.env` đặt tay). Không để dữ liệu khác trong `/data/thangnd/CAPSTONE/CareNest_FE`.
+rsync dùng `--delete`: file trên VPS không còn trong repo sẽ bị xoá, trừ file khớp `.dockerignore` (vd. `.env` đặt tay, `.incoming/` chứa script deploy, `.rollback/` chứa bản để quay lại). Không để dữ liệu khác trong `/data/thangnd/CAPSTONE/CareNest_FE`.
 
 Vì sao mạng host: VPS mất chain iptables của Docker (bridge không ra Internet, không tạo được network mới); gốc ở tầng k8s của server, ngoài quyền nhóm ⇒ không sửa iptables, không restart Docker — xem `docs/knowledge/TROUBLESHOOTING.md`.
 
@@ -42,9 +43,9 @@ Mọi service CareNest trên VPS (FE, sau này BE, Keycloak, Postgres, AI) chạ
 
 | Service | Cổng `127.0.0.1` | Site Caddy |
 | --- | --- | --- |
-| `carenest-web` (FE) | 18300 | `web.carenest.edu.vn` |
+| `carenest-web` (FE) | 18300 | `thuonghong.carenest.edu.vn` |
 | `carenest-web-dev` (FE nhánh dev) | 18301 | `dev.carenest.edu.vn` (`deploy/caddy/carenest-dev.caddy`) |
-| api (BE) | 18310 (`BE:compose.vps.yaml`, prefix `/api`; route `/api/*` trong site FE; 8080 của server là app khác) | dùng chung `web.carenest.edu.vn` |
+| api (BE) | 18310 (`BE:compose.vps.yaml`, prefix `/api`; route `/api/*` trong site FE; 8080 của server là app khác) | dùng chung `thuonghong.carenest.edu.vn` |
 | api dev (BE nhánh dev) | 18311 (`BE:compose.dev.yaml`) | route `/api/*` của `dev.carenest.edu.vn` |
 | Keycloak dev | 18322, management 18323 | `auth-dev.carenest.edu.vn` (site repo BE) |
 | Keycloak, Postgres, AI | chưa chốt — điền khi deploy BE | Keycloak: file site riêng của repo BE |
@@ -55,13 +56,13 @@ Mặc định (chưa đặt Variables) image build với `VITE_AUTH_MODE=mock`, 
 
 Bản dev đọc Variables của environment `dev` (`VITE_AUTH_MODE=gateway`, `VITE_USE_MOCK=false`, `VITE_API_BASE_URL=/api`); production đọc Variables cấp repo như cũ.
 
-Nối BE thật (BE chạy ở `127.0.0.1:18310`, đã bật gateway `CARENEST_AUTH_ENABLED=true` theo `BE:docs/system/DEPLOYMENT.md`): GitHub › Settings › Secrets and variables › Actions › **Variables** › đặt `VITE_AUTH_MODE=gateway`, `VITE_USE_MOCK=false`, `VITE_API_BASE_URL=/api` (khớp `handle /api/*` của Caddy, cùng origin nên cookie phiên gateway path `/api/auth` dùng được), rồi chạy lại workflow. `gateway` đăng nhập qua `/api/auth/*` (`docs/integration/AUTH_FLOW.md`) và bật luôn các màn đã nối BE qua `beClient` (`SCHOOL_CONFIG_API` trong `src/config/env.js`). Kiểm tra: `curl -s https://web.carenest.edu.vn/api/auth/csrf` trả 200 `{code, desc, data}`. Phía BE: `CARENEST_AUTH_WEB_ORIGIN=https://web.carenest.edu.vn`.
+Nối BE thật (BE chạy ở `127.0.0.1:18310`, đã bật gateway `CARENEST_AUTH_ENABLED=true` theo `BE:docs/system/DEPLOYMENT.md`): GitHub › Settings › Secrets and variables › Actions › **Variables** › đặt `VITE_AUTH_MODE=gateway`, `VITE_USE_MOCK=false`, `VITE_API_BASE_URL=/api` (khớp `handle /api/*` của Caddy, cùng origin nên cookie phiên gateway path `/api/auth` dùng được), rồi chạy lại workflow. `gateway` đăng nhập qua `/api/auth/*` (`docs/integration/AUTH_FLOW.md`) và bật luôn các màn đã nối BE qua `beClient` (`SCHOOL_CONFIG_API` trong `src/config/env.js`). Kiểm tra: `curl -s https://thuonghong.carenest.edu.vn/api/auth/csrf` trả 200 `{code, desc, data}`. Phía BE: `CARENEST_AUTH_WEB_ORIGIN=https://thuonghong.carenest.edu.vn`.
 
 ## Cài một lần trên VPS
 
 Server hiện tại (`k8selchat`): Caddy chạy bằng systemd (`/etc/caddy/Caddyfile`) giữ cổng 80/443 cho các site khác; SELinux `Disabled`. Không cài/bật nginx host, không certbot.
 
-1. **DNS:** bản ghi A `web` của `carenest.edu.vn` trỏ IP VPS. Kiểm tra: `dig +short web.carenest.edu.vn` ra đúng IP **trước** khi thêm site vào Caddy (sai DNS ⇒ Caddy xin chứng chỉ thất bại và thử lại liên tục).
+1. **DNS:** bản ghi A `thuonghong` của `carenest.edu.vn` trỏ IP VPS. Kiểm tra: `dig +short thuonghong.carenest.edu.vn` ra đúng IP **trước** khi thêm site vào Caddy (sai DNS ⇒ Caddy xin chứng chỉ thất bại và thử lại liên tục).
 2. **Gói cần có:** `docker compose version` chạy được; `rsync` (`sudo dnf install -y rsync`).
 3. **User `thangnd` (CI SSH bằng user này) dùng được Docker không cần sudo:**
    ```bash
@@ -117,15 +118,28 @@ Thư mục deploy cố định trong workflow (`APP_DIR` trong `.github/workflow
 
 ## Kiểm tra sau deploy
 
-- Tab Actions: 2 job `verify`, `deploy` xanh (bước `Smoke test HTTPS` gọi `https://web.carenest.edu.vn/` từ runner).
+- Tab Actions: 2 job `verify`, `deploy` xanh (bước `Smoke test HTTPS` gọi `https://thuonghong.carenest.edu.vn/` từ runner).
 - VPS: `sudo ss -ltnp | grep 18300` chỉ thấy `127.0.0.1:18300`.
-- VPS: `cd /data/thangnd/CAPSTONE/CareNest_FE && docker compose ps` thấy `carenest-web` Up; `curl -I https://web.carenest.edu.vn` trả 200.
+- VPS: `cd /data/thangnd/CAPSTONE/CareNest_FE && docker compose ps` thấy `carenest-web` Up; `curl -I https://thuonghong.carenest.edu.vn` trả 200.
 - Trình duyệt: F5 ở route con (vd. `/children`, `/login`) không 404.
 - Lỗi HTTPS: `journalctl -u caddy -n 50 --no-pager | grep -i carenest`.
 
 ## Rollback
 
-VPS chỉ giữ bản source mới nhất. Quay về bản cũ: GitHub › Actions › mở run của commit cũ › Re-run jobs (rsync source và file Caddy cũ rồi build lại), hoặc revert qua PR vào `main`.
+**Tự động (`deploy/remote-deploy.sh`):** trước khi rsync source, bước `prepare` gắn tag `:previous` cho image đang chạy (`carenest-web:previous`, dev: `carenest-web-dev:previous`) và chép `compose.yaml` cũ vào `.rollback/`. Build lỗi ⇒ job đỏ, container cũ không bị đụng. Bản mới không trả 200 ở `127.0.0.1:<cổng>` trong khoảng 20 giây, hoặc smoke HTTPS fail ⇒ trả `compose.yaml` cũ, gắn lại `:latest` về image trước, tạo lại container, kiểm 200. Job luôn đỏ; log ghi `ROLLED BACK` hoặc `ROLLBACK FAILED`. `docker image prune` chỉ chạy sau khi bản mới đạt.
+
+Giới hạn: chỉ giữ **một** bản liền trước; sau rollback, source trên VPS vẫn là bản mới (chỉ `compose.yaml` và image quay về); file site Caddy không thuộc phần này (bước `Apply Caddy site` tự khôi phục khi reload lỗi); lần deploy đầu chưa có bản để quay lại.
+
+**Tay** (khi `ROLLBACK FAILED`, hoặc muốn về bản trước dù deploy đã xanh; dev đổi thư mục, `-p carenest-fe-dev` và ba biến theo mục Môi trường dev):
+```bash
+cd /data/thangnd/CAPSTONE/CareNest_FE
+docker image inspect carenest-web:previous --format '{{.Created}}'   # có image trước không
+docker tag carenest-web:previous carenest-web:latest
+docker compose -p carenest-fe up -d --no-build --force-recreate
+curl -sI http://127.0.0.1:18300/ | head -1
+```
+
+Về bản cũ hơn nữa: GitHub › Actions › mở run của commit cũ › Re-run jobs (rsync source và file Caddy cũ rồi build lại), hoặc revert qua PR vào `main`.
 
 Gỡ site: xoá dòng `import /data/thangnd/CAPSTONE/caddy/*.caddy` khỏi Caddyfile (hoặc khôi phục bản `.bak`), `caddy validate` rồi `systemctl reload caddy`.
 

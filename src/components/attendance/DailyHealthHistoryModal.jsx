@@ -44,10 +44,7 @@ export function DailyHealthHistoryModal({ open, child, date, history, loading, e
         </button>
       }
     >
-      <p className="muted text-sm mb-12">
-        {[child?.childCode, child?.className, formatDate(date)].filter(Boolean).join(' · ')}. Chỉ xem, giáo viên lớp ghi nhận ở màn Điểm
-        danh &amp; sức khỏe.
-      </p>
+      <p className="muted text-sm mb-12">{[child?.childCode, child?.className, formatDate(date)].filter(Boolean).join(' · ')}</p>
       {error ? (
         <ErrorState error={error} onRetry={error.status === 403 || error.status === 404 ? undefined : onRetry} />
       ) : loading || !history ? (
@@ -78,7 +75,7 @@ export function DailyHealthHistoryModal({ open, child, date, history, loading, e
           <NotificationLine entries={history.entries} />
           {/* Mỗi lần đo 1 dòng, mới nhất ở trên; 5–6 lần vẫn vừa một màn */}
           <div className="table-wrap dd-hist">
-            <table className="table table--grid table--compact">
+            <table className="table table--grid table--compact dd-roll">
               <thead>
                 <tr>
                   <th>Giờ</th>

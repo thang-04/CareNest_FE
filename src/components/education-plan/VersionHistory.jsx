@@ -136,7 +136,7 @@ export function VersionHistory({ drafts, saved, current, unsaved, linesOf, onUse
                 'giống nhau.'
               )}
             </p>
-            {reason && <Notice tone="warn">{reason}</Notice>}
+            {reason && <Notice>{reason}</Notice>}
             <ol className="ga-history-diff">
               {collapse(ops).map((op, i) =>
                 op.type === 'gap' ? (

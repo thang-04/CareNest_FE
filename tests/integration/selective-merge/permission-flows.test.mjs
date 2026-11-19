@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-const { groupByFlow, flowCheckState, toggleFlow, permissionTableRows } = await import('@/utils/account/permissionMatrix');
+const { groupByFlow, flowCheckState, flowCount, toggleFlow, permissionTableRows } = await import('@/utils/account/permissionMatrix');
 const { accountDutyTags } = await import('@/utils/account/accountPermissions');
 
 // Mẫu catalog: bán trú 3 mã độc lập + nhân sự có quan hệ cần-có
@@ -28,6 +28,13 @@ test('groupByFlow gom các nhóm bán trú vào một luồng lớn, giữ thứ
   assert.equal(meals.label, 'Bán trú');
   assert.equal(meals.groups.length, 3);
   assert.deepEqual(meals.codes, ['NUTRITION_MANAGE', 'STOCK_MANAGE', 'MENU_MANAGE']);
+});
+
+test('flowCount đếm việc đang có trên tổng việc của luồng', () => {
+  const codes = ['NUTRITION_MANAGE', 'STOCK_MANAGE', 'MENU_MANAGE'];
+  assert.deepEqual(flowCount(codes, ['STOCK_MANAGE', 'ACCOUNT_MANAGE']), { on: 1, total: 3 });
+  assert.deepEqual(flowCount(codes, []), { on: 0, total: 3 });
+  assert.deepEqual(flowCount(codes, codes), { on: 3, total: 3 });
 });
 
 test('flowCheckState: đủ, một phần, không, và null khi không chỉnh được mã nào', () => {

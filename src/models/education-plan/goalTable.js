@@ -188,6 +188,27 @@ export const weekBreaks = (breaks, monday) => [0, 1, 2, 3, 4].map((i) => breakOn
 /** BE:EDU-41 — tuần chỉ bị bỏ khi đợt nghỉ phủ cả Thứ 2 → Thứ 6; nghỉ vài ngày vẫn là tuần học. */
 export const isWholeWeekOff = (breaks, monday) => weekBreaks(breaks, monday).every(Boolean);
 
+/**
+ * Ngày gợi ý cho chủ đề thêm vào cuối (Tiền 12/11/2026): Thứ 2 sau chủ đề trước (hoặc tuần học đầu năm), bỏ tuần nghỉ trọn tuần,
+ * kéo đủ `weeks` tuần học tới Thứ 6. Không có chỗ trong năm học hoặc chủ đề trước thiếu ngày ⇒ null (để người lập tự chọn, EDU-39).
+ */
+export const nextThemeDates = (themes, breaks = [], yearRange = {}, weeks = 2) => {
+  const last = themes[themes.length - 1];
+  if (last && !last.end) return null;
+  if (!last && !yearRange.start) return null;
+  let start = last ? addDays(mondayOf(last.end), 7) : firstTeachingMonday(yearRange.start);
+  if (yearRange.start && start < yearRange.start) start = addDays(start, 7);
+  while (isWholeWeekOff(breaks, start)) start = addDays(start, 7);
+  let monday = start;
+  // ponytail: tối đa 60 tuần lịch để không lặp mãi khi đợt nghỉ phủ hết phần còn lại
+  for (let n = 0, guard = 0; guard < 60; monday = addDays(monday, 7), guard += 1) {
+    if (!isWholeWeekOff(breaks, monday)) n += 1;
+    if (n >= Math.max(1, weeks)) break;
+  }
+  const end = addDays(monday, 4);
+  return yearRange.end && end > yearRange.end ? null : { start, end };
+};
+
 /** Số tuần học (Thứ 2 → Thứ 6) của chủ đề, bỏ các tuần nghỉ trọn tuần. */
 export const weekCount = (theme, breaks = []) => {
   if (!theme.start || !theme.end || theme.end < theme.start) return 0;

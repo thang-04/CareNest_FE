@@ -2,6 +2,7 @@ import { ForecastDayPlanBadge } from '@/components/kitchen/KitchenBadges';
 import { dayShort } from '@/components/kitchen/ForecastBlocks';
 import { fmtQty } from '@/components/kitchen/KitchenFilters';
 import { EmptyState } from '@/components/ui/States';
+import { TextField } from '@/components/form/Field';
 import { formatDate, formatWeekdayDate } from '@/utils/format';
 
 /** Số trẻ theo nhóm tuổi: đang theo học (BE trả) và dự kiến (sửa được khi `editable`). */
@@ -24,7 +25,7 @@ export function ForecastCountsTable({ counts, editable, errors = {}, onChange })
               <td className="num">
                 {editable ? (
                   <>
-                    <input
+                    <TextField
                       type="number"
                       min="0"
                       step="1"

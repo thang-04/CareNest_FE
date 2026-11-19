@@ -18,21 +18,36 @@ import { ClassDateBar } from '@/components/attendance/ClassDateBar';
 import { DayLockAlert } from '@/components/attendance/DayLockAlert';
 import { useAttendanceClasses, useAttendanceYear, useClassAttendance, useClassMealCount } from '@/hooks/attendance/useAttendance';
 import { ClassMealCard } from '@/components/attendance/ClassMealCard';
+import { Switch } from '@/components/ui/Switch';
 import { getClassAttendance, getDayInfo, saveClassAttendance } from '@/services/attendance/attendanceService';
-import { createAttendanceRefresh, leaveStateChanged, reconcileAttendanceDraft } from '@/utils/attendance/reconcileAttendance';
-import { ATTENDANCE_STATUS, isAbsent } from '@/models/attendance/attendanceConstants';
+import {
+  createAttendanceRefresh,
+  leaveStateChanged,
+  mealSessionsOf,
+  reconcileAttendanceDraft,
+} from '@/utils/attendance/reconcileAttendance';
+import { ATTENDANCE_STATUS, allMeals, eatsAny, isAbsent, mealsIn, mealsWhenPresent } from '@/models/attendance/attendanceConstants';
 import { schoolToday } from '@/utils/attendance/attendanceTime';
+import { validateClassAttendance } from '@/utils/attendance/attendanceValidation';
 import { attendanceCrumbs } from '@/utils/attendance/breadcrumbs';
 import { normalizeText, formatDate, formatDateTime } from '@/utils/format';
 import { ChildAvatar } from '@/components/ChildAvatar';
 import { flagTone, healthFlag, healthReminder } from '@/utils/attendance/healthFlag';
 import '@/styles/modules/attendance.css';
 
-// ATT-02: có mặt là ăn đủ các bữa của nhóm tuổi; số suất do BE tính từ trạng thái, GV chỉ ghi Có mặt / Vắng
+// Bữa của lớp = bữa Hiệu trưởng cấu hình cho nhóm tuổi; Có mặt mặc định ăn đủ, giáo viên có thể tắt báo ăn.
+const sessionsOf = (sheet) => mealSessionsOf(sheet);
 const toDraft = (sheet) =>
-  Object.fromEntries((sheet?.children || []).map(({ child, record }) => [child.id, { childId: child.id, status: record?.status || '' }]));
+  Object.fromEntries(
+    (sheet?.children || []).map(({ child, record }) => [
+      child.id,
+      { childId: child.id, status: record?.status || '', meals: mealsIn(record?.meals, sessionsOf(sheet)) },
+    ]),
+  );
 const NOTHING_UNSAVED = { attendance: false, health: false };
-const changed = (entry, record) => !!entry?.status && entry.status !== (record?.status || '');
+const changed = (entry, record, sessions) =>
+  !!entry?.status &&
+  (entry.status !== (record?.status || '') || sessions.some((session) => !!entry.meals?.[session] !== !!record?.meals?.[session]));
 
 export default function AttendancePage() {
   const { user } = useAuth();
@@ -157,7 +172,10 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
   const initialized = useRef(false);
   const submitRef = useRef(false);
   const rows = useMemo(() => sheet?.children || [], [sheet]);
-  const dirtyRows = rows.filter((row) => !row.leaveRequest && changed(draft[row.child.id], row.record));
+  const sessions = sessionsOf(sheet);
+  const allIn = allMeals(true, sessions);
+  const noneIn = allMeals(false, sessions);
+  const dirtyRows = rows.filter((row) => !row.leaveRequest && changed(draft[row.child.id], row.record, sessions));
   const busy = saving || healthBusy;
   const latest = useRef({});
   latest.current = { sheet, busy, user, toast };
@@ -259,7 +277,11 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
   };
   const setStatus = (row, present) => {
     if (row.leaveRequest) return;
-    update(row, { status: present ? ATTENDANCE_STATUS.PRESENT : ATTENDANCE_STATUS.UNEXCUSED });
+    const current = draft[row.child.id];
+    update(row, {
+      status: present ? ATTENDANCE_STATUS.PRESENT : ATTENDANCE_STATUS.UNEXCUSED,
+      meals: present ? (current?.status === ATTENDANCE_STATUS.PRESENT ? current.meals : mealsWhenPresent(row.child, sessions)) : noneIn,
+    });
   };
   const markAllPresent = () => {
     setConfirmAll(false);
@@ -268,7 +290,7 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
       const next = { ...current };
       rows.forEach((row) => {
         if (current[row.child.id]?.status || row.record || row.leaveRequest) return;
-        next[row.child.id] = { childId: row.child.id, status: ATTENDANCE_STATUS.PRESENT };
+        next[row.child.id] = { childId: row.child.id, status: ATTENDANCE_STATUS.PRESENT, meals: mealsWhenPresent(row.child, sessions) };
       });
       return next;
     });
@@ -279,6 +301,12 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
     if (submitRef.current || !editable) return false;
     const entries = dirtyRows.map((row) => draft[row.child.id]);
     if (!entries.length) return true;
+    // Báo đỏ ngay dưới dòng trẻ (bữa không thuộc nhóm tuổi, trẻ vắng mà còn bật ăn) trước khi gửi BE
+    const invalid = validateClassAttendance(entries, { sessions });
+    if (Object.keys(invalid).length) {
+      setRowErrors(invalid);
+      return false;
+    }
     reconciliation.current?.invalidate();
     submitRef.current = true;
     setSaving(true);
@@ -325,8 +353,13 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
   const saveSelectedReception = async (health) => {
     if (submitRef.current) throw new Error('Đang lưu điểm danh, vui lòng chờ.');
     const entry = draft[selectedId];
-    const needsAttendance = changed(entry, selected?.record);
+    const needsAttendance = changed(entry, selected?.record, sessions);
     if (needsAttendance && !editable) throw new Error('Điểm danh đã khóa. Bản nháp chưa lưu không thể ghi nhận sức khỏe.');
+    const invalid = needsAttendance ? validateClassAttendance([entry], { sessions }) : {};
+    if (Object.keys(invalid).length) {
+      setRowErrors(invalid);
+      throw new Error('Điểm danh của trẻ chưa hợp lệ. Kiểm tra dòng được đánh dấu.');
+    }
     reconciliation.current?.invalidate();
     submitRef.current = true;
     let attendanceSaved = false;
@@ -471,17 +504,18 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
             )}
           </div>
           <div className="table-wrap dd-reception__table">
-            <table className="table table--grid">
+            <table className="table table--grid dd-roll">
               <thead>
                 <tr>
                   <th>Trẻ</th>
                   <th className="dd-reception__col-status">Điểm danh</th>
+                  <th className="center dd-reception__col-meal">Tham gia ăn</th>
                 </tr>
               </thead>
               <tbody>
                 {!visibleRows.length ? (
                   <tr>
-                    <td colSpan={2}>
+                    <td colSpan={3}>
                       <EmptyState
                         title={rows.length ? 'Không tìm thấy trẻ' : 'Lớp chưa có trẻ'}
                         description="Thử đổi bộ lọc hoặc tìm kiếm."
@@ -490,7 +524,7 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
                   </tr>
                 ) : (
                   visibleRows.map((row) => {
-                    const entry = draft[row.child.id] || { status: '' };
+                    const entry = draft[row.child.id] || { status: '', meals: {} };
                     const absent = isAbsent(entry.status);
                     const reminder = healthReminder(row);
                     return (
@@ -516,8 +550,8 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
                             <div className="dd-reception__tags">
                               <span className="muted text-xs nowrap">{row.child.code}</span>
                               {/* Chỉ báo dòng cần chú ý; dòng đã lưu không gắn badge để danh sách đỡ rối */}
-                              {(changed(entry, row.record) || !row.record) && (
-                                <AttendanceRowBadge status={changed(entry, row.record) ? 'UNSAVED' : 'NONE'} />
+                              {(changed(entry, row.record, sessions) || !row.record) && (
+                                <AttendanceRowBadge status={changed(entry, row.record, sessions) ? 'UNSAVED' : 'NONE'} />
                               )}
                               {healthFlag(row.healthSummary?.latest) && (
                                 // Thẻ ngắn: thân nhiệt (màu theo mức) và/hoặc "Cần chú ý"; chi tiết ở tooltip và khung sức khỏe
@@ -587,6 +621,30 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
                           )}
                           {rowErrors[row.child.id]?.status && <p className="field__error">{rowErrors[row.child.id].status}</p>}
                         </td>
+                        <td className="center">
+                          <div className="dd-reception__mealcell">
+                            {row.child.mealRegistered === false ? (
+                              // CHD-13: hồ sơ trẻ không báo ăn ⇒ nút gạt về Không và khóa; HT/PHT sửa hồ sơ thì mới bật được
+                              <span className="dd-reception__meal">
+                                <Switch label={`Tham gia ăn: ${row.child.fullName}`} disabled checked={false} onChange={() => {}} />
+                                <span className="text-xs">Không báo ăn</span>
+                              </span>
+                            ) : editable && !row.leaveRequest ? (
+                              <span className="dd-reception__meal">
+                                <Switch
+                                  label={`Tham gia ăn: ${row.child.fullName}`}
+                                  disabled={busy || entry.status !== ATTENDANCE_STATUS.PRESENT}
+                                  checked={eatsAny(entry.meals, sessions)}
+                                  onChange={(on) => update(row, { meals: on ? allIn : noneIn })}
+                                />
+                                <span className="text-xs">{eatsAny(entry.meals, sessions) ? 'Có' : 'Không'}</span>
+                              </span>
+                            ) : (
+                              <span>{eatsAny(entry.meals, sessions) ? 'Có' : '—'}</span>
+                            )}
+                            {rowErrors[row.child.id]?.meals && <p className="field__error">{rowErrors[row.child.id].meals}</p>}
+                          </div>
+                        </td>
                       </tr>
                     );
                   })
@@ -594,9 +652,6 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
               </tbody>
             </table>
           </div>
-          <p className="muted text-xs dd-reception__note">
-            Trẻ có mặt được tính suất đủ các bữa của nhóm tuổi; số suất do hệ thống tính từ điểm danh.
-          </p>
           <div className="dd-reception__footer">
             {editable && (
               // Một nút lưu cho cả lớp; lưu riêng một trẻ kèm sức khỏe nằm ở khung bên phải
@@ -621,7 +676,7 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
             presentSaved={selected.record?.status === 'PRESENT' && draft[selectedId]?.status === 'PRESENT'}
             presentDraft={draft[selectedId]?.status === 'PRESENT'}
             canDraft={editable}
-            attendanceDirty={changed(draft[selectedId], selected.record)}
+            attendanceDirty={changed(draft[selectedId], selected.record, sessions)}
             parentBusy={saving}
             onSave={saveSelectedReception}
             onDirty={reportDirty}
@@ -654,7 +709,6 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
               {formatDate(leaveFor.leaveRequest.fromDate)} – {formatDate(leaveFor.leaveRequest.toDate)}
             </p>
             <p>{leaveFor.leaveRequest.reason || 'Không có ghi chú.'}</p>
-            <p className="muted text-sm">Phụ huynh cần hủy đơn trước giờ chốt để giáo viên điểm danh lại.</p>
           </>
         )}
       </Modal>
@@ -673,7 +727,7 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
       <ConfirmationModal
         open={confirmAll}
         title="Chọn Có mặt cho tất cả trẻ chưa điểm danh?"
-        message="Áp dụng cho toàn bộ lớp, kể cả trẻ ngoài bộ lọc hiện tại. Giữ nguyên các lựa chọn Có mặt/Vắng đã có. Đây chỉ là bản nháp, chưa lưu và chưa ghi nhận sức khỏe."
+        message="Áp dụng cho toàn bộ lớp, kể cả trẻ ngoài bộ lọc hiện tại. Giữ nguyên các lựa chọn Có mặt/Vắng đã có; bật tham gia ăn đủ các bữa của nhóm tuổi (trừ trẻ không báo ăn). Đây chỉ là bản nháp, chưa lưu và chưa ghi nhận sức khỏe."
         confirmLabel="Chọn Có mặt"
         onClose={() => setConfirmAll(false)}
         onConfirm={markAllPresent}

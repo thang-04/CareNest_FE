@@ -7,7 +7,9 @@ let original;
 let policies;
 const path = '/education-plans/workflow-policy';
 test.beforeAll(async () => {
-  cleanup(); ids(); addTeamLeader('teacher1');
+  cleanup();
+  ids();
+  addTeamLeader('teacher1');
   const response = await api(USERS.principal, 'GET', path);
   expect(response.status).toBe(200);
   original = response.data.policies;
@@ -24,10 +26,12 @@ test.afterAll(async () => {
 test('WF-01 HT lưu policy bằng form và đọc lại từ BE thật sau reload', async ({ page }) => {
   await login(page, USERS.principal);
   await page.goto('/education/settings');
-  await page.getByRole('checkbox', { name: 'Giáo viên', exact: true }).first().check();
-  await page.getByRole('checkbox', { name: /Tổ trưởng/, exact: false }).first().uncheck();
-  const saved = page.waitForResponse(r => r.url().endsWith(path) && r.request().method() === 'PUT');
-  await page.getByRole('button', { name: 'Lưu người tạo/duyệt', exact: true }).click();
+  // Trang cấu hình chỉ xem tới khi bấm Chỉnh sửa; một nút Lưu cho cả trang (bản 10/11)
+  await page.getByRole('button', { name: 'Chỉnh sửa' }).click({ timeout: 30_000 });
+  // Người tạo kế hoạch tổ: ô chọn đúng một vai trò (giao diện từ 10/11, thay ô tích)
+  await page.getByRole('combobox', { name: 'Chọn người tạo cho Kế hoạch giáo dục tổ' }).selectOption('TEACHER');
+  const saved = page.waitForResponse((r) => r.url().endsWith(path) && r.request().method() === 'PUT');
+  await page.getByRole('button', { name: 'Lưu', exact: true }).click();
   expect((await saved).status()).toBe(200);
   const actual = await api(USERS.principal, 'GET', path);
   expect(actual.data.policies.year.creators).toEqual(['TEACHER']);
@@ -42,7 +46,9 @@ test('WF-02 PHT không sửa được policy qua API hoặc form', async ({ page
   expect((await api(USERS.vp, 'PUT', path, { body: { revision: current.data.revision, policies } })).status).toBe(403);
   await login(page, USERS.vp);
   await page.goto('/education/settings');
-  await expect(page.getByRole('button', { name: 'Lưu người tạo/duyệt', exact: true })).toHaveCount(0);
+  // Tiền 11/11/2026: PHT không vào được trang cấu hình
+  await expect(page.getByText('Cấu hình kế hoạch giáo dục dành cho Hiệu trưởng.')).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole('button', { name: 'Lưu', exact: true })).toHaveCount(0);
 });
 
 test('WF-03 REVIEW đóng lease và cuối tự Ban hành qua browser với reviewer độc lập', async ({ page }) => {
@@ -50,16 +56,24 @@ test('WF-03 REVIEW đóng lease và cuối tự Ban hành qua browser với revi
   policies = { ...current.data.policies, year: { creators: ['TEAM_LEADER'], reviewers: ['VICE_PRINCIPAL'] } };
   expect((await api(USERS.principal, 'PUT', path, { body: { revision: current.data.revision, policies } })).status).toBe(200);
   const session = newSession();
-  const created = await api(USERS.teacher1, 'POST', '/education-plans/goals', { body: await yearPlanBody(`${E2E.titlePrefix} WF-03`), headers: editHeaders(session, 0) });
+  const created = await api(USERS.teacher1, 'POST', '/education-plans/goals', {
+    body: await yearPlanBody(`${E2E.titlePrefix} WF-03`),
+    headers: editHeaders(session, 0),
+  });
   expect(created.status).toBe(201);
-  const submitted = await api(USERS.teacher1, 'POST', `/education-plans/goals/${created.data.id}/submit`, { headers: editHeaders(session, created.data.revision) });
+  const submitted = await api(USERS.teacher1, 'POST', `/education-plans/goals/${created.data.id}/submit`, {
+    headers: editHeaders(session, created.data.revision),
+  });
   expect(submitted.status).toBe(200);
   expect(submitted.data.status).toBe('REVIEW');
   expect(submitted.data.editing).toBeFalsy();
   await login(page, USERS.vp);
   await page.goto(`/education/goals/${created.data.id}`);
-  const issue = page.waitForResponse(r => r.url().includes(`/goals/${created.data.id}/issue`) && r.request().method() === 'POST');
-  await page.getByRole('button', { name: /Ban hành|Duyệt/, exact: false }).first().click();
+  const issue = page.waitForResponse((r) => r.url().includes(`/goals/${created.data.id}/issue`) && r.request().method() === 'POST');
+  await page
+    .getByRole('button', { name: /Ban hành|Duyệt/, exact: false })
+    .first()
+    .click();
   const dialog = page.getByRole('dialog');
   await dialog.getByRole('button', { name: /Ban hành|Duyệt/, exact: false }).click();
   const response = await issue;

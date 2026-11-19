@@ -3,7 +3,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Lock, Save, Sparkles } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
-import { Breadcrumb, Button, ErrorState, LoadingState } from '@/components';
+import { Breadcrumb, Button, ErrorState, LoadingState, TextField } from '@/components';
 import { FormField } from '@/components/form/FormField';
 import { SearchSelect } from '@/components/ui/SearchSelect';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
@@ -193,7 +193,7 @@ export default function MenuTemplateEditorPage() {
           </div>
           <div className="card__body td-tpl-form">
             <FormField label="Tên mẫu" required error={errors.name}>
-              <input
+              <TextField
                 className="input"
                 maxLength={100}
                 value={form.name}
@@ -212,7 +212,7 @@ export default function MenuTemplateEditorPage() {
               />
             </FormField>
             <FormField label="Nhãn mùa" error={errors.seasonLabel} hint="Ví dụ: Mùa đông, Mùa hè">
-              <input
+              <TextField
                 className="input"
                 maxLength={50}
                 value={form.seasonLabel}

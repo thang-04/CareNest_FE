@@ -1,14 +1,15 @@
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
-import { semestersOf } from '@/utils/semesters';
+import { SEMESTER_KEYS, semestersOf } from '@/utils/semesters';
 
 /**
  * Ô lọc học kỳ của năm học đang chọn ở header (Học kỳ I / Học kỳ II / Cả năm học). value = key học kỳ hoặc '';
  * onChange(key, semester) — semester = { start, end, label } hoặc null khi bỏ chọn. emptyLabel: nhãn khi không lọc.
+ * yearOption=false: mục trống đã là cả năm học ⇒ không thêm mục "Cả năm học" thứ hai.
  */
-export function SemesterSelect({ value, onChange, emptyLabel = 'Tất cả học kỳ', className = 'select', id }) {
+export function SemesterSelect({ value, onChange, emptyLabel = 'Tất cả học kỳ', yearOption = true, className = 'select', id }) {
   const { schoolYear, schoolYears } = useSchoolYear();
   const year = schoolYears.find((y) => String(y.id) === String(schoolYear));
-  const options = semestersOf(year);
+  const options = semestersOf(year).filter((o) => yearOption || o.key !== SEMESTER_KEYS.YEAR);
   if (!options.length) return null;
   return (
     <select

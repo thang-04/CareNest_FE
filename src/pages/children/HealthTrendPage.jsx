@@ -4,7 +4,7 @@ import { LineChart, HeartPulse, ArrowLeft, ChevronLeft, ChevronRight } from '@/c
 import { useAuth } from '@/contexts/AuthContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
-import { useChildRecords, useClassOptions, useHealthRecord } from '@/hooks/children/useChildRecords';
+import { useChildRecords, useHealthRecord } from '@/hooks/children/useChildRecords';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { ChildAvatar } from '@/components/ChildAvatar';
 import { EmptyState, LoadingState } from '@/components/ui/States';
@@ -15,26 +15,15 @@ import { TrendChildList, sortByName } from '@/components/children/TrendChildList
 import { AiTrendPanel } from '@/components/children/AiTrendPanel';
 import { ChildAccessState } from '@/components/children/ChildAccessState';
 import { CHILD_STATUS } from '@/models/School';
-import { growthAxesFor } from '@/models/children/childrenConstants';
+import { TREND_PERIODS } from '@/models/children/childrenConstants';
 import { NUTRITION_STATUS, NUTRITION_STATUS_OPTIONS, labelOf } from '@/models/children/healthExamForm';
 import { formatDate } from '@/utils/format';
-import { ageGroupIn, formatNumber, suggestAgeGroupId } from '@/utils/children/childrenHelpers';
+import { formatNumber } from '@/utils/children/childrenHelpers';
 import { childrenCrumbs } from '@/utils/children/breadcrumbs';
-import { isPrincipal, isVicePrincipal } from '@/utils/children/childrenPermissions';
+import { withinTrendPeriod } from '@/utils/children/healthTrend';
+import { canReviewHealthTrend, isPrincipal, isVicePrincipal } from '@/utils/children/childrenPermissions';
 import '@/styles/modules/children.css';
 import { CampusFilter } from '@/components/ui/CampusFilter';
-
-const PERIODS = [
-  { key: '6', label: '6 tháng', months: 6 },
-  { key: '12', label: '12 tháng', months: 12 },
-  { key: 'ALL', label: 'Toàn bộ', months: null },
-];
-
-const monthsAgo = (n) => {
-  const d = new Date();
-  d.setMonth(d.getMonth() - n);
-  return d.toISOString().slice(0, 10);
-};
 
 export default function HealthTrendPage() {
   const { user } = useAuth();
@@ -50,8 +39,6 @@ export default function HealthTrendPage() {
   const [classId, setClassId] = useState('');
   const { children, loading: listLoading } = useChildRecords({ schoolYear, status: CHILD_STATUS.ACTIVE });
   const { record, loading, error, reload } = useHealthRecord(childId);
-  // Nhóm tuổi của năm học (BE /school-structure hoặc mock): thang biểu đồ theo mã nhóm (ag-*), gợi ý theo ngày bắt đầu năm học
-  const { year: yearInfo, ageGroups } = useClassOptions(schoolYear);
 
   const active = useMemo(() => children.filter((c) => c.status === CHILD_STATUS.ACTIVE), [children]);
   // Lựa chọn điểm trường / lớp lấy từ danh sách trẻ BE trả về trong phạm vi người dùng
@@ -88,22 +75,11 @@ export default function HealthTrendPage() {
   const prevChild = index > 0 ? ordered[index - 1] : null;
   const nextChild = index >= 0 && index < ordered.length - 1 ? ordered[index + 1] : null;
   const points = useMemo(() => {
-    const months = PERIODS.find((p) => p.key === period)?.months;
-    const since = months ? monthsAgo(months) : '';
-    return [...(record?.measurements || [])].filter((m) => !since || m.date >= since).sort((a, b) => a.date.localeCompare(b.date));
+    // HLT-21: cùng khoảng với phân tích AI (tính lùi từ hôm nay như BE)
+    return withinTrendPeriod(record?.measurements || [], period).sort((a, b) => a.date.localeCompare(b.date));
   }, [record, period]);
 
   const child = record?.child;
-  // Lần đo mới nhất (mọi thời gian, không theo bộ lọc khoảng): chỉ hiển thị số BE trả, không tính chênh lệch
-  const latest = useMemo(() => [...(record?.measurements || [])].sort((a, b) => b.date.localeCompare(a.date))[0] || null, [record]);
-  // Thang biểu đồ theo nhóm tuổi của lớp hiện tại; trẻ chưa xếp lớp thì theo năm sinh
-  const ageGroupId =
-    record?.cls?.ageGroupId ||
-    child?.ageGroupId ||
-    suggestAgeGroupId(child?.dateOfBirth, yearInfo?.startDate || schoolYear, ageGroups.length ? ageGroups : undefined);
-  // BE: nhóm tuổi id số, mã ag-* ở code; mock: id là ag-*
-  const ageGroup = ageGroupIn(ageGroups, ageGroupId);
-  const axes = growthAxesFor(ageGroup?.code || ageGroup?.id || ageGroupId);
   // Chiều cao, cân nặng tô màu theo tình trạng dinh dưỡng bác sĩ ghi ở phiếu khám (không còn phân loại BMI, user chốt 2026-10-17).
   const nutritionPoint = (m, value) => {
     const statuses = m.exam?.nutrition?.statuses || [];
@@ -188,7 +164,7 @@ export default function HealthTrendPage() {
             </div>
           ) : (
             <>
-              {/* Thẻ đầu: trẻ đang xem + lần đo gần nhất, đọc nhanh trước khi xem biểu đồ (user yêu cầu 2026-11-11) */}
+              {/* Thẻ đầu: trẻ đang xem + chuyển trẻ trước/sau */}
               <section className="card tr-trend-head" aria-label={`Tổng quan ${child.fullName}`}>
                 <div className="tr-trend-head__top">
                   <div className="row gap-3">
@@ -212,38 +188,6 @@ export default function HealthTrendPage() {
                     </Link>
                   </div>
                 </div>
-                {latest ? (
-                  <dl className="tr-trend-kpis">
-                    <div>
-                      <dt>Lần đo gần nhất</dt>
-                      <dd>{formatDate(latest.date)}</dd>
-                    </div>
-                    <div>
-                      <dt>Chiều cao</dt>
-                      <dd>
-                        {formatNumber(latest.heightCm)} <small>cm</small>
-                      </dd>
-                    </div>
-                    <div>
-                      <dt>Cân nặng</dt>
-                      <dd>
-                        {formatNumber(latest.weightKg)} <small>kg</small>
-                      </dd>
-                    </div>
-                    <div>
-                      <dt>BMI</dt>
-                      <dd>{formatNumber(latest.bmi)}</dd>
-                    </div>
-                    <div className="tr-trend-kpis__warn">
-                      <dt>Cảnh báo</dt>
-                      <dd>
-                        <HealthWarningCell measurement={latest} />
-                      </dd>
-                    </div>
-                  </dl>
-                ) : (
-                  <p className="muted text-sm tr-trend-kpis">Trẻ chưa có số đo.</p>
-                )}
               </section>
               <section className="card mt-16">
                 <div className="tr-chart-toolbar">
@@ -256,18 +200,33 @@ export default function HealthTrendPage() {
                     onChange={setView}
                     ariaLabel="Cách xem"
                   />
-                  <div className="tabs" role="group" aria-label="Khoảng thời gian">
-                    {PERIODS.map((p) => (
-                      <button
-                        key={p.key}
-                        type="button"
-                        aria-pressed={period === p.key}
-                        className={`tab ${period === p.key ? 'tab--active' : ''}`}
-                        onClick={() => setPeriod(p.key)}
-                      >
-                        {p.label}
-                      </button>
-                    ))}
+                  <div className="row row--wrap gap-4">
+                    {view === 'chart' && points.length > 0 && (
+                      <div className="tr-legend text-sm">
+                        <span>
+                          <i className="tr-legend__dot tr-legend__dot--normal" /> Bình thường
+                        </span>
+                        <span>
+                          <i className="tr-legend__dot tr-legend__dot--alert" /> Có điểm cần chú ý
+                        </span>
+                        <span>
+                          <i className="tr-legend__dot tr-legend__dot--unavailable" /> Chưa có đánh giá
+                        </span>
+                      </div>
+                    )}
+                    <div className="tabs" role="group" aria-label="Khoảng thời gian">
+                      {TREND_PERIODS.map((p) => (
+                        <button
+                          key={p.key}
+                          type="button"
+                          aria-pressed={period === p.key}
+                          className={`tab ${period === p.key ? 'tab--active' : ''}`}
+                          onClick={() => setPeriod(p.key)}
+                        >
+                          {p.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
                 {points.length === 0 ? (
@@ -278,30 +237,10 @@ export default function HealthTrendPage() {
                   />
                 ) : view === 'chart' ? (
                   <div className="card__body">
+                    {/* Hai biểu đồ cạnh nhau, trục tự co theo số đo (user chọn phương án A 14/11/2026, thay chốt 23/10 mỗi biểu đồ một dòng) */}
                     <div className="tr-trend-charts">
-                      <GrowthChart
-                        title="Chiều cao"
-                        unit="cm"
-                        axis={axes.height}
-                        points={points.map((m) => nutritionPoint(m, m.heightCm))}
-                      />
-                      <GrowthChart
-                        title="Cân nặng"
-                        unit="kg"
-                        axis={axes.weight}
-                        points={points.map((m) => nutritionPoint(m, m.weightKg))}
-                      />
-                    </div>
-                    <div className="tr-legend text-sm">
-                      <span>
-                        <i className="tr-legend__dot tr-legend__dot--normal" /> Bình thường
-                      </span>
-                      <span>
-                        <i className="tr-legend__dot tr-legend__dot--alert" /> Có điểm cần chú ý
-                      </span>
-                      <span>
-                        <i className="tr-legend__dot tr-legend__dot--unavailable" /> Chưa có đánh giá
-                      </span>
+                      <GrowthChart title="Chiều cao" unit="cm" points={points.map((m) => nutritionPoint(m, m.heightCm))} />
+                      <GrowthChart title="Cân nặng" unit="kg" points={points.map((m) => nutritionPoint(m, m.weightKg))} />
                     </div>
                   </div>
                 ) : (
@@ -334,7 +273,13 @@ export default function HealthTrendPage() {
                   </div>
                 )}
               </section>
-              <AiTrendPanel key={child.id} childId={child.id} user={user} />
+              <AiTrendPanel
+                key={child.id}
+                childId={child.id}
+                user={user}
+                period={period}
+                canReview={canReviewHealthTrend(child, user, record?.cls)}
+              />
               <div className="page-actions">
                 <Link className="btn" to={`/children/${child.id}`}>
                   <ArrowLeft size={16} /> Về hồ sơ trẻ

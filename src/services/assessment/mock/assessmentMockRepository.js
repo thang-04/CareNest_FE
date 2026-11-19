@@ -12,6 +12,7 @@ import { numberGoals } from '@/models/education-plan/goalTable';
 import { remapCriteriaToPlan } from '@/models/education-plan/planVersions.mjs';
 import { ROLES } from '@/models/User';
 import {
+  CLASS_COMMENT_MAX,
   EVAL_KIND,
   EVAL_STATUS,
   OVERVIEW_PERIOD,
@@ -566,7 +567,7 @@ const runPeriodJobs = (db, { notify = true } = {}) => {
           title: 'Bản nháp đánh giá đã sẵn sàng',
           // MSG31
           message: `Bản nháp AI đã sẵn sàng để bạn xem xét – ${cls.name}, ${periodLabel(type, start, end)}.`,
-          link: '/assessment/periodic',
+          link: '/assessment/children',
         }),
       );
     }
@@ -758,6 +759,16 @@ const flagDaysOf = (db, childId, start, end) => {
 };
 
 /* ---------------- tickets ---------------- */
+
+// OBS-10 (Cần chốt 18/11/2026): phiếu tuần phát từ thứ Sáu của tuần, phiếu toàn diện từ thứ Sáu cuối cùng của tháng;
+// thứ Sáu nghỉ thì lùi về ngày học cuối của tuần đó — BE: BehaviourTicketServiceImpl.issueFrom
+const ticketIssueFrom = (type, start) => {
+  let friday = type === TICKET_TYPE.WEEKLY ? weekEnd(start) : monthEnd(start);
+  while (new Date(`${friday}T00:00:00`).getDay() !== 5) friday = addDays(friday, -1);
+  for (let d = friday, i = 0; i < 5; i += 1, d = addDays(d, -1)) if (isSchoolDay(d)) return d;
+  return friday;
+};
+const dmy = (iso) => iso.split('-').reverse().join('/');
 
 const weekStats = (db, childId, monday, att) => {
   const end = weekEnd(monday);
@@ -1134,6 +1145,7 @@ export const assessmentMockRepository = {
         throw new ApiError(400, 'Chưa có thay đổi nào để lưu.', { _form: 'Chưa có thay đổi nào để lưu.' });
       if (classComment != null) {
         if (typeof classComment !== 'string') fail(400, 'Nhận xét chung của lớp phải là văn bản.', 'classComment');
+        if (classComment.length > CLASS_COMMENT_MAX) fail(400, `Nhận xét chung của lớp tối đa ${CLASS_COMMENT_MAX} ký tự`, 'classComment');
         if (findDiagnosticTerms(classComment).length)
           fail(400, 'Nhận xét chung của lớp không dùng thuật ngữ chẩn đoán, hãy mô tả điều quan sát được.', 'classComment');
       }
@@ -1566,7 +1578,7 @@ export const assessmentMockRepository = {
           type: 'EVALUATION_CONFIRMED',
           title: yearEnd ? 'Đánh giá cuối năm đã xác nhận' : 'Đánh giá định kỳ đã công bố',
           message: `${child?.fullName} (${cls?.name}) – ${label}.`,
-          link: `/assessment/${yearEnd ? 'year-end' : 'periodic'}/${ev.id}`,
+          link: `/assessment/${yearEnd ? 'year-end' : 'semester'}/${ev.id}`,
         }),
       );
       return clone(ev);
@@ -1771,7 +1783,7 @@ export const assessmentMockRepository = {
         // Tuần ghi như giáo án: Tuần N của năm học, kèm chủ đề
         ...(type === TICKET_TYPE.WEEKLY ? planWeekOf(db, cls, schoolYearOf(today), s) : {}),
       }))
-      .filter((p) => p.end < today)
+      .filter((p) => ticketIssueFrom(type, p.start) <= today)
       .reverse();
     const current = periods.find((p) => p.start === periodStart) || periods[0] || null;
     const att = attendanceIndex(db);
@@ -1794,7 +1806,8 @@ export const assessmentMockRepository = {
       if (!canIssueTickets(cls, user)) forbid();
       if (!childIds?.length) throw new ApiError(422, 'Chọn ít nhất một trẻ để phát phiếu.');
       const end = type === TICKET_TYPE.WEEKLY ? weekEnd(periodStart) : monthEnd(periodStart);
-      if (end >= todayIso()) throw new ApiError(422, 'Chỉ phát phiếu khi tuần hoặc tháng đã kết thúc.');
+      const issueFrom = ticketIssueFrom(type, periodStart);
+      if (issueFrom > todayIso()) throw new ApiError(422, `Chưa tới ngày phát phiếu, phát được từ ngày ${dmy(issueFrom)}`);
       const kids = new Map(activeChildrenOf(db, classId).map((c) => [c.id, c]));
       const att = attendanceIndex(db);
       const issued = [];

@@ -19,6 +19,7 @@ import { todayInput } from '@/utils/format';
 import { ageGroupById } from '@/models/School';
 import { ALLERGY_GROUP_LABELS, weekLabel } from '@/models/menu-planning/menuPlanningConstants';
 import '@/styles/modules/menu-planning.css';
+import { Button } from '@/components';
 
 /** Screen #79 – one sample daily menu with its nutrition and alternative menus. */
 export default function MenuDetailPage() {
@@ -70,9 +71,9 @@ export default function MenuDetailPage() {
         </div>
         {canManage && (
           <div className="row row--wrap td-actions">
-            <button className="btn btn--outline-danger" onClick={() => setConfirm(true)}>
+            <Button variant="outline-danger" onClick={() => setConfirm(true)}>
               <Trash2 size={16} /> Xóa
-            </button>
+            </Button>
             <Link className="btn btn--primary" to={`/menu/menus/${id}/edit`}>
               <Pencil size={16} /> Sửa thực đơn
             </Link>

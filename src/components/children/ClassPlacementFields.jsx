@@ -27,6 +27,7 @@ export function ClassPlacementFields({
   onCampusChange,
   campusError,
   ageGroups = AGE_GROUPS,
+  yearLabel = 'đang hoạt động',
 }) {
   const pickCampus = campuses.length > 1;
   const groupById = (id) => ageGroups.find((g) => sameId(g.id, id)) || null;
@@ -88,7 +89,7 @@ export function ClassPlacementFields({
         ) : inCampus.length === 0 ? (
           <div className="alert alert--warning">
             <Info size={18} />
-            <div>Điểm trường này chưa có lớp nào trong năm học đang hoạt động. Lớp do Hiệu trưởng mở ở màn Nhóm tuổi &amp; lớp.</div>
+            <div>Điểm trường này chưa có lớp nào trong năm học {yearLabel}. Lớp do Hiệu trưởng mở ở màn Nhóm tuổi &amp; lớp.</div>
           </div>
         ) : inGroup.length === 0 ? (
           // Nhóm tuổi tự gợi ý theo ngày sinh có thể chưa có lớp: nói rõ nhóm nào và cho xem lớp mọi nhóm tuổi
@@ -97,7 +98,7 @@ export function ClassPlacementFields({
             <div className="stack gap-2">
               <span>
                 Chưa có lớp <b>{groupById(ageGroupId)?.name}</b> ở {pickCampus ? 'điểm trường này' : 'phạm vi của bạn'} trong năm học đang
-                hoạt động. Lớp do Hiệu trưởng mở ở màn Nhóm tuổi &amp; lớp.
+                {yearLabel}. Lớp do Hiệu trưởng mở ở màn Nhóm tuổi &amp; lớp.
               </span>
               <span>
                 <button type="button" className="btn btn--sm" onClick={() => onAgeGroupChange('')}>
@@ -144,7 +145,9 @@ export function ClassPlacementFields({
                       )}
                       {isCurrent && <span className="chip chip--teal tr-chip-gap">Lớp hiện tại</span>}
                     </span>
-                    {c.homeroomTeacherId && <span className="muted text-xs">GVCN: {userById?.(c.homeroomTeacherId)?.fullName || '—'}</span>}
+                    {c.homeroomTeacherId && (
+                      <span className="muted text-xs">GV phụ trách chính: {userById?.(c.homeroomTeacherId)?.fullName || '—'}</span>
+                    )}
                   </span>
                 </label>
               );

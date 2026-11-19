@@ -1,6 +1,7 @@
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { WEEKDAY_LABELS } from '@/models/menu-planning/menuPlanningConstants';
 import { dayResult } from '@/utils/menu-planning/mealPlanGrid';
+import { Button } from '@/components';
 
 const ddmm = (iso) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
 const SHOWN = 2;
@@ -14,9 +15,9 @@ export function WeekDaySummary({ plan, draft, onShowAll }) {
     <div className="td-days-wrap">
       {onShowAll && (
         <div className="td-days__bar">
-          <button type="button" className="btn btn--sm" onClick={onShowAll}>
+          <Button size="sm" onClick={onShowAll}>
             Xem tất cả {(plan.issues || []).length} lưu ý
-          </button>
+          </Button>
         </div>
       )}
       <ol className="td-days" aria-label="Kết quả từng ngày">
@@ -47,9 +48,9 @@ export function WeekDaySummary({ plan, draft, onShowAll }) {
                 </ul>
               )}
               {issues.length > SHOWN && onShowAll && (
-                <button type="button" className="link-btn text-sm" onClick={onShowAll}>
+                <Button variant="link" className="text-sm" onClick={onShowAll}>
                   +{issues.length - SHOWN} lưu ý khác
-                </button>
+                </Button>
               )}
             </li>
           );

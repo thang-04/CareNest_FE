@@ -1,13 +1,13 @@
 /*
- * Chỗ ký bản in đánh giá (cuối chủ đề, học kỳ): họ tên lấy từ BE (signers: GV chủ nhiệm, tổ trưởng, PHT); hộp xem trước
+ * Chỗ ký bản in đánh giá (cuối chủ đề, học kỳ): họ tên lấy từ BE (signers: giáo viên phụ trách lớp, tổ trưởng, PHT); hộp xem trước
  * cho sửa chức danh, họ tên, thêm người ký như tài liệu kế hoạch (Cần yêu cầu 10/11/2026). Chỉ đổi file in, không ghi hệ thống.
  */
 const esc = (v = '') =>
   String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
-/** Người ký mặc định theo thứ tự: GV chủ nhiệm (ký trên), tổ trưởng chuyên môn, PHT (phần "Duyệt kế hoạch"). */
+/** Người ký mặc định theo thứ tự: giáo viên phụ trách lớp (ký trên), tổ trưởng chuyên môn, PHT (phần "Duyệt kế hoạch"). */
 export const defaultSigners = (signers = {}) => [
-  { title: 'Giáo viên chủ nhiệm', name: (signers.teachers || []).join(', ') },
+  { title: 'Giáo viên', name: (signers.teachers || []).join(', ') },
   { title: 'Tổ trưởng chuyên môn', name: (signers.teamLeaders || []).join(', ') },
   { title: 'Phó hiệu trưởng', name: signers.vicePrincipal || '' },
 ];

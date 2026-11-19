@@ -1,7 +1,10 @@
 export const goalDisplayLabel = (row, number) => row.displayLabel?.trim() || (number ? `MT${number}` : '—');
 
+// Dòng kéo điền STT được: mục tiêu đã có tên, hoặc mới gõ STT trước khi gõ tên
+export const isLabelGoal = (r) => r.kind === 'goal' && Boolean(r.text.trim() || r.displayLabel?.trim());
+
 export const fillGoalLabels = (domains, sourceId, targetId, numbers) => {
-  const goals = domains.flatMap((d) => d.rows.filter((r) => r.kind === 'goal' && r.text.trim()));
+  const goals = domains.flatMap((d) => d.rows.filter(isLabelGoal));
   const source = goals.findIndex((r) => r.id === sourceId);
   const target = goals.findIndex((r) => r.id === targetId);
   if (source < 0 || target < 0 || source === target) return domains;

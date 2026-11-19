@@ -33,7 +33,7 @@ const fixedTicks = ({ min, max, step }, values) => {
 /**
  * Plain SVG line chart of recorded values over time (no chart library).
  * points: [{ date, value, tone, statusLabel }] in date order; tone (normal | alert | unavailable) comes from the result BE returns.
- * A data table is shown next to it for screen readers.
+ * axis bỏ trống ⇒ trục tự co theo số đo (Xu hướng sức khỏe, user chọn 14/11/2026). A data table is shown next to it for screen readers.
  */
 export function GrowthChart({ title, unit, points, axis }) {
   const ref = useRef(null);
@@ -62,7 +62,10 @@ export function GrowthChart({ title, unit, points, axis }) {
   const path = points.map((p, i) => `${i ? 'L' : 'M'}${x(times[i]).toFixed(1)},${y(p.value).toFixed(1)}`).join(' ');
   const first = points[0];
   const last = points[points.length - 1];
-  // Giữ nhãn ngày mới nhất; nhãn quá sát nhãn đã giữ bên phải thì ẩn (điểm vẫn vẽ, rê chuột xem ngày).
+  // Nhãn đầu canh trái, nhãn cuối canh phải để không bị cắt ở mép biểu đồ
+  const anchorAt = (i) => (points.length === 1 ? 'middle' : i === 0 ? 'start' : i === points.length - 1 ? 'end' : 'middle');
+  const nudge = (i) => ({ start: -4, end: 4, middle: 0 })[anchorAt(i)];
+  // Giữ nhãn ngày, giá trị của lần đo mới nhất; nhãn quá sát nhãn đã giữ bên phải thì ẩn (điểm vẫn vẽ, rê chuột xem ngày).
   const labelled = new Set();
   let lastLabelX = Infinity;
   for (let i = points.length - 1; i >= 0; i -= 1) {
@@ -98,28 +101,43 @@ export function GrowthChart({ title, unit, points, axis }) {
           {unit}
         </text>
         {points.map((p, i) =>
-          // Nhãn ngày cuối canh phải để không bị cắt ở mép biểu đồ
           !labelled.has(i) ? null : (
-            <text
-              key={`x${p.date}`}
-              className="tr-chart__axis"
-              x={x(times[i])}
-              y={H - 12}
-              textAnchor={i > 0 && i === points.length - 1 ? 'end' : 'middle'}
-            >
+            <text key={`x${p.date}-${i}`} className="tr-chart__axis" x={x(times[i]) + nudge(i)} y={H - 12} textAnchor={anchorAt(i)}>
               {formatDate(p.date).slice(0, 5)}/{p.date.slice(2, 4)}
             </text>
           ),
         )}
         <path className="tr-chart__line" d={path} />
-        {points.map((p, i) => (
-          <circle key={p.date} className={`tr-chart__pt tr-chart__pt--${p.tone || 'normal'}`} cx={x(times[i])} cy={y(p.value)} r={5}>
+        {points.map((p, i) => {
+          const cx = x(times[i]);
+          const cy = y(p.value);
+          const tone = p.tone || 'normal';
+          const title = (
             <title>
               {formatDate(p.date)}: {formatNumber(p.value)} {unit}
               {p.statusLabel ? ` – ${p.statusLabel}` : ''}
             </title>
-          </circle>
-        ))}
+          );
+          // Hình điểm khác nhau theo trạng thái (không chỉ khác màu): tròn đặc, hình thoi, tròn rỗng
+          return (
+            <g key={`${p.date}-${i}`}>
+              {tone === 'alert' ? (
+                <path className="tr-chart__pt tr-chart__pt--alert" d={`M${cx} ${cy - 7}L${cx + 7} ${cy}L${cx} ${cy + 7}L${cx - 7} ${cy}Z`}>
+                  {title}
+                </path>
+              ) : (
+                <circle className={`tr-chart__pt tr-chart__pt--${tone}`} cx={cx} cy={cy} r={tone === 'unavailable' ? 4.5 : 5.5}>
+                  {title}
+                </circle>
+              )}
+              {labelled.has(i) && (
+                <text className="tr-chart__value" x={cx + nudge(i)} y={cy - 12} textAnchor={anchorAt(i)}>
+                  {formatNumber(p.value)}
+                </text>
+              )}
+            </g>
+          );
+        })}
       </svg>
     </figure>
   );

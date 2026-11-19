@@ -135,7 +135,7 @@ export function YearPlanVersionPanel({ plan, goals }) {
             <strong>Thay đổi so với phiên bản {versionOf(plan) - 1}</strong>
             {loading && <span className="muted">Đang so sánh…</span>}
             {error && (
-              <Notice tone="err">
+              <Notice>
                 Không tải được so sánh.{' '}
                 <button type="button" className="btn btn--sm" onClick={() => reload()}>
                   Thử lại
@@ -186,7 +186,7 @@ export function YearPlanVersionPanel({ plan, goals }) {
  */
 export function VersionCopyOffer({ plan, previous, prevDoc, canCreate, busy, onTemplate, onCopy }) {
   return (
-    <Notice tone="warn">
+    <Notice>
       <div className="stack">
         <span>
           Kế hoạch năm đã có phiên bản {versionOf(plan)} (ban hành thay phiên bản {versionOf(previous)}). Tài liệu cũ giữ nguyên để xem; tài

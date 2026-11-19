@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Search, Users } from '@/components/ui/icons';
 import { normalizeText } from '@/utils/format';
 import { EmptyState } from '@/components/ui/States';
-import { TEACHERS_PER_CLASS } from '@/models/school-config/schoolConfigConstants';
+import { MAX_TEACHERS_PER_CLASS } from '@/models/school-config/schoolConfigConstants';
 
 /** Bỏ / tích giáo viên; bỏ tích người đang là chủ nhiệm thì xóa lựa chọn chủ nhiệm (không tự chọn chủ nhiệm). */
 export const toggleTeacher = (f, id) => {
@@ -18,7 +18,7 @@ export const toggleTeacher = (f, id) => {
 export function ClassTeachersPicker({ teachers, classesOf, classId, form, onToggle, onHomeroom, errors = {}, lockedIds = [] }) {
   const [query, setQuery] = useState('');
   const [onlyFree, setOnlyFree] = useState(false);
-  const full = form.teacherIds.length >= TEACHERS_PER_CLASS;
+  const full = form.teacherIds.length >= MAX_TEACHERS_PER_CLASS;
   const othersOf = (id) => classesOf(id).filter((c) => c.id !== classId);
   const kw = normalizeText(query.trim());
   // Cô chưa có lớp lên trước, rồi theo tên
@@ -61,7 +61,7 @@ export function ClassTeachersPicker({ teachers, classesOf, classId, form, onTogg
               <th className="center">Phụ trách lớp</th>
               <th>Giáo viên</th>
               <th>Lớp phụ trách</th>
-              <th className="center">Chủ nhiệm</th>
+              <th className="center">Phụ trách chính</th>
             </tr>
           </thead>
           <tbody>
@@ -107,7 +107,7 @@ export function ClassTeachersPicker({ teachers, classesOf, classId, form, onTogg
                         // Bấm lại vào nút đang chọn thì bỏ chọn chủ nhiệm
                         onChange={() => {}}
                         onClick={() => onHomeroom(form.homeroomTeacherId === t.id ? '' : t.id)}
-                        aria-label={`${form.homeroomTeacherId === t.id ? 'Bỏ chọn' : 'Chọn'} ${t.fullName} làm chủ nhiệm`}
+                        aria-label={`${form.homeroomTeacherId === t.id ? 'Bỏ chọn' : 'Chọn'} ${t.fullName} làm GV phụ trách chính`}
                       />
                     </td>
                   </tr>

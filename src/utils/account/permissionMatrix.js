@@ -80,6 +80,12 @@ export const flowCheckState = (flowCodes, checkedCodes, isConfigurable) => {
   return on === editable.length ? 'all' : 'some';
 };
 
+/** Đếm số việc đang có trong luồng để hiện "3/5 việc" khi luồng thu gọn; chỉ đếm, không suy luận quyền. */
+export const flowCount = (flowCodes, checkedCodes) => ({
+  on: flowCodes.filter((code) => checkedCodes.includes(code)).length,
+  total: flowCodes.length,
+});
+
 /**
  * Tick/bỏ tick cả luồng: đi từng mã chỉnh được qua `toggleWithRequires` nên quan hệ cần-có của catalog BE vẫn đúng
  * (kể cả mã ngoài luồng cần mã trong luồng). Trả `{ codes, added, removed }` so với `codes` ban đầu.

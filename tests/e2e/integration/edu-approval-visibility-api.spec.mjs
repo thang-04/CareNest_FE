@@ -9,10 +9,10 @@ test.describe.configure({ mode: 'serial' });
 
 const GOALS = '/education-plans/goals';
 const U = {
-  vp: 'viceprincipal@gmail.com',
-  ht: 'principal@gmail.com',
-  tl: 'teamlead34@gmail.com',
-  gv2: 'teacher6@gmail.com',
+  vp: 'viceprincipal',
+  ht: 'principal',
+  tl: 'teacher1',
+  gv2: 'teacher2',
 };
 const NOTE = '[E2E] Nhờ duyệt bản điều chỉnh, xem lại chủ đề Tết';
 const headers = (rev) => ({ 'X-Plan-Revision': String(rev ?? 0), 'Idempotency-Key': randomUUID(), 'X-Edit-Session': newSession() });

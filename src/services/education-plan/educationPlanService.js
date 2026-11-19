@@ -5,6 +5,7 @@ import { educationPlanApi } from '@/services/education-plan/api/educationPlanApi
 import { classPlanMockRepository } from '@/services/education-plan/mock/classPlanMockRepository';
 import { eduConfigMockRepository } from '@/services/education-plan/mock/eduConfigMockRepository';
 import { branchAiMock } from '@/services/education-plan/mock/branchAiMock';
+import { activityAiMock } from '@/services/education-plan/mock/activityAiMock';
 import { lessonAiMock } from '@/services/education-plan/mock/lessonAiMock';
 import { curriculumMockRepository } from '@/services/education-plan/mock/curriculumMockRepository';
 
@@ -12,6 +13,10 @@ import { curriculumMockRepository } from '@/services/education-plan/mock/curricu
 const repo = USE_MOCK ? educationPlanMockRepository : educationPlanApi;
 
 export const getEducationPlans = (user) => repo.getAll(user);
+// Trang chủ chỉ cần chủ đề, giờ học: API thật chưa có hai phần này (getAll trả rỗng) nên không tải chi tiết từng kế hoạch
+// năm/tổ — tránh ~30 request tranh kết nối với trang kế hoạch giáo dục (FE-BUG-261111-dashboard-reload-burst)
+export const getEducationLessons = (user) =>
+  USE_MOCK ? repo.getAll(user).then(({ themes, lessons }) => ({ themes, lessons })) : Promise.resolve({ themes: [], lessons: [] });
 export const getReviewQueue = (user) => repo.getReviewQueue(user);
 export const getGoal = (id, user) => repo.getGoal(id, user);
 export const getClassDocRelease = (releaseId) => repo.getClassDocRelease(releaseId);
@@ -60,6 +65,8 @@ export const suggestBranchNames = (input) =>
 export const suggestLessonSteps = (input) =>
   USE_MOCK ? lessonAiMock.suggestLessonSteps(input) : educationPlanApi.suggestLessonSteps(input);
 export const rewriteBranchName = (input) => (USE_MOCK ? branchAiMock.rewriteBranchName(input) : educationPlanApi.rewriteBranchName(input));
+// AI gợi ý thẻ hoạt động cho MT chưa có hoạt động (EDU-20 mở rộng, Tiền 13/11/2026). BE chưa có API ⇒ luôn dùng bản giả, chưa nối API thật
+export const suggestActivityCards = (input) => activityAiMock.suggestActivityCards(input);
 
 export const saveWorkflowPolicy = (cfg, user) =>
   USE_MOCK ? eduConfigMockRepository.saveWorkflowPolicy(cfg, user) : educationPlanApi.saveWorkflowPolicy(cfg);

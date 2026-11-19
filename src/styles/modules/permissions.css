@@ -87,8 +87,8 @@
 }
 
 .perm-table .perm-level {
-  margin-right: var(--space-2);
-  vertical-align: middle;
+  min-width: calc(var(--space-16) + var(--space-6));
+  flex-shrink: 0;
 }
 
 .perm-legend__box {
@@ -154,19 +154,55 @@
   text-align: left;
 }
 
-/* Cấp 1: luồng lớn, nổi hơn dòng nhóm cấp 2 */
-.table.table--grid.perm-table .perm-table__flow th,
-.table.table--grid.perm-table .perm-table__flow td,
-.table.table--grid.perm-table .perm-table__flow:hover th,
-.table.table--grid.perm-table .perm-table__flow:hover td {
+/* Cấp 1: luồng lớn, nổi hơn dòng nhóm cấp 2; luồng đang thu gọn để nền trắng cho đỡ nặng mắt */
+.table.table--grid.perm-table .perm-table__flow:not(.is-collapsed) th,
+.table.table--grid.perm-table .perm-table__flow:not(.is-collapsed) td,
+.table.table--grid.perm-table .perm-table__flow:not(.is-collapsed):hover th,
+.table.table--grid.perm-table .perm-table__flow:not(.is-collapsed):hover td {
   background: var(--color-primary-soft);
   color: var(--color-primary-active);
   font-weight: var(--fw-bold);
+}
+
+/* Chỉ cột tên luồng căn trái; ô vai trò luôn căn giữa dù luồng đang mở hay thu gọn */
+.perm-table tr.perm-table__flow > th.perm-table__task {
   text-align: left;
 }
 
 .table.table--grid.perm-table .perm-table__flow td {
   text-align: center;
+  vertical-align: middle;
+}
+
+/* Việc nhỏ thụt vào dưới luồng; việc cần quyền xem thụt sâu thêm một bậc.
+   Cần :first-child để thắng padding ô đầu của bảng lưới chung. */
+.perm-table tr.perm-table__item > th.perm-table__task:first-child {
+  padding-left: var(--space-10);
+}
+
+.perm-table tr.perm-table__item > th.perm-table__task.is-dependent:first-child {
+  padding-left: var(--space-16);
+}
+
+.perm-table .perm-table__item td {
+  vertical-align: middle;
+}
+
+.perm-table tr.perm-table__group > th:first-child {
+  padding-left: var(--space-10);
+}
+
+.perm-table__task-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* Giữ chỗ bằng badge để tên việc thẳng hàng khi việc chưa gắn cấp */
+.perm-level-slot {
+  display: inline-block;
+  min-width: calc(var(--space-16) + var(--space-6));
+  flex-shrink: 0;
 }
 
 .perm-table .perm-table__task .perm-table__note {
@@ -649,4 +685,54 @@
 /* Dòng "Bạn đang chỉ xem" đầu trang của PHT chưa được giao việc sửa */
 .page-readonly-notice {
   margin: var(--space-4) var(--space-6) 0;
+}
+
+/* Màn vai trò: luồng thu gọn mặc định, chú thích gập lại để bảng ngắn và ít chữ */
+.perm-legend-toggle {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.perm-legend-toggle > summary {
+  padding: var(--space-2) var(--card-padding-dense);
+  color: var(--color-text-secondary);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+}
+
+.perm-legend-toggle .perm-legend:last-child {
+  border-bottom: 0;
+}
+
+.perm-table-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  padding: var(--space-2) var(--card-padding-dense);
+}
+
+.perm-table .perm-table__flow-toggle {
+  margin-left: calc(var(--space-2) * -1);
+  color: inherit;
+  font-weight: var(--fw-bold);
+}
+
+.perm-table .perm-table__flow .perm-table__note {
+  padding-left: var(--space-6);
+}
+
+.perm-check-cell--flow {
+  flex-direction: column;
+  gap: var(--space-1);
+  padding-block: var(--space-1);
+}
+
+/* Dòng luồng đã có nền primary-soft ⇒ dùng tông cảnh báo để thấy luồng có thay đổi chưa lưu */
+.perm-check-cell--flow.is-changed {
+  background: var(--color-warning-bg);
+}
+
+.perm-flow-summary {
+  color: var(--color-text-muted);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
 }

@@ -9,10 +9,6 @@
 }
 
 /* Ô lý do nhiều dòng dùng .input (cao 1 dòng, padding dọc 0): thêm lề trên dưới để chữ không dính viền */
-.input.kr-reason {
-  padding-block: var(--space-2);
-}
-
 /* Lưới thực đơn bếp nhận dùng lớp td-week của thực đơn tuần; bỏ chiều rộng tối thiểu của lưới 5 ngày */
 .td-week.kr-menu {
   min-width: 0;
@@ -562,8 +558,70 @@ button.kr-progress {
 .kr-fill__target strong {
   color: var(--color-text);
 }
-.kr-supplier-preview {
-  margin-bottom: var(--space-2);
+/* Chọn NCC cho cả bảng: thẻ xem trước ba ô sẽ điền (tên cơ sở, địa chỉ + điện thoại, người giao) */
+.kr-supplier-card {
+  display: grid;
+  gap: var(--space-2);
+  margin: var(--space-3) 0 var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-muted);
+}
+.kr-supplier-card--empty {
+  border-style: dashed;
+}
+.kr-supplier-card > div {
+  display: grid;
+  grid-template-columns: 170px minmax(0, 1fr);
+  gap: var(--space-3);
+  font-size: var(--fs-sm);
+}
+.kr-supplier-card dt {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  color: var(--color-text-secondary);
+}
+.kr-supplier-card dd {
+  margin: 0;
+  font-weight: var(--fw-medium);
+}
+/* Sửa lại mẫu đã ký: dòng ngữ cảnh, khối hậu quả dạng danh sách, đếm ký tự lý do */
+.kr-reopen {
+  display: grid;
+  gap: var(--space-4);
+}
+.kr-reopen__ctx {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--color-text-secondary);
+}
+.kr-reopen__alert {
+  align-items: flex-start;
+  font-size: var(--fs-sm);
+}
+.kr-reopen__alert ul {
+  margin: var(--space-1) 0 0;
+  padding-left: var(--space-5);
+}
+/* Ô Người kiểm tra trong hộp ký: khung giống ô ký cuối mẫu */
+.kr-sign-pick {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-md);
+}
+.kr-sign-pick__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+.kr-reopen__count {
+  margin-top: calc(-1 * var(--space-3));
 }
 .kr-history ul {
   margin: var(--space-1) 0 0;

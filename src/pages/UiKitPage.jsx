@@ -42,10 +42,15 @@ import {
   RowActions,
   StatusPage,
   Button,
+  PageToolbar,
+  Checkbox,
   DataTable,
   TextField,
   SelectField,
   LABELS,
+  PrintHeader,
+  PrintSignRow,
+  PrintPaperFit,
 } from '@/components';
 import './ui-kit.css';
 import { NutritionPrimitivesDemo } from '@/components/ui/NutritionPrimitivesDemo';
@@ -289,6 +294,14 @@ export default function UiKitPage() {
               {LABELS.delete}
             </Button>
             <Button disabled>{LABELS.cancel}</Button>
+            <Button variant="icon" aria-label={LABELS.delete}>
+              <Trash2 size={16} aria-hidden />
+            </Button>
+            <Button variant="link">Hiện phiên bản cũ</Button>
+            <label className="row gap-2">
+              <Checkbox defaultChecked />
+              <span>Ô tích (Checkbox)</span>
+            </label>
           </div>
           <div className="row gap-2 mb-16">
             <TextField label="Tên nhà cung cấp" required defaultValue="" error="Nhập tên nhà cung cấp" />
@@ -1064,9 +1077,32 @@ export default function UiKitPage() {
         </Section>
 
         <Section
+          id="responsive-toolbar"
+          title="Header một hàng, menu ba gạch khi thiếu chỗ"
+          code={
+            '<PageToolbar summary="Thông tin trang">…các nút…</PageToolbar> // ghim dưới header; ResponsiveToolbar dùng cho vùng không ghim'
+          }
+        >
+          <PageToolbar aria-label="Thao tác kế hoạch" summary="Header dùng chung">
+            <Button variant="outline-primary" size="sm" icon={Save}>
+              Lưu kế hoạch
+            </Button>
+            <Button variant="outline-primary" size="sm" icon={Send}>
+              Gửi kế hoạch để duyệt
+            </Button>
+            <Button variant="outline-primary" size="sm" icon={Printer}>
+              Xuất file kế hoạch
+            </Button>
+            <Button variant="outline-danger" size="sm" icon={Trash2} disabled>
+              Xóa kế hoạch
+            </Button>
+          </PageToolbar>
+        </Section>
+
+        <Section
           id="brand"
           title="Logo"
-          code={`<Logo />            // sidebar\n<Logo collapsed />  // chỉ biểu tượng\n<LogoFull width={160} />  // logo gốc (đăng nhập, splash)\n<PrintHeader />     // đầu mọi bản in A4`}
+          code={`<Logo />            // sidebar\n<Logo collapsed />  // chỉ biểu tượng\n<LogoFull width={160} />  // logo gốc (đăng nhập, splash)`}
         >
           <div
             className="row row--wrap"
@@ -1094,6 +1130,24 @@ export default function UiKitPage() {
               />
             </div>
           </div>
+        </Section>
+
+        <Section
+          id="print"
+          title="Mẫu in · Văn bản trường"
+          code={`<div className="print-sheet">\n  <PrintHeader />  // quốc hiệu 2 cột\n  …tiêu đề, nội dung…\n  <PrintSignRow signers={[{ title: 'Người lập' }, { title: 'Hiệu trưởng', name }]} date={ngayKy} />  // luôn ở cuối\n</div>\n<PrintToolbar sheetRef={ref} fileBase="..." onClose={close} />  // Đóng · Xuất Excel · Xuất PDF · In\n// Bản Word: docHeaderHtml(), signRowHtml(), DOC_TEMPLATE_CSS (components/print/docTemplate.js)`}
+        >
+          <PrintPaperFit>
+            <div className="print-sheet">
+              <PrintHeader />
+              <div className="ps-title">
+                <h1>TIÊU ĐỀ VĂN BẢN</h1>
+                <div className="ps-version">Dòng phụ: kỳ, ngày, điểm trường</div>
+              </div>
+              <p>Nội dung văn bản…</p>
+              <PrintSignRow signers={[{ title: 'Người lập' }, { title: 'Hiệu trưởng', name: 'Họ tên người ký' }]} />
+            </div>
+          </PrintPaperFit>
         </Section>
       </div>
     </div>

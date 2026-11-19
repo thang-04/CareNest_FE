@@ -6,15 +6,19 @@ export function submissionRequirementsIssue(plan) {
   const themes = plan.themes || [];
   const goals = (plan.domains || []).flatMap((domain) => (domain.rows || []).filter((row) => row.kind === 'goal' && row.text?.trim()));
   if (annual) {
-    if (themes.filter((theme) => theme.name?.trim() && theme.abbr?.trim()).length < 9) return 'Chưa đạt số lượng chủ đề cho phép';
+    const named = themes.filter((theme) => theme.name?.trim() && theme.abbr?.trim()).length;
+    if (named < 9) return 'Cần tối thiểu 9 chủ đề.';
     const missing = themes.find((theme) => !theme.start || !theme.end);
     if (missing) return `Chủ đề "${missing.name || missing.abbr}" cần đủ ngày bắt đầu và kết thúc.`;
     const gap = themeGapIssue(themes, plan.breaks || []);
     if (gap) return gap;
     const branch = (plan.branchTemplates || []).find((item) => !item.startDate || !item.endDate);
     if (branch) return `Nhánh "${branch.name || ''}" cần đủ ngày bắt đầu và kết thúc.`;
-    const empty = goals.find((goal) => !(goal.contents || []).some((content) => content.text?.trim()));
-    if (empty) return `Mục tiêu "${empty.text}" cần ít nhất một nội dung.`;
+    const empty = goals.filter((goal) => !(goal.contents || []).some((content) => content.text?.trim()));
+    if (empty.length)
+      return empty.length === 1
+        ? `Mục tiêu "${empty[0].text}" cần ít nhất một nội dung.`
+        : `Còn ${empty.length} mục tiêu chưa có nội dung, đầu tiên: "${empty[0].text}".`;
     const hasChain = (plan.domains || []).some((domain) => {
       let group = false;
       return (domain.rows || []).some((row) => {

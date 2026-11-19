@@ -22,7 +22,7 @@ export function AssignmentHistoryModal({ target, onClose }) {
     [target.kind, target.id, target.schoolYear],
   );
   const rows = data || [];
-  const roleOf = (h) => (target.kind === 'leader' ? 'Tổ trưởng' : h.homeroom ? 'GVCN' : 'Giáo viên');
+  const roleOf = (h) => (target.kind === 'leader' ? 'Tổ trưởng' : h.homeroom ? 'Phụ trách chính' : 'Giáo viên');
 
   return (
     <Modal open size="lg" title={`Lịch sử phân công – ${target.name}`} onClose={onClose}>

@@ -209,7 +209,6 @@ export default function RewardClassPage() {
       return true;
     } catch (err) {
       setListError(err.message);
-      toast.error(err, 'Không lưu được danh sách');
       return false;
     } finally {
       setBusy('');
@@ -275,9 +274,11 @@ export default function RewardClassPage() {
       <button className="btn" onClick={() => save(false)} disabled={!!busy}>
         {busy === 'save' ? <Spinner small /> : <Save size={16} />} Lưu nháp
       </button>
-      <button className="btn btn--primary" disabled={!!busy} onClick={() => check(true) && setSubmitOpen(true)}>
-        <Send size={16} /> {d.status === S.RETURNED ? 'Gửi lại danh sách' : 'Gửi danh sách'}
-      </button>
+      {d.canSubmit && (
+        <button className="btn btn--primary" disabled={!!busy} onClick={() => check(true) && setSubmitOpen(true)}>
+          <Send size={16} /> {d.status === S.RETURNED ? 'Gửi lại danh sách' : 'Gửi danh sách'}
+        </button>
+      )}
     </>
   );
 
@@ -346,8 +347,8 @@ export default function RewardClassPage() {
             </span>
           </div>
         )}
-        <div className="table-wrap">
-          <table className="table table--grid">
+        <div className="table-wrap dg-roll-wrap">
+          <table className="table table--grid dg-roll">
             <thead>
               <tr>
                 <th>Trẻ</th>

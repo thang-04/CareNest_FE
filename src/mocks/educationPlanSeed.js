@@ -564,7 +564,8 @@ export const seedTodayAttendance = (db) => {
       classId: CLASS_ID,
       campusId: ch.campusId,
       status: 'PRESENT',
-      meals: Object.fromEntries(sessions.map((x) => [x, true])),
+      // CHD-13: trẻ không báo ăn không có suất
+      meals: Object.fromEntries(sessions.map((x) => [x, ch.mealRegistered !== false])),
       recordedBy: cls?.homeroomTeacherId || null,
       recordedAt: at,
       history: [{ at, userId: cls?.homeroomTeacherId || null, action: 'RECORDED' }],

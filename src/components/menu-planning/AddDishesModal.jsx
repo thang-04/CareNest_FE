@@ -1,12 +1,14 @@
 import { useMemo, useState } from 'react';
 import { Search, X } from '@/components/ui/icons';
 import { Modal } from '@/components/ui/Modal';
+import { Button } from '@/components/ui/Button';
 import { SearchSelect } from '@/components/ui/SearchSelect';
 import { EmptyState } from '@/components/ui/States';
 import { AllergenChips, DishKcal } from '@/components/menu-planning/MenuBadges';
 import { dishTypeClass } from '@/utils/dishTypeClass';
 import { DISH_TYPE_LABELS } from '@/models/menu-planning/menuPlanningConstants';
 import { normalizeText } from '@/utils/format';
+import { Checkbox, TextField } from '@/components';
 
 const TYPE_ORDER = Object.keys(DISH_TYPE_LABELS);
 
@@ -39,12 +41,10 @@ export function AddDishesModal({ title, subtitle, dishes, selectedIds, ageGroup,
       onClose={onClose}
       footer={
         <>
-          <button type="button" className="btn" onClick={onClose}>
-            Hủy
-          </button>
-          <button type="button" className="btn btn--primary" onClick={() => onSave(picked.map((id) => byId[id]).filter(Boolean))}>
+          <Button onClick={onClose}>Hủy</Button>
+          <Button variant="primary" onClick={() => onSave(picked.map((id) => byId[id]).filter(Boolean))}>
             Lưu {picked.length} món
-          </button>
+          </Button>
         </>
       }
     >
@@ -53,9 +53,9 @@ export function AddDishesModal({ title, subtitle, dishes, selectedIds, ageGroup,
           <div className="td-pick__chosen-head">
             <b>Đã chọn {picked.length}</b>
             {picked.length > 0 && (
-              <button type="button" className="btn btn--ghost btn--sm" onClick={() => setPicked([])}>
+              <Button variant="ghost" size="sm" onClick={() => setPicked([])}>
                 Bỏ chọn tất cả
-              </button>
+              </Button>
             )}
           </div>
           {picked.length ? (
@@ -63,9 +63,9 @@ export function AddDishesModal({ title, subtitle, dishes, selectedIds, ageGroup,
               {picked.map((id) => (
                 <span key={id} className="td-pick__chip">
                   {byId[id]?.name || 'Món đã xóa'}
-                  <button type="button" aria-label={`Bỏ ${byId[id]?.name || 'món'}`} onClick={() => toggle(id)}>
+                  <Button variant="icon" aria-label={`Bỏ ${byId[id]?.name || 'món'}`} onClick={() => toggle(id)}>
                     <X size={14} />
-                  </button>
+                  </Button>
                 </span>
               ))}
             </div>
@@ -76,7 +76,7 @@ export function AddDishesModal({ title, subtitle, dishes, selectedIds, ageGroup,
         <div className="td-pick__filters">
           <label className="td-search">
             <Search size={16} className="muted" />
-            <input
+            <TextField
               className="input"
               autoFocus
               placeholder="Tìm món ăn"
@@ -99,7 +99,7 @@ export function AddDishesModal({ title, subtitle, dishes, selectedIds, ageGroup,
               <h4 className="td-pick__group">{DISH_TYPE_LABELS[g.type] || 'Món khác'}</h4>
               {g.items.map((d) => (
                 <label key={d.id} className={`td-pick__row ${dishTypeClass(d.type)}`}>
-                  <input type="checkbox" checked={picked.includes(String(d.id))} onChange={() => toggle(String(d.id))} />
+                  <Checkbox checked={picked.includes(String(d.id))} onChange={() => toggle(String(d.id))} />
                   <span className="td-grow">{d.name}</span>
                   {d.allergens?.length > 0 && <AllergenChips allergens={d.allergens} />}
                   <span className="td-pick__kcal">

@@ -13,7 +13,7 @@ const CLASS_STAFF = [R.TEACHER, R.TEAM_LEADER];
  */
 const QUICK_ACTIONS = [
   {
-    label: 'Soạn giáo án',
+    label: 'Soạn kế hoạch giáo dục ngày',
     to: '/education/day-plans',
     group: 'Kế hoạch giáo dục',
     icon: BookOpen,

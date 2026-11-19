@@ -2,15 +2,17 @@ import { useEffect, useMemo, useState } from 'react';
 import { Tabs } from '@/components/ui/Tabs';
 import { useTabParam } from '@/hooks/useTabParam';
 import { useSearchParams } from 'react-router-dom';
-import { Copy, Lock, Pencil, Save, Scale, Send, Sparkles } from '@/components/ui/icons';
+import { Copy, FileDown, History, Lock, Pencil, Save, Scale, Send, Sparkles } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { DayEditorModal } from '@/components/menu-planning/DayEditorModal';
 import { CopyDayModal } from '@/components/menu-planning/CopyDayModal';
+import { AmendDayDialog } from '@/components/menu-planning/AmendDayDialog';
+import { MealPlanRevisionsModal } from '@/components/menu-planning/MealPlanRevisionsModal';
 import { PERMISSIONS } from '@/models/bePermissions';
 import { hasBePermission } from '@/utils/bePermissions';
 import { ageGroupOptions } from '@/utils/menu-planning/menuStatistics';
 import { useToast } from '@/contexts/ToastContext';
-import { Breadcrumb, Button, EmptyState, ErrorState, LoadingState } from '@/components';
+import { Breadcrumb, Button, EmptyState, ErrorState, LoadingState, SelectField } from '@/components';
 import { WeekPicker } from '@/components/form/WeekPicker';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
@@ -22,17 +24,20 @@ import { MealPlanIssueList } from '@/components/menu-planning/MealPlanIssueList'
 import { MealPlanStatusBadge } from '@/components/menu-planning/MenuBadges';
 import { PublishWeekDialog } from '@/components/menu-planning/PublishWeekDialog';
 import { MenuAiWeekModal } from '@/components/menu-planning/MenuAiWeekModal';
-import { useActiveDishes, useBeAgeGroups, useMealPlan } from '@/hooks/menu-planning/useMealPlan';
+import { WeeklyMenuExportModal } from '@/components/menu-planning/WeeklyMenuExportModal';
+import { useActiveDishes, useBeAgeGroups, useMealPlan, useWeekHolidays } from '@/hooks/menu-planning/useMealPlan';
 import { useMenuTemplates } from '@/hooks/menu-planning/useMenuTemplates';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { mealPlanApi } from '@/services/mealPlanApi';
 import { MEAL_BLOCK_LABELS, MEAL_PLAN_STATUS, WEEKDAY_LABELS, schoolWeekStart } from '@/models/menu-planning/menuPlanningConstants';
 import {
+  applyHolidays,
   balanceHref,
   blockSessions,
   copyDay,
   dayBlockItems,
   draftFromPlan,
+  holidayNames,
   isDirty,
   planBlocks,
   resolveWeekStart,
@@ -59,11 +64,15 @@ export default function WeeklyPlanPage() {
   const { dishes } = useActiveDishes();
   const { ageGroups } = useBeAgeGroups();
   const saved = useMemo(() => (plan ? draftFromPlan(plan) : null), [plan]);
+  const { holidays } = useWeekHolidays(week);
+  // Ngày trùng đợt nghỉ năm học (HT cấu hình ở Thiết lập năm học): { [date]: tên đợt nghỉ }
+  const holidayMap = useMemo(() => holidayNames(saved, holidays || []), [saved, holidays]);
   const [draft, setDraft] = useState(null);
   const [blockKey, setBlockKey] = useState('');
   const [kcalGroupId, setKcalGroupId] = useState('');
   const [busy, setBusy] = useState(false);
   const [publishOpen, setPublishOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
   const [publishError, setPublishError] = useState('');
   // Mẫu ngày chờ xác nhận thay món: { day, template, count }
   const [pending, setPending] = useState(null);
@@ -72,6 +81,11 @@ export default function WeeklyPlanPage() {
   // Ngày đang mở ở modal Sửa ngày / ngày nguồn khi chép (yyyy-mm-dd)
   const [editingDay, setEditingDay] = useState(null);
   const [copyFrom, setCopyFrom] = useState(null);
+  // Sửa ngoại lệ ngày đã công bố (P-39): ngày đang sửa món, bước nhập lý do { date, items }, lịch sử sửa của tuần
+  const [amendingDay, setAmendingDay] = useState(null);
+  const [amendDraft, setAmendDraft] = useState(null);
+  const [amendError, setAmendError] = useState('');
+  const [revisionsOpen, setRevisionsOpen] = useState(false);
   const { user } = useAuth();
 
   // Kế hoạch mới về (đổi tuần, sau khi lưu, nạp lại) ⇒ bản nháp trên màn lấy lại từ BE
@@ -81,6 +95,11 @@ export default function WeeklyPlanPage() {
   const block = blocks.includes(blockKey) ? blockKey : blocks[0];
   const editable = !!plan?.canEdit && plan.status !== MEAL_PLAN_STATUS.PUBLISHED;
   const dirty = !!draft && !!saved && isDirty(draft, saved);
+  // Bản nháp sửa được ⇒ ngày lễ tự thành ngày nghỉ (chạy sau effect nạp lại bản nháp ở trên, kể cả khi ngày nghỉ về muộn)
+  useEffect(() => {
+    if (editable) setDraft((d) => applyHolidays(d, holidayMap));
+  }, [holidayMap, editable]);
+  const autoOff = editable ? Object.keys(holidayMap).filter((date) => !saved?.days.find((d) => d.date === date)?.off) : [];
   // Một khối có thể gồm nhiều nhóm tuổi, kcal mỗi suất khác nhau nên phải nói rõ đang xem nhóm nào
   const blockGroups = (plan?.blocks || []).find((b) => b.block === block)?.ageGroupIds || [];
   const kcalGroups = ageGroups.filter((g) => blockGroups.some((id) => String(id) === String(g.id)));
@@ -96,13 +115,17 @@ export default function WeeklyPlanPage() {
   // Menu "…" đầu cột ngày: sửa trong modal to, chép ngày (khi sửa được); xem cân đối khi chỉ xem
   const dayActions = (day) => {
     const balance = { label: 'Mở ở Cân đối khẩu phần', icon: Scale, to: balanceHref({ week, block, date: day.date }) };
+    // Tuần đã công bố: chỉ ngày BE cho phép (`canAmend`) mới có lối sửa ngoại lệ
+    const amendAction = plan?.days.find((d) => d.date === day.date)?.canAmend
+      ? [{ label: 'Sửa ngoại lệ', icon: Pencil, onClick: () => setAmendingDay(day.date) }]
+      : [];
     return editable
       ? [
           { label: 'Sửa ngày', icon: Pencil, onClick: () => setEditingDay(day.date) },
           { label: 'Chép sang ngày…', icon: Copy, onClick: () => setCopyFrom(day.date) },
           balance,
         ]
-      : [{ label: 'Xem cân đối ngày', icon: Scale, onClick: () => setEditingDay(day.date) }, balance];
+      : [...amendAction, { label: 'Xem cân đối ngày', icon: Scale, onClick: () => setEditingDay(day.date) }, balance];
   };
 
   const fillDay = (day, template) => {
@@ -161,6 +184,28 @@ export default function WeeklyPlanPage() {
     }
   };
 
+  const savedDay = (date) => saved?.days.find((d) => d.date === date);
+  const amend = async ({ reason, note }) => {
+    setBusy(true);
+    setAmendError('');
+    try {
+      const day = { ...savedDay(amendDraft.date), items: amendDraft.items, note };
+      const next = await mealPlanApi.amendDay(week, day, reason);
+      planQ.setData(next);
+      setAmendDraft(null);
+      // Cân đối chỉ cảnh báo, không chặn (P-39): báo để người sửa xem lại ở Lưu ý của tuần
+      const notes = next.issues.filter((i) => i.date === day.date && (i.severity === 'BLOCKING' || i.severity === 'WARNING'));
+      if (notes.length) toast.warning(`Ngày này còn ${notes.length} lưu ý cân đối, xem ở Lưu ý của tuần.`, 'Đã lưu thay đổi');
+      else toast.success('Đã lưu thay đổi và báo phụ huynh, bếp.');
+    } catch (err) {
+      setAmendError(err.message);
+      // 409: ngày vừa qua giờ chốt hoặc tuần đổi ở nơi khác ⇒ nạp lại để cờ canAmend đúng
+      if (err.status === 409) planQ.reload({ silent: true });
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const head = (
     <>
       <Breadcrumb items={weeklyCrumbs()} />
@@ -187,13 +232,17 @@ export default function WeeklyPlanPage() {
         {kcalGroups.length > 1 && (
           <label className="date-filter td-week-toolbar__group">
             Kcal theo nhóm
-            <select className="select" value={kcalAgeGroup ? String(kcalAgeGroup.id) : ''} onChange={(e) => setKcalGroupId(e.target.value)}>
+            <SelectField
+              className="select"
+              value={kcalAgeGroup ? String(kcalAgeGroup.id) : ''}
+              onChange={(e) => setKcalGroupId(e.target.value)}
+            >
               {kcalGroups.map((g) => (
                 <option key={g.id} value={String(g.id)}>
                   {g.name}
                 </option>
               ))}
-            </select>
+            </SelectField>
           </label>
         )}
       </div>
@@ -230,7 +279,7 @@ export default function WeeklyPlanPage() {
           )}
           {plan.status === MEAL_PLAN_STATUS.PUBLISHED && (
             <span className="chip chip--gray">
-              <Lock size={14} /> Đã khóa, không sửa
+              <Lock size={14} /> {plan.days.some((d) => d.canAmend) ? 'Đã khóa, chỉ sửa ngoại lệ' : 'Đã khóa, không sửa'}
             </span>
           )}
         </div>
@@ -238,6 +287,17 @@ export default function WeeklyPlanPage() {
           {editable && block && (
             <Button disabled={busy} onClick={() => setAiOpen(true)}>
               <Sparkles size={16} /> AI gợi ý
+            </Button>
+          )}
+          {/* Chỉ bản đã công bố được xuất văn bản (MENU-14 SRS): văn bản gửi bếp, phụ huynh phải là bản chính thức */}
+          {plan.revisionCount > 0 && (
+            <Button icon={History} onClick={() => setRevisionsOpen(true)}>
+              Lịch sử sửa ({plan.revisionCount})
+            </Button>
+          )}
+          {plan.status === MEAL_PLAN_STATUS.PUBLISHED && (
+            <Button icon={FileDown} onClick={() => setExportOpen(true)}>
+              Xuất văn bản
             </Button>
           )}
           {editable && (
@@ -257,6 +317,14 @@ export default function WeeklyPlanPage() {
           )}
         </div>
       </div>
+      {dirty && autoOff.length > 0 && (
+        <div className="alert alert--info">
+          <div>
+            Đã tự đánh dấu nghỉ {autoOff.length} ngày trùng ngày nghỉ của năm học (
+            {[...new Set(autoOff.map((date) => holidayMap[date]))].join(', ')}). Bấm Lưu nháp để lưu.
+          </div>
+        </div>
+      )}
       {dirty && (
         <div className="alert alert--warning">
           <div>Có thay đổi chưa lưu. Bảng kiểm và lưu ý bên dưới tính theo bản đã lưu; lưu nháp để cập nhật và công bố.</div>
@@ -299,6 +367,7 @@ export default function WeeklyPlanPage() {
                 onPickTemplate={pickTemplate}
                 kcalAgeGroup={kcalAgeGroup}
                 dayActions={plan.status === MEAL_PLAN_STATUS.NONE && !editable ? undefined : dayActions}
+                holidays={holidayMap}
               />
             </section>
           ) : (
@@ -331,6 +400,14 @@ export default function WeeklyPlanPage() {
         onConfirm={publish}
         onClose={() => setPublishOpen(false)}
       />
+      {exportOpen && (
+        <WeeklyMenuExportModal
+          plan={plan}
+          week={week}
+          defaultPreparer={user?.fullName || user?.name || ''}
+          onClose={() => setExportOpen(false)}
+        />
+      )}
       <Modal open={issuesOpen} size="lg" title={`Lưu ý của tuần · ${plan.issues.length} lưu ý`} onClose={() => setIssuesOpen(false)}>
         <MealPlanIssueList issues={plan.issues} />
       </Modal>
@@ -401,6 +478,43 @@ export default function WeeklyPlanPage() {
           onClose={() => setCopyFrom(null)}
         />
       )}
+      {amendingDay && (
+        <DayEditorModal
+          key={`amend-${amendingDay}`}
+          title={dayTitle(amendingDay)}
+          date={amendingDay}
+          initialItems={dayBlockItems(savedDay(amendingDay), block)}
+          editable
+          applyLabel="Tiếp tục"
+          sessions={blockSessions(plan, block)}
+          groups={groups}
+          ageGroups={ageGroups}
+          dishes={dishes}
+          canEditRecipe={hasBePermission(user, PERMISSIONS.NUTRITION_MANAGE)}
+          onApply={(items) => {
+            // Sửa cả ngày: món của khối khác giữ nguyên theo bản đã công bố
+            const day = setDayBlockItems(saved, amendingDay, block, items).days.find((d) => d.date === amendingDay);
+            setAmendError('');
+            setAmendDraft({ date: amendingDay, items: day.items });
+            setAmendingDay(null);
+          }}
+          onClose={() => setAmendingDay(null)}
+        />
+      )}
+      {amendDraft && (
+        <AmendDayDialog
+          key={`confirm-${amendDraft.date}`}
+          title={dayTitle(amendDraft.date)}
+          beforeItems={savedDay(amendDraft.date)?.items}
+          afterItems={amendDraft.items}
+          initialNote={savedDay(amendDraft.date)?.note}
+          busy={busy}
+          error={amendError}
+          onConfirm={amend}
+          onClose={() => setAmendDraft(null)}
+        />
+      )}
+      {revisionsOpen && <MealPlanRevisionsModal week={week} onClose={() => setRevisionsOpen(false)} />}
       <LeaveConfirmModal {...guard.modal} />
     </div>
   );

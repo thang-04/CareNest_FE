@@ -119,7 +119,7 @@ test('lưu ngoại lệ: giữ scope SCHOOL đang có, mã mới để BE mặc 
     ],
   });
 
-  assert.deepEqual(calls, ['GET /accounts/2/permission-overrides', 'PUT /accounts/2/permission-overrides']);
+  assert.deepEqual(calls, ['GET /accounts/2/permission-overrides', 'GET /permissions', 'PUT /accounts/2/permission-overrides']);
   assert.deepEqual(bodies[0], {
     reason: 'Điều chỉnh',
     overrides: [
@@ -127,6 +127,21 @@ test('lưu ngoại lệ: giữ scope SCHOOL đang có, mã mới để BE mặc 
       { permission: 'ACCOUNT_MANAGE', effect: 'GRANT', scope: null },
     ],
   });
+});
+
+test('lưu ngoại lệ: mã không campusScoped không mang lại scope cũ (BE từ chối scope)', async () => {
+  const saved = OVERRIDES[2];
+  OVERRIDES[2] = [...saved, { permission: 'ACCOUNT_MANAGE', effect: 'GRANT', scope: 'SCHOOL', reason: 'Dữ liệu cũ', updatedBy: 1, updatedAt: '2026-10-30T02:00:00Z' }];
+  try {
+    await permissionApi.updatePermissionOverrides(2, {
+      reason: 'Điều chỉnh',
+      overrides: [{ permission: 'ACCOUNT_MANAGE', effect: 'GRANT' }],
+    });
+  } finally {
+    OVERRIDES[2] = saved;
+  }
+
+  assert.deepEqual(bodies[0].overrides, [{ permission: 'ACCOUNT_MANAGE', effect: 'GRANT', scope: null }]);
 });
 
 test('lịch sử và quyền theo vai trò gọi đúng API; lỗi BE trả nguyên desc', async () => {

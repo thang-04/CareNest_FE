@@ -22,20 +22,7 @@ export const GENDER_LABELS = { MALE: 'Nam', FEMALE: 'Nữ', OTHER: 'Khác' };
 /** Profile fields a signed-in user may change; the rest is managed by the school (assumption, SRS silent). */
 export const EDITABLE_PROFILE_FIELDS = ['phone', 'dateOfBirth', 'gender', 'address'];
 
-/** Notification type prefix -> group shown on the detail page. */
-export const NOTIFICATION_GROUPS = [
-  { prefix: 'ACCOUNT_', label: 'Tài khoản' },
-  { prefix: 'TRANSFER_', label: 'Luân chuyển tài sản' },
-  { prefix: 'HANDOVER_', label: 'Luân chuyển tài sản' },
-  { prefix: 'DISCREPANCY_', label: 'Luân chuyển tài sản' },
-  { prefix: 'SUPPLEMENT_', label: 'Luân chuyển tài sản' },
-  { prefix: 'INSPECTION_', label: 'Kiểm kê tài sản' },
-  { prefix: 'REVISION_', label: 'Kế hoạch giáo dục' },
-  { prefix: 'PLAN_', label: 'Kế hoạch giáo dục' },
-];
-
-export const notificationGroupLabel = (type) =>
-  NOTIFICATION_GROUPS.find((g) => String(type || '').startsWith(g.prefix))?.label || 'Thông báo hệ thống';
+export { NOTIFICATION_GROUPS, notificationTypeLabel as notificationGroupLabel } from '@/utils/notificationLabel.mjs';
 
 /** Nhãn `staffRole` trong phân công (enum StaffRole của BE). */
 export const STAFF_ROLE_LABELS = {

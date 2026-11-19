@@ -22,7 +22,7 @@ export const ageTitle = (ageGroupName = '') => {
   return (inner || ageGroupName).replace(/\s*[–-]\s*/g, ' – ').toUpperCase();
 };
 
-const tick = (on) => (on ? 'x' : '');
+const tick = (on) => (on ? '✓' : '');
 
 /** HTML phiếu cuối năm: sheet = GET /assessment/evaluations/{id}/year-sheet, ev = đánh giá, child = trẻ, comment = Nhận xét. */
 /** Người ký mặc định: GV (ký bên phải, kèm ngày), BGH xác nhận (kí tên, đóng dấu); sửa / thêm ở hộp xem trước. */

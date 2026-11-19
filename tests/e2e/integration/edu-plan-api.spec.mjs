@@ -17,7 +17,8 @@ test.afterAll(() => {
   if (process.env.E2E_KEEP_DATA !== '1') cleanup();
 });
 
-test('IT-01 cấu hình kế hoạch: mọi vai trò đọc được, giáo viên không sửa được, Phó HT lưu lại được', async () => {
+// Tiền 11/11/2026: cấu hình kế hoạch chỉ Hiệu trưởng sửa; Phó HT không còn quyền
+test('IT-01 cấu hình kế hoạch: mọi vai trò đọc được, giáo viên và Phó HT không sửa được, Hiệu trưởng lưu lại được', async () => {
   const cfg = await api(USERS.teacher2, 'GET', '/education-plans/config');
   expect(cfg.status).toBe(200);
   expect(cfg.data.domains.length).toBeGreaterThan(0);
@@ -28,14 +29,15 @@ test('IT-01 cấu hình kế hoạch: mọi vai trò đọc được, giáo viê
     weekRows: cfg.data.weekRows,
   };
   expect((await api(USERS.teacher2, 'PUT', '/education-plans/config', { body })).status).toBe(403);
-  const saved = await api(USERS.vp, 'PUT', '/education-plans/config', { body });
+  expect((await api(USERS.vp, 'PUT', '/education-plans/config', { body })).status).toBe(403);
+  const saved = await api(USERS.principal, 'PUT', '/education-plans/config', { body });
   expect(saved.status).toBe(200);
   expect(saved.data.signers).toEqual(cfg.data.signers);
 });
 
 test('IT-02 giáo viên không phải Tổ trưởng không lập được kế hoạch năm', async () => {
   // teacher2 là Tổ trưởng 4–5 tuổi từ dữ liệu dev 10/11 (BE:docs/TAI_KHOAN_DEMO.md) ⇒ dùng GV thường teacher6
-  const res = await api('teacher6@gmail.com', 'POST', GOALS, {
+  const res = await api('teacher2', 'POST', GOALS, {
     body: await yearPlanBody(`${E2E.titlePrefix} không được tạo`),
     headers: editHeaders(newSession(), 0),
   });

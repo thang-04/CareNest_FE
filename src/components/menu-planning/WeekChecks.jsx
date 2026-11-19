@@ -94,19 +94,34 @@ export function WeekChecks({ wm, catalog, previousDays = [], allergyRows = [] })
           ) : (
             <>
               Phát hiện xung đột chế độ ăn. Hãy xem các trẻ bị ảnh hưởng và thực đơn thay thế:
-              <ul className="td-warn-list">
-                {allergyIssues.map((x) => (
-                  <li key={`${x.date}_${x.allergen}`}>
-                    {formatDate(x.date)}: <b>{x.allergen}</b> trong {x.dishes.join(', ')} – {x.ctx.childCount} trẻ (
-                    {x.ctx.classes.map((c) => `${c.className} ${md.campusById(c.campusId)?.code || ''}`).join(', ')}) –{' '}
-                    {x.covered ? (
-                      <span className="td-ok">đã có thực đơn thay thế</span>
-                    ) : (
-                      <span className="td-bad">chưa có thực đơn thay thế</span>
-                    )}
-                  </li>
-                ))}
-              </ul>
+              {/* Gom theo chất gây dị ứng: số trẻ, lớp hiện một lần; mỗi ngày một dòng */}
+              {[...new Set(allergyIssues.map((x) => x.allergen))].map((allergen) => {
+                const rows = allergyIssues.filter((x) => x.allergen === allergen);
+                const { ctx } = rows[0];
+                return (
+                  <div key={allergen} className="td-conflict">
+                    <div className="td-conflict__head">
+                      <span className="chip chip--red">
+                        {allergen} · {ctx.childCount} trẻ
+                      </span>
+                      <span className="text-xs muted">
+                        {ctx.classes.map((c) => `${c.className} ${md.campusById(c.campusId)?.code || ''}`.trim()).join(', ')}
+                      </span>
+                    </div>
+                    <ul className="td-conflict__days">
+                      {rows.map((x) => (
+                        <li key={x.date}>
+                          <span className="td-conflict__date">{formatDate(x.date)}</span>
+                          <span className="td-conflict__dishes">{x.dishes.join(', ')}</span>
+                          <span className={`chip ${x.covered ? 'chip--green' : 'chip--red'}`}>
+                            {x.covered ? 'Đã có suất thay thế' : 'Chưa có suất thay thế'}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })}
             </>
           )}
         </div>

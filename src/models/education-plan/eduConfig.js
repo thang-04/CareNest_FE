@@ -34,15 +34,19 @@ export const SIGN_DOCS = [
     label: 'Kế hoạch giáo dục tổ',
     hint: 'Tổ trưởng chuyên môn soạn; Phó Hiệu trưởng hoặc Hiệu trưởng duyệt ban hành.',
   },
-  { key: 'branch', label: 'Chủ đề nhánh và thời gian', hint: 'Giáo viên soạn, gửi; Tổ trưởng và Phó Hiệu trưởng duyệt theo thứ tự.' },
+  {
+    key: 'branch',
+    label: 'Chủ đề nhánh, kế hoạch chủ đề, kế hoạch tuần',
+    hint: 'Giáo viên soạn, gửi theo học kỳ (gói học kỳ); Tổ trưởng và Phó Hiệu trưởng duyệt theo thứ tự.',
+  },
   {
     key: 'theme',
-    label: 'Kế hoạch giáo dục chủ đề (kế hoạch chủ đề + giáo án các tuần)',
-    hint: 'Giáo viên soạn và gửi hồ sơ; Tổ trưởng và Phó Hiệu trưởng duyệt theo thứ tự; giáo án tuần duyệt cùng hồ sơ chủ đề.',
+    label: 'Kế hoạch giáo dục ngày',
+    hint: 'Giáo viên soạn, gửi theo chủ đề (hồ sơ chủ đề); Tổ trưởng và Phó Hiệu trưởng duyệt theo thứ tự.',
   },
   {
     key: 'week',
-    label: 'Kế hoạch giáo dục chủ đề (kế hoạch chủ đề + giáo án các nhánh)',
+    label: 'Kế hoạch tuần (cách duyệt cũ)',
     hint: 'Giáo viên gửi cả hồ sơ một lần (không ký); mỗi tuần duyệt riêng, người duyệt ký khung duyệt của tuần đó; kế hoạch chủ đề duyệt cùng tuần 1.',
   },
 ];
@@ -53,12 +57,12 @@ export const DEFAULT_WEEK_ROWS = [
   { key: 'the_duc', label: 'Thể dục sáng', canMerge: true, allWeek: true },
   { key: 'hoc', label: 'Hoạt động học', canMerge: false, allWeek: false },
   // extraLabel: dòng có thêm phần chung cả tuần dưới 5 ô ngày (mẫu Thái Dương: "Chơi tự do", "Chơi tự chọn", "Nêu gương")
-  { key: 'goc', label: 'Chơi, hoạt động ở các góc', canMerge: true, allWeek: true },
-  { key: 'ngoai_troi', label: 'Chơi, hoạt động ngoài trời', canMerge: false, allWeek: false, extraLabel: 'Chơi tự do (cả tuần)' },
+  { key: 'goc', label: 'Hoạt động góc', canMerge: true, allWeek: true },
+  { key: 'ngoai_troi', label: 'Hoạt động ngoài trời', canMerge: false, allWeek: false, extraLabel: 'Chơi tự do (cả tuần)' },
   { key: 'an_ngu', label: 'Ăn, ngủ', canMerge: true, allWeek: true },
   {
     key: 'chieu',
-    label: 'Chơi, hoạt động buổi chiều',
+    label: 'Hoạt động chiều',
     canMerge: false,
     allWeek: false,
     extraLabel: 'Chơi tự chọn; nêu gương cuối ngày (cả tuần)',
@@ -83,6 +87,21 @@ export const DEFAULT_EDU_CONFIG = {
   weekRows: DEFAULT_WEEK_ROWS,
 };
 
+export const DEFAULT_DURATION = { theme: { minWeeks: 2, maxWeeks: 4 }, branch: { minWeeks: 1, maxWeeks: 2 } };
+
+/**
+ * "Khôi phục mặc định" của trang Cấu hình (Tiền 11/11/2026): đưa thời lượng, tên lĩnh vực, lĩnh vực thêm, người tạo/duyệt và dòng
+ * kế hoạch tuần về mặc định; giữ số phiên bản và các cờ quyền BE trả. Chỉ đổi bản đang sửa, bấm Lưu mới ghi.
+ */
+export const resetEduConfig = (cfg) => ({
+  ...cfg,
+  domainLabels: { ...DEFAULT_EDU_CONFIG.domainLabels },
+  extraDomains: [],
+  workflowPolicy: structuredClone(DEFAULT_WORKFLOW_POLICY),
+  durationPolicy: { ...cfg.durationPolicy, ...structuredClone(DEFAULT_DURATION) },
+  weekRows: structuredClone(DEFAULT_WEEK_ROWS),
+});
+
 /** Cấu hình đầy đủ (bổ sung phần còn thiếu bằng mặc định). */
 export const withDefaults = (cfg) => ({
   domainLabels: { ...DEFAULT_EDU_CONFIG.domainLabels, ...(cfg?.domainLabels || {}) },
@@ -97,7 +116,7 @@ export const withDefaults = (cfg) => ({
     : DEFAULT_WORKFLOW_POLICY,
   durationPolicyAvailable: cfg?.durationPolicyAvailable ?? true,
   workflowRevision: cfg?.workflowRevision ?? 1,
-  durationPolicy: cfg?.durationPolicy || { revision: 1, theme: { minWeeks: 2, maxWeeks: 4 }, branch: { minWeeks: 1, maxWeeks: 2 } },
+  durationPolicy: cfg?.durationPolicy || { revision: 1, ...DEFAULT_DURATION },
   ...(cfg?.schoolYearCreationScopes ? { schoolYearCreationScopes: cfg.schoolYearCreationScopes } : {}),
   canConfigure: cfg?.canConfigure ?? false,
   ...(cfg?.yearCreationScopes ? { yearCreationScopes: cfg.yearCreationScopes } : {}),

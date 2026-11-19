@@ -236,13 +236,9 @@ export function DailyHealthPanel({
                     inputMode="decimal"
                     value={form.temperature}
                     placeholder="Ví dụ: 36,8"
-                    aria-describedby="health-temperature-help"
                     onChange={(event) => set('temperature', normalizeTemperatureInput(event.target.value))}
                   />
                 </FormField>
-                <p id="health-temperature-help" className="muted text-sm">
-                  Nhập 385 để điền 38.5°C; cũng có thể nhập 38.5 hoặc 38,5.
-                </p>
                 {temperatureLevel(form.temperature)?.chip && (
                   // Gợi ý mức theo khoảng đo; cô vẫn tự chọn quan sát và biểu hiện
                   <p className="text-sm" role="status">

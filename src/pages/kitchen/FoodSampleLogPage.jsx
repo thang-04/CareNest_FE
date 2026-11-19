@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useFoodSampleLog, useKitchenCampus } from '@/hooks/kitchen/useKitchen';
-import { Breadcrumb, EmptyState, ErrorState, LoadingState, Modal, PrintPaperFit, PrintToolbar } from '@/components';
+import { Breadcrumb, Button, EmptyState, ErrorState, LoadingState, Modal, PrintPaperFit, PrintToolbar, TextField } from '@/components';
 import { FoodSampleStatusBadge } from '@/components/kitchen/KitchenBadges';
 import { KbCampusFilter, KbDateFilter } from '@/components/kitchen/KitchenFilters';
 import { SampleBookPrint, SampleLabelsPrint } from '@/components/kitchen/FoodSamplePrint';
@@ -54,7 +54,7 @@ function MealCard({ meal, date, campusId, canEdit, onSaved }) {
   const Icon = meal.session === 'LUNCH' ? Sun : Sunset;
   const cell = (i, k, placeholder, cls = '') =>
     editing ? (
-      <input
+      <TextField
         className={`input ${cls} ${errors[`dishes.${i}.${k}`] ? 'input--error' : ''}`}
         value={dishes[i][k] || ''}
         placeholder={placeholder}
@@ -80,7 +80,7 @@ function MealCard({ meal, date, campusId, canEdit, onSaved }) {
           <span>
             Giờ lấy{' '}
             {editing ? (
-              <input
+              <TextField
                 type="time"
                 className={`input kb-kv__time ${errors.takenAt ? 'input--error' : ''}`}
                 value={takenAt}
@@ -136,18 +136,18 @@ function MealCard({ meal, date, campusId, canEdit, onSaved }) {
             {editing ? (
               <>
                 {meal.status !== 'TODO' && (
-                  <button type="button" className="btn btn--ghost" onClick={() => setEditing(false)}>
+                  <Button variant="ghost" onClick={() => setEditing(false)}>
                     Hủy sửa
-                  </button>
+                  </Button>
                 )}
-                <button type="button" className="btn btn--primary" disabled={saving} onClick={save}>
-                  {saving ? 'Đang lưu…' : 'Lưu mẫu'}
-                </button>
+                <Button variant="primary" loading={saving} onClick={save}>
+                  Lưu mẫu
+                </Button>
               </>
             ) : (
-              <button type="button" className="btn btn--ghost" onClick={() => setEditing(true)}>
-                <Pencil size={16} /> Sửa
-              </button>
+              <Button variant="ghost" icon={Pencil} onClick={() => setEditing(true)}>
+                Sửa
+              </Button>
             )}
           </div>
         )}
@@ -254,14 +254,9 @@ export default function FoodSampleLogPage() {
                         </small>
                       </div>
                       {data.canEdit ? (
-                        <button
-                          type="button"
-                          className="btn btn--sm"
-                          disabled={busy === `${p.date}|${p.session}`}
-                          onClick={() => destroy(p)}
-                        >
+                        <Button size="sm" loading={busy === `${p.date}|${p.session}`} onClick={() => destroy(p)}>
                           Ghi hủy
-                        </button>
+                        </Button>
                       ) : (
                         <FoodSampleStatusBadge status="PENDING_DESTROY" />
                       )}
@@ -278,17 +273,12 @@ export default function FoodSampleLogPage() {
               </h2>
             </div>
             <div className="card__body kb-stack kb-stack--tight">
-              <button
-                type="button"
-                className="btn btn--block"
-                disabled={!data?.meals.some((m) => m.takenAt)}
-                onClick={() => setPrinting('label')}
-              >
-                <Tag size={16} /> In nhãn Mẫu 4 (theo bữa)
-              </button>
-              <button type="button" className="btn btn--block" disabled={!data?.meals.length} onClick={() => setPrinting('book')}>
-                <FileText size={16} /> In sổ Mẫu 5 (cả ngày)
-              </button>
+              <Button variant="block" icon={Tag} disabled={!data?.meals.some((m) => m.takenAt)} onClick={() => setPrinting('label')}>
+                In nhãn Mẫu 4 (theo bữa)
+              </Button>
+              <Button variant="block" icon={FileText} disabled={!data?.meals.length} onClick={() => setPrinting('book')}>
+                In sổ Mẫu 5 (cả ngày)
+              </Button>
               <p className="text-xs muted">Theo QĐ 1246/QĐ-BYT. Ô ký để trống, ký tay sau khi in.</p>
             </div>
           </section>
@@ -303,7 +293,11 @@ export default function FoodSampleLogPage() {
           className="print-modal"
           title={printing === 'label' ? 'Nhãn mẫu thức ăn lưu (Mẫu 4)' : 'Sổ lưu và hủy mẫu (Mẫu 5)'}
           footer={
-            <PrintToolbar sheetRef={sheetRef} fileBase={`${printing === 'label' ? 'Nhan_mau_4' : 'So_mau_5'}_${date}`} printLabel="In" />
+            <PrintToolbar
+              sheetRef={sheetRef}
+              fileBase={`${printing === 'label' ? 'Nhan_mau_4' : 'So_mau_5'}_${date}`}
+              onClose={() => setPrinting(null)}
+            />
           }
         >
           <PrintPaperFit>

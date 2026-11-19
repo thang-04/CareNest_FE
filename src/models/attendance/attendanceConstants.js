@@ -64,6 +64,9 @@ export const orderSessions = (list) => {
 
 export const allMeals = (value, sessions = MEAL_SESSIONS) => Object.fromEntries(sessions.map((s) => [s, value]));
 
+// CHD-13: Có mặt ăn đủ bữa, trừ trẻ không báo ăn (thiếu cờ = báo ăn)
+export const mealsWhenPresent = (child, sessions = MEAL_SESSIONS) => allMeals(child?.mealRegistered !== false, sessions);
+
 /** Meals of a record limited to the class's sessions (records of meals the group no longer has are ignored). */
 export const mealsIn = (meals, sessions) => Object.fromEntries(sessions.map((s) => [s, !!meals?.[s]]));
 export const eatsAny = (meals, sessions) => sessions.some((s) => !!meals?.[s]);

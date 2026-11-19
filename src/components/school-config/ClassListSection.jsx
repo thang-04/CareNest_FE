@@ -145,7 +145,7 @@ export function ClassListSection({
     );
   };
 
-  // Hai ô giáo viên cố định (mỗi lớp 2 GV); ô trống là khung nét đứt nhẹ, không dùng màu cảnh báo
+  // Tối thiểu hai ô giáo viên (mỗi lớp 2–3 GV); ô trống là khung nét đứt nhẹ, không dùng màu cảnh báo
   const teacherCell = (c) => {
     const ids = [...c.teacherIds].sort((a, b) => (b === c.homeroomTeacherId) - (a === c.homeroomTeacherId));
     const slots = Array.from({ length: Math.max(TEACHERS_PER_CLASS, ids.length) }, (_, i) => ids[i] || null);

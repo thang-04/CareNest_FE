@@ -8,6 +8,7 @@ import { MEASUREMENT_ROUND, OPEN_CAMPAIGN, buildSeedHealthChecks } from '@/mocks
 import { pushNotification } from '@/mocks/notificationMockRepository';
 import { activatePendingGuardians, applyGuardianEdits, differsFromAccount } from '@/mocks/parentAccountMock';
 import { activeYearId } from '@/mocks/roomManagers';
+import { buildSeedSchoolConfig } from '@/mocks/schoolConfigSeed';
 import { schoolYearIdOfDate } from '@/mocks/schoolYearScope';
 import { AGE_GROUPS, CHILD_STATUS } from '@/models/School';
 import {
@@ -56,6 +57,14 @@ import {
   isPrincipal,
   isVicePrincipal,
 } from '@/utils/children/childrenPermissions';
+import {
+  isTrendStale,
+  normalizeTrendContent,
+  renderTrendSummary,
+  trendPeriodOf,
+  validateTrendContent,
+  withinTrendPeriod,
+} from '@/utils/children/healthTrend';
 import { conclusionBrief, screenMeasurement } from './healthScreeningRule';
 import {
   addDays,
@@ -478,6 +487,8 @@ const toView = (db, child, user) => {
   const showAccounts = canViewParentAccounts(user);
   return {
     ...clone(child),
+    // CHD-13: BE luôn trả boolean, trẻ chưa có cờ đọc là báo ăn.
+    mealRegistered: child.mealRegistered !== false,
     profile: child.profile ? clone(child.profile) : emptyChildProfile(),
     guardians: (child.guardians || []).map((g) => {
       const { smsStatus, smsAt, ...rest } = g;
@@ -623,7 +634,9 @@ const cleanMedicalHistory = (mh) => {
   };
 };
 
+// CHD-13: cờ Báo ăn do cleanDeclaration trả riêng; BE lưu trên hồ sơ trẻ, không lưu trong bản khai. Thiếu/null ⇒ báo ăn.
 const cleanDeclaration = (d) => ({
+  mealRegistered: d.mealRegistered !== false,
   allergies: {
     state: d.allergies.state,
     items: d.allergies.state === DECLARATION_STATE.REPORTED ? d.allergies.items.map((x) => x.trim()).filter(Boolean) : [],
@@ -718,11 +731,13 @@ const tbContactDateOf = (mh) => (tbReported(mh) ? mh.tbContact.contactDate || ''
  * Placement checks (UC 3.10 step 4): class of the VP's campus, active, not full; chỉ lớp của năm học đang hoạt động — xếp lớp
  * năm sau ở màn Xếp lớp năm học mới (user chốt 2026-10-28, Y-3).
  */
-const assertClassAvailable = (db, classId, user) => {
+// Kho trẻ chưa có danh sách năm học thì lấy theo seed cấu hình trường, như activeYearId
+const schoolYearOf = (db, id) => (db.schoolYears || buildSeedSchoolConfig().schoolYears).find((y) => y.id === id);
+
+const assertClassAvailable = (db, classId, user, schoolYearId = activeYearId(db)) => {
   const cls = db.classes.find((c) => c.id === classId);
   if (!cls || cls.status === 'INACTIVE') invalid({ classId: 'Lớp không tồn tại hoặc đã ngừng hoạt động' });
-  if (cls.schoolYear !== activeYearId(db))
-    invalid({ classId: 'Chỉ xếp vào lớp của năm học đang hoạt động. Xếp lớp cho năm học sau ở màn Xếp lớp năm học mới.' });
+  if (cls.schoolYear !== schoolYearId) invalid({ classId: 'Lớp không thuộc năm học tiếp nhận đã chọn' });
   if (!areaAllows(user, 'children', cls.campusId, true)) invalid({ classId: 'Chỉ xếp được vào lớp thuộc điểm trường bạn được giao' });
   if (activeCount(db, cls.id) >= cls.capacity) invalid({ classId: `${cls.name} đã đủ ${cls.capacity} trẻ. Chọn lớp khác.` });
   return cls;
@@ -788,7 +803,15 @@ const validateEnrollment = (db, { child, declaration }, excludeId) => {
 const prefix = (p, errors) => Object.fromEntries(Object.entries(errors).map(([k, v]) => [`${p}.${k}`, v]));
 
 const createChild = (db, { child, declaration }, { classId, campusId, user }) => {
-  const decl = cleanDeclaration(declaration);
+  const { mealRegistered, ...cleaned } = cleanDeclaration(declaration);
+  // CHD-13: không báo ăn ⇒ dị ứng, chế độ ăn lưu Chưa cung cấp.
+  const decl = mealRegistered
+    ? cleaned
+    : {
+        ...cleaned,
+        allergies: { state: DECLARATION_STATE.NOT_PROVIDED, items: [] },
+        diet: { state: DECLARATION_STATE.NOT_PROVIDED, text: '' },
+      };
   const record = {
     id: uid('ch'),
     code: nextCode(db),
@@ -800,6 +823,7 @@ const createChild = (db, { child, declaration }, { classId, campusId, user }) =>
     campusId,
     status: classId ? CHILD_STATUS.ACTIVE : CHILD_STATUS.PENDING_PLACEMENT,
     enrolledAt: todayInput(),
+    mealRegistered,
     // Người tiếp nhận chốt dị ứng ngay khi tiếp nhận, không chờ Hiệu trưởng duyệt (quyết định user 2026-10-14).
     allergies: [...decl.allergies.items],
     guardians: cleanGuardians(child.guardians),
@@ -994,11 +1018,13 @@ export const childrenMockRepository = {
   },
 
   /** Lớp để tiếp nhận, xếp lớp: chỉ lớp của năm học đang hoạt động (user chốt 2026-10-28, Y-3). */
-  async getPlacementClasses(_filters, user) {
+  async getPlacementClasses(filters, user) {
     await delay(100);
     if (!isVicePrincipal(user) && !isPrincipal(user)) forbid();
     const db = ensureSeeded();
-    const year = activeYearId(db);
+    const year = filters?.schoolYearId || activeYearId(db);
+    const schoolYear = schoolYearOf(db, year);
+    if (!schoolYear || !['ACTIVE', 'PLANNED'].includes(schoolYear.status)) return [];
     return db.classes
       .filter((c) => areaAllows(user, 'children', c.campusId, true) && c.status !== 'INACTIVE' && c.schoolYear === year)
       .map((c) => ({ ...clone(c), enrolledCount: activeCount(db, c.id) }));
@@ -1020,10 +1046,26 @@ export const childrenMockRepository = {
     resolved = { ...resolved, child: await prepareMockPortraits(resolved.child) };
     return writeDb((d) => {
       // Lớp không bắt buộc khi tiếp nhận; có lớp thì vẫn kiểm sức chứa và campus, trẻ thuộc điểm trường của lớp.
-      const cls = payload.classId ? assertClassAvailable(d, payload.classId, user) : null;
+      const targetYearId = payload.schoolYearId || activeYearId(d);
+      const targetYear = schoolYearOf(d, targetYearId);
+      const planned = targetYear?.status === 'PLANNED';
+      if (targetYearId !== activeYearId(d) && !planned) invalid({ schoolYearId: 'Năm học không nhận trẻ' });
+      const cls = payload.classId ? assertClassAvailable(d, payload.classId, user, targetYearId) : null;
       if (cls && payload.campusId && cls.campusId !== payload.campusId) invalid({ classId: 'Lớp không thuộc điểm trường đã chọn' });
       const campusId = cls?.campusId || enrollCampusOf(d, payload.campusId, user);
-      const record = createChild(d, resolved, { classId: cls?.id || null, campusId, user });
+      const record = createChild(d, resolved, { classId: planned ? null : cls?.id || null, campusId, user });
+      if (planned) {
+        d.plannedAdmissions ||= [];
+        d.plannedAdmissions.push({
+          id: uid('adm'),
+          childId: record.id,
+          schoolYearId: targetYearId,
+          campusId,
+          classId: cls?.id || null,
+          startDate: payload.startDate,
+          status: cls ? 'PLACED' : 'PENDING',
+        });
+      }
       // Tài khoản có sẵn: liên kết ngay khi lưu, không tạo tài khoản mới, không gửi mật khẩu (UC 3.9 nhánh đã có tài khoản).
       linkAccounts(d, record, guardians);
       // Thông tin sửa khác tài khoản có sẵn ⇒ tài khoản đổi theo; làm trước kích hoạt để phụ huynh đổi SĐT không bị coi là người mới.
@@ -1035,7 +1077,7 @@ export const childrenMockRepository = {
         : [];
       // Form tiếp nhận: tạo tài khoản cho phụ huynh chưa có và gửi SMS ngay; nhập Excel vẫn kích hoạt sau (user chốt 2026-10-28, L-14).
       const activated = manageAccounts ? activatePendingGuardians(d, record) : [];
-      if (cls) notifyClassTeachers(d, cls, record);
+      if (cls && !planned) notifyClassTeachers(d, cls, record);
       return { ...toView(d, record, user), guardianAccounts: guardianAccountsOf(record, activated, edited) };
     });
   },
@@ -1140,6 +1182,9 @@ export const childrenMockRepository = {
       const left = dup ? null : sameChildOf(db, r.payload.child, { left: true });
       if (left)
         notes.push(`Trẻ từng học ở trường (hồ sơ cũ ${left.code}, đã nghỉ học): nên mở lại hồ sơ cũ ở Tiếp nhận trẻ thay vì nhập mới.`);
+      // CHD-13: giống BE, báo cho người nhập biết ô Dị ứng, Chế độ ăn đã bị bỏ qua.
+      if (r.payload.declaration?.mealRegistered === false && (r.raw?.allergies || r.raw?.diet))
+        notes.push('Không báo ăn: bỏ qua cột Dị ứng, Chế độ ăn');
       const duplicateRow = batchDuplicateOf(seen, r.payload.child);
       if (duplicateRow) messages.push(`Trùng với dòng ${duplicateRow.rowNo} trong file`);
       seen.push({ child: r.payload.child, rowNo: r.rowNo });
@@ -1261,12 +1306,14 @@ export const childrenMockRepository = {
     if (current && !reason?.trim()) errors.reason = 'Nhập lý do thay đổi khai báo';
     if (hasErrors(errors)) invalid(errors);
     return writeDb((d) => {
-      const clean = cleanDeclaration(declaration);
+      const { mealRegistered, ...cleaned } = cleanDeclaration(declaration);
       let decl = declarationOf(d, childId);
       if (!decl) {
         decl = { childId, history: [] };
         d.healthDeclarations.push(decl);
       }
+      // CHD-13: bỏ báo ăn chỉ đổi cờ, giữ dị ứng và chế độ ăn đang lưu (báo ăn lại thì khai bình thường).
+      const clean = mealRegistered || !decl.allergies ? cleaned : { ...cleaned, allergies: clone(decl.allergies), diet: clone(decl.diet) };
       const allergyChanged = JSON.stringify(decl.allergies) !== JSON.stringify(clean.allergies);
       const entry = { action: 'UPDATED', userId: user.id, at: nowIso(), note: reason?.trim() || '' };
       if (allergyChanged) entry.allergyChange = { from: decl.allergies ? clone(decl.allergies) : null, to: clone(clean.allergies) };
@@ -1282,7 +1329,9 @@ export const childrenMockRepository = {
       if (newTbContact) notifyTbContactReported(d, target, user.id, dateChange.to);
       else notifyTbContactDateChanged(d, target, dateChange, user.id);
       // Khai báo của Phó hiệu trưởng có hiệu lực ngay: bếp và điểm danh đọc danh sách mới.
-      findChild(d, childId).allergies = [...clean.allergies.items];
+      const owner = findChild(d, childId);
+      owner.allergies = [...clean.allergies.items];
+      owner.mealRegistered = mealRegistered;
       return clone(decl);
     });
   },
@@ -1469,72 +1518,151 @@ export const childrenMockRepository = {
   },
 
   /* ------------------------------ #35 Health trend (AI) ------------------------------ */
-  async analyzeHealthTrend(childId, user) {
+  // BE giả của HealthTrendServiceImpl (HLT-02, HLT-05, HLT-21): mỗi lần phân tích lưu một bản nháp; nhân viên đọc bản mới nhất.
+  async analyzeHealthTrend(childId, period = 'ALL', user) {
     await delay(900);
     const db = ensureSeeded();
     const child = assertView(db, childId, user, canViewHealth);
-    const history = db.healthMeasurements
-      .filter((m) => m.childId === childId && !isExamDraft(m))
-      .sort((a, b) => a.date.localeCompare(b.date))
-      .map((m) => toMeasurementView(db, m));
-    if (history.length < 2) return { status: AI_TREND_STATUS.NOT_ENOUGH_DATA, warnings: [], summary: '' };
+    // HLT-21: chỉ lần đo trong khoảng đang chọn trên biểu đồ, tính lùi từ hôm nay
+    const history = withinTrendPeriod(trendHistory(db, childId), period);
+    if (history.length < 2)
+      return { status: AI_TREND_STATUS.NOT_ENOUGH_DATA, period, draft: false, stale: false, warnings: [], summary: '', content: null };
     // Demo: children whose code ends in 5 simulate an AI outage (MSG30 path).
     if (/5$/.test(child.code)) throw new ApiError(503, 'Không dùng được trợ lý AI. Bạn vẫn xem được số đo và kết luận khám.');
-    // GBR-AI-05: chỉ gửi mã nội bộ và số đo, không gửi tên/liên hệ. Không gửi phát triển, khám lâm sàng, kết luận
-    // để AI không viết lời chẩn đoán (HLT-04, user chốt 2026-10-17).
-    const aiInput = {
-      ref: child.code,
-      sex: child.gender,
-      points: history.map(({ date, heightCm, weightKg, headCircumferenceCm, bmi }) => ({
-        date,
-        heightCm,
-        weightKg,
-        headCircumferenceCm,
-        bmi,
-      })),
+    // GBR-AI-05: chỉ gửi số đo, không gửi tên/liên hệ/kết luận khám (HLT-04)
+    const { warnings, content } = fakeTrendModel(
+      history.map(({ date, heightCm, weightKg }) => ({ date, heightCm, weightKg })),
+      period,
+    );
+    const saved = {
+      id: uid('ai'),
+      childId,
+      period,
+      sourceMeasurementIds: history.map((m) => m.id),
+      status: 'DRAFT',
+      source: 'AI',
+      model: 'mock-trend',
+      warnings,
+      content,
+      summary: renderTrendSummary(content),
+      createdAt: nowIso(),
+      requestedBy: user.id,
+      approvedBy: null,
+      approvedAt: null,
     };
-    const result = fakeTrendModel(aiInput);
     writeDb((d) => {
-      d.healthTrendDrafts.push({
-        id: uid('ai'),
-        childId,
-        sourceMeasurementIds: history.map((m) => m.id),
-        ...result,
-        createdAt: nowIso(),
-        requestedBy: user.id,
-      });
+      d.healthTrendDrafts.push(saved);
     });
-    return { status: AI_TREND_STATUS.OK, draft: true, generatedAt: nowIso(), ...result };
+    return toTrendView(db, saved, false);
+  },
+
+  async getLatestHealthTrend(childId, user) {
+    await delay(150);
+    const db = ensureSeeded();
+    assertView(db, childId, user, canViewHealth);
+    const latest = latestTrend(db, childId);
+    return latest ? toTrendView(db, latest, trendStaleOf(db, latest)) : null;
+  },
+
+  async approveHealthTrend(childId, interpretationId, content, user) {
+    await delay(300);
+    const db = ensureSeeded();
+    const child = assertView(db, childId, user, canViewHealth);
+    // HLT-21: chỉ GV đang phân công lớp hiện tại của trẻ được sửa, duyệt (cùng điều kiện nhập số đo HLT-09)
+    if (!canRecordMeasurement(child, user, classOf(db, child)))
+      throw new ApiError(403, 'Chỉ giáo viên phụ trách lớp của trẻ được sửa và duyệt giải thích xu hướng');
+    const draft = (db.healthTrendDrafts || []).find((t) => t.id === interpretationId && t.childId === childId);
+    if (!draft) throw new ApiError(404, 'Không tìm thấy bản giải thích xu hướng sức khỏe');
+    if (draft.status === 'APPROVED') return toTrendView(db, draft, trendStaleOf(db, draft));
+    let patch = {};
+    if (content) {
+      const errors = validateTrendContent(content, draft.warnings);
+      if (Object.keys(errors).length) throw new ApiError(400, 'Dữ liệu không hợp lệ', errors);
+      const edited = normalizeTrendContent(content);
+      // AI-02: nhân sự sửa nội dung ⇒ chịu trách nhiệm nội dung (source HUMAN)
+      if (JSON.stringify(edited) !== JSON.stringify(draft.content))
+        patch = { content: edited, summary: renderTrendSummary(edited), source: 'HUMAN' };
+    }
+    let approved;
+    writeDb((d) => {
+      const target = d.healthTrendDrafts.find((t) => t.id === interpretationId);
+      Object.assign(target, patch, { status: 'APPROVED', approvedBy: user.id, approvedAt: nowIso() });
+      approved = { ...target };
+    });
+    return toTrendView(db, approved, trendStaleOf(db, approved));
   },
 };
 
-/** Fake AI: describes recorded changes only – no diagnosis, no treatment advice (GBR-AI-03). */
-const fakeTrendModel = ({ points }) => {
+const trendHistory = (db, childId) =>
+  db.healthMeasurements
+    .filter((m) => m.childId === childId && !isExamDraft(m))
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .map((m) => toMeasurementView(db, m));
+
+const latestTrend = (db, childId) =>
+  (db.healthTrendDrafts || [])
+    .filter((t) => t.childId === childId)
+    .reduce((latest, t) => (!latest || t.createdAt >= latest.createdAt ? t : latest), null);
+
+// HLT-21: đã có số đo công bố khác lúc phân tích ⇒ cần phân tích lại
+const trendStaleOf = (db, t) =>
+  isTrendStale(
+    t.sourceMeasurementIds,
+    withinTrendPeriod(trendHistory(db, t.childId), t.period || 'ALL').map((m) => m.id),
+  );
+
+/** Cùng shape HealthTrendAnalysisResponse của BE; bản lưu trước HLT-21 (không có content) giữ summary cũ. */
+const toTrendView = (db, t, stale) => ({
+  id: t.id,
+  status: AI_TREND_STATUS.OK,
+  period: t.period || 'ALL',
+  draft: t.status !== 'APPROVED',
+  stale,
+  generatedAt: t.createdAt,
+  summary: t.summary,
+  content: t.content || null,
+  warnings: t.warnings || [],
+  source: t.source || 'AI',
+  model: t.model || null,
+  approvedBy: t.approvedBy || null,
+  approvedByName: t.approvedBy ? userName(db, t.approvedBy) : null,
+  approvedAt: t.approvedAt || null,
+});
+
+/** Fake AI theo luật cảnh báo của BE (HLT-02): chỉ mô tả số đo, không chẩn đoán, không khuyên điều trị (HLT-04, HLT-21). */
+const fakeTrendModel = (points, period) => {
+  // HLT-21: tổng quan mở đầu bằng khoảng phân tích
+  const within = `Trong ${trendPeriodOf(period).phrase}`;
   const last = points[points.length - 1];
   const prev = points[points.length - 2];
   const num = (n) => n.toLocaleString('vi-VN', { maximumFractionDigits: 1 });
-  const months = Math.max(1, Math.round((new Date(last.date) - new Date(prev.date)) / (30.4 * 86400000)));
+  const days = Math.round((new Date(last.date) - new Date(prev.date)) / 86400000);
   const dw = Math.round((last.weightKg - prev.weightKg) * 10) / 10;
   const dh = Math.round((last.heightCm - prev.heightCm) * 10) / 10;
   const warnings = [];
-  if (dw < 0)
-    warnings.push({
-      level: 'warning',
-      text: `Cân nặng giảm ${num(Math.abs(dw))} kg so với lần đo trước (${months} tháng). Nên đo lại ở lần khám tiếp theo.`,
-    });
-  else if (dw / months < 0.1)
-    warnings.push({ level: 'warning', text: `Cân nặng tăng chậm: +${num(dw)} kg trong ${months} tháng. Nên tiếp tục theo dõi.` });
-  if (dh <= 0) warnings.push({ level: 'info', text: 'Chiều cao không thay đổi so với lần đo trước. Có thể kiểm tra lại cách đo.' });
-  if (last.headCircumferenceCm != null && prev.headCircumferenceCm != null && last.headCircumferenceCm < prev.headCircumferenceCm)
-    warnings.push({ level: 'info', text: 'Vòng đầu nhỏ hơn lần đo trước. Có thể kiểm tra lại cách đo ở lần khám tiếp theo.' });
-  if (last.bmi != null && prev.bmi != null && Math.abs(last.bmi - prev.bmi) >= 1.5)
-    warnings.push({
-      level: 'info',
-      text: `Chỉ số BMI thay đổi ${num(Math.abs(last.bmi - prev.bmi))} so với lần đo trước. Nên xem cùng tình trạng dinh dưỡng bác sĩ ghi ở lần khám.`,
-    });
-  const summary =
-    warnings.length === 0
-      ? `Chiều cao (+${num(dh)} cm) và cân nặng (+${num(dw)} kg) tăng đều qua ${points.length} lần đo, không thấy thay đổi bất thường.`
-      : `Có ${warnings.length} điểm cần chú ý trong ${points.length} lần đo gần đây.`;
-  return { summary, warnings };
+  if (dw <= -0.2)
+    warnings.push({ code: 'WEIGHT_DROP', level: 'warning', text: `Cân nặng giảm ${num(Math.abs(dw))} kg so với lần đo trước.` });
+  if (dh <= 0 && days >= 90)
+    warnings.push({ code: 'HEIGHT_STALL', level: 'warning', text: 'Chiều cao chưa tăng giữa hai lần đo gần nhất.' });
+  if (!warnings.length)
+    warnings.push({ code: 'NORMAL', level: 'info', text: 'Các chỉ số lần đo gần nhất nằm trong khoảng bình thường theo chuẩn WHO.' });
+  const alerts = warnings.filter((w) => w.code !== 'NORMAL');
+  const changes = [
+    Number.isFinite(dw) && `cân nặng ${dw >= 0 ? 'tăng' : 'giảm'} ${num(Math.abs(dw))} kg`,
+    Number.isFinite(dh) && `chiều cao tăng ${num(Math.max(dh, 0))} cm`,
+  ].filter(Boolean);
+  const content = {
+    overview: alerts.length
+      ? `${within}, có ${alerts.length} điểm cần chú ý trong ${points.length} lần đo.`
+      : // HLT-21: chỉ NORMAL mới viết "trẻ phát triển ổn định" kèm số liệu
+        `${within}, trẻ phát triển ổn định${changes.length ? `: so với lần đo trước, ${changes.join(', ')}` : ''}, các chỉ số trong khoảng chuẩn WHO.`,
+    attentionPoints: alerts.map((w) => ({ warningCode: w.code, text: w.text })),
+    positives: dh > 0 ? [`Chiều cao tăng ${num(dh)} cm so với lần đo trước.`] : [],
+    followUps: [
+      { type: 'RECHECK_NEXT_ROUND', text: 'Theo dõi tiếp ở kỳ cân đo sau.' },
+      ...(alerts.length ? [{ type: 'TALK_TO_PARENT', text: 'Trao đổi với phụ huynh về ăn uống, giấc ngủ ở nhà.' }] : []),
+    ],
+    limitations: points.length <= 2 ? 'Mới có 2 lần đo, xu hướng chưa chắc chắn.' : null,
+  };
+  return { warnings, content };
 };

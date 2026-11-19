@@ -124,9 +124,6 @@ export default function LeaveRequestsPage() {
           </button>
         )}
       </div>
-      <p className="page__subtitle">
-        Phụ huynh gửi và hủy đơn trên ứng dụng. Ngày có đơn tự ghi Vắng có phép; đơn gửi sau giờ chốt không đổi điểm danh ngày đó.
-      </p>
       <div className="card">
         <div className="filter-bar">
           <div className="field">

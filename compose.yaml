@@ -1,4 +1,4 @@
-# VPS: CI rsync source vào /data/thangnd/CAPSTONE/CareNest_FE rồi chạy `docker compose up -d --build`.
+# VPS: CI rsync source vào /data/thangnd/CAPSTONE/CareNest_FE rồi chạy deploy/remote-deploy.sh (build, up, tự rollback khi không trả 200).
 # Local (không dùng mạng host): `docker build -t carenest-web . && docker run --rm -p 3000:80 carenest-web` rồi mở http://localhost:3000.
 # Môi trường dev (nhánh dev): CI chạy với -p carenest-fe-dev và WEB_CONTAINER/WEB_IMAGE/WEB_LISTEN của dev (.github/workflows/deploy.yml).
 name: carenest-fe

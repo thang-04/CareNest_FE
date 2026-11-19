@@ -4,13 +4,35 @@
  */
 const stack = [];
 
+// Có lớp phủ đang mở thì khóa cuộn trang phía sau (chỉ cuộn trong modal); bù bề rộng thanh cuộn để trang không xô ngang.
+let restoreScroll = null;
+function syncPageScroll() {
+  if (typeof document === 'undefined') return;
+  if (stack.length > 0 && !restoreScroll) {
+    const { documentElement: html, body } = document;
+    const prev = { overflow: html.style.overflow, paddingRight: body.style.paddingRight };
+    const gap = window.innerWidth - html.clientWidth;
+    html.style.overflow = 'hidden';
+    if (gap > 0) body.style.paddingRight = `${gap}px`;
+    restoreScroll = () => {
+      html.style.overflow = prev.overflow;
+      body.style.paddingRight = prev.paddingRight;
+    };
+  } else if (stack.length === 0 && restoreScroll) {
+    restoreScroll();
+    restoreScroll = null;
+  }
+}
+
 export const modalStack = {
   push: (token) => {
     stack.push(token);
+    syncPageScroll();
   },
   remove: (token) => {
     const index = stack.lastIndexOf(token);
     if (index >= 0) stack.splice(index, 1);
+    syncPageScroll();
   },
   isTop: (token) => stack.length > 0 && stack[stack.length - 1] === token,
   size: () => stack.length,

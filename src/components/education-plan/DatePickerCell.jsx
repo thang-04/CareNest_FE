@@ -38,6 +38,8 @@ export default function DatePickerCell({
   max,
   disabled = false,
   compact = false,
+  // false: chỉ đổi ngày, không xóa trắng (vd. chủ đề nhánh: xóa ngày làm mất tên nhánh)
+  clearable = true,
 }) {
   const [open, setOpen] = useState(false);
   const [typeError, setTypeError] = useState(null);
@@ -210,7 +212,7 @@ export default function DatePickerCell({
                 <span className="ga-cal__swatch" />
                 Còn trống
               </span>
-              {value && (
+              {value && clearable && (
                 <button type="button" className="btn btn--sm btn--ghost" onClick={() => pick('')}>
                   Xóa ngày
                 </button>
