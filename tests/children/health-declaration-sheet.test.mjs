@@ -44,6 +44,13 @@ test('đầu thẻ: tên phần + thẻ trẻ; không có trẻ thì chỉ tên 
   assert.doesNotMatch(render(ChildCardHead, { title: 'Thông tin tiếp nhận' }), /tr-child-brief/);
 });
 
+test('màn khai báo: sửa dùng bảng (sheet) dưới đầu thẻ tên trẻ; lý do thay đổi vẫn là thẻ riêng', async () => {
+  const page = await read('src/pages/children/HealthDeclarationPage.jsx');
+  assert.match(page, /<ChildCardHead title="Báo ăn và sức khỏe" child=\{child\} \/>\s*<HealthDeclarationFields\s+sheet\b/);
+  assert.match(page, /<section className="card wizard-card">\s*<FormField label="Lý do thay đổi" required error=\{errors\.reason\}>/);
+  assert.match(page, /<h2 className="card__title">Báo ăn và sức khỏe<\/h2>\s*<ChildBrief child=\{child\} \/>/);
+});
+
 test('tiếp nhận: đầu thẻ bước dùng chung ChildCardHead, không còn bản sao thẻ trẻ', async () => {
   const page = await read('src/pages/children/EnrollChildPage.jsx');
   assert.match(page, /<ChildCardHead/);
