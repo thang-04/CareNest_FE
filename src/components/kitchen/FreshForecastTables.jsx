@@ -1,6 +1,7 @@
 import { ForecastDayPlanBadge } from '@/components/kitchen/KitchenBadges';
 import { dayShort } from '@/components/kitchen/ForecastBlocks';
 import { fmtQty } from '@/components/kitchen/KitchenFilters';
+import { DataTable } from '@/components';
 import { EmptyState } from '@/components/ui/States';
 import { TextField } from '@/components/form/Field';
 import { formatDate, formatWeekdayDate } from '@/utils/format';
@@ -96,6 +97,42 @@ export function ForecastDryCard({ forecast, className = '' }) {
       )}
     </section>
   );
+}
+
+/**
+ * Lượng hàng khô đặt cho kỳ (theo đơn vị mua). Khi lập: BE gợi ý bằng phần thiếu, PHT sửa được (0 = không đặt); bản đã lưu
+ * là số chụp dùng để in và đối chiếu lúc kiểm nhận hàng khô.
+ */
+export function ForecastDryOrderTable({ lines, editable, errors = {}, onChange }) {
+  const columns = [
+    { key: 'no', header: 'STT', className: 'num', render: (line) => lines.indexOf(line) + 1 },
+    { key: 'food', header: 'Thực phẩm', render: (line) => line.food.name },
+    {
+      key: 'qty',
+      header: 'Lượng đặt',
+      className: 'num',
+      render: (line) => {
+        const i = lines.indexOf(line);
+        if (!editable) return <span className="fw-600">{fmtQty(line.purchaseQuantity)}</span>;
+        return (
+          <>
+            <TextField
+              type="number"
+              min="0"
+              step="any"
+              className={`input kb-num ${errors[`dryOrder.${i}`] ? 'input--error' : ''}`}
+              value={line.purchaseQuantity}
+              onChange={(e) => onChange(i, e.target.value)}
+              aria-label={`Lượng đặt ${line.food.name}`}
+            />
+            {errors[`dryOrder.${i}`] && <div className="field__error">{errors[`dryOrder.${i}`]}</div>}
+          </>
+        );
+      },
+    },
+    { key: 'unit', header: 'Đơn vị', className: 'center', render: (line) => line.food.purchaseUnit },
+  ];
+  return <DataTable columns={columns} rows={lines} rowKey={(line) => line.food.id} />;
 }
 
 /** Thực phẩm cần đặt: tổng cả kỳ và từng ngày, theo đơn vị mua. Đầu cột ngày kèm tình trạng thực đơn của ngày đó. */

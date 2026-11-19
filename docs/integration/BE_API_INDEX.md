@@ -6,9 +6,9 @@ File sinh tự động từ `BE:docs/api/openapi.yaml`, không sửa tay. Sinh l
 - Path đã bỏ tiền tố `/api` (trùng baseURL của Web/App). File controller tính từ gốc repo `CareNest_BE`.
 - Request/response chi tiết: đọc method trong controller và DTO nó dùng; lỗi theo `BE:docs/contracts/ERROR_CONTRACT.md`.
 
-Nguồn: CareNest_BE docs/api/openapi.yaml tại commit e4d9f62f 2026-11-19
+Nguồn: CareNest_BE docs/api/openapi.yaml tại commit e4d9f62f + d2270e9d 2026-11-19
 
-Tổng: 395 endpoint.
+Tổng: 396 endpoint.
 
 ```text
 GET /accounts · src/main/java/com/carenest/controller/account/AccountController.java#searchAccounts
@@ -314,6 +314,7 @@ PATCH /nutrition/foods/{foodId}/status · src/main/java/com/carenest/controller/
 POST /nutrition/foods/import · src/main/java/com/carenest/controller/meals/NutritionFoodController.java#importFoods
 GET /nutrition/fresh-checks · src/main/java/com/carenest/controller/meals/FreshGoodsController.java#getChecks
 PUT /nutrition/fresh-checks · src/main/java/com/carenest/controller/meals/FreshGoodsController.java#recordCheck
+POST /nutrition/fresh-checks/dry-receipts · src/main/java/com/carenest/controller/meals/FreshGoodsController.java#recordDryIntake
 GET /nutrition/fresh-forecasts · src/main/java/com/carenest/controller/meals/FreshGoodsController.java#getForecasts
 POST /nutrition/fresh-forecasts · src/main/java/com/carenest/controller/meals/FreshGoodsController.java#createForecast
 DELETE /nutrition/fresh-forecasts/{forecastId} · src/main/java/com/carenest/controller/meals/FreshGoodsController.java#deleteForecast

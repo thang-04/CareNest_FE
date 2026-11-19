@@ -11,7 +11,12 @@ const text = (v) => (blank(v) ? '' : String(v).trim());
 const params = (obj) => Object.fromEntries(Object.entries(obj).filter(([, v]) => !blank(v)));
 
 const toLine = (line) => ({ ...line, purchaseQuantity: toPurchaseQuantity(line.quantity, line.food) });
-const toReceipt = (receipt) => ({ ...receipt, lines: (receipt.lines || []).map(toLine) });
+// Phiếu sinh từ kiểm nhận hàng khô có thêm dòng không đạt (không thành lô)
+export const toReceipt = (receipt) => ({
+  ...receipt,
+  lines: (receipt.lines || []).map(toLine),
+  rejectedLines: (receipt.rejectedLines || []).map(toLine),
+});
 const toLot = (lot) => ({
   ...lot,
   purchaseQuantity: toPurchaseQuantity(lot.quantity, lot.food),
