@@ -6,17 +6,78 @@ import { useToast } from '@/contexts/ToastContext';
 import { Button, ConfirmationModal, DataTable, ListPage, Modal, TextAreaField } from '@/components';
 import { DeclarationSummary } from '@/components/children/DeclarationSummary';
 import { ProfileChangeStatusBadge } from '@/components/children/ChildBadges';
-import { useProfileChanges } from '@/hooks/children/useChildRecords';
+import { useChildDetail, useProfileChanges } from '@/hooks/children/useChildRecords';
 import { approveProfileChange, rejectProfileChange } from '@/services/children/childrenService';
 import { PROFILE_CHANGE_KIND, PROFILE_CHANGE_KIND_LABELS } from '@/models/children/childrenConstants';
 import { GUARDIAN_RELATIONSHIP_LABELS } from '@/models/guardianRelationships';
 import { GENDER_LABELS } from '@/models/School';
+import { PREMATURE_LABELS, PROFILE_FIELD_LABELS, formatAddress } from '@/models/children/childProfile';
 import { formatDate, formatDateTime } from '@/utils/format';
 import { childrenCrumbs } from '@/utils/children/breadcrumbs';
 
 const MAX_NOTE = 500;
 
-/** Nội dung GV đề xuất (BE trả nguyên body đã gửi); người duyệt so với hồ sơ hiện tại qua link "Xem hồ sơ". */
+const guardiansText = (list) =>
+  (list || [])
+    .map((g) => [g.fullName, GUARDIAN_RELATIONSHIP_LABELS[g.relation] || g.relation, g.phone].filter(Boolean).join(' · '))
+    .join('\n');
+
+const textOf = (v) => (v === '' || v == null ? '' : String(v));
+
+/** Các dòng so sánh hồ sơ: [nhãn, giá trị chữ] cùng thứ tự cho hồ sơ hiện tại và bản đề xuất. */
+const profileRows = (child) => {
+  const p = child?.profile || {};
+  return [
+    ['Họ tên', textOf(child?.fullName)],
+    ['Ngày sinh', child?.dateOfBirth ? formatDate(child.dateOfBirth) : ''],
+    ['Giới tính', GENDER_LABELS[child?.gender] || ''],
+    [PROFILE_FIELD_LABELS.idNumber, textOf(p.idNumber)],
+    [PROFILE_FIELD_LABELS.premature, p.premature ? PREMATURE_LABELS[p.premature] : ''],
+    [PROFILE_FIELD_LABELS.gestationWeeks, p.gestationWeeks == null || p.gestationWeeks === '' ? '' : `${p.gestationWeeks} tuần`],
+    [PROFILE_FIELD_LABELS.ethnicity, textOf(p.ethnicity)],
+    [PROFILE_FIELD_LABELS.beneficiary, textOf(p.beneficiary)],
+    [PROFILE_FIELD_LABELS.bloodType, textOf(p.bloodType)],
+    [PROFILE_FIELD_LABELS.address, formatAddress(p.address)],
+    ['Người giám hộ', guardiansText(child?.guardians)],
+  ];
+};
+
+const cell = (v) => (v ? <span className="tr-proposal__text">{v}</span> : <span className="muted">Chưa cung cấp</span>);
+
+/** Hồ sơ đề xuất đặt cạnh hồ sơ hiện tại, tô dòng GV đổi để người duyệt thấy ngay. */
+function ProfileProposal({ request }) {
+  const body = request.profile || {};
+  const { detail, loading, error, reload } = useChildDetail(request.childId, { live: false });
+  const proposed = profileRows(body.child);
+  const current = detail ? profileRows(detail.child) : null;
+  const rows = proposed.map(([label, next], i) => {
+    const before = current ? current[i][1] : null;
+    return { id: label, label, before, next, changed: !!current && before !== next };
+  });
+  const changedCount = rows.filter((r) => r.changed).length;
+  const columns = [
+    { key: 'label', header: 'Mục', render: (r) => r.label },
+    { key: 'before', header: 'Hiện tại', render: (r) => (r.before === null ? <span className="muted">—</span> : cell(r.before)) },
+    {
+      key: 'next',
+      header: 'Đề xuất',
+      render: (r) => <span className={r.changed ? 'tr-proposal__changed' : undefined}>{cell(r.next)}</span>,
+    },
+  ];
+  return (
+    <>
+      {current && (
+        <p className="text-sm">
+          {changedCount ? `Giáo viên đổi ${changedCount} mục (tô vàng).` : 'Đề xuất không đổi mục nào so với hồ sơ hiện tại.'}
+        </p>
+      )}
+      <DataTable columns={columns} rows={rows} loading={loading} error={error} onRetry={reload} />
+      <p className="mt-16">Lý do: {body.reason || '—'}</p>
+    </>
+  );
+}
+
+/** Nội dung GV đề xuất (BE trả nguyên body đã gửi). */
 function ProposalDetail({ request }) {
   if (request.kind === PROFILE_CHANGE_KIND.HEALTH_DECLARATION) {
     const body = request.declaration || {};
@@ -27,28 +88,7 @@ function ProposalDetail({ request }) {
       </>
     );
   }
-  const body = request.profile || {};
-  const child = body.child || {};
-  return (
-    <dl className="tr-proposal">
-      <dt>Họ tên</dt>
-      <dd>{child.fullName}</dd>
-      <dt>Ngày sinh</dt>
-      <dd>{child.dateOfBirth ? formatDate(child.dateOfBirth) : '—'}</dd>
-      <dt>Giới tính</dt>
-      <dd>{GENDER_LABELS[child.gender] || '—'}</dd>
-      <dt>Người giám hộ</dt>
-      <dd>
-        {(child.guardians || []).map((g) => (
-          <div key={`${g.fullName}-${g.phone}`}>
-            {g.fullName} · {GUARDIAN_RELATIONSHIP_LABELS[g.relation] || g.relation} · {g.phone}
-          </div>
-        ))}
-      </dd>
-      <dt>Lý do</dt>
-      <dd>{body.reason || '—'}</dd>
-    </dl>
-  );
+  return <ProfileProposal request={request} />;
 }
 
 /** BE:CHD-11 — HT, PHT điểm trường duyệt/từ chối yêu cầu sửa hồ sơ, khai báo sức khỏe do GV gửi. */
@@ -104,8 +144,16 @@ export default function ProfileChangeReviewPage() {
 
   const columns = [
     { key: 'stt', header: 'STT', className: 'center', render: (r) => requests.indexOf(r) + 1 },
-    { key: 'child', header: 'Trẻ', render: (r) => `${r.childName} · ${r.childCode}` },
-    { key: 'class', header: 'Lớp', render: (r) => r.className || '—' },
+    {
+      key: 'child',
+      header: 'Trẻ',
+      render: (r) => (
+        <>
+          <strong>{r.childName}</strong>
+          <div className="text-sm muted">{[r.childCode, r.className].filter(Boolean).join(' · ')}</div>
+        </>
+      ),
+    },
     { key: 'kind', header: 'Nội dung', render: (r) => PROFILE_CHANGE_KIND_LABELS[r.kind] },
     { key: 'by', header: 'Giáo viên gửi', render: (r) => r.requestedByName || '—' },
     { key: 'at', header: 'Lúc gửi', render: (r) => formatDateTime(r.requestedAt) },
