@@ -7,10 +7,10 @@ import { PageHeader } from './PageHeader';
  *   <DataTable … />
  * </ListPage>
  */
-export function ListPage({ crumbs, title, subtitle, actions, filters, children }) {
+export function ListPage({ crumbs, title, subtitle, actions, filters, readOnly = false, children }) {
   return (
     <div className="page">
-      <PageHeader crumbs={crumbs} title={title} subtitle={subtitle} actions={actions} />
+      <PageHeader crumbs={crumbs} title={title} subtitle={subtitle} actions={actions} readOnly={readOnly} />
       <section className="card">
         {filters}
         {children}
