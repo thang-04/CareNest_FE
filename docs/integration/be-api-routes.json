@@ -309,6 +309,7 @@
     "POST /nutrition/food-samples/{x}/dispose",
     "POST /nutrition/foods",
     "POST /nutrition/foods/import",
+    "POST /nutrition/fresh-checks/dry-receipts",
     "POST /nutrition/fresh-forecasts",
     "POST /nutrition/fresh-forecasts/preview",
     "POST /nutrition/meal-photos",

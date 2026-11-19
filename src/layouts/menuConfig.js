@@ -375,7 +375,7 @@ const ITEMS = {
     to: '/kitchen/dry-stock',
   },
   freshReceipts: {
-    label: 'Kiểm nhận hàng tươi',
+    label: 'Kiểm nhận hàng hôm nay',
     to: '/kitchen/fresh-receipts',
   },
   inspections: {

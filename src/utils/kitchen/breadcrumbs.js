@@ -16,7 +16,7 @@ export const KITCHEN_PAGES = {
   mealCount: { label: 'Sổ suất ăn đã xác nhận', to: '/kitchen/meal-count' },
   forecast: { label: 'Bản dự trù', to: '/kitchen/forecast' },
   dayMarket: { label: 'Đi chợ theo ngày', to: '/kitchen/market-day' },
-  freshReceipts: { label: 'Kiểm nhận hàng tươi', to: '/kitchen/fresh-receipts' },
+  freshReceipts: { label: 'Kiểm nhận hàng hôm nay', to: '/kitchen/fresh-receipts' },
   foodSamples: { label: 'Sổ lưu mẫu thức ăn', to: '/kitchen/food-samples' },
 };
 
