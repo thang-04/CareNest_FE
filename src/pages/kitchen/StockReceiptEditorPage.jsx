@@ -21,7 +21,14 @@ import { useActiveSuppliers, useDryFoods, useReceipt, useStockCampus } from '@/h
 import { canManageStockAt } from '@/utils/kitchen/kitchenPermissions';
 import { dryStockApi } from '@/services/dryStockApi';
 import { RECEIPT_STATUS, NOTE_MAX } from '@/models/kitchen/kitchenConstants';
-import { emptyLine, emptyReceiptForm, mapReceiptErrors, receiptToForm, validateReceiptForm } from '@/utils/kitchen/stockReceiptForm';
+import {
+  emptyLine,
+  emptyReceiptForm,
+  mapReceiptErrors,
+  receiptNoteError,
+  receiptToForm,
+  validateReceiptForm,
+} from '@/utils/kitchen/stockReceiptForm';
 import { RECEIPT_IMPORT_COLUMNS, readReceiptFile } from '@/utils/kitchen/stockReceiptImport';
 import { downloadCsv } from '@/utils/exportCsv';
 import { personName } from '@/utils/kitchen/stockLots';
@@ -336,8 +343,16 @@ export default function StockReceiptEditorPage() {
               <FormField label="Ngày nhập kho" required error={errors.receivedDate}>
                 <DateInput value={form.receivedDate} disabled={!editable} onChange={(v) => setField('receivedDate', v)} />
               </FormField>
-              <FormField label="Ghi chú" error={errors.note} hint={`Tối đa ${NOTE_MAX} ký tự`}>
-                <TextField className="input" value={form.note} maxLength={NOTE_MAX} onChange={(e) => setField('note', e.target.value)} />
+              <FormField label="Ghi chú" error={errors.note} hint={`${(form.note || '').length}/${NOTE_MAX} ký tự`}>
+                <TextField
+                  className="input"
+                  value={form.note}
+                  onChange={(e) => {
+                    setField('note', e.target.value);
+                    // Không dùng maxLength: dán quá dài sẽ bị cắt ngầm; giữ nguyên nội dung và báo lỗi ngay
+                    setErrors((prev) => ({ ...prev, note: receiptNoteError(e.target.value) }));
+                  }}
+                />
               </FormField>
             </div>
           </div>
