@@ -65,7 +65,7 @@ function VersionHistory({ versions, today }) {
 export default function NutritionSetupPage() {
   const { user } = useAuth();
   const toast = useToast();
-  // Danh mục nối BE ⇒ quyền sửa theo NUTRITION_MANAGE (HT có sẵn, PHT khi được cấp), như Thực phẩm, Món
+  // Nối BE ⇒ quyền sửa theo MEAL_CONFIG_MANAGE (chỉ HT, NUT-17); PHT chỉ xem
   const access = useCatalogAccess();
   const { items, loading, error, reload } = useNutritionSetups();
   const today = todayInput();
@@ -78,7 +78,7 @@ export default function NutritionSetupPage() {
   const [historyOf, setHistoryOf] = useState(null);
   const [basisOpen, setBasisOpen] = useState(false);
   const [groupKey, setGroupKey] = useState(null);
-  const canEdit = access.canManage;
+  const canEdit = access.canConfigureMeals;
   // Nối BE: mỗi nhóm tuổi có các bản cấu hình theo ngày hiệu lực; bữa ăn chỉnh ở Cấu hình trường; không có bật/tắt nhóm
   const usesApi = catalogUsesApi();
   const tomorrow = addDays(today, 1);

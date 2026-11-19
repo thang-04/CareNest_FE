@@ -26,13 +26,19 @@ const account = (userId, role, campusId) => ({
   status: 'ACTIVE',
   activeAssignments: campusId ? [{ staffRole: role, campusId, classroomId: null, ageGroupId: null }] : [],
 });
+// Phân công GV lớp: BE trả classroomId, campusId rỗng
+const classTeacher = (userId, classroomId) => ({
+  ...account(userId, 'TEACHER', null),
+  activeAssignments: [{ staffRole: 'TEACHER', campusId: null, classroomId, ageGroupId: null }],
+});
 const ACCOUNTS = {
   VICE_PRINCIPAL: [[account(2, 'VICE_PRINCIPAL', 1)]],
-  TEACHER: [[account(3, 'TEACHER', 2)], [account(4, 'TEACHER', null)]],
+  TEACHER: [[account(3, 'TEACHER', 2)], [account(4, 'TEACHER', null)], [classTeacher(5, 7)]],
 };
 const OVERRIDES = {
   2: [{ permission: 'MEAL_COUNT_CONFIRM', effect: 'GRANT', scope: 'SCHOOL', reason: 'Trực cả trường', updatedBy: 1, updatedAt: '2026-10-30T02:00:00Z' }],
   3: [],
+  5: [],
   4: [{ permission: 'CHILD_PROFILE_VIEW', effect: 'REVOKE', scope: null, reason: 'Tạm nghỉ', updatedBy: 1, updatedAt: '2026-10-30T02:00:00Z' }],
 };
 const overridesView = (userId) => ({ userId, roles: [], configurablePermissions: [], overrides: OVERRIDES[userId], effectivePermissions: [] });
@@ -60,6 +66,7 @@ beforeEach(() => {
     if (config.data) bodies.push(JSON.parse(config.data));
     if (config.url === '/permissions') return envelope(config, BE_CATALOG);
     if (config.url === '/campuses/options') return envelope(config, [{ id: 1, code: 'CS1', name: 'Điểm trường 1' }, { id: 2, code: 'CS2', name: 'Điểm trường 2' }]);
+    if (config.url === '/classrooms') return envelope(config, config.params.campusId === 2 ? [{ id: 7, campusId: 2, name: 'Lớp Chồi 1' }] : []);
     if (config.url === '/accounts') {
       const pages = ACCOUNTS[config.params.role];
       return envelope(config, { items: pages[config.params.page], page: config.params.page, size: 100, totalElements: 0, totalPages: pages.length });
@@ -89,7 +96,7 @@ test('catalog BE thiếu feature/action/requires ⇒ gom theo nhóm FE, nhãn nh
 test('danh sách nhân sự: đọc đủ các trang /accounts theo vai trò, SĐT từ username, tên điểm trường từ options', async () => {
   const { items } = await permissionApi.getPermissionStaff();
 
-  assert.deepEqual(items.map((s) => s.userId), [2, 3, 4]);
+  assert.deepEqual(items.map((s) => s.userId), [2, 3, 4, 5]);
   assert.deepEqual(items[0], {
     userId: 2,
     fullName: 'Nhân sự demo 2',
@@ -97,8 +104,10 @@ test('danh sách nhân sự: đọc đủ các trang /accounts theo vai trò, S�
     phone: '090000002',
     status: 'ACTIVE',
     campusName: 'Điểm trường 1',
+    className: null,
   });
   assert.equal(items[2].campusName, null);
+  assert.deepEqual([items[3].className, items[3].campusName], ['Lớp Chồi 1', 'Điểm trường 2']);
   assert.ok(calls.includes('GET /accounts?role=TEACHER&page=1&size=100'));
 });
 

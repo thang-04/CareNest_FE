@@ -7,7 +7,7 @@ import { Breadcrumb, ErrorState, LoadingState } from '@/components';
 import { FormField } from '@/components/form/FormField';
 import { SearchSelect } from '@/components/ui/SearchSelect';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
-import { RecordStatusBadge } from '@/components/menu-planning/MenuBadges';
+import { NoManageAccess, RecordStatusBadge } from '@/components/menu-planning/MenuBadges';
 import { TemplateMealSection } from '@/components/menu-planning/TemplateMealSection';
 import { AddDishesModal } from '@/components/menu-planning/AddDishesModal';
 import { MealNutritionCard } from '@/components/menu-planning/MealNutritionCard';
@@ -156,6 +156,8 @@ export default function MenuTemplateEditorPage() {
   const body = () => {
     if (id && error) return <ErrorState error={error} onRetry={reload} />;
     if (id && (loading || !data)) return <LoadingState />;
+    // Tạo mẫu cần MENU_MANAGE: thiếu quyền thì báo như màn thêm thực phẩm, không mở form trống
+    if (!id && !canCreate) return <NoManageAccess />;
     return (
       <div className="td-tpl-editor">
         <section className="card">

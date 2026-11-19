@@ -37,6 +37,8 @@ const estimate = (line) => {
  * Phiếu nhập kho khô (`/kitchen/stock-receipts/new`, `/:id`): lập và sửa phiếu nháp, xác nhận nhập kho, hủy phiếu đã xác nhận (có lý do),
  * xóa phiếu nháp. Số lượng nhập theo đơn vị mua, gửi BE theo đơn vị gốc. Nút theo cờ `canManage` BE trả; BE vẫn là nơi kiểm tra.
  */
+const CANCEL_BLOCKED = 'Không hủy được vì thực phẩm của phiếu đã được xuất dùng.';
+
 export default function StockReceiptEditorPage() {
   const { id } = useParams();
   const isNew = !id;
@@ -247,7 +249,14 @@ export default function StockReceiptEditorPage() {
             </div>
           )}
           {receipt?.status === RECEIPT_STATUS.CONFIRMED && receipt.canManage && (
-            <button type="button" className="btn btn--danger" onClick={() => openDialog('cancel')}>
+            // NUT-11: hủy được khi chưa lô nào bị trừ; BE trả canCancel, bản demo không có cờ thì giữ nút
+            <button
+              type="button"
+              className="btn btn--danger"
+              disabled={receipt.canCancel === false}
+              title={receipt.canCancel === false ? CANCEL_BLOCKED : undefined}
+              onClick={() => openDialog('cancel')}
+            >
               <XCircle size={16} /> Hủy phiếu
             </button>
           )}
@@ -261,6 +270,7 @@ export default function StockReceiptEditorPage() {
           <p className="text-sm muted mb-16">
             Đã xác nhận nhập kho{personName(receipt.confirmedBy) ? ` bởi ${personName(receipt.confirmedBy)}` : ''}
             {receipt.confirmedAt ? ` lúc ${formatDateTime(receipt.confirmedAt)}` : ''}. Phiếu không sửa được.
+            {receipt.canManage && receipt.canCancel === false && <> {CANCEL_BLOCKED}</>}
           </p>
         )}
         {receipt?.status === RECEIPT_STATUS.CANCELLED && (
@@ -304,7 +314,7 @@ export default function StockReceiptEditorPage() {
                 />
               </FormField>
               <FormField label="Ngày nhập kho" required error={errors.receivedDate}>
-                <DateInput value={form.receivedDate} onChange={(v) => setField('receivedDate', v)} />
+                <DateInput value={form.receivedDate} disabled={!editable} onChange={(v) => setField('receivedDate', v)} />
               </FormField>
               <FormField label="Ghi chú" error={errors.note} hint={`Tối đa ${NOTE_MAX} ký tự`}>
                 <input className="input" value={form.note} maxLength={NOTE_MAX} onChange={(e) => setField('note', e.target.value)} />
