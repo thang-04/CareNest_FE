@@ -68,7 +68,7 @@ function PreviewTable({ title, head, rows }) {
 export function YearSetupImportPanel({ open, mode, yearId, onClose }) {
   const { user } = useAuth();
   const toast = useToast();
-  const md = useMasterData();
+  const md = useMasterData(yearId);
   const cfg = MODES[mode] || MODES.rooms;
   const [fileName, setFileName] = useState('');
   const [result, setResult] = useState(null);
@@ -151,7 +151,7 @@ export function YearSetupImportPanel({ open, mode, yearId, onClose }) {
       const idOf = {};
       for (const r of result.rooms) {
         try {
-          const res = await saveRoom(r.id, r.form, user);
+          const res = await saveRoom(r.id, r.form, user, yearId);
           idOf[r.key] = res?.id;
           saved += 1;
         } catch (err) {

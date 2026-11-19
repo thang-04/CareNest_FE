@@ -52,3 +52,18 @@ test('Sức khỏe trong ngày: ô điểm trường theo năm đang chọn, PHT
   assert.match(page, /yearCampuses \? \{ \.\.\.baseMd, campuses: yearCampuses \} : baseMd/);
   assert.match(page, /user\?\.role === ROLES\.PRINCIPAL \|\| \(yearCampuses\?\.length \|\| 0\) > 1/);
 });
+
+test('Thiết lập năm học: chép ngày nghỉ lễ và giờ đến muộn nhất, báo số đợt nghỉ đã chép', async () => {
+  const { COPY_PARTS, copySummary } = await import('@/utils/school-config/yearSetup');
+  assert.ok(COPY_PARTS.some((p) => p.key === 'HOLIDAYS'));
+  assert.match(COPY_PARTS.find((p) => p.key === 'CUTOFF').label, /giờ đến muộn nhất/);
+  assert.equal(copySummary({ copiedClasses: [], holidays: 3 }), '3 đợt nghỉ lễ');
+});
+
+test('Cấu hình theo năm: lưu nhóm tuổi, phòng, trạng thái điểm trường gửi năm học đang chọn', () => {
+  const api = readFileSync('src/services/school-config/api/schoolConfigApi.js', 'utf8');
+  assert.match(api, /axiosClient\.put\(`\/age-groups\/\$\{id\}`, form, \{ params: \{ schoolYearId \} \}\)/);
+  assert.match(api, /patch\(`\/campuses\/\$\{id\}\/status`, \{ status \}, \{ params: \{ schoolYearId \} \}\)/);
+  const md = readFileSync('src/services/masterDataService.js', 'utf8');
+  assert.match(md, /axiosClient\.put\(`\/locations\/\$\{id\}`, form, \{ params: \{ schoolYearId \} \}\)/);
+});

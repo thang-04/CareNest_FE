@@ -54,7 +54,7 @@ export default function CampusListPage() {
   const confirmStatus = async () => {
     try {
       const next = pending.status === 'INACTIVE' ? 'ACTIVE' : 'INACTIVE';
-      await setCampusStatus(pending.id, next, user);
+      await setCampusStatus(pending.id, next, user, schoolYear);
       toast.success(next === 'INACTIVE' ? `Đã ngừng hoạt động ${pending.shortName}` : `${pending.shortName} đã hoạt động lại`);
       setPending(null);
       setPendingError('');

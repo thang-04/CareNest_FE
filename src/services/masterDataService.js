@@ -7,8 +7,8 @@ import { masterDataMockRepository } from '@/mocks/masterDataMockRepository';
 
 /** Master data shared by every module: campuses, locations, users. */
 const api = {
-  getCampuses: () => axiosClient.get('/campuses'),
-  getLocations: () => axiosClient.get('/locations'),
+  getCampuses: (schoolYearId) => axiosClient.get('/campuses', { params: { schoolYearId: schoolYearId || undefined } }),
+  getLocations: (schoolYearId) => axiosClient.get('/locations', { params: { schoolYearId: schoolYearId || undefined } }),
   getUsers: () => axiosClient.get('/users'),
   // PENDING BE: quản lý phòng học (đề xuất 10/10/2026, ngoài SRS)
   getRooms: (filters) =>
@@ -18,13 +18,20 @@ const api = {
         withUsage: true,
       },
     }),
-  saveRoom: (id, form) => (id ? axiosClient.put(`/locations/${id}`, form) : axiosClient.post('/locations', form)),
-  setRoomStatus: (id, status) =>
-    axiosClient.patch(`/locations/${id}/status`, {
-      status,
-    }),
+  saveRoom: (id, form, _user, schoolYearId) =>
+    id
+      ? axiosClient.put(`/locations/${id}`, form, { params: { schoolYearId } })
+      : axiosClient.post('/locations', form, { params: { schoolYearId } }),
+  setRoomStatus: (id, status, _user, schoolYearId) =>
+    axiosClient.patch(
+      `/locations/${id}/status`,
+      {
+        status,
+      },
+      { params: { schoolYearId } },
+    ),
   // BE xóa mềm (status DELETED), giữ bản ghi cho lịch sử
-  deleteRoom: (id) => axiosClient.delete(`/locations/${id}`),
+  deleteRoom: (id, _user, schoolYearId) => axiosClient.delete(`/locations/${id}`, { params: { schoolYearId } }),
 };
 const repo = sourceOf('master-data', masterDataMockRepository, api);
 // BE chưa có GET /users ⇒ danh bạ người dùng lấy dữ liệu demo
@@ -37,12 +44,19 @@ const roomsRepo = SCHOOL_CONFIG_API
         beClient.get('/locations', {
           params: filters,
         }),
-      saveRoom: (id, form) => (id ? beClient.put(`/locations/${id}`, form) : beClient.post('/locations', form)),
-      setRoomStatus: (id, status) =>
-        beClient.patch(`/locations/${id}/status`, {
-          status,
-        }),
-      deleteRoom: (id) => beClient.delete(`/locations/${id}`),
+      saveRoom: (id, form, _user, schoolYearId) =>
+        id
+          ? beClient.put(`/locations/${id}`, form, { params: { schoolYearId } })
+          : beClient.post('/locations', form, { params: { schoolYearId } }),
+      setRoomStatus: (id, status, _user, schoolYearId) =>
+        beClient.patch(
+          `/locations/${id}/status`,
+          {
+            status,
+          },
+          { params: { schoolYearId } },
+        ),
+      deleteRoom: (id, _user, schoolYearId) => beClient.delete(`/locations/${id}`, { params: { schoolYearId } }),
     }
   : repo;
 
@@ -56,17 +70,17 @@ const readOrg = (user, fromBe, fromRepo) => {
   if (readsOrgFromBe(user)) return SCHOOL_CONFIG_API ? fromBe() : fromRepo();
   return isDemoModule('master-data') ? fromRepo() : Promise.resolve([]);
 };
-export const getCampuses = (user) =>
+export const getCampuses = (user, schoolYearId) =>
   readOrg(
     user,
-    () => beClient.get('/campuses'),
-    () => repo.getCampuses(),
+    () => beClient.get('/campuses', { params: { schoolYearId: schoolYearId || undefined } }),
+    () => repo.getCampuses(schoolYearId),
   );
-export const getLocations = (user) =>
+export const getLocations = (user, schoolYearId) =>
   readOrg(
     user,
-    () => beClient.get('/locations'),
-    () => repo.getLocations(),
+    () => beClient.get('/locations', { params: { schoolYearId: schoolYearId || undefined } }),
+    () => repo.getLocations(schoolYearId),
   );
 // Năm để đọc danh sách GV: năm đang hoạt động, chưa có thì năm sắp tới (BE không nhận năm nào ⇒ 404 khi chưa kích hoạt)
 const teacherListYear = (years) =>
@@ -110,6 +124,6 @@ export const getUsers = (user) =>
 
 /** Rooms (= locations) management, Principal only. */
 export const getRooms = (filters, user) => roomsRepo.getRooms(filters, user);
-export const saveRoom = (id, form, user) => roomsRepo.saveRoom(id, form, user);
-export const setRoomStatus = (id, status, user) => roomsRepo.setRoomStatus(id, status, user);
-export const deleteRoom = (id, user) => roomsRepo.deleteRoom(id, user);
+export const saveRoom = (id, form, user, schoolYearId) => roomsRepo.saveRoom(id, form, user, schoolYearId);
+export const setRoomStatus = (id, status, user, schoolYearId) => roomsRepo.setRoomStatus(id, status, user, schoolYearId);
+export const deleteRoom = (id, user, schoolYearId) => roomsRepo.deleteRoom(id, user, schoolYearId);
