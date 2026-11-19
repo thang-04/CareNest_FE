@@ -233,7 +233,7 @@ test('ghi nhận một lần kiểm: PUT kèm campusId, date, round; thực nh�
     note: ' Giao đúng giờ ',
     lines: [
       { foodId: '7', receivedQty: '', result: 'ENOUGH', note: '' },
-      { foodId: '8', receivedQty: '18.5', result: 'OVER', note: ' Dư 1 quả ' },
+      { foodId: '8', receivedQty: '18.5', result: 'OVER', note: ' Dư 1 quả ', supplierId: '3' },
     ],
   };
   await api.saveCheckRound({ campusId: '1', date: '2026-11-03', round: 1, form, lines });
@@ -243,8 +243,8 @@ test('ghi nhận một lần kiểm: PUT kèm campusId, date, round; thực nh�
   assert.deepEqual(put.body, {
     note: 'Giao đúng giờ',
     lines: [
-      { foodId: '7', receivedQty: null, result: 'ENOUGH', note: '' },
-      { foodId: '8', receivedQty: 925, result: 'OVER', note: 'Dư 1 quả' },
+      { foodId: '7', receivedQty: null, result: 'ENOUGH', note: '', supplierId: null },
+      { foodId: '8', receivedQty: 925, result: 'OVER', note: 'Dư 1 quả', supplierId: 3 },
     ],
   });
   assert.throws(() => toCheckRequest({ lines: [{ foodId: '99', result: 'ENOUGH' }] }, lines), (e) => !!e.details['lines.0.foodId']);
@@ -255,8 +255,8 @@ test('form kiểm nhận: nạp từ BE theo đơn vị mua, mỗi thực phẩm
   const check = await createFreshGoodsApi({ client }).getCheck({ campusId: '1', date: '2026-11-03' });
   const form = roundToForm(check.rounds[0]);
   assert.deepEqual(form.lines, [
-    { foodId: '7', receivedQty: '', result: '', note: '' },
-    { foodId: '8', receivedQty: '18', result: 'SHORT', note: 'Giao thiếu' },
+    { foodId: '7', receivedQty: '', result: '', note: '', supplierId: '' },
+    { foodId: '8', receivedQty: '18', result: 'SHORT', note: 'Giao thiếu', supplierId: '' },
   ]);
   assert.deepEqual(Object.keys(validateRoundForm(form)), ['lines.0.result']);
   form.lines[0].result = 'ENOUGH';

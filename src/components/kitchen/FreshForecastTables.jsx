@@ -145,6 +145,7 @@ export function ForecastLinesTable({ forecast }) {
           <tr>
             <th className="num">STT</th>
             <th className="min-w-220">Thực phẩm</th>
+            <th>Nhà cung cấp</th>
             <th className="num">Tổng cộng</th>
             <th className="center">Đơn vị</th>
             {days.map((day) => (
@@ -164,6 +165,7 @@ export function ForecastLinesTable({ forecast }) {
               <tr key={line.food.id}>
                 <td className="num">{i + 1}</td>
                 <td>{line.food.name}</td>
+                <td>{line.supplierName || <span className="muted">Chưa gán</span>}</td>
                 <td className="num fw-600">{fmtQty(line.purchaseTotal)}</td>
                 <td className="center">{line.food.purchaseUnit}</td>
                 {days.map((day) => (

@@ -148,6 +148,14 @@ export const STOCK_MOVEMENT_LABELS = {
 
 export const SUPPLIER_STATUS = { ACTIVE: 'ACTIVE', INACTIVE: 'INACTIVE' };
 export const SUPPLIER_STATUS_LABELS = { ACTIVE: 'Đang dùng', INACTIVE: 'Ngừng dùng' };
+// Trạng thái hợp đồng NCC do BE tính tại hôm nay (BE:docs/business/BUSINESS_RULES.md NUT-27); chỉ cảnh báo
+export const CONTRACT_STATUS_LABELS = {
+  ACTIVE: 'Còn hạn',
+  EXPIRING: 'Sắp hết hạn',
+  EXPIRED: 'Hết hạn',
+  NOT_STARTED: 'Chưa hiệu lực',
+  NONE: 'Chưa có hợp đồng',
+};
 
 export const NOTE_MAX = 500;
 
