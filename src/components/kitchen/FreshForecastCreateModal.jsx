@@ -3,7 +3,7 @@ import { AlertTriangle, Calculator, CheckCircle2, Save } from '@/components/ui/i
 import { Button, DateInput, FormField, Modal, Spinner, StatCard, TextField } from '@/components';
 import { WeekPicker } from '@/components/form/WeekPicker';
 import { Tabs } from '@/components/ui/Tabs';
-import { ForecastCountsTable, ForecastDryCard, ForecastLinesTable } from '@/components/kitchen/FreshForecastTables';
+import { ForecastCountsTable, ForecastDryCard, ForecastDryOrderTable, ForecastLinesTable } from '@/components/kitchen/FreshForecastTables';
 import { useToast } from '@/contexts/ToastContext';
 import { freshGoodsApi } from '@/services/freshGoodsApi';
 import { NOTE_MAX } from '@/models/kitchen/kitchenConstants';
@@ -44,6 +44,10 @@ export function FreshForecastCreateModal({ campusId, onClose, onSaved }) {
     setForm((f) => ({ ...f, counts: f.counts.map((c, i) => (i === index ? { ...c, expectedCount: value } : c)) }));
     setErrors((e) => ({ ...e, [`counts.${index}`]: undefined, _form: undefined }));
   };
+  const setDryQty = (index, value) => {
+    setForm((f) => ({ ...f, dryOrder: f.dryOrder.map((l, i) => (i === index ? { ...l, purchaseQuantity: value } : l)) }));
+    setErrors((e) => ({ ...e, [`dryOrder.${index}`]: undefined, _form: undefined }));
+  };
   const pickWeek = (next) => {
     setWeek(next);
     setForm((f) => ({ ...f, ...weekPeriod(next) }));
@@ -66,11 +70,13 @@ export function FreshForecastCreateModal({ campusId, onClose, onSaved }) {
     const run = ++lastRun.current;
     setBusy('preview');
     try {
-      const result = await freshGoodsApi.previewForecast(input);
+      const result = await freshGoodsApi.previewForecast({ ...input, dryOrder: null });
       if (run !== lastRun.current) return;
       // Lần đầu BE điền sẵn số trẻ đang theo học; các lần sau BE trả đúng số đã gửi
       const counts = countsToForm(result.counts);
-      setForm((f) => ({ ...f, counts }));
+      // Lượng hàng khô đặt lấy lại gợi ý của BE mỗi lần tính, vì phần thiếu đổi theo kỳ và số trẻ
+      const dryOrder = result.dryOrder.map((line) => ({ food: line.food, purchaseQuantity: line.purchaseQuantity }));
+      setForm((f) => ({ ...f, counts, dryOrder }));
       setPreview({ data: result, key: forecastInputKey({ ...input, counts }) });
     } catch (err) {
       // Lỗi hiện ngay tại ô trong hộp, không lặp thêm toast
@@ -120,6 +126,7 @@ export function FreshForecastCreateModal({ campusId, onClose, onSaved }) {
     ? [
         { key: 'fresh', label: 'Hàng tươi cần đặt', count: data.lines.length },
         { key: 'dry', label: 'Hàng khô cần nhập thêm', count: dryCount },
+        { key: 'dryOrder', label: 'Hàng khô đặt cho kỳ', count: form.dryOrder?.length ?? 0 },
       ]
     : [];
 
@@ -247,6 +254,18 @@ export function FreshForecastCreateModal({ campusId, onClose, onSaved }) {
                   <p className="muted">Kỳ này chưa có thực phẩm tươi cần đặt. Kiểm tra thực đơn của các ngày trong kỳ.</p>
                 ))}
               {view === 'dry' && <ForecastDryCard forecast={data} className="kb-fcm__dry" />}
+              {view === 'dryOrder' &&
+                (form.dryOrder?.length ? (
+                  <>
+                    <p className="text-sm muted">
+                      Gợi ý bằng phần thiếu đến hết kỳ. Sửa lượng đặt nếu cần (0 = không đặt); lượng này được in và dùng để đối chiếu khi
+                      kiểm nhận hàng khô.
+                    </p>
+                    <ForecastDryOrderTable lines={form.dryOrder} editable={busy !== 'save'} errors={errors} onChange={setDryQty} />
+                  </>
+                ) : (
+                  <p className="muted">Kho khô đủ cho kỳ này, không có hàng khô cần đặt.</p>
+                ))}
             </>
           ) : (
             <div className="kb-fcm__placeholder">

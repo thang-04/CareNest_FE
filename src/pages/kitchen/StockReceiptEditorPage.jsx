@@ -5,6 +5,7 @@ import { useToast } from '@/contexts/ToastContext';
 import {
   Breadcrumb,
   ConfirmationModal,
+  DataTable,
   DateInput,
   EmptyState,
   ErrorState,
@@ -16,6 +17,7 @@ import {
   TextField,
 } from '@/components';
 import { ReceiptStatusBadge } from '@/components/kitchen/KitchenBadges';
+import { fmtQty } from '@/components/kitchen/KitchenFilters';
 import { useActiveSuppliers, useCanManageStock, useDryFoods, useReceipt, useStockCampus } from '@/hooks/kitchen/useDryStock';
 import { dryStockApi } from '@/services/dryStockApi';
 import { RECEIPT_STATUS, NOTE_MAX } from '@/models/kitchen/kitchenConstants';
@@ -34,6 +36,20 @@ const estimate = (line) => {
   const price = Number(line.unitPrice);
   return line.purchaseQty !== '' && line.unitPrice !== '' && qty > 0 && price >= 0 ? qty * price : null;
 };
+
+// Dòng không đạt của phiếu sinh từ kiểm nhận: không thành lô, chỉ lưu để tra biện pháp xử lý
+const rejectedColumns = [
+  { key: 'food', header: 'Thực phẩm', render: (line) => line.food.name },
+  {
+    key: 'qty',
+    header: 'Số lượng',
+    className: 'num nowrap',
+    render: (line) => `${fmtQty(line.purchaseQuantity)} ${line.food.purchaseUnit || ''}`,
+  },
+  { key: 'lot', header: 'Số lô', render: (line) => line.lotNo },
+  { key: 'expiry', header: 'Hạn sử dụng', className: 'nowrap', render: (line) => formatDate(line.expiryDate) },
+  { key: 'note', header: 'Biện pháp xử lý', render: (line) => line.note },
+];
 
 /**
  * Phiếu nhập kho khô (`/kitchen/stock-receipts/new`, `/:id`): lập và sửa phiếu nháp, xác nhận nhập kho, hủy phiếu đã xác nhận (có lý do),
@@ -265,6 +281,15 @@ export default function StockReceiptEditorPage() {
             {receipt.confirmedAt ? ` lúc ${formatDateTime(receipt.confirmedAt)}` : ''}. Phiếu không sửa được.
           </p>
         )}
+        {receipt?.fromIntake && (
+          <div className="alert alert--info mb-16" role="status">
+            Phiếu lập tự động từ{' '}
+            <Link to={`/kitchen/fresh-receipts?campusId=${receipt.campusId}&date=${receipt.receivedDate}`}>
+              kiểm nhận hàng ngày {formatDate(receipt.receivedDate)}
+            </Link>
+            : chỉ dòng đạt được nhập kho.
+          </div>
+        )}
         {receipt?.status === RECEIPT_STATUS.CANCELLED && (
           <div className="alert alert--warning mb-16">
             <div>
@@ -452,6 +477,14 @@ export default function StockReceiptEditorPage() {
             )}
           </div>
         </fieldset>
+        {receipt?.rejectedLines?.length > 0 && (
+          <div className="card wizard-card mt-16">
+            <div className="card__header">
+              <div className="card__title">Dòng không đạt khi kiểm nhận</div>
+            </div>
+            <DataTable columns={rejectedColumns} rows={receipt.rejectedLines} rowKey={(line) => `${line.food.id}-${line.lotNo}`} />
+          </div>
+        )}
       </>
     );
   }
