@@ -4,12 +4,16 @@ import { useAuth } from '@/contexts/AuthContext';
 import { getCampuses, getLocations, getUsers } from '@/services/masterDataService';
 
 /** Campuses, locations, users and categories + lookup helpers. */
-export function useMasterData() {
+export function useMasterData(schoolYearId = null) {
   const { user } = useAuth() || {};
   const { data, loading, error, reload } = useAsync(async () => {
-    const [campuses, locations, users] = await Promise.all([getCampuses(user), getLocations(user), getUsers(user)]);
+    const [campuses, locations, users] = await Promise.all([
+      getCampuses(user, schoolYearId),
+      getLocations(user, schoolYearId),
+      getUsers(user),
+    ]);
     return { campuses, locations, users };
-  }, [user?.id, user?.role]);
+  }, [user?.id, user?.role, schoolYearId]);
 
   return useMemo(() => {
     const campuses = data?.campuses || [];

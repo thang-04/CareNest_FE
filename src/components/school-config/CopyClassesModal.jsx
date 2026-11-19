@@ -40,9 +40,9 @@ const key = (c) => `${c.campusId}|${normalizeText((c.name || '').trim())}`;
 export function CopyClassesModal({ open, onClose, target, years }) {
   const { user } = useAuth();
   const toast = useToast();
-  const md = useMasterData();
   const sources = useMemo(() => copySourcesFor(years, target), [years, target]);
   const [sourceId, setSourceId] = useState('');
+  const md = useMasterData(sourceId);
   const [selected, setSelected] = useState(new Set());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');

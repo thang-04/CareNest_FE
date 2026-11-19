@@ -36,7 +36,7 @@ export default function CampusDetailPage() {
   const { id } = useParams();
   const { user } = useAuth();
   const { schoolYear, yearReadOnly } = useSchoolYear();
-  const md = useMasterData();
+  const md = useMasterData(schoolYear);
   const { detail, loading, error, reload } = useCampusDetail(id, schoolYear);
   const [staffId, setStaffId] = useState(null);
   // Gỡ PHT phụ trách: cùng hộp xác nhận + API như menu ở màn Điểm trường

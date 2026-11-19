@@ -99,9 +99,9 @@ const STATUS_MATCH = {
 export default function TeacherAssignmentPage() {
   const { user } = useAuth();
   const toast = useToast();
-  const md = useMasterData();
   const [params, setParams] = useSearchParams();
   const yearId = useConfigYear();
+  const md = useMasterData(yearId);
   // HT: điểm trường của năm đang chọn (BE V151)
   const yearCampuses = useYearCampuses();
   const access = teacherAssignmentAccess(user);
