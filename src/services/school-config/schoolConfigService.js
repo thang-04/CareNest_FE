@@ -98,8 +98,8 @@ export const saveHolidays = (schoolYear, holidays, user) => repo.saveHolidays(sc
 
 export const getCampusesWithStats = (schoolYear, user) => repo.getCampuses(schoolYear, user);
 export const getCampusDetail = (id, schoolYear, user) => repo.getCampusDetail(id, schoolYear, user);
-export const saveCampus = (id, form, user) => repo.saveCampus(id, form, user);
-export const deleteCampus = (id, user) => repo.deleteCampus(id, user);
+export const saveCampus = (id, form, user, schoolYear) => repo.saveCampus(id, form, user, schoolYear);
+export const deleteCampus = (id, user, schoolYear) => repo.deleteCampus(id, user, schoolYear);
 /** status: ACTIVE | INACTIVE (ngừng hoạt động). */
 export const setCampusStatus = (id, status, user) => repo.setCampusStatus(id, status, user);
 

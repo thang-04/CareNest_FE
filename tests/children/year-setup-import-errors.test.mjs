@@ -20,14 +20,21 @@ test('phòng mới trùng tên phòng đã có ở cùng điểm trường: lỗ
   };
   const { errors } = matchRoomClassRows(sheets, { campuses, ageGroups: [], rooms, classes: [], schoolYear: 'y1' });
   const reasons = errors.map((e) => e.reason);
-  assert.ok(reasons.includes('CS1 đã có phòng tên "Phòng Hoa Mai"'), reasons.join(' | '));
+  assert.ok(
+    reasons.includes('Tên phòng "Phòng Hoa Mai" đã tồn tại tại điểm trường "CS1". Vui lòng đổi tên phòng trong tệp rồi tải lại.'),
+    reasons.join(' | '),
+  );
   assert.ok(reasons.includes('Mã phòng "P101" bị lặp trong file'), reasons.join(' | '));
+  // BUG-34: mỗi dòng lỗi kèm điểm trường, mã, tên đọc từ dòng Excel
+  const dup = errors.find((e) => e.row === 2);
+  assert.deepEqual([dup.sheet, dup.row, dup.campus, dup.code, dup.title], [SHEETS.rooms, 2, 'CS1', 'P102', 'Phòng Hoa Mai']);
 });
 
 test('bảng lỗi dùng tiêu đề tiếng Việt, cột tên theo loại file', () => {
   const panel = readFileSync('src/components/school-config/YearSetupImportPanel.jsx', 'utf8');
   assert.ok(!panel.includes("'Sheet'"));
   assert.match(panel, /'Trang tính', 'Dòng', nameHead, 'Lý do'/);
+  assert.match(panel, /'Trang tính', 'Dòng trong Excel', 'Điểm trường', 'Mã phòng\/lớp', 'Tên phòng\/lớp', 'Chi tiết lỗi'/);
   assert.match(panel, /isRooms \? 'Phòng \/ lớp' : 'Lớp \/ nhóm tuổi'/);
 });
 

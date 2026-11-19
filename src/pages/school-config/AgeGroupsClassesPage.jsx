@@ -4,6 +4,7 @@ import { Plus, Trash2, Info, Copy, UserCheck, History, UserMinus } from '@/compo
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useConfigYear } from '@/hooks/school-config/useConfigYear';
+import { useYearCampuses } from '@/hooks/useYearCampuses';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useSchoolStructure, useSchoolYears, useTeamLeaders } from '@/hooks/school-config/useSchoolConfig';
 import { TeamLeaderModal } from '@/components/school-config/TeamLeaderModal';
@@ -70,7 +71,9 @@ export default function AgeGroupsClassesPage({ embedded = false }) {
   const principal = isPrincipal(user);
   const canCopy = editable && copySourcesFor(years, year).length > 0;
   // Principal sees both campuses; other roles only the campus of their scope (GBR-GEN-01).
-  const campuses = principal ? md.campuses : md.campuses.filter((c) => c.id === user?.campusId);
+  // HT: điểm trường của năm đang chọn (BE V151)
+  const yearCampuses = useYearCampuses();
+  const campuses = principal ? yearCampuses || md.campuses : md.campuses.filter((c) => c.id === user?.campusId);
 
   if (!canViewSchoolStructure(user))
     return (

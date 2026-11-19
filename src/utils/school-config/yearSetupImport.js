@@ -34,10 +34,15 @@ const reasonOf = (errors) => [...new Set(Object.values(errors).filter(Boolean))]
 // Lỗi trùng ghi rõ điểm trường và giá trị trong file để người dùng đối chiếu sửa tệp
 const campusLabel = (campus) => campus.shortName || campus.name;
 const DUPLICATE_TEXT = {
-  'Điểm trường đã có phòng cùng mã': (c, f) => `${campusLabel(c)} đã có phòng mã "${f.room}"`,
-  'Điểm trường đã có phòng cùng tên': (c, f) => `${campusLabel(c)} đã có phòng tên "${f.name}"`,
-  'Điểm trường đã có lớp cùng tên trong năm học này': (c, f) => `${campusLabel(c)} đã có lớp "${f.name}" trong năm học này`,
+  'Điểm trường đã có phòng cùng mã': (c, f) =>
+    `Mã phòng "${f.room}" đã tồn tại tại điểm trường "${campusLabel(c)}". Vui lòng đổi mã phòng trong tệp rồi tải lại.`,
+  'Điểm trường đã có phòng cùng tên': (c, f) =>
+    `Tên phòng "${f.name}" đã tồn tại tại điểm trường "${campusLabel(c)}". Vui lòng đổi tên phòng trong tệp rồi tải lại.`,
+  'Điểm trường đã có lớp cùng tên trong năm học này': (c, f) =>
+    `Tên lớp "${f.name}" đã tồn tại tại điểm trường "${campusLabel(c)}" trong năm học này. Vui lòng đổi tên lớp trong tệp rồi tải lại.`,
 };
+// Bảng lỗi nhập phòng / lớp: mỗi dòng lỗi kèm điểm trường, mã, tên đọc từ chính dòng Excel đó
+const rowInfo = (campusName, code, name) => ({ campus: text(campusName), code: text(code), title: text(name) });
 const specific = (errors, campus, form) =>
   Object.fromEntries(Object.entries(errors).map(([k, v]) => [k, DUPLICATE_TEXT[v] ? DUPLICATE_TEXT[v](campus, form) : v]));
 
@@ -79,11 +84,14 @@ export function matchRoomClassRows(
   const rooms = [];
   const classes = [];
   const allRooms = [...savedRooms];
+  const info = new Map();
+  const withInfo = () => errors.map((e) => ({ ...info.get(`${e.sheet}:${e.row}`), ...e }));
   const roomInCampus = (campusId, code) => allRooms.find((r) => r.campusId === campusId && key(r.room) === key(code)) || null;
 
   const roomRows = roomsOnly ? byHeader(sheets[SHEETS.rooms]) : sheets[SHEETS.rooms];
   bodyOf(roomRows, ROOM_COLUMNS, SHEETS.rooms, errors).forEach(({ row, cells }) => {
     const [campusName, code, name, capacity, typeLabel, managerName] = cells;
+    info.set(`${SHEETS.rooms}:${row}`, rowInfo(campusName, code, name));
     const label = text(code) || text(name);
     const campus = findCampus(campuses, campusName);
     if (!campus)
@@ -145,9 +153,10 @@ export function matchRoomClassRows(
   });
 
   const allClasses = savedClasses.map((c) => ({ ...c, schoolYear }));
-  if (roomsOnly) return { rooms, classes, errors };
+  if (roomsOnly) return { rooms, classes, errors: withInfo() };
   bodyOf(sheets[SHEETS.classes], CLASS_COLUMNS, SHEETS.classes, errors).forEach(({ row, cells }) => {
     const [campusName, name, groupName, code, capacity] = cells;
+    info.set(`${SHEETS.classes}:${row}`, rowInfo(campusName, code, name));
     const label = text(name);
     const campus = findCampus(campuses, campusName);
     if (!campus)
@@ -201,7 +210,7 @@ export function matchRoomClassRows(
     if (existing) Object.assign(existing, form);
     else allClasses.push({ ...form, id: `new-class-${row}` });
   });
-  return { rooms, classes, errors };
+  return { rooms, classes, errors: withInfo() };
 }
 
 /**

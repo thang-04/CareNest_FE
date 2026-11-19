@@ -48,8 +48,12 @@ export const createSchoolConfigApi = (axiosClient) => ({
 
   getCampuses: (schoolYear) => axiosClient.get('/campuses', { params: { schoolYear, withStats: true } }),
   getCampusDetail: (id, schoolYear) => axiosClient.get(`/campuses/${id}`, { params: { schoolYear } }),
-  saveCampus: (id, form) => (id ? axiosClient.put(`/campuses/${id}`, form) : axiosClient.post('/campuses', form)),
-  deleteCampus: (id) => axiosClient.delete(`/campuses/${id}`),
+  // Điểm trường theo năm học (BE V151): thêm vào / bỏ khỏi năm đang chọn, năm khác không đổi
+  saveCampus: (id, form, _user, schoolYear) =>
+    id
+      ? axiosClient.put(`/campuses/${id}`, form, { params: { schoolYearId: schoolYear || undefined } })
+      : axiosClient.post('/campuses', form, { params: { schoolYearId: schoolYear || undefined } }),
+  deleteCampus: (id, _user, schoolYear) => axiosClient.delete(`/campuses/${id}`, { params: { schoolYearId: schoolYear || undefined } }),
   // CFG-CP-01: ngừng hoạt động / hoạt động lại điểm trường
   setCampusStatus: (id, status) => axiosClient.patch(`/campuses/${id}/status`, { status }),
 

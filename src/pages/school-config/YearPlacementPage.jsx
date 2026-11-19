@@ -8,6 +8,7 @@ import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { StatusBadge } from '@/components/ui/StatusBadge';
+import { Tabs } from '@/components/ui/Tabs';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
 import { ScNoAccess } from '@/components/school-config/ScNoAccess';
 import { PlacementClassPanel } from '@/components/school-config/PlacementClassPanel';
@@ -38,6 +39,8 @@ export default function YearPlacementPage() {
   const campusId = params.get('campus') || '';
   const groupId = params.get('group') || '';
   const filtered = !!(campusId || groupId);
+  // Hai tab: trẻ đang học (lên lớp / ở lại / ra trường) và trẻ mới tiếp nhận cho năm sau
+  const tab = params.get('tab') === 'new' ? 'new' : 'current';
   const { plan, loading, error, reload } = usePlacements(yearId, { live: false });
   const [selectedId, setSelectedId] = useState('');
   const [classDirty, setClassDirty] = useState(false);
@@ -59,7 +62,9 @@ export default function YearPlacementPage() {
         (a, b) => order(a.ageGroupId) - order(b.ageGroupId) || a.campusId.localeCompare(b.campusId) || a.name.localeCompare(b.name, 'vi'),
       );
   }, [plan, campusId, groupId]);
-  const groupOptions = (plan?.ageGroups || []).filter((g) => (plan?.classes || []).some((c) => c.ageGroupId === g.id));
+  const groupOptions = (plan?.ageGroups || []).filter(
+    (g) => (plan?.classes || []).some((c) => c.ageGroupId === g.id) || (plan?.newAdmissions || []).some((a) => a.ageGroupId === g.id),
+  );
   const autoLabel = filtered ? 'Xếp tự động các lớp đang lọc' : 'Xếp tự động tất cả lớp';
   // Danh sách lớp gom theo nhóm tuổi (nhỏ đến lớn) để dễ nhìn và xếp cả nhóm một lần
   const groups = useMemo(() => {
@@ -88,6 +93,10 @@ export default function YearPlacementPage() {
       classes.filter((c) => !c.graduating && !c.suggestedTargetId).map((c) => `${groupName(c.nextAgeGroupId)} (${campusName(c.campusId)})`),
     ),
   ];
+  const admissions = (plan?.newAdmissions || []).filter(
+    (item) => (!campusId || String(item.campusId) === String(campusId)) && (!groupId || String(item.ageGroupId) === String(groupId)),
+  );
+  const admissionsLeft = admissions.filter((item) => !item.targetClassId).length;
   const onClassDirty = useCallback((value) => setClassDirty(value), []);
   const onAdmissionDirty = useCallback((value) => setAdmissionDirty(value), []);
   // Rời màn / đổi bước wizard khi lớp đang chọn còn thay đổi chưa lưu: hỏi trước (lưu ở khung lớp)
@@ -162,7 +171,7 @@ export default function YearPlacementPage() {
       <div className="page__head">
         <div>
           <h1 className="page__title">Xếp lớp năm học mới</h1>
-          {plan?.sourceYear && (
+          {plan?.sourceYear && tab === 'current' && (
             <div className="sc-plc__sub">
               <span className="muted">
                 {plan.sourceYear.name} → {plan.year.name}
@@ -248,19 +257,41 @@ export default function YearPlacementPage() {
               </select>
             </div>
             {/* Nút xếp tự động ở cuối hàng lọc: áp dụng đúng phạm vi đang lọc */}
-            {plan?.editable && (
+            {plan?.editable && tab === 'current' && (
               <button className="btn btn--primary sc-plc__auto" onClick={() => unlessDirty(() => setConfirmAuto(true))}>
                 <Wand2 size={16} /> {autoLabel}
               </button>
             )}
           </div>
 
+          <Tabs
+            className="sc-plc__tabs"
+            ariaLabel="Nhóm trẻ cần xếp lớp"
+            value={tab}
+            onChange={(key) => setParam('tab', key === 'new' ? 'new' : '')}
+            items={[
+              { key: 'current', label: 'Trẻ đang học' },
+              { key: 'new', label: 'Trẻ mới tiếp nhận', count: plan ? admissionsLeft : null },
+            ]}
+          />
           {error ? (
             <div className="card card__body">
               <ErrorState error={error} onRetry={reload} />
             </div>
           ) : loading && !plan ? (
             <LoadingState />
+          ) : tab === 'new' ? (
+            <NewAdmissionPlacementPanel
+              yearId={yearId}
+              admissions={admissions}
+              targets={plan.targets}
+              ageGroups={plan.ageGroups}
+              campusName={campusName}
+              groupName={groupName}
+              editable={plan.editable}
+              onDirty={onAdmissionDirty}
+              onSaved={() => reload({ silent: true })}
+            />
           ) : !plan?.sourceYear ? (
             <div className="card card__body">
               <EmptyState icon={Users} title="Không có trẻ cần chuyển" description="Chưa có năm học đang hoạt động để chuyển trẻ." />
@@ -279,15 +310,6 @@ export default function YearPlacementPage() {
             </div>
           ) : (
             <>
-              <NewAdmissionPlacementPanel
-                yearId={yearId}
-                admissions={(plan.newAdmissions || []).filter((item) => !campusId || String(item.campusId) === String(campusId))}
-                targets={plan.targets}
-                campusName={campusName}
-                editable={plan.editable}
-                onDirty={onAdmissionDirty}
-                onSaved={() => reload({ silent: true })}
-              />
               <div className="sc-plc">
                 <nav className="card sc-plc__list" aria-label="Lớp năm học cũ" onKeyDown={onListKey}>
                   {missingTargets.length > 0 && (

@@ -3,10 +3,17 @@
  * Each function returns { field: message }; `others` are the existing records used for duplicate checks.
  * Rules: Academic Year / Age Group / Class / Campus entities (SRS 3.2), UC 2.1–2.7, screens 4.1.2–4.1.5, GBR-CFG-02, MSG19/MSG20.
  */
-import { formatDate, isIsoDate, normalizeText } from '@/utils/format';
+import { formatDate, isIsoDate } from '@/utils/format';
 import { MAX_TEACHERS_PER_CLASS, MEAL_SESSION_OPTIONS, TEACHERS_PER_CLASS } from '@/models/school-config/schoolConfigConstants';
 
-const same = (a, b) => normalizeText((a || '').trim()) === normalizeText((b || '').trim());
+// So trùng tên như BE (Cần chốt 19/11/2026): bỏ khoảng trắng đầu/cuối, gộp khoảng trắng, dấu NFC, không phân biệt hoa thường
+export const nameKey = (text) =>
+  String(text || '')
+    .normalize('NFC')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLowerCase();
+const same = (a, b) => nameKey(a) === nameKey(b);
 const YEAR_NAME = /^(\d{4})-(\d{4})$/;
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 // Số điện thoại Việt Nam (như CampusRequest.phone của BE): di động 10 số 03/05/07/08/09, cố định 11 số 02x
@@ -191,6 +198,12 @@ export const validateCutoff = (form, year) => {
   if (!form.effectiveFrom) e.effectiveFrom = 'Chọn ngày áp dụng';
   else if (year && (form.effectiveFrom < year.startDate || form.effectiveFrom > year.endDate))
     e.effectiveFrom = `Ngày áp dụng phải nằm trong năm học ${year.name}`;
+  // Như BE CUTOFF_LATEST_ARRIVAL_INVALID (ATT-13): giờ đến muộn nhất buổi chiều phải sau giờ chốt
+  if (form.latestAfternoonArrival) {
+    if (!TIME.test(form.latestAfternoonArrival)) e.latestAfternoonArrival = 'Nhập giờ hợp lệ dạng HH:mm, ví dụ 14:00';
+    else if (form.time && TIME.test(form.time) && form.latestAfternoonArrival <= form.time)
+      e.latestAfternoonArrival = `Giờ đến muộn nhất buổi chiều phải sau giờ chốt ${form.time}`;
+  }
   return withLength(e, form, CUTOFF_LIMITS);
 };
 
