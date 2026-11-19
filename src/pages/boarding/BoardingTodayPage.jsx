@@ -14,12 +14,16 @@ import {
 import { Breadcrumb, EmptyState, ErrorState, LoadingState, StatusBadge } from '@/components';
 import { StatCard } from '@/components/ui/StatCard';
 import { CampusFilter } from '@/components/ui/CampusFilter';
+import { LockNote } from '@/components/ui/LockNote';
+import { ReadOnlyTag } from '@/components/ui/ReadOnlyTag';
 import { useToast } from '@/contexts/ToastContext';
+import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { DateInput } from '@/components/form/DateInput';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useDayBoard } from '@/hooks/boarding/useDayBoard';
 import { dayBoardApi } from '@/services/dayBoardApi';
 import { buildDayBoardRows, nextBoardTask, summarizeBoardRows } from '@/utils/boarding/dayBoardRows';
+import { boardDateInYear } from '@/utils/boarding/boardYearDate';
 import { isIsoDate, todayInput } from '@/utils/format';
 import '@/styles/modules/boarding.css';
 
@@ -159,7 +163,10 @@ function BoardTable({ campuses, rowsPerCampus, syncing, onSyncStock }) {
 export default function BoardingTodayPage() {
   const [params, setParams] = useSearchParams();
   const md = useMasterData();
-  const date = isIsoDate(params.get('date')) ? params.get('date') : todayInput();
+  const { schoolYear, schoolYears, yearReadOnly } = useSchoolYear();
+  const year = schoolYears.find((y) => y.id === schoolYear) || null;
+  // Ngày xem luôn thuộc năm học chọn ở header; đổi năm thì ngày ngoài năm tự chuyển về ngày hợp lệ
+  const date = boardDateInYear(isIsoDate(params.get('date')) ? params.get('date') : '', year, todayInput());
   const campusId = params.get('campusId') || '';
   const board = useDayBoard(date, campusId);
   const toast = useToast();
@@ -200,7 +207,11 @@ export default function BoardingTodayPage() {
     );
   else {
     const boardDate = board.data.date || date;
-    const rowsPerCampus = board.data.campuses.map((campus) => buildDayBoardRows(campus, { date: boardDate }));
+    // Năm học đã kết thúc chỉ xem lịch sử: bỏ nút "Đồng bộ kho" (thao tác ghi), giữ link xem màn xử lý
+    const rowsPerCampus = board.data.campuses.map((campus) => {
+      const rows = buildDayBoardRows(campus, { date: boardDate });
+      return yearReadOnly ? rows.map((row) => ({ ...row, actions: row.actions.filter((a) => !a.syncStock) })) : rows;
+    });
     body = (
       <>
         <NextTask campuses={board.data.campuses} rowsPerCampus={rowsPerCampus} syncing={syncing} onSyncStock={syncStock} />
@@ -215,13 +226,20 @@ export default function BoardingTodayPage() {
       <Breadcrumb items={[{ label: 'Trang chủ', to: '/' }, { label: 'Bán trú hôm nay' }]} />
       <div className="page__head">
         <div>
-          <h1 className="page__title">Bán trú hôm nay</h1>
+          <h1 className="page__title">Bán trú hôm nay {yearReadOnly && <ReadOnlyTag />}</h1>
+          {yearReadOnly && <LockNote>Năm học {year?.label || schoolYear} đã kết thúc — chỉ xem dữ liệu, không đồng bộ kho được.</LockNote>}
         </div>
       </div>
       <div className="bd-toolbar">
         <label className="date-filter">
           Ngày
-          <DateInput value={date} onChange={(next) => isIsoDate(next) && setFilter('date', next)} aria-label="Ngày" />
+          <DateInput
+            value={date}
+            min={year?.startDate || undefined}
+            max={year?.endDate || undefined}
+            onChange={(next) => isIsoDate(next) && setFilter('date', boardDateInYear(next, year, todayInput()))}
+            aria-label="Ngày"
+          />
         </label>
         <CampusFilter campuses={md.campuses} value={campusId} onChange={(id) => setFilter('campusId', id)} />
       </div>
