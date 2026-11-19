@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Save, CheckCircle2, KeyRound, Eye, Plus, AlertTriangle, RotateCcw, Pencil } from '@/components/ui/icons';
-import { ChildAvatar } from '@/components/ChildAvatar';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
@@ -18,6 +17,7 @@ import { YearLockedNotice } from '@/components/children/YearLockedNotice';
 import { ChildInfoFields } from '@/components/children/ChildInfoFields';
 import { PortraitImage } from '@/components/PortraitImage';
 import { ChildProfileSummary } from '@/components/children/ChildProfileSummary';
+import { ChildCardHead } from '@/components/children/ChildBrief';
 import { ClassPlacementFields } from '@/components/children/ClassPlacementFields';
 import { HealthDeclarationFields } from '@/components/children/HealthDeclarationFields';
 import { DeclarationSummary } from '@/components/children/DeclarationSummary';
@@ -76,23 +76,10 @@ function ReviewGroup({ title, onEdit, children }) {
 /** Đầu thẻ bước 2–4: tên bước bên trái, trẻ đang tiếp nhận bên phải để chọn lớp, khai báo đúng trẻ. */
 function StepHead({ title, info }) {
   return (
-    <div className="tr-step-head">
-      <div className="stack gap-1">
-        <h2 className="card__title">{title}</h2>
-      </div>
-      {info && (
-        <div className="tr-child-brief">
-          <ChildAvatar child={{ fullName: info.fullName, photoUrl: info.photoFile }} size="lg" />
-          <span className="stack gap-0">
-            <span className="fw-600">{info.fullName}</span>
-            <span className="muted text-xs">
-              {formatDate(info.dateOfBirth)} · {ageLabel(info.dateOfBirth)}
-              {GENDER_LABELS[info.gender] ? ` · ${GENDER_LABELS[info.gender]}` : ''}
-            </span>
-          </span>
-        </div>
-      )}
-    </div>
+    <ChildCardHead
+      title={title}
+      child={info && { fullName: info.fullName, photoUrl: info.photoFile, dateOfBirth: info.dateOfBirth, gender: info.gender }}
+    />
   );
 }
 
