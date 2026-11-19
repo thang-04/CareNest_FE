@@ -70,6 +70,9 @@ export const toDayMarket = (market) => {
     lines: (market?.lines || []).map((line) => ({
       foodId: line.food.id,
       name: line.food.name,
+      // NCC của thực phẩm tại ngày đi chợ theo mức giá hiệu lực (NUT-27)
+      supplierName: line.supplierName || '',
+      contractStatus: line.contractStatus || null,
       unit: line.food.purchaseUnit,
       unitPrice: line.unitPrice,
       source: DAY_MARKET_SOURCE[line.storage],
@@ -134,6 +137,7 @@ export const toCheckRequest = (form, lines) => {
         receivedQty: blank(line.receivedQty) ? null : toBaseQuantity(line.receivedQty, food),
         result: line.result,
         note: text(line.note),
+        supplierId: blank(line.supplierId) ? null : Number(line.supplierId),
       };
     }),
   };

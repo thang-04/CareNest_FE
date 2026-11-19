@@ -52,7 +52,10 @@ export const DayMarketPrint = forwardRef(function DayMarketPrint({ data }, ref) 
           {data.lines.map((line, i) => (
             <tr key={line.foodId}>
               <td className="c">{i + 1}</td>
-              <td>{line.name}</td>
+              <td>
+                {line.name}
+                {line.supplierName ? ` (${line.supplierName})` : ''}
+              </td>
               <td className="c">{line.unit}</td>
               <td className="c">{num(line.unitPrice)}</td>
               <td className="c">{line.source === 'STOCK' ? qty(line.quantity) : ''}</td>

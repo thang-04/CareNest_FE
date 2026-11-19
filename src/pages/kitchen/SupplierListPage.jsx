@@ -7,9 +7,9 @@ import { useFilterParams } from '@/hooks/useFilterParams';
 import { Button, DataTable, LABELS, ListPage, RowActions, SelectField } from '@/components';
 import { FilterChips } from '@/components/ui/FilterChips';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
-import { SupplierStatusBadge } from '@/components/kitchen/KitchenBadges';
+import { ContractStatusBadge, SupplierStatusBadge } from '@/components/kitchen/KitchenBadges';
 import { SupplierEditModal } from '@/components/kitchen/SupplierEditModal';
-import { canEditSuppliers } from '@/services/kitchen/kitchenService';
+import { canEditSuppliers, suppliersUseApi } from '@/services/kitchen/kitchenService';
 import { supplierCrumbs } from '@/utils/kitchen/breadcrumbs';
 import { SUPPLIER_STATUS_LABELS } from '@/models/kitchen/kitchenConstants';
 import '@/styles/modules/kitchen.css';
@@ -60,7 +60,9 @@ export default function SupplierListPage() {
     { key: 'name', header: 'Tên nhà cung cấp' },
     { key: 'contactName', header: 'Người liên hệ', render: (s) => dash(s.contactName) },
     { key: 'phone', header: 'Số điện thoại', className: 'center nowrap', render: (s) => dash(s.phone) },
-    { key: 'receiptCount', header: 'Số phiếu nhập', className: 'num' },
+    ...(suppliersUseApi()
+      ? [{ key: 'contract', header: 'Hợp đồng', className: 'center', render: (s) => <ContractStatusBadge status={s.contractStatus} /> }]
+      : [{ key: 'receiptCount', header: 'Số phiếu nhập', className: 'num' }]),
     { key: 'status', header: 'Trạng thái', className: 'center', render: (s) => <SupplierStatusBadge status={s.status} /> },
     // Chỉ xem ⇒ bỏ cột Thao tác; bấm dòng vẫn mở chi tiết
     ...(canManage

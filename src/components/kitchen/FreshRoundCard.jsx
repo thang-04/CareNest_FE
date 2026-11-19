@@ -1,10 +1,11 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Check, Pencil, Save, X } from '@/components/ui/icons';
-import { Button, ConfirmationModal, TextAreaField, TextField } from '@/components';
+import { Button, ConfirmationModal, SelectField, TextAreaField, TextField } from '@/components';
 import { FreshCheckResultBadge, FreshRoundStateBadge } from '@/components/kitchen/KitchenBadges';
 import { fmtQty } from '@/components/kitchen/KitchenFilters';
 import { useToast } from '@/contexts/ToastContext';
+import { useSuppliers } from '@/hooks/kitchen/useKitchen';
 import { freshGoodsApi } from '@/services/freshGoodsApi';
 import { FOOD_GROUP_LABELS } from '@/models/foodGroups';
 import { FRESH_CHECK_RESULT, FRESH_CHECK_RESULT_LABELS, FRESH_ROUND_LABELS, NOTE_MAX } from '@/models/kitchen/kitchenConstants';
@@ -13,7 +14,7 @@ import { personName } from '@/utils/kitchen/stockLots';
 import { formatDateTime } from '@/utils/format';
 
 const REASON_MAX = 200;
-const COLUMNS = 6;
+const COLUMNS = 7;
 
 /** Nhóm nút Đủ / Thiếu / Thừa của một dòng. */
 function ResultSeg({ value, onChange, label }) {
@@ -42,6 +43,7 @@ export function FreshRoundCard({ round, campusId, date, canManage, groupOfFood, 
   const [reason, setReason] = useState('');
   const [reasonError, setReasonError] = useState('');
   const [saveError, setSaveError] = useState('');
+  const { data: activeSuppliers } = useSuppliers({ status: 'ACTIVE' });
   const state = roundState(round);
   const canWrite = canManage && round.available && round.lines.length > 0;
   const editable = canWrite && (!round.recorded || editing);
@@ -173,6 +175,7 @@ export function FreshRoundCard({ round, campusId, date, canManage, groupOfFood, 
                 <tr>
                   <th>STT</th>
                   <th className="min-w-220 kb-fresh__left">Thực phẩm</th>
+                  <th className="kb-fresh__left">Nhà cung cấp</th>
                   <th>Cần nhận</th>
                   <th>Thực nhận</th>
                   <th>Kết quả</th>
@@ -262,6 +265,12 @@ export function FreshRoundCard({ round, campusId, date, canManage, groupOfFood, 
     </section>
   );
 
+  // NCC đang hoạt động + NCC đã ghi của dòng (có thể đã ngừng) để không mất giá trị khi sửa lại
+  function supplierOptions(current) {
+    const list = activeSuppliers || [];
+    return current && !list.some((s) => String(s.id) === String(current.id)) ? [current, ...list] : list;
+  }
+
   // Dòng nhóm + các thực phẩm của nhóm; STT chạy liền qua các nhóm. Là hàm render (không phải component) để ô nhập không bị dựng lại mỗi lần gõ
   function renderGroup(group) {
     return (
@@ -279,6 +288,28 @@ export function FreshRoundCard({ round, campusId, date, canManage, groupOfFood, 
             <tr key={line.food.id}>
               <td>{++shown}</td>
               <td className="kb-fresh__left">{line.food.name}</td>
+              <td className="kb-fresh__left">
+                {editable ? (
+                  <>
+                    <SelectField
+                      className={`select ${err('supplierId') ? 'input--error' : ''}`}
+                      value={row.supplierId}
+                      onChange={(e) => setLine(i, { supplierId: e.target.value })}
+                      aria-label={`Nhà cung cấp ${line.food.name}`}
+                    >
+                      <option value="">Chưa gán</option>
+                      {supplierOptions(line.supplier).map((s) => (
+                        <option key={s.id} value={String(s.id)}>
+                          {s.name}
+                        </option>
+                      ))}
+                    </SelectField>
+                    {err('supplierId') && <div className="field__error">{err('supplierId')}</div>}
+                  </>
+                ) : (
+                  line.supplier?.name || <span className="muted">—</span>
+                )}
+              </td>
               <td className="nowrap">
                 {fmtQty(line.purchaseExpectedQty)} {unit}
               </td>

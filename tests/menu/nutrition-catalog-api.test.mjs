@@ -320,6 +320,9 @@ test('nhà cung cấp: người giao hàng ↔ contactName; BE không trả CCCD
     address: '',
     deliveryPerson: 'Chị giao',
     idCard: '012345678901',
+    contractNo: '',
+    contractStart: null,
+    contractEnd: null,
   });
   assert.equal(calls.length, 1, 'trạng thái không đổi ⇒ không PATCH');
 });

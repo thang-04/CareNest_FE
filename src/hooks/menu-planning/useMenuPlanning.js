@@ -14,6 +14,8 @@ import {
   getDishById,
   getDishes,
   getFoodById,
+  getFoodPrices,
+  getActiveSuppliers,
   getFoods,
   getMenuAccess,
   getMenuCatalog,
@@ -45,6 +47,8 @@ const itemHook = (loader) =>
 
 export const useFoods = listHook(getFoods);
 export const useFood = itemHook(getFoodById);
+export const useFoodPrices = itemHook((foodId) => getFoodPrices(foodId));
+export const useActiveSuppliers = listHook(() => getActiveSuppliers());
 export const useDishes = listHook(getDishes);
 export const useDish = itemHook(getDishById);
 export const useReferenceDishes = listHook(getReferenceDishes);
