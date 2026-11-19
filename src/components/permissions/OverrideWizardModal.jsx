@@ -191,7 +191,8 @@ function StepSelectStaff({ loading, error, staffList, searchQuery, onSearchChang
         <div className="perm-staff-pick-list">
           {staffList.map((staff) => {
             const roleName = PERMISSION_ROLE_LABELS[staff.role] || staff.role;
-            const campusText = staff.campusName || staff.assignments?.[0]?.campusName || 'Chưa phân công';
+            const campusText =
+              [staff.className, staff.campusName || staff.assignments?.[0]?.campusName].filter(Boolean).join(' · ') || 'Chưa phân công';
             return (
               <button key={staff.userId || staff.id} type="button" className="perm-staff-pick-card" onClick={() => onSelect(staff)}>
                 <Avatar user={staff} size="sm" />

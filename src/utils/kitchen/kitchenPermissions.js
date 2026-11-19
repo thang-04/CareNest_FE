@@ -1,4 +1,6 @@
 import { ROLES } from '@/models/User';
+import { PERMISSIONS } from '@/models/bePermissions';
+import { hasBePermission, inBePermissionScope } from '@/utils/bePermissions';
 
 /*
  * Rights follow SRS 4.4 Permission Matrix (footnotes ¹ VP own campus, ⁵ Kitchen Staff own campus kitchen)
@@ -39,6 +41,11 @@ export const canViewSuppliers = (user) => is(user, ROLES.PRINCIPAL, ROLES.VICE_P
 
 // UC 6.23: the campus Vice Principal records receipts.
 export const canManageStock = (user) => isVicePrincipal(user) || isPrincipal(user); // HT có sẵn STOCK_MANAGE
+// Ghi kho, dự trù ở một điểm trường theo dữ liệu quyền BE (AUTH-20, BE CampusAccessPolicy.canEditCampus):
+// có STOCK_MANAGE; HT mọi điểm trường; PHT điểm trường được phân công, hoặc mọi điểm trường khi được cấp phạm vi cả trường.
+export const canManageStockAt = (user, campusId) =>
+  hasBePermission(user, PERMISSIONS.STOCK_MANAGE) &&
+  (isPrincipal(user) || (isVicePrincipal(user) && inBePermissionScope(user, PERMISSIONS.STOCK_MANAGE, campusId)));
 // Kho khô xem chung hai cơ sở (S4): HT và PHT xem; PHT ghi (nhập kho) cho cơ sở BE cho phép — mock: cả hai cơ sở.
 export const canViewDryStock = (user) => is(user, ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL);
 export const canWriteStock = (user, campusId) => (isVicePrincipal(user) || isPrincipal(user)) && !!campusId;

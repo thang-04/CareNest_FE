@@ -1,5 +1,7 @@
+import { useCallback, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { PageReadOnlyContext, READ_ONLY_REASON } from '@/contexts/PageReadOnlyContext';
 import { StandaloneStatus } from '@/components/ui/StandaloneStatus';
 import { ROLE_LABELS } from '@/models/User';
 import { areaAccess } from '@/utils/school-config/schoolConfigPermissions';
@@ -47,6 +49,29 @@ export function AccessDenied({ kind = '403', title, description }) {
   );
 }
 
+/**
+ * Cả màn chỉ xem: đầu trang hiện nhãn "Chỉ xem" qua context. Màn chưa hiện nhãn (đầu trang viết tay, chưa gọi
+ * usePageReadOnly) vẫn giữ dải chữ dự phòng để không mất thông báo.
+ */
+function ReadOnlyArea({ children }) {
+  const [claims, setClaims] = useState(0);
+  const claim = useCallback(() => {
+    setClaims((n) => n + 1);
+    return () => setClaims((n) => n - 1);
+  }, []);
+  const value = useMemo(() => ({ readOnly: true, reason: READ_ONLY_REASON, claim }), [claim]);
+  return (
+    <PageReadOnlyContext.Provider value={value}>
+      {claims === 0 && (
+        <div className="alert alert--info page-readonly-notice" role="status">
+          {READ_ONLY_REASON}
+        </div>
+      )}
+      {children}
+    </PageReadOnlyContext.Provider>
+  );
+}
+
 /** Đường dẫn theo mảng phụ trách của Phó hiệu trưởng: mảng "Không có" thì chặn cả nhóm route. */
 const AREA_PREFIXES = [
   ['/menu', 'menu'],
@@ -59,14 +84,7 @@ export function AreaGate({ path, children }) {
   const hit = AREA_PREFIXES.find(([prefix]) => path === prefix || path.startsWith(`${prefix}/`));
   if (!hit || user?.role !== 'VICE_PRINCIPAL' || areaAccess(user, hit[1]).access !== 'NONE') {
     if (!isVpReadOnlyPage(user, path)) return children;
-    return (
-      <>
-        <div className="alert alert--info page-readonly-notice" role="status">
-          Bạn đang chỉ xem mục này. Muốn sửa, hãy nhờ Hiệu trưởng giao việc ở màn Phân công Phó hiệu trưởng.
-        </div>
-        {children}
-      </>
-    );
+    return <ReadOnlyArea>{children}</ReadOnlyArea>;
   }
   return (
     <RoleGuard roles={[]} description="Hiệu trưởng chưa giao cho bạn mảng này (Phân công Phó hiệu trưởng).">

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Save, Lock, HeartPulse, CheckCircle2, BarChart3, ArrowRight } from '@/components/ui/icons';
+import { Save, Lock, HeartPulse, CheckCircle2, BarChart3, ArrowRight, AlertTriangle } from '@/components/ui/icons';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { AttendanceRowBadge } from '@/components/attendance/AttendanceBadges';
@@ -19,14 +19,28 @@ import { DayLockAlert } from '@/components/attendance/DayLockAlert';
 import { useAttendanceClasses, useAttendanceYear, useClassAttendance, useClassMealCount } from '@/hooks/attendance/useAttendance';
 import { ClassMealCard } from '@/components/attendance/ClassMealCard';
 import { Switch } from '@/components/ui/Switch';
-import { getClassAttendance, getDayInfo, saveClassAttendance } from '@/services/attendance/attendanceService';
+import { Button } from '@/components/ui/Button';
+import { getClassAttendance, getDayInfo, markArrived, saveClassAttendance } from '@/services/attendance/attendanceService';
 import {
   createAttendanceRefresh,
   leaveStateChanged,
   mealSessionsOf,
   reconcileAttendanceDraft,
 } from '@/utils/attendance/reconcileAttendance';
-import { ATTENDANCE_STATUS, allMeals, eatsAny, isAbsent, mealsIn, mealsWhenPresent } from '@/models/attendance/attendanceConstants';
+import {
+  ATTENDANCE_STATUS,
+  LEAVE_PART,
+  LEAVE_PART_TAGS,
+  MEAL_SESSION,
+  MEAL_SESSION_LABELS,
+  MORNING_LEAVE_STATUS_LABELS,
+  allMeals,
+  eatsAny,
+  isAbsent,
+  mealsIn,
+  mealsWhenPresent,
+  sessionsAfterLeave,
+} from '@/models/attendance/attendanceConstants';
 import { schoolToday } from '@/utils/attendance/attendanceTime';
 import { validateClassAttendance } from '@/utils/attendance/attendanceValidation';
 import { attendanceCrumbs } from '@/utils/attendance/breadcrumbs';
@@ -41,10 +55,18 @@ const toDraft = (sheet) =>
   Object.fromEntries(
     (sheet?.children || []).map(({ child, record }) => [
       child.id,
-      { childId: child.id, status: record?.status || '', meals: mealsIn(record?.meals, sessionsOf(sheet)) },
+      {
+        childId: child.id,
+        status: record?.status || '',
+        meals: mealsIn(record?.meals, sessionsOf(sheet)),
+        absentPart: record?.absentPart || undefined,
+      },
     ]),
   );
 const NOTHING_UNSAVED = { attendance: false, health: false };
+// ATT-12, ATT-13: đơn nghỉ một buổi; trẻ nghỉ chiều GV vẫn điểm danh buổi sáng
+const leavePart = (row) => (row.leaveRequest ? row.leaveRequest.part || LEAVE_PART.FULL_DAY : null);
+const halfPart = (row) => (leavePart(row) && leavePart(row) !== LEAVE_PART.FULL_DAY ? leavePart(row) : undefined);
 const changed = (entry, record, sessions) =>
   !!entry?.status &&
   (entry.status !== (record?.status || '') || sessions.some((session) => !!entry.meals?.[session] !== !!record?.meals?.[session]));
@@ -173,9 +195,20 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
   const submitRef = useRef(false);
   const rows = useMemo(() => sheet?.children || [], [sheet]);
   const sessions = sessionsOf(sheet);
-  const allIn = allMeals(true, sessions);
   const noneIn = allMeals(false, sessions);
-  const dirtyRows = rows.filter((row) => !row.leaveRequest && changed(draft[row.child.id], row.record, sessions));
+  // Trẻ nghỉ cả ngày, hoặc nghỉ sáng khi lớp/ngày chưa được mở lại: điểm danh theo đơn, GV không sửa
+  const reopened = !!(clock || sheet)?.unlock;
+  const leaveLocked = (row) =>
+    !!row.leaveRequest && (leavePart(row) === LEAVE_PART.FULL_DAY || (leavePart(row) === LEAVE_PART.MORNING && !reopened));
+  // ATT-13: trẻ nghỉ sáng — trước giờ chốt GV vẫn gạt được công tắc ăn bữa xế (mặc định theo đơn), trạng thái giữ theo đơn
+  const xeOnly = (row) => halfPart(row) === LEAVE_PART.MORNING && !reopened && !!row.record;
+  // Bữa còn lại của trẻ nghỉ một buổi; mặc định ăn theo công tắc ăn của đơn
+  const rowSessions = (row) => sessionsAfterLeave(halfPart(row), sessions);
+  const presentMeals = (row) => ({
+    ...noneIn,
+    ...(row.leaveRequest?.eats === false ? {} : mealsWhenPresent(row.child, rowSessions(row))),
+  });
+  const dirtyRows = rows.filter((row) => (!leaveLocked(row) || xeOnly(row)) && changed(draft[row.child.id], row.record, sessions));
   const busy = saving || healthBusy;
   const latest = useRef({});
   latest.current = { sheet, busy, user, toast };
@@ -270,18 +303,34 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
     else setSelectedId(id);
   };
   const update = (row, patch) => {
-    if (!editable || busy || row.leaveRequest) return;
+    if (!editable || busy || (leaveLocked(row) && !xeOnly(row))) return;
     setDraft((current) => ({ ...current, [row.child.id]: { ...current[row.child.id], ...patch } }));
     setRowErrors((current) => ({ ...current, [row.child.id]: null }));
     selectChild(row.child.id);
   };
   const setStatus = (row, present) => {
-    if (row.leaveRequest) return;
+    if (leaveLocked(row)) return;
     const current = draft[row.child.id];
     update(row, {
       status: present ? ATTENDANCE_STATUS.PRESENT : ATTENDANCE_STATUS.UNEXCUSED,
-      meals: present ? (current?.status === ATTENDANCE_STATUS.PRESENT ? current.meals : mealsWhenPresent(row.child, sessions)) : noneIn,
+      meals: present ? (current?.status === ATTENDANCE_STATUS.PRESENT ? current.meals : presentMeals(row)) : noneIn,
     });
+  };
+  // ATT-13: trẻ nghỉ sáng đến lớp buổi chiều — GV bấm "Đã đến" (từ giờ chốt tới giờ đến muộn nhất, BE kiểm)
+  const arrived = async (row) => {
+    if (submitRef.current) return;
+    submitRef.current = true;
+    setSaving(true);
+    try {
+      await markArrived({ classId, childId: row.child.id, date }, user);
+      toast.success(`Đã ghi ${row.child.fullName} đến lớp buổi chiều.`);
+      await reconciliation.current?.refresh({ force: true, savedIds: [row.child.id] }).catch(() => null);
+    } catch (err) {
+      toast.error(err, 'Chưa ghi được Đã đến');
+    } finally {
+      submitRef.current = false;
+      setSaving(false);
+    }
   };
   const markAllPresent = () => {
     setConfirmAll(false);
@@ -289,8 +338,8 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
     setDraft((current) => {
       const next = { ...current };
       rows.forEach((row) => {
-        if (current[row.child.id]?.status || row.record || row.leaveRequest) return;
-        next[row.child.id] = { childId: row.child.id, status: ATTENDANCE_STATUS.PRESENT, meals: mealsWhenPresent(row.child, sessions) };
+        if (current[row.child.id]?.status || row.record || leaveLocked(row)) return;
+        next[row.child.id] = { childId: row.child.id, status: ATTENDANCE_STATUS.PRESENT, meals: presentMeals(row) };
       });
       return next;
     });
@@ -496,7 +545,7 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
                 className="btn dd-reception__mark-all"
                 type="button"
                 title="Chỉ chọn trẻ chưa điểm danh; giữ nguyên trẻ Vắng. Chưa tự lưu."
-                disabled={busy || !rows.some((row) => !draft[row.child.id]?.status && !row.record && !row.leaveRequest)}
+                disabled={busy || !rows.some((row) => !draft[row.child.id]?.status && !row.record && !leaveLocked(row))}
                 onClick={() => setConfirmAll(true)}
               >
                 <CheckCircle2 size={16} /> Có mặt tất cả
@@ -538,15 +587,37 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
                           {/* Ảnh | tên trên, mã · trạng thái lưu và thẻ sức khỏe cùng một dòng dưới — hàng thấp, lớp đông vẫn thấy nhiều trẻ */}
                           <div className="dd-reception__who">
                             <ChildAvatar child={row.child} size="sm" />
-                            <button
-                              className="dd-reception__child"
-                              type="button"
-                              disabled={busy}
-                              aria-pressed={selectedId === row.child.id}
-                              onClick={() => selectChild(row.child.id)}
-                            >
-                              <strong>{row.child.fullName}</strong>
-                            </button>
+                            {/* Tên và nhãn báo ăn / dị ứng cùng hàng; dòng dưới là mã, trạng thái lưu, sức khỏe */}
+                            <span className="dd-reception__nameline">
+                              <button
+                                className="dd-reception__child"
+                                type="button"
+                                disabled={busy}
+                                aria-pressed={selectedId === row.child.id}
+                                onClick={() => selectChild(row.child.id)}
+                              >
+                                <strong>{row.child.fullName}</strong>
+                              </button>
+                              {/* CHD-13: trẻ không báo ăn ghi ở ô Trẻ; trẻ có ăn mà có dị ứng thì nhắc để GV biết suất thay thế */}
+                              {row.child.mealRegistered === false ? (
+                                <span className="dd-reception__mealtag">
+                                  <StatusBadge tone="gray" label="Không báo ăn" />
+                                </span>
+                              ) : (
+                                (row.child.hasAllergy || row.child.allergies?.length > 0) && (
+                                  <span
+                                    className="dd-reception__mealtag"
+                                    title={row.child.allergies?.length ? `Dị ứng: ${row.child.allergies.join(', ')}` : 'Có dị ứng'}
+                                  >
+                                    <StatusBadge
+                                      tone="orange"
+                                      icon={AlertTriangle}
+                                      label={row.child.allergies?.length ? `Dị ứng: ${row.child.allergies.join(', ')}` : 'Có dị ứng'}
+                                    />
+                                  </span>
+                                )
+                              )}
+                            </span>
                             <div className="dd-reception__tags">
                               <span className="muted text-xs nowrap">{row.child.code}</span>
                               {/* Chỉ báo dòng cần chú ý; dòng đã lưu không gắn badge để danh sách đỡ rối */}
@@ -590,14 +661,44 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
                                   disabled={busy}
                                   onClick={() => setLeaveFor(row)}
                                 >
-                                  {entry.status === 'EXCUSED' ? 'Vắng có phép · Phụ huynh báo nghỉ' : 'Phụ huynh báo nghỉ'}
+                                  {halfPart(row)
+                                    ? LEAVE_PART_TAGS[halfPart(row)]
+                                    : entry.status === 'EXCUSED'
+                                      ? 'Vắng có phép · Phụ huynh báo nghỉ'
+                                      : 'Phụ huynh báo nghỉ'}
                                 </button>
                               )}
                             </div>
                           </div>
                         </td>
                         <td>
-                          {editable && !row.leaveRequest ? (
+                          {leaveLocked(row) && halfPart(row) === LEAVE_PART.MORNING ? (
+                            <div className="dd-reception__arrival">
+                              <StatusBadge
+                                tone={row.record?.status === 'PRESENT' ? 'green' : row.record?.status === 'UNEXCUSED' ? 'red' : 'gray'}
+                                label={MORNING_LEAVE_STATUS_LABELS[row.record?.status] || 'Nghỉ sáng (có phép)'}
+                              />
+                              {/* Nút hiện từ giờ chốt tới giờ đến muộn nhất buổi chiều của ngày hôm nay */}
+                              {sheet.canRecord &&
+                                row.record?.status === ATTENDANCE_STATUS.EXCUSED &&
+                                date === day.today &&
+                                day.baseLocked &&
+                                (!sheet.latestAfternoonArrival || day.now < sheet.latestAfternoonArrival) && (
+                                  <Button
+                                    size="sm"
+                                    icon={CheckCircle2}
+                                    disabled={busy}
+                                    title={`Ghi trẻ đến lớp buổi chiều, trước ${sheet.latestAfternoonArrival || '14:00'}`}
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      arrived(row);
+                                    }}
+                                  >
+                                    Đã đến
+                                  </Button>
+                                )}
+                            </div>
+                          ) : editable && !leaveLocked(row) ? (
                             <div className="dd-seg dd-reception__status" role="radiogroup" aria-label={`Điểm danh ${row.child.fullName}`}>
                               {[true, false].map((present) => (
                                 <label
@@ -623,24 +724,49 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
                         </td>
                         <td className="center">
                           <div className="dd-reception__mealcell">
-                            {row.child.mealRegistered === false ? (
-                              // CHD-13: hồ sơ trẻ không báo ăn ⇒ nút gạt về Không và khóa; HT/PHT sửa hồ sơ thì mới bật được
-                              <span className="dd-reception__meal">
-                                <Switch label={`Tham gia ăn: ${row.child.fullName}`} disabled checked={false} onChange={() => {}} />
-                                <span className="text-xs">Không báo ăn</span>
-                              </span>
-                            ) : editable && !row.leaveRequest ? (
+                            {/* ATT-02a: chỉ trẻ có mặt mới có nút Tham gia ăn (mặc định bật); chưa điểm danh / vắng ⇒ "—".
+                                CHD-13 (Cần chốt 18/11/2026): trẻ không báo ăn luôn "—", nhãn "Không báo ăn" ở ô Trẻ */}
+                            {/* ATT-13: trẻ nghỉ sáng có bữa xế theo công tắc ăn của đơn, kể cả khi chưa đến */}
+                            {halfPart(row) === LEAVE_PART.MORNING &&
+                            row.child.mealRegistered !== false &&
+                            sessions.includes(MEAL_SESSION.AFTERNOON) ? (
+                              editable ? (
+                                // Trước giờ chốt (hoặc khi mở lại): chỉ gạt bữa xế; sau giờ chốt khóa như mọi trẻ
+                                <>
+                                  <span className="muted text-xs">Bữa xế</span>
+                                  <span className="dd-reception__meal">
+                                    <Switch
+                                      label={`Ăn bữa xế: ${row.child.fullName}`}
+                                      disabled={busy}
+                                      checked={!!entry.meals?.[MEAL_SESSION.AFTERNOON]}
+                                      onChange={(on) => update(row, { meals: { ...noneIn, [MEAL_SESSION.AFTERNOON]: on } })}
+                                    />
+                                    <span className="text-xs">{entry.meals?.[MEAL_SESSION.AFTERNOON] ? 'Có' : 'Không'}</span>
+                                  </span>
+                                </>
+                              ) : (
+                                <span className="text-xs">Xế: {entry.meals?.[MEAL_SESSION.AFTERNOON] ? 'Có' : 'Không'}</span>
+                              )
+                            ) : entry.status !== ATTENDANCE_STATUS.PRESENT || row.child.mealRegistered === false ? (
+                              <span className="muted">—</span>
+                            ) : editable && !leaveLocked(row) ? (
                               <span className="dd-reception__meal">
                                 <Switch
                                   label={`Tham gia ăn: ${row.child.fullName}`}
-                                  disabled={busy || entry.status !== ATTENDANCE_STATUS.PRESENT}
-                                  checked={eatsAny(entry.meals, sessions)}
-                                  onChange={(on) => update(row, { meals: on ? allIn : noneIn })}
+                                  disabled={busy}
+                                  checked={eatsAny(entry.meals, rowSessions(row))}
+                                  onChange={(on) =>
+                                    update(row, { meals: on ? { ...noneIn, ...allMeals(true, rowSessions(row)) } : noneIn })
+                                  }
                                 />
-                                <span className="text-xs">{eatsAny(entry.meals, sessions) ? 'Có' : 'Không'}</span>
+                                <span className="text-xs">{eatsAny(entry.meals, rowSessions(row)) ? 'Có' : 'Không'}</span>
                               </span>
                             ) : (
-                              <span>{eatsAny(entry.meals, sessions) ? 'Có' : '—'}</span>
+                              <span>{eatsAny(entry.meals, rowSessions(row)) ? 'Có' : 'Không'}</span>
+                            )}
+                            {/* Nghỉ chiều: bữa xế tắt và khóa */}
+                            {halfPart(row) === LEAVE_PART.AFTERNOON && sessions.includes(MEAL_SESSION.AFTERNOON) && (
+                              <span className="muted text-xs dd-reception__xe-off">Xế: nghỉ chiều</span>
                             )}
                             {rowErrors[row.child.id]?.meals && <p className="field__error">{rowErrors[row.child.id].meals}</p>}
                           </div>
@@ -707,6 +833,14 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
             </p>
             <p>
               {formatDate(leaveFor.leaveRequest.fromDate)} – {formatDate(leaveFor.leaveRequest.toDate)}
+              {halfPart(leaveFor) && ` · ${LEAVE_PART_TAGS[halfPart(leaveFor)].split(' · ')[0]}`}
+              {halfPart(leaveFor) &&
+                leaveFor.leaveRequest.eats != null &&
+                ` · Bé tham gia ăn: ${leaveFor.leaveRequest.eats ? 'Có' : 'Không'}${
+                  leaveFor.leaveRequest.eatsMeals?.length
+                    ? ` (${leaveFor.leaveRequest.eatsMeals.map((s) => MEAL_SESSION_LABELS[s] || s).join(', ')})`
+                    : ''
+                }`}
             </p>
             <p>{leaveFor.leaveRequest.reason || 'Không có ghi chú.'}</p>
           </>

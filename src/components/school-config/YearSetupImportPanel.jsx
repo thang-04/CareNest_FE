@@ -65,11 +65,6 @@ function PreviewTable({ title, head, rows }) {
  * mode "teachers": sheet Giáo viên + Tổ trưởng (bước Tổ trưởng & giáo viên). Xem trước rồi ghi các dòng hợp lệ;
  * dòng BE từ chối hiện lỗi đỏ ở bảng kết quả.
  */
-// Lỗi BE khi lưu (vd. trùng tên) kèm điểm trường và giá trị trong file để đối chiếu
-const withPlace = (message, campus, kind, value) => {
-  return value ? `${message} (${campus ? `${campus}, ` : ''}${kind} "${value}")` : message;
-};
-
 export function YearSetupImportPanel({ open, mode, yearId, onClose }) {
   const { user } = useAuth();
   const toast = useToast();
@@ -164,7 +159,10 @@ export function YearSetupImportPanel({ open, mode, yearId, onClose }) {
             sheet: SHEETS.rooms,
             row: r.row,
             name: r.form.room,
-            reason: withPlace(err.message, campusOf(r.form), 'phòng', r.form.room),
+            campus: campusOf(r.form),
+            code: r.form.room,
+            title: r.form.name,
+            reason: err.message,
           });
         }
       }
@@ -175,6 +173,9 @@ export function YearSetupImportPanel({ open, mode, yearId, onClose }) {
             sheet: SHEETS.classes,
             row: c.row,
             name: c.form.name,
+            campus: campusOf(c.form),
+            code: c.roomCode,
+            title: c.form.name,
             reason: `Phòng ${c.roomCode} chưa lưu được nên chưa lưu lớp`,
           });
           continue;
@@ -187,7 +188,10 @@ export function YearSetupImportPanel({ open, mode, yearId, onClose }) {
             sheet: SHEETS.classes,
             row: c.row,
             name: c.form.name,
-            reason: withPlace(err.message, campusOf(c.form), 'lớp', c.form.name),
+            campus: campusOf(c.form),
+            code: c.roomCode,
+            title: c.form.name,
+            reason: err.message,
           });
         }
       }
@@ -227,9 +231,17 @@ export function YearSetupImportPanel({ open, mode, yearId, onClose }) {
     } else close(true);
   };
 
-  const errorRows = (result?.errors || []).map((e) => [e.sheet, e.row, e.name || '—', e.reason]);
+  // Nhập phòng / lớp: tách điểm trường, mã, tên thành cột riêng để đối chiếu sửa tệp
+  const errorRows = (result?.errors || []).map((e) =>
+    isRooms
+      ? [e.sheet, e.row, e.campus || '—', e.code || '—', e.title || e.name || '—', e.reason]
+      : [e.sheet, e.row, e.name || '—', e.reason],
+  );
   // Cột tên theo loại file: phòng / lớp (sheet Phòng, Lớp) hoặc lớp / nhóm tuổi (sheet Giáo viên, Tổ trưởng)
   const nameHead = isRooms ? 'Phòng / lớp' : 'Lớp / nhóm tuổi';
+  const errorHead = isRooms
+    ? ['Trang tính', 'Dòng trong Excel', 'Điểm trường', 'Mã phòng/lớp', 'Tên phòng/lớp', 'Chi tiết lỗi']
+    : ['Trang tính', 'Dòng', nameHead, 'Lý do'];
   return (
     <ImportDialog
       open={open}
@@ -258,7 +270,7 @@ export function YearSetupImportPanel({ open, mode, yearId, onClose }) {
           {!valid && !result.errors.length && (
             <p className="text-sm muted">Tệp chưa có dòng dữ liệu nào. Điền vào tệp mẫu rồi tải lên lại.</p>
           )}
-          <PreviewTable title="Dòng lỗi (không lưu)" head={['Trang tính', 'Dòng', nameHead, 'Lý do']} rows={errorRows} />
+          <PreviewTable title="Dòng lỗi (không lưu)" head={errorHead} rows={errorRows} />
           {isRooms ? (
             <>
               <PreviewTable

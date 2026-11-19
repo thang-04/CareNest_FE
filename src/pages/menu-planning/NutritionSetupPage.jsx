@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Lock, Question, Save, X } from '@/components/ui/icons';
+import { Question, Save, X } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useCatalogAccess, useNutritionSetups } from '@/hooks/menu-planning/useMenuPlanning';
 import { catalogUsesApi, saveNutritionSetups } from '@/services/menu-planning/menuPlanningService';
-import { Breadcrumb } from '@/components/ui/Breadcrumb';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { usePageReadOnly } from '@/contexts/PageReadOnlyContext';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { SidePanel } from '@/components/ui/SidePanel';
@@ -66,8 +67,9 @@ function VersionHistory({ versions, today }) {
 export default function NutritionSetupPage() {
   const { user } = useAuth();
   const toast = useToast();
-  // Danh mục nối BE ⇒ quyền sửa theo NUTRITION_MANAGE (HT có sẵn, PHT khi được cấp), như Thực phẩm, Món
+  // Nối BE ⇒ quyền sửa theo MEAL_CONFIG_MANAGE (chỉ HT, NUT-17); PHT chỉ xem
   const access = useCatalogAccess();
+  const { reason: viewOnlyReason } = usePageReadOnly();
   const { items, loading, error, reload } = useNutritionSetups();
   const today = todayInput();
   const [tab, setTab] = useState('overview');
@@ -79,7 +81,7 @@ export default function NutritionSetupPage() {
   const [historyOf, setHistoryOf] = useState(null);
   const [basisOpen, setBasisOpen] = useState(false);
   const [groupKey, setGroupKey] = useState(null);
-  const canEdit = access.canManage;
+  const canEdit = access.canConfigureMeals;
   // Nối BE: mỗi nhóm tuổi có các bản cấu hình theo ngày hiệu lực; bữa ăn chỉnh ở Cấu hình trường; không có bật/tắt nhóm
   const usesApi = catalogUsesApi();
   const tomorrow = addDays(today, 1);
@@ -97,28 +99,32 @@ export default function NutritionSetupPage() {
 
   const header = (
     <>
-      <Breadcrumb items={setupCrumbs()} />
-      <div className="page__head">
-        <div>
-          <h1 className="page__title">Thiết lập dinh dưỡng</h1>
-        </div>
-        {form &&
-          (canEdit ? (
+      <PageHeader
+        crumbs={setupCrumbs()}
+        title="Thiết lập dinh dưỡng"
+        readOnly={!canEdit}
+        actions={
+          form && (
             <div className="page__actions">
               {dirty && <span className="text-sm muted">Có thay đổi chưa lưu</span>}
-              <Button disabled={!dirty} onClick={() => cancel()}>
-                <X size={16} /> Hủy
-              </Button>
-              <Button variant="primary" disabled={!dirty} onClick={() => submit()}>
-                <Save size={16} /> Lưu
+              {canEdit && (
+                <Button icon={X} disabled={!dirty} onClick={() => cancel()}>
+                  Hủy
+                </Button>
+              )}
+              <Button
+                variant="primary"
+                icon={Save}
+                disabled={!dirty}
+                disabledReason={canEdit ? undefined : viewOnlyReason}
+                onClick={() => submit()}
+              >
+                Lưu
               </Button>
             </div>
-          ) : (
-            <span className="chip chip--gray">
-              <Lock size={14} /> Chỉ xem
-            </span>
-          ))}
-      </div>
+          )
+        }
+      />
     </>
   );
 

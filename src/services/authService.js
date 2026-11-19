@@ -4,7 +4,6 @@ import { tokenStorage } from '@/services/http/tokenStorage';
 import { authPost, refreshSession, resetAuthTransport } from '@/services/http/authTransport';
 import { beClient } from '@/services/http/beClient';
 import { devKeycloakLogin, devKeycloakLogout, getDevAccessToken } from '@/services/http/devKeycloakAuth';
-import { ROLES } from '@/models/User';
 import { normalizeAccountProfile } from './authProfile';
 import { clearPasswordChallenge, clearOtpRequest } from './authChallengeStore';
 import { authMockRepository, DEMO_PASSWORD, withPermissions } from '@/mocks/authMockRepository';
@@ -19,25 +18,16 @@ const SIGNAL_KEY = 'carenest.auth.signal';
  * thông tin người dùng từ GET /accounts/me
  * (Cần chốt 24/10 bỏ đăng nhập demo). Module chưa có BE vẫn chạy mock với người dùng này.
  */
-const roleOf = (account) => {
-  const roles = account.roles || [];
-  if (roles.includes(ROLES.VICE_PRINCIPAL)) return ROLES.VICE_PRINCIPAL;
-  if (roles.includes(ROLES.PRINCIPAL)) return ROLES.PRINCIPAL;
-  if (account.assignments?.some((a) => a.staffRole === 'AGE_GROUP_TEAM_LEADER')) return ROLES.TEAM_LEADER;
-  if (roles.includes(ROLES.TEACHER)) return ROLES.TEACHER;
-  if (roles.includes(ROLES.KITCHEN_STAFF)) return ROLES.KITCHEN_STAFF;
-  return null;
-};
-
 // Đăng nhập Keycloak dev dựng user như bản thật (toWebUser) để mã quyền BE ẩn/hiện nút giống hệt khi deploy
 const keycloakDevUser = async () => {
-  const account = await beClient.get('/accounts/me');
-  if (!roleOf(account)) {
+  // Cùng danh sách role Web với gateway (AUTH-21): ADMIN vào được, bếp/phụ huynh bị chặn
+  const user = toWebUser(await beClient.get('/accounts/me'));
+  if (!user.role) {
     const err = new Error('Tài khoản này không dùng được trên web');
     err.status = 403;
     throw err;
   }
-  return toWebUser(account);
+  return user;
 };
 
 export const broadcastSessionEvent = (type, operation = null) => {

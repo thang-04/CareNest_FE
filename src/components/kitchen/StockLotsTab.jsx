@@ -51,7 +51,7 @@ export function StockLotsTab({ campusId }) {
   const [foodGroup, setFoodGroup] = useState('');
   const [page, setPage] = useState(1);
   const [open, setOpen] = useState(() => new Set());
-  const canManage = useCanManageStock();
+  const canManage = useCanManageStock(campusId);
   const { foods } = useDryFoods();
   const lots = useLots({ campusId, includeEmpty });
   const allGroups = useMemo(() => groupLotsByFood(lots.data || []), [lots.data]);

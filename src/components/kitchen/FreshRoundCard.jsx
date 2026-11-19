@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Check, Pencil, Save, X } from '@/components/ui/icons';
-import { Button, ConfirmationModal, SelectField, TextAreaField, TextField } from '@/components';
+import { Button, ConfirmationModal, LockNote, SelectField, TextAreaField, TextField } from '@/components';
 import { FreshCheckResultBadge, FreshRoundStateBadge } from '@/components/kitchen/KitchenBadges';
 import { fmtQty } from '@/components/kitchen/KitchenFilters';
 import { useToast } from '@/contexts/ToastContext';
@@ -154,9 +154,7 @@ export function FreshRoundCard({ round, campusId, date, canManage, groupOfFood, 
       )}
       {!round.available && !round.recorded && (
         <div className="card__body">
-          <div className="alert alert--info" role="status">
-            {round.unavailableReason || 'Lần kiểm này chưa mở.'}
-          </div>
+          <LockNote kind="notYet">{round.unavailableReason || 'Lần kiểm này chưa mở.'}</LockNote>
         </div>
       )}
       {round.available && !round.lines.length && <p className="card__body muted">Ngày này không có hàng tươi cần nhận.</p>}

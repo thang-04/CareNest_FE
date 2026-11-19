@@ -7,7 +7,7 @@ import { formatDate } from '@/utils/format';
 
 /** Phần thiếu chờ bổ sung của một điểm trường: thực phẩm kho chưa đủ để trừ theo số suất. */
 export function StockShortfallsTab({ campusId }) {
-  const canManage = useCanManageStock();
+  const canManage = useCanManageStock(campusId);
   const shortfalls = useShortfalls(campusId);
 
   let body;

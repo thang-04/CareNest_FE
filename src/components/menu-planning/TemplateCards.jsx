@@ -16,6 +16,7 @@ import {
   Sunset,
 } from '@/components/ui/icons';
 import { RowMenu } from '@/components/ui/RowMenu';
+import { usePageReadOnly } from '@/contexts/PageReadOnlyContext';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
 import { Tabs } from '@/components/ui/Tabs';
 import { RecordStatusBadge } from '@/components/menu-planning/MenuBadges';
@@ -138,9 +139,10 @@ export function TemplateCards({ canCreate, onOpen }) {
   const [block, setBlock] = useState('');
   const [copyId, setCopyId] = useState(null);
   const [choosing, setChoosing] = useState(false);
+  const { reason: viewOnlyReason } = usePageReadOnly();
   const create = (
-    <Button variant="primary" onClick={() => setChoosing(true)}>
-      <Plus size={16} /> Tạo mẫu
+    <Button variant="primary" icon={Plus} onClick={() => setChoosing(true)} disabledReason={canCreate ? undefined : viewOnlyReason}>
+      Tạo mẫu
     </Button>
   );
   const all = useMemo(() => data || [], [data]);
@@ -184,7 +186,7 @@ export function TemplateCards({ canCreate, onOpen }) {
             aria-label="Tìm mẫu"
           />
         </label>
-        {canCreate && create}
+        {create}
       </section>
       {error ? (
         <section className="card">

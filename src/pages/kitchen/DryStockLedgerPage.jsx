@@ -1,6 +1,7 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Plus } from '@/components/ui/icons';
-import { Breadcrumb, EmptyState, ErrorState, LoadingState } from '@/components';
+import { Button, EmptyState, ErrorState, LoadingState, PageHeader } from '@/components';
+import { usePageReadOnly } from '@/contexts/PageReadOnlyContext';
 import { Tabs } from '@/components/ui/Tabs';
 import { KbCampusFilter } from '@/components/kitchen/KitchenFilters';
 import { StockLotsTab } from '@/components/kitchen/StockLotsTab';
@@ -46,8 +47,9 @@ const TABS = {
 /** Kho khô (L2): tồn theo lô, phiếu nhập, lịch sử nhập/trừ, phần thiếu. Điểm trường chọn trên URL (?campusId=). */
 export default function DryStockLedgerPage({ tab = 'stock' }) {
   const navigate = useNavigate();
-  const canManage = useCanManageStock();
+  const { reason: viewOnlyReason } = usePageReadOnly();
   const campus = useStockCampus();
+  const canManage = useCanManageStock(campus.campusId);
   const current = TABS[tab] || TABS.stock;
   const { View } = current;
 
@@ -62,12 +64,7 @@ export default function DryStockLedgerPage({ tab = 'stock' }) {
 
   return (
     <div className="page">
-      <Breadcrumb items={kitchenCrumbs(current.crumb)} />
-      <div className="page__head">
-        <div>
-          <h1 className="page__title">{current.label}</h1>
-        </div>
-      </div>
+      <PageHeader crumbs={kitchenCrumbs(current.crumb)} title={current.label} readOnly={!canManage} />
       <div className="kb-toolbar">
         <Tabs
           ariaLabel="Kho khô"
@@ -78,10 +75,15 @@ export default function DryStockLedgerPage({ tab = 'stock' }) {
         <div className="kb-toolbar__end">
           {campus.campusId && <KbCampusFilter campusId={campus.campusId} onChange={campus.setCampusId} canPick={campus.canPick} />}
           {/* Nút lập phiếu đứng cạnh tab và ô điểm trường, không treo riêng ở góc trên */}
-          {canManage && campus.campusId && (
-            <Link className="btn btn--primary" to={`/kitchen/stock-receipts/new?campusId=${campus.campusId}`}>
-              <Plus size={16} /> Lập phiếu nhập
-            </Link>
+          {campus.campusId && (
+            <Button
+              variant="primary"
+              icon={Plus}
+              onClick={() => navigate(`/kitchen/stock-receipts/new?campusId=${campus.campusId}`)}
+              disabledReason={canManage ? undefined : viewOnlyReason}
+            >
+              Lập phiếu nhập
+            </Button>
           )}
         </div>
       </div>

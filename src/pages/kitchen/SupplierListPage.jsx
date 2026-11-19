@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, RotateCcw } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePageReadOnly } from '@/contexts/PageReadOnlyContext';
 import { useSuppliers } from '@/hooks/kitchen/useKitchen';
 import { useFilterParams } from '@/hooks/useFilterParams';
 import { Button, DataTable, LABELS, ListPage, RowActions, SelectField } from '@/components';
@@ -27,6 +28,7 @@ export default function SupplierListPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const canManage = canEditSuppliers(user);
+  const { reason: viewOnlyReason } = usePageReadOnly();
   const [filters, setFilters, resetFilters, activeKeys] = useFilterParams(FILTER_DEFAULTS);
   const { keyword, status } = filters;
   const [page, setPage] = useState(1);
@@ -44,8 +46,8 @@ export default function SupplierListPage() {
   };
   const chipLabels = { keyword: `Từ khóa: ${keyword}`, status: `Trạng thái: ${SUPPLIER_STATUS_LABELS[status] || status}` };
   const chips = activeKeys.map((k) => ({ key: k, label: chipLabels[k], onRemove: () => change(k)('') }));
-  const addButton = canManage && (
-    <Button variant="primary" icon={Plus} onClick={() => setEditing('')}>
+  const addButton = (
+    <Button variant="primary" icon={Plus} onClick={() => setEditing('')} disabledReason={canManage ? undefined : viewOnlyReason}>
       Thêm nhà cung cấp
     </Button>
   );
@@ -83,7 +85,7 @@ export default function SupplierListPage() {
         description: canManage
           ? 'Thêm nhà cung cấp để phó hiệu trưởng chọn khi lập phiếu nhập kho.'
           : 'Hiệu trưởng chưa thêm nhà cung cấp nào.',
-        action: addButton,
+        action: canManage && addButton,
       };
 
   return (
@@ -91,6 +93,7 @@ export default function SupplierListPage() {
       <ListPage
         crumbs={supplierCrumbs()}
         title="Nhà cung cấp"
+        readOnly={!canManage}
         filters={
           <>
             <div className="filter-bar filter-bar--aligned">
@@ -111,7 +114,7 @@ export default function SupplierListPage() {
               <Button icon={RotateCcw} onClick={reset} disabled={!filtered}>
                 {LABELS.resetFilters}
               </Button>
-              {canManage && <div className="filter-bar__end">{addButton}</div>}
+              <div className="filter-bar__end">{addButton}</div>
             </div>
             <FilterChips count={loading ? null : (data || []).length} unit="nhà cung cấp" chips={chips} />
           </>
