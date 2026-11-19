@@ -183,7 +183,8 @@ export default function UserOverridesPage() {
                 {filteredAccounts.map((item) => {
                   const grantOverrides = item.overrides.filter((o) => o.effect === 'GRANT');
                   const revokeOverrides = item.overrides.filter((o) => o.effect === 'REVOKE');
-                  const campusText = item.campusName || item.assignments?.[0]?.campusName || 'Chưa phân công';
+                  const campusText =
+                    [item.className, item.campusName || item.assignments?.[0]?.campusName].filter(Boolean).join(' · ') || 'Chưa phân công';
 
                   return (
                     <tr key={item.userId}>

@@ -6,7 +6,8 @@ import { useToast } from '@/contexts/ToastContext';
 import { useFoods, useCatalogAccess } from '@/hooks/menu-planning/useMenuPlanning';
 import { useFilterParams } from '@/hooks/useFilterParams';
 import { saveFoodsBulk, setFoodFavorite } from '@/services/menu-planning/menuPlanningService';
-import { Breadcrumb } from '@/components/ui/Breadcrumb';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { usePageReadOnly } from '@/contexts/PageReadOnlyContext';
 import { Pagination, paginate } from '@/components/ui/Pagination';
 import { EmptyState, ErrorState, SkeletonRows, Spinner } from '@/components/ui/States';
 import { FilterMore } from '@/components/ui/FilterMore';
@@ -59,6 +60,7 @@ export default function FoodListPage() {
   const { user } = useAuth();
   const toast = useToast();
   const { canManage, personalFavorite } = useCatalogAccess();
+  const { reason: viewOnlyReason } = usePageReadOnly();
   // Bộ lọc lưu trên URL: mở thực phẩm rồi Back vẫn giữ nhóm, từ khóa và bộ lọc phụ
   const [filters, setFilters, resetFilters, activeKeys] = useFilterParams(FILTER_DEFAULTS);
   const { keyword, group, quick, allergen, status, origin } = filters;
@@ -166,25 +168,34 @@ export default function FoodListPage() {
 
   return (
     <div className="page">
-      <Breadcrumb items={foodCrumbs()} />
-      <div className="page__head">
-        <div>
-          <h1 className="page__title">Thực phẩm</h1>
-        </div>
-        {canManage && (
+      <PageHeader
+        crumbs={foodCrumbs()}
+        title="Thực phẩm"
+        readOnly={!canManage}
+        actions={
           <div className="page__actions">
-            <Button onClick={() => setImportOpen(true)} disabled={bulk}>
-              <FileImport size={16} /> Nhập từ Excel
-            </Button>
-            <Button onClick={() => setBulk(true)} disabled={bulk}>
-              <Table2 size={16} /> Chỉnh sửa hàng loạt
-            </Button>
-            <Button variant="primary" onClick={() => setEditing('')} disabled={bulk}>
-              <Plus size={16} /> Thêm thực phẩm
+            {canManage && (
+              <>
+                <Button icon={FileImport} onClick={() => setImportOpen(true)} disabled={bulk}>
+                  Nhập từ Excel
+                </Button>
+                <Button icon={Table2} onClick={() => setBulk(true)} disabled={bulk}>
+                  Chỉnh sửa hàng loạt
+                </Button>
+              </>
+            )}
+            <Button
+              variant="primary"
+              icon={Plus}
+              onClick={() => setEditing('')}
+              disabled={bulk}
+              disabledReason={canManage ? undefined : viewOnlyReason}
+            >
+              Thêm thực phẩm
             </Button>
           </div>
-        )}
-      </div>
+        }
+      />
       {bulk && (
         <div className="alert alert--info td-bulk-bar">
           <Table2 size={18} />

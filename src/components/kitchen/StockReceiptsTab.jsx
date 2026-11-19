@@ -13,7 +13,7 @@ import { formatDate, formatMoney, todayInput } from '@/utils/format';
 /** Danh sách phiếu nhập kho của một điểm trường; mở phiếu để xem, sửa nháp, xác nhận hoặc hủy. */
 export function StockReceiptsTab({ campusId }) {
   const navigate = useNavigate();
-  const canManage = useCanManageStock();
+  const canManage = useCanManageStock(campusId);
   const [filters, setFilters] = useState({ status: '', from: '', to: '' });
   const receipts = useReceipts({ campusId, ...filters });
   const create = (
