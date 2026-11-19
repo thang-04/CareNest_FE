@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import { useYearCampuses } from '@/hooks/useYearCampuses';
+import { CampusFilter } from '@/components/ui/CampusFilter';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { AssessmentFormHeading } from '@/components/assessment/AssessmentFormHeading';
 import ThemeEvaluationPreviewModal from '@/components/assessment/ThemeEvaluationPreviewModal';
@@ -32,9 +34,14 @@ export default function SemesterEvaluationListPage() {
   const semesters = semestersOf(year).filter((s) => s.key !== 'YEAR');
   const { classes, loading: classesLoading, error: classesError } = useThemeClasses();
   const [picked, setPicked] = useState('');
+  // Lọc điểm trường (HT: điểm trường của năm đang chọn; PHT: theo phạm vi quyền được cấp); lớp theo điểm trường đang chọn
+  const yearCampuses = useYearCampuses(PERMISSIONS.ASSESSMENT_VIEW);
+  const [campusId, setCampusId] = useState('');
+  const campusClasses = classes.filter((c) => !campusId || String(c.campusId) === String(campusId));
   // Mặc định lớp mình dạy; tổ trưởng/BGH chọn được lớp khác để xem (AUTH-23)
   const classId =
-    classes.find((c) => String(c.classId) === String(picked))?.classId || (classes.find((c) => c.teaches) || classes[0])?.classId;
+    campusClasses.find((c) => String(c.classId) === String(picked))?.classId ||
+    (campusClasses.find((c) => c.teaches) || campusClasses[0])?.classId;
   const [selectedSemester, setSemester] = useState(1);
   const validSemester = semesters.find((s) => s.key === `S${selectedSemester}`);
   const {
@@ -109,6 +116,7 @@ export default function SemesterEvaluationListPage() {
       <h1 className="page__title">Đánh giá học kỳ</h1>
       <div className="card">
         <div className="filter-bar">
+          <CampusFilter campuses={yearCampuses || []} value={campusId} onChange={(next) => guard.leave(() => setCampusId(next))} />
           <div className="field">
             <label className="field__label" htmlFor="semester-class">
               Lớp
@@ -120,7 +128,7 @@ export default function SemesterEvaluationListPage() {
               disabled={busy || classesLoading}
               onChange={(e) => guard.leave(() => setPicked(e.target.value))}
             >
-              {classes.map((c) => (
+              {campusClasses.map((c) => (
                 <option key={c.classId} value={c.classId}>
                   {c.name}
                   {classes.some((x) => x.teaches) && !c.teaches ? ' (chỉ xem)' : ''}

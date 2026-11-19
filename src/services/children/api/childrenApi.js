@@ -68,6 +68,9 @@ import { toBeSchoolYear } from '@/services/http/schoolYearIds';
  * headCircumferenceCm: BE ghi ngày (mới = hôm nay, sửa giữ ngày), kỳ cân đo không ghi vòng đầu (response vẫn có
  * headCircumferenceCm của dữ liệu cũ); không còn lỗi ngày ngoài kỳ (HEALTH_MEASUREMENT_DATE_OUTSIDE), trùng ngày đo ⇒ 409.
  * GET health bỏ headCircumferenceUntil (mock: rules).
+ * Báo ăn (CHD-13, docs/plans/active/2026-11-18-intake-meal-registration.md): POST enrollments, PUT health-declaration, import nhận
+ * declaration.mealRegistered (boolean, thiếu/null = true); child.mealRegistered (boolean) ở GET profile, danh sách, bảng điểm danh.
+ * Cờ ở hồ sơ trẻ, không ở bản khai đã lưu; false ⇒ BE giữ dị ứng, chế độ ăn đã lưu, tiếp nhận mới thì lưu Chưa cung cấp.
  */
 const PAGE_SIZE = 100;
 // Màn danh sách, xếp lớp tự lọc theo trạng thái; BE mặc định bỏ trẻ đã nghỉ nên gửi đủ 3 trạng thái như mock

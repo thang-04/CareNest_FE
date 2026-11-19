@@ -88,7 +88,7 @@ export function RemoveTeachersModal({ cls, nameOf, yearActive, teachers, classes
           {cls.teacherIds.map((id) => (
             <label key={id} className="checkbox">
               <input type="checkbox" checked={picked.includes(id)} onChange={() => togglePicked(id)} /> {nameOf(id)}
-              {id === cls.homeroomTeacherId && <span className="muted text-sm"> (chủ nhiệm)</span>}
+              {id === cls.homeroomTeacherId && <span className="muted text-sm"> (phụ trách chính)</span>}
             </label>
           ))}
         </div>
@@ -99,7 +99,7 @@ export function RemoveTeachersModal({ cls, nameOf, yearActive, teachers, classes
         </div>
       )}
       {picked.length > 0 && (
-        <FormField label="Giáo viên thay thế và chủ nhiệm" required={removingAll && yearActive} className="mt-12">
+        <FormField label="Giáo viên thay thế và GV phụ trách chính" required={removingAll && yearActive} className="mt-12">
           <ClassTeachersPicker
             teachers={teachers.filter((t) => !picked.includes(t.id))}
             classesOf={classesOf}

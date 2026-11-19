@@ -26,8 +26,10 @@ export const createSchoolConfigApi = (axiosClient) => ({
   getStructure: (filters) => axiosClient.get('/school-structure', { params: filters }),
   getAgeGroups: () => axiosClient.get('/age-groups'),
   // PENDING BE: nhóm tuổi gửi mealSessions (MORNING | LUNCH | AFTERNOON), mealsPerDay = số phần tử
-  saveAgeGroup: (id, form) => (id ? axiosClient.put(`/age-groups/${id}`, form) : axiosClient.post('/age-groups', form)),
-  deleteAgeGroup: (id) => axiosClient.delete(`/age-groups/${id}`),
+  // Nhóm tuổi theo năm học (Cần chốt 22/10/2026): thêm / xóa chỉ ở năm đang chọn
+  saveAgeGroup: (id, form, _user, schoolYearId) =>
+    id ? axiosClient.put(`/age-groups/${id}`, form) : axiosClient.post('/age-groups', form, { params: { schoolYearId } }),
+  deleteAgeGroup: (id, _user, schoolYearId) => axiosClient.delete(`/age-groups/${id}`, { params: { schoolYearId } }),
   saveClass: (id, form) => (id ? axiosClient.put(`/classes/${id}`, form) : axiosClient.post('/classes', form)),
   deleteClass: (id) => axiosClient.delete(`/classes/${id}`),
   // PENDING BE: sao chép lớp từ năm học khác (chỉ tên, nhóm tuổi, điểm trường, phòng, sĩ số)
@@ -46,8 +48,12 @@ export const createSchoolConfigApi = (axiosClient) => ({
 
   getCampuses: (schoolYear) => axiosClient.get('/campuses', { params: { schoolYear, withStats: true } }),
   getCampusDetail: (id, schoolYear) => axiosClient.get(`/campuses/${id}`, { params: { schoolYear } }),
-  saveCampus: (id, form) => (id ? axiosClient.put(`/campuses/${id}`, form) : axiosClient.post('/campuses', form)),
-  deleteCampus: (id) => axiosClient.delete(`/campuses/${id}`),
+  // Điểm trường theo năm học (BE V151): thêm vào / bỏ khỏi năm đang chọn, năm khác không đổi
+  saveCampus: (id, form, _user, schoolYear) =>
+    id
+      ? axiosClient.put(`/campuses/${id}`, form, { params: { schoolYearId: schoolYear || undefined } })
+      : axiosClient.post('/campuses', form, { params: { schoolYearId: schoolYear || undefined } }),
+  deleteCampus: (id, _user, schoolYear) => axiosClient.delete(`/campuses/${id}`, { params: { schoolYearId: schoolYear || undefined } }),
   // CFG-CP-01: ngừng hoạt động / hoạt động lại điểm trường
   setCampusStatus: (id, status) => axiosClient.patch(`/campuses/${id}/status`, { status }),
 

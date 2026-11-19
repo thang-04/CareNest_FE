@@ -8,9 +8,15 @@ import { Pagination, paginate } from '@/components/ui/Pagination';
 import { FilterMore } from '@/components/ui/FilterMore';
 import { DateInput } from '@/components/form/DateInput';
 import { FormField } from '@/components/form/FormField';
+import { CampusFilter } from '@/components/ui/CampusFilter';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSchoolYear } from '@/contexts/SchoolYearContext';
+import { useYearCampuses } from '@/hooks/useYearCampuses';
+import { PERMISSIONS } from '@/models/bePermissions';
 import { useToast } from '@/contexts/ToastContext';
 import { useAsync } from '@/hooks/useAsync';
+import { useLeaveGuard } from '@/hooks/useLeaveGuard';
+import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import { useAttendanceClasses } from '@/hooks/attendance/useAttendance';
 import { getCampuses } from '@/services/masterDataService';
 import {
@@ -27,14 +33,29 @@ import { attendanceCrumbs } from '@/utils/attendance/breadcrumbs';
 import { formatDate, formatDateTime, isIsoDate } from '@/utils/format';
 import '@/styles/modules/attendance.css';
 
+const EMPTY_FILTERS = { campusId: '', classId: '', status: '', from: '', to: '' };
+
 export default function AttendanceDayUnlockPage() {
   const { user } = useAuth();
   const toast = useToast();
   const [now, setNow] = useState(() => new Date());
   const today = schoolToday();
   const classesQuery = useAttendanceClasses();
-  const scoped = useMemo(() => classesQuery.classes.filter((cls) => canUnlockAttendanceDay(cls, user)), [classesQuery.classes, user]);
+  // Năm đang hoạt động: lớp được mở lại. Năm đã đóng / sắp diễn ra: vẫn hiện lớp và lịch sử của năm để xem, nút mở lại khóa
+  const { schoolYear, schoolYears } = useSchoolYear();
+  const selectedYear = (schoolYears || []).find((y) => y.id === schoolYear);
+  const yearOpen = selectedYear?.status === 'ACTIVE';
+  const scoped = useMemo(
+    () => (yearOpen ? classesQuery.classes.filter((cls) => canUnlockAttendanceDay(cls, user)) : classesQuery.classes),
+    [classesQuery.classes, user, yearOpen],
+  );
   const { data: campuses } = useAsync(() => getCampuses(), []);
+  // Hiệu trưởng: đủ điểm trường của năm đang chọn; PHT: điểm trường của lớp trong phạm vi (1 điểm trường thì không hiện ô chọn)
+  const yearCampuses = useYearCampuses(PERMISSIONS.ATTENDANCE_UNLOCK);
+  const campusOptions = useMemo(
+    () => yearCampuses || (campuses || []).filter((c) => scoped.some((cls) => cls.campusId === c.id)),
+    [yearCampuses, campuses, scoped],
+  );
   const history = useAsync(() => getAttendanceDayUnlocks(user), [user.id], { refreshOnDataChange: true });
   // Ngày cần mở lại: mặc định hôm nay, chọn được ngày khác từ đầu năm học (Cần chốt 21/10/2026)
   const [form, setForm] = useState({ classId: '', date: today, untilDate: today, untilTime: '23:59', reason: '' });
@@ -44,20 +65,22 @@ export default function AttendanceDayUnlockPage() {
   const [saveError, setSaveError] = useState(null);
   const [revokeError, setRevokeError] = useState('');
   const submitting = useRef(false);
+  // Lý do là phần tự nhập (lớp/ngày/hạn có mặc định); không có nút Lưu trong hộp vì gửi sẽ mở lại điểm danh
+  const guard = useLeaveGuard({ when: !!form.reason.trim() && !busy });
   const day = useAsync(
     async () => ({ ...(await getDayInfo(form.date, form.classId, user)), classId: form.classId }),
     [form.date, form.classId, user.id],
     { enabled: !!form.classId && isIsoDate(form.date) },
   );
   const reloadDay = day.reload;
-  const [filters, setFilters] = useState({ classId: '', status: '', from: '', to: '' });
+  const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [page, setPage] = useState(1);
   const selected = scoped.find((cls) => cls.id === form.classId);
   const campusLabel = (id) => {
     const campus = (campuses || []).find((x) => x.id === id);
     return campus?.shortName || campus?.name || id;
   };
-  const multiCampus = new Set(scoped.map((cls) => cls.campusId)).size > 1;
+  const multiCampus = new Set(scoped.map((cls) => cls.campusId)).size > 1 || campusOptions.length > 1;
   const classLabel = (cls) => `${cls.name}${multiCampus ? ` · ${campusLabel(cls.campusId)}` : ''}`;
   const active = (history.data || []).find(
     (item) => item.classId === form.classId && item.date === form.date && !item.revokedAt && isAttendanceUnlockActive(item, now),
@@ -71,10 +94,14 @@ export default function AttendanceDayUnlockPage() {
     (filters.from && !isIsoDate(filters.from)) ||
     (filters.to && !isIsoDate(filters.to)) ||
     (filters.from && filters.to && filters.from > filters.to);
+  const yearClassIds = useMemo(() => new Set(classesQuery.classes.map((cls) => String(cls.id))), [classesQuery.classes]);
+  const filterClasses = scoped.filter((cls) => !filters.campusId || cls.campusId === filters.campusId);
   const shown = invalidRange
     ? []
     : (history.data || []).filter(
         (item) =>
+          yearClassIds.has(String(item.classId)) &&
+          (!filters.campusId || item.campusId === filters.campusId) &&
           (!filters.classId || item.classId === filters.classId) &&
           (!filters.status || (filters.status === 'ACTIVE') === (!item.revokedAt && isAttendanceUnlockActive(item, now))) &&
           (!filters.from || item.date >= filters.from) &&
@@ -105,7 +132,8 @@ export default function AttendanceDayUnlockPage() {
     event.preventDefault();
     if (submitting.current) return;
     const next = {};
-    if (!selected) next.classId = 'Chọn lớp trong phạm vi của bạn.';
+    if (!yearOpen) next.classId = `Năm học ${selectedYear?.label || ''} chưa bắt đầu hoặc đã đóng, không mở lại điểm danh được.`;
+    else if (!selected) next.classId = 'Chọn lớp trong phạm vi của bạn.';
     if (!isIsoDate(form.date) || form.date > today) next.date = 'Chọn ngày từ đầu năm học đến hôm nay.';
     if (!isIsoDate(form.untilDate) || !isValidTime(form.untilTime)) next.until = 'Nhập đủ ngày giờ hợp lệ.';
     const until = new Date(`${form.untilDate}T${form.untilTime}:00+07:00`);
@@ -176,6 +204,15 @@ export default function AttendanceDayUnlockPage() {
         </div>
       ) : (
         <form className="card form-inline" onSubmit={requestUnlock} noValidate aria-busy={busy}>
+          {!yearOpen && (
+            <div className="alert alert--info form-inline__full" role="status">
+              <Info size={18} />
+              <div>
+                Năm học {selectedYear?.label || ''} {selectedYear?.status === 'CLOSED' ? 'đã kết thúc' : 'chưa bắt đầu'}: chỉ xem lớp và
+                lịch sử, không mở lại điểm danh được.
+              </div>
+            </div>
+          )}
           <FormField label="Lớp cần mở lại" required error={errors.classId} className="form-inline__class">
             <select className="select" value={form.classId} disabled={busy} onChange={(event) => set({ classId: event.target.value })}>
               <option value="">Chọn lớp</option>
@@ -229,7 +266,7 @@ export default function AttendanceDayUnlockPage() {
           <button
             className="btn btn--primary"
             type="submit"
-            disabled={busy || !ready || !canReopen || !!active || history.loading || !!history.error}
+            disabled={busy || !yearOpen || !ready || !canReopen || !!active || history.loading || !!history.error}
           >
             {busy ? <Spinner small /> : <Unlock size={16} />} Mở lại điểm danh
           </button>
@@ -271,6 +308,12 @@ export default function AttendanceDayUnlockPage() {
           <h2 className="card__title">Các lần mở lại</h2>
         </div>
         <div className="filter-bar">
+          <CampusFilter
+            hideLabel
+            campuses={campusOptions}
+            value={filters.campusId}
+            onChange={(campusId) => setFilter({ campusId, classId: '' })}
+          />
           <select
             className="select"
             aria-label="Lọc lớp"
@@ -278,9 +321,9 @@ export default function AttendanceDayUnlockPage() {
             onChange={(event) => setFilter({ classId: event.target.value })}
           >
             <option value="">Tất cả lớp</option>
-            {scoped.map((cls) => (
+            {filterClasses.map((cls) => (
               <option key={cls.id} value={cls.id}>
-                {classLabel(cls)}
+                {filters.campusId ? cls.name : classLabel(cls)}
               </option>
             ))}
           </select>
@@ -319,7 +362,7 @@ export default function AttendanceDayUnlockPage() {
             className="btn"
             type="button"
             disabled={!filtered}
-            onClick={() => setFilter({ classId: '', status: '', from: '', to: '' })}
+            onClick={() => setFilter({ campusId: '', classId: '', status: '', from: '', to: '' })}
           >
             <RotateCcw size={15} /> Đặt lại bộ lọc
           </button>
@@ -428,6 +471,7 @@ export default function AttendanceDayUnlockPage() {
         onConfirm={save}
         onClose={() => !busy && setConfirming(null)}
       />
+      <LeaveConfirmModal {...guard.modal} canSave={false} />
     </div>
   );
 }

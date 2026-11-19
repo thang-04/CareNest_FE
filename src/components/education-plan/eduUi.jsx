@@ -21,6 +21,7 @@ import {
   Stepper as SharedStepper,
 } from '@/components';
 import { createStatusBadge } from '@/components/ui/StatusBadge';
+import { ResponsiveToolbar } from '@/components/ui/ResponsiveToolbar';
 import { formatDate, formatFileSize } from '@/utils/format';
 import { EDU_STATUS_LABELS, educationDisplayStatus } from '@/models/education-plan/educationPlanConstants';
 
@@ -54,7 +55,11 @@ export function PageHead({ crumbs, title, desc, actions }) {
       <div className="page__head">
         <h1 className="page__title">{title}</h1>
         {desc && <p className="page__desc">{desc}</p>}
-        {actions && <div className="page__actions">{actions}</div>}
+        {actions && (
+          <ResponsiveToolbar className="page__actions" aria-label="Thao tác trang">
+            {actions}
+          </ResponsiveToolbar>
+        )}
       </div>
     </>
   );

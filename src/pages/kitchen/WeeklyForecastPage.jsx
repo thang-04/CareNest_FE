@@ -5,7 +5,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useKitchenCampus, useWeeklyForecast } from '@/hooks/kitchen/useKitchen';
-import { Breadcrumb, ConfirmationModal, EmptyState, ErrorState, LoadingState, StatusBadge } from '@/components';
+import { Breadcrumb, Button, ConfirmationModal, EmptyState, ErrorState, LoadingState, StatusBadge } from '@/components';
+import { Tabs } from '@/components/ui/Tabs';
 import { Modal } from '@/components/ui/Modal';
 import { PrintPaperFit } from '@/components/print/PrintPaperFit';
 import { PrintToolbar } from '@/components/print/PrintToolbar';
@@ -175,18 +176,14 @@ export default function WeeklyForecastPage() {
             </Link>
           )}
           {ready && (
-            <button
-              type="button"
-              className="btn"
-              onClick={() => exportWithPreview(weeklyOrderCsvRows(data), `phieu-dat-hang-tuan-${weekStart}.xlsx`)}
-            >
-              <Download size={16} /> Xuất Excel
-            </button>
+            <Button icon={Download} onClick={() => exportWithPreview(weeklyOrderCsvRows(data), `phieu-dat-hang-tuan-${weekStart}.xlsx`)}>
+              Xuất Excel
+            </Button>
           )}
           {canEdit && weekStart <= thisWeek && (
-            <button type="button" className="btn" onClick={() => go({ week: nextWeek, tab: 'tuan' })}>
-              <CalendarPlus size={16} /> Dự trù tuần sau · {formatDate(nextWeek).slice(0, 5)}–{formatDate(addDays(nextWeek, 4)).slice(0, 5)}
-            </button>
+            <Button icon={CalendarPlus} onClick={() => go({ week: nextWeek, tab: 'tuan' })}>
+              Dự trù tuần sau · {formatDate(nextWeek).slice(0, 5)}–{formatDate(addDays(nextWeek, 4)).slice(0, 5)}
+            </Button>
           )}
         </div>
       )}
@@ -213,27 +210,22 @@ export default function WeeklyForecastPage() {
     );
   else {
     const tabs = (
-      <div className="tabs" role="tablist">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === 'tuan'}
-          className={`tab ${tab === 'tuan' ? 'tab--active' : ''}`}
-          onClick={() => go({ tab: 'tuan' })}
-        >
-          Dự trù tuần {weekLabel(data.days).slice(0, 8)}
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === 'ncc'}
-          className={`tab ${tab === 'ncc' ? 'tab--active' : ''}`}
-          onClick={() => go({ tab: 'ncc' })}
-        >
-          Báo NCC thay đổi
-          {data.pendingChanges > 0 && <span className="chip chip--orange kb-tab-count">{data.pendingChanges} chưa báo</span>}
-        </button>
-      </div>
+      <Tabs
+        value={tab}
+        onChange={(key) => go({ tab: key })}
+        items={[
+          { key: 'tuan', label: `Dự trù tuần ${weekLabel(data.days).slice(0, 8)}` },
+          {
+            key: 'ncc',
+            label: (
+              <>
+                Báo NCC thay đổi
+                {data.pendingChanges > 0 && <span className="chip chip--orange kb-tab-count">{data.pendingChanges} chưa báo</span>}
+              </>
+            ),
+          },
+        ]}
+      />
     );
     const weekTab = (
       <>
@@ -256,9 +248,9 @@ export default function WeeklyForecastPage() {
               )}
             </span>
             {canEdit && (
-              <button type="button" className="btn btn--primary" disabled={!dirty || saving} onClick={save}>
-                {saving ? 'Đang lưu…' : 'Lưu dự trù'}
-              </button>
+              <Button variant="primary" disabled={!dirty} loading={saving} onClick={save}>
+                Lưu dự trù
+              </Button>
             )}
           </div>
           {Object.keys(errors).length > 0 && (
@@ -279,40 +271,35 @@ export default function WeeklyForecastPage() {
               ) : (
                 <StatusBadge tone="gray" label="Chưa gửi NCC" />
               )}
-              <button type="button" className="btn btn--sm" onClick={() => setPrinting(true)}>
-                <Printer size={16} /> In
-              </button>
+              <Button size="sm" icon={Printer} onClick={() => setPrinting(true)}>
+                In
+              </Button>
               {canEdit && !data.sent && (
-                <button type="button" className="btn btn--sm btn--primary" disabled={dirty} onClick={() => setConfirmSend(true)}>
-                  <Send size={16} /> Đánh dấu đã gửi NCC
-                </button>
+                <Button size="sm" variant="primary" icon={Send} disabled={dirty} onClick={() => setConfirmSend(true)}>
+                  Đánh dấu đã gửi NCC
+                </Button>
               )}
             </div>
           </div>
           <div className="card__body">
-            <div className="tabs" role="tablist">
-              <button
-                type="button"
-                role="tab"
-                aria-selected={orderTab === 'tuoi'}
-                className={`tab ${orderTab === 'tuoi' ? 'tab--active' : ''}`}
-                onClick={() => setOrderTab('tuoi')}
-              >
-                Hàng tươi · giao theo ngày
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={orderTab === 'kho'}
-                className={`tab ${orderTab === 'kho' ? 'tab--active' : ''}`}
-                onClick={() => setOrderTab('kho')}
-              >
-                Đồ khô cần mua
-                {data.dry.some((f) => f.toBuy > 0) && (
-                  <span className="chip chip--orange kb-tab-count">{data.dry.filter((f) => f.toBuy > 0).length}</span>
-                )}
-              </button>
-            </div>
+            <Tabs
+              value={orderTab}
+              onChange={setOrderTab}
+              items={[
+                { key: 'tuoi', label: 'Hàng tươi · giao theo ngày' },
+                {
+                  key: 'kho',
+                  label: (
+                    <>
+                      Đồ khô cần mua
+                      {data.dry.some((f) => f.toBuy > 0) && (
+                        <span className="chip chip--orange kb-tab-count">{data.dry.filter((f) => f.toBuy > 0).length}</span>
+                      )}
+                    </>
+                  ),
+                },
+              ]}
+            />
           </div>
           {orderTab === 'tuoi' ? (
             <>
@@ -392,7 +379,7 @@ export default function WeeklyForecastPage() {
           size="xl"
           className="print-modal"
           title="Phiếu đặt hàng tuần"
-          footer={<PrintToolbar sheetRef={sheetRef} fileBase={`Phieu_dat_hang_tuan_${weekStart}`} printLabel="In phiếu" />}
+          footer={<PrintToolbar sheetRef={sheetRef} fileBase={`Phieu_dat_hang_tuan_${weekStart}`} onClose={() => setPrinting(false)} />}
         >
           <PrintPaperFit>
             <WeeklyOrderPrint ref={sheetRef} data={data} campusName={campus?.shortName || campus?.name} />

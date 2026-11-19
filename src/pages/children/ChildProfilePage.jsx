@@ -143,7 +143,10 @@ export default function ChildProfilePage() {
                     ['Ngày tiếp nhận', child.enrolledAt ? formatDate(child.enrolledAt) : missing],
                     [
                       'Dị ứng đã xác nhận',
-                      child.allergies?.length ? (
+                      child.mealRegistered === false ? (
+                        // CHD-13: không báo ăn thì không khai dị ứng
+                        <span className="muted">Không báo ăn</span>
+                      ) : child.allergies?.length ? (
                         <span className="row row--wrap gap-1-5">
                           {child.allergies.map((a) => (
                             <span key={a} className="chip chip--red">

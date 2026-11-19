@@ -11,6 +11,8 @@ Import từ `@/components` trừ khi cột "Từ" ghi khác.
 | Cần | Dùng | Từ |
 | --- | --- | --- |
 | Khung màn danh sách (đầu trang + thẻ + lọc + bảng) | `ListPage` | `@/components` |
+| Thanh nút header không xuống dòng | `ResponsiveToolbar` (EDU-92: thiếu chiều rộng → menu ba gạch, giữ control gốc) | `@/components` |
+| Thanh thao tác ghim sát dưới header, trước thẻ lọc/tab | `PageToolbar` — `leading` chứa Quay lại bên trái, summary cạnh đó, children là nút chi tiết/gửi bên phải; dùng ResponsiveToolbar, thiếu chỗ thu menu ba gạch. Trang dùng `.page--toolbar` bỏ khoảng trống đầu trang/tiêu đề ẩn | `@/components` |
 | Đầu trang (breadcrumb, tiêu đề, nút) | `PageHeader` | `@/components` |
 | Bảng danh sách có đang tải / trống / lỗi / phân trang | `DataTable` | `@/components` |
 | Nút (kể cả nút đang gửi); nút chỉ icon `variant="icon"` (`.icon-btn`), nút dạng chữ `variant="link"` (`.link-btn`) | `Button` — `variant`, `size`, `icon`, `loading` | `@/components` |

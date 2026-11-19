@@ -4,6 +4,7 @@ import { FilterChips } from '@/components/ui/FilterChips';
 import { LABELS } from '@/components/ui/labels';
 import { Eye, Link2, Upload } from '@/components/ui/icons';
 import { FileInput } from '@/components/form/FileInput';
+import { useUnsavedMark } from '@/hooks/useLeaveGuard';
 import { EmptyState, Modal, Notice } from './eduUi';
 import { FilterSelect } from './planUi';
 import { LearningResourceViewer } from './LearningResourceViewer';
@@ -42,6 +43,8 @@ export function ResourcePickerModal({ user, context, sectionLabel, room, busy, e
   const [linkOpen, setLinkOpen] = useState(false);
   // Tệp vừa chọn chờ đặt tên trước khi tải lên: { file, base, name, error }
   const [pending, setPending] = useState(null);
+  // Chỉ tệp đã chọn chờ tải lên; chọn học liệu có sẵn trong kho không tính (form dán link tự đánh dấu riêng)
+  useUnsavedMark(!!pending);
 
   // Gõ tìm: chờ người dùng ngừng gõ 300 ms rồi mới hỏi BE
   useEffect(() => {

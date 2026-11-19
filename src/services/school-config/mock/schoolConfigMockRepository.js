@@ -231,6 +231,15 @@ const nextGroupId = (db, groupId) => {
   const i = list.findIndex((g) => g.id === groupId);
   return i >= 0 && i < list.length - 1 ? list[i + 1].id : null;
 };
+/** Nhóm tuổi của trẻ tại ngày bắt đầu năm học mới (như BE YearTransitionServiceImpl.ageGroupOf); không khớp ⇒ null. */
+const admissionAgeGroup = (db, child, yearStart) => {
+  const birth = child?.dateOfBirth || child?.birthDate;
+  if (!birth || !yearStart) return null;
+  const [by, bm, bd] = birth.split('-').map(Number);
+  const [sy, sm, sd] = yearStart.split('-').map(Number);
+  const months = (sy - by) * 12 + (sm - bm) - (sd < bd ? 1 : 0);
+  return groupsByAge(db).find((g) => g.ageFromMonths != null && months >= g.ageFromMonths && months < g.ageToMonths)?.id || null;
+};
 /** Trẻ được xếp từ năm đang hoạt động sang năm sắp diễn ra. */
 const placementSource = (db, target) => {
   const active = activeYearOf(db);
@@ -306,10 +315,13 @@ const buildReadiness = (db, year) => {
         detail: !classes.length
           ? 'Chưa có lớp'
           : !ok
-            ? [empty.length && `${empty.length} lớp chưa có giáo viên`, noHomeroom.length && `${noHomeroom.length} lớp chưa có chủ nhiệm`]
+            ? [
+                empty.length && `${empty.length} lớp chưa có giáo viên`,
+                noHomeroom.length && `${noHomeroom.length} lớp chưa có GV phụ trách chính`,
+              ]
                 .filter(Boolean)
                 .join(' · ')
-            : ['Tất cả lớp có GV và chủ nhiệm', short.length && `${short.length} lớp thiếu 1 GV`].filter(Boolean).join(' · '),
+            : ['Tất cả lớp có GV và GV phụ trách chính', short.length && `${short.length} lớp thiếu 1 GV`].filter(Boolean).join(' · '),
       };
     })(),
     placement: {
@@ -418,6 +430,10 @@ const teamLeaderData = (db, schoolYear) => {
 const notify = (db, userId, title, message, link = '/') => pushNotification(db, { userId, type: 'ASSIGNMENT', title, message, link });
 
 /* ---------- Staff accounts: what a role / campus / status change ends ---------- */
+// Nhóm tuổi theo năm: yearIds chưa có = nhóm dùng ở mọi năm (dữ liệu demo cũ)
+const inYear = (group, yearId) => !group.yearIds || group.yearIds.includes(yearId);
+const yearIdsOf = (db, group) => group.yearIds || db.schoolYears.map((y) => y.id);
+
 const openYearIds = (db) => new Set(db.schoolYears.filter((y) => y.status !== YEAR_STATUS.CLOSED).map((y) => y.id));
 const isTeaching = (role) => TEACHING_ROLES.includes(role);
 // Tổ trưởng là giáo viên được giao nhóm tuổi, không phải vai trò riêng khi đổi vai trò
@@ -448,7 +464,7 @@ const staffImpact = (db, u, next) => {
       .forEach((c) =>
         items.push({
           kind: 'CLASS',
-          text: `Dạy ${c.name} (${campusName(db, c.campusId)}, ${c.schoolYear})${c.homeroomTeacherId === u.id ? ' – chủ nhiệm' : ''}: lớp sẽ thiếu giáo viên`,
+          text: `Dạy ${c.name} (${campusName(db, c.campusId)}, ${c.schoolYear})${c.homeroomTeacherId === u.id ? ' – phụ trách chính' : ''}: lớp sẽ thiếu giáo viên`,
         }),
       );
     db.teamLeaderAssignments
@@ -504,6 +520,23 @@ const assignVp = (db, u, campusId, user) => {
   });
 };
 
+// BE giả (Cần chốt 19/11/2026): lý do chưa xóa được điểm trường; null = trống, xóa được
+const deleteBlockedReason = (db, campus) => {
+  if (campus.isMain) return 'Điểm trường chính, không xóa được';
+  const parts = [];
+  const classes = db.classes.filter((c) => c.campusId === campus.id).length;
+  if (classes) parts.push(`${classes} lớp`);
+  const rooms = (db.locations || []).filter((l) => l.campusId === campus.id).length;
+  if (rooms) parts.push(`${rooms} phòng`);
+  const children = (db.children || []).filter((ch) => ch.campusId === campus.id).length;
+  if (children) parts.push(`${children} trẻ`);
+  const staff = db.users.filter((u) => u.campusId === campus.id);
+  const vps = staff.filter((u) => u.role === ROLES.VICE_PRINCIPAL).map((u) => u.fullName);
+  if (vps.length) parts.push(`PHT ${vps.join(', ')}`);
+  if (staff.length > vps.length) parts.push(`${staff.length - vps.length} nhân sự khác`);
+  return parts.length ? parts.join(', ') : null;
+};
+
 export const schoolConfigMockRepository = {
   /* ---------------- School years (#16, #17) ---------------- */
   async getSchoolYears(user) {
@@ -554,6 +587,11 @@ export const schoolConfigMockRepository = {
         status: YEAR_STATUS.PLANNED,
         history: [{ action: 'CREATED', userId: user.id, at: now() }],
       };
+      // Năm mới lấy danh sách nhóm tuổi của năm gần nhất
+      const latest = [...db.schoolYears].sort((x, y) => String(y.startDate).localeCompare(String(x.startDate)))[0];
+      db.ageGroups.forEach((g) => {
+        if (g.yearIds && latest && g.yearIds.includes(latest.id)) g.yearIds = [...g.yearIds, year.id];
+      });
       db.schoolYears.push(year);
       return clone(year);
     });
@@ -661,11 +699,26 @@ export const schoolConfigMockRepository = {
         .map((c) => ({ id: c.id, name: campusLabel(db, c.id) })),
       classes,
       targets,
+      newAdmissions: (db.plannedAdmissions || [])
+        .filter((item) => item.schoolYearId === yearId && ['PENDING', 'PLACED'].includes(item.status) && mine(item))
+        .map((item) => {
+          const child = db.children.find((candidate) => candidate.id === item.childId);
+          return {
+            admissionId: item.id,
+            childId: item.childId,
+            fullName: child?.fullName || '—',
+            birthDate: child?.dateOfBirth || child?.birthDate || null,
+            campusId: item.campusId,
+            targetClassId: item.classId || null,
+            startDate: item.startDate,
+            ageGroupId: admissionAgeGroup(db, child, target.startDate),
+          };
+        }),
     };
   },
 
   /** items: [{ childId, action, toClassId }] – ghi đè theo từng trẻ; trẻ không có trong items giữ nguyên. */
-  async savePlacements(yearId, { items } = {}, user) {
+  async savePlacements(yearId, { items, newAdmissions } = {}, user) {
     await delay();
     if (!canEditYearPlacement(user, yearPlacementCampus(user) || undefined)) throw forbid();
     seeded();
@@ -694,6 +747,25 @@ export const schoolConfigMockRepository = {
         }
         return null;
       });
+      (newAdmissions || []).forEach((item) => {
+        const admission = (db.plannedAdmissions || []).find(
+          (candidate) => candidate.id === item.admissionId && candidate.schoolYearId === target.id,
+        );
+        if (!admission) return (errors[`admission.${item.admissionId}`] = 'Trẻ mới tiếp nhận không thuộc năm học này');
+        if (!canEditYearPlacement(user, admission.campusId))
+          return (errors[`admission.${item.admissionId}`] = 'Trẻ thuộc điểm trường bạn không được giao xếp lớp');
+        if (item.toClassId) {
+          const to = db.classes.find((candidate) => candidate.id === item.toClassId && candidate.schoolYear === target.id);
+          const child = db.children.find((candidate) => candidate.id === admission.childId);
+          if (!to || to.campusId !== admission.campusId)
+            return (errors[`admission.${item.admissionId}`] =
+              `Lớp ${to?.name || ''} không thuộc điểm trường đăng ký của ${child?.fullName || 'trẻ'}`);
+          // BE 2416: lớp phải đúng nhóm tuổi của trẻ tại ngày bắt đầu năm học mới
+          if (to.ageGroupId !== admissionAgeGroup(db, child, target.startDate))
+            return (errors[`admission.${item.admissionId}`] = `${child?.fullName || 'Trẻ'} không thuộc nhóm tuổi của ${to.name}`);
+        }
+        return null;
+      });
       if (hasErrors(errors)) throw new ApiError(422, 'Kiểm tra lại các trẻ được đánh dấu.', errors);
       const at = now();
       db.classPlacements ||= [];
@@ -711,6 +783,11 @@ export const schoolConfigMockRepository = {
         if (i >= 0) db.classPlacements[i] = { ...db.classPlacements[i], ...record };
         else db.classPlacements.push({ id: uid('plc'), ...record });
       });
+      (newAdmissions || []).forEach((item) => {
+        const admission = db.plannedAdmissions.find((candidate) => candidate.id === item.admissionId);
+        admission.classId = item.toClassId || null;
+        admission.status = item.toClassId ? 'PLACED' : 'PENDING';
+      });
       // Không vượt sĩ số tối đa của lớp năm mới (đã ≤ min(nhóm tuổi, sức chứa phòng))
       const over = yearClasses(db, target.id).filter((c) => seatsTaken(db, target.id, c.id) > c.capacity);
       if (over.length)
@@ -718,7 +795,7 @@ export const schoolConfigMockRepository = {
           409,
           `Vượt sĩ số tối đa: ${over.map((c) => `${c.name} (${seatsTaken(db, target.id, c.id)}/${c.capacity})`).join(', ')}. Chọn lớp khác cho một số trẻ.`,
         );
-      return { saved: (items || []).length };
+      return { saved: (items || []).length + (newAdmissions || []).length };
     });
   },
 
@@ -857,7 +934,9 @@ export const schoolConfigMockRepository = {
         ];
       }),
     );
-    return { year: clone(year), ageGroups: clone(db.ageGroups), classes: clone(classes), teamLeaders, groupStats };
+    // BE giả (Cần chốt 22/10/2026): mỗi năm học có danh sách nhóm tuổi riêng; nhóm chưa gắn năm = mọi năm
+    const yearGroups = db.ageGroups.filter((g) => inYear(g, schoolYear));
+    return { year: clone(year), ageGroups: clone(yearGroups), classes: clone(classes), teamLeaders, groupStats };
   },
 
   async getAgeGroups() {
@@ -865,18 +944,25 @@ export const schoolConfigMockRepository = {
     return clone(seeded().ageGroups);
   },
 
-  async saveAgeGroup(id, form, user) {
+  async saveAgeGroup(id, form, user, schoolYearId) {
     await delay();
     if (!canConfigureSchool(user)) throw forbid();
     seeded();
     return writeDb((db) => {
+      if (!id && schoolYearId) assertOpenYear(findYear(db, schoolYearId));
+      // Trùng tên nhóm đã có ở năm khác: dùng lại nhóm đó cho năm đang chọn
+      const sameName = !id && schoolYearId && db.ageGroups.find((g) => g.name.toLowerCase() === (form.name || '').trim().toLowerCase());
+      if (sameName && !inYear(sameName, schoolYearId)) {
+        sameName.yearIds = [...yearIdsOf(db, sameName), schoolYearId];
+        return clone(sameName);
+      }
       const open = openYearIds(db);
       const usedClasses = id
         ? db.classes.filter((c) => c.ageGroupId === id && open.has(c.schoolYear)).map((c) => ({ ...c, childCount: childCountOf(db, c.id) }))
         : [];
       const errors = validateAgeGroup(
         form,
-        db.ageGroups.filter((g) => g.id !== id),
+        db.ageGroups.filter((g) => g.id !== id && (!schoolYearId || inYear(g, schoolYearId))),
         { blockingClasses: usedClasses },
       );
       if (hasErrors(errors)) throw invalid(errors);
@@ -898,17 +984,39 @@ export const schoolConfigMockRepository = {
         (group.history ||= []).push({ action: 'UPDATED', userId: user.id, at: now(), note: `Trước: ${previous}` });
         return clone(group);
       }
-      const group = { id: uid('ag'), ...data, history: [{ action: 'CREATED', userId: user.id, at: now() }] };
+      const group = {
+        id: uid('ag'),
+        ...data,
+        ...(schoolYearId ? { yearIds: [schoolYearId] } : {}),
+        history: [{ action: 'CREATED', userId: user.id, at: now() }],
+      };
       db.ageGroups.push(group);
       return clone(group);
     });
   },
 
-  async deleteAgeGroup(id, user) {
+  async deleteAgeGroup(id, user, schoolYearId) {
     await delay();
     if (!canConfigureSchool(user)) throw forbid();
     seeded();
     writeDb((db) => {
+      if (schoolYearId) {
+        // Chỉ xét lớp, tổ trưởng của năm đang chọn; năm khác vẫn giữ nhóm
+        const year = findYear(db, schoolYearId);
+        assertOpenYear(year);
+        const group = db.ageGroups.find((g) => g.id === id && inYear(g, schoolYearId));
+        if (!group) throw notFound('nhóm tuổi');
+        if (db.classes.some((c) => c.ageGroupId === id && c.schoolYear === schoolYearId)) {
+          throw inUse(`nhóm tuổi đã có lớp ở năm học ${year.name}`);
+        }
+        const leader = db.teamLeaderAssignments.find((a) => a.ageGroupId === id && a.schoolYear === schoolYearId);
+        if (leader) {
+          const name = db.users.find((u) => u.id === leader.userId)?.fullName;
+          throw inUse(`nhóm tuổi đã có tổ trưởng${name ? ` ${name}` : ''} ở năm học ${year.name}`);
+        }
+        group.yearIds = yearIdsOf(db, group).filter((y) => y !== schoolYearId);
+        return;
+      }
       if (db.classes.some((c) => c.ageGroupId === id)) throw inUse('nhóm tuổi đã có lớp');
       if (db.teamLeaderAssignments.some((a) => a.ageGroupId === id)) throw inUse('nhóm tuổi đã có tổ trưởng');
       db.ageGroups = db.ageGroups.filter((g) => g.id !== id);
@@ -1138,8 +1246,16 @@ export const schoolConfigMockRepository = {
       if (hasErrors(errors)) throw invalid(errors);
       let setting = db.cutoffSettings.find((s) => s.schoolYear === schoolYear);
       const previousTime = setting?.time || null;
-      if (setting && setting.time === form.time && setting.effectiveFrom === form.effectiveFrom)
+      const latestAfternoonArrival = form.latestAfternoonArrival || setting?.latestAfternoonArrival || '14:00';
+      if (
+        setting &&
+        setting.time === form.time &&
+        setting.effectiveFrom === form.effectiveFrom &&
+        (setting.latestAfternoonArrival || '14:00') === latestAfternoonArrival
+      )
         throw invalid({ time: 'Giờ chốt và ngày áp dụng chưa thay đổi' });
+      // Màn điểm danh demo đọc giờ đến muộn nhất buổi chiều (ATT-13)
+      db.latestAfternoonArrival = latestAfternoonArrival;
       if (!setting) {
         setting = { schoolYear, history: [] };
         db.cutoffSettings.push(setting);
@@ -1147,12 +1263,14 @@ export const schoolConfigMockRepository = {
       Object.assign(setting, {
         time: form.time,
         effectiveFrom: form.effectiveFrom,
+        latestAfternoonArrival,
         updatedBy: user.id,
         updatedAt: now(),
       });
       setting.history.unshift({
         time: form.time,
         effectiveFrom: form.effectiveFrom,
+        latestAfternoonArrival,
         previousTime,
         userId: user.id,
         at: now(),
@@ -1189,6 +1307,7 @@ export const schoolConfigMockRepository = {
             vicePrincipals: db.users
               .filter((u) => u.role === ROLES.VICE_PRINCIPAL && u.campusId === c.id)
               .map((u) => ({ id: u.id, fullName: u.fullName })),
+            deleteBlockedReason: deleteBlockedReason(db, c),
           };
         }),
     );
@@ -1638,7 +1757,7 @@ export const schoolConfigMockRepository = {
           db,
           t,
           'Bạn được phân công lớp mới',
-          `Năm học ${year.name}: bạn phụ trách ${cls.name}${t === cls.homeroomTeacherId ? ' (chủ nhiệm)' : ''}.`,
+          `Năm học ${year.name}: bạn phụ trách ${cls.name}${t === cls.homeroomTeacherId ? ' (phụ trách chính)' : ''}.`,
         ),
       );
       return clone(cls);

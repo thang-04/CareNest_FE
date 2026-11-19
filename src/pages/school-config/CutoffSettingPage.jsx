@@ -13,6 +13,7 @@ import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { DateInput } from '@/components/form/DateInput';
 import { FormField } from '@/components/form/FormField';
+import { TextField } from '@/components/form/Field';
 import { Pagination, paginate } from '@/components/ui/Pagination';
 import { ScNoAccess } from '@/components/school-config/ScNoAccess';
 import { HolidaySetting } from '@/components/school-config/HolidaySetting';
@@ -50,7 +51,7 @@ export default function CutoffSettingPage() {
   const md = useMasterData();
   const yearId = useConfigYear();
   const { year, setting, loading, error, reload } = useCutoffSetting(yearId, { live: false });
-  const [form, setForm] = useState({ time: '', effectiveFrom: '', note: '' });
+  const [form, setForm] = useState({ time: '', effectiveFrom: '', note: '', latestAfternoonArrival: '' });
   const [initial, setInitial] = useState(null);
   const [errors, setErrors] = useState({});
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -79,13 +80,18 @@ export default function CutoffSettingPage() {
     if (!year) return;
     const today = todayInput();
     const from = today < year.startDate ? year.startDate : today;
-    const next = { time: setting?.time || '', effectiveFrom: from, note: '' };
+    const next = {
+      time: setting?.time || '',
+      effectiveFrom: from,
+      note: '',
+      latestAfternoonArrival: setting?.latestAfternoonArrival || '14:00',
+    };
     setForm(next);
     setInitial(next);
     setErrors({});
   }, [year, setting]);
 
-  const dirty = !!initial && ['time', 'effectiveFrom', 'note'].some((key) => form[key] !== initial[key]);
+  const dirty = !!initial && ['time', 'effectiveFrom', 'note', 'latestAfternoonArrival'].some((key) => form[key] !== initial[key]);
   // Rời màn khi đang sửa giờ chốt ⇒ hỏi; "Lưu" trong hộp kiểm tra rồi lưu như nút Lưu giờ chốt
   const guard = useLeaveGuard({
     when: (dirty && !saving) || childDirty,
@@ -113,7 +119,13 @@ export default function CutoffSettingPage() {
     // Như BE CUTOFF_DATE_PAST: đã có giờ chốt thì lần đổi sau chỉ áp dụng từ hôm nay (gõ tay vượt được min của ô ngày)
     if (!e.effectiveFrom && setting?.history?.length && form.effectiveFrom < todayInput())
       e.effectiveFrom = 'Giờ chốt mới chỉ áp dụng từ hôm nay trở đi';
-    if (!e.time && setting && setting.time === form.time && setting.effectiveFrom === form.effectiveFrom)
+    if (
+      !e.time &&
+      setting &&
+      setting.time === form.time &&
+      setting.effectiveFrom === form.effectiveFrom &&
+      (setting.latestAfternoonArrival || '14:00') === form.latestAfternoonArrival
+    )
       e.time = 'Giờ chốt và ngày áp dụng chưa thay đổi';
     setErrors(e);
     return !hasErrors(e);
@@ -171,7 +183,8 @@ export default function CutoffSettingPage() {
                   <span>{setting.effectiveFrom > todayInput() ? 'Giờ chốt sắp áp dụng' : 'Giờ chốt đang áp dụng'}</span>
                   <b className="sc-cutoff__time">{setting.time}</b>
                   <span className="text-sm text-2">
-                    từ {formatDate(setting.effectiveFrom)} · năm học {year.name}
+                    từ {formatDate(setting.effectiveFrom)} · năm học {year.name} · trẻ nghỉ sáng đến muộn nhất{' '}
+                    {setting.latestAfternoonArrival || '14:00'}
                   </span>
                 </div>
               ) : (
@@ -200,6 +213,16 @@ export default function CutoffSettingPage() {
                       <FormField label="Giờ chốt" required error={errors.time}>
                         <input className="input" type="time" value={form.time} onChange={(e) => set({ time: e.target.value })} />
                       </FormField>
+                      {/* ATT-13: trẻ nghỉ sáng chưa đến tới giờ này thì tự thành Vắng cả ngày, báo GV và phụ huynh */}
+                      <TextField
+                        label="Giờ đến muộn nhất buổi chiều"
+                        required
+                        type="time"
+                        error={errors.latestAfternoonArrival}
+                        hint="Trẻ nghỉ buổi sáng chưa đến lớp trước giờ này được ghi Vắng cả ngày."
+                        value={form.latestAfternoonArrival}
+                        onChange={(e) => set({ latestAfternoonArrival: e.target.value })}
+                      />
                       <FormField label="Áp dụng từ ngày" required error={errors.effectiveFrom}>
                         <DateInput
                           min={todayInput() > year.startDate ? todayInput() : year.startDate}
@@ -241,6 +264,7 @@ export default function CutoffSettingPage() {
                     <th>Người thay đổi</th>
                     <th className="center">Giờ cũ</th>
                     <th className="center">Giờ mới</th>
+                    <th className="center">Đến muộn nhất chiều</th>
                     <th className="center">Áp dụng từ</th>
                     <th>Ghi chú</th>
                   </tr>
@@ -248,7 +272,7 @@ export default function CutoffSettingPage() {
                 <tbody>
                   {!setting?.history?.length ? (
                     <tr>
-                      <td colSpan={6}>
+                      <td colSpan={7}>
                         <EmptyState title="Chưa có thay đổi nào" description="Mỗi lần đổi giờ chốt sẽ được ghi lại ở đây." />
                       </td>
                     </tr>
@@ -264,6 +288,7 @@ export default function CutoffSettingPage() {
                         <td>{h.userName || md.userById(h.userId)?.fullName || h.userId}</td>
                         <td className="center">{h.previousTime || '—'}</td>
                         <td className="fw-600 center">{h.time}</td>
+                        <td className="center">{h.latestAfternoonArrival || '14:00'}</td>
                         <td className="center">{formatDate(h.effectiveFrom)}</td>
                         <td className="sc-wrap">{h.note || <span className="muted">—</span>}</td>
                       </tr>
@@ -290,7 +315,8 @@ export default function CutoffSettingPage() {
         title="Lưu giờ chốt"
         message={
           <>
-            Từ ngày <b>{formatDate(form.effectiveFrom)}</b>, điểm danh và suất ăn sẽ khóa lúc <b>{form.time}</b> mỗi ngày học.
+            Từ ngày <b>{formatDate(form.effectiveFrom)}</b>, điểm danh và suất ăn sẽ khóa lúc <b>{form.time}</b> mỗi ngày học; trẻ nghỉ buổi
+            sáng chưa đến trước <b>{form.latestAfternoonArrival}</b> được ghi Vắng cả ngày.
           </>
         }
         confirmLabel="Lưu giờ chốt"

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Download, Plus } from '@/components/ui/icons';
 import { exportWithPreview } from '@/components/ui/ExportPreview';
-import { EmptyState, ErrorState, LoadingState } from '@/components';
+import { Button, EmptyState, ErrorState, LoadingState, SelectField } from '@/components';
 import { KbOptionalDateFilter } from '@/components/kitchen/KitchenFilters';
 import { ReceiptStatusBadge } from '@/components/kitchen/KitchenBadges';
 import { useCanManageStock, useReceipts } from '@/hooks/kitchen/useDryStock';
@@ -83,30 +83,25 @@ export function StockReceiptsTab({ campusId }) {
   return (
     <section className="card">
       <div className="card__body kb-toolbar kb-toolbar--card">
-        <button type="button" className="btn kb-export" onClick={exportCsv} disabled={!receipts.data?.length}>
-          <Download size={15} /> Xuất Excel
-        </button>
+        <Button className="kb-export" icon={Download} onClick={exportCsv} disabled={!receipts.data?.length}>
+          Xuất Excel
+        </Button>
         <label className="date-filter">
           Trạng thái
-          <select className="select" value={filters.status} onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))}>
+          <SelectField className="select" value={filters.status} onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))}>
             <option value="">Tất cả</option>
             {Object.entries(RECEIPT_STATUS_LABELS).map(([value, label]) => (
               <option key={value} value={value}>
                 {label}
               </option>
             ))}
-          </select>
+          </SelectField>
         </label>
         <KbOptionalDateFilter label="Từ ngày" value={filters.from} onChange={(from) => setFilters((f) => ({ ...f, from }))} />
         <KbOptionalDateFilter label="Đến ngày" value={filters.to} onChange={(to) => setFilters((f) => ({ ...f, to }))} />
-        <button
-          type="button"
-          className="btn"
-          disabled={!filters.status && !filters.from && !filters.to}
-          onClick={() => setFilters({ status: '', from: '', to: '' })}
-        >
+        <Button disabled={!filters.status && !filters.from && !filters.to} onClick={() => setFilters({ status: '', from: '', to: '' })}>
           Đặt lại bộ lọc
-        </button>
+        </Button>
       </div>
       {body}
     </section>

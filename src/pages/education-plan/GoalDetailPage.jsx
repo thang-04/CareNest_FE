@@ -1,3 +1,4 @@
+import { ResponsiveToolbar } from '@/components/ui/ResponsiveToolbar';
 import TeamSourceReview from '@/components/education-plan/TeamSourceReview';
 import YearPlanSourceCard from '@/components/education-plan/YearPlanSourceCard';
 import { planLevel as levelOf, planRoute } from '@/models/education-plan/planLevel.mjs';
@@ -217,9 +218,8 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
           ]}
           title={g.title}
         />
-        <div className="ga-year-toolbar" role="group" aria-label={`Thao tác ${pageLabel.toLowerCase()}`}>
+        <ResponsiveToolbar className="ga-year-toolbar" role="group" aria-label={`Thao tác ${pageLabel.toLowerCase()}`}>
           <div className="ga-year-toolbar__group">
-            <span className="ga-year-toolbar__title">{pageLabel}</span>
             <VersionBadge plan={g} goals={goals} />
             {/* Spec 005: mở hạn chỉ ở màn Kế hoạch quá hạn của Hiệu trưởng, không ở trang chi tiết */}
             <DeadlineBadge doc={g.timeLock} />
@@ -272,7 +272,7 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
               </button>
             )}
           </div>
-        </div>
+        </ResponsiveToolbar>
       </div>
 
       {['DRAFT', 'REJECTED'].includes(g.status) && (

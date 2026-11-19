@@ -1,6 +1,6 @@
 # VPS: /data/thangnd/CAPSTONE/caddy/carenest-web.caddy, được import từ /etc/caddy/Caddyfile.
 # Caddy (đang giữ cổng 80/443 của server) tự cấp và gia hạn HTTPS cho domain này.
-web.carenest.edu.vn {
+thuonghong.carenest.edu.vn {
 	encode gzip
 
 	# BE (BE:compose.vps.yaml, mạng host): giữ nguyên prefix /api; 8080 của server là app khác

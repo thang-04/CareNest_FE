@@ -2,15 +2,17 @@ import { useEffect, useMemo, useState } from 'react';
 import { Tabs } from '@/components/ui/Tabs';
 import { useTabParam } from '@/hooks/useTabParam';
 import { useSearchParams } from 'react-router-dom';
-import { Copy, FileDown, Pencil, Save, Scale, Send } from '@/components/ui/icons';
+import { Copy, FileDown, History, Pencil, Save, Scale, Send } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { DayEditorModal } from '@/components/menu-planning/DayEditorModal';
 import { CopyDayModal } from '@/components/menu-planning/CopyDayModal';
+import { AmendDayDialog } from '@/components/menu-planning/AmendDayDialog';
+import { MealPlanRevisionsModal } from '@/components/menu-planning/MealPlanRevisionsModal';
 import { PERMISSIONS } from '@/models/bePermissions';
 import { hasBePermission } from '@/utils/bePermissions';
 import { ageGroupOptions } from '@/utils/menu-planning/menuStatistics';
 import { useToast } from '@/contexts/ToastContext';
-import { Button, EmptyState, ErrorState, LoadingState, LockNote, PageHeader } from '@/components';
+import { Button, EmptyState, ErrorState, LoadingState, LockNote, PageHeader, SelectField } from '@/components';
 import { usePageReadOnly } from '@/contexts/PageReadOnlyContext';
 import { WeekPicker } from '@/components/form/WeekPicker';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
@@ -78,6 +80,11 @@ export default function WeeklyPlanPage() {
   // Ngày đang mở ở modal Sửa ngày / ngày nguồn khi chép (yyyy-mm-dd)
   const [editingDay, setEditingDay] = useState(null);
   const [copyFrom, setCopyFrom] = useState(null);
+  // Sửa ngoại lệ ngày đã công bố (P-39): ngày đang sửa món, bước nhập lý do { date, items }, lịch sử sửa của tuần
+  const [amendingDay, setAmendingDay] = useState(null);
+  const [amendDraft, setAmendDraft] = useState(null);
+  const [amendError, setAmendError] = useState('');
+  const [revisionsOpen, setRevisionsOpen] = useState(false);
   const { user } = useAuth();
 
   // Kế hoạch mới về (đổi tuần, sau khi lưu, nạp lại) ⇒ bản nháp trên màn lấy lại từ BE
@@ -108,13 +115,17 @@ export default function WeeklyPlanPage() {
   // Menu "…" đầu cột ngày: sửa trong modal to, chép ngày (khi sửa được); xem cân đối khi chỉ xem
   const dayActions = (day) => {
     const balance = { label: 'Mở ở Cân đối khẩu phần', icon: Scale, to: balanceHref({ week, block, date: day.date }) };
+    // Tuần đã công bố: chỉ ngày BE cho phép (`canAmend`) mới có lối sửa ngoại lệ
+    const amendAction = plan?.days.find((d) => d.date === day.date)?.canAmend
+      ? [{ label: 'Sửa ngoại lệ', icon: Pencil, onClick: () => setAmendingDay(day.date) }]
+      : [];
     return editable
       ? [
           { label: 'Sửa ngày', icon: Pencil, onClick: () => setEditingDay(day.date) },
           { label: 'Chép sang ngày…', icon: Copy, onClick: () => setCopyFrom(day.date) },
           balance,
         ]
-      : [{ label: 'Xem cân đối ngày', icon: Scale, onClick: () => setEditingDay(day.date) }, balance];
+      : [...amendAction, { label: 'Xem cân đối ngày', icon: Scale, onClick: () => setEditingDay(day.date) }, balance];
   };
 
   const fillDay = (day, template) => {
@@ -173,6 +184,28 @@ export default function WeeklyPlanPage() {
     }
   };
 
+  const savedDay = (date) => saved?.days.find((d) => d.date === date);
+  const amend = async ({ reason, note }) => {
+    setBusy(true);
+    setAmendError('');
+    try {
+      const day = { ...savedDay(amendDraft.date), items: amendDraft.items, note };
+      const next = await mealPlanApi.amendDay(week, day, reason);
+      planQ.setData(next);
+      setAmendDraft(null);
+      // Cân đối chỉ cảnh báo, không chặn (P-39): báo để người sửa xem lại ở Lưu ý của tuần
+      const notes = next.issues.filter((i) => i.date === day.date && (i.severity === 'BLOCKING' || i.severity === 'WARNING'));
+      if (notes.length) toast.warning(`Ngày này còn ${notes.length} lưu ý cân đối, xem ở Lưu ý của tuần.`, 'Đã lưu thay đổi');
+      else toast.success('Đã lưu thay đổi và báo phụ huynh, bếp.');
+    } catch (err) {
+      setAmendError(err.message);
+      // 409: ngày vừa qua giờ chốt hoặc tuần đổi ở nơi khác ⇒ nạp lại để cờ canAmend đúng
+      if (err.status === 409) planQ.reload({ silent: true });
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const head = (
     <>
       <PageHeader crumbs={weeklyCrumbs()} title="Kế hoạch tuần" readOnly={!!plan && !plan.canEdit} />
@@ -194,13 +227,17 @@ export default function WeeklyPlanPage() {
         {kcalGroups.length > 1 && (
           <label className="date-filter td-week-toolbar__group">
             Kcal theo nhóm
-            <select className="select" value={kcalAgeGroup ? String(kcalAgeGroup.id) : ''} onChange={(e) => setKcalGroupId(e.target.value)}>
+            <SelectField
+              className="select"
+              value={kcalAgeGroup ? String(kcalAgeGroup.id) : ''}
+              onChange={(e) => setKcalGroupId(e.target.value)}
+            >
               {kcalGroups.map((g) => (
                 <option key={g.id} value={String(g.id)}>
                   {g.name}
                 </option>
               ))}
-            </select>
+            </SelectField>
           </label>
         )}
       </div>
@@ -233,6 +270,11 @@ export default function WeeklyPlanPage() {
         </div>
         <div className="row td-week-toolbar__actions">
           {/* Chỉ bản đã công bố được xuất văn bản (MENU-14 SRS): văn bản gửi bếp, phụ huynh phải là bản chính thức */}
+          {plan.revisionCount > 0 && (
+            <Button icon={History} onClick={() => setRevisionsOpen(true)}>
+              Lịch sử sửa ({plan.revisionCount})
+            </Button>
+          )}
           {plan.status === MEAL_PLAN_STATUS.PUBLISHED && (
             <Button icon={FileDown} onClick={() => setExportOpen(true)}>
               Xuất văn bản
@@ -257,7 +299,13 @@ export default function WeeklyPlanPage() {
           )}
         </div>
       </div>
-      {plan.status === MEAL_PLAN_STATUS.PUBLISHED && <LockNote kind="locked">Tuần đã công bố nên không sửa được món.</LockNote>}
+      {plan.status === MEAL_PLAN_STATUS.PUBLISHED && (
+        <LockNote kind="locked">
+          {plan.days.some((d) => d.canAmend)
+            ? 'Tuần đã công bố: chỉ sửa ngoại lệ ở ngày được phép.'
+            : 'Tuần đã công bố nên không sửa được món.'}
+        </LockNote>
+      )}
       {dirty && autoOff.length > 0 && (
         <div className="alert alert--info">
           <div>
@@ -406,6 +454,43 @@ export default function WeeklyPlanPage() {
           onClose={() => setCopyFrom(null)}
         />
       )}
+      {amendingDay && (
+        <DayEditorModal
+          key={`amend-${amendingDay}`}
+          title={dayTitle(amendingDay)}
+          date={amendingDay}
+          initialItems={dayBlockItems(savedDay(amendingDay), block)}
+          editable
+          applyLabel="Tiếp tục"
+          sessions={blockSessions(plan, block)}
+          groups={groups}
+          ageGroups={ageGroups}
+          dishes={dishes}
+          canEditRecipe={hasBePermission(user, PERMISSIONS.NUTRITION_MANAGE)}
+          onApply={(items) => {
+            // Sửa cả ngày: món của khối khác giữ nguyên theo bản đã công bố
+            const day = setDayBlockItems(saved, amendingDay, block, items).days.find((d) => d.date === amendingDay);
+            setAmendError('');
+            setAmendDraft({ date: amendingDay, items: day.items });
+            setAmendingDay(null);
+          }}
+          onClose={() => setAmendingDay(null)}
+        />
+      )}
+      {amendDraft && (
+        <AmendDayDialog
+          key={`confirm-${amendDraft.date}`}
+          title={dayTitle(amendDraft.date)}
+          beforeItems={savedDay(amendDraft.date)?.items}
+          afterItems={amendDraft.items}
+          initialNote={savedDay(amendDraft.date)?.note}
+          busy={busy}
+          error={amendError}
+          onConfirm={amend}
+          onClose={() => setAmendDraft(null)}
+        />
+      )}
+      {revisionsOpen && <MealPlanRevisionsModal week={week} onClose={() => setRevisionsOpen(false)} />}
       <LeaveConfirmModal {...guard.modal} />
     </div>
   );

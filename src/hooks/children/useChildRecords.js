@@ -44,7 +44,6 @@ export function useClassOptions(schoolYear, { all = false, enabled = true } = {}
   return { year: data?.year || null, ageGroups: data?.ageGroups || [], classes: data?.classes || [], loading, error };
 }
 
-/** Lớp tiếp nhận, xếp lớp được (kèm sĩ số hiện tại): BE chỉ trả lớp của năm học đang hoạt động (user chốt 2026-10-28, Y-3). */
 /** BE:CHD-11 — yêu cầu sửa hồ sơ/khai báo mới nhất của trẻ (GV gửi xem trạng thái, lý do từ chối). */
 export function useLatestProfileChanges(childId, { enabled = true } = {}) {
   const { user } = useAuth();
@@ -64,9 +63,10 @@ export function useProfileChanges(status = 'PENDING', { enabled = true } = {}) {
   return { requests: data || [], loading, error, reload };
 }
 
-export function usePlacementClasses() {
+/** Lớp có thể tiếp nhận của năm đang hoạt động hoặc năm sắp tới, kèm sĩ số dự kiến. */
+export function usePlacementClasses(schoolYearId) {
   const { user } = useAuth();
-  const { data, loading, error, reload } = useAsync(() => getPlacementClasses({}, user), [user?.id], {
+  const { data, loading, error, reload } = useAsync(() => getPlacementClasses({ schoolYearId }, user), [schoolYearId, user?.id], {
     refreshOnDataChange: true,
   });
   return { classes: data || [], loading, error, reload };

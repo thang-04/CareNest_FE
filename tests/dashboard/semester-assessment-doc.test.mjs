@@ -46,7 +46,7 @@ test('semester print uses configured dates, paired columns and escapes child/not
   assert.match(file.html, /ngày \.{5} tháng \.{5} năm \.{10}/);
   assert.match(
     file.html,
-    /GIÁO VIÊN CHỦ NHIỆM[\s\S]*DUYỆT KẾ HOẠCH[\s\S]*Từ ngày 15\/01\/2027 đến ngày 31\/05\/2027[\s\S]*Tổ trưởng chuyên môn[\s\S]*Phó hiệu trưởng/,
+    /GIÁO VIÊN[\s\S]*DUYỆT KẾ HOẠCH[\s\S]*Từ ngày 15\/01\/2027 đến ngày 31\/05\/2027[\s\S]*Tổ trưởng chuyên môn[\s\S]*Phó hiệu trưởng/,
   );
   assert.equal(file.html.match(/class="sign"/g)?.length, 3);
   // Chỗ ký sửa / thêm được ở hộp xem trước (Cần 10/11/2026): người đầu ký trên, còn lại ở Duyệt kế hoạch

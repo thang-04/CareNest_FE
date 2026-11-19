@@ -9,7 +9,12 @@ export const attendanceApi = {
   getDayInfo: (date) => axiosClient.get('/attendance/day-info', { params: { date } }),
   getClassAttendance: (classId, date) => axiosClient.get(`/classes/${classId}/attendance`, { params: { date } }),
   saveClassAttendance: ({ classId, date, entries }) =>
-    axiosClient.put(`/classes/${classId}/attendance`, { date, entries: entries.map(({ childId, status }) => ({ childId, status })) }),
+    axiosClient.put(`/classes/${classId}/attendance`, {
+      date,
+      entries: entries.map(({ childId, status, meals }) => ({ childId, status, meals })),
+    }),
+  markArrived: ({ classId, childId, date }) =>
+    axiosClient.post(`/classes/${classId}/attendance/children/${childId}/arrived`, undefined, { params: { date } }),
   // PENDING BE: không có classId = tổng hợp nhiều lớp trong phạm vi người gọi (campusId tùy chọn, BE tự giới hạn phạm vi)
   getAttendanceSummary: ({ classId, campusId, from, to }) =>
     classId
@@ -36,7 +41,19 @@ const toSheet = (data) => {
     child: { ...child, code: '', gender: null, allergies: [], photoUrl: null },
     record,
     // Đơn nghỉ phụ huynh còn hiệu lực ngày này (ATT-04): nhãn "Phụ huynh báo nghỉ" ở dòng trẻ
-    leaveRequest: leave ? { id: leave.requestId, fromDate: leave.fromDate, toDate: leave.toDate, reason: leave.reason } : null,
+    // ATT-12: part = cả ngày / buổi sáng / buổi chiều; eats = bé ăn bữa của buổi còn học (null = không áp dụng);
+    // eatsMeals = các bữa của buổi còn học theo nhóm tuổi
+    leaveRequest: leave
+      ? {
+          id: leave.requestId,
+          fromDate: leave.fromDate,
+          toDate: leave.toDate,
+          reason: leave.reason,
+          part: leave.part || 'FULL_DAY',
+          eats: leave.eats ?? null,
+          eatsMeals: leave.eatsMeals || [],
+        }
+      : null,
     healthSummary: dailyHealthSummaryFromBe(health),
   }));
   const status = (row) => row.record?.status;
@@ -46,6 +63,7 @@ const toSheet = (data) => {
     className: data.className,
     campusId: data.campusId,
     mealSessions: data.mealSessions,
+    latestAfternoonArrival: data.latestAfternoonArrival,
     canRecord: data.canRecord,
     mealCountStatus: null,
     children,
@@ -80,18 +98,27 @@ export const createAttendanceBeApi = (client) => ({
   unlockAttendanceDay: (body) => client.post('/attendance/day-unlocks', body),
   revokeAttendanceDayUnlock: (id) => client.post(`/attendance/day-unlocks/${id}/revoke`),
   getClassAttendance: async (classId, date) => toSheet(await client.get(`/classes/${classId}/attendance`, { params: { date } })),
-  // ATT-02: BE tự tính suất từ status (bỏ qua meals) ⇒ chỉ gửi trẻ + trạng thái
+  // Có mặt mặc định ăn đủ bữa; giáo viên có thể tắt báo ăn nên phải gửi cả meals.
   saveClassAttendance: ({ classId, date, entries }) =>
     client.put(`/classes/${classId}/attendance`, {
       date,
-      entries: entries.map(({ childId, status }) => ({ childId, status })),
+      entries: entries.map(({ childId, status, meals }) => ({ childId, status, meals })),
     }),
-  getAttendanceSummary: async ({ classId, campusId, schoolYear, from, to }) =>
+  // ATT-13: trẻ nghỉ buổi sáng đã đến lớp buổi chiều (không đổi sổ báo ăn)
+  markArrived: ({ classId, childId, date }) =>
+    client.post(`/classes/${classId}/attendance/children/${childId}/arrived`, undefined, { params: { date } }),
+  getAttendanceSummary: async ({ classId, campusId, ageGroupId, schoolYear, from, to }) =>
     classId
       ? withSubstitute(await client.get(`/classes/${classId}/attendance/summary`, { params: { from, to } }), 'CLASS')
       : withSubstitute(
           await client.get('/attendance/summary', {
-            params: { from, to, campusId: campusId || undefined, schoolYearId: schoolYear || undefined },
+            params: {
+              from,
+              to,
+              campusId: campusId || undefined,
+              ageGroupId: ageGroupId || undefined,
+              schoolYearId: schoolYear || undefined,
+            },
           }),
           'MULTI',
         ),

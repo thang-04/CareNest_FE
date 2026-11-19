@@ -31,7 +31,7 @@ export function semesterAssessmentRows(board) {
     ['Một số lưu ý', board.note || ''],
   ];
 }
-/** signers: [{ title, name }] (mặc định GV chủ nhiệm, tổ trưởng, PHT từ BE); người đầu ký trên, còn lại ở "Duyệt kế hoạch". */
+/** signers: [{ title, name }] (mặc định giáo viên phụ trách lớp, tổ trưởng, PHT từ BE); người đầu ký trên, còn lại ở "Duyệt kế hoạch". */
 export function semesterAssessmentFile(board, signers = defaultSigners(board.signers)) {
   const [head, ...approvers] = signers;
   const headers = board.domains.map((d) => `<th colspan="2">${esc(d.name)}</th>`).join('');

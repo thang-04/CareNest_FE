@@ -1,3 +1,4 @@
+import { ResponsiveToolbar } from '@/components/ui/ResponsiveToolbar';
 import { useEffect, useLayoutEffect, useState } from 'react';
 import { Check, Pencil, RotateCcw, Save, Trash2, X } from '@/components/ui/icons';
 import { Card, Notice, PageHead } from '@/components/education-plan/eduUi';
@@ -242,7 +243,7 @@ export default function EduConfigPage() {
     <div className={`page ga-page ga-config-page ga-class-editor ga-year-page${editing ? ' is-editing' : ' is-viewing'}`}>
       <div className="ga-sticky-head">
         <PageHead crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Cấu hình' }]} title="Cấu hình kế hoạch giáo dục" />
-        <div className="ga-year-toolbar" role="group" aria-label="Thao tác cấu hình kế hoạch giáo dục">
+        <ResponsiveToolbar className="ga-year-toolbar" role="group" aria-label="Thao tác cấu hình kế hoạch giáo dục">
           {editing && isPrincipal && (
             <div className="ga-year-toolbar__group">
               <Button
@@ -309,7 +310,7 @@ export default function EduConfigPage() {
               </Button>
             )}
           </div>
-        </div>
+        </ResponsiveToolbar>
       </div>
 
       <Card title="1. Thời lượng chủ đề / chủ đề nhánh" bodyClass={null}>

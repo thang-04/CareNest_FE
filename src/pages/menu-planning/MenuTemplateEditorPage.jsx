@@ -3,7 +3,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Save } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
-import { Button, ErrorState, LoadingState } from '@/components';
+import { Button, ErrorState, LoadingState, TextField } from '@/components';
 import { usePageReadOnly } from '@/contexts/PageReadOnlyContext';
 import { FormField } from '@/components/form/FormField';
 import { SearchSelect } from '@/components/ui/SearchSelect';
@@ -171,9 +171,9 @@ export default function MenuTemplateEditorPage() {
             <div className="page__actions">
               {id && data.status !== RECORD_STATUS.ACTIVE && <RecordStatusBadge status={data.status} />}
               {editable && id && (
-                <button type="button" className="btn" disabled={busy} onClick={toggleStatus}>
+                <Button disabled={busy} onClick={toggleStatus}>
                   {data.status === RECORD_STATUS.ACTIVE ? 'Ngừng dùng' : 'Dùng lại'}
-                </button>
+                </Button>
               )}
               <Button
                 variant="primary"
@@ -188,7 +188,7 @@ export default function MenuTemplateEditorPage() {
           </div>
           <div className="card__body td-tpl-form">
             <FormField label="Tên mẫu" required error={errors.name}>
-              <input
+              <TextField
                 className="input"
                 maxLength={100}
                 value={form.name}
@@ -207,7 +207,7 @@ export default function MenuTemplateEditorPage() {
               />
             </FormField>
             <FormField label="Nhãn mùa" error={errors.seasonLabel} hint="Ví dụ: Mùa đông, Mùa hè">
-              <input
+              <TextField
                 className="input"
                 maxLength={50}
                 value={form.seasonLabel}

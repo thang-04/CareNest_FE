@@ -6,7 +6,7 @@ import { login, spaGo } from '../support/ui.mjs';
 // Dữ liệu dev 10/11/2026: teamlead34 = Tổ trưởng + GVCN lớp 1 (3–4 tuổi, cơ sở A), teacher6 = GV thứ hai lớp đó.
 test.describe.configure({ mode: 'serial' });
 
-const U = { vp: 'tam.lethi@thuonghong.carenest.edu.vn', ht: 'tuyet.hoangminh@thuonghong.carenest.edu.vn', tl: 'lan.nguyenkim@thuonghong.carenest.edu.vn', gv2: 'thanh.phamthi@thuonghong.carenest.edu.vn' };
+const U = { vp: 'viceprincipal', ht: 'principal', tl: 'teacher1', gv2: 'teacher2' };
 const GOALS = '/education-plans/goals';
 let cls;
 let myAge;

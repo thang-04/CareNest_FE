@@ -1,3 +1,4 @@
+import { Button } from '@/components';
 import { useId, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, EduStatusBadge, EmptyState, PageHead, YearPlanStatusBadge, fmtDate, fmtDateTime } from '@/components/education-plan/eduUi';
@@ -148,7 +149,6 @@ export default function OverduePlansPage() {
             </div>
           </div>
         </div>
-        {/* Khung chung (Tiền 12/11/2026): hàng lọc → tab → hàng nút; nút làm hàng loạt ở hàng nút, không trong thẻ lọc */}
         <div className="mb-16">
           <Tabs
             ariaLabel="Kế hoạch quá hạn"
@@ -163,19 +163,22 @@ export default function OverduePlansPage() {
             ]}
           />
         </div>
-        {overdueTab && (
-          <div className="ga-year-toolbar" role="group" aria-label="Thao tác kế hoạch quá hạn">
-            <div className="ga-year-toolbar__group ga-year-toolbar__group--end">
-              <button type="button" className="btn btn--sm btn--primary" disabled={!picked.length} onClick={() => setTarget(picked)}>
-                Mở hạn{picked.length ? ` (${picked.length})` : ''}
-              </button>
-            </div>
-          </div>
-        )}
       </div>
       <Card bodyClass={null}>
         {Object.keys(errors).length > 0 && (
           <div className="card__body">
+            {overdueTab && (
+              <div className="filter-bar">
+                <span className="muted text-sm" role="status">
+                  Đã chọn {picked.length} kế hoạch
+                </span>
+                <div className="filter-bar__end">
+                  <Button variant="outline-primary" size="sm" disabled={!picked.length} onClick={() => setTarget(picked)}>
+                    Mở hạn{picked.length ? ` (${picked.length})` : ''}
+                  </Button>
+                </div>
+              </div>
+            )}
             <p className="field__error" role="alert">
               {Object.keys(errors).length} tài liệu chưa mở hạn được, xem lý do ở từng dòng.
             </p>

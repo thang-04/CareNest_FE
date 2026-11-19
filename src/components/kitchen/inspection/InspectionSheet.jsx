@@ -3,6 +3,8 @@ import { BodyCell } from '@/components/kitchen/inspection/InspectionCells';
 import { ColumnFillDialog } from '@/components/kitchen/inspection/InspectionDialogs';
 import { DateInput, TimeInput } from '@/components/kitchen/inspection/InspectionInputs';
 import { FormField } from '@/components/form/FormField';
+import { TextField } from '@/components/form/Field';
+import { Button } from '@/components/ui/Button';
 import { Clock, ListChecks, PenLine } from '@/components/ui/icons';
 import { INSPECTION_ACTIONS, INSPECTION_COLUMNS, INSPECTION_DECISION, INSPECTION_FORMS } from '@/models/kitchen/inspectionConstants';
 import { buildHeader, columnTick } from '@/utils/kitchen/inspectionForm';
@@ -44,9 +46,9 @@ function FillButton({ col, editable, onOpen }) {
   if (!editable || col.readOnly || !FILLABLE.has(col.type)) return null;
   const label = `Điền hoặc xóa cả cột ${col.label}`;
   return (
-    <button type="button" className="icon-btn kr-fillbtn" title={label} aria-label={label} onClick={() => onOpen(col)}>
+    <Button variant="icon" className="kr-fillbtn" title={label} aria-label={label} onClick={() => onOpen(col)}>
       <PenLine size={16} aria-hidden="true" />
-    </button>
+    </Button>
   );
 }
 
@@ -116,10 +118,10 @@ function SheetHead({ date, campusName, inspectorName, form, errors, editable, on
   return (
     <div className="kr-sheet__head">
       <FormField label="Tên đơn vị">
-        <input className="input" value={campusName || ''} readOnly aria-readonly="true" />
+        <TextField className="input" value={campusName || ''} readOnly aria-readonly="true" />
       </FormField>
       <FormField label="Người kiểm tra">
-        <input className="input" value={inspectorName || ''} readOnly aria-readonly="true" />
+        <TextField className="input" value={inspectorName || ''} readOnly aria-readonly="true" />
       </FormField>
       <FormField label="Thời gian kiểm tra" error={failed}>
         <div className="kr-when">
@@ -256,9 +258,9 @@ export function InspectionSheet({
         {meta.part && <div className="kr-sheet__part">{meta.part}</div>}
         <div className="kr-sheet__tools">
           {hasSupplier && editable && (
-            <button type="button" className="btn btn--sm" onClick={onSupplier}>
-              <ListChecks size={14} /> Chọn nhà cung cấp cho cả bảng
-            </button>
+            <Button size="sm" icon={ListChecks} onClick={onSupplier}>
+              Chọn nhà cung cấp cho cả bảng
+            </Button>
           )}
         </div>
       </div>

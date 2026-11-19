@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { AlertCircle, ArrowLeft, FlaskConical, MailCheck, RotateCw, ShieldCheck } from '@/components/ui/icons';
 import { AuthLayout } from '@/layouts/AuthLayout';
 import { useToast } from '@/contexts/ToastContext';
-import { FormField, Spinner } from '@/components';
+import { Button, FormField, Spinner } from '@/components';
 import { IS_OTP_DEMO, getDemoOtp, resendOtp, verifyOtp } from '@/services/account/accountService';
 import { getOtpRequest, setOtpRequest, clearOtpRequest, setPasswordChallenge } from '@/services/authChallengeStore';
 import { validateOtp } from '@/utils/account/accountValidation';
@@ -164,17 +164,34 @@ export default function VerifyOtpPage() {
           />
         </FormField>
 
-        <button type="submit" className="btn btn--primary btn--lg btn--block" disabled={busy || expired}>
-          {busy ? <Spinner small /> : <ShieldCheck size={18} />} {busy ? 'Đang xác thực...' : 'Xác thực mã'}
-        </button>
+        {expired ? (
+          // Mã hết hạn: nút chính là gửi lại mã mới, không để người dùng đứng trước ô nhập bị khóa
+          <Button
+            variant="primary"
+            size="lg"
+            className="btn--block"
+            icon={RotateCw}
+            loading={resending}
+            disabled={resendIn > 0}
+            onClick={resend}
+          >
+            {resending ? 'Đang gửi lại...' : resendIn > 0 ? `Gửi lại mã sau ${resendIn}s` : 'Gửi lại mã mới'}
+          </Button>
+        ) : (
+          <button type="submit" className="btn btn--primary btn--lg btn--block" disabled={busy}>
+            {busy ? <Spinner small /> : <ShieldCheck size={18} />} {busy ? 'Đang xác thực...' : 'Xác thực mã'}
+          </button>
+        )}
 
         <div className="auth-form__row">
           <Link to="/login" className="ac-back-link">
             <ArrowLeft size={16} /> Hủy
           </Link>
-          <button type="button" className="link-btn" onClick={resend} disabled={resending || resendIn > 0}>
-            {resending ? 'Đang gửi lại...' : resendIn > 0 ? `Gửi lại mã sau ${resendIn}s` : 'Gửi lại mã'}
-          </button>
+          {!expired && (
+            <button type="button" className="link-btn" onClick={resend} disabled={resending || resendIn > 0}>
+              {resending ? 'Đang gửi lại...' : resendIn > 0 ? `Gửi lại mã sau ${resendIn}s` : 'Gửi lại mã'}
+            </button>
+          )}
         </div>
       </form>
     </AuthLayout>

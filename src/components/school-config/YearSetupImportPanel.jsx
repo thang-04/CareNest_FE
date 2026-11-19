@@ -24,6 +24,8 @@ import '@/styles/modules/menu-planning.css';
 
 const MODES = {
   rooms: { title: 'Nhập phòng và lớp từ Excel', template: ROOM_CLASS_TEMPLATE_URL, sheets: [SHEETS.rooms, SHEETS.classes] },
+  // Màn Phòng ban: chỉ đọc sheet Phòng của tệp mẫu (hoặc tệp xuất từ màn này)
+  roomList: { title: 'Nhập phòng từ Excel', template: ROOM_CLASS_TEMPLATE_URL, sheets: [SHEETS.rooms] },
   teachers: { title: 'Nhập giáo viên và tổ trưởng từ Excel', template: TEACHER_TEMPLATE_URL, sheets: [SHEETS.teachers, SHEETS.leaders] },
 };
 
@@ -74,7 +76,8 @@ export function YearSetupImportPanel({ open, mode, yearId, onClose }) {
   const [saving, setSaving] = useState(false);
   const [changed, setChanged] = useState(false);
 
-  const isRooms = mode === 'rooms';
+  const roomsOnly = mode === 'roomList';
+  const isRooms = mode === 'rooms' || roomsOnly;
   const valid = result ? (isRooms ? result.rooms.length + result.classes.length : result.classes.length + result.leaders.length) : 0;
 
   const close = (savedNow = false) => {
@@ -97,6 +100,8 @@ export function YearSetupImportPanel({ open, mode, yearId, onClose }) {
         rooms: rooms || [],
         classes: structure?.classes || [],
         schoolYear: yearId,
+        roomsOnly,
+        users: md.users || [],
       });
     }
     const [assign, leaders] = await Promise.all([
@@ -134,6 +139,10 @@ export function YearSetupImportPanel({ open, mode, yearId, onClose }) {
     }
   };
 
+  const campusOf = (form) => {
+    const c = md.campuses.find((x) => x.id === form.campusId);
+    return c ? c.shortName || c.name : '';
+  };
   const save = async () => {
     setSaving(true);
     const failed = [];
@@ -146,7 +155,15 @@ export function YearSetupImportPanel({ open, mode, yearId, onClose }) {
           idOf[r.key] = res?.id;
           saved += 1;
         } catch (err) {
-          failed.push({ sheet: SHEETS.rooms, row: r.row, name: r.form.room, reason: err.message });
+          failed.push({
+            sheet: SHEETS.rooms,
+            row: r.row,
+            name: r.form.room,
+            campus: campusOf(r.form),
+            code: r.form.room,
+            title: r.form.name,
+            reason: err.message,
+          });
         }
       }
       for (const c of result.classes) {
@@ -156,6 +173,9 @@ export function YearSetupImportPanel({ open, mode, yearId, onClose }) {
             sheet: SHEETS.classes,
             row: c.row,
             name: c.form.name,
+            campus: campusOf(c.form),
+            code: c.roomCode,
+            title: c.form.name,
             reason: `Phòng ${c.roomCode} chưa lưu được nên chưa lưu lớp`,
           });
           continue;
@@ -164,7 +184,15 @@ export function YearSetupImportPanel({ open, mode, yearId, onClose }) {
           await saveClass(c.id, { ...c.form, locationId }, user);
           saved += 1;
         } catch (err) {
-          failed.push({ sheet: SHEETS.classes, row: c.row, name: c.form.name, reason: err.message });
+          failed.push({
+            sheet: SHEETS.classes,
+            row: c.row,
+            name: c.form.name,
+            campus: campusOf(c.form),
+            code: c.roomCode,
+            title: c.form.name,
+            reason: err.message,
+          });
         }
       }
     } else {
@@ -203,7 +231,17 @@ export function YearSetupImportPanel({ open, mode, yearId, onClose }) {
     } else close(true);
   };
 
-  const errorRows = (result?.errors || []).map((e) => [e.sheet, e.row, e.name || '—', e.reason]);
+  // Nhập phòng / lớp: tách điểm trường, mã, tên thành cột riêng để đối chiếu sửa tệp
+  const errorRows = (result?.errors || []).map((e) =>
+    isRooms
+      ? [e.sheet, e.row, e.campus || '—', e.code || '—', e.title || e.name || '—', e.reason]
+      : [e.sheet, e.row, e.name || '—', e.reason],
+  );
+  // Cột tên theo loại file: phòng / lớp (sheet Phòng, Lớp) hoặc lớp / nhóm tuổi (sheet Giáo viên, Tổ trưởng)
+  const nameHead = isRooms ? 'Phòng / lớp' : 'Lớp / nhóm tuổi';
+  const errorHead = isRooms
+    ? ['Trang tính', 'Dòng trong Excel', 'Điểm trường', 'Mã phòng/lớp', 'Tên phòng/lớp', 'Chi tiết lỗi']
+    : ['Trang tính', 'Dòng', nameHead, 'Lý do'];
   return (
     <ImportDialog
       open={open}
@@ -232,7 +270,7 @@ export function YearSetupImportPanel({ open, mode, yearId, onClose }) {
           {!valid && !result.errors.length && (
             <p className="text-sm muted">Tệp chưa có dòng dữ liệu nào. Điền vào tệp mẫu rồi tải lên lại.</p>
           )}
-          <PreviewTable title="Dòng lỗi (không lưu)" head={['Sheet', 'Dòng', 'Tên', 'Lý do']} rows={errorRows} />
+          <PreviewTable title="Dòng lỗi (không lưu)" head={errorHead} rows={errorRows} />
           {isRooms ? (
             <>
               <PreviewTable
@@ -265,7 +303,7 @@ export function YearSetupImportPanel({ open, mode, yearId, onClose }) {
             <>
               <PreviewTable
                 title="Giáo viên"
-                head={['Dòng', 'Điểm trường', 'Lớp', 'Giáo viên', 'Chủ nhiệm']}
+                head={['Dòng', 'Điểm trường', 'Lớp', 'Giáo viên', 'Phụ trách chính']}
                 rows={(result.classes || []).map((c) => [c.row, c.campusName, c.name, c.teacherNames.join(', '), c.homeroomName])}
               />
               <PreviewTable

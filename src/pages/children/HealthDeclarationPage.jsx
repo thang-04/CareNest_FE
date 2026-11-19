@@ -68,6 +68,8 @@ export default function HealthDeclarationPage() {
 
   const openEditor = (d = emptyDeclaration()) => {
     setForm({
+      // CHD-13: cờ Báo ăn nằm trên hồ sơ trẻ, không có trong bản khai đã lưu; thiếu cờ ⇒ báo ăn.
+      mealRegistered: child?.mealRegistered !== false,
       allergies: { ...d.allergies, items: [...d.allergies.items] },
       diet: { ...d.diet },
       otherNotes: { ...(d.otherNotes || emptyDeclaration().otherNotes) },
@@ -192,7 +194,7 @@ export default function HealthDeclarationPage() {
               <h2 className="card__title">Thông tin khai báo</h2>
             </div>
             <div className="card__body">
-              <DeclarationSummary declaration={declaration} />
+              <DeclarationSummary declaration={declaration} mealRegistered={child.mealRegistered !== false} />
             </div>
             {lastChange && (
               <div className="tr-hc-overview__foot">

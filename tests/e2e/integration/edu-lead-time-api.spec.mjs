@@ -6,7 +6,7 @@ import { api, beReachable, sql } from '../support/realBe.mjs';
 // Bộ test đặt ngày học kỳ của năm học đang chạy và lùi ngày mở lớp về trước học kỳ để có tình huống quá hạn.
 test.describe.configure({ mode: 'serial' });
 
-const U = { vp: 'tam.lethi@thuonghong.carenest.edu.vn', ht: 'tuyet.hoangminh@thuonghong.carenest.edu.vn', tl: 'lan.nguyenkim@thuonghong.carenest.edu.vn', gv2: 'thanh.phamthi@thuonghong.carenest.edu.vn' };
+const U = { vp: 'viceprincipal', ht: 'principal', tl: 'teacher1', gv2: 'teacher2' };
 const DOCS = '/education-plans/class-docs';
 const isoPlus = (days) => {
   const d = new Date();

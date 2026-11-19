@@ -16,7 +16,6 @@ import {
   Sunset,
 } from '@/components/ui/icons';
 import { RowMenu } from '@/components/ui/RowMenu';
-import { Button } from '@/components/ui/Button';
 import { usePageReadOnly } from '@/contexts/PageReadOnlyContext';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
 import { Tabs } from '@/components/ui/Tabs';
@@ -35,6 +34,7 @@ import {
 } from '@/models/menu-planning/menuPlanningConstants';
 import { TEMPLATE_KIND_LABELS, dayItems, hasTemplateDays, itemsBySession, templateKind } from '@/utils/menu-planning/menuTemplateGrid';
 import { normalizeText } from '@/utils/format';
+import { Button, TextField } from '@/components';
 
 const SHOWN_DISHES = 3;
 const MEAL_ICONS = { [MEAL_SESSION.MORNING]: Sun, [MEAL_SESSION.LUNCH]: Soup, [MEAL_SESSION.AFTERNOON]: Sunset };
@@ -178,7 +178,7 @@ export function TemplateCards({ canCreate, onOpen }) {
         <Tabs items={tabs} value={block} onChange={setBlock} ariaLabel="Lọc theo khối" variant="pill" />
         <label className="td-search td-tpl-toolbar__search">
           <Search size={16} className="muted" />
-          <input
+          <TextField
             className="input"
             placeholder="Tìm mẫu theo tên"
             value={keyword}

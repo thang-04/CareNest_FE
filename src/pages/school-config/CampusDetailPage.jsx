@@ -13,10 +13,12 @@ import { UnassignedBadge } from '@/components/school-config/SchoolConfigBadges';
 import { StaffQuickPanel } from '@/components/school-config/StaffQuickPanel';
 import { canAssignVicePrincipal, canManageCampus } from '@/utils/school-config/schoolConfigPermissions';
 import { campusCrumbs } from '@/utils/school-config/breadcrumbs';
+import { UnassignViceDialog } from '@/components/school-config/UnassignViceDialog';
+import { Button } from '@/components/ui/Button';
 import { YearReadOnlyNotice } from '@/components/school-config/YearReadOnlyNotice';
 import '@/styles/modules/school-config.css';
 
-function PersonRow({ person, sub }) {
+function PersonRow({ person, sub, action }) {
   return (
     <li className="sc-person">
       <Avatar user={person} size="sm" />
@@ -24,6 +26,7 @@ function PersonRow({ person, sub }) {
         <div className="fw-600">{person.fullName}</div>
         <div className="text-xs muted">{sub || person.email}</div>
       </div>
+      {action}
     </li>
   );
 }
@@ -36,6 +39,8 @@ export default function CampusDetailPage() {
   const md = useMasterData();
   const { detail, loading, error, reload } = useCampusDetail(id, schoolYear);
   const [staffId, setStaffId] = useState(null);
+  // Gỡ PHT phụ trách: cùng hộp xác nhận + API như menu ở màn Điểm trường
+  const [unassigning, setUnassigning] = useState(null);
 
   if (error?.status === 403)
     return (
@@ -116,7 +121,23 @@ export default function CampusDetailPage() {
                   {detail.vicePrincipals.length ? (
                     <ul className="sc-people">
                       {detail.vicePrincipals.map((v) => (
-                        <PersonRow key={v.id} person={v} />
+                        <PersonRow
+                          key={v.id}
+                          person={v}
+                          action={
+                            canAssignVicePrincipal(user) &&
+                            !yearReadOnly && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="sc-person__action"
+                                onClick={() => setUnassigning({ campus, vp: v })}
+                              >
+                                Gỡ
+                              </Button>
+                            )
+                          }
+                        />
                       ))}
                     </ul>
                   ) : (
@@ -184,7 +205,7 @@ export default function CampusDetailPage() {
                     <th>Nhóm tuổi</th>
                     <th className="center">Phòng</th>
                     <th className="num">Sĩ số</th>
-                    <th>Chủ nhiệm</th>
+                    <th>Phụ trách chính</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -233,6 +254,16 @@ export default function CampusDetailPage() {
             </Link>
           </div>
           <StaffQuickPanel userId={staffId} classes={detail.classes} onClose={() => setStaffId(null)} />
+          <UnassignViceDialog
+            target={unassigning}
+            schoolYear={schoolYear}
+            user={user}
+            onClose={() => setUnassigning(null)}
+            onDone={() => {
+              setUnassigning(null);
+              reload({ silent: true });
+            }}
+          />
         </>
       )}
     </div>

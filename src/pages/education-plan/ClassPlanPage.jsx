@@ -1,3 +1,4 @@
+import { ResponsiveToolbar } from '@/components/ui/ResponsiveToolbar';
 import { useState } from 'react';
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
@@ -114,6 +115,7 @@ export default function ClassPlanPage() {
         crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Kế hoạch giáo dục chủ đề' }]}
         title={`Kế hoạch giáo dục chủ đề ${cls.name}`}
       />
+      {toolbar}
       <ClassFilterBar
         classes={classes}
         classId={classId}
@@ -122,7 +124,6 @@ export default function ClassPlanPage() {
       >
         {extra}
       </ClassFilterBar>
-      {toolbar}
     </div>
   );
   const head = headOf(null);
@@ -253,9 +254,12 @@ export default function ClassPlanPage() {
           />
         ),
         (pkg || foldAll) && (
-          <div className="ga-year-toolbar" role="group" aria-label={pkg ? `Trạng thái và thao tác học kỳ ${pkg.semesterNo}` : 'Thao tác'}>
+          <ResponsiveToolbar
+            className="ga-year-toolbar"
+            role="group"
+            aria-label={pkg ? `Trạng thái và thao tác học kỳ ${pkg.semesterNo}` : 'Thao tác'}
+          >
             <div className="ga-year-toolbar__group">
-              <span className="ga-year-toolbar__title">{cls.name}</span>
               {pkg?.unreleased ? (
                 <DocAvailabilityBadge status="UNRELEASED" />
               ) : (
@@ -295,7 +299,7 @@ export default function ClassPlanPage() {
                 </>
               )}
             </div>
-          </div>
+          </ResponsiveToolbar>
         ),
       )}
       {canComposeClassDocs && semesterConfigMissing && <Notice>Năm học chưa cấu hình học kỳ.</Notice>}

@@ -11,6 +11,7 @@ import {
 import { formatQty } from '@/utils/format';
 import { evaluationGroups, evaluationSessions } from '@/utils/menu-planning/mealPlanGrid';
 import { dayLabel } from '@/utils/menu-planning/menuChecks';
+import { Button } from '@/components';
 
 // Chữ ngắn dưới con số: nói rõ trạng thái bằng chữ, không chỉ bằng màu
 const ROW_NOTE = { LOW: 'Thấp', HIGH: 'Cao', OK: 'Đạt' };
@@ -153,9 +154,9 @@ export function MealPlanEvaluations({ plan, block }) {
             })}
             {head(
               'Vi chất',
-              <button type="button" className="btn btn--ghost btn--sm" onClick={() => setShowMicro((v) => !v)}>
+              <Button variant="ghost" size="sm" onClick={() => setShowMicro((v) => !v)}>
                 {showMicro ? 'Thu gọn' : `Hiện ${MICRONUTRIENTS.length} vi chất`}
-              </button>,
+              </Button>,
             )}
             {showMicro && sectionRows(MICRONUTRIENTS)}
             {head('Tiền ăn')}

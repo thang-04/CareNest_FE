@@ -135,7 +135,9 @@ export function RoomFormModal({ open, onClose, room, defaultCampusId, campuses, 
             <input
               className="input"
               disabled
-              value={users.find((u) => u.id === room?.managerUserId)?.fullName || 'Chưa có (phòng chưa có lớp / lớp chưa có chủ nhiệm)'}
+              value={
+                users.find((u) => u.id === room?.managerUserId)?.fullName || 'Chưa có (phòng chưa có lớp / lớp chưa có GV phụ trách chính)'
+              }
             />
           </FormField>
         ) : (

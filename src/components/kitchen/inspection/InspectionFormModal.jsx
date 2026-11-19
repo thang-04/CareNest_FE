@@ -111,9 +111,9 @@ export function InspectionFormModal({
           <div className="kr-form__actions">
             {data.canEdit && (
               <>
-                <button type="button" className="btn" disabled={busy || !dirty} onClick={onSave}>
-                  <Save size={16} /> Lưu nháp
-                </button>
+                <Button icon={Save} disabled={busy || !dirty} onClick={onSave}>
+                  Lưu nháp
+                </Button>
                 <Button
                   variant="primary"
                   icon={PenLine}
@@ -126,16 +126,16 @@ export function InspectionFormModal({
               </>
             )}
             {data.canReopen && (
-              <button type="button" className="btn" disabled={busy} onClick={() => setReopening(true)}>
-                <PenLine size={16} /> Sửa lại
-              </button>
+              <Button icon={PenLine} disabled={busy} onClick={() => setReopening(true)}>
+                Sửa lại
+              </Button>
             )}
-            <button type="button" className="btn" disabled={busy || total === 0} onClick={openPrint}>
-              <Printer size={16} /> In / xuất
-            </button>
-            <button type="button" className="btn" onClick={onClose}>
-              <X size={16} /> Đóng
-            </button>
+            <Button icon={Printer} disabled={busy || total === 0} onClick={openPrint}>
+              In / xuất
+            </Button>
+            <Button icon={X} onClick={onClose}>
+              Đóng
+            </Button>
           </div>
         </div>
         <div className="kr-form__scroll">
@@ -155,7 +155,16 @@ export function InspectionFormModal({
           <InspectionHistory history={data.history} />
         </div>
       </div>
-      <InspectionSignDialog open={signing} busy={busy} onClose={() => setSigning(false)} onConfirm={onSign} />
+      <InspectionSignDialog
+        open={signing}
+        busy={busy}
+        formLabel={INSPECTION_TAB_LABELS[tab]}
+        campusName={campusName}
+        date={date}
+        rowCount={total}
+        onClose={() => setSigning(false)}
+        onConfirm={onSign}
+      />
       {supplierOpen && <SupplierFillDialog onApply={onApplySupplier} onClose={() => setSupplierOpen(false)} />}
       {printing && (
         <InspectionPrintDialog
@@ -167,7 +176,15 @@ export function InspectionFormModal({
           onClose={() => setPrinting(false)}
         />
       )}
-      {reopening && <ReopenDialog busy={busy} onConfirm={onReopen} onClose={() => setReopening(false)} />}
+      {reopening && (
+        <ReopenDialog
+          busy={busy}
+          formLabel={INSPECTION_TAB_LABELS[tab]}
+          history={data.history}
+          onConfirm={onReopen}
+          onClose={() => setReopening(false)}
+        />
+      )}
     </Modal>
   );
 }

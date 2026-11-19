@@ -41,3 +41,9 @@ export function useMenuStatistics(query) {
   const key = JSON.stringify(query);
   return useAsync(() => mealPlanApi.getMenuStatistics(query), [user?.id, key], { enabled: !!query && !!user });
 }
+
+/** Lịch sử sửa ngoại lệ của tuần; `enabled` false ⇒ chưa gọi (hộp thoại lịch sử chưa mở). */
+export function useMealPlanRevisions(weekStart, enabled) {
+  const { user } = useAuth();
+  return useAsync(() => mealPlanApi.listRevisions(weekStart), [user?.id, weekStart], { enabled: enabled && !!weekStart && !!user });
+}

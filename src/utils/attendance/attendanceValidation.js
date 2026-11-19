@@ -14,8 +14,9 @@ export const validateAttendanceEntry = (entry, { sessions = MEAL_SESSIONS } = {}
   }
   const taken = Object.keys(entry.meals || {}).filter((s) => entry.meals[s]);
   if (taken.some((s) => !sessions.includes(s))) errors.meals = 'Bữa ăn không thuộc nhóm tuổi của lớp. Chọn lại bữa ăn.';
-  // GBR-ATT-03 / MSG26: an absent child cannot take a meal.
-  else if (isAbsent(entry.status) && taken.length) errors.meals = 'Trẻ vắng mặt không thể đăng ký suất ăn.';
+  // GBR-ATT-03 / MSG26: an absent child cannot take a meal. ATT-13: trẻ nghỉ sáng vẫn có bữa xế theo công tắc ăn.
+  else if (isAbsent(entry.status) && entry.absentPart !== 'MORNING' && taken.length)
+    errors.meals = 'Trẻ vắng mặt không thể đăng ký suất ăn.';
   return errors;
 };
 

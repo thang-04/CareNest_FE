@@ -177,7 +177,9 @@ export const CLASS_FILL_LABELS = {
   NEAR: 'Gần đủ',
   FULL: 'Đã đủ',
 };
+// SCH-04 (Cần chốt 18/11/2026): mỗi lớp 2–3 giáo viên đứng lớp, đúng 1 GV phụ trách chính; TEACHERS_PER_CLASS = số tối thiểu
 export const TEACHERS_PER_CLASS = 2;
+export const MAX_TEACHERS_PER_CLASS = 3;
 
 /** Quick filters of the class list (URL ?status=). */
 export const CLASS_FILTERS = {

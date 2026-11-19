@@ -30,6 +30,7 @@ const useLeaveGuard = (options) => { context.guard = options; return { modal: {}
 const Button = ({variant,size,icon:Icon,loading=false,disabled=false,type='button',className='',children,...rest}) => <button type={type} className={['btn',variant&&'btn--'+variant,size&&'btn--'+size,className].filter(Boolean).join(' ')} disabled={disabled||loading} {...rest}>{Icon && <Icon/>}{children}</button>;
 const Card = ({title,children}) => <section><h2>{title}</h2>{children}</section>;
 const Notice = ({children}) => <p>{children}</p>;
+const ResponsiveToolbar = ({children, ...props}) => <div {...props}>{children}</div>;
 const PageHead = ({title}) => <h1>{title}</h1>;
 const Cell = ({editable,value,label}) => editable ? <textarea aria-label={label} defaultValue={value}/> : <span>{value}</span>;
 const SortableList = ({children}) => <>{children}</>;
