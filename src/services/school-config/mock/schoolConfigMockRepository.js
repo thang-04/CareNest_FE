@@ -949,7 +949,11 @@ export const schoolConfigMockRepository = {
     if (!canConfigureSchool(user)) throw forbid();
     seeded();
     return writeDb((db) => {
-      if (!id && schoolYearId) assertOpenYear(findYear(db, schoolYearId));
+      if (!id && schoolYearId) {
+        const year = findYear(db, schoolYearId);
+        if (year.status !== YEAR_STATUS.PLANNED)
+          throw new ApiError(409, `Chỉ thêm nhóm tuổi khi năm học ở trạng thái Sắp diễn ra (${year.name} đang hoạt động)`);
+      }
       // Trùng tên nhóm đã có ở năm khác: dùng lại nhóm đó cho năm đang chọn
       const sameName = !id && schoolYearId && db.ageGroups.find((g) => g.name.toLowerCase() === (form.name || '').trim().toLowerCase());
       if (sameName && !inYear(sameName, schoolYearId)) {
