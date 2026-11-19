@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Plus } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
-import { Breadcrumb } from '@/components';
+import { Button, PageHeader } from '@/components';
 import { TemplateCards } from '@/components/menu-planning/TemplateCards';
 import { TemplateKindModal } from '@/components/menu-planning/TemplateKindModal';
 import { TemplatePreviewModal } from '@/components/menu-planning/TemplatePreviewModal';
@@ -18,29 +18,33 @@ export default function MenuTemplateListPage() {
 
   return (
     <div className="page td-sections">
-      <Breadcrumb items={templateCrumbs()} />
-      <h1 className="page__title">Mẫu thực đơn</h1>
+      <PageHeader crumbs={templateCrumbs()} title="Mẫu thực đơn" readOnly={!canCreate} />
       <TemplateCards canCreate={canCreate} onOpen={setOpenId} />
       {openId && <TemplatePreviewModal id={openId} onClose={() => setOpenId(null)} />}
     </div>
   );
 }
 
-export function TemplateHead({ canCreate }) {
+/** Đầu màn sửa mẫu: readOnly khi BE không cho sửa mẫu đang mở (`canEdit=false`). */
+export function TemplateHead({ crumbs, canCreate, readOnly = false }) {
   const [choosing, setChoosing] = useState(false);
   return (
-    <div className="page__head">
-      <div>
-        <h1 className="page__title">Mẫu thực đơn</h1>
-      </div>
-      {canCreate && (
-        <div className="page__actions">
-          <button type="button" className="btn btn--primary" onClick={() => setChoosing(true)}>
-            <Plus size={16} /> Tạo mẫu
-          </button>
-        </div>
-      )}
+    <>
+      <PageHeader
+        crumbs={crumbs}
+        title="Mẫu thực đơn"
+        readOnly={readOnly}
+        actions={
+          canCreate && (
+            <div className="page__actions">
+              <Button variant="primary" icon={Plus} onClick={() => setChoosing(true)}>
+                Tạo mẫu
+              </Button>
+            </div>
+          )
+        }
+      />
       {choosing && <TemplateKindModal onClose={() => setChoosing(false)} />}
-    </div>
+    </>
   );
 }

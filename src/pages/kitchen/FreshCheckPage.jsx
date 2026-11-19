@@ -1,6 +1,6 @@
 import { Link, useSearchParams } from 'react-router-dom';
 import { ShoppingBasket } from '@/components/ui/icons';
-import { Breadcrumb, EmptyState, ErrorState, LoadingState } from '@/components';
+import { EmptyState, ErrorState, LoadingState, PageHeader } from '@/components';
 import { FreshRoundCard } from '@/components/kitchen/FreshRoundCard';
 import { KbCampusFilter, KbDateFilter } from '@/components/kitchen/KitchenFilters';
 import { useStockCampus } from '@/hooks/kitchen/useDryStock';
@@ -59,11 +59,6 @@ export default function FreshCheckPage() {
   else
     body = (
       <div className="kb-stack">
-        {!check.data.canManage && (
-          <div className="alert alert--info" role="status">
-            Tài khoản chỉ được xem kiểm nhận hàng tươi, không ghi nhận được.
-          </div>
-        )}
         {check.data.rounds.map((round) => (
           <FreshRoundCard
             key={round.round}
@@ -81,12 +76,11 @@ export default function FreshCheckPage() {
 
   return (
     <div className="page">
-      <Breadcrumb items={kitchenCrumbs(KITCHEN_PAGES.freshReceipts)} />
-      <div className="page__head">
-        <div>
-          <h1 className="page__title">Kiểm nhận hàng tươi</h1>
-        </div>
-      </div>
+      <PageHeader
+        crumbs={kitchenCrumbs(KITCHEN_PAGES.freshReceipts)}
+        title="Kiểm nhận hàng tươi"
+        readOnly={!!check.data && !check.data.canManage}
+      />
       <div className="kb-toolbar">
         <KbDateFilter value={date} onChange={setDate} />
         {campus.campusId && <KbCampusFilter campusId={campus.campusId} onChange={campus.setCampusId} canPick={campus.canPick} />}

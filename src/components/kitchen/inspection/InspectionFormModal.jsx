@@ -1,5 +1,7 @@
 import { useRef, useState } from 'react';
-import { CheckCircle2, Lock, PenLine, Printer, Save, X } from '@/components/ui/icons';
+import { CheckCircle2, PenLine, Printer, Save, X } from '@/components/ui/icons';
+import { Button } from '@/components/ui/Button';
+import { LockNote } from '@/components/ui/LockNote';
 import { Modal } from '@/components/ui/Modal';
 import { InspectionHistory, ReopenDialog, SupplierFillDialog } from '@/components/kitchen/inspection/InspectionDialogs';
 import { InspectionStatusBadge } from '@/components/kitchen/inspection/InspectionBadges';
@@ -105,26 +107,22 @@ export function InspectionFormModal({
           )}
           {data.canEdit && savedAt && !dirty && <span className="text-xs muted">Đã lưu nháp lúc {savedAt}</span>}
           {data.canEdit && dirty && <span className="text-xs muted">Có thay đổi chưa lưu · tự lưu sau ít giây</span>}
-          {signed && !data.canEdit && (
-            <span className="text-sm muted kr-lock">
-              <Lock size={14} /> Đã ký nên đang khóa
-            </span>
-          )}
+          {signed && !data.canEdit && <LockNote kind="locked">Đã ký nên đang khóa</LockNote>}
           <div className="kr-form__actions">
             {data.canEdit && (
               <>
                 <button type="button" className="btn" disabled={busy || !dirty} onClick={onSave}>
                   <Save size={16} /> Lưu nháp
                 </button>
-                <button
-                  type="button"
-                  className="btn btn--primary"
-                  disabled={busy || cannotSign}
-                  title={cannotSign ? signHint : undefined}
+                <Button
+                  variant="primary"
+                  icon={PenLine}
+                  disabled={busy}
+                  disabledReason={cannotSign ? signHint : undefined}
                   onClick={() => setSigning(true)}
                 >
-                  <PenLine size={16} /> Ký xác nhận
-                </button>
+                  Ký xác nhận
+                </Button>
               </>
             )}
             {data.canReopen && (

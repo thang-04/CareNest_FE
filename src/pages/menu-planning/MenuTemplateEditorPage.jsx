@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Lock, Save } from '@/components/ui/icons';
+import { Save } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
-import { Breadcrumb, ErrorState, LoadingState } from '@/components';
+import { Button, ErrorState, LoadingState } from '@/components';
+import { usePageReadOnly } from '@/contexts/PageReadOnlyContext';
 import { FormField } from '@/components/form/FormField';
 import { SearchSelect } from '@/components/ui/SearchSelect';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
@@ -153,6 +154,7 @@ export default function MenuTemplateEditorPage() {
 
   const crumbs = templateCrumbs(id ? data?.name || 'Mẫu thực đơn' : `Tạo ${kindLabel.toLowerCase()}`);
   const canCreate = hasBePermission(user, PERMISSIONS.MENU_MANAGE);
+  const { reason: viewOnlyReason } = usePageReadOnly();
   const body = () => {
     if (id && error) return <ErrorState error={error} onRetry={reload} />;
     if (id && (loading || !data)) return <LoadingState />;
@@ -168,21 +170,20 @@ export default function MenuTemplateEditorPage() {
             </div>
             <div className="page__actions">
               {id && data.status !== RECORD_STATUS.ACTIVE && <RecordStatusBadge status={data.status} />}
-              {!editable && (
-                <span className="chip chip--gray">
-                  <Lock size={14} /> Chỉ xem
-                </span>
-              )}
               {editable && id && (
                 <button type="button" className="btn" disabled={busy} onClick={toggleStatus}>
                   {data.status === RECORD_STATUS.ACTIVE ? 'Ngừng dùng' : 'Dùng lại'}
                 </button>
               )}
-              {editable && (
-                <button type="button" className="btn btn--primary" disabled={busy || (id && !dirty)} onClick={save}>
-                  <Save size={16} /> Lưu mẫu
-                </button>
-              )}
+              <Button
+                variant="primary"
+                icon={Save}
+                disabled={busy || (id && !dirty)}
+                disabledReason={editable ? undefined : viewOnlyReason}
+                onClick={save}
+              >
+                Lưu mẫu
+              </Button>
             </div>
           </div>
           <div className="card__body td-tpl-form">
@@ -238,10 +239,10 @@ export default function MenuTemplateEditorPage() {
 
   return (
     <div className="page td-sections">
-      <Breadcrumb items={crumbs} />
-      <TemplateHead canCreate={canCreate && !!id} />
+      <TemplateHead crumbs={crumbs} canCreate={canCreate && !!id} readOnly={!!data && !editable} />
       {body()}
-      {(!id || data) && (
+      {/* Không có quyền tạo thì body đã báo; không hiện thêm bảng dinh dưỡng trống */}
+      {(id ? data : canCreate) && (
         <MealNutritionCard
           ageGroups={groups}
           ageGroupId={currentGroup}

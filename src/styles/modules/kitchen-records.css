@@ -450,11 +450,6 @@
 button.kr-progress {
   cursor: pointer;
 }
-.kr-lock {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-}
 .kr-scope {
   border: 0;
   padding: 0;
