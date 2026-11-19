@@ -1,6 +1,6 @@
 import { SCHOOL_CONFIG_API } from '@/config/env';
 import { ROLES } from '@/models/User';
-import { sourceOf } from '@/services/demoSource';
+import { isDemoModule, sourceOf } from '@/services/demoSource';
 import { beClient } from '@/services/http/beClient';
 import { axiosClient } from '@/services/http/axiosClient';
 import { masterDataMockRepository } from '@/mocks/masterDataMockRepository';
@@ -65,14 +65,23 @@ const roomsRepo = SCHOOL_CONFIG_API
 const readsOrgFromBe = (user) => !user || user.role === ROLES.PRINCIPAL || user.role === ROLES.VICE_PRINCIPAL;
 const readsTeachersFromBe = (user) =>
   readsOrgFromBe(user) && (!Array.isArray(user?.bePermissions) || user.bePermissions.includes('STAFF_ASSIGNMENT_MANAGE'));
+// Build nối BE: GV/tổ trưởng không đọc được điểm trường, phòng (403) ⇒ trả rỗng, không gọi
+const readOrg = (user, fromBe, fromRepo) => {
+  if (readsOrgFromBe(user)) return SCHOOL_CONFIG_API ? fromBe() : fromRepo();
+  return isDemoModule('master-data') ? fromRepo() : Promise.resolve([]);
+};
 export const getCampuses = (user, schoolYearId) =>
-  SCHOOL_CONFIG_API && readsOrgFromBe(user)
-    ? beClient.get('/campuses', { params: { schoolYearId: schoolYearId || undefined } })
-    : repo.getCampuses(schoolYearId);
+  readOrg(
+    user,
+    () => beClient.get('/campuses', { params: { schoolYearId: schoolYearId || undefined } }),
+    () => repo.getCampuses(schoolYearId),
+  );
 export const getLocations = (user, schoolYearId) =>
-  SCHOOL_CONFIG_API && readsOrgFromBe(user)
-    ? beClient.get('/locations', { params: { schoolYearId: schoolYearId || undefined } })
-    : repo.getLocations(schoolYearId);
+  readOrg(
+    user,
+    () => beClient.get('/locations', { params: { schoolYearId: schoolYearId || undefined } }),
+    () => repo.getLocations(schoolYearId),
+  );
 // Năm để đọc danh sách GV: năm đang hoạt động, chưa có thì năm sắp tới (BE không nhận năm nào ⇒ 404 khi chưa kích hoạt)
 const teacherListYear = (years) =>
   years.find((y) => y.status === 'ACTIVE') ||

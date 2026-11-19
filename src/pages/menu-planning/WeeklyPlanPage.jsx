@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Tabs } from '@/components/ui/Tabs';
 import { useTabParam } from '@/hooks/useTabParam';
 import { useSearchParams } from 'react-router-dom';
-import { Copy, FileDown, History, Lock, Pencil, Save, Scale, Send } from '@/components/ui/icons';
+import { Copy, FileDown, History, Pencil, Save, Scale, Send } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { DayEditorModal } from '@/components/menu-planning/DayEditorModal';
 import { CopyDayModal } from '@/components/menu-planning/CopyDayModal';
@@ -12,7 +12,8 @@ import { PERMISSIONS } from '@/models/bePermissions';
 import { hasBePermission } from '@/utils/bePermissions';
 import { ageGroupOptions } from '@/utils/menu-planning/menuStatistics';
 import { useToast } from '@/contexts/ToastContext';
-import { Breadcrumb, Button, EmptyState, ErrorState, LoadingState, SelectField } from '@/components';
+import { Button, EmptyState, ErrorState, LoadingState, LockNote, PageHeader, SelectField } from '@/components';
+import { usePageReadOnly } from '@/contexts/PageReadOnlyContext';
 import { WeekPicker } from '@/components/form/WeekPicker';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
@@ -92,6 +93,7 @@ export default function WeeklyPlanPage() {
   const blocks = planBlocks(plan);
   const block = blocks.includes(blockKey) ? blockKey : blocks[0];
   const editable = !!plan?.canEdit && plan.status !== MEAL_PLAN_STATUS.PUBLISHED;
+  const { reason: viewOnlyReason } = usePageReadOnly();
   const dirty = !!draft && !!saved && isDirty(draft, saved);
   // Bản nháp sửa được ⇒ ngày lễ tự thành ngày nghỉ (chạy sau effect nạp lại bản nháp ở trên, kể cả khi ngày nghỉ về muộn)
   useEffect(() => {
@@ -206,12 +208,7 @@ export default function WeeklyPlanPage() {
 
   const head = (
     <>
-      <Breadcrumb items={weeklyCrumbs()} />
-      <div className="page__head">
-        <div>
-          <h1 className="page__title">Kế hoạch tuần</h1>
-        </div>
-      </div>
+      <PageHeader crumbs={weeklyCrumbs()} title="Kế hoạch tuần" readOnly={!!plan && !plan.canEdit} />
       <div className="td-week-toolbar">
         {blocks.length > 0 && (
           <Tabs
@@ -270,16 +267,6 @@ export default function WeeklyPlanPage() {
         <div className="row td-week-status">
           <MealPlanStatusBadge status={plan.status} size="lg" />
           {plan.publishedAt && <span className="text-sm muted">Công bố lúc {formatDateTime(plan.publishedAt)}</span>}
-          {!editable && plan.status !== MEAL_PLAN_STATUS.PUBLISHED && (
-            <span className="chip chip--gray">
-              <Lock size={14} /> Chỉ xem
-            </span>
-          )}
-          {plan.status === MEAL_PLAN_STATUS.PUBLISHED && (
-            <span className="chip chip--gray">
-              <Lock size={14} /> {plan.days.some((d) => d.canAmend) ? 'Đã khóa, chỉ sửa ngoại lệ' : 'Đã khóa, không sửa'}
-            </span>
-          )}
         </div>
         <div className="row td-week-toolbar__actions">
           {/* Chỉ bản đã công bố được xuất văn bản (MENU-14 SRS): văn bản gửi bếp, phụ huynh phải là bản chính thức */}
@@ -294,22 +281,31 @@ export default function WeeklyPlanPage() {
             </Button>
           )}
           {editable && (
-            <Button disabled={busy || !dirty} onClick={save}>
-              <Save size={16} /> Lưu nháp
+            <Button icon={Save} disabled={busy || !dirty} onClick={save}>
+              Lưu nháp
             </Button>
           )}
-          {plan.canPublish && (
+          {/* Thiếu quyền vẫn hiện nút chính đang khóa kèm lý do; tuần đã công bố thì không còn việc công bố */}
+          {plan.status !== MEAL_PLAN_STATUS.PUBLISHED && (plan.canPublish || !plan.canEdit) && (
             <Button
               variant="primary"
-              disabled={busy || dirty}
-              title={dirty ? 'Lưu nháp trước khi công bố' : undefined}
+              icon={Send}
+              disabled={busy}
+              disabledReason={!plan.canPublish ? viewOnlyReason : dirty ? 'Lưu nháp trước khi công bố.' : undefined}
               onClick={openPublish}
             >
-              <Send size={16} /> Công bố tuần
+              Công bố tuần
             </Button>
           )}
         </div>
       </div>
+      {plan.status === MEAL_PLAN_STATUS.PUBLISHED && (
+        <LockNote kind="locked">
+          {plan.days.some((d) => d.canAmend)
+            ? 'Tuần đã công bố: chỉ sửa ngoại lệ ở ngày được phép.'
+            : 'Tuần đã công bố nên không sửa được món.'}
+        </LockNote>
+      )}
       {dirty && autoOff.length > 0 && (
         <div className="alert alert--info">
           <div>
