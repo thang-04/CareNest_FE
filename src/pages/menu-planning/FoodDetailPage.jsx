@@ -25,6 +25,7 @@ import {
   formatMoney,
 } from '@/models/menu-planning/menuPlanningConstants';
 import '@/styles/modules/menu-planning.css';
+import { Button } from '@/components';
 
 const n1 = (v) => (Math.round(v * 10) / 10).toLocaleString('vi-VN');
 
@@ -92,9 +93,9 @@ export default function FoodDetailPage() {
         {canManage && (
           <div className="row row--wrap td-actions">
             {!(softDelete && f.status === 'INACTIVE') && (
-              <button className="btn btn--outline-danger" onClick={() => setConfirm(true)}>
+              <Button variant="outline-danger" onClick={() => setConfirm(true)}>
                 <Trash2 size={16} /> {softDelete ? 'Ngừng sử dụng' : 'Xóa'}
-              </button>
+              </Button>
             )}
             <Link className="btn btn--primary" to={`/menu/foods/${id}/edit`}>
               <Pencil size={16} /> Sửa thực phẩm

@@ -28,6 +28,8 @@ import { exportWithPreview } from '@/components/ui/ExportPreview';
 import { formatDate, formatDateTime } from '@/utils/format';
 import '@/styles/modules/assessment.css';
 import { CampusFilter } from '@/components/ui/CampusFilter';
+import { useYearCampuses } from '@/hooks/useYearCampuses';
+import { PERMISSIONS } from '@/models/bePermissions';
 
 const PERIODS = Object.values(CLASS_RATING_PERIOD).map((key) => ({ key, label: CLASS_RATING_PERIOD_LABELS[key] }));
 const FIELDS = [...CLASS_RATING_CRITERIA.map((c) => c.key), 'overall'];
@@ -48,7 +50,9 @@ export default function ClassRatingsPage() {
   const [campusId, setCampusId] = useState('');
   const { ratings, loading, error, reload } = useClassRatings({ schoolYear, period, campusId: campusId || undefined });
   const rows = useMemo(() => ratings?.rows || [], [ratings]);
-  const campuses = ratings?.campuses || [];
+  // HT: đủ điểm trường của năm đang chọn (cả điểm trường chưa có dữ liệu); PHT: theo phạm vi quyền được cấp
+  const yearCampuses = useYearCampuses(PERMISSIONS.ASSESSMENT_VIEW);
+  const campuses = yearCampuses || ratings?.campuses || [];
   const multiCampus = leader && campuses.length > 1;
   const campusName = (id) => campuses.find((c) => String(c.id) === String(id))?.name || '';
 

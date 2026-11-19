@@ -3,8 +3,9 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { Lock, Save } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
-import { Breadcrumb, EmptyState, ErrorState, LoadingState } from '@/components';
+import { Breadcrumb, Button, EmptyState, ErrorState, LoadingState } from '@/components';
 import { WeekPicker } from '@/components/form/WeekPicker';
+import { Tabs } from '@/components/ui/Tabs';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import { MealPlanStatusBadge } from '@/components/menu-planning/MenuBadges';
 import { DayBalanceView } from '@/components/menu-planning/DayBalanceView';
@@ -85,20 +86,13 @@ export default function DayBalancePage() {
       <Breadcrumb items={menuCrumbs(null, null, 'Cân đối khẩu phần')} />
       <div className="td-week-toolbar">
         {blocks.length > 0 && (
-          <div className="tabs tabs--pill" role="tablist" aria-label="Khối">
-            {blocks.map((key) => (
-              <button
-                key={key}
-                type="button"
-                role="tab"
-                aria-selected={key === block}
-                className={`tab ${key === block ? 'tab--active' : ''}`}
-                onClick={() => pick({ block: key })}
-              >
-                {MEAL_BLOCK_LABELS[key] || key}
-              </button>
-            ))}
-          </div>
+          <Tabs
+            variant="pill"
+            ariaLabel="Khối"
+            items={blocks.map((key) => ({ key, label: MEAL_BLOCK_LABELS[key] || key }))}
+            value={block}
+            onChange={(key) => pick({ block: key })}
+          />
         )}
         <WeekPicker
           value={week}
@@ -141,9 +135,9 @@ export default function DayBalancePage() {
         </div>
         {editable && (
           <div className="row td-week-toolbar__actions">
-            <button type="button" className="btn btn--primary" disabled={busy || !dirty} onClick={save}>
+            <Button variant="primary" disabled={busy || !dirty} onClick={save}>
               <Save size={16} /> Lưu nháp
-            </button>
+            </Button>
           </div>
         )}
       </div>
@@ -158,21 +152,13 @@ export default function DayBalancePage() {
         </section>
       ) : (
         <>
-          <div className="tabs tabs--pill" role="tablist" aria-label="Ngày trong tuần">
-            {days.map((d, i) => (
-              <button
-                key={d.date}
-                type="button"
-                role="tab"
-                aria-selected={d.date === date}
-                className={`tab ${d.date === date ? 'tab--active' : ''}`}
-                onClick={() => pick({ date: d.date })}
-              >
-                {WEEKDAY_LABELS[i]} {ddmm(d.date)}
-                {d.off ? ' · nghỉ' : ''}
-              </button>
-            ))}
-          </div>
+          <Tabs
+            variant="pill"
+            ariaLabel="Ngày trong tuần"
+            items={days.map((d, i) => ({ key: d.date, label: `${WEEKDAY_LABELS[i]} ${ddmm(d.date)}${d.off ? ' · nghỉ' : ''}` }))}
+            value={date}
+            onChange={(key) => pick({ date: key })}
+          />
           {day?.off ? (
             <section className="card">
               <EmptyState title="Ngày nghỉ" description={day.note || 'Ngày này không phục vụ bữa ăn.'} />

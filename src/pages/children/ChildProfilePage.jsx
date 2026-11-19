@@ -26,7 +26,7 @@ import { ChildStatusBadge, PlannedAdmissionBadge } from '@/components/children/C
 import { ChildAccessState } from '@/components/children/ChildAccessState';
 import { CHILD_STATUS, GENDER_LABELS, ageGroupById, ageLabel } from '@/models/School';
 import { formatDate, formatDateTime } from '@/utils/format';
-import { canEditChild, canPlaceChild } from '@/utils/children/childrenPermissions';
+import { canEditChild, canOpenChildEdit, canPlaceChild } from '@/utils/children/childrenPermissions';
 import { ChildProfileSummary } from '@/components/children/ChildProfileSummary';
 import { ChildInfoTable } from '@/components/children/ChildInfoTable';
 import { canActivateParent, canRecordMeasurement, canViewParentAccounts } from '@/utils/children/childrenPermissions';
@@ -101,9 +101,9 @@ export default function ChildProfilePage() {
               <LayoutGrid size={16} /> {child.classId ? 'Chuyển lớp' : 'Xếp lớp'}
             </Link>
           )}
-          {!yearLocked && canEditChild(child, user) && (
+          {!yearLocked && canOpenChildEdit(child, user) && (
             <Link className="btn btn--primary" to={`/children/${child.id}/edit`}>
-              <Pencil size={16} /> Sửa hồ sơ
+              <Pencil size={16} /> {canEditChild(child, user) ? 'Sửa hồ sơ' : 'Đề xuất sửa hồ sơ'}
             </Link>
           )}
         </div>

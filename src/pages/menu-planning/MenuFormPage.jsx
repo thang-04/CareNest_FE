@@ -32,6 +32,7 @@ import { todayInput } from '@/utils/format';
 import { AGE_GROUPS, ageGroupById } from '@/models/School';
 import { AI_LABEL, DISH_TYPE_LABELS, RECORD_STATUS_LABELS, formatMoney } from '@/models/menu-planning/menuPlanningConstants';
 import '@/styles/modules/menu-planning.css';
+import { Button, SelectField, TextAreaField, TextField } from '@/components';
 
 const EMPTY = { name: '', ageGroupId: '', note: '', status: 'ACTIVE', meals: [] };
 const kcalOf = (t) => Math.round(t.totals.kcal).toLocaleString('vi-VN');
@@ -217,17 +218,17 @@ export default function MenuFormPage() {
               <Link className="btn" to="/menu/menus">
                 <X size={16} /> Hủy
               </Link>
-              <button type="button" className="btn btn--outline-primary" onClick={openAi}>
+              <Button variant="outline-primary" onClick={openAi}>
                 <Sparkles size={16} /> AI soạn mẫu
-              </button>
+              </Button>
               {id && (
                 <Link className="btn" to={`/menu/menus/new?copyOf=${id}`}>
                   <Copy size={16} /> Sao chép
                 </Link>
               )}
-              <button type="submit" className="btn btn--primary" disabled={busy}>
+              <Button type="submit" variant="primary" disabled={busy}>
                 {busy ? <Spinner small /> : <Save size={16} />} Lưu
-              </button>
+              </Button>
             </>
           }
         />
@@ -235,26 +236,26 @@ export default function MenuFormPage() {
         <section className="card">
           <div className="card__body td-form-grid">
             <FormField label="Tên thực đơn" required error={show('name')}>
-              <input className="input" value={form.name} maxLength={100} onChange={(e) => set('name', e.target.value)} />
+              <TextField className="input" value={form.name} maxLength={100} onChange={(e) => set('name', e.target.value)} />
             </FormField>
             <FormField label="Nhóm tuổi" required error={show('ageGroupId')}>
-              <select className="select" value={form.ageGroupId} onChange={(e) => changeAgeGroup(e.target.value)} disabled={!!id}>
+              <SelectField className="select" value={form.ageGroupId} onChange={(e) => changeAgeGroup(e.target.value)} disabled={!!id}>
                 <option value="">Chọn nhóm tuổi</option>
                 {groupOptions.map((g) => (
                   <option key={g.id} value={g.id}>
                     {g.name}
                   </option>
                 ))}
-              </select>
+              </SelectField>
             </FormField>
             <FormField label="Trạng thái" required>
-              <select className="select" value={form.status} onChange={(e) => set('status', e.target.value)}>
+              <SelectField className="select" value={form.status} onChange={(e) => set('status', e.target.value)}>
                 {Object.entries(RECORD_STATUS_LABELS).map(([k, v]) => (
                   <option key={k} value={k}>
                     {v}
                   </option>
                 ))}
-              </select>
+              </SelectField>
             </FormField>
           </div>
           <details className="td-more-info">
@@ -263,7 +264,7 @@ export default function MenuFormPage() {
             </summary>
             <div className="td-form-grid">
               <FormField label="Ghi chú" className="td-span-all">
-                <textarea className="textarea" rows={2} value={form.note} onChange={(e) => set('note', e.target.value)} />
+                <TextAreaField className="textarea" rows={2} value={form.note} onChange={(e) => set('note', e.target.value)} />
               </FormField>
             </div>
           </details>
@@ -275,9 +276,9 @@ export default function MenuFormPage() {
             <div className="td-grow">
               <b>{AI_LABEL}.</b> Món bên dưới do AI chọn; bạn sửa nếu cần rồi bấm Lưu.
             </div>
-            <button type="button" className="btn btn--sm btn--ghost" onClick={discardDraft}>
+            <Button size="sm" variant="ghost" onClick={discardDraft}>
               Hoàn tác
-            </button>
+            </Button>
           </div>
         )}
         {form.ageGroupId && (
@@ -318,9 +319,9 @@ export default function MenuFormPage() {
                       </h2>
                       <div className="row td-card-tools">
                         <span className="text-sm muted">Chi phí bữa {formatMoney(mealCost)}</span>
-                        <button type="button" className="btn btn--sm" onClick={() => setTarget(m.code)}>
+                        <Button size="sm" onClick={() => setTarget(m.code)}>
                           <Plus size={15} /> Thêm món ăn
-                        </button>
+                        </Button>
                       </div>
                     </div>
                     {show(`meal_${m.code}`) && <p className="field__error td-card-error">{show(`meal_${m.code}`)}</p>}
@@ -352,14 +353,13 @@ export default function MenuFormPage() {
                                     </td>
                                     <td className="money nowrap">{t ? formatMoney(t.cost) : '—'}</td>
                                     <td className="cell--actions">
-                                      <button
-                                        type="button"
-                                        className="icon-btn"
+                                      <Button
+                                        variant="icon"
                                         aria-label={`Bỏ ${dish?.name || 'món'}`}
                                         onClick={() => setMealItems(m.code, (list) => list.filter((_, j) => j !== i))}
                                       >
                                         <Trash2 size={16} />
-                                      </button>
+                                      </Button>
                                     </td>
                                   </tr>
                                   {notes.length > 0 && (

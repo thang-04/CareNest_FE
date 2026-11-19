@@ -4,6 +4,8 @@ import { useAsync } from '@/hooks/useAsync';
 import {
   getChildDetail,
   getChildren,
+  getLatestProfileChanges,
+  getProfileChanges,
   getClassOptions,
   getHealthRecord,
   findParentAccountByCitizenId,
@@ -40,6 +42,25 @@ export function useClassOptions(schoolYear, { all = false, enabled = true } = {}
     enabled: enabled && !!user,
   });
   return { year: data?.year || null, ageGroups: data?.ageGroups || [], classes: data?.classes || [], loading, error };
+}
+
+/** BE:CHD-11 — yêu cầu sửa hồ sơ/khai báo mới nhất của trẻ (GV gửi xem trạng thái, lý do từ chối). */
+export function useLatestProfileChanges(childId, { enabled = true } = {}) {
+  const { user } = useAuth();
+  const { data, loading, error, reload } = useAsync(() => getLatestProfileChanges(childId, user), [childId, user?.id], {
+    enabled: enabled && !!childId,
+  });
+  return { changes: data || [], loading, error, reload };
+}
+
+/** BE:CHD-11 — yêu cầu sửa hồ sơ trong phạm vi duyệt của HT/PHT. */
+export function useProfileChanges(status = 'PENDING', { enabled = true } = {}) {
+  const { user } = useAuth();
+  const { data, loading, error, reload } = useAsync(() => getProfileChanges(status, user), [status, user?.id], {
+    enabled,
+    refreshOnDataChange: true,
+  });
+  return { requests: data || [], loading, error, reload };
 }
 
 /** Lớp có thể tiếp nhận của năm đang hoạt động hoặc năm sắp tới, kèm sĩ số dự kiến. */

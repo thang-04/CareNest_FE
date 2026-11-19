@@ -3,18 +3,19 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Save } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
-import { useChildDetail, useCitizenIdAccounts } from '@/hooks/children/useChildRecords';
+import { useChildDetail, useCitizenIdAccounts, useLatestProfileChanges } from '@/hooks/children/useChildRecords';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { LoadingState, Spinner } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
 import { FormField } from '@/components/form/FormField';
 import { ChildInfoFields } from '@/components/children/ChildInfoFields';
 import { ChildAccessState } from '@/components/children/ChildAccessState';
-import { updateChild } from '@/services/children/childrenService';
-import { PARENT_ACCOUNT_STATUS } from '@/models/children/childrenConstants';
+import { submitProfileChange, updateChild } from '@/services/children/childrenService';
+import { ProfileChangeNotice } from '@/components/children/ProfileChangeNotice';
+import { PARENT_ACCOUNT_STATUS, PROFILE_CHANGE_KIND } from '@/models/children/childrenConstants';
 import { emptyChildProfile } from '@/models/children/childProfile';
 import { hasErrors, validateChildInfo } from '@/utils/children/childrenValidation';
-import { canEditChild } from '@/utils/children/childrenPermissions';
+import { canEditChild, canProposeChildEdit } from '@/utils/children/childrenPermissions';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { YearLockedNotice } from '@/components/children/YearLockedNotice';
 import { withGuardianAccounts } from '@/utils/children/childrenHelpers';
@@ -58,6 +59,9 @@ export default function EditChildPage() {
   }, [detail]);
 
   const child = detail?.child;
+  // BE:CHD-11 — GV được cấp quyền: lưu là gửi yêu cầu, hồ sơ đổi khi HT/PHT duyệt
+  const proposing = !!child && !canEditChild(child, user) && canProposeChildEdit(child, user);
+  const { changes } = useLatestProfileChanges(id, { enabled: proposing });
   const crumbs = childrenCrumbs(childCrumb(child), 'Sửa hồ sơ');
 
   if (loading || (!error && !form))
@@ -83,7 +87,7 @@ export default function EditChildPage() {
         <YearLockedNotice action="Sửa hồ sơ" />
       </div>
     );
-  if (!canEditChild(child, user))
+  if (!canEditChild(child, user) && !proposing)
     return (
       <div className="page">
         <Breadcrumb items={crumbs} />
@@ -91,7 +95,7 @@ export default function EditChildPage() {
         <StatusPage
           kind="403"
           title="Bạn không có quyền sửa hồ sơ này"
-          description="Chỉ Phó hiệu trưởng của điểm trường được sửa hồ sơ trẻ."
+          description="Chỉ Hiệu trưởng, Phó hiệu trưởng của điểm trường, hoặc giáo viên lớp được Hiệu trưởng cấp quyền mới sửa được hồ sơ trẻ."
         />
       </div>
     );
@@ -112,6 +116,12 @@ export default function EditChildPage() {
     try {
       // savedPhone chỉ để khóa ô SĐT trên form, không gửi đi
       const child = { ...effective, guardians: effective.guardians.map(({ savedPhone: _savedPhone, ...g }) => g) };
+      if (proposing) {
+        await submitProfileChange(id, { kind: PROFILE_CHANGE_KIND.PROFILE, profile: { child, reason } }, user);
+        toast.success('Đã gửi yêu cầu sửa hồ sơ. Hồ sơ đổi sau khi Hiệu trưởng hoặc Phó hiệu trưởng duyệt.');
+        navigate(`/children/${id}`);
+        return;
+      }
       const saved = await updateChild(id, { child, reason }, user);
       // Đổi SĐT phụ huynh đã có tài khoản ⇒ BE đổi tên đăng nhập, gửi mật khẩu mới qua SMS (user chốt 2026-10-28).
       (saved.accountChanges || [])
@@ -146,7 +156,7 @@ export default function EditChildPage() {
         <ArrowLeft size={16} /> Hủy
       </button>
       <button type="button" className="btn btn--primary" onClick={save} disabled={busy}>
-        {busy ? <Spinner small /> : <Save size={16} />} Lưu thay đổi
+        {busy ? <Spinner small /> : <Save size={16} />} {proposing ? 'Gửi yêu cầu duyệt' : 'Lưu thay đổi'}
       </button>
     </>
   );
@@ -163,6 +173,7 @@ export default function EditChildPage() {
         </div>
         <div className="page__actions">{actions}</div>
       </div>
+      {proposing && <ProfileChangeNotice changes={changes} kind={PROFILE_CHANGE_KIND.PROFILE} />}
       {/* Cùng bố cục bảng của bước 1 Tiếp nhận trẻ (user yêu cầu 2026-11-11): trẻ + hành chính | phụ huynh, hẹp thì 1 cột;
           dạng ô nhập rời cũ dồn cả khối vào cột ảnh 192px khi màn sửa không có ảnh. */}
       <section className="card wizard-card">

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ErrorState, LoadingState } from '@/components/ui/States';
+import { Tabs } from '@/components/ui/Tabs';
 import { NormRowBadge, NormStatusChip } from '@/components/menu-planning/MenuBadges';
 import { StatisticsNutrition } from '@/components/menu-planning/MenuStatistics';
 import { MEAL_SESSION_LABELS, SESSION_ORDER, formatMoney } from '@/models/menu-planning/menuPlanningConstants';
@@ -11,8 +12,8 @@ const range = (r) => (r && (r.min != null || r.max != null) ? `${num(r.min)}–$
 const TONE_CLASS = { OK: 'td-daynut--ok', LOW: 'td-daynut--low', HIGH: 'td-daynut--high' };
 const tone = (r) => TONE_CLASS[r?.status] || '';
 const TABS = [
-  ['meal', 'Theo bữa'],
-  ['origin', 'Động vật – thực vật'],
+  { key: 'meal', label: 'Theo bữa' },
+  { key: 'origin', label: 'Động vật – thực vật' },
 ];
 
 /**
@@ -44,39 +45,17 @@ export function MealNutritionCard({
         {/* Một hàng công cụ: nhóm tuổi bên trái, cách xem bên phải; chú giải màu nằm dưới bảng */}
         <div className="td-daynut__tabs">
           {ageGroups.length > 1 ? (
-            <div className="tabs tabs--pill" role="tablist" aria-label="Nhóm tuổi">
-              {ageGroups.map((g) => (
-                <button
-                  key={g.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={g.id === ageGroupId}
-                  className={`tab ${g.id === ageGroupId ? 'tab--active' : ''}`}
-                  onClick={() => onAgeGroup(g.id)}
-                >
-                  {g.name}
-                </button>
-              ))}
-            </div>
+            <Tabs
+              variant="pill"
+              ariaLabel="Nhóm tuổi"
+              items={ageGroups.map((g) => ({ key: g.id, label: g.name }))}
+              value={ageGroupId}
+              onChange={onAgeGroup}
+            />
           ) : (
             <span />
           )}
-          {hasItems && stats && !statsQ.error && (
-            <div className="tabs tabs--pill" role="tablist" aria-label="Cách xem">
-              {TABS.map(([k, label]) => (
-                <button
-                  key={k}
-                  type="button"
-                  role="tab"
-                  aria-selected={tab === k}
-                  className={`tab ${tab === k ? 'tab--active' : ''}`}
-                  onClick={() => setTab(k)}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          )}
+          {hasItems && stats && !statsQ.error && <Tabs variant="pill" ariaLabel="Cách xem" items={TABS} value={tab} onChange={setTab} />}
         </div>
         {!hasItems ? (
           <p className="text-sm muted">{emptyText}</p>

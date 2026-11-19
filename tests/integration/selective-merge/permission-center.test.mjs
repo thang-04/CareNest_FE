@@ -294,6 +294,7 @@ test('đường sidebar cũ mở UI mới, non-mock chỉ gọi endpoint BE đã
     '/accounts/{id}/permission-overrides',
     '/permission-change-logs',
     '/campuses/options',
+    '/classrooms',
   ];
   assert.ok(paths.length > 0);
   assert.deepEqual(

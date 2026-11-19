@@ -28,6 +28,7 @@ import {
   toStatisticsItems,
   toTemplateRequest,
 } from '@/utils/menu-planning/menuTemplateGrid';
+import { Button, TextField } from '@/components';
 
 /**
  * Xem một mẫu ngày trong modal lớn: tên, khối, mùa; từng bữa với món và thành phần cho 1 trẻ; dinh dưỡng 1 trẻ / ngày
@@ -101,18 +102,16 @@ export function TemplatePreviewModal({ id, onClose, duplicate = false, onDuplica
       footer={
         duplicate ? (
           <>
-            <button type="button" className="btn" disabled={saving} onClick={onClose}>
+            <Button disabled={saving} onClick={onClose}>
               Hủy
-            </button>
-            <button type="button" className="btn btn--primary" disabled={!data || saving} onClick={saveCopy}>
+            </Button>
+            <Button variant="primary" disabled={!data || saving} onClick={saveCopy}>
               {saving ? <Spinner small /> : <Copy size={16} />} Lưu bản sao
-            </button>
+            </Button>
           </>
         ) : (
           <>
-            <button type="button" className="btn" onClick={onClose}>
-              Đóng
-            </button>
+            <Button onClick={onClose}>Đóng</Button>
             {data?.canEdit && (
               <Link className="btn btn--primary" to={`/menu/templates/${id}`}>
                 <Pencil size={16} /> Sửa mẫu
@@ -130,7 +129,7 @@ export function TemplatePreviewModal({ id, onClose, duplicate = false, onDuplica
         <div className="td-tpl-preview">
           {duplicate && (
             <FormField label="Tên mẫu mới" required error={nameError}>
-              <input
+              <TextField
                 className="input"
                 value={newName}
                 maxLength={TEMPLATE_NAME_MAX}

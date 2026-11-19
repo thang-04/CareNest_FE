@@ -1537,3 +1537,16 @@
   outline: 2px solid var(--primary);
   border-radius: var(--radius-sm);
 }
+
+/* BE:CHD-11 — chi tiết đề xuất sửa hồ sơ ở màn duyệt: dòng GV đổi tô vàng chờ duyệt */
+.tr-proposal__text {
+  white-space: pre-line;
+}
+.tr-proposal__changed {
+  display: inline-block;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-sm);
+  background: var(--color-warning-bg);
+  color: var(--color-warning-fg);
+  font-weight: var(--fw-semibold);
+}

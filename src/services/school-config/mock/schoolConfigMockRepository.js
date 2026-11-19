@@ -231,6 +231,15 @@ const nextGroupId = (db, groupId) => {
   const i = list.findIndex((g) => g.id === groupId);
   return i >= 0 && i < list.length - 1 ? list[i + 1].id : null;
 };
+/** Nhóm tuổi của trẻ tại ngày bắt đầu năm học mới (như BE YearTransitionServiceImpl.ageGroupOf); không khớp ⇒ null. */
+const admissionAgeGroup = (db, child, yearStart) => {
+  const birth = child?.dateOfBirth || child?.birthDate;
+  if (!birth || !yearStart) return null;
+  const [by, bm, bd] = birth.split('-').map(Number);
+  const [sy, sm, sd] = yearStart.split('-').map(Number);
+  const months = (sy - by) * 12 + (sm - bm) - (sd < bd ? 1 : 0);
+  return groupsByAge(db).find((g) => g.ageFromMonths != null && months >= g.ageFromMonths && months < g.ageToMonths)?.id || null;
+};
 /** Trẻ được xếp từ năm đang hoạt động sang năm sắp diễn ra. */
 const placementSource = (db, target) => {
   const active = activeYearOf(db);
@@ -511,6 +520,23 @@ const assignVp = (db, u, campusId, user) => {
   });
 };
 
+// BE giả (Cần chốt 19/11/2026): lý do chưa xóa được điểm trường; null = trống, xóa được
+const deleteBlockedReason = (db, campus) => {
+  if (campus.isMain) return 'Điểm trường chính, không xóa được';
+  const parts = [];
+  const classes = db.classes.filter((c) => c.campusId === campus.id).length;
+  if (classes) parts.push(`${classes} lớp`);
+  const rooms = (db.locations || []).filter((l) => l.campusId === campus.id).length;
+  if (rooms) parts.push(`${rooms} phòng`);
+  const children = (db.children || []).filter((ch) => ch.campusId === campus.id).length;
+  if (children) parts.push(`${children} trẻ`);
+  const staff = db.users.filter((u) => u.campusId === campus.id);
+  const vps = staff.filter((u) => u.role === ROLES.VICE_PRINCIPAL).map((u) => u.fullName);
+  if (vps.length) parts.push(`PHT ${vps.join(', ')}`);
+  if (staff.length > vps.length) parts.push(`${staff.length - vps.length} nhân sự khác`);
+  return parts.length ? parts.join(', ') : null;
+};
+
 export const schoolConfigMockRepository = {
   /* ---------------- School years (#16, #17) ---------------- */
   async getSchoolYears(user) {
@@ -685,6 +711,7 @@ export const schoolConfigMockRepository = {
             campusId: item.campusId,
             targetClassId: item.classId || null,
             startDate: item.startDate,
+            ageGroupId: admissionAgeGroup(db, child, target.startDate),
           };
         }),
     };
@@ -729,8 +756,13 @@ export const schoolConfigMockRepository = {
           return (errors[`admission.${item.admissionId}`] = 'Trẻ thuộc điểm trường bạn không được giao xếp lớp');
         if (item.toClassId) {
           const to = db.classes.find((candidate) => candidate.id === item.toClassId && candidate.schoolYear === target.id);
+          const child = db.children.find((candidate) => candidate.id === admission.childId);
           if (!to || to.campusId !== admission.campusId)
-            return (errors[`admission.${item.admissionId}`] = 'Chọn lớp năm học mới cùng điểm trường tiếp nhận');
+            return (errors[`admission.${item.admissionId}`] =
+              `Lớp ${to?.name || ''} không thuộc điểm trường đăng ký của ${child?.fullName || 'trẻ'}`);
+          // BE 2416: lớp phải đúng nhóm tuổi của trẻ tại ngày bắt đầu năm học mới
+          if (to.ageGroupId !== admissionAgeGroup(db, child, target.startDate))
+            return (errors[`admission.${item.admissionId}`] = `${child?.fullName || 'Trẻ'} không thuộc nhóm tuổi của ${to.name}`);
         }
         return null;
       });
@@ -1214,8 +1246,16 @@ export const schoolConfigMockRepository = {
       if (hasErrors(errors)) throw invalid(errors);
       let setting = db.cutoffSettings.find((s) => s.schoolYear === schoolYear);
       const previousTime = setting?.time || null;
-      if (setting && setting.time === form.time && setting.effectiveFrom === form.effectiveFrom)
+      const latestAfternoonArrival = form.latestAfternoonArrival || setting?.latestAfternoonArrival || '14:00';
+      if (
+        setting &&
+        setting.time === form.time &&
+        setting.effectiveFrom === form.effectiveFrom &&
+        (setting.latestAfternoonArrival || '14:00') === latestAfternoonArrival
+      )
         throw invalid({ time: 'Giờ chốt và ngày áp dụng chưa thay đổi' });
+      // Màn điểm danh demo đọc giờ đến muộn nhất buổi chiều (ATT-13)
+      db.latestAfternoonArrival = latestAfternoonArrival;
       if (!setting) {
         setting = { schoolYear, history: [] };
         db.cutoffSettings.push(setting);
@@ -1223,12 +1263,14 @@ export const schoolConfigMockRepository = {
       Object.assign(setting, {
         time: form.time,
         effectiveFrom: form.effectiveFrom,
+        latestAfternoonArrival,
         updatedBy: user.id,
         updatedAt: now(),
       });
       setting.history.unshift({
         time: form.time,
         effectiveFrom: form.effectiveFrom,
+        latestAfternoonArrival,
         previousTime,
         userId: user.id,
         at: now(),
@@ -1265,6 +1307,7 @@ export const schoolConfigMockRepository = {
             vicePrincipals: db.users
               .filter((u) => u.role === ROLES.VICE_PRINCIPAL && u.campusId === c.id)
               .map((u) => ({ id: u.id, fullName: u.fullName })),
+            deleteBlockedReason: deleteBlockedReason(db, c),
           };
         }),
     );

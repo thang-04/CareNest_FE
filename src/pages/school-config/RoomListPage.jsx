@@ -4,6 +4,7 @@ import { Plus, Trash2, DoorOpen, PauseCircle, RotateCcw, ChevronDown, Download, 
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
+import { useYearCampuses } from '@/hooks/useYearCampuses';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useRooms } from '@/hooks/school-config/useSchoolConfig';
 import { useConfigYear } from '@/hooks/school-config/useConfigYear';
@@ -41,6 +42,7 @@ export default function RoomListPage() {
   // ?year= (từ Chuẩn bị năm học) chọn luôn năm trên header
   useConfigYear();
   const { schoolYear, yearReadOnly } = useSchoolYear();
+  const yearCampuses = useYearCampuses();
   const md = useMasterData();
   const { rooms, loading, error, reload } = useRooms(schoolYear);
   const [params, setParams] = useSearchParams();
@@ -173,7 +175,8 @@ export default function RoomListPage() {
   const askDelete = ask('delete', 'Xóa');
   const askDeactivate = ask('deactivate', 'Ngừng sử dụng');
 
-  const campuses = md.campuses.filter((c) => viewIds.includes(c.id));
+  // HT: điểm trường của năm đang chọn (BE V151)
+  const campuses = (yearCampuses || md.campuses).filter((c) => viewIds.includes(c.id));
   const formIds = modal?.room ? roomCampusIds(user, md.campuses, 'update') : createIds;
   const editCampuses = md.campuses.filter((c) => formIds.includes(c.id));
   const campusShort = (r) => md.campusById(r.campusId)?.shortName || '';
@@ -286,7 +289,7 @@ export default function RoomListPage() {
               <option value="">Tất cả điểm trường</option>
               {campuses.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.name}
+                  {c.shortName || c.name}
                 </option>
               ))}
             </select>

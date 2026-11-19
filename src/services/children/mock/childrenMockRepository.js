@@ -945,7 +945,30 @@ export const toMeasurementView = (db, m) => {
   };
 };
 
+// CHD-11: luồng duyệt sửa hồ sơ chỉ có ở BE thật; bản demo không có yêu cầu nào và không gửi được
+const PROFILE_CHANGE_DEMO = 'Bản demo chưa hỗ trợ gửi yêu cầu sửa hồ sơ chờ duyệt';
+
 export const childrenMockRepository = {
+  async submitProfileChange() {
+    await delay();
+    throw new ApiError(409, PROFILE_CHANGE_DEMO);
+  },
+  async getLatestProfileChanges() {
+    await delay();
+    return [];
+  },
+  async listProfileChanges() {
+    await delay();
+    return [];
+  },
+  async approveProfileChange() {
+    await delay();
+    throw new ApiError(409, PROFILE_CHANGE_DEMO);
+  },
+  async rejectProfileChange() {
+    await delay();
+    throw new ApiError(409, PROFILE_CHANGE_DEMO);
+  },
   /* ------------------------------ #27 Children list ------------------------------ */
   async listChildren(filters = {}, user) {
     await delay(150);

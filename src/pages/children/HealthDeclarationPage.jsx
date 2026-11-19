@@ -7,7 +7,7 @@ import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { YearLockedNotice } from '@/components/children/YearLockedNotice';
 import { useToast } from '@/contexts/ToastContext';
 import { useMasterData } from '@/hooks/useMasterData';
-import { useChildDetail } from '@/hooks/children/useChildRecords';
+import { useChildDetail, useLatestProfileChanges } from '@/hooks/children/useChildRecords';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { LoadingState, Spinner } from '@/components/ui/States';
 import { FormField } from '@/components/form/FormField';
@@ -15,11 +15,12 @@ import { ChildAccessState } from '@/components/children/ChildAccessState';
 import { DeclarationSummary } from '@/components/children/DeclarationSummary';
 import { ChildBrief, ChildCardHead } from '@/components/children/ChildBrief';
 import { HealthDeclarationFields } from '@/components/children/HealthDeclarationFields';
-import { saveHealthDeclaration } from '@/services/children/childrenService';
-import { ALLERGY_STATE_LABELS, DECLARATION_STATE } from '@/models/children/childrenConstants';
+import { saveHealthDeclaration, submitProfileChange } from '@/services/children/childrenService';
+import { ProfileChangeNotice } from '@/components/children/ProfileChangeNotice';
+import { ALLERGY_STATE_LABELS, DECLARATION_STATE, PROFILE_CHANGE_KIND } from '@/models/children/childrenConstants';
 import { formatDateTime } from '@/utils/format';
 import { hasErrors, validateDeclaration } from '@/utils/children/childrenValidation';
-import { canDeclareHealth } from '@/utils/children/childrenPermissions';
+import { canDeclareHealth, canOpenChildEdit, canProposeChildEdit } from '@/utils/children/childrenPermissions';
 import { emptyDeclaration } from '@/utils/children/childrenHelpers';
 import { MEDICAL_HISTORY_ITEMS, emptyMedicalHistory, historyItemText } from '@/models/children/childProfile';
 import { childCrumb, childrenCrumbs } from '@/utils/children/breadcrumbs';
@@ -49,7 +50,8 @@ export default function HealthDeclarationPage() {
   const { user } = useAuth();
   // Năm sắp diễn ra chưa tới ngày mở chuẩn bị (CHD-12): khai báo chỉ xem
   const { yearLocked } = useSchoolYear();
-  const mayDeclare = (c) => !yearLocked && canDeclareHealth(c, user);
+  // Sửa trực tiếp (BGH) hoặc gửi yêu cầu (GV được cấp, BE:CHD-11), nhưng không khi năm bị khóa
+  const mayDeclare = (c) => !yearLocked && canOpenChildEdit(c, user);
   const toast = useToast();
   const md = useMasterData();
   const [editing, setEditing] = useState(false);
@@ -66,6 +68,9 @@ export default function HealthDeclarationPage() {
   const autoOpened = useRef(false);
 
   const child = detail?.child;
+  // BE:CHD-11 — GV được cấp quyền: lưu là gửi yêu cầu, khai báo đổi khi HT/PHT duyệt
+  const proposing = !!child && !canDeclareHealth(child, user) && canProposeChildEdit(child, user);
+  const { changes, reload: reloadChanges } = useLatestProfileChanges(id, { enabled: proposing });
   const crumbs = childrenCrumbs(childCrumb(child), 'Khai báo sức khỏe');
 
   const openEditor = (d = emptyDeclaration()) => {
@@ -123,6 +128,13 @@ export default function HealthDeclarationPage() {
     if (hasErrors(errs)) return;
     setBusy(true);
     try {
+      if (proposing) {
+        await submitProfileChange(id, { kind: PROFILE_CHANGE_KIND.HEALTH_DECLARATION, declaration: { declaration: form, reason } }, user);
+        toast.success('Đã gửi yêu cầu sửa khai báo. Khai báo đổi sau khi Hiệu trưởng hoặc Phó hiệu trưởng duyệt.');
+        reloadChanges({ silent: true });
+        leaveEditor();
+        return;
+      }
       await saveHealthDeclaration(id, { declaration: form, reason }, user);
       toast.success('Đã lưu khai báo sức khỏe.');
       reload({ silent: true });
@@ -151,6 +163,7 @@ export default function HealthDeclarationPage() {
         )}
       </div>
       <YearLockedNotice action="Khai báo sức khỏe" />
+      {proposing && <ProfileChangeNotice changes={changes} kind={PROFILE_CHANGE_KIND.HEALTH_DECLARATION} />}
 
       {editing ? (
         <>
@@ -180,7 +193,7 @@ export default function HealthDeclarationPage() {
               <ArrowLeft size={16} /> Hủy
             </button>
             <button className="btn btn--primary" onClick={save} disabled={busy}>
-              {busy ? <Spinner small /> : <Save size={16} />} Lưu khai báo
+              {busy ? <Spinner small /> : <Save size={16} />} {proposing ? 'Gửi yêu cầu duyệt' : 'Lưu khai báo'}
             </button>
           </div>
         </>

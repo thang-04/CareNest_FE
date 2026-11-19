@@ -30,6 +30,7 @@ import {
   RECORD_STATUS_LABELS,
 } from '@/models/menu-planning/menuPlanningConstants';
 import '@/styles/modules/menu-planning.css';
+import { Button, SelectField, TextAreaField, TextField } from '@/components';
 
 const emptyRow = () => ({ isNew: true, foodId: '', portions: Object.fromEntries(AGE_GROUPS.map((a) => [a.id, ''])) });
 const AGE_IDS = AGE_GROUPS.map((a) => a.id);
@@ -219,26 +220,21 @@ export default function DishFormPage() {
               </Link>
               {draftMode ? (
                 <>
-                  <button type="button" className="btn" disabled={busy} onClick={() => submit(null, false, DISH_STATUS.DRAFT)}>
+                  <Button disabled={busy} onClick={() => submit(null, false, DISH_STATUS.DRAFT)}>
                     <Save size={16} /> Lưu nháp
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn--primary"
-                    disabled={busy}
-                    onClick={() => submit(null, false, DISH_STATUS.ACTIVE)}
-                  >
+                  </Button>
+                  <Button variant="primary" disabled={busy} onClick={() => submit(null, false, DISH_STATUS.ACTIVE)}>
                     {busy ? <Spinner small /> : <Save size={16} />} Lưu và dùng cho thực đơn
-                  </button>
+                  </Button>
                 </>
               ) : (
                 <>
-                  <button type="button" className="btn" disabled={busy} onClick={() => submit(null, true)}>
+                  <Button disabled={busy} onClick={() => submit(null, true)}>
                     <Save size={16} /> Lưu & thêm mới
-                  </button>
-                  <button type="submit" className="btn btn--primary" disabled={busy}>
+                  </Button>
+                  <Button type="submit" variant="primary" disabled={busy}>
                     {busy ? <Spinner small /> : <Save size={16} />} Lưu
-                  </button>
+                  </Button>
                 </>
               )}
             </>
@@ -254,7 +250,7 @@ export default function DishFormPage() {
         <section className="card">
           <div className="card__body td-form-grid">
             <FormField label="Tên món" required error={show('name')}>
-              <input
+              <TextField
                 className="input"
                 value={form.name}
                 maxLength={100}
@@ -263,7 +259,7 @@ export default function DishFormPage() {
               />
             </FormField>
             <FormField label="Loại món" required error={show('type')}>
-              <select
+              <SelectField
                 className="select"
                 value={form.type}
                 onChange={(e) => set('type', e.target.value)}
@@ -275,7 +271,7 @@ export default function DishFormPage() {
                     {v}
                   </option>
                 ))}
-              </select>
+              </SelectField>
             </FormField>
             <div className="field">
               <span className="field__label">
@@ -302,21 +298,26 @@ export default function DishFormPage() {
             <div className="td-form-grid">
               {draftMode ? (
                 <FormField label="Trạng thái" hint="Chọn nút lưu: Lưu nháp hoặc Lưu và dùng cho thực đơn">
-                  <input className="input" value="Nháp – chưa dùng được cho thực đơn" readOnly disabled />
+                  <TextField className="input" value="Nháp – chưa dùng được cho thực đơn" readOnly disabled />
                 </FormField>
               ) : (
                 <FormField label="Trạng thái" required>
-                  <select className="select" value={form.status} onChange={(e) => set('status', e.target.value)}>
+                  <SelectField className="select" value={form.status} onChange={(e) => set('status', e.target.value)}>
                     {Object.entries(RECORD_STATUS_LABELS).map(([k, v]) => (
                       <option key={k} value={k}>
                         {v}
                       </option>
                     ))}
-                  </select>
+                  </SelectField>
                 </FormField>
               )}
               <FormField label="Mô tả, cách chế biến" className="td-span-2">
-                <textarea className="textarea" rows={2} value={form.description} onChange={(e) => set('description', e.target.value)} />
+                <TextAreaField
+                  className="textarea"
+                  rows={2}
+                  value={form.description}
+                  onChange={(e) => set('description', e.target.value)}
+                />
               </FormField>
             </div>
           </details>
@@ -332,7 +333,7 @@ export default function DishFormPage() {
             {groups.length > 1 && (
               <div className="filter-bar td-recipe-copy">
                 <span className="text-sm">Chép định lượng từ</span>
-                <select
+                <SelectField
                   className="select"
                   value={copyFrom}
                   onChange={(e) => setCopyFrom(e.target.value)}
@@ -344,9 +345,9 @@ export default function DishFormPage() {
                       {ageAbbr(a.id)}
                     </option>
                   ))}
-                </select>
+                </SelectField>
                 <span className="text-sm">sang</span>
-                <select
+                <SelectField
                   className="select"
                   value={copyTo}
                   onChange={(e) => setCopyTo(e.target.value)}
@@ -360,10 +361,10 @@ export default function DishFormPage() {
                         {ageAbbr(a.id)}
                       </option>
                     ))}
-                </select>
-                <button type="button" className="btn" onClick={startCopy} disabled={!copyFrom || !copyTo || copyFrom === copyTo}>
+                </SelectField>
+                <Button onClick={startCopy} disabled={!copyFrom || !copyTo || copyFrom === copyTo}>
                   <Copy size={15} /> Chép
-                </button>
+                </Button>
               </div>
             )}
             {copied.length > 0 && (
@@ -425,7 +426,7 @@ export default function DishFormPage() {
                           const bad = submitted && errors[`ing_${i}_${a.id}`];
                           return (
                             <td key={a.id} className="num">
-                              <input
+                              <TextField
                                 type="number"
                                 min="0"
                                 step="1"
@@ -440,9 +441,8 @@ export default function DishFormPage() {
                           );
                         })}
                         <td className="cell--actions">
-                          <button
-                            type="button"
-                            className="icon-btn"
+                          <Button
+                            variant="icon"
                             aria-label={`Bỏ thực phẩm ${food?.name || i + 1}`}
                             title="Bỏ thực phẩm"
                             onClick={() =>
@@ -453,7 +453,7 @@ export default function DishFormPage() {
                             }
                           >
                             <Trash2 size={16} />
-                          </button>
+                          </Button>
                         </td>
                       </tr>
                     );
@@ -480,9 +480,9 @@ export default function DishFormPage() {
             </div>
             {submitted && errors.ingredients && <span className="field__error td-card-error">{errors.ingredients}</span>}
             <div className="td-add-meal">
-              <button type="button" className="link-btn" onClick={() => set('ingredients', [...form.ingredients, emptyRow()])}>
+              <Button variant="link" onClick={() => set('ingredients', [...form.ingredients, emptyRow()])}>
                 <Plus size={16} /> Thêm thành phần
-              </button>
+              </Button>
             </div>
           </section>
 

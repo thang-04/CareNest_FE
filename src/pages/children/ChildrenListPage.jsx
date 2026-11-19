@@ -1,12 +1,24 @@
 import { ChildAvatar } from '@/components/ChildAvatar';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Plus, Search, RotateCcw, UserMinus, FileSpreadsheet, Baby, Info, LayoutGrid, KeyRound, Pencil } from '@/components/ui/icons';
+import {
+  Plus,
+  Search,
+  RotateCcw,
+  UserMinus,
+  FileSpreadsheet,
+  Baby,
+  Info,
+  LayoutGrid,
+  KeyRound,
+  Pencil,
+  ClipboardCheck,
+} from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { YearLockedNotice } from '@/components/children/YearLockedNotice';
 import { useMasterData } from '@/hooks/useMasterData';
-import { useChildRecords, useClassOptions } from '@/hooks/children/useChildRecords';
+import { useChildRecords, useClassOptions, useProfileChanges } from '@/hooks/children/useChildRecords';
 import { sameId } from '@/services/http/idStrings';
 import { useFilterParams } from '@/hooks/useFilterParams';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
@@ -129,6 +141,9 @@ export default function ChildrenListPage() {
   const showCampus = seesAllCampusChildren(user);
   // Giáo viên, năm bị khóa (CHD-12) không có thao tác dòng (Sửa, Cho nghỉ học) nên bỏ cả cột; bấm dòng mở hồ sơ (DESIGN §6.3)
   const showActions = !isTeacherRole(user) && !yearLocked;
+  // BE:CHD-11 — yêu cầu sửa hồ sơ GV gửi mà người xem duyệt được (BE trả canDecide)
+  const { requests: profileChanges } = useProfileChanges('PENDING', { enabled: showActions });
+  const changesToDecide = profileChanges.filter((r) => r.canDecide).length;
   const cols = 5 + (showCampus ? 1 : 0) + (showActions ? 1 : 0);
   const chipLabels = {
     keyword: `Từ khóa: ${keyword}`,
@@ -151,6 +166,18 @@ export default function ChildrenListPage() {
       </div>
 
       <YearLockedNotice action="Tiếp nhận, sửa hồ sơ trẻ" />
+      {changesToDecide > 0 && (
+        <div className="alert alert--info mb-16" role="status">
+          <ClipboardCheck size={18} />
+          <span>
+            <b>{changesToDecide}</b> yêu cầu sửa hồ sơ của giáo viên đang chờ duyệt.{' '}
+            <Link to="/children/profile-changes" className="text-primary">
+              Xem và duyệt
+            </Link>
+          </span>
+        </div>
+      )}
+
       {!yearLocked && isVicePrincipal(user) && (pendingPlacement > 0 || notActivated > 0) && (
         <div className="alert alert--warning mb-16">
           <Info size={18} />

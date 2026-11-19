@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ClipboardCheck } from '@/components/ui/icons';
-import { Breadcrumb, EmptyState, ErrorState, LoadingState } from '@/components';
+import { Breadcrumb, Button, EmptyState, ErrorState, LoadingState } from '@/components';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import { KbCampusFilter, KbDateFilter } from '@/components/kitchen/KitchenFilters';
@@ -66,9 +66,9 @@ function FormCard({ tab, data, onOpen }) {
           {signed && ` · Ký bởi ${sig.signedByName} lúc ${formatDateTime(sig.signedAt)}`}
         </div>
         <div>
-          <button type="button" className="btn btn--primary" disabled={empty} onClick={() => onOpen(tab)}>
+          <Button variant="primary" disabled={empty} onClick={() => onOpen(tab)}>
             {data.canEdit ? 'Mở biểu mẫu' : 'Xem biểu mẫu'}
-          </button>
+          </Button>
         </div>
       </div>
     </section>

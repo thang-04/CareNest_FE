@@ -1,4 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useYearCampuses } from '@/hooks/useYearCampuses';
+import { PERMISSIONS } from '@/models/bePermissions';
+import { CampusFilter } from '@/components/ui/CampusFilter';
 import { Link, useSearchParams } from 'react-router-dom';
 import { ChildAvatar } from '@/components/ChildAvatar';
 import { Flag, Lock, Save, UserX } from '@/components/ui/icons';
@@ -38,7 +41,11 @@ export default function DailyAssessmentPage() {
   const [classId, setClassId] = useState(search.get('classId') || '');
   const [date, setDate] = useState(() => search.get('date') || '');
   // Chưa chọn ngày: BE trả ngày học gần nhất theo ngày nghỉ trong cấu hình năm học (lễ, Tết…)
-  const currentClassId = classes.some((c) => c.id === classId) ? classId : classes[0]?.id || '';
+  // Lọc điểm trường (HT: điểm trường của năm đang chọn; PHT: theo phạm vi quyền được cấp); lớp theo điểm trường đang chọn
+  const yearCampuses = useYearCampuses(PERMISSIONS.ASSESSMENT_VIEW);
+  const [campusId, setCampusId] = useState('');
+  const campusClasses = classes.filter((c) => !campusId || String(c.campusId) === String(campusId));
+  const currentClassId = campusClasses.some((c) => c.id === classId) ? classId : campusClasses[0]?.id || '';
   const params = useMemo(() => ({ classId: currentClassId, date: date || undefined }), [currentClassId, date]);
   const { sheet, loading, error, reload } = useDailyAssessment(params);
   const shownDate = date || sheet?.date || '';
@@ -135,14 +142,15 @@ export default function DailyAssessmentPage() {
       ) : (
         <div className="card">
           <div className="filter-bar">
+            <CampusFilter campuses={yearCampuses || []} value={campusId} onChange={(next) => confirmChange(() => setCampusId(next))} />
             <div className="field">
               <label className="field__label" htmlFor="dg-class">
                 Lớp
               </label>
               {/* GV chỉ dạy một lớp: hiện tên lớp, không bắt chọn */}
-              {classes.length === 1 ? (
+              {campusClasses.length <= 1 ? (
                 <span id="dg-class" className="fw-600">
-                  {classes[0].name}
+                  {campusClasses[0]?.name || 'Điểm trường chưa có lớp'}
                 </span>
               ) : (
                 <select
@@ -154,7 +162,7 @@ export default function DailyAssessmentPage() {
                     confirmChange(() => setClassId(next));
                   }}
                 >
-                  {classes.map((c) => (
+                  {campusClasses.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name}
                     </option>

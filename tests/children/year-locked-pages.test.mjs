@@ -74,7 +74,8 @@ test('hồ sơ trẻ: mọi nút ghi (xếp lớp, sửa, kích hoạt PH, nhậ
   const src = read('src/pages/children/ChildProfilePage.jsx');
   for (const guard of [
     'canPlaceChild(child, user)',
-    'canEditChild(child, user)',
+    // Nút Sửa hồ sơ / Đề xuất sửa hồ sơ (BE:CHD-11, G94-378) — gộp dev 19/11
+    'canOpenChildEdit(child, user)',
     'canActivateParent(child, user)',
     'canRecordMeasurement(child, user, cls)',
   ]) {

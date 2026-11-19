@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Check, Pencil, Save, X } from '@/components/ui/icons';
-import { ConfirmationModal } from '@/components';
+import { Button, ConfirmationModal, LockNote, TextAreaField, TextField } from '@/components';
 import { FreshCheckResultBadge, FreshRoundStateBadge } from '@/components/kitchen/KitchenBadges';
 import { fmtQty } from '@/components/kitchen/KitchenFilters';
 import { useToast } from '@/contexts/ToastContext';
@@ -152,9 +152,7 @@ export function FreshRoundCard({ round, campusId, date, canManage, groupOfFood, 
       )}
       {!round.available && !round.recorded && (
         <div className="card__body">
-          <div className="alert alert--info" role="status">
-            {round.unavailableReason || 'Lần kiểm này chưa mở.'}
-          </div>
+          <LockNote kind="notYet">{round.unavailableReason || 'Lần kiểm này chưa mở.'}</LockNote>
         </div>
       )}
       {round.available && !round.lines.length && <p className="card__body muted">Ngày này không có hàng tươi cần nhận.</p>}
@@ -184,30 +182,26 @@ export function FreshRoundCard({ round, campusId, date, canManage, groupOfFood, 
           </div>
           {editable ? (
             <div className="kb-fresh__foot">
-              <label className="field__label" htmlFor={`fresh-note-${round.round}`}>
-                Ghi chú chung
-              </label>
-              <textarea
-                id={`fresh-note-${round.round}`}
-                className="textarea"
+              <TextAreaField
+                label="Ghi chú chung"
                 rows={2}
                 maxLength={NOTE_MAX}
                 value={form.note}
                 onChange={(e) => setForm((f) => ({ ...f, note: e.target.value }))}
               />
               <div className="row row--between mt-12">
-                <button type="button" className="btn" onClick={markAll}>
-                  <Check size={16} /> Đánh dấu tất cả Đủ
-                </button>
+                <Button icon={Check} onClick={markAll}>
+                  Đánh dấu tất cả Đủ
+                </Button>
                 <div className="row gap-2">
                   {editing && (
-                    <button type="button" className="btn" onClick={cancelEdit}>
-                      <X size={16} /> Hủy sửa
-                    </button>
+                    <Button icon={X} onClick={cancelEdit}>
+                      Hủy sửa
+                    </Button>
                   )}
-                  <button type="button" className="btn btn--primary" onClick={askConfirm}>
-                    <Save size={16} /> {round.recorded ? 'Lưu kiểm nhận' : 'Ghi nhận kiểm nhận'}
-                  </button>
+                  <Button variant="primary" icon={Save} onClick={askConfirm}>
+                    {round.recorded ? 'Lưu kiểm nhận' : 'Ghi nhận kiểm nhận'}
+                  </Button>
                 </div>
               </div>
             </div>
@@ -216,9 +210,9 @@ export function FreshRoundCard({ round, campusId, date, canManage, groupOfFood, 
               {round.note && <p className="text-sm">Ghi chú chung: {round.note}</p>}
               {canWrite && round.recorded && (
                 <div className="kb-fresh__actions">
-                  <button type="button" className="btn" onClick={startEdit}>
-                    <Pencil size={16} /> Sửa kiểm nhận
-                  </button>
+                  <Button icon={Pencil} onClick={startEdit}>
+                    Sửa kiểm nhận
+                  </Button>
                 </div>
               )}
             </div>
@@ -248,12 +242,10 @@ export function FreshRoundCard({ round, campusId, date, canManage, groupOfFood, 
         </p>
         {round.recorded && (
           <div className="kb-fresh__reason">
-            <label className="field__label" htmlFor={`fresh-reason-${round.round}`}>
-              Lý do sửa lại (bắt buộc)
-            </label>
-            <textarea
-              id={`fresh-reason-${round.round}`}
-              className={`textarea ${reasonError ? 'input--error' : ''}`}
+            <TextAreaField
+              label="Lý do sửa lại"
+              required
+              error={reasonError}
               rows={2}
               maxLength={REASON_MAX}
               value={reason}
@@ -262,7 +254,6 @@ export function FreshRoundCard({ round, campusId, date, canManage, groupOfFood, 
                 setReasonError('');
               }}
             />
-            {reasonError && <div className="field__error">{reasonError}</div>}
           </div>
         )}
       </ConfirmationModal>
@@ -293,7 +284,7 @@ export function FreshRoundCard({ round, campusId, date, canManage, groupOfFood, 
                 {editable ? (
                   <>
                     <span className="kb-fresh__qty">
-                      <input
+                      <TextField
                         type="number"
                         min="0"
                         step="any"
@@ -328,7 +319,7 @@ export function FreshRoundCard({ round, campusId, date, canManage, groupOfFood, 
               </td>
               <td className="kb-fresh__left">
                 {editable ? (
-                  <input
+                  <TextField
                     className="input"
                     value={row.note}
                     maxLength={NOTE_MAX}
