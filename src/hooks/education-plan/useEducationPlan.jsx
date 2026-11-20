@@ -6,7 +6,7 @@ import { useAsync } from '@/hooks/useAsync';
 import { LoadingState, ErrorState } from '@/components/ui/States';
 import { ROLES, ROLE_LABELS } from '@/models/User';
 import * as service from '@/services/education-plan/educationPlanService';
-import { AGE_GROUPS, CLASSES, EDU_STATUS, toEduYear, fromEduYear } from '@/models/education-plan/educationPlanConstants';
+import { AGE_GROUPS, EDU_STATUS, toEduYear, fromEduYear } from '@/models/education-plan/educationPlanConstants';
 import { applyEduConfig, withDefaults } from '@/models/education-plan/eduConfig';
 import { mergeGoals } from '@/models/education-plan/planVersions.mjs';
 
@@ -23,13 +23,13 @@ const initialsOf = (name = '') => {
   return ((parts[0]?.[0] || '') + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
 };
 
-const titleOf = (u) => {
+const titleOf = (u, classes) => {
   if (u.role === ROLES.TEAM_LEADER) {
     const group = AGE_GROUPS.find((g) => g.id === u.ageGroupId);
     return `${ROLE_LABELS[u.role]}${group ? ` ${group.name.split(' (')[0]}` : ''} (toàn trường)`;
   }
   if (u.role === ROLES.TEACHER) {
-    const cls = CLASSES.find((c) => c.id === u.classId);
+    const cls = classes.find((c) => String(c.id) === String(u.classId));
     return cls ? `Giáo viên lớp ${cls.name}` : ROLE_LABELS[u.role];
   }
   return ROLE_LABELS[u.role] || u.role;
@@ -57,7 +57,7 @@ const NEXT_SIGNER = {
 };
 /** Câu báo sau khi gửi / duyệt / trả lại tài liệu lớp, theo trạng thái mới. */
 export const actDoneText = (kind, action, status) => {
-  const name = { branch: 'chủ đề nhánh', semester: 'học kỳ', dossier: 'hồ sơ chủ đề' }[kind] || 'kế hoạch chủ đề';
+  const name = { branch: 'chủ đề nhánh', semester: 'học kỳ', dossier: 'kế hoạch giáo dục ngày' }[kind] || 'kế hoạch chủ đề';
   const next = NEXT_SIGNER[status];
   if (action === 'extend') return `Đã mở khóa ${name}`;
   if (action === 'revise') return `Đã tạo phiên bản điều chỉnh ${name}`;
@@ -116,12 +116,12 @@ export function EducationPlanProvider({ children }) {
       role: authUser.role,
       roles: authUser.roles,
       name: authUser.fullName,
-      title: titleOf(authUser),
+      title: titleOf(authUser, data?.classes || []),
       initials: initialsOf(authUser.fullName),
       ageGroupId: /^\d+$/.test(String(authUser.ageGroupId ?? '')) ? (leader?.ageGroupId ?? authUser.ageGroupId) : authUser.ageGroupId,
       classId: authUser.classId == null ? authUser.classId : String(authUser.classId),
     };
-  }, [authUser, data?.staff]);
+  }, [authUser, data?.staff, data?.classes]);
 
   const value = useMemo(() => {
     const yearName = (id) => {
@@ -140,7 +140,7 @@ export function EducationPlanProvider({ children }) {
     };
     const saveIn = (key, call) => write(key, call, upsert);
     // Tài liệu của lớp: chờ kết quả từ service (quyền, trạng thái do service quyết định) rồi mới cập nhật màn hình
-    // Spec 003: gói học kỳ (semester), hồ sơ chủ đề (dossier) là gốc gửi/duyệt; giáo án ngày (day) tách khỏi tuần
+    // Spec 003: kế hoạch giáo dục chủ đề (semester), kế hoạch giáo dục ngày (dossier) là gốc gửi/duyệt; giáo án ngày (day) tách khỏi tuần
     const CLASS_KEY = {
       branch: 'branchPlans',
       theme: 'classThemePlans',
@@ -161,7 +161,7 @@ export function EducationPlanProvider({ children }) {
         try {
           const [docOrId, body, , supplied] = args;
           const current = (data?.[CLASS_KEY[kind]] || []).find((doc) => doc.id === (docOrId?.id || docOrId));
-          // Gốc chứa tài liệu: giáo án ngày ⇒ hồ sơ chủ đề; kế hoạch tuần ⇒ gốc của kế hoạch chủ đề (containerKey do BE trả)
+          // Gốc chứa tài liệu: giáo án ngày ⇒ kế hoạch giáo dục ngày; kế hoạch tuần ⇒ gốc của kế hoạch chủ đề (containerKey do BE trả)
           const sameTheme = (doc) =>
             doc.classId === docOrId?.classId && doc.yearPlanId === docOrId?.yearPlanId && doc.themeId === docOrId?.themeId;
           const themeDoc = (data?.classThemePlans || []).find(sameTheme);
@@ -199,7 +199,7 @@ export function EducationPlanProvider({ children }) {
 
     return {
       refreshPlans,
-      // Tài liệu của lớp (hồ sơ chủ đề chờ duyệt…) do người khác đổi; tải lại im lặng, không đụng kế hoạch năm/tổ
+      // Tài liệu của lớp (kế hoạch giáo dục ngày chờ duyệt…) do người khác đổi; tải lại im lặng, không đụng kế hoạch năm/tổ
       refreshClassDocs: async () => {
         const classDocs = await service.getClassPlans(yearId, actor);
         setData((prev) => (prev ? { ...prev, ...classDocs } : prev));
@@ -283,7 +283,18 @@ export function EducationPlanProvider({ children }) {
           return null;
         }
       },
-      // Gửi / duyệt hồ sơ chủ đề đổi trạng thái cả giáo án các tuần: nạp lại để các tuần không giữ trạng thái cũ
+      reopenGoalReviewDeadline: async (id, body) => {
+        try {
+          const plan = await service.reopenGoalReviewDeadline(id, body);
+          setData((prev) => (prev ? { ...prev, goals: upsert(prev.goals, plan) } : prev));
+          toast('Đã mở lại hạn duyệt');
+          return plan;
+        } catch (err) {
+          toastApi.error(err, 'Không mở lại hạn duyệt được');
+          return null;
+        }
+      },
+      // Gửi / duyệt kế hoạch giáo dục ngày đổi trạng thái cả giáo án các tuần: nạp lại để các tuần không giữ trạng thái cũ
       actOnClassDoc: async (kind, ...args) => {
         const saved = await classCall(service.actOnClassDoc)(kind, ...args);
         if (saved && ['theme', 'semester', 'dossier'].includes(kind)) reload({ silent: true });

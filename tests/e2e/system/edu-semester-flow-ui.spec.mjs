@@ -2,12 +2,12 @@ import { test, expect } from '@playwright/test';
 import { api, beReachable, sql } from '../support/realBe.mjs';
 import { actionCount, clickAction, login, spaGo } from '../support/ui.mjs';
 
-// System spec 003/004 qua giao diện (BE thật, E2E_PG_DB=carenest_merge): gói học kỳ (nhánh + kế hoạch chủ đề + tuần) gửi/duyệt/
+// System spec 003/004 qua giao diện (BE thật, E2E_PG_DB=carenest_merge): kế hoạch giáo dục chủ đề (nhánh + kế hoạch chủ đề + tuần) gửi/duyệt/
 // trả lại/mở khóa ở trang Kế hoạch giáo dục chủ đề; trang Dự kiến chủ đề - chủ đề nhánh chỉ để sửa; HT lọc nhóm tuổi → lớp (EDU-73/74).
 // teamlead34 = GVCN lớp 3–4 tuổi cơ sở A (kiêm Tổ trưởng ⇒ chuỗi nhánh bỏ bước Tổ trưởng, gửi thẳng PHT).
 test.describe.configure({ mode: 'serial' });
 
-const U = { vp: 'viceprincipal', ht: 'principal', tl: 'teacher1' };
+const U = { vp: 'viceprincipal', ht: 'principal', tl: 'teacher1', tl2: 'teacher2' };
 const DOCS = '/education-plans/class-docs';
 const SEMESTER2_START = '2027-01-18';
 const run = Date.now() % 100000;
@@ -27,7 +27,7 @@ let target; // thứ Hai của tuần duy nhất còn trống tên (tuần học
 
 const packageOf = async (user, no) =>
   (await api(user, 'GET', DOCS)).data.semesterPackages.find((p) => String(p.classId) === String(cls.id) && p.semesterNo === no);
-// Spec 004: gói học kỳ phải đủ kế hoạch chủ đề, kế hoạch tuần mới gửi được ⇒ soạn nhanh phần còn thiếu qua API (trừ tên nhánh)
+// Spec 004: kế hoạch giáo dục chủ đề phải đủ kế hoạch chủ đề, kế hoạch tuần mới gửi được ⇒ soạn nhanh phần còn thiếu qua API (trừ tên nhánh)
 const fillPackage = async (no) => {
   const pkg = await packageOf(U.tl, no);
   for (const m of pkg.missing || []) {
@@ -106,7 +106,7 @@ test.beforeAll(async () => {
   test.skip(!cls, 'teamlead34 không có lớp chủ nhiệm');
   const branch = docs.data.branchPlans.find((b) => String(b.classId) === String(cls.id));
   test.skip(!branch, 'Lớp chưa có lịch chủ đề nhánh');
-  // Chạy lại được: đưa hai gói học kỳ về Nháp, bỏ lần gửi/mở hạn của lần chạy trước (dữ liệu dev do bộ test tạo)
+  // Chạy lại được: đưa hai kế hoạch giáo dục chủ đề về Nháp, bỏ lần gửi/mở hạn của lần chạy trước (dữ liệu dev do bộ test tạo)
   sql(
     `update edu_class_docs set status='DRAFT', history='[]'::jsonb, approvals='[]'::jsonb ` +
       `where kind='semester' and classroom_id=${cls.id}`,
@@ -143,8 +143,8 @@ test('ST-004-01 trang Dự kiến chủ đề - chủ đề nhánh: không nút 
   await spaGo(page, `/education/branches/${cls.id}`);
   await expect(page.getByRole('button', { name: 'Chỉnh sửa' })).toBeVisible({ timeout: 30_000 });
   await expect(page.getByRole('button', { name: /Gửi duyệt/ })).toHaveCount(0);
-  // Ô lọc Học kỳ có mục "Học kỳ n" (13/11/2026); trang không có trạng thái / chữ gói học kỳ
-  await expect(page.getByText(/Gói học kỳ/)).toHaveCount(0);
+  // Ô lọc Học kỳ có mục "Học kỳ n" (13/11/2026); trang không có trạng thái / chữ kế hoạch giáo dục chủ đề
+  await expect(page.getByText(/Kế hoạch giáo dục chủ đề/)).toHaveCount(0);
   await expect(page.locator('.ga-year-toolbar').getByText(/Học kỳ \d/)).toHaveCount(0);
   // Điều hướng chỉ bằng sidebar (Tiền 11/11)
   await expect(page.locator('.ga-page a[href^="/education/"]:not(nav[aria-label="Breadcrumb"] a)')).toHaveCount(0);
@@ -207,7 +207,16 @@ test('ST-004-02 gói thiếu phần thì chưa gửi được và liệt kê m�
 });
 
 test('ST-004-03 PHT mở gói từ hàng chờ duyệt, duyệt trên trang Kế hoạch giáo dục chủ đề ⇒ Đã ban hành', async ({ page }) => {
-  test.skip((await packageOf(U.vp, 2))?.status !== 'REVIEW', 'gói học kỳ 2 chưa ở Chờ duyệt');
+  test.skip((await packageOf(U.vp, 2))?.status !== 'REVIEW', 'kế hoạch giáo dục chủ đề học kỳ 2 chưa ở Chờ duyệt');
+  // EDU-54: chuỗi Tổ trưởng → PHT; nhóm tuổi còn Tổ trưởng khác người gửi thì bước Tổ trưởng duyệt trước
+  const pending = await packageOf(U.tl, 2);
+  if (pending.review?.waitingRole === 'TEAM_LEADER') {
+    const step = await api(U.tl2, 'POST', `${DOCS}/semester/${pending.id}/actions`, {
+      body: { action: 'approve', note: '' },
+      headers: { 'Idempotency-Key': crypto.randomUUID(), 'X-Class-Doc-Version': String(pending.version) },
+    });
+    expect(step.status, step.desc).toBe(200);
+  }
   await login(page, U.vp);
   await spaGo(page, `/education/theme-plans/${cls.id}?hk=2`);
   await clickAction(page, 'Duyệt');
@@ -219,16 +228,16 @@ test('ST-004-03 PHT mở gói từ hàng chờ duyệt, duyệt trên trang Kế
   expect((await packageOf(U.vp, 2)).status).toBe('APPROVED');
 });
 
-test('ST-004-04 Kế hoạch giáo dục ngày: kế hoạch tuần đã duyệt là tab đầu; sửa được theo hồ sơ chủ đề trước ngày bắt đầu chủ đề (EDU-79)', async ({
+test('ST-004-04 Kế hoạch giáo dục ngày: kế hoạch tuần đã duyệt là tab đầu; sửa được theo kế hoạch giáo dục ngày trước ngày bắt đầu chủ đề (EDU-79)', async ({
   page,
 }) => {
   const pkg = await packageOf(U.tl, 2);
-  test.skip(pkg?.status !== 'APPROVED', 'gói học kỳ 2 chưa ban hành');
+  test.skip(pkg?.status !== 'APPROVED', 'kế hoạch giáo dục chủ đề học kỳ 2 chưa ban hành');
   const docs = (await api(U.tl, 'GET', DOCS)).data;
   const week = docs.weekPlans.find(
     (w) => String(w.classId) === String(cls.id) && (pkg.themeIds || []).map(String).includes(String(w.themeId)),
   );
-  // EDU-79 (spec 006, thay "tab Kế hoạch tuần chỉ xem" 12/11): gói học kỳ đã ban hành, hồ sơ chủ đề còn Nháp và chưa tới ngày
+  // EDU-79 (spec 006, thay "tab Kế hoạch tuần chỉ xem" 12/11): kế hoạch giáo dục chủ đề đã ban hành, kế hoạch giáo dục ngày còn Nháp và chưa tới ngày
   // bắt đầu chủ đề ⇒ tab tuần sửa được; ngoài khoảng đó chỉ xem
   const dossier = docs.themeDossiers.find((d) => d.id === `ds_${cls.id}_${week.themeId}`);
   const themeStart = docs.weekPlans
@@ -280,12 +289,12 @@ test('ST-002-07 HT lọc nhóm tuổi rồi lớp; xem đủ lịch nhánh dự 
   await expect(page.getByText(/Chưa có lịch chủ đề nhánh đã duyệt/)).toHaveCount(0);
 });
 
-test('ST-003-08 Hiệu trưởng mở hạn gói học kỳ 1 quá hạn ở màn Kế hoạch quá hạn; GVCN gửi được; PHT trả lại phải ghi lý do', async ({
+test('ST-003-08 Hiệu trưởng mở hạn kế hoạch giáo dục chủ đề học kỳ 1 quá hạn ở màn Kế hoạch quá hạn; GVCN gửi được; PHT trả lại phải ghi lý do', async ({
   page,
   browser,
 }) => {
   const pkg = await packageOf(U.ht, 1);
-  test.skip(!pkg?.canExtend, `gói học kỳ 1 không ở trạng thái quá hạn (${pkg?.deadlineState})`);
+  test.skip(!pkg?.canExtend, `kế hoạch giáo dục chủ đề học kỳ 1 không ở trạng thái quá hạn (${pkg?.deadlineState})`);
   // Spec 005 FR-021a: mở hạn ở màn riêng của Hiệu trưởng
   await login(page, U.ht);
   await spaGo(page, '/education/overdue');

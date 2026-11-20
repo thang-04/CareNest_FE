@@ -119,7 +119,7 @@ export function CoverageTab({ blocks, cards, weeks, contentsOf, onOpen }) {
                           <td>
                             <div className="ga-goal-table__pad">
                               {g.text}
-                              {/* MT chưa dạy ngày nào: chữ đỏ nhỏ, chỉ cảnh báo (gói học kỳ không chặn — EDU-80) */}
+                              {/* MT chưa dạy ngày nào: chữ đỏ nhỏ, chỉ cảnh báo (kế hoạch giáo dục chủ đề không chặn — EDU-80) */}
                               {!r.count && <div className="text-danger text-sm">Chưa dạy</div>}
                               {empty > 0 && <div className="text-danger text-sm">{empty} nội dung chưa có hoạt động</div>}
                             </div>

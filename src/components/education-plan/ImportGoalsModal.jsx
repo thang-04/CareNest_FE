@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Download } from '@/components/ui/icons';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { useGoalImportSources } from '@/hooks/education-plan/useGoalImportSources';
-import { AGE_GROUPS } from '@/models/education-plan/educationPlanConstants';
+import { AGE_GROUPS, ageRangeOptions, rangeOptionId } from '@/models/education-plan/educationPlanConstants';
 import { getImportGoals } from '@/models/education-plan/importGoals.mjs';
 import { EmptyState, Modal, Notice, YearPlanStatusBadge } from '@/components/education-plan/eduUi';
 import { ErrorState, LoadingState } from '@/components/ui/States';
@@ -21,7 +21,7 @@ export default function ImportGoalsModal({
   const { schoolYears, user } = useEducationPlan();
   // Mặc định năm học của kế hoạch đang soạn (Tiền 31/10)
   const [year, setYear] = useState(schoolYears.includes(defaultYear) ? defaultYear : schoolYears[1] || schoolYears[0] || '');
-  const [ageGroupId, setAgeGroupId] = useState(defaultAgeGroupId || '');
+  const [ageGroupId, setAgeGroupId] = useState(rangeOptionId(defaultAgeGroupId));
   const [sourceId, setSourceId] = useState(defaultSourceId);
   const [picked, setPicked] = useState({ key: '', ids: [] });
   // Lĩnh vực con bỏ tích (khóa `${lĩnh vực}|${id dòng}`): chỉ lấy mục tiêu, không lấy lĩnh vực con (Tiền 05/11)
@@ -191,7 +191,7 @@ export default function ImportGoalsModal({
             }}
           >
             <option value="">Tất cả nhóm tuổi</option>
-            {AGE_GROUPS.map((age) => (
+            {ageRangeOptions().map((age) => (
               <option key={age.id} value={age.id}>
                 {age.name}
               </option>

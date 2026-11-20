@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import * as imports from '../../src/models/education-plan/importGoalFile.mjs';
+import { setAgeGroups } from '../../src/models/education-plan/educationPlanConstants.js';
+import { AGE_GROUPS as mockAgeGroups } from '../../src/models/School.js';
+setAgeGroups(mockAgeGroups);
 const base = () => ({
   title: 'Tên nhập tay',
   description: 'Mô tả cũ',

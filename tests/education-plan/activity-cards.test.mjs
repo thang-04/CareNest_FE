@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-// Spec 006: thẻ hoạt động gắn MT (BE:EDU-78), bảng phủ MT, bản tuần theo hồ sơ chủ đề (EDU-79)
+// Spec 006: thẻ hoạt động gắn MT (BE:EDU-78), bảng phủ MT, bản tuần theo kế hoạch giáo dục ngày (EDU-79)
 const cp = await import('@/models/education-plan/classPlan');
 const { themeFileHtml } = await import('@/utils/education-plan/classPlanDoc');
 

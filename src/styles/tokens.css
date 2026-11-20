@@ -345,6 +345,7 @@
   --table-header-bg: var(--color-surface-muted);
   --table-row-hover: var(--color-primary-soft);
   --table-stripe: rgba(226, 242, 253, 0.45); /* bảng sọc xen kẽ (R3) */
+  --table-preview-stripe: var(--neutral-50);
 
   --badge-radius: var(--radius-full); /* badge viên thuốc có icon + viền (B) */
 

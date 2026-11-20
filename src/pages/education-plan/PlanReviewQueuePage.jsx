@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card, EduStatusBadge, EmptyState, PageHead, YearPlanStatusBadge, fmtDateTime } from '@/components/education-plan/eduUi';
 import { useEducationPlan, useGoalDetails } from '@/hooks/education-plan/useEducationPlan';
 import { ROLES } from '@/models/User';
-import { AGE_GROUPS } from '@/models/education-plan/educationPlanConstants';
+import { AGE_GROUPS, ageRangeOptions, sameAgeRange } from '@/models/education-plan/educationPlanConstants';
 import { useAsync } from '@/hooks/useAsync';
 import { usePolling } from '@/hooks/usePolling';
 import { DeadlineBadge } from '@/components/education-plan/DeadlineWidgets';
@@ -15,9 +15,10 @@ import { PENDING_OF } from '@/models/education-plan/eduConfig';
 import { clickableRowProps } from '@/utils/clickableRow';
 import { Eye } from '@/components/ui/icons';
 import { FilterText } from '@/components/education-plan/planUi';
+import { isChainReviewer, isReviewTurn } from '@/models/education-plan/reviewTurn.mjs';
 
 /**
- * Hộp duyệt: hồ sơ chủ đề (kế hoạch chủ đề + giáo án các nhánh) của các lớp trong khối đang chờ duyệt.
+ * Hộp duyệt: kế hoạch giáo dục ngày (kế hoạch chủ đề + giáo án các nhánh) của các lớp trong khối đang chờ duyệt.
  */
 export default function PlanReviewQueuePage() {
   const { user, goals, classThemePlans, themeDossiers = [], semesterPackages = [], classes, refreshClassDocs } = useEducationPlan();
@@ -46,6 +47,8 @@ export default function PlanReviewQueuePage() {
     }
     return doc.status === waiting && (user.role !== ROLES.TEAM_LEADER || cls.ageGroupId === user.ageGroupId);
   };
+  // EDU-93: người duyệt bước khác của chuỗi vẫn thấy hồ sơ, chỉ xem
+  const inQueue = (doc) => mine(doc) || isChainReviewer(doc, user, classOf(doc.classId));
   // Tên, số thứ tự chủ đề lấy từ chi tiết kế hoạch tổ của hồ sơ
   useGoalDetails([...themeDossiers, ...classThemePlans].map((d) => d.yearPlanId));
   const themeName = (doc) => goals.find((g) => g.id === doc.yearPlanId)?.themes?.find((t) => t.id === doc.themeId)?.name || '—';
@@ -63,26 +66,27 @@ export default function PlanReviewQueuePage() {
       by: g.sentBy?.name || submitEntryOf(g)?.by,
       at: g.sentAt ?? g.sentBy?.at,
     })),
-    // Spec 003: gói học kỳ (lịch nhánh + chủ đề theo kỳ) và hồ sơ chủ đề là đơn vị duyệt
-    ...semesterPackages.filter(mine).map((d) => ({
+    // Spec 003: kế hoạch giáo dục chủ đề (lịch nhánh + chủ đề theo kỳ) và kế hoạch giáo dục ngày là đơn vị duyệt
+    ...semesterPackages.filter(inQueue).map((d) => ({
       kind: 'semester',
       label: 'Học kỳ',
       doc: d,
       what: `Học kỳ ${d.semesterNo}: chủ đề nhánh, kế hoạch chủ đề, kế hoạch tuần · ${(d.themeIds || []).length} chủ đề`,
       to: `/education/theme-plans/${d.classId}?hk=${d.semesterNo}`,
     })),
-    ...themeDossiers.filter(mine).map((d) => {
+    ...themeDossiers.filter(inQueue).map((d) => {
       const plan = goals.find((g) => g.id === d.yearPlanId);
       return {
         kind: 'theme',
-        label: 'Hồ sơ chủ đề',
+        label: 'Kế hoạch giáo dục ngày',
         doc: d,
         what: `Chủ đề ${themeNumber(plan, d.themeId)}: ${themeName(d)} · kế hoạch giáo dục ngày`,
+        // Mở trang xem giáo án ngày của chủ đề: xem nội dung và duyệt tại đó (EDU-93)
         to: `/education/day-plans/${d.classId}?theme=${d.themeId}`,
       };
     }),
-    // Bản mock cũ chưa có hồ sơ chủ đề tách riêng
-    ...(themeDossiers.length ? [] : classThemePlans).filter(mine).map((d) => {
+    // Bản mock cũ chưa có kế hoạch giáo dục ngày tách riêng
+    ...(themeDossiers.length ? [] : classThemePlans).filter(inQueue).map((d) => {
       const plan = goals.find((g) => g.id === d.yearPlanId);
       return {
         kind: 'theme',
@@ -99,19 +103,23 @@ export default function PlanReviewQueuePage() {
     at: sentAt(it.doc)?.at,
     note: submitEntryOf(it.doc)?.note,
     ...it,
+    // Không kèm quyền (dữ liệu cũ) ⇒ coi như đúng lượt như trước
+    turn: isReviewTurn(it.doc) !== false,
   }));
 
   // Lọc nhóm tuổi trước rồi lớp (spec 005 FR-022); kế hoạch năm/tổ không theo lớp
   // Hiệu trưởng lọc theo nhóm tuổi; Phó hiệu trưởng lọc thêm theo lớp của năm học đang chọn (Tiền 12/11/2026)
-  const groups = AGE_GROUPS;
+  const groups = ageRangeOptions();
   // Tổ trưởng chỉ duyệt nhóm tuổi của mình: nhóm tuổi hiện dạng chữ, chỉ chọn lớp
   const isLeader = user.role === ROLES.TEAM_LEADER;
   const canFilterClass = user.role === ROLES.VICE_PRINCIPAL || isLeader;
   const leaderGroup = AGE_GROUPS.find((g) => String(g.id) === String(user.ageGroupId));
   const groupClasses = classes.filter((c) =>
-    isLeader ? String(c.ageGroupId) === String(user.ageGroupId) : !ageGroupId || String(c.ageGroupId) === ageGroupId,
+    isLeader ? String(c.ageGroupId) === String(user.ageGroupId) : !ageGroupId || sameAgeRange(c.ageGroupId, ageGroupId),
   );
-  const shown = items.filter((it) => (!ageGroupId || String(it.ageGroupId) === ageGroupId) && (!classId || it.doc.classId === classId));
+  const shown = items.filter((it) => (!ageGroupId || sameAgeRange(it.ageGroupId, ageGroupId)) && (!classId || it.doc.classId === classId));
+  // HT mặc định chỉ duyệt kế hoạch năm học, không theo lớp (EDU-54) ⇒ bỏ cột Lớp; vẫn hiện khi trường cấu hình HT duyệt tài liệu lớp
+  const showClass = user.role !== ROLES.PRINCIPAL || shown.some((it) => it.cls !== '—');
 
   return (
     <div className="page ga-page">
@@ -134,7 +142,7 @@ export default function PlanReviewQueuePage() {
                     const next = e.target.value;
                     setAgeGroupId(next);
                     // Đổi nhóm tuổi: giữ lớp đang chọn nếu lớp đó thuộc nhóm mới
-                    if (next && classOf(classId) && String(classOf(classId).ageGroupId) !== next) setClassId('');
+                    if (next && classOf(classId) && !sameAgeRange(classOf(classId).ageGroupId, next)) setClassId('');
                   }}
                 >
                   <option value="">Tất cả</option>
@@ -172,10 +180,11 @@ export default function PlanReviewQueuePage() {
             <table className="table ga-plan-table ga-list-table">
               <thead>
                 <tr>
-                  <th>Loại</th>
-                  <th>Lớp</th>
+                  {/* Bảng ga-plan-table cho chữ trong ô xuống dòng; cột ngắn giữ bề rộng tối thiểu để không gãy chữ */}
+                  <th className="min-w-150">Loại</th>
+                  {showClass && <th className="w-110">Lớp</th>}
                   <th>Nội dung</th>
-                  <th>Người gửi</th>
+                  <th className="min-w-150">Người gửi</th>
                   <th>Gửi lúc</th>
                   <th className="center">Trạng thái</th>
                   <th className="center">Hạn</th>
@@ -188,7 +197,7 @@ export default function PlanReviewQueuePage() {
                     <td className="nowrap">
                       <div className="ga-cell-title">{it.label || CLASS_DOC_LABELS[it.kind]}</div>
                     </td>
-                    <td className="nowrap">{it.cls}</td>
+                    {showClass && <td className="nowrap">{it.cls}</td>}
                     <td>
                       {it.what}
                       {it.note && <div className="ga-cell-sub">Ghi chú: {it.note}</div>}
@@ -215,7 +224,7 @@ export default function PlanReviewQueuePage() {
                           navigate(it.to);
                         }}
                       >
-                        <Eye size={16} aria-hidden /> Mở duyệt
+                        <Eye size={16} aria-hidden /> {it.turn ? 'Mở duyệt' : 'Xem'}
                       </button>
                     </td>
                   </tr>

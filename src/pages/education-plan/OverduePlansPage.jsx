@@ -1,18 +1,18 @@
-import { Button } from '@/components';
+import { Button, SelectField } from '@/components';
 import { useId, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, EduStatusBadge, EmptyState, PageHead, YearPlanStatusBadge, fmtDate, fmtDateTime } from '@/components/education-plan/eduUi';
 import { ExtendDeadlineModal } from '@/components/education-plan/DeadlineWidgets';
+import { FilterMore } from '@/components/ui/FilterMore';
 import { LoadingState } from '@/components/ui/States';
-import { Tabs } from '@/components/ui/Tabs';
 import { Eye } from '@/components/ui/icons';
 import { useEducationPlan, useGoalDetails } from '@/hooks/education-plan/useEducationPlan';
-import { AGE_GROUPS } from '@/models/education-plan/educationPlanConstants';
+import { ageRangeOptions, sameAgeRange } from '@/models/education-plan/educationPlanConstants';
 import { todayIso } from '@/models/education-plan/classPlan';
 import { planRoute } from '@/models/education-plan/planLevel.mjs';
-import { OVERDUE_KIND_LABEL, filterOverdue, overdueRows } from '@/models/education-plan/overdue.mjs';
+import { OVERDUE_DEADLINE_LABEL, OVERDUE_KIND_LABEL, filterOverdue, overdueRows } from '@/models/education-plan/overdue.mjs';
 
-const EMPTY_FILTER = { ageGroupId: '', classId: '', kind: '', semesterNo: '' };
+const EMPTY_FILTER = { deadlineKind: '', ageGroupId: '', classId: '', kind: '', semesterNo: '' };
 
 const linkOf = (r) =>
   r.planId
@@ -27,7 +27,8 @@ const linkOf = (r) =>
  */
 export default function OverduePlansPage() {
   const id = useId();
-  const { loading, user, goals, semesterPackages, themeDossiers, classes, actOnClassDoc, unlockGoal } = useEducationPlan();
+  const { loading, user, goals, semesterPackages, themeDossiers, classes, actOnClassDoc, unlockGoal, reopenGoalReviewDeadline } =
+    useEducationPlan();
   const [tab, setTab] = useState('overdue');
   const [filter, setFilter] = useState(EMPTY_FILTER);
   const [selected, setSelected] = useState(() => new Set());
@@ -40,10 +41,13 @@ export default function OverduePlansPage() {
   if (loading) return <LoadingState />;
   const themeNameOf = (d) => goals.find((g) => g.id === d.yearPlanId)?.themes?.find((t) => t.id === d.themeId)?.name || 'Chủ đề';
   const rows = overdueRows({ semesterPackages, themeDossiers, yearPlans: goals, classes, themeNameOf, today: todayIso() });
-  const shown = filterOverdue(rows, { tab, ...filter });
+  const shown = filterOverdue(
+    rows.filter((r) => !filter.ageGroupId || sameAgeRange(r.ageGroupId, filter.ageGroupId)),
+    { tab, ...filter, ageGroupId: '' },
+  );
   const count = (t) => filterOverdue(rows, { tab: t }).length;
-  const groups = AGE_GROUPS.filter((g) => rows.some((r) => r.ageGroupId === String(g.id)));
-  const groupClasses = classes.filter((c) => filter.ageGroupId && String(c.ageGroupId) === filter.ageGroupId);
+  const groups = ageRangeOptions();
+  const groupClasses = classes.filter((c) => filter.ageGroupId && sameAgeRange(c.ageGroupId, filter.ageGroupId));
   const semesters = [...new Set(rows.map((r) => r.semesterNo).filter((n) => n != null))].sort();
   const setF = (patch) => {
     setFilter((f) => ({ ...f, ...patch }));
@@ -65,8 +69,10 @@ export default function OverduePlansPage() {
     for (const r of target) {
       let message = '';
       const ok = r.planId
-        ? await unlockGoal(r.planId, { note, deadline })
-        : await actOnClassDoc(r.kind, r.docKey, { action: 'extend', note, deadline }, user, {
+        ? r.reviewLocked
+          ? await reopenGoalReviewDeadline(r.planId, { note, deadline })
+          : await unlockGoal(r.planId, { note, deadline })
+        : await actOnClassDoc(r.kind, r.docKey, { action: r.reviewLocked ? 'reopen_review_deadline' : 'extend', note, deadline }, user, {
             version: r.version,
             onError: (err) => (message = err.message),
           });
@@ -82,8 +88,37 @@ export default function OverduePlansPage() {
     <div className="page ga-page">
       <div className="ga-sticky-head">
         <PageHead crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Kế hoạch quá hạn' }]} title="Kế hoạch quá hạn" />
-        <div className="card mb-16">
+        <div className="card mb-16 ga-overdue-filters">
           <div className="filter-bar">
+            <div className="field">
+              <label className="field__label" htmlFor={`${id}-deadline-status`}>
+                Trạng thái hạn
+              </label>
+              <SelectField
+                id={`${id}-deadline-status`}
+                value={tab}
+                onChange={(e) => {
+                  setTab(e.target.value);
+                  setSelected(new Set());
+                }}
+              >
+                <option value="overdue">Đang quá hạn ({count('overdue')})</option>
+                <option value="extended">Đã mở hạn ({count('extended')})</option>
+              </SelectField>
+            </div>
+            <div className="field">
+              <label className="field__label" htmlFor={`${id}-deadline-kind`}>
+                Loại quá hạn
+              </label>
+              <SelectField id={`${id}-deadline-kind`} value={filter.deadlineKind} onChange={(e) => setF({ deadlineKind: e.target.value })}>
+                <option value="">Tất cả</option>
+                {Object.entries(OVERDUE_DEADLINE_LABEL).map(([kind, label]) => (
+                  <option key={kind} value={kind}>
+                    {label}
+                  </option>
+                ))}
+              </SelectField>
+            </div>
             <div className="field">
               <label className="field__label" htmlFor={`${id}-age`}>
                 Nhóm tuổi
@@ -121,73 +156,68 @@ export default function OverduePlansPage() {
                 ))}
               </select>
             </div>
-            <div className="field">
-              <label className="field__label" htmlFor={`${id}-kind`}>
-                Loại
-              </label>
-              <select id={`${id}-kind`} className="select" value={filter.kind} onChange={(e) => setF({ kind: e.target.value })}>
-                <option value="">Tất cả</option>
-                {Object.entries(OVERDUE_KIND_LABEL).map(([k, label]) => (
-                  <option key={k} value={k}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="field">
-              <label className="field__label" htmlFor={`${id}-hk`}>
-                Học kỳ
-              </label>
-              <select id={`${id}-hk`} className="select" value={filter.semesterNo} onChange={(e) => setF({ semesterNo: e.target.value })}>
-                <option value="">Tất cả</option>
-                {semesters.map((n) => (
-                  <option key={n} value={n}>
-                    Học kỳ {n}
-                  </option>
-                ))}
-              </select>
+            <div className="filter-bar__end">
+              <FilterMore count={[filter.kind, filter.semesterNo].filter(Boolean).length}>
+                <div className="field">
+                  <label className="field__label" htmlFor={`${id}-kind`}>
+                    Loại hồ sơ
+                  </label>
+                  <select id={`${id}-kind`} className="select" value={filter.kind} onChange={(e) => setF({ kind: e.target.value })}>
+                    <option value="">Tất cả</option>
+                    {Object.entries(OVERDUE_KIND_LABEL).map(([k, label]) => (
+                      <option key={k} value={k}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="field">
+                  <label className="field__label" htmlFor={`${id}-hk`}>
+                    Học kỳ
+                  </label>
+                  <select
+                    id={`${id}-hk`}
+                    className="select"
+                    value={filter.semesterNo}
+                    onChange={(e) => setF({ semesterNo: e.target.value })}
+                  >
+                    <option value="">Tất cả</option>
+                    {semesters.map((n) => (
+                      <option key={n} value={n}>
+                        Học kỳ {n}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </FilterMore>
             </div>
           </div>
         </div>
-        <div className="mb-16">
-          <Tabs
-            ariaLabel="Kế hoạch quá hạn"
-            value={tab}
-            onChange={(key) => {
-              setTab(key);
-              setSelected(new Set());
-            }}
-            items={[
-              { key: 'overdue', label: 'Đang quá hạn', count: count('overdue') },
-              { key: 'extended', label: 'Đã mở hạn', count: count('extended') },
-            ]}
-          />
-        </div>
       </div>
       <Card bodyClass={null}>
-        {Object.keys(errors).length > 0 && (
-          <div className="card__body">
-            {overdueTab && (
-              <div className="filter-bar">
+        {((overdueTab && shown.length > 0) || Object.keys(errors).length > 0) && (
+          <div className="ga-overdue-actions">
+            {overdueTab && shown.length > 0 && (
+              <div className="row gap-2">
                 <span className="muted text-sm" role="status">
                   Đã chọn {picked.length} kế hoạch
                 </span>
-                <div className="filter-bar__end">
-                  <Button variant="outline-primary" size="sm" disabled={!picked.length} onClick={() => setTarget(picked)}>
-                    Mở hạn{picked.length ? ` (${picked.length})` : ''}
-                  </Button>
-                </div>
+                <Button variant="outline-primary" size="sm" disabled={!picked.length} onClick={() => setTarget(picked)}>
+                  Mở hạn{picked.length ? ` (${picked.length})` : ''}
+                </Button>
               </div>
             )}
-            <p className="field__error" role="alert">
-              {Object.keys(errors).length} tài liệu chưa mở hạn được, xem lý do ở từng dòng.
-            </p>
+            {Object.keys(errors).length > 0 && (
+              <p className="field__error" role="alert">
+                {Object.keys(errors).length} tài liệu chưa mở hạn được, xem lý do ở từng dòng.
+              </p>
+            )}
           </div>
         )}
         {shown.length === 0 ? (
           <EmptyState title={overdueTab ? 'Chưa có kế hoạch quá hạn' : 'Chưa mở hạn kế hoạch nào'} />
         ) : (
-          <div className="card__body">
+          <div className="ga-overdue-table">
             <div className="table-wrap">
               <table className="table table--grid">
                 <thead>
@@ -205,6 +235,7 @@ export default function OverduePlansPage() {
                     <th>Lớp</th>
                     <th>Loại</th>
                     <th>Tên</th>
+                    <th>Loại quá hạn</th>
                     <th>{overdueTab ? 'Hạn' : 'Đã mở hạn tới'}</th>
                     <th>{overdueTab ? 'Số ngày quá hạn' : 'Người mở · lý do'}</th>
                     <th className="center">Trạng thái</th>
@@ -232,6 +263,7 @@ export default function OverduePlansPage() {
                           {errors[r.key] && <p className="field__error">{errors[r.key]}</p>}
                         </div>
                       </td>
+                      <td>{OVERDUE_DEADLINE_LABEL[overdueTab ? r.deadlineKind : r.extensionKind]}</td>
                       <td>{fmtDate(overdueTab ? r.deadline : r.extension?.deadline)}</td>
                       <td>
                         {overdueTab
@@ -269,7 +301,18 @@ export default function OverduePlansPage() {
       </Card>
       {target && (
         <ExtendDeadlineModal
-          title={target.length > 1 ? `Mở hạn ${target.length} kế hoạch` : `Mở hạn: ${target[0].title}`}
+          title={
+            target.every((r) => r.reviewLocked)
+              ? target.length > 1
+                ? `Mở lại hạn duyệt ${target.length} kế hoạch`
+                : `Mở lại hạn duyệt: ${target[0].title}`
+              : target.length > 1
+                ? `Mở hạn ${target.length} kế hoạch`
+                : `Mở hạn: ${target[0].title}`
+          }
+          confirmLabel={
+            target.every((r) => r.reviewLocked) ? 'Mở lại hạn duyệt' : target.some((r) => r.reviewLocked) ? 'Mở hạn' : 'Mở hạn gửi'
+          }
           onClose={() => setTarget(null)}
           onConfirm={extend}
         />
