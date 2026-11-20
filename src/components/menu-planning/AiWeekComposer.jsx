@@ -115,7 +115,7 @@ export function AiWeekComposer({
       open={open}
       onClose={draft ? discard : onClose}
       closeOnBackdrop={!draft}
-      size={draft ? 'xl' : 'md'}
+      size={draft ? 'xl' : 'lg'}
       title={draft ? `Bản AI soạn · ${weekLabel(weekStart)}` : 'AI soạn thực đơn tuần'}
       footer={footer}
     >

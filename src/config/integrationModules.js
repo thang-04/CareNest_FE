@@ -187,6 +187,21 @@ export const INTEGRATION_MODULES = {
     routes: ['/menu/templates'],
     files: ['src/services/menuTemplateApi.js'],
   },
+  // Nháp AI gợi ý thực đơn trên BE /nutrition/menu-ai-drafts (BE ADR-0024): route mới có ở nhánh BE
+  // feature/G94-200-BE-FEAT-28-ai-assessment-drafting, chưa vào dev ⇒ khai pending tới khi đồng bộ snapshot route
+  'menu-ai': {
+    source: 'api',
+    files: ['src/services/menuAiDraftApi.js'],
+    pending: [
+      'POST /nutrition/menu-ai-drafts',
+      'GET /nutrition/menu-ai-drafts/{x}',
+      'POST /nutrition/menu-ai-drafts/{x}/dismiss',
+      'POST /nutrition/menu-ai-drafts/{x}/apply',
+      'POST /nutrition/menu-ai-drafts/{x}/mark-used',
+      'GET /nutrition/menu-ai-drafts/{x}/candidates',
+      'POST /nutrition/menu-ai-drafts/{x}/evaluate',
+    ],
+  },
   // Bán trú hôm nay trên BE GET /nutrition/day-board
   'day-board': {
     source: 'api',

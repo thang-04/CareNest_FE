@@ -3492,6 +3492,370 @@
   vertical-align: middle;
 }
 
+/* ===== AI gợi ý thực đơn tuần: bảng 7 phần + cột món 3 phần, kéo thả đổi món ===== */
+.td-aie {
+  display: grid;
+  gap: var(--space-3);
+}
+.td-aie__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.td-aie__score {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--fs-sm);
+  font-variant-numeric: tabular-nums;
+}
+.td-aie__stale {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--color-warning-fg);
+  font-size: var(--fs-sm);
+}
+.td-aie__checks {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+.td-aie__actions {
+  display: inline-flex;
+  gap: var(--space-1);
+  margin-left: auto;
+}
+.td-aie__body {
+  display: grid;
+  grid-template-columns: minmax(0, 7fr) minmax(0, 3fr);
+  gap: var(--space-4);
+  align-items: start;
+}
+.td-aie__main {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.td-aie__toggle {
+  justify-self: start;
+}
+.td-aie__foot {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+/* Lỗi do dữ liệu (đổi món không sửa được): nổi hơn dòng trạng thái thường */
+.td-aie__limit {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-warning-bg);
+  color: var(--color-warning-fg);
+}
+.td-aie__limit svg {
+  flex: none;
+  margin-top: calc(var(--space-1) / 2);
+}
+.td-aie__ghost {
+  display: inline-flex;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--color-primary);
+  border-left: 3px solid var(--dt, var(--tone-gray));
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  font-size: var(--fs-sm);
+  cursor: grabbing;
+}
+
+.td-aig-wrap {
+  margin: 0;
+}
+.td-aig {
+  min-width: 720px;
+}
+.td-aig__reason {
+  font-weight: var(--fw-regular);
+}
+/* Thẻ món như lưới kế hoạch tuần: tên một dòng riêng; dòng dưới kcal bên trái, cụm icon bên phải */
+.td-aig__dish {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  min-height: 34px;
+  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-2);
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--dt, var(--tone-gray));
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  font-size: var(--fs-sm);
+  line-height: 1.35;
+  text-align: left;
+}
+.td-aig__dish--empty {
+  border-style: dashed;
+}
+.td-aig__name {
+  flex: 1 1 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+/* Ô người duyệt đã đổi so với gợi ý gốc */
+.td-aig__dish--changed {
+  background: var(--color-primary-soft);
+}
+.td-aig__pick {
+  display: block;
+  padding: calc(var(--space-1) / 2) 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: grab;
+  touch-action: manipulation;
+}
+.td-aig__pick:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+.td-aig__pick.is-dragging {
+  opacity: 0.4;
+}
+.td-aig__cell.is-selected {
+  box-shadow: inset 0 0 0 2px var(--color-primary);
+}
+.td-aig__cell.is-drop-ok {
+  outline: 1px dashed var(--color-primary);
+  outline-offset: -3px;
+}
+.td-aig__cell.is-drop-no {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.td-aig__cell.is-over {
+  background: var(--color-primary-soft);
+}
+/* Ô đang chọn để thay món: icon thay món sáng lên */
+.td-aig__cell.is-selected .icon-action[aria-pressed='true'] {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+/* Cột nhãn hàng: tên loại món dài ("Món bữa chiều") phải xuống dòng trong cột, không tràn sang cột ngày */
+.td-week.td-aig .td-week__label {
+  width: 128px;
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+.td-aig__band-note {
+  font-weight: var(--fw-regular);
+}
+/* Dinh dưỡng cả ngày: nhãn hàng ghi mức cần, ô ghi số thực tế + chữ trạng thái */
+.td-aig__nut .td-week__label small {
+  display: block;
+  margin-top: calc(var(--space-1) / 2);
+  color: var(--color-text-muted);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-regular);
+}
+.td-week.td-aig td.td-aig__nut-cell {
+  font-size: var(--fs-sm);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  vertical-align: middle;
+}
+.td-aig__nut-cell small {
+  display: block;
+  color: var(--color-text-muted);
+  font-size: var(--fs-xs);
+}
+.td-aig__nut-cell--ok small {
+  color: var(--tone-green-fg);
+}
+.td-week.td-aig td.td-aig__nut-cell--low {
+  background: var(--color-danger-bg);
+}
+.td-aig__nut-cell--low b,
+.td-aig__nut-cell--low small {
+  color: var(--color-danger-fg);
+}
+.td-week.td-aig td.td-aig__nut-cell--high {
+  background: var(--color-warning-bg);
+}
+.td-aig__nut-cell--high b,
+.td-aig__nut-cell--high small {
+  color: var(--color-warning-fg);
+}
+/* Bảng kiểm: nhãn trạng thái dài ngắn khác nhau ⇒ cột nhãn rộng cố định để chữ bên phải thẳng một lề */
+.td-checks .td-issue {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-3);
+}
+.td-checks .td-issue > :first-child {
+  justify-self: start;
+}
+
+.td-aip {
+  position: sticky;
+  top: 0;
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md, var(--radius-sm));
+  background: var(--color-surface-muted);
+}
+.td-aip__head {
+  display: grid;
+  gap: var(--space-1);
+}
+.td-aip__title {
+  margin: 0;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+}
+.td-aip__search {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.td-aip__search .input {
+  flex: 1;
+  min-width: 0;
+}
+.td-aip__scope {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+.td-aip__swap {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+.td-aip__swap-go {
+  justify-self: start;
+}
+.td-aip__swaps {
+  max-height: 32vh;
+}
+/* Thẻ món thay là nút chung (inline-flex, justify-content: center): phải trả lại căn trái và một cột rộng hết thẻ, nếu
+   không tên món và chip bị căn giữa, lệch so với danh sách món bên dưới */
+.td-aip__swap-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  justify-content: stretch;
+  justify-items: start;
+  gap: var(--space-1);
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  padding: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-border-strong);
+  background: var(--color-surface);
+  box-shadow: none;
+  font-weight: var(--fw-regular);
+  text-align: left;
+  white-space: normal;
+}
+.td-aip__swap-item:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  box-shadow: none;
+}
+.td-aip__swap-name {
+  max-width: 100%;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-tight);
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.td-aip__swap-item .td-chips {
+  justify-content: flex-start;
+}
+.td-aip__list {
+  display: grid;
+  gap: var(--space-1);
+  max-height: 52vh;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+.td-aip__dish {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: 40px;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--dt, var(--tone-gray));
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: inherit;
+  font: inherit;
+  font-size: var(--fs-sm);
+  text-align: left;
+  cursor: grab;
+  touch-action: manipulation;
+}
+.td-aip__dish .td-grow {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+.td-aip__dish:hover {
+  border-color: var(--color-primary);
+}
+.td-aip__dish:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+.td-aip__dish.is-used {
+  opacity: 0.6;
+}
+.td-aip__dish.is-dragging {
+  opacity: 0.4;
+}
+
+/* Màn hẹp: cột món xuống dưới bảng */
+@media (max-width: 1100px) {
+  .td-aie__body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .td-aip {
+    position: static;
+  }
+  .td-aip__list {
+    max-height: 40vh;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .td-aig__pick,
+  .td-aip__dish {
+    transition: none;
+  }
+}
+.td-aip__grip {
+  flex: none;
+  color: var(--color-text-muted);
+}
+
 /* Xem trước văn bản thực đơn tuần trước khi xuất Word / in: khung A4 ngang, cuộn ngang trên màn hẹp */
 .td-doc-preview-scroll {
   overflow-x: auto;
@@ -3510,7 +3874,21 @@
 /* Modal AI soạn thực đơn — bước 1: điều kiện AI bám theo, mùa, mong muốn */
 .td-aib {
   display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  gap: var(--space-4) var(--space-6);
+  align-items: start;
+}
+
+.td-aib__side,
+.td-aib__form {
+  display: grid;
   gap: var(--space-4);
+  min-width: 0;
+}
+
+.td-aib__form {
+  padding-left: var(--space-6);
+  border-left: 1px solid var(--color-border);
 }
 
 .td-aib__intro {
@@ -3555,7 +3933,7 @@
 
 .td-aib__row {
   display: grid;
-  grid-template-columns: minmax(0, 9.5rem) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 8rem) minmax(0, 1fr);
   gap: var(--space-3);
   align-items: start;
   padding: var(--space-2) 0;
@@ -3606,6 +3984,7 @@
 }
 
 .td-aib__privacy {
+  grid-column: 1 / -1;
   display: flex;
   align-items: flex-start;
   gap: var(--space-2);
@@ -3733,9 +4112,14 @@
 }
 
 @media (max-width: 768px) {
+  .td-aib,
   .td-aib__row,
   .td-aim__body {
     grid-template-columns: minmax(0, 1fr);
+  }
+  .td-aib__form {
+    padding-left: 0;
+    border-left: 0;
   }
   .td-aim__legend {
     margin-left: 0;
