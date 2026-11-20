@@ -190,6 +190,8 @@ export function MenuAiWeekEditor({ draft, editor, dishById, kcalAgeGroup }) {
             kcalAgeGroup={kcalAgeGroup}
             onPick={(dish) => selected && place(selected.day, selected.slot, dish)}
             onClearSelection={() => setSelected(null)}
+            swap={editor.swapFor(selected)}
+            onSuggestSwap={() => selected && editor.suggestSwaps(selected, kcalAgeGroup)}
           />
         </div>
         <p className="text-sm td-aie__foot" aria-live="polite">

@@ -5,7 +5,9 @@ import { test } from 'node:test';
 globalThis.window = new EventTarget();
 
 const { createMenuAiDraftApi } = await import('@/services/menuAiDraftApi');
-const { fillTemplateDay, fixOptions, isPendingDraft, isUnmetDraft, sourceText } = await import('@/utils/menu-planning/menuAiDraft');
+const { fillTemplateDay, fixOptions, isPendingDraft, isUnmetDraft, sourceText, swapDish } = await import(
+  '@/utils/menu-planning/menuAiDraft'
+);
 const { INTEGRATION_MODULES } = await import('@/config/integrationModules');
 
 const fakeClient = (reply = {}) => {
@@ -47,6 +49,17 @@ test('AC-1, AC-4: tạo nháp gửi đúng route, bỏ ô trống; kết quả c
   assert.deepEqual(draft.days[0].items, []);
   assert.deepEqual(draft.checks, []);
   assert.deepEqual(draft.issues, []);
+});
+
+test('NUT-11: thực phẩm đang thiếu gửi kèm khi có chọn, không chọn thì không gửi trường này', async () => {
+  const { calls, client } = fakeClient({ id: '13', status: 'PENDING_REVIEW' });
+  const api = createMenuAiDraftApi({ client });
+
+  await api.createDraft({ kind: 'MENU_WEEKLY', block: 'NURSERY', weekStart: '2026-11-23', unavailableFoodIds: [4, 9] });
+  await api.createDraft({ kind: 'MENU_WEEKLY', block: 'NURSERY', weekStart: '2026-11-23', unavailableFoodIds: [] });
+
+  assert.deepEqual(calls[0].payload.unavailableFoodIds, [4, 9]);
+  assert.equal('unavailableFoodIds' in calls[1].payload, false);
 });
 
 test('dùng, bỏ, đánh dấu đã dùng mẫu ngày, xem nháp gọi đúng route BE', async () => {
@@ -158,6 +171,9 @@ const {
   paletteDishes,
   nutritionRows,
   dataLimitNote,
+  swapPool,
+  swapOutcome,
+  rankSwaps,
 } = await import('@/utils/menu-planning/menuAiDraftGrid');
 
 const weekDraft = {
@@ -357,4 +373,69 @@ test('giới hạn dữ liệu: chỉ lấy câu của tiêu chí KCAL_REACH khi
   );
   assert.equal(dataLimitNote([{ code: 'NORM_BALANCE', status: 'FAIL', detail: 'x' }]), '');
   assert.equal(dataLimitNote(null), '');
+});
+
+test('AI-07, P-39: swapDish đổi đúng món trong bữa, giữ thứ tự và món khác; nháp rỗng hoặc món cũ không còn ⇒ giữ nguyên', () => {
+  const items = [
+    { session: 'LUNCH', dishId: '1', dishName: 'Cơm', dishType: 'CARB', block: 'NURSERY' },
+    { session: 'LUNCH', dishId: '2', dishName: 'Thịt rim', dishType: 'MAIN', block: 'NURSERY' },
+    { session: 'AFTERNOON', dishId: '2', dishName: 'Thịt rim', dishType: 'MAIN', block: 'NURSERY' },
+  ];
+  const draft = { days: [{ items: [{ session: 'LUNCH', dishId: 9, dishName: 'Cá hấp', dishType: 'MAIN' }] }] };
+  const swapped = swapDish(items, { session: 'LUNCH', fromDishId: 2 }, draft);
+
+  assert.deepEqual(
+    swapped.map((i) => [i.session, i.dishId, i.dishName]),
+    [
+      ['LUNCH', '1', 'Cơm'],
+      ['LUNCH', '9', 'Cá hấp'],
+      ['AFTERNOON', '2', 'Thịt rim'],
+    ],
+  );
+  assert.equal(swapped[1].block, 'NURSERY');
+  assert.equal(swapDish(items, { session: 'LUNCH', fromDishId: 2 }, { days: [] }), items);
+  assert.equal(swapDish(items, { session: 'MORNING', fromDishId: 2 }, draft), items);
+});
+
+test('AI-02, NUT-05: swapPool bỏ món đang ở ô, món trùng bữa và món ngoài ứng viên; swapOutcome/rankSwaps chỉ đọc số BE chấm', () => {
+  const day = '2026-11-16';
+  const dish = (dishId, extra = {}) => ({ dishId, dishName: `Món ${dishId}`, dishType: 'MAIN', ...extra });
+  const cells = { [day]: { 'LUNCH.1': dish('1'), 'LUNCH.2': dish('2') } };
+  const bySlot = { 'LUNCH.1': [dish('1'), dish('2'), dish('3'), dish('4')] };
+
+  // 1 là món đang ở ô, 2 đã nằm ở ô khác của bữa trưa
+  assert.deepEqual(
+    swapPool({ cells, original: cells, bySlot, day, slot: 'LUNCH.1' }).map((d) => d.dishId),
+    ['3', '4'],
+  );
+  assert.equal(swapPool({ cells, original: cells, bySlot, day, slot: 'LUNCH.1', limit: 1 }).length, 1);
+
+  const result = (kcalStatus, issues, total) => ({
+    score: { total },
+    issues,
+    evaluations: [
+      { date: day, ageGroupId: 7, rows: [{ key: 'kcal', value: 612.4, status: kcalStatus }] },
+      { date: '2026-11-17', ageGroupId: 7, rows: [{ key: 'kcal', value: 1, status: 'LOW' }] },
+    ],
+  });
+  const blocking = [{ severity: 'BLOCKING', date: day }];
+  const ok = swapOutcome({ dish: dish('3'), result: result('OK', [], 80), date: day, baselineTotal: 75, ageGroup: { id: 7 } });
+  assert.deepEqual([ok.blocking, ok.total, ok.delta, ok.kcal, ok.kcalStatus], [0, 80, 5, 612.4, 'OK']);
+  // Lỗi chặn của ngày khác không tính vào ô đang xét
+  const other = swapOutcome({
+    dish: dish('4'),
+    result: result('LOW', [{ severity: 'BLOCKING', date: '2026-11-17' }], 90),
+    date: day,
+    baselineTotal: null,
+    ageGroup: { id: 7 },
+  });
+  assert.deepEqual([other.blocking, other.delta], [0, null]);
+
+  const bad = swapOutcome({ dish: dish('5'), result: result('LOW', blocking, 99), date: day, baselineTotal: 75, ageGroup: { id: 7 } });
+  const stockOut = swapOutcome({ dish: dish('6', { outOfStock: true }), result: result('OK', [], 80), date: day, baselineTotal: 75, ageGroup: {} });
+  // Ít lỗi chặn thắng điểm cao; cùng kết quả thì món kho khô hết xuống sau
+  assert.deepEqual(
+    rankSwaps([bad, stockOut, ok]).map((o) => o.dish.dishId),
+    ['3', '6', '5'],
+  );
 });

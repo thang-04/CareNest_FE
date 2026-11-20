@@ -23,11 +23,22 @@ export const createMenuAiDraftApi = ({ client = beClient } = {}) => ({
    * Tạo nháp (đồng bộ, có thể tới ~30 giây). `kind`: MENU_WEEKLY (cần weekStart), MENU_DAILY, MENU_DAY_FIX (cần weekStart,
    * targetDate, targetSession, fromDishId). Trả cả khi không có phương án (status NO_FEASIBLE).
    */
-  async createDraft({ kind, block, weekStart, season, wishes, targetDate, targetSession, fromDishId }) {
+  async createDraft({ kind, block, weekStart, season, wishes, targetDate, targetSession, fromDishId, unavailableFoodIds }) {
     return toDraft(
       await client.post(
         '/nutrition/menu-ai-drafts',
-        body({ kind, block, weekStart, season, wishes, targetDate, targetSession, fromDishId }),
+        body({
+          kind,
+          block,
+          weekStart,
+          season,
+          wishes,
+          targetDate,
+          targetSession,
+          fromDishId,
+          // Thực phẩm đang thiếu (NUT-11): món chứa chúng bị loại khỏi ứng viên; không chọn ⇒ không gửi
+          unavailableFoodIds: unavailableFoodIds?.length ? unavailableFoodIds : undefined,
+        }),
       ),
     );
   },

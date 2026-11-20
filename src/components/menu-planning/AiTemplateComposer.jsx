@@ -97,7 +97,7 @@ export function AiTemplateComposer({
       open={open}
       onClose={draft ? discard : onClose}
       closeOnBackdrop={!draft}
-      size={draft ? 'xl' : 'md'}
+      size={draft ? 'xl' : 'lg'}
       title={draft ? `Bản AI soạn · ${groupName}` : 'AI soạn thực đơn mẫu'}
       footer={footer}
     >

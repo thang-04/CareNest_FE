@@ -2,9 +2,33 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { menuAiDraftApi } from '@/services/menuAiDraftApi';
 import { MENU_AI_KIND, MENU_AI_SOURCE } from '@/models/menu-planning/menuPlanningConstants';
 import { isPendingDraft } from '@/utils/menu-planning/menuAiDraft';
-import { candidatesBySlot, cellsOf, editedCount, toGridRequest } from '@/utils/menu-planning/menuAiDraftGrid';
+import {
+  candidatesBySlot,
+  cellsOf,
+  editedCount,
+  rankSwaps,
+  replaceCell,
+  swapOutcome,
+  swapPool,
+  toGridRequest,
+} from '@/utils/menu-planning/menuAiDraftGrid';
 
 const EVALUATE_DELAY_MS = 400;
+const SWAP_CONCURRENCY = 4;
+
+// Chạy `task` cho từng phần tử, tối đa `limit` việc cùng lúc; kết quả giữ đúng thứ tự đầu vào
+const mapLimit = async (items, limit, task) => {
+  const results = new Array(items.length);
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length) {
+      const index = next++;
+      results[index] = await task(items[index]);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return results;
+};
 
 const fromDraft = (draft) => ({
   total: draft?.source === MENU_AI_SOURCE.AI ? draft?.score?.ai : draft?.score?.baseline,
@@ -29,7 +53,9 @@ export function useMenuAiDraftEditor(draft, api = menuAiDraftApi) {
   const [assessment, setAssessment] = useState(() => fromDraft(draft));
   const [evaluating, setEvaluating] = useState(false);
   const [evaluateError, setEvaluateError] = useState(null);
+  const [swap, setSwap] = useState(null);
   const seq = useRef(0);
+  const swapSeq = useRef(0);
 
   useEffect(() => {
     setCells(original);
@@ -38,6 +64,7 @@ export function useMenuAiDraftEditor(draft, api = menuAiDraftApi) {
     setEvaluateError(null);
     setCandidates(null);
     setCandidatesError(null);
+    setSwap(null);
   }, [draft, original]);
 
   const loadCandidates = useCallback(async () => {
@@ -89,6 +116,37 @@ export function useMenuAiDraftEditor(draft, api = menuAiDraftApi) {
     return () => clearTimeout(timer);
   }, [cells, editable, evaluate]);
 
+  // Gợi ý món thay cho một ô: BE chấm thử từng món ứng viên (không lưu, không gọi model) trên lưới hiện tại rồi xếp hạng.
+  // Kết quả gắn với lưới đã chấm: đổi lưới thì gợi ý cũ không còn đúng nên bị bỏ (xem `swapFor`).
+  const suggestSwaps = useCallback(
+    async ({ day, slot }, ageGroup) => {
+      const base = cells;
+      const mine = ++swapSeq.current;
+      setSwap({ cells: base, day, slot, status: 'loading', items: [] });
+      try {
+        const pool = swapPool({ cells: base, original, bySlot: candidatesBySlot(candidates), day, slot });
+        const baselineTotal = assessment.total;
+        const outcomes = await mapLimit(pool, SWAP_CONCURRENCY, async (dish) =>
+          swapOutcome({
+            dish,
+            result: await api.evaluateDraft(draft.id, toGridRequest(replaceCell(base, day, slot, dish))),
+            date: day,
+            baselineTotal,
+            ageGroup,
+          }),
+        );
+        if (mine === swapSeq.current) setSwap({ cells: base, day, slot, status: 'ready', items: rankSwaps(outcomes) });
+      } catch (err) {
+        if (mine === swapSeq.current) setSwap({ cells: base, day, slot, status: 'error', items: [], error: err });
+      }
+    },
+    [api, assessment.total, candidates, cells, draft, original],
+  );
+  const swapFor = useCallback(
+    (selected) => (swap && selected && swap.cells === cells && swap.day === selected.day && swap.slot === selected.slot ? swap : null),
+    [cells, swap],
+  );
+
   const change = useCallback(
     (next) => {
       if (next === cells) return;
@@ -124,5 +182,7 @@ export function useMenuAiDraftEditor(draft, api = menuAiDraftApi) {
     evaluating,
     evaluateError,
     reevaluate: () => evaluate(cells),
+    suggestSwaps,
+    swapFor,
   };
 }

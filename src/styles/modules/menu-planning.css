@@ -3737,6 +3737,56 @@
   justify-content: space-between;
   gap: var(--space-2);
 }
+.td-aip__swap {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+.td-aip__swap-go {
+  justify-self: start;
+}
+.td-aip__swaps {
+  max-height: 32vh;
+}
+/* Thẻ món thay là nút chung (inline-flex, justify-content: center): phải trả lại căn trái và một cột rộng hết thẻ, nếu
+   không tên món và chip bị căn giữa, lệch so với danh sách món bên dưới */
+.td-aip__swap-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  justify-content: stretch;
+  justify-items: start;
+  gap: var(--space-1);
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  padding: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-border-strong);
+  background: var(--color-surface);
+  box-shadow: none;
+  font-weight: var(--fw-regular);
+  text-align: left;
+  white-space: normal;
+}
+.td-aip__swap-item:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  box-shadow: none;
+}
+.td-aip__swap-name {
+  max-width: 100%;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-tight);
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.td-aip__swap-item .td-chips {
+  justify-content: flex-start;
+}
 .td-aip__list {
   display: grid;
   gap: var(--space-1);
@@ -3824,7 +3874,21 @@
 /* Modal AI soạn thực đơn — bước 1: điều kiện AI bám theo, mùa, mong muốn */
 .td-aib {
   display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  gap: var(--space-4) var(--space-6);
+  align-items: start;
+}
+
+.td-aib__side,
+.td-aib__form {
+  display: grid;
   gap: var(--space-4);
+  min-width: 0;
+}
+
+.td-aib__form {
+  padding-left: var(--space-6);
+  border-left: 1px solid var(--color-border);
 }
 
 .td-aib__intro {
@@ -3869,7 +3933,7 @@
 
 .td-aib__row {
   display: grid;
-  grid-template-columns: minmax(0, 9.5rem) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 8rem) minmax(0, 1fr);
   gap: var(--space-3);
   align-items: start;
   padding: var(--space-2) 0;
@@ -3920,6 +3984,7 @@
 }
 
 .td-aib__privacy {
+  grid-column: 1 / -1;
   display: flex;
   align-items: flex-start;
   gap: var(--space-2);
@@ -4047,9 +4112,14 @@
 }
 
 @media (max-width: 768px) {
+  .td-aib,
   .td-aib__row,
   .td-aim__body {
     grid-template-columns: minmax(0, 1fr);
+  }
+  .td-aib__form {
+    padding-left: 0;
+    border-left: 0;
   }
   .td-aim__legend {
     margin-left: 0;

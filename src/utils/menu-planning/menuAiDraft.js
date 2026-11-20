@@ -34,6 +34,19 @@ export const fixOptions = (plan, block) =>
         })),
     );
 
+/**
+ * Món trong bữa `session` của ngày đang sửa: đổi `fromDishId` sang món nháp thay một món gợi ý. Giữ nguyên thứ tự và các món
+ * khác; nháp không có món hoặc món cũ không còn trong bữa thì trả nguyên danh sách.
+ */
+export const swapDish = (items, { session, fromDishId }, draft) => {
+  const to = draft?.days?.[0]?.items?.[0];
+  const index = items.findIndex((item) => item.session === session && String(item.dishId) === String(fromDishId));
+  if (!to || index < 0) return items;
+  return items.map((item, i) =>
+    i === index ? { ...item, dishId: String(to.dishId), dishName: to.dishName || '', dishType: to.dishType || '' } : item,
+  );
+};
+
 /** Món của nháp mẫu ngày thành món của ngày đang sửa trong form mẫu (thay toàn bộ món ngày đó). */
 export const fillTemplateDay = (items, day, draft) => {
   const picked = (draft?.days?.[0]?.items || []).map((item) => ({

@@ -104,6 +104,49 @@ export const dayBlocking = (issues, date) => (issues || []).filter((issue) => is
 export const dataLimitNote = (checks) =>
   (checks || []).find((check) => check.code === 'KCAL_REACH' && check.status === 'FAIL')?.detail || '';
 
+export const SWAP_POOL_LIMIT = 12;
+export const SWAP_SHOWN = 5;
+
+/**
+ * Món thử thay vào một ô khi giáo viên muốn đổi: ứng viên hợp lệ của ô, trừ món đang ở ô, giữ thứ tự ưu tiên của BE và cắt
+ * còn tối đa `limit` món để số lần chấm thử không phình.
+ */
+export const swapPool = ({ cells, original, bySlot, day, slot, limit = SWAP_POOL_LIMIT }) => {
+  const current = String(cells[day]?.[slot]?.dishId ?? '');
+  return (bySlot[slot] || [])
+    .filter((dish) => String(dish.dishId) !== current && !dropBlocker({ cells, original, bySlot, day, slot, dishId: dish.dishId }))
+    .slice(0, limit);
+};
+
+/**
+ * Kết quả BE chấm thử một món thay thành dòng để xếp hạng: số lỗi chặn của ngày đó, điểm cả tuần so với lưới đang sửa,
+ * năng lượng cả ngày và trạng thái so định mức. FE chỉ đọc số BE đã tính (NUT-05).
+ */
+export const swapOutcome = ({ dish, result, date, baselineTotal, ageGroup }) => {
+  const evaluation = (result?.evaluations || []).filter((e) => e.date === date);
+  const picked = evaluation.find((e) => String(e.ageGroupId) === String(ageGroup?.id)) || evaluation[0];
+  const kcal = (picked?.rows || []).find((row) => row.key === 'kcal');
+  const total = result?.score?.total ?? null;
+  return {
+    dish,
+    blocking: dayBlocking(result?.issues, date).length,
+    total,
+    delta: total != null && baselineTotal != null ? total - baselineTotal : null,
+    kcal: kcal?.value ?? null,
+    kcalStatus: kcal?.status || '',
+  };
+};
+
+/** Xếp món thay: ít lỗi chặn của ngày trước, rồi điểm cao, rồi hợp mùa; món kho khô hết xuống cuối nhóm cùng kết quả. */
+export const rankSwaps = (outcomes) =>
+  [...outcomes].sort(
+    (a, b) =>
+      a.blocking - b.blocking ||
+      (b.total ?? -1) - (a.total ?? -1) ||
+      Number(!!a.dish.outOfStock) - Number(!!b.dish.outOfStock) ||
+      Number(!!b.dish.seasonal) - Number(!!a.dish.seasonal),
+  );
+
 /** Số ngày còn lỗi chặn. */
 export const unmetDays = (issues, columns) =>
   columns.filter((col) => !col.off && col.date && dayBlocking(issues, col.date).length > 0).length;

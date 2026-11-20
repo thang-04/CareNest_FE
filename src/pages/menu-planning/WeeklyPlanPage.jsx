@@ -482,6 +482,7 @@ export default function WeeklyPlanPage() {
           initialItems={dayBlockItems(savedDay(amendingDay), block)}
           editable
           applyLabel="Tiếp tục"
+          aiSwap={{ block, weekStart: week }}
           sessions={blockSessions(plan, block)}
           groups={groups}
           ageGroups={ageGroups}

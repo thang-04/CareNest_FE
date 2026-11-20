@@ -6,6 +6,7 @@ import { Modal } from '@/components/ui/Modal';
 import { AiWorkingOverlay } from '@/components/ui/AiWorkingOverlay';
 import { useAiRun } from '@/hooks/useAiRun';
 import { MenuAiDraftResult } from '@/components/menu-planning/MenuAiDraftResult';
+import { MenuAiMissingFoods } from '@/components/menu-planning/MenuAiMissingFoods';
 import { menuAiDraftApi } from '@/services/menuAiDraftApi';
 import { MEAL_BLOCK_LABELS, MENU_AI_KIND } from '@/models/menu-planning/menuPlanningConstants';
 import { isPendingDraft } from '@/utils/menu-planning/menuAiDraft';
@@ -19,6 +20,7 @@ export function MenuAiDailyModal({ open, onClose, block, seasonLabel, dayLabel, 
   const { running, run: runAi } = useAiRun();
   const [season, setSeason] = useState('');
   const [wishes, setWishes] = useState('');
+  const [missingFoods, setMissingFoods] = useState([]);
   const [draft, setDraft] = useState(null);
   const [busy, setBusy] = useState(false);
 
@@ -26,12 +28,17 @@ export function MenuAiDailyModal({ open, onClose, block, seasonLabel, dayLabel, 
     if (open) {
       setDraft(null);
       setSeason(seasonLabel || '');
+      setMissingFoods([]);
     }
   }, [open, seasonLabel]);
 
   const create = async () => {
     try {
-      setDraft(await runAi(() => menuAiDraftApi.createDraft({ kind: MENU_AI_KIND.DAILY, block, season, wishes })));
+      setDraft(
+        await runAi(() =>
+          menuAiDraftApi.createDraft({ kind: MENU_AI_KIND.DAILY, block, season, wishes, unavailableFoodIds: missingFoods }),
+        ),
+      );
     } catch (err) {
       toast.error(err, 'Chưa tạo được gợi ý');
     }
@@ -115,6 +122,7 @@ export function MenuAiDailyModal({ open, onClose, block, seasonLabel, dayLabel, 
               onChange={(e) => setWishes(e.target.value)}
             />
           </div>
+          <MenuAiMissingFoods value={missingFoods} onChange={setMissingFoods} />
           <p className="text-xs muted td-flat">
             AI chỉ chọn trong món đang dùng của trường; hệ thống kiểm định mức theo ngày hôm nay. Kết quả là bản nháp, món của{' '}
             {dayLabel || 'ngày đang sửa'} chỉ thay khi bạn bấm điền.

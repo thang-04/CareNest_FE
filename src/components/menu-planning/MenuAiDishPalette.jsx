@@ -3,6 +3,7 @@ import { useDraggable } from '@dnd-kit/core';
 import { DragHandle, Search } from '@/components/ui/icons';
 import { Button, ErrorState, LoadingState, TextField } from '@/components';
 import { DishKcal } from '@/components/menu-planning/MenuBadges';
+import { MenuAiSwapSuggestions } from '@/components/menu-planning/MenuAiSwapSuggestions';
 import { dishTypeClass } from '@/utils/dishTypeClass';
 import { DISH_TYPE_LABELS, MEAL_SESSION_LABELS } from '@/models/menu-planning/menuPlanningConstants';
 import { paletteDishes, usedDays } from '@/utils/menu-planning/menuAiDraftGrid';
@@ -31,6 +32,8 @@ export function MenuAiDishPalette({
   kcalAgeGroup,
   onPick,
   onClearSelection,
+  swap,
+  onSuggestSwap,
 }) {
   const [query, setQuery] = useState('');
   const [type, setType] = useState('');
@@ -78,6 +81,7 @@ export function MenuAiDishPalette({
           ))}
         </div>
       )}
+      {selected && onSuggestSwap && <MenuAiSwapSuggestions swap={swap} disabled={!candidates} onSuggest={onSuggestSwap} onPick={onPick} />}
       {error ? (
         <ErrorState error={error} onRetry={onRetry} />
       ) : !candidates ? (
