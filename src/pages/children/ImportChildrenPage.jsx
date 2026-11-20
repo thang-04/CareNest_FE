@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useToast } from '@/contexts/ToastContext';
 import { ActiveYearNotice } from '@/components/children/ActiveYearNotice';
+import { YearLockedNotice } from '@/components/children/YearLockedNotice';
 import { ImportChildrenModal } from '@/components/children/ImportChildrenModal';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Button } from '@/components/ui/Button';
@@ -26,7 +27,7 @@ export default function ImportChildrenPage() {
   const { user } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
-  const { yearReadOnly } = useSchoolYear();
+  const { yearReadOnly, yearLocked } = useSchoolYear();
   const [draft, setDraft] = useState(peekImportDraft);
   const [reupload, setReupload] = useState(false);
   const [onlyErrors, setOnlyErrors] = useState(false);
@@ -77,12 +78,13 @@ export default function ImportChildrenPage() {
       </div>
     );
 
-  if (yearReadOnly)
+  // Năm đã kết thúc hoặc năm sắp diễn ra chưa tới ngày mở chuẩn bị (CHD-12): chỉ xem
+  if (yearReadOnly || yearLocked)
     return (
       <div className="page">
         <Breadcrumb items={childrenCrumbs('Nhập từ Excel')} />
         <h1 className="page__title">Nhập danh sách trẻ từ Excel</h1>
-        <ActiveYearNotice action="Nhập danh sách trẻ" />
+        {yearLocked ? <YearLockedNotice action="Nhập danh sách trẻ" /> : <ActiveYearNotice action="Nhập danh sách trẻ" />}
       </div>
     );
 
@@ -119,6 +121,7 @@ export default function ImportChildrenPage() {
         validRows.map((r) => r.payload),
         user,
         draft.campusId || undefined,
+        { schoolYearId: draft.schoolYearId, startDate: draft.startDate },
       );
       clearImportDraft();
       setImported(result);
@@ -157,6 +160,11 @@ export default function ImportChildrenPage() {
               {draft.campusName && (
                 <span>
                   · Điểm trường tiếp nhận: <b>{draft.campusName}</b>
+                </span>
+              )}
+              {draft.schoolYearId && (
+                <span>
+                  · Năm học <b>{draft.schoolYearName}</b>, vào học từ <b>{formatDate(draft.startDate)}</b>
                 </span>
               )}
             </div>
@@ -297,7 +305,7 @@ export default function ImportChildrenPage() {
       <ConfirmationModal
         open={confirm}
         title="Nhập danh sách trẻ?"
-        message={`Hệ thống sẽ tạo ${validRows.length} hồ sơ trẻ ở trạng thái Chờ xếp lớp${draft.campusName ? ` tại ${draft.campusName}` : ''}, kèm khai báo sức khỏe theo file. Tài khoản phụ huynh kích hoạt sau ở màn Tài khoản phụ huynh.`}
+        message={`Hệ thống sẽ tạo ${validRows.length} hồ sơ trẻ ở trạng thái Chờ xếp lớp${draft.campusName ? ` tại ${draft.campusName}` : ''}${draft.schoolYearId ? `, đăng ký năm học ${draft.schoolYearName} vào học từ ${formatDate(draft.startDate)}` : ''}, kèm khai báo sức khỏe theo file. Tài khoản phụ huynh kích hoạt sau ở màn Tài khoản phụ huynh.`}
         confirmLabel={`Nhập ${validRows.length} trẻ`}
         onConfirm={doImport}
         onClose={() => setConfirm(false)}

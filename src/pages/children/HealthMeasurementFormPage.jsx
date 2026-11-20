@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Save, Send, CheckCircle2, Info, LineChart, FileCheck2, Scale, ChevronRight } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSchoolYear } from '@/contexts/SchoolYearContext';
+import { YearLockedNotice } from '@/components/children/YearLockedNotice';
 import { useToast } from '@/contexts/ToastContext';
 import { useHealthRecord } from '@/hooks/children/useChildRecords';
 import { useHealthCheckClass } from '@/hooks/children/useHealthChecks';
@@ -42,6 +44,7 @@ export default function HealthMeasurementFormPage() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { yearLocked } = useSchoolYear();
   const toast = useToast();
   const { record, loading, error, reload } = useHealthRecord(id, { live: false });
   const [form, setForm] = useState(emptyForm);
@@ -98,6 +101,15 @@ export default function HealthMeasurementFormPage() {
       <div className="page">
         <Breadcrumb items={crumbs} />
         <ChildAccessState error={error} onRetry={reload} />
+      </div>
+    );
+  // Năm sắp diễn ra chưa tới ngày mở chuẩn bị (CHD-12): không nhập, sửa số đo
+  if (yearLocked)
+    return (
+      <div className="page">
+        <Breadcrumb items={crumbs} />
+        <h1 className="page__title">{title}</h1>
+        <YearLockedNotice action={title} />
       </div>
     );
   if (!canRecordMeasurement(child, user, record.cls))

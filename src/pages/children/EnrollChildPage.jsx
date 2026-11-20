@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Save, CheckCircle2, KeyRound, Eye, Plus, AlertTriangle, RotateCcw, Pencil } from '@/components/ui/icons';
-import { ChildAvatar } from '@/components/ChildAvatar';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
@@ -14,9 +13,11 @@ import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { Spinner } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
 import { ActiveYearNotice } from '@/components/children/ActiveYearNotice';
+import { YearLockedNotice } from '@/components/children/YearLockedNotice';
 import { ChildInfoFields } from '@/components/children/ChildInfoFields';
 import { PortraitImage } from '@/components/PortraitImage';
 import { ChildProfileSummary } from '@/components/children/ChildProfileSummary';
+import { ChildCardHead } from '@/components/children/ChildBrief';
 import { ClassPlacementFields } from '@/components/children/ClassPlacementFields';
 import { HealthDeclarationFields } from '@/components/children/HealthDeclarationFields';
 import { DeclarationSummary } from '@/components/children/DeclarationSummary';
@@ -37,6 +38,7 @@ import {
   withGuardianAccounts,
 } from '@/utils/children/childrenHelpers';
 import { childrenCrumbs } from '@/utils/children/breadcrumbs';
+import { defaultIntakeYearId, intakeYearOptions } from '@/utils/schoolYearPrep';
 import '@/styles/modules/children.css';
 
 const STEPS = ['Thông tin trẻ & phụ huynh', 'Xếp lớp', 'Báo ăn và sức khỏe', 'Xem lại & xác nhận'];
@@ -74,23 +76,10 @@ function ReviewGroup({ title, onEdit, children }) {
 /** Đầu thẻ bước 2–4: tên bước bên trái, trẻ đang tiếp nhận bên phải để chọn lớp, khai báo đúng trẻ. */
 function StepHead({ title, info }) {
   return (
-    <div className="tr-step-head">
-      <div className="stack gap-1">
-        <h2 className="card__title">{title}</h2>
-      </div>
-      {info && (
-        <div className="tr-child-brief">
-          <ChildAvatar child={{ fullName: info.fullName, photoUrl: info.photoFile }} size="lg" />
-          <span className="stack gap-0">
-            <span className="fw-600">{info.fullName}</span>
-            <span className="muted text-xs">
-              {formatDate(info.dateOfBirth)} · {ageLabel(info.dateOfBirth)}
-              {GENDER_LABELS[info.gender] ? ` · ${GENDER_LABELS[info.gender]}` : ''}
-            </span>
-          </span>
-        </div>
-      )}
-    </div>
+    <ChildCardHead
+      title={title}
+      child={info && { fullName: info.fullName, photoUrl: info.photoFile, dateOfBirth: info.dateOfBirth, gender: info.gender }}
+    />
   );
 }
 
@@ -98,7 +87,7 @@ export default function EnrollChildPage() {
   const { user } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
-  const { schoolYear, schoolYears, activeYear, yearReadOnly } = useSchoolYear();
+  const { schoolYear, schoolYears, activeYear, yearReadOnly, yearLocked } = useSchoolYear();
   const md = useMasterData();
   const [intakeYearId, setIntakeYearId] = useState('');
   const intakeYear = schoolYears.find((y) => sameId(y.id, intakeYearId)) || activeYear || null;
@@ -130,8 +119,14 @@ export default function EnrollChildPage() {
   );
 
   useEffect(() => {
-    if (!intakeYearId && activeYear?.id) setIntakeYearId(activeYear.id);
-  }, [activeYear?.id, intakeYearId]);
+    // CHD-11: mặc định năm đang xem ở header nếu tiếp nhận được, không thì năm đang hoạt động.
+    if (intakeYearId) return;
+    const id = defaultIntakeYearId(schoolYears, schoolYear);
+    if (id == null) return;
+    setIntakeYearId(id);
+    const year = schoolYears.find((y) => sameId(y.id, id));
+    if (year?.status === 'PLANNED') setStartDate(year.startDate || '');
+  }, [schoolYears, schoolYear, intakeYearId]);
 
   if (!canEnrollChild(user)) {
     return (
@@ -210,7 +205,11 @@ export default function EnrollChildPage() {
 
   const readmit = async () => {
     try {
-      const child = await readmitChild(duplicate.id, { reason: readmitReason }, user);
+      const child = await readmitChild(
+        duplicate.id,
+        { reason: readmitReason, ...(planned && { schoolYearId: intakeYear.id, startDate }) },
+        user,
+      );
       toast.success(
         `Đã mở lại hồ sơ ${child.fullName} (${child.code}): trẻ ở trạng thái Chờ xếp lớp. Cập nhật hồ sơ, khai báo sức khỏe nếu có thay đổi rồi xếp lớp.`,
         'Tiếp nhận lại',
@@ -373,12 +372,13 @@ export default function EnrollChildPage() {
     );
   }
 
-  if (yearReadOnly)
+  // Năm đã kết thúc hoặc năm sắp diễn ra chưa tới ngày mở chuẩn bị (CHD-12): chỉ xem
+  if (yearReadOnly || yearLocked)
     return (
       <div className="page">
         <Breadcrumb items={childrenCrumbs('Tiếp nhận trẻ')} />
         <h1 className="page__title">Tiếp nhận trẻ</h1>
-        <ActiveYearNotice action="Tiếp nhận trẻ" />
+        {yearLocked ? <YearLockedNotice action="Tiếp nhận trẻ" /> : <ActiveYearNotice action="Tiếp nhận trẻ" />}
       </div>
     );
 
@@ -481,9 +481,10 @@ export default function EnrollChildPage() {
               required
               error={errors.placement.schoolYearId}
               value={intakeYear?.id || ''}
-              options={schoolYears
-                .filter((y) => y.status === 'ACTIVE' || y.status === 'PLANNED')
-                .map((y) => ({ value: y.id, label: `${y.label} · ${y.status === 'ACTIVE' ? 'Đang hoạt động' : 'Sắp diễn ra'}` }))}
+              options={intakeYearOptions(schoolYears).map((y) => ({
+                value: y.id,
+                label: `${y.label} · ${y.status === 'ACTIVE' ? 'Đang hoạt động' : 'Sắp diễn ra'}`,
+              }))}
               onChange={(e) => {
                 const nextYear = schoolYears.find((y) => sameId(y.id, e.target.value));
                 setIntakeYearId(nextYear?.id || '');

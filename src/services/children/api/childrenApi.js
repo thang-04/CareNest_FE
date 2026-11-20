@@ -210,10 +210,17 @@ export const childrenApi = {
     ),
   // POST để CCCD, SĐT phụ huynh không nằm trên URL; lệch phụ huynh đã có ⇒ 409, details theo ô như khi lưu (2026-10-28).
   checkGuardianConflicts: (guardians) => axiosClient.post('/children/guardian-check', { guardians }),
-  readmitChild: (childId, body) => read(axiosClient.post(`/children/${childId}/readmit`, body)),
-  getPlacementClasses: (filters) => read(axiosClient.get('/children/placement-classes', { params: filters })),
-  enrollChild: (payload) => {
-    const { body, config } = enrollmentPhotoRequest(payload);
+  // Năm học ở header là tên ("2026-2027") còn BE nhận id số: đổi trước khi gửi, gửi tên ⇒ 400 mã 9002 (FE-BUG-261119)
+  readmitChild: async (childId, body) =>
+    read(axiosClient.post(`/children/${childId}/readmit`, { ...body, schoolYearId: await toBeSchoolYear(body?.schoolYearId) })),
+  getPlacementClasses: async (filters = {}) =>
+    read(
+      axiosClient.get('/children/placement-classes', {
+        params: { ...filters, schoolYearId: await toBeSchoolYear(filters.schoolYearId) },
+      }),
+    ),
+  enrollChild: async (payload) => {
+    const { body, config } = enrollmentPhotoRequest({ ...payload, schoolYearId: await toBeSchoolYear(payload.schoolYearId) });
     return read(axiosClient.post('/children/enrollments', body, config));
   },
   updateChild: (id, body) => read(axiosClient.put(`/children/${id}`, childUpdateBody(body))),
@@ -244,8 +251,16 @@ export const childrenApi = {
       })),
     }));
   },
-  importChildren: (rows, _user, campusId) =>
-    read(axiosClient.post('/children/enrollments/import', { rows: rows.map((row) => enrollmentPhotoRequest(row).body), campusId })),
+  // schoolYearId, startDate: nhập vào năm sau đã mở chuẩn bị (CHD-11); bỏ trống ⇒ năm đang hoạt động
+  importChildren: async (rows, _user, campusId, { schoolYearId, startDate } = {}) =>
+    read(
+      axiosClient.post('/children/enrollments/import', {
+        rows: rows.map((row) => enrollmentPhotoRequest(row).body),
+        campusId,
+        schoolYearId: await toBeSchoolYear(schoolYearId),
+        startDate,
+      }),
+    ),
   placeChild: (childId, body) => read(axiosClient.post(`/children/${childId}/placement`, body)),
   withdrawChild: (childId, body) => read(axiosClient.post(`/children/${childId}/withdraw`, body)),
   saveDeclaration: (childId, body) => read(axiosClient.put(`/children/${childId}/health-declaration`, body)),

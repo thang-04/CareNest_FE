@@ -24,6 +24,8 @@ const ALL_STATES = Object.values(DECLARATION_STATE);
 // Tiền sử chỉ Có/Không, không còn Chưa cung cấp (user chốt 2026-10-22): phiếu khám điền sẵn từ đây.
 const HISTORY_STATES = [DECLARATION_STATE.REPORTED, DECLARATION_STATE.NONE_REPORTED];
 const options = (labels, states) => states.map((s) => ({ value: s, label: labels[s] }));
+// Ô chi tiết chỉ hiện khi chọn "Có" nên lỗi của dòng lúc đó là lỗi của chính ô này: viền đỏ như ô trong FormField.
+const invalidProps = (base, error) => ({ className: error ? `${base} is-invalid` : base, 'aria-invalid': error ? true : undefined });
 
 function FieldError({ error }) {
   return error ? (
@@ -62,7 +64,7 @@ export function HealthDeclarationFields({ value, onChange, errors = {}, dateOfBi
       <div className="row gap-2 tr-state-text">
         <input
           id="tr-allergy-item"
-          className="input"
+          {...invalidProps('input', errors.allergies)}
           placeholder="Ví dụ: Tôm"
           value={item}
           maxLength={60}
@@ -97,7 +99,7 @@ export function HealthDeclarationFields({ value, onChange, errors = {}, dateOfBi
   );
   const dietDetail = value.diet.state === DECLARATION_STATE.REPORTED && (
     <textarea
-      className="textarea"
+      {...invalidProps('textarea', errors.diet)}
       rows={2}
       maxLength={500}
       aria-label="Mô tả chế độ ăn"
@@ -108,7 +110,7 @@ export function HealthDeclarationFields({ value, onChange, errors = {}, dateOfBi
   );
   const otherDetail = value.otherNotes.state === DECLARATION_STATE.REPORTED && (
     <textarea
-      className="textarea"
+      {...invalidProps('textarea', errors.otherNotes)}
       rows={2}
       maxLength={500}
       aria-label="Thông tin sức khỏe khác"
@@ -124,7 +126,7 @@ export function HealthDeclarationFields({ value, onChange, errors = {}, dateOfBi
       <>
         {it.withText && (
           <input
-            className="input"
+            {...invalidProps('input', errors[`medicalHistory.${it.key}`])}
             maxLength={300}
             aria-label={it.textLabel}
             placeholder={`${it.textLabel}, ví dụ: Hen phế quản`}

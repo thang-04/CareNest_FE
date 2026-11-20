@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { Pencil, RotateCcw, Scale, Search, Users } from '@/components/ui/icons';
 import { useHealthCheckClass } from '@/hooks/children/useHealthChecks';
 import { useFilterParams } from '@/hooks/useFilterParams';
@@ -38,6 +39,9 @@ export function MeasurementRoundRoster({ campaignId, classId, embedded = false }
   const pageSize = embedded ? EMBEDDED_PAGE_SIZE : PAGE_SIZE;
   const navigate = useNavigate();
   const { roster, loading, error, reload } = useHealthCheckClass(campaignId, classId);
+  // Năm sắp diễn ra chưa tới ngày mở chuẩn bị (CHD-12): chỉ xem
+  const { yearLocked } = useSchoolYear();
+  const canRecord = !!roster?.canRecord && !yearLocked;
   const rows = useMemo(() => roster?.children || [], [roster]);
   const measured = rows.filter((r) => r.result === CHILD_RESULT_STATUS.RECORDED).length;
   const [filters, setFilters, resetFilterParams, activeKeys] = useFilterParams(FILTER_DEFAULTS);
@@ -141,9 +145,9 @@ export function MeasurementRoundRoster({ campaignId, classId, embedded = false }
                 const healthLink = `/children/${r.childId}/health`;
                 // Việc chính: giáo viên nhập hoặc sửa số đo; không có thì bấm dòng mở sổ sức khỏe (DESIGN §6.3)
                 const primary =
-                  roster.canRecord && r.result === CHILD_RESULT_STATUS.NOT_RECORDED
+                  canRecord && r.result === CHILD_RESULT_STATUS.NOT_RECORDED
                     ? { label: 'Nhập số đo', strong: true, icon: Scale, to: measurementFormLink(campaignId, classId, r.childId) }
-                    : roster.canRecord && recorded
+                    : canRecord && recorded
                       ? {
                           label: 'Sửa số đo',
                           strong: false,

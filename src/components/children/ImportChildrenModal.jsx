@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AlertTriangle, ChevronDown, ChevronUp } from '@/components/ui/icons';
 import { Button } from '@/components/ui/Button';
 import { useAuth } from '@/contexts/AuthContext';
@@ -6,12 +6,15 @@ import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { ImportDialog } from '@/components/upload/ImportDialog';
 import { SelectField } from '@/components/form/Field';
+import { FormField } from '@/components/form/FormField';
+import { DateInput } from '@/components/form/DateInput';
 import { ActiveYearNotice } from '@/components/children/ActiveYearNotice';
 import { previewEnrollmentImport } from '@/services/children/childrenService';
 import { importTemplateRows } from '@/utils/children/importTemplate';
 import { downloadCsv } from '@/utils/exportCsv';
 import { childCampusesOf } from '@/utils/children/childrenPermissions';
 import { saveImportDraft } from '@/utils/children/importDraft';
+import { defaultIntakeYearId, intakeYearOptions } from '@/utils/schoolYearPrep';
 
 const MAX_SIZE = 10 * 1024 * 1024;
 const ACCEPT = '.csv,.xlsx,.xls';
@@ -70,7 +73,7 @@ function ImportGuide() {
 export function ImportChildrenModal({ initialCampusId, onClose, onChecked }) {
   const { user } = useAuth();
   const md = useMasterData();
-  const { yearReadOnly } = useSchoolYear();
+  const { yearReadOnly, yearLocked, schoolYear, schoolYears } = useSchoolYear();
   const campusOptions = childCampusesOf(user, md.campuses);
   // Có từ 2 điểm trường được tiếp nhận (Hiệu trưởng, PHT được phân 2 điểm trường) ⇒ bắt buộc chọn, không chọn sẵn; 1 điểm trường ⇒ dùng luôn.
   const pickCampus = campusOptions.length > 1;
@@ -78,6 +81,22 @@ export function ImportChildrenModal({ initialCampusId, onClose, onChecked }) {
     pickCampus && campusOptions.some((c) => String(c.id) === String(initialCampusId)) ? String(initialCampusId) : '',
   );
   const [campusError, setCampusError] = useState('');
+  // CHD-11: năm tiếp nhận = năm đang hoạt động hoặc năm sau đã mở chuẩn bị; năm sau cần ngày bắt đầu học chung cho cả file.
+  const yearOptions = intakeYearOptions(schoolYears);
+  const [yearPick, setYearPick] = useState(() => String(defaultIntakeYearId(schoolYears, schoolYear) ?? ''));
+  const intakeYear = yearOptions.find((y) => String(y.id) === yearPick) || null;
+  const planned = intakeYear?.status === 'PLANNED';
+  const [startDate, setStartDate] = useState(() => (intakeYear?.status === 'PLANNED' ? intakeYear.startDate || '' : ''));
+  const [startDateError, setStartDateError] = useState('');
+  // Danh sách năm học tải sau khi hộp đã mở: điền mặc định khi chưa có lựa chọn, không ghi đè lựa chọn của người dùng.
+  useEffect(() => {
+    if (yearPick) return;
+    const id = defaultIntakeYearId(schoolYears, schoolYear);
+    if (id == null) return;
+    setYearPick(String(id));
+    const year = intakeYearOptions(schoolYears).find((y) => String(y.id) === String(id));
+    if (year?.status === 'PLANNED') setStartDate((d) => d || year.startDate || '');
+  }, [schoolYears, schoolYear, yearPick]);
   const [file, setFile] = useState(null);
   const [fileError, setFileError] = useState('');
   const [unsupported, setUnsupported] = useState('');
@@ -99,6 +118,10 @@ export function ImportChildrenModal({ initialCampusId, onClose, onChecked }) {
       setCampusError('Chọn điểm trường tiếp nhận trẻ');
       return;
     }
+    if (planned && !startDate) {
+      setStartDateError('Chọn ngày bắt đầu học');
+      return;
+    }
     setFileError('');
     setUnsupported('');
     setReading(true);
@@ -108,7 +131,14 @@ export function ImportChildrenModal({ initialCampusId, onClose, onChecked }) {
         setUnsupported(preview.message);
         return;
       }
-      const draft = { preview, fileName: file.name, fileSize: file.size, campusId, campusName };
+      const draft = {
+        preview,
+        fileName: file.name,
+        fileSize: file.size,
+        campusId,
+        campusName,
+        ...(planned && { schoolYearId: intakeYear.id, schoolYearName: intakeYear.label, startDate }),
+      };
       saveImportDraft(draft);
       onChecked(draft);
     } catch (err) {
@@ -128,6 +158,38 @@ export function ImportChildrenModal({ initialCampusId, onClose, onChecked }) {
       options={
         <>
           <ActiveYearNotice action="Nhập danh sách trẻ" />
+          {yearOptions.length > 1 && (
+            <SelectField
+              label="Năm học tiếp nhận"
+              required
+              fieldClassName="tr-field-narrow"
+              options={yearOptions.map((y) => ({
+                value: String(y.id),
+                label: `${y.label} · ${y.status === 'ACTIVE' ? 'Đang hoạt động' : 'Sắp diễn ra'}`,
+              }))}
+              value={yearPick}
+              disabled={reading}
+              onChange={(e) => {
+                const next = yearOptions.find((y) => String(y.id) === e.target.value);
+                setYearPick(e.target.value);
+                setStartDate(next?.status === 'PLANNED' ? next.startDate || '' : '');
+                setStartDateError('');
+              }}
+            />
+          )}
+          {planned && (
+            <FormField label="Ngày bắt đầu học" required error={startDateError} hint="Áp dụng cho mọi trẻ trong file.">
+              <DateInput
+                value={startDate}
+                min={intakeYear?.startDate}
+                max={intakeYear?.endDate}
+                onChange={(value) => {
+                  setStartDate(value);
+                  setStartDateError('');
+                }}
+              />
+            </FormField>
+          )}
           {pickCampus ? (
             <SelectField
               label="Điểm trường tiếp nhận"
@@ -162,7 +224,7 @@ export function ImportChildrenModal({ initialCampusId, onClose, onChecked }) {
       onFile={takeFile}
       confirmLabel="Tải lên và kiểm tra"
       idleLabel="Tải lên và kiểm tra"
-      confirmDisabled={!file || tooLarge || yearReadOnly}
+      confirmDisabled={!file || tooLarge || yearReadOnly || yearLocked}
       busy={reading}
       onConfirm={check}
       onClose={onClose}

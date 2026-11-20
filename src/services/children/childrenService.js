@@ -15,7 +15,7 @@ export const getClassOptions = (schoolYear, user, options) => repo.getClassOptio
 export const enrollChild = (payload, user) => repo.enrollChild(payload, user);
 export const updateChild = (id, body, user) => repo.updateChild(id, body, user);
 export const previewEnrollmentImport = (file, user) => repo.previewImport(file, user);
-export const importChildren = (rows, user, campusId) => repo.importChildren(rows, user, campusId);
+export const importChildren = (rows, user, campusId, intake) => repo.importChildren(rows, user, campusId, intake);
 export const placeChild = (childId, body, user) => repo.placeChild(childId, body, user);
 export const withdrawChild = (childId, body, user) => repo.withdrawChild(childId, body, user);
 export const saveHealthDeclaration = (childId, body, user) => repo.saveDeclaration(childId, body, user);

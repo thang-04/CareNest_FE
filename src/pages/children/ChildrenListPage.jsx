@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
+import { YearLockedNotice } from '@/components/children/YearLockedNotice';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useChildRecords, useClassOptions, useProfileChanges } from '@/hooks/children/useChildRecords';
 import { sameId } from '@/services/http/idStrings';
@@ -28,7 +29,7 @@ import { Pagination, paginate } from '@/components/ui/Pagination';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { RowActions } from '@/components/ui/RowActions';
 import { clickableRowProps } from '@/utils/clickableRow';
-import { ChildStatusBadge } from '@/components/children/ChildBadges';
+import { ChildStatusBadge, PlannedAdmissionBadge } from '@/components/children/ChildBadges';
 import { WithdrawChildModal } from '@/components/children/WithdrawChildModal';
 import { ImportChildrenModal } from '@/components/children/ImportChildrenModal';
 import { Button } from '@/components/ui/Button';
@@ -44,7 +45,7 @@ import {
   seesAllCampusChildren,
 } from '@/utils/children/childrenPermissions';
 import { childrenCrumbs } from '@/utils/children/breadcrumbs';
-import { childrenOfStatus } from '@/utils/children/childrenHelpers';
+import { PLANNED_ADMISSION_FILTER, childrenOfStatus, plannedClassLabel } from '@/utils/children/childrenHelpers';
 import '@/styles/modules/children.css';
 import { StatCard } from '@/components/ui/StatCard';
 import { CampusFilter } from '@/components/ui/CampusFilter';
@@ -55,7 +56,7 @@ const FILTER_DEFAULTS = { keyword: '', status: '', campusId: '', classId: '' };
 export default function ChildrenListPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { schoolYear } = useSchoolYear();
+  const { schoolYear, yearLocked, preparingYear } = useSchoolYear();
   const md = useMasterData();
   const [filters, setFilters, resetFilterParams, activeKeys] = useFilterParams(FILTER_DEFAULTS);
   const { status, keyword, campusId, classId } = filters;
@@ -63,7 +64,8 @@ export default function ChildrenListPage() {
   const [withdrawing, setWithdrawing] = useState(null);
   const [importOpen, setImportOpen] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
-  const canImport = canEnrollChild(user);
+  // Năm sắp diễn ra chưa tới ngày mở chuẩn bị (CHD-12): chỉ xem
+  const canImport = canEnrollChild(user) && !yearLocked;
 
   // ?import=1 (từ Tiếp nhận trẻ, Xếp lớp, hoặc màn xem trước khi mất bản xem trước) ⇒ mở hộp nhập Excel rồi bỏ tham số khỏi URL.
   useEffect(() => {
@@ -116,7 +118,7 @@ export default function ChildrenListPage() {
     setPage(1);
   };
 
-  const count = (s) => all.filter((c) => c.status === s).length;
+  const count = (s) => childrenOfStatus(all, s).length;
   const stats = [
     { key: '', label: 'Tổng số trẻ', value: current.length, tone: 'blue' },
     { key: CHILD_STATUS.ACTIVE, label: CHILD_STATUS_LABELS.ACTIVE, value: count(CHILD_STATUS.ACTIVE), tone: 'green' },
@@ -128,20 +130,24 @@ export default function ChildrenListPage() {
     },
     { key: CHILD_STATUS.LEFT, label: CHILD_STATUS_LABELS.LEFT, value: count(CHILD_STATUS.LEFT), tone: 'purple' },
   ];
+  // Năm sắp diễn ra: danh sách là trẻ Sắp nhập học của năm đó (CHD-09, CHD-11); thẻ chỉ hiện khi có trẻ hoặc năm đang chuẩn bị
+  const plannedCount = count(PLANNED_ADMISSION_FILTER);
+  if (plannedCount > 0 || preparingYear || yearLocked)
+    stats.splice(3, 0, { key: PLANNED_ADMISSION_FILTER, label: 'Sắp nhập học', value: plannedCount, tone: 'blue' });
   const pendingPlacement = count(CHILD_STATUS.PENDING_PLACEMENT);
   const notActivated = all.filter(
     (c) => c.status !== CHILD_STATUS.LEFT && c.guardians.some((g) => g.accountStatus === PARENT_ACCOUNT_STATUS.NOT_ACTIVATED),
   ).length;
   const showCampus = seesAllCampusChildren(user);
-  // Giáo viên không có thao tác dòng (Sửa, Cho nghỉ học) nên bỏ cả cột; bấm dòng mở hồ sơ (DESIGN §6.3)
-  const showActions = !isTeacherRole(user);
+  // Giáo viên, năm bị khóa (CHD-12) không có thao tác dòng (Sửa, Cho nghỉ học) nên bỏ cả cột; bấm dòng mở hồ sơ (DESIGN §6.3)
+  const showActions = !isTeacherRole(user) && !yearLocked;
   // BE:CHD-11 — yêu cầu sửa hồ sơ GV gửi mà người xem duyệt được (BE trả canDecide)
   const { requests: profileChanges } = useProfileChanges('PENDING', { enabled: showActions });
   const changesToDecide = profileChanges.filter((r) => r.canDecide).length;
   const cols = 5 + (showCampus ? 1 : 0) + (showActions ? 1 : 0);
   const chipLabels = {
     keyword: `Từ khóa: ${keyword}`,
-    status: `Trạng thái: ${CHILD_STATUS_LABELS[status] || status}`,
+    status: `Trạng thái: ${status === PLANNED_ADMISSION_FILTER ? 'Sắp nhập học' : CHILD_STATUS_LABELS[status] || status}`,
     campusId: `Điểm trường: ${md.campusById(campusId)?.name?.split(' - ')[0] || 'đã chọn'}`,
     classId: `Lớp: ${yearClasses.find((c) => sameId(c.id, classId))?.name || 'đã chọn'}`,
   };
@@ -159,6 +165,7 @@ export default function ChildrenListPage() {
         <h1 className="page__title">Danh sách trẻ</h1>
       </div>
 
+      <YearLockedNotice action="Tiếp nhận, sửa hồ sơ trẻ" />
       {changesToDecide > 0 && (
         <div className="alert alert--info mb-16" role="status">
           <ClipboardCheck size={18} />
@@ -171,7 +178,7 @@ export default function ChildrenListPage() {
         </div>
       )}
 
-      {isVicePrincipal(user) && (pendingPlacement > 0 || notActivated > 0) && (
+      {!yearLocked && isVicePrincipal(user) && (pendingPlacement > 0 || notActivated > 0) && (
         <div className="alert alert--warning mb-16">
           <Info size={18} />
           <div className="stack gap-1">
@@ -283,9 +290,13 @@ export default function ChildrenListPage() {
                         <EmptyState
                           icon={Baby}
                           title="Chưa có hồ sơ trẻ"
-                          description="Không có trẻ đang học hoặc chờ xếp lớp trong phạm vi và năm học đã chọn."
+                          description={
+                            preparingYear || yearLocked
+                              ? 'Chưa có trẻ Sắp nhập học trong phạm vi và năm học đã chọn.'
+                              : 'Không có trẻ đang học hoặc chờ xếp lớp trong phạm vi và năm học đã chọn.'
+                          }
                           action={
-                            canEnrollChild(user) && (
+                            canImport && (
                               <Link to="/children/new" className="btn btn--primary">
                                 <Plus size={16} /> Tiếp nhận trẻ
                               </Link>
@@ -316,7 +327,11 @@ export default function ChildrenListPage() {
                             {ageLabel(c.dateOfBirth)} · {GENDER_LABELS[c.gender]}
                           </div>
                         </td>
-                        <td className="nowrap">{c.className || <span className="muted">Chưa xếp lớp</span>}</td>
+                        <td className="nowrap">
+                          {c.plannedAdmission
+                            ? plannedClassLabel(c.plannedAdmission)
+                            : c.className || <span className="muted">Chưa xếp lớp</span>}
+                        </td>
                         {showCampus && <td className="text-sm">{md.campusById(c.campusId)?.name?.split(' - ')[0] || '—'}</td>}
                         <td className="text-sm">
                           {g ? (
@@ -331,7 +346,7 @@ export default function ChildrenListPage() {
                           )}
                         </td>
                         <td className="center">
-                          <ChildStatusBadge status={c.status} />
+                          {c.plannedAdmission ? <PlannedAdmissionBadge /> : <ChildStatusBadge status={c.status} />}
                         </td>
                         {showActions && (
                           <td className="cell--actions">

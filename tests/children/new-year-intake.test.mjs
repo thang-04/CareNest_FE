@@ -1,0 +1,192 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { beforeEach, test } from 'node:test';
+
+const storage = new Map();
+globalThis.localStorage = {
+  getItem: (k) => storage.get(k) ?? null,
+  setItem: (k, v) => storage.set(k, String(v)),
+  removeItem: (k) => storage.delete(k),
+  clear: () => storage.clear(),
+};
+globalThis.window = new EventTarget();
+
+const { readDb, resetDb, writeDb } = await import('@/mocks/mockDatabase');
+const { childrenMockRepository: children, ensureChildRecordsSeeded } = await import('@/services/children/mock/childrenMockRepository');
+const { buildSeedSchoolConfig } = await import('@/mocks/schoolConfigSeed');
+const { emptyChildInfo, emptyDeclaration } = await import('@/utils/children/childrenHelpers');
+const { todayInput } = await import('@/utils/format');
+const { filledMedicalHistory, filledProfile } = await import('./profileFixture.mjs');
+
+/*
+ * CHD-11 / CFG-YR-05: tiếp nhận vào năm sau chỉ khi năm PLANNED đã tới ngày mở chuẩn bị (BE trả 2412).
+ * Mock cấu hình trường không lưu prepDate nên test tự seed năm 2027-2028 vào db.schoolYears.
+ */
+const PRINCIPAL = { id: 'u_hung', role: 'PRINCIPAL', campusId: 'c1' };
+const NEXT_YEAR = '2027-2028';
+const NEXT_CLASS = 'cls_c1_next_x06';
+const START_DATE = '2027-09-05';
+
+const dayShift = (days) => {
+  const d = new Date(`${todayInput()}T00:00:00`);
+  d.setDate(d.getDate() + days);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+const seedNextYear = (prepDate) =>
+  writeDb((d) => {
+    d.schoolYears = [
+      ...(d.schoolYears || buildSeedSchoolConfig().schoolYears),
+      { id: NEXT_YEAR, name: NEXT_YEAR, startDate: START_DATE, endDate: '2028-05-31', status: 'PLANNED', prepDate },
+    ];
+    d.classes.push({ id: NEXT_CLASS, name: 'Lớp năm sau', campusId: 'c1', schoolYear: NEXT_YEAR, capacity: 25, status: 'ACTIVE' });
+  });
+
+const guardian = (n) => ({
+  fullName: `Phụ huynh năm sau ${n}`,
+  relation: 'Mẹ',
+  phone: `0900 000 8${String(n).padStart(2, '0')}`,
+  idNumber: `9999000008${String(n).padStart(2, '0')}`,
+  email: '',
+});
+const payload = (n, patch = {}) => ({
+  child: {
+    ...emptyChildInfo(),
+    fullName: `Trẻ năm sau ${n}`,
+    dateOfBirth: '2023-05-17',
+    gender: 'FEMALE',
+    guardians: [guardian(n)],
+    profile: filledProfile(),
+  },
+  declaration: { ...emptyDeclaration(), medicalHistory: filledMedicalHistory() },
+  campusId: 'c1',
+  classId: '',
+  schoolYearId: NEXT_YEAR,
+  startDate: START_DATE,
+  ...patch,
+});
+
+beforeEach(() => {
+  resetDb();
+  ensureChildRecordsSeeded();
+});
+
+test('CHD-11: năm sau chưa tới ngày mở chuẩn bị ⇒ 409, không tạo trẻ', async () => {
+  seedNextYear(dayShift(30));
+  const before = readDb().children.length;
+  await assert.rejects(
+    children.enrollChild(payload(1), PRINCIPAL),
+    (err) => err.status === 409 && /^Năm học 2027-2028 chưa tới ngày mở chuẩn bị \(\d{2}\/\d{2}\/\d{4}\)$/.test(err.message),
+  );
+  assert.equal(readDb().children.length, before);
+  assert.equal((readDb().plannedAdmissions || []).length, 0);
+});
+
+test('CHD-11: từ ngày mở chuẩn bị ⇒ trẻ Chờ xếp lớp, đăng ký PLACED, ngày bắt đầu', async () => {
+  seedNextYear(todayInput());
+  const saved = await children.enrollChild(payload(2, { classId: NEXT_CLASS }), PRINCIPAL);
+  assert.equal(saved.status, 'PENDING_PLACEMENT');
+  assert.equal(saved.classId, null);
+  const [admission] = readDb().plannedAdmissions.filter((a) => a.childId === saved.id);
+  assert.equal(admission.schoolYearId, NEXT_YEAR);
+  assert.equal(admission.classId, NEXT_CLASS);
+  assert.equal(admission.status, 'PLACED');
+  assert.equal(admission.startDate, START_DATE);
+});
+
+test('CHD-11: phụ huynh mới của trẻ năm sau được tạo tài khoản như thường', async () => {
+  seedNextYear(todayInput());
+  const saved = await children.enrollChild(payload(3), PRINCIPAL);
+  assert.deepEqual(
+    saved.guardianAccounts.map((a) => a.result),
+    ['CREATED'],
+  );
+});
+
+// CHD-11: ô Năm học tiếp nhận chỉ liệt kê năm đang mở tiếp nhận, mặc định theo năm ở header
+test('CHD-11: màn tiếp nhận dùng intakeYearOptions và defaultIntakeYearId cho ô Năm học tiếp nhận', () => {
+  const page = readFileSync('src/pages/children/EnrollChildPage.jsx', 'utf8');
+  assert.match(page, /intakeYearOptions\(/);
+  assert.match(page, /defaultIntakeYearId\(/);
+});
+
+// CHD-11: nhập Excel vào năm sau ⇒ mỗi trẻ Chờ xếp lớp + đăng ký PENDING (chưa lớp) với ngày bắt đầu của cả file
+const importRow = (n) => {
+  const { child, declaration } = payload(n);
+  return { child, declaration };
+};
+
+test('CHD-11: nhập Excel vào năm sau ⇒ đăng ký PENDING', async () => {
+  seedNextYear(todayInput());
+  const done = await children.importChildren([importRow(4), importRow(5)], PRINCIPAL, 'c1', {
+    schoolYearId: NEXT_YEAR,
+    startDate: START_DATE,
+  });
+  assert.equal(done.created, 2);
+  const admissions = readDb().plannedAdmissions.filter((a) => done.ids.includes(a.childId));
+  assert.equal(admissions.length, 2);
+  for (const a of admissions) {
+    assert.equal(a.schoolYearId, NEXT_YEAR);
+    assert.equal(a.status, 'PENDING');
+    assert.equal(a.classId, null);
+    assert.equal(a.startDate, START_DATE);
+    assert.equal(a.campusId, 'c1');
+  }
+  assert.ok(
+    readDb()
+      .children.filter((c) => done.ids.includes(c.id))
+      .every((c) => c.status === 'PENDING_PLACEMENT'),
+  );
+});
+
+test('CHD-11: nhập Excel năm chưa mở ⇒ 409', async () => {
+  seedNextYear(dayShift(30));
+  const before = readDb().children.length;
+  await assert.rejects(
+    children.importChildren([importRow(6)], PRINCIPAL, 'c1', { schoolYearId: NEXT_YEAR, startDate: START_DATE }),
+    (err) => err.status === 409 && /^Năm học 2027-2028 chưa tới ngày mở chuẩn bị \(\d{2}\/\d{2}\/\d{4}\)$/.test(err.message),
+  );
+  assert.equal(readDb().children.length, before);
+});
+
+test('CHD-11: mở lại hồ sơ vào năm sau ⇒ đăng ký PENDING', async () => {
+  seedNextYear(todayInput());
+  const old = await children.enrollChild(payload(7, { schoolYearId: undefined, startDate: undefined }), PRINCIPAL);
+  await children.withdrawChild(old.id, { leftAt: todayInput(), reason: 'Chuyển nơi ở (giả)' }, PRINCIPAL);
+  const back = await children.readmitChild(old.id, { reason: 'Quay lại học', schoolYearId: NEXT_YEAR, startDate: START_DATE }, PRINCIPAL);
+  assert.equal(back.status, 'PENDING_PLACEMENT');
+  assert.equal(back.campusId, old.campusId);
+  assert.equal(back.plannedAdmission.schoolYearId, NEXT_YEAR);
+  assert.equal(back.plannedAdmission.classId, null);
+  const [admission] = readDb().plannedAdmissions.filter((a) => a.childId === old.id);
+  assert.equal(admission.status, 'PENDING');
+  assert.equal(admission.startDate, START_DATE);
+});
+
+test('CHD-11: mở lại hồ sơ vào năm chưa mở ⇒ 409, trẻ vẫn Đã nghỉ', async () => {
+  seedNextYear(dayShift(30));
+  const old = await children.enrollChild(payload(8, { schoolYearId: undefined, startDate: undefined }), PRINCIPAL);
+  await children.withdrawChild(old.id, { leftAt: todayInput(), reason: 'Chuyển nơi ở (giả)' }, PRINCIPAL);
+  await assert.rejects(
+    children.readmitChild(old.id, { reason: 'Quay lại học', schoolYearId: NEXT_YEAR, startDate: START_DATE }, PRINCIPAL),
+    (err) => err.status === 409,
+  );
+  assert.equal(readDb().children.find((c) => c.id === old.id).status, 'LEFT');
+});
+
+// CHD-11 (BE plannedTarget): thiếu startDate ⇒ ngày bắt đầu năm học, không 422
+test('CHD-11: nhập Excel vào năm sau thiếu ngày bắt đầu ⇒ lấy ngày bắt đầu năm học', async () => {
+  seedNextYear(todayInput());
+  const done = await children.importChildren([importRow(9)], PRINCIPAL, 'c1', { schoolYearId: NEXT_YEAR });
+  const [admission] = readDb().plannedAdmissions.filter((a) => a.childId === done.ids[0]);
+  assert.equal(admission.startDate, START_DATE);
+});
+
+test('CHD-11: mở lại hồ sơ vào năm sau thiếu ngày bắt đầu ⇒ lấy ngày bắt đầu năm học', async () => {
+  seedNextYear(todayInput());
+  const old = await children.enrollChild(payload(10, { schoolYearId: undefined, startDate: undefined }), PRINCIPAL);
+  await children.withdrawChild(old.id, { leftAt: todayInput(), reason: 'Chuyển nơi ở (giả)' }, PRINCIPAL);
+  await children.readmitChild(old.id, { reason: 'Quay lại học', schoolYearId: NEXT_YEAR }, PRINCIPAL);
+  const [admission] = readDb().plannedAdmissions.filter((a) => a.childId === old.id);
+  assert.equal(admission.startDate, START_DATE);
+});

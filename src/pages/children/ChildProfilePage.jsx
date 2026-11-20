@@ -12,14 +12,17 @@ import {
   KeyRound,
   AlertTriangle,
   ChevronRight,
+  CalendarClock,
 } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSchoolYear } from '@/contexts/SchoolYearContext';
+import { YearLockedNotice } from '@/components/children/YearLockedNotice';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useChildDetail } from '@/hooks/children/useChildRecords';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { EmptyState, LoadingState } from '@/components/ui/States';
 import { Tabs } from '@/components/ui/Tabs';
-import { ChildStatusBadge } from '@/components/children/ChildBadges';
+import { ChildStatusBadge, PlannedAdmissionBadge } from '@/components/children/ChildBadges';
 import { ChildAccessState } from '@/components/children/ChildAccessState';
 import { CHILD_STATUS, GENDER_LABELS, ageGroupById, ageLabel } from '@/models/School';
 import { formatDate, formatDateTime } from '@/utils/format';
@@ -30,6 +33,7 @@ import { canActivateParent, canRecordMeasurement, canViewParentAccounts } from '
 import { SMS_STATUS } from '@/models/children/childrenConstants';
 import { AllergyStateBadge, ParentAccountBadge, SmsStatusBadge } from '@/components/children/ChildBadges';
 import { childrenCrumbs } from '@/utils/children/breadcrumbs';
+import { plannedAdmissionNotice } from '@/utils/children/childrenHelpers';
 import '@/styles/modules/children.css';
 
 const missing = <span className="muted">Chưa có thông tin</span>;
@@ -44,6 +48,8 @@ export default function ChildProfilePage() {
   const { id } = useParams();
   const { user } = useAuth();
   const md = useMasterData();
+  // Năm sắp diễn ra chưa tới ngày mở chuẩn bị (CHD-12): hồ sơ chỉ xem
+  const { yearLocked } = useSchoolYear();
   const { detail, loading, error, reload } = useChildDetail(id);
   const child = detail?.child;
   const crumbs = childrenCrumbs(child?.fullName || 'Hồ sơ trẻ');
@@ -80,7 +86,7 @@ export default function ChildProfilePage() {
           <div className="stack gap-1">
             <div className="row row--wrap gap-3">
               <h1 className="page__title">{child.fullName}</h1>
-              <ChildStatusBadge status={child.status} size="lg" />
+              {child.plannedAdmission ? <PlannedAdmissionBadge size="lg" /> : <ChildStatusBadge status={child.status} size="lg" />}
             </div>
             <span className="muted">
               {child.code}
@@ -89,12 +95,13 @@ export default function ChildProfilePage() {
           </div>
         </div>
         <div className="row row--wrap gap-2">
-          {canPlaceChild(child, user) && (
+          {/* Trẻ đã đăng ký năm sau xếp, đổi lớp ở Xếp lớp năm học mới (BE 2414), nên ẩn nút Xếp lớp (CHD-11) */}
+          {!yearLocked && !child.plannedAdmission && canPlaceChild(child, user) && (
             <Link className="btn" to={`/children/placement?childId=${child.id}`}>
               <LayoutGrid size={16} /> {child.classId ? 'Chuyển lớp' : 'Xếp lớp'}
             </Link>
           )}
-          {canOpenChildEdit(child, user) && (
+          {!yearLocked && canOpenChildEdit(child, user) && (
             <Link className="btn btn--primary" to={`/children/${child.id}/edit`}>
               <Pencil size={16} /> {canEditChild(child, user) ? 'Sửa hồ sơ' : 'Đề xuất sửa hồ sơ'}
             </Link>
@@ -102,7 +109,14 @@ export default function ChildProfilePage() {
         </div>
       </div>
 
-      {child.status === CHILD_STATUS.PENDING_PLACEMENT && (
+      <YearLockedNotice action="Sửa hồ sơ, xếp lớp" />
+      {child.plannedAdmission && (
+        <div className="alert alert--info mb-16" role="status">
+          <CalendarClock size={18} />
+          <div>{plannedAdmissionNotice(child.plannedAdmission)}</div>
+        </div>
+      )}
+      {child.status === CHILD_STATUS.PENDING_PLACEMENT && !child.plannedAdmission && (
         <div className="alert alert--warning mb-16">
           <AlertTriangle size={18} />
           <div>Trẻ chưa được xếp lớp nên việc tiếp nhận chưa hoàn tất.</div>
@@ -181,7 +195,7 @@ export default function ChildProfilePage() {
             <section className="card">
               <div className="card__header row row--between">
                 <h2 className="card__title">Phụ huynh / người giám hộ</h2>
-                {canActivateParent(child, user) && (
+                {!yearLocked && canActivateParent(child, user) && (
                   <Link className="btn btn--sm" to={`/children/activation?childId=${child.id}`}>
                     <KeyRound size={15} /> Tài khoản phụ huynh
                   </Link>
@@ -262,7 +276,7 @@ export default function ChildProfilePage() {
             <section className="card">
               <div className="card__header">
                 <h2 className="card__title">Sức khỏe & theo dõi</h2>
-                {canRecordMeasurement(child, user, cls) && (
+                {!yearLocked && canRecordMeasurement(child, user, cls) && (
                   <Link className="btn btn--sm" to={`/children/${child.id}/health/new`}>
                     Nhập số đo
                   </Link>

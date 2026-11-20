@@ -250,3 +250,52 @@ test('Năm học ở header là tên ("2026-2027", beClient): đổi sang id BE 
   assert.ok(calls.includes('GET /children?schoolYear=5&status=ACTIVE%2CPENDING_PLACEMENT%2CLEFT&page=0&size=100'));
   assert.ok(calls.includes('GET /school-structure?schoolYear=5'));
 });
+
+// BE nhận id năm học kiểu số: gửi tên năm "2026-2027" ⇒ 400 mã 9002 "Dữ liệu gửi lên không đúng định dạng" (FE-BUG-261119)
+const serveSchoolYears = () => {
+  const adapter = axiosClient.defaults.adapter;
+  axiosClient.defaults.adapter = async (config) =>
+    config.url === '/school-years'
+      ? envelope(config, [
+          { id: 5, name: '2026-2027', status: 'ACTIVE' },
+          { id: 6, name: '2027-2028', status: 'PLANNED' },
+        ])
+      : adapter(config);
+};
+
+test('Tiếp nhận: lưu hồ sơ gửi id năm học BE thay tên năm ở header', async () => {
+  serveSchoolYears();
+
+  await childrenApi.enrollChild({ child: { fullName: 'Bé demo', guardians: [] }, schoolYearId: '2026-2027' });
+
+  assert.deepEqual(calls, ['POST /children/enrollments']);
+  assert.equal(bodies[0].schoolYearId, 5);
+});
+
+test('Tiếp nhận: danh sách lớp để xếp gửi id năm học BE', async () => {
+  serveSchoolYears();
+
+  await childrenApi.getPlacementClasses({ schoolYearId: '2027-2028' });
+
+  assert.deepEqual(calls, ['GET /children/placement-classes?schoolYearId=6']);
+});
+
+test('G94-180/CHD-11: mở lại hồ sơ vào năm sắp diễn ra gửi id năm học BE', async () => {
+  serveSchoolYears();
+
+  await childrenApi.readmitChild('11', { reason: 'Quay lại học', schoolYearId: '2027-2028', startDate: '2027-09-01' });
+
+  assert.deepEqual(bodies, [{ reason: 'Quay lại học', schoolYearId: 6, startDate: '2027-09-01' }]);
+});
+
+test('G94-180/CHD-11: nhập Excel vào năm sắp diễn ra gửi id năm học BE', async () => {
+  serveSchoolYears();
+
+  await childrenApi.importChildren([{ child: { fullName: 'Bé demo', guardians: [] } }], null, '1', {
+    schoolYearId: '2027-2028',
+    startDate: '2027-09-01',
+  });
+
+  assert.equal(bodies[0].schoolYearId, 6);
+  assert.equal(bodies[0].startDate, '2027-09-01');
+});

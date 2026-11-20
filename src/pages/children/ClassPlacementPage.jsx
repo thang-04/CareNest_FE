@@ -15,6 +15,7 @@ import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
 import { FormField } from '@/components/form/FormField';
 import { ActiveYearNotice } from '@/components/children/ActiveYearNotice';
+import { YearLockedNotice } from '@/components/children/YearLockedNotice';
 import { ClassPlacementFields } from '@/components/children/ClassPlacementFields';
 import { placeChild } from '@/services/children/childrenService';
 import { CHILD_STATUS, ageLabel } from '@/models/School';
@@ -33,7 +34,7 @@ export default function ClassPlacementPage() {
   const { user } = useAuth();
   const toast = useToast();
   const md = useMasterData();
-  const { schoolYear, activeYear, yearReadOnly } = useSchoolYear();
+  const { schoolYear, activeYear, yearReadOnly, yearLocked } = useSchoolYear();
   // Xếp, chuyển lớp luôn ở năm học đang hoạt động dù header chọn năm khác (user chốt 2026-10-28, Y-3).
   const yearId = activeYear?.id || schoolYear;
   const [params, setParams] = useSearchParams();
@@ -85,12 +86,13 @@ export default function ClassPlacementPage() {
       </div>
     );
 
-  if (yearReadOnly)
+  // Năm đã kết thúc hoặc năm sắp diễn ra chưa tới ngày mở chuẩn bị (CHD-12): chỉ xem
+  if (yearReadOnly || yearLocked)
     return (
       <div className="page">
         <Breadcrumb items={childrenCrumbs('Xếp lớp')} />
         <h1 className="page__title">Xếp lớp cho trẻ</h1>
-        <ActiveYearNotice action="Xếp lớp, chuyển lớp" />
+        {yearLocked ? <YearLockedNotice action="Xếp lớp, chuyển lớp" /> : <ActiveYearNotice action="Xếp lớp, chuyển lớp" />}
       </div>
     );
 

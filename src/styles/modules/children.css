@@ -168,6 +168,33 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-full);
   background: var(--color-surface);
+  overflow-wrap: anywhere;
+}
+/* Xem khai báo sức khỏe: tên phần + thẻ trẻ cùng hàng, xuống dòng khi hẹp thay vì tràn khỏi thẻ */
+.card__header.tr-decl-head {
+  flex-wrap: wrap;
+}
+/* Báo ăn, người chốt ở dòng trên hai bảng khai báo */
+.tr-decl-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-8);
+  margin: 0;
+  font-size: var(--fs-sm);
+}
+.tr-decl-meta > div {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.tr-decl-meta dt {
+  flex: none;
+  color: var(--color-text-muted);
+}
+.tr-decl-meta dd {
+  margin: 0;
+  overflow-wrap: anywhere;
 }
 
 /* Dải phần đứng ngoài bảng (III. Phụ huynh): cùng dáng dải phần trong bảng tiếp nhận */

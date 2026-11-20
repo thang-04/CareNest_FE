@@ -3,6 +3,8 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Pencil, Save, History } from '@/components/ui/icons';
 import { SidePanel } from '@/components/ui/SidePanel';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSchoolYear } from '@/contexts/SchoolYearContext';
+import { YearLockedNotice } from '@/components/children/YearLockedNotice';
 import { useToast } from '@/contexts/ToastContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useChildDetail, useLatestProfileChanges } from '@/hooks/children/useChildRecords';
@@ -11,6 +13,7 @@ import { LoadingState, Spinner } from '@/components/ui/States';
 import { FormField } from '@/components/form/FormField';
 import { ChildAccessState } from '@/components/children/ChildAccessState';
 import { DeclarationSummary } from '@/components/children/DeclarationSummary';
+import { ChildBrief, ChildCardHead } from '@/components/children/ChildBrief';
 import { HealthDeclarationFields } from '@/components/children/HealthDeclarationFields';
 import { saveHealthDeclaration, submitProfileChange } from '@/services/children/childrenService';
 import { ProfileChangeNotice } from '@/components/children/ProfileChangeNotice';
@@ -45,6 +48,10 @@ const allergyText = (a) =>
 export default function HealthDeclarationPage() {
   const { id } = useParams();
   const { user } = useAuth();
+  // Năm sắp diễn ra chưa tới ngày mở chuẩn bị (CHD-12): khai báo chỉ xem
+  const { yearLocked } = useSchoolYear();
+  // Sửa trực tiếp (BGH) hoặc gửi yêu cầu (GV được cấp, BE:CHD-11), nhưng không khi năm bị khóa
+  const mayDeclare = (c) => !yearLocked && canOpenChildEdit(c, user);
   const toast = useToast();
   const md = useMasterData();
   const [editing, setEditing] = useState(false);
@@ -83,14 +90,14 @@ export default function HealthDeclarationPage() {
   useEffect(() => {
     if (!directEdit || autoOpened.current || !detail?.child) return;
     autoOpened.current = true;
-    if (canOpenChildEdit(detail.child, user)) openEditor(detail.declaration || undefined);
+    if (mayDeclare(detail.child)) openEditor(detail.declaration || undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [directEdit, detail, user]);
 
   const leaveEditor = () => (directEdit ? navigate(`/children/${id}`) : setEditing(false));
 
   // Tránh nháy chế độ xem trước khi form tự mở
-  const waitingEditor = directEdit && !autoOpened.current && !!child && canOpenChildEdit(child, user);
+  const waitingEditor = directEdit && !autoOpened.current && !!child && mayDeclare(child);
   if (loading || waitingEditor)
     return (
       <div className="page">
@@ -108,7 +115,7 @@ export default function HealthDeclarationPage() {
 
   const { declaration } = detail;
   const lastChange = declaration?.history?.[declaration.history.length - 1];
-  const canEdit = canOpenChildEdit(child, user);
+  const canEdit = mayDeclare(child);
   // Sửa khai báo đã có thì bắt buộc lý do; dữ liệu có hiệu lực ngay cho bếp.
   const needsReason = !!declaration;
 
@@ -155,12 +162,16 @@ export default function HealthDeclarationPage() {
           </div>
         )}
       </div>
+      <YearLockedNotice action="Khai báo sức khỏe" />
       {proposing && <ProfileChangeNotice changes={changes} kind={PROFILE_CHANGE_KIND.HEALTH_DECLARATION} />}
 
       {editing ? (
         <>
+          {/* Dạng bảng như bước 3 tiếp nhận; thẻ Lý do giữ riêng bên dưới (user duyệt 19/11/2026) */}
           <section className="card wizard-card">
+            <ChildCardHead title="Báo ăn và sức khỏe" child={child} />
             <HealthDeclarationFields
+              sheet
               dateOfBirth={child.dateOfBirth}
               value={form}
               onChange={(v) => {
@@ -190,8 +201,9 @@ export default function HealthDeclarationPage() {
         <>
           {/* Lịch sử chỉ vài dòng: chân khối hiện thay đổi gần nhất, đủ lịch sử trong panel (user yêu cầu 2026-11-11) */}
           <section className="card">
-            <div className="card__header">
-              <h2 className="card__title">Thông tin khai báo</h2>
+            <div className="card__header tr-decl-head">
+              <h2 className="card__title">Báo ăn và sức khỏe</h2>
+              <ChildBrief child={child} />
             </div>
             <div className="card__body">
               <DeclarationSummary declaration={declaration} mealRegistered={child.mealRegistered !== false} />
