@@ -17,6 +17,7 @@ const EMPTY = {
   purchaseToStock: 1,
   stockUnitSize: 1000,
   unitPrice: '',
+  supplierId: '',
   wastePct: 0,
   favorite: false,
   storage: '',
@@ -114,5 +115,7 @@ export function useFoodForm(id, { onSaved } = {}) {
     busy,
     dirty: JSON.stringify(form) !== JSON.stringify(initial),
     locked: !!item?.unitsLocked,
+    // Giá và NCC chỉ nhập khi tạo; sau đó đổi qua điều chỉnh giá (NUT-27)
+    isNew: !id,
   };
 }

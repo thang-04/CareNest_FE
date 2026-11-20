@@ -12,7 +12,7 @@ import { HistoryCard, RecordStatusBadge, WeeklyStatusBadge } from '@/components/
 import { MealsView } from '@/components/menu-planning/MealsView';
 import { NutritionTable } from '@/components/menu-planning/NutritionTable';
 import { AllergenWarnings } from '@/components/menu-planning/AllergenWarnings';
-import { mealsTotals, priceOn } from '@/utils/menu-planning/menuCalculations';
+import { foodBudgetOn, mealsTotals } from '@/utils/menu-planning/menuCalculations';
 import { normScopeMeals } from '@/utils/menu-planning/nutritionSetup';
 import { sampleMenuCrumbs } from '@/utils/menu-planning/breadcrumbs';
 import { todayInput } from '@/utils/format';
@@ -49,7 +49,7 @@ export default function MenuDetailPage() {
     catalog.foodById,
     m.ageGroupId,
   );
-  const price = priceOn(catalog.mealPrices, m.ageGroupId, todayInput())?.price;
+  const price = foodBudgetOn(catalog.mealPrices, m.ageGroupId, todayInput());
   const remove = async () => {
     try {
       await deleteSampleMenu(id, user);

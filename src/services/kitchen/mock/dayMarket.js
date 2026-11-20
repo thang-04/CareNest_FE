@@ -90,13 +90,17 @@ export function buildDayMarket(db, { campusId, date, record, ctx }) {
     });
     const servings = paidServings(counts);
     // Nhóm chưa có giá suất ăn không nằm trong phần thu của computeMarket
-    const price = own.revenue.parts.find((p) => p.ageGroupId === ageGroupId)?.price ?? null;
+    const part = own.revenue.parts.find((p) => p.ageGroupId === ageGroupId);
+    const price = part?.price ?? null;
+    const serviceFee = part?.serviceFee ?? 0;
     return {
       ageGroupId,
       name: ageGroupById(ageGroupId)?.shortName || ageGroupId,
       servings,
       price,
+      serviceFee,
       revenue: price == null ? null : servings * price,
+      foodBudget: price == null ? null : servings * (price - serviceFee),
     };
   });
 
@@ -128,6 +132,7 @@ export function buildDayMarket(db, { campusId, date, record, ctx }) {
   const sum = (rows, pick) => rows.reduce((n, row) => n + (pick(row) || 0), 0);
   const cost = sum(lines, (l) => l.amount);
   const revenue = sum(groups, (g) => g.revenue);
+  const foodBudget = sum(groups, (g) => g.foodBudget);
   return {
     ...base,
     status: 'READY',
@@ -136,6 +141,7 @@ export function buildDayMarket(db, { campusId, date, record, ctx }) {
     totals: {
       servings: sum(groups, (g) => g.servings),
       revenue,
+      foodBudget,
       cost,
       marketCost: sum(
         lines.filter((l) => l.source === DAY_MARKET_SOURCE.MARKET),
@@ -145,7 +151,7 @@ export function buildDayMarket(db, { campusId, date, record, ctx }) {
         lines.filter((l) => l.source === DAY_MARKET_SOURCE.STOCK),
         (l) => l.amount,
       ),
-      balance: revenue - cost,
+      balance: foodBudget - cost,
       groups: groupIds.map((ageGroupId, i) => ({ ageGroupId, cost: sum(lines, (l) => l.groups[i].amount) })),
     },
     menu,

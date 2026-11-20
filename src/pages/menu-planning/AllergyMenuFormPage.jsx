@@ -19,7 +19,7 @@ import {
   applyReplacements,
   dishAllergens,
   mealsTotals,
-  priceOn,
+  foodBudgetOn,
   restrictedConflicts,
   sameAllergen,
 } from '@/utils/menu-planning/menuCalculations';
@@ -341,7 +341,7 @@ export default function AllergyMenuFormPage() {
                   ageGroupId={base.ageGroupId}
                   norms={catalog.norms}
                   setups={catalog.nutritionSetups}
-                  price={priceOn(catalog.mealPrices, base.ageGroupId, todayInput())?.price}
+                  price={foodBudgetOn(catalog.mealPrices, base.ageGroupId, todayInput())}
                 />
               </div>
             </div>

@@ -1,16 +1,28 @@
 import { useEffect, useState } from 'react';
-import { Building, IdCard, Phone, Save } from '@/components/ui/icons';
+import { Building, FileText, IdCard, Phone, Save } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useSupplier } from '@/hooks/kitchen/useKitchen';
 import { useUnsavedMark } from '@/hooks/useLeaveGuard';
 import { Button, ErrorState, FormField, LoadingState, Modal, TextField } from '@/components';
 import { Tabs } from '@/components/ui/Tabs';
+import { DateInput } from '@/components/form/DateInput';
 import { saveSupplier, suppliersUseApi } from '@/services/kitchen/kitchenService';
 import { validateSupplier } from '@/utils/kitchen/kitchenValidation';
 import { SUPPLIER_STATUS, SUPPLIER_STATUS_LABELS } from '@/models/kitchen/kitchenConstants';
 
-const EMPTY = { name: '', address: '', contactName: '', phone: '', taxCode: '', idCard: '', status: SUPPLIER_STATUS.ACTIVE };
+const EMPTY = {
+  name: '',
+  address: '',
+  contactName: '',
+  phone: '',
+  taxCode: '',
+  idCard: '',
+  status: SUPPLIER_STATUS.ACTIVE,
+  contractNo: '',
+  contractStart: '',
+  contractEnd: '',
+};
 // BE: chưa có mã số thuế; mã NCC do FE sinh từ id (NCC001…); có CCCD nhà cung cấp
 const VIA_API = suppliersUseApi();
 const pick = (s) => Object.fromEntries(Object.keys(EMPTY).map((k) => [k, s[k] ?? '']));
@@ -181,6 +193,36 @@ export function SupplierEditModal({ supplierId, onClose, onSaved }) {
               )}
             </div>
           </section>
+          {VIA_API && (
+            <section className="kb-sup-sec">
+              <header className="kb-sup-sec__head">
+                <span className="kb-sup-sec__icon" aria-hidden="true">
+                  <FileText size={18} />
+                </span>
+                <div>
+                  <h3 className="kb-sup-sec__title">Hợp đồng</h3>
+                  <p className="kb-sup-sec__desc">
+                    Hợp đồng năm hoặc theo kỳ; gia hạn thì sửa ngày. Đổi giá hàng loạt dùng "Áp dụng hợp đồng mới".
+                  </p>
+                </div>
+              </header>
+              <div className="kb-sup-sec__fields">
+                <TextField
+                  label="Số hợp đồng"
+                  fieldClassName="kb-span-all"
+                  maxLength={50}
+                  error={show('contractNo')}
+                  {...text('contractNo')}
+                />
+                <FormField label="Ngày bắt đầu" error={show('contractStart')}>
+                  <DateInput value={form.contractStart} onChange={(v) => set('contractStart', v)} />
+                </FormField>
+                <FormField label="Ngày kết thúc" error={show('contractEnd')}>
+                  <DateInput value={form.contractEnd} min={form.contractStart || undefined} onChange={(v) => set('contractEnd', v)} />
+                </FormField>
+              </div>
+            </section>
+          )}
         </form>
       )}
     </Modal>

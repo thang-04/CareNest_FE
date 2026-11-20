@@ -39,6 +39,10 @@ import '@/styles/modules/menu-planning.css';
 
 // Tên màn theo việc người dùng làm (user chốt 09/11/2026, thay "Thống kê định lượng")
 const PAGE_TITLE = 'Định lượng & đi chợ';
+const GROUP_MODES = [
+  { key: 'storage', label: 'Tươi / Khô' },
+  { key: 'supplier', label: 'Theo nhà cung cấp' },
+];
 
 const CHILDREN_SOURCE = {
   INPUT: 'Số nhập tay',
@@ -75,6 +79,7 @@ export default function MenuStatisticsPage() {
   const [children, setChildren] = useState('');
   const [printing, setPrinting] = useState(false);
   const [signers, setSigners] = useState(MENU_STAT_SIGNERS);
+  const [groupBy, setGroupBy] = useState('storage');
   const sheetRef = useRef(null);
   useEffect(() => {
     if (options.length && !options.some((o) => o.id === ageGroupId)) setAgeGroupId(options[0].id);
@@ -104,7 +109,7 @@ export default function MenuStatisticsPage() {
     : menuCrumbs('Thực đơn tuần', '/menu/weekly', `${PAGE_TITLE} · ${title}`);
   const fileBase = `Dinh_luong_di_cho_${templateId ? `mau_${templateId}` : date}`;
   const exportExcel = () =>
-    exportWithPreview(statisticsExportRows(stats, `${PAGE_TITLE} · ${title} · ${stats.ageGroupName}`), `${fileBase}.xlsx`);
+    exportWithPreview(statisticsExportRows(stats, `${PAGE_TITLE} · ${title} · ${stats.ageGroupName}`, groupBy), `${fileBase}.xlsx`);
 
   if (source.error)
     return (
@@ -215,8 +220,8 @@ export default function MenuStatisticsPage() {
               className="stat-card--fit"
               tone="purple"
               icon={false}
-              label="Định mức tiền ăn"
-              value={stats.mealPrice == null ? 'Chưa đặt' : formatMoney(stats.mealPrice)}
+              label="Ngân sách thực phẩm"
+              value={(stats.foodBudget ?? stats.mealPrice) == null ? 'Chưa đặt' : formatMoney(stats.foodBudget ?? stats.mealPrice)}
             />
             <StatCard
               className="stat-card--fit"
@@ -240,8 +245,9 @@ export default function MenuStatisticsPage() {
           <section className="card">
             <div className="card__header">
               <h2 className="card__title">Thực phẩm cho {stats.children} trẻ</h2>
+              <Tabs variant="pill" items={GROUP_MODES} value={groupBy} onChange={setGroupBy} ariaLabel="Cách nhóm thực phẩm" />
             </div>
-            <StatisticsIngredients stats={stats} />
+            <StatisticsIngredients stats={stats} groupBy={groupBy} />
           </section>
 
           <section className="card">
@@ -267,7 +273,7 @@ export default function MenuStatisticsPage() {
           >
             <PrintSignerFields signers={signers} onChange={setSigners} />
             <PrintPaperFit>
-              <MenuStatisticsPrint ref={sheetRef} stats={stats} title={title} signers={signers} />
+              <MenuStatisticsPrint ref={sheetRef} stats={stats} title={title} signers={signers} groupBy={groupBy} />
             </PrintPaperFit>
           </Modal>
         </>

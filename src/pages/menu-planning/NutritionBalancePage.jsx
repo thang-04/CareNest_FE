@@ -28,7 +28,7 @@ import {
   mealsTotals,
   normalizeMeals,
   overallNormStatus,
-  priceOn,
+  foodBudgetOn,
   withPortionDraft as withDraftQty,
 } from '@/utils/menu-planning/menuCalculations';
 import { validateMenu } from '@/utils/menu-planning/menuPlanningValidation';
@@ -335,7 +335,7 @@ function LegacyNutritionBalance() {
                       ageGroupId={wm.ageGroupId}
                       norms={catalog.norms}
                       setups={catalog.nutritionSetups}
-                      price={priceOn(catalog.mealPrices, wm.ageGroupId, date)?.price}
+                      price={foodBudgetOn(catalog.mealPrices, wm.ageGroupId, date)}
                     />
                     <div className="table-wrap mt-12">
                       <table className="table table--grid table--compact">
