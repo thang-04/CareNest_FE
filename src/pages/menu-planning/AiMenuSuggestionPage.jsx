@@ -21,7 +21,7 @@ import { NutritionTable } from '@/components/menu-planning/NutritionTable';
 import { AllergenWarnings } from '@/components/menu-planning/AllergenWarnings';
 import { WeekDaysView } from '@/components/menu-planning/WeekDaysView';
 import { WeekChecks } from '@/components/menu-planning/WeekChecks';
-import { mealsTotals, priceOn } from '@/utils/menu-planning/menuCalculations';
+import { foodBudgetOn, mealsTotals } from '@/utils/menu-planning/menuCalculations';
 import { menuCrumbs } from '@/utils/menu-planning/breadcrumbs';
 import { todayInput } from '@/utils/format';
 import { activeAgeGroups, normScopeMeals } from '@/utils/menu-planning/nutritionSetup';
@@ -231,7 +231,7 @@ export default function AiMenuSuggestionPage() {
               <span className="field__label">Giá suất ăn áp dụng</span>
               <span className="text-sm td-pt-2">
                 {ageGroupId
-                  ? `${formatMoney(priceOn(catalog.mealPrices, ageGroupId, kind === AI_DRAFT_KIND.WEEKLY ? weekStart : todayInput())?.price ?? null)} / trẻ / ngày`
+                  ? `${formatMoney(foodBudgetOn(catalog.mealPrices, ageGroupId, kind === AI_DRAFT_KIND.WEEKLY ? weekStart : todayInput()))} / trẻ / ngày`
                   : '—'}
               </span>
             </div>

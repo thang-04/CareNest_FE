@@ -90,8 +90,8 @@ export const DayMarketPrint = forwardRef(function DayMarketPrint({ data }, ref) 
         </tbody>
       </table>
       <p>
-        Tổng thu: {num(totals.revenue)} đ · Chi mua chợ: {num(totals.marketCost)} đ · Chi xuất kho: {num(totals.stockCost)} đ · Tổng chi:{' '}
-        {num(totals.cost)} đ
+        Tổng thu: {num(totals.revenue)} đ{totals.foodBudget != null && <> · Ngân sách thực phẩm: {num(totals.foodBudget)} đ</>} · Chi mua
+        chợ: {num(totals.marketCost)} đ · Chi xuất kho: {num(totals.stockCost)} đ · Tổng chi: {num(totals.cost)} đ
         {totals.balance != null && (
           <b>
             {' '}

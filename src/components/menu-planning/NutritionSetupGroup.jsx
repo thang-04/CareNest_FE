@@ -240,6 +240,29 @@ export function NutritionSetupGroup({ group: g, info, childCount, setup, usesApi
                 <b className="nowrap">{g.price ? formatMoney(Number(g.price)) : '—'}</b>
               )}
             </FormField>
+            <FormField
+              label="Phí dịch vụ / trẻ / ngày"
+              error={errorOf('serviceFee')}
+              hint={
+                g.price
+                  ? `Ngân sách thực phẩm ${formatMoney(Math.max(0, Number(g.price) - (Number(g.serviceFee) || 0)))} / trẻ / ngày`
+                  : 'Phần giá suất không dùng mua thực phẩm; để trống = 0'
+              }
+            >
+              {canEdit ? (
+                <span className={`input-unit ${errorOf('serviceFee') ? 'is-invalid' : ''}`}>
+                  <TextField
+                    inputMode="numeric"
+                    value={money(g.serviceFee ?? '')}
+                    aria-label={`Phí dịch vụ một ngày ${info.short}`}
+                    onChange={(e) => setGroup(g.ageGroupId, (x) => (x.serviceFee = digits(e.target.value)))}
+                  />
+                  <span>đ</span>
+                </span>
+              ) : (
+                <b className="nowrap">{formatMoney(Number(g.serviceFee) || 0)}</b>
+              )}
+            </FormField>
             <FormField label="Nhu cầu năng lượng cả ngày" error={errorOf('dailyKcalNeed')}>
               <span className={`input-unit ${errorOf('dailyKcalNeed') ? 'is-invalid' : ''}`}>
                 <TextField

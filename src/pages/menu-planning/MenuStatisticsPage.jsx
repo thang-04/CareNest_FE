@@ -220,8 +220,8 @@ export default function MenuStatisticsPage() {
               className="stat-card--fit"
               tone="purple"
               icon={false}
-              label="Định mức tiền ăn"
-              value={stats.mealPrice == null ? 'Chưa đặt' : formatMoney(stats.mealPrice)}
+              label="Ngân sách thực phẩm"
+              value={(stats.foodBudget ?? stats.mealPrice) == null ? 'Chưa đặt' : formatMoney(stats.foodBudget ?? stats.mealPrice)}
             />
             <StatCard
               className="stat-card--fit"

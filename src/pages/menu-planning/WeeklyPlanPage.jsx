@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Tabs } from '@/components/ui/Tabs';
 import { useTabParam } from '@/hooks/useTabParam';
 import { useSearchParams } from 'react-router-dom';
-import { Copy, FileDown, History, Pencil, Save, Scale, Send } from '@/components/ui/icons';
+import { Copy, FileDown, History, Pencil, Save, Scale, Send, Sparkles } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { DayEditorModal } from '@/components/menu-planning/DayEditorModal';
 import { CopyDayModal } from '@/components/menu-planning/CopyDayModal';
@@ -24,6 +24,7 @@ import { MealPlanGrid } from '@/components/menu-planning/MealPlanGrid';
 import { MealPlanIssueList } from '@/components/menu-planning/MealPlanIssueList';
 import { MealPlanStatusBadge } from '@/components/menu-planning/MenuBadges';
 import { PublishWeekDialog } from '@/components/menu-planning/PublishWeekDialog';
+import { MenuAiWeekModal } from '@/components/menu-planning/MenuAiWeekModal';
 import { WeeklyMenuExportModal } from '@/components/menu-planning/WeeklyMenuExportModal';
 import { useActiveDishes, useBeAgeGroups, useMealPlan, useWeekHolidays } from '@/hooks/menu-planning/useMealPlan';
 import { useMenuTemplates } from '@/hooks/menu-planning/useMenuTemplates';
@@ -77,6 +78,7 @@ export default function WeeklyPlanPage() {
   // Mẫu ngày chờ xác nhận thay món: { day, template, count }
   const [pending, setPending] = useState(null);
   const [issuesOpen, setIssuesOpen] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
   // Ngày đang mở ở modal Sửa ngày / ngày nguồn khi chép (yyyy-mm-dd)
   const [editingDay, setEditingDay] = useState(null);
   const [copyFrom, setCopyFrom] = useState(null);
@@ -269,6 +271,11 @@ export default function WeeklyPlanPage() {
           {plan.publishedAt && <span className="text-sm muted">Công bố lúc {formatDateTime(plan.publishedAt)}</span>}
         </div>
         <div className="row td-week-toolbar__actions">
+          {editable && block && (
+            <Button disabled={busy} onClick={() => setAiOpen(true)}>
+              <Sparkles size={16} /> AI gợi ý
+            </Button>
+          )}
           {/* Chỉ bản đã công bố được xuất văn bản (MENU-14 SRS): văn bản gửi bếp, phụ huynh phải là bản chính thức */}
           {plan.revisionCount > 0 && (
             <Button icon={History} onClick={() => setRevisionsOpen(true)}>
@@ -416,6 +423,19 @@ export default function WeeklyPlanPage() {
         }}
         onClose={() => setPending(null)}
       />
+      {editable && block && (
+        <MenuAiWeekModal
+          open={aiOpen}
+          onClose={() => setAiOpen(false)}
+          block={block}
+          week={week}
+          plan={plan}
+          dirty={dirty}
+          dishes={dishes}
+          kcalAgeGroup={kcalAgeGroup}
+          onApplied={() => planQ.reload({ silent: true })}
+        />
+      )}
       {editingDay && draft && (
         <DayEditorModal
           key={editingDay}
@@ -462,6 +482,7 @@ export default function WeeklyPlanPage() {
           initialItems={dayBlockItems(savedDay(amendingDay), block)}
           editable
           applyLabel="Tiếp tục"
+          aiSwap={{ block, weekStart: week }}
           sessions={blockSessions(plan, block)}
           groups={groups}
           ageGroups={ageGroups}

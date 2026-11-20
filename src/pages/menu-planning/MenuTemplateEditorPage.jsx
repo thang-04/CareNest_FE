@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Save } from '@/components/ui/icons';
+import { Save, Sparkles } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { Button, ErrorState, LoadingState, TextField } from '@/components';
@@ -12,6 +12,7 @@ import { NoManageAccess, RecordStatusBadge } from '@/components/menu-planning/Me
 import { TemplateMealSection } from '@/components/menu-planning/TemplateMealSection';
 import { AddDishesModal } from '@/components/menu-planning/AddDishesModal';
 import { MealNutritionCard } from '@/components/menu-planning/MealNutritionCard';
+import { MenuAiDailyModal } from '@/components/menu-planning/MenuAiDailyModal';
 import { TemplateHead } from '@/pages/menu-planning/MenuTemplateListPage';
 import { useActiveDishes, useBeAgeGroups, useMealPlan, useMenuStatistics } from '@/hooks/menu-planning/useMealPlan';
 import { useMenuTemplate } from '@/hooks/menu-planning/useMenuTemplates';
@@ -37,6 +38,7 @@ import {
   toStatisticsItems,
   toTemplateRequest,
 } from '@/utils/menu-planning/menuTemplateGrid';
+import { fillTemplateDay } from '@/utils/menu-planning/menuAiDraft';
 import { todayInput } from '@/utils/format';
 import '@/styles/modules/menu-planning.css';
 
@@ -65,6 +67,7 @@ export default function MenuTemplateEditorPage() {
   const [adding, setAdding] = useState(null);
   const [ageGroupId, setAgeGroupId] = useState('');
   const [day, setDay] = useState(null);
+  const [aiOpen, setAiOpen] = useState(false);
 
   useEffect(() => {
     setForm(data ? toForm(data) : EMPTY);
@@ -175,6 +178,11 @@ export default function MenuTemplateEditorPage() {
                   {data.status === RECORD_STATUS.ACTIVE ? 'Ngừng dùng' : 'Dùng lại'}
                 </Button>
               )}
+              {editable && (
+                <Button disabled={busy} onClick={() => setAiOpen(true)}>
+                  <Sparkles size={16} /> AI gợi ý ngày
+                </Button>
+              )}
               <Button
                 variant="primary"
                 icon={Save}
@@ -260,6 +268,16 @@ export default function MenuTemplateEditorPage() {
           ageGroup={ageGroups.find((g) => String(g.id) === String(currentGroup))}
           onSave={(picked) => saveMeal(adding, picked)}
           onClose={() => setAdding(null)}
+        />
+      )}
+      {editable && (
+        <MenuAiDailyModal
+          open={aiOpen}
+          onClose={() => setAiOpen(false)}
+          block={form.block}
+          seasonLabel={form.seasonLabel}
+          dayLabel={currentDay && kind !== TEMPLATE_KIND.DAY ? `Tuần ${currentDay.weekNo} · thứ ${currentDay.weekday + 1}` : 'mẫu này'}
+          onFill={(draft) => set('items', fillTemplateDay(form.items, currentDay, draft))}
         />
       )}
       <LeaveConfirmModal {...guard.modal} />
