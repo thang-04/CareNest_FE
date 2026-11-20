@@ -134,11 +134,17 @@ export const tbContactDateError = (value, { dateOfBirth, notAfter } = {}) => {
 export const validateDeclaration = (d, { dateOfBirth } = {}) => {
   const errors = {};
   if (!d) return { allergies: 'Khai báo sức khỏe còn thiếu' };
-  if (!Object.values(DECLARATION_STATE).includes(d.allergies?.state)) errors.allergies = 'Chọn tình trạng dị ứng';
-  else if (d.allergies.state === DECLARATION_STATE.REPORTED && !(d.allergies.items || []).some((x) => x.trim()))
-    errors.allergies = 'Nhập ít nhất một thực phẩm/chất gây dị ứng';
-  if (!Object.values(DECLARATION_STATE).includes(d.diet?.state)) errors.diet = 'Chọn chế độ ăn';
-  else if (d.diet.state === DECLARATION_STATE.REPORTED && !d.diet.text?.trim()) errors.diet = 'Mô tả chế độ ăn riêng của trẻ';
+  // CHD-13: thiếu/null = báo ăn; không báo ăn thì không khai dị ứng, chế độ ăn; giá trị không phải Có/Không là lỗi.
+  const mealFlag = d.mealRegistered;
+  if (mealFlag != null && typeof mealFlag !== 'boolean') errors.mealRegistered = 'Báo ăn ghi Có hoặc Không';
+  const eatsAtSchool = mealFlag !== false;
+  if (eatsAtSchool) {
+    if (!Object.values(DECLARATION_STATE).includes(d.allergies?.state)) errors.allergies = 'Chọn tình trạng dị ứng';
+    else if (d.allergies.state === DECLARATION_STATE.REPORTED && !(d.allergies.items || []).some((x) => x.trim()))
+      errors.allergies = 'Nhập ít nhất một thực phẩm/chất gây dị ứng';
+    if (!Object.values(DECLARATION_STATE).includes(d.diet?.state)) errors.diet = 'Chọn chế độ ăn';
+    else if (d.diet.state === DECLARATION_STATE.REPORTED && !d.diet.text?.trim()) errors.diet = 'Mô tả chế độ ăn riêng của trẻ';
+  }
   if (d.otherNotes?.state === DECLARATION_STATE.REPORTED && !d.otherNotes.text?.trim()) errors.otherNotes = 'Nhập thông tin sức khỏe khác';
   if ((d.diet?.text || '').length > 500 || (d.otherNotes?.text || '').length > 500) errors.otherNotes = 'Nội dung tối đa 500 ký tự';
   // Tiền sử bắt buộc Có/Không, không còn "Chưa cung cấp" (user chốt 2026-10-22, thay 1a); "Có" thì ghi rõ tên bệnh.

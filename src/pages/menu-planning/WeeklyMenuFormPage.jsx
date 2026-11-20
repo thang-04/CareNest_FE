@@ -23,6 +23,7 @@ import { AGE_GROUPS } from '@/models/School';
 import { activeAgeGroups } from '@/utils/menu-planning/nutritionSetup';
 import { RECORD_STATUS, WEEKDAY_LABELS, WEEKLY_STATUS, addDays, mondayOf, weekDates } from '@/models/menu-planning/menuPlanningConstants';
 import '@/styles/modules/menu-planning.css';
+import { Button, Checkbox, SelectField, TextField } from '@/components';
 
 const blankDays = (weekStart) => weekDates(weekStart).map((date) => ({ date, holiday: false, note: '', menuId: '', meals: [] }));
 const nextMonday = () => addDays(mondayOf(todayInput()), 7);
@@ -194,30 +195,30 @@ export default function WeeklyMenuFormPage() {
       )}
       <form onSubmit={submit} noValidate>
         <div className="page-actions page-actions--top">
-          <button type="button" className="btn" onClick={() => guard.leave(id ? `/menu/weekly/${id}` : '/menu/weekly')}>
+          <Button onClick={() => guard.leave(id ? `/menu/weekly/${id}` : '/menu/weekly')}>
             <ArrowLeft size={16} /> Hủy
-          </button>
-          <button type="submit" className="btn btn--primary" disabled={busy}>
+          </Button>
+          <Button type="submit" variant="primary" disabled={busy}>
             {busy ? <Spinner small /> : <Save size={16} />} Lưu nháp
-          </button>
+          </Button>
         </div>
         <div className="card wizard-card">
           <div className="card__body td-form-grid">
             <FormField label="Nhóm tuổi" required error={show('ageGroupId')}>
-              <select className="select" value={form.ageGroupId} onChange={(e) => changeAgeGroup(e.target.value)} disabled={locked}>
+              <SelectField className="select" value={form.ageGroupId} onChange={(e) => changeAgeGroup(e.target.value)} disabled={locked}>
                 <option value="">Chọn nhóm tuổi</option>
                 {AGE_GROUPS.filter((g) => g.id === form.ageGroupId || activeAgeGroups(catalog.nutritionSetups).includes(g)).map((g) => (
                   <option key={g.id} value={g.id}>
                     {g.name}
                   </option>
                 ))}
-              </select>
+              </SelectField>
             </FormField>
             <FormField label="Tuần" required error={show('weekStart')}>
               <WeekPicker value={form.weekStart} onChange={changeWeek} disabled={locked} />
             </FormField>
             <FormField label="Ghi chú">
-              <input
+              <TextField
                 className="input"
                 value={form.note}
                 maxLength={300}
@@ -244,7 +245,7 @@ export default function WeeklyMenuFormPage() {
                   <div className="min-w-0">
                     {d.holiday ? (
                       <FormField label="Lý do nghỉ" required error={show(`day_${i}`)}>
-                        <input
+                        <TextField
                           className="input"
                           value={d.note}
                           placeholder="Ví dụ: Nghỉ lễ"
@@ -271,8 +272,7 @@ export default function WeeklyMenuFormPage() {
                     )}
                   </div>
                   <label className="checkbox td-pt-2">
-                    <input
-                      type="checkbox"
+                    <Checkbox
                       checked={d.holiday}
                       onChange={(e) =>
                         setDay(i, e.target.checked ? { holiday: true, menuId: '', meals: [] } : { holiday: false, note: '' })

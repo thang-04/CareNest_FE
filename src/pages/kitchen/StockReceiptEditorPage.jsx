@@ -1,28 +1,44 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, FileImport, PackagePlus, Plus, Save, Trash2, XCircle } from '@/components/ui/icons';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import {
   Breadcrumb,
   ConfirmationModal,
+  DataTable,
   DateInput,
   EmptyState,
   ErrorState,
   FormField,
   LoadingState,
   SearchSelect,
-  Spinner,
+  SelectField,
+  TextAreaField,
+  TextField,
 } from '@/components';
 import { ReceiptStatusBadge } from '@/components/kitchen/KitchenBadges';
-import { useActiveSuppliers, useCanManageStock, useDryFoods, useReceipt, useStockCampus } from '@/hooks/kitchen/useDryStock';
+import { fmtQty } from '@/components/kitchen/KitchenFilters';
+import { useActiveSuppliers, useDryFoods, useReceipt, useStockCampus } from '@/hooks/kitchen/useDryStock';
+import { canManageStockAt } from '@/utils/kitchen/kitchenPermissions';
 import { dryStockApi } from '@/services/dryStockApi';
 import { RECEIPT_STATUS, NOTE_MAX } from '@/models/kitchen/kitchenConstants';
-import { emptyLine, emptyReceiptForm, mapReceiptErrors, receiptToForm, validateReceiptForm } from '@/utils/kitchen/stockReceiptForm';
+import {
+  emptyLine,
+  emptyReceiptForm,
+  mapReceiptErrors,
+  receiptNoteError,
+  receiptToForm,
+  validateReceiptForm,
+} from '@/utils/kitchen/stockReceiptForm';
 import { RECEIPT_IMPORT_COLUMNS, readReceiptFile } from '@/utils/kitchen/stockReceiptImport';
 import { downloadCsv } from '@/utils/exportCsv';
 import { personName } from '@/utils/kitchen/stockLots';
 import { ImportDialog } from '@/components/upload/ImportDialog';
 import { Button } from '@/components/ui/Button';
+import { LockNote } from '@/components/ui/LockNote';
+import { ReadOnlyTag } from '@/components/ui/ReadOnlyTag';
+import { usePageReadOnly } from '@/contexts/PageReadOnlyContext';
 import { kitchenCrumbs, KITCHEN_PAGES } from '@/utils/kitchen/breadcrumbs';
 import { formatDate, formatDateTime, formatMoney, todayInput } from '@/utils/format';
 import '@/styles/modules/kitchen.css';
@@ -33,18 +49,40 @@ const estimate = (line) => {
   return line.purchaseQty !== '' && line.unitPrice !== '' && qty > 0 && price >= 0 ? qty * price : null;
 };
 
+// Dòng không đạt của phiếu sinh từ kiểm nhận: không thành lô, chỉ lưu để tra biện pháp xử lý
+const rejectedColumns = [
+  { key: 'food', header: 'Thực phẩm', render: (line) => line.food.name },
+  {
+    key: 'qty',
+    header: 'Số lượng',
+    className: 'num nowrap',
+    render: (line) => `${fmtQty(line.purchaseQuantity)} ${line.food.purchaseUnit || ''}`,
+  },
+  { key: 'lot', header: 'Số lô', render: (line) => line.lotNo },
+  { key: 'expiry', header: 'Hạn sử dụng', className: 'nowrap', render: (line) => formatDate(line.expiryDate) },
+  { key: 'note', header: 'Biện pháp xử lý', render: (line) => line.note },
+];
+
 /**
  * Phiếu nhập kho khô (`/kitchen/stock-receipts/new`, `/:id`): lập và sửa phiếu nháp, xác nhận nhập kho, hủy phiếu đã xác nhận (có lý do),
  * xóa phiếu nháp. Số lượng nhập theo đơn vị mua, gửi BE theo đơn vị gốc. Nút theo cờ `canManage` BE trả; BE vẫn là nơi kiểm tra.
  */
+const CANCEL_BLOCKED = 'Thực phẩm của phiếu đã được xuất dùng.';
+
 export default function StockReceiptEditorPage() {
   const { id } = useParams();
   const isNew = !id;
   const navigate = useNavigate();
   const toast = useToast();
   const [params] = useSearchParams();
-  const canCreate = useCanManageStock();
+  const { user } = useAuth();
   const campus = useStockCampus();
+  // Phiếu mới chỉ lập ở điểm trường được ghi kho (theo quyền BE); mặc định điểm đang xem nếu được ghi
+  const writableCampuses = campus.campuses.filter((c) => canManageStockAt(user, c.id));
+  const canCreate = writableCampuses.length > 0;
+  const defaultCampusId = writableCampuses.some((c) => String(c.id) === campus.campusId)
+    ? campus.campusId
+    : String(writableCampuses[0]?.id ?? '');
   const receiptQ = useReceipt(id);
   const receipt = receiptQ.data;
   const { foods } = useDryFoods();
@@ -79,14 +117,23 @@ export default function StockReceiptEditorPage() {
     downloadCsv([RECEIPT_IMPORT_COLUMNS, ['TP001', 'Gạo tẻ', '50', 'L2611-01', '30/06/2027', '18000']], 'phieu-nhap-kho-mau.csv');
 
   useEffect(() => {
-    if (receipt) setForm(receiptToForm(receipt));
+    // NUT-11: ngày nhập luôn là hôm nay; phiếu nháp ngày cũ được đổi sang hôm nay khi lưu hoặc xác nhận
+    if (receipt)
+      setForm({
+        ...receiptToForm(receipt),
+        ...(receipt.status === RECEIPT_STATUS.DRAFT && { receivedDate: todayInput() }),
+      });
   }, [receipt]);
   useEffect(() => {
-    if (isNew && !form && campus.campusId)
-      setForm(emptyReceiptForm({ campusId: campus.campusId, today: todayInput(), foodId: params.get('foodId') || '' }));
-  }, [isNew, form, campus.campusId, params]);
+    if (isNew && !form && defaultCampusId)
+      setForm(emptyReceiptForm({ campusId: defaultCampusId, today: todayInput(), foodId: params.get('foodId') || '' }));
+  }, [isNew, form, defaultCampusId, params]);
 
   const editable = isNew ? canCreate : !!receipt && receipt.status === RECEIPT_STATUS.DRAFT && !!receipt.canManage;
+  const staleDraft = !isNew && receipt?.status === RECEIPT_STATUS.DRAFT && receipt.receivedDate !== todayInput();
+  // Người không có quyền quản lý kho của điểm trường này chỉ xem phiếu
+  const viewOnly = isNew ? !canCreate : !!receipt && !receipt.canManage;
+  usePageReadOnly();
   // Thực phẩm tra đơn vị mua: danh mục khô + thực phẩm đã ghi trên phiếu (phòng khi đã ngừng sử dụng)
   const foodById = useMemo(() => {
     const map = {};
@@ -213,7 +260,8 @@ export default function StockReceiptEditorPage() {
   };
 
   let content;
-  if (isNew && !canCreate) content = <ErrorState error={{ status: 403, message: 'Tài khoản chưa được cấp quyền lập phiếu nhập kho.' }} />;
+  if (isNew && !campus.loading && !canCreate)
+    content = <ErrorState error={{ status: 403, message: 'Tài khoản chưa được cấp quyền lập phiếu nhập kho.' }} />;
   else if (!isNew && receiptQ.error) content = <ErrorState error={receiptQ.error} onRetry={receiptQ.reload} />;
   else if (isNew && !campus.loading && !campus.campusId)
     content = <EmptyState title="Chưa có điểm trường" description="Tài khoản chưa được gán điểm trường để lập phiếu." />;
@@ -228,9 +276,9 @@ export default function StockReceiptEditorPage() {
             <ArrowLeft size={16} /> Quay lại
           </Link>
           {editable && !isNew && (
-            <button type="button" className="btn btn--outline-danger" disabled={busy} onClick={() => openDialog('delete')}>
-              <Trash2 size={16} /> Xóa phiếu nháp
-            </button>
+            <Button variant="outline-danger" icon={Trash2} disabled={busy} onClick={() => openDialog('delete')}>
+              Xóa phiếu nháp
+            </Button>
           )}
           {editable && (
             // Tổng tiền, Lưu nháp và Xác nhận đứng chung một nhóm bên phải
@@ -238,18 +286,24 @@ export default function StockReceiptEditorPage() {
               <span className="kb-actions-total">
                 Tổng tạm tính <b>{formatMoney(form.lines.reduce((sum, l) => sum + (estimate(l) || 0), 0))}</b>
               </span>
-              <button type="button" className="btn" onClick={saveDraft} disabled={busy}>
-                {busy ? <Spinner small /> : <Save size={16} />} Lưu nháp
-              </button>
-              <button type="button" className="btn btn--primary" disabled={busy} onClick={() => openDialog('confirm')}>
-                <PackagePlus size={16} /> Xác nhận nhập kho
-              </button>
+              <Button icon={Save} loading={busy} onClick={saveDraft}>
+                Lưu nháp
+              </Button>
+              <Button variant="primary" icon={PackagePlus} disabled={busy} onClick={() => openDialog('confirm')}>
+                Xác nhận nhập kho
+              </Button>
             </div>
           )}
           {receipt?.status === RECEIPT_STATUS.CONFIRMED && receipt.canManage && (
-            <button type="button" className="btn btn--danger" onClick={() => openDialog('cancel')}>
-              <XCircle size={16} /> Hủy phiếu
-            </button>
+            // NUT-11: hủy được khi chưa lô nào bị trừ; BE trả canCancel, bản demo không có cờ thì giữ nút
+            <Button
+              variant="danger"
+              icon={XCircle}
+              disabledReason={receipt.canCancel === false ? CANCEL_BLOCKED : undefined}
+              onClick={() => openDialog('cancel')}
+            >
+              Hủy phiếu
+            </Button>
           )}
         </div>
         {errors._form && (
@@ -262,6 +316,20 @@ export default function StockReceiptEditorPage() {
             Đã xác nhận nhập kho{personName(receipt.confirmedBy) ? ` bởi ${personName(receipt.confirmedBy)}` : ''}
             {receipt.confirmedAt ? ` lúc ${formatDateTime(receipt.confirmedAt)}` : ''}. Phiếu không sửa được.
           </p>
+        )}
+        {receipt?.fromIntake && (
+          <div className="alert alert--info mb-16" role="status">
+            Phiếu lập tự động từ{' '}
+            <Link to={`/kitchen/fresh-receipts?campusId=${receipt.campusId}&date=${receipt.receivedDate}`}>
+              kiểm nhận hàng ngày {formatDate(receipt.receivedDate)}
+            </Link>
+            : chỉ dòng đạt được nhập kho.
+          </div>
+        )}
+        {receipt?.status === RECEIPT_STATUS.CONFIRMED && receipt.canManage && receipt.canCancel === false && (
+          <LockNote kind="locked" className="mb-16">
+            Không hủy được: thực phẩm của phiếu đã được xuất dùng.
+          </LockNote>
         )}
         {receipt?.status === RECEIPT_STATUS.CANCELLED && (
           <div className="alert alert--warning mb-16">
@@ -279,18 +347,18 @@ export default function StockReceiptEditorPage() {
             </div>
             <div className="card__body grid-2">
               <FormField label="Điểm trường" required error={errors.campusId}>
-                <select
+                <SelectField
                   className="select"
                   value={form.campusId}
                   disabled={!editable || !isNew}
                   onChange={(e) => setField('campusId', e.target.value)}
                 >
-                  {campus.campuses.map((c) => (
+                  {(isNew ? writableCampuses : campus.campuses).map((c) => (
                     <option key={c.id} value={String(c.id)}>
                       {c.shortName || c.name}
                     </option>
                   ))}
-                </select>
+                </SelectField>
               </FormField>
               <FormField label="Nhà cung cấp" required error={errors.supplierId}>
                 <SearchSelect
@@ -303,11 +371,30 @@ export default function StockReceiptEditorPage() {
                   error={!!errors.supplierId}
                 />
               </FormField>
-              <FormField label="Ngày nhập kho" required error={errors.receivedDate}>
-                <DateInput value={form.receivedDate} onChange={(v) => setField('receivedDate', v)} />
+              <FormField
+                label="Ngày nhập kho"
+                required
+                error={errors.receivedDate}
+                hint={
+                  !editable
+                    ? undefined
+                    : staleDraft
+                      ? `Phiếu nháp lập ngày ${formatDate(receipt.receivedDate)}; khi lưu sẽ đổi ngày nhập về hôm nay`
+                      : 'Phiếu nhập ghi đúng ngày nhận hàng (hôm nay)'
+                }
+              >
+                <DateInput value={form.receivedDate} onChange={() => {}} disabled />
               </FormField>
-              <FormField label="Ghi chú" error={errors.note} hint={`Tối đa ${NOTE_MAX} ký tự`}>
-                <input className="input" value={form.note} maxLength={NOTE_MAX} onChange={(e) => setField('note', e.target.value)} />
+              <FormField label="Ghi chú" error={errors.note} hint={`${(form.note || '').length}/${NOTE_MAX} ký tự`}>
+                <TextField
+                  className="input"
+                  value={form.note}
+                  onChange={(e) => {
+                    setField('note', e.target.value);
+                    // Không dùng maxLength: dán quá dài sẽ bị cắt ngầm; giữ nguyên nội dung và báo lỗi ngay
+                    setErrors((prev) => ({ ...prev, note: receiptNoteError(e.target.value) }));
+                  }}
+                />
               </FormField>
             </div>
           </div>
@@ -320,13 +407,9 @@ export default function StockReceiptEditorPage() {
                   <Button size="sm" icon={FileImport} onClick={() => setImporting({ open: true })}>
                     Nhập từ Excel
                   </Button>
-                  <button
-                    type="button"
-                    className="btn btn--sm"
-                    onClick={() => setForm((f) => ({ ...f, lines: [...f.lines, emptyLine()] }))}
-                  >
-                    <Plus size={15} /> Thêm thực phẩm
-                  </button>
+                  <Button size="sm" icon={Plus} onClick={() => setForm((f) => ({ ...f, lines: [...f.lines, emptyLine()] }))}>
+                    Thêm thực phẩm
+                  </Button>
                 </div>
               )}
             </div>
@@ -374,7 +457,7 @@ export default function StockReceiptEditorPage() {
                           {err(i, 'foodId') && <div className="field__error">{err(i, 'foodId')}</div>}
                         </td>
                         <td>
-                          <input
+                          <TextField
                             type="number"
                             min="0"
                             step="any"
@@ -387,7 +470,7 @@ export default function StockReceiptEditorPage() {
                           {err(i, 'purchaseQty') && <div className="field__error">{err(i, 'purchaseQty')}</div>}
                         </td>
                         <td>
-                          <input
+                          <TextField
                             className={`input kb-lot-input ${err(i, 'lotNo') ? 'input--error' : ''}`}
                             value={line.lotNo}
                             maxLength={50}
@@ -406,7 +489,7 @@ export default function StockReceiptEditorPage() {
                           {err(i, 'expiryDate') && <div className="field__error">{err(i, 'expiryDate')}</div>}
                         </td>
                         <td>
-                          <input
+                          <TextField
                             type="number"
                             min="0"
                             step="any"
@@ -421,16 +504,15 @@ export default function StockReceiptEditorPage() {
                         <td className="money nowrap fw-600 cell--fixed">{value == null ? '—' : formatMoney(value)}</td>
                         {editable && (
                           <td className="cell--actions">
-                            <button
-                              type="button"
-                              className="icon-btn"
+                            <Button
+                              variant="icon"
                               onClick={() => removeLine(i)}
                               disabled={form.lines.length === 1}
                               title="Xóa dòng"
                               aria-label={`Xóa dòng ${i + 1}`}
                             >
                               <Trash2 size={16} />
-                            </button>
+                            </Button>
                           </td>
                         )}
                       </tr>
@@ -455,6 +537,14 @@ export default function StockReceiptEditorPage() {
             )}
           </div>
         </fieldset>
+        {receipt?.rejectedLines?.length > 0 && (
+          <div className="card wizard-card mt-16">
+            <div className="card__header">
+              <div className="card__title">Dòng không đạt khi kiểm nhận</div>
+            </div>
+            <DataTable columns={rejectedColumns} rows={receipt.rejectedLines} rowKey={(line) => `${line.food.id}-${line.lotNo}`} />
+          </div>
+        )}
       </>
     );
   }
@@ -465,6 +555,7 @@ export default function StockReceiptEditorPage() {
       <div className="page__head">
         <h1 className="page__title">{title}</h1>
         {receipt && <ReceiptStatusBadge status={receipt.status} size="lg" />}
+        {viewOnly && <ReadOnlyTag />}
       </div>
       {content}
       <ConfirmationModal
@@ -498,7 +589,7 @@ export default function StockReceiptEditorPage() {
       >
         <div className="mt-12">
           <FormField label="Lý do hủy" required>
-            <textarea className="textarea" rows={3} maxLength={NOTE_MAX} value={reason} onChange={(e) => setReason(e.target.value)} />
+            <TextAreaField className="textarea" rows={3} maxLength={NOTE_MAX} value={reason} onChange={(e) => setReason(e.target.value)} />
           </FormField>
         </div>
       </ConfirmationModal>

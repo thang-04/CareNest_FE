@@ -73,6 +73,20 @@ test('P-38: trừ kho sau xác nhận suất từng lỗi ⇒ báo chưa trừ, 
   );
 });
 
+test('INS-03: M1 kho khô đã ký ⇒ ẩn nút đồng bộ, báo Sửa lại biên bản', () => {
+  const row = rowOf(
+    buildDayBoardRows(
+      campus({ dryStock: { status: 'NOT_SYNCED', foodCount: 2, shortfallFoodCount: 0, openShortfallCount: 0, m1DrySigned: true } }),
+    ),
+    'dryStock',
+  );
+  assert.match(row.detail, /Sửa lại biên bản/);
+  assert.equal(
+    row.actions.some((a) => a.syncStock),
+    false,
+  );
+});
+
 test('AC-3: kho khô thiếu n thực phẩm, link phần thiếu chờ bổ sung', () => {
   const row = rowOf(
     buildDayBoardRows(campus({ dryStock: { status: 'SHORTFALL', foodCount: 8, shortfallFoodCount: 3, openShortfallCount: 4 } })),

@@ -5,6 +5,7 @@ import { AllergenChips } from '@/components/menu-planning/MenuBadges';
 import { useDish } from '@/hooks/menu-planning/useMenuPlanning';
 import { AGE_GROUPS } from '@/models/School';
 import { DISH_TYPE_LABELS } from '@/models/menu-planning/menuPlanningConstants';
+import { Button } from '@/components';
 
 const num = (v) => (v == null || v === '' ? '—' : Number(v).toLocaleString('vi-VN', { maximumFractionDigits: 1 }));
 const NUTRIENTS = [
@@ -40,9 +41,9 @@ export function DishInfoModal({ dishId, fallbackName, onClose }) {
               Mở trang món
             </Link>
           )}
-          <button type="button" className="btn btn--primary" onClick={onClose}>
+          <Button variant="primary" onClick={onClose}>
             Đóng
-          </button>
+          </Button>
         </>
       }
     >

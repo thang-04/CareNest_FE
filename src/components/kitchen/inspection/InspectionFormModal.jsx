@@ -1,5 +1,7 @@
 import { useRef, useState } from 'react';
-import { CheckCircle2, Lock, PenLine, Printer, Save, X } from '@/components/ui/icons';
+import { CheckCircle2, PenLine, Printer, Save, X } from '@/components/ui/icons';
+import { Button } from '@/components/ui/Button';
+import { LockNote } from '@/components/ui/LockNote';
 import { Modal } from '@/components/ui/Modal';
 import { InspectionHistory, ReopenDialog, SupplierFillDialog } from '@/components/kitchen/inspection/InspectionDialogs';
 import { InspectionStatusBadge } from '@/components/kitchen/inspection/InspectionBadges';
@@ -105,39 +107,35 @@ export function InspectionFormModal({
           )}
           {data.canEdit && savedAt && !dirty && <span className="text-xs muted">Đã lưu nháp lúc {savedAt}</span>}
           {data.canEdit && dirty && <span className="text-xs muted">Có thay đổi chưa lưu · tự lưu sau ít giây</span>}
-          {signed && !data.canEdit && (
-            <span className="text-sm muted kr-lock">
-              <Lock size={14} /> Đã ký nên đang khóa
-            </span>
-          )}
+          {signed && !data.canEdit && <LockNote kind="locked">Đã ký nên đang khóa</LockNote>}
           <div className="kr-form__actions">
             {data.canEdit && (
               <>
-                <button type="button" className="btn" disabled={busy || !dirty} onClick={onSave}>
-                  <Save size={16} /> Lưu nháp
-                </button>
-                <button
-                  type="button"
-                  className="btn btn--primary"
-                  disabled={busy || cannotSign}
-                  title={cannotSign ? signHint : undefined}
+                <Button icon={Save} disabled={busy || !dirty} onClick={onSave}>
+                  Lưu nháp
+                </Button>
+                <Button
+                  variant="primary"
+                  icon={PenLine}
+                  disabled={busy}
+                  disabledReason={cannotSign ? signHint : undefined}
                   onClick={() => setSigning(true)}
                 >
-                  <PenLine size={16} /> Ký xác nhận
-                </button>
+                  Ký xác nhận
+                </Button>
               </>
             )}
             {data.canReopen && (
-              <button type="button" className="btn" disabled={busy} onClick={() => setReopening(true)}>
-                <PenLine size={16} /> Sửa lại
-              </button>
+              <Button icon={PenLine} disabled={busy} onClick={() => setReopening(true)}>
+                Sửa lại
+              </Button>
             )}
-            <button type="button" className="btn" disabled={busy || total === 0} onClick={openPrint}>
-              <Printer size={16} /> In / xuất
-            </button>
-            <button type="button" className="btn" onClick={onClose}>
-              <X size={16} /> Đóng
-            </button>
+            <Button icon={Printer} disabled={busy || total === 0} onClick={openPrint}>
+              In / xuất
+            </Button>
+            <Button icon={X} onClick={onClose}>
+              Đóng
+            </Button>
           </div>
         </div>
         <div className="kr-form__scroll">
@@ -157,7 +155,16 @@ export function InspectionFormModal({
           <InspectionHistory history={data.history} />
         </div>
       </div>
-      <InspectionSignDialog open={signing} busy={busy} onClose={() => setSigning(false)} onConfirm={onSign} />
+      <InspectionSignDialog
+        open={signing}
+        busy={busy}
+        formLabel={INSPECTION_TAB_LABELS[tab]}
+        campusName={campusName}
+        date={date}
+        rowCount={total}
+        onClose={() => setSigning(false)}
+        onConfirm={onSign}
+      />
       {supplierOpen && <SupplierFillDialog onApply={onApplySupplier} onClose={() => setSupplierOpen(false)} />}
       {printing && (
         <InspectionPrintDialog
@@ -169,7 +176,15 @@ export function InspectionFormModal({
           onClose={() => setPrinting(false)}
         />
       )}
-      {reopening && <ReopenDialog busy={busy} onConfirm={onReopen} onClose={() => setReopening(false)} />}
+      {reopening && (
+        <ReopenDialog
+          busy={busy}
+          formLabel={INSPECTION_TAB_LABELS[tab]}
+          history={data.history}
+          onConfirm={onReopen}
+          onClose={() => setReopening(false)}
+        />
+      )}
     </Modal>
   );
 }

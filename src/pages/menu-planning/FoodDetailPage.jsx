@@ -12,6 +12,8 @@ import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { ErrorState, LoadingState } from '@/components/ui/States';
 import { AllergenChips, HistoryCard, RecordStatusBadge } from '@/components/menu-planning/MenuBadges';
 import { NutrientTable } from '@/components/menu-planning/NutrientTable';
+import { FoodPriceHistory } from '@/components/menu-planning/FoodPriceHistory';
+import { ContractStatusBadge } from '@/components/menu-planning/ContractStatusBadge';
 import { hasNutrition, hasOrigin, ingredientQty } from '@/utils/menu-planning/menuCalculations';
 import { activeAgeGroups } from '@/utils/menu-planning/nutritionSetup';
 import { foodUnits } from '@/utils/menu-planning/foodUnits';
@@ -25,6 +27,7 @@ import {
   formatMoney,
 } from '@/models/menu-planning/menuPlanningConstants';
 import '@/styles/modules/menu-planning.css';
+import { Button } from '@/components';
 
 const n1 = (v) => (Math.round(v * 10) / 10).toLocaleString('vi-VN');
 
@@ -42,7 +45,7 @@ export default function FoodDetailPage() {
   const { item: f, loading, error, reload } = useFood(id);
   const [confirm, setConfirm] = useState(false);
   const [deleteError, setDeleteError] = useState('');
-  const [tab, setTab] = useTabParam(['info', 'dishes', 'history']);
+  const [tab, setTab] = useTabParam(['info', 'prices', 'dishes', 'history']);
 
   if (loading || catLoading) return <LoadingState />;
   if (error || !f)
@@ -92,9 +95,9 @@ export default function FoodDetailPage() {
         {canManage && (
           <div className="row row--wrap td-actions">
             {!(softDelete && f.status === 'INACTIVE') && (
-              <button className="btn btn--outline-danger" onClick={() => setConfirm(true)}>
+              <Button variant="outline-danger" onClick={() => setConfirm(true)}>
                 <Trash2 size={16} /> {softDelete ? 'Ngừng sử dụng' : 'Xóa'}
-              </button>
+              </Button>
             )}
             <Link className="btn btn--primary" to={`/menu/foods/${id}/edit`}>
               <Pencil size={16} /> Sửa thực phẩm
@@ -124,6 +127,7 @@ export default function FoodDetailPage() {
         onChange={setTab}
         items={[
           { key: 'info', label: 'Thông tin & dinh dưỡng' },
+          { key: 'prices', label: 'Giá & nhà cung cấp' },
           { key: 'dishes', label: 'Dùng trong món', count: used.length },
           { key: 'history', label: 'Lịch sử' },
         ]}
@@ -164,6 +168,16 @@ export default function FoodDetailPage() {
                   <dd>{f.wastePct ?? 0}%</dd>
                   <dt>Đơn giá</dt>
                   <dd className="fw-600">{f.unitPrice == null ? 'Chưa có' : `${formatMoney(f.unitPrice)} / ${f.purchaseUnit}`}</dd>
+                  <dt>Nhà cung cấp</dt>
+                  <dd>
+                    {f.supplierName ? (
+                      <span className="td-chips">
+                        {f.supplierName} <ContractStatusBadge status={f.contractStatus} size="sm" />
+                      </span>
+                    ) : (
+                      <span className="td-warn">Chưa gán</span>
+                    )}
+                  </dd>
                 </dl>
                 <dl className="info-list td-food-info__full">
                   <dt>Chất gây dị ứng</dt>
@@ -237,6 +251,7 @@ export default function FoodDetailPage() {
             )}
           </section>
         )}
+        {tab === 'prices' && <FoodPriceHistory food={f} canManage={canManage} onChanged={() => reload({ silent: true })} />}
         {tab === 'history' && <HistoryCard history={f.history} />}
       </div>
       <div className="page-actions">

@@ -16,6 +16,7 @@ import {
   Sunset,
 } from '@/components/ui/icons';
 import { RowMenu } from '@/components/ui/RowMenu';
+import { usePageReadOnly } from '@/contexts/PageReadOnlyContext';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
 import { Tabs } from '@/components/ui/Tabs';
 import { RecordStatusBadge } from '@/components/menu-planning/MenuBadges';
@@ -33,6 +34,7 @@ import {
 } from '@/models/menu-planning/menuPlanningConstants';
 import { TEMPLATE_KIND_LABELS, dayItems, hasTemplateDays, itemsBySession, templateKind } from '@/utils/menu-planning/menuTemplateGrid';
 import { normalizeText } from '@/utils/format';
+import { Button, TextField } from '@/components';
 
 const SHOWN_DISHES = 3;
 const MEAL_ICONS = { [MEAL_SESSION.MORNING]: Sun, [MEAL_SESSION.LUNCH]: Soup, [MEAL_SESSION.AFTERNOON]: Sunset };
@@ -137,10 +139,11 @@ export function TemplateCards({ canCreate, onOpen }) {
   const [block, setBlock] = useState('');
   const [copyId, setCopyId] = useState(null);
   const [choosing, setChoosing] = useState(false);
+  const { reason: viewOnlyReason } = usePageReadOnly();
   const create = (
-    <button type="button" className="btn btn--primary" onClick={() => setChoosing(true)}>
-      <Plus size={16} /> Tạo mẫu
-    </button>
+    <Button variant="primary" icon={Plus} onClick={() => setChoosing(true)} disabledReason={canCreate ? undefined : viewOnlyReason}>
+      Tạo mẫu
+    </Button>
   );
   const all = useMemo(() => data || [], [data]);
   const rows = useMemo(() => {
@@ -175,7 +178,7 @@ export function TemplateCards({ canCreate, onOpen }) {
         <Tabs items={tabs} value={block} onChange={setBlock} ariaLabel="Lọc theo khối" variant="pill" />
         <label className="td-search td-tpl-toolbar__search">
           <Search size={16} className="muted" />
-          <input
+          <TextField
             className="input"
             placeholder="Tìm mẫu theo tên"
             value={keyword}
@@ -183,7 +186,7 @@ export function TemplateCards({ canCreate, onOpen }) {
             aria-label="Tìm mẫu"
           />
         </label>
-        {canCreate && create}
+        {create}
       </section>
       {error ? (
         <section className="card">

@@ -5,7 +5,17 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useFoodCatalog, useReceiptSuppliers, useStockReceipt } from '@/hooks/kitchen/useKitchen';
-import { Breadcrumb, ConfirmationModal, ErrorState, FormField, LoadingState, SearchSelect, Spinner } from '@/components';
+import {
+  Breadcrumb,
+  Button,
+  ConfirmationModal,
+  ErrorState,
+  FormField,
+  LoadingState,
+  SearchSelect,
+  SelectField,
+  TextField,
+} from '@/components';
 import { fmtQty } from '@/components/kitchen/KitchenFilters';
 import { saveStockReceipt } from '@/services/kitchen/kitchenService';
 import { itemError, validateStockReceipt } from '@/utils/kitchen/kitchenValidation';
@@ -162,12 +172,12 @@ export default function StockReceiptFormPage() {
             </Link>
             {!locked && (
               <>
-                <button className="btn" onClick={() => save(false)} disabled={saving}>
-                  {saving ? <Spinner small /> : <Save size={16} />} Lưu nháp
-                </button>
-                <button className="btn btn--primary" onClick={openConfirm} disabled={saving}>
-                  {saving ? <Spinner small /> : <PackagePlus size={16} />} Xác nhận nhập kho
-                </button>
+                <Button icon={Save} loading={saving} onClick={() => save(false)}>
+                  Lưu nháp
+                </Button>
+                <Button variant="primary" icon={PackagePlus} loading={saving} onClick={openConfirm}>
+                  Xác nhận nhập kho
+                </Button>
               </>
             )}
           </div>
@@ -184,13 +194,13 @@ export default function StockReceiptFormPage() {
               </div>
               <div className="card__body grid-2">
                 <FormField label="Điểm trường" required error={errors.campusId}>
-                  <select className="select" value={form.campusId} onChange={(e) => setField('campusId', e.target.value)}>
+                  <SelectField className="select" value={form.campusId} onChange={(e) => setField('campusId', e.target.value)}>
                     {md.campuses.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.shortName || c.name}
                       </option>
                     ))}
-                  </select>
+                  </SelectField>
                 </FormField>
                 <FormField
                   label="Nhà cung cấp"
@@ -213,7 +223,7 @@ export default function StockReceiptFormPage() {
                   />
                 </FormField>
                 <FormField label="Ngày nhập kho" required error={errors.date}>
-                  <input
+                  <TextField
                     type="date"
                     className="input"
                     value={form.date}
@@ -222,7 +232,7 @@ export default function StockReceiptFormPage() {
                   />
                 </FormField>
                 <FormField label="Ghi chú" error={errors.note} hint={`Tối đa ${NOTE_MAX} ký tự`}>
-                  <input className="input" value={form.note} maxLength={NOTE_MAX} onChange={(e) => setField('note', e.target.value)} />
+                  <TextField className="input" value={form.note} maxLength={NOTE_MAX} onChange={(e) => setField('note', e.target.value)} />
                 </FormField>
               </div>
             </div>
@@ -230,9 +240,9 @@ export default function StockReceiptFormPage() {
             <div className="card wizard-card mt-16">
               <div className="card__header row row--between">
                 <div className="card__title">Thực phẩm nhận và kiểm tra chất lượng</div>
-                <button className="btn btn--sm" onClick={() => setForm((f) => ({ ...f, items: [...f.items, emptyLine()] }))}>
-                  <Plus size={15} /> Thêm thực phẩm
-                </button>
+                <Button size="sm" icon={Plus} onClick={() => setForm((f) => ({ ...f, items: [...f.items, emptyLine()] }))}>
+                  Thêm thực phẩm
+                </Button>
               </div>
               {errors.items && <div className="field__error kb-card-error">{errors.items}</div>}
               <div className="table-wrap">
@@ -285,7 +295,7 @@ export default function StockReceiptFormPage() {
                           </td>
                           <td className="nowrap">
                             {food && hasPurchaseConversion(food) ? (
-                              <select
+                              <SelectField
                                 className="select"
                                 value={it.unitKind}
                                 onChange={(e) => setLine(i, 'unitKind', e.target.value)}
@@ -293,13 +303,13 @@ export default function StockReceiptFormPage() {
                               >
                                 <option value={UNIT_KIND.PURCHASE}>{food.purchaseUnit}</option>
                                 <option value={UNIT_KIND.STOCK}>{food.stockUnit}</option>
-                              </select>
+                              </SelectField>
                             ) : (
                               unit || <span className="muted">—</span>
                             )}
                           </td>
                           <td>
-                            <input
+                            <TextField
                               type="number"
                               min="0"
                               step="any"
@@ -312,7 +322,7 @@ export default function StockReceiptFormPage() {
                             {err('receivedQty') && <div className="field__error">{err('receivedQty')}</div>}
                           </td>
                           <td>
-                            <input
+                            <TextField
                               type="number"
                               min="0"
                               step="any"
@@ -327,7 +337,7 @@ export default function StockReceiptFormPage() {
                             {food ? `${fmtQty(toStockQty(food, accepted(it), it.unitKind))} ${food.stockUnit}` : fmtQty(accepted(it))}
                           </td>
                           <td>
-                            <input
+                            <TextField
                               className={`input kb-lot-input ${err('lotNo') ? 'input--error' : ''}`}
                               value={it.lotNo}
                               maxLength={50}
@@ -337,7 +347,7 @@ export default function StockReceiptFormPage() {
                             {err('lotNo') && <div className="field__error">{err('lotNo')}</div>}
                           </td>
                           <td>
-                            <input
+                            <TextField
                               type="date"
                               className={`input ${err('mfgDate') ? 'input--error' : ''}`}
                               value={it.mfgDate}
@@ -348,7 +358,7 @@ export default function StockReceiptFormPage() {
                             {err('mfgDate') && <div className="field__error">{err('mfgDate')}</div>}
                           </td>
                           <td>
-                            <input
+                            <TextField
                               type="date"
                               className={`input ${err('expiryDate') ? 'input--error' : ''}`}
                               value={it.expiryDate}
@@ -358,7 +368,7 @@ export default function StockReceiptFormPage() {
                             {err('expiryDate') && <div className="field__error">{err('expiryDate')}</div>}
                           </td>
                           <td>
-                            <input
+                            <TextField
                               type="number"
                               min="0"
                               step="any"
@@ -372,7 +382,7 @@ export default function StockReceiptFormPage() {
                           </td>
                           <td className="num nowrap fw-600 cell--fixed">{amountOf(it) == null ? '—' : formatMoney(amountOf(it))}</td>
                           <td>
-                            <input
+                            <TextField
                               className={`input ${err('note') ? 'input--error' : ''}`}
                               value={it.note}
                               maxLength={NOTE_MAX}
@@ -383,15 +393,15 @@ export default function StockReceiptFormPage() {
                             {err('note') && <div className="field__error">{err('note')}</div>}
                           </td>
                           <td className="cell--actions">
-                            <button
-                              className="icon-btn"
+                            <Button
+                              variant="icon"
                               onClick={() => removeLine(i)}
                               disabled={form.items.length === 1}
                               title="Xóa dòng"
                               aria-label={`Xóa dòng ${i + 1}`}
                             >
                               <Trash2 size={16} />
-                            </button>
+                            </Button>
                           </td>
                         </tr>
                       );

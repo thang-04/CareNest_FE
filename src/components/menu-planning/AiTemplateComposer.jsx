@@ -1,22 +1,23 @@
 import { useEffect, useState } from 'react';
-import { AlertCircle, CircleCheck, RotateCcw, Sparkles } from '@/components/ui/icons';
+import { AlertCircle, Check, CircleCheck, Lightbulb, RotateCcw, Scale, Sparkles, Users, Utensils, Wallet } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { dismissAiDraft, generateAiSuggestion } from '@/services/menu-planning/menuPlanningService';
 import { Modal } from '@/components/ui/Modal';
+import { Button } from '@/components/ui/Button';
 import { AiWorkingOverlay } from '@/components/ui/AiWorkingOverlay';
 import { useAiRun } from '@/hooks/useAiRun';
+import { AiBrief } from '@/components/menu-planning/AiBrief';
 import { AiDraftLabel } from '@/components/menu-planning/MenuBadges';
 import { checkDayMenu } from '@/utils/menu-planning/menuChecks';
 import { AI_DRAFT_KIND, formatMoney } from '@/models/menu-planning/menuPlanningConstants';
 
-const SEASONS = ['Xuân', 'Hạ', 'Thu', 'Đông'];
-const lowerFirst = (t) => t.charAt(0).toLowerCase() + t.slice(1);
+const WISH_HINTS = ['Ít chiên rán', 'Có món nước', 'Nhiều rau xanh'];
 
 /**
- * Modal "AI soạn thực đơn mẫu": bước 1 tóm tắt + mùa, mong muốn; bước 2 xem trước món từng bữa kèm lý do và kết quả
- * kiểm tra. AI chỉ nhận nhóm tuổi, định mức, số trẻ dị ứng tổng hợp (không tên trẻ). "Dùng bản này" chỉ điền vào form,
- * người soạn vẫn sửa rồi bấm Lưu.
+ * Modal "AI soạn thực đơn mẫu": bước 1 điều kiện AI bám theo + mùa, mong muốn; bước 2 món từng bữa (chip), lý do và
+ * kết quả kiểm tra tự động. AI chỉ nhận nhóm tuổi, định mức, số trẻ dị ứng tổng hợp (không tên trẻ). "Dùng bản này"
+ * chỉ điền vào form, người soạn vẫn sửa rồi bấm Lưu.
  */
 export function AiTemplateComposer({
   open,
@@ -56,22 +57,21 @@ export function AiTemplateComposer({
     onClose();
   };
 
-  const avoid = allergyRows.length
-    ? `tránh ${allergyRows.map((r) => `${r.allergen.toLowerCase()} (${r.childCount} trẻ)`).join(', ')}`
-    : 'nhóm không có trẻ dị ứng';
   const problems = draft ? checkDayMenu({ meals: draft.meals, ageGroupId, catalog, date }).problems : [];
+  const dishesOf = (code) =>
+    (draft.meals.find((x) => x.session === code)?.items || []).map((i) => catalog.dishById[i.dishId]?.name).filter(Boolean);
 
   const footer = draft ? (
     <>
-      <button type="button" className="btn btn--ghost" onClick={discard}>
-        Bỏ
-      </button>
-      <button type="button" className="btn" onClick={run} disabled={running}>
-        <RotateCcw size={15} /> Soạn lại
-      </button>
-      <button
-        type="button"
-        className="btn btn--primary"
+      <Button variant="ghost" onClick={discard}>
+        Bỏ bản này
+      </Button>
+      <Button icon={RotateCcw} loading={running} onClick={run}>
+        Soạn lại
+      </Button>
+      <Button
+        variant="primary"
+        icon={Check}
         disabled={running}
         onClick={() => {
           onUse(draft);
@@ -79,16 +79,16 @@ export function AiTemplateComposer({
         }}
       >
         Dùng bản này
-      </button>
+      </Button>
     </>
   ) : (
     <>
-      <button type="button" className="btn btn--ghost" onClick={onClose}>
+      <Button variant="ghost" onClick={onClose}>
         Hủy
-      </button>
-      <button type="button" className="btn btn--primary" onClick={run} disabled={running}>
-        <Sparkles size={15} /> Soạn
-      </button>
+      </Button>
+      <Button variant="primary" icon={Sparkles} loading={running} onClick={run}>
+        Soạn
+      </Button>
     </>
   );
 
@@ -97,84 +97,99 @@ export function AiTemplateComposer({
       open={open}
       onClose={draft ? discard : onClose}
       closeOnBackdrop={!draft}
-      size={draft ? 'lg' : 'md'}
-      title={draft ? 'Bản AI soạn' : 'AI soạn thực đơn mẫu'}
+      size={draft ? 'xl' : 'lg'}
+      title={draft ? `Bản AI soạn · ${groupName}` : 'AI soạn thực đơn mẫu'}
       footer={footer}
     >
       {!draft ? (
-        <div className="td-ai-form">
-          <p className="td-flat">
-            AI sẽ chọn món có sẵn của trường cho từng bữa của {groupName}: đủ chất theo định mức
-            {price != null ? `, trong tiền ăn ${formatMoney(price)}/ngày` : ''}, {avoid}.
-          </p>
-          <div className="td-form-grid td-form-grid--2">
-            <label className="field">
-              <span className="field__label">Mùa</span>
-              <select className="select" value={season} onChange={(e) => setSeason(e.target.value)}>
-                <option value="">Không chọn</option>
-                {SEASONS.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="field">
-              <span className="field__label">Mong muốn thêm</span>
-              <input
-                className="input"
-                maxLength={200}
-                placeholder="Ví dụ: ít chiên rán, có món nước"
-                value={wishes}
-                onChange={(e) => setWishes(e.target.value)}
-              />
-            </label>
-          </div>
-          {hasDishes && <p className="text-sm td-warn td-flat">Dùng bản AI sẽ thay các món đang có trong form.</p>}
-          <p className="text-xs muted td-flat">
-            AI chỉ nhận số trẻ dị ứng, không nhận tên trẻ. Kết quả là bản nháp, bạn xem trước rồi mới dùng.
-          </p>
-        </div>
+        <AiBrief
+          intro={`AI chọn món có sẵn của trường cho từng bữa của ${groupName}. Bạn xem trước rồi mới điền vào form.`}
+          facts={[
+            { icon: Users, label: 'Nhóm tuổi', value: groupName },
+            { icon: Scale, label: 'Dinh dưỡng', value: 'Đủ chất theo định mức của nhóm' },
+            ...(price != null ? [{ icon: Wallet, label: 'Ngân sách thực phẩm', value: `${formatMoney(price)}/ngày` }] : []),
+          ]}
+          allergyRows={allergyRows}
+          season={season}
+          onSeason={setSeason}
+          wishes={wishes}
+          onWishes={setWishes}
+          wishHints={WISH_HINTS}
+          replaceNote={hasDishes ? 'Dùng bản AI sẽ thay các món đang có trong form.' : null}
+        />
       ) : (
-        <div className="td-ai-form">
-          <div className="td-self-start">
+        <div className="td-aim">
+          <div className="td-aim__head">
             <AiDraftLabel />
+            {problems.length ? (
+              <span className="chip chip--orange">
+                <AlertCircle size={14} /> {problems.length} điểm cần xem
+              </span>
+            ) : (
+              <span className="chip chip--green">
+                <CircleCheck size={14} /> Đạt kiểm tra tự động
+              </span>
+            )}
           </div>
-          <div className="table-wrap">
-            <table className="table table--grid td-ai-meals">
-              <tbody>
-                {mealList.map((m) => (
-                  <tr key={m.code}>
-                    <th scope="row">{m.name}</th>
-                    <td>
-                      {(draft.meals.find((x) => x.session === m.code)?.items || [])
-                        .map((i) => catalog.dishById[i.dishId]?.name)
-                        .filter(Boolean)
-                        .join(', ') || <span className="muted">Chưa có món</span>}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="td-aim__body">
+            <section className="td-aim__meals" aria-label="Món AI chọn">
+              {mealList.map((m) => {
+                const dishes = dishesOf(m.code);
+                return (
+                  <div key={m.code} className="td-aim__meal">
+                    <div className="td-aim__meal-head">
+                      <Utensils size={16} aria-hidden="true" />
+                      <span className="td-aim__meal-name">{m.name}</span>
+                      <span className="text-xs muted">{dishes.length} món</span>
+                    </div>
+                    {dishes.length ? (
+                      <div className="td-chips">
+                        {dishes.map((d) => (
+                          <span key={d} className="chip td-aim__dish">
+                            {d}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-sm muted">Chưa có món</span>
+                    )}
+                  </div>
+                );
+              })}
+            </section>
+            <aside className="td-aim__side">
+              {draft.reasons?.length > 0 && (
+                <section className="td-aim__panel">
+                  <h3 className="td-aim__title">
+                    <Lightbulb size={16} aria-hidden="true" /> Vì sao AI chọn
+                  </h3>
+                  <ul className="td-aim__list">
+                    {draft.reasons.map((r) => (
+                      <li key={r}>{r}</li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+              <section className={`td-aim__panel td-aim__panel--${problems.length ? 'warn' : 'ok'}`}>
+                <h3 className="td-aim__title">
+                  {problems.length ? <AlertCircle size={16} aria-hidden="true" /> : <CircleCheck size={16} aria-hidden="true" />} Kiểm tra
+                  tự động
+                </h3>
+                {problems.length ? (
+                  <>
+                    <ul className="td-aim__list">
+                      {problems.map((p) => (
+                        <li key={p.text}>{p.text}</li>
+                      ))}
+                    </ul>
+                    <p className="text-xs td-flat">Bạn sửa thêm trong form sau khi dùng bản này.</p>
+                  </>
+                ) : (
+                  <p className="text-sm td-flat">Không thấy điểm nào cần sửa.</p>
+                )}
+              </section>
+            </aside>
           </div>
-          <div>
-            <p className="fw-600 td-flat">Vì sao AI chọn</p>
-            <ul className="td-ai-reasons">
-              {(draft.reasons || []).map((r) => (
-                <li key={r}>{r}</li>
-              ))}
-            </ul>
-          </div>
-          {problems.length ? (
-            <div className="alert alert--warning">
-              <AlertCircle size={18} />
-              <div>Kiểm tra tự động: {problems.map((p) => lowerFirst(p.text)).join('; ')}. Bạn sửa thêm sau khi dùng.</div>
-            </div>
-          ) : (
-            <p className="td-ok td-flat td-ai-note">
-              <CircleCheck size={14} aria-hidden="true" /> Kiểm tra tự động: đạt hết.
-            </p>
-          )}
         </div>
       )}
       {running && <AiWorkingOverlay kind="cooking" text="Đang nấu thực đơn mẫu…" />}

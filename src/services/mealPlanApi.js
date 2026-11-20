@@ -1,5 +1,5 @@
 import { beClient } from '@/services/http/beClient';
-import { toPlanRequest } from '@/utils/menu-planning/mealPlanGrid';
+import { toAmendRequest, toPlanRequest } from '@/utils/menu-planning/mealPlanGrid';
 import { addDays } from '@/models/menu-planning/menuPlanningConstants';
 
 /*
@@ -70,6 +70,19 @@ export const createMealPlanApi = ({ client = beClient } = {}) => ({
   /** Công bố cả tuần; còn lỗi chặn thì BE trả 409 (màn nạp lại kế hoạch để hiện `issues`). */
   async publishPlan(weekStart) {
     return toPlan(await client.post(`/nutrition/meal-plans/${weekStart}/publish`));
+  },
+
+  /**
+   * Sửa ngoại lệ cả một ngày của tuần đã công bố (BE NUT-08, P-39): `day` là ngày của bản nháp sau khi sửa (mọi khối).
+   * BE kiểm quyền, giờ chốt, lý do; trả kế hoạch mới (đánh giá, lưu ý tính lại).
+   */
+  async amendDay(weekStart, day, reason) {
+    return toPlan(await client.put(`/nutrition/meal-plans/${weekStart}/days/${day.date}/amend`, toAmendRequest(day, reason)));
+  },
+
+  /** Lịch sử sửa ngoại lệ của tuần, mới nhất trước: [{ menuDate, before, after, reason, issues, changedByName, changedAt }]. */
+  async listRevisions(weekStart) {
+    return (await client.get(`/nutrition/meal-plans/${weekStart}/revisions`)) || [];
   },
 });
 

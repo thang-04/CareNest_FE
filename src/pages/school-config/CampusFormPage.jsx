@@ -23,6 +23,8 @@ const EMPTY = { code: '', name: '', shortName: '', address: '', phone: '', isMai
 
 function CampusForm({ campus, others, user }) {
   const toast = useToast();
+  // Thêm / xóa điểm trường theo năm học đang chọn ở đầu trang (Cần chốt 22/10/2026)
+  const { schoolYear } = useSchoolYear();
   const [initial] = useState(() => (campus ? { ...EMPTY, ...campus, isMain: !!campus.isMain } : { ...EMPTY, isMain: others.length === 0 }));
   const [form, setForm] = useState(initial);
   const [errors, setErrors] = useState({});
@@ -50,7 +52,7 @@ function CampusForm({ campus, others, user }) {
     if (hasErrors(e)) return false;
     setSaving(true);
     try {
-      const saved = await saveCampus(campus?.id || null, { ...form, phone: normalizePhone(form.phone) }, user);
+      const saved = await saveCampus(campus?.id || null, { ...form, phone: normalizePhone(form.phone) }, user, schoolYear);
       toast.success('Đã lưu thay đổi.', saved.shortName);
       if (!stay) guard.leaveNow(`/school/campuses/${saved.id}`);
       return true;
@@ -64,7 +66,7 @@ function CampusForm({ campus, others, user }) {
 
   const remove = async () => {
     try {
-      await deleteCampus(campus.id, user);
+      await deleteCampus(campus.id, user, schoolYear);
       toast.success('Đã xóa bản ghi.');
       guard.leaveNow('/school/campuses');
     } catch (err) {
@@ -166,7 +168,7 @@ export default function CampusFormPage() {
   const { id } = useParams();
   const { user } = useAuth();
   const { schoolYear, yearReadOnly } = useSchoolYear();
-  const md = useMasterData();
+  const md = useMasterData(schoolYear);
   const { detail, loading, error, reload } = useCampusDetail(id, schoolYear);
   const campus = detail?.campus;
 

@@ -51,7 +51,7 @@ export default function PermissionHistoryPage() {
       <section className="card permission-history-card">
         <div className="filter-bar permission-filter-bar">
           <select className="select" value={targetRole} onChange={(e) => filterRole(e.target.value)} aria-label="Lọc theo vai trò">
-            <option value="">{targetUserId ? `Tài khoản #${targetUserId}` : 'Tất cả thay đổi'}</option>
+            <option value="">{targetUserId ? data?.items?.[0]?.targetUserName || `Tài khoản #${targetUserId}` : 'Tất cả thay đổi'}</option>
             {EDITABLE_ROLES.map((role) => (
               <option key={role} value={role}>
                 Ma trận: {PERMISSION_ROLE_LABELS[role]}

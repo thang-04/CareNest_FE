@@ -1,15 +1,28 @@
 import { useEffect, useState } from 'react';
-import { Save } from '@/components/ui/icons';
+import { Building, FileText, IdCard, Phone, Save } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useSupplier } from '@/hooks/kitchen/useKitchen';
 import { useUnsavedMark } from '@/hooks/useLeaveGuard';
-import { ErrorState, FormField, LoadingState, Modal, Spinner } from '@/components';
+import { Button, ErrorState, FormField, LoadingState, Modal, TextField } from '@/components';
+import { Tabs } from '@/components/ui/Tabs';
+import { DateInput } from '@/components/form/DateInput';
 import { saveSupplier, suppliersUseApi } from '@/services/kitchen/kitchenService';
 import { validateSupplier } from '@/utils/kitchen/kitchenValidation';
 import { SUPPLIER_STATUS, SUPPLIER_STATUS_LABELS } from '@/models/kitchen/kitchenConstants';
 
-const EMPTY = { name: '', address: '', contactName: '', phone: '', taxCode: '', idCard: '', status: SUPPLIER_STATUS.ACTIVE };
+const EMPTY = {
+  name: '',
+  address: '',
+  contactName: '',
+  phone: '',
+  taxCode: '',
+  idCard: '',
+  status: SUPPLIER_STATUS.ACTIVE,
+  contractNo: '',
+  contractStart: '',
+  contractEnd: '',
+};
 // BE: chưa có mã số thuế; mã NCC do FE sinh từ id (NCC001…); có CCCD nhà cung cấp
 const VIA_API = suppliersUseApi();
 const pick = (s) => Object.fromEntries(Object.keys(EMPTY).map((k) => [k, s[k] ?? '']));
@@ -42,13 +55,7 @@ export function SupplierEditModal({ supplierId, onClose, onSaved }) {
     setServerErrors(({ [k]: _drop, ...rest }) => rest);
   };
   const blur = (k) => () => setTouched((t) => ({ ...t, [k]: true }));
-  const text = (k, extra = {}) => ({
-    className: 'input',
-    value: form[k],
-    onChange: (e) => set(k, e.target.value),
-    onBlur: blur(k),
-    ...extra,
-  });
+  const text = (k) => ({ value: form[k], onChange: (e) => set(k, e.target.value), onBlur: blur(k) });
 
   const submit = async (e) => {
     e.preventDefault();
@@ -69,21 +76,22 @@ export function SupplierEditModal({ supplierId, onClose, onSaved }) {
   };
 
   const loading = !!supplierId && existing.loading;
+  const statusTabs = Object.entries(SUPPLIER_STATUS_LABELS).map(([key, label]) => ({ key, label }));
   return (
     <Modal
       open
       size="lg"
       title={supplierId ? `Sửa nhà cung cấp${existing.data?.code ? ` · ${existing.data.code}` : ''}` : 'Thêm nhà cung cấp'}
-      onClose={onClose}
+      onClose={busy ? undefined : onClose}
       closeOnBackdrop={false}
       footer={
         <>
-          <button type="button" className="btn" onClick={onClose}>
+          <Button disabled={busy} onClick={onClose}>
             Hủy
-          </button>
-          <button type="submit" form={FORM_ID} className="btn btn--primary" disabled={busy || loading}>
-            {busy ? <Spinner small /> : <Save size={16} />} Lưu nhà cung cấp
-          </button>
+          </Button>
+          <Button type="submit" form={FORM_ID} variant="primary" icon={Save} loading={busy} disabled={loading}>
+            Lưu nhà cung cấp
+          </Button>
         </>
       }
     >
@@ -93,54 +101,128 @@ export function SupplierEditModal({ supplierId, onClose, onSaved }) {
         <ErrorState error={existing.error} onRetry={existing.reload} />
       ) : (
         <form id={FORM_ID} onSubmit={submit} noValidate className="kb-sup-form">
-          <fieldset className="kb-sup-form__group">
-            <legend>Thông tin chung</legend>
-            <div className="grid-2">
-              <FormField label="Tên nhà cung cấp" required error={show('name')}>
-                <input {...text('name', { maxLength: 150 })} />
+          <section className="kb-sup-sec">
+            <header className="kb-sup-sec__head">
+              <span className="kb-sup-sec__icon" aria-hidden="true">
+                <Building size={18} />
+              </span>
+              <div>
+                <h3 className="kb-sup-sec__title">Thông tin chung</h3>
+                <p className="kb-sup-sec__desc">Tên hiện trên phiếu nhập và biểu mẫu kiểm thực.</p>
+              </div>
+            </header>
+            <div className="kb-sup-sec__fields">
+              <TextField
+                label="Tên nhà cung cấp"
+                required
+                fieldClassName="kb-span-all"
+                maxLength={150}
+                error={show('name')}
+                {...text('name')}
+              />
+              <FormField
+                label="Trạng thái"
+                className="kb-span-all"
+                hint={
+                  form.status === SUPPLIER_STATUS.INACTIVE
+                    ? 'Không chọn được cho phiếu nhập mới; phiếu cũ vẫn giữ tên.'
+                    : 'Chọn được khi lập phiếu nhập.'
+                }
+              >
+                <Tabs
+                  items={statusTabs}
+                  value={form.status}
+                  onChange={(v) => set('status', v)}
+                  ariaLabel="Trạng thái nhà cung cấp"
+                  variant="pill"
+                />
               </FormField>
-              <FormField label="Trạng thái" hint="Ngừng dùng: không chọn được cho phiếu nhập mới">
-                <select className="select" value={form.status} onChange={(e) => set('status', e.target.value)}>
-                  {Object.entries(SUPPLIER_STATUS_LABELS).map(([k, v]) => (
-                    <option key={k} value={k}>
-                      {v}
-                    </option>
-                  ))}
-                </select>
-              </FormField>
-              {!VIA_API && (
-                <FormField label="Mã nhà cung cấp" hint="Hệ thống tự sinh, không sửa được">
-                  <input className="input" value={existing.data?.code || 'Tự sinh khi lưu'} readOnly disabled />
-                </FormField>
+            </div>
+          </section>
+          <section className="kb-sup-sec">
+            <header className="kb-sup-sec__head">
+              <span className="kb-sup-sec__icon" aria-hidden="true">
+                <Phone size={18} />
+              </span>
+              <div>
+                <h3 className="kb-sup-sec__title">Liên hệ</h3>
+                <p className="kb-sup-sec__desc">Bếp gọi khi cần đổi, bù hoặc trả hàng.</p>
+              </div>
+            </header>
+            <div className="kb-sup-sec__fields">
+              <TextField
+                label={VIA_API ? 'Người giao hàng' : 'Người liên hệ'}
+                maxLength={100}
+                error={show('contactName')}
+                {...text('contactName')}
+              />
+              <TextField
+                label="Số điện thoại"
+                type="tel"
+                inputMode="tel"
+                maxLength={20}
+                placeholder="0900 000 001"
+                error={show('phone')}
+                {...text('phone')}
+              />
+              <TextField label="Địa chỉ" fieldClassName="kb-span-all" maxLength={255} error={show('address')} {...text('address')} />
+            </div>
+          </section>
+          <section className="kb-sup-sec">
+            <header className="kb-sup-sec__head">
+              <span className="kb-sup-sec__icon" aria-hidden="true">
+                <IdCard size={18} />
+              </span>
+              <div>
+                <h3 className="kb-sup-sec__title">Giấy tờ</h3>
+                <p className="kb-sup-sec__desc">Không bắt buộc.</p>
+              </div>
+            </header>
+            <div className="kb-sup-sec__fields">
+              {VIA_API ? (
+                <TextField
+                  label="CCCD nhà cung cấp"
+                  inputMode="numeric"
+                  maxLength={12}
+                  hint="9–12 chữ số"
+                  error={show('idCard')}
+                  {...text('idCard')}
+                />
+              ) : (
+                <TextField label="Mã số thuế" maxLength={14} error={show('taxCode')} {...text('taxCode')} />
               )}
             </div>
-          </fieldset>
-          <fieldset className="kb-sup-form__group">
-            <legend>Liên hệ</legend>
-            <div className="grid-2">
-              <FormField label={VIA_API ? 'Người giao hàng' : 'Người liên hệ'} error={show('contactName')}>
-                <input {...text('contactName', { maxLength: 100 })} />
-              </FormField>
-              <FormField label="Số điện thoại" error={show('phone')} hint="Ví dụ: 0900 000 001">
-                <input {...text('phone', { type: 'tel', inputMode: 'tel', maxLength: 20 })} />
-              </FormField>
-              <FormField label="Địa chỉ" error={show('address')} className="kb-span-all">
-                <input {...text('address', { maxLength: 255 })} />
-              </FormField>
-            </div>
-          </fieldset>
-          <fieldset className="kb-sup-form__group">
-            <legend>Giấy tờ</legend>
-            {VIA_API ? (
-              <FormField label="CCCD nhà cung cấp" error={show('idCard')} hint="9–12 chữ số, không bắt buộc">
-                <input {...text('idCard', { inputMode: 'numeric', maxLength: 12 })} />
-              </FormField>
-            ) : (
-              <FormField label="Mã số thuế" error={show('taxCode')} hint="Không bắt buộc">
-                <input {...text('taxCode', { maxLength: 14 })} />
-              </FormField>
-            )}
-          </fieldset>
+          </section>
+          {VIA_API && (
+            <section className="kb-sup-sec">
+              <header className="kb-sup-sec__head">
+                <span className="kb-sup-sec__icon" aria-hidden="true">
+                  <FileText size={18} />
+                </span>
+                <div>
+                  <h3 className="kb-sup-sec__title">Hợp đồng</h3>
+                  <p className="kb-sup-sec__desc">
+                    Hợp đồng năm hoặc theo kỳ; gia hạn thì sửa ngày. Đổi giá hàng loạt dùng "Áp dụng hợp đồng mới".
+                  </p>
+                </div>
+              </header>
+              <div className="kb-sup-sec__fields">
+                <TextField
+                  label="Số hợp đồng"
+                  fieldClassName="kb-span-all"
+                  maxLength={50}
+                  error={show('contractNo')}
+                  {...text('contractNo')}
+                />
+                <FormField label="Ngày bắt đầu" error={show('contractStart')}>
+                  <DateInput value={form.contractStart} onChange={(v) => set('contractStart', v)} />
+                </FormField>
+                <FormField label="Ngày kết thúc" error={show('contractEnd')}>
+                  <DateInput value={form.contractEnd} min={form.contractStart || undefined} onChange={(v) => set('contractEnd', v)} />
+                </FormField>
+              </div>
+            </section>
+          )}
         </form>
       )}
     </Modal>

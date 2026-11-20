@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Check, Download, Printer } from '@/components/ui/icons';
-import { Breadcrumb, EmptyState, ErrorState, LoadingState, Modal, PrintPaperFit, PrintToolbar } from '@/components';
+import { Breadcrumb, Button, EmptyState, ErrorState, LoadingState, Modal, PrintPaperFit, PrintToolbar, SelectField } from '@/components';
 import { KbCampusFilter, KbDateFilter } from '@/components/kitchen/KitchenFilters';
 import { FoodSampleFormPrint } from '@/components/kitchen/FoodSampleFormPrint';
 import { SampleDisposalBadge, SampleStatusBadge } from '@/components/kitchen/SampleRecordBadges';
@@ -49,9 +49,9 @@ function SampleRow({ sample, busy, onApprove }) {
       </td>
       <td className="cell--actions">
         {next && (
-          <button type="button" className="btn btn--sm btn--primary" disabled={busy} onClick={() => onApprove(sample, next)}>
-            <Check size={14} /> {next === 'sample' ? 'Duyệt lưu mẫu' : 'Duyệt hủy mẫu'}
-          </button>
+          <Button variant="primary" size="sm" icon={Check} loading={busy} onClick={() => onApprove(sample, next)}>
+            {next === 'sample' ? 'Duyệt lưu mẫu' : 'Duyệt hủy mẫu'}
+          </Button>
         )}
       </td>
     </tr>
@@ -168,27 +168,26 @@ export default function FoodSampleQueuePage() {
         {campus.campusId && <KbCampusFilter campusId={campus.campusId} onChange={campus.setCampusId} canPick={campus.canPick} />}
         <label className="date-filter">
           Hiển thị
-          <select
-            className="select"
+          <SelectField
             value={pendingOnly ? 'pending' : 'all'}
             onChange={(e) => setParam('status', e.target.value === 'pending' ? 'pending' : '')}
-          >
-            <option value="all">Tất cả bản ghi</option>
-            <option value="pending">Chỉ việc chờ duyệt</option>
-          </select>
+            options={[
+              { value: 'all', label: 'Tất cả bản ghi' },
+              { value: 'pending', label: 'Chỉ việc chờ duyệt' },
+            ]}
+          />
         </label>
         <div className="kb-toolbar__end">
-          <button
-            type="button"
-            className="btn"
+          <Button
+            icon={Download}
             disabled={!rows.length}
             onClick={() => exportWithPreview(foodSampleCsvRows(rows), `so-luu-mau-${from}-${to}.xlsx`)}
           >
-            <Download size={16} /> Xuất Excel
-          </button>
-          <button type="button" className="btn" disabled={!printable.length} onClick={() => setPrinting(true)}>
-            <Printer size={16} /> In biểu mẫu
-          </button>
+            Xuất Excel
+          </Button>
+          <Button icon={Printer} disabled={!printable.length} onClick={() => setPrinting(true)}>
+            In biểu mẫu
+          </Button>
         </div>
       </div>
       {body}
@@ -198,7 +197,7 @@ export default function FoodSampleQueuePage() {
         size="xl"
         className="print-modal"
         title="Sổ lưu và hủy mẫu thức ăn"
-        footer={<PrintToolbar sheetRef={sheetRef} fileBase={`So_luu_mau_${from}_${to}`} printLabel="In" />}
+        footer={<PrintToolbar sheetRef={sheetRef} fileBase={`So_luu_mau_${from}_${to}`} onClose={() => setPrinting(false)} />}
       >
         <PrintPaperFit>
           <FoodSampleFormPrint ref={sheetRef} samples={printable} campusName={printCampus} from={from} to={to} />

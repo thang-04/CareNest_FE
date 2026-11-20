@@ -1,27 +1,24 @@
-import { LogoMark, Wordmark } from '@/components/brand/Logo';
 import { DEFAULT_PRINT_TEMPLATE } from '@/config/printTemplate';
+import { docHeaderLines } from '@/components/print/docTemplate';
 
 /**
- * Header of every A4 document (phiếu, biên bản). Put it first inside
- * <div className="print-sheet">. School info comes from config/printTemplate.js.
+ * Đầu trang của mọi bản in A4 (phiếu, biên bản): quốc hiệu 2 cột như bản Word (docHeaderHtml).
+ * Đặt đầu tiên trong <div className="print-sheet">. Thông tin trường lấy từ config/printTemplate.js.
  */
 export function PrintHeader({ template = DEFAULT_PRINT_TEMPLATE }) {
+  const { left, right } = docHeaderLines(template);
+  const col = (lines) => (
+    <div className="ps-header__col">
+      {lines.map((line) => (
+        <div key={line}>{line}</div>
+      ))}
+      <div className="ps-header__rule" aria-hidden />
+    </div>
+  );
   return (
     <div className="ps-header">
-      <div className="ps-brand">
-        <LogoMark size={64} />
-        <div>
-          <Wordmark size={30} />
-          <div className="ps-brand__slogan">{template.slogan}</div>
-        </div>
-      </div>
-      <div className="ps-school">
-        <div className="ps-school__name">{template.schoolName}</div>
-        <div>Địa chỉ: {template.address}</div>
-        <div>
-          Điện thoại: {template.phone} &nbsp;|&nbsp; Email: {template.email}
-        </div>
-      </div>
+      {col(left)}
+      {col(right)}
     </div>
   );
 }

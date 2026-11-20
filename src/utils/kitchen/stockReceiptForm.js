@@ -1,4 +1,9 @@
+import { NOTE_MAX } from '@/models/kitchen/kitchenConstants';
 import { toPurchaseQuantity } from './stockUnits';
+
+/** Ghi chú phiếu nhập giới hạn NOTE_MAX ký tự như BE (`StockReceiptRequest.note`); báo lỗi thay vì cắt ngầm khi dán. */
+export const receiptNoteError = (note) =>
+  String(note || '').length > NOTE_MAX ? `Ghi chú không được vượt quá ${NOTE_MAX} ký tự` : undefined;
 
 /* Form phiếu nhập kho khô: số lượng nhập theo đơn vị mua. Kiểm tra chỉ để nhắc nhập đủ ô; BE kiểm tra thật khi lưu/xác nhận. */
 let lineSeq = 0;
@@ -45,6 +50,8 @@ export const validateReceiptForm = (form) => {
   if (blank(form.campusId)) errors.campusId = 'Chọn điểm trường';
   if (blank(form.supplierId)) errors.supplierId = 'Chọn nhà cung cấp';
   if (blank(form.receivedDate)) errors.receivedDate = 'Chọn ngày nhập kho';
+  const noteError = receiptNoteError(form.note);
+  if (noteError) errors.note = noteError;
   if (!form.lines.length) errors.lines = 'Thêm ít nhất một thực phẩm';
   form.lines.forEach((line, i) => {
     if (blank(line.foodId)) errors[`lines.${i}.foodId`] = 'Chọn thực phẩm';

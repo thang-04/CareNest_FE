@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, Trash2, DoorOpen, PauseCircle, RotateCcw, ChevronDown } from '@/components/ui/icons';
+import { Plus, Trash2, DoorOpen, PauseCircle, RotateCcw, ChevronDown, Download, FileSpreadsheet } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
+import { useYearCampuses } from '@/hooks/useYearCampuses';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useRooms } from '@/hooks/school-config/useSchoolConfig';
 import { useConfigYear } from '@/hooks/school-config/useConfigYear';
@@ -23,6 +24,10 @@ import { normalizeText } from '@/utils/format';
 import { Pagination, paginate } from '@/components/ui/Pagination';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { YearReadOnlyNotice } from '@/components/school-config/YearReadOnlyNotice';
+import { YearSetupImportPanel } from '@/components/school-config/YearSetupImportPanel';
+import { exportWithPreview } from '@/components/ui/ExportPreview';
+import { Button } from '@/components/ui/Button';
+import { ROOM_LIST_COLUMNS, SHEETS } from '@/utils/school-config/yearSetupImport';
 import '@/styles/modules/school-config.css';
 
 /**
@@ -37,7 +42,8 @@ export default function RoomListPage() {
   // ?year= (từ Chuẩn bị năm học) chọn luôn năm trên header
   useConfigYear();
   const { schoolYear, yearReadOnly } = useSchoolYear();
-  const md = useMasterData();
+  const yearCampuses = useYearCampuses();
+  const md = useMasterData(schoolYear);
   const { rooms, loading, error, reload } = useRooms(schoolYear);
   const [params, setParams] = useSearchParams();
   const [filters, setFilters] = useState(() => ({ campusId: params.get('campus') || '', type: '', status: '', keyword: '' }));
@@ -45,6 +51,7 @@ export default function RoomListPage() {
   const [pending, setPending] = useState(null); // { kind: 'delete' | 'deactivate' | 'activate', room }
   const [pendingError, setPendingError] = useState('');
   const [blocked, setBlocked] = useState(null); // { room, actionLabel }
+  const [importing, setImporting] = useState(false);
   // Điểm trường xem / sửa được theo quyền "Quản lý phòng ban" (Hiệu trưởng: tất cả)
   const viewIds = roomCampusIds(user, md.campuses);
   const editIds = yearReadOnly ? [] : roomCampusIds(user, md.campuses, true);
@@ -107,7 +114,7 @@ export default function RoomListPage() {
       title: 'Xóa phòng',
       label: 'Xóa phòng',
       danger: true,
-      run: (r) => deleteRoom(r.id, user),
+      run: (r) => deleteRoom(r.id, user, schoolYear),
       done: 'Đã xóa bản ghi.',
       message: (r) => (
         <>
@@ -122,7 +129,7 @@ export default function RoomListPage() {
     deactivate: {
       title: 'Ngừng sử dụng phòng',
       label: 'Ngừng sử dụng',
-      run: (r) => setRoomStatus(r.id, ROOM_STATUS.INACTIVE, user),
+      run: (r) => setRoomStatus(r.id, ROOM_STATUS.INACTIVE, user, schoolYear),
       done: 'Đã chuyển phòng sang Ngừng sử dụng.',
       message: (r) => (
         <>
@@ -137,7 +144,7 @@ export default function RoomListPage() {
     activate: {
       title: 'Dùng lại phòng',
       label: 'Dùng lại',
-      run: (r) => setRoomStatus(r.id, ROOM_STATUS.ACTIVE, user),
+      run: (r) => setRoomStatus(r.id, ROOM_STATUS.ACTIVE, user, schoolYear),
       done: 'Đã chuyển phòng sang Đang sử dụng.',
       message: (r) => (
         <>
@@ -168,7 +175,8 @@ export default function RoomListPage() {
   const askDelete = ask('delete', 'Xóa');
   const askDeactivate = ask('deactivate', 'Ngừng sử dụng');
 
-  const campuses = md.campuses.filter((c) => viewIds.includes(c.id));
+  // HT: điểm trường của năm đang chọn (BE V151)
+  const campuses = (yearCampuses || md.campuses).filter((c) => viewIds.includes(c.id));
   const formIds = modal?.room ? roomCampusIds(user, md.campuses, 'update') : createIds;
   const editCampuses = md.campuses.filter((c) => formIds.includes(c.id));
   const campusShort = (r) => md.campusById(r.campusId)?.shortName || '';
@@ -229,6 +237,26 @@ export default function RoomListPage() {
     );
   };
 
+  // Xuất đúng bảng trên màn (đang lọc, cùng thứ tự), thêm cột Điểm trường; bỏ cột Thao tác
+  const exportRooms = () =>
+    exportWithPreview(
+      [
+        ROOM_LIST_COLUMNS.map((c) => (c === 'Lớp' ? `Lớp (${schoolYear})` : c)),
+        ...shown.map((r) => [
+          md.campusById(r.campusId)?.name || campusShort(r),
+          r.room || '',
+          r.name || '',
+          LOCATION_TYPE_LABELS[r.type] || '',
+          r.capacity ?? '',
+          r.yearClasses?.length ? r.yearClasses.join(', ') : '',
+          r.managerName || md.userById(r.managerUserId)?.fullName || '',
+          ROOM_STATUS_LABELS[r.status] || '',
+        ]),
+      ],
+      'phong-ban.xlsx',
+      { sheetName: SHEETS.rooms },
+    );
+
   return (
     <div className="page">
       <Breadcrumb items={roomCrumbs()} />
@@ -261,7 +289,7 @@ export default function RoomListPage() {
               <option value="">Tất cả điểm trường</option>
               {campuses.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.name}
+                  {c.shortName || c.name}
                 </option>
               ))}
             </select>
@@ -295,6 +323,16 @@ export default function RoomListPage() {
               ))}
             </select>
           )}
+          <div className="spacer" />
+          {/* Nhập: người được thêm phòng; tệp xuất đọc lại được bằng Nhập (4 cột đầu như tệp mẫu, sheet Phòng) */}
+          {createIds.length > 0 && (
+            <Button icon={FileSpreadsheet} onClick={() => setImporting(true)}>
+              Nhập Excel
+            </Button>
+          )}
+          <Button icon={Download} disabled={!shown.length} onClick={exportRooms}>
+            Xuất Excel
+          </Button>
         </div>
         {error ? (
           <ErrorState error={error} onRetry={reload} />
@@ -367,6 +405,7 @@ export default function RoomListPage() {
       </div>
 
       <RoomFormModal
+        schoolYearId={schoolYear}
         open={!!modal}
         onClose={closeModal}
         room={modal?.room}
@@ -387,6 +426,15 @@ export default function RoomListPage() {
         onClose={() => {
           setPending(null);
           setPendingError('');
+        }}
+      />
+      <YearSetupImportPanel
+        open={importing}
+        mode="roomList"
+        yearId={schoolYear}
+        onClose={(changed) => {
+          setImporting(false);
+          if (changed) reload({ silent: true });
         }}
       />
     </div>

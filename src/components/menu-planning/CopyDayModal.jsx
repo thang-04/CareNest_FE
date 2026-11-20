@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { Modal } from '@/components/ui/Modal';
+import { Button } from '@/components/ui/Button';
 import { AlertTriangle, Check, Copy } from '@/components/ui/icons';
 import { MEAL_SESSION_LABELS, SESSION_ORDER, WEEKDAY_LABELS } from '@/models/menu-planning/menuPlanningConstants';
 import { dayBlockItems } from '@/utils/menu-planning/mealPlanGrid';
+import { Checkbox } from '@/components';
 
 const ddmm = (iso) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
 
@@ -39,13 +41,10 @@ export function CopyDayModal({ draft, block, from, blockLabel, onCopy, onClose }
       onClose={onClose}
       footer={
         <>
-          <button type="button" className="btn" onClick={onClose}>
-            Hủy
-          </button>
-          <button type="button" className="btn btn--primary" disabled={!canCopy} onClick={() => onCopy(picked)}>
-            <Copy size={16} aria-hidden="true" />
+          <Button onClick={onClose}>Hủy</Button>
+          <Button variant="primary" icon={Copy} disabled={!canCopy} onClick={() => onCopy(picked)}>
             {picked.length ? `Chép sang ${picked.length} ngày` : 'Chọn ngày để chép'}
-          </button>
+          </Button>
         </>
       }
     >
@@ -84,20 +83,15 @@ export function CopyDayModal({ draft, block, from, blockLabel, onCopy, onClose }
           <div className="td-copy__targets-head">
             <legend>Chép sang ngày</legend>
             <div className="td-copy__quick" role="group" aria-label="Chọn nhanh">
-              <button type="button" className="btn btn--ghost btn--sm" disabled={!selectable.length} onClick={pickAll}>
+              <Button variant="ghost" size="sm" disabled={!selectable.length} onClick={pickAll}>
                 Cả tuần
-              </button>
-              <button
-                type="button"
-                className="btn btn--ghost btn--sm"
-                disabled={!selectable.some((d) => d.count === 0)}
-                onClick={pickEmpty}
-              >
+              </Button>
+              <Button variant="ghost" size="sm" disabled={!selectable.some((d) => d.count === 0)} onClick={pickEmpty}>
                 Chỉ ngày trống
-              </button>
-              <button type="button" className="btn btn--ghost btn--sm" disabled={!picked.length} onClick={() => setPicked([])}>
+              </Button>
+              <Button variant="ghost" size="sm" disabled={!picked.length} onClick={() => setPicked([])}>
                 Bỏ chọn
-              </button>
+              </Button>
             </div>
           </div>
           <div className="td-copy__days">
@@ -115,7 +109,7 @@ export function CopyDayModal({ draft, block, from, blockLabel, onCopy, onClose }
               const tone = isSource ? 'source' : disabled ? 'off' : on && d.count ? 'replace' : on ? 'on' : '';
               return (
                 <label key={d.day.date} className={`td-copy__day ${tone ? `td-copy__day--${tone}` : ''}`}>
-                  <input type="checkbox" className="sr-only" checked={on} disabled={disabled} onChange={() => toggle(d.day.date)} />
+                  <Checkbox className="sr-only" checked={on} disabled={disabled} onChange={() => toggle(d.day.date)} />
                   <span className="td-copy__check" aria-hidden="true">
                     {(on || isSource) && <Check size={14} />}
                   </span>

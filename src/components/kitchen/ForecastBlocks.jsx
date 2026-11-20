@@ -1,5 +1,7 @@
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { EmptyState } from '@/components/ui/States';
+import { TextField } from '@/components/form/Field';
+import { Checkbox } from '@/components/form/Checkbox';
 import { fmtQty } from '@/components/kitchen/KitchenFilters';
 import { formatDateTime } from '@/utils/format';
 
@@ -76,7 +78,7 @@ export function WeekForecastGrid({ data, today, draft, errors, editable, onChang
                 return (
                   <td key={cell.date} className={`num ${today_}`}>
                     <span className="kb-fc__cell">
-                      <input
+                      <TextField
                         className={`input kb-fc__input ${err ? 'input--error' : ''}`}
                         inputMode="numeric"
                         value={value}
@@ -219,8 +221,7 @@ export function SupplierChangeCard({ group, total, today, canEdit, override = {}
               <th className="center">
                 {/* Tích ở tiêu đề = đánh dấu / bỏ đánh dấu cả ngày; đang làm dở thì hiện gạch ngang */}
                 <label className="checkbox" title={allDone ? 'Bỏ đánh dấu cả ngày' : 'Đánh dấu đã báo NCC cả ngày'}>
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     checked={allDone}
                     ref={(el) => el && (el.indeterminate = !allDone && pending < group.lines.length)}
                     disabled={!canEdit}
@@ -244,8 +245,7 @@ export function SupplierChangeCard({ group, total, today, canEdit, override = {}
                   <td className={`num fw-600 cell--fixed ${l.diff < 0 ? 'kb-short' : 'kb-over'}`}>{signed(l.diff)}</td>
                   <td className="center">
                     <label className="checkbox" title={l.notifiedAt ? `Đã báo lúc ${formatDateTime(l.notifiedAt)}` : undefined}>
-                      <input
-                        type="checkbox"
+                      <Checkbox
                         checked={isOn(l)}
                         disabled={!canEdit}
                         onChange={(e) => onToggle(group.date, l.foodId, e.target.checked)}
