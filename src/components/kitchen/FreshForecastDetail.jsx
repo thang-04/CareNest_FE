@@ -97,7 +97,8 @@ export function FreshForecastDetail({ campus }) {
         </Link>
         {forecast && (
           <div className="row">
-            {forecast.canManage && (
+            {/* NUT-12: bản đã làm căn cứ kiểm nhận thì BE không cho xóa (deletable false) */}
+            {forecast.canManage && forecast.deletable !== false && (
               <Button variant="outline-danger" icon={Trash2} onClick={() => setDeleting(true)}>
                 Xóa bản dự trù
               </Button>

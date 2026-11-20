@@ -64,13 +64,24 @@ export default function FreshCheckPage() {
             Tài khoản chỉ được xem kiểm nhận hàng tươi, không ghi nhận được.
           </div>
         )}
+        {check.data.canManage && check.data.lockReason === 'NOT_TODAY' && (
+          <div className="alert alert--info" role="status">
+            Kiểm nhận chỉ ghi hoặc sửa trong ngày nhận hàng; ngày này chỉ xem.
+          </div>
+        )}
+        {check.data.canManage && check.data.lockReason === 'M1_SIGNED' && (
+          <div className="alert alert--info" role="status">
+            Biên bản M1 hàng tươi của ngày đã ký nên kiểm nhận bị khóa. Muốn sửa, bấm Sửa lại ở{' '}
+            <Link to={`/kitchen/inspections?date=${date}&campusId=${campus.campusId}&form=FRESH`}>biên bản M1 tươi</Link>.
+          </div>
+        )}
         {check.data.rounds.map((round) => (
           <FreshRoundCard
             key={round.round}
             round={round}
             campusId={campus.campusId}
             date={date}
-            canManage={check.data.canManage}
+            canManage={check.data.canManage && check.data.editable !== false}
             groupOfFood={foodGroups}
             onSaved={check.setData}
             onStale={() => check.reload({ silent: true })}

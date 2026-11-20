@@ -81,7 +81,12 @@ export default function StockReceiptEditorPage() {
     downloadCsv([RECEIPT_IMPORT_COLUMNS, ['TP001', 'Gạo tẻ', '50', 'L2611-01', '30/06/2027', '18000']], 'phieu-nhap-kho-mau.csv');
 
   useEffect(() => {
-    if (receipt) setForm(receiptToForm(receipt));
+    // NUT-11: ngày nhập luôn là hôm nay; phiếu nháp ngày cũ được đổi sang hôm nay khi lưu hoặc xác nhận
+    if (receipt)
+      setForm({
+        ...receiptToForm(receipt),
+        ...(receipt.status === RECEIPT_STATUS.DRAFT && { receivedDate: todayInput() }),
+      });
   }, [receipt]);
   useEffect(() => {
     if (isNew && !form && campus.campusId)
@@ -89,6 +94,7 @@ export default function StockReceiptEditorPage() {
   }, [isNew, form, campus.campusId, params]);
 
   const editable = isNew ? canCreate : !!receipt && receipt.status === RECEIPT_STATUS.DRAFT && !!receipt.canManage;
+  const staleDraft = !isNew && receipt?.status === RECEIPT_STATUS.DRAFT && receipt.receivedDate !== todayInput();
   // Thực phẩm tra đơn vị mua: danh mục khô + thực phẩm đã ghi trên phiếu (phòng khi đã ngừng sử dụng)
   const foodById = useMemo(() => {
     const map = {};
@@ -305,8 +311,17 @@ export default function StockReceiptEditorPage() {
                   error={!!errors.supplierId}
                 />
               </FormField>
-              <FormField label="Ngày nhập kho" required error={errors.receivedDate}>
-                <DateInput value={form.receivedDate} onChange={(v) => setField('receivedDate', v)} />
+              <FormField
+                label="Ngày nhập kho"
+                required
+                error={errors.receivedDate}
+                hint={
+                  staleDraft
+                    ? `Phiếu nháp lập ngày ${formatDate(receipt.receivedDate)}; khi lưu sẽ đổi ngày nhập về hôm nay`
+                    : 'Phiếu nhập ghi đúng ngày nhận hàng (hôm nay)'
+                }
+              >
+                <DateInput value={form.receivedDate} onChange={() => {}} disabled />
               </FormField>
               <FormField label="Ghi chú" error={errors.note} hint={`Tối đa ${NOTE_MAX} ký tự`}>
                 <TextField className="input" value={form.note} maxLength={NOTE_MAX} onChange={(e) => setField('note', e.target.value)} />
