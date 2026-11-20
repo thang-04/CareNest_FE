@@ -32,10 +32,17 @@ const OrderTable = ({ rows, needLabel }) => (
 
 /**
  * Danh sách đặt hàng A4 (mẫu `.print-sheet`) của một bản dự trù: hàng tươi tổng cả kỳ và hàng khô đặt cho kỳ, theo đơn
- * vị mua; cột ghi chú nhà cung cấp để trống. Phần nào không có dòng thì bỏ.
+ * vị mua, hàng tươi chia theo nhà cung cấp; cột ghi chú nhà cung cấp để trống. Phần nào không có dòng thì bỏ.
  */
 export const FreshForecastPrint = forwardRef(function FreshForecastPrint({ forecast, campusName }, ref) {
-  const fresh = forecast.lines.map((line) => ({ food: line.food, qty: line.purchaseTotal }));
+  // Hàng tươi tách theo NCC (BE trả theo mức giá hiệu lực) để gửi từng nhà cung cấp
+  const freshBySupplier = forecast.lines.reduce((acc, line) => {
+    const name = line.supplierName || 'Chưa gán nhà cung cấp';
+    let g = acc.find((x) => x.name === name);
+    if (!g) acc.push((g = { name, rows: [] }));
+    g.rows.push({ food: line.food, qty: line.purchaseTotal });
+    return acc;
+  }, []);
   // Hàng khô in theo lượng đặt đã chốt; "Cần trước" lấy ngày bắt đầu thiếu BE tính lúc xem (không còn thiếu thì để trống)
   const shortFrom = Object.fromEntries(forecast.dryLines.map((line) => [String(line.food.id), line.shortFrom]));
   const dry = forecast.dryOrder.map((line) => ({
@@ -54,12 +61,12 @@ export const FreshForecastPrint = forwardRef(function FreshForecastPrint({ forec
         </div>
       </div>
       {forecast.note && <p>Ghi chú: {forecast.note}</p>}
-      {fresh.length > 0 && (
-        <>
-          <h2 className="ps-section">Hàng tươi</h2>
-          <OrderTable rows={fresh} />
-        </>
-      )}
+      {freshBySupplier.map((g) => (
+        <div key={g.name}>
+          <h2 className="ps-section">Hàng tươi · {g.name}</h2>
+          <OrderTable rows={g.rows} />
+        </div>
+      ))}
       {dry.length > 0 && (
         <>
           <h2 className="ps-section">Hàng khô</h2>

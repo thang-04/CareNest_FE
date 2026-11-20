@@ -1,5 +1,5 @@
 import { StatusBadge } from '@/components/ui/StatusBadge';
-import { isNormConfigured, priceOn } from '@/utils/menu-planning/menuCalculations';
+import { foodBudgetOn, isNormConfigured } from '@/utils/menu-planning/menuCalculations';
 import { daySummary, fmtNum as g } from '@/utils/menu-planning/daySummary';
 import { mealsOf } from '@/utils/menu-planning/nutritionSetup';
 import { WEEKDAY_LABELS, formatMoney } from '@/models/menu-planning/menuPlanningConstants';
@@ -20,7 +20,7 @@ export function WeekBalanceTable({ wm, catalog }) {
   const raw = catalog.norms?.[wm.ageGroupId] || {};
   const norm = isNormConfigured(raw) ? raw : null;
   const basis = (catalog.nutritionSetups || []).find((s) => s.basis)?.basis;
-  const price = priceOn(catalog.mealPrices, wm.ageGroupId, wm.weekStart)?.price ?? null;
+  const price = foodBudgetOn(catalog.mealPrices, wm.ageGroupId, wm.weekStart);
   const scope = mealsOf(catalog.nutritionSetups, wm.ageGroupId)
     .map((m) => m.name)
     .join(', ');

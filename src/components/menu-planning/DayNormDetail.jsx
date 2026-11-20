@@ -111,9 +111,9 @@ export function DayNormDetail({ open, day, wm, catalog, menuName, issues = [], o
             max={sum.price}
             badge={
               sum.price == null ? null : sum.overPrice ? (
-                <StatusBadge tone="orange" label="Vượt tiền ăn" />
+                <StatusBadge tone="orange" label="Vượt ngân sách thực phẩm" />
               ) : (
-                <StatusBadge tone="green" label="Trong tiền ăn" />
+                <StatusBadge tone="green" label="Trong ngân sách thực phẩm" />
               )
             }
           />

@@ -50,6 +50,9 @@ export const getSuppliers = (filters, user) => supplierRepo.getSuppliers(filters
 export const getSupplier = (filters, user) => supplierRepo.getSupplier(filters, user);
 export const saveSupplier = (payload, user) => supplierRepo.saveSupplier(payload, user);
 export const deleteSupplier = (payload, user) => supplierRepo.deleteSupplier(payload, user);
+// Hợp đồng NCC và chuyển giá hàng loạt (NUT-27) chỉ có ở BE thật
+export const getSupplierFoods = (supplierId, date) => nutritionCatalogApi.getSupplierFoods(supplierId, date);
+export const applySupplierContract = (supplierId, payload) => nutritionCatalogApi.applySupplierContract(supplierId, payload);
 // Phiếu nhập kho còn demo ⇒ chọn NCC trong dữ liệu mẫu cùng nguồn với phiếu
 export const getReceiptSuppliers = (filters, user) => repo.getSuppliers(filters, user);
 /** Phiếu xuất kho đồ khô của một cơ sở: { issues, today } (today = trạng thái hôm nay khi chưa có phiếu). */

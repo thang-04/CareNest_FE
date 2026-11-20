@@ -162,15 +162,18 @@ export function MealPlanEvaluations({ plan, block }) {
             {head('Tiền ăn')}
             <tr>
               <th scope="row">Tiền ăn / trẻ</th>
-              <td className="td-eval__norm">{formatMoney(dates.map((d) => group.byDate[d]?.mealPrice).find((v) => v != null))}</td>
+              <td className="td-eval__norm">
+                {formatMoney(dates.map((d) => group.byDate[d]?.foodBudget ?? group.byDate[d]?.mealPrice).find((v) => v != null))}
+              </td>
               {dates.map((date) => {
                 const ev = group.byDate[date];
-                // Vượt giá suất: dùng trạng thái giá BE gửi qua issues; ở đây chỉ so hai số BE trả để tô nền
-                const over = ev && ev.mealPrice != null && Number(ev.cost) > Number(ev.mealPrice);
+                // Vượt ngân sách thực phẩm (giá suất − phí dịch vụ): chỉ so hai số BE trả để tô nền
+                const budget = ev?.foodBudget ?? ev?.mealPrice;
+                const over = ev && budget != null && Number(ev.cost) > Number(budget);
                 return (
                   <td key={date} className={`td-eval__cell ${over ? 'td-eval__cell--high' : ''}`}>
                     {ev ? <span className="fw-600">{formatMoney(ev.cost)}</span> : '—'}
-                    {over && <small>Vượt giá suất</small>}
+                    {over && <small>Vượt ngân sách</small>}
                   </td>
                 );
               })}

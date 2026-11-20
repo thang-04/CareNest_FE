@@ -3,7 +3,7 @@ import {
   isNormConfigured,
   mealsAllergens,
   mealsTotals,
-  priceOn,
+  foodBudgetOn,
   repeatedMainDishes,
   sameAllergen,
 } from '@/utils/menu-planning/menuCalculations';
@@ -53,7 +53,7 @@ export function checkDayMenu({ meals, ageGroupId, catalog, date, allergyRows = [
   const result = mealsTotals(normScopeMeals(meals, catalog.nutritionSetups, ageGroupId), catalog.dishById, catalog.foodById, ageGroupId);
   const rows = compareToNorm(result.totals, ageGroupId, result.missing.length > 0, catalog.norms);
   const byKey = Object.fromEntries(rows.map((r) => [r.key, r]));
-  const price = priceOn(catalog.mealPrices, ageGroupId, date)?.price ?? null;
+  const price = foodBudgetOn(catalog.mealPrices, ageGroupId, date);
   const setupMeals = mealsOf(catalog.nutritionSetups, ageGroupId);
   const emptyMeals = setupMeals.filter((m) => !(meals || []).find((x) => x.session === m.code)?.items?.length);
   const problems = [];
@@ -90,8 +90,8 @@ export function checkDayMenu({ meals, ageGroupId, catalog, date, allergyRows = [
   if (micro.some((r) => r.status === 'HIGH')) problems.push({ tone: 'warn', text: `Nhiều ${microText('HIGH')}` });
 
   if (price != null) {
-    if (result.cost > price) problems.push({ tone: 'warn', text: `Vượt tiền ăn ${formatMoney(result.cost - price)}` });
-    else oks.push({ tone: 'ok', text: 'Trong tiền ăn' });
+    if (result.cost > price) problems.push({ tone: 'warn', text: `Vượt ngân sách thực phẩm ${formatMoney(result.cost - price)}` });
+    else oks.push({ tone: 'ok', text: 'Trong ngân sách thực phẩm' });
   }
 
   mealsAllergens(meals, catalog.dishById, catalog.foodById).forEach((a) => {
@@ -108,7 +108,7 @@ export function checkDayMenu({ meals, ageGroupId, catalog, date, allergyRows = [
   else if (result.missing.length || !normSet) status = { tone: 'gray', label: 'Chưa đủ dữ liệu đánh giá' };
   else if (kcal?.status === 'LOW') status = { tone: 'orange', label: 'Ít năng lượng' };
   else if (kcal?.status === 'HIGH') status = { tone: 'orange', label: 'Nhiều năng lượng' };
-  else if (price != null && result.cost > price) status = { tone: 'orange', label: 'Vượt tiền ăn' };
+  else if (price != null && result.cost > price) status = { tone: 'orange', label: 'Vượt ngân sách thực phẩm' };
   else if (ratio.length) status = { tone: 'orange', label: 'Chưa cân đối' };
 
   const t = result.totals;
@@ -198,7 +198,7 @@ export function weekIssues({ wm, catalog, previousDays = [], allergyRows = [], a
  */
 export function weekBudgetCheck({ days, ageGroupId, weekStart, catalog }) {
   if (catalog.pricePerDay) {
-    const rows = days.map((d) => ({ ...d, price: priceOn(catalog.mealPrices, ageGroupId, d.date)?.price ?? null }));
+    const rows = days.map((d) => ({ ...d, price: foodBudgetOn(catalog.mealPrices, ageGroupId, d.date) }));
     const priced = rows.filter((r) => r.price != null);
     if (!priced.length) return { level: 'warn', text: 'Chưa có giá suất ăn áp dụng cho tuần này nên chưa kiểm tra được tiền ăn.' };
     const over = priced.filter((r) => r.cost > r.price);
@@ -213,10 +213,10 @@ export function weekBudgetCheck({ days, ageGroupId, weekStart, catalog }) {
       };
     return {
       level: unpriced ? 'warn' : 'ok',
-      text: `Chi phí thực phẩm ước tính từng ngày đều trong tiền ăn / ngày (${formatMoney(priced[0].price)} / trẻ).${note}`,
+      text: `Chi phí thực phẩm ước tính từng ngày đều trong ngân sách thực phẩm / ngày (${formatMoney(priced[0].price)} / trẻ).${note}`,
     };
   }
-  const price = priceOn(catalog.mealPrices, ageGroupId, weekStart)?.price;
+  const price = foodBudgetOn(catalog.mealPrices, ageGroupId, weekStart);
   const cost = days.reduce((s, d) => s + d.cost, 0);
   const budget = price ? price * days.length : null;
   if (!budget) return { level: 'warn', text: 'Chưa có giá suất ăn áp dụng cho tuần này nên chưa kiểm tra được ngân sách.' };

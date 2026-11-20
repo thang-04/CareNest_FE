@@ -33,6 +33,8 @@ export function MealNutritionCard({
   const ev = stats?.evaluation || {};
   const row = Object.fromEntries((ev.rows || []).map((r) => [r.key, r]));
   const t = ev.totals || {};
+  // Ngân sách thực phẩm = giá suất − phí dịch vụ (BE trả foodBudget, NUT-19)
+  const budget = stats?.foodBudget ?? stats?.mealPrice ?? null;
   const sessions = SESSION_ORDER.map((s) => (ev.sessions || []).find((x) => x.session === s)).filter(Boolean);
 
   return (
@@ -126,7 +128,7 @@ export function MealNutritionCard({
                       <td className={`num ${tone(row.kcal)}`}>{num(t.kcal)}</td>
                       <td />
                       <td
-                        className={`money nowrap ${stats.mealPrice != null && Number(stats.costPerChild) > Number(stats.mealPrice) ? 'td-daynut--high' : ''}`}
+                        className={`money nowrap ${budget != null && Number(stats.costPerChild) > Number(budget) ? 'td-daynut--high' : ''}`}
                       >
                         {money(stats.costPerChild)}
                       </td>
@@ -141,7 +143,7 @@ export function MealNutritionCard({
                       <td className="num nowrap">{range(row.glucid)}</td>
                       <td className="num nowrap">{range(row.kcal)}</td>
                       <td />
-                      <td className="money nowrap">{stats.mealPrice == null ? 'Chưa đặt' : money(stats.mealPrice)}</td>
+                      <td className="money nowrap">{budget == null ? 'Chưa đặt' : money(budget)}</td>
                     </tr>
                     <tr className="td-daynut__verdict">
                       <td>Đánh giá</td>
@@ -168,6 +170,22 @@ export function MealNutritionCard({
                   <i className="td-eval__dot td-eval__dot--high" /> Cao so với chuẩn
                 </span>
               </p>
+            )}
+            {stats?.mealPrice != null && (
+              <dl className="info-list td-daynut__budget" aria-label="Cân đối tiền ăn 1 trẻ / ngày">
+                <dt>Giá suất ăn</dt>
+                <dd className="money">{money(stats.mealPrice)}</dd>
+                <dt>Phí dịch vụ</dt>
+                <dd className="money">{money(stats.serviceFee ?? 0)}</dd>
+                <dt>Ngân sách thực phẩm</dt>
+                <dd className="money fw-600">{money(budget)}</dd>
+                <dt>Chi phí khẩu phần</dt>
+                <dd className="money">{money(stats.costPerChild)}</dd>
+                <dt>{Number(stats.costPerChild || 0) > Number(budget) ? 'Vượt ngân sách' : 'Còn lại'}</dt>
+                <dd className={`money fw-600 ${Number(stats.costPerChild || 0) > Number(budget) ? 'td-daynut--high' : ''}`}>
+                  {money(Math.abs(Number(budget) - Number(stats.costPerChild || 0)))}
+                </dd>
+              </dl>
             )}
           </>
         )}

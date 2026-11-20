@@ -117,7 +117,12 @@ export default function StockReceiptEditorPage() {
     downloadCsv([RECEIPT_IMPORT_COLUMNS, ['TP001', 'Gạo tẻ', '50', 'L2611-01', '30/06/2027', '18000']], 'phieu-nhap-kho-mau.csv');
 
   useEffect(() => {
-    if (receipt) setForm(receiptToForm(receipt));
+    // NUT-11: ngày nhập luôn là hôm nay; phiếu nháp ngày cũ được đổi sang hôm nay khi lưu hoặc xác nhận
+    if (receipt)
+      setForm({
+        ...receiptToForm(receipt),
+        ...(receipt.status === RECEIPT_STATUS.DRAFT && { receivedDate: todayInput() }),
+      });
   }, [receipt]);
   useEffect(() => {
     if (isNew && !form && defaultCampusId)
@@ -125,6 +130,7 @@ export default function StockReceiptEditorPage() {
   }, [isNew, form, defaultCampusId, params]);
 
   const editable = isNew ? canCreate : !!receipt && receipt.status === RECEIPT_STATUS.DRAFT && !!receipt.canManage;
+  const staleDraft = !isNew && receipt?.status === RECEIPT_STATUS.DRAFT && receipt.receivedDate !== todayInput();
   // Người không có quyền quản lý kho của điểm trường này chỉ xem phiếu
   const viewOnly = isNew ? !canCreate : !!receipt && !receipt.canManage;
   usePageReadOnly();
@@ -365,8 +371,19 @@ export default function StockReceiptEditorPage() {
                   error={!!errors.supplierId}
                 />
               </FormField>
-              <FormField label="Ngày nhập kho" required error={errors.receivedDate}>
-                <DateInput value={form.receivedDate} disabled={!editable} onChange={(v) => setField('receivedDate', v)} />
+              <FormField
+                label="Ngày nhập kho"
+                required
+                error={errors.receivedDate}
+                hint={
+                  !editable
+                    ? undefined
+                    : staleDraft
+                      ? `Phiếu nháp lập ngày ${formatDate(receipt.receivedDate)}; khi lưu sẽ đổi ngày nhập về hôm nay`
+                      : 'Phiếu nhập ghi đúng ngày nhận hàng (hôm nay)'
+                }
+              >
+                <DateInput value={form.receivedDate} onChange={() => {}} disabled />
               </FormField>
               <FormField label="Ghi chú" error={errors.note} hint={`${(form.note || '').length}/${NOTE_MAX} ký tự`}>
                 <TextField

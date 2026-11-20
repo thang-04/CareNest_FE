@@ -149,9 +149,11 @@ test('suất thay thế dùng món thay của thực đơn mẫu', () => {
 
 test('tổng thu = suất bữa trưa × giá ngày; nhóm chỉ có bản nháp báo chưa có thực đơn', () => {
   const m = computeMarket(db, { date: DATE, counts, classById });
-  assert.deepEqual(m.revenue.parts, [{ ageGroupId: 'ag-2', name: 'Nhà trẻ', servings: 12, price: 32000 }]);
+  assert.deepEqual(m.revenue.parts, [{ ageGroupId: 'ag-2', name: 'Nhà trẻ', servings: 12, price: 32000, serviceFee: 0 }]);
   assert.equal(m.revenue.total, 384000);
-  assert.equal(m.balance, m.revenue.total - m.cost.total);
+  // Chưa có phí dịch vụ ⇒ ngân sách thực phẩm = tổng thu; thừa thiếu so với ngân sách (NUT-19)
+  assert.equal(m.revenue.foodBudget, 384000);
+  assert.equal(m.balance, m.revenue.foodBudget - m.cost.total);
   assert.ok(m.checks.some((c) => c.tone === 'bad' && c.text === 'Chưa có thực đơn tuần đã xuất bản: Mẫu giáo bé'));
   // Nhóm có suất trưa nhưng chưa có giá ngày: không cộng thu, có cảnh báo
   assert.ok(m.checks.some((c) => c.text === 'Chưa có giá suất ăn: Mẫu giáo bé'));

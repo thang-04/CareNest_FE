@@ -48,6 +48,7 @@ export const NORM_STEMS = {
 };
 const configFieldOf = (key) => {
   if (key === 'mealPrice') return 'price';
+  if (key === 'serviceFee') return 'serviceFee';
   if (key === 'dailyKcalNeed') return 'dailyKcalNeed';
   const norm = Object.entries(NORM_STEMS).find(([, stem]) => key === `${stem}Min` || key === `${stem}Max`);
   return norm ? `norms.${norm[0]}` : null;
@@ -134,7 +135,11 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
     stockUnit: f.purchaseUnit,
     purchaseToStock: 1,
     stockUnitSize: f.purchaseUnitSize,
+    // Giá và NCC tại hôm nay theo lịch sử giá (NUT-27)
     unitPrice: f.unitPrice ?? null,
+    supplierId: f.supplierId ?? null,
+    supplierName: f.supplierName || '',
+    contractStatus: f.contractStatus || 'NONE',
     wastePct: f.wastePct ?? 0,
     storage: f.storage,
     nutrition: {
@@ -189,6 +194,8 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
       storage: ['FRESH', 'DRY'].includes(p.storage) ? p.storage : defaultStorageOf(p.group),
       note: text(p.note),
       allergenIds: await allergenIdsOf(p.allergens || []),
+      // Chỉ dùng khi tạo; sau đó đổi qua điều chỉnh giá (BE từ chối nếu khác mức hôm nay)
+      supplierId: blank(p.supplierId) ? null : Number(p.supplierId),
     };
   };
 
@@ -281,17 +288,31 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
     // BE trả null cho người chỉ xem ⇒ không có khóa, màn ẩn dòng CCCD
     ...(s.idCard ? { idCard: s.idCard } : {}),
     status: s.status,
+    contractNo: s.contractNo || '',
+    contractStart: s.contractStart || '',
+    contractEnd: s.contractEnd || '',
+    contractStatus: s.contractStatus || 'NONE',
     // BE chưa nối phiếu nhập kho với nhà cung cấp
     receiptCount: null,
     receipts: [],
   });
   const supplier = withFields(SUPPLIER_FIELDS);
+  // Tên trường lỗi BE trùng tên ô form
+  const price = withFields({});
+  const contract = withFields({});
+  const toPriceRequest = (p) => ({
+    supplierId: blank(p.supplierId) ? null : Number(p.supplierId),
+    price: numOrNull(p.price),
+    effectiveFrom: p.effectiveFrom || null,
+    reason: text(p.reason),
+  });
 
   /* ---------- cấu hình nhóm tuổi (thiết lập dinh dưỡng) ---------- */
   const toVersion = (v) => ({
     id: v.id,
     effectiveFrom: v.effectiveFrom,
     price: v.mealPrice ?? null,
+    serviceFee: v.serviceFee ?? 0,
     basis: v.normBasis || '',
     dailyKcalNeed: v.dailyKcalNeed ?? '',
     // Khoảng chưa đặt (cả hai đầu null) không có khóa ⇒ màn hiện "Chưa đặt định mức"
@@ -315,6 +336,7 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
     ageGroupId,
     effectiveFrom,
     mealPrice: Number(g.price),
+    serviceFee: numOrNull(g.serviceFee) ?? 0,
     normBasis: text(basis),
     dailyKcalNeed: numOrNull(g.dailyKcalNeed),
     ...Object.fromEntries(
@@ -458,10 +480,49 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
           address: text(payload.address),
           deliveryPerson: text(payload.contactName),
           idCard: text(payload.idCard),
+          contractNo: text(payload.contractNo),
+          contractStart: payload.contractStart || null,
+          contractEnd: payload.contractEnd || null,
         };
         let saved = id ? await client.put(`/nutrition/suppliers/${id}`, body) : await client.post('/nutrition/suppliers', body);
         if (payload.status && payload.status !== saved.status)
           saved = await client.patch(`/nutrition/suppliers/${saved.id}/status`, { status: payload.status });
+        notifyChanged();
+        return toSupplier(saved);
+      }),
+
+    /* lịch sử giá và hợp đồng NCC (NUT-27) */
+    getFoodPrices: (foodId) => client.get(`/nutrition/foods/${foodId}/prices`),
+
+    adjustFoodPrice: (foodId, payload) =>
+      price(async () => {
+        const saved = await client.post(`/nutrition/foods/${foodId}/prices`, toPriceRequest(payload));
+        notifyChanged();
+        return saved;
+      }),
+
+    updateFoodPrice: (foodId, priceId, payload) =>
+      price(async () => {
+        const saved = await client.put(`/nutrition/foods/${foodId}/prices/${priceId}`, toPriceRequest(payload));
+        notifyChanged();
+        return saved;
+      }),
+
+    async deleteFoodPrice(foodId, priceId) {
+      await client.delete(`/nutrition/foods/${foodId}/prices/${priceId}`);
+      notifyChanged();
+    },
+
+    getSupplierFoods: (supplierId, date) => client.get(`/nutrition/suppliers/${supplierId}/foods`, { params: params({ date }) }),
+
+    applySupplierContract: (supplierId, payload) =>
+      contract(async () => {
+        const saved = await client.post(`/nutrition/suppliers/${supplierId}/apply-contract`, {
+          contractNo: text(payload.contractNo),
+          contractStart: payload.contractStart,
+          contractEnd: payload.contractEnd,
+          lines: payload.lines.map((l) => ({ foodId: l.foodId, price: Number(l.price) })),
+        });
         notifyChanged();
         return toSupplier(saved);
       }),
@@ -490,12 +551,13 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
           mealsReadOnly: true,
           basis: latest?.basis || '',
           price: latest?.price ?? '',
+          serviceFee: latest?.serviceFee ?? 0,
           meals: (g.mealSessions || []).map((code) => ({ code, name: MEAL_SESSION_LABELS[code] || code, countAs: code })),
           norms: latest?.norms || {},
           dailyKcalNeed: latest?.dailyKcalNeed ?? '',
           childCount: null,
           versions,
-          prices: versions.map((v) => ({ id: v.id, price: v.price, effectiveFrom: v.effectiveFrom })),
+          prices: versions.map((v) => ({ id: v.id, price: v.price, serviceFee: v.serviceFee, effectiveFrom: v.effectiveFrom })),
         };
       });
     },
@@ -513,7 +575,7 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
         if (beId == null) continue;
         const body = toConfigRequest(g, payload.effectiveFrom, payload.basis, beId);
         const latest = (await versionsOf(beId))[0];
-        if (latest && sameConfig(body, { ...latest, ageGroupId: beId })) continue;
+        if (latest && sameConfig(body, { serviceFee: 0, ...latest, ageGroupId: beId })) continue;
         changed.push({ ageGroupId: g.ageGroupId, body });
       }
       if (!changed.length) return { saved: 0 };
@@ -554,6 +616,7 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
             enabled: true,
             basis: v?.basis || '',
             price: v?.price ?? '',
+            serviceFee: v?.serviceFee ?? 0,
             meals: (g.mealSessions || []).map((code) => ({ code, name: MEAL_SESSION_LABELS[code] || code, countAs: code })),
             norms: v?.norms || {},
             dailyKcalNeed: v?.dailyKcalNeed ?? '',
@@ -563,7 +626,14 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
         .filter((g) => byGroup.get(String(g.id))?.price != null)
         .map((g) => {
           const v = byGroup.get(String(g.id));
-          return { id: v.id, ageGroupId: g.code, price: Number(v.price), effectiveFrom: v.effectiveFrom, effectiveTo: null };
+          return {
+            id: v.id,
+            ageGroupId: g.code,
+            price: Number(v.price),
+            serviceFee: Number(v.serviceFee) || 0,
+            effectiveFrom: v.effectiveFrom,
+            effectiveTo: null,
+          };
         });
       return {
         nutritionSetups,

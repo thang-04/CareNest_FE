@@ -11,7 +11,7 @@ import { WeekGrid } from '@/components/menu-planning/WeekGrid';
 import { AiBrief } from '@/components/menu-planning/AiBrief';
 import { AiDraftLabel } from '@/components/menu-planning/MenuBadges';
 import { checkDayMenu } from '@/utils/menu-planning/menuChecks';
-import { priceOn } from '@/utils/menu-planning/menuCalculations';
+import { foodBudgetOn } from '@/utils/menu-planning/menuCalculations';
 import { AI_DRAFT_KIND, REPEAT_WINDOW_DAYS, WEEKDAY_LABELS, formatMoney, weekLabel } from '@/models/menu-planning/menuPlanningConstants';
 
 const WISH_HINTS = ['Thứ Sáu có món nước', 'Ít chiên rán'];
@@ -40,7 +40,7 @@ export function AiWeekComposer({
   const [wishes, setWishes] = useState('');
   const { running, run: runAi } = useAiRun();
   const [draft, setDraft] = useState(null);
-  const price = priceOn(catalog.mealPrices, ageGroupId, weekStart)?.price ?? null;
+  const price = foodBudgetOn(catalog.mealPrices, ageGroupId, weekStart);
 
   useEffect(() => {
     if (open) setDraft(null);
@@ -115,7 +115,7 @@ export function AiWeekComposer({
       open={open}
       onClose={draft ? discard : onClose}
       closeOnBackdrop={!draft}
-      size={draft ? 'xl' : 'md'}
+      size={draft ? 'xl' : 'lg'}
       title={draft ? `Bản AI soạn · ${weekLabel(weekStart)}` : 'AI soạn thực đơn tuần'}
       footer={footer}
     >
@@ -125,7 +125,7 @@ export function AiWeekComposer({
           facts={[
             ...(groupName ? [{ icon: Users, label: 'Nhóm tuổi', value: groupName }] : []),
             { icon: Scale, label: 'Dinh dưỡng', value: 'Đủ chất theo định mức của nhóm' },
-            ...(price != null ? [{ icon: Wallet, label: 'Tiền ăn', value: `${formatMoney(price)}/ngày` }] : []),
+            ...(price != null ? [{ icon: Wallet, label: 'Ngân sách thực phẩm', value: `${formatMoney(price)}/ngày` }] : []),
             { icon: Repeat, label: 'Không lặp', value: `Món mặn không lặp trong ${REPEAT_WINDOW_DAYS} ngày` },
           ]}
           allergyRows={allergyRows}

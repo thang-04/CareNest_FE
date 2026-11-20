@@ -38,6 +38,7 @@ import {
   compareToNorm,
   dishAllergens,
   dishTotals,
+  foodBudgetOn,
   ingredientQty,
   mealsTotals,
   normalizeMeals,
@@ -239,6 +240,7 @@ const normsOf = (db, ageGroupId) => db.nutritionSetups?.find((x) => x.ageGroupId
 const sanitizeSetup = (g) => ({
   enabled: g.enabled !== false,
   price: Number(g.price),
+  serviceFee: Number(g.serviceFee) || 0,
   meals: (g.meals || []).map((m) => ({
     code: m.code || uid('meal'),
     name: String(m.name || '').trim(),
@@ -393,7 +395,7 @@ const suggestDayFix = (db, { ageGroupId, date, meals, menuId, recentMainIds = []
   const dishById = byId(db.dishes);
   const foodById = byId(db.foods);
   const norms = { [ageGroupId]: normsOf(db, ageGroupId) };
-  const price = priceOn(db.mealPrices, ageGroupId, date)?.price ?? null;
+  const price = foodBudgetOn(db.mealPrices, ageGroupId, date);
   const day = normalizeMeals(meals, mealCodesDb(db, ageGroupId));
   const one = (d) => dishTotals(d, foodById, 1, ageGroupId);
   const allergy = allergyArgsOf(db, ageGroupId, menuId);
@@ -1015,6 +1017,7 @@ export const menuPlanningMockRepository = {
       ...clone(x),
       // Dữ liệu cũ lưu giá theo từng bữa: giá ngày = tổng
       price: x.price ?? (x.meals || []).reduce((sum, m) => sum + (m.unitPrice || 0), 0),
+      serviceFee: x.serviceFee ?? 0,
       childCount: childCount(x.ageGroupId),
       prices: clone(
         db.mealPrices.filter((p) => p.ageGroupId === x.ageGroupId).sort((a, b) => (a.effectiveFrom < b.effectiveFrom ? 1 : -1)),
@@ -1042,7 +1045,7 @@ export const menuPlanningMockRepository = {
         const latest = later
           ? db.mealPrices.filter((p) => p.ageGroupId === g.ageGroupId).sort((x, y) => (x.effectiveFrom < y.effectiveFrom ? 1 : -1))[0]
           : current;
-        const changed = !latest || latest.price !== total;
+        const changed = !latest || latest.price !== total || (Number(latest.serviceFee) || 0) !== data.serviceFee;
         if (changed && later)
           errors[`${g.ageGroupId}.meals`] =
             `Đã có giá áp dụng từ ${formatDate(later.effectiveFrom)}. Hãy chọn ngày áp dụng từ ngày đó trở đi.`;
@@ -1053,7 +1056,7 @@ export const menuPlanningMockRepository = {
       });
       if (hasErrors(errors)) fail(422, MSG.invalid, errors);
       const basis = String(payload.basis || '').trim();
-      const snapshot = (x) => JSON.stringify([x.enabled, x.price, x.meals, x.norms, x.basis]);
+      const snapshot = (x) => JSON.stringify([x.enabled, x.price, x.serviceFee, x.meals, x.norms, x.basis]);
       plans.forEach(({ g, data, total, current, changed }) => {
         const setup = db.nutritionSetups.find((x) => x.ageGroupId === g.ageGroupId);
         const before = snapshot(setup);
@@ -1065,7 +1068,7 @@ export const menuPlanningMockRepository = {
         if (!changed) return;
         if (current?.effectiveFrom === effectiveFrom) {
           const note = `${current.price.toLocaleString('vi-VN')} đ → ${total.toLocaleString('vi-VN')} đ${reason ? ` · ${reason}` : ''}`;
-          Object.assign(current, { price: total, updatedAt: now() });
+          Object.assign(current, { price: total, serviceFee: data.serviceFee, updatedAt: now() });
           addHistory(current, 'UPDATED', user, note);
           return;
         }
@@ -1074,6 +1077,7 @@ export const menuPlanningMockRepository = {
           id: uid('mp'),
           ageGroupId: g.ageGroupId,
           price: total,
+          serviceFee: data.serviceFee,
           effectiveFrom,
           effectiveTo: null,
           note: reason,

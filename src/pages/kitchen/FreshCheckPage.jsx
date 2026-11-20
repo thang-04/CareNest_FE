@@ -43,6 +43,17 @@ export default function FreshCheckPage() {
     const freshClosed = check.data.rounds.every((r) => !r.available && !r.recorded && !r.lines.length);
     body = (
       <div className="kb-stack">
+        {check.data.canManage && check.data.lockReason === 'NOT_TODAY' && (
+          <div className="alert alert--info" role="status">
+            Kiểm nhận chỉ ghi hoặc sửa trong ngày nhận hàng; ngày này chỉ xem.
+          </div>
+        )}
+        {check.data.canManage && check.data.lockReason === 'M1_SIGNED' && (
+          <div className="alert alert--info" role="status">
+            Biên bản M1 hàng tươi của ngày đã ký nên kiểm nhận bị khóa. Muốn sửa, bấm Sửa lại ở{' '}
+            <Link to={`/kitchen/inspections?date=${date}&campusId=${campus.campusId}&form=FRESH`}>biên bản M1 tươi</Link>.
+          </div>
+        )}
         {freshClosed ? (
           // Cả hai lần hàng tươi chưa mở: một thẻ giải thích điều kiện của từng lần thay vì hai thẻ trống giống nhau
           <section className="card">
@@ -66,7 +77,7 @@ export default function FreshCheckPage() {
               round={round}
               campusId={campus.campusId}
               date={date}
-              canManage={check.data.canManage}
+              canManage={check.data.canManage && check.data.editable !== false}
               groupOfFood={foodGroups}
               onSaved={check.setData}
               onStale={() => check.reload({ silent: true })}

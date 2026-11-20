@@ -28,7 +28,7 @@ test('kiểm tra tự động: lời thường, số liệu để riêng; thiế
   const menu = catalog.menus.find((m) => m.ageGroupId === 'ag-4');
   const full = checkDayMenu({ meals: menu.meals, ageGroupId: 'ag-4', catalog, date: TODAY });
   assert.ok(full.checks.some((c) => /năng lượng/i.test(c.text)));
-  assert.ok(full.checks.some((c) => /tiền ăn/.test(c.text)));
+  assert.ok(full.checks.some((c) => /ngân sách thực phẩm/.test(c.text)));
   // Không còn ký hiệu kỹ thuật kiểu "Đạm : béo : bột 14,9 : 24,5" hay khoảng kcal trong lời nhắn
   assert.ok(full.checks.every((c) => !/ : |–/.test(c.text)));
   assert.deepEqual(
