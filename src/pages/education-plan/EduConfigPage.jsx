@@ -5,7 +5,6 @@ import { Card, Notice, PageHead } from '@/components/education-plan/eduUi';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { Cell, focusCell } from '@/components/education-plan/planUi';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
-import { STANDARD_DOMAINS } from '@/models/education-plan/educationPlanConstants';
 import { DOMAIN_ROMAN } from '@/models/education-plan/goalTable';
 import {
   DEFAULT_WORKFLOW_POLICY,
@@ -20,7 +19,37 @@ import { useManualSave } from '@/hooks/education-plan/useManualSave';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import { RenumberButton, SortHandle, SortIndex, SortableList, SortableRow } from '@/components/ui/Sortable';
-import { Button, TextField } from '@/components';
+import { Button } from '@/components';
+
+const normalizeDeadlineDays = (value) => {
+  const parsed = Number.parseInt(String(value), 10);
+  return Number.isNaN(parsed) ? 0 : Math.max(0, Math.min(30, parsed));
+};
+
+/** EDU-94/97: cho phép xóa và gõ lại số mà không ép `0` vào đầu giá trị đang nhập. */
+function DeadlineDaysField({ label, value, onChange }) {
+  const update = (raw) => {
+    if (raw === '' || /^\d{1,2}$/.test(raw)) onChange(raw);
+  };
+  return (
+    <div className="ga-deadline-setting">
+      <label className="field__label" htmlFor={`deadline-days-${label}`}>
+        {label}
+      </label>
+      <input
+        id={`deadline-days-${label}`}
+        className="input ga-deadline-setting__input"
+        type="text"
+        inputMode="numeric"
+        pattern="[0-9]*"
+        maxLength={2}
+        value={value ?? ''}
+        onChange={(e) => update(e.target.value)}
+        onBlur={(e) => onChange(normalizeDeadlineDays(e.target.value))}
+      />
+    </div>
+  );
+}
 
 /**
  * Cấu hình người tạo và người duyệt của từng loại tài liệu (FR-001, FR-002, AC-01).
@@ -168,7 +197,13 @@ export default function EduConfigPage() {
         workflowRevision = workflowSaved.workflowRevision;
         setDraft((current) => ({ ...current, workflowPolicy, workflowRevision }));
       }
-      const submitted = { ...doc, workflowPolicy, workflowRevision };
+      const submitted = {
+        ...doc,
+        workflowPolicy,
+        workflowRevision,
+        lateReturnGraceDays: normalizeDeadlineDays(doc.lateReturnGraceDays),
+        lateApprovalGraceDays: normalizeDeadlineDays(doc.lateApprovalGraceDays),
+      };
       const res = await saveEduConfig(submitted);
       if (!res) return null;
       const savedDoc = {
@@ -211,7 +246,7 @@ export default function EduConfigPage() {
   const addDomain = () => {
     const name = newDomain.trim();
     if (!name) return;
-    const all = [...STANDARD_DOMAINS, ...draft.extraDomains].map((d) => d.toLowerCase());
+    const all = [...draft.standardDomains, ...draft.extraDomains].map((d) => d.toLowerCase());
     if (all.includes(name.toLowerCase())) {
       setDomainError(`Đã có lĩnh vực "${name}".`);
       return;
@@ -316,7 +351,7 @@ export default function EduConfigPage() {
       <Card title="1. Thời lượng chủ đề / chủ đề nhánh" bodyClass={null}>
         <div className="card__body stack">
           {eduConfig.durationPolicyAvailable === false && (
-            <Notice>Máy chủ hiện chưa hỗ trợ cấu hình thời lượng. Các cấu hình hiện có vẫn sử dụng bình thường.</Notice>
+            <Notice tone="info">Máy chủ hiện chưa hỗ trợ cấu hình thời lượng. Các cấu hình hiện có vẫn sử dụng bình thường.</Notice>
           )}
           <div className="table-wrap">
             <table className="table ga-plan-table ga-goal-table" onMouseDown={focusCell}>
@@ -402,8 +437,8 @@ export default function EduConfigPage() {
                 </tr>
               </thead>
               <tbody>
-                {[...STANDARD_DOMAINS, ...draft.extraDomains].map((d, i) => {
-                  const extra = i >= STANDARD_DOMAINS.length;
+                {[...draft.standardDomains, ...draft.extraDomains].map((d, i) => {
+                  const extra = i >= draft.standardDomains.length;
                   return (
                     <tr key={d}>
                       <td className={`ga-stt${editing ? ' cell--fixed' : ''}`}>
@@ -687,19 +722,33 @@ export default function EduConfigPage() {
             tiên và chỉ một lần cho mỗi tài liệu. Hết số ngày này, tài liệu chờ Hiệu trưởng mở hạn.
           </p>
           {editing && isPrincipal ? (
-            <TextField
+            <DeadlineDaysField
               label="Số ngày được gửi lại (0–30 ngày)"
-              fieldClassName="w-110"
-              type="number"
-              min="0"
-              max="30"
-              step="1"
               value={draft.lateReturnGraceDays ?? 2}
-              onChange={(e) => set((x) => ((x.lateReturnGraceDays = Math.max(0, Math.min(30, Number(e.target.value) || 0))), x))}
+              onChange={(value) => set((x) => ((x.lateReturnGraceDays = value), x))}
             />
           ) : (
             <p>
               Số ngày được gửi lại: <strong>{draft.lateReturnGraceDays ?? 2} ngày</strong>
+            </p>
+          )}
+        </div>
+      </Card>
+
+      <Card title="6. Xử lý duyệt sau hạn">
+        <div className="stack">
+          <p className="muted text-sm">
+            Sau hạn hồ sơ, người duyệt còn được Duyệt, Ban hành hoặc Trả lại trong số ngày dưới đây. Hết hạn, hồ sơ giữ Chờ duyệt và chỉ Hiệu trưởng mở lại được.
+          </p>
+          {editing && isPrincipal ? (
+            <DeadlineDaysField
+              label="Số ngày được xử lý duyệt sau hạn (0–30 ngày)"
+              value={draft.lateApprovalGraceDays ?? 2}
+              onChange={(value) => set((x) => ((x.lateApprovalGraceDays = value), x))}
+            />
+          ) : (
+            <p>
+              Số ngày được xử lý duyệt sau hạn: <strong>{draft.lateApprovalGraceDays ?? 2} ngày</strong>
             </p>
           )}
         </div>

@@ -2,7 +2,7 @@ import { ResponsiveToolbar } from '@/components/ui/ResponsiveToolbar';
 import { useEffect, useId, useRef, useState } from 'react';
 import ActivityCardEditor from '@/components/education-plan/ActivityCardEditor';
 import { Link, Navigate, useParams } from 'react-router-dom';
-import { ClassFilterBar, FilterSelect, ThemeBranchTabs, themesWithWeeks } from '@/components/education-plan/planUi';
+import { ClassFilterBar, classFilterPath, FilterSelect, ThemeBranchTabs, themesWithWeeks } from '@/components/education-plan/planUi';
 import { BlockedNotice } from '@/components/education-plan/DeadlineWidgets';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { ChalkboardTeacher, Copy, FileDown, ListChecks, Save, X } from '@/components/ui/icons';
@@ -350,7 +350,8 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
       classes={classes}
       classId={classId}
       canPick={ctx.canPickClass}
-      onPick={(id) => guard.leave(dayPage ? `/education/day-plans/${id}` : `/education/theme-plans/${id}`)}
+      showAllAges
+      onPick={(id, age) => guard.leave(classFilterPath(dayPage ? '/education/day-plans' : '/education/theme-plans', id, age))}
       footer={footer}
     >
       <FilterSelect label="Chủ đề" value={String(week.theme.id)} options={themeOptions} onChange={pickTheme} />

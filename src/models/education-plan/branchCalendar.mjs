@@ -45,7 +45,13 @@ export function branchDisplayRows(plan, doc) {
     return !previous || previous.type !== 'week' || String(previous.theme.id) !== String(row.theme.id) || !!branchOf(previous);
   });
 }
+export const normalizeBranchCalendar = (doc) =>
+  doc?.schemaVersion === 2
+    ? { ...doc, branches: doc.branches ?? [], themeSchedules: doc.themeSchedules ?? [], names: doc.names ?? {}, notes: doc.notes ?? {} }
+    : doc;
+
 export function projectCalendar(doc, plan) {
+  doc = normalizeBranchCalendar(doc);
   const names = {},
     notes = {};
   for (const b of doc.branches || [])

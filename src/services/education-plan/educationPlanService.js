@@ -1,3 +1,4 @@
+import { AGE_GROUPS, ageRangeKey } from '@/models/education-plan/educationPlanConstants';
 import { calendarPayload, reorderCalendar } from '@/models/education-plan/branchCalendar.mjs';
 import { USE_MOCK } from '@/config/env';
 import { educationPlanMockRepository } from '@/services/education-plan/mock/educationPlanMockRepository';
@@ -13,7 +14,12 @@ import { curriculumMockRepository } from '@/services/education-plan/mock/curricu
 /** Facade: UI only calls these functions. */
 const repo = USE_MOCK ? educationPlanMockRepository : educationPlanApi;
 
-export const getEducationPlans = (user) => repo.getAll(user);
+export const getEducationPlans = async (user, filter) => {
+  const result = await repo.getAll(user, filter);
+  if (!USE_MOCK || !filter?.ageRange) return result;
+  const matching = new Set(AGE_GROUPS.filter((group) => ageRangeKey(group) === filter.ageRange).map((group) => group.id));
+  return { ...result, goals: result.goals.filter((goal) => goal.schoolYear === filter.schoolYear && matching.has(goal.ageGroupId)) };
+};
 // Trang chủ chỉ cần chủ đề, giờ học: API thật chưa có hai phần này (getAll trả rỗng) nên không tải chi tiết từng kế hoạch
 // năm/tổ — tránh ~30 request tranh kết nối với trang kế hoạch giáo dục (FE-BUG-261111-dashboard-reload-burst)
 export const getEducationLessons = (user) =>
@@ -32,6 +38,7 @@ export const createGoalVersion = (id, user, edit) => (USE_MOCK ? repo.createGoal
 export const getGoalChanges = (id, fromId, user) => repo.getGoalChanges(id, fromId, user);
 // Spec 004 Q5: Hiệu trưởng mở khóa kế hoạch năm/tổ đã khóa theo ngày bắt đầu năm học (mock không khóa nên không có)
 export const unlockGoal = (id, body) => educationPlanApi.unlockGoal(id, body);
+export const reopenGoalReviewDeadline = (id, body) => educationPlanApi.reopenGoalReviewDeadline(id, body);
 // Nhập file bảng mục tiêu (BE:EDU-46): bản xem trước, không lưu
 export const previewGoalFile = (file) => repo.previewGoalFile(file);
 export const previewBranchFile = (file, context, user) =>

@@ -385,5 +385,13 @@ export const mergeGoals = (prev = [], next = []) =>
   next.map((g) => {
     if (!g.summary) return g;
     const old = prev.find((x) => x.id === g.id);
-    return old && !old.summary && old.revision === g.revision && old.status === g.status && old.versionNo === g.versionNo ? old : g;
+    if (!old || old.summary || old.revision !== g.revision || old.status !== g.status || old.versionNo !== g.versionNo) return g;
+    const newReturn = typeof g.returned === 'boolean' && old.returned !== g.returned;
+    const newDeadline = Object.hasOwn(g, 'timeLock') && g.timeLock !== old.timeLock;
+    if (!newReturn && !newDeadline) return old;
+    return {
+      ...old,
+      ...(newReturn ? { returned: g.returned } : {}),
+      ...(newDeadline ? { timeLock: g.timeLock, reviewDeadline: g.reviewDeadline } : {}),
+    };
   });

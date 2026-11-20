@@ -12,7 +12,14 @@ import {
   PageHead,
   YearPlanStatusBadge,
 } from '@/components/education-plan/eduUi';
-import { ClassFilterBar, ClassPageEmpty, FilterSelect, docReview, useClassPlanContext } from '@/components/education-plan/planUi';
+import {
+  ClassFilterBar,
+  classFilterPath,
+  ClassPageEmpty,
+  FilterSelect,
+  docReview,
+  useClassPlanContext,
+} from '@/components/education-plan/planUi';
 import { RejectedNotice, ReviewActions, ReviewHistory } from '@/components/education-plan/reviewUi';
 import { submitEntryOf } from '@/models/education-plan/reviewHistory.mjs';
 import { BlockedNotice, DeadlineBadge } from '@/components/education-plan/DeadlineWidgets';
@@ -40,9 +47,10 @@ import {
 } from '@/models/education-plan/classPlan';
 
 /** /education/theme-plans, /education/branches: mở lớp đầu tiên người dùng được xem (lớp mình dạy trước). */
-export function ClassPlanRedirect({ toOf = (id) => `/education/theme-plans/${id}` }) {
+export function ClassPlanRedirect({ showAllAges = false, toOf = (id) => `/education/theme-plans/${id}` }) {
   const { user, classes } = useEducationPlan();
   const own = classes.find((c) => (c.teacherIds || []).includes(user.id)) || classes[0];
+  if (!own && showAllAges) return <Navigate to={toOf('no-class')} replace />;
   if (!own) return <EmptyState title="Bạn chưa được phân công lớp nào" />;
   return <Navigate to={toOf(own.id)} replace />;
 }
@@ -98,11 +106,12 @@ export default function ClassPlanPage() {
   if (!cls)
     return (
       <ClassPageEmpty
+        showAllAges
         crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Kế hoạch giáo dục chủ đề' }]}
         title="Kế hoạch giáo dục chủ đề"
         classes={classes}
         classId={classId}
-        onPick={(id) => navigate(`/education/theme-plans/${id}`)}
+        onPick={(id, age) => navigate(classFilterPath('/education/theme-plans', id, age))}
         emptyTitle="Không tìm thấy lớp"
       />
     );
@@ -117,10 +126,11 @@ export default function ClassPlanPage() {
       />
       {toolbar}
       <ClassFilterBar
+        showAllAges
         classes={classes}
         classId={classId}
         canPick={ctx.canPickClass}
-        onPick={(id) => navigate(`/education/theme-plans/${id}`)}
+        onPick={(id, age) => navigate(classFilterPath('/education/theme-plans', id, age))}
       >
         {extra}
       </ClassFilterBar>
@@ -133,7 +143,7 @@ export default function ClassPlanPage() {
       <div className="page ga-page">
         {head}
         {canComposeClassDocs && pendingYearPlan && (
-          <Notice>
+          <Notice tone="info">
             Trạng thái kế hoạch giáo dục tổ: <YearPlanStatusBadge status={pendingYearPlan.status} doc={pendingYearPlan} />
           </Notice>
         )}
@@ -307,11 +317,11 @@ export default function ClassPlanPage() {
         <div className="stack">
           <RejectedNotice status={pkg.status} history={pkg.history} />
           {pkg.status === 'REVIEW' && submitEntryOf(pkg)?.note && (
-            <Notice>{`Ghi chú khi gửi (${submitEntryOf(pkg).by || '—'}): ${submitEntryOf(pkg).note}`}</Notice>
+            <Notice tone="info">{`Ghi chú khi gửi (${submitEntryOf(pkg).by || '—'}): ${submitEntryOf(pkg).note}`}</Notice>
           )}
           <BlockedNotice doc={pkg} author={canComposeClassDocs} />
           {pkg.timeLocked && pkg.status === 'APPROVED' && canComposeClassDocs && (
-            <Notice>Học kỳ đã bắt đầu, không điều chỉnh được nữa.</Notice>
+            <Notice tone="info">Học kỳ đã bắt đầu, không điều chỉnh được nữa.</Notice>
           )}
           {missing.length > 0 && (
             <p className="field__error" role="alert">

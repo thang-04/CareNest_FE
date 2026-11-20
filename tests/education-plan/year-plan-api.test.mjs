@@ -245,6 +245,8 @@ test('BE:EDU-11 — cấu hình: lĩnh vực thêm là lĩnh vực không chuẩ
     weekRows,
   };
   assert.deepEqual(toUiEduConfig(beConfig), {
+    standardDomains: [beConfig.domains[0].name],
+    ageGroups: [{ ...CONFIG.ageGroups[0], databaseId: 3, id: 'ag-3' }],
     domainLabels: { 'Phát triển thể chất': 'Thể chất' },
     extraDomains: ['Lĩnh vực mới'],
     workflowPolicy: null,
@@ -255,6 +257,8 @@ test('BE:EDU-11 — cấu hình: lĩnh vực thêm là lĩnh vực không chuẩ
     signers,
     weekRows,
     lateReturnGraceDays: 2,
+    lateApprovalGraceDays: 2,
+    canConfigureDeadlines: false,
   });
 
   let sent = null;
@@ -267,6 +271,7 @@ test('BE:EDU-11 — cấu hình: lĩnh vực thêm là lĩnh vực không chuẩ
   assert.equal(sent.method, 'put');
   assert.equal(sent.url, '/education-plans/config');
   assert.deepEqual(sent.body.extraDomains, ['Lĩnh vực mới']);
+  assert.equal(sent.body.lateApprovalGraceDays, undefined);
   assert.deepEqual(saved.signers, signers);
 });
 

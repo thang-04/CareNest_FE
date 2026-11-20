@@ -79,11 +79,8 @@ export function mergeFileGoals(form, preview, makeId, { themeAliases = [] } = {}
 
 const sourceGroup = (metadata) => {
   if (metadata?.ageFromMonths == null && metadata?.ageToMonths == null) return null;
-  return AGE_GROUPS.find((group) => {
-    const match = group.name.match(/(\d+)\s*[-–]\s*(\d+)\s*(tháng|tuổi)/i);
-    const factor = match?.[3] === 'tuổi' ? 12 : 1;
-    return match && Number(match[1]) * factor === metadata.ageFromMonths && Number(match[2]) * factor === metadata.ageToMonths;
-  });
+  if ('ageGroupCode' in metadata) return AGE_GROUPS.find((group) => group.id === metadata.ageGroupCode);
+  return AGE_GROUPS.find((group) => group.ageFromMonths === metadata.ageFromMonths && group.ageToMonths === metadata.ageToMonths);
 };
 const contentTicks = (domains) => (domains || []).flatMap((d) => (d.rows || []).flatMap((r) => r.contents || []));
 

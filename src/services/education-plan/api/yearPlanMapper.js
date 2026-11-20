@@ -37,12 +37,16 @@ export const buildRefs = (config) => {
 export const toUiEduConfig = (config) => {
   const domains = config?.domains || [];
   return {
+    ...(config?.planDefaults ? { planDefaults: config.planDefaults } : {}),
+    standardDomains: domains.filter((d) => d.standard).map((d) => d.name),
+    ageGroups: (config?.ageGroups || []).map((group) => ({ ...group, databaseId: group.id, id: group.code })),
     domainLabels: Object.fromEntries(domains.filter((d) => d.displayLabel).map((d) => [d.name, d.displayLabel])),
     extraDomains: domains.filter((d) => !d.standard).map((d) => d.name),
     workflowPolicy: config?.workflow?.policies || config?.workflowPolicy || null,
     durationPolicyAvailable: config?.durationPolicyAvailable ?? true,
     workflowRevision: config?.workflow?.revision ?? config?.workflowRevision ?? 1,
-    canConfigure: config?.workflow?.canConfigure ?? false,
+    // Quyền Cấu hình kế hoạch là cờ gốc do BE trả; bản cũ chỉ có trong workflow.
+    canConfigure: config?.canConfigure ?? config?.workflow?.canConfigure ?? false,
     ...(config?.durationPolicy ? { durationPolicy: config.durationPolicy } : {}),
     ...(config?.schoolYearCreationScopes
       ? { schoolYearCreationScopes: config.schoolYearCreationScopes.map((id) => buildRefs(config).ageGroupCode(id)).filter(Boolean) }
@@ -52,6 +56,9 @@ export const toUiEduConfig = (config) => {
     ...(config?.weekRows ? { weekRows: config.weekRows } : {}),
     // Trả lại sau hạn: số ngày lịch được gửi lại (Hiệu trưởng cấu hình, mặc định 2 — Tiền 18/11/2026)
     lateReturnGraceDays: config?.lateReturnGraceDays ?? 2,
+    // EDU-97: hạn xử lý REVIEW tách biệt với ân hạn gửi lại sau khi bị trả lại.
+    lateApprovalGraceDays: config?.lateApprovalGraceDays ?? 2,
+    canConfigureDeadlines: config?.canConfigureDeadlines === true,
     // BE:EDU-21 — họ tên Hiệu trưởng, Phó HT đang hoạt động để in dưới chỗ ký tay
     ...(config?.signerNames ? { signerNames: config.signerNames } : {}),
   };
@@ -129,6 +136,7 @@ export const toUiGoal = (detail, refs) => {
     editExpiresAt: detail.editExpiresAt,
     // Spec 004 Q3b/Q5: khóa từ ngày bắt đầu năm học, Hiệu trưởng mở khóa
     timeLock: detail.timeLock || null,
+    reviewDeadline: detail.reviewDeadline || detail.timeLock?.reviewDeadline || null,
     code: detail.code,
     schoolYear: toYearLabel(detail.schoolYearName),
     ageGroupId: refs.ageGroupCode(detail.ageGroupId),
@@ -146,6 +154,7 @@ export const toUiGoal = (detail, refs) => {
     waitingRoleLabel: detail.waitingRoleLabel || null,
     creationCapabilities: detail.creationCapabilities || null,
     review: detail.review || null,
+    ...(typeof detail.returned === 'boolean' ? { returned: detail.returned } : {}),
     lastReturnNote: detail.lastReturnNote || null,
     history: (detail.history || []).map((h) => ({
       at: localDateTime(h.at),

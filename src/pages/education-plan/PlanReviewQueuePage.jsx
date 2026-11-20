@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card, EduStatusBadge, EmptyState, PageHead, YearPlanStatusBadge, fmtDateTime } from '@/components/education-plan/eduUi';
 import { useEducationPlan, useGoalDetails } from '@/hooks/education-plan/useEducationPlan';
 import { ROLES } from '@/models/User';
-import { AGE_GROUPS } from '@/models/education-plan/educationPlanConstants';
+import { AGE_GROUPS, ageRangeOptions, sameAgeRange } from '@/models/education-plan/educationPlanConstants';
 import { useAsync } from '@/hooks/useAsync';
 import { usePolling } from '@/hooks/usePolling';
 import { DeadlineBadge } from '@/components/education-plan/DeadlineWidgets';
@@ -109,15 +109,15 @@ export default function PlanReviewQueuePage() {
 
   // Lọc nhóm tuổi trước rồi lớp (spec 005 FR-022); kế hoạch năm/tổ không theo lớp
   // Hiệu trưởng lọc theo nhóm tuổi; Phó hiệu trưởng lọc thêm theo lớp của năm học đang chọn (Tiền 12/11/2026)
-  const groups = AGE_GROUPS;
+  const groups = ageRangeOptions();
   // Tổ trưởng chỉ duyệt nhóm tuổi của mình: nhóm tuổi hiện dạng chữ, chỉ chọn lớp
   const isLeader = user.role === ROLES.TEAM_LEADER;
   const canFilterClass = user.role === ROLES.VICE_PRINCIPAL || isLeader;
   const leaderGroup = AGE_GROUPS.find((g) => String(g.id) === String(user.ageGroupId));
   const groupClasses = classes.filter((c) =>
-    isLeader ? String(c.ageGroupId) === String(user.ageGroupId) : !ageGroupId || String(c.ageGroupId) === ageGroupId,
+    isLeader ? String(c.ageGroupId) === String(user.ageGroupId) : !ageGroupId || sameAgeRange(c.ageGroupId, ageGroupId),
   );
-  const shown = items.filter((it) => (!ageGroupId || String(it.ageGroupId) === ageGroupId) && (!classId || it.doc.classId === classId));
+  const shown = items.filter((it) => (!ageGroupId || sameAgeRange(it.ageGroupId, ageGroupId)) && (!classId || it.doc.classId === classId));
   // HT mặc định chỉ duyệt kế hoạch năm học, không theo lớp (EDU-54) ⇒ bỏ cột Lớp; vẫn hiện khi trường cấu hình HT duyệt tài liệu lớp
   const showClass = user.role !== ROLES.PRINCIPAL || shown.some((it) => it.cls !== '—');
 
@@ -142,7 +142,7 @@ export default function PlanReviewQueuePage() {
                     const next = e.target.value;
                     setAgeGroupId(next);
                     // Đổi nhóm tuổi: giữ lớp đang chọn nếu lớp đó thuộc nhóm mới
-                    if (next && classOf(classId) && String(classOf(classId).ageGroupId) !== next) setClassId('');
+                    if (next && classOf(classId) && !sameAgeRange(classOf(classId).ageGroupId, next)) setClassId('');
                   }}
                 >
                   <option value="">Tất cả</option>

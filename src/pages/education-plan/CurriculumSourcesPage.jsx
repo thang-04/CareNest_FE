@@ -5,7 +5,7 @@ import { GoalPicker } from '@/components/education-plan/GoalPicker';
 import { Tabs } from '@/components/ui/Tabs';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
 import { useCurriculum } from '@/hooks/education-plan/useCurriculum';
-import { AGE_GROUPS } from '@/models/education-plan/educationPlanConstants';
+import { ageRangeOptions, rangeOptionId } from '@/models/education-plan/educationPlanConstants';
 import { curriculumPickTree, curriculumTree } from '@/models/education-plan/curriculum.mjs';
 
 const fmtIso = (iso) => (iso ? iso.split('-').reverse().join('/') : '');
@@ -17,7 +17,7 @@ const fmtIso = (iso) => (iso ? iso.split('-').reverse().join('/') : '');
 export default function CurriculumSourcesPage() {
   const [params, setParams] = useSearchParams();
   const { hash } = useLocation();
-  const ageGroupId = AGE_GROUPS.some((a) => a.id === params.get('ageGroup')) ? params.get('ageGroup') : 'ag-3';
+  const ageGroupId = rangeOptionId(params.get('ageGroup')) || ageRangeOptions()[0]?.id;
   const tab = params.get('tab') === 'contents' ? 'contents' : 'goals';
   const data = useCurriculum(ageGroupId);
   const tree = useMemo(() => curriculumTree(data.goals), [data.goals]);
@@ -65,7 +65,7 @@ export default function CurriculumSourcesPage() {
                   setSubFilter('');
                 }}
               >
-                {AGE_GROUPS.map((a) => (
+                {ageRangeOptions().map((a) => (
                   <option key={a.id} value={a.id}>
                     {a.name}
                   </option>

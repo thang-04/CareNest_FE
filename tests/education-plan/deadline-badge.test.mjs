@@ -39,3 +39,12 @@ test('trả lại sau hạn: nhãn hiện hạn gửi lại, hết hạn thì Qu
   assert.equal(deadlineLabel({ ...doc, deadlineState: 'OVERDUE' }).label, 'Hạn: Quá hạn (07/12)');
   assert.equal(deadlineLabel({ ...doc, deadlineState: 'LATE' }).label, 'Hạn: Ban hành trễ');
 });
+
+test('nhãn cũ chuyển Quá hạn đúng ngày khóa, có tính thời gian gửi lại', () => {
+  const saved = { deadline: '2026-11-19', deadlineState: 'NEAR', daysLeft: 1 };
+  assert.equal(deadlineLabel(saved, '2026-11-20').label, 'Hạn: Quá hạn (19/11)');
+  const withGrace = { ...saved, graceTo: '2026-11-22' };
+  assert.equal(deadlineLabel(withGrace, '2026-11-20').label, 'Hạn: Gửi lại trước hết 21/11');
+  assert.equal(deadlineLabel(withGrace, '2026-11-22').label, 'Hạn: Quá hạn (22/11)');
+  assert.equal(deadlineLabel({ ...saved, deadlineState: 'ON_TIME' }, '2026-11-20').label, 'Hạn: Đúng hạn');
+});

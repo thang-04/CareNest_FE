@@ -16,7 +16,7 @@ import { Eye, MapPin, Pencil, Tag, Trash2 } from '@/components/ui/icons';
 import { useAsync } from '@/hooks/useAsync';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { resourceLibraryService as api } from '@/services/education-plan/resourceLibraryService';
-import { AGE_GROUPS, EDU_STATUS_LABELS } from '@/models/education-plan/educationPlanConstants';
+import { AGE_GROUPS, EDU_STATUS_LABELS, ageRangeOptions } from '@/models/education-plan/educationPlanConstants';
 import { mondayOf } from '@/models/education-plan/classPlan';
 import {
   KIND_LABELS,
@@ -175,7 +175,7 @@ export default function ResourceLibraryPage() {
               label="Nhóm tuổi"
               value={ageGroupId}
               onChange={setAgeGroupId}
-              options={[{ value: '', label: 'Tất cả' }, ...AGE_GROUPS.map((g) => ({ value: String(g.id), label: g.name }))]}
+              options={[{ value: '', label: 'Tất cả' }, ...ageRangeOptions().map((g) => ({ value: String(g.id), label: g.name }))]}
             />
           </div>
           <FilterChips

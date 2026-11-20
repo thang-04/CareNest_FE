@@ -8,7 +8,14 @@ import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { submitEntryOf } from '@/models/education-plan/reviewHistory.mjs';
 import { VersionHistory } from '@/components/education-plan/VersionHistory';
 import { docLines } from '@/models/education-plan/planHistory.mjs';
-import { ClassFilterBar, FilterSelect, ThemeBranchTabs, themesWithWeeks, useClassPlanContext } from '@/components/education-plan/planUi';
+import {
+  ClassFilterBar,
+  classFilterPath,
+  FilterSelect,
+  ThemeBranchTabs,
+  themesWithWeeks,
+  useClassPlanContext,
+} from '@/components/education-plan/planUi';
 import { RejectedNotice, ReviewHistory } from '@/components/education-plan/reviewUi';
 import { LoadingState } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
@@ -310,10 +317,11 @@ function ThemePlanInner() {
         {/* Thẻ đầu trang như Kế hoạch tuần / giáo án ngày: hàng lọc Nhóm tuổi · Lớp · Chủ đề, tên chủ đề và tab Kế hoạch chủ đề
             rồi các chủ đề nhánh (Tiền 12/11/2026) */}
         <ClassFilterBar
+          showAllAges
           classes={ctx.classes}
           classId={classId}
           canPick={ctx.canPickClass}
-          onPick={(id) => guard.leave(`/education/theme-plans/${id}`)}
+          onPick={(id, age) => guard.leave(classFilterPath('/education/theme-plans', id, age))}
           footer={
             <>
               <div className="card__body">
@@ -376,7 +384,7 @@ function ThemePlanInner() {
       <BlockedNotice doc={semester} author={canComposeClassDocs} />
       {holder?.status === 'REVIEW' && submitEntryOf(holder)?.note && (
         // Ghi chú người gửi cho người duyệt (BE spec 002 FR-005)
-        <Notice>{`Ghi chú khi gửi (${submitEntryOf(holder).by || '—'}): ${submitEntryOf(holder).note}`}</Notice>
+        <Notice tone="info">{`Ghi chú khi gửi (${submitEntryOf(holder).by || '—'}): ${submitEntryOf(holder).note}`}</Notice>
       )}
       {coverageTab && (
         <CoverageTab

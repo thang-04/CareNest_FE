@@ -14,7 +14,7 @@ import {currentPlanOf, versionOf} from ${JSON.stringify(import.meta.resolve('../
 import {isReviewTurn} from ${JSON.stringify(import.meta.resolve('../../src/models/education-plan/reviewTurn.mjs'))};
 export const context={goals:[],schoolYear:'2026',role:'vp',user:{id:'test'},classes:[]};
 const useGoalDetails=()=>({loading:false});const useSchoolYear=()=>({schoolYears:context.schoolYears||[]});const useEducationPlan=()=>context, useNavigate=()=>()=>{};
-const ROLES={VICE_PRINCIPAL:'vp', PRINCIPAL:'principal', TEAM_LEADER:'leader'}, AGE_GROUPS=[], EDU_STATUS={APPROVED:'APPROVED',SENT:'SENT',PENDING_VP:'PENDING_VP'};
+const ROLES={VICE_PRINCIPAL:'vp', PRINCIPAL:'principal', TEAM_LEADER:'leader'}, AGE_GROUPS=[], ageRangeOptions=()=>AGE_GROUPS, ageRangeKey=(g)=>g?.rangeKey, sameAgeRange=(a,b)=>a===b, EDU_STATUS={APPROVED:'APPROVED',SENT:'SENT',PENDING_VP:'PENDING_VP'};
 const allGoalItems=()=>[], clickableRowProps=()=>({}), fmtDate=(value)=>value || '—';
 const Card=({children})=><section>{children}</section>, PageHead=({actions})=><header>{actions}</header>, StatCard=({label,value})=><span data-value={value}>{label}</span>, SearchSubmit=()=>null, EmptyState=()=>null;
 const Link=({children,to})=><a href={to}>{children}</a>, Plus=()=>null, RotateCcw=()=>null;
