@@ -14,7 +14,7 @@ import {
   Stethoscope,
 } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
-import { useSchoolYear } from '@/contexts/SchoolYearContext';
+import { useChildYearLock } from '@/hooks/children/useChildYearLock';
 import { YearLockedNotice } from '@/components/children/YearLockedNotice';
 import { useToast } from '@/contexts/ToastContext';
 import { useHealthCheckClass, useHealthExam } from '@/hooks/children/useHealthChecks';
@@ -126,8 +126,8 @@ export default function HealthExamFormPage() {
   const navigate = useNavigate();
   const { examView: view, setExamView, loading, error, reload } = useHealthExam(campaignId, childId);
   const classIdParam = params.get('classId') || view?.child.classId || '';
-  // Năm sắp diễn ra chưa tới ngày mở chuẩn bị (CHD-12): phiếu chỉ xem dù BE cho nhập
-  const { yearLocked } = useSchoolYear();
+  // Năm đã kết thúc hoặc năm sắp diễn ra chưa tới ngày mở chuẩn bị (CFG-YR-01, CHD-12): phiếu chỉ xem dù BE cho nhập
+  const yearLocked = useChildYearLock();
   const canEdit = !!view?.canEdit && !yearLocked;
   const { roster } = useHealthCheckClass(canEdit && classIdParam ? campaignId : null, classIdParam);
   const [form, setForm] = useState(null);
@@ -225,7 +225,7 @@ export default function HealthExamFormPage() {
       <p className="muted mb-16">
         {child.code} · {child.className} · sinh ngày {formatDate(child.dateOfBirth)} ({ageLabel(child.dateOfBirth)}) · {view.campaign.name}
       </p>
-      <YearLockedNotice />
+      <YearLockedNotice subject="sức khỏe của trẻ" />
     </>
   );
 

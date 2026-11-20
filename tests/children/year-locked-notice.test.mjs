@@ -13,6 +13,7 @@ globalThis.yearPrep = { lockedYearOf, lockedYearMessage };
 const source = await readFile(new URL('../../src/components/children/YearLockedNotice.jsx', import.meta.url), 'utf8');
 const stubs = `import React from 'react';
 const Info=()=>null;
+const Button=({children})=>React.createElement('button',null,children);
 const useSchoolYear=()=>globalThis.yearCtx;
 const {lockedYearOf,lockedYearMessage}=globalThis.yearPrep;
 `;
@@ -51,4 +52,24 @@ test('không truyền việc ⇒ chỉ câu chỉ xem', () => {
 test('năm đang hoạt động hoặc năm đã tới ngày mở chuẩn bị ⇒ không báo', () => {
   assert.equal(render('2026-2027', { action: 'Sửa hồ sơ' }), '');
   assert.equal(render('2028-2029', { action: 'Sửa hồ sơ' }), '');
+});
+
+// G94-395 (BUG-24), G94-424 (BUG-45): năm đã kết thúc chỉ xem ở mọi module (BE CFG-YR-01)
+const renderClosed = (props) => {
+  globalThis.yearCtx = {
+    schoolYear: '2025-2026',
+    schoolYears: [{ id: '2025-2026', label: '2025 - 2026', status: 'CLOSED' }, ...years],
+    yearReadOnly: true,
+    activeYear: years[0],
+    setSchoolYear: () => {},
+  };
+  return renderToStaticMarkup(YearLockedNotice(props) ?? '');
+};
+
+test('năm đã kết thúc ⇒ báo chỉ xem đúng thông tin của trang, kèm nút về năm đang hoạt động', () => {
+  const html = renderClosed({ action: 'Sửa hồ sơ', subject: 'hồ sơ trẻ' });
+  assert.match(html, /Năm học đã kết thúc\. Bạn chỉ có thể xem thông tin hồ sơ trẻ\./);
+  assert.match(html, /Chuyển sang năm học 2026 - 2027/);
+  assert.doesNotMatch(html, /làm được từ ngày/);
+  assert.match(renderClosed({ subject: 'đợt khám, kỳ cân đo' }), /Bạn chỉ có thể xem thông tin đợt khám, kỳ cân đo\./);
 });

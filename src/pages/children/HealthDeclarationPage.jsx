@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Pencil, Save, History } from '@/components/ui/icons';
 import { SidePanel } from '@/components/ui/SidePanel';
 import { useAuth } from '@/contexts/AuthContext';
-import { useSchoolYear } from '@/contexts/SchoolYearContext';
+import { useChildYearLock } from '@/hooks/children/useChildYearLock';
 import { YearLockedNotice } from '@/components/children/YearLockedNotice';
 import { useToast } from '@/contexts/ToastContext';
 import { useMasterData } from '@/hooks/useMasterData';
@@ -48,8 +48,8 @@ const allergyText = (a) =>
 export default function HealthDeclarationPage() {
   const { id } = useParams();
   const { user } = useAuth();
-  // Năm sắp diễn ra chưa tới ngày mở chuẩn bị (CHD-12): khai báo chỉ xem
-  const { yearLocked } = useSchoolYear();
+  // Năm đã kết thúc hoặc năm sắp diễn ra chưa tới ngày mở chuẩn bị (CFG-YR-01, CHD-12): khai báo chỉ xem
+  const yearLocked = useChildYearLock();
   // Sửa trực tiếp (BGH) hoặc gửi yêu cầu (GV được cấp, BE:CHD-11), nhưng không khi năm bị khóa
   const mayDeclare = (c) => !yearLocked && canOpenChildEdit(c, user);
   const toast = useToast();
@@ -162,7 +162,7 @@ export default function HealthDeclarationPage() {
           </div>
         )}
       </div>
-      <YearLockedNotice action="Khai báo sức khỏe" />
+      <YearLockedNotice action="Khai báo sức khỏe" subject="sức khỏe của trẻ" />
       {proposing && <ProfileChangeNotice changes={changes} kind={PROFILE_CHANGE_KIND.HEALTH_DECLARATION} />}
 
       {editing ? (

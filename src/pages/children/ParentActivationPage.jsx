@@ -4,7 +4,7 @@ import { AlertCircle, Filter, KeyRound, Lock, Unlock, UserPlus, Users } from '@/
 import { useCampusGuardianChildren } from '@/hooks/account/useGuardians';
 import { useGuardianStructure } from '@/hooks/account/useGuardians';
 import { useAuth } from '@/contexts/AuthContext';
-import { useSchoolYear } from '@/contexts/SchoolYearContext';
+import { useChildYearLock } from '@/hooks/children/useChildYearLock';
 import { YearLockedNotice } from '@/components/children/YearLockedNotice';
 import { useToast } from '@/contexts/ToastContext';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
@@ -36,8 +36,8 @@ const CLASS_FILTER_MIN = 8;
 export default function ParentActivationPage() {
   const { user } = useAuth();
   const toast = useToast();
-  // Năm sắp diễn ra chưa tới ngày mở chuẩn bị (CHD-12): chỉ xem dù BE cho quản lý
-  const { yearLocked } = useSchoolYear();
+  // Năm đã kết thúc hoặc năm sắp diễn ra chưa tới ngày mở chuẩn bị (CFG-YR-01, CHD-12): chỉ xem dù BE cho quản lý
+  const yearLocked = useChildYearLock();
   const canManage = (child) => !yearLocked && !!child.canManage;
   const [params] = useSearchParams();
   const targetId = params.get('childId');
@@ -177,7 +177,7 @@ export default function ParentActivationPage() {
     <div className="page">
       <Breadcrumb items={childrenCrumbs('Tài khoản phụ huynh')} />
       <h1 className="page__title">Tài khoản phụ huynh</h1>
-      <YearLockedNotice action="Kích hoạt tài khoản phụ huynh" />
+      <YearLockedNotice action="Kích hoạt tài khoản phụ huynh" subject="tài khoản phụ huynh" />
 
       {!error && !structure.error && (
         <div className="stat-grid people-stats" aria-label="Tổng quan tài khoản phụ huynh">

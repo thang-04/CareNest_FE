@@ -4,6 +4,7 @@ import { LineChart, HeartPulse, ArrowLeft, ChevronLeft, ChevronRight } from '@/c
 import { useAuth } from '@/contexts/AuthContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
+import { useChildYearLock } from '@/hooks/children/useChildYearLock';
 import { YearLockedNotice } from '@/components/children/YearLockedNotice';
 import { useChildRecords, useHealthRecord } from '@/hooks/children/useChildRecords';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
@@ -28,8 +29,9 @@ import { CampusFilter } from '@/components/ui/CampusFilter';
 
 export default function HealthTrendPage() {
   const { user } = useAuth();
-  // Năm sắp diễn ra chưa tới ngày mở chuẩn bị (CHD-12): không duyệt nhận xét xu hướng
-  const { schoolYear, yearLocked } = useSchoolYear();
+  const { schoolYear } = useSchoolYear();
+  // Năm đã kết thúc hoặc năm sắp diễn ra chưa tới ngày mở chuẩn bị (CFG-YR-01, CHD-12): không duyệt nhận xét xu hướng
+  const yearLocked = useChildYearLock();
   const [params, setParams] = useSearchParams();
   const childId = params.get('childId') || '';
   const [period, setPeriod] = useState('ALL');
@@ -97,7 +99,7 @@ export default function HealthTrendPage() {
     <div className="page">
       <Breadcrumb items={childrenCrumbs('Xu hướng sức khỏe')} />
       <h1 className="page__title">Xu hướng sức khỏe</h1>
-      <YearLockedNotice />
+      <YearLockedNotice subject="sức khỏe của trẻ" />
 
       {/* Danh sách trẻ bên trái (thu gọn được), biểu đồ của trẻ đang chọn bên phải (user chọn 2026-10-23) */}
       <div className={`tr-trend-layout mt-16 ${listCollapsed ? 'tr-trend-layout--collapsed' : ''}`}>

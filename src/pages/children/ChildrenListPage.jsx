@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
+import { useChildYearLock } from '@/hooks/children/useChildYearLock';
 import { YearLockedNotice } from '@/components/children/YearLockedNotice';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useChildRecords, useClassOptions, useProfileChanges } from '@/hooks/children/useChildRecords';
@@ -56,7 +57,9 @@ const FILTER_DEFAULTS = { keyword: '', status: '', campusId: '', classId: '' };
 export default function ChildrenListPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { schoolYear, yearLocked, preparingYear } = useSchoolYear();
+  // prepLocked: năm sắp diễn ra chưa tới ngày mở chuẩn bị (CHD-12) — quyết định thẻ, câu "Sắp nhập học"
+  const { schoolYear, yearLocked: prepLocked, preparingYear } = useSchoolYear();
+  const yearLocked = useChildYearLock();
   const md = useMasterData();
   const [filters, setFilters, resetFilterParams, activeKeys] = useFilterParams(FILTER_DEFAULTS);
   const { status, keyword, campusId, classId } = filters;
@@ -64,7 +67,7 @@ export default function ChildrenListPage() {
   const [withdrawing, setWithdrawing] = useState(null);
   const [importOpen, setImportOpen] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
-  // Năm sắp diễn ra chưa tới ngày mở chuẩn bị (CHD-12): chỉ xem
+  // Năm đã kết thúc hoặc năm sắp diễn ra chưa tới ngày mở chuẩn bị (CFG-YR-01, CHD-12): chỉ xem
   const canImport = canEnrollChild(user) && !yearLocked;
 
   // ?import=1 (từ Tiếp nhận trẻ, Xếp lớp, hoặc màn xem trước khi mất bản xem trước) ⇒ mở hộp nhập Excel rồi bỏ tham số khỏi URL.
@@ -132,14 +135,14 @@ export default function ChildrenListPage() {
   ];
   // Năm sắp diễn ra: danh sách là trẻ Sắp nhập học của năm đó (CHD-09, CHD-11); thẻ chỉ hiện khi có trẻ hoặc năm đang chuẩn bị
   const plannedCount = count(PLANNED_ADMISSION_FILTER);
-  if (plannedCount > 0 || preparingYear || yearLocked)
+  if (plannedCount > 0 || preparingYear || prepLocked)
     stats.splice(3, 0, { key: PLANNED_ADMISSION_FILTER, label: 'Sắp nhập học', value: plannedCount, tone: 'blue' });
   const pendingPlacement = count(CHILD_STATUS.PENDING_PLACEMENT);
   const notActivated = all.filter(
     (c) => c.status !== CHILD_STATUS.LEFT && c.guardians.some((g) => g.accountStatus === PARENT_ACCOUNT_STATUS.NOT_ACTIVATED),
   ).length;
   const showCampus = seesAllCampusChildren(user);
-  // Giáo viên, năm bị khóa (CHD-12) không có thao tác dòng (Sửa, Cho nghỉ học) nên bỏ cả cột; bấm dòng mở hồ sơ (DESIGN §6.3)
+  // Giáo viên, năm bị khóa (CFG-YR-01, CHD-12) không có thao tác dòng (Sửa, Cho nghỉ học) nên bỏ cả cột; bấm dòng mở hồ sơ (DESIGN §6.3)
   const showActions = !isTeacherRole(user) && !yearLocked;
   // BE:CHD-11 — yêu cầu sửa hồ sơ GV gửi mà người xem duyệt được (BE trả canDecide)
   const { requests: profileChanges } = useProfileChanges('PENDING', { enabled: showActions });
@@ -165,7 +168,7 @@ export default function ChildrenListPage() {
         <h1 className="page__title">Danh sách trẻ</h1>
       </div>
 
-      <YearLockedNotice action="Tiếp nhận, sửa hồ sơ trẻ" />
+      <YearLockedNotice action="Tiếp nhận, sửa hồ sơ trẻ" subject="hồ sơ trẻ" />
       {changesToDecide > 0 && (
         <div className="alert alert--info mb-16" role="status">
           <ClipboardCheck size={18} />
@@ -291,7 +294,7 @@ export default function ChildrenListPage() {
                           icon={Baby}
                           title="Chưa có hồ sơ trẻ"
                           description={
-                            preparingYear || yearLocked
+                            preparingYear || prepLocked
                               ? 'Chưa có trẻ Sắp nhập học trong phạm vi và năm học đã chọn.'
                               : 'Không có trẻ đang học hoặc chờ xếp lớp trong phạm vi và năm học đã chọn.'
                           }

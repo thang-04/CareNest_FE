@@ -68,7 +68,7 @@ const { default: HealthTrendPage, context } = await loadView(
 export const context={view:'chart',measurement:${JSON.stringify(measurement)}};
 const {useEffect,useMemo,useRef}=React, useState=(v)=>React.useState(v==='chart' ? context.view : v);
 const child={id:'child-test',fullName:'Trẻ minh họa',code:'TEST',status:'ACTIVE',className:'Lớp thử'};
-const useAuth=()=>({user:{}}), useSchoolYear=()=>({schoolYear:'2026 – 2027'});
+const useAuth=()=>({user:{}}), useSchoolYear=()=>({schoolYear:'2026 – 2027'}), useChildYearLock=()=>false;
 const useSearchParams=()=>[new URLSearchParams('childId=child-test'),()=>{}];
 const useMasterData=()=>({campuses:[]}), useChildRecords=()=>({children:[child],loading:false});
 const useHealthRecord=()=>({record:{child,measurements:[context.measurement]},loading:false});

@@ -15,7 +15,7 @@ import {
   CalendarClock,
 } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
-import { useSchoolYear } from '@/contexts/SchoolYearContext';
+import { useChildYearLock } from '@/hooks/children/useChildYearLock';
 import { YearLockedNotice } from '@/components/children/YearLockedNotice';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useChildDetail } from '@/hooks/children/useChildRecords';
@@ -48,8 +48,8 @@ export default function ChildProfilePage() {
   const { id } = useParams();
   const { user } = useAuth();
   const md = useMasterData();
-  // Năm sắp diễn ra chưa tới ngày mở chuẩn bị (CHD-12): hồ sơ chỉ xem
-  const { yearLocked } = useSchoolYear();
+  // Năm đã kết thúc hoặc năm sắp diễn ra chưa tới ngày mở chuẩn bị (CFG-YR-01, CHD-12): hồ sơ chỉ xem
+  const yearLocked = useChildYearLock();
   const { detail, loading, error, reload } = useChildDetail(id);
   const child = detail?.child;
   const crumbs = childrenCrumbs(child?.fullName || 'Hồ sơ trẻ');
@@ -109,7 +109,7 @@ export default function ChildProfilePage() {
         </div>
       </div>
 
-      <YearLockedNotice action="Sửa hồ sơ, xếp lớp" />
+      <YearLockedNotice action="Sửa hồ sơ, xếp lớp" subject="hồ sơ trẻ" />
       {child.plannedAdmission && (
         <div className="alert alert--info mb-16" role="status">
           <CalendarClock size={18} />

@@ -16,7 +16,7 @@ import { PARENT_ACCOUNT_STATUS, PROFILE_CHANGE_KIND } from '@/models/children/ch
 import { emptyChildProfile } from '@/models/children/childProfile';
 import { hasErrors, validateChildInfo } from '@/utils/children/childrenValidation';
 import { canEditChild, canProposeChildEdit } from '@/utils/children/childrenPermissions';
-import { useSchoolYear } from '@/contexts/SchoolYearContext';
+import { useChildYearLock } from '@/hooks/children/useChildYearLock';
 import { YearLockedNotice } from '@/components/children/YearLockedNotice';
 import { withGuardianAccounts } from '@/utils/children/childrenHelpers';
 import { normalizeCitizenId } from '@/utils/citizenId';
@@ -27,7 +27,7 @@ export default function EditChildPage() {
   const { id } = useParams();
   const { user } = useAuth();
   const toast = useToast();
-  const { yearLocked } = useSchoolYear();
+  const yearLocked = useChildYearLock();
   const navigate = useNavigate();
   const { detail, loading, error, reload } = useChildDetail(id, { live: false });
   const [form, setForm] = useState(null);
@@ -78,13 +78,13 @@ export default function EditChildPage() {
         <ChildAccessState error={error} onRetry={reload} />
       </div>
     );
-  // Năm sắp diễn ra chưa tới ngày mở chuẩn bị (CHD-12): không sửa hồ sơ
+  // Năm đã kết thúc hoặc năm sắp diễn ra chưa tới ngày mở chuẩn bị (CFG-YR-01, CHD-12): không sửa hồ sơ
   if (yearLocked)
     return (
       <div className="page">
         <Breadcrumb items={crumbs} />
         <h1 className="page__title">Sửa hồ sơ trẻ</h1>
-        <YearLockedNotice action="Sửa hồ sơ" />
+        <YearLockedNotice action="Sửa hồ sơ" subject="hồ sơ trẻ" />
       </div>
     );
   if (!canEditChild(child, user) && !proposing)
