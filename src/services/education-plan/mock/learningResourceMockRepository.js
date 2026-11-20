@@ -39,7 +39,7 @@ const requireOwned = (s, user, id) => {
   return item;
 };
 
-/* Giáo án ngày dd_X dùng chung khóa với giáo án tuần wp_X; trạng thái theo giáo án tuần + hồ sơ chủ đề. */
+/* Giáo án ngày dd_X dùng chung khóa với giáo án tuần wp_X; trạng thái theo giáo án tuần + kế hoạch giáo dục ngày. */
 const PENDING = new Set([EDU_STATUS.REVIEW, EDU_STATUS.SENT, EDU_STATUS.PENDING_TL, EDU_STATUS.PENDING_VP, EDU_STATUS.PENDING_HT]);
 const weekOf = (db, docKey) => (db.eduClassWeek || []).find((w) => w.id === `wp_${String(docKey).replace(/^dd_/, '')}`) || null;
 const dayStatusOf = (db, docKey) => {

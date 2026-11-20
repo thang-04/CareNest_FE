@@ -129,12 +129,12 @@
   background: var(--color-text-secondary);
 }
 
-.ga-review-timeline__step[data-tone="success"]::before {
+.ga-review-timeline__step[data-tone='success']::before {
   background: var(--color-success-fg);
 }
 
-.ga-review-timeline__step[data-tone="danger"]::before {
-  background: var(--danger-700);
+.ga-review-timeline__step[data-tone='danger']::before {
+  background: var(--color-danger-fg);
 }
 
 .ga-review-timeline__heading,
@@ -406,15 +406,15 @@
 .table.ga-plan-table tbody tr:hover {
   background: none;
 }
-.table.ga-plan-table.ga-import-theme-table tbody tr td,
-.table.ga-plan-table.ga-import-theme-table tbody tr:hover td {
+table.ga-import-theme-table tbody tr td,
+table.ga-import-theme-table tbody tr:hover td {
   background: var(--color-surface);
   box-shadow: none;
   transition: none;
 }
-.table.ga-plan-table.ga-import-theme-table tbody tr:nth-child(even) td,
-.table.ga-plan-table.ga-import-theme-table tbody tr:nth-child(even):hover td {
-  background: var(--neutral-50);
+table.ga-import-theme-table tbody tr:nth-child(even) td,
+table.ga-import-theme-table tbody tr:nth-child(even):hover td {
+  background: var(--table-preview-stripe);
 }
 .ga-week-table td {
   min-width: 130px;
@@ -3026,6 +3026,20 @@ h2.ga-cur-domain__head {
     content: ':';
   }
 }
+.ga-overdue-filters:has(.filter-more[open]) {
+  /* The filter menu must paint above the table card's backdrop layer. */
+  position: relative;
+  z-index: var(--z-dropdown);
+}
+
+.ga-overdue-actions {
+  padding: var(--space-2) var(--space-4) 0;
+}
+
+.ga-overdue-table {
+  padding: var(--space-2) var(--space-4) var(--space-3);
+}
+
 /* Khoảng cách giữa tab, thẻ lọc và thanh thao tác trong phần ghim đầu trang */
 .ga-sticky-head > .mb-16,
 .ga-sticky-head > .card:has(> .filter-bar) {
@@ -3130,6 +3144,13 @@ html:has(.ga-page) {
 .ga-cur-page .ga-cur-toolbar {
   top: var(--ga-stick-top);
   z-index: var(--z-sticky);
+}
+.ga-cur-domain-filter {
+  align-self: flex-start;
+  max-width: 100%;
+}
+.ga-cur-domain-filter .select {
+  max-width: 100%;
 }
 /* Thông báo trong trang (lý do trả lại, cảnh báo) ở ngay dưới hàng nút, cách nội dung một khoảng */
 .ga-notice {

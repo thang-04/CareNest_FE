@@ -1,8 +1,8 @@
+import { SelectField } from '@/components/form/Field';
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import { Card, PageHead } from '@/components/education-plan/eduUi';
 import { GoalPicker } from '@/components/education-plan/GoalPicker';
-import { Tabs } from '@/components/ui/Tabs';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
 import { useCurriculum } from '@/hooks/education-plan/useCurriculum';
 import { ageRangeOptions, rangeOptionId } from '@/models/education-plan/educationPlanConstants';
@@ -42,13 +42,8 @@ export default function CurriculumSourcesPage() {
 
   return (
     <div className="page ga-page ga-cur-page">
-      {/* Khung chung các trang kế hoạch giáo dục: đầu trang → thẻ lọc → tab → thẻ nội dung (Tiền 14/11/2026) */}
       <div className="ga-sticky-head">
-        <PageHead
-          crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Nguồn chương trình của Bộ' }]}
-          title="Nguồn chương trình của Bộ"
-          desc="Đối chiếu mục tiêu và gợi ý nội dung trong Chương trình GDMN của Bộ theo nhóm tuổi. Chỉ xem."
-        />
+        <PageHead crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Nguồn chương trình của Bộ' }]} title="Nguồn chương trình của Bộ" />
         <div className="card mb-16">
           <div className="filter-bar">
             <div className="field">
@@ -72,6 +67,15 @@ export default function CurriculumSourcesPage() {
                 ))}
               </select>
             </div>
+            <div className="field">
+              <label className="field__label" htmlFor="src-catalog">
+                Danh mục
+              </label>
+              <SelectField id="src-catalog" value={tab} onChange={(e) => setParam('tab', e.target.value)}>
+                <option value="goals">Mục tiêu ({data.goals.length})</option>
+                <option value="contents">Gợi ý nội dung ({data.contents.length})</option>
+              </SelectField>
+            </div>
             {source && (
               <div className="filter-bar__end ga-cur-meta">
                 <span className="muted text-sm ga-cur-meta__source" title={`${source.title} — ${source.issuer}`}>
@@ -86,17 +90,6 @@ export default function CurriculumSourcesPage() {
             )}
           </div>
         </div>
-        <div className="mb-16">
-          <Tabs
-            ariaLabel="Danh mục"
-            value={tab}
-            onChange={(key) => setParam('tab', key)}
-            items={[
-              { key: 'goals', label: 'Mục tiêu', count: data.goals.length || null },
-              { key: 'contents', label: 'Gợi ý nội dung', count: data.contents.length || null },
-            ]}
-          />
-        </div>
       </div>
       <Card bodyClass={null}>
         <div className="card__body stack">
@@ -108,7 +101,13 @@ export default function CurriculumSourcesPage() {
             !data.goals.length ? (
               <EmptyState title="Chưa có dữ liệu của Bộ cho nhóm tuổi này" />
             ) : (
-              <GoalPicker tree={pickTree} readOnly kindLabels={{ sub: 'Lĩnh vực con', group: 'Kết quả cần đạt' }} />
+              <GoalPicker
+                key={ageGroupId}
+                tree={pickTree}
+                readOnly
+                showSearch={false}
+                kindLabels={{ sub: 'Lĩnh vực con', group: 'Kết quả cần đạt' }}
+              />
             )
           ) : !data.contents.length ? (
             <EmptyState title="Chưa có gợi ý nội dung cho nhóm tuổi này" />

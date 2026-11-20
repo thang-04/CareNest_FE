@@ -267,7 +267,7 @@ export const classPlanMockRepository = {
       branchPlans: clone(fresh.eduClassBranch.map((d) => decorate(fresh, d, user, 'branch'))),
       classThemePlans: clone(fresh.eduClassTheme.map((d) => decorate(fresh, d, user, 'theme'))),
       weekPlans: clone(fresh.eduClassWeek.map((d) => decorate(fresh, d, user, 'week'))),
-      // ponytail: bản demo giữ cách duyệt cũ (BE:EDU-17); BE:EDU-74 (gói học kỳ, hồ sơ chủ đề, giáo án ngày) chỉ có ở API —
+      // ponytail: bản demo giữ cách duyệt cũ (BE:EDU-17); BE:EDU-74 (kế hoạch giáo dục chủ đề, kế hoạch giáo dục ngày, giáo án ngày) chỉ có ở API —
       // danh sách rỗng ⇒ trang tự quay về gửi theo kế hoạch chủ đề. Dựng mock đầy đủ khi cần demo không có BE.
       semesterPackages: [],
       themeDossiers: [],
@@ -378,7 +378,7 @@ export const classPlanMockRepository = {
   /**
    * Gửi / duyệt / trả lại (không còn chữ ký trong hệ thống: duyệt xong thì in ra ký tay). action: submit | approve | reject.
    * - Chủ đề nhánh (branch): giáo viên của lớp gửi khi đủ tên các tuần; người duyệt theo eduConfig.signers.branch (Phó HT).
-   * - Hồ sơ chủ đề (theme): giáo viên gửi MỘT lần kế hoạch chủ đề + giáo án tất cả các nhánh; duyệt / trả lại cả hồ sơ
+   * - Kế hoạch giáo dục ngày (theme): giáo viên gửi MỘT lần kế hoạch chủ đề + giáo án tất cả các nhánh; duyệt / trả lại cả hồ sơ
    *   theo eduConfig.signers.week (Tổ trưởng → Phó HT). Giáo án các tuần mang cùng trạng thái với hồ sơ.
    * Bỏ bước tổ trưởng khi tổ trưởng của khối dạy lớp đó (gửi thẳng Phó HT).
    */
@@ -390,7 +390,7 @@ export const classPlanMockRepository = {
         throw eduError(name, ...args);
       };
       if (kind === CLASS_DOC.WEEK) fail('WEEKLY_LESSON_VIA_THEME');
-      if (kind === CLASS_DOC.BRANCH) fail('INVALID_VALUE', 'chủ đề nhánh gửi cùng hồ sơ chủ đề');
+      if (kind === CLASS_DOC.BRANCH) fail('INVALID_VALUE', 'chủ đề nhánh gửi cùng kế hoạch giáo dục ngày');
       const doc = findDoc(db, kind, id);
       assertVersion(doc, options.version);
       const cls = classOf(db, doc.classId);
@@ -420,7 +420,7 @@ export const classPlanMockRepository = {
         (waiting !== ROLES.TEAM_LEADER || isLeader) &&
         !authorsOf(db, doc).has(user.id);
       const lists = { branchPlans: db.eduClassBranch, weekPlans: db.eduClassWeek, classThemePlans: db.eduClassTheme, yearPlan };
-      // Hồ sơ chủ đề: giáo án các tuần đi cùng trạng thái của kế hoạch chủ đề
+      // Kế hoạch giáo dục ngày: giáo án các tuần đi cùng trạng thái của kế hoạch chủ đề
       const weekDocs = kind === CLASS_DOC.THEME ? dossierWeekDocs(doc, yearPlan, db.eduClassWeek).map((x) => x.doc) : [];
       const all = [doc, ...weekDocs.filter(Boolean)];
       const setStatus = (status, waitingRole, approval) =>
@@ -472,7 +472,8 @@ export const classPlanMockRepository = {
         if (action === 'reopen_review_deadline' && doc.status !== 'REVIEW') fail('INVALID_VALUE', 'chỉ mở lại hạn duyệt đã khóa');
         all.forEach((d) => {
           if (action === 'extend') d.extendedTo = deadline;
-          d.reviewDeadline = action === 'reopen_review_deadline' ? { ...(d.reviewDeadline || {}), locked: false, reopenUntil: deadline } : d.reviewDeadline;
+          d.reviewDeadline =
+            action === 'reopen_review_deadline' ? { ...(d.reviewDeadline || {}), locked: false, reopenUntil: deadline } : d.reviewDeadline;
         });
         log({ ...entry(user, action === 'extend' ? 'Mở hạn gửi' : 'Mở lại hạn duyệt', '', note), action, deadline });
         return clone(decorate(db, doc, user, kind));
@@ -491,7 +492,7 @@ export const classPlanMockRepository = {
           error.details = { details: empty };
           throw error;
         }
-        // BE:EDU-80 (FR-030) — hồ sơ chủ đề thiếu MT của chủ đề ở mọi ngày dạy ⇒ chặn; gõ tay không tính
+        // BE:EDU-80 (FR-030) — kế hoạch giáo dục ngày thiếu MT của chủ đề ở mọi ngày dạy ⇒ chặn; gõ tay không tính
         if (kind === CLASS_DOC.THEME) {
           const goals = themeGoalsOf(yearPlan, doc.themeId, doc.customTicks);
           const weeks = dossierWeekDocs(doc, yearPlan, db.eduClassWeek).map((x) => ({

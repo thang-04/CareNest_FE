@@ -128,7 +128,7 @@ const isOpen = (doc) => !doc?.status || doc.status === EDU_STATUS.DRAFT || doc.s
 
 /**
  * Quyền hiển thị nút gửi / duyệt tài liệu của lớp theo mẫu chung (reviewUi) và người duyệt đầu tiên của chuỗi:
- * chủ đề nhánh theo eduConfig.signers.branch, hồ sơ chủ đề theo signers.week; bỏ Tổ trưởng khi ctx.skipLeader.
+ * chủ đề nhánh theo eduConfig.signers.branch, kế hoạch giáo dục ngày theo signers.week; bỏ Tổ trưởng khi ctx.skipLeader.
  * Chỉ là UX, service quyết định khi gửi.
  */
 export function docReview(kind, doc, ctx, user, eduConfig) {

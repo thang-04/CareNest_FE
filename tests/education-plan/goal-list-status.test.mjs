@@ -288,7 +288,7 @@ test('EDU-93: hàng chờ hiện hồ sơ cho người duyệt bước khác (n�
   try {
     const tree = PlanReviewQueuePage();
     const html = renderToStaticMarkup(tree);
-    assert.match(html, /Hồ sơ chủ đề/);
+    assert.match(html, /Kế hoạch giáo dục ngày/);
     assert.match(html, />\s*Xem<\/button>/);
     assert.doesNotMatch(html, /Mở duyệt/);
     const nodes = (node) => (!React.isValidElement(node) ? [] : [node, ...React.Children.toArray(node.props.children).flatMap(nodes)]);

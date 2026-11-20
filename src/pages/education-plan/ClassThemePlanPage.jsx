@@ -66,7 +66,7 @@ function ThemePlanInner() {
   const { cls, yearPlan, canComposeClassDocs } = ctx;
   const theme = yearPlan?.themes.find((t) => t.id === themeId);
   const saved = classThemePlans.find((t) => t.classId === classId && t.themeId === themeId) || null;
-  // Spec 003: gửi/duyệt theo hồ sơ chủ đề (gốc ds_); bản mock cũ chưa có thì vẫn theo kế hoạch chủ đề
+  // Spec 003: gửi/duyệt theo kế hoạch giáo dục ngày (gốc ds_); bản mock cũ chưa có thì vẫn theo kế hoạch chủ đề
   // Spec 004: kế hoạch chủ đề gửi/duyệt trong học kỳ (gốc sp_) ⇒ trạng thái, hạn, lịch sử lấy theo học kỳ
   const semester =
     semesterPackages.find((p) => p.id === saved?.containerKey) ||
@@ -204,13 +204,13 @@ function ThemePlanInner() {
     setDraft((d) => ({ ...d, [field]: value }));
     setDirty(true);
   };
-  // Hồ sơ chủ đề như file của trường: kế hoạch chủ đề rồi từng tuần nhánh đã soạn (kèm khung duyệt của tuần)
+  // Kế hoạch giáo dục ngày như file của trường: kế hoạch chủ đề rồi từng tuần nhánh đã soạn (kèm khung duyệt của tuần)
   const openRelease = async (release) => {
     try {
       const snap = await getClassDocRelease(release.id);
       const content = (kind, weekStart) =>
         (snap.members || []).find((m) => m.kind === kind && (!weekStart || m.weekStart === weekStart))?.content;
-      // Bản ban hành của hồ sơ chủ đề có giáo án ngày tách riêng (Q9): ghép lại cho bản xem như file của trường
+      // Bản ban hành của kế hoạch giáo dục ngày có giáo án ngày tách riêng (Q9): ghép lại cho bản xem như file của trường
       const weekContent = (start) =>
         content('week', start) || content('day', start) ? { ...content('week', start), ...content('day', start) } : undefined;
       setPreview(

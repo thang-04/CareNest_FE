@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/Button';
 import { Card, Field, History, Modal, Notice, fmtDateTime } from '@/components/education-plan/eduUi';
 
 /*
- * Một kiểu gửi duyệt / duyệt cho mọi tài liệu kế hoạch giáo dục (kế hoạch năm, chủ đề nhánh, hồ sơ chủ đề gồm kế hoạch
+ * Một kiểu gửi duyệt / duyệt cho mọi tài liệu kế hoạch giáo dục (kế hoạch năm, chủ đề nhánh, kế hoạch giáo dục ngày gồm kế hoạch
  * chủ đề + giáo án tuần, ngày): nút ở đầu trang → hộp xác nhận có ghi chú (trả lại bắt buộc lý do) → thông báo khi bị
  * trả lại dưới đầu trang → lịch sử xử lý cuối trang. Quyền và bước duyệt do service quyết định; ở đây chỉ hiển thị.
  */

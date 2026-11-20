@@ -91,7 +91,7 @@ export const EduStatusBadge = ({ status, doc, ...props }) => {
   return <BaseEduStatusBadge status={educationDisplayStatus({ ...doc, status })} {...props} />;
 };
 
-/** Hạn gửi hồ sơ chủ đề chỉ để nhắc, không chặn. */
+/** Hạn gửi kế hoạch giáo dục ngày chỉ để nhắc, không chặn. */
 export const DueStateBadge = createStatusBadge(
   { late: ['red', AlertTriangle], soon: ['orange', Clock] },
   { late: 'Quá hạn', soon: 'Sắp đến hạn' },

@@ -141,6 +141,9 @@ export function resizeBranch(doc, plan, key, startDate, endDate) {
     throw Error('Thời gian bị trùng với nhánh khác.');
   return projectCalendar({ ...doc, branches }, plan);
 }
+// BE:EDU-100 — bỏ một nhánh khỏi lịch; tuần của nhánh trống tên tới khi đặt nhánh khác (lưu thì BE xóa kế hoạch tuần, giáo án)
+export const removeBranch = (doc, plan, key) =>
+  projectCalendar({ ...doc, branches: doc.branches.filter((b) => b.key !== key) }, plan);
 // BE giả cho FR-017: API thật dùng calendar-preview, không tính lịch tại UI.
 export function reorderCalendar(doc, plan, order) {
   const base = adaptCalendar(doc, plan);
