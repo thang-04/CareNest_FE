@@ -90,14 +90,18 @@ const dryStockRow = (campus) => {
     ? `Sắp thiếu ${stock.upcomingShortFoodCount} thực phẩm khô từ ${formatWeekdayDate(stock.upcomingShortFrom)} — đặt thêm theo bản dự trù.`
     : '';
   const links = upcoming ? [link, { label: 'Bản dự trù', to: withQuery('/kitchen/forecast', { campusId: campus.campusId }) }] : [link];
+  // INS-03: M1 kho khô đã ký thì BE chặn đồng bộ tay; muốn đồng bộ phải Sửa lại biên bản M1 khô
+  const signedText =
+    stock.status === 'NOT_SYNCED' && stock.m1DrySigned ? 'Biên bản M1 kho khô đã ký — Sửa lại biên bản để đồng bộ kho.' : '';
   return {
     key: 'dryStock',
     title: 'Kho khô',
     tone,
     status: statusOf(stock),
-    detail: [detailOf(stock), upcomingText].filter(Boolean).join(' '),
+    detail: [detailOf(stock), upcomingText, signedText].filter(Boolean).join(' '),
     // NOT_SYNCED: nút gọi BE trừ lại (BE kiểm quyền), không phải link
-    actions: stock.status === 'NOT_SYNCED' ? [{ key: 'syncStock', label: 'Đồng bộ kho', syncStock: true }, ...links] : links,
+    actions:
+      stock.status === 'NOT_SYNCED' && !stock.m1DrySigned ? [{ key: 'syncStock', label: 'Đồng bộ kho', syncStock: true }, ...links] : links,
   };
 };
 

@@ -418,6 +418,17 @@
 .kb-fc__total td {
   font-weight: var(--fw-semibold);
 }
+/* Đi chợ theo ngày: dòng tiêu đề nhóm NCC trên màn và bản in */
+tr.kb-dm__group th,
+tr.kb-dm-print__group th {
+  background: var(--color-surface-muted);
+  font-weight: var(--fw-bold);
+  text-align: left;
+}
+tr.kb-dm__group th {
+  padding-block: var(--space-2);
+  color: var(--color-text-secondary);
+}
 .kb-fc__foot {
   display: flex;
   flex-wrap: wrap;
