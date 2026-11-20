@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
 /*
- * G94-395 (BUG-24): header chọn năm đã kết thúc ⇒ màn trẻ, sức khỏe chỉ xem (BE CFG-YR-01), như năm sắp
+ * G94-395 (BUG-24), G94-424 (BUG-45): header chọn năm đã kết thúc ⇒ màn trẻ, sức khỏe chỉ xem (BE CFG-YR-01), như năm sắp
  * diễn ra chưa tới ngày mở chuẩn bị (CHD-12). Cờ khóa của trang lấy từ useChildYearLock, không từ useSchoolYear().yearLocked.
  */
 const read = (f) => readFileSync(f, 'utf8');
@@ -15,9 +15,14 @@ const LOCKED_FILES = [
   'src/pages/children/ParentActivationPage.jsx',
   'src/pages/children/ChildHealthRecordPage.jsx',
   'src/pages/children/HealthDeclarationPage.jsx',
+  'src/pages/children/HealthCheckListPage.jsx',
+  'src/pages/children/HealthCheckDetailPage.jsx',
+  'src/pages/children/HealthCheckFormPage.jsx',
   'src/pages/children/HealthExamFormPage.jsx',
   'src/pages/children/HealthMeasurementFormPage.jsx',
   'src/pages/children/HealthTrendPage.jsx',
+  'src/components/children/HealthCheckClassRoster.jsx',
+  'src/components/children/MeasurementRoundRoster.jsx',
 ];
 
 test('hook khóa ghi gộp năm đã kết thúc với năm chưa tới ngày mở chuẩn bị', () => {
@@ -47,10 +52,19 @@ test('câu báo năm đã kết thúc nói đúng thông tin của trang', () =>
     'src/pages/children/HealthExamFormPage.jsx': 'sức khỏe của trẻ',
     'src/pages/children/HealthMeasurementFormPage.jsx': 'sức khỏe của trẻ',
     'src/pages/children/HealthTrendPage.jsx': 'sức khỏe của trẻ',
+    'src/pages/children/HealthCheckListPage.jsx': 'đợt khám, kỳ cân đo',
+    'src/pages/children/HealthCheckDetailPage.jsx': 'đợt khám, kỳ cân đo',
+    'src/pages/children/HealthCheckFormPage.jsx': 'đợt khám, kỳ cân đo',
   };
   for (const [file, subject] of Object.entries(subjects)) {
     assert.ok(read(file).includes(`subject="${subject}"`), `${file} thiếu subject="${subject}"`);
   }
+});
+
+test('danh sách đợt khám năm đã kết thúc: không nút tạo, câu rỗng chỉ xem', () => {
+  const src = read('src/pages/children/HealthCheckListPage.jsx');
+  assert.match(src, /const canCreate = manage && !yearLocked;/);
+  assert.match(src, /'Năm học đã kết thúc\. Bạn chỉ có thể xem thông tin đợt khám, kỳ cân đo\.'/);
 });
 
 test('danh sách trẻ: thẻ, câu Sắp nhập học vẫn theo năm chưa tới ngày mở chuẩn bị, không theo năm đã kết thúc', () => {

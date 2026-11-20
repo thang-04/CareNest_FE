@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Save, Plus, Info, Stethoscope, Scale } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
-import { useSchoolYear } from '@/contexts/SchoolYearContext';
+import { useChildYearLock } from '@/hooks/children/useChildYearLock';
 import { YearLockedNotice } from '@/components/children/YearLockedNotice';
 import { useToast } from '@/contexts/ToastContext';
 import { useMasterData } from '@/hooks/useMasterData';
@@ -65,7 +65,7 @@ export default function HealthCheckFormPage() {
   const { campaignId } = useParams();
   const [params, setParams] = useSearchParams();
   const { user } = useAuth();
-  const { yearLocked } = useSchoolYear();
+  const yearLocked = useChildYearLock();
   const toast = useToast();
   const navigate = useNavigate();
   const md = useMasterData();
@@ -100,13 +100,13 @@ export default function HealthCheckFormPage() {
   const title = editing ? `Sửa ${kindName}` : `Tạo ${kindName}`;
   const crumbs = healthCheckCrumbs(campaign ? { label: campaign.name, to: `/children/health-checks/${campaign.id}` } : null, title);
 
-  // Năm sắp diễn ra chưa tới ngày mở chuẩn bị (CHD-12): không tạo, sửa đợt
+  // Năm đã kết thúc hoặc năm sắp diễn ra chưa tới ngày mở chuẩn bị (CFG-YR-01, CHD-12): không tạo, sửa đợt
   if (yearLocked)
     return (
       <div className="page">
         <Breadcrumb items={crumbs} />
         <h1 className="page__title">{title}</h1>
-        <YearLockedNotice action={title} />
+        <YearLockedNotice action={title} subject="đợt khám, kỳ cân đo" />
       </div>
     );
 

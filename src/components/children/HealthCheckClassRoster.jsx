@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useSchoolYear } from '@/contexts/SchoolYearContext';
+import { useChildYearLock } from '@/hooks/children/useChildYearLock';
 import { FileText, RotateCcw, Search, Stethoscope, Users } from '@/components/ui/icons';
 import { useHealthCheckClass } from '@/hooks/children/useHealthChecks';
 import { useFilterParams } from '@/hooks/useFilterParams';
@@ -35,8 +35,8 @@ export function HealthCheckClassRoster({ campaignId, classId, embedded = false }
   const pageSize = embedded ? EMBEDDED_PAGE_SIZE : PAGE_SIZE;
   const navigate = useNavigate();
   const { roster, loading, error, reload } = useHealthCheckClass(campaignId, classId);
-  // Năm sắp diễn ra chưa tới ngày mở chuẩn bị (CHD-12): chỉ xem
-  const { yearLocked } = useSchoolYear();
+  // Năm đã kết thúc hoặc năm sắp diễn ra chưa tới ngày mở chuẩn bị (CFG-YR-01, CHD-12): chỉ xem
+  const yearLocked = useChildYearLock();
   const canRecord = !!roster?.canRecord && !yearLocked;
   const rows = useMemo(() => roster?.children || [], [roster]);
   const concluded = rows.filter((r) => r.result === CHILD_RESULT_STATUS.RECORDED).length;

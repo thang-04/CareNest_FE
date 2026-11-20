@@ -2,7 +2,7 @@ import { Fragment, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Pencil, Lock, Unlock, CircleX, Users, CheckCircle2, ChevronDown, History } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
-import { useSchoolYear } from '@/contexts/SchoolYearContext';
+import { useChildYearLock } from '@/hooks/children/useChildYearLock';
 import { YearLockedNotice } from '@/components/children/YearLockedNotice';
 import { useToast } from '@/contexts/ToastContext';
 import { useHealthCheck } from '@/hooks/children/useHealthChecks';
@@ -103,7 +103,7 @@ export default function HealthCheckDetailPage() {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const { user } = useAuth();
-  const { yearLocked } = useSchoolYear();
+  const yearLocked = useChildYearLock();
   const toast = useToast();
   const { detail, loading, error, reload } = useHealthCheck(campaignId);
   const [tab, setTab] = useState('classes');
@@ -131,7 +131,7 @@ export default function HealthCheckDetailPage() {
     );
 
   const { classes, watchList } = detail;
-  // Năm sắp diễn ra chưa tới ngày mở chuẩn bị (CHD-12): đợt chỉ xem
+  // Năm đã kết thúc hoặc năm sắp diễn ra chưa tới ngày mở chuẩn bị (CFG-YR-01, CHD-12): đợt chỉ xem
   const manage = canManageHealthCheck(user, campaign.campusId) && !yearLocked;
   const teacher = isTeacherRole(user);
   const isRound = campaign.kind === CAMPAIGN_KIND.MEASUREMENT;
@@ -222,7 +222,7 @@ export default function HealthCheckDetailPage() {
         )}
       </div>
 
-      <YearLockedNotice />
+      <YearLockedNotice subject="đợt khám, kỳ cân đo" />
       <StatusBanner campaign={campaign} isRound={isRound} />
 
       {/* Một khối tổng quan thay cho thẻ thông tin + hàng thẻ số liệu + cột lịch sử (user yêu cầu 2026-11-11): thẻ số liệu lặp
