@@ -9,6 +9,7 @@ const source = await readFile(new URL('../../src/pages/education-plan/GoalFormPa
 const isolated = source.replace(/^import [\s\S]*? from '[^']+';\r?\n/gm, '');
 const stubs = `
 import React, {useEffect, useRef, useState} from 'react';
+const devNow=()=>new Date();
 import {planLevel as levelOf, planRoute, inheritAnnual} from ${JSON.stringify(import.meta.resolve('../../src/models/education-plan/planLevel.mjs'))};
 import {branchScheduleIssue} from ${JSON.stringify(import.meta.resolve('../../src/models/education-plan/branchTemplateSchedule.mjs'))};
 const BranchTemplateEditor=()=>null;
@@ -103,6 +104,7 @@ test('thông tin chung nhập trong bảng và các nút dùng cùng kiểu trê
 const detailSource = await readFile(new URL('../../src/pages/education-plan/GoalDetailPage.jsx', import.meta.url), 'utf8');
 const detailStubs = `
 import React, {useState} from 'react';
+const devNow=()=>new Date();
 import {planLevel as levelOf, planRoute} from ${JSON.stringify(import.meta.resolve('../../src/models/education-plan/planLevel.mjs'))};
 const BranchTemplateEditor=()=>null;
 const TeamSourceReview=()=>null;

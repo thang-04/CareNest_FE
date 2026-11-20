@@ -50,6 +50,7 @@ import { VersionHistory } from '@/components/education-plan/VersionHistory';
 import { yearPlanLines } from '@/models/education-plan/planHistory.mjs';
 import DocPreviewModal from '@/components/education-plan/DocPreviewModal';
 import { Button } from '@/components';
+import { devNow } from '@/utils/devClock';
 
 const suggestTitle = (year, ageGroupId) => {
   const ag = AGE_GROUPS.find((a) => a.id === ageGroupId);
@@ -334,7 +335,7 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
     return Object.keys(e).length === 0;
   };
 
-  const today = () => new Date().toISOString().slice(0, 10);
+  const today = () => devNow().toISOString().slice(0, 10);
   const me = { userId: user.id, name: user.name, role: user.role, title: user.title, at: today() };
   const log = (action, note) => [...(form.history || []), { at: today(), by: user.name, action, ...(note ? { note } : {}) }];
   const build = (status, extra = {}, source = form) => {

@@ -24,6 +24,7 @@ import { formatDate, formatDateTime, isIsoDate } from '@/utils/format';
 import { todayIso } from '@/utils/assessment/assessmentPeriods';
 import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';
 import '@/styles/modules/assessment.css';
+import { useDevClockMarks } from '@/hooks/useDevClockMarks';
 
 const COLS = 9;
 // Ô khác giá trị mặc định được tô nhẹ để giáo viên thấy ngay ngoại lệ
@@ -41,6 +42,7 @@ export default function DailyAssessmentPage() {
   const currentClassId = classes.some((c) => c.id === classId) ? classId : classes[0]?.id || '';
   const params = useMemo(() => ({ classId: currentClassId, date: date || undefined }), [currentClassId, date]);
   const { sheet, loading, error, reload } = useDailyAssessment(params);
+  useDevClockMarks(sheet?.unlock?.validUntil ? [{ label: 'Hết hạn mở lại đánh giá', at: sheet.unlock.validUntil }] : []);
   const shownDate = date || sheet?.date || '';
 
   const [drafts, setDrafts] = useState({});

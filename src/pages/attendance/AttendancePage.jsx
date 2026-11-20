@@ -27,6 +27,8 @@ import { normalizeText, formatDate, formatDateTime } from '@/utils/format';
 import { ChildAvatar } from '@/components/ChildAvatar';
 import { flagTone, healthFlag, healthReminder } from '@/utils/attendance/healthFlag';
 import '@/styles/modules/attendance.css';
+import { useDevClockMarks } from '@/hooks/useDevClockMarks';
+import { dayTimeAt } from '@/utils/devClock';
 
 // ATT-02: có mặt là ăn đủ các bữa của nhóm tuổi; số suất do BE tính từ trạng thái, GV chỉ ghi Có mặt / Vắng
 const toDraft = (sheet) =>
@@ -223,6 +225,12 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
     };
   }, [date, classId, user]);
   const day = clock || sheet;
+  useDevClockMarks(
+    [
+      day?.cutoff && { label: `Chốt điểm danh & báo ăn ${formatDate(date)}`, at: dayTimeAt(date, day.cutoff) },
+      day?.unlock?.validUntil && { label: 'Hết hạn mở lại điểm danh', at: day.unlock.validUntil },
+    ].filter(Boolean),
+  );
   useEffect(() => {
     if (!day?.unlock) return;
     const remaining = Date.parse(day.unlock.validUntil) - Date.parse(day.serverTime);

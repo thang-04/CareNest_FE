@@ -5,6 +5,7 @@
 import { DOMAINS } from '@/models/education-plan/educationPlanConstants';
 import { getEduConfig } from '@/models/education-plan/eduConfig';
 import { weekBreaks } from '@/models/education-plan/goalTable';
+import { devNow } from '@/utils/devClock';
 
 /** Loại tài liệu của lớp (khóa collection trong service). */
 export const CLASS_DOC = { BRANCH: 'branch', THEME: 'theme', WEEK: 'week' };
@@ -93,7 +94,7 @@ const firstTeachingMonday = (iso) => {
 export const ddmm = (iso) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}` : '');
 export const monthOf = (iso) => Number(iso.slice(5, 7));
 export const todayIso = () => {
-  const d = new Date();
+  const d = devNow();
   const p = (n) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 };

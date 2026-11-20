@@ -18,6 +18,7 @@ import {
 import { dayBySession, dayRegister } from '@/utils/attendance/mealRegister';
 import { formatDate, formatDateTime } from '@/utils/format';
 import { ROLE_LABELS } from '@/models/User';
+import { devNow } from '@/utils/devClock';
 
 // NUT-02: BE từ chối xác nhận khi còn lớp trong cơ sở–ngày có trẻ chưa điểm danh
 const BLOCKED_HINT = 'Còn lớp chưa điểm danh xong, chưa xác nhận được.';
@@ -60,7 +61,7 @@ const confirmerLabel = (count, md) => {
 };
 
 // Ngày đã qua mà sổ còn "đang báo ăn" (chưa ai lập sổ): chỉ xem, không phải "chưa tới giờ chốt" (BE NUT-03)
-const schoolToday = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
+const schoolToday = () => devNow().toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
 const pastOpen = (count) => count.status === 'OPEN' && !!count.date && count.date < schoolToday();
 
 /** Bảng lớp của một bữa: số suất theo bữa BE trả, sửa riêng bữa này. Xác nhận theo cả ngày (BE NUT-02, D10). */

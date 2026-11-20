@@ -1,5 +1,6 @@
+import { devNow } from '@/utils/devClock';
 // Thời gian nhập trên màn mở lại là giờ trường, độc lập múi giờ thiết bị.
-export const defaultUnlockUntil = (yearEnd, now = Date.now()) => {
+export const defaultUnlockUntil = (yearEnd, now = devNow().getTime()) => {
   const parts = Object.fromEntries(
     new Intl.DateTimeFormat('en-GB', {
       timeZone: 'Asia/Ho_Chi_Minh',

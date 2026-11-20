@@ -9,11 +9,12 @@ import * as service from '@/services/education-plan/educationPlanService';
 import { AGE_GROUPS, CLASSES, EDU_STATUS, toEduYear, fromEduYear } from '@/models/education-plan/educationPlanConstants';
 import { applyEduConfig, withDefaults } from '@/models/education-plan/eduConfig';
 import { mergeGoals } from '@/models/education-plan/planVersions.mjs';
+import { devNow } from '@/utils/devClock';
 
 const EducationPlanContext = createContext(null);
 
 const now = () => {
-  const d = new Date();
+  const d = devNow();
   const p = (n) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
 };

@@ -3,10 +3,14 @@ import { StatusBadge } from '@/components/ui/StatusBadge';
 import { Field, Modal, Notice } from '@/components/education-plan/eduUi';
 import { BLOCKED_TEXT, deadlineLabel } from '@/models/education-plan/deadline.mjs';
 import { todayIso } from '@/models/education-plan/classPlan';
+import { useDevClockMarks } from '@/hooks/useDevClockMarks';
+import { dayEndAt } from '@/utils/devClock';
 
 /** Nhãn hạn (spec 005 FR-020): luôn kèm "Hạn:", đặt ở chỗ riêng, không gộp với trạng thái duyệt. */
 export function DeadlineBadge({ doc }) {
   const d = deadlineLabel(doc);
+  const due = doc?.extendedTo || doc?.deadline;
+  useDevClockMarks(due ? [{ label: `Hạn kế hoạch ${due.split('-').reverse().join('/')}`, at: dayEndAt(due) }] : []);
   return d ? <StatusBadge tone={d.tone} label={d.label} /> : null;
 }
 

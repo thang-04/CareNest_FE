@@ -33,6 +33,8 @@ import { SegmentedProgress } from '@/components/ui/SegmentedProgress';
 import { ChildInfoTable } from '@/components/children/ChildInfoTable';
 import { SidePanel } from '@/components/ui/SidePanel';
 import '@/styles/modules/children.css';
+import { useDevClockMarks } from '@/hooks/useDevClockMarks';
+import { dayEndAt, dayStartAt } from '@/utils/devClock';
 
 // Các đoạn của thanh tiến độ theo progress BE trả (trạng thái loại trừ nhau); "Chưa khám" là phần còn lại của rãnh.
 const EXAM_SEGMENTS = [
@@ -110,6 +112,14 @@ export default function HealthCheckDetailPage() {
   const [historyOpen, setHistoryOpen] = useState(false);
 
   const campaign = detail?.campaign;
+  useDevClockMarks(
+    campaign
+      ? [
+          { label: `Bắt đầu ${campaign.name}`, at: dayStartAt(campaign.startDate) },
+          { label: `Kết thúc ${campaign.name}`, at: dayEndAt(campaign.endDate) },
+        ]
+      : [],
+  );
   const crumbs = healthCheckCrumbs(campaign?.name || 'Chi tiết đợt khám');
 
   if (loading)

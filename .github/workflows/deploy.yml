@@ -105,9 +105,11 @@ jobs:
           VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL || '/api' }}
           VITE_USE_MOCK: ${{ vars.VITE_USE_MOCK || 'true' }}
           VITE_AUTH_MODE: ${{ vars.VITE_AUTH_MODE || 'mock' }}
+          # Dev Mode giả lập ngày giờ: chỉ bản dev.carenest.edu.vn, production luôn tắt
+          VITE_DEV_TOOLS: ${{ github.ref == 'refs/heads/dev' && 'true' || 'false' }}
         run: |
           ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" \
-            "cd '$APP_DIR' && VITE_API_BASE_URL='$VITE_API_BASE_URL' VITE_USE_MOCK='$VITE_USE_MOCK' VITE_AUTH_MODE='$VITE_AUTH_MODE' COMPOSE_PROJECT='$COMPOSE_PROJECT' WEB_CONTAINER='$WEB_CONTAINER' WEB_IMAGE='$WEB_IMAGE' WEB_LISTEN='$WEB_LISTEN' bash .incoming/remote-deploy.sh deploy"
+            "cd '$APP_DIR' && VITE_API_BASE_URL='$VITE_API_BASE_URL' VITE_USE_MOCK='$VITE_USE_MOCK' VITE_AUTH_MODE='$VITE_AUTH_MODE' VITE_DEV_TOOLS='$VITE_DEV_TOOLS' COMPOSE_PROJECT='$COMPOSE_PROJECT' WEB_CONTAINER='$WEB_CONTAINER' WEB_IMAGE='$WEB_IMAGE' WEB_LISTEN='$WEB_LISTEN' bash .incoming/remote-deploy.sh deploy"
 
       # Caddy dùng chung với site khác: reload lỗi thì Caddy giữ cấu hình đang chạy,
       # nhưng file lỗi còn trên đĩa sẽ làm Caddy không lên sau reboot ⇒ khôi phục file cũ

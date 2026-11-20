@@ -1,3 +1,4 @@
+import { devNow } from '@/utils/devClock';
 const pad = (n) => String(n).padStart(2, '0');
 
 /** yyyy-mm-dd or ISO -> dd/mm/yyyy */
@@ -68,7 +69,7 @@ export const timeAgo = (value) => {
 };
 
 export const todayInput = () => {
-  const d = new Date();
+  const d = devNow();
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 };
 

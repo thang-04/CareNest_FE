@@ -23,6 +23,7 @@ import { submitEntryOf } from '@/models/education-plan/reviewHistory.mjs';
 import { ReleasedVersionsPanel, VersionBadge, YearPlanVersionPanel } from '@/components/education-plan/VersionWidgets';
 import { chainOf, currentPlanOf } from '@/models/education-plan/planVersions.mjs';
 import DocPreviewModal from '@/components/education-plan/DocPreviewModal';
+import { devNow } from '@/utils/devClock';
 
 const uid = () => Math.random().toString(36).slice(2, 9);
 const ISSUE_NOTE =
@@ -98,7 +99,7 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
   const numbers = numberGoals(domains);
   const plan = { ...g, domains, themes };
   const history = g.history || [];
-  const now = () => new Date().toISOString().slice(0, 10);
+  const now = () => devNow().toISOString().slice(0, 10);
   const log = (action, extra, tone) => [...history, { at: now(), by: user.name, action, note: extra || undefined, tone }];
   const me = { userId: user.id, name: user.name, role: user.role, title: user.title, at: now() };
   // Phó HT và tổ trưởng cùng soạn, mỗi lúc một người (BE:EDU-03, EDU-10); Phó HT duyệt, trả lại hoặc tự sửa khi đang chờ

@@ -18,8 +18,9 @@ import { callNoteError, validatePickupResult } from '@/utils/pickup/pickupValida
 import { formatDateTime, initials } from '@/utils/format';
 import { PickupOutcomeBadge } from './PickupBadges';
 import { PortraitImage } from '@/components/PortraitImage';
+import { devNow } from '@/utils/devClock';
 
-const nowTime = () => new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+const nowTime = () => devNow().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 
 function GuardianPhoto({ guardian }) {
   return (

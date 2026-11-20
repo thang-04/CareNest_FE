@@ -7,6 +7,7 @@ import { Clock, ListChecks, PenLine } from '@/components/ui/icons';
 import { INSPECTION_ACTIONS, INSPECTION_COLUMNS, INSPECTION_DECISION, INSPECTION_FORMS } from '@/models/kitchen/inspectionConstants';
 import { buildHeader, columnTick } from '@/utils/kitchen/inspectionForm';
 import { isFailed } from '@/utils/kitchen/inspectionRules';
+import { devNow } from '@/utils/devClock';
 
 const LIST_COLUMNS = new Set([
   'supplierName',
@@ -37,7 +38,7 @@ const cellClass = (leaf, index, drag) => {
   }
   return classes.filter(Boolean).join(' ');
 };
-const nowHourMinute = () => new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+const nowHourMinute = () => devNow().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
 
 /** Biểu tượng bút cạnh nhãn cột nhập chữ, giờ, ngày, lựa chọn: mở hộp thoại điền một giá trị cho cả cột. */
 function FillButton({ col, editable, onOpen }) {

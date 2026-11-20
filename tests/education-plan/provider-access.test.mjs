@@ -7,6 +7,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 const source = await readFile(new URL('../../src/hooks/education-plan/useEducationPlan.jsx', import.meta.url), 'utf8');
 const stubs = `import React,{createContext,useCallback,useContext,useMemo,useRef,useState} from ${JSON.stringify(import.meta.resolve('react'))};
 export let failure=null; export const setFailure=e=>failure=e;
+const devNow=()=>new Date();
 let retained={goals:[],eduConfig:{}};const effects=[];const useEffect=fn=>effects.push(fn);
 export const flushEffects=()=>effects.splice(0).forEach(fn=>fn());
 export const setRetained=next=>{retained=next;effects.length=0;};

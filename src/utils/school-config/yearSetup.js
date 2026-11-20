@@ -1,3 +1,4 @@
+import { devNow } from '@/utils/devClock';
 /*
  * Thiết lập năm học từng bước (Cần chốt 30/10/2026): chọn năm nguồn ở bước 1 thì các bước sau được điền sẵn
  * bằng POST /school-years/{id}/copy (BE giữ nguyên dữ liệu năm đích đã có, dòng không chép được trả về kèm lý do).
@@ -31,7 +32,7 @@ export const defaultPrepDate = (startDate, years, today, excludeId = null) => {
 /** Năm học liền sau năm mới nhất, để Hiệu trưởng ít phải gõ. */
 export const suggestNextYear = (years) => {
   const latest = [...years].sort((a, b) => b.startDate.localeCompare(a.startDate))[0];
-  const from = latest ? Number(latest.name.slice(5)) : new Date().getFullYear();
+  const from = latest ? Number(latest.name.slice(5)) : devNow().getFullYear();
   return { name: `${from}-${from + 1}`, startDate: `${from}-09-05`, endDate: `${from + 1}-05-31` };
 };
 
