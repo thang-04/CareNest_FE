@@ -4,7 +4,8 @@ import { test } from 'node:test';
 
 /*
  * Màn Tài khoản phụ huynh:
- * - G94-437 (BUG-56): số liệu, lớp, trẻ theo năm học chọn ở header (đổi năm ⇒ tải lại, không giữ dữ liệu năm cũ).
+ * - G94-437 (BUG-56): số liệu, lớp, trẻ theo năm học chọn ở header (đổi năm ⇒ tải lại, không giữ dữ liệu năm cũ);
+ * - G94-436 (BUG-55): luôn giữ thanh điểm trường của năm, kể cả khi điểm trường đang chọn chưa có trẻ, đang tải hoặc lỗi.
  */
 const read = (f) => readFileSync(f, 'utf8');
 const page = read('src/pages/children/ParentActivationPage.jsx');
@@ -15,6 +16,12 @@ test('trang gửi năm học ở header cho cấu trúc và danh sách trẻ', (
   assert.match(page, /useCampusGuardianChildren\(campusId, \{ enabled: !structure\.loading, schoolYear \}\)/);
   // Điểm trường đã chọn không thuộc năm mới ⇒ về điểm trường đầu của năm
   assert.match(page, /structure\.campuses\.some\(\(c\) => sameId\(c\.id, campusPick\)\)/);
+});
+
+test('thanh điểm trường hiện ở mọi trạng thái, câu báo khi điểm trường chưa có trẻ', () => {
+  assert.match(page, /const campusTabs =/);
+  assert.equal((page.match(/<div className="pa-state-panel__campuses">\{campusTabs\}<\/div>/g) || []).length, 3);
+  assert.match(page, /'Cơ sở này chưa có trẻ trong năm học đang chọn\.'/);
 });
 
 test('hook đổi năm thì tải lại (năm nằm trong khóa truy vấn)', () => {

@@ -143,6 +143,24 @@ export default function ParentActivationPage() {
     openChildProfile(child);
   };
 
+  // Luôn đủ tab điểm trường của năm, kể cả điểm trường đang chọn chưa có trẻ, đang tải hoặc lỗi (G94-436)
+  const campusTabs = structure.campuses.length > 1 && (
+    <div className="pa-seg" role="group" aria-label="Điểm trường">
+      {structure.campuses.map((c) => (
+        <button
+          key={c.id}
+          type="button"
+          className="pa-seg__item"
+          title={c.name}
+          aria-pressed={String(c.id) === String(campusId)}
+          onClick={() => pickCampus(c.id)}
+        >
+          {c.name}
+        </button>
+      ))}
+    </div>
+  );
+
   const handleConfirmAction = async () => {
     if (!confirmModal) return;
     const { type, guardian } = confirmModal;
@@ -204,17 +222,24 @@ export default function ParentActivationPage() {
       {error || structure.error ? (
         <section className="card pa-state-panel">
           <PeopleTabs embedded />
+          {campusTabs && <div className="pa-state-panel__campuses">{campusTabs}</div>}
           <ErrorState error={error || structure.error} onRetry={error ? reload : structure.reload} />
         </section>
       ) : loading || structure.loading ? (
         <section className="card pa-state-panel">
           <PeopleTabs embedded />
+          {campusTabs && <div className="pa-state-panel__campuses">{campusTabs}</div>}
           <LoadingState />
         </section>
       ) : !groups.length ? (
         <section className="card pa-state-panel">
           <PeopleTabs embedded />
-          <EmptyState icon={Users} title="Chưa có bé nào" description="Chỉ hiện bé đang học trong phạm vi bạn phụ trách." />
+          {campusTabs && <div className="pa-state-panel__campuses">{campusTabs}</div>}
+          <EmptyState
+            icon={Users}
+            title="Chưa có bé nào"
+            description={campusId ? 'Cơ sở này chưa có trẻ trong năm học đang chọn.' : 'Chỉ hiện bé đang học trong phạm vi bạn phụ trách.'}
+          />
         </section>
       ) : (
         <section className="card people-list-workspace pa-workspace">
@@ -232,22 +257,7 @@ export default function ParentActivationPage() {
           <div className="pa-layout">
             <section className="pa-classes" aria-label="Lớp">
               <div className="pa-classes__toolbar">
-                {structure.campuses.length > 1 && (
-                  <div className="pa-seg" role="group" aria-label="Điểm trường">
-                    {structure.campuses.map((c) => (
-                      <button
-                        key={c.id}
-                        type="button"
-                        className="pa-seg__item"
-                        title={c.name}
-                        aria-pressed={String(c.id) === String(campusId)}
-                        onClick={() => pickCampus(c.id)}
-                      >
-                        {c.name}
-                      </button>
-                    ))}
-                  </div>
-                )}
+                {campusTabs}
                 {groups.length >= CLASS_FILTER_MIN && (
                   <label className="search-box pa-classes__filter">
                     <Filter size={16} className="muted" />
