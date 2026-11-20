@@ -26,7 +26,7 @@ test('tổng quan toàn trường không hiển thị hồ sơ chờ duyệt', a
     const Card=({children})=><section>{children}</section>, StatCard=({label,value})=><span>{label}: {value}</span>;
     const Tabs=({items})=><div role="tablist">{items.map((t)=><button key={t.key} role="tab">{t.label} {t.count}</button>)}</div>;
     const EduStatusBadge=({status})=><span>{EDU_STATUS_LABELS[status]}</span>, YearPlanStatusBadge=EduStatusBadge;
-    const AGE_GROUPS=[], allGoalItems=()=>[], themeNumber=()=>'', themeWeeksOf=()=>[], yearWeeks=()=>[], clickableRowProps=()=>({}), fmtDate=()=>'', fmtDateTime=()=>'';
+    const AGE_GROUPS=[], ageRangeOptions=()=>AGE_GROUPS, sameAgeRange=(a,b)=>a===b, allGoalItems=()=>[], themeNumber=()=>'', themeWeeksOf=()=>[], yearWeeks=()=>[], clickableRowProps=()=>({}), fmtDate=()=>'', fmtDateTime=()=>'';
   `;
   const isolated = source.replace(/^import [\s\S]*? from '[^']+';\r?\n/gm, '');
   const { code } = await transformWithOxc(stubs + isolated, 'SchoolPlansPage.jsx', { lang: 'jsx', jsx: { runtime: 'classic' } });

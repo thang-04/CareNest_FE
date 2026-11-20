@@ -23,6 +23,8 @@ export function overdueRows({ semesterPackages = [], themeDossiers = [], yearPla
   const classRows = [...semesterPackages.map((d) => ({ d, kind: 'semester' })), ...themeDossiers.map((d) => ({ d, kind: 'dossier' }))].map(
     ({ d, kind }) => {
       const ext = lastExtend(d.history);
+      const reviewDeadline = d.reviewDeadline || null;
+      const reviewLocked = d.status === 'REVIEW' && reviewDeadline?.locked && reviewDeadline?.canReopen;
       return {
         key: `${kind}-${d.id}`,
         kind,
@@ -32,11 +34,16 @@ export function overdueRows({ semesterPackages = [], themeDossiers = [], yearPla
         ageGroupId: String(cls(d.classId)?.ageGroupId ?? ''),
         title: kind === 'semester' ? `Học kỳ ${d.semesterNo}` : themeNameOf(d),
         semesterNo: kind === 'semester' ? d.semesterNo : semesterOf(d),
-        deadline: d.deadline || null,
-        daysOverdue: d.daysLeft != null ? Math.max(0, -d.daysLeft) : daysSince(d.deadline, today),
+        deadline: reviewLocked ? reviewDeadline.lockFrom : d.deadline || null,
+        daysOverdue: reviewLocked
+          ? daysSince(reviewDeadline.lockFrom, today)
+          : d.daysLeft != null
+            ? Math.max(0, -d.daysLeft)
+            : daysSince(d.deadline, today),
         status: d.status,
         version: d.version,
-        overdue: !!d.canExtend && d.status !== 'APPROVED',
+        reviewLocked,
+        overdue: reviewLocked || (!!d.canExtend && d.status !== 'APPROVED'),
         extension: ext
           ? { deadline: ext.deadline, by: ext.by, note: ext.note, at: ext.at }
           : d.extendedTo
@@ -48,22 +55,31 @@ export function overdueRows({ semesterPackages = [], themeDossiers = [], yearPla
   );
   const planRows = yearPlans
     .filter((p) => p.timeLock)
-    .map((p) => ({
-      key: `plan-${p.id}`,
-      kind: p.planLevel === 'SCHOOL_YEAR' ? 'SCHOOL_YEAR' : 'TEAM',
-      planId: p.id,
-      classId: null,
-      className: '—',
-      ageGroupId: String(p.ageGroupId ?? ''),
-      title: p.title,
-      semesterNo: null,
-      deadline: p.timeLock.deadline || null,
-      daysOverdue: daysSince(p.timeLock.extendedTo || p.timeLock.deadline, today),
-      status: p.status,
-      overdue: !!p.timeLock.canUnlock,
-      extension: p.timeLock.extendedTo ? { deadline: p.timeLock.extendedTo } : null,
-      doc: p,
-    }));
+    .map((p) => {
+      const reviewDeadline = p.reviewDeadline || p.timeLock.reviewDeadline || null;
+      const reviewLocked = p.status === 'REVIEW' && reviewDeadline?.locked && reviewDeadline?.canReopen;
+      return {
+        key: `plan-${p.id}`,
+        kind: p.planLevel === 'SCHOOL_YEAR' ? 'SCHOOL_YEAR' : 'TEAM',
+        planId: p.id,
+        classId: null,
+        className: '—',
+        ageGroupId: String(p.ageGroupId ?? ''),
+        title: p.title,
+        semesterNo: null,
+        deadline: reviewLocked ? reviewDeadline.lockFrom : p.timeLock.deadline || null,
+        daysOverdue: reviewLocked
+          ? daysSince(reviewDeadline.lockFrom, today)
+          : p.timeLock.daysLeft != null
+            ? Math.max(0, -p.timeLock.daysLeft)
+            : daysSince(p.timeLock.extendedTo || p.timeLock.deadline, today),
+        status: p.status,
+        reviewLocked,
+        overdue: reviewLocked || !!p.timeLock.canUnlock,
+        extension: p.timeLock.extendedTo ? { deadline: p.timeLock.extendedTo } : null,
+        doc: p,
+      };
+    });
   return [...planRows, ...classRows];
 }
 

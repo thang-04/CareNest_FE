@@ -60,7 +60,7 @@ export function DayResources({ user, docKey, date, editable, ageGroupId = null, 
       alive = false;
     };
   }, [user, docKey, version]);
-  if (!docKey) return <Notice>Lưu kế hoạch giáo dục ngày trước khi gắn học liệu.</Notice>;
+  if (!docKey) return <Notice tone="info">Lưu kế hoạch giáo dục ngày trước khi gắn học liệu.</Notice>;
   const run = async (section, fn) => {
     setBusy(section);
     setError({ section: '', text: '' });

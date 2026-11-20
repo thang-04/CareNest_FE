@@ -283,19 +283,19 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
       {isReview && submitEntryOf(g)?.note && (
         <div className="mb-16">
           {/* Ghi chú người gửi cho người duyệt (BE spec 002 FR-005) */}
-          <Notice>{`Ghi chú khi gửi (${submitEntryOf(g).by || '—'}, ${fmtDate(submitEntryOf(g).at)}): ${submitEntryOf(g).note}`}</Notice>
+          <Notice tone="info">{`Ghi chú khi gửi (${submitEntryOf(g).by || '—'}, ${fmtDate(submitEntryOf(g).at)}): ${submitEntryOf(g).note}`}</Notice>
         </div>
       )}
       {g.status === 'APPROVED' && (g.versions || []).some((v) => v.current && v.id !== g.id) && (
         <div className="mb-16">
-          <Notice>
+          <Notice tone="info">
             Đã có bản mới hơn được ban hành. <Link to={`${basePath}/${g.versions.find((v) => v.current).id}`}>Xem bản hiện hành</Link>
           </Notice>
         </div>
       )}
       {isAuthor && g.timeLock?.timeLocked && (
         <div className="mb-16">
-          <Notice>
+          <Notice tone={g.status === EDU_STATUS.APPROVED ? 'info' : 'err'}>
             {g.status === EDU_STATUS.APPROVED
               ? 'Năm học đã bắt đầu, kế hoạch đã khóa: không tạo phiên bản điều chỉnh được nữa.'
               : 'Quá hạn — chờ Hiệu trưởng mở hạn.'}
@@ -304,7 +304,7 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
       )}
       {isAuthor && isReview && !canIssue && (
         <div className="mb-16">
-          <Notice>{`Đã gửi duyệt${g.waitingRoleLabel ? ` (${g.waitingRoleLabel})` : ''}. Kế hoạch bị khóa cho tới khi được ban hành hoặc bị trả lại.`}</Notice>
+          <Notice tone="info">{`Đã gửi duyệt${g.waitingRoleLabel ? ` (${g.waitingRoleLabel})` : ''}. Kế hoạch bị khóa cho tới khi được ban hành hoặc bị trả lại.`}</Notice>
         </div>
       )}
 
@@ -383,7 +383,7 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
       </Card>
 
       {(isAuthor ? g.remapWarnings || [] : []).map((warning, i) => (
-        <Notice key={i} tone="warn">
+        <Notice key={i}>
           {typeof warning === 'string' ? warning : warning.message || 'Kiểm tra liên kết với nguồn mới trước khi gửi.'}
         </Notice>
       ))}

@@ -186,7 +186,7 @@ export function YearPlanVersionPanel({ plan, goals }) {
  */
 export function VersionCopyOffer({ plan, previous, prevDoc, canCreate, busy, onTemplate, onCopy }) {
   return (
-    <Notice>
+    <Notice tone="info">
       <div className="stack">
         <span>
           Kế hoạch năm đã có phiên bản {versionOf(plan)} (ban hành thay phiên bản {versionOf(previous)}). Tài liệu cũ giữ nguyên để xem; tài
@@ -213,7 +213,7 @@ export function VersionCopyOffer({ plan, previous, prevDoc, canCreate, busy, onT
 export function SupersededNote({ doc }) {
   if (!doc?.superseded) return null;
   return (
-    <Notice>
+    <Notice tone="info">
       Tài liệu theo kế hoạch năm phiên bản {doc.yearPlanVersion || 1}, đã có phiên bản mới. Bản này chỉ để xem, in; soạn tiếp trên phiên bản
       hiện hành.
     </Notice>
@@ -222,7 +222,7 @@ export function SupersededNote({ doc }) {
 
 /** Chủ đề đã kết thúc trước khi có phiên bản mới: chỉ ghi chú, không đỏ (FR-025). */
 export function FinishedThemeNote() {
-  return <Notice>Chủ đề đã kết thúc theo phiên bản cũ; giữ hồ sơ đã duyệt, không cần sửa theo phiên bản mới.</Notice>;
+  return <Notice tone="info">Chủ đề đã kết thúc theo phiên bản cũ; giữ hồ sơ đã duyệt, không cần sửa theo phiên bản mới.</Notice>;
 }
 
 /**
@@ -246,7 +246,7 @@ export function VersionFlagsPanel({ flags, doc, editable, onCheck, onDrop }) {
               <li key={f.ref} className="row row--between row--wrap gap-2">
                 <span className="row gap-2">
                   <StatusBadge tone={done ? 'green' : 'red'} label={done ? 'Đã kiểm tra' : f.label} size="sm" />
-                  <span className={done ? 'muted' : 'field__error'}>{f.message}</span>
+                  <span className={done ? 'text-success' : 'field__error'}>{f.message}</span>
                 </span>
                 {editable && !done && (
                   <button

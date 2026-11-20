@@ -23,7 +23,7 @@ export default function YearPlanSourceCard({ plan, source, children }) {
           )}
         </dl>
       ) : !children ? (
-        <Notice>Kế hoạch giáo dục tổ cũ chưa liên kết với kế hoạch năm học.</Notice>
+        <Notice tone="info">Kế hoạch giáo dục tổ cũ chưa liên kết với kế hoạch năm học.</Notice>
       ) : null}
     </Card>
   );

@@ -1,3 +1,5 @@
+import { AGE_GROUPS as SCHOOL_AGE_GROUPS } from '@/models/School';
+import { AGE_GROUPS as CONFIGURED_AGE_GROUPS } from '@/models/education-plan/educationPlanConstants';
 import { delay } from '@/mocks/mockDatabase';
 import { CURRICULUM_SEED as seed } from '@/mocks/curriculumSeed';
 import { eduError } from './eduMockErrors';
@@ -6,9 +8,10 @@ import { eduError } from './eduMockErrors';
  * BE giả của danh mục Chương trình GDMN (BE:EDU-28): cùng dữ liệu V31 (sinh từ VBHN 01/VBHN-BGDĐT), chỉ đọc.
  * Nhóm tuổi theo mã UI ("ag-3"); id mục tiêu theo thứ tự seed.
  */
-const AGE_GROUPS = new Set(['ag-2', 'ag-3', 'ag-4', 'ag-5']);
-const requireAge = (code) => {
-  if (!AGE_GROUPS.has(code)) throw eduError('REQUIRED_FIELD_MISSING', 'nhóm tuổi');
+const curriculumAge = (code) => {
+  const group = (CONFIGURED_AGE_GROUPS.length ? CONFIGURED_AGE_GROUPS : SCHOOL_AGE_GROUPS).find((entry) => entry.id === code);
+  if (!group) throw eduError('REQUIRED_FIELD_MISSING', 'nhóm tuổi');
+  return SCHOOL_AGE_GROUPS.find((entry) => entry.ageFromMonths === group.ageFromMonths && entry.ageToMonths === group.ageToMonths)?.id;
 };
 
 // EDU-61: danh tính chỉ thuộc nguồn mock, ổn định qua reload và không đổi mã mục tiêu seed.
@@ -30,12 +33,12 @@ export const curriculumMockRepository = {
   },
   async getCurriculumGoals(ageGroupCode) {
     await delay();
-    requireAge(ageGroupCode);
-    return seed.goals.filter((g) => g.ageGroup === ageGroupCode).map((g) => ({ ...withParents(g), contents: [...g.contents] }));
+    const code = curriculumAge(ageGroupCode);
+    return seed.goals.filter((g) => g.ageGroup === code).map((g) => ({ ...withParents(g), contents: [...g.contents] }));
   },
   async getCurriculumContents(ageGroupCode) {
     await delay();
-    requireAge(ageGroupCode);
-    return seed.contents.filter((c) => c.ageGroup === ageGroupCode).map(withParents);
+    const code = curriculumAge(ageGroupCode);
+    return seed.contents.filter((c) => c.ageGroup === code).map(withParents);
   },
 };

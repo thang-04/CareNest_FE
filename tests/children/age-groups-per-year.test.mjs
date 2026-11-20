@@ -40,6 +40,25 @@ test('nhóm tuổi thêm ở năm sắp tới không hiện ở năm đang học
   assert.ok(!(await groupIds(active.id)).includes(added.id));
 });
 
+test('không thêm nhóm tuổi mới vào năm đang hoạt động', async () => {
+  await assert.rejects(
+    config.saveAgeGroup(
+      null,
+      { name: 'Nhóm giữa năm', shortName: 'Giữa năm', ageFromMonths: 73, ageToMonths: 84, mealSessions: ['LUNCH'], maxClassSize: 20 },
+      principal,
+      active.id,
+    ),
+    (err) => err.status === 409 && /Sắp diễn ra/.test(err.message),
+  );
+});
+
+test('màn Nhóm tuổi chỉ hiện nút thêm ở năm sắp diễn ra', async () => {
+  const { readFileSync } = await import('node:fs');
+  const page = readFileSync('src/pages/school-config/AgeGroupsClassesPage.jsx', 'utf8');
+  assert.match(page, /const canAddAgeGroup = editable && year\?\.status === YEAR_STATUS\.PLANNED/);
+  assert.match(page, /\{canAddAgeGroup && \(/);
+});
+
 // Lỗi 1: xóa chỉ xét lớp, tổ trưởng của năm đang chọn; lỗi nêu năm học và người
 test('xóa nhóm tuổi ở năm sắp tới không bị chặn bởi tổ trưởng năm đang học', async () => {
   const db = readDb();

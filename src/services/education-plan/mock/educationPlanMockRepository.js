@@ -4,7 +4,7 @@ import { readDb, writeDb, clone, delay } from '@/mocks/mockDatabase';
 import { eduError } from './eduMockErrors';
 import { parseGoalsCsv } from '@/utils/education-plan/goalCsv';
 import { EDU_SEED_VERSION, ensureEduDemo } from '@/mocks/educationPlanSeed';
-import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
+import { EDU_STATUS, sameAgeRange } from '@/models/education-plan/educationPlanConstants';
 import { SIGN_ROLES, withDefaults } from '@/models/education-plan/eduConfig';
 import { ROLES } from '@/models/User';
 import { duplicateAbbrThemeIds, toRows } from '@/models/education-plan/goalTable';
@@ -557,7 +557,7 @@ export const educationPlanMockRepository = {
         (goal) =>
           (goal.planLevel || 'TEAM') === planLevel &&
           (!schoolYear || goal.schoolYear === schoolYear) &&
-          (!group || goal.ageGroupId === group) &&
+          (!group || sameAgeRange(goal.ageGroupId, group)) &&
           sourceVisible(actor, goal) &&
           String(goal.id) !== String(excludeId),
       )

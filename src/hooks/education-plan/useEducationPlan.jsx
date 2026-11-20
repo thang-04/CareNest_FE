@@ -6,7 +6,7 @@ import { useAsync } from '@/hooks/useAsync';
 import { LoadingState, ErrorState } from '@/components/ui/States';
 import { ROLES, ROLE_LABELS } from '@/models/User';
 import * as service from '@/services/education-plan/educationPlanService';
-import { AGE_GROUPS, CLASSES, EDU_STATUS, toEduYear, fromEduYear } from '@/models/education-plan/educationPlanConstants';
+import { AGE_GROUPS, EDU_STATUS, toEduYear, fromEduYear } from '@/models/education-plan/educationPlanConstants';
 import { applyEduConfig, withDefaults } from '@/models/education-plan/eduConfig';
 import { mergeGoals } from '@/models/education-plan/planVersions.mjs';
 
@@ -23,13 +23,13 @@ const initialsOf = (name = '') => {
   return ((parts[0]?.[0] || '') + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
 };
 
-const titleOf = (u) => {
+const titleOf = (u, classes) => {
   if (u.role === ROLES.TEAM_LEADER) {
     const group = AGE_GROUPS.find((g) => g.id === u.ageGroupId);
     return `${ROLE_LABELS[u.role]}${group ? ` ${group.name.split(' (')[0]}` : ''} (toàn trường)`;
   }
   if (u.role === ROLES.TEACHER) {
-    const cls = CLASSES.find((c) => c.id === u.classId);
+    const cls = classes.find((c) => String(c.id) === String(u.classId));
     return cls ? `Giáo viên lớp ${cls.name}` : ROLE_LABELS[u.role];
   }
   return ROLE_LABELS[u.role] || u.role;
@@ -116,12 +116,12 @@ export function EducationPlanProvider({ children }) {
       role: authUser.role,
       roles: authUser.roles,
       name: authUser.fullName,
-      title: titleOf(authUser),
+      title: titleOf(authUser, data?.classes || []),
       initials: initialsOf(authUser.fullName),
       ageGroupId: /^\d+$/.test(String(authUser.ageGroupId ?? '')) ? (leader?.ageGroupId ?? authUser.ageGroupId) : authUser.ageGroupId,
       classId: authUser.classId == null ? authUser.classId : String(authUser.classId),
     };
-  }, [authUser, data?.staff]);
+  }, [authUser, data?.staff, data?.classes]);
 
   const value = useMemo(() => {
     const yearName = (id) => {
@@ -280,6 +280,17 @@ export function EducationPlanProvider({ children }) {
           return plan;
         } catch (err) {
           toastApi.error(err, 'Không mở khóa được');
+          return null;
+        }
+      },
+      reopenGoalReviewDeadline: async (id, body) => {
+        try {
+          const plan = await service.reopenGoalReviewDeadline(id, body);
+          setData((prev) => (prev ? { ...prev, goals: upsert(prev.goals, plan) } : prev));
+          toast('Đã mở lại hạn duyệt');
+          return plan;
+        } catch (err) {
+          toastApi.error(err, 'Không mở lại hạn duyệt được');
           return null;
         }
       },

@@ -91,7 +91,7 @@ function Presentation() {
     return (
       <div className="page ga-page ga-teaching">
         <PageHead title={theme.name} desc={cls.name} />
-        <Notice tone="warn">
+        <Notice tone="info">
           Dạy học theo từng ngày: mở trang Kế hoạch giáo dục ngày, chọn một ngày đã lưu rồi bấm "Dạy học ngày này".{' '}
           <Link to={back}>Quay lại kế hoạch</Link>
         </Notice>
@@ -130,9 +130,9 @@ function Presentation() {
         {cls.name} · {date} <EduStatusBadge status={doc.status} doc={doc} />
       </p>
       {doc.status !== 'approved' && doc.status !== 'APPROVED' && (
-        <Notice tone="warn">Đây là bản chưa hoàn tất phê duyệt. Chế độ dạy học không thay đổi trạng thái hồ sơ.</Notice>
+        <Notice tone="info">Đây là bản chưa hoàn tất phê duyệt. Chế độ dạy học không thay đổi trạng thái hồ sơ.</Notice>
       )}
-      {fullError && <Notice tone="warn">{fullError}</Notice>}
+      {fullError && <Notice>{fullError}</Notice>}
       <div className="ga-teaching-layout">
         <aside className="ga-teaching-nav" aria-label="Hoạt động dạy học">
           <h2>
@@ -160,7 +160,7 @@ function Presentation() {
           </p>
           <h1 className="ga-teaching-title">{activity.text || activity.label}</h1>
           {error ? (
-            <Notice tone="warn">Chưa tải được học liệu: {error}</Notice>
+            <Notice>Chưa tải được học liệu: {error}</Notice>
           ) : loading ? (
             <p role="status">Đang tải danh sách học liệu…</p>
           ) : (
