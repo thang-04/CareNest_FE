@@ -1,4 +1,5 @@
 import { formatDate, formatDateTime } from '@/utils/format';
+import { dayMarketSupplierGroups } from '@/utils/kitchen/dayMarketGroups';
 import { MEAL_SESSION_LABELS, SAMPLE_DISPOSAL_LABELS, SAMPLE_STATUS_LABELS } from '@/models/kitchen/kitchenRecordConstants';
 
 /*
@@ -19,6 +20,7 @@ export const weeklyOrderCsvRows = (data) => [
 /** Bảng đi chợ một ngày: dòng thực phẩm như trên màn, rồi thu–chi và thực đơn theo bữa. */
 export const dayMarketCsvRows = (data) => {
   const groupOf = (row, id) => row.groups.find((g) => g.ageGroupId === id);
+  let stt = 0;
   return [
     [`Bảng đi chợ ngày ${formatDate(data.date)} · ${data.campusName}`],
     [
@@ -31,15 +33,19 @@ export const dayMarketCsvRows = (data) => {
       'Thành tiền',
       ...data.groups.flatMap((g) => [`${g.name} · số lượng`, `${g.name} · tiền`]),
     ],
-    ...data.lines.map((l, i) => [
-      i + 1,
-      l.name,
-      l.unit,
-      l.unitPrice ?? '',
-      l.source === 'STOCK' ? l.quantity : '',
-      l.source === 'MARKET' ? l.quantity : '',
-      l.amount ?? '',
-      ...l.groups.flatMap((g) => [g.quantity || '', g.amount ?? '']),
+    // Gom theo NCC như màn và bản in: dòng tiêu đề NCC rồi các thực phẩm, STT liên tục
+    ...dayMarketSupplierGroups(data.lines).flatMap((group) => [
+      ['', group.label],
+      ...group.lines.map((l) => [
+        (stt += 1),
+        l.name,
+        l.unit,
+        l.unitPrice ?? '',
+        l.source === 'STOCK' ? l.quantity : '',
+        l.source === 'MARKET' ? l.quantity : '',
+        l.amount ?? '',
+        ...l.groups.flatMap((g) => [g.quantity || '', g.amount ?? '']),
+      ]),
     ]),
     ['', 'Tổng chi', '', '', '', '', data.totals.cost, ...data.totals.groups.flatMap((g) => ['', g.cost])],
     [],

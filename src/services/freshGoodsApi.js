@@ -87,7 +87,8 @@ export const toDayMarket = (market) => {
     lines: (market?.lines || []).map((line) => ({
       foodId: line.food.id,
       name: line.food.name,
-      // NCC của thực phẩm tại ngày đi chợ theo mức giá hiệu lực (NUT-27)
+      // NCC của thực phẩm tại ngày đi chợ theo mức giá hiệu lực (NUT-27); id để gom nhóm và in theo NCC
+      supplierId: line.supplierId ?? null,
       supplierName: line.supplierName || '',
       contractStatus: line.contractStatus || null,
       unit: line.food.purchaseUnit,
