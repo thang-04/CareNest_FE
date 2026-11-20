@@ -24,11 +24,14 @@ export const lookupGuardian = (childId, phone, user) => call('lookupGuardian', c
 export const removeGuardian = (childId, id, user) => call('removeGuardian', childId, id, user);
 export const updateParentStatus = (id, status, user) => call('updateParentStatus', id, status, user);
 export const resetParentPassword = (id, user) => call('resetParentPassword', id, user);
-export const getGuardianStructure = (user) => call('getStructure', user);
-export const listAllChildrenForGuardians = async (campusId, user) => {
-  const first = await call('searchChildren', { campusId, page: 0, size: 100 }, user);
+// Màn Tài khoản phụ huynh theo năm học chọn ở header (G94-437)
+export const getGuardianStructure = (user, schoolYear) => call('getStructure', user, schoolYear);
+export const listAllChildrenForGuardians = async (campusId, user, schoolYear) => {
+  const first = await call('searchChildren', { campusId, schoolYear, page: 0, size: 100 }, user);
   const rest = await Promise.all(
-    Array.from({ length: Math.max(0, first.totalPages - 1) }, (_, i) => call('searchChildren', { campusId, page: i + 1, size: 100 }, user)),
+    Array.from({ length: Math.max(0, first.totalPages - 1) }, (_, i) =>
+      call('searchChildren', { campusId, schoolYear, page: i + 1, size: 100 }, user),
+    ),
   );
   return [first, ...rest].flatMap((page) => page.items);
 };

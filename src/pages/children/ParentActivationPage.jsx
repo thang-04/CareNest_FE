@@ -4,6 +4,7 @@ import { AlertCircle, Filter, KeyRound, Lock, Unlock, UserPlus, Users } from '@/
 import { useCampusGuardianChildren } from '@/hooks/account/useGuardians';
 import { useGuardianStructure } from '@/hooks/account/useGuardians';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useChildYearLock } from '@/hooks/children/useChildYearLock';
 import { YearLockedNotice } from '@/components/children/YearLockedNotice';
 import { useToast } from '@/contexts/ToastContext';
@@ -42,10 +43,13 @@ export default function ParentActivationPage() {
   const [params] = useSearchParams();
   const targetId = params.get('childId');
   const handledTarget = useRef('');
-  const structure = useGuardianStructure();
+  // Điểm trường, lớp, trẻ theo năm học chọn ở header (G94-437)
+  const { schoolYear } = useSchoolYear();
+  const structure = useGuardianStructure(schoolYear);
   const [campusPick, setCampusPick] = useState('');
-  const campusId = campusPick || (structure.campuses[0]?.id ?? '');
-  const { data, loading, error, reload } = useCampusGuardianChildren(campusId, { enabled: !structure.loading });
+  // Điểm trường đã chọn không thuộc năm đang xem ⇒ về điểm trường đầu của năm
+  const campusId = structure.campuses.some((c) => sameId(c.id, campusPick)) ? campusPick : (structure.campuses[0]?.id ?? '');
+  const { data, loading, error, reload } = useCampusGuardianChildren(campusId, { enabled: !structure.loading, schoolYear });
   const [viewPick, setViewPick] = useState('');
   const [onlyMissing, setOnlyMissing] = useState(false);
   const [keyword, setKeyword] = useState('');
