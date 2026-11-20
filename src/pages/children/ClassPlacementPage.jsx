@@ -39,7 +39,7 @@ export default function ClassPlacementPage() {
   const yearId = activeYear?.id || schoolYear;
   const [params, setParams] = useSearchParams();
   const { children, loading, error, reload } = useChildRecords({ schoolYear: yearId });
-  const { classes } = usePlacementClasses();
+  const { classes, reload: reloadClasses } = usePlacementClasses();
   // Nhóm tuổi của năm học đang hoạt động (BE /school-structure hoặc mock); năm sinh so với ngày bắt đầu năm học
   const { ageGroups } = useClassOptions(yearId);
   const yearStart = activeYear?.startDate || yearId;
@@ -121,6 +121,9 @@ export default function ClassPlacementPage() {
       toast.success(`${child.fullName} đã vào ${child.className}.`, isTransfer ? 'Đã chuyển lớp' : 'Đã xếp lớp');
       setConfirm(false);
       setParams({});
+      // BE thật không phát sự kiện đổi dữ liệu như mock ⇒ tự tải lại lớp hiện tại của trẻ và sĩ số lớp nguồn, lớp đích
+      reload({ silent: true });
+      reloadClasses({ silent: true });
     } catch (err) {
       setConfirm(false);
       if (err.details) setErrors(err.details);
