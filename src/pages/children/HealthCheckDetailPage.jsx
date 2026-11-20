@@ -148,6 +148,8 @@ export default function HealthCheckDetailPage() {
     try {
       const result = await action();
       toast.success(typeof success === 'function' ? success(result) : success);
+      // BE thật không phát sự kiện đổi dữ liệu như mock ⇒ tự tải lại trạng thái, nút thao tác, lịch sử của đợt
+      reload({ silent: true });
       return true;
     } catch (err) {
       toast.error(err, 'Không thực hiện được');
@@ -178,6 +180,7 @@ export default function HealthCheckDetailPage() {
       await reopenHealthCheck(campaign.id, { reason: reopen.reason, ...(reopenNeedsEndDate ? { endDate: reopen.endDate } : {}) }, user);
       toast.success(`Đã mở lại ${w.name}. Giáo viên của điểm trường đã nhận thông báo.`);
       setReopen(null);
+      reload({ silent: true });
     } catch (err) {
       if (err.details?.reason || err.details?.endDate)
         setReopen({ ...reopen, error: err.details.reason || '', endDateError: err.details.endDate || '' });
@@ -319,7 +322,8 @@ export default function HealthCheckDetailPage() {
             />
           </section>
         ) : (
-          classes.map((c) => <Roster key={c.classId} campaignId={campaign.id} classId={c.classId} />)
+          // Trạng thái đợt đổi (hủy, đóng, mở lại) ⇒ dựng lại danh sách để tải lại quyền nhập
+          classes.map((c) => <Roster key={`${c.classId}-${campaign.status}`} campaignId={campaign.id} classId={c.classId} />)
         )
       ) : (
         <section className="card mt-16">
@@ -429,7 +433,7 @@ export default function HealthCheckDetailPage() {
                           {open && (
                             <tr id={panelId} className="tr-acc-panel">
                               <td colSpan={isRound ? 4 : 5}>
-                                <Roster campaignId={campaign.id} classId={c.classId} embedded />
+                                <Roster key={`${c.classId}-${campaign.status}`} campaignId={campaign.id} classId={c.classId} embedded />
                               </td>
                             </tr>
                           )}
