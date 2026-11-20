@@ -3,6 +3,8 @@ import { FormField } from '@/components/form/FormField';
 import { SearchSelect } from '@/components/ui/SearchSelect';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { coverageTone } from '@/utils/menu-planning/microGroups';
+import { useActiveSuppliers } from '@/hooks/menu-planning/useMenuPlanning';
+import { ContractStatusBadge } from '@/components/menu-planning/ContractStatusBadge';
 import {
   ALLERGENS,
   FOOD_GROUP_LABELS,
@@ -47,7 +49,8 @@ function Affix({ unit, prefix, className = '', disabled, ...props }) {
  * `f` = kết quả `useFoodForm`. Dùng trong trang sửa và trong modal trên danh sách.
  */
 export function FoodEditor({ f }) {
-  const { form, payload, set, setNut, blur, show, toggleAllergen, locked } = f;
+  const { form, payload, set, setNut, blur, show, toggleAllergen, locked, isNew } = f;
+  const { items: suppliers } = useActiveSuppliers();
   const unitPreview =
     Number(form.purchaseToStock) > 0 && Number(form.stockUnitSize) > 0 && form.stockUnit && form.purchaseUnit
       ? `1 ${form.purchaseUnit} = ${num(form.purchaseToStock)} ${form.stockUnit} = ${num(payload.purchaseUnitSize)} ${form.unit}`
@@ -181,14 +184,35 @@ export function FoodEditor({ f }) {
               onBlur={blur('wastePct')}
             />
           </FormField>
-          <FormField label="Đơn giá" error={show('unitPrice')} className="td-span-all">
+          <FormField
+            label="Đơn giá"
+            error={show('unitPrice')}
+            hint={isNew ? 'Mức giá đầu tiên, áp dụng từ hôm nay' : 'Đổi giá ở trang chi tiết › Giá & nhà cung cấp › Điều chỉnh giá'}
+          >
             <Affix
               unit={`đ / ${form.purchaseUnit || 'đơn vị mua'}`}
               step="500"
               value={form.unitPrice}
+              disabled={!isNew}
               onChange={(e) => set('unitPrice', e.target.value)}
               onBlur={blur('unitPrice')}
             />
+          </FormField>
+          <FormField label="Nhà cung cấp" error={show('supplierId')}>
+            {isNew ? (
+              <SearchSelect
+                options={suppliers.map((s) => ({ value: s.id, label: s.name }))}
+                value={form.supplierId}
+                onChange={(v) => set('supplierId', v)}
+                placeholder="Chưa gán nhà cung cấp"
+                searchable
+              />
+            ) : (
+              <span className="td-chips">
+                {form.supplierName || <span className="muted">Chưa gán</span>}
+                {form.supplierName && <ContractStatusBadge status={form.contractStatus} size="sm" />}
+              </span>
+            )}
           </FormField>
         </div>
       </section>

@@ -23,6 +23,7 @@ import {
   RECEIPT_STATUS_LABELS,
   STOCK_MOVEMENT_LABELS,
   SUPPLIER_STATUS_LABELS,
+  CONTRACT_STATUS_LABELS,
 } from '@/models/kitchen/kitchenConstants';
 
 /* Tones follow DESIGN.md §3.2: orange = waiting for someone else, blue = in progress, purple = waiting for approval, green = done. */
@@ -84,6 +85,11 @@ export const StockMovementBadge = createStatusBadge(
 export const SupplierStatusBadge = createStatusBadge(
   { ACTIVE: ['green', CheckCircle2], INACTIVE: ['gray', PauseCircle] },
   SUPPLIER_STATUS_LABELS,
+);
+
+export const ContractStatusBadge = createStatusBadge(
+  { ACTIVE: ['green'], EXPIRING: ['orange'], EXPIRED: ['red'], NOT_STARTED: ['blue'], NONE: ['gray'] },
+  CONTRACT_STATUS_LABELS,
 );
 
 export const MealCountStatusBadge = createStatusBadge(

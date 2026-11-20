@@ -43,7 +43,7 @@ export default function RoomListPage() {
   useConfigYear();
   const { schoolYear, yearReadOnly } = useSchoolYear();
   const yearCampuses = useYearCampuses();
-  const md = useMasterData();
+  const md = useMasterData(schoolYear);
   const { rooms, loading, error, reload } = useRooms(schoolYear);
   const [params, setParams] = useSearchParams();
   const [filters, setFilters] = useState(() => ({ campusId: params.get('campus') || '', type: '', status: '', keyword: '' }));
@@ -114,7 +114,7 @@ export default function RoomListPage() {
       title: 'Xóa phòng',
       label: 'Xóa phòng',
       danger: true,
-      run: (r) => deleteRoom(r.id, user),
+      run: (r) => deleteRoom(r.id, user, schoolYear),
       done: 'Đã xóa bản ghi.',
       message: (r) => (
         <>
@@ -129,7 +129,7 @@ export default function RoomListPage() {
     deactivate: {
       title: 'Ngừng sử dụng phòng',
       label: 'Ngừng sử dụng',
-      run: (r) => setRoomStatus(r.id, ROOM_STATUS.INACTIVE, user),
+      run: (r) => setRoomStatus(r.id, ROOM_STATUS.INACTIVE, user, schoolYear),
       done: 'Đã chuyển phòng sang Ngừng sử dụng.',
       message: (r) => (
         <>
@@ -144,7 +144,7 @@ export default function RoomListPage() {
     activate: {
       title: 'Dùng lại phòng',
       label: 'Dùng lại',
-      run: (r) => setRoomStatus(r.id, ROOM_STATUS.ACTIVE, user),
+      run: (r) => setRoomStatus(r.id, ROOM_STATUS.ACTIVE, user, schoolYear),
       done: 'Đã chuyển phòng sang Đang sử dụng.',
       message: (r) => (
         <>
@@ -405,6 +405,7 @@ export default function RoomListPage() {
       </div>
 
       <RoomFormModal
+        schoolYearId={schoolYear}
         open={!!modal}
         onClose={closeModal}
         room={modal?.room}

@@ -418,6 +418,17 @@
 .kb-fc__total td {
   font-weight: var(--fw-semibold);
 }
+/* Đi chợ theo ngày: dòng tiêu đề nhóm NCC trên màn và bản in */
+tr.kb-dm__group th,
+tr.kb-dm-print__group th {
+  background: var(--color-surface-muted);
+  font-weight: var(--fw-bold);
+  text-align: left;
+}
+tr.kb-dm__group th {
+  padding-block: var(--space-2);
+  color: var(--color-text-secondary);
+}
 .kb-fc__foot {
   display: flex;
   flex-wrap: wrap;
@@ -972,6 +983,18 @@
 .table.kb-lots-table th,
 .table.kb-lots-table td {
   padding-inline: var(--space-2);
+}
+/* Tồn kho khô gộp theo thực phẩm: dòng thực phẩm nổi, dòng lô thụt vào và nền nhạt */
+.kb-lots-table .kb-lots-toggle {
+  font-weight: var(--fw-semibold);
+  color: var(--color-text);
+}
+.kb-lots-table .kb-lots-lot td {
+  background: var(--color-surface-muted);
+  font-size: var(--fs-sm);
+}
+.kb-lots-table .kb-lots-lot td:first-child {
+  padding-left: var(--space-8);
 }
 
 /* Hàng tươi (BE): kết quả Đủ/Thiếu/Thừa, đầu cột ngày của bản dự trù, ô ghi chú trống khi in */

@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { AlertTriangle, IdCard, MapPin, Pencil, Phone, Trash2, Truck, UserRound } from '@/components/ui/icons';
+import { AlertTriangle, FileText, IdCard, MapPin, Pencil, Phone, RefreshCw, Trash2, Truck, UserRound } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useSupplier } from '@/hooks/kitchen/useKitchen';
 import { Breadcrumb, Button, ConfirmationModal, EmptyState, ErrorState, LoadingState } from '@/components';
-import { ReceiptStatusBadge, SupplierStatusBadge } from '@/components/kitchen/KitchenBadges';
+import { ContractStatusBadge, ReceiptStatusBadge, SupplierStatusBadge } from '@/components/kitchen/KitchenBadges';
+import { SupplierContractModal } from '@/components/kitchen/SupplierContractModal';
 import { SupplierEditModal } from '@/components/kitchen/SupplierEditModal';
-import { canEditSuppliers, deleteSupplier, saveSupplier } from '@/services/kitchen/kitchenService';
+import { canEditSuppliers, deleteSupplier, saveSupplier, suppliersUseApi } from '@/services/kitchen/kitchenService';
 import { canManageStock } from '@/utils/kitchen/kitchenPermissions';
 import { supplierCrumbs } from '@/utils/kitchen/breadcrumbs';
 import { clickableRowProps } from '@/utils/clickableRow';
@@ -25,6 +26,7 @@ export default function SupplierDetailPage() {
   const { data: s, loading, error, reload } = useSupplier(id);
   const [ask, setAsk] = useState(null);
   const [editing, setEditing] = useState(false);
+  const [contracting, setContracting] = useState(false);
   const [actionError, setActionError] = useState('');
   const canManage = canEditSuppliers(user);
   // Phiếu nhập chỉ PHT mở được (route nhập kho dành cho PHT)
@@ -70,6 +72,19 @@ export default function SupplierDetailPage() {
     { icon: IdCard, label: 'Mã số thuế', value: s.taxCode },
     { icon: IdCard, label: 'CCCD nhà cung cấp', value: s.idCard },
     { icon: MapPin, label: 'Địa chỉ', value: s.address, wide: true },
+    ...(suppliersUseApi()
+      ? [
+          {
+            icon: FileText,
+            label: 'Hợp đồng',
+            value:
+              s.contractStart && s.contractEnd
+                ? `${s.contractNo ? `${s.contractNo} · ` : ''}${formatDate(s.contractStart)} – ${formatDate(s.contractEnd)}`
+                : '',
+            wide: true,
+          },
+        ]
+      : []),
   ].filter((f) => f.value !== undefined);
 
   return (
@@ -83,6 +98,7 @@ export default function SupplierDetailPage() {
           <div className="kb-sup-hero__title">
             <h1 className="page__title">{s.name}</h1>
             <SupplierStatusBadge status={s.status} size="lg" />
+            {suppliersUseApi() && <ContractStatusBadge status={s.contractStatus} size="lg" />}
           </div>
           <div className="kb-sup-hero__meta">
             {s.code && <span className="td-tag td-tag--blue">{s.code}</span>}
@@ -97,6 +113,11 @@ export default function SupplierDetailPage() {
               </Button>
             )}
             <Button onClick={() => setAsk('toggle')}>{active ? 'Ngừng dùng' : 'Dùng lại'}</Button>
+            {suppliersUseApi() && active && (
+              <Button icon={RefreshCw} onClick={() => setContracting(true)}>
+                Áp dụng hợp đồng mới
+              </Button>
+            )}
             <Button variant="primary" icon={Pencil} onClick={() => setEditing(true)}>
               Sửa nhà cung cấp
             </Button>
@@ -188,6 +209,7 @@ export default function SupplierDetailPage() {
         onConfirm={remove}
         onClose={() => setAsk(null)}
       />
+      {contracting && <SupplierContractModal supplier={s} onClose={() => setContracting(false)} onSaved={() => reload({ silent: true })} />}
       {editing && <SupplierEditModal supplierId={id} onClose={() => setEditing(false)} onSaved={() => reload({ silent: true })} />}
     </div>
   );

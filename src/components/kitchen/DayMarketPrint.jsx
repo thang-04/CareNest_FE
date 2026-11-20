@@ -1,8 +1,9 @@
-import { forwardRef } from 'react';
+import { Fragment, forwardRef } from 'react';
 import { PrintHeader } from '@/components/print/PrintHeader';
 import { PrintSignRow } from '@/components/print/PrintSignRow';
 import { fmtQty } from '@/components/kitchen/KitchenFilters';
 import { DishLines, groupCell } from '@/components/kitchen/DayMarketBlocks';
+import { dayMarketSupplierGroups } from '@/utils/kitchen/dayMarketGroups';
 import { formatDate } from '@/utils/format';
 
 const num = (n) => (n == null ? '' : Math.round(n).toLocaleString('vi-VN'));
@@ -13,6 +14,7 @@ const SIGNERS = [{ title: 'Người đi chợ' }, { title: 'Người giám sát'
 /** Bảng đi chợ một ngày, A4 ngang (mẫu `.print-sheet`): thực phẩm, thu–chi, thực đơn theo bữa, ba ô ký tay. */
 export const DayMarketPrint = forwardRef(function DayMarketPrint({ data }, ref) {
   const { totals, groups } = data;
+  let stt = 0;
   return (
     <div className="print-sheet print-sheet--landscape" ref={ref}>
       <PrintHeader />
@@ -49,24 +51,31 @@ export const DayMarketPrint = forwardRef(function DayMarketPrint({ data }, ref) 
           </tr>
         </thead>
         <tbody>
-          {data.lines.map((line, i) => (
-            <tr key={line.foodId}>
-              <td className="c">{i + 1}</td>
-              <td>{line.name}</td>
-              <td className="c">{line.unit}</td>
-              <td className="c">{num(line.unitPrice)}</td>
-              <td className="c">{line.source === 'STOCK' ? qty(line.quantity) : ''}</td>
-              <td className="c">{line.source === 'STOCK' ? '' : qty(line.quantity)}</td>
-              <td className="c">{num(line.amount)}</td>
-              {line.groups.flatMap((g) => [
-                <td key={`${g.ageGroupId}-q`} className="c">
-                  {qty(g.quantity)}
-                </td>,
-                <td key={`${g.ageGroupId}-m`} className="c">
-                  {g.quantity ? num(g.amount) : ''}
-                </td>,
-              ])}
-            </tr>
+          {dayMarketSupplierGroups(data.lines).map((group) => (
+            <Fragment key={group.key}>
+              <tr className="kb-dm-print__group">
+                <th colSpan={7 + groups.length * 2}>{group.label}</th>
+              </tr>
+              {group.lines.map((line) => (
+                <tr key={line.foodId}>
+                  <td className="c">{(stt += 1)}</td>
+                  <td>{line.name}</td>
+                  <td className="c">{line.unit}</td>
+                  <td className="c">{num(line.unitPrice)}</td>
+                  <td className="c">{line.source === 'STOCK' ? qty(line.quantity) : ''}</td>
+                  <td className="c">{line.source === 'STOCK' ? '' : qty(line.quantity)}</td>
+                  <td className="c">{num(line.amount)}</td>
+                  {line.groups.flatMap((g) => [
+                    <td key={`${g.ageGroupId}-q`} className="c">
+                      {qty(g.quantity)}
+                    </td>,
+                    <td key={`${g.ageGroupId}-m`} className="c">
+                      {g.quantity ? num(g.amount) : ''}
+                    </td>,
+                  ])}
+                </tr>
+              ))}
+            </Fragment>
           ))}
           <tr className="ps-total">
             <td colSpan={6}>Tổng chi</td>

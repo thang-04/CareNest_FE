@@ -134,7 +134,11 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
     stockUnit: f.purchaseUnit,
     purchaseToStock: 1,
     stockUnitSize: f.purchaseUnitSize,
+    // Giá và NCC tại hôm nay theo lịch sử giá (NUT-27)
     unitPrice: f.unitPrice ?? null,
+    supplierId: f.supplierId ?? null,
+    supplierName: f.supplierName || '',
+    contractStatus: f.contractStatus || 'NONE',
     wastePct: f.wastePct ?? 0,
     storage: f.storage,
     nutrition: {
@@ -189,6 +193,8 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
       storage: ['FRESH', 'DRY'].includes(p.storage) ? p.storage : defaultStorageOf(p.group),
       note: text(p.note),
       allergenIds: await allergenIdsOf(p.allergens || []),
+      // Chỉ dùng khi tạo; sau đó đổi qua điều chỉnh giá (BE từ chối nếu khác mức hôm nay)
+      supplierId: blank(p.supplierId) ? null : Number(p.supplierId),
     };
   };
 
@@ -281,11 +287,24 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
     // BE trả null cho người chỉ xem ⇒ không có khóa, màn ẩn dòng CCCD
     ...(s.idCard ? { idCard: s.idCard } : {}),
     status: s.status,
+    contractNo: s.contractNo || '',
+    contractStart: s.contractStart || '',
+    contractEnd: s.contractEnd || '',
+    contractStatus: s.contractStatus || 'NONE',
     // BE chưa nối phiếu nhập kho với nhà cung cấp
     receiptCount: null,
     receipts: [],
   });
   const supplier = withFields(SUPPLIER_FIELDS);
+  // Tên trường lỗi BE trùng tên ô form
+  const price = withFields({});
+  const contract = withFields({});
+  const toPriceRequest = (p) => ({
+    supplierId: blank(p.supplierId) ? null : Number(p.supplierId),
+    price: numOrNull(p.price),
+    effectiveFrom: p.effectiveFrom || null,
+    reason: text(p.reason),
+  });
 
   /* ---------- cấu hình nhóm tuổi (thiết lập dinh dưỡng) ---------- */
   const toVersion = (v) => ({
@@ -458,10 +477,49 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
           address: text(payload.address),
           deliveryPerson: text(payload.contactName),
           idCard: text(payload.idCard),
+          contractNo: text(payload.contractNo),
+          contractStart: payload.contractStart || null,
+          contractEnd: payload.contractEnd || null,
         };
         let saved = id ? await client.put(`/nutrition/suppliers/${id}`, body) : await client.post('/nutrition/suppliers', body);
         if (payload.status && payload.status !== saved.status)
           saved = await client.patch(`/nutrition/suppliers/${saved.id}/status`, { status: payload.status });
+        notifyChanged();
+        return toSupplier(saved);
+      }),
+
+    /* lịch sử giá và hợp đồng NCC (NUT-27) */
+    getFoodPrices: (foodId) => client.get(`/nutrition/foods/${foodId}/prices`),
+
+    adjustFoodPrice: (foodId, payload) =>
+      price(async () => {
+        const saved = await client.post(`/nutrition/foods/${foodId}/prices`, toPriceRequest(payload));
+        notifyChanged();
+        return saved;
+      }),
+
+    updateFoodPrice: (foodId, priceId, payload) =>
+      price(async () => {
+        const saved = await client.put(`/nutrition/foods/${foodId}/prices/${priceId}`, toPriceRequest(payload));
+        notifyChanged();
+        return saved;
+      }),
+
+    async deleteFoodPrice(foodId, priceId) {
+      await client.delete(`/nutrition/foods/${foodId}/prices/${priceId}`);
+      notifyChanged();
+    },
+
+    getSupplierFoods: (supplierId, date) => client.get(`/nutrition/suppliers/${supplierId}/foods`, { params: params({ date }) }),
+
+    applySupplierContract: (supplierId, payload) =>
+      contract(async () => {
+        const saved = await client.post(`/nutrition/suppliers/${supplierId}/apply-contract`, {
+          contractNo: text(payload.contractNo),
+          contractStart: payload.contractStart,
+          contractEnd: payload.contractEnd,
+          lines: payload.lines.map((l) => ({ foodId: l.foodId, price: Number(l.price) })),
+        });
         notifyChanged();
         return toSupplier(saved);
       }),

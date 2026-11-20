@@ -44,7 +44,7 @@ export function ClassListSection({
   onCopy,
   onChanged,
 }) {
-  const md = useMasterData();
+  const md = useMasterData(year?.id);
   const { user } = useAuth();
   const [assigning, setAssigning] = useState(null); // { kind: 'teachers', cls }
   // Phân công giáo viên ngay tại đây (tổ trưởng chọn ở form nhóm tuổi): Hiệu trưởng luôn được; Phó HT khi có quyền sửa "Phân công giáo viên" trong phạm vi

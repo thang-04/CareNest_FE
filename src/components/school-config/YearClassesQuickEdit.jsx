@@ -23,7 +23,7 @@ const isNew = (key) => String(key).startsWith('new-');
 export function YearClassesQuickEdit({ yearId, withRooms = false }) {
   const { user } = useAuth();
   const toast = useToast();
-  const md = useMasterData();
+  const md = useMasterData(yearId);
   const campuses = useMemo(() => md.campuses.filter((c) => c.status !== 'INACTIVE'), [md.campuses]);
   const { rooms: savedRooms, loading: roomsLoading, error: roomsError, reload: reloadRooms } = useRooms(yearId);
   const { structure, loading, error, reload } = useSchoolStructure(yearId, '');
@@ -151,7 +151,7 @@ export function YearClassesQuickEdit({ yearId, withRooms = false }) {
     for (const r of roomRows) {
       try {
         const { key, id, ...form } = roomForm(r);
-        const res = await saveRoom(isNew(key) ? null : id, form, user);
+        const res = await saveRoom(isNew(key) ? null : id, form, user, yearId);
         idOf[key] = res?.id;
         saved += 1;
         dropDraft(setRoomDrafts, key);

@@ -303,3 +303,12 @@ export const WEEKDAY_LABELS = ['Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm
 
 export { addDays, isMonday, mondayOf, schoolWeekStart, weekDates, weekLabel, weekOptions, weekShortLabel } from '@/utils/week';
 export { formatMoney } from '@/utils/format';
+
+// Trạng thái hợp đồng NCC do BE tính tại hôm nay (BE:docs/business/BUSINESS_RULES.md NUT-27)
+export const CONTRACT_STATUS_LABELS = {
+  ACTIVE: 'Còn hạn',
+  EXPIRING: 'Sắp hết hạn',
+  EXPIRED: 'Hết hạn',
+  NOT_STARTED: 'Chưa hiệu lực',
+  NONE: 'Chưa có hợp đồng',
+};
