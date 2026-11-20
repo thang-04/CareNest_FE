@@ -382,7 +382,7 @@ export const classPlanMockRepository = {
    *   theo eduConfig.signers.week (Tổ trưởng → Phó HT). Giáo án các tuần mang cùng trạng thái với hồ sơ.
    * Bỏ bước tổ trưởng khi tổ trưởng của khối dạy lớp đó (gửi thẳng Phó HT).
    */
-  async act(kind, id, { action, note }, user, options = {}) {
+  async act(kind, id, { action, note, deadline }, user, options = {}) {
     await delay();
     ensureSchoolSeeded();
     return writeDb((db) => {
@@ -464,6 +464,19 @@ export const classPlanMockRepository = {
         all.forEach((d, i) => {
           d.history = [...(d.history || []), i === 0 ? e : { ...e, action: `${e.action} (kế hoạch chủ đề)` }];
         });
+
+      // EDU-97: mock giữ hai thao tác khác nhau để UI không coi mở hạn gửi là mở lại hạn duyệt.
+      if (action === 'extend' || action === 'reopen_review_deadline') {
+        if (!rolesOf(user).includes(ROLES.PRINCIPAL)) fail('EDU_CONFIG_FORBIDDEN');
+        if (!note?.trim() || !deadline || deadline <= new Date().toISOString().slice(0, 10)) fail('INVALID_VALUE', 'lý do hoặc hạn mới');
+        if (action === 'reopen_review_deadline' && doc.status !== 'REVIEW') fail('INVALID_VALUE', 'chỉ mở lại hạn duyệt đã khóa');
+        all.forEach((d) => {
+          if (action === 'extend') d.extendedTo = deadline;
+          d.reviewDeadline = action === 'reopen_review_deadline' ? { ...(d.reviewDeadline || {}), locked: false, reopenUntil: deadline } : d.reviewDeadline;
+        });
+        log({ ...entry(user, action === 'extend' ? 'Mở hạn gửi' : 'Mở lại hạn duyệt', '', note), action, deadline });
+        return clone(decorate(db, doc, user, kind));
+      }
 
       if (action === 'submit') {
         if (!canAuthor(db, doc.classId, user)) fail('CLASS_DOC_TEACHER_ONLY');

@@ -311,7 +311,7 @@ export function ImportGoalFileModal({ form, themes = [], allowedAgeGroupIds, yea
               </table>
             </div>
           ) : (
-            <Notice>File không có mục tiêu. Phần này sẽ được xử lý theo cách nhập đã chọn ở trên.</Notice>
+            <Notice tone="info">File không có mục tiêu. Phần này sẽ được xử lý theo cách nhập đã chọn ở trên.</Notice>
           )}
           {prepared.missingThemes.length > 0 && (
             <Notice>

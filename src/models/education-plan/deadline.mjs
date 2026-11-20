@@ -1,14 +1,31 @@
-// Spec 003/005: nhãn hạn (tách khỏi trạng thái duyệt, tiền tố "Hạn:"). BE tính deadlineState, daysLeft; FE chỉ hiển thị.
+// BE quyết định hạn theo EDU-74/76/94. Nhãn tự cập nhật khi tab còn mở qua ngày.
 
 const ddmm = (iso) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}` : '');
 
 /** { tone, label } cho StatusBadge; null khi không có hạn (năm chưa cấu hình học kỳ). */
-export function deadlineLabel(doc) {
+const dayBefore = (iso) => new Date(Date.parse(`${iso}T00:00:00Z`) - 86400000).toISOString().slice(0, 10);
+
+const schoolDate = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit' });
+export const deadlineToday = () => schoolDate.format();
+
+export function deadlineLabel(doc, today) {
   if (!doc?.deadline) return null;
-  const due = ddmm(doc.extendedTo || doc.deadline);
+  const official = doc.extendedTo || doc.deadline;
+  // Trả lại sau hạn: BE cho gửi lại tới hết ngày trước graceTo (Tiền 18/11/2026)
+  const grace = doc.graceTo && doc.graceTo > official ? doc.graceTo : null;
+  const effective = grace || official;
+  const due = ddmm(effective);
+  if (doc.deadlineState === 'NEAR' && today && today >= effective) {
+    return { tone: 'red', label: `Hạn: Quá hạn (${due})` };
+  }
+  if (grace && (doc.deadlineState === 'NEAR' || doc.deadlineState === 'NORMAL'))
+    return { tone: 'orange', label: `Hạn: Gửi lại trước hết ${ddmm(dayBefore(grace))}` };
   switch (doc.deadlineState) {
     case 'NEAR':
-      return { tone: 'orange', label: doc.daysLeft == null ? `Hạn: Gần đến hạn (${due})` : `Hạn: Gần đến hạn · còn ${doc.daysLeft} ngày (${due})` };
+      return {
+        tone: 'orange',
+        label: doc.daysLeft == null ? `Hạn: Gần đến hạn (${due})` : `Hạn: Gần đến hạn · còn ${doc.daysLeft} ngày (${due})`,
+      };
     case 'OVERDUE':
       return { tone: 'red', label: `Hạn: Quá hạn (${due})` };
     case 'ON_TIME':

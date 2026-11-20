@@ -5,7 +5,14 @@ import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { useEducationPlan, useGoalDetails } from '@/hooks/education-plan/useEducationPlan';
 import { Card, EduStatusBadge, EmptyState, PageHead, YearPlanStatusBadge, fmtDate, fmtDateTime } from '@/components/education-plan/eduUi';
 import { Tabs } from '@/components/ui/Tabs';
-import { AGE_GROUPS, EDU_STATUS, EDU_STATUS_LABELS, allGoalItems } from '@/models/education-plan/educationPlanConstants';
+import {
+  AGE_GROUPS,
+  EDU_STATUS,
+  EDU_STATUS_LABELS,
+  allGoalItems,
+  ageRangeOptions,
+  sameAgeRange,
+} from '@/models/education-plan/educationPlanConstants';
 import { themeNumber, themeWeeksOf, yearWeeks } from '@/models/education-plan/classPlan';
 import { StatCard } from '@/components/ui/StatCard';
 import { clickableRowProps } from '@/utils/clickableRow';
@@ -98,7 +105,7 @@ export default function SchoolPlansPage() {
   const all = data[tab];
   const rows = all.filter(
     (r) =>
-      (!age || r.ageGroupId === age) &&
+      (!age || sameAgeRange(r.ageGroupId, age)) &&
       (!status || r.status === status) &&
       (!q || `${r.title} ${r.code} ${r.by || ''}`.toLowerCase().includes(q.toLowerCase())),
   );
@@ -141,7 +148,7 @@ export default function SchoolPlansPage() {
           <SearchSubmit value={q} placeholder="Tìm tên, mã, người lập" label="Tìm kế hoạch" onSearch={setQ} />
           <select className="select" value={age} onChange={(e) => setAge(e.target.value)} aria-label="Lọc theo nhóm tuổi">
             <option value="">Tất cả nhóm tuổi</option>
-            {AGE_GROUPS.map((a) => (
+            {ageRangeOptions().map((a) => (
               <option key={a.id} value={a.id}>
                 {a.name}
               </option>

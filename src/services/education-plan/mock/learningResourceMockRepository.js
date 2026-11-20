@@ -1,3 +1,4 @@
+import { sameAgeRange } from '@/models/education-plan/educationPlanConstants';
 import { readDb, writeDb, clone, delay } from '@/mocks/mockDatabase';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
 import { eduError } from './eduMockErrors';
@@ -315,7 +316,7 @@ export const resourceLibraryMockRepository = {
       .filter((i) => i.ownerId === user?.id)
       .filter((i) => !q || i.title.toLowerCase().includes(q))
       .filter((i) => !query.kind || i.kind === query.kind)
-      .filter((i) => !query.ageGroupId || i.ageGroupId == null || String(i.ageGroupId) === String(query.ageGroupId))
+      .filter((i) => !query.ageGroupId || i.ageGroupId == null || sameAgeRange(i.ageGroupId, query.ageGroupId))
       .filter((i) => (!theme && year == null) || taught(i))
       .map((i) =>
         toItem(s, i, {

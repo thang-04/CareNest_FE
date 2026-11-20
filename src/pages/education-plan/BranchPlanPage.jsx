@@ -1,6 +1,7 @@
 import { ResponsiveToolbar } from '@/components/ui/ResponsiveToolbar';
 import {
   adaptCalendar,
+  normalizeBranchCalendar,
   branchDisplayRows,
   branchWeeks,
   calendarDurationIssue,
@@ -10,7 +11,7 @@ import {
   updateWeek,
 } from '@/models/education-plan/branchCalendar.mjs';
 import { useEffect, useState } from 'react';
-import { Navigate, useParams } from 'react-router-dom';
+import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { Check, Download, FileDown, Lightbulb, Pencil, Save, Wand2, X } from '@/components/ui/icons';
 import { branchFile, leaderNameOf } from '@/utils/education-plan/classPlanDoc';
 import { rewriteBranchName, suggestBranchNames } from '@/services/education-plan/educationPlanService';
@@ -18,7 +19,15 @@ import { Card, fmtDate, Notice, PageHead } from '@/components/education-plan/edu
 import DatePickerCell from '@/components/education-plan/DatePickerCell';
 import { VersionHistory } from '@/components/education-plan/VersionHistory';
 import { docLines } from '@/models/education-plan/planHistory.mjs';
-import { Cell, ClassFilterBar, ClassPageEmpty, FilterSelect, focusCell, useClassPlanContext } from '@/components/education-plan/planUi';
+import {
+  Cell,
+  ClassFilterBar,
+  classFilterPath,
+  ClassPageEmpty,
+  FilterSelect,
+  focusCell,
+  useClassPlanContext,
+} from '@/components/education-plan/planUi';
 import { RejectedNotice } from '@/components/education-plan/reviewUi';
 import { LoadingState } from '@/components/ui/States';
 import { AiWorkingOverlay } from '@/components/ui/AiWorkingOverlay';
@@ -56,9 +65,25 @@ import { DocTable } from '@/components/ui/DocTable';
  */
 export default function BranchPlanPage() {
   const { classId } = useParams();
-  // Đổi lớp thì dựng lại trang để bỏ bản sửa dở của lớp trước
-  const { yearPlan } = useClassPlanContext(classId);
-  return <BranchPlanInner key={`${classId}:${yearPlan?.id}:${yearPlan?.curriculumSourcePlanId || 'legacy'}`} classId={classId} />;
+  const navigate = useNavigate();
+  const ctx = useClassPlanContext(classId);
+  const { cls, classes, yearPlan } = ctx;
+  if (ctx.loading) return <LoadingState />;
+  if (!cls || !yearPlan) {
+    return (
+      <ClassPageEmpty
+        showAllAges
+        crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Dự kiến chủ đề - chủ đề nhánh' }]}
+        title="Dự kiến chủ đề - chủ đề nhánh"
+        classes={classes}
+        classId={classId}
+        onPick={(id, age) => navigate(classFilterPath('/education/branches', id, age))}
+        emptyTitle={cls ? 'Kế hoạch giáo dục tổ của nhóm tuổi này chưa được ban hành' : 'Không tìm thấy lớp'}
+      />
+    );
+  }
+  // Đổi lớp hoặc nguồn thì dựng lại vùng soạn của lớp mới.
+  return <BranchPlanInner key={`${classId}:${yearPlan.id}:${yearPlan.curriculumSourcePlanId || 'legacy'}`} classId={classId} ctx={ctx} />;
 }
 
 // Bản gửi đi khi lưu: ô AI chưa ✓ / ✗ vẫn lưu tên trước đó, chỉ lưu khi giáo viên đã giữ
@@ -70,14 +95,13 @@ export function BranchPlanLegacyRedirect() {
   return <Navigate to={`/education/branches/${classId}`} replace />;
 }
 
-function BranchPlanInner({ classId }) {
+function BranchPlanInner({ classId, ctx }) {
   const { user, branchPlans, semesterPackages, semesterConfigMissing, saveClassDoc, toast, eduConfig, staff, refreshClassDocs } =
     useEducationPlan();
   const [preview, setPreview] = useState(null);
   const [importContext, setImportContext] = useState(null);
   const [editing, setEditing] = useState(false);
   const [pendingDates, setPendingDates] = useState({});
-  const ctx = useClassPlanContext(classId);
   const { cls, classes, yearPlan: sourcePlan, teachers, canComposeClassDocs } = ctx;
   const yearPlan = sourcePlan;
   const saved = yearPlan ? branchPlans.find((b) => b.classId === classId && b.yearPlanId === yearPlan.id) || null : null;
@@ -119,7 +143,7 @@ function BranchPlanInner({ classId }) {
     },
     backup: { userId: user?.id, key: yearPlan && `branch:${classId}:${yearPlan.id}` },
     onRestore: (doc) => {
-      setDraft(eduConfig.durationPolicyAvailable === false ? doc : adaptCalendar(doc, yearPlan));
+      setDraft(eduConfig.durationPolicyAvailable === false ? normalizeBranchCalendar(doc) : adaptCalendar(doc, yearPlan));
       setDirty(true);
       setEditing(true);
     },
@@ -140,7 +164,7 @@ function BranchPlanInner({ classId }) {
     const adapted =
       doc &&
       (eduConfig.durationPolicyAvailable === false && saved
-        ? doc
+        ? normalizeBranchCalendar(doc)
         : adaptCalendar(
             {
               ...doc,
@@ -159,18 +183,6 @@ function BranchPlanInner({ classId }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [saved?.id, saved?.version, saved?.dossierVersion, saved?.status, saved?.history?.length, yearPlan?.id, classId, dirty]);
 
-  if (ctx.loading) return <LoadingState />;
-  if (!cls || !yearPlan)
-    return (
-      <ClassPageEmpty
-        crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Dự kiến chủ đề - chủ đề nhánh' }]}
-        title="Dự kiến chủ đề - chủ đề nhánh"
-        classes={classes}
-        classId={classId}
-        onPick={(id) => guard.leave(`/education/branches/${id}`)}
-        emptyTitle={cls ? 'Kế hoạch giáo dục tổ của nhóm tuổi này chưa được ban hành' : 'Không tìm thấy lớp'}
-      />
-    );
   if (!draft) return <LoadingState />;
 
   const status = saved?.status || EDU_STATUS.DRAFT;
@@ -507,12 +519,13 @@ function BranchPlanInner({ classId }) {
           </div>
         </ResponsiveToolbar>
         <ClassFilterBar
+          showAllAges
           classes={classes}
           classId={classId}
           canPick={ctx.canPickClass}
-          onPick={(id) => {
+          onPick={(id, age) => {
             setEditing(false);
-            guard.leave(`/education/branches/${id}`);
+            guard.leave(classFilterPath('/education/branches', id, age));
           }}
         >
           <FilterSelect

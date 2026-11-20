@@ -7,7 +7,7 @@ import { LoadingState } from '@/components/ui/States';
 import { Tabs } from '@/components/ui/Tabs';
 import { Eye } from '@/components/ui/icons';
 import { useEducationPlan, useGoalDetails } from '@/hooks/education-plan/useEducationPlan';
-import { AGE_GROUPS } from '@/models/education-plan/educationPlanConstants';
+import { ageRangeOptions, sameAgeRange } from '@/models/education-plan/educationPlanConstants';
 import { todayIso } from '@/models/education-plan/classPlan';
 import { planRoute } from '@/models/education-plan/planLevel.mjs';
 import { OVERDUE_KIND_LABEL, filterOverdue, overdueRows } from '@/models/education-plan/overdue.mjs';
@@ -27,7 +27,8 @@ const linkOf = (r) =>
  */
 export default function OverduePlansPage() {
   const id = useId();
-  const { loading, user, goals, semesterPackages, themeDossiers, classes, actOnClassDoc, unlockGoal } = useEducationPlan();
+  const { loading, user, goals, semesterPackages, themeDossiers, classes, actOnClassDoc, unlockGoal, reopenGoalReviewDeadline } =
+    useEducationPlan();
   const [tab, setTab] = useState('overdue');
   const [filter, setFilter] = useState(EMPTY_FILTER);
   const [selected, setSelected] = useState(() => new Set());
@@ -40,10 +41,13 @@ export default function OverduePlansPage() {
   if (loading) return <LoadingState />;
   const themeNameOf = (d) => goals.find((g) => g.id === d.yearPlanId)?.themes?.find((t) => t.id === d.themeId)?.name || 'Chủ đề';
   const rows = overdueRows({ semesterPackages, themeDossiers, yearPlans: goals, classes, themeNameOf, today: todayIso() });
-  const shown = filterOverdue(rows, { tab, ...filter });
+  const shown = filterOverdue(
+    rows.filter((r) => !filter.ageGroupId || sameAgeRange(r.ageGroupId, filter.ageGroupId)),
+    { tab, ...filter, ageGroupId: '' },
+  );
   const count = (t) => filterOverdue(rows, { tab: t }).length;
-  const groups = AGE_GROUPS.filter((g) => rows.some((r) => r.ageGroupId === String(g.id)));
-  const groupClasses = classes.filter((c) => filter.ageGroupId && String(c.ageGroupId) === filter.ageGroupId);
+  const groups = ageRangeOptions();
+  const groupClasses = classes.filter((c) => filter.ageGroupId && sameAgeRange(c.ageGroupId, filter.ageGroupId));
   const semesters = [...new Set(rows.map((r) => r.semesterNo).filter((n) => n != null))].sort();
   const setF = (patch) => {
     setFilter((f) => ({ ...f, ...patch }));
@@ -65,8 +69,10 @@ export default function OverduePlansPage() {
     for (const r of target) {
       let message = '';
       const ok = r.planId
-        ? await unlockGoal(r.planId, { note, deadline })
-        : await actOnClassDoc(r.kind, r.docKey, { action: 'extend', note, deadline }, user, {
+        ? r.reviewLocked
+          ? await reopenGoalReviewDeadline(r.planId, { note, deadline })
+          : await unlockGoal(r.planId, { note, deadline })
+        : await actOnClassDoc(r.kind, r.docKey, { action: r.reviewLocked ? 'reopen_review_deadline' : 'extend', note, deadline }, user, {
             version: r.version,
             onError: (err) => (message = err.message),
           });
@@ -269,7 +275,16 @@ export default function OverduePlansPage() {
       </Card>
       {target && (
         <ExtendDeadlineModal
-          title={target.length > 1 ? `Mở hạn ${target.length} kế hoạch` : `Mở hạn: ${target[0].title}`}
+          title={
+            target.every((r) => r.reviewLocked)
+              ? target.length > 1
+                ? `Mở lại hạn duyệt ${target.length} kế hoạch`
+                : `Mở lại hạn duyệt: ${target[0].title}`
+              : target.length > 1
+                ? `Mở hạn ${target.length} kế hoạch`
+                : `Mở hạn: ${target[0].title}`
+          }
+          confirmLabel={target.every((r) => r.reviewLocked) ? 'Mở lại hạn duyệt' : 'Mở hạn gửi'}
           onClose={() => setTarget(null)}
           onConfirm={extend}
         />

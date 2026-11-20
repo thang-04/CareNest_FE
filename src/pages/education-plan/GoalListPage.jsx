@@ -5,7 +5,7 @@ import { Plus, RotateCcw } from '@/components/ui/icons';
 import { ROLES } from '@/models/User';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
-import { AGE_GROUPS, EDU_STATUS, allGoalItems } from '@/models/education-plan/educationPlanConstants';
+import { AGE_GROUPS, EDU_STATUS, allGoalItems, ageRangeOptions } from '@/models/education-plan/educationPlanConstants';
 import { Card, EmptyState, PageHead, YearPlanStatusBadge, fmtDate } from '@/components/education-plan/eduUi';
 import { StatCard } from '@/components/ui/StatCard';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
@@ -13,7 +13,9 @@ import { clickableRowProps } from '@/utils/clickableRow';
 import { currentPlanOf, versionOf } from '@/models/education-plan/planVersions.mjs';
 import { useAsync } from '@/hooks/useAsync';
 import { usePolling } from '@/hooks/usePolling';
-import { getReviewQueue } from '@/services/education-plan/educationPlanService';
+import { LoadingState, ErrorState } from '@/components/ui/States';
+import { getEducationPlans, getReviewQueue } from '@/services/education-plan/educationPlanService';
+import { isReviewTurn } from '@/models/education-plan/reviewTurn.mjs';
 import { Button } from '@/components';
 
 const ageName = (id) => AGE_GROUPS.find((a) => a.id === id)?.name || '—';
@@ -90,16 +92,24 @@ export default function GoalListPage({ planLevel = 'TEAM' }) {
   // Bản đã ban hành nhưng có bản mới hơn thay thế: hiện "Đã thay thế", mặc định gom lại để danh sách chỉ còn bản đang dùng (Tiền 12/11/2026)
   const replaced = (g) =>
     g.status === EDU_STATUS.APPROVED && !(g.current ?? currentPlanOf(goals, g.ageGroupId, g.schoolYear, planLevel)?.id === g.id);
-  const matched = scoped.filter(
-    (g) => (!age || g.ageGroupId === age) && (!q || (g.title + g.code).toLowerCase().includes(q.toLowerCase())),
+  const filtered = useAsync(
+    () => getEducationPlans(user, { planLevel, schoolYear, ageRange: age }),
+    [age, planLevel, user.id, schoolYear],
+    {
+      enabled: !!age,
+      refreshOnDataChange: true,
+    },
   );
+  const candidates = age ? (filtered.data?.goals || []).filter((g) => levelOf(g) === planLevel) : scoped;
+  const matched = candidates.filter((g) => !q || (g.title + g.code).toLowerCase().includes(q.toLowerCase()));
   // Chỉ gom bản thay thế khi danh sách còn bản đang dùng của cùng nhóm tuổi; không thì vẫn hiện để danh sách không trống
   const foldable = (g) => replaced(g) && matched.some((x) => !replaced(x) && x.ageGroupId === g.ageGroupId);
   const oldCount = matched.filter(foldable).length;
   const rows = showOld ? matched : matched.filter((g) => !foldable(g));
 
   const issued = scoped.filter((g) => g.status === EDU_STATUS.APPROVED || g.status === EDU_STATUS.SENT).length;
-  const pending = (queue.data || []).filter((g) => levelOf(g) === planLevel).length;
+  // EDU-93: hàng chờ có cả hồ sơ của bước khác (chỉ xem); "Chờ bạn duyệt" chỉ đếm hồ sơ đúng lượt
+  const pending = (queue.data || []).filter((g) => levelOf(g) === planLevel && isReviewTurn(g) !== false).length;
 
   return (
     <div className="page ga-page">
@@ -128,8 +138,8 @@ export default function GoalListPage({ planLevel = 'TEAM' }) {
                 <SearchSubmit value={q} placeholder="Tìm theo tên hoặc mã" label="Tìm kế hoạch" onSearch={setQ} />
                 <select className="select" value={age} onChange={(e) => setAge(e.target.value)} aria-label="Lọc theo nhóm tuổi">
                   <option value="">Tất cả nhóm tuổi</option>
-                  {AGE_GROUPS.map((a) => (
-                    <option key={a.id} value={a.id}>
+                  {ageRangeOptions().map((a) => (
+                    <option key={a.rangeKey} value={a.rangeKey}>
                       {a.name}
                     </option>
                   ))}
@@ -145,7 +155,11 @@ export default function GoalListPage({ planLevel = 'TEAM' }) {
             )}
           </div>
         )}
-        {rows.length === 0 && scoped.length > 0 ? (
+        {age && filtered.error ? (
+          <ErrorState error={filtered.error} onRetry={filtered.reload} />
+        ) : age && filtered.loading ? (
+          <LoadingState />
+        ) : rows.length === 0 && scoped.length > 0 ? (
           // Có kế hoạch nhưng bộ lọc loại hết: không báo "chưa có", cho đặt lại bộ lọc
           <EmptyState
             title="Không có kết quả phù hợp"

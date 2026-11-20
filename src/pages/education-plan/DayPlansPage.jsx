@@ -1,7 +1,14 @@
 import { ResponsiveToolbar } from '@/components/ui/ResponsiveToolbar';
 import { useState } from 'react';
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ClassFilterBar, ClassPageEmpty, FilterSelect, docReview, useClassPlanContext } from '@/components/education-plan/planUi';
+import {
+  ClassFilterBar,
+  classFilterPath,
+  ClassPageEmpty,
+  FilterSelect,
+  docReview,
+  useClassPlanContext,
+} from '@/components/education-plan/planUi';
 import { Card, DocAvailabilityBadge, EduStatusBadge, EmptyCard, FoldAllButton, PageHead } from '@/components/education-plan/eduUi';
 import { ReviewActions } from '@/components/education-plan/reviewUi';
 import { DeadlineBadge } from '@/components/education-plan/DeadlineWidgets';
@@ -49,11 +56,12 @@ function DayPlansWeek({ classId, params }) {
   if (!weeks.length)
     return (
       <ClassPageEmpty
+        showAllAges
         crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Kế hoạch giáo dục ngày' }]}
         title="Kế hoạch giáo dục ngày"
         classes={ctx.classes}
         classId={classId}
-        onPick={(id) => navigate(`/education/day-plans/${id}`)}
+        onPick={(id, age) => navigate(classFilterPath('/education/day-plans', id, age))}
         emptyTitle={ctx.cls ? 'Chưa có tuần học' : 'Không tìm thấy lớp'}
       />
     );
@@ -98,10 +106,11 @@ function DayPlansList({ classId }) {
       )}
       {/* Học kỳ nằm cùng hàng lọc lớp (Tiền 13/11/2026). */}
       <ClassFilterBar
+        showAllAges
         classes={classes}
         classId={classId}
         canPick={ctx.canPickClass}
-        onPick={(id) => navigate(`/education/day-plans/${id}`)}
+        onPick={(id, age) => navigate(classFilterPath('/education/day-plans', id, age))}
       >
         {filters}
       </ClassFilterBar>
@@ -199,12 +208,13 @@ function DayPlansList({ classId }) {
                 ) : (
                   <DocAvailabilityBadge status={viewer ? 'UNRELEASED' : 'NOT_DRAFTED'} />
                 )}
-                {review && (
+                {/* Thẻ chủ đề chỉ để GVCN gửi duyệt; duyệt/trả lại ở trang xem giáo án ngày, nơi thấy nội dung (EDU-93) */}
+                {review && (review.can.send || (canComposeClassDocs && dossier.status === EDU_STATUS.DRAFT)) && (
                   <ReviewActions
                     name={`hồ sơ chủ đề ${t.name}`}
                     sendTo={review.sendTo}
                     sendLabel="Gửi duyệt"
-                    can={review.can}
+                    can={{ ...review.can, approve: false, reject: false }}
                     showSend={canComposeClassDocs && dossier.status === EDU_STATUS.DRAFT}
                     // Gói học kỳ chưa ban hành: không hiện dòng nhắc trên trang, bấm Gửi duyệt mới cảnh báo (Tiền 14/11/2026)
                     sendDisabledReason={BLOCKED_TEXT[dossier.blockedReason] || 'Chưa gửi được hồ sơ chủ đề này'}
