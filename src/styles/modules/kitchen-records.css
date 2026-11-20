@@ -304,15 +304,14 @@
   background: var(--color-surface-muted);
   z-index: 4;
 }
-.table.kr-sheet__table .kr-sheet__name {
+.kr-sheet__table .kr-sheet__name {
   position: sticky;
   left: 40px;
-  z-index: 2;
+  z-index: var(--z-base);
   background: var(--color-surface);
 }
-.table.kr-sheet__table thead .kr-sheet__name {
+.kr-sheet__table thead .kr-sheet__name {
   background: var(--color-surface-muted);
-  z-index: 4;
 }
 .table.kr-sheet__table tbody tr.kr-row--fail td {
   background: var(--color-danger-bg);
