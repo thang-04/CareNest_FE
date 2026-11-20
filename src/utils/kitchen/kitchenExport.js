@@ -53,6 +53,7 @@ export const dayMarketCsvRows = (data) => {
     ['Nhóm tuổi', 'Số suất', 'Giá một suất', 'Thu'],
     ...data.groups.map((g) => [g.name, g.servings, g.price ?? '', g.revenue ?? '']),
     ['Tổng thu', data.totals.servings, '', data.totals.revenue ?? ''],
+    ...(data.totals.foodBudget == null ? [] : [['Ngân sách thực phẩm', '', '', data.totals.foodBudget]]),
     ['Chi mua chợ', '', '', data.totals.marketCost],
     ['Chi xuất kho', '', '', data.totals.stockCost],
     ['Tổng chi', '', '', data.totals.cost],

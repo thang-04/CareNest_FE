@@ -12,7 +12,7 @@ import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
 import { AllergenChips, HistoryCard, RecordStatusBadge } from '@/components/menu-planning/MenuBadges';
 import { MealsView } from '@/components/menu-planning/MealsView';
 import { NutritionTable } from '@/components/menu-planning/NutritionTable';
-import { applyReplacements, mealsTotals, priceOn, restrictedConflicts, sameAllergen } from '@/utils/menu-planning/menuCalculations';
+import { applyReplacements, foodBudgetOn, mealsTotals, restrictedConflicts, sameAllergen } from '@/utils/menu-planning/menuCalculations';
 import { allergyMenuCrumbs } from '@/utils/menu-planning/breadcrumbs';
 import { todayInput } from '@/utils/format';
 import { ageGroupById } from '@/models/School';
@@ -211,7 +211,7 @@ export default function AllergyMenuDetailPage() {
               ageGroupId={a.ageGroupId}
               norms={catalog.norms}
               setups={catalog.nutritionSetups}
-              price={priceOn(catalog.mealPrices, a.ageGroupId, todayInput())?.price}
+              price={foodBudgetOn(catalog.mealPrices, a.ageGroupId, todayInput())}
             />
           </div>
         </div>

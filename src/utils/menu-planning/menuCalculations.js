@@ -411,6 +411,12 @@ export const priceOn = (prices, ageGroupId, date) =>
     .filter((p) => p.ageGroupId === ageGroupId && p.effectiveFrom <= date && (!p.effectiveTo || p.effectiveTo >= date))
     .sort((a, b) => (a.effectiveFrom < b.effectiveFrom ? 1 : -1))[0] || null;
 
+/** Ngân sách thực phẩm/trẻ/ngày = giá suất − phí dịch vụ (NUT-19); chưa có giá ⇒ null. */
+export const foodBudgetOn = (prices, ageGroupId, date) => {
+  const p = priceOn(prices, ageGroupId, date);
+  return p?.price == null ? null : Number(p.price) - (Number(p.serviceFee) || 0);
+};
+
 /**
  * Children concerned by allergens (GBR-MENU-03): only counts and class names, never child names.
  * classes/children come from the shared school structure.

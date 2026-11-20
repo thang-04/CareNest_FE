@@ -55,7 +55,14 @@ const beCheck = () => ({
         { food: EGG, expectedQty: 1000, receivedQty: 900, result: 'SHORT', note: 'Giao thiếu' },
       ],
     },
-    { round: 2, available: false, unavailableReason: 'Chờ số suất ăn được xác nhận', source: 'CONFIRMED_SERVINGS', recorded: false, lines: [] },
+    {
+      round: 2,
+      available: false,
+      unavailableReason: 'Chờ số suất ăn được xác nhận',
+      source: 'CONFIRMED_SERVINGS',
+      recorded: false,
+      lines: [],
+    },
   ],
 });
 
@@ -86,7 +93,7 @@ test('bảng đi chợ: GET /nutrition/day-market, đổi lượng sang đơn v�
     basis: 'FORECAST',
     confirmedAt: null,
     groups: [
-      { ageGroupId: '2', name: 'Mẫu giáo bé', servings: 10, mealPrice: 30000, revenue: 300000 },
+      { ageGroupId: '2', name: 'Mẫu giáo bé', servings: 10, mealPrice: 30000, serviceFee: 5000, revenue: 300000, foodBudget: 250000 },
       { ageGroupId: '3', name: 'Nhà trẻ', servings: 4, mealPrice: null, revenue: null },
     ],
     lines: [
@@ -118,6 +125,7 @@ test('bảng đi chợ: GET /nutrition/day-market, đổi lượng sang đơn v�
     totals: {
       servings: 14,
       revenue: 300000,
+      foodBudget: 250000,
       cost: 70400,
       freshCost: 43400,
       dryCost: 27000,
@@ -139,7 +147,17 @@ test('bảng đi chợ: GET /nutrition/day-market, đổi lượng sang đơn v�
       ['Gạo tẻ', 'kg', 'STOCK', 1.5, 27000, [1.5, 0], [27000, 0]],
     ],
   );
-  assert.deepEqual(view.groups[0], { ageGroupId: '2', name: 'Mẫu giáo bé', servings: 10, price: 30000, revenue: 300000 });
+  // NUT-19: ngân sách thực phẩm = thu − phí dịch vụ, BE tính; FE chỉ chép
+  assert.deepEqual(view.groups[0], {
+    ageGroupId: '2',
+    name: 'Mẫu giáo bé',
+    servings: 10,
+    price: 30000,
+    serviceFee: 5000,
+    revenue: 300000,
+    foodBudget: 250000,
+  });
+  assert.equal(view.totals.foodBudget, 250000);
   assert.deepEqual(
     [view.totals.marketCost, view.totals.stockCost, view.totals.cost, view.totals.revenue, view.totals.balance],
     [43400, 27000, 70400, 300000, null],
@@ -196,12 +214,17 @@ test('số trẻ dự kiến không hợp lệ bị chặn trước khi gọi BE
   const api = createFreshGoodsApi({ client });
   for (const bad of ['', '-1', '2.5', 'abc']) {
     const form = { campusId: '1', periodFrom: '2026-11-03', periodTo: '2026-11-03', counts: [{ ageGroupId: '2', expectedCount: bad }] };
-    await assert.rejects(() => api.previewForecast(form), (error) => !!error.details['counts.0'], bad);
+    await assert.rejects(
+      () => api.previewForecast(form),
+      (error) => !!error.details['counts.0'],
+      bad,
+    );
   }
   assert.equal(client.calls.length, 0);
-  assert.deepEqual(toForecastRequest({ campusId: '1', periodFrom: 'a', periodTo: 'b', counts: [{ ageGroupId: '2', expectedCount: '0' }] }).counts, [
-    { ageGroupId: '2', expectedCount: 0 },
-  ]);
+  assert.deepEqual(
+    toForecastRequest({ campusId: '1', periodFrom: 'a', periodTo: 'b', counts: [{ ageGroupId: '2', expectedCount: '0' }] }).counts,
+    [{ ageGroupId: '2', expectedCount: 0 }],
+  );
 });
 
 test('form dự trù: kiểm ngày và số trẻ, khóa nhập đổi khi kỳ hoặc số trẻ đổi (không tính ghi chú)', () => {
@@ -247,7 +270,10 @@ test('ghi nhận một lần kiểm: PUT kèm campusId, date, round; thực nh�
       { foodId: '8', receivedQty: 925, result: 'OVER', note: 'Dư 1 quả', supplierId: 3 },
     ],
   });
-  assert.throws(() => toCheckRequest({ lines: [{ foodId: '99', result: 'ENOUGH' }] }, lines), (e) => !!e.details['lines.0.foodId']);
+  assert.throws(
+    () => toCheckRequest({ lines: [{ foodId: '99', result: 'ENOUGH' }] }, lines),
+    (e) => !!e.details['lines.0.foodId'],
+  );
 });
 
 test('form kiểm nhận: nạp từ BE theo đơn vị mua, mỗi thực phẩm phải có kết quả, trạng thái lần kiểm theo cờ BE', async () => {
@@ -304,7 +330,9 @@ test('NUT-11, P-24: bản dự trù kèm hàng khô cần nhập thêm, đổi s
   );
   assert.equal(preview.dryLines[0].shortFrom, '2026-11-11');
 
-  const none = await createFreshGoodsApi({ client: fakeClient({ 'POST /nutrition/fresh-forecasts/preview': beForecast() }) }).previewForecast({
+  const none = await createFreshGoodsApi({
+    client: fakeClient({ 'POST /nutrition/fresh-forecasts/preview': beForecast() }),
+  }).previewForecast({
     ...emptyForecastForm({ campusId: '1', today: '2026-11-03' }),
     periodTo: '2026-11-04',
   });

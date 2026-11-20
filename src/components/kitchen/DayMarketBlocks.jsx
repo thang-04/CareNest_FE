@@ -130,6 +130,18 @@ export function DayMarketMoney({ data }) {
             <td />
             <td className="num nowrap">{money(totals.revenue)}</td>
           </tr>
+          {totals.foodBudget != null && totals.revenue != null && (
+            <>
+              <tr>
+                <td colSpan={3}>Trừ phí dịch vụ</td>
+                <td className="num nowrap">{formatMoney(totals.revenue - totals.foodBudget)}</td>
+              </tr>
+              <tr className="kb-fc__total">
+                <td colSpan={3}>Ngân sách thực phẩm</td>
+                <td className="num nowrap">{formatMoney(totals.foodBudget)}</td>
+              </tr>
+            </>
+          )}
           <tr>
             <td colSpan={3}>Chi mua chợ</td>
             <td className="num nowrap">{formatMoney(totals.marketCost)}</td>

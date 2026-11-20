@@ -469,6 +469,8 @@ test('lưu Thiết lập lên BE: một POST /batch chứa mọi nhóm đổi; k
     ageGroupId: '13',
     effectiveFrom: '2099-01-01',
     mealPrice: 32000,
+    // NUT-19: phí dịch vụ để trống gửi 0
+    serviceFee: 0,
     normBasis: 'TT 28/2016',
     dailyKcalNeed: 1300,
     kcalMin: 615,
@@ -601,7 +603,9 @@ test('kiểm tra thực đơn: danh mục BE ⇒ định mức, bữa, giá/ngà
   assert.deepEqual(live.foods, mockCatalog.foods, 'thực phẩm, món, thực đơn vẫn từ nguồn thực đơn');
   assert.deepEqual(live.dishes, mockCatalog.dishes);
   assert.equal(live.pricePerDay, true);
-  assert.deepEqual(live.mealPrices, [{ id: '40', ageGroupId: 'ag-4', price: 30000, effectiveFrom: '2026-09-01', effectiveTo: null }]);
+  assert.deepEqual(live.mealPrices, [
+    { id: '40', ageGroupId: 'ag-4', price: 30000, serviceFee: 0, effectiveFrom: '2026-09-01', effectiveTo: null },
+  ]);
   assert.deepEqual(live.norms['ag-4'].kcal, [615, 726]);
   assert.equal(live.norms['ag-4'].animalProteinG, undefined, 'khoảng chưa đặt ⇒ không có khóa');
   assert.deepEqual(live.norms['ag-2'], {}, 'nhóm chưa có cấu hình ⇒ chưa đặt định mức');

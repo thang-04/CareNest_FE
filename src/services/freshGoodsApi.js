@@ -74,7 +74,9 @@ export const toDayMarket = (market) => {
     name: g.name,
     servings: g.servings,
     price: g.mealPrice,
+    serviceFee: g.serviceFee ?? 0,
     revenue: g.revenue,
+    foodBudget: g.foodBudget ?? null,
   }));
   const totals = market?.totals || {};
   return {
@@ -105,6 +107,8 @@ export const toDayMarket = (market) => {
     totals: {
       servings: totals.servings ?? 0,
       revenue: totals.revenue ?? null,
+      // Ngân sách thực phẩm = tổng thu − phí dịch vụ (NUT-19); phần thừa thiếu so với khoản này
+      foodBudget: totals.foodBudget ?? null,
       cost: totals.cost ?? 0,
       marketCost: totals.freshCost ?? 0,
       stockCost: totals.dryCost ?? 0,

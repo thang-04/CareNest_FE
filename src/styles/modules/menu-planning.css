@@ -4272,3 +4272,8 @@
     gap: var(--space-1);
   }
 }
+
+/* Cân đối giá suất − phí dịch vụ = ngân sách thực phẩm dưới bảng dinh dưỡng 1 trẻ / ngày */
+.td-daynut__budget {
+  margin-top: var(--space-3);
+}
