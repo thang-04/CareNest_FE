@@ -107,7 +107,7 @@ export function AiTemplateComposer({
           facts={[
             { icon: Users, label: 'Nhóm tuổi', value: groupName },
             { icon: Scale, label: 'Dinh dưỡng', value: 'Đủ chất theo định mức của nhóm' },
-            ...(price != null ? [{ icon: Wallet, label: 'Tiền ăn', value: `${formatMoney(price)}/ngày` }] : []),
+            ...(price != null ? [{ icon: Wallet, label: 'Ngân sách thực phẩm', value: `${formatMoney(price)}/ngày` }] : []),
           ]}
           allergyRows={allergyRows}
           season={season}

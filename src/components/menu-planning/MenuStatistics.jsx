@@ -263,7 +263,9 @@ export function StatisticsNutrition({ stats }) {
               </td>
             ))}
             <td className="num nowrap">{range(row.kcal)}</td>
-            <td className="money nowrap">{stats.mealPrice == null ? 'Chưa đặt' : formatMoney(stats.mealPrice)}</td>
+            <td className="money nowrap">
+              {(stats.foodBudget ?? stats.mealPrice) == null ? 'Chưa đặt' : formatMoney(stats.foodBudget ?? stats.mealPrice)}
+            </td>
           </tr>
           <tr>
             <td>Tỷ lệ đạt (%)</td>
@@ -274,7 +276,9 @@ export function StatisticsNutrition({ stats }) {
             ))}
             <td className={`num ${cellTone(row.kcal)}`}>{row.kcal?.attainment == null ? '—' : row.kcal.attainment}</td>
             <td className="money nowrap">
-              {stats.mealPrice == null ? '—' : `Chênh ${formatMoney(Number(stats.mealPrice) - Number(stats.costPerChild || 0))}`}
+              {stats.mealPrice == null
+                ? '—'
+                : `Chênh ${formatMoney(Number(stats.foodBudget ?? stats.mealPrice) - Number(stats.costPerChild || 0))}`}
             </td>
           </tr>
           <tr>

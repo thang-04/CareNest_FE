@@ -64,10 +64,10 @@ export function MenuAiWeekModal({ open, onClose, block, week, plan, dirty, onApp
     ],
     [templates],
   );
-  // Tiền ăn một ngày theo kết quả đánh giá BE của tuần (chưa có đánh giá ⇒ không hiện dòng này)
+  // Ngân sách thực phẩm một ngày theo kết quả đánh giá BE của tuần (chưa có đánh giá ⇒ không hiện dòng này)
   const price = evaluationGroups(plan, block)
     .flatMap((g) => Object.values(g.byDate))
-    .map((e) => e.mealPrice)
+    .map((e) => e.foodBudget ?? e.mealPrice)
     .find((v) => v != null);
   const hasSavedItems = (plan?.days || []).some((d) => dayBlockItems(d, block).length > 0);
 
@@ -208,7 +208,7 @@ export function MenuAiWeekModal({ open, onClose, block, week, plan, dirty, onApp
             facts={[
               { icon: Users, label: 'Khối', value: blockLabel },
               { icon: Scale, label: 'Dinh dưỡng', value: 'Đủ chất theo định mức của từng nhóm tuổi' },
-              ...(price != null ? [{ icon: Wallet, label: 'Tiền ăn', value: `${formatMoney(price)}/ngày` }] : []),
+              ...(price != null ? [{ icon: Wallet, label: 'Ngân sách thực phẩm', value: `${formatMoney(price)}/ngày` }] : []),
               { icon: Repeat, label: 'Không lặp', value: 'Tránh món đã dùng ở các tuần liền trước' },
             ]}
             season={season}
