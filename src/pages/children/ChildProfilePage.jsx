@@ -23,7 +23,7 @@ import { ChildStatusBadge } from '@/components/children/ChildBadges';
 import { ChildAccessState } from '@/components/children/ChildAccessState';
 import { CHILD_STATUS, GENDER_LABELS, ageGroupById, ageLabel } from '@/models/School';
 import { formatDate, formatDateTime } from '@/utils/format';
-import { canEditChild, canPlaceChild } from '@/utils/children/childrenPermissions';
+import { canEditChild, canOpenChildEdit, canPlaceChild } from '@/utils/children/childrenPermissions';
 import { ChildProfileSummary } from '@/components/children/ChildProfileSummary';
 import { ChildInfoTable } from '@/components/children/ChildInfoTable';
 import { canActivateParent, canRecordMeasurement, canViewParentAccounts } from '@/utils/children/childrenPermissions';
@@ -94,9 +94,9 @@ export default function ChildProfilePage() {
               <LayoutGrid size={16} /> {child.classId ? 'Chuyển lớp' : 'Xếp lớp'}
             </Link>
           )}
-          {canEditChild(child, user) && (
+          {canOpenChildEdit(child, user) && (
             <Link className="btn btn--primary" to={`/children/${child.id}/edit`}>
-              <Pencil size={16} /> Sửa hồ sơ
+              <Pencil size={16} /> {canEditChild(child, user) ? 'Sửa hồ sơ' : 'Đề xuất sửa hồ sơ'}
             </Link>
           )}
         </div>
@@ -143,7 +143,10 @@ export default function ChildProfilePage() {
                     ['Ngày tiếp nhận', child.enrolledAt ? formatDate(child.enrolledAt) : missing],
                     [
                       'Dị ứng đã xác nhận',
-                      child.allergies?.length ? (
+                      child.mealRegistered === false ? (
+                        // CHD-13: không báo ăn thì không khai dị ứng
+                        <span className="muted">Không báo ăn</span>
+                      ) : child.allergies?.length ? (
                         <span className="row row--wrap gap-1-5">
                           {child.allergies.map((a) => (
                             <span key={a} className="chip chip--red">

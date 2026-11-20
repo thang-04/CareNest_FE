@@ -1,18 +1,20 @@
-import { forwardRef, useState } from 'react';
+import { forwardRef } from 'react';
 import { PrintHeader } from '@/components/print/PrintHeader';
+import { PrintSignRow } from '@/components/print/PrintSignRow';
 import { MEAL_SESSION_LABELS, SESSION_ORDER, formatMoney } from '@/models/menu-planning/menuPlanningConstants';
-import { storageGroups } from '@/utils/menu-planning/menuStatistics';
-import { TextField } from '@/components';
+import { NO_SUPPLIER, storageGroups, supplierGroups } from '@/utils/menu-planning/menuStatistics';
 
 const num = (v, digits = 2) => (v == null || v === '' ? '' : Number(v).toLocaleString('vi-VN', { maximumFractionDigits: digits }));
-const SIGNERS = ['Người lập', 'Người duyệt'];
+/** Người ký mặc định của phiếu; người duyệt (cột phải) là người ký chính. Họ tên gõ ở dải trên bản xem trước. */
+export const MENU_STAT_SIGNERS = [{ title: 'Người lập' }, { title: 'Người duyệt' }];
 
-const FoodTable = ({ rows }) => (
+const FoodTable = ({ rows, showSupplier }) => (
   <table className="ps-table">
     <thead>
       <tr>
         <th>STT</th>
         <th>Thực phẩm</th>
+        {showSupplier && <th>Nhà cung cấp</th>}
         <th>Lượng mua</th>
         <th>ĐVT</th>
         <th>Đơn giá</th>
@@ -24,6 +26,7 @@ const FoodTable = ({ rows }) => (
         <tr key={r.foodId}>
           <td className="c">{i + 1}</td>
           <td>{r.foodName}</td>
+          {showSupplier && <td>{r.supplierName || NO_SUPPLIER}</td>}
           <td className="c">{num(r.purchaseQty, 3)}</td>
           <td className="c">{r.purchaseUnit}</td>
           <td className="c">{r.unitPrice == null ? '' : formatMoney(r.unitPrice)}</td>
@@ -36,12 +39,15 @@ const FoodTable = ({ rows }) => (
 
 /**
  * Phiếu định lượng & đi chợ A4 (mẫu `.print-sheet`) của một ngày thực đơn: món theo bữa, bảng thực phẩm (chia "Cần mua
- * (hàng tươi)" / "Lấy từ kho khô" khi BE trả cờ), tổng tiền; tên người lập/duyệt gõ thẳng trên bản xem trước (không lưu).
+ * (hàng tươi)" / "Lấy từ kho khô" hoặc theo nhà cung cấp khi BE trả đủ trường), tổng tiền; họ tên người ký nhận từ dải ô phía trên bản xem trước (không lưu).
  * Số liệu lấy nguyên từ `POST /nutrition/menu-statistics`.
  */
-export const MenuStatisticsPrint = forwardRef(function MenuStatisticsPrint({ stats, title }, ref) {
-  const [names, setNames] = useState({});
-  const groups = storageGroups(stats);
+export const MenuStatisticsPrint = forwardRef(function MenuStatisticsPrint(
+  { stats, title, signers = MENU_STAT_SIGNERS, groupBy = 'storage' },
+  ref,
+) {
+  const groups = groupBy === 'supplier' ? supplierGroups(stats) : storageGroups(stats);
+  const showSupplier = groupBy !== 'supplier' || !groups;
   const sessions = SESSION_ORDER.map((s) => ({ s, dishes: stats.dishes.filter((d) => d.session === s) })).filter((x) => x.dishes.length);
   return (
     <div className="print-sheet" ref={ref}>
@@ -69,13 +75,13 @@ export const MenuStatisticsPrint = forwardRef(function MenuStatisticsPrint({ sta
             <h2 className="ps-section">
               {g.title} · {formatMoney(g.total)}
             </h2>
-            <FoodTable rows={g.rows} />
+            <FoodTable rows={g.rows} showSupplier={showSupplier} />
           </div>
         ))
       ) : (
         <>
           <h2 className="ps-section">Thực phẩm</h2>
-          <FoodTable rows={stats.ingredients} />
+          <FoodTable rows={stats.ingredients} showSupplier={showSupplier} />
         </>
       )}
       <p>
@@ -84,25 +90,7 @@ export const MenuStatisticsPrint = forwardRef(function MenuStatisticsPrint({ sta
         </b>{' '}
         · Tiền ăn 1 trẻ: {formatMoney(stats.costPerChild)}
       </p>
-      <table className="ps-table ps-sign ps-sign--spaced">
-        <tbody>
-          <tr>
-            {SIGNERS.map((t) => (
-              <td key={t}>
-                <div className="ps-sign__title">{t}</div>
-                <div className="ps-sign__role">(Ký, ghi rõ họ tên)</div>
-                <TextField
-                  className="ps-sign__input"
-                  aria-label={`Họ tên ${t.toLowerCase()}`}
-                  placeholder="Gõ họ tên"
-                  value={names[t] || ''}
-                  onChange={(e) => setNames((n) => ({ ...n, [t]: e.target.value }))}
-                />
-              </td>
-            ))}
-          </tr>
-        </tbody>
-      </table>
+      <PrintSignRow signers={signers} />
     </div>
   );
 });

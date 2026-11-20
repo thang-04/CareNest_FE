@@ -12,7 +12,7 @@ import {
   PrintPaperFit,
   PrintToolbar,
 } from '@/components';
-import { ForecastCountsTable, ForecastDryCard, ForecastLinesTable } from '@/components/kitchen/FreshForecastTables';
+import { ForecastCountsTable, ForecastDryCard, ForecastDryOrderTable, ForecastLinesTable } from '@/components/kitchen/FreshForecastTables';
 import { FreshForecastPrint } from '@/components/kitchen/FreshForecastPrint';
 import { useToast } from '@/contexts/ToastContext';
 import { useFreshForecast } from '@/hooks/kitchen/useFreshGoods';
@@ -80,6 +80,19 @@ export function FreshForecastDetail({ campus }) {
             />
           )}
         </section>
+        <section className="card mb-16">
+          <div className="card__header">
+            <div>
+              <div className="card__title">Hàng khô đặt cho kỳ</div>
+              <div className="text-sm muted">Lượng chốt lúc lưu bản dự trù; dùng để in và đối chiếu khi kiểm nhận hàng khô.</div>
+            </div>
+          </div>
+          {forecast.dryOrder.length ? (
+            <ForecastDryOrderTable lines={forecast.dryOrder} />
+          ) : (
+            <EmptyState title="Không đặt hàng khô cho kỳ này" description="Lúc lập bản dự trù, kho khô đủ hoặc lượng đặt để 0." />
+          )}
+        </section>
         <ForecastDryCard forecast={forecast} />
       </>
     );
@@ -103,7 +116,7 @@ export function FreshForecastDetail({ campus }) {
                 Xóa bản dự trù
               </Button>
             )}
-            <Button icon={Printer} disabled={!forecast.lines.length && !forecast.dryLines.length} onClick={() => setPrinting(true)}>
+            <Button icon={Printer} disabled={!forecast.lines.length && !forecast.dryOrder.length} onClick={() => setPrinting(true)}>
               In danh sách đặt hàng
             </Button>
           </div>
@@ -117,7 +130,7 @@ export function FreshForecastDetail({ campus }) {
           size="xl"
           className="print-modal"
           title="Danh sách đặt hàng"
-          footer={<PrintToolbar sheetRef={sheetRef} fileBase={`Dat_hang_${forecast.periodFrom}`} printLabel="In danh sách" />}
+          footer={<PrintToolbar sheetRef={sheetRef} fileBase={`Dat_hang_${forecast.periodFrom}`} onClose={() => setPrinting(false)} />}
         >
           <PrintPaperFit>
             <FreshForecastPrint ref={sheetRef} forecast={forecast} campusName={campusName?.shortName || campusName?.name} />

@@ -70,7 +70,7 @@ beforeEach(async () => {
       db.children.some((ch) => ch.classId === c.id && ch.status === 'ACTIVE'),
   );
   assert.ok(cls);
-  teacher = { id: cls.teacherIds[0], role: 'TEACHER', fullName: 'Teacher test' };
+  teacher = { id: cls.homeroomTeacherId || cls.teacherIds[0], role: 'TEACHER', fullName: 'Teacher test' };
   vp = { id: 'vp-test', role: 'VICE_PRINCIPAL', campusId: cls.campusId, fullName: 'VP test' };
   principal = db.users.find((u) => u.role === 'PRINCIPAL');
   child = db.children.find((ch) => ch.classId === cls.id && ch.status === 'ACTIVE');
@@ -113,6 +113,28 @@ test('mock reward facade completes teacher → VP → principal and preserves hi
   );
   assert.equal(approved.canEdit, false);
   assert.equal(approved.children.find((c) => c.childId === child.id).titles[0], REWARD_TITLES[0]);
+});
+
+test('only the main class teacher sees and uses the reward submit action', async () => {
+  const items = [{ childId: child.id, titles: [REWARD_TITLES[0]], note: '' }];
+  const coTeacherId = 'co-teacher-test';
+  writeDb((d) => {
+    const c = d.classes.find((x) => x.id === cls.id);
+    c.teacherIds = [teacher.id, coTeacherId];
+    c.homeroomTeacherId = teacher.id;
+  });
+  const coTeacher = { id: coTeacherId, role: 'TEACHER', fullName: 'Co teacher test' };
+  const other = await service.getRewardList(cls.id, coTeacher);
+  assert.equal(other.canEdit, true);
+  assert.equal(other.canSubmit, false);
+  await service.saveRewardList(cls.id, items, {}, coTeacher);
+  await assert.rejects(service.saveRewardList(cls.id, items, { submit: true }, coTeacher), { status: 403 });
+  assert.equal((await service.getRewardList(cls.id, teacher)).canSubmit, true);
+  // Lớp chưa có GV phụ trách chính: GV lớp nào cũng gửi được
+  writeDb((d) => {
+    d.classes.find((x) => x.id === cls.id).homeroomTeacherId = null;
+  });
+  assert.equal((await service.getRewardList(cls.id, coTeacher)).canSubmit, true);
 });
 
 test('reward draft is private, rejects invalid children/titles and requires confirmed evaluation', async () => {

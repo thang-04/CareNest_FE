@@ -62,9 +62,9 @@ export const isRoomStaff = (u, campusId, type) =>
   !!u &&
   u.role !== 'PARENT' &&
   (u.status || 'ACTIVE') === 'ACTIVE' &&
-  // Bếp do nhân viên bếp của điểm trường phụ trách
+  // Bếp: nhân viên bếp, PHT của điểm trường hoặc Hiệu trưởng (BE ROOM_KITCHEN_MANAGER_INVALID kiểm lại)
   (type === LOCATION_TYPES.KITCHEN
-    ? u.role === 'KITCHEN_STAFF' && u.campusId === campusId
+    ? u.role === 'PRINCIPAL' || (['KITCHEN_STAFF', 'VICE_PRINCIPAL'].includes(u.role) && u.campusId === campusId)
     : u.role === 'PRINCIPAL' || u.campusId === campusId);
 
 const norm = (v) =>

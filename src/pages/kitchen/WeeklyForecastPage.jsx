@@ -379,7 +379,7 @@ export default function WeeklyForecastPage() {
           size="xl"
           className="print-modal"
           title="Phiếu đặt hàng tuần"
-          footer={<PrintToolbar sheetRef={sheetRef} fileBase={`Phieu_dat_hang_tuan_${weekStart}`} printLabel="In phiếu" />}
+          footer={<PrintToolbar sheetRef={sheetRef} fileBase={`Phieu_dat_hang_tuan_${weekStart}`} onClose={() => setPrinting(false)} />}
         >
           <PrintPaperFit>
             <WeeklyOrderPrint ref={sheetRef} data={data} campusName={campus?.shortName || campus?.name} />

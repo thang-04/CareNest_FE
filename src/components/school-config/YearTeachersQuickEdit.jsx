@@ -11,7 +11,8 @@ import { ErrorState, LoadingState, Spinner } from '@/components/ui/States';
 import { saveClassTeachers, saveTeamLeader } from '@/services/school-config/schoolConfigService';
 import { hasErrors, validateClassTeachers } from '@/utils/school-config/schoolConfigValidation';
 
-const SLOTS = [0, 1];
+// Tối đa 3 giáo viên đứng lớp (SCH-04)
+const SLOTS = [0, 1, 2];
 const leaderKey = (groupId) => `leader-${groupId}`;
 
 /**
@@ -22,7 +23,7 @@ const leaderKey = (groupId) => `leader-${groupId}`;
 export function YearTeachersQuickEdit({ yearId }) {
   const { user } = useAuth();
   const toast = useToast();
-  const md = useMasterData();
+  const md = useMasterData(yearId);
   const campuses = useMemo(() => md.campuses.filter((c) => c.status !== 'INACTIVE'), [md.campuses]);
   const [campusPick, setCampusPick] = useState('');
   const campusId = campusPick || campuses[0]?.id || '';
@@ -53,7 +54,7 @@ export function YearTeachersQuickEdit({ yearId }) {
     setErrors(({ [c.id]: _c, ...rest }) => rest);
   };
   const setSlot = (c, slot, teacherId) => {
-    const ids = [c.teacherIds[0] || '', c.teacherIds[1] || ''];
+    const ids = SLOTS.map((i) => c.teacherIds[i] || '');
     ids[slot] = teacherId;
     editClass(c, { teacherIds: ids.filter(Boolean) });
   };
@@ -179,13 +180,14 @@ export function YearTeachersQuickEdit({ yearId }) {
                 <th>Nhóm tuổi</th>
                 <th>Giáo viên 1</th>
                 <th>Giáo viên 2</th>
+                <th>Giáo viên 3</th>
                 <th>Phụ trách chính</th>
               </tr>
             </thead>
             <tbody>
               {classes.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="muted">
+                  <td colSpan={6} className="muted">
                     Điểm trường chưa có lớp trong năm học này.
                   </td>
                 </tr>
@@ -201,7 +203,7 @@ export function YearTeachersQuickEdit({ yearId }) {
                           className="select"
                           aria-label={`Giáo viên ${slot + 1} lớp ${c.name}`}
                           value={c.teacherIds[slot] || ''}
-                          disabled={slot === 1 && !c.teacherIds[0]}
+                          disabled={slot > 0 && !c.teacherIds[slot - 1]}
                           onChange={(e) => setSlot(c, slot, e.target.value)}
                         >
                           <option value="">Chưa chọn</option>

@@ -380,6 +380,10 @@
 .dg-unlock-filters .input {
   width: auto;
 }
+/* BUG-30: khung "Lọc thêm" nổi trên đầu bảng dính (thead sticky) bên dưới */
+.dg-unlock-filters .filter-more__panel {
+  z-index: var(--z-dropdown);
+}
 /* Ô Loại, Tuần, Trẻ trong form một hàng: cố định bề rộng để đổi loại không xô ô khác */
 .dg-unlock-kind {
   width: calc(var(--space-16) * 3);
@@ -665,6 +669,11 @@
 .dg-ov-toolbar .field,
 .dg-ov-toolbar .tabs {
   margin: 0;
+}
+/* Dòng trạng thái / lỗi dưới thanh lọc Chất lượng tháng: hiện đủ, không bị bảng che */
+.dg-ov-state {
+  margin: 0;
+  padding: 0 var(--space-6) var(--space-3);
 }
 .dg-ov-block {
   margin: 0 var(--space-6);

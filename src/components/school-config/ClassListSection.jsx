@@ -44,7 +44,7 @@ export function ClassListSection({
   onCopy,
   onChanged,
 }) {
-  const md = useMasterData();
+  const md = useMasterData(year?.id);
   const { user } = useAuth();
   const [assigning, setAssigning] = useState(null); // { kind: 'teachers', cls }
   // Phân công giáo viên ngay tại đây (tổ trưởng chọn ở form nhóm tuổi): Hiệu trưởng luôn được; Phó HT khi có quyền sửa "Phân công giáo viên" trong phạm vi
@@ -145,7 +145,7 @@ export function ClassListSection({
     );
   };
 
-  // Hai ô giáo viên cố định (mỗi lớp 2 GV); ô trống là khung nét đứt nhẹ, không dùng màu cảnh báo
+  // Tối thiểu hai ô giáo viên (mỗi lớp 2–3 GV); ô trống là khung nét đứt nhẹ, không dùng màu cảnh báo
   const teacherCell = (c) => {
     const ids = [...c.teacherIds].sort((a, b) => (b === c.homeroomTeacherId) - (a === c.homeroomTeacherId));
     const slots = Array.from({ length: Math.max(TEACHERS_PER_CLASS, ids.length) }, (_, i) => ids[i] || null);
@@ -200,7 +200,7 @@ export function ClassListSection({
           <option value="">{principal ? 'Tất cả điểm trường' : 'Điểm trường của tôi'}</option>
           {campuses.map((c) => (
             <option key={c.id} value={c.id}>
-              {c.name}
+              {c.shortName || c.name}
             </option>
           ))}
         </select>

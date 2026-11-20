@@ -3,7 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { AlertCircle, BookOpen, CircleCheck, Copy, Plus, RotateCcw, Soup } from '@/components/ui/icons';
 import { useDishes, useCatalogAccess, useCatalogLookups } from '@/hooks/menu-planning/useMenuPlanning';
 import { useFilterParams } from '@/hooks/useFilterParams';
-import { Breadcrumb } from '@/components/ui/Breadcrumb';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { usePageReadOnly } from '@/contexts/PageReadOnlyContext';
 import { Pagination, paginate } from '@/components/ui/Pagination';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { FilterMore } from '@/components/ui/FilterMore';
@@ -29,6 +30,7 @@ const FILTER_DEFAULTS = { type: '', keyword: '', portion: '', allergen: '', stat
 export default function DishListPage() {
   const navigate = useNavigate();
   const { canManage } = useCatalogAccess();
+  const { reason: viewOnlyReason } = usePageReadOnly();
   // Chỉ xem (không có quyền sửa danh mục) ⇒ bỏ cột Thao tác; bấm dòng vẫn mở chi tiết
   const colCount = canManage ? 6 : 5;
   const { catalog } = useCatalogLookups();
@@ -69,22 +71,26 @@ export default function DishListPage() {
 
   return (
     <div className="page">
-      <Breadcrumb items={dishCrumbs()} />
-      <div className="page__head">
-        <div>
-          <h1 className="page__title">Món ăn</h1>
-        </div>
-        <div className="page__actions">
-          <Button onClick={() => setLibrary(true)}>
-            <BookOpen size={16} /> Thư viện tham khảo
-          </Button>
-          {canManage && (
-            <Link to="/menu/dishes/new" className="btn btn--primary">
-              <Plus size={16} /> Thêm món ăn
-            </Link>
-          )}
-        </div>
-      </div>
+      <PageHeader
+        crumbs={dishCrumbs()}
+        title="Món ăn"
+        readOnly={!canManage}
+        actions={
+          <div className="page__actions">
+            <Button icon={BookOpen} onClick={() => setLibrary(true)}>
+              Thư viện tham khảo
+            </Button>
+            <Button
+              variant="primary"
+              icon={Plus}
+              onClick={() => navigate('/menu/dishes/new')}
+              disabledReason={canManage ? undefined : viewOnlyReason}
+            >
+              Thêm món ăn
+            </Button>
+          </div>
+        }
+      />
       <section className="card td-split-nav">
         <CategoryNav title="Loại món ăn" items={navItems} value={type} onChange={change('type')} />
         <div className="td-split-nav__main">
