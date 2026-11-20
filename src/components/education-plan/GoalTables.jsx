@@ -1366,7 +1366,7 @@ export function ThemeEventTable({
       breaks: breaks.map((b) => (breakSug.has(b.id) ? { ...b, ...breakSug.get(b.id) } : b)),
     });
   const suggestion = (sug, apply) => (
-    <div className="ga-goal-table__pad text-xs text-danger ga-date-sug">
+    <div className="ga-goal-table__pad text-xs text-success ga-date-sug">
       Gợi ý: {fmtDate(sug.start)} – {fmtDate(sug.end)}{' '}
       <button type="button" className="link-btn" onClick={apply}>
         Áp dụng
@@ -1387,7 +1387,7 @@ export function ThemeEventTable({
         </p>
       )}
       {sugCount > 0 && (
-        <p className="text-danger text-sm text-right ga-date-sug-all">
+        <p className="text-success text-sm text-right ga-date-sug-all">
           {sugCount} dòng lệch ngày (cần trọn tuần thứ 2 – thứ 6, trong năm học).{' '}
           <button type="button" className="link-btn" onClick={applyAllSuggestions}>
             Áp dụng tất cả gợi ý

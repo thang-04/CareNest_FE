@@ -77,7 +77,7 @@ export function AiEditDayModal({ open, docKey, unsaved, onApply, onClose }) {
     >
       <div className="stack">
         <AiDraftTag />
-        {unsaved && <Notice>Bấm Lưu trước: AI đọc giáo án đã lưu của tuần này.</Notice>}
+        {unsaved && <Notice tone="info">Bấm Lưu trước: AI đọc giáo án đã lưu của tuần này.</Notice>}
         <TextAreaField
           label="Yêu cầu"
           rows={2}

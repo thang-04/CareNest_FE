@@ -26,6 +26,7 @@ import { formatDate, formatFileSize } from '@/utils/format';
 import { EDU_STATUS_LABELS, educationDisplayStatus } from '@/models/education-plan/educationPlanConstants';
 import { WORKFLOW_ROLES } from '@/models/education-plan/eduConfig';
 import { waitingLabel } from '@/models/education-plan/reviewTurn.mjs';
+import { reviewHistoryItem } from '@/models/education-plan/reviewHistory.mjs';
 
 /*
  * Thin wrappers that keep the lesson-plan screens on the shared components and classes of
@@ -343,36 +344,53 @@ export function EmptyCard(props) {
   );
 }
 
-/** Thông báo trong trang của kế hoạch giáo dục: luôn là chữ đỏ, không dùng thẻ màu (Tiền 11/11/2026). */
-export function Notice({ children }) {
+/** EDU-99: lỗi đỏ, thông tin và kết quả xử lý xanh lá. */
+export function Notice({ children, tone = 'err' }) {
+  const positive = tone === 'info' || tone === 'ok';
   return (
-    <p className="field__error" role="status">
+    <div className={positive ? 'text-success text-sm' : 'field__error'} role={positive ? 'status' : 'alert'}>
       {children}
-    </p>
+    </div>
   );
 }
 
-/** Processing history (oldest first); rejection reason shown under its entry. */
+const reviewClock = new Intl.DateTimeFormat('vi-VN', {
+  timeZone: 'Asia/Ho_Chi_Minh',
+  dateStyle: 'short',
+  timeStyle: 'short',
+});
+
+/** Lịch sử duyệt đi từ sự kiện đầu tiên đến cập nhật mới nhất. */
 export function History({ items }) {
   if (!items?.length) return <p className="muted">Chưa có lịch sử xử lý.</p>;
   return (
-    <ul className="history-list">
-      {items.map((h, i) => (
-        <li key={i}>
-          <div className={`history-list__dot ${h.tone ? `ga-dot--${h.tone}` : ''}`} />
-          <div>
-            <div className="fw-600">{h.action}</div>
-            <div className="muted text-xs">
-              {h.by} · {h.role} · {fmtDateTime(h.at)}
+    <ol className="ga-review-timeline">
+      {items.map((event, index) => {
+        const h = reviewHistoryItem(event);
+        const latest = index === items.length - 1;
+        const instant = h.at?.includes('T') ? new Date(h.at) : null;
+        const at = instant ? (Number.isFinite(instant.getTime()) ? reviewClock.format(instant) : null) : h.at ? fmtDateTime(h.at) : null;
+        return (
+          <li key={event.id ?? index} className="ga-review-timeline__step" data-tone={h.tone} aria-current={latest ? 'step' : undefined}>
+            <div className="ga-review-timeline__heading">
+              <strong>{h.title}</strong>
+              {latest && <span className="ga-review-timeline__latest">Mới nhất</span>}
             </div>
-            {h.note && (
-              <div className="ga-note mt-8">
-                {h.tone === 'err' ? 'Lý do' : 'Ghi chú'}: {h.note}
+            {(h.actor || at) && (
+              <div className="ga-review-timeline__meta">
+                {h.actor && <span>{h.actor}</span>}
+                {at && <time dateTime={h.at.replace(' ', 'T')}>{at}</time>}
               </div>
             )}
-          </div>
-        </li>
-      ))}
-    </ul>
+            {h.deadline && <p className="text-success">Hạn mới: {fmtDate(h.deadline)}</p>}
+            {h.note && (
+              <p className={h.rejected ? 'text-danger ga-review-timeline__note' : 'text-success ga-review-timeline__note'}>
+                <strong>{h.rejected ? 'Lý do' : 'Ghi chú'}:</strong> {h.note}
+              </p>
+            )}
+          </li>
+        );
+      })}
+    </ol>
   );
 }

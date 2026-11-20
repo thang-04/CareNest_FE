@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Check, ListChecks, Send, Undo2, XCircle } from '@/components/ui/icons';
+import { Check, ListChecks, Send, Undo2 } from '@/components/ui/icons';
 import { RowMenu } from '@/components/ui/RowMenu';
 import { Button } from '@/components/ui/Button';
 import { Card, Field, History, Modal, Notice, fmtDateTime } from '@/components/education-plan/eduUi';
@@ -203,7 +203,7 @@ export function ReviewActions({
         >
           {actError && <Notice>{actError}</Notice>}
           {unsaved && action !== 'submit' && action !== 'reject' && (
-            <Notice>Còn thay đổi chưa lưu. Bấm "{withSave(approveLabel)}" để lưu rồi tiếp tục.</Notice>
+            <Notice tone="info">Còn thay đổi chưa lưu. Bấm "{withSave(approveLabel)}" để lưu rồi tiếp tục.</Notice>
           )}
           {notes[action] && <p>{notes[action]}</p>}
           <Field
@@ -238,26 +238,26 @@ export function RejectedNotice({ status, history }) {
   const last = lastRejection(history);
   if (!['DRAFT', 'REJECTED'].includes(status) || !last?.note) return null;
   return (
-    // Lý do trả lại: khung đỏ giống nhau ở mọi trang, ngay dưới hàng nút (Tiền 12/11/2026); thông báo khác vẫn là chữ đỏ
-    <div className="alert alert--danger ga-notice" role="status">
-      <XCircle size={18} aria-hidden />
-      <span>
-        Bị trả lại bởi {last.by} ({fmtDateTime(last.at)}): {last.note}
-      </span>
+    <div className="ga-notice text-danger text-sm" role="status">
+      Bị trả lại bởi {last.by} ({fmtDateTime(last.at)}): {last.note}
     </div>
   );
 }
 
 /** Lịch sử xử lý ở cuối trang (thu gọn). */
 export function ReviewHistory({ items, open = false }) {
+  const [expanded, setExpanded] = useState(open);
   return (
-    <Card>
-      <details open={open}>
-        <summary className="muted text-sm">Lịch sử duyệt ({items?.length || 0})</summary>
-        <div className="mt-8">
-          <History items={items} />
-        </div>
-      </details>
+    <Card
+      title={
+        <>
+          Lịch sử duyệt <span className="ga-review-history__count">{items?.length || 0}</span>
+        </>
+      }
+      collapsed={!expanded}
+      onToggle={() => setExpanded((value) => !value)}
+    >
+      <History items={items} />
     </Card>
   );
 }

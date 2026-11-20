@@ -155,7 +155,7 @@ export function ThemePlanBody({
         // Dòng đếm tiến độ chữ xám luôn hiện như kế hoạch năm (Tiền 13/11/2026)
         actions={
           goals.length > 0 && (
-            <span className="muted text-xs nowrap">
+            <span className="text-success text-xs nowrap">
               {goals.length} mục tiêu · {goals.filter((g) => !cardsOf(g).length).length} chưa có hoạt động
             </span>
           )

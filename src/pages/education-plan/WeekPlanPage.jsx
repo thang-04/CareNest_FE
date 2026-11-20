@@ -11,7 +11,7 @@ import { EmptyCard, fmtDate, FoldAllButton, Notice, PageHead } from '@/component
 import { VersionHistory } from '@/components/education-plan/VersionHistory';
 import { docLines } from '@/models/education-plan/planHistory.mjs';
 import { useClassPlanContext } from '@/components/education-plan/planUi';
-import { ActionsMenu, RejectedNotice, ReviewActions } from '@/components/education-plan/reviewUi';
+import { ActionsMenu, RejectedNotice, ReviewActions, ReviewHistory } from '@/components/education-plan/reviewUi';
 import { themeRowOf } from '@/components/education-plan/ThemePlanBody';
 import { numberGoals } from '@/models/education-plan/goalTable';
 import { LoadingState } from '@/components/ui/States';
@@ -741,7 +741,7 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
               savedWeek &&
               !weekApproved &&
               !(dossier?.status === EDU_STATUS.DRAFT && dossier?.blockedReason === 'SEMESTER_NOT_RELEASED') && (
-                <Notice>Kế hoạch tuần chưa được duyệt.</Notice>
+                <Notice tone="info">Kế hoạch tuần chưa được duyệt.</Notice>
               )}
             {changedCells?.size > 0 && <p className="text-sm text-warning">Đã sửa theo chủ đề</p>}
             {baseChanged && <p className="text-sm text-warning">Bản theo kỳ đã đổi</p>}
@@ -838,6 +838,9 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
         }}
         onClose={() => setConfirmRevise(false)}
       />
+      {(dayPage ? dossier : container || themeDoc)?.history?.length > 0 && (
+        <ReviewHistory items={(dayPage ? dossier : container || themeDoc).history} />
+      )}
       <LeaveConfirmModal
         {...guard.modal}
         onDiscard={() => {
