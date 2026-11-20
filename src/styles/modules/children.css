@@ -1312,6 +1312,12 @@
   align-self: center;
   font-size: var(--fs-sm);
 }
+/* Danh sách trẻ: người xem chỉ có một lớp ⇒ nhãn "Lớp · N trẻ" thay ô lọc lớp (G94-425) */
+.tr-class-scope {
+  align-self: center;
+  margin: 0;
+  font-size: var(--fs-sm);
+}
 /* 6 thẻ số liệu một hàng ở màn rộng (auto-fit chung để thẻ Béo phì rơi một mình xuống hàng 2); hẹp hơn 3 rồi 2 cột */
 .stat-grid.gr-stats {
   grid-template-columns: repeat(6, minmax(0, 1fr));

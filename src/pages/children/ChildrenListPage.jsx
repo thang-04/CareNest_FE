@@ -88,7 +88,7 @@ export default function ChildrenListPage() {
   // PHT được giao "Hồ sơ trẻ" toàn trường: bộ lọc lớp gồm lớp của cả 2 điểm trường
   const allCampuses = isVicePrincipal(user) && seesAllCampusChildren(user);
   // Lớp của năm học đang xem (mock hoặc BE /school-structure); id điểm trường của /campuses là số khi nối BE ⇒ so bằng sameId
-  const { classes: yearOptions } = useClassOptions(schoolYear, { all: allCampuses });
+  const { classes: yearOptions, loading: classesLoading } = useClassOptions(schoolYear, { all: allCampuses });
   const scopeCampusIds = useMemo(
     () =>
       new Set(
@@ -103,6 +103,10 @@ export default function ChildrenListPage() {
   const yearClasses = yearOptions.filter((c) => !campusId || sameId(c.campusId, campusId));
 
   const current = useMemo(() => childrenOfStatus(all, ''), [all]);
+  // Chỉ xem được một lớp (vd. GV phụ trách một lớp) ⇒ không ô lọc lớp, hiện tên lớp và số trẻ; GV chưa có lớp trong năm ⇒ báo
+  const singleClass = yearOptions.length === 1 ? yearOptions[0] : null;
+  const singleClassCount = singleClass ? current.filter((c) => sameId(c.classId, singleClass.id)).length : 0;
+  const noClassAssigned = isTeacherRole(user) && !classesLoading && yearOptions.length === 0;
   const rows = useMemo(() => {
     const kw = normalizeText(keyword).trim();
     return childrenOfStatus(all, status)
@@ -232,15 +236,25 @@ export default function ChildrenListPage() {
           {showCampus && (
             <CampusFilter campuses={campusOptions} value={campusId} onChange={(v) => setFilter({ campusId: v, classId: '' })} hideLabel />
           )}
-          <select className="select" value={classId} aria-label="Lớp" onChange={(e) => setFilter({ classId: e.target.value })}>
-            <option value="">Tất cả lớp</option>
-            {yearClasses.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-                {showCampus && !campusId && campusOptions.length > 1 ? ` – ${md.campusById(c.campusId)?.name?.split(' - ')[0] || ''}` : ''}
-              </option>
-            ))}
-          </select>
+          {yearOptions.length > 1 && (
+            <select className="select" value={classId} aria-label="Lớp" onChange={(e) => setFilter({ classId: e.target.value })}>
+              <option value="">Tất cả lớp</option>
+              {yearClasses.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                  {showCampus && !campusId && campusOptions.length > 1
+                    ? ` – ${md.campusById(c.campusId)?.name?.split(' - ')[0] || ''}`
+                    : ''}
+                </option>
+              ))}
+            </select>
+          )}
+          {singleClass && (
+            <p className="tr-class-scope">
+              <strong>{singleClass.name}</strong> · {singleClassCount} trẻ
+            </p>
+          )}
+          {noClassAssigned && <p className="tr-class-scope muted">Bạn chưa được phân công lớp trong năm học này.</p>}
           <button className="btn" onClick={resetFilters} disabled={!filtered}>
             <RotateCcw size={15} /> Đặt lại bộ lọc
           </button>
