@@ -5,18 +5,19 @@ import { SidePanel } from '@/components/ui/SidePanel';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useMasterData } from '@/hooks/useMasterData';
-import { useChildDetail } from '@/hooks/children/useChildRecords';
+import { useChildDetail, useLatestProfileChanges } from '@/hooks/children/useChildRecords';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { LoadingState, Spinner } from '@/components/ui/States';
 import { FormField } from '@/components/form/FormField';
 import { ChildAccessState } from '@/components/children/ChildAccessState';
 import { DeclarationSummary } from '@/components/children/DeclarationSummary';
 import { HealthDeclarationFields } from '@/components/children/HealthDeclarationFields';
-import { saveHealthDeclaration } from '@/services/children/childrenService';
-import { ALLERGY_STATE_LABELS, DECLARATION_STATE } from '@/models/children/childrenConstants';
+import { saveHealthDeclaration, submitProfileChange } from '@/services/children/childrenService';
+import { ProfileChangeNotice } from '@/components/children/ProfileChangeNotice';
+import { ALLERGY_STATE_LABELS, DECLARATION_STATE, PROFILE_CHANGE_KIND } from '@/models/children/childrenConstants';
 import { formatDateTime } from '@/utils/format';
 import { hasErrors, validateDeclaration } from '@/utils/children/childrenValidation';
-import { canDeclareHealth } from '@/utils/children/childrenPermissions';
+import { canDeclareHealth, canOpenChildEdit, canProposeChildEdit } from '@/utils/children/childrenPermissions';
 import { emptyDeclaration } from '@/utils/children/childrenHelpers';
 import { MEDICAL_HISTORY_ITEMS, emptyMedicalHistory, historyItemText } from '@/models/children/childProfile';
 import { childCrumb, childrenCrumbs } from '@/utils/children/breadcrumbs';
@@ -60,6 +61,9 @@ export default function HealthDeclarationPage() {
   const autoOpened = useRef(false);
 
   const child = detail?.child;
+  // BE:CHD-11 — GV được cấp quyền: lưu là gửi yêu cầu, khai báo đổi khi HT/PHT duyệt
+  const proposing = !!child && !canDeclareHealth(child, user) && canProposeChildEdit(child, user);
+  const { changes, reload: reloadChanges } = useLatestProfileChanges(id, { enabled: proposing });
   const crumbs = childrenCrumbs(childCrumb(child), 'Khai báo sức khỏe');
 
   const openEditor = (d = emptyDeclaration()) => {
@@ -79,14 +83,14 @@ export default function HealthDeclarationPage() {
   useEffect(() => {
     if (!directEdit || autoOpened.current || !detail?.child) return;
     autoOpened.current = true;
-    if (canDeclareHealth(detail.child, user)) openEditor(detail.declaration || undefined);
+    if (canOpenChildEdit(detail.child, user)) openEditor(detail.declaration || undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [directEdit, detail, user]);
 
   const leaveEditor = () => (directEdit ? navigate(`/children/${id}`) : setEditing(false));
 
   // Tránh nháy chế độ xem trước khi form tự mở
-  const waitingEditor = directEdit && !autoOpened.current && !!child && canDeclareHealth(child, user);
+  const waitingEditor = directEdit && !autoOpened.current && !!child && canOpenChildEdit(child, user);
   if (loading || waitingEditor)
     return (
       <div className="page">
@@ -104,7 +108,7 @@ export default function HealthDeclarationPage() {
 
   const { declaration } = detail;
   const lastChange = declaration?.history?.[declaration.history.length - 1];
-  const canEdit = canDeclareHealth(child, user);
+  const canEdit = canOpenChildEdit(child, user);
   // Sửa khai báo đã có thì bắt buộc lý do; dữ liệu có hiệu lực ngay cho bếp.
   const needsReason = !!declaration;
 
@@ -117,6 +121,13 @@ export default function HealthDeclarationPage() {
     if (hasErrors(errs)) return;
     setBusy(true);
     try {
+      if (proposing) {
+        await submitProfileChange(id, { kind: PROFILE_CHANGE_KIND.HEALTH_DECLARATION, declaration: { declaration: form, reason } }, user);
+        toast.success('Đã gửi yêu cầu sửa khai báo. Khai báo đổi sau khi Hiệu trưởng hoặc Phó hiệu trưởng duyệt.');
+        reloadChanges({ silent: true });
+        leaveEditor();
+        return;
+      }
       await saveHealthDeclaration(id, { declaration: form, reason }, user);
       toast.success('Đã lưu khai báo sức khỏe.');
       reload({ silent: true });
@@ -144,6 +155,7 @@ export default function HealthDeclarationPage() {
           </div>
         )}
       </div>
+      {proposing && <ProfileChangeNotice changes={changes} kind={PROFILE_CHANGE_KIND.HEALTH_DECLARATION} />}
 
       {editing ? (
         <>
@@ -170,7 +182,7 @@ export default function HealthDeclarationPage() {
               <ArrowLeft size={16} /> Hủy
             </button>
             <button className="btn btn--primary" onClick={save} disabled={busy}>
-              {busy ? <Spinner small /> : <Save size={16} />} Lưu khai báo
+              {busy ? <Spinner small /> : <Save size={16} />} {proposing ? 'Gửi yêu cầu duyệt' : 'Lưu khai báo'}
             </button>
           </div>
         </>

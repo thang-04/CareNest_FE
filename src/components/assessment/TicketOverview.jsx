@@ -9,6 +9,9 @@ import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { PERIOD_TYPE } from '@/models/assessment/assessmentConstants';
 import { periodLabel } from '@/utils/assessment/assessmentPeriods';
 import { exportWithPreview } from '@/components/ui/ExportPreview';
+import { useYearCampuses } from '@/hooks/useYearCampuses';
+import { campusOptionLabel } from '@/utils/campusLabel';
+import { PERMISSIONS } from '@/models/bePermissions';
 
 const monthText = (m) => periodLabel(PERIOD_TYPE.MONTH, m, m);
 
@@ -33,9 +36,13 @@ export function TicketOverview() {
   });
   const rows = overview?.rows || [];
   const rangeText = month ? monthText(month) : 'cả năm học';
-  const campusName = (id) => overview?.campuses.find((c) => String(c.id) === String(id))?.name || id;
+  // HT: điểm trường của năm đang chọn (cả điểm trường chưa có phiếu); PHT: theo phạm vi quyền được cấp
+  const yearCampuses = useYearCampuses(PERMISSIONS.ASSESSMENT_VIEW);
+  const campusOptions = yearCampuses || overview?.campuses || [];
+  const campusName = (id) => campusOptions.find((c) => String(c.id) === String(id))?.name || id;
   // Giáo viên không đọc được danh mục điểm trường nên thiếu tên: ẩn cột, không hiện mã số
   const multiCampus = (overview?.campuses || []).filter((c) => c.name).length > 1;
+  const campusSelect = campusOptions.filter((c) => c.name).length > 1;
 
   if (classId) {
     const cls = rows.find((r) => r.classId === classId);
@@ -65,12 +72,12 @@ export function TicketOverview() {
   return (
     <>
       <div className="filter-bar dg-ticket-bar">
-        {multiCampus && (
+        {campusSelect && (
           <select className="select" aria-label="Điểm trường" value={campusId} onChange={(e) => setCampusId(e.target.value)}>
             <option value="">Tất cả điểm trường</option>
-            {overview.campuses.map((c) => (
+            {campusOptions.map((c) => (
               <option key={c.id} value={c.id}>
-                {c.fullName || c.name}
+                {campusOptionLabel(c, campusOptions)}
               </option>
             ))}
           </select>

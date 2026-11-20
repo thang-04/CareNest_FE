@@ -7,6 +7,8 @@ import { normalizeText } from '@/utils/format';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useConfigYear } from '@/hooks/school-config/useConfigYear';
+import { useYearCampuses } from '@/hooks/useYearCampuses';
+import { campusOptionLabel } from '@/utils/campusLabel';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useSchoolYears, useTeacherAssignments, useTeamLeaders } from '@/hooks/school-config/useSchoolConfig';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
@@ -100,6 +102,8 @@ export default function TeacherAssignmentPage() {
   const md = useMasterData();
   const [params, setParams] = useSearchParams();
   const yearId = useConfigYear();
+  // HT: điểm trường của năm đang chọn (BE V151)
+  const yearCampuses = useYearCampuses();
   const access = teacherAssignmentAccess(user);
   const fullScope = access.scope === 'ALL';
   // Phạm vi toàn trường: chọn "Toàn trường" (mặc định của Hiệu trưởng, ?campus=all) hoặc 1 điểm trường;
@@ -276,9 +280,9 @@ export default function TeacherAssignmentPage() {
                     onChange={(e) => setFilter({ campus: e.target.value, group: '', class: '' })}
                   >
                     <option value={CAMPUS_ALL}>Toàn trường</option>
-                    {md.campuses.map((c) => (
+                    {(yearCampuses || md.campuses).map((c, _i, list) => (
                       <option key={c.id} value={c.id}>
-                        {c.shortName || c.name}
+                        {campusOptionLabel(c, list)}
                       </option>
                     ))}
                   </select>

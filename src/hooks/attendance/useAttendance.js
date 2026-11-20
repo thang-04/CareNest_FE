@@ -44,13 +44,17 @@ export function useClassAttendance(classId, date, { live = true } = {}) {
 }
 
 /** Một lớp (classId) hoặc nhiều lớp trong phạm vi (multi: campusId tùy chọn, rỗng = toàn trường). */
-export function useAttendanceSummary({ classId, campusId, multi = false, from, to }) {
+export function useAttendanceSummary({ classId, campusId, ageGroupId, multi = false, from, to }) {
   const { user } = useAuth();
   const { schoolYear } = useSchoolYear();
   const enabled = (!!classId || multi) && !!from && !!to && from <= to;
   const { data, loading, error, reload } = useAsync(
-    () => getAttendanceSummary({ classId: classId || undefined, campusId: campusId || undefined, schoolYear, from, to }, user),
-    [classId, campusId, multi, from, to, user?.id, schoolYear],
+    () =>
+      getAttendanceSummary(
+        { classId: classId || undefined, campusId: campusId || undefined, ageGroupId: ageGroupId || undefined, schoolYear, from, to },
+        user,
+      ),
+    [classId, campusId, ageGroupId, multi, from, to, user?.id, schoolYear],
     { enabled, refreshOnDataChange: true },
   );
   return { summary: data, loading: loading && enabled, error, reload };

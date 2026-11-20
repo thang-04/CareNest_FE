@@ -114,3 +114,30 @@ export const LEAVE_STATUS_LABELS = { ACTIVE: 'Đang hiệu lực', CANCELLED: '�
 
 // Tên màn số suất theo bữa, dùng chung cho menu, breadcrumb, tiêu đề (user chốt 09/11/2026, thay "Sổ báo ăn")
 export const MEAL_COUNT_TITLE = 'Sổ suất ăn';
+
+/*
+ * ATT-12, ATT-13 (BE, Cần chốt 18/11/2026): đơn nghỉ cả ngày hoặc một buổi. Buổi sáng = Phụ sáng + Trưa, buổi chiều = Xế.
+ * absentPart của bản ghi điểm danh = buổi nghỉ theo đơn; status là của buổi còn lại.
+ */
+export const LEAVE_PART = { FULL_DAY: 'FULL_DAY', MORNING: 'MORNING', AFTERNOON: 'AFTERNOON' };
+export const LEAVE_PART_LABELS = { FULL_DAY: 'Cả ngày', MORNING: 'Buổi sáng', AFTERNOON: 'Buổi chiều' };
+export const LEAVE_PART_TAGS = {
+  FULL_DAY: 'Phụ huynh báo nghỉ',
+  MORNING: 'Nghỉ buổi sáng · PH báo',
+  AFTERNOON: 'Nghỉ buổi chiều · PH báo',
+};
+
+/** Bữa của buổi còn học khi nghỉ một buổi (nghỉ chiều: bữa sáng; nghỉ sáng: bữa xế). */
+export const sessionsAfterLeave = (part, sessions) =>
+  part === LEAVE_PART.AFTERNOON
+    ? sessions.filter((s) => s !== MEAL_SESSION.AFTERNOON)
+    : part === LEAVE_PART.MORNING
+      ? sessions.filter((s) => s === MEAL_SESSION.AFTERNOON)
+      : sessions;
+
+/** Nhãn trạng thái trẻ nghỉ buổi sáng theo trạng thái buổi chiều (ATT-13). */
+export const MORNING_LEAVE_STATUS_LABELS = {
+  EXCUSED: 'Nghỉ sáng · chưa đến',
+  PRESENT: 'Nghỉ sáng · đã đến',
+  UNEXCUSED: 'Vắng cả ngày',
+};

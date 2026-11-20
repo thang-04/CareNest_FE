@@ -10,7 +10,7 @@ test('BUG-28: Mở lại đánh giá theo năm học đang chọn, không cố �
   assert.ok(!/status === 'ACTIVE'\)\s*;?\s*\n\s*const yearStart = activeYear/.test(page));
   assert.match(page, /const \{ schoolYear, schoolYears \} = useSchoolYear\(\)/);
   assert.match(page, /yearClassIds\.has\(String\(u\.classId\)\)/);
-  assert.match(page, /key=\{`\$\{kind\}-\$\{schoolYear\}`\}/);
+  assert.match(page, /key=\{`\$\{kind\}-\$\{schoolYear\}-\$\{filters\.campusId\}`\}/);
 });
 
 test('BUG-29: lỗi đỏ trong form một hàng không đẩy ô làm lệch hàng', () => {
