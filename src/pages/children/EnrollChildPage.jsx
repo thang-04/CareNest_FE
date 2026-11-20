@@ -287,10 +287,12 @@ export default function EnrollChildPage() {
       setSaved(child);
       toast.success(`Đã lưu hồ sơ ${child.fullName} (${child.code}).`, 'Tiếp nhận thành công');
     } catch (err) {
-      // 409 trùng CCCD/SĐT với phụ huynh khác cũng trả lỗi theo ô (details).
-      if ([400, 422, 409].includes(err.status) && err.details) {
+      // 409 trùng CCCD/SĐT với phụ huynh khác cũng trả lỗi theo ô (details). Lỗi chung không gắn ô (_form) ⇒ ở lại bước xác nhận,
+      // dữ liệu giữ nguyên, chỉ báo một lần (G94-435)
+      const fields = Object.keys(err.details || {}).filter((k) => k !== '_form');
+      if ([400, 422, 409].includes(err.status) && fields.length) {
         setErrors(splitServerErrors(err.details));
-        goTo(Math.min(...Object.keys(err.details).map(stepOfField)));
+        goTo(Math.min(...fields.map(stepOfField)));
       }
       toast.error(err, 'Không lưu được hồ sơ');
     } finally {

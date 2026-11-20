@@ -63,5 +63,7 @@ File `tests/children/children-api-be.test.mjs` có 4 test "… gửi id năm h�
 
 BE không cần đổi. Phần lưu hồ sơ và danh sách lớp cũng có trên `origin/dev`, từ PR #101.
 
+Cập nhật 2026-11-20: tester báo lại đúng lỗi này trên bản dev (Jira G94-435, BUG-54: Cơ sở 2, trẻ Chờ xếp lớp). Bản dev chưa có fix vì fix nằm trên nhánh new-year-intake (PR #110). Thêm ở `EnrollChildPage.save`: lỗi chung không gắn ô (`_form`) không còn đẩy về bước 1, ở lại bước Xem lại & xác nhận; test `tests/children/intake-save-error.test.mjs`.
+
 ## Lesson
 Module gọi BE qua `axiosClient` phải đổi tên năm học sang id BE ngay ở adapter, bằng `toBeSchoolYear`. Việc này áp dụng cho mọi tham số và trường năm học, kể cả trường trong body. Test adapter cần chạy với tên năm, không chỉ với id số.
