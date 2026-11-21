@@ -32,7 +32,15 @@ const groupIds = async (yearId) => (await config.getStructure({ schoolYear: year
 test('nhóm tuổi thêm ở năm sắp tới không hiện ở năm đang học', async () => {
   const added = await config.saveAgeGroup(
     null,
-    { name: 'Nhóm thử', shortName: 'Thử', ageFromMonths: 3, ageToMonths: 6, mealSessions: ['LUNCH'], maxClassSize: 10 },
+    {
+      standardAgeGroupId: 'ag-0',
+      name: 'Nhóm trẻ 3–12 tháng',
+      shortName: '3–12 tháng',
+      ageFromMonths: 3,
+      ageToMonths: 13,
+      mealSessions: ['LUNCH'],
+      maxClassSize: 15,
+    },
     principal,
     planned.id,
   );
@@ -44,7 +52,15 @@ test('không thêm nhóm tuổi mới vào năm đang hoạt động', async () 
   await assert.rejects(
     config.saveAgeGroup(
       null,
-      { name: 'Nhóm giữa năm', shortName: 'Giữa năm', ageFromMonths: 73, ageToMonths: 84, mealSessions: ['LUNCH'], maxClassSize: 20 },
+      {
+        standardAgeGroupId: 'ag-0',
+        name: 'Nhóm trẻ 3–12 tháng',
+        shortName: '3–12 tháng',
+        ageFromMonths: 3,
+        ageToMonths: 13,
+        mealSessions: ['LUNCH'],
+        maxClassSize: 15,
+      },
       principal,
       active.id,
     ),

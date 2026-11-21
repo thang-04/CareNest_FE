@@ -170,7 +170,7 @@ export default function AgeGroupsClassesPage({ embedded = false }) {
                 )}
                 {canAddAgeGroup && (
                   <button className="btn btn--sm" onClick={() => setGroupModal({ group: null })}>
-                    <Plus size={15} /> Thêm nhóm tuổi
+                    <Plus size={15} /> Chọn nhóm tuổi áp dụng
                   </button>
                 )}
               </div>

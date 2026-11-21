@@ -196,6 +196,10 @@ export default function EnrollChildPage() {
   };
 
   const changeInfo = (value) => {
+    if (value.dateOfBirth !== info.dateOfBirth) {
+      setAgeGroupId(suggestAgeGroupId(value.dateOfBirth, intakeYear?.startDate || intakeYear?.id || activeYear?.startDate, ageGroups));
+      setClassId('');
+    }
     setInfo(value);
     setDuplicate(null);
     // Clear errors as soon as the user fixes them; new errors only appear on blur / next.
@@ -536,6 +540,7 @@ export default function EnrollChildPage() {
               }}
               campusError={errors.placement.campusId}
               yearLabel={yearLabel}
+              lockAgeGroup={!!info.dateOfBirth}
             />
           )}
         </section>
