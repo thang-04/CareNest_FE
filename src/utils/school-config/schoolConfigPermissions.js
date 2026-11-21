@@ -26,6 +26,10 @@ const isBeUser = (user) => Array.isArray(user?.bePermissions);
 
 const is = (user, ...roles) => !!user && roles.includes(user.role);
 export const isPrincipal = (user) => is(user, ROLES.PRINCIPAL);
+
+/** Ô chọn cơ sở công tác: điểm trường đang hoạt động; PHT chỉ các điểm trường mình phụ trách (BE AUTH-15 kiểm lại). */
+export const workCampusOptions = (campuses = [], user) =>
+  campuses.filter((c) => c.status !== 'INACTIVE' && (isPrincipal(user) || inOwnCampus(user, c.id)));
 export const isVicePrincipal = (user) => is(user, ROLES.VICE_PRINCIPAL);
 
 /** "School year, age group & class – Configure": Principal only. */
