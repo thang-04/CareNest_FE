@@ -177,7 +177,7 @@ test('CHD-11: nhãn ô lớp và câu ở hồ sơ theo plannedAdmission', () =>
   );
   assert.equal(
     plannedAdmissionNotice(adm({ classId: null, className: null, status: 'PENDING' })),
-    'Đăng ký năm học 2027-2028, chưa xếp lớp, vào học từ 05/09/2027. Xếp, đổi lớp dự kiến ở Xếp lớp năm học mới.',
+    'Đăng ký năm học 2027-2028, chưa xếp lớp, vào học từ 05/09/2027. Xếp, đổi lớp dự kiến ở Xếp lớp năm học mới. Phải xếp lớp trước khi kích hoạt năm học; không xếp được thì cho nghỉ học để hủy đăng ký.',
   );
 });
 
