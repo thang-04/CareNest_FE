@@ -71,7 +71,8 @@ export function ClassPlacementFields({
         <div className="alert alert--warning">
           <Info size={18} />
           <div>
-            Theo ngày sinh, trẻ thường học nhóm <b>{groupById(suggestedAgeGroupId)?.shortName}</b>. Kiểm tra lại trước khi xếp lớp.
+            Theo tháng tuổi tại ngày bắt đầu năm học, trẻ thuộc nhóm <b>{groupById(suggestedAgeGroupId)?.shortName}</b>. Vẫn xếp được lớp
+            khác nhóm tuổi.
           </div>
         </div>
       )}

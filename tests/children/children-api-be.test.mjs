@@ -198,11 +198,11 @@ test('getClassOptions: lớp, nhóm tuổi, giáo viên của năm học từ /s
   });
 });
 
-test('gợi ý nhóm tuổi theo năm sinh: nhóm tuổi BE (theo tháng) và ngày bắt đầu năm học', async () => {
+test('gợi ý nhóm tuổi theo tháng tròn tới ngày bắt đầu năm học (như BE, G94-180/CHD-13)', async () => {
   const { ageGroups } = await childrenApi.getClassOptions(5);
 
-  // Tuổi theo năm sinh: 2026 - 2022 = 4 ⇒ 48 tháng ⇒ Mẫu giáo nhỡ
-  assert.equal(suggestAgeGroupId('2022-12-31', '2026-09-01', ageGroups), '3');
+  // 31/12/2022 → 01/09/2026 = 44 tháng tròn ⇒ Mẫu giáo bé (theo năm sinh cũ là 48 tháng ⇒ Mẫu giáo nhỡ, lệch BE)
+  assert.equal(suggestAgeGroupId('2022-12-31', '2026-09-01', ageGroups), '2');
   assert.equal(suggestAgeGroupId('2024-01-01', '2026-09-01', ageGroups), '1');
   assert.equal(suggestAgeGroupId('2021-06-01', '2026-09-01', ageGroups), '4');
   // Ngoài khoảng: nhỏ hơn ⇒ nhóm đầu, lớn hơn ⇒ nhóm cuối
