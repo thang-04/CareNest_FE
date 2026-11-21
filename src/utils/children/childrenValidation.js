@@ -1,4 +1,5 @@
 import { recipientError } from './accountRecipient';
+import { addMonthsIso } from './childAge';
 import { DECLARATION_STATE, GUARDIAN_RELATIONS, MAX_GUARDIANS } from '@/models/children/childrenConstants';
 import { citizenIdError, normalizeCitizenId } from '@/utils/citizenId';
 import { formatDate, isIsoDate, todayInput } from '@/utils/format';
@@ -82,13 +83,15 @@ export const validateChildProfile = (p = {}) => {
 };
 
 /** Child + guardians block of the enrollment form (kèm phần hành chính). */
-export const validateChildInfo = (data, { requireRecipient = true } = {}) => {
+export const validateChildInfo = (data, { requireRecipient = true, intakeDate } = {}) => {
   const errors = { ...validateChildProfile(data.profile) };
   if (!data.fullName?.trim()) errors.fullName = 'Nhập họ tên trẻ';
   else if (data.fullName.trim().length > 100) errors.fullName = 'Họ tên tối đa 100 ký tự';
   if (!data.dateOfBirth || !DATE_RE.test(data.dateOfBirth)) errors.dateOfBirth = 'Chọn ngày sinh của trẻ';
   else if (data.dateOfBirth > today()) errors.dateOfBirth = 'Ngày sinh không được ở tương lai';
   else if (data.dateOfBirth < '2018-01-01') errors.dateOfBirth = 'Nhập ngày sinh hợp lệ cho trẻ mầm non';
+  // Chỉ khi tiếp nhận (G94-180/CHD-13, BE kiểm lại): đủ 3 tháng tuổi tại ngày tiếp nhận; Sửa hồ sơ không truyền intakeDate
+  else if (intakeDate && addMonthsIso(data.dateOfBirth, 3) > intakeDate) errors.dateOfBirth = 'Trẻ phải đủ 3 tháng tuổi tại ngày tiếp nhận';
   if (!data.gender) errors.gender = 'Chọn giới tính';
   const guardians = data.guardians || [];
   if (guardians.length === 0) errors.guardians = 'Thêm ít nhất một phụ huynh';

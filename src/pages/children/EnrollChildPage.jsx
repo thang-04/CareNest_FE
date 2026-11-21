@@ -27,7 +27,7 @@ import { FormField } from '@/components/form/FormField';
 import { SelectField } from '@/components/form/Field';
 import { DateInput } from '@/components/form/DateInput';
 import { GENDER_LABELS, ageLabel } from '@/models/School';
-import { formatDate } from '@/utils/format';
+import { formatDate, todayInput } from '@/utils/format';
 import { hasErrors, validateChildInfo, validateDeclaration } from '@/utils/children/childrenValidation';
 import { canActivateParentsAt, canEnrollChild, childCampusesOf } from '@/utils/children/childrenPermissions';
 import {
@@ -180,7 +180,7 @@ export default function EnrollChildPage() {
   const waitingNames = effectiveInfo.guardians
     .filter((g) => (effectiveInfo.guardians.length === 1 || g.accountRecipient) && !accountOf(g.idNumber))
     .map((g) => g.fullName);
-  const validateInfo = (value) => validateChildInfo(value);
+  const validateInfo = (value) => validateChildInfo(value, { intakeDate: todayInput() });
 
   const goTo = (i) => {
     setStep(i);

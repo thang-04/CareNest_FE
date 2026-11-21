@@ -845,7 +845,7 @@ const throwConflicts = (conflicts) => {
 
 const validateEnrollment = (db, { child, declaration }, excludeId) => {
   const errors = {
-    ...validateChildInfo(child),
+    ...validateChildInfo(child, { intakeDate: todayInput() }),
     ...prefix('declaration', validateDeclaration(declaration, { dateOfBirth: child?.dateOfBirth })),
   };
   const dup = !errors.fullName && !errors.dateOfBirth ? isDuplicate(db, child, excludeId) : null;
