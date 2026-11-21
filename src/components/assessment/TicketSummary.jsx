@@ -19,6 +19,8 @@ const SORTS = {
   flags: { label: 'Nhiều cờ bé ngoan → ít', fn: (a, b) => b.flags - a.flags || byName(a, b) },
   name: { label: 'Tên A → Z', fn: byName },
 };
+const evidenceText = (evidence) =>
+  (evidence || []).map((item) => `${item.className}: ${item.flagCount || 0} cờ, ${item.weeklyTickets || 0} phiếu tuần`).join(' · ');
 
 /**
  * Tổng hợp phiếu bé ngoan của lớp theo trẻ: số phiếu tuần, phiếu tháng, cờ bé ngoan trong năm học hoặc một tháng.
@@ -114,6 +116,8 @@ export function TicketSummary({ classId }) {
                     <td className="num muted">{i + 1}</td>
                     <td>
                       <ChildNameCell child={r.child} />
+                      {r.historical && <div className="muted text-xs">Đã chuyển lớp hoặc nghỉ học · chỉ xem lịch sử</div>}
+                      {(r.evidence || []).length > 1 && <div className="muted text-xs">Căn cứ: {evidenceText(r.evidence)}</div>}
                     </td>
                     <td className={`num ${r.weekly ? 'fw-600' : 'muted'}`}>{r.weekly}</td>
                     <td className={`num ${r.monthly ? 'fw-600' : 'muted'}`}>{r.monthly}</td>

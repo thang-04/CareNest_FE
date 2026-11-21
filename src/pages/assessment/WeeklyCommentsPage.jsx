@@ -75,7 +75,7 @@ export default function WeeklyCommentsPage() {
   const row = rows.find((r) => String(r.childId) === String(childId)) || rows[0];
   const counts = boardCounts(rows);
   // BE OBS-29: trong hạn (hoặc đang mở lại) GV sửa cả bản đã gửi; quá hạn BE trả canEdit=false
-  const editable = !!board?.canEdit;
+  const editable = !!board?.canEdit && !row?.historical;
   const saved = row?.content || '';
 
   // Đổi trẻ / tải lại: ô nhập lấy bản trên hệ thống
@@ -235,6 +235,7 @@ export default function WeeklyCommentsPage() {
                       onClick={() => setChildId(r.childId)}
                     >
                       <span className="wc-child__name">{r.fullName}</span>
+                      {r.historical && <span className="muted text-xs">Đã chuyển lớp hoặc nghỉ học · chỉ xem lịch sử</span>}
                       <StatusBadge tone={chip.tone} label={chip.label} size="sm" />
                     </Button>
                   );
