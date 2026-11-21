@@ -36,6 +36,41 @@ test('keepCampusPick: giữ lựa chọn có trong danh sách (id số hay chu�
   assert.equal(keepCampusPick(3, options), null);
 });
 
+const enrollAndWithdraw = async (n) => {
+  const child = await children.enrollChild(
+    {
+      child: {
+        ...emptyChildInfo(),
+        fullName: `Trẻ mở lại ${n}`,
+        dateOfBirth: '2023-05-17',
+        gender: 'FEMALE',
+        guardians: [
+          { fullName: `Phụ huynh mở lại ${n}`, relation: 'Mẹ', phone: `0900 000 9${n}0`, idNumber: `99990000090${n}`, email: '' },
+        ],
+        profile: filledProfile(),
+      },
+      declaration: { ...emptyDeclaration(), medicalHistory: filledMedicalHistory() },
+      campusId: 'c1',
+      classId: '',
+    },
+    PRINCIPAL,
+  );
+  await children.withdrawChild(child.id, { leftAt: todayInput(), reason: 'Chuyển nơi ở (giả)' }, PRINCIPAL);
+  return child;
+};
+
+test('BE giả: tiếp nhận lại không chọn điểm trường ⇒ giữ điểm trường cũ', async () => {
+  const old = await enrollAndWithdraw(1);
+  const back = await children.readmitChild(old.id, { reason: 'Quay lại học' }, PRINCIPAL);
+  assert.equal(back.campusId, 'c1');
+});
+
+test('BE giả: tiếp nhận lại chọn điểm trường khác ⇒ trẻ chuyển sang điểm trường đó', async () => {
+  const old = await enrollAndWithdraw(2);
+  const back = await children.readmitChild(old.id, { reason: 'Quay lại học', campusId: 'c2' }, PRINCIPAL);
+  assert.equal(back.campusId, 'c2');
+});
+
 test('tiếp nhận, nhập Excel lấy điểm trường của năm tiếp nhận; giữ lựa chọn khi danh sách đang tải', () => {
   const page = read('src/pages/children/EnrollChildPage.jsx');
   assert.match(page, /const md = useMasterData\(intakeYear\?\.id \?\? null\);/);
@@ -43,4 +78,11 @@ test('tiếp nhận, nhập Excel lấy điểm trường của năm tiếp nh�
   assert.match(page, /Điểm trường của bạn không có trong năm học \{yearLabel\}\. Chọn năm học khác hoặc báo Hiệu trưởng\./);
   const modal = read('src/components/children/ImportChildrenModal.jsx');
   assert.match(modal, /useMasterData\(intakeYear\?\.id \?\? null\)/);
+});
+
+test('modal tiếp nhận lại có ô điểm trường, chỉ gửi campusId khi có chọn, lỗi hiện dưới ô', () => {
+  const page = read('src/pages/children/EnrollChildPage.jsx');
+  assert.match(page, /Giữ điểm trường cũ/);
+  assert.match(page, /\.\.\.\(readmitCampusId && \{ campusId: readmitCampusId \}\)/);
+  assert.match(page, /err\.details\?\.campusId/);
 });

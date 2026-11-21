@@ -111,6 +111,9 @@ export default function EnrollChildPage() {
   const [readmitOpen, setReadmitOpen] = useState(false);
   const [readmitReason, setReadmitReason] = useState('');
   const [readmitError, setReadmitError] = useState('');
+  // Tiếp nhận lại: '' = giữ điểm trường cũ (G94-180/CHD-11)
+  const [readmitCampusId, setReadmitCampusId] = useState('');
+  const [readmitCampusError, setReadmitCampusError] = useState('');
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(null);
   const [confirmLeave, setConfirmLeave] = useState(false);
@@ -215,6 +218,7 @@ export default function EnrollChildPage() {
         {
           reason: readmitReason,
           ...(planned && { schoolYearId: intakeYear.id, startDate }),
+          ...(readmitCampusId && { campusId: readmitCampusId }),
         },
         user,
       );
@@ -224,8 +228,10 @@ export default function EnrollChildPage() {
       );
       navigate(`/children/${child.id}`);
     } catch (err) {
-      if (err.details?.reason) setReadmitError(err.details.reason);
-      else setReadmitOpen(false);
+      if (err.details?.reason || err.details?.campusId) {
+        setReadmitError(err.details.reason || '');
+        setReadmitCampusError(err.details?.campusId || '');
+      } else setReadmitOpen(false);
       toast.error(err, 'Không mở lại được hồ sơ');
     }
   };
@@ -710,6 +716,16 @@ export default function EnrollChildPage() {
               placeholder="Ví dụ: Gia đình chuyển về lại địa phương, xin cho trẻ học tiếp"
             />
           </FormField>
+          <SelectField
+            label="Điểm trường"
+            error={readmitCampusError}
+            value={readmitCampusId}
+            options={[{ value: '', label: 'Giữ điểm trường cũ' }, ...campusOptions.map((c) => ({ value: c.id, label: c.name }))]}
+            onChange={(e) => {
+              setReadmitCampusId(e.target.value);
+              setReadmitCampusError('');
+            }}
+          />
         </div>
       </ConfirmationModal>
 

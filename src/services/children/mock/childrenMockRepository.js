@@ -1059,7 +1059,7 @@ export const childrenMockRepository = {
   },
 
   /** Mở lại hồ sơ trẻ đã nghỉ học (user chốt 2026-10-23): về Chờ xếp lớp, giữ mã, lịch sử, sức khỏe, tài khoản phụ huynh. */
-  async readmitChild(childId, { reason, schoolYearId, startDate } = {}, user) {
+  async readmitChild(childId, { reason, schoolYearId, startDate, campusId } = {}, user) {
     await delay();
     const db = ensureSeeded();
     const child = findChild(db, childId);
@@ -1074,9 +1074,12 @@ export const childrenMockRepository = {
     // Thiếu startDate ⇒ ngày bắt đầu năm học (BE plannedTarget, CHD-11).
     const { targetYearId, targetYear, planned } = intakeYearOf(db, schoolYearId);
     const admissionStart = startDate || targetYear?.startDate;
+    // G94-180/CHD-02 (user chốt 2026-11-22): chọn điểm trường khác thì kiểm như tiếp nhận; trống ⇒ giữ điểm trường cũ
+    const chosenCampus = campusId && campusId !== child.campusId ? enrollCampusOf(db, campusId, user) : null;
     return writeDb((d) => {
       const target = findChild(d, childId);
       Object.assign(target, { status: CHILD_STATUS.PENDING_PLACEMENT, classId: null, readmittedAt: todayInput() });
+      if (chosenCampus) target.campusId = chosenCampus;
       delete target.leftAt;
       delete target.leftReason;
       target.history = [...(target.history || []), { action: 'READMITTED', userId: user.id, at: nowIso(), note: text }];
