@@ -5,6 +5,7 @@ import { useToast } from '@/contexts/ToastContext';
 import { Modal } from '@/components/ui/Modal';
 import { Spinner } from '@/components/ui/States';
 import { FormField } from '@/components/form/FormField';
+import { TextField } from '@/components/form/Field';
 import { getAgeGroupCatalog, saveAgeGroup } from '@/services/school-config/schoolConfigService';
 import { MEAL_SESSION_LABELS, MEAL_SESSION_OPTIONS } from '@/models/school-config/schoolConfigConstants';
 import { validateAgeGroup, hasErrors, errorsAfterChange, AGE_GROUP_LIMITS } from '@/utils/school-config/schoolConfigValidation';
@@ -158,18 +159,10 @@ export function AgeGroupFormModal({ open, onClose, group, existing, classes = []
           </select>
         </FormField>
         <div />
-        <FormField label="Tên nhóm tuổi" required error={errors.name}>
-          <input className="input" value={form.name} disabled />
-        </FormField>
-        <FormField label="Tên ngắn" required error={errors.shortName}>
-          <input className="input" value={form.shortName} disabled />
-        </FormField>
-        <FormField label="Độ tuổi từ (tháng)">
-          <input className="input" value={form.ageFromMonths} disabled />
-        </FormField>
-        <FormField label="Độ tuổi đến (tháng)">
-          <input className="input" value={form.ageToMonths} disabled />
-        </FormField>
+        <TextField label="Tên nhóm tuổi" required error={errors.name} value={form.name} disabled />
+        <TextField label="Tên ngắn" required error={errors.shortName} value={form.shortName} disabled />
+        <TextField label="Độ tuổi từ (tháng)" value={form.ageFromMonths} disabled />
+        <TextField label="Độ tuổi đến (tháng)" value={form.ageToMonths} disabled />
         <fieldset className="field sc-meals">
           <legend className="field__label">
             Bữa ăn trong ngày<span className="req">*</span>
