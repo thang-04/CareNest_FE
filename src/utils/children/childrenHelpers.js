@@ -67,6 +67,9 @@ export const hasHealthWarning = (m) => (!!m.bmiStatus && m.bmiStatus !== 'NORMAL
 export const defaultCampusId = (campuses, user) =>
   campuses.length === 1 ? campuses[0].id : campuses.some((c) => c.id === user?.campusId) ? user.campusId : '';
 
+/** Điểm trường đã chọn còn trong danh sách (đổi năm tiếp nhận, G94-180/CHD-02) thì giữ; không thì null để dùng mặc định. */
+export const keepCampusPick = (pick, campuses) => (pick != null && campuses.some((c) => String(c.id) === String(pick)) ? pick : null);
+
 export const emptyGuardian = () => ({ fullName: '', relation: 'Mẹ', phone: '', idNumber: '', email: '' });
 
 /**

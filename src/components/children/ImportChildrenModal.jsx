@@ -13,6 +13,7 @@ import { previewEnrollmentImport } from '@/services/children/childrenService';
 import { importTemplateRows } from '@/utils/children/importTemplate';
 import { downloadCsv } from '@/utils/exportCsv';
 import { childCampusesOf } from '@/utils/children/childrenPermissions';
+import { keepCampusPick } from '@/utils/children/childrenHelpers';
 import { saveImportDraft } from '@/utils/children/importDraft';
 import { defaultIntakeYearId, intakeYearOptions } from '@/utils/schoolYearPrep';
 
@@ -72,8 +73,14 @@ function ImportGuide() {
  */
 export function ImportChildrenModal({ initialCampusId, onClose, onChecked }) {
   const { user } = useAuth();
-  const md = useMasterData();
   const { yearReadOnly, yearLocked, schoolYear, schoolYears } = useSchoolYear();
+  // CHD-11: năm tiếp nhận = năm đang hoạt động hoặc năm sau đã mở chuẩn bị; năm sau cần ngày bắt đầu học chung cho cả file.
+  const yearOptions = intakeYearOptions(schoolYears);
+  const [yearPick, setYearPick] = useState(() => String(defaultIntakeYearId(schoolYears, schoolYear) ?? ''));
+  const intakeYear = yearOptions.find((y) => String(y.id) === yearPick) || null;
+  const planned = intakeYear?.status === 'PLANNED';
+  // Điểm trường của năm tiếp nhận (G94-180/CHD-02, user chốt 2026-11-22)
+  const md = useMasterData(intakeYear?.id ?? null);
   const campusOptions = childCampusesOf(user, md.campuses);
   // Có từ 2 điểm trường được tiếp nhận (Hiệu trưởng, PHT được phân 2 điểm trường) ⇒ bắt buộc chọn, không chọn sẵn; 1 điểm trường ⇒ dùng luôn.
   const pickCampus = campusOptions.length > 1;
@@ -81,11 +88,10 @@ export function ImportChildrenModal({ initialCampusId, onClose, onChecked }) {
     pickCampus && campusOptions.some((c) => String(c.id) === String(initialCampusId)) ? String(initialCampusId) : '',
   );
   const [campusError, setCampusError] = useState('');
-  // CHD-11: năm tiếp nhận = năm đang hoạt động hoặc năm sau đã mở chuẩn bị; năm sau cần ngày bắt đầu học chung cho cả file.
-  const yearOptions = intakeYearOptions(schoolYears);
-  const [yearPick, setYearPick] = useState(() => String(defaultIntakeYearId(schoolYears, schoolYear) ?? ''));
-  const intakeYear = yearOptions.find((y) => String(y.id) === yearPick) || null;
-  const planned = intakeYear?.status === 'PLANNED';
+  // Đổi năm tiếp nhận: điểm trường đã chọn không có trong năm mới ⇒ bỏ chọn (chỉ xét khi danh sách đã tải xong)
+  useEffect(() => {
+    if (!md.loading && campusPick && keepCampusPick(campusPick, campusOptions) == null) setCampusPick('');
+  }, [md.loading, campusOptions, campusPick]);
   const [startDate, setStartDate] = useState(() => (intakeYear?.status === 'PLANNED' ? intakeYear.startDate || '' : ''));
   const [startDateError, setStartDateError] = useState('');
   // Danh sách năm học tải sau khi hộp đã mở: điền mặc định khi chưa có lựa chọn, không ghi đè lựa chọn của người dùng.

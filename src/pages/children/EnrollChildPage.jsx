@@ -34,6 +34,7 @@ import {
   defaultCampusId,
   emptyChildInfo,
   emptyDeclaration,
+  keepCampusPick,
   suggestAgeGroupId,
   withGuardianAccounts,
 } from '@/utils/children/childrenHelpers';
@@ -88,10 +89,11 @@ export default function EnrollChildPage() {
   const toast = useToast();
   const navigate = useNavigate();
   const { schoolYear, schoolYears, activeYear, yearReadOnly, yearLocked } = useSchoolYear();
-  const md = useMasterData();
   const [intakeYearId, setIntakeYearId] = useState('');
   const intakeYear = schoolYears.find((y) => sameId(y.id, intakeYearId)) || activeYear || null;
   const planned = intakeYear?.status === 'PLANNED';
+  // Điểm trường của năm tiếp nhận (G94-180/CHD-02, user chốt 2026-11-22); BE chặn 2125 nếu gửi điểm trường ngoài năm
+  const md = useMasterData(intakeYear?.id ?? null);
   const { classes, loading: classesLoading } = usePlacementClasses(intakeYear?.id);
   const { ageGroups } = useClassOptions(intakeYear?.id || activeYear?.id || schoolYear);
 
@@ -150,7 +152,10 @@ export default function EnrollChildPage() {
   // Hiệu trưởng, PHT toàn trường chọn điểm trường: trẻ chưa xếp lớp thuộc điểm trường này (BE kiểm lại).
   const campusOptions = childCampusesOf(user, md.campuses);
   const pickCampus = campusOptions.length > 1;
-  const campusId = campusPick ?? defaultCampusId(campusOptions, user);
+  // Đổi năm tiếp nhận: điểm trường đã chọn không có trong năm ⇒ về mặc định; danh sách đang tải thì giữ lựa chọn
+  const pickInYear = md.loading ? campusPick : keepCampusPick(campusPick, campusOptions);
+  const campusId = pickInYear ?? defaultCampusId(campusOptions, user);
+  const noCampusInYear = !md.loading && campusOptions.length === 0;
   // Không có quyền kích hoạt tài khoản phụ huynh ở điểm trường nhận trẻ ⇒ vẫn lưu, phụ huynh mới chờ kích hoạt; phụ huynh đã có
   // tài khoản chỉ liên kết, thông tin theo tài khoản (P-18 A, user chốt 2026-10-28; BE kiểm lại).
   const manageAccounts = canActivateParentsAt(selectedClass?.campusId || campusId, user);
@@ -207,7 +212,10 @@ export default function EnrollChildPage() {
     try {
       const child = await readmitChild(
         duplicate.id,
-        { reason: readmitReason, ...(planned && { schoolYearId: intakeYear.id, startDate }) },
+        {
+          reason: readmitReason,
+          ...(planned && { schoolYearId: intakeYear.id, startDate }),
+        },
         user,
       );
       toast.success(
@@ -510,6 +518,11 @@ export default function EnrollChildPage() {
               </FormField>
             )}
           </div>
+          {noCampusInYear && (
+            <div className="alert alert--warning mb-16" role="status">
+              <div>Điểm trường của bạn không có trong năm học {yearLabel}. Chọn năm học khác hoặc báo Hiệu trưởng.</div>
+            </div>
+          )}
           {classesLoading ? (
             <Spinner deferred />
           ) : (
