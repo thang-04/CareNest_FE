@@ -145,6 +145,8 @@ export default function ChildrenListPage() {
   const notActivated = all.filter(
     (c) => c.status !== CHILD_STATUS.LEFT && c.guardians.some((g) => g.accountStatus === PARENT_ACCOUNT_STATUS.NOT_ACTIVATED),
   ).length;
+  // G94-180/CHD-11 (Cần chốt 19/11, BUG-43): trẻ đã tiếp nhận cho năm sau phải có lớp trước khi kích hoạt năm học
+  const plannedWithoutClass = all.filter((c) => c.plannedAdmission && !c.plannedAdmission.classId).length;
   const showCampus = seesAllCampusChildren(user);
   // Giáo viên, năm bị khóa (CFG-YR-01, CHD-12) không có thao tác dòng (Sửa, Cho nghỉ học) nên bỏ cả cột; bấm dòng mở hồ sơ (DESIGN §6.3)
   const showActions = !isTeacherRole(user) && !yearLocked;
@@ -180,6 +182,18 @@ export default function ChildrenListPage() {
             <b>{changesToDecide}</b> yêu cầu sửa hồ sơ của giáo viên đang chờ duyệt.{' '}
             <Link to="/children/profile-changes" className="text-primary">
               Xem và duyệt
+            </Link>
+          </span>
+        </div>
+      )}
+
+      {!isTeacherRole(user) && plannedWithoutClass > 0 && (
+        <div className="alert alert--warning mb-16" role="status">
+          <Info size={18} />
+          <span>
+            <b>{plannedWithoutClass}</b> trẻ Sắp nhập học chưa có lớp. Phải xếp lớp trước khi kích hoạt năm học.{' '}
+            <Link to="/school/placement?tab=new" className="text-primary">
+              <LayoutGrid size={14} /> Xếp lớp năm học mới
             </Link>
           </span>
         </div>

@@ -40,7 +40,7 @@ export const plannedClassLabel = (planned) => (planned.className ? `${planned.cl
 
 /** Câu ở hồ sơ trẻ có đăng ký năm học sau (CHD-11). */
 export const plannedAdmissionNotice = (planned) =>
-  `Đăng ký năm học ${planned.schoolYearName}, ${planned.className ? `lớp dự kiến ${planned.className}` : 'chưa xếp lớp'}, vào học từ ${formatDate(planned.startDate)}. Xếp, đổi lớp dự kiến ở Xếp lớp năm học mới.`;
+  `Đăng ký năm học ${planned.schoolYearName}, ${planned.className ? `lớp dự kiến ${planned.className}` : 'chưa xếp lớp'}, vào học từ ${formatDate(planned.startDate)}. Xếp, đổi lớp dự kiến ở Xếp lớp năm học mới.${planned.className ? '' : ' Phải xếp lớp trước khi kích hoạt năm học; không xếp được thì cho nghỉ học để hủy đăng ký.'}`;
 
 /** Nhóm tuổi theo id trong danh sách (BE id số/chuỗi, mock 'ag-*'); không có ⇒ null. */
 export const ageGroupIn = (ageGroups, id) => ageGroups.find((g) => id != null && String(g.id) === String(id)) || null;

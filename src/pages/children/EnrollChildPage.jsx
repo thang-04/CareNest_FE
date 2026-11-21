@@ -35,6 +35,7 @@ import {
   emptyChildInfo,
   emptyDeclaration,
   keepCampusPick,
+  plannedAdmissionNotice,
   suggestAgeGroupId,
   withGuardianAccounts,
 } from '@/utils/children/childrenHelpers';
@@ -344,6 +345,7 @@ export default function EnrollChildPage() {
               <div>
                 Mã trẻ <b>{saved.code}</b>.
               </div>
+              {saved.plannedAdmission && <div>{plannedAdmissionNotice(saved.plannedAdmission)}</div>}
               {smsSent.length > 0 && <div>Đã tạo tài khoản phụ huynh, mật khẩu tạm gửi qua SMS tới {phones(smsSent)}.</div>}
               {renamedSent.length > 0 && (
                 <div>Tài khoản có sẵn đổi tên đăng nhập sang {phones(renamedSent)}; mật khẩu tạm mới đã gửi qua SMS tới số mới.</div>
