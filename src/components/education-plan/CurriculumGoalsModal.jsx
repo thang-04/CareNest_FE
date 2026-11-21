@@ -199,7 +199,9 @@ export default function CurriculumGoalsModal({ ageGroupId, form, onClose, onImpo
               </label>
               <select
                 id="cur-domain"
-                className="select"
+                className="select ga-cur-select--ellipsis"
+                // Tên lĩnh vực dài bị cắt "…": rê chuột xem đủ tên, mở ô chọn vẫn thấy đủ
+                title={domain?.name || 'Tất cả lĩnh vực'}
                 value={filter.domainId || ''}
                 onChange={(e) => setFilter({ domainId: e.target.value })}
               >

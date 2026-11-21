@@ -168,7 +168,7 @@ const dropLine = (text, line) => {
   return lines.join('\n');
 };
 
-/* Nội dung giáo án một tuần (kế hoạch tuần, kế hoạch ngày) dùng ở trang soạn và trang duyệt hồ sơ chủ đề. */
+/* Nội dung giáo án một tuần (kế hoạch tuần, kế hoạch ngày) dùng ở trang soạn và trang duyệt kế hoạch giáo dục ngày. */
 
 const AIMS = [
   { key: 'knowledge', label: '1. Kiến thức' },

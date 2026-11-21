@@ -64,7 +64,7 @@ export function ClassPlanLegacyRedirect() {
 const MISSING_LABEL = { branch: 'tên chủ đề nhánh', theme: 'kế hoạch chủ đề', week: 'kế hoạch tuần' };
 
 /**
- * Kế hoạch giáo dục chủ đề (spec 004): lọc theo học kỳ; gói học kỳ = lịch nhánh + kế hoạch chủ đề + kế hoạch tuần của mọi
+ * Kế hoạch giáo dục chủ đề (spec 004): lọc theo học kỳ; kế hoạch giáo dục chủ đề = lịch nhánh + kế hoạch chủ đề + kế hoạch tuần của mọi
  * chủ đề trong kỳ, gửi/duyệt một lần ở đầu trang. Giáo án ngày ở trang Kế hoạch giáo dục ngày. Quy tắc, quyền do BE trả.
  */
 export default function ClassPlanPage() {
@@ -218,7 +218,7 @@ export default function ClassPlanPage() {
   const review = pkg ? docReview('branch', pkg, ctx, user, eduConfig) : null;
   const act = (action, note, _saved, extra) =>
     actOnClassDoc('semester', pkg.id, { action, note, ...extra }, user, { version: pkg.version });
-  // EDU-80 (FR-031): gói học kỳ thiếu MT chỉ cảnh báo trong hộp gửi; học kỳ cuối do BE chặn (7397)
+  // EDU-80 (FR-031): kế hoạch giáo dục chủ đề thiếu MT chỉ cảnh báo trong hộp gửi; học kỳ cuối do BE chặn (7397)
   const untaught = themes.flatMap((t) => {
     const doc = classThemePlans.find((x) => x.classId === classId && x.themeId === t.id) || null;
     const gs = themeGoalBlocks(yearPlan.domains, numbers, t.id, doc?.customTicks).flatMap((b) => b.goals);

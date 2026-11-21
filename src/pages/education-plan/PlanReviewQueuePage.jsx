@@ -18,7 +18,7 @@ import { FilterText } from '@/components/education-plan/planUi';
 import { isChainReviewer, isReviewTurn } from '@/models/education-plan/reviewTurn.mjs';
 
 /**
- * Hộp duyệt: hồ sơ chủ đề (kế hoạch chủ đề + giáo án các nhánh) của các lớp trong khối đang chờ duyệt.
+ * Hộp duyệt: kế hoạch giáo dục ngày (kế hoạch chủ đề + giáo án các nhánh) của các lớp trong khối đang chờ duyệt.
  */
 export default function PlanReviewQueuePage() {
   const { user, goals, classThemePlans, themeDossiers = [], semesterPackages = [], classes, refreshClassDocs } = useEducationPlan();
@@ -66,7 +66,7 @@ export default function PlanReviewQueuePage() {
       by: g.sentBy?.name || submitEntryOf(g)?.by,
       at: g.sentAt ?? g.sentBy?.at,
     })),
-    // Spec 003: gói học kỳ (lịch nhánh + chủ đề theo kỳ) và hồ sơ chủ đề là đơn vị duyệt
+    // Spec 003: kế hoạch giáo dục chủ đề (lịch nhánh + chủ đề theo kỳ) và kế hoạch giáo dục ngày là đơn vị duyệt
     ...semesterPackages.filter(inQueue).map((d) => ({
       kind: 'semester',
       label: 'Học kỳ',
@@ -78,14 +78,14 @@ export default function PlanReviewQueuePage() {
       const plan = goals.find((g) => g.id === d.yearPlanId);
       return {
         kind: 'theme',
-        label: 'Hồ sơ chủ đề',
+        label: 'Kế hoạch giáo dục ngày',
         doc: d,
         what: `Chủ đề ${themeNumber(plan, d.themeId)}: ${themeName(d)} · kế hoạch giáo dục ngày`,
         // Mở trang xem giáo án ngày của chủ đề: xem nội dung và duyệt tại đó (EDU-93)
         to: `/education/day-plans/${d.classId}?theme=${d.themeId}`,
       };
     }),
-    // Bản mock cũ chưa có hồ sơ chủ đề tách riêng
+    // Bản mock cũ chưa có kế hoạch giáo dục ngày tách riêng
     ...(themeDossiers.length ? [] : classThemePlans).filter(inQueue).map((d) => {
       const plan = goals.find((g) => g.id === d.yearPlanId);
       return {

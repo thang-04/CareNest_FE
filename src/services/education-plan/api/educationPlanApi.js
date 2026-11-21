@@ -214,7 +214,7 @@ export const educationPlanApi = {
     const items = await axiosClient.get(`${GOALS}/review-queue`);
     return Promise.all(items.map((p) => fetchGoal(p.id, refs)));
   },
-  // Một bản hồ sơ chủ đề đã ban hành trước đây (nội dung + chuỗi ký), chỉ đọc
+  // Một bản kế hoạch giáo dục ngày đã ban hành trước đây (nội dung + chuỗi ký), chỉ đọc
   getClassDocRelease: (releaseId) => axiosClient.get(`/education-plans/class-docs/releases/${releaseId}`),
   // Trả kế hoạch đã lưu (id do BE cấp) để trang lập kế hoạch dùng tiếp id thật
   saveGoal: async (item, options = {}) => {
@@ -354,7 +354,7 @@ export const educationPlanApi = {
     if (doc?.dossierVersion != null) headers['X-Dossier-Version'] = String(doc.dossierVersion);
     if (options?.headers) Object.assign(headers, options.headers);
     if ((kind === 'week' || kind === 'day') && doc?.dossierVersion == null)
-      throw sourceError(409, 'Hãy tải lại hồ sơ chủ đề trước khi lưu tuần.');
+      throw sourceError(409, 'Hãy tải lại kế hoạch giáo dục ngày trước khi lưu tuần.');
     const { version, dossierVersion, review, permissions, ...content } = doc;
     if (kind === 'branch' && content.schemaVersion === 2) {
       delete content.names;

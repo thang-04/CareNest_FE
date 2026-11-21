@@ -44,12 +44,12 @@ export const SIGN_DOCS = [
   {
     key: 'branch',
     label: 'Chủ đề nhánh, kế hoạch chủ đề, kế hoạch tuần',
-    hint: 'Giáo viên soạn, gửi theo học kỳ (gói học kỳ); Tổ trưởng và Phó Hiệu trưởng duyệt theo thứ tự.',
+    hint: 'Giáo viên soạn, gửi theo học kỳ (kế hoạch giáo dục chủ đề); Tổ trưởng và Phó Hiệu trưởng duyệt theo thứ tự.',
   },
   {
     key: 'theme',
     label: 'Kế hoạch giáo dục ngày',
-    hint: 'Giáo viên soạn, gửi theo chủ đề (hồ sơ chủ đề); Tổ trưởng và Phó Hiệu trưởng duyệt theo thứ tự.',
+    hint: 'Giáo viên soạn, gửi theo chủ đề (kế hoạch giáo dục ngày); Tổ trưởng và Phó Hiệu trưởng duyệt theo thứ tự.',
   },
   {
     key: 'week',

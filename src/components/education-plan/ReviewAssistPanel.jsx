@@ -48,7 +48,7 @@ export function ReviewAssistPanel({ open, onClose, dossierKey, dayKey, canSummar
   ];
 
   return (
-    <SidePanel open={open} title="Kiểm tra hồ sơ chủ đề" onClose={onClose} wide>
+    <SidePanel open={open} title="Kiểm tra kế hoạch giáo dục ngày" onClose={onClose} wide>
       <div className="stack">
         <Tabs items={tabs} value={tab} onChange={setTab} ariaLabel="Kiểm tra và tóm tắt" />
         {tab === 'checks' && (

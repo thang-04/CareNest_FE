@@ -33,7 +33,8 @@ export default function TeamSourceReview({ plan, onResolve, busy = false }) {
             {items.map((item) => (
               <li key={item.reviewItemId} className="row row--between row--wrap gap-2">
                 <span className={item.resolved ? 'text-success' : 'field__error'}>
-                  <strong>{sourceItemLabel(plan, item)}</strong>: {sourceReason(item.reason)} · {item.resolved ? 'Đã kiểm tra' : 'Cần rà soát'}
+                  <strong>{sourceItemLabel(plan, item)}</strong>: {sourceReason(item.reason)} ·{' '}
+                  {item.resolved ? 'Đã kiểm tra' : 'Cần rà soát'}
                 </span>
                 {!item.resolved && onResolve && (
                   <button type="button" className="btn btn--sm" disabled={busy} onClick={() => onResolve(item)}>
@@ -43,7 +44,9 @@ export default function TeamSourceReview({ plan, onResolve, busy = false }) {
               </li>
             ))}
           </ul>
-          {!!onResolve && <p className="text-success">Lưu dấu tích đã sửa trước khi xác nhận. Máy chủ kiểm tra liên kết theo nguồn hiện tại.</p>}
+          {!!onResolve && (
+            <p className="text-success">Lưu dấu tích đã sửa trước khi xác nhận. Máy chủ kiểm tra liên kết theo nguồn hiện tại.</p>
+          )}
         </Notice>
       )}
       {newItems.length > 0 && (

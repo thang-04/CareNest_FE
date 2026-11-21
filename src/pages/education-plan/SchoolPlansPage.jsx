@@ -22,7 +22,7 @@ const ageName = (id) => AGE_GROUPS.find((a) => a.id === id)?.name || '—';
 const TABS = [
   { key: 'goals', label: 'Mục tiêu năm học' },
   { key: 'branches', label: 'Chủ đề nhánh' },
-  { key: 'themes', label: 'Hồ sơ chủ đề' },
+  { key: 'themes', label: 'Kế hoạch giáo dục ngày' },
 ];
 
 const isShared = (status) => status === EDU_STATUS.APPROVED || status === 'REPLACED';
@@ -30,7 +30,7 @@ const isShared = (status) => status === EDU_STATUS.APPROVED || status === 'REPLA
 const sentEntry = (doc) => [...(doc.history || [])].reverse().find((h) => !h.tone);
 
 /**
- * Hiệu trưởng: xem kế hoạch giáo dục toàn trường (kế hoạch năm theo nhóm tuổi, chủ đề nhánh và hồ sơ chủ đề của các lớp),
+ * Hiệu trưởng: xem kế hoạch giáo dục toàn trường (kế hoạch năm theo nhóm tuổi, chủ đề nhánh và kế hoạch giáo dục ngày của các lớp),
  * chỉ xem; duyệt theo chuỗi người ký ở trang Duyệt kế hoạch giáo dục.
  */
 export default function SchoolPlansPage() {
@@ -115,7 +115,7 @@ export default function SchoolPlansPage() {
   const stats = [
     { label: 'Kế hoạch năm đã ban hành', value: count(data.goals, EDU_STATUS.APPROVED), tone: 'blue', tab: 'goals' },
     { label: 'Chủ đề nhánh đã duyệt', value: count(data.branches, EDU_STATUS.APPROVED), tone: 'green', tab: 'branches' },
-    { label: 'Hồ sơ chủ đề đã duyệt', value: count(data.themes, EDU_STATUS.APPROVED), tone: 'purple', tab: 'themes' },
+    { label: 'Kế hoạch giáo dục ngày đã duyệt', value: count(data.themes, EDU_STATUS.APPROVED), tone: 'purple', tab: 'themes' },
   ];
 
   const switchTab = (key) => {

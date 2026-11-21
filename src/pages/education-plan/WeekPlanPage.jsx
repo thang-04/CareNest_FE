@@ -61,7 +61,7 @@ import { dayKeyOf } from '@/models/education-plan/deadline.mjs';
 import { Button } from '@/components';
 
 const DAY_FIELDS = ['days', 'dayGoals', 'dossierCards'];
-// Phần kế hoạch tuần sửa được theo hồ sơ chủ đề, lưu ở day.content.week (BE:EDU-79, research R1)
+// Phần kế hoạch tuần sửa được theo kế hoạch giáo dục ngày, lưu ở day.content.week (BE:EDU-79, research R1)
 const WEEK_FIELDS = ['aims', 'prep', 'grid', 'picks', 'unlinked', 'corners'];
 const without = (doc, keys) => Object.fromEntries(Object.entries(doc).filter(([k]) => !keys.includes(k)));
 const only = (doc, keys) => Object.fromEntries(keys.filter((k) => doc?.[k] !== undefined).map((k) => [k, doc[k]]));
@@ -69,7 +69,7 @@ const only = (doc, keys) => Object.fromEntries(keys.filter((k) => doc?.[k] !== u
 /**
  * Spec 003 (Q9): hai trang của một tuần — mode 'week' = Kế hoạch tuần (mục đích, chuẩn bị, bảng hoạt động Thứ 2–6),
  * mode 'days' = Giáo án ngày (5 kế hoạch ngày, mỗi ngày 4 mục + đánh giá trẻ trên ngày — spec 005). Mỗi phần theo trạng thái gói/hồ sơ chứa nó; gửi và
- * duyệt ở gói học kỳ hoặc hồ sơ chủ đề. review = đường dẫn duyệt cũ, chuyển sang trang tuần.
+ * duyệt ở kế hoạch giáo dục chủ đề hoặc kế hoạch giáo dục ngày. review = đường dẫn duyệt cũ, chuyển sang trang tuần.
  */
 export default function WeekPlanPage({ review = false, mode = 'week' }) {
   const { classId, weekStart } = useParams();
@@ -88,7 +88,7 @@ function WeekReviewRedirect() {
 
 /**
  * dayPage (spec 004): trang Kế hoạch giáo dục ngày — chọn lớp/chủ đề/tuần trên trang, kế hoạch tuần chỉ đọc ở trên làm căn
- * cứ, gửi/duyệt hồ sơ chủ đề (giáo án ngày) ngay trên trang.
+ * cứ, gửi/duyệt kế hoạch giáo dục ngày (giáo án ngày) ngay trên trang.
  */
 export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStartProp, dayPage = false }) {
   const tabId = useId();
@@ -113,13 +113,13 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
   // BE:EDU-96: khung Kiểm tra / Tóm tắt và nháp ghi chú Trả lại gom từ Tóm tắt AI
   const [assistOpen, setAssistOpen] = useState(false);
   const [noteDraft, setNoteDraft] = useState('');
-  // Mục còn trống BE trả khi gửi hồ sơ chủ đề (FR-007a): [{ date, section }], hiện chữ đỏ tới khi sửa xong
+  // Mục còn trống BE trả khi gửi kế hoạch giáo dục ngày (FR-007a): [{ date, section }], hiện chữ đỏ tới khi sửa xong
   const [emptyErr, setEmptyErr] = useState([]);
-  // MT chưa dạy BE trả khi gửi hồ sơ chủ đề (EDU-80, 7396/7397): [{ goalId, goalNo }]
+  // MT chưa dạy BE trả khi gửi kế hoạch giáo dục ngày (EDU-80, 7396/7397): [{ goalId, goalNo }]
   const [goalErr, setGoalErr] = useState([]);
   const [cardFor, setCardFor] = useState(null);
   // Chỗ DayTab đặt menu "Lấy / gợi ý nội dung" ở trái hàng nút
-  // Tab tuần ở trang ngày đang sửa được theo hồ sơ chủ đề (tính khi render, đọc lúc lưu)
+  // Tab tuần ở trang ngày đang sửa được theo kế hoạch giáo dục ngày (tính khi render, đọc lúc lưu)
   const weekEditableRef = useRef({ editable: false }).current;
   const ctx = useClassPlanContext(classId);
   const { cls, classes, yearPlan, canComposeClassDocs } = ctx;
@@ -157,7 +157,7 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
         const out = await saveClassDoc('week', without(doc, DAY_FIELDS));
         return out && { ...doc, ...out };
       }
-      // EDU-79 (FR-016): kế hoạch tuần đi vào hồ sơ chủ đề chỉ khi đã sửa so với bản theo kỳ
+      // EDU-79 (FR-016): kế hoạch tuần đi vào kế hoạch giáo dục ngày chỉ khi đã sửa so với bản theo kỳ
       const schedule = only(doc, WEEK_FIELDS);
       const edited =
         weekEditableRef.editable &&
@@ -192,7 +192,7 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
     onSave: saver.save,
   });
 
-  // Bản theo kỳ của tuần (để so phần sửa theo hồ sơ chủ đề)
+  // Bản theo kỳ của tuần (để so phần sửa theo kế hoạch giáo dục ngày)
   const semesterView = () =>
     normalizeWeek({
       ...emptyWeekPlan({
@@ -223,7 +223,7 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
           // Bản BE thiếu trường (tài liệu soạn ngoài màn này) vẫn đủ khung từ bản trống
           ...blank,
           ...savedWeek,
-          // Trang ngày: bản tuần đã sửa theo hồ sơ chủ đề thay cho bản theo kỳ (EDU-79)
+          // Trang ngày: bản tuần đã sửa theo kế hoạch giáo dục ngày thay cho bản theo kỳ (EDU-79)
           ...(days && savedDay?.week ? only(savedDay.week, WEEK_FIELDS) : {}),
           ...(savedDay
             ? {
@@ -283,7 +283,7 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
     setCopying(true);
     const doc = await saveClassDoc('week', version.copy());
     setCopying(false);
-    if (doc) toast('Đã chép kế hoạch tuần cũ. Sửa các ô đỏ trước khi gửi duyệt hồ sơ chủ đề.');
+    if (doc) toast('Đã chép kế hoạch tuần cũ. Sửa các ô đỏ trước khi gửi duyệt kế hoạch giáo dục ngày.');
   };
   const fromTemplate = () => setDirty(true);
   const flagEdit = (fn) => update((d) => fn(d));
@@ -302,9 +302,9 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
     ? [{ label: 'Kế hoạch giáo dục' }, { label: 'Kế hoạch giáo dục ngày', to: `/education/day-plans/${classId}` }]
     : [{ label: 'Kế hoạch giáo dục' }, { label: 'Kế hoạch giáo dục chủ đề' }, { label: pageTitle }];
   const dayUrl = (ws) => `/education/day-plans/${classId}?week=${ws}`;
-  // Spec 004: hồ sơ chủ đề = giáo án ngày; kế hoạch tuần thuộc gói học kỳ
+  // Spec 004: kế hoạch giáo dục ngày = giáo án ngày; kế hoạch tuần thuộc kế hoạch giáo dục chủ đề
   const dossier = themeDossiers.find((d) => d.id === `ds_${classId}_${week.theme.id}`) || null;
-  // EDU-79 (FR-015): tab Kế hoạch tuần ở trang ngày sửa được khi gói học kỳ chứa chủ đề đã ban hành, trước ngày bắt đầu chủ đề;
+  // EDU-79 (FR-015): tab Kế hoạch tuần ở trang ngày sửa được khi kế hoạch giáo dục chủ đề chứa chủ đề đã ban hành, trước ngày bắt đầu chủ đề;
   // quyền sửa và khóa vẫn do BE quyết định
   const firstWeek = weeks.find((w) => w.theme.id === week.theme.id);
   weekEditableRef.editable =
@@ -326,7 +326,7 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
     }
     return out;
   };
-  // EDU-93: người đúng lượt duyệt hồ sơ chủ đề ngay tại trang xem giáo án ngày (thấy nội dung mới duyệt); quyền do BE trả
+  // EDU-93: người đúng lượt duyệt kế hoạch giáo dục ngày ngay tại trang xem giáo án ngày (thấy nội dung mới duyệt); quyền do BE trả
   const dossierPerm = dayPage && dossier?.status === EDU_STATUS.REVIEW ? dossier.permissions : null;
   const dossierCan = dossierPerm && {
     approve: !!(dossierPerm.canApprove ?? dossierPerm.canIssue),
@@ -402,7 +402,7 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
     setDraft((d) => fn(structuredClone(d)));
     setDirty(true);
   };
-  // Gợi ý hoạt động = thẻ của kế hoạch chủ đề (+ thẻ bổ sung theo hồ sơ chủ đề); MT của từng ngày giải theo thẻ (EDU-78)
+  // Gợi ý hoạt động = thẻ của kế hoạch chủ đề (+ thẻ bổ sung theo kế hoạch giáo dục ngày); MT của từng ngày giải theo thẻ (EDU-78)
   const blocks = themeGoalBlocks(yearPlan.domains, numberGoals(yearPlan.domains), week.theme.id, themeDoc?.customTicks);
   const goals = blocks.flatMap((b) => b.goals);
   const dossierWeek = { cards: draft.dossierCards || [] };
@@ -429,7 +429,7 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
     onOpenCoverage: () => guard.leave(`/education/class/${classId}/themes/${week.theme.id}?tab=coverage`),
   };
   // FR-014: "Tạo thẻ từ hoạt động này" — kế hoạch chủ đề còn sửa được thì thêm thẻ vào đó (lưu chủ đề trước); đang sửa tuần
-  // theo hồ sơ chủ đề thì thẻ lưu kèm bản tuần của hồ sơ, nhãn "bổ sung theo hồ sơ chủ đề"
+  // theo kế hoạch giáo dục ngày thì thẻ lưu kèm bản tuần của hồ sơ, nhãn "bổ sung theo kế hoạch giáo dục ngày"
   const dossierMode = dayPage && weekEditableRef.editable;
   const placeCard = (r, day, card) =>
     update((d) => {
@@ -586,7 +586,7 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
             {/* Trả lại ở trái; Duyệt/Ban hành ở phải, luôn là nút riêng (Tiền 18/11/2026) */}
             {dayPage && reviewTurn && (
               <ReviewActions
-                name={`hồ sơ chủ đề ${week.theme.name}`}
+                name={`kế hoạch giáo dục ngày ${week.theme.name}`}
                 can={{ reject: dossierCan.reject }}
                 onAct={dossierAct}
                 defaultNote={noteDraft}
@@ -605,7 +605,7 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
                 <ActionsMenu items={pageTools} />
                 {reviewTurn && (
                   <ReviewActions
-                    name={`hồ sơ chủ đề ${week.theme.name}`}
+                    name={`kế hoạch giáo dục ngày ${week.theme.name}`}
                     approveLabel={lastReviewStep ? 'Ban hành' : 'Duyệt'}
                     can={{ approve: dossierCan.approve }}
                     onAct={dossierAct}
@@ -708,7 +708,7 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
         status={(dayPage ? dossier : container || themeDoc)?.status}
         history={(dayPage ? dossier : container || themeDoc)?.history}
       />
-      {/* Gói học kỳ chưa ban hành: không hiện dòng nhắc, bấm Gửi duyệt ở trang danh sách mới cảnh báo (Tiền 14/11/2026) */}
+      {/* Kế hoạch giáo dục chủ đề chưa ban hành: không hiện dòng nhắc, bấm Gửi duyệt ở trang danh sách mới cảnh báo (Tiền 14/11/2026) */}
       {dayPage && dossier && dossier.blockedReason !== 'SEMESTER_NOT_RELEASED' && (
         <BlockedNotice doc={dossier} author={canComposeClassDocs} />
       )}
@@ -736,7 +736,7 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
           <>
             {/* Trạng thái duyệt của hồ sơ đã ở thanh thao tác; tab tuần chỉ báo bằng chữ khi kế hoạch tuần chưa duyệt / chưa soạn */}
             {!savedWeek && <p className="muted text-sm">Chưa soạn kế hoạch tuần.</p>}
-            {/* Đã báo gói học kỳ chưa ban hành (hồ sơ bị chặn vì gói học kỳ chưa ban hành) thì không nhắc lại kế hoạch tuần (Tiền 12/11/2026) */}
+            {/* Đã báo kế hoạch giáo dục chủ đề chưa ban hành (hồ sơ bị chặn vì kế hoạch giáo dục chủ đề chưa ban hành) thì không nhắc lại kế hoạch tuần (Tiền 12/11/2026) */}
             {canComposeClassDocs &&
               savedWeek &&
               !weekApproved &&
@@ -746,7 +746,7 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
             {changedCells?.size > 0 && <p className="text-sm text-warning">Đã sửa theo chủ đề</p>}
             {baseChanged && <p className="text-sm text-warning">Bản theo kỳ đã đổi</p>}
             {(draft.dossierCards || []).length > 0 && (
-              <p className="text-sm">Bổ sung theo hồ sơ chủ đề: {draft.dossierCards.map((c) => cardText(c)).join('; ')}</p>
+              <p className="text-sm">Bổ sung theo kế hoạch giáo dục ngày: {draft.dossierCards.map((c) => cardText(c)).join('; ')}</p>
             )}
             {savedWeek && (
               <WeekTab
@@ -829,7 +829,7 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
       )}
       <ConfirmationModal
         open={confirmRevise}
-        title={`Tạo phiên bản điều chỉnh hồ sơ chủ đề "${week.theme.name}"?`}
+        title={`Tạo phiên bản điều chỉnh kế hoạch giáo dục ngày "${week.theme.name}"?`}
         message="Bản đã ban hành vẫn hiệu lực tới khi phiên bản mới được duyệt."
         confirmLabel="Tạo phiên bản"
         onConfirm={async () => {

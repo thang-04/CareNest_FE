@@ -1157,8 +1157,8 @@ function BranchTemplateNames({
                     ))}
                   </div>
                 )}
-                {/* Nhánh kế thừa từ kế hoạch năm chỉ sửa tên/ngày, không xóa (BE spec 002 FR-013) */}
-                {!readOnly && t.sourceTemplateId == null && (
+                {/* BE:EDU-100 (0): khi soạn (Nháp) xóa được cả nhánh kế thừa từ kế hoạch năm học */}
+                {!readOnly && (
                   <button
                     type="button"
                     className="icon-btn icon-btn--danger"

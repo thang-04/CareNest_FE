@@ -11,7 +11,10 @@ globalThis.localStorage = {
   removeItem: (k) => storage.delete(k),
 };
 const server = await createServer({ server: { middlewareMode: true }, appType: 'custom' });
-after(() => server.close());
+after(async () => {
+  await server.waitForRequestsIdle();
+  await server.close();
+});
 const { GoalTable, ThemeEventTable } = await server.ssrLoadModule('/src/components/education-plan/GoalTables.jsx');
 const { BranchCalendarEditor } = await server.ssrLoadModule('/src/components/education-plan/BranchCalendarEditor.jsx');
 const { reapplyTeamDraft, inheritAnnual } = await import('../../src/models/education-plan/planLevel.mjs');

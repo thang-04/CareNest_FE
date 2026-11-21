@@ -114,12 +114,15 @@ export const ids = () => {
 /** Xóa dữ liệu bộ test để lại (chỉ kế hoạch có tiêu đề [E2E] và phân công có ngày đánh dấu). */
 export function cleanup() {
   const { year, ageGroup } = ids();
+  const testYearPlans = `select id from edu_year_plans where title like '${E2E.titlePrefix}%'`;
   sql(
     // Kế hoạch năm và tổ tách bảng (edu_year_plans / edu_team_plans); tài liệu lớp trỏ qua team_plan_id hoặc school_year_plan_id
-    `delete from edu_learning_resources where class_doc_id in (select d.id from edu_class_docs d ` +
+    // V128: học liệu gắn giáo án ở edu_resource_attachments (thay edu_learning_resources)
+    `delete from edu_resource_attachments where class_doc_id in (select d.id from edu_class_docs d ` +
       `left join edu_team_plans t on t.id = d.team_plan_id left join edu_year_plans y on y.id = d.school_year_plan_id ` +
-      `where t.title like '${E2E.titlePrefix}%' or y.title like '${E2E.titlePrefix}%');` +
-      `delete from edu_team_plans where title like '${E2E.titlePrefix}%' and school_year_id = ${year} and age_group_id = ${ageGroup};` +
+      `where t.title like '${E2E.titlePrefix}%' or y.title like '${E2E.titlePrefix}%' or t.curriculum_source_plan_id in (${testYearPlans}));` +
+      // Ban hành kế hoạch năm tự sinh bản tổ (không mang tiền tố [E2E]) trỏ về bản năm nguồn
+      `delete from edu_team_plans where (title like '${E2E.titlePrefix}%' or curriculum_source_plan_id in (${testYearPlans})) and school_year_id = ${year} and age_group_id = ${ageGroup};` +
       `delete from edu_year_plans where title like '${E2E.titlePrefix}%' and school_year_id = ${year} and age_group_id = ${ageGroup};` +
       `delete from staff_assignments where valid_from = '${E2E.markerDate}' and staff_role = 'AGE_GROUP_TEAM_LEADER';` +
       // Khôi phục phân công Tổ trưởng bị tạm ngưng (dời valid_from +100 năm) về đúng ngày cũ
@@ -129,10 +132,11 @@ export function cleanup() {
 
 /** Tổ trưởng tạm cho nhóm tuổi của bộ test (chỉ dòng có ngày đánh dấu). */
 export function addTeamLeader(user) {
-  const { ageGroup } = ids();
+  const { ageGroup, year } = ids();
   const id = user === 'teacher1' ? ids().teacher1 : ids().teacher2;
+  // Gắn đúng năm học của bộ test: dòng không có năm học được tính cho năm đang hoạt động
   sql(
-    `insert into staff_assignments (user_id, staff_role, age_group_id, valid_from) values (${id}, 'AGE_GROUP_TEAM_LEADER', ${ageGroup}, '${E2E.markerDate}')`,
+    `insert into staff_assignments (user_id, staff_role, age_group_id, school_year_id, valid_from) values (${id}, 'AGE_GROUP_TEAM_LEADER', ${ageGroup}, ${year}, '${E2E.markerDate}')`,
   );
 }
 /** Web (shim đăng nhập dev) chỉ đọc phân công Tổ trưởng đầu tiên ⇒ tạm ngưng phân công Tổ trưởng khác của user; cleanup() khôi phục. */

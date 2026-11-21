@@ -19,7 +19,7 @@ import { useManualSave } from '@/hooks/education-plan/useManualSave';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import { RenumberButton, SortHandle, SortIndex, SortableList, SortableRow } from '@/components/ui/Sortable';
-import { Button } from '@/components';
+import { Button, SelectField } from '@/components';
 
 const normalizeDeadlineDays = (value) => {
   const parsed = Number.parseInt(String(value), 10);
@@ -99,7 +99,7 @@ function WorkflowPolicyConfig({ docLabel, policy, onChange, editing, canEdit, as
           ) : (
             <label className="ga-workflow-add">
               <span className="sr-only">Chọn người tạo cho {docLabel}</span>
-              <select className="select" value={creators[0] || ''} onChange={(event) => addRole(event.target.value, 'creator')}>
+              <SelectField value={creators[0] || ''} onChange={(event) => addRole(event.target.value, 'creator')}>
                 <option value="" disabled>
                   -- Chọn đúng 1 vai trò tạo --
                 </option>
@@ -108,7 +108,7 @@ function WorkflowPolicyConfig({ docLabel, policy, onChange, editing, canEdit, as
                     {WORKFLOW_ROLES[role]}
                   </option>
                 ))}
-              </select>
+              </SelectField>
             </label>
           )}
         </div>
@@ -718,8 +718,8 @@ export default function EduConfigPage() {
       <Card title="5. Gửi lại khi bị trả lại sau hạn">
         <div className="stack">
           <p className="muted text-sm">
-            Người duyệt trả lại khi tài liệu đã quá hạn thì người soạn được gửi lại thêm số ngày dưới đây, tính từ lần trả lại trễ đầu
-            tiên và chỉ một lần cho mỗi tài liệu. Hết số ngày này, tài liệu chờ Hiệu trưởng mở hạn.
+            Người duyệt trả lại khi tài liệu đã quá hạn thì người soạn được gửi lại thêm số ngày dưới đây, tính từ lần trả lại trễ đầu tiên
+            và chỉ một lần cho mỗi tài liệu. Hết số ngày này, tài liệu chờ Hiệu trưởng mở hạn.
           </p>
           {editing && isPrincipal ? (
             <DeadlineDaysField
@@ -738,7 +738,8 @@ export default function EduConfigPage() {
       <Card title="6. Xử lý duyệt sau hạn">
         <div className="stack">
           <p className="muted text-sm">
-            Sau hạn hồ sơ, người duyệt còn được Duyệt, Ban hành hoặc Trả lại trong số ngày dưới đây. Hết hạn, hồ sơ giữ Chờ duyệt và chỉ Hiệu trưởng mở lại được.
+            Sau hạn hồ sơ, người duyệt còn được Duyệt, Ban hành hoặc Trả lại trong số ngày dưới đây. Hết hạn, hồ sơ giữ Chờ duyệt và chỉ
+            Hiệu trưởng mở lại được.
           </p>
           {editing && isPrincipal ? (
             <DeadlineDaysField

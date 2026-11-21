@@ -13,7 +13,7 @@ export function DeadlineBadge({ doc }) {
   return d ? <StatusBadge tone={d.tone} label={d.label} /> : null;
 }
 
-/** Lý do chưa gửi được (quá hạn, gói học kỳ chưa duyệt) — chỉ hiện cho người soạn khi gói/hồ sơ còn Nháp. */
+/** Lý do chưa gửi được (quá hạn, kế hoạch giáo dục chủ đề chưa duyệt) — chỉ hiện cho người soạn khi gói/hồ sơ còn Nháp. */
 export function BlockedNotice({ doc, author }) {
   const text = author && doc?.status === 'DRAFT' ? BLOCKED_TEXT[doc.blockedReason] : null;
   return text ? <Notice>{text}</Notice> : null;

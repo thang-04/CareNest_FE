@@ -70,8 +70,8 @@ export default function GoalListPage({ planLevel = 'TEAM' }) {
       (isPrincipal && g.status !== EDU_STATUS.DRAFT && g.status !== EDU_STATUS.EDITING) ||
       (isLeader && g.ageGroupId === user.ageGroupId) ||
       (issuedPlan(g) && (g.ageGroupId === user.ageGroupId || taught.includes(g.ageGroupId)));
-    return goals.filter((g) => g.schoolYear === schoolYear && visible(g));
-  }, [goals, classes, schoolYear, isVP, isPrincipal, isLeader, user]);
+    return goals.filter((g) => g.schoolYear === schoolYear && (!principalViewer || g.status !== EDU_STATUS.REVIEW) && visible(g));
+  }, [goals, classes, schoolYear, isVP, isPrincipal, isLeader, principalViewer, user]);
   // Bản Chờ duyệt không nằm trong danh sách (chỉ bản đã ban hành); thẻ "Chờ duyệt" đếm theo hàng chờ của BE và dẫn sang đó
   const queue = useAsync(() => getReviewQueue(user), [user.id], { refreshOnDataChange: true, enabled: isVP || isPrincipal });
   usePolling(() => queue.reload({ silent: true }), { enabled: isVP || isPrincipal });
@@ -100,7 +100,9 @@ export default function GoalListPage({ planLevel = 'TEAM' }) {
       refreshOnDataChange: true,
     },
   );
-  const candidates = age ? (filtered.data?.goals || []).filter((g) => levelOf(g) === planLevel) : scoped;
+  const candidates = age
+    ? (filtered.data?.goals || []).filter((g) => levelOf(g) === planLevel && (!principalViewer || g.status !== EDU_STATUS.REVIEW))
+    : scoped;
   const matched = candidates.filter((g) => !q || (g.title + g.code).toLowerCase().includes(q.toLowerCase()));
   // Chỉ gom bản thay thế khi danh sách còn bản đang dùng của cùng nhóm tuổi; không thì vẫn hiện để danh sách không trống
   const foldable = (g) => replaced(g) && matched.some((x) => !replaced(x) && x.ageGroupId === g.ageGroupId);

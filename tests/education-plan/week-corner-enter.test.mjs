@@ -117,7 +117,7 @@ test('semester filter uses BE theme IDs in both layouts and preserves annual dat
     { id: 22, start: '2027-01-11' },
   ];
   const year = { semester1Start: '2026-09-05', semester1End: '2026-12-31', semester2Start: '2027-01-04', semester2End: '2027-05-31' };
-  // Gói học kỳ của BE thắng ngày; id chủ đề so theo chuỗi
+  // Kế hoạch giáo dục chủ đề của BE thắng ngày; id chủ đề so theo chuỗi
   const packages = [{ semesterNo: 2, themeIds: [11, '22'], deadline: '2026-12-20' }];
   const before = JSON.stringify({ themes, packages });
   const choices = semesterChoices(year, themes, packages);
