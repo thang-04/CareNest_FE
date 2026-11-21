@@ -9,6 +9,8 @@ const OUT = 'node_modules/.e2e-dist';
 
 export default defineConfig({
   testDir: './tests/e2e',
+  // Mở tạm ngày chuẩn bị của năm học bộ test, chạy xong trả lại (tests/e2e/support/prepYear.mjs)
+  globalSetup: './tests/e2e/support/prepYear.mjs',
   timeout: 60_000,
   expect: { timeout: 10_000 },
   // Các bước của một luồng dùng chung dữ liệu trên BE ⇒ chạy tuần tự

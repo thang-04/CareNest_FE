@@ -40,15 +40,25 @@ test('Q01/Q03 PHT có nút lập năm học và cột nhánh trắng, Enter thê
   await spaGo(page, `/education/school-year-plans/${annual.id}/edit`);
   const cell = page.locator('.ga-branch-template-cell').first();
   await expect(cell).toHaveCSS('background-color', 'rgb(255, 255, 255)');
-  const input = cell.getByRole('textbox', { name: /^Thêm chủ đề nhánh \/ dự án/ });
+  // Mỗi nhánh một dòng, ô thêm nhánh ở dòng cuối của chủ đề ⇒ tìm trong bảng (kế hoạch test chỉ có một chủ đề)
+  const input = page.getByRole('textbox', { name: /^Thêm chủ đề nhánh \/ dự án/ }).first();
   await input.fill('Nhánh thêm bằng Enter');
-  await cell
+  await page
     .getByRole('textbox', { name: /^Chủ đề nhánh \/ dự án/ })
     .last()
     .press('Enter');
-  await expect(cell.locator('.ga-branch-template-item')).toHaveCount(2);
-  await expect(cell.locator('input[type=date]').first()).toHaveAttribute('min', '2027-09-06');
-  await expect(cell.locator('input[type=date]').first()).toHaveAttribute('max', '2027-09-17');
+  // Gõ vào ô thêm đã tạo nhánh; Enter ở nhánh có tên chèn một dòng nhánh trống ngay sau và chuyển con trỏ tới đó
+  await expect(page.locator('.ga-branch-template-item')).toHaveCount(3);
+  const added = page.getByRole('textbox', { name: /^Chủ đề nhánh \/ dự án/ }).nth(2);
+  await expect(added).toHaveValue('');
+  await expect(added).toBeFocused();
+  // Ô ngày là bộ chọn lịch (gõ dd/mm/yyyy rồi Enter); ngày ngoài khoảng của chủ đề bị từ chối kèm khoảng cho phép
+  await cell.getByRole('button', { name: 'Từ nhánh Nhánh gợi ý', exact: true }).click();
+  const typed = page.getByRole('textbox', { name: 'Gõ Từ nhánh Nhánh gợi ý', exact: true });
+  await typed.fill('01/09/2027');
+  await typed.press('Enter');
+  await expect(page.getByRole('alert').filter({ hasText: 'Chọn ngày trong năm học: 06/09/2027 – 17/09/2027' })).toBeVisible();
+  await typed.press('Escape');
   if (browserSession)
     await api(USERS.vp, 'POST', `${goals}/${annual.id}/finish-editing`, { headers: editHeaders(browserSession, annual.revision) });
 });

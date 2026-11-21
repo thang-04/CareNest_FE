@@ -213,7 +213,7 @@ const KITCHEN_RECORDS_API = !isDemoModule('kitchen-records');
 const STOCK_RECEIPT_ROLES = LEADERS;
 const DENIED = 'Chức năng này không thuộc quyền của vai trò hiện tại (theo ma trận phân quyền của hệ thống).';
 
-/** Trang hồ sơ chủ đề đã bỏ (Tiền 04/11): link cũ .../review mở trang kế hoạch chủ đề. */
+/** Trang kế hoạch giáo dục ngày đã bỏ (Tiền 04/11): link cũ .../review mở trang kế hoạch chủ đề. */
 function ThemeReviewRedirect() {
   const { classId, themeId } = useParams();
   return <Navigate to={`/education/class/${classId}/themes/${themeId}`} replace />;
@@ -290,12 +290,12 @@ export function AppRoutes() {
             <Route path="goals/new" element={<Navigate to="/education/goals" replace />} />
             <Route path="goals/:id" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <GoalDetailPage />)} />
             <Route path="goals/:id/edit" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <GoalFormPage key="team" />)} />
-            {/* Spec 004: Kế hoạch giáo dục chủ đề (gói học kỳ) và Kế hoạch giáo dục ngày (hồ sơ chủ đề) */}
-            <Route path="theme-plans" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ClassPlanRedirect />)} />
+            {/* Spec 004: Kế hoạch giáo dục chủ đề (theo học kỳ) và Kế hoạch giáo dục ngày (theo chủ đề), EDU-101 */}
+            <Route path="theme-plans" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ClassPlanRedirect showAllAges />)} />
             <Route path="theme-plans/:classId" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ClassPlanPage />)} />
             <Route
               path="day-plans"
-              element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ClassPlanRedirect toOf={(id) => `/education/day-plans/${id}`} />)}
+              element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ClassPlanRedirect showAllAges toOf={(id) => `/education/day-plans/${id}`} />)}
             />
             <Route path="day-plans/:classId" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <DayPlansPage />)} />
             {/* Spec 900 (BE:EDU-88): kho học liệu dùng lại cho giáo án ngày */}
@@ -304,7 +304,7 @@ export function AppRoutes() {
             <Route path="class/:classId" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ClassPlanLegacyRedirect />)} />
             <Route
               path="branches"
-              element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ClassPlanRedirect toOf={(id) => `/education/branches/${id}`} />)}
+              element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ClassPlanRedirect showAllAges toOf={(id) => `/education/branches/${id}`} />)}
             />
             <Route path="branches/:classId" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <BranchPlanPage />)} />
             <Route path="class/:classId/branches" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <BranchPlanLegacyRedirect />)} />
@@ -314,7 +314,7 @@ export function AppRoutes() {
             <Route path="class/:classId/themes/:themeId/review" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ThemeReviewRedirect />)} />
             <Route path="class/:classId/weeks/:weekStart" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <WeekPlanPage />)} />
             <Route path="class/:classId/weeks/:weekStart/review" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <WeekPlanPage review />)} />
-            {/* Spec 003: giáo án ngày tách trang; gói học kỳ */}
+            {/* Spec 003: giáo án ngày tách trang; kế hoạch giáo dục chủ đề */}
             <Route path="class/:classId/weeks/:weekStart/days" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <DayPlansLegacyRedirect />)} />
             <Route path="class/:classId/semesters/:no" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ClassPlanLegacyRedirect />)} />
             <Route path="plan-reviews" element={edu([ROLES.PRINCIPAL, ...EDU_VP_TL], <PlanReviewQueuePage />)} />

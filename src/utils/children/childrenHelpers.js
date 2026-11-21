@@ -1,22 +1,21 @@
-import { AGE_GROUPS, CHILD_STATUS } from '@/models/School';
+import { AGE_GROUPS, CHILD_STATUS, ageInMonths } from '@/models/School';
 import { MOTOR_RESULT_LABELS } from '@/models/children/childrenConstants';
 import { emptyChildProfile, emptyMedicalHistory } from '@/models/children/childProfile';
 import { formatDate } from '@/utils/format';
-import { fullMonthsBetween } from './childAge';
 
 /**
- * Chỉ để gợi ý (G94-180/CHD-13, nghiệp vụ chốt 2026-11-22: trẻ vẫn xếp được lớp khác nhóm tuổi): nhóm tuổi theo số tháng tròn
- * từ ngày sinh tới ngày bắt đầu năm học, như bảng xếp lớp năm mới của BE (`YearTransitionServiceImpl.fitsAgeGroup`).
- * yearStart: ngày bắt đầu năm học (BE, "2026-09-01") hoặc id năm mock ("2026-2027" ⇒ 01/09 của năm đầu); ageGroups: nhóm tuổi
- * có ageFromMonths/ageToMonths (BE hoặc AGE_GROUPS). Ngoài khoảng ⇒ nhóm nhỏ nhất/lớn nhất.
+ * Display hint only: nhóm tuổi của trẻ tại đúng ngày bắt đầu năm học.
+ * The service validates the placement; this just preselects the age group in the form.
+ * yearStart: ngày bắt đầu năm học (BE, "2026-09-01") hoặc id năm mock ("2026-2027"); ageGroups: nhóm tuổi có
+ * ageFromMonths/ageToMonths (BE hoặc AGE_GROUPS). Ngoài các nhóm trường áp dụng ⇒ để trống, không tự ép nhóm gần nhất.
  */
 export const suggestAgeGroupId = (dateOfBirth, yearStart, ageGroups = AGE_GROUPS) => {
   if (!dateOfBirth || !yearStart || !ageGroups.length) return '';
-  const start = /^\d{4}-\d{2}-\d{2}/.test(String(yearStart)) ? String(yearStart) : `${String(yearStart).slice(0, 4)}-09-01`;
-  const months = fullMonthsBetween(dateOfBirth, start);
+  const start = /^\d{4}-\d{2}-\d{2}$/.test(String(yearStart)) ? String(yearStart) : `${String(yearStart).slice(0, 4)}-09-01`;
+  const months = ageInMonths(dateOfBirth, start);
   const sorted = [...ageGroups].sort((a, b) => a.ageFromMonths - b.ageFromMonths);
   const match = sorted.find((g) => g.ageFromMonths <= months && months < g.ageToMonths);
-  return (match || (months < sorted[0].ageFromMonths ? sorted[0] : sorted[sorted.length - 1])).id;
+  return match?.id || '';
 };
 
 /** Giá trị lọc trạng thái cho trẻ có đăng ký năm học sau (nhãn Sắp nhập học); không phải trạng thái của trẻ. */

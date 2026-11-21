@@ -944,12 +944,29 @@ export const schoolConfigMockRepository = {
     return clone(seeded().ageGroups);
   },
 
+  async getAgeGroupCatalog() {
+    await delay(40);
+    return clone([
+      { id: 'ag-0', name: 'Nhà trẻ 3–12 tháng', shortName: '3–12 tháng', ageFromMonths: 3, ageToMonths: 13, maxClassSize: 15 },
+      { id: 'ag-1', name: 'Nhà trẻ 13–24 tháng', shortName: '13–24 tháng', ageFromMonths: 13, ageToMonths: 25, maxClassSize: 20 },
+      { id: 'ag-2', name: 'Nhà trẻ 25–36 tháng', shortName: '25–36 tháng', ageFromMonths: 25, ageToMonths: 36, maxClassSize: 25 },
+      { id: 'ag-3', name: 'Mẫu giáo 3–4 tuổi', shortName: '3–4 tuổi', ageFromMonths: 36, ageToMonths: 48, maxClassSize: 25 },
+      { id: 'ag-4', name: 'Mẫu giáo 4–5 tuổi', shortName: '4–5 tuổi', ageFromMonths: 48, ageToMonths: 60, maxClassSize: 30 },
+      { id: 'ag-5', name: 'Mẫu giáo 5–6 tuổi', shortName: '5–6 tuổi', ageFromMonths: 60, ageToMonths: 72, maxClassSize: 35 },
+    ]);
+  },
+
   async saveAgeGroup(id, form, user, schoolYearId) {
     await delay();
     if (!canConfigureSchool(user)) throw forbid();
     seeded();
     return writeDb((db) => {
-      if (!id && schoolYearId) assertOpenYear(findYear(db, schoolYearId));
+      if (!id && schoolYearId) {
+        const year = findYear(db, schoolYearId);
+        if (year.status !== YEAR_STATUS.PLANNED)
+          throw new ApiError(409, `Chỉ thêm nhóm tuổi khi năm học ở trạng thái Sắp diễn ra (${year.name} đang hoạt động)`);
+      }
+      if (!id && !form.standardAgeGroupId) throw invalid({ standardAgeGroupId: 'Chọn một nhóm tuổi chuẩn để áp dụng' });
       // Trùng tên nhóm đã có ở năm khác: dùng lại nhóm đó cho năm đang chọn
       const sameName = !id && schoolYearId && db.ageGroups.find((g) => g.name.toLowerCase() === (form.name || '').trim().toLowerCase());
       if (sameName && !inYear(sameName, schoolYearId)) {
@@ -985,7 +1002,7 @@ export const schoolConfigMockRepository = {
         return clone(group);
       }
       const group = {
-        id: uid('ag'),
+        id: form.standardAgeGroupId || uid('ag'),
         ...data,
         ...(schoolYearId ? { yearIds: [schoolYearId] } : {}),
         history: [{ action: 'CREATED', userId: user.id, at: now() }],

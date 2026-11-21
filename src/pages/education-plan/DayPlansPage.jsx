@@ -1,7 +1,14 @@
 import { ResponsiveToolbar } from '@/components/ui/ResponsiveToolbar';
 import { useState } from 'react';
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ClassFilterBar, ClassPageEmpty, FilterSelect, docReview, useClassPlanContext } from '@/components/education-plan/planUi';
+import {
+  ClassFilterBar,
+  classFilterPath,
+  ClassPageEmpty,
+  FilterSelect,
+  docReview,
+  useClassPlanContext,
+} from '@/components/education-plan/planUi';
 import { Card, DocAvailabilityBadge, EduStatusBadge, EmptyCard, FoldAllButton, PageHead } from '@/components/education-plan/eduUi';
 import { ReviewActions } from '@/components/education-plan/reviewUi';
 import { DeadlineBadge } from '@/components/education-plan/DeadlineWidgets';
@@ -32,7 +39,7 @@ export function DayPlansLegacyRedirect() {
 
 /**
  * Kế hoạch giáo dục ngày (spec 004): chưa chọn tuần ⇒ trang ngoài (danh sách chủ đề theo học kỳ); có ?week= hoặc ?theme= ⇒ giáo án
- * ngày của tuần đó; gửi/duyệt theo hồ sơ chủ đề.
+ * ngày của tuần đó; gửi/duyệt theo kế hoạch giáo dục ngày.
  */
 export default function DayPlansPage() {
   const { classId } = useParams();
@@ -49,11 +56,12 @@ function DayPlansWeek({ classId, params }) {
   if (!weeks.length)
     return (
       <ClassPageEmpty
+        showAllAges
         crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Kế hoạch giáo dục ngày' }]}
         title="Kế hoạch giáo dục ngày"
         classes={ctx.classes}
         classId={classId}
-        onPick={(id) => navigate(`/education/day-plans/${id}`)}
+        onPick={(id, age) => navigate(classFilterPath('/education/day-plans', id, age))}
         emptyTitle={ctx.cls ? 'Chưa có tuần học' : 'Không tìm thấy lớp'}
       />
     );
@@ -69,7 +77,7 @@ function DayPlansWeek({ classId, params }) {
 
 /**
  * Trang ngoài Kế hoạch giáo dục ngày (Tiền 12/11/2026): như trang Kế hoạch giáo dục chủ đề nhưng chỉ có giáo án ngày — tab Học kỳ
- * 1 / 2, mỗi chủ đề một thẻ có trạng thái hồ sơ chủ đề (ban hành theo chủ đề) và nút gửi duyệt riêng; mỗi dòng một tuần "Nhánh n: tên".
+ * 1 / 2, mỗi chủ đề một thẻ có trạng thái kế hoạch giáo dục ngày (ban hành theo chủ đề) và nút gửi duyệt riêng; mỗi dòng một tuần "Nhánh n: tên".
  * Không có dòng kế hoạch chủ đề, không có trạng thái / gửi duyệt chung của học kỳ. Quyền và điều kiện gửi do BE trả.
  */
 function DayPlansList({ classId }) {
@@ -78,11 +86,11 @@ function DayPlansList({ classId }) {
   const { user, branchPlans, dayPlans, themeDossiers, semesterPackages, actOnClassDoc, eduConfig, refreshClassDocs } = useEducationPlan();
   const { schoolYear: yearId, schoolYears } = useSchoolYear();
   const [folded, setFolded] = useState(() => new Set());
-  // Lỗi BE trả khi gửi hồ sơ chủ đề (7390 mục trống, 7396/7397 MT chưa dạy), theo từng chủ đề
+  // Lỗi BE trả khi gửi kế hoạch giáo dục ngày (7390 mục trống, 7396/7397 MT chưa dạy), theo từng chủ đề
   const [sendErr, setSendErr] = useState({});
   const ctx = useClassPlanContext(classId);
   const { cls, classes, yearPlan, canComposeClassDocs } = ctx;
-  // Người khác gửi/duyệt/trả lại hồ sơ chủ đề thì trang tự cập nhật
+  // Người khác gửi/duyệt/trả lại kế hoạch giáo dục ngày thì trang tự cập nhật
   usePolling(() => refreshClassDocs?.().catch(() => {}));
   if (ctx.loading) return <LoadingState />;
   const head = (filters = null, extra = null) => (
@@ -98,10 +106,11 @@ function DayPlansList({ classId }) {
       )}
       {/* Học kỳ nằm cùng hàng lọc lớp (Tiền 13/11/2026). */}
       <ClassFilterBar
+        showAllAges
         classes={classes}
         classId={classId}
         canPick={ctx.canPickClass}
-        onPick={(id) => navigate(`/education/day-plans/${id}`)}
+        onPick={(id, age) => navigate(classFilterPath('/education/day-plans', id, age))}
       >
         {filters}
       </ClassFilterBar>
@@ -190,7 +199,7 @@ function DayPlansList({ classId }) {
             onToggle={() => toggle(t.id)}
             actions={
               <div className="row row--wrap row--middle gap-2">
-                {/* Trạng thái riêng từng chủ đề: hồ sơ chủ đề (giáo án ngày) đã ban hành chưa */}
+                {/* Trạng thái riêng từng chủ đề: kế hoạch giáo dục ngày (giáo án ngày) đã ban hành chưa */}
                 {dossier ? (
                   <>
                     <EduStatusBadge status={dossier.status} doc={dossier} />
@@ -199,15 +208,16 @@ function DayPlansList({ classId }) {
                 ) : (
                   <DocAvailabilityBadge status={viewer ? 'UNRELEASED' : 'NOT_DRAFTED'} />
                 )}
-                {review && (
+                {/* Thẻ chủ đề chỉ để GVCN gửi duyệt; duyệt/trả lại ở trang xem giáo án ngày, nơi thấy nội dung (EDU-93) */}
+                {review && (review.can.send || (canComposeClassDocs && dossier.status === EDU_STATUS.DRAFT)) && (
                   <ReviewActions
-                    name={`hồ sơ chủ đề ${t.name}`}
+                    name={`kế hoạch giáo dục ngày ${t.name}`}
                     sendTo={review.sendTo}
                     sendLabel="Gửi duyệt"
-                    can={review.can}
+                    can={{ ...review.can, approve: false, reject: false }}
                     showSend={canComposeClassDocs && dossier.status === EDU_STATUS.DRAFT}
-                    // Gói học kỳ chưa ban hành: không hiện dòng nhắc trên trang, bấm Gửi duyệt mới cảnh báo (Tiền 14/11/2026)
-                    sendDisabledReason={BLOCKED_TEXT[dossier.blockedReason] || 'Chưa gửi được hồ sơ chủ đề này'}
+                    // Kế hoạch giáo dục chủ đề chưa ban hành: không hiện dòng nhắc trên trang, bấm Gửi duyệt mới cảnh báo (Tiền 14/11/2026)
+                    sendDisabledReason={BLOCKED_TEXT[dossier.blockedReason] || 'Chưa gửi được kế hoạch giáo dục ngày này'}
                     onAct={act}
                     variant="btn--outline-primary"
                     menu={{}}

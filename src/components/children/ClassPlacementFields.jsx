@@ -28,6 +28,7 @@ export function ClassPlacementFields({
   campusError,
   ageGroups = AGE_GROUPS,
   yearLabel = 'đang hoạt động',
+  lockAgeGroup = false,
 }) {
   const pickCampus = campuses.length > 1;
   const groupById = (id) => ageGroups.find((g) => sameId(g.id, id)) || null;
@@ -56,7 +57,13 @@ export function ClassPlacementFields({
           <label className="field__label" htmlFor="tr-age-group">
             Nhóm tuổi{req}
           </label>
-          <select id="tr-age-group" className="select" value={ageGroupId} onChange={(e) => onAgeGroupChange(e.target.value)}>
+          <select
+            id="tr-age-group"
+            className="select"
+            value={ageGroupId}
+            disabled={lockAgeGroup}
+            onChange={(e) => onAgeGroupChange(e.target.value)}
+          >
             <option value="">Tất cả nhóm tuổi</option>
             {ageGroups.map((g) => (
               <option key={g.id} value={g.id}>
@@ -67,6 +74,12 @@ export function ClassPlacementFields({
           </select>
         </div>
       </div>
+      {lockAgeGroup && !ageGroupId && (
+        <div className="alert alert--warning">
+          <Info size={18} />
+          <div>Năm học chưa áp dụng nhóm tuổi phù hợp với ngày sinh của trẻ. Hiệu trưởng cần cấu hình nhóm tuổi trước khi xếp lớp.</div>
+        </div>
+      )}
       {mismatch && (
         <div className="alert alert--warning">
           <Info size={18} />
@@ -101,11 +114,13 @@ export function ClassPlacementFields({
                 Chưa có lớp <b>{groupById(ageGroupId)?.name}</b> ở {pickCampus ? 'điểm trường này' : 'phạm vi của bạn'} trong năm học đang
                 {yearLabel}. Lớp do Hiệu trưởng mở ở màn Nhóm tuổi &amp; lớp.
               </span>
-              <span>
-                <button type="button" className="btn btn--sm" onClick={() => onAgeGroupChange('')}>
-                  Xem lớp mọi nhóm tuổi
-                </button>
-              </span>
+              {!lockAgeGroup && (
+                <span>
+                  <button type="button" className="btn btn--sm" onClick={() => onAgeGroupChange('')}>
+                    Xem lớp mọi nhóm tuổi
+                  </button>
+                </span>
+              )}
             </div>
           </div>
         ) : (

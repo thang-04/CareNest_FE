@@ -1,12 +1,6 @@
 import { forwardRef, useEffect, useRef, useState } from 'react';
 import { CalendarDays } from '@/components/ui/icons';
-import { formatDate, isIsoDate, parseDisplayDate } from '@/utils/format';
-
-// Tự chèn dấu "/" khi gõ: "05092026" -> "05/09/2026"
-const mask = (raw) => {
-  const digits = raw.replace(/\D/g, '').slice(0, 8);
-  return [digits.slice(0, 2), digits.slice(2, 4), digits.slice(4)].filter(Boolean).join('/');
-};
+import { formatDate, isIsoDate, normalizeDateInput, parseDisplayDate } from '@/utils/format';
 
 const toText = (value) => (isIsoDate(value) ? formatDate(value) : value || '');
 
@@ -26,7 +20,7 @@ export const DateInput = forwardRef(function DateInput({ value, onChange, min, m
   }, [value]);
 
   const handleType = (e) => {
-    const next = mask(e.target.value);
+    const next = normalizeDateInput(e.target.value);
     setText(next);
     onChange?.(parseDisplayDate(next) || next);
   };

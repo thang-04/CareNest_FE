@@ -6,9 +6,7 @@ import { domainRoman, mtList, numberGoals } from '@/models/education-plan/goalTa
 import { cardText, contentLinesOf, newCard, normalizeTheme, slotLabel, themeGoalBlocks, weekRows } from '@/models/education-plan/classPlan';
 import { mapActivityCards } from '@/models/education-plan/activityImport.mjs';
 import { StatusBadge } from '@/components/ui/StatusBadge';
-import { createPortal } from 'react-dom';
 import { Adjustments, Check, Download, Plus, RotateCcw, Sparkles, X } from '@/components/ui/icons';
-import { RowMenu } from '@/components/ui/RowMenu';
 import { ActionsMenu } from '@/components/education-plan/reviewUi';
 import { Modal } from '@/components/ui/Modal';
 import { AiDraftTag } from '@/components/ui/AiDraftTag';
@@ -72,7 +70,6 @@ export function ThemePlanBody({
   suggestActivities = null,
   notify = () => {},
   // Chỗ đặt menu "Lấy / gợi ý hoạt động" ở trái hàng nút của trang (phần tử DOM do trang cấp)
-  toolsTarget = null,
 }) {
   const blocks = themeGoalBlocks(yearPlan.domains, numberGoals(yearPlan.domains), themeId, draft?.customTicks);
   const goals = blocks.flatMap((b) => b.goals);
@@ -158,7 +155,7 @@ export function ThemePlanBody({
         // Dòng đếm tiến độ chữ xám luôn hiện như kế hoạch năm (Tiền 13/11/2026)
         actions={
           goals.length > 0 && (
-            <span className="muted text-xs nowrap">
+            <span className="text-success text-xs nowrap">
               {goals.length} mục tiêu · {goals.filter((g) => !cardsOf(g).length).length} chưa có hoạt động
             </span>
           )
@@ -168,22 +165,26 @@ export function ThemePlanBody({
         onToggle={() => setFoldedGoals((v) => !v)}
       >
         <div className="card__body">
-          {/* Gọn một dòng (Tiền 13/11/2026): menu Mục tiêu + loại giờ gõ nhanh; nút lấy/gợi ý hoạt động ở trái hàng nút */}
+          {/* Gọn một dòng: một nút "Thao tác" trong card gom lấy/gợi ý hoạt động và mục tiêu của chủ đề (Tiền 18/11/2026) */}
           {editable && (
             <div className="ga-theme-goal-head mb-8 row row--wrap row--middle gap-2">
-              <RowMenu
-                label="Mục tiêu của chủ đề"
-                text="Mục tiêu"
-                icon={<Adjustments size={16} aria-hidden />}
-                className="btn btn--sm btn--outline-primary"
+              <ActionsMenu
                 items={[
+                  ...(loadPreviousActivities
+                    ? [{ label: 'Lấy hoạt động năm trước', icon: Download, onClick: () => setImporting(true) }]
+                    : []),
+                  ...(suggestActivities
+                    ? [
+                        {
+                          label: 'Gợi ý hoạt động (AI)',
+                          icon: Sparkles,
+                          onClick: askAi,
+                          disabled: ai.busy || !goals.some((g) => !cardsOf(g).length),
+                        },
+                      ]
+                    : []),
                   { label: 'Tùy chọn mục tiêu cho chủ đề này', icon: Adjustments, onClick: () => setShowGoalModal(true) },
-                  {
-                    label: 'Khôi phục mục tiêu mặc định của năm',
-                    icon: RotateCcw,
-                    onClick: resetToDefault,
-                    disabled: !hasCustomTicks,
-                  },
+                  { label: 'Khôi phục mục tiêu mặc định của năm', icon: RotateCcw, onClick: resetToDefault, disabled: !hasCustomTicks },
                 ]}
               />
               {goals.length > 0 && (
@@ -211,29 +212,6 @@ export function ThemePlanBody({
               )}
             </div>
           )}
-          {editable &&
-            toolsTarget &&
-            (loadPreviousActivities || suggestActivities) &&
-            createPortal(
-              <ActionsMenu
-                items={[
-                  ...(loadPreviousActivities
-                    ? [{ label: 'Lấy hoạt động năm trước', icon: Download, onClick: () => setImporting(true) }]
-                    : []),
-                  ...(suggestActivities
-                    ? [
-                        {
-                          label: 'Gợi ý hoạt động (AI)',
-                          icon: Sparkles,
-                          onClick: askAi,
-                          disabled: ai.busy || !goals.some((g) => !cardsOf(g).length),
-                        },
-                      ]
-                    : []),
-                ]}
-              />,
-              toolsTarget,
-            )}
 
           {/* Nhắc dạng chữ đỏ nhỏ, căn phải như bước tạo chủ đề ở mục tiêu năm học, nằm ngay bên trên bảng */}
           {goals.length === 0 && <p className="text-danger text-sm text-right mb-8">Kế hoạch năm chưa tích nội dung nào vào chủ đề này.</p>}

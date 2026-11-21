@@ -169,7 +169,7 @@ export function ResourceTagsModal({ item, taught, busy, error, onSave, onClose }
         </div>
       </fieldset>
       {age && planLoad.loading && <LoadingState />}
-      {age && !plan && <Notice>Nhóm tuổi chưa có kế hoạch năm học đã ban hành: chưa chọn được MT.</Notice>}
+      {age && !plan && <Notice tone="info">Nhóm tuổi chưa có kế hoạch năm học đã ban hành: chưa chọn được MT.</Notice>}
       {detail && planGoals.length > 0 && (
         <fieldset className="ga-edit-fieldset stack">
           <legend className="field__label">Mục tiêu (MT) học liệu phục vụ</legend>

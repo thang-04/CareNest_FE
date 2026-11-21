@@ -2,6 +2,7 @@ import { workflowKey } from '@/models/education-plan/planLevel.mjs';
 import { readDb, writeDb, clone, delay } from '@/mocks/mockDatabase';
 import { eduError } from './eduMockErrors';
 import { ROLES } from '@/models/User';
+import { AGE_GROUPS } from '@/models/School';
 import { CREATOR_ROLES, REVIEWER_ROLES, withDefaults } from '@/models/education-plan/eduConfig';
 
 const rolesOf = (user) => [...(user?.roles || []), user?.role];
@@ -15,7 +16,9 @@ const view = (config, user) => {
   const groups = scoped ? [user?.ageGroupId].filter(Boolean) : [...new Set((readDb().classes || []).map((cls) => cls.ageGroupId))];
   return {
     ...cfg,
+    ageGroups: clone(AGE_GROUPS),
     canConfigure: canConfigure(user),
+    canConfigureDeadlines: canConfigure(user),
     ...(user
       ? {
           yearCreationScopes: author ? groups : [],
@@ -152,12 +155,20 @@ export const eduConfigMockRepository = {
       JSON.stringify(cfg.durationPolicy || current.durationPolicy) === JSON.stringify(current.durationPolicy)
         ? current.durationPolicy
         : { ...cfg.durationPolicy, revision: current.durationPolicy.revision + 1 };
+    if ((cfg.lateReturnGraceDays != null || cfg.lateApprovalGraceDays != null) && !canConfigure(user))
+      throw eduError('EDU_CONFIG_FORBIDDEN');
+    for (const field of ['lateReturnGraceDays', 'lateApprovalGraceDays']) {
+      if (cfg[field] != null && (!Number.isInteger(cfg[field]) || cfg[field] < 0 || cfg[field] > 30))
+        throw eduError('INVALID_VALUE', field);
+    }
     const next = withDefaults({
       ...current,
       durationPolicy,
       domainLabels: cfg.domainLabels,
       extraDomains: cfg.extraDomains,
       weekRows: cfg.weekRows,
+      lateReturnGraceDays: cfg.lateReturnGraceDays ?? current.lateReturnGraceDays ?? 2,
+      lateApprovalGraceDays: cfg.lateApprovalGraceDays ?? current.lateApprovalGraceDays ?? 2,
     });
     if (!next.weekRows.some((row) => row.key === 'hoc')) throw eduError('LESSON_ROW_REQUIRED');
     if (next.weekRows.some((row) => !row.label.trim())) throw eduError('REQUIRED_FIELD_MISSING', 'tên dòng hoạt động');

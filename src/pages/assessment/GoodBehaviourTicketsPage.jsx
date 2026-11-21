@@ -37,6 +37,14 @@ const GROUP = 'GROUP';
 
 // Đủ điều kiện chưa phát lên đầu, rồi đã phát, cuối cùng chưa đủ điều kiện
 const rank = (r) => (r.ticket ? 1 : r.eligible ? 0 : 2);
+const evidenceText = (evidence, weekly) =>
+  (evidence || [])
+    .map((item) =>
+      weekly
+        ? `${item.className}: ${item.presentDays || 0} ngày có mặt, ${item.flagCount || 0} cờ`
+        : `${item.className}: ${item.weeklyTickets || 0} phiếu tuần`,
+    )
+    .join(' · ');
 import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';
 import '@/styles/modules/assessment.css';
 
@@ -282,6 +290,10 @@ function TeacherTicketsPage() {
                             </td>
                             <td>
                               <ChildNameCell child={r.child} />
+                              {r.historical && <div className="muted text-xs">Đã chuyển lớp hoặc nghỉ học · chỉ xem lịch sử</div>}
+                              {(r.evidence || []).length > 1 && (
+                                <div className="muted text-xs">Căn cứ: {evidenceText(r.evidence, weekly)}</div>
+                              )}
                             </td>
                             {weekly ? (
                               <>

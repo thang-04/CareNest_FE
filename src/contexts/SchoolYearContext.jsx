@@ -1,5 +1,4 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { DEFAULT_SCHOOL_YEAR, SCHOOL_YEARS } from '@/config/app';
 import { useAuth } from '@/contexts/AuthContext';
 import { getSchoolYears } from '@/services/school-config/schoolConfigService';
 import { readPickedSchoolYear, savePickedSchoolYear } from '@/services/school-config/schoolYearPick';
@@ -35,12 +34,12 @@ const toOption = (y) => ({
 /**
  * Current school year chosen in the header, shared by every page.
  * Use: const { schoolYear, setSchoolYear, schoolYears } = useSchoolYear();
- * The list comes from school configuration (#16); the static list in config/app.js is the fallback.
+ * The list comes from school configuration (#16); the service supplies the available years.
  */
 export function SchoolYearProvider({ children }) {
   const { user } = useAuth();
-  const [schoolYears, setSchoolYears] = useState(SCHOOL_YEARS);
-  const [schoolYear, setChosenYear] = useState(DEFAULT_SCHOOL_YEAR);
+  const [schoolYears, setSchoolYears] = useState([]);
+  const [schoolYear, setChosenYear] = useState('');
   // Người dùng tự chọn năm ở header thì giữ; chưa chọn thì luôn theo năm đang hoạt động (kể cả sau khi chuyển năm)
   const picked = useRef(false);
   const optionsRef = useRef(schoolYears);
@@ -83,7 +82,10 @@ export function SchoolYearProvider({ children }) {
           });
         })
         .catch(() => {
-          /* role without access to the configuration: keep the static list */
+          if (alive) {
+            setSchoolYears([]);
+            setChosenYear('');
+          }
         });
     load();
     window.addEventListener(DB_CHANGED_EVENT, load);

@@ -304,6 +304,7 @@ export default function ThemeEvaluationPage() {
                                 onClick={() => setXcheck(r)}
                               >
                                 {r.fullName}
+                                {r.historical && <div className="muted text-xs">Đã chuyển lớp hoặc nghỉ học · lịch sử lớp cũ</div>}
                               </button>
                             </td>
                             {r.cells.map((c) => {

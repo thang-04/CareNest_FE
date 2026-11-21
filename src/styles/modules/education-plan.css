@@ -68,24 +68,91 @@
 .ga-upload--error .dropzone {
   border-color: var(--danger);
 }
-.ga-note {
-  padding: var(--space-2) var(--space-3);
-  background: var(--surface-soft);
-  border-radius: var(--radius);
-  font-size: var(--fs-sm);
-}
 .ga-tags {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-1);
 }
 
-/* History dot tones */
-.history-list__dot.ga-dot--ok {
-  background: var(--success);
+.ga-review-history__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--space-6);
+  height: var(--space-6);
+  flex-shrink: 0;
+  padding-inline: var(--space-2);
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
+  color: var(--color-primary-fg);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
-.history-list__dot.ga-dot--err {
-  background: var(--danger);
+
+.ga-review-timeline__latest {
+  background: var(--surface-soft);
+  border-radius: var(--radius);
+  color: var(--color-text-secondary);
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--fs-sm);
+}
+
+.ga-review-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.ga-review-timeline__step {
+  position: relative;
+  margin-inline-start: var(--space-2);
+  padding: 0 0 var(--space-4) var(--space-4);
+  border-inline-start: 1px solid var(--color-border-strong);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.ga-review-timeline__step:last-child {
+  border-color: transparent;
+  padding-bottom: 0;
+}
+
+.ga-review-timeline__step::before {
+  content: '';
+  position: absolute;
+  inset-block-start: var(--space-2);
+  inset-inline-start: -5px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--color-text-secondary);
+}
+
+.ga-review-timeline__step[data-tone='success']::before {
+  background: var(--color-success-fg);
+}
+
+.ga-review-timeline__step[data-tone='danger']::before {
+  background: var(--color-danger-fg);
+}
+
+.ga-review-timeline__heading,
+.ga-review-timeline__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-2);
+}
+
+.ga-review-timeline__meta {
+  color: var(--color-text-secondary);
+  font-size: var(--fs-sm);
+}
+
+.ga-review-timeline__note {
+  margin: var(--space-1) 0 0;
+  white-space: pre-wrap;
 }
 
 /* ---------- Signature ---------- */
@@ -338,6 +405,16 @@
 }
 .table.ga-plan-table tbody tr:hover {
   background: none;
+}
+table.ga-import-theme-table tbody tr td,
+table.ga-import-theme-table tbody tr:hover td {
+  background: var(--color-surface);
+  box-shadow: none;
+  transition: none;
+}
+table.ga-import-theme-table tbody tr:nth-child(even) td,
+table.ga-import-theme-table tbody tr:nth-child(even):hover td {
+  background: var(--table-preview-stripe);
 }
 .ga-week-table td {
   min-width: 130px;
@@ -2949,6 +3026,20 @@ h2.ga-cur-domain__head {
     content: ':';
   }
 }
+.ga-overdue-filters:has(.filter-more[open]) {
+  /* The filter menu must paint above the table card's backdrop layer. */
+  position: relative;
+  z-index: var(--z-dropdown);
+}
+
+.ga-overdue-actions {
+  padding: var(--space-2) var(--space-4) 0;
+}
+
+.ga-overdue-table {
+  padding: var(--space-2) var(--space-4) var(--space-3);
+}
+
 /* Khoảng cách giữa tab, thẻ lọc và thanh thao tác trong phần ghim đầu trang */
 .ga-sticky-head > .mb-16,
 .ga-sticky-head > .card:has(> .filter-bar) {
@@ -3054,6 +3145,13 @@ html:has(.ga-page) {
   top: var(--ga-stick-top);
   z-index: var(--z-sticky);
 }
+.ga-cur-domain-filter {
+  align-self: flex-start;
+  max-width: 100%;
+}
+.ga-cur-domain-filter .select {
+  max-width: 100%;
+}
 /* Thông báo trong trang (lý do trả lại, cảnh báo) ở ngay dưới hàng nút, cách nội dung một khoảng */
 .ga-notice {
   margin-bottom: var(--space-3);
@@ -3066,4 +3164,28 @@ html:has(.ga-page) {
 .ga-resource-name {
   min-width: calc(var(--space-12) * 4);
   overflow-wrap: anywhere;
+}
+
+/* EDU-94/97: nhãn và số ngày cùng một hàng, chỉ tách khi màn hình không còn đủ chỗ. */
+.ga-deadline-setting {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+.ga-deadline-setting .field__label {
+  flex: 0 1 23rem;
+  margin: 0;
+}
+.ga-deadline-setting__input {
+  flex: 0 0 6rem;
+  width: 6rem;
+}
+@media (max-width: 30rem) {
+  .ga-deadline-setting {
+    align-items: flex-start;
+  }
+  .ga-deadline-setting .field__label {
+    flex-basis: 100%;
+  }
 }

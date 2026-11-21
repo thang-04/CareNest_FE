@@ -59,9 +59,15 @@ test('trẻ ở lịch sử lớp cũ không thể được chọn hoặc chọn
   assert.match(html, /aria-label="Chọn tất cả trẻ đủ điều kiện"[^>]*disabled/);
 });
 test('lớp nhận trẻ thấy căn cứ xuyên lớp và được chọn trẻ đủ điều kiện chưa phát', () => {
-  const html = render({ canIssue: true });
+  const html = render({
+    canIssue: true,
+    evidence: [
+      { className: 'Lớp cũ', presentDays: 2, flagCount: 2 },
+      { className: 'Lớp mới', presentDays: 3, flagCount: 1 },
+    ],
+  });
   assert.doesNotMatch(childCheckbox(html), /disabled/);
-  assert.doesNotMatch(html, /bao gồm trước khi chuyển lớp/);
+  assert.match(html, /Căn cứ: Lớp cũ: 2 ngày có mặt, 2 cờ · Lớp mới: 3 ngày có mặt, 1 cờ/);
 });
 test('phiếu đã phát nơi khác có nhãn rõ ràng và khóa phát trùng', () => {
   const html = render({ eligible: false, canIssue: false, issuedElsewhere: true, ticket: { issuedAt: '2026-11-03' } });

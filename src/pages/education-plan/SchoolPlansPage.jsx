@@ -5,7 +5,14 @@ import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { useEducationPlan, useGoalDetails } from '@/hooks/education-plan/useEducationPlan';
 import { Card, EduStatusBadge, EmptyState, PageHead, YearPlanStatusBadge, fmtDate, fmtDateTime } from '@/components/education-plan/eduUi';
 import { Tabs } from '@/components/ui/Tabs';
-import { AGE_GROUPS, EDU_STATUS, EDU_STATUS_LABELS, allGoalItems } from '@/models/education-plan/educationPlanConstants';
+import {
+  AGE_GROUPS,
+  EDU_STATUS,
+  EDU_STATUS_LABELS,
+  allGoalItems,
+  ageRangeOptions,
+  sameAgeRange,
+} from '@/models/education-plan/educationPlanConstants';
 import { themeNumber, themeWeeksOf, yearWeeks } from '@/models/education-plan/classPlan';
 import { StatCard } from '@/components/ui/StatCard';
 import { clickableRowProps } from '@/utils/clickableRow';
@@ -15,7 +22,7 @@ const ageName = (id) => AGE_GROUPS.find((a) => a.id === id)?.name || '—';
 const TABS = [
   { key: 'goals', label: 'Mục tiêu năm học' },
   { key: 'branches', label: 'Chủ đề nhánh' },
-  { key: 'themes', label: 'Hồ sơ chủ đề' },
+  { key: 'themes', label: 'Kế hoạch giáo dục ngày' },
 ];
 
 const isShared = (status) => status === EDU_STATUS.APPROVED || status === 'REPLACED';
@@ -23,7 +30,7 @@ const isShared = (status) => status === EDU_STATUS.APPROVED || status === 'REPLA
 const sentEntry = (doc) => [...(doc.history || [])].reverse().find((h) => !h.tone);
 
 /**
- * Hiệu trưởng: xem kế hoạch giáo dục toàn trường (kế hoạch năm theo nhóm tuổi, chủ đề nhánh và hồ sơ chủ đề của các lớp),
+ * Hiệu trưởng: xem kế hoạch giáo dục toàn trường (kế hoạch năm theo nhóm tuổi, chủ đề nhánh và kế hoạch giáo dục ngày của các lớp),
  * chỉ xem; duyệt theo chuỗi người ký ở trang Duyệt kế hoạch giáo dục.
  */
 export default function SchoolPlansPage() {
@@ -98,7 +105,7 @@ export default function SchoolPlansPage() {
   const all = data[tab];
   const rows = all.filter(
     (r) =>
-      (!age || r.ageGroupId === age) &&
+      (!age || sameAgeRange(r.ageGroupId, age)) &&
       (!status || r.status === status) &&
       (!q || `${r.title} ${r.code} ${r.by || ''}`.toLowerCase().includes(q.toLowerCase())),
   );
@@ -108,7 +115,7 @@ export default function SchoolPlansPage() {
   const stats = [
     { label: 'Kế hoạch năm đã ban hành', value: count(data.goals, EDU_STATUS.APPROVED), tone: 'blue', tab: 'goals' },
     { label: 'Chủ đề nhánh đã duyệt', value: count(data.branches, EDU_STATUS.APPROVED), tone: 'green', tab: 'branches' },
-    { label: 'Hồ sơ chủ đề đã duyệt', value: count(data.themes, EDU_STATUS.APPROVED), tone: 'purple', tab: 'themes' },
+    { label: 'Kế hoạch giáo dục ngày đã duyệt', value: count(data.themes, EDU_STATUS.APPROVED), tone: 'purple', tab: 'themes' },
   ];
 
   const switchTab = (key) => {
@@ -141,7 +148,7 @@ export default function SchoolPlansPage() {
           <SearchSubmit value={q} placeholder="Tìm tên, mã, người lập" label="Tìm kế hoạch" onSearch={setQ} />
           <select className="select" value={age} onChange={(e) => setAge(e.target.value)} aria-label="Lọc theo nhóm tuổi">
             <option value="">Tất cả nhóm tuổi</option>
-            {AGE_GROUPS.map((a) => (
+            {ageRangeOptions().map((a) => (
               <option key={a.id} value={a.id}>
                 {a.name}
               </option>

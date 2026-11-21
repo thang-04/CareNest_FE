@@ -24,3 +24,11 @@ test('mergeGoals: đổi trạng thái hoặc số phiên bản cũng tải lạ
   assert.equal(mergeGoals([detail('a')], [full])[0], full);
   assert.deepEqual(mergeGoals(undefined, []), []);
 });
+
+test('mergeGoals nhận trạng thái hạn mới dù số phiên bản và nội dung không đổi', () => {
+  const old = detail('a', { timeLock: { deadlineState: 'NEAR' } });
+  const next = summary('a', { timeLock: { deadlineState: 'OVERDUE' } });
+  const current = mergeGoals([old], [next])[0];
+  assert.equal(current.timeLock.deadlineState, 'OVERDUE');
+  assert.equal(current.domains, old.domains);
+});
