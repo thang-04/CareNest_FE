@@ -1,6 +1,6 @@
 import { ROLES } from '@/models/User';
 import { PERMISSIONS } from '@/models/bePermissions';
-import { hasBePermission, hasSchoolWideBePermission, inBePermissionScope, inOwnCampus } from '@/utils/bePermissions';
+import { hasBePermission, hasSchoolWideBePermission, inBePermissionScope, inOwnCampus, pinnedBeCampusId } from '@/utils/bePermissions';
 import {
   AREA_SCOPE_ALL,
   PERMISSION_ACCESS,
@@ -177,7 +177,11 @@ const teacherAssignAccess = (user) => {
   return {
     access: PERMISSION_ACCESS.EDIT,
     scope: isPrincipal(user) || hasSchoolWideBePermission(user, STAFF_ASSIGNMENT_MANAGE) ? PERMISSION_SCOPE.ALL : PERMISSION_SCOPE.CAMPUS,
-    campusId: isPrincipal(user) || hasSchoolWideBePermission(user, STAFF_ASSIGNMENT_MANAGE) ? null : user?.campusId || null,
+    // Giao việc phân công tại điểm trường cụ thể thì chỉ điểm trường đó (AUTH-20)
+    campusId:
+      isPrincipal(user) || hasSchoolWideBePermission(user, STAFF_ASSIGNMENT_MANAGE)
+        ? null
+        : (pinnedBeCampusId(user, STAFF_ASSIGNMENT_MANAGE) ?? user?.campusId ?? null),
     actions: { create: true, update: true, delete: true },
   };
 };
