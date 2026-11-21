@@ -60,7 +60,7 @@ export default function ChildrenListPage() {
   // prepLocked: năm sắp diễn ra chưa tới ngày mở chuẩn bị (CHD-12) — quyết định thẻ, câu "Sắp nhập học"
   const { schoolYear, yearLocked: prepLocked, preparingYear } = useSchoolYear();
   const yearLocked = useChildYearLock();
-  const md = useMasterData();
+  const md = useMasterData(schoolYear);
   const [filters, setFilters, resetFilterParams, activeKeys] = useFilterParams(FILTER_DEFAULTS);
   const { status, keyword, campusId, classId } = filters;
   const [page, setPage] = useState(1);

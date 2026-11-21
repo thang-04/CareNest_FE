@@ -47,11 +47,11 @@ const TABS = [
 export default function ChildProfilePage() {
   const { id } = useParams();
   const { user } = useAuth();
-  const md = useMasterData();
   // Năm đã kết thúc hoặc năm sắp diễn ra chưa tới ngày mở chuẩn bị (CFG-YR-01, CHD-12): hồ sơ chỉ xem
   const yearLocked = useChildYearLock();
   const { detail, loading, error, reload } = useChildDetail(id);
   const child = detail?.child;
+  const md = useMasterData(child?.plannedAdmission?.schoolYearId ?? null);
   const crumbs = childrenCrumbs(child?.fullName || 'Hồ sơ trẻ');
   const [tab, setTab] = useState('overview');
 

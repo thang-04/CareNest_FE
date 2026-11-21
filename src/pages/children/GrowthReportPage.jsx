@@ -107,9 +107,9 @@ function ReportRow({ row }) {
  */
 export default function GrowthReportPage() {
   const { user } = useAuth();
-  const md = useMasterData();
   const principal = isPrincipal(user);
   const { schoolYear, schoolYears } = useSchoolYear();
+  const md = useMasterData(schoolYear);
   const yearLabel = schoolYears.find((y) => y.id === schoolYear)?.label || schoolYear;
 
   // Tháng chọn được: tháng bắt đầu của các kỳ cân đo, đợt khám (chưa hủy) trong phạm vi, năm học đang chọn; mặc định tháng gần nhất.

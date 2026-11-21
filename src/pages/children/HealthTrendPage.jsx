@@ -32,11 +32,11 @@ export default function HealthTrendPage() {
   const { schoolYear } = useSchoolYear();
   // Năm đã kết thúc hoặc năm sắp diễn ra chưa tới ngày mở chuẩn bị (CFG-YR-01, CHD-12): không duyệt nhận xét xu hướng
   const yearLocked = useChildYearLock();
+  const md = useMasterData(schoolYear);
   const [params, setParams] = useSearchParams();
   const childId = params.get('childId') || '';
   const [period, setPeriod] = useState('ALL');
   const [view, setView] = useState('chart');
-  const md = useMasterData();
   // Hiệu trưởng / Phó hiệu trưởng lọc theo điểm trường + lớp; giáo viên nhiều lớp chọn lớp (danh sách đã theo lớp mình)
   const leader = isPrincipal(user) || isVicePrincipal(user);
   const [campusId, setCampusId] = useState('');

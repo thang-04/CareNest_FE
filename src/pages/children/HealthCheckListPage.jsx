@@ -32,13 +32,13 @@ const bmiWarningTotal = (progress) => Object.values(progress.bmi || {}).reduce((
 export default function HealthCheckListPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const md = useMasterData();
   const [campusId, setCampusId] = useState('');
   const [kind, setKind] = useState('');
   const [status, setStatus] = useState('');
   const [page, setPage] = useState(1);
   // Đợt khám theo năm học chọn ở header, tính theo ngày bắt đầu khám (user chốt 2026-10-28, Y-4).
   const { schoolYear, schoolYears, yearReadOnly } = useSchoolYear();
+  const md = useMasterData(schoolYear);
   const yearLocked = useChildYearLock();
   const yearLabel = schoolYears.find((y) => y.id === schoolYear)?.label || schoolYear;
   const { campaigns, loading, error, reload } = useHealthChecks({ campusId, kind, status, schoolYear });
