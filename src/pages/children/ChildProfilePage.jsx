@@ -29,6 +29,7 @@ import { formatDate, formatDateTime } from '@/utils/format';
 import { canEditChild, canOpenChildEdit, canPlaceChild } from '@/utils/children/childrenPermissions';
 import { ChildProfileSummary } from '@/components/children/ChildProfileSummary';
 import { ChildInfoTable } from '@/components/children/ChildInfoTable';
+import { ChildProfileHistory } from '@/components/children/ChildProfileHistory';
 import { canActivateParent, canRecordMeasurement, canViewParentAccounts } from '@/utils/children/childrenPermissions';
 import { SMS_STATUS } from '@/models/children/childrenConstants';
 import { AllergyStateBadge, ParentAccountBadge, SmsStatusBadge } from '@/components/children/ChildBadges';
@@ -42,6 +43,7 @@ const missing = <span className="muted">Chưa có thông tin</span>;
 const TABS = [
   { key: 'overview', label: 'Tổng quan' },
   { key: 'placements', label: 'Lịch sử xếp lớp' },
+  { key: 'history', label: 'Lịch sử sửa hồ sơ' },
 ];
 
 export default function ChildProfilePage() {
@@ -352,6 +354,11 @@ export default function ChildProfilePage() {
               )}
             </div>
           </section>
+        </div>
+      )}
+      {tab === 'history' && (
+        <div role="tabpanel">
+          <ChildProfileHistory history={child.history} />
         </div>
       )}
 

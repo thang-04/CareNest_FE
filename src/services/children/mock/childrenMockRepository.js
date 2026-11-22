@@ -1424,6 +1424,16 @@ export const childrenMockRepository = {
       // Khai báo của Phó hiệu trưởng có hiệu lực ngay: bếp và điểm danh đọc danh sách mới.
       const owner = findChild(d, childId);
       owner.allergies = [...clean.allergies.items];
+      // BE:CHD-13 (22/11/2026): đổi "Báo ăn" ghi vào lịch sử hồ sơ (ChildRecordServiceImpl.saveDeclaration)
+      const mealBefore = owner.mealRegistered !== false;
+      if (mealBefore !== mealRegistered) {
+        const yesNo = (value) => (value ? 'Có' : 'Không');
+        const change = { field: 'mealRegistered', label: 'Báo ăn', from: yesNo(mealBefore), to: yesNo(mealRegistered) };
+        owner.history = [
+          ...(owner.history || []),
+          { action: 'UPDATED', userId: user.id, at: nowIso(), note: reason?.trim() || undefined, changes: [change] },
+        ];
+      }
       owner.mealRegistered = mealRegistered;
       return clone(decl);
     });
