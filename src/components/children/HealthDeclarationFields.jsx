@@ -1,6 +1,7 @@
 import { useId, useState } from 'react';
 import { Plus, X } from '@/components/ui/icons';
 import { FormField } from '@/components/form/FormField';
+import { DateInput } from '@/components/form/DateInput';
 import { Checkbox } from '@/components';
 import { IntakeSheet, IntakeChoiceRow } from './IntakeSheet';
 import { ALLERGY_STATE_LABELS, DECLARATION_STATE, DIET_STATE_LABELS, NOTE_STATE_LABELS } from '@/models/children/childrenConstants';
@@ -136,13 +137,11 @@ export function HealthDeclarationFields({ value, onChange, errors = {}, dateOfBi
         )}
         {it.dateLabel && (
           <FormField label={it.dateLabel} required error={errors[`medicalHistory.${it.key}Date`]}>
-            <input
-              type="date"
-              className="input"
+            <DateInput
               value={v.contactDate || ''}
               min={dateOfBirth || undefined}
               max={todayInput()}
-              onChange={(e) => setHistory(it.key, { contactDate: e.target.value })}
+              onChange={(next) => setHistory(it.key, { contactDate: next })}
             />
           </FormField>
         )}
