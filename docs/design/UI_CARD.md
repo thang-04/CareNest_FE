@@ -27,6 +27,7 @@ Import từ `@/components` trừ khi cột "Từ" ghi khác.
 | Modal / form trong modal | `Modal` | `@/components` |
 | Hộp xác nhận (xóa, gửi, duyệt) | `ConfirmationModal` (tự khóa nút khi đang chạy) | `@/components` |
 | Đang tải / trống / lỗi ngoài bảng | `LoadingState`, `EmptyState`, `ErrorState` (tự xử lý 401/403/404) | `@/components` |
+| Hiển thị HTML có định dạng từ BE, fallback chữ thường | `RichBody` (lọc HTML trước khi hiển thị) | `@/components` |
 | Che màn khi đang gửi | `SubmitOverlay` | `@/components` |
 | Thông báo kết quả | `useToast()` — lỗi: `toast.error(err, 'Tiêu đề')` | `@/contexts/ToastContext` |
 | Nhãn trạng thái | `createStatusBadge` (mỗi feature một bảng map) | `@/components` |

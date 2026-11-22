@@ -273,6 +273,7 @@ export const accountMockRepository = {
         ...found,
         title: full.title,
         message: full.body,
+        bodyHtml: full.bodyHtml,
         senderName: full.senderName,
         attachments: full.attachments,
         read: true,

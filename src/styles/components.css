@@ -884,6 +884,11 @@ tr.sortable-item--moved > td {
   padding: var(--space-2) var(--space-3);
   font-size: var(--fs-sm);
 }
+/* Cột Thao tác trong bảng kẻ ô: lề ngang rộng hơn để nhóm icon không sát vạch và tiêu đề */
+.table.table--grid th.cell--actions,
+.table.table--grid td.cell--actions {
+  padding-inline: var(--space-4);
+}
 .table tbody tr td {
   transition: background var(--duration-fast) ease;
 }
@@ -3895,7 +3900,7 @@ button.stat-card .stat-card__label::after {
 .row-actions {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-1);
+  gap: var(--space-2);
 }
 /* Nút nghiệp vụ chính đặt liền RowActions trong ô Thao tác (không có .row bọc) vẫn cách đều */
 .cell--actions > .btn + .row-actions,
@@ -4161,4 +4166,28 @@ button.stat-card .stat-card__label::after {
     width: auto;
     white-space: nowrap;
   }
+}
+
+/* Nội dung HTML đã được lọc ở RichBody; bản chữ thường giữ xuống dòng cũ. */
+.rich-body {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.rich-body--html {
+  white-space: normal;
+}
+.rich-body p {
+  margin: 0 0 var(--space-2);
+}
+.rich-body p:last-child {
+  margin-bottom: 0;
+}
+.rich-body ul,
+.rich-body ol {
+  margin: 0 0 var(--space-2);
+  padding-left: var(--space-6);
+}
+.rich-body a {
+  color: var(--color-primary);
+  text-decoration: underline;
 }

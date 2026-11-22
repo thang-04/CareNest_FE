@@ -16,7 +16,7 @@ export const INTEGRATION_MODULES = {
   },
   announcements: {
     source: 'api',
-    routes: ['/announcements', '/announcement-templates', '/notification-rules', '/announcement-schedules'],
+    routes: ['/announcements', '/notification-settings', '/announcement-templates', '/notification-rules', '/announcement-schedules'],
     files: ['src/services/announcement/api/announcementApi.js'],
     facades: ['src/services/announcement/announcementService.js'],
   },

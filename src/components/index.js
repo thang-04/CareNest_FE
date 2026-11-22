@@ -37,6 +37,7 @@ export { DataTable } from './ui/DataTable';
 export { PageHeader } from './ui/PageHeader';
 export { ResponsiveToolbar } from './ui/ResponsiveToolbar';
 export { ListPage } from './ui/ListPage';
+export { RichBody } from './ui/RichBody';
 export { LABELS } from './ui/labels';
 export { PasswordInput } from './form/PasswordInput';
 export { DateInput } from './form/DateInput';
