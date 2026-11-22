@@ -50,6 +50,7 @@ const configFieldOf = (key) => {
   if (key === 'mealPrice') return 'price';
   if (key === 'serviceFee') return 'serviceFee';
   if (key === 'dailyKcalNeed') return 'dailyKcalNeed';
+  if (/^applied(Protein|Lipid|Glucid)Pct$/.test(key)) return 'applied';
   const norm = Object.entries(NORM_STEMS).find(([, stem]) => key === `${stem}Min` || key === `${stem}Max`);
   return norm ? `norms.${norm[0]}` : null;
 };
@@ -315,6 +316,17 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
     serviceFee: v.serviceFee ?? 0,
     basis: v.normBasis || '',
     dailyKcalNeed: v.dailyKcalNeed ?? '',
+    // Cơ cấu áp dụng P:L:G (BE NUT-27) và hệ số quy đổi BE đã dùng; chưa chọn thì không có
+    applied: v.appliedProteinPct == null ? null : { protein: v.appliedProteinPct, lipid: v.appliedLipidPct, glucid: v.appliedGlucidPct },
+    factors: v.conversion
+      ? {
+          proteinKcalPerG: Number(v.conversion.proteinKcalPerG),
+          lipidKcalPerG: Number(v.conversion.lipidKcalPerG),
+          glucidKcalPerG: Number(v.conversion.glucidKcalPerG),
+          animalProteinShare: Number(v.conversion.animalProteinShare),
+          animalLipidShare: Number(v.conversion.animalLipidShare),
+        }
+      : null,
     // Khoảng chưa đặt (cả hai đầu null) không có khóa ⇒ màn hiện "Chưa đặt định mức"
     norms: Object.fromEntries(
       Object.entries(NORM_STEMS)
@@ -339,6 +351,9 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
     serviceFee: numOrNull(g.serviceFee) ?? 0,
     normBasis: text(basis),
     dailyKcalNeed: numOrNull(g.dailyKcalNeed),
+    appliedProteinPct: numOrNull(g.applied?.protein),
+    appliedLipidPct: numOrNull(g.applied?.lipid),
+    appliedGlucidPct: numOrNull(g.applied?.glucid),
     ...Object.fromEntries(
       Object.entries(NORM_STEMS).flatMap(([key, stem]) => {
         const [min, max] = g.norms?.[key] || [];
@@ -350,8 +365,28 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
     ),
   });
   const sameValue = (x, y) => (x == null || y == null ? x == null && y == null : x === y || Number(x) === Number(y));
+  // Chỉ so các trường màn Định mức dinh dưỡng gửi; gam/vi chất/% bữa của bản cũ không nhập ở đây nên không coi là thay đổi
+  const COMPARED_FIELDS = new Set([
+    'ageGroupId',
+    'mealPrice',
+    'normBasis',
+    'dailyKcalNeed',
+    'appliedProteinPct',
+    'appliedLipidPct',
+    'appliedGlucidPct',
+    'kcalMin',
+    'kcalMax',
+    'proteinPctMin',
+    'proteinPctMax',
+    'lipidPctMin',
+    'lipidPctMax',
+    'glucidPctMin',
+    'glucidPctMax',
+  ]);
   const sameConfig = (a, b) =>
-    Object.keys(a).every((k) => (k === 'effectiveFrom' ? true : k === 'normBasis' ? (a[k] || '') === (b[k] || '') : sameValue(a[k], b[k])));
+    Object.keys(a)
+      .filter((k) => COMPARED_FIELDS.has(k))
+      .every((k) => (k === 'normBasis' ? (a[k] || '') === (b[k] || '') : sameValue(a[k], b[k])));
 
   const versionsOf = (beId) => client.get(`/nutrition/age-group-configs/${beId}/versions`);
 
@@ -555,6 +590,8 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
           meals: (g.mealSessions || []).map((code) => ({ code, name: MEAL_SESSION_LABELS[code] || code, countAs: code })),
           norms: latest?.norms || {},
           dailyKcalNeed: latest?.dailyKcalNeed ?? '',
+          applied: latest?.applied ?? null,
+          factors: latest?.factors ?? null,
           childCount: null,
           versions,
           prices: versions.map((v) => ({ id: v.id, price: v.price, serviceFee: v.serviceFee, effectiveFrom: v.effectiveFrom })),

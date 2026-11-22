@@ -15,9 +15,10 @@ import { RowActions } from '@/components/ui/RowActions';
 import { FormField } from '@/components/form/FormField';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
 import { NutritionGroupList, NutritionSetupGroup, rangeLabel, versionState } from '@/components/menu-planning/NutritionSetupGroup';
-import { MEAL_SESSION_LABELS, addDays, formatMoney } from '@/models/menu-planning/menuPlanningConstants';
+import { addDays, formatMoney } from '@/models/menu-planning/menuPlanningConstants';
 import { hasErrors, validateNutritionSetup } from '@/utils/menu-planning/menuPlanningValidation';
 import {
+  APPLIED_STRUCTURE_COLUMNS,
   KCAL_NORM,
   STRUCTURE_NORM_COLUMNS,
   priceStatus,
@@ -34,9 +35,14 @@ import { Button, TextAreaField, TextField } from '@/components';
 const TABS = [
   { key: 'overview', label: 'Tổng quan' },
   { key: 'groups', label: 'Nhóm độ tuổi' },
-  { key: 'meals', label: 'Bữa ăn & chuẩn tạm' },
+  { key: 'meals', label: 'Định mức dinh dưỡng' },
 ];
 const isSet = (range) => rangeLabel(range) !== '—';
+// Cơ cấu áp dụng hiển thị Đạm–Béo–Đường, ví dụ 14–36–50%
+const appliedLabel = (applied) => {
+  const values = APPLIED_STRUCTURE_COLUMNS.map((c) => applied?.[c.key]);
+  return values.some((v) => v === '' || v == null) ? '—' : `${values.join('–')}%`;
+};
 // Trạng thái nhóm: chưa đủ năng lượng + P:L:G thì thực đơn chưa đánh giá được ⇒ báo vàng thay vì "Đang áp dụng"
 const groupStatus = (g) => {
   if (!g.enabled) return { tone: 'gray', label: 'Không áp dụng' };
@@ -101,7 +107,7 @@ export default function NutritionSetupPage() {
     <>
       <PageHeader
         crumbs={setupCrumbs()}
-        title="Thiết lập dinh dưỡng"
+        title="Định mức dinh dưỡng"
         readOnly={!canEdit}
         actions={
           form && (
@@ -258,13 +264,13 @@ export default function NutritionSetupPage() {
             <table className="table table--grid td-overview__table">
               <thead>
                 <tr>
-                  {/* Tổng quan chỉ giữ thông tin để chọn nhóm; P : L : G, định mức gam, vi chất xem ở tab chi tiết */}
-                  <th className="td-sticky-first">Nhóm tuổi</th>
+                  {/* Tổng quan chỉ giữ thông tin để chọn nhóm; khoảng P:L:G và gam quy đổi xem ở tab chi tiết. */}
+                  <th className="td-sticky-first">Tên nhóm tuổi</th>
                   <th>Độ tuổi</th>
-                  <th className="num">Số trẻ</th>
-                  <th>Bữa phục vụ</th>
+                  <th className="nowrap">Cơ cấu áp dụng</th>
+                  <th className="num">Calo cả ngày</th>
+                  <th className="num">Calo khuyến nghị</th>
                   <th className="money">Giá suất / ngày</th>
-                  <th className="num">Năng lượng (kcal)</th>
                   <th className="center">Trạng thái</th>
                   {canEdit && <th className="cell--actions">Thao tác</th>}
                 </tr>
@@ -272,7 +278,6 @@ export default function NutritionSetupPage() {
               <tbody>
                 {form.groups.map((g) => {
                   const info = groupInfo(g.ageGroupId);
-                  const childCount = childCountOf(g.ageGroupId);
                   const { upcoming } = priceStatus(setupOf(g.ageGroupId)?.prices, g.ageGroupId, today);
                   return (
                     <tr key={g.ageGroupId} className="row-click" {...clickableRowProps(() => openGroup(g.ageGroupId))}>
@@ -280,14 +285,9 @@ export default function NutritionSetupPage() {
                         <strong>{info.short}</strong>
                       </td>
                       <td className="nowrap text-2">{info.range || '—'}</td>
-                      <td className="num">{childCount == null ? '—' : childCount}</td>
-                      <td>
-                        {g.meals.length ? (
-                          g.meals.map((meal) => meal.name || MEAL_SESSION_LABELS[meal.code] || 'Chưa đặt tên').join(', ')
-                        ) : (
-                          <span className="text-sm text-2">Chưa thiết lập</span>
-                        )}
-                      </td>
+                      <td className="nowrap">{appliedLabel(g.applied)}</td>
+                      <td className="num nowrap">{g.dailyKcalNeed ? `${g.dailyKcalNeed} kcal` : '—'}</td>
+                      <td className="num nowrap">{isSet(g.norms.kcal) ? `${rangeLabel(g.norms.kcal)} kcal` : '—'}</td>
                       <td className="money">
                         <div className="td-overview__price">
                           <strong>{g.price ? formatMoney(Number(g.price)) : 'Chưa thiết lập'}</strong>
@@ -298,7 +298,6 @@ export default function NutritionSetupPage() {
                           )}
                         </div>
                       </td>
-                      <td className="num nowrap">{rangeLabel(g.norms.kcal)}</td>
                       <td className="center">
                         <StatusBadge {...groupStatus(g)} />
                       </td>
@@ -363,6 +362,7 @@ export default function NutritionSetupPage() {
             childCount={childCountOf(activeGroup.ageGroupId)}
             setup={{
               versions: setupOf(activeGroup.ageGroupId)?.versions,
+              factors: setupOf(activeGroup.ageGroupId)?.factors,
               upcoming: priceStatus(setupOf(activeGroup.ageGroupId)?.prices, activeGroup.ageGroupId, today).upcoming,
             }}
             usesApi={usesApi}

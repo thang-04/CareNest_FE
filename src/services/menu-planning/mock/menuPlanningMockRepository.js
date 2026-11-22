@@ -253,6 +253,10 @@ const sanitizeSetup = (g) => ({
       // Vi chất được để trống số sau (chỉ cần đạt tối thiểu) ⇒ giữ null, không thành 0
       .map(([k, range]) => [k, range.map((v) => (v === '' || v == null ? null : Number(v)))]),
   ),
+  // BE NUT-27: cơ cấu áp dụng P:L:G; để trống cả ba = chưa chọn
+  applied: ['protein', 'lipid', 'glucid'].every((k) => g.applied?.[k] === '' || g.applied?.[k] == null)
+    ? null
+    : Object.fromEntries(['protein', 'lipid', 'glucid'].map((k) => [k, Number(g.applied[k])])),
 });
 
 /** Định lượng theo nhóm tuổi; `quantity` (khẩu phần chuẩn, hệ số 1) giữ cho dữ liệu cũ. */
@@ -1056,7 +1060,7 @@ export const menuPlanningMockRepository = {
       });
       if (hasErrors(errors)) fail(422, MSG.invalid, errors);
       const basis = String(payload.basis || '').trim();
-      const snapshot = (x) => JSON.stringify([x.enabled, x.price, x.serviceFee, x.meals, x.norms, x.basis]);
+      const snapshot = (x) => JSON.stringify([x.enabled, x.price, x.serviceFee, x.meals, x.norms, x.basis, x.applied]);
       plans.forEach(({ g, data, total, current, changed }) => {
         const setup = db.nutritionSetups.find((x) => x.ageGroupId === g.ageGroupId);
         const before = snapshot(setup);

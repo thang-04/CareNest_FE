@@ -675,6 +675,13 @@ export const topUpRecentWeeklyMenus = (db, today) => {
 /* ---------- nutrition setup: meals with unit price, daily reference ranges per age group ---------- */
 // Giá suất ăn một ngày, bằng mức năm học 2026-2027 ở buildMealPrices
 const DAY_PRICE = { 'ag-2': 32000, 'ag-3': 30000, 'ag-4': 30000, 'ag-5': 30000 };
+// Cơ cấu áp dụng P:L:G demo (nằm trong khoảng ở SEED_NORMS); nhóm 5–6 tuổi để trống như định mức
+const SEED_APPLIED = {
+  'ag-2': { protein: 14, lipid: 36, glucid: 50 },
+  'ag-3': { protein: 14, lipid: 26, glucid: 60 },
+  'ag-4': { protein: 14, lipid: 26, glucid: 60 },
+};
+
 const buildNutritionSetups = () =>
   AGE_GROUPS.map(({ id }) => ({
     ageGroupId: id,
@@ -683,6 +690,7 @@ const buildNutritionSetups = () =>
     price: DAY_PRICE[id],
     meals: sessionsOf(id).map((code) => ({ code, name: MEAL_SESSION_LABELS[code], countAs: code })),
     norms: { ...JSON.parse(JSON.stringify(SEED_NORMS[id])), ...seedMicroNormsOf(id) },
+    applied: SEED_APPLIED[id] ? { ...SEED_APPLIED[id] } : null,
     updatedBy: VP,
     updatedAt: at('2026-08-20'),
     history: [{ id: `h_ns_${id}`, action: 'CREATED', userId: VP, at: at('2026-08-20'), note: '' }],
