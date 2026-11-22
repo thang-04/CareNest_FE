@@ -11,7 +11,7 @@ globalThis.localStorage = {
 globalThis.window = new EventTarget();
 
 const { readDb } = await import('@/mocks/mockDatabase');
-const { foodUnits, toStockQty, UNIT_KIND } = await import('@/utils/menu-planning/foodUnits');
+const { autoUnitRatios, foodUnits, toStockQty, UNIT_KIND } = await import('@/utils/menu-planning/foodUnits');
 const { validateFood } = await import('@/utils/menu-planning/menuPlanningValidation');
 const { menuPlanningMockRepository: menu } = await import('@/services/menu-planning/mock/menuPlanningMockRepository');
 const { kitchenMockRepository: kitchen } = await import('@/services/kitchen/mock/kitchenMockRepository');
@@ -33,6 +33,15 @@ test('BA 02: thực phẩm cũ chưa khai đơn vị kho ⇒ đơn vị kho = đ
   assert.equal(toStockQty(bag, 2, UNIT_KIND.PURCHASE), 20);
   assert.equal(toStockQty(bag, 2, UNIT_KIND.STOCK), 2);
   assert.equal(toStockQty(bag, 2), 2, 'dòng cũ không ghi loại = đơn vị kho');
+});
+
+test('form thực phẩm: tỷ lệ hiển nhiên tự điền, đơn vị lạ thì để người dùng nhập', () => {
+  assert.deepEqual(autoUnitRatios({ unit: 'g', purchaseUnit: 'kg', stockUnit: 'kg' }), { purchaseToStock: 1, stockUnitSize: 1000 });
+  assert.deepEqual(autoUnitRatios({ unit: 'ml', purchaseUnit: ' Lít ', stockUnit: 'lít' }), { purchaseToStock: 1, stockUnitSize: 1000 });
+  assert.deepEqual(autoUnitRatios({ unit: 'g', purchaseUnit: 'thùng', stockUnit: 'kg' }), { stockUnitSize: 1000 });
+  assert.deepEqual(autoUnitRatios({ unit: 'g', purchaseUnit: 'bao 25 kg', stockUnit: 'túi' }), {});
+  assert.deepEqual(autoUnitRatios({ unit: 'ml', purchaseUnit: 'kg', stockUnit: 'kg' }), { purchaseToStock: 1 }, 'không đổi kg ↔ ml');
+  assert.deepEqual(autoUnitRatios({ unit: 'g', purchaseUnit: '', stockUnit: '' }), {});
 });
 
 test('BA 02: tỷ lệ quy đổi bằng 0, âm hoặc trống bị chặn; thiếu đơn vị kho bị chặn', () => {

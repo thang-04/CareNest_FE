@@ -88,6 +88,7 @@ const toWebUser = (profile) => {
         ...withPermissions(user),
         bePermissions: user.permissions,
         beSchoolWidePermissions: user.schoolWidePermissions,
+        bePinnedCampusPermissions: user.pinnedCampusPermissions,
       }
     : user;
 };

@@ -91,6 +91,7 @@ export const createSchoolConfigApi = (axiosClient) => ({
           on: effect === 'GRANT' ? true : effect === 'REVOKE' ? false : roleOn,
           effect: effect || 'INHERIT',
           scope: override?.scope ?? null,
+          campusId: override?.campusId ?? null,
           campusScoped: !!permission?.campusScoped,
         };
       }),
