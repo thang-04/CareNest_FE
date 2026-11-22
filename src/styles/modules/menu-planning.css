@@ -3394,7 +3394,7 @@
   display: inline-flex;
   align-items: center;
   width: max-content;
-  padding: 2px var(--space-3);
+  padding: var(--space-1) var(--space-3);
   border: 1px solid var(--color-primary-border);
   border-radius: var(--radius-full);
   background: var(--color-primary-soft);
@@ -3509,6 +3509,9 @@
   width: min(100%, 112px);
   max-width: 100%;
   margin-inline: auto;
+}
+.td-applied__label {
+  display: block;
 }
 .td-applied__error {
   margin: 0;
