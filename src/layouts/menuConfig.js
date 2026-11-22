@@ -317,7 +317,7 @@ const ITEMS = {
     to: '/assessment/rewards',
   },
   nutritionSetup: {
-    label: 'Cấu hình nhóm tuổi',
+    label: 'Định mức dinh dưỡng',
     to: '/menu/setup',
   },
   foods: {

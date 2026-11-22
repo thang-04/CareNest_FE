@@ -455,7 +455,10 @@ test('lưu Thiết lập lên BE: một POST /batch chứa mọi nhóm đổi; k
   const result = await api.saveNutritionSetups({
     effectiveFrom: '2099-01-01',
     basis: 'TT 28/2016',
-    groups: [group('ag-4'), group('ag-2', { norms: { kcal: ['', ''] }, price: '28000' })],
+    groups: [
+      group('ag-4', { dailyKcalNeed: '1400', applied: { protein: '14', lipid: '26', glucid: '60' } }),
+      group('ag-2', { norms: { kcal: ['', ''] }, price: '28000' }),
+    ],
   });
   const writes = calls.filter((c) => c.method !== 'get');
   assert.deepEqual(
@@ -472,7 +475,10 @@ test('lưu Thiết lập lên BE: một POST /batch chứa mọi nhóm đổi; k
     // NUT-19: phí dịch vụ để trống gửi 0
     serviceFee: 0,
     normBasis: 'TT 28/2016',
-    dailyKcalNeed: 1300,
+    dailyKcalNeed: 1400,
+    appliedProteinPct: 14,
+    appliedLipidPct: 26,
+    appliedGlucidPct: 60,
     kcalMin: 615,
     kcalMax: 726,
     proteinPctMin: 13,
@@ -528,6 +534,16 @@ test('lưu Thiết lập lên BE: một POST /batch chứa mọi nhóm đổi; k
   });
   assert.ok(!calls.some((c) => c.method !== 'get'), 'giống bản mới nhất ⇒ không ghi');
   assert.equal(none.saved, 0);
+
+  // Gam theo chất, vi chất, % bữa không nhập ở màn Định mức dinh dưỡng: khác bản cũ chỉ ở các trường này không phải thay đổi
+  calls = [];
+  const gramOnly = await api.saveNutritionSetups({
+    effectiveFrom: '2099-02-01',
+    basis: 'TT 28/2016',
+    groups: [group('ag-4', { norms: { ...norms, animalProteinG: ['99', '120'], calcium: ['1', '2'] } })],
+  });
+  assert.equal(gramOnly.saved, 0);
+  assert.ok(!calls.some((c) => c.method !== 'get'));
 
   calls = [];
   await api.saveNutritionSetups({

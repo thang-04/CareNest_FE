@@ -102,6 +102,30 @@ export const validateDish = (form, others = [], { requireGroups = null } = {}) =
 
 const overlaps = (a, b) => a.effectiveFrom <= (b.effectiveTo || '9999-12-31') && b.effectiveFrom <= (a.effectiveTo || '9999-12-31');
 
+const APPLIED_LABELS = { protein: 'Đạm', lipid: 'Béo', glucid: 'Bột đường' };
+
+/**
+ * Cơ cấu áp dụng P:L:G (BE NUT-27): để trống cả ba = chưa chọn; đã nhập thì đủ ba số 0–100, tổng đúng 100 và mỗi số
+ * nằm trong khoảng tối thiểu–tối đa của chính chất đó ở bảng chỉ số (khoảng chưa nhập thì không giới hạn).
+ */
+export const appliedStructureError = (applied = {}, norms = {}) => {
+  const keys = Object.keys(APPLIED_LABELS);
+  const blank = (v) => v === '' || v == null;
+  if (keys.every((k) => blank(applied[k]))) return null;
+  if (keys.some((k) => blank(applied[k]))) return 'Nhập đủ đạm, béo và bột đường.';
+  if (keys.some((k) => !isNum(applied[k]) || Number(applied[k]) < 0 || Number(applied[k]) > 100)) return 'Mỗi số từ 0 đến 100.';
+  const total = keys.reduce((sum, k) => sum + Number(applied[k]), 0);
+  if (Math.abs(total - 100) > 1e-9) return `Tổng là ${+total.toFixed(2)}%, cần đúng 100%.`;
+  const outside = keys.find((k) => {
+    const [min, max] = norms[k] || [];
+    const v = Number(applied[k]);
+    return (isNum(min) && v < Number(min)) || (isNum(max) && v > Number(max));
+  });
+  if (!outside) return null;
+  const [min, max] = norms[outside];
+  return `${APPLIED_LABELS[outside]} phải từ ${min} đến ${max}%.`;
+};
+
 const SESSION_PCT_KEYS = ['morningKcalPct', 'lunchKcalPct', 'afternoonKcalPct'];
 const PERCENT_KEYS = ['protein', 'lipid', 'glucid', ...SESSION_PCT_KEYS];
 // Định mức gam theo chất và % năng lượng từng bữa không bắt buộc: để trống cả khoảng là chưa đặt
@@ -137,6 +161,8 @@ export const validateNutritionSetup = (form, today, { mealsReadOnly = false, min
         if (!base.includes(m.code) && !base.includes(m.countAs)) e[`${key}.meals.${i}.countAs`] = 'Chọn bữa dùng để tính số suất.';
       });
     }
+    const appliedError = appliedStructureError(g.applied, g.norms);
+    if (appliedError) e[`${key}.applied`] = appliedError;
     // Chuẩn tạm: để trống cả bốn = chưa nhập (chưa đánh giá); đã nhập thì phải đủ từng khoảng
     const blank = (v) => v === '' || v == null;
     const norms = Object.entries(g.norms || {});

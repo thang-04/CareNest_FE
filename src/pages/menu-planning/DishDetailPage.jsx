@@ -11,35 +11,20 @@ import { useTabParam } from '@/hooks/useTabParam';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { ErrorState, LoadingState } from '@/components/ui/States';
 import { AllergenChips, DishStatusBadge, HistoryCard } from '@/components/menu-planning/MenuBadges';
-import { StatusBadge } from '@/components/ui/StatusBadge';
-import { microGroupOf } from '@/utils/menu-planning/microGroups';
 import { DishPortionTable } from '@/components/menu-planning/DishPortionTable';
 import { dishAllergens, ingredientBreakdown, ingredientQty } from '@/utils/menu-planning/menuCalculations';
 import { activeAgeGroups } from '@/utils/menu-planning/nutritionSetup';
 import { dishCrumbs } from '@/utils/menu-planning/breadcrumbs';
-import {
-  DISH_TYPE_LABELS,
-  FOOD_ORIGIN_LABELS,
-  MICRONUTRIENT_GROUPS,
-  MICRONUTRIENT_LABELS,
-  MICRONUTRIENT_UNITS,
-  formatMoney,
-} from '@/models/menu-planning/menuPlanningConstants';
+import { DISH_TYPE_LABELS, FOOD_ORIGIN_LABELS, formatMoney } from '@/models/menu-planning/menuPlanningConstants';
 import '@/styles/modules/menu-planning.css';
 import { Button } from '@/components';
 
 const n1 = (v) => (typeof v === 'number' ? (Math.round(v * 10) / 10).toLocaleString('vi-VN') : '—');
-const n2 = (v) => (typeof v === 'number' ? v.toLocaleString('vi-VN', { maximumFractionDigits: 2 }) : '—');
 
-const PORTION_VIEWS = [
-  { key: 'energy', label: 'Năng lượng và P : L : G' },
-  { key: 'micro', label: 'Khoáng chất và vitamin' },
-];
-// Bảng thành phần tách theo nhóm cột để không tràn ngang: định lượng & chi phí, năng lượng, khoáng chất, vitamin
+// Bảng thành phần tách theo nhóm cột để không tràn ngang: định lượng & chi phí, năng lượng (khoáng chất, vitamin chỉ xem ở màn Thực phẩm)
 const INGREDIENT_VIEWS = [
   { key: 'portion', label: 'Định lượng và chi phí' },
   { key: 'energy', label: 'Năng lượng' },
-  ...MICRONUTRIENT_GROUPS.map((g) => ({ key: g.key, label: g.label, items: g.items })),
 ];
 const ENERGY_COLS = [
   ['animalProtein', 'Đạm ĐV (g)'],
@@ -65,7 +50,6 @@ export default function DishDetailPage() {
   const [confirm, setConfirm] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const [picked, setPicked] = useState('');
-  const [portionView, setPortionView] = useState('energy');
   const [ingredientView, setIngredientView] = useState('portion');
   const [tab, setTab] = useTabParam(['overview', 'ingredients', 'usage']);
 
@@ -102,9 +86,8 @@ export default function DishDetailPage() {
     }))
     .filter((x) => x.groups.length);
   const view = INGREDIENT_VIEWS.find((v) => v.key === ingredientView);
-  const microCols = view.items || [];
   // Số cột sau "Thành phần" của từng nhóm cột (để ô "chưa nhập định lượng" trải hết hàng)
-  const restCols = view.key === 'portion' ? 6 : 1 + (view.key === 'energy' ? ENERGY_COLS.length : microCols.length);
+  const restCols = view.key === 'portion' ? 6 : 1 + ENERGY_COLS.length;
 
   return (
     <div className="page">
@@ -184,9 +167,8 @@ export default function DishDetailPage() {
             <section className="card">
               <div className="card__header td-wrap-head">
                 <h2 className="card__title">Dinh dưỡng và chi phí một suất theo nhóm tuổi</h2>
-                <Tabs variant="pill" ariaLabel="Nhóm chỉ số" items={PORTION_VIEWS} value={portionView} onChange={setPortionView} />
               </div>
-              <DishPortionTable dish={d} foodById={catalog.foodById} groups={groups} norms={catalog.norms} view={portionView} />
+              <DishPortionTable dish={d} foodById={catalog.foodById} groups={groups} norms={catalog.norms} />
             </section>
 
             {gaps.length > 0 && (
@@ -238,17 +220,11 @@ export default function DishDetailPage() {
                     ) : (
                       <>
                         <th className="num">Lượng ăn 1 trẻ</th>
-                        {view.key === 'energy'
-                          ? ENERGY_COLS.map(([k, label]) => (
-                              <th key={k} className="num">
-                                {label}
-                              </th>
-                            ))
-                          : microCols.map((k) => (
-                              <th key={k} className={`num td-micro-th td-micro-th--${microGroupOf(k)}`}>
-                                {MICRONUTRIENT_LABELS[k]} ({MICRONUTRIENT_UNITS[k]})
-                              </th>
-                            ))}
+                        {ENERGY_COLS.map(([k, label]) => (
+                          <th key={k} className="num">
+                            {label}
+                          </th>
+                        ))}
                       </>
                     )}
                   </tr>
@@ -266,17 +242,11 @@ export default function DishDetailPage() {
                     ) : (
                       <>
                         <td className="num nowrap">{n1(total.qty)}</td>
-                        {view.key === 'energy'
-                          ? ENERGY_COLS.map(([k]) => (
-                              <td key={k} className="num">
-                                {n1(total[k])}
-                              </td>
-                            ))
-                          : microCols.map((k) => (
-                              <td key={k} className="num">
-                                {total[k] == null ? <StatusBadge tone="orange" label="Chưa đủ" /> : n2(total[k])}
-                              </td>
-                            ))}
+                        {ENERGY_COLS.map(([k]) => (
+                          <td key={k} className="num">
+                            {n1(total[k])}
+                          </td>
+                        ))}
                       </>
                     )}
                   </tr>
@@ -311,26 +281,18 @@ export default function DishDetailPage() {
                           <td className="num nowrap">
                             {n1(r.qty)} {r.food?.unit || 'g'}
                           </td>
-                          {view.key === 'energy' ? (
-                            r.noNutrition ? (
-                              <td colSpan={ENERGY_COLS.length} className="td-warn text-sm">
-                                Chưa có số liệu dinh dưỡng
-                              </td>
-                            ) : (
-                              ENERGY_COLS.map(([k]) => (
-                                <td key={k} className="num">
-                                  {r.noOrigin && k.startsWith('animal') ? (
-                                    <span className="td-warn text-xs">chưa rõ nguồn gốc</span>
-                                  ) : (
-                                    n1(r[k])
-                                  )}
-                                </td>
-                              ))
-                            )
+                          {r.noNutrition ? (
+                            <td colSpan={ENERGY_COLS.length} className="td-warn text-sm">
+                              Chưa có số liệu dinh dưỡng
+                            </td>
                           ) : (
-                            microCols.map((k) => (
+                            ENERGY_COLS.map(([k]) => (
                               <td key={k} className="num">
-                                {r[k] == null ? <StatusBadge tone="gray" label="Chưa có" /> : n2(r[k])}
+                                {r.noOrigin && k.startsWith('animal') ? (
+                                  <span className="td-warn text-xs">chưa rõ nguồn gốc</span>
+                                ) : (
+                                  n1(r[k])
+                                )}
                               </td>
                             ))
                           )}
