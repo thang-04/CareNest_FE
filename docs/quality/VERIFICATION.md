@@ -37,3 +37,21 @@ Làn L:            ghi đủ vào Progress log của plan; chat chỉ tóm tắt
 ## Bằng chứng ghi ở đâu
 
 Không ghi nhật ký từng task vào file này (file này chỉ chứa quy tắc, để đọc nhanh). Bằng chứng của task: làn S/M ghi trong báo cáo cuối task; làn L ghi vào Progress log của plan; khi mở PR ghi vào mục "Kiểm thử". Nhật ký cũ (trước 12/11/2026) lưu ở `docs/quality/VERIFICATION_LOG.md` — không cần đọc khi làm task.
+
+## 22/11/2026 — Tổng quan kết quả Hoạt động chung đã lưu
+
+- User phản ánh các ô bình thường/ngủ tốt trống sau GV lưu. DB local xác nhận 19 dòng NGU_TOT, HAPPY, BINH_THUONG; UI cũ chủ động ẩn giá trị không cần chú ý.
+- Chỉnh riêng assessment: chi tiết ngày đọc phiếu đã lưu, phân biệt generalRecorded với skillsRecorded, hiện nhãn thật cho sáu tiêu chí. Không đổi API, phân quyền hay DB.
+- Node: `node --import ./scripts/register-auth-test-loader.mjs --test tests/dashboard/daily-overview-values.test.mjs tests/dashboard/daily-general-default-save.test.mjs tests/dashboard/class-assessment-overview.test.mjs tests/dashboard/assessment-be-api.test.mjs` → 27/27, 0 fail/skip.
+- `npx eslint src/utils/assessment/dailyOverviewValues.js src/pages/assessment/ClassAssessmentOverviewPage.jsx tests/dashboard/daily-overview-values.test.mjs` → đạt.
+- `node node_modules/vite/bin/vite.js build` → đạt; cảnh báo deprecated/annotation/eval có sẵn ở plugin/module khác.
+- UI local thật: teacher2 lưu General rồi Skills; tổ trưởng/PHT/HT mở chi tiết cùng ngày thấy rõ Bình thường, Ngủ tốt, Vui vẻ, các bữa; PHT campus1, HT có cả hai campus, TL chỉ nhóm4–5 ở overview. Ảnh logs/ui-proof (không commit).
+- Đây là kết quả của bug hiển thị; không suy thành toàn bộ ma trận UI thời gian/quyền/chuyển lớp đã đạt. Xem BE:docs/quality/2026-11-22-ui-execution.md cho giới hạn và ca còn lại.
+
+## 22/11/2026 — Xếp thủ công năm mới khác nhóm tuổi
+
+- Yêu cầu Cần: cho chọn lớp khác nhóm tuổi, chưa làm lớp ghép; gợi ý/tự động vẫn theo tuổi. Đồng bộ BE CFG-YR-03, UI hai tab và mock. Giữ năm/phạm vi/campus/sĩ số/ngày hiệu lực; không sửa chuyển lớp giữa năm hay giáo án.
+- Sửa thêm lỗi tab trẻ mới tự reset lựa chọn khi parent nhận dirty (memo danh sách đầu vào).
+- `node --import ./scripts/register-auth-test-loader.mjs --test` với các file dashboard/hardening/integration-selective-merge → 282 tests, 0 fail/skip; log logs/manual-placement-fe-tests.log.
+- ESLint sáu source/test sửa đạt. Build API bằng VITE_USE_MOCK=false, VITE_SCHOOL_CONFIG_API=true đạt; log logs/manual-placement-build.log. Diff check đạt.
+- UI thật trên DB clone: trẻ đang học và trẻ mới chọn khác nhóm, lưu/reload giữ lớp; nhãn nhóm/campus/sĩ số hiện đầy đủ. Chưa kích hoạt năm2027 qua UI vì chưa tới cửa sổ, kiểm bằng BE integration18/18.

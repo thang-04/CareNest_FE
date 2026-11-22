@@ -14,8 +14,8 @@ import {
   Users,
 } from '@/components/ui/icons';
 import { Button } from '@/components/ui/Button';
-import { SelectField, TextField } from '@/components/form/Field';
-import { StaffFormSection, StaffRolePicker } from '@/components/school-config/StaffAccountFormParts';
+import { TextField } from '@/components/form/Field';
+import { StaffFormSection, StaffRolePicker, WorkCampusField } from '@/components/school-config/StaffAccountFormParts';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
@@ -55,7 +55,7 @@ import {
   validateStaffAccount,
 } from '@/utils/school-config/staffImport';
 import { staffCrumbs } from '@/utils/school-config/breadcrumbs';
-import { isPrincipal } from '@/utils/school-config/schoolConfigPermissions';
+import { workCampusOptions } from '@/utils/school-config/schoolConfigPermissions';
 import { exportWithPreview } from '@/components/ui/ExportPreview';
 import { todayInput } from '@/utils/format';
 
@@ -63,9 +63,12 @@ const PAGE_SIZE = 10;
 const ROLE_FILTERS = [ROLES.PRINCIPAL, ...STAFF_ROLES];
 const EMPTY_FORM = { fullName: '', phone: '', email: '', role: ROLES.TEACHER, campusId: '', classroomId: '' };
 
-/** Đổi dòng BE sang dạng màn hiển thị: SĐT = tên đăng nhập (AUTH-21), điểm trường / lớp / tổ trưởng từ phân công đang hiệu lực. */
+/**
+ * Đổi dòng BE sang dạng màn hiển thị: SĐT = tên đăng nhập (AUTH-21); cơ sở công tác của GV (`workCampusId`, AUTH-15) đứng đầu,
+ * sau đó điểm trường / lớp / tổ trưởng từ phân công đang hiệu lực.
+ */
 export const toStaffRow = (a, { campusById, classById, groupById }) => {
-  const campusIds = new Set();
+  const campusIds = new Set(a.workCampusId ? [String(a.workCampusId)] : []);
   const classNames = [];
   const duties = [];
   (a.activeAssignments || []).forEach((s) => {
@@ -120,6 +123,7 @@ export function StaffAccountsBeView({ tabs = null }) {
     return { campusById: (id) => md.campusById(String(id)), classById: (id) => cls[String(id)], groupById: (id) => groups[String(id)] };
   }, [classes, structure, md]);
   const rows = (data?.items || []).map((a) => toStaffRow(a, lookups));
+  const workCampuses = useMemo(() => workCampusOptions(md.campuses, user), [md.campuses, user]);
 
   if (!canView)
     return (
@@ -265,7 +269,7 @@ export function StaffAccountsBeView({ tabs = null }) {
                 <tr>
                   <th>Nhân sự</th>
                   <th>Vai trò</th>
-                  <th>Điểm trường</th>
+                  <th>Cơ sở công tác</th>
                   <th>Đang phụ trách</th>
                   <th className="center">Số điện thoại</th>
                   <th className="center">Trạng thái</th>
@@ -341,7 +345,7 @@ export function StaffAccountsBeView({ tabs = null }) {
 
       {creating && (
         <StaffCreateModal
-          campuses={md.campuses}
+          campuses={workCampuses}
           onClose={(changed, created) => {
             done(setCreating)(changed);
             if ([ROLES.VICE_PRINCIPAL, ROLES.TEACHER].includes(created?.role)) setCreatedVice(created);
@@ -367,8 +371,7 @@ export function StaffAccountsBeView({ tabs = null }) {
       {passwordOf && <StaffPasswordModal account={passwordOf} onClose={done(setPasswordOf)} />}
       <StaffImportPanel
         open={importing}
-        campuses={md.campuses}
-        teacherCampusRequired={!isPrincipal(user)}
+        campuses={workCampuses}
         onClose={(changed) => {
           setImporting(false);
           if (changed) refresh();
@@ -380,9 +383,6 @@ export function StaffAccountsBeView({ tabs = null }) {
 
 function StaffCreateModal({ campuses, onClose }) {
   const toast = useToast();
-  const { user } = useAuth();
-  // PHT chỉ tạo GV trong điểm trường mình nên phải chọn điểm trường; HT có thể để trống (AUTH-15)
-  const teacherCampusRequired = !isPrincipal(user);
   const [form, setForm] = useState(EMPTY_FORM);
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
@@ -392,11 +392,11 @@ function StaffCreateModal({ campuses, onClose }) {
     setErrors((e) => Object.fromEntries(Object.entries(e).filter(([k]) => !(k in patch) && !('role' in patch && k === 'email'))));
   };
   const blur = (field) => {
-    const e = validateStaffAccount(form, { campuses, teacherCampusRequired });
+    const e = validateStaffAccount(form, { campuses });
     if (e[field]) setErrors((prev) => ({ ...prev, [field]: e[field] }));
   };
   const save = async () => {
-    const e = validateStaffAccount(form, { campuses, teacherCampusRequired });
+    const e = validateStaffAccount(form, { campuses });
     setErrors(e);
     if (Object.keys(e).length) return;
     setSaving(true);
@@ -412,8 +412,6 @@ function StaffCreateModal({ campuses, onClose }) {
       setSaving(false);
     }
   };
-  const teacher = form.role === ROLES.TEACHER;
-  const needCampus = !teacher || teacherCampusRequired;
   return (
     <Modal
       open
@@ -439,21 +437,17 @@ function StaffCreateModal({ campuses, onClose }) {
           </div>
         )}
         <StaffFormSection icon={ShieldCheck} title="Vai trò" description="Quyết định màn hình và quyền nhân sự được dùng.">
-          <StaffRolePicker value={form.role} error={errors.role} onChange={(role) => set({ role, campusId: '', classroomId: '' })} />
-          {needCampus && (
-            <SelectField
-              label="Điểm trường"
-              required
-              error={errors.campusId}
-              value={form.campusId}
-              placeholder="Chọn điểm trường"
-              options={campuses.map((c) => ({ value: c.id, label: c.shortName || c.name }))}
-              onChange={(e) => set({ campusId: e.target.value })}
-              onBlur={() => blur('campusId')}
-            />
-          )}
+          <StaffRolePicker value={form.role} error={errors.role} onChange={(role) => set({ role, classroomId: '' })} />
         </StaffFormSection>
         <StaffFormSection icon={UserRound} title="Thông tin cá nhân">
+          <WorkCampusField
+            campuses={campuses}
+            role={form.role}
+            error={errors.campusId}
+            value={form.campusId}
+            onChange={(campusId) => set({ campusId })}
+            onBlur={() => blur('campusId')}
+          />
           <div className="grid-2">
             <TextField
               label="Họ tên"

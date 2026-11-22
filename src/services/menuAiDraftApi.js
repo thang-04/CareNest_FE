@@ -17,6 +17,9 @@ const toDraft = (draft) => ({
   score: draft?.score || {},
 });
 
+// BE chờ AI tới AI_MENU_WEEKLY_DEADLINE (30 giây) cộng lọc món, chấm điểm và vòng sửa ⇒ không dùng mặc định 15 giây
+export const MENU_AI_DRAFT_TIMEOUT_MS = 90000;
+
 /** Factory để test thay client HTTP. */
 export const createMenuAiDraftApi = ({ client = beClient } = {}) => ({
   /**
@@ -39,6 +42,7 @@ export const createMenuAiDraftApi = ({ client = beClient } = {}) => ({
           // Thực phẩm đang thiếu (NUT-11): món chứa chúng bị loại khỏi ứng viên; không chọn ⇒ không gửi
           unavailableFoodIds: unavailableFoodIds?.length ? unavailableFoodIds : undefined,
         }),
+        { timeout: MENU_AI_DRAFT_TIMEOUT_MS },
       ),
     );
   },

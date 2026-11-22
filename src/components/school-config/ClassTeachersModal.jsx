@@ -3,17 +3,19 @@ import { Save } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useToast } from '@/contexts/ToastContext';
+import { useMasterData } from '@/hooks/useMasterData';
 import { Modal } from '@/components/ui/Modal';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { Spinner } from '@/components/ui/States';
 import { saveClassTeachers } from '@/services/school-config/schoolConfigService';
-import { validateClassTeachers, hasErrors } from '@/utils/school-config/schoolConfigValidation';
+import { validateClassTeachers, hasErrors, teachersFromOtherCampus } from '@/utils/school-config/schoolConfigValidation';
 import { ClassTeachersPicker, toggleTeacher } from '@/components/school-config/ClassTeachersPicker';
 
 /** Assign the teachers (and homeroom teacher) of one class. Used by Teacher Assignment and Age Groups & Classes. */
 export function ClassTeachersModal({ cls, teachers, classesOf, onClose }) {
   const { user } = useAuth();
   const toast = useToast();
+  const md = useMasterData();
   const { schoolYear, schoolYears } = useSchoolYear();
   // Lớp của năm đang học: 2–3 GV, có GV phụ trách chính (BE SCH-04) — báo ngay dưới ô trước khi lưu
   const yearId = cls.schoolYear ?? schoolYear;
@@ -28,18 +30,23 @@ export function ClassTeachersModal({ cls, teachers, classesOf, onClose }) {
   };
 
   const [confirmRemove, setConfirmRemove] = useState(false);
+  const [moving, setMoving] = useState([]);
+  const campusName = (id) => md.campusById(String(id))?.shortName || md.campusById(String(id))?.name || 'cơ sở khác';
 
   const submit = () => {
     const e = validateClassTeachers(form, { yearActive });
     setErrors(e);
     if (hasErrors(e)) return;
     // Bỏ chọn hết giáo viên = gỡ toàn bộ giáo viên khỏi lớp: hỏi lại trước khi lưu
-    if (form.teacherIds.length === 0 && cls.teacherIds.length > 0) setConfirmRemove(true);
+    if (form.teacherIds.length === 0 && cls.teacherIds.length > 0) return setConfirmRemove(true);
+    const others = teachersFromOtherCampus(form.teacherIds, teachers, cls.campusId);
+    if (others.length) setMoving(others);
     else save();
   };
 
   const save = async () => {
     setConfirmRemove(false);
+    setMoving([]);
     setSaving(true);
     try {
       await saveClassTeachers(cls.id, form, user);
@@ -96,6 +103,19 @@ export function ClassTeachersModal({ cls, teachers, classesOf, onClose }) {
         confirmLabel="Gỡ giáo viên"
         onConfirm={save}
         onClose={() => setConfirmRemove(false)}
+      />
+      <ConfirmationModal
+        open={moving.length > 0}
+        title="Xếp giáo viên của cơ sở khác"
+        message={
+          <>
+            {moving.map((t) => `${t.fullName} (${campusName(t.campusId)})`).join(', ')} đang thuộc cơ sở khác. Lưu phân công thì cơ sở công
+            tác của giáo viên chuyển sang <b>{campusName(cls.campusId)}</b>.
+          </>
+        }
+        confirmLabel="Xếp và chuyển cơ sở"
+        onConfirm={save}
+        onClose={() => setMoving([])}
       />
     </Modal>
   );

@@ -17,6 +17,8 @@ const stubs = `import React, { useEffect, useRef, useState } from 'react';
 const Icon = () => null, AlertTriangle = Icon, Check = Icon, Info = Icon, Plus = Icon, X = Icon, Avatar = Icon, ReasonModal = Icon;
 const Switch = ({ checked, label, disabled }) => React.createElement('button', { role: 'switch', 'aria-checked': checked, 'aria-label': label, disabled });
 const useAuth = () => ({ user: {} }), useToast = () => ({}), updatePermissionOverrides = async () => {};
+const SelectField = ({ options = [], ...props }) =>
+  React.createElement('select', props, options.map((o) => React.createElement('option', { key: o.value, value: o.value }, o.label)));
 const { VP_PLACE, VP_VIEW_CODE, ${names} } = globalThis.__vp;
 `;
 const { code } = await transformWithOxc(stubs + isolated, 'VpTaskEditor.jsx', { lang: 'jsx', jsx: { runtime: 'classic' } });
@@ -67,17 +69,28 @@ test('AUTH-10: danh sách PHT ghi rõ điểm trường, đang phụ trách gì 
   assert.match(html, /aria-current="true"/);
 });
 
-test('AUTH-20: mỗi việc một công tắc; việc đang bật và chọn được nơi thì có nút Cơ sở / Cả trường', () => {
+test('AUTH-20: mỗi việc một công tắc; việc đang bật và chọn được nơi thì chọn điểm trường phụ trách, điểm trường khác, cả trường', () => {
   const items = mealItems();
   items[3] = { ...items[3], on: true, roleOn: true };
   const html = render(mod.VpTaskEditor, { person: person(1, 'An', items), others: [person(2, 'Bình', mealItems(true))], campuses });
   assert.match(html, /role="switch" aria-checked="true" aria-label="Được sửa: Xác nhận, điều chỉnh số suất ăn"/);
-  assert.match(html, /role="radiogroup" aria-label="Nơi được sửa: Xác nhận, điều chỉnh số suất ăn"/);
-  assert.match(html, /aria-checked="true" class="tab tab--active"[^>]*>Cơ sở 1/);
+  assert.match(html, /<select[^>]*aria-label="Nơi được sửa: Xác nhận, điều chỉnh số suất ăn"/);
+  assert.match(
+    html,
+    /<option value="CAMPUS" selected="">Cơ sở 1<\/option><option value="C:2">Cơ sở 2<\/option><option value="SCHOOL">Cả trường<\/option>/,
+  );
   assert.match(html, /PHT khác đang sửa: Bình \(Cơ sở 2\)/);
   assert.match(html, /được sửa 1\/5 việc/);
   assert.match(html, /\+ Phụ trách dinh dưỡng|Phụ trách dinh dưỡng<\/button>/);
   assert.match(html, /disabled="">Xem lại và lưu/);
+});
+
+test('AUTH-20: việc giao tại điểm trường khác hiện đúng điểm trường đó, cho người khác và trong ô chọn', () => {
+  const items = mealItems();
+  items[5] = { ...items[5], on: true, effect: 'GRANT', scope: 'CAMPUS', campusId: 2 };
+  const html = render(mod.VpTaskEditor, { person: person(1, 'An', items), others: [person(3, 'Chi', items)], campuses });
+  assert.match(html, /<option value="C:2" selected="">Cơ sở 2<\/option>/);
+  assert.match(html, /PHT khác đang sửa: Chi \(Cơ sở 2\)/);
 });
 
 test('AUTH-20: việc chưa ai được sửa thì cảnh báo dưới tên việc', () => {
