@@ -4,8 +4,10 @@ import { useToast } from '@/contexts/ToastContext';
 import { useFood, useFoods } from '@/hooks/menu-planning/useMenuPlanning';
 import { saveFood } from '@/services/menu-planning/menuPlanningService';
 import { validateFood, hasErrors } from '@/utils/menu-planning/menuPlanningValidation';
-import { foodUnits, purchaseUnitSizeOf } from '@/utils/menu-planning/foodUnits';
+import { autoUnitRatios, foodUnits, purchaseUnitSizeOf } from '@/utils/menu-planning/foodUnits';
 import { MICRONUTRIENTS } from '@/models/menu-planning/menuPlanningConstants';
+
+const UNIT_KEYS = ['unit', 'purchaseUnit', 'stockUnit'];
 
 const EMPTY = {
   name: '',
@@ -59,12 +61,20 @@ export function useFoodForm(id, { onSaved } = {}) {
     setForm(item ? toForm(item) : EMPTY);
   }, [item]);
 
+  // Đã có lô/phiếu nhập: giữ nguyên tỷ lệ đã lưu, không tự đổi
+  const locked = !!item?.unitsLocked;
+  const auto = locked ? {} : autoUnitRatios(form);
   // Số g/ml trong 1 đơn vị mua suy ra từ hai tỷ lệ, không nhập riêng
-  const payload = { ...form, purchaseUnitSize: purchaseUnitSizeOf(form.purchaseToStock, form.stockUnitSize) };
+  const ratios = { ...form, ...auto };
+  const payload = { ...ratios, purchaseUnitSize: purchaseUnitSizeOf(ratios.purchaseToStock, ratios.stockUnitSize) };
   const errors = { ...validateFood({ ...payload, id }, others), ...serverErrors };
   const show = (k) => (submitted || touched[k] ? errors[k] : undefined);
   const set = (k, v) => {
-    setForm((f) => ({ ...f, [k]: v }));
+    setForm((f) => {
+      const next = { ...f, [k]: v };
+      // Đổi đơn vị thì ô tỷ lệ tự điền được cập nhật theo, tránh số cũ hiện lại khi ô mở ra
+      return !locked && UNIT_KEYS.includes(k) ? { ...next, ...autoUnitRatios(next) } : next;
+    });
     // Xóa hẳn khóa: để `undefined` thì spread vào errors sẽ đè mất lỗi kiểm tra của ô
     setServerErrors(({ [k]: _drop, ...rest }) => rest);
   };
@@ -105,6 +115,7 @@ export function useFoodForm(id, { onSaved } = {}) {
     toggleAllergen,
     submit,
     busy,
-    locked: !!item?.unitsLocked,
+    locked,
+    auto,
   };
 }

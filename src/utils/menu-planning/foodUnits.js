@@ -28,6 +28,27 @@ export const foodUnits = (food = {}) => {
 /** Số g/ml trong một đơn vị mua = tỷ lệ mua→kho × tỷ lệ kho→công thức (giữ `purchaseUnitSize` cho chỗ tính giá, đi chợ). */
 export const purchaseUnitSizeOf = (purchaseToStock, stockUnitSize) => r3(Number(purchaseToStock) * Number(stockUnitSize));
 
+const norm = (s) => String(s || '').trim().toLowerCase();
+// Đơn vị kho phổ thông ⇒ [đơn vị công thức, số g/ml trong 1 đơn vị kho]; tên khác thì người dùng tự nhập
+const KNOWN_STOCK_UNITS = new Map([
+  ['kg', ['g', 1000]],
+  ['g', ['g', 1]],
+  ['lít', ['ml', 1000]],
+  ['lit', ['ml', 1000]],
+  ['l', ['ml', 1000]],
+  ['ml', ['ml', 1]],
+]);
+
+/** Tỷ lệ hiển nhiên không cần nhập: mua trùng kho ⇒ 1; kg/lít ↔ g/ml ⇒ 1000. Chỉ trả ô nào suy ra được. */
+export const autoUnitRatios = ({ unit, purchaseUnit, stockUnit }) => {
+  const stock = norm(stockUnit);
+  const auto = {};
+  if (stock && stock === norm(purchaseUnit)) auto.purchaseToStock = 1;
+  const known = KNOWN_STOCK_UNITS.get(stock);
+  if (known && known[0] === unit) auto.stockUnitSize = known[1];
+  return auto;
+};
+
 /** Lượng trên dòng phiếu nhập (theo đơn vị mua hoặc kho) đổi sang đơn vị kho. Dòng cũ không ghi loại = đơn vị kho. */
 export const toStockQty = (food, qty, unitKind) =>
   unitKind === UNIT_KIND.PURCHASE ? r3(Number(qty) * foodUnits(food).purchaseToStock) : r3(Number(qty));

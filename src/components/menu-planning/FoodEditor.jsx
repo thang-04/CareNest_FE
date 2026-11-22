@@ -35,10 +35,12 @@ function Affix({ unit, className = '', ...props }) {
  * `f` = kết quả `useFoodForm`. Dùng trong trang sửa và trong modal trên danh sách.
  */
 export function FoodEditor({ f }) {
-  const { form, payload, set, setNut, blur, show, toggleAllergen, locked } = f;
+  const { form, payload, set, setNut, blur, show, toggleAllergen, locked, auto } = f;
+  const autoToStock = auto.purchaseToStock !== undefined;
+  const autoUnitSize = auto.stockUnitSize !== undefined;
   const unitPreview =
-    Number(form.purchaseToStock) > 0 && Number(form.stockUnitSize) > 0 && form.stockUnit && form.purchaseUnit
-      ? `1 ${form.purchaseUnit} = ${num(form.purchaseToStock)} ${form.stockUnit} = ${num(payload.purchaseUnitSize)} ${form.unit}`
+    Number(payload.purchaseToStock) > 0 && Number(payload.stockUnitSize) > 0 && form.stockUnit && form.purchaseUnit
+      ? `1 ${form.purchaseUnit} = ${num(payload.purchaseToStock)} ${form.stockUnit} = ${num(payload.purchaseUnitSize)} ${form.unit}`
       : null;
   const lockHint = 'Đã có lô tồn kho hoặc phiếu nhập: không đổi được';
   const isFilled = (k) => String(form.nutrition[k] ?? '').trim() !== '';
@@ -124,38 +126,45 @@ export function FoodEditor({ f }) {
               onBlur={blur('stockUnit')}
             />
           </FormField>
-          <FormField
-            label={`Số ${form.stockUnit || 'đơn vị kho'} trong 1 ${form.purchaseUnit || 'đơn vị mua'}`}
-            required
-            error={show('purchaseToStock')}
-          >
-            <input
-              type="number"
-              min="0"
-              step="any"
-              className="input"
-              value={form.purchaseToStock}
-              onChange={(e) => set('purchaseToStock', e.target.value)}
-              onBlur={blur('purchaseToStock')}
-            />
-          </FormField>
-          <FormField
-            label={`Số ${form.unit} trong 1 ${form.stockUnit || 'đơn vị kho'}`}
-            required
-            error={show('stockUnitSize')}
-            hint={locked ? lockHint : undefined}
-          >
-            <input
-              type="number"
-              min="0"
-              step="any"
-              className="input"
-              value={form.stockUnitSize}
-              disabled={locked}
-              onChange={(e) => set('stockUnitSize', e.target.value)}
-              onBlur={blur('stockUnitSize')}
-            />
-          </FormField>
+          {!autoToStock && (
+            <FormField
+              label={`Số ${form.stockUnit || 'đơn vị kho'} trong 1 ${form.purchaseUnit || 'đơn vị mua'}`}
+              required
+              error={show('purchaseToStock')}
+            >
+              <input
+                type="number"
+                min="0"
+                step="any"
+                className="input"
+                value={form.purchaseToStock}
+                onChange={(e) => set('purchaseToStock', e.target.value)}
+                onBlur={blur('purchaseToStock')}
+              />
+            </FormField>
+          )}
+          {!autoUnitSize && (
+            <FormField
+              label={`Số ${form.unit} trong 1 ${form.stockUnit || 'đơn vị kho'}`}
+              required
+              error={show('stockUnitSize')}
+              hint={locked ? lockHint : undefined}
+            >
+              <input
+                type="number"
+                min="0"
+                step="any"
+                className="input"
+                value={form.stockUnitSize}
+                disabled={locked}
+                onChange={(e) => set('stockUnitSize', e.target.value)}
+                onBlur={blur('stockUnitSize')}
+              />
+            </FormField>
+          )}
+          {autoToStock && autoUnitSize && (
+            <p className="text-sm muted td-span-all">Đơn vị mua trùng đơn vị kho nên hệ thống tự quy đổi, không cần nhập.</p>
+          )}
           <FormField label="Tỷ lệ thải bỏ" error={show('wastePct')}>
             <Affix
               unit="%"
