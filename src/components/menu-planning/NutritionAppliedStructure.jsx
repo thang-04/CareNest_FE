@@ -10,9 +10,7 @@ export function NutritionAppliedStructure({ applied, canEdit, error, onChange })
       key: 'label',
       header: 'Chất dinh dưỡng',
       render: ({ key, label }) => (
-        <span className={`td-applied__label td-col-${key === 'protein' ? 'p' : key === 'lipid' ? 'l' : 'g'}`}>
-          {label}
-        </span>
+        <span className={`td-applied__label td-col-${key === 'protein' ? 'p' : key === 'lipid' ? 'l' : 'g'}`}>{label}</span>
       ),
     },
     {
