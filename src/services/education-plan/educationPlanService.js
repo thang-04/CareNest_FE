@@ -86,6 +86,8 @@ export const reviewDay = (docKey) => (USE_MOCK ? reviewAiMock.reviewDay(docKey) 
 // BE:EDU-103 — AI gom nội dung vào chủ đề ở kế hoạch tổ (nháp, áp dụng chỉ thêm tick) và log tỉ lệ giữ
 export const matchThemeContents = (planId, body) =>
   USE_MOCK ? themeContentAiMock.matchThemeContents(planId, body) : educationPlanApi.matchThemeContents(planId, body);
+export const matchGoalContents = (planId, options) =>
+  USE_MOCK ? themeContentAiMock.matchGoalContents(planId, options) : educationPlanApi.matchGoalContents(planId, options);
 // BE:EDU-104 — lấy tick từ kế hoạch tổ năm trước (FE ghép chủ đề/nội dung, áp dụng chỉ thêm tick)
 export const getPreviousYearTicks = (planId) =>
   USE_MOCK ? themeContentAiMock.getPreviousYearTicks(planId) : educationPlanApi.getPreviousYearTicks(planId);

@@ -12,6 +12,7 @@ import React, {useEffect, useRef, useState} from 'react';
 import {planLevel as levelOf, planRoute, inheritAnnual} from ${JSON.stringify(import.meta.resolve('../../src/models/education-plan/planLevel.mjs'))};
 import {branchScheduleIssue} from ${JSON.stringify(import.meta.resolve('../../src/models/education-plan/branchTemplateSchedule.mjs'))};
 const BranchTemplateEditor=()=>null;
+const AiGoalContentModal=()=>null;
 const TeamSourceReview=()=>null;
 const YearPlanSourceCard=({plan,source,children})=><section className="ga-plan-section--source" data-source-id={plan.curriculumSourcePlanId} data-source-title={source?.title}>{children}</section>;
 

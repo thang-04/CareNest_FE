@@ -281,6 +281,7 @@
     "POST /education-plans/ai/feedback",
     "POST /education-plans/ai/lesson-steps",
     "POST /education-plans/ai/team-plans/{x}/theme-content-map",
+    "POST /education-plans/ai/year-plans/{x}/goal-content-map",
     "POST /education-plans/class-docs/branch/calendar-preview",
     "POST /education-plans/class-docs/branch/file-preview",
     "POST /education-plans/class-docs/day/{x}/learning-resources",

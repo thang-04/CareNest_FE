@@ -10,6 +10,8 @@ import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { ActionsMenu, ReviewActions } from '@/components/education-plan/reviewUi';
 import { Download, FileDown, History, Save, Sparkles, X } from '@/components/ui/icons';
 import { AiThemeContentModal } from '@/components/education-plan/AiThemeContentModal';
+import { AiGoalContentModal } from '@/components/education-plan/AiGoalContentModal';
+import { applyGoalContents } from '@/models/education-plan/aiGoalContent.mjs';
 import { PrevYearTicksModal } from '@/components/education-plan/PrevYearTicksModal';
 import { sendAiFeedback } from '@/services/education-plan/educationPlanService';
 import { yearPlanFile } from '@/utils/education-plan/yearPlanDoc';
@@ -223,6 +225,7 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
   const [importReport, setImportReport] = useState(null);
   const [fileOpen, setFileOpen] = useState(false);
   const [aiThemeOpen, setAiThemeOpen] = useState(false);
+  const [aiGoalOpen, setAiGoalOpen] = useState(false);
   const [prevTicksOpen, setPrevTicksOpen] = useState(false);
 
   const set = (patch) => {
@@ -446,6 +449,9 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
       return formOf(saved);
     },
   });
+  const aiGoalAllowed = annual && saveReady && !finishing && form.canEditCurriculum !== false;
+  const aiGoalState = useRef(null);
+  aiGoalState.current = { allowed: aiGoalAllowed, form };
   const reloadContent = async () => {
     setPreservedDraft((old) => old || structuredClone(form));
     try {
@@ -1107,6 +1113,13 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
                   ]}
                 />
               )}
+              {annual && aiGoalAllowed && (
+                <ActionsMenu items={[{
+                  label: 'AI gợi ý nội dung cho mục tiêu', icon: Sparkles,
+                  disabled: saver.saving || finishing || !goalsWithoutContent,
+                  onClick: () => setAiGoalOpen(true),
+                }]} />
+              )}
             </div>
           }
         >
@@ -1156,6 +1169,32 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
                 sendAiFeedback({ kind: 'TEAM', ...stats }).catch(() => console.warn('[GoalFormPage] AI feedback not sent'));
               }}
               onClose={() => setAiThemeOpen(false)}
+            />
+          )}
+          {annual && aiGoalOpen && (
+            <AiGoalContentModal
+              plan={form}
+              allowed={aiGoalAllowed}
+              current={() => ({ plan: saver.current(), allowed: aiGoalState.current.allowed })}
+              ensureSaved={async () => {
+                if (!aiGoalState.current.allowed) return null;
+                if ((saver.unsaved || !savedId.current) && !(await saver.save())) return null;
+                const plan = saver.current();
+                return { planId: savedId.current || currentPlanId, plan,
+                  allowed: aiGoalState.current.allowed && plan.canEditCurriculum !== false };
+              }}
+              onApply={(result, picked) => {
+                if (!aiGoalState.current.allowed) return false;
+                const value = applyGoalContents(saver.current(), result.groups, picked, result.stamp, () => `ai-${uid()}`);
+                if (!value?.added) return false;
+                set({ domains: value.domains });
+                sendAiFeedback({ kind: 'SCHOOL_YEAR', suggested: result.groups.reduce((n, g) => n + g.lines.length, 0),
+                  kept: value.added, failedDomains: result.failedDomains.length, waitMs: result.waitMs })
+                  .catch(() => console.warn('[GoalFormPage] AI feedback not sent'));
+                toast(`Đã thêm ${value.added} nội dung (chưa lưu)`);
+                return true;
+              }}
+              onClose={() => setAiGoalOpen(false)}
             />
           )}
           {!annual && prevTicksOpen && (

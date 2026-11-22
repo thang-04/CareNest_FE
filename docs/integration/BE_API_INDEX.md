@@ -6,9 +6,9 @@ File sinh tự động từ `BE:docs/api/openapi.yaml`, không sửa tay. Sinh l
 - Path đã bỏ tiền tố `/api` (trùng baseURL của Web/App). File controller tính từ gốc repo `CareNest_BE`.
 - Request/response chi tiết: đọc method trong controller và DTO nó dùng; lỗi theo `BE:docs/contracts/ERROR_CONTRACT.md`.
 
-Nguồn: CareNest_BE docs/api/openapi.yaml tại commit f58d971b 2026-11-21
+Nguồn: repo CareNest_BE (bản đang làm việc)
 
-Tổng: 414 endpoint.
+Tổng: 415 endpoint.
 
 ```text
 GET /accounts · src/main/java/com/carenest/controller/account/AccountController.java#searchAccounts
@@ -199,6 +199,7 @@ POST /education-plans/ai/class-docs/day/{docKey}/review · src/main/java/com/car
 POST /education-plans/ai/feedback · src/main/java/com/carenest/controller/eduplan/EduAiController.java#logFeedback
 POST /education-plans/ai/lesson-steps · src/main/java/com/carenest/controller/eduplan/EduAiController.java#suggestLessonSteps
 POST /education-plans/ai/team-plans/{planId}/theme-content-map · src/main/java/com/carenest/controller/eduplan/EduAiController.java#matchThemeContents
+POST /education-plans/ai/year-plans/{planId}/goal-content-map · src/main/java/com/carenest/controller/eduplan/EduAiController.java#matchGoalContents
 GET /education-plans/class-docs · src/main/java/com/carenest/controller/eduplan/EduClassDocController.java#getClassDocs
 PUT /education-plans/class-docs/{kind}/{docKey} · src/main/java/com/carenest/controller/eduplan/EduClassDocController.java#saveClassDoc
 POST /education-plans/class-docs/{kind}/{docKey}/actions · src/main/java/com/carenest/controller/eduplan/EduClassDocController.java#actOnClassDoc

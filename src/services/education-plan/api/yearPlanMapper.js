@@ -170,6 +170,7 @@ export const toUiGoal = (detail, refs) => {
     breaks: (detail.breaks || []).map((b) => ({ id: String(b.id), label: b.label, start: b.startDate || '', end: b.endDate || '' })),
     domains,
     permissions: detail.permissions,
+    canEditCurriculum: detail.canEditCurriculum === true,
     // Phiên bản (BE:EDU-25): số phiên bản, phiên bản nguồn, hiện hành, các phiên bản người xem được thấy
     versionNo: detail.versionNo ?? 1,
     sourcePlanId: detail.sourcePlanId == null ? null : String(detail.sourcePlanId),

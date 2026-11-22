@@ -5,6 +5,10 @@ import { delay } from '@/mocks/mockDatabase';
  * bản giả không gợi ý gì để màn hình chạy được khi không có máy chủ.
  */
 export const themeContentAiMock = {
+  async matchGoalContents() {
+    await delay(400);
+    return { matches: [], failedDomains: [] };
+  },
   async matchThemeContents() {
     await delay(400);
     return { matches: [], failedDomains: [] };
