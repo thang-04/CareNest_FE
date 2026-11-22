@@ -12,8 +12,13 @@ export const INTEGRATION_MODULES = {
   account: {
     source: 'api',
     routes: ['/account'],
-    files: ['src/services/account/api/accountApi.js', 'src/services/authService.js'],
-    pending: ['GET /notifications/{x}'],
+    files: ['src/services/account/api/accountApi.js', 'src/services/account/api/accountPhotoApi.js', 'src/services/authService.js'],
+  },
+  announcements: {
+    source: 'api',
+    routes: ['/announcements', '/announcement-templates', '/notification-rules', '/announcement-schedules'],
+    files: ['src/services/announcement/api/announcementApi.js'],
+    facades: ['src/services/announcement/announcementService.js'],
   },
   permission: {
     source: 'api',
@@ -67,8 +72,6 @@ export const INTEGRATION_MODULES = {
       'POST /meal-handovers/{x}/confirm',
       'POST /meal-handovers/{x}/shortage',
       'POST /meal-handovers/{x}/supplement',
-      // Suất ăn lớp cho giáo viên: đã làm ở nhánh BE feature/G94-254-BE-FEAT-27-day-boarding, chưa merge dev
-      'GET /meal-counts/class',
     ],
   },
   'meal-handover': {
@@ -97,9 +100,6 @@ export const INTEGRATION_MODULES = {
       'DELETE /education-plans/themes/{x}',
       'PUT /education-plans/lessons/{x}',
       'DELETE /education-plans/lessons/{x}',
-      'POST /education-plans/ai/branch-names',
-      'POST /education-plans/ai/branch-names/rewrite',
-      'POST /education-plans/ai/lesson-steps',
     ],
   },
   'master-data': {
@@ -131,8 +131,9 @@ export const INTEGRATION_MODULES = {
     ],
     facades: ['src/services/children/childrenService.js', 'src/services/children/healthCheckService.js'],
   },
+  // Đón trẻ trên BE (PickupController); lớp lấy GET /pickups/classes theo quyền PICKUP_RECORD, không qua school-lookup
   pickup: {
-    source: 'demo',
+    source: 'api',
     routes: ['/pickup'],
     files: ['src/services/pickup/api/pickupApi.js'],
     facades: ['src/services/pickup/pickupService.js'],
@@ -181,6 +182,21 @@ export const INTEGRATION_MODULES = {
     routes: ['/menu/templates'],
     files: ['src/services/menuTemplateApi.js'],
   },
+  // Nháp AI gợi ý thực đơn trên BE /nutrition/menu-ai-drafts (BE ADR-0024): route mới có ở nhánh BE
+  // feature/G94-200-BE-FEAT-28-ai-assessment-drafting, chưa vào dev ⇒ khai pending tới khi đồng bộ snapshot route
+  'menu-ai': {
+    source: 'api',
+    files: ['src/services/menuAiDraftApi.js'],
+    pending: [
+      'POST /nutrition/menu-ai-drafts',
+      'GET /nutrition/menu-ai-drafts/{x}',
+      'POST /nutrition/menu-ai-drafts/{x}/dismiss',
+      'POST /nutrition/menu-ai-drafts/{x}/apply',
+      'POST /nutrition/menu-ai-drafts/{x}/mark-used',
+      'GET /nutrition/menu-ai-drafts/{x}/candidates',
+      'POST /nutrition/menu-ai-drafts/{x}/evaluate',
+    ],
+  },
   // Bán trú hôm nay trên BE GET /nutrition/day-board
   'day-board': {
     source: 'api',
@@ -218,7 +234,7 @@ export const INTEGRATION_MODULES = {
     // Spec 003: thông báo kế hoạch giáo dục từ BE (GET /me/notifications)
     source: 'api',
     routes: ['/notifications'],
-    files: ['src/services/notificationService.js'],
+    files: ['src/services/notificationService.js', 'src/services/notificationApi.mjs'],
     facades: ['src/services/notificationService.js'],
   },
   // Chữ ký ảnh của tài khoản trên BE /signatures/me (SIG-01); biên bản kiểm thực ký bằng id chữ ký này

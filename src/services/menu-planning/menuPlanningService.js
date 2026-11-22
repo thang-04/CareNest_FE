@@ -45,6 +45,14 @@ export const getAllergyContext = (ageGroupId, user) => repo.getAllergyContext(ag
 export const getFoods = (filters, user) => catalogRepo.listFoods(filters, user);
 export const getFoodById = (id, user) => catalogRepo.getFood(id, user);
 export const saveFood = (id, payload, user) => catalogRepo.saveFood(id, payload, user);
+// Lịch sử giá và hợp đồng NCC (NUT-27) chỉ có ở BE thật, bản demo không mô phỏng
+export const getFoodPrices = (foodId) => nutritionCatalogApi.getFoodPrices(foodId);
+export const adjustFoodPrice = (foodId, payload) => nutritionCatalogApi.adjustFoodPrice(foodId, payload);
+export const updateFoodPrice = (foodId, priceId, payload) => nutritionCatalogApi.updateFoodPrice(foodId, priceId, payload);
+export const deleteFoodPrice = (foodId, priceId) => nutritionCatalogApi.deleteFoodPrice(foodId, priceId);
+export const getSupplierFoods = (supplierId, date) => nutritionCatalogApi.getSupplierFoods(supplierId, date);
+export const getActiveSuppliers = () => nutritionCatalogApi.getSuppliers({ status: 'ACTIVE' });
+export const applySupplierContract = (supplierId, payload) => nutritionCatalogApi.applySupplierContract(supplierId, payload);
 /** Lưu nhiều thực phẩm một lần: [{ key, id?, data }] → { created, updated }; lỗi 422 theo `${key}.${field}`, không ghi dòng nào. */
 export const saveFoodsBulk = (items, user) => catalogRepo.saveFoodsBulk(items, user);
 export const setFoodFavorite = (id, favorite, user) => catalogRepo.setFoodFavorite(id, favorite, user);

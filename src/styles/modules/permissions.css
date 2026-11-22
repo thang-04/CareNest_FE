@@ -87,8 +87,8 @@
 }
 
 .perm-table .perm-level {
-  margin-right: var(--space-2);
-  vertical-align: middle;
+  min-width: calc(var(--space-16) + var(--space-6));
+  flex-shrink: 0;
 }
 
 .perm-legend__box {
@@ -162,11 +162,47 @@
   background: var(--color-primary-soft);
   color: var(--color-primary-active);
   font-weight: var(--fw-bold);
+}
+
+/* Chỉ cột tên luồng căn trái; ô vai trò luôn căn giữa dù luồng đang mở hay thu gọn */
+.perm-table tr.perm-table__flow > th.perm-table__task {
   text-align: left;
 }
 
 .table.table--grid.perm-table .perm-table__flow td {
   text-align: center;
+  vertical-align: middle;
+}
+
+/* Việc nhỏ thụt vào dưới luồng; việc cần quyền xem thụt sâu thêm một bậc.
+   Cần :first-child để thắng padding ô đầu của bảng lưới chung. */
+.perm-table tr.perm-table__item > th.perm-table__task:first-child {
+  padding-left: var(--space-10);
+}
+
+.perm-table tr.perm-table__item > th.perm-table__task.is-dependent:first-child {
+  padding-left: var(--space-16);
+}
+
+.perm-table .perm-table__item td {
+  vertical-align: middle;
+}
+
+.perm-table tr.perm-table__group > th:first-child {
+  padding-left: var(--space-10);
+}
+
+.perm-table__task-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* Giữ chỗ bằng badge để tên việc thẳng hàng khi việc chưa gắn cấp */
+.perm-level-slot {
+  display: inline-block;
+  min-width: calc(var(--space-16) + var(--space-6));
+  flex-shrink: 0;
 }
 
 .perm-table .perm-table__task .perm-table__note {

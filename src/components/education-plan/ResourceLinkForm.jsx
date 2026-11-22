@@ -1,6 +1,7 @@
 import { useId, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { LABELS } from '@/components/ui/labels';
+import { useUnsavedMark } from '@/hooks/useLeaveGuard';
 import { LINK_ERROR, normalizeLink } from '@/models/education-plan/learningResources.mjs';
 import { TextField } from '@/components';
 
@@ -13,6 +14,7 @@ export function ResourceLinkForm({ onSubmit, onCancel, busy = false, submitLabel
   const [url, setUrl] = useState('');
   const [title, setTitle] = useState('');
   const [error, setError] = useState('');
+  useUnsavedMark(!!(url.trim() || title.trim()));
   const check = () => {
     const ok = normalizeLink(url);
     setError(url.trim() && !ok ? LINK_ERROR : '');

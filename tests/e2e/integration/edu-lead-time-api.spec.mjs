@@ -6,7 +6,7 @@ import { api, beReachable, sql } from '../support/realBe.mjs';
 // Bộ test đặt ngày học kỳ của năm học đang chạy và lùi ngày mở lớp về trước học kỳ để có tình huống quá hạn.
 test.describe.configure({ mode: 'serial' });
 
-const U = { vp: 'viceprincipal@gmail.com', ht: 'principal@gmail.com', tl: 'teamlead34@gmail.com', gv2: 'teacher6@gmail.com' };
+const U = { vp: 'viceprincipal', ht: 'principal', tl: 'teacher1', gv2: 'teacher2' };
 const DOCS = '/education-plans/class-docs';
 const isoPlus = (days) => {
   const d = new Date();
@@ -33,25 +33,27 @@ test.beforeAll(async () => {
       `semester2_end='2027-05-31' where id = ${year}`,
   );
   sql(`update classrooms set created_at='2026-08-01' where id = ${cls.id}`);
-  // Chạy lại được: đưa các gói học kỳ của lớp về Nháp trước khi lưu lại lịch nhánh (gói đang Chờ duyệt khóa lịch nhánh),
+  // Chạy lại được: đưa các kế hoạch giáo dục chủ đề của lớp về Nháp trước khi lưu lại lịch nhánh (gói đang Chờ duyệt khóa lịch nhánh),
   // bỏ lần mở hạn / gửi của lần chạy trước (dữ liệu dev do bộ test tạo)
   sql(
     `update edu_class_docs set status='DRAFT', history='[]'::jsonb, approvals='[]'::jsonb ` +
       `where kind='semester' and classroom_id=${cls.id}`,
   );
-  // Lưu lại lịch nhánh (không đổi nội dung) để BE tạo gói học kỳ / hồ sơ chủ đề còn thiếu
+  // Lưu lại lịch nhánh (không đổi nội dung) để BE tạo kế hoạch giáo dục chủ đề / kế hoạch giáo dục ngày còn thiếu
   const branch = docs.data.branchPlans.find((b) => String(b.classId) === String(cls.id));
   test.skip(!branch, 'Lớp chưa có lịch chủ đề nhánh');
+  // names/notes dẫn xuất từ lịch nhánh: BE tự tính lại, gửi bản đọc về có thể lệch sau khi đổi ngày học kỳ ở trên
+  const { names, notes, ...content } = branch;
   const saved = await api(U.tl, 'PUT', `${DOCS}/branch/${branch.id}`, {
-    body: branch,
+    body: content,
     headers: { 'X-Class-Doc-Version': String(branch.version) },
   });
   expect(saved.status, saved.desc).toBe(200);
   sp1 = await packageOf(U.tl);
 });
 
-test('IT-003-01 gói học kỳ có hạn = ngày bắt đầu học kỳ; đã qua hạn mà chưa gửi ⇒ Quá hạn, gửi bị chặn 7385', async () => {
-  expect(sp1, 'gói học kỳ 1 của lớp').toBeTruthy();
+test('IT-003-01 kế hoạch giáo dục chủ đề có hạn = ngày bắt đầu học kỳ; đã qua hạn mà chưa gửi ⇒ Quá hạn, gửi bị chặn 7385', async () => {
+  expect(sp1, 'kế hoạch giáo dục chủ đề học kỳ 1 của lớp').toBeTruthy();
   expect(sp1.deadline).toBe('2026-09-01');
   if (sp1.status !== 'DRAFT') test.skip(true, `gói đang ${sp1.status} từ lần chạy trước`);
   expect(sp1.deadlineState).toBe('OVERDUE');
@@ -103,7 +105,7 @@ test('IT-003-03 sau mở hạn, lần gửi không còn bị chặn vì quá h�
   if (sent.status === 200) expect(sent.data.status).toBe('REVIEW');
 });
 
-test('IT-003-04 hồ sơ chủ đề: hạn = ngày bắt đầu chủ đề, không còn cách gửi (spec 004); giáo án tuần không nhận phần ngày (400)', async () => {
+test('IT-003-04 kế hoạch giáo dục ngày: hạn = ngày bắt đầu chủ đề, không còn cách gửi (spec 004); giáo án tuần không nhận phần ngày (400)', async () => {
   const docs = await api(U.tl, 'GET', DOCS);
   const dossiers = (docs.data.themeDossiers || []).filter((d) => String(d.classId) === String(cls.id));
   for (const d of dossiers) {

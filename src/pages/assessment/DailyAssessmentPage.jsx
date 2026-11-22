@@ -1,4 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useYearCampuses } from '@/hooks/useYearCampuses';
+import { PERMISSIONS } from '@/models/bePermissions';
+import { CampusFilter } from '@/components/ui/CampusFilter';
 import { Link, useSearchParams } from 'react-router-dom';
 import { ChildAvatar } from '@/components/ChildAvatar';
 import { Flag, Lock, Save, UserX } from '@/components/ui/icons';
@@ -16,7 +19,7 @@ import { EmptyState, ErrorState, SkeletonRows, Spinner } from '@/components/ui/S
 import { StatusPage } from '@/components/ui/StatusPage';
 import { AbsentRows, BehaviorsCell, HealthCell, MealsCell } from '@/components/assessment/DailyAssessmentCells';
 import { Cell } from '@/components/ui/TableCell';
-import { DAILY_COMMENT_MAX, EMOTION, EMOTION_LABELS } from '@/models/assessment/assessmentConstants';
+import { CLASS_COMMENT_MAX, DAILY_COMMENT_MAX, EMOTION, EMOTION_LABELS } from '@/models/assessment/assessmentConstants';
 import { NAP, NAP_LABELS, PARTICIPATION, PARTICIPATION_LABELS } from '@/models/assessment/dailyObservationOptions';
 import { createGeneralDraft, getGeneralDirtyIds, getGeneralSaveEntries, isGeneralRecorded } from '@/utils/assessment/dailyGeneralDraft';
 import { DateInput } from '@/components/form/DateInput';
@@ -38,7 +41,11 @@ export default function DailyAssessmentPage() {
   const [classId, setClassId] = useState(search.get('classId') || '');
   const [date, setDate] = useState(() => search.get('date') || '');
   // Chưa chọn ngày: BE trả ngày học gần nhất theo ngày nghỉ trong cấu hình năm học (lễ, Tết…)
-  const currentClassId = classes.some((c) => c.id === classId) ? classId : classes[0]?.id || '';
+  // Lọc điểm trường (HT: điểm trường của năm đang chọn; PHT: theo phạm vi quyền được cấp); lớp theo điểm trường đang chọn
+  const yearCampuses = useYearCampuses(PERMISSIONS.ASSESSMENT_VIEW);
+  const [campusId, setCampusId] = useState('');
+  const campusClasses = classes.filter((c) => !campusId || String(c.campusId) === String(campusId));
+  const currentClassId = campusClasses.some((c) => c.id === classId) ? classId : campusClasses[0]?.id || '';
   const params = useMemo(() => ({ classId: currentClassId, date: date || undefined }), [currentClassId, date]);
   const { sheet, loading, error, reload } = useDailyAssessment(params);
   const shownDate = date || sheet?.date || '';
@@ -81,8 +88,10 @@ export default function DailyAssessmentPage() {
     setSaveError(null);
   };
 
+  // BE cắt khoảng trắng đầu / cuối rồi mới đếm
+  const classCommentTooLong = classComment.trim().length > CLASS_COMMENT_MAX;
   const save = async () => {
-    if (saving || !writable || loading || classesLoading || error || !canSave) return false;
+    if (saving || !writable || loading || classesLoading || error || !canSave || classCommentTooLong) return false;
     setSaving(true);
     setSaveError(null);
     try {
@@ -113,7 +122,9 @@ export default function DailyAssessmentPage() {
 
   const recordedCount = sheet?.rows.filter(isGeneralRecorded).length || 0;
   const commentError = saveError?.details?.comment;
-  const classCommentError = saveError?.details?.classComment;
+  const classCommentError = classCommentTooLong
+    ? `Nhận xét chung của lớp tối đa ${CLASS_COMMENT_MAX} ký tự`
+    : saveError?.details?.classComment;
   // Lỗi không gắn được vào một ô (trẻ chưa có mặt, ngày đã khóa…): hiện ở đầu bảng
   const formError = saveError && !commentError && !classCommentError ? saveError.message : null;
 
@@ -131,14 +142,15 @@ export default function DailyAssessmentPage() {
       ) : (
         <div className="card">
           <div className="filter-bar">
+            <CampusFilter campuses={yearCampuses || []} value={campusId} onChange={(next) => confirmChange(() => setCampusId(next))} />
             <div className="field">
               <label className="field__label" htmlFor="dg-class">
                 Lớp
               </label>
               {/* GV chỉ dạy một lớp: hiện tên lớp, không bắt chọn */}
-              {classes.length === 1 ? (
+              {campusClasses.length <= 1 ? (
                 <span id="dg-class" className="fw-600">
-                  {classes[0].name}
+                  {campusClasses[0]?.name || 'Điểm trường chưa có lớp'}
                 </span>
               ) : (
                 <select
@@ -150,7 +162,7 @@ export default function DailyAssessmentPage() {
                     confirmChange(() => setClassId(next));
                   }}
                 >
-                  {classes.map((c) => (
+                  {campusClasses.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name}
                     </option>
@@ -406,7 +418,11 @@ export default function DailyAssessmentPage() {
                 Hủy thay đổi
               </button>
             )}
-            <button className="btn btn--primary" onClick={save} disabled={saving || loading || classesLoading || !!error || !canSave}>
+            <button
+              className="btn btn--primary"
+              onClick={save}
+              disabled={saving || loading || classesLoading || !!error || !canSave || classCommentTooLong}
+            >
               {saving ? <Spinner small /> : <Save size={16} />} Lưu đánh giá{saveEntries.length ? ` (${saveEntries.length})` : ''}
             </button>
           </div>

@@ -283,61 +283,18 @@
   display: flex;
   align-items: center;
 }
-.tr-intake-suggest__caret {
+/* Chevron cùng cỡ/màu với SearchSelect; danh sách dùng panel chung .search-select__panel (portal) */
+.tr-intake-suggest__chevron {
   position: absolute;
   right: var(--space-3);
-  width: 12px;
-  height: 12px;
-  border: solid var(--color-text-muted);
-  border-width: 0 0 2px 2px;
-  transform: rotate(-45deg) translateY(-2px);
   pointer-events: none;
+  transition: rotate var(--duration-fast) var(--ease-out);
 }
-.tr-intake-suggest__control--open .tr-intake-suggest__caret {
-  border-width: 2px 0 0 2px;
-  transform: rotate(45deg) translateY(2px);
+.tr-intake-suggest__control--open .tr-intake-suggest__chevron {
+  rotate: 180deg;
 }
 .tr-intake-suggest__control .input {
-  padding-right: calc(var(--space-3) * 2 + 12px);
-}
-.tr-intake-suggest__list {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  z-index: var(--z-dropdown);
-  margin: var(--space-1) 0 0;
-  padding: 0;
-  list-style: none;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-md);
-  /* --space-32 không tồn tại (tokens dừng --space-16): max-height cũ không hợp lệ, list đẩy vỡ bảng.
-     Tự scroll nội bộ + chặn lan scroll. */
-  max-height: calc(var(--input-height) * 6);
-  overflow-y: auto;
-  overscroll-behavior: contain;
-}
-.tr-intake-suggest__item {
-  display: block;
-  width: 100%;
-  padding: var(--space-2) var(--space-3);
-  background: none;
-  border: none;
-  color: var(--color-text);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-.tr-intake-suggest__item:hover,
-.tr-intake-suggest__item:focus-visible {
-  background: var(--color-primary-soft);
-  outline: none;
-}
-.tr-intake-suggest__item[aria-selected='true'] {
-  color: var(--color-primary);
-  font-weight: var(--fw-semibold);
+  padding-right: calc(var(--space-3) * 2 + var(--space-4));
 }
 .tr-intake-guardian--selected {
   border-color: var(--color-primary);
@@ -600,6 +557,7 @@
   align-items: start;
 }
 .tr-trend-detail {
+  container: tr-trend-detail / inline-size;
   min-width: 0;
   scroll-margin-top: calc(var(--header-height) + var(--space-6));
 }
@@ -678,10 +636,17 @@
 .tr-trend-list__head .select {
   width: 100%;
 }
-/* Biểu đồ của trẻ: mỗi biểu đồ một dòng cho đủ rộng (user yêu cầu 2026-10-23) */
+/* Biểu đồ của trẻ: màn lớn 2 biểu đồ một dòng, màn nhỏ 1 biểu đồ một dòng (user chọn 2026-11-14).
+   Theo bề ngang khung chi tiết, không theo màn: thu gọn danh sách trẻ thì khung rộng ra, đủ chỗ cho 2 biểu đồ. */
 .tr-trend-charts {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-5);
+}
+@container tr-trend-detail (min-width: 800px) {
+  .tr-trend-charts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 .tr-trend-item__name {
   display: flex;
@@ -860,6 +825,12 @@
   stroke-width: 2.5;
   stroke-linejoin: round;
 }
+.tr-chart__value {
+  fill: var(--color-text);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  font-family: var(--font);
+}
 .tr-chart__pt {
   stroke: var(--surface);
   stroke-width: 2;
@@ -868,15 +839,17 @@
 .tr-chart__pt--alert {
   fill: var(--warning);
 }
+/* Chưa có đánh giá: tròn rỗng viền xám, phân biệt bằng hình chứ không chỉ bằng màu */
 .tr-chart__pt--unavailable {
-  fill: var(--disabled);
+  fill: var(--surface);
+  stroke: var(--color-text-muted);
 }
 .tr-legend {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-4);
-  margin-top: var(--space-3);
   align-items: center;
+  color: var(--color-text-secondary);
 }
 .tr-legend > span {
   display: inline-flex;
@@ -893,10 +866,14 @@
   background: var(--success);
 }
 .tr-legend__dot--alert {
+  border-radius: 0;
   background: var(--warning);
+  transform: rotate(45deg) scale(0.9);
 }
 .tr-legend__dot--unavailable {
-  background: var(--disabled);
+  box-sizing: border-box;
+  border: 2px solid var(--color-text-muted);
+  background: var(--surface);
 }
 
 /* AI draft panel */
@@ -937,6 +914,79 @@
 .tr-ai__item--info {
   background: var(--color-info-bg);
   color: var(--color-info-fg);
+}
+/* Khối nội dung có cấu trúc (HLT-21): Tổng quan, Cần chú ý, Điểm tích cực, Gợi ý theo dõi, Lưu ý về dữ liệu */
+.tr-ai__block + .tr-ai__block {
+  margin-top: var(--space-4);
+}
+.tr-ai__block-title {
+  margin: 0 0 var(--space-2);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--color-text-muted);
+}
+.tr-ai__block .tr-ai__list {
+  margin-top: 0;
+}
+.tr-ai__overview {
+  margin: 0;
+  max-width: 72ch;
+  font-size: var(--fs-md);
+  line-height: 1.6;
+  text-wrap: pretty;
+}
+/* Cần chú ý / Điểm tích cực / Gợi ý theo dõi chia cột, khung hẹp thì xếp dọc */
+.tr-ai__cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+.tr-ai__col {
+  padding: var(--space-3);
+  border-radius: var(--radius);
+  background: var(--color-surface-muted);
+}
+.tr-ai__col--attention {
+  background: var(--warning-25);
+}
+.tr-ai__col--attention .tr-ai__block-title {
+  color: var(--warning-800);
+}
+.tr-ai__col .tr-ai__list {
+  margin-top: 0;
+}
+.tr-ai__col .tr-ai__item {
+  padding: 0;
+  background: none;
+}
+.tr-ai__hint {
+  font-weight: var(--fw-regular);
+}
+.tr-ai__bullets {
+  margin: 0;
+  padding-left: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.tr-ai__summary {
+  white-space: pre-line;
+}
+/* Form sửa nhận định trước khi duyệt: ô nhập + nút xóa dòng */
+.tr-ai__editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.tr-ai__edit-row {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+}
+.tr-ai__edit-field {
+  flex: 1;
+  min-width: 0;
 }
 
 @media (max-width: 1100px) {
@@ -1375,39 +1425,6 @@
   font-size: var(--fs-xl);
   font-weight: var(--fw-semibold);
 }
-.tr-trend-kpis {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, calc(var(--space-16) * 2.25)), 1fr));
-  gap: var(--space-3) var(--space-4);
-  margin: 0;
-  padding: var(--space-4) var(--space-5);
-  border-top: 1px solid var(--border);
-  background: var(--color-surface-muted);
-  border-radius: 0 0 var(--card-radius) var(--card-radius);
-}
-.tr-trend-kpis dt {
-  margin-bottom: var(--space-1);
-  font-size: var(--fs-xs);
-  color: var(--text-2);
-}
-.tr-trend-kpis dd {
-  margin: 0;
-  font-size: var(--fs-title-sm);
-  font-weight: var(--fw-bold);
-  font-variant-numeric: tabular-nums;
-}
-.tr-trend-kpis dd small {
-  font-size: var(--fs-xs);
-  font-weight: var(--fw-regular);
-  color: var(--text-2);
-}
-.tr-trend-kpis__warn {
-  grid-column: 1 / -1;
-}
-.tr-trend-kpis__warn dd {
-  font-size: var(--fs-sm);
-  font-weight: var(--fw-regular);
-}
 
 /* Bảng tiến độ theo lớp (đợt khám, kỳ cân đo): cột số hẹp đều nhau, cột tiến độ rộng; dòng lớp đang mở có vạch nhấn bên trái */
 /* table-layout fixed: danh sách trẻ sổ xuống (colSpan) không kéo giãn bảng lớp, tự cuộn ngang bên trong */
@@ -1469,4 +1486,40 @@
 .tr-exam-list .input {
   flex: 1;
   min-width: 0;
+}
+
+/* Hộp nhập Excel: 3 ý chính + hướng dẫn chi tiết thu gọn, nút bật/tắt luôn nằm cuối (ImportChildrenModal) */
+.tr-import-points {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding-left: var(--space-5);
+}
+.tr-import-details {
+  margin-top: var(--space-1);
+}
+.tr-import-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+  font-size: inherit;
+  font-weight: var(--fw-semibold);
+}
+.tr-import-toggle:focus-visible {
+  outline: 2px solid var(--primary);
+  border-radius: var(--radius-sm);
+}
+
+/* BE:CHD-11 — chi tiết đề xuất sửa hồ sơ ở màn duyệt: dòng GV đổi tô vàng chờ duyệt */
+.tr-proposal__text {
+  white-space: pre-line;
+}
+.tr-proposal__changed {
+  display: inline-block;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-sm);
+  background: var(--color-warning-bg);
+  color: var(--color-warning-fg);
+  font-weight: var(--fw-semibold);
 }

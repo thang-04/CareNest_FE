@@ -6,7 +6,7 @@ import { login, saveStatus, spaGo } from '../support/ui.mjs';
 // GVCN lớp 1 cơ sở A, teacher6 = GV thứ hai lớp đó, viceprincipal = PHT duyệt kế hoạch tổ.
 test.describe.configure({ mode: 'serial' });
 
-const U = { vp: 'viceprincipal@gmail.com', ht: 'principal@gmail.com', tl: 'teamlead34@gmail.com', gv2: 'teacher6@gmail.com' };
+const U = { vp: 'viceprincipal', ht: 'principal', tl: 'teacher1', gv2: 'teacher2' };
 const GOALS = '/education-plans/goals';
 let homeroomClass;
 let teamDraft;
@@ -18,10 +18,14 @@ test.beforeAll(async () => {
   homeroomClass = docs.data.classes.find((c) => String(c.homeroomTeacherId) === String(me.data.userId));
   const teams = await api(U.tl, 'GET', `${GOALS}?planLevel=TEAM&size=100`);
   teamDraft = teams.data.items.find((p) => p.status === 'DRAFT');
-  // Gói học kỳ Chờ duyệt khóa lịch nhánh (đúng nghiệp vụ) ⇒ bộ test khác để lại thì đưa về Nháp trước khi thử Lưu
+  // Kế hoạch giáo dục chủ đề Chờ duyệt khóa lịch nhánh (đúng nghiệp vụ) ⇒ bộ test khác để lại thì đưa về Nháp trước khi thử Lưu
+  // BE:EDU-100: đã từng ban hành thì không thêm/xóa nhánh ⇒ bỏ cả bản ban hành cũ do bộ test khác để lại
   if (homeroomClass)
     sql(
-      `update edu_class_docs set status='DRAFT', history='[]'::jsonb, approvals='[]'::jsonb where kind='semester' and classroom_id=${homeroomClass.id}`,
+      `delete from edu_class_doc_releases where class_doc_id in (select id from edu_class_docs where kind='semester' and classroom_id=${homeroomClass.id});` +
+        `update edu_class_docs set status='DRAFT', history='[]'::jsonb, approvals='[]'::jsonb where kind='semester' and classroom_id=${homeroomClass.id};` +
+        // Kế hoạch chủ đề, kế hoạch tuần là thành phần của gói: đưa về Nháp cùng gói
+        `update edu_class_docs set status='DRAFT' where kind in ('theme','week') and status <> 'DRAFT' and classroom_id=${homeroomClass.id}`,
     );
 });
 
@@ -168,18 +172,28 @@ test('ST-002-06 GVCN xóa được chủ đề nhánh do lớp tự thêm (có h
   const docs = await api(U.tl, 'GET', '/education-plans/class-docs');
   const doc = docs.data.branchPlans.find((b) => String(b.classId) === String(homeroomClass.id));
   test.skip(!doc || doc.schemaVersion !== 2, 'Lớp chưa có lịch chủ đề nhánh dạng mới');
-  // Tạo sẵn một nhánh lớp tự thêm ở tuần trống đầu tiên còn lại của chủ đề đầu
-  const theme = doc.themeSchedules[0];
-  const used = doc.branches
-    .filter((b) => b.themeId === theme.themeId)
-    .map((b) => b.endDate)
-    .sort();
-  const start = new Date(`${used.at(-1) || theme.startDate}T00:00:00Z`);
-  start.setUTCDate(start.getUTCDate() + (used.length ? 3 : 0));
-  const end = new Date(start);
-  end.setUTCDate(end.getUTCDate() + 4);
+  // Tạo sẵn một nhánh lớp tự thêm ở tuần (thứ 2–6) đầu tiên chưa có nhánh.
+  // Kế hoạch giáo dục chủ đề đã tới hạn khóa lịch nhánh của học kỳ đó ⇒ chỉ xét chủ đề thuộc học kỳ chưa tới hạn (học kỳ 2)
+  const today = new Date().toISOString().slice(0, 10);
+  const sem2 = sql(
+    `select y.semester2_start from school_years y join classrooms c on c.school_year_id = y.id where c.id = ${homeroomClass.id}`,
+  );
   const iso = (d) => d.toISOString().slice(0, 10);
-  test.skip(iso(end) > theme.endDate, 'Chủ đề đầu không còn tuần trống');
+  let theme;
+  let start;
+  let end;
+  for (const t of doc.themeSchedules.filter((x) => x.startDate >= sem2 && x.startDate > today)) {
+    const taken = doc.branches.filter((b) => b.themeId === t.themeId);
+    for (const d = new Date(`${t.startDate}T00:00:00Z`); iso(d) <= t.endDate; d.setUTCDate(d.getUTCDate() + 7)) {
+      const friday = new Date(d);
+      friday.setUTCDate(friday.getUTCDate() + 4);
+      if (iso(friday) > t.endDate || taken.some((b) => b.startDate <= iso(friday) && b.endDate >= iso(d))) continue;
+      [theme, start, end] = [t, new Date(d), friday];
+      break;
+    }
+    if (theme) break;
+  }
+  test.skip(!theme, 'Học kỳ 2 không còn tuần trống chưa có nhánh');
   const key = crypto.randomUUID();
   const { version, dossierVersion, review, permissions, names, notes, calendarRevision, durationPolicySnapshot, releases, ...content } =
     doc;
@@ -204,7 +218,8 @@ test('ST-002-06 GVCN xóa được chủ đề nhánh do lớp tự thêm (có h
   await login(page, U.tl);
   await spaGo(page, `/education/branches/${homeroomClass.id}`);
   await page.getByRole('button', { name: 'Chỉnh sửa' }).click();
-  const remove = page.getByRole('button', { name: /^Xóa chủ đề nhánh tuần/ });
+  // BE:EDU-100: mọi nhánh của học kỳ chưa duyệt đều có nút xóa ⇒ chọn đúng nhánh vừa thêm
+  const remove = page.getByRole('button', { name: 'Xóa chủ đề nhánh Nhánh lớp tự thêm (E2E)', exact: true });
   await expect(remove).toHaveCount(1);
   await remove.click();
   const dialog = page.getByRole('dialog');

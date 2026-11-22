@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { AlertTriangle, ChevronDown, Copy, Plus, Save, Trash2, X } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -10,6 +10,8 @@ import { FormField } from '@/components/form/FormField';
 import { SearchSelect } from '@/components/ui/SearchSelect';
 import { ErrorState, LoadingState, Spinner } from '@/components/ui/States';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
+import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
+import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { NoManageAccess } from '@/components/menu-planning/MenuBadges';
 import { EditHead } from '@/components/ui/EditHead';
 import { AutoChecks } from '@/components/menu-planning/AutoChecks';
@@ -28,6 +30,7 @@ import {
   RECORD_STATUS_LABELS,
 } from '@/models/menu-planning/menuPlanningConstants';
 import '@/styles/modules/menu-planning.css';
+import { Button, SelectField, TextAreaField, TextField } from '@/components';
 
 const emptyRow = () => ({ isNew: true, foodId: '', portions: Object.fromEntries(AGE_GROUPS.map((a) => [a.id, ''])) });
 const AGE_IDS = AGE_GROUPS.map((a) => a.id);
@@ -41,7 +44,6 @@ const g = (v) => v.toLocaleString('vi-VN', { maximumFractionDigits: 1 });
 /** Bước 2 luồng dinh dưỡng – trang sửa món: định lượng từng nhóm tuổi, cột phải là dinh dưỡng 1 suất và kiểm tra tự động. */
 export default function DishFormPage() {
   const { id } = useParams();
-  const navigate = useNavigate();
   const { user } = useAuth();
   const toast = useToast();
   const access = useCatalogAccess();
@@ -52,6 +54,8 @@ export default function DishFormPage() {
   const fromId = id ? null : params.get('from');
   const source = useDish(fromId, { live: false });
   const { items: others } = useDishes({});
+  // Giá trị gốc để so sánh "đã sửa chưa": form trống (mới) hoặc dữ liệu nạp từ server
+  const [initial, setInitial] = useState(EMPTY);
   const [form, setForm] = useState(EMPTY);
   const [submitted, setSubmitted] = useState(false);
   const [touched, setTouched] = useState({});
@@ -64,19 +68,26 @@ export default function DishFormPage() {
   const [statusError, setStatusError] = useState('');
 
   useEffect(() => {
-    if (source.item) setForm(duplicateDishForm(source.item, AGE_IDS, NEW_STATUS));
+    if (!source.item) return;
+    const loaded = duplicateDishForm(source.item, AGE_IDS, NEW_STATUS);
+    setForm(loaded);
+    setInitial(loaded);
   }, [source.item]);
 
   useEffect(() => {
+    let loaded = null;
     if (item)
-      setForm({
+      loaded = {
         name: item.name,
         type: item.type,
         description: item.description,
         status: item.status,
         ingredients: item.ingredients.map(toRow),
-      });
-    else if (!id && !fromId) setForm(EMPTY);
+      };
+    else if (!id && !fromId) loaded = EMPTY;
+    if (!loaded) return;
+    setForm(loaded);
+    setInitial(loaded);
   }, [item, id, fromId]);
 
   const groups = activeAgeGroups(catalog.nutritionSetups);
@@ -135,28 +146,39 @@ export default function DishFormPage() {
   if (!checks.length && preview.ingredients.length)
     checks.push({ tone: 'ok', text: `Đủ định lượng và số liệu cho ${groups.length} nhóm tuổi.` });
 
-  const submit = async (e, again = false, status = form.status) => {
+  const dirty =
+    ['name', 'type', 'description', 'status'].some((k) => form[k] !== initial[k]) ||
+    JSON.stringify(form.ingredients) !== JSON.stringify(initial.ingredients);
+  // Lưu từ hộp rời màn: giữ trạng thái hiện tại (món mới/nháp ⇒ lưu nháp, không tự kích hoạt)
+  const guard = useLeaveGuard({ when: dirty && !busy, onSave: () => submit(null, false, form.status, true) });
+
+  // Trả true khi lưu được; stay: lưu từ hộp rời màn (hộp tự chuyển tới nơi người dùng bấm)
+  const submit = async (e, again = false, status = form.status, stay = false) => {
     e?.preventDefault();
     setSubmitted(true);
-    if (hasErrors(Object.fromEntries(Object.entries(errors).filter(([, v]) => v)))) return;
+    if (hasErrors(Object.fromEntries(Object.entries(errors).filter(([, v]) => v)))) return false;
     const activating = status === DISH_STATUS.ACTIVE && draftMode;
     const statusCheck = activating ? validateDish({ ...form, status, id }, others, { requireGroups }).status : '';
     setStatusError(statusCheck || '');
-    if (statusCheck) return;
+    if (statusCheck) return false;
     setBusy(true);
     try {
       await saveDish(id, { ...form, status }, user);
       toast.success('Lưu thay đổi thành công.');
+      if (stay) return true;
       if (again) {
         setForm(EMPTY);
+        setInitial(EMPTY);
         setSubmitted(false);
         setTouched({});
-        navigate('/menu/dishes/new');
-      } else navigate('/menu/dishes');
+        guard.leaveNow('/menu/dishes/new');
+      } else guard.leaveNow('/menu/dishes');
+      return true;
     } catch (err) {
       if (err.details) setServerErrors(err.details);
       if (err.details?.status) setStatusError(err.details.status);
       toast.error(err, 'Không lưu được thay đổi');
+      return false;
     } finally {
       setBusy(false);
     }
@@ -198,26 +220,21 @@ export default function DishFormPage() {
               </Link>
               {draftMode ? (
                 <>
-                  <button type="button" className="btn" disabled={busy} onClick={() => submit(null, false, DISH_STATUS.DRAFT)}>
+                  <Button disabled={busy} onClick={() => submit(null, false, DISH_STATUS.DRAFT)}>
                     <Save size={16} /> Lưu nháp
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn--primary"
-                    disabled={busy}
-                    onClick={() => submit(null, false, DISH_STATUS.ACTIVE)}
-                  >
+                  </Button>
+                  <Button variant="primary" disabled={busy} onClick={() => submit(null, false, DISH_STATUS.ACTIVE)}>
                     {busy ? <Spinner small /> : <Save size={16} />} Lưu và dùng cho thực đơn
-                  </button>
+                  </Button>
                 </>
               ) : (
                 <>
-                  <button type="button" className="btn" disabled={busy} onClick={() => submit(null, true)}>
+                  <Button disabled={busy} onClick={() => submit(null, true)}>
                     <Save size={16} /> Lưu & thêm mới
-                  </button>
-                  <button type="submit" className="btn btn--primary" disabled={busy}>
+                  </Button>
+                  <Button type="submit" variant="primary" disabled={busy}>
                     {busy ? <Spinner small /> : <Save size={16} />} Lưu
-                  </button>
+                  </Button>
                 </>
               )}
             </>
@@ -233,7 +250,7 @@ export default function DishFormPage() {
         <section className="card">
           <div className="card__body td-form-grid">
             <FormField label="Tên món" required error={show('name')}>
-              <input
+              <TextField
                 className="input"
                 value={form.name}
                 maxLength={100}
@@ -242,7 +259,7 @@ export default function DishFormPage() {
               />
             </FormField>
             <FormField label="Loại món" required error={show('type')}>
-              <select
+              <SelectField
                 className="select"
                 value={form.type}
                 onChange={(e) => set('type', e.target.value)}
@@ -254,7 +271,7 @@ export default function DishFormPage() {
                     {v}
                   </option>
                 ))}
-              </select>
+              </SelectField>
             </FormField>
             <div className="field">
               <span className="field__label">
@@ -281,21 +298,26 @@ export default function DishFormPage() {
             <div className="td-form-grid">
               {draftMode ? (
                 <FormField label="Trạng thái" hint="Chọn nút lưu: Lưu nháp hoặc Lưu và dùng cho thực đơn">
-                  <input className="input" value="Nháp – chưa dùng được cho thực đơn" readOnly disabled />
+                  <TextField className="input" value="Nháp – chưa dùng được cho thực đơn" readOnly disabled />
                 </FormField>
               ) : (
                 <FormField label="Trạng thái" required>
-                  <select className="select" value={form.status} onChange={(e) => set('status', e.target.value)}>
+                  <SelectField className="select" value={form.status} onChange={(e) => set('status', e.target.value)}>
                     {Object.entries(RECORD_STATUS_LABELS).map(([k, v]) => (
                       <option key={k} value={k}>
                         {v}
                       </option>
                     ))}
-                  </select>
+                  </SelectField>
                 </FormField>
               )}
               <FormField label="Mô tả, cách chế biến" className="td-span-2">
-                <textarea className="textarea" rows={2} value={form.description} onChange={(e) => set('description', e.target.value)} />
+                <TextAreaField
+                  className="textarea"
+                  rows={2}
+                  value={form.description}
+                  onChange={(e) => set('description', e.target.value)}
+                />
               </FormField>
             </div>
           </details>
@@ -311,7 +333,7 @@ export default function DishFormPage() {
             {groups.length > 1 && (
               <div className="filter-bar td-recipe-copy">
                 <span className="text-sm">Chép định lượng từ</span>
-                <select
+                <SelectField
                   className="select"
                   value={copyFrom}
                   onChange={(e) => setCopyFrom(e.target.value)}
@@ -323,9 +345,9 @@ export default function DishFormPage() {
                       {ageAbbr(a.id)}
                     </option>
                   ))}
-                </select>
+                </SelectField>
                 <span className="text-sm">sang</span>
-                <select
+                <SelectField
                   className="select"
                   value={copyTo}
                   onChange={(e) => setCopyTo(e.target.value)}
@@ -339,10 +361,10 @@ export default function DishFormPage() {
                         {ageAbbr(a.id)}
                       </option>
                     ))}
-                </select>
-                <button type="button" className="btn" onClick={startCopy} disabled={!copyFrom || !copyTo || copyFrom === copyTo}>
+                </SelectField>
+                <Button onClick={startCopy} disabled={!copyFrom || !copyTo || copyFrom === copyTo}>
                   <Copy size={15} /> Chép
-                </button>
+                </Button>
               </div>
             )}
             {copied.length > 0 && (
@@ -404,7 +426,7 @@ export default function DishFormPage() {
                           const bad = submitted && errors[`ing_${i}_${a.id}`];
                           return (
                             <td key={a.id} className="num">
-                              <input
+                              <TextField
                                 type="number"
                                 min="0"
                                 step="1"
@@ -419,9 +441,8 @@ export default function DishFormPage() {
                           );
                         })}
                         <td className="cell--actions">
-                          <button
-                            type="button"
-                            className="icon-btn"
+                          <Button
+                            variant="icon"
                             aria-label={`Bỏ thực phẩm ${food?.name || i + 1}`}
                             title="Bỏ thực phẩm"
                             onClick={() =>
@@ -432,7 +453,7 @@ export default function DishFormPage() {
                             }
                           >
                             <Trash2 size={16} />
-                          </button>
+                          </Button>
                         </td>
                       </tr>
                     );
@@ -459,9 +480,9 @@ export default function DishFormPage() {
             </div>
             {submitted && errors.ingredients && <span className="field__error td-card-error">{errors.ingredients}</span>}
             <div className="td-add-meal">
-              <button type="button" className="link-btn" onClick={() => set('ingredients', [...form.ingredients, emptyRow()])}>
+              <Button variant="link" onClick={() => set('ingredients', [...form.ingredients, emptyRow()])}>
                 <Plus size={16} /> Thêm thành phần
-              </button>
+              </Button>
             </div>
           </section>
 
@@ -490,6 +511,7 @@ export default function DishFormPage() {
         onConfirm={() => applyCopy(pendingCopy.from, pendingCopy.to)}
         onClose={() => setPendingCopy(null)}
       />
+      <LeaveConfirmModal {...guard.modal} />
     </div>
   );
 }

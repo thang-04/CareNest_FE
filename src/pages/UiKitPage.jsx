@@ -18,6 +18,8 @@ import { useAiRun } from '@/hooks/useAiRun';
 import { LottiePlayer } from '@/components/ui/LottiePlayer';
 import {
   Breadcrumb,
+  LockNote,
+  PageHeader,
   Modal,
   ConfirmationModal,
   LoadingState,
@@ -42,11 +44,15 @@ import {
   RowActions,
   StatusPage,
   Button,
+  PageToolbar,
   Checkbox,
   DataTable,
   TextField,
   SelectField,
   LABELS,
+  PrintHeader,
+  PrintSignRow,
+  PrintPaperFit,
 } from '@/components';
 import './ui-kit.css';
 import { NutritionPrimitivesDemo } from '@/components/ui/NutritionPrimitivesDemo';
@@ -196,6 +202,7 @@ const NAV = [
   ['scales', 'Khoảng cách, bo góc, đổ bóng'],
   ['icons', 'Icon'],
   ['buttons', 'Nút'],
+  ['locks', 'Chỉ xem & nút khóa có lý do'],
   ['forms', 'Form'],
   ['status', 'Trạng thái'],
   ['alerts', 'Thông báo'],
@@ -498,6 +505,73 @@ export default function UiKitPage() {
             <div>
               Nhãn nút bắt đầu bằng <b>động từ</b> (Gửi phiếu, Xác nhận nhận, Lưu nháp). Không dùng “OK”, “Submit”. Mỗi vùng hành động (đầu
               trang, chân trang, modal) chỉ 1 nút primary; In / Xuất luôn là nút thường.
+            </div>
+          </div>
+        </Section>
+
+        <Section
+          id="locks"
+          title="Chỉ xem & nút khóa có lý do"
+          code={`<PageHeader title="Phiếu nhập kho" readOnly actions={<Button variant="primary" disabledReason="Bạn chỉ có quyền xem phiếu của Cơ sở 2. Cần lập: nhờ Hiệu trưởng cấp quyền.">Lập phiếu nhập</Button>} />
+
+<div>
+  <strong>Điểm danh · Chồi 1</strong>
+  <LockNote kind="overdue">Quá hạn 08:30 — chờ Hiệu trưởng mở lại điểm danh</LockNote>
+</div>
+<Button variant="primary" disabledReason="Quá giờ khóa 08:30">Lưu điểm danh</Button>
+
+<LockNote kind="notYet">…</LockNote>  <LockNote kind="locked">…</LockNote>`}
+        >
+          <div className="uikit-lock-demo">
+            <PageHeader
+              title="Phiếu nhập kho"
+              subtitle="Thiếu quyền ghi cả màn: nhãn tĩnh, nút chính khóa, lý do ở bóng chữ (rê chuột, Tab tới hoặc chạm). Nút trên từng dòng ẩn."
+              readOnly
+              actions={
+                <Button
+                  variant="primary"
+                  icon={Plus}
+                  disabledReason="Bạn chỉ có quyền xem phiếu của Cơ sở 2. Cần lập: nhờ Hiệu trưởng cấp quyền ở màn Phân quyền."
+                >
+                  Lập phiếu nhập
+                </Button>
+              }
+            />
+          </div>
+          <div className="uikit-lock-list mt-12">
+            <div className="uikit-lock-item">
+              <div>
+                <strong>Xác nhận suất ăn · Chồi 1</strong>
+                <LockNote kind="notYet">Mở lúc 07:00 ngày 20/11/2026</LockNote>
+              </div>
+              <Button variant="primary" disabledReason="Chưa đến giờ xác nhận suất (07:00).">
+                Xác nhận
+              </Button>
+            </div>
+            <div className="uikit-lock-item">
+              <div>
+                <strong>Điểm danh · Chồi 1</strong>
+                <LockNote kind="overdue">Quá hạn 08:30 — chờ Hiệu trưởng hoặc Phó hiệu trưởng mở lại điểm danh</LockNote>
+              </div>
+              <Button variant="primary" disabledReason="Quá giờ khóa 08:30.">
+                Lưu điểm danh
+              </Button>
+            </div>
+            <div className="uikit-lock-item">
+              <div>
+                <strong>Phiếu nhập 16/10/2026</strong>
+                <LockNote kind="locked">Không hủy được: thực phẩm của phiếu đã được xuất dùng</LockNote>
+              </div>
+              <Button variant="danger" disabledReason="Thực phẩm của phiếu đã được xuất dùng.">
+                Hủy phiếu
+              </Button>
+            </div>
+          </div>
+          <div className="alert alert--info mt-12 text-sm">
+            <Info size={16} />
+            <div>
+              Thiếu quyền cả màn ⇒ <b>PageHeader readOnly</b> + nút chính <b>disabledReason</b>; nút trên dòng ẩn. Có quyền nhưng chưa đến
+              hạn / quá hạn / đã khóa ⇒ <b>LockNote</b> dưới tên mục + nút giữ tên, <b>disabledReason</b> ngắn. Giờ, hạn, lý do lấy từ BE.
             </div>
           </div>
         </Section>
@@ -1073,9 +1147,32 @@ export default function UiKitPage() {
         </Section>
 
         <Section
+          id="responsive-toolbar"
+          title="Header một hàng, menu ba gạch khi thiếu chỗ"
+          code={
+            '<PageToolbar summary="Thông tin trang">…các nút…</PageToolbar> // ghim dưới header; ResponsiveToolbar dùng cho vùng không ghim'
+          }
+        >
+          <PageToolbar aria-label="Thao tác kế hoạch" summary="Header dùng chung">
+            <Button variant="outline-primary" size="sm" icon={Save}>
+              Lưu kế hoạch
+            </Button>
+            <Button variant="outline-primary" size="sm" icon={Send}>
+              Gửi kế hoạch để duyệt
+            </Button>
+            <Button variant="outline-primary" size="sm" icon={Printer}>
+              Xuất file kế hoạch
+            </Button>
+            <Button variant="outline-danger" size="sm" icon={Trash2} disabled>
+              Xóa kế hoạch
+            </Button>
+          </PageToolbar>
+        </Section>
+
+        <Section
           id="brand"
           title="Logo"
-          code={`<Logo />            // sidebar\n<Logo collapsed />  // chỉ biểu tượng\n<LogoFull width={160} />  // logo gốc (đăng nhập, splash)\n<PrintHeader />     // đầu mọi bản in A4`}
+          code={`<Logo />            // sidebar\n<Logo collapsed />  // chỉ biểu tượng\n<LogoFull width={160} />  // logo gốc (đăng nhập, splash)`}
         >
           <div
             className="row row--wrap"
@@ -1103,6 +1200,24 @@ export default function UiKitPage() {
               />
             </div>
           </div>
+        </Section>
+
+        <Section
+          id="print"
+          title="Mẫu in · Văn bản trường"
+          code={`<div className="print-sheet">\n  <PrintHeader />  // quốc hiệu 2 cột\n  …tiêu đề, nội dung…\n  <PrintSignRow signers={[{ title: 'Người lập' }, { title: 'Hiệu trưởng', name }]} date={ngayKy} />  // luôn ở cuối\n</div>\n<PrintToolbar sheetRef={ref} fileBase="..." onClose={close} />  // Đóng · Xuất Excel · Xuất PDF · In\n// Bản Word: docHeaderHtml(), signRowHtml(), DOC_TEMPLATE_CSS (components/print/docTemplate.js)`}
+        >
+          <PrintPaperFit>
+            <div className="print-sheet">
+              <PrintHeader />
+              <div className="ps-title">
+                <h1>TIÊU ĐỀ VĂN BẢN</h1>
+                <div className="ps-version">Dòng phụ: kỳ, ngày, điểm trường</div>
+              </div>
+              <p>Nội dung văn bản…</p>
+              <PrintSignRow signers={[{ title: 'Người lập' }, { title: 'Hiệu trưởng', name: 'Họ tên người ký' }]} />
+            </div>
+          </PrintPaperFit>
         </Section>
       </div>
     </div>

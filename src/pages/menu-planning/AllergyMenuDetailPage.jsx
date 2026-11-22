@@ -12,13 +12,14 @@ import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
 import { AllergenChips, HistoryCard, RecordStatusBadge } from '@/components/menu-planning/MenuBadges';
 import { MealsView } from '@/components/menu-planning/MealsView';
 import { NutritionTable } from '@/components/menu-planning/NutritionTable';
-import { applyReplacements, mealsTotals, priceOn, restrictedConflicts, sameAllergen } from '@/utils/menu-planning/menuCalculations';
+import { applyReplacements, foodBudgetOn, mealsTotals, restrictedConflicts, sameAllergen } from '@/utils/menu-planning/menuCalculations';
 import { allergyMenuCrumbs } from '@/utils/menu-planning/breadcrumbs';
 import { todayInput } from '@/utils/format';
 import { ageGroupById } from '@/models/School';
 import { ALLERGY_GROUP_LABELS } from '@/models/menu-planning/menuPlanningConstants';
 import { mealLabel, normScopeMeals } from '@/utils/menu-planning/nutritionSetup';
 import '@/styles/modules/menu-planning.css';
+import { Button } from '@/components';
 
 /** Screen #82 – one alternative menu. */
 export default function AllergyMenuDetailPage() {
@@ -74,9 +75,9 @@ export default function AllergyMenuDetailPage() {
         </div>
         {canManage && (
           <div className="row row--wrap td-actions">
-            <button className="btn btn--outline-danger" onClick={() => setConfirm(true)}>
+            <Button variant="outline-danger" onClick={() => setConfirm(true)}>
               <Trash2 size={16} /> Xóa
-            </button>
+            </Button>
             <Link className="btn btn--primary" to={`/menu/allergy-menus/${id}/edit`}>
               <Pencil size={16} /> Sửa thực đơn thay thế
             </Link>
@@ -210,7 +211,7 @@ export default function AllergyMenuDetailPage() {
               ageGroupId={a.ageGroupId}
               norms={catalog.norms}
               setups={catalog.nutritionSetups}
-              price={priceOn(catalog.mealPrices, a.ageGroupId, todayInput())?.price}
+              price={foodBudgetOn(catalog.mealPrices, a.ageGroupId, todayInput())}
             />
           </div>
         </div>

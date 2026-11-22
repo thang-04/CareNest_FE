@@ -3,7 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { AlertCircle, BookOpen, CircleCheck, Copy, Plus, RotateCcw, Soup } from '@/components/ui/icons';
 import { useDishes, useCatalogAccess, useCatalogLookups } from '@/hooks/menu-planning/useMenuPlanning';
 import { useFilterParams } from '@/hooks/useFilterParams';
-import { Breadcrumb } from '@/components/ui/Breadcrumb';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { usePageReadOnly } from '@/contexts/PageReadOnlyContext';
 import { Pagination, paginate } from '@/components/ui/Pagination';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { FilterMore } from '@/components/ui/FilterMore';
@@ -20,6 +21,7 @@ import { activeAgeGroups, ageAbbr } from '@/utils/menu-planning/nutritionSetup';
 import { dishCrumbs } from '@/utils/menu-planning/breadcrumbs';
 import { ALLERGENS, DISH_STATUS, DISH_STATUS_LABELS, DISH_TYPE_LABELS } from '@/models/menu-planning/menuPlanningConstants';
 import '@/styles/modules/menu-planning.css';
+import { Button, SelectField } from '@/components';
 
 const PAGE = 8;
 const FILTER_DEFAULTS = { type: '', keyword: '', portion: '', allergen: '', status: '' };
@@ -28,6 +30,7 @@ const FILTER_DEFAULTS = { type: '', keyword: '', portion: '', allergen: '', stat
 export default function DishListPage() {
   const navigate = useNavigate();
   const { canManage } = useCatalogAccess();
+  const { reason: viewOnlyReason } = usePageReadOnly();
   // Chỉ xem (không có quyền sửa danh mục) ⇒ bỏ cột Thao tác; bấm dòng vẫn mở chi tiết
   const colCount = canManage ? 6 : 5;
   const { catalog } = useCatalogLookups();
@@ -68,58 +71,62 @@ export default function DishListPage() {
 
   return (
     <div className="page">
-      <Breadcrumb items={dishCrumbs()} />
-      <div className="page__head">
-        <div>
-          <h1 className="page__title">Món ăn</h1>
-        </div>
-        <div className="page__actions">
-          <button type="button" className="btn" onClick={() => setLibrary(true)}>
-            <BookOpen size={16} /> Thư viện tham khảo
-          </button>
-          {canManage && (
-            <Link to="/menu/dishes/new" className="btn btn--primary">
-              <Plus size={16} /> Thêm món ăn
-            </Link>
-          )}
-        </div>
-      </div>
+      <PageHeader
+        crumbs={dishCrumbs()}
+        title="Món ăn"
+        readOnly={!canManage}
+        actions={
+          <div className="page__actions">
+            <Button icon={BookOpen} onClick={() => setLibrary(true)}>
+              Thư viện tham khảo
+            </Button>
+            <Button
+              variant="primary"
+              icon={Plus}
+              onClick={() => navigate('/menu/dishes/new')}
+              disabledReason={canManage ? undefined : viewOnlyReason}
+            >
+              Thêm món ăn
+            </Button>
+          </div>
+        }
+      />
       <section className="card td-split-nav">
         <CategoryNav title="Loại món ăn" items={navItems} value={type} onChange={change('type')} />
         <div className="td-split-nav__main">
           <div className="filter-bar">
             <SearchSubmit className="td-grow" value={keyword} placeholder="Tìm tên món ăn" label="Tìm món" onSearch={change('keyword')} />
-            <select className="select" value={portion} onChange={(e) => change('portion')(e.target.value)} aria-label="Định lượng">
+            <SelectField className="select" value={portion} onChange={(e) => change('portion')(e.target.value)} aria-label="Định lượng">
               <option value="">Tất cả định lượng</option>
               <option value="MISSING">Thiếu định lượng</option>
-            </select>
+            </SelectField>
             <FilterMore count={[allergen, status].filter(Boolean).length}>
               <label className="field">
                 <span className="field__label">Chất gây dị ứng</span>
-                <select className="select" value={allergen} onChange={(e) => change('allergen')(e.target.value)}>
+                <SelectField className="select" value={allergen} onChange={(e) => change('allergen')(e.target.value)}>
                   <option value="">Mọi chất gây dị ứng</option>
                   {ALLERGENS.map((a) => (
                     <option key={a} value={a}>
                       Chứa {a}
                     </option>
                   ))}
-                </select>
+                </SelectField>
               </label>
               <label className="field">
                 <span className="field__label">Trạng thái</span>
-                <select className="select" value={status} onChange={(e) => change('status')(e.target.value)}>
+                <SelectField className="select" value={status} onChange={(e) => change('status')(e.target.value)}>
                   <option value="">Tất cả trạng thái</option>
                   {Object.entries(DISH_STATUS_LABELS).map(([k, v]) => (
                     <option key={k} value={k}>
                       {v}
                     </option>
                   ))}
-                </select>
+                </SelectField>
               </label>
             </FilterMore>
-            <button type="button" className="btn" onClick={reset} disabled={!filtered}>
+            <Button onClick={reset} disabled={!filtered}>
               <RotateCcw size={15} /> Đặt lại bộ lọc
-            </button>
+            </Button>
           </div>
           <FilterChips count={loading ? null : rows.length} unit="món" chips={chips} />
           {error ? (
@@ -149,9 +156,9 @@ export default function DishListPage() {
                           description={filtered ? 'Thử đổi từ khóa hoặc bộ lọc.' : 'Thêm món hoặc chọn từ thư viện tham khảo.'}
                           action={
                             filtered ? (
-                              <button className="btn" onClick={reset}>
+                              <Button onClick={reset}>
                                 <RotateCcw size={15} /> Đặt lại bộ lọc
-                              </button>
+                              </Button>
                             ) : (
                               canManage && (
                                 <Link className="btn btn--primary" to="/menu/dishes/new">

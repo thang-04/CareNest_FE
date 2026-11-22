@@ -5,13 +5,12 @@ import { useAsync } from '@/hooks/useAsync';
 import { useMasterData } from '@/hooks/useMasterData';
 import { dryStockApi } from '@/services/dryStockApi';
 import { nutritionCatalogApi } from '@/services/nutritionCatalogApi';
-import { PERMISSIONS } from '@/models/bePermissions';
-import { hasBePermission } from '@/utils/bePermissions';
+import { canManageStockAt } from '@/utils/kitchen/kitchenPermissions';
 
-/** Hiện nút "Lập phiếu nhập" (chỉ ẩn/hiện; BE vẫn từ chối 403 khi không có quyền kho ở điểm trường đó). */
-export function useCanManageStock() {
+/** Được ghi kho, dự trù ở điểm trường đang xem (chỉ ẩn/khóa nút; BE vẫn từ chối khi không có quyền ở điểm trường đó). */
+export function useCanManageStock(campusId) {
   const { user } = useAuth();
-  return hasBePermission(user, PERMISSIONS.STOCK_MANAGE);
+  return canManageStockAt(user, campusId);
 }
 
 /**

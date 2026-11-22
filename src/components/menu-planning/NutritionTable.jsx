@@ -200,7 +200,7 @@ export function NutritionTable({ result, ageGroupId, norms, price, setups }) {
                     {price ? (
                       <StatusBadge
                         tone={result.cost > price ? 'orange' : 'green'}
-                        label={result.cost > price ? 'Vượt giá suất ăn' : 'Trong giá suất ăn'}
+                        label={result.cost > price ? 'Vượt ngân sách thực phẩm' : 'Trong ngân sách thực phẩm'}
                       />
                     ) : (
                       <StatusBadge tone="gray" label="Chưa đủ dữ liệu" />

@@ -11,6 +11,7 @@ import {
 import { formatQty } from '@/utils/format';
 import { evaluationGroups, evaluationSessions } from '@/utils/menu-planning/mealPlanGrid';
 import { dayLabel } from '@/utils/menu-planning/menuChecks';
+import { Button } from '@/components';
 
 // Chữ ngắn dưới con số: nói rõ trạng thái bằng chữ, không chỉ bằng màu
 const ROW_NOTE = { LOW: 'Thấp', HIGH: 'Cao', OK: 'Đạt' };
@@ -153,23 +154,26 @@ export function MealPlanEvaluations({ plan, block }) {
             })}
             {head(
               'Vi chất',
-              <button type="button" className="btn btn--ghost btn--sm" onClick={() => setShowMicro((v) => !v)}>
+              <Button variant="ghost" size="sm" onClick={() => setShowMicro((v) => !v)}>
                 {showMicro ? 'Thu gọn' : `Hiện ${MICRONUTRIENTS.length} vi chất`}
-              </button>,
+              </Button>,
             )}
             {showMicro && sectionRows(MICRONUTRIENTS)}
             {head('Tiền ăn')}
             <tr>
               <th scope="row">Tiền ăn / trẻ</th>
-              <td className="td-eval__norm">{formatMoney(dates.map((d) => group.byDate[d]?.mealPrice).find((v) => v != null))}</td>
+              <td className="td-eval__norm">
+                {formatMoney(dates.map((d) => group.byDate[d]?.foodBudget ?? group.byDate[d]?.mealPrice).find((v) => v != null))}
+              </td>
               {dates.map((date) => {
                 const ev = group.byDate[date];
-                // Vượt giá suất: dùng trạng thái giá BE gửi qua issues; ở đây chỉ so hai số BE trả để tô nền
-                const over = ev && ev.mealPrice != null && Number(ev.cost) > Number(ev.mealPrice);
+                // Vượt ngân sách thực phẩm (giá suất − phí dịch vụ): chỉ so hai số BE trả để tô nền
+                const budget = ev?.foodBudget ?? ev?.mealPrice;
+                const over = ev && budget != null && Number(ev.cost) > Number(budget);
                 return (
                   <td key={date} className={`td-eval__cell ${over ? 'td-eval__cell--high' : ''}`}>
                     {ev ? <span className="fw-600">{formatMoney(ev.cost)}</span> : '—'}
-                    {over && <small>Vượt giá suất</small>}
+                    {over && <small>Vượt ngân sách</small>}
                   </td>
                 );
               })}

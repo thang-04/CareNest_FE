@@ -87,3 +87,31 @@ test('FR-020: nhãn hạn luôn có tiền tố "Hạn:" để tách khỏi tr�
   for (const s of ['NEAR', 'OVERDUE', 'ON_TIME', 'LATE', 'NORMAL'])
     assert.match(deadlineLabel({ deadline: '2026-11-16', daysLeft: 1, deadlineState: s }).label, /^Hạn: /);
 });
+
+test('EDU-97: lọc riêng quá hạn gửi/duyệt và giữ lịch sử mở lại hạn duyệt', () => {
+  const eligible = overdueRows({
+    today: '2026-11-20',
+    themeDossiers: [
+      { id: 'send', status: 'DRAFT', canExtend: true },
+      { id: 'review', status: 'REVIEW', reviewDeadline: { locked: true, canReopen: true, lockFrom: '2026-11-18' } },
+      { id: 'denied', status: 'REVIEW', canExtend: true, reviewDeadline: { locked: true, canReopen: false } },
+      { id: 'reopened', status: 'REVIEW', reviewDeadline: { reopenUntil: '2026-11-25', reason: 'Bổ sung thời gian' } },
+    ],
+  });
+  assert.deepEqual(
+    filterOverdue(eligible).map((r) => r.docKey),
+    ['send', 'review'],
+  );
+  assert.deepEqual(
+    filterOverdue(eligible, { deadlineKind: 'send' }).map((r) => r.docKey),
+    ['send'],
+  );
+  assert.deepEqual(
+    filterOverdue(eligible, { deadlineKind: 'review' }).map((r) => r.docKey),
+    ['review'],
+  );
+  assert.deepEqual(
+    filterOverdue(eligible, { tab: 'extended', deadlineKind: 'review' }).map((r) => r.extension),
+    [{ deadline: '2026-11-25', note: 'Bổ sung thời gian' }],
+  );
+});

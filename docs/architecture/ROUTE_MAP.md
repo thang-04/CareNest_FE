@@ -104,8 +104,13 @@ Parent (thuộc APP; gửi báo nghỉ qua app) · Kitchen: chỉ App, gateway W
 
 ## Bỏ màn đánh giá tháng — 05/11/2026
 
-User chốt bỏ màn `/assessment/periodic` cho GV (cả tổ trưởng), PHT, HT. Menu không còn mục đánh giá tháng; route danh sách, chi tiết và AI-draft tháng chuyển bằng replace tới `/assessment/children`. Dashboard chỉ tải và nhắc đánh giá học kỳ/cuối năm. Giữ chất lượng tháng, phiếu bé ngoan, dữ liệu đánh giá tháng cũ và phần tổng hợp lịch sử trong hồ sơ/học kỳ/cuối năm. Không thay API hoặc xóa dữ liệu BE.
+User chốt bỏ màn `/assessment/periodic` cho GV (cả tổ trưởng), PHT, HT. Menu không còn mục đánh giá tháng; 14/11/2026 xóa hẳn màn và route `/assessment/periodic` (danh sách, chi tiết, AI-draft); đánh giá tháng cũ trong hồ sơ phát triển không còn nút "Xem chi tiết". Cùng ngày bỏ hẳn nhận xét chung lớp theo tháng (OBS-26): FE không còn gọi `/assessment/class-monthly-comments*`. Dashboard chỉ tải và nhắc đánh giá học kỳ/cuối năm. Giữ chất lượng tháng, phiếu bé ngoan, dữ liệu đánh giá tháng cũ và phần tổng hợp lịch sử trong hồ sơ/học kỳ/cuối năm. Không thay API hoặc xóa dữ liệu BE.
 
 ## Kết quả mục tiêu cuối chủ đề — 05/11/2026
 
 OBS-27: BE tính từng mục tiêu đạt khi ít nhất 50% hoạt động đã đánh giá là đạt; chưa chấm/ngày vắng không tính mẫu số. Cùng hoạt động lưu sửa thay kết quả; không đếm thêm lần. FE hiển thị dấu +/−/trống từ BE, không tự tính. Tổng kết chủ đề 70%, sửa tay, bản đã xác nhận và URL giữ nguyên. Phiếu năm chưa chốt lấy kết quả mới từ BE. Plan chính: BE:docs/plans/active/2026-11-05-theme-goal-majority.md.
+
+
+## Nhóm Thông báo trên sidebar — Tiền yêu cầu 17/11/2026
+
+Một nhóm `notifications` trong menu chính cho mọi role. `/notifications` mang nhãn Thông báo của tôi; HT/PHT có `/announcements` và `/announcement-templates`; riêng HT có `/notification-rules` và `/announcement-schedules`. Các route chi tiết/soạn/sửa giữ nguyên, làm sáng mục danh sách tương ứng; breadcrumb tự lấy nhóm Thông báo từ menuConfig. Quyền route/backend không đổi. Chi tiết hiện hành thay các ghi chú thiết kế cũ về Web notification ở bảng trên: [school-notifications](../features/school-notifications.md).

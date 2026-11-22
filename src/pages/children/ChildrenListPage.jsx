@@ -1,11 +1,23 @@
 import { ChildAvatar } from '@/components/ChildAvatar';
-import { useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Plus, Search, RotateCcw, UserMinus, FileSpreadsheet, Baby, Info, LayoutGrid, KeyRound, Pencil } from '@/components/ui/icons';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import {
+  Plus,
+  Search,
+  RotateCcw,
+  UserMinus,
+  FileSpreadsheet,
+  Baby,
+  Info,
+  LayoutGrid,
+  KeyRound,
+  Pencil,
+  ClipboardCheck,
+} from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useMasterData } from '@/hooks/useMasterData';
-import { useChildRecords, useClassOptions } from '@/hooks/children/useChildRecords';
+import { useChildRecords, useClassOptions, useProfileChanges } from '@/hooks/children/useChildRecords';
 import { sameId } from '@/services/http/idStrings';
 import { useFilterParams } from '@/hooks/useFilterParams';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
@@ -18,6 +30,8 @@ import { RowActions } from '@/components/ui/RowActions';
 import { clickableRowProps } from '@/utils/clickableRow';
 import { ChildStatusBadge } from '@/components/children/ChildBadges';
 import { WithdrawChildModal } from '@/components/children/WithdrawChildModal';
+import { ImportChildrenModal } from '@/components/children/ImportChildrenModal';
+import { Button } from '@/components/ui/Button';
 import { CHILD_STATUS, CHILD_STATUS_LABELS, GENDER_LABELS, ageLabel } from '@/models/School';
 import { PARENT_ACCOUNT_STATUS } from '@/models/children/childrenConstants';
 import { formatDate, normalizeText } from '@/utils/format';
@@ -47,6 +61,23 @@ export default function ChildrenListPage() {
   const { status, keyword, campusId, classId } = filters;
   const [page, setPage] = useState(1);
   const [withdrawing, setWithdrawing] = useState(null);
+  const [importOpen, setImportOpen] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const canImport = canEnrollChild(user);
+
+  // ?import=1 (từ Tiếp nhận trẻ, Xếp lớp, hoặc màn xem trước khi mất bản xem trước) ⇒ mở hộp nhập Excel rồi bỏ tham số khỏi URL.
+  useEffect(() => {
+    if (searchParams.get('import') !== '1') return;
+    if (canImport) setImportOpen(true);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('import');
+        return next;
+      },
+      { replace: true },
+    );
+  }, [searchParams, setSearchParams, canImport]);
 
   const { children: all, loading, error, reload } = useChildRecords({ schoolYear });
   // PHT được giao "Hồ sơ trẻ" toàn trường: bộ lọc lớp gồm lớp của cả 2 điểm trường
@@ -104,6 +135,9 @@ export default function ChildrenListPage() {
   const showCampus = seesAllCampusChildren(user);
   // Giáo viên không có thao tác dòng (Sửa, Cho nghỉ học) nên bỏ cả cột; bấm dòng mở hồ sơ (DESIGN §6.3)
   const showActions = !isTeacherRole(user);
+  // BE:CHD-11 — yêu cầu sửa hồ sơ GV gửi mà người xem duyệt được (BE trả canDecide)
+  const { requests: profileChanges } = useProfileChanges('PENDING', { enabled: showActions });
+  const changesToDecide = profileChanges.filter((r) => r.canDecide).length;
   const cols = 5 + (showCampus ? 1 : 0) + (showActions ? 1 : 0);
   const chipLabels = {
     keyword: `Từ khóa: ${keyword}`,
@@ -123,17 +157,19 @@ export default function ChildrenListPage() {
       <Breadcrumb items={childrenCrumbs()} />
       <div className="page__head">
         <h1 className="page__title">Danh sách trẻ</h1>
-        {canEnrollChild(user) && (
-          <div className="row gap-2">
-            <Link to="/children/import" className="btn">
-              <FileSpreadsheet size={16} /> Nhập từ Excel
-            </Link>
-            <Link to="/children/new" className="btn btn--primary">
-              <Plus size={16} /> Tiếp nhận trẻ
-            </Link>
-          </div>
-        )}
       </div>
+
+      {changesToDecide > 0 && (
+        <div className="alert alert--info mb-16" role="status">
+          <ClipboardCheck size={18} />
+          <span>
+            <b>{changesToDecide}</b> yêu cầu sửa hồ sơ của giáo viên đang chờ duyệt.{' '}
+            <Link to="/children/profile-changes" className="text-primary">
+              Xem và duyệt
+            </Link>
+          </span>
+        </div>
+      )}
 
       {isVicePrincipal(user) && (pendingPlacement > 0 || notActivated > 0) && (
         <div className="alert alert--warning mb-16">
@@ -198,6 +234,16 @@ export default function ChildrenListPage() {
           <button className="btn" onClick={resetFilters} disabled={!filtered}>
             <RotateCcw size={15} /> Đặt lại bộ lọc
           </button>
+          {canImport && (
+            <div className="filter-bar__end">
+              <Button icon={FileSpreadsheet} onClick={() => setImportOpen(true)}>
+                Nhập từ Excel
+              </Button>
+              <Link to="/children/new" className="btn btn--primary">
+                <Plus size={16} /> Tiếp nhận trẻ
+              </Link>
+            </div>
+          )}
         </div>
         <FilterChips count={loading ? null : rows.length} unit="trẻ" chips={chips} />
         {error ? (
@@ -322,6 +368,7 @@ export default function ChildrenListPage() {
           onDone={() => reload({ silent: true })}
         />
       )}
+      {importOpen && <ImportChildrenModal onClose={() => setImportOpen(false)} onChecked={() => navigate('/children/import')} />}
     </div>
   );
 }

@@ -6,7 +6,8 @@ import { useToast } from '@/contexts/ToastContext';
 import { useFoods, useCatalogAccess } from '@/hooks/menu-planning/useMenuPlanning';
 import { useFilterParams } from '@/hooks/useFilterParams';
 import { saveFoodsBulk, setFoodFavorite } from '@/services/menu-planning/menuPlanningService';
-import { Breadcrumb } from '@/components/ui/Breadcrumb';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { usePageReadOnly } from '@/contexts/PageReadOnlyContext';
 import { Pagination, paginate } from '@/components/ui/Pagination';
 import { EmptyState, ErrorState, SkeletonRows, Spinner } from '@/components/ui/States';
 import { FilterMore } from '@/components/ui/FilterMore';
@@ -29,6 +30,7 @@ import {
   RECORD_STATUS_LABELS,
 } from '@/models/menu-planning/menuPlanningConstants';
 import '@/styles/modules/menu-planning.css';
+import { Button, TextField } from '@/components';
 
 const PAGE = 8;
 const n = (v) => (typeof v === 'number' ? v.toLocaleString('vi-VN') : '—');
@@ -58,6 +60,7 @@ export default function FoodListPage() {
   const { user } = useAuth();
   const toast = useToast();
   const { canManage, personalFavorite } = useCatalogAccess();
+  const { reason: viewOnlyReason } = usePageReadOnly();
   // Bộ lọc lưu trên URL: mở thực phẩm rồi Back vẫn giữ nhóm, từ khóa và bộ lọc phụ
   const [filters, setFilters, resetFilters, activeKeys] = useFilterParams(FILTER_DEFAULTS);
   const { keyword, group, quick, allergen, status, origin } = filters;
@@ -152,7 +155,7 @@ export default function FoodListPage() {
     const value = drafts[f.id]?.[key] ?? String(read(f) ?? '');
     const err = bulkErrors[`${f.id}.${key}`];
     return (
-      <input
+      <TextField
         className={`input td-bulk-cell ${drafts[f.id]?.[key] !== undefined ? 'td-bulk-cell--changed' : ''} ${err ? 'is-invalid' : ''}`}
         value={value}
         inputMode="decimal"
@@ -165,35 +168,44 @@ export default function FoodListPage() {
 
   return (
     <div className="page">
-      <Breadcrumb items={foodCrumbs()} />
-      <div className="page__head">
-        <div>
-          <h1 className="page__title">Thực phẩm</h1>
-        </div>
-        {canManage && (
+      <PageHeader
+        crumbs={foodCrumbs()}
+        title="Thực phẩm"
+        readOnly={!canManage}
+        actions={
           <div className="page__actions">
-            <button type="button" className="btn" onClick={() => setImportOpen(true)} disabled={bulk}>
-              <FileImport size={16} /> Nhập từ Excel
-            </button>
-            <button type="button" className="btn" onClick={() => setBulk(true)} disabled={bulk}>
-              <Table2 size={16} /> Chỉnh sửa hàng loạt
-            </button>
-            <button type="button" className="btn btn--primary" onClick={() => setEditing('')} disabled={bulk}>
-              <Plus size={16} /> Thêm thực phẩm
-            </button>
+            {canManage && (
+              <>
+                <Button icon={FileImport} onClick={() => setImportOpen(true)} disabled={bulk}>
+                  Nhập từ Excel
+                </Button>
+                <Button icon={Table2} onClick={() => setBulk(true)} disabled={bulk}>
+                  Chỉnh sửa hàng loạt
+                </Button>
+              </>
+            )}
+            <Button
+              variant="primary"
+              icon={Plus}
+              onClick={() => setEditing('')}
+              disabled={bulk}
+              disabledReason={canManage ? undefined : viewOnlyReason}
+            >
+              Thêm thực phẩm
+            </Button>
           </div>
-        )}
-      </div>
+        }
+      />
       {bulk && (
         <div className="alert alert--info td-bulk-bar">
           <Table2 size={18} />
           <div className="td-grow">Đang sửa hàng loạt: sửa trực tiếp trong ô, bấm Lưu để ghi tất cả.</div>
-          <button type="button" className="btn btn--sm" onClick={stopBulk} disabled={saving}>
+          <Button size="sm" onClick={stopBulk} disabled={saving}>
             Hủy
-          </button>
-          <button type="button" className="btn btn--sm btn--primary" onClick={saveBulk} disabled={!changedCount || saving}>
+          </Button>
+          <Button size="sm" variant="primary" onClick={saveBulk} disabled={!changedCount || saving}>
             {saving && <Spinner small />} Lưu {changedCount} thay đổi
-          </button>
+          </Button>
         </div>
       )}
       <section className="card td-split-nav">
@@ -208,14 +220,9 @@ export default function FoodListPage() {
               onSearch={change('keyword')}
             />
             {/* Nút bật / tắt cùng chiều cao với ô tìm và các nút lọc, thay cho ô tích chữ lệch hàng */}
-            <button
-              type="button"
-              className="btn btn--toggle"
-              aria-pressed={favoriteOnly}
-              onClick={() => change('favorite')(favoriteOnly ? '' : '1')}
-            >
+            <Button className="btn--toggle" aria-pressed={favoriteOnly} onClick={() => change('favorite')(favoriteOnly ? '' : '1')}>
               {favoriteOnly ? <HeartFilled size={16} /> : <Heart size={16} />} Chỉ hay dùng
-            </button>
+            </Button>
             <FilterMore count={[quick, allergen, status, origin].filter(Boolean).length}>
               <div className="field">
                 <span className="field__label">Nguồn gốc</span>
@@ -249,9 +256,9 @@ export default function FoodListPage() {
                 />
               </div>
             </FilterMore>
-            <button type="button" className="btn btn--ghost" onClick={reset} disabled={!filtered}>
+            <Button variant="ghost" onClick={reset} disabled={!filtered}>
               <RotateCcw size={15} /> Đặt lại bộ lọc
-            </button>
+            </Button>
           </div>
           <FilterChips count={loading ? null : rows.length} unit="thực phẩm" chips={chips} />
           {error ? (
@@ -296,14 +303,14 @@ export default function FoodListPage() {
                           }
                           action={
                             filtered ? (
-                              <button className="btn" onClick={reset}>
+                              <Button onClick={reset}>
                                 <RotateCcw size={15} /> Đặt lại bộ lọc
-                              </button>
+                              </Button>
                             ) : (
                               canManage && (
-                                <button type="button" className="btn btn--primary" onClick={() => setEditing('')}>
+                                <Button variant="primary" onClick={() => setEditing('')}>
                                   <Plus size={16} /> Thêm thực phẩm
-                                </button>
+                                </Button>
                               )
                             )
                           }
@@ -348,16 +355,16 @@ export default function FoodListPage() {
                           <AllergenChips allergens={f.allergens} />
                         </td>
                         <td className="center" onClick={(e) => e.stopPropagation()}>
-                          <button
-                            type="button"
-                            className={`icon-btn ${f.favorite ? 'td-fav--on' : ''}`}
+                          <Button
+                            variant="icon"
+                            className={f.favorite ? 'td-fav--on' : ''}
                             aria-pressed={!!f.favorite}
                             aria-label={`${f.favorite ? 'Bỏ' : 'Đánh dấu'} hay dùng: ${f.name}`}
                             disabled={!canFavorite}
                             onClick={() => toggleFavorite(f)}
                           >
                             {f.favorite ? <HeartFilled size={17} /> : <Heart size={17} />}
-                          </button>
+                          </Button>
                         </td>
                         {showActions && (
                           <td className="cell--actions" onClick={(e) => e.stopPropagation()}>

@@ -96,15 +96,18 @@ export function PermissionTable({ groups, catalog, columns, caption, collapsible
                       {rows.map(({ code, dependent }) => {
                         const task = PERMISSION_TASKS[code];
                         return (
-                          <tr key={code}>
+                          <tr key={code} className="perm-table__item">
                             <th scope="row" className={`perm-table__task${dependent ? ' is-dependent' : ''}`} title={task?.hint}>
-                              {dependent && (
-                                <span className="perm-table__arrow" aria-hidden="true">
-                                  ↳
-                                </span>
-                              )}
-                              <PermissionLevelBadge level={task?.level} />
-                              {task?.label || catalog.find((permission) => permission.code === code)?.description || code}
+                              <span className="perm-table__task-line">
+                                {dependent && (
+                                  <span className="perm-table__arrow" aria-hidden="true">
+                                    ↳
+                                  </span>
+                                )}
+                                <PermissionLevelBadge level={task?.level} />
+                                {!PERMISSION_LEVELS[task?.level] && <span className="perm-level-slot" aria-hidden="true" />}
+                                <span>{task?.label || catalog.find((permission) => permission.code === code)?.description || code}</span>
+                              </span>
                               {dependent && <span className="sr-only"> (cần quyền xem của nhóm này)</span>}
                               {task?.hint &&
                                 (collapsible ? (

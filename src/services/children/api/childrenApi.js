@@ -68,6 +68,9 @@ import { toBeSchoolYear } from '@/services/http/schoolYearIds';
  * headCircumferenceCm: BE ghi ngày (mới = hôm nay, sửa giữ ngày), kỳ cân đo không ghi vòng đầu (response vẫn có
  * headCircumferenceCm của dữ liệu cũ); không còn lỗi ngày ngoài kỳ (HEALTH_MEASUREMENT_DATE_OUTSIDE), trùng ngày đo ⇒ 409.
  * GET health bỏ headCircumferenceUntil (mock: rules).
+ * Báo ăn (CHD-13, docs/plans/active/2026-11-18-intake-meal-registration.md): POST enrollments, PUT health-declaration, import nhận
+ * declaration.mealRegistered (boolean, thiếu/null = true); child.mealRegistered (boolean) ở GET profile, danh sách, bảng điểm danh.
+ * Cờ ở hồ sơ trẻ, không ở bản khai đã lưu; false ⇒ BE giữ dị ứng, chế độ ăn đã lưu, tiếp nhận mới thì lưu Chưa cung cấp.
  */
 const PAGE_SIZE = 100;
 // Màn danh sách, xếp lớp tự lọc theo trạng thái; BE mặc định bỏ trẻ đã nghỉ nên gửi đủ 3 trạng thái như mock
@@ -81,6 +84,8 @@ const withRelationLabels = (guardians = []) => guardians.map((g) => ({ ...g, rel
 const yearLabel = (name) => (name ? String(name).replace('-', ' - ') : name);
 // BE trả id số; màn và mock dùng id chuỗi (plan 2026-11-11-children-module-be-wiring)
 const read = (promise) => promise.then(stringifyIds);
+// approvedBy không theo mẫu tên id ⇒ đổi riêng để so với user.id (chuỗi) như mock
+const readTrend = (promise) => read(promise).then((t) => (t && t.approvedBy != null ? { ...t, approvedBy: String(t.approvedBy) } : t));
 
 /**
  * BE:ChildController.searchChildren (G94-180/CHD-09) trả trang {items, totalPages}, tối đa 100 trẻ/trang; lọc theo
@@ -173,6 +178,18 @@ async function loadProfile(id) {
   return { declaration: null, placements: [], ...result, cls, child };
 }
 
+// BE nhận mã quan hệ (FATHER...); savedPhone chỉ để form khóa ô SĐT đã lưu (G94-180/AUTH-21)
+const childUpdateBody = (body) => ({
+  ...body,
+  child: {
+    ...body.child,
+    guardians: (body.child?.guardians || []).map(({ savedPhone: _savedPhone, ...g }) => ({
+      ...g,
+      relation: relationCode(g.relation),
+    })),
+  },
+});
+
 export const childrenApi = {
   listChildren: (filters = {}) => listAllChildren({ ...filters, statuses: ALL_STATUSES }),
   getClassOptions,
@@ -199,20 +216,20 @@ export const childrenApi = {
     const { body, config } = enrollmentPhotoRequest(payload);
     return read(axiosClient.post('/children/enrollments', body, config));
   },
-  // BE nhận mã quan hệ (FATHER...); savedPhone chỉ để form khóa ô SĐT đã lưu (G94-180/AUTH-21)
-  updateChild: (id, body) =>
+  updateChild: (id, body) => read(axiosClient.put(`/children/${id}`, childUpdateBody(body))),
+  // CHD-11: GV được cấp CHILD_PROFILE_EDIT gửi yêu cầu, HT/PHT điểm trường duyệt mới ghi vào hồ sơ
+  submitProfileChange: (childId, { kind, profile, declaration }) =>
     read(
-      axiosClient.put(`/children/${id}`, {
-        ...body,
-        child: {
-          ...body.child,
-          guardians: (body.child?.guardians || []).map(({ savedPhone: _savedPhone, ...g }) => ({
-            ...g,
-            relation: relationCode(g.relation),
-          })),
-        },
+      axiosClient.post(`/children/${childId}/profile-change-requests`, {
+        kind,
+        profile: profile ? childUpdateBody(profile) : null,
+        declaration: declaration || null,
       }),
     ),
+  getLatestProfileChanges: (childId) => read(axiosClient.get(`/children/${childId}/profile-change-requests/latest`)),
+  listProfileChanges: (status) => read(axiosClient.get('/children/profile-change-requests', { params: { status } })),
+  approveProfileChange: (requestId) => read(axiosClient.post(`/children/profile-change-requests/${requestId}/approve`)),
+  rejectProfileChange: (requestId, note) => read(axiosClient.post(`/children/profile-change-requests/${requestId}/reject`, { note })),
   previewImport: (file) => {
     const form = new FormData();
     form.append('file', file);
@@ -248,5 +265,12 @@ export const childrenApi = {
         ? axiosClient.put(`/children/${childId}/health/measurements/${measurementId}`, payload)
         : axiosClient.post(`/children/${childId}/health/measurements`, payload),
     ),
-  analyzeHealthTrend: (childId) => read(axiosClient.post(`/children/${childId}/health/trend-analysis`)),
+  // HLT-21: period = khoảng đang chọn trên biểu đồ (MONTHS_6 | MONTHS_12 | ALL)
+  analyzeHealthTrend: (childId, period = 'ALL') =>
+    readTrend(axiosClient.post(`/children/${childId}/health/trend-analysis`, null, { params: { period } })),
+  // HLT-21: bản mới nhất (nháp hoặc đã duyệt), null khi trẻ chưa có bản nào
+  getLatestHealthTrend: (childId) => readTrend(axiosClient.get(`/children/${childId}/health/trend-analysis`)),
+  // Chỉ GV phụ trách lớp hiện tại của trẻ (BE 403 5041); content trống ⇒ duyệt nguyên bản AI
+  approveHealthTrend: (childId, interpretationId, content) =>
+    readTrend(axiosClient.post(`/children/${childId}/health/trend-analysis/${interpretationId}/approve`, content ? { content } : {})),
 };

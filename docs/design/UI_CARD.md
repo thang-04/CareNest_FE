@@ -11,6 +11,8 @@ Import từ `@/components` trừ khi cột "Từ" ghi khác.
 | Cần | Dùng | Từ |
 | --- | --- | --- |
 | Khung màn danh sách (đầu trang + thẻ + lọc + bảng) | `ListPage` | `@/components` |
+| Thanh nút header không xuống dòng | `ResponsiveToolbar` (EDU-92: thiếu chiều rộng → menu ba gạch, giữ control gốc) | `@/components` |
+| Thanh thao tác ghim sát dưới header, trước thẻ lọc/tab | `PageToolbar` — `leading` chứa Quay lại bên trái, summary cạnh đó, children là nút chi tiết/gửi bên phải; dùng ResponsiveToolbar, thiếu chỗ thu menu ba gạch. Trang dùng `.page--toolbar` bỏ khoảng trống đầu trang/tiêu đề ẩn | `@/components` |
 | Đầu trang (breadcrumb, tiêu đề, nút) | `PageHeader` | `@/components` |
 | Bảng danh sách có đang tải / trống / lỗi / phân trang | `DataTable` | `@/components` |
 | Nút (kể cả nút đang gửi); nút chỉ icon `variant="icon"` (`.icon-btn`), nút dạng chữ `variant="link"` (`.link-btn`) | `Button` — `variant`, `size`, `icon`, `loading` | `@/components` |
@@ -35,6 +37,10 @@ Import từ `@/components` trừ khi cột "Từ" ghi khác.
 | Nhập / tải tệp Excel (tệp mẫu → chọn tệp → xem trước hợp lệ/lỗi → xác nhận) | `ImportDialog` | `@/components/upload/ImportDialog` |
 | Icon | chỉ qua `@/components/ui/icons` | — |
 | Nhãn lặp lại (Lưu, Hủy, Đóng, Đang lưu…) | `LABELS` | `@/components` |
+| Màn chỉ xem (nhãn "Chỉ xem" ở đầu trang) | `PageHeader`/`ListPage` `readOnly`; trạng thái + lý do từ `AreaGate`: `usePageReadOnly()` | `@/components`, `@/contexts/PageReadOnlyContext` |
+| Nút khóa có lý do (thiếu quyền, chưa đến giờ, quá hạn, đã khóa) | `Button disabledReason="…"` (không dùng `disabled` cho trường hợp này) | `@/components` |
+| Dòng lý do dưới tên mục (chưa đến giờ / quá hạn / đã khóa) | `LockNote kind="notYet" \| "overdue" \| "locked"` | `@/components` |
+| Bóng chữ giải thích (hover, focus, chạm) | `Tooltip content` | `@/components` |
 
 Thiếu component ⇒ thêm vào `src/components/ui` (vùng dùng chung: in bản tác động trước, AGENTS.md › Chế độ làm việc) và thêm vào `/ui-kit`; không dựng bản riêng trong module. Màn mẫu: `src/pages/kitchen/SupplierListPage.jsx`.
 
@@ -57,6 +63,14 @@ Thiếu component ⇒ thêm vào `src/components/ui` (vùng dùng chung: in bả
 15. **Danh sách:** bấm dòng mở chi tiết (`clickableRowProps`), không icon/nút "Xem"; cột thao tác tiêu đề "Thao tác"; cột đầu "STT"; một cột một thông tin; thanh lọc nằm cùng thẻ với bảng. Mỗi luồng giữ ô lọc nghiệp vụ riêng; nút "Đặt lại bộ lọc" không bắt buộc.
 16. **Đầu trang:** tên trang + đường dẫn tự lên thanh trên qua `Breadcrumb` — không vẽ thêm đường dẫn hay lặp tên trang trong thân; không thêm nút "Tạo nhanh" lên thanh trên.
 17. Trống ⇒ `EmptyState` (hình + tiêu đề + mô tả), không `<p className="muted">` hay `<td colSpan>` chữ trơn. Nhãn trạng thái vòng đời (nháp/chờ duyệt/đã duyệt) ⇒ `createStatusBadge`; nhãn riêng khác được giữ.
+
+18. **Chỉ xem và nút khóa** (`DESIGN.md` §9, xem `/ui-kit#locks`):
+    - Thiếu quyền ghi cả màn ⇒ `readOnly` ở đầu trang; nút chính khóa bằng `disabledReason`; nút trên từng dòng ẩn.
+    - Có quyền nhưng sai thời điểm/trạng thái ⇒ `LockNote` dưới tên mục + nút giữ tên, khóa bằng `disabledReason`.
+    - Hành động không áp dụng cho mục ⇒ ẩn.
+    - `disabled` chỉ dùng khi đang gửi hoặc form chưa đủ dữ liệu.
+    - Giờ, hạn, lý do lấy từ dữ liệu BE (`can*`, mốc giờ), không tự tính.
+    - Màn có đầu trang viết tay (không dùng `PageHeader`) gọi `usePageReadOnly()` và tự đặt `<ReadOnlyTag />`; chưa làm thì `AreaGate` hiện dải chữ dự phòng.
 
 ## 3. Tự kiểm trước khi báo xong
 

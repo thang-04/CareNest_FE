@@ -102,3 +102,24 @@
   font-size: var(--fs-2xs);
   color: var(--color-text-muted);
 }
+
+/* Mẫu "Chỉ xem & nút khóa có lý do" */
+.uikit-lock-demo {
+  padding: var(--space-3) var(--space-4) 0;
+  border: 1px dashed var(--color-border-dashed);
+  border-radius: var(--radius-md);
+}
+.uikit-lock-list {
+  display: grid;
+  gap: var(--space-2);
+}
+.uikit-lock-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}

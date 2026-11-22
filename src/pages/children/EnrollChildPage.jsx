@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Save, CheckCircle2, KeyRound, Eye, Plus, AlertTriangle, RotateCcw, Pencil } from '@/components/ui/icons';
 import { ChildAvatar } from '@/components/ChildAvatar';
@@ -23,6 +23,8 @@ import { DeclarationSummary } from '@/components/children/DeclarationSummary';
 import { IntakeSheet, IntakeSheetValueRow } from '@/components/children/IntakeSheet';
 import { checkDuplicateChild, checkGuardianConflicts, enrollChild, readmitChild } from '@/services/children/childrenService';
 import { FormField } from '@/components/form/FormField';
+import { SelectField } from '@/components/form/Field';
+import { DateInput } from '@/components/form/DateInput';
 import { GENDER_LABELS, ageLabel } from '@/models/School';
 import { formatDate } from '@/utils/format';
 import { hasErrors, validateChildInfo, validateDeclaration } from '@/utils/children/childrenValidation';
@@ -37,9 +39,9 @@ import {
 import { childrenCrumbs } from '@/utils/children/breadcrumbs';
 import '@/styles/modules/children.css';
 
-const STEPS = ['Thông tin trẻ & phụ huynh', 'Xếp lớp', 'Khai báo sức khỏe', 'Xem lại & xác nhận'];
+const STEPS = ['Thông tin trẻ & phụ huynh', 'Xếp lớp', 'Báo ăn và sức khỏe', 'Xem lại & xác nhận'];
 
-const PLACEMENT_FIELDS = ['classId', 'campusId'];
+const PLACEMENT_FIELDS = ['classId', 'campusId', 'schoolYearId', 'startDate'];
 
 const stepOfField = (field) => (field.startsWith('declaration.') ? 2 : PLACEMENT_FIELDS.includes(field) ? 1 : 0);
 
@@ -96,11 +98,13 @@ export default function EnrollChildPage() {
   const { user } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
-  const { schoolYear, activeYear, yearReadOnly } = useSchoolYear();
+  const { schoolYear, schoolYears, activeYear, yearReadOnly } = useSchoolYear();
   const md = useMasterData();
-  const { classes, loading: classesLoading } = usePlacementClasses();
-  // Nhóm tuổi của năm học đang hoạt động (BE /school-structure hoặc mock) cho gợi ý nhóm tuổi, tên nhóm của lớp
-  const { ageGroups } = useClassOptions(activeYear?.id || schoolYear);
+  const [intakeYearId, setIntakeYearId] = useState('');
+  const intakeYear = schoolYears.find((y) => sameId(y.id, intakeYearId)) || activeYear || null;
+  const planned = intakeYear?.status === 'PLANNED';
+  const { classes, loading: classesLoading } = usePlacementClasses(intakeYear?.id);
+  const { ageGroups } = useClassOptions(intakeYear?.id || activeYear?.id || schoolYear);
 
   const [step, setStep] = useState(0);
   const [maxReached, setMaxReached] = useState(0);
@@ -109,6 +113,7 @@ export default function EnrollChildPage() {
   const [classId, setClassId] = useState('');
   // null = chưa chọn: dùng điểm trường mặc định; giữ lựa chọn khi tiếp nhận trẻ khác.
   const [campusPick, setCampusPick] = useState(null);
+  const [startDate, setStartDate] = useState('');
   const [declaration, setDeclaration] = useState(emptyDeclaration());
   const [errors, setErrors] = useState({ info: {}, placement: {}, declaration: {} });
   const [duplicate, setDuplicate] = useState(null);
@@ -124,6 +129,10 @@ export default function EnrollChildPage() {
     { enabled: canEnrollChild(user) },
   );
 
+  useEffect(() => {
+    if (!intakeYearId && activeYear?.id) setIntakeYearId(activeYear.id);
+  }, [activeYear?.id, intakeYearId]);
+
   if (!canEnrollChild(user)) {
     return (
       <div className="page">
@@ -138,10 +147,9 @@ export default function EnrollChildPage() {
     );
   }
 
-  // Xếp lớp khi tiếp nhận luôn vào năm học đang hoạt động (user chốt 2026-10-28, Y-3).
-  const yearId = activeYear?.id || schoolYear;
-  const yearLabel = activeYear?.label || schoolYear;
-  const suggested = suggestAgeGroupId(info.dateOfBirth, activeYear?.startDate || yearId, ageGroups);
+  const yearId = intakeYear?.id || activeYear?.id || schoolYear;
+  const yearLabel = intakeYear?.label || activeYear?.label || schoolYear;
+  const suggested = suggestAgeGroupId(info.dateOfBirth, intakeYear?.startDate || yearId, ageGroups);
   const selectedClass = classes.find((c) => c.id === classId);
   const selectedGroup = ageGroups.find((g) => sameId(g.id, selectedClass?.ageGroupId));
   // Hiệu trưởng, PHT toàn trường chọn điểm trường: trẻ chưa xếp lớp thuộc điểm trường này (BE kiểm lại).
@@ -251,6 +259,10 @@ export default function EnrollChildPage() {
         setErrors((e) => ({ ...e, placement: { campusId: 'Chọn điểm trường tiếp nhận trẻ' } }));
         return;
       }
+      if (planned && !startDate) {
+        setErrors((e) => ({ ...e, placement: { ...e.placement, startDate: 'Chọn ngày bắt đầu học' } }));
+        return;
+      }
       goTo(2);
     } else if (step === 2) {
       const errs = validateDeclaration(declaration, { dateOfBirth: info.dateOfBirth });
@@ -262,7 +274,17 @@ export default function EnrollChildPage() {
   const save = async () => {
     setBusy(true);
     try {
-      const child = await enrollChild({ child: effectiveInfo, classId, campusId: campusId || undefined, declaration }, user);
+      const child = await enrollChild(
+        {
+          child: effectiveInfo,
+          classId,
+          campusId: campusId || undefined,
+          schoolYearId: intakeYear?.id,
+          startDate: planned ? startDate : undefined,
+          declaration,
+        },
+        user,
+      );
       setSaved(child);
       toast.success(`Đã lưu hồ sơ ${child.fullName} (${child.code}).`, 'Tiếp nhận thành công');
     } catch (err) {
@@ -367,7 +389,7 @@ export default function EnrollChildPage() {
         <div>
           <h1 className="page__title">Tiếp nhận trẻ</h1>
         </div>
-        <Link to="/children/import" className="btn">
+        <Link to="/children?import=1" className="btn">
           Nhập nhiều trẻ từ Excel
         </Link>
       </div>
@@ -453,6 +475,38 @@ export default function EnrollChildPage() {
       {step === 1 && (
         <section className="card wizard-card">
           <StepHead title={`Xếp lớp năm học ${yearLabel}`} info={info} />
+          <div className="tr-placement-filters mb-16">
+            <SelectField
+              label="Năm học tiếp nhận"
+              required
+              error={errors.placement.schoolYearId}
+              value={intakeYear?.id || ''}
+              options={schoolYears
+                .filter((y) => y.status === 'ACTIVE' || y.status === 'PLANNED')
+                .map((y) => ({ value: y.id, label: `${y.label} · ${y.status === 'ACTIVE' ? 'Đang hoạt động' : 'Sắp diễn ra'}` }))}
+              onChange={(e) => {
+                const nextYear = schoolYears.find((y) => sameId(y.id, e.target.value));
+                setIntakeYearId(nextYear?.id || '');
+                setStartDate(nextYear?.status === 'PLANNED' ? nextYear.startDate || '' : '');
+                setClassId('');
+                setAgeGroupId('');
+                setErrors((current) => ({ ...current, placement: {} }));
+              }}
+            />
+            {planned && (
+              <FormField label="Ngày bắt đầu học" required error={errors.placement.startDate}>
+                <DateInput
+                  value={startDate}
+                  min={intakeYear?.startDate}
+                  max={intakeYear?.endDate}
+                  onChange={(value) => {
+                    setStartDate(value);
+                    setErrors((current) => ({ ...current, placement: { ...current.placement, startDate: undefined } }));
+                  }}
+                />
+              </FormField>
+            )}
+          </div>
           {classesLoading ? (
             <Spinner deferred />
           ) : (
@@ -481,6 +535,7 @@ export default function EnrollChildPage() {
                 setErrors((e) => ({ ...e, placement: {} }));
               }}
               campusError={errors.placement.campusId}
+              yearLabel={yearLabel}
             />
           )}
         </section>
@@ -488,7 +543,7 @@ export default function EnrollChildPage() {
 
       {step === 2 && (
         <section className="card wizard-card">
-          <StepHead title="Khai báo sức khỏe khi tiếp nhận" info={info} />
+          <StepHead title="Báo ăn và sức khỏe khi tiếp nhận" info={info} />
           <HealthDeclarationFields
             sheet
             dateOfBirth={info.dateOfBirth}
@@ -568,6 +623,7 @@ export default function EnrollChildPage() {
             <div className="tr-intake-cols">
               <ReviewGroup title="Xếp lớp" onEdit={() => goTo(1)}>
                 <IntakeSheet title={`IV. Xếp lớp năm học ${yearLabel}`}>
+                  {planned && <IntakeSheetValueRow label="Ngày bắt đầu học">{formatDate(startDate)}</IntakeSheetValueRow>}
                   {pickCampus && (
                     <IntakeSheetValueRow label="Điểm trường">{campusLabel(selectedClass?.campusId || campusId)}</IntakeSheetValueRow>
                   )}
@@ -583,8 +639,8 @@ export default function EnrollChildPage() {
                   </IntakeSheetValueRow>
                 </IntakeSheet>
               </ReviewGroup>
-              <ReviewGroup title="Khai báo sức khỏe" onEdit={() => goTo(2)}>
-                <DeclarationSummary sheet title="V. Khai báo sức khỏe" declaration={declaration} />
+              <ReviewGroup title="Báo ăn và sức khỏe" onEdit={() => goTo(2)}>
+                <DeclarationSummary sheet title="V. Báo ăn và sức khỏe" declaration={declaration} />
               </ReviewGroup>
             </div>
           </div>

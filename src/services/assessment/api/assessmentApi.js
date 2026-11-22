@@ -115,7 +115,7 @@ export const createAssessmentBeApi = (client) => ({
         },
       }),
       // Tổ trưởng không đọc được danh mục điểm trường (màn không lọc điểm trường cho tổ trưởng)
-      isLeader(user) ? client.get('/campuses').catch(() => []) : [],
+      isLeader(user) ? client.get('/campuses', { params: { schoolYearId: schoolYear || undefined } }).catch(() => []) : [],
       client.get('/age-groups').catch(() => []),
     ]);
     return withNames(overview, campuses, ageGroups);
@@ -128,7 +128,9 @@ export const createAssessmentBeApi = (client) => ({
     });
     // GV, tổ trưởng không đọc được danh mục điểm trường (màn không hiện cột điểm trường); BGH lọc thì vẫn cần đủ danh sách
     const campuses =
-      isLeader(user) && (campusId || (report.campusIds || []).length > 1) ? await client.get('/campuses').catch(() => []) : [];
+      isLeader(user) && (campusId || (report.campusIds || []).length > 1)
+        ? await client.get('/campuses', { params: { schoolYearId: schoolYear || undefined } }).catch(() => [])
+        : [];
     return {
       ...report,
       campuses: (report.campusIds || []).map((id) => ({ id, name: campusLabel(campuses, id) || id, fullName: campusFull(campuses, id) })),
@@ -141,7 +143,10 @@ export const createAssessmentBeApi = (client) => ({
       params: { period, schoolYearId: schoolYear || undefined, campusId: campusId || undefined },
     });
     // GV (1 điểm trường) không có quyền đọc danh mục điểm trường: chỉ tra tên khi có nhiều điểm trường
-    const campuses = isLeader(user) && (result.campusIds || []).length > 1 ? await client.get('/campuses').catch(() => []) : [];
+    const campuses =
+      isLeader(user) && (result.campusIds || []).length > 1
+        ? await client.get('/campuses', { params: { schoolYearId: schoolYear || undefined } }).catch(() => [])
+        : [];
     return {
       ...result,
       campuses: (result.campusIds || []).map((id) => ({ id, name: campusLabel(campuses, id) || id, fullName: campusFull(campuses, id) })),
@@ -155,11 +160,51 @@ export const createAssessmentBeApi = (client) => ({
   getThemeEvaluation: ({ classId, themeId }) => client.get('/assessment/theme-evaluations', { params: { classId, themeId } }),
   saveThemeEvaluation: (body) => client.put('/assessment/theme-evaluations', body),
   confirmThemeEvaluation: (body) => client.post('/assessment/theme-evaluations/confirm', body),
-  // Nhận xét chung cả lớp theo tháng (BE OBS-26); month = ngày 1 của tháng
-  getClassMonthlyComment: ({ classId, month }) => client.get('/assessment/class-monthly-comments', { params: { classId, month } }),
-  saveClassMonthlyComment: ({ classId, month, content }) => client.put('/assessment/class-monthly-comments', { classId, month, content }),
-  confirmClassMonthlyComment: ({ classId, month, content }) =>
-    client.post('/assessment/class-monthly-comments/confirm', { classId, month, content }),
+  // Nhận xét tuần theo trẻ (BE OBS-29): weekStart = thứ Hai; childId trống = cả lớp
+  getWeeklyComments: ({ classId, weekStart }) =>
+    client.get('/assessment/weekly-comments', { params: { classId, weekStart: weekStart || undefined } }),
+  writeWeeklyCommentDrafts: ({ classId, weekStart, childId, overwrite = false, ai = false }) =>
+    client.post('/assessment/weekly-comments/drafts', { classId, weekStart, childId: childId || null, overwrite, ai }),
+  saveWeeklyComment: ({ classId, weekStart, childId, content }) =>
+    client.put('/assessment/weekly-comments', { classId, weekStart, childId, content }),
+  sendWeeklyComments: ({ classId, weekStart, childId, content }) =>
+    client.post('/assessment/weekly-comments/send', { classId, weekStart, childId: childId || null, content: content ?? null }),
+  // Mở lại lớp – tuần nhận xét tuần đã khóa (HT / PHT có quyền mở lại) tới validUntil, như mở lại ngày đánh giá
+  unlockWeeklyComments: ({ classId, weekStart, validUntil, reason }) =>
+    client.post('/assessment/weekly-comments/unlocks', { classId, weekStart, validUntil, reason }),
+  listWeeklyCommentUnlocks: ({ campusId, classId, active, from, to } = {}) =>
+    client.get('/assessment/weekly-comments/unlocks', {
+      params: {
+        campusId: campusId || undefined,
+        classId: classId || undefined,
+        active: active ?? undefined,
+        from: from || undefined,
+        to: to || undefined,
+      },
+    }),
+  revokeWeeklyCommentUnlock: (id) => client.post(`/assessment/weekly-comments/unlocks/${id}/revoke`),
+  // BGH: tình hình gửi nhận xét tuần của các lớp (đã gửi / tổng, quá hạn)
+  getWeeklyCommentOverview: ({ campusId, weekStart } = {}) =>
+    client.get('/assessment/weekly-comments/overview', {
+      params: { campusId: campusId || undefined, weekStart: weekStart || undefined },
+    }),
+  // Hạn, khóa, mở lại đánh giá cuối chủ đề / học kỳ / cuối năm theo lớp – kỳ (BE OBS-30)
+  getEvaluationPeriods: ({ classId }) => client.get('/assessment/evaluation-periods', { params: { classId } }),
+  unlockEvaluation: ({ kind, classId, periodKey, validUntil, reason }) =>
+    client.post('/assessment/evaluation-unlocks', { kind, classId, periodKey, validUntil, reason }),
+  listEvaluationUnlocks: ({ campusId, classId, kind, active } = {}) =>
+    client.get('/assessment/evaluation-unlocks', {
+      params: {
+        campusId: campusId || undefined,
+        classId: classId || undefined,
+        kind: kind || undefined,
+        active: active ?? undefined,
+      },
+    }),
+  revokeEvaluationUnlock: (id) => client.post(`/assessment/evaluation-unlocks/${id}/revoke`),
+  // BGH: lớp quá hạn chưa xong (nhận xét tuần, chủ đề, học kỳ, cuối năm)
+  getOverdueClasses: ({ campusId, schoolYear } = {}) =>
+    client.get('/assessment/overdue', { params: { campusId: campusId || undefined, ...(schoolYear && { schoolYearId: schoolYear }) } }),
   // Đánh giá tháng / cuối năm: BE tạo bản nháp khi tháng kết thúc (cuối năm: khi học kỳ II kết thúc)
   getEvaluations: (kind, { schoolYear, classId } = {}) =>
     client.get('/assessment/evaluations', {
@@ -186,7 +231,7 @@ export const createAssessmentBeApi = (client) => ({
     const [rows, classes, campuses, ageGroups] = await Promise.all([
       client.get('/assessment/children', { params: { schoolYearId: schoolYear || undefined, classId: classId || undefined } }),
       client.get('/assessment/theme-evaluations/classes', { params: { schoolYearId: schoolYear || undefined } }).catch(() => []),
-      client.get('/campuses').catch(() => []),
+      client.get('/campuses', { params: { schoolYearId: schoolYear || undefined } }).catch(() => []),
       client.get('/age-groups').catch(() => []),
     ]);
     const classOf = new Map(classes.map((c) => [String(c.classId), c]));
@@ -207,7 +252,7 @@ export const createAssessmentBeApi = (client) => ({
       client.get('/assessment/program-completion', {
         params: { schoolYearId: schoolYear || undefined, campusId: campusId || undefined },
       }),
-      client.get('/campuses').catch(() => []),
+      client.get('/campuses', { params: { schoolYearId: schoolYear || undefined } }).catch(() => []),
     ]);
     return {
       ...report,
@@ -217,7 +262,10 @@ export const createAssessmentBeApi = (client) => ({
   // Đề xuất khen thưởng theo danh sách lớp: ghép tên điểm trường cho HT lọc
   getRewardLists: async ({ schoolYear } = {}) => {
     const rows = await client.get('/assessment/reward-lists', { params: { schoolYearId: schoolYear || undefined } });
-    const campuses = new Set(rows.map((r) => r.campusId)).size > 1 ? await client.get('/campuses').catch(() => []) : [];
+    const campuses =
+      new Set(rows.map((r) => r.campusId)).size > 1
+        ? await client.get('/campuses', { params: { schoolYearId: schoolYear || undefined } }).catch(() => [])
+        : [];
     return rows.map((r) => ({ ...r, campusName: campusLabel(campuses, r.campusId) || '' }));
   },
   getRewardList: (classId) => client.get(`/assessment/reward-lists/classes/${classId}`),
@@ -237,7 +285,7 @@ export const createAssessmentBeApi = (client) => ({
       client.get('/assessment/behaviour-tickets/overview', {
         params: { schoolYearId: schoolYear || undefined, month: month || undefined, campusId: campusId || undefined },
       }),
-      client.get('/campuses').catch(() => []),
+      client.get('/campuses', { params: { schoolYearId: schoolYear || undefined } }).catch(() => []),
     ]);
     return {
       ...overview,

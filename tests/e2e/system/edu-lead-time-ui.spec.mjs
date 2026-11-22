@@ -2,10 +2,10 @@ import { test, expect } from '@playwright/test';
 import { api, beReachable } from '../support/realBe.mjs';
 import { login, spaGo } from '../support/ui.mjs';
 
-// System spec 003 trên dữ liệu dev (chạy sau integration edu-lead-time-api: học kỳ đã cấu hình, gói học kỳ đã có).
+// System spec 003 trên dữ liệu dev (chạy sau integration edu-lead-time-api: học kỳ đã cấu hình, kế hoạch giáo dục chủ đề đã có).
 test.describe.configure({ mode: 'serial' });
 
-const U = { vp: 'viceprincipal@gmail.com', tl: 'teamlead34@gmail.com', gv2: 'teacher6@gmail.com' };
+const U = { vp: 'viceprincipal', tl: 'teacher1', gv2: 'teacher2' };
 let cls;
 let week;
 
@@ -37,7 +37,7 @@ test.beforeAll(async () => {
 
 const notFound = (page) => page.getByText(/Không tìm thấy|Đã có lỗi/);
 
-test('ST-003-01 khối Học kỳ ở trang Kế hoạch giáo dục chủ đề hiện trạng thái, nhãn hạn; không còn chữ "gói học kỳ"', async ({ page }) => {
+test('ST-003-01 khối Học kỳ ở trang Kế hoạch giáo dục chủ đề hiện trạng thái, nhãn hạn; không còn chữ "kế hoạch giáo dục chủ đề"', async ({ page }) => {
   test.skip(!cls, 'Thiếu lớp');
   await login(page, U.tl);
   await spaGo(page, `/education/theme-plans/${cls.id}?hk=1`);
@@ -50,7 +50,7 @@ test('ST-003-01 khối Học kỳ ở trang Kế hoạch giáo dục chủ đề
 });
 
 // Spec 005 FR-021/FR-021a: mở hạn chỉ ở màn Kế hoạch quá hạn của Hiệu trưởng, không trang chi tiết nào có nút mở
-test('ST-003-02 trang chi tiết gói học kỳ không có nút mở hạn (PHT, GV thứ hai)', async ({ page, browser }) => {
+test('ST-003-02 trang chi tiết kế hoạch giáo dục chủ đề không có nút mở hạn (PHT, GV thứ hai)', async ({ page, browser }) => {
   test.skip(!cls, 'Thiếu lớp');
   await login(page, U.vp);
   await spaGo(page, `/education/theme-plans/${cls.id}?hk=1`);
@@ -72,11 +72,12 @@ test('ST-003-03 Kế hoạch tuần và Kế hoạch giáo dục ngày là hai t
   await spaGo(page, `/education/class/${cls.id}/weeks/${week.weekStart}`);
   await expect(page.getByRole('heading', { name: /Kế hoạch tuần \d+/ })).toBeVisible({ timeout: 30_000 });
   await expect(page.getByRole('tab', { name: /Thứ 2/ })).toHaveCount(0);
-  await expect(page.locator('.ga-page a[href^="/education/"]:not(nav[aria-label="Breadcrumb"] a)')).toHaveCount(0);
+  // Nút "Đặt tên nhánh" sang trang nhánh được phép (Tiền 14/11/2026); không liên kết sang trang ngày
+  await expect(page.locator('.ga-page a[href^="/education/day-plans"]:not(nav[aria-label="Breadcrumb"] a)')).toHaveCount(0);
   await spaGo(page, `/education/day-plans/${cls.id}?week=${week.weekStart}`);
   await expect(page.getByRole('heading', { level: 1, name: /Kế hoạch giáo dục ngày/ })).toBeVisible({ timeout: 30_000 });
   await expect(page.getByRole('tab', { name: /Thứ 2/ })).toBeVisible();
-  await expect(page.locator('.ga-page a[href^="/education/"]:not(nav[aria-label="Breadcrumb"] a)')).toHaveCount(0);
+  await expect(page.locator('.ga-page a[href*="/weeks/"]:not(nav[aria-label="Breadcrumb"] a)')).toHaveCount(0);
 });
 
 test('ST-003-04 chuông thông báo hiện thông báo kế hoạch giáo dục và mở đúng trang', async ({ page }) => {

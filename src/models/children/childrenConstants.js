@@ -168,6 +168,26 @@ export const MAX_GUARDIANS = 3;
 
 export const AI_TREND_STATUS = { OK: 'OK', NOT_ENOUGH_DATA: 'NOT_ENOUGH_DATA', FAILED: 'FAILED' };
 
+/** Loại gợi ý theo dõi trong nhận định xu hướng; hệ thống (BE) quyết định loại được dùng, không có loại "đi khám" (HLT-21). */
+export const TREND_FOLLOW_UP_LABELS = {
+  RECHECK_NEXT_ROUND: 'Theo dõi ở kỳ cân đo sau',
+  TALK_TO_PARENT: 'Trao đổi với phụ huynh',
+  REMEASURE: 'Đo lại để xác nhận',
+};
+
+/** Giới hạn nội dung nhận định xu hướng, giống BE `HealthTrendContentRules` (HLT-21). */
+/** Trạng thái bản nhận định xu hướng: nháp chờ GV phụ trách lớp duyệt, đã duyệt thì phụ huynh xem được (HLT-05, HLT-21). */
+export const TREND_REVIEW_STATUS_LABELS = { DRAFT: 'Bản nháp AI – chờ giáo viên duyệt', APPROVED: 'Đã duyệt' };
+
+export const TREND_CONTENT_LIMITS = { overview: 500, item: 300, positives: 3 };
+
+/** Khoảng thời gian của biểu đồ và của phân tích AI (HLT-21), giá trị khớp BE `HealthTrendPeriod`. */
+export const TREND_PERIODS = [
+  { key: 'MONTHS_6', label: '6 tháng', months: 6, phrase: '6 tháng qua' },
+  { key: 'MONTHS_12', label: '12 tháng', months: 12, phrase: '12 tháng qua' },
+  { key: 'ALL', label: 'Toàn bộ', months: null, phrase: 'toàn bộ quá trình theo dõi' },
+];
+
 /** Columns of the enrollment template (CSV / Excel), in order. */
 export const IMPORT_COLUMNS = [
   { key: 'fullName', label: 'Họ tên trẻ', required: true },
@@ -179,6 +199,8 @@ export const IMPORT_COLUMNS = [
   // CCCD phụ huynh bắt buộc cả khi nhập Excel (user chốt 2026-10-21); file mẫu cũ thiếu cột này không nhập được.
   { key: 'guardianIdNumber', label: 'Số CCCD phụ huynh', required: true },
   { key: 'email', label: 'Email', required: false },
+  // Báo ăn = trẻ ăn ở trường; Không thì bỏ qua dị ứng, chế độ ăn (CHD-13).
+  { key: 'mealRegistered', label: 'Báo ăn (Có/Không, để trống = Có)', required: false },
   { key: 'allergies', label: 'Dị ứng (để trống = chưa cung cấp, "Không" = không có)', required: false },
   { key: 'diet', label: 'Chế độ ăn (để trống = chưa cung cấp, "Không" = không có)', required: false },
   // Hành chính và tiền sử bắt buộc trừ CCCD trẻ, nhóm máu (user chốt 2026-10-22); file mẫu cũ thiếu cột không nhập được.
@@ -230,3 +252,17 @@ export const GROWTH_CHART_AXES = {
 };
 
 export const growthAxesFor = (ageGroupId) => GROWTH_CHART_AXES[ageGroupId] || GROWTH_CHART_AXES.DEFAULT;
+
+/** BE:CHD-11 — yêu cầu sửa hồ sơ/khai báo trẻ do GV gửi, HT/PHT duyệt. Giá trị khớp `ProfileChangeKind`/`ProfileChangeStatus`. */
+export const PROFILE_CHANGE_KIND = { PROFILE: 'PROFILE', HEALTH_DECLARATION: 'HEALTH_DECLARATION' };
+export const PROFILE_CHANGE_KIND_LABELS = {
+  PROFILE: 'Sửa hồ sơ',
+  HEALTH_DECLARATION: 'Sửa khai báo sức khỏe',
+};
+export const PROFILE_CHANGE_STATUS = { PENDING: 'PENDING', APPROVED: 'APPROVED', REJECTED: 'REJECTED', CANCELLED: 'CANCELLED' };
+export const PROFILE_CHANGE_STATUS_LABELS = {
+  PENDING: 'Chờ duyệt',
+  APPROVED: 'Đã duyệt',
+  REJECTED: 'Bị từ chối',
+  CANCELLED: 'Đã thay bằng yêu cầu mới',
+};

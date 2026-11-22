@@ -99,6 +99,12 @@
   justify-content: center;
   gap: var(--space-2);
 }
+.ac-photo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
+}
 .ac-side__name {
   font-family: var(--font-display);
   font-size: var(--fs-h3);
@@ -338,9 +344,15 @@
   margin: var(--space-3) 0 var(--space-2);
 }
 .ac-notif__message {
+  max-width: 80ch;
   margin: 0;
   line-height: 1.6;
   white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.ac-notif__file-name {
+  min-width: 0;
   overflow-wrap: anywhere;
 }
 

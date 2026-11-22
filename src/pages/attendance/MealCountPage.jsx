@@ -12,7 +12,11 @@ import { MealAdjustModal, MealRegisterCard, dayStatus } from '@/components/atten
 import { CampusFilter } from '@/components/ui/CampusFilter';
 import { DonutChart } from '@/components/charts/MiniCharts';
 import { ClassDateBar } from '@/components/attendance/ClassDateBar';
-import { useMealCounts } from '@/hooks/attendance/useAttendance';
+import { SelectField } from '@/components/form/Field';
+import { useAttendanceClasses, useMealCounts } from '@/hooks/attendance/useAttendance';
+import { useAgeGroupOptions } from '@/hooks/attendance/useAgeGroupOptions';
+import { useYearCampuses } from '@/hooks/useYearCampuses';
+import { PERMISSIONS } from '@/models/bePermissions';
 import { confirmMealCount } from '@/services/attendance/attendanceService';
 import { ROLES } from '@/models/User';
 import { MEAL_COUNT_TITLE, MEAL_SESSION_LABELS, MEAL_COUNT_STATUS_LABELS } from '@/models/attendance/attendanceConstants';
@@ -22,6 +26,24 @@ import { dayBySession, dayRegister } from '@/utils/attendance/mealRegister';
 import { exportWithPreview } from '@/components/ui/ExportPreview';
 import { formatDate } from '@/utils/format';
 import '@/styles/modules/attendance.css';
+
+/**
+ * Lọc nhóm tuổi: giữ lớp của nhóm, bỏ bữa nhóm không có; số tổng của bữa là cộng các dòng lớp đang hiện (chỉ để xem,
+ * xác nhận vẫn theo cả điểm trường).
+ */
+const forAgeGroup = (counts, classIds) =>
+  counts
+    .map((c) => {
+      const classes = (c.classes || []).filter((l) => classIds.has(String(l.classId)));
+      const totals = classes.reduce(
+        (t, l) => ({ ...t, normal: t.normal + (l.normal || 0), substitute: t.substitute + (l.substitute || 0) }),
+        { ...(c.totals || {}), normal: 0, substitute: 0 },
+      );
+      return { ...c, classes, totals };
+    })
+    .filter((c) =>
+      c.classes.some((l) => (l.normal || 0) + (l.substitute || 0) + (l.present || 0) + (l.absent || 0) + (l.missing || 0) > 0),
+    );
 
 /** Điểm danh và suất ăn trong ngày: mỗi lớp lấy 1 lần vì các bữa của lớp dùng chung số điểm danh BE trả. */
 function dayAttendance(counts) {
@@ -73,8 +95,18 @@ export default function MealCountPage() {
   const kitchen = user?.role === ROLES.KITCHEN_STAFF;
   // Hiệu trưởng xem cả trường: lọc điểm trường
   const [campusFilter, setCampusFilter] = useState('');
-  const allCampuses = [...new Set((data?.counts || []).map((c) => c.campusId))];
-  const shownCounts = useMemo(() => (data?.counts || []).filter((c) => !campusFilter || c.campusId === campusFilter), [data, campusFilter]);
+  const [ageGroupFilter, setAgeGroupFilter] = useState('');
+  const { classes: yearClasses } = useAttendanceClasses();
+  const ageGroupOptions = useAgeGroupOptions(yearClasses);
+  // HT: đủ điểm trường của năm đang chọn (kể cả chưa có số suất); người khác: điểm trường có số suất
+  const yearCampuses = useYearCampuses(PERMISSIONS.MEAL_COUNT_CONFIRM);
+  const allCampuses = [...new Set([...(yearCampuses || []).map((c) => c.id), ...(data?.counts || []).map((c) => c.campusId)])];
+  const shownCounts = useMemo(() => {
+    const byCampus = (data?.counts || []).filter((c) => !campusFilter || c.campusId === campusFilter);
+    if (!ageGroupFilter) return byCampus;
+    const ids = new Set(yearClasses.filter((c) => String(c.ageGroupId) === ageGroupFilter).map((c) => String(c.id)));
+    return forAgeGroup(byCampus, ids);
+  }, [data, campusFilter, ageGroupFilter, yearClasses]);
 
   // Xác nhận một bữa hoặc tất cả bữa còn chờ của điểm trường
   const doConfirm = async () => {
@@ -145,6 +177,17 @@ export default function MealCountPage() {
           value={campusFilter}
           onChange={setCampusFilter}
         />
+        {!kitchen && ageGroupOptions.length > 1 && (
+          <SelectField
+            id="dd-meal-age-group"
+            label="Nhóm tuổi"
+            fieldClassName="dd-bar__field"
+            value={ageGroupFilter}
+            onChange={(e) => setAgeGroupFilter(e.target.value)}
+            placeholder="Tất cả nhóm tuổi"
+            options={ageGroupOptions.map((g) => ({ value: g.id, label: g.name }))}
+          />
+        )}
         <div className="spacer" />
         {/* Xuất Excel cùng hàng ngày, điểm trường (Cần yêu cầu 10/11/2026) */}
         {data?.counts.length > 0 && (
@@ -172,7 +215,17 @@ export default function MealCountPage() {
         </div>
       ) : (
         <>
+          {ageGroupFilter && (
+            <div className="alert alert--info mb-12" role="status">
+              Đang xem riêng một nhóm tuổi. Xác nhận, sửa suất thay thế làm ở chế độ Tất cả nhóm tuổi.
+            </div>
+          )}
           <DayOverview counts={shownCounts} />
+          {!campuses.length && (
+            <div className="card">
+              <EmptyState title="Điểm trường chưa có số suất ngày này" description="Điểm trường chưa có lớp hoặc chưa điểm danh." />
+            </div>
+          )}
           {campuses.map((campusId) => (
             <section key={campusId} className="mb-16">
               <MealRegisterCard
@@ -184,6 +237,7 @@ export default function MealCountPage() {
                 md={md}
                 onConfirm={setConfirming}
                 onAdjust={setAdjusting}
+                readOnly={!!ageGroupFilter}
               />
             </section>
           ))}

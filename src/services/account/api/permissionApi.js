@@ -31,8 +31,14 @@ const getPermissionOverrides = (userId) => axiosClient.get(`/accounts/${userId}/
 
 const getPermissionStaff = async () => {
   const [campuses, ...accounts] = await Promise.all([axiosClient.get('/campuses/options'), ...STAFF_ROLES.map(listAccounts)]);
-  const campusName = (assignments = []) =>
-    campuses.find((campus) => campus.id === assignments.find((item) => item.campusId != null)?.campusId)?.name || null;
+  // Phân công GV chỉ có classroomId (campusId rỗng) ⇒ tra lớp hiện tại của từng điểm trường để biết lớp và điểm trường
+  const classrooms = (await Promise.all(campuses.map((c) => axiosClient.get('/classrooms', { params: { campusId: c.id } })))).flat();
+  const placeOf = (assignments = []) => {
+    const withPlace = assignments.find((a) => a.campusId != null || a.classroomId != null);
+    const room = classrooms.find((c) => c.id === withPlace?.classroomId);
+    const campusId = withPlace?.campusId ?? room?.campusId;
+    return { campusName: campuses.find((c) => c.id === campusId)?.name || null, className: room?.name || null };
+  };
   return {
     items: accounts.flat().map((account) => ({
       userId: account.userId,
@@ -41,7 +47,7 @@ const getPermissionStaff = async () => {
       // Tài khoản nhân sự đăng nhập bằng SĐT ⇒ username là SĐT
       phone: account.username || '',
       status: account.status,
-      campusName: campusName(account.activeAssignments),
+      ...placeOf(account.activeAssignments),
     })),
   };
 };
@@ -59,10 +65,15 @@ export const permissionApi = {
     return views.filter((view) => view.overrides.length > 0);
   },
   updatePermissionOverrides: async (userId, { overrides, reason }) => {
-    // UI chưa chọn phạm vi: giữ scope đang có của ngoại lệ cùng mã, không để BE hạ SCHOOL về CAMPUS mặc định (AUTH-20)
-    const current = await getPermissionOverrides(userId);
-    const scopeOf = (item) =>
-      item.scope ?? current.overrides.find((o) => o.permission === item.permission && o.effect === item.effect)?.scope ?? null;
+    // UI chưa chọn phạm vi: giữ scope đang có của ngoại lệ cùng mã, không để BE hạ SCHOOL về CAMPUS mặc định (AUTH-20).
+    // Chỉ mã campusScoped mới mang scope được; mã khác gửi kèm scope cũ thì BE trả 1125.
+    const [current, catalog] = await Promise.all([getPermissionOverrides(userId), axiosClient.get('/permissions')]);
+    const scoped = new Set(catalog.filter((p) => p.campusScoped).map((p) => p.code));
+    const keptScope = (item) =>
+      scoped.has(item.permission)
+        ? current.overrides.find((o) => o.permission === item.permission && o.effect === item.effect)?.scope
+        : null;
+    const scopeOf = (item) => item.scope ?? keptScope(item) ?? null;
     return axiosClient.put(`/accounts/${userId}/permission-overrides`, {
       reason,
       overrides: overrides.map((item) => ({ permission: item.permission, effect: item.effect, scope: scopeOf(item) })),

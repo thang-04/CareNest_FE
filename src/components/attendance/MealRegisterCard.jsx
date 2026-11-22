@@ -88,8 +88,8 @@ function ReturnButton({ line, onReturn }) {
   );
 }
 
-function MealPanel({ count, user, md, onAdjust, counts, onReturn }) {
-  const adjustable = canAdjustMealCount(count, user);
+function MealPanel({ count, user, md, onAdjust, counts, onReturn, readOnly }) {
+  const adjustable = !readOnly && canAdjustMealCount(count, user);
   const actions = adjustable || !!onReturn;
   return (
     <>
@@ -156,11 +156,12 @@ function MealPanel({ count, user, md, onAdjust, counts, onReturn }) {
  * Sổ suất ăn ngày của một điểm trường: tab "Cả ngày" (mỗi lớp một dòng suất/ngày, BA) và mỗi bữa một tab
  * (lớp nào ăn bữa đó, số suất). Nút "Xác nhận tất cả" chốt mọi bữa còn chờ: BE xác nhận theo cơ sở–ngày (NUT-02).
  */
-export function MealRegisterCard({ counts, campusName, user, md, onConfirm, onAdjust }) {
+/** readOnly: đang lọc một nhóm tuổi — chỉ xem, xác nhận / sửa / trả lại làm ở chế độ cả điểm trường. */
+export function MealRegisterCard({ counts, campusName, user, md, onConfirm, onAdjust, readOnly = false }) {
   const [tab, setTab] = useState(DAY);
   const first = counts[0];
   const status = dayStatus(counts);
-  const confirmable = counts.filter((c) => c.id && canConfirmMealCount(c, user));
+  const confirmable = readOnly ? [] : counts.filter((c) => c.id && canConfirmMealCount(c, user));
   const reconfirm = counts.some((c) => c.needsReconfirmation);
   const register = dayRegister(counts);
   // Tab Cả ngày: cộng đủ các bữa (Cần chốt 20/10/2026); dayRegister giữ cho phần sửa cả ngày của lớp
@@ -170,10 +171,11 @@ export function MealRegisterCard({ counts, campusName, user, md, onConfirm, onAd
   const classById = Object.fromEntries(register.rows.map((l) => [l.classId, l.className]));
   const adjustments = groupAdjustments(counts.flatMap((c) => c.adjustments.map((a) => ({ ...a, session: c.session }))));
   // NUT-02: PHT điểm trường chỉ điều chỉnh suất thay thế của lớp (có lý do) sau giờ chốt
-  const adjustable = counts.some((c) => canAdjustMealCount(c, user));
+  const adjustable = !readOnly && counts.some((c) => canAdjustMealCount(c, user));
   // ATT-08: qua giờ chốt (sổ không còn OPEN), ngày không ở tương lai, người có quyền mở lại điểm danh ở cơ sở này
   const [returning, setReturning] = useState(null);
   const returnable =
+    !readOnly &&
     !!first &&
     first.date <= schoolToday() &&
     counts.some((c) => c.status !== 'OPEN') &&
@@ -263,7 +265,7 @@ export function MealRegisterCard({ counts, campusName, user, md, onConfirm, onAd
           )}
         </div>
         {meal ? (
-          <MealPanel count={meal} counts={counts} user={user} md={md} onAdjust={onAdjust} onReturn={onReturn} />
+          <MealPanel count={meal} counts={counts} user={user} md={md} onAdjust={onAdjust} onReturn={onReturn} readOnly={readOnly} />
         ) : (
           <div className="table-wrap mt-12">
             <table className="table table--grid table--compact table--wrap-head">
@@ -424,9 +426,6 @@ function ReturnToTeacherModal({ line, date, user, onClose, onDone }) {
         </>
       }
     >
-      <p className="muted text-sm mb-12">
-        Mở lại điểm danh ngày {formatDate(date)} của lớp tới hết hôm nay. Giáo viên nhận thông báo, sửa xong thì sổ chờ xác nhận lại.
-      </p>
       <FormField label="Lý do" required error={error}>
         <textarea
           className="textarea"
@@ -504,10 +503,9 @@ export function MealAdjustModal({ target, user, onClose, onSaved }) {
       }
     >
       <p className="muted text-sm mb-12">
-        Ngày {formatDate(counts[0].date)} · đang tính {line.normal} suất thường, {line.substitute} suất thay thế (có mặt {line.present}).{' '}
-        {session ? `Chỉ áp cho ${mealName(session)} của lớp.` : 'Số mới áp cho mọi bữa của lớp trong ngày.'} Suất thường tính từ điểm danh;
-        số sai thì mở lại điểm danh để giáo viên sửa.
-        {confirmed && ' Bữa đã xác nhận: sửa xong cần xác nhận lại, bếp dùng số cũ đến khi xác nhận.'}
+        Ngày {formatDate(counts[0].date)}
+        {session ? ` · ${mealName(session)}` : ''} · đang tính {line.normal} suất thường, {line.substitute} suất thay thế (có mặt{' '}
+        {line.present}).
       </p>
       <FormField label="Suất thay thế" required error={errors.substitute}>
         <input type="number" min={0} step={1} className="input" {...field('substitute')} />

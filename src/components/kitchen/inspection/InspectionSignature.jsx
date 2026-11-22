@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Modal } from '@/components/ui/Modal';
+import { Button, Modal } from '@/components';
+import { Info, PenLine } from '@/components/ui/icons';
 import { SignaturePicker } from '@/components/signature/SignaturePicker';
 import { INSPECTION_HAND_SIGN_LABELS } from '@/models/kitchen/inspectionConstants';
 import { hasValidSignature } from '@/utils/kitchen/inspectionForm';
-import { formatDateTime } from '@/utils/format';
+import { formatDate, formatDateTime } from '@/utils/format';
 
 /**
  * Ba ô ký cuối mẫu: PHT ký ảnh ở ô "Người kiểm tra"; hai ô còn lại để trống, ký tay sau khi in.
@@ -40,8 +41,11 @@ export function InspectionSignBoxes({ tab, data }) {
   );
 }
 
-/** Hộp chọn ảnh chữ ký để ký; `onConfirm(chữ ký)` trả true khi ký xong thì hộp tự đóng. */
-export function InspectionSignDialog({ open, busy, onClose, onConfirm }) {
+/**
+ * Hộp ký mẫu kiểm thực: dòng ngữ cảnh (mẫu · điểm trường · ngày · số dòng), khung nói ký xong thì sao, ô "Người kiểm tra" để chọn ảnh chữ ký.
+ * `onConfirm(chữ ký)` trả true khi ký xong thì hộp tự đóng.
+ */
+export function InspectionSignDialog({ open, busy, formLabel, campusName, date, rowCount, onClose, onConfirm }) {
   const [chosen, setChosen] = useState({ url: null, id: null });
   const confirm = async () => {
     if (await onConfirm(chosen)) onClose();
@@ -50,20 +54,45 @@ export function InspectionSignDialog({ open, busy, onClose, onConfirm }) {
     <Modal
       open={open}
       title="Ký xác nhận mẫu kiểm thực"
-      onClose={onClose}
+      onClose={busy ? undefined : onClose}
+      closeOnBackdrop={false}
       footer={
         <>
-          <button type="button" className="btn" onClick={onClose}>
+          <Button disabled={busy} onClick={onClose}>
             Hủy
-          </button>
-          <button type="button" className="btn btn--primary" disabled={busy || !chosen.url} onClick={confirm}>
+          </Button>
+          <Button variant="primary" icon={PenLine} loading={busy} disabled={!chosen.url} onClick={confirm}>
             Ký xác nhận
-          </button>
+          </Button>
         </>
       }
     >
-      <p className="text-sm">Ảnh chữ ký được lưu kèm mẫu này. Sửa nội dung sau khi ký thì chữ ký mất hiệu lực và phải ký lại.</p>
-      <SignaturePicker variant="compact" value={chosen.url} onChange={setChosen} />
+      <div className="kr-reopen">
+        <p className="kr-reopen__ctx">
+          <b>{formLabel}</b>
+          {campusName && ` · ${campusName}`}
+          {date && ` · ${formatDate(date)}`}
+          {rowCount > 0 && ` · ${rowCount} dòng`}
+        </p>
+        <div className="alert alert--info kr-reopen__alert" role="note">
+          <Info size={18} />
+          <div>
+            Ký xong:
+            <ul>
+              <li>Mẫu bị khóa, không sửa được ô nào.</li>
+              <li>Ảnh chữ ký in ở ô Người kiểm tra cuối mẫu.</li>
+              <li>Muốn sửa phải bấm Sửa lại, ghi lý do; chữ ký cũ mất hiệu lực và phải ký lại.</li>
+            </ul>
+          </div>
+        </div>
+        <section className="kr-sign-pick" aria-label="Chữ ký người kiểm tra">
+          <div className="kr-sign-pick__head">
+            <span className="fw-600">Người kiểm tra</span>
+            <span className="text-xs muted">Chọn chữ ký đã lưu hoặc tải ảnh mới</span>
+          </div>
+          <SignaturePicker variant="compact" value={chosen.url} onChange={setChosen} disabled={busy} />
+        </section>
+      </div>
     </Modal>
   );
 }

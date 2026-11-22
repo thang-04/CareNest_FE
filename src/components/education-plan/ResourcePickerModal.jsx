@@ -4,12 +4,13 @@ import { FilterChips } from '@/components/ui/FilterChips';
 import { LABELS } from '@/components/ui/labels';
 import { Eye, Link2, Upload } from '@/components/ui/icons';
 import { FileInput } from '@/components/form/FileInput';
+import { useUnsavedMark } from '@/hooks/useLeaveGuard';
 import { EmptyState, Modal, Notice } from './eduUi';
 import { FilterSelect } from './planUi';
 import { LearningResourceViewer } from './LearningResourceViewer';
 import { ResourceLinkForm } from './ResourceLinkForm';
 import { resourceLibraryService as library } from '@/services/education-plan/resourceLibraryService';
-import { AGE_GROUPS } from '@/models/education-plan/educationPlanConstants';
+import { AGE_GROUPS, ageRangeOptions, rangeOptionId } from '@/models/education-plan/educationPlanConstants';
 import { KIND_LABELS, MATCH_LABELS, MEDIA_ACCEPT, formatBytes, norm, resourceKind } from '@/models/education-plan/learningResources.mjs';
 import { Checkbox, TextField } from '@/components';
 
@@ -29,7 +30,7 @@ export function ResourcePickerModal({ user, context, sectionLabel, room, busy, e
   const [q, setQ] = useState('');
   const [query, setQuery] = useState('');
   // Mặc định cùng nhóm tuổi của lớp; học liệu không ghi nhóm tuổi luôn hiện (BE lọc)
-  const [age, setAge] = useState(context.ageGroupId || '');
+  const [age, setAge] = useState(rangeOptionId(context.ageGroupId));
   const [theme, setTheme] = useState('');
   const [themes, setThemes] = useState([]);
   const [rows, setRows] = useState([]);
@@ -42,6 +43,8 @@ export function ResourcePickerModal({ user, context, sectionLabel, room, busy, e
   const [linkOpen, setLinkOpen] = useState(false);
   // Tệp vừa chọn chờ đặt tên trước khi tải lên: { file, base, name, error }
   const [pending, setPending] = useState(null);
+  // Chỉ tệp đã chọn chờ tải lên; chọn học liệu có sẵn trong kho không tính (form dán link tự đánh dấu riêng)
+  useUnsavedMark(!!pending);
 
   // Gõ tìm: chờ người dùng ngừng gõ 300 ms rồi mới hỏi BE
   useEffect(() => {
@@ -236,7 +239,7 @@ export function ResourcePickerModal({ user, context, sectionLabel, room, busy, e
               label="Nhóm tuổi"
               value={age}
               onChange={setAge}
-              options={[{ value: '', label: 'Mọi nhóm tuổi' }, ...AGE_GROUPS.map((g) => ({ value: String(g.id), label: g.name }))]}
+              options={[{ value: '', label: 'Mọi nhóm tuổi' }, ...ageRangeOptions().map((g) => ({ value: String(g.id), label: g.name }))]}
             />
           </div>
           <FilterChips

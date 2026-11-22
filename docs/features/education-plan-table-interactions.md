@@ -4,7 +4,7 @@ Nguồn: Tiền yêu cầu ngày 13/11/2026. Tham chiếu nghiệp vụ: bản c
 
 - Bảng Hoạt động góc: Enter ở các ô của dòng có nội dung thêm dòng ngay bên dưới, đưa con trỏ vào tên góc mới. Dòng ngay dưới đang trống thì chuyển tới dòng đó. Shift+Enter xuống dòng trong ô; Enter đang ghép chữ IME không thêm dòng.
 - Nhập tên tại dòng trống cuối giữ định danh dòng. Dữ liệu góc tiếp tục cập nhật dòng Góc trong bảng tuần, giữ các thẻ/MT liên kết.
-- Trang Dự kiến chủ đề – chủ đề nhánh: Cả năm (mặc định) và các học kỳ BE trả cho lớp/kế hoạch tổ đang chọn. Lọc bằng `themeIds` của gói học kỳ cho cả Danh sách, Bảng và chế độ sửa. Chưa có gói học kỳ thì xem cả năm.
+- Trang Dự kiến chủ đề – chủ đề nhánh: Cả năm (mặc định) và các học kỳ BE trả cho lớp/kế hoạch tổ đang chọn. Lọc bằng `themeIds` của kế hoạch giáo dục chủ đề cho cả Danh sách, Bảng và chế độ sửa. Chưa có kế hoạch giáo dục chủ đề thì xem cả năm.
 - Đổi học kỳ chỉ thay phần đang xem, giữ toàn bộ bản soạn và Lưu/Ctrl+S. Các thao tác ghi rõ “cả năm”, nhập và xuất file vẫn áp dụng cả năm.
 
 ## Đồng bộ select trên card lọc — Tiền 13/11/2026

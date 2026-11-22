@@ -1,3 +1,4 @@
+import { ResponsiveToolbar } from '@/components/ui/ResponsiveToolbar';
 import { useState } from 'react';
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
@@ -11,7 +12,14 @@ import {
   PageHead,
   YearPlanStatusBadge,
 } from '@/components/education-plan/eduUi';
-import { ClassFilterBar, ClassPageEmpty, FilterSelect, docReview, useClassPlanContext } from '@/components/education-plan/planUi';
+import {
+  ClassFilterBar,
+  classFilterPath,
+  ClassPageEmpty,
+  FilterSelect,
+  docReview,
+  useClassPlanContext,
+} from '@/components/education-plan/planUi';
 import { RejectedNotice, ReviewActions, ReviewHistory } from '@/components/education-plan/reviewUi';
 import { submitEntryOf } from '@/models/education-plan/reviewHistory.mjs';
 import { BlockedNotice, DeadlineBadge } from '@/components/education-plan/DeadlineWidgets';
@@ -39,9 +47,10 @@ import {
 } from '@/models/education-plan/classPlan';
 
 /** /education/theme-plans, /education/branches: mở lớp đầu tiên người dùng được xem (lớp mình dạy trước). */
-export function ClassPlanRedirect({ toOf = (id) => `/education/theme-plans/${id}` }) {
+export function ClassPlanRedirect({ showAllAges = false, toOf = (id) => `/education/theme-plans/${id}` }) {
   const { user, classes } = useEducationPlan();
   const own = classes.find((c) => (c.teacherIds || []).includes(user.id)) || classes[0];
+  if (!own && showAllAges) return <Navigate to={toOf('no-class')} replace />;
   if (!own) return <EmptyState title="Bạn chưa được phân công lớp nào" />;
   return <Navigate to={toOf(own.id)} replace />;
 }
@@ -55,7 +64,7 @@ export function ClassPlanLegacyRedirect() {
 const MISSING_LABEL = { branch: 'tên chủ đề nhánh', theme: 'kế hoạch chủ đề', week: 'kế hoạch tuần' };
 
 /**
- * Kế hoạch giáo dục chủ đề (spec 004): lọc theo học kỳ; gói học kỳ = lịch nhánh + kế hoạch chủ đề + kế hoạch tuần của mọi
+ * Kế hoạch giáo dục chủ đề (spec 004): lọc theo học kỳ; kế hoạch giáo dục chủ đề = lịch nhánh + kế hoạch chủ đề + kế hoạch tuần của mọi
  * chủ đề trong kỳ, gửi/duyệt một lần ở đầu trang. Giáo án ngày ở trang Kế hoạch giáo dục ngày. Quy tắc, quyền do BE trả.
  */
 export default function ClassPlanPage() {
@@ -97,11 +106,12 @@ export default function ClassPlanPage() {
   if (!cls)
     return (
       <ClassPageEmpty
+        showAllAges
         crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Kế hoạch giáo dục chủ đề' }]}
         title="Kế hoạch giáo dục chủ đề"
         classes={classes}
         classId={classId}
-        onPick={(id) => navigate(`/education/theme-plans/${id}`)}
+        onPick={(id, age) => navigate(classFilterPath('/education/theme-plans', id, age))}
         emptyTitle="Không tìm thấy lớp"
       />
     );
@@ -114,15 +124,16 @@ export default function ClassPlanPage() {
         crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Kế hoạch giáo dục chủ đề' }]}
         title={`Kế hoạch giáo dục chủ đề ${cls.name}`}
       />
+      {toolbar}
       <ClassFilterBar
+        showAllAges
         classes={classes}
         classId={classId}
         canPick={ctx.canPickClass}
-        onPick={(id) => navigate(`/education/theme-plans/${id}`)}
+        onPick={(id, age) => navigate(classFilterPath('/education/theme-plans', id, age))}
       >
         {extra}
       </ClassFilterBar>
-      {toolbar}
     </div>
   );
   const head = headOf(null);
@@ -132,7 +143,7 @@ export default function ClassPlanPage() {
       <div className="page ga-page">
         {head}
         {canComposeClassDocs && pendingYearPlan && (
-          <Notice>
+          <Notice tone="info">
             Trạng thái kế hoạch giáo dục tổ: <YearPlanStatusBadge status={pendingYearPlan.status} doc={pendingYearPlan} />
           </Notice>
         )}
@@ -207,7 +218,7 @@ export default function ClassPlanPage() {
   const review = pkg ? docReview('branch', pkg, ctx, user, eduConfig) : null;
   const act = (action, note, _saved, extra) =>
     actOnClassDoc('semester', pkg.id, { action, note, ...extra }, user, { version: pkg.version });
-  // EDU-80 (FR-031): gói học kỳ thiếu MT chỉ cảnh báo trong hộp gửi; học kỳ cuối do BE chặn (7397)
+  // EDU-80 (FR-031): kế hoạch giáo dục chủ đề thiếu MT chỉ cảnh báo trong hộp gửi; học kỳ cuối do BE chặn (7397)
   const untaught = themes.flatMap((t) => {
     const doc = classThemePlans.find((x) => x.classId === classId && x.themeId === t.id) || null;
     const gs = themeGoalBlocks(yearPlan.domains, numbers, t.id, doc?.customTicks).flatMap((b) => b.goals);
@@ -253,9 +264,12 @@ export default function ClassPlanPage() {
           />
         ),
         (pkg || foldAll) && (
-          <div className="ga-year-toolbar" role="group" aria-label={pkg ? `Trạng thái và thao tác học kỳ ${pkg.semesterNo}` : 'Thao tác'}>
+          <ResponsiveToolbar
+            className="ga-year-toolbar"
+            role="group"
+            aria-label={pkg ? `Trạng thái và thao tác học kỳ ${pkg.semesterNo}` : 'Thao tác'}
+          >
             <div className="ga-year-toolbar__group">
-              <span className="ga-year-toolbar__title">{cls.name}</span>
               {pkg?.unreleased ? (
                 <DocAvailabilityBadge status="UNRELEASED" />
               ) : (
@@ -295,7 +309,7 @@ export default function ClassPlanPage() {
                 </>
               )}
             </div>
-          </div>
+          </ResponsiveToolbar>
         ),
       )}
       {canComposeClassDocs && semesterConfigMissing && <Notice>Năm học chưa cấu hình học kỳ.</Notice>}
@@ -303,11 +317,11 @@ export default function ClassPlanPage() {
         <div className="stack">
           <RejectedNotice status={pkg.status} history={pkg.history} />
           {pkg.status === 'REVIEW' && submitEntryOf(pkg)?.note && (
-            <Notice>{`Ghi chú khi gửi (${submitEntryOf(pkg).by || '—'}): ${submitEntryOf(pkg).note}`}</Notice>
+            <Notice tone="info">{`Ghi chú khi gửi (${submitEntryOf(pkg).by || '—'}): ${submitEntryOf(pkg).note}`}</Notice>
           )}
           <BlockedNotice doc={pkg} author={canComposeClassDocs} />
           {pkg.timeLocked && pkg.status === 'APPROVED' && canComposeClassDocs && (
-            <Notice>Học kỳ đã bắt đầu, không điều chỉnh được nữa.</Notice>
+            <Notice tone="info">Học kỳ đã bắt đầu, không điều chỉnh được nữa.</Notice>
           )}
           {missing.length > 0 && (
             <p className="field__error" role="alert">

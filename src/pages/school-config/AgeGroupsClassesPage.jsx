@@ -1,12 +1,14 @@
 import { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Plus, Trash2, Info, Copy, UserCheck } from '@/components/ui/icons';
+import { Plus, Trash2, Info, Copy, UserCheck, History, UserMinus } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useConfigYear } from '@/hooks/school-config/useConfigYear';
+import { useYearCampuses } from '@/hooks/useYearCampuses';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useSchoolStructure, useSchoolYears, useTeamLeaders } from '@/hooks/school-config/useSchoolConfig';
 import { TeamLeaderModal } from '@/components/school-config/TeamLeaderModal';
+import { AssignmentHistoryModal } from '@/components/school-config/AssignmentHistoryModal';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { ErrorState, LoadingState } from '@/components/ui/States';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
@@ -41,7 +43,7 @@ export default function AgeGroupsClassesPage({ embedded = false }) {
   const yearId = useConfigYear();
   // Bộ lọc nằm trên URL để tải lại trang vẫn giữ (?campus=&q=&group=&status=); năm học theo header
   const campusId = params.get('campus') || '';
-  const md = useMasterData();
+  const md = useMasterData(yearId);
   const { years, error: yearsError } = useSchoolYears();
   const { structure, loading, error, reload } = useSchoolStructure(yearId, campusId);
   const [classModal, setClassModal] = useState(null); // { cls, defaults }
@@ -50,6 +52,7 @@ export default function AgeGroupsClassesPage({ embedded = false }) {
   const [removing, setRemoving] = useState(null); // { kind, item }
   const [removeError, setRemoveError] = useState('');
   const [leaderGroup, setLeaderGroup] = useState(null);
+  const [history, setHistory] = useState(null);
 
   const year = structure?.year;
   const ageGroups = useMemo(() => structure?.ageGroups || [], [structure]);
@@ -68,7 +71,9 @@ export default function AgeGroupsClassesPage({ embedded = false }) {
   const principal = isPrincipal(user);
   const canCopy = editable && copySourcesFor(years, year).length > 0;
   // Principal sees both campuses; other roles only the campus of their scope (GBR-GEN-01).
-  const campuses = principal ? md.campuses : md.campuses.filter((c) => c.id === user?.campusId);
+  // HT: điểm trường của năm đang chọn (BE V151)
+  const yearCampuses = useYearCampuses();
+  const campuses = principal ? yearCampuses || md.campuses : md.campuses.filter((c) => c.id === user?.campusId);
 
   if (!canViewSchoolStructure(user))
     return (
@@ -82,12 +87,23 @@ export default function AgeGroupsClassesPage({ embedded = false }) {
   const confirmRemove = async () => {
     try {
       if (removing.kind === 'class') await deleteClass(removing.item.id, user);
-      else await deleteAgeGroup(removing.item.id, user);
+      else await deleteAgeGroup(removing.item.id, user, yearId);
       toast.success('Đã xóa bản ghi.');
       setRemoving(null);
       reload({ silent: true });
     } catch (err) {
       setRemoveError(err.message);
+    }
+  };
+
+  const removeLeader = async (g) => {
+    try {
+      await saveTeamLeader({ schoolYear: yearId, ageGroupId: g.id, userId: null }, user);
+      toast.success('Đã bỏ phân công tổ trưởng.', g.name);
+      leaders.reload({ silent: true });
+      reload({ silent: true });
+    } catch (err) {
+      toast.error(err, 'Không gỡ được tổ trưởng');
     }
   };
 
@@ -173,6 +189,8 @@ export default function AgeGroupsClassesPage({ embedded = false }) {
                 <tbody>
                   {ageGroups.map((g) => {
                     const count = classes.filter((c) => c.ageGroupId === g.id).length;
+                    const leader = teamLeaders.find((a) => a.ageGroupId === g.id);
+                    const leaderName = leader && (leader.fullName || md.userById(leader.userId)?.fullName);
                     return (
                       <tr key={g.id}>
                         <td className="fw-600">{g.name}</td>
@@ -200,6 +218,31 @@ export default function AgeGroupsClassesPage({ embedded = false }) {
                               edit={{ onClick: () => setGroupModal({ group: g }), label: 'Sửa nhóm tuổi' }}
                               menu={[
                                 { label: 'Thêm lớp', icon: Plus, onClick: () => addClass(g.id) },
+                                // Cùng thao tác như màn Phân công giáo viên & tổ trưởng; đổi tổ trưởng dùng nút Đổi ở cột Tổ trưởng (Cần 18/11/2026)
+                                ...(canLeaders
+                                  ? [
+                                      {
+                                        label: 'Lịch sử phân công',
+                                        icon: History,
+                                        onClick: () => setHistory({ kind: 'leader', id: g.id, name: g.name, schoolYear: yearId }),
+                                      },
+                                    ]
+                                  : []),
+                                ...(leader && canPickLeader && leaderActs.delete
+                                  ? [
+                                      {
+                                        label: 'Gỡ tổ trưởng',
+                                        icon: UserMinus,
+                                        danger: true,
+                                        onClick: () => removeLeader(g),
+                                        confirm: {
+                                          title: 'Gỡ tổ trưởng',
+                                          message: `Gỡ ${leaderName || 'tổ trưởng'} khỏi vai trò tổ trưởng ${g.name}?`,
+                                          confirmLabel: 'Gỡ tổ trưởng',
+                                        },
+                                      },
+                                    ]
+                                  : []),
                                 ...(count === 0
                                   ? [
                                       {
@@ -262,9 +305,11 @@ export default function AgeGroupsClassesPage({ embedded = false }) {
         group={groupModal?.group}
         existing={ageGroups}
         classes={classes}
+        yearId={yearId}
         yearName={year?.name}
       />
       <CopyClassesModal open={copyOpen} onClose={closeCopy} target={year} years={years} />
+      {history && <AssignmentHistoryModal target={history} onClose={() => setHistory(null)} />}
       {leaderGroup && (
         <TeamLeaderModal
           group={leaderGroup}
@@ -276,7 +321,7 @@ export default function AgeGroupsClassesPage({ embedded = false }) {
           onSave={async (group, userId) => {
             try {
               await saveTeamLeader({ schoolYear: yearId, ageGroupId: group.id, userId }, user);
-              toast.success(userId ? 'Đã lưu. Hãy báo trực tiếp cho tổ trưởng.' : 'Đã bỏ phân công tổ trưởng.', group.name);
+              toast.success(userId ? 'Đã lưu. Tổ trưởng đã nhận thông báo.' : 'Đã bỏ phân công tổ trưởng.', group.name);
               leaders.reload({ silent: true });
               reload({ silent: true });
               return true;

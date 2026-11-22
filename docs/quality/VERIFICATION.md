@@ -1,5 +1,15 @@
 # Verification — bằng chứng trước khi báo xong (FE)
 
+## 2026-11-20 — Danh mục nhóm tuổi kế hoạch giáo dục
+
+- Đối chiếu EDU-01/28/54/73 trong bản chuẩn; API config → `SchoolStructureService` → `age_groups`. Không đổi nghiệp vụ/contract/schema.
+- `npm run test:edu`: 389/400 đạt ở lần đầu; 11 ca lỗi do fixture danh mục và expectation mapper cũ.
+- Sau cập nhật fixture, `node --import ./scripts/register-auth-test-loader.mjs --test tests/education-plan/age-group-catalog.test.mjs tests/education-plan/full-year-file-import.test.mjs tests/education-plan/import-goal-file-modal.test.mjs tests/education-plan/year-plan-api.test.mjs`: 44/44 đạt, gồm toàn bộ 11 ca lỗi. Các file độc lập đã đạt không chạy lại.
+- `npm run build`: đạt; cảnh báo annotation `@__PURE__` có sẵn ở mock module khác.
+- ESLint 5 source sửa: đạt. `git diff --check`: đạt.
+- Chưa kiểm tra trình duyệt/API/DB live. Không chạy Playwright/e2e vì user không yêu cầu.
+- Nguồn dữ liệu còn ở FE và phạm vi ảnh hưởng: [báo cáo rà soát](../knowledge/incidents/FE-BUG-261120-education-age-group-catalog.md).
+
 ## Iron Law
 Không nói "xong / pass / đã sửa" khi chưa có **output lệnh chạy trong lượt này, sau lần sửa cuối**. Suy luận, kết quả lượt trước không phải bằng chứng. **Skip hoặc chưa chạy = chưa kiểm chứng** — báo đúng (`Verify: chưa chạy — <lý do>`).
 

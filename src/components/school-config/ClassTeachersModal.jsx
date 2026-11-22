@@ -15,7 +15,7 @@ export function ClassTeachersModal({ cls, teachers, classesOf, onClose }) {
   const { user } = useAuth();
   const toast = useToast();
   const { schoolYear, schoolYears } = useSchoolYear();
-  // Lớp của năm đang học: đúng 2 GV, có chủ nhiệm (BE SCH-04) — báo ngay dưới ô trước khi lưu
+  // Lớp của năm đang học: 2–3 GV, có GV phụ trách chính (BE SCH-04) — báo ngay dưới ô trước khi lưu
   const yearId = cls.schoolYear ?? schoolYear;
   const yearActive = schoolYears.find((y) => String(y.id) === String(yearId))?.status === 'ACTIVE';
   const [form, setForm] = useState({ teacherIds: [...cls.teacherIds], homeroomTeacherId: cls.homeroomTeacherId || '' });
@@ -43,7 +43,7 @@ export function ClassTeachersModal({ cls, teachers, classesOf, onClose }) {
     setSaving(true);
     try {
       await saveClassTeachers(cls.id, form, user);
-      toast.success('Đã lưu. Hãy báo trực tiếp cho giáo viên được phân công.', cls.name);
+      toast.success('Đã lưu.', cls.name);
       onClose(true);
     } catch (err) {
       setErrors(err.details || { _form: err.message });

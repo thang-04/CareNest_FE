@@ -1,19 +1,19 @@
 import { useState } from 'react';
 import { Printer, FileDown, FileSpreadsheet } from '@/components/ui/icons';
+import { Button } from '@/components/ui/Button';
 import { useToast } from '@/contexts/ToastContext';
 import { exportElementToPdf } from '@/utils/exportPdf';
-import { Spinner } from '@/components/ui/States';
 
 /**
- * Standard actions for every printable document: Xuất Excel · Xuất PDF · In.
- * On a print page "In" is the main action (primary); elsewhere use plain buttons.
+ * Chân hộp xem trước bản in (khuôn "Văn bản trường"), thứ tự cố định: Đóng · Xuất Excel · Xuất PDF · In (nút chính).
+ * `onClose` có thì vẽ nút Đóng; `onCsv` có thì vẽ Xuất Excel (nên gọi exportWithPreview).
  *
- * <PrintToolbar sheetRef={ref} fileBase="Phieu_LC006" onCsv={() => exportWithPreview(rows, 'x.xlsx')} printLabel="In phiếu" />
+ * <PrintToolbar sheetRef={ref} fileBase="Phieu_LC006" onClose={close} onCsv={() => exportWithPreview(rows, 'x.xlsx')} />
  */
-export function PrintToolbar({ sheetRef, fileBase, onCsv, printLabel = 'In', compact = false, orientation = 'portrait' }) {
+export function PrintToolbar({ sheetRef, fileBase, onClose, onCsv, printLabel = 'In', compact = false, orientation = 'portrait' }) {
   const toast = useToast();
   const [busy, setBusy] = useState(false);
-  const size = compact ? 'btn--sm' : '';
+  const size = compact ? 'sm' : undefined;
 
   const onPdf = async () => {
     setBusy(true);
@@ -21,7 +21,7 @@ export function PrintToolbar({ sheetRef, fileBase, onCsv, printLabel = 'In', com
       await exportElementToPdf(sheetRef.current, `${fileBase}.pdf`, { orientation });
       toast.success('Đã xuất file PDF');
     } catch (err) {
-      toast.error(`Không xuất được PDF: ${err.message}`);
+      toast.error(err, 'Không xuất được PDF');
     } finally {
       setBusy(false);
     }
@@ -29,18 +29,22 @@ export function PrintToolbar({ sheetRef, fileBase, onCsv, printLabel = 'In', com
 
   return (
     <div className="row gap-2 no-print">
-      {/* onCsv nên gọi exportWithPreview: hộp xem trước tự báo khi tải xong */}
-      {onCsv && (
-        <button className={`btn ${size}`} onClick={onCsv}>
-          <FileSpreadsheet size={16} /> Xuất Excel
-        </button>
+      {onClose && (
+        <Button size={size} onClick={onClose}>
+          Đóng
+        </Button>
       )}
-      <button className={`btn ${size}`} onClick={onPdf} disabled={busy}>
-        {busy ? <Spinner small /> : <FileDown size={16} />} Xuất PDF
-      </button>
-      <button className={`btn btn--primary ${size}`} onClick={() => window.print()}>
-        <Printer size={16} /> {printLabel}
-      </button>
+      {onCsv && (
+        <Button size={size} icon={FileSpreadsheet} onClick={onCsv}>
+          Xuất Excel
+        </Button>
+      )}
+      <Button size={size} icon={FileDown} loading={busy} onClick={onPdf}>
+        Xuất PDF
+      </Button>
+      <Button variant="primary" size={size} icon={Printer} onClick={() => window.print()}>
+        {printLabel}
+      </Button>
     </div>
   );
 }

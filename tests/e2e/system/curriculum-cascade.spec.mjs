@@ -27,7 +27,7 @@ test.beforeAll(async () => {
   if (!process.env.E2E_PG_DB?.startsWith('carenest_014_e2e_')) throw new Error('Cần database riêng carenest_014_e2e_*');
   sql(
     "insert into school_years(name,start_date,end_date) values ('2027-2028','2027-09-01','2028-05-31') on conflict(name) do nothing;" +
-      "insert into classrooms(campus_id,school_year_id,name,age_group_id) select c.id,y.id,'Lớp B1',g.id from campuses c cross join school_years y cross join age_groups g where c.code='CS-B' and y.name='2027-2028' and g.code='ag-4' on conflict(school_year_id,campus_id,name) do nothing;",
+      "insert into classrooms(campus_id,school_year_id,name,age_group_id) select c.id,y.id,'Lớp Chồi 1',g.id from campuses c cross join school_years y cross join age_groups g where c.code='CS-A' and y.name='2027-2028' and g.code='ag-4' on conflict(school_year_id,campus_id,name) do nothing;",
   );
   cleanup();
   addTeamLeader('teacher1');
@@ -85,9 +85,8 @@ test('EDU-61: lấy nguyên văn nguồn, lọc đích, lưu API và mở lại'
       goalInput = input;
       break;
     }
+  // Mục tiêu lấy từ Chương trình của Bộ đã gắn mã chương trình khi nhập; ô mục tiêu không còn danh sách gợi ý để chọn lại
   expect(goalInput).toBeTruthy();
-  await goalInput.click();
-  await page.getByRole('option', { name: selected.goalText, exact: true }).click();
   await page.getByRole('button', { name: 'Lưu', exact: true }).first().click();
   await expect(saveStatus(page)).toHaveText(/Đã lưu lúc/);
   const saved = (await api(USERS.vp, 'GET', `${goalsPath}/${annual.id}`)).data;

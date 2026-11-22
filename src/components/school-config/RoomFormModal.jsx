@@ -6,7 +6,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Spinner } from '@/components/ui/States';
 import { FormField } from '@/components/form/FormField';
 import { saveRoom } from '@/services/masterDataService';
-import { LOCATION_TYPE_LABELS, LOCATION_TYPES, MANAGER_LABELS, isRoomStaff } from '@/models/Location';
+import { LOCATION_TYPE_LABELS, LOCATION_TYPES, isRoomStaff } from '@/models/Location';
 import { ROLE_LABELS } from '@/models/User';
 import { SCHOOL_CONFIG_API } from '@/config/env';
 import { validateRoom, hasErrors, errorsAfterChange, ROOM_LIMITS } from '@/utils/school-config/schoolConfigValidation';
@@ -25,7 +25,7 @@ const empty = (campusId) => ({
 });
 
 /** Room Form (PROPOSED, outside SRS). Campus and type are locked once the room is in use. */
-export function RoomFormModal({ open, onClose, room, defaultCampusId, campuses, users, existing }) {
+export function RoomFormModal({ open, onClose, room, defaultCampusId, campuses, users, existing, schoolYearId }) {
   const { user } = useAuth();
   const toast = useToast();
   const [form, setForm] = useState(() => empty());
@@ -65,7 +65,7 @@ export function RoomFormModal({ open, onClose, room, defaultCampusId, campuses, 
     if (hasErrors(e)) return;
     setSaving(true);
     try {
-      await saveRoom(room?.id || null, form, user);
+      await saveRoom(room?.id || null, form, user, schoolYearId);
       toast.success('Đã lưu thay đổi.', room ? 'Cập nhật phòng' : 'Thêm phòng');
       onClose(true);
     } catch (err) {
@@ -97,12 +97,7 @@ export function RoomFormModal({ open, onClose, room, defaultCampusId, campuses, 
         </div>
       )}
       <div className="grid-2">
-        <FormField
-          label="Điểm trường"
-          required
-          error={errors.campusId}
-          hint={inUse ? 'Phòng đang được dùng nên không đổi điểm trường' : undefined}
-        >
+        <FormField label="Điểm trường" required error={errors.campusId}>
           <select
             className="select"
             value={form.campusId}
@@ -119,12 +114,7 @@ export function RoomFormModal({ open, onClose, room, defaultCampusId, campuses, 
               ))}
           </select>
         </FormField>
-        <FormField
-          label="Loại phòng"
-          required
-          error={errors.type}
-          hint={hasClass ? 'Phòng đang gắn với lớp nên không đổi loại' : undefined}
-        >
+        <FormField label="Loại phòng" required error={errors.type}>
           <select className="select" value={form.type} disabled={hasClass} onChange={(e) => set({ type: e.target.value })}>
             {Object.values(LOCATION_TYPES).map((t) => (
               <option key={t} value={t}>
@@ -133,23 +123,25 @@ export function RoomFormModal({ open, onClose, room, defaultCampusId, campuses, 
             ))}
           </select>
         </FormField>
-        <FormField label="Mã / số phòng" required error={errors.room} hint="Không trùng trong điểm trường, ví dụ P.101">
+        <FormField label="Mã / số phòng" required error={errors.room}>
           <input className="input" value={form.room} onChange={(e) => set({ room: e.target.value })} onBlur={() => blurCheck('room')} />
         </FormField>
-        <FormField label="Tên phòng" required error={errors.name} hint="Ví dụ Phòng học 101, Phòng Âm nhạc">
+        <FormField label="Tên phòng" required error={errors.name}>
           <input className="input" value={form.name} onChange={(e) => set({ name: e.target.value })} onBlur={() => blurCheck('name')} />
         </FormField>
         {form.type === LOCATION_TYPES.CLASS ? (
           // Phòng học: người phụ trách tự theo giáo viên chủ nhiệm của lớp đang dùng phòng (năm học đang hoạt động)
-          <FormField label="Người phụ trách" hint="Tự động: giáo viên chủ nhiệm của lớp đang dùng phòng (đổi ở Phân công giáo viên)">
+          <FormField label="Người phụ trách">
             <input
               className="input"
               disabled
-              value={users.find((u) => u.id === room?.managerUserId)?.fullName || 'Chưa có (phòng chưa có lớp / lớp chưa có chủ nhiệm)'}
+              value={
+                users.find((u) => u.id === room?.managerUserId)?.fullName || 'Chưa có (phòng chưa có lớp / lớp chưa có GV phụ trách chính)'
+              }
             />
           </FormField>
         ) : (
-          <FormField label="Người phụ trách" error={errors.managerUserId} hint={MANAGER_LABELS[form.type]}>
+          <FormField label="Người phụ trách" error={errors.managerUserId}>
             <select
               className="select"
               value={form.managerUserId}
@@ -165,18 +157,7 @@ export function RoomFormModal({ open, onClose, room, defaultCampusId, campuses, 
             </select>
           </FormField>
         )}
-        <FormField
-          label="Sức chứa"
-          required={form.type === LOCATION_TYPES.CLASS}
-          error={errors.capacity}
-          hint={
-            minCapacity
-              ? `Số nguyên dương, không nhỏ hơn ${minCapacity} (sĩ số tối đa của lớp đang dùng phòng)`
-              : form.type === LOCATION_TYPES.CLASS
-                ? 'Số nguyên dương do Hiệu trưởng đặt; sĩ số tối đa của lớp không vượt sức chứa'
-                : 'Số người tối đa của phòng; nhập số nguyên dương hoặc để trống nếu chưa xác định'
-          }
-        >
+        <FormField label="Sức chứa" required={form.type === LOCATION_TYPES.CLASS} error={errors.capacity}>
           <input
             className="input"
             type="number"

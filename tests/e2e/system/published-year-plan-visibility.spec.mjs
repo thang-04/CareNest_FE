@@ -25,7 +25,7 @@ test.beforeAll(() => {
   if (!process.env.E2E_PG_DB?.startsWith('carenest_013_e2e_')) throw new Error('Cần database riêng carenest_013_e2e_*');
   sql(
     "insert into school_years(name,start_date,end_date) values ('2027-2028','2027-09-01','2028-05-31') on conflict(name) do nothing;" +
-      "insert into classrooms(campus_id,school_year_id,name,age_group_id) select c.id,y.id,'Lớp B1',g.id from campuses c cross join school_years y cross join age_groups g where c.code='CS-B' and y.name='2027-2028' and g.code='ag-4' on conflict(school_year_id,campus_id,name) do nothing;",
+      "insert into classrooms(campus_id,school_year_id,name,age_group_id) select c.id,y.id,'Lớp Chồi 1',g.id from campuses c cross join school_years y cross join age_groups g where c.code='CS-A' and y.name='2027-2028' and g.code='ag-4' on conflict(school_year_id,campus_id,name) do nothing;",
   );
   cleanup();
   addTeamLeader('teacher1');
@@ -40,8 +40,19 @@ test('EDU-60: Keycloak chặn năm nháp và cho tổ trưởng đọc sau ban h
   const body = await yearPlanBody(`${E2E.titlePrefix} 013 published visibility`);
   body.planLevel = 'SCHOOL_YEAR';
   body.themes[0].endDate = '2027-09-17';
+  // Gửi duyệt kế hoạch năm cần ít nhất 9 chủ đề, mỗi chủ đề 2–4 tuần ⇒ thêm 8 chủ đề 2 tuần nối tiếp
+  for (let i = 1; i <= 8; i++) {
+    const monday = new Date(Date.UTC(2027, 8, 6 + 14 * i));
+    const friday = new Date(monday);
+    friday.setUTCDate(friday.getUTCDate() + 11);
+    const day = (d) => d.toISOString().slice(0, 10);
+    body.themes.push({ ...body.themes[0], key: `t${i + 1}`, name: `Chủ đề E2E ${i + 1}`, abbr: `CD${i + 1}`, startDate: day(monday), endDate: day(friday) });
+  }
   body.domains[0].rows[0].contents[0].themeKeys = [];
-  body.branchTemplates = [{ key: 'b1', themeKey: 't1', name: 'Nhánh kế thừa E2E 013' }];
+  // Gửi duyệt cần mục tiêu nằm trong một nhóm kết quả mong đợi
+  body.domains[0].rows.unshift({ kind: 'group', text: 'Nhóm kết quả E2E', contents: [] });
+  // Gửi duyệt cần nhánh có đủ ngày bắt đầu, kết thúc trong chủ đề
+  body.branchTemplates = [{ key: 'b1', themeKey: 't1', name: 'Nhánh kế thừa E2E 013', startDate: E2E.weekStart, endDate: '2027-09-10' }];
   const session = newSession();
   const created = await api(USERS.vp, 'POST', goals, { body, headers: editHeaders(session, 0) });
   expect(created.status).toBe(201);
@@ -50,9 +61,8 @@ test('EDU-60: Keycloak chặn năm nháp và cho tổ trưởng đọc sau ban h
   const list = await api(USERS.teacher1, 'GET', `${goals}?planLevel=SCHOOL_YEAR&size=200`);
   expect(list.status).toBe(200);
   expect(list.data.items.some((item) => item.id === annual.id)).toBe(false);
-  expect((await api(USERS.vp, 'POST', `${goals}/${annual.id}/submit`, { headers: editHeaders(session, annual.revision) })).status).toBe(
-    200,
-  );
+  const submitted = await api(USERS.vp, 'POST', `${goals}/${annual.id}/submit`, { headers: editHeaders(session, annual.revision) });
+  expect(submitted.status, submitted.desc).toBe(200);
   expect((await api(USERS.teacher1, 'GET', `${goals}/${annual.id}`)).status).toBe(403);
   annual = (await api(USERS.vp, 'GET', `${goals}/${annual.id}`)).data;
   const published = await api(USERS.principal, 'POST', `${goals}/${annual.id}/issue`, { headers: editHeaders(session, annual.revision) });

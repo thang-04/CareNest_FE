@@ -1,12 +1,12 @@
 import { test, expect } from '@playwright/test';
-import { api, beReachable } from '../support/realBe.mjs';
+import { api, beReachable, sql } from '../support/realBe.mjs';
 import { login, spaGo } from '../support/ui.mjs';
 
 // Giao diện cho các phần spec 002/003 trước đây chỉ có test API (IT-002-02/03/04, IT-003-04/05, thông báo có đường dẫn).
 // Dữ liệu dev 10/11/2026: teamlead34 = Tổ trưởng + GVCN lớp 1 (3–4 tuổi, cơ sở A), teacher6 = GV thứ hai lớp đó.
 test.describe.configure({ mode: 'serial' });
 
-const U = { vp: 'viceprincipal@gmail.com', ht: 'principal@gmail.com', tl: 'teamlead34@gmail.com', gv2: 'teacher6@gmail.com' };
+const U = { vp: 'viceprincipal', ht: 'principal', tl: 'teacher1', gv2: 'teacher2' };
 const GOALS = '/education-plans/goals';
 let cls;
 let myAge;
@@ -38,7 +38,11 @@ test('ST-002-08 bản chưa ban hành: HT/PHT mở đường dẫn thấy "Bản
 test('ST-002-09 GV thứ hai: chỉ thấy kế hoạch năm đã ban hành của nhóm tuổi mình, không thấy lịch sử duyệt; nhóm khác bị chặn', async ({
   page,
 }) => {
-  const mine = (await api(U.gv2, 'GET', `${GOALS}?planLevel=SCHOOL_YEAR&size=100`)).data.items;
+  // Trang lọc theo năm học đang chọn trên header (mặc định năm đang hoạt động)
+  const activeYear = sql(`select id from school_years where status = 'ACTIVE'`);
+  const mine = (await api(U.gv2, 'GET', `${GOALS}?planLevel=SCHOOL_YEAR&size=100`)).data.items.filter(
+    (p) => String(p.schoolYearId) === activeYear,
+  );
   test.skip(!mine.length, 'GV thứ hai chưa có kế hoạch năm đã ban hành');
   await login(page, U.gv2);
   await spaGo(page, '/education/school-year-plans');
@@ -62,7 +66,7 @@ test('ST-003-09 trang kế hoạch chủ đề không hiện hạn (chỉ ở tr
   const dossier = (await api(U.tl, 'GET', '/education-plans/class-docs')).data.themeDossiers?.find(
     (d) => String(d.classId) === String(cls.id),
   );
-  test.skip(!dossier, 'Lớp chưa có hồ sơ chủ đề');
+  test.skip(!dossier, 'Lớp chưa có kế hoạch giáo dục ngày');
   await login(page, U.tl);
   await spaGo(page, `/education/class/${cls.id}/themes/${dossier.themeId}`);
   // Trạng thái, hạn chỉ ở hàng nút trang danh sách học kỳ, không lặp ở trang kế hoạch chủ đề (Tiền 14/11/2026)

@@ -39,6 +39,32 @@ export const toPlanRequest = (draft) => ({
   })),
 });
 
+/** Ngày đã sửa -> body PUT .../days/{date}/amend (cả ngày, mọi khối) kèm lý do. */
+export const toAmendRequest = (day, reason) => ({
+  note: text(day.note),
+  items: day.items.map(({ session, block, dishId }) => ({ session, block, dishId })),
+  reason: text(reason),
+});
+
+/**
+ * So món trước/sau của một lần sửa (hoặc của ngày đang sửa) theo khối × bữa, chỉ giữ ô có đổi:
+ * [{ block, session, before: [tên món], after: [tên món] }]. Chỉ để hiển thị.
+ */
+export const dayItemChanges = (beforeItems = [], afterItems = []) => {
+  const cells = new Map();
+  const put = (side) => (item) => {
+    const key = `${item.block}|${item.session}`;
+    if (!cells.has(key)) cells.set(key, { block: item.block, session: item.session, before: [], after: [] });
+    cells.get(key)[side].push(item.dishName || `Món #${item.dishId}`);
+  };
+  beforeItems.forEach(put('before'));
+  afterItems.forEach(put('after'));
+  const sameDishes = (a, b) => [...a].sort().join('|') === [...b].sort().join('|');
+  return [...cells.values()]
+    .filter((cell) => !sameDishes(cell.before, cell.after))
+    .sort((a, b) => a.block.localeCompare(b.block) || SESSION_ORDER.indexOf(a.session) - SESSION_ORDER.indexOf(b.session));
+};
+
 /** Có thay đổi chưa lưu so với bản đã lưu (so nội dung sẽ gửi, bỏ qua món của ngày nghỉ). */
 export const isDirty = (draft, saved) => JSON.stringify(toPlanRequest(draft)) !== JSON.stringify(toPlanRequest(saved));
 
@@ -172,6 +198,24 @@ export const dayStatisticsQuery = (items, ageGroupId, date) =>
 // Bật ngày nghỉ giữ nguyên món đã chọn để bỏ nghỉ thì khôi phục; yêu cầu gửi đi không mang món của ngày nghỉ
 export const setDayOff = (draft, date, off) => updateDay(draft, date, (day) => ({ ...day, off: !!off }));
 export const setDayNote = (draft, date, note) => updateDay(draft, date, (day) => ({ ...day, note }));
+
+/** Ngày của bản nháp rơi vào đợt nghỉ năm học (SCH-05): { [date]: tên đợt nghỉ }. */
+export const holidayNames = (draft, holidays = []) =>
+  Object.fromEntries(
+    (draft?.days || [])
+      .map((day) => [day.date, holidays.find((h) => h.startDate <= day.date && h.endDate >= day.date)?.name])
+      .filter(([, name]) => name),
+  );
+
+/** Tự đánh dấu nghỉ các ngày trùng đợt nghỉ năm học; lý do trống thì điền tên đợt nghỉ. Không có gì đổi ⇒ trả lại `draft`. */
+export const applyHolidays = (draft, names) => {
+  if (!draft || !Object.keys(names || {}).some((date) => draft.days.some((d) => d.date === date && !d.off))) return draft;
+  return {
+    days: draft.days.map((day) =>
+      names[day.date] && !day.off ? { ...day, off: true, note: text(day.note) ? day.note : names[day.date] } : day,
+    ),
+  };
+};
 
 /* ---------- cấu trúc khối / bữa / đánh giá do BE trả ---------- */
 export const planBlocks = (plan) => (plan?.blocks || []).map((b) => b.block);

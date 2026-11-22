@@ -1,3 +1,4 @@
+import { ResponsiveToolbar } from '@/components/ui/ResponsiveToolbar';
 import TeamSourceReview from '@/components/education-plan/TeamSourceReview';
 import YearPlanSourceCard from '@/components/education-plan/YearPlanSourceCard';
 import { RowMenu } from '@/components/ui/RowMenu';
@@ -675,7 +676,7 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
         </Notice>
       )}
       {preservedDraft && (
-        <Notice>
+        <Notice tone="info">
           <div className="stack">
             <span>
               Nội dung trước khi tải lại được giữ để đối chiếu: {preservedDraft.title}. Kiểm tra cây nguồn mới trước khi áp dụng lại.
@@ -696,7 +697,9 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
           </div>
         </Notice>
       )}
-      {annual && !levelsAvailable && <Notice>Bạn đang soạn bản xem trước. Máy chủ chưa hỗ trợ lưu và gửi duyệt kế hoạch năm học.</Notice>}
+      {annual && !levelsAvailable && (
+        <Notice tone="info">Bạn đang soạn bản xem trước. Máy chủ chưa hỗ trợ lưu và gửi duyệt kế hoạch năm học.</Notice>
+      )}
       <fieldset disabled={!canEdit || !contentReady || finishing || resolving} className="ga-edit-fieldset">
         <div className="ga-sticky-head">
           <PageHead
@@ -708,10 +711,13 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
             ]}
             title={`${existing ? 'Chỉnh sửa' : 'Lập'} ${pageLabel.toLowerCase()}`}
           />
-          <div className="ga-year-toolbar" role="group" aria-label={annual ? 'Thao tác kế hoạch năm học' : 'Thao tác kế hoạch giáo dục tổ'}>
-            {/* Bên trái: tên ngắn (hiện khi hàng nút đang dính) rồi các nút lấy nội dung (Tiền 12/11/2026) */}
+          <ResponsiveToolbar
+            className="ga-year-toolbar"
+            role="group"
+            aria-label={annual ? 'Thao tác kế hoạch năm học' : 'Thao tác kế hoạch giáo dục tổ'}
+          >
+            {/* Bên trái giữ các thao tác lấy nội dung; tên tài liệu chỉ ở header chung. */}
             <div className="ga-year-toolbar__group">
-              <span className="ga-year-toolbar__title">{pageLabel}</span>
               <FoldAllButton />
               {annual && (
                 <RowMenu
@@ -800,7 +806,7 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
                 </Button>
               )}
             </div>
-          </div>
+          </ResponsiveToolbar>
         </div>
 
         {reviewError && <Notice>{reviewError}</Notice>}
@@ -1053,7 +1059,9 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
             />
           </>
         )}
-        {inherited && <Notice>Nội dung kế thừa từ kế hoạch năm học được giữ cố định. Tích từng nội dung vào chủ đề ở phần 2.</Notice>}
+        {inherited && (
+          <Notice tone="info">Nội dung kế thừa từ kế hoạch năm học được giữ cố định. Tích từng nội dung vào chủ đề ở phần 2.</Notice>
+        )}
         <Card
           title="2. Mục tiêu nội dung giáo dục cuối độ tuổi"
           className="ga-plan-section--goals"
@@ -1070,7 +1078,7 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
                   <Download size={16} aria-hidden /> Dùng lại mục tiêu năm {reusePlan.schoolYear}
                 </Button>
               )}
-              <span className="muted text-xs nowrap">
+              <span className="text-success text-xs nowrap">
                 {totalGoals} mục tiêu{annual ? ` · ${goalsWithoutContent} chưa có nội dung` : ''}
               </span>
             </div>
@@ -1093,7 +1101,7 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
             !errors.domains.includes('mục tiêu') &&
             !errors.domains.includes('chủ đề') &&
             !errors.domains.includes('nhóm') && <Notice>{errors.domains}</Notice>}
-          {!annual && themes.length === 0 && <p className="text-danger text-sm text-right">{NO_THEME_NOTE}</p>}
+          {!annual && themes.length === 0 && <p className="text-success text-sm text-right">{NO_THEME_NOTE}</p>}
           <GoalTable
             reviewItems={form.reviewItems}
             newItems={form.newItems}
@@ -1116,7 +1124,7 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
           actions={
             annual && (
               <div className="row row--wrap">
-                <span className="muted text-xs nowrap">{namedThemes} chủ đề · tối thiểu 9</span>
+                <span className="text-success text-xs nowrap">{namedThemes} chủ đề · tối thiểu 9</span>
                 <Button variant="outline-primary" size="sm" onClick={() => setImportingThemes(true)}>
                   <Download size={16} aria-hidden /> Lấy chủ đề từ kế hoạch có sẵn
                 </Button>

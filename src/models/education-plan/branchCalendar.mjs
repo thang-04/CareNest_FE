@@ -45,7 +45,13 @@ export function branchDisplayRows(plan, doc) {
     return !previous || previous.type !== 'week' || String(previous.theme.id) !== String(row.theme.id) || !!branchOf(previous);
   });
 }
+export const normalizeBranchCalendar = (doc) =>
+  doc?.schemaVersion === 2
+    ? { ...doc, branches: doc.branches ?? [], themeSchedules: doc.themeSchedules ?? [], names: doc.names ?? {}, notes: doc.notes ?? {} }
+    : doc;
+
 export function projectCalendar(doc, plan) {
+  doc = normalizeBranchCalendar(doc);
   const names = {},
     notes = {};
   for (const b of doc.branches || [])
@@ -135,6 +141,9 @@ export function resizeBranch(doc, plan, key, startDate, endDate) {
     throw Error('Thời gian bị trùng với nhánh khác.');
   return projectCalendar({ ...doc, branches }, plan);
 }
+// BE:EDU-100 — bỏ một nhánh khỏi lịch; tuần của nhánh trống tên tới khi đặt nhánh khác (lưu thì BE xóa kế hoạch tuần, giáo án)
+export const removeBranch = (doc, plan, key) =>
+  projectCalendar({ ...doc, branches: doc.branches.filter((b) => b.key !== key) }, plan);
 // BE giả cho FR-017: API thật dùng calendar-preview, không tính lịch tại UI.
 export function reorderCalendar(doc, plan, order) {
   const base = adaptCalendar(doc, plan);

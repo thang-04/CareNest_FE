@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { request } from '@playwright/test';
 
-// Môi trường dev của CareNest_BE (docs/system/KEYCLOAK.md): user <tên>@gmail.com, mật khẩu chung của realm dev
+// Bộ dữ liệu dev của CareNest_BE (BE docs/TAI_KHOAN_DEV.md, sinh bởi scripts/dev/gen-dev-dataset.mjs): đăng nhập bằng tên đăng nhập (admin, principal, viceprincipal, teacher1, teacher2…), mật khẩu chung của realm dev
 export const BE_URL = process.env.E2E_BE_URL || 'http://localhost:8080/api';
 const KC_TOKEN_URL = process.env.E2E_KC_TOKEN_URL || 'http://localhost:8180/realms/carenest/protocol/openid-connect/token';
 // Mật khẩu chung của realm dev chỉ lấy từ môi trường, không ghi trong repo
@@ -16,18 +16,18 @@ const PG_DB = process.env.E2E_PG_DB || 'carenest';
 const PG_USER = process.env.E2E_PG_USER || 'postgres';
 
 export const USERS = {
-  vp: 'viceprincipal@gmail.com',
-  principal: 'principal@gmail.com',
-  teacher1: 'teacher1@gmail.com',
-  teacher2: 'teacher2@gmail.com',
+  vp: 'viceprincipal',
+  principal: 'principal',
+  teacher1: 'teacher1',
+  teacher2: 'teacher2',
 };
 
-// Dữ liệu riêng của bộ test: năm học 2027-2028, nhóm Mẫu giáo nhỡ (ag-4), lớp B1 của năm đó (teacher2 dạy)
+// Dữ liệu riêng của bộ test: năm học 2027-2028 (đang chuẩn bị), nhóm Mẫu giáo nhỡ (ag-4), Lớp Chồi 1 của năm đó (teacher1 chủ nhiệm, teacher2 dạy cùng)
 export const E2E = {
   titlePrefix: '[E2E]',
   schoolYear: '2027-2028',
   ageGroupCode: 'ag-4',
-  classroomName: 'Lớp B1',
+  classroomName: 'Lớp Chồi 1',
   weekStart: '2027-09-06',
   // Phân công tạm do bộ test thêm; valid_from đặc biệt để nhận diện và xóa đúng các dòng này
   markerDate: '2026-01-01',
@@ -114,12 +114,15 @@ export const ids = () => {
 /** Xóa dữ liệu bộ test để lại (chỉ kế hoạch có tiêu đề [E2E] và phân công có ngày đánh dấu). */
 export function cleanup() {
   const { year, ageGroup } = ids();
+  const testYearPlans = `select id from edu_year_plans where title like '${E2E.titlePrefix}%'`;
   sql(
     // Kế hoạch năm và tổ tách bảng (edu_year_plans / edu_team_plans); tài liệu lớp trỏ qua team_plan_id hoặc school_year_plan_id
-    `delete from edu_learning_resources where class_doc_id in (select d.id from edu_class_docs d ` +
+    // V128: học liệu gắn giáo án ở edu_resource_attachments (thay edu_learning_resources)
+    `delete from edu_resource_attachments where class_doc_id in (select d.id from edu_class_docs d ` +
       `left join edu_team_plans t on t.id = d.team_plan_id left join edu_year_plans y on y.id = d.school_year_plan_id ` +
-      `where t.title like '${E2E.titlePrefix}%' or y.title like '${E2E.titlePrefix}%');` +
-      `delete from edu_team_plans where title like '${E2E.titlePrefix}%' and school_year_id = ${year} and age_group_id = ${ageGroup};` +
+      `where t.title like '${E2E.titlePrefix}%' or y.title like '${E2E.titlePrefix}%' or t.curriculum_source_plan_id in (${testYearPlans}));` +
+      // Ban hành kế hoạch năm tự sinh bản tổ (không mang tiền tố [E2E]) trỏ về bản năm nguồn
+      `delete from edu_team_plans where (title like '${E2E.titlePrefix}%' or curriculum_source_plan_id in (${testYearPlans})) and school_year_id = ${year} and age_group_id = ${ageGroup};` +
       `delete from edu_year_plans where title like '${E2E.titlePrefix}%' and school_year_id = ${year} and age_group_id = ${ageGroup};` +
       `delete from staff_assignments where valid_from = '${E2E.markerDate}' and staff_role = 'AGE_GROUP_TEAM_LEADER';` +
       // Khôi phục phân công Tổ trưởng bị tạm ngưng (dời valid_from +100 năm) về đúng ngày cũ
@@ -129,10 +132,11 @@ export function cleanup() {
 
 /** Tổ trưởng tạm cho nhóm tuổi của bộ test (chỉ dòng có ngày đánh dấu). */
 export function addTeamLeader(user) {
-  const { ageGroup } = ids();
+  const { ageGroup, year } = ids();
   const id = user === 'teacher1' ? ids().teacher1 : ids().teacher2;
+  // Gắn đúng năm học của bộ test: dòng không có năm học được tính cho năm đang hoạt động
   sql(
-    `insert into staff_assignments (user_id, staff_role, age_group_id, valid_from) values (${id}, 'AGE_GROUP_TEAM_LEADER', ${ageGroup}, '${E2E.markerDate}')`,
+    `insert into staff_assignments (user_id, staff_role, age_group_id, school_year_id, valid_from) values (${id}, 'AGE_GROUP_TEAM_LEADER', ${ageGroup}, ${year}, '${E2E.markerDate}')`,
   );
 }
 /** Web (shim đăng nhập dev) chỉ đọc phân công Tổ trưởng đầu tiên ⇒ tạm ngưng phân công Tổ trưởng khác của user; cleanup() khôi phục. */

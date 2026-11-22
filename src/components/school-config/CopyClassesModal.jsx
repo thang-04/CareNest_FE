@@ -40,9 +40,9 @@ const key = (c) => `${c.campusId}|${normalizeText((c.name || '').trim())}`;
 export function CopyClassesModal({ open, onClose, target, years }) {
   const { user } = useAuth();
   const toast = useToast();
-  const md = useMasterData();
   const sources = useMemo(() => copySourcesFor(years, target), [years, target]);
   const [sourceId, setSourceId] = useState('');
+  const md = useMasterData(sourceId);
   const [selected, setSelected] = useState(new Set());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -123,7 +123,7 @@ export function CopyClassesModal({ open, onClose, target, years }) {
         <p className="text-2">Chưa có năm học nào khác để sao chép.</p>
       ) : (
         <>
-          <FormField label="Sao chép từ năm học" hint="Chọn năm học bất kỳ; mặc định là năm học liền trước">
+          <FormField label="Sao chép từ năm học">
             <select className="select" value={sourceId} onChange={(e) => setSourceId(e.target.value)}>
               {sources.map((y) => (
                 <option key={y.id} value={y.id}>

@@ -17,7 +17,6 @@ import { FilterChips } from '@/components/ui/FilterChips';
 import { FilterMore } from '@/components/ui/FilterMore';
 import { CampusFilter } from '@/components/ui/CampusFilter';
 import { EvaluationStatusBadge } from '@/components/assessment/AssessmentBadges';
-import { ClassMonthlyCommentCard } from '@/components/assessment/ClassMonthlyCommentCard';
 import { EVAL_KIND, EVAL_STATUS, PERIOD_TYPE, PERIOD_TYPE_LABELS } from '@/models/assessment/assessmentConstants';
 import { formatDateTime, normalizeText } from '@/utils/format';
 import { evaluationPeriodLabel } from '@/utils/assessment/assessmentPeriods';
@@ -27,6 +26,8 @@ import { getCampuses } from '@/services/masterDataService';
 import { getAgeGroups } from '@/services/schoolService';
 import { monthInSemester, semestersOf } from '@/utils/semesters';
 import { SemesterSelect } from '@/components/form/SemesterSelect';
+import { useYearCampuses } from '@/hooks/useYearCampuses';
+import { PERMISSIONS } from '@/models/bePermissions';
 
 const TEACHER_TABS = [
   { key: 'TODO', label: 'Chờ xem xét', match: (e) => e.status !== EVAL_STATUS.CONFIRMED },
@@ -66,7 +67,9 @@ export function EvaluationListView({ kind }) {
   });
   const { tab, classId, theme, keyword, campusId = '', ageGroupId = '' } = f;
   const scopedClasses = classScope.data || [];
-  const campusOptions = (campuses || []).filter((c) => scopedClasses.some((cls) => String(cls.campusId) === String(c.id)));
+  // HT: điểm trường của năm đang chọn; PHT: theo phạm vi quyền được cấp
+  const yearCampuses = useYearCampuses(PERMISSIONS.ASSESSMENT_VIEW);
+  const campusOptions = yearCampuses || (campuses || []).filter((c) => scopedClasses.some((cls) => String(cls.campusId) === String(c.id)));
   const campusName = (id) => campusOptions.find((c) => String(c.id) === String(id))?.name;
   const campusClasses = scopedClasses.filter((c) => !campusId || String(c.campusId) === campusId);
   const groupOptions = (ageGroups || []).filter((g) => campusClasses.some((c) => String(c.ageGroupId) === String(g.id)));
@@ -181,13 +184,8 @@ export function EvaluationListView({ kind }) {
   const cols = 4 + (showClass ? 1 : 0) + (showFlags ? 1 : 0) + (showActions ? 1 : 0);
   const link = (e) => `/assessment/${kind}/${e.id}`;
 
-  // Đánh giá tháng: nhận xét chung của lớp cho tháng đang xem (GV lớp mình; BGH khi đã chọn lớp)
-  const monthKey = !yearEnd && !semester && activePeriod !== 'ALL' ? activePeriod.split('|')[1] : null;
-  const commentClassId = leader ? classId : classes.find((c) => c.teaches)?.id || classes[0]?.id;
-
   return (
     <>
-      {monthKey && commentClassId && <ClassMonthlyCommentCard classId={commentClassId} month={monthKey} />}
       <div className="card">
         {tabs.length > 0 && (
           <Tabs
@@ -262,7 +260,14 @@ export function EvaluationListView({ kind }) {
           )}
           {!moreFilters && periodTypeSelect}
           {!moreFilters && themeSelect}
-          {monthly && <SemesterSelect value={semKey} onChange={(key) => applyFilters({ sem: key, period: '' })} />}
+          {monthly && (
+            <SemesterSelect
+              value={semKey}
+              emptyLabel="Cả năm học"
+              yearOption={false}
+              onChange={(key) => applyFilters({ sem: key, period: '' })}
+            />
+          )}
           {!yearEnd && (
             <div className="dg-period-nav">
               <button

@@ -191,7 +191,7 @@ export default function CurriculumGoalsModal({ ageGroupId, form, onClose, onImpo
         />
       ) : (
         <>
-          {!allTargets.length && <Notice>Bản đang soạn chưa có mục tiêu.</Notice>}
+          {!allTargets.length && <Notice tone="info">Bản đang soạn chưa có mục tiêu.</Notice>}
           <div className="ga-cur-toolbar ga-cur-filters ga-cur-content-filters">
             <div className="field">
               <label className="field__label" htmlFor="cur-domain">
@@ -199,7 +199,9 @@ export default function CurriculumGoalsModal({ ageGroupId, form, onClose, onImpo
               </label>
               <select
                 id="cur-domain"
-                className="select"
+                className="select ga-cur-select--ellipsis"
+                // Tên lĩnh vực dài bị cắt "…": rê chuột xem đủ tên, mở ô chọn vẫn thấy đủ
+                title={domain?.name || 'Tất cả lĩnh vực'}
                 value={filter.domainId || ''}
                 onChange={(e) => setFilter({ domainId: e.target.value })}
               >

@@ -76,7 +76,7 @@ export function useDayProgress(todayQ, campusId = '') {
 export function useLunchToday() {
   const md = useMasterData();
   const date = todayInput();
-  const src = useWidget((u) => getLunchSources(u, { date }), [date]);
+  const src = useWidget((u) => getLunchSources(u, { date, withCounts: false }), [date]);
   const campusName = (id) => md.campusById?.(id)?.shortName || md.campusById?.(id)?.name || id;
   return {
     lunch: src.data ? buildLunch({ counts: src.data.counts, menu: src.data.menu, campusName }) : null,

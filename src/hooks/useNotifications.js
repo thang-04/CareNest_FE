@@ -2,11 +2,11 @@ import { useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAsync } from './useAsync';
 import { usePolling } from './usePolling';
-import { getNotifications, markAllNotificationsRead, markNotificationRead } from '@/services/notificationService';
+import { getNotificationFeed, markAllNotificationsRead, markNotificationRead } from '@/services/notificationService';
 
 export function useNotifications() {
   const { user } = useAuth();
-  const { data, loading, error, reload } = useAsync(() => getNotifications(user.id), [user?.id], {
+  const { data, loading, error, reload } = useAsync(() => getNotificationFeed(user.id), [user?.id], {
     refreshOnDataChange: true,
     enabled: !!user,
   });
@@ -27,6 +27,6 @@ export function useNotifications() {
     reload({ silent: true });
   }, [reload, user?.id]);
 
-  const notifications = data || [];
-  return { notifications, unreadCount: notifications.filter((n) => !n.read).length, loading, error, reload, markRead, markAllRead };
+  const notifications = data?.items || [];
+  return { notifications, unreadCount: data?.unreadCount ?? 0, loading, error, reload, markRead, markAllRead };
 }

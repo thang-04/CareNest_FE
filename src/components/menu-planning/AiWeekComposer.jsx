@@ -1,33 +1,24 @@
 import { useEffect, useState } from 'react';
-import { AlertCircle, CircleCheck, RotateCcw, Sparkles } from '@/components/ui/icons';
+import { AlertCircle, Check, CircleCheck, Lightbulb, Repeat, RotateCcw, Scale, Sparkles, Users, Wallet } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { dismissAiDraft, generateAiSuggestion } from '@/services/menu-planning/menuPlanningService';
 import { Modal } from '@/components/ui/Modal';
+import { Button } from '@/components/ui/Button';
 import { AiWorkingOverlay } from '@/components/ui/AiWorkingOverlay';
 import { useAiRun } from '@/hooks/useAiRun';
 import { WeekGrid } from '@/components/menu-planning/WeekGrid';
+import { AiBrief } from '@/components/menu-planning/AiBrief';
 import { AiDraftLabel } from '@/components/menu-planning/MenuBadges';
 import { checkDayMenu } from '@/utils/menu-planning/menuChecks';
-import { priceOn } from '@/utils/menu-planning/menuCalculations';
-import { AI_DRAFT_KIND, REPEAT_WINDOW_DAYS, formatMoney, weekLabel } from '@/models/menu-planning/menuPlanningConstants';
+import { foodBudgetOn } from '@/utils/menu-planning/menuCalculations';
+import { AI_DRAFT_KIND, REPEAT_WINDOW_DAYS, WEEKDAY_LABELS, formatMoney, weekLabel } from '@/models/menu-planning/menuPlanningConstants';
 
-const SEASONS = ['Xuân', 'Hạ', 'Thu', 'Đông'];
-
-/** Câu tóm tắt AI sẽ làm gì, viết cho giáo viên đọc một lần là hiểu. */
-export const aiWeekSummary = ({ groupName, weekStart, price, allergyRows }) => {
-  const avoid = allergyRows.length
-    ? `tránh ${allergyRows.map((r) => `${r.allergen.toLowerCase()} (${r.childCount} trẻ)`).join(', ')}`
-    : 'nhóm không có trẻ dị ứng';
-  return (
-    `AI sẽ chọn thực đơn mẫu của trường cho 5 ngày ${weekLabel(weekStart)}: đủ chất theo định mức ${groupName || ''}` +
-    `${price != null ? `, trong tiền ăn ${formatMoney(price)}/ngày` : ''}, ${avoid}, không lặp món mặn trong ${REPEAT_WINDOW_DAYS} ngày.`
-  );
-};
+const WISH_HINTS = ['Thứ Sáu có món nước', 'Ít chiên rán'];
 
 /**
- * Modal "AI soạn thực đơn tuần": bước 1 tóm tắt + mùa, mong muốn; bước 2 xem trước cả tuần như bảng thật kèm lý do
- * từng ngày. AI chỉ nhận nhóm tuổi, tuần, định mức, số trẻ dị ứng tổng hợp. Bấm "Dùng bản này" mới ghi vào bản nháp tuần.
+ * Modal "AI soạn thực đơn tuần": bước 1 điều kiện AI bám theo + mùa, mong muốn; bước 2 xem trước cả tuần như bảng thật
+ * kèm lý do từng ngày. AI chỉ nhận nhóm tuổi, tuần, định mức, số trẻ dị ứng tổng hợp. Bấm "Dùng bản này" mới ghi vào bản nháp tuần.
  */
 export function AiWeekComposer({
   open,
@@ -49,7 +40,7 @@ export function AiWeekComposer({
   const [wishes, setWishes] = useState('');
   const { running, run: runAi } = useAiRun();
   const [draft, setDraft] = useState(null);
-  const price = priceOn(catalog.mealPrices, ageGroupId, weekStart)?.price ?? null;
+  const price = foodBudgetOn(catalog.mealPrices, ageGroupId, weekStart);
 
   useEffect(() => {
     if (open) setDraft(null);
@@ -89,39 +80,33 @@ export function AiWeekComposer({
     if (!current || !was) return false;
     return !(was.meals || []).find((m) => m.session === session)?.items.some((i) => i.dishId === dishId);
   };
-  const dayNotes = Object.fromEntries(
-    (draft?.days || []).map((d) => {
-      const ok = !checkDayMenu({ meals: d.meals, ageGroupId, catalog, date: d.date }).problems.length;
-      const Icon = ok ? CircleCheck : AlertCircle;
-      return [
-        d.date,
-        <span key={d.date} className={`td-ai-note td-${ok ? 'ok' : 'warn'}`}>
-          <Icon size={14} aria-hidden="true" /> {draft.reasons?.[d.date] || ''}
-        </span>,
-      ];
-    }),
+  const dayOk = Object.fromEntries(
+    (draft?.days || []).map((d) => [d.date, !checkDayMenu({ meals: d.meals, ageGroupId, catalog, date: d.date }).problems.length]),
   );
+  const badDays = Object.values(dayOk).filter((ok) => !ok).length;
+  // Lý do dài để ở khung riêng dưới bảng, đầu cột giữ gọn (bảng đã có nhãn định mức từng ngày)
+  const dayReasons = (draft?.days || []).map((d, i) => ({ ...d, label: WEEKDAY_LABELS[i], reason: draft.reasons?.[d.date] }));
 
   const footer = draft ? (
     <>
-      <button type="button" className="btn btn--ghost" onClick={discard} disabled={busy}>
-        Bỏ
-      </button>
-      <button type="button" className="btn" onClick={run} disabled={running || busy}>
-        <RotateCcw size={15} /> Soạn lại
-      </button>
-      <button type="button" className="btn btn--primary" onClick={use} disabled={busy || running}>
+      <Button variant="ghost" onClick={discard} disabled={busy}>
+        Bỏ bản này
+      </Button>
+      <Button icon={RotateCcw} loading={running} disabled={busy} onClick={run}>
+        Soạn lại
+      </Button>
+      <Button variant="primary" icon={Check} loading={busy} disabled={running} onClick={use}>
         Dùng bản này
-      </button>
+      </Button>
     </>
   ) : (
     <>
-      <button type="button" className="btn btn--ghost" onClick={onClose}>
+      <Button variant="ghost" onClick={onClose}>
         Hủy
-      </button>
-      <button type="button" className="btn btn--primary" onClick={run} disabled={running || busy}>
-        <Sparkles size={15} /> Soạn
-      </button>
+      </Button>
+      <Button variant="primary" icon={Sparkles} loading={running} disabled={busy} onClick={run}>
+        Soạn
+      </Button>
     </>
   );
 
@@ -130,46 +115,41 @@ export function AiWeekComposer({
       open={open}
       onClose={draft ? discard : onClose}
       closeOnBackdrop={!draft}
-      size={draft ? 'xl' : 'md'}
+      size={draft ? 'xl' : 'lg'}
       title={draft ? `Bản AI soạn · ${weekLabel(weekStart)}` : 'AI soạn thực đơn tuần'}
       footer={footer}
     >
       {!draft ? (
-        <div className="td-ai-form">
-          <p className="td-flat">{aiWeekSummary({ groupName, weekStart, price, allergyRows })}</p>
-          <div className="td-form-grid td-form-grid--2">
-            <label className="field">
-              <span className="field__label">Mùa</span>
-              <select className="select" value={season} onChange={(e) => setSeason(e.target.value)}>
-                <option value="">Không chọn</option>
-                {SEASONS.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="field">
-              <span className="field__label">Mong muốn thêm</span>
-              <input
-                className="input"
-                maxLength={200}
-                placeholder="Ví dụ: thứ Sáu có món nước"
-                value={wishes}
-                onChange={(e) => setWishes(e.target.value)}
-              />
-            </label>
-          </div>
-          {current && <p className="text-sm td-warn td-flat">Dùng bản AI sẽ thay các ngày đang soạn của tuần này.</p>}
-          <p className="text-xs muted td-flat">
-            AI chỉ nhận số trẻ dị ứng, không nhận tên trẻ. Kết quả là bản nháp, bạn xem trước rồi mới dùng.
-          </p>
-        </div>
+        <AiBrief
+          intro={`AI chọn thực đơn mẫu của trường cho 5 ngày ${weekLabel(weekStart)}. Bạn xem cả tuần trước rồi mới dùng.`}
+          facts={[
+            ...(groupName ? [{ icon: Users, label: 'Nhóm tuổi', value: groupName }] : []),
+            { icon: Scale, label: 'Dinh dưỡng', value: 'Đủ chất theo định mức của nhóm' },
+            ...(price != null ? [{ icon: Wallet, label: 'Ngân sách thực phẩm', value: `${formatMoney(price)}/ngày` }] : []),
+            { icon: Repeat, label: 'Không lặp', value: `Món mặn không lặp trong ${REPEAT_WINDOW_DAYS} ngày` },
+          ]}
+          allergyRows={allergyRows}
+          season={season}
+          onSeason={setSeason}
+          wishes={wishes}
+          onWishes={setWishes}
+          wishHints={WISH_HINTS}
+          replaceNote={current ? 'Dùng bản AI sẽ thay các ngày đang soạn của tuần này.' : null}
+        />
       ) : (
-        <div className="td-ai-form">
-          <div className="row td-chips">
+        <div className="td-aim">
+          <div className="td-aim__head">
             <AiDraftLabel />
-            {current && <span className="text-sm muted">Ô tô xanh là món khác với bản đang soạn.</span>}
+            {badDays ? (
+              <span className="chip chip--orange">
+                <AlertCircle size={14} /> {badDays} ngày cần xem
+              </span>
+            ) : (
+              <span className="chip chip--green">
+                <CircleCheck size={14} /> Cả tuần đạt kiểm tra tự động
+              </span>
+            )}
+            {current && <span className="text-sm muted td-aim__legend">Ô tô xanh là món khác với bản đang soạn.</span>}
           </div>
           {draft.note && (
             <div className="alert alert--warning">
@@ -185,10 +165,29 @@ export function AiWeekComposer({
               allergyRows={allergyRows}
               allergyMenus={allergyMenus}
               editable={false}
-              dayNotes={dayNotes}
               isNew={isNew}
             />
           </div>
+          {dayReasons.some((d) => d.reason) && (
+            <section className="td-aim__panel" aria-label="Vì sao AI chọn từng ngày">
+              <h3 className="td-aim__title">
+                <Lightbulb size={16} aria-hidden="true" /> Vì sao AI chọn
+              </h3>
+              <ul className="td-aim__days">
+                {dayReasons.map((d) => {
+                  const Icon = dayOk[d.date] ? CircleCheck : AlertCircle;
+                  return (
+                    <li key={d.date} className="td-aim__day">
+                      <span className={`td-aim__day-name td-${dayOk[d.date] ? 'ok' : 'warn'}`}>
+                        <Icon size={15} aria-hidden="true" /> {d.label}
+                      </span>
+                      <span className="text-sm">{d.reason || '—'}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          )}
         </div>
       )}
       {running && <AiWorkingOverlay kind="cooking" text="Đang nấu thực đơn tuần…" />}

@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { Save } from '@/components/ui/icons';
+import { Phone, Save, UserRound } from '@/components/ui/icons';
+import { StaffFormSection, StaffIdentityCard } from '@/components/school-config/StaffAccountFormParts';
 import { useToast } from '@/contexts/ToastContext';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { TextField } from '@/components/form/Field';
-import { ROLE_LABELS } from '@/models/User';
 import { updateStaffAccountProfile } from '@/services/school-config/schoolConfigService';
 import { EMAIL_MAX, NAME_MAX, emailRequired, toProfilePayload, validateStaffProfile } from '@/utils/school-config/staffImport';
 
@@ -39,7 +39,8 @@ export function StaffAccountEditModal({ account, onClose }) {
   return (
     <Modal
       open
-      title={`Sửa thông tin ${account.fullName}`}
+      className="sc-account-modal"
+      title="Sửa thông tin tài khoản"
       onClose={saving ? undefined : () => onClose(false)}
       footer={
         <>
@@ -52,40 +53,48 @@ export function StaffAccountEditModal({ account, onClose }) {
         </>
       }
     >
-      {errors._form && (
-        <div className="alert alert--danger mb-12" role="alert">
-          {errors._form}
-        </div>
-      )}
-      <p className="text-sm text-2 mb-12">{ROLE_LABELS[account.role]}. Vai trò, điểm trường và trạng thái không đổi ở đây.</p>
-      <div className="grid-2">
-        <TextField
-          label="Họ tên"
-          required
-          error={errors.fullName}
-          maxLength={NAME_MAX}
-          value={form.fullName}
-          onChange={(e) => set({ fullName: e.target.value })}
-          onBlur={() => blur('fullName')}
-        />
-        <TextField
-          label="Email"
-          required={emailRequired(account.role)}
-          error={errors.email}
-          type="email"
-          maxLength={EMAIL_MAX}
-          value={form.email}
-          onChange={(e) => set({ email: e.target.value })}
-          onBlur={() => blur('email')}
-        />
-        <TextField
-          label="Số điện thoại (tên đăng nhập)"
-          hint="Số điện thoại là tên đăng nhập nên không sửa ở đây."
-          type="tel"
-          value={account.phone || ''}
-          disabled
-          readOnly
-        />
+      <div className="sc-account-form">
+        {errors._form && (
+          <div className="alert alert--danger" role="alert">
+            {errors._form}
+          </div>
+        )}
+        <StaffIdentityCard account={account} />
+        <StaffFormSection icon={UserRound} title="Thông tin cá nhân">
+          <TextField
+            label="Họ tên"
+            required
+            error={errors.fullName}
+            maxLength={NAME_MAX}
+            value={form.fullName}
+            onChange={(e) => set({ fullName: e.target.value })}
+            onBlur={() => blur('fullName')}
+          />
+          <TextField
+            label="Email"
+            required={emailRequired(account.role)}
+            error={errors.email}
+            type="email"
+            maxLength={EMAIL_MAX}
+            value={form.email}
+            onChange={(e) => set({ email: e.target.value })}
+            onBlur={() => blur('email')}
+          />
+        </StaffFormSection>
+        <StaffFormSection
+          icon={Phone}
+          title="Đăng nhập"
+          description="Vai trò, điểm trường và trạng thái đổi ở chức năng riêng, không sửa ở đây."
+        >
+          <TextField
+            label="Số điện thoại (tên đăng nhập)"
+            hint="Số điện thoại là tên đăng nhập nên không sửa được."
+            type="tel"
+            value={account.phone || ''}
+            disabled
+            readOnly
+          />
+        </StaffFormSection>
       </div>
     </Modal>
   );

@@ -20,7 +20,7 @@ const EMPTY = {
 };
 
 /** Age Group Form (SRS 4.1.4). The team leader is assigned on the Teacher Assignment screen, not here. */
-export function AgeGroupFormModal({ open, onClose, group, existing, classes = [], yearName }) {
+export function AgeGroupFormModal({ open, onClose, group, existing, classes = [], yearId, yearName }) {
   const { user } = useAuth();
   const toast = useToast();
   const [form, setForm] = useState(EMPTY);
@@ -58,7 +58,7 @@ export function AgeGroupFormModal({ open, onClose, group, existing, classes = []
     if (hasErrors(e)) return;
     setSaving(true);
     try {
-      await saveAgeGroup(group?.id || null, form, user);
+      await saveAgeGroup(group?.id || null, form, user, yearId);
       toast.success('Đã lưu thay đổi.', group ? 'Cập nhật nhóm tuổi' : 'Thêm nhóm tuổi');
       onClose(true);
     } catch (err) {

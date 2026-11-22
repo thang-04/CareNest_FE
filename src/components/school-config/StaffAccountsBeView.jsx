@@ -1,11 +1,27 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Download, FileSpreadsheet, KeyRound, PauseCircle, Plus, RotateCcw, Users } from '@/components/ui/icons';
+import {
+  Download,
+  FileSpreadsheet,
+  KeyRound,
+  PauseCircle,
+  Phone,
+  Plus,
+  RotateCcw,
+  ShieldCheck,
+  UserPlus,
+  UserRound,
+  Users,
+} from '@/components/ui/icons';
+import { Button } from '@/components/ui/Button';
+import { SelectField, TextField } from '@/components/form/Field';
+import { StaffFormSection, StaffRolePicker } from '@/components/school-config/StaffAccountFormParts';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useMasterData } from '@/hooks/useMasterData';
-import { useSchoolStructure, useStaffAccountPage } from '@/hooks/school-config/useSchoolConfig';
+import { useSchoolStructure, useStaffAccountPage, useStaffAccountStats } from '@/hooks/school-config/useSchoolConfig';
+import { StatCard } from '@/components/ui/StatCard';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Avatar } from '@/components/ui/Avatar';
 import { RowActions } from '@/components/ui/RowActions';
@@ -19,6 +35,8 @@ import { ScNoAccess } from '@/components/school-config/ScNoAccess';
 import { StaffStatusBadge } from '@/components/school-config/SchoolConfigBadges';
 import { StaffImportPanel } from '@/components/school-config/StaffImportPanel';
 import { StaffAccountEditModal } from '@/components/school-config/StaffAccountEditModal';
+import { StaffAccountDetailModal } from '@/components/school-config/StaffAccountDetailModal';
+import { clickableRowProps } from '@/utils/clickableRow';
 import { ROLES, ROLE_LABELS } from '@/models/User';
 import {
   createStaffAccount,
@@ -27,6 +45,8 @@ import {
   setStaffAccountStatus,
 } from '@/services/school-config/schoolConfigService';
 import {
+  EMAIL_MAX,
+  NAME_MAX,
   STAFF_ROLES,
   emailRequired,
   normalizePhone,
@@ -79,9 +99,11 @@ export function StaffAccountsBeView({ tabs = null }) {
   const [filters, setFilters] = useState({ q: '', role: '', campusId: '', status: '' });
   const [page, setPage] = useState(1);
   const { data, loading, error, reload } = useStaffAccountPage(filters, page);
+  const statsQuery = useStaffAccountStats();
   const [creating, setCreating] = useState(false);
   // PHT vừa tạo: BE đã phân công điểm trường kèm theo ⇒ dẫn sang màn Phân công để xem / điều chỉnh
   const [createdVice, setCreatedVice] = useState(null);
+  const [detailOf, setDetailOf] = useState(null);
   const [editingOf, setEditingOf] = useState(null);
   const [statusOf, setStatusOf] = useState(null);
   const [passwordOf, setPasswordOf] = useState(null);
@@ -123,9 +145,14 @@ export function StaffAccountsBeView({ tabs = null }) {
       setExporting(false);
     }
   };
+  const refresh = () => {
+    reload({ silent: true });
+    statsQuery.reload({ silent: true });
+  };
+  const stats = statsQuery.data;
   const done = (setter) => (changed) => {
     setter(null);
-    if (changed) reload({ silent: true });
+    if (changed) refresh();
   };
   const actions = canCreate || canLock;
 
@@ -134,21 +161,6 @@ export function StaffAccountsBeView({ tabs = null }) {
       <Breadcrumb items={staffCrumbs()} />
       <div className="page__head">
         <h1 className="page__title">Tài khoản nhân sự</h1>
-        <div className="row">
-          <button className="btn" onClick={exportExcel} disabled={exporting}>
-            {exporting ? <Spinner small /> : <Download size={16} />} Xuất Excel
-          </button>
-          {canCreate && (
-            <>
-              <button className="btn" onClick={() => setImporting(true)}>
-                <FileSpreadsheet size={16} /> Nhập từ Excel
-              </button>
-              <button className="btn btn--primary btn--lg" onClick={() => setCreating(true)}>
-                <Plus size={18} /> Thêm tài khoản
-              </button>
-            </>
-          )}
-        </div>
       </div>
       {createdVice && (
         <div className="alert alert--info mb-12" role="status">
@@ -168,6 +180,15 @@ export function StaffAccountsBeView({ tabs = null }) {
           <button type="button" className="btn btn--sm btn--ghost" onClick={() => setCreatedVice(null)}>
             Đóng
           </button>
+        </div>
+      )}
+
+      {!statsQuery.error && (
+        <div className="stat-grid people-stats" aria-label="Tổng quan tài khoản nhân sự">
+          <StatCard tone="blue" label="Tổng nhân sự" value={stats?.total} loading={statsQuery.loading} />
+          <StatCard tone="green" label="Giáo viên" value={stats?.teachers} loading={statsQuery.loading} />
+          <StatCard tone="orange" label="Nhân viên bếp" value={stats?.kitchen} loading={statsQuery.loading} />
+          <StatCard tone="red" label="Đã vô hiệu hóa" value={stats?.inactive} loading={statsQuery.loading} />
         </div>
       )}
 
@@ -219,6 +240,21 @@ export function StaffAccountsBeView({ tabs = null }) {
             <option value="ACTIVE">Đang hoạt động</option>
             <option value="INACTIVE">Đã vô hiệu hóa</option>
           </select>
+          <div className="filter-bar__end">
+            <button className="btn" onClick={exportExcel} disabled={exporting}>
+              {exporting ? <Spinner small /> : <Download size={16} />} Xuất Excel
+            </button>
+            {canCreate && (
+              <>
+                <button className="btn" onClick={() => setImporting(true)}>
+                  <FileSpreadsheet size={16} /> Nhập từ Excel
+                </button>
+                <button className="btn btn--primary" onClick={() => setCreating(true)}>
+                  <Plus size={16} /> Thêm tài khoản
+                </button>
+              </>
+            )}
+          </div>
         </div>
         {error ? (
           <ErrorState error={error} onRetry={reload} />
@@ -251,7 +287,7 @@ export function StaffAccountsBeView({ tabs = null }) {
                     const self = String(u.userId) === String(user?.id);
                     const manageable = !self && u.role !== ROLES.PRINCIPAL;
                     return (
-                      <tr key={u.userId} className={active ? undefined : 'muted'}>
+                      <tr key={u.userId} className={active ? 'row-click' : 'row-click muted'} {...clickableRowProps(() => setDetailOf(u))}>
                         <td>
                           <div className="sc-person">
                             <Avatar user={u} size="sm" />
@@ -312,6 +348,20 @@ export function StaffAccountsBeView({ tabs = null }) {
           }}
         />
       )}
+      {detailOf && (
+        <StaffAccountDetailModal
+          account={detailOf}
+          onClose={() => setDetailOf(null)}
+          onEdit={
+            canCreate && detailOf.role !== ROLES.PRINCIPAL && String(detailOf.userId) !== String(user?.id)
+              ? () => {
+                  setEditingOf(detailOf);
+                  setDetailOf(null);
+                }
+              : undefined
+          }
+        />
+      )}
       {editingOf && <StaffAccountEditModal account={editingOf} onClose={done(setEditingOf)} />}
       {statusOf && <StaffStatusConfirm account={statusOf} onClose={done(setStatusOf)} />}
       {passwordOf && <StaffPasswordModal account={passwordOf} onClose={done(setPasswordOf)} />}
@@ -321,7 +371,7 @@ export function StaffAccountsBeView({ tabs = null }) {
         teacherCampusRequired={!isPrincipal(user)}
         onClose={(changed) => {
           setImporting(false);
-          if (changed) reload({ silent: true });
+          if (changed) refresh();
         }}
       />
     </div>
@@ -363,84 +413,87 @@ function StaffCreateModal({ campuses, onClose }) {
     }
   };
   const teacher = form.role === ROLES.TEACHER;
+  const needCampus = !teacher || teacherCampusRequired;
   return (
     <Modal
       open
+      size="lg"
+      className="sc-account-modal"
       title="Thêm tài khoản nhân sự"
-      onClose={() => onClose(false)}
+      onClose={saving ? undefined : () => onClose(false)}
       footer={
         <>
-          <button className="btn" onClick={() => onClose(false)} disabled={saving}>
+          <Button onClick={() => onClose(false)} disabled={saving}>
             Hủy
-          </button>
-          <button className="btn btn--primary" onClick={save} disabled={saving}>
-            {saving ? <Spinner small /> : <Plus size={16} />} Tạo tài khoản
-          </button>
+          </Button>
+          <Button variant="primary" icon={UserPlus} loading={saving} onClick={save}>
+            Tạo tài khoản
+          </Button>
         </>
       }
     >
-      {errors._form && (
-        <div className="alert alert--danger mb-12" role="alert">
-          {errors._form}
-        </div>
-      )}
-      <div className="grid-2">
-        <FormField label="Họ tên" required error={errors.fullName}>
-          <input
-            className="input"
-            maxLength={150}
-            value={form.fullName}
-            onChange={(e) => set({ fullName: e.target.value })}
-            onBlur={() => blur('fullName')}
-          />
-        </FormField>
-        <FormField label="Số điện thoại (tên đăng nhập)" required error={errors.phone}>
-          <input
-            className="input"
-            type="tel"
-            inputMode="tel"
-            value={form.phone}
-            onChange={(e) => set({ phone: e.target.value })}
-            onBlur={() => blur('phone')}
-          />
-        </FormField>
-        <FormField label="Email" required={emailRequired(form.role)} error={errors.email}>
-          <input
-            className="input"
-            type="email"
-            maxLength={255}
-            value={form.email}
-            onChange={(e) => set({ email: e.target.value })}
-            onBlur={() => blur('email')}
-          />
-        </FormField>
-        <FormField label="Vai trò" required error={errors.role}>
-          <select className="select" value={form.role} onChange={(e) => set({ role: e.target.value, campusId: '', classroomId: '' })}>
-            {STAFF_ROLES.map((r) => (
-              <option key={r} value={r}>
-                {ROLE_LABELS[r]}
-              </option>
-            ))}
-          </select>
-        </FormField>
-        {teacher && <p className="text-sm muted">Giáo viên tạo xong chưa gắn lớp; xếp lớp ở Phân công giáo viên.</p>}
-        {(!teacher || teacherCampusRequired) && (
-          <FormField label="Điểm trường" required error={errors.campusId}>
-            <select
-              className="select"
+      <div className="sc-account-form">
+        {errors._form && (
+          <div className="alert alert--danger" role="alert">
+            {errors._form}
+          </div>
+        )}
+        <StaffFormSection icon={ShieldCheck} title="Vai trò" description="Quyết định màn hình và quyền nhân sự được dùng.">
+          <StaffRolePicker value={form.role} error={errors.role} onChange={(role) => set({ role, campusId: '', classroomId: '' })} />
+          {needCampus && (
+            <SelectField
+              label="Điểm trường"
+              required
+              error={errors.campusId}
               value={form.campusId}
+              placeholder="Chọn điểm trường"
+              options={campuses.map((c) => ({ value: c.id, label: c.shortName || c.name }))}
               onChange={(e) => set({ campusId: e.target.value })}
               onBlur={() => blur('campusId')}
-            >
-              <option value="">Chọn điểm trường</option>
-              {campuses.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.shortName || c.name}
-                </option>
-              ))}
-            </select>
-          </FormField>
-        )}
+            />
+          )}
+        </StaffFormSection>
+        <StaffFormSection icon={UserRound} title="Thông tin cá nhân">
+          <div className="grid-2">
+            <TextField
+              label="Họ tên"
+              required
+              maxLength={NAME_MAX}
+              placeholder="VD: Nguyễn Thị Lan"
+              error={errors.fullName}
+              value={form.fullName}
+              onChange={(e) => set({ fullName: e.target.value })}
+              onBlur={() => blur('fullName')}
+            />
+            <TextField
+              label="Email"
+              type="email"
+              required={emailRequired(form.role)}
+              maxLength={EMAIL_MAX}
+              placeholder="ten@carenest.edu.vn"
+              hint={emailRequired(form.role) ? 'Nhận thư đặt mật khẩu lần đầu.' : 'Không bắt buộc với tài khoản bếp.'}
+              error={errors.email}
+              value={form.email}
+              onChange={(e) => set({ email: e.target.value })}
+              onBlur={() => blur('email')}
+            />
+          </div>
+        </StaffFormSection>
+        <StaffFormSection icon={Phone} title="Đăng nhập" description="Số điện thoại dùng làm tên đăng nhập, không sửa được sau khi tạo.">
+          <div className="grid-2">
+            <TextField
+              label="Số điện thoại"
+              required
+              type="tel"
+              inputMode="tel"
+              placeholder="09xx xxx xxx"
+              error={errors.phone}
+              value={form.phone}
+              onChange={(e) => set({ phone: e.target.value })}
+              onBlur={() => blur('phone')}
+            />
+          </div>
+        </StaffFormSection>
       </div>
     </Modal>
   );

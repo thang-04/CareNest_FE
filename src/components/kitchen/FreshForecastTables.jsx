@@ -1,7 +1,9 @@
 import { ForecastDayPlanBadge } from '@/components/kitchen/KitchenBadges';
 import { dayShort } from '@/components/kitchen/ForecastBlocks';
 import { fmtQty } from '@/components/kitchen/KitchenFilters';
+import { DataTable } from '@/components';
 import { EmptyState } from '@/components/ui/States';
+import { TextField } from '@/components/form/Field';
 import { formatDate, formatWeekdayDate } from '@/utils/format';
 
 /** Số trẻ theo nhóm tuổi: đang theo học (BE trả) và dự kiến (sửa được khi `editable`). */
@@ -24,7 +26,7 @@ export function ForecastCountsTable({ counts, editable, errors = {}, onChange })
               <td className="num">
                 {editable ? (
                   <>
-                    <input
+                    <TextField
                       type="number"
                       min="0"
                       step="1"
@@ -97,6 +99,42 @@ export function ForecastDryCard({ forecast, className = '' }) {
   );
 }
 
+/**
+ * Lượng hàng khô đặt cho kỳ (theo đơn vị mua). Khi lập: BE gợi ý bằng phần thiếu, PHT sửa được (0 = không đặt); bản đã lưu
+ * là số chụp dùng để in và đối chiếu lúc kiểm nhận hàng khô.
+ */
+export function ForecastDryOrderTable({ lines, editable, errors = {}, onChange }) {
+  const columns = [
+    { key: 'no', header: 'STT', className: 'num', render: (line) => lines.indexOf(line) + 1 },
+    { key: 'food', header: 'Thực phẩm', render: (line) => line.food.name },
+    {
+      key: 'qty',
+      header: 'Lượng đặt',
+      className: 'num',
+      render: (line) => {
+        const i = lines.indexOf(line);
+        if (!editable) return <span className="fw-600">{fmtQty(line.purchaseQuantity)}</span>;
+        return (
+          <>
+            <TextField
+              type="number"
+              min="0"
+              step="any"
+              className={`input kb-num ${errors[`dryOrder.${i}`] ? 'input--error' : ''}`}
+              value={line.purchaseQuantity}
+              onChange={(e) => onChange(i, e.target.value)}
+              aria-label={`Lượng đặt ${line.food.name}`}
+            />
+            {errors[`dryOrder.${i}`] && <div className="field__error">{errors[`dryOrder.${i}`]}</div>}
+          </>
+        );
+      },
+    },
+    { key: 'unit', header: 'Đơn vị', className: 'center', render: (line) => line.food.purchaseUnit },
+  ];
+  return <DataTable columns={columns} rows={lines} rowKey={(line) => line.food.id} />;
+}
+
 /** Thực phẩm cần đặt: tổng cả kỳ và từng ngày, theo đơn vị mua. Đầu cột ngày kèm tình trạng thực đơn của ngày đó. */
 export function ForecastLinesTable({ forecast }) {
   const { days, lines } = forecast;
@@ -107,6 +145,7 @@ export function ForecastLinesTable({ forecast }) {
           <tr>
             <th className="num">STT</th>
             <th className="min-w-220">Thực phẩm</th>
+            <th>Nhà cung cấp</th>
             <th className="num">Tổng cộng</th>
             <th className="center">Đơn vị</th>
             {days.map((day) => (
@@ -126,6 +165,7 @@ export function ForecastLinesTable({ forecast }) {
               <tr key={line.food.id}>
                 <td className="num">{i + 1}</td>
                 <td>{line.food.name}</td>
+                <td>{line.supplierName || <span className="muted">Chưa gán</span>}</td>
                 <td className="num fw-600">{fmtQty(line.purchaseTotal)}</td>
                 <td className="center">{line.food.purchaseUnit}</td>
                 {days.map((day) => (

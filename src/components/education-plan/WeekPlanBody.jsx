@@ -1,7 +1,6 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { createPortal } from 'react-dom';
-import { Copy, Download, Plus, Sparkles, Trash2 } from '@/components/ui/icons';
+import { Copy, Download, Plus, Sparkles, Trash2, Wand2 } from '@/components/ui/icons';
 import { SortHandle, SortableList, SortableRow } from '@/components/ui/Sortable';
 import { moveItem } from '@/hooks/useSortableList';
 import { AiDraftTag } from '@/components/ui/AiDraftTag';
@@ -50,6 +49,8 @@ import {
 import { mtList } from '@/models/education-plan/goalTable';
 import { ActionsMenu } from '@/components/education-plan/reviewUi';
 import { SelectField } from '@/components';
+import { AiEditDayModal } from '@/components/education-plan/AiEditDayModal';
+import { applyCellChanges } from '@/models/education-plan/aiEdit.mjs';
 
 /**
  * Ô của kế hoạch tuần có gợi ý hoạt động từ kế hoạch chủ đề (lọc theo loại giờ của dòng). Chọn gợi ý thì ghi nội dung
@@ -167,7 +168,7 @@ const dropLine = (text, line) => {
   return lines.join('\n');
 };
 
-/* Nội dung giáo án một tuần (kế hoạch tuần, kế hoạch ngày) dùng ở trang soạn và trang duyệt hồ sơ chủ đề. */
+/* Nội dung giáo án một tuần (kế hoạch tuần, kế hoạch ngày) dùng ở trang soạn và trang duyệt kế hoạch giáo dục ngày. */
 
 const AIMS = [
   { key: 'knowledge', label: '1. Kiến thức' },
@@ -933,11 +934,13 @@ export function DayTab({
   flagOf = () => null,
   offLabel = null,
   emptySections = [],
-  // Chỗ đặt menu "Lấy / gợi ý nội dung" ở trái hàng nút của trang (phần tử DOM do trang cấp)
-  toolsTarget = null,
-  extraTools = [],
+  // BE:EDU-95 "Sửa theo yêu cầu": khóa giáo án ngày đã lưu (null = chưa lưu / không được sửa) và còn thay đổi chưa lưu
+  aiDocKey = null,
+  unsaved = false,
 }) {
   const [aiBusy, setAiBusy] = useState(false);
+  const [aiEditOpen, setAiEditOpen] = useState(false);
+  const [aiEditNote, setAiEditNote] = useState('');
   const [askDelete, setAskDelete] = useState(null);
   const d = draft.days[index];
   const hoc = draft.grid.hoc?.days?.[index] || {};
@@ -1028,7 +1031,7 @@ export function DayTab({
       return x;
     });
   const missing = DAY_SECTIONS.filter((s) => emptySections.includes(s.key));
-  // Một nút "Thao tác" cho cả trang: lấy / gợi ý của ngày rồi các mục trang truyền vào (Dạy học, Xuất file) — Tiền 14/11/2026
+  // Lấy / dùng lại / AI gợi ý của ngày ở card "I. Kế hoạch giáo dục ngày" (Tiền 18/11/2026); ≤2 mục hiện thẳng nút
   const toolsMenu = (
     <ActionsMenu
       items={[
@@ -1045,25 +1048,20 @@ export function DayTab({
         ...(hoc.subject || hoc.topic
           ? [{ label: aiBusy ? 'AI đang soạn…' : 'AI gợi ý tiến trình giờ học', icon: Sparkles, onClick: aiSteps, disabled: aiBusy }]
           : []),
-        ...extraTools,
+        ...(aiDocKey ? [{ label: 'Sửa theo yêu cầu (AI)', icon: Wand2, onClick: () => setAiEditOpen(true) }] : []),
       ]}
     />
   );
   return (
     <>
-      {editable && toolsTarget && createPortal(toolsMenu, toolsTarget)}
       <div className="section-title center">{longDay(d.date, index)}</div>
       {/* BE:EDU-41: ngày trùng đợt nghỉ không bắt buộc soạn */}
       {offLabel && <p className="text-sm text-warning center">Ngày nghỉ: {offLabel}</p>}
-      {(assessTo || (editable && !toolsTarget)) && (
+      {assessTo && (
         <div className="row row--wrap gap-2">
-          {assessTo && (
-            <Link className="btn btn--outline-primary btn--sm" to={assessTo}>
-              Đánh giá trẻ ngày này
-            </Link>
-          )}
-          {/* Gom các nút lấy / gợi ý vào một menu ở trái hàng nút như trang kế hoạch chủ đề (Tiền 13/11/2026) */}
-          {editable && !toolsTarget && toolsMenu}
+          <Link className="btn btn--outline-primary btn--sm" to={assessTo}>
+            Đánh giá trẻ ngày này
+          </Link>
         </div>
       )}
       {d.aiSteps?.length > 0 && (
@@ -1107,6 +1105,31 @@ export function DayTab({
         </p>
       ))}
       <Section title="I. Kế hoạch giáo dục ngày">
+        {editable && <div className="row row--wrap row--middle gap-2">{toolsMenu}</div>}
+        {aiEditNote && (
+          <p className="muted text-sm" role="status">
+            {aiEditNote}
+          </p>
+        )}
+        {aiDocKey && (
+          <AiEditDayModal
+            open={aiEditOpen}
+            docKey={aiDocKey}
+            unsaved={unsaved}
+            onClose={() => setAiEditOpen(false)}
+            onApply={(picked) => {
+              let result = null;
+              update((x) => {
+                result = applyCellChanges(x, picked);
+                return result.doc;
+              });
+              const skipped = result?.skipped.length || 0;
+              setAiEditNote(
+                `AI đã đổi ${picked.length - skipped} ô${skipped ? `, bỏ qua ${skipped} ô bạn vừa sửa` : ''}. Xem lại rồi bấm Lưu.`,
+              );
+            }}
+          />
+        )}
         <div className="table-wrap">
           <table className="table ga-plan-table ga-goal-table" onMouseDown={focusCell}>
             <colgroup>

@@ -63,11 +63,22 @@ afterEach(() => {
   globalThis.Date = RealDate;
 });
 
-test('ATT-02: có mặt là ăn đủ các bữa của nhóm tuổi, bỏ qua meals client gửi', async () => {
+test('ATT-02: có mặt mặc định ăn đủ bữa; giáo viên có thể tắt tham gia ăn', async () => {
   await repo.saveClassAttendance({ classId: cls.id, date, entries: [{ childId: childIds[0], status: 'PRESENT', meals: {} }] }, teacher);
-  const record = readDb().attendance.find((r) => r.childId === childIds[0] && r.date === date);
+  let record = readDb().attendance.find((r) => r.childId === childIds[0] && r.date === date);
   assert.ok(Object.keys(record.meals).length > 0);
   assert.ok(Object.values(record.meals).every(Boolean), 'mọi bữa của nhóm tuổi đều được tính');
+
+  const turnedOff = Object.fromEntries(Object.keys(record.meals).map((session) => [session, false]));
+  await repo.saveClassAttendance(
+    { classId: cls.id, date, entries: [{ childId: childIds[0], status: 'PRESENT', meals: turnedOff }] },
+    teacher,
+  );
+  record = readDb().attendance.find((r) => r.childId === childIds[0] && r.date === date);
+  assert.ok(
+    Object.values(record.meals).every((eats) => !eats),
+    'lựa chọn Không ăn phải được lưu',
+  );
 });
 
 test('ATT-09: giáo viên gửi Vắng có phép khi chưa có báo nghỉ ⇒ 422 kèm lỗi dòng; Vắng không phép lưu được', async () => {

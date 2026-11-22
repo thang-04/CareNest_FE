@@ -83,24 +83,50 @@ export function storageGroups(stats) {
   );
 }
 
+export const NO_SUPPLIER = 'Chưa gán nhà cung cấp';
+
+/**
+ * Chia bảng theo nhà cung cấp tại ngày thống kê (`ingredients[].supplierId`) với tổng từng NCC `supplierCosts` BE trả —
+ * danh sách đặt hàng gửi từng NCC. BE cũ chưa trả `supplierCosts` ⇒ null; không tự cộng tổng.
+ */
+export function supplierGroups(stats) {
+  const rows = stats?.ingredients || [];
+  if (!rows.length || !Array.isArray(stats.supplierCosts)) return null;
+  return stats.supplierCosts
+    .map((s) => ({
+      key: `S${s.supplierId ?? 'none'}`,
+      title: s.supplierName || NO_SUPPLIER,
+      contractStatus: s.supplierId == null ? null : s.contractStatus,
+      rows: rows.filter((r) => (r.supplierId ?? null) === (s.supplierId ?? null)),
+      total: s.cost,
+    }))
+    .filter((g) => g.rows.length);
+}
+
+/** Lượng mua đã là ĐVT cân đo của đơn vị gốc (g → kg, ml → lít) ⇒ cột "Lượng mua" đủ, không cần dòng phụ g/ml. */
+export const BIG_UNITS = { g: 'kg', ml: 'lít' };
+export const buysInBaseUnit = (r) => !!r.purchaseUnit && BIG_UNITS[r.unit] === String(r.purchaseUnit).toLowerCase();
+
 /** Dòng Excel của bảng thực phẩm (số lấy nguyên từ BE); có nhóm Tươi/Khô thì thêm dòng tiêu đề và tổng từng nhóm. */
-export function statisticsExportRows(stats, title) {
+export function statisticsExportRows(stats, title, groupBy = 'storage') {
   const n = stats.children;
   const head = [
     'STT',
     'Tên thực phẩm',
+    'Nhà cung cấp',
     'Lượng ăn 1 trẻ',
     `Lượng ăn ${n} trẻ`,
     'Thải bỏ (%)',
+    `Lượng mua ${n} trẻ (gốc)`,
     `Lượng mua ${n} trẻ`,
-    'Mua theo ĐVT',
     'ĐVT',
     'Đơn giá',
-    `Tiền ăn ${n} trẻ`,
+    `Tiền ăn ${n} trẻ (theo lượng dùng)`,
   ];
   const line = (r, i) => [
     i + 1,
     r.foodName,
+    r.supplierName || '',
     r.gramsPerChild,
     r.eatenTotal,
     r.wastePct,
@@ -110,9 +136,14 @@ export function statisticsExportRows(stats, title) {
     r.unitPrice,
     r.cost,
   ];
-  const groups = storageGroups(stats);
+  const pad = (label, value) => ['', label, '', '', '', '', '', '', '', '', value];
+  const groups = groupBy === 'supplier' ? supplierGroups(stats) : storageGroups(stats);
   const body = groups
-    ? groups.flatMap((g) => [[g.title], ...g.rows.map(line), ['', `Tổng ${g.title.toLowerCase()}`, '', '', '', '', '', '', '', g.total]])
+    ? groups.flatMap((g) => [
+        [g.title],
+        ...g.rows.map(line),
+        pad(`Tổng ${groupBy === 'supplier' ? g.title : g.title.toLowerCase()}`, g.total),
+      ])
     : stats.ingredients.map(line);
-  return [[title], head, ...body, ['', `Tổng tiền ăn ${n} trẻ`, '', '', '', '', '', '', '', stats.totalCost]];
+  return [[title], head, ...body, pad(`Tổng tiền ăn ${n} trẻ`, stats.totalCost)];
 }

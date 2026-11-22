@@ -4,10 +4,10 @@ import { actionCount, clickAction, login, spaGo } from '../support/ui.mjs';
 
 // System spec 004 (BE thật, E2E_PG_DB=carenest_merge):
 // - Q3b/Q6 + spec 005: kế hoạch tổ đã ban hành khóa cứng từ ngày bắt đầu năm học, không ai mở lại.
-// - Q2: gói học kỳ đã ban hành, chưa tới ngày bắt đầu học kỳ ⇒ GVCN "Tạo phiên bản điều chỉnh" ⇒ gói về Nháp, sửa rồi gửi lại.
+// - Q2: kế hoạch giáo dục chủ đề đã ban hành, chưa tới ngày bắt đầu học kỳ ⇒ GVCN "Tạo phiên bản điều chỉnh" ⇒ gói về Nháp, sửa rồi gửi lại.
 test.describe.configure({ mode: 'serial' });
 
-const U = { ht: 'principal@gmail.com', vp: 'viceprincipal@gmail.com', tl: 'teamlead34@gmail.com' };
+const U = { ht: 'principal', vp: 'viceprincipal', tl: 'teacher1' };
 const GOALS = '/education-plans/goals';
 const DOCS = '/education-plans/class-docs';
 const isoPlus = (days) => {
@@ -47,12 +47,12 @@ test('ST-004-10 kế hoạch tổ đã ban hành bị khóa: không nút mở h�
   expect(res.status, res.desc).toBe(400);
 });
 
-test('ST-004-11 gói học kỳ 2 đã ban hành, chưa tới học kỳ: GVCN tạo phiên bản điều chỉnh ⇒ Nháp, gửi lại được', async ({ page }) => {
+test('ST-004-11 kế hoạch giáo dục chủ đề học kỳ 2 đã ban hành, chưa tới học kỳ: GVCN tạo phiên bản điều chỉnh ⇒ Nháp, gửi lại được', async ({ page }) => {
   test.skip(!cls, 'teamlead34 không có lớp chủ nhiệm');
   const pkgOf = async () =>
     (await api(U.tl, 'GET', DOCS)).data.semesterPackages.find((p) => String(p.classId) === String(cls.id) && p.semesterNo === 2);
   const pkg = await pkgOf();
-  test.skip(pkg?.status !== 'APPROVED' || !pkg.canRevise, 'Gói học kỳ 2 chưa ban hành (chạy edu-semester-flow-ui trước)');
+  test.skip(pkg?.status !== 'APPROVED' || !pkg.canRevise, 'Kế hoạch giáo dục chủ đề học kỳ 2 chưa ban hành (chạy edu-semester-flow-ui trước)');
   await login(page, U.tl);
   await spaGo(page, `/education/theme-plans/${cls.id}?hk=2`);
   await clickAction(page, 'Tạo phiên bản điều chỉnh');
