@@ -211,9 +211,15 @@ export const childrenApi = {
   // POST để CCCD, SĐT phụ huynh không nằm trên URL; lệch phụ huynh đã có ⇒ 409, details theo ô như khi lưu (2026-10-28).
   checkGuardianConflicts: (guardians) => axiosClient.post('/children/guardian-check', { guardians }),
   readmitChild: (childId, body) => read(axiosClient.post(`/children/${childId}/readmit`, body)),
-  getPlacementClasses: (filters) => read(axiosClient.get('/children/placement-classes', { params: filters })),
-  enrollChild: (payload) => {
-    const { body, config } = enrollmentPhotoRequest(payload);
+  // Năm học ở header là tên "2026-2027"; BE nhận schoolYearId là id số (sai kiểu ⇒ 400/9002)
+  getPlacementClasses: async (filters = {}) =>
+    read(
+      axiosClient.get('/children/placement-classes', {
+        params: { ...filters, schoolYearId: await toBeSchoolYear(filters.schoolYearId) },
+      }),
+    ),
+  enrollChild: async (payload) => {
+    const { body, config } = enrollmentPhotoRequest({ ...payload, schoolYearId: await toBeSchoolYear(payload.schoolYearId) });
     return read(axiosClient.post('/children/enrollments', body, config));
   },
   updateChild: (id, body) => read(axiosClient.put(`/children/${id}`, childUpdateBody(body))),
