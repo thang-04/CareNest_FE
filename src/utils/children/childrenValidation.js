@@ -139,7 +139,7 @@ export const tbContactDateError = (value, { dateOfBirth, notAfter } = {}) => {
 /** Declaration: "Reported" needs content; the other states record absence or "not provided" (UC 5.2). */
 export const validateDeclaration = (d, { dateOfBirth } = {}) => {
   const errors = {};
-  if (!d) return { allergies: 'Khai báo sức khỏe còn thiếu' };
+  if (!d) return { allergies: 'Khai báo ăn và sức khỏe còn thiếu' };
   // CHD-13: thiếu/null = báo ăn; không báo ăn thì không khai dị ứng, chế độ ăn; giá trị không phải Có/Không là lỗi.
   const mealFlag = d.mealRegistered;
   if (mealFlag != null && typeof mealFlag !== 'boolean') errors.mealRegistered = 'Báo ăn ghi Có hoặc Không';

@@ -1329,7 +1329,7 @@ export const childrenMockRepository = {
     if (!classId) invalid({ classId: 'Chọn lớp cho trẻ' });
     if (child.classId === classId) invalid({ classId: 'Trẻ đang học lớp này. Chọn lớp khác.' });
     if (child.classId && !reason?.trim()) invalid({ reason: 'Nhập lý do chuyển lớp' });
-    if (!declarationOf(db, childId)) invalid({ classId: 'Trẻ chưa có khai báo sức khỏe. Khai báo trước khi xếp lớp.' });
+    if (!declarationOf(db, childId)) invalid({ classId: 'Trẻ chưa có khai báo ăn và sức khỏe. Khai báo trước khi xếp lớp.' });
     return writeDb((d) => {
       const target = findChild(d, childId);
       const cls = assertClassAvailable(d, classId, user);
@@ -1415,7 +1415,11 @@ export const childrenMockRepository = {
         entry.historyChange = { from: clone(before), to: clone(clean.medicalHistory) };
       // Chỉ báo khi chuyển sang "Có tiếp xúc", không báo lại khi lưu lại; đã có ngày mà đổi ngày thì báo BGH (2026-10-21).
       const newTbContact = !tbReported(before) && tbReported(clean.medicalHistory);
-      const dateChange = { from: tbContactDateOf(before), to: tbContactDateOf(clean.medicalHistory), source: 'sửa khai báo sức khỏe' };
+      const dateChange = {
+        from: tbContactDateOf(before),
+        to: tbContactDateOf(clean.medicalHistory),
+        source: 'sửa khai báo ăn và sức khỏe',
+      };
       Object.assign(decl, clean, { declaredBy: user.id, declaredAt: nowIso() });
       decl.history.push(entry);
       const target = findChild(d, childId);

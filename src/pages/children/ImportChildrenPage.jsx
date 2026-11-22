@@ -305,7 +305,7 @@ export default function ImportChildrenPage() {
       <ConfirmationModal
         open={confirm}
         title="Nhập danh sách trẻ?"
-        message={`Hệ thống sẽ tạo ${validRows.length} hồ sơ trẻ ở trạng thái Chờ xếp lớp${draft.campusName ? ` tại ${draft.campusName}` : ''}${draft.schoolYearId ? `, đăng ký năm học ${draft.schoolYearName} vào học từ ${formatDate(draft.startDate)}` : ''}, kèm khai báo sức khỏe theo file. Tài khoản phụ huynh kích hoạt sau ở màn Tài khoản phụ huynh.`}
+        message={`Hệ thống sẽ tạo ${validRows.length} hồ sơ trẻ ở trạng thái Chờ xếp lớp${draft.campusName ? ` tại ${draft.campusName}` : ''}${draft.schoolYearId ? `, đăng ký năm học ${draft.schoolYearName} vào học từ ${formatDate(draft.startDate)}` : ''}, kèm khai báo ăn và sức khỏe theo file. Tài khoản phụ huynh kích hoạt sau ở màn Tài khoản phụ huynh.`}
         confirmLabel={`Nhập ${validRows.length} trẻ`}
         onConfirm={doImport}
         onClose={() => setConfirm(false)}

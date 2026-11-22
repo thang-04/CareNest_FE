@@ -71,7 +71,7 @@ export default function HealthDeclarationPage() {
   // BE:CHD-11 — GV được cấp quyền: lưu là gửi yêu cầu, khai báo đổi khi HT/PHT duyệt
   const proposing = !!child && !canDeclareHealth(child, user) && canProposeChildEdit(child, user);
   const { changes, reload: reloadChanges } = useLatestProfileChanges(id, { enabled: proposing });
-  const crumbs = childrenCrumbs(childCrumb(child), 'Khai báo sức khỏe');
+  const crumbs = childrenCrumbs(childCrumb(child), 'Khai báo ăn và sức khỏe');
 
   const openEditor = (d = emptyDeclaration()) => {
     setForm({
@@ -136,7 +136,7 @@ export default function HealthDeclarationPage() {
         return;
       }
       await saveHealthDeclaration(id, { declaration: form, reason }, user);
-      toast.success('Đã lưu khai báo sức khỏe.');
+      toast.success('Đã lưu khai báo ăn và sức khỏe.');
       reload({ silent: true });
       leaveEditor();
     } catch (err) {
@@ -151,18 +151,18 @@ export default function HealthDeclarationPage() {
     <div className="page">
       <Breadcrumb items={crumbs} />
       <div className="page__head">
-        <h1 className="page__title">Khai báo sức khỏe: {child.fullName}</h1>
+        <h1 className="page__title">Khai báo ăn và sức khỏe: {child.fullName}</h1>
         {!editing && (
           <div className="row gap-2">
             {canEdit && (
               <button className="btn btn--primary" onClick={startEdit}>
-                <Pencil size={16} /> {declaration ? 'Sửa khai báo' : 'Khai báo sức khỏe'}
+                <Pencil size={16} /> {declaration ? 'Sửa khai báo' : 'Khai báo ăn và sức khỏe'}
               </button>
             )}
           </div>
         )}
       </div>
-      <YearLockedNotice action="Khai báo sức khỏe" subject="sức khỏe của trẻ" />
+      <YearLockedNotice action="Khai báo ăn và sức khỏe" subject="sức khỏe của trẻ" />
       {proposing && <ProfileChangeNotice changes={changes} kind={PROFILE_CHANGE_KIND.HEALTH_DECLARATION} />}
 
       {editing ? (

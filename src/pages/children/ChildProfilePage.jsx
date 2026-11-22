@@ -299,7 +299,7 @@ export default function ChildProfilePage() {
                   {
                     to: `/children/${child.id}/health-declaration`,
                     icon: ClipboardList,
-                    title: 'Khai báo sức khỏe',
+                    title: 'Khai báo ăn và sức khỏe',
                   },
                 ].map(({ to, icon: Icon, title }) => (
                   <Link key={title} className="tr-quicklink" to={to}>

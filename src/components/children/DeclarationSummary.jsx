@@ -13,12 +13,15 @@ import { IntakeSheet, IntakeSheetValueRow } from './IntakeSheet';
 export function DeclarationSummary({
   declaration,
   sheet = false,
-  title = 'Khai báo sức khỏe',
+  title = 'Khai báo ăn và sức khỏe',
   mealRegistered = declaration?.mealRegistered ?? true,
 }) {
   if (!declaration)
     return (
-      <EmptyState title="Chưa có khai báo sức khỏe" description="Khai báo dị ứng, chế độ ăn và tiền sử bệnh khi tiếp nhận sẽ hiện ở đây." />
+      <EmptyState
+        title="Chưa có khai báo ăn và sức khỏe"
+        description="Khai báo dị ứng, chế độ ăn và tiền sử bệnh khi tiếp nhận sẽ hiện ở đây."
+      />
     );
   const { allergies, diet, otherNotes, medicalHistory, declaredAt, declaredByName } = declaration;
   const reported = allergies.state === DECLARATION_STATE.REPORTED;

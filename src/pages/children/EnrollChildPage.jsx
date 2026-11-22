@@ -228,7 +228,7 @@ export default function EnrollChildPage() {
         user,
       );
       toast.success(
-        `Đã mở lại hồ sơ ${child.fullName} (${child.code}): trẻ ở trạng thái Chờ xếp lớp. Cập nhật hồ sơ, khai báo sức khỏe nếu có thay đổi rồi xếp lớp.`,
+        `Đã mở lại hồ sơ ${child.fullName} (${child.code}): trẻ ở trạng thái Chờ xếp lớp. Cập nhật hồ sơ, khai báo ăn và sức khỏe nếu có thay đổi rồi xếp lớp.`,
         'Tiếp nhận lại',
       );
       navigate(`/children/${child.id}`);
