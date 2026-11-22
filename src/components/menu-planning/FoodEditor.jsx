@@ -49,11 +49,13 @@ function Affix({ unit, prefix, className = '', disabled, ...props }) {
  * `f` = kết quả `useFoodForm`. Dùng trong trang sửa và trong modal trên danh sách.
  */
 export function FoodEditor({ f }) {
-  const { form, payload, set, setNut, blur, show, toggleAllergen, locked, isNew } = f;
+  const { form, payload, set, setNut, blur, show, toggleAllergen, locked, isNew, auto } = f;
+  const autoToStock = auto.purchaseToStock !== undefined;
+  const autoUnitSize = auto.stockUnitSize !== undefined;
   const { items: suppliers } = useActiveSuppliers();
   const unitPreview =
-    Number(form.purchaseToStock) > 0 && Number(form.stockUnitSize) > 0 && form.stockUnit && form.purchaseUnit
-      ? `1 ${form.purchaseUnit} = ${num(form.purchaseToStock)} ${form.stockUnit} = ${num(payload.purchaseUnitSize)} ${form.unit}`
+    Number(payload.purchaseToStock) > 0 && Number(payload.stockUnitSize) > 0 && form.stockUnit && form.purchaseUnit
+      ? `1 ${form.purchaseUnit} = ${num(payload.purchaseToStock)} ${form.stockUnit} = ${num(payload.purchaseUnitSize)} ${form.unit}`
       : null;
   const purchaseUnit = form.purchaseUnit || 'đơn vị mua';
   const stockUnit = form.stockUnit || 'đơn vị kho';
@@ -142,38 +144,46 @@ export function FoodEditor({ f }) {
             />
           </FormField>
           {/* Hai hệ số quy đổi viết thành câu "1 mua = … kho", "1 kho = … g" thay cho nhãn "Số kg trong 1 kg" */}
-          <fieldset className="td-food-conv td-span-all">
-            <legend className="field__label">
-              Quy đổi <span className="req">*</span>
-            </legend>
-            <FormField label={`Số ${stockUnit} trong 1 ${purchaseUnit}`} error={show('purchaseToStock')} className="td-food-conv__row">
-              <Affix
-                unit={stockUnit}
-                prefix={`1 ${purchaseUnit} =`}
-                step="any"
-                value={form.purchaseToStock}
-                onChange={(e) => set('purchaseToStock', e.target.value)}
-                onBlur={blur('purchaseToStock')}
-              />
-            </FormField>
-            <FormField label={`Số ${form.unit} trong 1 ${stockUnit}`} error={show('stockUnitSize')} className="td-food-conv__row">
-              <Affix
-                unit={form.unit}
-                prefix={`1 ${stockUnit} =`}
-                step="any"
-                value={form.stockUnitSize}
-                disabled={locked}
-                onChange={(e) => set('stockUnitSize', e.target.value)}
-                onBlur={blur('stockUnitSize')}
-              />
-            </FormField>
-            {locked && (
-              <p className="td-food-conv__lock text-xs">
-                <Lock size={14} aria-hidden="true" /> Đơn vị kho và số {form.unit} trong 1 {stockUnit} đã khóa vì có lô tồn kho hoặc phiếu
-                nhập.
-              </p>
-            )}
-          </fieldset>
+          {autoToStock && autoUnitSize ? (
+            <p className="text-sm muted td-span-all">Đơn vị mua trùng đơn vị kho nên hệ thống tự quy đổi, không cần nhập.</p>
+          ) : (
+            <fieldset className="td-food-conv td-span-all">
+              <legend className="field__label">
+                Quy đổi <span className="req">*</span>
+              </legend>
+              {!autoToStock && (
+                <FormField label={`Số ${stockUnit} trong 1 ${purchaseUnit}`} error={show('purchaseToStock')} className="td-food-conv__row">
+                  <Affix
+                    unit={stockUnit}
+                    prefix={`1 ${purchaseUnit} =`}
+                    step="any"
+                    value={form.purchaseToStock}
+                    onChange={(e) => set('purchaseToStock', e.target.value)}
+                    onBlur={blur('purchaseToStock')}
+                  />
+                </FormField>
+              )}
+              {!autoUnitSize && (
+                <FormField label={`Số ${form.unit} trong 1 ${stockUnit}`} error={show('stockUnitSize')} className="td-food-conv__row">
+                  <Affix
+                    unit={form.unit}
+                    prefix={`1 ${stockUnit} =`}
+                    step="any"
+                    value={form.stockUnitSize}
+                    disabled={locked}
+                    onChange={(e) => set('stockUnitSize', e.target.value)}
+                    onBlur={blur('stockUnitSize')}
+                  />
+                </FormField>
+              )}
+              {locked && (
+                <p className="td-food-conv__lock text-xs">
+                  <Lock size={14} aria-hidden="true" /> Đơn vị kho và số {form.unit} trong 1 {stockUnit} đã khóa vì có lô tồn kho hoặc phiếu
+                  nhập.
+                </p>
+              )}
+            </fieldset>
+          )}
           <FormField label="Tỷ lệ thải bỏ" error={show('wastePct')}>
             <Affix
               unit="%"
