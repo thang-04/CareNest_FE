@@ -108,7 +108,7 @@ export default function SemesterEvaluationListPage() {
   };
   const guard = useLeaveGuard({ when: dirty || busy, onSave: () => run() });
   const visible = (board?.rows || []).filter((r) => r.fullName.toLocaleLowerCase('vi').includes(search.applied.toLocaleLowerCase('vi')));
-  const missing = (board?.rows || []).filter((r) => r.domains.some((d) => d.met === null)).length;
+  const missing = (board?.rows || []).filter((r) => !r.domains.length || r.domains.some((d) => d.met === null)).length;
   const cell = (r, d) => r.domains.find((c) => c.domainId === d.domainId);
   return (
     <div className="page">

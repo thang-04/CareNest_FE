@@ -231,13 +231,17 @@ const nextGroupId = (db, groupId) => {
   const i = list.findIndex((g) => g.id === groupId);
   return i >= 0 && i < list.length - 1 ? list[i + 1].id : null;
 };
-/** Nhóm tuổi của trẻ tại ngày bắt đầu năm học mới (như BE YearTransitionServiceImpl.ageGroupOf); không khớp ⇒ null. */
-const admissionAgeGroup = (db, child, yearStart) => {
+const placementAgeMonths = (child, yearStart) => {
   const birth = child?.dateOfBirth || child?.birthDate;
   if (!birth || !yearStart) return null;
   const [by, bm, bd] = birth.split('-').map(Number);
   const [sy, sm, sd] = yearStart.split('-').map(Number);
-  const months = (sy - by) * 12 + (sm - bm) - (sd < bd ? 1 : 0);
+  return (sy - by) * 12 + (sm - bm) - (sd < bd ? 1 : 0);
+};
+/** Nhóm tuổi chỉ để gợi ý, xếp tay năm mới được chọn nhóm khác. */
+const admissionAgeGroup = (db, child, yearStart) => {
+  const months = placementAgeMonths(child, yearStart);
+  if (months == null) return null;
   return groupsByAge(db).find((g) => g.ageFromMonths != null && months >= g.ageFromMonths && months < g.ageToMonths)?.id || null;
 };
 /** Trẻ được xếp từ năm đang hoạt động sang năm sắp diễn ra. */
@@ -734,16 +738,17 @@ export const schoolConfigMockRepository = {
         if (!child) return (errors[it.childId] = 'Trẻ không thuộc lớp của năm học đang hoạt động');
         const from = db.classes.find((c) => c.id === child.classId);
         if (!canEditYearPlacement(user, from.campusId)) return (errors[it.childId] = 'Trẻ thuộc điểm trường bạn không được giao xếp lớp');
-        const next = nextGroupId(db, from.ageGroupId);
+        const months = placementAgeMonths(child, target.startDate);
         if (!PLACEMENT_ACTION_LABELS[it.action]) return (errors[it.childId] = 'Chọn kết quả xếp lớp');
-        if (it.action === PLACEMENT_ACTION.GRADUATE && next) return (errors[it.childId] = 'Chỉ trẻ nhóm tuổi lớn nhất được ra trường');
-        if (it.action === PLACEMENT_ACTION.PROMOTE && !next) return (errors[it.childId] = 'Nhóm tuổi lớn nhất: chọn Ra trường hoặc Ở lại');
+        if (it.action === PLACEMENT_ACTION.GRADUATE && (months == null || months < 72))
+          return (errors[it.childId] = 'Trẻ chưa đủ tuổi ra trường');
+        if (it.action === PLACEMENT_ACTION.PROMOTE && (months == null || months >= 72))
+          return (errors[it.childId] = 'Trẻ đủ tuổi ra trường: chọn Ra trường hoặc Ở lại');
         if (PLACEMENT_IN_CLASS.includes(it.action)) {
           const to = db.classes.find((c) => c.id === it.toClassId && c.schoolYear === target.id);
           if (!to) return (errors[it.childId] = 'Chọn lớp năm học mới');
-          const want = it.action === PLACEMENT_ACTION.PROMOTE ? next : from.ageGroupId;
-          if (to.ageGroupId !== want)
-            return (errors[it.childId] = `${to.name} không đúng nhóm tuổi cho "${PLACEMENT_ACTION_LABELS[it.action]}"`);
+          if (!canEditYearPlacement(user, to.campusId)) return (errors[it.childId] = 'Lớp đích ngoài phạm vi được giao xếp lớp');
+          if (!to.ageGroupId) return (errors[it.childId] = 'Lớp năm mới chưa có nhóm tuổi');
         }
         return null;
       });
@@ -760,9 +765,7 @@ export const schoolConfigMockRepository = {
           if (!to || to.campusId !== admission.campusId)
             return (errors[`admission.${item.admissionId}`] =
               `Lớp ${to?.name || ''} không thuộc điểm trường đăng ký của ${child?.fullName || 'trẻ'}`);
-          // BE 2416: lớp phải đúng nhóm tuổi của trẻ tại ngày bắt đầu năm học mới
-          if (to.ageGroupId !== admissionAgeGroup(db, child, target.startDate))
-            return (errors[`admission.${item.admissionId}`] = `${child?.fullName || 'Trẻ'} không thuộc nhóm tuổi của ${to.name}`);
+          if (!to.ageGroupId) return (errors[`admission.${item.admissionId}`] = 'Lớp năm mới chưa có nhóm tuổi');
         }
         return null;
       });
