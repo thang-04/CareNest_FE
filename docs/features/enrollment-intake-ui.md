@@ -11,6 +11,12 @@ Actor: Hiệu trưởng/Phó hiệu trưởng có quyền tiếp nhận hiện c
 - Phụ huynh nhận tài khoản có viền nhấn, radio rõ và StatusBadge dùng tông role teal. Tất cả phụ huynh vẫn có ảnh/liên hệ; người không chọn không được mô tả là sắp tạo tài khoản.
 - Chế độ sheet chỉ dùng cho tiếp nhận. Màn sửa hồ sơ dùng mặc định của ChildInfoFields/ChildProfileFields. Các input giữ callback, lỗi và liên kết nhãn; không thay logic tải ảnh, chọn người, chống trùng hoặc lưu.
 
+## Thay đổi 22/11/2026 (user chốt; plan `docs/plans/active/2026-11-22-placement-age-group-history-rename.md`)
+- Ngày sinh (Tiếp nhận, Sửa hồ sơ) và ngày tiếp xúc người bệnh lao dùng `DateInput`: gõ dd/mm/yyyy, có nút lịch. Để trống ⇒ "Chọn ngày sinh của trẻ"; gõ chưa thành ngày có thật ⇒ "Nhập ngày sinh theo dạng dd/mm/yyyy".
+- Hồ sơ trẻ có tab "Lịch sử sửa hồ sơ" đọc `child.history` BE trả: tiếp nhận, sửa hồ sơ (kể cả đổi "Báo ăn", BE:CHD-13), nghỉ học, tiếp nhận lại; mới nhất trước; mỗi thay đổi "Nhãn: cũ → mới".
+- Màn module Trẻ gọi "Khai báo ăn và sức khỏe" (trang khai báo, khối tóm tắt, câu lỗi, câu báo). Tên quyền ở màn Phân quyền giữ tên cũ.
+- Chưa làm: chọn lớp khác nhóm tuổi (tạm hoãn vì sửa code của Cần); chọn năm tiếp nhận bắt buộc, ngày bắt đầu đi học (plan đợt 2 `2026-11-22-intake-start-date.md`).
+
 ## Kiểm chứng
 Kết quả lệnh và browser sau source cuối ghi tại docs/quality/VERIFICATION.md. Browser dùng dữ liệu tổng hợp, chạy UI thật ở 1440/375; không tuyên bố kiểm FE nối BE thật.
 
