@@ -347,7 +347,7 @@ const toExamView = (db, { campaign, child, cls, m }, user) => {
   const open = isOpenForEntry(campaign);
   const legacy = !!m && !m.exam;
   const date = examDateOf(campaign, m);
-  const reference = examReferenceFor(child.dateOfBirth, date);
+  const reference = examReferenceFor(child.dateOfBirth, date, child.gender);
   const prev = previousExamOf(db, child.id, date, m?.id);
   const prevCampaign = prev?.campaignId ? db.healthCheckCampaigns.find((c) => c.id === prev.campaignId) : null;
   const view = m && !legacy ? toMeasurementView(db, m) : null;
@@ -423,7 +423,7 @@ export const healthExamMockRepository = {
     const { campaign, child, m } = contextOf(db, campaignId, childId, user);
     const date = examDateOf(campaign, m);
     const mode = conclusionModeOf(m);
-    const cleaned = cleanExam(payload?.exam, examReferenceFor(child.dateOfBirth, date), { concluded: false, mode });
+    const cleaned = cleanExam(payload?.exam, examReferenceFor(child.dateOfBirth, date, child.gender), { concluded: false, mode });
     const exam = withProfile(child, cleaned, m?.examStatus === EXAM_STATUS.CONCLUDED ? m.exam : null);
     return { reviewPoints: examReviewPoints({ date, exam }, child.dateOfBirth) };
   },
@@ -446,7 +446,7 @@ export const healthExamMockRepository = {
     const concluded = m?.examStatus === EXAM_STATUS.CONCLUDED;
     if (!payload.conclude && concluded) throw new ApiError(409, 'Phiếu đã có kết luận. Lưu lại kết luận kèm lý do sửa thay vì lưu nháp.');
     const date = examDateOf(campaign, m);
-    const reference = examReferenceFor(child.dateOfBirth, date);
+    const reference = examReferenceFor(child.dateOfBirth, date, child.gender);
     const mode = conclusionModeOf(m);
     if (payload.conclude && payload.conclusionMode && payload.conclusionMode !== mode)
       throw new ApiError(409, 'Mẫu kết luận của phiếu đã thay đổi. Tải lại phiếu khám rồi lưu lại.');

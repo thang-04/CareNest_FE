@@ -175,7 +175,11 @@ export function ExamMeasureStep({ form, set, setMany, errors, reference, disable
               max="60"
               step="0.1"
               disabled={disabled}
-              reference={`Từ 30 đến 60 cm. Khoảng tham khảo tạm của tuổi này: ${formatDecimal(reference.head.low)}–${formatDecimal(reference.head.high)} cm.`}
+              reference={
+                reference.head
+                  ? `Từ 30 đến 60 cm. Khoảng bình thường theo chuẩn WHO (−2SD đến +2SD) của tuổi, giới tính này: ${formatDecimal(reference.head.low)}–${formatDecimal(reference.head.high)} cm.`
+                  : 'Từ 30 đến 60 cm.'
+              }
               status={{
                 name: 'headStatus',
                 ariaLabel: 'Đánh giá vòng đầu',

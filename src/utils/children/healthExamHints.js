@@ -20,7 +20,7 @@ export const vitalStatusFor = (key, value, vitals) => {
   return { status: 'NORMAL' };
 };
 
-/** Trạng thái vòng đầu gợi ý theo khoảng tạm BE trả; null khi chưa có số hoặc không đo. */
+/** Trạng thái vòng đầu gợi ý theo khoảng WHO (−2SD..+2SD) BE trả; null khi chưa có số, không đo hoặc thiếu khoảng. */
 export const headStatusFor = (value, head) => {
   const n = toNumber(value);
   if (n == null || !head) return null;
