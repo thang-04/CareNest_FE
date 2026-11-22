@@ -96,7 +96,7 @@ export default function EnrollChildPage() {
   // Điểm trường của năm tiếp nhận (G94-180/CHD-02, user chốt 2026-11-22); BE chặn 2125 nếu gửi điểm trường ngoài năm
   const md = useMasterData(intakeYear?.id ?? null);
   const { classes, loading: classesLoading } = usePlacementClasses(intakeYear?.id);
-  const { ageGroups } = useClassOptions(intakeYear?.id || activeYear?.id || schoolYear);
+  const { ageGroups, loading: ageGroupsLoading } = useClassOptions(intakeYear?.id || activeYear?.id || schoolYear);
 
   const [step, setStep] = useState(0);
   const [maxReached, setMaxReached] = useState(0);
@@ -133,6 +133,12 @@ export default function EnrollChildPage() {
     const year = schoolYears.find((y) => sameId(y.id, id));
     if (year?.status === 'PLANNED') setStartDate(year.startDate || '');
   }, [schoolYears, schoolYear, intakeYearId]);
+
+  // Có ngày sinh: nhóm tuổi theo năm tiếp nhận đang chọn; đổi năm ⇒ tính lại khi nhóm tuổi của năm đó tải xong (lỗi A8)
+  const dobAgeGroupId = suggestAgeGroupId(info.dateOfBirth, intakeYear?.startDate || intakeYear?.id || activeYear?.startDate, ageGroups);
+  useEffect(() => {
+    if (info.dateOfBirth && !ageGroupsLoading) setAgeGroupId(dobAgeGroupId);
+  }, [info.dateOfBirth, ageGroupsLoading, dobAgeGroupId]);
 
   if (!canEnrollChild(user)) {
     return (

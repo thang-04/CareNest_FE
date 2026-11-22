@@ -111,7 +111,7 @@ export function ClassPlacementFields({
             <Info size={18} />
             <div className="stack gap-2">
               <span>
-                Chưa có lớp <b>{groupById(ageGroupId)?.name}</b> ở {pickCampus ? 'điểm trường này' : 'phạm vi của bạn'} trong năm học đang
+                Chưa có lớp <b>{groupById(ageGroupId)?.name}</b> ở {pickCampus ? 'điểm trường này' : 'phạm vi của bạn'} trong năm học{' '}
                 {yearLabel}. Lớp do Hiệu trưởng mở ở màn Nhóm tuổi &amp; lớp.
               </span>
               {!lockAgeGroup && (
