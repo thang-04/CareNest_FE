@@ -150,7 +150,12 @@ export function AuthProvider({ children }) {
   }, []);
 
   useEffect(() => {
-    const onUnauthorized = () => sessionEnded(sessionEndedMessage(lastRefreshErrorCode()));
+    // Tài khoản bị khóa (403/1015): BE kèm câu riêng ⇒ kết thúc phiên ngay, đăng nhập lại cũng vẫn bị khóa nên không vào 'reauth'
+    const onUnauthorized = (event) => {
+      const blockedMessage = event?.detail?.message;
+      if (blockedMessage) endSession(blockedMessage);
+      else sessionEnded(sessionEndedMessage(lastRefreshErrorCode()));
+    };
     window.addEventListener(UNAUTHORIZED_EVENT, onUnauthorized);
     const unsubscribe = subscribeSessionEvents((type) => {
       if (type === 'login' && logoutInFlight.current) return;
