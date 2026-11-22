@@ -9,6 +9,7 @@ import { branchAiMock } from '@/services/education-plan/mock/branchAiMock';
 import { activityAiMock } from '@/services/education-plan/mock/activityAiMock';
 import { reviewAiMock } from '@/services/education-plan/mock/reviewAiMock';
 import { lessonAiMock } from '@/services/education-plan/mock/lessonAiMock';
+import { themeContentAiMock } from '@/services/education-plan/mock/themeContentAiMock';
 import { curriculumMockRepository } from '@/services/education-plan/mock/curriculumMockRepository';
 
 /** Facade: UI only calls these functions. */
@@ -82,6 +83,13 @@ export const getClassDocChecks = (kind, docKey) =>
 export const editDayByRequest = (docKey, prompt) =>
   USE_MOCK ? reviewAiMock.editDayByRequest(docKey, prompt) : educationPlanApi.editDayByRequest(docKey, prompt);
 export const reviewDay = (docKey) => (USE_MOCK ? reviewAiMock.reviewDay(docKey) : educationPlanApi.reviewDay(docKey));
+// BE:EDU-103 — AI gom nội dung vào chủ đề ở kế hoạch tổ (nháp, áp dụng chỉ thêm tick) và log tỉ lệ giữ
+export const matchThemeContents = (planId, body) =>
+  USE_MOCK ? themeContentAiMock.matchThemeContents(planId, body) : educationPlanApi.matchThemeContents(planId, body);
+// BE:EDU-104 — lấy tick từ kế hoạch tổ năm trước (FE ghép chủ đề/nội dung, áp dụng chỉ thêm tick)
+export const getPreviousYearTicks = (planId) =>
+  USE_MOCK ? themeContentAiMock.getPreviousYearTicks(planId) : educationPlanApi.getPreviousYearTicks(planId);
+export const sendAiFeedback = (body) => (USE_MOCK ? themeContentAiMock.sendAiFeedback(body) : educationPlanApi.sendAiFeedback(body));
 
 export const saveWorkflowPolicy = (cfg, user) =>
   USE_MOCK ? eduConfigMockRepository.saveWorkflowPolicy(cfg, user) : educationPlanApi.saveWorkflowPolicy(cfg);

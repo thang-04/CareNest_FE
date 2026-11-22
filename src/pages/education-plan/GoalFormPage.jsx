@@ -7,8 +7,11 @@ import { planLevel as levelOf, planRoute, inheritAnnual, reapplyTeamDraft } from
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
-import { ReviewActions } from '@/components/education-plan/reviewUi';
-import { Download, FileDown, Save, X } from '@/components/ui/icons';
+import { ActionsMenu, ReviewActions } from '@/components/education-plan/reviewUi';
+import { Download, FileDown, History, Save, Sparkles, X } from '@/components/ui/icons';
+import { AiThemeContentModal } from '@/components/education-plan/AiThemeContentModal';
+import { PrevYearTicksModal } from '@/components/education-plan/PrevYearTicksModal';
+import { sendAiFeedback } from '@/services/education-plan/educationPlanService';
 import { yearPlanFile } from '@/utils/education-plan/yearPlanDoc';
 import { useEducationPlan, useGoalDetails } from '@/hooks/education-plan/useEducationPlan';
 import { ErrorState, LoadingState } from '@/components/ui/States';
@@ -30,7 +33,8 @@ import {
   themeWithoutDates,
   toRows,
 } from '@/models/education-plan/goalTable';
-import { GoalTable, ThemeEventTable } from '@/components/education-plan/GoalTables';
+import { ThemeEventTable } from '@/components/education-plan/GoalTables';
+import { FilterableGoalTable } from '@/components/education-plan/FilterableGoalTable';
 import { submissionRequirementsIssue } from '@/models/education-plan/submitRequirements.mjs';
 import { mergeImportedGoals } from '@/models/education-plan/importGoals.mjs';
 import { mergeFilePlan } from '@/models/education-plan/importGoalFile.mjs';
@@ -218,6 +222,8 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
   const [ministryOpen, setMinistryOpen] = useState(false);
   const [importReport, setImportReport] = useState(null);
   const [fileOpen, setFileOpen] = useState(false);
+  const [aiThemeOpen, setAiThemeOpen] = useState(false);
+  const [prevTicksOpen, setPrevTicksOpen] = useState(false);
 
   const set = (patch) => {
     setForm((f) => ({ ...f, ...patch }));
@@ -1081,6 +1087,26 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
               <span className="text-success text-xs nowrap">
                 {totalGoals} mục tiêu{annual ? ` · ${goalsWithoutContent} chưa có nội dung` : ''}
               </span>
+              {/* BE:EDU-103: người tick được ở bản đang sửa của kế hoạch tổ; BE kiểm lại quyền */}
+              {!annual && saveReady && (
+                <ActionsMenu
+                  items={[
+                    {
+                      label: 'AI gom nội dung vào chủ đề',
+                      icon: Sparkles,
+                      disabled: saver.saving || finishing,
+                      onClick: () => setAiThemeOpen(true),
+                    },
+                    // BE:EDU-104: cần id kế hoạch đã lưu để BE tìm năm học liền trước
+                    {
+                      label: 'Lấy tick từ năm trước',
+                      icon: History,
+                      disabled: saver.saving || finishing || !(savedId.current || currentPlanId),
+                      onClick: () => setPrevTicksOpen(true),
+                    },
+                  ]}
+                />
+              )}
             </div>
           }
         >
@@ -1102,7 +1128,7 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
             !errors.domains.includes('chủ đề') &&
             !errors.domains.includes('nhóm') && <Notice>{errors.domains}</Notice>}
           {!annual && themes.length === 0 && <p className="text-success text-sm text-right">{NO_THEME_NOTE}</p>}
-          <GoalTable
+          <FilterableGoalTable
             reviewItems={form.reviewItems}
             newItems={form.newItems}
             domains={form.domains}
@@ -1116,6 +1142,34 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
             showRequired={requireDates}
             onChange={(domains) => set({ domains })}
           />
+          {!annual && (
+            <AiThemeContentModal
+              open={aiThemeOpen}
+              plan={form}
+              // EDU-22: AI đọc bản đã lưu ⇒ còn thay đổi thì Lưu trước; lưu lỗi thì không gọi AI
+              ensureSaved={async () => {
+                if (saver.unsaved && !(await saver.save())) return null;
+                return savedId.current || currentPlanId;
+              }}
+              onApply={(domains, stats) => {
+                set({ domains });
+                sendAiFeedback({ kind: 'TEAM', ...stats }).catch(() => console.warn('[GoalFormPage] AI feedback not sent'));
+              }}
+              onClose={() => setAiThemeOpen(false)}
+            />
+          )}
+          {!annual && prevTicksOpen && (
+            <PrevYearTicksModal
+              open={prevTicksOpen}
+              plan={form}
+              planId={savedId.current || currentPlanId}
+              onApply={(domains, added) => {
+                set({ domains });
+                toast(`Đã thêm ${added} tick từ năm trước (chưa lưu)`);
+              }}
+              onClose={() => setPrevTicksOpen(false)}
+            />
+          )}
         </Card>
         <Card
           title={annual ? '3. Dự kiến chủ đề / sự kiện năm học' : '3. Dự kiến chủ đề, sự kiện trong năm'}

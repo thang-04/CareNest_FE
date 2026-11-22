@@ -5,7 +5,7 @@ import { buildRefs, planSteps, serverId, toUiEduConfig, toUiGoal, toYearPlanRequ
 
 /*
  * Mục tiêu năm học (kế hoạch năm) và cấu hình: theo contract BE (`BE:docs/api/openapi.yaml`, /education-plans/...).
- * Tài liệu của lớp: /education-plans/class-docs (BE:EDU-12..18). AI vẫn là PROPOSED, BE chưa có.
+ * Tài liệu của lớp: /education-plans/class-docs (BE:EDU-12..18). AI hỗ trợ soạn/duyệt: /education-plans/ai (BE:EDU-95, 96, 103).
  * Cùng tên hàm và tham số với mock repository.
  */
 const GOALS = '/education-plans/goals';
@@ -46,6 +46,7 @@ const bodyKey = (goal, refs) => JSON.stringify(toYearPlanRequest(goal, refs));
 // Trang tải chi tiết từng kế hoạch cùng lúc; trình duyệt chỉ mở 6 kết nối nên yêu cầu xếp hàng có thể vượt 15 giây mặc định
 // ponytail: nới thời gian chờ; về lâu dài cần API danh sách trả đủ nội dung hoặc tải chi tiết khi mở
 const LIST_TIMEOUT = 60000;
+const AI_MATCH_TIMEOUT = 70000;
 const fetchGoal = async (id, refs) => remember(await axiosClient.get(`${GOALS}/${id}`, { timeout: LIST_TIMEOUT }), refs);
 
 const editHeaders = (edit) => {
@@ -385,4 +386,11 @@ export const educationPlanApi = {
   editDayByRequest: (docKey, prompt) => axiosClient.post(`/education-plans/ai/class-docs/day/${docKey}/edit`, { prompt }),
   // BE:EDU-96 — tóm tắt giáo án ngày cho người duyệt: gợi ý, không lưu
   reviewDay: (docKey) => axiosClient.post(`/education-plans/ai/class-docs/day/${docKey}/review`),
+  // BE:EDU-103 — gom nội dung vào chủ đề của kế hoạch tổ (song song theo lĩnh vực, ~40–60s): timeout riêng dài hơn mặc định
+  matchThemeContents: (planId, body) =>
+    axiosClient.post(`/education-plans/ai/team-plans/${serverId(planId)}/theme-content-map`, body, { timeout: AI_MATCH_TIMEOUT }),
+  // BE:EDU-104 — tick kế hoạch tổ đã ban hành năm học liền trước (source null + reason khi không có)
+  getPreviousYearTicks: (planId) => axiosClient.get(`/education-plans/goals/${serverId(planId)}/previous-year-ticks`),
+  // BE:EDU-103 — số gợi ý / số giữ mỗi lần Áp dụng, BE chỉ ghi log
+  sendAiFeedback: (body) => axiosClient.post('/education-plans/ai/feedback', body),
 };
