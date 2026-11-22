@@ -33,6 +33,9 @@ export const normalizeAccountProfile = (profile) => {
     permissions: Array.isArray(profile.permissions) ? [...new Set(profile.permissions)] : [],
     // Quyền mà HT cấp phạm vi toàn trường. Quyền không có trong mảng này mặc định chỉ áp dụng tại campus được phân công.
     schoolWidePermissions: Array.isArray(profile.schoolWidePermissions) ? [...new Set(profile.schoolWidePermissions)] : [],
+    // Quyền HT giao tại một điểm trường cụ thể: { mã: campusId } (AUTH-20)
+    pinnedCampusPermissions:
+      profile.pinnedCampusPermissions && typeof profile.pinnedCampusPermissions === 'object' ? { ...profile.pinnedCampusPermissions } : {},
     role: webRoleOf(roles, assignments),
     assignments,
     ageGroupId: assignments.find((a) => a.staffRole === TEAM_LEADER_ASSIGNMENT && a.ageGroupId != null)?.ageGroupId ?? null,

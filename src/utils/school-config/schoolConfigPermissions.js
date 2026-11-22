@@ -1,6 +1,6 @@
 import { ROLES } from '@/models/User';
 import { PERMISSIONS } from '@/models/bePermissions';
-import { hasBePermission, hasSchoolWideBePermission, inBePermissionScope, inOwnCampus } from '@/utils/bePermissions';
+import { hasBePermission, hasSchoolWideBePermission, inBePermissionScope, inOwnCampus, pinnedBeCampusId } from '@/utils/bePermissions';
 import {
   AREA_SCOPE_ALL,
   PERMISSION_ACCESS,
@@ -26,6 +26,10 @@ const isBeUser = (user) => Array.isArray(user?.bePermissions);
 
 const is = (user, ...roles) => !!user && roles.includes(user.role);
 export const isPrincipal = (user) => is(user, ROLES.PRINCIPAL);
+
+/** Ô chọn cơ sở công tác: điểm trường đang hoạt động; PHT chỉ các điểm trường mình phụ trách (BE AUTH-15 kiểm lại). */
+export const workCampusOptions = (campuses = [], user) =>
+  campuses.filter((c) => c.status !== 'INACTIVE' && (isPrincipal(user) || inOwnCampus(user, c.id)));
 export const isVicePrincipal = (user) => is(user, ROLES.VICE_PRINCIPAL);
 
 /** "School year, age group & class – Configure": Principal only. */
@@ -177,7 +181,11 @@ const teacherAssignAccess = (user) => {
   return {
     access: PERMISSION_ACCESS.EDIT,
     scope: isPrincipal(user) || hasSchoolWideBePermission(user, STAFF_ASSIGNMENT_MANAGE) ? PERMISSION_SCOPE.ALL : PERMISSION_SCOPE.CAMPUS,
-    campusId: isPrincipal(user) || hasSchoolWideBePermission(user, STAFF_ASSIGNMENT_MANAGE) ? null : user?.campusId || null,
+    // Giao việc phân công tại điểm trường cụ thể thì chỉ điểm trường đó (AUTH-20)
+    campusId:
+      isPrincipal(user) || hasSchoolWideBePermission(user, STAFF_ASSIGNMENT_MANAGE)
+        ? null
+        : (pinnedBeCampusId(user, STAFF_ASSIGNMENT_MANAGE) ?? user?.campusId ?? null),
     actions: { create: true, update: true, delete: true },
   };
 };
