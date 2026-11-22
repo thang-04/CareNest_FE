@@ -1,5 +1,5 @@
 import { Checkbox, SelectField } from '@/components';
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { announcements } from '@/services/announcement/announcementService';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -13,6 +13,7 @@ export const emptyTarget = { scopeType: 'SCHOOL', campusId: null, ageGroupId: nu
 
 export default function RecipientTargetForm({ value, onChange, hideLegend = false, disabled = false }) {
   const { user } = useAuth();
+  const groupId = useId();
   const vicePrincipal = user?.role === 'VICE_PRINCIPAL';
   const [catalog, setCatalog] = useState({ campuses: [], ageGroups: [], classes: [] });
   const [error, setError] = useState('');
@@ -87,18 +88,23 @@ export default function RecipientTargetForm({ value, onChange, hideLegend = fals
           </SelectField>
         )}
       </div>
-      <div className="announcement-roles">
-        {roles.map(([id, label]) => (
-          <label key={id} className="announcement-check">
-            <Checkbox
-              checked={value.roles.includes(id)}
-              onChange={(e) =>
-                onChange({ ...value, roles: e.target.checked ? [...value.roles, id] : value.roles.filter((role) => role !== id) })
-              }
-            />
-            <span>{label}</span>
-          </label>
-        ))}
+      <div className="announcement-option-group" role="group" aria-labelledby={`${groupId}-roles`}>
+        <span className="field__label" id={`${groupId}-roles`}>
+          Gửi cho vai trò
+        </span>
+        <div className="announcement-roles">
+          {roles.map(([id, label]) => (
+            <label key={id} className="announcement-check">
+              <Checkbox
+                checked={value.roles.includes(id)}
+                onChange={(e) =>
+                  onChange({ ...value, roles: e.target.checked ? [...value.roles, id] : value.roles.filter((role) => role !== id) })
+                }
+              />
+              <span>{label}</span>
+            </label>
+          ))}
+        </div>
       </div>
     </fieldset>
   );

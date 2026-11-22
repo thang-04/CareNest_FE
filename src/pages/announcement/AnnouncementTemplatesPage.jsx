@@ -1,43 +1,71 @@
 import { useToast } from '@/contexts/ToastContext';
 import { useState } from 'react';
-import { Button, ConfirmationModal, DataTable, Modal, RowActions, SelectField, TextAreaField, TextField } from '@/components';
-import { Plus, Save } from '@/components/ui/icons';
-import { AnnouncementAlert, AnnouncementHeader } from '@/components/announcement/announcementUi';
+import { useNavigate } from 'react-router-dom';
+import { Button, ConfirmationModal, DataTable, Modal, RowActions } from '@/components';
+import { SearchSubmit } from '@/components/ui/SearchSubmit';
+import { Plus, Save, Upload } from '@/components/ui/icons';
+import AnnouncementTemplateForm from '@/components/announcement/AnnouncementTemplateForm';
+import TemplateImportDialog from '@/components/announcement/TemplateImportDialog';
+import { ROLES } from '@/models/User';
 import { announcements } from '@/services/announcement/announcementService';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAsync } from '@/hooks/useAsync';
+import { textToHtml } from '@/utils/announcement/richText.mjs';
 
-const blank = { name: '', title: '', body: '', campusId: null };
+const blank = { name: '', title: '', body: '', bodyHtml: '', campusId: null };
 export default function AnnouncementTemplatesPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const [importing, setImporting] = useState(false);
   const { data, loading, error, reload } = useAsync(async () => {
     const [items, campuses] = await Promise.all([announcements.templates(user), announcements.campuses()]);
     return { items, campuses };
   }, [user]);
+  const [q, setQ] = useState('');
   const [form, setForm] = useState(null);
   const [id, setId] = useState(null);
   const [pending, setPending] = useState(null);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState('');
+  const [bodyError, setBodyError] = useState('');
   const toast = useToast();
   const edit = (item, readOnly = false) => {
     setActionError('');
+    setBodyError('');
     setId(item?.id || null);
-    setForm(item ? { name: item.name, title: item.title, body: item.body, campusId: item.campusId, readOnly } : { ...blank });
+    setForm(
+      item
+        ? {
+            name: item.name,
+            title: item.title,
+            body: item.body,
+            bodyHtml: item.bodyHtml || textToHtml(item.body),
+            campusId: item.campusId,
+            readOnly,
+          }
+        : { ...blank },
+    );
   };
   const save = async (event) => {
     event.preventDefault();
     if (busy) return;
+    if (!form.body?.trim()) {
+      setBodyError('Nhập nội dung thông báo.');
+      return;
+    }
+    setBodyError('');
     setBusy(true);
     setActionError('');
     try {
-      if (id) await announcements.updateTemplate(id, form, user);
-      else await announcements.createTemplate(form, user);
+      const payload = { ...form, body: form.bodyHtml ? '' : form.body };
+      if (id) await announcements.updateTemplate(id, payload, user);
+      else await announcements.createTemplate(payload, user);
       setForm(null);
       toast?.success('Đã lưu.');
       await reload({ silent: true });
     } catch (e) {
       setActionError(e.message);
+      setBodyError(e.details?.body || '');
     } finally {
       setBusy(false);
     }
@@ -53,26 +81,41 @@ export default function AnnouncementTemplatesPage() {
       setActionError(e.errorCode === 1209 ? 'Mẫu đang được lịch sử dụng. Hãy kiểm tra lịch trước.' : e.message);
     }
   };
+  const keyword = q.toLowerCase();
+  const rows = data?.items.filter((item) => !keyword || `${item.name} ${item.title}`.toLowerCase().includes(keyword));
   return (
-    <div className="page page--toolbar announcement-page">
-      <AnnouncementHeader
-        title="Mẫu thông báo"
-        summary="Nội dung dùng lại cho thông báo và lịch gửi"
-        actions={
-          <Button variant="outline-primary" size="sm" icon={Plus} onClick={() => edit(null)}>
-            Tạo mẫu thông báo
-          </Button>
-        }
-      />
+    <>
       <section className="card">
+        <div className="filter-bar filter-bar--aligned">
+          <SearchSubmit
+            className="flex-1"
+            value={q}
+            label="Tìm mẫu thông báo"
+            placeholder="Tìm theo tên mẫu hoặc tiêu đề"
+            onSearch={setQ}
+          />
+          <div className="filter-bar__end">
+            <Button icon={Upload} disabled={!data} onClick={() => setImporting(true)}>
+              Nhập từ Excel
+            </Button>
+            <Button variant="primary" icon={Plus} onClick={() => edit(null)}>
+              Tạo mẫu thông báo
+            </Button>
+          </div>
+        </div>
         <DataTable
-          rows={data?.items}
+          rows={rows}
           loading={loading}
           error={error}
           onRetry={reload}
-          empty={{ title: 'Chưa có mẫu thông báo', description: 'Tạo mẫu để dùng lại nội dung cho những lần gửi sau.' }}
+          onRowClick={(item) => edit(item, true)}
+          empty={
+            q
+              ? { title: 'Không có mẫu phù hợp', description: 'Thử đổi từ khóa tìm kiếm.' }
+              : { title: 'Chưa có mẫu thông báo', description: 'Tạo mẫu để dùng lại nội dung cho những lần gửi sau.' }
+          }
           columns={[
-            { key: 'index', header: 'STT', className: 'center', render: (item) => data.items.indexOf(item) + 1 },
+            { key: 'index', header: 'STT', className: 'center', render: (item) => rows.indexOf(item) + 1 },
             { key: 'name', header: 'Tên mẫu', render: (item) => <span className="fw-600">{item.name}</span> },
             { key: 'title', header: 'Tiêu đề thông báo' },
             {
@@ -90,10 +133,13 @@ export default function AnnouncementTemplatesPage() {
               render: (item) => (
                 <RowActions
                   name={item.name}
-                  view={{ onClick: () => edit(item, true), label: 'Xem chi tiết' }}
                   edit={item.canEdit ? { onClick: () => edit(item) } : undefined}
-                  menu={
-                    item.canEdit
+                  menu={[
+                    // Trang tạo lịch gửi chỉ mở cho Hiệu trưởng nên Phó hiệu trưởng không thấy mục này
+                    ...(user?.role === ROLES.PRINCIPAL
+                      ? [{ label: 'Tạo lịch gửi từ mẫu này', onClick: () => navigate(`/announcement-schedules/new?templateId=${item.id}`) }]
+                      : []),
+                    ...(item.canEdit
                       ? [
                           {
                             label: 'Xóa mẫu',
@@ -104,8 +150,8 @@ export default function AnnouncementTemplatesPage() {
                             },
                           },
                         ]
-                      : []
-                  }
+                      : []),
+                  ]}
                 />
               ),
             },
@@ -115,7 +161,7 @@ export default function AnnouncementTemplatesPage() {
       <Modal
         open={!!form}
         title={form?.readOnly ? 'Chi tiết mẫu thông báo' : id ? 'Sửa mẫu thông báo' : 'Tạo mẫu thông báo'}
-        size="lg"
+        size="xl"
         onClose={busy ? undefined : () => setForm(null)}
         footer={
           <>
@@ -123,7 +169,7 @@ export default function AnnouncementTemplatesPage() {
               {form?.readOnly ? 'Đóng' : 'Hủy'}
             </Button>
             {!form?.readOnly && (
-              <Button size="sm" type="submit" form="announcement-template-form" variant="outline-primary" icon={Save} loading={busy}>
+              <Button size="sm" type="submit" form="announcement-template-form" variant="primary" icon={Save} loading={busy}>
                 Lưu mẫu
               </Button>
             )}
@@ -131,52 +177,34 @@ export default function AnnouncementTemplatesPage() {
         }
       >
         {form && (
-          <form id="announcement-template-form" className="announcement-form" onSubmit={save}>
-            <AnnouncementAlert>{actionError}</AnnouncementAlert>
-            <TextField
-              fieldClassName="announcement-field--medium"
-              disabled={busy || form.readOnly}
-              label="Tên mẫu"
-              required
-              maxLength={100}
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-            />
-            <SelectField
-              fieldClassName="announcement-field--medium"
-              disabled={busy || form.readOnly}
-              label="Phạm vi mẫu"
-              required={user?.role === 'VICE_PRINCIPAL'}
-              value={form.campusId ?? ''}
-              onChange={(e) => setForm({ ...form, campusId: e.target.value ? Number(e.target.value) : null })}
-            >
-              <option value="">{user?.role === 'VICE_PRINCIPAL' ? 'Chọn điểm trường' : 'Toàn trường'}</option>
-              {(data?.campuses || []).map((site) => (
-                <option value={site.id} key={site.id}>
-                  {site.name}
-                </option>
-              ))}
-            </SelectField>
-            <TextField
-              disabled={busy || form.readOnly}
-              label="Tiêu đề thông báo"
-              required
-              maxLength={150}
-              value={form.title}
-              onChange={(e) => setForm({ ...form, title: e.target.value })}
-            />
-            <TextAreaField
-              disabled={busy || form.readOnly}
-              label="Nội dung"
-              required
-              rows={8}
-              maxLength={4000}
-              value={form.body}
-              onChange={(e) => setForm({ ...form, body: e.target.value })}
-            />
-          </form>
+          <AnnouncementTemplateForm
+            id="announcement-template-form"
+            form={form}
+            onChange={(next) => {
+              setForm(next);
+              setBodyError('');
+            }}
+            onSubmit={save}
+            disabled={busy || form.readOnly}
+            campuses={data?.campuses || []}
+            viceRole={user?.role === 'VICE_PRINCIPAL'}
+            error={actionError}
+            bodyError={bodyError}
+          />
         )}
       </Modal>
+      {importing && (
+        <TemplateImportDialog
+          user={user}
+          campuses={data?.campuses || []}
+          viceRole={user?.role === ROLES.VICE_PRINCIPAL}
+          onDone={(created) => {
+            if (created) toast?.success(`Đã tạo ${created} mẫu.`);
+            reload({ silent: true });
+          }}
+          onClose={() => setImporting(false)}
+        />
+      )}
       <ConfirmationModal
         open={!!pending}
         title="Xóa mẫu thông báo?"
@@ -187,6 +215,6 @@ export default function AnnouncementTemplatesPage() {
         onConfirm={remove}
         onClose={() => setPending(null)}
       />
-    </div>
+    </>
   );
 }
