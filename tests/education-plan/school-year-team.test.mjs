@@ -6,6 +6,7 @@ import {
   projectCalendar,
   adaptCalendar,
   resizeBranch,
+  removeBranch,
   updateWeek,
   reorderCalendar,
 } from '../../src/models/education-plan/branchCalendar.mjs';
@@ -188,4 +189,18 @@ test('intentional conflict reapply keeps fresh source tree and old ticks for rev
   assert.equal(reapplied.domains[0].rows[0].text, 'New source');
   assert.deepEqual(reapplied.domains[0].rows[0].contents.map((c) => c.themes), [['keep', 'gone'], []]);
   assert.equal(fresh.title, 'Server'); assert.deepEqual(fresh.domains[0].rows[0].contents[0].themes, []);
+});
+
+test('BE:EDU-100 removing a branch (inherited too) clears its week names and keeps other branches', () => {
+  const doc = adaptCalendar({ names: { '2026-09-07': 'X', '2026-09-14': 'Y' }, notes: {} }, annual);
+  const keep = doc.branches.find((b) => b.startDate === '2026-09-07').key;
+  const drop = { ...doc.branches.find((b) => b.startDate === '2026-09-14'), sourceTemplateId: 't' };
+  const result = removeBranch({ ...doc, branches: doc.branches.map((b) => (b.key === drop.key ? drop : b)) }, annual, drop.key);
+  assert.deepEqual(
+    result.branches.map((b) => b.key),
+    doc.branches.filter((b) => b.key !== drop.key).map((b) => b.key),
+  );
+  assert.equal(result.names['2026-09-07'], 'X');
+  assert.equal(result.names['2026-09-14'], undefined);
+  assert.ok(result.branches.some((b) => b.key === keep));
 });

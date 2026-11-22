@@ -35,3 +35,13 @@ test('áp dụng chỉ names khớp, giữ ghi chú/field/key khác, xóa pendin
 test('không có matches không đổi dữ liệu', () => {
   assert.deepEqual(applyBranchFile(draft, {}, { matches: [] }), { draft, pending: {} });
 });
+
+test('lịch nhánh v2 với danh sách null tạo được payload rỗng', async () => {
+  const { normalizeBranchCalendar } = await import('../../src/models/education-plan/branchCalendar.mjs');
+  const calendar = { schemaVersion: 2, branches: null, themeSchedules: null, names: null, notes: null };
+  const payload = branchPayload(normalizeBranchCalendar(calendar), {});
+  assert.deepEqual(payload.branches, []);
+  assert.deepEqual(payload.themeSchedules, []);
+  assert.deepEqual(payload.names, {});
+  assert.equal(calendar.branches, null);
+});

@@ -2,6 +2,7 @@ import axios from 'axios';
 import { API_BASE_URL, AUTH_MODE, DEV_BE_BASE_URL } from '@/config/env';
 import { refreshSession } from './authTransport';
 import { BE_ERROR_FIELDS } from './beErrorFields';
+import { fallbackErrorMessage } from './apiError';
 import { translateBeError } from './beErrorMessages';
 import { getDevAccessToken, tokenForRetry } from './devKeycloakAuth';
 import { tokenStorage, UNAUTHORIZED_EVENT } from './tokenStorage';
@@ -131,7 +132,8 @@ const normalizeError = (error) => {
       : status === 400 || status === 409
         ? translateBeError(body?.desc, body?.data)
         : null;
-  const message = known?.message || body?.desc || (status === 0 ? 'Không thể kết nối máy chủ' : error.message);
+  // Không có desc của BE (502/504 từ Caddy, hết thời gian chờ, mất mạng) ⇒ câu tiếng Việt theo status, không lộ câu axios
+  const message = known?.message || body?.desc || fallbackErrorMessage(error, status);
   const normalized = new Error(message);
   normalized.status = status;
   normalized.errorCode = errorCode;
@@ -157,7 +159,7 @@ const mapPath = (url) =>
 const hasUnknownYear = (...parts) =>
   (JSON.stringify(parts).match(/\d{4}-\d{4}/g) || []).some((name) => !years?.some((y) => y.name === name));
 
-const call = async (method, url, { params, data, preserveEmptyStrings = [] } = {}) => {
+const call = async (method, url, { params, data, preserveEmptyStrings = [], timeout } = {}) => {
   try {
     await ensureYears();
     if (hasUnknownYear(decodeURIComponent(url), params, data)) await ensureYears(true);
@@ -166,6 +168,8 @@ const call = async (method, url, { params, data, preserveEmptyStrings = [] } = {
       url: mapPath(url),
       params: toBe(params),
       data: toBe(data, undefined, preserveEmptyStrings),
+      // Thao tác chạy lâu (gợi ý AI) truyền timeout riêng; còn lại giữ mặc định 15 giây
+      ...(timeout ? { timeout } : {}),
     });
     // Năm học thay đổi ⇒ nạp lại bảng tên <-> id
     if (method !== 'get' && url.startsWith('/school-years')) {
@@ -205,7 +209,7 @@ const getBlob = async (url) => {
 export const beClient = {
   getBlob,
   get: (url, config = {}) => call('get', url, { params: config.params }),
-  post: (url, data, config = {}) => call('post', url, { data, params: config.params }),
+  post: (url, data, config = {}) => call('post', url, { data, params: config.params, timeout: config.timeout }),
   put: (url, data, config = {}) => call('put', url, { data, params: config.params, preserveEmptyStrings: config.preserveEmptyStrings }),
   patch: (url, data, config = {}) => call('patch', url, { data, params: config.params }),
   delete: (url, config = {}) => call('delete', url, { params: config.params }),

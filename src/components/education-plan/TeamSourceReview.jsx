@@ -1,5 +1,12 @@
 import { Notice } from '@/components/education-plan/eduUi';
 
+const sourceReasons = {
+  SOURCE_CHANGED: 'Nội dung nguồn đã thay đổi',
+  SOURCE_REMOVED: 'Mục này đã bị bỏ khỏi nguồn',
+  REF_LOST: 'Liên kết với mục tiêu nguồn đã thay đổi',
+};
+const sourceReason = (reason) => sourceReasons[reason] || 'Có thay đổi từ kế hoạch năm học';
+
 export function sourceItemLabel(plan, item) {
   const objects = [
     ...(plan.themes || []),
@@ -25,8 +32,9 @@ export default function TeamSourceReview({ plan, onResolve, busy = false }) {
           <ul className="stack">
             {items.map((item) => (
               <li key={item.reviewItemId} className="row row--between row--wrap gap-2">
-                <span>
-                  <strong>{sourceItemLabel(plan, item)}</strong>: {item.reason} · {item.resolved ? 'Đã kiểm tra' : 'Cần rà soát'}
+                <span className={item.resolved ? 'text-success' : 'field__error'}>
+                  <strong>{sourceItemLabel(plan, item)}</strong>: {sourceReason(item.reason)} ·{' '}
+                  {item.resolved ? 'Đã kiểm tra' : 'Cần rà soát'}
                 </span>
                 {!item.resolved && onResolve && (
                   <button type="button" className="btn btn--sm" disabled={busy} onClick={() => onResolve(item)}>
@@ -36,11 +44,13 @@ export default function TeamSourceReview({ plan, onResolve, busy = false }) {
               </li>
             ))}
           </ul>
-          {!!onResolve && <p>Lưu dấu tích đã sửa trước khi xác nhận. Máy chủ kiểm tra liên kết theo nguồn hiện tại.</p>}
+          {!!onResolve && (
+            <p className="text-success">Lưu dấu tích đã sửa trước khi xác nhận. Máy chủ kiểm tra liên kết theo nguồn hiện tại.</p>
+          )}
         </Notice>
       )}
       {newItems.length > 0 && (
-        <Notice>
+        <Notice tone="info">
           <strong>Mục mới từ nguồn năm học — chọn nội dung phù hợp để phân bổ</strong>
           <ul>
             {newItems.map((item) => (
@@ -58,12 +68,12 @@ export function SourceItemMark({ itemKind, itemId, reviewItems = [], newItems = 
   if (review)
     return (
       <div className="text-danger text-xs" role="note">
-        Cần rà soát: {review.reason}
+        Cần rà soát: {sourceReason(review.reason)}
       </div>
     );
   if (newItems.some((item) => item.itemKind === itemKind && String(item.itemId) === String(itemId)))
     return (
-      <div className="text-primary text-xs" role="note">
+      <div className="text-success text-xs" role="note">
         Mới từ nguồn năm học
       </div>
     );

@@ -26,7 +26,8 @@ const read = async (id) => {
 };
 const uiYear = (year) => year.name.replace('-', ' – ');
 const childChecks = (dialog) => dialog.locator('.ga-cur-row input');
-const importDialog = (page) => page.getByRole('dialog', { name: 'Lấy mục tiêu từ kế hoạch có sẵn' });
+// Kế hoạch năm học: hộp tên "… kế hoạch năm"; kế hoạch tổ: "… kế hoạch có sẵn"
+const importDialog = (page) => page.getByRole('dialog', { name: /^Lấy mục tiêu từ kế hoạch (năm|có sẵn)$/ });
 const confirm = (dialog) => dialog.getByRole('button', { name: /^Thêm.*mục tiêu$/ });
 const envelope = (data) => ({ code: 200, desc: 'ok', data });
 const sourceRoute = () => `**/education-plans/goals/${source.id}`;
@@ -41,26 +42,31 @@ const logicalRows = (detail) =>
   );
 
 async function availableSlots() {
-  const occupied = new Set();
-  let page = 0;
-  let pages;
-  do {
-    const result = await api(USERS.vp, 'GET', `${GOALS}?page=${page}&size=200`);
-    expect(result.status, result.desc).toBe(200);
-    result.data.items.forEach((item) => occupied.add(`${item.schoolYearId}:${item.ageGroupId}`));
-    pages = result.data.totalPages;
-    page++;
-  } while (page < pages);
-  return config.schoolYears.flatMap((year) =>
-    config.ageGroups.filter((group) => !occupied.has(`${year.id}:${group.id}`)).map((group) => ({ year, group })),
+  // Đọc từ DB: PHT không thấy bản nháp của người khác nên danh sách API thiếu chỗ đã có kế hoạch năm học
+  const occupied = new Set(
+    sql("select school_year_id || ':' || age_group_id from edu_year_plans")
+      .split('\n')
+      .filter(Boolean),
   );
+  // Năm đã kết thúc chỉ xem (EDU-89) ⇒ không tạo được kế hoạch
+  const closed = new Set(
+    sql("select id::text from school_years where status = 'CLOSED'")
+      .split('\n')
+      .filter(Boolean),
+  );
+  return config.schoolYears
+    .filter((year) => !closed.has(String(year.id)))
+    .flatMap((year) =>
+      config.ageGroups.filter((group) => !occupied.has(`${year.id}:${group.id}`)).map((group) => ({ year, group })),
+    );
 }
 async function addSyntheticYear() {
   const start = Number(sql('select coalesce(max(extract(year from start_date)), 2030)::int + 1 from school_years'));
   const name = `${start}-${start + 1}`;
   const id = Number(
     sql(
-      `insert into school_years (name,start_date,end_date,status) values ('${name}','${start}-09-01','${start + 1}-05-31','PLANNED') returning id`,
+      // Ngày mở chuẩn bị đã qua thì năm sắp tới mới lập kế hoạch được (EDU-89)
+      `insert into school_years (name,start_date,end_date,status,prep_date) values ('${name}','${start}-09-01','${start + 1}-05-31','PLANNED','${E2E.markerDate}') returning id`,
     ).split('\n')[0],
   );
   expect(Number.isSafeInteger(id)).toBe(true);
@@ -73,6 +79,8 @@ function bodyFor(slot, isSource) {
   const domains = config.domains.filter((domain) => domain.standard !== false).slice(0, isSource ? 2 : 1);
   expect(domains.length).toBeGreaterThan(isSource ? 1 : 0);
   return {
+    // Thiếu planLevel BE tạo kế hoạch tổ (Tổ trưởng soạn); PHT soạn kế hoạch năm học
+    planLevel: 'SCHOOL_YEAR',
     schoolYearId: slot.year.id,
     ageGroupId: slot.group.id,
     title: `${marker} ${prefix}`,
@@ -148,9 +156,11 @@ test.afterAll(() => {
 });
 async function openEditor(page) {
   await login(page, USERS.vp);
-  await page.goto(`/education/goals/${target.id}/edit`);
+  await page.goto(`/education/school-year-plans/${target.id}/edit`);
   await expect(page.locator('#desc')).toBeEditable();
-  await page.getByRole('button', { name: /Lấy từ kế hoạch (có sẵn|năm học)/ }).click();
+  // Các cách lấy nội dung gom vào menu "Lấy / nhập nội dung"
+  await page.getByRole('button', { name: 'Lấy và nhập nội dung kế hoạch năm học' }).click();
+  await page.getByRole('menuitem', { name: 'Lấy kế hoạch năm' }).click();
   const dialog = importDialog(page);
   await dialog.locator('#imp-year').selectOption(uiYear(sourceYear));
   await dialog.locator('#imp-age').selectOption(sourceGroup.code);
@@ -214,7 +224,7 @@ test('EDU-24 canEdit=false disables import despite a successful edit lease', asy
     await route.fulfill({ response, json: body });
   });
   const lease = page.waitForResponse((response) => response.url().endsWith(`${GOALS}/${target.id}/start-editing`));
-  await page.goto(`/education/goals/${target.id}/edit`);
+  await page.goto(`/education/school-year-plans/${target.id}/edit`);
   expect((await lease).status()).toBe(200);
   await expect(page.getByText('Bạn chỉ lập, sửa được kế hoạch năm học của nhóm tuổi mình phụ trách.', { exact: true })).toBeVisible();
   await expect(page.locator('#desc')).toHaveCount(0);
@@ -314,7 +324,9 @@ test('EDU-24 200 goals select within one second and remain usable at 390/768/144
   ];
   await dialog.getByRole('button', { name: 'Hủy', exact: true }).click();
   await page.route(sourceRoute(), (route) => route.fulfill({ json: envelope(large) }));
-  await page.getByRole('button', { name: /Lấy từ kế hoạch (có sẵn|năm học)/ }).click();
+  // Các cách lấy nội dung gom vào menu "Lấy / nhập nội dung"
+  await page.getByRole('button', { name: 'Lấy và nhập nội dung kế hoạch năm học' }).click();
+  await page.getByRole('menuitem', { name: 'Lấy kế hoạch năm' }).click();
   await dialog.locator('#imp-year').selectOption(uiYear(sourceYear));
   await dialog.locator('#imp-age').selectOption(sourceGroup.code);
   await dialog.locator('#imp-src').selectOption(String(source.id));
@@ -392,7 +404,7 @@ test('EDU-24/22 double confirm imports once; only manual Save persists hierarchy
   expect(logicalRows(await read(source.id))).toEqual(logicalRows(source));
   const reopenedRows = logicalRows(saved);
   await page.goto('/');
-  await page.goto(`/education/goals/${target.id}/edit`);
+  await page.goto(`/education/school-year-plans/${target.id}/edit`);
   await expect(page.locator('#desc')).toBeEditable();
   await expect.poll(() => page.locator('textarea').evaluateAll((nodes) => nodes.map((node) => node.value))).toContain('Nguồn mục tiêu 0-0');
   await expect(page.getByRole('button', { name: 'Lưu', exact: true })).toBeDisabled();
@@ -410,7 +422,7 @@ test('EDU-43 lấy chủ đề, đợt nghỉ từ kế hoạch khác năm/nhóm
   const moved = (date) => `${Number(date.slice(0, 4)) + shift}${date.slice(4)}`;
   const vn = (date) => date.split('-').reverse().join('/');
   await login(page, USERS.vp);
-  await page.goto(`/education/goals/${target.id}/edit`);
+  await page.goto(`/education/school-year-plans/${target.id}/edit`);
   await expect(page.locator('#desc')).toBeEditable();
   await page.getByRole('button', { name: /Lấy chủ đề từ kế hoạch có sẵn/ }).click();
   const dialog = page.getByRole('dialog', { name: 'Lấy chủ đề từ kế hoạch có sẵn' });
@@ -478,7 +490,7 @@ test('EDU-06/43 Tổ trưởng: nhóm tuổi khác chỉ thấy bản đã ban h
     ).toBe(403);
 
     await login(page, USERS.teacher1);
-    await page.goto(`/education/goals/${target.id}/edit`);
+    await page.goto(`/education/school-year-plans/${target.id}/edit`);
     await expect(page.locator('#desc')).toBeEditable();
     await page.getByRole('button', { name: /Lấy chủ đề từ kế hoạch có sẵn/ }).click();
     const dialog = page.getByRole('dialog', { name: 'Lấy chủ đề từ kế hoạch có sẵn' });
@@ -528,7 +540,7 @@ test('EDU-46 nhập file Word bảng mục tiêu: xem trước, Hủy không đ�
   };
 
   await login(page, USERS.vp);
-  await page.goto(`/education/goals/${target.id}/edit`);
+  await page.goto(`/education/school-year-plans/${target.id}/edit`);
   await expect(page.locator('#desc')).toBeEditable();
 
   // .doc hỏng bị từ chối; .doc nhị phân hợp lệ được kiểm riêng bên dưới.
@@ -574,7 +586,7 @@ test('EDU-46 .doc nhị phân ở bước 2: xem trước/Hủy, thay phần có
   const goalText = 'Trẻ thực hiện vận động';
   const before = await read(target.id);
   await login(page, USERS.vp);
-  await page.goto(`/education/goals/${target.id}/edit`);
+  await page.goto(`/education/school-year-plans/${target.id}/edit`);
   await expect(page.locator('#desc')).toBeEditable();
   const dialog = page.getByRole('dialog', { name: 'Nhập file mục tiêu', exact: true });
   const choose = async () => {
@@ -605,7 +617,7 @@ test('EDU-46 .doc nhị phân ở bước 2: xem trước/Hủy, thay phần có
   expect(saved.themes).toEqual(before.themes);
   expect(saved.breaks).toEqual(before.breaks);
   await page.goto('/');
-  await page.goto(`/education/goals/${target.id}/edit`);
+  await page.goto(`/education/school-year-plans/${target.id}/edit`);
   await expect(page.locator('#desc')).toBeEditable();
   await expect.poll(() => page.locator('textarea').evaluateAll((els) => els.map((el) => el.value))).toContain(goalText);
   await page.goto('/');
@@ -615,7 +627,7 @@ test('EDU-46 thay toàn bộ: xóa phần thiếu, lưu và mở lại đúng d�
   const fixture = fileURLToPath(new URL('../fixtures/goals-merged.doc', import.meta.url));
   const before = await read(target.id);
   await login(page, USERS.vp);
-  await page.goto(`/education/goals/${target.id}/edit`);
+  await page.goto(`/education/school-year-plans/${target.id}/edit`);
   await expect(page.locator('#desc')).toBeEditable();
   await page.getByRole('button', { name: 'Nhập file', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Nhập file mục tiêu', exact: true });
@@ -644,7 +656,7 @@ test('EDU-46 thay toàn bộ: xóa phần thiếu, lưu và mở lại đúng d�
   expect(goals.some((row) => row.text === 'Trẻ thực hiện vận động')).toBe(true);
   expect(goals.flatMap((row) => row.contents).every((c) => !(c.themeIds || []).length)).toBe(true);
   await page.goto('/');
-  await page.goto(`/education/goals/${target.id}/edit`);
+  await page.goto(`/education/school-year-plans/${target.id}/edit`);
   await expect(page.locator('#title')).toHaveValue(title);
   await expect(page.locator('#desc')).toHaveValue('');
   await expect(page.getByRole('textbox', { name: /^Tên chủ đề \d+$/ })).toHaveCount(0);

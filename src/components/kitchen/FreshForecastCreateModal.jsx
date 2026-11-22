@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Calculator, Save } from '@/components/ui/icons';
-import { DateInput, FormField, Modal, Spinner } from '@/components';
+import { AlertTriangle, Calculator, CheckCircle2, Save } from '@/components/ui/icons';
+import { Button, DateInput, FormField, Modal, Spinner, StatCard, TextField } from '@/components';
 import { WeekPicker } from '@/components/form/WeekPicker';
 import { Tabs } from '@/components/ui/Tabs';
-import { ForecastCountsTable, ForecastDryCard, ForecastLinesTable } from '@/components/kitchen/FreshForecastTables';
+import { ForecastCountsTable, ForecastDryCard, ForecastDryOrderTable, ForecastLinesTable } from '@/components/kitchen/FreshForecastTables';
 import { useToast } from '@/contexts/ToastContext';
 import { freshGoodsApi } from '@/services/freshGoodsApi';
 import { NOTE_MAX } from '@/models/kitchen/kitchenConstants';
 import { countsToForm, emptyForecastForm, forecastInputKey, validateForecastForm } from '@/utils/kitchen/freshGoodsForm';
-import { isIsoDate, todayInput } from '@/utils/format';
+import { formatWeekdayDate, isIsoDate, todayInput } from '@/utils/format';
 import { addDays, schoolWeekStart, weekShortLabel } from '@/utils/week';
 
 // Mã BE của kỳ dự trù sai; thứ tự ngày đã kiểm ở ô nhập nên còn lại là kỳ quá dài, câu của BE dài và gộp hai lỗi
@@ -18,6 +18,7 @@ const weekPeriod = (weekStart) => ({ periodFrom: weekStart, periodTo: addDays(we
 /**
  * Lập bản dự trù trong modal: chọn kỳ theo tuần (hoặc tùy chọn ngày), BE tính lượng thực phẩm ngay (xem trước, chưa lưu),
  * sửa số trẻ dự kiến rồi "Tính lại", cuối cùng lưu. Bảng chỉ lưu được khi khớp kỳ và số trẻ đang nhập.
+ * Cột trái là đầu vào (kỳ, số trẻ, ghi chú), cột phải là kết quả BE tính.
  * Lưu xong gọi `onSaved(id)` để mở bản vừa lập.
  */
 export function FreshForecastCreateModal({ campusId, onClose, onSaved }) {
@@ -29,6 +30,7 @@ export function FreshForecastCreateModal({ campusId, onClose, onSaved }) {
   const [preview, setPreview] = useState(null); // { data, key } của lần tính gần nhất
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState('');
+  const [view, setView] = useState('fresh');
   const lastRun = useRef(0);
 
   const data = preview?.data;
@@ -41,6 +43,10 @@ export function FreshForecastCreateModal({ campusId, onClose, onSaved }) {
   const setCount = (index, value) => {
     setForm((f) => ({ ...f, counts: f.counts.map((c, i) => (i === index ? { ...c, expectedCount: value } : c)) }));
     setErrors((e) => ({ ...e, [`counts.${index}`]: undefined, _form: undefined }));
+  };
+  const setDryQty = (index, value) => {
+    setForm((f) => ({ ...f, dryOrder: f.dryOrder.map((l, i) => (i === index ? { ...l, purchaseQuantity: value } : l)) }));
+    setErrors((e) => ({ ...e, [`dryOrder.${index}`]: undefined, _form: undefined }));
   };
   const pickWeek = (next) => {
     setWeek(next);
@@ -64,11 +70,13 @@ export function FreshForecastCreateModal({ campusId, onClose, onSaved }) {
     const run = ++lastRun.current;
     setBusy('preview');
     try {
-      const result = await freshGoodsApi.previewForecast(input);
+      const result = await freshGoodsApi.previewForecast({ ...input, dryOrder: null });
       if (run !== lastRun.current) return;
       // Lần đầu BE điền sẵn số trẻ đang theo học; các lần sau BE trả đúng số đã gửi
       const counts = countsToForm(result.counts);
-      setForm((f) => ({ ...f, counts }));
+      // Lượng hàng khô đặt lấy lại gợi ý của BE mỗi lần tính, vì phần thiếu đổi theo kỳ và số trẻ
+      const dryOrder = result.dryOrder.map((line) => ({ food: line.food, purchaseQuantity: line.purchaseQuantity }));
+      setForm((f) => ({ ...f, counts, dryOrder }));
       setPreview({ data: result, key: forecastInputKey({ ...input, counts }) });
     } catch (err) {
       // Lỗi hiện ngay tại ô trong hộp, không lặp thêm toast
@@ -99,27 +107,67 @@ export function FreshForecastCreateModal({ campusId, onClose, onSaved }) {
   };
 
   const nextWeek = addDays(thisWeek, 7);
+  const modeLabel = (title, weekStart) => (
+    <span className="kb-fcm__mode">
+      {title}
+      {weekStart && <span className="kb-fcm__mode-sub">{weekShortLabel(weekStart)}</span>}
+    </span>
+  );
   const modes = [
-    { key: 'this', label: `Tuần này (${weekShortLabel(thisWeek)})` },
-    { key: 'next', label: `Tuần sau (${weekShortLabel(nextWeek)})` },
-    { key: 'week', label: 'Chọn tuần' },
-    { key: 'custom', label: 'Tùy chọn ngày' },
+    { key: 'this', label: modeLabel('Tuần này', thisWeek) },
+    { key: 'next', label: modeLabel('Tuần sau', nextWeek) },
+    { key: 'week', label: modeLabel('Chọn tuần') },
+    { key: 'custom', label: modeLabel('Tùy chọn ngày') },
   ];
+  const periodError = errors.periodFrom || errors.periodTo;
+  const schoolDays = data ? data.days.filter((d) => !d.off).length : 0;
+  const dryCount = data?.dryLines?.length ?? 0;
+  const views = data
+    ? [
+        { key: 'fresh', label: 'Hàng tươi cần đặt', count: data.lines.length },
+        { key: 'dry', label: 'Hàng khô cần nhập thêm', count: dryCount },
+        { key: 'dryOrder', label: 'Hàng khô đặt cho kỳ', count: form.dryOrder?.length ?? 0 },
+      ]
+    : [];
+
+  // Dòng trạng thái ở chân hộp: nói rõ vì sao nút Lưu đang khóa
+  let status = null;
+  if (busy === 'preview') {
+    status = (
+      <span className="kb-fcm__status" role="status">
+        <Spinner small /> Đang tính lượng thực phẩm…
+      </span>
+    );
+  } else if (stale) {
+    status = (
+      <span className="kb-fcm__status kb-fcm__status--warn" role="status">
+        <AlertTriangle size={16} /> Số trẻ đã đổi, bấm Tính lại trước khi lưu
+      </span>
+    );
+  } else if (data) {
+    status = (
+      <span className="kb-fcm__status kb-fcm__status--ok" role="status">
+        <CheckCircle2 size={16} /> Bảng khớp kỳ và số trẻ đang nhập
+      </span>
+    );
+  }
 
   return (
     <Modal
       open
-      size="xl"
+      size="full"
       title="Lập bản dự trù"
       onClose={busy === 'save' ? undefined : onClose}
+      closeOnBackdrop={false}
       footer={
         <>
-          <button type="button" className="btn" disabled={busy === 'save'} onClick={onClose}>
+          {status}
+          <Button disabled={busy === 'save'} onClick={onClose}>
             Hủy
-          </button>
-          <button type="button" className="btn btn--primary" disabled={!data || stale || !!busy} onClick={save}>
-            {busy === 'save' ? <Spinner small /> : <Save size={16} />} Lưu bản dự trù
-          </button>
+          </Button>
+          <Button variant="primary" icon={Save} loading={busy === 'save'} disabled={!data || stale || busy === 'preview'} onClick={save}>
+            Lưu bản dự trù
+          </Button>
         </>
       }
     >
@@ -128,72 +176,110 @@ export function FreshForecastCreateModal({ campusId, onClose, onSaved }) {
           {errors._form}
         </div>
       )}
-      <div className="kb-forecast-form">
-        <div className="field">
-          <span className="field__label">
-            Kỳ dự trù<span className="req">*</span>
-          </span>
-          <Tabs items={modes} value={mode} onChange={pickMode} ariaLabel="Chọn kỳ dự trù" variant="pill" />
-        </div>
-        {mode === 'week' && <WeekPicker value={week} thisWeek={thisWeek} onChange={pickWeek} />}
-        {mode === 'custom' && (
-          <div className="kb-forecast-form__range">
-            <FormField label="Từ ngày" required error={errors.periodFrom}>
-              <DateInput value={form.periodFrom} onChange={(v) => setField('periodFrom', v)} />
-            </FormField>
-            <FormField label="Đến ngày" required error={errors.periodTo}>
-              <DateInput value={form.periodTo} onChange={(v) => setField('periodTo', v)} />
-            </FormField>
-          </div>
-        )}
-        <FormField label="Ghi chú" error={errors.note}>
-          <input
-            className="input"
-            value={form.note}
-            maxLength={NOTE_MAX}
-            placeholder={`Tối đa ${NOTE_MAX} ký tự`}
-            onChange={(e) => setField('note', e.target.value)}
-          />
-        </FormField>
-      </div>
-
-      {stale && busy !== 'preview' && !errors.periodFrom && !errors.periodTo && (
-        <div className="alert alert--warning kb-forecast-stale mt-16" role="status">
-          <span>Số trẻ dự kiến đã đổi, bảng thực phẩm chưa cập nhật.</span>
-          <button type="button" className="btn btn--sm" onClick={() => calculate(form)}>
-            <Calculator size={16} /> Tính lại
-          </button>
-        </div>
-      )}
-
-      {data ? (
-        <div className="kb-stack mt-16">
-          <section className="card">
-            <div className="card__header">
-              <div className="card__title">Số trẻ dự kiến</div>
-            </div>
-            <ForecastCountsTable counts={form.counts} editable={busy !== 'save'} errors={errors} onChange={setCount} />
-            <p className="card__body text-sm muted">Mặc định bằng số trẻ đang theo học.</p>
-          </section>
-          <section className={`card ${stale ? 'kb-stale' : ''}`}>
-            <div className="card__header">
-              <div className="card__title">Hàng tươi cần đặt</div>
-            </div>
-            {data.lines.length ? (
-              <ForecastLinesTable forecast={data} />
-            ) : (
-              <p className="card__body muted">Kỳ này chưa có thực phẩm tươi cần đặt. Kiểm tra thực đơn của các ngày trong kỳ.</p>
+      <div className="kb-fcm">
+        <aside className="kb-fcm__side" aria-label="Thông tin lập bản dự trù">
+          <section className="kb-fcm__step">
+            <h3 className="kb-fcm__step-title">
+              <span className="kb-fcm__step-no">1</span> Kỳ dự trù<span className="req">*</span>
+            </h3>
+            <Tabs items={modes} value={mode} onChange={pickMode} ariaLabel="Chọn kỳ dự trù" variant="pill" className="kb-fcm__modes" />
+            {mode === 'week' && <WeekPicker value={week} thisWeek={thisWeek} onChange={pickWeek} />}
+            {mode === 'custom' && (
+              <div className="kb-forecast-form__range">
+                <FormField label="Từ ngày" required error={errors.periodFrom}>
+                  <DateInput value={form.periodFrom} min={todayInput()} onChange={(v) => setField('periodFrom', v)} />
+                </FormField>
+                <FormField label="Đến ngày" required error={errors.periodTo}>
+                  <DateInput value={form.periodTo} onChange={(v) => setField('periodTo', v)} />
+                </FormField>
+              </div>
+            )}
+            {!periodError && isIsoDate(form.periodFrom) && isIsoDate(form.periodTo) && (
+              <p className="kb-fcm__period">
+                {formatWeekdayDate(form.periodFrom)} – {formatWeekdayDate(form.periodTo)}
+              </p>
             )}
           </section>
-          <ForecastDryCard forecast={data} className={stale ? 'kb-stale' : ''} />
+
+          <section className="kb-fcm__step">
+            <h3 className="kb-fcm__step-title">
+              <span className="kb-fcm__step-no">2</span> Số trẻ dự kiến
+            </h3>
+            {data ? (
+              <>
+                <ForecastCountsTable counts={form.counts} editable={busy !== 'save'} errors={errors} onChange={setCount} />
+                <p className="text-xs muted">Mặc định bằng số trẻ đang theo học. Sửa số rồi bấm Tính lại.</p>
+              </>
+            ) : (
+              <p className="text-sm muted">Chọn kỳ để hiện số trẻ theo nhóm tuổi.</p>
+            )}
+            {stale && busy !== 'preview' && !periodError && (
+              <div className="alert alert--warning kb-forecast-stale" role="status">
+                <span>Bảng thực phẩm chưa cập nhật theo số trẻ mới.</span>
+                <Button size="sm" icon={Calculator} onClick={() => calculate(form)}>
+                  Tính lại
+                </Button>
+              </div>
+            )}
+          </section>
+
+          <section className="kb-fcm__step">
+            <h3 className="kb-fcm__step-title">
+              <span className="kb-fcm__step-no">3</span> Ghi chú
+            </h3>
+            <TextField
+              value={form.note}
+              maxLength={NOTE_MAX}
+              error={errors.note}
+              aria-label="Ghi chú bản dự trù"
+              placeholder={`Không bắt buộc, tối đa ${NOTE_MAX} ký tự`}
+              onChange={(e) => setField('note', e.target.value)}
+            />
+          </section>
+        </aside>
+
+        <div className={`kb-fcm__main ${stale ? 'kb-stale' : ''}`.trim()}>
+          {data ? (
+            <>
+              <div className="kb-fcm__kpis">
+                <StatCard tone="blue" icon={false} label="Ngày có bữa trong kỳ" value={schoolDays} />
+                <StatCard tone="green" icon={false} label="Hàng tươi cần đặt" value={data.lines.length} />
+                <StatCard tone="orange" icon={false} label="Hàng khô cần nhập thêm" value={dryCount} />
+              </div>
+              <Tabs items={views} value={view} onChange={setView} ariaLabel="Kết quả dự trù" />
+              {view === 'fresh' &&
+                (data.lines.length ? (
+                  <ForecastLinesTable forecast={data} />
+                ) : (
+                  <p className="muted">Kỳ này chưa có thực phẩm tươi cần đặt. Kiểm tra thực đơn của các ngày trong kỳ.</p>
+                ))}
+              {view === 'dry' && <ForecastDryCard forecast={data} className="kb-fcm__dry" />}
+              {view === 'dryOrder' &&
+                (form.dryOrder?.length ? (
+                  <>
+                    <p className="text-sm muted">
+                      Gợi ý bằng phần thiếu đến hết kỳ. Sửa lượng đặt nếu cần (0 = không đặt); lượng này được in và dùng để đối chiếu khi
+                      kiểm nhận hàng khô.
+                    </p>
+                    <ForecastDryOrderTable lines={form.dryOrder} editable={busy !== 'save'} errors={errors} onChange={setDryQty} />
+                  </>
+                ) : (
+                  <p className="muted">Kho khô đủ cho kỳ này, không có hàng khô cần đặt.</p>
+                ))}
+            </>
+          ) : (
+            <div className="kb-fcm__placeholder">
+              {busy === 'preview' ? (
+                <>
+                  <Spinner small /> Đang tính lượng hàng tươi…
+                </>
+              ) : (
+                'Chọn kỳ dự trù để xem lượng thực phẩm cần đặt.'
+              )}
+            </div>
+          )}
         </div>
-      ) : (
-        busy === 'preview' && (
-          <p className="muted mt-16">
-            <Spinner small /> Đang tính lượng hàng tươi…
-          </p>
-        )
-      )}
+      </div>
     </Modal>
   );
 }

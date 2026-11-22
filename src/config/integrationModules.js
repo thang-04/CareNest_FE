@@ -72,8 +72,6 @@ export const INTEGRATION_MODULES = {
       'POST /meal-handovers/{x}/confirm',
       'POST /meal-handovers/{x}/shortage',
       'POST /meal-handovers/{x}/supplement',
-      // Suất ăn lớp cho giáo viên: đã làm ở nhánh BE feature/G94-254-BE-FEAT-27-day-boarding, chưa merge dev
-      'GET /meal-counts/class',
     ],
   },
   'meal-handover': {
@@ -102,9 +100,6 @@ export const INTEGRATION_MODULES = {
       'DELETE /education-plans/themes/{x}',
       'PUT /education-plans/lessons/{x}',
       'DELETE /education-plans/lessons/{x}',
-      'POST /education-plans/ai/branch-names',
-      'POST /education-plans/ai/branch-names/rewrite',
-      'POST /education-plans/ai/lesson-steps',
     ],
   },
   'master-data': {
@@ -186,6 +181,21 @@ export const INTEGRATION_MODULES = {
     source: 'api',
     routes: ['/menu/templates'],
     files: ['src/services/menuTemplateApi.js'],
+  },
+  // Nháp AI gợi ý thực đơn trên BE /nutrition/menu-ai-drafts (BE ADR-0024): route mới có ở nhánh BE
+  // feature/G94-200-BE-FEAT-28-ai-assessment-drafting, chưa vào dev ⇒ khai pending tới khi đồng bộ snapshot route
+  'menu-ai': {
+    source: 'api',
+    files: ['src/services/menuAiDraftApi.js'],
+    pending: [
+      'POST /nutrition/menu-ai-drafts',
+      'GET /nutrition/menu-ai-drafts/{x}',
+      'POST /nutrition/menu-ai-drafts/{x}/dismiss',
+      'POST /nutrition/menu-ai-drafts/{x}/apply',
+      'POST /nutrition/menu-ai-drafts/{x}/mark-used',
+      'GET /nutrition/menu-ai-drafts/{x}/candidates',
+      'POST /nutrition/menu-ai-drafts/{x}/evaluate',
+    ],
   },
   // Bán trú hôm nay trên BE GET /nutrition/day-board
   'day-board': {

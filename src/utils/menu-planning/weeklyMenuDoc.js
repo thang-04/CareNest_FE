@@ -3,10 +3,10 @@
  * Chỉ sắp xếp và định dạng, không tính nghiệp vụ. Một nguồn HTML cho cả bản xem trước, file .doc và trang in.
  */
 import { escapeHtml as esc, fileTitle } from '@/components/print/docFile';
-import { DEFAULT_PRINT_TEMPLATE } from '@/config/printTemplate';
+import { DOC_TEMPLATE_CSS, docHeaderHtml, signRowHtml } from '@/components/print/docTemplate';
 import { MEAL_BLOCK_LABELS, MEAL_SESSION_LABELS, WEEKDAY_LABELS } from '@/models/menu-planning/menuPlanningConstants';
 import { blockSessions, dayBlockItems, planBlocks } from '@/utils/menu-planning/mealPlanGrid';
-import { formatDateTime, localDateOf } from '@/utils/format';
+import { formatDateTime } from '@/utils/format';
 
 const dmy = (iso, sep = '/') => (iso ? iso.split('-').reverse().join(sep) : '');
 const weekdayOf = (iso) => WEEKDAY_LABELS[new Date(`${iso}T00:00:00`).getDay() - 1] || '';
@@ -21,8 +21,7 @@ const shell = (title, body) => `<!DOCTYPE html>
 div.Section1 { page: Section1; }
 body { font-family: 'Times New Roman', serif; font-size: 13pt; color: black; }
 p { margin: 0 0 6pt; }
-.school { font-weight: bold; }
-h1 { font-size: 15pt; text-align: center; margin: 12pt 0 4pt; }
+h1 { font-size: 14pt; text-align: center; margin: 12pt 0 4pt; }
 .sub { text-align: center; margin-bottom: 10pt; }
 h2 { font-size: 13pt; margin: 12pt 0 6pt; }
 table { border-collapse: collapse; width: 100%; table-layout: fixed; }
@@ -32,9 +31,7 @@ th.session { width: 14%; text-align: left; }
 td.off { text-align: center; vertical-align: middle; font-style: italic; }
 .block { page-break-inside: avoid; }
 .foot { margin-top: 10pt; font-style: italic; }
-table.sign { width: 40%; margin: 14pt 0 0 auto; table-layout: auto; page-break-inside: avoid; }
-table.sign td { border: none; text-align: center; padding: 0; }
-.sign-space { height: 60pt; }
+${DOC_TEMPLATE_CSS}
 </style></head>
 <body><div class="Section1">
 ${body}
@@ -65,20 +62,6 @@ const blockTable = (plan, block) => {
 <table><thead>${head}</thead><tbody>${rows.join('')}</tbody></table></div>`;
 };
 
-// Tên xã lấy từ địa chỉ mẫu in ("…, xã Thượng Hồng, …") cho dòng nơi, ngày ký
-const commune = (DEFAULT_PRINT_TEMPLATE.address.match(/xã ([^,]+)/i) || [])[1] || '';
-
-/** Chỗ ký người lập: ngày theo thời điểm công bố; không có họ tên thì để trống cho ký tay. */
-const signBlock = (publishedAt, preparerName) => {
-  // publishedAt là Instant UTC ("…Z") ⇒ đổi sang ngày địa phương, cắt chuỗi sẽ lùi một ngày khi công bố trước 7 giờ sáng
-  const [y, m, d] = publishedAt ? localDateOf(publishedAt).split('-') : [];
-  const date = y ? `ngày ${d} tháng ${m} năm ${y}` : 'ngày …… tháng …… năm ……';
-  return `<table class="sign"><tr><td><i>${esc(commune ? `${commune}, ${date}` : date)}</i></td></tr>
-<tr><td><b>NGƯỜI LẬP</b><br/><i>(Ký, ghi rõ họ tên)</i></td></tr>
-<tr><td class="sign-space"></td></tr>
-<tr><td><b>${esc(preparerName)}</b></td></tr></table>`;
-};
-
 /** Thực đơn tuần đã công bố -> { html, name } để xem trước rồi xuất Word / in. `weekStart` là thứ Hai của tuần. */
 export const weeklyMenuFile = (plan, weekStart, { preparerName = '' } = {}) => {
   const days = plan?.days || [];
@@ -86,12 +69,13 @@ export const weeklyMenuFile = (plan, weekStart, { preparerName = '' } = {}) => {
   const to = days[days.length - 1]?.date || weekStart;
   const title = `Thực đơn tuần ${dmy(from)} – ${dmy(to)}`;
   const body = [
-    `<p class="school">${esc(DEFAULT_PRINT_TEMPLATE.schoolName)}</p>`,
+    docHeaderHtml(),
     `<h1>THỰC ĐƠN TUẦN</h1>`,
     `<p class="sub">Từ ${esc(weekdayOf(from).toLowerCase())} ${esc(dmy(from))} đến ${esc(weekdayOf(to).toLowerCase())} ${esc(dmy(to))}</p>`,
     ...planBlocks(plan).map((block) => blockTable(plan, block)),
     plan?.publishedAt ? `<p class="foot">Công bố lúc ${esc(formatDateTime(plan.publishedAt))}</p>` : '',
-    signBlock(plan?.publishedAt, preparerName.trim()),
+    // Người lập ký cuối văn bản, ngày ký theo thời điểm công bố; không có họ tên thì để trống cho ký tay
+    signRowHtml([{ title: 'Người lập', name: preparerName }], { date: plan?.publishedAt }),
   ].join('\n');
   return { html: shell(title, body), name: fileTitle(`Thực đơn tuần ${dmy(from, '-')}`) };
 };

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronDown } from '@/components/ui/icons';
-import { EmptyState, ErrorState, LoadingState, Pagination, SearchSelect } from '@/components';
+import { Button, EmptyState, ErrorState, LoadingState, Pagination, SearchSelect, SelectField } from '@/components';
 import { KbOptionalDateFilter } from '@/components/kitchen/KitchenFilters';
 import { StockMovementBadge } from '@/components/kitchen/KitchenBadges';
 import { useDryFoods, useMovements } from '@/hooks/kitchen/useDryStock';
@@ -131,14 +131,14 @@ export function StockMovementsTab({ campusId }) {
         <KbOptionalDateFilter label="Đến ngày" value={filters.to} onChange={(to) => change({ to })} />
         <label className="date-filter">
           Loại
-          <select className="select" value={filters.type} onChange={(e) => change({ type: e.target.value })}>
+          <SelectField value={filters.type} onChange={(e) => change({ type: e.target.value })}>
             <option value="">Tất cả</option>
             {STOCK_MOVEMENT_TYPES.map((type) => (
               <option key={type} value={type}>
                 {STOCK_MOVEMENT_LABELS[type]}
               </option>
             ))}
-          </select>
+          </SelectField>
         </label>
         <div className="field kb-field-food">
           <span className="field__label">Thực phẩm</span>
@@ -149,9 +149,9 @@ export function StockMovementsTab({ campusId }) {
             ariaLabel="Lọc theo thực phẩm"
           />
         </div>
-        <button type="button" className="btn" disabled={!filtered} onClick={() => change(NO_FILTER)}>
+        <Button disabled={!filtered} onClick={() => change(NO_FILTER)}>
           Đặt lại bộ lọc
-        </button>
+        </Button>
       </div>
       {body}
     </section>

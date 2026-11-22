@@ -1,3 +1,4 @@
+import { sameAgeRange } from '@/models/education-plan/educationPlanConstants';
 import { readDb, writeDb, clone, delay } from '@/mocks/mockDatabase';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
 import { eduError } from './eduMockErrors';
@@ -38,7 +39,7 @@ const requireOwned = (s, user, id) => {
   return item;
 };
 
-/* Giáo án ngày dd_X dùng chung khóa với giáo án tuần wp_X; trạng thái theo giáo án tuần + hồ sơ chủ đề. */
+/* Giáo án ngày dd_X dùng chung khóa với giáo án tuần wp_X; trạng thái theo giáo án tuần + kế hoạch giáo dục ngày. */
 const PENDING = new Set([EDU_STATUS.REVIEW, EDU_STATUS.SENT, EDU_STATUS.PENDING_TL, EDU_STATUS.PENDING_VP, EDU_STATUS.PENDING_HT]);
 const weekOf = (db, docKey) => (db.eduClassWeek || []).find((w) => w.id === `wp_${String(docKey).replace(/^dd_/, '')}`) || null;
 const dayStatusOf = (db, docKey) => {
@@ -315,7 +316,7 @@ export const resourceLibraryMockRepository = {
       .filter((i) => i.ownerId === user?.id)
       .filter((i) => !q || i.title.toLowerCase().includes(q))
       .filter((i) => !query.kind || i.kind === query.kind)
-      .filter((i) => !query.ageGroupId || i.ageGroupId == null || String(i.ageGroupId) === String(query.ageGroupId))
+      .filter((i) => !query.ageGroupId || i.ageGroupId == null || sameAgeRange(i.ageGroupId, query.ageGroupId))
       .filter((i) => (!theme && year == null) || taught(i))
       .map((i) =>
         toItem(s, i, {

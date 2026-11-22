@@ -1,16 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Lock, Save } from '@/components/ui/icons';
+import { Save, Sparkles } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
-import { Breadcrumb, ErrorState, LoadingState } from '@/components';
+import { Button, ErrorState, LoadingState, TextField } from '@/components';
+import { usePageReadOnly } from '@/contexts/PageReadOnlyContext';
 import { FormField } from '@/components/form/FormField';
 import { SearchSelect } from '@/components/ui/SearchSelect';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
-import { RecordStatusBadge } from '@/components/menu-planning/MenuBadges';
+import { NoManageAccess, RecordStatusBadge } from '@/components/menu-planning/MenuBadges';
 import { TemplateMealSection } from '@/components/menu-planning/TemplateMealSection';
 import { AddDishesModal } from '@/components/menu-planning/AddDishesModal';
 import { MealNutritionCard } from '@/components/menu-planning/MealNutritionCard';
+import { MenuAiDailyModal } from '@/components/menu-planning/MenuAiDailyModal';
 import { TemplateHead } from '@/pages/menu-planning/MenuTemplateListPage';
 import { useActiveDishes, useBeAgeGroups, useMealPlan, useMenuStatistics } from '@/hooks/menu-planning/useMealPlan';
 import { useMenuTemplate } from '@/hooks/menu-planning/useMenuTemplates';
@@ -36,6 +38,7 @@ import {
   toStatisticsItems,
   toTemplateRequest,
 } from '@/utils/menu-planning/menuTemplateGrid';
+import { fillTemplateDay } from '@/utils/menu-planning/menuAiDraft';
 import { todayInput } from '@/utils/format';
 import '@/styles/modules/menu-planning.css';
 
@@ -64,6 +67,7 @@ export default function MenuTemplateEditorPage() {
   const [adding, setAdding] = useState(null);
   const [ageGroupId, setAgeGroupId] = useState('');
   const [day, setDay] = useState(null);
+  const [aiOpen, setAiOpen] = useState(false);
 
   useEffect(() => {
     setForm(data ? toForm(data) : EMPTY);
@@ -153,9 +157,12 @@ export default function MenuTemplateEditorPage() {
 
   const crumbs = templateCrumbs(id ? data?.name || 'Mẫu thực đơn' : `Tạo ${kindLabel.toLowerCase()}`);
   const canCreate = hasBePermission(user, PERMISSIONS.MENU_MANAGE);
+  const { reason: viewOnlyReason } = usePageReadOnly();
   const body = () => {
     if (id && error) return <ErrorState error={error} onRetry={reload} />;
     if (id && (loading || !data)) return <LoadingState />;
+    // Tạo mẫu cần MENU_MANAGE: thiếu quyền thì báo như màn thêm thực phẩm, không mở form trống
+    if (!id && !canCreate) return <NoManageAccess />;
     return (
       <div className="td-tpl-editor">
         <section className="card">
@@ -166,26 +173,30 @@ export default function MenuTemplateEditorPage() {
             </div>
             <div className="page__actions">
               {id && data.status !== RECORD_STATUS.ACTIVE && <RecordStatusBadge status={data.status} />}
-              {!editable && (
-                <span className="chip chip--gray">
-                  <Lock size={14} /> Chỉ xem
-                </span>
-              )}
               {editable && id && (
-                <button type="button" className="btn" disabled={busy} onClick={toggleStatus}>
+                <Button disabled={busy} onClick={toggleStatus}>
                   {data.status === RECORD_STATUS.ACTIVE ? 'Ngừng dùng' : 'Dùng lại'}
-                </button>
+                </Button>
               )}
               {editable && (
-                <button type="button" className="btn btn--primary" disabled={busy || (id && !dirty)} onClick={save}>
-                  <Save size={16} /> Lưu mẫu
-                </button>
+                <Button disabled={busy} onClick={() => setAiOpen(true)}>
+                  <Sparkles size={16} /> AI gợi ý ngày
+                </Button>
               )}
+              <Button
+                variant="primary"
+                icon={Save}
+                disabled={busy || (id && !dirty)}
+                disabledReason={editable ? undefined : viewOnlyReason}
+                onClick={save}
+              >
+                Lưu mẫu
+              </Button>
             </div>
           </div>
           <div className="card__body td-tpl-form">
             <FormField label="Tên mẫu" required error={errors.name}>
-              <input
+              <TextField
                 className="input"
                 maxLength={100}
                 value={form.name}
@@ -204,7 +215,7 @@ export default function MenuTemplateEditorPage() {
               />
             </FormField>
             <FormField label="Nhãn mùa" error={errors.seasonLabel} hint="Ví dụ: Mùa đông, Mùa hè">
-              <input
+              <TextField
                 className="input"
                 maxLength={50}
                 value={form.seasonLabel}
@@ -236,10 +247,10 @@ export default function MenuTemplateEditorPage() {
 
   return (
     <div className="page td-sections">
-      <Breadcrumb items={crumbs} />
-      <TemplateHead canCreate={canCreate && !!id} />
+      <TemplateHead crumbs={crumbs} canCreate={canCreate && !!id} readOnly={!!data && !editable} />
       {body()}
-      {(!id || data) && (
+      {/* Không có quyền tạo thì body đã báo; không hiện thêm bảng dinh dưỡng trống */}
+      {(id ? data : canCreate) && (
         <MealNutritionCard
           ageGroups={groups}
           ageGroupId={currentGroup}
@@ -257,6 +268,16 @@ export default function MenuTemplateEditorPage() {
           ageGroup={ageGroups.find((g) => String(g.id) === String(currentGroup))}
           onSave={(picked) => saveMeal(adding, picked)}
           onClose={() => setAdding(null)}
+        />
+      )}
+      {editable && (
+        <MenuAiDailyModal
+          open={aiOpen}
+          onClose={() => setAiOpen(false)}
+          block={form.block}
+          seasonLabel={form.seasonLabel}
+          dayLabel={currentDay && kind !== TEMPLATE_KIND.DAY ? `Tuần ${currentDay.weekNo} · thứ ${currentDay.weekday + 1}` : 'mẫu này'}
+          onFill={(draft) => set('items', fillTemplateDay(form.items, currentDay, draft))}
         />
       )}
       <LeaveConfirmModal {...guard.modal} />

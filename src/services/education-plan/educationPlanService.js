@@ -1,3 +1,4 @@
+import { AGE_GROUPS, ageRangeKey } from '@/models/education-plan/educationPlanConstants';
 import { calendarPayload, reorderCalendar } from '@/models/education-plan/branchCalendar.mjs';
 import { USE_MOCK } from '@/config/env';
 import { educationPlanMockRepository } from '@/services/education-plan/mock/educationPlanMockRepository';
@@ -6,13 +7,19 @@ import { classPlanMockRepository } from '@/services/education-plan/mock/classPla
 import { eduConfigMockRepository } from '@/services/education-plan/mock/eduConfigMockRepository';
 import { branchAiMock } from '@/services/education-plan/mock/branchAiMock';
 import { activityAiMock } from '@/services/education-plan/mock/activityAiMock';
+import { reviewAiMock } from '@/services/education-plan/mock/reviewAiMock';
 import { lessonAiMock } from '@/services/education-plan/mock/lessonAiMock';
 import { curriculumMockRepository } from '@/services/education-plan/mock/curriculumMockRepository';
 
 /** Facade: UI only calls these functions. */
 const repo = USE_MOCK ? educationPlanMockRepository : educationPlanApi;
 
-export const getEducationPlans = (user) => repo.getAll(user);
+export const getEducationPlans = async (user, filter) => {
+  const result = await repo.getAll(user, filter);
+  if (!USE_MOCK || !filter?.ageRange) return result;
+  const matching = new Set(AGE_GROUPS.filter((group) => ageRangeKey(group) === filter.ageRange).map((group) => group.id));
+  return { ...result, goals: result.goals.filter((goal) => goal.schoolYear === filter.schoolYear && matching.has(goal.ageGroupId)) };
+};
 // Trang chủ chỉ cần chủ đề, giờ học: API thật chưa có hai phần này (getAll trả rỗng) nên không tải chi tiết từng kế hoạch
 // năm/tổ — tránh ~30 request tranh kết nối với trang kế hoạch giáo dục (FE-BUG-261111-dashboard-reload-burst)
 export const getEducationLessons = (user) =>
@@ -31,6 +38,7 @@ export const createGoalVersion = (id, user, edit) => (USE_MOCK ? repo.createGoal
 export const getGoalChanges = (id, fromId, user) => repo.getGoalChanges(id, fromId, user);
 // Spec 004 Q5: Hiệu trưởng mở khóa kế hoạch năm/tổ đã khóa theo ngày bắt đầu năm học (mock không khóa nên không có)
 export const unlockGoal = (id, body) => educationPlanApi.unlockGoal(id, body);
+export const reopenGoalReviewDeadline = (id, body) => educationPlanApi.reopenGoalReviewDeadline(id, body);
 // Nhập file bảng mục tiêu (BE:EDU-46): bản xem trước, không lưu
 export const previewGoalFile = (file) => repo.previewGoalFile(file);
 export const previewBranchFile = (file, context, user) =>
@@ -65,8 +73,15 @@ export const suggestBranchNames = (input) =>
 export const suggestLessonSteps = (input) =>
   USE_MOCK ? lessonAiMock.suggestLessonSteps(input) : educationPlanApi.suggestLessonSteps(input);
 export const rewriteBranchName = (input) => (USE_MOCK ? branchAiMock.rewriteBranchName(input) : educationPlanApi.rewriteBranchName(input));
-// AI gợi ý thẻ hoạt động cho MT chưa có hoạt động (EDU-20 mở rộng, Tiền 13/11/2026). BE chưa có API ⇒ luôn dùng bản giả, chưa nối API thật
-export const suggestActivityCards = (input) => activityAiMock.suggestActivityCards(input);
+// AI gợi ý thẻ hoạt động cho MT chưa có hoạt động (BE:EDU-95): BE chỉ trả MT, loại giờ có trong yêu cầu
+export const suggestActivityCards = (input) =>
+  USE_MOCK ? activityAiMock.suggestActivityCards(input) : educationPlanApi.suggestActivityCards(input);
+// BE:EDU-96 — khung Kiểm tra / Tóm tắt cho người duyệt; BE:EDU-95 — Sửa theo yêu cầu
+export const getClassDocChecks = (kind, docKey) =>
+  USE_MOCK ? reviewAiMock.getClassDocChecks(kind, docKey) : educationPlanApi.getClassDocChecks(kind, docKey);
+export const editDayByRequest = (docKey, prompt) =>
+  USE_MOCK ? reviewAiMock.editDayByRequest(docKey, prompt) : educationPlanApi.editDayByRequest(docKey, prompt);
+export const reviewDay = (docKey) => (USE_MOCK ? reviewAiMock.reviewDay(docKey) : educationPlanApi.reviewDay(docKey));
 
 export const saveWorkflowPolicy = (cfg, user) =>
   USE_MOCK ? eduConfigMockRepository.saveWorkflowPolicy(cfg, user) : educationPlanApi.saveWorkflowPolicy(cfg);

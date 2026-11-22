@@ -68,6 +68,7 @@ test('mock class approvals follow the configured chain and retain an unavailable
 test('real adapter reads nested policy, saves expected revision separately and reads fresh after reload', async () => {
   const calls = [];
   let workflow = { revision: 7, policies, canConfigure: true };
+  const signers = { year: ['VICE_PRINCIPAL'], branch: ['TEAM_LEADER'], week: [] };
   axiosClient.defaults.adapter = async (config) => {
     calls.push(config);
     if (config.method === 'put') {
@@ -77,17 +78,15 @@ test('real adapter reads nested policy, saves expected revision separately and r
         workflow = { ...workflow, revision: 8 };
         return response(config, workflow);
       }
-      assert.deepEqual(body.signers, {
-        year: policies.year.reviewers,
-        branch: policies.branch.reviewers,
-        week: policies.theme.reviewers,
-      });
+      assert.deepEqual(body.signers, signers);
+      assert.equal(body.lateApprovalGraceDays, 3);
+      assert.equal(body.lateReturnGraceDays, 4);
       assert.equal(body.workflow, undefined);
       assert.equal(body.workflowPolicy, undefined);
     }
     return response(
       config,
-      config.url.endsWith('/workflow-policy') ? workflow : { workflow, ageGroups: [{ id: 3, code: 'ag-3' }], yearCreationScopes: [3] },
+      config.url.endsWith('/workflow-policy') ? workflow : { workflow, signers, ageGroups: [{ id: 3, code: 'ag-3' }], yearCreationScopes: [3] },
     );
   };
   const config = await educationPlanApi.getEduConfig();
@@ -96,7 +95,9 @@ test('real adapter reads nested policy, saves expected revision separately and r
   assert.equal(config.workflowRevision, 7);
   const saved = await educationPlanApi.saveWorkflowPolicy(config);
   assert.equal(saved.workflowRevision, 8);
-  const configSaved = await educationPlanApi.saveEduConfig({ ...saved, signers: { year: [], branch: [], week: [] } });
+  const configSaved = await educationPlanApi.saveEduConfig({
+    ...saved, lateApprovalGraceDays: 3, lateReturnGraceDays: 4, signers: { year: [], branch: [], week: [] },
+  });
   assert.deepEqual(configSaved.workflowPolicy.branch.creators, ['TEACHER']);
   assert.equal(configSaved.canConfigure, true);
   assert.equal(configSaved.workflowRevision, 8);

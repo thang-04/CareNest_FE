@@ -17,6 +17,7 @@ const { ROLES } = await import('@/models/User');
 const { INTEGRATION_MODULES } = await import('@/config/integrationModules');
 const { migrateNormKeys, hasLegacyNormKeys, GRAM_NORM_COLUMNS, SESSION_NORM_KEYS } = await import('@/utils/menu-planning/nutritionSetup');
 const { validateNutritionSetup } = await import('@/utils/menu-planning/menuPlanningValidation');
+const { foodBudgetOn } = await import('@/utils/menu-planning/menuCalculations');
 const { readDb, writeDb } = await import('@/mocks/mockDatabase');
 const { menuPlanningMockRepository: repo } = await import('@/services/menu-planning/mock/menuPlanningMockRepository');
 
@@ -120,4 +121,19 @@ test('kiểm Thiết lập khi nối BE: bữa chỉ đọc không kiểm; bản
     'Bản mới chỉ áp dụng từ ngày sau hôm nay.',
   );
   assert.ok(validateNutritionSetup({ effectiveFrom: '2026-11-04', groups: [{ ...group, price: '' }] }, today, opts)['ag-4.price']);
+});
+
+test('phí dịch vụ (NUT-19): trống = 0, không lớn hơn giá suất; ngân sách thực phẩm = giá − phí', () => {
+  const group = { ageGroupId: 'ag-4', enabled: true, price: '30000', meals: [], norms: {} };
+  const opts = { mealsReadOnly: true };
+  const check = (serviceFee) =>
+    validateNutritionSetup({ effectiveFrom: '2026-11-04', groups: [{ ...group, serviceFee }] }, '2026-11-03', opts);
+  assert.deepEqual(check(''), {});
+  assert.deepEqual(check('5000'), {});
+  assert.deepEqual(check('30000'), {});
+  assert.equal(check('30001')['ag-4.serviceFee'], 'Phí dịch vụ không được lớn hơn giá suất ăn.');
+  const prices = [{ ageGroupId: 'ag-4', price: 30000, serviceFee: 5000, effectiveFrom: '2026-09-01', effectiveTo: null }];
+  assert.equal(foodBudgetOn(prices, 'ag-4', '2026-11-04'), 25000);
+  assert.equal(foodBudgetOn([{ ...prices[0], serviceFee: undefined }], 'ag-4', '2026-11-04'), 30000, 'giá cũ chưa có phí ⇒ phí 0');
+  assert.equal(foodBudgetOn(prices, 'ag-2', '2026-11-04'), null);
 });

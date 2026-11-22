@@ -125,6 +125,26 @@ test('allergy roster is scoped in the mock repository and contains only fields n
   );
 });
 
+test('bếp không thấy dị ứng của trẻ không báo ăn', async () => {
+  const rosterOf = async () =>
+    normalLunch(await repo.getPublishedMenu({ date: DATE, view: 'day', campusId: 'c1' }, VP)).allergyChanges?.[0]?.children || [];
+  assert.deepEqual(
+    (await rosterOf()).map((c) => c.id),
+    ['demo_1'],
+  );
+  const setRegistered = (value) =>
+    writeDb((db) => {
+      db.children.find((c) => c.id === 'demo_1').mealRegistered = value;
+    });
+  setRegistered(false);
+  try {
+    assert.deepEqual(await rosterOf(), []);
+  } finally {
+    setRegistered(true);
+  }
+  assert.equal((await rosterOf()).length, 1);
+});
+
 test('week view uses the same changes and principal without a campus receives no named roster', async () => {
   const day = normalLunch(await repo.getPublishedMenu({ date: DATE, view: 'day', campusId: 'c1' }, VP));
   const week = normalLunch(await repo.getPublishedMenu({ date: DATE, view: 'week', campusId: 'c1' }, VP));

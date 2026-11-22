@@ -188,7 +188,7 @@ function TeacherTicketsPage() {
                   </button>
                   <select
                     className="select"
-                    aria-label={weekly ? 'Tuần đã kết thúc' : 'Tháng đã kết thúc'}
+                    aria-label={weekly ? 'Tuần' : 'Tháng'}
                     value={board?.period?.start || ''}
                     onChange={(e) => changeFilter(() => setPeriodStart(e.target.value))}
                     disabled={!periods.length}
@@ -225,8 +225,8 @@ function TeacherTicketsPage() {
               ) : !loading && board && !board.period ? (
                 <EmptyState
                   icon={CalendarRange}
-                  title="Chưa có kỳ nào kết thúc"
-                  description="Phiếu chỉ được phát sau khi tuần hoặc tháng kết thúc."
+                  title="Chưa tới ngày phát phiếu"
+                  description="Phiếu tuần phát từ thứ Sáu của tuần, phiếu toàn diện từ thứ Sáu cuối cùng của tháng (thứ Sáu nghỉ thì ngày học cuối của tuần đó)."
                 />
               ) : (
                 <div className="table-wrap dg-roll-wrap">

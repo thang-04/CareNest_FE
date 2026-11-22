@@ -1895,7 +1895,22 @@ tr.sortable-item--moved > td {
   padding: var(--space-4);
 }
 .form-inline .field {
+  position: relative;
   margin: 0;
+}
+/* BUG-29: lỗi đỏ nằm dưới ô, không đẩy ô đó lên làm lệch hàng; hàng dưới chừa chỗ cho một dòng lỗi */
+.form-inline {
+  row-gap: var(--space-6);
+  padding-bottom: var(--space-8);
+}
+.form-inline .field__error {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: max-content;
+  min-width: 100%;
+  max-width: 40ch;
+  margin-top: var(--space-1);
 }
 .form-inline__class {
   min-width: 300px;
@@ -4190,4 +4205,110 @@ button.stat-card .stat-card__label::after {
 .rich-body a {
   color: var(--color-primary);
   text-decoration: underline;
+}
+
+/* Nút khóa có lý do (Button disabledReason): vẫn rê chuột/Tab tới được, không đổi màu khi hover */
+.btn.btn--locked,
+.btn.btn--locked:hover,
+.btn.btn--locked:active {
+  background: var(--color-surface-muted);
+  border-color: var(--color-border);
+  color: var(--color-text-disabled);
+  box-shadow: none;
+  cursor: not-allowed;
+  transform: none;
+}
+/* Nút khóa vẫn nhận focus để đọc lý do ⇒ giữ vòng focus */
+.btn.btn--locked:focus-visible,
+.icon-btn.is-locked:focus-visible {
+  box-shadow: 0 0 0 3px var(--color-focus-ring);
+  border-color: var(--color-focus);
+}
+.icon-btn.is-locked {
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
+}
+
+/* Bóng chữ (Tooltip): mở khi hover, focus, chạm */
+.tooltip-anchor {
+  position: relative;
+  display: inline-flex;
+}
+.tooltip {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  left: 0;
+  z-index: var(--z-popover);
+  width: max-content;
+  max-width: min(280px, calc(100vw - var(--space-8)));
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-text);
+  color: var(--color-text-inverse);
+  box-shadow: var(--shadow-lg);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  line-height: var(--lh-normal);
+  white-space: normal;
+  text-align: left;
+  pointer-events: none;
+}
+.tooltip[hidden] {
+  display: none;
+}
+.tooltip--above {
+  top: auto;
+  bottom: calc(100% + var(--space-2));
+}
+.tooltip--end {
+  left: auto;
+  right: 0;
+}
+
+/* Nhãn "Chỉ xem" ở đầu trang (PageHeader readOnly) */
+.page__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+.page__meta .page__subtitle {
+  margin: 0;
+}
+.readonly-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0 var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  white-space: nowrap;
+}
+
+/* Lý do dưới tên mục khi chưa thao tác được (LockNote): chưa đến hạn, quá hạn, đã khóa */
+.lock-note {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-1);
+  margin: var(--space-1) 0 0;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  line-height: var(--lh-normal);
+}
+.lock-note svg {
+  flex: none;
+  height: calc(var(--fs-xs) * var(--lh-normal));
+}
+.lock-note--notYet {
+  color: var(--color-info-fg);
+}
+.lock-note--overdue {
+  color: var(--color-warning-fg);
+}
+.lock-note--locked {
+  color: var(--color-text-muted);
 }

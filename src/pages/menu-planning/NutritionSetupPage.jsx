@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Lock, Question, Save, X } from '@/components/ui/icons';
+import { Question, Save, X } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useCatalogAccess, useNutritionSetups } from '@/hooks/menu-planning/useMenuPlanning';
 import { catalogUsesApi, saveNutritionSetups } from '@/services/menu-planning/menuPlanningService';
-import { Breadcrumb } from '@/components/ui/Breadcrumb';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { usePageReadOnly } from '@/contexts/PageReadOnlyContext';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { SidePanel } from '@/components/ui/SidePanel';
@@ -28,6 +29,7 @@ import { setupCrumbs } from '@/utils/menu-planning/breadcrumbs';
 import { clickableRowProps } from '@/utils/clickableRow';
 import { formatDate, todayInput } from '@/utils/format';
 import '@/styles/modules/menu-planning.css';
+import { Button, TextAreaField, TextField } from '@/components';
 
 const TABS = [
   { key: 'overview', label: 'Tổng quan' },
@@ -65,8 +67,9 @@ function VersionHistory({ versions, today }) {
 export default function NutritionSetupPage() {
   const { user } = useAuth();
   const toast = useToast();
-  // Danh mục nối BE ⇒ quyền sửa theo NUTRITION_MANAGE (HT có sẵn, PHT khi được cấp), như Thực phẩm, Món
+  // Nối BE ⇒ quyền sửa theo MEAL_CONFIG_MANAGE (chỉ HT, NUT-17); PHT chỉ xem
   const access = useCatalogAccess();
+  const { reason: viewOnlyReason } = usePageReadOnly();
   const { items, loading, error, reload } = useNutritionSetups();
   const today = todayInput();
   const [tab, setTab] = useState('overview');
@@ -78,7 +81,7 @@ export default function NutritionSetupPage() {
   const [historyOf, setHistoryOf] = useState(null);
   const [basisOpen, setBasisOpen] = useState(false);
   const [groupKey, setGroupKey] = useState(null);
-  const canEdit = access.canManage;
+  const canEdit = access.canConfigureMeals;
   // Nối BE: mỗi nhóm tuổi có các bản cấu hình theo ngày hiệu lực; bữa ăn chỉnh ở Cấu hình trường; không có bật/tắt nhóm
   const usesApi = catalogUsesApi();
   const tomorrow = addDays(today, 1);
@@ -96,28 +99,32 @@ export default function NutritionSetupPage() {
 
   const header = (
     <>
-      <Breadcrumb items={setupCrumbs()} />
-      <div className="page__head">
-        <div>
-          <h1 className="page__title">Thiết lập dinh dưỡng</h1>
-        </div>
-        {form &&
-          (canEdit ? (
+      <PageHeader
+        crumbs={setupCrumbs()}
+        title="Thiết lập dinh dưỡng"
+        readOnly={!canEdit}
+        actions={
+          form && (
             <div className="page__actions">
               {dirty && <span className="text-sm muted">Có thay đổi chưa lưu</span>}
-              <button type="button" className="btn" disabled={!dirty} onClick={() => cancel()}>
-                <X size={16} /> Hủy
-              </button>
-              <button type="button" className="btn btn--primary" disabled={!dirty} onClick={() => submit()}>
-                <Save size={16} /> Lưu
-              </button>
+              {canEdit && (
+                <Button icon={X} disabled={!dirty} onClick={() => cancel()}>
+                  Hủy
+                </Button>
+              )}
+              <Button
+                variant="primary"
+                icon={Save}
+                disabled={!dirty}
+                disabledReason={canEdit ? undefined : viewOnlyReason}
+                onClick={() => submit()}
+              >
+                Lưu
+              </Button>
             </div>
-          ) : (
-            <span className="chip chip--gray">
-              <Lock size={14} /> Chỉ xem
-            </span>
-          ))}
-      </div>
+          )
+        }
+      />
     </>
   );
 
@@ -235,9 +242,9 @@ export default function NutritionSetupPage() {
       {header}
       <div className="td-setup-bar">
         <Tabs items={tabs} value={tab} onChange={setTab} variant="pill" ariaLabel="Phần thiết lập" />
-        <button type="button" className="link-btn" onClick={() => setBasisOpen(true)}>
+        <Button variant="link" onClick={() => setBasisOpen(true)}>
           <Question size={16} /> Căn cứ và hướng dẫn tổ chức bữa ăn
-        </button>
+        </Button>
       </div>
 
       {tab === 'overview' ? (
@@ -382,7 +389,7 @@ export default function NutritionSetupPage() {
       >
         <div className="td-confirm-fields">
           <FormField label={usesApi ? 'Áp dụng từ ngày' : 'Giá mới áp dụng từ ngày'} required error={err('effectiveFrom')}>
-            <input
+            <TextField
               type="date"
               className="input"
               min={firstDate}
@@ -392,7 +399,7 @@ export default function NutritionSetupPage() {
           </FormField>
           {!usesApi && (
             <FormField label="Lý do thay đổi" error={err('reason')} hint="Bắt buộc khi sửa giá đã áp dụng">
-              <input
+              <TextField
                 className="input"
                 maxLength={200}
                 value={form.reason}
@@ -407,7 +414,7 @@ export default function NutritionSetupPage() {
         <div className="td-basis">
           {canEdit ? (
             <FormField label="Căn cứ (văn bản quy định)" hint="Lưu cùng thiết lập khi bấm Lưu">
-              <textarea
+              <TextAreaField
                 className="textarea"
                 rows={4}
                 maxLength={300}

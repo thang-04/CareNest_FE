@@ -31,8 +31,14 @@ const getPermissionOverrides = (userId) => axiosClient.get(`/accounts/${userId}/
 
 const getPermissionStaff = async () => {
   const [campuses, ...accounts] = await Promise.all([axiosClient.get('/campuses/options'), ...STAFF_ROLES.map(listAccounts)]);
-  const campusName = (assignments = []) =>
-    campuses.find((campus) => campus.id === assignments.find((item) => item.campusId != null)?.campusId)?.name || null;
+  // Phân công GV chỉ có classroomId (campusId rỗng) ⇒ tra lớp hiện tại của từng điểm trường để biết lớp và điểm trường
+  const classrooms = (await Promise.all(campuses.map((c) => axiosClient.get('/classrooms', { params: { campusId: c.id } })))).flat();
+  const placeOf = (assignments = []) => {
+    const withPlace = assignments.find((a) => a.campusId != null || a.classroomId != null);
+    const room = classrooms.find((c) => c.id === withPlace?.classroomId);
+    const campusId = withPlace?.campusId ?? room?.campusId;
+    return { campusName: campuses.find((c) => c.id === campusId)?.name || null, className: room?.name || null };
+  };
   return {
     items: accounts.flat().map((account) => ({
       userId: account.userId,
@@ -41,7 +47,7 @@ const getPermissionStaff = async () => {
       // Tài khoản nhân sự đăng nhập bằng SĐT ⇒ username là SĐT
       phone: account.username || '',
       status: account.status,
-      campusName: campusName(account.activeAssignments),
+      ...placeOf(account.activeAssignments),
     })),
   };
 };
@@ -70,7 +76,13 @@ export const permissionApi = {
     const scopeOf = (item) => item.scope ?? keptScope(item) ?? null;
     return axiosClient.put(`/accounts/${userId}/permission-overrides`, {
       reason,
-      overrides: overrides.map((item) => ({ permission: item.permission, effect: item.effect, scope: scopeOf(item) })),
+      overrides: overrides.map((item) => ({
+        permission: item.permission,
+        effect: item.effect,
+        scope: scopeOf(item),
+        // Điểm trường giao cụ thể (AUTH-20); không gửi ⇒ điểm trường PHT đang phân công
+        ...(item.campusId != null ? { campusId: item.campusId } : {}),
+      })),
     });
   },
   getPermissionChangeLogs: ({ targetRole, targetUserId, page = 0, size = 20 } = {}) =>

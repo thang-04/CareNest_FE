@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Search, Users } from '@/components/ui/icons';
 import { normalizeText } from '@/utils/format';
 import { EmptyState } from '@/components/ui/States';
-import { TEACHERS_PER_CLASS } from '@/models/school-config/schoolConfigConstants';
+import { MAX_TEACHERS_PER_CLASS } from '@/models/school-config/schoolConfigConstants';
 
 /** Bỏ / tích giáo viên; bỏ tích người đang là chủ nhiệm thì xóa lựa chọn chủ nhiệm (không tự chọn chủ nhiệm). */
 export const toggleTeacher = (f, id) => {
@@ -18,7 +18,7 @@ export const toggleTeacher = (f, id) => {
 export function ClassTeachersPicker({ teachers, classesOf, classId, form, onToggle, onHomeroom, errors = {}, lockedIds = [] }) {
   const [query, setQuery] = useState('');
   const [onlyFree, setOnlyFree] = useState(false);
-  const full = form.teacherIds.length >= TEACHERS_PER_CLASS;
+  const full = form.teacherIds.length >= MAX_TEACHERS_PER_CLASS;
   const othersOf = (id) => classesOf(id).filter((c) => c.id !== classId);
   const kw = normalizeText(query.trim());
   // Cô chưa có lớp lên trước, rồi theo tên

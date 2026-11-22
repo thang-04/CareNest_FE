@@ -122,6 +122,8 @@ const detailOf = (db, cls, user) => {
     children,
     history: list?.history || [],
     canEdit,
+    // BE giả (7409): chỉ GV phụ trách chính gửi danh sách; lớp chưa có GV phụ trách chính thì GV lớp gửi
+    canSubmit: canEdit && (!cls.homeroomTeacherId || String(cls.homeroomTeacherId) === String(user?.id)),
     canReview: user?.role === 'VICE_PRINCIPAL' && inLeaderEditScope(cls.campusId, user) && list?.status === 'PENDING_VP',
     canDecide: user?.role === 'PRINCIPAL' && ['PENDING_VP', 'PENDING_PRINCIPAL'].includes(list?.status),
   };
@@ -158,7 +160,7 @@ export const createAssessmentReportsMock = (ensureReady) => ({
     return writeDb((db) => {
       const cls = accessClass(db, classId, user),
         detail = detailOf(db, cls, user);
-      if (!detail.canEdit) deny();
+      if (!detail.canEdit || (submit && !detail.canSubmit)) deny();
       const seen = new Set();
       const rows = (items || []).flatMap((item) => {
         const c = detail.children.find((child) => child.childId === item.childId);

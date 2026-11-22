@@ -41,6 +41,8 @@ export const roundToForm = (round) => ({
     receivedQty: line.purchaseReceivedQty == null ? '' : String(line.purchaseReceivedQty),
     result: line.result || '',
     note: line.note || '',
+    // BE điền sẵn NCC của thực phẩm tại ngày kiểm khi dòng chưa ghi (NUT-12, NUT-27)
+    supplierId: line.supplier?.id == null ? '' : String(line.supplier.id),
   })),
 });
 

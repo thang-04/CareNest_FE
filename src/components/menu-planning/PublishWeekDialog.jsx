@@ -1,5 +1,6 @@
 import { Send } from '@/components/ui/icons';
 import { Modal } from '@/components/ui/Modal';
+import { Button } from '@/components/ui/Button';
 import { SubmitOverlay } from '@/components/ui/States';
 import { MealPlanIssueList } from '@/components/menu-planning/MealPlanIssueList';
 import { issuesBySeverity } from '@/utils/menu-planning/mealPlanGrid';
@@ -21,12 +22,12 @@ export function PublishWeekDialog({ open, plan, busy, error, onConfirm, onClose 
       onClose={busy ? undefined : onClose}
       footer={
         <>
-          <button type="button" className="btn" onClick={onClose} disabled={busy}>
+          <Button onClick={onClose} disabled={busy}>
             Quay lại
-          </button>
-          <button type="button" className="btn btn--primary" onClick={onConfirm} disabled={busy || !plan.publishable}>
-            <Send size={16} /> Công bố tuần
-          </button>
+          </Button>
+          <Button variant="primary" icon={Send} loading={busy} disabled={!plan.publishable} onClick={onConfirm}>
+            Công bố tuần
+          </Button>
         </>
       }
     >

@@ -5,7 +5,7 @@ import { EmptyCard, PageHead } from '@/components/education-plan/eduUi';
 import { useSearchParams } from 'react-router-dom';
 import { SIGNER_SHORT } from '@/components/education-plan/reviewUi';
 import { ROLES } from '@/models/User';
-import { AGE_GROUPS, EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
+import { AGE_GROUPS, EDU_STATUS, ageRangeOptions, sameAgeRange, rangeOptionId } from '@/models/education-plan/educationPlanConstants';
 import { useEducationPlan, useGoalDetails } from '@/hooks/education-plan/useEducationPlan';
 import { toRows } from '@/models/education-plan/goalTable';
 import { ddmm, emptyBranchPlan, themeBranchGroups, yearWeeks } from '@/models/education-plan/classPlan';
@@ -128,7 +128,7 @@ const isOpen = (doc) => !doc?.status || doc.status === EDU_STATUS.DRAFT || doc.s
 
 /**
  * Quyền hiển thị nút gửi / duyệt tài liệu của lớp theo mẫu chung (reviewUi) và người duyệt đầu tiên của chuỗi:
- * chủ đề nhánh theo eduConfig.signers.branch, hồ sơ chủ đề theo signers.week; bỏ Tổ trưởng khi ctx.skipLeader.
+ * chủ đề nhánh theo eduConfig.signers.branch, kế hoạch giáo dục ngày theo signers.week; bỏ Tổ trưởng khi ctx.skipLeader.
  * Chỉ là UX, service quyết định khi gửi.
  */
 export function docReview(kind, doc, ctx, user, eduConfig) {
@@ -148,15 +148,20 @@ export function docReview(kind, doc, ctx, user, eduConfig) {
 }
 
 /** Lọc nhóm tuổi trước rồi chọn lớp (spec 005 FR-022); đổi nhóm tuổi ⇒ mở lớp đầu tiên của nhóm đó. */
-export function ClassPicker({ classes, classId, onPick }) {
+export const classFilterPath = (base, classId, ageGroupId) =>
+  classId ? `${base}/${classId}` : `${base}/no-class?ageGroup=${encodeURIComponent(ageGroupId)}`;
+
+export function ClassPicker({ classes, classId, onPick, showAllAges = false }) {
+  const [params] = useSearchParams();
   const id = useId();
   const current = classes.find((c) => c.id === classId);
-  const groups = AGE_GROUPS.filter((g) => classes.some((c) => c.ageGroupId === g.id));
-  const inGroup = classes.filter((c) => c.ageGroupId === current?.ageGroupId);
+  const groups = ageRangeOptions(showAllAges ? AGE_GROUPS : AGE_GROUPS.filter((g) => classes.some((c) => c.ageGroupId === g.id)));
+  const selectedAge = rangeOptionId(current?.ageGroupId ?? (showAllAges ? params.get('ageGroup') : null), groups);
+  const inGroup = selectedAge ? classes.filter((c) => sameAgeRange(c.ageGroupId, selectedAge)) : classes;
   return (
     <>
       {/* Chỉ một nhóm tuổi: hiện dạng chữ, không ô chọn bị khóa (Tiền 12/11/2026) */}
-      {groups.length < 2 ? (
+      {!showAllAges && groups.length < 2 ? (
         <FilterText label="Nhóm tuổi" value={groups[0]?.name} />
       ) : (
         <div className="field">
@@ -165,12 +170,18 @@ export function ClassPicker({ classes, classId, onPick }) {
           </label>
           <SelectField
             id={`${id}-age`}
-            value={current?.ageGroupId || ''}
+            value={selectedAge}
             onChange={(e) => {
-              const first = classes.find((c) => c.ageGroupId === e.target.value);
+              const first = classes.find((c) => sameAgeRange(c.ageGroupId, e.target.value));
               if (first) onPick(first.id);
+              else if (showAllAges && e.target.value) onPick(null, e.target.value);
             }}
           >
+            {showAllAges && !selectedAge && (
+              <option value="" disabled>
+                Chọn nhóm tuổi
+              </option>
+            )}
             {groups.map((g) => (
               <option key={g.id} value={g.id}>
                 {g.name}
@@ -184,8 +195,8 @@ export function ClassPicker({ classes, classId, onPick }) {
           Lớp
         </label>
         <SelectField id={`${id}-class`} value={current ? classId : ''} onChange={(e) => e.target.value && onPick(e.target.value)}>
-          {!current && <option value="">Chọn lớp</option>}
-          {(inGroup.length ? inGroup : classes).map((c) => (
+          {!current && <option value="">{inGroup.length ? 'Chọn lớp' : 'Chưa có lớp'}</option>}
+          {inGroup.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
             </option>
@@ -200,12 +211,22 @@ export function ClassPicker({ classes, classId, onPick }) {
  * Khung trang khi lớp / kế hoạch đang lọc không có dữ liệu: giữ đầu trang và hàng lọc (ghim), chỉ phần nội dung báo trống
  * để người dùng chọn lại ngay trên trang (Tiền 11/11/2026).
  */
-export function ClassPageEmpty({ crumbs, title, classes, classId, onPick, canPick = classes.length > 1, emptyTitle, children }) {
+export function ClassPageEmpty({
+  crumbs,
+  title,
+  classes,
+  classId,
+  onPick,
+  canPick = classes.length > 1,
+  showAllAges = false,
+  emptyTitle,
+  children,
+}) {
   return (
     <div className="page ga-page">
       <div className="ga-sticky-head">
         <PageHead crumbs={crumbs} title={title} />
-        <ClassFilterBar classes={classes} classId={classId} canPick={canPick} onPick={onPick}>
+        <ClassFilterBar classes={classes} classId={classId} canPick={canPick} showAllAges={showAllAges} onPick={onPick}>
           {children}
         </ClassFilterBar>
       </div>
@@ -215,13 +236,13 @@ export function ClassPageEmpty({ crumbs, title, classes, classId, onPick, canPic
 }
 
 /** Hàng lọc chung của các màn tài liệu lớp: Nhóm tuổi → Lớp rồi các ô lọc riêng của màn; ô chọn cùng cỡ (FR-022a). */
-export function ClassFilterBar({ classes, classId, onPick, canPick = true, children, footer = null }) {
+export function ClassFilterBar({ classes, classId, onPick, canPick = true, showAllAges = false, children, footer = null }) {
   const current = classes.find((c) => c.id === classId);
   return (
     <div className="card mb-16">
       <div className="filter-bar">
-        {canPick ? (
-          <ClassPicker classes={classes} classId={classId} onPick={onPick} />
+        {canPick || showAllAges ? (
+          <ClassPicker classes={classes} classId={classId} onPick={onPick} showAllAges={showAllAges} />
         ) : (
           // Không chọn được lớp (giáo viên một lớp): vẫn giữ hàng lọc, hiện lớp dạng chữ để các trang cùng khung (Tiền 12/11/2026)
           current && (

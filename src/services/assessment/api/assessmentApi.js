@@ -115,7 +115,7 @@ export const createAssessmentBeApi = (client) => ({
         },
       }),
       // Tổ trưởng không đọc được danh mục điểm trường (màn không lọc điểm trường cho tổ trưởng)
-      isLeader(user) ? client.get('/campuses').catch(() => []) : [],
+      isLeader(user) ? client.get('/campuses', { params: { schoolYearId: schoolYear || undefined } }).catch(() => []) : [],
       client.get('/age-groups').catch(() => []),
     ]);
     return withNames(overview, campuses, ageGroups);
@@ -128,7 +128,9 @@ export const createAssessmentBeApi = (client) => ({
     });
     // GV, tổ trưởng không đọc được danh mục điểm trường (màn không hiện cột điểm trường); BGH lọc thì vẫn cần đủ danh sách
     const campuses =
-      isLeader(user) && (campusId || (report.campusIds || []).length > 1) ? await client.get('/campuses').catch(() => []) : [];
+      isLeader(user) && (campusId || (report.campusIds || []).length > 1)
+        ? await client.get('/campuses', { params: { schoolYearId: schoolYear || undefined } }).catch(() => [])
+        : [];
     return {
       ...report,
       campuses: (report.campusIds || []).map((id) => ({ id, name: campusLabel(campuses, id) || id, fullName: campusFull(campuses, id) })),
@@ -141,7 +143,10 @@ export const createAssessmentBeApi = (client) => ({
       params: { period, schoolYearId: schoolYear || undefined, campusId: campusId || undefined },
     });
     // GV (1 điểm trường) không có quyền đọc danh mục điểm trường: chỉ tra tên khi có nhiều điểm trường
-    const campuses = isLeader(user) && (result.campusIds || []).length > 1 ? await client.get('/campuses').catch(() => []) : [];
+    const campuses =
+      isLeader(user) && (result.campusIds || []).length > 1
+        ? await client.get('/campuses', { params: { schoolYearId: schoolYear || undefined } }).catch(() => [])
+        : [];
     return {
       ...result,
       campuses: (result.campusIds || []).map((id) => ({ id, name: campusLabel(campuses, id) || id, fullName: campusFull(campuses, id) })),
@@ -198,7 +203,8 @@ export const createAssessmentBeApi = (client) => ({
     }),
   revokeEvaluationUnlock: (id) => client.post(`/assessment/evaluation-unlocks/${id}/revoke`),
   // BGH: lớp quá hạn chưa xong (nhận xét tuần, chủ đề, học kỳ, cuối năm)
-  getOverdueClasses: ({ campusId } = {}) => client.get('/assessment/overdue', { params: { campusId: campusId || undefined } }),
+  getOverdueClasses: ({ campusId, schoolYear } = {}) =>
+    client.get('/assessment/overdue', { params: { campusId: campusId || undefined, ...(schoolYear && { schoolYearId: schoolYear }) } }),
   // Đánh giá tháng / cuối năm: BE tạo bản nháp khi tháng kết thúc (cuối năm: khi học kỳ II kết thúc)
   getEvaluations: (kind, { schoolYear, classId } = {}) =>
     client.get('/assessment/evaluations', {
@@ -225,7 +231,7 @@ export const createAssessmentBeApi = (client) => ({
     const [rows, classes, campuses, ageGroups] = await Promise.all([
       client.get('/assessment/children', { params: { schoolYearId: schoolYear || undefined, classId: classId || undefined } }),
       client.get('/assessment/theme-evaluations/classes', { params: { schoolYearId: schoolYear || undefined } }).catch(() => []),
-      client.get('/campuses').catch(() => []),
+      client.get('/campuses', { params: { schoolYearId: schoolYear || undefined } }).catch(() => []),
       client.get('/age-groups').catch(() => []),
     ]);
     const classOf = new Map(classes.map((c) => [String(c.classId), c]));
@@ -246,7 +252,7 @@ export const createAssessmentBeApi = (client) => ({
       client.get('/assessment/program-completion', {
         params: { schoolYearId: schoolYear || undefined, campusId: campusId || undefined },
       }),
-      client.get('/campuses').catch(() => []),
+      client.get('/campuses', { params: { schoolYearId: schoolYear || undefined } }).catch(() => []),
     ]);
     return {
       ...report,
@@ -256,7 +262,10 @@ export const createAssessmentBeApi = (client) => ({
   // Đề xuất khen thưởng theo danh sách lớp: ghép tên điểm trường cho HT lọc
   getRewardLists: async ({ schoolYear } = {}) => {
     const rows = await client.get('/assessment/reward-lists', { params: { schoolYearId: schoolYear || undefined } });
-    const campuses = new Set(rows.map((r) => r.campusId)).size > 1 ? await client.get('/campuses').catch(() => []) : [];
+    const campuses =
+      new Set(rows.map((r) => r.campusId)).size > 1
+        ? await client.get('/campuses', { params: { schoolYearId: schoolYear || undefined } }).catch(() => [])
+        : [];
     return rows.map((r) => ({ ...r, campusName: campusLabel(campuses, r.campusId) || '' }));
   },
   getRewardList: (classId) => client.get(`/assessment/reward-lists/classes/${classId}`),
@@ -276,7 +285,7 @@ export const createAssessmentBeApi = (client) => ({
       client.get('/assessment/behaviour-tickets/overview', {
         params: { schoolYearId: schoolYear || undefined, month: month || undefined, campusId: campusId || undefined },
       }),
-      client.get('/campuses').catch(() => []),
+      client.get('/campuses', { params: { schoolYearId: schoolYear || undefined } }).catch(() => []),
     ]);
     return {
       ...overview,

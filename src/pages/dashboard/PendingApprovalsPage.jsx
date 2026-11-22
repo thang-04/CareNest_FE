@@ -104,7 +104,7 @@ export default function PendingApprovalsPage() {
                     <option value="">Tất cả điểm trường</option>
                     {md.campuses.map((c) => (
                       <option key={c.id} value={c.id}>
-                        {c.name}
+                        {c.shortName || c.name}
                       </option>
                     ))}
                   </select>

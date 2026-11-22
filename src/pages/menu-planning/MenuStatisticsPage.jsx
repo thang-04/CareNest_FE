@@ -1,10 +1,22 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Tabs } from '@/components/ui/Tabs';
 import { useSearchParams } from 'react-router-dom';
-import { Breadcrumb, EmptyState, ErrorState, LoadingState, Modal, PrintPaperFit, PrintToolbar } from '@/components';
+import {
+  Breadcrumb,
+  Button,
+  EmptyState,
+  ErrorState,
+  LoadingState,
+  Modal,
+  PrintPaperFit,
+  PrintSignerFields,
+  PrintToolbar,
+  SelectField,
+  TextField,
+} from '@/components';
 import { Download, Printer } from '@/components/ui/icons';
 import { exportWithPreview } from '@/components/ui/ExportPreview';
-import { MenuStatisticsPrint } from '@/components/menu-planning/MenuStatisticsPrint';
+import { MENU_STAT_SIGNERS, MenuStatisticsPrint } from '@/components/menu-planning/MenuStatisticsPrint';
 import { FormField } from '@/components/form/FormField';
 import { CampusFilter } from '@/components/ui/CampusFilter';
 import { StatCard } from '@/components/ui/StatCard';
@@ -27,6 +39,10 @@ import '@/styles/modules/menu-planning.css';
 
 // Tên màn theo việc người dùng làm (user chốt 09/11/2026, thay "Thống kê định lượng")
 const PAGE_TITLE = 'Định lượng & đi chợ';
+const GROUP_MODES = [
+  { key: 'storage', label: 'Tươi / Khô' },
+  { key: 'supplier', label: 'Theo nhà cung cấp' },
+];
 
 const CHILDREN_SOURCE = {
   INPUT: 'Số nhập tay',
@@ -62,6 +78,8 @@ export default function MenuStatisticsPage() {
   const [campusId, setCampusId] = useState('');
   const [children, setChildren] = useState('');
   const [printing, setPrinting] = useState(false);
+  const [signers, setSigners] = useState(MENU_STAT_SIGNERS);
+  const [groupBy, setGroupBy] = useState('storage');
   const sheetRef = useRef(null);
   useEffect(() => {
     if (options.length && !options.some((o) => o.id === ageGroupId)) setAgeGroupId(options[0].id);
@@ -91,7 +109,7 @@ export default function MenuStatisticsPage() {
     : menuCrumbs('Thực đơn tuần', '/menu/weekly', `${PAGE_TITLE} · ${title}`);
   const fileBase = `Dinh_luong_di_cho_${templateId ? `mau_${templateId}` : date}`;
   const exportExcel = () =>
-    exportWithPreview(statisticsExportRows(stats, `${PAGE_TITLE} · ${title} · ${stats.ageGroupName}`), `${fileBase}.xlsx`);
+    exportWithPreview(statisticsExportRows(stats, `${PAGE_TITLE} · ${title} · ${stats.ageGroupName}`, groupBy), `${fileBase}.xlsx`);
 
   if (source.error)
     return (
@@ -111,36 +129,34 @@ export default function MenuStatisticsPage() {
   return (
     <div className="page td-sections">
       <Breadcrumb items={crumbs} />
-      <div className="page__head">
-        <div>
-          <h1 className="page__title">{PAGE_TITLE}</h1>
-        </div>
-        {stats && (
-          <div className="page__actions">
-            <button type="button" className="btn" onClick={exportExcel}>
-              <Download size={16} /> Xuất Excel
-            </button>
-            <button type="button" className="btn" onClick={() => setPrinting(true)}>
-              <Printer size={16} /> Xem trước bản in
-            </button>
-          </div>
-        )}
-      </div>
+      <h1 className="page__title">{PAGE_TITLE}</h1>
 
       <section className="card">
         <div className="card__body td-stat-filters">
-          {templateId ? null : (
-            <WeekPicker
-              value={week}
-              thisWeek={schoolWeekStart(today)}
-              onChange={(next) => {
-                const p = new URLSearchParams(params);
-                p.set('week', next);
-                p.delete('date');
-                setParams(p, { replace: true });
-              }}
-            />
-          )}
+          <div className="td-stat-filters__top">
+            {templateId ? null : (
+              <WeekPicker
+                value={week}
+                thisWeek={schoolWeekStart(today)}
+                onChange={(next) => {
+                  const p = new URLSearchParams(params);
+                  p.set('week', next);
+                  p.delete('date');
+                  setParams(p, { replace: true });
+                }}
+              />
+            )}
+            {stats && (
+              <div className="page__actions td-stat-filters__actions">
+                <Button onClick={exportExcel}>
+                  <Download size={16} /> Xuất Excel
+                </Button>
+                <Button onClick={() => setPrinting(true)}>
+                  <Printer size={16} /> Xem trước bản in
+                </Button>
+              </div>
+            )}
+          </div>
           {templateId ? null : (
             <Tabs
               variant="pill"
@@ -159,20 +175,20 @@ export default function MenuStatisticsPage() {
           )}
           <div className="td-stat-filters__row">
             <FormField label="Nhóm tuổi">
-              <select className="select" value={ageGroupId} onChange={(e) => setAgeGroupId(e.target.value)}>
+              <SelectField className="select" value={ageGroupId} onChange={(e) => setAgeGroupId(e.target.value)}>
                 {options.map((o) => (
                   <option key={o.id} value={o.id}>
                     {o.name}
                   </option>
                 ))}
-              </select>
+              </SelectField>
             </FormField>
             {!templateId && <CampusFilter campuses={campuses} value={campusId} onChange={setCampusId} allLabel="Cả trường" />}
             <FormField
               label="Số trẻ"
               hint={stats ? CHILDREN_SOURCE[stats.childrenSource] || stats.childrenSource : 'Để trống để lấy theo suất hoặc sĩ số'}
             >
-              <input
+              <TextField
                 className="input"
                 type="number"
                 min={0}
@@ -204,8 +220,8 @@ export default function MenuStatisticsPage() {
               className="stat-card--fit"
               tone="purple"
               icon={false}
-              label="Định mức tiền ăn"
-              value={stats.mealPrice == null ? 'Chưa đặt' : formatMoney(stats.mealPrice)}
+              label="Ngân sách thực phẩm"
+              value={(stats.foodBudget ?? stats.mealPrice) == null ? 'Chưa đặt' : formatMoney(stats.foodBudget ?? stats.mealPrice)}
             />
             <StatCard
               className="stat-card--fit"
@@ -229,8 +245,9 @@ export default function MenuStatisticsPage() {
           <section className="card">
             <div className="card__header">
               <h2 className="card__title">Thực phẩm cho {stats.children} trẻ</h2>
+              <Tabs variant="pill" items={GROUP_MODES} value={groupBy} onChange={setGroupBy} ariaLabel="Cách nhóm thực phẩm" />
             </div>
-            <StatisticsIngredients stats={stats} />
+            <StatisticsIngredients stats={stats} groupBy={groupBy} />
           </section>
 
           <section className="card">
@@ -252,10 +269,11 @@ export default function MenuStatisticsPage() {
             size="xl"
             className="print-modal"
             title={PAGE_TITLE}
-            footer={<PrintToolbar sheetRef={sheetRef} fileBase={fileBase} onCsv={exportExcel} printLabel="In phiếu" />}
+            footer={<PrintToolbar sheetRef={sheetRef} fileBase={fileBase} onClose={() => setPrinting(false)} onCsv={exportExcel} />}
           >
+            <PrintSignerFields signers={signers} onChange={setSigners} />
             <PrintPaperFit>
-              <MenuStatisticsPrint ref={sheetRef} stats={stats} title={title} />
+              <MenuStatisticsPrint ref={sheetRef} stats={stats} title={title} signers={signers} groupBy={groupBy} />
             </PrintPaperFit>
           </Modal>
         </>

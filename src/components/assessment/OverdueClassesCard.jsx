@@ -5,8 +5,12 @@ import { DataTable } from '@/components/ui/DataTable';
 import { formatDate } from '@/utils/format';
 
 /** BGH: lớp quá hạn chưa xong nhận xét tuần / đánh giá kỳ trong phạm vi (BE OBS-30); không có lớp nào thì ẩn. */
-export function OverdueClassesCard({ user, campusLabel }) {
-  const { data, loading, error, reload } = useAsync(() => getOverdueClasses({}, user), [user?.id]);
+/** Lớp quá hạn của năm học đang chọn ở đầu trang (năm đã đóng: chỉ xem; năm sắp diễn ra: chưa có). */
+export function OverdueClassesCard({ user, campusLabel, schoolYear, campusId = '' }) {
+  const { data, loading, error, reload } = useAsync(
+    () => getOverdueClasses({ schoolYear, campusId }, user),
+    [user?.id, schoolYear, campusId],
+  );
   if (!loading && !error && !data?.length) return null;
   const columns = [
     { key: 'kind', header: 'Loại', render: (r) => OVERDUE_KIND_LABELS[r.kind] || r.kind },

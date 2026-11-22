@@ -1,4 +1,4 @@
-import { compareToNorm, mealsTotals, priceOn } from '@/utils/menu-planning/menuCalculations';
+import { compareToNorm, foodBudgetOn, mealsTotals } from '@/utils/menu-planning/menuCalculations';
 import { checkDayMenu } from '@/utils/menu-planning/menuChecks';
 import { normScopeMeals } from '@/utils/menu-planning/nutritionSetup';
 
@@ -12,7 +12,7 @@ export const daySummary = (day, { ageGroupId, weekStart }, catalog) => {
   if (day.holiday || !day.meals?.some((m) => m.items?.length)) return null;
   const r = mealsTotals(normScopeMeals(day.meals, catalog.nutritionSetups, ageGroupId), catalog.dishById, catalog.foodById, ageGroupId);
   const nutrients = Object.fromEntries(compareToNorm(r.totals, ageGroupId, r.missing.length > 0, catalog.norms).map((x) => [x.key, x]));
-  const price = priceOn(catalog.mealPrices, ageGroupId, weekStart)?.price ?? null;
+  const price = foodBudgetOn(catalog.mealPrices, ageGroupId, weekStart);
   return {
     nutrients,
     totals: r.totals,

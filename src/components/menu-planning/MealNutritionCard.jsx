@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ErrorState, LoadingState } from '@/components/ui/States';
+import { Tabs } from '@/components/ui/Tabs';
 import { NormRowBadge, NormStatusChip } from '@/components/menu-planning/MenuBadges';
 import { StatisticsNutrition } from '@/components/menu-planning/MenuStatistics';
 import { MEAL_SESSION_LABELS, SESSION_ORDER, formatMoney } from '@/models/menu-planning/menuPlanningConstants';
@@ -11,8 +12,8 @@ const range = (r) => (r && (r.min != null || r.max != null) ? `${num(r.min)}–$
 const TONE_CLASS = { OK: 'td-daynut--ok', LOW: 'td-daynut--low', HIGH: 'td-daynut--high' };
 const tone = (r) => TONE_CLASS[r?.status] || '';
 const TABS = [
-  ['meal', 'Theo bữa'],
-  ['origin', 'Động vật – thực vật'],
+  { key: 'meal', label: 'Theo bữa' },
+  { key: 'origin', label: 'Động vật – thực vật' },
 ];
 
 /**
@@ -32,6 +33,8 @@ export function MealNutritionCard({
   const ev = stats?.evaluation || {};
   const row = Object.fromEntries((ev.rows || []).map((r) => [r.key, r]));
   const t = ev.totals || {};
+  // Ngân sách thực phẩm = giá suất − phí dịch vụ (BE trả foodBudget, NUT-19)
+  const budget = stats?.foodBudget ?? stats?.mealPrice ?? null;
   const sessions = SESSION_ORDER.map((s) => (ev.sessions || []).find((x) => x.session === s)).filter(Boolean);
 
   return (
@@ -44,39 +47,17 @@ export function MealNutritionCard({
         {/* Một hàng công cụ: nhóm tuổi bên trái, cách xem bên phải; chú giải màu nằm dưới bảng */}
         <div className="td-daynut__tabs">
           {ageGroups.length > 1 ? (
-            <div className="tabs tabs--pill" role="tablist" aria-label="Nhóm tuổi">
-              {ageGroups.map((g) => (
-                <button
-                  key={g.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={g.id === ageGroupId}
-                  className={`tab ${g.id === ageGroupId ? 'tab--active' : ''}`}
-                  onClick={() => onAgeGroup(g.id)}
-                >
-                  {g.name}
-                </button>
-              ))}
-            </div>
+            <Tabs
+              variant="pill"
+              ariaLabel="Nhóm tuổi"
+              items={ageGroups.map((g) => ({ key: g.id, label: g.name }))}
+              value={ageGroupId}
+              onChange={onAgeGroup}
+            />
           ) : (
             <span />
           )}
-          {hasItems && stats && !statsQ.error && (
-            <div className="tabs tabs--pill" role="tablist" aria-label="Cách xem">
-              {TABS.map(([k, label]) => (
-                <button
-                  key={k}
-                  type="button"
-                  role="tab"
-                  aria-selected={tab === k}
-                  className={`tab ${tab === k ? 'tab--active' : ''}`}
-                  onClick={() => setTab(k)}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          )}
+          {hasItems && stats && !statsQ.error && <Tabs variant="pill" ariaLabel="Cách xem" items={TABS} value={tab} onChange={setTab} />}
         </div>
         {!hasItems ? (
           <p className="text-sm muted">{emptyText}</p>
@@ -147,7 +128,7 @@ export function MealNutritionCard({
                       <td className={`num ${tone(row.kcal)}`}>{num(t.kcal)}</td>
                       <td />
                       <td
-                        className={`money nowrap ${stats.mealPrice != null && Number(stats.costPerChild) > Number(stats.mealPrice) ? 'td-daynut--high' : ''}`}
+                        className={`money nowrap ${budget != null && Number(stats.costPerChild) > Number(budget) ? 'td-daynut--high' : ''}`}
                       >
                         {money(stats.costPerChild)}
                       </td>
@@ -162,7 +143,7 @@ export function MealNutritionCard({
                       <td className="num nowrap">{range(row.glucid)}</td>
                       <td className="num nowrap">{range(row.kcal)}</td>
                       <td />
-                      <td className="money nowrap">{stats.mealPrice == null ? 'Chưa đặt' : money(stats.mealPrice)}</td>
+                      <td className="money nowrap">{budget == null ? 'Chưa đặt' : money(budget)}</td>
                     </tr>
                     <tr className="td-daynut__verdict">
                       <td>Đánh giá</td>
@@ -189,6 +170,22 @@ export function MealNutritionCard({
                   <i className="td-eval__dot td-eval__dot--high" /> Cao so với chuẩn
                 </span>
               </p>
+            )}
+            {stats?.mealPrice != null && (
+              <dl className="info-list td-daynut__budget" aria-label="Cân đối tiền ăn 1 trẻ / ngày">
+                <dt>Giá suất ăn</dt>
+                <dd className="money">{money(stats.mealPrice)}</dd>
+                <dt>Phí dịch vụ</dt>
+                <dd className="money">{money(stats.serviceFee ?? 0)}</dd>
+                <dt>Ngân sách thực phẩm</dt>
+                <dd className="money fw-600">{money(budget)}</dd>
+                <dt>Chi phí khẩu phần</dt>
+                <dd className="money">{money(stats.costPerChild)}</dd>
+                <dt>{Number(stats.costPerChild || 0) > Number(budget) ? 'Vượt ngân sách' : 'Còn lại'}</dt>
+                <dd className={`money fw-600 ${Number(stats.costPerChild || 0) > Number(budget) ? 'td-daynut--high' : ''}`}>
+                  {money(Math.abs(Number(budget) - Number(stats.costPerChild || 0)))}
+                </dd>
+              </dl>
             )}
           </>
         )}
