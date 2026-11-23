@@ -47,6 +47,7 @@ import {
   PageToolbar,
   Checkbox,
   DataTable,
+  RichBody,
   TextField,
   SelectField,
   LABELS,
@@ -316,6 +317,10 @@ export default function UiKitPage() {
             />
           </div>
           <DataTable columns={DEMO_COLUMNS} rows={DEMO_ROWS} empty={{ title: LABELS.noResults }} />
+          <div className="mt-16">
+            <div className="subsection-title">Nội dung có định dạng (RichBody)</div>
+            <RichBody html="<p>Thông báo <strong>quan trọng</strong></p><ul><li>Họp phụ huynh</li></ul>" text="Thông báo quan trọng" />
+          </div>
         </Section>
         <Section
           id="colors"

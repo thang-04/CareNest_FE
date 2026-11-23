@@ -144,6 +144,7 @@
     "GET /meal-counts/class",
     "GET /notification-rules",
     "GET /nutrition/age-group-configs",
+    "GET /nutrition/age-group-configs/statuses",
     "GET /nutrition/age-group-configs/{x}/versions",
     "GET /nutrition/allergens",
     "GET /nutrition/day-board",

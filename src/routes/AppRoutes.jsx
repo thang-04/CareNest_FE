@@ -29,9 +29,7 @@ const NotificationDetailPage = lazyPage(() => import('@/pages/account/Notificati
 const AnnouncementsPage = lazyPage(() => import('@/pages/announcement/AnnouncementsPage'));
 const AnnouncementDetailPage = lazyPage(() => import('@/pages/announcement/AnnouncementDetailPage'));
 const AnnouncementEditPage = lazyPage(() => import('@/pages/announcement/AnnouncementEditPage'));
-const AnnouncementTemplatesPage = lazyPage(() => import('@/pages/announcement/AnnouncementTemplatesPage'));
-const NotificationRulesPage = lazyPage(() => import('@/pages/announcement/NotificationRulesPage'));
-const AnnouncementSchedulesPage = lazyPage(() => import('@/pages/announcement/AnnouncementSchedulesPage'));
+const NotificationSettingsPage = lazyPage(() => import('@/pages/announcement/NotificationSettingsPage'));
 const AnnouncementScheduleDetailPage = lazyPage(() => import('@/pages/announcement/AnnouncementScheduleDetailPage'));
 const AnnouncementScheduleEditPage = lazyPage(() => import('@/pages/announcement/AnnouncementScheduleEditPage'));
 const AppearancePage = lazyPage(() => import('@/pages/settings/AppearancePage'));
@@ -596,9 +594,11 @@ export function AppRoutes() {
           <Route path="announcements/new" element={only(LEADERS, <AnnouncementEditPage />)} />
           <Route path="announcements/:id" element={only(LEADERS, <AnnouncementDetailPage />)} />
           <Route path="announcements/:id/edit" element={only(LEADERS, <AnnouncementEditPage />)} />
-          <Route path="announcement-templates" element={only(LEADERS, <AnnouncementTemplatesPage />)} />
-          <Route path="notification-rules" element={only([R.PRINCIPAL], <NotificationRulesPage />)} />
-          <Route path="announcement-schedules" element={only([R.PRINCIPAL], <AnnouncementSchedulesPage />)} />
+          <Route path="notification-settings" element={only(LEADERS, <NotificationSettingsPage />)} />
+          {/* Link cũ của ba danh sách cấu hình về đúng tab của trang gộp */}
+          <Route path="announcement-templates" element={<Navigate to="/notification-settings" replace />} />
+          <Route path="notification-rules" element={<Navigate to="/notification-settings?tab=rules" replace />} />
+          <Route path="announcement-schedules" element={<Navigate to="/notification-settings?tab=schedules" replace />} />
           <Route path="announcement-schedules/new" element={only([R.PRINCIPAL], <AnnouncementScheduleEditPage />)} />
           <Route path="announcement-schedules/:id" element={only([R.PRINCIPAL], <AnnouncementScheduleDetailPage />)} />
           <Route path="announcement-schedules/:id/edit" element={only([R.PRINCIPAL], <AnnouncementScheduleEditPage />)} />

@@ -45,7 +45,7 @@ export default function AnnouncementEditPage() {
         detail
         back={
           (loadError || (id && !data?.canEdit)) && (
-            <Link className="btn btn--sm btn--outline-primary" to="/announcements">
+            <Link className="btn btn--sm" to="/announcements">
               <ArrowLeft size={15} aria-hidden="true" /> Quay lại
             </Link>
           )
