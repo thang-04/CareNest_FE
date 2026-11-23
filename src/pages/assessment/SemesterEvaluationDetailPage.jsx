@@ -10,7 +10,7 @@ export default function SemesterEvaluationDetailPage() {
   const { id } = useParams();
   return (
     <div className="page">
-      <Breadcrumb items={assessmentCrumbs(SECTIONS.semester, 'Chi tiết đánh giá')} />
+      <Breadcrumb items={assessmentCrumbs(SECTIONS.semesterComments, 'Chi tiết nhận xét')} />
       <EvaluationReviewView kind={EVAL_KIND.SEMESTER} id={id} />
     </div>
   );

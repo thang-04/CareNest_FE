@@ -9,9 +9,10 @@ import {
   ChevronLeft,
   ChevronRight,
   Copy,
+  Eye,
   History,
-  RefreshCw,
   Save,
+  Sparkles,
 } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -29,10 +30,13 @@ import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { EmptyState, ErrorState, LoadingState, Spinner } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
 import { FormField } from '@/components/form/FormField';
+import { TextAreaField } from '@/components';
 import { AiWorkingOverlay } from '@/components/ui/AiWorkingOverlay';
 import { Modal } from '@/components/ui/Modal';
+import { Button } from '@/components/ui/Button';
 import { useAiRun } from '@/hooks/useAiRun';
-import { AiDraftTag, EvaluationStatusBadge } from '@/components/assessment/AssessmentBadges';
+import { EvaluationStatusBadge } from '@/components/assessment/AssessmentBadges';
+import { DraftSourceTag } from '@/components/assessment/DraftSourceTag';
 import { PeriodSummaryTable } from '@/components/assessment/PeriodSummaryTable';
 import { YearEndSheetCard } from '@/components/assessment/YearEndSheetCard';
 import { DailyDaysTable } from '@/components/assessment/DailyDaysTable';
@@ -53,6 +57,7 @@ export function EvaluationReviewView({ kind, id }) {
   const md = useMasterData();
   const { detail, loading, error, reload } = useEvaluation(kind, id, { live: false });
   const [content, setContent] = useState('');
+  const [previewOpen, setPreviewOpen] = useState(false);
   // Bản trên hệ thống mà ô nhập đang dựa vào; khác null mới so được "đã sửa" (không hỏi lưu khi vừa mở màn)
   const [loadedFrom, setLoadedFrom] = useState(null);
   const [contentError, setContentError] = useState('');
@@ -64,6 +69,7 @@ export function EvaluationReviewView({ kind, id }) {
   const [dayPage, setDayPage] = useState(1);
   const yearEnd = kind === EVAL_KIND.YEAR_END;
   const base = `/assessment/${kind}`;
+  const listPath = kind === EVAL_KIND.SEMESTER ? '/assessment/semester/children' : base;
 
   const ev = detail?.evaluation;
   const savedContent = ev ? ev.finalContent || ev.aiDraft?.content || '' : '';
@@ -205,12 +211,14 @@ export function EvaluationReviewView({ kind, id }) {
     return ok;
   };
 
-  const redraft = async () => {
+  const redraft = async (ai) => {
     setBusy('redraft');
     let res = null;
     try {
-      res = await runAi(() => regenerateEvaluationDraft(kind, ev.id, user));
+      res = await runAi(() => regenerateEvaluationDraft(kind, ev.id, user, ai));
       if (res.status === EVAL_STATUS.AI_FAILED) toast.warning(res.aiError || MSG30, 'AI chưa tạo được bản nháp');
+      else if (ai && res.aiDraft?.source === 'TEMPLATE')
+        toast.warning('AI chưa khả dụng hoặc bản viết không đạt kiểm tra; hệ thống đã dùng mẫu câu.', 'Đã dùng mẫu câu');
       await reload({ silent: true });
     } catch (err) {
       toast.error(err.message || MSG30, 'AI chưa tạo được bản nháp');
@@ -330,23 +338,38 @@ export function EvaluationReviewView({ kind, id }) {
             <div className="fw-600">{MSG30}</div>
             <div className="mt-8 text-sm">{ev.aiError}</div>
           </div>
-          <button className="btn" onClick={redraft} disabled={!!busy}>
-            <RefreshCw size={16} /> Yêu cầu tạo lại bản nháp
-          </button>
+          <Button icon={Sparkles} onClick={() => redraft(true)} loading={busy === 'redraft'} disabled={!!busy}>
+            AI viết nháp
+          </Button>
         </div>
       )}
 
       {canReview ? (
         <div className={yearEnd ? 'stack mt-16' : 'split-2 mt-16'}>
-          <details className="card">
-            <summary className="card__header">
-              <span className="card__title">Bản nháp AI làm căn cứ</span>
-              <AiDraftTag />
-            </summary>
+          <div className="card">
+            <div className="card__header">
+              <span className="card__title">Bản nháp làm căn cứ</span>
+              <DraftSourceTag draft={ev.aiDraft} />
+            </div>
             <div className="card__body">
+              <div className="row row--wrap gap-2 mb-12">
+                <Button
+                  variant="outline-primary"
+                  icon={Sparkles}
+                  onClick={() => redraft(true)}
+                  loading={busy === 'redraft'}
+                  disabled={!!busy}
+                >
+                  AI viết nháp
+                </Button>
+                <Button onClick={() => redraft(false)} disabled={!!busy}>
+                  Viết theo mẫu
+                </Button>
+              </div>
+              {ev.aiEnabled === false && <div className="muted text-sm mb-12">AI đang tắt trên backend; yêu cầu sẽ dùng mẫu câu.</div>}
               {ev.aiDraft ? (
                 <>
-                  <div className="dg-ai-box text-sm">{ev.aiDraft.content}</div>
+                  <div className="dg-ai-box">{ev.aiDraft.content}</div>
                   <div className="muted text-xs mt-8">
                     {yearEnd ? 'Tổng hợp từ dữ liệu cả năm học' : `Tổng hợp từ ${detail.summary.assessedDays} ngày đánh giá hằng ngày`} ·
                     tạo lúc {formatDateTime(ev.aiDraft.generatedAt)}
@@ -359,38 +382,56 @@ export function EvaluationReviewView({ kind, id }) {
                     >
                       <Copy size={14} /> Dùng bản nháp này
                     </button>
-                    <button className="btn btn--sm" onClick={redraft} disabled={!!busy}>
-                      <RefreshCw size={14} /> Tạo lại bản nháp
-                    </button>
                     <Link className="btn btn--sm btn--ghost" to={`${base}/${ev.id}/ai-draft`}>
-                      Dữ liệu AI đã dùng
+                      Xem bản nháp
                     </Link>
                   </div>
                 </>
               ) : (
-                <EmptyState title="Chưa có bản nháp AI" description="Cô tự viết đánh giá ở khung bên cạnh." />
+                <EmptyState title="Chưa có bản nháp" description="Cô có thể xin AI viết nháp hoặc tự viết đánh giá." />
               )}
             </div>
-          </details>
+          </div>
           <div className="card">
             <div className="card__header">
-              <div className="card__title">Đánh giá chính thức</div>
+              <div className="card__title">Nhận xét cho phụ huynh</div>
             </div>
             <div className="card__body">
-              <FormField label="Nội dung đánh giá" required error={contentError}>
-                <textarea
-                  className="textarea dg-editor"
-                  rows={10}
-                  value={content}
-                  maxLength={3000}
-                  onChange={(e) => {
-                    setContent(e.target.value);
-                    setContentError('');
-                  }}
-                  onBlur={() => content && check()}
-                />
-              </FormField>
-              <div className="muted text-xs dg-right">{content.length}/3000</div>
+              <TextAreaField
+                label="Nội dung nhận xét"
+                required
+                error={contentError}
+                hint={`Viết bằng lời dễ hiểu, nhấn Enter để tách đoạn · Phụ huynh xem sau khi cô xác nhận · ${content.length}/3000 ký tự`}
+                className="textarea dg-editor"
+                rows={10}
+                value={content}
+                maxLength={3000}
+                onChange={(e) => {
+                  setContent(e.target.value);
+                  setContentError('');
+                }}
+                onBlur={() => content && check()}
+              />
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={Eye}
+                className="mt-12"
+                aria-expanded={previewOpen}
+                aria-controls={`comment-preview-${ev.id}`}
+                onClick={() => setPreviewOpen((open) => !open)}
+              >
+                {previewOpen ? 'Ẩn xem trước' : 'Xem trước nội dung'}
+              </Button>
+              {previewOpen && (
+                <div id={`comment-preview-${ev.id}`} className="dg-comment-preview" role="region" aria-label="Xem trước nội dung nhận xét">
+                  {content.trim() ? (
+                    <div className="dg-final">{content.trim()}</div>
+                  ) : (
+                    <span className="muted">Chưa có nội dung nhận xét.</span>
+                  )}
+                </div>
+              )}
               {ev.programApplicable && (
                 <FormField label="Hoàn thành chương trình GDMN" required error={programError}>
                   <div className="row gap-4" role="radiogroup" aria-label="Hoàn thành chương trình GDMN">
@@ -514,7 +555,7 @@ export function EvaluationReviewView({ kind, id }) {
       )}
 
       <div className="page-actions">
-        <button className="btn" onClick={() => guard.leave(base)}>
+        <button className="btn" onClick={() => guard.leave(listPath)}>
           <ArrowLeft size={16} /> Về danh sách
         </button>
         {siblings.length > 1 && at >= 0 && (
@@ -545,12 +586,12 @@ export function EvaluationReviewView({ kind, id }) {
         onConfirm={doConfirm}
         onClose={() => setConfirmOpen(false)}
       />
-      {/* AI xong ⇒ bản nháp mới mở trong modal; đóng thì vẫn dùng được ở khung "Bản nháp AI" (user chốt) */}
+      {/* Bản nháp mới mở sau khi lớp phủ tắt; nội dung cô đang gõ vẫn được giữ. */}
       <Modal
         open={!!fresh}
         onClose={() => setFresh(null)}
         size="lg"
-        title="Bản nháp AI mới"
+        title={fresh?.source === 'TEMPLATE' ? 'Bản nháp mẫu mới' : 'Bản nháp AI mới'}
         footer={
           <>
             <button type="button" className="btn" onClick={() => setFresh(null)}>
@@ -570,10 +611,10 @@ export function EvaluationReviewView({ kind, id }) {
         }
       >
         <div className="row gap-2 mb-12">
-          <AiDraftTag />
+          <DraftSourceTag draft={fresh} />
           {fresh && <span className="muted text-sm">Tạo lúc {formatDateTime(fresh.generatedAt)}</span>}
         </div>
-        <div className="dg-ai-box text-sm">{fresh?.content}</div>
+        <div className="dg-ai-box">{fresh?.content}</div>
       </Modal>
       {busy === 'redraft' && <AiWorkingOverlay text="Đang soạn bản nháp đánh giá…" />}
       <LeaveConfirmModal {...guard.modal} canSave message="Nội dung đánh giá có chỉnh sửa chưa lưu." />
