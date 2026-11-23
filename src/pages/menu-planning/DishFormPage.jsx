@@ -152,6 +152,7 @@ export default function DishFormPage() {
   const dirty =
     ['name', 'type', 'description', 'status'].some((k) => form[k] !== initial[k]) ||
     JSON.stringify(form.ageGroupIds) !== JSON.stringify(initial.ageGroupIds) ||
+    JSON.stringify(form.ageGroupIds) !== JSON.stringify(initial.ageGroupIds) ||
     JSON.stringify(form.ingredients) !== JSON.stringify(initial.ingredients);
   // Lưu từ hộp rời màn: giữ trạng thái hiện tại (món mới/nháp ⇒ lưu nháp, không tự kích hoạt)
   const guard = useLeaveGuard({ when: dirty && !busy, onSave: () => submit(null, false, form.status, true) });
