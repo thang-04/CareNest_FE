@@ -217,7 +217,8 @@ export const createAssessmentBeApi = (client) => ({
   getEvaluation: (kind, id) => client.get(`/assessment/evaluations/${id}`),
   saveEvaluationDraft: (kind, id, content) => client.put(`/assessment/evaluations/${id}/content`, { content }),
   confirmEvaluation: (kind, id, content) => client.post(`/assessment/evaluations/${id}/confirm`, { content }),
-  regenerateEvaluationDraft: (kind, id) => client.post(`/assessment/evaluations/${id}/redraft`),
+  regenerateEvaluationDraft: (kind, id, _user, ai = false) =>
+    client.post(`/assessment/evaluations/${id}/redraft`, ai ? { ai: true } : undefined),
   markProgramCompletion: (id, completed) => client.put(`/assessment/evaluations/${id}/program-completion`, { completed }),
   // Phiếu đánh giá sự phát triển cuối năm (BE OBS-28)
   getSemesterAssessment: (params) => client.get('/assessment/semester-evaluations', { params }),
