@@ -9,6 +9,7 @@ import {
   inspectionLeafLabels,
   inspectionRows,
   inspectionTitle,
+  sampleTakenText,
 } from '@/utils/kitchen/inspectionExport';
 
 const ROW = {
@@ -116,8 +117,15 @@ test('M4 nhãn: mỗi bữa một nhãn gom tên các mẫu; Excel liệt kê b�
   assert.deepEqual(labels[0].dishes, ['Cơm', 'Canh']);
   const out = inspectionExportRows('sample', { rows: SAMPLE_ROWS }, { date: '2026-11-09', variant: 'label' });
   assert.deepEqual(out.rows[out.headerRow], ['Bữa ăn', 'Tên mẫu thức ăn', 'Thời gian lấy mẫu']);
-  assert.equal(out.rows[out.headerRow + 1][1], 'Cơm, Canh');
+  assert.equal(out.rows[out.headerRow + 1][1], 'Cơm; Canh');
   assert.equal(inspectionTitle('sample', '2026-11-09', 'label').form, 'Mẫu 4');
+});
+
+test('M4 nhãn: chưa có giờ lấy mẫu thì trống giờ, phút nhưng in sẵn ngày; có giờ thì in giờ', () => {
+  assert.equal(sampleTakenText('', '2026-11-23'), '…. giờ …… phút ….. ngày 23 tháng 11 năm 2026');
+  assert.match(sampleTakenText('2026-11-23T03:05:00Z', '2026-11-23'), /23\/11\/2026/);
+  const out = inspectionExportRows('sample', { rows: [{ ...SAMPLE_ROWS[0], takenAt: '' }] }, { date: '2026-11-23', variant: 'label' });
+  assert.equal(out.rows[out.headerRow + 1][2], '…. giờ …… phút ….. ngày 23 tháng 11 năm 2026');
 });
 
 test('M5: giờ lấy mẫu in giờ ngày tháng năm, ô chưa hủy để rỗng', () => {

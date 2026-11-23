@@ -135,6 +135,20 @@ const skeletonOf = async (tab, { campusId, date }, user) => {
 
 const editableKeys = (tab) => INSPECTION_COLUMNS[tab].filter((c) => !c.readOnly).map((c) => c.key);
 
+// Mở ghi ngày cũ (INS-05) cần Hiệu trưởng duyệt là luật của BE; demo không khóa nên không có yêu cầu nào để xử lý
+const NO_APPROVAL = {
+  id: null,
+  locked: false,
+  status: null,
+  reason: '',
+  requestedByName: '',
+  decisionNote: '',
+  expiresAt: null,
+  canRequest: false,
+  canSelfOpen: false,
+};
+const APPROVAL_NOT_IN_DEMO = 'Chế độ demo không khóa ngày cũ nên chưa có duyệt mở mẫu. Dùng bản nối BE để thử.';
+
 const tabView = (tab, skeleton, record, canEdit) => {
   const stored = record?.rows || {};
   const rows = skeleton.map((base) => {
@@ -158,6 +172,8 @@ const tabView = (tab, skeleton, record, canEdit) => {
     signature: record?.signature || null,
     history: record?.history || [],
     header: { place: record?.header?.place || '', checkedAt: record?.header?.checkedAt || '' },
+    // Demo không khóa ngày cũ: INS-05 (HT duyệt mở) chỉ do BE kiểm
+    approval: { ...NO_APPROVAL },
     // Mẫu đã ký bị khóa; chỉ "Sửa lại" (kèm lý do) mới mở khóa
     canEdit: canEdit && !signed,
     canReopen: canEdit && signed,
@@ -226,7 +242,18 @@ export const inspectionMockRepository = {
         return [tab, tabView(tab, isSigned(record) && record.snapshot ? record.snapshot : skeletons[tab], record, canEdit)];
       }),
     );
-    return clone({ campusId, date, canEdit, tabs });
+    return clone({ campusId, date, canEdit, canDecide: false, tabs });
+  },
+
+  /** Demo không khóa ngày cũ (INS-05 do BE kiểm): ba hàm duyệt chỉ để cùng tên với bản nối BE. */
+  async requestInspectionApproval() {
+    throw new ApiError(400, APPROVAL_NOT_IN_DEMO);
+  },
+  async getInspectionApprovals() {
+    return [];
+  },
+  async decideInspectionApproval() {
+    throw new ApiError(400, APPROVAL_NOT_IN_DEMO);
   },
 
   /** Nhà cung cấp đang dùng để điền nhanh cột "Nơi cung cấp" của M1. */
