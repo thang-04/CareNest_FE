@@ -8,7 +8,6 @@ import { AGE_GROUPS } from '@/models/School';
 import { todayInput } from '@/utils/format';
 import {
   MEAL_SESSION_LABELS,
-  MICRONUTRIENTS,
   defaultOriginOf,
   defaultStorageOf,
   schoolWeekStart,
@@ -63,8 +62,12 @@ const MICRO_ROWS = {
   f27: [0, 0, 0, 0, 0, 0, 0, 0],
 };
 /** Vi chất của thực phẩm mẫu theo id; thực phẩm chưa có số liệu (vd. nấm hương) ⇒ mọi chất null. */
-export const seedMicronutrientsOf = (id) =>
-  Object.fromEntries(MICRONUTRIENTS.map((k, i) => [k, MICRO_ROWS[id] ? MICRO_ROWS[id][i] : null]));
+// Thứ tự cột của bảng nguồn cố định, độc lập với thứ tự hiển thị trên form.
+const MICRO_ROW_KEYS = ['calcium', 'phosphorus', 'iron', 'vitaminA', 'vitaminB1', 'vitaminB2', 'vitaminPp', 'vitaminC'];
+export const seedMicronutrientsOf = (id) => ({
+  ...Object.fromEntries(MICRO_ROW_KEYS.map((key, index) => [key, MICRO_ROWS[id]?.[index] ?? null])),
+  zinc: null,
+});
 // Định mức vi chất mẫu / trẻ / ngày cho các bữa ở trường (PHT sửa được); AI ước theo nhu cầu khuyến nghị, cần soát
 const SEED_MICRO_NORMS = {
   nursery: {
@@ -162,7 +165,6 @@ const buildFoods = () =>
     // Dầu ăn, đường là thực vật; thịt, thủy sản, trứng sữa là động vật
     origin: defaultOriginOf(group),
     nutrientSource: DEMO_NUTRIENT_SOURCE,
-    nutrientSourceVersion: '2017',
     wastePct: WASTE_BY_GROUP[group] ?? 0,
     favorite: FAVORITE_FOODS.includes(id),
     storage: FRESH_EXCEPTIONS.includes(id) ? 'FRESH' : defaultStorageOf(group),
