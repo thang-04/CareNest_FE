@@ -80,9 +80,8 @@ test('tiếp nhận, nhập Excel lấy điểm trường của năm tiếp nh�
   assert.match(modal, /useMasterData\(intakeYear\?\.id \?\? null\)/);
 });
 
-test('modal tiếp nhận lại có ô điểm trường, chỉ gửi campusId khi có chọn, lỗi hiện dưới ô', () => {
+test('modal tiếp nhận lại có ô điểm trường, bắt buộc, lỗi hiện dưới ô', () => {
   const page = read('src/pages/children/EnrollChildPage.jsx');
-  assert.match(page, /Giữ điểm trường cũ/);
-  assert.match(page, /\.\.\.\(readmitCampusId && \{ campusId: readmitCampusId \}\)/);
+  assert.match(page, /campusId: readmitCampusId,/);
   assert.match(page, /err\.details\?\.campusId/);
 });

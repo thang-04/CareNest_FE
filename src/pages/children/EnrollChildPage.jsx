@@ -39,6 +39,7 @@ import {
 } from '@/utils/children/childrenHelpers';
 import { childrenCrumbs } from '@/utils/children/breadcrumbs';
 import { defaultStartDate, startDateError } from '@/utils/children/startDate';
+import { defaultReadmitCampus } from '@/utils/children/readmit';
 import '@/styles/modules/children.css';
 
 const STEPS = ['Thông tin trẻ & phụ huynh', 'Xếp lớp', 'Báo ăn và sức khỏe', 'Xem lại & xác nhận'];
@@ -113,13 +114,16 @@ export default function EnrollChildPage() {
   const [readmitDateErrors, setReadmitDateErrors] = useState({});
   const readmitYear = schoolYears.find((y) => sameId(y.id, readmitYearId)) || null;
   const { holidays: readmitHolidays } = useYearHolidays(readmitYear?.id);
+  // Điểm trường của năm tiếp nhận lại (G94-180/CHD-04): thêm 1 lần tải danh mục, chấp nhận theo plan
+  const readmitMd = useMasterData(readmitYear?.id ?? null);
+  const readmitCampusOptions = childCampusesOf(user, readmitMd.campuses);
   const [declaration, setDeclaration] = useState(emptyDeclaration());
   const [errors, setErrors] = useState({ info: {}, placement: {}, declaration: {} });
   const [duplicate, setDuplicate] = useState(null);
   const [readmitOpen, setReadmitOpen] = useState(false);
   const [readmitReason, setReadmitReason] = useState('');
   const [readmitError, setReadmitError] = useState('');
-  // Tiếp nhận lại: '' = giữ điểm trường cũ (G94-180/CHD-11)
+  // Tiếp nhận lại: mặc định điểm trường của trẻ nếu có trong năm đã chọn, không thì trống và bắt chọn (G94-180/CHD-04)
   const [readmitCampusId, setReadmitCampusId] = useState('');
   const [readmitCampusError, setReadmitCampusError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -130,6 +134,12 @@ export default function EnrollChildPage() {
     info.guardians.map((g) => g.idNumber),
     { enabled: canEnrollChild(user) },
   );
+
+  // Mở hộp, đổi năm tiếp nhận lại hoặc danh sách điểm trường của năm tải xong ⇒ đặt lại điểm trường mặc định của trẻ
+  useEffect(() => {
+    if (readmitOpen && !readmitMd.loading) setReadmitCampusId(defaultReadmitCampus(duplicate, readmitCampusOptions));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- danh sách tính lại mỗi lần render, chỉ chạy khi các mốc này đổi
+  }, [readmitOpen, readmitYearId, readmitMd.loading, duplicate]);
 
   useEffect(() => {
     if (chosenYear && !startTouched) setStartDate(defaultStartDate(chosenYear, todayInput(), holidays));
@@ -230,7 +240,8 @@ export default function EnrollChildPage() {
       schoolYearId: readmitYear ? '' : 'Chọn năm học tiếp nhận',
       startDate: readmitYear ? startDateError(readmitStart, readmitYear, todayInput(), readmitHolidays) : '',
     };
-    if (dateErrors.schoolYearId || dateErrors.startDate) {
+    if (!readmitCampusId) setReadmitCampusError('Chọn điểm trường');
+    if (dateErrors.schoolYearId || dateErrors.startDate || !readmitCampusId) {
       setReadmitDateErrors(dateErrors);
       return;
     }
@@ -241,7 +252,7 @@ export default function EnrollChildPage() {
           reason: readmitReason,
           schoolYearId: readmitYear?.id,
           startDate: readmitStart,
-          ...(readmitCampusId && { campusId: readmitCampusId }),
+          campusId: readmitCampusId,
         },
         user,
       );
@@ -483,6 +494,7 @@ export default function EnrollChildPage() {
                       onClick={() => {
                         setReadmitReason('');
                         setReadmitError('');
+                        setReadmitCampusError('');
                         setReadmitOpen(true);
                       }}
                     >
@@ -729,6 +741,7 @@ export default function EnrollChildPage() {
               setReadmitYearId(year?.id || '');
               setReadmitStart(defaultStartDate(year, todayInput()));
               setReadmitDateErrors({});
+              setReadmitCampusError('');
             }}
             startDate={readmitStart}
             onStartDateChange={(value) => {
@@ -739,9 +752,11 @@ export default function EnrollChildPage() {
           />
           <SelectField
             label="Điểm trường"
+            required
+            placeholder="Chọn điểm trường"
             error={readmitCampusError}
             value={readmitCampusId}
-            options={[{ value: '', label: 'Giữ điểm trường cũ' }, ...campusOptions.map((c) => ({ value: c.id, label: c.name }))]}
+            options={readmitCampusOptions.map((c) => ({ value: c.id, label: c.name }))}
             onChange={(e) => {
               setReadmitCampusId(e.target.value);
               setReadmitCampusError('');

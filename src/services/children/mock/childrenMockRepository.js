@@ -1113,6 +1113,8 @@ export const childrenMockRepository = {
       code: match.code,
       fullName: match.fullName,
       leftAt: match.leftAt || null,
+      // G94-180/CHD-04: hộp mở lại hồ sơ mặc định điểm trường của trẻ (chỉ khi trong phạm vi người gọi, đã kiểm ở trên)
+      campusId: match.campusId,
       canReadmit: kind === 'LEFT' && canReadmitChild(match, user),
     };
   },
