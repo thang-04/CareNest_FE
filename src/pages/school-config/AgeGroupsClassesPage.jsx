@@ -72,10 +72,9 @@ export default function AgeGroupsClassesPage({ embedded = false }) {
   const assignUrl = (hash = '') => `/school/teachers${yearId ? `?year=${yearId}` : ''}${hash}`;
   const principal = isPrincipal(user);
   const canCopy = editable && copySourcesFor(years, year).length > 0;
-  // Principal sees both campuses; other roles only the campus of their scope (GBR-GEN-01).
-  // HT: điểm trường của năm đang chọn (BE V151)
+  // Danh mục lọc khớp phạm vi cấu hình BE trả về, không suy từ điểm trường làm việc của PHT.
   const yearCampuses = useYearCampuses();
-  const campuses = principal ? yearCampuses || md.campuses : md.campuses.filter((c) => c.id === user?.campusId);
+  const campuses = yearCampuses || md.campuses;
 
   if (!canViewSchoolStructure(user))
     return (

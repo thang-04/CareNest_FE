@@ -1,5 +1,9 @@
 # Feature — Đánh giá hằng ngày (3 nhóm)
 
+## Không tham gia ăn — 23/11/2026
+
+Theo ATT-02a của BE: phiếu ngày trả `skippedMeals` cho từng trẻ. Draft Không ăn và khóa các bữa này bằng MealsCell sẵn có; BE chuẩn hóa lại khi lưu để tab cũ không ghi nhầm Ăn hết. Không dùng quyền/role ở FE để quyết định số suất. UI GV lưu/reload và PHT xem lại đã kiểm trên DB giả local.
+
 ## Tổng quan hiển thị đầy đủ kết quả đã lưu — 22/11/2026
 
 Theo phản ánh của Cần ngày 22/11: chi tiết lớp theo ngày cho tổ trưởng/PHT/HT hiển thị cả giá trị bình thường, ngủ tốt, cảm xúc, hành vi, tham gia và mức ăn từng bữa. Trước đây ô không cần chú ý được để trống nên dễ nhầm chưa lưu. Dùng phiếu ngày BE hiện có, kiểm tra `generalRecorded` riêng; chỉ lưu kỹ năng không được hiện thành Hoạt động chung đã lưu. Thiếu dữ liệu thật thì ghi Chưa ghi nhận, không tự bổ sung mặc định. Các thẻ số phía trên vẫn đếm trẻ cần chú ý, có lời giải thích. Hai view ngày vẫn lưu riêng qua General và Skills; không đổi API/quyền.
