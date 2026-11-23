@@ -21,17 +21,20 @@ import { isChainReviewer, isReviewTurn } from '@/models/education-plan/reviewTur
  * Hộp duyệt: kế hoạch giáo dục ngày (kế hoạch chủ đề + giáo án các nhánh) của các lớp trong khối đang chờ duyệt.
  */
 export default function PlanReviewQueuePage() {
-  const { user, goals, classThemePlans, themeDossiers = [], semesterPackages = [], classes, refreshClassDocs } = useEducationPlan();
+  const { user, schoolYearId, goals, classThemePlans, themeDossiers = [], semesterPackages = [], classes, refreshClassDocs } = useEducationPlan();
   const navigate = useNavigate();
   const filterId = useId();
   const [ageGroupId, setAgeGroupId] = useState('');
   const [classId, setClassId] = useState('');
   // Kế hoạch năm/tổ chờ duyệt: BE trả riêng (danh sách thường chỉ có bản đã ban hành), tự làm mới không cần tải lại trang
-  const queue = useAsync(() => getReviewQueue(user), [user.id], { refreshOnDataChange: true });
+  const queue = useAsync(() => getReviewQueue(user, schoolYearId), [user.id, schoolYearId], {
+    enabled: !!schoolYearId,
+    refreshOnDataChange: true,
+  });
   usePolling(() => {
     queue.reload({ silent: true });
     refreshClassDocs?.().catch(() => {});
-  });
+  }, { enabled: !!schoolYearId });
   const reviewGoals = queue.data || [];
 
   // Trạng thái chờ đúng vai trò người dùng (thứ tự duyệt theo cấu hình của trường)
@@ -72,7 +75,7 @@ export default function PlanReviewQueuePage() {
       label: 'Học kỳ',
       doc: d,
       what: `Học kỳ ${d.semesterNo}: chủ đề nhánh, kế hoạch chủ đề, kế hoạch tuần · ${(d.themeIds || []).length} chủ đề`,
-      to: `/education/theme-plans/${d.classId}?hk=${d.semesterNo}`,
+      to: `/education/theme-plans/${d.classId}?hk=${d.semesterNo}&plan=${encodeURIComponent(d.yearPlanId)}&review=1`,
     })),
     ...themeDossiers.filter(inQueue).map((d) => {
       const plan = goals.find((g) => g.id === d.yearPlanId);
@@ -82,7 +85,7 @@ export default function PlanReviewQueuePage() {
         doc: d,
         what: `Chủ đề ${themeNumber(plan, d.themeId)}: ${themeName(d)} · kế hoạch giáo dục ngày`,
         // Mở trang xem giáo án ngày của chủ đề: xem nội dung và duyệt tại đó (EDU-93)
-        to: `/education/day-plans/${d.classId}?theme=${d.themeId}`,
+        to: `/education/day-plans/${d.classId}?theme=${d.themeId}&plan=${encodeURIComponent(d.yearPlanId)}&review=1`,
       };
     }),
     // Bản mock cũ chưa có kế hoạch giáo dục ngày tách riêng
@@ -92,7 +95,7 @@ export default function PlanReviewQueuePage() {
         kind: 'theme',
         doc: d,
         what: `Kế hoạch giáo dục chủ đề ${themeNumber(plan, d.themeId)}: ${themeName(d)} · ${themeWeeksOf(plan, d.themeId).length} nhánh`,
-        to: `/education/class/${d.classId}/themes/${d.themeId}`,
+        to: `/education/class/${d.classId}/themes/${d.themeId}?plan=${encodeURIComponent(d.yearPlanId)}&review=1`,
       };
     }),
   ].map((it) => ({
@@ -117,7 +120,10 @@ export default function PlanReviewQueuePage() {
   const groupClasses = classes.filter((c) =>
     isLeader ? String(c.ageGroupId) === String(user.ageGroupId) : !ageGroupId || sameAgeRange(c.ageGroupId, ageGroupId),
   );
-  const shown = items.filter((it) => (!ageGroupId || sameAgeRange(it.ageGroupId, ageGroupId)) && (!classId || it.doc.classId === classId));
+  const scopedClassId = groupClasses.some((c) => c.id === classId) ? classId : '';
+  const shown = items.filter(
+    (it) => (!ageGroupId || sameAgeRange(it.ageGroupId, ageGroupId)) && (!scopedClassId || it.doc.classId === scopedClassId),
+  );
   // HT mặc định chỉ duyệt kế hoạch năm học, không theo lớp (EDU-54) ⇒ bỏ cột Lớp; vẫn hiện khi trường cấu hình HT duyệt tài liệu lớp
   const showClass = user.role !== ROLES.PRINCIPAL || shown.some((it) => it.cls !== '—');
 
@@ -159,7 +165,7 @@ export default function PlanReviewQueuePage() {
                 <label className="field__label" htmlFor={`${filterId}-class`}>
                   Lớp
                 </label>
-                <select id={`${filterId}-class`} className="select" value={classId} onChange={(e) => setClassId(e.target.value)}>
+                <select id={`${filterId}-class`} className="select" value={scopedClassId} onChange={(e) => setClassId(e.target.value)}>
                   <option value="">Tất cả</option>
                   {groupClasses.map((c) => (
                     <option key={c.id} value={c.id}>

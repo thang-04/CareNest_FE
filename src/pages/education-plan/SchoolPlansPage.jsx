@@ -34,7 +34,7 @@ const sentEntry = (doc) => [...(doc.history || [])].reverse().find((h) => !h.ton
  * chỉ xem; duyệt theo chuỗi người ký ở trang Duyệt kế hoạch giáo dục.
  */
 export default function SchoolPlansPage() {
-  const { goals, branchPlans, classThemePlans, schoolYear, classes } = useEducationPlan();
+  const { goals, branchPlans, classThemePlans, classes } = useEducationPlan();
   // Tên chủ đề, số tuần của tài liệu lớp lấy từ kế hoạch tổ ⇒ tải chi tiết các kế hoạch tổ được tài liệu lớp tham chiếu
   useGoalDetails([...branchPlans, ...classThemePlans].map((d) => d.yearPlanId));
   const navigate = useNavigate();
@@ -44,7 +44,7 @@ export default function SchoolPlansPage() {
   const [q, setQ] = useState('');
 
   const data = useMemo(() => {
-    const yearGoals = goals.filter((g) => g.schoolYear === schoolYear);
+    const yearGoals = goals;
     const planOf = (doc) => yearGoals.find((g) => g.id === doc.yearPlanId);
     const classOf = (id) => classes.find((c) => c.id === id);
     const classDoc = (doc) => {
@@ -100,7 +100,7 @@ export default function SchoolPlansPage() {
           };
         }),
     };
-  }, [goals, branchPlans, classThemePlans, classes, schoolYear]);
+  }, [goals, branchPlans, classThemePlans, classes]);
 
   const all = data[tab];
   const rows = all.filter(

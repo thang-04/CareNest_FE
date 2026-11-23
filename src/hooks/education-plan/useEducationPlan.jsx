@@ -3,12 +3,14 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useAsync } from '@/hooks/useAsync';
+import { USE_MOCK } from '@/config/env';
 import { LoadingState, ErrorState } from '@/components/ui/States';
 import { ROLES, ROLE_LABELS } from '@/models/User';
 import * as service from '@/services/education-plan/educationPlanService';
 import { AGE_GROUPS, EDU_STATUS, toEduYear, fromEduYear } from '@/models/education-plan/educationPlanConstants';
 import { applyEduConfig, withDefaults } from '@/models/education-plan/eduConfig';
 import { mergeGoals } from '@/models/education-plan/planVersions.mjs';
+import { educationSchoolYears, sameSchoolYearId } from '@/models/education-plan/schoolYearScope.mjs';
 
 const EducationPlanContext = createContext(null);
 
@@ -66,41 +68,77 @@ export const actDoneText = (kind, action, status) => {
   return next ? `Đã duyệt ${name}, chuyển ${next} duyệt tiếp` : `Đã duyệt ${name}`;
 };
 
-export function EducationPlanProvider({ children }) {
+export function EducationPlanProvider({ children, yearScoped = true, reviewView = false }) {
   const { user: authUser } = useAuth();
   const toastApi = useToast();
-  const { schoolYear: yearId, setSchoolYear, schoolYears } = useSchoolYear();
+  const { schoolYear: pickedYear, setSchoolYear, schoolYears } = useSchoolYear();
+  const yearOptions = useMemo(() => educationSchoolYears(schoolYears, USE_MOCK), [schoolYears]);
+  const yearOption =
+    yearOptions.find((year) => sameSchoolYearId(year.headerId, pickedYear)) ??
+    yearOptions.find((year) => sameSchoolYearId(year.id, pickedYear));
+  const yearId = yearScoped ? yearOption?.id ?? null : null;
+  const scope = useMemo(
+    () => ({ yearId, userId: authUser.id, reviewView, classRefreshSequence: 0, loadingGoalIds: new Set() }),
+    [yearId, authUser.id, reviewView],
+  );
+  const activeScope = useRef(scope);
+  activeScope.current = scope;
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+  const isActive = useCallback(() => mounted.current && activeScope.current === scope, [scope]);
   // Kế hoạch năm, chủ đề, giáo án cũ và tài liệu của lớp (chủ đề nhánh, kế hoạch chủ đề, giáo án tuần) tải một lần
-  const { data, setData, loading, error, reload } = useAsync(
+  const { data, setData: setAsyncData, loading, error, reload: reloadAsync } = useAsync(
     () =>
-      Promise.all([service.getEducationPlans(authUser), service.getClassPlans(yearId, authUser), service.getEduConfig(authUser)]).then(
+      Promise.all([
+        yearId == null ? { goals: [] } : service.getEducationPlans(authUser, { schoolYearId: yearId }),
+        yearId == null ? {} : service.getClassPlans(yearId, authUser, reviewView),
+        service.getEduConfig(authUser),
+      ]).then(
         ([plans, classDocs, eduConfig]) => {
           // Cấu hình áp dụng trước khi vẽ để bảng, nhãn lĩnh vực và file xuất dùng cùng một bản
-          applyEduConfig(eduConfig);
+          if (isActive()) applyEduConfig(eduConfig);
           return { ...plans, goals: mergeGoals(goalsRef.current, plans.goals), ...classDocs, eduConfig };
         },
       ),
-    [yearId, authUser.id],
+    [yearId, authUser.id, reviewView],
     { refreshOnDataChange: true },
   );
 
+  // Phản hồi cũ chỉ cập nhật màn đã khởi tạo tác vụ, kể cả khi chọn A → B → A.
+  const setData = useCallback((next) => {
+    if (isActive()) setAsyncData(next);
+  }, [isActive, setAsyncData]);
+  const reload = useCallback((options) => {
+    if (isActive()) return reloadAsync(options);
+  }, [isActive, reloadAsync]);
   const goalsRef = useRef([]);
   goalsRef.current = data?.goals || [];
   // Chi tiết kế hoạch năm/tổ tải khi trang cần (useGoalDetails); một id chỉ tải một lần cùng lúc
-  const loadingGoals = useRef(new Set());
+  const loadingGoals = scope.loadingGoalIds;
   const ensureGoals = useCallback(
     async (ids) => {
-      const need = ids.filter((id) => id && !loadingGoals.current.has(id));
+      const need = ids.filter((id) => id && !loadingGoals.has(id));
       if (!need.length) return;
-      need.forEach((id) => loadingGoals.current.add(id));
+      need.forEach((id) => loadingGoals.add(id));
       try {
         const details = await Promise.all(need.map((id) => service.getGoal(id, authUser)));
-        setData((prev) => (prev ? { ...prev, goals: details.reduce((list, goal) => upsert(list, goal), prev.goals) } : prev));
+        const scoped = details.filter((goal) => sameSchoolYearId(goal?.schoolYearId, yearId));
+        setData((prev) => (prev ? {
+          ...prev,
+          goals: scoped.reduce((list, goal) =>
+            goal.status === 'APPROVED' || list.some((item) => item.id === goal.id) ? upsert(list, goal) : list,
+          prev.goals),
+        } : prev));
       } finally {
-        need.forEach((id) => loadingGoals.current.delete(id));
+        need.forEach((id) => loadingGoals.delete(id));
       }
     },
-    [setData, authUser],
+    [setData, authUser, loadingGoals, yearId],
   );
 
   const toast = useCallback((message, tone = 'ok') => toastApi[TOAST_TYPES[tone] || 'success'](message), [toastApi]);
@@ -124,10 +162,7 @@ export function EducationPlanProvider({ children }) {
   }, [authUser, data?.staff, data?.classes]);
 
   const value = useMemo(() => {
-    const yearName = (id) => {
-      const option = schoolYears.find((y) => y.id === id);
-      return option ? option.label.replace(' - ', '-') : String(id ?? '');
-    };
+    const yearName = (year) => String(year?.label ?? '').replace(' - ', '-');
 
     const write = (key, call, apply) => async (arg) => {
       setData((prev) => (prev ? { ...prev, [key]: apply(prev[key], arg) } : prev));
@@ -151,7 +186,8 @@ export function EducationPlanProvider({ children }) {
     };
     const actor = { id: user.id, fullName: user.name, role: user.role, roles: user.roles, ageGroupId: user.ageGroupId };
     const refreshPlans = async () => {
-      const plans = await service.getEducationPlans(actor);
+      if (yearId == null) return { goals: [] };
+      const plans = await service.getEducationPlans(actor, { schoolYearId: yearId });
       setData((prev) => (prev ? { ...prev, ...plans, goals: mergeGoals(prev.goals, plans.goals) } : prev));
       return plans;
     };
@@ -185,11 +221,14 @@ export function EducationPlanProvider({ children }) {
                   options,
                 )
               : await call(kind, docOrId, body, actor, options);
-          setData((prev) => (prev ? { ...prev, [CLASS_KEY[kind]]: upsert(prev[CLASS_KEY[kind]] || [], saved) } : prev));
+          scope.classRefreshSequence += 1;
+          if (!['extend', 'reopen_review_deadline'].includes(body?.action)) {
+            setData((prev) => (prev ? { ...prev, [CLASS_KEY[kind]]: upsert(prev[CLASS_KEY[kind]] || [], saved) } : prev));
+          }
           await reload({ silent: true });
           return saved;
         } catch (err) {
-          toastApi.error(err.message, 'Không thực hiện được');
+          if (isActive()) toastApi.error(err.message, 'Không thực hiện được');
           args[3]?.onError?.(err);
           if (err.status === 409 || err.status === 403) reload({ silent: true });
           return null;
@@ -198,11 +237,14 @@ export function EducationPlanProvider({ children }) {
     const deleteIn = (key, call) => write(key, call, (list, id) => list.filter((x) => x.id !== id));
 
     return {
+      reload,
       refreshPlans,
       // Tài liệu của lớp (kế hoạch giáo dục ngày chờ duyệt…) do người khác đổi; tải lại im lặng, không đụng kế hoạch năm/tổ
       refreshClassDocs: async () => {
-        const classDocs = await service.getClassPlans(yearId, actor);
-        setData((prev) => (prev ? { ...prev, ...classDocs } : prev));
+        if (yearId == null) return;
+        const sequence = ++scope.classRefreshSequence;
+        const classDocs = await service.getClassPlans(yearId, actor, scope.reviewView);
+        if (sequence === scope.classRefreshSequence) setData((prev) => (prev ? { ...prev, ...classDocs } : prev));
         return classDocs;
       },
       refreshGoal: async (id) => {
@@ -232,7 +274,7 @@ export function EducationPlanProvider({ children }) {
       saveWorkflowPolicy: async (cfg) => {
         try {
           const saved = await service.saveWorkflowPolicy(cfg, actor);
-          applyEduConfig(saved);
+          if (isActive()) applyEduConfig(saved);
           setData((prev) => (prev ? { ...prev, eduConfig: saved } : prev));
           reload({ silent: true });
           return saved;
@@ -245,7 +287,7 @@ export function EducationPlanProvider({ children }) {
       saveEduConfig: async (cfg) => {
         try {
           const saved = await service.saveEduConfig(cfg, actor);
-          applyEduConfig(saved);
+          if (isActive()) applyEduConfig(saved);
           setData((prev) => (prev ? { ...prev, eduConfig: saved } : prev));
           return saved;
         } catch (err) {
@@ -275,22 +317,20 @@ export function EducationPlanProvider({ children }) {
       unlockGoal: async (id, body) => {
         try {
           const plan = await service.unlockGoal(id, body);
-          setData((prev) => (prev ? { ...prev, goals: upsert(prev.goals, plan) } : prev));
-          toast('Đã mở khóa kế hoạch');
+          if (isActive()) toast('Đã mở khóa kế hoạch');
           return plan;
         } catch (err) {
-          toastApi.error(err, 'Không mở khóa được');
+          if (isActive()) toastApi.error(err, 'Không mở khóa được');
           return null;
         }
       },
       reopenGoalReviewDeadline: async (id, body) => {
         try {
           const plan = await service.reopenGoalReviewDeadline(id, body);
-          setData((prev) => (prev ? { ...prev, goals: upsert(prev.goals, plan) } : prev));
-          toast('Đã mở lại hạn duyệt');
+          if (isActive()) toast('Đã mở lại hạn duyệt');
           return plan;
         } catch (err) {
-          toastApi.error(err, 'Không mở lại hạn duyệt được');
+          if (isActive()) toastApi.error(err, 'Không mở lại hạn duyệt được');
           return null;
         }
       },
@@ -299,23 +339,34 @@ export function EducationPlanProvider({ children }) {
         const saved = await classCall(service.actOnClassDoc)(kind, ...args);
         if (saved && ['theme', 'semester', 'dossier'].includes(kind)) reload({ silent: true });
         // Báo kết quả sau khi gửi / duyệt / trả lại (Tiền 05/11)
-        if (saved) toast(actDoneText(kind, args[1]?.action, saved.status));
+        if (saved && isActive()) toast(actDoneText(kind, args[1]?.action, saved.status));
         return saved;
       },
       role: user.role,
       user,
       toast,
-      // Header giữ id năm (số khi nối BE thật); module này dùng tên năm ('2026-2027') nên đổi qua nhãn của lựa chọn
-      schoolYear: toEduYear(yearName(yearId)),
-      schoolYears: schoolYears.map((y) => toEduYear(yearName(y.id))),
-      setYear: (label) => setSchoolYear(schoolYears.find((y) => yearName(y.id) === fromEduYear(label))?.id ?? fromEduYear(label)),
+      // Nội dung theo ID năm từ đầu API tới trang. Nhãn vẫn dùng cho biểu mẫu và hiển thị.
+      schoolYearId: yearId,
+      schoolYear: toEduYear(yearName(yearOption)),
+      schoolYears: yearOptions.map((year) => toEduYear(yearName(year))),
+      yearOption,
+      yearOptions,
+      setYear: (label) => {
+        const year = yearOptions.find((option) => yearName(option) === fromEduYear(label));
+        if (year) setSchoolYear(year.headerId);
+      },
       historyEntry: (action, extra = {}) => ({ action, by: user.name, role: ROLE_LABELS[user.role], at: now(), tone: '', ...extra }),
       // Trả bản đã lưu (API thật: id do BE cấp, thay bản tạm cùng id cũ); lỗi thì báo, nạp lại và trả null
       saveGoal: async (item, options = {}) => {
-        if (!options.silent) setData((prev) => (prev ? { ...prev, goals: upsert(prev.goals, item) } : prev));
+        const reviewAction = options.action === 'approve' || options.action === 'reject';
+        if (!options.silent && !reviewAction) setData((prev) => (prev ? { ...prev, goals: upsert(prev.goals, item) } : prev));
         try {
           const res = await service.saveGoal(item, { ...options, actor: user });
           const saved = res?.id ? res : item;
+          if (reviewAction) {
+            await reload({ silent: true });
+            return saved;
+          }
           setData((prev) =>
             prev
               ? {
@@ -350,7 +401,7 @@ export function EducationPlanProvider({ children }) {
       saveLesson: saveIn('lessons', service.saveLesson),
       deleteLesson: deleteIn('lessons', service.deleteLesson),
     };
-  }, [data, setData, reload, user, toast, toastApi, yearId, schoolYears, setSchoolYear, ensureGoals]);
+  }, [data, setData, reload, user, toast, toastApi, yearId, yearOption, yearOptions, setSchoolYear, ensureGoals, isActive, scope]);
 
   useEffect(() => {
     if (error?.status === 403) setData(null);

@@ -46,7 +46,7 @@ test('empty branch group keeps the class picker and can return to a group with p
   page.pick('ready');
   assert.equal(to, '/education/branches/ready');
 
-  page.setContext({ cls: classes[1], classes, yearPlan: { id: 'team' } }, 'ready');
+  page.setContext({ cls: classes[1], classes, yearPlan: { id: 'team' }, canComposeClassDocs: true }, 'ready');
   assert.match(renderToStaticMarkup(React.createElement(page.default)), /Soạn kế hoạch team/);
 });
 

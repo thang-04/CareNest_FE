@@ -203,8 +203,8 @@ test('ST-005-20 nút Hủy ở trang Cấu hình; Xuất file của Kế hoạch
   await expect(page.locator('.ga-sticky-head .filter-bar').getByRole('button', { name: 'Xuất file' })).toHaveCount(0);
 });
 
-// Tiền 11/11/2026: người chỉ xem thấy khung cả hai học kỳ ở trang Kế hoạch giáo dục chủ đề; phần chưa ban hành chỉ nhãn chung
-test('ST-005-21 PHT xem Kế hoạch giáo dục chủ đề: đủ học kỳ, gói chưa ban hành chỉ "Chưa ban hành", không hạn, không nút', async ({
+// Tiền 11/11/2026: người chỉ xem thấy khung cả hai học kỳ ở trang Kế hoạch giáo dục chủ đề; phần chưa ban hành để trống (Tiền 23/11/2026)
+test('ST-005-21 PHT xem Kế hoạch giáo dục chủ đề: đủ học kỳ, gói chưa ban hành để trống, không hạn, không nút', async ({
   page,
 }) => {
   const me = await api(U.tl, 'GET', '/accounts/me');
@@ -226,7 +226,7 @@ test('ST-005-21 PHT xem Kế hoạch giáo dục chủ đề: đủ học kỳ, 
   for (const p of pkgs) await expect(hk.locator('option', { hasText: new RegExp(`Học kỳ ${p.semesterNo}`) })).toHaveCount(1);
   if (!frame) return;
   const toolbar = page.getByRole('group', { name: `Trạng thái và thao tác học kỳ ${frame.semesterNo}` });
-  await expect(toolbar.getByText('Chưa ban hành')).toBeVisible();
+  await expect(toolbar.getByText('Chưa ban hành')).toHaveCount(0);
   await expect(toolbar.getByText(/^Hạn: /)).toHaveCount(0);
   await expect(page.getByRole('button', { name: /Gửi duyệt|Duyệt|Trả lại/ })).toHaveCount(0);
   await expect(page.getByText('Chưa lập')).toHaveCount(0);

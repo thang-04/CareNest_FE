@@ -2,6 +2,23 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { filterOverdue, overdueRows } from '../../src/models/education-plan/overdue.mjs';
 import { deadlineLabel } from '../../src/models/education-plan/deadline.mjs';
+import { publishedBranchCalendar } from '../../src/models/education-plan/branchCalendar.mjs';
+
+test('EDU-73: lịch chỉ xem lấy lịch và mốc tuần từ gói ban hành, bỏ lịch đang chờ', () => {
+  const plan = { themes: [{ id: 'one', name: 'Một', start: '2026-09-07', end: '2026-09-11' }], breaks: [] };
+  const snapshot = {
+    status: 'APPROVED', themeIds: ['one'], branchNames: { '2026-09-07': 'Tên khi ban hành' },
+    effectiveCalendar: {
+      themeSchedules: [{ themeId: 'one', startDate: '2026-09-07', endDate: '2026-09-11' }],
+      branches: [{ themeId: 'one', key: 'released', name: 'Tên khi ban hành', startDate: '2026-09-07', endDate: '2026-09-11' }],
+    },
+  };
+  const review = { status: 'REVIEW', themeIds: ['two'], branchNames: { '2026-10-05': 'Tên nháp' } };
+  const projected = publishedBranchCalendar(plan, [snapshot, review]);
+  assert.deepEqual([...projected.themeIds], ['one']);
+  assert.deepEqual(projected.names, { '2026-09-07': 'Tên khi ban hành' });
+  assert.equal(projected.branches[0].endDate, '2026-09-11');
+});
 
 // Spec 005 FR-021a: màn Kế hoạch quá hạn chỉ dựa vào cờ BE trả (canExtend, timeLock.canUnlock)
 const classes = [

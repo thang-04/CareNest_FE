@@ -1,10 +1,15 @@
 import { useEffect, useRef } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useMatch, useSearchParams } from 'react-router-dom';
 import { EducationPlanProvider } from '@/hooks/education-plan/useEducationPlan';
 import '@/styles/modules/education-plan.css';
 
 /** Route wrapper: every /education page shares one data provider. */
 export default function EducationPlanLayout() {
+  const settings = useMatch('/education/settings');
+  const curriculum = useMatch('/education/curriculum-sources');
+  const reviews = useMatch('/education/plan-reviews');
+  const [params] = useSearchParams();
+  const reviewView = !!reviews || params.get('review') === '1';
   // Bảng kế hoạch giáo dục: bấm chuột vào ô không tô khung; chỉ hiện khung ô đang nhập khi đi bằng phím Tab (Tiền 11/11/2026).
   // Đổi class thẳng trên DOM để không vẽ lại cả trang mỗi lần bấm chuột
   const scope = useRef(null);
@@ -32,7 +37,7 @@ export default function EducationPlanLayout() {
     };
   }, []);
   return (
-    <EducationPlanProvider>
+    <EducationPlanProvider yearScoped={!settings && !curriculum} reviewView={reviewView}>
       <div ref={scope}>
         <Outlet />
       </div>

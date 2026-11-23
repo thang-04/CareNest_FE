@@ -22,7 +22,8 @@ import { useAsync } from '@/hooks/useAsync';
 import { getGoal } from '@/services/education-plan/educationPlanService';
 import { submitEntryOf } from '@/models/education-plan/reviewHistory.mjs';
 import { ReleasedVersionsPanel, VersionBadge, YearPlanVersionPanel } from '@/components/education-plan/VersionWidgets';
-import { chainOf, currentPlanOf } from '@/models/education-plan/planVersions.mjs';
+import { chainOf, currentPlanInYear } from '@/models/education-plan/planVersions.mjs';
+import { sameSchoolYearId } from '@/models/education-plan/schoolYearScope.mjs';
 import DocPreviewModal from '@/components/education-plan/DocPreviewModal';
 
 const uid = () => Math.random().toString(36).slice(2, 9);
@@ -39,6 +40,7 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
   const { id } = useParams();
   const {
     goals: allGoals,
+    schoolYearId,
     themes: themePlans,
     user,
     saveGoal,
@@ -59,10 +61,11 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
   const [deleteError, setDeleteError] = useState('');
   const [creating, setCreating] = useState(false);
   const [actionError, setActionError] = useState('');
-  const found = goals.find((x) => x.id === id);
+  const found = goals.find((x) => x.id === id && sameSchoolYearId(x.schoolYearId, schoolYearId));
   // Bản Chờ duyệt (mở từ hàng chờ/thông báo) không có trong danh sách ⇒ hỏi BE theo id; người chỉ xem nhận 403 "chưa ban hành"
-  const single = useAsync(() => (found ? Promise.resolve(null) : getGoal(id, user)), [id, !!found]);
-  const g = found || single.data;
+  const single = useAsync(() => getGoal(id, user), [id, user.id, schoolYearId], { enabled: schoolYearId != null && !found });
+  const requested = single.data;
+  const g = found || (levelOf(requested) === planLevel && sameSchoolYearId(requested?.schoolYearId, schoolYearId) ? requested : null);
   // Danh sách chỉ có bản tóm tắt ⇒ tải chi tiết kế hoạch đang xem (và kế hoạch năm học nguồn của kế hoạch tổ)
   const details = useGoalDetails([found ? id : null, g?.curriculumSourcePlanId]);
 
@@ -74,7 +77,7 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
         <PageHead crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: pageLabel, to: basePath }]} title={pageLabel} />
         <StatusPage
           kind={single.error?.status === 403 ? '403' : '404'}
-          title={single.error?.status === 403 ? single.error.message : `Không tìm thấy ${pageLabel.toLowerCase()}`}
+          title={single.error?.status === 403 ? single.error.message : `Không tìm thấy ${pageLabel.toLowerCase()} trong năm học đang chọn`}
           action={
             <Link className="btn" to={basePath}>
               Về danh sách
@@ -123,7 +126,7 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
     annual &&
     (perm?.canCreateVersion ??
       ((isVp || isLeader) &&
-        currentPlanOf(goals, g.ageGroupId, g.schoolYear, planLevel)?.id === g.id &&
+        currentPlanInYear(goals, g.ageGroupId, schoolYearId, planLevel)?.id === g.id &&
         chainOf(goals, g).every((x) => x.status === EDU_STATUS.APPROVED)));
   const closeDelete = () => {
     setModal(null);

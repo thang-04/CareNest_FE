@@ -16,7 +16,8 @@ const savePicked = (user, id) => savePickedSchoolYear(user?.id, id);
 
 const toOption = (y) => ({
   id: y.id,
-  label: (y.name || y.id).replace('-', ' - '),
+  beId: y.beId,
+  label: String(y.name || y.id).replace('-', ' - '),
   status: y.status,
   // BE CFG-YR-05: năm sắp diễn ra đã tới ngày mở chuẩn bị
   preparing: !!y.preparing,

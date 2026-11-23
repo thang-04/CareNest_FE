@@ -22,7 +22,9 @@ const lastExtend = (history = []) => [...history].reverse().find((h) => h.action
 export function overdueRows({ semesterPackages = [], themeDossiers = [], yearPlans = [], classes = [], themeNameOf = () => '', today }) {
   const cls = (id) => classes.find((c) => c.id === id);
   const semesterOf = (d) =>
-    semesterPackages.find((p) => p.classId === d.classId && (p.themeIds || []).map(String).includes(String(d.themeId)))?.semesterNo ?? null;
+    semesterPackages.find(
+      (p) => p.classId === d.classId && p.yearPlanId === d.yearPlanId && (p.themeIds || []).map(String).includes(String(d.themeId)),
+    )?.semesterNo ?? null;
   const classRows = [...semesterPackages.map((d) => ({ d, kind: 'semester' })), ...themeDossiers.map((d) => ({ d, kind: 'dossier' }))].map(
     ({ d, kind }) => {
       const ext = lastExtend(d.history);
@@ -94,7 +96,7 @@ export function overdueRows({ semesterPackages = [], themeDossiers = [], yearPla
         doc: p,
       };
     });
-  return [...planRows, ...classRows];
+  return [...planRows, ...classRows].filter((row) => row.status !== 'APPROVED');
 }
 
 /** tab: 'overdue' (đang quá hạn, mở được) | 'extended' (đã mở hạn); các bộ lọc rỗng = tất cả. */

@@ -1,4 +1,4 @@
-import { adaptCalendar, calendarPlan, seedTeamBranchTemplates } from '@/models/education-plan/branchCalendar.mjs';
+import { adaptCalendar, calendarPlan, publishedBranchCalendar, seedTeamBranchTemplates } from '@/models/education-plan/branchCalendar.mjs';
 import { Tabs } from '@/components/ui/Tabs';
 import { useId, useMemo, useRef } from 'react';
 import { EmptyCard, PageHead } from '@/components/education-plan/eduUi';
@@ -10,7 +10,7 @@ import { useEducationPlan, useGoalDetails } from '@/hooks/education-plan/useEduc
 import { toRows } from '@/models/education-plan/goalTable';
 import { ddmm, emptyBranchPlan, themeBranchGroups, yearWeeks } from '@/models/education-plan/classPlan';
 import { PENDING_OF } from '@/models/education-plan/eduConfig';
-import { currentPlanOf, previousPlanOf } from '@/models/education-plan/planVersions.mjs';
+import { classTeamPlanSelection } from '@/models/education-plan/planVersions.mjs';
 import { SelectField } from '@/components';
 
 /** Bước còn thiếu khi tài liệu chưa thể bắt đầu (lock = kết quả createBlocker). */
@@ -27,23 +27,10 @@ export { Cell, focusCell } from '@/components/ui/TableCell';
 /** Dữ liệu dùng chung của màn lớp. Kế hoạch năm chỉ dùng bản đã được Phó HT ban hành. */
 export function useClassPlanContext(classId) {
   // Lớp, giáo viên, tổ trưởng nạp cùng tài liệu của lớp (theo phạm vi người xem)
-  const { user, goals, schoolYear, classes, branchPlans, creationCapabilities, staff: users } = useEducationPlan();
+  const { user, goals, schoolYearId, classes, branchPlans, semesterPackages = [], creationCapabilities, staff: users } = useEducationPlan();
   const cls = classes.find((c) => c.id === classId) || null;
-  // Phiên bản hiện hành = bản đã ban hành mới nhất (BE:EDU-25); phiên bản trước để chép tài liệu cũ
-  const current = cls ? currentPlanOf(goals, cls.ageGroupId, schoolYear) : null;
-  // ?plan=<id>: xem tài liệu của một phiên bản cũ đã ban hành cùng nhóm tuổi (chỉ xem, BE:EDU-26)
   const [params] = useSearchParams();
-  const pinned =
-    current &&
-    goals.find(
-      (g) =>
-        g.id === params.get('plan') &&
-        (!g.planLevel || g.planLevel === 'TEAM') &&
-        g.status === EDU_STATUS.APPROVED &&
-        g.ageGroupId === current.ageGroupId,
-    );
-  const listed = pinned || current;
-  const listedPrevious = listed ? previousPlanOf(goals, listed) : null;
+  const { current, listed, previous: listedPrevious, pending } = classTeamPlanSelection(goals, cls, schoolYearId, params.get('plan'));
   // Danh sách chỉ có bản tóm tắt ⇒ tải chi tiết kế hoạch tổ của lớp (và phiên bản trước để chép) khi vào trang; đang tải lại
   // (kế hoạch vừa đổi) thì dùng tạm chi tiết đã có để trang đang sửa không bị dựng lại
   const details = useGoalDetails([listed?.id, listedPrevious?.id]);
@@ -56,29 +43,32 @@ export function useClassPlanContext(classId) {
   const raw = full(listed);
   const rawPrevious = full(listedPrevious);
   const waiting = (!!raw && raw.summary) || (!!rawPrevious && rawPrevious.summary);
+  const isClassTeacher = !!cls && (cls.teacherIds || []).some((id) => String(id) === String(user.id));
+  const isHomeroomTeacher = isClassTeacher && String(cls.homeroomTeacherId) === String(user.id);
   const asRows = (p) =>
     p ? { ...p, domains: p.domains.map((d) => ({ ...d, rows: toRows(d, () => Math.random().toString(36).slice(2, 9)) })) } : null;
   const branchPlan = useMemo(() => {
     // Chưa có chi tiết: không dựng từ bản tóm tắt (thiếu chủ đề ⇒ trang dựng bản nháp sai, mất tên nhánh)
     if (!raw || waiting) return null;
     const source = asRows(raw);
+    if (!isHomeroomTeacher) {
+      return publishedBranchCalendar(source, semesterPackages.filter((pkg) =>
+        pkg.classId === classId && pkg.yearPlanId === raw.id));
+    }
     const saved = branchPlans.find((b) => b.classId === classId && b.yearPlanId === raw.id);
     const base = adaptCalendar(saved || emptyBranchPlan({ classId, yearPlanId: raw.id }), source);
     return seedTeamBranchTemplates(base, source);
-  }, [raw, branchPlans, classId, waiting]);
+  }, [raw, branchPlans, semesterPackages, classId, waiting, isHomeroomTeacher]);
   // Kế hoạch năm dạng hàng của bảng (giống trang mục tiêu năm)
   const yearPlan = useMemo(() => {
-    const approved = branchPlans.find((b) => b.classId === classId && b.yearPlanId === raw?.id && b.status === EDU_STATUS.APPROVED);
+    const approved = isHomeroomTeacher
+      ? branchPlans.find((b) => b.classId === classId && b.yearPlanId === raw?.id && b.status === EDU_STATUS.APPROVED)
+      : branchPlan;
     return raw && !waiting ? calendarPlan(asRows(raw), approved) : null;
-  }, [raw, branchPlans, classId, waiting]);
+  }, [raw, branchPlans, branchPlan, classId, waiting, isHomeroomTeacher]);
   const previousPlan = useMemo(() => (waiting ? null : asRows(rawPrevious)), [rawPrevious, waiting]);
-  const pending = cls
-    ? goals.find((g) => (!g.planLevel || g.planLevel === 'TEAM') && g.ageGroupId === cls.ageGroupId && g.schoolYear === schoolYear)
-    : null;
   const teachers = cls ? (cls.teacherIds || []).map((id) => users.find((u) => u.id === id)).filter(Boolean) : [];
   const leaders = cls ? users.filter((u) => u.role === ROLES.TEAM_LEADER && u.ageGroupId === cls.ageGroupId) : [];
-  const isClassTeacher = !!cls && (cls.teacherIds || []).some((id) => String(id) === String(user.id));
-  const isHomeroomTeacher = isClassTeacher && String(cls.homeroomTeacherId) === String(user.id);
   // Danh sách lớp do BE giới hạn theo phạm vi (EDU-64): HT/PHT mọi lớp, tổ trưởng lớp cùng nhóm tuổi, GV chỉ lớp mình
   const canPickClass = classes.length > 1;
   const isGroupLeader = leaders.some((leader) => String(leader.id) === String(user.id));
@@ -102,6 +92,7 @@ export function useClassPlanContext(classId) {
     isHomeroomTeacher,
     canCreate: (kind) =>
       canComposeClassDocs &&
+      raw?.id === current?.id &&
       creationCapabilities.some((cap) => String(cap.classId) === String(classId) && cap.kind === kind && cap.canCreate),
     canComposeClassDocs,
     canPickClass,
@@ -155,7 +146,10 @@ export function ClassPicker({ classes, classId, onPick, showAllAges = false }) {
   const [params] = useSearchParams();
   const id = useId();
   const current = classes.find((c) => c.id === classId);
-  const groups = ageRangeOptions(showAllAges ? AGE_GROUPS : AGE_GROUPS.filter((g) => classes.some((c) => c.ageGroupId === g.id)));
+  const groups = ageRangeOptions(
+    showAllAges ? AGE_GROUPS : AGE_GROUPS.filter((g) => classes.some((c) => sameAgeRange(c.ageGroupId, g.id))),
+    { includeIncomplete: showAllAges },
+  );
   const selectedAge = rangeOptionId(current?.ageGroupId ?? (showAllAges ? params.get('ageGroup') : null), groups);
   const inGroup = selectedAge ? classes.filter((c) => sameAgeRange(c.ageGroupId, selectedAge)) : classes;
   return (
@@ -183,8 +177,8 @@ export function ClassPicker({ classes, classId, onPick, showAllAges = false }) {
               </option>
             )}
             {groups.map((g) => (
-              <option key={g.id} value={g.id}>
-                {g.name}
+              <option key={g.id} value={g.id} disabled={g.missingRange}>
+                {g.name}{g.missingRange ? ' (thiếu khoảng tháng)' : ''}
               </option>
             ))}
           </SelectField>

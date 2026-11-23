@@ -4,7 +4,6 @@ import { useParams, useSearchParams } from 'react-router-dom';
 import { FileDown, Save, X } from '@/components/ui/icons';
 import { Card, EmptyCard, fmtDate, FoldAllButton, Notice, PageHead } from '@/components/education-plan/eduUi';
 import { getClassDocRelease, getClassPlans, getGoal, suggestActivityCards } from '@/services/education-plan/educationPlanService';
-import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { submitEntryOf } from '@/models/education-plan/reviewHistory.mjs';
 import { VersionHistory } from '@/components/education-plan/VersionHistory';
 import { docLines } from '@/models/education-plan/planHistory.mjs';
@@ -42,6 +41,8 @@ import { CoverageTab } from '@/components/education-plan/CoverageTab';
 import { FinishedThemeNote, SupersededNote, VersionCopyOffer, VersionFlagsPanel } from '@/components/education-plan/VersionWidgets';
 import { useDocVersion } from '@/hooks/education-plan/useDocVersion';
 import { addedGoalIds, checkFlag, danglingRows, dropReference, versionOf } from '@/models/education-plan/planVersions.mjs';
+import { previousSchoolYears, sameSchoolYearId } from '@/models/education-plan/schoolYearScope.mjs';
+import { classPlanVersionPath } from '@/models/education-plan/planVersions.mjs';
 import DocPreviewModal from '@/components/education-plan/DocPreviewModal';
 import { BlockedNotice } from '@/components/education-plan/DeadlineWidgets';
 import { Button } from '@/components';
@@ -52,25 +53,25 @@ import { Button } from '@/components';
  */
 export default function ClassThemePlanPage() {
   const { classId, themeId } = useParams();
-  return <ThemePlanInner key={`${classId}/${themeId}`} />;
+  const [params] = useSearchParams();
+  return <ThemePlanInner key={`${classId}/${themeId}/${params.get('plan') || ''}`} />;
 }
 
 function ThemePlanInner() {
   const { classId, themeId } = useParams();
   const [query] = useSearchParams();
   const coverageTab = query.get('tab') === 'coverage';
-  const { user, classThemePlans, branchPlans, weekPlans, dayPlans, semesterPackages, saveClassDoc, toast, staff } = useEducationPlan();
+  const { user, classThemePlans, branchPlans, weekPlans, dayPlans, semesterPackages, saveClassDoc, toast, staff, yearOptions } = useEducationPlan();
   const [preview, setPreview] = useState(null);
   const ctx = useClassPlanContext(classId);
-  const { schoolYears } = useSchoolYear();
   const { cls, yearPlan, canComposeClassDocs } = ctx;
   const theme = yearPlan?.themes.find((t) => t.id === themeId);
-  const saved = classThemePlans.find((t) => t.classId === classId && t.themeId === themeId) || null;
+  const saved = classThemePlans.find((t) => t.classId === classId && t.yearPlanId === yearPlan?.id && t.themeId === themeId) || null;
   // Spec 003: gửi/duyệt theo kế hoạch giáo dục ngày (gốc ds_); bản mock cũ chưa có thì vẫn theo kế hoạch chủ đề
   // Spec 004: kế hoạch chủ đề gửi/duyệt trong học kỳ (gốc sp_) ⇒ trạng thái, hạn, lịch sử lấy theo học kỳ
   const semester =
     semesterPackages.find((p) => p.id === saved?.containerKey) ||
-    semesterPackages.find((p) => p.classId === classId && (p.themeIds || []).map(String).includes(String(themeId))) ||
+    semesterPackages.find((p) => p.classId === classId && p.yearPlanId === yearPlan?.id && (p.themeIds || []).map(String).includes(String(themeId))) ||
     null;
   const holder = semester || saved;
   const [draft, setDraft] = useState(null);
@@ -123,14 +124,15 @@ function ThemePlanInner() {
         .trim()
         .toLowerCase()
         .replace(/\s+/g, ' ');
-    const current = String(yearPlan?.schoolYear || '').replace(/\s*[–-]\s*/, '-');
     const name = norm(yearPlan?.themes.find((t) => t.id === themeId)?.name);
-    const prior = schoolYears.filter((y) => String(y.id) < current).sort((a, b) => String(b.id).localeCompare(String(a.id)));
+    if (!name) return [];
+    const prior = previousSchoolYears(yearOptions, yearPlan?.schoolYearId);
     const sources = [];
     for (const year of prior) {
       const docs = await getClassPlans(year.id, user);
       for (const doc of (docs?.classThemePlans || []).filter((d) => d.status === EDU_STATUS.APPROVED)) {
         const plan = await getGoal(doc.yearPlanId, user);
+        if (!sameSchoolYearId(plan?.schoolYearId, year.id)) continue;
         if (norm(plan?.themes?.find((t) => String(t.id) === String(doc.themeId))?.name) !== name) continue;
         const goals = themeGoalBlocks(plan.domains, numberGoals(plan.domains), doc.themeId, doc.customTicks).flatMap((b) => b.goals);
         const cards = normalizeTheme(
@@ -148,7 +150,7 @@ function ThemePlanInner() {
       }
     }
     return sources;
-  }, [schoolYears, user, yearPlan, themeId]);
+  }, [yearOptions, user, yearPlan, themeId]);
 
   const guard = useLeaveGuard({
     when: canWrite && saver.unsaved,
@@ -166,6 +168,8 @@ function ThemePlanInner() {
 
   if (ctx.loading) return <LoadingState />;
   if (!cls || !yearPlan || !theme) return <StatusPage kind="404" title="Không tìm thấy chủ đề trong kế hoạch năm đã ban hành của lớp" />;
+  if (!canComposeClassDocs && !saved) return <StatusPage kind="404" title="Kế hoạch chủ đề chưa được ban hành hoặc không thuộc phạm vi xem" />;
+  const planPath = (path) => classPlanVersionPath(path, ctx.superseded ? yearPlan.id : null);
   if (!draft) return <LoadingState />;
 
   const editable = canWrite;
@@ -352,7 +356,7 @@ function ThemePlanInner() {
             label="Chủ đề"
             value={String(themeId)}
             options={themesWithWeeks(yearPlan).map((t) => ({ value: String(t.id), label: t.name }))}
-            onChange={(id) => guard.leave(`/education/class/${classId}/themes/${id}`)}
+            onChange={(id) => guard.leave(planPath(`/education/class/${classId}/themes/${id}`))}
           />
           {/* Lọc mục tiêu nằm trong thẻ Bảng phủ MT; bỏ "Kiểu hiển thị" dạng cây (Tiền 13/11/2026) */}
         </ClassFilterBar>
@@ -392,7 +396,7 @@ function ThemePlanInner() {
           cards={coverageCards}
           weeks={coverageWeeks}
           contentsOf={(g) => rowOf(g).contents}
-          onOpen={(start, day) => guard.leave(`/education/class/${classId}/weeks/${start}#cov-day-${day}`)}
+          onOpen={(start, day) => guard.leave(planPath(`/education/class/${classId}/weeks/${start}#cov-day-${day}`))}
         />
       )}
       {!coverageTab && (

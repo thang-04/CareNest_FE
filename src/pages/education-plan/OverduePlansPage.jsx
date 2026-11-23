@@ -1,46 +1,102 @@
 import { Button, SelectField } from '@/components';
-import { useId, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useId, useRef, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Card, EduStatusBadge, EmptyState, PageHead, YearPlanStatusBadge, fmtDate, fmtDateTime } from '@/components/education-plan/eduUi';
 import { ExtendDeadlineModal } from '@/components/education-plan/DeadlineWidgets';
 import { FilterMore } from '@/components/ui/FilterMore';
-import { LoadingState } from '@/components/ui/States';
 import { Eye } from '@/components/ui/icons';
 import { useEducationPlan, useGoalDetails } from '@/hooks/education-plan/useEducationPlan';
+import { usePolling } from '@/hooks/usePolling';
+import { useAsync } from '@/hooks/useAsync';
+import { Modal } from '@/components/ui/Modal';
+import { ErrorState, LoadingState } from '@/components/ui/States';
+import { getOverduePlan, getOverduePlans } from '@/services/education-plan/educationPlanService';
 import { ageRangeOptions, sameAgeRange } from '@/models/education-plan/educationPlanConstants';
 import { todayIso } from '@/models/education-plan/classPlan';
-import { planRoute } from '@/models/education-plan/planLevel.mjs';
 import { OVERDUE_DEADLINE_LABEL, OVERDUE_KIND_LABEL, filterOverdue, overdueRows } from '@/models/education-plan/overdue.mjs';
 
 const EMPTY_FILTER = { deadlineKind: '', ageGroupId: '', classId: '', kind: '', semesterNo: '' };
 
 const linkOf = (r) =>
-  r.planId
-    ? `${planRoute(r.doc)}/${r.planId}`
-    : r.kind === 'semester'
-      ? `/education/theme-plans/${r.classId}?hk=${r.semesterNo}`
-      : `/education/day-plans/${r.classId}?theme=${r.doc.themeId}`;
+  `/education/overdue?${new URLSearchParams({ kind: r.kind, doc: r.planId ?? r.docKey })}`;
+
+function OverdueDetail({ user, schoolYearId, kind, docKey, row, onClose }) {
+  const { data, error, reload } = useAsync(
+    () => getOverduePlan(user, schoolYearId, kind, docKey),
+    [user.id, schoolYearId, kind, docKey],
+  );
+  const extension = row?.extension;
+  return (
+    <Modal title={row?.title || OVERDUE_KIND_LABEL[kind]} onClose={onClose}
+      footer={<Button data-testid="overdue-detail-close" onClick={onClose}>Đóng</Button>}>
+      {error ? <ErrorState error={error} onRetry={reload} /> : !data ? <LoadingState /> : (
+        <div className="stack">
+          <div className="row row--wrap gap-2">
+            <EduStatusBadge status={data.status} doc={data} />
+            <span>Hạn {fmtDate(row?.deadline || data.deadline || data.timeLock?.deadline)}</span>
+          </div>
+          {extension && <span>Hạn mới {fmtDate(extension.deadline)} · {[extension.by, extension.note].filter(Boolean).join(' · ')}</span>}
+          {data.description && <p>{data.description}</p>}
+          {data.themes?.length > 0 && <ol>{data.themes.map((theme) => <li key={theme.id}>{theme.name}</li>)}</ol>}
+          {data.domains?.map((domain) => (
+            <section key={domain.id ?? domain.name}>
+              <h3>{domain.name}</h3>
+              <ul>{domain.rows?.map((entry, index) => <li key={entry.id ?? index}>{entry.text}</li>)}</ul>
+            </section>
+          ))}
+          {data.members?.map((member) => (
+            <section key={member.id}>
+              <h3>{member.title || member.name || (member.weekStart ? `Tuần ${fmtDate(member.weekStart)}` : 'Kế hoạch chủ đề')}</h3>
+              {member.description && <p>{member.description}</p>}
+            </section>
+          ))}
+        </div>
+      )}
+    </Modal>
+  );
+}
 
 /**
  * Kế hoạch quá hạn (spec 005 FR-021a, chỉ Hiệu trưởng): tài liệu chưa ban hành đã tới hạn của cả năm, tổ và lớp; tích
  * nhiều dòng rồi mở hạn với một lý do + hạn mới chung (theo cách "Grant extension" của Moodle). Trang chi tiết không có nút mở.
  */
 export default function OverduePlansPage() {
+  const { user, schoolYearId } = useEducationPlan();
+  // Chọn dòng và hộp mở hạn thuộc lần xem này, kể cả khi đổi A → B → A.
+  return <OverduePlansForYear key={JSON.stringify([user.id, schoolYearId])} schoolYearId={schoolYearId} />;
+}
+
+function OverduePlansForYear({ schoolYearId }) {
   const id = useId();
-  const { loading, user, goals, semesterPackages, themeDossiers, classes, actOnClassDoc, unlockGoal, reopenGoalReviewDeadline } =
-    useEducationPlan();
+  const { user, goals: mainGoals, actOnClassDoc, unlockGoal, reopenGoalReviewDeadline } = useEducationPlan();
+  const [params, setParams] = useSearchParams();
+  const board = useAsync(() => getOverduePlans(user, schoolYearId), [user.id, schoolYearId], {
+    enabled: !!schoolYearId,
+    refreshOnDataChange: true,
+  });
+  const { goals = [], semesterPackages = [], themeDossiers = [], classes = [] } = board.data || {};
   const [tab, setTab] = useState('overdue');
   const [filter, setFilter] = useState(EMPTY_FILTER);
   const [selected, setSelected] = useState(() => new Set());
   const [target, setTarget] = useState(null);
   const [errors, setErrors] = useState({});
+  const active = useRef(false);
+  useEffect(() => {
+    active.current = true;
+    return () => {
+      active.current = false;
+    };
+  }, []);
+  usePolling(() => board.reload({ silent: true }), { enabled: !!schoolYearId });
 
   // Tên chủ đề lấy từ chi tiết kế hoạch tổ của hồ sơ
   useGoalDetails(themeDossiers.map((d) => d.yearPlanId));
 
-  if (loading) return <LoadingState />;
-  const themeNameOf = (d) => goals.find((g) => g.id === d.yearPlanId)?.themes?.find((t) => t.id === d.themeId)?.name || 'Chủ đề';
+  const themeNameOf = (d) => mainGoals.find((g) => g.id === d.yearPlanId)?.themes?.find((t) => t.id === d.themeId)?.name || 'Chủ đề';
   const rows = overdueRows({ semesterPackages, themeDossiers, yearPlans: goals, classes, themeNameOf, today: todayIso() });
+  const detailKind = params.get('kind');
+  const detailKey = params.get('doc');
+  const detailRow = rows.find((row) => row.kind === detailKind && String(row.planId ?? row.docKey) === detailKey);
   const shown = filterOverdue(
     rows.filter((r) => !filter.ageGroupId || sameAgeRange(r.ageGroupId, filter.ageGroupId)),
     { tab, ...filter, ageGroupId: '' },
@@ -78,9 +134,12 @@ export default function OverduePlansPage() {
           });
       if (!ok) failed[r.key] = message || 'Không mở hạn được';
     }
-    setErrors(failed);
-    setSelected(new Set(Object.keys(failed)));
-    setTarget(null);
+    if (active.current) {
+      setErrors(failed);
+      setSelected(new Set(Object.keys(failed)));
+      setTarget(null);
+      board.reload({ silent: true });
+    }
   };
 
   const overdueTab = tab === 'overdue';
@@ -202,7 +261,13 @@ export default function OverduePlansPage() {
                 <span className="muted text-sm" role="status">
                   Đã chọn {picked.length} kế hoạch
                 </span>
-                <Button variant="outline-primary" size="sm" disabled={!picked.length} onClick={() => setTarget(picked)}>
+                <Button
+                  variant="outline-primary"
+                  size="sm"
+                  data-testid="overdue-plans-extend-selected"
+                  disabled={!picked.length}
+                  onClick={() => setTarget(picked)}
+                >
                   Mở hạn{picked.length ? ` (${picked.length})` : ''}
                 </Button>
               </div>
@@ -214,7 +279,11 @@ export default function OverduePlansPage() {
             )}
           </div>
         )}
-        {shown.length === 0 ? (
+        {board.error ? (
+          <ErrorState error={board.error} onRetry={board.reload} />
+        ) : board.initialLoading ? (
+          <LoadingState />
+        ) : shown.length === 0 ? (
           <EmptyState title={overdueTab ? 'Chưa có kế hoạch quá hạn' : 'Chưa mở hạn kế hoạch nào'} />
         ) : (
           <div className="ga-overdue-table">
@@ -281,7 +350,7 @@ export default function OverduePlansPage() {
                       </td>
                       <td className="cell--actions">
                         <div className="row gap-2">
-                          <Link className="btn btn--sm btn--outline-primary" to={linkOf(r)}>
+                          <Link className="btn btn--sm btn--outline-primary" data-testid="overdue-plans-view" to={linkOf(r)}>
                             <Eye size={16} aria-hidden /> Xem
                           </Link>
                           {overdueTab && (
@@ -299,6 +368,10 @@ export default function OverduePlansPage() {
           </div>
         )}
       </Card>
+      {schoolYearId && detailKey && Object.hasOwn(OVERDUE_KIND_LABEL, detailKind) && (
+        <OverdueDetail user={user} schoolYearId={schoolYearId} kind={detailKind} docKey={detailKey} row={detailRow}
+          onClose={() => setParams({}, { replace: true })} />
+      )}
       {target && (
         <ExtendDeadlineModal
           title={

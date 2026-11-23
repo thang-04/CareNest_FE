@@ -6,6 +6,7 @@ import {
   branchDisplayRows,
   branchWeeks,
   calendarDurationIssue,
+  publishedBranchCalendar,
   removeBranch,
   resizeBranch,
   seedTeamBranchTemplates,
@@ -31,7 +32,7 @@ import {
   useClassPlanContext,
 } from '@/components/education-plan/planUi';
 import { RejectedNotice } from '@/components/education-plan/reviewUi';
-import { LoadingState } from '@/components/ui/States';
+import { EmptyState, LoadingState } from '@/components/ui/States';
 import { AiWorkingOverlay } from '@/components/ui/AiWorkingOverlay';
 import { Modal } from '@/components/ui/Modal';
 import { useAiRun } from '@/hooks/useAiRun';
@@ -51,7 +52,6 @@ import {
   offDaysText,
   semesterChoices,
 } from '@/models/education-plan/classPlan';
-import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { SupersededNote, VersionCopyOffer, VersionFlagsPanel } from '@/components/education-plan/VersionWidgets';
 import { useDocVersion } from '@/hooks/education-plan/useDocVersion';
 import { checkFlag, dropReference, versionOf } from '@/models/education-plan/planVersions.mjs';
@@ -85,7 +85,62 @@ export default function BranchPlanPage() {
     );
   }
   // Đổi lớp hoặc nguồn thì dựng lại vùng soạn của lớp mới.
+  if (!ctx.canComposeClassDocs) {
+    return <PublishedBranches key={`${classId}:${yearPlan.id}`} ctx={ctx} classId={classId} />;
+  }
   return <BranchPlanInner key={`${classId}:${yearPlan.id}:${yearPlan.curriculumSourcePlanId || 'legacy'}`} classId={classId} ctx={ctx} />;
+}
+
+function PublishedBranches({ ctx, classId }) {
+  const title = 'Dự kiến chủ đề - chủ đề nhánh';
+  const navigate = useNavigate();
+  const { refreshClassDocs, semesterPackages } = useEducationPlan();
+  const [view, setView] = useState('list');
+  const [semester, setSemester] = useState('');
+  usePolling(() => refreshClassDocs().catch(() => {}));
+  const packages = semesterPackages.filter((pkg) =>
+    pkg.classId === classId && pkg.yearPlanId === ctx.yearPlan.id && pkg.status === EDU_STATUS.APPROVED);
+  const calendar = semester
+    ? publishedBranchCalendar(ctx.yearPlan, packages.filter((pkg) => String(pkg.semesterNo) === semester))
+    : ctx.branchPlan;
+  const rows = calendar ? teachingWeeks(ctx.yearPlan, calendar)
+    .filter((week) => calendar.themeIds.has(String(week.theme.id))) : [];
+  return (
+    <div className="page ga-page">
+      <div className="ga-sticky-head">
+        <PageHead crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: title }]} title={title} />
+        <ClassFilterBar showAllAges classes={ctx.classes} classId={classId} canPick={ctx.canPickClass}
+          onPick={(id, age) => navigate(classFilterPath('/education/branches', id, age))}>
+          <FilterSelect label="Học kỳ" value={semester} onChange={setSemester}
+            options={[{ value: '', label: 'Tất cả' }, ...packages.map((pkg) =>
+              ({ value: String(pkg.semesterNo), label: `Học kỳ ${pkg.semesterNo}` }))]} />
+          <FilterSelect label="Kiểu hiển thị" value={view} onChange={setView}
+            options={[{ value: 'list', label: 'Danh sách' }, { value: 'grid', label: 'Bảng' }]} />
+        </ClassFilterBar>
+      </div>
+      <Card title={title}>
+        {!rows.length ? <EmptyState title="Chưa có lịch chủ đề nhánh đã ban hành" /> : view === 'grid' ? (
+          <BranchGridTable rows={rows} names={calendar.names} branches={calendar.branches} />
+        ) : (
+          <DocTable className="ga-plan-table ga-goal-table ga-branch-plan-table ga-branch-readonly" data-testid="published-branch-list">
+            <thead><tr>
+              <th scope="col">Tháng</th><th scope="col">Chủ đề</th><th scope="col">Chủ đề nhánh</th>
+              <th scope="col">Tuần</th><th scope="col">Ghi chú</th>
+            </tr></thead>
+            <tbody>{rows.map((row) => (
+              <tr key={`${row.theme.id}:${row.start}`}>
+                <td>{Number(row.start.slice(5, 7))}</td>
+                <td>{row.theme.name}</td>
+                <td>{calendar.names[row.start] || '—'}</td>
+                <td>Tuần {row.no} · {ddmm(row.start)} – {ddmm(row.end)}</td>
+                <td>{calendar.notes[row.start] || '—'}</td>
+              </tr>
+            ))}</tbody>
+          </DocTable>
+        )}
+      </Card>
+    </div>
+  );
 }
 
 // Bản gửi đi khi lưu: ô AI chưa ✓ / ✗ vẫn lưu tên trước đó, chỉ lưu khi giáo viên đã giữ
@@ -133,7 +188,7 @@ function BranchPlanInner({ classId, ctx }) {
   const [copying, setCopying] = useState(false);
   const [view, setView] = useState('list');
   const [semesterNo, setSemesterNo] = useState('');
-  const { schoolYear: yearId, schoolYears } = useSchoolYear();
+  const { yearOption } = useEducationPlan();
   const version = useDocVersion('branch', saved, ctx, branchPlans);
   const autoOk =
     !ctx.superseded &&
@@ -200,7 +255,7 @@ function BranchPlanInner({ classId, ctx }) {
   const status = saved?.status || EDU_STATUS.DRAFT;
   const packages = semesterPackages.filter((p) => p.classId === classId && p.yearPlanId === yearPlan?.id);
   const choices = semesterChoices(
-    schoolYears.find((y) => String(y.id) === String(yearId)),
+    yearOption,
     yearPlan.themes.filter((t) => t.start && t.end),
     packages,
   );

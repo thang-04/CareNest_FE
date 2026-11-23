@@ -99,9 +99,8 @@ export const DueStateBadge = createStatusBadge(
 
 /** Dòng chưa có hồ sơ: chưa lập / chưa soạn, hoặc chưa tới lượt (khóa). */
 export const DocAvailabilityBadge = createStatusBadge(
-  { NOT_PLANNED: ['gray', FileText], NOT_DRAFTED: ['gray', FileText], LOCKED: ['gray', Lock], UNRELEASED: ['gray', FileText] },
-  // UNRELEASED: nhãn chung cho người chỉ xem, không lộ chưa lập / nháp / chờ duyệt (Tiền 11/11/2026)
-  { NOT_PLANNED: 'Chưa lập', NOT_DRAFTED: 'Chưa soạn', LOCKED: 'Chưa thể bắt đầu', UNRELEASED: 'Chưa ban hành' },
+  { NOT_PLANNED: ['gray', FileText], NOT_DRAFTED: ['gray', FileText], LOCKED: ['gray', Lock] },
+  { NOT_PLANNED: 'Chưa lập', NOT_DRAFTED: 'Chưa soạn', LOCKED: 'Chưa thể bắt đầu' },
 );
 
 /** Trạng thái kế hoạch năm: Tổ trưởng gửi Phó HT, Phó HT duyệt ban hành (ký tay trên bản in). */

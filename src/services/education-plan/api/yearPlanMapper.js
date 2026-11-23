@@ -26,8 +26,8 @@ export const buildRefs = (config) => {
   const schoolYears = config?.schoolYears || [];
   const domains = config?.domains || [];
   return {
-    ageGroupCode: (id) => ageGroups.find((a) => a.id === id)?.code ?? null,
-    ageGroupId: (code) => ageGroups.find((a) => a.code === code)?.id ?? null,
+    ageGroupCode: (id) => id == null ? null : ageGroups.find((a) => String(a.id) === String(id) || a.code === id)?.code ?? null,
+    ageGroupId: (code) => code == null ? null : ageGroups.find((a) => a.code === code || String(a.id) === String(code))?.id ?? null,
     schoolYearId: (label) => schoolYears.find((y) => y.name === fromYearLabel(label))?.id ?? null,
     domainId: (name) => domains.find((d) => d.name === name)?.id ?? null,
   };
@@ -138,6 +138,7 @@ export const toUiGoal = (detail, refs) => {
     timeLock: detail.timeLock || null,
     reviewDeadline: detail.reviewDeadline || detail.timeLock?.reviewDeadline || null,
     code: detail.code,
+    schoolYearId: detail.schoolYearId,
     schoolYear: toYearLabel(detail.schoolYearName),
     ageGroupId: refs.ageGroupCode(detail.ageGroupId),
     title: detail.title,
@@ -202,7 +203,7 @@ export const toYearPlanRequest = (goal, refs) => ({
     startDate: t.startDate || null,
     endDate: t.endDate || null,
   })),
-  schoolYearId: refs.schoolYearId(goal.schoolYear),
+  schoolYearId: serverId(goal.schoolYearId) ?? refs.schoolYearId(goal.schoolYear),
   ageGroupId: refs.ageGroupId(goal.ageGroupId),
   title: goal.title,
   description: goal.description || '',

@@ -7,6 +7,7 @@ import { ensureSchoolSeeded } from '@/mocks/schoolMockRepository';
 import { EDU_SEED_VERSION, ensureEduDemo } from '@/mocks/educationPlanSeed';
 import { ROLES, ROLE_LABELS } from '@/models/User';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
+import { mockSchoolYearId, sameSchoolYearId } from '@/models/education-plan/schoolYearScope.mjs';
 import {
   CARD_NAME_MAX,
   CLASS_DOC,
@@ -255,7 +256,14 @@ export const classPlanMockRepository = {
     });
     return { matches, warnings };
   },
-  async getAll(user) {
+  async getOverdue(user, schoolYearId) {
+    const { classes } = await this.getAll(user, schoolYearId);
+    return { classes, semesterPackages: [], themeDossiers: [] };
+  },
+  async getOverdueDoc() {
+    throw eduError('CLASS_DOC_NOT_FOUND');
+  },
+  async getAll(user, schoolYearId, review = false) {
     await delay();
     const db = readDb();
     // Bộ demo cũ: nạp bộ demo hiện hành (kế hoạch năm + bản nháp của lớp) trước khi đọc
@@ -263,17 +271,30 @@ export const classPlanMockRepository = {
     if (Object.values(COLLECTIONS).some((key) => !readDb()[key])) writeDb(ensureCollections);
     ensureSchoolSeeded();
     const fresh = readDb();
+    const activeYearId = fresh.schoolYears?.find((year) => year.status === 'ACTIVE')?.id;
+    const classes = (fresh.classes || []).filter(
+      (cls) =>
+        schoolYearId == null ||
+        sameSchoolYearId(cls.schoolYearId ?? mockSchoolYearId(fresh.schoolYears, cls.schoolYear) ?? activeYearId, schoolYearId),
+    );
+    const classIds = new Set(classes.map((cls) => String(cls.id)));
+    const docs = (kind) =>
+      fresh[COLLECTIONS[kind]].filter((doc) => classIds.has(String(doc.classId)))
+        .map((doc) => decorate(fresh, doc, user, kind))
+        .filter((doc) => canAuthor(fresh, doc.classId, user) ||
+          (kind !== 'branch' && (doc.status === EDU_STATUS.APPROVED ||
+            (review && (doc.permissions?.canApprove || doc.permissions?.canReject)))));
     return {
-      branchPlans: clone(fresh.eduClassBranch.map((d) => decorate(fresh, d, user, 'branch'))),
-      classThemePlans: clone(fresh.eduClassTheme.map((d) => decorate(fresh, d, user, 'theme'))),
-      weekPlans: clone(fresh.eduClassWeek.map((d) => decorate(fresh, d, user, 'week'))),
+      branchPlans: clone(docs('branch')),
+      classThemePlans: clone(docs('theme')),
+      weekPlans: clone(docs('week')),
       // ponytail: bản demo giữ cách duyệt cũ (BE:EDU-17); BE:EDU-74 (kế hoạch giáo dục chủ đề, kế hoạch giáo dục ngày, giáo án ngày) chỉ có ở API —
       // danh sách rỗng ⇒ trang tự quay về gửi theo kế hoạch chủ đề. Dựng mock đầy đủ khi cần demo không có BE.
       semesterPackages: [],
       themeDossiers: [],
       dayPlans: [],
       semesterConfigMissing: false,
-      creationCapabilities: (fresh.classes || []).flatMap((cls) =>
+      creationCapabilities: classes.flatMap((cls) =>
         ['branch', 'theme', 'week'].map((kind) => ({
           classId: cls.id,
           kind,
@@ -283,7 +304,7 @@ export const classPlanMockRepository = {
         })),
       ),
       // Lớp và giáo viên, tổ trưởng (giống GET /education-plans/class-docs của BE)
-      classes: clone(fresh.classes || []),
+      classes: clone(classes),
       staff: (fresh.users || [])
         .filter((u) => u.role === ROLES.TEACHER || u.role === ROLES.TEAM_LEADER)
         .map((u) => ({ id: u.id, fullName: u.fullName, role: u.role, ageGroupId: u.ageGroupId })),

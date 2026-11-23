@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   Card,
-  DocAvailabilityBadge,
   EduStatusBadge,
   EmptyCard,
   EmptyState,
@@ -31,7 +30,7 @@ import { numberGoals } from '@/models/education-plan/goalTable';
 import { leaderNameOf, themeFile } from '@/utils/education-plan/classPlanDoc';
 import DocPreviewModal from '@/components/education-plan/DocPreviewModal';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
-import { useSchoolYear } from '@/contexts/SchoolYearContext';
+import { classPlanVersionPath } from '@/models/education-plan/planVersions.mjs';
 import { usePolling } from '@/hooks/usePolling';
 import {
   coverageOf,
@@ -58,7 +57,10 @@ export function ClassPlanRedirect({ showAllAges = false, toOf = (id) => `/educat
 /** Đường dẫn cũ /education/class/:classId ⇒ trang Kế hoạch giáo dục chủ đề. */
 export function ClassPlanLegacyRedirect() {
   const { classId, no } = useParams();
-  return <Navigate to={`/education/theme-plans/${classId}${no ? `?hk=${no}` : ''}`} replace />;
+  const [params] = useSearchParams();
+  const to = `/education/theme-plans/${classId}${no ? `?hk=${no}` : ''}`;
+  const review = params.get('review') === '1' ? `${no ? '&' : '?'}review=1` : '';
+  return <Navigate to={classPlanVersionPath(to + review, params.get('plan'))} replace />;
 }
 
 const MISSING_LABEL = { branch: 'tên chủ đề nhánh', theme: 'kế hoạch chủ đề', week: 'kế hoạch tuần' };
@@ -71,7 +73,6 @@ export default function ClassPlanPage() {
   const { classId } = useParams();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
-  const { schoolYear: yearId, schoolYears } = useSchoolYear();
   const {
     user,
     branchPlans,
@@ -83,6 +84,7 @@ export default function ClassPlanPage() {
     actOnClassDoc,
     eduConfig,
     refreshClassDocs,
+    yearOption,
   } = useEducationPlan();
   const [preview, setPreview] = useState(null);
   const [confirmRevise, setConfirmRevise] = useState(false);
@@ -117,6 +119,11 @@ export default function ClassPlanPage() {
     );
 
   const base = `/education/class/${classId}`;
+  const planPath = (path) => {
+    const review = params.get('review') === '1' && !path.startsWith('/education/branches/')
+      ? `${path.includes('?') ? '&' : '?'}review=1` : '';
+    return classPlanVersionPath(path + review, ctx.superseded ? yearPlan?.id : null);
+  };
   // Học kỳ nằm trong card lọc chung (Tiền 13/11/2026).
   const headOf = (extra, toolbar = null) => (
     <div className="ga-sticky-head">
@@ -159,7 +166,7 @@ export default function ClassPlanPage() {
   const today = todayIso();
   const allThemesForHk = [...yearPlan.themes].filter((t) => t.start && t.end);
   const choices = semesterChoices(
-    schoolYears.find((y) => String(y.id) === String(yearId)),
+    yearOption,
     allThemesForHk,
     packages,
   );
@@ -171,7 +178,9 @@ export default function ClassPlanPage() {
   const branch = branchPlan;
   const allThemes = [...yearPlan.themes].filter((t) => t.start && t.end).sort((a, b) => a.start.localeCompare(b.start));
   const themeIds = choice ? choice.themeIds : null;
-  const themes = themeIds ? allThemes.filter((t) => themeIds.includes(String(t.id))) : allThemes;
+  const visibleThemes = themeIds ? allThemes.filter((t) => themeIds.includes(String(t.id))) : allThemes;
+  const themes = canComposeClassDocs || pkg?.status === 'APPROVED' || pkg?.status === 'REVIEW'
+    ? visibleThemes : [];
   const numbers = numberGoals(yearPlan.domains);
   const themeArgs = (t, themeNo, doc, themeWeeks) => ({
     themeDoc: doc,
@@ -192,7 +201,7 @@ export default function ClassPlanPage() {
     leaderName: leaderNameOf(staff, cls.ageGroupId, yearPlan?.schoolYear),
   });
   const exportTheme = (t, themeNo, doc, themeWeeks) => setPreview(themeFile(themeArgs(t, themeNo, doc, themeWeeks)));
-  // Người chỉ xem (không soạn được hồ sơ lớp): thấy khung trang, phần chưa ban hành chỉ một nhãn "Chưa ban hành", không nút Xem
+  // Người chỉ xem (không soạn được hồ sơ lớp): thấy khung trang, phần chưa ban hành để trống (Tiền 23/11/2026)
   const viewer = !canComposeClassDocs;
   const lockOf = (kind, themeId) => createBlocker(kind, { classId, yearPlanId: yearPlan.id, themeId }, { branchPlans, classThemePlans });
   // Một nút mỗi dòng, chữ thống nhất với trang ngày: chưa có ⇒ Soạn, còn sửa được ⇒ Chỉnh sửa, còn lại ⇒ Xem (Tiền 14/11/2026)
@@ -207,8 +216,7 @@ export default function ClassPlanPage() {
           <Plus size={16} aria-hidden /> Soạn
         </Link>
       );
-    // Bỏ cột Trạng thái (Tiền 14/11/2026): người chỉ xem thấy nhãn "Chưa ban hành" ngay ở cột Thao tác
-    if (!doc) return viewer ? <DocAvailabilityBadge status="UNRELEASED" /> : <span className="muted text-sm nowrap">Chưa lập</span>;
+    if (!doc) return viewer ? null : <span className="muted text-sm nowrap">Chưa lập</span>;
     return (
       <Link className="btn btn--outline-primary btn--sm" to={to} title={`Xem ${name}`}>
         <Eye size={16} aria-hidden /> Xem
@@ -220,7 +228,7 @@ export default function ClassPlanPage() {
     actOnClassDoc('semester', pkg.id, { action, note, ...extra }, user, { version: pkg.version });
   // EDU-80 (FR-031): kế hoạch giáo dục chủ đề thiếu MT chỉ cảnh báo trong hộp gửi; học kỳ cuối do BE chặn (7397)
   const untaught = themes.flatMap((t) => {
-    const doc = classThemePlans.find((x) => x.classId === classId && x.themeId === t.id) || null;
+    const doc = classThemePlans.find((x) => x.classId === classId && x.yearPlanId === yearPlan.id && x.themeId === t.id) || null;
     const gs = themeGoalBlocks(yearPlan.domains, numbers, t.id, doc?.customTicks).flatMap((b) => b.goals);
     const weeksOfTheme = rows
       .filter((r) => r.type === 'week' && r.theme.id === t.id)
@@ -259,7 +267,13 @@ export default function ClassPlanPage() {
           <FilterSelect
             label="Học kỳ"
             value={hk}
-            onChange={(key) => setParams({ hk: key }, { replace: true })}
+            onChange={(key) =>
+              setParams((prev) => {
+                const next = new URLSearchParams(prev);
+                next.set('hk', key);
+                return next;
+              }, { replace: true })
+            }
             options={choices.map((c) => ({ value: String(c.semesterNo), label: `Học kỳ ${c.semesterNo} (${c.themeIds.length})` }))}
           />
         ),
@@ -270,9 +284,7 @@ export default function ClassPlanPage() {
             aria-label={pkg ? `Trạng thái và thao tác học kỳ ${pkg.semesterNo}` : 'Thao tác'}
           >
             <div className="ga-year-toolbar__group">
-              {pkg?.unreleased ? (
-                <DocAvailabilityBadge status="UNRELEASED" />
-              ) : (
+              {pkg?.unreleased ? null : (
                 pkg && (
                   <>
                     <EduStatusBadge status={pkg.status} doc={pkg} />
@@ -341,10 +353,10 @@ export default function ClassPlanPage() {
       {themes.length === 0 && <EmptyCard title="Chưa có chủ đề trong học kỳ" />}
       {themes.map((t) => {
         const ti = allThemes.indexOf(t);
-        const doc = classThemePlans.find((x) => x.classId === classId && x.themeId === t.id) || null;
+        const doc = classThemePlans.find((x) => x.classId === classId && x.yearPlanId === yearPlan.id && x.themeId === t.id) || null;
         const themeRows = rows.filter((r) => r.theme.id === t.id);
         const themeWeeks = themeRows.filter((r) => r.type === 'week');
-        const to = `${base}/themes/${t.id}`;
+        const to = planPath(`${base}/themes/${t.id}`);
         const weekLock = lockOf('week', t.id);
         const docOfWeek = (start) =>
           weekPlans.find((w) => w.classId === classId && w.yearPlanId === yearPlan.id && w.weekStart === start) || null;
@@ -453,7 +465,7 @@ export default function ClassPlanPage() {
                           </td>
                           <td className="center cell--actions">
                             <div className="ga-goal-table__pad">
-                              {!lock && action(wdoc, `${base}/weeks/${first.start}`, `kế hoạch tuần nhánh ${g.no}`, 'week')}
+                              {!lock && action(wdoc, planPath(`${base}/weeks/${first.start}`), `kế hoạch tuần nhánh ${g.no}`, 'week')}
                               {/* Khóa không theo ngày: tuần lấy gợi ý hoạt động từ thẻ của kế hoạch chủ đề nên cần lưu chủ đề trước */}
                               {lock?.need === 'theme' && (
                                 <span className="muted text-sm" title={lock.message}>
@@ -463,7 +475,7 @@ export default function ClassPlanPage() {
                               {lock?.need === 'branch' && (
                                 <Link
                                   className="btn btn--outline-primary btn--sm"
-                                  to={`/education/branches/${classId}`}
+                                  to={planPath(`/education/branches/${classId}`)}
                                   title={lock.message}
                                 >
                                   <Pencil size={16} aria-hidden /> Đặt tên nhánh

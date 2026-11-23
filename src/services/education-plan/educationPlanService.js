@@ -19,14 +19,40 @@ export const getEducationPlans = async (user, filter) => {
   const result = await repo.getAll(user, filter);
   if (!USE_MOCK || !filter?.ageRange) return result;
   const matching = new Set(AGE_GROUPS.filter((group) => ageRangeKey(group) === filter.ageRange).map((group) => group.id));
-  return { ...result, goals: result.goals.filter((goal) => goal.schoolYear === filter.schoolYear && matching.has(goal.ageGroupId)) };
+  return {
+    ...result,
+    goals: result.goals.filter((goal) => (filter.schoolYearId != null || goal.schoolYear === filter.schoolYear) && matching.has(goal.ageGroupId)),
+  };
 };
 // Trang chủ chỉ cần chủ đề, giờ học: API thật chưa có hai phần này (getAll trả rỗng) nên không tải chi tiết từng kế hoạch
 // năm/tổ — tránh ~30 request tranh kết nối với trang kế hoạch giáo dục (FE-BUG-261111-dashboard-reload-burst)
 export const getEducationLessons = (user) =>
   USE_MOCK ? repo.getAll(user).then(({ themes, lessons }) => ({ themes, lessons })) : Promise.resolve({ themes: [], lessons: [] });
-export const getReviewQueue = (user) => repo.getReviewQueue(user);
+export const getReviewQueue = (user, schoolYearId) => repo.getReviewQueue(user, schoolYearId);
 export const getGoal = (id, user) => repo.getGoal(id, user);
+export const getOverduePlans = async (user, schoolYearId) => {
+  if (USE_MOCK) {
+    const [plans, docs] = await Promise.all([
+      repo.getAll(user, { schoolYearId, overdue: true }),
+      classPlanMockRepository.getOverdue(user, schoolYearId),
+    ]);
+    return { ...plans, ...docs };
+  }
+  const [plans, docs] = await Promise.all([
+    educationPlanApi.getAll(user, { schoolYearId, overdue: true }),
+    educationPlanApi.getOverdueClassPlans(schoolYearId),
+  ]);
+  return { ...plans, ...docs };
+};
+export const getOverduePlan = (user, schoolYearId, kind, id) => {
+  const classDoc = kind === 'semester' || kind === 'dossier';
+  if (USE_MOCK) return classDoc
+    ? classPlanMockRepository.getOverdueDoc(user, schoolYearId, kind, id)
+    : repo.getOverdueGoal(user, schoolYearId, id);
+  return classDoc
+    ? educationPlanApi.getOverdueClassDoc(kind, id, schoolYearId)
+    : educationPlanApi.getOverdueGoal(id, schoolYearId);
+};
 export const getClassDocRelease = (releaseId) => repo.getClassDocRelease(releaseId);
 export const listGoalSources = (filters, actor, options) => repo.listGoalSources(filters, actor, options);
 export const getGoalSource = (id, actor, options) => repo.getGoalSource(id, actor, options);
@@ -56,8 +82,8 @@ export const deleteLesson = (id) => repo.deleteLesson(id);
 
 // Tài liệu kế hoạch của lớp (chủ đề nhánh, kế hoạch chủ đề, giáo án tuần). user: người thao tác (mock cần để kiểm quyền).
 // Kèm lớp (classes) và giáo viên, tổ trưởng (staff) người xem được; schoolYearId: năm đang chọn ở header
-export const getClassPlans = (schoolYearId, user) =>
-  USE_MOCK ? classPlanMockRepository.getAll(user) : educationPlanApi.getClassPlans(schoolYearId);
+export const getClassPlans = (schoolYearId, user, review) =>
+  USE_MOCK ? classPlanMockRepository.getAll(user, schoolYearId, review) : educationPlanApi.getClassPlans(schoolYearId, review);
 export const saveClassDoc = (kind, doc, user, options) =>
   USE_MOCK ? classPlanMockRepository.saveDoc(kind, doc, user, options) : educationPlanApi.saveClassDoc(kind, doc, options);
 export const actOnClassDoc = (kind, id, body, user, options) =>

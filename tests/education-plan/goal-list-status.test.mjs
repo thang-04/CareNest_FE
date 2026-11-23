@@ -10,10 +10,11 @@ const isolated = source.replace(/^import [\s\S]*? from '[^']+';\r?\n/gm, '');
 const stubs = `
 import React, {useMemo, useState} from 'react';
 import {planLevel, planLevel as levelOf, planRoute, inheritAnnual} from ${JSON.stringify(import.meta.resolve('../../src/models/education-plan/planLevel.mjs'))};
-import {currentPlanOf, versionOf} from ${JSON.stringify(import.meta.resolve('../../src/models/education-plan/planVersions.mjs'))};
+import {currentPlanInYear, currentPlanOf, versionOf} from ${JSON.stringify(import.meta.resolve('../../src/models/education-plan/planVersions.mjs'))};
 import {isReviewTurn} from ${JSON.stringify(import.meta.resolve('../../src/models/education-plan/reviewTurn.mjs'))};
-export const context={goals:[],schoolYear:'2026',role:'vp',user:{id:'test'},classes:[]};
-const useGoalDetails=()=>({loading:false});const useSchoolYear=()=>({schoolYears:context.schoolYears||[]});const useEducationPlan=()=>context, useNavigate=()=>()=>{};
+import {sameSchoolYearId} from ${JSON.stringify(import.meta.resolve('../../src/models/education-plan/schoolYearScope.mjs'))};
+export const context={goals:[],schoolYear:'2026',schoolYearId:1,yearOption:{id:1,status:'ACTIVE'},role:'vp',user:{id:'test'},classes:[]};
+const useGoalDetails=()=>({loading:false});const useEducationPlan=()=>context, useNavigate=()=>()=>{};
 const ROLES={VICE_PRINCIPAL:'vp', PRINCIPAL:'principal', TEAM_LEADER:'leader'}, AGE_GROUPS=[], ageRangeOptions=()=>AGE_GROUPS, ageRangeKey=(g)=>g?.rangeKey, sameAgeRange=(a,b)=>a===b, EDU_STATUS={APPROVED:'APPROVED',SENT:'SENT',PENDING_VP:'PENDING_VP'};
 const allGoalItems=()=>[], clickableRowProps=()=>({}), fmtDate=(value)=>value || '—';
 const Card=({children})=><section>{children}</section>, PageHead=({actions})=><header>{actions}</header>, StatCard=({label,value})=><span data-value={value}>{label}</span>, SearchSubmit=()=>null, EmptyState=()=>null;
@@ -35,6 +36,7 @@ const plan = (id, versionNo, status = 'APPROVED', extra = {}) => ({
   code: `KHNH-${id}`,
   ageGroupId: 'ag-2',
   schoolYear: '2026',
+  schoolYearId: 1,
   ...extra,
 });
 const render = (goals) => {
@@ -89,7 +91,7 @@ test('ưu tiên current của BE khi bản hiện hành không nằm trong danh 
   html = render([
     plan('current', 4, 'APPROVED', { current: true }),
     plan('other-age', 9, 'APPROVED', { ageGroupId: 'ag-5' }),
-    plan('other-year', 8, 'APPROVED', { schoolYear: '2025' }),
+    plan('other-year', 8, 'APPROVED', { schoolYear: '2025', schoolYearId: 2 }),
   ]);
   assert.doesNotMatch(html, /data-status="REPLACED"/);
 });
@@ -149,14 +151,14 @@ test('EDU-89: chỉ lập kế hoạch khi năm đang hoạt động hoặc đã
     context.goals = [];
     context.role = 'vp';
     context.schoolYear = '2026-2027';
-    const year = (status, preparing = false) => [{ id: 1, label: '2026 - 2027', status, preparing }];
-    context.schoolYears = year('ACTIVE');
+    const year = (status, preparing = false) => ({ id: 1, label: '2026 - 2027', status, preparing });
+    context.yearOption = year('ACTIVE');
     assert.match(html(), /school-year-plans\/new/);
-    context.schoolYears = year('PLANNED', true);
+    context.yearOption = year('PLANNED', true);
     assert.match(html(), /school-year-plans\/new/);
-    context.schoolYears = year('PLANNED');
+    context.yearOption = year('PLANNED');
     assert.doesNotMatch(html(), /school-year-plans\/new/);
-    context.schoolYears = year('CLOSED');
+    context.yearOption = year('CLOSED');
     assert.doesNotMatch(html(), /school-year-plans\/new/);
   } finally {
     Object.keys(context).forEach((key) => delete context[key]);
@@ -295,7 +297,7 @@ test('EDU-93: hàng chờ hiện hồ sơ cho người duyệt bước khác (n�
     nodes(tree)
       .find((node) => node.type === 'tr' && node.props.onClick)
       .props.onClick();
-    assert.equal(queueContext.destination, '/education/day-plans/c1?theme=t1');
+    assert.equal(queueContext.destination, '/education/day-plans/c1?theme=t1&plan=y1&review=1');
 
     queueContext.themeDossiers = [dossier('ds-my-turn', { canApprove: true, canReturn: true })];
     assert.match(renderToStaticMarkup(PlanReviewQueuePage()), /Mở duyệt/);
