@@ -284,10 +284,11 @@ test('đường sidebar cũ mở UI mới, non-mock chỉ gọi endpoint BE đã
   const facade = readFileSync(new URL('../../../src/services/account/permissionService.js', import.meta.url), 'utf8');
   assert.doesNotMatch(facade, /status: 501|axios|fetch\(/);
   const api = readFileSync(new URL('../../../src/services/account/api/permissionApi.js', import.meta.url), 'utf8');
-  // Endpoint của BE PermissionController, AccountController, SchoolStructureController; không tự chế
+  // Endpoint của BE PermissionController, EduWorkflowPermissionController, AccountController và SchoolStructureController.
   const paths = [...api.matchAll(/axiosClient\.\w+\(\s*[`'"]([^`'"]+)/g)].map((m) => m[1].replace(/\$\{[^}]+\}/g, '{id}'));
   const known = [
     '/permissions',
+    '/permissions/edu-workflow',
     '/role-permissions',
     '/role-permissions/{id}',
     '/accounts',

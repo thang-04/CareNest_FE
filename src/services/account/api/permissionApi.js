@@ -64,8 +64,18 @@ export const permissionApi = {
   // BE chưa có API liệt kê người có ngoại lệ ⇒ đọc ngoại lệ của từng nhân sự cấu hình được
   getAccountsWithOverrides: async () => {
     const { items } = await getPermissionStaff();
-    const views = await Promise.all(items.map(async (staff) => ({ ...(await getPermissionOverrides(staff.userId)), ...staff })));
-    return views.filter((view) => view.overrides.length > 0);
+    const results = await Promise.allSettled(
+      items.map(async (staff) => ({ ...(await getPermissionOverrides(staff.userId)), ...staff })),
+    );
+    const failed = results.filter((result) => result.status === 'rejected');
+    // BE 1111: lỗi đọc vai trò tài khoản từ Keycloak có thể chỉ ảnh hưởng một số nhân sự.
+    const fatal = failed.find(({ reason }) => reason.status !== 503 || reason.errorCode !== 1111);
+    if (fatal) throw fatal.reason;
+    if (failed.length > 0 && failed.length === items.length) throw failed[0].reason;
+    const accounts = results
+      .filter((result) => result.status === 'fulfilled' && result.value.overrides.length > 0)
+      .map((result) => result.value);
+    return { accounts, unavailableCount: failed.length };
   },
   updatePermissionOverrides: async (userId, { overrides, reason }) => {
     // UI chưa chọn phạm vi: giữ scope đang có của ngoại lệ cùng mã, không để BE hạ SCHOOL về CAMPUS mặc định (AUTH-20).
