@@ -8,8 +8,15 @@ const personal = ['/notifications'];
 const management = ['/announcements', '/announcement-templates'];
 const principalOnly = ['/notification-rules', '/announcement-schedules'];
 
+// Admin quản trị kỹ thuật chỉ có Tài khoản + Hồ sơ + Đổi mật khẩu (BUG-005), không có nhóm Thông báo
+const BUSINESS_ROLES = Object.values(ROLES).filter((role) => role !== ROLES.ADMIN);
+
+test('Admin không có nhóm Thông báo nghiệp vụ', () => {
+  assert.ok(!getMenuForRole(ROLES.ADMIN, { role: ROLES.ADMIN }).some((entry) => entry.key === 'notifications'));
+});
+
 test('mọi role có đúng một nhóm Thông báo, các trang con giữ đúng quyền hiện có', () => {
-  for (const role of [...Object.values(ROLES), 'ADMIN']) {
+  for (const role of BUSINESS_ROLES) {
     const menu = getMenuForRole(role, { role });
     const groups = menu.filter((entry) => entry.key === 'notifications');
     assert.equal(groups.length, 1, role);
@@ -35,7 +42,7 @@ test('mọi role có đúng một nhóm Thông báo, các trang con giữ đúng
 });
 
 test('nhóm Thông báo giữ mục cá nhân khi tài khoản BE không có quyền quản trị nghiệp vụ', () => {
-  for (const role of Object.values(ROLES)) {
+  for (const role of BUSINESS_ROLES) {
     const group = getMenuForRole(role, { role, bePermissions: [] }).find((entry) => entry.key === 'notifications');
     assert.ok(
       group.children.some((child) => child.to === '/notifications'),
