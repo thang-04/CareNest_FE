@@ -115,12 +115,21 @@ test('lỗi ô ngày bắt đầu đi học cùng câu BE', () => {
   const planned = { status: 'PLANNED', startDate: '2027-09-06', endDate: '2028-05-31' };
   assert.equal(startDateError('', active, '2026-11-23'), 'Chọn ngày bắt đầu đi học');
   assert.equal(startDateError('2026-11-20', active, '2026-11-23'), 'Ngày bắt đầu đi học không được trước hôm nay');
+  assert.equal(startDateError('2027-06-01', active, '2026-11-23'), 'Ngày bắt đầu đi học không được sau ngày kết thúc năm học (31/05/2027)');
   assert.equal(
-    startDateError('2027-06-01', active, '2026-11-23'),
-    'Ngày bắt đầu đi học không được sau ngày kết thúc năm học (31/05/2027)',
+    startDateError('2026-11-28', active, '2026-11-23'),
+    'Ngày bắt đầu đi học 28/11/2026 là thứ Bảy. Chọn ngày từ thứ 2 tới thứ 6.',
   );
-  assert.match(startDateError('2026-11-28', active, '2026-11-23'), /phải là ngày học/);
-  assert.match(startDateError('2026-11-24', active, '2026-11-23', [HOLIDAY]), /phải là ngày học/);
+  assert.equal(
+    startDateError('2026-11-29', active, '2026-11-23'),
+    'Ngày bắt đầu đi học 29/11/2026 là Chủ nhật. Chọn ngày từ thứ 2 tới thứ 6.',
+  );
+  assert.match(
+    startDateError('2026-11-24', active, '2026-11-23', [HOLIDAY]),
+    /trùng ngày nghỉ của trường: .* \(24\/11\/2026\)\. Chọn ngày học khác\.$/,
+  );
+  assert.equal(startDateError('5/09/2027', planned, '2026-11-23'), 'Nhập ngày bắt đầu đi học theo dạng dd/mm/yyyy');
+  assert.equal(startDateError('2027-9-5', active, '2026-11-23'), 'Nhập ngày bắt đầu đi học theo dạng dd/mm/yyyy');
   assert.equal(startDateError('2026-11-25', active, '2026-11-23'), '');
   assert.equal(startDateError('2027-09-01', planned, '2026-11-23'), 'Ngày bắt đầu phải nằm trong thời gian năm học đã chọn');
   assert.equal(startDateError('2027-09-06', planned, '2026-11-23'), '');
@@ -137,7 +146,21 @@ test('lỗi ô ngày vào lớp / ngày chuyển lớp cùng câu BE', () => {
     placementDateError('2027-06-01', { ...base, transfer: true }),
     'Ngày chuyển lớp không được sau ngày kết thúc năm học (31/05/2027)',
   );
-  assert.match(placementDateError('2026-11-28', { ...base, transfer: true }), /^Ngày chuyển lớp phải là ngày học/);
+  assert.equal(
+    placementDateError('2026-11-28', { ...base, transfer: true }),
+    'Ngày chuyển lớp 28/11/2026 là thứ Bảy. Chọn ngày từ thứ 2 tới thứ 6.',
+  );
+  assert.equal(placementDateError('2026-11-28', base), 'Ngày vào lớp 28/11/2026 là thứ Bảy. Chọn ngày từ thứ 2 tới thứ 6.');
+  const dayOff = { startDate: '2026-12-09', endDate: '2026-12-09', name: 'Nghỉ thử' };
+  assert.equal(
+    placementDateError('2026-12-09', { ...base, holidays: [dayOff] }),
+    'Ngày vào lớp 09/12/2026 trùng ngày nghỉ của trường: Nghỉ thử (09/12/2026). Chọn ngày học khác.',
+  );
+  assert.equal(
+    placementDateError('2026-12-10', { ...base, holidays: [{ ...dayOff, startDate: '2026-12-10', endDate: '2026-12-11' }] }),
+    'Ngày vào lớp 10/12/2026 trùng ngày nghỉ của trường: Nghỉ thử (10/12/2026 – 11/12/2026). Chọn ngày học khác.',
+  );
+  assert.equal(placementDateError('9/12/2026', base), 'Nhập ngày vào lớp theo dạng dd/mm/yyyy');
   assert.equal(placementDateError('2026-11-25', base), '');
 });
 
@@ -165,7 +188,7 @@ test('BE giả: tiếp nhận năm đang học lưu ngày bắt đầu đi học
   );
   await assert.rejects(
     children.enrollChild(payload(3, { startDate: saturdayFrom(addDays(todayInput(), 1)) }), PRINCIPAL),
-    (err) => err.status === 422 && /phải là ngày học/.test(err.details.startDate),
+    (err) => err.status === 422 && /là thứ Bảy\. Chọn ngày từ thứ 2 tới thứ 6\.$/.test(err.details.startDate),
   );
 });
 
