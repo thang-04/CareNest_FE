@@ -43,6 +43,8 @@ export default function SupplierDetailPage() {
     );
 
   const active = s.status === SUPPLIER_STATUS.ACTIVE;
+  // Ngừng dùng không bị chặn; còn hợp đồng hiệu lực thì hộp xác nhận nói rõ để PHT cân nhắc
+  const contractInUse = ['ACTIVE', 'EXPIRING'].includes(s.contractStatus) && !!s.contractEnd;
   const toggle = async () => {
     try {
       await saveSupplier({ ...s, status: active ? SUPPLIER_STATUS.INACTIVE : SUPPLIER_STATUS.ACTIVE }, user);
@@ -193,7 +195,11 @@ export default function SupplierDetailPage() {
         title={active ? 'Ngừng dùng nhà cung cấp' : 'Dùng lại nhà cung cấp'}
         message={
           active
-            ? `Ngừng dùng "${s.name}"? Phiếu nhập mới không chọn được nhà cung cấp này; phiếu đã có vẫn giữ tên.`
+            ? `Ngừng dùng "${s.name}"? Phiếu nhập mới không chọn được nhà cung cấp này; phiếu đã có vẫn giữ tên.${
+                contractInUse
+                  ? ` Nhà cung cấp còn hợp đồng ${s.contractNo ? `${s.contractNo} ` : ''}đến ${formatDate(s.contractEnd)}: thực phẩm đang lấy giá từ nhà cung cấp này cần đổi sang nhà cung cấp khác trước khi điều chỉnh giá mới.`
+                  : ''
+              }`
             : `Dùng lại "${s.name}" cho phiếu nhập mới?`
         }
         confirmLabel={active ? 'Ngừng dùng' : 'Dùng lại'}

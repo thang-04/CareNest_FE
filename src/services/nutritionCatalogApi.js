@@ -156,7 +156,6 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
     note: f.note || '',
     status: f.status,
     favorite: favorites.has(String(f.id)),
-    history: [],
   });
 
   const allergenIdsOf = async (names = []) => {
@@ -242,8 +241,8 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
       ingredients,
       allergens: (d.allergens || []).map((a) => a.name),
       nutritionByAgeGroup: (d.nutritionByAgeGroup || []).map((n) => ({ ...n, ageGroupId: codeOf[String(n.ageGroupId)] || n.ageGroupId })),
-      usedInMenus: [],
-      history: [],
+      usedInMenus: (d.usedInTemplates || []).map((t) => ({ id: String(t.id), name: t.name })),
+      usedInWeeks: (d.usedInWeeks || []).map((w) => ({ weekStart: w.weekStart, status: w.status })),
     };
   };
 

@@ -92,7 +92,14 @@ export function useFoodForm(id, { onSaved } = {}) {
     e?.preventDefault();
     setSubmitted(true);
     const clean = Object.fromEntries(Object.entries(errors).filter(([, v]) => v));
-    if (hasErrors(clean)) return false;
+    if (hasErrors(clean)) {
+      // Báo chung để người dùng thấy; ô lỗi không gắn ô nhập (vd purchaseUnitSize) thì chỉ có thông báo
+      toast.error(`Còn ${Object.keys(clean).length} ô chưa hợp lệ, xem các ô báo đỏ`);
+      requestAnimationFrame(() => {
+        document.querySelector('.td-food-editor [aria-invalid="true"]')?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      });
+      return false;
+    }
     setBusy(true);
     try {
       const saved = await saveFood(id, payload, user);

@@ -10,7 +10,7 @@ import { Tabs } from '@/components/ui/Tabs';
 import { useTabParam } from '@/hooks/useTabParam';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { ErrorState, LoadingState } from '@/components/ui/States';
-import { AllergenChips, HistoryCard, RecordStatusBadge } from '@/components/menu-planning/MenuBadges';
+import { AllergenChips, RecordStatusBadge } from '@/components/menu-planning/MenuBadges';
 import { NutrientTable } from '@/components/menu-planning/NutrientTable';
 import { FoodPriceHistory } from '@/components/menu-planning/FoodPriceHistory';
 import { ContractStatusBadge } from '@/components/menu-planning/ContractStatusBadge';
@@ -45,7 +45,7 @@ export default function FoodDetailPage() {
   const { item: f, loading, error, reload } = useFood(id);
   const [confirm, setConfirm] = useState(false);
   const [deleteError, setDeleteError] = useState('');
-  const [tab, setTab] = useTabParam(['info', 'prices', 'dishes', 'history']);
+  const [tab, setTab] = useTabParam(['info', 'prices', 'dishes']);
 
   if (loading || catLoading) return <LoadingState />;
   if (error || !f)
@@ -120,7 +120,7 @@ export default function FoodDetailPage() {
           </div>
         </div>
       )}
-      {/* Chia tab (DESIGN §6.3): thông tin + dinh dưỡng | món dùng thực phẩm | lịch sử */}
+      {/* Chia tab (DESIGN §6.3): thông tin + dinh dưỡng | giá | món dùng thực phẩm; lịch sử giá nằm ở tab Giá */}
       <Tabs
         ariaLabel="Phần chi tiết thực phẩm"
         value={tab}
@@ -129,7 +129,6 @@ export default function FoodDetailPage() {
           { key: 'info', label: 'Thông tin & dinh dưỡng' },
           { key: 'prices', label: 'Giá & nhà cung cấp' },
           { key: 'dishes', label: 'Dùng trong món', count: used.length },
-          { key: 'history', label: 'Lịch sử' },
         ]}
       />
       <div className="tab-panel">
@@ -252,7 +251,6 @@ export default function FoodDetailPage() {
           </section>
         )}
         {tab === 'prices' && <FoodPriceHistory food={f} canManage={canManage} onChanged={() => reload({ silent: true })} />}
-        {tab === 'history' && <HistoryCard history={f.history} />}
       </div>
       <div className="page-actions">
         <Link className="btn" to="/menu/foods">

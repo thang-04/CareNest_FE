@@ -10,7 +10,9 @@ import { Tabs } from '@/components/ui/Tabs';
 import { useTabParam } from '@/hooks/useTabParam';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { ErrorState, LoadingState } from '@/components/ui/States';
-import { AllergenChips, DishStatusBadge, HistoryCard } from '@/components/menu-planning/MenuBadges';
+import { AllergenChips, DishStatusBadge } from '@/components/menu-planning/MenuBadges';
+import { dishInUseNote } from '@/utils/menu-planning/catalogUsage';
+import { formatDate } from '@/utils/format';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { microGroupOf } from '@/utils/menu-planning/microGroups';
 import { DishPortionTable } from '@/components/menu-planning/DishPortionTable';
@@ -52,7 +54,7 @@ const ENERGY_COLS = [
 
 /**
  * Chi tiết món ăn: thông tin chung; dinh dưỡng một suất theo nhóm tuổi (năng lượng, P : L : G so chuẩn — tham khảo; khoáng chất,
- * vitamin); hàm lượng từng thành phần theo nhóm tuổi đang chọn, chia nhóm cột; dùng trong thực đơn mẫu, lịch sử.
+ * vitamin); hàm lượng từng thành phần theo nhóm tuổi đang chọn, chia nhóm cột; dùng trong thực đơn mẫu và tuần chưa qua.
  */
 export default function DishDetailPage() {
   const { id } = useParams();
@@ -364,7 +366,23 @@ export default function DishDetailPage() {
                 )}
               </div>
             </section>
-            <HistoryCard history={d.history} />
+            {(d.usedInWeeks || []).length > 0 && (
+              <section className="card">
+                <div className="card__header">
+                  <h2 className="card__title">Tuần thực đơn chưa qua có món</h2>
+                  <span className="chip chip--gray">{d.usedInWeeks.length}</span>
+                </div>
+                <div className="card__body">
+                  <span className="td-chips">
+                    {d.usedInWeeks.map((w) => (
+                      <Link key={w.weekStart} to={`/menu/weekly?week=${w.weekStart}`} className="chip chip--blue">
+                        Tuần {formatDate(w.weekStart)}
+                      </Link>
+                    ))}
+                  </span>
+                </div>
+              </section>
+            )}
           </div>
         )}
       </div>
@@ -379,7 +397,9 @@ export default function DishDetailPage() {
         title={softDelete ? 'Ngừng sử dụng món ăn' : 'Xóa món ăn'}
         message={
           softDelete
-            ? `Chuyển món "${d.name}" sang Ngừng sử dụng? Thực đơn đã có giữ nguyên; thực đơn mới không chọn được món này.`
+            ? `Chuyển món "${d.name}" sang Ngừng sử dụng? Thực đơn đã có giữ nguyên; thực đơn mới không chọn được món này.${
+                dishInUseNote(d) ? ` ${dishInUseNote(d)}` : ''
+              }`
             : `Xóa món "${d.name}"? Món đã nằm trong thực đơn sẽ không xóa được.`
         }
         confirmLabel={softDelete ? 'Ngừng sử dụng' : 'Xóa món ăn'}

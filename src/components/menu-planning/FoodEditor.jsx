@@ -19,6 +19,7 @@ import {
   defaultStorageOf,
 } from '@/models/menu-planning/menuPlanningConstants';
 import { Checkbox, TextAreaField, TextField } from '@/components';
+import { useState } from 'react';
 
 const toOptions = (labels) => Object.entries(labels).map(([value, label]) => ({ value, label }));
 const num = (v) => Number(v).toLocaleString('vi-VN', { maximumFractionDigits: 3 });
@@ -53,6 +54,10 @@ export function FoodEditor({ f }) {
   const autoToStock = auto.purchaseToStock !== undefined;
   const autoUnitSize = auto.stockUnitSize !== undefined;
   const { items: suppliers } = useActiveSuppliers();
+  // Lỗi vi chất sau khi bấm Lưu ⇒ tự mở phần "Nhập vi chất", không để lỗi im lặng ở phần đóng
+  const [moreExpanded, setMoreExpanded] = useState(false);
+  const hasMicroError = MICRONUTRIENTS.some((k) => show(k));
+  const moreOpen = moreExpanded || hasMicroError;
   const unitPreview =
     Number(payload.purchaseToStock) > 0 && Number(payload.stockUnitSize) > 0 && form.stockUnit && form.purchaseUnit
       ? `1 ${form.purchaseUnit} = ${num(payload.purchaseToStock)} ${form.stockUnit} = ${num(payload.purchaseUnitSize)} ${form.unit}`
@@ -249,6 +254,30 @@ export function FoodEditor({ f }) {
               ariaLabel="Nguồn gốc"
             />
           </FormField>
+          {/* Ô bắt buộc không nằm trong phần thu gọn: bấm Lưu có lỗi cũng thấy được ngay */}
+          <FormField
+            label="Nguồn số liệu dinh dưỡng"
+            required
+            error={show('nutrientSource')}
+            hint="Ví dụ: Bảng thành phần thực phẩm Việt Nam"
+          >
+            <TextField
+              className="input"
+              value={form.nutrientSource}
+              maxLength={200}
+              onChange={(e) => set('nutrientSource', e.target.value)}
+              onBlur={blur('nutrientSource')}
+            />
+          </FormField>
+          <FormField label="Phiên bản nguồn" error={show('nutrientSourceVersion')}>
+            <TextField
+              className="input"
+              value={form.nutrientSourceVersion}
+              maxLength={50}
+              onChange={(e) => set('nutrientSourceVersion', e.target.value)}
+              onBlur={blur('nutrientSourceVersion')}
+            />
+          </FormField>
           {MACROS.map(([k, label, unit, tone]) => (
             <FormField key={k} label={<span className={`chip chip--${tone}`}>{label}</span>} error={show(k)}>
               <Affix unit={unit} step="0.1" value={form.nutrition[k]} onChange={(e) => setNut(k, e.target.value)} onBlur={blur(k)} />
@@ -281,7 +310,7 @@ export function FoodEditor({ f }) {
           })}
           {form.nutrientSource && <span className="text-xs muted">Nguồn: {form.nutrientSource}</span>}
         </div>
-        <details className="td-food-more">
+        <details className="td-food-more" open={moreOpen} onToggle={(e) => setMoreExpanded(e.target.open)}>
           <summary>Nhập vi chất và nguồn số liệu</summary>
           {/* Vi chất theo bảng PMS (BE NUT-26): không bắt buộc, trên 100 g ăn được */}
           {MICRONUTRIENT_GROUPS.map((g) => (
@@ -308,31 +337,6 @@ export function FoodEditor({ f }) {
               </div>
             </fieldset>
           ))}
-          <div className="td-food-grid">
-            <FormField
-              label="Nguồn số liệu dinh dưỡng"
-              required
-              error={show('nutrientSource')}
-              hint="Ví dụ: Bảng thành phần thực phẩm Việt Nam"
-            >
-              <TextField
-                className="input"
-                value={form.nutrientSource}
-                maxLength={200}
-                onChange={(e) => set('nutrientSource', e.target.value)}
-                onBlur={blur('nutrientSource')}
-              />
-            </FormField>
-            <FormField label="Phiên bản nguồn" error={show('nutrientSourceVersion')}>
-              <TextField
-                className="input"
-                value={form.nutrientSourceVersion}
-                maxLength={50}
-                onChange={(e) => set('nutrientSourceVersion', e.target.value)}
-                onBlur={blur('nutrientSourceVersion')}
-              />
-            </FormField>
-          </div>
         </details>
       </section>
 
