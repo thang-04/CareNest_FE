@@ -459,6 +459,9 @@
 .td-num-col {
   width: 44px;
 }
+.td-age-groups-table .td-grp-row td {
+  text-align: center;
+}
 
 /* Độ rộng cột bảng và ô cố định (thay style inline) */
 .td-w-56 {

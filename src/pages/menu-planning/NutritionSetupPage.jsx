@@ -222,7 +222,7 @@ export default function NutritionSetupPage() {
       return (
         <tr key={g.ageGroupId}>
           <td className="muted td-num-col">{i + 1}</td>
-          <td>
+          <td className="center">
             <b>{info.short}</b> <span className="muted">{info.range}</span>
             <div className="text-xs muted">{childCountOf(g.ageGroupId) ?? 0} trẻ</div>
           </td>
@@ -323,11 +323,11 @@ export default function NutritionSetupPage() {
       ) : tab === 'groups' ? (
         <section className="card">
           <div className="table-wrap">
-            <table className="table table--grid">
+            <table className="table table--grid td-age-groups-table">
               <thead>
                 <tr>
-                  <th className="td-num-col">STT</th>
-                  <th>Nhóm trẻ tại trường</th>
+                  <th className="td-num-col center">STT</th>
+                  <th className="center">Nhóm trẻ tại trường</th>
                   <th className="center">Trạng thái</th>
                 </tr>
               </thead>
