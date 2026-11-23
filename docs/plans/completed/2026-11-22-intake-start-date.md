@@ -122,4 +122,5 @@ Xem plan BE. FE không tự tính `startDue` hay lịch chuyển; chỉ hiển t
   - Mock: lời gọi không gửi ngày (test cũ) giữ hành vi cũ, không kiểm ngày học, để test không phụ thuộc thứ trong tuần; có gửi ngày thì kiểm như BE.
   - Fixture năm sau của `new-year-intake`, `planned-admission-view` đổi 05/09/2027 (chủ nhật) thành 06/09/2027.
   - `docs/integration/BE_API_INDEX.md`, `be-api-routes.json`, `FE_API_CALLS.md` sinh lại từ `../be-school-year-scope` (lần đầu chạy nhầm `../CareNest_BE` nhánh khác ra 380 endpoint, đã chạy lại với `--from`).
-- Verify: `npm run verify` (PowerShell) sau sửa cuối — xem dòng commit bên dưới.
+- Verify: `npm run verify` (PowerShell) sau sửa cuối, exit 0: 1695 test pass, lint, prettier, check-design, check-api (0 lỗi), build. Lần chạy trước đó báo `check-design` nút viết tay ở ClassPlacementPage ⇒ đổi sang `Button`.
+- Commit: `f3806bd7` (helper ngày học, API, ảnh chụp route BE), `b882b998` (tiếp nhận, mở lại, Excel, danh sách trẻ), `0a17291a` (mock), `26c361e1` (Xếp lớp, hồ sơ), `00cce649` (tài liệu, đóng plan). Chưa push.
