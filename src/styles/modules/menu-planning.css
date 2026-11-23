@@ -241,6 +241,37 @@
   outline: 2px solid var(--primary);
 }
 
+/* G94-379: ô chọn nhóm tuổi áp dụng món (trạng thái chọn = primary, khác ô chọn chất gây dị ứng) */
+.td-group-pick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.td-group-pick label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-full);
+  padding: var(--space-1) var(--space-3);
+  cursor: pointer;
+  font-size: var(--fs-sm);
+}
+
+.td-group-pick label:has(input:checked) {
+  border-color: var(--primary);
+  background: var(--color-primary-soft);
+  color: var(--primary);
+}
+
+.td-group-pick input:focus-visible {
+  outline: 2px solid var(--primary);
+}
+
 @media (max-width: 1280px) {
   .td-split {
     grid-template-columns: minmax(0, 1fr);
@@ -2263,30 +2294,16 @@
   font-weight: var(--fw-bold);
 }
 
-/* Thành phần dinh dưỡng: 3 nhóm cạnh nhau (rộng ≥ 3 × 260px), thấp hơn thì xếp dọc */
+/* Thành phần dinh dưỡng của thực phẩm chỉ còn nhóm năng lượng. */
 .td-nutrient-grid {
   display: grid;
-  /* Nhóm năng lượng có tên dài nên rộng hơn hai nhóm vi chất */
-  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-4);
   align-items: start;
-}
-@media (max-width: 1100px) {
-  .td-nutrient-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
 }
 .td-nutrient-group--energy .table.table--grid .td-nutrient-table__group th {
   background: var(--color-info-bg);
   color: var(--color-info-fg);
-}
-.td-nutrient-group--minerals .table.table--grid .td-nutrient-table__group th {
-  background: var(--color-success-bg);
-  color: var(--color-success-fg);
-}
-.td-nutrient-group--vitamins .table.table--grid .td-nutrient-table__group th {
-  background: var(--color-warning-bg);
-  color: var(--color-warning-fg);
 }
 
 .td-nutrient-table tbody th[scope='row'] {

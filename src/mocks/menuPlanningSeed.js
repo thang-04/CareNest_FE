@@ -411,6 +411,8 @@ const buildDishes = () =>
     name,
     type,
     description,
+    // G94-379: món seed dùng cho cả 4 nhóm tuổi (giá trị mặc định khi chưa chọn)
+    ageGroupIds: AGE_GROUPS.map(({ id }) => id),
     ingredients: rows.map(([foodId, quantity]) => ({
       foodId,
       quantity,

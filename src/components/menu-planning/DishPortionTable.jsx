@@ -1,19 +1,15 @@
-import { compareToNorm, dishTotals } from '@/utils/menu-planning/menuCalculations';
+import { dishTotals, energyShares } from '@/utils/menu-planning/menuCalculations';
 import { ageAbbr } from '@/utils/menu-planning/nutritionSetup';
 import { formatMoney } from '@/models/menu-planning/menuPlanningConstants';
 
 const g1 = (v) => (typeof v === 'number' ? v.toLocaleString('vi-VN', { maximumFractionDigits: 1 }) : '—');
 const PLG = ['protein', 'lipid', 'glucid'];
-const TONE = { OK: 'td-tone--ok', LOW: 'td-tone--off', HIGH: 'td-tone--off' };
-// Chữ ngắn dưới con số để không chỉ dựa vào màu
-const NOTE = { OK: 'Đạt', LOW: 'Thấp', HIGH: 'Cao' };
 
 /**
  * Dinh dưỡng và chi phí một suất của món theo từng nhóm tuổi (mỗi nhóm một hàng, một chỉ số một cột).
- * 6 chỉ số + tỷ lệ năng lượng P, L, G; có `norms` thì tô màu P, L, G so chuẩn nhóm tuổi (chỉ tham khảo — chuẩn tính cho cả
- * ngày, user chốt 03/11/2026). Khoáng chất, vitamin chỉ xem ở màn Thực phẩm.
+ * 6 chỉ số + tỷ lệ năng lượng P, L, G; không đánh giá đạt/thấp/cao ở cấp món ăn.
  */
-export function DishPortionTable({ dish, foodById, groups, norms = null }) {
+export function DishPortionTable({ dish, foodById, groups }) {
   const hasIngredients = (dish?.ingredients || []).length > 0;
   const cols = 10;
   return (
@@ -69,8 +65,7 @@ export function DishPortionTable({ dish, foodById, groups, norms = null }) {
                   </tr>
                 );
               const t = r.totals;
-              const rows = compareToNorm(t, a.id, r.missing.length > 0, norms || {});
-              const byKey = Object.fromEntries(rows.map((x) => [x.key, x]));
+              const shares = energyShares(t);
               return (
                 <tr key={a.id}>
                   <td className="td-sticky-first">
@@ -84,19 +79,11 @@ export function DishPortionTable({ dish, foodById, groups, norms = null }) {
                   <td className="num">
                     <span className="td-tag td-tag--orange">{g1(t.kcal)}</span>
                   </td>
-                  {PLG.map((k) => {
-                    const row = byKey[k];
-                    return (
-                      <td
-                        key={k}
-                        className={`num ${norms ? TONE[row.status] || '' : ''}`}
-                        title={norms && row.min != null ? `Chuẩn ${row.min}–${row.max}%` : undefined}
-                      >
-                        {g1(row.percent)}
-                        {norms && NOTE[row.status] && <small className="td-tone__note">{NOTE[row.status]}</small>}
-                      </td>
-                    );
-                  })}
+                  {PLG.map((k, i) => (
+                    <td key={k} className="num">
+                      {g1(shares[i])}
+                    </td>
+                  ))}
                   <td className="num money nowrap">
                     <span className="td-tag td-tag--green">{formatMoney(r.cost)}</span>
                   </td>
@@ -106,12 +93,6 @@ export function DishPortionTable({ dish, foodById, groups, norms = null }) {
           </tbody>
         </table>
       </div>
-      {norms && (
-        <p className="text-xs muted td-card-note td-flat">
-          Tham khảo: tỷ lệ năng lượng của riêng món so với chuẩn P : L : G cả ngày của nhóm tuổi (ô xanh: đạt, ô cam: thấp hoặc cao; rê
-          chuột lên ô để xem chuẩn). Nhóm chưa đặt chuẩn thì không tô màu. Đánh giá chính thức ở thực đơn ngày.
-        </p>
-      )}
     </>
   );
 }
