@@ -35,6 +35,7 @@ import { SMS_STATUS } from '@/models/children/childrenConstants';
 import { AllergyStateBadge, ParentAccountBadge, SmsStatusBadge } from '@/components/children/ChildBadges';
 import { childrenCrumbs } from '@/utils/children/breadcrumbs';
 import { plannedAdmissionNotice } from '@/utils/children/childrenHelpers';
+import { hasScheduledTransfer, isNotStarted, notStartedLabel, scheduledTransferLabel } from '@/utils/children/startDate';
 import '@/styles/modules/children.css';
 
 const missing = <span className="muted">Chưa có thông tin</span>;
@@ -157,6 +158,8 @@ export default function ChildProfilePage() {
                     ],
                     ['Giới tính', GENDER_LABELS[child.gender] || missing],
                     ['Ngày tiếp nhận', child.enrolledAt ? formatDate(child.enrolledAt) : missing],
+                    // G94-180/CHD-14: ngày bắt đầu đi học chọn khi tiếp nhận / mở lại hồ sơ (hồ sơ cũ không có)
+                    ['Ngày bắt đầu đi học', child.startDate ? formatDate(child.startDate) : missing],
                     [
                       'Dị ứng đã xác nhận',
                       child.mealRegistered === false ? (
@@ -269,7 +272,20 @@ export default function ChildProfilePage() {
                     // BE: tên năm học, nhóm tuổi, giáo viên do adapter thêm (cls.*Name); mock: tra danh mục mẫu
                     ['Năm học', cls?.schoolYearName || cls?.schoolYear || missing],
                     ['Nhóm tuổi', cls?.ageGroupName || ageGroupById(cls?.ageGroupId)?.name || missing],
-                    ['Lớp', cls?.name ? <span className="fw-600">{cls.name}</span> : <span className="muted">Chưa xếp lớp</span>],
+                    [
+                      'Lớp',
+                      cls?.name ? (
+                        <span className="stack gap-0">
+                          <span>
+                            <span className="fw-600">{cls.name}</span>
+                            {isNotStarted(child) && <span className="muted"> ({notStartedLabel(child)})</span>}
+                          </span>
+                          {hasScheduledTransfer(child) && <span className="text-sm">{scheduledTransferLabel(child)}</span>}
+                        </span>
+                      ) : (
+                        <span className="muted">Chưa xếp lớp</span>
+                      ),
+                    ],
                     ['Giáo viên chủ nhiệm', cls?.homeroomTeacherName || md.userById(cls?.homeroomTeacherId)?.fullName || missing],
                   ]}
                 />
@@ -342,6 +358,9 @@ export default function ChildProfilePage() {
                               Xếp vào <b>{p.toClassName}</b>
                             </>
                           )}
+                          {/* G94-180/CHD-14: ngày vào lớp mới; lịch chưa tới ngày bị hủy / bị thay vẫn ghi lại */}
+                          {p.effectiveFrom && <span> từ {formatDate(p.effectiveFrom)}</span>}
+                          {p.cancelledAt && <span className="muted"> · Đã hủy lịch</span>}
                         </div>
                         <div className="muted text-sm">
                           {p.userName} · {formatDateTime(p.at)}
