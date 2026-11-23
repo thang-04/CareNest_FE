@@ -1,20 +1,21 @@
-import { AGE_GROUPS, CHILD_STATUS } from '@/models/School';
+import { AGE_GROUPS, CHILD_STATUS, ageInMonths } from '@/models/School';
 import { MOTOR_RESULT_LABELS } from '@/models/children/childrenConstants';
 import { emptyChildProfile, emptyMedicalHistory } from '@/models/children/childProfile';
 import { formatDate } from '@/utils/format';
 
 /**
- * Display hint only: the age group a child normally joins in a school year (by birth year).
+ * Display hint only: nhóm tuổi của trẻ tại đúng ngày bắt đầu năm học.
  * The service validates the placement; this just preselects the age group in the form.
  * yearStart: ngày bắt đầu năm học (BE, "2026-09-01") hoặc id năm mock ("2026-2027"); ageGroups: nhóm tuổi có
- * ageFromMonths/ageToMonths (BE hoặc AGE_GROUPS). Tuổi theo năm sinh; ngoài khoảng ⇒ nhóm nhỏ nhất/lớn nhất.
+ * ageFromMonths/ageToMonths (BE hoặc AGE_GROUPS). Ngoài các nhóm trường áp dụng ⇒ để trống, không tự ép nhóm gần nhất.
  */
 export const suggestAgeGroupId = (dateOfBirth, yearStart, ageGroups = AGE_GROUPS) => {
   if (!dateOfBirth || !yearStart || !ageGroups.length) return '';
-  const months = (Number(String(yearStart).slice(0, 4)) - Number(dateOfBirth.slice(0, 4))) * 12;
+  const start = /^\d{4}-\d{2}-\d{2}$/.test(String(yearStart)) ? String(yearStart) : `${String(yearStart).slice(0, 4)}-09-01`;
+  const months = ageInMonths(dateOfBirth, start);
   const sorted = [...ageGroups].sort((a, b) => a.ageFromMonths - b.ageFromMonths);
   const match = sorted.find((g) => g.ageFromMonths <= months && months < g.ageToMonths);
-  return (match || (months < sorted[0].ageFromMonths ? sorted[0] : sorted[sorted.length - 1])).id;
+  return match?.id || '';
 };
 
 /**

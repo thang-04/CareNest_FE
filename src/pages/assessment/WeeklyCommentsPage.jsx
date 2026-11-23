@@ -1,3 +1,4 @@
+import { childNameWithHistory } from '@/utils/childHistory';
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { PenLine, Save, Send, Sparkles } from '@/components/ui/icons';
@@ -75,7 +76,7 @@ export default function WeeklyCommentsPage() {
   const row = rows.find((r) => String(r.childId) === String(childId)) || rows[0];
   const counts = boardCounts(rows);
   // BE OBS-29: trong hạn (hoặc đang mở lại) GV sửa cả bản đã gửi; quá hạn BE trả canEdit=false
-  const editable = !!board?.canEdit;
+  const editable = !!board?.canEdit && !row?.historical;
   const saved = row?.content || '';
 
   // Đổi trẻ / tải lại: ô nhập lấy bản trên hệ thống
@@ -234,15 +235,15 @@ export default function WeeklyCommentsPage() {
                       aria-current={active || undefined}
                       onClick={() => setChildId(r.childId)}
                     >
-                      <span className="wc-child__name">{r.fullName}</span>
+                      <span className="wc-child__name">{childNameWithHistory(r.fullName, r.historyStatus)}</span>
                       <StatusBadge tone={chip.tone} label={chip.label} size="sm" />
                     </Button>
                   );
                 })}
               </nav>
-              <section className="wc-panel" aria-label={`Nhận xét tuần của ${row.fullName}`}>
+              <section className="wc-panel" aria-label={`Nhận xét tuần của ${childNameWithHistory(row.fullName, row.historyStatus)}`}>
                 <div className="wc-panel__head">
-                  <h2 className="section-title">{row.fullName}</h2>
+                  <h2 className="section-title">{childNameWithHistory(row.fullName, row.historyStatus)}</h2>
                   {row.status === WEEKLY_STATUS.SENT ? (
                     <StatusBadge tone="green" label={`Đã gửi · ${formatDateTime(row.sentAt)}`} />
                   ) : (

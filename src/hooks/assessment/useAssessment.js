@@ -47,7 +47,12 @@ export function useDailyAssessmentClasses({ enabled = true } = {}) {
   const { schoolYear } = useSchoolYear();
   const { data, loading, error, reload } = useAsync(() => getDailyAssessmentClasses(schoolYear, user), [schoolYear, user?.id], { enabled });
   const classes = useMemo(
-    () => (isLeader(user) ? data || [] : (data || []).filter((c) => c.teaches ?? isClassTeacher(c, user))),
+    () =>
+      isLeader(user)
+        ? data || []
+        : (data || [])
+            .filter((c) => c.historicalReadOnly || (c.teaches ?? isClassTeacher(c, user)))
+            .sort((a, b) => Number(!!a.historicalReadOnly) - Number(!!b.historicalReadOnly)),
     [data, user],
   );
   return { classes, loading, error, reload };

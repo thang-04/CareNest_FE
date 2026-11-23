@@ -1,3 +1,4 @@
+import { childNameWithHistory } from '@/utils/childHistory';
 import { useEffect, useRef, useState } from 'react';
 import FloatingPanel from '@/components/education-plan/FloatingPanel';
 import { CheckCheck, ChevronDown, X } from '@/components/ui/icons';
@@ -262,7 +263,7 @@ export function AbsentRows({ items, colSpan, firstClass = 'cell--fixed', renderC
         <div className="dg-child">
           <ChildAvatar child={c} size="sm" />
           <div className="dg-child__info">
-            <span className="fw-600">{c.fullName}</span>
+            <span className="fw-600">{childNameWithHistory(c.fullName, c.historyStatus)}</span>
           </div>
         </div>
       </td>
