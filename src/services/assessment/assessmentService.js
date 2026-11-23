@@ -30,7 +30,7 @@ export const revokeAssessmentDayUnlock = (id, user) => (be || repo).revokeAssess
 export const getChildDevelopment = (childId, params, user) => (be || repo).getChildDevelopment(childId, params, user);
 /** Trẻ cho Hồ sơ / Tiến độ phát triển: BE trả trẻ trong phạm vi; mock lọc trẻ đang học theo lớp của người dùng. */
 export const getDevelopmentChildren = async (params, user) => {
-  if (be) return be.getDevelopmentChildren(params);
+  if (be) return be.getDevelopmentChildren(params, user);
   const [classes, children, campuses, ageGroups] = await Promise.all([
     getClasses({ activeYear: true }, user),
     getChildren({ status: 'ACTIVE' }, user),

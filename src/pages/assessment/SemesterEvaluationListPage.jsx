@@ -18,6 +18,7 @@ import { useThemeClasses } from '@/hooks/assessment/useAssessment';
 import { getSemesterAssessment, saveSemesterAssessment, confirmSemesterAssessment } from '@/services/assessment/assessmentService';
 import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';
 import { inlineErrors } from '@/utils/assessment/assessmentValidation';
+import { semesterConfirmBlockedNote } from '@/utils/assessment/semesterConfirmReason';
 import { semesterAssessmentFile, semesterAssessmentRows, semesterLabel } from '@/utils/assessment/semesterAssessmentDoc';
 import { downloadXlsx } from '@/utils/exportXlsx';
 import { formatDate, formatDateTime } from '@/utils/format';
@@ -70,8 +71,11 @@ export default function SemesterEvaluationListPage() {
   const [preview, setPreview] = useState(null);
   const [detail, setDetail] = useState(null);
   const [search, setSearch] = useState({ draft: '', applied: '' });
+  const missing = (board?.rows || []).filter((r) => r.domains.some((d) => d.met === null)).length;
   const canEdit = !!board?.canEdit && hasBePermission(user, PERMISSIONS.ASSESSMENT_RECORD);
   const canConfirm = !!board?.canConfirm && hasBePermission(user, PERMISSIONS.ASSESSMENT_CONFIRM);
+  const confirmBlocked = board?.confirmBlockedReason;
+  const confirmBlockedNote = confirmBlocked ? semesterConfirmBlockedNote(confirmBlocked, { endDate: board?.endDate, missing }) : '';
   useEffect(() => {
     setNote(board?.note || '');
     setDetail(null);
@@ -108,7 +112,6 @@ export default function SemesterEvaluationListPage() {
   };
   const guard = useLeaveGuard({ when: dirty || busy, onSave: () => run() });
   const visible = (board?.rows || []).filter((r) => r.fullName.toLocaleLowerCase('vi').includes(search.applied.toLocaleLowerCase('vi')));
-  const missing = (board?.rows || []).filter((r) => r.domains.some((d) => d.met === null)).length;
   const cell = (r, d) => r.domains.find((c) => c.domainId === d.domainId);
   return (
     <div className="page">
@@ -335,9 +338,17 @@ export default function SemesterEvaluationListPage() {
                   </button>
                 )}
                 {hasBePermission(user, PERMISSIONS.ASSESSMENT_CONFIRM) && (
-                  <button className="btn btn--primary" disabled={busy || !canConfirm} onClick={() => setConfirmOpen(true)}>
-                    Xác nhận
-                  </button>
+                  <>
+                    <button
+                      className="btn btn--primary"
+                      disabled={busy || !canConfirm}
+                      title={canConfirm ? '' : confirmBlockedNote}
+                      onClick={() => setConfirmOpen(true)}
+                    >
+                      Xác nhận
+                    </button>
+                    {!canConfirm && confirmBlockedNote && <p className="muted text-sm">{confirmBlockedNote}</p>}
+                  </>
                 )}
               </div>
             )}

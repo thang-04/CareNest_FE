@@ -51,7 +51,7 @@ export default function WeeklyCommentsPage() {
   // Lọc điểm trường: Hiệu trưởng có đủ điểm trường của năm đang chọn; PHT chỉ điểm trường của lớp trong phạm vi
   const [campusId, setCampusId] = useState('');
   const yearCampuses = useYearCampuses(PERMISSIONS.ASSESSMENT_VIEW);
-  const { data: campuses } = useAsync(() => getCampuses(), []);
+  const { data: campuses } = useAsync(() => getCampuses(user), [user?.id]);
   const campusOptions = useMemo(
     () => yearCampuses || (campuses || []).filter((c) => classes.some((cls) => cls.campusId === c.id)),
     [yearCampuses, campuses, classes],

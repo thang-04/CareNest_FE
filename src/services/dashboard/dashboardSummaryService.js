@@ -377,7 +377,7 @@ export function buildClassDay({ sheet, pickup, daily }) {
         : STEP_STATUS.TODO;
   const dailyRows = daily?.rows || [];
   const assessed = dailyRows.filter((r) => r.recorded).length;
-  const evalStatus = !daily ? STEP_STATUS.UNKNOWN : progressStatus(assessed, dailyRows.length);
+  const evalStatus = !sheet.schoolDay ? STEP_STATUS.NONE : !daily ? STEP_STATUS.UNKNOWN : progressStatus(assessed, dailyRows.length);
   const pickupRows = (pickup?.rows || []).filter((r) => r.status === PICKED_UP || r.status === WAITING);
   const picked = pickupRows.filter((r) => r.status === PICKED_UP).length;
   const pickupStatus = !pickup ? STEP_STATUS.UNKNOWN : progressStatus(picked, pickupRows.length);
@@ -430,7 +430,11 @@ export function buildClassDay({ sheet, pickup, daily }) {
       total: dailyRows.length,
       unit: 'trẻ',
       status: evalStatus,
-      note: !daily ? 'Không tải được đánh giá hằng ngày' : 'Ghi nhận sức khỏe, cảm xúc, tiêu chí đạt của trẻ có mặt',
+      note: !sheet.schoolDay
+        ? 'Hôm nay không phải ngày học'
+        : !daily
+          ? 'Không tải được đánh giá hằng ngày'
+          : 'Ghi nhận sức khỏe, cảm xúc, tiêu chí đạt của trẻ có mặt',
       to: '/assessment/daily',
     }),
     step({

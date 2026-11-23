@@ -13,15 +13,7 @@ import { ChildAvatar } from '@/components/ChildAvatar';
 import { formatDate } from '@/utils/format';
 import { ageLabel, GENDER_LABELS } from '@/models/School';
 import { PERIOD_TYPE_LABELS, TICKET_TYPE_LABELS } from '@/models/assessment/assessmentConstants';
-import {
-  monthEnd,
-  monthsBetween,
-  periodLabel,
-  schoolYearRange,
-  todayIso,
-  weekEnd,
-  weeksBetween,
-} from '@/utils/assessment/assessmentPeriods';
+import { periodLabel, periodOptions } from '@/utils/assessment/assessmentPeriods';
 
 const SCOPES = [
   { key: 'YEAR', label: 'Năm học' },
@@ -29,44 +21,6 @@ const SCOPES = [
   { key: 'MONTH', label: 'Tháng' },
   { key: 'WEEK', label: 'Tuần' },
 ];
-
-const nextDay = (iso) => {
-  const d = new Date(`${iso}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + 1);
-  return d.toISOString().slice(0, 10);
-};
-
-/**
- * Kỳ của năm học đang chọn, chỉ kỳ đã bắt đầu. Ngày năm học và 2 học kỳ lấy từ Cấu hình thời gian;
- * chưa cấu hình học kỳ thì tạm tách HK I hết 31/12.
- */
-const periodOptions = (scope, schoolYear, year) => {
-  const { start, end } = year?.startDate && year?.endDate ? { start: year.startDate, end: year.endDate } : schoolYearRange(schoolYear);
-  const today = todayIso();
-  const until = end < today ? end : today;
-  if (until < start) return [];
-  if (scope === 'YEAR') return [{ start, end, label: periodLabel('YEAR', start, end) }];
-  if (scope === 'SEMESTER') {
-    const s1End = `${start.slice(0, 4)}-12-31`;
-    const semesters = year?.semester1Start
-      ? [
-          { start: year.semester1Start, end: year.semester1End, label: 'Học kỳ I' },
-          { start: year.semester2Start, end: year.semester2End, label: 'Học kỳ II' },
-        ]
-      : [
-          { start, end: s1End, label: 'Học kỳ I' },
-          { start: nextDay(s1End), end, label: 'Học kỳ II' },
-        ];
-    return semesters.filter((o) => o.start <= today).reverse();
-  }
-  if (scope === 'MONTH')
-    return monthsBetween(start, until)
-      .map((m) => ({ start: m, end: monthEnd(m), label: periodLabel('MONTH', m) }))
-      .reverse();
-  return weeksBetween(start, until)
-    .map((w) => ({ start: w, end: weekEnd(w), label: periodLabel('WEEK', w, weekEnd(w)) }))
-    .reverse();
-};
 
 /**
  * Shared body of #53 Child Development Profile (teacher) and #54 Child Development Progress (Principal / VP).

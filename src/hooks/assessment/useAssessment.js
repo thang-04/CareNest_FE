@@ -79,7 +79,7 @@ export function useChildDevelopment(childId, params) {
   const key = JSON.stringify(params || {});
   const { data, loading, error, reload } = useAsync(() => getChildDevelopment(childId, params, user), [childId, key, user?.id], {
     refreshOnDataChange: true,
-    enabled: !!childId && !!params?.start,
+    enabled: !!childId && !!params?.start && !!params?.end,
   });
   return { development: data, loading, error, reload };
 }
