@@ -49,6 +49,7 @@ import { ageLabel } from '@/models/School';
 import { formatDate, formatDateTime } from '@/utils/format';
 import { hasErrors } from '@/utils/children/childrenValidation';
 import { formatMeasurementChange } from '@/utils/children/childrenHelpers';
+import { unshownErrors } from '@/utils/children/examDraftErrors';
 import { validateHealthExam } from '@/utils/children/healthExamValidation';
 import { healthCheckCrumbs } from '@/utils/children/breadcrumbs';
 import '@/styles/modules/children.css';
@@ -135,6 +136,8 @@ export default function HealthExamFormPage() {
   const [maxReached, setMaxReached] = useState(0);
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
+  // Lần lưu nháp gần nhất lỗi và chưa đổi dữ liệu ⇒ chuyển bước không lưu lại (tránh lặp cùng lỗi).
+  const [saveFailed, setSaveFailed] = useState(false);
   const [editing, setEditing] = useState(false);
   const [saved, setSaved] = useState(false);
   const [reviewStale, setReviewStale] = useState(false);
@@ -146,6 +149,7 @@ export default function HealthExamFormPage() {
   useEffect(() => {
     setForm(null);
     setErrors({});
+    setSaveFailed(false);
     setEditing(false);
     setSaved(false);
     setReviewStale(false);
@@ -283,6 +287,7 @@ export default function HealthExamFormPage() {
   const update = (changes) => {
     setForm((f) => Object.entries(changes).reduce((acc, [p, v]) => setPath(acc, p, v), f));
     setErrors((e) => clearErrors(e, Object.keys(changes)));
+    setSaveFailed(false);
     if (concluded) setReviewStale(true);
   };
   const set = (path, value) => update({ [path]: value });
@@ -303,9 +308,14 @@ export default function HealthExamFormPage() {
       const res = await saveHealthExam(campaignId, childId, payloadOf({ exam: { ...form.exam, step: reached }, conclude: false }), user);
       setExamView(res);
       setReviewStale(false);
+      setSaveFailed(false);
+      setErrors({});
       if (notify) toast.success('Đã lưu nháp phiếu khám.');
       return true;
     } catch (err) {
+      // Lỗi ô hiện tại chỗ; lỗi không gắn ô (vd `date`) hiện ở khung đỏ đầu phiếu.
+      setErrors(err.details && Object.keys(err.details).length ? err.details : { _form: err.message });
+      setSaveFailed(true);
       toast.error(err, 'Chưa lưu được nháp');
       return false;
     } finally {
@@ -324,7 +334,7 @@ export default function HealthExamFormPage() {
   };
 
   const goTo = async (i) => {
-    await saveDraft(i);
+    if (!saveFailed) await saveDraft(i);
     if (concluded && i === 4) await refreshPreview();
     setStep(i);
     setMaxReached((x) => Math.max(x, i));
@@ -537,6 +547,16 @@ export default function HealthExamFormPage() {
           <div>
             Bạn đang sửa phiếu đã có kết luận. Lưu lại kết luận cần ghi lý do; phiếu tự công bố lại và phụ huynh nhận thông báo kết quả đã
             cập nhật.
+          </div>
+        </div>
+      )}
+      {unshownErrors(errors, step).length > 0 && (
+        <div className="alert alert--danger mb-16" role="alert">
+          <ShieldAlert size={18} />
+          <div className="tr-cell-stack">
+            {unshownErrors(errors, step).map((text) => (
+              <span key={text}>{text}</span>
+            ))}
           </div>
         </div>
       )}
