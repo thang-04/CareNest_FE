@@ -212,6 +212,8 @@ export default function NutritionSetupPage() {
   const historyGroup = historyOf && setupOf(historyOf);
   const childCountOf = (ageGroupId) => setupOf(ageGroupId)?.childCount;
   const activeGroup = form.groups.find((g) => g.ageGroupId === groupKey) || form.groups[0];
+  // Nhóm đang áp dụng mà chưa đủ chuẩn ⇒ công bố tuần bị chặn (BE NORM_NOT_SET), báo ngay đầu Tổng quan
+  const pendingGroups = form.groups.filter((g) => groupStatus(g).label === 'Chưa nhập chuẩn');
   const groupRows = (list) =>
     list.map((g, i) => {
       const info = groupInfo(g.ageGroupId);
@@ -247,6 +249,12 @@ export default function NutritionSetupPage() {
         </Button>
       </div>
 
+      {tab === 'overview' && pendingGroups.length > 0 && (
+        <div className="alert alert--warning mb-12" role="status">
+          {pendingGroups.length} nhóm tuổi chưa nhập chuẩn ({pendingGroups.map((g) => groupInfo(g.ageGroupId).short).join(', ')}) — thực đơn
+          tuần sẽ không công bố được cho tới khi nhập năng lượng và cơ cấu P:L:G.
+        </div>
+      )}
       {tab === 'overview' ? (
         <section className="card td-overview">
           <div className="td-overview__head">

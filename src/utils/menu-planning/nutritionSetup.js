@@ -24,6 +24,15 @@ export const GRAM_NORM_COLUMNS = [
   { key: 'plantLipidG', label: 'Béo thực vật', unit: 'g' },
   { key: 'glucidG', label: 'Bột đường', unit: 'g' },
 ];
+/**
+ * Gam tối thiểu không vượt mức năng lượng cho phép theo cơ cấu (BE NUT-24, mã 6110): tổng gam min của các khóa × kcal/g
+ * ≤ kcal max × % max của chất. Chỉ hỗ trợ nhập liệu, BE kiểm lại.
+ */
+export const GRAM_ENERGY_CHECKS = [
+  { keys: ['animalProteinG', 'plantProteinG'], pct: 'protein', kcalPerGram: 4, label: 'Đạm' },
+  { keys: ['animalLipidG', 'plantLipidG'], pct: 'lipid', kcalPerGram: 9, label: 'Béo' },
+  { keys: ['glucidG'], pct: 'glucid', kcalPerGram: 4, label: 'Bột đường' },
+];
 /** Tỷ lệ năng lượng từng bữa gốc (% nhu cầu năng lượng cả ngày `dailyKcalNeed`, BE NUT-25). */
 export const SESSION_NORM_KEYS = { MORNING: 'morningKcalPct', LUNCH: 'lunchKcalPct', AFTERNOON: 'afternoonKcalPct' };
 /** Định mức vi chất / trẻ / ngày (BE NUT-26), không bắt buộc; số sau trống = chỉ cần đạt tối thiểu. */

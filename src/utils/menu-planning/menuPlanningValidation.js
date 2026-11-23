@@ -9,6 +9,7 @@ import {
   MICRONUTRIENTS,
 } from '@/models/menu-planning/menuPlanningConstants';
 import { applyReplacements, byId, missingPortionGroups, restrictedConflicts } from '@/utils/menu-planning/menuCalculations';
+import { GRAM_ENERGY_CHECKS } from '@/utils/menu-planning/nutritionSetup';
 
 /*
  * Field checks shared by the forms (instant feedback) and the mock backend (422).
@@ -162,6 +163,19 @@ export const validateNutritionSetup = (form, today, { mealsReadOnly = false, min
       else if (Number(min) < 0 || Number(min) > Number(max)) e[`${key}.norms.${k}`] = 'Số đầu phải nhỏ hơn hoặc bằng số sau.';
       else if (PERCENT_KEYS.includes(k) && Number(max) > 100) e[`${key}.norms.${k}`] = 'Tỷ lệ tối đa 100%.';
       else if (k === 'kcal' && Number(min) === 0) e[`${key}.norms.${k}`] = 'Năng lượng phải lớn hơn 0.';
+    });
+    const normOf = (k) => (g.norms || {})[k] || [];
+    const kcalMax = normOf('kcal')[1];
+    GRAM_ENERGY_CHECKS.forEach(({ keys, pct, kcalPerGram, label }) => {
+      const pctMax = normOf(pct)[1];
+      const mins = keys.map((k) => normOf(k)[0]).filter(isNum);
+      if (!isNum(kcalMax) || !isNum(pctMax) || !mins.length) return;
+      const grams = mins.reduce((sum, v) => sum + Number(v), 0);
+      const allowed = Math.ceil((Number(kcalMax) * Number(pctMax)) / 100 / kcalPerGram);
+      const errKey = `${key}.norms.${keys[0]}`;
+      if (grams > allowed && !e[errKey])
+        e[errKey] =
+          `${label} tối thiểu ${grams} g vượt mức năng lượng cho phép theo cơ cấu (khoảng ${allowed} g). Kiểm lại đơn vị g/trẻ/ngày.`;
     });
   });
   return e;
