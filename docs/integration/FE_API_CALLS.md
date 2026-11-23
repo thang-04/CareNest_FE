@@ -6,7 +6,7 @@ File sinh tự động, không sửa tay. Sinh lại: `node scripts/check-api-co
 - Path đã chuẩn hóa tham số thành `{x}`. `[module: api|demo]` theo `src/config/integrationModules.js`.
 - Lời gọi có đường dẫn không phải chuỗi literal (vd. ghép từ biến) không nằm trong bảng.
 
-Tổng: 422 lời gọi.
+Tổng: 436 lời gọi.
 
 ```text
 DELETE /accounts/me/photo · src/services/account/api/accountPhotoApi.js [account: api] → src/main/java/com/carenest/controller/account/AccountPhotoController.java#deleteMyPhoto
@@ -17,6 +17,7 @@ DELETE /announcements/cancelled · src/services/announcement/api/announcementApi
 DELETE /announcements/{x} · src/services/announcement/api/announcementApi.js [announcements: api] → src/main/java/com/carenest/controller/announcement/AnnouncementController.java#deleteAnnouncement
 DELETE /campuses/{x} · src/services/school-config/api/schoolConfigApi.js [school-config: api] → src/main/java/com/carenest/controller/organization/CampusController.java#deleteCampus
 DELETE /children/{x}/guardians/{x} · src/services/account/api/guardianApi.js [guardian: api] → src/main/java/com/carenest/controller/child/GuardianController.java#removeGuardian
+DELETE /children/{x}/placement/scheduled · src/services/children/api/childrenApi.js [children: api] → src/main/java/com/carenest/controller/child/ChildEnrollmentController.java#cancelScheduledPlacement
 DELETE /classes/{x} · src/services/school-config/api/schoolConfigApi.js [school-config: api] → src/main/java/com/carenest/controller/organization/ClassController.java#deleteClass
 DELETE /education-plans/lessons/{x} · src/services/education-plan/api/educationPlanApi.js [education-plan: api] → (BE chưa có — pending)
 DELETE /education-plans/themes/{x} · src/services/education-plan/api/educationPlanApi.js [education-plan: api] → (BE chưa có — pending)
@@ -44,6 +45,7 @@ GET /age-groups · src/services/assessment/api/assessmentApi.js [assessment: api
 GET /age-groups · src/services/mealPlanApi.js [meal-plan: api] → src/main/java/com/carenest/controller/organization/AgeGroupController.java#getAgeGroups
 GET /age-groups · src/services/nutritionCatalogApi.js [nutrition-catalog: api] → src/main/java/com/carenest/controller/organization/AgeGroupController.java#getAgeGroups
 GET /age-groups · src/services/school-config/api/schoolConfigApi.js [school-config: api] → src/main/java/com/carenest/controller/organization/AgeGroupController.java#getAgeGroups
+GET /age-groups/catalog · src/services/school-config/api/schoolConfigApi.js [school-config: api] → src/main/java/com/carenest/controller/organization/AgeGroupController.java#getStandardAgeGroupCatalog
 GET /age-groups/{x}/team-leader-assignments/history · src/services/school-config/api/schoolConfigApi.js [school-config: api] → src/main/java/com/carenest/controller/organization/TeacherAssignmentController.java#getTeamLeaderHistory
 GET /announcement-attachments/{x}/content · src/services/announcement/api/announcementApi.js [announcements: api] → src/main/java/com/carenest/controller/announcement/AnnouncementController.java#downloadAttachment
 GET /announcement-schedules · src/services/announcement/api/announcementApi.js [announcements: api] → src/main/java/com/carenest/controller/announcement/AnnouncementScheduleController.java#listSchedules
@@ -117,6 +119,7 @@ GET /classrooms · src/services/account/api/permissionApi.js [permission: api] �
 GET /daily-health/overview · src/services/daily-health/api/dailyHealthApi.js [daily-health: api] → src/main/java/com/carenest/controller/attendance/DailyHealthController.java#getOverview
 GET /education-plans/class-docs · src/services/education-plan/api/educationPlanApi.js [education-plan: api] → src/main/java/com/carenest/controller/eduplan/EduClassDocController.java#getClassDocs
 GET /education-plans/class-docs/releases/{x} · src/services/education-plan/api/educationPlanApi.js [education-plan: api] → src/main/java/com/carenest/controller/eduplan/EduClassDocController.java#getClassDocRelease
+GET /education-plans/class-docs/{x}/{x}/checks · src/services/education-plan/api/educationPlanApi.js [education-plan: api] → src/main/java/com/carenest/controller/eduplan/EduClassDocController.java#getClassDocChecks
 GET /education-plans/config · src/services/education-plan/api/educationPlanApi.js [education-plan: api] → src/main/java/com/carenest/controller/eduplan/EduConfigController.java#getEduConfig
 GET /education-plans/curriculum/sources · src/services/education-plan/api/educationPlanApi.js [education-plan: api] → src/main/java/com/carenest/controller/eduplan/EduCurriculumController.java#getSources
 GET /education-plans/curriculum/{x} · src/services/education-plan/api/educationPlanApi.js [education-plan: api] → (BE chưa có — pending)
@@ -194,6 +197,8 @@ GET /nutrition/meal-photos · src/services/kitchenRecordsApi.js [kitchen-records
 GET /nutrition/meal-plans · src/services/mealPlanApi.js [meal-plan: api] → src/main/java/com/carenest/controller/meals/MealPlanController.java#getMealPlans
 GET /nutrition/meal-plans/{x} · src/services/mealPlanApi.js [meal-plan: api] → src/main/java/com/carenest/controller/meals/MealPlanController.java#getMealPlan
 GET /nutrition/meal-plans/{x}/revisions · src/services/mealPlanApi.js [meal-plan: api] → src/main/java/com/carenest/controller/meals/MealPlanController.java#getMealPlanRevisions
+GET /nutrition/menu-ai-drafts/{x} · src/services/menuAiDraftApi.js [menu-ai: api] → src/main/java/com/carenest/controller/meals/MenuAiDraftController.java#getDraft
+GET /nutrition/menu-ai-drafts/{x}/candidates · src/services/menuAiDraftApi.js [menu-ai: api] → src/main/java/com/carenest/controller/meals/MenuAiDraftController.java#getCandidates
 GET /nutrition/menu-templates · src/services/menuTemplateApi.js [menu-template: api] → src/main/java/com/carenest/controller/meals/MenuTemplateController.java#getTemplates
 GET /nutrition/menu-templates/{x} · src/services/menuTemplateApi.js [menu-template: api] → src/main/java/com/carenest/controller/meals/MenuTemplateController.java#getTemplate
 GET /nutrition/stock/lots · src/services/dryStockApi.js [dry-stock: api] → src/main/java/com/carenest/controller/meals/StockController.java#getLots
@@ -223,6 +228,7 @@ GET /school-years · src/services/mealPlanApi.js [meal-plan: api] → src/main/j
 GET /school-years · src/services/school-config/api/schoolConfigApi.js [school-config: api] → src/main/java/com/carenest/controller/organization/SchoolYearController.java#getSchoolYears
 GET /school-years/{x} · src/services/school-config/api/schoolConfigApi.js [school-config: api] → src/main/java/com/carenest/controller/organization/SchoolYearController.java#getSchoolYear
 GET /school-years/{x}/cutoff · src/services/school-config/api/schoolConfigApi.js [school-config: api] → src/main/java/com/carenest/controller/organization/AttendanceCutoffController.java#getCutoff
+GET /school-years/{x}/holidays · src/services/children/api/childrenApi.js [children: api] → src/main/java/com/carenest/controller/organization/SchoolYearController.java#getHolidays
 GET /school-years/{x}/holidays · src/services/mealPlanApi.js [meal-plan: api] → src/main/java/com/carenest/controller/organization/SchoolYearController.java#getHolidays
 GET /school-years/{x}/holidays · src/services/school-config/api/schoolConfigApi.js [school-config: api] → src/main/java/com/carenest/controller/organization/SchoolYearController.java#getHolidays
 GET /school-years/{x}/placements · src/services/school-config/api/schoolConfigApi.js [school-config: api] → src/main/java/com/carenest/controller/child/YearTransitionController.java#getPlacements
@@ -301,9 +307,12 @@ POST /classes · src/services/school-config/api/schoolConfigApi.js [school-confi
 POST /classes/{x}/attendance/children/{x}/arrived · src/services/attendance/api/attendanceApi.js [attendance: api] → src/main/java/com/carenest/controller/attendance/AttendanceController.java#markArrived
 POST /daily-health-entries · src/services/daily-health/api/dailyHealthApi.js [daily-health: api] → src/main/java/com/carenest/controller/attendance/DailyHealthController.java#addEntry
 POST /daily-health-entries/{x}/parent-notifications · src/services/daily-health/api/dailyHealthApi.js [daily-health: api] → (BE chưa có — pending)
-POST /education-plans/ai/branch-names · src/services/education-plan/api/educationPlanApi.js [education-plan: api] → (BE chưa có — pending)
-POST /education-plans/ai/branch-names/rewrite · src/services/education-plan/api/educationPlanApi.js [education-plan: api] → (BE chưa có — pending)
-POST /education-plans/ai/lesson-steps · src/services/education-plan/api/educationPlanApi.js [education-plan: api] → (BE chưa có — pending)
+POST /education-plans/ai/activities · src/services/education-plan/api/educationPlanApi.js [education-plan: api] → src/main/java/com/carenest/controller/eduplan/EduAiController.java#suggestActivities
+POST /education-plans/ai/branch-names · src/services/education-plan/api/educationPlanApi.js [education-plan: api] → src/main/java/com/carenest/controller/eduplan/EduAiController.java#suggestBranchNames
+POST /education-plans/ai/branch-names/rewrite · src/services/education-plan/api/educationPlanApi.js [education-plan: api] → src/main/java/com/carenest/controller/eduplan/EduAiController.java#rewriteBranchName
+POST /education-plans/ai/class-docs/day/{x}/edit · src/services/education-plan/api/educationPlanApi.js [education-plan: api] → src/main/java/com/carenest/controller/eduplan/EduAiController.java#editDay
+POST /education-plans/ai/class-docs/day/{x}/review · src/services/education-plan/api/educationPlanApi.js [education-plan: api] → src/main/java/com/carenest/controller/eduplan/EduAiController.java#reviewDay
+POST /education-plans/ai/lesson-steps · src/services/education-plan/api/educationPlanApi.js [education-plan: api] → src/main/java/com/carenest/controller/eduplan/EduAiController.java#suggestLessonSteps
 POST /education-plans/class-docs/branch/calendar-preview · src/services/education-plan/api/educationPlanApi.js [education-plan: api] → src/main/java/com/carenest/controller/eduplan/EduClassDocController.java#previewClassCalendar
 POST /education-plans/class-docs/branch/file-preview · src/services/education-plan/api/educationPlanApi.js [education-plan: api] → src/main/java/com/carenest/controller/eduplan/EduClassDocController.java#previewBranchFile
 POST /education-plans/class-docs/{x}/{x}/actions · src/services/education-plan/api/educationPlanApi.js [education-plan: api] → src/main/java/com/carenest/controller/eduplan/EduClassDocController.java#actOnClassDoc
@@ -344,6 +353,11 @@ POST /nutrition/fresh-checks/dry-receipts · src/services/freshGoodsApi.js [fres
 POST /nutrition/fresh-forecasts · src/services/freshGoodsApi.js [fresh-goods: api] → src/main/java/com/carenest/controller/meals/FreshGoodsController.java#createForecast
 POST /nutrition/fresh-forecasts/preview · src/services/freshGoodsApi.js [fresh-goods: api] → src/main/java/com/carenest/controller/meals/FreshGoodsController.java#previewForecast
 POST /nutrition/meal-plans/{x}/publish · src/services/mealPlanApi.js [meal-plan: api] → src/main/java/com/carenest/controller/meals/MealPlanController.java#publishMealPlan
+POST /nutrition/menu-ai-drafts · src/services/menuAiDraftApi.js [menu-ai: api] → src/main/java/com/carenest/controller/meals/MenuAiDraftController.java#createDraft
+POST /nutrition/menu-ai-drafts/{x}/apply · src/services/menuAiDraftApi.js [menu-ai: api] → src/main/java/com/carenest/controller/meals/MenuAiDraftController.java#applyDraft
+POST /nutrition/menu-ai-drafts/{x}/dismiss · src/services/menuAiDraftApi.js [menu-ai: api] → src/main/java/com/carenest/controller/meals/MenuAiDraftController.java#dismissDraft
+POST /nutrition/menu-ai-drafts/{x}/evaluate · src/services/menuAiDraftApi.js [menu-ai: api] → src/main/java/com/carenest/controller/meals/MenuAiDraftController.java#evaluateDraft
+POST /nutrition/menu-ai-drafts/{x}/mark-used · src/services/menuAiDraftApi.js [menu-ai: api] → src/main/java/com/carenest/controller/meals/MenuAiDraftController.java#markDailyUsed
 POST /nutrition/menu-statistics · src/services/mealPlanApi.js [meal-plan: api] → src/main/java/com/carenest/controller/meals/MealPlanController.java#getMenuStatistics
 POST /nutrition/menu-templates · src/services/menuTemplateApi.js [menu-template: api] → src/main/java/com/carenest/controller/meals/MenuTemplateController.java#createTemplate
 POST /nutrition/stock/days/{x}/sync · src/services/dayBoardApi.js [day-board: api] → src/main/java/com/carenest/controller/meals/StockController.java#resyncDay

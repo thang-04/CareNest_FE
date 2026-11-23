@@ -83,6 +83,13 @@ export const todayInput = () => {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 };
 
+/** yyyy-mm-dd cộng / trừ số ngày, tính theo lịch địa phương (không qua toISOString). */
+export const addDays = (iso, days) => {
+  const [y, m, d] = String(iso).split('-').map(Number);
+  const date = new Date(y, m - 1, d + days);
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+};
+
 /** Ngày địa phương yyyy-mm-dd của một thời điểm ISO (toISOString lệch múi giờ). */
 export const localDateOf = (value) => {
   const d = new Date(value);

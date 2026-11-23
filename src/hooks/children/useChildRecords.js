@@ -11,6 +11,7 @@ import {
   findParentAccountByCitizenId,
   getParentAccounts,
   getPlacementClasses,
+  getSchoolHolidays,
 } from '@/services/children/childrenService';
 import { isValidCitizenId, normalizeCitizenId } from '@/utils/citizenId';
 
@@ -70,6 +71,18 @@ export function usePlacementClasses(schoolYearId) {
     refreshOnDataChange: true,
   });
   return { classes: data || [], loading, error, reload };
+}
+
+/**
+ * Ngày nghỉ của năm học (G94-180/CHD-14) để chọn ngày học mặc định và báo lỗi sớm. Không tải được thì trả rỗng: BE vẫn kiểm
+ * ngày học và báo lỗi ở đúng ô.
+ */
+export function useYearHolidays(schoolYearId) {
+  const { user } = useAuth();
+  const { data, loading } = useAsync(() => getSchoolHolidays(schoolYearId, user).catch(() => []), [schoolYearId, user?.id], {
+    enabled: !!schoolYearId,
+  });
+  return { holidays: data || [], loading };
 }
 
 export function useParentAccounts(filters = {}) {

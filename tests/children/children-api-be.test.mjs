@@ -299,3 +299,18 @@ test('G94-180/CHD-11: nhập Excel vào năm sắp diễn ra gửi id năm học
   assert.equal(bodies[0].schoolYearId, 6);
   assert.equal(bodies[0].startDate, '2027-09-01');
 });
+
+test('G94-180/CHD-14: xếp / chuyển lớp gửi ngày hiệu lực; hủy lịch gọi DELETE; ngày nghỉ đọc theo id năm học BE', async () => {
+  serveSchoolYears();
+
+  await childrenApi.placeChild('11', { classId: '7', reason: 'Đổi lớp', effectiveDate: '2026-12-07' });
+  await childrenApi.cancelScheduledPlacement('11');
+  await childrenApi.getSchoolHolidays('2027-2028');
+
+  assert.deepEqual(bodies[0], { classId: '7', reason: 'Đổi lớp', effectiveDate: '2026-12-07' });
+  assert.deepEqual(calls.filter((c) => c !== 'GET /school-years'), [
+    'POST /children/11/placement',
+    'DELETE /children/11/placement/scheduled',
+    'GET /school-years/6/holidays',
+  ]);
+});

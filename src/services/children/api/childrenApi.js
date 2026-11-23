@@ -261,7 +261,12 @@ export const childrenApi = {
         startDate,
       }),
     ),
+  // G94-180/CHD-14: effectiveDate = ngày vào lớp / ngày chuyển lớp (ngày tương lai = lịch chuyển)
   placeChild: (childId, body) => read(axiosClient.post(`/children/${childId}/placement`, body)),
+  // Hủy lịch chuyển / lớp chưa bắt đầu (BE 400 ô classId khi không có lịch)
+  cancelScheduledPlacement: (childId) => read(axiosClient.delete(`/children/${childId}/placement/scheduled`)),
+  // Ngày nghỉ của năm học (BE SchoolYearController, chỉ đọc) để báo lỗi ngày học sớm; BE vẫn kiểm
+  getSchoolHolidays: async (schoolYearId) => read(axiosClient.get(`/school-years/${await toBeSchoolYear(schoolYearId)}/holidays`)),
   withdrawChild: (childId, body) => read(axiosClient.post(`/children/${childId}/withdraw`, body)),
   saveDeclaration: (childId, body) => read(axiosClient.put(`/children/${childId}/health-declaration`, body)),
   listParentAccounts: (filters) => read(axiosClient.get('/children/parent-accounts', { params: filters })),
