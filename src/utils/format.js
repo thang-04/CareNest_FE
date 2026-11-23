@@ -11,6 +11,12 @@ export const normalizeDateInput = (raw) => {
   return [digits.slice(0, 2), digits.slice(2, 4), digits.slice(4)].filter(Boolean).join('/');
 };
 
+/** "5/9/2027" -> "05/09/2027"; text that is not d/m/yyyy is returned unchanged. */
+export const padDisplayDate = (text) => {
+  const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(text || '');
+  return m ? `${m[1].padStart(2, '0')}/${m[2].padStart(2, '0')}/${m[3]}` : text;
+};
+
 /** yyyy-mm-dd or ISO -> dd/mm/yyyy */
 export const formatDate = (value) => {
   if (!value) return '—';
