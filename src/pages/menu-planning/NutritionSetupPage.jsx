@@ -226,7 +226,7 @@ export default function NutritionSetupPage() {
             <b>{info.short}</b> <span className="muted">{info.range}</span>
             <div className="text-xs muted">{childCountOf(g.ageGroupId) ?? 0} trẻ</div>
           </td>
-          <td>
+          <td className="center">
             <span className="row td-switch-row">
               <Switch
                 checked={g.enabled}
