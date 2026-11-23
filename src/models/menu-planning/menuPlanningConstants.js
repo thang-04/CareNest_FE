@@ -35,6 +35,7 @@
  * @property {string} name              unique
  * @property {string} type              DISH_TYPE
  * @property {string} description
+ * @property {string[]} ageGroupIds     nhóm tuổi món được dùng (G94-379); các cột định lượng/tab chỉ hiện nhóm này
  * @property {DishIngredient[]} ingredients
  * @property {'DRAFT'|'ACTIVE'|'INACTIVE'} status  DRAFT: chưa dùng được cho thực đơn
  *

@@ -21,24 +21,7 @@ import { Button } from '@/components';
 
 const n1 = (v) => (typeof v === 'number' ? (Math.round(v * 10) / 10).toLocaleString('vi-VN') : '—');
 
-// Bảng thành phần tách theo nhóm cột để không tràn ngang: định lượng & chi phí, năng lượng (khoáng chất, vitamin chỉ xem ở màn Thực phẩm)
-const INGREDIENT_VIEWS = [
-  { key: 'portion', label: 'Định lượng và chi phí' },
-  { key: 'energy', label: 'Năng lượng' },
-];
-const ENERGY_COLS = [
-  ['animalProtein', 'Đạm ĐV (g)'],
-  ['plantProtein', 'Đạm TV (g)'],
-  ['animalLipid', 'Béo ĐV (g)'],
-  ['plantLipid', 'Béo TV (g)'],
-  ['glucid', 'Tinh bột (g)'],
-  ['kcal', 'Năng lượng (kcal)'],
-];
-
-/**
- * Chi tiết món ăn: thông tin chung; dinh dưỡng một suất theo nhóm tuổi (năng lượng, P : L : G so chuẩn — tham khảo; khoáng chất,
- * vitamin); hàm lượng từng thành phần theo nhóm tuổi đang chọn, chia nhóm cột; dùng trong thực đơn mẫu, lịch sử.
- */
+/** Chi tiết món ăn: tổng quan và thành phần, dinh dưỡng từng suất, nơi dùng và lịch sử. */
 export default function DishDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -50,8 +33,7 @@ export default function DishDetailPage() {
   const [confirm, setConfirm] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const [picked, setPicked] = useState('');
-  const [ingredientView, setIngredientView] = useState('portion');
-  const [tab, setTab] = useTabParam(['overview', 'ingredients', 'usage']);
+  const [tab, setTab] = useTabParam(['overview', 'nutrition', 'usage']);
 
   if (loading || catLoading) return <LoadingState />;
   if (error || !d)
@@ -73,8 +55,9 @@ export default function DishDetailPage() {
     }
   };
 
-  const groups = activeAgeGroups(catalog.nutritionSetups);
-  const ag = groups.find((g) => g.id === picked) || groups.find((g) => g.id === 'ag-4') || groups[0];
+  const activeGroups = activeAgeGroups(catalog.nutritionSetups);
+  const groups = activeGroups.filter((g) => !d.ageGroupIds?.length || d.ageGroupIds.includes(g.id));
+  const ag = groups.find((g) => g.id === picked) || groups[0];
   const { rows, total } = ingredientBreakdown(d, catalog.foodById, ag?.id);
   // Thiếu số liệu dinh dưỡng hoặc nguồn gốc ⇒ món chưa đủ dữ liệu cân đối
   const noData = rows.some((r) => r.qty != null && (r.noNutrition || r.noOrigin));
@@ -85,9 +68,6 @@ export default function DishDetailPage() {
       groups: groups.filter((g) => ingredientQty(ing, g.id) == null).map((g) => g.shortName),
     }))
     .filter((x) => x.groups.length);
-  const view = INGREDIENT_VIEWS.find((v) => v.key === ingredientView);
-  // Số cột sau "Thành phần" của từng nhóm cột (để ô "chưa nhập định lượng" trải hết hàng)
-  const restCols = view.key === 'portion' ? 6 : 1 + ENERGY_COLS.length;
 
   return (
     <div className="page">
@@ -120,14 +100,14 @@ export default function DishDetailPage() {
         </div>
       )}
 
-      {/* Chia tab (DESIGN §6.3): tổng quan dinh dưỡng | thành phần | nơi dùng + lịch sử */}
+      {/* Thành phần ở tab đầu để giáo viên xem công thức trước số liệu dinh dưỡng. */}
       <Tabs
         ariaLabel="Phần chi tiết món ăn"
         value={tab}
         onChange={setTab}
         items={[
-          { key: 'overview', label: 'Tổng quan & dinh dưỡng' },
-          { key: 'ingredients', label: 'Thành phần', count: d.ingredients?.length },
+          { key: 'overview', label: 'Tổng quan và thành phần', count: d.ingredients?.length },
+          { key: 'nutrition', label: 'Dinh dưỡng' },
           { key: 'usage', label: 'Dùng trong thực đơn & lịch sử' },
         ]}
       />
@@ -152,25 +132,75 @@ export default function DishDetailPage() {
                 <dl className="info-list">
                   <dt>Mô tả</dt>
                   <dd>{d.description || '—'}</dd>
-                  {ag && (
-                    <>
-                      <dt>Một suất {ag.shortName}</dt>
-                      <dd className="fw-600">
-                        {n1(total.kcal)} kcal · {formatMoney(total.cost)}
-                      </dd>
-                    </>
-                  )}
                 </dl>
               </div>
             </section>
 
             <section className="card">
               <div className="card__header td-wrap-head">
+                <h2 className="card__title">Hàm lượng từng thành phần</h2>
+                <Tabs
+                  variant="pill"
+                  ariaLabel="Nhóm tuổi"
+                  items={groups.map((g) => ({ key: g.id, label: g.shortName }))}
+                  value={ag?.id}
+                  onChange={setPicked}
+                />
+              </div>
+              <div className="table-wrap td-card-table">
+                <table className="table table--grid td-hl">
+                  <thead>
+                    <tr>
+                      <th className="td-sticky-first">Thành phần</th>
+                      <th>Đơn vị mua</th>
+                      <th className="money">Đơn giá</th>
+                      <th className="num">Thải bỏ</th>
+                      <th className="num">Lượng ăn 1 trẻ</th>
+                      <th className="num">Lượng mua 1 trẻ</th>
+                      <th className="money">Thành tiền</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="td-hl__total">
+                      <td className="td-sticky-first">Tổng một suất</td>
+                      <td colSpan={5} />
+                      <td className="money nowrap">{formatMoney(total.cost)}</td>
+                    </tr>
+                    {rows.map((r) => (
+                      <tr key={r.foodId}>
+                        <td className="td-sticky-first">
+                          {r.food ? <Link to={`/menu/foods/${r.food.id}`}>{r.food.name}</Link> : 'Thực phẩm đã xóa'}{' '}
+                          <AllergenChips allergens={r.food?.allergens} empty="" />
+                          {r.food && (
+                            <div className="text-xs muted">
+                              {r.noOrigin ? <span className="td-warn">Chưa có nguồn gốc</span> : FOOD_ORIGIN_LABELS[r.food.origin]}
+                            </div>
+                          )}
+                        </td>
+                        <td className="text-sm">{r.food?.purchaseUnit || '—'}</td>
+                        <td className="money nowrap">{r.food?.unitPrice == null ? '—' : formatMoney(r.food.unitPrice)}</td>
+                        <td className="num">{r.food ? `${r.food.wastePct ?? 0}%` : '—'}</td>
+                        <td className="num nowrap">
+                          {r.qty == null ? <span className="td-warn">Chưa nhập</span> : `${n1(r.qty)} ${r.food?.unit || 'g'}`}
+                        </td>
+                        <td className="num nowrap">{r.qty == null ? '—' : `${n1(r.purchaseQty)} ${r.food?.unit || 'g'}`}</td>
+                        <td className="money nowrap">{r.qty == null ? '—' : formatMoney(Math.round(r.cost))}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </>
+        )}
+        {tab === 'nutrition' && (
+          <>
+            <section className="card">
+              <div className="card__header td-wrap-head">
                 <h2 className="card__title">Dinh dưỡng và chi phí một suất theo nhóm tuổi</h2>
               </div>
-              <DishPortionTable dish={d} foodById={catalog.foodById} groups={groups} norms={catalog.norms} />
+              <DishPortionTable dish={d} foodById={catalog.foodById} groups={groups} />
             </section>
-
             {gaps.length > 0 && (
               <div className="alert alert--warning">
                 <AlertTriangle size={18} />
@@ -187,123 +217,6 @@ export default function DishDetailPage() {
               </div>
             )}
           </>
-        )}
-        {tab === 'ingredients' && (
-          <section className="card">
-            <div className="card__header td-wrap-head">
-              <h2 className="card__title">Hàm lượng từng thành phần</h2>
-              <Tabs
-                variant="pill"
-                ariaLabel="Nhóm tuổi"
-                items={groups.map((g) => ({ key: g.id, label: g.shortName }))}
-                value={ag?.id}
-                onChange={setPicked}
-              />
-            </div>
-            <div className="td-card-tabs">
-              <Tabs variant="pill" ariaLabel="Nhóm cột" items={INGREDIENT_VIEWS} value={ingredientView} onChange={setIngredientView} />
-            </div>
-            <div className="table-wrap td-card-table">
-              <table className="table table--grid td-hl">
-                <thead>
-                  <tr>
-                    <th className="td-sticky-first">Thành phần</th>
-                    {view.key === 'portion' ? (
-                      <>
-                        <th>Đơn vị mua</th>
-                        <th className="money">Đơn giá</th>
-                        <th className="num">Thải bỏ</th>
-                        <th className="num">Lượng ăn 1 trẻ</th>
-                        <th className="num">Lượng mua 1 trẻ</th>
-                        <th className="money">Thành tiền</th>
-                      </>
-                    ) : (
-                      <>
-                        <th className="num">Lượng ăn 1 trẻ</th>
-                        {ENERGY_COLS.map(([k, label]) => (
-                          <th key={k} className="num">
-                            {label}
-                          </th>
-                        ))}
-                      </>
-                    )}
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr className="td-hl__total">
-                    <td className="td-sticky-first">Tổng một suất</td>
-                    {view.key === 'portion' ? (
-                      <>
-                        <td colSpan={3} />
-                        <td className="num nowrap">{n1(total.qty)}</td>
-                        <td />
-                        <td className="money nowrap">{formatMoney(total.cost)}</td>
-                      </>
-                    ) : (
-                      <>
-                        <td className="num nowrap">{n1(total.qty)}</td>
-                        {ENERGY_COLS.map(([k]) => (
-                          <td key={k} className="num">
-                            {n1(total[k])}
-                          </td>
-                        ))}
-                      </>
-                    )}
-                  </tr>
-                  {rows.map((r) => (
-                    <tr key={r.foodId}>
-                      <td className="td-sticky-first">
-                        {r.food ? <Link to={`/menu/foods/${r.food.id}`}>{r.food.name}</Link> : 'Thực phẩm đã xóa'}{' '}
-                        <AllergenChips allergens={r.food?.allergens} empty="" />
-                        {r.food && (
-                          <div className="text-xs muted">
-                            {r.noOrigin ? <span className="td-warn">Chưa có nguồn gốc</span> : FOOD_ORIGIN_LABELS[r.food.origin]}
-                          </div>
-                        )}
-                      </td>
-                      {view.key === 'portion' ? (
-                        <>
-                          <td className="text-sm">{r.food?.purchaseUnit || '—'}</td>
-                          <td className="money nowrap">{r.food?.unitPrice == null ? '—' : formatMoney(r.food.unitPrice)}</td>
-                          <td className="num">{r.food ? `${r.food.wastePct ?? 0}%` : '—'}</td>
-                          <td className="num nowrap">
-                            {r.qty == null ? <span className="td-warn">Chưa nhập</span> : `${n1(r.qty)} ${r.food?.unit || 'g'}`}
-                          </td>
-                          <td className="num nowrap">{r.qty == null ? '—' : `${n1(r.purchaseQty)} ${r.food?.unit || 'g'}`}</td>
-                          <td className="money nowrap">{r.qty == null ? '—' : formatMoney(Math.round(r.cost))}</td>
-                        </>
-                      ) : r.qty == null ? (
-                        <td colSpan={restCols} className="muted text-sm">
-                          <span className="td-warn">Chưa nhập định lượng</span> · chưa tính được
-                        </td>
-                      ) : (
-                        <>
-                          <td className="num nowrap">
-                            {n1(r.qty)} {r.food?.unit || 'g'}
-                          </td>
-                          {r.noNutrition ? (
-                            <td colSpan={ENERGY_COLS.length} className="td-warn text-sm">
-                              Chưa có số liệu dinh dưỡng
-                            </td>
-                          ) : (
-                            ENERGY_COLS.map(([k]) => (
-                              <td key={k} className="num">
-                                {r.noOrigin && k.startsWith('animal') ? (
-                                  <span className="td-warn text-xs">chưa rõ nguồn gốc</span>
-                                ) : (
-                                  n1(r[k])
-                                )}
-                              </td>
-                            ))
-                          )}
-                        </>
-                      )}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
         )}
         {tab === 'usage' && (
           <div className="td-split-aside">

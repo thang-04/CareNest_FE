@@ -73,15 +73,18 @@ export const validateDish = (form, others = [], { requireGroups = null } = {}) =
   else if (form.name.trim().length > 100) e.name = 'Tên món tối đa 100 ký tự.';
   else if (others.some((d) => d.id !== form.id && sameName(d.name, form.name))) e.name = 'Đã có món cùng tên. Hãy xem món đã có.';
   if (!DISH_TYPE_LABELS[form.type]) e.type = REQUIRED;
+  // G94-379: giáo viên phải chọn ≥1 nhóm tuổi trước khi lưu (kiểu PMS)
+  if (!form.ageGroupIds?.length) e.ageGroupIds = 'Chọn ít nhất một nhóm tuổi.';
   const rows = form.ingredients || [];
   if (!rows.length) e.ingredients = 'Thêm ít nhất một thực phẩm cho món.';
   const badQty = (v) => !isNum(v) || Number(v) <= 0 || Number(v) > 1000;
+  const selectedGroups = Array.isArray(form.ageGroupIds) ? new Set(form.ageGroupIds) : null;
   rows.forEach((r, i) => {
     if (!r.foodId) e[`ing_${i}`] = 'Chọn thực phẩm.';
     else if (rows.findIndex((x) => x.foodId === r.foodId) !== i) e[`ing_${i}`] = 'Thực phẩm bị lặp, hãy gộp định lượng.';
     if (r.portions) {
       // Ô trống = nhóm tuổi chưa có định lượng (cảnh báo, không chặn lưu); ô đã nhập phải hợp lệ
-      const filled = Object.entries(r.portions).filter(([, v]) => v !== '' && v != null);
+      const filled = Object.entries(r.portions).filter(([ag, v]) => (!selectedGroups || selectedGroups.has(ag)) && v !== '' && v != null);
       filled.forEach(([ag, v]) => badQty(v) && (e[`ing_${i}_${ag}`] = 'Từ 0 đến 1000.'));
       if (!filled.length && !e[`ing_${i}`]) e[`ing_${i}`] = 'Nhập định lượng cho ít nhất một nhóm tuổi.';
     } else if (r.foodId && badQty(r.quantity)) e[`ing_${i}`] = 'Định lượng từ 0 đến 1000.';
