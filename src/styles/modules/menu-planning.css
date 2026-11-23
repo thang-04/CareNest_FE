@@ -3363,7 +3363,7 @@
 /* ---------- Thiết lập dinh dưỡng: danh sách nhóm tuổi (trái) + chi tiết một thẻ (phải) ---------- */
 .td-setup-split {
   margin-top: var(--space-4);
-  grid-template-columns: 280px minmax(0, 1fr);
+  grid-template-columns: 200px minmax(0, 1fr);
 }
 /* Dòng danh sách là nút: bỏ nền/viền mặc định, chữ căn trái như dòng Mẫu thực đơn ngày */
 .td-setup-row {
@@ -3377,6 +3377,74 @@
 .td-setup-row:focus-visible {
   outline: none;
   box-shadow: var(--focus-ring);
+}
+.td-setup-row .td-tpl-row__name {
+  overflow-wrap: anywhere;
+}
+.td-age-list .card__header {
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+.td-age-list__count {
+  display: grid;
+  place-items: center;
+  min-width: var(--space-6);
+  height: var(--space-6);
+  border-radius: var(--radius-full);
+  background: var(--color-surface-muted);
+  color: var(--color-text-secondary);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+}
+.td-age-list .td-tpl-rows {
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-2);
+}
+.td-age-list .td-setup-row {
+  min-height: 44px;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+}
+.td-age-list .td-setup-row[aria-current='true'] {
+  border-color: var(--color-primary-border);
+  background: var(--color-primary-soft);
+  box-shadow: inset var(--space-1) 0 0 var(--color-primary);
+}
+.td-age-list .td-setup-row:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+.td-age-list__heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+}
+.td-age-list__status-dot {
+  flex-shrink: 0;
+  width: var(--space-3);
+  height: var(--space-3);
+  margin-top: var(--space-1);
+  border-radius: var(--radius-full);
+}
+.td-age-list__status-dot--on {
+  background: var(--tone-green);
+}
+.td-age-list__status-dot--off {
+  background: var(--tone-red);
+}
+.td-age-list__range,
+.td-age-list__price {
+  color: var(--color-text-secondary);
+  font-size: var(--fs-xs);
+  line-height: 1.5;
+}
+.td-age-list__price {
+  font-variant-numeric: tabular-nums;
 }
 .td-setup-detail .card__header {
   flex-wrap: wrap;
@@ -3412,6 +3480,24 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: stretch;
   gap: var(--space-6);
+}
+.td-setup-detail .td-norm--rows {
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
+}
+.td-setup-detail .td-norm--rows th,
+.td-setup-detail .td-norm--rows td {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.td-setup-detail .td-norm--rows th:first-child:not([colspan]) {
+  width: 40%;
+}
+.td-setup-detail .td-norm--rows .td-norm__input {
+  width: 100%;
+  max-width: 104px;
+  min-width: 0;
 }
 .td-setup-step {
   display: grid;
@@ -3512,6 +3598,18 @@
 }
 .td-applied__label {
   display: block;
+}
+.td-applied__table tbody tr td:has(> .td-applied__label.td-col-p),
+.td-applied__table tbody tr:hover td:has(> .td-applied__label.td-col-p) {
+  background: color-mix(in srgb, var(--tone-blue) 10%, var(--color-surface));
+}
+.td-applied__table tbody tr td:has(> .td-applied__label.td-col-l),
+.td-applied__table tbody tr:hover td:has(> .td-applied__label.td-col-l) {
+  background: color-mix(in srgb, var(--tone-orange) 10%, var(--color-surface));
+}
+.td-applied__table tbody tr td:has(> .td-applied__label.td-col-g),
+.td-applied__table tbody tr:hover td:has(> .td-applied__label.td-col-g) {
+  background: color-mix(in srgb, var(--tone-green) 10%, var(--color-surface));
 }
 .td-applied__error {
   margin: 0;
