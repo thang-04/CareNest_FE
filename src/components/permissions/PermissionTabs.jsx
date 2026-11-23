@@ -8,6 +8,7 @@ export function PermissionTabs() {
   const tabs = [
     { key: 'roles', label: 'Mặc định theo vai trò', to: '/school/roles' },
     { key: 'overrides', label: 'Ngoại lệ giáo viên', to: '/permissions/overrides' },
+    { key: 'edu-workflow', label: 'Soạn / duyệt hồ sơ', to: '/permissions/edu-workflow' },
     { key: 'history', label: 'Lịch sử thay đổi', to: '/permissions/history' },
   ];
 

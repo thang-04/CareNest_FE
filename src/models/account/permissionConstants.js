@@ -245,6 +245,26 @@ export const PERMISSION_TASKS = {
     group: 'meal-menu',
     level: 'approve',
   },
+  // BE EDU-108: ai soạn/duyệt, đến lượt ai vẫn theo cấu hình EDU-54
+  EDU_SCHOOL_YEAR_PLAN_EDIT: { label: 'Soạn kế hoạch năm học', hint: 'Tạo, sửa, gửi, xóa nháp', group: 'education-plan', level: 'edit' },
+  EDU_SCHOOL_YEAR_PLAN_APPROVE: { label: 'Duyệt kế hoạch năm học', hint: 'Duyệt, trả lại, ban hành', group: 'education-plan', level: 'approve' },
+  EDU_TEAM_PLAN_EDIT: { label: 'Soạn kế hoạch tổ', hint: 'Tạo, sửa, gửi, xóa nháp', group: 'education-plan', level: 'edit' },
+  EDU_TEAM_PLAN_APPROVE: { label: 'Duyệt kế hoạch tổ', hint: 'Duyệt, trả lại, ban hành', group: 'education-plan', level: 'approve' },
+  EDU_SEMESTER_PACKAGE_EDIT: {
+    label: 'Soạn gói học kỳ',
+    hint: 'Chủ đề nhánh, kế hoạch chủ đề, kế hoạch tuần theo kỳ',
+    group: 'education-plan',
+    level: 'edit',
+  },
+  EDU_SEMESTER_PACKAGE_APPROVE: { label: 'Duyệt gói học kỳ', hint: 'Mọi điểm trường', group: 'education-plan', level: 'approve' },
+  EDU_THEME_PLAN_EDIT: { label: 'Soạn hồ sơ chủ đề', hint: 'Kế hoạch tuần, kế hoạch ngày', group: 'education-plan', level: 'edit' },
+  EDU_THEME_PLAN_APPROVE: { label: 'Duyệt hồ sơ chủ đề', hint: 'Mọi điểm trường', group: 'education-plan', level: 'approve' },
+  EDU_PLAN_CONFIG: {
+    label: 'Sửa cấu hình kế hoạch giáo dục',
+    hint: 'Lĩnh vực, dòng hoạt động; không gồm người soạn/duyệt',
+    group: 'education-plan',
+    level: 'admin',
+  },
   PERMISSION_MANAGE: {
     label: 'Phân quyền toàn trường',
     hint: 'Đặt quyền theo vai trò và ngoại lệ từng người; chỉ Hiệu trưởng',
@@ -268,6 +288,7 @@ export const PERMISSION_FEATURES = {
   'meal-menu': { label: 'Thực đơn', group: 'meals', flow: 'meals' },
   'meal-safety': { label: 'Duyệt mẫu thức ăn', group: 'meals', flow: 'meals' },
   'meal-record': { label: 'Bếp ghi lưu mẫu, ảnh bữa ăn', group: 'meals', flow: 'meals' },
+  'education-plan': { label: 'Kế hoạch giáo dục', group: 'education-plan', flow: 'education' },
 };
 
 /** Luồng lớn (cấp 1) của ma trận quyền: tick cả luồng thì mọi việc nhỏ bên trong được tick theo. */
@@ -278,6 +299,7 @@ export const PERMISSION_FLOWS = {
   attendance: { label: 'Điểm danh & sức khỏe' },
   assessment: { label: 'Đánh giá trẻ' },
   meals: { label: 'Bán trú' },
+  education: { label: 'Kế hoạch giáo dục' },
   system: { label: 'Phân quyền toàn trường' },
 };
 

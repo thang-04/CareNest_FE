@@ -335,17 +335,6 @@ export const educationPlanApi = {
     configCache = Promise.resolve(fresh);
     return toUiEduConfig(fresh);
   },
-  saveWorkflowPolicy: async (cfg) => {
-    try {
-      const policies = { ...cfg.workflowPolicy };
-      if (cfg.durationPolicyAvailable === false) delete policies.schoolYear;
-      await axiosClient.put('/education-plans/workflow-policy', { revision: cfg.workflowRevision, policies });
-    } finally {
-      configCache = null;
-      known.clear();
-    }
-    return educationPlanApi.getEduConfig();
-  },
   // BE:EDU-11 — lưu xong thì dùng luôn bản BE trả về làm dữ liệu tham chiếu của phiên
   saveEduConfig: async (cfg) => {
     const current = await loadConfig();

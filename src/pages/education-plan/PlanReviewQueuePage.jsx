@@ -16,6 +16,7 @@ import { clickableRowProps } from '@/utils/clickableRow';
 import { Eye } from '@/components/ui/icons';
 import { FilterText } from '@/components/education-plan/planUi';
 import { isChainReviewer, isReviewTurn } from '@/models/education-plan/reviewTurn.mjs';
+import { isEduVicePrincipal } from '@/utils/education-plan/eduPermissions';
 
 /**
  * Hộp duyệt: kế hoạch giáo dục ngày (kế hoạch chủ đề + giáo án các nhánh) của các lớp trong khối đang chờ duyệt.
@@ -115,7 +116,7 @@ export default function PlanReviewQueuePage() {
   const groups = ageRangeOptions();
   // Tổ trưởng chỉ duyệt nhóm tuổi của mình: nhóm tuổi hiện dạng chữ, chỉ chọn lớp
   const isLeader = user.role === ROLES.TEAM_LEADER;
-  const canFilterClass = user.role === ROLES.VICE_PRINCIPAL || isLeader;
+  const canFilterClass = isEduVicePrincipal(user) || isLeader;
   const leaderGroup = AGE_GROUPS.find((g) => String(g.id) === String(user.ageGroupId));
   const groupClasses = classes.filter((c) =>
     isLeader ? String(c.ageGroupId) === String(user.ageGroupId) : !ageGroupId || sameAgeRange(c.ageGroupId, ageGroupId),

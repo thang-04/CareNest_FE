@@ -271,19 +271,6 @@ export function EducationPlanProvider({ children, yearScoped = true, reviewView 
       staff: data?.staff || [],
       eduConfig: withDefaults(data?.eduConfig),
       creationCapabilities: data?.creationCapabilities || [],
-      saveWorkflowPolicy: async (cfg) => {
-        try {
-          const saved = await service.saveWorkflowPolicy(cfg, actor);
-          if (isActive()) applyEduConfig(saved);
-          setData((prev) => (prev ? { ...prev, eduConfig: saved } : prev));
-          reload({ silent: true });
-          return saved;
-        } catch (err) {
-          toastApi.error(err.message, 'Không lưu được người tạo/duyệt');
-          reload({ silent: true });
-          return null;
-        }
-      },
       saveEduConfig: async (cfg) => {
         try {
           const saved = await service.saveEduConfig(cfg, actor);

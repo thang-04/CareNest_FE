@@ -65,19 +65,15 @@ test('mock class approvals follow the configured chain and retain an unavailable
     assert.deepEqual(issued.approvals.map((a) => a.roleKey), waiting === 'TEAM_LEADER' ? ['TEAM_LEADER', 'VICE_PRINCIPAL'] : ['VICE_PRINCIPAL']);
   }
 });
-test('real adapter reads nested policy, saves expected revision separately and reads fresh after reload', async () => {
+// EDU-108: người soạn/duyệt lưu ở tab Phân quyền (PUT /permissions/edu-workflow); trang Cấu hình không ghi policy
+test('real adapter reads nested policy, config save never writes workflow policy and reads fresh after reload', async () => {
   const calls = [];
-  let workflow = { revision: 7, policies, canConfigure: true };
+  const workflow = { revision: 7, policies, canConfigure: true };
   const signers = { year: ['VICE_PRINCIPAL'], branch: ['TEAM_LEADER'], week: [] };
   axiosClient.defaults.adapter = async (config) => {
     calls.push(config);
     if (config.method === 'put') {
       const body = JSON.parse(config.data);
-      if (config.url.endsWith('/workflow-policy')) {
-        assert.deepEqual(body, { revision: 7, policies });
-        workflow = { ...workflow, revision: 8 };
-        return response(config, workflow);
-      }
       assert.deepEqual(body.signers, signers);
       assert.equal(body.lateApprovalGraceDays, 3);
       assert.equal(body.lateReturnGraceDays, 4);
@@ -93,34 +89,16 @@ test('real adapter reads nested policy, saves expected revision separately and r
   assert.equal(config.canConfigure, true);
   assert.deepEqual(config.yearCreationScopes, ['ag-3']);
   assert.equal(config.workflowRevision, 7);
-  const saved = await educationPlanApi.saveWorkflowPolicy(config);
-  assert.equal(saved.workflowRevision, 8);
+  assert.equal(educationPlanApi.saveWorkflowPolicy, undefined);
   const configSaved = await educationPlanApi.saveEduConfig({
-    ...saved, lateApprovalGraceDays: 3, lateReturnGraceDays: 4, signers: { year: [], branch: [], week: [] },
+    ...config, lateApprovalGraceDays: 3, lateReturnGraceDays: 4, signers: { year: [], branch: [], week: [] },
   });
   assert.deepEqual(configSaved.workflowPolicy.branch.creators, ['TEACHER']);
   assert.equal(configSaved.canConfigure, true);
-  assert.equal(configSaved.workflowRevision, 8);
+  assert.equal(configSaved.workflowRevision, 7);
   const reloaded = await educationPlanApi.getEduConfig();
-  assert.equal(reloaded.workflowRevision, 8);
   assert.deepEqual(reloaded.workflowPolicy, policies);
-  assert.equal(calls.filter((call) => call.method === 'put' && call.url.endsWith('/workflow-policy')).length, 1);
-});
-test('policy conflicts invalidate cache and next read uses server policy and rights', async () => {
-  axiosClient.defaults.adapter = async (config) => {
-    if (config.method === 'put')
-      throw new AxiosError('conflict', 'ERR_BAD_REQUEST', config, null, {
-        status: 409,
-        config,
-        headers: {},
-        data: { desc: 'Concurrent update' },
-      });
-    return response(config, config.url.endsWith('/workflow-policy') ? { revision: 12, policies, canConfigure: false } : {});
-  };
-  await assert.rejects(educationPlanApi.saveWorkflowPolicy({ workflowRevision: 8, workflowPolicy: policies }), { status: 409 });
-  const reloaded = await educationPlanApi.getEduConfig();
-  assert.equal(reloaded.workflowRevision, 12);
-  assert.equal(reloaded.canConfigure, false);
+  assert.equal(calls.filter((call) => call.method === 'put' && call.url.endsWith('/workflow-policy')).length, 0);
 });
 
 test('missing new duration endpoint does not prevent loading the existing education pages', async () => {

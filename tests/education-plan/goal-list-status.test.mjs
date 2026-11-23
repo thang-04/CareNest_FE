@@ -16,6 +16,8 @@ import {sameSchoolYearId} from ${JSON.stringify(import.meta.resolve('../../src/m
 export const context={goals:[],schoolYear:'2026',schoolYearId:1,yearOption:{id:1,status:'ACTIVE'},role:'vp',user:{id:'test'},classes:[]};
 const useGoalDetails=()=>({loading:false});const useEducationPlan=()=>context, useNavigate=()=>()=>{};
 const ROLES={VICE_PRINCIPAL:'vp', PRINCIPAL:'principal', TEAM_LEADER:'leader'}, AGE_GROUPS=[], ageRangeOptions=()=>AGE_GROUPS, ageRangeKey=(g)=>g?.rangeKey, sameAgeRange=(a,b)=>a===b, EDU_STATUS={APPROVED:'APPROVED',SENT:'SENT',PENDING_VP:'PENDING_VP'};
+const isEduVicePrincipal=()=>context.role===ROLES.VICE_PRINCIPAL, canEduApprove=()=>true;
+const DEFAULT_WORKFLOW_POLICY={schoolYear:{creators:['vp'],reviewers:['principal']},year:{creators:['leader'],reviewers:['vp']}};
 const allGoalItems=()=>[], clickableRowProps=()=>({}), fmtDate=(value)=>value || '—';
 const Card=({children})=><section>{children}</section>, PageHead=({actions})=><header>{actions}</header>, StatCard=({label,value})=><span data-value={value}>{label}</span>, SearchSubmit=()=>null, EmptyState=()=>null;
 const Link=({children,to})=><a href={to}>{children}</a>, Plus=()=>null, RotateCcw=()=>null;

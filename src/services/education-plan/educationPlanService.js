@@ -119,8 +119,6 @@ export const getPreviousYearTicks = (planId) =>
   USE_MOCK ? themeContentAiMock.getPreviousYearTicks(planId) : educationPlanApi.getPreviousYearTicks(planId);
 export const sendAiFeedback = (body) => (USE_MOCK ? themeContentAiMock.sendAiFeedback(body) : educationPlanApi.sendAiFeedback(body));
 
-export const saveWorkflowPolicy = (cfg, user) =>
-  USE_MOCK ? eduConfigMockRepository.saveWorkflowPolicy(cfg, user) : educationPlanApi.saveWorkflowPolicy(cfg);
 
 export const previewClassCalendar = async (request, plan) =>
   USE_MOCK

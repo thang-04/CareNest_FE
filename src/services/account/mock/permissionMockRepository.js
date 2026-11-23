@@ -3,6 +3,7 @@ import { canManagePermissions } from '@/utils/account/permissionManagementPermis
 import { validatePermissionChange } from '@/utils/account/permissionValidation';
 import { OVERRIDE_EFFECT, PERMISSION_ROLES } from '@/models/account/permissionConstants';
 import { uid } from '@/utils/id';
+import { validateEduWorkflow } from '@/utils/account/eduWorkflowPermissions';
 
 // Cấu hình demo độc lập của UI G94-209; không áp vào quyền hoặc phân công đang chạy.
 
@@ -228,7 +229,55 @@ const requireReason = (reason) => {
   if (errors.reason) throw badRequest(errors.reason, errors);
 };
 
+// BE V167 + workflow_policy mặc định (EDU-108, EDU-54)
+const EDU_WORKFLOW_DEFAULT = [
+  { docType: 'SCHOOL_YEAR', creators: ['VICE_PRINCIPAL'], reviewers: ['PRINCIPAL'], editRoles: ['PRINCIPAL', 'VICE_PRINCIPAL'], approveRoles: ['PRINCIPAL', 'VICE_PRINCIPAL'] },
+  { docType: 'TEAM', creators: ['TEAM_LEADER'], reviewers: ['VICE_PRINCIPAL'], editRoles: ['PRINCIPAL', 'VICE_PRINCIPAL', 'TEAM_LEADER'], approveRoles: ['PRINCIPAL', 'VICE_PRINCIPAL'] },
+  {
+    docType: 'SEMESTER_PACKAGE',
+    creators: ['TEACHER'],
+    reviewers: ['TEAM_LEADER', 'VICE_PRINCIPAL'],
+    editRoles: ['PRINCIPAL', 'VICE_PRINCIPAL', 'TEAM_LEADER', 'TEACHER'],
+    approveRoles: ['PRINCIPAL', 'VICE_PRINCIPAL', 'TEAM_LEADER'],
+  },
+  {
+    docType: 'THEME_PLAN',
+    creators: ['TEACHER'],
+    reviewers: ['TEAM_LEADER', 'VICE_PRINCIPAL'],
+    editRoles: ['PRINCIPAL', 'VICE_PRINCIPAL', 'TEAM_LEADER', 'TEACHER'],
+    approveRoles: ['PRINCIPAL', 'VICE_PRINCIPAL', 'TEAM_LEADER'],
+  },
+];
+const eduWorkflowOf = (db) => db.eduWorkflowPermissions || { revision: 1, documents: EDU_WORKFLOW_DEFAULT };
+
 export const permissionMockRepository = {
+  async getEduWorkflowPermissions(user) {
+    await delay(80);
+    requireManager(user);
+    return clone(eduWorkflowOf(readDb()));
+  },
+
+  async saveEduWorkflowPermissions({ revision, documents, reason }, user) {
+    await delay();
+    requireManager(user);
+    requireReason(reason);
+    const errors = validateEduWorkflow(documents || []);
+    if (!documents || documents.length !== 4 || Object.keys(errors).length)
+      throw badRequest('Vai trò người soạn hoặc người duyệt không hợp lệ', errors);
+    return writeDb((db) => {
+      const current = eduWorkflowOf(db);
+      if (revision !== current.revision) throw new ApiError(409, 'Dữ liệu đã được người khác cập nhật');
+      // HT là vai trò cố định: luôn có mã
+      const withPrincipal = (roles) => [...new Set(['PRINCIPAL', ...roles])];
+      db.eduWorkflowPermissions = {
+        revision: current.revision + 1,
+        documents: documents.map((d) => ({ ...d, editRoles: withPrincipal(d.editRoles), approveRoles: withPrincipal(d.approveRoles) })),
+      };
+      return clone(db.eduWorkflowPermissions);
+    });
+  },
+
+
   async getPermissionStaff(user) {
     await delay(80);
     requireManager(user);

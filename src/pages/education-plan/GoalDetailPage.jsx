@@ -25,6 +25,7 @@ import { ReleasedVersionsPanel, VersionBadge, YearPlanVersionPanel } from '@/com
 import { chainOf, currentPlanInYear } from '@/models/education-plan/planVersions.mjs';
 import { sameSchoolYearId } from '@/models/education-plan/schoolYearScope.mjs';
 import DocPreviewModal from '@/components/education-plan/DocPreviewModal';
+import { isEduVicePrincipal } from '@/utils/education-plan/eduPermissions';
 
 const uid = () => Math.random().toString(36).slice(2, 9);
 const ISSUE_NOTE =
@@ -87,7 +88,7 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
       </div>
     );
 
-  const isVp = user.role === ROLES.VICE_PRINCIPAL;
+  const isVp = isEduVicePrincipal(user);
   const isLeader = user.role === ROLES.TEAM_LEADER && user.ageGroupId === g.ageGroupId;
   const ageName = AGE_GROUPS.find((a) => a.id === g.ageGroupId)?.name;
   const usedBy = themePlans.filter((t) => t.goalId === g.id);

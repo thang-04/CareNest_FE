@@ -13,4 +13,6 @@ export const updateRolePermissions = (role, payload, user) => call('updateRolePe
 export const getPermissionOverrides = (id, user) => call('getPermissionOverrides', id, user);
 export const getAccountsWithOverrides = (user) => call('getAccountsWithOverrides', user);
 export const updatePermissionOverrides = (id, payload, user) => call('updatePermissionOverrides', id, payload, user);
+export const getEduWorkflowPermissions = (user) => call('getEduWorkflowPermissions', user);
+export const saveEduWorkflowPermissions = (payload, user) => call('saveEduWorkflowPermissions', payload, user);
 export const getPermissionChangeLogs = (filters, user) => call('getPermissionChangeLogs', filters, user);

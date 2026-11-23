@@ -4,6 +4,7 @@ import { DB_CHANGED_EVENT } from '@/mocks/dbEvents';
 import { loadWithHold } from '@/hooks/loadingTiming';
 import {
   getAccountsWithOverrides,
+  getEduWorkflowPermissions,
   getPermissionCatalog,
   getPermissionChangeLogs,
   getPermissionOverrides,
@@ -79,6 +80,10 @@ export function useAccountsWithOverrides({ live = true } = {}) {
 export function usePermissionStaff({ enabled = true } = {}) {
   const { user } = useAuth();
   return usePermissionQuery(() => getPermissionStaff(user), [], { enabled });
+}
+export function useEduWorkflowPermissions() {
+  const { user } = useAuth();
+  return usePermissionQuery(() => getEduWorkflowPermissions(user), [], { live: false });
 }
 export function usePermissionChangeLogs({ targetRole, targetUserId, page = 0, size = 20 } = {}) {
   const { user } = useAuth();

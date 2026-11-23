@@ -106,6 +106,7 @@ const VicePrincipalAssignmentPage = lazyPage(() => import('@/pages/school-config
 const RoleDefaultsPage = lazyPage(() => import('@/pages/school-config/RoleDefaultsPage'));
 const UserOverridesPage = lazyPage(() => import('@/pages/permissions/UserOverridesPage'));
 const PermissionHistoryPage = lazyPage(() => import('@/pages/school-config/PermissionHistoryPage'));
+const EduWorkflowPermissionsPage = lazyPage(() => import('@/pages/EduWorkflowPermissionsPage'));
 const TeacherAssignmentPage = lazyPage(() => import('@/pages/school-config/TeacherAssignmentPage'));
 const YearPlacementPage = lazyPage(() => import('@/pages/school-config/YearPlacementPage'));
 const ChildrenListPage = lazyPage(() => import('@/pages/children/ChildrenListPage'));
@@ -362,6 +363,7 @@ export function AppRoutes() {
             <Route path="roles" element={only([R.PRINCIPAL], <Navigate to="/school/roles" replace />)} />
             <Route path="overrides" element={only([R.PRINCIPAL], <UserOverridesPage />)} />
             <Route path="history" element={only([R.PRINCIPAL], <PermissionHistoryPage />)} />
+            <Route path="edu-workflow" element={only([R.PRINCIPAL], <EduWorkflowPermissionsPage />)} />
           </Route>
           <Route path="children">
             <Route index element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <ChildrenListPage />)} />

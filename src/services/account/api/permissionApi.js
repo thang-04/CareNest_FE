@@ -58,6 +58,9 @@ export const permissionApi = {
   getRolePermissions: () => axiosClient.get('/role-permissions'),
   updateRolePermissions: (role, { permissions, reason }) => axiosClient.put(`/role-permissions/${role}`, { permissions, reason }),
   getPermissionOverrides,
+  // BE EduWorkflowPermissionController (EDU-108)
+  getEduWorkflowPermissions: () => axiosClient.get('/permissions/edu-workflow'),
+  saveEduWorkflowPermissions: (payload) => axiosClient.put('/permissions/edu-workflow', payload),
   // BE chưa có API liệt kê người có ngoại lệ ⇒ đọc ngoại lệ của từng nhân sự cấu hình được
   getAccountsWithOverrides: async () => {
     const { items } = await getPermissionStaff();

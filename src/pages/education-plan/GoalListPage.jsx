@@ -17,6 +17,8 @@ import { getEducationPlans, getReviewQueue } from '@/services/education-plan/edu
 import { isReviewTurn } from '@/models/education-plan/reviewTurn.mjs';
 import { sameSchoolYearId } from '@/models/education-plan/schoolYearScope.mjs';
 import { Button } from '@/components';
+import { DEFAULT_WORKFLOW_POLICY } from '@/models/education-plan/eduConfig';
+import { canEduApprove, isEduVicePrincipal } from '@/utils/education-plan/eduPermissions';
 
 const ageName = (id) => AGE_GROUPS.find((a) => a.id === id)?.name || '—';
 
@@ -46,15 +48,12 @@ export default function GoalListPage({ planLevel = 'TEAM' }) {
   const [q, setQ] = useState('');
   const [age, setAge] = useState('');
   const [showOld, setShowOld] = useState(false);
-  const isVP = role === ROLES.VICE_PRINCIPAL;
+  const isVP = isEduVicePrincipal(user);
   const isLeader = role === ROLES.TEAM_LEADER;
   const isPrincipal = role === ROLES.PRINCIPAL;
 
-  const yearPolicy =
-    eduConfig?.workflowPolicy?.[annual ? 'schoolYear' : 'year'] ||
-    (annual
-      ? { creators: [ROLES.VICE_PRINCIPAL], reviewers: [ROLES.PRINCIPAL] }
-      : { creators: [ROLES.TEAM_LEADER], reviewers: [ROLES.VICE_PRINCIPAL] });
+  const policyKey = annual ? 'schoolYear' : 'year';
+  const yearPolicy = eduConfig?.workflowPolicy?.[policyKey] || DEFAULT_WORKFLOW_POLICY[policyKey];
   const isYearCreator = (yearPolicy.creators || []).includes(role) && !(yearPolicy.reviewers || []).includes(role);
   const principalViewer = isPrincipal && !isYearCreator;
 
@@ -72,7 +71,8 @@ export default function GoalListPage({ planLevel = 'TEAM' }) {
     return goals.filter((g) => sameSchoolYearId(g.schoolYearId, schoolYearId) && visible(g));
   }, [goals, classes, schoolYearId, isVP, isPrincipal, isLeader, user]);
   // Bản Chờ duyệt không nằm trong danh sách (chỉ bản đã ban hành); thẻ "Chờ duyệt" đếm theo hàng chờ của BE và dẫn sang đó
-  const queueEnabled = !!schoolYearId && (isVP || isPrincipal);
+  // FR6.2: PHT không có mã duyệt nào thì không có hàng đợi duyệt
+  const queueEnabled = !!schoolYearId && ((isVP && canEduApprove(user)) || isPrincipal);
   const queue = useAsync(() => getReviewQueue(user, schoolYearId), [user.id, schoolYearId], {
     refreshOnDataChange: true,
     enabled: queueEnabled,

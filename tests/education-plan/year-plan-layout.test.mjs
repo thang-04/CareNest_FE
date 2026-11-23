@@ -117,6 +117,7 @@ const DeadlineBadge=()=>null, ExtendDeadlineButton=()=>null;
 const ROLE_LABELS={};
 const YearPlanSourceCard=({plan,source,children})=><section className="ga-plan-section--source" data-source-id={plan.curriculumSourcePlanId} data-source-title={source?.title}>{children}</section>;
 const ROLES={VICE_PRINCIPAL:'vp'}, AGE_GROUPS=[], DOMAINS=[], SCHOOL_SCOPE='Toàn trường', EDU_STATUS={DRAFT:'DRAFT',EDITING:'EDITING',APPROVED:'APPROVED'};
+const isEduVicePrincipal=(u)=>u?.role===ROLES.VICE_PRINCIPAL;
 const plan={id:'test',schoolYearId:1,title:'Kế hoạch thử',status:'DRAFT',domains:[],themes:[],permissions:{canEdit:true}};
 export const detailContext={schoolYearId:1,requested:null,goals:[plan]};
 const useGoalDetails=()=>({loading:false});const useEducationPlan=()=>({...detailContext,themes:[],user:{id:'vp',role:'vp'},staff:[]});
