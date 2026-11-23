@@ -25,7 +25,7 @@ const { filledMedicalHistory, filledProfile } = await import('./profileFixture.m
 const PRINCIPAL = { id: 'u_hung', role: 'PRINCIPAL', campusId: 'c1' };
 const NEXT_YEAR = '2027-2028';
 const NEXT_CLASS = 'cls_c1_next_x06';
-const START_DATE = '2027-09-05';
+const START_DATE = '2027-09-06';
 
 const dayShift = (days) => {
   const d = new Date(`${todayInput()}T00:00:00`);
@@ -103,11 +103,14 @@ test('CHD-11: phụ huynh mới của trẻ năm sau được tạo tài khoản
   );
 });
 
-// CHD-11: ô Năm học tiếp nhận chỉ liệt kê năm đang mở tiếp nhận, mặc định theo năm ở header
-test('CHD-11: màn tiếp nhận dùng intakeYearOptions và defaultIntakeYearId cho ô Năm học tiếp nhận', () => {
+// CHD-11, G94-180/CHD-14: ô Năm học tiếp nhận chỉ liệt kê năm đang mở tiếp nhận, bắt buộc, không chọn sẵn theo header
+test('CHD-11: màn tiếp nhận dùng IntakeStartFields (intakeYearOptions), không chọn sẵn năm', () => {
   const page = readFileSync('src/pages/children/EnrollChildPage.jsx', 'utf8');
-  assert.match(page, /intakeYearOptions\(/);
-  assert.match(page, /defaultIntakeYearId\(/);
+  const fields = readFileSync('src/components/children/IntakeStartFields.jsx', 'utf8');
+  assert.match(page, /<IntakeStartFields/);
+  assert.match(fields, /intakeYearOptions\(/);
+  assert.doesNotMatch(page, /defaultIntakeYearId\(/);
+  assert.match(page, /'Chọn năm học tiếp nhận'/);
 });
 
 // CHD-11: nhập Excel vào năm sau ⇒ mỗi trẻ Chờ xếp lớp + đăng ký PENDING (chưa lớp) với ngày bắt đầu của cả file

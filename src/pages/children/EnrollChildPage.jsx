@@ -5,15 +5,14 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useMasterData } from '@/hooks/useMasterData';
-import { useCitizenIdAccounts, useClassOptions, usePlacementClasses } from '@/hooks/children/useChildRecords';
+import { useCitizenIdAccounts, useClassOptions, usePlacementClasses, useYearHolidays } from '@/hooks/children/useChildRecords';
 import { sameId } from '@/services/http/idStrings';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Stepper } from '@/components/ui/Stepper';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { Spinner } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
-import { ActiveYearNotice } from '@/components/children/ActiveYearNotice';
-import { YearLockedNotice } from '@/components/children/YearLockedNotice';
+import { IntakeStartFields } from '@/components/children/IntakeStartFields';
 import { ChildInfoFields } from '@/components/children/ChildInfoFields';
 import { PortraitImage } from '@/components/PortraitImage';
 import { ChildProfileSummary } from '@/components/children/ChildProfileSummary';
@@ -25,7 +24,6 @@ import { IntakeSheet, IntakeSheetValueRow } from '@/components/children/IntakeSh
 import { checkDuplicateChild, checkGuardianConflicts, enrollChild, readmitChild } from '@/services/children/childrenService';
 import { FormField } from '@/components/form/FormField';
 import { SelectField } from '@/components/form/Field';
-import { DateInput } from '@/components/form/DateInput';
 import { GENDER_LABELS, ageLabel } from '@/models/School';
 import { formatDate, todayInput } from '@/utils/format';
 import { hasErrors, validateChildInfo, validateDeclaration } from '@/utils/children/childrenValidation';
@@ -40,7 +38,7 @@ import {
   withGuardianAccounts,
 } from '@/utils/children/childrenHelpers';
 import { childrenCrumbs } from '@/utils/children/breadcrumbs';
-import { defaultIntakeYearId, intakeYearOptions } from '@/utils/schoolYearPrep';
+import { defaultStartDate, startDateError } from '@/utils/children/startDate';
 import '@/styles/modules/children.css';
 
 const STEPS = ['Thông tin trẻ & phụ huynh', 'Xếp lớp', 'Báo ăn và sức khỏe', 'Xem lại & xác nhận'];
@@ -89,10 +87,12 @@ export default function EnrollChildPage() {
   const { user } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
-  const { schoolYear, schoolYears, activeYear, yearReadOnly, yearLocked } = useSchoolYear();
+  const { schoolYear, schoolYears, activeYear } = useSchoolYear();
+  // G94-180/CHD-14 (user chốt 2026-11-22): năm học tiếp nhận bắt buộc, không chọn sẵn, không theo năm ở header
   const [intakeYearId, setIntakeYearId] = useState('');
-  const intakeYear = schoolYears.find((y) => sameId(y.id, intakeYearId)) || activeYear || null;
-  const planned = intakeYear?.status === 'PLANNED';
+  const chosenYear = schoolYears.find((y) => sameId(y.id, intakeYearId)) || null;
+  const intakeYear = chosenYear || activeYear || null;
+  const { holidays } = useYearHolidays(chosenYear?.id);
   // Điểm trường của năm tiếp nhận (G94-180/CHD-02, user chốt 2026-11-22); BE chặn 2125 nếu gửi điểm trường ngoài năm
   const md = useMasterData(intakeYear?.id ?? null);
   const { classes, loading: classesLoading } = usePlacementClasses(intakeYear?.id);
@@ -106,6 +106,13 @@ export default function EnrollChildPage() {
   // null = chưa chọn: dùng điểm trường mặc định; giữ lựa chọn khi tiếp nhận trẻ khác.
   const [campusPick, setCampusPick] = useState(null);
   const [startDate, setStartDate] = useState('');
+  // Ngày bắt đầu còn là ngày mặc định ⇒ tính lại khi ngày nghỉ của năm tải xong
+  const [startTouched, setStartTouched] = useState(false);
+  const [readmitYearId, setReadmitYearId] = useState('');
+  const [readmitStart, setReadmitStart] = useState('');
+  const [readmitDateErrors, setReadmitDateErrors] = useState({});
+  const readmitYear = schoolYears.find((y) => sameId(y.id, readmitYearId)) || null;
+  const { holidays: readmitHolidays } = useYearHolidays(readmitYear?.id);
   const [declaration, setDeclaration] = useState(emptyDeclaration());
   const [errors, setErrors] = useState({ info: {}, placement: {}, declaration: {} });
   const [duplicate, setDuplicate] = useState(null);
@@ -125,14 +132,9 @@ export default function EnrollChildPage() {
   );
 
   useEffect(() => {
-    // CHD-11: mặc định năm đang xem ở header nếu tiếp nhận được, không thì năm đang hoạt động.
-    if (intakeYearId) return;
-    const id = defaultIntakeYearId(schoolYears, schoolYear);
-    if (id == null) return;
-    setIntakeYearId(id);
-    const year = schoolYears.find((y) => sameId(y.id, id));
-    if (year?.status === 'PLANNED') setStartDate(year.startDate || '');
-  }, [schoolYears, schoolYear, intakeYearId]);
+    if (chosenYear && !startTouched) setStartDate(defaultStartDate(chosenYear, todayInput(), holidays));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ tính lại khi đổi năm hoặc ngày nghỉ của năm tải xong
+  }, [intakeYearId, holidays]);
 
   // Có ngày sinh: nhóm tuổi theo năm tiếp nhận đang chọn; đổi năm ⇒ tính lại khi nhóm tuổi của năm đó tải xong (lỗi A8)
   const dobAgeGroupId = suggestAgeGroupId(info.dateOfBirth, intakeYear?.startDate || intakeYear?.id || activeYear?.startDate, ageGroups);
@@ -223,12 +225,22 @@ export default function EnrollChildPage() {
   };
 
   const readmit = async () => {
+    // G94-180/CHD-14: mở lại hồ sơ cũng chọn năm học và ngày bắt đầu đi học
+    const dateErrors = {
+      schoolYearId: readmitYear ? '' : 'Chọn năm học tiếp nhận',
+      startDate: readmitYear ? startDateError(readmitStart, readmitYear, todayInput(), readmitHolidays) : '',
+    };
+    if (dateErrors.schoolYearId || dateErrors.startDate) {
+      setReadmitDateErrors(dateErrors);
+      return;
+    }
     try {
       const child = await readmitChild(
         duplicate.id,
         {
           reason: readmitReason,
-          ...(planned && { schoolYearId: intakeYear.id, startDate }),
+          schoolYearId: readmitYear?.id,
+          startDate: readmitStart,
           ...(readmitCampusId && { campusId: readmitCampusId }),
         },
         user,
@@ -239,9 +251,10 @@ export default function EnrollChildPage() {
       );
       navigate(`/children/${child.id}`);
     } catch (err) {
-      if (err.details?.reason || err.details?.campusId) {
+      if (err.details?.reason || err.details?.campusId || err.details?.startDate || err.details?.schoolYearId) {
         setReadmitError(err.details.reason || '');
         setReadmitCampusError(err.details?.campusId || '');
+        setReadmitDateErrors({ schoolYearId: err.details?.schoolYearId, startDate: err.details?.startDate });
       } else setReadmitOpen(false);
       toast.error(err, 'Không mở lại được hồ sơ');
     }
@@ -283,8 +296,11 @@ export default function EnrollChildPage() {
         setErrors((e) => ({ ...e, placement: { campusId: 'Chọn điểm trường tiếp nhận trẻ' } }));
         return;
       }
-      if (planned && !startDate) {
-        setErrors((e) => ({ ...e, placement: { ...e.placement, startDate: 'Chọn ngày bắt đầu học' } }));
+      // G94-180/CHD-14: chọn năm và ngày bắt đầu đi học (ngày học); BE kiểm lại
+      const yearError = chosenYear ? '' : 'Chọn năm học tiếp nhận';
+      const startError = chosenYear ? startDateError(startDate, chosenYear, todayInput(), holidays) : '';
+      if (yearError || startError) {
+        setErrors((e) => ({ ...e, placement: { ...e.placement, schoolYearId: yearError, startDate: startError } }));
         return;
       }
       goTo(2);
@@ -304,7 +320,7 @@ export default function EnrollChildPage() {
           classId,
           campusId: campusId || undefined,
           schoolYearId: intakeYear?.id,
-          startDate: planned ? startDate : undefined,
+          startDate,
           declaration,
         },
         user,
@@ -400,16 +416,6 @@ export default function EnrollChildPage() {
     );
   }
 
-  // Năm đã kết thúc hoặc năm sắp diễn ra chưa tới ngày mở chuẩn bị (CHD-12): chỉ xem
-  if (yearReadOnly || yearLocked)
-    return (
-      <div className="page">
-        <Breadcrumb items={childrenCrumbs('Tiếp nhận trẻ')} />
-        <h1 className="page__title">Tiếp nhận trẻ</h1>
-        {yearLocked ? <YearLockedNotice action="Tiếp nhận trẻ" /> : <ActiveYearNotice action="Tiếp nhận trẻ" />}
-      </div>
-    );
-
   return (
     <div className="page">
       <Breadcrumb items={childrenCrumbs('Tiếp nhận trẻ')} />
@@ -421,7 +427,6 @@ export default function EnrollChildPage() {
           Nhập nhiều trẻ từ Excel
         </Link>
       </div>
-      <ActiveYearNotice action="Tiếp nhận trẻ" />
       <div className="card stepper-card">
         <Stepper steps={STEPS} current={step} maxReached={maxReached} onStepClick={goTo} />
       </div>
@@ -504,37 +509,26 @@ export default function EnrollChildPage() {
         <section className="card wizard-card">
           <StepHead title={`Xếp lớp năm học ${yearLabel}`} info={info} />
           <div className="tr-placement-filters mb-16">
-            <SelectField
-              label="Năm học tiếp nhận"
-              required
-              error={errors.placement.schoolYearId}
-              value={intakeYear?.id || ''}
-              options={intakeYearOptions(schoolYears).map((y) => ({
-                value: y.id,
-                label: `${y.label} · ${y.status === 'ACTIVE' ? 'Đang hoạt động' : 'Sắp diễn ra'}`,
-              }))}
-              onChange={(e) => {
-                const nextYear = schoolYears.find((y) => sameId(y.id, e.target.value));
+            <IntakeStartFields
+              className="tr-placement-filters__start"
+              schoolYears={schoolYears}
+              yearId={intakeYearId}
+              onYearChange={(nextYear) => {
                 setIntakeYearId(nextYear?.id || '');
-                setStartDate(nextYear?.status === 'PLANNED' ? nextYear.startDate || '' : '');
+                setStartTouched(false);
+                setStartDate(defaultStartDate(nextYear, todayInput()));
                 setClassId('');
                 setAgeGroupId('');
                 setErrors((current) => ({ ...current, placement: {} }));
               }}
+              startDate={startDate}
+              onStartDateChange={(value) => {
+                setStartDate(value);
+                setStartTouched(true);
+                setErrors((current) => ({ ...current, placement: { ...current.placement, startDate: undefined } }));
+              }}
+              errors={errors.placement}
             />
-            {planned && (
-              <FormField label="Ngày bắt đầu học" required error={errors.placement.startDate}>
-                <DateInput
-                  value={startDate}
-                  min={intakeYear?.startDate}
-                  max={intakeYear?.endDate}
-                  onChange={(value) => {
-                    setStartDate(value);
-                    setErrors((current) => ({ ...current, placement: { ...current.placement, startDate: undefined } }));
-                  }}
-                />
-              </FormField>
-            )}
           </div>
           {noCampusInYear && (
             <div className="alert alert--warning mb-16" role="status">
@@ -658,7 +652,7 @@ export default function EnrollChildPage() {
             <div className="tr-intake-cols">
               <ReviewGroup title="Xếp lớp" onEdit={() => goTo(1)}>
                 <IntakeSheet title={`IV. Xếp lớp năm học ${yearLabel}`}>
-                  {planned && <IntakeSheetValueRow label="Ngày bắt đầu học">{formatDate(startDate)}</IntakeSheetValueRow>}
+                  <IntakeSheetValueRow label="Ngày bắt đầu đi học">{formatDate(startDate)}</IntakeSheetValueRow>
                   {pickCampus && (
                     <IntakeSheetValueRow label="Điểm trường">{campusLabel(selectedClass?.campusId || campusId)}</IntakeSheetValueRow>
                   )}
@@ -729,6 +723,21 @@ export default function EnrollChildPage() {
               placeholder="Ví dụ: Gia đình chuyển về lại địa phương, xin cho trẻ học tiếp"
             />
           </FormField>
+          <IntakeStartFields
+            schoolYears={schoolYears}
+            yearId={readmitYearId}
+            onYearChange={(year) => {
+              setReadmitYearId(year?.id || '');
+              setReadmitStart(defaultStartDate(year, todayInput()));
+              setReadmitDateErrors({});
+            }}
+            startDate={readmitStart}
+            onStartDateChange={(value) => {
+              setReadmitStart(value);
+              setReadmitDateErrors((current) => ({ ...current, startDate: undefined }));
+            }}
+            errors={readmitDateErrors}
+          />
           <SelectField
             label="Điểm trường"
             error={readmitCampusError}

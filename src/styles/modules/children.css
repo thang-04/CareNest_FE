@@ -250,6 +250,10 @@
   grid-template-columns: repeat(auto-fit, minmax(min(100%, calc(var(--space-16) * 4)), calc(var(--space-16) * 5.5)));
   gap: var(--space-3) var(--space-4);
 }
+/* Năm học tiếp nhận + ngày bắt đầu đi học (IntakeStartFields) nằm chung lưới với các ô xếp lớp */
+.tr-placement-filters__start {
+  display: contents;
+}
 .tr-intake-portrait > .field > .row {
   flex-direction: column;
   align-items: flex-start;

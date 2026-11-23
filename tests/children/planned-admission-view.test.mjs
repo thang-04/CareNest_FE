@@ -24,7 +24,7 @@ const { filledMedicalHistory, filledProfile } = await import('./profileFixture.m
 const PRINCIPAL = { id: 'u_hung', role: 'PRINCIPAL', campusId: 'c1' };
 const NEXT_YEAR = '2027-2028';
 const NEXT_CLASS = 'cls_c1_next_x06';
-const START_DATE = '2027-09-05';
+const START_DATE = '2027-09-06';
 
 const seedNextYear = () =>
   writeDb((d) => {
@@ -173,11 +173,11 @@ test('CHD-11: nhãn ô lớp và câu ở hồ sơ theo plannedAdmission', () =>
   assert.equal(plannedClassLabel(adm({ classId: null, className: null, status: 'PENDING' })), 'Chưa xếp lớp');
   assert.equal(
     plannedAdmissionNotice(adm()),
-    'Đăng ký năm học 2027-2028, lớp dự kiến Lớp năm sau, vào học từ 05/09/2027. Xếp, đổi lớp dự kiến ở Xếp lớp năm học mới.',
+    'Đăng ký năm học 2027-2028, lớp dự kiến Lớp năm sau, vào học từ 06/09/2027. Xếp, đổi lớp dự kiến ở Xếp lớp năm học mới.',
   );
   assert.equal(
     plannedAdmissionNotice(adm({ classId: null, className: null, status: 'PENDING' })),
-    'Đăng ký năm học 2027-2028, chưa xếp lớp, vào học từ 05/09/2027. Xếp, đổi lớp dự kiến ở Xếp lớp năm học mới. Phải xếp lớp trước khi kích hoạt năm học; không xếp được thì cho nghỉ học để hủy đăng ký.',
+    'Đăng ký năm học 2027-2028, chưa xếp lớp, vào học từ 06/09/2027. Xếp, đổi lớp dự kiến ở Xếp lớp năm học mới. Phải xếp lớp trước khi kích hoạt năm học; không xếp được thì cho nghỉ học để hủy đăng ký.',
   );
 });
 

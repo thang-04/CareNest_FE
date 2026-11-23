@@ -41,6 +41,7 @@ import {
   canEditChild,
   canEnrollChild,
   canWithdrawChild,
+  isPrincipal,
   isTeacherRole,
   isVicePrincipal,
   seesAllCampusChildren,
@@ -49,6 +50,8 @@ import { childrenCrumbs } from '@/utils/children/breadcrumbs';
 import { PLANNED_ADMISSION_FILTER, childrenOfStatus, plannedClassLabel } from '@/utils/children/childrenHelpers';
 import '@/styles/modules/children.css';
 import { StatCard } from '@/components/ui/StatCard';
+import { StatusBadge } from '@/components/ui/StatusBadge';
+import { hasScheduledTransfer, isNotStarted, notStartedLabel, scheduledTransferLabel } from '@/utils/children/startDate';
 import { CampusFilter } from '@/components/ui/CampusFilter';
 
 // Cảnh báo sức khỏe xem ở Sổ sức khỏe của từng trẻ, không ở danh sách (user yêu cầu 2026-10-31; HLT-19, 2026-11-04).
@@ -109,10 +112,14 @@ export default function ChildrenListPage() {
   const noClassAssigned = isTeacherRole(user) && !classesLoading && yearOptions.length === 0;
   const rows = useMemo(() => {
     const kw = normalizeText(keyword).trim();
-    return childrenOfStatus(all, status)
-      .filter((c) => !campusId || sameId(c.campusId, campusId))
-      .filter((c) => !classId || sameId(c.classId, classId))
-      .filter((c) => !kw || normalizeText(`${c.fullName} ${c.code}`).includes(kw));
+    return (
+      childrenOfStatus(all, status)
+        .filter((c) => !campusId || sameId(c.campusId, campusId))
+        .filter((c) => !classId || sameId(c.classId, classId))
+        .filter((c) => !kw || normalizeText(`${c.fullName} ${c.code}`).includes(kw))
+        // G94-180/CHD-14: trẻ đã tới ngày bắt đầu đi học mà chưa có lớp lên đầu (cờ startDue do BE tính)
+        .sort((a, b) => Number(!!b.startDue) - Number(!!a.startDue))
+    );
   }, [all, status, campusId, classId, keyword]);
   const pageRows = paginate(rows, page);
   const filtered = activeKeys.length > 0;
@@ -142,6 +149,9 @@ export default function ChildrenListPage() {
   if (plannedCount > 0 || preparingYear || prepLocked)
     stats.splice(3, 0, { key: PLANNED_ADMISSION_FILTER, label: 'Sắp nhập học', value: plannedCount, tone: 'blue' });
   const pendingPlacement = count(CHILD_STATUS.PENDING_PLACEMENT);
+  const startDueCount = all.filter((c) => c.startDue).length;
+  // G94-180/CHD-14: dòng nhắc xếp lớp cho cả HT và PHT; nhắc kích hoạt tài khoản giữ cho PHT như trước
+  const remindsPlacement = isVicePrincipal(user) || isPrincipal(user);
   const notActivated = all.filter(
     (c) => c.status !== CHILD_STATUS.LEFT && c.guardians.some((g) => g.accountStatus === PARENT_ACCOUNT_STATUS.NOT_ACTIVATED),
   ).length;
@@ -199,19 +209,25 @@ export default function ChildrenListPage() {
         </div>
       )}
 
-      {!yearLocked && isVicePrincipal(user) && (pendingPlacement > 0 || notActivated > 0) && (
+      {!yearLocked && remindsPlacement && (pendingPlacement > 0 || (isVicePrincipal(user) && notActivated > 0)) && (
         <div className="alert alert--warning mb-16">
           <Info size={18} />
           <div className="stack gap-1">
             {pendingPlacement > 0 && (
               <span>
-                <b>{pendingPlacement}</b> trẻ chưa được xếp lớp.{' '}
+                <b>{pendingPlacement}</b> trẻ chưa được xếp lớp
+                {startDueCount > 0 && (
+                  <>
+                    , trong đó <b>{startDueCount}</b> trẻ đã tới ngày bắt đầu đi học
+                  </>
+                )}
+                .{' '}
                 <Link to="/children/placement" className="text-primary">
                   <LayoutGrid size={14} /> Xếp lớp
                 </Link>
               </span>
             )}
-            {notActivated > 0 && (
+            {isVicePrincipal(user) && notActivated > 0 && (
               <span>
                 <b>{notActivated}</b> trẻ có phụ huynh chưa được kích hoạt tài khoản.{' '}
                 <Link to="/children/activation" className="text-primary">
@@ -349,6 +365,7 @@ export default function ChildrenListPage() {
                             <span className="stack gap-0">
                               <span className="fw-600 text-primary tr-child-name">{c.fullName}</span>
                               <span className="text-xs muted">{c.code}</span>
+                              {c.startDue && <StatusBadge tone="orange" size="sm" label="Đã tới ngày đi học, chưa có lớp" />}
                             </span>
                           </span>
                         </td>
@@ -362,6 +379,8 @@ export default function ChildrenListPage() {
                           {c.plannedAdmission
                             ? plannedClassLabel(c.plannedAdmission)
                             : c.className || <span className="muted">Chưa xếp lớp</span>}
+                          {isNotStarted(c) && <span className="muted text-xs"> ({notStartedLabel(c)})</span>}
+                          {hasScheduledTransfer(c) && <div className="text-xs">{scheduledTransferLabel(c)}</div>}
                         </td>
                         {showCampus && <td className="text-sm">{md.campusById(c.campusId)?.name?.split(' - ')[0] || '—'}</td>}
                         <td className="text-sm">

@@ -3,10 +3,7 @@ import { useEffect, useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { FileSpreadsheet, AlertTriangle, CheckCircle2, ArrowLeft, Upload, LayoutGrid } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
-import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useToast } from '@/contexts/ToastContext';
-import { ActiveYearNotice } from '@/components/children/ActiveYearNotice';
-import { YearLockedNotice } from '@/components/children/YearLockedNotice';
 import { ImportChildrenModal } from '@/components/children/ImportChildrenModal';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Button } from '@/components/ui/Button';
@@ -27,7 +24,6 @@ export default function ImportChildrenPage() {
   const { user } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
-  const { yearReadOnly, yearLocked } = useSchoolYear();
   const [draft, setDraft] = useState(peekImportDraft);
   const [reupload, setReupload] = useState(false);
   const [onlyErrors, setOnlyErrors] = useState(false);
@@ -75,16 +71,6 @@ export default function ImportChildrenPage() {
             </div>
           </div>
         </div>
-      </div>
-    );
-
-  // Năm đã kết thúc hoặc năm sắp diễn ra chưa tới ngày mở chuẩn bị (CHD-12): chỉ xem
-  if (yearReadOnly || yearLocked)
-    return (
-      <div className="page">
-        <Breadcrumb items={childrenCrumbs('Nhập từ Excel')} />
-        <h1 className="page__title">Nhập danh sách trẻ từ Excel</h1>
-        {yearLocked ? <YearLockedNotice action="Nhập danh sách trẻ" /> : <ActiveYearNotice action="Nhập danh sách trẻ" />}
       </div>
     );
 

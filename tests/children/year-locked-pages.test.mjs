@@ -5,35 +5,37 @@ import { test } from 'node:test';
 // CHD-12: header chọn năm sắp diễn ra chưa tới ngày mở chuẩn bị ⇒ màn trẻ, sức khỏe, đón trẻ chỉ xem.
 const read = (f) => readFileSync(f, 'utf8');
 
-const CHILD_PAGES = [
-  'ChildrenListPage',
-  'ChildProfilePage',
-  'EditChildPage',
-  'EnrollChildPage',
-  'ClassPlacementPage',
-  'ImportChildrenPage',
-  'ParentActivationPage',
-];
+// Tiếp nhận và nhập Excel chọn năm học riêng, không khóa theo header (G94-180/CHD-14, user chốt 2026-11-22)
+const CHILD_PAGES = ['ChildrenListPage', 'ChildProfilePage', 'EditChildPage', 'ClassPlacementPage', 'ParentActivationPage'];
 
 test('màn trẻ: có yearLocked và banner YearLockedNotice', () => {
   for (const name of CHILD_PAGES) {
     const src = read(`src/pages/children/${name}.jsx`);
     assert.match(src, /yearLocked/, `${name} thiếu yearLocked`);
-    if (name === 'EnrollChildPage' || name === 'ClassPlacementPage' || name === 'ImportChildrenPage') continue; // dùng khối yearReadOnly || yearLocked
+    if (name === 'ClassPlacementPage') continue; // dùng khối yearReadOnly || yearLocked
     assert.match(src, /YearLockedNotice/, `${name} thiếu YearLockedNotice`);
   }
 });
 
-test('tiếp nhận, xếp lớp, nhập Excel: khối chỉ xem gộp yearReadOnly || yearLocked kèm banner', () => {
-  for (const name of ['EnrollChildPage', 'ClassPlacementPage', 'ImportChildrenPage']) {
+test('xếp lớp: khối chỉ xem gộp yearReadOnly || yearLocked kèm banner', () => {
+  for (const name of ['ClassPlacementPage']) {
     const src = read(`src/pages/children/${name}.jsx`);
     assert.match(src, /yearReadOnly \|\| yearLocked/, `${name} thiếu yearReadOnly || yearLocked`);
     assert.match(src, /YearLockedNotice/, `${name} thiếu YearLockedNotice`);
   }
 });
 
-test('hộp nhập Excel: nút tải lên tắt khi năm bị khóa', () => {
-  assert.match(read('src/components/children/ImportChildrenModal.jsx'), /yearReadOnly \|\| yearLocked/);
+test('G94-180/CHD-14: tiếp nhận, nhập Excel không khóa theo năm ở header; chọn năm và ngày bắt đầu đi học riêng', () => {
+  for (const file of [
+    'src/pages/children/EnrollChildPage.jsx',
+    'src/components/children/ImportChildrenModal.jsx',
+    'src/pages/children/ImportChildrenPage.jsx',
+  ]) {
+    assert.doesNotMatch(read(file), /yearReadOnly \|\| yearLocked/, file);
+  }
+  for (const file of ['src/pages/children/EnrollChildPage.jsx', 'src/components/children/ImportChildrenModal.jsx']) {
+    assert.match(read(file), /<IntakeStartFields/, file);
+  }
 });
 
 const HEALTH_PAGES = [
@@ -90,7 +92,7 @@ test('danh sách trẻ: nhập Excel và cột thao tác chặn bằng !yearLock
   const src = read('src/pages/children/ChildrenListPage.jsx');
   assert.match(src, /const canImport = canEnrollChild\(user\) && !yearLocked;/);
   assert.match(src, /const showActions = !isTeacherRole\(user\) && !yearLocked;/);
-  assert.match(src, /\{!yearLocked && isVicePrincipal\(user\)/);
+  assert.match(src, /\{!yearLocked && remindsPlacement &&/);
 });
 
 test('sổ sức khỏe và danh sách nhập theo lớp: canRecord/canEdit gồm !yearLocked', () => {
@@ -112,8 +114,8 @@ test('danh sách đợt khám: canCreate gồm !yearLocked và gợi ý rỗng d
   assert.match(src, /canCreate\s*\?\s*'Tạo đợt khám/);
 });
 
-test('tiếp nhận trẻ: return sớm chỉ xem khi yearReadOnly || yearLocked', () => {
-  assert.match(read('src/pages/children/EnrollChildPage.jsx'), /if \(yearReadOnly \|\| yearLocked\)\s*\n?\s*return/);
+test('G94-180/CHD-14: tiếp nhận trẻ không return sớm theo năm ở header', () => {
+  assert.doesNotMatch(read('src/pages/children/EnrollChildPage.jsx'), /if \(yearReadOnly \|\| yearLocked\)/);
 });
 
 test('đón trẻ: nút trả/gọi và hai modal đều chặn bằng !yearLocked', () => {

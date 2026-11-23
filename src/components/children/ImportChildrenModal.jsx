@@ -6,16 +6,17 @@ import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { ImportDialog } from '@/components/upload/ImportDialog';
 import { SelectField } from '@/components/form/Field';
-import { FormField } from '@/components/form/FormField';
-import { DateInput } from '@/components/form/DateInput';
-import { ActiveYearNotice } from '@/components/children/ActiveYearNotice';
+import { IntakeStartFields } from '@/components/children/IntakeStartFields';
+import { useYearHolidays } from '@/hooks/children/useChildRecords';
 import { previewEnrollmentImport } from '@/services/children/childrenService';
 import { importTemplateRows } from '@/utils/children/importTemplate';
 import { downloadCsv } from '@/utils/exportCsv';
 import { childCampusesOf } from '@/utils/children/childrenPermissions';
 import { keepCampusPick } from '@/utils/children/childrenHelpers';
 import { saveImportDraft } from '@/utils/children/importDraft';
-import { defaultIntakeYearId, intakeYearOptions } from '@/utils/schoolYearPrep';
+import { intakeYearOptions } from '@/utils/schoolYearPrep';
+import { defaultStartDate, startDateError as startDateProblem } from '@/utils/children/startDate';
+import { todayInput } from '@/utils/format';
 
 const MAX_SIZE = 10 * 1024 * 1024;
 const ACCEPT = '.csv,.xlsx,.xls';
@@ -73,12 +74,13 @@ function ImportGuide() {
  */
 export function ImportChildrenModal({ initialCampusId, onClose, onChecked }) {
   const { user } = useAuth();
-  const { yearReadOnly, yearLocked, schoolYear, schoolYears } = useSchoolYear();
-  // CHD-11: năm tiếp nhận = năm đang hoạt động hoặc năm sau đã mở chuẩn bị; năm sau cần ngày bắt đầu học chung cho cả file.
+  const { schoolYears } = useSchoolYear();
+  // CHD-11, G94-180/CHD-14: năm tiếp nhận (năm đang hoạt động hoặc năm sau đã mở chuẩn bị) bắt buộc, không chọn sẵn, không theo
+  // header; một ngày bắt đầu đi học cho cả file.
   const yearOptions = intakeYearOptions(schoolYears);
-  const [yearPick, setYearPick] = useState(() => String(defaultIntakeYearId(schoolYears, schoolYear) ?? ''));
+  const [yearPick, setYearPick] = useState('');
   const intakeYear = yearOptions.find((y) => String(y.id) === yearPick) || null;
-  const planned = intakeYear?.status === 'PLANNED';
+  const { holidays } = useYearHolidays(intakeYear?.id);
   // Điểm trường của năm tiếp nhận (G94-180/CHD-02, user chốt 2026-11-22)
   const md = useMasterData(intakeYear?.id ?? null);
   const campusOptions = childCampusesOf(user, md.campuses);
@@ -92,17 +94,14 @@ export function ImportChildrenModal({ initialCampusId, onClose, onChecked }) {
   useEffect(() => {
     if (!md.loading && campusPick && keepCampusPick(campusPick, campusOptions) == null) setCampusPick('');
   }, [md.loading, campusOptions, campusPick]);
-  const [startDate, setStartDate] = useState(() => (intakeYear?.status === 'PLANNED' ? intakeYear.startDate || '' : ''));
-  const [startDateError, setStartDateError] = useState('');
-  // Danh sách năm học tải sau khi hộp đã mở: điền mặc định khi chưa có lựa chọn, không ghi đè lựa chọn của người dùng.
+  const [startDate, setStartDate] = useState('');
+  const [startTouched, setStartTouched] = useState(false);
+  const [dateErrors, setDateErrors] = useState({});
+  // Ngày mặc định tính lại khi ngày nghỉ của năm tải xong (người dùng chưa tự chọn ngày)
   useEffect(() => {
-    if (yearPick) return;
-    const id = defaultIntakeYearId(schoolYears, schoolYear);
-    if (id == null) return;
-    setYearPick(String(id));
-    const year = intakeYearOptions(schoolYears).find((y) => String(y.id) === String(id));
-    if (year?.status === 'PLANNED') setStartDate((d) => d || year.startDate || '');
-  }, [schoolYears, schoolYear, yearPick]);
+    if (intakeYear && !startTouched) setStartDate(defaultStartDate(intakeYear, todayInput(), holidays));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ tính lại khi đổi năm hoặc ngày nghỉ tải xong
+  }, [yearPick, holidays]);
   const [file, setFile] = useState(null);
   const [fileError, setFileError] = useState('');
   const [unsupported, setUnsupported] = useState('');
@@ -124,8 +123,12 @@ export function ImportChildrenModal({ initialCampusId, onClose, onChecked }) {
       setCampusError('Chọn điểm trường tiếp nhận trẻ');
       return;
     }
-    if (planned && !startDate) {
-      setStartDateError('Chọn ngày bắt đầu học');
+    const errors = {
+      schoolYearId: intakeYear ? '' : 'Chọn năm học tiếp nhận',
+      startDate: intakeYear ? startDateProblem(startDate, intakeYear, todayInput(), holidays) : '',
+    };
+    if (errors.schoolYearId || errors.startDate) {
+      setDateErrors(errors);
       return;
     }
     setFileError('');
@@ -143,7 +146,9 @@ export function ImportChildrenModal({ initialCampusId, onClose, onChecked }) {
         fileSize: file.size,
         campusId,
         campusName,
-        ...(planned && { schoolYearId: intakeYear.id, schoolYearName: intakeYear.label, startDate }),
+        schoolYearId: intakeYear.id,
+        schoolYearName: intakeYear.label,
+        startDate,
       };
       saveImportDraft(draft);
       onChecked(draft);
@@ -163,39 +168,24 @@ export function ImportChildrenModal({ initialCampusId, onClose, onChecked }) {
       templateLabel="Tải file mẫu"
       options={
         <>
-          <ActiveYearNotice action="Nhập danh sách trẻ" />
-          {yearOptions.length > 1 && (
-            <SelectField
-              label="Năm học tiếp nhận"
-              required
-              fieldClassName="tr-field-narrow"
-              options={yearOptions.map((y) => ({
-                value: String(y.id),
-                label: `${y.label} · ${y.status === 'ACTIVE' ? 'Đang hoạt động' : 'Sắp diễn ra'}`,
-              }))}
-              value={yearPick}
-              disabled={reading}
-              onChange={(e) => {
-                const next = yearOptions.find((y) => String(y.id) === e.target.value);
-                setYearPick(e.target.value);
-                setStartDate(next?.status === 'PLANNED' ? next.startDate || '' : '');
-                setStartDateError('');
-              }}
-            />
-          )}
-          {planned && (
-            <FormField label="Ngày bắt đầu học" required error={startDateError} hint="Áp dụng cho mọi trẻ trong file.">
-              <DateInput
-                value={startDate}
-                min={intakeYear?.startDate}
-                max={intakeYear?.endDate}
-                onChange={(value) => {
-                  setStartDate(value);
-                  setStartDateError('');
-                }}
-              />
-            </FormField>
-          )}
+          <IntakeStartFields
+            schoolYears={schoolYears}
+            yearId={yearPick}
+            onYearChange={(next) => {
+              setYearPick(next ? String(next.id) : '');
+              setStartTouched(false);
+              setStartDate(defaultStartDate(next, todayInput()));
+              setDateErrors({});
+            }}
+            startDate={startDate}
+            onStartDateChange={(value) => {
+              setStartDate(value);
+              setStartTouched(true);
+              setDateErrors((current) => ({ ...current, startDate: undefined }));
+            }}
+            errors={dateErrors}
+          />
+          {intakeYear && <div className="text-sm muted">Ngày bắt đầu đi học áp dụng cho mọi trẻ trong file.</div>}
           {pickCampus ? (
             <SelectField
               label="Điểm trường tiếp nhận"
@@ -230,7 +220,7 @@ export function ImportChildrenModal({ initialCampusId, onClose, onChecked }) {
       onFile={takeFile}
       confirmLabel="Tải lên và kiểm tra"
       idleLabel="Tải lên và kiểm tra"
-      confirmDisabled={!file || tooLarge || yearReadOnly || yearLocked}
+      confirmDisabled={!file || tooLarge}
       busy={reading}
       onConfirm={check}
       onClose={onClose}
