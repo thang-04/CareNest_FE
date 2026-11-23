@@ -1,5 +1,4 @@
 import { History } from '@/components/ui/icons';
-import { StatusBadge } from '@/components/ui/StatusBadge';
 import { Switch } from '@/components/ui/Switch';
 import { NutritionAppliedStructure } from '@/components/menu-planning/NutritionAppliedStructure';
 import { NutritionConvertedTable } from '@/components/menu-planning/NutritionConvertedTable';
