@@ -1,3 +1,4 @@
+import { childNameWithHistory } from '@/utils/childHistory';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { ChildAvatar } from '@/components/ChildAvatar';
@@ -89,7 +90,9 @@ export default function DailyGoalAssessmentPage() {
   const [date, setDate] = useState(() => search.get('date') || '');
   // Chưa chọn ngày: BE trả ngày học gần nhất theo ngày nghỉ trong cấu hình năm học (lễ, Tết…)
   const currentClassId = classes.some((c) => c.id === classId) ? classId : classes[0]?.id || '';
-  const params = useMemo(() => ({ classId: currentClassId, date: date || undefined }), [currentClassId, date]);
+  const selectedClass = classes.find((c) => c.id === currentClassId);
+  const requestDate = date || (selectedClass?.historicalReadOnly ? selectedClass.lastReadableDate : undefined);
+  const params = useMemo(() => ({ classId: currentClassId, date: requestDate }), [currentClassId, requestDate]);
   const { sheet, loading, error, reload } = useDailyAssessment(params);
   const shownDate = date || sheet?.date || '';
 
@@ -118,11 +121,15 @@ export default function DailyGoalAssessmentPage() {
   const writable = !!sheet && sheet.canRecord && !sheet.locked && !sheet.yearReadOnly && !!lesson;
   const dirtyIds = Object.keys(dirty);
   // Lưu: trẻ cô đã sửa + trẻ chưa chấm (lưu cả giá trị Đạt mặc định); giá trị mặc định không bật hỏi rời màn
-  const pendingDefaultIds = writable ? (sheet?.rows || []).filter((r) => !isSkillsRecorded(r)).map((r) => String(r.childId)) : [];
+  const pendingDefaultIds = writable
+    ? (sheet?.rows || []).filter((r) => !r.historyStatus && !isSkillsRecorded(r)).map((r) => String(r.childId))
+    : [];
   const changedIds = [...new Set([...dirtyIds, ...pendingDefaultIds])];
   // Không có gì mới (cả lớp đã chấm): vẫn bấm Lưu được để xác nhận lại cả lớp như đang hiện
   const resaveAll = changedIds.length === 0;
-  const saveIds = resaveAll ? (writable ? (sheet?.rows || []).map((r) => String(r.childId)) : []) : changedIds;
+  const saveIds = (resaveAll ? (writable ? (sheet?.rows || []).map((r) => String(r.childId)) : []) : changedIds).filter(
+    (id) => !sheet?.rows.find((r) => String(r.childId) === String(id))?.historyStatus,
+  );
 
   const touch = (childId, part) => {
     setDirty((prev) => ({ ...prev, [childId]: new Set([...(prev[childId] || []), part]) }));
@@ -217,7 +224,7 @@ export default function DailyGoalAssessmentPage() {
           className={`select dg-select ${LEVEL_CLASS[level] || ''}`}
           value={level}
           disabled={disabled}
-          aria-label={`${goalName(g)} – ${a.label} của ${r.fullName}`}
+          aria-label={`${goalName(g)} – ${a.label} của ${childNameWithHistory(r.fullName, r.historyStatus)}`}
           onChange={(e) => setResult(r.childId, a.key, g.id, e.target.value)}
         >
           <option value="">Chưa đánh giá</option>
@@ -260,12 +267,17 @@ export default function DailyGoalAssessmentPage() {
                   value={currentClassId}
                   onChange={(e) => {
                     const next = e.target.value;
-                    confirmChange(() => setClassId(next));
+                    confirmChange(() => {
+                      setClassId(next);
+                      const pickedClass = classes.find((c) => c.id === next);
+                      if (pickedClass?.historicalReadOnly) setDate(pickedClass.lastReadableDate || '');
+                    });
                   }}
                 >
                   {classes.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name}
+                      {c.historicalReadOnly ? ' (lịch sử · chỉ xem)' : ''}
                     </option>
                   ))}
                 </select>
@@ -337,7 +349,11 @@ export default function DailyGoalAssessmentPage() {
           )}
 
           {error ? (
-            <ErrorState error={error} onRetry={reload} />
+            Number(error.errorCode) === 7302 ? (
+              <EmptyState title="Ngày đã chọn không phải ngày học" description="Chọn ngày học để xem đánh giá của trẻ." />
+            ) : (
+              <ErrorState error={error} onRetry={reload} />
+            )
           ) : loading || classesLoading || !sheet ? (
             <div className="card__body">
               <table className="table">
@@ -403,7 +419,7 @@ export default function DailyGoalAssessmentPage() {
                     {rows.map((r) => {
                       const id = r.childId;
                       const d = drafts[id] || (isSkillsRecorded(r) ? fromRow(r) : withDefaultMet(fromRow(r), activities));
-                      const disabled = !writable || saving;
+                      const disabled = !writable || saving || !!r.historyStatus;
                       const commentTooLong = (d.comment || '').length > DAILY_COMMENT_MAX;
                       const commentInvalid = commentTooLong || (!!commentError && !!dirty[id]?.has('_comment'));
                       return (
@@ -413,7 +429,7 @@ export default function DailyGoalAssessmentPage() {
                               <ChildAvatar child={r} size="sm" />
                               <div className="dg-child__info">
                                 <button type="button" className="dg-link-btn fw-600" onClick={() => setOpenChild(id)}>
-                                  {r.fullName}
+                                  {childNameWithHistory(r.fullName, r.historyStatus)}
                                 </button>
                               </div>
                             </div>
@@ -427,7 +443,7 @@ export default function DailyGoalAssessmentPage() {
                             <Cell
                               editable={!disabled}
                               value={d.comment}
-                              label={`Nhận xét trong ngày cho ${r.fullName}`}
+                              label={`Nhận xét trong ngày cho ${childNameWithHistory(r.fullName, r.historyStatus)}`}
                               onChange={(v) => setComment(id, v)}
                             />
                             {commentInvalid && (
@@ -493,7 +509,7 @@ export default function DailyGoalAssessmentPage() {
           (() => {
             const id = panelRow.childId;
             const d = drafts[id] || fromRow(panelRow);
-            const disabled = !writable || saving;
+            const disabled = !writable || saving || !!panelRow.historyStatus;
             return (
               <div className="table-wrap">
                 <table className="table ga-plan-table ga-goal-table" onMouseDown={focusCell}>

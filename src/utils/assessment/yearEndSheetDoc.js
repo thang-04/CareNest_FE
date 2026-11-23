@@ -1,3 +1,4 @@
+import { childNameWithHistory } from '@/utils/childHistory';
 /*
  * Bản in "Phiếu đánh giá sự phát triển của trẻ" cuối năm theo mẫu giấy của trường (BE OBS-28): MT theo lĩnh vực, kết quả tổng hợp từ các chủ đề đã xong, ô
  * Đạt / Chưa đạt, cân nặng – chiều cao, Nhận xét, 4 lưu ý; chỗ "Xác nhận của BGH nhà trường" và "Giáo viên" ký tay.
@@ -78,7 +79,7 @@ export const yearEndSheetHtml = ({ sheet, ev, child, comment }, signers = yearEn
 <td style="width:78%"><h1>PHIẾU ĐÁNH GIÁ SỰ PHÁT TRIỂN<br/>CỦA TRẺ ${esc(ageTitle(sheet.ageGroupName))}</h1></td>
 <td style="width:22%"><div class="photo">Ảnh của trẻ</div></td>
 </tr></table>
-<p>Họ và tên trẻ: <b>${esc(child?.fullName || ev.childName || '')}</b> &nbsp; Ngày, tháng, năm sinh: ${esc(dmy(child?.dateOfBirth))} &nbsp; Lớp: ${esc(ev.className || '')}</p>
+<p>Họ và tên trẻ: <b>${esc(childNameWithHistory(child?.fullName || ev.childName || '', ev.historyStatus))}</b> &nbsp; Ngày, tháng, năm sinh: ${esc(dmy(child?.dateOfBirth))} &nbsp; Lớp: ${esc(ev.className || '')}</p>
 <p>Giáo viên: ${esc((sheet.teachers || []).join(', '))}</p>
 <table class="grid" style="table-layout:fixed"><thead><tr><th style="width:6%">TT</th><th>Mục tiêu giáo dục</th><th style="width:10%">Đạt</th><th style="width:10%">Chưa đạt</th></tr></thead>
 <tbody>${rows.join('')}</tbody></table>

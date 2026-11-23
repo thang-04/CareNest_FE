@@ -1,5 +1,16 @@
 const pad = (n) => String(n).padStart(2, '0');
 
+/** Giữ các đoạn ngày/tháng khi sửa giữa chuỗi; chỉ tự chèn dấu khi người dùng gõ liền 8 chữ số. */
+export const normalizeDateInput = (raw) => {
+  const value = String(raw || '').replace(/[^\d/]/g, '');
+  if ((value.match(/\//g) || []).length === 2) {
+    const [day = '', month = '', year = ''] = value.split('/');
+    return `${day.slice(0, 2)}/${month.slice(0, 2)}/${year.slice(0, 4)}`;
+  }
+  const digits = value.replace(/\D/g, '').slice(0, 8);
+  return [digits.slice(0, 2), digits.slice(2, 4), digits.slice(4)].filter(Boolean).join('/');
+};
+
 /** yyyy-mm-dd or ISO -> dd/mm/yyyy */
 export const formatDate = (value) => {
   if (!value) return '—';

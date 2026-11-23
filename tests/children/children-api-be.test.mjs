@@ -201,13 +201,13 @@ test('getClassOptions: lớp, nhóm tuổi, giáo viên của năm học từ /s
 test('gợi ý nhóm tuổi theo năm sinh: nhóm tuổi BE (theo tháng) và ngày bắt đầu năm học', async () => {
   const { ageGroups } = await childrenApi.getClassOptions(5);
 
-  // Tuổi theo năm sinh: 2026 - 2022 = 4 ⇒ 48 tháng ⇒ Mẫu giáo nhỡ
-  assert.equal(suggestAgeGroupId('2022-12-31', '2026-09-01', ageGroups), '3');
+  // Tính đủ tháng tại ngày đầu năm: chưa tới sinh nhật tháng 12 nên trẻ mới 44 tháng.
+  assert.equal(suggestAgeGroupId('2022-12-31', '2026-09-01', ageGroups), '2');
   assert.equal(suggestAgeGroupId('2024-01-01', '2026-09-01', ageGroups), '1');
   assert.equal(suggestAgeGroupId('2021-06-01', '2026-09-01', ageGroups), '4');
-  // Ngoài khoảng: nhỏ hơn ⇒ nhóm đầu, lớn hơn ⇒ nhóm cuối
-  assert.equal(suggestAgeGroupId('2025-01-01', '2026-09-01', ageGroups), '1');
-  assert.equal(suggestAgeGroupId('2019-01-01', '2026-09-01', ageGroups), '4');
+  // Ngoài nhóm tuổi trường áp dụng: không tự ép vào nhóm nhỏ nhất/lớn nhất.
+  assert.equal(suggestAgeGroupId('2025-01-01', '2026-09-01', ageGroups), '');
+  assert.equal(suggestAgeGroupId('2019-01-01', '2026-09-01', ageGroups), '');
   // Dữ liệu mẫu: năm học dạng "2026-2027", nhóm tuổi ag-*
   assert.equal(suggestAgeGroupId('2022-05-01', '2026-2027'), 'ag-4');
 });

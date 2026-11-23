@@ -39,13 +39,15 @@ export function NewAdmissionPlacementPanel({ yearId, admissions, targets, ageGro
   }, [admissions, rows, targets]);
   const over = targets.filter((item) => seats[item.id] > item.capacity);
 
-  // Chỉ lớp đúng nhóm tuổi và đúng điểm trường đăng ký của trẻ (BE vẫn chặn: 2415, 2416, 2408)
+  // Xếp tay được khác nhóm tuổi, vẫn giữ điểm trường đăng ký và sĩ số theo BE.
   const optionsFor = (item) =>
-    item.ageGroupId
-      ? targets
-          .filter((target) => String(target.campusId) === String(item.campusId) && String(target.ageGroupId) === String(item.ageGroupId))
-          .sort((a, b) => a.name.localeCompare(b.name, 'vi'))
-      : [];
+    targets
+      .filter((target) => target.ageGroupId && String(target.campusId) === String(item.campusId))
+      .sort(
+        (a, b) =>
+          Number(String(b.ageGroupId) === String(item.ageGroupId)) - Number(String(a.ageGroupId) === String(item.ageGroupId)) ||
+          a.name.localeCompare(b.name, 'vi'),
+      );
   const sections = useMemo(() => {
     const order = (id) => {
       const i = ageGroups.findIndex((g) => String(g.id) === String(id));
@@ -99,7 +101,7 @@ export function NewAdmissionPlacementPanel({ yearId, admissions, targets, ageGro
     {
       key: 'ageGroup',
       className: 'sc-plc-new__c-group',
-      header: 'Nhóm tuổi',
+      header: 'Nhóm tuổi gợi ý',
       render: (item) =>
         item.ageGroupId ? (
           groupName(item.ageGroupId)
@@ -121,7 +123,7 @@ export function NewAdmissionPlacementPanel({ yearId, admissions, targets, ageGro
             <SelectField
               aria-label={`Lớp năm học mới của ${item.fullName}`}
               value={value}
-              disabled={!editable || !item.ageGroupId}
+              disabled={!editable}
               placeholder="Chờ xếp lớp"
               onChange={(event) => {
                 setRows((current) => ({ ...current, [item.admissionId]: event.target.value }));
@@ -134,11 +136,14 @@ export function NewAdmissionPlacementPanel({ yearId, admissions, targets, ageGro
                   value={target.id}
                   disabled={String(target.id) !== String(value) && seats[target.id] >= target.capacity}
                 >
-                  {target.name} · {campusName(target.campusId)} · {seats[target.id]}/{target.capacity}
+                  {target.name} · {groupName(target.ageGroupId)} · {campusName(target.campusId)} · {seats[target.id]}/{target.capacity}
                 </option>
               ))}
             </SelectField>
             {selected && seats[selected.id] > selected.capacity && <div className="field__error">Lớp đã vượt sĩ số tối đa</div>}
+            {selected && String(selected.ageGroupId) !== String(item.ageGroupId) && (
+              <div className="muted text-xs">Đang xếp khác nhóm tuổi gợi ý.</div>
+            )}
           </>
         );
       },
@@ -152,7 +157,10 @@ export function NewAdmissionPlacementPanel({ yearId, admissions, targets, ageGro
           <h2 id="new-admission-title" className="section-title">
             Trẻ mới tiếp nhận
           </h2>
-          <p className="muted text-sm">Trẻ đăng ký trước cho năm học mới; có thể xếp lớp ngay hoặc để chờ xếp.</p>
+          <p className="muted text-sm">
+            Trẻ đăng ký trước cho năm học mới; có thể xếp lớp khác nhóm tuổi gợi ý trong điểm trường đăng ký hoặc để chờ xếp. Bữa ăn và mục
+            tiêu theo lớp được chọn.
+          </p>
         </div>
         {admissions.length > 0 && (
           <span className="chip chip--blue">

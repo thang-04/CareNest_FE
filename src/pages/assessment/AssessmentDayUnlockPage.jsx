@@ -121,7 +121,7 @@ export default function AssessmentDayUnlockPage() {
   useEffect(() => {
     if (shownYear.current === schoolYear) return;
     shownYear.current = schoolYear;
-    setForm((f) => ({ ...f, classId: '', date: lastLockedDay(yearStart), ...defaultUntil(yearEnd) }));
+    setForm({ classId: '', date: lastLockedDay(yearStart), reason: '', ...defaultUntil(yearEnd) });
     setErrors({});
     setFilters(EMPTY_FILTERS);
     setPage(1);
@@ -550,7 +550,15 @@ export default function AssessmentDayUnlockPage() {
         )}
         {shown.length > 10 && <Pagination page={page} total={shown.length} pageSize={10} onChange={setPage} unit="lần" />}
       </div>
-      <LeaveConfirmModal {...guard.modal} canSave={false} />
+      <LeaveConfirmModal
+        {...guard.modal}
+        canSave={false}
+        onDiscard={() => {
+          setForm((f) => ({ ...f, reason: '' }));
+          setErrors({});
+          guard.modal.onDiscard();
+        }}
+      />
     </div>
   );
 }
