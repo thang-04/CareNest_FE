@@ -1,6 +1,6 @@
 ---
 title: Ngày sinh dd/mm/yyyy, xếp lớp khác nhóm tuổi, tab lịch sử sửa hồ sơ, "Khai báo ăn và sức khỏe" (đợt 1, FE)
-status: in-progress
+status: done
 owner: ATPX48-69
 jira: G94-180 / FE-FIX-14
 branch: fix/G94-180-FE-FIX-14-school-year-scope
@@ -12,7 +12,7 @@ updated: 2026-11-22
 ---
 # Ngày sinh dd/mm/yyyy, xếp lớp khác nhóm tuổi, tab lịch sử sửa hồ sơ, "Khai báo ăn và sức khỏe" (đợt 1, FE)
 
-Phần client của `BE:docs/plans/active/2026-11-22-placement-age-group-history-rename.md` (nghiệp vụ, AC BE ở đó). Đợt 2: `2026-11-22-intake-start-date.md`.
+Phần client của `BE:docs/plans/completed/2026-11-22-placement-age-group-history-rename.md` (nghiệp vụ, AC BE ở đó). Đợt 2: `2026-11-22-intake-start-date.md`.
 
 ## Context
 - Ô ngày sinh là `<input type="date">` (`src/components/children/ChildInfoFields.jsx:109-117`). Trình duyệt tiếng Anh hiện mm/dd/yyyy. Ô này dùng ở Tiếp nhận và Sửa hồ sơ (impact: `EnrollChildPage`, `EditChildPage`). Repo có sẵn `DateInput` dạng dd/mm/yyyy (`src/components/form/DateInput.jsx`). Ngày tiếp xúc lao cũng là ô ngày thô (`HealthDeclarationFields.jsx:140`). Validation hiện báo "Chọn ngày sinh của trẻ" cho cả ô trống lẫn ô gõ sai (`src/utils/children/childrenValidation.js:90`).
@@ -98,3 +98,10 @@ Xem plan BE. FE chỉ hiển thị, gửi yêu cầu; nhóm tuổi gợi ý bằ
 - User báo: trẻ sinh 10/03/2026, đổi "Năm học tiếp nhận" thì nhóm tuổi không đổi, danh sách vẫn hiện lớp. Incident `docs/knowledge/incidents/FE-BUG-261122-intake-year-age-group.md`.
 - Sửa `EnrollChildPage.jsx` (effect tính lại nhóm tuổi theo năm khi nhóm tuổi của năm đó tải xong) và câu chữ trong `ClassPlacementFields.jsx`. Không đổi luật khóa nhóm tuổi của Cần.
 - RED trước: `intake-year-age-group.test.mjs` 2/3 fail. Sau sửa: 3/3 · `npm run test:children` ⇒ 303/303 · `npm run lint` ⇒ 0 lỗi · `npm run build` ⇒ built in 2.67s.
+
+### 2026-11-23 — 2A xong, đóng plan
+- User 23/11: "tiếp nhận trẻ không bắt buộc trẻ phải phù hợp nhóm tuổi, cho phép chọn nhóm tuổi và lớp của nhóm tuổi đó (xếp lớp chuyển lớp cũng vậy)".
+- BE: bỏ `PlacementRules.ageGroupProblem` (và phụ thuộc `AgeGroupService`), bỏ kiểm nhóm của lớp dự kiến khi tiếp nhận năm sau, bỏ luật "chuyển trong năm chỉ cùng nhóm" trong `ChildRecordServiceImpl.place`; 2416 trên bảng năm mới Cần đã tự bỏ (97a272cd). Rule G94-180/CHD-13 thêm "chuyển lớp trong năm".
+- FE: bỏ `lockAgeGroup` ở `ClassPlacementFields`, Tiếp nhận, Xếp lớp; giữ gợi ý, cảnh báo vàng, nút "Xem lớp mọi nhóm tuổi".
+- Verify: BE PlacementRulesTest, ChildRecordServiceImplTest, ChildEnrollmentIntegrationTest (55, gồm plannedClassOfOtherAgeGroupIsAccepted), ChildPlacementScheduleIntegrationTest (10), ChildPlacementListIntegrationTest, ChildRecordIntegrationTest, YearTransitionIntegrationTest, OpenApiSnapshotTest, ArchitectureRulesTest đạt; FE `npm run verify` exit 0, 1696 test.
+- Sửa dòng Cần viết ⇒ báo Cần. Commit: chưa commit.
