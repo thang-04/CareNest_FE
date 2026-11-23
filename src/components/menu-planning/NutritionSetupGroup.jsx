@@ -42,8 +42,8 @@ export const rangeLabel = (values, suffix = '') =>
 
 export const versionState = (v, today) =>
   v.editable
-    ? { tone: 'blue', label: 'Chưa áp dụng — sửa được' }
-    : { tone: 'gray', label: v.effectiveFrom <= today ? 'Đã áp dụng — chỉ xem' : 'Chỉ xem' };
+    ? { tone: 'blue', label: 'Phiên bản chưa tới ngày hiệu lực' }
+    : { tone: 'gray', label: v.effectiveFrom <= today ? 'Phiên bản đã có hiệu lực' : 'Chỉ xem' };
 
 /** Ô số tối thiểu / tối đa của một chỉ số; chỉ xem thì hiện số. */
 function MinMaxCells({ value = ['', ''], readOnly, label, invalid, onChange }) {
@@ -132,9 +132,12 @@ function VersionNote({ versions, today }) {
  */
 export function NutritionGroupList({ items, value, onChange }) {
   return (
-    <section className="card td-tpl-list" aria-label="Nhóm tuổi">
+    <section className="card td-tpl-list td-age-list" aria-label="Nhóm tuổi">
       <div className="card__header">
         <h2 className="card__title">Nhóm tuổi</h2>
+        <span className="td-age-list__count" aria-label={`${items.length} nhóm tuổi`}>
+          {items.length}
+        </span>
       </div>
       <ul className="td-tpl-rows">
         {items.map((it) => (
@@ -145,16 +148,19 @@ export function NutritionGroupList({ items, value, onChange }) {
               aria-current={it.key === value ? 'true' : undefined}
               onClick={() => onChange(it.key)}
             >
-              <span className="td-tpl-row__top">
+              <span className="td-age-list__heading">
                 <span className="td-tpl-row__name">
                   {it.name} {it.hasError && <ErrorDot />}
                 </span>
-                <StatusBadge {...it.status} />
+                <span
+                  className={`td-age-list__status-dot ${it.status.tone === 'green' ? 'td-age-list__status-dot--on' : 'td-age-list__status-dot--off'}`}
+                  role="img"
+                  aria-label={it.status.label}
+                  title={it.status.label}
+                />
               </span>
-              <span className="td-tpl-row__meta td-setup-row__meta">
-                {it.range && <span className="td-setup-age-badge">{it.range}</span>}
-                {it.price && <span>{it.price}</span>}
-              </span>
+              {it.range && <span className="td-age-list__range">{it.range}</span>}
+              {it.price && <span className="td-age-list__price">{it.price}</span>}
             </button>
           </li>
         ))}
@@ -189,7 +195,7 @@ export function NutritionSetupGroup({ group: g, info, childCount, setup, usesApi
           <Button variant="link" className="text-sm" onClick={onHistory}>
             <History size={15} /> {usesApi ? 'Lịch sử phiên bản' : 'Lịch sử giá'}
           </Button>
-          {!usesApi && (
+          {
             <span className="row td-switch-row fw-600 text-sm">
               Áp dụng
               <Switch
@@ -199,7 +205,7 @@ export function NutritionSetupGroup({ group: g, info, childCount, setup, usesApi
                 onChange={(v) => setGroup(g.ageGroupId, (x) => (x.enabled = v))}
               />
             </span>
-          )}
+          }
         </div>
       </div>
       {usesApi && <VersionNote versions={setup?.versions} today={today} />}
@@ -274,11 +280,6 @@ export function NutritionSetupGroup({ group: g, info, childCount, setup, usesApi
                             {errorOf('serviceFee')}
                           </span>
                         )}
-                        <span className="td-setup-table__note">
-                          {g.price
-                            ? `Ngân sách thực phẩm ${formatMoney(Math.max(0, Number(g.price) - (Number(g.serviceFee) || 0)))} / trẻ / ngày`
-                            : 'Phần giá suất không dùng mua thực phẩm; để trống = 0'}
-                        </span>
                       </td>
                       <td className="center">đ</td>
                     </tr>

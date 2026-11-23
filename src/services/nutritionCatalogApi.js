@@ -575,14 +575,18 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
      */
     async listNutritionSetups() {
       const groups = [...(await ageGroups())].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
-      const all = await Promise.all(groups.map((g) => versionsOf(g.id)));
+      const [all, statuses] = await Promise.all([
+        Promise.all(groups.map((g) => versionsOf(g.id))),
+        client.get('/nutrition/age-group-configs/statuses'),
+      ]);
+      const enabledById = new Map(statuses.map((s) => [String(s.ageGroupId), s.enabled]));
       return groups.map((g, i) => {
         const versions = (all[i] || []).map(toVersion);
         const latest = versions[0];
         return {
           ageGroupId: g.code,
           ...groupFields(g),
-          enabled: true,
+          enabled: enabledById.get(String(g.id)) !== false,
           mealsReadOnly: true,
           basis: latest?.basis || '',
           price: latest?.price ?? '',
@@ -607,17 +611,22 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
     async saveNutritionSetups(payload) {
       const { idOf } = await agMaps();
       const changed = [];
+      const statuses = [];
       for (const g of payload.groups || []) {
         const beId = idOf[g.ageGroupId];
         if (beId == null) continue;
+        if (g.originalEnabled !== undefined && g.enabled !== g.originalEnabled) {
+          statuses.push({ ageGroupId: beId, enabled: g.enabled });
+        }
+        if (payload.statusOnly) continue;
         const body = toConfigRequest(g, payload.effectiveFrom, payload.basis, beId);
         const latest = (await versionsOf(beId))[0];
         if (latest && sameConfig(body, { serviceFee: 0, ...latest, ageGroupId: beId })) continue;
         changed.push({ ageGroupId: g.ageGroupId, body });
       }
-      if (!changed.length) return { saved: 0 };
+      if (!changed.length && !statuses.length) return { saved: 0 };
       try {
-        await client.post('/nutrition/age-group-configs/batch', { items: changed.map((c) => c.body) });
+        await client.post('/nutrition/age-group-configs/batch', { items: changed.map((c) => c.body), statuses });
       } catch (error) {
         if (error?.details) {
           error.details = Object.fromEntries(
@@ -641,7 +650,12 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
      * getCatalog mock. Giá BE tính theo ngày ⇒ `pricePerDay` để kiểm tra tuần so chi phí từng ngày với giá ngày.
      */
     async getEffectiveSetups(date) {
-      const [groups, configs] = await Promise.all([ageGroups(), client.get('/nutrition/age-group-configs', { params: params({ date }) })]);
+      const [groups, configs, statuses] = await Promise.all([
+        ageGroups(),
+        client.get('/nutrition/age-group-configs', { params: params({ date }) }),
+        client.get('/nutrition/age-group-configs/statuses'),
+      ]);
+      const enabledById = new Map(statuses.map((s) => [String(s.ageGroupId), s.enabled]));
       const byGroup = new Map((configs || []).map((c) => [String(c.ageGroupId), toVersion(c)]));
       const nutritionSetups = [...groups]
         .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
@@ -650,7 +664,7 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
           return {
             ageGroupId: g.code,
             ...groupFields(g),
-            enabled: true,
+            enabled: enabledById.get(String(g.id)) !== false,
             basis: v?.basis || '',
             price: v?.price ?? '',
             serviceFee: v?.serviceFee ?? 0,

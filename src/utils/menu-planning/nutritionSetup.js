@@ -162,6 +162,7 @@ export const toSetupForm = (setups, today) => ({
     ageGroupId: s.ageGroupId,
     name: setupGroupInfo(s).name,
     enabled: s.enabled,
+    originalEnabled: s.enabled,
     price: String(s.price ?? ''),
     meals: s.meals.map((m) => ({ code: m.code, name: m.name, countAs: m.countAs })),
     // Số sau của vi chất có thể null (chỉ cần đạt tối thiểu) ⇒ ô trống, không thành chữ "null"
@@ -181,6 +182,7 @@ export const toSetupPayload = (form) => ({
   groups: form.groups.map((g) => ({
     ageGroupId: g.ageGroupId,
     enabled: g.enabled,
+    originalEnabled: g.originalEnabled,
     price: g.price,
     meals: g.meals.map(({ code, name, countAs }) => ({ code, name: name.trim(), countAs })),
     norms: Object.fromEntries(SUBMITTED_NORM_KEYS.map((key) => [key, g.norms[key]])),
