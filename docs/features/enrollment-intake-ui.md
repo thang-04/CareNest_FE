@@ -15,7 +15,14 @@ Actor: Hiệu trưởng/Phó hiệu trưởng có quyền tiếp nhận hiện c
 - Ngày sinh (Tiếp nhận, Sửa hồ sơ) và ngày tiếp xúc người bệnh lao dùng `DateInput`: gõ dd/mm/yyyy, có nút lịch. Để trống ⇒ "Chọn ngày sinh của trẻ"; gõ chưa thành ngày có thật ⇒ "Nhập ngày sinh theo dạng dd/mm/yyyy".
 - Hồ sơ trẻ có tab "Lịch sử sửa hồ sơ" đọc `child.history` BE trả: tiếp nhận, sửa hồ sơ (kể cả đổi "Báo ăn", BE:CHD-13), nghỉ học, tiếp nhận lại; mới nhất trước; mỗi thay đổi "Nhãn: cũ → mới".
 - Màn module Trẻ gọi "Khai báo ăn và sức khỏe" (trang khai báo, khối tóm tắt, câu lỗi, câu báo). Tên quyền ở màn Phân quyền giữ tên cũ.
-- Chưa làm: chọn lớp khác nhóm tuổi (tạm hoãn vì sửa code của Cần); chọn năm tiếp nhận bắt buộc, ngày bắt đầu đi học (plan đợt 2 `2026-11-22-intake-start-date.md`).
+- Chưa làm: chọn lớp khác nhóm tuổi (tạm hoãn vì sửa code của Cần).
+
+## Thay đổi 23/11/2026 (user chốt, Cần đề nghị; BE:G94-180/CHD-14, plan `docs/plans/completed/2026-11-22-intake-start-date.md`)
+- Tiếp nhận, mở lại hồ sơ, hộp Nhập Excel: ô "Năm học tiếp nhận" bắt buộc, không chọn sẵn, không theo năm ở header; trang và hộp không còn khóa theo header (`IntakeStartFields`). Chọn năm ⇒ ô "Ngày bắt đầu đi học" (`DateInput`): năm đang học mặc định ngày học gần nhất từ hôm nay, năm sau mặc định ngày học đầu tiên từ ngày bắt đầu năm HT cấu hình. Thứ 7, chủ nhật, ngày nghỉ của năm (đọc `GET /school-years/{id}/holidays`, `useYearHolidays`) ⇒ lỗi ở ô; BE vẫn kiểm. Excel: một ngày cho cả file.
+- Xếp lớp: ô "Ngày vào lớp" (xếp lần đầu, mặc định max(hôm nay, ngày bắt đầu đi học)) hoặc "Ngày chuyển lớp" (mặc định ngày học gần nhất từ hôm nay). Ngày tương lai là lịch: danh sách, hồ sơ hiện "Sẽ chuyển sang X từ dd/mm" (`nextClass` của BE); lớp chưa bắt đầu hiện "(từ dd/mm)"; nút "Hủy lịch chuyển" / "Hủy xếp lớp" gọi `DELETE /children/{id}/placement/scheduled`; xếp / chuyển lần nữa thay lịch cũ.
+- Trẻ chờ xếp lớp đã tới ngày bắt đầu đi học (`startDue` của BE): nhãn "Đã tới ngày đi học, chưa có lớp", đưa lên đầu ở Danh sách trẻ và Xếp lớp; dòng nhắc "N trẻ chưa được xếp lớp, trong đó M trẻ đã tới ngày bắt đầu đi học" cho HT và PHT (nhắc kích hoạt tài khoản giữ cho PHT).
+- Hồ sơ trẻ: thêm "Ngày bắt đầu đi học"; Lịch sử xếp lớp ghi "từ dd/mm/yyyy" (`effectiveFrom`) và "Đã hủy lịch" (`cancelledAt`).
+- Mock (BE giả) theo BE; lời gọi cũ không gửi ngày (test) giữ như trước: tiếp nhận năm đang học = hôm nay, xếp lớp = mốc sớm nhất, không kiểm ngày học.
 
 ## Kiểm chứng
 Kết quả lệnh và browser sau source cuối ghi tại docs/quality/VERIFICATION.md. Browser dùng dữ liệu tổng hợp, chạy UI thật ở 1440/375; không tuyên bố kiểm FE nối BE thật.
