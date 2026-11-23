@@ -9,7 +9,6 @@ import { usePageReadOnly } from '@/contexts/PageReadOnlyContext';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { SidePanel } from '@/components/ui/SidePanel';
-import { Switch } from '@/components/ui/Switch';
 import { Tabs } from '@/components/ui/Tabs';
 import { RowActions } from '@/components/ui/RowActions';
 import { FormField } from '@/components/form/FormField';
@@ -26,7 +25,6 @@ import { Button, TextAreaField, TextField } from '@/components';
 
 const TABS = [
   { key: 'overview', label: 'Tổng quan' },
-  { key: 'groups', label: 'Nhóm độ tuổi' },
   { key: 'meals', label: 'Định mức dinh dưỡng' },
 ];
 const isSet = (range) => rangeLabel(range) !== '—';
@@ -216,31 +214,6 @@ export default function NutritionSetupPage() {
   const historyGroup = historyOf && setupOf(historyOf);
   const childCountOf = (ageGroupId) => setupOf(ageGroupId)?.childCount;
   const activeGroup = form.groups.find((g) => g.ageGroupId === groupKey) || form.groups[0];
-  const groupRows = (list) =>
-    list.map((g, i) => {
-      const info = groupInfo(g.ageGroupId);
-      return (
-        <tr key={g.ageGroupId}>
-          <td className="muted td-num-col">{i + 1}</td>
-          <td>
-            <b>{info.short}</b> <span className="muted">{info.range}</span>
-            <div className="text-xs muted">{childCountOf(g.ageGroupId) ?? 0} trẻ</div>
-          </td>
-          <td className="center">
-            <span className="row td-switch-row">
-              <Switch
-                checked={g.enabled}
-                disabled={!canEdit}
-                label={`Áp dụng ${info.short}`}
-                onChange={(v) => setGroup(g.ageGroupId, (x) => (x.enabled = v))}
-              />
-              {g.enabled ? 'Đang áp dụng' : 'Không áp dụng'}
-            </span>
-          </td>
-        </tr>
-      );
-    });
-
   return (
     <div className="page">
       {header}
@@ -316,30 +289,6 @@ export default function NutritionSetupPage() {
                     </tr>
                   );
                 })}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      ) : tab === 'groups' ? (
-        <section className="card">
-          <div className="table-wrap">
-            <table className="table table--grid">
-              <thead>
-                <tr>
-                  <th className="td-num-col">STT</th>
-                  <th>Nhóm trẻ tại trường</th>
-                  <th className="center">Trạng thái</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr className="td-grp-row">
-                  <td colSpan={3}>Nhà trẻ (dưới 36 tháng)</td>
-                </tr>
-                {groupRows(form.groups.filter((g) => groupInfo(g.ageGroupId).nursery))}
-                <tr className="td-grp-row">
-                  <td colSpan={3}>Mẫu giáo (từ 36 tháng)</td>
-                </tr>
-                {groupRows(form.groups.filter((g) => !groupInfo(g.ageGroupId).nursery))}
               </tbody>
             </table>
           </div>
