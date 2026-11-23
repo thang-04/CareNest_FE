@@ -1,5 +1,4 @@
 import { History } from '@/components/ui/icons';
-import { StatusBadge } from '@/components/ui/StatusBadge';
 import { Switch } from '@/components/ui/Switch';
 import { NutritionAppliedStructure } from '@/components/menu-planning/NutritionAppliedStructure';
 import { NutritionConvertedTable } from '@/components/menu-planning/NutritionConvertedTable';
@@ -113,20 +112,6 @@ function NormTable({ norms, readOnly, errorOf, onChange }) {
   );
 }
 
-/** Bản mới nhất của nhóm tuổi trên BE: đã hiệu lực thì khóa, thay đổi lưu thành bản mới từ ngày sau hôm nay. */
-function VersionNote({ versions, today }) {
-  const latest = versions?.[0];
-  if (!latest)
-    return <p className="text-sm muted td-setup-detail__note">Chưa có cấu hình: bản đầu tiên áp dụng từ ngày bạn chọn khi lưu.</p>;
-  const state = versionState(latest, today);
-  return (
-    <p className="text-sm td-setup-detail__note">
-      <StatusBadge tone={state.tone} label={state.label} /> Bản áp dụng từ {formatDate(latest.effectiveFrom)}.{' '}
-      {latest.editable ? 'Lưu cùng ngày này để sửa bản đó.' : 'Thay đổi sẽ lưu thành bản mới từ một ngày sau hôm nay.'}
-    </p>
-  );
-}
-
 /**
  * Danh sách nhóm tuổi bên trái (như danh sách Mẫu thực đơn ngày): tên, độ tuổi, giá suất, trạng thái; nhóm có ô lỗi hiện chấm đỏ.
  */
@@ -173,7 +158,7 @@ export function NutritionGroupList({ items, value, onChange }) {
  * Chi tiết một nhóm tuổi trong một thẻ: đầu thẻ (tên, lịch sử, áp dụng) → giá suất và nhu cầu năng lượng → bảng định mức
  * (năng lượng, khoảng P:L:G) → cơ cấu áp dụng → hàm lượng quy đổi tại trường. Chỉ hiển thị và gửi ô sửa; kiểm hợp lệ ở trang.
  */
-export function NutritionSetupGroup({ group: g, info, childCount, setup, usesApi, canEdit, today, err, setGroup, onHistory }) {
+export function NutritionSetupGroup({ group: g, info, childCount, setup, usesApi, canEdit, err, setGroup, onHistory }) {
   const upcoming = !usesApi && setup?.upcoming;
   const errorOf = (k) => err(`${g.ageGroupId}.${k}`);
   const priceError = errorOf('price');
@@ -208,7 +193,6 @@ export function NutritionSetupGroup({ group: g, info, childCount, setup, usesApi
           }
         </div>
       </div>
-      {usesApi && <VersionNote versions={setup?.versions} today={today} />}
 
       {!g.enabled ? (
         <p className="card__body td-muted-line">Nhóm này đang tắt: không dùng khi soạn thực đơn.</p>
