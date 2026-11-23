@@ -222,7 +222,6 @@ const sanitizeFood = (p) => ({
   },
   origin: FOOD_ORIGIN_LABELS[p.origin] ? p.origin : '',
   nutrientSource: String(p.nutrientSource || '').trim(),
-  nutrientSourceVersion: String(p.nutrientSourceVersion || '').trim(),
   allergens: [...new Set((p.allergens || []).map((a) => String(a).trim()).filter(Boolean))],
   note: String(p.note || '').trim(),
   status: p.status === RECORD_STATUS.INACTIVE ? RECORD_STATUS.INACTIVE : RECORD_STATUS.ACTIVE,

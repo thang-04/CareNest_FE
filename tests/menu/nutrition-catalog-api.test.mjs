@@ -63,8 +63,8 @@ const beFood = {
   glucid: 0.5,
   calcium: 55,
   iron: 2.7,
+  zinc: 1.5,
   nutrientSource: 'Bảng TPVN',
-  nutrientSourceVersion: '2017',
   wastePct: 12,
   storage: 'FRESH',
   note: '',
@@ -136,17 +136,18 @@ test('thực phẩm BE → dạng FE: nhóm, dinh dưỡng, nguồn số liệu,
     protein: 14.8,
     lipid: 11.6,
     glucid: 0.5,
-    // NUT-26: BE có canxi, sắt; chất BE chưa có số liệu ⇒ null
+    // NUT-26: BE có canxi, sắt, kẽm; chất BE chưa có số liệu ⇒ null
     calcium: 55,
-    phosphorus: null,
     iron: 2.7,
+    zinc: 1.5,
     vitaminA: null,
+    vitaminC: null,
+    phosphorus: null,
     vitaminB1: null,
     vitaminB2: null,
     vitaminPp: null,
-    vitaminC: null,
   });
-  assert.deepEqual([food.nutrientSource, food.nutrientSourceVersion], ['Bảng TPVN', '2017']);
+  assert.equal(food.nutrientSource, 'Bảng TPVN');
   assert.deepEqual(food.allergens, ['Trứng']);
   assert.deepEqual([food.stockUnit, food.purchaseToStock, food.stockUnitSize], ['quả', 1, 50]);
   assert.equal(food.favorite, false);
@@ -170,7 +171,7 @@ test('lưu thực phẩm: tên dị ứng → allergenIds, nutrition → trườ
   assert.equal(put.body.foodGroup, 'EGG_DAIRY');
   assert.equal(put.body.purchaseUnitSize, 100, 'g/ml của đơn vị mua tính từ hai tỷ lệ của form');
   assert.deepEqual([put.body.kcal, put.body.glucid], [166, 0.5]);
-  assert.deepEqual([put.body.nutrientSource, put.body.nutrientSourceVersion], ['Bảng TPVN', '2017']);
+  assert.equal(put.body.nutrientSource, 'Bảng TPVN');
   assert.ok(!('status' in put.body));
   assert.equal(put.body.code, 'TP007', 'giữ mã cũ');
   assert.deepEqual(calls.at(-1), { method: 'patch', url: '/nutrition/foods/7/status', body: { status: 'INACTIVE' } });
@@ -521,6 +522,8 @@ test('lưu Thiết lập lên BE: một POST /batch chứa mọi nhóm đổi; k
     vitaminPpMax: null,
     vitaminCMin: null,
     vitaminCMax: null,
+    zincMin: null,
+    zincMax: null,
   });
   assert.equal(ag2.ageGroupId, '11');
   assert.equal(ag2.mealPrice, 28000);

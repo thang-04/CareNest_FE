@@ -16,7 +16,6 @@ import { FoodPriceHistory } from '@/components/menu-planning/FoodPriceHistory';
 import { ContractStatusBadge } from '@/components/menu-planning/ContractStatusBadge';
 import { hasNutrition, hasOrigin, ingredientQty } from '@/utils/menu-planning/menuCalculations';
 import { activeAgeGroups } from '@/utils/menu-planning/nutritionSetup';
-import { foodUnits } from '@/utils/menu-planning/foodUnits';
 import { foodCrumbs } from '@/utils/menu-planning/breadcrumbs';
 import {
   DISH_TYPE_LABELS,
@@ -68,7 +67,6 @@ export default function FoodDetailPage() {
   };
 
   const groups = activeAgeGroups(catalog.nutritionSetups);
-  const units = foodUnits(f);
   const nut = f.nutrition;
   // Định lượng của thực phẩm này trong từng món (một trẻ), theo công thức món
   const used = f.usedInDishes.map((u) => {
@@ -150,19 +148,15 @@ export default function FoodDetailPage() {
                   <dd>{FOOD_ORIGIN_LABELS[f.origin] || <span className="td-warn">Chưa có</span>}</dd>
                   <dt>Bảo quản</dt>
                   <dd>{FOOD_STORAGE_LABELS[f.storage] || '—'}</dd>
-                  <dt>Đơn vị định lượng</dt>
-                  <dd>{FOOD_UNIT_LABELS[f.unit]}</dd>
+                  <dt>Đơn vị tính</dt>
+                  <dd>{f.purchaseUnit || '—'}</dd>
                   <dt>Hay dùng</dt>
                   <dd>{f.favorite ? 'Có' : 'Không'}</dd>
                 </dl>
                 <dl className="info-list">
-                  <dt>Đơn vị kho</dt>
+                  <dt>Quy đổi</dt>
                   <dd>
-                    {units.stockUnit} · 1 {units.stockUnit} = {units.stockUnitSize.toLocaleString('vi-VN')} {f.unit}
-                  </dd>
-                  <dt>Đơn vị mua</dt>
-                  <dd>
-                    {units.purchaseUnit} · 1 {units.purchaseUnit} = {units.purchaseToStock.toLocaleString('vi-VN')} {units.stockUnit}
+                    1 {f.purchaseUnit || 'đơn vị'} = {(f.purchaseUnitSize ?? 0).toLocaleString('vi-VN')} {FOOD_UNIT_LABELS[f.unit]}
                   </dd>
                   <dt>Tỷ lệ thải bỏ</dt>
                   <dd>{f.wastePct ?? 0}%</dd>
@@ -201,10 +195,7 @@ export default function FoodDetailPage() {
                     Đạm, béo tính vào phần {FOOD_ORIGIN_LABELS[f.origin].toLowerCase()} khi cân đối khẩu phần.
                   </p>
                 )}
-                <p className="text-sm muted mt-8">
-                  Nguồn: {f.nutrientSource || 'chưa ghi'}
-                  {f.nutrientSourceVersion ? ` (${f.nutrientSourceVersion})` : ''}
-                </p>
+                <p className="text-sm muted mt-8">Nguồn: {f.nutrientSource || 'chưa ghi'}</p>
               </div>
             </section>
           </div>
