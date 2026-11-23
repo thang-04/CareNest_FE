@@ -37,3 +37,12 @@ test('G94-438 (BUG-57): danh sách nhập theo lớp dựng lại khi trạng th
   assert.ok(rosters.length >= 2, 'thiếu Roster');
   for (const r of rosters.filter((x) => x.includes('key='))) assert.match(r, /key=\{`\$\{c\.classId\}-\$\{campaign\.status\}`\}/);
 });
+
+test('mục 15: trả trẻ xong tải lại bảng đón trả', () => {
+  const src = read('src/pages/pickup/PickupListPage.jsx');
+  // Trả trẻ xong (ảnh hoặc gọi phụ huynh) đóng modal và tải lại bảng; đóng modal không tải lại
+  assert.match(src, /const handedOver = \(\) => \{\s*closeModals\(\);\s*reload\(\{ silent: true \}\);\s*\};/);
+  assert.equal(src.match(/onDone=\{handedOver\}/g)?.length, 2);
+  assert.doesNotMatch(src, /onDone=\{closeModals\}/);
+  assert.equal(src.match(/onClose=\{closeModals\}/g)?.length, 2);
+});

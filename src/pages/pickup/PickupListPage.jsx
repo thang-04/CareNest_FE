@@ -58,6 +58,11 @@ export default function PickupListPage() {
     if (!next.get('classId') && classId) next.set('classId', classId);
     setParams(next, { replace: true });
   };
+  // BE thật không phát sự kiện đổi dữ liệu (mock thì có): sau khi trả trẻ phải tự tải lại bảng
+  const handedOver = () => {
+    closeModals();
+    reload({ silent: true });
+  };
 
   const rows = board?.rows || [];
   const count = (k) => (k === 'ALL' ? rows.length : rows.filter((r) => r.status === k).length);
@@ -279,10 +284,10 @@ export default function PickupListPage() {
             </Link>
           </div>
           <Modal open={!!verifyId && !yearLocked} size="lg" title={`Trả trẻ: ${nameOf(verifyId)}`} onClose={closeModals}>
-            {verifyId && !yearLocked && <PickupPhotoFlow key={verifyId} childId={verifyId} onDone={closeModals} />}
+            {verifyId && !yearLocked && <PickupPhotoFlow key={verifyId} childId={verifyId} onDone={handedOver} />}
           </Modal>
           <Modal open={!!callId && !yearLocked} title={`Gọi phụ huynh: ${nameOf(callId)}`} onClose={closeModals}>
-            {callId && !yearLocked && <PickupCallFlow key={callId} childId={callId} onDone={closeModals} />}
+            {callId && !yearLocked && <PickupCallFlow key={callId} childId={callId} onDone={handedOver} />}
           </Modal>
         </>
       )}
