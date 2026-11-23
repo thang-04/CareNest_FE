@@ -353,12 +353,8 @@
   break-inside: avoid;
 }
 .ps-label__sign {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-  text-align: center;
   margin-top: 6px;
-  min-height: 70px;
+  min-height: 48px;
 }
 
 /* In từ modal xem trước (`<Modal className="print-modal">`): bỏ định vị của modal để phiếu bắt đầu ở đầu trang giấy */
