@@ -58,7 +58,7 @@ export const getEvaluations = (kind, filters, user) => (be ? be.getEvaluations(k
 export const getEvaluation = (kind, id, user) => (be || repo).getEvaluation(kind, id, user);
 export const saveEvaluationDraft = (kind, id, content, user) => (be || repo).saveEvaluationDraft(kind, id, content, user);
 export const confirmEvaluation = (kind, id, content, user) => (be || repo).confirmEvaluation(kind, id, content, user);
-export const regenerateEvaluationDraft = (kind, id, user) => (be || repo).regenerateEvaluationDraft(kind, id, user);
+export const regenerateEvaluationDraft = (kind, id, user, ai = false) => (be || repo).regenerateEvaluationDraft(kind, id, user, ai);
 export const markProgramCompletion = (id, completed, user) => (be || repo).markProgramCompletion(id, completed, user);
 export const getYearEndSheet = (id, user) => (be || repo).getYearEndSheet(id, user);
 export const saveYearEndSheet = (id, body, user) => (be || repo).saveYearEndSheet(id, body, user);

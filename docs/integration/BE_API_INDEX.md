@@ -425,3 +425,5 @@ GET /teacher-assignments · src/main/java/com/carenest/controller/organization/T
 GET /team-leader-assignments · src/main/java/com/carenest/controller/organization/TeacherAssignmentController.java#getTeamLeaders
 PUT /team-leader-assignments · src/main/java/com/carenest/controller/organization/TeacherAssignmentController.java#assignTeamLeader
 ```
+
+GET /nutrition/age-group-configs/statuses · src/main/java/com/carenest/controller/meals/AgeGroupMealConfigController.java#getGroupStatuses

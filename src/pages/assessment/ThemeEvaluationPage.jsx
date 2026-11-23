@@ -1,3 +1,4 @@
+import { childNameWithHistory } from '@/utils/childHistory';
 import { useEffect, useMemo, useState } from 'react';
 import { useYearCampuses } from '@/hooks/useYearCampuses';
 import { CampusFilter } from '@/components/ui/CampusFilter';
@@ -132,7 +133,13 @@ export default function ThemeEvaluationPage() {
         [`Chủ đề: ${ev.themeName}`],
         [`(Từ ngày ${formatDate(ev.startDate)} đến ngày ${formatDate(ev.endDate)}) – Lớp ${ev.className}`],
         head,
-        ...ev.rows.map((r, i) => [i + 1, r.fullName, ...r.cells.map((c) => mark(c.met)), r.met, r.notMet]),
+        ...ev.rows.map((r, i) => [
+          i + 1,
+          childNameWithHistory(r.fullName, r.historyStatus),
+          ...r.cells.map((c) => mark(c.met)),
+          r.met,
+          r.notMet,
+        ]),
         ['', 'Tổng số trẻ đạt', ...ev.goals.map((g) => g.metChildren)],
         ['', 'Tỷ lệ (%)', ...ev.goals.map((g) => (g.rate == null ? '' : g.rate))],
         [],
@@ -303,8 +310,7 @@ export default function ThemeEvaluationPage() {
                                 title="Đối chiếu đánh giá hằng ngày trong thời gian chủ đề"
                                 onClick={() => setXcheck(r)}
                               >
-                                {r.fullName}
-                                {r.historical && <div className="muted text-xs">Đã chuyển lớp hoặc nghỉ học · lịch sử lớp cũ</div>}
+                                {childNameWithHistory(r.fullName, r.historyStatus)}
                               </button>
                             </td>
                             {r.cells.map((c) => {
@@ -313,7 +319,7 @@ export default function ThemeEvaluationPage() {
                               // Bỏ sửa tay ô đã lưu: chưa biết kết quả hệ thống tính tới khi lưu
                               // BE cũ chưa trả kết quả tự tính: bỏ sửa tay ô đã lưu thì chưa biết giá trị tới khi lưu
                               const reverting = c.manual && !manual && c.auto === undefined;
-                              const label = `${r.fullName} – MT ${goalTitle[c.goalId] || ''}: ${
+                              const label = `${childNameWithHistory(r.fullName, r.historyStatus)} – MT ${goalTitle[c.goalId] || ''}: ${
                                 reverting
                                   ? 'về kết quả hệ thống tính khi lưu'
                                   : value === true
@@ -324,7 +330,7 @@ export default function ThemeEvaluationPage() {
                               }`;
                               return (
                                 <td key={c.goalId} className="center">
-                                  {canEdit ? (
+                                  {canEdit && c.canEdit !== false ? (
                                     <button
                                       disabled={!!busy}
                                       type="button"

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Button, ConfirmationModal, ErrorState, LoadingState } from '@/components';
+import { Button, ConfirmationModal, ErrorState, LoadingState, RichBody } from '@/components';
 import { ArrowLeft, Pencil, CalendarX, Trash2 } from '@/components/ui/icons';
 import {
   AnnouncementAlert,
@@ -42,7 +42,7 @@ export default function AnnouncementDetailPage() {
         title="Chi tiết thông báo"
         detail
         back={
-          <Link className="btn btn--sm btn--outline-primary" to="/announcements">
+          <Link className="btn btn--sm" to="/announcements">
             <ArrowLeft size={15} aria-hidden="true" /> Quay lại
           </Link>
         }
@@ -74,7 +74,7 @@ export default function AnnouncementDetailPage() {
                 >
                   Hủy lịch gửi
                 </Button>
-                <Link className="btn btn--sm btn--outline-primary" to={`/announcements/${id}/edit`}>
+                <Link className="btn btn--sm btn--primary" to={`/announcements/${id}/edit`}>
                   <Pencil size={15} aria-hidden="true" /> Sửa thông báo
                 </Link>
               </>
@@ -125,7 +125,7 @@ export default function AnnouncementDetailPage() {
             </AnnouncementSection>
             <AnnouncementSection title="Nội dung thông báo">
               <h2 className="announcement-document__title">{data.title}</h2>
-              <div className="announcement-body">{data.body}</div>
+              <RichBody html={data.bodyHtml} text={data.body} className="announcement-body" />
             </AnnouncementSection>
             <AnnouncementSection title="Tệp đính kèm">
               <AnnouncementAttachments existing={data.attachments || []} readOnly />

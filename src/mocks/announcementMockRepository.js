@@ -1,6 +1,9 @@
 import { readDb, writeDb } from '@/mocks/mockDatabase';
 import { pushNotification } from '@/mocks/notificationMockRepository';
 import { AGE_GROUPS } from '@/models/School';
+import { daysOf, scheduleFieldErrors } from '@/utils/announcement/scheduleRecurrence.mjs';
+import { todayInput } from '@/utils/format';
+import { ALLOWED_ATTR, ALLOWED_TAGS, ALLOWED_URI } from '@/utils/announcement/richText.mjs';
 
 // Dữ liệu mẫu chỉ tồn tại trong phiên, không thay thế lỗi của backend.
 let nextId = 1;
@@ -44,6 +47,62 @@ const demoRules = [
   })),
 ];
 const copy = (value) => structuredClone(value);
+// PAR-05 (BE giả): nhận bodyHtml, lọc khi chạy trên trình duyệt và giữ body chữ thường cho chuông/tìm kiếm.
+const mockContent = async (data) => {
+  if (!data.bodyHtml?.trim()) {
+    const body = data.body?.trim() || '';
+    if (!body || body.length > 4000) {
+      throw Object.assign(new Error('Nội dung bắt buộc, tối đa 4.000 ký tự.'), {
+        status: 400,
+        details: { body: 'Nội dung không hợp lệ.' },
+      });
+    }
+    return { body, bodyHtml: null };
+  }
+  const { default: DOMPurify } = await import('dompurify');
+  const html =
+    typeof DOMPurify.sanitize === 'function'
+      ? DOMPurify.sanitize(data.bodyHtml, { ALLOWED_TAGS, ALLOWED_ATTR, ALLOWED_URI_REGEXP: ALLOWED_URI, ALLOW_DATA_ATTR: false })
+      : data.bodyHtml
+          .replace(/<(script|style|iframe)[^>]*>[\s\S]*?<\/\1>/gi, '')
+          .replace(/<[^>]+>/g, (tag) => (/^<\/?(?:p|br|strong|em|u|ul|ol|li)>$/i.test(tag) ? tag : ''));
+  const body = html
+    .replace(/<li>/gi, '• ')
+    .replace(/<br\s*\/?\s*>/gi, '\n')
+    .replace(/<\/(?:p|li|ul|ol)>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/&amp;/gi, '&')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+  if (!body || body.length > 4000 || html.length > 20000) {
+    throw Object.assign(new Error('Nội dung bắt buộc, tối đa 4.000 ký tự.'), { status: 400, details: { body: 'Nội dung không hợp lệ.' } });
+  }
+  return { body, bodyHtml: html };
+};
+// PAR-10 (BE giả): kiểu lặp, nhiều thứ, cách tuần, khoảng ngày; BE thật kiểm lại và quyết định hợp lệ.
+const recurrenceOf = (data) => {
+  // Request cũ chỉ có dayOfWeek vẫn được nhận (một thứ)
+  const errors = scheduleFieldErrors({ intervalWeeks: 1, ...data, daysOfWeek: daysOf(data) });
+  if (!data.frequency) errors.frequency = 'Chọn chu kỳ lặp: ngày, tuần hoặc tháng.';
+  if (data.endDate && data.endDate < todayInput()) errors.endDate = 'Ngày kết thúc đã qua.';
+  if (Object.keys(errors).length) throw Object.assign(new Error('Kiểm tra lại cài đặt lặp.'), { status: 400, details: errors });
+  const weekly = data.frequency === 'WEEKLY';
+  const days = weekly ? daysOf(data) : [];
+  return {
+    frequency: data.frequency,
+    daysOfWeek: days,
+    dayOfWeek: days[0] ?? null,
+    intervalWeeks: weekly ? Number(data.intervalWeeks) || 1 : 1,
+    dayOfMonth: data.frequency === 'MONTHLY' ? Number(data.dayOfMonth) : null,
+    startDate: data.startDate || todayInput(),
+    endDate: data.endDate || null,
+  };
+};
 const missing = () => {
   throw Object.assign(new Error('Không tìm thấy dữ liệu'), { status: 404 });
 };
@@ -150,8 +209,10 @@ export const announcementMockRepository = {
   create: async (data, files, actor) => {
     const audience = recipients(data.target, actor);
     if (!audience.total) throw Object.assign(new Error('Không có người nhận phù hợp.'), { status: 400, errorCode: 1205 });
+    const content = await mockContent(data);
     const item = {
       ...copy(data),
+      ...content,
       id: nextId++,
       senderId: actor?.id || null,
       senderName: actor?.fullName || 'Tài khoản mẫu',
@@ -174,7 +235,7 @@ export const announcementMockRepository = {
             userId,
             type: 'SCHOOL_ANNOUNCEMENT',
             title: data.title,
-            message: data.body.slice(0, 500),
+            message: content.body.slice(0, 500),
             announcementId: item.id,
           }),
         ),
@@ -186,7 +247,7 @@ export const announcementMockRepository = {
     assertAllowed(canManageMessage(item, actor));
     recipients(data.target, actor);
     if (!item.canEdit) throw Object.assign(new Error('Thông báo không còn chỉnh sửa được'), { status: 409 });
-    Object.assign(item, copy(data));
+    Object.assign(item, copy(data), await mockContent(data));
     item.attachments = [...item.attachments.filter((file) => (data.keepAttachmentIds || []).includes(file.id)), ...addFiles(files)];
     return copy(item);
   },
@@ -259,14 +320,14 @@ export const announcementMockRepository = {
     ),
   createTemplate: async (data, actor) => {
     assertAllowed(templateEditable(data, actor));
-    const item = { ...copy(data), id: nextId++, canEdit: true };
+    const item = { ...copy(data), ...(await mockContent(data)), id: nextId++, canEdit: true };
     templates.push(item);
     return copy(item);
   },
   updateTemplate: async (id, data, actor) => {
     const item = find(templates, id);
     assertAllowed(templateEditable(item, actor) && templateEditable(data, actor));
-    Object.assign(item, copy(data));
+    Object.assign(item, copy(data), await mockContent(data));
     return copy(item);
   },
   deleteTemplate: async (id, actor) => {
@@ -299,13 +360,18 @@ export const announcementMockRepository = {
     assertAllowed(!actor || actor.role === 'PRINCIPAL');
     const template = data.templateId ? find(templates, data.templateId) : null;
     const title = data.title ?? template?.title;
-    const body = data.body ?? template?.body;
+    const content = await mockContent(
+      data.bodyHtml?.trim() || data.body?.trim() ? data : { body: template?.body, bodyHtml: template?.bodyHtml },
+    );
+    const body = content.body;
     if (!title?.trim() || !body?.trim() || title.length > 150 || body.length > 4000)
       throw Object.assign(new Error('Nhập tiêu đề và nội dung hợp lệ.'), { status: 400 });
     const item = {
       ...copy(data),
+      ...recurrenceOf(data),
       title,
       body,
+      bodyHtml: content.bodyHtml,
       id: nextId++,
       templateName: template?.name || null,
       active: data.active ?? true,
@@ -320,16 +386,33 @@ export const announcementMockRepository = {
     const item = find(schedules, id);
     const template = data.templateId ? find(templates, data.templateId) : null;
     const title = data.title ?? template?.title ?? item.title;
-    const body = data.body ?? template?.body ?? item.body;
+    const content = await mockContent(
+      data.bodyHtml?.trim() || data.body?.trim()
+        ? data
+        : { body: template?.body ?? item.body, bodyHtml: template?.bodyHtml ?? item.bodyHtml },
+    );
+    const body = content.body;
     if (!title?.trim() || !body?.trim()) throw Object.assign(new Error('Nhập tiêu đề và nội dung.'), { status: 400 });
     const kept = item.attachments.filter((file) => data.keepAttachmentIds == null || data.keepAttachmentIds.includes(file.id));
-    Object.assign(item, copy(data), { title, body, templateName: template?.name || null, attachments: [...kept, ...addFiles(files)] });
+    Object.assign(item, copy(data), recurrenceOf(data), {
+      title,
+      body,
+      bodyHtml: content.bodyHtml,
+      templateName: template?.name || null,
+      attachments: [...kept, ...addFiles(files)],
+    });
     return copy(item);
   },
   activateSchedules: async (ids, active, actor) => {
     assertAllowed(!actor || actor.role === 'PRINCIPAL');
     if (!ids?.length || typeof active !== 'boolean') throw Object.assign(new Error('Chọn lịch gửi.'), { status: 400 });
     const items = [...new Set(ids)].map((id) => find(schedules, id));
+    // PAR-10: lịch đã qua ngày kết thúc không bật lại được tới khi sửa ngày kết thúc; không bật lịch nào.
+    if (active && items.some((item) => item.endDate && item.endDate < todayInput()))
+      throw Object.assign(new Error('Có lịch đã qua ngày kết thúc, hãy sửa ngày kết thúc rồi bật lại.'), {
+        status: 400,
+        details: { endDate: 'Lịch đã qua ngày kết thúc.' },
+      });
     let changed = 0;
     items.forEach((item) => {
       if (item.active !== active) {

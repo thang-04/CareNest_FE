@@ -29,9 +29,7 @@ const NotificationDetailPage = lazyPage(() => import('@/pages/account/Notificati
 const AnnouncementsPage = lazyPage(() => import('@/pages/announcement/AnnouncementsPage'));
 const AnnouncementDetailPage = lazyPage(() => import('@/pages/announcement/AnnouncementDetailPage'));
 const AnnouncementEditPage = lazyPage(() => import('@/pages/announcement/AnnouncementEditPage'));
-const AnnouncementTemplatesPage = lazyPage(() => import('@/pages/announcement/AnnouncementTemplatesPage'));
-const NotificationRulesPage = lazyPage(() => import('@/pages/announcement/NotificationRulesPage'));
-const AnnouncementSchedulesPage = lazyPage(() => import('@/pages/announcement/AnnouncementSchedulesPage'));
+const NotificationSettingsPage = lazyPage(() => import('@/pages/announcement/NotificationSettingsPage'));
 const AnnouncementScheduleDetailPage = lazyPage(() => import('@/pages/announcement/AnnouncementScheduleDetailPage'));
 const AnnouncementScheduleEditPage = lazyPage(() => import('@/pages/announcement/AnnouncementScheduleEditPage'));
 const AppearancePage = lazyPage(() => import('@/pages/settings/AppearancePage'));
@@ -157,8 +155,11 @@ const ChildDevelopmentListPage = lazyPage(() => import('@/pages/assessment/Child
 const ChildDevelopmentProfilePage = lazyPage(() => import('@/pages/assessment/ChildDevelopmentProfilePage'));
 const ChildDevelopmentProgressPage = lazyPage(() => import('@/pages/assessment/ChildDevelopmentProgressPage'));
 const AiEvaluationDraftPage = lazyPage(() => import('@/pages/assessment/AiEvaluationDraftPage'));
+const MonthlyEvaluationListPage = lazyPage(() => import('@/pages/assessment/MonthlyEvaluationListPage'));
+const MonthlyEvaluationDetailPage = lazyPage(() => import('@/pages/assessment/MonthlyEvaluationDetailPage'));
 const ClassRatingsPage = lazyPage(() => import('@/pages/assessment/ClassRatingsPage'));
 const SemesterEvaluationListPage = lazyPage(() => import('@/pages/assessment/SemesterEvaluationListPage'));
+const SemesterChildCommentListPage = lazyPage(() => import('@/pages/assessment/SemesterChildCommentListPage'));
 const SemesterEvaluationDetailPage = lazyPage(() => import('@/pages/assessment/SemesterEvaluationDetailPage'));
 const YearEndEvaluationListPage = lazyPage(() => import('@/pages/assessment/YearEndEvaluationListPage'));
 const YearEndEvaluationDetailPage = lazyPage(() => import('@/pages/assessment/YearEndEvaluationDetailPage'));
@@ -555,8 +556,11 @@ export function AppRoutes() {
             <Route path="daily" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <DailyAssessmentPage />)} />
             <Route path="daily/skills" element={permit([PERMISSIONS.ASSESSMENT_RECORD], <DailyGoalAssessmentPage />)} />
             <Route path="day-unlocks" element={permit([PERMISSIONS.ASSESSMENT_UNLOCK], <AssessmentDayUnlockPage />)} />
-            {/* Đánh giá tháng đã bỏ (Cần chốt 14/11/2026): giữ chuyển hướng cho link thông báo cũ */}
+            {/* Link periodic cũ chuyển về hồ sơ; nhận xét tháng dùng route monthly. */}
             <Route path="periodic/*" element={<Navigate to="/assessment/children" replace />} />
+            <Route path="monthly" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <MonthlyEvaluationListPage />)} />
+            <Route path="monthly/:id" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <MonthlyEvaluationDetailPage />)} />
+            <Route path="monthly/:id/ai-draft" element={permit([PERMISSIONS.ASSESSMENT_RECORD], <AiEvaluationDraftPage />)} />
             <Route path="overview" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <ClassAssessmentOverviewPage />)} />
             <Route path="quality-report" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <QualityReportPage />)} />
             <Route path="class-ratings" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <ClassRatingsPage />)} />
@@ -565,6 +569,7 @@ export function AppRoutes() {
             <Route path="children/:childId" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <ChildDevelopmentProfilePage />)} />
             <Route path="children/:childId/progress" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <ChildDevelopmentProgressPage />)} />
             <Route path="semester" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <SemesterEvaluationListPage />)} />
+            <Route path="semester/children" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <SemesterChildCommentListPage />)} />
             <Route path="semester/:id" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <SemesterEvaluationDetailPage />)} />
             <Route path="semester/:id/ai-draft" element={permit([PERMISSIONS.ASSESSMENT_RECORD], <AiEvaluationDraftPage />)} />
             <Route path="year-end" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <YearEndEvaluationListPage />)} />
@@ -596,9 +601,11 @@ export function AppRoutes() {
           <Route path="announcements/new" element={only(LEADERS, <AnnouncementEditPage />)} />
           <Route path="announcements/:id" element={only(LEADERS, <AnnouncementDetailPage />)} />
           <Route path="announcements/:id/edit" element={only(LEADERS, <AnnouncementEditPage />)} />
-          <Route path="announcement-templates" element={only(LEADERS, <AnnouncementTemplatesPage />)} />
-          <Route path="notification-rules" element={only([R.PRINCIPAL], <NotificationRulesPage />)} />
-          <Route path="announcement-schedules" element={only([R.PRINCIPAL], <AnnouncementSchedulesPage />)} />
+          <Route path="notification-settings" element={only(LEADERS, <NotificationSettingsPage />)} />
+          {/* Link cũ của ba danh sách cấu hình về đúng tab của trang gộp */}
+          <Route path="announcement-templates" element={<Navigate to="/notification-settings" replace />} />
+          <Route path="notification-rules" element={<Navigate to="/notification-settings?tab=rules" replace />} />
+          <Route path="announcement-schedules" element={<Navigate to="/notification-settings?tab=schedules" replace />} />
           <Route path="announcement-schedules/new" element={only([R.PRINCIPAL], <AnnouncementScheduleEditPage />)} />
           <Route path="announcement-schedules/:id" element={only([R.PRINCIPAL], <AnnouncementScheduleDetailPage />)} />
           <Route path="announcement-schedules/:id/edit" element={only([R.PRINCIPAL], <AnnouncementScheduleEditPage />)} />

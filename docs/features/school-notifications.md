@@ -29,6 +29,10 @@ Danh sách, chuông và chi tiết dùng nhãn tiếng Việt từ `Notification
 
 Known pitfall: không dùng `!preview?.total` để vô hiệu hóa nút gửi; xem [nút gửi bị khóa](../knowledge/incidents/FE-BUG-261117-announcement-submit-preview.md). Form này dùng chung cho cả tạo mới và sửa lịch gửi, cần kiểm cả hai khi đổi luồng xác nhận.
 
+Known pitfall: `RichBody` được import cả trong test render server; chỉ gọi hook DOMPurify khi có DOM, xem [lỗi SSR](../knowledge/incidents/FE-BUG-261122-richbody-ssr-import.md).
+
+User chốt 22/11/2026: nhập mẫu từ `.docx` giữ đậm, nghiêng, gạch chân, danh sách và liên kết; định dạng khác bị bỏ trước khi vào trình soạn. Tệp `.txt` vẫn lấy chữ thường. Chi tiết triển khai ở [plan trình soạn](../plans/active/2026-11-22-announcement-rich-body-fe.md).
+
 ## Form gọn và đính kèm — Tiền yêu cầu tiếp 17/11/2026
 
 - Yêu cầu tiếp của Tiền: ô mẫu một hàng ngắn tối đa 22rem; **Tiêu đề riêng một dòng**, nội dung nằm dòng tiếp theo. Khung nhập tối đa 64rem, ô nội dung tối đa 80ch. Các ô phạm vi/điểm trường/nhóm tuổi/lớp khoảng 18rem, giờ gửi tối đa 20rem. Màn nhỏ tự xếp cột, không ép ô ngắn chạy hết chiều ngang màn lớn. Ô tên/phạm vi mẫu trong modal tối đa 22rem; ngày trong tháng/giờ của lịch lặp khoảng 12rem.

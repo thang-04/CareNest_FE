@@ -55,3 +55,15 @@ Không ghi nhật ký từng task vào file này (file này chỉ chứa quy t�
 - `node --import ./scripts/register-auth-test-loader.mjs --test` với các file dashboard/hardening/integration-selective-merge → 282 tests, 0 fail/skip; log logs/manual-placement-fe-tests.log.
 - ESLint sáu source/test sửa đạt. Build API bằng VITE_USE_MOCK=false, VITE_SCHOOL_CONFIG_API=true đạt; log logs/manual-placement-build.log. Diff check đạt.
 - UI thật trên DB clone: trẻ đang học và trẻ mới chọn khác nhóm, lưu/reload giữ lớp; nhãn nhóm/campus/sĩ số hiện đầy đủ. Chưa kích hoạt năm2027 qua UI vì chưa tới cửa sổ, kiểm bằng BE integration18/18.
+
+## 23/11/2026 — Kiểm lại ba lỗi phát hiện qua UI
+
+- ATT-02a: draft dùng skippedMeals từ BE, Không ăn bị khóa; GV lưu/reload và PHT xem lại đúng. Không sửa API request hoặc module quyền.
+- Cấu hình lớp: danh mục campus theo server; Tất cả điểm trường11 lớp, Cơ sở1 sáu lớp, Cơ sở2 năm lớp trên dữ liệu giả local.
+- Mở lại đánh giá: Hủy giữ reason; Không lưu xóa reason, đổi năm tiếp không hỏi lặp. UI thực đã kiểm.
+- Toàn bộ Node tests1602/1602 đạt,0skip; ESLint bốn source sửa và Vite build API đạt. Logs ui-followup-full-node.log, ui-followup-lint.log, ui-followup-build.log.
+- Không suy thành toàn bộ UI/phân quyền/thời gian/chuyển lớp đã đạt. Chi tiết và ảnh: BE:docs/quality/2026-11-23-ui-followup-verification.md.
+
+## 23/11/2026 — Lịch sử phân công và dữ liệu trẻ chuyển lớp
+
+BE64/64 + contract/health5/5 + Theme21/21 đạt; FE1608/1608, lint/build đạt. Quyết định cuối: cô lớp cũ hoàn tất MT đã học trước chuyển, không thêm MT chưa học; giữ nhãn tên và snapshot. UI cô lớp mới xem được tháng trước chuyển. Báo cáo: docs/quality/2026-11-23-history-continuity-verification.md. Checkpoint trước merge dev; còn kiểm UI thêm và CI collision169/170 theo phê duyệt riêng.

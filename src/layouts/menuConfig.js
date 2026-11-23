@@ -108,9 +108,8 @@ const MENU_TEMPLATE_API = !USE_MOCK && INTEGRATION_MODULES['menu-template']?.sou
 const ITEMS = {
   notifications: { label: 'Thông báo của tôi', to: '/notifications' },
   announcements: { label: 'Thông báo nhà trường', to: '/announcements' },
-  announcementTemplates: { label: 'Mẫu thông báo', to: '/announcement-templates' },
-  notificationRules: { label: 'Quy tắc thông báo', to: '/notification-rules' },
-  announcementSchedules: { label: 'Lịch gửi thông báo', to: '/announcement-schedules' },
+  // `also`: tạo/sửa/chi tiết lịch gửi nằm ở đường dẫn riêng nhưng vẫn thuộc mục này
+  notificationSettings: { label: 'Cấu hình thông báo', to: '/notification-settings', also: ['/announcement-schedules/'] },
   schoolYears: {
     label: 'Năm học',
     to: '/school/years',
@@ -297,9 +296,17 @@ const ITEMS = {
     label: 'Tiến độ phát triển',
     to: '/assessment/children',
   },
+  assessMonthly: {
+    label: 'Nhận xét tháng',
+    to: '/assessment/monthly',
+  },
   assessSemester: {
     label: 'Đánh giá học kỳ',
     to: '/assessment/semester',
+  },
+  assessSemesterComments: {
+    label: 'Nhận xét học kỳ',
+    to: '/assessment/semester/children',
   },
   assessYearEnd: {
     label: 'Đánh giá cuối năm',
@@ -318,7 +325,7 @@ const ITEMS = {
     to: '/assessment/rewards',
   },
   nutritionSetup: {
-    label: 'Cấu hình nhóm tuổi',
+    label: 'Định mức dinh dưỡng',
     to: '/menu/setup',
   },
   foods: {
@@ -436,7 +443,7 @@ const MENUS = {
   [ROLES.PRINCIPAL]: [
     link('home'),
     link('approvals'),
-    group('notifications', ['notifications', 'announcements', 'announcementTemplates', 'notificationRules', 'announcementSchedules']),
+    group('notifications', ['notifications', 'announcements', 'notificationSettings']),
     group('school', [
       'schoolYears',
       'schoolPlacement',
@@ -465,10 +472,12 @@ const MENUS = {
     group('assessment', [
       'assessOverview',
       'assessWeeklyComments',
+      'assessMonthly',
       'assessTickets',
       'assessThemes',
       'assessQuality',
       'assessSemester',
+      'assessSemesterComments',
       'assessYearEnd',
       'assessRewards',
       'assessClassRatings',
@@ -487,7 +496,7 @@ const MENUS = {
   [ROLES.VICE_PRINCIPAL]: [
     link('home'),
     link('approvals'),
-    group('notifications', ['notifications', 'announcements', 'announcementTemplates']),
+    group('notifications', ['notifications', 'announcements', 'notificationSettings']),
     group('school', [
       'schoolYears',
       'schoolPlacement',
@@ -503,10 +512,12 @@ const MENUS = {
     group('assessment', [
       'assessOverview',
       'assessWeeklyComments',
+      'assessMonthly',
       'assessTickets',
       'assessThemes',
       'assessQuality',
       'assessSemester',
+      'assessSemesterComments',
       'assessYearEnd',
       'assessRewards',
       'assessClassRatings',
@@ -542,10 +553,12 @@ const MENUS = {
       'assessOverview',
       'assessDaily',
       'assessWeeklyComments',
+      'assessMonthly',
       'assessTickets',
       'assessThemes',
       'assessQuality',
       'assessSemester',
+      'assessSemesterComments',
       'assessYearEnd',
       'assessRewards',
       'assessClassRatings',
@@ -562,10 +575,12 @@ const MENUS = {
     group('assessment', [
       'assessDaily',
       'assessWeeklyComments',
+      'assessMonthly',
       'assessTickets',
       'assessThemes',
       'assessQuality',
       'assessSemester',
+      'assessSemesterComments',
       'assessYearEnd',
       'assessRewards',
       'assessClassRatings',
@@ -675,7 +690,9 @@ const ITEM_BE_PERMISSIONS = {
   assessDayUnlocks: [PERMISSIONS.ASSESSMENT_UNLOCK],
   assessProfiles: [PERMISSIONS.ASSESSMENT_VIEW],
   assessProgress: [PERMISSIONS.ASSESSMENT_VIEW],
+  assessMonthly: [PERMISSIONS.ASSESSMENT_VIEW],
   assessSemester: [PERMISSIONS.ASSESSMENT_VIEW],
+  assessSemesterComments: [PERMISSIONS.ASSESSMENT_VIEW],
   assessYearEnd: [PERMISSIONS.ASSESSMENT_VIEW],
   assessTickets: [PERMISSIONS.ASSESSMENT_VIEW],
   assessWeeklyComments: [PERMISSIONS.ASSESSMENT_VIEW],

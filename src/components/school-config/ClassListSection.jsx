@@ -36,7 +36,6 @@ export function ClassListSection({
   groupStats,
   loading,
   editable,
-  principal,
   canCopy,
   onAdd,
   onEdit,
@@ -197,7 +196,7 @@ export function ClassListSection({
           onSearch={(text) => setFilter('q', text)}
         />
         <select className="select" aria-label="Lọc theo điểm trường" value={campus} onChange={(e) => setFilter('campus', e.target.value)}>
-          <option value="">{principal ? 'Tất cả điểm trường' : 'Điểm trường của tôi'}</option>
+          <option value="">Tất cả điểm trường</option>
           {campuses.map((c) => (
             <option key={c.id} value={c.id}>
               {c.shortName || c.name}
@@ -334,7 +333,7 @@ export function ClassListSection({
                       <li key={c.id} className="sc-ccard">
                         <div className="sc-ccard__top">
                           <span className="sc-ccard__name">{c.name}</span>
-                          {principal && <span className="chip chip--gray">{md.campusById(c.campusId)?.shortName}</span>}
+                          {campuses.length > 1 && <span className="chip chip--gray">{md.campusById(c.campusId)?.shortName}</span>}
                           {editable && (
                             <span className="sc-ccard__actions">
                               <button className="icon-btn" title="Sửa lớp" aria-label={`Sửa ${c.name}`} onClick={() => onEdit(c)}>
