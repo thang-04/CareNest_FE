@@ -46,7 +46,7 @@ export default function ClassPlacementPage() {
   const { user } = useAuth();
   const toast = useToast();
   const md = useMasterData();
-  const { schoolYear, activeYear, yearReadOnly, yearLocked } = useSchoolYear();
+  const { schoolYear, schoolYears, activeYear, yearReadOnly, yearLocked, setSchoolYear } = useSchoolYear();
   // Xếp, chuyển lớp luôn ở năm học đang hoạt động dù header chọn năm khác (user chốt 2026-10-28, Y-3).
   const yearId = activeYear?.id || schoolYear;
   const [params, setParams] = useSearchParams();
@@ -124,6 +124,32 @@ export default function ClassPlacementPage() {
         {yearLocked ? <YearLockedNotice action="Xếp lớp, chuyển lớp" /> : <ActiveYearNotice action="Xếp lớp, chuyển lớp" />}
       </div>
     );
+
+  // Header ở năm sắp diễn ra đã mở chuẩn bị: không hiện bảng năm đang học, xếp lớp năm đó ở màn Xếp lớp năm học mới (user chốt 24/11, Q4=A)
+  if (activeYear && schoolYear !== activeYear.id) {
+    const headerLabel = schoolYears.find((y) => y.id === schoolYear)?.label || schoolYear;
+    return (
+      <div className="page">
+        <Breadcrumb items={childrenCrumbs('Xếp lớp')} />
+        <h1 className="page__title">Xếp lớp cho trẻ</h1>
+        <EmptyState
+          icon={LayoutGrid}
+          title={`Xếp lớp năm học ${headerLabel} làm ở màn Xếp lớp năm học mới`}
+          description={`Trang này xếp, chuyển lớp trong năm học đang hoạt động ${activeYear.label}.`}
+          action={
+            <div className="row gap-8">
+              <Link className="btn btn--primary" to="/school/placement">
+                Mở Xếp lớp năm học mới
+              </Link>
+              <Button variant="secondary" onClick={() => setSchoolYear(activeYear.id)}>
+                Về năm học {activeYear.label}
+              </Button>
+            </div>
+          }
+        />
+      </div>
+    );
+  }
 
   // Lớp chưa bắt đầu không tính là đang học: đổi lớp đó không cần lý do
   const isTransfer = !!selected?.classId && !isNotStarted(selected);
