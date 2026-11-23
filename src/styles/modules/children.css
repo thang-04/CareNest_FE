@@ -1570,3 +1570,23 @@
   color: var(--color-warning-fg);
   font-weight: var(--fw-semibold);
 }
+
+/* Khối thu gọn của từng lớp khi giáo viên có từ 2 lớp */
+.tr-roster-fold > .tr-roster-fold__summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  cursor: pointer;
+  list-style: none;
+}
+.tr-roster-fold > .tr-roster-fold__summary::-webkit-details-marker {
+  display: none;
+}
+.tr-roster-fold .tr-roster-fold__chevron {
+  transition: transform 0.15s;
+  transform: rotate(-90deg);
+}
+.tr-roster-fold[open] .tr-roster-fold__chevron {
+  transform: rotate(0);
+}

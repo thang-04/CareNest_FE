@@ -6,6 +6,7 @@ import { useHealthCheckClass } from '@/hooks/children/useHealthChecks';
 import { useFilterParams } from '@/hooks/useFilterParams';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { clickableRowProps } from '@/utils/clickableRow';
+import { RosterFold } from './RosterFold';
 import { RosterActions } from './RosterActions';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { FilterChips } from '@/components/ui/FilterChips';
@@ -35,10 +36,12 @@ export const measurementFormLink = (campaignId, classId, childId, measurementId)
  * Danh sách trẻ của một lớp trong kỳ cân đo (user chốt 2026-10-31): giáo viên phụ trách lớp nhập số đo từng trẻ khi kỳ đang
  * diễn ra. Không có kết luận bác sĩ; mỗi trẻ có BMI và mức BMI theo tuổi BE xếp (HLT-18). embedded: sổ ngay dưới dòng lớp.
  */
-export function MeasurementRoundRoster({ campaignId, classId, embedded = false }) {
+export function MeasurementRoundRoster({ campaignId, classId, embedded = false, collapsible = false, defaultOpen = false, summary = '' }) {
+  // Khối thu gọn: chỉ tải danh sách khi đang mở
+  const [open, setOpen] = useState(!collapsible || defaultOpen);
   const pageSize = embedded ? EMBEDDED_PAGE_SIZE : PAGE_SIZE;
   const navigate = useNavigate();
-  const { roster, loading, error, reload } = useHealthCheckClass(campaignId, classId);
+  const { roster, loading, error, reload } = useHealthCheckClass(campaignId, classId, { enabled: open });
   // Năm đã kết thúc hoặc năm sắp diễn ra chưa tới ngày mở chuẩn bị (CFG-YR-01, CHD-12): chỉ xem
   const yearLocked = useChildYearLock();
   const canRecord = !!roster?.canRecord && !yearLocked;
@@ -186,6 +189,12 @@ export function MeasurementRoundRoster({ campaignId, classId, embedded = false }
   );
 
   const label = roster ? `Danh sách trẻ ${roster.cls.name}` : 'Danh sách trẻ của lớp';
+  if (collapsible)
+    return (
+      <RosterFold summary={summary} open={open} onToggle={setOpen} label={label}>
+        {body}
+      </RosterFold>
+    );
   if (embedded)
     return (
       <div className="tr-acc-roster" role="region" aria-label={label}>

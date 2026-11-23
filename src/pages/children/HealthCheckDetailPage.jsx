@@ -138,6 +138,13 @@ export default function HealthCheckDetailPage() {
   // Đợt/kỳ đã qua ngày kết thúc: mở lại phải chọn ngày kết thúc mới từ hôm nay (HLT-17, cả kỳ cân đo từ 2026-11-04).
   const reopenNeedsEndDate = campaign.endDate < todayInput();
   const w = wordsOf(isRound);
+  // Giáo viên có từ 2 lớp ⇒ mỗi lớp một khối thu gọn (user chốt 2026-11-24, Q5b)
+  const fold = classes.length > 1;
+  const foldProps = (c, i) => ({
+    collapsible: fold,
+    defaultOpen: i === 0,
+    summary: `${c.className} – ${isRound ? 'đã cân đo' : 'đã có kết luận'} ${c.recorded}/${c.total} trẻ`,
+  });
   const Roster = isRound ? MeasurementRoundRoster : HealthCheckClassRoster;
   const unclosed = [CAMPAIGN_STATUS.UPCOMING, CAMPAIGN_STATUS.IN_PROGRESS].includes(campaign.status);
   const lastEvent = campaign.history?.[campaign.history.length - 1];
@@ -323,7 +330,9 @@ export default function HealthCheckDetailPage() {
           </section>
         ) : (
           // Trạng thái đợt đổi (hủy, đóng, mở lại) ⇒ dựng lại danh sách để tải lại quyền nhập
-          classes.map((c) => <Roster key={`${c.classId}-${campaign.status}`} campaignId={campaign.id} classId={c.classId} />)
+          classes.map((c, i) => (
+            <Roster key={`${c.classId}-${campaign.status}`} campaignId={campaign.id} classId={c.classId} {...foldProps(c, i)} />
+          ))
         )
       ) : (
         <section className="card mt-16">
