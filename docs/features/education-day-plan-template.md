@@ -32,6 +32,7 @@ Nguồn nghiệp vụ: spec 005 (CareNest_BE/specs/005-day-plan-shared-template/
 
 ### Hạn duyệt riêng (EDU-97, Tiền 19/11/2026)
 
+- **EDU-109 (Tiền 23/11/2026) thay phần trên:** bỏ ngày duyệt thêm và N ngày gửi lại; tới hạn khóa ngay (gửi và duyệt); nhãn chung **Quá hạn** thay nhãn trạng thái; Hiệu trưởng mở hạn nhiều lần; nhắc 7 ngày + hằng ngày (web + email) cho người soạn hoặc người duyệt đúng lượt; quá hạn báo Hiệu trưởng hằng ngày; bỏ nhãn Ban hành trễ (chỉ Đã ban hành).
 - Nghiệp vụ đích, chưa triển khai: cấu hình số ngày duyệt sau hạn độc lập với số ngày gửi lại theo EDU-94. Chỉ Hiệu trưởng có phân công hiệu lực vào và chỉnh trang Cấu hình, gồm cả hai ô số ngày. Hồ sơ hết hạn duyệt vẫn hiện Chờ duyệt và có lý do bị khóa ở hàng chờ và chỗ xử lý.
 - Hiệu trưởng mở lại hạn duyệt với lý do và hạn mới ở màn Kế hoạch quá hạn. Quyền mở hạn và quyền duyệt kiểm riêng. Áp dụng cả kế hoạch năm, kế hoạch tổ, kế hoạch giáo dục chủ đề và kế hoạch giáo dục ngày.
 

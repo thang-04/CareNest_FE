@@ -149,10 +149,6 @@ export const withDefaults = (cfg) => {
     durationPolicy: cfg?.durationPolicy || { revision: 1, ...DEFAULT_DURATION },
     ...(cfg?.schoolYearCreationScopes ? { schoolYearCreationScopes: cfg.schoolYearCreationScopes } : {}),
     canConfigure: cfg?.canConfigure ?? false,
-    // EDU-94/97: chỉ BE/ mock backend quyết định quyền sửa hai mốc hạn này.
-    canConfigureDeadlines: cfg?.canConfigureDeadlines ?? false,
-    lateReturnGraceDays: cfg?.lateReturnGraceDays ?? 2,
-    lateApprovalGraceDays: cfg?.lateApprovalGraceDays ?? 2,
     ...(cfg?.yearCreationScopes ? { yearCreationScopes: cfg.yearCreationScopes } : {}),
     signers: { ...DEFAULT_EDU_CONFIG.signers, ...(cfg?.signers || {}) },
     // Cấu hình đã lưu trước khi có phần chung cả tuần: lấy extraLabel mặc định theo khóa dòng

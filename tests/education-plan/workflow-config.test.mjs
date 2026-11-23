@@ -75,8 +75,9 @@ test('real adapter reads nested policy, config save never writes workflow policy
     if (config.method === 'put') {
       const body = JSON.parse(config.data);
       assert.deepEqual(body.signers, signers);
-      assert.equal(body.lateApprovalGraceDays, 3);
-      assert.equal(body.lateReturnGraceDays, 4);
+      // EDU-109: không còn gửi số ngày ân hạn
+      assert.equal(body.lateApprovalGraceDays, undefined);
+      assert.equal(body.lateReturnGraceDays, undefined);
       assert.equal(body.workflow, undefined);
       assert.equal(body.workflowPolicy, undefined);
     }

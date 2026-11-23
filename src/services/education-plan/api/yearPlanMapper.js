@@ -54,11 +54,6 @@ export const toUiEduConfig = (config) => {
     yearCreationScopes: (config?.yearCreationScopes || []).map((id) => buildRefs(config).ageGroupCode(id)).filter(Boolean),
     ...(config?.signers ? { signers: config.signers } : {}),
     ...(config?.weekRows ? { weekRows: config.weekRows } : {}),
-    // Trả lại sau hạn: số ngày lịch được gửi lại (Hiệu trưởng cấu hình, mặc định 2 — Tiền 18/11/2026)
-    lateReturnGraceDays: config?.lateReturnGraceDays ?? 2,
-    // EDU-97: hạn xử lý REVIEW tách biệt với ân hạn gửi lại sau khi bị trả lại.
-    lateApprovalGraceDays: config?.lateApprovalGraceDays ?? 2,
-    canConfigureDeadlines: config?.canConfigureDeadlines === true,
     // BE:EDU-21 — họ tên Hiệu trưởng, Phó HT đang hoạt động để in dưới chỗ ký tay
     ...(config?.signerNames ? { signerNames: config.signerNames } : {}),
   };

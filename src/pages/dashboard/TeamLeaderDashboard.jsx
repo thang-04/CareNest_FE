@@ -65,7 +65,7 @@ export default function TeamLeaderDashboard() {
                   // Badge ở dòng phụ: cột 1/3 hẹp, badge cuối dòng làm vỡ tiêu đề
                   meta: (
                     <>
-                      <EduStatusBadge status={t.status} /> {formatDate(t.startDate)} – {formatDate(t.endDate)}
+                      <EduStatusBadge status={t.status} doc={t} /> {formatDate(t.startDate)} – {formatDate(t.endDate)}
                     </>
                   ),
                 }))}

@@ -58,6 +58,7 @@ export default function SchoolPlansPage() {
         by: sentEntry(doc)?.by,
         at: last ? fmtDateTime(last.at) : '—',
         status: doc.status,
+        doc,
       };
     };
     return {
@@ -74,6 +75,7 @@ export default function SchoolPlansPage() {
           by: g.owner?.name || g.createdBy,
           at: fmtDate(g.sentAt),
           status: g.status,
+          doc: g,
           year: true,
         })),
       branches: branchPlans
@@ -194,7 +196,7 @@ export default function SchoolPlansPage() {
                     <td>{r.detail}</td>
                     <td>{r.by || '—'}</td>
                     <td>{r.at}</td>
-                    <td className="center">{r.year ? <YearPlanStatusBadge status={r.status} /> : <EduStatusBadge status={r.status} />}</td>
+                    <td className="center">{r.year ? <YearPlanStatusBadge status={r.status} doc={r.doc} /> : <EduStatusBadge status={r.status} doc={r.doc} />}</td>
                   </tr>
                 ))}
               </tbody>

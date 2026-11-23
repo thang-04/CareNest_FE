@@ -101,7 +101,7 @@ test('FR-022: lọc nhóm tuổi rồi lớp, loại, học kỳ', () => {
 });
 
 test('FR-020: nhãn hạn luôn có tiền tố "Hạn:" để tách khỏi trạng thái duyệt', () => {
-  for (const s of ['NEAR', 'OVERDUE', 'ON_TIME', 'LATE', 'NORMAL'])
+  for (const s of ['NEAR', 'OVERDUE', 'ON_TIME', 'NORMAL'])
     assert.match(deadlineLabel({ deadline: '2026-11-16', daysLeft: 1, deadlineState: s }).label, /^Hạn: /);
 });
 

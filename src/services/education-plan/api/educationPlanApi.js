@@ -353,8 +353,6 @@ export const educationPlanApi = {
       // Ô ký do BE quản lý và trả lại sau mỗi lần lưu luồng duyệt.
       signers: current.signers ?? cfg.signers,
       weekRows: cfg.weekRows,
-      lateReturnGraceDays: cfg.lateReturnGraceDays,
-      lateApprovalGraceDays: cfg.lateApprovalGraceDays,
     });
     const fresh = {
       ...saved,

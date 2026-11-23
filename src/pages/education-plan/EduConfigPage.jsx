@@ -14,38 +14,8 @@ import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import { RenumberButton, SortHandle, SortIndex, SortableList, SortableRow } from '@/components/ui/Sortable';
 import { Button } from '@/components';
 
-const normalizeDeadlineDays = (value) => {
-  const parsed = Number.parseInt(String(value), 10);
-  return Number.isNaN(parsed) ? 0 : Math.max(0, Math.min(30, parsed));
-};
-
-/** EDU-94/97: cho phép xóa và gõ lại số mà không ép `0` vào đầu giá trị đang nhập. */
-function DeadlineDaysField({ label, value, onChange }) {
-  const update = (raw) => {
-    if (raw === '' || /^\d{1,2}$/.test(raw)) onChange(raw);
-  };
-  return (
-    <div className="ga-deadline-setting">
-      <label className="field__label" htmlFor={`deadline-days-${label}`}>
-        {label}
-      </label>
-      <input
-        id={`deadline-days-${label}`}
-        className="input ga-deadline-setting__input"
-        type="text"
-        inputMode="numeric"
-        pattern="[0-9]*"
-        maxLength={2}
-        value={value ?? ''}
-        onChange={(e) => update(e.target.value)}
-        onBlur={(e) => onChange(normalizeDeadlineDays(e.target.value))}
-      />
-    </div>
-  );
-}
-
 /**
- * Cấu hình kế hoạch giáo dục của trường: tên hiển thị 5 lĩnh vực, thời lượng, dòng hoạt động, hạn gửi/duyệt.
+ * Cấu hình kế hoạch giáo dục của trường: tên hiển thị 5 lĩnh vực, thời lượng, dòng hoạt động.
  * Người soạn/duyệt từng loại hồ sơ ở tab Soạn / duyệt hồ sơ của trang Phân quyền (EDU-108).
  * các dòng hoạt động của kế hoạch tuần. Bấm Chỉnh sửa để nhập và lưu một lần cho cả trang.
  * Lưu và xóa theo quy tắc trang kế hoạch năm: nút Lưu đầu trang / Ctrl+S, hỏi khi rời trang còn thay đổi chưa lưu,
@@ -75,13 +45,7 @@ export default function EduConfigPage() {
     enabled: editing,
     save: async (doc) => {
       const { workflowPolicy, workflowRevision } = doc;
-      const submitted = {
-        ...doc,
-        workflowPolicy,
-        workflowRevision,
-        lateReturnGraceDays: normalizeDeadlineDays(doc.lateReturnGraceDays),
-        lateApprovalGraceDays: normalizeDeadlineDays(doc.lateApprovalGraceDays),
-      };
+      const submitted = { ...doc, workflowPolicy, workflowRevision };
       const res = await saveEduConfig(submitted);
       if (!res) return null;
       const savedDoc = {
@@ -509,46 +473,6 @@ export default function EduConfigPage() {
               </table>
             </SortableList>
           </div>
-        </div>
-      </Card>
-
-      <Card title="4. Gửi lại khi bị trả lại sau hạn">
-        <div className="stack">
-          <p className="muted text-sm">
-            Người duyệt trả lại khi tài liệu đã quá hạn thì người soạn được gửi lại thêm số ngày dưới đây, tính từ lần trả lại trễ đầu tiên
-            và chỉ một lần cho mỗi tài liệu. Hết số ngày này, tài liệu chờ Hiệu trưởng mở hạn.
-          </p>
-          {editing && isPrincipal ? (
-            <DeadlineDaysField
-              label="Số ngày được gửi lại (0–30 ngày)"
-              value={draft.lateReturnGraceDays ?? 2}
-              onChange={(value) => set((x) => ((x.lateReturnGraceDays = value), x))}
-            />
-          ) : (
-            <p>
-              Số ngày được gửi lại: <strong>{draft.lateReturnGraceDays ?? 2} ngày</strong>
-            </p>
-          )}
-        </div>
-      </Card>
-
-      <Card title="5. Xử lý duyệt sau hạn">
-        <div className="stack">
-          <p className="muted text-sm">
-            Sau hạn hồ sơ, người duyệt còn được Duyệt, Ban hành hoặc Trả lại trong số ngày dưới đây. Hết hạn, hồ sơ giữ Chờ duyệt và chỉ
-            Hiệu trưởng mở lại được.
-          </p>
-          {editing && isPrincipal ? (
-            <DeadlineDaysField
-              label="Số ngày được xử lý duyệt sau hạn (0–30 ngày)"
-              value={draft.lateApprovalGraceDays ?? 2}
-              onChange={(value) => set((x) => ((x.lateApprovalGraceDays = value), x))}
-            />
-          ) : (
-            <p>
-              Số ngày được xử lý duyệt sau hạn: <strong>{draft.lateApprovalGraceDays ?? 2} ngày</strong>
-            </p>
-          )}
         </div>
       </Card>
 

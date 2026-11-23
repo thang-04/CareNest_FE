@@ -146,6 +146,10 @@ const decorate = (db, doc, user, kind = doc.kind) => {
     version: doc.version ?? 0,
     dossierVersion: kind === 'week' ? (root?.version ?? null) : null,
     review,
+    // EDU-109: qua hạn mở lại thì khóa lại, Hiệu trưởng mở tiếp được (lặp lại)
+    ...(doc.reviewDeadline?.reopenUntil && new Date().toISOString().slice(0, 10) > doc.reviewDeadline.reopenUntil
+      ? { reviewDeadline: { ...doc.reviewDeadline, locked: true } }
+      : {}),
     superseded: isSuperseded(db, doc.yearPlanId),
     ...(user
       ? {
