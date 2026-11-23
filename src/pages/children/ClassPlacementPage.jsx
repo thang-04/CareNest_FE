@@ -337,7 +337,6 @@ export default function ClassPlacementPage() {
                   setCampusId(id);
                   setClassId('');
                 }}
-                lockAgeGroup={isTransfer || !!selected?.dateOfBirth}
               />
               <FormField
                 label={isTransfer ? 'Ngày chuyển lớp' : 'Ngày vào lớp'}

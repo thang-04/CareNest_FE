@@ -564,7 +564,6 @@ export default function EnrollChildPage() {
               }}
               campusError={errors.placement.campusId}
               yearLabel={yearLabel}
-              lockAgeGroup={!!info.dateOfBirth}
             />
           )}
         </section>

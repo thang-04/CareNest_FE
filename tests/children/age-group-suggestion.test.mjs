@@ -33,3 +33,16 @@ test('cảnh báo vàng khi chọn lớp khác nhóm tuổi nói rõ vẫn xếp
   assert.match(src, /Theo tháng tuổi tại ngày bắt đầu năm học, trẻ thuộc nhóm/);
   assert.match(src, /Vẫn xếp được lớp\s+khác nhóm tuổi\./);
 });
+
+// G94-180/CHD-13 (user 23/11): Tiếp nhận, Xếp lớp, Chuyển lớp không khóa ô Nhóm tuổi; chọn nhóm khác thì hiện lớp nhóm đó và cảnh báo
+test('G94-180/CHD-13: ô Nhóm tuổi không khóa; chọn nhóm khác hiện lớp nhóm đó, cảnh báo, có nút xem lớp mọi nhóm', () => {
+  const fields = readFileSync('src/components/children/ClassPlacementFields.jsx', 'utf8');
+  assert.doesNotMatch(fields, /lockAgeGroup/);
+  assert.doesNotMatch(fields, /disabled=\{lock/);
+  assert.match(fields, /const inGroup = inCampus\.filter\(\(c\) => !ageGroupId \|\| sameId\(c\.ageGroupId, ageGroupId\)\)/);
+  assert.match(fields, /Vẫn xếp được lớp\s+khác nhóm tuổi/);
+  assert.match(fields, /Xem lớp mọi nhóm tuổi/);
+  for (const page of ['src/pages/children/EnrollChildPage.jsx', 'src/pages/children/ClassPlacementPage.jsx']) {
+    assert.doesNotMatch(readFileSync(page, 'utf8'), /lockAgeGroup/, page);
+  }
+});
