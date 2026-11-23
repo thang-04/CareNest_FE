@@ -167,7 +167,7 @@ export function MenuAiWeekModal({ open, onClose, block, week, plan, dirty, onApp
       open={open}
       onClose={draft ? close : onClose}
       closeOnBackdrop={!draft}
-      size={draft ? (editor.editable ? 'full' : 'xl') : 'lg'}
+      size={draft ? 'full' : 'lg'}
       title={draft ? `Gợi ý thực đơn · ${blockLabel}` : `AI gợi ý thực đơn · ${blockLabel}`}
       footer={footer}
     >
