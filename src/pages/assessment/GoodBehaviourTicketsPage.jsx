@@ -1,3 +1,4 @@
+import { childNameWithHistory } from '@/utils/childHistory';
 import { useMemo, useState } from 'react';
 import { CalendarRange, ChevronLeft, ChevronRight, Flag, Ticket } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
@@ -282,15 +283,14 @@ function TeacherTicketsPage() {
                             <td className="center">
                               <input
                                 type="checkbox"
-                                aria-label={`Chọn ${r.child.fullName}`}
+                                aria-label={`Chọn ${childNameWithHistory(r.child.fullName, r.historyStatus)}`}
                                 checked={selected.has(r.child.id)}
                                 disabled={!r.eligible || r.canIssue === false || !!r.ticket}
                                 onChange={() => toggle(r.child.id)}
                               />
                             </td>
                             <td>
-                              <ChildNameCell child={r.child} />
-                              {r.historical && <div className="muted text-xs">Đã chuyển lớp hoặc nghỉ học · chỉ xem lịch sử</div>}
+                              <ChildNameCell child={{ ...r.child, historyStatus: r.historyStatus }} />
                               {(r.evidence || []).length > 1 && (
                                 <div className="muted text-xs">Căn cứ: {evidenceText(r.evidence, weekly)}</div>
                               )}

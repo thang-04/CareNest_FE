@@ -6,12 +6,13 @@ import { renderToStaticMarkup } from 'react-dom/server';
 
 const source = await readFile(new URL('../../src/pages/assessment/GoodBehaviourTicketsPage.jsx', import.meta.url), 'utf8');
 const stubs = `import React from 'react';
+import {childNameWithHistory} from ${JSON.stringify(new URL('../../src/utils/childHistory.js', import.meta.url).href)};
 const useMemo=f=>f(),useState=v=>[v,()=>{}],useAuth=()=>({user:{id:'t',role:'TEACHER'}}),useToast=()=>({});
 const useDailyAssessmentClasses=()=>({classes:[{id:'A',name:'Lớp A'}],loading:false,error:null});
 const useTicketBoard=()=>({board:globalThis.ticketHistoryFixture,loading:false,error:null,reload:()=>{}});
 const CalendarRange=()=>null,ChevronLeft=()=>null,ChevronRight=()=>null,Flag=()=>null,Ticket=()=>null;
 const Breadcrumb=()=>null,ConfirmationModal=()=>null,EmptyState=()=>null,ErrorState=()=>null,SkeletonRows=()=>null,StatusPage=()=>null,TicketSummary=()=>null,Tabs=()=>null,TicketOverview=()=>null;
-const ChildNameCell=({child})=>React.createElement('span',{},child.fullName);
+const ChildNameCell=({child})=>React.createElement('span',{},childNameWithHistory(child.fullName, child.historyStatus));
 const TicketBadge=({status,detail})=>React.createElement('span',{},status,' ',detail);
 const canViewTicketOverview=()=>false,isTeamLeader=()=>false,assessmentCrumbs=()=>[],SECTIONS={},TICKET_TYPE={WEEKLY:'WEEKLY',MONTHLY:'MONTHLY'},TICKET_TYPE_LABELS={WEEKLY:'Phiếu tuần'};
 const formatDateTime=x=>x,periodLabel=(_type,start,end)=>start+' - '+end,issueTickets=()=>[];
@@ -74,4 +75,16 @@ test('phiếu đã phát nơi khác có nhãn rõ ràng và khóa phát trùng',
   assert.match(html, /Đã phát tại lớp khác/);
   assert.match(html, /Đã có phiếu trong kỳ/);
   assert.match(childCheckbox(html), /disabled/);
+});
+
+test('lịch sử hiển thị đúng trạng thái cạnh tên trẻ và khóa phát thêm', () => {
+  for (const [historyStatus, label] of [
+    ['TRANSFERRED', 'Đã chuyển lớp'],
+    ['LEFT_SCHOOL', 'Đã nghỉ học'],
+  ]) {
+    const html = render({ canIssue: false, historical: true, historyStatus });
+    assert.ok(html.includes(`TEST lịch sử (${label})`));
+    assert.doesNotMatch(html, /chuyển lớp hoặc nghỉ học/);
+    assert.match(html, /aria-label="Chọn tất cả trẻ đủ điều kiện"[^>]*disabled/);
+  }
 });

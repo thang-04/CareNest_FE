@@ -1,3 +1,4 @@
+import { childNameWithHistory } from '@/utils/childHistory';
 import { useEffect, useRef, useState } from 'react';
 import { useYearCampuses } from '@/hooks/useYearCampuses';
 import { CampusFilter } from '@/components/ui/CampusFilter';
@@ -273,7 +274,7 @@ export default function SemesterEvaluationListPage() {
                       visible.map((r, i) => (
                         <tr key={r.childId}>
                           <td className="num">{i + 1}</td>
-                          <td>{r.fullName}</td>
+                          <td>{childNameWithHistory(r.fullName, r.historyStatus)}</td>
                           {board.domains.flatMap((d) =>
                             [true, false].map((option) => (
                               <td key={`${d.domainId}-${option}`} className="center">
@@ -282,7 +283,7 @@ export default function SemesterEvaluationListPage() {
                                   className={`dg-theme-cell ${option ? '' : 'is-not-met'}`}
                                   type="button"
                                   disabled={busy}
-                                  aria-label={`${r.fullName} · ${d.name} · Xem căn cứ`}
+                                  aria-label={`${childNameWithHistory(r.fullName, r.historyStatus)} · ${d.name} · Xem căn cứ`}
                                   onClick={() => setDetail({ child: r.fullName, domain: cell(r, d) })}
                                 >
                                   {cell(r, d)?.met === option ? '✓' : ''}

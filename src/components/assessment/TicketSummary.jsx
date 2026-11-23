@@ -1,3 +1,4 @@
+import { childNameWithHistory } from '@/utils/childHistory';
 import { useState } from 'react';
 import { Award, BadgeCheck, Download, Flag, Ticket } from '@/components/ui/icons';
 import { StatCard } from '@/components/ui/StatCard';
@@ -39,7 +40,7 @@ export function TicketSummary({ classId }) {
       [
         [`Tổng hợp phiếu bé ngoan ${summary.cls.name} – ${rangeText}`],
         ['Mã trẻ', 'Họ tên', 'Phiếu bé ngoan (tuần)', 'Phiếu bé ngoan toàn diện (tháng)', 'Cờ bé ngoan'],
-        ...rows.map((r) => [r.child.code, r.child.fullName, r.weekly, r.monthly, r.flags]),
+        ...rows.map((r) => [r.child.code, childNameWithHistory(r.child.fullName, r.historyStatus), r.weekly, r.monthly, r.flags]),
       ],
       `phieu-be-ngoan-${summary.cls.name}-${month || 'nam-hoc'}.xlsx`,
     );
@@ -115,8 +116,7 @@ export function TicketSummary({ classId }) {
                   <tr key={r.child.id}>
                     <td className="num muted">{i + 1}</td>
                     <td>
-                      <ChildNameCell child={r.child} />
-                      {r.historical && <div className="muted text-xs">Đã chuyển lớp hoặc nghỉ học · chỉ xem lịch sử</div>}
+                      <ChildNameCell child={{ ...r.child, historyStatus: r.historyStatus }} />
                       {(r.evidence || []).length > 1 && <div className="muted text-xs">Căn cứ: {evidenceText(r.evidence)}</div>}
                     </td>
                     <td className={`num ${r.weekly ? 'fw-600' : 'muted'}`}>{r.weekly}</td>

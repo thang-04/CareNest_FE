@@ -1,6 +1,6 @@
 {
   "source": "CareNest_BE docs/api/openapi.yaml",
-  "syncedAt": "2026-11-20",
+  "syncedAt": "2026-11-23",
   "routes": [
     "DELETE /accounts/me/photo",
     "DELETE /age-groups/{x}",
@@ -42,6 +42,7 @@
     "GET /assessment/children",
     "GET /assessment/children/{x}/development",
     "GET /assessment/class-ratings",
+    "GET /assessment/daily/classes",
     "GET /assessment/day-unlocks",
     "GET /assessment/evaluation-periods",
     "GET /assessment/evaluation-unlocks",

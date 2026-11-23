@@ -63,3 +63,7 @@ Không ghi nhật ký từng task vào file này (file này chỉ chứa quy t�
 - Mở lại đánh giá: Hủy giữ reason; Không lưu xóa reason, đổi năm tiếp không hỏi lặp. UI thực đã kiểm.
 - Toàn bộ Node tests1602/1602 đạt,0skip; ESLint bốn source sửa và Vite build API đạt. Logs ui-followup-full-node.log, ui-followup-lint.log, ui-followup-build.log.
 - Không suy thành toàn bộ UI/phân quyền/thời gian/chuyển lớp đã đạt. Chi tiết và ảnh: BE:docs/quality/2026-11-23-ui-followup-verification.md.
+
+## 23/11/2026 — Lịch sử phân công và dữ liệu trẻ chuyển lớp
+
+BE64/64 + contract/health5/5 + Theme21/21 đạt; FE1608/1608, lint/build đạt. Quyết định cuối: cô lớp cũ hoàn tất MT đã học trước chuyển, không thêm MT chưa học; giữ nhãn tên và snapshot. UI cô lớp mới xem được tháng trước chuyển. Báo cáo: docs/quality/2026-11-23-history-continuity-verification.md. Checkpoint trước merge dev; còn kiểm UI thêm và CI collision169/170 theo phê duyệt riêng.

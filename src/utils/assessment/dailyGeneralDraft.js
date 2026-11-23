@@ -23,7 +23,7 @@ export const createGeneralDraft = (row, mealSessions) => ({
 
 export const getGeneralSaveEntries = (rows, mealSessions, drafts, dirty) =>
   rows
-    .filter((row) => !isGeneralRecorded(row) || dirty.has(row.childId))
+    .filter((row) => !row.historyStatus && (!isGeneralRecorded(row) || dirty.has(row.childId)))
     .map((row) => ({ childId: row.childId, ...(drafts[row.childId] || createGeneralDraft(row, mealSessions)) }));
 
 const draftKey = (draft) =>

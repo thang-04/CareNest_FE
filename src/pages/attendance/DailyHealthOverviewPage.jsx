@@ -1,3 +1,4 @@
+import { childNameWithHistory } from '@/utils/childHistory';
 import { Fragment, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ChevronDown, ChevronRight, HeartPulse, Info } from '@/components/ui/icons';
@@ -187,7 +188,7 @@ function AttentionTable({ items, filtered, onClearFilter, onOpen }) {
                     <div className="dd-hov__child">
                       <ChildAvatar child={{ fullName: item.childName, photoUrl: item.photoUrl }} size="sm" />
                       <div>
-                        <div className="fw-600">{item.childName}</div>
+                        <div className="fw-600">{childNameWithHistory(item.childName, item.historyStatus)}</div>
                         {item.childCode && <div className="muted text-xs">{item.childCode}</div>}
                       </div>
                     </div>

@@ -1,3 +1,4 @@
+import { childNameWithHistory } from '@/utils/childHistory';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
@@ -268,7 +269,7 @@ export function EvaluationReviewView({ kind, id }) {
             </h1>
             {/* Tiêu đề h1 chỉ cho trình đọc màn hình: hiện rõ họ tên, ngày sinh để GV biết đang đánh giá bé nào */}
             <div className="dg-eval-name">
-              {detail.child?.fullName || ev.childName}
+              {childNameWithHistory(detail.child?.fullName || ev.childName, ev.historyStatus)}
               {yearEnd && <EvaluationStatusBadge status={ev.status} />}
               {!yearEnd && detail.child?.dateOfBirth && (
                 <span className="muted text-sm"> · Sinh ngày {formatDate(detail.child.dateOfBirth)}</span>
