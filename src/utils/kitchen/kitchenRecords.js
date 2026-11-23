@@ -62,6 +62,16 @@ export const sortSamples = (samples) =>
       String(b.sampledAt).localeCompare(String(a.sampledAt)),
   );
 
+/**
+ * Số bản lưu mẫu cùng ngày, cùng bữa (BE NUT-21: một bữa được có nhiều mẫu) để hàng chờ duyệt gắn nhãn "Bữa có N mẫu".
+ * Trả hàm `(sample) => số`.
+ */
+export const sameMealCount = (samples) => {
+  const counts = new Map();
+  (samples || []).forEach((s) => counts.set(`${s.date}|${s.session}`, (counts.get(`${s.date}|${s.session}`) || 0) + 1));
+  return (sample) => counts.get(`${sample.date}|${sample.session}`) || 0;
+};
+
 /** Bản lưu mẫu đã duyệt (in được biểu mẫu). */
 export const printableSamples = (samples) => sortSamples(samples).filter((sample) => sample.status === 'APPROVED');
 
