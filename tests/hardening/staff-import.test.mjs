@@ -10,6 +10,7 @@ const {
   validateStaffAccount,
   validateStaffProfile,
   staffExportRows,
+  validateStaffEdit,
 } = await import('@/utils/school-config/staffImport');
 
 const campuses = [
@@ -28,7 +29,7 @@ test('SĐT di động Việt Nam: chuẩn hóa +84, dấu cách, mất số 0 đ
 });
 
 test('AUTH-15: form tạo bắt buộc họ tên, SĐT, vai trò, điểm trường; không còn chọn lớp; email đúng định dạng', () => {
-  const empty = validateStaffAccount({ role: 'TEACHER' }, { campuses, teacherCampusRequired: true });
+  const empty = validateStaffAccount({ role: 'TEACHER' }, { campuses });
   assert.deepEqual(Object.keys(empty).sort(), ['campusId', 'email', 'fullName', 'phone']);
   const vp = validateStaffAccount({ fullName: 'A', phone: '0912345678', email: 'x@', role: 'VICE_PRINCIPAL' }, { campuses });
   assert.deepEqual(Object.keys(vp).sort(), ['campusId', 'email']);
@@ -40,11 +41,11 @@ test('AUTH-15: form tạo bắt buộc họ tên, SĐT, vai trò, điểm trư�
   assert.equal(unknown.campusId, 'Điểm trường không tồn tại');
 });
 
-test('AUTH-15: Hiệu trưởng tạo GV được bỏ trống điểm trường; PHT, bếp vẫn bắt buộc', () => {
+test('AUTH-15 (chốt 21/11/2026): mọi vai trò, kể cả GV do Hiệu trưởng tạo, bắt buộc cơ sở công tác', () => {
   const base = { fullName: 'A', phone: '0912345678', email: 'a@x.vn' };
-  assert.deepEqual(validateStaffAccount({ ...base, role: 'TEACHER' }, { campuses }), {});
+  assert.equal(validateStaffAccount({ ...base, role: 'TEACHER' }, { campuses }).campusId, 'Vui lòng chọn cơ sở công tác');
   assert.ok(validateStaffAccount({ ...base, role: 'KITCHEN_STAFF' }, { campuses }).campusId);
-  assert.ok(validateStaffAccount({ ...base, role: 'TEACHER' }, { campuses, teacherCampusRequired: true }).campusId);
+  assert.deepEqual(validateStaffAccount({ ...base, role: 'TEACHER', campusId: '1' }, { campuses }), {});
 });
 
 test('AUTH-15: email bắt buộc với Phó hiệu trưởng và Giáo viên, bếp được bỏ trống; SĐT 11 số bị từ chối', () => {
@@ -70,6 +71,14 @@ test('AUTH-25: sửa thông tin tài khoản kiểm họ tên, email như lúc t
   });
 });
 
+test('AUTH-15: sửa hồ sơ GV gửi kèm cơ sở công tác và bắt buộc chọn; vai trò khác không gửi', () => {
+  const form = { fullName: 'Lan', email: 'lan@x.vn', workCampusId: '2' };
+  assert.deepEqual(toProfilePayload(form, 'TEACHER'), { fullName: 'Lan', email: 'lan@x.vn', workCampusId: '2' });
+  assert.deepEqual(toProfilePayload(form, 'KITCHEN_STAFF'), { fullName: 'Lan', email: 'lan@x.vn' });
+  assert.equal(validateStaffEdit({ ...form, workCampusId: '' }, 'TEACHER').workCampusId, 'Vui lòng chọn cơ sở công tác');
+  assert.deepEqual(validateStaffEdit({ ...form, workCampusId: '' }, 'KITCHEN_STAFF'), {});
+});
+
 test('AUTH-15: payload POST /accounts chỉ gửi điểm trường, không có classroomId; SĐT chuẩn hóa, email trống thành null', () => {
   const teacher = { fullName: ' Lan ', phone: '+84912345678', email: '', role: 'TEACHER', campusId: '1', classroomId: '11' };
   assert.deepEqual(toCreatePayload(teacher), {
@@ -79,7 +88,10 @@ test('AUTH-15: payload POST /accounts chỉ gửi điểm trường, không có 
     role: 'TEACHER',
     assignment: { campusId: '1' },
   });
-  assert.equal(toCreatePayload({ fullName: 'Lan', phone: '0912345678', role: 'TEACHER', campusId: '' }).assignment, null);
+  // GV luôn gửi cơ sở công tác; trống thì BE trả lỗi gắn ô campusId (AUTH-15)
+  assert.deepEqual(toCreatePayload({ fullName: 'Lan', phone: '0912345678', role: 'TEACHER', campusId: '' }).assignment, {
+    campusId: null,
+  });
   assert.deepEqual(toCreatePayload({ fullName: 'B', phone: '0912345679', role: 'KITCHEN_STAFF', campusId: '2' }).assignment, {
     campusId: '2',
   });
@@ -122,10 +134,11 @@ test('AUTH-15: file mẫu cũ còn cột Lớp vẫn nhập được, cột Lớ
   assert.deepEqual(toCreatePayload(items[0].form).assignment, { campusId: '1' });
 });
 
-test('nhập Excel: GV không có điểm trường hợp lệ khi người nhập là Hiệu trưởng', () => {
+test('nhập Excel (Q2 chốt 21/11/2026): GV thiếu cột điểm trường ⇒ lỗi dòng, kể cả người nhập là Hiệu trưởng', () => {
   const rows = [STAFF_COLUMNS, ['Nguyễn Lan', '0912345678', 'lan@x.vn', 'Giáo viên', '']];
-  assert.equal(matchStaffRows(rows, { campuses }).items.length, 1);
-  assert.equal(matchStaffRows(rows, { campuses, teacherCampusRequired: true }).errors.length, 1);
+  const { items, errors } = matchStaffRows(rows, { campuses });
+  assert.equal(items.length, 0);
+  assert.match(errors[0].reason, /Vui lòng chọn cơ sở công tác/);
 });
 
 test('nhập Excel: sai dòng tiêu đề hoặc thiếu sheet thì báo lỗi, không tạo gì', () => {
@@ -139,4 +152,35 @@ test('xuất Excel: cột file mẫu trước, thêm lớp đang dạy và trạ
   ]);
   assert.deepEqual(head, [...STAFF_COLUMNS, 'Lớp đang dạy', 'Trạng thái']);
   assert.deepEqual(row, ['A', '0912345678', '', 'Giáo viên', 'CS1', 'Mầm 1', 'Đã vô hiệu hóa']);
+});
+
+test('AUTH-15: ô cơ sở công tác bỏ điểm trường ngừng hoạt động; PHT chỉ thấy điểm trường mình phụ trách', async () => {
+  const { workCampusOptions } = await import('@/utils/school-config/schoolConfigPermissions');
+  const list = [
+    { id: '1', name: 'CS1' },
+    { id: '2', name: 'CS2' },
+    { id: '3', name: 'CS3', status: 'INACTIVE' },
+  ];
+  assert.deepEqual(
+    workCampusOptions(list, { role: 'PRINCIPAL' }).map((c) => c.id),
+    ['1', '2'],
+  );
+  assert.deepEqual(
+    workCampusOptions(list, { role: 'VICE_PRINCIPAL', locationIds: ['2'] }).map((c) => c.id),
+    ['2'],
+  );
+});
+
+test('AUTH-15 (Q1=b): xếp GV của cơ sở khác vào lớp thì hỏi xác nhận; GV chưa có cơ sở không tính', async () => {
+  const { teachersFromOtherCampus } = await import('@/utils/school-config/schoolConfigValidation');
+  const teachers = [
+    { id: '7', fullName: 'A', campusId: '1' },
+    { id: '8', fullName: 'B', campusId: '2' },
+    { id: '9', fullName: 'C', campusId: null },
+  ];
+  assert.deepEqual(
+    teachersFromOtherCampus(['7', '8', '9'], teachers, '1').map((t) => t.id),
+    ['8'],
+  );
+  assert.deepEqual(teachersFromOtherCampus(['7'], teachers, 1), []);
 });

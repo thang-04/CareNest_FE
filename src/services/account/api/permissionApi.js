@@ -76,7 +76,13 @@ export const permissionApi = {
     const scopeOf = (item) => item.scope ?? keptScope(item) ?? null;
     return axiosClient.put(`/accounts/${userId}/permission-overrides`, {
       reason,
-      overrides: overrides.map((item) => ({ permission: item.permission, effect: item.effect, scope: scopeOf(item) })),
+      overrides: overrides.map((item) => ({
+        permission: item.permission,
+        effect: item.effect,
+        scope: scopeOf(item),
+        // Điểm trường giao cụ thể (AUTH-20); không gửi ⇒ điểm trường PHT đang phân công
+        ...(item.campusId != null ? { campusId: item.campusId } : {}),
+      })),
     });
   },
   getPermissionChangeLogs: ({ targetRole, targetUserId, page = 0, size = 20 } = {}) =>

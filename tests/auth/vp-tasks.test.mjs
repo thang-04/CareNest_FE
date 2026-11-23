@@ -21,7 +21,7 @@ const {
   vpViewOff,
 } = await import('@/utils/account/vpTasks');
 
-const item = (code, { roleOn = false, on = roleOn, effect = 'INHERIT', scope = null, campusScoped = false } = {}) => ({
+const item = (code, { roleOn = false, on = roleOn, effect = 'INHERIT', scope = null, campusScoped = false, campusId = null } = {}) => ({
   code,
   label: code,
   roleOn,
@@ -29,6 +29,7 @@ const item = (code, { roleOn = false, on = roleOn, effect = 'INHERIT', scope = n
   effect,
   scope,
   campusScoped,
+  campusId,
 });
 
 // Mặc định của PHT theo seed: số suất và hồ sơ trẻ bật, mã bán trú còn lại tắt
@@ -243,4 +244,60 @@ test('AUTH-10: dòng bảng gom mã của mọi người theo thứ tự mảng'
     areas[0].tasks.map((t) => t.code),
     ['MENU_MANAGE', 'NUTRITION_MANAGE', 'MEAL_COUNT_CONFIRM', 'STOCK_MANAGE', 'FOOD_SAFETY_APPROVE'],
   );
+});
+
+test('AUTH-20: giao tại điểm trường khác gửi GRANT kèm điểm trường, kể cả việc vai trò mặc định đã bật', () => {
+  const list = items();
+  const draft = setVpCell(setVpCell(vpDraftOf(list), 'MEAL_COUNT_CONFIRM', 'C:3'), 'STOCK_MANAGE', 'C:3');
+  assert.deepEqual(vpOverridesFromDraft(list, draft), [
+    { permission: 'MEAL_COUNT_CONFIRM', effect: 'GRANT', scope: 'CAMPUS', campusId: '3' },
+    { permission: 'STOCK_MANAGE', effect: 'GRANT', scope: 'CAMPUS', campusId: '3' },
+  ]);
+});
+
+test('AUTH-20: chọn lại điểm trường phụ trách bỏ nơi giao cụ thể; đổi nơi giao là một thay đổi', () => {
+  const saved = items().map((i) => (i.code === 'STOCK_MANAGE' ? { ...i, on: true, effect: 'GRANT', scope: 'CAMPUS', campusId: 3 } : i));
+  const draft = vpDraftOf(saved);
+  assert.deepEqual(draft.STOCK_MANAGE, { on: true, scope: 'CAMPUS', campusId: '3' });
+  assert.deepEqual(vpDraftChanges(saved, draft), []);
+
+  const moved = setVpCell(draft, 'STOCK_MANAGE', 'C:2');
+  assert.deepEqual(
+    vpDraftChanges(saved, moved).map((i) => i.code),
+    ['STOCK_MANAGE'],
+  );
+
+  const own = setVpCell(draft, 'STOCK_MANAGE', 'CAMPUS');
+  assert.deepEqual(
+    vpOverridesFromDraft(saved, own).find((o) => o.permission === 'STOCK_MANAGE'),
+    { permission: 'STOCK_MANAGE', effect: 'GRANT', scope: 'CAMPUS' },
+  );
+});
+
+test('AUTH-20: ô chọn nơi liệt kê điểm trường phụ trách, các điểm trường khác rồi cả trường', () => {
+  const tasks = new Map(vpAreasView(items()).flatMap((area) => area.tasks.map((t) => [t.code, t])));
+  const campuses = [{ id: 1 }, { id: 2 }, { id: 3 }];
+  assert.deepEqual(vpCellOptions(tasks.get('STOCK_MANAGE'), campuses, 2), ['VIEW', 'CAMPUS', 'C:1', 'C:3', 'SCHOOL']);
+});
+
+test('AUTH-20: điểm trường giao cụ thể được tính là đã có người sửa ở điểm trường đó', () => {
+  const pinned = items().map((i) => (i.code === 'STOCK_MANAGE' ? { ...i, on: true, effect: 'GRANT', scope: 'CAMPUS', campusId: 2 } : i));
+  const gaps = vpTaskGaps(
+    [{ campusId: '1', items: pinned, draft: vpDraftOf(pinned) }],
+    [
+      { id: '1', shortName: 'Cơ sở 1' },
+      { id: '2', shortName: 'Cơ sở 2' },
+    ],
+  );
+  assert.deepEqual(gaps.STOCK_MANAGE, { campuses: ['Cơ sở 1'] });
+});
+
+test('AUTH-20: tên điểm trường trùng nhau thì kèm mã', async () => {
+  const { vpCampusLabels } = await import('@/utils/account/vpTasks');
+  const labels = vpCampusLabels([
+    { id: 1, shortName: 'Cơ sở A', code: 'CS1' },
+    { id: 2, shortName: 'Cơ sở A', code: 'CS2' },
+    { id: 3, shortName: 'Cơ sở B', code: 'CS3' },
+  ]);
+  assert.deepEqual([...labels.values()], ['Cơ sở A (CS1)', 'Cơ sở A (CS2)', 'Cơ sở B']);
 });

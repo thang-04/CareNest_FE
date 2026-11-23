@@ -1,7 +1,13 @@
 import { Link, useParams } from 'react-router-dom';
-import { ErrorState, LoadingState, PageHeader, PageToolbar, StatusBadge } from '@/components';
+import { ErrorState, LoadingState, PageHeader, PageToolbar, RichBody, StatusBadge } from '@/components';
 import { ArrowLeft, Pencil } from '@/components/ui/icons';
-import { AnnouncementSection, recipientRoleLabels, scheduleRepeatLabel, scopeLabels } from '@/components/announcement/announcementUi';
+import {
+  AnnouncementSection,
+  recipientRoleLabels,
+  scheduleRangeLabel,
+  scheduleRepeatLabel,
+  scopeLabels,
+} from '@/components/announcement/announcementUi';
 import AnnouncementAttachments from '@/components/announcement/AnnouncementAttachments';
 import { announcements } from '@/services/announcement/announcementService';
 import { useAuth } from '@/contexts/AuthContext';
@@ -18,20 +24,21 @@ export default function AnnouncementScheduleDetailPage() {
         title="Chi tiết lịch gửi"
         crumbs={[
           { label: 'Trang chủ', to: '/' },
-          { label: 'Lịch gửi thông báo', to: '/announcement-schedules' },
+          { label: 'Cấu hình thông báo', to: '/notification-settings' },
+          { label: 'Lịch gửi thông báo', to: '/notification-settings?tab=schedules' },
           { label: 'Chi tiết lịch gửi' },
         ]}
       />
       <PageToolbar
         aria-label="Thao tác chi tiết lịch gửi"
         leading={
-          <Link className="btn btn--sm btn--outline-primary" to="/announcement-schedules">
+          <Link className="btn btn--sm" to="/notification-settings?tab=schedules">
             <ArrowLeft size={15} aria-hidden="true" /> Quay lại
           </Link>
         }
       >
         {data && (
-          <Link className="btn btn--sm btn--outline-primary" to={`/announcement-schedules/${id}/edit`}>
+          <Link className="btn btn--sm btn--primary" to={`/announcement-schedules/${id}/edit`}>
             <Pencil size={15} aria-hidden="true" /> Sửa lịch gửi
           </Link>
         )}
@@ -64,6 +71,10 @@ export default function AnnouncementScheduleDetailPage() {
                   <dd>{data.sendTime?.slice(0, 5) || '—'}</dd>
                 </div>
                 <div>
+                  <dt>Khoảng ngày</dt>
+                  <dd>{scheduleRangeLabel(data) || 'Không giới hạn'}</dd>
+                </div>
+                <div>
                   <dt>Lần gửi tiếp theo</dt>
                   <dd>{data.active ? formatDateTime(data.nextRunAt) : '—'}</dd>
                 </div>
@@ -83,7 +94,7 @@ export default function AnnouncementScheduleDetailPage() {
             </AnnouncementSection>
             <AnnouncementSection title="Nội dung thông báo">
               <h2 className="announcement-document__title">{data.title}</h2>
-              <div className="announcement-body">{data.body}</div>
+              <RichBody html={data.bodyHtml} text={data.body} className="announcement-body" />
             </AnnouncementSection>
             <AnnouncementSection title="Tệp đính kèm">
               <AnnouncementAttachments existing={data.attachments || []} readOnly />

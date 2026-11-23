@@ -1,7 +1,7 @@
 import { useToast } from '@/contexts/ToastContext';
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Button, Checkbox, ConfirmationModal, DataTable, Pagination, RowActions, SelectField } from '@/components';
+import { useNavigate } from 'react-router-dom';
+import { Button, Checkbox, ConfirmationModal, DataTable, ListPage, Pagination, RowActions, SelectField } from '@/components';
 import {
   emptyAnnouncementSelection,
   toggleAnnouncementSelection,
@@ -13,7 +13,6 @@ import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { Plus, FileText, Trash2 } from '@/components/ui/icons';
 import {
   AnnouncementAlert,
-  AnnouncementHeader,
   AnnouncementStatusBadge,
   announcementStatusLabels,
   scopeLabels,
@@ -25,6 +24,7 @@ import { formatDateTime } from '@/utils/format';
 
 export default function AnnouncementsPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const [q, setQ] = useState('');
   const [status, setStatus] = useState('');
@@ -63,58 +63,63 @@ export default function AnnouncementsPage() {
     }
   };
   return (
-    <div className="page page--toolbar announcement-page">
-      <AnnouncementHeader
+    <>
+      <ListPage
+        crumbs={[{ label: 'Trang chủ', to: '/' }, { label: 'Thông báo nhà trường' }]}
         title="Thông báo nhà trường"
-        summary={data ? `${data.totalElements} thông báo` : 'Thông báo đã tạo'}
-        actions={
+        filters={
           <>
-            <Button size="sm" variant="outline-danger" icon={Trash2} disabled={busy || loading || !selectedCount} onClick={requestDelete}>
-              Xóa đã chọn{selectedCount ? ` (${selectedCount})` : ''}
-            </Button>
-            <Link className="btn btn--sm btn--outline-primary" to="/announcement-templates">
-              <FileText size={15} aria-hidden="true" /> Mẫu thông báo
-            </Link>
-            <Link className="btn btn--sm btn--outline-primary" to="/announcements/new">
-              <Plus size={15} aria-hidden="true" /> Soạn thông báo
-            </Link>
+            {!pending && <AnnouncementAlert>{actionError}</AnnouncementAlert>}
+            <div className="filter-bar filter-bar--aligned">
+              <SearchSubmit
+                className="flex-1"
+                value={q}
+                label="Tìm thông báo"
+                placeholder="Tìm tiêu đề hoặc nội dung"
+                onSearch={(value) => {
+                  setQ(value);
+                  setPage(1);
+                  setSelection(emptyAnnouncementSelection());
+                }}
+              />
+              <SelectField
+                aria-label="Trạng thái"
+                value={status}
+                onChange={(event) => {
+                  setStatus(event.target.value);
+                  setPage(1);
+                  setSelection(emptyAnnouncementSelection());
+                }}
+              >
+                <option value="">Tất cả trạng thái</option>
+                {Object.entries(announcementStatusLabels).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </SelectField>
+              <div className="filter-bar__end">
+                {selectedCount > 0 && (
+                  <Button variant="outline-danger" icon={Trash2} disabled={busy || loading} onClick={requestDelete}>
+                    Xóa đã chọn ({selectedCount})
+                  </Button>
+                )}
+                <Button icon={FileText} onClick={() => navigate('/notification-settings')}>
+                  Mẫu thông báo
+                </Button>
+                <Button variant="primary" icon={Plus} onClick={() => navigate('/announcements/new')}>
+                  Soạn thông báo
+                </Button>
+              </div>
+            </div>
           </>
         }
-      />
-      {!pending && <AnnouncementAlert>{actionError}</AnnouncementAlert>}
-      <section className="card">
-        <div className="filter-bar">
-          <SearchSubmit
-            value={q}
-            label="Tìm thông báo"
-            placeholder="Tìm tiêu đề hoặc nội dung"
-            onSearch={(value) => {
-              setQ(value);
-              setPage(1);
-              setSelection(emptyAnnouncementSelection());
-            }}
-          />
-          <SelectField
-            label="Trạng thái"
-            value={status}
-            onChange={(event) => {
-              setStatus(event.target.value);
-              setPage(1);
-              setSelection(emptyAnnouncementSelection());
-            }}
-          >
-            <option value="">Tất cả trạng thái</option>
-            {Object.entries(announcementStatusLabels).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </SelectField>
-        </div>
+      >
         <DataTable
           loading={loading}
           error={error}
           onRetry={reload}
+          onRowClick={(item) => navigate(`/announcements/${item.id}`)}
           rows={data?.items}
           empty={{ title: 'Chưa có thông báo nhà trường', description: 'Soạn thông báo và chọn người nhận để bắt đầu.' }}
           columns={[
@@ -152,9 +157,14 @@ export default function AnnouncementsPage() {
             },
             { key: 'index', header: 'STT', className: 'center', render: (item) => (page - 1) * 20 + data.items.indexOf(item) + 1 },
             { key: 'title', header: 'Tiêu đề', render: (item) => <span className="fw-600">{item.title}</span> },
-            { key: 'scope', header: 'Phạm vi', render: (item) => scopeLabels[item.target?.scopeType] || '—' },
+            { key: 'scope', header: 'Phạm vi', className: 'center', render: (item) => scopeLabels[item.target?.scopeType] || '—' },
             { key: 'senderName', header: 'Người gửi' },
-            { key: 'sendAt', header: 'Thời gian gửi', render: (item) => formatDateTime(item.sentAt || item.sendAt) },
+            {
+              key: 'sendAt',
+              header: 'Thời gian gửi',
+              className: 'center',
+              render: (item) => formatDateTime(item.sentAt || item.sendAt),
+            },
             { key: 'recipientCount', header: 'Số người nhận', className: 'center' },
             {
               key: 'status',
@@ -169,7 +179,6 @@ export default function AnnouncementsPage() {
               render: (item) => (
                 <RowActions
                   name={item.title}
-                  view={{ to: `/announcements/${item.id}`, label: 'Xem chi tiết' }}
                   edit={item.canEdit ? { to: `/announcements/${item.id}/edit` } : undefined}
                   menu={
                     item.canDelete
@@ -195,7 +204,7 @@ export default function AnnouncementsPage() {
           ]}
         />
         {data && !error && <Pagination page={page} pageSize={data.size} total={data.totalElements} onChange={setPage} unit="thông báo" />}
-      </section>
+      </ListPage>
       <ConfirmationModal
         open={!!pending}
         title={`Xóa ${pending?.count || 0} thông báo đã chọn?`}
@@ -206,6 +215,6 @@ export default function AnnouncementsPage() {
         onConfirm={remove}
         onClose={() => setPending(null)}
       />
-    </div>
+    </>
   );
 }

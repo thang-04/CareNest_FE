@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Button, ErrorState, LoadingState, PageHeader, PageToolbar, StatusBadge } from '@/components';
+import { Button, ErrorState, LoadingState, PageHeader, PageToolbar, RichBody, StatusBadge } from '@/components';
 import { ArrowLeft, Download, ExternalLink } from '@/components/ui/icons';
 import { StatusPage } from '@/components/ui/StatusPage';
 import { useNotificationDetail } from '@/hooks/account/useAccount';
@@ -82,7 +82,13 @@ export default function NotificationDetailPage() {
           </div>
           <div className="card__body">
             <h2 className="ac-notif__title">{notification.title}</h2>
-            <div className="ac-notif__message">{notification.message}</div>
+            {notification.bodyHtml ? (
+              <div className="ac-notif__message">
+                <RichBody html={notification.bodyHtml} text={notification.message} />
+              </div>
+            ) : (
+              <div className="ac-notif__message">{notification.message}</div>
+            )}
           </div>
         </section>
         {notification.attachments?.length > 0 && (

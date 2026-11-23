@@ -1,17 +1,36 @@
 import { useState } from 'react';
 import { Phone, Save, UserRound } from '@/components/ui/icons';
-import { StaffFormSection, StaffIdentityCard } from '@/components/school-config/StaffAccountFormParts';
+import { StaffFormSection, StaffIdentityCard, WorkCampusField } from '@/components/school-config/StaffAccountFormParts';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
+import { useMasterData } from '@/hooks/useMasterData';
+import { ROLES } from '@/models/User';
+import { workCampusOptions } from '@/utils/school-config/schoolConfigPermissions';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { TextField } from '@/components/form/Field';
 import { updateStaffAccountProfile } from '@/services/school-config/schoolConfigService';
-import { EMAIL_MAX, NAME_MAX, emailRequired, toProfilePayload, validateStaffProfile } from '@/utils/school-config/staffImport';
+import { EMAIL_MAX, NAME_MAX, emailRequired, toProfilePayload, validateStaffEdit } from '@/utils/school-config/staffImport';
 
-/** Sửa thông tin tài khoản nhân sự nối BE (AUTH-25): họ tên, email. Vai trò, điểm trường, trạng thái đổi ở chức năng riêng. */
+/**
+ * Sửa thông tin tài khoản nhân sự nối BE (AUTH-25): họ tên, email; GV thêm cơ sở công tác (AUTH-15). Vai trò, phân công điểm
+ * trường của PHT / bếp, trạng thái đổi ở chức năng riêng.
+ */
 export function StaffAccountEditModal({ account, onClose }) {
   const toast = useToast();
-  const [form, setForm] = useState({ fullName: account.fullName || '', email: account.email || '' });
+  const { user } = useAuth();
+  const md = useMasterData();
+  const teacher = account.role === ROLES.TEACHER;
+  const [form, setForm] = useState({
+    fullName: account.fullName || '',
+    email: account.email || '',
+    workCampusId: account.workCampusId ? String(account.workCampusId) : '',
+  });
+  // Cơ sở hiện tại của GV luôn có trong danh sách dù ngoài phạm vi chọn của người sửa
+  const campuses = workCampusOptions(md.campuses, user);
+  const currentCampus = md.campusById(form.workCampusId);
+  const campusOptions =
+    currentCampus && !campuses.some((c) => String(c.id) === String(currentCampus.id)) ? [currentCampus, ...campuses] : campuses;
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const set = (patch) => {
@@ -19,16 +38,16 @@ export function StaffAccountEditModal({ account, onClose }) {
     setErrors((e) => Object.fromEntries(Object.entries(e).filter(([k]) => !(k in patch) && k !== '_form')));
   };
   const blur = (field) => {
-    const e = validateStaffProfile(form, account.role);
+    const e = validateStaffEdit(form, account.role);
     if (e[field]) setErrors((prev) => ({ ...prev, [field]: e[field] }));
   };
   const save = async () => {
-    const e = validateStaffProfile(form, account.role);
+    const e = validateStaffEdit(form, account.role);
     setErrors(e);
     if (Object.keys(e).length) return;
     setSaving(true);
     try {
-      await updateStaffAccountProfile(account.userId, toProfilePayload(form));
+      await updateStaffAccountProfile(account.userId, toProfilePayload(form, account.role));
       toast.success('Đã lưu thông tin tài khoản.', form.fullName.trim());
       onClose(true);
     } catch (err) {
@@ -80,11 +99,25 @@ export function StaffAccountEditModal({ account, onClose }) {
             onChange={(e) => set({ email: e.target.value })}
             onBlur={() => blur('email')}
           />
+          {teacher && (
+            <WorkCampusField
+              campuses={campusOptions}
+              role={account.role}
+              error={errors.workCampusId}
+              value={form.workCampusId}
+              onChange={(workCampusId) => set({ workCampusId })}
+              onBlur={() => blur('workCampusId')}
+            />
+          )}
         </StaffFormSection>
         <StaffFormSection
           icon={Phone}
           title="Đăng nhập"
-          description="Vai trò, điểm trường và trạng thái đổi ở chức năng riêng, không sửa ở đây."
+          description={
+            teacher
+              ? 'Vai trò và trạng thái đổi ở chức năng riêng, không sửa ở đây.'
+              : 'Vai trò, điểm trường và trạng thái đổi ở chức năng riêng, không sửa ở đây.'
+          }
         >
           <TextField
             label="Số điện thoại (tên đăng nhập)"
