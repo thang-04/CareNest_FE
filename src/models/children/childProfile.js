@@ -48,6 +48,17 @@ export const MEDICAL_HISTORY_ITEMS = [
   { key: 'tbContact', label: 'Tiền sử tiếp xúc với người bệnh lao', withText: false, dateLabel: 'Ngày tiếp xúc gần nhất' },
 ];
 
+// BE giữ tiền sử là một chuỗi (tối đa 300 ký tự); UI tách thành từng mục theo ";" và nối lại bằng "; " (Q5(a) 24/11).
+export const HISTORY_TEXT_MAX = 300;
+export const splitHistoryText = (text) =>
+  String(text || '')
+    .split(';')
+    .map((x) => x.trim())
+    .filter(Boolean);
+export const joinHistoryText = (items) => items.join('; ');
+// Mục tự gõ không được chứa ";" vì sẽ bị tách thành hai mục khi đọc lại.
+export const cleanHistoryItem = (text) => text.replace(/;/g, ',');
+
 export const MEDICAL_HISTORY_STATE_LABELS = { REPORTED: 'Có', NONE_REPORTED: 'Không', NOT_PROVIDED: 'Chưa cung cấp' };
 
 export const PREMATURE_LABELS = { YES: 'Có', NO: 'Không', '': 'Chưa cung cấp' };

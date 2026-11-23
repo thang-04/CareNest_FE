@@ -8,18 +8,19 @@ import { emptyDeclaration } from '@/utils/children/childrenHelpers';
 const source = await readFile(new URL('../../src/components/children/HealthDeclarationFields.jsx', import.meta.url), 'utf8');
 // Checkbox stub ghi lại props để test gọi onChange (renderToStaticMarkup không bắn được sự kiện).
 const stubs = `import React, { useId, useState } from 'react';
-const Plus=()=>null,X=()=>null;
+const ChipListInput=({id,ariaLabel,error})=>React.createElement('input',{id:ariaLabel?undefined:id,className:error?'input is-invalid':'input','aria-invalid':error?true:undefined,'aria-label':ariaLabel});
 const FormField=({children})=>children;
 const IntakeSheet=({title,children})=>React.createElement('div',null,React.createElement('h2',null,title),children);
 const IntakeChoiceRow=({label,children})=>React.createElement('div',null,label,children);
 const Checkbox=(props)=>{globalThis.__checkbox=props;return React.createElement('input',{type:'checkbox',checked:props.checked,readOnly:true,'aria-describedby':props['aria-describedby']});};
 const ALLERGY_STATE_LABELS={},DIET_STATE_LABELS={},NOTE_STATE_LABELS={},MEDICAL_HISTORY_STATE_LABELS={};
 const DECLARATION_STATE={REPORTED:'REPORTED',NONE_REPORTED:'NONE_REPORTED',NOT_PROVIDED:'NOT_PROVIDED'};
+const HISTORY_TEXT_MAX=300,cleanHistoryItem=(x)=>x,joinHistoryText=(x)=>x.join('; '),splitHistoryText=(x)=>String(x||'').split(';').map((y)=>y.trim()).filter(Boolean);
 const MEDICAL_HISTORY_ITEMS=[{key:'self',label:'Tiền sử bản thân',textLabel:'Tên bệnh của trẻ',withText:true}];
 const emptyMedicalHistory=()=>({self:{state:null,text:'',contactDate:''}});
 const todayInput=()=>'2026-11-18';
 `;
-const { code } = await transformWithOxc(stubs + source.replace(/^import .*;\r?\n/gm, ''), 'HealthDeclarationFields.jsx', {
+const { code } = await transformWithOxc(stubs + source.replace(/^import [^;]*;\r?\n/gm, ''), 'HealthDeclarationFields.jsx', {
   lang: 'jsx',
   jsx: { runtime: 'classic' },
 });
