@@ -288,10 +288,6 @@ export const educationPlanApi = {
     const refs = buildRefs(await loadConfig());
     return toUiGoal(await axiosClient.post(`${GOALS}/${serverId(id) ?? id}/unlock`, body), refs);
   },
-  reopenGoalReviewDeadline: async (id, body) => {
-    const refs = buildRefs(await loadConfig());
-    return toUiGoal(await axiosClient.post(`${GOALS}/${serverId(id) ?? id}/review-deadline/reopen`, body), refs);
-  },
   getGoalChanges: (id, fromId) =>
     axiosClient.get(`${GOALS}/${serverId(id) ?? id}/changes`, { params: fromId ? { fromPlanId: serverId(fromId) ?? fromId } : {} }),
   deleteGoal: async (id, revision) => {

@@ -68,7 +68,7 @@ export default function OverduePlansPage() {
 
 function OverduePlansForYear({ schoolYearId }) {
   const id = useId();
-  const { user, goals: mainGoals, actOnClassDoc, unlockGoal, reopenGoalReviewDeadline } = useEducationPlan();
+  const { user, goals: mainGoals, actOnClassDoc, unlockGoal } = useEducationPlan();
   const [params, setParams] = useSearchParams();
   const board = useAsync(() => getOverduePlans(user, schoolYearId), [user.id, schoolYearId], {
     enabled: !!schoolYearId,
@@ -124,11 +124,10 @@ function OverduePlansForYear({ schoolYearId }) {
     const failed = {};
     for (const r of target) {
       let message = '';
+      // EDU-109 (9): một thao tác Mở hạn cho cả quá hạn gửi lẫn duyệt
       const ok = r.planId
-        ? r.reviewLocked
-          ? await reopenGoalReviewDeadline(r.planId, { note, deadline })
-          : await unlockGoal(r.planId, { note, deadline })
-        : await actOnClassDoc(r.kind, r.docKey, { action: r.reviewLocked ? 'reopen_review_deadline' : 'extend', note, deadline }, user, {
+        ? await unlockGoal(r.planId, { note, deadline })
+        : await actOnClassDoc(r.kind, r.docKey, { action: 'extend', note, deadline }, user, {
             version: r.version,
             onError: (err) => (message = err.message),
           });
@@ -374,18 +373,7 @@ function OverduePlansForYear({ schoolYearId }) {
       )}
       {target && (
         <ExtendDeadlineModal
-          title={
-            target.every((r) => r.reviewLocked)
-              ? target.length > 1
-                ? `Mở lại hạn duyệt ${target.length} kế hoạch`
-                : `Mở lại hạn duyệt: ${target[0].title}`
-              : target.length > 1
-                ? `Mở hạn ${target.length} kế hoạch`
-                : `Mở hạn: ${target[0].title}`
-          }
-          confirmLabel={
-            target.every((r) => r.reviewLocked) ? 'Mở lại hạn duyệt' : target.some((r) => r.reviewLocked) ? 'Mở hạn' : 'Mở hạn gửi'
-          }
+          title={target.length > 1 ? `Mở hạn ${target.length} kế hoạch` : `Mở hạn: ${target[0].title}`}
           onClose={() => setTarget(null)}
           onConfirm={extend}
         />

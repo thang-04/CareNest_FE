@@ -146,8 +146,8 @@ const decorate = (db, doc, user, kind = doc.kind) => {
     version: doc.version ?? 0,
     dossierVersion: kind === 'week' ? (root?.version ?? null) : null,
     review,
-    // EDU-109: qua hạn mở lại thì khóa lại, Hiệu trưởng mở tiếp được (lặp lại)
-    ...(doc.reviewDeadline?.reopenUntil && new Date().toISOString().slice(0, 10) > doc.reviewDeadline.reopenUntil
+    // EDU-109 (9): khóa lại TỪ ngày hạn mở (không phải hết ngày đó), Hiệu trưởng mở tiếp được (lặp lại)
+    ...(doc.reviewDeadline?.reopenUntil && new Date().toISOString().slice(0, 10) >= doc.reviewDeadline.reopenUntil
       ? { reviewDeadline: { ...doc.reviewDeadline, locked: true } }
       : {}),
     superseded: isSuperseded(db, doc.yearPlanId),
@@ -490,17 +490,15 @@ export const classPlanMockRepository = {
           d.history = [...(d.history || []), i === 0 ? e : { ...e, action: `${e.action} (kế hoạch chủ đề)` }];
         });
 
-      // EDU-97: mock giữ hai thao tác khác nhau để UI không coi mở hạn gửi là mở lại hạn duyệt.
+      // EDU-109 (9): một thao tác Mở hạn lùi hạn chung cho gửi và duyệt (reopen_review_deadline cũ xử lý như extend)
       if (action === 'extend' || action === 'reopen_review_deadline') {
         if (!rolesOf(user).includes(ROLES.PRINCIPAL)) fail('EDU_CONFIG_FORBIDDEN');
         if (!note?.trim() || !deadline || deadline <= new Date().toISOString().slice(0, 10)) fail('INVALID_VALUE', 'lý do hoặc hạn mới');
-        if (action === 'reopen_review_deadline' && doc.status !== 'REVIEW') fail('INVALID_VALUE', 'chỉ mở lại hạn duyệt đã khóa');
         all.forEach((d) => {
-          if (action === 'extend') d.extendedTo = deadline;
-          d.reviewDeadline =
-            action === 'reopen_review_deadline' ? { ...(d.reviewDeadline || {}), locked: false, reopenUntil: deadline } : d.reviewDeadline;
+          d.extendedTo = deadline;
+          if (d.reviewDeadline) d.reviewDeadline = { ...d.reviewDeadline, locked: false, reopenUntil: deadline };
         });
-        log({ ...entry(user, action === 'extend' ? 'Mở hạn gửi' : 'Mở lại hạn duyệt', '', note), action, deadline });
+        log({ ...entry(user, 'Mở hạn', '', note), action: 'extend', deadline });
         return clone(decorate(db, doc, user, kind));
       }
 

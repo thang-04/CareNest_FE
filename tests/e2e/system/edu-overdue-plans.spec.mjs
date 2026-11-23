@@ -92,8 +92,8 @@ test('ST-005-13 HT tích 2 dòng, Mở hạn một lần (lý do + hạn mới) 
   await dialog.getByLabel('Hạn mới').fill(isoPlus(7));
   await dialog.getByLabel('Lý do').fill(`[E2E] Mở hạn hàng loạt ${run}`);
   const calls = [];
-  // EDU-97: bản Chờ duyệt quá hạn duyệt mở lại bằng /review-deadline/reopen
-  page.on('response', (r) => /\/(actions|unlock|review-deadline\/reopen)$/.test(r.url()) && calls.push(r.status()));
+  // EDU-109 (9): một thao tác Mở hạn (actions extend / unlock) cho cả quá hạn gửi và duyệt
+  page.on('response', (r) => /\/(actions|unlock)$/.test(r.url()) && calls.push(r.status()));
   await dialog.getByRole('button', { name: 'Mở hạn' }).click();
   await expect(dialog).toHaveCount(0, { timeout: 30_000 });
   expect(calls).toEqual([200, 200]);

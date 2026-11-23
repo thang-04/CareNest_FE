@@ -304,20 +304,10 @@ export function EducationPlanProvider({ children, yearScoped = true, reviewView 
       unlockGoal: async (id, body) => {
         try {
           const plan = await service.unlockGoal(id, body);
-          if (isActive()) toast('Đã mở khóa kế hoạch');
+          if (isActive()) toast('Đã mở hạn');
           return plan;
         } catch (err) {
           if (isActive()) toastApi.error(err, 'Không mở khóa được');
-          return null;
-        }
-      },
-      reopenGoalReviewDeadline: async (id, body) => {
-        try {
-          const plan = await service.reopenGoalReviewDeadline(id, body);
-          if (isActive()) toast('Đã mở lại hạn duyệt');
-          return plan;
-        } catch (err) {
-          if (isActive()) toastApi.error(err, 'Không mở lại hạn duyệt được');
           return null;
         }
       },

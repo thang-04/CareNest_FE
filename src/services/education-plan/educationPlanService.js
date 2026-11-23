@@ -65,7 +65,6 @@ export const createGoalVersion = (id, user, edit) => (USE_MOCK ? repo.createGoal
 export const getGoalChanges = (id, fromId, user) => repo.getGoalChanges(id, fromId, user);
 // Spec 004 Q5: Hiệu trưởng mở khóa kế hoạch năm/tổ đã khóa theo ngày bắt đầu năm học (mock không khóa nên không có)
 export const unlockGoal = (id, body) => educationPlanApi.unlockGoal(id, body);
-export const reopenGoalReviewDeadline = (id, body) => educationPlanApi.reopenGoalReviewDeadline(id, body);
 // Nhập file bảng mục tiêu (BE:EDU-46): bản xem trước, không lưu
 export const previewGoalFile = (file) => repo.previewGoalFile(file);
 export const previewBranchFile = (file, context, user) =>
