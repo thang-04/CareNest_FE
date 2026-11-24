@@ -213,7 +213,7 @@ export default function MenuStatisticsPage() {
         <div className="card__header">
           <h2 className="card__title">Đánh giá tỉ lệ calo từng bữa{allGroups ? ` · ${group.ageGroupName}` : ''}</h2>
         </div>
-        <StatisticsSessions sessions={group.evaluation?.sessions} />
+        <StatisticsSessions sessions={group.evaluation?.sessions} noQuantity={!group.ingredients?.length} />
       </section>
     </div>
   );
