@@ -32,6 +32,7 @@ import { RowActions } from '@/components/ui/RowActions';
 import { clickableRowProps } from '@/utils/clickableRow';
 import { ChildStatusBadge, PlannedAdmissionBadge } from '@/components/children/ChildBadges';
 import { WithdrawChildModal } from '@/components/children/WithdrawChildModal';
+import { CancelScheduledLeaveModal } from '@/components/children/CancelScheduledLeaveModal';
 import { ImportChildrenModal } from '@/components/children/ImportChildrenModal';
 import { Button } from '@/components/ui/Button';
 import { CHILD_STATUS, CHILD_STATUS_LABELS, GENDER_LABELS, ageLabel } from '@/models/School';
@@ -68,6 +69,7 @@ export default function ChildrenListPage() {
   const { status, keyword, campusId, classId } = filters;
   const [page, setPage] = useState(1);
   const [withdrawing, setWithdrawing] = useState(null);
+  const [cancelingLeave, setCancelingLeave] = useState(null);
   const [importOpen, setImportOpen] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   // Năm đã kết thúc hoặc năm sắp diễn ra chưa tới ngày mở chuẩn bị (CFG-YR-01, CHD-12): chỉ xem
@@ -397,6 +399,7 @@ export default function ChildrenListPage() {
                         </td>
                         <td className="center">
                           {c.plannedAdmission ? <PlannedAdmissionBadge /> : <ChildStatusBadge status={c.status} />}
+                          {c.scheduledLeaveOn && <div className="muted text-sm">Nghỉ từ {formatDate(c.scheduledLeaveOn)}</div>}
                         </td>
                         {showActions && (
                           <td className="cell--actions">
@@ -404,12 +407,20 @@ export default function ChildrenListPage() {
                             <RowActions
                               menu={[
                                 canEditChild(c, user) && { label: 'Sửa hồ sơ', icon: Pencil, to: `/children/${c.id}/edit` },
-                                canWithdrawChild(c, user) && {
-                                  label: 'Cho nghỉ học',
-                                  icon: UserMinus,
-                                  danger: true,
-                                  onClick: () => setWithdrawing(c),
-                                },
+                                // G94-180/CHD-03: đã có lịch nghỉ thì chỉ hủy lịch, cùng quyền với "Cho nghỉ học"
+                                canWithdrawChild(c, user) &&
+                                  (c.scheduledLeaveOn
+                                    ? {
+                                        label: 'Hủy lịch nghỉ',
+                                        icon: UserMinus,
+                                        onClick: () => setCancelingLeave(c),
+                                      }
+                                    : {
+                                        label: 'Cho nghỉ học',
+                                        icon: UserMinus,
+                                        danger: true,
+                                        onClick: () => setWithdrawing(c),
+                                      }),
                               ].filter(Boolean)}
                               name={c.fullName}
                             />
@@ -430,6 +441,14 @@ export default function ChildrenListPage() {
           key={withdrawing.id}
           child={withdrawing}
           onClose={() => setWithdrawing(null)}
+          onDone={() => reload({ silent: true })}
+        />
+      )}
+      {cancelingLeave && (
+        <CancelScheduledLeaveModal
+          key={cancelingLeave.id}
+          child={cancelingLeave}
+          onClose={() => setCancelingLeave(null)}
           onDone={() => reload({ silent: true })}
         />
       )}

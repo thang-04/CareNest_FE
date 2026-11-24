@@ -20,13 +20,14 @@ import { YearLockedNotice } from '@/components/children/YearLockedNotice';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useChildDetail } from '@/hooks/children/useChildRecords';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
+import { Button } from '@/components/ui/Button';
 import { EmptyState, LoadingState } from '@/components/ui/States';
 import { Tabs } from '@/components/ui/Tabs';
 import { ChildStatusBadge, PlannedAdmissionBadge } from '@/components/children/ChildBadges';
 import { ChildAccessState } from '@/components/children/ChildAccessState';
 import { CHILD_STATUS, GENDER_LABELS, ageGroupById, ageLabel } from '@/models/School';
 import { formatDate, formatDateTime } from '@/utils/format';
-import { canEditChild, canOpenChildEdit, canPlaceChild } from '@/utils/children/childrenPermissions';
+import { canEditChild, canOpenChildEdit, canPlaceChild, canWithdrawChild } from '@/utils/children/childrenPermissions';
 import { ChildProfileSummary } from '@/components/children/ChildProfileSummary';
 import { ChildInfoTable } from '@/components/children/ChildInfoTable';
 import { ChildProfileHistory } from '@/components/children/ChildProfileHistory';
@@ -36,6 +37,7 @@ import { AllergyStateBadge, ParentAccountBadge, SmsStatusBadge } from '@/compone
 import { childrenCrumbs } from '@/utils/children/breadcrumbs';
 import { plannedAdmissionNotice } from '@/utils/children/childrenHelpers';
 import { hasScheduledTransfer, isNotStarted, notStartedLabel, scheduledTransferLabel } from '@/utils/children/startDate';
+import { CancelScheduledLeaveModal } from '@/components/children/CancelScheduledLeaveModal';
 import '@/styles/modules/children.css';
 
 const missing = <span className="muted">Chưa có thông tin</span>;
@@ -57,6 +59,7 @@ export default function ChildProfilePage() {
   const md = useMasterData(child?.plannedAdmission?.schoolYearId ?? null);
   const crumbs = childrenCrumbs(child?.fullName || 'Hồ sơ trẻ');
   const [tab, setTab] = useState('overview');
+  const [cancelingLeave, setCancelingLeave] = useState(false);
 
   if (loading)
     return (
@@ -117,6 +120,23 @@ export default function ChildProfilePage() {
         <div className="alert alert--info mb-16" role="status">
           <CalendarClock size={18} />
           <div>{plannedAdmissionNotice(child.plannedAdmission)}</div>
+        </div>
+      )}
+      {/* G94-180/CHD-03: có lịch nghỉ thì trẻ vẫn đang học; hủy lịch cùng quyền với "Cho nghỉ học" */}
+      {child.scheduledLeaveOn && (
+        <div className="alert alert--info mb-16" role="status">
+          <CalendarClock size={18} />
+          <div className="row row--wrap gap-3">
+            <span>
+              Lịch nghỉ học: từ {formatDate(child.scheduledLeaveOn)}
+              {child.scheduledLeaveReason ? <> · Lý do: {child.scheduledLeaveReason}</> : null}
+            </span>
+            {!yearLocked && canWithdrawChild(child, user) && (
+              <Button size="sm" onClick={() => setCancelingLeave(true)}>
+                Hủy lịch nghỉ
+              </Button>
+            )}
+          </div>
         </div>
       )}
       {child.status === CHILD_STATUS.PENDING_PLACEMENT && !child.plannedAdmission && (
@@ -379,6 +399,10 @@ export default function ChildProfilePage() {
         <div role="tabpanel">
           <ChildProfileHistory history={child.history} />
         </div>
+      )}
+
+      {cancelingLeave && (
+        <CancelScheduledLeaveModal child={child} onClose={() => setCancelingLeave(false)} onDone={() => reload({ silent: true })} />
       )}
 
       <div className="page-actions">
