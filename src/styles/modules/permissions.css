@@ -259,6 +259,15 @@
   cursor: not-allowed;
 }
 
+/* Ô soạn/duyệt khóa theo luật (EDU-110): vẫn focus được để đọc lý do, trông như control disabled (.btn:disabled) */
+.perm-check-cell:has(input[aria-disabled='true']),
+.perm-check-cell input[aria-disabled='true'] {
+  cursor: not-allowed;
+}
+.perm-check-cell input[aria-disabled='true'] {
+  opacity: 0.5;
+}
+
 .perm-fixed {
   display: inline-flex;
   min-height: var(--btn-height);

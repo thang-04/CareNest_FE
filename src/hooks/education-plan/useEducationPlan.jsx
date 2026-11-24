@@ -335,7 +335,8 @@ export function EducationPlanProvider({ children, yearScoped = true, reviewView 
       historyEntry: (action, extra = {}) => ({ action, by: user.name, role: ROLE_LABELS[user.role], at: now(), tone: '', ...extra }),
       // Trả bản đã lưu (API thật: id do BE cấp, thay bản tạm cùng id cũ); lỗi thì báo, nạp lại và trả null
       saveGoal: async (item, options = {}) => {
-        const reviewAction = options.action === 'approve' || options.action === 'reject';
+        // publish: HT ban hành thẳng (EDU-110 (8)) đổi trạng thái như duyệt ⇒ nạp lại từ service
+        const reviewAction = ['approve', 'reject', 'publish'].includes(options.action);
         if (!options.silent && !reviewAction) setData((prev) => (prev ? { ...prev, goals: upsert(prev.goals, item) } : prev));
         try {
           const res = await service.saveGoal(item, { ...options, actor: user });

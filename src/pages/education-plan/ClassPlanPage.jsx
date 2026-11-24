@@ -303,12 +303,17 @@ export default function ClassPlanPage() {
                     sendTo={review.sendTo}
                     sendLabel={`Gửi duyệt học kỳ ${pkg.semesterNo}`}
                     can={review.can}
+                    approveLabel={review.approveLabel}
+                    approveAction={review.approveAction}
                     beforeOpen={(next) => {
                       if (next !== 'submit' || !allMissing.length) return true;
                       setShowMissing(true);
                       return false;
                     }}
-                    showSend={!!pkg.permissions?.canEdit || !!pkg.permissions?.canSubmit || (canComposeClassDocs && pkg.status === 'DRAFT')}
+                    showSend={
+                      !review.principalPublish &&
+                      (!!pkg.permissions?.canEdit || !!pkg.permissions?.canSubmit || (canComposeClassDocs && pkg.status === 'DRAFT'))
+                    }
                     notes={untaught.length ? { submit: `MT chưa được dạy ngày nào: ${[...new Set(untaught)].join(', ')}.` } : {}}
                     onAct={act}
                     variant="btn--outline-primary"

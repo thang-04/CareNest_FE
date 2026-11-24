@@ -35,6 +35,7 @@ const PageHead=({actions})=><header>{actions}</header>, FoldAllButton=()=>null, 
 const GoalTable=({fixedCells,readOnly,canAssignContents})=> <div data-table="goals" data-fixed={fixedCells} data-locked={readOnly} data-assign={canAssignContents}/>, FilterableGoalTable=GoalTable, ActionsMenu=()=>null, AiThemeContentModal=()=>null, PrevYearTicksModal=()=>null, History=()=>null, Sparkles=()=>null, sendAiFeedback=async()=>null, ThemeEventTable=({fixedFields,readOnly})=> <div data-table="themes" data-fixed={fixedFields} data-locked={readOnly}/>;
 const PlanTabs=()=> <div role="tablist"/>, Stepper=()=> <nav data-stepper="true"/>;
 const Download=()=>null, FileDown=()=>null, Save=()=>null, X=()=>null, Upload=()=>null, ArrowLeft=()=>null, ArrowRight=()=>null;
+const canPrincipalPublish=()=>false;
 const ReviewActions=()=>null, VersionHistory=()=> <button data-history="true"/>, yearPlanLines=()=>[], LeaveConfirmModal=()=>null, fmtDate=(v)=>v;
 // Như Button thật (@/components/ui/Button): btn + biến thể + cỡ
 const Button = ({variant,size,icon:Icon,loading=false,disabled=false,type='button',className='',children,...rest}) => <button type={type} className={['btn',variant&&'btn--'+variant,size&&'btn--'+size,className].filter(Boolean).join(' ')} disabled={disabled||loading} {...rest}>{Icon && <Icon/>}{children}</button>;
@@ -117,7 +118,7 @@ const DeadlineBadge=()=>null, ExtendDeadlineButton=()=>null;
 const ROLE_LABELS={};
 const YearPlanSourceCard=({plan,source,children})=><section className="ga-plan-section--source" data-source-id={plan.curriculumSourcePlanId} data-source-title={source?.title}>{children}</section>;
 const ROLES={VICE_PRINCIPAL:'vp'}, AGE_GROUPS=[], DOMAINS=[], SCHOOL_SCOPE='Toàn trường', EDU_STATUS={DRAFT:'DRAFT',EDITING:'EDITING',APPROVED:'APPROVED'};
-const isEduVicePrincipal=(u)=>u?.role===ROLES.VICE_PRINCIPAL;
+const isEduVicePrincipal=(u)=>u?.role===ROLES.VICE_PRINCIPAL, canPrincipalPublish=()=>false;
 const plan={id:'test',schoolYearId:1,title:'Kế hoạch thử',status:'DRAFT',domains:[],themes:[],permissions:{canEdit:true}};
 export const detailContext={schoolYearId:1,requested:null,goals:[plan]};
 const useGoalDetails=()=>({loading:false});const useEducationPlan=()=>({...detailContext,themes:[],user:{id:'vp',role:'vp'},staff:[]});

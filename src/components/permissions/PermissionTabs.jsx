@@ -1,14 +1,13 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import '@/styles/modules/permissions.css';
 
-/** Thanh 3 tab điều hướng giữa các trang phân quyền; nút của trang nằm ở đầu trang (`.page__head`), không chen vào hàng tab. */
+/** Thanh tab điều hướng giữa các trang phân quyền; nút của trang nằm ở đầu trang (`.page__head`), không chen vào hàng tab. */
 export function PermissionTabs() {
   const { pathname } = useLocation();
 
   const tabs = [
     { key: 'roles', label: 'Mặc định theo vai trò', to: '/school/roles' },
     { key: 'overrides', label: 'Ngoại lệ giáo viên', to: '/permissions/overrides' },
-    { key: 'edu-workflow', label: 'Soạn / duyệt hồ sơ', to: '/permissions/edu-workflow' },
     { key: 'history', label: 'Lịch sử thay đổi', to: '/permissions/history' },
   ];
 

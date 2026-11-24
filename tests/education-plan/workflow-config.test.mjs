@@ -65,7 +65,7 @@ test('mock class approvals follow the configured chain and retain an unavailable
     assert.deepEqual(issued.approvals.map((a) => a.roleKey), waiting === 'TEAM_LEADER' ? ['TEAM_LEADER', 'VICE_PRINCIPAL'] : ['VICE_PRINCIPAL']);
   }
 });
-// EDU-108: người soạn/duyệt lưu ở tab Phân quyền (PUT /permissions/edu-workflow); trang Cấu hình không ghi policy
+// EDU-110: người soạn/duyệt suy từ ma trận vai trò (PUT /role-permissions); trang Cấu hình không ghi policy
 test('real adapter reads nested policy, config save never writes workflow policy and reads fresh after reload', async () => {
   const calls = [];
   const workflow = { revision: 7, policies, canConfigure: true };

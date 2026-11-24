@@ -23,6 +23,7 @@ import { recoveryText } from '@/models/education-plan/yearPlanAutosave.mjs';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import { ROLES } from '@/models/User';
+import { canPrincipalPublish } from '@/utils/education-plan/eduPermissions';
 import { AGE_GROUPS, DOMAINS, EDU_STATUS, SCHOOL_SCOPE, isStandardDomain } from '@/models/education-plan/educationPlanConstants';
 import {
   duplicateAbbrThemeIds,
@@ -277,6 +278,13 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
   const [finishing, setFinishing] = useState(false);
   const editRef = useRef({ revision: existing?.revision ?? 0 });
   const canEdit = permitted;
+  // EDU-110 (8): HT soạn loại này, chuỗi duyệt rỗng ⇒ "Ban hành" thay "Gửi duyệt"
+  const principalPublish = canPrincipalPublish({
+    user,
+    policy: eduConfig?.workflowPolicy?.[annual ? 'schoolYear' : 'year'],
+    status: existing?.status || EDU_STATUS.DRAFT,
+    author: canEdit,
+  });
 
   // Dòng chủ đề / đợt nghỉ còn trống (vừa Enter thêm) không tính vào kiểm tra, cột tích và bản lưu
   const themes = form.themes.filter((t) => !isBlankTheme(t));
@@ -568,7 +576,11 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
           sentBy: item.sentBy,
           id: targetId,
         },
-        { action, silent: true, edit: { ...editRef.current, requestId: crypto.randomUUID() } },
+        {
+          action: action === 'approve' && principalPublish ? 'publish' : action,
+          silent: true,
+          edit: { ...editRef.current, requestId: crypto.randomUUID() },
+        },
       );
       if (!saved) {
         throw new Error('Máy chủ không phản hồi kết quả sau khi gửi.');
@@ -815,8 +827,9 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
                     !contentError &&
                     !(form.reviewItems || []).some((item) => !item.resolved) &&
                     (!annual || levelsAvailable) &&
-                    (existing?.permissions ? existing.permissions.canSubmit : canEdit),
-                  approve: false,
+                    (existing?.permissions ? existing.permissions.canSubmit : canEdit) &&
+                    !principalPublish,
+                  approve: principalPublish && !contentError && !(form.reviewItems || []).some((item) => !item.resolved),
                 }}
                 variant="btn--outline-primary"
                 unsaved={saver.unsaved}

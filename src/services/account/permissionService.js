@@ -16,6 +16,6 @@ export const getAccountsWithOverrides = async (user) => {
   return repo === mock ? { accounts: result, unavailableCount: 0 } : result;
 };
 export const updatePermissionOverrides = (id, payload, user) => call('updatePermissionOverrides', id, payload, user);
-export const getEduWorkflowPermissions = (user) => call('getEduWorkflowPermissions', user);
-export const saveEduWorkflowPermissions = (payload, user) => call('saveEduWorkflowPermissions', payload, user);
+export const updateRolePermissionsBulk = (payload, user) => call('updateRolePermissionsBulk', payload, user);
+export const getEduWorkflowIssues = (user) => call('getEduWorkflowIssues', user);
 export const getPermissionChangeLogs = (filters, user) => call('getPermissionChangeLogs', filters, user);

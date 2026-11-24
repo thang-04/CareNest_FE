@@ -226,8 +226,10 @@ function DayPlansList({ classId }) {
                     name={`kế hoạch giáo dục ngày ${t.name}`}
                     sendTo={review.sendTo}
                     sendLabel="Gửi duyệt"
-                    can={{ ...review.can, approve: false, reject: false }}
-                    showSend={canComposeClassDocs && dossier.status === EDU_STATUS.DRAFT}
+                    can={{ ...review.can, approve: review.principalPublish, reject: false }}
+                    approveLabel={review.approveLabel}
+                    approveAction={review.approveAction}
+                    showSend={!review.principalPublish && canComposeClassDocs && dossier.status === EDU_STATUS.DRAFT}
                     // Kế hoạch giáo dục chủ đề chưa ban hành: không hiện dòng nhắc trên trang, bấm Gửi duyệt mới cảnh báo (Tiền 14/11/2026)
                     sendDisabledReason={BLOCKED_TEXT[dossier.blockedReason] || 'Chưa gửi được kế hoạch giáo dục ngày này'}
                     onAct={act}

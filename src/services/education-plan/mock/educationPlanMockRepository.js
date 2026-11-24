@@ -280,6 +280,18 @@ const saveGoal = async (item, options = {}) => {
       (item.branchTemplates || []).some((t) => !t.name?.trim() || !item.themes.some((theme) => String(theme.id) === String(t.themeId)))
     )
       throw eduError('INVALID_VALUE', 'chủ đề nhánh / dự án thiếu tên hoặc sai chủ đề cha');
+    // BE EDU-110 (8), (10): HT soạn, chuỗi duyệt rỗng ⇒ HT ban hành thẳng từ Nháp hoặc Chờ duyệt
+    if (actor && options.action === 'publish') {
+      const policy = withDefaults(db.eduConfig).workflowPolicy[workflowKey(prev || item)];
+      if (actor.role !== 'PRINCIPAL' || policy.creators.join() !== 'PRINCIPAL' || policy.reviewers.length)
+        throw eduError('NOT_YOUR_REVIEW_STEP', 'ban hành');
+      if (prev && ![EDU_STATUS.DRAFT, EDU_STATUS.REJECTED, 'REVIEW'].includes(prev.status))
+        throw eduError('YEAR_PLAN_INVALID_STATUS', 'ban hành');
+      const next = { ...(prev || {}), ...item, revision: (prev?.revision || 0) + 1, waitingRole: null, status: EDU_STATUS.APPROVED };
+      upsert(list, next);
+      ensureTeamAfterPublication(db, next);
+      return clone(goalView(db, next, actor));
+    }
     if (actor && options.action === 'approve') {
       if (!goalView(db, prev, actor).permissions.canApprove) throw eduError('NOT_YOUR_REVIEW_STEP', 'duyệt');
       const roles = withDefaults(db.eduConfig).workflowPolicy[workflowKey(prev)].reviewers;

@@ -57,16 +57,14 @@ export const permissionApi = {
   getPermissionCatalog: async () => (await axiosClient.get('/permissions')).map(toCatalogItem),
   getRolePermissions: () => axiosClient.get('/role-permissions'),
   updateRolePermissions: (role, { permissions, reason }) => axiosClient.put(`/role-permissions/${role}`, { permissions, reason }),
+  // EDU-110: lưu nhiều vai trò một giao dịch; vi phạm luật soạn/duyệt ⇒ 400 7202 + data.issues
+  updateRolePermissionsBulk: ({ reason, roles }) => axiosClient.put('/role-permissions', { reason, roles }),
+  getEduWorkflowIssues: () => axiosClient.get('/role-permissions/edu-workflow-issues'),
   getPermissionOverrides,
-  // BE EduWorkflowPermissionController (EDU-108)
-  getEduWorkflowPermissions: () => axiosClient.get('/permissions/edu-workflow'),
-  saveEduWorkflowPermissions: (payload) => axiosClient.put('/permissions/edu-workflow', payload),
   // BE chưa có API liệt kê người có ngoại lệ ⇒ đọc ngoại lệ của từng nhân sự cấu hình được
   getAccountsWithOverrides: async () => {
     const { items } = await getPermissionStaff();
-    const results = await Promise.allSettled(
-      items.map(async (staff) => ({ ...(await getPermissionOverrides(staff.userId)), ...staff })),
-    );
+    const results = await Promise.allSettled(items.map(async (staff) => ({ ...(await getPermissionOverrides(staff.userId)), ...staff })));
     const failed = results.filter((result) => result.status === 'rejected');
     // BE 1111: lỗi đọc vai trò tài khoản từ Keycloak có thể chỉ ảnh hưởng một số nhân sự.
     const fatal = failed.find(({ reason }) => reason.status !== 503 || reason.errorCode !== 1111);

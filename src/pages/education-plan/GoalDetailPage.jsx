@@ -25,7 +25,7 @@ import { ReleasedVersionsPanel, VersionBadge, YearPlanVersionPanel } from '@/com
 import { chainOf, currentPlanInYear } from '@/models/education-plan/planVersions.mjs';
 import { sameSchoolYearId } from '@/models/education-plan/schoolYearScope.mjs';
 import DocPreviewModal from '@/components/education-plan/DocPreviewModal';
-import { isEduVicePrincipal } from '@/utils/education-plan/eduPermissions';
+import { canPrincipalPublish, isEduVicePrincipal } from '@/utils/education-plan/eduPermissions';
 
 const uid = () => Math.random().toString(36).slice(2, 9);
 const ISSUE_NOTE =
@@ -50,6 +50,7 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
     toast,
     staff,
     refreshGoal,
+    eduConfig,
   } = useEducationPlan();
   const goals = allGoals.filter((g) => levelOf(g) === planLevel);
   const [preview, setPreview] = useState(null);
@@ -121,6 +122,13 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
   const canReturn = perm ? perm.canReturn : isReviewerForPlan;
   // Thông báo về khóa, hạn, rà soát chỉ dành cho người soạn (Tiền 11/11/2026); người khác thấy là thừa và lộ thông tin
   const isAuthor = g.owner?.userId === user.id || (!annual && isLeader) || !!perm?.canEdit || !!perm?.canSubmit;
+  // EDU-110 (8), (10): HT soạn loại này và chuỗi duyệt rỗng ⇒ nút Ban hành thay Gửi duyệt
+  const principalPublish = canPrincipalPublish({
+    user,
+    policy: eduConfig?.workflowPolicy?.[annual ? 'schoolYear' : 'year'],
+    status: g.status,
+    author: canEditNow || canSend,
+  });
   const canDelete = annual && (perm ? perm.canDelete : isVp && g.status === EDU_STATUS.DRAFT);
   // BE:EDU-25 — sửa bản đã ban hành = tạo phiên bản mới; bản đã ban hành giữ nguyên
   const canCreateVersion =
@@ -160,19 +168,22 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
 
   // Gửi / trả lại / ban hành theo mẫu chung (reviewUi); service quyết định trạng thái
   const act = async (action, note) => {
-    if (action === 'submit') {
+    const apiAction = action === 'approve' && principalPublish && !canIssue ? 'publish' : action;
+    // HT ban hành thẳng từ Nháp qua cùng kiểm tra như khi gửi (BE publishByPrincipal)
+    const sending = action === 'submit' || (apiAction === 'publish' && draftLike);
+    if (sending) {
       const issue = submissionRequirementsIssue({ ...g, planLevel });
       if (issue) {
         toast(issue, 'warn');
         return null;
       }
     }
-    if (action === 'submit' && (g.reviewItems || []).some((item) => !item.resolved)) {
+    if (sending && (g.reviewItems || []).some((item) => !item.resolved)) {
       toast('Còn mục cần rà soát theo nguồn mới. Mở chỉnh sửa để xử lý trước khi gửi.', 'warn');
       return null;
     }
     setActionError('');
-    if (action === 'submit' && g.durationPolicySnapshot?.mode === 'BOUNDED') {
+    if (sending && g.durationPolicySnapshot?.mode === 'BOUNDED') {
       const limits = g.durationPolicySnapshot;
       const issue =
         (g.themes || []).map((t) => durationRangeIssue(t, g.breaks || [], limits.theme, `Chủ đề "${t.name || t.abbr}"`)).find(Boolean) ||
@@ -189,7 +200,7 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
     }[action];
     let saved;
     try {
-      saved = await saveGoal(next, { action, silent: true });
+      saved = await saveGoal(next, { action: apiAction, silent: true });
     } catch (error) {
       const msg = error.message || 'Không thực hiện được. Tải lại trạng thái trước khi thử lại.';
       setActionError(msg);
@@ -248,9 +259,9 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
             )}
             <ReviewActions
               name={pageLabel.toLowerCase()}
-              approveLabel={g.review?.roles?.at(-1) === g.review?.waitingRole ? 'Ban hành' : 'Duyệt'}
+              approveLabel={principalPublish || g.review?.roles?.at(-1) === g.review?.waitingRole ? 'Ban hành' : 'Duyệt'}
               variant="btn--outline-primary"
-              can={{ send: canSend, reject: canReturn, approve: canIssue }}
+              can={{ send: canSend && !principalPublish, reject: canReturn, approve: canIssue || principalPublish }}
               // EDU-52 (Tiền 10/11/2026): chủ đề chưa chọn ngày thì chưa gửi, chưa ban hành được; sửa ngày ở màn chỉnh sửa
               beforeOpen={(action) => {
                 const undated = (action === 'approve' || action === 'submit') && themeWithoutDates(themes);

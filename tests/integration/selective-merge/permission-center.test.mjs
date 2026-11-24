@@ -17,6 +17,7 @@ const { permissionMatrixRows, permissionTableRows, groupChangeLogs, codeDiff, co
   '@/utils/account/permissionMatrix'
 );
 const { personPermissionRows, permissionDraftRows, overridesFromSwitches } = await import('@/utils/account/personPermissions');
+const { isEduWorkflowCode } = await import('@/utils/account/eduRoleMatrix');
 
 let principal;
 let teacher;
@@ -35,18 +36,24 @@ const protectedSnapshot = () =>
     Object.fromEntries(Object.entries(readDb()).filter(([key]) => !key.startsWith('permissionCenter') && key !== 'mockSeedVersions')),
   );
 const rejectStatus = (status) => (error) => error.status === status;
+// EDU-110: lưu một vai trò = thay toàn bộ mã của vai trò ⇒ giữ nguyên 8 ô soạn/duyệt để không đụng luật soạn/duyệt
+const withEdu = async (role, codes) => [
+  ...codes,
+  ...(await repo.getRolePermissions(principal)).find((r) => r.role === role).permissions.filter(isEduWorkflowCode),
+];
+const notEdu = (codes) => codes.filter((code) => !isEduWorkflowCode(code));
 
-test('UI mới nhận catalog, sáu vai trò; ma trận có cột HT đối chiếu và cột bếp', async () => {
+test('UI mới nhận catalog, bảy vai trò; ma trận có cột HT, Tổ trưởng và cột bếp', async () => {
   const catalog = await repo.getPermissionCatalog(principal);
   const roles = await repo.getRolePermissions(principal);
-  assert.equal(roles.length, 6);
-  assert.equal(catalog.length, 11);
+  assert.equal(roles.length, 7);
+  assert.equal(catalog.length, 19);
   const rows = permissionMatrixRows(catalog, roles);
-  assert.deepEqual(Object.keys(rows[0].cells), ['PRINCIPAL', 'VICE_PRINCIPAL', 'TEACHER', 'KITCHEN_STAFF']);
+  assert.deepEqual(Object.keys(rows[0].cells), ['PRINCIPAL', 'VICE_PRINCIPAL', 'TEAM_LEADER', 'TEACHER', 'KITCHEN_STAFF']);
   const permissionManage = rows.find((row) => row.code === 'PERMISSION_MANAGE');
   assert.equal(permissionManage.cells.TEACHER.configurable, false);
-  // HT cố định: có quyền nhưng không bật/tắt được trong ma trận
-  assert.deepEqual(permissionManage.cells.PRINCIPAL, { configurable: false, checked: true, fixedRole: true });
+  // HT có ô chỉ cho 8 mã soạn/duyệt (EDU-110); mã khác có nhưng không bật/tắt được
+  assert.deepEqual(permissionManage.cells.PRINCIPAL, { configurable: false, checked: true, fixedRole: false });
   const childView = rows.find((row) => row.code === 'CHILD_PROFILE_VIEW');
   assert.deepEqual(childView.cells.KITCHEN_STAFF, { configurable: false, checked: false, fixedRole: false });
 });
@@ -56,7 +63,7 @@ test('AUTH-10: bảng nhóm theo nghiệp vụ, dòng xem đứng đầu, việc
   const groups = permissionTableRows(catalog);
   assert.deepEqual(
     groups.map((g) => g.feature.key),
-    ['child-profile', 'staff', 'parent-account', 'meal-catalog', 'meal-stock', 'meal-menu', 'permission'],
+    ['child-profile', 'staff', 'parent-account', 'meal-catalog', 'meal-stock', 'meal-menu', 'permission', 'education-workflow'],
   );
   const staff = groups.find((g) => g.feature.key === 'staff');
   assert.deepEqual(
@@ -118,7 +125,8 @@ test('AUTH-10: ngoại lệ thu hồi việc sửa vẫn giữ xem; thu hồi xe
 
 test('AUTH-14: lịch sử gom theo lần lưu và nghiệp vụ', async () => {
   const catalog = await repo.getPermissionCatalog(principal);
-  await repo.updateRolePermissions('VICE_PRINCIPAL', { permissions: ['CHILD_PROFILE_VIEW'], reason: 'Thu gọn quyền PHT' }, principal);
+  const permissions = await withEdu('VICE_PRINCIPAL', ['CHILD_PROFILE_VIEW']);
+  await repo.updateRolePermissions('VICE_PRINCIPAL', { permissions, reason: 'Thu gọn quyền PHT' }, principal);
   const { items } = await repo.getPermissionChangeLogs({ targetRole: 'VICE_PRINCIPAL' }, principal);
   const groups = groupChangeLogs(items, catalog);
   assert.deepEqual(groups.map((g) => g.feature).sort(), ['parent-account', 'staff']);
@@ -145,14 +153,16 @@ test('dữ liệu demo bản 1: role có thao tác sửa được thêm mã xem 
     db.permissionCenterRoleRows = [{ role: 'VICE_PRINCIPAL', code: 'PARENT_ACCOUNT_MANAGE' }];
   });
   const vpEntry = (await repo.getRolePermissions(principal)).find((r) => r.role === 'VICE_PRINCIPAL');
-  assert.deepEqual(vpEntry.permissions, ['PARENT_ACCOUNT_MANAGE', 'PARENT_ACCOUNT_VIEW']);
+  assert.deepEqual(notEdu(vpEntry.permissions), ['PARENT_ACCOUNT_MANAGE', 'PARENT_ACCOUNT_VIEW']);
+  // Dữ liệu cũ chưa có ô soạn/duyệt được bù tick mặc định EDU-54
+  assert.ok(vpEntry.permissions.includes('EDU_SCHOOL_YEAR_PLAN_EDIT'));
 });
 
 test('lưu mặc định mới, lý do và lịch sử riêng; không ghi catalog legacy', async () => {
   const before = protectedSnapshot();
-  await repo.updateRolePermissions('TEACHER', { permissions: [], reason: 'Demo tắt quyền' }, principal);
+  await repo.updateRolePermissions('TEACHER', { permissions: await withEdu('TEACHER', []), reason: 'Demo tắt quyền' }, principal);
   const role = (await repo.getRolePermissions(principal)).find((row) => row.role === 'TEACHER');
-  assert.deepEqual(role.permissions, []);
+  assert.deepEqual(notEdu(role.permissions), []);
   const log = (await repo.getPermissionChangeLogs({}, principal)).items[0];
   assert.equal(log.beforeState, 'ON');
   assert.equal(log.afterState, 'OFF');
@@ -163,7 +173,7 @@ test('lưu mặc định mới, lý do và lịch sử riêng; không ghi catalo
 test('ngoại lệ GRANT/REVOKE, đặt lại và lịch sử tài khoản demo', async () => {
   const before = protectedSnapshot();
   await repo.updatePermissionOverrides(teacher.id, payload('REVOKE'), principal);
-  assert.deepEqual((await repo.getPermissionOverrides(teacher.id, principal)).effectivePermissions, []);
+  assert.deepEqual(notEdu((await repo.getPermissionOverrides(teacher.id, principal)).effectivePermissions), []);
   assert.equal((await repo.getAccountsWithOverrides(principal))[0].userId, teacher.id);
   await repo.updatePermissionOverrides(teacher.id, { overrides: [], reason: 'Demo đặt lại' }, principal);
   assert.equal((await repo.getAccountsWithOverrides(principal)).length, 0);
@@ -186,7 +196,7 @@ test('chặn role không phải Principal dù gửi permissions giả', async ()
 test('không tự map tổ trưởng sang giáo viên hoặc đưa vào danh sách chỉnh sửa', async () => {
   const leader = readDb().users.find((row) => row.role === 'TEAM_LEADER');
   assert.ok(leader);
-  assert.deepEqual(effectivePermissionsOf(readDb(), leader), []);
+  assert.deepEqual(notEdu(effectivePermissionsOf(readDb(), leader)), []);
   assert.ok(!(await repo.getPermissionStaff(principal)).items.some((row) => row.userId === leader.id));
   await assert.rejects(repo.updatePermissionOverrides(leader.id, payload('GRANT'), principal), rejectStatus(403));
   assert.equal(readDb().users.find((row) => row.id === leader.id).role, 'TEAM_LEADER');
@@ -194,7 +204,12 @@ test('không tự map tổ trưởng sang giáo viên hoặc đưa vào danh sá
 
 test('không tự sửa quyền mình và không giao quyền quản lý phân quyền', async () => {
   await assert.rejects(repo.updatePermissionOverrides(principal.id, payload('GRANT'), principal), rejectStatus(400));
-  await assert.rejects(repo.updateRolePermissions('PRINCIPAL', { permissions: [], reason: 'Demo' }, principal), rejectStatus(403));
+  // HT chỉ có ô cho 8 mã soạn/duyệt (EDU-110); mã khác của HT cố định ⇒ 1118
+  await assert.rejects(
+    repo.updateRolePermissions('PRINCIPAL', { permissions: ['PERMISSION_MANAGE'], reason: 'Demo' }, principal),
+    (error) => error.status === 400 && error.errorCode === 1118,
+  );
+  await assert.rejects(repo.updateRolePermissions('ADMIN', { permissions: [], reason: 'Demo' }, principal), rejectStatus(403));
   await assert.rejects(
     repo.updateRolePermissions('TEACHER', { permissions: ['PERMISSION_MANAGE'], reason: 'Demo' }, principal),
     rejectStatus(400),
@@ -242,7 +257,11 @@ test('không seed lại mảng quyền demo đã chủ động lưu rỗng', asy
 test('refresh phiên vẫn trả permissions object và scope/phân công cũ', async () => {
   const session = await auth.login({ email: vp.email, password: DEMO_PASSWORD, remember: false }); // carenest:allow-secret
   const before = await auth.me(session.accessToken);
-  await repo.updateRolePermissions('VICE_PRINCIPAL', { permissions: [], reason: 'Demo độc lập' }, principal);
+  await repo.updateRolePermissions(
+    'VICE_PRINCIPAL',
+    { permissions: await withEdu('VICE_PRINCIPAL', []), reason: 'Demo độc lập' },
+    principal,
+  );
   await repo.updatePermissionOverrides(vp.id, payload('GRANT'), principal);
   const after = await auth.me(session.accessToken);
   assert.ok(!Array.isArray(after.permissions));
@@ -284,12 +303,12 @@ test('đường sidebar cũ mở UI mới, non-mock chỉ gọi endpoint BE đã
   const facade = readFileSync(new URL('../../../src/services/account/permissionService.js', import.meta.url), 'utf8');
   assert.doesNotMatch(facade, /status: 501|axios|fetch\(/);
   const api = readFileSync(new URL('../../../src/services/account/api/permissionApi.js', import.meta.url), 'utf8');
-  // Endpoint của BE PermissionController, EduWorkflowPermissionController, AccountController và SchoolStructureController.
+  // Endpoint của BE PermissionController, AccountController và SchoolStructureController (EDU-110 bỏ /permissions/edu-workflow).
   const paths = [...api.matchAll(/axiosClient\.\w+\(\s*[`'"]([^`'"]+)/g)].map((m) => m[1].replace(/\$\{[^}]+\}/g, '{id}'));
   const known = [
     '/permissions',
-    '/permissions/edu-workflow',
     '/role-permissions',
+    '/role-permissions/edu-workflow-issues',
     '/role-permissions/{id}',
     '/accounts',
     '/accounts/{id}/permission-overrides',

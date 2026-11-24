@@ -603,6 +603,20 @@ export const classPlanMockRepository = {
             note,
           ),
         );
+      } else if (action === 'principal_publish') {
+        // BE EDU-110 (8), (10), (11): HT soạn, chuỗi duyệt rỗng ⇒ HT ban hành thẳng từ Nháp hoặc Chờ duyệt
+        if (!rolesOf(user).includes(ROLES.PRINCIPAL) || (policy?.creators || []).join() !== ROLES.PRINCIPAL || rawChain.length)
+          fail('NOT_YOUR_REVIEW_STEP', 'ban hành');
+        if (![EDU_STATUS.DRAFT, EDU_STATUS.REJECTED, 'REVIEW'].includes(doc.status)) fail('YEAR_PLAN_INVALID_STATUS', 'ban hành');
+        setStatus(EDU_STATUS.APPROVED, null, {
+          userId: user.id,
+          name: user.fullName,
+          role: ROLE_LABELS[user.role] || user.role,
+          roleKey: ROLES.PRINCIPAL,
+          at: now(),
+          note: note || '',
+        });
+        log(entry(user, 'Hiệu trưởng ban hành', 'ok', note));
       } else if (action === 'reject') {
         if (!isWaitingFor) fail('NOT_YOUR_REVIEW_STEP', 'trả lại');
         if (!note?.trim()) fail('RETURN_REASON_REQUIRED');

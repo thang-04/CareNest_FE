@@ -75,7 +75,8 @@ const runSteps = async (goal, refs, edit, forceSave = false, action) => {
   let id = serverId(goal.id);
   let detail = null;
   const prev = id == null ? null : known.get(String(id));
-  const actionCall = { submit: 'submit', approve: 'issue', reject: 'return' }[action];
+  // publish: HT soạn, chuỗi duyệt rỗng ⇒ ban hành thẳng (BE EDU-110 (8), (10))
+  const actionCall = { submit: 'submit', approve: 'issue', reject: 'return', publish: 'principal-publish' }[action];
   const steps = actionCall
     ? [{ call: actionCall, note: goal.history?.at(-1)?.note || null }]
     : planSteps(prev, goal, forceSave || !prev || prev.body !== bodyKey(goal, refs));
@@ -87,7 +88,12 @@ const runSteps = async (goal, refs, edit, forceSave = false, action) => {
       detail = await axiosClient.post(
         `${GOALS}/${id}/${step.call}`,
         { note: step.note },
-        { headers: (step.call === 'submit' ? editHeaders : reviewHeaders)({ ...edit, requestId: crypto.randomUUID() }) },
+        {
+          headers: (['submit', 'principal-publish'].includes(step.call) ? editHeaders : reviewHeaders)({
+            ...edit,
+            requestId: crypto.randomUUID(),
+          }),
+        },
       );
     edit.revision = detail.contentRevision ?? detail.revision;
     id = detail.id;

@@ -10,6 +10,7 @@ import { useEducationPlan, useGoalDetails } from '@/hooks/education-plan/useEduc
 import { toRows } from '@/models/education-plan/goalTable';
 import { ddmm, emptyBranchPlan, themeBranchGroups, yearWeeks } from '@/models/education-plan/classPlan';
 import { PENDING_OF } from '@/models/education-plan/eduConfig';
+import { canPrincipalPublish } from '@/utils/education-plan/eduPermissions';
 import { classTeamPlanSelection } from '@/models/education-plan/planVersions.mjs';
 import { SelectField } from '@/components';
 
@@ -128,12 +129,22 @@ export function docReview(kind, doc, ctx, user, eduConfig) {
     (r) => r !== ROLES.TEAM_LEADER || !ctx.skipLeader,
   );
   const myTurn = isMyReviewTurn(doc, ctx, user);
+  const send = doc?.permissions ? doc.permissions.canSubmit : ctx.canComposeClassDocs && !!doc && isOpen(doc);
+  const approve = doc?.permissions ? (doc.permissions.canApprove ?? doc.permissions.canIssue) : myTurn;
+  // EDU-110 (8), (10), (11): HT soạn loại này, chuỗi duyệt rỗng ⇒ "Ban hành" (action principal_publish) thay "Gửi duyệt"
+  const principalPublish =
+    !!doc &&
+    !approve &&
+    canPrincipalPublish({ user, policy, status: doc.status, author: !!(doc.permissions?.canEdit || doc.permissions?.canSubmit) });
   return {
     can: {
-      send: doc?.permissions ? doc.permissions.canSubmit : ctx.canComposeClassDocs && !!doc && isOpen(doc),
+      send: send && !principalPublish,
       reject: doc?.permissions ? (doc.permissions.canReject ?? doc.permissions.canReturn) : myTurn,
-      approve: doc?.permissions ? (doc.permissions.canApprove ?? doc.permissions.canIssue) : myTurn,
+      approve: approve || principalPublish,
     },
+    principalPublish,
+    approveLabel: principalPublish ? 'Ban hành' : undefined,
+    approveAction: principalPublish ? 'principal_publish' : undefined,
     sendTo: chain.length ? SIGNER_SHORT[chain[0]] || chain[0] : 'đi',
   };
 }

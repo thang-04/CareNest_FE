@@ -34,7 +34,8 @@ export function ActionsMenu({ items, className = 'btn btn--sm btn--outline-prima
 /**
  * Nút gửi / trả lại / duyệt ở đầu trang và hộp xác nhận.
  * - name: tên tài liệu trong câu hỏi ("kế hoạch năm học", "chủ đề nhánh", "kế hoạch chủ đề").
- * - sendTo: người duyệt đầu tiên (vd. "Phó HT"); approveLabel: "Duyệt" hoặc "Ban hành".
+ * - sendTo: người duyệt đầu tiên (vd. "Phó HT"); approveLabel: "Duyệt" hoặc "Ban hành"; approveAction: action gửi
+ *   onAct khi bấm nút duyệt (vd. "principal_publish" khi HT ban hành thẳng, BE EDU-110 (8)).
  * - can: { send, reject, approve }; sendBlocked: lý do chưa gửi được (vd. còn thay đổi chưa lưu) để khóa nút.
  * - beforeOpen(action): trả false để không mở hộp (vd. kiểm tra form, nhắc thiếu dữ liệu).
  * - notes: câu giải thích thêm trong hộp theo action; onAct(action, note, savedDoc) trả kết quả (null khi lỗi thì hộp giữ lại).
@@ -49,6 +50,7 @@ export function ReviewActions({
   name,
   sendTo,
   approveLabel = 'Duyệt',
+  approveAction = 'approve',
   sendLabel = 'Gửi duyệt',
   can = {},
   sendBlocked,
@@ -118,7 +120,7 @@ export function ReviewActions({
         }
         savedDoc = typeof res === 'object' ? res : null;
       }
-      const res = await onAct(action, note.trim() || undefined, savedDoc);
+      const res = await onAct(action === 'approve' ? approveAction : action, note.trim() || undefined, savedDoc);
       if (res) {
         setAction(null);
       } else {

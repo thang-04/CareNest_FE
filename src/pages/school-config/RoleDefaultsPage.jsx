@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
-import { useRolePermissionMatrix } from '@/hooks/account/usePermissions';
+import { useEduWorkflowIssues, useRolePermissionMatrix } from '@/hooks/account/usePermissions';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
@@ -15,7 +15,19 @@ import {
   PermissionLevelBadge,
   PermissionTable,
 } from '@/components/permissions/PermissionTable';
-import { updateRolePermissions } from '@/services/account/permissionService';
+import { updateRolePermissionsBulk } from '@/services/account/permissionService';
+import {
+  EDU_DOC_TYPES,
+  eduApproveToClear,
+  eduCellLabel,
+  eduCellLock,
+  eduChainLabel,
+  eduCodesChanged,
+  eduIssueText,
+  eduLocalIssues,
+  eduSaveErrorMessage,
+  isEduWorkflowCode,
+} from '@/utils/account/eduRoleMatrix';
 import { PERMISSION_LEVELS, PERMISSION_ROLE_LABELS, PERMISSION_TASKS } from '@/models/account/permissionConstants';
 import {
   codeDiff,
@@ -41,23 +53,36 @@ export default function RoleDefaultsPage() {
   const [notice, setNotice] = useState('');
   const [asking, setAsking] = useState(false);
   const [saving, setSaving] = useState(false);
+  // Lỗi theo loại hồ sơ BE trả khi lưu (7202); bỏ khi bản nháp đổi
+  const [saveIssues, setSaveIssues] = useState(null);
+  const issuesQuery = useEduWorkflowIssues({ live: false });
 
   const groups = useMemo(() => permissionTableRows(catalog), [catalog]);
   const roleEntry = (role) => roles.find((entry) => entry.role === role);
   const originalOf = (role) => roleEntry(role)?.permissions || [];
   const codesOf = (role) => drafts[role] ?? originalOf(role);
+  const matrixBy = (pick) => Object.fromEntries(PERMISSION_MATRIX_ROLES.map((role) => [role, pick(role)]));
+  const matrix = matrixBy(codesOf);
+  // BE chỉ kiểm luật soạn/duyệt khi lần lưu đổi mã EDU (EDU-110 WF1) ⇒ FE chỉ khóa Lưu trong trường hợp đó
+  const eduChanged = eduCodesChanged(matrixBy(originalOf), matrix);
+  const localIssues = eduChanged ? eduLocalIssues(matrix) : [];
+  const shownIssues = saveIssues ?? (eduChanged ? localIssues : issuesQuery.data?.issues || []);
+  const saveBlocked = localIssues.length > 0 ? 'Sửa các lỗi soạn/duyệt ở nhóm Kế hoạch giáo dục trước khi lưu.' : '';
+  const notEdu = (check) => (code) => check(code) && !isEduWorkflowCode(code);
 
-  const setRoleCodes = (role, codes) =>
+  const setRoleCodes = (role, codes) => {
+    setSaveIssues(null);
     setDrafts((current) => {
       const copy = { ...current };
       if (sameCodes(codes, originalOf(role))) delete copy[role];
       else copy[role] = codes;
       return copy;
     });
+  };
 
-  // Tick cả luồng lớn: mọi việc nhỏ chỉnh được của luồng đổi theo
+  // Tick cả luồng lớn: mọi việc nhỏ chỉnh được của luồng đổi theo; 8 ô soạn/duyệt tick từng ô theo luật
   const toggleWholeFlow = (role, flow, on) => {
-    const result = toggleFlow(catalog, codesOf(role), flow.codes, on, configurableCheck(roleEntry(role)));
+    const result = toggleFlow(catalog, codesOf(role), flow.codes, on, notEdu(configurableCheck(roleEntry(role))));
     setRoleCodes(role, result.codes);
     setNotice(
       `Đã ${on ? 'tick' : 'bỏ tick'} cả luồng “${flow.label}” cho ${PERMISSION_ROLE_LABELS[role]} (${on ? result.added.length : result.removed.length} việc đổi).`,
@@ -66,10 +91,20 @@ export default function RoleDefaultsPage() {
 
   const toggle = (role, code, on) => {
     const result = toggleWithRequires(catalog, codesOf(role), code, on, configurableCheck(roleEntry(role)));
-    setRoleCodes(role, result.codes);
+    // EDU-110 (8): HT tick Soạn ⇒ bỏ tick mọi ô Duyệt cùng loại
+    const cleared = eduApproveToClear(matrix, role, code, on);
+    const without = (codes) => codes.filter((c) => c !== cleared.code);
+    cleared?.roles.forEach((other) => other !== role && setRoleCodes(other, without(codesOf(other))));
+    setRoleCodes(role, cleared ? without(result.codes) : result.codes);
     // Báo việc tự tick/bỏ tick kèm theo để người dùng không bất ngờ
     const roleName = PERMISSION_ROLE_LABELS[role];
-    if (result.added.length)
+    if (cleared)
+      setNotice(
+        `Hiệu trưởng soạn và ban hành, không cần duyệt: đã tự bỏ tick “${taskLabel(cleared.code)}” của ${cleared.roles
+          .map((r) => PERMISSION_ROLE_LABELS[r])
+          .join(', ')}.`,
+      );
+    else if (result.added.length)
       setNotice(`Đã tự tick “${result.added.map(taskLabel).join('”, “')}” cho ${roleName} vì “${taskLabel(code)}” cần quyền xem.`);
     else if (result.removed.length)
       setNotice(`Đã tự bỏ tick “${result.removed.map(taskLabel).join('”, “')}” cho ${roleName} vì cần quyền “${taskLabel(code)}”.`);
@@ -88,33 +123,34 @@ export default function RoleDefaultsPage() {
     ];
   });
 
+  // Một lần PUT cho mọi vai trò đổi (BE lưu trong một giao dịch); lỗi ⇒ giữ hộp lý do và bản nháp
   const saveAll = async (reason) => {
     if (saving) return;
     setSaving(true);
-    const results = await Promise.allSettled(
-      changedRoles.map((role) => {
-        const permissions = roleEntry(role).configurablePermissions.filter((code) => codesOf(role).includes(code));
-        return updateRolePermissions(role, { permissions, reason }, user);
-      }),
-    );
-    const savedRoles = changedRoles.filter((_, index) => results[index].status === 'fulfilled');
-    const failedRoles = changedRoles.filter((_, index) => results[index].status === 'rejected');
-    setDrafts((current) => {
-      const next = { ...current };
-      savedRoles.forEach((role) => delete next[role]);
-      return next;
-    });
-    setNotice('');
-    setAsking(false);
-    if (savedRoles.length) reload({ silent: true });
-    if (failedRoles.length) {
-      const names = failedRoles.map((role) => PERMISSION_ROLE_LABELS[role]).join(', ');
-      const failure = results.find((result) => result.status === 'rejected');
-      toast.error(`${failure.reason?.message || 'Có lỗi khi lưu.'} Chưa lưu được: ${names}.`, 'Lưu phân quyền chưa hoàn tất');
-    } else {
+    try {
+      await updateRolePermissionsBulk(
+        {
+          reason,
+          roles: changedRoles.map((role) => ({
+            role,
+            permissions: roleEntry(role).configurablePermissions.filter((code) => codesOf(role).includes(code)),
+          })),
+        },
+        user,
+      );
+      setDrafts({});
+      setNotice('');
+      setSaveIssues(null);
+      setAsking(false);
+      reload({ silent: true });
+      issuesQuery.reload({ silent: true });
       toast.success('Đã lưu toàn bộ thay đổi phân quyền theo vai trò.');
+    } catch (error) {
+      if (error?.errorCode === 7202 && Array.isArray(error.details?.issues)) setSaveIssues(error.details.issues);
+      toast.error(eduSaveErrorMessage(error), 'Chưa lưu được phân quyền');
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   };
 
   const columns = PERMISSION_MATRIX_ROLES.map((role) => {
@@ -127,7 +163,7 @@ export default function RoleDefaultsPage() {
       note: fixed ? 'Cố định' : null,
       fixed,
       renderFlow: (flow) => {
-        const state = flowCheckState(flow.codes, codesOf(role), isConfigurable);
+        const state = flowCheckState(flow.codes, codesOf(role), notEdu(isConfigurable));
         const { on, total } = flowCount(flow.codes, codesOf(role));
         const summary = `${on}/${total} việc`;
         if (!state) return <small className="perm-flow-summary">{summary}</small>;
@@ -157,7 +193,9 @@ export default function RoleDefaultsPage() {
             checked={checked}
             disabled={saving}
             changed={checked !== originalOf(role).includes(code)}
-            label={`${taskLabel(code)} — ${PERMISSION_ROLE_LABELS[role]}`}
+            label={isEduWorkflowCode(code) ? eduCellLabel(code, role) : `${taskLabel(code)} — ${PERMISSION_ROLE_LABELS[role]}`}
+            lockedReason={eduCellLock(matrix, role, code) || undefined}
+            onLocked={setNotice}
             onChange={(on) => toggle(role, code, on)}
           />
         );
@@ -172,8 +210,9 @@ export default function RoleDefaultsPage() {
         <div>
           <h1 className="page__title">Mặc định theo vai trò</h1>
           <p className="text-sm text-2">
-            Tick việc mà từng vai trò được làm. Áp dụng chung cho Phó hiệu trưởng, Giáo viên và Nhân viên bếp toàn trường; ngoại lệ cho từng
-            người ở màn Phân công Phó hiệu trưởng hoặc tab “Ngoại lệ giáo viên”.
+            Tick việc mà từng vai trò được làm. Áp dụng chung cho Phó hiệu trưởng, Tổ trưởng, Giáo viên và Nhân viên bếp toàn trường; ngoại
+            lệ cho từng người ở màn Phân công Phó hiệu trưởng hoặc tab “Ngoại lệ giáo viên”. Soạn/duyệt hồ sơ kế hoạch giáo dục đặt ở nhóm
+            “Kế hoạch giáo dục – soạn/duyệt”.
           </p>
         </div>
       </div>
@@ -218,6 +257,20 @@ export default function RoleDefaultsPage() {
               {notice}
             </p>
             <PermissionTable groups={groups} catalog={catalog} columns={columns} caption="Việc được làm theo vai trò" collapsible />
+            {shownIssues.length > 0 && (
+              <div className="alert alert--danger" role="alert">
+                <ul>
+                  {shownIssues.map((issue) => (
+                    <li key={`${issue.docType}-${issue.rule}`}>{eduIssueText(issue)}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {EDU_DOC_TYPES.map(({ docType }) => (
+              <p key={docType} className="perm-scope-note text-sm text-muted">
+                {eduChainLabel(matrix, docType)}
+              </p>
+            ))}
             <p className="perm-scope-note text-sm text-muted">
               Quyền chỉ cho biết được làm việc đó hay không. Phạm vi dữ liệu (điểm trường, lớp) vẫn theo phân công công tác của từng người.
             </p>
@@ -242,7 +295,13 @@ export default function RoleDefaultsPage() {
                 >
                   Hủy thay đổi
                 </button>
-                <button className="btn btn--primary" type="button" disabled={saving} onClick={() => setAsking(true)}>
+                <button
+                  className="btn btn--primary"
+                  type="button"
+                  disabled={saving || !!saveBlocked}
+                  title={saveBlocked || undefined}
+                  onClick={() => setAsking(true)}
+                >
                   Lưu phân quyền
                 </button>
               </div>
