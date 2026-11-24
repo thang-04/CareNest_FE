@@ -22,7 +22,7 @@ import { NUTRITION_STATUS, NUTRITION_STATUS_OPTIONS, labelOf } from '@/models/ch
 import { formatDate } from '@/utils/format';
 import { formatNumber } from '@/utils/children/childrenHelpers';
 import { childrenCrumbs } from '@/utils/children/breadcrumbs';
-import { withinTrendPeriod } from '@/utils/children/healthTrend';
+import { oneMeasurementPerDay, withinTrendPeriod } from '@/utils/children/healthTrend';
 import { canReviewHealthTrend, isPrincipal, isVicePrincipal } from '@/utils/children/childrenPermissions';
 import '@/styles/modules/children.css';
 import { CampusFilter } from '@/components/ui/CampusFilter';
@@ -79,8 +79,8 @@ export default function HealthTrendPage() {
   const prevChild = index > 0 ? ordered[index - 1] : null;
   const nextChild = index >= 0 && index < ordered.length - 1 ? ordered[index + 1] : null;
   const points = useMemo(() => {
-    // HLT-21: cùng khoảng với phân tích AI (tính lùi từ hôm nay như BE)
-    return withinTrendPeriod(record?.measurements || [], period).sort((a, b) => a.date.localeCompare(b.date));
+    // HLT-21: cùng khoảng với phân tích AI (tính lùi từ hôm nay như BE); HLT-01/HLT-08: một điểm mỗi ngày, ưu tiên phiếu khám
+    return oneMeasurementPerDay(withinTrendPeriod(record?.measurements || [], period));
   }, [record, period]);
 
   const child = record?.child;
