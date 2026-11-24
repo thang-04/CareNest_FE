@@ -19,6 +19,7 @@ import { MEASUREMENT_SOURCE, MEASUREMENT_SOURCE_LABELS } from '@/models/children
 import { formatDate, normalizeText } from '@/utils/format';
 
 const COLS = 6;
+const ABSENT_TODAY_HINT = 'Trẻ vắng hôm nay (điểm danh). Nhập khi trẻ có mặt.';
 // 10 trẻ một trang (user yêu cầu 2026-10-23).
 const PAGE_SIZE = 10;
 // Sổ dưới dòng lớp: 5 trẻ/trang để bảng lớp không bị đẩy quá dài (user yêu cầu 2026-11-11).
@@ -43,6 +44,7 @@ export function HealthCheckClassRoster({ campaignId, classId, embedded = false, 
   const yearLocked = useChildYearLock();
   const canRecord = !!roster?.canRecord && !yearLocked;
   const rows = useMemo(() => roster?.children || [], [roster]);
+  const countable = rows.filter((r) => !r.movedTo).length;
   const concluded = rows.filter((r) => !r.movedTo && r.result === CHILD_RESULT_STATUS.RECORDED).length;
   const [filters, setFilters, resetFilterParams, activeKeys] = useFilterParams(FILTER_DEFAULTS);
   const { keyword, result, conclusion } = filters;
@@ -155,7 +157,9 @@ export function HealthCheckClassRoster({ campaignId, classId, embedded = false, 
                 const primary = r.movedTo
                   ? null
                   : canRecord && r.result === CHILD_RESULT_STATUS.NOT_RECORDED
-                    ? { label: 'Khám', strong: true }
+                    ? r.absentToday
+                      ? { label: 'Khám', strong: true, disabled: true, title: ABSENT_TODAY_HINT }
+                      : { label: 'Khám', strong: true }
                     : canRecord && r.result === CHILD_RESULT_STATUS.IN_PROGRESS
                       ? { label: 'Tiếp tục khám', strong: true }
                       : hasExam
@@ -264,7 +268,7 @@ export function HealthCheckClassRoster({ campaignId, classId, embedded = false, 
     <section className="card mt-16" aria-label={roster ? `Danh sách trẻ ${roster.cls.name}` : 'Danh sách trẻ của lớp'}>
       <div className="card__header">
         <h2 className="card__title">
-          {roster ? `${roster.cls.name} – đã có kết luận ${concluded}/${rows.length} trẻ` : 'Danh sách trẻ của lớp'}
+          {roster ? `${roster.cls.name} – đã có kết luận ${concluded}/${countable} trẻ` : 'Danh sách trẻ của lớp'}
         </h2>
       </div>
       {body}

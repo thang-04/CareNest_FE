@@ -115,4 +115,14 @@ test('MeasurementRoundRoster: sửa theo canEdit, khóa nhập khi vắng, bỏ 
   assert.match(src, /Đo ở /);
   assert.match(src, /!r\.movedTo/);
   assert.match(read('src/components/children/RosterActions.jsx'), /disabled/);
+  assert.ok(src.includes('${measured}/${countable} trẻ'), 'mẫu số không tính trẻ đã chuyển lớp');
+});
+
+test('HealthCheckClassRoster: Khám khóa với trẻ vắng hôm nay, mẫu số bỏ trẻ đã chuyển lớp', () => {
+  const src = read('src/components/children/HealthCheckClassRoster.jsx');
+  assert.match(src, /r\.absentToday\s*\?\s*\{ label: 'Khám', strong: true, disabled: true, title: ABSENT_TODAY_HINT \}/);
+  assert.ok(src.includes('Trẻ vắng hôm nay (điểm danh). Nhập khi trẻ có mặt.'));
+  assert.match(src, /Tiếp tục khám/);
+  assert.match(src, /Xem phiếu/);
+  assert.ok(src.includes('${concluded}/${countable} trẻ'));
 });

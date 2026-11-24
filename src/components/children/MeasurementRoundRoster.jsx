@@ -49,6 +49,7 @@ export function MeasurementRoundRoster({ campaignId, classId, embedded = false, 
   const canRecord = !!roster?.canRecord && !yearLocked;
   const rows = useMemo(() => roster?.children || [], [roster]);
   // Trẻ đã chuyển sang lớp khác không tính vào lớp cũ (HLT-09)
+  const countable = rows.filter((r) => !r.movedTo).length;
   const measured = rows.filter((r) => !r.movedTo && r.result === CHILD_RESULT_STATUS.RECORDED).length;
   const [filters, setFilters, resetFilterParams, activeKeys] = useFilterParams(FILTER_DEFAULTS);
   const { keyword, result, bmiWarning } = filters;
@@ -235,7 +236,7 @@ export function MeasurementRoundRoster({ campaignId, classId, embedded = false, 
   return (
     <section className="card mt-16" aria-label={label}>
       <div className="card__header">
-        <h2 className="card__title">{roster ? `${roster.cls.name} – đã cân đo ${measured}/${rows.length} trẻ` : label}</h2>
+        <h2 className="card__title">{roster ? `${roster.cls.name} – đã cân đo ${measured}/${countable} trẻ` : label}</h2>
       </div>
       {body}
     </section>
