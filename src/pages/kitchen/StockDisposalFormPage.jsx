@@ -4,7 +4,7 @@ import { ArrowLeft, PackageX, Plus, Trash2 } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useMasterData } from '@/hooks/useMasterData';
-import { useReceiptSuppliers, useStockLots } from '@/hooks/kitchen/useKitchen';
+import { useActiveSuppliers, useLots } from '@/hooks/kitchen/useDryStock';
 import {
   Breadcrumb,
   Button,
@@ -20,11 +20,11 @@ import {
   TextField,
 } from '@/components';
 import { fmtQty } from '@/components/kitchen/KitchenFilters';
-import { createStockDisposal } from '@/services/kitchen/kitchenService';
+import { dryStockApi } from '@/services/dryStockApi';
 import { validateStockDisposal } from '@/utils/kitchen/kitchenValidation';
 import { kitchenCrumbs, KITCHEN_PAGES } from '@/utils/kitchen/breadcrumbs';
 import { formatDate, todayInput } from '@/utils/format';
-import { DISPOSAL_KIND, DISPOSAL_KIND_LABELS, DISPOSAL_REASON_HINTS, NOTE_MAX, SUPPLIER_STATUS } from '@/models/kitchen/kitchenConstants';
+import { DISPOSAL_KIND, DISPOSAL_KIND_LABELS, DISPOSAL_REASON_HINTS, NOTE_MAX } from '@/models/kitchen/kitchenConstants';
 import '@/styles/modules/kitchen.css';
 
 const emptyLine = () => ({ key: Math.random().toString(36).slice(2), lotId: '', qty: '' });
@@ -52,8 +52,8 @@ const COPY = {
 };
 
 /**
- * Phiếu xuất kho khô kèm lý do (đề xuất BA, FE-first trên mock): `kind` = SUPPLIER_RETURN (trả NCC, lô còn hạn) hoặc
- * WRITE_OFF (xuất hủy, lô hết hạn). Quy tắc kiểm do BE giả quyết; form chỉ lọc lô hợp lệ và nhắc ô thiếu.
+ * Phiếu xuất kho khô kèm lý do (BE NUT-29, NUT-30): `kind` = SUPPLIER_RETURN (trả NCC, lô còn hạn) hoặc WRITE_OFF
+ * (xuất hủy, lô hết hạn). BE quyết định hợp lệ (hạn, NCC, tồn, quyền); form chỉ lọc lô hợp lệ và nhắc ô thiếu.
  */
 export default function StockDisposalFormPage({ kind = DISPOSAL_KIND.SUPPLIER_RETURN }) {
   const isReturn = kind === DISPOSAL_KIND.SUPPLIER_RETURN;
@@ -74,23 +74,31 @@ export default function StockDisposalFormPage({ kind = DISPOSAL_KIND.SUPPLIER_RE
   const [confirming, setConfirming] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const lots = useStockLots(form.campusId);
-  const suppliers = useReceiptSuppliers();
+  const lots = useLots({ campusId: form.campusId });
+  const suppliers = useActiveSuppliers();
   const backTo = `/kitchen/dry-stock${form.campusId ? `?campusId=${form.campusId}` : ''}`;
+  const today = todayInput();
 
-  const supplierOptions = useMemo(
+  const supplierOptions = useMemo(() => suppliers.suppliers.map((s) => ({ value: String(s.id), label: s.name })), [suppliers.suppliers]);
+  const supplierName = suppliers.suppliers.find((s) => String(s.id) === String(form.supplierId))?.name || '';
+  // Lô BE (tồn theo đơn vị gốc, kèm bản theo đơn vị mua) -> dòng chọn: tồn và số xuất hiện theo đơn vị mua
+  const stockLots = useMemo(
     () =>
-      (suppliers.data || [])
-        .filter((s) => s.status === SUPPLIER_STATUS.ACTIVE)
-        .map((s) => ({ value: s.id, label: `${s.code} · ${s.name}` })),
-    [suppliers.data],
+      (lots.data || []).map((l) => ({
+        ...l,
+        foodName: l.food?.name || '',
+        unit: l.food?.purchaseUnit || '',
+        qty: l.purchaseRemaining,
+        expired: !!l.expiryDate && l.expiryDate < today,
+      })),
+    [lots.data, today],
   );
-  const supplierName = (suppliers.data || []).find((s) => s.id === form.supplierId)?.name || '';
-  const lotById = useMemo(() => Object.fromEntries((lots.data || []).map((l) => [l.id, l])), [lots.data]);
+  const lotById = useMemo(() => Object.fromEntries(stockLots.map((l) => [l.id, l])), [stockLots]);
   // Trả NCC: lô còn hạn của NCC đã chọn; xuất hủy: lô hết hạn
   const eligible = useMemo(
-    () => (lots.data || []).filter((l) => (isReturn ? !l.expired && !!supplierName && l.supplierName === supplierName : l.expired)),
-    [lots.data, isReturn, supplierName],
+    () =>
+      stockLots.filter((l) => (isReturn ? !l.expired && !!form.supplierId && String(l.supplierId) === String(form.supplierId) : l.expired)),
+    [stockLots, isReturn, form.supplierId],
   );
   const pickedIds = new Set(form.lines.map((l) => l.lotId).filter(Boolean));
   const optionsFor = (line) =>
@@ -119,7 +127,7 @@ export default function StockDisposalFormPage({ kind = DISPOSAL_KIND.SUPPLIER_RE
   };
 
   const openConfirm = () => {
-    const found = validateStockDisposal({ ...form, kind }, { lotById, today: todayInput(), supplierName });
+    const found = validateStockDisposal({ ...form, kind }, { lotById, today, supplierName });
     setErrors(found);
     if (Object.keys(found).length) toast.error('Kiểm tra lại các ô được đánh dấu đỏ.', 'Chưa lập được phiếu');
     else setConfirming(true);
@@ -128,16 +136,7 @@ export default function StockDisposalFormPage({ kind = DISPOSAL_KIND.SUPPLIER_RE
   const save = async () => {
     setSaving(true);
     try {
-      const record = await createStockDisposal(
-        {
-          kind,
-          campusId: form.campusId,
-          supplierId: form.supplierId,
-          reason: form.reason,
-          lines: form.lines.map(({ lotId, qty }) => ({ lotId, qty })),
-        },
-        user,
-      );
+      const record = await dryStockApi.createDisposal(kind, form, lotById);
       toast.success(`Phiếu ${record.code} ${copy.done}.`);
       navigate(backTo);
     } catch (err) {

@@ -154,7 +154,14 @@ export const INTEGRATION_MODULES = {
   // Kho khô trên BE /nutrition/stock/*: tồn theo lô, phiếu nhập, lịch sử nhập/trừ, phần thiếu; route dài hơn nên thắng '/kitchen'
   'dry-stock': {
     source: 'api',
-    routes: ['/kitchen/dry-stock', '/kitchen/stock-receipts', '/kitchen/stock-history', '/kitchen/stock-shortfalls'],
+    routes: [
+      '/kitchen/dry-stock',
+      '/kitchen/stock-receipts',
+      '/kitchen/stock-history',
+      '/kitchen/stock-shortfalls',
+      '/kitchen/stock-returns',
+      '/kitchen/stock-write-offs',
+    ],
     files: ['src/services/dryStockApi.js'],
   },
   // Hàng tươi trên BE: bản dự trù /nutrition/fresh-forecasts, kiểm nhận hai lần /nutrition/fresh-checks, bảng đi chợ /nutrition/day-market; route dài hơn nên thắng '/kitchen'
