@@ -363,7 +363,7 @@ export const educationPlanApi = {
     return axiosClient.get('/education-plans/class-docs', { params, timeout: LIST_TIMEOUT });
   },
   // edu-list-paging (Tiền 25/11/2026): danh sách gọn có phân trang/lọc, chi tiết theo khóa, phần lớp/nhân sự riêng
-  getClassDocSummaries: async (schoolYearId, { review = false, classIds, kinds, statuses, myTurn = false, page = 0, size = 5 } = {}) => {
+  getClassDocSummaries: async (schoolYearId, { review = false, classIds, kinds, statuses, myTurn = false, currentOnly = false, page = 0, size = 5 } = {}) => {
     const id = serverId(schoolYearId) ?? (schoolYearId ? buildRefs(await loadConfig()).schoolYearId(String(schoolYearId)) : null);
     const params = { page, size, ...(id == null ? {} : { schoolYearId: id }), ...(review ? { view: 'REVIEW' } : {}) };
     if (kinds?.length) params.kind = kinds.join(',');
@@ -371,6 +371,8 @@ export const educationPlanApi = {
     if (statuses?.length) params.status = statuses.join(',');
     // Hàng chờ duyệt: BE lọc hồ sơ người xem thuộc chuỗi duyệt (EDU-93) và phân trang ngay ở truy vấn
     if (myTurn) params.myTurn = true;
+    // BE EDU-112 (4): chỉ bản đang hiệu lực (bỏ hồ sơ theo kế hoạch tổ đã bị thay thế)
+    if (currentOnly) params.currentOnly = true;
     return axiosClient.get('/education-plans/class-docs/summary', { params, timeout: LIST_TIMEOUT });
   },
   getClassDoc: (kind, docKey) => axiosClient.get(`/education-plans/class-docs/${kind}/${encodeURIComponent(docKey)}`),

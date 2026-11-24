@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Card, EduStatusBadge, EmptyState, PageHead, fmtDate } from '@/components/education-plan/eduUi';
 import { FilterSelect } from '@/components/education-plan/planUi';
 import { DeadlineBadge } from '@/components/education-plan/DeadlineWidgets';
@@ -11,6 +11,7 @@ import { clickableRowProps } from '@/utils/clickableRow';
 import { Eye } from '@/components/ui/icons';
 import { ErrorState, LoadingState } from '@/components/ui/States';
 import { Pagination } from '@/components/ui/Pagination';
+import { Checkbox } from '@/components/form/Checkbox';
 
 const PAGE_SIZE = 10;
 
@@ -21,11 +22,14 @@ const KINDS = {
     title: 'Kế hoạch giáo dục chủ đề',
     what: (d) => `Học kỳ ${d.semesterNo} · ${(d.themeIds || []).length} chủ đề`,
     to: (d) => `/education/theme-plans/${d.classId}?hk=${d.semesterNo}&plan=${encodeURIComponent(d.yearPlanId)}`,
+    // Bản ban hành của gói học kỳ mở ở trang kế hoạch chủ đề (chủ đề đầu của kỳ), nơi dựng bản xem như file của trường
+    themeOf: (d) => (d.themeIds || [])[0],
   },
   dossier: {
     title: 'Kế hoạch giáo dục ngày',
     what: (d) => `Chủ đề ${d.themeNo || ''}: ${d.themeName || '—'}`,
     to: (d) => `/education/day-plans/${d.classId}?theme=${d.themeId}&plan=${encodeURIComponent(d.yearPlanId)}`,
+    themeOf: (d) => d.themeId,
   },
 };
 
@@ -36,12 +40,13 @@ export default function ClassDocListPage({ kind }) {
   const [ageGroupId, setAgeGroupId] = useState('');
   const [classId, setClassId] = useState('');
   const [page, setPage] = useState(1);
+  const [showOld, setShowOld] = useState(false);
   const groupClasses = classes.filter((c) => !ageGroupId || sameAgeRange(c.ageGroupId, ageGroupId));
   const scopedClassId = groupClasses.some((c) => c.id === classId) ? classId : '';
   const classIds = scopedClassId ? [scopedClassId] : ageGroupId ? groupClasses.map((c) => c.id) : [];
   const docs = useAsync(
-    () => getClassDocSummaries(schoolYearId, user, { kinds: [kind], classIds, page: page - 1, size: PAGE_SIZE }),
-    [user.id, schoolYearId, kind, page, classIds.join(',')],
+    () => getClassDocSummaries(schoolYearId, user, { kinds: [kind], classIds, currentOnly: !showOld, page: page - 1, size: PAGE_SIZE }),
+    [user.id, schoolYearId, kind, page, showOld, classIds.join(',')],
     { enabled: !!schoolYearId && !(ageGroupId && !classIds.length), refreshOnDataChange: true },
   );
   const items = docs.data?.items || [];
@@ -70,6 +75,10 @@ export default function ClassDocListPage({ kind }) {
               onChange={pick(setClassId)}
               options={[{ value: '', label: 'Tất cả' }, ...groupClasses.map((c) => ({ value: c.id, label: c.name }))]}
             />
+            <label className="row gap-2 field">
+              <Checkbox checked={showOld} onChange={(e) => pick(setShowOld)(e.target.checked)} />
+              <span>Xem cả bản cũ</span>
+            </label>
           </div>
         </div>
       </div>
@@ -110,7 +119,17 @@ export default function ClassDocListPage({ kind }) {
                       {(d.releases || []).length
                         ? d.releases.map((r, i) => (
                             <div key={r.id} className="ga-cell-sub">
-                              Lần {i + 1} · {fmtDate(r.releasedAt)}
+                              {meta.themeOf(d) ? (
+                                <Link
+                                  to={`/education/class/${d.classId}/themes/${meta.themeOf(d)}?plan=${encodeURIComponent(d.yearPlanId)}&release=${r.id}`}
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  Lần {i + 1}
+                                </Link>
+                              ) : (
+                                `Lần ${i + 1}`
+                              )}{' '}
+                              · {fmtDate(r.releasedAt)}
                               {r.approvedBy ? ` · ${r.approvedBy}` : ''}
                             </div>
                           ))

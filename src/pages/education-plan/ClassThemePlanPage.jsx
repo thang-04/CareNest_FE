@@ -1,5 +1,5 @@
 import { ResponsiveToolbar } from '@/components/ui/ResponsiveToolbar';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { FileDown, Save, X } from '@/components/ui/icons';
 import { Card, EmptyCard, fmtDate, FoldAllButton, Notice, PageHead } from '@/components/education-plan/eduUi';
@@ -166,6 +166,17 @@ function ThemePlanInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [saved?.id, saved?.version, saved?.dossierVersion, saved?.status, saved?.history?.length, yearPlan?.id, classId, themeId, dirty]);
 
+  // BE EDU-112 (4): mở thẳng một bản đã ban hành từ trang danh sách (?release=<id>); hàm mở gán sau khi trang dựng xong
+  const openReleaseRef = useRef(null);
+  const openedRelease = useRef('');
+  const wantRelease = query.get('release') || '';
+  useEffect(() => {
+    const release = holder?.releases?.find((r) => String(r.id) === wantRelease);
+    if (!release || openedRelease.current === wantRelease || !openReleaseRef.current) return;
+    openedRelease.current = wantRelease;
+    openReleaseRef.current(release);
+  });
+
   if (ctx.loading) return <LoadingState />;
   if (!cls || !yearPlan || !theme) return <StatusPage kind="404" title="Không tìm thấy chủ đề trong kế hoạch năm đã ban hành của lớp" />;
   if (!canComposeClassDocs && !saved) return <StatusPage kind="404" title="Kế hoạch chủ đề chưa được ban hành hoặc không thuộc phạm vi xem" />;
@@ -232,6 +243,7 @@ function ThemePlanInner() {
       toast(err.message || 'Không mở được bản đã ban hành', 'warn');
     }
   };
+  openReleaseRef.current = openRelease;
   const withDays = (weekDoc, start) => {
     const day = dayPlans.find((x) => x.classId === classId && x.yearPlanId === yearPlan.id && x.weekStart === start);
     return weekDoc && day ? { ...weekDoc, days: day.days, dayGoals: day.dayGoals } : weekDoc;
