@@ -130,6 +130,7 @@ const DryStockLedgerPage = lazyPage(() => import('@/pages/kitchen/DryStockLedger
 const StockReceiptEditorPage = lazyPage(() => import('@/pages/kitchen/StockReceiptEditorPage'));
 const StockReceiptListPage = lazyPage(() => import('@/pages/kitchen/StockReceiptListPage'));
 const StockReceiptFormPage = lazyPage(() => import('@/pages/kitchen/StockReceiptFormPage'));
+const StockDisposalFormPage = lazyPage(() => import('@/pages/kitchen/StockDisposalFormPage'));
 const SupplierListPage = lazyPage(() => import('@/pages/kitchen/SupplierListPage'));
 const SupplierDetailPage = lazyPage(() => import('@/pages/kitchen/SupplierDetailPage'));
 const KitchenFlowPage = lazyPage(() => import('@/pages/kitchen/KitchenFlowPage'));
@@ -530,6 +531,9 @@ export function AppRoutes() {
               path="stock-receipts/new"
               element={only(STOCK_RECEIPT_ROLES, DRY_STOCK_API ? <StockReceiptEditorPage /> : <StockReceiptFormPage />)}
             />
+            {/* Xuất kho khô kèm lý do (đề xuất BA): BE chưa có endpoint ⇒ chạy trên dữ liệu demo của module kitchen */}
+            <Route path="stock-returns/new" element={only(STOCK_RECEIPT_ROLES, <StockDisposalFormPage kind="SUPPLIER_RETURN" />)} />
+            <Route path="stock-write-offs/new" element={only(STOCK_RECEIPT_ROLES, <StockDisposalFormPage kind="WRITE_OFF" />)} />
             {DRY_STOCK_API ? (
               <Route path="stock-receipts/:id" element={only(STOCK_RECEIPT_ROLES, <StockReceiptEditorPage />)} />
             ) : (

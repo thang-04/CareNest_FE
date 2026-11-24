@@ -160,7 +160,7 @@ export default function SupplierDetailPage() {
                   <th>Mã phiếu</th>
                   <th>Ngày nhập</th>
                   <th>Điểm trường</th>
-                  <th className="num">Số thực phẩm</th>
+                  <th className="num">Số mặt hàng</th>
                   <th className="money">Tổng tiền</th>
                   <th className="center">Trạng thái</th>
                 </tr>
