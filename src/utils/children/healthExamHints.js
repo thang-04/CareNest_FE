@@ -16,6 +16,15 @@ export const temperatureFormatError = (value) => {
   return TEMPERATURE_FORMAT.test(text) ? '' : TEMPERATURE_FORMAT_MESSAGE;
 };
 
+// Đang gõ dở vẫn có thể thành đúng dạng (vd "3", "36,"): chưa báo lỗi.
+const TEMPERATURE_PREFIX = /^\d{0,2}([.,]\d{0,2})?$/;
+
+/** Lỗi hiện ngay khi gõ: chỉ báo khi chuỗi không thể trở thành nhiệt độ hợp lệ nữa; đủ luật kiểm lúc lưu. */
+export const temperatureTypingError = (value) => {
+  const text = String(value ?? '').trim();
+  return TEMPERATURE_PREFIX.test(text) ? '' : TEMPERATURE_FORMAT_MESSAGE;
+};
+
 /** Nhiệt độ gửi BE: số khi đúng dạng (đổi "," thành "."); sai dạng giữ nguyên chuỗi để BE báo đúng ô. */
 export const temperatureForBe = (value) => {
   const text = String(value ?? '').trim();

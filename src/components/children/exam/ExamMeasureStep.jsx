@@ -7,7 +7,7 @@ import {
   VITAL_ITEMS,
   labelOf,
 } from '@/models/children/healthExamForm';
-import { formatDecimal, headStatusFor, temperatureFormatError, vitalStatusFor } from '@/utils/children/healthExamHints';
+import { formatDecimal, headStatusFor, temperatureTypingError, vitalStatusFor } from '@/utils/children/healthExamHints';
 import {
   EXAM_SECTIONS,
   ExamSheetBand,
@@ -94,7 +94,7 @@ export function ExamMeasureStep({ form, set, setMany, errors, reference, disable
           labelledBy={id(item.key)}
           value={v[item.key]}
           onChange={(value) => setVital(item, value)}
-          error={errors[`exam.vitals.${item.key}`] || (isTemperature(item) ? temperatureFormatError(v[item.key]) : undefined) || undefined}
+          error={errors[`exam.vitals.${item.key}`] || (isTemperature(item) ? temperatureTypingError(v[item.key]) : undefined) || undefined}
           text={isTemperature(item)}
           min={String(item.min)}
           max={String(item.max)}

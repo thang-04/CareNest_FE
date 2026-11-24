@@ -37,7 +37,8 @@ test('validateHealthExam: ô nhiệt độ sai dạng báo đúng câu BE', () =
   const run = (temperatureC) => validateHealthExam({ exam: { vitals: { temperatureC } } })['exam.vitals.temperatureC'];
   assert.equal(run('3115345'), MESSAGE);
   assert.equal(run('36,555'), MESSAGE);
-  assert.notEqual(run('9,5'), undefined);
+  assert.equal(run('9,5'), MESSAGE);
+  assert.equal(run('36,'), MESSAGE);
   assert.equal(run(36.5), undefined);
 });
 
@@ -45,7 +46,7 @@ const source = (name) => readFile(new URL(`../../src/components/children/exam/${
 const stripImports = (s) => s.replace(/^import [^;]*;\r?\n/gm, '');
 const header = `import React, { useId } from 'react';
 const { EXAM_STEPS, HEAD_STATUS_OPTIONS, NUTRITION_STATUS, NUTRITION_STATUS_OPTIONS, VITAL_ITEMS, labelOf } = globalThis.__models;
-const { formatDecimal, headStatusFor, vitalStatusFor, temperatureFormatError } = globalThis.__hints;
+const { formatDecimal, headStatusFor, vitalStatusFor, temperatureTypingError } = globalThis.__hints;
 const Info = () => null;
 const FormField = ({ children }) => children;
 `;
@@ -76,6 +77,11 @@ test('ô nhiệt độ: nhập 3115345 thì hiện lỗi ngay dưới ô', () =>
   const html = render('3115345');
   assert.ok(html.includes(MESSAGE), 'có câu lỗi');
   assert.match(temperatureInput(html), /aria-invalid="true"/);
+});
+
+test('ô nhiệt độ: đang gõ dở (tiền tố hợp lệ) chưa báo lỗi, chữ không thể hợp lệ thì báo ngay', () => {
+  for (const prefix of ['3', '36', '36,', '36,5', '9,5']) assert.ok(!render(prefix).includes(MESSAGE), prefix);
+  for (const bad of ['311', '3115345', '36,555', '36,5a']) assert.ok(render(bad).includes(MESSAGE), bad);
 });
 
 test('ô nhiệt độ: nhận dấu phẩy, không lỗi và ô là text để gõ được dấu phẩy', () => {
