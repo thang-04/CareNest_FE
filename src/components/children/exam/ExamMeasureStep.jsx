@@ -7,7 +7,7 @@ import {
   VITAL_ITEMS,
   labelOf,
 } from '@/models/children/healthExamForm';
-import { formatDecimal, headStatusFor, vitalStatusFor } from '@/utils/children/healthExamHints';
+import { formatDecimal, headStatusFor, temperatureFormatError, vitalStatusFor } from '@/utils/children/healthExamHints';
 import {
   EXAM_SECTIONS,
   ExamSheetBand,
@@ -26,6 +26,8 @@ export const vitalReferenceText = (item, vitals) => {
   const range = item.key === 'pulse' ? vitals.pulse : vitals.respiratoryRate;
   return `Tham khảo: ${range.min}–${range.max} ${item.unit} (${vitals.label})`;
 };
+
+const isTemperature = (item) => item.key === 'temperatureC';
 
 const SD_NOTE = 'Không bắt buộc. Nhập số bác sĩ đọc từ bảng; hệ thống chưa tự tính.';
 
@@ -92,7 +94,8 @@ export function ExamMeasureStep({ form, set, setMany, errors, reference, disable
           labelledBy={id(item.key)}
           value={v[item.key]}
           onChange={(value) => setVital(item, value)}
-          error={errors[`exam.vitals.${item.key}`]}
+          error={errors[`exam.vitals.${item.key}`] || (isTemperature(item) ? temperatureFormatError(v[item.key]) : undefined) || undefined}
+          text={isTemperature(item)}
           min={String(item.min)}
           max={String(item.max)}
           step={item.step}

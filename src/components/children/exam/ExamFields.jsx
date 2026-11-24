@@ -286,21 +286,22 @@ export function ExamSheetInputCell({ labelledBy, value, onChange, error, hint, d
  * Ô số đo kèm trạng thái (sinh tồn, vòng đầu): ô số và nhóm radio cùng một dòng; dưới là lỗi, khoảng tham khảo (mờ), gợi ý.
  * status: { name, labelledBy | ariaLabel, options, value, onChange, error, hint }.
  */
-export function ExamSheetMeasureCell({ labelledBy, value, onChange, error, min, max, step, disabled, status, reference }) {
+export function ExamSheetMeasureCell({ labelledBy, value, onChange, error, min, max, step, disabled, status, reference, text }) {
   const id = useId();
   const statusId = `${id}-status`;
   return (
     <td className={abnormalOf(status.options, status.value) ? 'tr-exam-sheet__flag' : undefined}>
       <div className="tr-exam-sheet__line">
+        {/* text: ô chữ nhận cả "," lẫn "." (ô số của trình duyệt theo ngôn ngữ máy, không gõ được dấu phẩy ở mọi nơi) */}
         <input
-          type="number"
+          type={text ? 'text' : 'number'}
           inputMode="decimal"
           className={inputClass(null, error)}
           id={id}
           value={value ?? ''}
-          min={min}
-          max={max}
-          step={step}
+          min={text ? undefined : min}
+          max={text ? undefined : max}
+          step={text ? undefined : step}
           disabled={disabled}
           aria-labelledby={labelledBy}
           aria-invalid={!!error || undefined}

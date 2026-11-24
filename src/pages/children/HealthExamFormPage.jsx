@@ -50,6 +50,7 @@ import { formatDate, formatDateTime } from '@/utils/format';
 import { hasErrors } from '@/utils/children/childrenValidation';
 import { formatMeasurementChange } from '@/utils/children/childrenHelpers';
 import { unshownErrors, withoutUnshownErrors } from '@/utils/children/examDraftErrors';
+import { temperatureForBe } from '@/utils/children/healthExamHints';
 import { validateHealthExam } from '@/utils/children/healthExamValidation';
 import { healthCheckCrumbs } from '@/utils/children/breadcrumbs';
 import '@/styles/modules/children.css';
@@ -291,11 +292,17 @@ export default function HealthExamFormPage() {
     if (concluded) setReviewStale(true);
   };
   const set = (path, value) => update({ [path]: value });
-  const payloadOf = (extra) => ({
+  // Nhiệt độ gửi BE dạng số ("36,5" ⇒ 36.5); sai dạng giữ chuỗi để BE báo lỗi đúng ô.
+  const withNumericTemperature = (exam) => ({
+    ...exam,
+    vitals: { ...exam.vitals, temperatureC: temperatureForBe(exam.vitals?.temperatureC) },
+  });
+  const payloadOf = ({ exam, ...extra }) => ({
     heightCm: form.heightCm,
     weightKg: form.weightKg,
     headCircumferenceCm: form.headCircumferenceCm,
     reason: form.reason,
+    exam: withNumericTemperature(exam),
     ...extra,
   });
 

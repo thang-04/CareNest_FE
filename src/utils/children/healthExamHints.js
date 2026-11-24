@@ -5,15 +5,35 @@
 
 const toNumber = (v) => (v === '' || v == null || Number.isNaN(Number(v)) ? null : Number(v));
 
+export const TEMPERATURE_FORMAT_MESSAGE = 'Nhập nhiệt độ gồm 2 chữ số, tối đa 2 chữ số sau dấu phẩy (vd 36,5)';
+// Dạng BE nhận (khớp luật BE): đúng 2 chữ số nguyên, tối đa 2 chữ số thập phân; dấu thập phân là "," hoặc ".".
+const TEMPERATURE_FORMAT = /^\d{2}([.,]\d{1,2})?$/;
+
+/** Lỗi định dạng ô nhiệt độ ('' khi hợp lệ hoặc còn trống). Chỉ nhắc nhập liệu; BE kiểm lại. */
+export const temperatureFormatError = (value) => {
+  const text = String(value ?? '').trim();
+  if (text === '') return '';
+  return TEMPERATURE_FORMAT.test(text) ? '' : TEMPERATURE_FORMAT_MESSAGE;
+};
+
+/** Nhiệt độ gửi BE: số khi đúng dạng (đổi "," thành "."); sai dạng giữ nguyên chuỗi để BE báo đúng ô. */
+export const temperatureForBe = (value) => {
+  const text = String(value ?? '').trim();
+  if (text === '' || temperatureFormatError(text)) return value;
+  return Number(text.replace(',', '.'));
+};
+
 /** Trạng thái gợi ý của 1 dấu hiệu sinh tồn; null khi chưa có số. below: thấp hơn khoảng (mạch không có ô "chậm"). */
 export const vitalStatusFor = (key, value, vitals) => {
-  const n = toNumber(value);
-  if (n == null || !vitals) return null;
   if (key === 'temperatureC') {
-    if (n >= vitals.temperature.feverFrom) return { status: 'FEVER' };
-    if (n < vitals.temperature.hypothermiaBelow) return { status: 'HYPOTHERMIA' };
+    if (temperatureFormatError(value) || String(value ?? '').trim() === '' || !vitals) return null;
+    const t = Number(String(value).trim().replace(',', '.'));
+    if (t >= vitals.temperature.feverFrom) return { status: 'FEVER' };
+    if (t < vitals.temperature.hypothermiaBelow) return { status: 'HYPOTHERMIA' };
     return { status: 'NORMAL' };
   }
+  const n = toNumber(value);
+  if (n == null || !vitals) return null;
   const range = key === 'pulse' ? vitals.pulse : vitals.respiratoryRate;
   if (n > range.max) return { status: 'FAST' };
   if (n < range.min) return key === 'pulse' ? { status: 'NORMAL', below: true } : { status: 'SLOW' };
