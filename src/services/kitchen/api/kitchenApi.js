@@ -18,10 +18,6 @@ export const kitchenApi = {
   getStockReceipt: ({ id }) => axiosClient.get(`/kitchen/stock-receipts/${id}`),
   saveStockReceipt: ({ id, ...payload }) =>
     id ? axiosClient.put(`/kitchen/stock-receipts/${id}`, payload) : axiosClient.post('/kitchen/stock-receipts', payload),
-  getStockLots: ({ campusId }) => axiosClient.get('/kitchen/stock-lots', { params: { campusId } }),
-  // Trả NCC (lô còn hạn) và xuất hủy (lô hết hạn) là hai chứng từ riêng; cùng body { campusId, supplierId?, reason, lines: [{ lotId, qty }] }
-  createStockDisposal: ({ kind, ...payload }) =>
-    axiosClient.post(kind === 'SUPPLIER_RETURN' ? '/kitchen/stock-returns' : '/kitchen/stock-write-offs', payload),
   getSuppliers: ({ keyword, status } = {}) => axiosClient.get('/kitchen/suppliers', { params: { keyword, status } }),
   getSupplier: ({ id }) => axiosClient.get(`/kitchen/suppliers/${id}`),
   saveSupplier: ({ id, ...payload }) =>

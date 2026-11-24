@@ -3,7 +3,7 @@ import { test } from 'node:test';
 
 globalThis.window = new EventTarget();
 
-const { createDryStockApi, toReceiptRequest } = await import('@/services/dryStockApi');
+const { createDryStockApi, toReceiptRequest, toDisposalRequest, toLot } = await import('@/services/dryStockApi');
 const { toBaseQuantity, toPurchaseQuantity, formatPurchaseQty, formatSignedPurchaseQty } = await import('@/utils/kitchen/stockUnits');
 const { emptyReceiptForm, receiptToForm, validateReceiptForm, mapReceiptErrors } = await import('@/utils/kitchen/stockReceiptForm');
 const { groupLotsByFood, expiryStatus, daysUntil, personName } = await import('@/utils/kitchen/stockLots');
@@ -221,10 +221,58 @@ test('tồn kho: gom lô theo thực phẩm, nhắc hạn dùng, không hiện m
   assert.equal(personName(null), '');
 });
 
-test('module dry-stock khai source api với bốn route kho và file adapter', () => {
+test('xuất kho: trả NCC POST /returns kèm supplierId, xuất hủy POST /write-offs không gửi supplierId, số lượng về đơn vị gốc', async () => {
+  const lotRice = toLot({ id: '41', food: RICE, remaining: 12500, supplierId: '3' });
+  const lotOil = toLot({ id: '42', food: OIL, remaining: 1500, supplierId: '3' });
+  const lotById = { 41: lotRice, 42: lotOil };
+  const client = fakeClient({
+    'POST /nutrition/stock/returns': { id: '1', code: 'XT-1' },
+    'POST /nutrition/stock/write-offs': { id: '2', code: 'XH-1' },
+  });
+  const api = createDryStockApi({ client });
+  const form = {
+    campusId: '1',
+    supplierId: '3',
+    reason: '  Giao thừa ',
+    lines: [
+      { lotId: '41', qty: '2.5' },
+      { lotId: '42', qty: '3' }, // đúng tồn hiện (3 chai) ⇒ gửi nguyên tồn gốc của lô
+    ],
+  };
+
+  await api.createDisposal('SUPPLIER_RETURN', form, lotById);
+  assert.equal(client.calls[0].url, '/nutrition/stock/returns');
+  assert.deepEqual(client.calls[0].body, {
+    campusId: '1',
+    supplierId: '3',
+    reason: 'Giao thừa',
+    lines: [
+      { lotId: '41', quantity: 2500 },
+      { lotId: '42', quantity: 1500 },
+    ],
+  });
+
+  await api.createDisposal('WRITE_OFF', form, lotById);
+  assert.equal(client.calls[1].url, '/nutrition/stock/write-offs');
+  assert.equal('supplierId' in client.calls[1].body, false);
+
+  assert.throws(
+    () => toDisposalRequest('WRITE_OFF', { ...form, lines: [{ lotId: '99', qty: '1' }] }, lotById),
+    (err) => !!err.details['lines.0.lotId'],
+  );
+});
+
+test('module dry-stock khai source api với sáu route kho và file adapter', () => {
   const mod = INTEGRATION_MODULES['dry-stock'];
   assert.equal(mod.source, 'api');
-  assert.deepEqual(mod.routes, ['/kitchen/dry-stock', '/kitchen/stock-receipts', '/kitchen/stock-history', '/kitchen/stock-shortfalls']);
+  assert.deepEqual(mod.routes, [
+    '/kitchen/dry-stock',
+    '/kitchen/stock-receipts',
+    '/kitchen/stock-history',
+    '/kitchen/stock-shortfalls',
+    '/kitchen/stock-returns',
+    '/kitchen/stock-write-offs',
+  ]);
   assert.deepEqual(mod.files, ['src/services/dryStockApi.js']);
 });
 
