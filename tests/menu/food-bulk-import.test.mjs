@@ -20,10 +20,45 @@ const HEADER = IMPORT_COLUMNS.map(([, label]) => label);
 
 beforeEach(() => values.clear());
 
+test('nhập quy đổi mới giữ số g/ml của đơn vị kho và cập nhật tỷ lệ mua', async () => {
+  const foods = await repo.listFoods({}, VP);
+  const rice = foods.find((f) => f.name === 'Gạo tẻ');
+  const before = { ...rice, stockUnit: 'kg', stockUnitSize: 1000, purchaseToStock: 25, purchaseUnit: 'bao', purchaseUnitSize: 25000 };
+  const cells = Array(HEADER.length).fill('');
+  cells[0] = before.code;
+  cells[5] = 10000;
+  const result = matchFoodRows([HEADER, cells], [before]);
+  assert.deepEqual(result.errors, []);
+  const data = result.updates[0].data;
+  assert.equal(data.purchaseToStock, 10);
+  assert.equal(data.stockUnitSize, undefined, 'không thay đổi tỷ lệ đơn vị kho');
+  const saved = await repo.saveFood(before.id, { ...before, ...data }, VP);
+  assert.equal(saved.purchaseUnitSize, 10000);
+  assert.equal(saved.stockUnitSize, 1000);
+});
+
 test('file mẫu đọc được và đúng dòng tiêu đề', async () => {
   const rows = await readSheet(readFileSync('public/templates/thuc-pham-mau.xlsx'));
   assert.deepEqual(rows[0], HEADER);
   assert.deepEqual(matchFoodRows(rows, []), { creates: [], updates: [], errors: [] });
+});
+
+test('file mẫu cũ giữ đúng vị trí vi chất sau cột phiên bản nguồn đã bỏ', async () => {
+  const foods = await repo.listFoods({}, VP);
+  const rice = foods.find((f) => f.name === 'Gạo tẻ');
+  const header = HEADER.map(
+    (label) => ({ 'Đơn vị gốc': 'Đơn vị', 'Đơn vị tính': 'Đơn vị mua', 'Vitamin B3 (PP/niacin) (mg)': 'Vitamin PP (mg)' })[label] || label,
+  );
+  header.splice(15, 0, 'Phiên bản nguồn');
+  const row = header.map(() => '');
+  row[0] = rice.code;
+  row[15] = '2017';
+  row[header.indexOf('Kẽm (mg)')] = 0;
+  row[header.indexOf('Vitamin PP (mg)')] = 1.2;
+  const result = matchFoodRows([header, row], foods);
+  assert.deepEqual(result.errors, []);
+  assert.deepEqual(result.updates[0].data.nutrition, { zinc: 0, vitaminPp: 1.2 });
+  assert.equal(Object.hasOwn(result.updates[0].data, 'nutrientSourceVersion'), false);
 });
 
 test('đối chiếu file: mới, cập nhật ô có giá trị, lỗi có lý do; tiêu đề sai thì chặn cả file', async () => {
@@ -31,7 +66,7 @@ test('đối chiếu file: mới, cập nhật ô có giá trị, lỗi có lý 
   const rice = foods.find((f) => f.name === 'Gạo tẻ');
   const rows = [
     HEADER,
-    ['', 'Bí xanh', 'Rau, củ', 'g', 'kg', 1000, 18000, 15, 14, 0.6, 0.1, 2.4, '', 'Tươi', 'Bảng TPVN', '2017'],
+    ['', 'Bí xanh', 'Rau, củ', 'g', 'kg', 1000, 18000, 15, 14, 0.6, 0.1, 2.4, '', 'Tươi', 'Bảng TPVN', 'Thực vật'],
     [rice.code, '', '', '', '', '', 20000, '', '', '', '', '', '', ''],
     ['TP999', 'Không có', 'Thịt', 'g', 'kg', 1000, '', '', '', '', '', '', '', ''],
     ['', 'Rau lạ', 'Nhóm lạ', 'lít', 'kg', 1000, '', '', '', '', '', '', 'Hạt điều', 'Đông lạnh'],

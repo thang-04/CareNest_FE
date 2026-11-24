@@ -2,6 +2,7 @@ import { isDemoModule, sourceOf } from '@/services/demoSource';
 import { menuPlanningMockRepository as mock } from '@/services/menu-planning/mock/menuPlanningMockRepository';
 import { menuPlanningApi as api } from '@/services/menu-planning/api/menuPlanningApi';
 import { nutritionCatalogApi } from '@/services/nutritionCatalogApi';
+import { getSuppliers } from '@/services/supplierCatalogService';
 import { todayInput } from '@/utils/format';
 
 /**
@@ -51,7 +52,7 @@ export const adjustFoodPrice = (foodId, payload) => nutritionCatalogApi.adjustFo
 export const updateFoodPrice = (foodId, priceId, payload) => nutritionCatalogApi.updateFoodPrice(foodId, priceId, payload);
 export const deleteFoodPrice = (foodId, priceId) => nutritionCatalogApi.deleteFoodPrice(foodId, priceId);
 export const getSupplierFoods = (supplierId, date) => nutritionCatalogApi.getSupplierFoods(supplierId, date);
-export const getActiveSuppliers = () => nutritionCatalogApi.getSuppliers({ status: 'ACTIVE' });
+export const getActiveSuppliers = (user) => getSuppliers({ status: 'ACTIVE' }, user);
 export const applySupplierContract = (supplierId, payload) => nutritionCatalogApi.applySupplierContract(supplierId, payload);
 /** Lưu nhiều thực phẩm một lần: [{ key, id?, data }] → { created, updated }; lỗi 422 theo `${key}.${field}`, không ghi dòng nào. */
 export const saveFoodsBulk = (items, user) => catalogRepo.saveFoodsBulk(items, user);

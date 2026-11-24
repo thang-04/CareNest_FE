@@ -15,6 +15,13 @@ export function planDayItems(plan, date, ageGroupId) {
   return day.items.filter((i) => i.block === block).map((i) => ({ session: i.session, dishId: Number(i.dishId) }));
 }
 
+/** Toàn bộ món của ngày, giữ khối để BE không tính món nhà trẻ cho mẫu giáo và ngược lại. */
+export function allDayItems(plan, date) {
+  const day = (plan?.days || []).find((d) => d.date === date);
+  if (!day || day.off) return [];
+  return (day.items || []).map((i) => ({ session: i.session, block: i.block, dishId: Number(i.dishId) }));
+}
+
 /** Món của bộ mẫu ở tuần `weekNo` (1–4), thứ `weekday` (1 = thứ Hai). */
 export const templateDayItems = (template) => (template?.items || []).map((i) => ({ session: i.session, dishId: Number(i.dishId) }));
 
@@ -109,6 +116,18 @@ export const buysInBaseUnit = (r) => !!r.purchaseUnit && BIG_UNITS[r.unit] === S
 
 /** Dòng Excel của bảng thực phẩm (số lấy nguyên từ BE); có nhóm Tươi/Khô thì thêm dòng tiêu đề và tổng từng nhóm. */
 export function statisticsExportRows(stats, title, groupBy = 'storage') {
+  if (stats.groups?.length) {
+    return [
+      [title],
+      ['Tổng toàn trường'],
+      ['Số trẻ', stats.children],
+      ['Tiền ăn 1 trẻ', stats.costPerChild],
+      ['Ngân sách thực phẩm cao nhất', stats.foodBudget ?? stats.mealPrice ?? 'Chưa đặt'],
+      ['Tổng tiền', stats.totalCost],
+      [],
+      ...stats.groups.flatMap((group) => [...statisticsExportRows(group, `${title} · ${group.ageGroupName}`, groupBy), []]),
+    ];
+  }
   const n = stats.children;
   const head = [
     'STT',

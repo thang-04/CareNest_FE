@@ -38,12 +38,14 @@ const GROUP = 'GROUP';
 
 // Đủ điều kiện chưa phát lên đầu, rồi đã phát, cuối cùng chưa đủ điều kiện
 const rank = (r) => (r.ticket ? 1 : r.eligible ? 0 : 2);
+// issuedByNames: người đã phát phiếu tuần ở lớp đó (BE OBS-35)
+const issuersText = (item) => ((item.issuedByNames || []).length ? ` (người phát: ${item.issuedByNames.join(', ')})` : '');
 const evidenceText = (evidence, weekly) =>
   (evidence || [])
     .map((item) =>
       weekly
         ? `${item.className}: ${item.presentDays || 0} ngày có mặt, ${item.flagCount || 0} cờ`
-        : `${item.className}: ${item.weeklyTickets || 0} phiếu tuần`,
+        : `${item.className}: ${item.weeklyTickets || 0} phiếu tuần${issuersText(item)}`,
     )
     .join(' · ');
 import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';

@@ -23,6 +23,7 @@ import { addDays, schoolToday } from '@/utils/attendance/attendanceTime';
 import { attendanceCrumbs } from '@/utils/attendance/breadcrumbs';
 import { exportWithPreview } from '@/components/ui/ExportPreview';
 import { formatDate, formatDateTime, isIsoDate, monthRangeOf } from '@/utils/format';
+import { childNameWithHistory } from '@/utils/childHistory';
 import { LEAVE_PART, LEAVE_PART_LABELS, LEAVE_STATUS_LABELS, MEAL_SESSION_LABELS } from '@/models/attendance/attendanceConstants';
 import '@/styles/modules/attendance.css';
 
@@ -118,7 +119,7 @@ export default function LeaveRequestsPage() {
       'Gửi lúc',
     ];
     const body = rows.map((r) => [
-      r.childName,
+      childNameWithHistory(r.childName, r.historyStatus),
       r.className,
       ...(leader ? [campusName(r.campusId)] : []),
       formatDate(r.fromDate),
@@ -280,7 +281,7 @@ export default function LeaveRequestsPage() {
                 ) : (
                   paginate(rows, currentPage, PAGE_SIZE).map((r) => (
                     <tr key={r.id}>
-                      <td>{r.childName}</td>
+                      <td>{childNameWithHistory(r.childName, r.historyStatus)}</td>
                       <td>
                         {r.className}
                         {leader && campusIds.size > 1 && r.campusId ? ` · ${campusName(r.campusId)}` : ''}

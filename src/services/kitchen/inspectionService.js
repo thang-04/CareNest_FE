@@ -15,3 +15,9 @@ export const getInspectionSuppliers = (user) => repo.getInspectionSuppliers(user
 export const reopenInspectionTab = (payload, user) => repo.reopenInspectionTab(payload, user);
 /** Ký mẫu: { campusId, date, tab, signatureId, imageUrl } (mock chép imageUrl, BE chỉ nhận signatureId). */
 export const signInspectionTab = (payload, user) => repo.signInspectionTab(payload, user);
+/** Ngày cũ (INS-05): gửi yêu cầu mở một mẫu { campusId, date, tab, reason, validHours? }; Hiệu trưởng gửi thì mở ngay. */
+export const requestInspectionApproval = (payload, user) => repo.requestInspectionApproval(payload, user);
+/** Hàng chờ của Hiệu trưởng: { campusId?, status? } → [{ id, campusId, date, tab, status, reason, requestedByName, ... }]. */
+export const getInspectionApprovals = (filters, user) => repo.getInspectionApprovals(filters, user);
+/** Hiệu trưởng duyệt / từ chối / thu hồi: { approvalId, decision: 'approve' | 'reject' | 'revoke', note, validHours? }. */
+export const decideInspectionApproval = (payload, user) => repo.decideInspectionApproval(payload, user);

@@ -6,7 +6,7 @@ File sinh tự động, không sửa tay. Sinh lại: `node scripts/check-api-co
 - Path đã chuẩn hóa tham số thành `{x}`. `[module: api|demo]` theo `src/config/integrationModules.js`.
 - Lời gọi có đường dẫn không phải chuỗi literal (vd. ghép từ biến) không nằm trong bảng.
 
-Tổng: 438 lời gọi.
+Tổng: 443 lời gọi.
 
 ```text
 DELETE /accounts/me/photo · src/services/account/api/accountPhotoApi.js [account: api] → src/main/java/com/carenest/controller/account/AccountPhotoController.java#deleteMyPhoto
@@ -116,6 +116,7 @@ GET /classes/{x}/children/{x}/daily-health · src/services/daily-health/api/dail
 GET /classes/{x}/daily-assessment · src/services/assessment/api/assessmentApi.js [assessment: api] → src/main/java/com/carenest/controller/observation/DailyAssessmentController.java#getDailySheet
 GET /classes/{x}/pickups · src/services/pickup/api/pickupApi.js [pickup: api] → src/main/java/com/carenest/controller/attendance/PickupController.java#getBoard
 GET /classes/{x}/teacher-assignments/history · src/services/school-config/api/schoolConfigApi.js [school-config: api] → src/main/java/com/carenest/controller/organization/TeacherAssignmentController.java#getClassTeacherHistory
+GET /classes/{x}/transferred-assessment-history · src/services/assessment/api/assessmentApi.js [assessment: api] → src/main/java/com/carenest/controller/observation/DailyAssessmentController.java#getTransferredHistory
 GET /classrooms · src/services/account/api/permissionApi.js [permission: api] → src/main/java/com/carenest/controller/organization/SchoolStructureController.java#listClassrooms
 GET /daily-health/overview · src/services/daily-health/api/dailyHealthApi.js [daily-health: api] → src/main/java/com/carenest/controller/attendance/DailyHealthController.java#getOverview
 GET /education-plans/class-docs · src/services/education-plan/api/educationPlanApi.js [education-plan: api] → src/main/java/com/carenest/controller/eduplan/EduClassDocController.java#getClassDocs
@@ -132,6 +133,7 @@ GET /health-checks/schedule-warnings · src/services/children/api/healthCheckApi
 GET /health-checks/{x} · src/services/children/api/healthCheckApi.js [children: api] → src/main/java/com/carenest/controller/health/HealthCheckController.java#getHealthCheck
 GET /health-checks/{x}/children/{x}/exam · src/services/children/api/healthCheckApi.js [children: api] → src/main/java/com/carenest/controller/health/HealthExamController.java#getExam
 GET /health-checks/{x}/classes/{x}/children · src/services/children/api/healthCheckApi.js [children: api] → src/main/java/com/carenest/controller/health/HealthCheckController.java#getHealthCheckClass
+GET /inspections/approvals · src/services/kitchen/api/inspectionApi.js [kitchen-inspection: api] → src/main/java/com/carenest/controller/meals/InspectionController.java#getApprovals
 GET /inspections/day · src/services/kitchen/api/inspectionApi.js [kitchen-inspection: api] → src/main/java/com/carenest/controller/meals/InspectionController.java#getDay
 GET /inspections/signatures/{x} · src/services/kitchen/api/inspectionApi.js [kitchen-inspection: api] → src/main/java/com/carenest/controller/meals/InspectionController.java#getSignatureImage
 GET /kitchen/day · src/services/kitchen/api/kitchenApi.js [kitchen: demo] → (BE chưa có)
@@ -143,6 +145,7 @@ GET /kitchen/foods · src/services/kitchen/api/kitchenApi.js [kitchen: demo] →
 GET /kitchen/fresh-receipts · src/services/kitchen/api/kitchenApi.js [kitchen: demo] → (BE chưa có)
 GET /kitchen/published-menus · src/services/kitchen/api/kitchenApi.js [kitchen: demo] → (BE chưa có)
 GET /kitchen/stock-issues · src/services/kitchen/api/kitchenApi.js [kitchen: demo] → (BE chưa có)
+GET /kitchen/stock-lots · src/services/kitchen/api/kitchenApi.js [kitchen: demo] → (BE chưa có)
 GET /kitchen/stock-receipts · src/services/kitchen/api/kitchenApi.js [kitchen: demo] → (BE chưa có)
 GET /kitchen/stock-receipts/{x} · src/services/kitchen/api/kitchenApi.js [kitchen: demo] → (BE chưa có)
 GET /kitchen/suppliers · src/services/kitchen/api/kitchenApi.js [kitchen: demo] → (BE chưa có)
@@ -323,6 +326,8 @@ POST /health-checks/{x}/cancel · src/services/children/api/healthCheckApi.js [c
 POST /health-checks/{x}/children/{x}/exam/review-preview · src/services/children/api/healthCheckApi.js [children: api] → src/main/java/com/carenest/controller/health/HealthExamController.java#reviewPreview
 POST /health-checks/{x}/close · src/services/children/api/healthCheckApi.js [children: api] → src/main/java/com/carenest/controller/health/HealthCheckController.java#closeHealthCheck
 POST /health-checks/{x}/reopen · src/services/children/api/healthCheckApi.js [children: api] → src/main/java/com/carenest/controller/health/HealthCheckController.java#reopenHealthCheck
+POST /inspections/approvals/{x}/{x} · src/services/kitchen/api/inspectionApi.js [kitchen-inspection: api] → (BE chưa có — pending)
+POST /inspections/day/{x}/approvals · src/services/kitchen/api/inspectionApi.js [kitchen-inspection: api] → src/main/java/com/carenest/controller/meals/InspectionController.java#requestApproval
 POST /inspections/day/{x}/reopen · src/services/kitchen/api/inspectionApi.js [kitchen-inspection: api] → src/main/java/com/carenest/controller/meals/InspectionController.java#reopenSheet
 POST /inspections/day/{x}/sign · src/services/kitchen/api/inspectionApi.js [kitchen-inspection: api] → src/main/java/com/carenest/controller/meals/InspectionController.java#signSheet
 POST /kitchen/food-samples/{x}/{x}/{x}/destroy · src/services/kitchen/api/kitchenApi.js [kitchen: demo] → (BE chưa có)

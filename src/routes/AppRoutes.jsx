@@ -130,6 +130,7 @@ const DryStockLedgerPage = lazyPage(() => import('@/pages/kitchen/DryStockLedger
 const StockReceiptEditorPage = lazyPage(() => import('@/pages/kitchen/StockReceiptEditorPage'));
 const StockReceiptListPage = lazyPage(() => import('@/pages/kitchen/StockReceiptListPage'));
 const StockReceiptFormPage = lazyPage(() => import('@/pages/kitchen/StockReceiptFormPage'));
+const StockDisposalFormPage = lazyPage(() => import('@/pages/kitchen/StockDisposalFormPage'));
 const SupplierListPage = lazyPage(() => import('@/pages/kitchen/SupplierListPage'));
 const SupplierDetailPage = lazyPage(() => import('@/pages/kitchen/SupplierDetailPage'));
 const KitchenFlowPage = lazyPage(() => import('@/pages/kitchen/KitchenFlowPage'));
@@ -155,12 +156,8 @@ const ChildDevelopmentListPage = lazyPage(() => import('@/pages/assessment/Child
 const ChildDevelopmentProfilePage = lazyPage(() => import('@/pages/assessment/ChildDevelopmentProfilePage'));
 const ChildDevelopmentProgressPage = lazyPage(() => import('@/pages/assessment/ChildDevelopmentProgressPage'));
 const AiEvaluationDraftPage = lazyPage(() => import('@/pages/assessment/AiEvaluationDraftPage'));
-const MonthlyEvaluationListPage = lazyPage(() => import('@/pages/assessment/MonthlyEvaluationListPage'));
-const MonthlyEvaluationDetailPage = lazyPage(() => import('@/pages/assessment/MonthlyEvaluationDetailPage'));
 const ClassRatingsPage = lazyPage(() => import('@/pages/assessment/ClassRatingsPage'));
 const SemesterEvaluationListPage = lazyPage(() => import('@/pages/assessment/SemesterEvaluationListPage'));
-const SemesterChildCommentListPage = lazyPage(() => import('@/pages/assessment/SemesterChildCommentListPage'));
-const SemesterEvaluationDetailPage = lazyPage(() => import('@/pages/assessment/SemesterEvaluationDetailPage'));
 const YearEndEvaluationListPage = lazyPage(() => import('@/pages/assessment/YearEndEvaluationListPage'));
 const YearEndEvaluationDetailPage = lazyPage(() => import('@/pages/assessment/YearEndEvaluationDetailPage'));
 const GoodBehaviourTicketsPage = lazyPage(() => import('@/pages/assessment/GoodBehaviourTicketsPage'));
@@ -530,6 +527,9 @@ export function AppRoutes() {
               path="stock-receipts/new"
               element={only(STOCK_RECEIPT_ROLES, DRY_STOCK_API ? <StockReceiptEditorPage /> : <StockReceiptFormPage />)}
             />
+            {/* Xuất kho khô kèm lý do (đề xuất BA): BE chưa có endpoint ⇒ chạy trên dữ liệu demo của module kitchen */}
+            <Route path="stock-returns/new" element={only(STOCK_RECEIPT_ROLES, <StockDisposalFormPage kind="SUPPLIER_RETURN" />)} />
+            <Route path="stock-write-offs/new" element={only(STOCK_RECEIPT_ROLES, <StockDisposalFormPage kind="WRITE_OFF" />)} />
             {DRY_STOCK_API ? (
               <Route path="stock-receipts/:id" element={only(STOCK_RECEIPT_ROLES, <StockReceiptEditorPage />)} />
             ) : (
@@ -556,11 +556,9 @@ export function AppRoutes() {
             <Route path="daily" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <DailyAssessmentPage />)} />
             <Route path="daily/skills" element={permit([PERMISSIONS.ASSESSMENT_RECORD], <DailyGoalAssessmentPage />)} />
             <Route path="day-unlocks" element={permit([PERMISSIONS.ASSESSMENT_UNLOCK], <AssessmentDayUnlockPage />)} />
-            {/* Link periodic cũ chuyển về hồ sơ; nhận xét tháng dùng route monthly. */}
+            {/* Nhận xét tháng/học kỳ cá nhân đã bỏ; giữ link cũ về hồ sơ hoặc bảng học kỳ. */}
             <Route path="periodic/*" element={<Navigate to="/assessment/children" replace />} />
-            <Route path="monthly" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <MonthlyEvaluationListPage />)} />
-            <Route path="monthly/:id" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <MonthlyEvaluationDetailPage />)} />
-            <Route path="monthly/:id/ai-draft" element={permit([PERMISSIONS.ASSESSMENT_RECORD], <AiEvaluationDraftPage />)} />
+            <Route path="monthly/*" element={<Navigate to="/assessment/children" replace />} />
             <Route path="overview" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <ClassAssessmentOverviewPage />)} />
             <Route path="quality-report" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <QualityReportPage />)} />
             <Route path="class-ratings" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <ClassRatingsPage />)} />
@@ -569,9 +567,7 @@ export function AppRoutes() {
             <Route path="children/:childId" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <ChildDevelopmentProfilePage />)} />
             <Route path="children/:childId/progress" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <ChildDevelopmentProgressPage />)} />
             <Route path="semester" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <SemesterEvaluationListPage />)} />
-            <Route path="semester/children" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <SemesterChildCommentListPage />)} />
-            <Route path="semester/:id" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <SemesterEvaluationDetailPage />)} />
-            <Route path="semester/:id/ai-draft" element={permit([PERMISSIONS.ASSESSMENT_RECORD], <AiEvaluationDraftPage />)} />
+            <Route path="semester/*" element={<Navigate to="/assessment/semester" replace />} />
             <Route path="year-end" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <YearEndEvaluationListPage />)} />
             <Route path="year-end/:id" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <YearEndEvaluationDetailPage />)} />
             <Route path="year-end/:id/ai-draft" element={permit([PERMISSIONS.ASSESSMENT_RECORD], <AiEvaluationDraftPage />)} />

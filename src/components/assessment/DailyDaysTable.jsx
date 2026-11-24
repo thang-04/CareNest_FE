@@ -46,7 +46,10 @@ export function DailyDaysTable({ days, mealSessions, classId, linkDays }) {
                   formatDate(d.date)
                 )}
               </td>
-              <td>{d.className || dash}</td>
+              <td>
+                {d.className || dash}
+                {d.recordedByName && <div className="muted text-xs">Người ghi: {d.recordedByName}</div>}
+              </td>
               <td className={d.health?.signs.length ? 'dg-cell--warn' : ''}>
                 {d.health ? (
                   <>

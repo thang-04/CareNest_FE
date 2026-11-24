@@ -23,6 +23,9 @@ import { DateInput } from '@/components/form/DateInput';
 import { formatDate, formatDateTime, isIsoDate } from '@/utils/format';
 import { todayIso } from '@/utils/assessment/assessmentPeriods';
 import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';
+import { readableClassDate } from '@/utils/historyDate';
+import { TransferredHistoryPanel } from '@/components/TransferredHistoryPanel';
+import { dayRange } from '@/utils/assessment/transferredHistory';
 import '@/styles/modules/assessment.css';
 // Bảng cùng kiểu bảng mục tiêu năm học / giáo án (Tiền 20/10)
 import '@/styles/modules/education-plan.css';
@@ -91,10 +94,10 @@ export default function DailyGoalAssessmentPage() {
   // Chưa chọn ngày: BE trả ngày học gần nhất theo ngày nghỉ trong cấu hình năm học (lễ, Tết…)
   const currentClassId = classes.some((c) => c.id === classId) ? classId : classes[0]?.id || '';
   const selectedClass = classes.find((c) => c.id === currentClassId);
-  const requestDate = date || (selectedClass?.historicalReadOnly ? selectedClass.lastReadableDate : undefined);
+  const requestDate = readableClassDate(selectedClass, date);
   const params = useMemo(() => ({ classId: currentClassId, date: requestDate }), [currentClassId, requestDate]);
   const { sheet, loading, error, reload } = useDailyAssessment(params);
-  const shownDate = date || sheet?.date || '';
+  const shownDate = requestDate || sheet?.date || '';
 
   const [drafts, setDrafts] = useState({});
   // { [childId]: Set(activityKey | '_comment') } — chỉ gửi phần cô đã sửa
@@ -482,6 +485,8 @@ export default function DailyGoalAssessmentPage() {
           )}
         </div>
       )}
+      {/* Trẻ chuyển đến: lịch sử ở lớp cũ trong ngày này, chỉ xem, không thuộc phần lưu */}
+      <TransferredHistoryPanel classId={currentClassId} range={dayRange(shownDate)} date={shownDate} />
 
       {writable && rows.length > 0 && (
         <div className="page-actions">

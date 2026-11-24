@@ -20,8 +20,12 @@ const SORTS = {
   flags: { label: 'Nhiều cờ bé ngoan → ít', fn: (a, b) => b.flags - a.flags || byName(a, b) },
   name: { label: 'Tên A → Z', fn: byName },
 };
+// issuedByNames: người đã phát phiếu tuần ở lớp đó (BE OBS-35)
+const issuersText = (item) => ((item.issuedByNames || []).length ? ` (người phát: ${item.issuedByNames.join(', ')})` : '');
 const evidenceText = (evidence) =>
-  (evidence || []).map((item) => `${item.className}: ${item.flagCount || 0} cờ, ${item.weeklyTickets || 0} phiếu tuần`).join(' · ');
+  (evidence || [])
+    .map((item) => `${item.className}: ${item.flagCount || 0} cờ, ${item.weeklyTickets || 0} phiếu tuần${issuersText(item)}`)
+    .join(' · ');
 
 /**
  * Tổng hợp phiếu bé ngoan của lớp theo trẻ: số phiếu tuần, phiếu tháng, cờ bé ngoan trong năm học hoặc một tháng.

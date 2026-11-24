@@ -370,6 +370,7 @@ export default function SemesterEvaluationListPage() {
                   <tr key={g.goalId}>
                     <td>
                       MT{g.goalNo} · {g.text}
+                      {g.sourceClassName && <span className="muted"> (lớp {g.sourceClassName})</span>}
                     </td>
                     <td className="center">
                       {g.metActivities}/{g.assessedActivities}

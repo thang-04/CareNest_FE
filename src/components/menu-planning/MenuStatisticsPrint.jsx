@@ -42,22 +42,17 @@ const FoodTable = ({ rows, showSupplier }) => (
  * (hàng tươi)" / "Lấy từ kho khô" hoặc theo nhà cung cấp khi BE trả đủ trường), tổng tiền; họ tên người ký nhận từ dải ô phía trên bản xem trước (không lưu).
  * Số liệu lấy nguyên từ `POST /nutrition/menu-statistics`.
  */
-export const MenuStatisticsPrint = forwardRef(function MenuStatisticsPrint(
-  { stats, title, signers = MENU_STAT_SIGNERS, groupBy = 'storage' },
-  ref,
-) {
+function PrintGroup({ stats, groupBy, showGroupTitle }) {
   const groups = groupBy === 'supplier' ? supplierGroups(stats) : storageGroups(stats);
   const showSupplier = groupBy !== 'supplier' || !groups;
   const sessions = SESSION_ORDER.map((s) => ({ s, dishes: stats.dishes.filter((d) => d.session === s) })).filter((x) => x.dishes.length);
   return (
-    <div className="print-sheet" ref={ref}>
-      <PrintHeader />
-      <div className="ps-title">
-        <h1>PHIẾU ĐỊNH LƯỢNG & ĐI CHỢ</h1>
-        <div>
-          {title} · {stats.ageGroupName} · {stats.children} trẻ
-        </div>
-      </div>
+    <>
+      {showGroupTitle && (
+        <h2 className="ps-section">
+          {stats.ageGroupName} · {stats.children} trẻ
+        </h2>
+      )}
       <h2 className="ps-section">Thực đơn</h2>
       <table className="ps-table">
         <tbody>
@@ -90,6 +85,33 @@ export const MenuStatisticsPrint = forwardRef(function MenuStatisticsPrint(
         </b>{' '}
         · Tiền ăn 1 trẻ: {formatMoney(stats.costPerChild)}
       </p>
+    </>
+  );
+}
+
+export const MenuStatisticsPrint = forwardRef(function MenuStatisticsPrint(
+  { stats, title, signers = MENU_STAT_SIGNERS, groupBy = 'storage' },
+  ref,
+) {
+  const allGroups = stats.groups?.length > 0;
+  return (
+    <div className="print-sheet" ref={ref}>
+      <PrintHeader />
+      <div className="ps-title">
+        <h1>PHIẾU ĐỊNH LƯỢNG & ĐI CHỢ</h1>
+        <div>
+          {title} · {stats.ageGroupName} · {stats.children} trẻ
+        </div>
+      </div>
+      {allGroups && (
+        <p>
+          <b>Tổng toàn trường: {formatMoney(stats.totalCost)}</b> · Tiền ăn 1 trẻ: {formatMoney(stats.costPerChild)} · Ngân sách thực phẩm
+          cao nhất: {stats.mealPrice == null ? 'Chưa đặt' : formatMoney(stats.mealPrice)}
+        </p>
+      )}
+      {(allGroups ? stats.groups : [stats]).map((group) => (
+        <PrintGroup key={group.ageGroupId} stats={group} groupBy={groupBy} showGroupTitle={allGroups} />
+      ))}
       <PrintSignRow signers={signers} />
     </div>
   );
