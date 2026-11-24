@@ -42,7 +42,8 @@ test('mixedPage: kế hoạch năm/tổ đứng trước, tài liệu lớp lấ
 
 test('trang danh sách dạng bảng không tải cả gói tài liệu lớp; 3 trang bảng phân trang 5 dòng', () => {
   const layout = readFileSync(new URL('../../src/components/education-plan/EducationPlanLayout.jsx', import.meta.url), 'utf8');
-  assert.match(layout, /lightDocs = !!\(reviews \|\| overdue \|\| teamList \|\| yearList\)/);
+  // Chỉ trang của một lớp tải tài liệu (của đúng lớp đó); mọi trang khác chỉ tải lớp/nhân sự
+  assert.match(layout, /lightDocs = classId == null/);
   for (const page of ['PlanReviewQueuePage', 'OverduePlansPage', 'GoalListPage']) {
     const src = readFileSync(new URL(`../../src/pages/education-plan/${page}.jsx`, import.meta.url), 'utf8');
     assert.match(src, /const PAGE_SIZE = 5;/, page);
@@ -50,6 +51,9 @@ test('trang danh sách dạng bảng không tải cả gói tài liệu lớp; 3
   }
   const queue = readFileSync(new URL('../../src/pages/education-plan/PlanReviewQueuePage.jsx', import.meta.url), 'utf8');
   assert.match(queue, /getClassDocSummaries\(/);
+  // Tên/số chủ đề BE trả sẵn ở bản gọn ⇒ hàng chờ không tải chi tiết kế hoạch tổ
+  assert.match(queue, /d\.themeName/);
+  assert.doesNotMatch(queue, /useGoalDetails/);
   // edu-list-paging: danh sách kế hoạch năm/tổ và trang quá hạn phân trang ở BE, không cắt trang ở client
   const goals = readFileSync(new URL('../../src/pages/education-plan/GoalListPage.jsx', import.meta.url), 'utf8');
   const overdue = readFileSync(new URL('../../src/pages/education-plan/OverduePlansPage.jsx', import.meta.url), 'utf8');

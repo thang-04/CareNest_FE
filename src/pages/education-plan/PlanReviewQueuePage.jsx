@@ -2,7 +2,7 @@ import { planLevel, planRoute } from '@/models/education-plan/planLevel.mjs';
 import { useId, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, EduStatusBadge, EmptyState, PageHead, YearPlanStatusBadge, fmtDateTime } from '@/components/education-plan/eduUi';
-import { useEducationPlan, useGoalDetails } from '@/hooks/education-plan/useEducationPlan';
+import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { ROLES } from '@/models/User';
 import { AGE_GROUPS, ageRangeOptions, sameAgeRange } from '@/models/education-plan/educationPlanConstants';
 import { useAsync } from '@/hooks/useAsync';
@@ -10,7 +10,7 @@ import { usePolling } from '@/hooks/usePolling';
 import { DeadlineBadge } from '@/components/education-plan/DeadlineWidgets';
 import { getClassDocSummaries, getReviewQueue } from '@/services/education-plan/educationPlanService';
 import { submitEntryOf } from '@/models/education-plan/reviewHistory.mjs';
-import { CLASS_DOC_LABELS, themeNumber } from '@/models/education-plan/classPlan';
+import { CLASS_DOC_LABELS } from '@/models/education-plan/classPlan';
 import { mixedPage } from '@/models/education-plan/classDocSummary.mjs';
 import { clickableRowProps } from '@/utils/clickableRow';
 import { Eye } from '@/components/ui/icons';
@@ -28,7 +28,7 @@ import { isEduVicePrincipal } from '@/utils/education-plan/eduPermissions';
  * Hộp duyệt: kế hoạch giáo dục ngày (kế hoạch chủ đề + giáo án các nhánh) của các lớp trong khối đang chờ duyệt.
  */
 export default function PlanReviewQueuePage() {
-  const { user, schoolYearId, goals, classes } = useEducationPlan();
+  const { user, schoolYearId, classes } = useEducationPlan();
   const navigate = useNavigate();
   const filterId = useId();
   const [ageGroupId, setAgeGroupId] = useState('');
@@ -80,9 +80,6 @@ export default function PlanReviewQueuePage() {
   const pageDocs = noClass ? [] : docs.data?.items || [];
   const total = headGoals.length + (noClass ? 0 : docs.data?.total || 0);
 
-  // Tên, số thứ tự chủ đề lấy từ chi tiết kế hoạch tổ của hồ sơ (chỉ hồ sơ của trang đang xem)
-  useGoalDetails(pageDocs.map((d) => d.yearPlanId));
-  const themeName = (doc) => goals.find((g) => g.id === doc.yearPlanId)?.themes?.find((t) => t.id === doc.themeId)?.name || '—';
   const sentAt = (doc) => [...(doc.history || [])].reverse().find((h) => !h.tone);
   const items = [
     ...headGoals.slice(...slice.headItems).map((g) => ({
@@ -108,12 +105,11 @@ export default function PlanReviewQueuePage() {
           what: `Học kỳ ${d.semesterNo}: chủ đề nhánh, kế hoạch chủ đề, kế hoạch tuần · ${(d.themeIds || []).length} chủ đề`,
           to: `/education/theme-plans/${d.classId}?hk=${d.semesterNo}&plan=${encodeURIComponent(d.yearPlanId)}&review=1`,
         };
-      const plan = goals.find((g) => g.id === d.yearPlanId);
       return {
         kind: 'theme',
         label: 'Kế hoạch giáo dục ngày',
         doc: d,
-        what: `Chủ đề ${themeNumber(plan, d.themeId)}: ${themeName(d)} · kế hoạch giáo dục ngày`,
+        what: `Chủ đề ${d.themeNo || ''}: ${d.themeName || '—'} · kế hoạch giáo dục ngày`,
         // Mở trang xem giáo án ngày của chủ đề: xem nội dung và duyệt tại đó (EDU-93)
         to: `/education/day-plans/${d.classId}?theme=${d.themeId}&plan=${encodeURIComponent(d.yearPlanId)}&review=1`,
       };
