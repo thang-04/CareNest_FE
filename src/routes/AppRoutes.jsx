@@ -532,10 +532,7 @@ export function AppRoutes() {
               element={only(STOCK_RECEIPT_ROLES, DRY_STOCK_API ? <StockReceiptEditorPage /> : <StockReceiptFormPage />)}
             />
             {/* Xuất kho khô kèm lý do (đề xuất BA): BE chưa có endpoint ⇒ chạy trên dữ liệu demo của module kitchen */}
-            <Route
-              path="stock-returns/new"
-              element={only(STOCK_RECEIPT_ROLES, <StockDisposalFormPage kind="SUPPLIER_RETURN" />)}
-            />
+            <Route path="stock-returns/new" element={only(STOCK_RECEIPT_ROLES, <StockDisposalFormPage kind="SUPPLIER_RETURN" />)} />
             <Route path="stock-write-offs/new" element={only(STOCK_RECEIPT_ROLES, <StockDisposalFormPage kind="WRITE_OFF" />)} />
             {DRY_STOCK_API ? (
               <Route path="stock-receipts/:id" element={only(STOCK_RECEIPT_ROLES, <StockReceiptEditorPage />)} />

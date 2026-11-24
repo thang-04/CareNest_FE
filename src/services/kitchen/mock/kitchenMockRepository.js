@@ -1743,7 +1743,17 @@ const kitchenRepository = {
         const lot = lotById[line.lotId];
         const qty = r3(Number(line.qty));
         lot.qty = r3(lot.qty - qty);
-        changeStock(db, { campusId, foodId: lot.foodId, delta: -qty, type: kind, date, refId: id, userId: user.id, expiryDate: lot.expiryDate, at });
+        changeStock(db, {
+          campusId,
+          foodId: lot.foodId,
+          delta: -qty,
+          type: kind,
+          date,
+          refId: id,
+          userId: user.id,
+          expiryDate: lot.expiryDate,
+          at,
+        });
         return { lotId: lot.id, lotNo: lot.lotNo, foodId: lot.foodId, expiryDate: lot.expiryDate, qty };
       });
       const record = {

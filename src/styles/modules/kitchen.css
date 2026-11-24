@@ -974,11 +974,11 @@ tr.kb-dm__group th {
 }
 /*
  * Tồn kho khô gộp theo thực phẩm: dòng thực phẩm nền xám để tách khỏi các lô (nền trắng), lô thụt vào thẳng với tên.
- * Bảng kẻ ô tô nền trắng cả khi rê chuột (`.table.table--grid tbody tr:hover td`), nên các luật dưới phải nặng hơn.
+ * Bảng kẻ ô tô nền trắng cả khi rê chuột, nên các luật dưới phải có độ ưu tiên cao hơn luật nền của bảng kẻ ô.
  */
-.table.table--grid.kb-lots-table tbody tr.kb-lots-food td,
-.table.table--grid.kb-lots-table tbody tr.kb-lots-food:hover td {
-  background: var(--neutral-100);
+.kb-lots-table.table--grid tbody tr.kb-lots-food td,
+.kb-lots-table.table--grid tbody tr.kb-lots-food:hover td {
+  background: var(--skeleton);
 }
 .kb-lots-table .kb-lots-toggle {
   display: inline-flex;
@@ -991,8 +991,8 @@ tr.kb-dm__group th {
   margin-left: var(--space-3);
 }
 /* Chevron 16px + khoảng cách của nút: dòng lô lùi đúng bằng đó để cột tên thẳng hàng với tên thực phẩm */
-.table.table--grid.kb-lots-table tbody tr.kb-lots-lot td:first-child {
-  padding-left: calc(var(--space-3) + 16px + var(--space-2));
+.kb-lots-table.table--grid tbody tr.kb-lots-lot td:first-child {
+  padding-left: calc(var(--space-3) + var(--space-4) + var(--space-2));
 }
 
 /* Hàng tươi (BE): kết quả Đủ/Thiếu/Thừa, đầu cột ngày của bản dự trù, ô ghi chú trống khi in */

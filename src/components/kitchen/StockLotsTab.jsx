@@ -184,7 +184,9 @@ export function StockLotsTab({ campusId }) {
                   {expanded &&
                     g.lots.map((lot) => (
                       <tr key={lot.id} className="kb-lots-lot">
-                        <td className="muted">{g.food?.name} · Lô {lot.lotNo}</td>
+                        <td className="muted">
+                          {g.food?.name} · Lô {lot.lotNo}
+                        </td>
                         <td className="money nowrap">{lot.unitPrice == null ? '—' : formatMoney(lot.unitPrice)}</td>
                         <td className="num nowrap">{qtyOf(lot.quantity, lot.food)}</td>
                         <td className="num nowrap">{qtyOf(lot.quantity - lot.remaining, lot.food)}</td>

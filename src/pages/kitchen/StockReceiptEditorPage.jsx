@@ -174,7 +174,8 @@ export default function StockReceiptEditorPage() {
         if (i !== index) return l;
         const next = { ...l, [field]: value };
         // Đổi thực phẩm: thay giá nếu ô còn trống hoặc vẫn là giá danh mục của thực phẩm trước, giá người dùng đã sửa thì giữ
-        if (field === 'foodId' && (l.unitPrice === '' || String(l.unitPrice) === catalogPrice(l.foodId))) next.unitPrice = catalogPrice(value);
+        if (field === 'foodId' && (l.unitPrice === '' || String(l.unitPrice) === catalogPrice(l.foodId)))
+          next.unitPrice = catalogPrice(value);
         return next;
       }),
     }));

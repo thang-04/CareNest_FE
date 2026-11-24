@@ -24,20 +24,15 @@ import { createStockDisposal } from '@/services/kitchen/kitchenService';
 import { validateStockDisposal } from '@/utils/kitchen/kitchenValidation';
 import { kitchenCrumbs, KITCHEN_PAGES } from '@/utils/kitchen/breadcrumbs';
 import { formatDate, todayInput } from '@/utils/format';
-import {
-  DISPOSAL_KIND,
-  DISPOSAL_KIND_LABELS,
-  DISPOSAL_REASON_HINTS,
-  NOTE_MAX,
-  SUPPLIER_STATUS,
-} from '@/models/kitchen/kitchenConstants';
+import { DISPOSAL_KIND, DISPOSAL_KIND_LABELS, DISPOSAL_REASON_HINTS, NOTE_MAX, SUPPLIER_STATUS } from '@/models/kitchen/kitchenConstants';
 import '@/styles/modules/kitchen.css';
 
 const emptyLine = () => ({ key: Math.random().toString(36).slice(2), lotId: '', qty: '' });
 
 const COPY = {
   [DISPOSAL_KIND.SUPPLIER_RETURN]: {
-    intro: 'Trả lại nhà cung cấp hàng còn hạn (giao thừa, sai quy cách, chất lượng không đạt). Chỉ chọn được lô còn hạn do nhà cung cấp đã chọn giao.',
+    intro:
+      'Trả lại nhà cung cấp hàng còn hạn (giao thừa, sai quy cách, chất lượng không đạt). Chỉ chọn được lô còn hạn do nhà cung cấp đã chọn giao.',
     emptyTitle: 'Chưa có lô nào để trả',
     emptyDesc: 'Nhà cung cấp này không có lô còn hạn nào còn tồn ở điểm trường đã chọn.',
     pickTitle: 'Chọn nhà cung cấp trước',
@@ -134,7 +129,13 @@ export default function StockDisposalFormPage({ kind = DISPOSAL_KIND.SUPPLIER_RE
     setSaving(true);
     try {
       const record = await createStockDisposal(
-        { kind, campusId: form.campusId, supplierId: form.supplierId, reason: form.reason, lines: form.lines.map(({ lotId, qty }) => ({ lotId, qty })) },
+        {
+          kind,
+          campusId: form.campusId,
+          supplierId: form.supplierId,
+          reason: form.reason,
+          lines: form.lines.map(({ lotId, qty }) => ({ lotId, qty })),
+        },
         user,
       );
       toast.success(`Phiếu ${record.code} ${copy.done}.`);
