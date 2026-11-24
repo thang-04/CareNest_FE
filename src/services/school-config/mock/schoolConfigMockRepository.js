@@ -69,6 +69,7 @@ import {
   validateStaffAccount,
   validateStaffProfile,
   validateVpAssignment,
+  normalizeCampusCode,
   normalizePhone,
 } from '@/utils/school-config/schoolConfigValidation';
 
@@ -1371,7 +1372,7 @@ export const schoolConfigMockRepository = {
       if (current?.isMain && !form.isMain)
         throw invalid({ isMain: 'Trường phải có đúng một điểm trường chính. Hãy chọn điểm trường chính khác trước.' });
       const data = {
-        code: form.code.trim(),
+        code: normalizeCampusCode(form.code),
         name: form.name.trim(),
         shortName: form.shortName.trim(),
         address: form.address.trim(),
