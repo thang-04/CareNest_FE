@@ -13,10 +13,10 @@ import { inspectionExportRows } from '@/utils/kitchen/inspectionExport';
  * Xem trước biểu mẫu khổ A4 ngang rồi In, Xuất PDF hoặc Xuất Excel; luôn lấy dữ liệu đã lưu của mẫu.
  * Mẫu có nhiều bản in thì chọn ở thanh tab: M3 (hoặc M3 gộp lưu mẫu), M5 (hoặc M4 nhãn mẫu). `sampleData` = mẫu M5 của ngày.
  */
-export function InspectionPrintDialog({ tab, date, campusName, data, sampleData, onClose }) {
+export function InspectionPrintDialog({ tab, date, campusName, data, sampleData, initialVariant = 'main', onClose }) {
   const sheetRef = useRef(null);
   const variants = INSPECTION_PRINT_VARIANTS[tab];
-  const [variant, setVariant] = useState('main');
+  const [variant, setVariant] = useState(initialVariant);
   const excel = inspectionExportRows(tab, data, { date, campusName, variant, sampleData });
   const exportExcel = () =>
     exportWithPreviewWorkbook([{ sheetName: excel.sheetName, rows: excel.rows, headerRow: excel.headerRow }], `${excel.fileBase}.xlsx`, {
