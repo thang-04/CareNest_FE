@@ -1,3 +1,4 @@
+import { adaptCalendar } from '@/models/education-plan/branchCalendar.mjs';
 import { ResponsiveToolbar } from '@/components/ui/ResponsiveToolbar';
 import { useEffect, useId, useRef, useState } from 'react';
 import ActivityCardEditor from '@/components/education-plan/ActivityCardEditor';
@@ -294,6 +295,8 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
     [...semesterPackages, ...themeDossiers].find((d) => d.id === (days ? `ds_${classId}_${week.theme.id}` : containerKey)) || null;
   const branch = branchPlans.find((b) => b.classId === classId && b.yearPlanId === yearPlan.id);
   const branchName = branch?.names?.[weekStart] || '';
+  // BE EDU-111 (9): ghi chú tuần nhập ở trang Dự kiến, chỉ đọc ở đây, không vào bản in
+  const weekNote = (branch ? adaptCalendar(branch, yearPlan).notes?.[weekStart] : '')?.trim() || '';
   const themeDoc = themeDocOf();
   const pageTitle = dayPage
     ? `Kế hoạch giáo dục ngày ${cls.name}`
@@ -534,6 +537,7 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
           <div className="ga-week-hero__meta">
             Chủ đề: {week.theme.name} · {fmtDate(week.start)} → {fmtDate(week.end)}
           </div>
+          {weekNote && <div className="ga-week-hero__meta">Ghi chú tuần: {weekNote}</div>}
         </div>
       </div>
       {(days || !split) && (
