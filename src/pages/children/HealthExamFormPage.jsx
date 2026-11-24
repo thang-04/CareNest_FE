@@ -49,7 +49,7 @@ import { ageLabel } from '@/models/School';
 import { formatDate, formatDateTime } from '@/utils/format';
 import { hasErrors } from '@/utils/children/childrenValidation';
 import { formatMeasurementChange } from '@/utils/children/childrenHelpers';
-import { unshownErrors } from '@/utils/children/examDraftErrors';
+import { unshownErrors, withoutUnshownErrors } from '@/utils/children/examDraftErrors';
 import { validateHealthExam } from '@/utils/children/healthExamValidation';
 import { healthCheckCrumbs } from '@/utils/children/breadcrumbs';
 import '@/styles/modules/children.css';
@@ -309,7 +309,7 @@ export default function HealthExamFormPage() {
       setExamView(res);
       setReviewStale(false);
       setSaveFailed(false);
-      setErrors({});
+      setErrors(withoutUnshownErrors);
       if (notify) toast.success('Đã lưu nháp phiếu khám.');
       return true;
     } catch (err) {
@@ -550,11 +550,11 @@ export default function HealthExamFormPage() {
           </div>
         </div>
       )}
-      {unshownErrors(errors, step).length > 0 && (
+      {unshownErrors(errors).length > 0 && (
         <div className="alert alert--danger mb-16" role="alert">
           <ShieldAlert size={18} />
           <div className="tr-cell-stack">
-            {unshownErrors(errors, step).map((text) => (
+            {unshownErrors(errors).map((text) => (
               <span key={text}>{text}</span>
             ))}
           </div>

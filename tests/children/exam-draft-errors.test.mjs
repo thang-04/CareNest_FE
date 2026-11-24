@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
-import { unshownErrors } from '../../src/utils/children/examDraftErrors.js';
+import { unshownErrors, withoutUnshownErrors } from '../../src/utils/children/examDraftErrors.js';
 
 /*
  * G94-180 (mục 14): lưu nháp phiếu khám lỗi ⇒ lỗi ô hiện tại chỗ, lỗi không gắn ô của bước hiện khung đỏ đầu phiếu,
@@ -15,12 +15,29 @@ const bodyOf = (start) => {
   return src.slice(from, next < 0 ? undefined : next);
 };
 
-test('unshownErrors: giữ date, _form và ô của bước khác, bỏ ô của bước hiện tại', () => {
-  const errors = { date: 'Ngày khám trùng', _form: 'Phiếu lỗi', heightCm: 'Sai chiều cao', 'exam.clinical.x': 'Sai khám' };
-  assert.deepEqual(unshownErrors(errors, 1), ['Ngày khám trùng', 'Phiếu lỗi', 'Sai khám']);
-  assert.deepEqual(unshownErrors({}, 0), []);
+test('unshownErrors: chỉ lỗi không có ô trên bước nào (date, _form, khóa lạ), bỏ trùng', () => {
+  const errors = {
+    date: 'Ngày khám trùng',
+    _form: 'Phiếu lỗi',
+    other: 'Ngày khám trùng',
+    heightCm: 'Sai chiều cao',
+    'exam.clinical.x': 'Sai khám',
+    'exam.conclusion.flags': 'Chọn một kết quả',
+  };
+  assert.deepEqual(unshownErrors(errors), ['Ngày khám trùng', 'Phiếu lỗi']);
+  assert.deepEqual(unshownErrors({}), []);
 });
 
+test('withoutUnshownErrors: lưu nháp ổn chỉ xóa lỗi không gắn ô, giữ dấu lỗi kiểm tra ở ô', () => {
+  const errors = { date: 'x', _form: 'y', heightCm: 'Sai', 'exam.clinical.x': 'Sai khám' };
+  assert.deepEqual(withoutUnshownErrors(errors), { heightCm: 'Sai', 'exam.clinical.x': 'Sai khám' });
+});
+
+test('saveDraft thành công không xóa hết errors (dấu lỗi từ Lưu kết luận phải sống qua goTo)', () => {
+  const body = bodyOf('const saveDraft = async');
+  assert.match(body, /setErrors\(withoutUnshownErrors\)/);
+  assert.doesNotMatch(body.slice(0, body.indexOf('catch')), /setErrors\(\{\}\)/);
+});
 test('saveDraft lỗi gộp err.details vào errors, đặt _form khi không có ô, giữ toast câu BE', () => {
   const body = bodyOf('const saveDraft = async');
   assert.match(body, /catch \(err\) \{[\s\S]*setErrors\(/);
@@ -31,7 +48,7 @@ test('saveDraft lỗi gộp err.details vào errors, đặt _form khi không có
 });
 
 test('khung alert--danger đầu phiếu liệt kê lỗi không thuộc ô của bước', () => {
-  assert.match(src, /unshownErrors\(errors, step\)/);
+  assert.match(src, /unshownErrors\(errors\)/);
   assert.match(src, /alert alert--danger/);
 });
 
