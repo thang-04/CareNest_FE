@@ -162,8 +162,22 @@ export default function StockReceiptEditorPage() {
     setForm((f) => ({ ...f, [field]: value }));
     setErrors((e) => ({ ...e, [field]: undefined, _form: undefined }));
   };
+  // Giá danh mục tính theo đơn vị mua, cũng là đơn vị dòng nhập ở đây
+  const catalogPrice = (foodId) => {
+    const price = foodById[String(foodId)]?.unitPrice;
+    return price == null || price === '' || !(Number(price) >= 0) ? '' : String(price);
+  };
   const setLine = (index, field, value) => {
-    setForm((f) => ({ ...f, lines: f.lines.map((l, i) => (i === index ? { ...l, [field]: value } : l)) }));
+    setForm((f) => ({
+      ...f,
+      lines: f.lines.map((l, i) => {
+        if (i !== index) return l;
+        const next = { ...l, [field]: value };
+        // Đổi thực phẩm: thay giá nếu ô còn trống hoặc vẫn là giá danh mục của thực phẩm trước, giá người dùng đã sửa thì giữ
+        if (field === 'foodId' && (l.unitPrice === '' || String(l.unitPrice) === catalogPrice(l.foodId))) next.unitPrice = catalogPrice(value);
+        return next;
+      }),
+    }));
     setErrors((e) => ({ ...e, [`lines.${index}.${field}`]: undefined, lines: undefined, _form: undefined }));
   };
   const removeLine = (index) => {

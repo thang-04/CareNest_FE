@@ -43,7 +43,7 @@ export function StockReceiptsTab({ campusId }) {
             <tr>
               <th className="center">Ngày nhập</th>
               <th>Nhà cung cấp</th>
-              <th className="num">Số thực phẩm</th>
+              <th className="num">Số mặt hàng</th>
               <th className="money">Tổng tiền</th>
               <th className="center">Trạng thái</th>
             </tr>
@@ -68,7 +68,7 @@ export function StockReceiptsTab({ campusId }) {
   const exportCsv = () =>
     exportWithPreview(
       [
-        ['Ngày nhập', 'Nhà cung cấp', 'Số thực phẩm', 'Tổng tiền', 'Trạng thái'],
+        ['Ngày nhập', 'Nhà cung cấp', 'Số mặt hàng', 'Tổng tiền', 'Trạng thái'],
         ...(receipts.data || []).map((r) => [
           formatDate(r.receivedDate),
           r.supplierName,
