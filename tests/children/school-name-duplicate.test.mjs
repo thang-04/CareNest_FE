@@ -5,13 +5,22 @@ import { validateCampus, validateClass } from '../../src/utils/school-config/sch
 // Như BE (CAMPUS_NAME_EXISTS 2106, CLASS_NAME_EXISTS 2209): 2 dấu cách, gõ dấu tổ hợp, hoa thường vẫn là trùng
 const decomposed = 'CƠ SỞ 1'.normalize('NFD');
 test('tên điểm trường: trùng khi chỉ khác dấu cách, kiểu gõ dấu, hoa thường', () => {
-  const others = [{ code: 'CS-A', name: 'Cơ sở 1' }];
+  const others = [{ code: 'CS-A', name: 'Cơ sở 1', shortName: 'CS 1' }];
   const base = { code: 'CS-C', shortName: 'C', address: 'Thượng Hồng' };
   for (const name of ['Cơ  sở 1', ` ${decomposed} `]) {
     assert.equal(validateCampus({ ...base, name }, others).name, 'Tên điểm trường đã tồn tại');
   }
   // Khác chữ (bỏ dấu) là tên khác
   assert.equal(validateCampus({ ...base, name: 'Co so 1' }, others).name, undefined);
+});
+
+test('mã và tên ngắn điểm trường: trùng khi chỉ khác khoảng trắng, kiểu gõ dấu, hoa thường', () => {
+  const others = [{ code: 'CS-A', name: 'Cơ sở 1', shortName: 'Cơ sở 1' }];
+  const form = { code: ' cs - a ', name: 'Cơ sở mới', shortName: ` ${decomposed} `, address: 'Thượng Hồng' };
+  const errors = validateCampus(form, others);
+
+  assert.equal(errors.code, 'Mã điểm trường đã tồn tại');
+  assert.equal(errors.shortName, 'Tên ngắn điểm trường đã tồn tại');
 });
 
 test('tên lớp: trùng trong cùng năm + điểm trường, khác điểm trường thì được', () => {
