@@ -335,12 +335,13 @@ import { overdueRows, filterOverdue, OVERDUE_DEADLINE_LABEL, OVERDUE_KIND_LABEL 
 export const state = {schoolYearId:5, user:{id:'principal'}, goals:[], classes:[], semesterPackages:[], themeDossiers:[], loading:false};
 const useEducationPlan=()=>state, useGoalDetails=()=>{}, usePolling=()=>{};
 const useSearchParams=()=>[new URLSearchParams(), ()=>{}];
-const useAsync=()=>({data:state,reload:state.reload});
+const useAsync=()=>{ const items=overdueRows({yearPlans:state.goals,today:'2098-10-19'}); return {data:{rows:{items,totalElements:items.length},overdueCount:items.length,extendedCount:0,semesters:[]},reload:state.reload}; };
 const todayIso=()=> '2098-10-19';
 const ageRangeOptions=()=>[], sameAgeRange=(a,b)=>a===b, planRoute=()=>'/education/goals';
 const Button='button', SelectField='select', Link='a', Card='section', PageHead='header', FilterMore='aside';
 const EduStatusBadge='span', YearPlanStatusBadge='span', EmptyState='p', Eye='i', ErrorState='p', LoadingState='p';
 const ExtendDeadlineModal='test-modal', fmtDate=(x)=>x, fmtDateTime=fmtDate;
+const Pagination='nav', paginate=(items,page,size)=>items.slice((page-1)*size,page*size);
 `);
   const first = deferred();
   const attempted = [];

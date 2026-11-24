@@ -10,6 +10,11 @@ export default function EducationPlanLayout() {
   const reviews = useMatch('/education/plan-reviews');
   const [params] = useSearchParams();
   const reviewView = !!reviews || params.get('review') === '1';
+  // Trang danh sách dạng bảng tự tải danh sách gọn có phân trang (edu-list-paging) ⇒ không tải cả gói tài liệu lớp
+  const overdue = useMatch('/education/overdue');
+  const teamList = useMatch('/education/goals');
+  const yearList = useMatch('/education/school-year-plans');
+  const lightDocs = !!(reviews || overdue || teamList || yearList);
   // Bảng kế hoạch giáo dục: bấm chuột vào ô không tô khung; chỉ hiện khung ô đang nhập khi đi bằng phím Tab (Tiền 11/11/2026).
   // Đổi class thẳng trên DOM để không vẽ lại cả trang mỗi lần bấm chuột
   const scope = useRef(null);
@@ -37,7 +42,7 @@ export default function EducationPlanLayout() {
     };
   }, []);
   return (
-    <EducationPlanProvider yearScoped={!settings && !curriculum} reviewView={reviewView}>
+    <EducationPlanProvider yearScoped={!settings && !curriculum} reviewView={reviewView} lightDocs={lightDocs}>
       <div ref={scope}>
         <Outlet />
       </div>

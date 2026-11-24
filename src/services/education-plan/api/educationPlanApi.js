@@ -221,14 +221,43 @@ export const educationPlanApi = {
     }));
     return { goals, themes: [], lessons: [] };
   },
+  // edu-list-paging (Tiền 25/11/2026): một trang danh sách kế hoạch năm/tổ (BE lọc + phân trang, ẩn bản đã thay thế)
+  getGoalPage: async (_actor, { planLevel, schoolYearId, ageRange, q, currentOnly = true, page = 0, size = 5 } = {}) => {
+    const config = await loadConfig();
+    const refs = buildRefs(config);
+    const params = { planLevel, page, size, currentOnly };
+    const year = serverId(schoolYearId);
+    if (year != null) params.schoolYearId = year;
+    if (ageRange) {
+      const group = config.ageGroups?.find((entry) => ageRangeKey(entry) === ageRange);
+      if (!group) throw sourceError(400, 'Khoảng tuổi không hợp lệ.');
+      params.ageGroupId = group.id;
+    }
+    if (q?.trim()) params.q = q.trim();
+    const result = await axiosClient.get(GOALS, { params, timeout: LIST_TIMEOUT });
+    return { ...result, items: result.items.map((p) => ({ ...toUiGoal(p, refs), summary: true, goalCount: p.goalCount ?? 0 })) };
+  },
+  getGoalStats: async (_actor, { planLevel, schoolYearId } = {}) => {
+    const refs = buildRefs(await loadConfig());
+    const stats = await axiosClient.get(`${GOALS}/stats`, { params: { planLevel, ...yearParam(schoolYearId) } });
+    return { ...stats, ageGroupIdsWithPlan: (stats.ageGroupIdsWithPlan || []).map((id) => refs.ageGroupCode(id)) };
+  },
+  getOverdueBoard: (schoolYearId, filter = {}) =>
+    axiosClient.get('/education-plans/class-docs/overdue-board', {
+      params: { ...yearParam(schoolYearId), ...Object.fromEntries(Object.entries(filter).filter(([, v]) => v !== '' && v != null)) },
+      timeout: LIST_TIMEOUT,
+    }),
   // Mở một kế hoạch theo id (vd. bản Chờ duyệt từ hàng chờ, không có trong danh sách); BE trả 403 nếu chưa ban hành
   getGoal: async (id) => fetchGoal(serverId(id) ?? id, buildRefs(await loadConfig())),
   getOverdueGoal: async (id, schoolYearId) => {
     const refs = buildRefs(await loadConfig());
-    return toUiGoal(await axiosClient.get(`${GOALS}/${serverId(id)}`, {
-      params: { ...yearParam(schoolYearId), view: 'OVERDUE' },
-      timeout: LIST_TIMEOUT,
-    }), refs);
+    return toUiGoal(
+      await axiosClient.get(`${GOALS}/${serverId(id)}`, {
+        params: { ...yearParam(schoolYearId), view: 'OVERDUE' },
+        timeout: LIST_TIMEOUT,
+      }),
+      refs,
+    );
   },
   // Kế hoạch năm/tổ chờ đúng người gọi duyệt; danh sách thường chỉ có bản đã ban hành (BE spec 002 FR-007)
   getReviewQueue: async (_actor, schoolYearId) => {
@@ -313,11 +342,28 @@ export const educationPlanApi = {
     if (review) params.view = 'REVIEW';
     return axiosClient.get('/education-plans/class-docs', { params, timeout: LIST_TIMEOUT });
   },
+  // edu-list-paging (Tiền 25/11/2026): danh sách gọn có phân trang/lọc, chi tiết theo khóa, phần lớp/nhân sự riêng
+  getClassDocSummaries: async (schoolYearId, { review = false, classIds, kinds, statuses, myTurn = false, page = 0, size = 5 } = {}) => {
+    const id = serverId(schoolYearId) ?? (schoolYearId ? buildRefs(await loadConfig()).schoolYearId(String(schoolYearId)) : null);
+    const params = { page, size, ...(id == null ? {} : { schoolYearId: id }), ...(review ? { view: 'REVIEW' } : {}) };
+    if (kinds?.length) params.kind = kinds.join(',');
+    if (classIds?.length) params.classIds = classIds.join(',');
+    if (statuses?.length) params.status = statuses.join(',');
+    // Hàng chờ duyệt: BE lọc hồ sơ người xem thuộc chuỗi duyệt (EDU-93) và phân trang ngay ở truy vấn
+    if (myTurn) params.myTurn = true;
+    return axiosClient.get('/education-plans/class-docs/summary', { params, timeout: LIST_TIMEOUT });
+  },
+  getClassDoc: (kind, docKey) => axiosClient.get(`/education-plans/class-docs/${kind}/${encodeURIComponent(docKey)}`),
+  getClassDocContext: async (schoolYearId) => {
+    const id = serverId(schoolYearId) ?? (schoolYearId ? buildRefs(await loadConfig()).schoolYearId(String(schoolYearId)) : null);
+    return axiosClient.get('/education-plans/class-docs/context', { params: id == null ? {} : { schoolYearId: id } });
+  },
   getOverdueClassPlans: (schoolYearId) =>
     axiosClient.get('/education-plans/class-docs/overdue', { params: yearParam(schoolYearId), timeout: LIST_TIMEOUT }),
   getOverdueClassDoc: (kind, docKey, schoolYearId) =>
     axiosClient.get(`/education-plans/class-docs/overdue/${encodeURIComponent(kind)}/${encodeURIComponent(docKey)}`, {
-      params: yearParam(schoolYearId), timeout: LIST_TIMEOUT,
+      params: yearParam(schoolYearId),
+      timeout: LIST_TIMEOUT,
     }),
   getEduConfig: async () => {
     const [config, workflow, durationPolicy] = await Promise.all([
@@ -404,7 +450,10 @@ export const educationPlanApi = {
   matchThemeContents: (planId, body) =>
     axiosClient.post(`/education-plans/ai/team-plans/${serverId(planId)}/theme-content-map`, body, { timeout: AI_MATCH_TIMEOUT }),
   matchGoalContents: (planId, options = {}) =>
-    axiosClient.post(`/education-plans/ai/year-plans/${serverId(planId)}/goal-content-map`, undefined, { timeout: AI_MATCH_TIMEOUT, signal: options.signal }),
+    axiosClient.post(`/education-plans/ai/year-plans/${serverId(planId)}/goal-content-map`, undefined, {
+      timeout: AI_MATCH_TIMEOUT,
+      signal: options.signal,
+    }),
   // BE:EDU-104 — tick kế hoạch tổ đã ban hành năm học liền trước (source null + reason khi không có)
   getPreviousYearTicks: (planId) => axiosClient.get(`/education-plans/goals/${serverId(planId)}/previous-year-ticks`),
   // BE:EDU-103 — số gợi ý / số giữ mỗi lần Áp dụng, BE chỉ ghi log

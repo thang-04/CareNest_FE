@@ -26,6 +26,7 @@ import { PENDING_OF, SIGN_ROLES, withDefaults } from '@/models/education-plan/ed
 import { numberGoals, toRows } from '@/models/education-plan/goalTable';
 import { currentPlanOf, diffPlans, unresolvedFlags, versionFlags, versionOf } from '@/models/education-plan/planVersions.mjs';
 import { parseCsv } from '@/utils/csv';
+import { classDocSummary } from '@/models/education-plan/classDocSummary.mjs';
 
 /*
  * Fake backend cho tài liệu kế hoạch của lớp (chủ đề nhánh, kế hoạch chủ đề, giáo án tuần).
@@ -267,6 +268,37 @@ export const classPlanMockRepository = {
   async getOverdueDoc() {
     throw eduError('CLASS_DOC_NOT_FOUND');
   },
+  // BE giả của edu-list-paging: cùng dữ liệu getAll, cắt gọn + phân trang như /class-docs/summary
+  async getSummaries(user, schoolYearId, { review = false, classIds, kinds, statuses, myTurn = false, page = 0, size = 5 } = {}) {
+    const all = await this.getAll(user, schoolYearId, review);
+    // myTurn (hàng chờ): hồ sơ đang chờ duyệt; mock dùng cả trạng thái chờ cũ PENDING_*
+    if (myTurn) statuses = ['REVIEW', 'PENDING_TL', 'PENDING_VP', 'PENDING_HT'];
+    const docs = ['semesterPackages', 'themeDossiers', 'branchPlans', 'classThemePlans', 'weekPlans', 'dayPlans']
+      .flatMap((key) => all[key] || [])
+      .filter(
+        (d) =>
+          (!classIds?.length || classIds.map(String).includes(String(d.classId))) &&
+          (!kinds?.length || kinds.includes(d.kind)) &&
+          (!statuses?.length || statuses.includes(d.status)),
+      );
+    const items = docs.slice(page * size, page * size + size).map(classDocSummary);
+    return { items, page, size, totalElements: docs.length, totalPages: Math.ceil(docs.length / size) };
+  },
+
+  async getOne(user, schoolYearId, kind, docKey) {
+    const all = await this.getAll(user, schoolYearId);
+    const doc = ['semesterPackages', 'themeDossiers', 'branchPlans', 'classThemePlans', 'weekPlans', 'dayPlans']
+      .flatMap((key) => all[key] || [])
+      .find((d) => d.kind === kind && d.id === docKey);
+    if (!doc) throw eduError('CLASS_DOC_NOT_FOUND');
+    return doc;
+  },
+
+  async getContext(user, schoolYearId) {
+    const { classes, staff, creationCapabilities, semesterConfigMissing } = await this.getAll(user, schoolYearId);
+    return { classes, staff, creationCapabilities, semesterConfigMissing };
+  },
+
   async getAll(user, schoolYearId, review = false) {
     await delay();
     const db = readDb();
@@ -283,11 +315,15 @@ export const classPlanMockRepository = {
     );
     const classIds = new Set(classes.map((cls) => String(cls.id)));
     const docs = (kind) =>
-      fresh[COLLECTIONS[kind]].filter((doc) => classIds.has(String(doc.classId)))
+      fresh[COLLECTIONS[kind]]
+        .filter((doc) => classIds.has(String(doc.classId)))
         .map((doc) => decorate(fresh, doc, user, kind))
-        .filter((doc) => canAuthor(fresh, doc.classId, user) ||
-          (kind !== 'branch' && (doc.status === EDU_STATUS.APPROVED ||
-            (review && (doc.permissions?.canApprove || doc.permissions?.canReject)))));
+        .filter(
+          (doc) =>
+            canAuthor(fresh, doc.classId, user) ||
+            (kind !== 'branch' &&
+              (doc.status === EDU_STATUS.APPROVED || (review && (doc.permissions?.canApprove || doc.permissions?.canReject)))),
+        );
     return {
       branchPlans: clone(docs('branch')),
       classThemePlans: clone(docs('theme')),

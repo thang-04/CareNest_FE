@@ -1,6 +1,7 @@
 import { AGE_GROUPS, ageRangeKey } from '@/models/education-plan/educationPlanConstants';
 import { calendarPayload, reorderCalendar } from '@/models/education-plan/branchCalendar.mjs';
 import { USE_MOCK } from '@/config/env';
+import { overdueRows, filterOverdue } from '@/models/education-plan/overdue.mjs';
 import { educationPlanMockRepository } from '@/services/education-plan/mock/educationPlanMockRepository';
 import { educationPlanApi } from '@/services/education-plan/api/educationPlanApi';
 import { classPlanMockRepository } from '@/services/education-plan/mock/classPlanMockRepository';
@@ -21,7 +22,9 @@ export const getEducationPlans = async (user, filter) => {
   const matching = new Set(AGE_GROUPS.filter((group) => ageRangeKey(group) === filter.ageRange).map((group) => group.id));
   return {
     ...result,
-    goals: result.goals.filter((goal) => (filter.schoolYearId != null || goal.schoolYear === filter.schoolYear) && matching.has(goal.ageGroupId)),
+    goals: result.goals.filter(
+      (goal) => (filter.schoolYearId != null || goal.schoolYear === filter.schoolYear) && matching.has(goal.ageGroupId),
+    ),
   };
 };
 // Trang chủ chỉ cần chủ đề, giờ học: API thật chưa có hai phần này (getAll trả rỗng) nên không tải chi tiết từng kế hoạch
@@ -29,6 +32,54 @@ export const getEducationPlans = async (user, filter) => {
 export const getEducationLessons = (user) =>
   USE_MOCK ? repo.getAll(user).then(({ themes, lessons }) => ({ themes, lessons })) : Promise.resolve({ themes: [], lessons: [] });
 export const getReviewQueue = (user, schoolYearId) => repo.getReviewQueue(user, schoolYearId);
+
+// edu-list-paging (Tiền 25/11/2026): danh sách kế hoạch năm/tổ, số liệu thẻ, bảng quá hạn phân trang ở BE.
+// Mock là BE giả: lọc/cắt trang trên dữ liệu giả cùng luật với BE (ẩn bản đã thay thế = bản ban hành có bản ban hành mới hơn)
+const pageOf = (items, page, size) => ({
+  items: items.slice(page * size, page * size + size),
+  page,
+  size,
+  totalElements: items.length,
+  totalPages: Math.ceil(items.length / size),
+});
+const replacedIn = (list) => (g) =>
+  g.status === 'APPROVED' &&
+  list.some((x) => x.status === 'APPROVED' && x.ageGroupId === g.ageGroupId && (x.versionNo ?? 1) > (g.versionNo ?? 1));
+export const getGoalPage = async (user, filter = {}) => {
+  if (!USE_MOCK) return educationPlanApi.getGoalPage(user, filter);
+  const { planLevel, schoolYearId, ageRange, q, currentOnly = true, page = 0, size = 5 } = filter;
+  const { goals } = await getEducationPlans(user, { planLevel, schoolYearId, ageRange });
+  const level = goals.filter((g) => (g.planLevel || 'TEAM') === planLevel);
+  const replaced = replacedIn(level);
+  const shown = level
+    .filter((g) => (!currentOnly || !replaced(g)) && (!q?.trim() || `${g.title}${g.code}`.toLowerCase().includes(q.trim().toLowerCase())))
+    .map((g) => ({ ...g, current: g.status === 'APPROVED' ? !replaced(g) : g.current }));
+  return pageOf(shown, page, size);
+};
+export const getGoalStats = async (user, filter = {}) => {
+  if (!USE_MOCK) return educationPlanApi.getGoalStats(user, filter);
+  const { goals } = await getEducationPlans(user, { planLevel: filter.planLevel, schoolYearId: filter.schoolYearId });
+  const level = goals.filter((g) => (g.planLevel || 'TEAM') === filter.planLevel);
+  return {
+    total: level.length,
+    issued: level.filter((g) => g.status === 'APPROVED' || g.status === 'SENT').length,
+    replaced: level.filter(replacedIn(level)).length,
+    ageGroupIdsWithPlan: [...new Set(level.map((g) => g.ageGroupId))],
+  };
+};
+export const getOverdueBoard = async (user, schoolYearId, filter = {}) => {
+  if (!USE_MOCK) return educationPlanApi.getOverdueBoard(schoolYearId, filter);
+  const { page = 0, size = 5, ...rest } = filter;
+  const data = await getOverduePlans(user, schoolYearId);
+  const rows = overdueRows({ ...data, yearPlans: data.goals, themeNameOf: () => 'Chủ đề', today: new Date().toISOString().slice(0, 10) });
+  const shown = filterOverdue(rows, { ...rest, semesterNo: rest.semesterNo ?? '' });
+  return {
+    rows: pageOf(shown, page, size),
+    overdueCount: filterOverdue(rows, { tab: 'overdue' }).length,
+    extendedCount: filterOverdue(rows, { tab: 'extended' }).length,
+    semesters: [...new Set(rows.map((r) => r.semesterNo).filter((n) => n != null))].sort(),
+  };
+};
 export const getGoal = (id, user) => repo.getGoal(id, user);
 export const getOverduePlans = async (user, schoolYearId) => {
   if (USE_MOCK) {
@@ -46,12 +97,9 @@ export const getOverduePlans = async (user, schoolYearId) => {
 };
 export const getOverduePlan = (user, schoolYearId, kind, id) => {
   const classDoc = kind === 'semester' || kind === 'dossier';
-  if (USE_MOCK) return classDoc
-    ? classPlanMockRepository.getOverdueDoc(user, schoolYearId, kind, id)
-    : repo.getOverdueGoal(user, schoolYearId, id);
-  return classDoc
-    ? educationPlanApi.getOverdueClassDoc(kind, id, schoolYearId)
-    : educationPlanApi.getOverdueGoal(id, schoolYearId);
+  if (USE_MOCK)
+    return classDoc ? classPlanMockRepository.getOverdueDoc(user, schoolYearId, kind, id) : repo.getOverdueGoal(user, schoolYearId, id);
+  return classDoc ? educationPlanApi.getOverdueClassDoc(kind, id, schoolYearId) : educationPlanApi.getOverdueGoal(id, schoolYearId);
 };
 export const getClassDocRelease = (releaseId) => repo.getClassDocRelease(releaseId);
 export const listGoalSources = (filters, actor, options) => repo.listGoalSources(filters, actor, options);
@@ -83,6 +131,13 @@ export const deleteLesson = (id) => repo.deleteLesson(id);
 // Kèm lớp (classes) và giáo viên, tổ trưởng (staff) người xem được; schoolYearId: năm đang chọn ở header
 export const getClassPlans = (schoolYearId, user, review) =>
   USE_MOCK ? classPlanMockRepository.getAll(user, schoolYearId, review) : educationPlanApi.getClassPlans(schoolYearId, review);
+// edu-list-paging: danh sách gọn (trang BE 5 dòng), chi tiết theo khóa, lớp/nhân sự không kèm tài liệu
+export const getClassDocSummaries = (schoolYearId, user, filter) =>
+  USE_MOCK ? classPlanMockRepository.getSummaries(user, schoolYearId, filter) : educationPlanApi.getClassDocSummaries(schoolYearId, filter);
+export const getClassDoc = (kind, docKey, user, schoolYearId) =>
+  USE_MOCK ? classPlanMockRepository.getOne(user, schoolYearId, kind, docKey) : educationPlanApi.getClassDoc(kind, docKey);
+export const getClassDocContext = (schoolYearId, user) =>
+  USE_MOCK ? classPlanMockRepository.getContext(user, schoolYearId) : educationPlanApi.getClassDocContext(schoolYearId);
 export const saveClassDoc = (kind, doc, user, options) =>
   USE_MOCK ? classPlanMockRepository.saveDoc(kind, doc, user, options) : educationPlanApi.saveClassDoc(kind, doc, options);
 export const actOnClassDoc = (kind, id, body, user, options) =>
@@ -117,7 +172,6 @@ export const matchGoalContents = (planId, options) =>
 export const getPreviousYearTicks = (planId) =>
   USE_MOCK ? themeContentAiMock.getPreviousYearTicks(planId) : educationPlanApi.getPreviousYearTicks(planId);
 export const sendAiFeedback = (body) => (USE_MOCK ? themeContentAiMock.sendAiFeedback(body) : educationPlanApi.sendAiFeedback(body));
-
 
 export const previewClassCalendar = async (request, plan) =>
   USE_MOCK

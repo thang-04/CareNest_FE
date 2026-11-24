@@ -8,7 +8,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 const source = await readFile(new URL('../../src/pages/education-plan/GoalListPage.jsx', import.meta.url), 'utf8');
 const isolated = source.replace(/^import [\s\S]*? from '[^']+';\r?\n/gm, '');
 const stubs = `
-import React, {useMemo, useState} from 'react';
+import React, {useEffect, useMemo, useState} from 'react';
 import {planLevel, planLevel as levelOf, planRoute, inheritAnnual} from ${JSON.stringify(import.meta.resolve('../../src/models/education-plan/planLevel.mjs'))};
 import {currentPlanInYear, currentPlanOf, versionOf} from ${JSON.stringify(import.meta.resolve('../../src/models/education-plan/planVersions.mjs'))};
 import {isReviewTurn} from ${JSON.stringify(import.meta.resolve('../../src/models/education-plan/reviewTurn.mjs'))};
@@ -23,8 +23,14 @@ const Card=({children})=><section>{children}</section>, PageHead=({actions})=><h
 const Link=({children,to})=><a href={to}>{children}</a>, Plus=()=>null, RotateCcw=()=>null;
 const YearPlanStatusBadge=({status})=><span data-status={status}>{status}</span>;
 const VersionBadge=()=> <span className="chip">Phiên bản màu</span>;
-const useAsync=()=>({data:context.queue ?? context.goals ?? null,loading:false,reload:()=>{}}), usePolling=()=>{}, getReviewQueue=async()=>[];
+const useAsync=(fn)=>{ const r=fn(); return {data:r instanceof Promise ? (context.queue ?? null) : r,loading:false,reload:()=>{}}; }, usePolling=()=>{}, getReviewQueue=async()=>[];
+// BE giả của danh sách phân trang + số liệu (edu-list-paging): ẩn bản ban hành có bản ban hành mới hơn cùng năm, nhóm tuổi
+const levelGoals=(f)=>(context.goals||[]).filter((g)=>levelOf(g)===f.planLevel);
+const isReplaced=(g)=>g.status==='APPROVED'&&(context.goals||[]).some((x)=>x.status==='APPROVED'&&x.ageGroupId===g.ageGroupId&&x.schoolYearId===g.schoolYearId&&x.versionNo>g.versionNo);
+const getGoalPage=(u,f)=>{ const items=levelGoals(f).filter((g)=>!f.currentOnly||!isReplaced(g)); return {items:items.slice(f.page*f.size,(f.page+1)*f.size),totalElements:items.length}; };
+const getGoalStats=(u,f)=>{ const lv=levelGoals(f); return {total:lv.length,issued:lv.filter((g)=>g.status==='APPROVED'||g.status==='SENT').length,replaced:lv.filter(isReplaced).length,ageGroupIdsWithPlan:[...new Set(lv.map((g)=>g.ageGroupId))]}; };
 const submitEntryOf=(d)=>[...(d?.history||[])].reverse().find((h)=>h.code==='SUBMIT'||h.action==='submit')||null;
+const paginate=(items,page,size)=>items.slice((page-1)*size,page*size), Pagination=()=>null;
 `;
 const { code } = await transformWithOxc(stubs + isolated, 'GoalListPage.jsx', { lang: 'jsx', jsx: { runtime: 'classic' } });
 const { default: GoalListPage, context } = await import(
@@ -214,12 +220,19 @@ const queueSource = await readFile(new URL('../../src/pages/education-plan/PlanR
 const queueStubs =
   stubs
     .replace(
-      "import React, {useMemo, useState} from 'react';",
-      "import React, {useMemo} from 'react'; const useState=(v)=>[typeof v==='function'?v():v,()=>{}], useId=()=>'q';",
+      "import React, {useEffect, useMemo, useState} from 'react';",
+      "import React, {useEffect, useMemo} from 'react'; const useState=(v)=>[typeof v==='function'?v():v,()=>{}], useId=()=>'q';",
     )
     .replace('useNavigate=()=>()=>{}', 'useNavigate=()=>to=>context.destination=to')
-    .replace('clickableRowProps=()=>({})', 'clickableRowProps=(onClick)=>({onClick})') +
+    .replace('clickableRowProps=()=>({})', 'clickableRowProps=(onClick)=>({onClick})')
+    // edu-list-paging: lần gọi thứ nhất = hàng chờ năm/tổ, thứ hai = trang tài liệu lớp chờ duyệt từ BE
+    .replace(
+      "const useAsync=(fn)=>{ const r=fn(); return {data:r instanceof Promise ? (context.queue ?? null) : r,loading:false,reload:()=>{}}; }",
+      "let asyncCall=0; const useAsync=()=>{ const docs=[...(context.semesterPackages||[]),...(context.themeDossiers||[])].filter((d)=>d.status==='REVIEW'); return asyncCall++%2===0 ? {data:context.queue ?? context.goals ?? null,loading:false,reload:()=>{}} : {data:{items:docs,total:docs.length},loading:false,reload:()=>{}}; }",
+    ) +
   `
+const LoadingState=()=>null, getClassDocSummaries=async()=>({items:[],totalElements:0});
+import { mixedPage } from ${JSON.stringify(new URL('../../src/models/education-plan/classDocSummary.mjs', import.meta.url).href)};
 const EduStatusBadge=YearPlanStatusBadge, fmtDateTime=(value)=>value, DeadlineBadge=()=>null, Eye=()=>null, FilterText=()=>null;
 const PENDING_OF={}, CLASS_DOC_LABELS={year:'Kế hoạch tổ', branch:'Nhánh', theme:'Chủ đề'};
 const themeNumber=()=>1, themeWeeksOf=()=>[];

@@ -68,7 +68,11 @@ export const actDoneText = (kind, action, status) => {
   return next ? `Đã duyệt ${name}, chuyển ${next} duyệt tiếp` : `Đã duyệt ${name}`;
 };
 
-export function EducationPlanProvider({ children, yearScoped = true, reviewView = false }) {
+/**
+ * lightDocs (edu-list-paging, Tiền 25/11/2026): trang danh sách không dùng nội dung tài liệu lớp ⇒ chỉ tải lớp/nhân sự,
+ * không tải cả gói /class-docs (vài MB); trang tự tải danh sách gọn có phân trang.
+ */
+export function EducationPlanProvider({ children, yearScoped = true, reviewView = false, lightDocs = false }) {
   const { user: authUser } = useAuth();
   const toastApi = useToast();
   const { schoolYear: pickedYear, setSchoolYear, schoolYears } = useSchoolYear();
@@ -76,10 +80,10 @@ export function EducationPlanProvider({ children, yearScoped = true, reviewView 
   const yearOption =
     yearOptions.find((year) => sameSchoolYearId(year.headerId, pickedYear)) ??
     yearOptions.find((year) => sameSchoolYearId(year.id, pickedYear));
-  const yearId = yearScoped ? yearOption?.id ?? null : null;
+  const yearId = yearScoped ? (yearOption?.id ?? null) : null;
   const scope = useMemo(
-    () => ({ yearId, userId: authUser.id, reviewView, classRefreshSequence: 0, loadingGoalIds: new Set() }),
-    [yearId, authUser.id, reviewView],
+    () => ({ yearId, userId: authUser.id, reviewView, lightDocs, classRefreshSequence: 0, loadingGoalIds: new Set() }),
+    [yearId, authUser.id, reviewView, lightDocs],
   );
   const activeScope = useRef(scope);
   activeScope.current = scope;
@@ -92,30 +96,44 @@ export function EducationPlanProvider({ children, yearScoped = true, reviewView 
   }, []);
   const isActive = useCallback(() => mounted.current && activeScope.current === scope, [scope]);
   // Kế hoạch năm, chủ đề, giáo án cũ và tài liệu của lớp (chủ đề nhánh, kế hoạch chủ đề, giáo án tuần) tải một lần
-  const { data, setData: setAsyncData, loading, error, reload: reloadAsync } = useAsync(
+  const {
+    data,
+    setData: setAsyncData,
+    loading,
+    error,
+    reload: reloadAsync,
+  } = useAsync(
     () =>
       Promise.all([
         yearId == null ? { goals: [] } : service.getEducationPlans(authUser, { schoolYearId: yearId }),
-        yearId == null ? {} : service.getClassPlans(yearId, authUser, reviewView),
+        yearId == null
+          ? {}
+          : lightDocs
+            ? service.getClassDocContext(yearId, authUser)
+            : service.getClassPlans(yearId, authUser, reviewView),
         service.getEduConfig(authUser),
-      ]).then(
-        ([plans, classDocs, eduConfig]) => {
-          // Cấu hình áp dụng trước khi vẽ để bảng, nhãn lĩnh vực và file xuất dùng cùng một bản
-          if (isActive()) applyEduConfig(eduConfig);
-          return { ...plans, goals: mergeGoals(goalsRef.current, plans.goals), ...classDocs, eduConfig };
-        },
-      ),
-    [yearId, authUser.id, reviewView],
+      ]).then(([plans, classDocs, eduConfig]) => {
+        // Cấu hình áp dụng trước khi vẽ để bảng, nhãn lĩnh vực và file xuất dùng cùng một bản
+        if (isActive()) applyEduConfig(eduConfig);
+        return { ...plans, goals: mergeGoals(goalsRef.current, plans.goals), ...classDocs, eduConfig };
+      }),
+    [yearId, authUser.id, reviewView, lightDocs],
     { refreshOnDataChange: true },
   );
 
   // Phản hồi cũ chỉ cập nhật màn đã khởi tạo tác vụ, kể cả khi chọn A → B → A.
-  const setData = useCallback((next) => {
-    if (isActive()) setAsyncData(next);
-  }, [isActive, setAsyncData]);
-  const reload = useCallback((options) => {
-    if (isActive()) return reloadAsync(options);
-  }, [isActive, reloadAsync]);
+  const setData = useCallback(
+    (next) => {
+      if (isActive()) setAsyncData(next);
+    },
+    [isActive, setAsyncData],
+  );
+  const reload = useCallback(
+    (options) => {
+      if (isActive()) return reloadAsync(options);
+    },
+    [isActive, reloadAsync],
+  );
   const goalsRef = useRef([]);
   goalsRef.current = data?.goals || [];
   // Chi tiết kế hoạch năm/tổ tải khi trang cần (useGoalDetails); một id chỉ tải một lần cùng lúc
@@ -128,12 +146,17 @@ export function EducationPlanProvider({ children, yearScoped = true, reviewView 
       try {
         const details = await Promise.all(need.map((id) => service.getGoal(id, authUser)));
         const scoped = details.filter((goal) => sameSchoolYearId(goal?.schoolYearId, yearId));
-        setData((prev) => (prev ? {
-          ...prev,
-          goals: scoped.reduce((list, goal) =>
-            goal.status === 'APPROVED' || list.some((item) => item.id === goal.id) ? upsert(list, goal) : list,
-          prev.goals),
-        } : prev));
+        setData((prev) =>
+          prev
+            ? {
+                ...prev,
+                goals: scoped.reduce(
+                  (list, goal) => (goal.status === 'APPROVED' || list.some((item) => item.id === goal.id) ? upsert(list, goal) : list),
+                  prev.goals,
+                ),
+              }
+            : prev,
+        );
       } finally {
         need.forEach((id) => loadingGoals.delete(id));
       }
@@ -243,7 +266,9 @@ export function EducationPlanProvider({ children, yearScoped = true, reviewView 
       refreshClassDocs: async () => {
         if (yearId == null) return;
         const sequence = ++scope.classRefreshSequence;
-        const classDocs = await service.getClassPlans(yearId, actor, scope.reviewView);
+        const classDocs = scope.lightDocs
+          ? await service.getClassDocContext(yearId, actor)
+          : await service.getClassPlans(yearId, actor, scope.reviewView);
         if (sequence === scope.classRefreshSequence) setData((prev) => (prev ? { ...prev, ...classDocs } : prev));
         return classDocs;
       },
