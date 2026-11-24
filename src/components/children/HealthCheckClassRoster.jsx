@@ -11,6 +11,7 @@ import { RosterActions } from './RosterActions';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { FilterChips } from '@/components/ui/FilterChips';
 import { Pagination, paginate } from '@/components/ui/Pagination';
+import { StatusBadge } from '@/components/ui/StatusBadge';
 import { ChildResultBadge, ConclusionCategoryBadge, FollowUpLevelShortBadge, PublishStatusBadge } from './ChildBadges';
 import { CHILD_RESULT_STATUS, CHILD_RESULT_STATUS_LABELS } from '@/models/children/healthCheckConstants';
 import { CONCLUSION_CATEGORY_LABELS } from '@/models/children/healthExamForm';
@@ -42,7 +43,7 @@ export function HealthCheckClassRoster({ campaignId, classId, embedded = false, 
   const yearLocked = useChildYearLock();
   const canRecord = !!roster?.canRecord && !yearLocked;
   const rows = useMemo(() => roster?.children || [], [roster]);
-  const concluded = rows.filter((r) => r.result === CHILD_RESULT_STATUS.RECORDED).length;
+  const concluded = rows.filter((r) => !r.movedTo && r.result === CHILD_RESULT_STATUS.RECORDED).length;
   const [filters, setFilters, resetFilterParams, activeKeys] = useFilterParams(FILTER_DEFAULTS);
   const { keyword, result, conclusion } = filters;
   const [page, setPage] = useState(1);
@@ -150,8 +151,10 @@ export function HealthCheckClassRoster({ campaignId, classId, embedded = false, 
                 const healthLink = `/children/${r.childId}/health`;
                 // Việc chính của dòng: giáo viên khám / khám tiếp; có phiếu thì xem phiếu. Bấm dòng làm việc chính, không có thì
                 // mở sổ sức khỏe (DESIGN §6.3: bấm dòng mở chi tiết, không icon Xem).
-                const primary =
-                  canRecord && r.result === CHILD_RESULT_STATUS.NOT_RECORDED
+                // Trẻ đã chuyển lớp chỉ xem, không thao tác (HLT-09)
+                const primary = r.movedTo
+                  ? null
+                  : canRecord && r.result === CHILD_RESULT_STATUS.NOT_RECORDED
                     ? { label: 'Khám', strong: true }
                     : canRecord && r.result === CHILD_RESULT_STATUS.IN_PROGRESS
                       ? { label: 'Tiếp tục khám', strong: true }
@@ -161,12 +164,26 @@ export function HealthCheckClassRoster({ campaignId, classId, embedded = false, 
                 return (
                   <tr
                     key={r.childId}
-                    className="row-click"
-                    {...clickableRowProps(() => navigate(primary ? examLink(r.childId) : healthLink))}
+                    className={r.movedTo ? undefined : 'row-click'}
+                    {...(r.movedTo ? {} : clickableRowProps(() => navigate(primary ? examLink(r.childId) : healthLink)))}
                   >
                     <td>
                       <div className="fw-600">{r.fullName}</div>
                       <div className="muted text-xs">{r.code}</div>
+                      {r.absentToday && !r.movedTo && (
+                        <div className="mt-8">
+                          <StatusBadge tone="orange" label="Vắng hôm nay" size="sm" />
+                        </div>
+                      )}
+                      {r.movedTo && (
+                        <div className="mt-8">
+                          <StatusBadge
+                            tone="gray"
+                            size="sm"
+                            label={`Đã chuyển sang ${r.movedTo.className} (${r.movedTo.campusName}) từ ${formatDate(r.movedTo.from)}`}
+                          />
+                        </div>
+                      )}
                     </td>
                     <td className="text-sm">
                       {r.previous ? (
@@ -214,7 +231,7 @@ export function HealthCheckClassRoster({ campaignId, classId, embedded = false, 
                             icon: primary.strong ? Stethoscope : FileText,
                           }
                         }
-                        healthLink={healthLink}
+                        healthLink={r.movedTo ? null : healthLink}
                       />
                     </td>
                   </tr>

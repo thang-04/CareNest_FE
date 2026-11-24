@@ -11,6 +11,7 @@ import { RosterActions } from './RosterActions';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { FilterChips } from '@/components/ui/FilterChips';
 import { Pagination, paginate } from '@/components/ui/Pagination';
+import { StatusBadge } from '@/components/ui/StatusBadge';
 import { BmiStatusBadge, MeasurementResultBadge } from './ChildBadges';
 import { BMI_STATUS } from '@/models/children/childrenConstants';
 import { CHILD_RESULT_STATUS, MEASUREMENT_RESULT_STATUS_LABELS } from '@/models/children/healthCheckConstants';
@@ -21,6 +22,7 @@ const COLS = 7;
 const PAGE_SIZE = 10;
 // Sổ dưới dòng lớp: 5 trẻ/trang để bảng lớp không bị đẩy quá dài (user yêu cầu 2026-11-11).
 const EMBEDDED_PAGE_SIZE = 5;
+const ABSENT_TODAY_HINT = 'Trẻ vắng hôm nay (điểm danh). Nhập khi trẻ có mặt.';
 const FILTER_DEFAULTS = { keyword: '', result: '', bmiWarning: '' };
 
 // Trẻ có cảnh báo BMI theo mức BE trả (HLT-18); chỉ để lọc hiển thị.
@@ -46,7 +48,8 @@ export function MeasurementRoundRoster({ campaignId, classId, embedded = false, 
   const yearLocked = useChildYearLock();
   const canRecord = !!roster?.canRecord && !yearLocked;
   const rows = useMemo(() => roster?.children || [], [roster]);
-  const measured = rows.filter((r) => r.result === CHILD_RESULT_STATUS.RECORDED).length;
+  // Trẻ đã chuyển sang lớp khác không tính vào lớp cũ (HLT-09)
+  const measured = rows.filter((r) => !r.movedTo && r.result === CHILD_RESULT_STATUS.RECORDED).length;
   const [filters, setFilters, resetFilterParams, activeKeys] = useFilterParams(FILTER_DEFAULTS);
   const { keyword, result, bmiWarning } = filters;
   const [page, setPage] = useState(1);
@@ -147,10 +150,15 @@ export function MeasurementRoundRoster({ campaignId, classId, embedded = false, 
                 const recorded = r.result === CHILD_RESULT_STATUS.RECORDED;
                 const healthLink = `/children/${r.childId}/health`;
                 // Việc chính: giáo viên nhập hoặc sửa số đo; không có thì bấm dòng mở sổ sức khỏe (DESIGN §6.3)
-                const primary =
-                  canRecord && r.result === CHILD_RESULT_STATUS.NOT_RECORDED
-                    ? { label: 'Nhập số đo', strong: true, icon: Scale, to: measurementFormLink(campaignId, classId, r.childId) }
-                    : canRecord && recorded
+                // Quyền sửa theo dòng BE trả (canEdit); trẻ vắng hôm nay khóa nhập (HLT-01); dòng đã chuyển lớp chỉ xem (HLT-09)
+                const enter = { label: 'Nhập số đo', strong: true, icon: Scale, to: measurementFormLink(campaignId, classId, r.childId) };
+                const primary = r.movedTo
+                  ? null
+                  : canRecord && r.canEdit && r.result === CHILD_RESULT_STATUS.NOT_RECORDED
+                    ? r.absentToday
+                      ? { ...enter, disabled: true, title: ABSENT_TODAY_HINT }
+                      : enter
+                    : canRecord && r.canEdit && recorded
                       ? {
                           label: 'Sửa số đo',
                           strong: false,
@@ -159,21 +167,44 @@ export function MeasurementRoundRoster({ campaignId, classId, embedded = false, 
                         }
                       : null;
                 return (
-                  <tr key={r.childId} className="row-click" {...clickableRowProps(() => navigate(primary ? primary.to : healthLink))}>
+                  <tr
+                    key={r.childId}
+                    className={r.movedTo ? undefined : 'row-click'}
+                    {...(r.movedTo ? {} : clickableRowProps(() => navigate(primary && !primary.disabled ? primary.to : healthLink)))}
+                  >
                     <td>
                       <div className="fw-600">{r.fullName}</div>
                       <div className="muted text-xs">{r.code}</div>
+                      {r.absentToday && !r.movedTo && (
+                        <div className="mt-8">
+                          <StatusBadge tone="orange" label="Vắng hôm nay" size="sm" />
+                        </div>
+                      )}
                     </td>
                     <td>
                       <MeasurementResultBadge status={r.result} />
                       {r.date && <div className="muted text-xs mt-8">Ngày đo {formatDate(r.date)}</div>}
+                      {r.movedTo && (
+                        <div className="mt-8">
+                          <StatusBadge
+                            tone="gray"
+                            size="sm"
+                            label={`Đã chuyển sang ${r.movedTo.className} (${r.movedTo.campusName}) từ ${formatDate(r.movedTo.from)}`}
+                          />
+                        </div>
+                      )}
+                      {r.measuredIn && (
+                        <div className="muted text-xs">
+                          Đo ở {r.measuredIn.className} ({r.measuredIn.campusName}) ngày {formatDate(r.measuredIn.date)}
+                        </div>
+                      )}
                     </td>
                     <td className="num">{formatNumber(r.heightCm)}</td>
                     <td className="num">{formatNumber(r.weightKg)}</td>
                     <td className="num">{formatNumber(r.bmi)}</td>
                     <td>{r.bmiStatus ? <BmiStatusBadge status={r.bmiStatus} /> : <span className="muted">—</span>}</td>
                     <td className="cell--actions">
-                      <RosterActions name={r.fullName} primary={primary} healthLink={healthLink} />
+                      <RosterActions name={r.fullName} primary={primary} healthLink={r.movedTo ? null : healthLink} />
                     </td>
                   </tr>
                 );
