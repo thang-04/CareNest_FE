@@ -276,6 +276,13 @@ export const PERMISSION_TASKS = {
     group: 'education-plan',
     level: 'admin',
   },
+  // BE: chỉ là ngoại lệ theo PHT (không có ô ở tab Mặc định); tắt ⇒ PHT chỉ xem kế hoạch giáo dục đã ban hành
+  EDU_ACADEMIC_DUTY: {
+    label: 'Phụ trách chuyên môn (soạn/duyệt kế hoạch giáo dục)',
+    hint: 'Theo quyền mặc định của Phó hiệu trưởng; tắt thì chỉ xem bản đã ban hành',
+    group: 'education-plan',
+    level: 'edit',
+  },
   PERMISSION_MANAGE: {
     label: 'Phân quyền toàn trường',
     hint: 'Đặt quyền theo vai trò và ngoại lệ từng người; chỉ Hiệu trưởng',

@@ -30,19 +30,14 @@ export const VP_TASK_AREAS = [
       { code: 'PARENT_ACCOUNT_MANAGE', place: VP_PLACE.CAMPUS },
     ],
   },
-  // BE EDU-108: không theo điểm trường, PHT có mã duyệt hồ sơ lớp duyệt được mọi điểm trường
+  // BE EDU-108, EDU-110 (7) (Tiền 24/11/2026): soạn/duyệt theo cột PHT ở tab Mặc định, không bật/tắt từng mã ở đây;
+  // "Phụ trách chuyên môn" (EDU_ACADEMIC_DUTY, mặc định bật) tắt ⇒ PHT chỉ xem kế hoạch giáo dục đã ban hành
   {
     key: 'education',
     label: 'Kế hoạch giáo dục',
+    note: 'Phụ trách chuyên môn: soạn/duyệt theo quyền mặc định của Phó hiệu trưởng (tab Mặc định theo vai trò). Không phụ trách: chỉ xem bản đã ban hành.',
     tasks: [
-      { code: 'EDU_SCHOOL_YEAR_PLAN_EDIT', place: VP_PLACE.SCHOOL },
-      { code: 'EDU_SCHOOL_YEAR_PLAN_APPROVE', place: VP_PLACE.SCHOOL },
-      { code: 'EDU_TEAM_PLAN_EDIT', place: VP_PLACE.SCHOOL },
-      { code: 'EDU_TEAM_PLAN_APPROVE', place: VP_PLACE.SCHOOL },
-      { code: 'EDU_SEMESTER_PACKAGE_EDIT', place: VP_PLACE.SCHOOL },
-      { code: 'EDU_SEMESTER_PACKAGE_APPROVE', place: VP_PLACE.SCHOOL },
-      { code: 'EDU_THEME_PLAN_EDIT', place: VP_PLACE.SCHOOL },
-      { code: 'EDU_THEME_PLAN_APPROVE', place: VP_PLACE.SCHOOL },
+      { code: 'EDU_ACADEMIC_DUTY', place: VP_PLACE.SCHOOL },
       { code: 'EDU_PLAN_CONFIG', place: VP_PLACE.SCHOOL },
     ],
   },
@@ -64,6 +59,7 @@ export const VP_OTHER_AREA = { key: 'other', label: 'Việc khác' };
 export const VP_VIEW_CODE = 'CHILD_PROFILE_VIEW';
 
 export const VP_TASK_PRESETS = [
-  { key: 'nutrition', label: 'Phụ trách dinh dưỡng', areas: ['meals'] },
+  // PHT dinh dưỡng: kế hoạch giáo dục chỉ xem (thu hồi "Phụ trách chuyên môn", Tiền 24/11/2026)
+  { key: 'nutrition', label: 'Phụ trách dinh dưỡng', areas: ['meals'], offAreas: ['education'] },
   { key: 'academic', label: 'Phụ trách chuyên môn', areas: ['children', 'education'] },
 ];

@@ -57,7 +57,8 @@ export default function RoleDefaultsPage() {
   const [saveIssues, setSaveIssues] = useState(null);
   const issuesQuery = useEduWorkflowIssues({ live: false });
 
-  const groups = useMemo(() => permissionTableRows(catalog), [catalog]);
+  // "Phụ trách chuyên môn" chỉ là ngoại lệ theo PHT (màn Phân công PHT), không có ô ở ma trận vai trò
+  const groups = useMemo(() => permissionTableRows(catalog.filter((permission) => permission.code !== 'EDU_ACADEMIC_DUTY')), [catalog]);
   const roleEntry = (role) => roles.find((entry) => entry.role === role);
   const originalOf = (role) => roleEntry(role)?.permissions || [];
   const codesOf = (role) => drafts[role] ?? originalOf(role);
