@@ -9,7 +9,6 @@ import { suggestLessonSteps } from '@/services/education-plan/educationPlanServi
 import { Card } from '@/components/education-plan/eduUi';
 import { Cell, focusCell } from '@/components/education-plan/planUi';
 import {
-  DAY_REVIEW,
   DAY_SECTIONS,
   HOC_SUGGESTED_ROWS,
   NAME_MAX,
@@ -1248,22 +1247,6 @@ export function DayTab({
             </tbody>
           </table>
         </div>
-      </Section>
-      <Section title="II. Đánh giá trẻ trên ngày">
-        <LabelTable
-          editable={editable}
-          rows={DAY_REVIEW.map((r) => ({
-            label: r.label,
-            cell: (
-              <LimitedCell
-                editable={editable}
-                value={d.review?.[r.key]}
-                label={r.label}
-                onChange={(v) => update((x) => (((x.days[index].review ||= {})[r.key] = v), x))}
-              />
-            ),
-          }))}
-        />
       </Section>
       <ConfirmationModal
         open={!!askDelete}
