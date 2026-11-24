@@ -16,6 +16,9 @@ const stubs = `
   const useNavigate = () => navigate;
   const classFilterPath = (base, id, age) => id ? base + "/" + id : base + "/no-class?ageGroup=" + encodeURIComponent(age);
   const useClassPlanContext = () => ctx;
+  const useEducationPlan = () => ({ pollClassDocs: async () => {} });
+  const usePolling = () => {};
+  const useState = React.useState;
   const LoadingState = () => <p>Đang tải</p>;
   export let pick;
   function ClassPageEmpty({ classes, emptyTitle, onPick }) {

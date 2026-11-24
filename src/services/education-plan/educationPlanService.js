@@ -133,10 +133,10 @@ export const deleteLesson = (id) => repo.deleteLesson(id);
 export const getClassPlans = (schoolYearId, user, review, classId) =>
   USE_MOCK ? classPlanMockRepository.getAll(user, schoolYearId, review) : educationPlanApi.getClassPlans(schoolYearId, review, classId);
 // Mọi bản gọn của các loại tài liệu (đi qua từng trang 100 dòng của BE); dùng khi màn cần cả danh sách, không phân trang
-export const getAllClassDocSummaries = async (schoolYearId, user, kinds) => {
+export const getAllClassDocSummaries = async (schoolYearId, user, kinds, filter = {}) => {
   const items = [];
   for (let page = 0, total = 1; page < total; page++) {
-    const result = await getClassDocSummaries(schoolYearId, user, { kinds, page, size: 100 });
+    const result = await getClassDocSummaries(schoolYearId, user, { ...filter, kinds, page, size: 100 });
     items.push(...(result.items || []));
     total = result.totalPages ?? 1;
   }

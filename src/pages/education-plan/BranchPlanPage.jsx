@@ -70,6 +70,10 @@ export default function BranchPlanPage() {
   const navigate = useNavigate();
   const ctx = useClassPlanContext(classId);
   const { cls, classes, yearPlan } = ctx;
+  const { pollClassDocs } = useEducationPlan();
+  // Một chỗ poll cho cả trang; đang sửa thì dừng để giữ bản đang gõ
+  const [editing, setEditing] = useState(false);
+  usePolling(() => pollClassDocs?.().catch(() => {}), { enabled: !editing });
   if (ctx.loading) return <LoadingState />;
   if (!cls || !yearPlan) {
     return (
@@ -88,16 +92,15 @@ export default function BranchPlanPage() {
   if (!ctx.canComposeClassDocs) {
     return <PublishedBranches key={`${classId}:${yearPlan.id}`} ctx={ctx} classId={classId} />;
   }
-  return <BranchPlanInner key={`${classId}:${yearPlan.id}:${yearPlan.curriculumSourcePlanId || 'legacy'}`} classId={classId} ctx={ctx} />;
+  return <BranchPlanInner key={`${classId}:${yearPlan.id}:${yearPlan.curriculumSourcePlanId || 'legacy'}`} classId={classId} ctx={ctx} onEditingChange={setEditing} />;
 }
 
 function PublishedBranches({ ctx, classId }) {
   const title = 'Dự kiến chủ đề - chủ đề nhánh';
   const navigate = useNavigate();
-  const { refreshClassDocs, semesterPackages } = useEducationPlan();
+  const { semesterPackages } = useEducationPlan();
   const [view, setView] = useState('list');
   const [semester, setSemester] = useState('');
-  usePolling(() => refreshClassDocs().catch(() => {}));
   const packages = semesterPackages.filter((pkg) =>
     pkg.classId === classId && pkg.yearPlanId === ctx.yearPlan.id && pkg.status === EDU_STATUS.APPROVED);
   const calendar = semester
@@ -153,7 +156,7 @@ export function BranchPlanLegacyRedirect() {
   return <Navigate to={`/education/branches/${classId}`} replace />;
 }
 
-function BranchPlanInner({ classId, ctx }) {
+function BranchPlanInner({ classId, ctx, onEditingChange }) {
   const {
     user,
     branchPlans,
@@ -164,7 +167,6 @@ function BranchPlanInner({ classId, ctx }) {
     toast,
     eduConfig,
     staff,
-    refreshClassDocs,
   } = useEducationPlan();
   const [preview, setPreview] = useState(null);
   const [importContext, setImportContext] = useState(null);
@@ -217,8 +219,10 @@ function BranchPlanInner({ classId, ctx }) {
     },
   });
   const guard = useLeaveGuard({ when: editing && autoOk && saver.unsaved, onSave: saver.save });
-  // Đang xem (không sửa): trạng thái kế hoạch giáo dục chủ đề do người khác đổi tự cập nhật; đang sửa thì không nạp lại để giữ bản đang gõ
-  usePolling(() => refreshClassDocs?.().catch(() => {}), { enabled: !editing });
+  useEffect(() => {
+    onEditingChange(editing);
+    return () => onEditingChange(false);
+  }, [editing, onEditingChange]);
 
   useEffect(() => {
     setEditing(false);

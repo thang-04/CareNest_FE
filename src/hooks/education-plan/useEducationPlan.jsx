@@ -259,18 +259,31 @@ export function EducationPlanProvider({ children, yearScoped = true, reviewView 
       };
     const deleteIn = (key, call) => write(key, call, (list, id) => list.filter((x) => x.id !== id));
 
+    // Tài liệu của lớp (kế hoạch giáo dục ngày chờ duyệt…) do người khác đổi; tải lại im lặng, không đụng kế hoạch năm/tổ
+    const refreshClassDocs = async () => {
+      if (yearId == null) return;
+      const sequence = ++scope.classRefreshSequence;
+      const classDocs = scope.lightDocs
+        ? await service.getClassDocContext(yearId, actor)
+        : await service.getClassPlans(yearId, actor, scope.reviewView, scope.classId);
+      if (sequence === scope.classRefreshSequence) setData((prev) => (prev ? { ...prev, ...classDocs } : prev));
+      return classDocs;
+    };
     return {
       reload,
       refreshPlans,
-      // Tài liệu của lớp (kế hoạch giáo dục ngày chờ duyệt…) do người khác đổi; tải lại im lặng, không đụng kế hoạch năm/tổ
-      refreshClassDocs: async () => {
+      refreshClassDocs,
+      // Poll 20 s của trang một lớp: chỉ hỏi bản gọn của lớp; đổi (version/trạng thái/lượt duyệt) mới tải lại đủ tài liệu
+      pollClassDocs: async () => {
         if (yearId == null) return;
-        const sequence = ++scope.classRefreshSequence;
-        const classDocs = scope.lightDocs
-          ? await service.getClassDocContext(yearId, actor)
-          : await service.getClassPlans(yearId, actor, scope.reviewView, scope.classId);
-        if (sequence === scope.classRefreshSequence) setData((prev) => (prev ? { ...prev, ...classDocs } : prev));
-        return classDocs;
+        if (scope.classId == null) return refreshClassDocs();
+        const items = await service.getAllClassDocSummaries(yearId, actor, undefined, {
+          classIds: [scope.classId],
+          review: scope.reviewView,
+        });
+        const stamp = JSON.stringify(items);
+        if (scope.lastPollStamp !== undefined && scope.lastPollStamp !== stamp) await refreshClassDocs();
+        scope.lastPollStamp = stamp;
       },
       refreshGoal: async (id) => {
         const plans = await refreshPlans();

@@ -85,14 +85,14 @@ function DayPlansWeek({ classId, params }) {
 function DayPlansList({ classId }) {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
-  const { user, dayPlans, themeDossiers, semesterPackages, actOnClassDoc, eduConfig, refreshClassDocs, yearOption } = useEducationPlan();
+  const { user, dayPlans, themeDossiers, semesterPackages, actOnClassDoc, eduConfig, pollClassDocs, yearOption } = useEducationPlan();
   const [folded, setFolded] = useState(() => new Set());
   // Lỗi BE trả khi gửi kế hoạch giáo dục ngày (7390 mục trống, 7396/7397 MT chưa dạy), theo từng chủ đề
   const [sendErr, setSendErr] = useState({});
   const ctx = useClassPlanContext(classId);
   const { cls, classes, yearPlan, canComposeClassDocs } = ctx;
   // Người khác gửi/duyệt/trả lại kế hoạch giáo dục ngày thì trang tự cập nhật
-  usePolling(() => refreshClassDocs?.().catch(() => {}));
+  usePolling(() => pollClassDocs?.().catch(() => {}));
   if (ctx.loading) return <LoadingState />;
   const head = (filters = null, extra = null) => (
     <div className="ga-sticky-head">

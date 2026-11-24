@@ -83,7 +83,7 @@ export default function ClassPlanPage() {
     staff,
     actOnClassDoc,
     eduConfig,
-    refreshClassDocs,
+    pollClassDocs,
     yearOption,
   } = useEducationPlan();
   const [preview, setPreview] = useState(null);
@@ -102,7 +102,7 @@ export default function ClassPlanPage() {
   const ctx = useClassPlanContext(classId);
   const { cls, classes, yearPlan, branchPlan, pendingYearPlan, canComposeClassDocs } = ctx;
   // Người khác gửi/duyệt/trả lại học kỳ thì trang tự cập nhật
-  usePolling(() => refreshClassDocs?.().catch(() => {}));
+  usePolling(() => pollClassDocs?.().catch(() => {}));
 
   if (ctx.loading) return <LoadingState />;
   if (!cls)
