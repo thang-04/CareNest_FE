@@ -120,7 +120,7 @@ export default function EnrollChildPage() {
   const [declaration, setDeclaration] = useState(emptyDeclaration());
   const [errors, setErrors] = useState({ info: {}, placement: {}, declaration: {} });
   // Sĩ số tính theo ngày bắt đầu đi học (G94-180/CHD-14)
-  const { classes, loading: classesLoading } = usePlacementClasses(intakeYear?.id, { from: startDate });
+  const { classes, loading: classesLoading, from: classesFrom } = usePlacementClasses(intakeYear?.id, { from: startDate });
 
   // Lớp đang chọn thành đã đủ sau khi đổi ngày ⇒ bỏ chọn, báo ở ô Lớp
   useEffect(() => {
@@ -129,7 +129,10 @@ export default function EnrollChildPage() {
     setClassId('');
     setErrors((e) => ({
       ...e,
-      placement: { ...e.placement, classId: `${picked.name} đã đủ từ ${formatDate(startDate)}. Chọn lớp khác.` },
+      placement: {
+        ...e.placement,
+        classId: `${picked.name} đã đủ từ ${classesFrom ? formatDate(classesFrom) : 'hôm nay'}. Chọn lớp khác.`,
+      },
     }));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ khi số lớp tải lại
   }, [classes]);

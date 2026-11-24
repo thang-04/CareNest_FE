@@ -74,14 +74,18 @@ export default function ClassPlacementPage() {
   const selected = children.find((c) => c.id === selectedId) || null;
   const suggested = selected ? suggestAgeGroupId(selected.dateOfBirth, yearStart, ageGroups) : '';
   // Sĩ số tính theo ngày vào lớp, bỏ chính trẻ này (G94-180/CHD-14)
-  const { classes, reload: reloadClasses } = usePlacementClasses(undefined, { from: effectiveDate, childId: selected?.id });
+  const {
+    classes,
+    reload: reloadClasses,
+    from: classesFrom,
+  } = usePlacementClasses(undefined, { from: effectiveDate, childId: selected?.id });
 
   // Lớp đang chọn thành đã đủ sau khi đổi ngày ⇒ bỏ chọn, báo ở ô Lớp
   useEffect(() => {
     const picked = classes.find((c) => c.id === classId);
     if (!picked || !classFullness(picked).full) return;
     setClassId('');
-    setErrors((e) => ({ ...e, classId: `${picked.name} đã đủ từ ${formatDate(effectiveDate)}. Chọn lớp khác.` }));
+    setErrors((e) => ({ ...e, classId: `${picked.name} đã đủ từ ${classesFrom ? formatDate(classesFrom) : 'hôm nay'}. Chọn lớp khác.` }));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ khi số lớp tải lại
   }, [classes]);
 
@@ -148,13 +152,11 @@ export default function ClassPlacementPage() {
           title={`Xếp lớp năm học ${headerLabel} làm ở màn Xếp lớp năm học mới`}
           description={`Trang này xếp, chuyển lớp trong năm học đang hoạt động ${activeYear.label}.`}
           action={
-            <div className="row gap-8">
+            <div className="row gap-2">
               <Link className="btn btn--primary" to="/school/placement">
                 Mở Xếp lớp năm học mới
               </Link>
-              <Button variant="secondary" onClick={() => setSchoolYear(activeYear.id)}>
-                Về năm học {activeYear.label}
-              </Button>
+              <Button onClick={() => setSchoolYear(activeYear.id)}>Về năm học {activeYear.label}</Button>
             </div>
           }
         />

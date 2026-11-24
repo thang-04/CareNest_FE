@@ -54,7 +54,9 @@ export const splitHistoryText = (text) =>
   String(text || '')
     .split(';')
     .map((x) => x.trim())
-    .filter(Boolean);
+    .filter(Boolean)
+    // Bỏ mục trùng (không phân biệt hoa thường) để key chip duy nhất và bỏ một chip không mất cả hai
+    .filter((x, i, all) => all.findIndex((y) => y.toLowerCase() === x.toLowerCase()) === i);
 export const joinHistoryText = (items) => items.join('; ');
 // Mục tự gõ không được chứa ";" vì sẽ bị tách thành hai mục khi đọc lại.
 export const cleanHistoryItem = (text) => text.replace(/;/g, ',');

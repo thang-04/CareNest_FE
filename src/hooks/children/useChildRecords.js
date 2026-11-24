@@ -68,14 +68,17 @@ export function useProfileChanges(status = 'PENDING', { enabled = true } = {}) {
 /** Lớp có thể tiếp nhận của năm đang hoạt động hoặc năm sắp tới, kèm sĩ số dự kiến. */
 export function usePlacementClasses(schoolYearId, { from, childId } = {}) {
   const { user } = useAuth();
-  // from chưa là ngày đầy đủ ⇒ không gửi, BE lấy hôm nay
-  const fromDate = /^\d{4}-\d{2}-\d{2}$/.test(from || '') ? from : undefined;
+  // Ngày đang gõ dở ⇒ giữ ngày đầy đủ gần nhất (tránh tải lại, thẻ lớp nháy trắng); ô trống ⇒ không gửi, BE lấy hôm nay
+  const lastComplete = useRef(undefined);
+  if (!from) lastComplete.current = undefined;
+  else if (/^\d{4}-\d{2}-\d{2}$/.test(from)) lastComplete.current = from;
+  const fromDate = lastComplete.current;
   const { data, loading, error, reload } = useAsync(
     () => getPlacementClasses({ schoolYearId, from: fromDate, childId }, user),
     [schoolYearId, fromDate, childId, user?.id],
     { refreshOnDataChange: true },
   );
-  return { classes: data || [], loading, error, reload };
+  return { classes: data || [], loading, error, reload, from: fromDate };
 }
 
 /** Lựa chọn ngày nghỉ học của BE: { today, todayAllowed, todayBlockedReason, nextSchoolDay }. */

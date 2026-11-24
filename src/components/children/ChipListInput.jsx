@@ -77,6 +77,7 @@ export function ChipListInput({
           ))}
         </div>
       )}
+      {text && !tooLong && !message && !disabled && <span className="field__hint">Chưa thêm vào danh sách: bấm Thêm hoặc Enter</span>}
       {message && (
         <span id={`${id}-error`} className="field__error" role="alert">
           {message}

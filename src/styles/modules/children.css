@@ -1584,9 +1584,14 @@
   display: none;
 }
 .tr-roster-fold .tr-roster-fold__chevron {
-  transition: transform 0.15s;
+  transition: transform var(--duration-fast) var(--ease-out);
   transform: rotate(-90deg);
 }
 .tr-roster-fold[open] .tr-roster-fold__chevron {
   transform: rotate(0);
+}
+@media (prefers-reduced-motion: reduce) {
+  .tr-roster-fold .tr-roster-fold__chevron {
+    transition: none;
+  }
 }

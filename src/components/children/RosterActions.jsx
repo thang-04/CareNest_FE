@@ -14,7 +14,7 @@ export function RosterActions({ name, primary, healthLink }) {
   return (
     <div className="tr-roster-actions">
       {primary?.disabled && (
-        <Button size="sm" icon={primary.icon} disabled title={primary.title} aria-label={`${primary.label} – ${name}`}>
+        <Button size="sm" icon={primary.icon} disabledReason={primary.title} aria-label={`${primary.label} – ${name}`}>
           {primary.label}
         </Button>
       )}
