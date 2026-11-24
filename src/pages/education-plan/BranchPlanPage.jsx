@@ -6,7 +6,6 @@ import {
   branchDisplayRows,
   branchWeeks,
   calendarDurationIssue,
-  publishedBranchCalendar,
   removeBranch,
   resizeBranch,
   seedTeamBranchTemplates,
@@ -98,17 +97,21 @@ export default function BranchPlanPage() {
 function PublishedBranches({ ctx, classId }) {
   const title = 'Dự kiến chủ đề - chủ đề nhánh';
   const navigate = useNavigate();
-  const { semesterPackages } = useEducationPlan();
+  const { semesterPackages, branchPlans } = useEducationPlan();
   const [view, setView] = useState('list');
   const [semester, setSemester] = useState('');
-  const packages = semesterPackages.filter((pkg) =>
-    pkg.classId === classId && pkg.yearPlanId === ctx.yearPlan.id && pkg.status === EDU_STATUS.APPROVED);
-  const calendar = semester
-    ? publishedBranchCalendar(ctx.yearPlan, packages.filter((pkg) => String(pkg.semesterNo) === semester))
-    : // GV của lớp có lịch hiện tại; HT/PHT/Tổ trưởng chỉ thấy lịch các học kỳ đã ban hành (BE EDU-73, Tiền 24/11/2026)
-      ctx.branchPlan || (packages.length ? publishedBranchCalendar(ctx.yearPlan, packages) : null);
-  const rows = calendar ? teachingWeeks(ctx.yearPlan, calendar)
-    .filter((week) => calendar.themeIds.has(String(week.theme.id))) : [];
+  const packages = semesterPackages
+    .filter((pkg) => pkg.classId === classId && pkg.yearPlanId === ctx.yearPlan.id)
+    .sort((a, b) => a.semesterNo - b.semesterNo);
+  // BE EDU-111 (5): người xem lớp thấy lịch nhánh hiện tại ở mọi trạng thái (bản GV vừa lưu), chỉ xem
+  const saved = branchPlans.find((b) => b.classId === classId && b.yearPlanId === ctx.yearPlan.id);
+  const calendar = saved ? adaptCalendar(saved, ctx.yearPlan) : null;
+  const inSemester = new Set(
+    packages.filter((pkg) => !semester || String(pkg.semesterNo) === semester).flatMap((pkg) => (pkg.themeIds || []).map(String)),
+  );
+  const rows = calendar
+    ? teachingWeeks(ctx.yearPlan, calendar).filter((week) => !semester || inSemester.has(String(week.theme.id)))
+    : [];
   return (
     <div className="page ga-page">
       <div className="ga-sticky-head">
@@ -123,7 +126,7 @@ function PublishedBranches({ ctx, classId }) {
         </ClassFilterBar>
       </div>
       <Card title={title}>
-        {!rows.length ? <EmptyState title="Chưa có lịch chủ đề nhánh đã ban hành" /> : view === 'grid' ? (
+        {!rows.length ? <EmptyState title="Lớp chưa có lịch chủ đề nhánh" /> : view === 'grid' ? (
           <BranchGridTable rows={rows} names={calendar.names} branches={calendar.branches} />
         ) : (
           <DocTable className="ga-plan-table ga-goal-table ga-branch-plan-table ga-branch-readonly" data-testid="published-branch-list">
@@ -302,14 +305,18 @@ function BranchPlanInner({ classId, ctx, onEditingChange }) {
     setDirty(true);
   };
   const editable = editing && canEdit;
-  // BE:EDU-100 — khóa theo chủ đề (chỉ ẩn/hiện, BE kiểm lại): kế hoạch giáo dục chủ đề của học kỳ đang chờ duyệt hoặc
-  // kế hoạch giáo dục ngày của chủ đề đã ban hành ⇒ không sửa; học kỳ đã duyệt ⇒ chỉ đổi tên, ngày, không xóa nhánh
-  // (2b) phiên bản điều chỉnh về Nháp sửa như Nháp ⇒ chỉ xét trạng thái đang ban hành
-  const released = (doc) => doc?.status === EDU_STATUS.APPROVED;
+  // BE:EDU-111 — khóa theo chủ đề (chỉ ẩn/hiện, BE kiểm lại): gói học kỳ chờ duyệt hoặc hồ sơ chủ đề đã gửi/duyệt ⇒
+  // không thêm/sửa/xóa nhánh; còn lại (kể cả học kỳ đã ban hành) sửa và xóa được
   const packageOf = (themeId) => packages.find((p) => (p.themeIds || []).map(String).includes(String(themeId)));
-  const themeLocked = (themeId) =>
-    packageOf(themeId)?.status === EDU_STATUS.REVIEW || released(themeDossiers.find((d) => d.id === `ds_${classId}_${themeId}`));
-  const canDropBranch = (themeId) => !themeLocked(themeId) && !released(packageOf(themeId));
+  const themeLocked = (themeId) => {
+    const dossier = themeDossiers.find((d) => d.id === `ds_${classId}_${themeId}`);
+    return (
+      packageOf(themeId)?.status === EDU_STATUS.REVIEW ||
+      dossier?.status === EDU_STATUS.REVIEW ||
+      dossier?.status === EDU_STATUS.APPROVED
+    );
+  };
+  const canDropBranch = (themeId) => !themeLocked(themeId);
   const confirmRemove = (branch, weekCount) =>
     setConfirm({
       danger: true,
