@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { ClipboardCheck, Unlock } from '@/components/ui/icons';
+import { ClipboardCheck, Printer, Unlock } from '@/components/ui/icons';
 import { Breadcrumb, Button, EmptyState, ErrorState, LoadingState } from '@/components';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
@@ -14,6 +14,7 @@ import {
 } from '@/components/kitchen/inspection/InspectionApproval';
 import { InspectionStatusBadge } from '@/components/kitchen/inspection/InspectionBadges';
 import { InspectionFormModal } from '@/components/kitchen/inspection/InspectionFormModal';
+import { InspectionPrintDialog } from '@/components/kitchen/inspection/InspectionPrintDialog';
 import { useToast } from '@/contexts/ToastContext';
 import { useStockCampus } from '@/hooks/kitchen/useDryStock';
 import { useInspectionDay } from '@/hooks/kitchen/useInspectionDay';
@@ -22,6 +23,7 @@ import {
   APPROVAL_STATUS,
   INSPECTION_APPROVAL_REQUIRED,
   INSPECTION_FORMS,
+  INSPECTION_VARIANT_FORMS,
   INSPECTION_TAB_LABELS,
   INSPECTION_TAB_ORDER,
 } from '@/models/kitchen/inspectionConstants';
@@ -100,6 +102,31 @@ function FormCard({ tab, data, onOpen, onRequest, onRevoke }) {
   );
 }
 
+// M4 nhãn mẫu: không có biên bản riêng (INS-01), chỉ in/xuất từ dữ liệu sổ lưu mẫu M5 của ngày
+function LabelCard({ sample, onPrint }) {
+  const empty = !sample.rows.length;
+  return (
+    <section className="card kr-card">
+      <div className="card__body kr-card__body">
+        <div className="kr-card__top">
+          <Printer size={20} className="muted" />
+          <div className="kr-card__name">
+            <h2 className="card__title">{INSPECTION_VARIANT_FORMS.label.form} · Nhãn mẫu thức ăn lưu</h2>
+            <div className="text-sm muted">Chỉ in, lập từ sổ lưu mẫu M5</div>
+          </div>
+        </div>
+        <p className="text-sm">Nhãn dán lên hộp mẫu thức ăn lưu, mỗi bữa một nhãn.</p>
+        <div className="text-sm muted">{empty ? EMPTY_HINT.sample : `${sample.rows.length} mẫu từ sổ lưu mẫu`}</div>
+        <div className="kr-card__actions">
+          <Button variant="primary" icon={Printer} disabled={empty} onClick={onPrint}>
+            In / xuất nhãn
+          </Button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 /*
  * Kiểm thực ba bước M1–M3 (P-27): PHT điền bốn mẫu theo ngày và điểm trường, mở từng mẫu toàn màn hình như biểu mẫu giấy, lưu nháp
  * (tự lưu sau 20 giây) rồi ký bằng ảnh chữ ký khi đã chọn đủ Đạt / Không đạt. Mẫu đã ký bị khóa, "Sửa lại" cần lý do.
@@ -118,6 +145,7 @@ export default function InspectionDayPage() {
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
   const [confirmClose, setConfirmClose] = useState(false);
+  const [labelPrint, setLabelPrint] = useState(false);
   const [conflict, setConflict] = useState(null);
   // Hộp gửi yêu cầu mở mẫu ngày cũ / thu hồi quyền mở: { tab, mode: 'request' | 'revoke' } (INS-05)
   const [approvalDialog, setApprovalDialog] = useState(null);
@@ -370,6 +398,7 @@ export default function InspectionDayPage() {
               onRevoke={(tab) => setApprovalDialog({ tab, mode: 'revoke' })}
             />
           ))}
+          <LabelCard sample={day.data.tabs.sample} onPrint={() => setLabelPrint(true)} />
         </div>
       </>
     );
@@ -451,6 +480,17 @@ export default function InspectionDayPage() {
           busy={busy}
           onConfirm={(input) => revokeApproval(approvalDialog.tab, input)}
           onClose={() => setApprovalDialog(null)}
+        />
+      )}
+      {labelPrint && day.data && (
+        <InspectionPrintDialog
+          tab="sample"
+          date={date}
+          campusName={campusName}
+          data={day.data.tabs.sample}
+          sampleData={day.data.tabs.sample}
+          initialVariant="label"
+          onClose={() => setLabelPrint(false)}
         />
       )}
       <LeaveConfirmModal {...guard.modal} />
