@@ -32,7 +32,8 @@ Sau source cuối: VERIFY PASS full, 808 tests không fail/skip; browser1440/375
 
 ## Sửa theo nhật ký test 24/11/2026 (BE:G94-180; plan `docs/plans/completed/2026-11-24-test-log-fixes.md`)
 Chỉ ghi chỗ FE thay đổi; luật nằm ở BE, FE chỉ hiển thị cờ/số BE trả.
-- Hộp "Cho nghỉ học": 2 lựa chọn hôm nay / ngày học kế tiếp, "Hôm nay" khóa khi BE báo trẻ có dữ liệu trong ngày (BE:G94-180/CHD-03).
+- Hộp "Cho nghỉ học" (user 25/11): chọn ngày bất kỳ từ hôm nay tới hết năm học bằng `DateInput` (min/max lấy từ BE `GET /children/{id}/leave-options`); hôm nay khóa khi BE báo trẻ có dữ liệu trong ngày. Chọn hôm nay thì nghỉ ngay; chọn ngày sau thì đặt lịch, trẻ vẫn Đang học tới ngày đó (BE:G94-180/CHD-03).
+- Lịch nghỉ học: danh sách trẻ hiện "Nghỉ từ dd/mm/yyyy" dưới nhãn trạng thái, thao tác dòng đổi "Cho nghỉ học" thành "Hủy lịch nghỉ"; hồ sơ trẻ hiện thông báo "Lịch nghỉ học: từ … · Lý do: …" kèm nút "Hủy lịch nghỉ" (cùng quyền "Cho nghỉ học"). Hủy qua `DELETE /children/{id}/scheduled-leave` (hộp xác nhận `CancelScheduledLeaveModal`); lịch sử có nhãn "Hẹn nghỉ học" / "Hủy lịch nghỉ học". Đã có lịch thì BE chặn mọi lần cho nghỉ khác, phải hủy trước. Mock (BE giả) tự chuyển Đã nghỉ học khi tới ngày hẹn khi đọc dữ liệu, như việc 00:05 của BE.
 - Thẻ lớp ở Xếp lớp và Tiếp nhận bước 2: "+n trẻ sắp vào", lớp đã đủ khóa và nhãn "Đã đủ" (BE:G94-180/CHD-14). Đổi ngày vào lớp thì tải lại số.
 - Hộp "Mở lại hồ sơ cũ?": bỏ "Giữ điểm trường cũ", mặc định điểm trường của trẻ nếu có trong năm đã chọn (BE:G94-180/CHD-04).
 - Khai báo sức khỏe, phiếu khám bước 1: tiền sử bản thân/gia đình nhập từng mục, thêm thành chip như dị ứng (BE:G94-180/CHD-06).
