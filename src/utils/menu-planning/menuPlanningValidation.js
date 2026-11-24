@@ -166,6 +166,10 @@ export const validateNutritionSetup = (form, today, { mealsReadOnly = false, min
     }
     const appliedError = appliedStructureError(g.applied, g.norms);
     if (appliedError) e[`${key}.applied`] = appliedError;
+    // Nhu cầu năng lượng cả ngày phải lớn hơn kcal tối đa (BE kiểm lại); chỉ so kcal, không so tỷ lệ %
+    const kcalMax = g.norms?.kcal?.[1];
+    if (isNum(g.dailyKcalNeed) && isNum(kcalMax) && Number(g.dailyKcalNeed) <= Number(kcalMax))
+      e[`${key}.dailyKcalNeed`] = `Nhu cầu năng lượng cả ngày phải lớn hơn năng lượng tối đa (${Number(kcalMax)} kcal).`;
     // Chuẩn tạm: để trống cả bốn = chưa nhập (chưa đánh giá); đã nhập thì phải đủ từng khoảng
     const blank = (v) => v === '' || v == null;
     const norms = Object.entries(g.norms || {});
