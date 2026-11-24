@@ -157,6 +157,7 @@ export const AI_DRAFT_LABEL = 'Bản nháp AI – cần giáo viên duyệt';
 
 export const EVAL_HISTORY_LABELS = {
   AI_DRAFTED: 'Hệ thống tạo bản nháp',
+  TEMPLATE_DRAFTED: 'Hệ thống tạo bản nháp theo mẫu câu',
   AI_FAILED: 'AI không tạo được bản nháp',
   AI_REDRAFTED: 'Tạo lại bản nháp',
   EDITED: 'Giáo viên lưu chỉnh sửa',
