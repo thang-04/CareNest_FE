@@ -352,6 +352,8 @@ export const ensureChildRecordsSeeded = () => {
 const applyDueSchedules = (d) => {
   const today = todayInput();
   d.children.forEach((c) => {
+    // G94-180/CHD-03: lịch nghỉ tới ngày ⇒ Đã nghỉ học từ ngày hẹn (BE job 00:05)
+    if (c.scheduledLeaveOn && c.scheduledLeaveOn <= today) leaveNow(d, c, c.scheduledLeaveOn, c.scheduledLeaveReason || '', 'system');
     if (!c.nextClass || c.nextClass.from > today) return;
     const cls = (d.classes || []).find((k) => k.id === c.nextClass.classId);
     c.classId = c.nextClass.classId;
@@ -363,7 +365,8 @@ const applyDueSchedules = (d) => {
 const ensureSeeded = () => {
   const db = ensureChildRecordsSeeded();
   const today = todayInput();
-  if (!(db.children || []).some((c) => c.nextClass && c.nextClass.from <= today)) return db;
+  if (!(db.children || []).some((c) => (c.nextClass && c.nextClass.from <= today) || (c.scheduledLeaveOn && c.scheduledLeaveOn <= today)))
+    return db;
   writeDb(applyDueSchedules);
   return readDb();
 };
@@ -371,7 +374,7 @@ const ensureSeeded = () => {
 const SAME_DAY_DATA_BLOCKED = 'Trẻ đã có điểm danh, sức khỏe hoặc đánh giá trong hôm nay. Thực hiện nghỉ học từ ngày học tiếp theo.';
 
 // G94-180/CHD-03 (user 25/11): câu lỗi ô leftAt như BE: ngày bất kỳ từ hôm nay tới hết năm học (kể cả thứ Bảy, ngày lễ);
-// hôm nay khóa khi trẻ có dữ liệu trong ngày; đã có lịch nghỉ thì phải hủy lịch trước khi chọn ngày khác.
+// hôm nay khóa khi trẻ có dữ liệu trong ngày (đã có lịch nghỉ thì withdrawChild chặn trước, phải hủy lịch).
 const leaveDateProblem = (db, child, leftAt, today) => {
   if (leftAt < today) return 'Ngày nghỉ học không được trước hôm nay';
   const yearEnd = activeYearEnd(db);
@@ -379,9 +382,43 @@ const leaveDateProblem = (db, child, leftAt, today) => {
   if (leftAt === today && (db.attendance || []).some((r) => r.childId === child.id && r.date === today)) return SAME_DAY_DATA_BLOCKED;
   if (child.enrolledAt && leftAt < child.enrolledAt)
     return `Ngày nghỉ học không được trước ngày tiếp nhận (${formatDate(child.enrolledAt)})`;
-  if (leftAt > today && child.scheduledLeaveOn)
-    return `Trẻ đã có lịch nghỉ học từ ${formatDate(child.scheduledLeaveOn)}. Hủy lịch nghỉ trước khi chọn ngày khác`;
   return '';
+};
+
+/**
+ * Chuyển trẻ sang Đã nghỉ học từ leftAt: cho nghỉ hôm nay, hoặc lịch nghỉ tới ngày (G94-180/CHD-03, như việc 00:05 của BE).
+ */
+const leaveNow = (d, target, leftAt, reason, userId) => {
+  // G94-180/CHD-03, CHD-14: có lịch chuyển / lớp chưa bắt đầu ⇒ xóa lịch; lớp chưa bắt đầu thì trẻ không còn lớp
+  const upcoming = target.nextClass;
+  if (upcoming) {
+    cancelUpcomingPlacement(d, target, userId);
+    if (target.classId === upcoming.classId) target.classId = null;
+    target.nextClass = null;
+  }
+  target.status = CHILD_STATUS.LEFT;
+  target.leftAt = leftAt;
+  target.leftReason = reason;
+  target.history = [...(target.history || []), { action: 'WITHDRAWN', userId, at: nowIso(), note: reason }];
+  // CHD-11: nghỉ học hủy đăng ký năm học sau còn mở.
+  const adm = openAdmissionOf(d, target.id);
+  if (adm) adm.status = 'CANCELLED';
+  const notified = [classOf(d, target), upcoming && d.classes.find((c) => c.id === upcoming.classId)].filter(
+    (c, i, all) => c && all.findIndex((x) => x?.id === c.id) === i,
+  );
+  notified
+    .flatMap((cls) => cls.teacherIds || [])
+    .forEach((teacherId) =>
+      pushNotification(d, {
+        userId: teacherId,
+        type: 'CHILD_WITHDRAWN',
+        title: 'Trẻ nghỉ học',
+        message: `${target.fullName} nghỉ học từ ngày ${formatDate(leftAt)}.`,
+        link: `/children/${target.id}`,
+      }),
+    );
+  delete target.scheduledLeaveOn;
+  delete target.scheduledLeaveReason;
 };
 
 const forbid = () => {
@@ -1578,7 +1615,10 @@ export const childrenMockRepository = {
     const errors = {};
     if (!leftAt || !/^\d{4}-\d{2}-\d{2}$/.test(leftAt)) errors.leftAt = 'Chọn ngày nghỉ học';
     else {
-      const problem = leaveDateProblem(db, child, leftAt, todayInput());
+      // BE chặn mọi lần cho nghỉ (kể cả hôm nay) khi đã có lịch nghỉ
+      const problem = child.scheduledLeaveOn
+        ? `Trẻ đã có lịch nghỉ học từ ${formatDate(child.scheduledLeaveOn)}. Hủy lịch nghỉ trước khi chọn ngày khác`
+        : leaveDateProblem(db, child, leftAt, todayInput());
       if (problem) errors.leftAt = problem;
     }
     if (!reason?.trim()) errors.reason = 'Nhập lý do cho trẻ nghỉ học';
@@ -1599,34 +1639,23 @@ export const childrenMockRepository = {
     }
     return writeDb((d) => {
       const target = findChild(d, childId);
-      // G94-180/CHD-03, CHD-14: có lịch chuyển / lớp chưa bắt đầu ⇒ xóa lịch; lớp chưa bắt đầu thì trẻ không còn lớp
-      const upcoming = target.nextClass;
-      if (upcoming) {
-        cancelUpcomingPlacement(d, target, user.id);
-        if (target.classId === upcoming.classId) target.classId = null;
-        target.nextClass = null;
-      }
-      target.status = CHILD_STATUS.LEFT;
-      target.leftAt = leftAt;
-      target.leftReason = reason.trim();
-      target.history = [...(target.history || []), { action: 'WITHDRAWN', userId: user.id, at: nowIso(), note: reason.trim() }];
-      // CHD-11: nghỉ học hủy đăng ký năm học sau còn mở.
-      const adm = openAdmissionOf(d, childId);
-      if (adm) adm.status = 'CANCELLED';
-      const notified = [classOf(d, target), upcoming && d.classes.find((c) => c.id === upcoming.classId)].filter(
-        (c, i, all) => c && all.findIndex((x) => x?.id === c.id) === i,
-      );
-      notified
-        .flatMap((cls) => cls.teacherIds || [])
-        .forEach((teacherId) =>
-          pushNotification(d, {
-            userId: teacherId,
-            type: 'CHILD_WITHDRAWN',
-            title: 'Trẻ nghỉ học',
-            message: `${target.fullName} nghỉ học từ ngày ${formatDate(leftAt)}.`,
-            link: `/children/${target.id}`,
-          }),
-        );
+      leaveNow(d, target, leftAt, reason.trim(), user.id);
+      return toView(d, target, user);
+    });
+  },
+
+  /** G94-180/CHD-03 (BE giả DELETE /children/{id}/scheduled-leave): hủy lịch nghỉ, trẻ học tiếp như chưa hẹn. */
+  async cancelScheduledLeave(childId, user) {
+    await delay();
+    const db = ensureSeeded();
+    const child = findChild(db, childId);
+    if (!canWithdrawChild(child, user)) forbid();
+    if (!child.scheduledLeaveOn) invalid({ leftAt: 'Trẻ không có lịch nghỉ học để hủy' });
+    return writeDb((d) => {
+      const target = findChild(d, childId);
+      delete target.scheduledLeaveOn;
+      delete target.scheduledLeaveReason;
+      target.history = [...(target.history || []), { action: 'LEAVE_CANCELLED', userId: user.id, at: nowIso() }];
       return toView(d, target, user);
     });
   },

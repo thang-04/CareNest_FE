@@ -269,6 +269,8 @@ export const childrenApi = {
   getSchoolHolidays: async (schoolYearId) => read(axiosClient.get(`/school-years/${await toBeSchoolYear(schoolYearId)}/holidays`)),
   getLeaveOptions: (childId) => read(axiosClient.get(`/children/${childId}/leave-options`)),
   withdrawChild: (childId, body) => read(axiosClient.post(`/children/${childId}/withdraw`, body)),
+  // G94-180/CHD-03: hủy lịch nghỉ học (BE trả hồ sơ trẻ như withdraw)
+  cancelScheduledLeave: (childId) => read(axiosClient.delete(`/children/${childId}/scheduled-leave`)),
   saveDeclaration: (childId, body) => read(axiosClient.put(`/children/${childId}/health-declaration`, body)),
   listParentAccounts: (filters) => read(axiosClient.get('/children/parent-accounts', { params: filters })),
   findParentAccountByCitizenId: (idNumber) =>

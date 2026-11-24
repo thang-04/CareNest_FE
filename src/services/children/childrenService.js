@@ -21,6 +21,7 @@ export const cancelScheduledPlacement = (childId, user) => repo.cancelScheduledP
 export const getSchoolHolidays = (schoolYearId, user) => repo.getSchoolHolidays(schoolYearId, user);
 export const getLeaveOptions = (childId, user) => repo.getLeaveOptions(childId, user);
 export const withdrawChild = (childId, body, user) => repo.withdrawChild(childId, body, user);
+export const cancelScheduledLeave = (childId, user) => repo.cancelScheduledLeave(childId, user);
 export const saveHealthDeclaration = (childId, body, user) => repo.saveDeclaration(childId, body, user);
 // CHD-11: GV gửi yêu cầu sửa hồ sơ/khai báo; HT, PHT điểm trường duyệt
 export const submitProfileChange = (childId, body, user) => repo.submitProfileChange(childId, body, user);

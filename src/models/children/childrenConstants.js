@@ -259,6 +259,8 @@ export const CHILD_HISTORY_ACTION_LABELS = {
   UPDATED: 'Sửa hồ sơ',
   WITHDRAWN: 'Nghỉ học',
   READMITTED: 'Tiếp nhận lại',
+  LEAVE_SCHEDULED: 'Hẹn nghỉ học',
+  LEAVE_CANCELLED: 'Hủy lịch nghỉ học',
 };
 export const CHILD_HISTORY_FIELD_LABELS = {
   fullName: 'Họ tên',

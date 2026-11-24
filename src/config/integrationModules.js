@@ -130,6 +130,8 @@ export const INTEGRATION_MODULES = {
       'src/services/http/schoolYearIds.js',
     ],
     facades: ['src/services/children/childrenService.js', 'src/services/children/healthCheckService.js'],
+    // G94-180/CHD-03: BE Task 3-4 chưa vào openapi; bỏ dòng này sau khi chạy check-api-contract --sync
+    pending: ['DELETE /children/{x}/scheduled-leave'],
   },
   // Đón trẻ trên BE (PickupController); lớp lấy GET /pickups/classes theo quyền PICKUP_RECORD, không qua school-lookup
   pickup: {

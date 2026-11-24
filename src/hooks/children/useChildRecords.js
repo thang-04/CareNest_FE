@@ -81,7 +81,7 @@ export function usePlacementClasses(schoolYearId, { from, childId } = {}) {
   return { classes: data || [], loading, error, reload, from: fromDate };
 }
 
-/** Lựa chọn ngày nghỉ học của BE: { today, todayAllowed, todayBlockedReason, nextSchoolDay }. */
+/** Lựa chọn ngày nghỉ học của BE: { today, todayAllowed, todayBlockedReason, minDate, maxDate }. */
 export function useLeaveOptions(childId) {
   const { user } = useAuth();
   const { data, loading, error, reload } = useAsync(() => getLeaveOptions(childId, user), [childId, user?.id], { enabled: !!childId });
