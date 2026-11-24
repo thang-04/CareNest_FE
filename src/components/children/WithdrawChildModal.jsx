@@ -44,7 +44,9 @@ export function WithdrawChildModal({ child, onClose, onDone }) {
     try {
       await withdrawChild(child.id, { leftAt, reason: reason.trim() }, user);
       toast.success(
-        scheduled ? `${child.fullName} học tới hết ${formatDate(addDays(leftAt, -1))}, nghỉ học từ ngày đã chọn.` : `${child.fullName} nghỉ học từ ${formatDate(leftAt)}.`,
+        scheduled
+          ? `${child.fullName} học tới hết ${formatDate(addDays(leftAt, -1))}, nghỉ học từ ngày đã chọn.`
+          : `${child.fullName} nghỉ học từ ${formatDate(leftAt)}.`,
         scheduled ? 'Đã hẹn ngày nghỉ học' : 'Đã cho trẻ nghỉ học',
       );
       onDone?.();

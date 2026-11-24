@@ -38,5 +38,4 @@ Chỉ ghi chỗ FE thay đổi; luật nằm ở BE, FE chỉ hiển thị cờ/
 - Khai báo sức khỏe, phiếu khám bước 1: tiền sử bản thân/gia đình nhập từng mục, thêm thành chip như dị ứng (BE:G94-180/CHD-06).
 - Mọi ô ngày dd/mm/yyyy (`DateInput` dùng chung): gõ "5/9/2027" tự thành "05/09/2027"; câu lỗi ngày học nêu thứ 7/chủ nhật hoặc tên ngày nghỉ, cùng câu BE.
 - `/children/placement` khi header là năm sắp diễn ra: không hiện bảng, có nút sang `/school/placement` (Xếp lớp năm học mới).
-- Component chung mới `Radio` (`@/components`), xem `DESIGN.md`, `docs/design/UI_CARD.md`.
 - File test Excel nhập trẻ: SĐT, CCCD viết có khoảng trắng (`0916 231 201`) để Excel không bỏ số 0 đầu; BE cũng bù số 0 khi nhập. Không mở file CSV rồi lưu bằng Excel.

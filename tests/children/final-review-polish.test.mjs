@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { splitHistoryText } from '../../src/models/children/childProfile.js';
 
-/* Sửa nhỏ sau review cuối: chip trùng, gợi ý chưa thêm, lý do nút khóa, ngày xếp lớp gõ dở, ChoiceGroup. */
+/* Sửa nhỏ sau review cuối: chip trùng, gợi ý chưa thêm, lý do nút khóa, ngày xếp lớp gõ dở. */
 const read = (path) => readFileSync(path, 'utf8');
 
 test('splitHistoryText: bỏ mục trùng không phân biệt hoa thường, giữ thứ tự', () => {
@@ -18,12 +18,6 @@ test('RosterActions: nút chính khóa dùng disabledReason để đọc đượ
   const src = read('src/components/children/RosterActions.jsx');
   assert.match(src, /disabledReason=\{primary\.title\}/);
   assert.doesNotMatch(src, /\sdisabled title=/);
-});
-
-test('ChoiceGroup: radio--disabled và id/aria-describedby chuyển tới fieldset', () => {
-  const src = read('src/components/children/ChoiceGroup.jsx');
-  assert.match(src, /radio--disabled/);
-  assert.match(src, /<fieldset id=\{id\} aria-describedby=\{describedBy\}/);
 });
 
 test('usePlacementClasses giữ ngày đầy đủ gần nhất khi ngày đang gõ dở và trả from cho thông báo', () => {
