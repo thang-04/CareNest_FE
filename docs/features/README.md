@@ -266,7 +266,7 @@ Quyết định user khi duyệt Phase 1 của [plan nối module children với
 - Từ Phase 3 (11/11/2026), bản build nối BE đọc module trẻ (hồ sơ, xếp lớp, cho nghỉ, mở lại, sổ sức khỏe, đợt khám, kỳ cân đo) từ BE thật (`integrationModules.js`: `children.source = 'api'`). Câu ở mục ảnh phía trên ("module children giữ chế độ demo") không còn đúng cho module này. Bản dữ liệu mẫu (`VITE_USE_MOCK=true`) giữ nguyên.
 - Link "Tài khoản phụ huynh" ở hồ sơ trẻ mở thẳng hộp phụ huynh của bé đó ở màn Tài khoản phụ huynh, cả khi nối BE.
 
-## Sửa theo nhật ký test 24/11/2026: sức khỏe, đón trẻ (plan `docs/plans/active/2026-11-24-test-log-fixes.md`)
+## Sửa theo nhật ký test 24/11/2026: sức khỏe, đón trẻ (plan `docs/plans/completed/2026-11-24-test-log-fixes.md`)
 - Kỳ cân đo (giáo viên): dòng trẻ đã chuyển lớp chỉ xem, có nhãn "Đã chuyển sang …"; số đo đo ở lớp khác có dòng ghi chú và sửa được theo cờ `canEdit`; trẻ vắng hôm nay khóa "Nhập số đo". Luật ở BE:G94-180/HLT-09, HLT-01.
 - Kỳ cân đo, đợt khám của giáo viên nhiều lớp: mỗi lớp một khối thu gọn "Lớp X – đã cân đo a/b trẻ" (số do BE trả).
 - Phiếu khám: lỗi lưu nháp không gắn ô nào trên form (vd `date`, BE:G94-180/HLT-08) hiện thành khung báo đầu phiếu; chuyển bước không lưu lại khi lỗi đó còn và dữ liệu chưa đổi.

@@ -1,6 +1,6 @@
 ---
 title: Sửa các lỗi user ghi ở tab Test (23/11) — phần FE
-status: in-progress  # draft → approved (chỉ user duyệt) → in-progress → done | blocked | cancelled
+status: done  # draft → approved (chỉ user duyệt) → in-progress → done | blocked | cancelled
 owner: ATPX48-69
 jira: G94-180 / FE-FIX-14   # mỗi phần commit phải có mã task Jira — hỏi user trước khi commit
 branch: fix/G94-180-FE-FIX-14-school-year-scope
@@ -359,6 +359,7 @@ Thứ tự: F5 (nhỏ, độc lập) → F2 → F3 → F4 → F1 (chờ duyệt 
 | AC-F10 | — | `health-check-accordion.test.mjs` | F4 | PASS |
 | AC-F11 | HLT-08 | `exam-draft-errors.test.mjs` | F4 | PASS |
 | AC-F1 | — | `date-input-pad.test.mjs` | F1 | PASS |
+| AC-F7 "1 điểm/ngày trên biểu đồ" | HLT-01, HLT-08 | `health-trend-same-day.test.mjs` | F7 | PASS |
 
 ## Review Focus
 
@@ -403,3 +404,10 @@ Mỗi dòng có test ở task sở hữu.
   - Đổi `RosterActions` (nút chính khóa dùng `disabledReason`).
   - Đợt khám không liên kết giữa các cơ sở (BE chốt).
 - Tiếp: controller đóng plan (status giữ in-progress).
+
+### 2026-11-24 — F7 (sau BE B5), review cuối, verify và kiểm tra vận hành
+- F7: commit 1b0eea36 "G94-180: Draw one growth point per day on the trend page" — biểu đồ xu hướng vẽ 1 điểm/ngày (ưu tiên phiếu khám, sau đó id lớn hơn), khớp BE HLT-01/HLT-08; review đã duyệt.
+- Review cuối toàn nhánh: "Có sửa" → một đợt sửa 568e918f..cf2d4a5e (dấu lỗi phiếu khám, gõ ngày có "/", mở lại lớp đang học, chịu được thiếu `canEdit`, chỉnh UI); review lại: 12/12 phát hiện đã xử lý.
+- Verify: `node scripts/verify.mjs` → VERIFY PASS full tại 1c1499ef và sau đợt sửa (cf2d4a5e).
+- Kiểm tra vận hành trên DB BE mới `carenest_scope4`: xem trước import CSV 2 dòng, 0 lỗi.
+- Chờ user: OK cho phần dùng chung (`src/components/form/Radio.jsx`, `ConfirmationModal.confirmDisabled`); merge chỉ sau/cùng lúc với nhánh BE.

@@ -30,7 +30,7 @@ Kết quả lệnh và browser sau source cuối ghi tại docs/quality/VERIFICA
 
 Sau source cuối: VERIFY PASS full, 808 tests không fail/skip; browser1440/375 đạt flow nhập/lưu/ảnh/người nhận tài khoản với 0 lỗi JavaScript và không tràn ngang. Check-ai-layer0lỗi. Không commit/push.
 
-## Sửa theo nhật ký test 24/11/2026 (BE:G94-180; plan `docs/plans/active/2026-11-24-test-log-fixes.md`)
+## Sửa theo nhật ký test 24/11/2026 (BE:G94-180; plan `docs/plans/completed/2026-11-24-test-log-fixes.md`)
 Chỉ ghi chỗ FE thay đổi; luật nằm ở BE, FE chỉ hiển thị cờ/số BE trả.
 - Hộp "Cho nghỉ học": 2 lựa chọn hôm nay / ngày học kế tiếp, "Hôm nay" khóa khi BE báo trẻ có dữ liệu trong ngày (BE:G94-180/CHD-03).
 - Thẻ lớp ở Xếp lớp và Tiếp nhận bước 2: "+n trẻ sắp vào", lớp đã đủ khóa và nhãn "Đã đủ" (BE:G94-180/CHD-14). Đổi ngày vào lớp thì tải lại số.
