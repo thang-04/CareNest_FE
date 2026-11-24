@@ -126,3 +126,10 @@ test('HealthCheckClassRoster: Khám khóa với trẻ vắng hôm nay, mẫu s�
   assert.match(src, /Xem phiếu/);
   assert.ok(src.includes('${concluded}/${countable} trẻ'));
 });
+
+test('bấm dòng trẻ vắng hôm nay không mở form: nút khóa thì về sổ sức khỏe (cả hai danh sách)', () => {
+  const exam = read('src/components/children/HealthCheckClassRoster.jsx');
+  assert.ok(exam.includes('navigate(primary && !primary.disabled ? examLink(r.childId) : healthLink)'));
+  const round = read('src/components/children/MeasurementRoundRoster.jsx');
+  assert.ok(round.includes('navigate(primary && !primary.disabled ? primary.to : healthLink)'));
+});

@@ -169,7 +169,9 @@ export function HealthCheckClassRoster({ campaignId, classId, embedded = false, 
                   <tr
                     key={r.childId}
                     className={r.movedTo ? undefined : 'row-click'}
-                    {...(r.movedTo ? {} : clickableRowProps(() => navigate(primary ? examLink(r.childId) : healthLink)))}
+                    {...(r.movedTo
+                      ? {}
+                      : clickableRowProps(() => navigate(primary && !primary.disabled ? examLink(r.childId) : healthLink)))}
                   >
                     <td>
                       <div className="fw-600">{r.fullName}</div>
