@@ -19,7 +19,7 @@ test('G94-396 (BUG-25): chuyển, xếp lớp xong tải lại lớp hiện tạ
   const src = read('src/pages/children/ClassPlacementPage.jsx');
   assert.match(
     src,
-    /const \{ classes, reload: reloadClasses \} = usePlacementClasses\(undefined, \{ from: effectiveDate, childId: selected\?\.id \}\);/,
+    /const \{\s*classes,\s*reload: reloadClasses,\s*from: classesFrom,?\s*\} = usePlacementClasses\(undefined, \{ from: effectiveDate, childId: selected\?\.id \}\);/,
   );
   const doPlace = bodyOf(src, 'const doPlace = async');
   assert.match(doPlace, /await placeChild\([\s\S]*reload\(\{ silent: true \}\);[\s\S]*reloadClasses\(\{ silent: true \}\);[\s\S]*catch/);
