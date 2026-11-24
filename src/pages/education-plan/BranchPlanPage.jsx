@@ -127,17 +127,24 @@ function PublishedBranches({ ctx, classId }) {
           <BranchGridTable rows={rows} names={calendar.names} branches={calendar.branches} />
         ) : (
           <DocTable className="ga-plan-table ga-goal-table ga-branch-plan-table ga-branch-readonly" data-testid="published-branch-list">
+            <colgroup>
+              <col className="ga-col-month" />
+              <col className="ga-goal-table__group" />
+              <col />
+              <col className="ga-branch-plan-table__weeks" />
+              <col />
+            </colgroup>
             <thead><tr>
               <th scope="col">Tháng</th><th scope="col">Chủ đề</th><th scope="col">Chủ đề nhánh</th>
               <th scope="col">Tuần</th><th scope="col">Ghi chú</th>
             </tr></thead>
             <tbody>{rows.map((row) => (
               <tr key={`${row.theme.id}:${row.start}`}>
-                <td>{Number(row.start.slice(5, 7))}</td>
-                <td>{row.theme.name}</td>
-                <td>{calendar.names[row.start] || '—'}</td>
-                <td>Tuần {row.no} · {ddmm(row.start)} – {ddmm(row.end)}</td>
-                <td>{calendar.notes[row.start] || '—'}</td>
+                <td><div className="ga-goal-table__pad nowrap">{Number(row.start.slice(5, 7))}</div></td>
+                <td><div className="ga-goal-table__pad">{row.theme.name}</div></td>
+                <td><div className="ga-goal-table__pad">{calendar.names[row.start] || '—'}</div></td>
+                <td><div className="ga-goal-table__pad">Tuần {row.no} · {ddmm(row.start)} – {ddmm(row.end)}</div></td>
+                <td><div className="ga-goal-table__pad">{calendar.notes[row.start] || '—'}</div></td>
               </tr>
             ))}</tbody>
           </DocTable>
