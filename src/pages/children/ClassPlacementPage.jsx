@@ -34,6 +34,7 @@ import {
 } from '@/utils/children/startDate';
 import { canOpenPlacement, canPlaceChild, childCampusesOf } from '@/utils/children/childrenPermissions';
 import { suggestAgeGroupId } from '@/utils/children/childrenHelpers';
+import { classFullness } from '@/utils/children/placementClasses';
 import { childrenCrumbs } from '@/utils/children/breadcrumbs';
 import '@/styles/modules/children.css';
 
@@ -51,7 +52,6 @@ export default function ClassPlacementPage() {
   const yearId = activeYear?.id || schoolYear;
   const [params, setParams] = useSearchParams();
   const { children, loading, error, reload } = useChildRecords({ schoolYear: yearId });
-  const { classes, reload: reloadClasses } = usePlacementClasses();
   // Nhóm tuổi của năm học đang hoạt động (BE /school-structure hoặc mock); năm sinh so với ngày bắt đầu năm học
   const { ageGroups } = useClassOptions(yearId);
   const yearStart = activeYear?.startDate || yearId;
@@ -73,6 +73,17 @@ export default function ClassPlacementPage() {
   const selectedId = params.get('childId') || '';
   const selected = children.find((c) => c.id === selectedId) || null;
   const suggested = selected ? suggestAgeGroupId(selected.dateOfBirth, yearStart, ageGroups) : '';
+  // Sĩ số tính theo ngày vào lớp, bỏ chính trẻ này (G94-180/CHD-14)
+  const { classes, reload: reloadClasses } = usePlacementClasses(undefined, { from: effectiveDate, childId: selected?.id });
+
+  // Lớp đang chọn thành đã đủ sau khi đổi ngày ⇒ bỏ chọn, báo ở ô Lớp
+  useEffect(() => {
+    const picked = classes.find((c) => c.id === classId);
+    if (!picked || !classFullness(picked).full) return;
+    setClassId('');
+    setErrors((e) => ({ ...e, classId: `${picked.name} đã đủ từ ${formatDate(effectiveDate)}. Chọn lớp khác.` }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ khi số lớp tải lại
+  }, [classes]);
 
   useEffect(() => {
     if (!selected) return;

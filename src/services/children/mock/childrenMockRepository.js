@@ -406,6 +406,13 @@ const activeCount = (db, classId, excludeChildId) =>
   db.children.filter(
     (c) => c.id !== excludeChildId && c.status === CHILD_STATUS.ACTIVE && (c.classId === classId || c.nextClass?.classId === classId),
   ).length;
+// occupiedCount (G94-180/CHD-14, BE countOccupyingFrom): trẻ ở lớp từ ngày from = đang học còn ở lại + hẹn vào, trừ childId
+const occupiedFrom = (db, classId, from, excludeChildId) =>
+  db.children.filter((c) => {
+    if (c.id === excludeChildId || c.status !== CHILD_STATUS.ACTIVE) return false;
+    if (c.nextClass?.classId === classId) return true;
+    return c.classId === classId && !(c.nextClass && c.nextClass.from <= from);
+  }).length;
 const yearHolidays = (db, yearId) => (db.schoolHolidays || {})[yearId] || [];
 const nextClassView = (db, child) => {
   if (!child?.nextClass) return null;
@@ -1212,7 +1219,17 @@ export const childrenMockRepository = {
     if (!schoolYear || !['ACTIVE', 'PLANNED'].includes(schoolYear.status)) return [];
     return db.classes
       .filter((c) => areaAllows(user, 'children', c.campusId, true) && c.status !== 'INACTIVE' && c.schoolYear === year)
-      .map((c) => ({ ...clone(c), enrolledCount: activeCount(db, c.id) }));
+      .map((c) => {
+        // Năm sắp diễn ra: cả hai bằng số trẻ đã xếp trước
+        if (schoolYear.status === 'PLANNED')
+          return { ...clone(c), enrolledCount: activeCount(db, c.id), occupiedCount: activeCount(db, c.id) };
+        const studying = db.children.filter((k) => k.status === CHILD_STATUS.ACTIVE && k.classId === c.id).length;
+        return {
+          ...clone(c),
+          enrolledCount: studying,
+          occupiedCount: occupiedFrom(db, c.id, filters?.from || todayInput(), filters?.childId),
+        };
+      });
   },
 
   async enrollChild(payload, user) {

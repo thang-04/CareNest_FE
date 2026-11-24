@@ -17,7 +17,10 @@ const bodyOf = (src, start) => {
 
 test('G94-396 (BUG-25): chuyển, xếp lớp xong tải lại lớp hiện tại của trẻ và sĩ số lớp', () => {
   const src = read('src/pages/children/ClassPlacementPage.jsx');
-  assert.match(src, /const \{ classes, reload: reloadClasses \} = usePlacementClasses\(\);/);
+  assert.match(
+    src,
+    /const \{ classes, reload: reloadClasses \} = usePlacementClasses\(undefined, \{ from: effectiveDate, childId: selected\?\.id \}\);/,
+  );
   const doPlace = bodyOf(src, 'const doPlace = async');
   assert.match(doPlace, /await placeChild\([\s\S]*reload\(\{ silent: true \}\);[\s\S]*reloadClasses\(\{ silent: true \}\);[\s\S]*catch/);
 });

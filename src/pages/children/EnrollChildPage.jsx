@@ -26,6 +26,7 @@ import { FormField } from '@/components/form/FormField';
 import { SelectField } from '@/components/form/Field';
 import { GENDER_LABELS, ageLabel } from '@/models/School';
 import { formatDate, todayInput } from '@/utils/format';
+import { classFullness } from '@/utils/children/placementClasses';
 import { hasErrors, validateChildInfo, validateDeclaration } from '@/utils/children/childrenValidation';
 import { canActivateParentsAt, canEnrollChild, childCampusesOf } from '@/utils/children/childrenPermissions';
 import {
@@ -96,7 +97,6 @@ export default function EnrollChildPage() {
   const { holidays } = useYearHolidays(chosenYear?.id);
   // Điểm trường của năm tiếp nhận (G94-180/CHD-02, user chốt 2026-11-22); BE chặn 2125 nếu gửi điểm trường ngoài năm
   const md = useMasterData(intakeYear?.id ?? null);
-  const { classes, loading: classesLoading } = usePlacementClasses(intakeYear?.id);
   const { ageGroups, loading: ageGroupsLoading } = useClassOptions(intakeYear?.id || activeYear?.id || schoolYear);
 
   const [step, setStep] = useState(0);
@@ -119,6 +119,20 @@ export default function EnrollChildPage() {
   const readmitCampusOptions = childCampusesOf(user, readmitMd.campuses);
   const [declaration, setDeclaration] = useState(emptyDeclaration());
   const [errors, setErrors] = useState({ info: {}, placement: {}, declaration: {} });
+  // Sĩ số tính theo ngày bắt đầu đi học (G94-180/CHD-14)
+  const { classes, loading: classesLoading } = usePlacementClasses(intakeYear?.id, { from: startDate });
+
+  // Lớp đang chọn thành đã đủ sau khi đổi ngày ⇒ bỏ chọn, báo ở ô Lớp
+  useEffect(() => {
+    const picked = classes.find((c) => c.id === classId);
+    if (!picked || !classFullness(picked).full) return;
+    setClassId('');
+    setErrors((e) => ({
+      ...e,
+      placement: { ...e.placement, classId: `${picked.name} đã đủ từ ${formatDate(startDate)}. Chọn lớp khác.` },
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ khi số lớp tải lại
+  }, [classes]);
   const [duplicate, setDuplicate] = useState(null);
   const [readmitOpen, setReadmitOpen] = useState(false);
   const [readmitReason, setReadmitReason] = useState('');
@@ -547,7 +561,7 @@ export default function EnrollChildPage() {
               <div>Điểm trường của bạn không có trong năm học {yearLabel}. Chọn năm học khác hoặc báo Hiệu trưởng.</div>
             </div>
           )}
-          {classesLoading ? (
+          {classesLoading && classes.length === 0 ? (
             <Spinner deferred />
           ) : (
             <ClassPlacementFields

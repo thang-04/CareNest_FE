@@ -66,11 +66,15 @@ export function useProfileChanges(status = 'PENDING', { enabled = true } = {}) {
 }
 
 /** Lớp có thể tiếp nhận của năm đang hoạt động hoặc năm sắp tới, kèm sĩ số dự kiến. */
-export function usePlacementClasses(schoolYearId) {
+export function usePlacementClasses(schoolYearId, { from, childId } = {}) {
   const { user } = useAuth();
-  const { data, loading, error, reload } = useAsync(() => getPlacementClasses({ schoolYearId }, user), [schoolYearId, user?.id], {
-    refreshOnDataChange: true,
-  });
+  // from chưa là ngày đầy đủ ⇒ không gửi, BE lấy hôm nay
+  const fromDate = /^\d{4}-\d{2}-\d{2}$/.test(from || '') ? from : undefined;
+  const { data, loading, error, reload } = useAsync(
+    () => getPlacementClasses({ schoolYearId, from: fromDate, childId }, user),
+    [schoolYearId, fromDate, childId, user?.id],
+    { refreshOnDataChange: true },
+  );
   return { classes: data || [], loading, error, reload };
 }
 
