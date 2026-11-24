@@ -29,3 +29,14 @@ Actor: Hiệu trưởng/Phó hiệu trưởng có quyền tiếp nhận hiện c
 Kết quả lệnh và browser sau source cuối ghi tại docs/quality/VERIFICATION.md. Browser dùng dữ liệu tổng hợp, chạy UI thật ở 1440/375; không tuyên bố kiểm FE nối BE thật.
 
 Sau source cuối: VERIFY PASS full, 808 tests không fail/skip; browser1440/375 đạt flow nhập/lưu/ảnh/người nhận tài khoản với 0 lỗi JavaScript và không tràn ngang. Check-ai-layer0lỗi. Không commit/push.
+
+## Sửa theo nhật ký test 24/11/2026 (BE:G94-180; plan `docs/plans/active/2026-11-24-test-log-fixes.md`)
+Chỉ ghi chỗ FE thay đổi; luật nằm ở BE, FE chỉ hiển thị cờ/số BE trả.
+- Hộp "Cho nghỉ học": 2 lựa chọn hôm nay / ngày học kế tiếp, "Hôm nay" khóa khi BE báo trẻ có dữ liệu trong ngày (BE:G94-180/CHD-03).
+- Thẻ lớp ở Xếp lớp và Tiếp nhận bước 2: "+n trẻ sắp vào", lớp đã đủ khóa và nhãn "Đã đủ" (BE:G94-180/CHD-14). Đổi ngày vào lớp thì tải lại số.
+- Hộp "Mở lại hồ sơ cũ?": bỏ "Giữ điểm trường cũ", mặc định điểm trường của trẻ nếu có trong năm đã chọn (BE:G94-180/CHD-04).
+- Khai báo sức khỏe, phiếu khám bước 1: tiền sử bản thân/gia đình nhập từng mục, thêm thành chip như dị ứng (BE:G94-180/CHD-06).
+- Mọi ô ngày dd/mm/yyyy (`DateInput` dùng chung): gõ "5/9/2027" tự thành "05/09/2027"; câu lỗi ngày học nêu thứ 7/chủ nhật hoặc tên ngày nghỉ, cùng câu BE.
+- `/children/placement` khi header là năm sắp diễn ra: không hiện bảng, có nút sang `/school/placement` (Xếp lớp năm học mới).
+- Component chung mới `Radio` (`@/components`), xem `DESIGN.md`, `docs/design/UI_CARD.md`.
+- File test Excel nhập trẻ: SĐT, CCCD viết có khoảng trắng (`0916 231 201`) để Excel không bỏ số 0 đầu; BE cũng bù số 0 khi nhập. Không mở file CSV rồi lưu bằng Excel.
