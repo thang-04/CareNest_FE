@@ -348,6 +348,8 @@
   border: 1px solid #555;
   padding: 10px 12px;
   display: grid;
+  /* Nhãn ngắn nằm cạnh nhãn dài không bị kéo giãn khoảng cách giữa các dòng */
+  align-content: start;
   gap: 6px;
   font-size: 0.85rem;
   break-inside: avoid;
