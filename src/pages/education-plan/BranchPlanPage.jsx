@@ -749,13 +749,15 @@ function BranchPlanInner({ classId, ctx, onEditingChange }) {
                 <tbody>
                   {displayRows.map((r, i) => {
                     const rowEditable = editable && !themeLocked(r.theme.id);
+                    // Đang sửa: ô sửa được màu trắng, ô không sửa được màu xám (Tiền 25/11/2026)
+                    const lockedCell = editable ? 'cell--fixed' : undefined;
                     const monthCell = (i === 0 || !sameMonth(displayRows[i - 1], r)) && (
-                      <td className={rowEditable ? 'cell--fixed' : ''} rowSpan={spanFrom(i, sameMonth)}>
+                      <td className={editable ? 'cell--fixed' : ''} rowSpan={spanFrom(i, sameMonth)}>
                         <div className="ga-goal-table__pad nowrap">Tháng {monthOf(r.start)}</div>
                       </td>
                     );
                     const themeCell = (i === 0 || !sameTheme(displayRows[i - 1], r)) && (
-                      <td className={rowEditable ? 'cell--fixed' : ''} rowSpan={spanFrom(i, sameTheme)}>
+                      <td className={editable ? 'cell--fixed' : ''} rowSpan={spanFrom(i, sameTheme)}>
                         <div className="ga-goal-table__pad stack">
                           <span className="fw-600">{r.theme.name}</span>
                           <span className="text-xs">
@@ -791,7 +793,7 @@ function BranchPlanInner({ classId, ctx, onEditingChange }) {
                         <tr key={`b-${r.start}`}>
                           {monthCell}
                           {themeCell}
-                          <td colSpan={3} className={rowEditable ? 'cell--fixed' : ''}>
+                          <td colSpan={3} className={editable ? 'cell--fixed' : ''}>
                             <div className="ga-goal-table__pad">
                               Nghỉ: {r.label || 'Đợt nghỉ'} ({ddmm(r.start)} → {ddmm(r.end)})
                             </div>
@@ -802,7 +804,7 @@ function BranchPlanInner({ classId, ctx, onEditingChange }) {
                       <tr key={r.start}>
                         {monthCell}
                         {themeCell}
-                        <td className={rowEditable ? (pending[r.start] ? 'ga-cell--ai' : 'ga-cell-editable') : undefined}>
+                        <td className={rowEditable ? (pending[r.start] ? 'ga-cell--ai' : 'ga-cell-editable') : lockedCell}>
                           <div className="ga-goal-line__text">
                             <Cell
                               editable={rowEditable}
@@ -860,7 +862,7 @@ function BranchPlanInner({ classId, ctx, onEditingChange }) {
                             )}
                           </div>
                         </td>
-                        <td className={`ga-branch-plan-table__week-cell${rowEditable ? ' ga-cell-editable' : ''}`}>
+                        <td className={`ga-branch-plan-table__week-cell${rowEditable ? ' ga-cell-editable' : editable ? ' cell--fixed' : ''}`}>
                           <div className="ga-goal-table__pad">
                             {rowEditable && (firstBranchWeek || !branch) ? (
                               <div className="ga-branch-template-dates ga-branch-date-range ga-branch-week-dates">
@@ -902,7 +904,7 @@ function BranchPlanInner({ classId, ctx, onEditingChange }) {
                             {r.offDays?.some(Boolean) && <div className="text-xs text-warning">Nghỉ {offDaysText(r.offDays)}</div>}
                           </div>
                         </td>
-                        <td className={rowEditable && branch ? 'ga-cell-editable' : ''}>
+                        <td className={rowEditable && branch ? 'ga-cell-editable' : lockedCell}>
                           {branch ? (
                             branchWeeks(branch, yearPlan, draft).map((week, _, weeks) => (
                               <div key={week.start}>
