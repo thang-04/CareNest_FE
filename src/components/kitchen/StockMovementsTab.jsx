@@ -127,8 +127,8 @@ export function StockMovementsTab({ campusId }) {
   return (
     <section className="card">
       <div className="card__body kb-toolbar kb-toolbar--card">
-        <KbOptionalDateFilter label="Từ ngày" value={filters.from} onChange={(from) => change({ from })} />
-        <KbOptionalDateFilter label="Đến ngày" value={filters.to} onChange={(to) => change({ to })} />
+        <KbOptionalDateFilter label="Từ ngày" value={filters.from} max={filters.to} onChange={(from) => change({ from })} />
+        <KbOptionalDateFilter label="Đến ngày" value={filters.to} min={filters.from} onChange={(to) => change({ to })} />
         <label className="date-filter">
           Loại
           <SelectField value={filters.type} onChange={(e) => change({ type: e.target.value })}>

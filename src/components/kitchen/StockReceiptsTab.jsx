@@ -97,8 +97,8 @@ export function StockReceiptsTab({ campusId }) {
             ))}
           </SelectField>
         </label>
-        <KbOptionalDateFilter label="Từ ngày" value={filters.from} onChange={(from) => setFilters((f) => ({ ...f, from }))} />
-        <KbOptionalDateFilter label="Đến ngày" value={filters.to} onChange={(to) => setFilters((f) => ({ ...f, to }))} />
+        <KbOptionalDateFilter label="Từ ngày" value={filters.from} max={filters.to} onChange={(from) => setFilters((f) => ({ ...f, from }))} />
+        <KbOptionalDateFilter label="Đến ngày" value={filters.to} min={filters.from} onChange={(to) => setFilters((f) => ({ ...f, to }))} />
         <Button disabled={!filters.status && !filters.from && !filters.to} onClick={() => setFilters({ status: '', from: '', to: '' })}>
           Đặt lại bộ lọc
         </Button>

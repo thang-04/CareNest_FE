@@ -163,8 +163,8 @@ export default function FoodSampleQueuePage() {
         </div>
       </div>
       <div className="kb-toolbar">
-        <KbDateFilter label="Từ ngày" value={from} onChange={(next) => setParam('from', next)} />
-        <KbDateFilter label="Đến ngày" value={to} onChange={(next) => setParam('to', next)} />
+        <KbDateFilter label="Từ ngày" value={from} max={to} onChange={(next) => setParam('from', next)} />
+        <KbDateFilter label="Đến ngày" value={to} min={from} onChange={(next) => setParam('to', next)} />
         {campus.campusId && <KbCampusFilter campusId={campus.campusId} onChange={campus.setCampusId} canPick={campus.canPick} />}
         <label className="date-filter">
           Hiển thị

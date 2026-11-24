@@ -6,7 +6,8 @@ const toText = (value) => (isIsoDate(value) ? formatDate(value) : value || '');
 
 /**
  * Date field shown and typed as dd/mm/yyyy whatever the browser locale; the calendar button opens the native picker.
- * value / onChange use yyyy-mm-dd. Text that is not yet a real date is passed through as typed so validation can report it.
+ * value / onChange use yyyy-mm-dd. Text that is not yet a real date is passed through as typed so validation can report it;
+ * a full date outside min / max (yyyy-mm-dd) is rejected and the previous value kept, same as the calendar.
  *
  * <DateInput value={form.startDate} onChange={(v) => set({ startDate: v })} />
  */
@@ -21,8 +22,14 @@ export const DateInput = forwardRef(function DateInput({ value, onChange, min, m
 
   const handleType = (e) => {
     const next = normalizeDateInput(e.target.value);
+    const iso = parseDisplayDate(next);
+    // Ngày đủ nhưng ngoài min/max thì không nhận: giữ giá trị hợp lệ trước đó (cùng quy tắc với lịch chọn)
+    if (iso && ((min && iso < min) || (max && iso > max))) {
+      setText(toText(value));
+      return;
+    }
     setText(next);
-    onChange?.(parseDisplayDate(next) || next);
+    onChange?.(iso || next);
   };
 
   const openPicker = () => {
