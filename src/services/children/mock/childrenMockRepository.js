@@ -7,7 +7,7 @@ import { PHONE_HAS_OTHER_ID, createBatchIdentityCheck, fillMissingCitizenIds, id
 import { MEASUREMENT_ROUND, OPEN_CAMPAIGN, buildSeedHealthChecks } from '@/mocks/healthCheckSeed';
 import { pushNotification } from '@/mocks/notificationMockRepository';
 import { activatePendingGuardians, applyGuardianEdits, differsFromAccount } from '@/mocks/parentAccountMock';
-import { activeYearId } from '@/mocks/roomManagers';
+import { activeYearEnd, activeYearId } from '@/mocks/roomManagers';
 import { buildSeedSchoolConfig } from '@/mocks/schoolConfigSeed';
 import { isPreparingYear, schoolYearIdOfDate } from '@/mocks/schoolYearScope';
 import { AGE_GROUPS, CHILD_STATUS } from '@/models/School';
@@ -31,7 +31,7 @@ import {
 } from '@/models/children/childProfile';
 import { isValidCitizenId, normalizeCitizenId } from '@/utils/citizenId';
 import { formatDate, localDateOf, normalizeText, todayInput } from '@/utils/format';
-import { firstSchoolDay, isSchoolDay, placementDateError, schoolDayProblem, startDateError } from '@/utils/children/startDate';
+import { placementDateError, startDateError } from '@/utils/children/startDate';
 import { uid } from '@/utils/id';
 import { areaAccess, areaAllows } from '@/utils/school-config/schoolConfigPermissions';
 import {
@@ -370,23 +370,17 @@ const ensureSeeded = () => {
 
 const SAME_DAY_DATA_BLOCKED = 'Trẻ đã có điểm danh, sức khỏe hoặc đánh giá trong hôm nay. Thực hiện nghỉ học từ ngày học tiếp theo.';
 
-// G94-180/CHD-03: ngày học đầu tiên sau hôm nay (BE nextSchoolDay); không tìm được ⇒ null
-const nextSchoolDayOf = (today, holidays) => {
-  const next = firstSchoolDay(addDays(today, 1), holidays, addDays(today, 400));
-  return isSchoolDay(next, holidays) ? next : null;
-};
-
-// G94-180/CHD-03: câu lỗi ô leftAt như BE (không trước hôm nay, là ngày học, hôm nay hoặc ngày học kế tiếp, không trước ngày tiếp nhận)
+// G94-180/CHD-03 (user 25/11): câu lỗi ô leftAt như BE: ngày bất kỳ từ hôm nay tới hết năm học (kể cả thứ Bảy, ngày lễ);
+// hôm nay khóa khi trẻ có dữ liệu trong ngày; đã có lịch nghỉ thì phải hủy lịch trước khi chọn ngày khác.
 const leaveDateProblem = (db, child, leftAt, today) => {
-  const holidays = yearHolidays(db, activeYearId(db));
   if (leftAt < today) return 'Ngày nghỉ học không được trước hôm nay';
+  const yearEnd = activeYearEnd(db);
+  if (yearEnd && leftAt > yearEnd) return `Ngày nghỉ học phải trong năm học (tới ${formatDate(yearEnd)})`;
   if (leftAt === today && (db.attendance || []).some((r) => r.childId === child.id && r.date === today)) return SAME_DAY_DATA_BLOCKED;
-  const dayProblem = schoolDayProblem('Ngày nghỉ học', leftAt, holidays);
-  if (dayProblem) return dayProblem;
-  const next = nextSchoolDayOf(today, holidays);
-  if (leftAt !== today && leftAt !== next) return `Chỉ chọn hôm nay hoặc ngày học kế tiếp${next ? ` (${formatDate(next)})` : ''}`;
   if (child.enrolledAt && leftAt < child.enrolledAt)
     return `Ngày nghỉ học không được trước ngày tiếp nhận (${formatDate(child.enrolledAt)})`;
+  if (leftAt > today && child.scheduledLeaveOn)
+    return `Trẻ đã có lịch nghỉ học từ ${formatDate(child.scheduledLeaveOn)}. Hủy lịch nghỉ trước khi chọn ngày khác`;
   return '';
 };
 
@@ -1555,7 +1549,8 @@ export const childrenMockRepository = {
   },
 
   /**
-   * G94-180/CHD-03 (user 24/11): chỉ cho nghỉ học hôm nay hoặc ngày học kế tiếp (BE GET /children/{id}/leave-options).
+   * G94-180/CHD-03 (user 25/11): khoảng ngày cho nghỉ học (BE GET /children/{id}/leave-options); minDate là hôm nay nếu chọn được
+   * hôm nay, không thì ngày mai; maxDate là hết năm học đang hoạt động.
    * Đơn giản hóa: mock chỉ biết điểm danh trong db.attendance (không có sức khỏe/đánh giá trong ngày), và chỉ khi màn điểm danh đã seed.
    */
   async getLeaveOptions(childId, user) {
@@ -1569,7 +1564,8 @@ export const childrenMockRepository = {
       today,
       todayAllowed: !problem,
       todayBlockedReason: problem || null,
-      nextSchoolDay: nextSchoolDayOf(today, yearHolidays(db, activeYearId(db))),
+      minDate: problem ? addDays(today, 1) : today,
+      maxDate: activeYearEnd(db),
     };
   },
 
@@ -1588,6 +1584,19 @@ export const childrenMockRepository = {
     if (!reason?.trim()) errors.reason = 'Nhập lý do cho trẻ nghỉ học';
     else if (reason.trim().length > 300) errors.reason = 'Lý do tối đa 300 ký tự';
     if (hasErrors(errors)) invalid(errors);
+    // G94-180/CHD-03: ngày sau hôm nay ⇒ đặt lịch nghỉ, trẻ vẫn ACTIVE tới ngày đó (BE tự chuyển Đã nghỉ khi tới ngày)
+    if (leftAt > todayInput()) {
+      return writeDb((d) => {
+        const target = findChild(d, childId);
+        target.scheduledLeaveOn = leftAt;
+        target.scheduledLeaveReason = reason.trim();
+        target.history = [
+          ...(target.history || []),
+          { action: 'LEAVE_SCHEDULED', userId: user.id, at: nowIso(), note: reason.trim(), effectiveFrom: leftAt },
+        ];
+        return toView(d, target, user);
+      });
+    }
     return writeDb((d) => {
       const target = findChild(d, childId);
       // G94-180/CHD-03, CHD-14: có lịch chuyển / lớp chưa bắt đầu ⇒ xóa lịch; lớp chưa bắt đầu thì trẻ không còn lớp

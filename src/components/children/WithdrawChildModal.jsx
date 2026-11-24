@@ -1,34 +1,27 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { ErrorState, LoadingState } from '@/components/ui/States';
+import { DateInput } from '@/components/form/DateInput';
 import { FormField } from '@/components/form/FormField';
-import { ChoiceGroup } from '@/components/children/ChoiceGroup';
 import { useLeaveOptions } from '@/hooks/children/useChildRecords';
 import { withdrawChild } from '@/services/children/childrenService';
-import { formatDate, formatWeekdayDate } from '@/utils/format';
-
-// "thứ Sáu 27/11" + năm ⇒ "thứ Sáu 27/11/2026" (dùng tên thứ có sẵn ở utils/format)
-const weekdayLabel = (iso) => `${formatWeekdayDate(iso).replace(/ \d{2}\/\d{2}$/, '')} ${formatDate(iso)}`;
+import { addDays, formatDate, isIsoDate } from '@/utils/format';
 
 /**
- * "Cho nghỉ học" from the children list: dữ liệu không bị xóa, BE chuyển trạng thái Đã nghỉ.
- * G94-180/CHD-03: chỉ chọn hôm nay hoặc ngày học kế tiếp; hôm nay khóa khi BE báo trẻ có dữ liệu trong ngày.
+ * "Cho nghỉ học" from the children list: dữ liệu không bị xóa. BE (GET leave-options) trả khoảng ngày chọn được.
+ * G94-180/CHD-03: chọn ngày bất kỳ từ minDate tới maxDate (hết năm học); hôm nay thì nghỉ ngay, ngày sau thì đặt lịch nghỉ
+ * (trẻ vẫn học tới hết ngày đó). Hôm nay khóa khi BE báo trẻ có dữ liệu trong ngày (todayAllowed=false, minDate = ngày mai).
  * Mount with key={child.id} so the form resets per child.
  */
 export function WithdrawChildModal({ child, onClose, onDone }) {
   const { user } = useAuth();
   const toast = useToast();
   const { options, loading, error, reload } = useLeaveOptions(child?.id);
-  const [choice, setChoice] = useState(null);
+  const [picked, setPicked] = useState(null);
   const [reason, setReason] = useState('');
   const [errors, setErrors] = useState({});
-
-  // Mặc định: hôm nay nếu BE cho, không thì ngày học kế tiếp
-  useEffect(() => {
-    if (options && choice === null) setChoice(options.todayAllowed ? options.today : options.nextSchoolDay);
-  }, [options, choice]);
 
   const clearError = (key) =>
     setErrors((e) => {
@@ -37,29 +30,23 @@ export function WithdrawChildModal({ child, onClose, onDone }) {
       return next;
     });
 
-  const leftAt = choice || '';
-  const choices = options
-    ? [
-        {
-          value: options.today,
-          label: `Hôm nay (${formatDate(options.today)})`,
-          disabled: !options.todayAllowed,
-        },
-        ...(options.nextSchoolDay
-          ? [{ value: options.nextSchoolDay, label: `Ngày học kế tiếp – ${weekdayLabel(options.nextSchoolDay)}` }]
-          : []),
-      ]
-    : [];
+  // Chưa chọn thì mặc định ngày đầu BE cho chọn; chỉ nhắc nhập liệu, luật ngày do BE kiểm
+  const leftAt = picked ?? options?.minDate ?? '';
+  const validDate = !!options && isIsoDate(leftAt) && leftAt >= options.minDate && leftAt <= options.maxDate;
+  const scheduled = !!options && validDate && leftAt > options.today;
 
   const confirm = async () => {
     const errs = {};
-    if (!leftAt) errs.leftAt = 'Chọn ngày nghỉ học';
+    if (!validDate) errs.leftAt = 'Chọn ngày nghỉ học trong khoảng cho phép';
     if (!reason.trim()) errs.reason = 'Nhập lý do cho trẻ nghỉ học';
     setErrors(errs);
     if (Object.keys(errs).length) return;
     try {
       await withdrawChild(child.id, { leftAt, reason: reason.trim() }, user);
-      toast.success(`${child.fullName} nghỉ học từ ${formatDate(leftAt)}.`, 'Đã cho trẻ nghỉ học');
+      toast.success(
+        scheduled ? `${child.fullName} học tới hết ${formatDate(addDays(leftAt, -1))}, nghỉ học từ ngày đã chọn.` : `${child.fullName} nghỉ học từ ${formatDate(leftAt)}.`,
+        scheduled ? 'Đã hẹn ngày nghỉ học' : 'Đã cho trẻ nghỉ học',
+      );
       onDone?.();
       onClose();
     } catch (err) {
@@ -75,7 +62,7 @@ export function WithdrawChildModal({ child, onClose, onDone }) {
       title={`Cho ${child?.fullName || 'trẻ'} nghỉ học?`}
       message="Trẻ không còn trong sĩ số lớp, điểm danh và suất ăn từ ngày nghỉ. Hồ sơ, sổ sức khỏe và lịch sử vẫn được giữ."
       confirmLabel="Cho nghỉ học"
-      confirmDisabled={loading || !!error || !options || !leftAt}
+      confirmDisabled={loading || !!error || !options || !validDate}
       onConfirm={confirm}
       onClose={onClose}
     >
@@ -83,21 +70,31 @@ export function WithdrawChildModal({ child, onClose, onDone }) {
       {!loading && error && <ErrorState error={error} onRetry={reload} />}
       {options && (
         <div className="stack gap-3 mt-12 tr-withdraw-form">
-          <FormField label="Ngày nghỉ học" required error={errors.leftAt}>
-            <ChoiceGroup
-              name="withdraw-left-at"
-              label="Ngày nghỉ học"
-              options={choices}
-              value={choice}
+          <FormField
+            label="Ngày nghỉ học"
+            required
+            error={errors.leftAt}
+            hint={`Chọn từ ${formatDate(options.minDate)} tới ${formatDate(options.maxDate)} (hết năm học)`}
+          >
+            <DateInput
+              value={leftAt}
+              min={options.minDate}
+              max={options.maxDate}
               onChange={(value) => {
-                setChoice(value);
+                setPicked(value);
                 clearError('leftAt');
               }}
             />
           </FormField>
-          {!options.todayAllowed && options.todayBlockedReason && <p className="text-muted">{options.todayBlockedReason}</p>}
-          {!options.todayAllowed && !options.nextSchoolDay && (
-            <p className="text-muted">Không tìm thấy ngày học kế tiếp trong năm học. Liên hệ quản trị để kiểm tra lịch nghỉ.</p>
+          {!options.todayAllowed && (
+            <p className="text-muted">
+              {options.todayBlockedReason} Hôm nay không chọn được, chỉ chọn được từ ngày mai ({formatDate(options.minDate)}).
+            </p>
+          )}
+          {scheduled && (
+            <p className="text-muted">
+              {`Trẻ vẫn học tới hết ngày ${formatDate(addDays(leftAt, -1))}, hệ thống tự chuyển sang Đã nghỉ học từ ngày đã chọn.`}
+            </p>
           )}
           <FormField label="Lý do" required error={errors.reason}>
             <textarea
