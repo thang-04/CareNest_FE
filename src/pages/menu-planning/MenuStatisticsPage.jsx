@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 import {
   Breadcrumb,
   Button,
+  DataTable,
   EmptyState,
   ErrorState,
   LoadingState,
@@ -53,45 +54,47 @@ function GroupsOverview({ groups, onPick }) {
       <div className="card__header">
         <h2 className="card__title">Tổng quan theo nhóm tuổi</h2>
       </div>
-      <div className="table-wrap">
-        <table className="table table--grid">
-          <thead>
-            <tr>
-              <th>Nhóm tuổi</th>
-              <th className="num">Số trẻ</th>
-              <th className="num">Tiền ăn 1 trẻ</th>
-              <th className="num">Ngân sách thực phẩm</th>
-              <th className="num">Tổng tiền</th>
-            </tr>
-          </thead>
-          <tbody>
-            {groups.map((g) => {
+      <DataTable
+        rowKey="ageGroupId"
+        rows={groups}
+        columns={[
+          {
+            key: 'name',
+            header: 'Nhóm tuổi',
+            render: (g) => (
+              <>
+                <Button variant="link" onClick={() => onPick(String(g.ageGroupId))}>
+                  {g.ageGroupName}
+                </Button>
+                {g.children === 0 && <span className="muted"> · Không có trẻ, không tính suất ăn</span>}
+              </>
+            ),
+          },
+          { key: 'children', header: 'Số trẻ', className: 'num', render: (g) => g.children },
+          {
+            key: 'costPerChild',
+            header: 'Tiền ăn 1 trẻ',
+            className: 'num',
+            render: (g) => (g.children === 0 ? '—' : formatMoney(g.costPerChild)),
+          },
+          {
+            key: 'budget',
+            header: 'Ngân sách thực phẩm',
+            className: 'num',
+            render: (g) => {
               const budget = g.foodBudget ?? g.mealPrice;
-              return (
-                <tr key={g.ageGroupId}>
-                  <td>
-                    <Button variant="link" onClick={() => onPick(String(g.ageGroupId))}>
-                      {g.ageGroupName}
-                    </Button>
-                  </td>
-                  <td className="num">{g.children}</td>
-                  {g.children === 0 ? (
-                    <td colSpan={3} className="muted">
-                      Không có trẻ trong ngày này, không tính suất ăn
-                    </td>
-                  ) : (
-                    <>
-                      <td className="num">{formatMoney(g.costPerChild)}</td>
-                      <td className="num">{budget == null ? 'Chưa đặt' : formatMoney(budget)}</td>
-                      <td className="num">{formatMoney(g.totalCost)}</td>
-                    </>
-                  )}
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+              if (g.children === 0) return '—';
+              return budget == null ? 'Chưa đặt' : formatMoney(budget);
+            },
+          },
+          {
+            key: 'totalCost',
+            header: 'Tổng tiền',
+            className: 'num',
+            render: (g) => (g.children === 0 ? '—' : formatMoney(g.totalCost)),
+          },
+        ]}
+      />
     </section>
   );
 }
