@@ -1537,7 +1537,6 @@ export const childrenMockRepository = {
     return clone(yearHolidays(db, schoolYearId || activeYearId(db)));
   },
 
-  /** Cho nghỉ học: không xóa dữ liệu, chỉ chuyển trạng thái Đã nghỉ và giữ lớp cuối cùng để tra lịch sử. */
   /**
    * G94-180/CHD-03 (user 24/11): chỉ cho nghỉ học hôm nay hoặc ngày học kế tiếp (BE GET /children/{id}/leave-options).
    * Đơn giản hóa: mock chỉ biết điểm danh trong db.attendance (không có sức khỏe/đánh giá trong ngày), và chỉ khi màn điểm danh đã seed.
@@ -1557,6 +1556,7 @@ export const childrenMockRepository = {
     };
   },
 
+  /** Cho nghỉ học: không xóa dữ liệu, chỉ chuyển trạng thái Đã nghỉ và giữ lớp cuối cùng để tra lịch sử. */
   async withdrawChild(childId, { leftAt, reason }, user) {
     await delay();
     const db = ensureSeeded();

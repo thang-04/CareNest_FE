@@ -50,6 +50,7 @@ import {
   RichBody,
   TextField,
   SelectField,
+  Radio,
   LABELS,
   PrintHeader,
   PrintSignRow,
@@ -656,7 +657,7 @@ export default function UiKitPage() {
             }}
           >
             <label className="radio">
-              <input type="radio" name="uk-r" defaultChecked /> Radio
+              <Radio name="uk-r" defaultChecked /> Radio
             </label>
             <label className="checkbox">
               <input type="checkbox" defaultChecked /> Checkbox

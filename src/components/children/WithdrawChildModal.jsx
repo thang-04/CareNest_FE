@@ -75,7 +75,7 @@ export function WithdrawChildModal({ child, onClose, onDone }) {
       title={`Cho ${child?.fullName || 'trẻ'} nghỉ học?`}
       message="Trẻ không còn trong sĩ số lớp, điểm danh và suất ăn từ ngày nghỉ. Hồ sơ, sổ sức khỏe và lịch sử vẫn được giữ."
       confirmLabel="Cho nghỉ học"
-      confirmDisabled={loading || !!error || !options}
+      confirmDisabled={loading || !!error || !options || !leftAt}
       onConfirm={confirm}
       onClose={onClose}
     >
@@ -96,6 +96,9 @@ export function WithdrawChildModal({ child, onClose, onDone }) {
             />
           </FormField>
           {!options.todayAllowed && options.todayBlockedReason && <p className="text-muted">{options.todayBlockedReason}</p>}
+          {!options.todayAllowed && !options.nextSchoolDay && (
+            <p className="text-muted">Không tìm thấy ngày học kế tiếp trong năm học. Liên hệ quản trị để kiểm tra lịch nghỉ.</p>
+          )}
           <FormField label="Lý do" required error={errors.reason}>
             <textarea
               className="textarea"

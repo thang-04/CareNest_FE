@@ -74,10 +74,6 @@ export function usePlacementClasses(schoolYearId) {
   return { classes: data || [], loading, error, reload };
 }
 
-/**
- * Ngày nghỉ của năm học (G94-180/CHD-14) để chọn ngày học mặc định và báo lỗi sớm. Không tải được thì trả rỗng: BE vẫn kiểm
- * ngày học và báo lỗi ở đúng ô.
- */
 /** Lựa chọn ngày nghỉ học của BE: { today, todayAllowed, todayBlockedReason, nextSchoolDay }. */
 export function useLeaveOptions(childId) {
   const { user } = useAuth();
@@ -85,6 +81,10 @@ export function useLeaveOptions(childId) {
   return { options: data, loading, error, reload };
 }
 
+/**
+ * Ngày nghỉ của năm học (G94-180/CHD-14) để chọn ngày học mặc định và báo lỗi sớm. Không tải được thì trả rỗng: BE vẫn kiểm
+ * ngày học và báo lỗi ở đúng ô.
+ */
 export function useYearHolidays(schoolYearId) {
   const { user } = useAuth();
   const { data, loading } = useAsync(() => getSchoolHolidays(schoolYearId, user).catch(() => []), [schoolYearId, user?.id], {

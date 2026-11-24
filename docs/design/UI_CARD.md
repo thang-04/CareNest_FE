@@ -18,6 +18,7 @@ Import từ `@/components` trừ khi cột "Từ" ghi khác.
 | Nút (kể cả nút đang gửi); nút chỉ icon `variant="icon"` (`.icon-btn`), nút dạng chữ `variant="link"` (`.link-btn`) | `Button` — `variant`, `size`, `icon`, `loading` | `@/components` |
 | Ô nhập có nhãn + lỗi | `TextField`, `SelectField`, `TextAreaField`; ô đặc biệt bọc `FormField` | `@/components` |
 | Ô tích (nhãn bọc ngoài do nơi dùng đặt) | `Checkbox` | `@/components` |
+| Ô chọn một trong nhóm (nhãn bọc ngoài, cùng `name`) | `Radio` | `@/components` |
 | Ngày, tuần, học kỳ, mật khẩu | `DateInput`, `WeekPicker`, `SemesterSelect`, `PasswordInput` | `@/components/form/…` |
 | Chọn có tìm kiếm | `SearchSelect` | `@/components` |
 | Ô tìm trong thanh lọc | `SearchSubmit` | `@/components/ui/SearchSubmit` |
