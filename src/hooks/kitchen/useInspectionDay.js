@@ -1,9 +1,12 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { useAsync } from '@/hooks/useAsync';
 import {
+  decideInspectionApproval,
+  getInspectionApprovals,
   getInspectionDay,
   getInspectionSuppliers,
   reopenInspectionTab,
+  requestInspectionApproval,
   saveInspectionTab,
   signInspectionTab,
 } from '@/services/kitchen/inspectionService';
@@ -23,6 +26,19 @@ export function useInspectionDay(campusId, date) {
     save: (tab, request) => saveInspectionTab({ campusId, date, tab, ...request }, user),
     sign: (tab, signature) => signInspectionTab({ campusId, date, tab, signatureId: signature.id, imageUrl: signature.url }, user),
     reopen: (tab, reason) => reopenInspectionTab({ campusId, date, tab, reason }, user),
+    // Ngày cũ (INS-05): PHT gửi yêu cầu chờ HT duyệt, HT gửi thì mở ngay; `decide` chỉ HT dùng (thu hồi quyền đang mở)
+    requestApproval: (tab, { reason, validHours }) => requestInspectionApproval({ campusId, date, tab, reason, validHours }, user),
+    decide: (approvalId, decision, { note, validHours } = {}) => decideInspectionApproval({ approvalId, decision, note, validHours }, user),
+  };
+}
+
+/** Hàng chờ yêu cầu mở mẫu ngày cũ của Hiệu trưởng (mọi điểm trường); chỉ tải khi `enabled`, BE từ chối người không phải HT. */
+export function useInspectionApprovalQueue(enabled) {
+  const { user } = useAuth();
+  const query = useAsync(() => getInspectionApprovals({ status: 'PENDING' }, user), [user?.id], { enabled: enabled && !!user });
+  return {
+    ...query,
+    decide: (approvalId, decision, { note, validHours } = {}) => decideInspectionApproval({ approvalId, decision, note, validHours }, user),
   };
 }
 

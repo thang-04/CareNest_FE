@@ -48,7 +48,7 @@ const itemHook = (loader) =>
 export const useFoods = listHook(getFoods);
 export const useFood = itemHook(getFoodById);
 export const useFoodPrices = itemHook((foodId) => getFoodPrices(foodId));
-export const useActiveSuppliers = listHook(() => getActiveSuppliers());
+export const useActiveSuppliers = listHook((_, user) => getActiveSuppliers(user));
 export const useDishes = listHook(getDishes);
 export const useDish = itemHook(getDishById);
 export const useReferenceDishes = listHook(getReferenceDishes);

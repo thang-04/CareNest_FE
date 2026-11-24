@@ -337,3 +337,12 @@ export const validateStaffProfile = (form, others = []) => {
   if ((form.note || '').length > 500) e.note = 'Ghi chú tối đa 500 ký tự';
   return checkStaffCommon(form, others, e);
 };
+
+/**
+ * GV đã chọn đang thuộc cơ sở công tác khác cơ sở của lớp: lưu xong BE chuyển cơ sở công tác của họ theo lớp (AUTH-15, Q1=b
+ * chốt 21/11/2026) ⇒ màn hỏi xác nhận trước. GV chưa có cơ sở (campusId trống) không tính.
+ */
+export const teachersFromOtherCampus = (teacherIds = [], teachers = [], classCampusId) =>
+  teacherIds
+    .map((id) => teachers.find((t) => String(t.id) === String(id)))
+    .filter((t) => t?.campusId && String(t.campusId) !== String(classCampusId));

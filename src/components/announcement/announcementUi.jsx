@@ -10,10 +10,8 @@ export const AnnouncementStatusBadge = createStatusBadge(
   announcementStatusLabels,
 );
 
-export const scheduleRepeatLabel = (item) =>
-  item.frequency === 'WEEKLY'
-    ? `${Number(item.dayOfWeek) === 7 ? 'Chủ nhật' : `Thứ ${Number(item.dayOfWeek) + 1}`} hằng tuần`
-    : `Ngày ${item.dayOfMonth} hằng tháng`;
+// Nhãn nhịp lặp dùng chung cho danh sách, chi tiết và thẻ Tóm tắt (logic ở utils để test được).
+export { scheduleRepeatLabel, scheduleRangeLabel } from '@/utils/announcement/scheduleRecurrence.mjs';
 
 export function AnnouncementHeader({ title, actions, back, summary, detail = false }) {
   return (
@@ -46,6 +44,24 @@ export function AnnouncementSection({ title, description, children, actions }) {
         {actions}
       </div>
       <div className="card__body">{children}</div>
+    </section>
+  );
+}
+
+/** Một bước trong thẻ form dài: tiêu đề (đánh số khi có `step`), mô tả ngắn và phần nhập liệu. */
+export function AnnouncementStep({ step, title, description, children }) {
+  return (
+    <section className="announcement-step">
+      <h2 className="announcement-step__title">
+        {step != null && (
+          <span className="announcement-step__num" aria-hidden="true">
+            {step}
+          </span>
+        )}
+        {title}
+      </h2>
+      {description && <p className="announcement-section__description">{description}</p>}
+      <div className="announcement-step__body">{children}</div>
     </section>
   );
 }

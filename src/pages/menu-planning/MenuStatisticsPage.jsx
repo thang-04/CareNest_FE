@@ -33,7 +33,7 @@ import { useMenuTemplate } from '@/hooks/menu-planning/useMenuTemplates';
 import { WeekPicker } from '@/components/form/WeekPicker';
 import { WEEKDAY_LABELS, formatMoney, mondayOf, schoolWeekStart, weekDates } from '@/models/menu-planning/menuPlanningConstants';
 import { menuCrumbs } from '@/utils/menu-planning/breadcrumbs';
-import { ageGroupOptions, planDayItems, statisticsExportRows, templateDayItems } from '@/utils/menu-planning/menuStatistics';
+import { ageGroupOptions, allDayItems, planDayItems, statisticsExportRows, templateDayItems } from '@/utils/menu-planning/menuStatistics';
 import { formatDate, isIsoDate, todayInput } from '@/utils/format';
 import '@/styles/modules/menu-planning.css';
 
@@ -82,16 +82,26 @@ export default function MenuStatisticsPage() {
   const [groupBy, setGroupBy] = useState('storage');
   const sheetRef = useRef(null);
   useEffect(() => {
-    if (options.length && !options.some((o) => o.id === ageGroupId)) setAgeGroupId(options[0].id);
+    if (ageGroupId && options.length && !options.some((o) => o.id === ageGroupId)) setAgeGroupId('');
   }, [options, ageGroupId]);
 
-  const items = useMemo(
-    () => (templateId ? templateDayItems(source.data) : planDayItems(source.data, date, ageGroupId)),
-    [templateId, source.data, date, ageGroupId],
-  );
+  const allGroups = ageGroupId === '';
+  const items = useMemo(() => {
+    if (templateId) {
+      const templateItems = templateDayItems(source.data);
+      return allGroups ? templateItems.map((item) => ({ ...item, block: source.data?.block })) : templateItems;
+    }
+    return allGroups ? allDayItems(source.data, date) : planDayItems(source.data, date, ageGroupId);
+  }, [templateId, source.data, date, ageGroupId, allGroups]);
   const query =
-    ageGroupId && items.length
-      ? { ageGroupId: Number(ageGroupId), date: templateId ? undefined : date, campusId: campusId || undefined, children, items }
+    options.length && items.length
+      ? {
+          ageGroupId: allGroups ? null : Number(ageGroupId),
+          date: templateId ? undefined : date,
+          campusId: campusId || undefined,
+          children: allGroups ? '' : children,
+          items,
+        }
       : null;
   const statsQ = useMenuStatistics(query);
   const stats = statsQ.data;
@@ -110,6 +120,48 @@ export default function MenuStatisticsPage() {
   const fileBase = `Dinh_luong_di_cho_${templateId ? `mau_${templateId}` : date}`;
   const exportExcel = () =>
     exportWithPreview(statisticsExportRows(stats, `${PAGE_TITLE} · ${title} · ${stats.ageGroupName}`, groupBy), `${fileBase}.xlsx`);
+
+  const detailSections = (group) => (
+    <div className="td-sections" key={group.ageGroupId}>
+      <section className="card">
+        <div className="card__header">
+          <h2 className="card__title">Món ăn{allGroups ? ` · ${group.ageGroupName}` : ''}</h2>
+        </div>
+        <StatisticsDishes
+          dishes={group.dishes}
+          catalog={catalog}
+          ageGroup={ageGroups.find((g) => String(g.id) === String(group.ageGroupId))}
+        />
+      </section>
+      <section className="card">
+        <div className="card__header">
+          <h2 className="card__title">
+            Thực phẩm cho {group.children} trẻ{allGroups ? ` · ${group.ageGroupName}` : ''}
+          </h2>
+          <Tabs
+            variant="pill"
+            items={GROUP_MODES}
+            value={groupBy}
+            onChange={setGroupBy}
+            ariaLabel={`Cách nhóm thực phẩm ${group.ageGroupName}`}
+          />
+        </div>
+        <StatisticsIngredients stats={group} groupBy={groupBy} />
+      </section>
+      <section className="card">
+        <div className="card__header">
+          <h2 className="card__title">Dinh dưỡng một trẻ · {group.ageGroupName}</h2>
+        </div>
+        <StatisticsNutrition stats={group} />
+      </section>
+      <section className="card">
+        <div className="card__header">
+          <h2 className="card__title">Đánh giá tỉ lệ calo từng bữa{allGroups ? ` · ${group.ageGroupName}` : ''}</h2>
+        </div>
+        <StatisticsSessions sessions={group.evaluation?.sessions} />
+      </section>
+    </div>
+  );
 
   if (source.error)
     return (
@@ -176,6 +228,7 @@ export default function MenuStatisticsPage() {
           <div className="td-stat-filters__row">
             <FormField label="Nhóm tuổi">
               <SelectField className="select" value={ageGroupId} onChange={(e) => setAgeGroupId(e.target.value)}>
+                <option value="">Tất cả nhóm tuổi</option>
                 {options.map((o) => (
                   <option key={o.id} value={o.id}>
                     {o.name}
@@ -184,20 +237,22 @@ export default function MenuStatisticsPage() {
               </SelectField>
             </FormField>
             {!templateId && <CampusFilter campuses={campuses} value={campusId} onChange={setCampusId} allLabel="Cả trường" />}
-            <FormField
-              label="Số trẻ"
-              hint={stats ? CHILDREN_SOURCE[stats.childrenSource] || stats.childrenSource : 'Để trống để lấy theo suất hoặc sĩ số'}
-            >
-              <TextField
-                className="input"
-                type="number"
-                min={0}
-                max={2000}
-                value={children}
-                placeholder={stats ? String(stats.children) : 'Tự lấy'}
-                onChange={(e) => setChildren(e.target.value)}
-              />
-            </FormField>
+            {!allGroups && (
+              <FormField
+                label="Số trẻ"
+                hint={stats ? CHILDREN_SOURCE[stats.childrenSource] || stats.childrenSource : 'Để trống để lấy theo suất hoặc sĩ số'}
+              >
+                <TextField
+                  className="input"
+                  type="number"
+                  min={0}
+                  max={2000}
+                  value={children}
+                  placeholder={stats ? String(stats.children) : 'Tự lấy'}
+                  onChange={(e) => setChildren(e.target.value)}
+                />
+              </FormField>
+            )}
           </div>
         </div>
       </section>
@@ -211,6 +266,8 @@ export default function MenuStatisticsPage() {
         <ErrorState error={statsQ.error} onRetry={statsQ.reload} />
       ) : !stats ? (
         <LoadingState />
+      ) : allGroups && !stats.groups?.length ? (
+        <EmptyState title="Ngày này chưa có món" description="Không có món hợp lệ cho các nhóm tuổi trong ngày này." />
       ) : (
         <>
           <div className="stat-grid">
@@ -220,7 +277,7 @@ export default function MenuStatisticsPage() {
               className="stat-card--fit"
               tone="purple"
               icon={false}
-              label="Ngân sách thực phẩm"
+              label={allGroups ? 'Ngân sách thực phẩm cao nhất' : 'Ngân sách thực phẩm'}
               value={(stats.foodBudget ?? stats.mealPrice) == null ? 'Chưa đặt' : formatMoney(stats.foodBudget ?? stats.mealPrice)}
             />
             <StatCard
@@ -232,37 +289,7 @@ export default function MenuStatisticsPage() {
             />
           </div>
 
-          <section className="card">
-            <div className="card__header">
-              <h2 className="card__title">Món ăn</h2>
-            </div>
-            <StatisticsDishes
-              dishes={stats.dishes}
-              catalog={catalog}
-              ageGroup={ageGroups.find((g) => String(g.id) === String(ageGroupId))}
-            />
-          </section>
-          <section className="card">
-            <div className="card__header">
-              <h2 className="card__title">Thực phẩm cho {stats.children} trẻ</h2>
-              <Tabs variant="pill" items={GROUP_MODES} value={groupBy} onChange={setGroupBy} ariaLabel="Cách nhóm thực phẩm" />
-            </div>
-            <StatisticsIngredients stats={stats} groupBy={groupBy} />
-          </section>
-
-          <section className="card">
-            <div className="card__header">
-              <h2 className="card__title">Dinh dưỡng một trẻ · {stats.ageGroupName}</h2>
-            </div>
-            <StatisticsNutrition stats={stats} />
-          </section>
-
-          <section className="card">
-            <div className="card__header">
-              <h2 className="card__title">Đánh giá tỉ lệ calo từng bữa</h2>
-            </div>
-            <StatisticsSessions sessions={stats.evaluation?.sessions} />
-          </section>
+          {(allGroups ? stats.groups || [] : [stats]).map(detailSections)}
           <Modal
             open={printing}
             onClose={() => setPrinting(false)}

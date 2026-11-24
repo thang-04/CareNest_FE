@@ -31,6 +31,47 @@ export const MICRO_NORM_GROUPS = MICRONUTRIENT_GROUPS.map((g) => ({
   ...g,
   columns: g.items.map((key) => ({ key, label: MICRONUTRIENT_LABELS[key], unit: MICRONUTRIENT_UNITS[key] })),
 }));
+/** Cơ cấu áp dụng P:L:G (BE NUT-27): một số % năng lượng mỗi chất, ba số cộng lại bằng 100. `key` trùng khóa khoảng ở STRUCTURE_NORM_COLUMNS. */
+export const APPLIED_STRUCTURE_COLUMNS = [
+  { key: 'protein', label: 'Đạm' },
+  { key: 'lipid', label: 'Béo' },
+  { key: 'glucid', label: 'Đường' },
+];
+/** Hàm lượng quy đổi tại trường (g/trẻ/ngày), chỉ đọc: BE trả kèm bản ghi (NUT-27), FE tính lại để xem trước khi đang gõ. */
+export const CONVERTED_GRAM_ROWS = GRAM_NORM_COLUMNS.map(({ key, label }) => ({ key, label }));
+/** Hệ số dùng khi BE chưa trả kèm: khớp dữ liệu mẫu NutriBot/PMS (BE `carenest.nutrition.conversion`). */
+export const DEFAULT_CONVERSION_FACTORS = {
+  proteinKcalPerG: 4.1,
+  lipidKcalPerG: 9.3,
+  glucidKcalPerG: 4.1,
+  animalProteinShare: 0.6,
+  animalLipidShare: 0.6,
+};
+/** Khóa định mức được gửi lên BE: năng lượng và khoảng P:L:G; gam theo chất do BE quy đổi, vi chất không nhập ở đây. */
+const SUBMITTED_NORM_KEYS = [KCAL_NORM.key, ...STRUCTURE_NORM_COLUMNS.map((c) => c.key)];
+
+const toNum = (v) => (v === '' || v == null || Number.isNaN(Number(v)) ? null : Number(v));
+
+/**
+ * Quy đổi cơ cấu P:L:G (% năng lượng) ra gam tại một mốc kcal — hiển thị xem trước, cùng công thức BE NUT-27.
+ * Trả null khi thiếu kcal (phải > 0), thiếu một chất, ngoài 0–100 hoặc tổng khác 100. Không làm tròn.
+ */
+export const quyDoiGam = (kcal, applied, factors = DEFAULT_CONVERSION_FACTORS) => {
+  const k = toNum(kcal);
+  const [p, l, g] = APPLIED_STRUCTURE_COLUMNS.map((c) => toNum(applied?.[c.key]));
+  if (k == null || k <= 0 || [p, l, g].some((v) => v == null || v < 0 || v > 100)) return null;
+  if (Math.abs(p + l + g - 100) > 1e-9) return null;
+  const damTong = (k * (p / 100)) / factors.proteinKcalPerG;
+  const beoTong = (k * (l / 100)) / factors.lipidKcalPerG;
+  return {
+    animalProteinG: damTong * factors.animalProteinShare,
+    plantProteinG: damTong * (1 - factors.animalProteinShare),
+    animalLipidG: beoTong * factors.animalLipidShare,
+    plantLipidG: beoTong * (1 - factors.animalLipidShare),
+    glucidG: (k * (g / 100)) / factors.glucidKcalPerG,
+  };
+};
+
 export const ALL_NORM_COLUMNS = [
   KCAL_NORM,
   ...STRUCTURE_NORM_COLUMNS,
@@ -121,6 +162,7 @@ export const toSetupForm = (setups, today) => ({
     ageGroupId: s.ageGroupId,
     name: setupGroupInfo(s).name,
     enabled: s.enabled,
+    originalEnabled: s.enabled,
     price: String(s.price ?? ''),
     meals: s.meals.map((m) => ({ code: m.code, name: m.name, countAs: m.countAs })),
     // Số sau của vi chất có thể null (chỉ cần đạt tối thiểu) ⇒ ô trống, không thành chữ "null"
@@ -128,6 +170,7 @@ export const toSetupForm = (setups, today) => ({
       ALL_NORM_COLUMNS.map(({ key }) => [key, (s.norms?.[key] || ['', '']).map((v) => (v == null ? '' : String(v)))]),
     ),
     dailyKcalNeed: String(s.dailyKcalNeed ?? ''),
+    applied: Object.fromEntries(APPLIED_STRUCTURE_COLUMNS.map(({ key }) => [key, s.applied?.[key] == null ? '' : String(s.applied[key])])),
   })),
 });
 
@@ -139,9 +182,11 @@ export const toSetupPayload = (form) => ({
   groups: form.groups.map((g) => ({
     ageGroupId: g.ageGroupId,
     enabled: g.enabled,
+    originalEnabled: g.originalEnabled,
     price: g.price,
     meals: g.meals.map(({ code, name, countAs }) => ({ code, name: name.trim(), countAs })),
-    norms: g.norms,
+    norms: Object.fromEntries(SUBMITTED_NORM_KEYS.map((key) => [key, g.norms[key]])),
     dailyKcalNeed: g.dailyKcalNeed,
+    applied: g.applied,
   })),
 });

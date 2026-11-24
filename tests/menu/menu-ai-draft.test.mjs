@@ -4,7 +4,7 @@ import { test } from 'node:test';
 
 globalThis.window = new EventTarget();
 
-const { createMenuAiDraftApi } = await import('@/services/menuAiDraftApi');
+const { createMenuAiDraftApi, MENU_AI_DRAFT_TIMEOUT_MS } = await import('@/services/menuAiDraftApi');
 const { fillTemplateDay, fixOptions, isPendingDraft, isUnmetDraft, sourceText, swapDish } = await import(
   '@/utils/menu-planning/menuAiDraft'
 );
@@ -12,8 +12,8 @@ const { INTEGRATION_MODULES } = await import('@/config/integrationModules');
 
 const fakeClient = (reply = {}) => {
   const calls = [];
-  const record = (method) => async (url, payload) => {
-    calls.push({ method, url, payload });
+  const record = (method) => async (url, payload, config) => {
+    calls.push({ method, url, payload, config });
     return reply;
   };
   return { calls, client: { get: record('GET'), post: record('POST'), put: record('PUT') } };
@@ -45,6 +45,7 @@ test('AC-1, AC-4: tạo nháp gửi đúng route, bỏ ô trống; kết quả c
       targetSession: 'LUNCH',
       fromDishId: '31',
     },
+    config: { timeout: MENU_AI_DRAFT_TIMEOUT_MS },
   });
   assert.deepEqual(draft.days[0].items, []);
   assert.deepEqual(draft.checks, []);
@@ -155,6 +156,7 @@ test('AC-3, AC-6: nút AI chỉ hiện khi sửa được; dùng gợi ý tuần
   assert.match(modal, /disabled=\{busy \|\| running \|\| dirty \|\| unchecked\}/);
   // Chấm lại lỗi hoặc đang chấm ⇒ chưa cho dùng bản đang sửa
   assert.match(modal, /const unchecked = editor\.editable && \(editor\.evaluating \|\| !!editor\.evaluateError\)/);
+  assert.match(modal, /size=\{draft \? 'full' : 'lg'\}/);
 });
 
 const {
@@ -438,4 +440,10 @@ test('AI-02, NUT-05: swapPool bỏ món đang ở ô, món trùng bữa và món
     rankSwaps([bad, stockOut, ok]).map((o) => o.dish.dishId),
     ['3', '6', '5'],
   );
+});
+test('tạo nháp AI chờ lâu hơn hạn AI của BE, không bị cắt ở 15 giây mặc định', async () => {
+  const { calls, client } = fakeClient({ id: '1', status: 'PENDING_REVIEW' });
+  await createMenuAiDraftApi({ client }).createDraft({ kind: 'MENU_WEEKLY', block: 'KINDERGARTEN', weekStart: '2026-11-16' });
+  assert.equal(calls[0].config.timeout, MENU_AI_DRAFT_TIMEOUT_MS);
+  assert.ok(MENU_AI_DRAFT_TIMEOUT_MS > 30000 + 15000);
 });

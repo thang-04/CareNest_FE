@@ -16,7 +16,7 @@ export const INTEGRATION_MODULES = {
   },
   announcements: {
     source: 'api',
-    routes: ['/announcements', '/announcement-templates', '/notification-rules', '/announcement-schedules'],
+    routes: ['/announcements', '/notification-settings', '/announcement-templates', '/notification-rules', '/announcement-schedules'],
     files: ['src/services/announcement/api/announcementApi.js'],
     facades: ['src/services/announcement/announcementService.js'],
   },
@@ -216,6 +216,8 @@ export const INTEGRATION_MODULES = {
     routes: ['/kitchen/inspections'],
     files: ['src/services/kitchen/api/inspectionApi.js'],
     facades: ['src/services/kitchen/inspectionService.js'],
+    // INS-05 (BE G94-450, chưa vào dev): HT duyệt mở mẫu ngày cũ. Gỡ ba dòng này khi BE merge và đồng bộ be-api-routes.json
+    pending: ['POST /inspections/day/{x}/approvals', 'GET /inspections/approvals', 'POST /inspections/approvals/{x}/{x}'],
   },
   // Sổ báo ăn đã xác nhận: BE có GET /meal-counts ⇒ màn này dùng số thật, các màn bếp khác còn demo
   'kitchen-meal-count': {

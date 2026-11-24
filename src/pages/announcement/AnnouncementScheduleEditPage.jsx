@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ErrorState, LoadingState, PageHeader, PageToolbar } from '@/components';
 import { ArrowLeft } from '@/components/ui/icons';
 import AnnouncementForm from '@/components/announcement/AnnouncementForm';
@@ -11,6 +11,7 @@ import { useToast } from '@/contexts/ToastContext';
 
 export default function AnnouncementScheduleEditPage() {
   const { id } = useParams();
+  const [params] = useSearchParams();
   const { user } = useAuth();
   const navigate = useNavigate();
   const toast = useToast();
@@ -26,7 +27,7 @@ export default function AnnouncementScheduleEditPage() {
       if (id) await announcements.updateSchedule(id, value, files, user);
       else await announcements.createSchedule(value, files, user);
       toast?.success('Đã lưu.');
-      navigate('/announcement-schedules');
+      navigate('/notification-settings?tab=schedules');
     } catch (e) {
       setSaveError(e.status === 0 ? 'Chưa xác định lưu thành công. Hãy kiểm tra danh sách trước khi thử lại.' : e.message);
       setFields(e.details && typeof e.details === 'object' ? e.details : {});
@@ -41,14 +42,15 @@ export default function AnnouncementScheduleEditPage() {
         title={id ? 'Sửa lịch gửi thông báo' : 'Tạo lịch gửi thông báo'}
         crumbs={[
           { label: 'Trang chủ', to: '/' },
-          { label: 'Lịch gửi thông báo', to: '/announcement-schedules' },
+          { label: 'Cấu hình thông báo', to: '/notification-settings' },
+          { label: 'Lịch gửi thông báo', to: '/notification-settings?tab=schedules' },
           { label: id ? 'Sửa lịch gửi' : 'Tạo lịch gửi' },
         ]}
       />
       {!showForm && (
         <PageToolbar
           leading={
-            <Link className="btn btn--sm btn--outline-primary" to="/announcement-schedules">
+            <Link className="btn btn--sm" to="/notification-settings?tab=schedules">
               <ArrowLeft size={15} aria-hidden="true" /> Quay lại
             </Link>
           }
@@ -64,7 +66,17 @@ export default function AnnouncementScheduleEditPage() {
           <LoadingState />
         </div>
       ) : (
-        showForm && <AnnouncementForm key={id || 'new'} recurring initial={data} onSave={save} busy={busy} serverErrors={fields} />
+        showForm && (
+          <AnnouncementForm
+            key={id || 'new'}
+            recurring
+            initial={data}
+            initialTemplateId={id ? '' : params.get('templateId') || ''}
+            onSave={save}
+            busy={busy}
+            serverErrors={fields}
+          />
+        )
       )}
     </div>
   );

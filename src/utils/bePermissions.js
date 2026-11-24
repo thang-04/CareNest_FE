@@ -17,5 +17,16 @@ export const inOwnCampus = (user, campusId) =>
     .filter((id) => id != null)
     .some((id) => String(id) === String(campusId));
 
-/** Phạm vi mã quyền: HT cấp SCHOOL thì mọi điểm trường, còn lại các điểm trường được phân công (AUTH-13). */
-export const inBePermissionScope = (user, code, campusId) => hasSchoolWideBePermission(user, code) || inOwnCampus(user, campusId);
+/** Điểm trường HT giao riêng cho mã quyền (AUTH-20); null = theo điểm trường phân công hoặc cả trường. */
+export const pinnedBeCampusId = (user, code) => user?.bePinnedCampusPermissions?.[code] ?? null;
+
+/**
+ * Phạm vi mã quyền: HT cấp SCHOOL thì mọi điểm trường; giao tại một điểm trường cụ thể thì chỉ điểm trường đó; còn lại
+ * các điểm trường được phân công (AUTH-13).
+ */
+export const inBePermissionScope = (user, code, campusId) => {
+  if (hasSchoolWideBePermission(user, code)) return true;
+  const pinned = pinnedBeCampusId(user, code);
+  if (pinned != null) return campusId != null && String(pinned) === String(campusId);
+  return inOwnCampus(user, campusId);
+};

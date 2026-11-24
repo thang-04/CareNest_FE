@@ -73,15 +73,18 @@ export const validateDish = (form, others = [], { requireGroups = null } = {}) =
   else if (form.name.trim().length > 100) e.name = 'Tên món tối đa 100 ký tự.';
   else if (others.some((d) => d.id !== form.id && sameName(d.name, form.name))) e.name = 'Đã có món cùng tên. Hãy xem món đã có.';
   if (!DISH_TYPE_LABELS[form.type]) e.type = REQUIRED;
+  // G94-379: giáo viên phải chọn ≥1 nhóm tuổi trước khi lưu (kiểu PMS)
+  if (!form.ageGroupIds?.length) e.ageGroupIds = 'Chọn ít nhất một nhóm tuổi.';
   const rows = form.ingredients || [];
   if (!rows.length) e.ingredients = 'Thêm ít nhất một thực phẩm cho món.';
   const badQty = (v) => !isNum(v) || Number(v) <= 0 || Number(v) > 1000;
+  const selectedGroups = Array.isArray(form.ageGroupIds) ? new Set(form.ageGroupIds) : null;
   rows.forEach((r, i) => {
     if (!r.foodId) e[`ing_${i}`] = 'Chọn thực phẩm.';
     else if (rows.findIndex((x) => x.foodId === r.foodId) !== i) e[`ing_${i}`] = 'Thực phẩm bị lặp, hãy gộp định lượng.';
     if (r.portions) {
       // Ô trống = nhóm tuổi chưa có định lượng (cảnh báo, không chặn lưu); ô đã nhập phải hợp lệ
-      const filled = Object.entries(r.portions).filter(([, v]) => v !== '' && v != null);
+      const filled = Object.entries(r.portions).filter(([ag, v]) => (!selectedGroups || selectedGroups.has(ag)) && v !== '' && v != null);
       filled.forEach(([ag, v]) => badQty(v) && (e[`ing_${i}_${ag}`] = 'Từ 0 đến 1000.'));
       if (!filled.length && !e[`ing_${i}`]) e[`ing_${i}`] = 'Nhập định lượng cho ít nhất một nhóm tuổi.';
     } else if (r.foodId && badQty(r.quantity)) e[`ing_${i}`] = 'Định lượng từ 0 đến 1000.';
@@ -101,6 +104,30 @@ export const validateDish = (form, others = [], { requireGroups = null } = {}) =
 };
 
 const overlaps = (a, b) => a.effectiveFrom <= (b.effectiveTo || '9999-12-31') && b.effectiveFrom <= (a.effectiveTo || '9999-12-31');
+
+const APPLIED_LABELS = { protein: 'Đạm', lipid: 'Béo', glucid: 'Bột đường' };
+
+/**
+ * Cơ cấu áp dụng P:L:G (BE NUT-27): để trống cả ba = chưa chọn; đã nhập thì đủ ba số 0–100, tổng đúng 100 và mỗi số
+ * nằm trong khoảng tối thiểu–tối đa của chính chất đó ở bảng chỉ số (khoảng chưa nhập thì không giới hạn).
+ */
+export const appliedStructureError = (applied = {}, norms = {}) => {
+  const keys = Object.keys(APPLIED_LABELS);
+  const blank = (v) => v === '' || v == null;
+  if (keys.every((k) => blank(applied[k]))) return null;
+  if (keys.some((k) => blank(applied[k]))) return 'Nhập đủ đạm, béo và bột đường.';
+  if (keys.some((k) => !isNum(applied[k]) || Number(applied[k]) < 0 || Number(applied[k]) > 100)) return 'Mỗi số từ 0 đến 100.';
+  const total = keys.reduce((sum, k) => sum + Number(applied[k]), 0);
+  if (Math.abs(total - 100) > 1e-9) return `Tổng là ${+total.toFixed(2)}%, cần đúng 100%.`;
+  const outside = keys.find((k) => {
+    const [min, max] = norms[k] || [];
+    const v = Number(applied[k]);
+    return (isNum(min) && v < Number(min)) || (isNum(max) && v > Number(max));
+  });
+  if (!outside) return null;
+  const [min, max] = norms[outside];
+  return `${APPLIED_LABELS[outside]} phải từ ${min} đến ${max}%.`;
+};
 
 const SESSION_PCT_KEYS = ['morningKcalPct', 'lunchKcalPct', 'afternoonKcalPct'];
 const PERCENT_KEYS = ['protein', 'lipid', 'glucid', ...SESSION_PCT_KEYS];
@@ -137,6 +164,8 @@ export const validateNutritionSetup = (form, today, { mealsReadOnly = false, min
         if (!base.includes(m.code) && !base.includes(m.countAs)) e[`${key}.meals.${i}.countAs`] = 'Chọn bữa dùng để tính số suất.';
       });
     }
+    const appliedError = appliedStructureError(g.applied, g.norms);
+    if (appliedError) e[`${key}.applied`] = appliedError;
     // Chuẩn tạm: để trống cả bốn = chưa nhập (chưa đánh giá); đã nhập thì phải đủ từng khoảng
     const blank = (v) => v === '' || v == null;
     const norms = Object.entries(g.norms || {});

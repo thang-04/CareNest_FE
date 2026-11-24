@@ -47,8 +47,8 @@ const pickGoals = (a) => Object.fromEntries(GOAL_LISTS.map((k) => [k, a[k] || []
 const blank = (v) => (v === '' || v === undefined ? null : v);
 
 export const createAssessmentBeApi = (client) => ({
-  // Lớp trong phạm vi người dùng (BE kèm teaches / canRecord / canUnlock); dùng chung danh sách lớp của điểm danh
-  getDailyAssessmentClasses: (schoolYear) => client.get('/attendance/classes', { params: { schoolYearId: schoolYear || undefined } }),
+  // Lớp trong phạm vi người dùng (BE kèm teaches / canRecord / canUnlock); xét quyền đánh giá độc lập với điểm danh
+  getDailyAssessmentClasses: (schoolYear) => client.get('/assessment/daily/classes', { params: { schoolYearId: schoolYear || undefined } }),
   getDailyAssessment: async ({ classId, date }) =>
     toDailySheet(await client.get(`/classes/${classId}/daily-assessment`, { params: { date: date || undefined } })),
   saveDailyGeneral: ({ classId, date, entries, classComment }) =>
@@ -217,7 +217,8 @@ export const createAssessmentBeApi = (client) => ({
   getEvaluation: (kind, id) => client.get(`/assessment/evaluations/${id}`),
   saveEvaluationDraft: (kind, id, content) => client.put(`/assessment/evaluations/${id}/content`, { content }),
   confirmEvaluation: (kind, id, content) => client.post(`/assessment/evaluations/${id}/confirm`, { content }),
-  regenerateEvaluationDraft: (kind, id) => client.post(`/assessment/evaluations/${id}/redraft`),
+  regenerateEvaluationDraft: (kind, id, _user, ai = false) =>
+    client.post(`/assessment/evaluations/${id}/redraft`, ai ? { ai: true } : undefined),
   markProgramCompletion: (id, completed) => client.put(`/assessment/evaluations/${id}/program-completion`, { completed }),
   // Phiếu đánh giá sự phát triển cuối năm (BE OBS-28)
   getSemesterAssessment: (params) => client.get('/assessment/semester-evaluations', { params }),

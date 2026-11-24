@@ -189,6 +189,39 @@ export const INSPECTION_COMBINED_COLUMNS = [...INSPECTION_COLUMNS.serve, ...SAMP
 export const INSPECTION_STATUS = { DRAFT: 'DRAFT', SIGNED: 'SIGNED' };
 export const INSPECTION_STATUS_LABELS = { DRAFT: 'Chưa ký', SIGNED: 'Đã ký' };
 
+/*
+ * Mở ghi mẫu của ngày đã qua cần Hiệu trưởng duyệt (INS-05, BE `docs/business/BUSINESS_RULES.md`). Trạng thái, hạn và quyền gửi yêu cầu
+ * do BE trả theo từng mẫu; Web chỉ hiển thị và gửi yêu cầu, không tự suy ra ngày nào bị khóa.
+ */
+export const APPROVAL_STATUS = {
+  PENDING: 'PENDING',
+  APPROVED: 'APPROVED',
+  REJECTED: 'REJECTED',
+  REVOKED: 'REVOKED',
+  CONSUMED: 'CONSUMED',
+  EXPIRED: 'EXPIRED',
+};
+export const APPROVAL_STATUS_LABELS = {
+  PENDING: 'Chờ HT duyệt',
+  APPROVED: 'Đang được mở',
+  REJECTED: 'HT đã từ chối',
+  REVOKED: 'HT đã thu hồi',
+  CONSUMED: 'Đã ký xong',
+  EXPIRED: 'Hết hạn mở',
+};
+/** Mã lỗi BE khi ghi mẫu ngày cũ mà chưa có quyền mở (ApiCode INSPECTION_APPROVAL_REQUIRED). */
+export const INSPECTION_APPROVAL_REQUIRED = 6116;
+/** Hạn mở HT chọn khi duyệt hoặc tự mở (giờ); BE mặc định 48 giờ và giới hạn tối đa. */
+export const APPROVAL_HOUR_OPTIONS = [
+  { value: '6', label: '6 giờ' },
+  { value: '24', label: '24 giờ' },
+  { value: '48', label: '48 giờ (mặc định)' },
+  { value: '72', label: '72 giờ' },
+  { value: '168', label: '7 ngày' },
+];
+export const APPROVAL_REASON_MIN = 3;
+export const APPROVAL_TEXT_MAX = 500;
+
 /** Ô ký tay (ký sau khi in) cạnh ô "Người kiểm tra" do PHT ký ảnh. */
 export const INSPECTION_HAND_SIGN_LABELS = {
   fresh: ['Người trực tiếp nấu ăn', 'NV Y tế hoặc thanh tra'],

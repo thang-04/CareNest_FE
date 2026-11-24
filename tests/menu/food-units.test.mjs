@@ -11,15 +11,69 @@ globalThis.localStorage = {
 globalThis.window = new EventTarget();
 
 const { readDb } = await import('@/mocks/mockDatabase');
-const { foodUnits, toStockQty, UNIT_KIND } = await import('@/utils/menu-planning/foodUnits');
+const { autoUnitRatios, foodUnits, toStockQty, fixedPurchaseUnit, selectNewFoodPurchaseUnit, selectNewFoodBaseUnit, UNIT_KIND } =
+  await import('@/utils/menu-planning/foodUnits');
 const { validateFood } = await import('@/utils/menu-planning/menuPlanningValidation');
 const { menuPlanningMockRepository: menu } = await import('@/services/menu-planning/mock/menuPlanningMockRepository');
 const { kitchenMockRepository: kitchen } = await import('@/services/kitchen/mock/kitchenMockRepository');
+const { getActiveSuppliers } = await import('@/services/menu-planning/menuPlanningService');
 const { todayInput } = await import('@/utils/format');
 
 const VP = { id: 'u_lan', role: 'VICE_PRINCIPAL', campusId: 'c1' };
 const rejects = (promise, status) => assert.rejects(promise, (e) => e.status === status);
 const stockOf = (campusId, foodId) => readDb().foodStock.find((s) => s.campusId === campusId && s.foodId === foodId)?.quantity || 0;
+
+test('form thực phẩm ở chế độ mock tải nhà cung cấp mà không cần BE', async () => {
+  const suppliers = await getActiveSuppliers(VP);
+  assert.ok(suppliers.length > 0);
+  assert.ok(suppliers.every((supplier) => supplier.status === 'ACTIVE'));
+});
+
+test('đơn vị chuẩn tự quy đổi cố định; đơn vị đóng gói yêu cầu nhập dung lượng', () => {
+  assert.deepEqual(fixedPurchaseUnit('kg'), { unit: 'g', size: 1000 });
+  assert.deepEqual(fixedPurchaseUnit('g'), { unit: 'g', size: 1 });
+  assert.deepEqual(fixedPurchaseUnit('lít'), { unit: 'ml', size: 1000 });
+  assert.deepEqual(fixedPurchaseUnit('ml'), { unit: 'ml', size: 1 });
+  assert.equal(fixedPurchaseUnit('hộp'), null);
+
+  const packageFood = {
+    unit: 'g',
+    purchaseUnit: 'hộp',
+    purchaseUnitSize: 100,
+    stockUnit: 'kg',
+    stockUnitSize: 1000,
+    purchaseToStock: 0.1,
+  };
+  assert.deepEqual(selectNewFoodPurchaseUnit(packageFood, 'kg'), {
+    ...packageFood,
+    unit: 'g',
+    purchaseUnit: 'kg',
+    purchaseUnitSize: 1000,
+    stockUnit: 'kg',
+    stockUnitSize: 1000,
+    purchaseToStock: 1,
+  });
+  assert.deepEqual(selectNewFoodPurchaseUnit(packageFood, 'lít'), {
+    ...packageFood,
+    unit: 'ml',
+    purchaseUnit: 'lít',
+    purchaseUnitSize: 1000,
+    stockUnit: 'lít',
+    stockUnitSize: 1000,
+    purchaseToStock: 1,
+  });
+  const boxed = selectNewFoodPurchaseUnit(selectNewFoodPurchaseUnit(packageFood, 'kg'), 'hộp');
+  assert.equal(boxed.purchaseUnitSize, '');
+  assert.equal(boxed.purchaseToStock, '');
+  assert.deepEqual(selectNewFoodBaseUnit(boxed, 'ml'), {
+    ...boxed,
+    unit: 'ml',
+    stockUnit: 'lít',
+    stockUnitSize: 1000,
+    purchaseUnitSize: '',
+    purchaseToStock: '',
+  });
+});
 
 test('BA 02: thực phẩm cũ chưa khai đơn vị kho ⇒ đơn vị kho = đơn vị mua, tỷ lệ 1, giữ số g/ml', () => {
   assert.deepEqual(foodUnits({ unit: 'g', purchaseUnit: 'quả', purchaseUnitSize: 50 }), {
@@ -33,6 +87,15 @@ test('BA 02: thực phẩm cũ chưa khai đơn vị kho ⇒ đơn vị kho = đ
   assert.equal(toStockQty(bag, 2, UNIT_KIND.PURCHASE), 20);
   assert.equal(toStockQty(bag, 2, UNIT_KIND.STOCK), 2);
   assert.equal(toStockQty(bag, 2), 2, 'dòng cũ không ghi loại = đơn vị kho');
+});
+
+test('form thực phẩm: tỷ lệ hiển nhiên tự điền, đơn vị lạ thì để người dùng nhập', () => {
+  assert.deepEqual(autoUnitRatios({ unit: 'g', purchaseUnit: 'kg', stockUnit: 'kg' }), { purchaseToStock: 1, stockUnitSize: 1000 });
+  assert.deepEqual(autoUnitRatios({ unit: 'ml', purchaseUnit: ' Lít ', stockUnit: 'lít' }), { purchaseToStock: 1, stockUnitSize: 1000 });
+  assert.deepEqual(autoUnitRatios({ unit: 'g', purchaseUnit: 'thùng', stockUnit: 'kg' }), { stockUnitSize: 1000 });
+  assert.deepEqual(autoUnitRatios({ unit: 'g', purchaseUnit: 'bao 25 kg', stockUnit: 'túi' }), {});
+  assert.deepEqual(autoUnitRatios({ unit: 'ml', purchaseUnit: 'kg', stockUnit: 'kg' }), { purchaseToStock: 1 }, 'không đổi kg ↔ ml');
+  assert.deepEqual(autoUnitRatios({ unit: 'g', purchaseUnit: '', stockUnit: '' }), {});
 });
 
 test('BA 02: tỷ lệ quy đổi bằng 0, âm hoặc trống bị chặn; thiếu đơn vị kho bị chặn', () => {
@@ -84,8 +147,8 @@ test('NUT-05: thiếu nguồn số liệu dinh dưỡng ⇒ form báo lỗi đú
   };
   assert.ok(validateFood(payload).nutrientSource);
   await assert.rejects(menu.saveFood(null, payload, VP), (e) => e.status === 422 && !!e.details.nutrientSource);
-  const saved = await menu.saveFood(null, { ...payload, nutrientSource: 'Bảng TPVN', nutrientSourceVersion: '2017' }, VP);
-  assert.deepEqual([saved.nutrientSource, saved.nutrientSourceVersion], ['Bảng TPVN', '2017']);
+  const saved = await menu.saveFood(null, { ...payload, nutrientSource: 'Bảng TPVN' }, VP);
+  assert.equal(saved.nutrientSource, 'Bảng TPVN');
   assert.ok(
     (await menu.listFoods({}, VP)).every((f) => f.nutrientSource),
     'thực phẩm mẫu có nguồn số liệu',

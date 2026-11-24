@@ -224,4 +224,9 @@ export {
   IconSunset as Sunset,
   IconTag as Tag,
   IconClockHour4 as Timer,
+  IconBold as Bold,
+  IconItalic as Italic,
+  IconUnderline as Underline,
+  IconArrowForwardUp as Redo2,
+  IconLinkOff as Unlink,
 } from '@tabler/icons-react';

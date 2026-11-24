@@ -49,7 +49,7 @@ export function FreshForecastList({ campus, autoOpen = false }) {
             <tr>
               <th>Kỳ dự trù</th>
               <th>Ghi chú</th>
-              <th className="num">Số thực phẩm</th>
+              <th className="num">Số mặt hàng</th>
               <th>Ngày lập</th>
             </tr>
           </thead>
