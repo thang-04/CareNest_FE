@@ -1,6 +1,8 @@
 import { ResponsiveToolbar } from '@/components/ui/ResponsiveToolbar';
 import { useState } from 'react';
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
+import { publishedBranchCalendar } from '@/models/education-plan/branchCalendar.mjs';
 import {
   Card,
   EduStatusBadge,
@@ -175,7 +177,8 @@ export default function ClassPlanPage() {
   const choice = choices.find((c) => String(c.semesterNo) === hk) || null;
   const pkg = choice?.pkg || null;
   const rows = yearWeeks(yearPlan);
-  const branch = branchPlan;
+  // BE EDU-111 (8): gói học kỳ đã duyệt bất biến ⇒ tên/lịch nhánh theo bản ban hành, không theo lịch đang sửa
+  const branch = pkg?.status === EDU_STATUS.APPROVED ? publishedBranchCalendar(yearPlan, [pkg]) : branchPlan;
   const allThemes = [...yearPlan.themes].filter((t) => t.start && t.end).sort((a, b) => a.start.localeCompare(b.start));
   const themeIds = choice ? choice.themeIds : null;
   const visibleThemes = themeIds ? allThemes.filter((t) => themeIds.includes(String(t.id))) : allThemes;
