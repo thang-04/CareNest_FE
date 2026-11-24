@@ -9,7 +9,7 @@ test('trang: chỉ thu gọn khi có hơn 1 lớp, lớp đầu mở sẵn, tiê
   const src = read('src/pages/children/HealthCheckDetailPage.jsx');
   assert.match(src, /const fold = classes\.length > 1;/);
   assert.match(src, /collapsible: fold,/);
-  assert.match(src, /defaultOpen: i === 0,/);
+  assert.match(src, /defaultOpen: classId \? c\.classId === classId : i === 0,/);
   assert.match(src, /summary: `/);
   assert.match(src, /<Roster [^>]*\{\.\.\.foldProps\(c, i\)\}/);
 });

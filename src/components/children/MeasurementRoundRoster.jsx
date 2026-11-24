@@ -155,11 +155,11 @@ export function MeasurementRoundRoster({ campaignId, classId, embedded = false, 
                 const enter = { label: 'Nhập số đo', strong: true, icon: Scale, to: measurementFormLink(campaignId, classId, r.childId) };
                 const primary = r.movedTo
                   ? null
-                  : canRecord && r.canEdit && r.result === CHILD_RESULT_STATUS.NOT_RECORDED
+                  : canRecord && r.canEdit !== false && r.result === CHILD_RESULT_STATUS.NOT_RECORDED
                     ? r.absentToday
                       ? { ...enter, disabled: true, title: ABSENT_TODAY_HINT }
                       : enter
-                    : canRecord && r.canEdit && recorded
+                    : canRecord && r.canEdit !== false && recorded
                       ? {
                           label: 'Sửa số đo',
                           strong: false,

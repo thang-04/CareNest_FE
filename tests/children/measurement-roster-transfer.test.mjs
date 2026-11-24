@@ -107,7 +107,7 @@ test('trẻ điểm danh vắng hôm nay ⇒ absentToday', async () => {
 
 test('MeasurementRoundRoster: sửa theo canEdit, khóa nhập khi vắng, bỏ dòng chuyển lớp khỏi số đã đo', () => {
   const src = read('src/components/children/MeasurementRoundRoster.jsx');
-  assert.match(src, /r\.canEdit/);
+  assert.match(src, /r\.canEdit !== false/);
   assert.match(src, /r\.absentToday/);
   assert.match(src, /Trẻ vắng hôm nay \(điểm danh\)\. Nhập khi trẻ có mặt\./);
   assert.match(src, /Vắng hôm nay/);

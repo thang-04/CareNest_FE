@@ -142,7 +142,7 @@ export default function HealthCheckDetailPage() {
   const fold = classes.length > 1;
   const foldProps = (c, i) => ({
     collapsible: fold,
-    defaultOpen: i === 0,
+    defaultOpen: classId ? c.classId === classId : i === 0,
     summary: `${c.className} – ${isRound ? 'đã cân đo' : 'đã có kết luận'} ${c.recorded}/${c.total} trẻ`,
   });
   const Roster = isRound ? MeasurementRoundRoster : HealthCheckClassRoster;
