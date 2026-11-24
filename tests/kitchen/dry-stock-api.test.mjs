@@ -262,6 +262,14 @@ test('xuất kho: trả NCC POST /returns kèm supplierId, xuất hủy POST /wr
   );
 });
 
+test('lịch sử kho: mọi loại bút toán BE (kể cả trả NCC, xuất hủy) có nhãn tiếng Việt và nằm trong bộ lọc', async () => {
+  const { STOCK_MOVEMENT_TYPES, STOCK_MOVEMENT_LABELS } = await import('@/models/kitchen/kitchenConstants');
+  for (const type of ['RECEIPT', 'DEDUCT', 'ADJUST', 'SHORTFALL_DEDUCT', 'RECEIPT_CANCEL', 'SUPPLIER_RETURN', 'WRITE_OFF']) {
+    assert.ok(STOCK_MOVEMENT_TYPES.includes(type), `thiếu ${type} trong bộ lọc`);
+    assert.ok(STOCK_MOVEMENT_LABELS[type] && STOCK_MOVEMENT_LABELS[type] !== type, `thiếu nhãn ${type}`);
+  }
+});
+
 test('module dry-stock khai source api với sáu route kho và file adapter', () => {
   const mod = INTEGRATION_MODULES['dry-stock'];
   assert.equal(mod.source, 'api');

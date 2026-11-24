@@ -1,10 +1,8 @@
 import { useMemo, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, PackageX, Plus, Trash2 } from '@/components/ui/icons';
-import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
-import { useMasterData } from '@/hooks/useMasterData';
-import { useActiveSuppliers, useLots } from '@/hooks/kitchen/useDryStock';
+import { useActiveSuppliers, useLots, useStockCampus } from '@/hooks/kitchen/useDryStock';
 import {
   Breadcrumb,
   Button,
@@ -59,24 +57,18 @@ export default function StockDisposalFormPage({ kind = DISPOSAL_KIND.SUPPLIER_RE
   const isReturn = kind === DISPOSAL_KIND.SUPPLIER_RETURN;
   const copy = COPY[kind];
   const title = DISPOSAL_KIND_LABELS[kind];
-  const { user } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
-  const md = useMasterData();
-  const [params] = useSearchParams();
-  const [form, setForm] = useState(() => ({
-    campusId: params.get('campusId') || user?.campusId || '',
-    supplierId: '',
-    reason: '',
-    lines: [emptyLine()],
-  }));
+  // Điểm trường theo URL hoặc tài khoản, không có thì điểm đầu tiên (Hiệu trưởng toàn trường không gắn điểm trường nào)
+  const { campusId, setCampusId, campuses } = useStockCampus();
+  const [form, setForm] = useState(() => ({ supplierId: '', reason: '', lines: [emptyLine()] }));
   const [errors, setErrors] = useState({});
   const [confirming, setConfirming] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const lots = useLots({ campusId: form.campusId });
+  const lots = useLots({ campusId });
   const suppliers = useActiveSuppliers();
-  const backTo = `/kitchen/dry-stock${form.campusId ? `?campusId=${form.campusId}` : ''}`;
+  const backTo = `/kitchen/dry-stock${campusId ? `?campusId=${campusId}` : ''}`;
   const today = todayInput();
 
   const supplierOptions = useMemo(() => suppliers.suppliers.map((s) => ({ value: String(s.id), label: s.name })), [suppliers.suppliers]);
@@ -115,6 +107,10 @@ export default function StockDisposalFormPage({ kind = DISPOSAL_KIND.SUPPLIER_RE
     setForm((f) => ({ ...f, [field]: value, lines: [emptyLine()] }));
     setErrors({});
   };
+  const changeCampus = (id) => {
+    setCampusId(id);
+    resetScope('supplierId', form.supplierId);
+  };
   const setLine = (index, patch) => {
     setForm((f) => ({ ...f, lines: f.lines.map((l, i) => (i === index ? { ...l, ...patch } : l)) }));
     setErrors((e) => ({ ...e, [`lines.${index}.lotId`]: undefined, [`lines.${index}.qty`]: undefined, lines: undefined }));
@@ -136,7 +132,7 @@ export default function StockDisposalFormPage({ kind = DISPOSAL_KIND.SUPPLIER_RE
   const save = async () => {
     setSaving(true);
     try {
-      const record = await dryStockApi.createDisposal(kind, form, lotById);
+      const record = await dryStockApi.createDisposal(kind, { ...form, campusId }, lotById);
       toast.success(`Phiếu ${record.code} ${copy.done}.`);
       navigate(backTo);
     } catch (err) {
@@ -287,8 +283,8 @@ export default function StockDisposalFormPage({ kind = DISPOSAL_KIND.SUPPLIER_RE
         </div>
         <div className="card__body grid-2">
           <FormField label="Điểm trường" required>
-            <SelectField className="select" value={form.campusId} onChange={(e) => resetScope('campusId', e.target.value)}>
-              {md.campuses.map((c) => (
+            <SelectField className="select" value={campusId} onChange={(e) => changeCampus(e.target.value)}>
+              {campuses.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.shortName || c.name}
                 </option>

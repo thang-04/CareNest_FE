@@ -137,13 +137,15 @@ export const RECEIPT_STATUS = { DRAFT: 'DRAFT', CONFIRMED: 'CONFIRMED', CANCELLE
 export const RECEIPT_STATUS_LABELS = { DRAFT: 'Nháp', CONFIRMED: 'Đã xác nhận nhập', CANCELLED: 'Đã hủy' };
 
 // Loại biến động kho khô (BE StockMovementType)
-export const STOCK_MOVEMENT_TYPES = ['RECEIPT', 'DEDUCT', 'ADJUST', 'SHORTFALL_DEDUCT', 'RECEIPT_CANCEL'];
+export const STOCK_MOVEMENT_TYPES = ['RECEIPT', 'DEDUCT', 'ADJUST', 'SHORTFALL_DEDUCT', 'RECEIPT_CANCEL', 'SUPPLIER_RETURN', 'WRITE_OFF'];
 export const STOCK_MOVEMENT_LABELS = {
   RECEIPT: 'Nhập kho',
   DEDUCT: 'Trừ theo suất',
   ADJUST: 'Điều chỉnh suất',
   SHORTFALL_DEDUCT: 'Trừ phần thiếu',
   RECEIPT_CANCEL: 'Hủy phiếu',
+  SUPPLIER_RETURN: 'Trả nhà cung cấp',
+  WRITE_OFF: 'Xuất hủy (hết hạn)',
 };
 
 export const SUPPLIER_STATUS = { ACTIVE: 'ACTIVE', INACTIVE: 'INACTIVE' };
