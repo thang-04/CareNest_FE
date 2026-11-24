@@ -129,8 +129,19 @@ export const deleteLesson = (id) => repo.deleteLesson(id);
 
 // Tài liệu kế hoạch của lớp (chủ đề nhánh, kế hoạch chủ đề, giáo án tuần). user: người thao tác (mock cần để kiểm quyền).
 // Kèm lớp (classes) và giáo viên, tổ trưởng (staff) người xem được; schoolYearId: năm đang chọn ở header
-export const getClassPlans = (schoolYearId, user, review) =>
-  USE_MOCK ? classPlanMockRepository.getAll(user, schoolYearId, review) : educationPlanApi.getClassPlans(schoolYearId, review);
+// classId: trang của một lớp chỉ tải tài liệu lớp đó (mock trả cả phạm vi, trang tự lọc theo lớp)
+export const getClassPlans = (schoolYearId, user, review, classId) =>
+  USE_MOCK ? classPlanMockRepository.getAll(user, schoolYearId, review) : educationPlanApi.getClassPlans(schoolYearId, review, classId);
+// Mọi bản gọn của các loại tài liệu (đi qua từng trang 100 dòng của BE); dùng khi màn cần cả danh sách, không phân trang
+export const getAllClassDocSummaries = async (schoolYearId, user, kinds) => {
+  const items = [];
+  for (let page = 0, total = 1; page < total; page++) {
+    const result = await getClassDocSummaries(schoolYearId, user, { kinds, page, size: 100 });
+    items.push(...(result.items || []));
+    total = result.totalPages ?? 1;
+  }
+  return items;
+};
 // edu-list-paging: danh sách gọn (trang BE 5 dòng), chi tiết theo khóa, lớp/nhân sự không kèm tài liệu
 export const getClassDocSummaries = (schoolYearId, user, filter) =>
   USE_MOCK ? classPlanMockRepository.getSummaries(user, schoolYearId, filter) : educationPlanApi.getClassDocSummaries(schoolYearId, filter);

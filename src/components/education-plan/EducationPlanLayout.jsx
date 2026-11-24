@@ -11,10 +11,13 @@ export default function EducationPlanLayout() {
   const [params] = useSearchParams();
   const reviewView = !!reviews || params.get('review') === '1';
   // Trang danh sách dạng bảng tự tải danh sách gọn có phân trang (edu-list-paging) ⇒ không tải cả gói tài liệu lớp
-  const overdue = useMatch('/education/overdue');
-  const teamList = useMatch('/education/goals');
-  const yearList = useMatch('/education/school-year-plans');
-  const lightDocs = !!(reviews || overdue || teamList || yearList);
+  // Trang của một lớp chỉ tải tài liệu (đủ nội dung) của lớp đó; trang khác chỉ cần lớp/nhân sự (Tiền 25/11/2026)
+  const themePlans = useMatch('/education/theme-plans/:classId');
+  const dayPlans = useMatch('/education/day-plans/:classId');
+  const branches = useMatch('/education/branches/:classId');
+  const classPage = useMatch('/education/class/:classId/*');
+  const classId = (themePlans || dayPlans || branches || classPage)?.params.classId ?? null;
+  const lightDocs = classId == null;
   // Bảng kế hoạch giáo dục: bấm chuột vào ô không tô khung; chỉ hiện khung ô đang nhập khi đi bằng phím Tab (Tiền 11/11/2026).
   // Đổi class thẳng trên DOM để không vẽ lại cả trang mỗi lần bấm chuột
   const scope = useRef(null);
@@ -42,7 +45,7 @@ export default function EducationPlanLayout() {
     };
   }, []);
   return (
-    <EducationPlanProvider yearScoped={!settings && !curriculum} reviewView={reviewView} lightDocs={lightDocs}>
+    <EducationPlanProvider yearScoped={!settings && !curriculum} reviewView={reviewView} lightDocs={lightDocs} classId={classId}>
       <div ref={scope}>
         <Outlet />
       </div>

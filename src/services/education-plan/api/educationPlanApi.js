@@ -335,11 +335,12 @@ export const educationPlanApi = {
   deleteLesson: (id) => axiosClient.delete(`/education-plans/lessons/${id}`),
   // Tài liệu + lớp + giáo viên, tổ trưởng của năm học đang chọn ở header (BE lọc theo phạm vi người xem)
   // Header giữ id số (API) hoặc tên năm "2027-2028" (nối thử qua beClient) ⇒ đổi tên sang id theo cấu hình
-  getClassPlans: async (schoolYearId, review = false) => {
+  getClassPlans: async (schoolYearId, review = false, classId = null) => {
     const id = serverId(schoolYearId) ?? (schoolYearId ? buildRefs(await loadConfig()).schoolYearId(String(schoolYearId)) : null);
     if (schoolYearId != null && id == null) throw sourceError(400, 'Năm học không hợp lệ.');
     const params = id == null ? {} : { schoolYearId: id };
     if (review) params.view = 'REVIEW';
+    if (serverId(classId) != null) params.classId = serverId(classId);
     return axiosClient.get('/education-plans/class-docs', { params, timeout: LIST_TIMEOUT });
   },
   // edu-list-paging (Tiền 25/11/2026): danh sách gọn có phân trang/lọc, chi tiết theo khóa, phần lớp/nhân sự riêng

@@ -72,7 +72,7 @@ export const actDoneText = (kind, action, status) => {
  * lightDocs (edu-list-paging, Tiền 25/11/2026): trang danh sách không dùng nội dung tài liệu lớp ⇒ chỉ tải lớp/nhân sự,
  * không tải cả gói /class-docs (vài MB); trang tự tải danh sách gọn có phân trang.
  */
-export function EducationPlanProvider({ children, yearScoped = true, reviewView = false, lightDocs = false }) {
+export function EducationPlanProvider({ children, yearScoped = true, reviewView = false, lightDocs = false, classId = null }) {
   const { user: authUser } = useAuth();
   const toastApi = useToast();
   const { schoolYear: pickedYear, setSchoolYear, schoolYears } = useSchoolYear();
@@ -82,8 +82,8 @@ export function EducationPlanProvider({ children, yearScoped = true, reviewView 
     yearOptions.find((year) => sameSchoolYearId(year.id, pickedYear));
   const yearId = yearScoped ? (yearOption?.id ?? null) : null;
   const scope = useMemo(
-    () => ({ yearId, userId: authUser.id, reviewView, lightDocs, classRefreshSequence: 0, loadingGoalIds: new Set() }),
-    [yearId, authUser.id, reviewView, lightDocs],
+    () => ({ yearId, userId: authUser.id, reviewView, lightDocs, classId, classRefreshSequence: 0, loadingGoalIds: new Set() }),
+    [yearId, authUser.id, reviewView, lightDocs, classId],
   );
   const activeScope = useRef(scope);
   activeScope.current = scope;
@@ -110,14 +110,14 @@ export function EducationPlanProvider({ children, yearScoped = true, reviewView 
           ? {}
           : lightDocs
             ? service.getClassDocContext(yearId, authUser)
-            : service.getClassPlans(yearId, authUser, reviewView),
+            : service.getClassPlans(yearId, authUser, reviewView, classId),
         service.getEduConfig(authUser),
       ]).then(([plans, classDocs, eduConfig]) => {
         // Cấu hình áp dụng trước khi vẽ để bảng, nhãn lĩnh vực và file xuất dùng cùng một bản
         if (isActive()) applyEduConfig(eduConfig);
         return { ...plans, goals: mergeGoals(goalsRef.current, plans.goals), ...classDocs, eduConfig };
       }),
-    [yearId, authUser.id, reviewView, lightDocs],
+    [yearId, authUser.id, reviewView, lightDocs, classId],
     { refreshOnDataChange: true },
   );
 
@@ -268,7 +268,7 @@ export function EducationPlanProvider({ children, yearScoped = true, reviewView 
         const sequence = ++scope.classRefreshSequence;
         const classDocs = scope.lightDocs
           ? await service.getClassDocContext(yearId, actor)
-          : await service.getClassPlans(yearId, actor, scope.reviewView);
+          : await service.getClassPlans(yearId, actor, scope.reviewView, scope.classId);
         if (sequence === scope.classRefreshSequence) setData((prev) => (prev ? { ...prev, ...classDocs } : prev));
         return classDocs;
       },

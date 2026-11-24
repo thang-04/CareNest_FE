@@ -16,6 +16,8 @@ import {
 import { themeNumber, themeWeeksOf, yearWeeks } from '@/models/education-plan/classPlan';
 import { StatCard } from '@/components/ui/StatCard';
 import { clickableRowProps } from '@/utils/clickableRow';
+import { useAsync } from '@/hooks/useAsync';
+import { getAllClassDocSummaries } from '@/services/education-plan/educationPlanService';
 
 const ageName = (id) => AGE_GROUPS.find((a) => a.id === id)?.name || '—';
 
@@ -34,7 +36,14 @@ const sentEntry = (doc) => [...(doc.history || [])].reverse().find((h) => !h.ton
  * chỉ xem; duyệt theo chuỗi người ký ở trang Duyệt kế hoạch giáo dục.
  */
 export default function SchoolPlansPage() {
-  const { goals, branchPlans, classThemePlans, classes } = useEducationPlan();
+  const { goals, classes, schoolYearId, user } = useEducationPlan();
+  // Bản gọn (không nội dung soạn) của chủ đề nhánh + kế hoạch chủ đề toàn trường, thay vì tải cả gói tài liệu lớp
+  const docs = useAsync(() => getAllClassDocSummaries(schoolYearId, user, ['branch', 'theme']), [schoolYearId, user.id], {
+    enabled: !!schoolYearId,
+    refreshOnDataChange: true,
+  });
+  const branchPlans = useMemo(() => (docs.data || []).filter((d) => d.kind === 'branch'), [docs.data]);
+  const classThemePlans = useMemo(() => (docs.data || []).filter((d) => d.kind === 'theme'), [docs.data]);
   // Tên chủ đề, số tuần của tài liệu lớp lấy từ kế hoạch tổ ⇒ tải chi tiết các kế hoạch tổ được tài liệu lớp tham chiếu
   useGoalDetails([...branchPlans, ...classThemePlans].map((d) => d.yearPlanId));
   const navigate = useNavigate();
