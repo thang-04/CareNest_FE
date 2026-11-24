@@ -7,6 +7,8 @@ export const normalizeDateInput = (raw) => {
     const [day = '', month = '', year = ''] = value.split('/');
     return `${day.slice(0, 2)}/${month.slice(0, 2)}/${year.slice(0, 4)}`;
   }
+  // Gõ / sau ngày hoặc tháng 1 chữ số (5/, 5/9) thì giữ dấu để người dùng gõ tiếp 5/9/2027.
+  if (/^\d{1,2}\/\d{0,2}$/.test(value)) return value;
   const digits = value.replace(/\D/g, '').slice(0, 8);
   return [digits.slice(0, 2), digits.slice(2, 4), digits.slice(4)].filter(Boolean).join('/');
 };
