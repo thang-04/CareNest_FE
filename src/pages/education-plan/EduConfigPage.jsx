@@ -355,7 +355,6 @@ export default function EduConfigPage() {
                   <col className="ga-col-flag" />
                   <col className="ga-col-flag" />
                   {editing && <col className="ga-goal-table__sort" />}
-                  {editing && <col className="ga-goal-table__del" />}
                 </colgroup>
                 <thead>
                   <tr>
@@ -365,8 +364,7 @@ export default function EduConfigPage() {
                     <th className={editing ? 'ga-th-editable' : ''}>Tên hoạt động{editing && <span className="req">*</span>}</th>
                     <th className={`center ${editing ? 'ga-th-editable' : ''}`}>Cho gộp cả tuần</th>
                     <th className={`center ${editing ? 'ga-th-editable' : ''}`}>Mặc định cả tuần</th>
-                    {editing && <th className="center ga-th-editable">Sắp xếp</th>}
-                    {editing && <th className="center ga-th-editable">Xóa</th>}
+                    {editing && <th className="center ga-th-editable">Thao tác</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -419,15 +417,10 @@ export default function EduConfigPage() {
                         </div>
                       </td>
                       {editing && (
+                        // Một ô Thao tác: kéo xếp + xóa (Tiền 25/11/2026)
                         <td className="center ga-cell-editable">
                           <div className="ga-goal-table__pad ga-sort-cell">
                             <SortHandle label={r.label} />
-                          </div>
-                        </td>
-                      )}
-                      {editing && (
-                        <td className="center ga-cell-editable">
-                          <div className="ga-goal-table__pad">
                             <button
                               type="button"
                               className="icon-btn icon-btn--danger"
@@ -454,7 +447,7 @@ export default function EduConfigPage() {
                   {editing && (
                     <tr>
                       <td className="cell--fixed" />
-                      <td colSpan={5} className="ga-cell-editable">
+                      <td colSpan={4} className="ga-cell-editable">
                         <Cell
                           editable
                           value=""
