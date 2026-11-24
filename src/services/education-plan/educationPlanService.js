@@ -156,6 +156,8 @@ export const actOnClassDoc = (kind, id, body, user, options) =>
 
 // Cấu hình kế hoạch giáo dục của trường (lĩnh vực, người ký, dòng hoạt động tuần)
 export const getEduConfig = (user) => (USE_MOCK ? eduConfigMockRepository.get(user) : educationPlanApi.getEduConfig());
+export const getEduConfigCached = (user) =>
+  USE_MOCK ? eduConfigMockRepository.get(user) : educationPlanApi.getEduConfigCached();
 export const saveEduConfig = (cfg, user) => (USE_MOCK ? eduConfigMockRepository.save(cfg, user) : educationPlanApi.saveEduConfig(cfg));
 
 // AI gợi ý tên chủ đề nhánh (bản nháp; giáo viên chọn Dùng / Bỏ rồi vẫn ký, gửi duyệt như thường)

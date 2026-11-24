@@ -72,7 +72,7 @@ export const actDoneText = (kind, action, status) => {
  * lightDocs (edu-list-paging, Tiền 25/11/2026): trang danh sách không dùng nội dung tài liệu lớp ⇒ chỉ tải lớp/nhân sự,
  * không tải cả gói /class-docs (vài MB); trang tự tải danh sách gọn có phân trang.
  */
-export function EducationPlanProvider({ children, yearScoped = true, reviewView = false, lightDocs = false, classId = null }) {
+export function EducationPlanProvider({ children, yearScoped = true, reviewView = false, lightDocs = false, classId = null, skipGoals = false }) {
   const { user: authUser } = useAuth();
   const toastApi = useToast();
   const { schoolYear: pickedYear, setSchoolYear, schoolYears } = useSchoolYear();
@@ -105,19 +105,19 @@ export function EducationPlanProvider({ children, yearScoped = true, reviewView 
   } = useAsync(
     () =>
       Promise.all([
-        yearId == null ? { goals: [] } : service.getEducationPlans(authUser, { schoolYearId: yearId }),
+        yearId == null || skipGoals ? { goals: [] } : service.getEducationPlans(authUser, { schoolYearId: yearId }),
         yearId == null
           ? {}
           : lightDocs
             ? service.getClassDocContext(yearId, authUser)
             : service.getClassPlans(yearId, authUser, reviewView, classId),
-        service.getEduConfig(authUser),
+        service.getEduConfigCached(authUser),
       ]).then(([plans, classDocs, eduConfig]) => {
         // Cấu hình áp dụng trước khi vẽ để bảng, nhãn lĩnh vực và file xuất dùng cùng một bản
         if (isActive()) applyEduConfig(eduConfig);
         return { ...plans, goals: mergeGoals(goalsRef.current, plans.goals), ...classDocs, eduConfig };
       }),
-    [yearId, authUser.id, reviewView, lightDocs, classId],
+    [yearId, authUser.id, reviewView, lightDocs, classId, skipGoals],
     { refreshOnDataChange: true },
   );
 

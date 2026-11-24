@@ -16,8 +16,11 @@ export default function EducationPlanLayout() {
   const dayPlans = useMatch('/education/day-plans/:classId');
   const branches = useMatch('/education/branches/:classId');
   const classPage = useMatch('/education/class/:classId/*');
-  const classId = (themePlans || dayPlans || branches || classPage)?.params.classId ?? null;
+  const classId = (themePlans || dayPlans || branches || classPage)?.params?.classId ?? null;
   const lightDocs = classId == null;
+  // Hàng chờ duyệt, quá hạn tự tải danh sách của mình ⇒ không tải danh sách kế hoạch năm/tổ (size=200, 2 cấp)
+  const overdue = useMatch('/education/overdue');
+  const skipGoals = !!(reviews || overdue);
   // Bảng kế hoạch giáo dục: bấm chuột vào ô không tô khung; chỉ hiện khung ô đang nhập khi đi bằng phím Tab (Tiền 11/11/2026).
   // Đổi class thẳng trên DOM để không vẽ lại cả trang mỗi lần bấm chuột
   const scope = useRef(null);
@@ -45,7 +48,7 @@ export default function EducationPlanLayout() {
     };
   }, []);
   return (
-    <EducationPlanProvider yearScoped={!settings && !curriculum} reviewView={reviewView} lightDocs={lightDocs} classId={classId}>
+    <EducationPlanProvider yearScoped={!settings && !curriculum} reviewView={reviewView} lightDocs={lightDocs} classId={classId} skipGoals={skipGoals}>
       <div ref={scope}>
         <Outlet />
       </div>

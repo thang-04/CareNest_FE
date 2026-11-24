@@ -192,6 +192,7 @@ const service = {
   getClassPlans: (...args) => state.getClassPlans(...args),
   getEducationPlans: (...args) => state.getEducationPlans(...args),
   getEduConfig: (...args) => state.getEduConfig(...args),
+  getEduConfigCached: (...args) => state.getEduConfig(...args),
 };
 const useAsync = (load) => {
   loadCurrent = load;

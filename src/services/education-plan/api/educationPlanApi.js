@@ -38,6 +38,25 @@ const loadConfig = (refresh = false) => {
   });
   return configCache;
 };
+let eduConfigCache = null;
+const loadEduConfig = async () => {
+  const [config, workflow, durationPolicy] = await Promise.all([
+    loadConfig(true),
+    axiosClient.get('/education-plans/workflow-policy'),
+    axiosClient.get('/education-plans/duration-policy').catch((error) => {
+      if (error.status === 404) return null;
+      throw error;
+    }),
+  ]);
+  const fresh = {
+    ...config,
+    workflow,
+    durationPolicyAvailable: !!durationPolicy?.theme && !!durationPolicy?.branch,
+    ...(durationPolicy?.theme && durationPolicy?.branch ? { durationPolicy } : {}),
+  };
+  configCache = Promise.resolve(fresh);
+  return toUiEduConfig(fresh);
+};
 /** Bảng đổi id UI ↔ BE (nhóm tuổi `ag-3` ↔ id số) cho service khác của module, vd. kho học liệu. */
 export const loadEduRefs = async () => buildRefs(await loadConfig());
 // Trạng thái + quyền trên BE của từng kế hoạch, để biết lần lưu là sửa, gửi, ban hành hay trả lại
@@ -366,23 +385,14 @@ export const educationPlanApi = {
       params: yearParam(schoolYearId),
       timeout: LIST_TIMEOUT,
     }),
-  getEduConfig: async () => {
-    const [config, workflow, durationPolicy] = await Promise.all([
-      loadConfig(true),
-      axiosClient.get('/education-plans/workflow-policy'),
-      axiosClient.get('/education-plans/duration-policy').catch((error) => {
-        if (error.status === 404) return null;
-        throw error;
-      }),
-    ]);
-    const fresh = {
-      ...config,
-      workflow,
-      durationPolicyAvailable: !!durationPolicy?.theme && !!durationPolicy?.branch,
-      ...(durationPolicy?.theme && durationPolicy?.branch ? { durationPolicy } : {}),
-    };
-    configCache = Promise.resolve(fresh);
-    return toUiEduConfig(fresh);
+  getEduConfig: () => loadEduConfig(),
+  // Provider mọi trang: cấu hình + luồng duyệt + chính sách thời lượng tải một lần mỗi phiên trang (lưu cấu hình thì tải lại)
+  getEduConfigCached: () => {
+    eduConfigCache ||= loadEduConfig().catch((err) => {
+      eduConfigCache = null;
+      throw err;
+    });
+    return eduConfigCache;
   },
   // BE:EDU-11 — lưu xong thì dùng luôn bản BE trả về làm dữ liệu tham chiếu của phiên
   saveEduConfig: async (cfg) => {
@@ -409,6 +419,7 @@ export const educationPlanApi = {
       ...(durationPolicy ? { durationPolicy } : {}),
     };
     configCache = Promise.resolve(fresh);
+    eduConfigCache = null;
     return toUiEduConfig(fresh);
   },
   saveClassDoc: (kind, doc, options = {}) => {
