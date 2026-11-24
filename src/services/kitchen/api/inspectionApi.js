@@ -1,6 +1,6 @@
 import { axiosClient } from '@/services/http/axiosClient';
 import { cachedBlobUrl } from '@/services/http/blobUrlCache';
-import { mapDay, mapSheet, mapSupplier, toApiTab } from '@/services/kitchen/api/inspectionMapper';
+import { mapApprovalItem, mapDay, mapSheet, mapSupplier, toApiTab } from '@/services/kitchen/api/inspectionMapper';
 
 /*
  * Biên bản kiểm thực ba bước M1–M3 và soát sổ lưu mẫu M5 (INS-01..04): contract ở BE `docs/modules/nutrition.md`. Cùng tên hàm và
@@ -44,4 +44,18 @@ export const inspectionApi = {
     const mapped = await mapSheet(sheet, { canEdit: true, loadImage: imageLoader(campusId) });
     return { status: mapped.status, signature: mapped.signature };
   },
+  /**
+   * Ngày đã qua (INS-05): PHT gửi yêu cầu mở một mẫu, chờ Hiệu trưởng duyệt; Hiệu trưởng gửi thì mở ngay (tự mở). `reason` bắt buộc;
+   * `validHours` chỉ Hiệu trưởng dùng (trống ⇒ hạn mặc định của BE).
+   */
+  requestInspectionApproval: async ({ campusId, date, tab, reason, validHours }) =>
+    mapApprovalItem(
+      await axiosClient.post(`/inspections/day/${toApiTab(tab)}/approvals`, { reason, validHours }, params({ campusId, date })),
+    ),
+  /** Hàng chờ của Hiệu trưởng theo trạng thái (mặc định chờ duyệt); `campusId` trống = mọi điểm trường. */
+  getInspectionApprovals: async ({ campusId, status } = {}) =>
+    (await axiosClient.get('/inspections/approvals', { params: { campusId, status } })).map(mapApprovalItem),
+  /** Hiệu trưởng xử lý một yêu cầu: `decision` = approve | reject | revoke; từ chối và thu hồi bắt buộc `note`. */
+  decideInspectionApproval: async ({ approvalId, decision, note, validHours }) =>
+    mapApprovalItem(await axiosClient.post(`/inspections/approvals/${approvalId}/${decision}`, { note, validHours })),
 };

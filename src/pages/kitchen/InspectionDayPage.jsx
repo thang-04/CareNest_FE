@@ -1,17 +1,30 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { ClipboardCheck } from '@/components/ui/icons';
+import { ClipboardCheck, Unlock } from '@/components/ui/icons';
 import { Breadcrumb, Button, EmptyState, ErrorState, LoadingState } from '@/components';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import { KbCampusFilter, KbDateFilter } from '@/components/kitchen/KitchenFilters';
+import {
+  ApprovalDecisionDialog,
+  ApprovalNotice,
+  ApprovalRequestDialog,
+  ApprovalStatusBadge,
+  InspectionApprovalQueue,
+} from '@/components/kitchen/inspection/InspectionApproval';
 import { InspectionStatusBadge } from '@/components/kitchen/inspection/InspectionBadges';
 import { InspectionFormModal } from '@/components/kitchen/inspection/InspectionFormModal';
 import { useToast } from '@/contexts/ToastContext';
 import { useStockCampus } from '@/hooks/kitchen/useDryStock';
 import { useInspectionDay } from '@/hooks/kitchen/useInspectionDay';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
-import { INSPECTION_FORMS, INSPECTION_TAB_LABELS, INSPECTION_TAB_ORDER } from '@/models/kitchen/inspectionConstants';
+import {
+  APPROVAL_STATUS,
+  INSPECTION_APPROVAL_REQUIRED,
+  INSPECTION_FORMS,
+  INSPECTION_TAB_LABELS,
+  INSPECTION_TAB_ORDER,
+} from '@/models/kitchen/inspectionConstants';
 import { KITCHEN_RECORD_PAGES } from '@/models/kitchen/kitchenRecordConstants';
 import {
   applySupplier,
@@ -27,6 +40,7 @@ import {
   toggleColumn,
   validateForm,
 } from '@/utils/kitchen/inspectionForm';
+import { approvalActionLabel } from '@/utils/kitchen/inspectionApproval';
 import { actionsMissing } from '@/utils/kitchen/inspectionRules';
 import { kitchenCrumbs } from '@/utils/kitchen/breadcrumbs';
 import { formatDateTime, isIsoDate, todayInput } from '@/utils/format';
@@ -43,10 +57,13 @@ const EMPTY_HINT = {
 };
 const clockOf = () => new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false });
 
-function FormCard({ tab, data, onOpen }) {
+function FormCard({ tab, data, onOpen, onRequest, onRevoke }) {
   const signed = hasValidSignature(data) && data.status === 'SIGNED';
   const sig = data.signature;
   const empty = !data.rows.length;
+  const { approval } = data;
+  // HT đang mở sẵn mẫu này cho PHT hoặc cho chính mình thì được thu hồi (INS-05)
+  const canRevoke = approval.canSelfOpen && approval.status === APPROVAL_STATUS.APPROVED && !approval.locked;
   return (
     <section className="card kr-card">
       <div className="card__body kr-card__body">
@@ -59,16 +76,24 @@ function FormCard({ tab, data, onOpen }) {
             </div>
           </div>
           <InspectionStatusBadge status={data.status} />
+          {approval.status && <ApprovalStatusBadge status={approval.status} />}
         </div>
         <p className="text-sm">{INSPECTION_FORMS[tab].hint}</p>
         <div className="text-sm muted">
           {empty ? EMPTY_HINT[tab] : `${data.rows.length} dòng`}
           {signed && ` · Ký bởi ${sig.signedByName} lúc ${formatDateTime(sig.signedAt)}`}
         </div>
-        <div>
+        <ApprovalNotice approval={approval} />
+        <div className="kr-card__actions">
           <Button variant="primary" disabled={empty} onClick={() => onOpen(tab)}>
             {data.canEdit ? 'Mở biểu mẫu' : 'Xem biểu mẫu'}
           </Button>
+          {approval.canRequest && (
+            <Button icon={Unlock} onClick={() => onRequest(tab)}>
+              {approvalActionLabel(approval)}
+            </Button>
+          )}
+          {canRevoke && <Button onClick={() => onRevoke(tab)}>Thu hồi quyền mở</Button>}
         </div>
       </div>
     </section>
@@ -79,6 +104,8 @@ function FormCard({ tab, data, onOpen }) {
  * Kiểm thực ba bước M1–M3 (P-27): PHT điền bốn mẫu theo ngày và điểm trường, mở từng mẫu toàn màn hình như biểu mẫu giấy, lưu nháp
  * (tự lưu sau 20 giây) rồi ký bằng ảnh chữ ký khi đã chọn đủ Đạt / Không đạt. Mẫu đã ký bị khóa, "Sửa lại" cần lý do.
  * Món, bữa, số suất, nhà cung cấp, hạn dùng do hệ thống điền sẵn; bếp ghi lưu mẫu trên App. Quyền ghi theo cờ `canEdit` BE trả.
+ * Ngày đã qua (INS-05): mẫu chỉ xem cho tới khi Hiệu trưởng duyệt mở; PHT gửi yêu cầu theo từng mẫu, Hiệu trưởng duyệt ở hàng chờ
+ * đầu trang hoặc tự mở. Trạng thái khóa và hạn mở do BE trả, Web không tự tính từ ngày trên máy.
  */
 export default function InspectionDayPage() {
   const [params, setParams] = useSearchParams();
@@ -92,6 +119,8 @@ export default function InspectionDayPage() {
   const [busy, setBusy] = useState(false);
   const [confirmClose, setConfirmClose] = useState(false);
   const [conflict, setConflict] = useState(null);
+  // Hộp gửi yêu cầu mở mẫu ngày cũ / thu hồi quyền mở: { tab, mode: 'request' | 'revoke' } (INS-05)
+  const [approvalDialog, setApprovalDialog] = useState(null);
   const [savedAt, setSavedAt] = useState('');
   const stamps = useRef({});
 
@@ -122,6 +151,20 @@ export default function InspectionDayPage() {
   const dirtyOf = (key) => !!day.data && !!forms[key] && day.data.tabs[key].canEdit && isFormDirty(key, day.data.tabs[key], forms[key]);
   const anyDirty = INSPECTION_TAB_ORDER.some(dirtyOf);
 
+  const refreshQuietly = async () => {
+    try {
+      await day.reload({ silent: true });
+    } catch {
+      // Nạp lại chỉ để cập nhật trạng thái khóa; lỗi mạng đã được báo ở thao tác vừa thất bại
+    }
+  };
+  // BE từ chối vì ngày đã qua chưa được HT mở (INS-05; ví dụ quyền mở vừa hết hạn, bị thu hồi hoặc qua 00:00 khi đang sửa): báo lý do
+  // và nạp lại trạng thái để mẫu chuyển sang chỉ xem; phần đang gõ giữ nguyên trên màn, không ghi đè
+  const failWrite = async (err, title) => {
+    toast.error(err, title);
+    if (err.errorCode === INSPECTION_APPROVAL_REQUIRED) await refreshQuietly();
+  };
+
   // `quiet` = tự lưu: không báo toast thành công, lỗi nhập thì để người dùng thấy ô được đánh dấu khi mở lại
   const saveTab = async (key, { quiet = false } = {}) => {
     const found = validateForm(key, forms[key]);
@@ -139,8 +182,10 @@ export default function InspectionDayPage() {
       if (!quiet) toast.success('Đã lưu nháp.');
       return true;
     } catch (err) {
-      // 409: có người lưu hoặc ký mẫu này trước (BE kiểm phiên bản) — hỏi tải bản mới, không ghi đè và không thử lại liên tục
-      if (err.status === 409) setConflict(key);
+      // 409: có người lưu hoặc ký mẫu này trước (BE kiểm phiên bản) — hỏi tải bản mới, không ghi đè và không thử lại liên tục.
+      // Cùng 409 nhưng mã 6116 là ngày cũ chưa được HT mở, không phải xung đột phiên bản
+      if (err.errorCode === INSPECTION_APPROVAL_REQUIRED) await failWrite(err, 'Chưa lưu được');
+      else if (err.status === 409) setConflict(key);
       else {
         if (err.details) setErrors(err.details);
         toast.error(err, 'Chưa lưu được');
@@ -177,7 +222,7 @@ export default function InspectionDayPage() {
       toast.success('Đã ký xác nhận.');
       return true;
     } catch (err) {
-      toast.error(err, 'Chưa ký được');
+      await failWrite(err, 'Chưa ký được');
       return false;
     } finally {
       setBusy(false);
@@ -192,7 +237,41 @@ export default function InspectionDayPage() {
       toast.success('Đã mở khóa. Sửa xong thì ký lại.');
       return true;
     } catch (err) {
-      toast.error(err, 'Chưa mở khóa được');
+      await failWrite(err, 'Chưa mở khóa được');
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Ngày cũ (INS-05): PHT gửi yêu cầu chờ HT duyệt, HT gửi thì mở ngay; sau đó nạp lại để thẻ và biểu mẫu theo trạng thái BE trả
+  const requestApproval = async (tab, input) => {
+    setBusy(true);
+    try {
+      const result = await day.requestApproval(tab, input);
+      await refreshQuietly();
+      toast.success(result.selfOpened ? 'Đã mở mẫu để sửa. Sửa xong thì ký.' : 'Đã gửi yêu cầu, chờ Hiệu trưởng duyệt.');
+      return true;
+    } catch (err) {
+      toast.error(err, 'Chưa gửi được yêu cầu');
+      // 409: mẫu đã có yêu cầu chờ hoặc đang mở ở nơi khác ⇒ nạp lại cho thẻ hiện đúng trạng thái
+      await refreshQuietly();
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const revokeApproval = async (tab, { note }) => {
+    setBusy(true);
+    try {
+      await day.decide(day.data.tabs[tab].approval.id, 'revoke', { note });
+      await refreshQuietly();
+      toast.success('Đã thu hồi quyền mở. Mẫu về chỉ xem.');
+      return true;
+    } catch (err) {
+      toast.error(err, 'Chưa thu hồi được');
+      await refreshQuietly();
       return false;
     } finally {
       setBusy(false);
@@ -254,6 +333,19 @@ export default function InspectionDayPage() {
   };
 
   const campusName = campus.campuses.find((c) => String(c.id) === String(campus.campusId))?.name;
+  const campusNameOf = (id) => campus.campuses.find((c) => String(c.id) === String(id))?.name || 'Điểm trường';
+  // Từ hàng chờ của HT sang đúng ngày và điểm trường của yêu cầu; một lần đổi tham số để không ghi đè nhau
+  const openApprovalDay = (item) =>
+    setParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.set('date', item.date);
+        if (campus.canPick) next.set('campusId', String(item.campusId));
+        next.delete('form');
+        return next;
+      },
+      { replace: true },
+    );
 
   let body;
   if (campus.error) body = <ErrorState error={campus.error} onRetry={campus.reload} />;
@@ -263,11 +355,23 @@ export default function InspectionDayPage() {
   else if (day.loading || !day.data || INSPECTION_TAB_ORDER.some((key) => !forms[key])) body = <LoadingState />;
   else
     body = (
-      <div className="kr-cards">
-        {INSPECTION_TAB_ORDER.map((key) => (
-          <FormCard key={key} tab={key} data={day.data.tabs[key]} onOpen={openForm} />
-        ))}
-      </div>
+      <>
+        {day.data.canDecide && (
+          <InspectionApprovalQueue campusNameOf={campusNameOf} onOpenDay={openApprovalDay} onDecided={refreshQuietly} />
+        )}
+        <div className="kr-cards">
+          {INSPECTION_TAB_ORDER.map((key) => (
+            <FormCard
+              key={key}
+              tab={key}
+              data={day.data.tabs[key]}
+              onOpen={openForm}
+              onRequest={(tab) => setApprovalDialog({ tab, mode: 'request' })}
+              onRevoke={(tab) => setApprovalDialog({ tab, mode: 'revoke' })}
+            />
+          ))}
+        </div>
+      </>
     );
 
   const openData = open && day.data ? day.data.tabs[open] : null;
@@ -330,6 +434,25 @@ export default function InspectionDayPage() {
         onConfirm={reloadConflict}
         onClose={() => setConflict(null)}
       />
+      {day.data && approvalDialog?.mode === 'request' && (
+        <ApprovalRequestDialog
+          tab={approvalDialog.tab}
+          date={date}
+          selfOpen={day.data.tabs[approvalDialog.tab].approval.canSelfOpen}
+          busy={busy}
+          onConfirm={(input) => requestApproval(approvalDialog.tab, input)}
+          onClose={() => setApprovalDialog(null)}
+        />
+      )}
+      {day.data && approvalDialog?.mode === 'revoke' && (
+        <ApprovalDecisionDialog
+          mode="revoke"
+          context={{ tab: approvalDialog.tab, date, ...day.data.tabs[approvalDialog.tab].approval }}
+          busy={busy}
+          onConfirm={(input) => revokeApproval(approvalDialog.tab, input)}
+          onClose={() => setApprovalDialog(null)}
+        />
+      )}
       <LeaveConfirmModal {...guard.modal} />
     </div>
   );
