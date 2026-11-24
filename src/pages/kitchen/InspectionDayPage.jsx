@@ -23,7 +23,6 @@ import {
   APPROVAL_STATUS,
   INSPECTION_APPROVAL_REQUIRED,
   INSPECTION_FORMS,
-  INSPECTION_VARIANT_FORMS,
   INSPECTION_TAB_LABELS,
   INSPECTION_TAB_ORDER,
 } from '@/models/kitchen/inspectionConstants';
@@ -111,7 +110,7 @@ function LabelCard({ sample, onPrint }) {
         <div className="kr-card__top">
           <Printer size={20} className="muted" />
           <div className="kr-card__name">
-            <h2 className="card__title">{INSPECTION_VARIANT_FORMS.label.form} · Nhãn mẫu thức ăn lưu</h2>
+            <h2 className="card__title">M4 · Nhãn mẫu thức ăn lưu</h2>
             <div className="text-sm muted">Chỉ in, lập từ sổ lưu mẫu M5</div>
           </div>
         </div>
