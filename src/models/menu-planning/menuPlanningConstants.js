@@ -112,7 +112,7 @@ export const DISH_TYPE_LABELS = {
   MAIN: 'Món mặn',
   SOUP: 'Canh',
   VEGETABLE: 'Món rau',
-  SNACK: 'Món bữa chiều',
+  SNACK: 'Món phụ',
   DESSERT: 'Tráng miệng, sữa',
 };
 

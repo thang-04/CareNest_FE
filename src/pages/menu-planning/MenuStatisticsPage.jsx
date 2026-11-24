@@ -44,6 +44,58 @@ const GROUP_MODES = [
   { key: 'supplier', label: 'Theo nhà cung cấp' },
 ];
 
+const OVERVIEW = 'overview';
+
+// Tổng quan các nhóm tuổi: nhóm 0 trẻ chỉ một dòng ghi chú, không dựng bảng chi tiết toàn số 0
+function GroupsOverview({ groups, onPick }) {
+  return (
+    <section className="card">
+      <div className="card__header">
+        <h2 className="card__title">Tổng quan theo nhóm tuổi</h2>
+      </div>
+      <div className="table-wrap">
+        <table className="table table--grid">
+          <thead>
+            <tr>
+              <th>Nhóm tuổi</th>
+              <th className="num">Số trẻ</th>
+              <th className="num">Tiền ăn 1 trẻ</th>
+              <th className="num">Ngân sách thực phẩm</th>
+              <th className="num">Tổng tiền</th>
+            </tr>
+          </thead>
+          <tbody>
+            {groups.map((g) => {
+              const budget = g.foodBudget ?? g.mealPrice;
+              return (
+                <tr key={g.ageGroupId}>
+                  <td>
+                    <Button variant="link" onClick={() => onPick(String(g.ageGroupId))}>
+                      {g.ageGroupName}
+                    </Button>
+                  </td>
+                  <td className="num">{g.children}</td>
+                  {g.children === 0 ? (
+                    <td colSpan={3} className="muted">
+                      Không có trẻ trong ngày này, không tính suất ăn
+                    </td>
+                  ) : (
+                    <>
+                      <td className="num">{formatMoney(g.costPerChild)}</td>
+                      <td className="num">{budget == null ? 'Chưa đặt' : formatMoney(budget)}</td>
+                      <td className="num">{formatMoney(g.totalCost)}</td>
+                    </>
+                  )}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
 const CHILDREN_SOURCE = {
   INPUT: 'Số nhập tay',
   CONFIRMED: 'Theo suất đã xác nhận',
@@ -80,6 +132,8 @@ export default function MenuStatisticsPage() {
   const [printing, setPrinting] = useState(false);
   const [signers, setSigners] = useState(MENU_STAT_SIGNERS);
   const [groupBy, setGroupBy] = useState('storage');
+  // Chế độ "Tất cả nhóm tuổi": 'overview' hoặc id nhóm tuổi đang xem chi tiết
+  const [view, setView] = useState(OVERVIEW);
   const sheetRef = useRef(null);
   useEffect(() => {
     if (ageGroupId && options.length && !options.some((o) => o.id === ageGroupId)) setAgeGroupId('');
@@ -105,6 +159,7 @@ export default function MenuStatisticsPage() {
       : null;
   const statsQ = useMenuStatistics(query);
   const stats = statsQ.data;
+  const activeGroup = (stats?.groups || []).find((g) => String(g.ageGroupId) === view) || null;
 
   const setParam = (key, value) => {
     const next = new URLSearchParams(params);
@@ -273,13 +328,16 @@ export default function MenuStatisticsPage() {
           <div className="stat-grid">
             <StatCard className="stat-card--fit" tone="blue" icon={false} label="Số trẻ" value={stats.children} />
             <StatCard className="stat-card--fit" tone="green" icon={false} label="Tiền ăn 1 trẻ" value={formatMoney(stats.costPerChild)} />
-            <StatCard
-              className="stat-card--fit"
-              tone="purple"
-              icon={false}
-              label={allGroups ? 'Ngân sách thực phẩm cao nhất' : 'Ngân sách thực phẩm'}
-              value={(stats.foodBudget ?? stats.mealPrice) == null ? 'Chưa đặt' : formatMoney(stats.foodBudget ?? stats.mealPrice)}
-            />
+            {/* Ngân sách mỗi nhóm tuổi một mức: xem theo từng nhóm, không có số toàn trường */}
+            {!allGroups && (
+              <StatCard
+                className="stat-card--fit"
+                tone="purple"
+                icon={false}
+                label="Ngân sách thực phẩm"
+                value={(stats.foodBudget ?? stats.mealPrice) == null ? 'Chưa đặt' : formatMoney(stats.foodBudget ?? stats.mealPrice)}
+              />
+            )}
             <StatCard
               className="stat-card--fit"
               tone="orange"
@@ -289,7 +347,36 @@ export default function MenuStatisticsPage() {
             />
           </div>
 
-          {(allGroups ? stats.groups || [] : [stats]).map(detailSections)}
+          {allGroups ? (
+            <>
+              <Tabs
+                variant="pill"
+                ariaLabel="Xem theo nhóm tuổi"
+                value={activeGroup ? String(activeGroup.ageGroupId) : OVERVIEW}
+                onChange={setView}
+                items={[
+                  { key: OVERVIEW, label: 'Tổng quan' },
+                  ...(stats.groups || []).map((g) => ({
+                    key: String(g.ageGroupId),
+                    label: g.ageGroupName,
+                    count: g.children,
+                  })),
+                ]}
+              />
+              {!activeGroup ? (
+                <GroupsOverview groups={stats.groups || []} onPick={setView} />
+              ) : activeGroup.children === 0 ? (
+                <EmptyState
+                  title={`${activeGroup.ageGroupName}: không có trẻ`}
+                  description="Nhóm này không có trẻ trong ngày đã chọn nên chưa có suất ăn và định lượng để hiển thị."
+                />
+              ) : (
+                detailSections(activeGroup)
+              )}
+            </>
+          ) : (
+            detailSections(stats)
+          )}
           <Modal
             open={printing}
             onClose={() => setPrinting(false)}
