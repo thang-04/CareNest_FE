@@ -102,7 +102,8 @@ function PublishedBranches({ ctx, classId }) {
     pkg.classId === classId && pkg.yearPlanId === ctx.yearPlan.id && pkg.status === EDU_STATUS.APPROVED);
   const calendar = semester
     ? publishedBranchCalendar(ctx.yearPlan, packages.filter((pkg) => String(pkg.semesterNo) === semester))
-    : ctx.branchPlan;
+    : // GV của lớp có lịch hiện tại; HT/PHT/Tổ trưởng chỉ thấy lịch các học kỳ đã ban hành (BE EDU-73, Tiền 24/11/2026)
+      ctx.branchPlan || (packages.length ? publishedBranchCalendar(ctx.yearPlan, packages) : null);
   const rows = calendar ? teachingWeeks(ctx.yearPlan, calendar)
     .filter((week) => calendar.themeIds.has(String(week.theme.id))) : [];
   return (

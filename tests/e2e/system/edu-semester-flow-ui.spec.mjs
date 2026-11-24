@@ -45,9 +45,11 @@ const fillPackage = async (no) => {
       expect(res.status, res.desc).toBe(200);
     }
   }
-  for (const m of (await packageOf(U.tl, no)).missing || []) {
+  // Tải danh sách một lần (mỗi lần ~3 giây trên dữ liệu lớn); phiên bản gói lấy từ kết quả lưu tuần trước
+  const root = await packageOf(U.tl, no);
+  let dossierVersion = root.version;
+  for (const m of root.missing || []) {
     if (m.kind !== 'week') continue;
-    const root = await packageOf(U.tl, no);
     const res = await api(U.tl, 'PUT', `${DOCS}/week/wp_${cls.id}_${m.weekStart}`, {
       body: {
         classId: String(cls.id),
@@ -56,9 +58,10 @@ const fillPackage = async (no) => {
         weekStart: m.weekStart,
         aims: { knowledge: '[E2E] Trẻ biết tên trường' },
       },
-      headers: { 'X-Class-Doc-Version': '-1', 'X-Dossier-Version': String(root.version) },
+      headers: { 'X-Class-Doc-Version': '-1', 'X-Dossier-Version': String(dossierVersion) },
     });
     expect(res.status, res.desc).toBe(200);
+    dossierVersion = res.data?.dossierVersion ?? (await packageOf(U.tl, no)).version;
   }
 };
 const branchOf = async (user) => (await api(user, 'GET', DOCS)).data.branchPlans.find((b) => String(b.classId) === String(cls.id));
@@ -144,7 +147,13 @@ test('ST-004-01 trang Dự kiến chủ đề - chủ đề nhánh: không nút 
   await expect(page.getByRole('button', { name: 'Chỉnh sửa' })).toBeVisible({ timeout: 30_000 });
   await expect(page.getByRole('button', { name: /Gửi duyệt/ })).toHaveCount(0);
   // Ô lọc Học kỳ có mục "Học kỳ n" (13/11/2026); trang không có trạng thái / chữ kế hoạch giáo dục chủ đề
-  await expect(page.getByText(/Kế hoạch giáo dục chủ đề/)).toHaveCount(0);
+  // Chỉ xét vùng nội dung trang; sidebar có mục menu cùng tên, breadcrumb không tính (Tiền 24/11/2026)
+  await expect(
+    page
+      .locator('.ga-page')
+      .getByText(/Kế hoạch giáo dục chủ đề/)
+      .and(page.locator(':not(nav[aria-label="Breadcrumb"] *)')),
+  ).toHaveCount(0);
   await expect(page.locator('.ga-year-toolbar').getByText(/Học kỳ \d/)).toHaveCount(0);
   // Điều hướng chỉ bằng sidebar (Tiền 11/11)
   await expect(page.locator('.ga-page a[href^="/education/"]:not(nav[aria-label="Breadcrumb"] a)')).toHaveCount(0);
@@ -272,21 +281,34 @@ test('ST-002-07 HT lọc nhóm tuổi rồi lớp; xem đủ lịch nhánh dự 
   const age = page.getByRole('combobox', { name: 'Nhóm tuổi' });
   // HT tải dữ liệu mọi lớp toàn trường ⇒ chờ lâu hơn mặc định
   await expect(age).toBeVisible({ timeout: 30_000 });
-  await age.selectOption({ label: 'Mẫu giáo bé (3–4 tuổi)' });
+  // Chọn đúng nhóm tuổi của lớp thử (nhãn nhóm tuổi tùy dữ liệu từng DB, giá trị là mã nhóm tuổi)
+  const values = (await age.locator('option:not([disabled])').evaluateAll((list) => list.map((o) => o.value))).filter(Boolean);
+  const valueOf = values.includes(String(cls.ageGroupId)) ? String(cls.ageGroupId) : null;
+  // Ô lọc gộp nhóm cùng khoảng tuổi ⇒ mã có thể khác mã lớp; thử từng nhóm tới khi danh sách lớp có lớp thử
+  for (const value of valueOf ? [valueOf] : values) {
+    await age.selectOption(value);
+    if (
+      (
+        await page
+          .getByRole('combobox', { name: /^Lớp:?$/ })
+          .locator('option')
+          .allTextContents()
+      ).includes(cls.name)
+    )
+      break;
+  }
   const classSelect = page.getByRole('combobox', { name: /^Lớp:?$/ });
   // Danh sách lớp chỉ còn lớp của nhóm tuổi đã chọn
   // Đổi nhóm tuổi ⇒ trang chuyển sang lớp đầu của nhóm; chờ danh sách lớp cập nhật
-  await expect
-    .poll(async () => (await classSelect.locator('option').allInnerTexts()).every((l) => /3–4 tuổi|Mẫu giáo bé|Lớp/.test(l)), {
-      timeout: 30_000,
-    })
-    .toBe(true);
+  await expect.poll(async () => (await classSelect.locator('option').allTextContents()).includes(cls.name), { timeout: 30_000 }).toBe(true);
   await classSelect.selectOption(String(cls.id));
   await page.waitForURL((u) => u.pathname === `/education/branches/${cls.id}`);
   await expect(page.getByRole('button', { name: 'Chỉnh sửa' })).toHaveCount(0);
-  await expect(page.getByText(`[E2E] Nhập tên trước ${run}`)).toBeVisible();
-  // Tiền 11/11/2026: trang dự kiến ⇒ HT/PHT xem đủ lịch nhánh, không cần học kỳ đã ban hành
-  await expect(page.getByText(/Chưa có lịch chủ đề nhánh đã duyệt/)).toHaveCount(0);
+  // EDU-73 (Tiền 24/11/2026, thay chốt 11/11): HT chỉ xem lịch nhánh theo gói học kỳ đã ban hành, không thấy bản đang soạn
+  const published = (await api(U.ht, 'GET', DOCS)).data.semesterPackages.some(
+    (p) => String(p.classId) === String(cls.id) && p.status === 'APPROVED',
+  );
+  if (!published) await expect(page.getByText('Chưa có lịch chủ đề nhánh đã ban hành')).toBeVisible();
 });
 
 test('ST-003-08 Hiệu trưởng mở hạn kế hoạch giáo dục chủ đề học kỳ 1 quá hạn ở màn Kế hoạch quá hạn; GVCN gửi được; PHT trả lại phải ghi lý do', async ({

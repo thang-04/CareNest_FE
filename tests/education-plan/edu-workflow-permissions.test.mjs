@@ -11,6 +11,20 @@ test('FR6: PHT không có mã nào chỉ xem; mock không có bePermissions gi�
   assert.equal(canEduApprove({ ...vp, bePermissions: ['EDU_THEME_PLAN_EDIT'] }), false);
 });
 
+test('EDU-73 (Tiền 24/11/2026): người chỉ xem không thuộc lớp thấy lịch nhánh theo các gói học kỳ đã ban hành ở "Tất cả"', async () => {
+  const { readFileSync } = await import('node:fs');
+  const page = readFileSync(new URL('../../src/pages/education-plan/BranchPlanPage.jsx', import.meta.url), 'utf8');
+  assert.match(page, /ctx\.branchPlan \|\| \(packages\.length \? publishedBranchCalendar\(ctx\.yearPlan, packages\) : null\)/);
+  const { publishedBranchCalendar } = await import('@/models/education-plan/branchCalendar.mjs');
+  const plan = { themes: [{ id: 't1', startDate: '2026-09-07', endDate: '2026-09-18' }], breaks: [] };
+  const cal = publishedBranchCalendar(plan, [
+    { status: 'APPROVED', themeIds: ['t1'], branchNames: { '2026-09-07': 'Nhánh A' } },
+    { status: 'REVIEW', themeIds: ['t2'], branchNames: { '2026-10-05': 'Nhánh chờ' } },
+  ]);
+  assert.deepEqual([...cal.themeIds], ['t1']);
+  assert.equal(cal.names['2026-10-05'], undefined);
+});
+
 const ht = { role: 'PRINCIPAL' };
 const htCreates = { creators: ['PRINCIPAL'], reviewers: [] };
 

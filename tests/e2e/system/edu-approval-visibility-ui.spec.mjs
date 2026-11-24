@@ -17,7 +17,9 @@ test.beforeAll(async () => {
   const docs = await api(U.tl, 'GET', '/education-plans/class-docs');
   homeroomClass = docs.data.classes.find((c) => String(c.homeroomTeacherId) === String(me.data.userId));
   const teams = await api(U.tl, 'GET', `${GOALS}?planLevel=TEAM&size=100`);
-  teamDraft = teams.data.items.find((p) => p.status === 'DRAFT');
+  // Trang sửa chỉ mở bản của năm học đang chọn (năm đang hoạt động); bộ test khác có thể để lại bản Nháp ở năm sau
+  const activeYear = sql(`select id from school_years where status='ACTIVE' order by id limit 1`);
+  teamDraft = teams.data.items.find((p) => p.status === 'DRAFT' && String(p.schoolYearId) === activeYear);
   // Kế hoạch giáo dục chủ đề Chờ duyệt khóa lịch nhánh (đúng nghiệp vụ) ⇒ bộ test khác để lại thì đưa về Nháp trước khi thử Lưu
   // BE:EDU-100: đã từng ban hành thì không thêm/xóa nhánh ⇒ bỏ cả bản ban hành cũ do bộ test khác để lại
   if (homeroomClass)
@@ -85,9 +87,11 @@ test('ST-002-02 GV thứ hai không có nút sửa ở Dự kiến chủ đề -
   await expect(page.locator('.ga-page')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Chỉnh sửa' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Lưu', exact: true })).toHaveCount(0);
-  // Lịch chủ đề nhánh không duyệt riêng: GV thứ hai vẫn nhận được để xem (EDU-73)
+  // EDU-73 (Tiền 24/11/2026): GV không chủ nhiệm không nhận lịch nhánh đang soạn; chỉ thấy theo gói học kỳ đã ban hành
   const docs = await api(U.gv2, 'GET', '/education-plans/class-docs');
-  expect(docs.data.branchPlans.some((b) => String(b.classId) === String(homeroomClass.id))).toBe(true);
+  expect(docs.data.branchPlans.some((b) => String(b.classId) === String(homeroomClass.id))).toBe(false);
+  const published = docs.data.semesterPackages.filter((p) => String(p.classId) === String(homeroomClass.id) && p.status === 'APPROVED');
+  if (!published.length) await expect(page.getByText('Chưa có lịch chủ đề nhánh đã ban hành')).toBeVisible();
 });
 
 test('ST-002-03 Tổ trưởng thêm chủ đề nhánh ở bản tổ Nháp và lưu được (nhánh do tổ thêm, không xóa được nhánh kế thừa)', async ({
@@ -153,7 +157,9 @@ test('ST-002-04 HT đang mở trang Duyệt: bản PHT vừa gửi kèm ghi chú
 
 test('ST-002-05 giáo viên thứ hai mở kế hoạch tổ đã ban hành, bấm "Nguồn" sang đúng kế hoạch năm (chỉ xem)', async ({ page }) => {
   const teams = await api(U.gv2, 'GET', `${GOALS}?planLevel=TEAM&size=100`);
-  const team = teams.data.items.find((p) => p.status === 'APPROVED' && p.curriculumSourcePlanId);
+  // Trang chi tiết chỉ mở bản của năm học đang hoạt động (năm mặc định khi đăng nhập)
+  const activeYear = sql(`select id from school_years where status='ACTIVE' order by id limit 1`);
+  const team = teams.data.items.find((p) => p.status === 'APPROVED' && p.curriculumSourcePlanId && String(p.schoolYearId) === activeYear);
   test.skip(!team, 'GV thứ hai chưa thấy kế hoạch tổ đã ban hành nào');
   await login(page, U.gv2);
   await spaGo(page, `/education/goals/${team.id}`);
@@ -183,8 +189,11 @@ test('ST-002-06 GVCN xóa được chủ đề nhánh do lớp tự thêm (có h
   let start;
   let end;
   for (const t of doc.themeSchedules.filter((x) => x.startDate >= sem2 && x.startDate > today)) {
-    const taken = doc.branches.filter((b) => b.themeId === t.themeId);
-    for (const d = new Date(`${t.startDate}T00:00:00Z`); iso(d) <= t.endDate; d.setUTCDate(d.getUTCDate() + 7)) {
+    // BE chặn nhánh trùng tuần với mọi nhánh của lớp (cả chủ đề khác) ⇒ xét theo tuần Thứ Hai–Thứ Sáu, mọi nhánh
+    const taken = doc.branches;
+    const first = new Date(`${t.startDate}T00:00:00Z`);
+    first.setUTCDate(first.getUTCDate() + ((8 - first.getUTCDay()) % 7)); // Thứ Hai đầu tiên trong chủ đề
+    for (const d = first; iso(d) <= t.endDate; d.setUTCDate(d.getUTCDate() + 7)) {
       const friday = new Date(d);
       friday.setUTCDate(friday.getUTCDate() + 4);
       if (iso(friday) > t.endDate || taken.some((b) => b.startDate <= iso(friday) && b.endDate >= iso(d))) continue;
