@@ -972,17 +972,27 @@ tr.kb-dm__group th {
 .table.kb-lots-table td {
   padding-inline: var(--space-2);
 }
-/* Tồn kho khô gộp theo thực phẩm: dòng thực phẩm nổi, dòng lô thụt vào và nền nhạt */
+/*
+ * Tồn kho khô gộp theo thực phẩm: dòng thực phẩm nền xám để tách khỏi các lô (nền trắng), lô thụt vào thẳng với tên.
+ * Bảng kẻ ô tô nền trắng cả khi rê chuột, nên các luật dưới phải có độ ưu tiên cao hơn luật nền của bảng kẻ ô.
+ */
+.kb-lots-table.table--grid tbody tr.kb-lots-food td,
+.kb-lots-table.table--grid tbody tr.kb-lots-food:hover td {
+  background: var(--skeleton);
+}
 .kb-lots-table .kb-lots-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
   font-weight: var(--fw-semibold);
   color: var(--color-text);
 }
-.kb-lots-table .kb-lots-lot td {
-  background: var(--color-surface-muted);
-  font-size: var(--fs-sm);
+.kb-lots-table .kb-lots-count {
+  margin-left: var(--space-3);
 }
-.kb-lots-table .kb-lots-lot td:first-child {
-  padding-left: var(--space-8);
+/* Chevron 16px + khoảng cách của nút: dòng lô lùi đúng bằng đó để cột tên thẳng hàng với tên thực phẩm */
+.kb-lots-table.table--grid tbody tr.kb-lots-lot td:first-child {
+  padding-left: calc(var(--space-3) + var(--space-4) + var(--space-2));
 }
 
 /* Hàng tươi (BE): kết quả Đủ/Thiếu/Thừa, đầu cột ngày của bản dự trù, ô ghi chú trống khi in */
@@ -1220,6 +1230,38 @@ tr.kb-dm__group th {
 .kb-actions-total {
   color: var(--color-text-secondary);
   font-size: var(--fs-sm);
+}
+
+/* Phiếu xuất kho khô: ô lý do trải hết hàng lưới, gợi ý lý do thành một hàng nút nhỏ dưới ô, ô số lượng giữ đơn vị cùng dòng */
+.kb-field--full {
+  grid-column: 1 / -1;
+}
+.kb-reason-hints {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+/* Ô số lượng: ô nhập + đơn vị cùng hàng, câu lỗi nằm dưới và căn giữa theo ô nhập, không rớt dòng */
+.kb-qty-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+}
+.kb-qty-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+}
+.kb-qty-cell .field__error {
+  text-align: center;
+  white-space: nowrap;
+}
+.kb-cell-error {
+  margin-top: var(--space-1);
 }
 
 /* Dòng thời gian bếp: dải "Bây giờ" đầu thẻ + vạch giờ hiện tại + bước nên làm (chỉ nhắc theo giờ dự kiến) */

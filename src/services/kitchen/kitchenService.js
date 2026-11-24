@@ -32,6 +32,10 @@ export const createStockReceipt = (payload, user) => repo.createStockReceipt(pay
 export const getStockReceipts = (filters, user) => repo.getStockReceipts(filters, user);
 export const getStockReceipt = (filters, user) => repo.getStockReceipt(filters, user);
 export const saveStockReceipt = (payload, user) => repo.saveStockReceipt(payload, user);
+/** Lô còn tồn của một điểm trường để lập phiếu xuất kho: [{ id, foodName, lotNo, expiryDate, supplierName, qty, unit, expired }]. */
+export const getStockLots = (filters, user) => repo.getStockLots(filters, user);
+/** Xuất kho khô kèm lý do: { kind: SUPPLIER_RETURN | WRITE_OFF, campusId, supplierId?, reason, lines: [{ lotId, qty }] }. */
+export const createStockDisposal = (payload, user) => repo.createStockDisposal(payload, user);
 /*
  * NCC thuộc danh mục bán trú (BE /nutrition/suppliers, module nutrition-catalog): danh sách ({ keyword, status }), chi tiết,
  * tạo/sửa ({ id?, ... }), xóa (mock: khi chưa có phiếu; BE: chuyển Ngừng dùng).

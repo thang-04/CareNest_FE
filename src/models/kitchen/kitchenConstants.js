@@ -159,6 +159,15 @@ export const CONTRACT_STATUS_LABELS = {
 
 export const NOTE_MAX = 500;
 
+// Xuất kho khô: lô còn hạn trả lại NCC; lô hết hạn xuất hủy kèm lý do. Khác RETURN (hoàn kho, cộng tồn).
+export const DISPOSAL_KIND = { SUPPLIER_RETURN: 'SUPPLIER_RETURN', WRITE_OFF: 'WRITE_OFF' };
+export const DISPOSAL_KIND_LABELS = { SUPPLIER_RETURN: 'Xuất kho cho NCC', WRITE_OFF: 'Xuất kho (hết hạn)' };
+export const DISPOSAL_REASON_MIN = 3;
+export const DISPOSAL_REASON_HINTS = {
+  SUPPLIER_RETURN: ['Giao thừa so với đơn đặt', 'Sai quy cách', 'Chất lượng không đạt'],
+  WRITE_OFF: ['Hết hạn sử dụng', 'Hư hỏng, ẩm mốc'],
+};
+
 // Giữ mã lịch sử và widget bếp cũ, không mở lại luồng chế biến/bàn giao mới.
 export const PREP_STATUS = { WAITING: 'WAITING', COOKING: 'COOKING', READY_FOR_HANDOVER: 'READY_FOR_HANDOVER' };
 export const PREP_STATUS_ORDER = [PREP_STATUS.WAITING, PREP_STATUS.COOKING, PREP_STATUS.READY_FOR_HANDOVER];

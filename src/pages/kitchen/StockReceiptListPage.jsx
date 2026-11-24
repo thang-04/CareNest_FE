@@ -43,7 +43,7 @@ export default function StockReceiptListPage() {
                 <th>Ngày nhập</th>
                 <th>Điểm trường</th>
                 <th>Nhà cung cấp</th>
-                <th className="num">Số thực phẩm</th>
+                <th className="num">Số mặt hàng</th>
                 <th className="num">Tổng tiền</th>
                 <th className="center">Trạng thái</th>
               </tr>
