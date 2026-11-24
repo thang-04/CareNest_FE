@@ -27,6 +27,9 @@ import { DateInput } from '@/components/form/DateInput';
 import { formatDate, formatDateTime, isIsoDate } from '@/utils/format';
 import { todayIso } from '@/utils/assessment/assessmentPeriods';
 import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';
+import { readableClassDate } from '@/utils/historyDate';
+import { TransferredHistoryPanel } from '@/components/TransferredHistoryPanel';
+import { dayRange } from '@/utils/assessment/transferredHistory';
 import '@/styles/modules/assessment.css';
 
 const COLS = 9;
@@ -47,12 +50,13 @@ export default function DailyAssessmentPage() {
   const [campusId, setCampusId] = useState('');
   const campusClasses = classes.filter((c) => !campusId || String(c.campusId) === String(campusId));
   const currentClassId = campusClasses.some((c) => c.id === classId) ? classId : campusClasses[0]?.id || '';
-  const lastReadableDate = campusClasses.find((c) => c.id === currentClassId)?.lastReadableDate;
-  const historyOnly = campusClasses.find((c) => c.id === currentClassId)?.historicalReadOnly;
-  const requestDate = date || (historyOnly ? lastReadableDate : undefined);
+  const requestDate = readableClassDate(
+    campusClasses.find((c) => c.id === currentClassId),
+    date,
+  );
   const params = useMemo(() => ({ classId: currentClassId, date: requestDate }), [currentClassId, requestDate]);
   const { sheet, loading, error, reload } = useDailyAssessment(params);
-  const shownDate = date || sheet?.date || '';
+  const shownDate = requestDate || sheet?.date || '';
 
   const [drafts, setDrafts] = useState({});
   const [loadedSheet, setLoadedSheet] = useState(null);
@@ -422,6 +426,8 @@ export default function DailyAssessmentPage() {
           )}
         </div>
       )}
+      {/* Trẻ chuyển đến: lịch sử ở lớp cũ trong ngày này, chỉ xem, không thuộc phần lưu */}
+      <TransferredHistoryPanel classId={currentClassId} range={dayRange(shownDate)} date={shownDate} />
 
       {writable && (
         <div className="page-actions">

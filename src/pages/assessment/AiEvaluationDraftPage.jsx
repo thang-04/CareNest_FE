@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useLocation, useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { AlertOctagon, ArrowLeft, FileCheck2, PenLine, RefreshCw, ShieldAlert } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -26,20 +26,14 @@ import '@/styles/modules/assessment.css';
 const MSG30 = 'Trợ lý AI hiện không khả dụng. Bạn có thể tiếp tục viết đánh giá thủ công.';
 
 /**
- * #57 AI Evaluation Draft (UC 4.7): the monthly, semester or year-end draft and its sources.
+ * #57 AI Evaluation Draft (UC 4.7): the year-end draft and its sources.
  * The draft is never official; the teacher can request a new one and confirms on the detail page.
  */
 export default function AiEvaluationDraftPage() {
   const { id } = useParams();
-  const { pathname } = useLocation();
-  const kind = pathname.includes('/year-end/')
-    ? EVAL_KIND.YEAR_END
-    : pathname.includes('/monthly/')
-      ? EVAL_KIND.MONTHLY
-      : EVAL_KIND.SEMESTER;
-  const base = `/assessment/${kind}`;
-  const section =
-    kind === EVAL_KIND.YEAR_END ? SECTIONS.yearEnd : kind === EVAL_KIND.MONTHLY ? SECTIONS.monthly : SECTIONS.semesterComments;
+  const kind = EVAL_KIND.YEAR_END;
+  const base = '/assessment/year-end';
+  const section = SECTIONS.yearEnd;
   const { user } = useAuth();
   const toast = useToast();
   const { detail, loading, error, reload } = useEvaluation(kind, id);

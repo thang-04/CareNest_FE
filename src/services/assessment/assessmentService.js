@@ -28,6 +28,8 @@ export const unlockAssessmentDay = (body, user) => (be || repo).unlockAssessment
 export const revokeAssessmentDayUnlock = (id, user) => (be || repo).revokeAssessmentDayUnlock(id, user);
 
 export const getChildDevelopment = (childId, params, user) => (be || repo).getChildDevelopment(childId, params, user);
+// Lịch sử lớp cũ của trẻ chuyển đến (chỉ xem, không đưa vào phần lưu / gửi)
+export const getTransferredHistory = (params, user) => (be || repo).getTransferredHistory(params, user);
 /** Trẻ cho Hồ sơ / Tiến độ phát triển: BE trả trẻ trong phạm vi; mock lọc trẻ đang học theo lớp của người dùng. */
 export const getDevelopmentChildren = async (params, user) => {
   if (be) return be.getDevelopmentChildren(params);

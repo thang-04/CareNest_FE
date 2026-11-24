@@ -247,6 +247,9 @@ export const createAssessmentBeApi = (client) => ({
     });
   },
   getChildDevelopment: (childId, { start, end }) => client.get(`/assessment/children/${childId}/development`, { params: { start, end } }),
+  // Lịch sử ở lớp cũ của trẻ chuyển đến (OBS-35), chỉ xem; khoảng tối đa 62 ngày do BE kiểm
+  getTransferredHistory: ({ classId, from, to }) =>
+    client.get(`/classes/${classId}/transferred-assessment-history`, { params: { from, to } }),
   // Trẻ lớp 5–6 tuổi hoàn thành chương trình (sổ chỉ đạo chuyên môn mục 8): ghép tên điểm trường
   getProgramCompletion: async ({ schoolYear, campusId } = {}) => {
     const [report, campuses] = await Promise.all([
