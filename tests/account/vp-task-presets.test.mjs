@@ -11,7 +11,7 @@ test('Tiền 24/11/2026: mảng Kế hoạch giáo dục chỉ còn "Phụ trác
     education.tasks.map((t) => t.code),
     ['EDU_ACADEMIC_DUTY', 'EDU_PLAN_CONFIG'],
   );
-  assert.match(education.note, /chỉ xem bản đã ban hành/);
+  assert.equal(education.note, undefined);
 });
 
 test('FR3.3: preset chuyên môn có mảng education; preset dinh dưỡng đưa education về chỉ xem', () => {

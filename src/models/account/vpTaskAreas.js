@@ -35,7 +35,6 @@ export const VP_TASK_AREAS = [
   {
     key: 'education',
     label: 'Kế hoạch giáo dục',
-    note: 'Phụ trách chuyên môn: soạn/duyệt theo quyền mặc định của Phó hiệu trưởng (tab Mặc định theo vai trò). Không phụ trách: chỉ xem bản đã ban hành.',
     tasks: [
       { code: 'EDU_ACADEMIC_DUTY', place: VP_PLACE.SCHOOL },
       { code: 'EDU_PLAN_CONFIG', place: VP_PLACE.SCHOOL },

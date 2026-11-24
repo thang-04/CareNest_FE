@@ -17,11 +17,9 @@ import {
 } from '@/components/permissions/PermissionTable';
 import { updateRolePermissionsBulk } from '@/services/account/permissionService';
 import {
-  EDU_DOC_TYPES,
   eduApproveToClear,
   eduCellLabel,
   eduCellLock,
-  eduChainLabel,
   eduCodesChanged,
   eduIssueText,
   eduLocalIssues,
@@ -267,14 +265,6 @@ export default function RoleDefaultsPage() {
                 </ul>
               </div>
             )}
-            {EDU_DOC_TYPES.map(({ docType }) => (
-              <p key={docType} className="perm-scope-note text-sm text-muted">
-                {eduChainLabel(matrix, docType)}
-              </p>
-            ))}
-            <p className="perm-scope-note text-sm text-muted">
-              Quyền chỉ cho biết được làm việc đó hay không. Phạm vi dữ liệu (điểm trường, lớp) vẫn theo phân công công tác của từng người.
-            </p>
           </section>
 
           {allChanges.length > 0 && (
