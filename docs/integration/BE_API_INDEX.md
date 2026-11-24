@@ -6,9 +6,9 @@ File sinh tự động từ `BE:docs/api/openapi.yaml`, không sửa tay. Sinh l
 - Path đã bỏ tiền tố `/api` (trùng baseURL của Web/App). File controller tính từ gốc repo `CareNest_BE`.
 - Request/response chi tiết: đọc method trong controller và DTO nó dùng; lỗi theo `BE:docs/contracts/ERROR_CONTRACT.md`.
 
-Nguồn: CareNest_BE docs/api/openapi.yaml tại commit 75dd78d3 2026-11-23
+Nguồn: CareNest_BE docs/api/openapi.yaml tại commit 55e8c24a 2026-11-24
 
-Tổng: 413 endpoint.
+Tổng: 416 endpoint.
 
 ```text
 GET /accounts · src/main/java/com/carenest/controller/account/AccountController.java#searchAccounts
@@ -63,6 +63,7 @@ GET /assessment/children · src/main/java/com/carenest/controller/observation/Ch
 GET /assessment/children/{childId}/development · src/main/java/com/carenest/controller/observation/ChildEvaluationController.java#development
 GET /assessment/class-ratings · src/main/java/com/carenest/controller/observation/ClassRatingController.java#listRatings
 PUT /assessment/class-ratings · src/main/java/com/carenest/controller/observation/ClassRatingController.java#saveRatings
+GET /assessment/daily/classes · src/main/java/com/carenest/controller/observation/DailyAssessmentController.java#listClasses
 GET /assessment/day-unlocks · src/main/java/com/carenest/controller/observation/AssessmentDayUnlockController.java#getUnlocks
 POST /assessment/day-unlocks · src/main/java/com/carenest/controller/observation/AssessmentDayUnlockController.java#unlockDay
 POST /assessment/day-unlocks/{unlockId}/revoke · src/main/java/com/carenest/controller/observation/AssessmentDayUnlockController.java#revokeUnlock
@@ -153,6 +154,7 @@ GET /children/{childId}/health/published · src/main/java/com/carenest/controlle
 GET /children/{childId}/health/trend-analysis · src/main/java/com/carenest/controller/health/HealthTrendController.java#latestTrend
 POST /children/{childId}/health/trend-analysis · src/main/java/com/carenest/controller/health/HealthTrendController.java#analyzeTrend
 POST /children/{childId}/health/trend-analysis/{interpretationId}/approve · src/main/java/com/carenest/controller/health/HealthTrendController.java#approveTrend
+GET /children/{childId}/leave-options · src/main/java/com/carenest/controller/child/ChildEnrollmentController.java#leaveOptions
 GET /children/{childId}/photo · src/main/java/com/carenest/controller/child/ChildPhotoController.java#getChildPhoto
 GET /children/{childId}/photo/url · src/main/java/com/carenest/controller/child/ChildPhotoController.java#getChildPhotoUrl
 POST /children/{childId}/placement · src/main/java/com/carenest/controller/child/ChildEnrollmentController.java#placeChild
@@ -297,6 +299,7 @@ POST /nutrition/age-group-configs · src/main/java/com/carenest/controller/meals
 GET /nutrition/age-group-configs/{ageGroupId}/versions · src/main/java/com/carenest/controller/meals/AgeGroupMealConfigController.java#getConfigVersions
 PUT /nutrition/age-group-configs/{configId} · src/main/java/com/carenest/controller/meals/AgeGroupMealConfigController.java#updateConfig
 POST /nutrition/age-group-configs/batch · src/main/java/com/carenest/controller/meals/AgeGroupMealConfigController.java#saveConfigs
+GET /nutrition/age-group-configs/statuses · src/main/java/com/carenest/controller/meals/AgeGroupMealConfigController.java#getGroupStatuses
 GET /nutrition/allergens · src/main/java/com/carenest/controller/meals/NutritionFoodController.java#getAllergens
 GET /nutrition/day-board · src/main/java/com/carenest/controller/meals/MealPlanController.java#getDayBoard
 GET /nutrition/day-market · src/main/java/com/carenest/controller/meals/DayMarketController.java#getDayMarket
@@ -425,5 +428,3 @@ GET /teacher-assignments · src/main/java/com/carenest/controller/organization/T
 GET /team-leader-assignments · src/main/java/com/carenest/controller/organization/TeacherAssignmentController.java#getTeamLeaders
 PUT /team-leader-assignments · src/main/java/com/carenest/controller/organization/TeacherAssignmentController.java#assignTeamLeader
 ```
-
-GET /nutrition/age-group-configs/statuses · src/main/java/com/carenest/controller/meals/AgeGroupMealConfigController.java#getGroupStatuses

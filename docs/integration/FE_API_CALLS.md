@@ -6,7 +6,7 @@ File sinh tự động, không sửa tay. Sinh lại: `node scripts/check-api-co
 - Path đã chuẩn hóa tham số thành `{x}`. `[module: api|demo]` theo `src/config/integrationModules.js`.
 - Lời gọi có đường dẫn không phải chuỗi literal (vd. ghép từ biến) không nằm trong bảng.
 
-Tổng: 436 lời gọi.
+Tổng: 438 lời gọi.
 
 ```text
 DELETE /accounts/me/photo · src/services/account/api/accountPhotoApi.js [account: api] → src/main/java/com/carenest/controller/account/AccountPhotoController.java#deleteMyPhoto
@@ -59,6 +59,7 @@ GET /assessment/behaviour-tickets/summary · src/services/assessment/api/assessm
 GET /assessment/children · src/services/assessment/api/assessmentApi.js [assessment: api] → src/main/java/com/carenest/controller/observation/ChildEvaluationController.java#developmentChildren
 GET /assessment/children/{x}/development · src/services/assessment/api/assessmentApi.js [assessment: api] → src/main/java/com/carenest/controller/observation/ChildEvaluationController.java#development
 GET /assessment/class-ratings · src/services/assessment/api/assessmentApi.js [assessment: api] → src/main/java/com/carenest/controller/observation/ClassRatingController.java#listRatings
+GET /assessment/daily/classes · src/services/assessment/api/assessmentApi.js [assessment: api] → src/main/java/com/carenest/controller/observation/DailyAssessmentController.java#listClasses
 GET /assessment/day-unlocks · src/services/assessment/api/assessmentApi.js [assessment: api] → src/main/java/com/carenest/controller/observation/AssessmentDayUnlockController.java#getUnlocks
 GET /assessment/evaluation-periods · src/services/assessment/api/assessmentApi.js [assessment: api] → src/main/java/com/carenest/controller/observation/EvaluationDeadlineController.java#getPeriods
 GET /assessment/evaluation-unlocks · src/services/assessment/api/assessmentApi.js [assessment: api] → src/main/java/com/carenest/controller/observation/EvaluationDeadlineController.java#getUnlocks
@@ -79,7 +80,6 @@ GET /assessment/theme-evaluations/themes · src/services/assessment/api/assessme
 GET /assessment/weekly-comments · src/services/assessment/api/assessmentApi.js [assessment: api] → src/main/java/com/carenest/controller/observation/WeeklyCommentController.java#getBoard
 GET /assessment/weekly-comments/overview · src/services/assessment/api/assessmentApi.js [assessment: api] → src/main/java/com/carenest/controller/observation/WeeklyCommentController.java#getOverview
 GET /assessment/weekly-comments/unlocks · src/services/assessment/api/assessmentApi.js [assessment: api] → src/main/java/com/carenest/controller/observation/WeeklyCommentController.java#getUnlocks
-GET /assessment/daily/classes · src/services/assessment/api/assessmentApi.js [assessment: api] → src/main/java/com/carenest/controller/observation/DailyAssessmentController.java#listClasses
 GET /attendance/classes · src/services/attendance/api/attendanceApi.js [attendance: api] → src/main/java/com/carenest/controller/attendance/AttendanceController.java#getClasses
 GET /attendance/day-info · src/services/attendance/api/attendanceApi.js [attendance: api] → src/main/java/com/carenest/controller/attendance/AttendanceController.java#getDayInfo
 GET /attendance/day-unlocks · src/services/attendance/api/attendanceApi.js [attendance: api] → src/main/java/com/carenest/controller/attendance/AttendanceController.java#getUnlocks
@@ -105,6 +105,7 @@ GET /children/{x}/guardians · src/services/account/api/guardianApi.js [guardian
 GET /children/{x}/guardians/pending · src/services/account/api/guardianApi.js [guardian: api] → src/main/java/com/carenest/controller/child/SelectedParentAccountController.java#pending
 GET /children/{x}/health · src/services/children/api/childrenApi.js [children: api] → src/main/java/com/carenest/controller/health/HealthMeasurementController.java#getHealthRecord
 GET /children/{x}/health/trend-analysis · src/services/children/api/childrenApi.js [children: api] → src/main/java/com/carenest/controller/health/HealthTrendController.java#latestTrend
+GET /children/{x}/leave-options · src/services/children/api/childrenApi.js [children: api] → src/main/java/com/carenest/controller/child/ChildEnrollmentController.java#leaveOptions
 GET /children/{x}/profile · src/services/children/api/childrenApi.js [children: api] → src/main/java/com/carenest/controller/child/ChildPhotoController.java#getProfile
 GET /children/{x}/profile-change-requests/latest · src/services/children/api/childrenApi.js [children: api] → src/main/java/com/carenest/controller/account/ChildProfileChangeRequestController.java#getLatestProfileChanges
 GET /classes · src/services/schoolService.js [school-lookup: demo] → (BE chưa có)
@@ -178,6 +179,7 @@ GET /menu/weekly-menus · src/services/menu-planning/api/menuPlanningApi.js [men
 GET /menu/weekly-menus/{x} · src/services/menu-planning/api/menuPlanningApi.js [menu-planning: demo] → (BE chưa có)
 GET /notification-rules · src/services/announcement/api/announcementApi.js [announcements: api] → src/main/java/com/carenest/controller/notification/NotificationRuleController.java#listRules
 GET /nutrition/age-group-configs · src/services/nutritionCatalogApi.js [nutrition-catalog: api] → src/main/java/com/carenest/controller/meals/AgeGroupMealConfigController.java#getEffectiveConfigs
+GET /nutrition/age-group-configs/statuses · src/services/nutritionCatalogApi.js [nutrition-catalog: api] → src/main/java/com/carenest/controller/meals/AgeGroupMealConfigController.java#getGroupStatuses
 GET /nutrition/age-group-configs/{x}/versions · src/services/nutritionCatalogApi.js [nutrition-catalog: api] → src/main/java/com/carenest/controller/meals/AgeGroupMealConfigController.java#getConfigVersions
 GET /nutrition/allergens · src/services/nutritionCatalogApi.js [nutrition-catalog: api] → src/main/java/com/carenest/controller/meals/NutritionFoodController.java#getAllergens
 GET /nutrition/day-board · src/services/dayBoardApi.js [day-board: api] → src/main/java/com/carenest/controller/meals/MealPlanController.java#getDayBoard
@@ -446,5 +448,3 @@ PUT /school/appearance · src/services/appearance/api/appearanceApi.js [appearan
 PUT /team-leader-assignments · src/services/school-config/api/schoolConfigApi.js [school-config: api] → src/main/java/com/carenest/controller/organization/TeacherAssignmentController.java#assignTeamLeader
 PUT /users/{x} · src/services/school-config/api/schoolConfigApi.js [school-config: api] → (BE chưa có — pending)
 ```
-
-GET /nutrition/age-group-configs/statuses · src/services/nutritionCatalogApi.js [nutrition-catalog: api] → AgeGroupMealConfigController#getGroupStatuses

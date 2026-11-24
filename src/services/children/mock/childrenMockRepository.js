@@ -31,7 +31,7 @@ import {
 } from '@/models/children/childProfile';
 import { isValidCitizenId, normalizeCitizenId } from '@/utils/citizenId';
 import { formatDate, localDateOf, normalizeText, todayInput } from '@/utils/format';
-import { placementDateError, startDateError } from '@/utils/children/startDate';
+import { firstSchoolDay, isSchoolDay, placementDateError, schoolDayProblem, startDateError } from '@/utils/children/startDate';
 import { uid } from '@/utils/id';
 import { areaAccess, areaAllows } from '@/utils/school-config/schoolConfigPermissions';
 import {
@@ -366,6 +366,28 @@ const ensureSeeded = () => {
   if (!(db.children || []).some((c) => c.nextClass && c.nextClass.from <= today)) return db;
   writeDb(applyDueSchedules);
   return readDb();
+};
+
+const SAME_DAY_DATA_BLOCKED = 'Trẻ đã có điểm danh, sức khỏe hoặc đánh giá trong hôm nay. Thực hiện nghỉ học từ ngày học tiếp theo.';
+
+// G94-180/CHD-03: ngày học đầu tiên sau hôm nay (BE nextSchoolDay); không tìm được ⇒ null
+const nextSchoolDayOf = (today, holidays) => {
+  const next = firstSchoolDay(addDays(today, 1), holidays, addDays(today, 400));
+  return isSchoolDay(next, holidays) ? next : null;
+};
+
+// G94-180/CHD-03: câu lỗi ô leftAt như BE (không trước hôm nay, là ngày học, hôm nay hoặc ngày học kế tiếp, không trước ngày tiếp nhận)
+const leaveDateProblem = (db, child, leftAt, today) => {
+  const holidays = yearHolidays(db, activeYearId(db));
+  if (leftAt < today) return 'Ngày nghỉ học không được trước hôm nay';
+  if (leftAt === today && (db.attendance || []).some((r) => r.childId === child.id && r.date === today)) return SAME_DAY_DATA_BLOCKED;
+  const dayProblem = schoolDayProblem('Ngày nghỉ học', leftAt, holidays);
+  if (dayProblem) return dayProblem;
+  const next = nextSchoolDayOf(today, holidays);
+  if (leftAt !== today && leftAt !== next) return `Chỉ chọn hôm nay hoặc ngày học kế tiếp${next ? ` (${formatDate(next)})` : ''}`;
+  if (child.enrolledAt && leftAt < child.enrolledAt)
+    return `Ngày nghỉ học không được trước ngày tiếp nhận (${formatDate(child.enrolledAt)})`;
+  return '';
 };
 
 const forbid = () => {
@@ -1516,6 +1538,25 @@ export const childrenMockRepository = {
   },
 
   /** Cho nghỉ học: không xóa dữ liệu, chỉ chuyển trạng thái Đã nghỉ và giữ lớp cuối cùng để tra lịch sử. */
+  /**
+   * G94-180/CHD-03 (user 24/11): chỉ cho nghỉ học hôm nay hoặc ngày học kế tiếp (BE GET /children/{id}/leave-options).
+   * Đơn giản hóa: mock chỉ biết điểm danh trong db.attendance (không có sức khỏe/đánh giá trong ngày), và chỉ khi màn điểm danh đã seed.
+   */
+  async getLeaveOptions(childId, user) {
+    await delay();
+    const db = ensureSeeded();
+    const child = findChild(db, childId);
+    if (!canWithdrawChild(child, user)) forbid();
+    const today = todayInput();
+    const problem = leaveDateProblem(db, child, today, today);
+    return {
+      today,
+      todayAllowed: !problem,
+      todayBlockedReason: problem || null,
+      nextSchoolDay: nextSchoolDayOf(today, yearHolidays(db, activeYearId(db))),
+    };
+  },
+
   async withdrawChild(childId, { leftAt, reason }, user) {
     await delay();
     const db = ensureSeeded();
@@ -1523,8 +1564,10 @@ export const childrenMockRepository = {
     if (!canWithdrawChild(child, user)) forbid();
     const errors = {};
     if (!leftAt || !/^\d{4}-\d{2}-\d{2}$/.test(leftAt)) errors.leftAt = 'Chọn ngày nghỉ học';
-    else if (leftAt > todayInput()) errors.leftAt = 'Ngày nghỉ học không được ở tương lai';
-    else if (child.enrolledAt && leftAt < child.enrolledAt) errors.leftAt = 'Ngày nghỉ học không được trước ngày tiếp nhận';
+    else {
+      const problem = leaveDateProblem(db, child, leftAt, todayInput());
+      if (problem) errors.leftAt = problem;
+    }
     if (!reason?.trim()) errors.reason = 'Nhập lý do cho trẻ nghỉ học';
     else if (reason.trim().length > 300) errors.reason = 'Lý do tối đa 300 ký tự';
     if (hasErrors(errors)) invalid(errors);

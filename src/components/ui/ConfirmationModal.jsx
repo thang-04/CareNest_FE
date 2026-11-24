@@ -16,6 +16,7 @@ export function ConfirmationModal({
   onClose,
   children,
   error,
+  confirmDisabled = false,
 }) {
   const [busy, setBusy] = useState(false);
   const handleConfirm = async () => {
@@ -39,7 +40,7 @@ export function ConfirmationModal({
           <button className="btn" onClick={onClose} disabled={busy}>
             {cancelLabel}
           </button>
-          <button className={`btn ${danger ? 'btn--danger' : 'btn--primary'}`} onClick={handleConfirm} disabled={busy}>
+          <button className={`btn ${danger ? 'btn--danger' : 'btn--primary'}`} onClick={handleConfirm} disabled={busy || confirmDisabled}>
             {confirmLabel}
           </button>
         </>

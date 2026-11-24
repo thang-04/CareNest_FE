@@ -267,6 +267,7 @@ export const childrenApi = {
   cancelScheduledPlacement: (childId) => read(axiosClient.delete(`/children/${childId}/placement/scheduled`)),
   // Ngày nghỉ của năm học (BE SchoolYearController, chỉ đọc) để báo lỗi ngày học sớm; BE vẫn kiểm
   getSchoolHolidays: async (schoolYearId) => read(axiosClient.get(`/school-years/${await toBeSchoolYear(schoolYearId)}/holidays`)),
+  getLeaveOptions: (childId) => read(axiosClient.get(`/children/${childId}/leave-options`)),
   withdrawChild: (childId, body) => read(axiosClient.post(`/children/${childId}/withdraw`, body)),
   saveDeclaration: (childId, body) => read(axiosClient.put(`/children/${childId}/health-declaration`, body)),
   listParentAccounts: (filters) => read(axiosClient.get('/children/parent-accounts', { params: filters })),
