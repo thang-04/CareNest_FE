@@ -276,7 +276,6 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
   if (!canComposeClassDocs && !saved) return <StatusPage kind="404" title="Kế hoạch chưa được ban hành hoặc không thuộc phạm vi xem" />;
   if (!draft) return <LoadingState />;
 
-  const status = saved?.status || EDU_STATUS.DRAFT;
   const editable = contentEditable;
   // Quyền sửa do BE quyết định (bản chưa ban hành sửa được cả tuần đã tới sau khi mở hạn); FE không tự khóa theo ngày
   const sharedEditable = editable;
@@ -799,11 +798,6 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
             offLabel={week?.offDays?.[day] || null}
             aiDocKey={split && savedDay?.id && dayEditable(day) ? savedDay.id : null}
             unsaved={saver.unsaved}
-            assessTo={
-              (split ? savedDay?.status : status) === EDU_STATUS.APPROVED
-                ? `/assessment/daily/skills?classId=${classId}&date=${draft.days[day].date}`
-                : null
-            }
           />
         )}
       </div>

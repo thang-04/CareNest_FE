@@ -1,5 +1,4 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { Copy, Download, Plus, Sparkles, Trash2, Wand2 } from '@/components/ui/icons';
 import { SortHandle, SortableList, SortableRow } from '@/components/ui/Sortable';
 import { moveItem } from '@/hooks/useSortableList';
@@ -928,7 +927,6 @@ export function DayTab({
   update,
   goals = [],
   cards = [],
-  assessTo = null,
   reuse = [],
   flagOf = () => null,
   offLabel = null,
@@ -1056,13 +1054,6 @@ export function DayTab({
       <div className="section-title center">{longDay(d.date, index)}</div>
       {/* BE:EDU-41: ngày trùng đợt nghỉ không bắt buộc soạn */}
       {offLabel && <p className="text-sm text-warning center">Ngày nghỉ: {offLabel}</p>}
-      {assessTo && (
-        <div className="row row--wrap gap-2">
-          <Link className="btn btn--outline-primary btn--sm" to={assessTo}>
-            Đánh giá trẻ ngày này
-          </Link>
-        </div>
-      )}
       {d.aiSteps?.length > 0 && (
         <div className="row row--wrap gap-2">
           <AiDraftTag />
