@@ -130,13 +130,13 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
     author: canEditNow || canSend,
   });
   const canDelete = annual && (perm ? perm.canDelete : isVp && g.status === EDU_STATUS.DRAFT);
-  // BE:EDU-25 — sửa bản đã ban hành = tạo phiên bản mới; bản đã ban hành giữ nguyên
+  // BE:EDU-25, EDU-112 (2) — sửa bản đã ban hành = tạo phiên bản mới (năm học và tổ); bản đã ban hành giữ nguyên
   const canCreateVersion =
-    annual &&
-    (perm?.canCreateVersion ??
-      ((isVp || isLeader) &&
-        currentPlanInYear(goals, g.ageGroupId, schoolYearId, planLevel)?.id === g.id &&
-        chainOf(goals, g).every((x) => x.status === EDU_STATUS.APPROVED)));
+    perm?.canCreateVersion ??
+    (annual &&
+      (isVp || isLeader) &&
+      currentPlanInYear(goals, g.ageGroupId, schoolYearId, planLevel)?.id === g.id &&
+      chainOf(goals, g).every((x) => x.status === EDU_STATUS.APPROVED));
   const closeDelete = () => {
     setModal(null);
     setDeleteError('');
