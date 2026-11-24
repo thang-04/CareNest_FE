@@ -103,6 +103,7 @@
     "GET /classes/{x}/daily-assessment",
     "GET /classes/{x}/pickups",
     "GET /classes/{x}/teacher-assignments/history",
+    "GET /classes/{x}/transferred-assessment-history",
     "GET /classrooms",
     "GET /daily-health/overview",
     "GET /education-plans/class-docs",

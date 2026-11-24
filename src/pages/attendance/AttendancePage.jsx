@@ -48,6 +48,10 @@ import { attendanceCrumbs } from '@/utils/attendance/breadcrumbs';
 import { normalizeText, formatDate, formatDateTime } from '@/utils/format';
 import { ChildAvatar } from '@/components/ChildAvatar';
 import { flagTone, healthFlag, healthReminder } from '@/utils/attendance/healthFlag';
+import { readableClassDate } from '@/utils/historyDate';
+import { TransferredHistoryPanel } from '@/components/TransferredHistoryPanel';
+import { hasBePermission } from '@/utils/bePermissions';
+import { PERMISSIONS } from '@/models/bePermissions';
 import '@/styles/modules/attendance.css';
 
 // Bữa của lớp = bữa Hiệu trưởng cấu hình cho nhóm tuổi; Có mặt mặc định ăn đủ, giáo viên có thể tắt báo ăn.
@@ -82,7 +86,7 @@ export default function AttendancePage() {
   const paramClass = params.get('classId');
   const classId = classes.some((c) => c.id === paramClass) ? paramClass : classes[0]?.id || '';
   const selectedClass = classes.find((c) => c.id === classId);
-  const date = params.get('date') || (selectedClass?.historicalReadOnly ? selectedClass.lastReadableDate : null) || defaultDate;
+  const date = readableClassDate(selectedClass, params.get('date')) || defaultDate;
   // unsaved: { attendance, health } — bản nháp điểm danh / ghi nhận sức khỏe chưa lưu
   const [unsaved, setUnsaved] = useState(NOTHING_UNSAVED);
   const [busy, setBusy] = useState(false);
@@ -99,6 +103,8 @@ export default function AttendancePage() {
       if (key === 'classId') {
         const pickedClass = classes.find((c) => c.id === value);
         if (pickedClass?.historicalReadOnly && pickedClass.lastReadableDate) next.set('date', pickedClass.lastReadableDate);
+        // Từ lớp lịch sử sang lớp đang dạy: bỏ ngày cũ, mở ngày mặc định
+        else if (selectedClass?.historicalReadOnly) next.delete('date');
       }
       setUnsaved(NOTHING_UNSAVED);
       setParams(next, { replace: true });
@@ -148,6 +154,10 @@ export default function AttendancePage() {
             onBusy={setBusy}
             saveRef={saveDraft}
           />
+          {/* Trẻ chuyển đến: điểm danh, sức khỏe ở lớp cũ trong ngày (chỉ xem), cần quyền xem đánh giá */}
+          {hasBePermission(user, PERMISSIONS.ASSESSMENT_VIEW) && (
+            <TransferredHistoryPanel classId={classId} range={{ from: date, to: date }} date={date} sections={['attendance']} />
+          )}
         </>
       )}
       <LeaveConfirmModal

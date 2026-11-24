@@ -4,6 +4,7 @@ import { useAsync } from '@/hooks/useAsync';
 import { useClasses } from '@/hooks/useSchool';
 import {
   getChildDevelopment,
+  getTransferredHistory,
   getDevelopmentChildren,
   getDailyAssessment,
   getDailyAssessmentClasses,
@@ -87,6 +88,21 @@ export function useChildDevelopment(childId, params) {
     enabled: !!childId && !!params?.start,
   });
   return { development: data, loading, error, reload };
+}
+
+/** Lịch sử lớp cũ của trẻ chuyển đến lớp trong khoảng from..to; thiếu lớp hoặc khoảng thì không gọi. */
+export function useTransferredHistory(classId, range, { enabled = true } = {}) {
+  const { user } = useAuth();
+  const from = range?.from;
+  const to = range?.to;
+  const { data, loading, error, reload } = useAsync(
+    () => getTransferredHistory({ classId, from, to }, user),
+    [classId, from, to, user?.id],
+    {
+      enabled: enabled && !!classId && !!from && !!to,
+    },
+  );
+  return { history: data, loading, error, reload };
 }
 
 export function useEvaluations(kind, filters, { enabled = true } = {}) {
