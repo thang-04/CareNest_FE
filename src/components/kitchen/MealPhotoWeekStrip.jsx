@@ -11,7 +11,7 @@ const daySummary = (day) => {
   return day.sessions.some((s) => s.status === 'POSTED') ? 'Đủ ảnh' : 'Không có bữa';
 };
 
-/** Dải 5 ngày của tuần: mỗi ngày một tab kèm tóm tắt thiếu/đủ ảnh để thấy ngay ngày nào cần xem. */
+/** Dải 5 ngày của tuần: mỗi ngày một tab một dòng, ngày thiếu ảnh tô đỏ để thấy ngay ngày nào cần xem. */
 export function MealPhotoWeekStrip({ days, value, onChange }) {
   const items = days.map((day) => {
     const summary = daySummary(day);
@@ -26,5 +26,5 @@ export function MealPhotoWeekStrip({ days, value, onChange }) {
       title: `${formatWeekdayDate(day.date)}: ${summary}`,
     };
   });
-  return <Tabs items={items} value={value} onChange={onChange} ariaLabel="Chọn ngày trong tuần" />;
+  return <Tabs className="kr-week" items={items} value={value} onChange={onChange} ariaLabel="Chọn ngày trong tuần" />;
 }
