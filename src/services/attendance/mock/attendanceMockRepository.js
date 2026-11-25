@@ -821,11 +821,16 @@ export const attendanceMockRepository = {
       if (!record || record.classId !== classId || record.status !== ATTENDANCE_STATUS.PRESENT || child?.mealRegistered === false)
         throw new ApiError(409, 'Trẻ này không có suất ăn để điều chỉnh.');
       const served = sessionsAfterLeave(record.absentPart, classSessions(db, cls));
-      const relevant = db.mealCounts.filter((count) => count.campusId === cls.campusId && count.date === date && served.includes(count.session));
+      const relevant = db.mealCounts.filter(
+        (count) => count.campusId === cls.campusId && count.date === date && served.includes(count.session),
+      );
       if (relevant.some((count) => count.status === MEAL_COUNT_STATUS.CONFIRMED || count.needsReconfirmation))
         throw new ApiError(409, 'Số suất ăn liên quan đã xác nhận, không thể sửa.');
       const at = new Date().toISOString();
-      record.meals = { ...allMeals(false, classSessions(db, cls)), ...Object.fromEntries(served.map((session) => [session, !!participates])) };
+      record.meals = {
+        ...allMeals(false, classSessions(db, cls)),
+        ...Object.fromEntries(served.map((session) => [session, !!participates])),
+      };
       record.recordedBy = user.id;
       record.recordedAt = at;
       record.history.push({ at, userId: user.id, action: 'MEAL_PARTICIPATION_CORRECTED' });

@@ -22,7 +22,13 @@ import { ClassMealCard } from '@/components/attendance/ClassMealCard';
 import { Switch } from '@/components/ui/Switch';
 import { Button } from '@/components/ui/Button';
 import { RadioGroup, SelectField } from '@/components';
-import { correctMealParticipation, getClassAttendance, getDayInfo, markArrived, saveClassAttendance } from '@/services/attendance/attendanceService';
+import {
+  correctMealParticipation,
+  getClassAttendance,
+  getDayInfo,
+  markArrived,
+  saveClassAttendance,
+} from '@/services/attendance/attendanceService';
 import {
   createAttendanceRefresh,
   leaveStateChanged,
