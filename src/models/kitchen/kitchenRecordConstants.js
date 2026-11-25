@@ -29,3 +29,12 @@ export const KITCHEN_RECORD_PAGES = {
 
 // Giờ bếp được đăng ảnh nằm ở tab của trang Cấu hình thời gian (chỉ Hiệu trưởng)
 export const PHOTO_WINDOWS_SETTING_PATH = '/school/cutoff?tab=photo';
+
+// Trạng thái ảnh bữa ăn do BE tính (NUT-16); NOT_EXPECTED = ngày nghỉ, chưa tới hoặc thực đơn không có bữa này
+export const MEAL_PHOTO_STATUS_LABELS = {
+  POSTED: 'Đã đăng ảnh',
+  MISSING: 'Thiếu ảnh',
+  PENDING: 'Chờ đăng',
+  NOT_EXPECTED: 'Không có bữa',
+};
+export const INSPECTION_STATE_LABELS = { DRAFT: 'Đang nháp', SIGNED: 'Đã ký' };
