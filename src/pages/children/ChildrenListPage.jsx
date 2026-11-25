@@ -6,6 +6,7 @@ import {
   Search,
   RotateCcw,
   UserMinus,
+  CalendarX,
   FileSpreadsheet,
   Baby,
   Info,
@@ -412,7 +413,7 @@ export default function ChildrenListPage() {
                                   (c.scheduledLeaveOn
                                     ? {
                                         label: 'Hủy lịch nghỉ',
-                                        icon: UserMinus,
+                                        icon: CalendarX,
                                         onClick: () => setCancelingLeave(c),
                                       }
                                     : {

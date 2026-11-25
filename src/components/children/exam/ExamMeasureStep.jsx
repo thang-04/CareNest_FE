@@ -39,7 +39,12 @@ export function ExamMeasureStep({ form, set, setMany, errors, reference, disable
   const n = form.exam.nutrition;
   const setVital = (item, value) => {
     const hint = vitalStatusFor(item.key, value, reference.vitals);
-    setMany({ [`exam.vitals.${item.key}`]: value, ...(hint ? { [`exam.vitals.${item.statusKey}`]: hint.status } : {}) });
+    // Nhiệt độ sai dạng thì bỏ trạng thái đã chọn sẵn từ số cũ, tránh "Sốt" đứng cạnh số không hợp lệ
+    const staleStatus = !hint && isTemperature(item) && String(value ?? '').trim() !== '';
+    setMany({
+      [`exam.vitals.${item.key}`]: value,
+      ...(hint ? { [`exam.vitals.${item.statusKey}`]: hint.status } : staleStatus ? { [`exam.vitals.${item.statusKey}`]: '' } : {}),
+    });
   };
   const setHead = (value) => {
     const s = headStatusFor(value, reference.head);
