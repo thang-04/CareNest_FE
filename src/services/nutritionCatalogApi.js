@@ -233,6 +233,8 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
       const values = Object.values(r.portions).filter((v) => v != null);
       return { ...r, quantity: r.portions['ag-4'] ?? values[0] ?? 0 };
     });
+    // BE không lưu danh sách nhóm tuổi của món: nhóm áp dụng = nhóm có dòng định lượng đã lưu
+    const ageGroupIds = [...new Set((d.ingredients || []).map((r) => codeOf[String(r.ageGroupId)] || String(r.ageGroupId)))];
     return {
       id: d.id,
       code: d.code,
@@ -241,6 +243,7 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
       description: d.description || '',
       status: d.status,
       reference: !!d.reference,
+      ageGroupIds,
       ingredients,
       allergens: (d.allergens || []).map((a) => a.name),
       nutritionByAgeGroup: (d.nutritionByAgeGroup || []).map((n) => ({ ...n, ageGroupId: codeOf[String(n.ageGroupId)] || n.ageGroupId })),
@@ -404,15 +407,24 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
     },
 
     async getFood(id) {
-      const [f, dishes, history] = await Promise.all([
+      const [f, dishes, history, { codeOf }] = await Promise.all([
         client.get(`/nutrition/foods/${id}`),
         client.get(`/nutrition/foods/${id}/dishes`),
         client.get(`/nutrition/foods/${id}/history`),
+        agMaps(),
       ]);
       // BE chưa trả khóa đơn vị theo kho
       return {
         ...toFood(f),
-        usedInDishes: (dishes || []).map((d) => ({ id: d.dishId, name: d.name })),
+        usedInDishes: (dishes || []).map((d) => ({
+          id: d.dishId,
+          name: d.name,
+          dishType: d.dishType,
+          portions: (d.portions || []).map((p) => ({
+            ageGroupId: codeOf[String(p.ageGroupId)] || String(p.ageGroupId),
+            gramsPerChild: p.gramsPerChild,
+          })),
+        })),
         history: (history || []).map(toFoodHistoryEntry),
         unitsLocked: false,
       };

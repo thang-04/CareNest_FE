@@ -123,7 +123,7 @@ export function HistoryCard({ history }) {
                 {list.map((h) => (
                   <tr key={h.id}>
                     <td className="nowrap">{formatDateTime(h.at)}</td>
-                    <td>{md.userById(h.userId)?.fullName || 'Người dùng'}</td>
+                    <td>{h.userName || md.userById(h.userId)?.fullName || 'Người dùng'}</td>
                     <td className="fw-600">{HISTORY_LABELS[h.action] || h.action}</td>
                     {hasChanges && (
                       <td>

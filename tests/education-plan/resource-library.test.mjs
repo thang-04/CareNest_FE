@@ -117,6 +117,21 @@ test('901 FR-004: nhãn chủ đề + năm tự thêm theo dòng gắn, gỡ là
   assert.deepEqual(item.taughtThemes, [{ name: 'Gia đình', schoolYearId: '2026-2027', schoolYearName: '2026-2027' }]);
   assert.equal(item.tags[0].auto, true);
   assert.ok(await find({ teachThemeName: ' gia đình ', schoolYearId: '2026-2027' }));
+  assert.ok(await find({ schoolYearId: '2026-2027' }));
+  assert.equal(await find({ schoolYearId: '2025-2026' }), undefined);
+  const previousYears = writeDb((db) => {
+    const years = db.schoolYears;
+    db.schoolYears = [{ id: 42, name: '2026-2027' }, { id: 17, name: '2025-2026' }];
+    return years;
+  });
+  try {
+    assert.deepEqual((await find({ schoolYearId: 42 })).taughtThemes, [
+      { name: 'Gia đình', schoolYearId: 42, schoolYearName: '2026-2027' },
+    ]);
+    assert.equal(await find({ schoolYearId: 17 }), undefined);
+  } finally {
+    writeDb((db) => { db.schoolYears = previousYears; });
+  }
   assert.equal(await find({ teachThemeName: 'Bản thân' }), undefined);
   item = await lib.update(teacher, row.itemId, { themes: [{ name: 'Bản thân' }], removeTagIds: [item.tags[0].id] });
   assert.equal(item.tags.length, 2, 'nhãn tự thêm không bỏ tay được');

@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 import { api, USERS, beReachable, editHeaders, newSession } from '../support/realBe.mjs';
-import { login, saveStatus } from '../support/ui.mjs';
+import { login, pickYear, saveStatus } from '../support/ui.mjs';
 
 test.setTimeout(120_000);
 const GOALS = '/education-plans/goals';
@@ -39,8 +39,16 @@ test('EDU-48 xóa cả nhánh, lưu/mở lại BE thật và Lĩnh vực ellipsi
     pages = list.data.totalPages;
     current++;
   } while (current < pages);
+  // EDU-98: nhóm tuổi chưa có dữ liệu chương trình của Bộ (vd. 3–12 tháng, V176) không dùng được cho bước chọn Lĩnh vực
+  const withCurriculum = new Set();
+  for (const group of config.ageGroups) {
+    const goals = await api(USERS.vp, 'GET', `/education-plans/curriculum/goals?ageGroupId=${group.id}`);
+    if (goals.status === 200 && goals.data.length) withCurriculum.add(group.id);
+  }
   const slot = config.schoolYears.flatMap((year) =>
-    config.ageGroups.filter((group) => !occupied.has(`${year.id}:${group.id}`)).map((group) => ({ year, group })),
+    config.ageGroups
+      .filter((group) => withCurriculum.has(group.id) && !occupied.has(`${year.id}:${group.id}`))
+      .map((group) => ({ year, group })),
   )[0];
   expect(slot, 'Cần một cặp năm/nhóm trống; không xóa dữ liệu có sẵn để lấy chỗ').toBeTruthy();
   const content = (text, themeKeys = ['a']) => ({ text, themeKeys });
@@ -88,6 +96,8 @@ test('EDU-48 xóa cả nhánh, lưu/mở lại BE thật và Lĩnh vực ellipsi
   expect(finish.status, finish.desc).toBe(200);
   const before = await read();
   await login(page, USERS.vp);
+  // EDU-107: trang kế hoạch lọc theo năm chọn ở header ⇒ chọn đúng năm của bản vừa tạo
+  await pickYear(page, slot.year.name);
   await page.goto(`/education/school-year-plans/${ownedId}/edit`);
   await expect(page.locator('#desc')).toBeEditable();
   let writes = 0;

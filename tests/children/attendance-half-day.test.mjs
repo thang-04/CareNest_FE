@@ -13,12 +13,33 @@ test('nghỉ một buổi: chỉ còn bữa của buổi còn học', () => {
   assert.deepEqual(sessionsAfterLeave(undefined, sessions), sessions);
 });
 
-// ATT-13 (BE CUTOFF_LATEST_ARRIVAL_INVALID): giờ đến muộn nhất buổi chiều phải sau giờ chốt
+// ATT-13: giờ đến muộn nhất buổi chiều phải sau giờ chốt (lỗi theo ô như BE DailyScheduleRules)
 test('cấu hình giờ: giờ đến muộn nhất buổi chiều phải sau giờ chốt', () => {
   const year = { name: '2026-2027', startDate: '2026-09-01', endDate: '2027-05-31' };
   const base = { time: '08:30', effectiveFrom: '2026-11-19', note: '' };
   assert.equal(validateCutoff({ ...base, latestAfternoonArrival: '14:00' }, year).latestAfternoonArrival, undefined);
-  assert.match(validateCutoff({ ...base, latestAfternoonArrival: '08:00' }, year).latestAfternoonArrival, /sau giờ chốt 08:30/);
+  assert.match(validateCutoff({ ...base, latestAfternoonArrival: '08:00' }, year).latestAfternoonArrival, /Giờ đến muộn nhất buổi chiều phải sau Giờ chốt \(08:30\)/);
+});
+
+test('cấu hình giờ sinh hoạt phải theo đúng thứ tự và có mốc tính đủ ngày', () => {
+  const year = { name: '2026-2027', startDate: '2026-09-01', endDate: '2027-05-31' };
+  const base = {
+    time: '08:30',
+    effectiveFrom: '2026-11-19',
+    dropoffOpenFrom: '06:30',
+    morningStart: '07:00',
+    morningEnd: '11:00',
+    afternoonStart: '13:30',
+    pickupStart: '15:00',
+    fullDayPickupFrom: '15:00',
+    pickupEnd: '17:00',
+    afternoonEnd: '17:00',
+  };
+  assert.equal(Object.keys(validateCutoff(base, year)).length, 0);
+  assert.match(
+    validateCutoff({ ...base, fullDayPickupFrom: '13:00' }, year).fullDayPickupFrom,
+    /Mốc tính đủ ngày phải sau Bắt đầu chiều \(13:30\)/,
+  );
 });
 
 test('điểm danh: trẻ nghỉ sáng có nút Đã đến, trẻ nghỉ chiều khóa bữa xế', () => {

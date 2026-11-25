@@ -1,5 +1,6 @@
 import { Fragment, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useReceiptOrigin } from '@/hooks/kitchen/useReceiptOrigin';
 import { ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown, Download, Plus, RotateCcw } from '@/components/ui/icons';
 import { exportWithPreview } from '@/components/ui/ExportPreview';
 import { CategoryNav } from '@/components/ui/CategoryNav';
@@ -39,9 +40,10 @@ const qtyOf = (quantity, food) => formatQty(toPurchaseQuantity(quantity, food));
 
 /**
  * Tồn kho khô của một điểm trường theo bảng PMS: mỗi thực phẩm một dòng nhóm "Tên - Số lượng tồn: N", dưới là từng lô
- * (Nhập / Xuất / Tồn); trong thực phẩm lô hết hạn sớm đứng trước (thứ tự BE trả). Xuất = nhập − còn lại của lô.
+ * (Nhập / Xuất / Tồn); trong thực phẩm lô nhập mới nhất đứng trên cùng. Xuất = nhập − còn lại của lô.
  */
 export function StockLotsTab({ campusId }) {
+  const origin = useReceiptOrigin();
   const [keyword, setKeyword] = useState('');
   const [includeEmpty, setIncludeEmpty] = useState(false);
   const [foodGroup, setFoodGroup] = useState('');
@@ -124,7 +126,7 @@ export function StockLotsTab({ campusId }) {
             </Button>
           ) : (
             canManage && (
-              <Link className="btn btn--primary" to={`/kitchen/stock-receipts/new?campusId=${campusId}`}>
+              <Link className="btn btn--primary" to={`/kitchen/stock-receipts/new?campusId=${campusId}`} state={origin}>
                 <Plus size={16} /> Lập phiếu nhập
               </Link>
             )

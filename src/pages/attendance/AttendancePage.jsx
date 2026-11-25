@@ -71,7 +71,8 @@ const toDraft = (sheet) =>
 const NOTHING_UNSAVED = { attendance: false, health: false };
 // ATT-12, ATT-13: đơn nghỉ một buổi; trẻ nghỉ chiều GV vẫn điểm danh buổi sáng
 const leavePart = (row) => (row.leaveRequest ? row.leaveRequest.part || LEAVE_PART.FULL_DAY : null);
-const halfPart = (row) => (leavePart(row) && leavePart(row) !== LEAVE_PART.FULL_DAY ? leavePart(row) : undefined);
+const halfPart = (row) =>
+  !row.leaveRequest?.noticeOnly && leavePart(row) && leavePart(row) !== LEAVE_PART.FULL_DAY ? leavePart(row) : undefined;
 const changed = (entry, record, sessions) =>
   !!entry?.status &&
   (entry.status !== (record?.status || '') || sessions.some((session) => !!entry.meals?.[session] !== !!record?.meals?.[session]));
@@ -677,11 +678,13 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
                                   disabled={busy}
                                   onClick={() => setLeaveFor(row)}
                                 >
-                                  {halfPart(row)
-                                    ? LEAVE_PART_TAGS[halfPart(row)]
-                                    : entry.status === 'EXCUSED'
-                                      ? 'Vắng có phép · Phụ huynh báo nghỉ'
-                                      : 'Phụ huynh báo nghỉ'}
+                                  {row.leaveRequest.noticeOnly
+                                    ? 'Báo nghỉ chiều sau giờ chốt'
+                                    : halfPart(row)
+                                      ? LEAVE_PART_TAGS[halfPart(row)]
+                                      : entry.status === 'EXCUSED'
+                                        ? 'Vắng có phép · Phụ huynh báo nghỉ'
+                                        : 'Phụ huynh báo nghỉ'}
                                 </button>
                               )}
                             </div>
@@ -858,6 +861,11 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
                     : ''
                 }`}
             </p>
+            {leaveFor.leaveRequest.noticeOnly && (
+              <p className="alert alert--info">
+                Báo nghỉ chiều sau giờ chốt: chỉ thông báo cho lớp, không thay đổi điểm danh hoặc suất ăn đã chốt.
+              </p>
+            )}
             <p>{leaveFor.leaveRequest.reason || 'Không có ghi chú.'}</p>
           </>
         )}

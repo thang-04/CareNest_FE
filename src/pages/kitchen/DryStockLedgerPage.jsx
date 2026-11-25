@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import { useReceiptOrigin } from '@/hooks/kitchen/useReceiptOrigin';
 import { PackageX, Plus } from '@/components/ui/icons';
 import { Button, EmptyState, ErrorState, LoadingState, PageHeader } from '@/components';
 import { usePageReadOnly } from '@/contexts/PageReadOnlyContext';
@@ -47,6 +48,7 @@ const TABS = {
 /** Kho khô (L2): tồn theo lô, phiếu nhập, lịch sử nhập/trừ, phần thiếu. Điểm trường chọn trên URL (?campusId=). */
 export default function DryStockLedgerPage({ tab = 'stock' }) {
   const navigate = useNavigate();
+  const origin = useReceiptOrigin();
   const { reason: viewOnlyReason } = usePageReadOnly();
   const campus = useStockCampus();
   const canManage = useCanManageStock(campus.campusId);
@@ -97,7 +99,7 @@ export default function DryStockLedgerPage({ tab = 'stock' }) {
             <Button
               variant="primary"
               icon={Plus}
-              onClick={() => navigate(`/kitchen/stock-receipts/new?campusId=${campus.campusId}`)}
+              onClick={() => navigate(`/kitchen/stock-receipts/new?campusId=${campus.campusId}`, { state: origin })}
               disabledReason={canManage ? undefined : viewOnlyReason}
             >
               Lập phiếu nhập

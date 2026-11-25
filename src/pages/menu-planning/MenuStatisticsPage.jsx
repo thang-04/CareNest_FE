@@ -103,6 +103,7 @@ const CHILDREN_SOURCE = {
   INPUT: 'Số nhập tay',
   CONFIRMED: 'Theo suất đã xác nhận',
   ENROLLED: 'Theo sĩ số đang học',
+  MIXED: 'Nhiều nguồn theo từng nhóm',
 };
 
 /*
@@ -329,7 +330,17 @@ export default function MenuStatisticsPage() {
       ) : (
         <>
           <div className="stat-grid">
-            <StatCard className="stat-card--fit" tone="blue" icon={false} label="Số trẻ" value={stats.children} />
+            <StatCard
+              className="stat-card--fit"
+              tone="blue"
+              icon={false}
+              label={
+                stats.childrenSource
+                  ? `Số trẻ · ${(CHILDREN_SOURCE[stats.childrenSource] || stats.childrenSource).toLowerCase()}`
+                  : 'Số trẻ'
+              }
+              value={stats.children}
+            />
             <StatCard className="stat-card--fit" tone="green" icon={false} label="Tiền ăn 1 trẻ" value={formatMoney(stats.costPerChild)} />
             {/* Ngân sách mỗi nhóm tuổi một mức: xem theo từng nhóm, không có số toàn trường */}
             {!allGroups && (

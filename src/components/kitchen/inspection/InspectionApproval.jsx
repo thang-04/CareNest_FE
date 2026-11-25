@@ -220,7 +220,7 @@ export function InspectionApprovalQueue({ campusNameOf, onOpenDay, onDecided }) 
   if (queue.error) return <ErrorState error={queue.error} onRetry={queue.reload} />;
   if (!queue.data?.length) return null;
   return (
-    <section className="card" aria-label="Yêu cầu mở mẫu chờ duyệt">
+    <section className="card kr-queue" aria-label="Yêu cầu mở mẫu chờ duyệt">
       <div className="card__body kr-approvals">
         <h2 className="card__title">Yêu cầu mở mẫu chờ duyệt ({queue.data.length})</h2>
         {queue.data.map((item) => (

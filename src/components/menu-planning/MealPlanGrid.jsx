@@ -78,7 +78,9 @@ export function MealPlanGrid({
               const swaps = dishes.filter((dish) => dish.type === item.dishType && !chosen.has(String(dish.id)));
               return (
                 <li key={item.dishId} className={`td-dish ${dishTypeClass(item.dishType)}`}>
-                  <span className="td-grow">{name}</span>
+                  <span className="td-grow" title={name}>
+                    {name}
+                  </span>
                   <DishKcal dish={dishById[String(item.dishId)]} ageGroup={kcalAgeGroup} />
                   <span className="td-dish__actions">
                     {editable && swaps.length > 0 && (

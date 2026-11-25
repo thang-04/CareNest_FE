@@ -42,6 +42,25 @@ export const receiptToForm = (receipt) => ({
   ),
 });
 
+/** Số lô gợi ý L{yyMMdd}-{mã thực phẩm} từ ngày nhập (YYYY-MM-DD); thiếu ngày hoặc mã thì để trống để người dùng tự nhập. */
+export const autoLotNo = (receivedDate, foodCode) => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(receivedDate || ''));
+  const code = String(foodCode || '').trim();
+  return m && code ? `L${m[1].slice(2)}${m[2]}${m[3]}-${code}` : '';
+};
+
+/** Số lô gợi ý chưa bị dùng: `base`, rồi `base-2`, `base-3`…; `taken` = tập số lô (chữ thường) đã có của cùng thực phẩm. */
+export const uniqueLotNo = (base, taken) => {
+  if (!base) return '';
+  let candidate = base;
+  for (let n = 2; taken.has(candidate.toLowerCase()); n += 1) candidate = `${base}-${n}`;
+  return candidate;
+};
+
+/** Số lô còn là bản tự sinh của `base` (chính nó hoặc kèm đuôi -n), chưa bị người dùng gõ đè. */
+export const isAutoLotNo = (lotNo, base) =>
+  !!base && (lotNo === base || (String(lotNo).startsWith(`${base}-`) && /^\d+$/.test(String(lotNo).slice(base.length + 1))));
+
 const blank = (v) => v === '' || v == null;
 
 /** Lỗi theo ô: { campusId, supplierId, receivedDate, lines, 'lines.0.purchaseQty', … }. Rỗng = đủ để gửi. */
