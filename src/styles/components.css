@@ -3047,6 +3047,14 @@ button.stat-card .stat-card__label::after {
   align-items: flex-end;
   flex-wrap: wrap;
 }
+/* Hàng lọc / thanh công cụ: nút nhỏ và tab cao bằng ô nhập (36px) để các điều khiển cùng hàng không lệch */
+:is(.filter-bar, .kb-toolbar, .bd-toolbar, .td-week-toolbar, .td-stat-filters) .btn--sm {
+  height: var(--input-height);
+}
+:is(.filter-bar, .kb-toolbar, .bd-toolbar, .td-week-toolbar, .td-stat-filters) .tabs {
+  min-height: var(--input-height);
+  align-items: center;
+}
 /* Nút thao tác của màn (Thêm, Nhập từ Excel…) nằm cuối hàng lọc, dồn sang phải; hẹp thì tự xuống hàng */
 .filter-bar__end {
   display: flex;

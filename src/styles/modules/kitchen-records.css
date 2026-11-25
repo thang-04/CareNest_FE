@@ -93,6 +93,9 @@
 }
 
 /* Yêu cầu mở mẫu ngày cũ chờ Hiệu trưởng duyệt (INS-05) */
+.kr-queue {
+  margin-bottom: var(--space-4);
+}
 .kr-approvals {
   display: grid;
   gap: var(--space-3);
