@@ -226,6 +226,7 @@ const useAuth=()=>({user:account});
 const rows=[{id:'2026-2027',beId:42,name:'2026-2027',status:'ACTIVE'},{id:17,name:'2025-2026',status:'CLOSED'}];
 const getSchoolYears=async()=>rows;
 const readPickedSchoolYear=()=>null, savePickedSchoolYear=()=>{}, DB_CHANGED_EVENT='storage-change';
+const lockedYearOf=()=>null, preparingYearOf=()=>null;
 `);
   const instance = app.componentState();
   app.render(app.SchoolYearProvider, instance);
