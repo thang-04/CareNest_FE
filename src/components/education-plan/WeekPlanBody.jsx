@@ -11,6 +11,7 @@ import { Cell, focusCell } from '@/components/education-plan/planUi';
 import {
   DAY_SECTIONS,
   HOC_SUGGESTED_ROWS,
+  NGOAI_TROI_SUGGESTED_ROWS,
   NAME_MAX,
   PREP_TARGETS,
   TEXT_MAX,
@@ -941,7 +942,8 @@ export function DayTab({
   aiDocKey = null,
   unsaved = false,
 }) {
-  const [aiBusy, setAiBusy] = useState(false);
+  // Mục đang chờ AI (key) hoặc null
+  const [aiBusy, setAiBusy] = useState(null);
   // Mẩu RAG AI dùng khi gợi ý tiến trình (BE EDU-113); chỉ để cô xem, không lưu vào giáo án
   const [aiRefs, setAiRefs] = useState([]);
   // Ô tiến trình AI điền đang chờ ✓/✗ (Tiền 25/11/2026): chỉ ở màn hình; Lưu mà không bấm ⇒ giữ hết
@@ -1002,26 +1004,42 @@ export function DayTab({
       x.days[index].basis = Object.fromEntries(DAY_SECTIONS.map((s) => [s.key, fromWeek[s.key].cards]));
       return x;
     });
-  // AI gợi ý tiến trình giờ học: a/b/c của API vào 3 dòng đầu của mục học, chỉ ô trống; ghi lại để cô Giữ / Bỏ
-  const aiSteps = async () => {
-    setAiBusy(true);
-    try {
-      const topics = String(hoc.topic || '')
+  // AI gợi ý theo từng hoạt động (Tiền 25/11/2026): nút ở đầu mỗi mục; AI soạn đúng các bước (tên dòng) của mục, chỉ điền
+  // ô trống "Hoạt động của cô/trẻ", đánh dấu chờ ✓/✗
+  const DEFAULT_STEPS = { hoc: HOC_SUGGESTED_ROWS, ngoai_troi: NGOAI_TROI_SUGGESTED_ROWS };
+  const aiSteps = async (s) => {
+    const sec = d.sections[s.key];
+    const fw = fromWeek[s.key];
+    const named = (sec.rows || []).map((r) => r.title?.trim() || '');
+    const steps = named.some(Boolean) ? named : DEFAULT_STEPS[s.key] || ['Ổn định, gây hứng thú', 'Nội dung chính', 'Kết thúc'];
+    const lines = (t) =>
+      String(t || '')
         .split('\n')
         .map((l) => l.replace(/^[\s\-–•+*]+/, '').trim())
         .filter(Boolean);
-      const res = await suggestLessonSteps({ subject: hoc.subject || '', topics, goals: dayGoals.map((g) => g.text) });
+    const topics = s.key === 'hoc' ? lines(hoc.topic) : [fw.name, fw.main, fw.combined].filter(Boolean);
+    setAiBusy(s.key);
+    try {
+      const res = await suggestLessonSteps({
+        subject: s.key === 'hoc' ? hoc.subject || '' : '',
+        topics,
+        goals: (fw.goals || []).map((g) => g.text),
+        activity: s.label.replace(/^\d+\.\s*/, ''),
+        steps: steps.map((t, n) => t || `Bước ${n + 1}`),
+      });
       setAiRefs(res?.refs || []);
+      const out = res?.rows?.length ? res.rows : [res?.a, res?.b, res?.c];
       update((x) => {
-        const rows = x.days[index].sections.hoc.rows;
+        const rows = x.days[index].sections[s.key].rows;
         const filled = [];
-        ['a', 'b', 'c'].forEach((p, i) => {
-          if (!rows[i]) rows.push(emptyRow(HOC_SUGGESTED_ROWS[i]));
+        out.forEach((step, n) => {
+          if (!step) return;
+          if (!rows[n]) rows.push(emptyRow(steps[n] || ''));
           ['teacher', 'child'].forEach((f) => {
-            const v = res?.[p]?.[f];
-            if (v && !rows[i][f]?.trim()) {
-              rows[i][f] = v;
-              filled.push({ id: rows[i].id, f, v });
+            const v = step[f];
+            if (v && !rows[n][f]?.trim()) {
+              rows[n][f] = v;
+              filled.push({ id: rows[n].id, f, v });
             }
           });
         });
@@ -1030,7 +1048,7 @@ export function DayTab({
         return x;
       });
     } finally {
-      setAiBusy(false);
+      setAiBusy(null);
     }
   };
   const keepAiCell = (key) => setAiCells(({ [key]: _, ...rest }) => rest);
@@ -1038,7 +1056,7 @@ export function DayTab({
   const dropAiCell = (key) => {
     const [id, f] = key.split(':');
     update((x) => {
-      const r = x.days[index].sections.hoc.rows.find((y) => y.id === id);
+      const r = DAY_SECTIONS.flatMap((sec) => x.days[index].sections[sec.key].rows || []).find((y) => y.id === id);
       if (r && r[f] === aiCells[key]) r[f] = '';
       return x;
     });
@@ -1065,11 +1083,6 @@ export function DayTab({
   // AI là nút riêng, không nằm trong menu Thao tác (Tiền 25/11/2026); BE POST /ai/lesson-steps, /ai/class-docs/day/{key}/edit
   const aiButtons = (
     <>
-      {(hoc.subject || hoc.topic) && (
-        <Button variant="outline-primary" size="sm" icon={Sparkles} loading={aiBusy} onClick={aiSteps}>
-          AI gợi ý tiến trình giờ học
-        </Button>
-      )}
       {aiDocKey && (
         <Button variant="outline-primary" size="sm" icon={Wand2} onClick={() => setAiEditOpen(true)}>
           Sửa theo yêu cầu (AI)
@@ -1164,6 +1177,20 @@ export function DayTab({
                     <tr>
                       <th scope="colgroup" colSpan={cols} className="cell--fixed">
                         <div className="ga-goal-table__pad">
+                          {editable && (
+                            <span className="row row--between">
+                              <Button
+                                variant="outline-primary"
+                                size="sm"
+                                icon={Sparkles}
+                                loading={aiBusy === s.key}
+                                disabled={!!aiBusy}
+                                onClick={() => aiSteps(s)}
+                              >
+                                AI gợi ý
+                              </Button>
+                            </span>
+                          )}
                           {s.label}
                           {s.key !== 'hoc' && fw.name ? `: ${fw.name}` : ''}
                           {s.key === 'hoc' && fw.main && <div className="ga-cell-text">Hoạt động chính: {fw.main}</div>}
@@ -1231,7 +1258,7 @@ export function DayTab({
                         onChange={(rows) => setSec(s.key, 'rows', rows)}
                         onAskDelete={(name, run) => setAskDelete({ name, run })}
                         onRemovePart={() => dropPart(s, 'rows', 'c) Tiến hành')}
-                        aiCells={s.key === 'hoc' ? aiCells : {}}
+                        aiCells={aiCells}
                         onAiKeep={keepAiCell}
                         onAiDrop={dropAiCell}
                       />
