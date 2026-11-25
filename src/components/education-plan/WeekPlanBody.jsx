@@ -1037,7 +1037,8 @@ export function DayTab({
           if (!step) return;
           if (!rows[n]) rows.push(emptyRow(steps[n] || ''));
           ['teacher', 'child'].forEach((f) => {
-            const v = step[f];
+            // Ô là chữ thường: bỏ dấu đậm Markdown (**…**) AI hay chèn
+            const v = step[f]?.replace(/\*\*/g, '');
             if (v && !rows[n][f]?.trim()) {
               rows[n][f] = v;
               filled.push({ id: rows[n].id, f, v });
@@ -1182,8 +1183,12 @@ export function DayTab({
                     <tr>
                       <th scope="colgroup" colSpan={cols} className="cell--fixed">
                         <div className="ga-goal-table__pad">
-                          {editable && (
-                            <span className="row row--between">
+                          <div className="row row--between">
+                            <span>
+                              {s.label}
+                              {s.key !== 'hoc' && fw.name ? `: ${fw.name}` : ''}
+                            </span>
+                            {editable && (
                               <Button
                                 variant="outline-primary"
                                 size="sm"
@@ -1194,10 +1199,8 @@ export function DayTab({
                               >
                                 AI gợi ý
                               </Button>
-                            </span>
-                          )}
-                          {s.label}
-                          {s.key !== 'hoc' && fw.name ? `: ${fw.name}` : ''}
+                            )}
+                          </div>
                           {s.key === 'hoc' && fw.main && <div className="ga-cell-text">Hoạt động chính: {fw.main}</div>}
                           {s.key === 'hoc' && fw.combined && <div className="ga-cell-text">Hoạt động kết hợp: {fw.combined}</div>}
                           {missing.some((m) => m.key === s.key) && <p className="field__error">Mục này chưa có nội dung.</p>}
