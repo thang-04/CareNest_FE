@@ -789,7 +789,8 @@ tr.kb-dm__group th {
   min-width: 150px;
 }
 .kb-lot-input {
-  width: 110px;
+  width: 100%;
+  min-width: 200px;
 }
 
 /* Tiện ích nhỏ thay style inline */
