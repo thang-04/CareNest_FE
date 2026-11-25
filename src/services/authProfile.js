@@ -44,6 +44,7 @@ export const normalizeAccountProfile = (profile) => {
     campusId: campusIds.length === 1 ? campusIds[0] : null,
     classIds,
     classId: classIds.length === 1 ? classIds[0] : null,
+    passwordChangedAt: profile.passwordChangedAt ?? null,
     profileEditable: false,
   };
 };

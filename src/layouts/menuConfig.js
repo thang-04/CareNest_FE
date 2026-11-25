@@ -38,6 +38,11 @@ const LINKS = {
     icon: House,
     to: '/',
   },
+  adminAccounts: {
+    label: 'Tài khoản',
+    icon: ShieldCheck,
+    to: '/school/staff',
+  },
   approvals: {
     label: 'Chờ duyệt',
     icon: ListChecks,
@@ -411,6 +416,8 @@ const group = (key, itemKeys) => ({
   })),
 });
 const account = group('system', ['profile', 'signatures', 'password']);
+// BUG-005: Admin kỹ thuật không ký hồ sơ nào ⇒ nhóm Hệ thống không có "Chữ ký"
+const adminAccount = group('system', ['profile', 'password']);
 // Nhãn khu trên sidebar: các mục liền nhau cùng `section` được Sidebar gom dưới một nhãn
 const BOARDING_SECTION = 'Bán trú';
 // Khu bán trú: "Bán trú hôm nay" đứng đầu, rồi năm nhóm theo thứ tự cố định; nhóm không có mục nào thì bỏ
@@ -570,6 +577,8 @@ const MENUS = {
   ],
   // AUTH-21: bếp chỉ dùng App, Web không có màn bán trú cho bếp
   [ROLES.KITCHEN_STAFF]: [link('home'), group('notifications', ['notifications']), account],
+  // BUG-005: Admin quản trị kỹ thuật — chỉ màn tài khoản + Hồ sơ/Đổi mật khẩu, không nghiệp vụ trẻ
+  [ROLES.ADMIN]: [link('adminAccounts'), adminAccount],
 };
 
 /** "Phân công giáo viên" follows the permission of the Role & Permission screen; every other item stays role-based. */
