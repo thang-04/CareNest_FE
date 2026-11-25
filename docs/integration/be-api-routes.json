@@ -165,6 +165,8 @@
     "GET /nutrition/food-samples",
     "GET /nutrition/foods",
     "GET /nutrition/foods/{x}",
+    "GET /nutrition/foods/{x}/dishes",
+    "GET /nutrition/foods/{x}/history",
     "GET /nutrition/foods/{x}/prices",
     "GET /nutrition/fresh-checks",
     "GET /nutrition/fresh-forecasts",
