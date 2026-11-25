@@ -415,7 +415,7 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
       // BE chưa trả khóa đơn vị theo kho
       return {
         ...toFood(f),
-        usedInDishes: (dishes || []).map((d) => ({ id: d.dishId, name: d.name })),
+        usedInDishes: (dishes || []).map((d) => ({ id: d.dishId, name: d.name, dishType: d.dishType, portions: d.portions || [] })),
         history: (history || []).map(toFoodHistoryEntry),
         unitsLocked: false,
       };
