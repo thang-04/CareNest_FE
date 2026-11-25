@@ -263,3 +263,25 @@ export function ReviewHistory({ items, open = false }) {
     </Card>
   );
 }
+
+/** BE EDU-113: mẩu RAG mà AI dựa vào khi gợi ý (tài liệu trường hoặc giáo án web, có link nguồn) — chỉ để giáo viên xem. */
+export function RagRefLine({ refs = [] }) {
+  if (!refs.length) return null;
+  return (
+    <div className="text-sm muted">
+      Tham khảo:{' '}
+      {refs.map((r, i) => (
+        <span key={r.id}>
+          {i > 0 && '; '}
+          {r.url ? (
+            <a href={r.url} target="_blank" rel="noopener noreferrer">
+              {r.title || r.id}
+            </a>
+          ) : (
+            r.title || r.id
+          )}
+        </span>
+      ))}
+    </div>
+  );
+}

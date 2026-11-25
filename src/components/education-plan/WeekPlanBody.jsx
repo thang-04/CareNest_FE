@@ -46,7 +46,7 @@ import {
   weekRows,
 } from '@/models/education-plan/classPlan';
 import { mtList } from '@/models/education-plan/goalTable';
-import { ActionsMenu } from '@/components/education-plan/reviewUi';
+import { ActionsMenu, RagRefLine } from '@/components/education-plan/reviewUi';
 import { SelectField } from '@/components';
 import { AiEditDayModal } from '@/components/education-plan/AiEditDayModal';
 import { applyCellChanges } from '@/models/education-plan/aiEdit.mjs';
@@ -937,6 +937,8 @@ export function DayTab({
   unsaved = false,
 }) {
   const [aiBusy, setAiBusy] = useState(false);
+  // Mẩu RAG AI dùng khi gợi ý tiến trình (BE EDU-113); chỉ để cô xem, không lưu vào giáo án
+  const [aiRefs, setAiRefs] = useState([]);
   const [aiEditOpen, setAiEditOpen] = useState(false);
   const [aiEditNote, setAiEditNote] = useState('');
   const [askDelete, setAskDelete] = useState(null);
@@ -996,6 +998,7 @@ export function DayTab({
         .map((l) => l.replace(/^[\s\-–•+*]+/, '').trim())
         .filter(Boolean);
       const res = await suggestLessonSteps({ subject: hoc.subject || '', topics, goals: dayGoals.map((g) => g.text) });
+      setAiRefs(res?.refs || []);
       update((x) => {
         const rows = x.days[index].sections.hoc.rows;
         const filled = [];
@@ -1070,6 +1073,7 @@ export function DayTab({
         <div className="row row--wrap gap-2">
           <AiDraftTag />
           <span className="text-sm">Tiến trình giờ học do AI gợi ý, cô xem và sửa lại.</span>
+          {aiRefs.length > 0 && <RagRefLine refs={aiRefs} />}
           {editable && (
             <>
               <button type="button" className="btn btn--primary btn--sm" onClick={() => settleAi(true)}>

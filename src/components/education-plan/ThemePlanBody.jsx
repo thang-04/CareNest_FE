@@ -6,7 +6,7 @@ import { domainRoman, numberGoals } from '@/models/education-plan/goalTable';
 import { cardText, contentLinesOf, newCard, normalizeTheme, slotLabel, themeGoalBlocks } from '@/models/education-plan/classPlan';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { Adjustments, Check, Plus, RotateCcw, Sparkles, X } from '@/components/ui/icons';
-import { ActionsMenu } from '@/components/education-plan/reviewUi';
+import { ActionsMenu, RagRefLine } from '@/components/education-plan/reviewUi';
 import { Modal } from '@/components/ui/Modal';
 import { AiDraftTag } from '@/components/ui/AiDraftTag';
 import { AiWorkingOverlay } from '@/components/ui/AiWorkingOverlay';
@@ -230,6 +230,8 @@ export function ThemePlanBody({
                       </div>
                       <div className="ga-ai-review__name">
                         <ins>{it.name}</ins>
+                        {/* BE EDU-113: mẩu RAG AI đã dựa vào (bài web có link nguồn) */}
+                        {it.ref && <RagRefLine refs={[it.ref]} />}
                       </div>
                       <Button variant="icon" aria-label={`Dùng gợi ý cho MT${g?.no}`} onClick={() => takeAi([it])}>
                         <Check size={16} aria-hidden />
