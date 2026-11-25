@@ -41,5 +41,5 @@ test('dòng file → dòng phiếu: khớp mã hoặc tên không dấu, báo d�
   assert.equal(lines[0].unitPrice, '18000', 'giá trống ⇒ lấy giá danh mục');
   assert.equal(lines[1].purchaseQty, '2.5');
   assert.equal(lines[1].unitPrice, '25000');
-  assert.deepEqual(problems, ['Dòng 5: không tìm thấy thực phẩm kho khô "Muối"']);
+  assert.deepEqual(problems, ['Dòng 5: "Muối" không thuộc nhà cung cấp đã chọn hoặc không có trong danh mục kho khô']);
 });
