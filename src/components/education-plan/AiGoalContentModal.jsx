@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { AiIcon, Check, RotateCcw } from '@/components/ui/icons';
+import { Check, RotateCcw, Sparkles } from '@/components/ui/icons';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Checkbox } from '@/components/form/Checkbox';
@@ -63,7 +63,7 @@ export function AiGoalContentModal({ plan, allowed, current, ensureSaved, onAppl
     <Button onClick={close}>Hủy</Button>
     {result && <Button icon={RotateCcw} disabled={busy || !allowed} onClick={ask}>Gợi ý lại</Button>}
     {result ? <Button variant="primary" icon={Check} disabled={!count || stale || busy} onClick={apply} data-testid="ai-goal-content-apply">Áp dụng {count} nội dung</Button>
-      : <Button variant="primary" icon={AiIcon} loading={busy} disabled={!allowed} onClick={ask} data-testid="ai-goal-content-ask">Gợi ý bằng AI</Button>}
+      : <Button variant="primary" icon={Sparkles} loading={busy} disabled={!allowed} onClick={ask} data-testid="ai-goal-content-ask">Gợi ý bằng AI</Button>}
   </>}><div className="stack" aria-busy={busy}>
     <AiDraftTag label="Gợi ý AI – duyệt trước khi áp dụng" />
     <p className="muted text-sm">AI chọn nội dung từ mục C cho mục tiêu chưa có nội dung. Bản đang soạn được lưu trước khi gọi AI. Bỏ chọn những dòng chưa phù hợp; Áp dụng thêm vào bản soạn, bấm Lưu để ghi lại.</p>

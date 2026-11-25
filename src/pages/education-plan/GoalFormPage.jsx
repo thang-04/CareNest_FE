@@ -8,7 +8,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useAsync } from '@/hooks/useAsync';
 import { ActionsMenu, ReviewActions } from '@/components/education-plan/reviewUi';
-import { AiIcon, Download, FileDown, History, Save, X } from '@/components/ui/icons';
+import { Download, FileDown, History, Save, Sparkles, X } from '@/components/ui/icons';
 import { AiThemeContentModal } from '@/components/education-plan/AiThemeContentModal';
 import { AiGoalContentModal } from '@/components/education-plan/AiGoalContentModal';
 import { applyGoalContents } from '@/models/education-plan/aiGoalContent.mjs';
@@ -1133,7 +1133,7 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
                   items={[
                     {
                       label: 'AI gom nội dung vào chủ đề',
-                      icon: AiIcon,
+                      icon: Sparkles,
                       disabled: saver.saving || finishing,
                       onClick: () => setAiThemeOpen(true),
                     },
@@ -1149,7 +1149,7 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
               )}
               {annual && aiGoalAllowed && (
                 <ActionsMenu items={[{
-                  label: 'AI gợi ý nội dung cho mục tiêu', icon: AiIcon,
+                  label: 'AI gợi ý nội dung cho mục tiêu', icon: Sparkles,
                   disabled: saver.saving || finishing || !goalsWithoutContent,
                   onClick: () => setAiGoalOpen(true),
                 }]} />

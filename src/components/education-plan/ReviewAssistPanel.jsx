@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AiIcon, Check, Plus, X } from '@/components/ui/icons';
+import { Check, Plus, Sparkles, X } from '@/components/ui/icons';
 import { SidePanel } from '@/components/ui/SidePanel';
 import { Tabs } from '@/components/ui/Tabs';
 import { Button } from '@/components/ui/Button';
@@ -82,7 +82,7 @@ export function ReviewAssistPanel({ open, onClose, dossierKey, dayKey, canSummar
           <>
             <AiDraftTag label="Gợi ý của AI – chỉ để tham khảo, không lưu vào hồ sơ" />
             <div>
-              <Button variant="outline-primary" size="sm" icon={AiIcon} loading={summary.loading} onClick={summarize}>
+              <Button variant="outline-primary" size="sm" icon={Sparkles} loading={summary.loading} onClick={summarize}>
                 {summary.data ? 'Tóm tắt lại' : 'Tóm tắt giáo án tuần này'}
               </Button>
             </div>

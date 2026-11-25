@@ -5,7 +5,7 @@ import { domainLabel } from '@/models/education-plan/educationPlanConstants';
 import { domainRoman, numberGoals } from '@/models/education-plan/goalTable';
 import { cardText, contentLinesOf, newCard, normalizeTheme, slotLabel, themeGoalBlocks } from '@/models/education-plan/classPlan';
 import { StatusBadge } from '@/components/ui/StatusBadge';
-import { Adjustments, AiIcon, Check, Plus, RotateCcw, X } from '@/components/ui/icons';
+import { Adjustments, Check, Plus, RotateCcw, Sparkles, X } from '@/components/ui/icons';
 import { ActionsMenu, RagRefLine } from '@/components/education-plan/reviewUi';
 import { Modal } from '@/components/ui/Modal';
 import { AiDraftTag } from '@/components/ui/AiDraftTag';
@@ -165,7 +165,7 @@ export function ThemePlanBody({
                 <Button
                   variant="outline-primary"
                   size="sm"
-                  icon={AiIcon}
+                  icon={Sparkles}
                   loading={ai.busy && !ai.goalId}
                   disabled={ai.busy || !goals.some((g) => !cardsOf(g).length)}
                   title={goals.length && !goals.some((g) => !cardsOf(g).length) ? 'Mọi MT đã có hoạt động' : undefined}
@@ -350,7 +350,7 @@ export function ThemePlanBody({
                                   disabled={ai.busy}
                                   onClick={() => askAi(g.id)}
                                 >
-                                  <AiIcon size={16} aria-hidden />
+                                  <Sparkles size={16} aria-hidden />
                                 </Button>
                               )}
                             </div>
