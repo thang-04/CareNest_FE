@@ -11,6 +11,7 @@
     "DELETE /campuses/{x}",
     "DELETE /children/{x}/guardians/{x}",
     "DELETE /children/{x}/placement/scheduled",
+    "DELETE /children/{x}/scheduled-leave",
     "DELETE /classes/{x}",
     "DELETE /education-plans/class-docs/day/{x}/learning-resources/{x}",
     "DELETE /education-plans/goals/{x}",

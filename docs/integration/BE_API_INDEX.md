@@ -6,9 +6,9 @@ File sinh tự động từ `BE:docs/api/openapi.yaml`, không sửa tay. Sinh l
 - Path đã bỏ tiền tố `/api` (trùng baseURL của Web/App). File controller tính từ gốc repo `CareNest_BE`.
 - Request/response chi tiết: đọc method trong controller và DTO nó dùng; lỗi theo `BE:docs/contracts/ERROR_CONTRACT.md`.
 
-Nguồn: CareNest_BE docs/api/openapi.yaml tại commit 4a3af2b2 2026-11-24
+Nguồn: CareNest_BE docs/api/openapi.yaml tại commit 057945f9 2026-11-25
 
-Tổng: 432 endpoint.
+Tổng: 433 endpoint.
 
 ```text
 GET /accounts · src/main/java/com/carenest/controller/account/AccountController.java#searchAccounts
@@ -170,6 +170,7 @@ POST /children/{childId}/profile-change-requests · src/main/java/com/carenest/c
 GET /children/{childId}/profile-change-requests/latest · src/main/java/com/carenest/controller/account/ChildProfileChangeRequestController.java#getLatestProfileChanges
 POST /children/{childId}/readmit · src/main/java/com/carenest/controller/child/ChildEnrollmentController.java#readmit
 GET /children/{childId}/rewards · src/main/java/com/carenest/controller/observation/ParentAssessmentController.java#getRewards
+DELETE /children/{childId}/scheduled-leave · src/main/java/com/carenest/controller/child/ChildEnrollmentController.java#cancelScheduledLeave
 GET /children/{childId}/weekly-comments · src/main/java/com/carenest/controller/observation/WeeklyCommentController.java#listForParent
 POST /children/{childId}/withdraw · src/main/java/com/carenest/controller/child/ChildEnrollmentController.java#withdraw
 GET /children/duplicate-check · src/main/java/com/carenest/controller/child/ChildEnrollmentController.java#checkDuplicate
