@@ -198,7 +198,10 @@ export const toCheckRequest = (form, lines) => {
 
 /** Factory để test thay client HTTP. */
 export const createFreshGoodsApi = ({ client = beClient } = {}) => ({
-  /** Các bản dự trù đã lưu của điểm trường, mới nhất trước: [{ id, periodFrom, periodTo, note, foodCount, createdAt }]. */
+  /**
+   * Các bản dự trù đã lưu của điểm trường, mới nhất trước: [{ id, periodFrom, periodTo, note, foodCount, createdAt, version, current }];
+   * `current` = bản đang dùng cho kiểm nhận, `version` = thứ tự lập trong cùng kỳ.
+   */
   async listForecasts({ campusId } = {}) {
     return (await client.get('/nutrition/fresh-forecasts', { params: params({ campusId }) })) || [];
   },

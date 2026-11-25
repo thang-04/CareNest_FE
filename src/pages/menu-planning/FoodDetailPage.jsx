@@ -12,7 +12,6 @@ import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { ErrorState, LoadingState } from '@/components/ui/States';
 import { AllergenChips, HistoryCard, RecordStatusBadge } from '@/components/menu-planning/MenuBadges';
 import { NutrientTable } from '@/components/menu-planning/NutrientTable';
-import { FoodPriceHistory } from '@/components/menu-planning/FoodPriceHistory';
 import { ContractStatusBadge } from '@/components/menu-planning/ContractStatusBadge';
 import { hasNutrition, hasOrigin, ingredientQty } from '@/utils/menu-planning/menuCalculations';
 import { activeAgeGroups } from '@/utils/menu-planning/nutritionSetup';
@@ -44,7 +43,7 @@ export default function FoodDetailPage() {
   const { item: f, loading, error, reload } = useFood(id);
   const [confirm, setConfirm] = useState(false);
   const [deleteError, setDeleteError] = useState('');
-  const [tab, setTab] = useTabParam(['info', 'prices', 'dishes', 'history']);
+  const [tab, setTab] = useTabParam(['info', 'dishes', 'history']);
 
   if (loading || catLoading) return <LoadingState />;
   if (error || !f)
@@ -125,7 +124,6 @@ export default function FoodDetailPage() {
         onChange={setTab}
         items={[
           { key: 'info', label: 'Thông tin & dinh dưỡng' },
-          { key: 'prices', label: 'Giá & nhà cung cấp' },
           { key: 'dishes', label: 'Dùng trong món', count: used.length },
           { key: 'history', label: 'Lịch sử' },
         ]}
@@ -242,7 +240,6 @@ export default function FoodDetailPage() {
             )}
           </section>
         )}
-        {tab === 'prices' && <FoodPriceHistory food={f} canManage={canManage} onChanged={() => reload({ silent: true })} />}
         {tab === 'history' && <HistoryCard history={f.history} />}
       </div>
       <div className="page-actions">

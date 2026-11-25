@@ -6,9 +6,9 @@ File sinh tự động từ `BE:docs/api/openapi.yaml`, không sửa tay. Sinh l
 - Path đã bỏ tiền tố `/api` (trùng baseURL của Web/App). File controller tính từ gốc repo `CareNest_BE`.
 - Request/response chi tiết: đọc method trong controller và DTO nó dùng; lỗi theo `BE:docs/contracts/ERROR_CONTRACT.md`.
 
-Nguồn: CareNest_BE docs/api/openapi.yaml tại commit 713781a2 2026-11-24
+Nguồn: CareNest_BE docs/api/openapi.yaml tại commit 7e4f22fe 2026-11-25
 
-Tổng: 430 endpoint.
+Tổng: 432 endpoint.
 
 ```text
 GET /accounts · src/main/java/com/carenest/controller/account/AccountController.java#searchAccounts
@@ -331,6 +331,8 @@ GET /nutrition/foods · src/main/java/com/carenest/controller/meals/NutritionFoo
 POST /nutrition/foods · src/main/java/com/carenest/controller/meals/NutritionFoodController.java#createFood
 GET /nutrition/foods/{foodId} · src/main/java/com/carenest/controller/meals/NutritionFoodController.java#getFood
 PUT /nutrition/foods/{foodId} · src/main/java/com/carenest/controller/meals/NutritionFoodController.java#updateFood
+GET /nutrition/foods/{foodId}/dishes · src/main/java/com/carenest/controller/meals/NutritionFoodController.java#getFoodDishes
+GET /nutrition/foods/{foodId}/history · src/main/java/com/carenest/controller/meals/NutritionFoodController.java#getFoodHistory
 GET /nutrition/foods/{foodId}/prices · src/main/java/com/carenest/controller/meals/NutritionFoodController.java#getFoodPrices
 POST /nutrition/foods/{foodId}/prices · src/main/java/com/carenest/controller/meals/NutritionFoodController.java#adjustFoodPrice
 DELETE /nutrition/foods/{foodId}/prices/{priceId} · src/main/java/com/carenest/controller/meals/NutritionFoodController.java#deleteFoodPrice

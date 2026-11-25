@@ -2,6 +2,7 @@ import { beClient } from '@/services/http/beClient';
 import { DB_CHANGED_EVENT } from '@/mocks/dbEvents';
 import { MEAL_SESSION_LABELS, MICRONUTRIENTS, defaultStorageOf } from '@/models/menu-planning/menuPlanningConstants';
 import { purchaseUnitSizeOf } from '@/utils/menu-planning/foodUnits';
+import { toFoodHistoryEntry } from '@/utils/menu-planning/foodHistory';
 import { normalizeText } from '@/utils/format';
 
 /*
@@ -193,8 +194,10 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
       storage: ['FRESH', 'DRY'].includes(p.storage) ? p.storage : defaultStorageOf(p.group),
       note: text(p.note),
       allergenIds: await allergenIdsOf(p.allergens || []),
-      // Chỉ dùng khi tạo; sau đó đổi qua điều chỉnh giá (BE từ chối nếu khác mức hôm nay)
+      // Khi sửa, giá hoặc NCC khác hiện tại ⇒ BE thêm mức giá mới hiệu lực từ ngày này (NUT-27)
       supplierId: blank(p.supplierId) ? null : Number(p.supplierId),
+      effectiveFrom: blank(p.effectiveFrom) ? null : p.effectiveFrom,
+      priceReason: blank(p.priceReason) ? null : text(p.priceReason),
     };
   };
 
@@ -404,9 +407,18 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
     },
 
     async getFood(id) {
-      const f = await client.get(`/nutrition/foods/${id}`);
-      // BE chưa trả món dùng thực phẩm và khóa đơn vị theo kho
-      return { ...toFood(f), usedInDishes: [], unitsLocked: false };
+      const [f, dishes, history] = await Promise.all([
+        client.get(`/nutrition/foods/${id}`),
+        client.get(`/nutrition/foods/${id}/dishes`),
+        client.get(`/nutrition/foods/${id}/history`),
+      ]);
+      // BE chưa trả khóa đơn vị theo kho
+      return {
+        ...toFood(f),
+        usedInDishes: (dishes || []).map((d) => ({ id: d.dishId, name: d.name })),
+        history: (history || []).map(toFoodHistoryEntry),
+        unitsLocked: false,
+      };
     },
 
     saveFood: (id, payload) =>
