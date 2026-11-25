@@ -12,7 +12,7 @@ import { formatDateTime, todayInput } from '@/utils/format';
 import { MEAL_SESSION_LABELS } from '@/models/kitchen/kitchenConstants';
 import '@/styles/modules/kitchen.css';
 
-/** Screen #94 – Confirmed Meal Count (UC 6.16): normal and substitute servings per class, read only. */
+/** Screen #94 – Confirmed Meal Count (UC 6.16): servings per class, read only. */
 export default function ConfirmedMealCountPage() {
   const md = useMasterData();
   const [params, setParams] = useSearchParams();
@@ -80,8 +80,6 @@ export default function ConfirmedMealCountPage() {
             <div className="card mb-16">
               <div className="card__body kb-totals">
                 <span className="chip chip--blue chip--lg">{day.servings} suất / ngày</span>
-                <span className="chip chip--orange chip--lg">trong đó {day.substitute} suất thay thế</span>
-                <span className="muted text-sm">Chi tiết từng bữa bên dưới để chuẩn bị món thay thế.</span>
               </div>
             </div>
           )}
@@ -101,8 +99,7 @@ export default function ConfirmedMealCountPage() {
                   ) : (
                     <>
                       <div className="card__body kb-totals">
-                        <span className="chip chip--blue chip--lg">{s.totals.normal} suất thường</span>
-                        <span className="chip chip--orange chip--lg">{s.totals.substitute} suất thay thế</span>
+                        <span className="chip chip--blue chip--lg">{s.totals.normal} suất</span>
                         <span className="muted text-sm">Xác nhận lúc {formatDateTime(s.confirmedAt)}</span>
                       </div>
                       <div className="table-wrap">
@@ -110,9 +107,7 @@ export default function ConfirmedMealCountPage() {
                           <thead>
                             <tr>
                               <th>Lớp</th>
-                              <th className="num">Suất thường</th>
-                              <th className="num">Suất thay thế</th>
-                              <th>Món cần thay thế</th>
+                              <th className="num">Số suất</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -120,16 +115,6 @@ export default function ConfirmedMealCountPage() {
                               <tr key={c.classId}>
                                 <td className="fw-600">{c.className}</td>
                                 <td className="num">{c.normal}</td>
-                                <td className="num">{c.substitute}</td>
-                                <td className="kb-cell-wrap">
-                                  {c.affectedDishes.length ? (
-                                    <span className="chip chip--red">
-                                      <AlertTriangle size={13} /> {c.affectedDishes.join(', ')}
-                                    </span>
-                                  ) : (
-                                    <span className="muted">—</span>
-                                  )}
-                                </td>
                               </tr>
                             ))}
                           </tbody>
@@ -141,27 +126,6 @@ export default function ConfirmedMealCountPage() {
                             <AlertTriangle size={18} />
                             <div>{s.warnings.join(' ')}</div>
                           </div>
-                        </div>
-                      )}
-                      {s.adjustments.length > 0 && (
-                        <div className="card__body">
-                          <div className="subsection-title mb-8">Điều chỉnh sau xác nhận</div>
-                          <ul className="history-list">
-                            {s.adjustments.map((a, i) => (
-                              <li key={`${a.at}-${i}`}>
-                                <div className="history-list__dot" />
-                                <div>
-                                  <div>
-                                    {s.classes.find((c) => c.classId === a.classId)?.className || 'Lớp'}: {a.normal > 0 ? '+' : ''}
-                                    {a.normal ?? 0} suất thường, {a.substitute > 0 ? '+' : ''}
-                                    {a.substitute ?? 0} suất thay thế
-                                  </div>
-                                  {a.note && <div className="text-2">“{a.note}”</div>}
-                                  <div className="muted text-xs">{formatDateTime(a.at)}</div>
-                                </div>
-                              </li>
-                            ))}
-                          </ul>
                         </div>
                       )}
                     </>

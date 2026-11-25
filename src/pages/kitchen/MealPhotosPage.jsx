@@ -2,8 +2,8 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { Clock } from '@/components/ui/icons';
 import { Breadcrumb, EmptyState, ErrorState, LoadingState } from '@/components';
 import { WeekPicker } from '@/components/form/WeekPicker';
+import { Tabs } from '@/components/ui/Tabs';
 import { KbCampusFilter } from '@/components/kitchen/KitchenFilters';
-import { MealPhotoInspections } from '@/components/kitchen/MealPhotoInspections';
 import { MealPhotoSessionCard } from '@/components/kitchen/MealPhotoSessionCard';
 import { MealPhotoWeekStrip } from '@/components/kitchen/MealPhotoWeekStrip';
 import { useAuth } from '@/contexts/AuthContext';
@@ -13,7 +13,7 @@ import { KITCHEN_RECORD_PAGES, PHOTO_WINDOWS_SETTING_PATH } from '@/models/kitch
 import { isPrincipal } from '@/utils/kitchen/kitchenPermissions';
 import { bySession } from '@/utils/kitchen/kitchenRecords';
 import { kitchenCrumbs } from '@/utils/kitchen/breadcrumbs';
-import { isIsoDate, todayInput } from '@/utils/format';
+import { formatWeekdayDate, isIsoDate, todayInput } from '@/utils/format';
 import { addDays, mondayOf } from '@/utils/week';
 import '@/styles/modules/kitchen.css';
 import '@/styles/modules/kitchen-records.css';
@@ -49,6 +49,10 @@ export default function MealPhotosPage() {
   const days = week.data?.days || [];
   // Thứ Bảy, Chủ nhật nằm ngoài dải 5 ngày: chọn thứ Sáu để vẫn có ngày đang xem
   const selected = days.find((d) => d.date === date) || days[days.length - 1];
+  // Chỉ đếm trạng thái BE đã tính để hiển thị tiêu đề ngày
+  const expectedSessions = (selected?.sessions || []).filter((s) => s.status !== 'NOT_EXPECTED');
+  const expectedCount = expectedSessions.length;
+  const postedCount = expectedSessions.filter((s) => s.status === 'POSTED').length;
 
   let body;
   if (campus.error) body = <ErrorState error={campus.error} onRetry={campus.reload} />;
@@ -66,27 +70,31 @@ export default function MealPhotosPage() {
   else
     body = (
       <>
-        <MealPhotoWeekStrip days={days} value={selected.date} onChange={setDate} />
-        <div className="kr-photos">
+        <div className="kr-daybar">
+          <h2 className="kr-daybar__title">{formatWeekdayDate(selected.date)}</h2>
+          {selected.dayOff ? (
+            <span className="muted">Ngày nghỉ</span>
+          ) : (
+            <span className="muted">
+              {postedCount}/{expectedCount} bữa có ảnh
+            </span>
+          )}
+        </div>
+        <div className="kr-meals">
           {[...selected.sessions].sort(bySession).map((session) => (
             <MealPhotoSessionCard key={session.session} session={session} date={selected.date} />
           ))}
         </div>
-        <MealPhotoInspections inspections={selected.inspections} />
       </>
     );
 
   return (
     <div className="page">
       <Breadcrumb items={kitchenCrumbs(KITCHEN_RECORD_PAGES.mealPhotos)} />
-      <div className="page__head">
-        <div>
-          <h1 className="page__title">Ảnh bữa ăn</h1>
-        </div>
-      </div>
-      <div className="kb-toolbar">
+      <h1 className="page__title">Ảnh bữa ăn</h1>
+      <div className="kb-toolbar kb-toolbar--center">
         <WeekPicker value={weekStart} onChange={setWeek} thisWeek={mondayOf(today)} />
-        {campus.campusId && <KbCampusFilter campusId={campus.campusId} onChange={campus.setCampusId} canPick={campus.canPick} />}
+        {!campus.canPick && campus.campusId && <KbCampusFilter campusId={campus.campusId} canPick={false} />}
         <div className="kb-toolbar__end">
           {isPrincipal(user) && (
             <Link className="btn" to={PHOTO_WINDOWS_SETTING_PATH}>
@@ -95,6 +103,20 @@ export default function MealPhotosPage() {
           )}
         </div>
       </div>
+      {campus.campusId && (
+        <div className="kr-pick">
+          {campus.canPick && (
+            <Tabs
+              className="kr-campus"
+              items={campus.campuses.map((c) => ({ key: String(c.id), label: c.shortName || c.name }))}
+              value={campus.campusId}
+              onChange={campus.setCampusId}
+              ariaLabel="Chọn điểm trường"
+            />
+          )}
+          {selected && !week.loading && !week.error && <MealPhotoWeekStrip days={days} value={selected.date} onChange={setDate} />}
+        </div>
+      )}
       <div className="kb-stack">{body}</div>
     </div>
   );

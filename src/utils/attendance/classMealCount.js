@@ -21,7 +21,6 @@ export const classMealRows = (data) =>
       session: meal.session,
       title: MEAL_SESSION_LABELS[meal.session] || meal.session,
       normal: meal.normal,
-      substitute: meal.substitute,
       tone: view.tone,
       status: confirmedAt ? `${view.label} lúc ${confirmedAt}` : view.label,
       locked: view.locked,

@@ -1,4 +1,5 @@
 import { lazy, Suspense } from 'react';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { EmptyState, LoadingState } from '@/components/ui/States';
@@ -15,6 +16,8 @@ const DASHBOARDS = {
 /** Home `/`: the dashboard of the signed-in role (SRS screens #10–#14). */
 export default function HomePage() {
   const { user } = useAuth();
+  // BUG-005: Admin không có trang tổng quan ⇒ vào thẳng màn quản trị tài khoản
+  if (user.role === ROLES.ADMIN) return <Navigate to="/school/staff" replace />;
   const Dashboard = DASHBOARDS[user.role];
   if (!Dashboard) {
     return (

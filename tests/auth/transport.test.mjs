@@ -370,3 +370,43 @@ test('an ordinary expired refresh is not reported as replaced and a later refres
   await refreshSession();
   assert.equal(lastRefreshErrorCode(), null);
 });
+
+test('403 with a blocked-account code notifies session end with the BE message; other 403 codes do not', async () => {
+  tokenStorage.set('existing-token');
+  const events = [];
+  const listener = (event) => events.push(event.detail);
+  window.addEventListener(UNAUTHORIZED_EVENT, listener);
+  try {
+    respond = (config) => failure(config, 403, { errorCode: 1015, desc: 'Tài khoản của bạn đã bị vô hiệu hóa' });
+    await assert.rejects(axiosClient.get('/protected'), { status: 403, errorCode: 1015 });
+    respond = (config) => failure(config, 403, { errorCode: 1014, desc: 'Tài khoản chưa được cấp quyền' });
+    await assert.rejects(axiosClient.get('/protected'), { status: 403, errorCode: 1014 });
+    respond = (config) => failure(config, 403, { errorCode: 1101, desc: 'Không có quyền' });
+    await assert.rejects(axiosClient.get('/protected'), { status: 403, errorCode: 1101 });
+    assert.deepEqual(events, [
+      { errorCode: 1015, message: 'Tài khoản của bạn đã bị vô hiệu hóa' },
+      { errorCode: 1014, message: 'Tài khoản chưa được cấp quyền' },
+    ]);
+  } finally {
+    window.removeEventListener(UNAUTHORIZED_EVENT, listener);
+  }
+});
+
+test('notifySessionBlocked ignores non-403 statuses and responses without an error code', async () => {
+  const { notifySessionBlocked } = await import('../../src/services/http/tokenStorage.js');
+  let count = 0;
+  const listener = () => {
+    count += 1;
+  };
+  window.addEventListener(UNAUTHORIZED_EVENT, listener);
+  try {
+    assert.equal(notifySessionBlocked({ response: { status: 401, data: { errorCode: 1015 } } }), false);
+    assert.equal(notifySessionBlocked({ response: { status: 403, data: {} } }), false);
+    assert.equal(notifySessionBlocked({}), false);
+    assert.equal(count, 0);
+    assert.equal(notifySessionBlocked({ response: { status: 403, data: { errorCode: 1015 } } }), true);
+    assert.equal(count, 1);
+  } finally {
+    window.removeEventListener(UNAUTHORIZED_EVENT, listener);
+  }
+});

@@ -3,8 +3,8 @@ import { FormField, PasswordInput } from '@/components';
 import { passwordRules } from '@/utils/account/accountValidation';
 
 /** Live checklist of the password policy (shown under the new-password field). */
-export function PasswordRulesHint({ password }) {
-  const rules = passwordRules(password);
+export function PasswordRulesHint({ password, username = null }) {
+  const rules = passwordRules(password, username);
   return (
     <ul className="ac-rules" aria-label="Yêu cầu mật khẩu">
       {rules.map((r) => (
@@ -19,7 +19,7 @@ export function PasswordRulesHint({ password }) {
 }
 
 /** New password + confirmation, used by Password Reset and Password Change. */
-export function NewPasswordFields({ values, errors, onChange, onBlur }) {
+export function NewPasswordFields({ values, errors, onChange, onBlur, username = null }) {
   const field = (name) => (e) => onChange({ [name]: e.target.value });
   return (
     <>
@@ -31,7 +31,7 @@ export function NewPasswordFields({ values, errors, onChange, onBlur }) {
           onBlur={() => onBlur?.('newPassword')}
         />
       </FormField>
-      <PasswordRulesHint password={values.newPassword} />
+      <PasswordRulesHint password={values.newPassword} username={username} />
       <FormField label="Nhập lại mật khẩu mới" required error={errors.confirmPassword}>
         <PasswordInput
           autoComplete="new-password"

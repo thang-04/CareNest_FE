@@ -126,7 +126,13 @@ export default function ChangePasswordPage() {
             <FormField label="Mật khẩu hiện tại" required error={errors.currentPassword}>
               <PasswordInput autoComplete="current-password" autoFocus value={values.currentPassword} onChange={onCurrentChange} />
             </FormField>
-            <NewPasswordFields values={values} errors={errors} onChange={change} onBlur={blur} />
+            <NewPasswordFields
+              values={values}
+              errors={errors}
+              onChange={change}
+              onBlur={blur}
+              username={profile?.username ?? user?.username ?? null}
+            />
           </div>
           <div className="card__body page-actions ac-actions">
             <Link to={backTo} className="btn">

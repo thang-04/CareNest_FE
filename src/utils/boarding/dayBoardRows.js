@@ -79,7 +79,9 @@ const DRY_STOCK_STATUS = {
 
 const dryStockRow = (campus) => {
   const stock = campus.dryStock || {};
-  const [tone, statusOf, detailOf] = DRY_STOCK_STATUS[stock.status] || ['gray', () => UNKNOWN[1], () => ''];
+  const [baseTone, statusOf, detailOf] = DRY_STOCK_STATUS[stock.status] || ['gray', () => UNKNOWN[1], () => ''];
+  // Đã trừ đủ hôm nay nhưng còn phần thiếu từ ngày cũ chưa bù: không báo xanh "xong"
+  const tone = stock.status === 'DEDUCTED' && stock.openShortfallCount > 0 ? 'orange' : baseTone;
   const shortfall = stock.status === 'SHORTFALL';
   const link = shortfall
     ? { label: 'Phần thiếu', to: withQuery('/kitchen/stock-shortfalls', { campusId: campus.campusId }) }
@@ -98,9 +100,11 @@ const dryStockRow = (campus) => {
     tone,
     status: statusOf(stock),
     detail: [detailOf(stock), upcomingText, signedText].filter(Boolean).join(' '),
-    // NOT_SYNCED: nút gọi BE trừ lại (BE kiểm quyền), không phải link
+    // NOT_SYNCED: nút gọi BE trừ lại; BE trả cờ canSync theo quyền (BE cũ chưa có cờ thì vẫn hiện, BE kiểm quyền khi bấm)
     actions:
-      stock.status === 'NOT_SYNCED' && !stock.m1DrySigned ? [{ key: 'syncStock', label: 'Đồng bộ kho', syncStock: true }, ...links] : links,
+      stock.status === 'NOT_SYNCED' && !stock.m1DrySigned && stock.canSync !== false
+        ? [{ key: 'syncStock', label: 'Đồng bộ kho', syncStock: true }, ...links]
+        : links,
   };
 };
 
