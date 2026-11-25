@@ -50,6 +50,7 @@ const GoalsEntry = lazyPage(() =>
 const GoalFormPage = lazyPage(() => import('@/pages/education-plan/GoalFormPage'));
 const GoalDetailPage = lazyPage(() => import('@/pages/education-plan/GoalDetailPage'));
 const ClassPlanPage = lazyPage(() => import('@/pages/education-plan/ClassPlanPage'));
+const ClassDocListPage = lazyPage(() => import('@/pages/education-plan/ClassDocListPage'));
 const ClassPlanRedirect = lazyPage(() =>
   import('@/pages/education-plan/ClassPlanPage').then((m) => ({
     default: m.ClassPlanRedirect,
@@ -289,12 +290,10 @@ export function AppRoutes() {
             <Route path="goals/:id" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <GoalDetailPage />)} />
             <Route path="goals/:id/edit" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <GoalFormPage key="team" />)} />
             {/* Spec 004: Kế hoạch giáo dục chủ đề (theo học kỳ) và Kế hoạch giáo dục ngày (theo chủ đề), EDU-101 */}
-            <Route path="theme-plans" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ClassPlanRedirect showAllAges />)} />
+            {/* BE EDU-112 (4): danh sách trước rồi mới vào chi tiết */}
+            <Route path="theme-plans" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ClassDocListPage kind="semester" />)} />
             <Route path="theme-plans/:classId" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ClassPlanPage />)} />
-            <Route
-              path="day-plans"
-              element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ClassPlanRedirect showAllAges toOf={(id) => `/education/day-plans/${id}`} />)}
-            />
+            <Route path="day-plans" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ClassDocListPage kind="dossier" />)} />
             <Route path="day-plans/:classId" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <DayPlansPage />)} />
             {/* Spec 900 (BE:EDU-88): kho học liệu dùng lại cho giáo án ngày */}
             <Route path="resources" element={edu([ROLES.TEAM_LEADER, ROLES.TEACHER], <ResourceLibraryPage />)} />
@@ -360,6 +359,8 @@ export function AppRoutes() {
             <Route path="roles" element={only([R.PRINCIPAL], <Navigate to="/school/roles" replace />)} />
             <Route path="overrides" element={only([R.PRINCIPAL], <UserOverridesPage />)} />
             <Route path="history" element={only([R.PRINCIPAL], <PermissionHistoryPage />)} />
+            {/* EDU-110 (1): tab Soạn / duyệt gộp vào Mặc định theo vai trò; link cũ chuyển hướng */}
+            <Route path="edu-workflow" element={<Navigate to="/school/roles" replace />} />
           </Route>
           <Route path="children">
             <Route index element={only([R.PRINCIPAL, R.VICE_PRINCIPAL, ...CLASS_STAFF], <ChildrenListPage />)} />

@@ -8,7 +8,6 @@ import { commune, docShell, downloadDoc, esc, fileTitle, fmt, printDoc } from '@
 import { AGE_GROUPS, domainLabel } from '@/models/education-plan/educationPlanConstants';
 import { SIGN_ROLES, getEduConfig, soleSignerName } from '@/models/education-plan/eduConfig';
 import {
-  DAY_REVIEW,
   DAY_SECTIONS,
   PREP_TARGETS,
   partsOff,
@@ -388,10 +387,7 @@ ${off.includes('aims') ? '' : `<p><b>${aimsLabel}</b><br/>${text(sec.aims) || DO
 ${off.includes('prep') ? '' : `<p><b>${prepLabel}</b><br/>${text(sec.prep) || DOTS}</p>`}
 ${off.includes('rows') ? '' : `<p><b>${stepsLabel}</b></p>${stepTable(sec.rows, { name: 'NDHĐ', teacher: 'HĐ của cô', child: 'HĐ của trẻ' })}`}`;
       }).join('');
-      const review = DAY_REVIEW.map((r) => `<p>${esc(r.label.replace(/^\d+\.\s*/, ''))}:<br/>${text(d.review?.[r.key]) || DOTS}</p>`).join(
-        '',
-      );
-      return `${head}${sections}<h3>V. Đánh giá trẻ trên ngày</h3>${review}<p class="c">*****************************************</p>`;
+      return `${head}${sections}<p class="c">*****************************************</p>`;
     })
     .join('');
   return docShell(

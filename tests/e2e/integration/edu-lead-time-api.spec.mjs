@@ -16,9 +16,12 @@ const isoPlus = (days) => {
 let cls;
 let sp1;
 
+let yearId;
+// EDU-73: HT chỉ thấy bản đã ban hành ở danh sách chính; bản Nháp quá hạn HT xem và mở hạn qua màn Kế hoạch quá hạn
 const packageOf = async (user) => {
-  const docs = await api(user, 'GET', DOCS);
-  return docs.data.semesterPackages?.find((p) => String(p.classId) === String(cls.id) && p.semesterNo === 1);
+  const path = user === U.ht ? `${DOCS}/overdue?schoolYearId=${yearId}` : DOCS;
+  const docs = await api(user, 'GET', path);
+  return docs.data.semesterPackages?.find((p) => String(p.classId) === String(cls.id) && (p.semesterNo ?? 1) === 1);
 };
 
 test.beforeAll(async () => {
@@ -28,6 +31,7 @@ test.beforeAll(async () => {
   cls = docs.data.classes.find((c) => String(c.homeroomTeacherId) === String(me.data.userId));
   test.skip(!cls, 'teamlead34 không có lớp chủ nhiệm');
   const year = sql(`select school_year_id from classrooms where id = ${cls.id}`);
+  yearId = year;
   sql(
     `update school_years set semester1_start='2026-09-01', semester1_end='2027-01-15', semester2_start='2027-01-18', ` +
       `semester2_end='2027-05-31' where id = ${year}`,
@@ -126,7 +130,8 @@ test('IT-003-05 GV thứ hai thấy đủ lịch nhánh dự kiến (không cầ
   const docs = await api(U.gv2, 'GET', DOCS);
   const branch = docs.data.branchPlans.find((b) => String(b.classId) === String(cls.id));
   expect(branch.branchUnreleasedSemesters).toBeUndefined();
-  expect(branch.permissions?.canEdit).toBe(false);
+  // Người chỉ xem không nhận khối permissions ⇒ coi như không sửa được
+  expect(branch.permissions?.canEdit ?? false).toBe(false);
   const pkg = docs.data.semesterPackages.find((p) => String(p.classId) === String(cls.id) && p.semesterNo === 1);
   // Gói chưa ban hành: GV thứ hai chỉ nhận khung (không cờ canExtend); đã ban hành thì canExtend = false
   if (pkg) expect(pkg.canExtend ?? false).toBe(false);

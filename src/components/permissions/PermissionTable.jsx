@@ -146,12 +146,22 @@ export function PermissionLevelBadge({ level }) {
   );
 }
 
-/** Ô tick phủ cả ô bảng để dễ bấm; `changed` tô nền ô vừa đổi chưa lưu. */
-export function PermissionCheckCell({ checked, onChange, label, disabled = false, changed = false }) {
+/**
+ * Ô tick phủ cả ô bảng để dễ bấm; `changed` tô nền ô vừa đổi chưa lưu.
+ * `lockedReason`: ô bị khóa theo luật nhưng vẫn nhận focus (aria-disabled) để đọc được lý do; bấm/Space gọi `onLocked`.
+ */
+export function PermissionCheckCell({ checked, onChange, label, disabled = false, changed = false, lockedReason, onLocked }) {
   return (
-    <label className={`perm-check-cell${changed ? ' is-changed' : ''}`}>
-      <input type="checkbox" checked={checked} disabled={disabled} onChange={(event) => onChange(event.target.checked)} />
-      <span className="sr-only">{label}</span>
+    <label className={`perm-check-cell${changed ? ' is-changed' : ''}`} title={lockedReason || undefined}>
+      <input
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        aria-label={label}
+        aria-disabled={lockedReason ? 'true' : undefined}
+        aria-description={lockedReason || undefined}
+        onChange={(event) => (lockedReason ? onLocked?.(lockedReason) : onChange(event.target.checked))}
+      />
     </label>
   );
 }
