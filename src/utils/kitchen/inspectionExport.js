@@ -6,13 +6,14 @@ import {
   INSPECTION_PRINT_VARIANTS,
   INSPECTION_VARIANT_FORMS,
 } from '@/models/kitchen/inspectionConstants';
+import { MEAL_SESSION_LABELS } from '@/models/kitchen/kitchenRecordConstants';
 import { buildHeader } from '@/utils/kitchen/inspectionForm';
 import { formatDate, formatDateTime, formatQty } from '@/utils/format';
 
 /*
  * Nội dung in và xuất Excel của biểu mẫu kiểm thực M1–M3, M5 và các bản in M3 gộp lưu mẫu, M4 nhãn mẫu: chép lại đúng dữ liệu đã
  * lưu, ô tích in dấu "x" như biểu mẫu giấy. Dùng chung cho bản in và file Excel để hai bản không lệch nhau.
- * variant: 'main' (chính mẫu) | 'combined' (M3 + lưu mẫu, cần dữ liệu M5) | 'label' (M4 nhãn, từ dữ liệu M5).
+ * variant: 'main' (chính mẫu) | 'combined' (M3 + lưu mẫu, cần dữ liệu M5) | 'label' (M4 nhãn, dữ liệu từ `serveLabelData`).
  */
 const longDate = (iso) => {
   const [y, m, d] = String(iso).split('-');
@@ -75,16 +76,51 @@ export const sampleTakenText = (takenAt, date) => {
   return y && m && d ? `…. giờ …… phút ….. ngày ${d} tháng ${m} năm ${y}` : '…. giờ …… phút ….. ngày …… tháng …… năm ……';
 };
 
+/** Dữ liệu nhãn M4: bữa, món theo M3 (thực đơn đã công bố); giờ lấy mẫu lấy từ sổ M5 của bữa nếu bếp đã ghi. */
+export const serveLabelData = (serve, sample) => {
+  const takenAt = new Map();
+  (sample?.rows || []).forEach((row) => {
+    if (row.takenAt && !takenAt.has(row.session)) takenAt.set(row.session, row.takenAt);
+  });
+  return {
+    rows: (serve?.rows || []).map((row) => ({
+      session: row.session,
+      // Nhãn theo bữa: bỏ phần khối "· Nhà trẻ / Mẫu giáo" của dòng M3
+      sessionLabel: MEAL_SESSION_LABELS[row.session] || row.sessionLabel,
+      dishName: row.dishName,
+      takenAt: takenAt.get(row.session) || '',
+    })),
+  };
+};
+
 /** M4: mỗi bữa một nhãn gồm tên các mẫu thức ăn và giờ lấy mẫu (BE ghi theo bữa, các món cùng một giờ). */
 export const inspectionLabels = (data) => {
   const groups = new Map();
   data.rows.forEach((row) => {
     if (!groups.has(row.session))
       groups.set(row.session, { key: row.session, sessionLabel: row.sessionLabel, dishes: [], takenAt: row.takenAt });
-    groups.get(row.session).dishes.push(row.dishName);
+    // Món chung của Nhà trẻ và Mẫu giáo chỉ ghi một lần trên nhãn
+    const { dishes } = groups.get(row.session);
+    if (!dishes.includes(row.dishName)) dishes.push(row.dishName);
   });
   return [...groups.values()];
 };
+
+/** Lý do chưa in được nhãn M4: mẫu chưa nấu thì chưa có gì để lấy, nên ngày sau hôm nay bị khóa; '' khi in được. */
+export const labelPrintBlock = (date, today) => (date > today ? 'Chưa đến ngày lấy mẫu.' : '');
+
+const LABELS_PER_SHEET = 4;
+
+/** Tờ M4 luôn đủ 4 nhãn như mẫu PMS: thiếu thì chèn nhãn trống lên đầu để ghi tay. */
+export const withBlankLabels = (labels) => [
+  ...Array.from({ length: Math.max(LABELS_PER_SHEET - labels.length, 0) }, (_, index) => ({
+    key: `blank-${index}`,
+    sessionLabel: '',
+    dishes: [],
+    takenAt: '',
+  })),
+  ...labels,
+];
 
 const variantLabel = (tab, variant) => INSPECTION_PRINT_VARIANTS[tab].find((v) => v.key === variant)?.label || '';
 
@@ -99,7 +135,11 @@ export const inspectionExportRows = (tab, data, { date, campusName, variant = 'm
       rows: [
         ...intro,
         ['Bữa ăn', 'Tên mẫu thức ăn', 'Thời gian lấy mẫu'],
-        ...inspectionLabels(data).map((l) => [l.sessionLabel, l.dishes.join(SAMPLE_DISH_SEPARATOR), sampleTakenText(l.takenAt, date)]),
+        ...withBlankLabels(inspectionLabels(data)).map((l) => [
+          l.sessionLabel,
+          l.dishes.join(SAMPLE_DISH_SEPARATOR),
+          sampleTakenText(l.takenAt, date),
+        ]),
       ],
       headerRow: intro.length,
       fileBase,
