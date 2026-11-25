@@ -52,17 +52,20 @@ export function FreshForecastList({ campus, autoOpen = false }) {
             className: 'fw-600 text-primary nowrap',
             render: (f) => `${formatDate(f.periodFrom)} – ${formatDate(f.periodTo)}`,
           },
-          { key: 'version', header: 'Bản', className: 'nowrap', render: (f) => `Bản ${f.version}` },
+          { key: 'version', header: 'Bản', className: 'nowrap', render: (f) => (f.version == null ? '—' : `Bản ${f.version}`) },
           {
             key: 'status',
             header: 'Trạng thái',
             className: 'nowrap',
-            render: (f) =>
-              f.current ? (
+            // BE cũ chưa trả `current` thì không đoán trạng thái
+            render: (f) => {
+              if (f.current == null) return <span className="muted">—</span>;
+              return f.current ? (
                 <StatusBadge tone="green" label="Đang dùng cho kiểm nhận" size="sm" />
               ) : (
                 <StatusBadge tone="gray" label="Đã thay thế" size="sm" />
-              ),
+              );
+            },
           },
           { key: 'note', header: 'Ghi chú', render: (f) => f.note || <span className="muted">—</span> },
           { key: 'foodCount', header: 'Số mặt hàng', className: 'num' },
