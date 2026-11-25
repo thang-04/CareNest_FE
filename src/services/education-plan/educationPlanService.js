@@ -71,10 +71,9 @@ export const saveEduConfig = (cfg) => repo.saveEduConfig(cfg);
 export const suggestLessonSteps = (input) => repo.suggestLessonSteps(input);
 // AI gợi ý thẻ hoạt động cho MT (BE:EDU-95): BE chỉ trả MT, loại giờ có trong yêu cầu
 export const suggestActivityCards = (input) => repo.suggestActivityCards(input);
-// BE:EDU-96 — khung Kiểm tra / Tóm tắt cho người duyệt; BE:EDU-95 — Sửa theo yêu cầu
+// BE:EDU-96 — khung Kiểm tra cho người duyệt; BE:EDU-95 — Sửa theo yêu cầu
 export const getClassDocChecks = (kind, docKey) => repo.getClassDocChecks(kind, docKey);
 export const editDayByRequest = (docKey, prompt) => repo.editDayByRequest(docKey, prompt);
-export const reviewDay = (docKey) => repo.reviewDay(docKey);
 // BE:EDU-103 — AI gom nội dung vào chủ đề ở kế hoạch tổ (nháp, áp dụng chỉ thêm tick) và log tỉ lệ giữ
 export const matchThemeContents = (planId, body) => repo.matchThemeContents(planId, body);
 export const matchGoalContents = (planId, options) => repo.matchGoalContents(planId, options);

@@ -117,9 +117,8 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
   } = useEducationPlan();
   const [confirmRevise, setConfirmRevise] = useState(false);
   const [preview, setPreview] = useState(null);
-  // BE:EDU-96: khung Kiểm tra / Tóm tắt và nháp ghi chú Trả lại gom từ Tóm tắt AI
+  // BE:EDU-96: khung Kiểm tra tiêu chí gửi duyệt
   const [assistOpen, setAssistOpen] = useState(false);
-  const [noteDraft, setNoteDraft] = useState('');
   // Mục còn trống BE trả khi gửi kế hoạch giáo dục ngày (FR-007a): [{ date, section }], hiện chữ đỏ tới khi sửa xong
   const [emptyErr, setEmptyErr] = useState([]);
   // MT chưa dạy BE trả khi gửi kế hoạch giáo dục ngày (EDU-80, 7396/7397): [{ goalId, goalNo }]
@@ -333,7 +332,6 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
     if (out) {
       setEmptyErr([]);
       setGoalErr([]);
-      setNoteDraft('');
     }
     return out;
   };
@@ -603,14 +601,13 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
                 name={`kế hoạch giáo dục ngày ${week.theme.name}`}
                 can={{ reject: dossierCan.reject }}
                 onAct={dossierAct}
-                defaultNote={noteDraft}
               />
             )}
           </div>
           <div className="ga-year-toolbar__group ga-year-toolbar__group--end">
             {dayPage && (
               <>
-                {/* BE:EDU-96: khung Kiểm tra / Tóm tắt (AI) bên phải cho người duyệt và người soạn */}
+                {/* BE:EDU-96: khung Kiểm tra bên phải */}
                 {dossier && (
                   <Button variant="outline-primary" size="sm" icon={ListChecks} onClick={() => setAssistOpen(true)}>
                     Kiểm tra
@@ -675,11 +672,6 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
                 open={assistOpen}
                 onClose={() => setAssistOpen(false)}
                 dossierKey={dossier.id}
-                dayKey={savedDay?.id}
-                canSummarize={!!savedDay?.id && (reviewTurn || canComposeClassDocs)}
-                canNote={reviewTurn && !!dossierCan.reject}
-                noteDraft={noteDraft}
-                onNoteDraft={setNoteDraft}
               />
             )}
           </div>

@@ -302,7 +302,6 @@
     "POST /daily-health-entries",
     "POST /education-plans/ai/activities",
     "POST /education-plans/ai/class-docs/day/{x}/edit",
-    "POST /education-plans/ai/class-docs/day/{x}/review",
     "POST /education-plans/ai/feedback",
     "POST /education-plans/ai/lesson-steps",
     "POST /education-plans/ai/team-plans/{x}/theme-content-map",
