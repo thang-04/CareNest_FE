@@ -97,6 +97,8 @@ export const NoManageAccess = () => (
 export function HistoryCard({ history }) {
   const md = useMasterData();
   const list = [...(history || [])].reverse();
+  // Lịch sử thực phẩm ghi từng trường đổi kèm giá trị trước/sau; các loại khác chỉ có hành động và ghi chú
+  const hasChanges = list.some((h) => h.field);
   return (
     <div className="card mt-16">
       <div className="card__header">
@@ -113,6 +115,7 @@ export function HistoryCard({ history }) {
                   <th>Thời gian</th>
                   <th>Người thực hiện</th>
                   <th>Hành động</th>
+                  {hasChanges && <th>Thay đổi</th>}
                   <th>Ghi chú</th>
                 </tr>
               </thead>
@@ -120,8 +123,19 @@ export function HistoryCard({ history }) {
                 {list.map((h) => (
                   <tr key={h.id}>
                     <td className="nowrap">{formatDateTime(h.at)}</td>
-                    <td>{md.userById(h.userId)?.fullName || 'Người dùng'}</td>
+                    <td>{h.userName || md.userById(h.userId)?.fullName || 'Người dùng'}</td>
                     <td className="fw-600">{HISTORY_LABELS[h.action] || h.action}</td>
+                    {hasChanges && (
+                      <td>
+                        {h.field ? (
+                          <>
+                            <b>{h.field}</b>: {h.oldValue} → {h.newValue}
+                          </>
+                        ) : (
+                          <span className="muted">—</span>
+                        )}
+                      </td>
+                    )}
                     <td>{h.note || <span className="muted">—</span>}</td>
                   </tr>
                 ))}

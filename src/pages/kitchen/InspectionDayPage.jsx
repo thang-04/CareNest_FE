@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { ClipboardCheck, Unlock } from '@/components/ui/icons';
+import { Link, useSearchParams } from 'react-router-dom';
+import { ClipboardCheck, Printer, Unlock } from '@/components/ui/icons';
 import { Breadcrumb, Button, EmptyState, ErrorState, LoadingState } from '@/components';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
@@ -14,6 +14,7 @@ import {
 } from '@/components/kitchen/inspection/InspectionApproval';
 import { InspectionStatusBadge } from '@/components/kitchen/inspection/InspectionBadges';
 import { InspectionFormModal } from '@/components/kitchen/inspection/InspectionFormModal';
+import { InspectionPrintDialog } from '@/components/kitchen/inspection/InspectionPrintDialog';
 import { useToast } from '@/contexts/ToastContext';
 import { useStockCampus } from '@/hooks/kitchen/useDryStock';
 import { useInspectionDay } from '@/hooks/kitchen/useInspectionDay';
@@ -49,7 +50,7 @@ import '@/styles/modules/kitchen-records.css';
 
 const AUTOSAVE_MS = 20000;
 const EMPTY_HINT = {
-  fresh: 'Ngày này chưa có hàng tươi cần kiểm nhận.',
+  fresh: 'Chưa ghi nhận kiểm nhận hàng tươi cho ngày này.',
   dry: 'Ngày này chưa có phiếu xuất kho đồ khô.',
   process: 'Ngày này chưa có thực đơn đã công bố.',
   serve: 'Ngày này chưa có thực đơn đã công bố.',
@@ -57,7 +58,7 @@ const EMPTY_HINT = {
 };
 const clockOf = () => new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false });
 
-function FormCard({ tab, data, onOpen, onRequest, onRevoke }) {
+function FormCard({ tab, data, date, campusId, onOpen, onRequest, onRevoke }) {
   const signed = hasValidSignature(data) && data.status === 'SIGNED';
   const sig = data.signature;
   const empty = !data.rows.length;
@@ -75,17 +76,26 @@ function FormCard({ tab, data, onOpen, onRequest, onRevoke }) {
               {INSPECTION_FORMS[tab].step} · {INSPECTION_FORMS[tab].form}
             </div>
           </div>
-          <InspectionStatusBadge status={data.status} />
-          {approval.status && <ApprovalStatusBadge status={approval.status} />}
+          <div className="kr-card__badges">
+            <InspectionStatusBadge status={data.status} />
+            {approval.status && <ApprovalStatusBadge status={approval.status} />}
+          </div>
         </div>
         <p className="text-sm">{INSPECTION_FORMS[tab].hint}</p>
         <div className="text-sm muted">
           {empty ? EMPTY_HINT[tab] : `${data.rows.length} dòng`}
+          {empty && tab === 'fresh' && (
+            <>
+              {' '}
+              <Link to={`/kitchen/fresh-receipts?date=${date}&campusId=${campusId}`}>Đi tới kiểm nhận hàng hôm nay</Link>
+            </>
+          )}
           {signed && ` · Ký bởi ${sig.signedByName} lúc ${formatDateTime(sig.signedAt)}`}
         </div>
         <ApprovalNotice approval={approval} />
         <div className="kr-card__actions">
-          <Button variant="primary" disabled={empty} onClick={() => onOpen(tab)}>
+          {/* Mẫu rỗng vẫn xem được ở chế độ chỉ đọc; chỉ khóa khi có quyền sửa mà chưa có dòng nào để điền */}
+          <Button variant="primary" disabled={empty && data.canEdit} onClick={() => onOpen(tab)}>
             {data.canEdit ? 'Mở biểu mẫu' : 'Xem biểu mẫu'}
           </Button>
           {approval.canRequest && (
@@ -94,6 +104,31 @@ function FormCard({ tab, data, onOpen, onRequest, onRevoke }) {
             </Button>
           )}
           {canRevoke && <Button onClick={() => onRevoke(tab)}>Thu hồi quyền mở</Button>}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// M4 nhãn mẫu: không có biên bản riêng (INS-01), chỉ in/xuất từ dữ liệu sổ lưu mẫu M5 của ngày
+function LabelCard({ sample, onPrint }) {
+  const empty = !sample.rows.length;
+  return (
+    <section className="card kr-card">
+      <div className="card__body kr-card__body">
+        <div className="kr-card__top">
+          <Printer size={20} className="muted" />
+          <div className="kr-card__name">
+            <h2 className="card__title">M4 · Nhãn mẫu thức ăn lưu</h2>
+            <div className="text-sm muted">Chỉ in, lập từ sổ lưu mẫu M5</div>
+          </div>
+        </div>
+        <p className="text-sm">Nhãn dán lên hộp mẫu thức ăn lưu, mỗi bữa một nhãn.</p>
+        <div className="text-sm muted">{empty ? EMPTY_HINT.sample : `${sample.rows.length} mẫu từ sổ lưu mẫu`}</div>
+        <div className="kr-card__actions">
+          <Button variant="primary" icon={Printer} disabled={empty} onClick={onPrint}>
+            In / xuất nhãn
+          </Button>
         </div>
       </div>
     </section>
@@ -118,6 +153,7 @@ export default function InspectionDayPage() {
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
   const [confirmClose, setConfirmClose] = useState(false);
+  const [labelPrint, setLabelPrint] = useState(false);
   const [conflict, setConflict] = useState(null);
   // Hộp gửi yêu cầu mở mẫu ngày cũ / thu hồi quyền mở: { tab, mode: 'request' | 'revoke' } (INS-05)
   const [approvalDialog, setApprovalDialog] = useState(null);
@@ -365,11 +401,14 @@ export default function InspectionDayPage() {
               key={key}
               tab={key}
               data={day.data.tabs[key]}
+              date={date}
+              campusId={campus.campusId}
               onOpen={openForm}
               onRequest={(tab) => setApprovalDialog({ tab, mode: 'request' })}
               onRevoke={(tab) => setApprovalDialog({ tab, mode: 'revoke' })}
             />
           ))}
+          <LabelCard sample={day.data.tabs.sample} onPrint={() => setLabelPrint(true)} />
         </div>
       </>
     );
@@ -451,6 +490,17 @@ export default function InspectionDayPage() {
           busy={busy}
           onConfirm={(input) => revokeApproval(approvalDialog.tab, input)}
           onClose={() => setApprovalDialog(null)}
+        />
+      )}
+      {labelPrint && day.data && (
+        <InspectionPrintDialog
+          tab="sample"
+          date={date}
+          campusName={campusName}
+          data={day.data.tabs.sample}
+          sampleData={day.data.tabs.sample}
+          initialVariant="label"
+          onClose={() => setLabelPrint(false)}
         />
       )}
       <LeaveConfirmModal {...guard.modal} />

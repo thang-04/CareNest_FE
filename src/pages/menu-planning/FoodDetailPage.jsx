@@ -12,9 +12,8 @@ import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { ErrorState, LoadingState } from '@/components/ui/States';
 import { AllergenChips, HistoryCard, RecordStatusBadge } from '@/components/menu-planning/MenuBadges';
 import { NutrientTable } from '@/components/menu-planning/NutrientTable';
-import { FoodPriceHistory } from '@/components/menu-planning/FoodPriceHistory';
 import { ContractStatusBadge } from '@/components/menu-planning/ContractStatusBadge';
-import { hasNutrition, hasOrigin, ingredientQty } from '@/utils/menu-planning/menuCalculations';
+import { hasNutrition, hasOrigin } from '@/utils/menu-planning/menuCalculations';
 import { activeAgeGroups } from '@/utils/menu-planning/nutritionSetup';
 import { foodCrumbs } from '@/utils/menu-planning/breadcrumbs';
 import {
@@ -44,7 +43,7 @@ export default function FoodDetailPage() {
   const { item: f, loading, error, reload } = useFood(id);
   const [confirm, setConfirm] = useState(false);
   const [deleteError, setDeleteError] = useState('');
-  const [tab, setTab] = useTabParam(['info', 'prices', 'dishes', 'history']);
+  const [tab, setTab] = useTabParam(['info', 'dishes', 'history']);
 
   if (loading || catLoading) return <LoadingState />;
   if (error || !f)
@@ -70,14 +69,12 @@ export default function FoodDetailPage() {
   const nut = f.nutrition;
   // Định lượng của thực phẩm này trong từng món (một trẻ), theo công thức món
   const used = f.usedInDishes.map((u) => {
-    const dish = catalog.dishById[u.id];
-    const ings = (dish?.ingredients || []).filter((i) => i.foodId === f.id);
     return {
       ...u,
-      type: DISH_TYPE_LABELS[dish?.type] || '—',
+      type: DISH_TYPE_LABELS[u.dishType] || '—',
       qty: groups.map((g) => {
-        const vals = ings.map((i) => ingredientQty(i, g.id));
-        return vals.some((v) => v == null) ? null : vals.reduce((s, v) => s + v, 0);
+        const found = u.portions.filter((p) => String(p.ageGroupId) === String(g.id));
+        return found.length ? found.reduce((s, p) => s + Number(p.gramsPerChild), 0) : null;
       }),
     };
   });
@@ -125,7 +122,6 @@ export default function FoodDetailPage() {
         onChange={setTab}
         items={[
           { key: 'info', label: 'Thông tin & dinh dưỡng' },
-          { key: 'prices', label: 'Giá & nhà cung cấp' },
           { key: 'dishes', label: 'Dùng trong món', count: used.length },
           { key: 'history', label: 'Lịch sử' },
         ]}
@@ -242,7 +238,6 @@ export default function FoodDetailPage() {
             )}
           </section>
         )}
-        {tab === 'prices' && <FoodPriceHistory food={f} canManage={canManage} onChanged={() => reload({ silent: true })} />}
         {tab === 'history' && <HistoryCard history={f.history} />}
       </div>
       <div className="page-actions">

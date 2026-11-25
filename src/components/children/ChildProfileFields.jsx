@@ -1,6 +1,7 @@
 import { IntakeChoiceField, IntakeNumberField, IntakeSheet, IntakeSuggestField, IntakeTextField } from './IntakeSheet';
 import { ExamChoiceField, ExamNumberField, ExamTextField } from './exam/ExamFields';
 import { filterVnProvinces, districtsOfVnProvince, VN_PROVINCES } from '@/data/vnAdministrative';
+import { changeProvince, wardLocked } from '@/utils/children/childAddress';
 
 const PREMATURE_CHOICES = [
   { value: 'NO', label: 'Không' },
@@ -19,6 +20,10 @@ export function ChildProfileFields({ value, onChange, errors = {}, sheet = false
   const Fields = sheet ? IntakeSheet : 'div';
   const set = (field, v) => onChange({ ...value, [field]: v });
   const setAddress = (field, v) => onChange({ ...value, address: { ...value.address, [field]: v } });
+  // Đổi tỉnh/thành ⇒ xóa phường/xã cũ; chưa có tỉnh/thành ⇒ khóa ô phường/xã (G94-434)
+  const setProvince = (v) => onChange({ ...value, address: changeProvince(value.address, v) });
+  const noProvince = wardLocked(value.address);
+  const wardPlaceholder = noProvince ? 'Chọn tỉnh/thành trước' : 'Chọn phường/xã';
   // Gợi ý tỉnh/thành + phường/xã (vẫn nhập tự do; danh sách chỉ gợi ý, BE là source of truth).
   const provinceSuggestions = VN_PROVINCES.map((p) => p.name);
   const filterProvinces = (q) => filterVnProvinces(q).map((p) => p.name);
@@ -60,7 +65,7 @@ export function ChildProfileFields({ value, onChange, errors = {}, sheet = false
             label="Nơi ở — Tỉnh/thành"
             required
             value={value.address.province}
-            onChange={(v) => setAddress('province', v)}
+            onChange={setProvince}
             error={errors['profile.address.province']}
             suggestions={provinceSuggestions}
             filterSuggestions={filterProvinces}
@@ -71,7 +76,7 @@ export function ChildProfileFields({ value, onChange, errors = {}, sheet = false
             label="Nơi ở — Tỉnh/thành"
             required
             value={value.address.province}
-            onChange={(v) => setAddress('province', v)}
+            onChange={setProvince}
             error={errors['profile.address.province']}
           />
         )}
@@ -83,7 +88,8 @@ export function ChildProfileFields({ value, onChange, errors = {}, sheet = false
             onChange={(v) => setAddress('ward', v)}
             error={errors['profile.address.ward']}
             suggestions={districtSuggestions}
-            placeholder="Nhập hoặc chọn (vd: Lê Chân)"
+            placeholder={wardPlaceholder}
+            disabled={noProvince}
           />
         ) : (
           <TextField
@@ -92,6 +98,7 @@ export function ChildProfileFields({ value, onChange, errors = {}, sheet = false
             value={value.address.ward}
             onChange={(v) => setAddress('ward', v)}
             error={errors['profile.address.ward']}
+            disabled={noProvince}
           />
         )}
         <TextField

@@ -36,6 +36,8 @@ import {
 } from '@/models/assessment/weeklyComments.mjs';
 import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';
 import { formatDate, formatDateTime } from '@/utils/format';
+import { TransferredHistoryPanel } from '@/components/TransferredHistoryPanel';
+import { weekRange } from '@/utils/assessment/transferredHistory';
 import '@/styles/modules/assessment.css';
 
 /** Nhận xét tuần theo trẻ (BE OBS-29): GV viết nháp từ số liệu tuần, sửa, gửi phụ huynh; BGH, tổ trưởng chỉ xem. */
@@ -310,6 +312,13 @@ export default function WeeklyCommentsPage() {
           )}
         </div>
       )}
+      {/* Trẻ chuyển đến: nhận xét tuần đã gửi và kết quả chủ đề ở lớp cũ, chỉ xem */}
+      <TransferredHistoryPanel
+        classId={currentClassId}
+        range={weekRange(board?.weekStart || weekStart)}
+        weekStart={board?.weekStart || weekStart}
+        sections={['weekly', 'themes']}
+      />
       <ConfirmationModal
         open={!!confirm}
         title={confirm === 'all' ? 'Gửi cả lớp cho phụ huynh?' : 'Gửi nhận xét cho phụ huynh?'}

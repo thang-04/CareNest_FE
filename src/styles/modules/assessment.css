@@ -393,6 +393,35 @@
   width: calc(var(--space-16) * 4);
 }
 
+/* Lịch sử mở lại cần ưu tiên lý do; cột ngày/kỳ gọn để không làm hàng cao bất thường. */
+.dg-roll-wrap .dg-roll.dg-unlock-history {
+  min-width: 68rem;
+  table-layout: fixed;
+}
+.dg-unlock-history-kind {
+  width: 8.5rem;
+}
+.dg-unlock-history-class {
+  width: 9.5rem;
+}
+.dg-unlock-history-period {
+  width: 10.5rem;
+  overflow-wrap: anywhere;
+}
+.dg-unlock-history-user,
+.dg-unlock-history-opened {
+  width: 9rem;
+}
+.dg-unlock-history-reason {
+  min-width: 15rem;
+}
+.dg-unlock-history-validity {
+  width: 13rem;
+}
+.dg-unlock-history-actions {
+  width: 5rem;
+}
+
 /* Bảng số liệu kỳ: cột nhãn vừa chữ, cột số liệu chiếm phần còn lại */
 .dg-summary th[scope='row'] {
   width: 1%;

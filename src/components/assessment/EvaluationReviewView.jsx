@@ -50,7 +50,7 @@ import { validateEvaluationContent, hasErrors } from '@/utils/assessment/assessm
 
 const MSG30 = 'Trợ lý AI hiện không khả dụng. Bạn có thể tiếp tục viết đánh giá thủ công.';
 
-/** Shared body of #56 Periodic Evaluation Detail and #59 Year-end Evaluation Detail (UC 4.5, 4.6). */
+/** Nội dung chi tiết đánh giá cuối năm. */
 export function EvaluationReviewView({ kind, id }) {
   const { user } = useAuth();
   const toast = useToast();
@@ -69,7 +69,7 @@ export function EvaluationReviewView({ kind, id }) {
   const [dayPage, setDayPage] = useState(1);
   const yearEnd = kind === EVAL_KIND.YEAR_END;
   const base = `/assessment/${kind}`;
-  const listPath = kind === EVAL_KIND.SEMESTER ? '/assessment/semester/children' : base;
+  const listPath = base;
 
   const ev = detail?.evaluation;
   const savedContent = ev ? ev.finalContent || ev.aiDraft?.content || '' : '';

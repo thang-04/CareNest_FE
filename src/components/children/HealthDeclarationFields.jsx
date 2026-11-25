@@ -1,10 +1,19 @@
-import { useId, useState } from 'react';
-import { Plus, X } from '@/components/ui/icons';
+import { useId } from 'react';
 import { FormField } from '@/components/form/FormField';
+import { DateInput } from '@/components/form/DateInput';
 import { Checkbox } from '@/components';
+import { ChipListInput } from './ChipListInput';
 import { IntakeSheet, IntakeChoiceRow } from './IntakeSheet';
 import { ALLERGY_STATE_LABELS, DECLARATION_STATE, DIET_STATE_LABELS, NOTE_STATE_LABELS } from '@/models/children/childrenConstants';
-import { MEDICAL_HISTORY_ITEMS, MEDICAL_HISTORY_STATE_LABELS, emptyMedicalHistory } from '@/models/children/childProfile';
+import {
+  HISTORY_TEXT_MAX,
+  MEDICAL_HISTORY_ITEMS,
+  MEDICAL_HISTORY_STATE_LABELS,
+  cleanHistoryItem,
+  emptyMedicalHistory,
+  joinHistoryText,
+  splitHistoryText,
+} from '@/models/children/childProfile';
 import { todayInput } from '@/utils/format';
 
 function StateRadios({ name, labels, value, onChange, states = Object.values(DECLARATION_STATE) }) {
@@ -24,6 +33,8 @@ const ALL_STATES = Object.values(DECLARATION_STATE);
 // Tiền sử chỉ Có/Không, không còn Chưa cung cấp (user chốt 2026-10-22): phiếu khám điền sẵn từ đây.
 const HISTORY_STATES = [DECLARATION_STATE.REPORTED, DECLARATION_STATE.NONE_REPORTED];
 const options = (labels, states) => states.map((s) => ({ value: s, label: labels[s] }));
+// Ô chi tiết chỉ hiện khi chọn "Có" nên lỗi của dòng lúc đó là lỗi của chính ô này: viền đỏ như ô trong FormField.
+const invalidProps = (base, error) => ({ className: error ? `${base} is-invalid` : base, 'aria-invalid': error ? true : undefined });
 
 function FieldError({ error }) {
   return error ? (
@@ -39,19 +50,11 @@ function FieldError({ error }) {
  * sheet: bảng TT | nội dung | kết quả như bước 1 tiếp nhận (IntakeSheet); mặc định nhóm fieldset (màn Khai báo sức khỏe hồ sơ trẻ).
  */
 export function HealthDeclarationFields({ value, onChange, errors = {}, dateOfBirth, sheet = false }) {
-  const [item, setItem] = useState('');
   const mealHintId = useId();
   const set = (block, patch) => onChange({ ...value, [block]: { ...value[block], ...patch } });
   // Khai báo cũ chưa có tiền sử ⇒ chưa chọn, phải chọn Có/Không khi lưu.
   const history = value.medicalHistory || emptyMedicalHistory();
   const setHistory = (key, patch) => onChange({ ...value, medicalHistory: { ...history, [key]: { ...history[key], ...patch } } });
-  const addItem = () => {
-    const text = item.trim();
-    if (!text) return;
-    if (!value.allergies.items.some((x) => x.toLowerCase() === text.toLowerCase()))
-      set('allergies', { items: [...value.allergies.items, text] });
-    setItem('');
-  };
 
   // Chi tiết khi chọn "Có" — dùng chung cho bảng (sheet) và nhóm fieldset.
   const allergyDetail = value.allergies.state === DECLARATION_STATE.REPORTED && (
@@ -59,45 +62,19 @@ export function HealthDeclarationFields({ value, onChange, errors = {}, dateOfBi
       <label className="field__label" htmlFor="tr-allergy-item">
         Chất gây dị ứng
       </label>
-      <div className="row gap-2 tr-state-text">
-        <input
-          id="tr-allergy-item"
-          className="input"
-          placeholder="Ví dụ: Tôm"
-          value={item}
-          maxLength={60}
-          onChange={(e) => setItem(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              addItem();
-            }
-          }}
-        />
-        <button type="button" className="btn" onClick={addItem} disabled={!item.trim()}>
-          <Plus size={15} /> Thêm
-        </button>
-      </div>
-      <div className="row row--wrap mt-8 gap-2">
-        {value.allergies.items.map((x) => (
-          <span key={x} className="chip chip--red">
-            {x}
-            <button
-              type="button"
-              className="tr-chip-remove"
-              aria-label={`Bỏ ${x}`}
-              onClick={() => set('allergies', { items: value.allergies.items.filter((i) => i !== x) })}
-            >
-              <X size={12} />
-            </button>
-          </span>
-        ))}
-      </div>
+      <ChipListInput
+        id="tr-allergy-item"
+        items={value.allergies.items}
+        onChange={(items) => set('allergies', { items })}
+        placeholder="Ví dụ: Tôm"
+        maxItemLength={60}
+        error={errors.allergies}
+      />
     </div>
   );
   const dietDetail = value.diet.state === DECLARATION_STATE.REPORTED && (
     <textarea
-      className="textarea"
+      {...invalidProps('textarea', errors.diet)}
       rows={2}
       maxLength={500}
       aria-label="Mô tả chế độ ăn"
@@ -108,7 +85,7 @@ export function HealthDeclarationFields({ value, onChange, errors = {}, dateOfBi
   );
   const otherDetail = value.otherNotes.state === DECLARATION_STATE.REPORTED && (
     <textarea
-      className="textarea"
+      {...invalidProps('textarea', errors.otherNotes)}
       rows={2}
       maxLength={500}
       aria-label="Thông tin sức khỏe khác"
@@ -123,24 +100,26 @@ export function HealthDeclarationFields({ value, onChange, errors = {}, dateOfBi
     return (
       <>
         {it.withText && (
-          <input
-            className="input"
-            maxLength={300}
-            aria-label={it.textLabel}
+          <ChipListInput
+            id={`tr-history-${it.key}-item`}
+            ariaLabel={it.textLabel}
+            tone="gray"
+            items={splitHistoryText(v.text)}
+            onChange={(items) => setHistory(it.key, { text: joinHistoryText(items) })}
             placeholder={`${it.textLabel}, ví dụ: Hen phế quản`}
-            value={v.text}
-            onChange={(e) => setHistory(it.key, { text: e.target.value })}
+            maxItemLength={HISTORY_TEXT_MAX}
+            maxTotalLength={HISTORY_TEXT_MAX}
+            sanitize={cleanHistoryItem}
+            error={errors[`medicalHistory.${it.key}`]}
           />
         )}
         {it.dateLabel && (
           <FormField label={it.dateLabel} required error={errors[`medicalHistory.${it.key}Date`]}>
-            <input
-              type="date"
-              className="input"
+            <DateInput
               value={v.contactDate || ''}
               min={dateOfBirth || undefined}
               max={todayInput()}
-              onChange={(e) => setHistory(it.key, { contactDate: e.target.value })}
+              onChange={(next) => setHistory(it.key, { contactDate: next })}
             />
           </FormField>
         )}

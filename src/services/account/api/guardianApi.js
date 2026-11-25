@@ -1,6 +1,7 @@
 import { validateGuardian } from '@/utils/account/guardianValidation';
 import { GUARDIAN_RELATIONSHIP_LABELS } from '@/models/guardianRelationships';
 import { axiosClient } from '@/services/http/axiosClient';
+import { toBeSchoolYear } from '@/services/http/schoolYearIds';
 
 /*
  * Contract: BE:src/main/java/com/carenest/controller/child/GuardianController.java, ChildController (`GET /children`),
@@ -10,14 +11,21 @@ import { axiosClient } from '@/services/http/axiosClient';
 const listGuardians = (childId) => axiosClient.get(`/children/${childId}/guardians`);
 
 export const guardianApi = {
-  getStructure: async () => {
-    const [campuses, structure] = await Promise.all([axiosClient.get('/campuses'), axiosClient.get('/school-structure')]);
+  // Điểm trường, lớp của năm học đang chọn ở header (G94-437); header dùng tên năm, BE nhận id số
+  getStructure: async (_actor, schoolYear) => {
+    const params = { schoolYearId: await toBeSchoolYear(schoolYear) };
+    const [campuses, structure] = await Promise.all([
+      axiosClient.get('/campuses', { params }),
+      axiosClient.get('/school-structure', { params }),
+    ]);
     return { campuses, classrooms: structure.classes };
   },
-  // Một lần gọi cho cả trang: trẻ (phạm vi như GET /children, AUTH-18) kèm tài khoản của phụ huynh nhận tài khoản.
+  // Một lần gọi cho cả trang: trẻ của năm học (phạm vi như GET /children, AUTH-18) kèm tài khoản của phụ huynh nhận tài khoản.
   // `child.guardians` = phụ huynh trên hồ sơ (như /account-recipient); `account` như /children/{id}/guardians.
-  searchChildren: async ({ campusId, page = 0, size = 100 } = {}) => {
-    const result = await axiosClient.get('/children/guardian-overview', { params: { campusId, page, size } });
+  searchChildren: async ({ campusId, schoolYear, page = 0, size = 100 } = {}) => {
+    const result = await axiosClient.get('/children/guardian-overview', {
+      params: { campusId, schoolYear: await toBeSchoolYear(schoolYear), page, size },
+    });
     const items = result.items.map(({ child, account }) => {
       const candidates = child.guardians || [];
       // Hồ sơ một phụ huynh: người đó nhận tài khoản kể cả dữ liệu cũ chưa đánh dấu (tiếp nhận luôn chọn một người)

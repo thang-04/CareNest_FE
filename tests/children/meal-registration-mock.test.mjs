@@ -101,3 +101,28 @@ test('bỏ báo ăn giữ dị ứng, báo ăn lại vẫn còn', async () => {
   assert.equal(detail.child.mealRegistered, true);
   assert.deepEqual(detail.child.allergies, ['Sữa']);
 });
+
+test('đổi báo ăn ⇒ lịch sử hồ sơ có dòng sửa "Báo ăn" như BE (CHD-13); lưu lại không đổi cờ ⇒ không thêm', async () => {
+  const saved = await children.enrollChild(row({ allergies: reported(['Sữa']) }), VP);
+  const mealRows = async () =>
+    (await children.getChildDetail(saved.id, VP)).child.history.filter((h) =>
+      (h.changes || []).some((c) => c.field === 'mealRegistered'),
+    );
+  await children.saveDeclaration(
+    saved.id,
+    { declaration: decl({ mealRegistered: false, allergies: reported(['Sữa']) }), reason: 'Ngừng ăn bán trú' },
+    VP,
+  );
+  const rows = await mealRows();
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].action, 'UPDATED');
+  assert.equal(rows[0].note, 'Ngừng ăn bán trú');
+  assert.deepEqual(rows[0].changes, [{ field: 'mealRegistered', label: 'Báo ăn', from: 'Có', to: 'Không' }]);
+
+  await children.saveDeclaration(
+    saved.id,
+    { declaration: decl({ mealRegistered: false, allergies: reported(['Sữa']) }), reason: 'Sửa ghi chú' },
+    VP,
+  );
+  assert.equal((await mealRows()).length, 1);
+});

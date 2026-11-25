@@ -112,7 +112,7 @@ export const DISH_TYPE_LABELS = {
   MAIN: 'Món mặn',
   SOUP: 'Canh',
   VEGETABLE: 'Món rau',
-  SNACK: 'Món bữa chiều',
+  SNACK: 'Món phụ',
   DESSERT: 'Tráng miệng, sữa',
 };
 
@@ -265,6 +265,8 @@ export const HISTORY_LABELS = {
   REPLACEMENT_CREATED: 'Tạo phiên bản thay thế',
   REPLACED: 'Được thay thế bởi phiên bản mới',
   AI_APPLIED: 'Dùng bản nháp AI',
+  STATUS_CHANGED: 'Đổi trạng thái',
+  PRICE_ADJUSTED: 'Đổi giá / nhà cung cấp',
 };
 
 /** A main dish should not repeat within this many days (GBR-MENU-04: allowed but flagged). */

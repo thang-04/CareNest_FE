@@ -1,6 +1,7 @@
 import { Info } from '@/components/ui/icons';
 import { FormField } from '@/components/form/FormField';
-import { ClassFillBadge } from '@/components/school-config/SchoolConfigBadges';
+import { StatusBadge } from '@/components/ui/StatusBadge';
+import { classFullness } from '@/utils/children/placementClasses';
 import { AGE_GROUPS } from '@/models/School';
 import { sameId } from '@/services/http/idStrings';
 
@@ -28,7 +29,6 @@ export function ClassPlacementFields({
   campusError,
   ageGroups = AGE_GROUPS,
   yearLabel = 'đang hoạt động',
-  lockAgeGroup = false,
 }) {
   const pickCampus = campuses.length > 1;
   const groupById = (id) => ageGroups.find((g) => sameId(g.id, id)) || null;
@@ -57,13 +57,7 @@ export function ClassPlacementFields({
           <label className="field__label" htmlFor="tr-age-group">
             Nhóm tuổi{req}
           </label>
-          <select
-            id="tr-age-group"
-            className="select"
-            value={ageGroupId}
-            disabled={lockAgeGroup}
-            onChange={(e) => onAgeGroupChange(e.target.value)}
-          >
+          <select id="tr-age-group" className="select" value={ageGroupId} onChange={(e) => onAgeGroupChange(e.target.value)}>
             <option value="">Tất cả nhóm tuổi</option>
             {ageGroups.map((g) => (
               <option key={g.id} value={g.id}>
@@ -74,17 +68,12 @@ export function ClassPlacementFields({
           </select>
         </div>
       </div>
-      {lockAgeGroup && !ageGroupId && (
-        <div className="alert alert--warning">
-          <Info size={18} />
-          <div>Năm học chưa áp dụng nhóm tuổi phù hợp với ngày sinh của trẻ. Hiệu trưởng cần cấu hình nhóm tuổi trước khi xếp lớp.</div>
-        </div>
-      )}
       {mismatch && (
         <div className="alert alert--warning">
           <Info size={18} />
           <div>
-            Theo ngày sinh, trẻ thường học nhóm <b>{groupById(suggestedAgeGroupId)?.shortName}</b>. Kiểm tra lại trước khi xếp lớp.
+            Theo tháng tuổi tại ngày bắt đầu năm học, trẻ thuộc nhóm <b>{groupById(suggestedAgeGroupId)?.shortName}</b>. Vẫn xếp được lớp
+            khác nhóm tuổi.
           </div>
         </div>
       )}
@@ -110,23 +99,23 @@ export function ClassPlacementFields({
             <Info size={18} />
             <div className="stack gap-2">
               <span>
-                Chưa có lớp <b>{groupById(ageGroupId)?.name}</b> ở {pickCampus ? 'điểm trường này' : 'phạm vi của bạn'} trong năm học đang
+                Chưa có lớp <b>{groupById(ageGroupId)?.name}</b> ở {pickCampus ? 'điểm trường này' : 'phạm vi của bạn'} trong năm học{' '}
                 {yearLabel}. Lớp do Hiệu trưởng mở ở màn Nhóm tuổi &amp; lớp.
               </span>
-              {!lockAgeGroup && (
-                <span>
-                  <button type="button" className="btn btn--sm" onClick={() => onAgeGroupChange('')}>
-                    Xem lớp mọi nhóm tuổi
-                  </button>
-                </span>
-              )}
+              <span>
+                <button type="button" className="btn btn--sm" onClick={() => onAgeGroupChange('')}>
+                  Xem lớp mọi nhóm tuổi
+                </button>
+              </span>
             </div>
           </div>
         ) : (
           <div className="tr-class-grid" role="radiogroup">
             {inGroup.map((c) => {
-              const full = c.enrolledCount >= c.capacity && !sameId(c.id, currentClassId);
               const isCurrent = sameId(c.id, currentClassId);
+              // Số do BE tính theo ngày vào lớp; lớp đã đủ từ ngày đó khóa thẻ (CHD-14)
+              const { arriving, full: fullFromDate } = classFullness(c);
+              const full = fullFromDate && !isCurrent;
               const isSelected = sameId(classId, c.id);
               const isDisabled = full || isCurrent;
               const toggle = () => {
@@ -153,9 +142,10 @@ export function ClassPlacementFields({
                     <span className="muted text-sm">{groupById(c.ageGroupId)?.shortName}</span>
                     <span className="text-sm">
                       Sĩ số: {c.enrolledCount}/{c.capacity}
+                      {arriving > 0 && ` · +${arriving} trẻ sắp vào`}
                       {full && (
                         <span className="tr-chip-gap">
-                          <ClassFillBadge status="FULL" />
+                          <StatusBadge tone="red" label="Đã đủ" />
                         </span>
                       )}
                       {isCurrent && <span className="chip chip--teal tr-chip-gap">Lớp hiện tại</span>}

@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { getSchoolYears } from '@/services/school-config/schoolConfigService';
 import { readPickedSchoolYear, savePickedSchoolYear } from '@/services/school-config/schoolYearPick';
 import { DB_CHANGED_EVENT } from '@/mocks/dbEvents';
+import { lockedYearOf, preparingYearOf } from '@/utils/schoolYearPrep';
 
 const SchoolYearContext = createContext(null);
 
@@ -99,9 +100,14 @@ export function SchoolYearProvider({ children }) {
   const yearReadOnly = schoolYears.find((o) => o.id === schoolYear)?.status === 'CLOSED';
   // Việc trong ngày, tiếp nhận, xếp lớp luôn theo năm đang hoạt động dù header chọn năm khác (user chốt 2026-10-28, Y-1, Y-3)
   const activeYear = schoolYears.find((o) => o.status === 'ACTIVE') || null;
+  // CFG-YR-05/CHD-12: header ở năm sắp diễn ra chưa tới ngày mở chuẩn bị ⇒ màn trẻ, sức khỏe, đón trẻ chỉ xem
+  const lockedYear = lockedYearOf(schoolYears, schoolYear);
+  const yearLocked = !!lockedYear;
+  // CHD-11: đã tới ngày mở chuẩn bị ⇒ được tiếp nhận, xếp lớp cho năm đó
+  const preparingYear = preparingYearOf(schoolYears, schoolYear);
   const value = useMemo(
-    () => ({ schoolYear, setSchoolYear, schoolYears, yearReadOnly, activeYear }),
-    [schoolYear, setSchoolYear, schoolYears, yearReadOnly, activeYear],
+    () => ({ schoolYear, setSchoolYear, schoolYears, yearReadOnly, activeYear, yearLocked, lockedYear, preparingYear }),
+    [schoolYear, setSchoolYear, schoolYears, yearReadOnly, activeYear, yearLocked, lockedYear, preparingYear],
   );
   return <SchoolYearContext.Provider value={value}>{children}</SchoolYearContext.Provider>;
 }

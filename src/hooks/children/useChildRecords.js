@@ -11,6 +11,8 @@ import {
   findParentAccountByCitizenId,
   getParentAccounts,
   getPlacementClasses,
+  getLeaveOptions,
+  getSchoolHolidays,
 } from '@/services/children/childrenService';
 import { isValidCitizenId, normalizeCitizenId } from '@/utils/citizenId';
 
@@ -64,12 +66,38 @@ export function useProfileChanges(status = 'PENDING', { enabled = true } = {}) {
 }
 
 /** Lớp có thể tiếp nhận của năm đang hoạt động hoặc năm sắp tới, kèm sĩ số dự kiến. */
-export function usePlacementClasses(schoolYearId) {
+export function usePlacementClasses(schoolYearId, { from, childId } = {}) {
   const { user } = useAuth();
-  const { data, loading, error, reload } = useAsync(() => getPlacementClasses({ schoolYearId }, user), [schoolYearId, user?.id], {
-    refreshOnDataChange: true,
+  // Ngày đang gõ dở ⇒ giữ ngày đầy đủ gần nhất (tránh tải lại, thẻ lớp nháy trắng); ô trống ⇒ không gửi, BE lấy hôm nay
+  const lastComplete = useRef(undefined);
+  if (!from) lastComplete.current = undefined;
+  else if (/^\d{4}-\d{2}-\d{2}$/.test(from)) lastComplete.current = from;
+  const fromDate = lastComplete.current;
+  const { data, loading, error, reload } = useAsync(
+    () => getPlacementClasses({ schoolYearId, from: fromDate, childId }, user),
+    [schoolYearId, fromDate, childId, user?.id],
+    { refreshOnDataChange: true },
+  );
+  return { classes: data || [], loading, error, reload, from: fromDate };
+}
+
+/** Lựa chọn ngày nghỉ học của BE: { today, todayAllowed, todayBlockedReason, minDate, maxDate }. */
+export function useLeaveOptions(childId) {
+  const { user } = useAuth();
+  const { data, loading, error, reload } = useAsync(() => getLeaveOptions(childId, user), [childId, user?.id], { enabled: !!childId });
+  return { options: data, loading, error, reload };
+}
+
+/**
+ * Ngày nghỉ của năm học (G94-180/CHD-14) để chọn ngày học mặc định và báo lỗi sớm. Không tải được thì trả rỗng: BE vẫn kiểm
+ * ngày học và báo lỗi ở đúng ô.
+ */
+export function useYearHolidays(schoolYearId) {
+  const { user } = useAuth();
+  const { data, loading } = useAsync(() => getSchoolHolidays(schoolYearId, user).catch(() => []), [schoolYearId, user?.id], {
+    enabled: !!schoolYearId,
   });
-  return { classes: data || [], loading, error, reload };
+  return { holidays: data || [], loading };
 }
 
 export function useParentAccounts(filters = {}) {
