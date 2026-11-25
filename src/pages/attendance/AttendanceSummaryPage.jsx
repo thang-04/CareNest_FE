@@ -22,6 +22,7 @@ import { PERMISSIONS } from '@/models/bePermissions';
 import { MEAL_SESSION_LABELS } from '@/models/attendance/attendanceConstants';
 import { validateSummaryRange } from '@/utils/attendance/attendanceValidation';
 import { addDays } from '@/utils/attendance/attendanceTime';
+import { latestReadRange } from '@/utils/attendance/attendancePermissions';
 import { attendanceCrumbs } from '@/utils/attendance/breadcrumbs';
 import { exportWithPreviewWorkbook } from '@/components/ui/ExportPreview';
 import { formatDate, isIsoDate } from '@/utils/format';
@@ -69,7 +70,16 @@ export default function AttendanceSummaryPage() {
       ? paramClass // bấm một lớp trong bảng "Theo lớp" thì xem riêng lớp đó (BE cho tổ trưởng xem tổng hợp lớp nhóm mình)
       : paramClass || classes[0]?.id || '';
   const multi = (manager || groupMode) && !classId;
+  const selectedClass = classes.find((c) => c.id === classId);
   const [range, setRange] = useState({ from: params.get('from') || addDays(today, -13), to: params.get('to') || today });
+  // AUTH-03: chọn lớp cũ mà URL chưa có khoảng ngày ⇒ mặc định đúng đợt dạy gần nhất
+  const pastDefault = useRef('');
+  const latestRange = latestReadRange(selectedClass);
+  useEffect(() => {
+    if (!latestRange || params.get('from') || pastDefault.current === classId) return;
+    pastDefault.current = classId;
+    setRange({ from: latestRange.start, to: latestRange.end });
+  }, [classId, latestRange, params]);
   // Lọc nhanh theo học kỳ: đặt Từ ngày – Đến ngày theo học kỳ (cắt tới hôm nay); sửa ngày tay thì bỏ chọn
   const [semester, setSemester] = useState('');
   // Đổi năm học ở đầu trang: khoảng ngày và học kỳ về mặc định của năm mới (không gửi ngày của năm cũ)
@@ -89,7 +99,10 @@ export default function AttendanceSummaryPage() {
     loading,
     error,
     reload,
-  } = useAttendanceSummary(valid ? { classId, campusId, ageGroupId: multi ? ageGroupId : '', multi, ...range } : {});
+    outsideRanges,
+  } = useAttendanceSummary(
+    valid ? { classId, campusId, ageGroupId: multi ? ageGroupId : '', multi, readRanges: selectedClass?.readRanges, ...range } : {},
+  );
   const sameScope = multi
     ? loadedSummary?.scope === 'MULTI' && String(loadedSummary.campusId || '') === String(campusId || '')
     : loadedSummary?.scope === 'CLASS' && loadedSummary.classId === classId;
@@ -339,12 +352,27 @@ export default function AttendanceSummaryPage() {
             <div className="card">
               <EmptyState title="Chọn khoảng ngày hợp lệ" description="Nhập đủ ngày bắt đầu và kết thúc để xem tổng hợp." />
             </div>
+          ) : outsideRanges ? (
+            <div className="card">
+              <EmptyState
+                title="Khoảng ngày ngoài đợt bạn đã dạy lớp"
+                description={`Chỉ xem được ngày đã phân công: ${selectedClass.readRanges
+                  .map((r) => `${formatDate(r.start)} – ${formatDate(r.end)}`)
+                  .join('; ')}.`}
+              />
+            </div>
           ) : error ? (
             <div className="card">
               <ErrorState error={error} onRetry={reload} />
             </div>
           ) : (
             <>
+              {/* AUTH-03: BE cắt khoảng về đợt đã dạy gần nhất; hiện khoảng thực tế để không hiểu nhầm số liệu */}
+              {summary?.actualFrom && (summary.actualFrom !== summary.from || summary.actualTo !== summary.to) && (
+                <div className="alert alert--info mb-12" role="status">
+                  Số liệu chỉ tính trong đợt bạn đã dạy: {formatDate(summary.actualFrom)} – {formatDate(summary.actualTo)}.
+                </div>
+              )}
               {summary && totals && (
                 <div className="dd-overview mb-16">
                   <div className="card dd-overview__chart">

@@ -42,6 +42,7 @@ import {
   sessionsAfterLeave,
 } from '@/models/attendance/attendanceConstants';
 import { schoolToday } from '@/utils/attendance/attendanceTime';
+import { inReadRanges, isPastClass, latestReadRange } from '@/utils/attendance/attendancePermissions';
 import { validateClassAttendance } from '@/utils/attendance/attendanceValidation';
 import { attendanceCrumbs } from '@/utils/attendance/breadcrumbs';
 import { normalizeText, formatDate, formatDateTime } from '@/utils/format';
@@ -76,11 +77,18 @@ export default function AttendancePage() {
   const [params, setParams] = useSearchParams();
   const today = schoolToday();
   const { defaultDate } = useAttendanceYear();
-  const date = params.get('date') || defaultDate;
   const { classes, loading, error, reload } = useAttendanceClasses({ own: true });
   // Lớp trên URL không thuộc năm đang chọn ở header ⇒ lớp đầu tiên của năm đó
   const paramClass = params.get('classId');
   const classId = classes.some((c) => c.id === paramClass) ? paramClass : classes[0]?.id || '';
+  // AUTH-03: lớp cũ chỉ xem trong các đợt đã dạy; mặc định ngày cuối của đợt gần nhất
+  const selectedClass = classes.find((c) => c.id === classId);
+  const pastClass = isPastClass(selectedClass);
+  const latestRange = latestReadRange(selectedClass);
+  const date = params.get('date') || (pastClass ? latestRange.end : defaultDate);
+  const minDate = pastClass ? selectedClass.readRanges.reduce((min, r) => (r.start < min ? r.start : min), latestRange.start) : undefined;
+  const maxDate = pastClass && latestRange.end < today ? latestRange.end : today;
+  const dateAllowed = inReadRanges(selectedClass, date);
   // unsaved: { attendance, health } — bản nháp điểm danh / ghi nhận sức khỏe chưa lưu
   const [unsaved, setUnsaved] = useState(NOTHING_UNSAVED);
   const [busy, setBusy] = useState(false);
@@ -120,7 +128,8 @@ export default function AttendancePage() {
             classes={classes}
             classId={classId}
             date={date}
-            maxDate={today}
+            minDate={minDate}
+            maxDate={maxDate}
             onClassChange={(value) => changeFilter('classId', value)}
             onDateChange={(value) => changeFilter('date', value)}
           >
@@ -133,15 +142,26 @@ export default function AttendancePage() {
               Tiếp: Đánh giá hằng ngày <ArrowRight size={16} />
             </Link>
           </ClassDateBar>
-          <ReceptionWorkbench
-            key={`${user.id}:${classId}:${date}`}
-            classId={classId}
-            date={date}
-            user={user}
-            onUnsaved={setUnsaved}
-            onBusy={setBusy}
-            saveRef={saveDraft}
-          />
+          {dateAllowed ? (
+            <ReceptionWorkbench
+              key={`${user.id}:${classId}:${date}`}
+              classId={classId}
+              date={date}
+              user={user}
+              onUnsaved={setUnsaved}
+              onBusy={setBusy}
+              saveRef={saveDraft}
+            />
+          ) : (
+            <div className="card">
+              <EmptyState
+                title="Ngày này ngoài đợt bạn đã dạy lớp"
+                description={`Chỉ xem được ngày đã phân công: ${selectedClass.readRanges
+                  .map((r) => `${formatDate(r.start)} – ${formatDate(r.end)}`)
+                  .join('; ')}.`}
+              />
+            </div>
+          )}
         </>
       )}
       <LeaveConfirmModal
