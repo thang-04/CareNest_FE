@@ -1,11 +1,10 @@
 import { ROLES } from '@/models/User';
 import { formatDate } from '@/utils/format';
 import { getUsers } from '@/services/masterDataService';
-import { getEducationLessons } from '@/services/education-plan/educationPlanService';
+import { getAllClassDocSummaries, getClassDocContext } from '@/services/education-plan/educationPlanService';
 import { getClassAssessmentOverview, getRewardLists } from '@/services/assessment/assessmentService';
 import { getMealCounts } from '@/services/attendance/attendanceService';
 import { getPublishedMenu } from '@/services/kitchen/kitchenService';
-import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
 import { OVERVIEW_PERIOD, REWARD_STATUS_LABELS } from '@/models/assessment/assessmentConstants';
 import { MEAL_COUNT_STATUS, MEAL_COUNT_STATUS_LABELS } from '@/models/attendance/attendanceConstants';
 import { MEAL_SESSION_LABELS, MENU_TYPE } from '@/models/kitchen/kitchenConstants';
@@ -21,64 +20,12 @@ import { sortKey } from '@/utils/dashboard/dashboardFormat';
  * PROPOSED backend: GET /approvals/pending → PendingApprovalGroup[] (one call instead of many).
  */
 
-const LESSON_TYPE = {
-  week: 'Kế hoạch tuần',
-  day: 'Kế hoạch ngày',
-};
-const STATUS_EDU = {
-  PENDING_TL: 'Chờ tổ trưởng duyệt',
-  PENDING_VP: 'Chờ Phó HT duyệt',
-};
-const lastAt = (history = []) => history[history.length - 1]?.at || null;
-const lessonPeriod = (l) => (l.type === 'day' ? `ngày ${formatDate(l.date)}` : `${formatDate(l.weekStart)} – ${formatDate(l.weekEnd)}`);
-
 /** Each source: (user, ctx) → Promise<PendingApprovalItem[]>. ctx = { users, schoolYear, date } */
 const SOURCES = {
-  [APPROVAL_TYPE.LESSON_REVIEW]: async (user) => {
-    const { lessons } = await getEducationLessons();
-    return lessons
-      .filter((l) => l.status === EDU_STATUS.PENDING_TL && l.ageGroupId === user.ageGroupId)
-      .map((l) => ({
-        id: l.id,
-        code: l.code,
-        title: `${LESSON_TYPE[l.type] || 'Kế hoạch giáo dục ngày'} ${lessonPeriod(l)}`.trim(),
-        by: l.createdBy,
-        at: lastAt(l.history),
-        campusId: null,
-        statusLabel: STATUS_EDU.PENDING_TL,
-        to: '/education/plan-reviews',
-      }));
-  },
-  [APPROVAL_TYPE.THEME_PLAN]: async () => {
-    const { themes } = await getEducationLessons();
-    return themes
-      .filter((t) => t.status === EDU_STATUS.PENDING_VP)
-      .map((t) => ({
-        id: t.id,
-        code: t.code,
-        title: `Kế hoạch chủ đề: ${t.name}`,
-        by: t.createdBy,
-        at: lastAt(t.history),
-        campusId: null,
-        statusLabel: STATUS_EDU.PENDING_VP,
-        to: '/education/plan-reviews',
-      }));
-  },
-  [APPROVAL_TYPE.LESSON_PLAN]: async () => {
-    const { lessons } = await getEducationLessons();
-    return lessons
-      .filter((l) => l.status === EDU_STATUS.PENDING_VP)
-      .map((l) => ({
-        id: l.id,
-        code: l.code,
-        title: `${LESSON_TYPE[l.type] || 'Kế hoạch giáo dục ngày'} ${lessonPeriod(l)}`.trim(),
-        by: l.createdBy,
-        at: lastAt(l.history),
-        campusId: null,
-        statusLabel: STATUS_EDU.PENDING_VP,
-        to: '/education/plan-reviews',
-      }));
-  },
+  // Hồ sơ lớp chờ đúng lượt người xem (EDU-05, EDU-18): BE lọc theo chuỗi duyệt và phạm vi, FE chỉ hiển thị
+  [APPROVAL_TYPE.LESSON_REVIEW]: (user, { schoolYear }) => classDocRows(user, schoolYear, ['semester', 'dossier']),
+  [APPROVAL_TYPE.THEME_PLAN]: (user, { schoolYear }) => classDocRows(user, schoolYear, ['semester']),
+  [APPROVAL_TYPE.LESSON_PLAN]: (user, { schoolYear }) => classDocRows(user, schoolYear, ['dossier']),
   // Danh sách khen thưởng của lớp: PHT xem xét bản chờ PHT; HT phê duyệt bản chờ HT (BE cho HT xử lý cả bản chờ PHT)
   [APPROVAL_TYPE.REWARD_REVIEW]: async (user, { schoolYear }) =>
     user?.role === ROLES.VICE_PRINCIPAL
@@ -109,6 +56,30 @@ const SOURCES = {
       }));
   },
 };
+async function classDocRows(user, schoolYear, kinds) {
+  const [docs, context] = await Promise.all([
+    getAllClassDocSummaries(schoolYear, user, kinds, { review: true, myTurn: true }),
+    getClassDocContext(schoolYear, user),
+  ]);
+  const className = (id) => (context.classes || []).find((c) => String(c.id) === String(id))?.name || '';
+  return docs.map((d) => {
+    const sent = [...(d.history || [])].reverse().find((h) => !h.tone);
+    return {
+      id: d.id,
+      code: className(d.classId),
+      title:
+        d.kind === 'semester'
+          ? `Học kỳ ${d.semesterNo}: kế hoạch chủ đề · ${(d.themeIds || []).length} chủ đề`
+          : `Chủ đề ${d.themeNo || ''}: ${d.themeName || '—'} · kế hoạch giáo dục ngày`,
+      by: sent?.by || '—',
+      at: sent?.at || null,
+      campusId: null,
+      statusLabel: 'Chờ duyệt',
+      to: '/education/plan-reviews',
+    };
+  });
+}
+
 function rewardRow(r) {
   return {
     id: r.listId,

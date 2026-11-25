@@ -5,7 +5,6 @@ import { educationPlanApi as repo } from '@/services/education-plan/api/educatio
 export const getEducationPlans = (user, filter) => repo.getAll(user, filter);
 // Trang chủ chỉ cần chủ đề, giờ học: API thật chưa có hai phần này (getAll trả rỗng) nên không tải chi tiết từng kế hoạch
 // năm/tổ — tránh ~30 request tranh kết nối với trang kế hoạch giáo dục (FE-BUG-261111-dashboard-reload-burst)
-export const getEducationLessons = () => Promise.resolve({ themes: [], lessons: [] });
 export const getReviewQueue = (user, schoolYearId) => repo.getReviewQueue(user, schoolYearId);
 
 // edu-list-paging (Tiền 25/11/2026): danh sách kế hoạch năm/tổ, số liệu thẻ, bảng quá hạn phân trang ở BE.

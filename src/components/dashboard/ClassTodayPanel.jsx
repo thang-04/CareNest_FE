@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { BookOpenCheck, CalendarCheck, CheckCircle2, HeartPulse, School, Star } from '@/components/ui/icons';
-import { useAuth } from '@/contexts/AuthContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useWidget, useLunchToday } from '@/hooks/dashboard/useDashboard';
 import { SelectField } from '@/components/form/Field';
@@ -14,9 +13,9 @@ import { buildClassDay } from '@/services/dashboard/dashboardSummaryService';
 import { getAttendanceClasses, getClassAttendance } from '@/services/attendance/attendanceService';
 import { isClassTeacher } from '@/utils/attendance/attendancePermissions';
 import { getPickupBoard } from '@/services/pickup/pickupService';
-import { getEducationLessons } from '@/services/education-plan/educationPlanService';
+import { getAllClassDocSummaries } from '@/services/education-plan/educationPlanService';
 import { getDailyAssessment, getEvaluations } from '@/services/assessment/assessmentService';
-import { EDU_STATUS, isEduReviewPending } from '@/models/education-plan/educationPlanConstants';
+import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
 import { EVAL_KIND, EVAL_STATUS, PERIOD_TYPE } from '@/models/assessment/assessmentConstants';
 import { todayInput } from '@/utils/format';
 
@@ -83,7 +82,6 @@ function ClassTodayCard({ day, loading, error, onRetry }) {
  * Chỉ lớp được phân công (SRS 4.4 chú thích ²); số tính ở service buildClassDay, mỗi nguồn một lần gọi.
  */
 export function ClassTodayPanel({ aside = null }) {
-  const { user } = useAuth();
   const date = todayInput();
   const { schoolYear } = useSchoolYear();
   // Lớp được phân công lấy từ module điểm danh (BE: GET /attendance/classes, cờ teaches) — cùng nguồn màn Điểm danh
@@ -102,7 +100,12 @@ export function ClassTodayPanel({ aside = null }) {
     [classId, date, schoolYear],
     enabled,
   );
-  const lessonsQ = useWidget(() => getEducationLessons().then((d) => d.lessons.filter((l) => l.classId === user.classId)), [user.classId]);
+  // BE chỉ có Nháp / Chờ duyệt / Đã ban hành; hồ sơ bị trả lại về Nháp (EDU-05)
+  const lessonsQ = useWidget(
+    (u) => getAllClassDocSummaries(schoolYear, u, ['dossier'], { classIds: [classId], statuses: [EDU_STATUS.DRAFT, EDU_STATUS.REVIEW], currentOnly: true }),
+    [classId, schoolYear],
+    enabled,
+  );
   const evaluationsQ = useWidget(
     (u) =>
       Promise.all([getEvaluations(EVAL_KIND.SEMESTER, { classId }, u), getEvaluations(EVAL_KIND.YEAR_END, { classId }, u)]).then((lists) =>
@@ -144,8 +147,8 @@ export function ClassTodayPanel({ aside = null }) {
     reload,
   };
   const lessons = lessonsQ.data || [];
-  const lessonsToFix = lessons.filter((l) => [EDU_STATUS.DRAFT, EDU_STATUS.REJECTED].includes(l.status)).length;
-  const lessonsWaiting = lessons.filter((l) => isEduReviewPending(l.status)).length;
+  const lessonsToFix = lessons.filter((l) => l.status === EDU_STATUS.DRAFT).length;
+  const lessonsWaiting = lessons.filter((l) => l.status === EDU_STATUS.REVIEW).length;
   const pendingEvaluations = (evaluationsQ.data || []).filter((e) => e.status !== EVAL_STATUS.CONFIRMED);
   const evaluationPath = pendingEvaluations.some((e) => e.periodType === PERIOD_TYPE.YEAR) ? 'year-end' : 'semester';
   const lesson = day?.lesson;
