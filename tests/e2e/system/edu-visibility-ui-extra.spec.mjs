@@ -93,7 +93,7 @@ test('ST-003-11 bấm thông báo kế hoạch giáo dục ở trang Thông báo
   await spaGo(page, '/notifications');
   await page.getByText(edu.title).first().click();
   // Trang chi tiết thông báo có nút mở bản ghi liên quan
-  await page.getByRole('button', { name: 'Mở nội dung liên quan' }).click();
+  await page.getByRole('button', { name: 'Xem chi tiết', exact: true }).click(); // G94-288: nút mở nội dung liên quan đổi tên
   await page.waitForURL((u) => u.pathname === edu.link, { timeout: 15_000 });
   await expect(page.getByText(/Không tìm thấy|Đã có lỗi/)).toHaveCount(0);
 });

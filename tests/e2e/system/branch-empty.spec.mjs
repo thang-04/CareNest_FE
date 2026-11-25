@@ -66,9 +66,11 @@ test('ST-BRANCH-LIVE đổi qua các nhóm tuổi từ dữ liệu BE thật', a
     const crash = page.getByRole('heading', { name: 'Hệ thống gặp sự cố', exact: true });
     // Ô chọn hiện mọi nhóm tuổi; nhóm chưa có lớp trong năm thì báo không có lớp
     const noClass = page.getByText('Không tìm thấy lớp', { exact: true });
+    // EDU-111 (5): xem lịch nhánh theo lớp; lớp chưa lập lịch thì báo trống
+    const noBranch = page.getByText('Lớp chưa có lịch chủ đề nhánh', { exact: true });
     for (const { label, value } of options) {
       await select.selectOption(value);
-      await expect(ready.or(empty).or(noClass).or(crash).first()).toBeVisible({ timeout: 30_000 });
+      await expect(ready.or(empty).or(noClass).or(noBranch).or(crash).first()).toBeVisible({ timeout: 30_000 });
       await expect(crash, errors.join('\n')).toHaveCount(0);
       await expect(select).toHaveValue(value);
       events.push(`${label}: ${(await noClass.isVisible()) ? 'chưa có lớp' : (await empty.isVisible()) ? 'chưa có kế hoạch tổ' : 'có bảng chủ đề nhánh'}`);
