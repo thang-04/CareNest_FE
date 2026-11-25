@@ -258,6 +258,8 @@ test('món BE: dòng theo nhóm tuổi ⇔ portions theo id nhóm tuổi FE; ô 
   assert.deepEqual(dish.ingredients, [{ foodId: '7', foodName: 'Trứng gà', portions: { 'ag-2': 20, 'ag-4': 30 }, quantity: 30 }]);
   assert.deepEqual(dish.allergens, ['Trứng']);
   assert.equal(dish.nutritionByAgeGroup[0].ageGroupId, 'ag-4');
+  // Nhóm tuổi áp dụng suy từ dòng định lượng đã lưu, không tự thêm nhóm chưa chọn
+  assert.deepEqual(dish.ageGroupIds, ['ag-2', 'ag-4']);
 
   calls = [];
   await api.saveDish(null, {
