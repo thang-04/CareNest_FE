@@ -39,7 +39,7 @@ const qtyOf = (quantity, food) => formatQty(toPurchaseQuantity(quantity, food));
 
 /**
  * Tồn kho khô của một điểm trường theo bảng PMS: mỗi thực phẩm một dòng nhóm "Tên - Số lượng tồn: N", dưới là từng lô
- * (Nhập / Xuất / Tồn); trong thực phẩm lô hết hạn sớm đứng trước (thứ tự BE trả). Xuất = nhập − còn lại của lô.
+ * (Nhập / Xuất / Tồn); trong thực phẩm lô nhập mới nhất đứng trên cùng. Xuất = nhập − còn lại của lô.
  */
 export function StockLotsTab({ campusId }) {
   const [keyword, setKeyword] = useState('');

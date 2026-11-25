@@ -201,14 +201,14 @@ test('form phiếu: phiếu BE đổi sang đơn vị mua, kiểm ô bắt buộ
 test('tồn kho: gom lô theo thực phẩm, nhắc hạn dùng, không hiện mã số thay tên người', () => {
   const groups = groupLotsByFood([
     { id: '2', food: OIL, remaining: 500 },
-    { id: '1', food: RICE, remaining: 12500 },
-    { id: '3', food: RICE, remaining: 2500 },
+    { id: '1', food: RICE, remaining: 12500, receivedDate: '2026-10-01' },
+    { id: '3', food: RICE, remaining: 2500, receivedDate: '2026-10-20' },
   ]);
   assert.deepEqual(
     groups.map((g) => [g.food.name, g.remaining, g.lots.map((l) => l.id)]),
     [
       ['Dầu ăn', 500, ['2']],
-      ['Gạo tẻ', 15000, ['1', '3']],
+      ['Gạo tẻ', 15000, ['3', '1']],
     ],
   );
   assert.equal(daysUntil('2026-11-10', '2026-11-03'), 7);
@@ -219,6 +219,19 @@ test('tồn kho: gom lô theo thực phẩm, nhắc hạn dùng, không hiện m
   assert.equal(personName('Nguyễn Thị Mai'), 'Nguyễn Thị Mai');
   assert.equal(personName(42), '');
   assert.equal(personName(null), '');
+});
+
+test('tồn kho: lô trong từng thực phẩm xếp ngày nhập giảm dần, trùng ngày thì lô tạo sau đứng trước', () => {
+  const [group] = groupLotsByFood([
+    { id: '1', food: RICE, remaining: 1, receivedDate: '2026-10-16' },
+    { id: '2', food: RICE, remaining: 1, receivedDate: '2026-11-13' },
+    { id: '3', food: RICE, remaining: 1, receivedDate: '2026-10-30' },
+    { id: '4', food: RICE, remaining: 1, receivedDate: '2026-11-13' },
+  ]);
+  assert.deepEqual(
+    group.lots.map((l) => l.id),
+    ['4', '2', '3', '1'],
+  );
 });
 
 test('xuất kho: trả NCC POST /returns kèm supplierId, xuất hủy POST /write-offs không gửi supplierId, số lượng về đơn vị gốc', async () => {
