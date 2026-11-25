@@ -13,9 +13,10 @@ const page = read('src/pages/children/ParentActivationPage.jsx');
 test('trang gửi năm học ở header cho cấu trúc và danh sách trẻ', () => {
   assert.match(page, /const \{ schoolYear \} = useSchoolYear\(\);/);
   assert.match(page, /useGuardianStructure\(schoolYear\)/);
-  assert.match(page, /useCampusGuardianChildren\(campusId, \{ enabled: !structure\.loading, schoolYear \}\)/);
-  // Điểm trường đã chọn không thuộc năm mới ⇒ về điểm trường đầu của năm
-  assert.match(page, /structure\.campuses\.some\(\(c\) => sameId\(c\.id, campusPick\)\)/);
+  assert.match(page, /useCampusGuardianChildren\(campusId, \{\s*enabled: !structure\.loading[^}]*schoolYear,?\s*\}\)/);
+  // Điểm trường đã chọn không thuộc năm mới (hoặc ngoài phạm vi được giao) ⇒ về điểm trường mặc định
+  assert.match(page, /structure\.campuses\.filter\(\(c\) => canActivateParentsAt\(c\.id, user\)\)/);
+  assert.match(page, /campuses\.some\(\(c\) => sameId\(c\.id, campusPick\)\)/);
 });
 
 test('thanh điểm trường hiện ở mọi trạng thái, câu báo khi điểm trường chưa có trẻ', () => {

@@ -26,6 +26,7 @@ import { GUARDIAN_RELATIONSHIP_LABELS } from '@/models/account/guardianConstants
 import { groupChildrenByClass, missingAccount, NO_CLASS, sortMissingFirst } from '@/utils/account/guardianCoverage';
 import { childrenCrumbs } from '@/utils/children/breadcrumbs';
 import { sameId } from '@/services/http/idStrings';
+import { canActivateParentsAt } from '@/utils/children/childrenPermissions';
 import { formatDate, normalizeText } from '@/utils/format';
 import '@/styles/modules/parent-accounts.css';
 
@@ -47,9 +48,16 @@ export default function ParentActivationPage() {
   const { schoolYear } = useSchoolYear();
   const structure = useGuardianStructure(schoolYear);
   const [campusPick, setCampusPick] = useState('');
-  // Điểm trường đã chọn không thuộc năm đang xem ⇒ về điểm trường đầu của năm
-  const campusId = structure.campuses.some((c) => sameId(c.id, campusPick)) ? campusPick : (structure.campuses[0]?.id ?? '');
-  const { data, loading, error, reload } = useCampusGuardianChildren(campusId, { enabled: !structure.loading, schoolYear });
+  // PHT chỉ thấy điểm trường được giao (canActivateParentsAt = PARENT_ACCOUNT_MANAGE + locationIds); BE kiểm lại phạm vi
+  const campuses = useMemo(() => structure.campuses.filter((c) => canActivateParentsAt(c.id, user)), [structure.campuses, user]);
+  // Mặc định: điểm trường của tài khoản (PHT một điểm trường), HT nhiều điểm trường lấy đầu danh sách
+  const defaultCampus = user?.campusId && campuses.some((c) => sameId(c.id, user.campusId)) ? user.campusId : (campuses[0]?.id ?? '');
+  // Điểm trường đã chọn không thuộc năm đang xem hoặc ngoài phạm vi ⇒ về điểm trường mặc định
+  const campusId = campusPick && campuses.some((c) => sameId(c.id, campusPick)) ? campusPick : defaultCampus;
+  const { data, loading, error, reload } = useCampusGuardianChildren(campusId, {
+    enabled: !structure.loading && !!campusId,
+    schoolYear,
+  });
   const [viewPick, setViewPick] = useState('');
   const [onlyMissing, setOnlyMissing] = useState(false);
   const [keyword, setKeyword] = useState('');
@@ -144,9 +152,9 @@ export default function ParentActivationPage() {
   };
 
   // Luôn đủ tab điểm trường của năm, kể cả điểm trường đang chọn chưa có trẻ, đang tải hoặc lỗi (G94-436)
-  const campusTabs = structure.campuses.length > 1 && (
+  const campusTabs = campuses.length > 1 && (
     <div className="pa-seg" role="group" aria-label="Điểm trường">
-      {structure.campuses.map((c) => (
+      {campuses.map((c) => (
         <button
           key={c.id}
           type="button"
@@ -230,6 +238,15 @@ export default function ParentActivationPage() {
           <PeopleTabs embedded />
           {campusTabs && <div className="pa-state-panel__campuses">{campusTabs}</div>}
           <LoadingState />
+        </section>
+      ) : !campuses.length ? (
+        <section className="card pa-state-panel">
+          <PeopleTabs embedded />
+          <EmptyState
+            icon={Users}
+            title="Chưa có điểm trường"
+            description="Bạn chưa được giao điểm trường nào để quản lý tài khoản phụ huynh."
+          />
         </section>
       ) : !groups.length ? (
         <section className="card pa-state-panel">

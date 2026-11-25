@@ -179,10 +179,6 @@ const ITEMS = {
     label: 'Đợt khám, kỳ cân đo',
     to: '/children/health-checks',
   },
-  healthFollowUps: {
-    label: 'Phiếu theo dõi sức khỏe',
-    to: '/children/health-follow-ups',
-  },
   healthTrends: {
     label: 'Xu hướng sức khỏe',
     to: '/children/health-trends',
