@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, FileImport, PackagePlus, Plus, Save, Trash2, XCircle } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -20,6 +20,7 @@ import {
 import { ReceiptStatusBadge } from '@/components/kitchen/KitchenBadges';
 import { fmtQty } from '@/components/kitchen/KitchenFilters';
 import { useActiveSuppliers, useDryFoods, useReceipt, useStockCampus } from '@/hooks/kitchen/useDryStock';
+import { receiptOriginOf } from '@/hooks/kitchen/useReceiptOrigin';
 import { canManageStockAt } from '@/utils/kitchen/kitchenPermissions';
 import { dryStockApi } from '@/services/dryStockApi';
 import { RECEIPT_STATUS, NOTE_MAX } from '@/models/kitchen/kitchenConstants';
@@ -73,6 +74,9 @@ export default function StockReceiptEditorPage() {
   const { id } = useParams();
   const isNew = !id;
   const navigate = useNavigate();
+  const location = useLocation();
+  // Màn người dùng bắt đầu lập phiếu (Tồn kho khô, Danh sách phiếu nhập…); không có ⇒ danh sách phiếu nhập
+  const origin = receiptOriginOf(location.state);
   const toast = useToast();
   const [params] = useSearchParams();
   const { user } = useAuth();
@@ -194,7 +198,7 @@ export default function StockReceiptEditorPage() {
   // Phiếu mới lưu xong ⇒ chuyển sang địa chỉ của phiếu; phiếu đang mở ⇒ nạp lại từ kết quả BE
   const afterSave = (saved) => {
     setErrors({});
-    if (isNew) navigate(`/kitchen/stock-receipts/${saved.id}`, { replace: true });
+    if (isNew) navigate(`/kitchen/stock-receipts/${saved.id}`, { replace: true, state: location.state });
     else receiptQ.setData(saved);
   };
   const persist = async () => {
@@ -213,7 +217,8 @@ export default function StockReceiptEditorPage() {
       const saved = await persist();
       if (saved) {
         toast.success('Đã lưu nháp phiếu nhập. Phiếu chưa vào kho.');
-        afterSave(saved);
+        // Lưu nháp luôn về danh sách phiếu nhập, dù bắt đầu từ màn nào
+        navigate(listPath, { replace: true });
       }
     } catch (err) {
       showError(err, 'Chưa lưu được phiếu');
@@ -227,10 +232,11 @@ export default function StockReceiptEditorPage() {
     try {
       saved = await persist();
       if (!saved) return setDialog(null);
-      const confirmed = await dryStockApi.confirmReceipt(saved.id);
+      await dryStockApi.confirmReceipt(saved.id);
       toast.success('Đã xác nhận nhập kho.');
       setDialog(null);
-      afterSave(confirmed);
+      // Chỉ rời trang khi xác nhận thành công: về màn nguồn (giữ điểm trường/bộ lọc trên URL)
+      navigate(origin || listPath, { replace: true });
     } catch (err) {
       setDialog(null);
       // Đã lưu nháp được nhưng chưa xác nhận: giữ phiếu nháp để người dùng sửa theo lỗi BE
