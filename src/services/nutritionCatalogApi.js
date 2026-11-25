@@ -407,15 +407,24 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
     },
 
     async getFood(id) {
-      const [f, dishes, history] = await Promise.all([
+      const [f, dishes, history, { codeOf }] = await Promise.all([
         client.get(`/nutrition/foods/${id}`),
         client.get(`/nutrition/foods/${id}/dishes`),
         client.get(`/nutrition/foods/${id}/history`),
+        agMaps(),
       ]);
       // BE chưa trả khóa đơn vị theo kho
       return {
         ...toFood(f),
-        usedInDishes: (dishes || []).map((d) => ({ id: d.dishId, name: d.name, dishType: d.dishType, portions: d.portions || [] })),
+        usedInDishes: (dishes || []).map((d) => ({
+          id: d.dishId,
+          name: d.name,
+          dishType: d.dishType,
+          portions: (d.portions || []).map((p) => ({
+            ageGroupId: codeOf[String(p.ageGroupId)] || String(p.ageGroupId),
+            gramsPerChild: p.gramsPerChild,
+          })),
+        })),
         history: (history || []).map(toFoodHistoryEntry),
         unitsLocked: false,
       };
