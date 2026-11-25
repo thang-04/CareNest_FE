@@ -69,7 +69,7 @@ test('Q05/Q12 annual PHT→HT, TEAM kế thừa có cột map và ô cố địn
   expect(result.status).toBe(200);
   annual = (await api(USERS.vp, 'GET', `${goals}/${annual.id}`)).data;
   result = await api(USERS.vp, 'POST', `${goals}/${annual.id}/submit`, { headers: editHeaders(session, annual.revision) });
-  expect(result.status).toBe(200);
+  expect(result.status, `${result.errorCode} ${result.desc}`).toBe(200);
   result = await api(USERS.principal, 'POST', `${goals}/${annual.id}/issue`);
   expect(result.status).toBe(200);
   const body = await yearPlanBody(`${E2E.titlePrefix} inherited team`);

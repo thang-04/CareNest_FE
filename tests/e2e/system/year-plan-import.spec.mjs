@@ -408,7 +408,7 @@ test('EDU-43 lấy chủ đề, đợt nghỉ từ kế hoạch khác năm/nhóm
   await page.goto('/');
 });
 
-test('EDU-06/43 Tổ trưởng: nhóm tuổi khác chỉ thấy bản đã ban hành (chỉ đọc) và lấy được chủ đề từ đó', async ({ page }) => {
+test('EDU-06 Tổ trưởng không xem kế hoạch năm học của nhóm tuổi khác, kể cả bản đã ban hành', async () => {
   const teacher1 = Number(sql(`select id from user_accounts where username = 'teacher1'`));
   sql(
     `insert into staff_assignments (user_id, staff_role, age_group_id, valid_from) values (${teacher1}, 'AGE_GROUP_TEAM_LEADER', ${Number(target.ageGroupId)}, '${E2E.markerDate}')`,
@@ -416,36 +416,19 @@ test('EDU-06/43 Tổ trưởng: nhóm tuổi khác chỉ thấy bản đã ban h
   suspendOtherTeamLeads('teacher1');
   try {
     const listOf = async () =>
-      (await api(USERS.teacher1, 'GET', `${GOALS}?planLevel=SCHOOL_YEAR&ageGroupId=${sourceGroup.id}&schoolYearId=${sourceYear.id}&page=0&size=200`)).data.items.map((p) => p.id);
-    // Bản nháp của nhóm khác: không thấy trong danh sách, đọc chi tiết bị 403
+      (
+        await api(
+          USERS.teacher1,
+          'GET',
+          `${GOALS}?planLevel=SCHOOL_YEAR&ageGroupId=${sourceGroup.id}&schoolYearId=${sourceYear.id}&page=0&size=200`,
+        )
+      ).data.items.map((p) => p.id);
+    // Tiền 25/11/2026: Tổ trưởng chỉ xem kế hoạch năm học của nhóm tuổi mình; nhóm khác không thấy, đọc chi tiết bị 403
     expect(await listOf()).not.toContain(source.id);
     expect((await api(USERS.teacher1, 'GET', `${GOALS}/${source.id}`)).status).toBe(403);
     sql(`update edu_year_plans set status = 'APPROVED' where id = ${Number(source.id)} and title like '${marker}%'`);
-    expect(await listOf()).toContain(source.id);
-    const seen = await api(USERS.teacher1, 'GET', `${GOALS}/${source.id}`);
-    expect(seen.status).toBe(200);
-    expect(seen.data.permissions.canEdit).toBe(false);
-    expect(
-      (await api(USERS.teacher1, 'POST', `${GOALS}/${source.id}/start-editing`, { headers: editHeaders(newSession(), seen.data.revision) }))
-        .status,
-    ).toBe(403);
-
-    await login(page, USERS.teacher1);
-    await pickYear(page, targetYear.name); // EDU-107: trang lọc theo năm chọn ở header
-    await page.goto(`/education/school-year-plans/${target.id}/edit`);
-    await expect(page.locator('#desc')).toBeEditable();
-    await page.getByRole('button', { name: /Lấy chủ đề từ kế hoạch có sẵn/ }).click();
-    const dialog = page.getByRole('dialog', { name: /^Lấy chủ đề từ kế hoạch (năm|có sẵn)$/ });
-    await dialog.locator('#imt-year').selectOption(uiYear(sourceYear));
-    await dialog.locator('#imt-age').selectOption(sourceGroup.code);
-    await dialog.locator('#imt-src').selectOption(String(source.id));
-    // Tổ trưởng đọc được bản đã ban hành của nhóm khác trong hộp chọn; chủ đề, đợt nghỉ đã lấy ở bước EDU-43 nên hiện "Đã có"
-    await expect(dialog.getByRole('checkbox')).toHaveCount(2);
-    await expect(dialog.getByText('Nguồn chủ đề riêng')).toBeVisible();
-    await expect(dialog.getByText('Đã có')).toHaveCount(2);
-    await dialog.getByRole('button', { name: 'Hủy', exact: true }).click();
-    await expect(dialog).toBeHidden();
-    await page.goto('/');
+    expect(await listOf()).not.toContain(source.id);
+    expect((await api(USERS.teacher1, 'GET', `${GOALS}/${source.id}`)).status).toBe(403);
   } finally {
     cleanup();
   }
