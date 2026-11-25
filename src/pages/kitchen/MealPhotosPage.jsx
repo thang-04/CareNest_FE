@@ -4,7 +4,6 @@ import { Breadcrumb, EmptyState, ErrorState, LoadingState } from '@/components';
 import { WeekPicker } from '@/components/form/WeekPicker';
 import { Tabs } from '@/components/ui/Tabs';
 import { KbCampusFilter } from '@/components/kitchen/KitchenFilters';
-import { MealPhotoInspections } from '@/components/kitchen/MealPhotoInspections';
 import { MealPhotoSessionCard } from '@/components/kitchen/MealPhotoSessionCard';
 import { MealPhotoWeekStrip } from '@/components/kitchen/MealPhotoWeekStrip';
 import { useAuth } from '@/contexts/AuthContext';
@@ -71,7 +70,6 @@ export default function MealPhotosPage() {
   else
     body = (
       <>
-        <MealPhotoWeekStrip days={days} value={selected.date} onChange={setDate} />
         <div className="kr-daybar">
           <h2 className="kr-daybar__title">{formatWeekdayDate(selected.date)}</h2>
           {selected.dayOff ? (
@@ -87,7 +85,6 @@ export default function MealPhotosPage() {
             <MealPhotoSessionCard key={session.session} session={session} date={selected.date} />
           ))}
         </div>
-        <MealPhotoInspections inspections={selected.inspections} />
       </>
     );
 
@@ -95,15 +92,6 @@ export default function MealPhotosPage() {
     <div className="page">
       <Breadcrumb items={kitchenCrumbs(KITCHEN_RECORD_PAGES.mealPhotos)} />
       <h1 className="page__title">Ảnh bữa ăn</h1>
-      {campus.canPick && campus.campusId && (
-        <Tabs
-          className="kr-campus"
-          items={campus.campuses.map((c) => ({ key: String(c.id), label: c.shortName || c.name }))}
-          value={campus.campusId}
-          onChange={campus.setCampusId}
-          ariaLabel="Chọn điểm trường"
-        />
-      )}
       <div className="kb-toolbar kb-toolbar--center">
         <WeekPicker value={weekStart} onChange={setWeek} thisWeek={mondayOf(today)} />
         {!campus.canPick && campus.campusId && <KbCampusFilter campusId={campus.campusId} canPick={false} />}
@@ -115,6 +103,20 @@ export default function MealPhotosPage() {
           )}
         </div>
       </div>
+      {campus.campusId && (
+        <div className="kr-pick">
+          {campus.canPick && (
+            <Tabs
+              className="kr-campus"
+              items={campus.campuses.map((c) => ({ key: String(c.id), label: c.shortName || c.name }))}
+              value={campus.campusId}
+              onChange={campus.setCampusId}
+              ariaLabel="Chọn điểm trường"
+            />
+          )}
+          {selected && !week.loading && !week.error && <MealPhotoWeekStrip days={days} value={selected.date} onChange={setDate} />}
+        </div>
+      )}
       <div className="kb-stack">{body}</div>
     </div>
   );

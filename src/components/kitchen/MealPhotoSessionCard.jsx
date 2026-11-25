@@ -47,7 +47,7 @@ export function MealPhotoSessionCard({ session, date }) {
   const sample = sampleText(session.sample);
   const dishes = session.dishes.length ? session.dishes.join(', ') : 'Chưa có thực đơn đã công bố';
   return (
-    <section className="card kr-meal" aria-label={label}>
+    <section className={`card kr-meal kr-meal--${String(session.status).toLowerCase()}`} aria-label={label}>
       <div className="kr-meal__head">
         <h2 className="kr-meal__title">{label}</h2>
         <MealPhotoStatusBadge status={session.status} />
