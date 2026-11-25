@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AlertTriangle, Calculator, CheckCircle2, Save } from '@/components/ui/icons';
 import { Button, DateInput, FormField, Modal, Spinner, StatCard, TextField } from '@/components';
+import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { WeekPicker } from '@/components/form/WeekPicker';
 import { Tabs } from '@/components/ui/Tabs';
 import { ForecastCountsTable, ForecastDryCard, ForecastLinesTable } from '@/components/kitchen/FreshForecastTables';
@@ -21,8 +22,9 @@ const weekPeriod = (weekStart) => ({ periodFrom: weekStart, periodTo: addDays(we
  * Cột trái là đầu vào (kỳ, số trẻ, ghi chú), cột phải là kết quả BE tính.
  * Lưu xong gọi `onSaved(id)` để mở bản vừa lập.
  */
-export function FreshForecastCreateModal({ campusId, onClose, onSaved }) {
+export function FreshForecastCreateModal({ campusId, existing = [], onClose, onSaved }) {
   const toast = useToast();
+  const [confirmReplace, setConfirmReplace] = useState(false);
   const thisWeek = schoolWeekStart(todayInput());
   const [form, setForm] = useState(() => ({ ...emptyForecastForm({ campusId, today: thisWeek }), ...weekPeriod(thisWeek) }));
   const [mode, setMode] = useState('this');
@@ -93,7 +95,12 @@ export function FreshForecastCreateModal({ campusId, onClose, onSaved }) {
     if (isIsoDate(form.periodFrom) && isIsoDate(form.periodTo)) calculate(formRef.current);
   }, [form.periodFrom, form.periodTo, calculate]);
 
+  // Cùng điểm trường và cùng kỳ đã có bản: chỉ bản mới nhất được dùng cho kiểm nhận nên hỏi xác nhận trước khi lập thêm
+  const samePeriod = existing.some((f) => f.periodFrom === form.periodFrom && f.periodTo === form.periodTo);
+  const requestSave = () => (samePeriod ? setConfirmReplace(true) : save());
+
   const save = async () => {
+    setConfirmReplace(false);
     setBusy('save');
     try {
       const saved = await freshGoodsApi.saveForecast(form);
@@ -164,7 +171,13 @@ export function FreshForecastCreateModal({ campusId, onClose, onSaved }) {
           <Button disabled={busy === 'save'} onClick={onClose}>
             Hủy
           </Button>
-          <Button variant="primary" icon={Save} loading={busy === 'save'} disabled={!data || stale || busy === 'preview'} onClick={save}>
+          <Button
+            variant="primary"
+            icon={Save}
+            loading={busy === 'save'}
+            disabled={!data || stale || busy === 'preview'}
+            onClick={requestSave}
+          >
             Lưu bản dự trù
           </Button>
         </>
@@ -186,10 +199,19 @@ export function FreshForecastCreateModal({ campusId, onClose, onSaved }) {
             {mode === 'custom' && (
               <div className="kb-forecast-form__range">
                 <FormField label="Từ ngày" required error={errors.periodFrom}>
-                  <DateInput value={form.periodFrom} min={todayInput()} onChange={(v) => setField('periodFrom', v)} />
+                  <DateInput
+                    value={form.periodFrom}
+                    min={todayInput()}
+                    max={isIsoDate(form.periodTo) ? form.periodTo : undefined}
+                    onChange={(v) => setField('periodFrom', v)}
+                  />
                 </FormField>
                 <FormField label="Đến ngày" required error={errors.periodTo}>
-                  <DateInput value={form.periodTo} onChange={(v) => setField('periodTo', v)} />
+                  <DateInput
+                    value={form.periodTo}
+                    min={isIsoDate(form.periodFrom) ? form.periodFrom : todayInput()}
+                    onChange={(v) => setField('periodTo', v)}
+                  />
                 </FormField>
               </div>
             )}
@@ -267,6 +289,14 @@ export function FreshForecastCreateModal({ campusId, onClose, onSaved }) {
           )}
         </div>
       </div>
+      <ConfirmationModal
+        open={confirmReplace}
+        title="Đã có bản dự trù cùng kỳ"
+        message="Điểm trường này đã có bản dự trù cho đúng kỳ đã chọn. Bản mới sẽ được dùng cho kiểm nhận; bản cũ giữ lại để xem và chuyển thành Đã thay thế."
+        confirmLabel="Lập bản mới"
+        onConfirm={save}
+        onClose={() => setConfirmReplace(false)}
+      />
     </Modal>
   );
 }

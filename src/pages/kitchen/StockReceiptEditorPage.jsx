@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, FileImport, PackagePlus, Plus, Save, Trash2, XCircle } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -19,16 +19,21 @@ import {
 } from '@/components';
 import { ReceiptStatusBadge } from '@/components/kitchen/KitchenBadges';
 import { fmtQty } from '@/components/kitchen/KitchenFilters';
-import { useActiveSuppliers, useDryFoods, useReceipt, useStockCampus } from '@/hooks/kitchen/useDryStock';
+import { useActiveSuppliers, useDryFoods, useLots, useReceipt, useStockCampus, useSupplierFoods } from '@/hooks/kitchen/useDryStock';
+import { receiptOriginOf } from '@/hooks/kitchen/useReceiptOrigin';
+import { nutritionCatalogApi } from '@/services/nutritionCatalogApi';
 import { canManageStockAt } from '@/utils/kitchen/kitchenPermissions';
 import { dryStockApi } from '@/services/dryStockApi';
 import { RECEIPT_STATUS, NOTE_MAX } from '@/models/kitchen/kitchenConstants';
 import {
+  autoLotNo,
   emptyLine,
   emptyReceiptForm,
+  isAutoLotNo,
   mapReceiptErrors,
   receiptNoteError,
   receiptToForm,
+  uniqueLotNo,
   validateReceiptForm,
 } from '@/utils/kitchen/stockReceiptForm';
 import { RECEIPT_IMPORT_COLUMNS, readReceiptFile } from '@/utils/kitchen/stockReceiptImport';
@@ -51,6 +56,7 @@ const estimate = (line) => {
 
 // Dòng không đạt của phiếu sinh từ kiểm nhận: không thành lô, chỉ lưu để tra biện pháp xử lý
 const rejectedColumns = [
+  { key: 'lot', header: 'Số lô', render: (line) => line.lotNo },
   { key: 'food', header: 'Thực phẩm', render: (line) => line.food.name },
   {
     key: 'qty',
@@ -58,7 +64,6 @@ const rejectedColumns = [
     className: 'num nowrap',
     render: (line) => `${fmtQty(line.purchaseQuantity)} ${line.food.purchaseUnit || ''}`,
   },
-  { key: 'lot', header: 'Số lô', render: (line) => line.lotNo },
   { key: 'expiry', header: 'Hạn sử dụng', className: 'nowrap', render: (line) => formatDate(line.expiryDate) },
   { key: 'note', header: 'Biện pháp xử lý', render: (line) => line.note },
 ];
@@ -69,10 +74,19 @@ const rejectedColumns = [
  */
 const CANCEL_BLOCKED = 'Thực phẩm của phiếu đã được xuất dùng.';
 
+// Giá hợp đồng của nhà cung cấp cho thực phẩm (cùng đơn vị mua với dòng nhập); không có thì ''
+const supplierPrice = (supplierFoods, foodId) => {
+  const price = supplierFoods.find((f) => String(f.foodId) === String(foodId))?.price;
+  return price == null || price === '' || !(Number(price) >= 0) ? '' : String(price);
+};
+
 export default function StockReceiptEditorPage() {
   const { id } = useParams();
   const isNew = !id;
   const navigate = useNavigate();
+  const location = useLocation();
+  // Màn người dùng bắt đầu lập phiếu (Tồn kho khô, Danh sách phiếu nhập…); không có ⇒ danh sách phiếu nhập
+  const origin = receiptOriginOf(location.state);
   const toast = useToast();
   const [params] = useSearchParams();
   const { user } = useAuth();
@@ -95,12 +109,14 @@ export default function StockReceiptEditorPage() {
   const [reason, setReason] = useState('');
   // Hộp nhập từ Excel: { open, fileName, reading, result: { lines, problems } }
   const [importing, setImporting] = useState({ open: false });
+  // Đổi nhà cung cấp làm mất dòng đã nhập ⇒ chờ người dùng xác nhận: { next, nextFoods, count }
+  const [supplierSwitch, setSupplierSwitch] = useState(null);
 
   // Nhập dòng từ Excel/CSV: thêm vào form nháp (bỏ dòng trống), người dùng xem lại rồi lưu
   const readImport = async (file) => {
     setImporting({ open: true, fileName: file.name, reading: true });
     try {
-      const result = await readReceiptFile(file, Object.values(foodById));
+      const result = await readReceiptFile(file, importFoods);
       setImporting({ open: true, fileName: file.name, result });
     } catch (err) {
       toast.error(err, 'Không đọc được file');
@@ -141,12 +157,36 @@ export default function StockReceiptEditorPage() {
     (receipt?.lines || []).forEach((l) => l.food && (map[String(l.food.id)] ||= l.food));
     return map;
   }, [foods, receipt]);
+  // Phiếu đang sửa: chỉ thực phẩm thuộc nhà cung cấp đã chọn (BE kiểm tra lại khi lưu và xác nhận)
+  const {
+    foods: allSupplierFoods,
+    loading: supplierFoodsLoading,
+    error: supplierFoodsError,
+  } = useSupplierFoods(editable ? form?.supplierId : '', form?.receivedDate);
+  // Lô đã vào kho (kể cả hết tồn) để tránh gợi ý số lô trùng; chỉ tải khi đang lập hoặc sửa phiếu
+  const stockLots = useLots({ campusId: editable ? form?.campusId : '', includeEmpty: true });
+  // Phiếu nhập chỉ nhận hàng khô: bỏ thực phẩm tươi của nhà cung cấp
+  const supplierFoods = useMemo(() => {
+    const dryIds = new Set(foods.map((f) => String(f.id)));
+    return dryIds.size ? allSupplierFoods.filter((f) => dryIds.has(String(f.foodId))) : allSupplierFoods;
+  }, [allSupplierFoods, foods]);
+  const importFoods = useMemo(
+    () => supplierFoods.map((f) => ({ id: f.foodId, code: f.code, name: f.name, unitPrice: f.price })),
+    [supplierFoods],
+  );
   const foodOptions = useMemo(() => {
+    if (editable) return supplierFoods.map((f) => ({ value: String(f.foodId), label: `${f.name} (${f.purchaseUnit})` }));
     const picked = new Set((form?.lines || []).map((l) => String(l.foodId)));
     return Object.values(foodById)
       .filter((f) => f.status === 'ACTIVE' || picked.has(String(f.id)))
       .map((f) => ({ value: String(f.id), label: `${f.name} (${f.purchaseUnit})` }));
-  }, [foodById, form]);
+  }, [editable, supplierFoods, foodById, form]);
+  const supplierId = form?.supplierId || '';
+  const noSupplierFoods = editable && !!supplierId && !supplierFoodsLoading && !supplierFoodsError && supplierFoods.length === 0;
+  let foodPlaceholder = 'Chọn thực phẩm';
+  if (editable && !supplierId) foodPlaceholder = 'Vui lòng chọn nhà cung cấp trước';
+  else if (editable && supplierFoodsLoading) foodPlaceholder = 'Đang tải thực phẩm...';
+  else if (noSupplierFoods) foodPlaceholder = 'Chưa có thực phẩm';
   const supplierOptions = useMemo(() => {
     const list = suppliers.map((s) => ({ value: String(s.id), label: s.name }));
     if (receipt?.supplierId && !list.some((o) => o.value === String(receipt.supplierId)))
@@ -162,24 +202,60 @@ export default function StockReceiptEditorPage() {
     setForm((f) => ({ ...f, [field]: value }));
     setErrors((e) => ({ ...e, [field]: undefined, _form: undefined }));
   };
-  // Giá danh mục tính theo đơn vị mua, cũng là đơn vị dòng nhập ở đây
-  const catalogPrice = (foodId) => {
-    const price = foodById[String(foodId)]?.unitPrice;
-    return price == null || price === '' || !(Number(price) >= 0) ? '' : String(price);
-  };
+  const catalogPrice = (foodId) => supplierPrice(supplierFoods, foodId);
+  const codeOfFood = (foodId) =>
+    supplierFoods.find((f) => String(f.foodId) === String(foodId))?.code || foodById[String(foodId)]?.code || '';
+  // Số lô (chữ thường) của thực phẩm đã vào kho điểm trường hoặc đã có ở dòng khác trên phiếu
+  const takenLotNos = (foodId, lines, skipIndex) =>
+    new Set([
+      ...(stockLots.data || []).filter((lot) => String(lot.food?.id) === String(foodId)).map((lot) => String(lot.lotNo).toLowerCase()),
+      ...lines.filter((l, i) => i !== skipIndex && String(l.foodId) === String(foodId) && l.lotNo).map((l) => l.lotNo.trim().toLowerCase()),
+    ]);
   const setLine = (index, field, value) => {
     setForm((f) => ({
       ...f,
       lines: f.lines.map((l, i) => {
         if (i !== index) return l;
         const next = { ...l, [field]: value };
-        // Đổi thực phẩm: thay giá nếu ô còn trống hoặc vẫn là giá danh mục của thực phẩm trước, giá người dùng đã sửa thì giữ
+        // Đổi thực phẩm: thay giá nếu ô còn trống hoặc vẫn là giá hợp đồng của thực phẩm trước, giá người dùng đã sửa thì giữ
         if (field === 'foodId' && (l.unitPrice === '' || String(l.unitPrice) === catalogPrice(l.foodId)))
           next.unitPrice = catalogPrice(value);
+        // Số lô tự điền theo thực phẩm, thêm đuôi -2, -3… nếu đã có trong phiếu hoặc trong kho; ô trống hoặc còn là số lô tự sinh
+        // của thực phẩm trước thì thay, số lô người dùng đã gõ thì giữ (BE vẫn chặn số lô trùng khi lưu)
+        if (field === 'foodId' && (l.lotNo === '' || isAutoLotNo(l.lotNo, autoLotNo(f.receivedDate, codeOfFood(l.foodId)))))
+          next.lotNo = uniqueLotNo(autoLotNo(f.receivedDate, codeOfFood(value)), takenLotNos(value, f.lines, index));
         return next;
       }),
     }));
     setErrors((e) => ({ ...e, [`lines.${index}.${field}`]: undefined, lines: undefined, _form: undefined }));
+  };
+  // Đổi nhà cung cấp: dòng có thực phẩm ngoài danh sách của nhà cung cấp mới bị bỏ chọn thực phẩm và đơn giá
+  const applySupplier = (next, nextFoods) => {
+    const valid = new Set(nextFoods.map((f) => String(f.foodId)));
+    setForm((f) => ({
+      ...f,
+      supplierId: next,
+      lines: f.lines.map((l) => {
+        if (l.foodId === '') return l;
+        if (!valid.has(String(l.foodId))) return { ...l, foodId: '', unitPrice: '' };
+        // Giá còn là giá hợp đồng của nhà cung cấp cũ thì theo nhà cung cấp mới; giá người dùng đã sửa thì giữ
+        const keep = l.unitPrice !== '' && String(l.unitPrice) !== catalogPrice(l.foodId);
+        return keep ? l : { ...l, unitPrice: supplierPrice(nextFoods, l.foodId) };
+      }),
+    }));
+    setErrors((e) => ({ ...e, supplierId: undefined, lines: undefined, _form: undefined }));
+  };
+  const changeSupplier = async (next) => {
+    if (next === form.supplierId) return;
+    try {
+      const nextFoods = next ? await nutritionCatalogApi.getSupplierFoods(next, form.receivedDate) : [];
+      const valid = new Set(nextFoods.map((f) => String(f.foodId)));
+      const lost = form.lines.filter((l) => l.foodId !== '' && !valid.has(String(l.foodId)) && (l.purchaseQty || l.lotNo || l.expiryDate));
+      if (lost.length) setSupplierSwitch({ next, nextFoods, count: lost.length });
+      else applySupplier(next, nextFoods);
+    } catch (err) {
+      toast.error(err, 'Không tải được thực phẩm của nhà cung cấp');
+    }
   };
   const removeLine = (index) => {
     setForm((f) => ({ ...f, lines: f.lines.filter((_, i) => i !== index) }));
@@ -194,7 +270,7 @@ export default function StockReceiptEditorPage() {
   // Phiếu mới lưu xong ⇒ chuyển sang địa chỉ của phiếu; phiếu đang mở ⇒ nạp lại từ kết quả BE
   const afterSave = (saved) => {
     setErrors({});
-    if (isNew) navigate(`/kitchen/stock-receipts/${saved.id}`, { replace: true });
+    if (isNew) navigate(`/kitchen/stock-receipts/${saved.id}`, { replace: true, state: location.state });
     else receiptQ.setData(saved);
   };
   const persist = async () => {
@@ -213,7 +289,8 @@ export default function StockReceiptEditorPage() {
       const saved = await persist();
       if (saved) {
         toast.success('Đã lưu nháp phiếu nhập. Phiếu chưa vào kho.');
-        afterSave(saved);
+        // Lưu nháp luôn về danh sách phiếu nhập, dù bắt đầu từ màn nào
+        navigate(listPath, { replace: true });
       }
     } catch (err) {
       showError(err, 'Chưa lưu được phiếu');
@@ -227,10 +304,11 @@ export default function StockReceiptEditorPage() {
     try {
       saved = await persist();
       if (!saved) return setDialog(null);
-      const confirmed = await dryStockApi.confirmReceipt(saved.id);
+      await dryStockApi.confirmReceipt(saved.id);
       toast.success('Đã xác nhận nhập kho.');
       setDialog(null);
-      afterSave(confirmed);
+      // Chỉ rời trang khi xác nhận thành công: về màn nguồn (giữ điểm trường/bộ lọc trên URL)
+      navigate(origin || listPath, { replace: true });
     } catch (err) {
       setDialog(null);
       // Đã lưu nháp được nhưng chưa xác nhận: giữ phiếu nháp để người dùng sửa theo lỗi BE
@@ -379,7 +457,7 @@ export default function StockReceiptEditorPage() {
                 <SearchSelect
                   options={supplierOptions}
                   value={form.supplierId}
-                  onChange={(v) => setField('supplierId', v)}
+                  onChange={changeSupplier}
                   placeholder="Chọn nhà cung cấp..."
                   ariaLabel="Nhà cung cấp"
                   disabled={!editable}
@@ -419,7 +497,13 @@ export default function StockReceiptEditorPage() {
               <div className="card__title">Thực phẩm nhập kho</div>
               {editable && (
                 <div className="row kb-line-actions">
-                  <Button size="sm" icon={FileImport} onClick={() => setImporting({ open: true })}>
+                  <Button
+                    size="sm"
+                    icon={FileImport}
+                    disabled={!supplierId || supplierFoodsLoading || noSupplierFoods}
+                    title={supplierId ? undefined : 'Vui lòng chọn nhà cung cấp trước'}
+                    onClick={() => setImporting({ open: true })}
+                  >
                     Nhập từ Excel
                   </Button>
                   <Button size="sm" icon={Plus} onClick={() => setForm((f) => ({ ...f, lines: [...f.lines, emptyLine()] }))}>
@@ -429,18 +513,22 @@ export default function StockReceiptEditorPage() {
               )}
             </div>
             {errors.lines && <div className="field__error kb-card-error">{errors.lines}</div>}
+            {noSupplierFoods && <div className="field__error kb-card-error">Nhà cung cấp này chưa có thực phẩm được thiết lập.</div>}
+            {editable && supplierFoodsError && (
+              <div className="field__error kb-card-error">Không tải được thực phẩm của nhà cung cấp. Chọn lại nhà cung cấp để thử lại.</div>
+            )}
             <div className="table-wrap">
               <table className="table table--grid">
                 <thead>
                   <tr>
+                    <th>
+                      Số lô <span className="req">*</span>
+                    </th>
                     <th className="min-w-220">
                       Thực phẩm <span className="req">*</span>
                     </th>
                     <th>
                       Số lượng <span className="req">*</span>
-                    </th>
-                    <th>
-                      Số lô <span className="req">*</span>
                     </th>
                     <th>
                       Hạn sử dụng <span className="req">*</span>
@@ -460,13 +548,23 @@ export default function StockReceiptEditorPage() {
                     return (
                       <tr key={line.key}>
                         <td>
+                          <TextField
+                            className={`input kb-lot-input ${err(i, 'lotNo') ? 'input--error' : ''}`}
+                            value={line.lotNo}
+                            maxLength={50}
+                            onChange={(e) => setLine(i, 'lotNo', e.target.value)}
+                            aria-label={`Số lô dòng ${i + 1}`}
+                          />
+                          {err(i, 'lotNo') && <div className="field__error">{err(i, 'lotNo')}</div>}
+                        </td>
+                        <td>
                           <SearchSelect
                             options={foodOptions}
                             value={String(line.foodId)}
                             onChange={(v) => setLine(i, 'foodId', v)}
-                            placeholder="Chọn thực phẩm"
+                            placeholder={foodPlaceholder}
                             ariaLabel={`Thực phẩm dòng ${i + 1}`}
-                            disabled={!editable}
+                            disabled={!editable || !supplierId || supplierFoodsLoading || noSupplierFoods}
                             error={!!err(i, 'foodId')}
                           />
                           {err(i, 'foodId') && <div className="field__error">{err(i, 'foodId')}</div>}
@@ -483,16 +581,6 @@ export default function StockReceiptEditorPage() {
                           />
                           <span className="muted text-xs"> {unit}</span>
                           {err(i, 'purchaseQty') && <div className="field__error">{err(i, 'purchaseQty')}</div>}
-                        </td>
-                        <td>
-                          <TextField
-                            className={`input kb-lot-input ${err(i, 'lotNo') ? 'input--error' : ''}`}
-                            value={line.lotNo}
-                            maxLength={50}
-                            onChange={(e) => setLine(i, 'lotNo', e.target.value)}
-                            aria-label={`Số lô dòng ${i + 1}`}
-                          />
-                          {err(i, 'lotNo') && <div className="field__error">{err(i, 'lotNo')}</div>}
                         </td>
                         <td>
                           <DateInput
@@ -573,6 +661,18 @@ export default function StockReceiptEditorPage() {
         {viewOnly && <ReadOnlyTag />}
       </div>
       {content}
+      <ConfirmationModal
+        open={!!supplierSwitch}
+        danger
+        title="Đổi nhà cung cấp?"
+        message={`${supplierSwitch?.count || 0} dòng đã nhập có thực phẩm không thuộc nhà cung cấp mới. Thực phẩm và đơn giá của các dòng này sẽ bị xóa, bạn chọn lại thực phẩm cho các dòng đó.`}
+        confirmLabel="Đổi nhà cung cấp"
+        onConfirm={() => {
+          applySupplier(supplierSwitch.next, supplierSwitch.nextFoods);
+          setSupplierSwitch(null);
+        }}
+        onClose={() => setSupplierSwitch(null)}
+      />
       <ConfirmationModal
         open={dialog === 'confirm'}
         title="Xác nhận nhập kho?"

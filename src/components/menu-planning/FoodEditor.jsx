@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { FormField } from '@/components/form/FormField';
 import { SearchSelect } from '@/components/ui/SearchSelect';
 import { useActiveSuppliers } from '@/hooks/menu-planning/useMenuPlanning';
-import { ContractStatusBadge } from '@/components/menu-planning/ContractStatusBadge';
+import { DateInput } from '@/components/form/DateInput';
 import { fixedPurchaseUnit } from '@/utils/menu-planning/foodUnits';
+import { todayInput } from '@/utils/format';
 import {
   ALLERGENS,
   FOOD_GROUP_LABELS,
@@ -65,7 +66,21 @@ function Affix({ unit, prefix, className = '', disabled, ...props }) {
  * `f` = kết quả `useFoodForm`. Dùng trong trang sửa và trong modal trên danh sách.
  */
 export function FoodEditor({ f }) {
-  const { form, payload, set, setPurchaseUnit, setBaseUnit, setUnitConversion, unitOptions, setNut, blur, show, toggleAllergen, isNew } = f;
+  const {
+    form,
+    payload,
+    set,
+    setPurchaseUnit,
+    setBaseUnit,
+    setUnitConversion,
+    unitOptions,
+    setNut,
+    blur,
+    show,
+    toggleAllergen,
+    isNew,
+    priceChanged,
+  } = f;
   const [customUnit, setCustomUnit] = useState(false);
   const { items: suppliers } = useActiveSuppliers();
   const purchaseUnit = form.purchaseUnit || 'đơn vị tính';
@@ -193,33 +208,51 @@ export function FoodEditor({ f }) {
           <FormField
             label="Đơn giá"
             error={show('unitPrice')}
-            hint={isNew ? 'Mức giá đầu tiên, áp dụng từ hôm nay' : 'Đổi giá ở trang chi tiết › Giá & nhà cung cấp › Điều chỉnh giá'}
+            hint={isNew ? 'Mức giá đầu tiên, áp dụng từ hôm nay' : 'Đổi giá sẽ thêm một mức giá mới, mức cũ vẫn lưu trong lịch sử'}
           >
             <Affix
               unit={`đ / ${form.purchaseUnit || 'đơn vị mua'}`}
               step="500"
               value={form.unitPrice}
-              disabled={!isNew}
               onChange={(e) => set('unitPrice', e.target.value)}
               onBlur={blur('unitPrice')}
             />
           </FormField>
           <FormField label="Nhà cung cấp" error={show('supplierId')}>
-            {isNew ? (
-              <SearchSelect
-                options={suppliers.map((s) => ({ value: s.id, label: s.name }))}
-                value={form.supplierId}
-                onChange={(v) => set('supplierId', v)}
-                placeholder="Chưa gán nhà cung cấp"
-                searchable
-              />
-            ) : (
-              <span className="td-chips">
-                {form.supplierName || <span className="muted">Chưa gán</span>}
-                {form.supplierName && <ContractStatusBadge status={form.contractStatus} size="sm" />}
-              </span>
-            )}
+            <SearchSelect
+              options={suppliers.map((s) => ({ value: s.id, label: s.name }))}
+              value={form.supplierId}
+              onChange={(v) => set('supplierId', v)}
+              placeholder="Chưa gán nhà cung cấp"
+              ariaLabel="Nhà cung cấp"
+              searchable
+            />
           </FormField>
+          {priceChanged && (
+            <>
+              <FormField
+                label="Ngày hiệu lực của giá mới"
+                required
+                error={show('effectiveFrom')}
+                hint="Từ hôm nay trở đi; các ngày trước đó giữ giá cũ"
+              >
+                <DateInput value={form.effectiveFrom} min={todayInput()} onChange={(v) => set('effectiveFrom', v)} />
+              </FormField>
+              <FormField
+                label="Lý do đổi giá / nhà cung cấp"
+                error={show('priceReason')}
+                hint="Bắt buộc khi ngày hiệu lực nằm trong hạn hợp đồng hiện hành"
+              >
+                <TextField
+                  className="input"
+                  value={form.priceReason}
+                  maxLength={300}
+                  onChange={(e) => set('priceReason', e.target.value)}
+                  onBlur={blur('priceReason')}
+                />
+              </FormField>
+            </>
+          )}
         </div>
       </section>
 

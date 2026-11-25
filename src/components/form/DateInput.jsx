@@ -1,16 +1,17 @@
 import { forwardRef, useEffect, useRef, useState } from 'react';
 import { CalendarDays } from '@/components/ui/icons';
-import { formatDate, isIsoDate, normalizeDateInput, parseDisplayDate } from '@/utils/format';
+import { formatDate, isIsoDate, normalizeDateInput, padDisplayDate, parseDisplayDate } from '@/utils/format';
 
 const toText = (value) => (isIsoDate(value) ? formatDate(value) : value || '');
 
 /**
  * Date field shown and typed as dd/mm/yyyy whatever the browser locale; the calendar button opens the native picker.
- * value / onChange use yyyy-mm-dd. Text that is not yet a real date is passed through as typed so validation can report it.
+ * value / onChange use yyyy-mm-dd. Text that is not yet a real date is passed through as typed so validation can report it;
+ * a full date outside min / max (yyyy-mm-dd) is rejected and the previous value kept, same as the calendar.
  *
  * <DateInput value={form.startDate} onChange={(v) => set({ startDate: v })} />
  */
-export const DateInput = forwardRef(function DateInput({ value, onChange, min, max, className = '', disabled, ...props }, ref) {
+export const DateInput = forwardRef(function DateInput({ value, onChange, onBlur, min, max, className = '', disabled, ...props }, ref) {
   const [text, setText] = useState(() => toText(value));
   const pickerRef = useRef(null);
 
@@ -21,8 +22,21 @@ export const DateInput = forwardRef(function DateInput({ value, onChange, min, m
 
   const handleType = (e) => {
     const next = normalizeDateInput(e.target.value);
+    const iso = parseDisplayDate(next);
+    // Ngày đủ nhưng ngoài min/max thì không nhận: giữ giá trị hợp lệ trước đó (cùng quy tắc với lịch chọn)
+    if (iso && ((min && iso < min) || (max && iso > max))) {
+      setText(toText(value));
+      return;
+    }
     setText(next);
-    onChange?.(parseDisplayDate(next) || next);
+    onChange?.(iso || next);
+  };
+
+  // Rời ô thì hiển thị bản đã đệm số 0 nếu là ngày thật; vẫn gọi onBlur của người dùng
+  const handleBlur = (e) => {
+    const padded = padDisplayDate(text);
+    if (padded !== text && parseDisplayDate(padded)) setText(padded);
+    onBlur?.(e);
   };
 
   const openPicker = () => {
@@ -47,6 +61,7 @@ export const DateInput = forwardRef(function DateInput({ value, onChange, min, m
         className={`input ${className}`}
         value={text}
         onChange={handleType}
+        onBlur={handleBlur}
       />
       <input
         ref={pickerRef}

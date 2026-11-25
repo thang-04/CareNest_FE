@@ -1,4 +1,5 @@
 import { recipientError } from './accountRecipient';
+import { addMonthsIso } from './childAge';
 import { DECLARATION_STATE, GUARDIAN_RELATIONS, MAX_GUARDIANS } from '@/models/children/childrenConstants';
 import { citizenIdError, normalizeCitizenId } from '@/utils/citizenId';
 import { formatDate, isIsoDate, todayInput } from '@/utils/format';
@@ -82,13 +83,17 @@ export const validateChildProfile = (p = {}) => {
 };
 
 /** Child + guardians block of the enrollment form (kèm phần hành chính). */
-export const validateChildInfo = (data, { requireRecipient = true } = {}) => {
+export const validateChildInfo = (data, { requireRecipient = true, intakeDate } = {}) => {
   const errors = { ...validateChildProfile(data.profile) };
   if (!data.fullName?.trim()) errors.fullName = 'Nhập họ tên trẻ';
   else if (data.fullName.trim().length > 100) errors.fullName = 'Họ tên tối đa 100 ký tự';
-  if (!data.dateOfBirth || !DATE_RE.test(data.dateOfBirth)) errors.dateOfBirth = 'Chọn ngày sinh của trẻ';
+  if (!data.dateOfBirth) errors.dateOfBirth = 'Chọn ngày sinh của trẻ';
+  // Ô dd/mm/yyyy (DateInput) giữ nguyên chữ đã gõ khi chưa thành ngày có thật
+  else if (!DATE_RE.test(data.dateOfBirth)) errors.dateOfBirth = 'Nhập ngày sinh theo dạng dd/mm/yyyy';
   else if (data.dateOfBirth > today()) errors.dateOfBirth = 'Ngày sinh không được ở tương lai';
   else if (data.dateOfBirth < '2018-01-01') errors.dateOfBirth = 'Nhập ngày sinh hợp lệ cho trẻ mầm non';
+  // Chỉ khi tiếp nhận (G94-180/CHD-13, BE kiểm lại): đủ 3 tháng tuổi tại ngày tiếp nhận; Sửa hồ sơ không truyền intakeDate
+  else if (intakeDate && addMonthsIso(data.dateOfBirth, 3) > intakeDate) errors.dateOfBirth = 'Trẻ phải đủ 3 tháng tuổi tại ngày tiếp nhận';
   if (!data.gender) errors.gender = 'Chọn giới tính';
   const guardians = data.guardians || [];
   if (guardians.length === 0) errors.guardians = 'Thêm ít nhất một phụ huynh';
@@ -123,7 +128,8 @@ export const validatePlacement = ({ classId }) => (classId ? {} : { classId: 'Ch
  * sinh; ở phiếu khám không sau ngày khám (notAfter). Trả câu lỗi hoặc null.
  */
 export const tbContactDateError = (value, { dateOfBirth, notAfter } = {}) => {
-  if (!isIsoDate(value)) return 'Chọn ngày tiếp xúc gần nhất';
+  if (!value) return 'Chọn ngày tiếp xúc gần nhất';
+  if (!isIsoDate(value)) return 'Nhập ngày tiếp xúc theo dạng dd/mm/yyyy';
   if (value > today()) return 'Ngày tiếp xúc không được ở tương lai';
   if (notAfter && value > notAfter) return `Ngày tiếp xúc không được sau ngày khám ${formatDate(notAfter)}`;
   if (dateOfBirth && value < dateOfBirth) return 'Ngày tiếp xúc không được trước ngày sinh của trẻ';
@@ -133,7 +139,7 @@ export const tbContactDateError = (value, { dateOfBirth, notAfter } = {}) => {
 /** Declaration: "Reported" needs content; the other states record absence or "not provided" (UC 5.2). */
 export const validateDeclaration = (d, { dateOfBirth } = {}) => {
   const errors = {};
-  if (!d) return { allergies: 'Khai báo sức khỏe còn thiếu' };
+  if (!d) return { allergies: 'Khai báo ăn và sức khỏe còn thiếu' };
   // CHD-13: thiếu/null = báo ăn; không báo ăn thì không khai dị ứng, chế độ ăn; giá trị không phải Có/Không là lỗi.
   const mealFlag = d.mealRegistered;
   if (mealFlag != null && typeof mealFlag !== 'boolean') errors.mealRegistered = 'Báo ăn ghi Có hoặc Không';

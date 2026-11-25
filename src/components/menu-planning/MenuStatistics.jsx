@@ -210,6 +210,8 @@ export function StatisticsNutrition({ stats }) {
   const ev = stats.evaluation || {};
   const t = ev.totals || {};
   const row = Object.fromEntries((ev.rows || []).map((r) => [r.key, r]));
+  // Chưa có định lượng món thì tổng là "—" (thiếu dữ liệu), không hiện 0 như số thật; "Chưa đặt" chỉ dành cho thiếu định mức
+  const noQuantity = !stats.ingredients?.length;
   const values = [t.animalProtein, t.plantProtein, t.animalLipid, t.plantLipid, t.glucid];
   return (
     <div className="table-wrap">
@@ -245,14 +247,14 @@ export function StatisticsNutrition({ stats }) {
             <td>Tổng cộng</td>
             {values.map((v, i) => (
               <td key={i} className="num">
-                {num(v)}
+                {noQuantity ? '—' : num(v)}
               </td>
             ))}
             <td className="num">
-              <span className="td-tag td-tag--orange">{num(t.kcal)}</span>
+              <span className="td-tag td-tag--orange">{noQuantity ? '—' : num(t.kcal)}</span>
             </td>
             <td className="money nowrap">
-              <span className="td-tag td-tag--green">{formatMoney(stats.costPerChild)}</span>
+              <span className="td-tag td-tag--green">{noQuantity ? '—' : formatMoney(stats.costPerChild)}</span>
             </td>
           </tr>
           <tr>
@@ -276,7 +278,7 @@ export function StatisticsNutrition({ stats }) {
             ))}
             <td className={`num ${cellTone(row.kcal)}`}>{row.kcal?.attainment == null ? '—' : row.kcal.attainment}</td>
             <td className="money nowrap">
-              {stats.mealPrice == null
+              {stats.mealPrice == null || noQuantity
                 ? '—'
                 : `Chênh ${formatMoney(Number(stats.foodBudget ?? stats.mealPrice) - Number(stats.costPerChild || 0))}`}
             </td>
@@ -319,7 +321,7 @@ export function StatisticsNutrition({ stats }) {
 }
 
 /** Đánh giá % năng lượng từng bữa so định mức (NUT-25). */
-export function StatisticsSessions({ sessions }) {
+export function StatisticsSessions({ sessions, noQuantity = false }) {
   if (!sessions?.length) return <EmptyState title="Chưa có bữa nào để đánh giá" description="Thêm món cho ngày này rồi xem lại." />;
   return (
     <div className="table-wrap">
@@ -337,7 +339,7 @@ export function StatisticsSessions({ sessions }) {
           {sessions.map((s) => (
             <tr key={s.session}>
               <td>{MEAL_SESSION_LABELS[s.session] || s.session}</td>
-              <td className="num">{num(s.kcal)}</td>
+              <td className="num">{noQuantity ? '—' : num(s.kcal)}</td>
               <td className="num">{num(s.percent)}</td>
               <td className="num nowrap">{range(s)}</td>
               <td className="center">

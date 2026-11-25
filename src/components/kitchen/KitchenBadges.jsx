@@ -78,6 +78,8 @@ export const StockMovementBadge = createStatusBadge(
     ADJUST: ['orange', null],
     SHORTFALL_DEDUCT: ['orange', null],
     RECEIPT_CANCEL: ['gray', null],
+    SUPPLIER_RETURN: ['orange', null],
+    WRITE_OFF: ['red', null],
   },
   STOCK_MOVEMENT_LABELS,
 );

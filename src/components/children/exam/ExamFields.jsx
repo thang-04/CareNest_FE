@@ -1,5 +1,5 @@
-import { useId, useState } from 'react';
-import { Info, Plus, X } from '@/components/ui/icons';
+import { useId } from 'react';
+import { Info } from '@/components/ui/icons';
 import { FormField } from '@/components/form/FormField';
 
 /** Một câu của phiếu Phụ lục II: nhóm radio theo lựa chọn của mẫu. Lựa chọn bất thường đang chọn thì viền cảnh báo; option.disabled khóa riêng lựa chọn đó. */
@@ -286,21 +286,22 @@ export function ExamSheetInputCell({ labelledBy, value, onChange, error, hint, d
  * Ô số đo kèm trạng thái (sinh tồn, vòng đầu): ô số và nhóm radio cùng một dòng; dưới là lỗi, khoảng tham khảo (mờ), gợi ý.
  * status: { name, labelledBy | ariaLabel, options, value, onChange, error, hint }.
  */
-export function ExamSheetMeasureCell({ labelledBy, value, onChange, error, min, max, step, disabled, status, reference }) {
+export function ExamSheetMeasureCell({ labelledBy, value, onChange, error, min, max, step, disabled, status, reference, text }) {
   const id = useId();
   const statusId = `${id}-status`;
   return (
     <td className={abnormalOf(status.options, status.value) ? 'tr-exam-sheet__flag' : undefined}>
       <div className="tr-exam-sheet__line">
+        {/* text: ô chữ nhận cả "," lẫn "." (ô số của trình duyệt theo ngôn ngữ máy, không gõ được dấu phẩy ở mọi nơi) */}
         <input
-          type="number"
+          type={text ? 'text' : 'number'}
           inputMode="decimal"
           className={inputClass(null, error)}
           id={id}
           value={value ?? ''}
-          min={min}
-          max={max}
-          step={step}
+          min={text ? undefined : min}
+          max={text ? undefined : max}
+          step={text ? undefined : step}
           disabled={disabled}
           aria-labelledby={labelledBy}
           aria-invalid={!!error || undefined}
@@ -346,77 +347,6 @@ export function ExamSheetDetail({ label, required, value, onChange, error, size,
         {...inputProps}
       />
       <CellMessage id={id} error={error} />
-    </div>
-  );
-}
-
-// Các mục ghép thành một chuỗi "A; B" để giữ đúng field chuỗi của phiếu (BE nhận selfText/familyText là chuỗi).
-const LIST_SEPARATOR = '; ';
-const splitList = (value) =>
-  (value || '')
-    .split(';')
-    .map((x) => x.trim())
-    .filter(Boolean);
-
-/** Chi tiết nhiều mục (vd. tên bệnh): gõ rồi bấm Thêm hoặc Enter, mỗi mục một chip bỏ được — như chất gây dị ứng (user yêu cầu 2026-11-11). */
-export function ExamSheetListDetail({ label, required, value, onChange, error, disabled, placeholder, maxLength = 300 }) {
-  const id = useId();
-  const [draft, setDraft] = useState('');
-  const items = splitList(value);
-  const text = draft.trim().replace(/;/g, ',');
-  const next = [...items, text].join(LIST_SEPARATOR);
-  const tooLong = !!text && next.length > maxLength;
-  const add = () => {
-    if (!text || tooLong) return;
-    if (!items.some((x) => x.toLowerCase() === text.toLowerCase())) onChange(next);
-    setDraft('');
-  };
-  const remove = (x) => onChange(items.filter((i) => i !== x).join(LIST_SEPARATOR));
-  return (
-    <div className="tr-exam-sheet__detail tr-exam-sheet__detail--list">
-      <label htmlFor={id} className="tr-exam-sheet__detail-label">
-        {label}
-        {required && <span className="req">*</span>}
-      </label>
-      <div className="tr-exam-list">
-        <div className="row gap-2">
-          <input
-            id={id}
-            className={inputClass('short', error)}
-            value={draft}
-            disabled={disabled}
-            placeholder={placeholder}
-            maxLength={maxLength}
-            aria-invalid={!!error || undefined}
-            aria-describedby={error || tooLong ? `${id}-error` : undefined}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                add();
-              }
-            }}
-          />
-          <button type="button" className="btn" onClick={add} disabled={disabled || !text || tooLong}>
-            <Plus size={15} /> Thêm
-          </button>
-        </div>
-        {items.length > 0 && (
-          <div className="row row--wrap gap-2">
-            {items.map((x) => (
-              <span key={x} className="chip chip--orange">
-                {x}
-                {!disabled && (
-                  <button type="button" className="tr-chip-remove" aria-label={`Bỏ ${x}`} onClick={() => remove(x)}>
-                    <X size={12} />
-                  </button>
-                )}
-              </span>
-            ))}
-          </div>
-        )}
-        <CellMessage id={id} error={error || (tooLong ? `Tổng nội dung tối đa ${maxLength} ký tự.` : '')} />
-      </div>
     </div>
   );
 }

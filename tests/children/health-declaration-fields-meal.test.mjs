@@ -8,18 +8,19 @@ import { emptyDeclaration } from '@/utils/children/childrenHelpers';
 const source = await readFile(new URL('../../src/components/children/HealthDeclarationFields.jsx', import.meta.url), 'utf8');
 // Checkbox stub ghi lại props để test gọi onChange (renderToStaticMarkup không bắn được sự kiện).
 const stubs = `import React, { useId, useState } from 'react';
-const Plus=()=>null,X=()=>null;
+const ChipListInput=({id,ariaLabel,error})=>React.createElement('input',{id:ariaLabel?undefined:id,className:error?'input is-invalid':'input','aria-invalid':error?true:undefined,'aria-label':ariaLabel});
 const FormField=({children})=>children;
 const IntakeSheet=({title,children})=>React.createElement('div',null,React.createElement('h2',null,title),children);
 const IntakeChoiceRow=({label,children})=>React.createElement('div',null,label,children);
 const Checkbox=(props)=>{globalThis.__checkbox=props;return React.createElement('input',{type:'checkbox',checked:props.checked,readOnly:true,'aria-describedby':props['aria-describedby']});};
 const ALLERGY_STATE_LABELS={},DIET_STATE_LABELS={},NOTE_STATE_LABELS={},MEDICAL_HISTORY_STATE_LABELS={};
 const DECLARATION_STATE={REPORTED:'REPORTED',NONE_REPORTED:'NONE_REPORTED',NOT_PROVIDED:'NOT_PROVIDED'};
-const MEDICAL_HISTORY_ITEMS=[{key:'self',label:'Tiền sử bản thân'}];
+const HISTORY_TEXT_MAX=300,cleanHistoryItem=(x)=>x,joinHistoryText=(x)=>x.join('; '),splitHistoryText=(x)=>String(x||'').split(';').map((y)=>y.trim()).filter(Boolean);
+const MEDICAL_HISTORY_ITEMS=[{key:'self',label:'Tiền sử bản thân',textLabel:'Tên bệnh của trẻ',withText:true}];
 const emptyMedicalHistory=()=>({self:{state:null,text:'',contactDate:''}});
 const todayInput=()=>'2026-11-18';
 `;
-const { code } = await transformWithOxc(stubs + source.replace(/^import .*;\r?\n/gm, ''), 'HealthDeclarationFields.jsx', {
+const { code } = await transformWithOxc(stubs + source.replace(/^import [^;]*;\r?\n/gm, ''), 'HealthDeclarationFields.jsx', {
   lang: 'jsx',
   jsx: { runtime: 'classic' },
 });
@@ -88,4 +89,27 @@ for (const sheet of [true, false]) {
 
 test('fieldset: nhóm tiền sử gọi là Tiền sử và sức khỏe khác', () => {
   assert.match(render({ value: declaration() }), /<h3[^>]*>Tiền sử và sức khỏe khác<\/h3>/);
+});
+
+// Khung lỗi đã duyệt 19/11/2026: ô chi tiết (hiện khi chọn "Có") viền đỏ khi dòng của nó có lỗi.
+test('ô chi tiết có lỗi mang is-invalid và aria-invalid; không lỗi thì không', () => {
+  const value = declaration({
+    allergies: { state: 'REPORTED', items: [] },
+    diet: { state: 'REPORTED', text: '' },
+    otherNotes: { state: 'REPORTED', text: '' },
+    medicalHistory: { self: { state: 'REPORTED', text: '', contactDate: '' } },
+  });
+  const errors = {
+    allergies: 'Nhập ít nhất một thực phẩm/chất gây dị ứng',
+    diet: 'Mô tả chế độ ăn riêng của trẻ',
+    otherNotes: 'Nhập thông tin sức khỏe khác',
+    'medicalHistory.self': 'Ghi rõ tên bệnh',
+  };
+  const html = render({ value, errors, sheet: true });
+  assert.match(html, /<input id="tr-allergy-item" class="input is-invalid" aria-invalid="true"/);
+  assert.match(html, /<textarea class="textarea is-invalid" aria-invalid="true"[^>]*aria-label="Mô tả chế độ ăn"/);
+  assert.match(html, /<textarea class="textarea is-invalid" aria-invalid="true"[^>]*aria-label="Thông tin sức khỏe khác"/);
+  assert.match(html, /<input class="input is-invalid" aria-invalid="true"[^>]*aria-label="Tên bệnh của trẻ"/);
+  const clean = render({ value, sheet: true });
+  assert.doesNotMatch(clean, /is-invalid|aria-invalid/);
 });

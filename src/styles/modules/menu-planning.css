@@ -680,7 +680,7 @@
 }
 
 .td-dish-table {
-  min-width: 720px;
+  min-width: 560px;
 }
 
 .table.table--grid .td-row--warn td {
@@ -2976,13 +2976,17 @@
   background: var(--color-surface);
   line-height: 1.35;
 }
-/* Ba nút Thay thế · Thông tin · Xóa trên món (như PMS, user chốt 09/11/2026); thiếu chỗ thì xuống dòng, căn phải */
+/* Ba nút Thay thế · Thông tin · Xóa cùng hàng với tên món (như PMS, user chốt 09/11/2026); tên dài cắt "...", rê chuột xem đủ */
 .td-week__dishes li.td-dish {
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
-/* Tên món một dòng riêng; dòng dưới: kcal bên trái, cụm nút bên phải — mọi món cùng một dáng, không đè chữ ở ô hẹp */
 .td-week__dishes li.td-dish > .td-grow {
-  flex-basis: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.td-week__dishes li.td-dish > .td-dish__actions {
+  flex-shrink: 0;
 }
 .td-dish__actions {
   display: inline-flex;
@@ -4108,6 +4112,22 @@
   border-left: 1px solid var(--color-border);
 }
 
+/* Ô con không được rộng hơn cột: chip mùa dài xuống dòng thay vì đẩy modal tràn và che cột phải */
+.td-aib__form > * {
+  min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .td-aib {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .td-aib__form {
+    padding-left: 0;
+    border-left: 0;
+  }
+}
+
 .td-aib__intro {
   display: flex;
   align-items: flex-start;
@@ -4181,6 +4201,9 @@
 
 .td-aib__seasons {
   align-self: start;
+  flex-wrap: wrap;
+  max-width: 100%;
+  white-space: normal;
 }
 
 .td-aib__wish {

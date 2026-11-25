@@ -655,9 +655,6 @@ export default function UiKitPage() {
               gap: 20,
             }}
           >
-            <label className="radio">
-              <input type="radio" name="uk-r" defaultChecked /> Radio
-            </label>
             <label className="checkbox">
               <input type="checkbox" defaultChecked /> Checkbox
             </label>
