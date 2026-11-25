@@ -207,6 +207,10 @@
   min-height: var(--input-height);
   padding: var(--space-2);
 }
+.dd-reception__status-select {
+  width: 100%;
+  min-width: 0;
+}
 .dd-reception__status label:focus-within {
   outline: 2px solid var(--color-focus);
   outline-offset: 2px;

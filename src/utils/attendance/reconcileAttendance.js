@@ -19,8 +19,12 @@ export function reconcileAttendanceDraft(draft, previous, fresh, savedIds = []) 
       const edited =
         draft[id]?.status &&
         (draft[id].status !== (old?.record?.status || '') ||
+          !!draft[id].presentPart ||
           sessions.some((session) => !!draft[id].meals?.[session] !== !!old?.record?.meals?.[session]));
-      const keep = edited && !saved.has(id) && !row.leaveRequest && !old?.leaveRequest;
+      // Ngày mở lại (26/11/2026): nháp chọn buổi (presentPart) của trẻ có đơn nghỉ vẫn giữ khi đơn không đổi
+      const sameLeave = (row.leaveRequest?.id || null) === (old?.leaveRequest?.id || null);
+      const leaveFree = !row.leaveRequest && !old?.leaveRequest;
+      const keep = edited && !saved.has(id) && (leaveFree || (!!draft[id].presentPart && sameLeave));
       return [id, keep ? draft[id] : entryOf(row, sessions)];
     }),
   );
