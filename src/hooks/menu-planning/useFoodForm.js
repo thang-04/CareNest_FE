@@ -6,6 +6,7 @@ import { saveFood } from '@/services/menu-planning/menuPlanningService';
 import { validateFood, hasErrors } from '@/utils/menu-planning/menuPlanningValidation';
 import { foodUnits, selectNewFoodBaseUnit, selectNewFoodPurchaseUnit } from '@/utils/menu-planning/foodUnits';
 import { MICRONUTRIENTS } from '@/models/menu-planning/menuPlanningConstants';
+import { todayInput } from '@/utils/format';
 
 const EMPTY = {
   name: '',
@@ -18,6 +19,9 @@ const EMPTY = {
   stockUnitSize: 1000,
   unitPrice: '',
   supplierId: '',
+  // Chỉ gửi khi sửa mà giá hoặc NCC đổi: ngày hiệu lực của mức giá mới và lý do (NUT-27)
+  effectiveFrom: '',
+  priceReason: '',
   wastePct: 0,
   favorite: false,
   storage: '',
@@ -34,6 +38,9 @@ const toForm = (f) => ({
   ...foodUnits(f),
   unit: f.unit,
   unitPrice: f.unitPrice ?? '',
+  supplierId: f.supplierId ?? '',
+  effectiveFrom: todayInput(),
+  priceReason: '',
   origin: f.origin ?? '',
   nutrientSource: f.nutrientSource ?? '',
   nutrition: Object.fromEntries(Object.entries(f.nutrition || {}).map(([k, v]) => [k, v ?? ''])),
@@ -65,7 +72,16 @@ export function useFoodForm(id, { onSaved } = {}) {
   // Đã có lô/phiếu nhập: giữ nguyên tỷ lệ đã lưu, không tự đổi
   const locked = !!item?.unitsLocked;
   const payload = { ...form };
-  const errors = { ...validateFood({ ...payload, id }, others), ...serverErrors };
+  // Sửa mà giá hoặc NCC khác bản đã tải ⇒ BE thêm mức giá mới: cần ngày hiệu lực và lý do (NUT-27)
+  const priceChanged =
+    !!id &&
+    (String(form.unitPrice ?? '') !== String(initial.unitPrice ?? '') ||
+      String(form.supplierId ?? '') !== String(initial.supplierId ?? ''));
+  const errors = {
+    ...validateFood({ ...payload, id }, others),
+    ...(priceChanged && !form.effectiveFrom ? { effectiveFrom: 'Chọn ngày hiệu lực' } : {}),
+    ...serverErrors,
+  };
   const show = (k) => (submitted || touched[k] ? errors[k] : undefined);
   const set = (k, v) => {
     setForm((f) => {
@@ -166,7 +182,7 @@ export function useFoodForm(id, { onSaved } = {}) {
         ].filter(Boolean),
       ),
     ].map((value) => ({ value, label: value })),
-    // Giá và NCC chỉ nhập khi tạo; sau đó đổi qua điều chỉnh giá (NUT-27)
     isNew: !id,
+    priceChanged,
   };
 }
