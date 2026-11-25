@@ -62,6 +62,23 @@ export const sortSamples = (samples) =>
       String(b.sampledAt).localeCompare(String(a.sampledAt)),
   );
 
+/**
+ * Số bản lưu mẫu cùng ngày, cùng bữa (BE NUT-21: một bữa được có nhiều mẫu) để hàng chờ duyệt gắn nhãn "Bữa có N mẫu".
+ * Trả hàm `(sample) => số`.
+ */
+export const sameMealCount = (samples) => {
+  const counts = new Map();
+  (samples || []).forEach((s) => counts.set(`${s.date}|${s.session}`, (counts.get(`${s.date}|${s.session}`) || 0) + 1));
+  return (sample) => counts.get(`${sample.date}|${sample.session}`) || 0;
+};
+
+/** Số bản lưu mẫu đang chờ duyệt lưu mẫu (hủy mẫu chờ duyệt không tính) — BE chặn ký sổ M5 khi > 0 (NUT-21, mã 6140). */
+export const pendingSampleCount = (samples) => (samples || []).filter((s) => s.status === 'RECORDED').length;
+
+/** Lý do chưa ký được sổ lưu mẫu M5 để tắt nút Ký; '' khi không bị chặn vì mẫu chờ duyệt. */
+export const sampleSignBlock = (pending) =>
+  pending > 0 ? `Còn ${pending} bản lưu mẫu của ngày chưa duyệt, hãy duyệt ở Lưu mẫu thức ăn trước khi ký` : '';
+
 /** Bản lưu mẫu đã duyệt (in được biểu mẫu). */
 export const printableSamples = (samples) => sortSamples(samples).filter((sample) => sample.status === 'APPROVED');
 

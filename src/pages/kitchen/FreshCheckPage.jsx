@@ -1,7 +1,7 @@
 import { Link, useSearchParams } from 'react-router-dom';
 import { ShoppingBasket } from '@/components/ui/icons';
 import { EmptyState, ErrorState, LoadingState, PageHeader } from '@/components';
-import { DryIntakeCard } from '@/components/kitchen/DryIntakeCard';
+// import { DryIntakeCard } from '@/components/kitchen/DryIntakeCard';
 import { FreshRoundCard } from '@/components/kitchen/FreshRoundCard';
 import { KbCampusFilter, KbDateFilter } from '@/components/kitchen/KitchenFilters';
 import { useStockCampus } from '@/hooks/kitchen/useDryStock';
@@ -84,6 +84,7 @@ export default function FreshCheckPage() {
             />
           ))
         )}
+        {/* Tạm ẩn: hàng khô nhập qua Phiếu nhập, màn này chỉ kiểm hàng tươi. Bỏ comment khối dưới để bật lại.
         <DryIntakeCard
           dry={check.data.dry}
           campusId={campus.campusId}
@@ -92,6 +93,7 @@ export default function FreshCheckPage() {
           canWrite={check.data.canManage && date === todayInput()}
           onSaved={check.setData}
         />
+        */}
       </div>
     );
   }

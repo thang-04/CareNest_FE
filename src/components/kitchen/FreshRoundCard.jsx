@@ -9,7 +9,15 @@ import { useSuppliers } from '@/hooks/kitchen/useKitchen';
 import { freshGoodsApi } from '@/services/freshGoodsApi';
 import { FOOD_GROUP_LABELS } from '@/models/foodGroups';
 import { FRESH_CHECK_RESULT, FRESH_CHECK_RESULT_LABELS, FRESH_ROUND_LABELS, NOTE_MAX } from '@/models/kitchen/kitchenConstants';
-import { groupRoundLines, roundState, roundToForm, tallyResults, validateRoundForm, withEditReason } from '@/utils/kitchen/freshGoodsForm';
+import {
+  groupRoundLines,
+  markEnough,
+  roundState,
+  roundToForm,
+  tallyResults,
+  validateRoundForm,
+  withEditReason,
+} from '@/utils/kitchen/freshGoodsForm';
 import { personName } from '@/utils/kitchen/stockLots';
 import { formatDateTime } from '@/utils/format';
 
@@ -64,7 +72,12 @@ export function FreshRoundCard({ round, campusId, date, canManage, groupOfFood, 
       return next;
     });
   };
-  const markAll = () => setForm((f) => ({ ...f, lines: f.lines.map((l) => ({ ...l, result: FRESH_CHECK_RESULT.ENOUGH })) }));
+  const markAll = () => setForm((f) => markEnough(f, round.lines));
+  const pickResult = (index, result) => {
+    if (result !== FRESH_CHECK_RESULT.ENOUGH) return setLine(index, { result });
+    const next = markEnough(form, round.lines, index).lines[index];
+    return setLine(index, { result: next.result, receivedQty: next.receivedQty });
+  };
 
   const startEdit = () => {
     setForm(roundToForm(round));
@@ -339,7 +352,7 @@ export function FreshRoundCard({ round, campusId, date, canManage, groupOfFood, 
               <td>
                 {editable ? (
                   <>
-                    <ResultSeg value={row.result} onChange={(result) => setLine(i, { result })} label={`Kết quả ${line.food.name}`} />
+                    <ResultSeg value={row.result} onChange={(result) => pickResult(i, result)} label={`Kết quả ${line.food.name}`} />
                     {err('result') && <div className="field__error">{err('result')}</div>}
                   </>
                 ) : line.result ? (

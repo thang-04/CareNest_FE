@@ -87,6 +87,26 @@ test('INS-03: M1 kho khô đã ký ⇒ ẩn nút đồng bộ, báo Sửa lại 
   );
 });
 
+test('INS-03: M1 kho khô đã ký báo ở mọi trạng thái kho, kể cả đã trừ xong', () => {
+  const row = rowOf(
+    buildDayBoardRows(
+      campus({ dryStock: { status: 'DEDUCTED', foodCount: 8, shortfallFoodCount: 0, openShortfallCount: 0, m1DrySigned: true } }),
+    ),
+    'dryStock',
+  );
+  assert.match(row.detail, /M1 kho khô đã ký/);
+  assert.equal(rowOf(buildDayBoardRows(campus(), { date: DATE }), 'dryStock').detail.includes('M1'), false);
+});
+
+test('INS-03: M1 hàng tươi đã ký ⇒ ghi chú khóa kiểm nhận, nút đổi thành Xem kiểm nhận', () => {
+  const row = rowOf(buildDayBoardRows(campus({ freshReceiptStatus: 'DONE', m1FreshSigned: true }), { date: DATE }), 'freshReceipt');
+  assert.match(row.detail, /M1 hàng tươi đã ký/);
+  assert.equal(row.actions[0].label, 'Xem kiểm nhận');
+  const open = rowOf(buildDayBoardRows(campus(), { date: DATE }), 'freshReceipt');
+  assert.equal(open.actions[0].label, 'Kiểm nhận');
+  assert.equal(open.detail.includes('M1'), false);
+});
+
 test('AC-3: kho khô thiếu n thực phẩm, link phần thiếu chờ bổ sung', () => {
   const row = rowOf(
     buildDayBoardRows(campus({ dryStock: { status: 'SHORTFALL', foodCount: 8, shortfallFoodCount: 3, openShortfallCount: 4 } })),
