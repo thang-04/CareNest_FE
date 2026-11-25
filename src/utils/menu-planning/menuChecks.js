@@ -46,9 +46,9 @@ export const dayLabel = (iso) => {
  * Kiểm tra tự động một thực đơn một ngày theo định mức và giá suất ăn ở Thiết lập (quy tắc, không AI).
  * Lời nhắn viết cho giáo viên không chuyên dinh dưỡng; con số chi tiết để riêng ở `numbers`.
  * Trả { status, problems, checks, numbers, totals, cost, price, mealCount }; checks = problems + các mục đạt.
- * allergyRows: số trẻ dị ứng tổng hợp của nhóm tuổi; allergyMenus: suất thay thế đã có của thực đơn này.
+ * allergyRows: số trẻ dị ứng tổng hợp của nhóm tuổi (chỉ cảnh báo, không có suất thay thế — BE NUT-23).
  */
-export function checkDayMenu({ meals, ageGroupId, catalog, date, allergyRows = [], allergyMenus = [] }) {
+export function checkDayMenu({ meals, ageGroupId, catalog, date, allergyRows = [] }) {
   // Định mức áp cho phạm vi các bữa trường phục vụ của nhóm tuổi
   const result = mealsTotals(normScopeMeals(meals, catalog.nutritionSetups, ageGroupId), catalog.dishById, catalog.foodById, ageGroupId);
   const rows = compareToNorm(result.totals, ageGroupId, result.missing.length > 0, catalog.norms);
@@ -97,10 +97,7 @@ export function checkDayMenu({ meals, ageGroupId, catalog, date, allergyRows = [
   mealsAllergens(meals, catalog.dishById, catalog.foodById).forEach((a) => {
     const kids = allergyRows.find((r) => sameAllergen(r.allergen, a.allergen))?.childCount || 0;
     if (!kids) return;
-    const covered = allergyMenus.some((m) => (m.restrictions || []).some((x) => sameAllergen(x, a.allergen)));
-    const what = `Có món chứa ${a.allergen.toLowerCase()} (${kids} trẻ dị ứng)`;
-    if (covered) oks.push({ tone: 'ok', text: `${what}, đã có suất thay thế` });
-    else problems.push({ tone: 'warn', text: `${what}, chưa có suất thay thế` });
+    problems.push({ tone: 'warn', text: `Có món chứa ${a.allergen.toLowerCase()} (${kids} trẻ dị ứng), cần trao đổi với phụ huynh` });
   });
 
   let status = { tone: 'green', label: 'Đủ chất' };
@@ -164,7 +161,7 @@ export function groupIssues(issues) {
   return groups.sort((a, b) => (a.tone === 'bad' ? 0 : 1) - (b.tone === 'bad' ? 0 : 1));
 }
 
-export function weekIssues({ wm, catalog, previousDays = [], allergyRows = [], allergyMenus = [] }) {
+export function weekIssues({ wm, catalog, previousDays = [], allergyRows = [] }) {
   const issues = [];
   const school = (wm?.days || []).filter((d) => !d.holiday);
   school.forEach((day) => {
@@ -172,14 +169,12 @@ export function weekIssues({ wm, catalog, previousDays = [], allergyRows = [], a
       issues.push({ date: day.date, tone: 'bad', text: 'Chưa chọn thực đơn' });
       return;
     }
-    const subs = allergyMenus.filter((a) => a.baseMenuId === day.menuId);
     checkDayMenu({
       meals: day.meals,
       ageGroupId: wm.ageGroupId,
       catalog,
       date: day.date,
       allergyRows,
-      allergyMenus: subs,
     }).problems.forEach((c) => issues.push({ date: day.date, tone: c.tone, text: c.text }));
   });
   repeatedMainDishes([...previousDays, ...school], catalog.dishById).forEach((r) =>

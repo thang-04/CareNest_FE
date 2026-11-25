@@ -23,7 +23,6 @@ import {
 } from '@/models/attendance/attendanceConstants';
 import { MEAL_SESSIONS as KITCHEN_SESSIONS } from '@/models/kitchen/kitchenConstants';
 import {
-  canAdjustMealCount,
   canConfirmMealCount,
   canRecordAttendance,
   canUnlockAttendanceDay,
@@ -1050,43 +1049,6 @@ export const attendanceMockRepository = {
    * suất thường chỉ đổi qua điểm danh (`normal` phải null). Có session: chỉ bữa đó, không có: mọi bữa của lớp trong ngày.
    * Bữa đã xác nhận không sửa ngầm số bếp đang dùng, chuyển sang chờ xác nhận lại (NUT-03, ADR-0005).
    */
-  async adjustMealDay({ campusId, date, session, classId, normal = null, substitute, note }, user) {
-    await delay();
-    return writeDb((db) => {
-      ensureSeeded(db);
-      const counts = db.mealCounts.filter((m) => m.campusId === campusId && m.date === date && (!session || m.session === session));
-      if (!counts.length) throw new ApiError(404, 'Không tìm thấy sổ suất ăn của ngày này');
-      if (!counts.every((c) => canAdjustMealCount(c, user))) throw forbidden();
-      if (normal != null) throw new ApiError(422, 'Suất thường chỉ thay đổi qua điểm danh (mở lại điểm danh để giáo viên sửa).');
-      const reason = String(note || '').trim();
-      const details = {};
-      if (!reason) details.note = 'Nhập lý do điều chỉnh.';
-      else if (reason.length > 200) details.note = 'Lý do tối đa 200 ký tự.';
-      if (!Number.isInteger(substitute) || substitute < 0 || substitute > 200) details.substitute = 'Nhập số nguyên từ 0 đến 200.';
-      if (Object.keys(details).length) throw new ApiError(422, 'Dữ liệu điều chỉnh chưa hợp lệ.', details);
-      const at = new Date().toISOString();
-      let changed = 0;
-      counts.forEach((count) => {
-        const current = (count.pendingClasses || count.classes).find((l) => l.classId === classId);
-        if (!current || current.substitute === substitute) return;
-        if (count.status === MEAL_COUNT_STATUS.CONFIRMED && !count.pendingClasses) {
-          count.pendingClasses = clone(count.classes);
-          count.needsReconfirmation = true;
-        }
-        const line = count.pendingClasses ? count.pendingClasses.find((l) => l.classId === classId) : current;
-        const delta = { normal: 0, substitute: substitute - line.substitute };
-        line.substitute = substitute;
-        count.substituteOverrides = { ...count.substituteOverrides, [classId]: substitute };
-        count.adjustments.push({ at, userId: user.id, classId, ...delta, note: reason, byLeader: true });
-        count.history.push({ at, userId: user.id, action: 'ADJUSTED', note: `${line.className}: ${reason}` });
-        changed += 1;
-      });
-      if (!changed) throw new ApiError(422, 'Số suất thay thế chưa thay đổi.', { substitute: 'Số suất thay thế chưa thay đổi.' });
-      return counts.map((c) => mealCountForUser(clone(c), user));
-    });
-  },
-
-  /** #68: handovers of the teacher's classes, or of the campus for Kitchen Staff. */
   async getMealHandovers({ date }, user) {
     await delay(180);
     if (!canOpenMealHandover(user)) throw forbidden();
