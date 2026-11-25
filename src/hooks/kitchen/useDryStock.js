@@ -67,6 +67,12 @@ export function useDryFoods() {
   return { foods: data || [], ...rest };
 }
 
+/** Thực phẩm thuộc nhà cung cấp tại ngày nhập (giá hợp đồng còn hiệu lực); chưa chọn nhà cung cấp thì không nạp. */
+export function useSupplierFoods(supplierId, date) {
+  const { data, ...rest } = useStockQuery(() => nutritionCatalogApi.getSupplierFoods(supplierId, date), [supplierId, date], !!supplierId);
+  return { foods: supplierId ? data || [] : [], ...rest };
+}
+
 export function useActiveSuppliers() {
   const { data, ...rest } = useStockQuery(() => nutritionCatalogApi.getSuppliers({ status: 'ACTIVE' }), []);
   return { suppliers: data || [], ...rest };
