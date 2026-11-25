@@ -6,6 +6,9 @@
  * - `group`: tên nhóm cột liền kề ở hàng tiêu đề trên (Nơi cung cấp, Kiểm tra điều kiện vệ sinh).
  * `readOnly` = BE điền sẵn từ thực đơn, suất, hàng nhập.
  */
+/** Độ dài tối đa của ô văn bản một dòng biên bản (BE từ chối dài hơn: InspectionColumns.MAX_TEXT). */
+export const MAX_CELL_TEXT = 500;
+
 export const INSPECTION_TAB = { FRESH: 'fresh', DRY: 'dry', PROCESS: 'process', SERVE: 'serve', SAMPLE: 'sample' };
 export const INSPECTION_TAB_ORDER = [
   INSPECTION_TAB.FRESH,

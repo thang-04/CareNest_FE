@@ -51,7 +51,7 @@ export default function FreshCheckPage() {
         {check.data.canManage && check.data.lockReason === 'M1_SIGNED' && (
           <div className="alert alert--info" role="status">
             Biên bản M1 hàng tươi của ngày đã ký nên kiểm nhận bị khóa. Muốn sửa, bấm Sửa lại ở{' '}
-            <Link to={`/kitchen/inspections?date=${date}&campusId=${campus.campusId}&form=FRESH`}>biên bản M1 tươi</Link>.
+            <Link to={`/kitchen/inspections?date=${date}&campusId=${campus.campusId}&form=fresh`}>biên bản M1 tươi</Link>.
           </div>
         )}
         {freshClosed ? (

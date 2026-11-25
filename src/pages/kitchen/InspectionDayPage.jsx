@@ -148,8 +148,11 @@ export default function InspectionDayPage() {
   const [params, setParams] = useSearchParams();
   const toast = useToast();
   const campus = useStockCampus();
-  const date = isIsoDate(params.get('date')) ? params.get('date') : todayInput();
-  const open = INSPECTION_TAB_ORDER.includes(params.get('form')) ? params.get('form') : null;
+  // Ngày chưa tới không ghi được biên bản (BE từ chối): kẹp về hôm nay khi đường dẫn mang ngày tương lai
+  const today = todayInput();
+  const date = isIsoDate(params.get('date')) && params.get('date') <= today ? params.get('date') : today;
+  const formParam = (params.get('form') || '').toLowerCase();
+  const open = INSPECTION_TAB_ORDER.includes(formParam) ? formParam : null;
   const day = useInspectionDay(campus.campusId, date);
   // Mẫu của ngày để biết còn bản chờ duyệt (khóa nút ký sổ M5)
   const samples = useFoodSamples(campus.campusId, date, date);
@@ -432,7 +435,7 @@ export default function InspectionDayPage() {
         </div>
       </div>
       <div className="kb-toolbar">
-        <KbDateFilter value={date} onChange={(next) => setParam('date', next)} />
+        <KbDateFilter value={date} max={todayInput()} onChange={(next) => setParam('date', next)} />
         {campus.campusId && <KbCampusFilter campusId={campus.campusId} onChange={campus.setCampusId} canPick={campus.canPick} />}
       </div>
       {body}
