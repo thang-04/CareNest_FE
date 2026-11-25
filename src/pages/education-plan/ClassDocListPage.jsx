@@ -96,7 +96,12 @@ export default function ClassDocListPage({ kind }) {
             rows={items}
             onRowClick={(d) => navigate(meta.to(d))}
             columns={[
-              { key: 'class', header: 'Lớp', className: 'w-110 nowrap', render: (d) => classOf(d.classId)?.name || '—' },
+              {
+                key: 'class',
+                header: 'Lớp',
+                className: 'w-110',
+                render: (d) => <span className="nowrap">{classOf(d.classId)?.name || '—'}</span>,
+              },
               {
                 key: 'what',
                 header: 'Nội dung',
