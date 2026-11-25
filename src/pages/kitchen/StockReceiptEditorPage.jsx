@@ -19,7 +19,7 @@ import {
 } from '@/components';
 import { ReceiptStatusBadge } from '@/components/kitchen/KitchenBadges';
 import { fmtQty } from '@/components/kitchen/KitchenFilters';
-import { useActiveSuppliers, useDryFoods, useReceipt, useStockCampus, useSupplierFoods } from '@/hooks/kitchen/useDryStock';
+import { useActiveSuppliers, useDryFoods, useLots, useReceipt, useStockCampus, useSupplierFoods } from '@/hooks/kitchen/useDryStock';
 import { receiptOriginOf } from '@/hooks/kitchen/useReceiptOrigin';
 import { nutritionCatalogApi } from '@/services/nutritionCatalogApi';
 import { canManageStockAt } from '@/utils/kitchen/kitchenPermissions';
@@ -29,9 +29,11 @@ import {
   autoLotNo,
   emptyLine,
   emptyReceiptForm,
+  isAutoLotNo,
   mapReceiptErrors,
   receiptNoteError,
   receiptToForm,
+  uniqueLotNo,
   validateReceiptForm,
 } from '@/utils/kitchen/stockReceiptForm';
 import { RECEIPT_IMPORT_COLUMNS, readReceiptFile } from '@/utils/kitchen/stockReceiptImport';
@@ -161,6 +163,8 @@ export default function StockReceiptEditorPage() {
     loading: supplierFoodsLoading,
     error: supplierFoodsError,
   } = useSupplierFoods(editable ? form?.supplierId : '', form?.receivedDate);
+  // Lô đã vào kho (kể cả hết tồn) để tránh gợi ý số lô trùng; chỉ tải khi đang lập hoặc sửa phiếu
+  const stockLots = useLots({ campusId: editable ? form?.campusId : '', includeEmpty: true });
   // Phiếu nhập chỉ nhận hàng khô: bỏ thực phẩm tươi của nhà cung cấp
   const supplierFoods = useMemo(() => {
     const dryIds = new Set(foods.map((f) => String(f.id)));
@@ -201,6 +205,12 @@ export default function StockReceiptEditorPage() {
   const catalogPrice = (foodId) => supplierPrice(supplierFoods, foodId);
   const codeOfFood = (foodId) =>
     supplierFoods.find((f) => String(f.foodId) === String(foodId))?.code || foodById[String(foodId)]?.code || '';
+  // Số lô (chữ thường) của thực phẩm đã vào kho điểm trường hoặc đã có ở dòng khác trên phiếu
+  const takenLotNos = (foodId, lines, skipIndex) =>
+    new Set([
+      ...(stockLots.data || []).filter((lot) => String(lot.food?.id) === String(foodId)).map((lot) => String(lot.lotNo).toLowerCase()),
+      ...lines.filter((l, i) => i !== skipIndex && String(l.foodId) === String(foodId) && l.lotNo).map((l) => l.lotNo.trim().toLowerCase()),
+    ]);
   const setLine = (index, field, value) => {
     setForm((f) => ({
       ...f,
@@ -210,9 +220,10 @@ export default function StockReceiptEditorPage() {
         // Đổi thực phẩm: thay giá nếu ô còn trống hoặc vẫn là giá hợp đồng của thực phẩm trước, giá người dùng đã sửa thì giữ
         if (field === 'foodId' && (l.unitPrice === '' || String(l.unitPrice) === catalogPrice(l.foodId)))
           next.unitPrice = catalogPrice(value);
-        // Số lô tự điền theo thực phẩm; ô trống hoặc còn là số lô tự sinh của thực phẩm trước thì thay, số lô người dùng đã gõ thì giữ
-        if (field === 'foodId' && (l.lotNo === '' || l.lotNo === autoLotNo(f.receivedDate, codeOfFood(l.foodId))))
-          next.lotNo = autoLotNo(f.receivedDate, codeOfFood(value));
+        // Số lô tự điền theo thực phẩm, thêm đuôi -2, -3… nếu đã có trong phiếu hoặc trong kho; ô trống hoặc còn là số lô tự sinh
+        // của thực phẩm trước thì thay, số lô người dùng đã gõ thì giữ (BE vẫn chặn số lô trùng khi lưu)
+        if (field === 'foodId' && (l.lotNo === '' || isAutoLotNo(l.lotNo, autoLotNo(f.receivedDate, codeOfFood(l.foodId)))))
+          next.lotNo = uniqueLotNo(autoLotNo(f.receivedDate, codeOfFood(value)), takenLotNos(value, f.lines, index));
         return next;
       }),
     }));
