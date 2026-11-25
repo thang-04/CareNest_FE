@@ -7,11 +7,12 @@ import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { useAsync } from '@/hooks/useAsync';
 import { getClassDocSummaries } from '@/services/education-plan/educationPlanService';
 import { ageRangeOptions, sameAgeRange } from '@/models/education-plan/educationPlanConstants';
-import { clickableRowProps } from '@/utils/clickableRow';
 import { Eye } from '@/components/ui/icons';
 import { ErrorState, LoadingState } from '@/components/ui/States';
 import { Pagination } from '@/components/ui/Pagination';
 import { Checkbox } from '@/components/form/Checkbox';
+import { Button } from '@/components/ui/Button';
+import { DataTable } from '@/components/ui/DataTable';
 
 const PAGE_SIZE = 10;
 
@@ -90,74 +91,85 @@ export default function ClassDocListPage({ kind }) {
         ) : !items.length ? (
           <EmptyState title={`Chưa có ${meta.title.toLowerCase()}`} />
         ) : (
-          <div className="table-wrap">
-            <table className="table ga-plan-table ga-list-table">
-              <thead>
-                <tr>
-                  <th className="w-110">Lớp</th>
-                  <th>Nội dung</th>
-                  <th className="center">Phiên bản</th>
-                  <th className="min-w-150">Các lần ban hành</th>
-                  <th className="center">Trạng thái</th>
-                  <th className="center">Hạn</th>
-                  <th className="cell--actions">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((d) => (
-                  <tr key={d.id} className="row-click" {...clickableRowProps(() => navigate(meta.to(d)))}>
-                    <td className="nowrap">{classOf(d.classId)?.name || '—'}</td>
-                    <td>
-                      <div className="ga-cell-title">{meta.what(d)}</div>
-                      {d.yearPlanVersion != null && <div className="ga-cell-sub">Theo kế hoạch tổ phiên bản {d.yearPlanVersion}</div>}
-                    </td>
-                    <td className="center nowrap">
-                      <div>{d.dossierVersion ?? d.version ?? '—'}</div>
-                      <div className="ga-cell-sub">{d.superseded ? 'Bản cũ' : 'Đang hiệu lực'}</div>
-                    </td>
-                    <td>
-                      {(d.releases || []).length
-                        ? d.releases.map((r, i) => (
-                            <div key={r.id} className="ga-cell-sub">
-                              {meta.themeOf(d) ? (
-                                <Link
-                                  to={`/education/class/${d.classId}/themes/${meta.themeOf(d)}?plan=${encodeURIComponent(d.yearPlanId)}&release=${r.id}`}
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  Lần {i + 1}
-                                </Link>
-                              ) : (
-                                `Lần ${i + 1}`
-                              )}{' '}
-                              · {fmtDate(r.releasedAt)}
-                              {r.approvedBy ? ` · ${r.approvedBy}` : ''}
-                            </div>
-                          ))
-                        : '—'}
-                    </td>
-                    <td className="center nowrap">
-                      <EduStatusBadge status={d.status} doc={d} />
-                    </td>
-                    <td className="center nowrap">
-                      <DeadlineBadge doc={d} />
-                    </td>
-                    <td className="cell--actions">
-                      <button
-                        type="button"
-                        className="btn btn--sm btn--outline-primary nowrap"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate(meta.to(d));
-                        }}
-                      >
-                        <Eye size={16} aria-hidden /> Xem
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <DataTable
+            className="ga-plan-table ga-list-table"
+            rows={items}
+            onRowClick={(d) => navigate(meta.to(d))}
+            columns={[
+              { key: 'class', header: 'Lớp', className: 'w-110 nowrap', render: (d) => classOf(d.classId)?.name || '—' },
+              {
+                key: 'what',
+                header: 'Nội dung',
+                render: (d) => (
+                  <>
+                    <div className="ga-cell-title">{meta.what(d)}</div>
+                    {d.yearPlanVersion != null && <div className="ga-cell-sub">Theo kế hoạch tổ phiên bản {d.yearPlanVersion}</div>}
+                  </>
+                ),
+              },
+              {
+                key: 'version',
+                header: 'Phiên bản',
+                className: 'center nowrap',
+                render: (d) => (
+                  <>
+                    <div>{d.dossierVersion ?? d.version ?? '—'}</div>
+                    <div className="ga-cell-sub">{d.superseded ? 'Bản cũ' : 'Đang hiệu lực'}</div>
+                  </>
+                ),
+              },
+              {
+                key: 'releases',
+                header: 'Các lần ban hành',
+                className: 'min-w-150',
+                render: (d) =>
+                  (d.releases || []).length
+                    ? d.releases.map((r, i) => (
+                        <div key={r.id} className="ga-cell-sub">
+                          {meta.themeOf(d) ? (
+                            <Link
+                              to={`/education/class/${d.classId}/themes/${meta.themeOf(d)}?plan=${encodeURIComponent(d.yearPlanId)}&release=${r.id}`}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              Lần {i + 1}
+                            </Link>
+                          ) : (
+                            `Lần ${i + 1}`
+                          )}{' '}
+                          · {fmtDate(r.releasedAt)}
+                          {r.approvedBy ? ` · ${r.approvedBy}` : ''}
+                        </div>
+                      ))
+                    : '—',
+              },
+              {
+                key: 'status',
+                header: 'Trạng thái',
+                className: 'center nowrap',
+                render: (d) => <EduStatusBadge status={d.status} doc={d} />,
+              },
+              { key: 'deadline', header: 'Hạn', className: 'center nowrap', render: (d) => <DeadlineBadge doc={d} /> },
+              {
+                key: 'actions',
+                header: 'Thao tác',
+                className: 'cell--actions',
+                render: (d) => (
+                  <Button
+                    variant="outline-primary"
+                    size="sm"
+                    icon={Eye}
+                    className="nowrap"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(meta.to(d));
+                    }}
+                  >
+                    Xem
+                  </Button>
+                ),
+              },
+            ]}
+          />
         )}
         {total > PAGE_SIZE && <Pagination page={page} pageSize={PAGE_SIZE} total={total} onChange={setPage} unit="hồ sơ" />}
       </Card>
