@@ -798,6 +798,7 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
             offLabel={week?.offDays?.[day] || null}
             aiDocKey={split && savedDay?.id && dayEditable(day) ? savedDay.id : null}
             unsaved={saver.unsaved}
+            notify={toast}
           />
         )}
       </div>

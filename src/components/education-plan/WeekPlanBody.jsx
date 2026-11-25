@@ -941,6 +941,7 @@ export function DayTab({
   // BE:EDU-95 "Sửa theo yêu cầu": khóa giáo án ngày đã lưu (null = chưa lưu / không được sửa) và còn thay đổi chưa lưu
   aiDocKey = null,
   unsaved = false,
+  notify = () => {},
 }) {
   // Mục đang chờ AI (key) hoặc null
   const [aiBusy, setAiBusy] = useState(null);
@@ -1047,6 +1048,10 @@ export function DayTab({
         setAiCells((cells) => ({ ...cells, ...Object.fromEntries(filled.map(({ id, f, v }) => [`${id}:${f}`, v])) }));
         return x;
       });
+      if (!(res?.rows?.length || res?.a)) notify('AI chưa có gợi ý cho hoạt động này, cô tự soạn hoặc thử lại sau', 'warn');
+    } catch (error) {
+      // AI lỗi/hết lượt (AI-03): báo rõ, cô vẫn tự soạn được
+      notify(error?.message || 'Trợ lý AI đang không khả dụng, vui lòng thử lại sau', 'err');
     } finally {
       setAiBusy(null);
     }
