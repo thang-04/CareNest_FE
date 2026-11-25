@@ -233,6 +233,8 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
       const values = Object.values(r.portions).filter((v) => v != null);
       return { ...r, quantity: r.portions['ag-4'] ?? values[0] ?? 0 };
     });
+    // BE không lưu danh sách nhóm tuổi của món: nhóm áp dụng = nhóm có dòng định lượng đã lưu
+    const ageGroupIds = [...new Set((d.ingredients || []).map((r) => codeOf[String(r.ageGroupId)] || String(r.ageGroupId)))];
     return {
       id: d.id,
       code: d.code,
@@ -241,6 +243,7 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
       description: d.description || '',
       status: d.status,
       reference: !!d.reference,
+      ageGroupIds,
       ingredients,
       allergens: (d.allergens || []).map((a) => a.name),
       nutritionByAgeGroup: (d.nutritionByAgeGroup || []).map((n) => ({ ...n, ageGroupId: codeOf[String(n.ageGroupId)] || n.ageGroupId })),

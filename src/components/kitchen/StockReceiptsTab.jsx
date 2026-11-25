@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useReceiptOrigin } from '@/hooks/kitchen/useReceiptOrigin';
 import { Download, Plus } from '@/components/ui/icons';
 import { exportWithPreview } from '@/components/ui/ExportPreview';
 import { Button, EmptyState, ErrorState, LoadingState, SelectField } from '@/components';
@@ -13,11 +14,12 @@ import { formatDate, formatMoney, todayInput } from '@/utils/format';
 /** Danh sách phiếu nhập kho của một điểm trường; mở phiếu để xem, sửa nháp, xác nhận hoặc hủy. */
 export function StockReceiptsTab({ campusId }) {
   const navigate = useNavigate();
+  const origin = useReceiptOrigin();
   const canManage = useCanManageStock(campusId);
   const [filters, setFilters] = useState({ status: '', from: '', to: '' });
   const receipts = useReceipts({ campusId, ...filters });
   const create = (
-    <Link className="btn btn--primary" to={`/kitchen/stock-receipts/new?campusId=${campusId}`}>
+    <Link className="btn btn--primary" to={`/kitchen/stock-receipts/new?campusId=${campusId}`} state={origin}>
       <Plus size={16} /> Lập phiếu nhập
     </Link>
   );
@@ -50,7 +52,11 @@ export function StockReceiptsTab({ campusId }) {
           </thead>
           <tbody>
             {receipts.data.map((r) => (
-              <tr key={r.id} className="row-click" {...clickableRowProps(() => navigate(`/kitchen/stock-receipts/${r.id}`))}>
+              <tr
+                key={r.id}
+                className="row-click"
+                {...clickableRowProps(() => navigate(`/kitchen/stock-receipts/${r.id}`, { state: origin }))}
+              >
                 <td className="fw-600 text-primary center">{formatDate(r.receivedDate)}</td>
                 <td>{r.supplierName}</td>
                 <td className="num">{r.lines.length}</td>

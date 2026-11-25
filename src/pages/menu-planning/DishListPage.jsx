@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { AlertCircle, BookOpen, CircleCheck, Copy, Plus, RotateCcw, Soup } from '@/components/ui/icons';
+import { BookOpen, Copy, Plus, RotateCcw, Soup } from '@/components/ui/icons';
 import { useDishes, useCatalogAccess, useCatalogLookups } from '@/hooks/menu-planning/useMenuPlanning';
 import { useFilterParams } from '@/hooks/useFilterParams';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -12,7 +12,6 @@ import { FilterChips } from '@/components/ui/FilterChips';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { RowActions } from '@/components/ui/RowActions';
 import { clickableRowProps } from '@/utils/clickableRow';
-import { StatusBadge } from '@/components/ui/StatusBadge';
 import { AllergenChips, DishStatusBadge } from '@/components/menu-planning/MenuBadges';
 import { CategoryNav } from '@/components/ui/CategoryNav';
 import { ReferenceLibraryPanel } from '@/components/menu-planning/ReferenceLibraryPanel';
@@ -24,7 +23,7 @@ import '@/styles/modules/menu-planning.css';
 import { Button, SelectField } from '@/components';
 
 const PAGE = 8;
-const FILTER_DEFAULTS = { type: '', keyword: '', portion: '', allergen: '', status: '' };
+const FILTER_DEFAULTS = { type: '', keyword: '', allergen: '', status: '' };
 
 /** Bước 2 luồng dinh dưỡng – danh mục món ăn: loại món bên trái, bảng bên phải; bấm món để mở trang sửa. */
 export default function DishListPage() {
@@ -32,11 +31,11 @@ export default function DishListPage() {
   const { canManage } = useCatalogAccess();
   const { reason: viewOnlyReason } = usePageReadOnly();
   // Chỉ xem (không có quyền sửa danh mục) ⇒ bỏ cột Thao tác; bấm dòng vẫn mở chi tiết
-  const colCount = canManage ? 6 : 5;
+  const colCount = canManage ? 5 : 4;
   const { catalog } = useCatalogLookups();
   // Bộ lọc lưu trên URL: mở món rồi Back vẫn giữ loại món, từ khóa và bộ lọc phụ
   const [filters, setFilters, resetFilters, activeKeys] = useFilterParams(FILTER_DEFAULTS);
-  const { keyword, type, portion, allergen, status } = filters;
+  const { keyword, type, allergen, status } = filters;
   const [page, setPage] = useState(1);
   const [library, setLibrary] = useState(false);
   // Lọc loại món ở client để danh mục bên trái đếm đúng theo các bộ lọc còn lại
@@ -44,7 +43,7 @@ export default function DishListPage() {
   const groups = activeAgeGroups(catalog.nutritionSetups);
   const groupIds = groups.map((g) => g.id);
   const missingOf = (d) => missingPortionGroups(d, groupIds);
-  const rows = items.filter((d) => (!type || d.type === type) && (!portion || missingOf(d).length > 0));
+  const rows = items.filter((d) => !type || d.type === type);
   const filtered = activeKeys.length > 0;
   const safePage = Math.min(page, Math.max(1, Math.ceil(rows.length / PAGE)));
   const open = (d) => navigate(`/menu/dishes/${d.id}`);
@@ -59,7 +58,6 @@ export default function DishListPage() {
   const chipLabels = {
     keyword: `Từ khóa: ${keyword}`,
     type: `Loại món: ${DISH_TYPE_LABELS[type] || type}`,
-    portion: 'Thiếu định lượng',
     allergen: `Chứa ${allergen}`,
     status: `Trạng thái: ${DISH_STATUS_LABELS[status] || status}`,
   };
@@ -96,10 +94,6 @@ export default function DishListPage() {
         <div className="td-split-nav__main">
           <div className="filter-bar">
             <SearchSubmit className="td-grow" value={keyword} placeholder="Tìm tên món ăn" label="Tìm món" onSearch={change('keyword')} />
-            <SelectField className="select" value={portion} onChange={(e) => change('portion')(e.target.value)} aria-label="Định lượng">
-              <option value="">Tất cả định lượng</option>
-              <option value="MISSING">Thiếu định lượng</option>
-            </SelectField>
             <FilterMore count={[allergen, status].filter(Boolean).length}>
               <label className="field">
                 <span className="field__label">Chất gây dị ứng</span>
@@ -140,7 +134,6 @@ export default function DishListPage() {
                     <th>Tên món ăn</th>
                     <th className="center">Loại món</th>
                     <th>Nhóm tuổi áp dụng</th>
-                    <th className="center">Định lượng</th>
                     {canManage && <th className="cell--actions">Thao tác</th>}
                   </tr>
                 </thead>
@@ -187,13 +180,6 @@ export default function DishListPage() {
                               .filter((id) => !missing.includes(id))
                               .map(ageAbbr)
                               .join(' · ') || '—'}
-                          </td>
-                          <td className="center">
-                            {missing.length ? (
-                              <StatusBadge tone="orange" icon={AlertCircle} label={`Thiếu ${missing.map(ageAbbr).join(', ')}`} />
-                            ) : (
-                              <StatusBadge tone="green" icon={CircleCheck} label="Đủ" />
-                            )}
                           </td>
                           {canManage && (
                             <td className="cell--actions">
