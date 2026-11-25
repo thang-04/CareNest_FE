@@ -17,13 +17,16 @@ export function usePendingGuardians(id) {
   const { user } = useAuth();
   return useGuardianQuery(() => listPendingGuardians(id, user), [id], { enabled: !!id && !!user });
 }
-export function useCampusGuardianChildren(campusId, { enabled = true } = {}) {
+/** Trẻ của điểm trường trong năm học chọn ở header kèm tài khoản phụ huynh; đổi năm ⇒ bỏ dữ liệu năm cũ, tải lại (G94-437). */
+export function useCampusGuardianChildren(campusId, { enabled = true, schoolYear } = {}) {
   const { user } = useAuth();
-  return useGuardianQuery(() => listAllChildrenForGuardians(campusId, user), [campusId], { enabled: !!user && enabled });
+  return useGuardianQuery(() => listAllChildrenForGuardians(campusId, user, schoolYear), [campusId, schoolYear], {
+    enabled: !!user && enabled,
+  });
 }
-export function useGuardianStructure() {
+export function useGuardianStructure(schoolYear) {
   const { user } = useAuth();
-  const query = useGuardianQuery(() => getGuardianStructure(user), []);
+  const query = useGuardianQuery(() => getGuardianStructure(user, schoolYear), [schoolYear]);
   const campuses = query.data?.campuses || [];
   const classrooms = query.data?.classrooms || [];
   return {

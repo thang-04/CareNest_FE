@@ -154,9 +154,13 @@ test('NUT-26: nhập file thực phẩm — cột vi chất không bắt buộc;
       nutrition: { kcal: 344, protein: 7.9, lipid: 1, glucid: 76.2 },
     },
   ];
-  const row = (extra = []) => ['TP001', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ...extra];
+  const row = (extra = []) => {
+    const cells = Array(labels.indexOf('Canxi (mg)')).fill('');
+    cells[0] = 'TP001';
+    return [...cells, ...extra];
+  };
   assert.equal(matchFoodRows([oldHeader, row()], foods).errors.length, 0, 'file mẫu cũ');
-  const r = matchFoodRows([labels, row(['30', '', '1,3'])], foods);
+  const r = matchFoodRows([labels, row(['30', '1,3'])], foods);
   assert.equal(r.errors.length, 0);
   assert.deepEqual(r.updates[0].data.nutrition, { calcium: 30, iron: 1.3 });
   assert.match(matchFoodRows([labels, row(['-5'])], foods).errors[0].reason, /Canxi/);
@@ -172,4 +176,20 @@ test('NUT-26: dữ liệu demo cũ trong trình duyệt được bổ sung vi ch
   assert.equal(foods.find((f) => f.id === 'f01').nutrition.calcium, 30);
   assert.equal(foods.find((f) => f.id === 'f28').nutrition.calcium, null, 'nấm hương chưa có số liệu');
   assert.equal(readDb().mockSeedVersions['menu-micronutrients'], 1);
+});
+
+test('đổi thứ tự hiển thị vi chất không làm lệch dữ liệu mẫu theo cột cũ', async () => {
+  const { foods } = await menu.getCatalog(VP);
+  const rice = foods.find((f) => f.id === 'f01').nutrition;
+  assert.deepEqual(Object.fromEntries(MICRONUTRIENTS.map((key) => [key, rice[key]])), {
+    calcium: 30,
+    iron: 1.3,
+    zinc: null,
+    vitaminA: 0,
+    vitaminC: 0,
+    phosphorus: 104,
+    vitaminB1: 0.1,
+    vitaminB2: 0.03,
+    vitaminPp: 1.6,
+  });
 });

@@ -1,20 +1,16 @@
-import { Fragment, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { Card } from '@/components/education-plan/eduUi';
 import { Cell, focusCell } from '@/components/education-plan/planUi';
 import { domainLabel } from '@/models/education-plan/educationPlanConstants';
-import { domainRoman, mtList, numberGoals } from '@/models/education-plan/goalTable';
-import { cardText, contentLinesOf, newCard, normalizeTheme, slotLabel, themeGoalBlocks, weekRows } from '@/models/education-plan/classPlan';
-import { mapActivityCards } from '@/models/education-plan/activityImport.mjs';
+import { domainRoman, numberGoals } from '@/models/education-plan/goalTable';
+import { cardText, contentLinesOf, newCard, normalizeTheme, slotLabel, themeGoalBlocks } from '@/models/education-plan/classPlan';
 import { StatusBadge } from '@/components/ui/StatusBadge';
-import { Adjustments, Check, Download, Plus, RotateCcw, Sparkles, X } from '@/components/ui/icons';
-import { ActionsMenu } from '@/components/education-plan/reviewUi';
-import { Modal } from '@/components/ui/Modal';
-import { AiDraftTag } from '@/components/ui/AiDraftTag';
+import { Adjustments, Plus, RotateCcw, Sparkles } from '@/components/ui/icons';
+import { ActionsMenu, AiPick, RagRefLine } from '@/components/education-plan/reviewUi';
 import { AiWorkingOverlay } from '@/components/ui/AiWorkingOverlay';
-import ImportActivitiesModal from '@/components/education-plan/ImportActivitiesModal';
 import ThemeGoalPickerModal from '@/components/education-plan/ThemeGoalPickerModal';
 import ActivityCardEditor from '@/components/education-plan/ActivityCardEditor';
-import { Button, SelectField, TextField } from '@/components';
+import { Button } from '@/components';
 
 /**
  * Dòng của một mục tiêu. Nội dung giáo dục do Phó HT / Tổ trưởng lập ở kế hoạch năm (các nội dung đã tích cho chủ đề),
@@ -29,7 +25,7 @@ export const themeRowOf = (draft, g) => ({
  * Thẻ hoạt động của một MT (BE:EDU-78): chip "Loại giờ: tên"; thẻ nhiều MT hiện ở mọi MT của nó, sửa một chỗ đổi mọi chỗ.
  * Thẻ cũ chưa rõ loại giờ có nhãn cảnh báo (FR-006, clarify 12/11).
  */
-function CardChips({ cards, editable, onEdit }) {
+function CardChips({ cards, editable, onEdit, pending = {}, onKeep, onDrop }) {
   // Chỉ xem: từng dòng "- Loại giờ: tên" như ô chữ cũ và bản in; đang soạn: dòng bấm được để sửa, cùng kiểu dòng gợi ý của
   // kế hoạch tuần (tự xuống dòng, không tràn ô)
   if (!editable) return <div className="ga-goal-table__pad ga-cell-text">{cards.map((c) => `- ${cardText(c)}`).join('\n')}</div>;
@@ -39,12 +35,20 @@ function CardChips({ cards, editable, onEdit }) {
         const colon = c.legacy ? c.name.indexOf(':') : -1;
         const type = c.slot ? slotLabel(c.slot) : '';
         return (
-          <button key={c.id} type="button" className="ga-sug" aria-label={`Sửa hoạt động ${cardText(c)}`} onClick={() => onEdit(c)}>
-            <span className="ga-sug__body">
-              {c.slot ? <span className="ga-sug__type">{type}</span> : <span className="text-danger text-sm">Chưa rõ loại giờ</span>}
-              <span className="ga-sug__text">{colon > 0 && c.slot ? c.name.slice(colon + 1).trim() : c.name}</span>
-            </span>
-          </button>
+          <Fragment key={c.id}>
+            <button type="button" className="ga-sug" aria-label={`Sửa hoạt động ${cardText(c)}`} onClick={() => onEdit(c)}>
+              <span className="ga-sug__body">
+                {c.slot ? <span className="ga-sug__type">{type}</span> : <span className="text-danger text-sm">Chưa rõ loại giờ</span>}
+                <span className="ga-sug__text">{colon > 0 && c.slot ? c.name.slice(colon + 1).trim() : c.name}</span>
+              </span>
+            </button>
+            {c.id in pending && (
+              <>
+                {pending[c.id] && <RagRefLine refs={[pending[c.id]]} />}
+                <AiPick label={cardText(c)} onKeep={() => onKeep(c.id)} onDrop={() => onDrop(c.id)} />
+              </>
+            )}
+          </Fragment>
         );
       })}
     </div>
@@ -65,10 +69,10 @@ export function ThemePlanBody({
   flagOf = () => null,
   added = null,
   usedCellsOf = () => 0,
-  // Nhập nhanh (Tiền 13/11/2026): lấy hoạt động năm trước của lớp, AI gợi ý (bản giả), báo kết quả
-  loadPreviousActivities = null,
+  // AI gợi ý hoạt động (bản giả), báo kết quả
   suggestActivities = null,
   notify = () => {},
+  unsaved = true,
   // Chỗ đặt menu "Lấy / gợi ý hoạt động" ở trái hàng nút của trang (phần tử DOM do trang cấp)
 }) {
   const blocks = themeGoalBlocks(yearPlan.domains, numberGoals(yearPlan.domains), themeId, draft?.customTicks);
@@ -89,48 +93,41 @@ export function ThemePlanBody({
     putCards(cards.some((c) => c.id === card.id) ? cards.map((c) => (c.id === card.id ? card : c)) : [...cards, card]);
     setEditing(null);
   };
-  // Ô gõ nhanh: thẻ nhận loại giờ đang chọn, MT của dòng, tích sẵn mọi nội dung của MT; chưa chọn loại giờ ⇒ mở hộp đầy đủ
   const allRefsOf = (g) => contentLinesOf(rowOf(g).contents).map((_, i) => `${g.id}:${i}`);
-  const quickAdd = (g, input) => {
-    const name = input.value.trim();
-    if (!name) return;
-    if (!lastSlot) setEditing({ card: null, goalIds: [g.id], name });
-    else putCards([...cards, newCard({ slot: lastSlot, name, goalIds: [g.id], contentRefs: allRefsOf(g) })]);
-    input.value = '';
-  };
   const lineGoals = () => goals.map((g) => ({ id: g.id, no: g.no, text: g.text, lines: contentLinesOf(rowOf(g).contents) }));
-  const [importing, setImporting] = useState(false);
-  const importFrom = (source, picked) => {
-    const { cards: added, skipped } = mapActivityCards(picked, source.goals, lineGoals(), cards, newCard);
-    if (added.length) putCards([...cards, ...added]);
-    const skipText = skipped.map((x) => `${x.name} (${x.reason})`).join('; ');
-    notify(
-      `Đã thêm ${added.length} hoạt động${skipped.length ? ` · bỏ qua ${skipped.length}: ${skipText}` : ''}`,
-      added.length ? 'ok' : 'warn',
-    );
-    setImporting(false);
-  };
-  // AI gợi ý (EDU-20 mở rộng): chỉ cho MT chưa có hoạt động; mỗi gợi ý Dùng / Bỏ, chưa dùng thì chưa thành thẻ
-  const [ai, setAi] = useState({ busy: false, items: [] });
-  const askAi = async () => {
-    setAi({ busy: true, items: [] });
+  // AI gợi ý (EDU-20 mở rộng, BE POST /ai/activities): cho mọi MT chưa có hoạt động, hoặc cho đúng một MT ở dòng của nó
+  // (kể cả MT đã có hoạt động, để thêm ý); mỗi gợi ý Dùng / Bỏ, chưa dùng thì chưa thành thẻ
+  const [ai, setAi] = useState({ busy: false, goalId: null, items: [] });
+  const askAi = async (goalId = null) => {
+    setAi({ busy: true, goalId, items: [] });
     try {
-      const items = await suggestActivities({ themeName: currentTheme.name, goals: lineGoals().filter((g) => !cardsOf(g).length) });
-      setAi({ busy: false, items });
+      const target = lineGoals().filter((g) => (goalId ? String(g.id) === String(goalId) : !cardsOf(g).length));
+      const items = await suggestActivities({ themeName: currentTheme.name, goals: target });
+      // Điền thẳng vào bảng (Tiền 25/11/2026): thẻ thành nháp chờ ✓/✗; Lưu mà không bấm ⇒ giữ hết
+      const next = items.map((it) => {
+        const g = goals.find((x) => String(x.id) === it.goalId);
+        return { ...newCard({ slot: it.slot, name: it.name, goalIds: [it.goalId], contentRefs: g ? allRefsOf(g) : [] }), ref: it.ref };
+      });
+      if (next.length) putCards([...cards, ...next.map(({ ref: _ref, ...c }) => c)]);
+      setAiPending((p) => ({ ...p, ...Object.fromEntries(next.map((c) => [c.id, c.ref || null])) }));
+      if (!next.length) notify('AI chưa có gợi ý phù hợp', 'warn');
+      setAi({ busy: false, goalId: null, items: [] });
     } catch (error) {
-      setAi({ busy: false, items: [] });
+      setAi({ busy: false, goalId: null, items: [] });
       notify(error.message || 'Chưa gợi ý được, thử lại sau', 'err');
     }
   };
-  const takeAi = (list) => {
-    const next = list.map((it) => {
-      const g = goals.find((x) => String(x.id) === it.goalId);
-      return newCard({ slot: it.slot, name: it.name, goalIds: [it.goalId], contentRefs: g ? allRefsOf(g) : [] });
-    });
-    putCards([...cards, ...next]);
-    setAi((a) => ({ ...a, items: a.items.filter((it) => !list.includes(it)) }));
+  // Thẻ AI đang chờ: { [cardId]: ref RAG | null } — chỉ ở màn hình, không lưu vào kế hoạch
+  const [aiPending, setAiPending] = useState({});
+  const settleAi = (id) => setAiPending(({ [id]: _, ...rest }) => rest);
+  const dropAi = (id) => {
+    putCards(cards.filter((c) => c.id !== id));
+    settleAi(id);
   };
-  const dropAi = (list) => setAi((a) => ({ ...a, items: a.items.filter((it) => !list.includes(it)) }));
+  // Đã lưu ⇒ giữ hết gợi ý đang chờ
+  useEffect(() => {
+    if (!unsaved) setAiPending({});
+  }, [unsaved]);
   // Trùng tên và loại giờ: chỉ cảnh báo (edge case)
   const dupes = cards.filter((c, i) => cards.findIndex((x) => x.slot === c.slot && x.name.trim() === c.name.trim()) !== i);
   // Mục I và II là hai thẻ riêng, mỗi thẻ thu gọn / mở được như các phần khác (Tiền 12/11/2026)
@@ -170,61 +167,35 @@ export function ThemePlanBody({
             <div className="ga-theme-goal-head mb-8 row row--wrap row--middle gap-2">
               <ActionsMenu
                 items={[
-                  ...(loadPreviousActivities
-                    ? [{ label: 'Lấy hoạt động năm trước', icon: Download, onClick: () => setImporting(true) }]
-                    : []),
-                  ...(suggestActivities
-                    ? [
-                        {
-                          label: 'Gợi ý hoạt động (AI)',
-                          icon: Sparkles,
-                          onClick: askAi,
-                          disabled: ai.busy || !goals.some((g) => !cardsOf(g).length),
-                        },
-                      ]
-                    : []),
-                  { label: 'Tùy chọn mục tiêu cho chủ đề này', icon: Adjustments, onClick: () => setShowGoalModal(true) },
-                  { label: 'Khôi phục mục tiêu mặc định của năm', icon: RotateCcw, onClick: resetToDefault, disabled: !hasCustomTicks },
+                  { label: 'Tùy chọn mục tiêu', icon: Adjustments, onClick: () => setShowGoalModal(true) },
+                  { label: 'Khôi phục mặc định', icon: RotateCcw, onClick: resetToDefault, disabled: !hasCustomTicks },
                 ]}
               />
-              {goals.length > 0 && (
-                <label className="row row--middle gap-2 text-sm" title="Loại giờ gán cho hoạt động gõ nhanh trong bảng">
-                  <span className="nowrap">Gõ nhanh:</span>
-                  <SelectField
-                    className="input"
-                    aria-label="Loại giờ khi gõ nhanh"
-                    value={lastSlot}
-                    onChange={(e) => setLastSlot(e.target.value)}
-                  >
-                    <option value="">Chọn loại giờ</option>
-                    {weekRows().map((r) => (
-                      <option key={r.key} value={r.key}>
-                        {r.label}
-                      </option>
-                    ))}
-                  </SelectField>
-                </label>
-              )}
               {hasCustomTicks && (
                 <span className="chip chip--orange text-sm" title="Mục tiêu đã được tùy chỉnh khác với Kế hoạch năm">
                   Đã tùy chỉnh mục tiêu
                 </span>
+              )}
+              {/* Nút AI bên phải hàng nút (Tiền 25/11/2026) */}
+              <span className="spacer" />
+              {suggestActivities && (
+                <Button
+                  variant="outline-primary"
+                  size="sm"
+                  icon={Sparkles}
+                  loading={ai.busy && !ai.goalId}
+                  disabled={ai.busy || !goals.some((g) => !cardsOf(g).length)}
+                  title={goals.length && !goals.some((g) => !cardsOf(g).length) ? 'Mọi MT đã có hoạt động' : undefined}
+                  onClick={() => askAi()}
+                >
+                  Gợi ý AI cho MT chưa có hoạt động
+                </Button>
               )}
             </div>
           )}
 
           {/* Nhắc dạng chữ đỏ nhỏ, căn phải như bước tạo chủ đề ở mục tiêu năm học, nằm ngay bên trên bảng */}
           {goals.length === 0 && <p className="text-danger text-sm text-right mb-8">Kế hoạch năm chưa tích nội dung nào vào chủ đề này.</p>}
-          {/* MT chưa có thẻ thì kế hoạch tuần không có gợi ý, cuối chủ đề không phủ được MT đó */}
-          {editable && goals.some((g) => !cardsOf(g).length) && (
-            // Rút gọn: số MT + 5 MT đầu, đủ danh sách ở title (Tiền 13/11/2026)
-            <p className="text-danger text-sm text-right mb-8" title={mtList(goals.filter((g) => !cardsOf(g).length).map((g) => g.no))}>
-              {(() => {
-                const missing = goals.filter((g) => !cardsOf(g).length).map((g) => g.no);
-                return `${missing.length} MT chưa có hoạt động giáo dục (${mtList(missing.slice(0, 5))}${missing.length > 5 ? '…' : ''}) nên kế hoạch tuần sẽ không có gợi ý cho các MT này.`;
-              })()}
-            </p>
-          )}
           {editable && cards.some((c) => c.legacy && !c.slot) && (
             <p className="text-danger text-sm text-right mb-8">Có hoạt động chưa rõ loại giờ.</p>
           )}
@@ -248,51 +219,7 @@ export function ThemePlanBody({
               onClose={() => setEditing(null)}
             />
           )}
-
-          {importing && <ImportActivitiesModal load={loadPreviousActivities} onImport={importFrom} onClose={() => setImporting(false)} />}
           {ai.busy && <AiWorkingOverlay text="AI đang gợi ý hoạt động…" />}
-          {ai.items.length > 0 && (
-            <Modal
-              open
-              size="xl"
-              title="Gợi ý hoạt động (AI)"
-              onClose={() => dropAi(ai.items)}
-              footer={
-                <>
-                  <Button onClick={() => dropAi(ai.items)}>
-                    <X size={16} aria-hidden /> Bỏ tất cả
-                  </Button>
-                  <Button variant="success" onClick={() => takeAi(ai.items)}>
-                    <Check size={16} aria-hidden /> Dùng tất cả
-                  </Button>
-                </>
-              }
-            >
-              <AiDraftTag />
-              <p className="muted text-sm mb-12">Bấm ✓ để dùng, ✗ để bỏ. Hoạt động đã dùng vẫn sửa được như hoạt động gõ tay.</p>
-              <ul className="ga-ai-review">
-                {ai.items.map((it) => {
-                  const g = goals.find((x) => String(x.id) === it.goalId);
-                  return (
-                    <li key={it.goalId} className="ga-ai-review__item">
-                      <div className="ga-ai-review__week">
-                        <b>MT{g?.no}</b> <span className="muted text-sm">· {slotLabel(it.slot)}</span>
-                      </div>
-                      <div className="ga-ai-review__name">
-                        <ins>{it.name}</ins>
-                      </div>
-                      <Button variant="icon" aria-label={`Dùng gợi ý cho MT${g?.no}`} onClick={() => takeAi([it])}>
-                        <Check size={16} aria-hidden />
-                      </Button>
-                      <Button variant="icon" aria-label={`Bỏ gợi ý cho MT${g?.no}`} onClick={() => dropAi([it])}>
-                        <X size={16} aria-hidden />
-                      </Button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </Modal>
-          )}
           {showGoalModal && (
             <ThemeGoalPickerModal
               open={showGoalModal}
@@ -369,7 +296,14 @@ export function ThemePlanBody({
                         </td>
                         <td>
                           {cardsOf(g).length > 0 ? (
-                            <CardChips cards={cardsOf(g)} editable={editable} onEdit={(card) => setEditing({ card })} />
+                            <CardChips
+                              cards={cardsOf(g)}
+                              editable={editable}
+                              onEdit={(card) => setEditing({ card })}
+                              pending={aiPending}
+                              onKeep={settleAi}
+                              onDrop={dropAi}
+                            />
                           ) : (
                             !editable && (
                               <div className="ga-goal-table__pad ga-cell-text">
@@ -379,18 +313,6 @@ export function ThemePlanBody({
                           )}
                           {editable && (
                             <div className="ga-goal-table__pad row row--middle gap-1">
-                              <TextField
-                                name={`quick-activity-${g.id}`}
-                                autoComplete="off"
-                                aria-label={`Gõ nhanh hoạt động cho MT${g.no}`}
-                                placeholder="Gõ tên hoạt động, Enter"
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
-                                    e.preventDefault();
-                                    quickAdd(g, e.currentTarget);
-                                  }
-                                }}
-                              />
                               <Button
                                 variant="icon"
                                 title="Thêm hoạt động (chọn loại giờ, mục tiêu, nội dung)"
@@ -399,6 +321,18 @@ export function ThemePlanBody({
                               >
                                 <Plus size={16} aria-hidden />
                               </Button>
+                              {suggestActivities && (
+                                <Button
+                                  variant="icon"
+                                  title={`Gợi ý hoạt động (AI) cho MT${g.no}`}
+                                  aria-label={`Gợi ý hoạt động bằng AI cho MT${g.no}`}
+                                  loading={ai.busy && String(ai.goalId) === String(g.id)}
+                                  disabled={ai.busy}
+                                  onClick={() => askAi(g.id)}
+                                >
+                                  <Sparkles size={16} aria-hidden />
+                                </Button>
+                              )}
                             </div>
                           )}
                         </td>

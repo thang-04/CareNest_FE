@@ -36,7 +36,11 @@ export function ClassFormModal({ open, onClose, cls, schoolYear, yearName, defau
   useEffect(() => {
     if (!open) return;
     const group = ageGroupsRef.current.find((g) => g.id === defaults?.ageGroupId);
-    setForm(cls ? { ...cls, locationId: cls.locationId || '' } : empty(schoolYear, defaults?.campusId, group));
+    setForm(
+      cls
+        ? { ...cls, schoolYear: cls.schoolYear || cls.schoolYearId || schoolYear, locationId: cls.locationId || '' }
+        : empty(schoolYear, defaults?.campusId, group),
+    );
     setErrors({});
   }, [open, cls, schoolYear, defaults]);
 

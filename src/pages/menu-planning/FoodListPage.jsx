@@ -270,10 +270,20 @@ export default function FoodListPage() {
                   <tr>
                     <th className="center">Mã</th>
                     <th>Tên thực phẩm</th>
-                    <th className="center">Đơn vị mua</th>
-                    <th className="money">Đơn giá</th>
-                    <th className="num">Thải bỏ (%)</th>
-                    <th className="num">{bulk ? 'Kcal' : 'Năng lượng / 100 g'}</th>
+                    <th className="center">Đơn vị tính</th>
+                    {bulk ? (
+                      <>
+                        <th className="money">Đơn giá</th>
+                        <th className="num">Thải bỏ (%)</th>
+                        <th className="num">Kcal</th>
+                      </>
+                    ) : (
+                      <>
+                        <th className="num">Quy đổi g/ml</th>
+                        <th className="money">Đơn giá</th>
+                        <th className="num">Thải bỏ (%)</th>
+                      </>
+                    )}
                     {/* Đạm, béo, tinh bột chỉ hiện khi sửa hàng loạt; xem đủ trong modal sửa */}
                     {bulk && (
                       <>
@@ -330,6 +340,11 @@ export default function FoodListPage() {
                           {f.status === RECORD_STATUS.INACTIVE && <RecordStatusBadge status={f.status} />}
                         </td>
                         <td className="center">{f.purchaseUnit || '—'}</td>
+                        {!bulk && (
+                          <td className="num">
+                            {n(f.purchaseUnitSize)} {f.unit}
+                          </td>
+                        )}
                         <td className="money nowrap">
                           {bulk ? (
                             cell(f, ...BULK_FIELDS[0])
@@ -340,17 +355,18 @@ export default function FoodListPage() {
                           )}
                         </td>
                         <td className="num">{bulk ? cell(f, ...BULK_FIELDS[1]) : n(f.wastePct ?? 0)}</td>
-                        {(bulk ? BULK_FIELDS.slice(2) : BULK_FIELDS.slice(2, 3)).map(([key, read]) => (
-                          <td key={key} className="num nowrap">
-                            {bulk ? (
-                              cell(f, key, read)
-                            ) : read(f) == null || !hasOrigin(f) ? (
-                              <span className="td-warn">Chưa đủ dữ liệu</span>
-                            ) : (
-                              `${n(read(f))} kcal`
-                            )}
-                          </td>
-                        ))}
+                        {bulk &&
+                          BULK_FIELDS.slice(2).map(([key, read]) => (
+                            <td key={key} className="num nowrap">
+                              {bulk ? (
+                                cell(f, key, read)
+                              ) : read(f) == null || !hasOrigin(f) ? (
+                                <span className="td-warn">Chưa đủ dữ liệu</span>
+                              ) : (
+                                `${n(read(f))} kcal`
+                              )}
+                            </td>
+                          ))}
                         <td>
                           <AllergenChips allergens={f.allergens} />
                         </td>

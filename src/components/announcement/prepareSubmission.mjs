@@ -5,7 +5,7 @@ export function validateAnnouncementFiles(files, keepIds = []) {
   }
 }
 
-export async function prepareAnnouncementSubmission({ title, body, target, sendAt, keepIds, files }, coordinator) {
+export async function prepareAnnouncementSubmission({ title, body, bodyHtml, target, sendAt, keepIds, files }, coordinator) {
   if (!target.roles.length) throw new Error('Hãy chọn ít nhất một vai trò nhận thông báo.');
   validateAnnouncementFiles(files, keepIds);
   const instant = sendAt ? new Date(`${sendAt}:00+07:00`) : null;
@@ -17,6 +17,13 @@ export async function prepareAnnouncementSubmission({ title, body, target, sendA
   if (!preview.total) throw new Error('Không có người nhận phù hợp. Hãy kiểm tra lại phạm vi và vai trò đã chọn.');
   return {
     preview,
-    data: { title, body, target, sendAt: instant?.toISOString() || null, keepAttachmentIds: keepIds },
+    data: {
+      title,
+      body: bodyHtml ? '' : body,
+      ...(bodyHtml ? { bodyHtml } : {}),
+      target,
+      sendAt: instant?.toISOString() || null,
+      keepAttachmentIds: keepIds,
+    },
   };
 }

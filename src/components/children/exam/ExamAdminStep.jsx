@@ -2,7 +2,16 @@ import { useId } from 'react';
 import { UserCheck } from '@/components/ui/icons';
 import { GENDER_LABELS } from '@/models/School';
 import { COMPANION_OPTIONS, EXAM_STEPS, GUARDIAN_TO_COMPANION_RELATION, HISTORY_ITEMS, YES_NO } from '@/models/children/healthExamForm';
-import { PREMATURE_LABELS, PROFILE_FIELD_LABELS, formatAddress } from '@/models/children/childProfile';
+import {
+  HISTORY_TEXT_MAX,
+  PREMATURE_LABELS,
+  PROFILE_FIELD_LABELS,
+  cleanHistoryItem,
+  formatAddress,
+  joinHistoryText,
+  splitHistoryText,
+} from '@/models/children/childProfile';
+import { ChipListInput } from '../ChipListInput';
 import { formatDate, todayInput } from '@/utils/format';
 import {
   EXAM_SECTIONS,
@@ -10,7 +19,6 @@ import {
   ExamSheetCard,
   ExamSheetChoiceCell,
   ExamSheetDetail,
-  ExamSheetListDetail,
   ExamSheetRows,
   ExamSheetTable,
 } from './ExamFields';
@@ -149,16 +157,29 @@ export function ExamAdminStep({ form, set, errors, child, campaign, examDate, di
           disabled={disabled}
         >
           {yes && item.textKey && (
-            <ExamSheetListDetail
-              label={item.textLabel}
-              required
-              placeholder="Ví dụ: Hen phế quản"
-              maxLength={300}
-              value={h[item.textKey]}
-              onChange={(v) => set(`exam.history.${item.textKey}`, v)}
-              error={errors[`exam.history.${item.textKey}`]}
-              disabled={disabled}
-            />
+            <div className="tr-exam-sheet__detail tr-exam-sheet__detail--list">
+              <label htmlFor={id(item.textKey)} className="tr-exam-sheet__detail-label">
+                {item.textLabel}
+                <span className="req">*</span>
+              </label>
+              <div className="tr-exam-list">
+                <ChipListInput
+                  id={id(item.textKey)}
+                  ariaLabel={item.textLabel}
+                  tone="gray"
+                  className="row gap-2"
+                  items={splitHistoryText(h[item.textKey])}
+                  onChange={(items) => set(`exam.history.${item.textKey}`, joinHistoryText(items))}
+                  placeholder="Ví dụ: Hen phế quản"
+                  maxItemLength={HISTORY_TEXT_MAX}
+                  maxTotalLength={HISTORY_TEXT_MAX}
+                  sanitize={cleanHistoryItem}
+                  error={errors[`exam.history.${item.textKey}`]}
+                  showError
+                  disabled={disabled}
+                />
+              </div>
+            </div>
           )}
           {yes && item.dateKey && (
             <ExamSheetDetail

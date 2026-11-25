@@ -8,7 +8,6 @@ import { AGE_GROUPS } from '@/models/School';
 import { todayInput } from '@/utils/format';
 import {
   MEAL_SESSION_LABELS,
-  MICRONUTRIENTS,
   defaultOriginOf,
   defaultStorageOf,
   schoolWeekStart,
@@ -63,8 +62,12 @@ const MICRO_ROWS = {
   f27: [0, 0, 0, 0, 0, 0, 0, 0],
 };
 /** Vi chất của thực phẩm mẫu theo id; thực phẩm chưa có số liệu (vd. nấm hương) ⇒ mọi chất null. */
-export const seedMicronutrientsOf = (id) =>
-  Object.fromEntries(MICRONUTRIENTS.map((k, i) => [k, MICRO_ROWS[id] ? MICRO_ROWS[id][i] : null]));
+// Thứ tự cột của bảng nguồn cố định, độc lập với thứ tự hiển thị trên form.
+const MICRO_ROW_KEYS = ['calcium', 'phosphorus', 'iron', 'vitaminA', 'vitaminB1', 'vitaminB2', 'vitaminPp', 'vitaminC'];
+export const seedMicronutrientsOf = (id) => ({
+  ...Object.fromEntries(MICRO_ROW_KEYS.map((key, index) => [key, MICRO_ROWS[id]?.[index] ?? null])),
+  zinc: null,
+});
 // Định mức vi chất mẫu / trẻ / ngày cho các bữa ở trường (PHT sửa được); AI ước theo nhu cầu khuyến nghị, cần soát
 const SEED_MICRO_NORMS = {
   nursery: {
@@ -162,7 +165,6 @@ const buildFoods = () =>
     // Dầu ăn, đường là thực vật; thịt, thủy sản, trứng sữa là động vật
     origin: defaultOriginOf(group),
     nutrientSource: DEMO_NUTRIENT_SOURCE,
-    nutrientSourceVersion: '2017',
     wastePct: WASTE_BY_GROUP[group] ?? 0,
     favorite: FAVORITE_FOODS.includes(id),
     storage: FRESH_EXCEPTIONS.includes(id) ? 'FRESH' : defaultStorageOf(group),
@@ -411,6 +413,8 @@ const buildDishes = () =>
     name,
     type,
     description,
+    // G94-379: món seed dùng cho cả 4 nhóm tuổi (giá trị mặc định khi chưa chọn)
+    ageGroupIds: AGE_GROUPS.map(({ id }) => id),
     ingredients: rows.map(([foodId, quantity]) => ({
       foodId,
       quantity,
@@ -675,6 +679,13 @@ export const topUpRecentWeeklyMenus = (db, today) => {
 /* ---------- nutrition setup: meals with unit price, daily reference ranges per age group ---------- */
 // Giá suất ăn một ngày, bằng mức năm học 2026-2027 ở buildMealPrices
 const DAY_PRICE = { 'ag-2': 32000, 'ag-3': 30000, 'ag-4': 30000, 'ag-5': 30000 };
+// Cơ cấu áp dụng P:L:G demo (nằm trong khoảng ở SEED_NORMS); nhóm 5–6 tuổi để trống như định mức
+const SEED_APPLIED = {
+  'ag-2': { protein: 14, lipid: 36, glucid: 50 },
+  'ag-3': { protein: 14, lipid: 26, glucid: 60 },
+  'ag-4': { protein: 14, lipid: 26, glucid: 60 },
+};
+
 const buildNutritionSetups = () =>
   AGE_GROUPS.map(({ id }) => ({
     ageGroupId: id,
@@ -683,6 +694,7 @@ const buildNutritionSetups = () =>
     price: DAY_PRICE[id],
     meals: sessionsOf(id).map((code) => ({ code, name: MEAL_SESSION_LABELS[code], countAs: code })),
     norms: { ...JSON.parse(JSON.stringify(SEED_NORMS[id])), ...seedMicroNormsOf(id) },
+    applied: SEED_APPLIED[id] ? { ...SEED_APPLIED[id] } : null,
     updatedBy: VP,
     updatedAt: at('2026-08-20'),
     history: [{ id: `h_ns_${id}`, action: 'CREATED', userId: VP, at: at('2026-08-20'), note: '' }],

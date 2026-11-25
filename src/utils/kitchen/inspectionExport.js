@@ -65,12 +65,22 @@ export const inspectionTitle = (tab, date, variant = 'main') => {
   };
 };
 
+/** Tên các mẫu thức ăn trên một nhãn M4 nối với nhau bằng dấu này, giống bản in PMS. */
+export const SAMPLE_DISH_SEPARATOR = '; ';
+
+/** Thời gian lấy mẫu trên nhãn M4: có giờ thì in giờ; chưa có thì để trống giờ, phút nhưng đã in sẵn ngày của biên bản. */
+export const sampleTakenText = (takenAt, date) => {
+  if (takenAt) return formatDateTime(takenAt);
+  const [y, m, d] = String(date).split('-');
+  return y && m && d ? `…. giờ …… phút ….. ngày ${d} tháng ${m} năm ${y}` : '…. giờ …… phút ….. ngày …… tháng …… năm ……';
+};
+
 /** M4: mỗi bữa một nhãn gồm tên các mẫu thức ăn và giờ lấy mẫu (BE ghi theo bữa, các món cùng một giờ). */
 export const inspectionLabels = (data) => {
   const groups = new Map();
   data.rows.forEach((row) => {
     if (!groups.has(row.session))
-      groups.set(row.session, { session: row.session, sessionLabel: row.sessionLabel, dishes: [], takenAt: row.takenAt });
+      groups.set(row.session, { key: row.session, sessionLabel: row.sessionLabel, dishes: [], takenAt: row.takenAt });
     groups.get(row.session).dishes.push(row.dishName);
   });
   return [...groups.values()];
@@ -89,7 +99,7 @@ export const inspectionExportRows = (tab, data, { date, campusName, variant = 'm
       rows: [
         ...intro,
         ['Bữa ăn', 'Tên mẫu thức ăn', 'Thời gian lấy mẫu'],
-        ...inspectionLabels(data).map((l) => [l.sessionLabel, l.dishes.join(', '), l.takenAt ? formatDateTime(l.takenAt) : '']),
+        ...inspectionLabels(data).map((l) => [l.sessionLabel, l.dishes.join(SAMPLE_DISH_SEPARATOR), sampleTakenText(l.takenAt, date)]),
       ],
       headerRow: intro.length,
       fileBase,

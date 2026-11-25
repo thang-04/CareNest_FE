@@ -10,11 +10,12 @@ import { LearningResourceViewer } from '@/components/education-plan/LearningReso
 import { DAY_SECTIONS } from '@/models/education-plan/classPlan';
 import { resourcesOf } from '@/models/education-plan/learningResources.mjs';
 import { learningResourceService } from '@/services/education-plan/learningResourceService';
+import { classPlanVersionPath } from '@/models/education-plan/planVersions.mjs';
 
 export default function TeachingPresentationPage() {
   const { classId, themeId } = useParams();
   const [query] = useSearchParams();
-  return <Presentation key={`${classId}/${themeId}/${query.get('date')}`} />;
+  return <Presentation key={`${classId}/${themeId}/${query.get('date')}/${query.get('plan') || ''}`} />;
 }
 
 /** Tên hiển thị của một mục: tên dòng hoạt động đầu tiên, không có thì mục đích. */
@@ -86,7 +87,10 @@ function Presentation() {
   }, [activities.length]);
   if (ctx.loading) return <LoadingState />;
   if (!cls || !theme) return <StatusPage kind="404" title="Không tìm thấy lớp hoặc chủ đề" />;
-  const back = `/education/day-plans/${classId}${weekKey ? `?week=${weekKey}` : ''}`;
+  const back = classPlanVersionPath(
+    `/education/day-plans/${classId}${weekKey ? `?week=${weekKey}` : ''}`,
+    ctx.superseded ? yearPlan.id : null,
+  );
   if (!date || !doc || !dayContent)
     return (
       <div className="page ga-page ga-teaching">

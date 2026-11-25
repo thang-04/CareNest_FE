@@ -7,7 +7,7 @@ import {
   VITAL_ITEMS,
   labelOf,
 } from '@/models/children/healthExamForm';
-import { formatDecimal, headStatusFor, vitalStatusFor } from '@/utils/children/healthExamHints';
+import { formatDecimal, headStatusFor, temperatureTypingError, vitalStatusFor } from '@/utils/children/healthExamHints';
 import {
   EXAM_SECTIONS,
   ExamSheetBand,
@@ -27,6 +27,8 @@ export const vitalReferenceText = (item, vitals) => {
   return `Tham khảo: ${range.min}–${range.max} ${item.unit} (${vitals.label})`;
 };
 
+const isTemperature = (item) => item.key === 'temperatureC';
+
 const SD_NOTE = 'Không bắt buộc. Nhập số bác sĩ đọc từ bảng; hệ thống chưa tự tính.';
 
 /** Bước 2 — Phần II (dấu hiệu sinh tồn) và III (dinh dưỡng). Nhập số thì trạng thái tự chọn theo khoảng tham khảo; bác sĩ đổi được. */
@@ -37,7 +39,12 @@ export function ExamMeasureStep({ form, set, setMany, errors, reference, disable
   const n = form.exam.nutrition;
   const setVital = (item, value) => {
     const hint = vitalStatusFor(item.key, value, reference.vitals);
-    setMany({ [`exam.vitals.${item.key}`]: value, ...(hint ? { [`exam.vitals.${item.statusKey}`]: hint.status } : {}) });
+    // Nhiệt độ sai dạng thì bỏ trạng thái đã chọn sẵn từ số cũ, tránh "Sốt" đứng cạnh số không hợp lệ
+    const staleStatus = !hint && isTemperature(item) && String(value ?? '').trim() !== '';
+    setMany({
+      [`exam.vitals.${item.key}`]: value,
+      ...(hint ? { [`exam.vitals.${item.statusKey}`]: hint.status } : staleStatus ? { [`exam.vitals.${item.statusKey}`]: '' } : {}),
+    });
   };
   const setHead = (value) => {
     const s = headStatusFor(value, reference.head);
@@ -92,7 +99,8 @@ export function ExamMeasureStep({ form, set, setMany, errors, reference, disable
           labelledBy={id(item.key)}
           value={v[item.key]}
           onChange={(value) => setVital(item, value)}
-          error={errors[`exam.vitals.${item.key}`]}
+          error={errors[`exam.vitals.${item.key}`] || (isTemperature(item) ? temperatureTypingError(v[item.key]) : undefined) || undefined}
+          text={isTemperature(item)}
           min={String(item.min)}
           max={String(item.max)}
           step={item.step}
@@ -175,7 +183,11 @@ export function ExamMeasureStep({ form, set, setMany, errors, reference, disable
               max="60"
               step="0.1"
               disabled={disabled}
-              reference={`Từ 30 đến 60 cm. Khoảng tham khảo tạm của tuổi này: ${formatDecimal(reference.head.low)}–${formatDecimal(reference.head.high)} cm.`}
+              reference={
+                reference.head
+                  ? `Từ 30 đến 60 cm. Khoảng bình thường theo chuẩn WHO (−2SD đến +2SD) của tuổi, giới tính này: ${formatDecimal(reference.head.low)}–${formatDecimal(reference.head.high)} cm.`
+                  : 'Từ 30 đến 60 cm.'
+              }
               status={{
                 name: 'headStatus',
                 ariaLabel: 'Đánh giá vòng đầu',

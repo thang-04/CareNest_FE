@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Button, Checkbox, ConfirmationModal, DataTable, RowActions, StatusBadge } from '@/components';
 import { Plus, Check, Trash2, PauseCircle } from '@/components/ui/icons';
-import { AnnouncementAlert, AnnouncementHeader, scheduleRepeatLabel } from '@/components/announcement/announcementUi';
+import { AnnouncementAlert, scheduleRangeLabel, scheduleRepeatLabel } from '@/components/announcement/announcementUi';
 import { announcements } from '@/services/announcement/announcementService';
 import { useAsync } from '@/hooks/useAsync';
 import { useToast } from '@/contexts/ToastContext';
@@ -10,6 +10,7 @@ import { formatDateTime } from '@/utils/format';
 
 export default function AnnouncementSchedulesPage() {
   const toast = useToast();
+  const navigate = useNavigate();
   const { data, loading, error, reload } = useAsync(() => announcements.schedules(), []);
   const [selected, setSelected] = useState([]);
   const [busy, setBusy] = useState(false);
@@ -53,56 +54,45 @@ export default function AnnouncementSchedulesPage() {
     }
   };
   return (
-    <div className="page page--toolbar announcement-page">
-      <AnnouncementHeader
-        title="Lịch gửi thông báo"
-        summary={`${rows.length} lịch gửi`}
-        actions={
-          <>
-            <Button
-              size="sm"
-              variant="outline-primary"
-              icon={Check}
-              disabled={busy || loading || !pickedOff.length}
-              onClick={() => activate(pickedOff, true)}
-            >
-              Bật đã chọn{pickedOff.length ? ` (${pickedOff.length})` : ''}
-            </Button>
-            <Button
-              size="sm"
-              variant="outline-primary"
-              icon={PauseCircle}
-              disabled={busy || loading || !pickedOn.length}
-              onClick={() => activate(pickedOn, false)}
-            >
-              Tắt đã chọn{pickedOn.length ? ` (${pickedOn.length})` : ''}
-            </Button>
-            <Button
-              size="sm"
-              variant="outline-danger"
-              icon={Trash2}
-              title={pickedOn.length ? 'Tắt các lịch đang bật trước khi xóa' : undefined}
-              disabled={busy || loading || !picked.length || pickedOn.length > 0}
-              onClick={() => {
-                setActionError('');
-                setPending({ ids: picked });
-              }}
-            >
-              Xóa đã chọn{picked.length ? ` (${picked.length})` : ''}
-            </Button>
-            <Link className="btn btn--sm btn--outline-primary" to="/announcement-schedules/new">
-              <Plus size={15} aria-hidden="true" /> Tạo lịch gửi
-            </Link>
-          </>
-        }
-      />
-      {!pending && <AnnouncementAlert>{actionError}</AnnouncementAlert>}
+    <>
       <section className="card">
+        {!pending && <AnnouncementAlert>{actionError}</AnnouncementAlert>}
+        <div className="filter-bar filter-bar--aligned">
+          <span className="text-sm muted">{picked.length ? `Đã chọn ${picked.length} lịch gửi` : `${rows.length} lịch gửi`}</span>
+          <div className="filter-bar__end">
+            {picked.length > 0 && (
+              <>
+                <Button icon={Check} disabled={busy || loading || !pickedOff.length} onClick={() => activate(pickedOff, true)}>
+                  Bật đã chọn{pickedOff.length ? ` (${pickedOff.length})` : ''}
+                </Button>
+                <Button icon={PauseCircle} disabled={busy || loading || !pickedOn.length} onClick={() => activate(pickedOn, false)}>
+                  Tắt đã chọn{pickedOn.length ? ` (${pickedOn.length})` : ''}
+                </Button>
+                <Button
+                  variant="outline-danger"
+                  icon={Trash2}
+                  title={pickedOn.length ? 'Tắt các lịch đang bật trước khi xóa' : undefined}
+                  disabled={busy || loading || pickedOn.length > 0}
+                  onClick={() => {
+                    setActionError('');
+                    setPending({ ids: picked });
+                  }}
+                >
+                  Xóa đã chọn ({picked.length})
+                </Button>
+              </>
+            )}
+            <Button variant="primary" icon={Plus} onClick={() => navigate('/announcement-schedules/new')}>
+              Tạo lịch gửi
+            </Button>
+          </div>
+        </div>
         <DataTable
-          rows={rows}
+          rows={data ? rows : undefined}
           loading={loading}
           error={error}
           onRetry={reload}
+          onRowClick={(item) => navigate(`/announcement-schedules/${item.id}`)}
           empty={{ title: 'Chưa có lịch gửi thông báo', description: 'Tạo lịch gửi để bắt đầu.' }}
           columns={[
             {
@@ -136,12 +126,27 @@ export default function AnnouncementSchedulesPage() {
               header: 'Tiêu đề thông báo',
               render: (item) => <span className="fw-600">{item.title || item.templateName}</span>,
             },
-            { key: 'frequency', header: 'Lặp lại', render: scheduleRepeatLabel },
-            { key: 'sendTime', header: 'Giờ gửi', render: (item) => item.sendTime?.slice(0, 5) || '—' },
-            { key: 'nextRunAt', header: 'Lần gửi tiếp theo', render: (item) => (item.active ? formatDateTime(item.nextRunAt) : '—') },
+            {
+              key: 'frequency',
+              header: 'Lặp lại',
+              render: (item) => (
+                <>
+                  {scheduleRepeatLabel(item)}
+                  {scheduleRangeLabel(item) && <div className="muted text-sm">{scheduleRangeLabel(item)}</div>}
+                </>
+              ),
+            },
+            { key: 'sendTime', header: 'Giờ gửi', className: 'center', render: (item) => item.sendTime?.slice(0, 5) || '—' },
+            {
+              key: 'nextRunAt',
+              header: 'Lần gửi tiếp theo',
+              className: 'center',
+              render: (item) => (item.active ? formatDateTime(item.nextRunAt) : '—'),
+            },
             {
               key: 'active',
               header: 'Trạng thái',
+              className: 'center',
               render: (item) => <StatusBadge tone={item.active ? 'green' : 'gray'} label={item.active ? 'Đang bật' : 'Đã tắt'} />,
             },
             {
@@ -151,7 +156,6 @@ export default function AnnouncementSchedulesPage() {
               render: (item) => (
                 <RowActions
                   name={item.title || item.templateName}
-                  view={{ to: `/announcement-schedules/${item.id}`, label: 'Xem chi tiết' }}
                   edit={{ to: `/announcement-schedules/${item.id}/edit` }}
                   menu={[
                     {
@@ -185,6 +189,6 @@ export default function AnnouncementSchedulesPage() {
         onConfirm={remove}
         onClose={() => setPending(null)}
       />
-    </div>
+    </>
   );
 }

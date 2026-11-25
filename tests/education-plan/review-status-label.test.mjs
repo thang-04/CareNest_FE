@@ -21,7 +21,8 @@ test('tổng quan toàn trường không hiển thị hồ sơ chờ duyệt', a
   const stubs = `
     import React, {useMemo, useState} from 'react';
     import {EDU_STATUS, EDU_STATUS_LABELS, isEduReviewPending} from ${JSON.stringify(import.meta.resolve('../../src/models/education-plan/educationPlanConstants.js'))};
-    const useGoalDetails=()=>({loading:false});const useEducationPlan=()=>({goals:[{id:'1',schoolYear:'2026',status:'REVIEW',title:'Demo',themes:[]}],branchPlans:[],classThemePlans:[],schoolYear:'2026',classes:[]});
+    const useGoalDetails=()=>({loading:false});const useEducationPlan=()=>({goals:[{id:'1',schoolYear:'2026',status:'REVIEW',title:'Demo',themes:[]}],schoolYear:'2026',schoolYearId:1,user:{id:'u'},classes:[]});
+    const useAsync=()=>({data:[],loading:false}), getAllClassDocSummaries=async()=>[];
     const useNavigate=()=>()=>{}, RotateCcw=()=>null, SearchSubmit=()=>null, PageHead=()=>null, EmptyState=()=>null;
     const Card=({children})=><section>{children}</section>, StatCard=({label,value})=><span>{label}: {value}</span>;
     const Tabs=({items})=><div role="tablist">{items.map((t)=><button key={t.key} role="tab">{t.label} {t.count}</button>)}</div>;

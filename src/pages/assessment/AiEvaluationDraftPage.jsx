@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useLocation, useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { AlertOctagon, ArrowLeft, FileCheck2, PenLine, RefreshCw, ShieldAlert } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -9,9 +9,11 @@ import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { ErrorState, LoadingState } from '@/components/ui/States';
 import { AiWorkingOverlay } from '@/components/ui/AiWorkingOverlay';
 import { Modal } from '@/components/ui/Modal';
+import { Button } from '@/components/ui/Button';
 import { useAiRun } from '@/hooks/useAiRun';
 import { StatusPage } from '@/components/ui/StatusPage';
-import { AiDraftTag, EvaluationStatusBadge } from '@/components/assessment/AssessmentBadges';
+import { EvaluationStatusBadge } from '@/components/assessment/AssessmentBadges';
+import { DraftSourceTag } from '@/components/assessment/DraftSourceTag';
 import { ChildAvatar } from '@/components/ChildAvatar';
 import { PeriodSummaryTable } from '@/components/assessment/PeriodSummaryTable';
 import { EVAL_KIND, EVAL_STATUS, PERIOD_TYPE_LABELS } from '@/models/assessment/assessmentConstants';
@@ -24,26 +26,29 @@ import '@/styles/modules/assessment.css';
 const MSG30 = 'Trợ lý AI hiện không khả dụng. Bạn có thể tiếp tục viết đánh giá thủ công.';
 
 /**
- * #57 AI Evaluation Draft (UC 4.7): the semester or year-end draft written by the AI service and its sources.
+ * #57 AI Evaluation Draft (UC 4.7): the year-end draft and its sources.
  * The draft is never official; the teacher can request a new one and confirms on the detail page.
  */
 export default function AiEvaluationDraftPage() {
   const { id } = useParams();
-  const { pathname } = useLocation();
-  const kind = pathname.includes('/year-end/') ? EVAL_KIND.YEAR_END : EVAL_KIND.SEMESTER;
-  const base = `/assessment/${kind}`;
-  const section = kind === EVAL_KIND.YEAR_END ? SECTIONS.yearEnd : SECTIONS.semester;
+  const kind = EVAL_KIND.YEAR_END;
+  const base = '/assessment/year-end';
+  const section = SECTIONS.yearEnd;
   const { user } = useAuth();
   const toast = useToast();
   const { detail, loading, error, reload } = useEvaluation(kind, id);
   const { running: busy, run: runAi } = useAiRun();
   const [fresh, setFresh] = useState(null);
 
-  const redraft = async () => {
+  const redraft = async (ai) => {
     try {
-      const res = await runAi(() => regenerateEvaluationDraft(kind, id, user));
+      const res = await runAi(() => regenerateEvaluationDraft(kind, id, user, ai));
       if (res.status === EVAL_STATUS.AI_FAILED) toast.warning(res.aiError || MSG30, 'AI chưa tạo được bản nháp');
-      else setFresh(res.aiDraft);
+      else {
+        if (ai && res.aiDraft?.source === 'TEMPLATE')
+          toast.warning('AI chưa khả dụng hoặc bản viết không đạt kiểm tra; hệ thống đã dùng mẫu câu.', 'Đã dùng mẫu câu');
+        setFresh(res.aiDraft);
+      }
       reload({ silent: true });
     } catch (err) {
       toast.error(err.message || MSG30, 'AI chưa tạo được bản nháp');
@@ -67,7 +72,7 @@ export default function AiEvaluationDraftPage() {
     if (!canViewAiDraft(ev, detail.cls, user))
       return <StatusPage kind="403" title="Không xem được bản nháp" description="Bản nháp AI chỉ dành cho giáo viên của lớp." />;
     const canRedraft = canReviewEvaluation(ev, detail.cls, user);
-    const src = ev.aiDraft?.source;
+    const src = ev.aiDraft?.source && typeof ev.aiDraft.source === 'object' ? ev.aiDraft.source : null;
     const critName = Object.fromEntries((detail.criteria || []).map((c) => [c.id, c.name]));
     return (
       <>
@@ -75,10 +80,10 @@ export default function AiEvaluationDraftPage() {
           <div className="dg-eval-head">
             <ChildAvatar child={detail.child || { fullName: ev.childName }} size="lg" />
             <div>
-              <h1 className="page__title">Bản nháp AI – {ev.childName}</h1>
+              <h1 className="page__title">Bản nháp nhận xét – {ev.childName}</h1>
               <div className="row row--wrap gap-2">
                 <EvaluationStatusBadge status={ev.status} size="lg" />
-                <AiDraftTag />
+                <DraftSourceTag draft={ev.aiDraft} />
               </div>
             </div>
           </div>
@@ -86,8 +91,8 @@ export default function AiEvaluationDraftPage() {
         <div className="alert alert--purple mt-16">
           <ShieldAlert size={18} />
           <div>
-            Nội dung do AI tạo chỉ là gợi ý từ các hồ sơ đã ghi nhận. Bản nháp không được gửi cho phụ huynh và không quyết định khen thưởng;
-            giáo viên phải xem xét, chỉnh sửa và xác nhận.
+            Bản nháp chỉ là gợi ý từ các hồ sơ đã ghi nhận. Bản nháp không được gửi cho phụ huynh và không quyết định khen thưởng; giáo viên
+            phải xem xét, chỉnh sửa và xác nhận.
           </div>
         </div>
 
@@ -163,9 +168,12 @@ export default function AiEvaluationDraftPage() {
           </Link>
           {canRedraft && (
             <div className="row gap-2">
-              <button className="btn" onClick={redraft} disabled={busy}>
-                <RefreshCw size={16} /> Yêu cầu tạo lại bản nháp
-              </button>
+              <Button icon={RefreshCw} onClick={() => redraft(true)} loading={busy}>
+                AI viết nháp
+              </Button>
+              <Button onClick={() => redraft(false)} disabled={busy}>
+                Viết theo mẫu
+              </Button>
               <Link className="btn btn--primary" to={`${base}/${id}`}>
                 {ev.aiDraft ? <FileCheck2 size={16} /> : <PenLine size={16} />}{' '}
                 {ev.aiDraft ? 'Xem xét và xác nhận' : 'Viết đánh giá thủ công'}
@@ -179,14 +187,14 @@ export default function AiEvaluationDraftPage() {
 
   return (
     <div className="page">
-      <Breadcrumb items={assessmentCrumbs(section, 'Bản nháp AI')} />
+      <Breadcrumb items={assessmentCrumbs(section, 'Bản nháp nhận xét')} />
       {body()}
-      {/* AI xong ⇒ bản nháp mới mở trong modal; đóng thì vẫn xem ở khung bản nháp trên trang */}
+      {/* Bản nháp mới mở trong modal; đóng thì vẫn xem ở khung bản nháp trên trang. */}
       <Modal
         open={!!fresh}
         onClose={() => setFresh(null)}
         size="lg"
-        title="Bản nháp AI mới"
+        title={fresh?.source === 'TEMPLATE' ? 'Bản nháp mẫu mới' : 'Bản nháp AI mới'}
         footer={
           <>
             <button type="button" className="btn" onClick={() => setFresh(null)}>
@@ -199,7 +207,7 @@ export default function AiEvaluationDraftPage() {
         }
       >
         <div className="row gap-2 mb-12">
-          <AiDraftTag />
+          <DraftSourceTag draft={fresh} />
           {fresh && <span className="muted text-sm">Tạo lúc {formatDateTime(fresh.generatedAt)}</span>}
         </div>
         <div className="dg-ai-box">{fresh?.content}</div>

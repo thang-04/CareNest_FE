@@ -31,6 +31,24 @@ test('nhãn hồ sơ giáo dục trả lại hiện màu đỏ ở cả kế ho�
       assert.match(html, /chip--red/);
       assert.match(html, /Trả lại/);
       assert.doesNotMatch(html, /Nháp/);
+      const waiting = {
+        status: 'REVIEW',
+        review: { roles: ['TEAM_LEADER', 'VICE_PRINCIPAL'], waitingRole: 'VICE_PRINCIPAL' },
+        permissions: { canApprove: false, canReturn: false },
+      };
+      const renderWaiting = (isCurrentReviewer) =>
+        renderToStaticMarkup(
+          React.createElement(Badge, { status: waiting.status, doc: { ...waiting, reviewDeadline: { locked: false, isCurrentReviewer } } }),
+        );
+      assert.match(renderWaiting(true), />Chờ duyệt</);
+      assert.match(renderWaiting(false), />Đang chờ Phó hiệu trưởng duyệt</);
+      // EDU-109: hạn duyệt đã khóa ⇒ chỉ một nhãn "Quá hạn" đỏ thay nhãn chờ duyệt
+      const locked = renderToStaticMarkup(
+        React.createElement(Badge, { status: waiting.status, doc: { ...waiting, reviewDeadline: { locked: true } } }),
+      );
+      assert.match(locked, /chip--red/);
+      assert.match(locked, />Quá hạn</);
+      assert.doesNotMatch(locked, /Chờ|chờ/);
     }
     const { RejectedNotice, ReviewHistory } = await server.ssrLoadModule('/src/components/education-plan/reviewUi.jsx');
     const reason = renderToStaticMarkup(

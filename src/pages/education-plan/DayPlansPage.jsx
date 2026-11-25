@@ -28,13 +28,15 @@ import {
   yearWeeks,
 } from '@/models/education-plan/classPlan';
 import { BLOCKED_TEXT } from '@/models/education-plan/deadline.mjs';
-import { useSchoolYear } from '@/contexts/SchoolYearContext';
+import { classPlanVersionPath } from '@/models/education-plan/planVersions.mjs';
 import { WeekPlanInner } from '@/pages/education-plan/WeekPlanPage';
 
 /** Đường dẫn cũ /education/class/:classId/weeks/:weekStart/days ⇒ trang Kế hoạch giáo dục ngày của tuần đó. */
 export function DayPlansLegacyRedirect() {
   const { classId, weekStart } = useParams();
-  return <Navigate to={`/education/day-plans/${classId}?week=${weekStart}`} replace />;
+  const [params] = useSearchParams();
+  const review = params.get('review') === '1' ? '&review=1' : '';
+  return <Navigate to={classPlanVersionPath(`/education/day-plans/${classId}?week=${weekStart}${review}`, params.get('plan'))} replace />;
 }
 
 /**
@@ -72,7 +74,7 @@ function DayPlansWeek({ classId, params }) {
     weeks.find((w) => String(w.theme.id) === params.get('theme')) ||
     weeks.find((w) => w.start <= today && today <= w.end) ||
     weeks[0];
-  return <WeekPlanInner key={`${classId}/${week.start}`} mode="days" classId={classId} weekStart={week.start} dayPage />;
+  return <WeekPlanInner key={`${classId}/${ctx.yearPlan.id}/${week.start}`} mode="days" classId={classId} weekStart={week.start} dayPage />;
 }
 
 /**
@@ -83,15 +85,14 @@ function DayPlansWeek({ classId, params }) {
 function DayPlansList({ classId }) {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
-  const { user, branchPlans, dayPlans, themeDossiers, semesterPackages, actOnClassDoc, eduConfig, refreshClassDocs } = useEducationPlan();
-  const { schoolYear: yearId, schoolYears } = useSchoolYear();
+  const { user, dayPlans, themeDossiers, semesterPackages, actOnClassDoc, eduConfig, pollClassDocs, yearOption } = useEducationPlan();
   const [folded, setFolded] = useState(() => new Set());
   // Lỗi BE trả khi gửi kế hoạch giáo dục ngày (7390 mục trống, 7396/7397 MT chưa dạy), theo từng chủ đề
   const [sendErr, setSendErr] = useState({});
   const ctx = useClassPlanContext(classId);
   const { cls, classes, yearPlan, canComposeClassDocs } = ctx;
   // Người khác gửi/duyệt/trả lại kế hoạch giáo dục ngày thì trang tự cập nhật
-  usePolling(() => refreshClassDocs?.().catch(() => {}));
+  usePolling(() => pollClassDocs?.().catch(() => {}));
   if (ctx.loading) return <LoadingState />;
   const head = (filters = null, extra = null) => (
     <div className="ga-sticky-head">
@@ -129,21 +130,26 @@ function DayPlansList({ classId }) {
   // Mặc định học kỳ đang diễn ra, chưa vào năm học thì học kỳ 1 (như trang Kế hoạch giáo dục chủ đề)
   const today = todayIso();
   const allThemesForHk = [...yearPlan.themes].filter((t) => t.start && t.end);
-  const choices = semesterChoices(
-    schoolYears.find((y) => String(y.id) === String(yearId)),
-    allThemesForHk,
-    packages,
-  );
+  const choices = semesterChoices(yearOption, allThemesForHk, packages);
   const current = [...choices].reverse().find((c) => c.deadline && c.deadline <= today) || choices[0];
   const hk = params.get('hk') || (current ? String(current.semesterNo) : '');
   const choice = choices.find((c) => String(c.semesterNo) === hk) || null;
   const rows = yearWeeks(yearPlan);
-  const branch = branchPlans.find((b) => b.classId === classId && b.yearPlanId === yearPlan.id) || null;
+  const branch = ctx.branchPlan;
   const allThemes = [...yearPlan.themes].filter((t) => t.start && t.end).sort((a, b) => a.start.localeCompare(b.start));
   const themeIds = choice ? choice.themeIds : null;
-  const themes = themeIds ? allThemes.filter((t) => themeIds.includes(String(t.id))) : allThemes;
   const viewer = !canComposeClassDocs;
-  const dayUrl = (ws) => `/education/day-plans/${classId}?week=${ws}`;
+  const visibleThemes = themeIds ? allThemes.filter((t) => themeIds.includes(String(t.id))) : allThemes;
+  const themes = viewer
+    ? visibleThemes.filter((theme) =>
+        themeDossiers.some((d) => d.classId === classId && d.yearPlanId === yearPlan.id && String(d.themeId) === String(theme.id)),
+      )
+    : visibleThemes;
+  const dayUrl = (ws) =>
+    classPlanVersionPath(
+      `/education/day-plans/${classId}?week=${ws}${params.get('review') === '1' ? '&review=1' : ''}`,
+      ctx.superseded ? yearPlan.id : null,
+    );
   const toggle = (id) =>
     setFolded((prev) => {
       const next = new Set(prev);
@@ -160,7 +166,16 @@ function DayPlansList({ classId }) {
           <FilterSelect
             label="Học kỳ"
             value={hk}
-            onChange={(key) => setParams({ hk: key }, { replace: true })}
+            onChange={(key) =>
+              setParams(
+                (prev) => {
+                  const next = new URLSearchParams(prev);
+                  next.set('hk', key);
+                  return next;
+                },
+                { replace: true },
+              )
+            }
             options={choices.map((c) => ({ value: String(c.semesterNo), label: `Học kỳ ${c.semesterNo} (${c.themeIds.length})` }))}
           />
         ),
@@ -169,7 +184,7 @@ function DayPlansList({ classId }) {
       {themes.length === 0 && <EmptyCard title="Chưa có chủ đề trong học kỳ" />}
       {themes.map((t) => {
         const ti = allThemes.indexOf(t);
-        const dossier = themeDossiers.find((d) => d.id === `ds_${classId}_${t.id}`) || null;
+        const dossier = themeDossiers.find((d) => d.yearPlanId === yearPlan.id && d.id === `ds_${classId}_${t.id}`) || null;
         const groups = themeBranchGroups(yearPlan, branch, t.id);
         const branchOf = (ws) => groups.find((g) => g.weeks.some((w) => w.start === ws));
         const themeRows = rows.filter((r) => r.theme.id === t.id);
@@ -206,7 +221,7 @@ function DayPlansList({ classId }) {
                     <DeadlineBadge doc={dossier} />
                   </>
                 ) : (
-                  <DocAvailabilityBadge status={viewer ? 'UNRELEASED' : 'NOT_DRAFTED'} />
+                  !viewer && <DocAvailabilityBadge status="NOT_DRAFTED" />
                 )}
                 {/* Thẻ chủ đề chỉ để GVCN gửi duyệt; duyệt/trả lại ở trang xem giáo án ngày, nơi thấy nội dung (EDU-93) */}
                 {review && (review.can.send || (canComposeClassDocs && dossier.status === EDU_STATUS.DRAFT)) && (
@@ -214,8 +229,10 @@ function DayPlansList({ classId }) {
                     name={`kế hoạch giáo dục ngày ${t.name}`}
                     sendTo={review.sendTo}
                     sendLabel="Gửi duyệt"
-                    can={{ ...review.can, approve: false, reject: false }}
-                    showSend={canComposeClassDocs && dossier.status === EDU_STATUS.DRAFT}
+                    can={{ ...review.can, approve: review.principalPublish, reject: false }}
+                    approveLabel={review.approveLabel}
+                    approveAction={review.approveAction}
+                    showSend={!review.principalPublish && canComposeClassDocs && dossier.status === EDU_STATUS.DRAFT}
                     // Kế hoạch giáo dục chủ đề chưa ban hành: không hiện dòng nhắc trên trang, bấm Gửi duyệt mới cảnh báo (Tiền 14/11/2026)
                     sendDisabledReason={BLOCKED_TEXT[dossier.blockedReason] || 'Chưa gửi được kế hoạch giáo dục ngày này'}
                     onAct={act}

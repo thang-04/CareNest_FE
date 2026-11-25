@@ -32,12 +32,47 @@ const groupIds = async (yearId) => (await config.getStructure({ schoolYear: year
 test('nhóm tuổi thêm ở năm sắp tới không hiện ở năm đang học', async () => {
   const added = await config.saveAgeGroup(
     null,
-    { name: 'Nhóm thử', shortName: 'Thử', ageFromMonths: 3, ageToMonths: 6, mealSessions: ['LUNCH'], maxClassSize: 10 },
+    {
+      standardAgeGroupId: 'ag-0',
+      name: 'Nhóm trẻ 3–12 tháng',
+      shortName: '3–12 tháng',
+      ageFromMonths: 3,
+      ageToMonths: 13,
+      mealSessions: ['LUNCH'],
+      maxClassSize: 15,
+    },
     principal,
     planned.id,
   );
   assert.ok((await groupIds(planned.id)).includes(added.id));
   assert.ok(!(await groupIds(active.id)).includes(added.id));
+});
+
+test('không thêm nhóm tuổi mới vào năm đang hoạt động', async () => {
+  await assert.rejects(
+    config.saveAgeGroup(
+      null,
+      {
+        standardAgeGroupId: 'ag-0',
+        name: 'Nhóm trẻ 3–12 tháng',
+        shortName: '3–12 tháng',
+        ageFromMonths: 3,
+        ageToMonths: 13,
+        mealSessions: ['LUNCH'],
+        maxClassSize: 15,
+      },
+      principal,
+      active.id,
+    ),
+    (err) => err.status === 409 && /Sắp diễn ra/.test(err.message),
+  );
+});
+
+test('màn Nhóm tuổi chỉ hiện nút thêm ở năm sắp diễn ra', async () => {
+  const { readFileSync } = await import('node:fs');
+  const page = readFileSync('src/pages/school-config/AgeGroupsClassesPage.jsx', 'utf8');
+  assert.match(page, /const canAddAgeGroup = editable && year\?\.status === YEAR_STATUS\.PLANNED/);
+  assert.match(page, /\{canAddAgeGroup && \(/);
 });
 
 // Lỗi 1: xóa chỉ xét lớp, tổ trưởng của năm đang chọn; lỗi nêu năm học và người

@@ -347,6 +347,7 @@ export function VpTaskEditor({ person, others = [], campuses, readOnly, onSaved,
               </h3>
               <AreaToggle area={area} disabled={readOnly} onChange={(on) => setDraft((d) => setVpArea(d, area, on))} />
             </header>
+            {area.note && <p className="text-sm text-2">{area.note}</p>}
             <ul className="vp-area__tasks">
               {area.tasks.map((task) => {
                 const names = othersByTask.get(task.code) || [];

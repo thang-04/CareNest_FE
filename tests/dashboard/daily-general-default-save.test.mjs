@@ -18,6 +18,14 @@ const row = (childId, recorded = false) => ({
 });
 const sessions = ['LUNCH', 'AFTERNOON'];
 
+test('không tham gia ăn ghi Không ăn cả khi dòng cũ từng lưu Ăn hết, bữa khác giữ nguyên', () => {
+  const child = { ...row('skip'), skippedMeals: ['LUNCH'], meals: { LUNCH: 'AN_HET', AFTERNOON: 'AN_IT' } };
+  const draft = createGeneralDraft(child, sessions);
+  assert.deepEqual(draft.meals, { LUNCH: 'KHONG_AN', AFTERNOON: 'AN_IT' });
+  assert.deepEqual(getGeneralSaveEntries([child], sessions, {}, new Set())[0].meals, draft.meals);
+  assert.deepEqual([...getGeneralDirtyIds([child], sessions, { skip: draft })], []);
+});
+
 test('gợi ý chưa lưu không bật guard; thay đổi thật bật và hoàn tác về ban đầu thì hết dirty', () => {
   const rows = [row('test')];
   const original = createGeneralDraft(rows[0], sessions);

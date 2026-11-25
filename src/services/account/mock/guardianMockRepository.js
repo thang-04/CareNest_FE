@@ -85,28 +85,33 @@ const syncStatus = (db, account) =>
     }),
   );
 export const guardianMockRepository = {
-  async getStructure(actor) {
+  async getStructure(actor, schoolYear) {
     const db = await initialize(actor);
     const campuses = db.campuses.filter((campus) => actor.role === 'PRINCIPAL' || areaAllows(actor, 'children', campus.id));
     const ids = new Set(campuses.map((campus) => campus.id));
-    const year = activeYearId(db);
+    // Lớp của năm học chọn ở header (G94-437), mặc định năm đang hoạt động
+    const year = schoolYear || activeYearId(db);
     return clone({ campuses, classrooms: db.classes.filter((cls) => ids.has(cls.campusId) && (!year || cls.schoolYear === year)) });
   },
-  async searchChildren({ campusId, page = 0, size = 100 } = {}, actor) {
+  async searchChildren({ campusId, schoolYear, page = 0, size = 100 } = {}, actor) {
     const db = await initialize(actor);
     if (campusId && actor.role !== 'PRINCIPAL' && !areaAllows(actor, 'children', campusId)) forbid();
     if (!Number.isInteger(page) || page < 0 || !Number.isInteger(size) || size < 1 || size > 100)
       throw new ApiError(400, 'Phân trang không hợp lệ.');
+    // Năm học chọn ở header (G94-437): trẻ, lớp, điểm trường của năm đó như GET /children?schoolYear (CHD-09)
+    const inYear = schoolYear ? new Map((await children.listChildren({ schoolYear }, actor)).map((c) => [c.id, c])) : null;
+    const placeOf = (child) => inYear?.get(child.id) || child;
     const rows = db.children
-      .filter((child) => child.status !== 'LEFT' && visible(db, child, actor) && (!campusId || child.campusId === campusId))
+      .filter((child) => child.status !== 'LEFT' && visible(db, child, actor) && (!inYear || inYear.has(child.id)))
+      .filter((child) => !campusId || placeOf(child).campusId === campusId)
       .map((child) => {
         const guardians = guardiansOf(db, child);
         return {
           id: child.id,
           fullName: child.fullName,
           dateOfBirth: child.dateOfBirth,
-          classroomId: child.classId || null,
-          campusId: child.campusId,
+          classroomId: placeOf(child).classId || null,
+          campusId: placeOf(child).campusId,
           guardianCount: guardians.length,
           accountRecipient: selectedRecipients(child.guardians)[0] || null,
           guardians,
