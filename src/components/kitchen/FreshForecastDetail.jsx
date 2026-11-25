@@ -84,7 +84,7 @@ export function FreshForecastDetail({ campus }) {
           <div className="card__header">
             <div>
               <div className="card__title">Hàng khô đặt cho kỳ</div>
-              <div className="text-sm muted">Lượng chốt lúc lưu bản dự trù; dùng để in và đối chiếu khi kiểm nhận hàng khô.</div>
+              <div className="text-sm muted">Lượng chốt lúc lưu bản dự trù; dùng để in và đối chiếu khi lập phiếu nhập hàng khô.</div>
             </div>
           </div>
           {forecast.dryOrder.length ? (

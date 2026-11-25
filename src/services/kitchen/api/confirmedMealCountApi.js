@@ -2,7 +2,7 @@ import { beClient } from '@/services/http/beClient';
 
 /*
  * Sổ báo ăn đã xác nhận (/kitchen/meal-count) đọc BE thật GET /meal-counts: đúng số bếp sẽ dùng (BE NUT-03), HT/PHT
- * xem trên Web vì bếp chỉ dùng App (BE AUTH-21). Đổi dạng BE sang dạng màn bếp; thực đơn, món dị ứng chưa có BE ⇒ để trống.
+ * xem trên Web vì bếp chỉ dùng App (BE AUTH-21). Đổi dạng BE sang dạng màn bếp; dị ứng chỉ cảnh báo, không có suất thay thế (BE NUT-23).
  */
 const toSession = (count) => {
   const confirmed = count.status === 'CONFIRMED';
@@ -14,10 +14,9 @@ const toSession = (count) => {
     confirmedAt: count.confirmedAt,
     changedAt: confirmed ? count.confirmedAt : null,
     classes: confirmed
-      ? count.classes.map(({ classId, className, normal, substitute }) => ({ classId, className, normal, substitute, affectedDishes: [] }))
+      ? count.classes.map(({ classId, className, normal, substitute }) => ({ classId, className, normal: normal + substitute }))
       : [],
-    totals: confirmed ? { normal: count.totals.normal, substitute: count.totals.substitute } : null,
-    adjustments: confirmed ? count.adjustments : [],
+    totals: confirmed ? { normal: count.totals.normal + count.totals.substitute } : null,
     warnings: [],
   };
 };

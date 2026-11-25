@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { API_BASE_URL, AUTH_USE_MOCK } from '@/config/env';
-import { tokenStorage, UNAUTHORIZED_EVENT } from './tokenStorage';
+import { notifySessionBlocked, tokenStorage, UNAUTHORIZED_EVENT } from './tokenStorage';
 import { refreshSession } from './authTransport';
 import { normalizeApiError, unwrapResponse } from './apiError';
 import { getDevAccessToken, hasDevSession, tokenForRetry } from './devKeycloakAuth';
@@ -38,6 +38,9 @@ axiosClient.interceptors.response.use(
       throw new axios.CanceledError('Yêu cầu đã bị hủy');
     }
     const config = error.config;
+    if (error.response?.status === 403 && (config?.authGeneration ?? tokenStorage.getGeneration()) === tokenStorage.getGeneration()) {
+      notifySessionBlocked(error);
+    }
     if (error.response?.status !== 401 || config?.skipAuthRefresh) {
       throw normalizeApiError(error);
     }

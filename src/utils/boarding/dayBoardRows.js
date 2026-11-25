@@ -79,7 +79,9 @@ const DRY_STOCK_STATUS = {
 
 const dryStockRow = (campus) => {
   const stock = campus.dryStock || {};
-  const [tone, statusOf, detailOf] = DRY_STOCK_STATUS[stock.status] || ['gray', () => UNKNOWN[1], () => ''];
+  const [baseTone, statusOf, detailOf] = DRY_STOCK_STATUS[stock.status] || ['gray', () => UNKNOWN[1], () => ''];
+  // Đã trừ đủ hôm nay nhưng còn phần thiếu từ ngày cũ chưa bù: không báo xanh "xong"
+  const tone = stock.status === 'DEDUCTED' && stock.openShortfallCount > 0 ? 'orange' : baseTone;
   const shortfall = stock.status === 'SHORTFALL';
   const link = shortfall
     ? { label: 'Phần thiếu', to: withQuery('/kitchen/stock-shortfalls', { campusId: campus.campusId }) }
@@ -90,18 +92,19 @@ const dryStockRow = (campus) => {
     ? `Sắp thiếu ${stock.upcomingShortFoodCount} thực phẩm khô từ ${formatWeekdayDate(stock.upcomingShortFrom)} — đặt thêm theo bản dự trù.`
     : '';
   const links = upcoming ? [link, { label: 'Bản dự trù', to: withQuery('/kitchen/forecast', { campusId: campus.campusId }) }] : [link];
-  // INS-03: M1 kho khô đã ký thì BE chặn đồng bộ tay; muốn đồng bộ phải Sửa lại biên bản M1 khô
-  const signedText =
-    stock.status === 'NOT_SYNCED' && stock.m1DrySigned ? 'Biên bản M1 kho khô đã ký — Sửa lại biên bản để đồng bộ kho.' : '';
+  // INS-03: M1 kho khô đã ký thì BE chặn đồng bộ tay (mọi trạng thái kho); muốn đồng bộ phải Sửa lại biên bản M1 khô
+  const signedText = stock.m1DrySigned ? 'Biên bản M1 kho khô đã ký — đồng bộ kho bị khóa (Sửa lại biên bản để đồng bộ).' : '';
   return {
     key: 'dryStock',
     title: 'Kho khô',
     tone,
     status: statusOf(stock),
     detail: [detailOf(stock), upcomingText, signedText].filter(Boolean).join(' '),
-    // NOT_SYNCED: nút gọi BE trừ lại (BE kiểm quyền), không phải link
+    // NOT_SYNCED: nút gọi BE trừ lại; BE trả cờ canSync theo quyền (BE cũ chưa có cờ thì vẫn hiện, BE kiểm quyền khi bấm)
     actions:
-      stock.status === 'NOT_SYNCED' && !stock.m1DrySigned ? [{ key: 'syncStock', label: 'Đồng bộ kho', syncStock: true }, ...links] : links,
+      stock.status === 'NOT_SYNCED' && !stock.m1DrySigned && stock.canSync !== false
+        ? [{ key: 'syncStock', label: 'Đồng bộ kho', syncStock: true }, ...links]
+        : links,
   };
 };
 
@@ -117,16 +120,19 @@ const FRESH_STATUS = {
 const freshReceiptRow = (campus, date) => {
   const [tone, status, detail] = FRESH_STATUS[campus.freshReceiptStatus] || [...UNKNOWN, ''];
   const noForecast = campus.freshReceiptStatus === 'NO_FORECAST';
+  // INS-03: M1 hàng tươi đã ký thì BE khóa kiểm nhận cả hai lần tới khi Sửa lại biên bản
+  const signed = !!campus.m1FreshSigned;
+  const signedText = signed ? 'Biên bản M1 hàng tươi đã ký — kiểm nhận bị khóa (Sửa lại biên bản để sửa).' : '';
   return {
     key: 'freshReceipt',
     title: 'Hàng tươi lần 1/2',
     tone,
     status,
-    detail,
+    detail: [detail, signedText].filter(Boolean).join(' '),
     actions: [
       noForecast
         ? { label: 'Lập bản dự trù', to: withQuery('/kitchen/forecast', { campusId: campus.campusId }) }
-        : { label: 'Kiểm nhận', to: withQuery('/kitchen/fresh-receipts', { campusId: campus.campusId, date }) },
+        : { label: signed ? 'Xem kiểm nhận' : 'Kiểm nhận', to: withQuery('/kitchen/fresh-receipts', { campusId: campus.campusId, date }) },
     ],
   };
 };

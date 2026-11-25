@@ -302,11 +302,10 @@ export function MealPlanGrid({
                 return (
                   <td key={day.date} className={day.off ? 'td-week__off' : undefined}>
                     {list.length > 0 ? (
-                      // Số trẻ dị ứng theo chất và món thay thế chưa có trên hệ thống (lát món thay thế dị ứng)
                       <ul className="td-week__notes">
                         {list.map((note) => (
-                          <li key={note.key} className="td-week__note--missing">
-                            <b>{note.dish}:</b> {note.allergens.join(', ').toLowerCase()} · chưa có suất thay thế
+                          <li key={note.key}>
+                            <b>{note.dish}:</b> {note.allergens.join(', ').toLowerCase()}
                           </li>
                         ))}
                       </ul>

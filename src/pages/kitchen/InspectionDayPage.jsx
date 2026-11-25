@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { ClipboardCheck, Printer, Unlock } from '@/components/ui/icons';
-import { Breadcrumb, Button, EmptyState, ErrorState, LoadingState } from '@/components';
+import { Breadcrumb, Button, EmptyState, ErrorState, LoadingState, LockNote } from '@/components';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import { KbCampusFilter, KbDateFilter } from '@/components/kitchen/KitchenFilters';
@@ -18,13 +18,17 @@ import { InspectionPrintDialog } from '@/components/kitchen/inspection/Inspectio
 import { useToast } from '@/contexts/ToastContext';
 import { useStockCampus } from '@/hooks/kitchen/useDryStock';
 import { useInspectionDay } from '@/hooks/kitchen/useInspectionDay';
+import { useFoodSamples } from '@/hooks/kitchen/useKitchenRecords';
+import { pendingSampleCount } from '@/utils/kitchen/kitchenRecords';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import {
   APPROVAL_STATUS,
   INSPECTION_APPROVAL_REQUIRED,
   INSPECTION_FORMS,
+  INSPECTION_TAB,
   INSPECTION_TAB_LABELS,
   INSPECTION_TAB_ORDER,
+  INSPECTION_VARIANT_FORMS,
 } from '@/models/kitchen/inspectionConstants';
 import { KITCHEN_RECORD_PAGES } from '@/models/kitchen/kitchenRecordConstants';
 import {
@@ -43,6 +47,7 @@ import {
 } from '@/utils/kitchen/inspectionForm';
 import { approvalActionLabel } from '@/utils/kitchen/inspectionApproval';
 import { actionsMissing } from '@/utils/kitchen/inspectionRules';
+import { inspectionLabels, labelPrintBlock, serveLabelData } from '@/utils/kitchen/inspectionExport';
 import { kitchenCrumbs } from '@/utils/kitchen/breadcrumbs';
 import { formatDateTime, isIsoDate, todayInput } from '@/utils/format';
 import '@/styles/modules/kitchen.css';
@@ -82,16 +87,22 @@ function FormCard({ tab, data, date, campusId, onOpen, onRequest, onRevoke }) {
           </div>
         </div>
         <p className="text-sm">{INSPECTION_FORMS[tab].hint}</p>
-        <div className="text-sm muted">
-          {empty ? EMPTY_HINT[tab] : `${data.rows.length} dòng`}
-          {empty && tab === 'fresh' && (
-            <>
-              {' '}
-              <Link to={`/kitchen/fresh-receipts?date=${date}&campusId=${campusId}`}>Đi tới kiểm nhận hàng hôm nay</Link>
-            </>
-          )}
-          {signed && ` · Ký bởi ${sig.signedByName} lúc ${formatDateTime(sig.signedAt)}`}
-        </div>
+        {empty ? (
+          <LockNote kind="notYet">
+            {EMPTY_HINT[tab]}
+            {tab === 'fresh' && (
+              <>
+                {' '}
+                <Link to={`/kitchen/fresh-receipts?date=${date}&campusId=${campusId}`}>Đi tới kiểm nhận hàng hôm nay</Link>
+              </>
+            )}
+          </LockNote>
+        ) : (
+          <div className="text-sm muted">
+            {`${data.rows.length} dòng`}
+            {signed && ` · Ký bởi ${sig.signedByName} lúc ${formatDateTime(sig.signedAt)}`}
+          </div>
+        )}
         <ApprovalNotice approval={approval} />
         <div className="kr-card__actions">
           {/* Mẫu rỗng vẫn xem được ở chế độ chỉ đọc; chỉ khóa khi có quyền sửa mà chưa có dòng nào để điền */}
@@ -110,9 +121,11 @@ function FormCard({ tab, data, date, campusId, onOpen, onRequest, onRevoke }) {
   );
 }
 
-// M4 nhãn mẫu: không có biên bản riêng (INS-01), chỉ in/xuất từ dữ liệu sổ lưu mẫu M5 của ngày
-function LabelCard({ sample, onPrint }) {
-  const empty = !sample.rows.length;
+// M4 nhãn mẫu: không có biên bản riêng (INS-01), PHT in/xuất; cần thực đơn đã công bố như M2, M3 và không in trước ngày lấy mẫu
+function LabelCard({ date, labelData, onPrint }) {
+  const count = inspectionLabels(labelData).length;
+  const block = labelPrintBlock(date, todayInput());
+  const lockReason = count ? block : EMPTY_HINT.serve;
   return (
     <section className="card kr-card">
       <div className="card__body kr-card__body">
@@ -120,13 +133,17 @@ function LabelCard({ sample, onPrint }) {
           <Printer size={20} className="muted" />
           <div className="kr-card__name">
             <h2 className="card__title">M4 · Nhãn mẫu thức ăn lưu</h2>
-            <div className="text-sm muted">Chỉ in, lập từ sổ lưu mẫu M5</div>
+            <div className="text-sm muted">{INSPECTION_VARIANT_FORMS.label.form} · Chỉ in</div>
           </div>
         </div>
         <p className="text-sm">Nhãn dán lên hộp mẫu thức ăn lưu, mỗi bữa một nhãn.</p>
-        <div className="text-sm muted">{empty ? EMPTY_HINT.sample : `${sample.rows.length} mẫu từ sổ lưu mẫu`}</div>
+        {lockReason ? (
+          <LockNote kind="notYet">{lockReason}</LockNote>
+        ) : (
+          <div className="text-sm muted">{`${count} bữa theo thực đơn, tờ in đủ 4 nhãn`}</div>
+        )}
         <div className="kr-card__actions">
-          <Button variant="primary" icon={Printer} disabled={empty} onClick={onPrint}>
+          <Button variant="primary" icon={Printer} disabledReason={lockReason || undefined} onClick={onPrint}>
             In / xuất nhãn
           </Button>
         </div>
@@ -146,9 +163,14 @@ export default function InspectionDayPage() {
   const [params, setParams] = useSearchParams();
   const toast = useToast();
   const campus = useStockCampus();
-  const date = isIsoDate(params.get('date')) ? params.get('date') : todayInput();
-  const open = INSPECTION_TAB_ORDER.includes(params.get('form')) ? params.get('form') : null;
+  // Ngày chưa tới không ghi được biên bản (BE từ chối): kẹp về hôm nay khi đường dẫn mang ngày tương lai
+  const today = todayInput();
+  const date = isIsoDate(params.get('date')) && params.get('date') <= today ? params.get('date') : today;
+  const formParam = (params.get('form') || '').toLowerCase();
+  const open = INSPECTION_TAB_ORDER.includes(formParam) ? formParam : null;
   const day = useInspectionDay(campus.campusId, date);
+  // Mẫu của ngày để biết còn bản chờ duyệt (khóa nút ký sổ M5)
+  const samples = useFoodSamples(campus.campusId, date, date);
   const [forms, setForms] = useState({});
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
@@ -397,18 +419,26 @@ export default function InspectionDayPage() {
         )}
         <div className="kr-cards">
           {INSPECTION_TAB_ORDER.map((key) => (
-            <FormCard
-              key={key}
-              tab={key}
-              data={day.data.tabs[key]}
-              date={date}
-              campusId={campus.campusId}
-              onOpen={openForm}
-              onRequest={(tab) => setApprovalDialog({ tab, mode: 'request' })}
-              onRevoke={(tab) => setApprovalDialog({ tab, mode: 'revoke' })}
-            />
+            <Fragment key={key}>
+              <FormCard
+                tab={key}
+                data={day.data.tabs[key]}
+                date={date}
+                campusId={campus.campusId}
+                onOpen={openForm}
+                onRequest={(tab) => setApprovalDialog({ tab, mode: 'request' })}
+                onRevoke={(tab) => setApprovalDialog({ tab, mode: 'revoke' })}
+              />
+              {/* Thứ tự mẫu theo QĐ 1246: nhãn M4 đứng sau M3, trước sổ M5 */}
+              {key === INSPECTION_TAB.SERVE && (
+                <LabelCard
+                  date={date}
+                  labelData={serveLabelData(day.data.tabs.serve, day.data.tabs.sample)}
+                  onPrint={() => setLabelPrint(true)}
+                />
+              )}
+            </Fragment>
           ))}
-          <LabelCard sample={day.data.tabs.sample} onPrint={() => setLabelPrint(true)} />
         </div>
       </>
     );
@@ -428,7 +458,7 @@ export default function InspectionDayPage() {
         </div>
       </div>
       <div className="kb-toolbar">
-        <KbDateFilter value={date} onChange={(next) => setParam('date', next)} />
+        <KbDateFilter value={date} max={todayInput()} onChange={(next) => setParam('date', next)} />
         {campus.campusId && <KbCampusFilter campusId={campus.campusId} onChange={campus.setCampusId} canPick={campus.canPick} />}
       </div>
       {body}
@@ -446,6 +476,7 @@ export default function InspectionDayPage() {
           missing={rowsMissing(open, forms[open])}
           missingAction={actionsMissing(open, forms[open])}
           sampleData={day.data.tabs.sample}
+          pendingSamples={pendingSampleCount(samples.data)}
           onClose={requestClose}
           onSave={() => saveTab(open)}
           onSaveQuiet={() => saveTab(open, { quiet: true })}
@@ -494,11 +525,10 @@ export default function InspectionDayPage() {
       )}
       {labelPrint && day.data && (
         <InspectionPrintDialog
-          tab="sample"
+          tab="m4"
           date={date}
           campusName={campusName}
-          data={day.data.tabs.sample}
-          sampleData={day.data.tabs.sample}
+          data={serveLabelData(day.data.tabs.serve, day.data.tabs.sample)}
           initialVariant="label"
           onClose={() => setLabelPrint(false)}
         />

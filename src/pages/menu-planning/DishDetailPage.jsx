@@ -15,6 +15,7 @@ import { DishPortionTable } from '@/components/menu-planning/DishPortionTable';
 import { dishAllergens, ingredientBreakdown, ingredientQty } from '@/utils/menu-planning/menuCalculations';
 import { activeAgeGroups } from '@/utils/menu-planning/nutritionSetup';
 import { dishCrumbs } from '@/utils/menu-planning/breadcrumbs';
+import { dishInUseNote } from '@/utils/menu-planning/catalogUsage';
 import { DISH_TYPE_LABELS, FOOD_ORIGIN_LABELS, formatMoney } from '@/models/menu-planning/menuPlanningConstants';
 import '@/styles/modules/menu-planning.css';
 import { Button } from '@/components';
@@ -254,7 +255,9 @@ export default function DishDetailPage() {
         title={softDelete ? 'Ngừng sử dụng món ăn' : 'Xóa món ăn'}
         message={
           softDelete
-            ? `Chuyển món "${d.name}" sang Ngừng sử dụng? Thực đơn đã có giữ nguyên; thực đơn mới không chọn được món này.`
+            ? `Chuyển món "${d.name}" sang Ngừng sử dụng? Thực đơn đã có giữ nguyên; thực đơn mới không chọn được món này.${
+                dishInUseNote(d) ? ` ${dishInUseNote(d)}` : ''
+              }`
             : `Xóa món "${d.name}"? Món đã nằm trong thực đơn sẽ không xóa được.`
         }
         confirmLabel={softDelete ? 'Ngừng sử dụng' : 'Xóa món ăn'}

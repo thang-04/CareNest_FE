@@ -215,8 +215,8 @@ test('form thực phẩm bắt buộc nguồn gốc; định mức tỷ lệ đ�
   assert.deepEqual(validateNutritionSetup({ effectiveFrom: '2026-10-20', groups: [group({ ...core, ...blank })] }, '2026-10-20'), {});
   const partial = { ...core, ...blank, animalProteinG: ['12', ''] };
   assert.ok(validateNutritionSetup({ effectiveFrom: '2026-10-20', groups: [group(partial)] }, '2026-10-20')['ag-4.norms.animalProteinG']);
-  // Gam không giới hạn 100; % năng lượng bữa thì có
-  const grams = { ...core, ...blank, plantLipidG: ['90', '120'] };
+  // Gam không giới hạn 100 (chỉ giới hạn theo năng lượng × cơ cấu: 700 × 60% ÷ 4 = 105 g bột đường); % năng lượng bữa thì có
+  const grams = { ...core, ...blank, glucidG: ['101', '120'] };
   assert.deepEqual(validateNutritionSetup({ effectiveFrom: '2026-10-20', groups: [group(grams)] }, '2026-10-20'), {});
   const over = { ...core, ...blank, lunchKcalPct: ['50', '120'] };
   assert.ok(validateNutritionSetup({ effectiveFrom: '2026-10-20', groups: [group(over)] }, '2026-10-20')['ag-4.norms.lunchKcalPct']);
