@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronDown } from '@/components/ui/icons';
 import { Button, EmptyState, ErrorState, LoadingState, Pagination, SearchSelect, SelectField } from '@/components';
+import { DayBandRow } from '@/components/kitchen/DayBandRow';
 import { KbOptionalDateFilter } from '@/components/kitchen/KitchenFilters';
 import { StockMovementBadge } from '@/components/kitchen/KitchenBadges';
 import { useDryFoods, useMovements } from '@/hooks/kitchen/useDryStock';
+import { useDayGroupToggle } from '@/hooks/kitchen/useDayGroupToggle';
 import { STOCK_MOVEMENT_LABELS, STOCK_MOVEMENT_TYPES } from '@/models/kitchen/kitchenConstants';
 import { groupMovementsByDay, personName } from '@/utils/kitchen/stockLots';
 import { formatStockChange } from '@/utils/kitchen/stockUnits';
@@ -17,8 +18,6 @@ const NO_FILTER = { from: '', to: '', type: '', foodId: '' };
 export function StockMovementsTab({ campusId }) {
   const [filters, setFilters] = useState(NO_FILTER);
   const [page, setPage] = useState(0);
-  // Ngày người dùng tự mở/đóng khác mặc định (mặc định mở ngày đầu; đang lọc thì mở hết)
-  const [toggled, setToggled] = useState(() => new Set());
   const { foods } = useDryFoods();
   const movements = useMovements({ campusId, ...filters, page, size: PAGE_SIZE });
   const foodOptions = useMemo(
@@ -31,6 +30,7 @@ export function StockMovementsTab({ campusId }) {
     setPage(0);
   };
   const filtered = Object.values(filters).some(Boolean);
+  const days = useDayGroupToggle(filtered);
   const result = movements.data;
   const items = useMemo(() => result?.items || [], [result]);
   const groups = useMemo(() => groupMovementsByDay(items), [items]);
@@ -38,12 +38,6 @@ export function StockMovementsTab({ campusId }) {
   const showReason = items.some((m) => m.reason || m.receiptId);
   const showPerson = items.some((m) => personName(m.createdBy));
   const columns = 5 + (showReason ? 1 : 0) + (showPerson ? 1 : 0);
-  const toggle = (key) =>
-    setToggled((set) => {
-      const next = new Set(set);
-      if (!next.delete(key)) next.add(key);
-      return next;
-    });
 
   let body;
   if (movements.error) body = <ErrorState error={movements.error} onRetry={movements.reload} />;
@@ -72,18 +66,16 @@ export function StockMovementsTab({ campusId }) {
               </tr>
             </thead>
             {groups.map((group, i) => {
-              const open = (filtered || i === 0) !== toggled.has(group.key);
+              const open = days.isOpen(group.key, i);
               return (
                 <tbody key={group.key}>
-                  <tr>
-                    <th scope="rowgroup" colSpan={columns} className="kb-day-band">
-                      <button type="button" className="kb-day-band__btn" aria-expanded={open} onClick={() => toggle(group.key)}>
-                        <ChevronDown size={16} />
-                        {group.label}
-                        <span className="kb-day-band__count">{group.items.length} dòng</span>
-                      </button>
-                    </th>
-                  </tr>
+                  <DayBandRow
+                    colSpan={columns}
+                    label={group.label}
+                    count={group.items.length}
+                    open={open}
+                    onToggle={() => days.toggle(group.key)}
+                  />
                   {open &&
                     group.items.map((m) => (
                       <tr key={m.id}>

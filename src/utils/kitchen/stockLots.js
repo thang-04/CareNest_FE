@@ -41,11 +41,11 @@ export const groupLotsByFood = (lots = []) => {
 /** Tên người thao tác để hiện; BE trả mã số thay vì tên thì bỏ (không hiện ID cho người dùng). */
 export const personName = (value) => (value == null || value === '' || /^\d+$/.test(String(value)) ? '' : String(value));
 
-/** Gom dòng lịch sử theo ngày để đọc nhanh: dòng trừ theo ngày ăn, dòng còn lại theo ngày ghi; giữ thứ tự BE trả. */
+/** Gom dòng lịch sử theo ngày để đọc nhanh: dòng trừ theo ngày ăn, dòng còn lại theo ngày ghi; nhãn chỉ là ngày (cột Loại đã phân biệt); giữ thứ tự BE trả. */
 export const groupMovementsByDay = (items) => {
   const groups = new Map();
   (items || []).forEach((m) => {
-    const label = m.mealDate ? `Ngày ăn ${formatDate(m.mealDate)}` : `Ngày ghi ${formatDate(m.createdAt)}`;
+    const label = formatDate(m.mealDate || m.createdAt);
     if (!groups.has(label)) groups.set(label, { key: label, label, items: [] });
     groups.get(label).items.push(m);
   });

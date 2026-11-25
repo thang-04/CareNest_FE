@@ -61,19 +61,20 @@
   padding: 0;
   background: var(--table-header-bg);
 }
-.kb-day-band__btn {
+/* Nút là Button variant="link": lặp class + cha để thắng .link-btn (màu, padding, gạch chân) mà không đụng class chung */
+.kb-day-band .kb-day-band__btn.kb-day-band__btn {
   display: flex;
   align-items: center;
   gap: var(--space-2);
   width: 100%;
   padding: var(--space-2) var(--space-3);
-  border: 0;
-  background: none;
   color: var(--color-text);
   font: inherit;
   font-weight: var(--fw-semibold);
   text-align: left;
-  cursor: pointer;
+}
+.kb-day-band .kb-day-band__btn.kb-day-band__btn:hover {
+  text-decoration: none;
 }
 .kb-day-band__btn svg {
   transition: transform var(--duration-fast, 0.15s) ease;
