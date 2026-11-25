@@ -16,13 +16,13 @@ export const STRUCTURE_NORM_COLUMNS = [
   { key: 'lipid', label: 'Béo', unit: '%' },
   { key: 'glucid', label: 'Bột đường', unit: '%' },
 ];
-/** Định mức gam / trẻ / ngày theo chất (BE NUT-24); chất nào để trống thì không đánh giá chất đó. */
+/** Định mức gam / trẻ / ngày theo chất (BE NUT-24); chất nào để trống thì không đánh giá chất đó. `max` = trần BE (suy từ 5000 kcal/ngày). */
 export const GRAM_NORM_COLUMNS = [
-  { key: 'animalProteinG', label: 'Đạm động vật', unit: 'g' },
-  { key: 'plantProteinG', label: 'Đạm thực vật', unit: 'g' },
-  { key: 'animalLipidG', label: 'Béo động vật', unit: 'g' },
-  { key: 'plantLipidG', label: 'Béo thực vật', unit: 'g' },
-  { key: 'glucidG', label: 'Bột đường', unit: 'g' },
+  { key: 'animalProteinG', label: 'Đạm động vật', unit: 'g', max: 1250 },
+  { key: 'plantProteinG', label: 'Đạm thực vật', unit: 'g', max: 1250 },
+  { key: 'animalLipidG', label: 'Béo động vật', unit: 'g', max: 555 },
+  { key: 'plantLipidG', label: 'Béo thực vật', unit: 'g', max: 555 },
+  { key: 'glucidG', label: 'Bột đường', unit: 'g', max: 1250 },
 ];
 /** Tỷ lệ năng lượng từng bữa gốc (% nhu cầu năng lượng cả ngày `dailyKcalNeed`, BE NUT-25). */
 export const SESSION_NORM_KEYS = { MORNING: 'morningKcalPct', LUNCH: 'lunchKcalPct', AFTERNOON: 'afternoonKcalPct' };

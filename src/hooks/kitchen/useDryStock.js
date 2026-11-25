@@ -44,8 +44,15 @@ const useStockQuery = (loader, deps, enabled = true) => {
   return useAsync(loader, [user?.id, ...deps], { enabled: enabled && !!user });
 };
 
+// Khoảng ngày ngược (từ > đến) không gửi truy vấn: màn lọc đã chặn nhập, đây là lớp phòng thêm
+const rangeOk = (from, to) => !(from && to && from > to);
+
 export const useReceipts = ({ campusId, from, to, status }) =>
-  useStockQuery(() => dryStockApi.listReceipts({ campusId, from, to, status }), [campusId, from, to, status], !!campusId);
+  useStockQuery(
+    () => dryStockApi.listReceipts({ campusId, from, to, status }),
+    [campusId, from, to, status],
+    !!campusId && rangeOk(from, to),
+  );
 
 export const useReceipt = (id) => useStockQuery(() => dryStockApi.getReceipt(id), [id], !!id);
 
@@ -56,7 +63,7 @@ export const useMovements = ({ campusId, from, to, foodId, type, page, size }) =
   useStockQuery(
     () => dryStockApi.listMovements({ campusId, from, to, foodId, type, page, size }),
     [campusId, from, to, foodId, type, page, size],
-    !!campusId,
+    !!campusId && rangeOk(from, to),
   );
 
 export const useShortfalls = (campusId) => useStockQuery(() => dryStockApi.listShortfalls({ campusId }), [campusId], !!campusId);
