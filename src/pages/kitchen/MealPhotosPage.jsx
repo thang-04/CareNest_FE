@@ -1,47 +1,38 @@
 import { Link, useSearchParams } from 'react-router-dom';
 import { Clock } from '@/components/ui/icons';
 import { Breadcrumb, EmptyState, ErrorState, LoadingState } from '@/components';
-import { KbCampusFilter, KbDateFilter } from '@/components/kitchen/KitchenFilters';
+import { WeekPicker } from '@/components/form/WeekPicker';
+import { KbCampusFilter } from '@/components/kitchen/KitchenFilters';
+import { MealPhotoInspections } from '@/components/kitchen/MealPhotoInspections';
+import { MealPhotoSessionCard } from '@/components/kitchen/MealPhotoSessionCard';
+import { MealPhotoWeekStrip } from '@/components/kitchen/MealPhotoWeekStrip';
 import { useAuth } from '@/contexts/AuthContext';
 import { useStockCampus } from '@/hooks/kitchen/useDryStock';
-import { useMealPhotos, useMealPhotoUrl } from '@/hooks/kitchen/useKitchenRecords';
-import { KITCHEN_RECORD_PAGES, MEAL_SESSION_LABELS, PHOTO_WINDOWS_SETTING_PATH } from '@/models/kitchen/kitchenRecordConstants';
+import { useMealPhotoWeek } from '@/hooks/kitchen/useKitchenRecords';
+import { KITCHEN_RECORD_PAGES, PHOTO_WINDOWS_SETTING_PATH } from '@/models/kitchen/kitchenRecordConstants';
 import { isPrincipal } from '@/utils/kitchen/kitchenPermissions';
 import { bySession } from '@/utils/kitchen/kitchenRecords';
 import { kitchenCrumbs } from '@/utils/kitchen/breadcrumbs';
-import { formatDate, formatDateTime, formatFileSize, isIsoDate, todayInput } from '@/utils/format';
+import { isIsoDate, todayInput } from '@/utils/format';
+import { addDays, mondayOf } from '@/utils/week';
 import '@/styles/modules/kitchen.css';
 import '@/styles/modules/kitchen-records.css';
 
-function PhotoCard({ photo }) {
-  const image = useMealPhotoUrl(photo.id);
-  const label = MEAL_SESSION_LABELS[photo.session] || photo.session;
-  return (
-    <section className="card" aria-label={label}>
-      <div className="card__header">
-        <h2 className="card__title">{label}</h2>
-      </div>
-      <div className="card__body kb-stack kb-stack--tight">
-        <div className="kr-photo__frame">
-          {image.loading && <LoadingState text="Đang tải ảnh..." />}
-          {image.error && <ErrorState error={image.error} />}
-          {image.url && <img className="kr-photo__img" src={image.url} alt={`Ảnh ${label.toLowerCase()} ngày ${formatDate(photo.date)}`} />}
-        </div>
-        <p className="text-xs muted">
-          Đăng lúc {formatDateTime(photo.uploadedAt)} · {formatFileSize(photo.sizeBytes)}
-        </p>
-      </div>
-    </section>
-  );
-}
+// Số ngày từ thứ Hai tới ngày đang xem (0–6)
+const daysSinceMonday = (iso) => Math.round((new Date(`${iso}T00:00:00`) - new Date(`${mondayOf(iso)}T00:00:00`)) / 86400000);
 
-/** Ảnh bữa ăn (`/kitchen/meal-photos`): ảnh bếp đăng theo điểm trường và ngày, tải nội dung qua client có token. */
+/**
+ * Ảnh bữa ăn (`/kitchen/meal-photos`): xem cả tuần của một điểm trường. Dải ngày cho biết ngày nào đủ hoặc thiếu ảnh, thẻ từng
+ * bữa kèm người đăng, thực đơn, số suất, lưu mẫu; biên bản kiểm thực của ngày ở cuối. Trạng thái do BE tính.
+ */
 export default function MealPhotosPage() {
   const [params, setParams] = useSearchParams();
   const { user } = useAuth();
   const campus = useStockCampus();
-  const date = isIsoDate(params.get('date')) ? params.get('date') : todayInput();
-  const photos = useMealPhotos(campus.campusId, date);
+  const today = todayInput();
+  const date = isIsoDate(params.get('date')) ? params.get('date') : today;
+  const weekStart = mondayOf(date);
+  const week = useMealPhotoWeek(campus.campusId, weekStart);
 
   const setDate = (next) =>
     setParams(
@@ -52,27 +43,37 @@ export default function MealPhotosPage() {
       },
       { replace: true },
     );
+  // Đổi tuần: giữ cùng thứ trong tuần mới để dải ngày không nhảy về thứ Hai
+  const setWeek = (nextMonday) => setDate(addDays(nextMonday, Math.min(4, daysSinceMonday(date))));
+
+  const days = week.data?.days || [];
+  // Thứ Bảy, Chủ nhật nằm ngoài dải 5 ngày: chọn thứ Sáu để vẫn có ngày đang xem
+  const selected = days.find((d) => d.date === date) || days[days.length - 1];
 
   let body;
   if (campus.error) body = <ErrorState error={campus.error} onRetry={campus.reload} />;
   else if (campus.loading) body = <LoadingState />;
   else if (!campus.campusId)
     body = <EmptyState title="Chưa có điểm trường" description="Tài khoản chưa được gán điểm trường để xem ảnh bữa ăn." />;
-  else if (photos.error) body = <ErrorState error={photos.error} onRetry={photos.reload} />;
-  else if (photos.loading || !photos.data) body = <LoadingState />;
-  else if (!photos.data.length)
+  else if (week.error) body = <ErrorState error={week.error} onRetry={week.reload} />;
+  else if (week.loading || !week.data) body = <LoadingState />;
+  else if (!selected)
     body = (
       <section className="card">
-        <EmptyState title="Chưa có ảnh bữa ăn" description={`Bếp chưa đăng ảnh nào cho ngày ${formatDate(date)}.`} />
+        <EmptyState title="Chưa có dữ liệu tuần này" description="Chọn tuần khác để xem ảnh bữa ăn." />
       </section>
     );
   else
     body = (
-      <div className="kr-photos">
-        {[...photos.data].sort(bySession).map((photo) => (
-          <PhotoCard key={photo.id} photo={photo} />
-        ))}
-      </div>
+      <>
+        <MealPhotoWeekStrip days={days} value={selected.date} onChange={setDate} />
+        <div className="kr-photos">
+          {[...selected.sessions].sort(bySession).map((session) => (
+            <MealPhotoSessionCard key={session.session} session={session} date={selected.date} />
+          ))}
+        </div>
+        <MealPhotoInspections inspections={selected.inspections} />
+      </>
     );
 
   return (
@@ -84,7 +85,7 @@ export default function MealPhotosPage() {
         </div>
       </div>
       <div className="kb-toolbar">
-        <KbDateFilter value={date} onChange={setDate} />
+        <WeekPicker value={weekStart} onChange={setWeek} thisWeek={mondayOf(today)} />
         {campus.campusId && <KbCampusFilter campusId={campus.campusId} onChange={campus.setCampusId} canPick={campus.canPick} />}
         <div className="kb-toolbar__end">
           {isPrincipal(user) && (
@@ -94,7 +95,7 @@ export default function MealPhotosPage() {
           )}
         </div>
       </div>
-      {body}
+      <div className="kb-stack">{body}</div>
     </div>
   );
 }

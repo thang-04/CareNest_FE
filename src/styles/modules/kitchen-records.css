@@ -46,6 +46,37 @@
   object-fit: cover;
 }
 
+/* Ảnh bữa ăn theo tuần: nhãn ngày kèm tóm tắt, bảng thông tin đối chiếu của một bữa */
+.kr-week-day {
+  display: grid;
+  gap: var(--space-1);
+  text-align: left;
+}
+.kr-week-day__note {
+  font-size: var(--fs-xs);
+  color: var(--color-text-muted);
+}
+.kr-week-day__note--warn {
+  color: var(--color-danger-fg);
+  font-weight: var(--fw-semibold);
+}
+.kr-facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+  font-size: var(--fs-sm);
+}
+.kr-facts dt {
+  color: var(--color-text-muted);
+}
+.kr-facts dd {
+  margin: 0;
+}
+.kr-facts__chip {
+  margin-left: var(--space-2);
+}
+
 .kr-window-time {
   width: 140px;
 }
