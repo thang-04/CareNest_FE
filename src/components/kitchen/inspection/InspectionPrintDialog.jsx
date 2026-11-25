@@ -11,7 +11,7 @@ import { inspectionExportRows } from '@/utils/kitchen/inspectionExport';
 
 /**
  * Xem trước biểu mẫu khổ A4 ngang rồi In, Xuất PDF hoặc Xuất Excel; luôn lấy dữ liệu đã lưu của mẫu.
- * Mẫu có nhiều bản in thì chọn ở thanh tab: M3 (hoặc M3 gộp lưu mẫu), M5 (hoặc M4 nhãn mẫu). `sampleData` = mẫu M5 của ngày.
+ * M3 có hai bản in (M3 hoặc M3 gộp lưu mẫu) chọn ở thanh tab; nhãn M4 mở với `tab="m4"`. `sampleData` = mẫu M5 của ngày.
  */
 export function InspectionPrintDialog({ tab, date, campusName, data, sampleData, initialVariant = 'main', onClose }) {
   const sheetRef = useRef(null);
@@ -20,7 +20,7 @@ export function InspectionPrintDialog({ tab, date, campusName, data, sampleData,
   const excel = inspectionExportRows(tab, data, { date, campusName, variant, sampleData });
   const exportExcel = () =>
     exportWithPreviewWorkbook([{ sheetName: excel.sheetName, rows: excel.rows, headerRow: excel.headerRow }], `${excel.fileBase}.xlsx`, {
-      title: INSPECTION_TAB_LABELS[tab],
+      title: INSPECTION_TAB_LABELS[tab] ?? variants[0].label,
     });
   return (
     // Hộp vừa đủ xem tờ giấy (không toàn màn hình); `print-modal` để khi in tờ giấy không bị khung modal cắt. M4 nhãn in A4 dọc, các mẫu còn lại A4 ngang

@@ -70,7 +70,7 @@ export const INSPECTION_FORMS = {
   },
 };
 
-/** Biến thể in: M3 gộp lưu mẫu (B3) và M4 nhãn mẫu lập từ dữ liệu M5. */
+/** Biến thể in: M3 gộp lưu mẫu (B3) và M4 nhãn mẫu lập từ món của M3. */
 export const INSPECTION_VARIANT_FORMS = {
   combined: {
     step: 'B3',
@@ -90,10 +90,9 @@ export const INSPECTION_PRINT_VARIANTS = {
     { key: 'main', label: 'M3 · Kiểm tra trước khi ăn' },
     { key: 'combined', label: 'M3 gộp · Kiểm tra và lưu mẫu' },
   ],
-  sample: [
-    { key: 'main', label: 'M5 · Theo dõi lưu và hủy mẫu' },
-    { key: 'label', label: 'M4 · Nhãn mẫu thức ăn lưu' },
-  ],
+  // M4 không phải biên bản: chỉ in nhãn từ thẻ riêng
+  m4: [{ key: 'label', label: 'M4 · Nhãn mẫu thức ăn lưu' }],
+  sample: [{ key: 'main', label: 'M5 · Theo dõi lưu và hủy mẫu' }],
 };
 
 export const STORAGE_OPTIONS = [
