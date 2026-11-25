@@ -2,6 +2,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { Clock } from '@/components/ui/icons';
 import { Breadcrumb, EmptyState, ErrorState, LoadingState } from '@/components';
 import { WeekPicker } from '@/components/form/WeekPicker';
+import { Tabs } from '@/components/ui/Tabs';
 import { KbCampusFilter } from '@/components/kitchen/KitchenFilters';
 import { MealPhotoInspections } from '@/components/kitchen/MealPhotoInspections';
 import { MealPhotoSessionCard } from '@/components/kitchen/MealPhotoSessionCard';
@@ -94,9 +95,18 @@ export default function MealPhotosPage() {
     <div className="page">
       <Breadcrumb items={kitchenCrumbs(KITCHEN_RECORD_PAGES.mealPhotos)} />
       <h1 className="page__title">Ảnh bữa ăn</h1>
+      {campus.canPick && campus.campusId && (
+        <Tabs
+          className="kr-campus"
+          items={campus.campuses.map((c) => ({ key: String(c.id), label: c.shortName || c.name }))}
+          value={campus.campusId}
+          onChange={campus.setCampusId}
+          ariaLabel="Chọn điểm trường"
+        />
+      )}
       <div className="kb-toolbar kb-toolbar--center">
         <WeekPicker value={weekStart} onChange={setWeek} thisWeek={mondayOf(today)} />
-        {campus.campusId && <KbCampusFilter campusId={campus.campusId} onChange={campus.setCampusId} canPick={campus.canPick} />}
+        {!campus.canPick && campus.campusId && <KbCampusFilter campusId={campus.campusId} canPick={false} />}
         <div className="kb-toolbar__end">
           {isPrincipal(user) && (
             <Link className="btn" to={PHOTO_WINDOWS_SETTING_PATH}>
