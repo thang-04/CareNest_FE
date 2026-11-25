@@ -42,6 +42,13 @@ export const receiptToForm = (receipt) => ({
   ),
 });
 
+/** Số lô gợi ý L{yyMMdd}-{mã thực phẩm} từ ngày nhập (YYYY-MM-DD); thiếu ngày hoặc mã thì để trống để người dùng tự nhập. */
+export const autoLotNo = (receivedDate, foodCode) => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(receivedDate || ''));
+  const code = String(foodCode || '').trim();
+  return m && code ? `L${m[1].slice(2)}${m[2]}${m[3]}-${code}` : '';
+};
+
 const blank = (v) => v === '' || v == null;
 
 /** Lỗi theo ô: { campusId, supplierId, receivedDate, lines, 'lines.0.purchaseQty', … }. Rỗng = đủ để gửi. */

@@ -26,6 +26,7 @@ import { canManageStockAt } from '@/utils/kitchen/kitchenPermissions';
 import { dryStockApi } from '@/services/dryStockApi';
 import { RECEIPT_STATUS, NOTE_MAX } from '@/models/kitchen/kitchenConstants';
 import {
+  autoLotNo,
   emptyLine,
   emptyReceiptForm,
   mapReceiptErrors,
@@ -53,6 +54,7 @@ const estimate = (line) => {
 
 // Dòng không đạt của phiếu sinh từ kiểm nhận: không thành lô, chỉ lưu để tra biện pháp xử lý
 const rejectedColumns = [
+  { key: 'lot', header: 'Số lô', render: (line) => line.lotNo },
   { key: 'food', header: 'Thực phẩm', render: (line) => line.food.name },
   {
     key: 'qty',
@@ -60,7 +62,6 @@ const rejectedColumns = [
     className: 'num nowrap',
     render: (line) => `${fmtQty(line.purchaseQuantity)} ${line.food.purchaseUnit || ''}`,
   },
-  { key: 'lot', header: 'Số lô', render: (line) => line.lotNo },
   { key: 'expiry', header: 'Hạn sử dụng', className: 'nowrap', render: (line) => formatDate(line.expiryDate) },
   { key: 'note', header: 'Biện pháp xử lý', render: (line) => line.note },
 ];
@@ -193,6 +194,8 @@ export default function StockReceiptEditorPage() {
     setErrors((e) => ({ ...e, [field]: undefined, _form: undefined }));
   };
   const catalogPrice = (foodId) => supplierPrice(supplierFoods, foodId);
+  const codeOfFood = (foodId) =>
+    supplierFoods.find((f) => String(f.foodId) === String(foodId))?.code || foodById[String(foodId)]?.code || '';
   const setLine = (index, field, value) => {
     setForm((f) => ({
       ...f,
@@ -202,6 +205,9 @@ export default function StockReceiptEditorPage() {
         // Đổi thực phẩm: thay giá nếu ô còn trống hoặc vẫn là giá hợp đồng của thực phẩm trước, giá người dùng đã sửa thì giữ
         if (field === 'foodId' && (l.unitPrice === '' || String(l.unitPrice) === catalogPrice(l.foodId)))
           next.unitPrice = catalogPrice(value);
+        // Số lô tự điền theo thực phẩm; ô trống hoặc còn là số lô tự sinh của thực phẩm trước thì thay, số lô người dùng đã gõ thì giữ
+        if (field === 'foodId' && (l.lotNo === '' || l.lotNo === autoLotNo(f.receivedDate, codeOfFood(l.foodId))))
+          next.lotNo = autoLotNo(f.receivedDate, codeOfFood(value));
         return next;
       }),
     }));
@@ -499,14 +505,14 @@ export default function StockReceiptEditorPage() {
               <table className="table table--grid">
                 <thead>
                   <tr>
+                    <th>
+                      Số lô <span className="req">*</span>
+                    </th>
                     <th className="min-w-220">
                       Thực phẩm <span className="req">*</span>
                     </th>
                     <th>
                       Số lượng <span className="req">*</span>
-                    </th>
-                    <th>
-                      Số lô <span className="req">*</span>
                     </th>
                     <th>
                       Hạn sử dụng <span className="req">*</span>
@@ -525,6 +531,16 @@ export default function StockReceiptEditorPage() {
                     const value = editable ? estimate(line) : receipt?.lines[i]?.value;
                     return (
                       <tr key={line.key}>
+                        <td>
+                          <TextField
+                            className={`input kb-lot-input ${err(i, 'lotNo') ? 'input--error' : ''}`}
+                            value={line.lotNo}
+                            maxLength={50}
+                            onChange={(e) => setLine(i, 'lotNo', e.target.value)}
+                            aria-label={`Số lô dòng ${i + 1}`}
+                          />
+                          {err(i, 'lotNo') && <div className="field__error">{err(i, 'lotNo')}</div>}
+                        </td>
                         <td>
                           <SearchSelect
                             options={foodOptions}
@@ -549,16 +565,6 @@ export default function StockReceiptEditorPage() {
                           />
                           <span className="muted text-xs"> {unit}</span>
                           {err(i, 'purchaseQty') && <div className="field__error">{err(i, 'purchaseQty')}</div>}
-                        </td>
-                        <td>
-                          <TextField
-                            className={`input kb-lot-input ${err(i, 'lotNo') ? 'input--error' : ''}`}
-                            value={line.lotNo}
-                            maxLength={50}
-                            onChange={(e) => setLine(i, 'lotNo', e.target.value)}
-                            aria-label={`Số lô dòng ${i + 1}`}
-                          />
-                          {err(i, 'lotNo') && <div className="field__error">{err(i, 'lotNo')}</div>}
                         </td>
                         <td>
                           <DateInput
