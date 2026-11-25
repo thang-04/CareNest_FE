@@ -10,6 +10,8 @@ import { InspectionFormModal } from '@/components/kitchen/inspection/InspectionF
 import { useToast } from '@/contexts/ToastContext';
 import { useStockCampus } from '@/hooks/kitchen/useDryStock';
 import { useInspectionDay } from '@/hooks/kitchen/useInspectionDay';
+import { useFoodSamples } from '@/hooks/kitchen/useKitchenRecords';
+import { pendingSampleCount } from '@/utils/kitchen/kitchenRecords';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { INSPECTION_FORMS, INSPECTION_TAB_LABELS, INSPECTION_TAB_ORDER } from '@/models/kitchen/inspectionConstants';
 import { KITCHEN_RECORD_PAGES } from '@/models/kitchen/kitchenRecordConstants';
@@ -87,6 +89,8 @@ export default function InspectionDayPage() {
   const date = isIsoDate(params.get('date')) ? params.get('date') : todayInput();
   const open = INSPECTION_TAB_ORDER.includes(params.get('form')) ? params.get('form') : null;
   const day = useInspectionDay(campus.campusId, date);
+  // Mẫu của ngày để biết còn bản chờ duyệt (khóa nút ký sổ M5)
+  const samples = useFoodSamples(campus.campusId, date, date);
   const [forms, setForms] = useState({});
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
@@ -303,6 +307,7 @@ export default function InspectionDayPage() {
           missing={rowsMissing(open, forms[open])}
           missingAction={actionsMissing(open, forms[open])}
           sampleData={day.data.tabs.sample}
+          pendingSamples={pendingSampleCount(samples.data)}
           onClose={requestClose}
           onSave={() => saveTab(open)}
           onSaveQuiet={() => saveTab(open, { quiet: true })}

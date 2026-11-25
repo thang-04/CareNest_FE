@@ -11,6 +11,7 @@ import { InspectionSignBoxes, InspectionSignDialog } from '@/components/kitchen/
 import { useAuth } from '@/contexts/AuthContext';
 import { INSPECTION_FORMS, INSPECTION_REQUIRED, INSPECTION_TAB_LABELS } from '@/models/kitchen/inspectionConstants';
 import { hasValidSignature } from '@/utils/kitchen/inspectionForm';
+import { sampleSignBlock } from '@/utils/kitchen/kitchenRecords';
 
 /**
  * Biểu mẫu kiểm thực mở toàn màn hình: thanh trên có trạng thái, tiến độ cảm quan, Lưu nháp, Ký, Đóng (nút ghi ở đầu màn — DESIGN §8);
@@ -29,6 +30,7 @@ export function InspectionFormModal({
   missing,
   missingAction,
   sampleData,
+  pendingSamples = 0,
   onClose,
   onSave,
   onSaveQuiet,
@@ -62,10 +64,14 @@ export function InspectionFormModal({
   };
   const jumpToMissing = () => jumpTo(missing[0], 'input[type="checkbox"]');
   const jumpToMissingAction = () => jumpTo(missingAction[0], '[data-cell$=":note"]');
-  const cannotSign = missing.length > 0 || missingAction.length > 0;
-  const signHint = missing.length
-    ? `Còn ${missing.length} dòng chưa chọn Đạt / Không đạt`
-    : `Còn ${missingAction.length} dòng Không đạt chưa ghi biện pháp xử lý`;
+  // Sổ M5: BE chặn ký khi còn mẫu của ngày chờ duyệt (6115) ⇒ tắt nút sẵn và nói lý do
+  const sampleBlock = tab === 'sample' ? sampleSignBlock(pendingSamples) : '';
+  const cannotSign = missing.length > 0 || missingAction.length > 0 || !!sampleBlock;
+  const signHint =
+    sampleBlock ||
+    (missing.length
+      ? `Còn ${missing.length} dòng chưa chọn Đạt / Không đạt`
+      : `Còn ${missingAction.length} dòng Không đạt chưa ghi biện pháp xử lý`);
 
   return (
     <Modal open size="full" label={INSPECTION_TAB_LABELS[tab]} onClose={onClose} closeOnBackdrop={false} className="kr-form-modal">
