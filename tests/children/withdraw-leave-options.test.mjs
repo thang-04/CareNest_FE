@@ -136,14 +136,16 @@ test('modal dùng DateInput với min/max từ leave-options, không còn radio'
   assert.match(modalSrc, /LoadingState/);
   assert.match(modalSrc, /ErrorState/);
   assert.match(modalSrc, /confirmDisabled=\{[^}]*loading/);
-  assert.match(modalSrc, /error=\{errors\.leftAt\}/);
+  assert.match(modalSrc, /error=\{errors\.leftAt \|\| dateError/);
 });
 
 test('modal gợi ý khoảng ngày, chỉ chọn từ ngày mai khi todayAllowed=false, giải thích lịch nghỉ', () => {
   assert.match(modalSrc, /Chọn từ \$\{formatDate\(options\.minDate\)\} tới \$\{formatDate\(options\.maxDate\)\} \(hết năm học\)/);
   assert.match(modalSrc, /!options\.todayAllowed/);
   assert.match(modalSrc, /todayBlockedReason/);
-  assert.match(modalSrc, /chỉ chọn được từ ngày mai/);
+  assert.doesNotMatch(modalSrc, /chỉ chọn được từ ngày mai/);
+  assert.match(modalSrc, /Không còn ngày nào chọn được trong năm học này/);
+  assert.match(modalSrc, /options\.todayAllowed \|\| leftAt > options\.today/);
   assert.match(modalSrc, /Trẻ vẫn học tới hết ngày \$\{formatDate\(/);
   assert.match(modalSrc, /hệ thống tự chuyển sang Đã nghỉ học từ ngày đã chọn\./);
 });
