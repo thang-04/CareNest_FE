@@ -25,6 +25,7 @@ import { attendanceCrumbs } from '@/utils/attendance/breadcrumbs';
 import { dayBySession, dayRegister } from '@/utils/attendance/mealRegister';
 import { exportWithPreview } from '@/components/ui/ExportPreview';
 import { formatDate } from '@/utils/format';
+import { campusTitle } from '@/utils/campusLabel';
 import '@/styles/modules/attendance.css';
 
 /**
@@ -230,9 +231,7 @@ export default function MealCountPage() {
             <section key={campusId} className="mb-16">
               <MealRegisterCard
                 counts={shownCounts.filter((c) => c.campusId === campusId)}
-                campusName={
-                  allCampuses.length > 1 ? md.campusById?.(campusId)?.shortName || md.campusById?.(campusId)?.name || campusId : ''
-                }
+                campusName={campusTitle(campusId, md.campuses)}
                 user={user}
                 md={md}
                 onConfirm={setConfirming}
