@@ -3,18 +3,16 @@ import { Card } from '@/components/education-plan/eduUi';
 import { Cell, focusCell } from '@/components/education-plan/planUi';
 import { domainLabel } from '@/models/education-plan/educationPlanConstants';
 import { domainRoman, mtList, numberGoals } from '@/models/education-plan/goalTable';
-import { cardText, contentLinesOf, newCard, normalizeTheme, slotLabel, themeGoalBlocks, weekRows } from '@/models/education-plan/classPlan';
-import { mapActivityCards } from '@/models/education-plan/activityImport.mjs';
+import { cardText, contentLinesOf, newCard, normalizeTheme, slotLabel, themeGoalBlocks } from '@/models/education-plan/classPlan';
 import { StatusBadge } from '@/components/ui/StatusBadge';
-import { Adjustments, Check, Download, Plus, RotateCcw, Sparkles, X } from '@/components/ui/icons';
+import { Adjustments, Check, Plus, RotateCcw, Sparkles, X } from '@/components/ui/icons';
 import { ActionsMenu } from '@/components/education-plan/reviewUi';
 import { Modal } from '@/components/ui/Modal';
 import { AiDraftTag } from '@/components/ui/AiDraftTag';
 import { AiWorkingOverlay } from '@/components/ui/AiWorkingOverlay';
-import ImportActivitiesModal from '@/components/education-plan/ImportActivitiesModal';
 import ThemeGoalPickerModal from '@/components/education-plan/ThemeGoalPickerModal';
 import ActivityCardEditor from '@/components/education-plan/ActivityCardEditor';
-import { Button, SelectField, TextField } from '@/components';
+import { Button } from '@/components';
 
 /**
  * Dòng của một mục tiêu. Nội dung giáo dục do Phó HT / Tổ trưởng lập ở kế hoạch năm (các nội dung đã tích cho chủ đề),
@@ -65,8 +63,7 @@ export function ThemePlanBody({
   flagOf = () => null,
   added = null,
   usedCellsOf = () => 0,
-  // Nhập nhanh (Tiền 13/11/2026): lấy hoạt động năm trước của lớp, AI gợi ý (bản giả), báo kết quả
-  loadPreviousActivities = null,
+  // AI gợi ý hoạt động (bản giả), báo kết quả
   suggestActivities = null,
   notify = () => {},
   // Chỗ đặt menu "Lấy / gợi ý hoạt động" ở trái hàng nút của trang (phần tử DOM do trang cấp)
@@ -89,27 +86,8 @@ export function ThemePlanBody({
     putCards(cards.some((c) => c.id === card.id) ? cards.map((c) => (c.id === card.id ? card : c)) : [...cards, card]);
     setEditing(null);
   };
-  // Ô gõ nhanh: thẻ nhận loại giờ đang chọn, MT của dòng, tích sẵn mọi nội dung của MT; chưa chọn loại giờ ⇒ mở hộp đầy đủ
   const allRefsOf = (g) => contentLinesOf(rowOf(g).contents).map((_, i) => `${g.id}:${i}`);
-  const quickAdd = (g, input) => {
-    const name = input.value.trim();
-    if (!name) return;
-    if (!lastSlot) setEditing({ card: null, goalIds: [g.id], name });
-    else putCards([...cards, newCard({ slot: lastSlot, name, goalIds: [g.id], contentRefs: allRefsOf(g) })]);
-    input.value = '';
-  };
   const lineGoals = () => goals.map((g) => ({ id: g.id, no: g.no, text: g.text, lines: contentLinesOf(rowOf(g).contents) }));
-  const [importing, setImporting] = useState(false);
-  const importFrom = (source, picked) => {
-    const { cards: added, skipped } = mapActivityCards(picked, source.goals, lineGoals(), cards, newCard);
-    if (added.length) putCards([...cards, ...added]);
-    const skipText = skipped.map((x) => `${x.name} (${x.reason})`).join('; ');
-    notify(
-      `Đã thêm ${added.length} hoạt động${skipped.length ? ` · bỏ qua ${skipped.length}: ${skipText}` : ''}`,
-      added.length ? 'ok' : 'warn',
-    );
-    setImporting(false);
-  };
   // AI gợi ý (EDU-20 mở rộng): chỉ cho MT chưa có hoạt động; mỗi gợi ý Dùng / Bỏ, chưa dùng thì chưa thành thẻ
   const [ai, setAi] = useState({ busy: false, items: [] });
   const askAi = async () => {
@@ -170,9 +148,6 @@ export function ThemePlanBody({
             <div className="ga-theme-goal-head mb-8 row row--wrap row--middle gap-2">
               <ActionsMenu
                 items={[
-                  ...(loadPreviousActivities
-                    ? [{ label: 'Lấy hoạt động năm trước', icon: Download, onClick: () => setImporting(true) }]
-                    : []),
                   ...(suggestActivities
                     ? [
                         {
@@ -187,24 +162,6 @@ export function ThemePlanBody({
                   { label: 'Khôi phục mục tiêu mặc định của năm', icon: RotateCcw, onClick: resetToDefault, disabled: !hasCustomTicks },
                 ]}
               />
-              {goals.length > 0 && (
-                <label className="row row--middle gap-2 text-sm" title="Loại giờ gán cho hoạt động gõ nhanh trong bảng">
-                  <span className="nowrap">Gõ nhanh:</span>
-                  <SelectField
-                    className="input"
-                    aria-label="Loại giờ khi gõ nhanh"
-                    value={lastSlot}
-                    onChange={(e) => setLastSlot(e.target.value)}
-                  >
-                    <option value="">Chọn loại giờ</option>
-                    {weekRows().map((r) => (
-                      <option key={r.key} value={r.key}>
-                        {r.label}
-                      </option>
-                    ))}
-                  </SelectField>
-                </label>
-              )}
               {hasCustomTicks && (
                 <span className="chip chip--orange text-sm" title="Mục tiêu đã được tùy chỉnh khác với Kế hoạch năm">
                   Đã tùy chỉnh mục tiêu
@@ -248,8 +205,6 @@ export function ThemePlanBody({
               onClose={() => setEditing(null)}
             />
           )}
-
-          {importing && <ImportActivitiesModal load={loadPreviousActivities} onImport={importFrom} onClose={() => setImporting(false)} />}
           {ai.busy && <AiWorkingOverlay text="AI đang gợi ý hoạt động…" />}
           {ai.items.length > 0 && (
             <Modal
@@ -379,18 +334,6 @@ export function ThemePlanBody({
                           )}
                           {editable && (
                             <div className="ga-goal-table__pad row row--middle gap-1">
-                              <TextField
-                                name={`quick-activity-${g.id}`}
-                                autoComplete="off"
-                                aria-label={`Gõ nhanh hoạt động cho MT${g.no}`}
-                                placeholder="Gõ tên hoạt động, Enter"
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
-                                    e.preventDefault();
-                                    quickAdd(g, e.currentTarget);
-                                  }
-                                }}
-                              />
                               <Button
                                 variant="icon"
                                 title="Thêm hoạt động (chọn loại giờ, mục tiêu, nội dung)"

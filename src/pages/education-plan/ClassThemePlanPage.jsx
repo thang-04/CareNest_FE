@@ -1,9 +1,9 @@
 import { ResponsiveToolbar } from '@/components/ui/ResponsiveToolbar';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { FileDown, Save, X } from '@/components/ui/icons';
 import { Card, EmptyCard, fmtDate, FoldAllButton, Notice, PageHead } from '@/components/education-plan/eduUi';
-import { getClassDocRelease, getClassPlans, getGoal, suggestActivityCards } from '@/services/education-plan/educationPlanService';
+import { getClassDocRelease, suggestActivityCards } from '@/services/education-plan/educationPlanService';
 import { submitEntryOf } from '@/models/education-plan/reviewHistory.mjs';
 import { VersionHistory } from '@/components/education-plan/VersionHistory';
 import { docLines } from '@/models/education-plan/planHistory.mjs';
@@ -22,12 +22,10 @@ import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { useManualSave } from '@/hooks/education-plan/useManualSave';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
-import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
 import { numberGoals } from '@/models/education-plan/goalTable';
 import {
   branchNumber,
   createBlocker,
-  contentLinesOf,
   emptyThemePlan,
   isEditableStatus,
   normalizeTheme,
@@ -41,7 +39,6 @@ import { CoverageTab } from '@/components/education-plan/CoverageTab';
 import { FinishedThemeNote, SupersededNote, VersionCopyOffer, VersionFlagsPanel } from '@/components/education-plan/VersionWidgets';
 import { useDocVersion } from '@/hooks/education-plan/useDocVersion';
 import { addedGoalIds, checkFlag, danglingRows, dropReference, versionOf } from '@/models/education-plan/planVersions.mjs';
-import { previousSchoolYears, sameSchoolYearId } from '@/models/education-plan/schoolYearScope.mjs';
 import { classPlanVersionPath } from '@/models/education-plan/planVersions.mjs';
 import DocPreviewModal from '@/components/education-plan/DocPreviewModal';
 import { BlockedNotice } from '@/components/education-plan/DeadlineWidgets';
@@ -61,7 +58,7 @@ function ThemePlanInner() {
   const { classId, themeId } = useParams();
   const [query] = useSearchParams();
   const coverageTab = query.get('tab') === 'coverage';
-  const { user, classThemePlans, branchPlans, weekPlans, dayPlans, semesterPackages, saveClassDoc, toast, staff, yearOptions } = useEducationPlan();
+  const { user, classThemePlans, branchPlans, weekPlans, dayPlans, semesterPackages, saveClassDoc, toast, staff } = useEducationPlan();
   const [preview, setPreview] = useState(null);
   const ctx = useClassPlanContext(classId);
   const { cls, yearPlan, canComposeClassDocs } = ctx;
@@ -115,42 +112,6 @@ function ThemePlanInner() {
       setDirty(true);
     },
   });
-
-  // Lấy hoạt động năm trước (Tiền 13/11/2026): kế hoạch chủ đề đã ban hành cùng tên chủ đề của lớp mình ở các năm trước.
-  // "Lớp mình" theo phạm vi BE trả về cho người dùng ở từng năm (GV chỉ nhận hồ sơ lớp được phân công)
-  const loadPreviousActivities = useCallback(async () => {
-    const norm = (t) =>
-      String(t || '')
-        .trim()
-        .toLowerCase()
-        .replace(/\s+/g, ' ');
-    const name = norm(yearPlan?.themes.find((t) => t.id === themeId)?.name);
-    if (!name) return [];
-    const prior = previousSchoolYears(yearOptions, yearPlan?.schoolYearId);
-    const sources = [];
-    for (const year of prior) {
-      const docs = await getClassPlans(year.id, user);
-      for (const doc of (docs?.classThemePlans || []).filter((d) => d.status === EDU_STATUS.APPROVED)) {
-        const plan = await getGoal(doc.yearPlanId, user);
-        if (!sameSchoolYearId(plan?.schoolYearId, year.id)) continue;
-        if (norm(plan?.themes?.find((t) => String(t.id) === String(doc.themeId))?.name) !== name) continue;
-        const goals = themeGoalBlocks(plan.domains, numberGoals(plan.domains), doc.themeId, doc.customTicks).flatMap((b) => b.goals);
-        const cards = normalizeTheme(
-          doc,
-          goals.map((g) => g.id),
-        ).filter((c) => c.slot && c.name?.trim());
-        if (!cards.length) continue;
-        const cls = (docs.classes || []).find((c) => String(c.id) === String(doc.classId));
-        sources.push({
-          key: doc.id,
-          label: `Năm học ${year.label || year.id}${cls?.name ? ` · ${cls.name}` : ''}`,
-          cards,
-          goals: goals.map((g) => ({ id: g.id, text: g.text, lines: contentLinesOf(themeRowOf(doc, g).contents) })),
-        });
-      }
-    }
-    return sources;
-  }, [yearOptions, user, yearPlan, themeId]);
 
   const guard = useLeaveGuard({
     when: canWrite && saver.unsaved,
@@ -421,7 +382,6 @@ function ThemePlanInner() {
           setField={setField}
           flagOf={(id) => version.unresolved.find((f) => f.goalId === String(id)) || null}
           added={draft.sourceDocKey ? addedGoalIds(version.changes) : null}
-          loadPreviousActivities={editable ? loadPreviousActivities : null}
           suggestActivities={editable ? suggestActivityCards : null}
           notify={toast}
           usedCellsOf={(cardId) =>
