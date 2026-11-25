@@ -101,7 +101,7 @@ export function ForecastDryCard({ forecast, className = '' }) {
 
 /**
  * Lượng hàng khô đặt cho kỳ (theo đơn vị mua). Khi lập: BE gợi ý bằng phần thiếu, PHT sửa được (0 = không đặt); bản đã lưu
- * là số chụp dùng để in và đối chiếu lúc kiểm nhận hàng khô.
+ * là số chụp dùng để in và đối chiếu lúc lập phiếu nhập hàng khô.
  */
 export function ForecastDryOrderTable({ lines, editable, errors = {}, onChange }) {
   const columns = [
