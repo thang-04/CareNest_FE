@@ -1,81 +1,90 @@
-import { EmptyState, ErrorState, LoadingState } from '@/components';
+import { Camera } from '@/components/ui/icons';
+import { ErrorState, LoadingState } from '@/components';
 import { MealPhotoStatusBadge } from '@/components/kitchen/KitchenBadges';
 import { useMealPhotoUrl } from '@/hooks/kitchen/useKitchenRecords';
 import { MEAL_SESSION_LABELS, SAMPLE_DISPOSAL_LABELS, SAMPLE_STATUS_LABELS } from '@/models/kitchen/kitchenRecordConstants';
-import { formatDate, formatDateTime, formatFileSize } from '@/utils/format';
+import { formatDate, formatTime } from '@/utils/format';
 
 function PhotoFrame({ photo, alt }) {
   const image = useMealPhotoUrl(photo.id);
   return (
-    <div className="kr-photo__frame">
+    <div className="kr-photo">
       {image.loading && <LoadingState text="Đang tải ảnh..." />}
       {image.error && <ErrorState error={image.error} />}
-      {image.url && <img className="kr-photo__img" src={image.url} alt={alt} />}
+      {image.url && (
+        <a className="kr-photo__link" href={image.url} target="_blank" rel="noreferrer" title="Mở ảnh lớn trong tab mới">
+          <img className="kr-photo__img" src={image.url} alt={alt} />
+        </a>
+      )}
     </div>
   );
 }
 
+// Bữa chưa có ảnh: giữ khung 4:3 như bữa có ảnh để ba thẻ cao bằng nhau
 const EMPTY_TEXT = {
-  MISSING: ['Bếp chưa đăng ảnh', 'Đã quá khung giờ đăng ảnh của bữa này.'],
-  PENDING: ['Chưa đến hạn đăng ảnh', 'Bếp còn trong khung giờ đăng ảnh của bữa này.'],
-  NOT_EXPECTED: ['Không có bữa này', 'Ngày nghỉ, ngày chưa tới hoặc thực đơn không có bữa này.'],
+  MISSING: 'Bếp chưa đăng ảnh',
+  PENDING: 'Chưa đến hạn đăng ảnh',
+  NOT_EXPECTED: 'Không có bữa này',
 };
 
-/** Thẻ một bữa: ảnh, người đăng, đúng/trễ giờ, món theo thực đơn, số suất đã chốt, trạng thái lưu mẫu. */
+const sampleText = (sample) => {
+  if (!sample) return null;
+  const status = SAMPLE_STATUS_LABELS[sample.status] || sample.status;
+  const disposal =
+    sample.disposalStatus && sample.disposalStatus !== 'NONE'
+      ? ` · ${SAMPLE_DISPOSAL_LABELS[sample.disposalStatus] || sample.disposalStatus}`
+      : '';
+  return `Mẫu: ${status}${disposal}`;
+};
+
+/**
+ * Thẻ một bữa gồm 5 hàng (đầu thẻ, ảnh, người đăng, thực đơn, chip suất/mẫu). Các hàng là subgrid của `.kr-meals`
+ * nên ba thẻ thẳng hàng với nhau dù nội dung dài ngắn khác nhau.
+ */
 export function MealPhotoSessionCard({ session, date }) {
   const label = MEAL_SESSION_LABELS[session.session] || session.session;
   const { photo } = session;
-  const [emptyTitle, emptyText] = EMPTY_TEXT[session.status] || EMPTY_TEXT.NOT_EXPECTED;
+  const sample = sampleText(session.sample);
+  const dishes = session.dishes.length ? session.dishes.join(', ') : 'Chưa có thực đơn đã công bố';
   return (
-    <section className="card" aria-label={label}>
-      <div className="card__header">
-        <h2 className="card__title">{label}</h2>
+    <section className="card kr-meal" aria-label={label}>
+      <div className="kr-meal__head">
+        <h2 className="kr-meal__title">{label}</h2>
         <MealPhotoStatusBadge status={session.status} />
       </div>
-      <div className="card__body kb-stack kb-stack--tight">
+      {photo ? (
+        <PhotoFrame photo={photo} alt={`Ảnh ${label.toLowerCase()} ngày ${formatDate(date)}`} />
+      ) : (
+        <div className="kr-photo kr-photo--empty">
+          <Camera size={28} aria-hidden="true" />
+          <span>{EMPTY_TEXT[session.status] || EMPTY_TEXT.NOT_EXPECTED}</span>
+        </div>
+      )}
+      <div className="kr-meal__who">
         {photo ? (
-          <PhotoFrame photo={photo} alt={`Ảnh ${label.toLowerCase()} ngày ${formatDate(date)}`} />
+          <>
+            <strong>{photo.uploaderName || 'Không rõ người đăng'}</strong>
+            <span className="muted">· {formatTime(photo.uploadedAt)}</span>
+            {photo.onTime != null && (
+              <span className={`chip ${photo.onTime ? 'chip--green' : 'chip--orange'} kr-meal__ontime`}>
+                {photo.onTime ? 'Đúng giờ' : 'Ngoài giờ'}
+              </span>
+            )}
+          </>
         ) : (
-          <EmptyState title={emptyTitle} description={emptyText} />
+          <span className="muted">Người đăng: —</span>
         )}
-        {photo && (
-          <dl className="kr-facts">
-            <dt>Người đăng</dt>
-            <dd>{photo.uploaderName || 'Không rõ'}</dd>
-            <dt>Đăng lúc</dt>
-            <dd>
-              {formatDateTime(photo.uploadedAt)}
-              {photo.onTime != null && (
-                <span className={`chip ${photo.onTime ? 'chip--green' : 'chip--orange'} kr-facts__chip`}>
-                  {photo.onTime ? 'Đúng khung giờ' : 'Ngoài khung giờ'}
-                </span>
-              )}
-            </dd>
-            <dt>Dung lượng</dt>
-            <dd>{formatFileSize(photo.sizeBytes)}</dd>
-          </dl>
-        )}
-        <dl className="kr-facts">
-          <dt>Thực đơn</dt>
-          <dd>{session.dishes.length ? session.dishes.join(', ') : 'Chưa có thực đơn đã công bố'}</dd>
-          <dt>Số suất</dt>
-          <dd>
-            {session.servingsNormal == null
-              ? 'Chưa chốt'
-              : `${session.servingsNormal} thường${session.servingsSubstitute ? `, ${session.servingsSubstitute} thay thế` : ''}`}
-          </dd>
-          {session.sample && (
-            <>
-              <dt>Lưu mẫu</dt>
-              <dd>
-                {SAMPLE_STATUS_LABELS[session.sample.status] || session.sample.status}
-                {session.sample.disposalStatus && session.sample.disposalStatus !== 'NONE'
-                  ? ` · ${SAMPLE_DISPOSAL_LABELS[session.sample.disposalStatus] || session.sample.disposalStatus}`
-                  : ''}
-              </dd>
-            </>
-          )}
-        </dl>
+      </div>
+      <p className="kr-meal__menu" title={dishes}>
+        <strong>Thực đơn:</strong> {dishes}
+      </p>
+      <div className="kr-meal__chips">
+        <span className="chip chip--gray">
+          {session.servingsNormal == null
+            ? 'Chưa chốt suất'
+            : `${session.servingsNormal} thường${session.servingsSubstitute ? ` · ${session.servingsSubstitute} thay thế` : ''}`}
+        </span>
+        {sample && <span className="chip chip--gray">{sample}</span>}
       </div>
     </section>
   );
