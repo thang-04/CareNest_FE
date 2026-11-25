@@ -50,7 +50,7 @@ import { formatDate, formatDateTime } from '@/utils/format';
 import { hasErrors } from '@/utils/children/childrenValidation';
 import { formatMeasurementChange } from '@/utils/children/childrenHelpers';
 import { unshownErrors, withoutUnshownErrors } from '@/utils/children/examDraftErrors';
-import { temperatureForBe } from '@/utils/children/healthExamHints';
+import { temperatureFormatError, temperatureForBe } from '@/utils/children/healthExamHints';
 import { validateHealthExam } from '@/utils/children/healthExamValidation';
 import { healthCheckCrumbs } from '@/utils/children/breadcrumbs';
 import '@/styles/modules/children.css';
@@ -306,9 +306,19 @@ export default function HealthExamFormPage() {
     ...extra,
   });
 
+  // Nhiệt độ sai dạng (vd "36,5a") không gửi BE: báo đúng ô ngay, như lỗi lưu.
+  const temperatureBlocked = () => {
+    const message = temperatureFormatError(form.exam.vitals?.temperatureC);
+    if (!message) return false;
+    setErrors((e) => ({ ...e, 'exam.vitals.temperatureC': message }));
+    setSaveFailed(true);
+    return true;
+  };
+
   // Phiếu nháp tự lưu mỗi lần chuyển bước; lỗi lưu không làm mất dữ liệu đang nhập.
   const saveDraft = async (nextStep, { notify = false } = {}) => {
     if (!editable || concluded) return true;
+    if (temperatureBlocked()) return false;
     setBusy(true);
     try {
       const reached = Math.max(maxReached, nextStep);
@@ -331,6 +341,7 @@ export default function HealthExamFormPage() {
   };
 
   const refreshPreview = async () => {
+    if (temperatureBlocked()) return;
     try {
       const res = await previewHealthExamReview(campaignId, childId, payloadOf({ exam: form.exam }), user);
       setPreviewPoints(res.reviewPoints);

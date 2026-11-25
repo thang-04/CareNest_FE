@@ -19,7 +19,9 @@ test('temperatureForBe: đổi dấu phẩy thành số; chuỗi sai dạng gi�
   assert.equal(hints.temperatureForBe('36,5'), 36.5);
   assert.equal(hints.temperatureForBe('36.55'), 36.55);
   assert.equal(hints.temperatureForBe('36'), 36);
-  assert.equal(hints.temperatureForBe('3115345'), '3115345');
+  assert.equal(hints.temperatureForBe('36,555'), 36.555);
+  assert.equal(hints.temperatureForBe('36,5a'), '36,5a');
+  assert.equal(hints.temperatureForBe('abc'), 'abc');
   assert.equal(hints.temperatureForBe(''), '');
 });
 

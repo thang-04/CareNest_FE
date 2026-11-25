@@ -25,11 +25,12 @@ export const temperatureTypingError = (value) => {
   return TEMPERATURE_PREFIX.test(text) ? '' : TEMPERATURE_FORMAT_MESSAGE;
 };
 
-/** Nhiệt độ gửi BE: số khi đúng dạng (đổi "," thành "."); sai dạng giữ nguyên chuỗi để BE báo đúng ô. */
+/** Nhiệt độ gửi BE: chuỗi là số thì gửi số (đổi "," thành "."; vd "36,555" vẫn gửi để BE báo đúng ô); không phải số giữ chuỗi. */
 export const temperatureForBe = (value) => {
   const text = String(value ?? '').trim();
-  if (text === '' || temperatureFormatError(text)) return value;
-  return Number(text.replace(',', '.'));
+  if (text === '') return value;
+  const n = Number(text.replace(',', '.'));
+  return Number.isNaN(n) ? value : n;
 };
 
 /** Trạng thái gợi ý của 1 dấu hiệu sinh tồn; null khi chưa có số. below: thấp hơn khoảng (mạch không có ô "chậm"). */
