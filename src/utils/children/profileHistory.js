@@ -28,5 +28,7 @@ export const profileHistoryRows = (history) =>
       actionLabel: CHILD_HISTORY_ACTION_LABELS[entry.action] || entry.action,
       userName: entry.userName || '',
       note: entry.note || '',
+      // BE ghi "Lịch nghỉ học từ dd/MM/yyyy" cho LEAVE_CANCELLED (không phải lý do); các việc khác note là lý do
+      noteText: entry.note ? (entry.action === 'LEAVE_CANCELLED' ? entry.note : `Lý do: ${entry.note}`) : '',
       changes: (entry.changes || []).map(changeText),
     }));

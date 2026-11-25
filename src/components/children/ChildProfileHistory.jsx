@@ -29,7 +29,7 @@ export function ChildProfileHistory({ history }) {
                     </div>
                   ))}
                   <div className="muted text-sm">
-                    {[row.userName, row.at ? formatDateTime(row.at) : '', row.note ? `Lý do: ${row.note}` : ''].filter(Boolean).join(' · ')}
+                    {[row.userName, row.at ? formatDateTime(row.at) : '', row.noteText].filter(Boolean).join(' · ')}
                   </div>
                 </div>
               </li>

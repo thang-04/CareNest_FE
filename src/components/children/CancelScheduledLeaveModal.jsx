@@ -18,6 +18,8 @@ export function CancelScheduledLeaveModal({ child, onClose, onDone }) {
       onDone?.();
       onClose();
     } catch (err) {
+      // 409: lịch đã bị hủy hoặc đã tới ngày ở nơi khác ⇒ tải lại để nút "Hủy lịch nghỉ" không còn cũ
+      if (err?.status === 409) onDone?.();
       toast.error(err, 'Không hủy được lịch nghỉ');
     }
   };
