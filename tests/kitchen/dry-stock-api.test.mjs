@@ -308,12 +308,14 @@ test('biến động kho đọc theo đơn vị gốc, ngày gom theo ngày ăn 
     { id: 1, mealDate: '2026-10-30' },
     { id: 2, mealDate: '2026-10-30' },
     { id: 3, createdAt: '2026-10-26T03:00:00Z' },
+    { id: 4, createdAt: '2026-10-30T03:00:00Z' },
   ]);
+  // Nhãn chỉ là ngày; dòng ngày ghi trùng ngày ăn thì cùng một nhóm
   assert.deepEqual(
     groups.map((g) => [g.label, g.items.length]),
     [
-      ['Ngày ăn 30/10/2026', 2],
-      ['Ngày ghi 26/10/2026', 1],
+      ['30/10/2026', 3],
+      ['26/10/2026', 1],
     ],
   );
 });
