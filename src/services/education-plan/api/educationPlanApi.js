@@ -449,8 +449,6 @@ export const educationPlanApi = {
     if (options?.headers) Object.assign(headers, options.headers);
     return axiosClient.post(`/education-plans/class-docs/${kind}/${id}/actions`, body, { headers });
   },
-  suggestBranchNames: (input) => axiosClient.post('/education-plans/ai/branch-names', input),
-  rewriteBranchName: (input) => axiosClient.post('/education-plans/ai/branch-names/rewrite', input),
   suggestLessonSteps: (input) => axiosClient.post('/education-plans/ai/lesson-steps', input),
   // BE:EDU-95 — gợi ý thẻ hoạt động cho MT chưa có hoạt động
   suggestActivityCards: (input) => axiosClient.post('/education-plans/ai/activities', input),

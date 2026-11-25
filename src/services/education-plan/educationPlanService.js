@@ -6,10 +6,7 @@ import { educationPlanMockRepository } from '@/services/education-plan/mock/educ
 import { educationPlanApi } from '@/services/education-plan/api/educationPlanApi';
 import { classPlanMockRepository } from '@/services/education-plan/mock/classPlanMockRepository';
 import { eduConfigMockRepository } from '@/services/education-plan/mock/eduConfigMockRepository';
-import { branchAiMock } from '@/services/education-plan/mock/branchAiMock';
-import { activityAiMock } from '@/services/education-plan/mock/activityAiMock';
 import { reviewAiMock } from '@/services/education-plan/mock/reviewAiMock';
-import { lessonAiMock } from '@/services/education-plan/mock/lessonAiMock';
 import { themeContentAiMock } from '@/services/education-plan/mock/themeContentAiMock';
 import { curriculumMockRepository } from '@/services/education-plan/mock/curriculumMockRepository';
 
@@ -160,16 +157,12 @@ export const getEduConfigCached = (user) =>
   USE_MOCK ? eduConfigMockRepository.get(user) : educationPlanApi.getEduConfigCached();
 export const saveEduConfig = (cfg, user) => (USE_MOCK ? eduConfigMockRepository.save(cfg, user) : educationPlanApi.saveEduConfig(cfg));
 
-// AI gợi ý tên chủ đề nhánh (bản nháp; giáo viên chọn Dùng / Bỏ rồi vẫn ký, gửi duyệt như thường)
-export const suggestBranchNames = (input) =>
-  USE_MOCK ? branchAiMock.suggestBranchNames(input) : educationPlanApi.suggestBranchNames(input);
-// AI gợi ý tiến trình giờ học (nháp; giáo viên Giữ / Bỏ, sửa lại trước khi gửi duyệt). PROPOSED API
-export const suggestLessonSteps = (input) =>
-  USE_MOCK ? lessonAiMock.suggestLessonSteps(input) : educationPlanApi.suggestLessonSteps(input);
-export const rewriteBranchName = (input) => (USE_MOCK ? branchAiMock.rewriteBranchName(input) : educationPlanApi.rewriteBranchName(input));
-// AI gợi ý thẻ hoạt động cho MT chưa có hoạt động (BE:EDU-95): BE chỉ trả MT, loại giờ có trong yêu cầu
-export const suggestActivityCards = (input) =>
-  USE_MOCK ? activityAiMock.suggestActivityCards(input) : educationPlanApi.suggestActivityCards(input);
+// Chế độ mock không có AI (bỏ dữ liệu AI giả, Tiền 25/11/2026): báo không khả dụng như khi AI tắt (AI-03)
+const aiUnavailable = () => Promise.reject(Object.assign(new Error('Trợ lý AI đang không khả dụng, vui lòng thử lại sau'), { status: 503 }));
+// AI gợi ý tiến trình giờ học (nháp; giáo viên Giữ / Bỏ, sửa lại trước khi gửi duyệt)
+export const suggestLessonSteps = (input) => (USE_MOCK ? aiUnavailable() : educationPlanApi.suggestLessonSteps(input));
+// AI gợi ý thẻ hoạt động cho MT (BE:EDU-95): BE chỉ trả MT, loại giờ có trong yêu cầu
+export const suggestActivityCards = (input) => (USE_MOCK ? aiUnavailable() : educationPlanApi.suggestActivityCards(input));
 // BE:EDU-96 — khung Kiểm tra / Tóm tắt cho người duyệt; BE:EDU-95 — Sửa theo yêu cầu
 export const getClassDocChecks = (kind, docKey) =>
   USE_MOCK ? reviewAiMock.getClassDocChecks(kind, docKey) : educationPlanApi.getClassDocChecks(kind, docKey);

@@ -14,9 +14,8 @@ import {
 } from '@/models/education-plan/branchCalendar.mjs';
 import { useEffect, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
-import { Check, Download, FileDown, Lightbulb, Pencil, Save, Trash2, Wand2, X } from '@/components/ui/icons';
+import { Check, Download, FileDown, Pencil, Save, Trash2, X } from '@/components/ui/icons';
 import { branchFile, leaderNameOf } from '@/utils/education-plan/classPlanDoc';
-import { rewriteBranchName, suggestBranchNames } from '@/services/education-plan/educationPlanService';
 import { Card, fmtDate, Notice, PageHead } from '@/components/education-plan/eduUi';
 import DatePickerCell from '@/components/education-plan/DatePickerCell';
 import { VersionHistory } from '@/components/education-plan/VersionHistory';
@@ -32,9 +31,6 @@ import {
 } from '@/components/education-plan/planUi';
 import { RejectedNotice } from '@/components/education-plan/reviewUi';
 import { EmptyState, LoadingState } from '@/components/ui/States';
-import { AiWorkingOverlay } from '@/components/ui/AiWorkingOverlay';
-import { Modal } from '@/components/ui/Modal';
-import { useAiRun } from '@/hooks/useAiRun';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { useManualSave } from '@/hooks/education-plan/useManualSave';
@@ -187,15 +183,10 @@ function BranchPlanInner({ classId, ctx, onEditingChange }) {
   const saved = yearPlan ? branchPlans.find((b) => b.classId === classId && b.yearPlanId === yearPlan.id) || null : null;
   const [draft, setDraft] = useState(null);
   const [dirty, setDirty] = useState(false);
-  // AI điền thẳng vào ô; tuần còn chờ giáo viên bấm giữ (✓) hoặc bỏ (✗): { [weekStart]: { prev, base } }
+  // Tên nhập từ file điền thẳng vào ô; tuần còn chờ giáo viên bấm giữ (✓) hoặc bỏ (✗): { [weekStart]: { prev, base } }
   // prev: tên trước khi AI đụng vào (✗ trả về), base: tên dùng để viết lại
   const [pending, setPending] = useState({});
-  const [aiTheme, setAiTheme] = useState(null);
   // AI viết lại tên đã có: tuần đang chờ kết quả và số lần đã viết lại (mỗi lần một cách khác)
-  const [rewriting, setRewriting] = useState(null);
-  const { run: runAi } = useAiRun();
-  const [showPending, setShowPending] = useState(false);
-  const [tries, setTries] = useState({});
   // Hộp xác nhận trước mỗi lần dùng AI: { title, message, confirmLabel, run }
   const [confirm, setConfirm] = useState(null);
   const [copying, setCopying] = useState(false);
@@ -332,9 +323,6 @@ function BranchPlanInner({ classId, ctx, onEditingChange }) {
     );
   const allRows = branchDisplayRows(yearPlan, draft);
   const displayRows = allRows.filter(inSemester);
-  const mappedWeeks = allRows.filter((r) => r.type === 'week' && branchForWeek(r));
-  const weekCount = mappedWeeks.length;
-  const empty = mappedWeeks.filter((r) => !draft.names[r.start]?.trim()).length;
   const set = (field, key, value) => {
     setDraft((d) =>
       d.schemaVersion === 2 ? updateWeek(d, yearPlan, field, key, value) : { ...d, [field]: { ...d[field], [key]: value } },
@@ -347,32 +335,6 @@ function BranchPlanInner({ classId, ctx, onEditingChange }) {
       return rest;
     });
   // Gợi ý các tuần còn trống: của một chủ đề, hoặc cả năm khi theme = null
-  const askAi = async (theme) => {
-    const weekRows = mappedWeeks;
-    const targets = weekRows.filter((r) => (!theme || r.theme.id === theme.id) && !draft.names[r.start]?.trim() && branchForWeek(r));
-    if (!targets.length) return toast(theme ? 'Các tuần của chủ đề này đã có tên chủ đề nhánh' : 'Cả năm đã có tên chủ đề nhánh');
-    const taken = weekRows.filter((r) => !targets.includes(r)).map((r) => draft.names[r.start] || '');
-    const themes = [...new Map(targets.map((r) => [r.theme.id, r.theme])).values()].map((t) => ({
-      id: t.id,
-      name: t.name,
-      festivals: t.festivals || '',
-      weeks: targets.filter((r) => r.theme.id === t.id).map((r) => ({ start: r.start, no: r.no })),
-    }));
-    setAiTheme(theme ? theme.id : 'all');
-    try {
-      const res = await runAi(() => suggestBranchNames({ classId, ageGroupId: cls.ageGroupId, themes, taken }));
-      res.suggestions.forEach((x) => set('names', x.weekStart, x.name));
-      setPending((p) => ({
-        ...p,
-        ...Object.fromEntries(res.suggestions.map((x) => [x.weekStart, { prev: draft.names[x.weekStart] || '', base: x.name }])),
-      }));
-      if (res.suggestions.length) setShowPending(true);
-    } catch {
-      toast('Chưa lấy được gợi ý. Bạn vẫn có thể tự nhập tên chủ đề nhánh.', 'warn');
-    } finally {
-      setAiTheme(null);
-    }
-  };
   // Giáo viên sửa ô đang chờ: lần viết lại sau dựa trên chữ vừa sửa
   const editName = (week, value) => {
     // Nhập tên trước khi chọn ngày: tuần chưa có nhánh tự thành nhánh 1 tuần, đổi ngày sau
@@ -382,55 +344,6 @@ function BranchPlanInner({ classId, ctx, onEditingChange }) {
       return rest;
     });
     setPending((p) => (p[week] ? { ...p, [week]: { ...p[week], base: value } } : p));
-  };
-  const rewrite = async (r) => {
-    // Mỗi lần bấm viết lại từ cùng một tên gốc, không chồng lên bản AI trước
-    const p0 = pending[r.start];
-    const current = p0?.base ?? (draft.names[r.start] || '');
-    setRewriting(r.start);
-    try {
-      const res = await runAi(() => rewriteBranchName({ classId, name: current, themeName: r.theme.name, attempt: tries[r.start] || 0 }));
-      setTries((t) => ({ ...t, [r.start]: (t[r.start] || 0) + 1 }));
-      set('names', r.start, res.name);
-      // ✗ trả về tên gốc của giáo viên
-      setPending((p) => ({ ...p, [r.start]: { prev: p0 ? p0.prev : current, base: current } }));
-      setShowPending(true);
-    } catch {
-      toast('Chưa viết lại được. Bạn vẫn có thể tự sửa tên.', 'warn');
-    } finally {
-      setRewriting(null);
-    }
-  };
-  // Viết lại mọi tuần đã có tên trong năm, mỗi tuần vào trạng thái chờ ✓ / ✗ như viết lại từng ô
-  const rewriteAll = async () => {
-    const named = mappedWeeks.filter((r) => draft.names[r.start]?.trim());
-    if (!named.length) return toast('Chưa có tên chủ đề nhánh nào để viết lại');
-    setAiTheme('rewrite');
-    try {
-      const results = await runAi(() =>
-        Promise.all(
-          named.map((r) => {
-            const base = pending[r.start]?.base ?? draft.names[r.start];
-            return rewriteBranchName({ classId, name: base, themeName: r.theme.name, attempt: tries[r.start] || 0 }).then((res) => ({
-              r,
-              base,
-              name: res.name,
-            }));
-          }),
-        ),
-      );
-      results.forEach((x) => set('names', x.r.start, x.name));
-      setTries((t) => ({ ...t, ...Object.fromEntries(named.map((r) => [r.start, (t[r.start] || 0) + 1])) }));
-      setPending((p) => ({
-        ...p,
-        ...Object.fromEntries(results.map((x) => [x.r.start, { prev: p[x.r.start]?.prev ?? x.base, base: x.base }])),
-      }));
-      setShowPending(true);
-    } catch {
-      toast('Chưa viết lại được. Bạn vẫn có thể tự sửa tên.', 'warn');
-    } finally {
-      setAiTheme(null);
-    }
   };
   const rejectAi = (week) => {
     set('names', week, pending[week].prev);
@@ -445,40 +358,13 @@ function BranchPlanInner({ classId, ctx, onEditingChange }) {
   const confirmRejectAll = () =>
     setConfirm({
       danger: true,
-      title: `Bỏ cả ${pendingWeeks.length} tên AI điền?`,
-      message: 'Các tuần này trở về tên trước khi AI điền (để trống nếu trước đó chưa có tên).',
+      title: `Bỏ cả ${pendingWeeks.length} tên nhập từ file?`,
+      message: 'Các tuần này trở về tên trước khi nhập (để trống nếu trước đó chưa có tên).',
       confirmLabel: 'Bỏ tất cả',
       run: rejectAll,
     });
-  const aiBusy = !!aiTheme || !!rewriting;
+  // AI đặt/viết lại tên nhánh đã bỏ (Tiền 25/11/2026); ô chờ ✓/✗ còn dùng cho nhập từ file
   const printArgs = { doc: saved || draft, cls, yearPlan, teachers, leaderName: leaderNameOf(staff, cls.ageGroupId, yearPlan?.schoolYear) };
-  // Hỏi trước khi chạy AI; kết quả là bản nháp để giáo viên giữ / bỏ
-  const confirmSuggest = (theme) => {
-    const n = mappedWeeks.filter((r) => (!theme || r.theme.id === theme.id) && !draft.names[r.start]?.trim()).length;
-    if (!n) return toast(theme ? 'Các tuần của chủ đề này đã có tên chủ đề nhánh' : 'Cả năm đã có tên chủ đề nhánh');
-    setConfirm({
-      title: theme ? `AI gợi ý cho "${theme.name}"?` : 'AI gợi ý cả năm?',
-      message: `AI sẽ đặt tên chủ đề nhánh cho ${n} tuần còn trống.`,
-      confirmLabel: 'Dùng AI gợi ý',
-      run: () => askAi(theme),
-    });
-  };
-  const confirmRewriteAll = () => {
-    const n = mappedWeeks.filter((r) => draft.names[r.start]?.trim()).length;
-    setConfirm({
-      title: 'AI viết lại cả năm?',
-      message: `AI sẽ viết lại ${n} tên chủ đề nhánh cho hay hơn.`,
-      confirmLabel: 'Dùng AI viết lại',
-      run: rewriteAll,
-    });
-  };
-  const confirmRewrite = (r) =>
-    setConfirm({
-      title: `AI viết lại tuần ${r.no}?`,
-      message: 'AI sẽ viết lại tên chủ đề nhánh cho hay hơn.',
-      confirmLabel: 'Dùng AI viết lại',
-      run: () => rewrite(r),
-    });
   const editReason = ctx.superseded
     ? 'Đang xem phiên bản kế hoạch tổ cũ'
     : !canEdit
@@ -523,7 +409,6 @@ function BranchPlanInner({ classId, ctx, onEditingChange }) {
   const importFile = (result, context) => {
     if (
       !canEdit ||
-      aiBusy ||
       saver.saving ||
       context.classId !== classId ||
       context.yearPlanId !== yearPlan.id ||
@@ -560,7 +445,7 @@ function BranchPlanInner({ classId, ctx, onEditingChange }) {
               <button
                 type="button"
                 className="btn btn--sm btn--outline-primary"
-                disabled={aiBusy || saver.saving}
+                disabled={saver.saving}
                 onClick={() => setImportContext({ classId, yearPlanId: yearPlan.id, draftCalendar: draft })}
               >
                 <Download size={16} aria-hidden /> Nhập file
@@ -585,7 +470,7 @@ function BranchPlanInner({ classId, ctx, onEditingChange }) {
             )}
             {/* Chỉnh sửa / Hủy cùng một chỗ, Lưu đứng sau (Tiền 13/11/2026) */}
             {editable ? (
-              <button type="button" className="btn btn--sm btn--outline-primary" disabled={aiBusy || saver.saving} onClick={cancelEdit}>
+              <button type="button" className="btn btn--sm btn--outline-primary" disabled={saver.saving} onClick={cancelEdit}>
                 <X size={16} aria-hidden /> Hủy
               </button>
             ) : (
@@ -697,26 +582,7 @@ function BranchPlanInner({ classId, ctx, onEditingChange }) {
                     <Check size={16} aria-hidden /> Giữ tất cả ({pendingWeeks.length})
                   </button>
                 </>
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    className="btn btn--outline-primary btn--sm"
-                    disabled={aiBusy || !empty}
-                    onClick={() => confirmSuggest(null)}
-                  >
-                    <Lightbulb size={16} aria-hidden /> AI gợi ý cả năm
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn--outline-primary btn--sm"
-                    disabled={aiBusy || empty === weekCount}
-                    onClick={confirmRewriteAll}
-                  >
-                    <Wand2 size={16} aria-hidden /> AI viết lại cả năm
-                  </button>
-                </>
-              )}
+              ) : null}
             </span>
           ) : null
         }
@@ -766,18 +632,6 @@ function BranchPlanInner({ classId, ctx, onEditingChange }) {
                           {version.unresolved.some((f) => f.ref === `theme:${r.theme.id}`) && (
                             <span className="field__error">Chủ đề đổi ở kế hoạch năm mới — kiểm tra tên nhánh</span>
                           )}
-                          {rowEditable && (
-                            <span>
-                              <button
-                                type="button"
-                                className="btn btn--outline-primary btn--sm"
-                                disabled={aiBusy}
-                                onClick={() => confirmSuggest(r.theme)}
-                              >
-                                <Lightbulb size={14} aria-hidden /> {aiTheme === r.theme.id ? 'Đang gợi ý…' : 'AI gợi ý'}
-                              </button>
-                            </span>
-                          )}
                         </div>
                       </td>
                     );
@@ -813,18 +667,6 @@ function BranchPlanInner({ classId, ctx, onEditingChange }) {
                               placeholder="Nhập tên chủ đề nhánh"
                               onChange={(v) => editName(r.start, v)}
                             />
-                            {rowEditable && branch && !pending[r.start] && draft.names[r.start]?.trim() && (
-                              <button
-                                type="button"
-                                className="icon-btn"
-                                title="AI viết lại cho hay hơn"
-                                aria-label={`AI viết lại tên chủ đề nhánh tuần ${r.no}`}
-                                disabled={aiBusy}
-                                onClick={() => confirmRewrite(r)}
-                              >
-                                <Wand2 size={16} aria-hidden />
-                              </button>
-                            )}
                             {/* BE:EDU-100 — xóa nhánh (kể cả nhánh kế thừa) khi kế hoạch giáo dục chủ đề của học kỳ chưa duyệt */}
                             {rowEditable && branch && firstBranchWeek && canDropBranch(r.theme.id) && (
                               <Button
@@ -833,18 +675,17 @@ function BranchPlanInner({ classId, ctx, onEditingChange }) {
                                 icon={Trash2}
                                 title="Xóa chủ đề nhánh"
                                 aria-label={`Xóa chủ đề nhánh ${branch.name?.trim() || `tuần ${r.no}`}`}
-                                disabled={aiBusy}
                                 onClick={() => confirmRemove(branch, branchWeeks(branch, yearPlan, draft).length)}
                               />
                             )}
-                            {/* Tên do AI điền hoặc viết lại: giữ (✓) hoặc bỏ (✗) ngay cạnh ô */}
+                            {/* Tên nhập từ file: giữ (✓) hoặc bỏ (✗) ngay cạnh ô */}
                             {rowEditable && pending[r.start] && (
                               <>
                                 <button
                                   type="button"
                                   className="icon-btn"
-                                  title="Giữ gợi ý"
-                                  aria-label={`Giữ gợi ý tuần ${r.no}`}
+                                  title="Giữ tên đã nhập"
+                                  aria-label={`Giữ tên đã nhập tuần ${r.no}`}
                                   onClick={() => settle(r.start)}
                                 >
                                   <Check size={16} aria-hidden />
@@ -852,8 +693,8 @@ function BranchPlanInner({ classId, ctx, onEditingChange }) {
                                 <button
                                   type="button"
                                   className="icon-btn"
-                                  title="Bỏ gợi ý"
-                                  aria-label={`Bỏ gợi ý tuần ${r.no}`}
+                                  title="Bỏ tên đã nhập"
+                                  aria-label={`Bỏ tên đã nhập tuần ${r.no}`}
                                   onClick={() => rejectAi(r.start)}
                                 >
                                   <X size={16} aria-hidden />
@@ -966,71 +807,6 @@ function BranchPlanInner({ classId, ctx, onEditingChange }) {
         onClose={() => setConfirm(null)}
       />
       {/* Ký, gửi, duyệt ngay cuối trang như trang mục tiêu năm; không mở hộp thoại */}
-      {/* AI xong ⇒ tên AI điền mở trong modal để giữ/bỏ; đóng modal thì ✓/✗ cạnh từng ô vẫn còn (user chốt) */}
-      <Modal
-        open={showPending && editable && pendingWeeks.length > 0}
-        onClose={() => setShowPending(false)}
-        size="lg"
-        title={`Tên chủ đề nhánh AI điền (${pendingWeeks.length})`}
-        footer={
-          <>
-            <button type="button" className="btn btn--ghost" onClick={() => setShowPending(false)}>
-              Đóng, xử lý sau
-            </button>
-            <button
-              type="button"
-              className="btn"
-              onClick={() => {
-                setShowPending(false);
-                confirmRejectAll();
-              }}
-            >
-              <X size={16} aria-hidden /> Bỏ tất cả
-            </button>
-            <button type="button" className="btn btn--success" onClick={() => setPending({})}>
-              <Check size={16} aria-hidden /> Giữ tất cả
-            </button>
-          </>
-        }
-      >
-        <p className="muted text-sm mb-12">Bản nháp AI: bấm ✓ để giữ, ✗ để trả về tên cũ. Đã giữ vẫn sửa được trong bảng.</p>
-        <ul className="ga-ai-review">
-          {mappedWeeks
-            .filter((r) => pending[r.start])
-            .map((r) => (
-              <li key={r.start} className="ga-ai-review__item">
-                <div className="ga-ai-review__week">
-                  <b>Tuần {r.no}</b> <span className="muted text-sm">· {r.theme.name}</span>
-                </div>
-                <div className="ga-ai-review__name">
-                  {pending[r.start].prev && <del className="muted">{pending[r.start].prev}</del>}
-                  <ins>{draft.names[r.start]}</ins>
-                </div>
-                <button
-                  type="button"
-                  className="icon-btn"
-                  title="Giữ gợi ý"
-                  aria-label={`Giữ gợi ý tuần ${r.no}`}
-                  onClick={() => settle(r.start)}
-                >
-                  <Check size={16} aria-hidden />
-                </button>
-                <button
-                  type="button"
-                  className="icon-btn"
-                  title="Bỏ gợi ý"
-                  aria-label={`Bỏ gợi ý tuần ${r.no}`}
-                  onClick={() => rejectAi(r.start)}
-                >
-                  <X size={16} aria-hidden />
-                </button>
-              </li>
-            ))}
-        </ul>
-      </Modal>
-      {aiBusy && (
-        <AiWorkingOverlay text={aiTheme === 'rewrite' || rewriting ? 'Đang viết lại tên chủ đề nhánh…' : 'Đang gợi ý tên chủ đề nhánh…'} />
-      )}
       <LeaveConfirmModal
         {...guard.modal}
         onDiscard={() => {
