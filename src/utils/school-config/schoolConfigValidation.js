@@ -210,6 +210,37 @@ export const validateCutoff = (form, year) => {
     else if (form.time && TIME.test(form.time) && form.latestAfternoonArrival <= form.time)
       e.latestAfternoonArrival = `Giờ đến muộn nhất buổi chiều phải sau giờ chốt ${form.time}`;
   }
+  const schedule = [
+    ['dropoffOpenFrom', 'Nhập giờ mở đón trẻ'],
+    ['morningStart', 'Nhập giờ bắt đầu buổi sáng'],
+    ['morningEnd', 'Nhập giờ kết thúc buổi sáng'],
+    ['afternoonStart', 'Nhập giờ bắt đầu buổi chiều'],
+    ['pickupStart', 'Nhập giờ bắt đầu khung trả trẻ'],
+    ['fullDayPickupFrom', 'Nhập mốc tính đủ ngày'],
+    ['pickupEnd', 'Nhập giờ kết thúc khung trả trẻ'],
+    ['afternoonEnd', 'Nhập giờ kết thúc buổi chiều'],
+  ];
+  schedule.forEach(([key, required]) => {
+    if (!form[key]) e[key] = required;
+    else if (!TIME.test(form[key])) e[key] = 'Nhập giờ hợp lệ dạng HH:mm, ví dụ 15:30';
+  });
+  if (!schedule.some(([key]) => e[key])) {
+    const [dropoffOpenFrom, morningStart, morningEnd, afternoonStart, pickupStart, fullDayPickupFrom, pickupEnd, afternoonEnd] =
+      schedule.map(([key]) => form[key]);
+    if (
+      !(
+        dropoffOpenFrom <= morningStart &&
+        morningStart < morningEnd &&
+        morningEnd < afternoonStart &&
+        afternoonStart < pickupStart &&
+        pickupStart <= fullDayPickupFrom &&
+        fullDayPickupFrom < pickupEnd &&
+        pickupEnd <= afternoonEnd
+      )
+    )
+      e.fullDayPickupFrom =
+        'Thứ tự phải là: mở đón trẻ ≤ bắt đầu sáng < kết thúc sáng < bắt đầu chiều < bắt đầu trả trẻ ≤ mốc tính đủ ngày < kết thúc trả trẻ ≤ kết thúc chiều';
+  }
   return withLength(e, form, CUTOFF_LIMITS);
 };
 

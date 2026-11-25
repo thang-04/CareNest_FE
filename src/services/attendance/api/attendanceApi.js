@@ -52,6 +52,7 @@ const toSheet = (data) => {
           part: leave.part || 'FULL_DAY',
           eats: leave.eats ?? null,
           eatsMeals: leave.eatsMeals || [],
+          noticeOnly: !!leave.noticeOnly,
         }
       : null,
     healthSummary: dailyHealthSummaryFromBe(health),

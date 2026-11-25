@@ -21,6 +21,27 @@ test('cấu hình giờ: giờ đến muộn nhất buổi chiều phải sau gi
   assert.match(validateCutoff({ ...base, latestAfternoonArrival: '08:00' }, year).latestAfternoonArrival, /sau giờ chốt 08:30/);
 });
 
+test('cấu hình giờ sinh hoạt phải theo đúng thứ tự và có mốc tính đủ ngày', () => {
+  const year = { name: '2026-2027', startDate: '2026-09-01', endDate: '2027-05-31' };
+  const base = {
+    time: '08:30',
+    effectiveFrom: '2026-11-19',
+    dropoffOpenFrom: '06:30',
+    morningStart: '07:00',
+    morningEnd: '11:00',
+    afternoonStart: '13:30',
+    pickupStart: '15:00',
+    fullDayPickupFrom: '15:30',
+    pickupEnd: '17:00',
+    afternoonEnd: '17:00',
+  };
+  assert.equal(Object.keys(validateCutoff(base, year)).length, 0);
+  assert.match(
+    validateCutoff({ ...base, fullDayPickupFrom: '13:00' }, year).fullDayPickupFrom,
+    /mở đón trẻ ≤ bắt đầu sáng < kết thúc sáng < bắt đầu chiều < bắt đầu trả trẻ ≤ mốc tính đủ ngày < kết thúc trả trẻ ≤ kết thúc chiều/,
+  );
+});
+
 test('điểm danh: trẻ nghỉ sáng có nút Đã đến, trẻ nghỉ chiều khóa bữa xế', () => {
   const page = readFileSync('src/pages/attendance/AttendancePage.jsx', 'utf8');
   assert.match(page, /markArrived\(\{ classId, childId: row\.child\.id, date \}, user\)/);

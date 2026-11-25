@@ -51,7 +51,20 @@ export default function CutoffSettingPage() {
   const md = useMasterData();
   const yearId = useConfigYear();
   const { year, setting, loading, error, reload } = useCutoffSetting(yearId, { live: false });
-  const [form, setForm] = useState({ time: '', effectiveFrom: '', note: '', latestAfternoonArrival: '' });
+  const [form, setForm] = useState({
+    time: '',
+    effectiveFrom: '',
+    note: '',
+    latestAfternoonArrival: '',
+    dropoffOpenFrom: '',
+    morningStart: '',
+    morningEnd: '',
+    afternoonStart: '',
+    pickupStart: '',
+    fullDayPickupFrom: '',
+    pickupEnd: '',
+    afternoonEnd: '',
+  });
   const [initial, setInitial] = useState(null);
   const [errors, setErrors] = useState({});
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -85,13 +98,36 @@ export default function CutoffSettingPage() {
       effectiveFrom: from,
       note: '',
       latestAfternoonArrival: setting?.latestAfternoonArrival || '14:00',
+      dropoffOpenFrom: setting?.dropoffOpenFrom || '06:30',
+      morningStart: setting?.morningStart || '07:00',
+      morningEnd: setting?.morningEnd || '11:00',
+      afternoonStart: setting?.afternoonStart || '13:30',
+      pickupStart: setting?.pickupStart || '15:00',
+      fullDayPickupFrom: setting?.fullDayPickupFrom || '15:30',
+      pickupEnd: setting?.pickupEnd || '17:00',
+      afternoonEnd: setting?.afternoonEnd || '17:00',
     };
     setForm(next);
     setInitial(next);
     setErrors({});
   }, [year, setting]);
 
-  const dirty = !!initial && ['time', 'effectiveFrom', 'note', 'latestAfternoonArrival'].some((key) => form[key] !== initial[key]);
+  const dirty =
+    !!initial &&
+    [
+      'time',
+      'effectiveFrom',
+      'note',
+      'latestAfternoonArrival',
+      'dropoffOpenFrom',
+      'morningStart',
+      'morningEnd',
+      'afternoonStart',
+      'pickupStart',
+      'fullDayPickupFrom',
+      'pickupEnd',
+      'afternoonEnd',
+    ].some((key) => form[key] !== initial[key]);
   // Rời màn khi đang sửa giờ chốt ⇒ hỏi; "Lưu" trong hộp kiểm tra rồi lưu như nút Lưu giờ chốt
   const guard = useLeaveGuard({
     when: (dirty && !saving) || childDirty,
@@ -124,7 +160,15 @@ export default function CutoffSettingPage() {
       setting &&
       setting.time === form.time &&
       setting.effectiveFrom === form.effectiveFrom &&
-      (setting.latestAfternoonArrival || '14:00') === form.latestAfternoonArrival
+      (setting.latestAfternoonArrival || '14:00') === form.latestAfternoonArrival &&
+      (setting.dropoffOpenFrom || '06:30') === form.dropoffOpenFrom &&
+      (setting.morningStart || '07:00') === form.morningStart &&
+      (setting.morningEnd || '11:00') === form.morningEnd &&
+      (setting.afternoonStart || '13:30') === form.afternoonStart &&
+      (setting.pickupStart || '15:00') === form.pickupStart &&
+      (setting.fullDayPickupFrom || '15:30') === form.fullDayPickupFrom &&
+      (setting.pickupEnd || '17:00') === form.pickupEnd &&
+      (setting.afternoonEnd || '17:00') === form.afternoonEnd
     )
       e.time = 'Giờ chốt và ngày áp dụng chưa thay đổi';
     setErrors(e);
@@ -184,7 +228,8 @@ export default function CutoffSettingPage() {
                   <b className="sc-cutoff__time">{setting.time}</b>
                   <span className="text-sm text-2">
                     từ {formatDate(setting.effectiveFrom)} · năm học {year.name} · trẻ nghỉ sáng đến muộn nhất{' '}
-                    {setting.latestAfternoonArrival || '14:00'}
+                    {setting.latestAfternoonArrival || '14:00'} · đón trẻ từ {setting.dropoffOpenFrom || '06:30'} · trả trẻ{' '}
+                    {setting.pickupStart || '15:00'}–{setting.pickupEnd || '17:00'} · tính đủ ngày từ {setting.fullDayPickupFrom || '15:30'}
                   </span>
                 </div>
               ) : (
@@ -194,7 +239,7 @@ export default function CutoffSettingPage() {
 
             <section className="card">
               <div className="card__header">
-                <h2 className="card__title">Thay đổi giờ chốt</h2>
+                <h2 className="card__title">Giờ chốt và lịch sinh hoạt</h2>
               </div>
               <div className="card__body">
                 {closed ? (
@@ -222,6 +267,72 @@ export default function CutoffSettingPage() {
                         hint="Trẻ nghỉ buổi sáng chưa đến lớp trước giờ này được ghi Vắng cả ngày."
                         value={form.latestAfternoonArrival}
                         onChange={(e) => set({ latestAfternoonArrival: e.target.value })}
+                      />
+                      <TextField
+                        label="Mở đón trẻ"
+                        required
+                        type="time"
+                        error={errors.dropoffOpenFrom}
+                        hint="Thời điểm nhà trường bắt đầu nhận trẻ đầu ngày."
+                        value={form.dropoffOpenFrom}
+                        onChange={(e) => set({ dropoffOpenFrom: e.target.value })}
+                      />
+                      <TextField
+                        label="Bắt đầu buổi sáng"
+                        required
+                        type="time"
+                        error={errors.morningStart}
+                        value={form.morningStart}
+                        onChange={(e) => set({ morningStart: e.target.value })}
+                      />
+                      <TextField
+                        label="Kết thúc buổi sáng"
+                        required
+                        type="time"
+                        error={errors.morningEnd}
+                        value={form.morningEnd}
+                        onChange={(e) => set({ morningEnd: e.target.value })}
+                      />
+                      <TextField
+                        label="Bắt đầu buổi chiều"
+                        required
+                        type="time"
+                        error={errors.afternoonStart}
+                        value={form.afternoonStart}
+                        onChange={(e) => set({ afternoonStart: e.target.value })}
+                      />
+                      <TextField
+                        label="Bắt đầu khung trả trẻ"
+                        required
+                        type="time"
+                        error={errors.pickupStart}
+                        value={form.pickupStart}
+                        onChange={(e) => set({ pickupStart: e.target.value })}
+                      />
+                      <TextField
+                        label="Từ giờ này trả trẻ tính đủ ngày"
+                        required
+                        type="time"
+                        error={errors.fullDayPickupFrom}
+                        hint="Trẻ đã có mặt buổi sáng, được trả trước mốc này tính 0,5 ngày; từ mốc này tính 1 ngày."
+                        value={form.fullDayPickupFrom}
+                        onChange={(e) => set({ fullDayPickupFrom: e.target.value })}
+                      />
+                      <TextField
+                        label="Kết thúc khung trả trẻ"
+                        required
+                        type="time"
+                        error={errors.pickupEnd}
+                        value={form.pickupEnd}
+                        onChange={(e) => set({ pickupEnd: e.target.value })}
+                      />
+                      <TextField
+                        label="Kết thúc buổi chiều"
+                        required
+                        type="time"
+                        error={errors.afternoonEnd}
+                        value={form.afternoonEnd}
+                        onChange={(e) => set({ afternoonEnd: e.target.value })}
                       />
                       <FormField label="Áp dụng từ ngày" required error={errors.effectiveFrom}>
                         <DateInput
@@ -264,7 +375,7 @@ export default function CutoffSettingPage() {
                     <th>Người thay đổi</th>
                     <th className="center">Giờ cũ</th>
                     <th className="center">Giờ mới</th>
-                    <th className="center">Đến muộn nhất chiều</th>
+                    <th className="center">Lịch sinh hoạt</th>
                     <th className="center">Áp dụng từ</th>
                     <th>Ghi chú</th>
                   </tr>
@@ -288,7 +399,11 @@ export default function CutoffSettingPage() {
                         <td>{h.userName || md.userById(h.userId)?.fullName || h.userId}</td>
                         <td className="center">{h.previousTime || '—'}</td>
                         <td className="fw-600 center">{h.time}</td>
-                        <td className="center">{h.latestAfternoonArrival || '14:00'}</td>
+                        <td className="center">
+                          Đón {h.dropoffOpenFrom || '06:30'} · sáng {h.morningStart || '07:00'}–{h.morningEnd || '11:00'} · chiều{' '}
+                          {h.afternoonStart || '13:30'}–{h.afternoonEnd || '17:00'} · trả trẻ {h.pickupStart || '15:00'}–
+                          {h.pickupEnd || '17:00'} · đủ ngày từ {h.fullDayPickupFrom || '15:30'}
+                        </td>
                         <td className="center">{formatDate(h.effectiveFrom)}</td>
                         <td className="sc-wrap">{h.note || <span className="muted">—</span>}</td>
                       </tr>
@@ -315,8 +430,9 @@ export default function CutoffSettingPage() {
         title="Lưu giờ chốt"
         message={
           <>
-            Từ ngày <b>{formatDate(form.effectiveFrom)}</b>, điểm danh và suất ăn sẽ khóa lúc <b>{form.time}</b> mỗi ngày học; trẻ nghỉ buổi
-            sáng chưa đến trước <b>{form.latestAfternoonArrival}</b> được ghi Vắng cả ngày.
+            Từ ngày <b>{formatDate(form.effectiveFrom)}</b>, điểm danh và suất ăn sẽ khóa lúc <b>{form.time}</b>. Trẻ nghỉ sáng chưa đến
+            trước <b>{form.latestAfternoonArrival}</b> được ghi vắng cả ngày; khung trả trẻ là <b>{form.pickupStart}</b>–
+            <b>{form.pickupEnd}</b>. Trẻ đã có mặt sáng được trả trước <b>{form.fullDayPickupFrom}</b> tính 0,5 ngày.
           </>
         }
         confirmLabel="Lưu giờ chốt"
