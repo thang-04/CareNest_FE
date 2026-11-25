@@ -17,6 +17,15 @@ const toKitchenDay = (day) => ({
   servings: day?.servings || [],
   foods: day?.foods || [],
 });
+// BE luôn trả đủ mảng; chuẩn hóa để màn không phải kiểm null từng chỗ
+const toPhotoWeek = (week) => ({
+  ...week,
+  days: (week?.days || []).map((day) => ({
+    ...day,
+    sessions: (day.sessions || []).map((session) => ({ ...session, dishes: session.dishes || [] })),
+    inspections: day.inspections || [],
+  })),
+});
 const toSample = (sample) => ({ ...sample, dishes: sample?.dishes || [] });
 
 /** Factory để test thay client HTTP. */
@@ -43,6 +52,14 @@ export const createKitchenRecordsApi = ({ client = beClient } = {}) => ({
   /** Ảnh bữa của điểm trường trong ngày (metadata); nội dung ảnh tải qua `getPhotoBlob`. */
   async listPhotos({ campusId, date } = {}) {
     return (await client.get('/nutrition/meal-photos', { params: params({ campusId, date }) })) || [];
+  },
+
+  /**
+   * Ảnh bữa ăn cả tuần (thứ 2–6) kèm người đăng, đúng/trễ giờ, thực đơn, suất, lưu mẫu, biên bản kiểm thực; do BE tổng hợp,
+   * chỉ Hiệu trưởng và PHT gọi được. `weekStart` bỏ trống = tuần hiện tại theo BE.
+   */
+  async getPhotoWeek({ campusId, weekStart } = {}) {
+    return toPhotoWeek(await client.get('/nutrition/meal-photos/week', { params: params({ campusId, weekStart }) }));
   },
 
   /** Nội dung ảnh qua client có token (thẻ img không gửi được header Authorization). */

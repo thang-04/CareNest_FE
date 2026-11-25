@@ -33,7 +33,9 @@ import { toBeSchoolYear } from '@/services/http/schoolYearIds';
  * - Kỳ cân đo (user chốt 2026-10-31): kind EXAM | MEASUREMENT (đợt cũ không có ⇒ EXAM); POST nhận kind, PUT không đổi kind. Mỗi điểm
  *   trường 1 đợt/kỳ chưa đóng. GET schedule-warnings { campusId, kind, startDate, excludeId? } trả { warnings: [{ code: TOO_CLOSE |
  *   EXAM_IN_SCHOOL_YEAR, campaignId, name, kind, startDate }] }, không chặn lưu. Danh sách lớp của kỳ: result NOT_RECORDED | RECORDED |
- *   ABSENT.
+ *   ABSENT. Mỗi dòng trẻ của GET .../classes/{classId}/children có thêm (HLT-09, HLT-01; BE trả, FE chỉ hiển thị): canEdit (bool),
+ *   movedTo { className, campusName, from } | null (trẻ đã chuyển lớp, chỉ xem), measuredIn { className, campusName, date } | null
+ *   (số đo thực hiện ở lớp khác), absentToday (bool, điểm danh hôm nay; BE chặn nhập số đo 5042).
  */
 // BE trả id số; màn và mock dùng id chuỗi (plan 2026-11-11-children-module-be-wiring)
 const read = (promise) => promise.then(stringifyIds);

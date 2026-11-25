@@ -18,6 +18,7 @@ export default defineConfig({
         target: process.env.DEV_BE_TARGET || 'http://localhost:8080',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/be-api/, '/api'),
+        cookiePathRewrite: { '/api/auth': '/be-api/auth' },
         configure: (proxy) => proxy.on('proxyReq', (req) => req.removeHeader('origin')),
       },
       '/kc': {

@@ -108,7 +108,7 @@ test('AC-1, AC-4, AC-6: sửa khai báo — bắt ngày; lần đầu "Có" báo
     'Hiệu trưởng + Phó hiệu trưởng điểm trường (cũng là người lưu); giáo viên không nhận',
   );
   assert.ok(changed[0].message.includes('01/09/2026') && changed[0].message.includes('08/09/2026'));
-  assert.ok(changed[0].message.includes('sửa khai báo sức khỏe'));
+  assert.ok(changed[0].message.includes('sửa khai báo ăn và sức khỏe'));
   await save(
     withTb(
       readDb().healthDeclarations.find((x) => x.childId === child.id),

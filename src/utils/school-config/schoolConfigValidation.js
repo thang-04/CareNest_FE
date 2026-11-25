@@ -14,6 +14,12 @@ export const nameKey = (text) =>
     .replace(/\s+/g, ' ')
     .toLowerCase();
 const same = (a, b) => nameKey(a) === nameKey(b);
+// Mã là định danh: bỏ toàn bộ khoảng trắng để CS-A, CS - A và cs-a không thể cùng tồn tại.
+export const normalizeCampusCode = (text) =>
+  String(text || '')
+    .normalize('NFC')
+    .replace(/\s+/g, '');
+const sameCampusCode = (a, b) => normalizeCampusCode(a).toLowerCase() === normalizeCampusCode(b).toLowerCase();
 const YEAR_NAME = /^(\d{4})-(\d{4})$/;
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 // Số điện thoại Việt Nam (như CampusRequest.phone của BE): di động 10 số 03/05/07/08/09, cố định 11 số 02x
@@ -241,10 +247,11 @@ export const validateCampus = (form, others = []) => {
   const e = {};
   if (!form.code?.trim()) e.code = 'Nhập mã điểm trường';
   else if (form.code.trim().length > 30) e.code = 'Mã điểm trường tối đa 30 ký tự';
-  else if (others.some((c) => same(c.code, form.code))) e.code = 'Mã điểm trường đã tồn tại';
+  else if (others.some((c) => sameCampusCode(c.code, form.code))) e.code = 'Mã điểm trường đã tồn tại';
   if (!form.name?.trim()) e.name = 'Nhập tên điểm trường';
   else if (others.some((c) => same(c.name, form.name))) e.name = 'Tên điểm trường đã tồn tại';
   if (!form.shortName?.trim()) e.shortName = 'Nhập tên ngắn';
+  else if (others.some((c) => same(c.shortName, form.shortName))) e.shortName = 'Tên ngắn điểm trường đã tồn tại';
   if (!form.address?.trim()) e.address = 'Nhập địa chỉ';
   if (form.phone?.trim() && !isVnPhone(form.phone)) e.phone = PHONE_MESSAGE;
   return withLength(e, form, CAMPUS_LIMITS);

@@ -38,26 +38,6 @@ export const canUnlockAttendanceDay = (cls, user) =>
       (user?.role === ROLES.PRINCIPAL ||
         (user?.role === ROLES.VICE_PRINCIPAL && inBePermissionScope(user, PERMISSIONS.ATTENDANCE_UNLOCK, cls.campusId))));
 
-// AUTH-03 (Cần chốt 15/11/2026): readRanges = các đợt GV đã dạy lớp nay không còn phân công (chỉ xem); lớp đang dạy rỗng.
-// Ngày dạng chuỗi YYYY-MM-DD theo giờ trường, so sánh chuỗi (không qua Date/toISOString).
-export const isPastClass = (cls) => cls?.teaches === false && (cls.readRanges || []).length > 0;
-
-export const inReadRanges = (cls, date) => !isPastClass(cls) || cls.readRanges.some((r) => r.start <= date && date <= r.end);
-
-/** Đợt gần nhất (bắt đầu muộn nhất); null nếu không phải lớp cũ. */
-export const latestReadRange = (cls) => (isPastClass(cls) ? cls.readRanges.reduce((last, r) => (r.start > last.start ? r : last)) : null);
-
-// Như BE (Q5): cắt [from, to] về phần giao với đợt gần nhất có giao, không gộp các đợt rời (không lộ khoảng cấm ở giữa);
-// không giao đợt nào ⇒ null (FE không gọi API)
-export const clipToReadRanges = (ranges, from, to) => {
-  if (!ranges?.length) return { from, to };
-  if (!from || !to || from > to) return null;
-  return ranges
-    .filter((r) => r.end >= from && r.start <= to)
-    .map((r) => ({ from: r.start > from ? r.start : from, to: r.end < to ? r.end : to }))
-    .reduce((last, r) => (!last || r.from > last.from ? r : last), null);
-};
-
 export const canViewAttendance = (cls, user) => {
   if (!cls || !user) return false;
   if (!hasBePermission(user, PERMISSIONS.ATTENDANCE_VIEW, PERMISSIONS.ATTENDANCE_RECORD)) return false;

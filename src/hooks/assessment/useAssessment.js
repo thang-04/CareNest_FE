@@ -4,6 +4,7 @@ import { useAsync } from '@/hooks/useAsync';
 import { useClasses } from '@/hooks/useSchool';
 import {
   getChildDevelopment,
+  getTransferredHistory,
   getDevelopmentChildren,
   getDailyAssessment,
   getDailyAssessmentClasses,
@@ -47,7 +48,12 @@ export function useDailyAssessmentClasses({ enabled = true } = {}) {
   const { schoolYear } = useSchoolYear();
   const { data, loading, error, reload } = useAsync(() => getDailyAssessmentClasses(schoolYear, user), [schoolYear, user?.id], { enabled });
   const classes = useMemo(
-    () => (isLeader(user) ? data || [] : (data || []).filter((c) => c.teaches ?? isClassTeacher(c, user))),
+    () =>
+      isLeader(user)
+        ? data || []
+        : (data || [])
+            .filter((c) => c.historicalReadOnly || (c.teaches ?? isClassTeacher(c, user)))
+            .sort((a, b) => Number(!!a.historicalReadOnly) - Number(!!b.historicalReadOnly)),
     [data, user],
   );
   return { classes, loading, error, reload };
@@ -82,6 +88,21 @@ export function useChildDevelopment(childId, params) {
     enabled: !!childId && !!params?.start && !!params?.end,
   });
   return { development: data, loading, error, reload };
+}
+
+/** Lịch sử lớp cũ của trẻ chuyển đến lớp trong khoảng from..to; thiếu lớp hoặc khoảng thì không gọi. */
+export function useTransferredHistory(classId, range, { enabled = true } = {}) {
+  const { user } = useAuth();
+  const from = range?.from;
+  const to = range?.to;
+  const { data, loading, error, reload } = useAsync(
+    () => getTransferredHistory({ classId, from, to }, user),
+    [classId, from, to, user?.id],
+    {
+      enabled: enabled && !!classId && !!from && !!to,
+    },
+  );
+  return { history: data, loading, error, reload };
 }
 
 export function useEvaluations(kind, filters, { enabled = true } = {}) {

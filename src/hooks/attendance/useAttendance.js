@@ -11,7 +11,7 @@ import {
   getMealCounts,
   getMealHandovers,
 } from '@/services/attendance/attendanceService';
-import { canViewAttendance, clipToReadRanges, isClassTeacher, isPastClass } from '@/utils/attendance/attendancePermissions';
+import { canViewAttendance, isClassTeacher } from '@/utils/attendance/attendancePermissions';
 
 /**
  * Classes for the attendance screens. `own`: only classes the user teaches (recording, meal session),
@@ -26,12 +26,11 @@ export function useAttendanceClasses({ own = false } = {}) {
   const list = useMemo(
     () =>
       (data || [])
-        // AUTH-03: GV giữ cả lớp cũ (chỉ xem trong các đợt đã dạy), lớp đang dạy xếp trước
-        .filter((c) => (own ? isClassTeacher(c, user) || isPastClass(c) : canViewAttendance(c, user)))
+        .filter((c) => (own ? isClassTeacher(c, user) || c.historicalReadOnly : canViewAttendance(c, user)))
         .sort(
           (a, b) =>
-            Number(isPastClass(a)) - Number(isPastClass(b)) ||
-            String(a.campusId).localeCompare(String(b.campusId)) ||
+            Number(!!a.historicalReadOnly) - Number(!!b.historicalReadOnly) ||
+            a.campusId.localeCompare(b.campusId) ||
             a.name.localeCompare(b.name, 'vi'),
         ),
     [data, own, user],
@@ -50,12 +49,10 @@ export function useClassAttendance(classId, date, { live = true } = {}) {
 }
 
 /** Một lớp (classId) hoặc nhiều lớp trong phạm vi (multi: campusId tùy chọn, rỗng = toàn trường). */
-export function useAttendanceSummary({ classId, campusId, ageGroupId, multi = false, from, to, readRanges }) {
+export function useAttendanceSummary({ classId, campusId, ageGroupId, multi = false, from, to }) {
   const { user } = useAuth();
   const { schoolYear } = useSchoolYear();
-  // AUTH-03: lớp cũ mà khoảng chọn không giao đợt đã dạy nào ⇒ không gọi API (BE sẽ 403); BE tự cắt khoảng thực tế
-  const outsideRanges = !multi && !!readRanges?.length && clipToReadRanges(readRanges, from, to) === null;
-  const enabled = (!!classId || multi) && !!from && !!to && from <= to && !outsideRanges;
+  const enabled = (!!classId || multi) && !!from && !!to && from <= to;
   const { data, loading, error, reload } = useAsync(
     () =>
       getAttendanceSummary(
@@ -65,7 +62,7 @@ export function useAttendanceSummary({ classId, campusId, ageGroupId, multi = fa
     [classId, campusId, ageGroupId, multi, from, to, user?.id, schoolYear],
     { enabled, refreshOnDataChange: true },
   );
-  return { summary: data, loading: loading && enabled, error, reload, outsideRanges };
+  return { summary: data, loading: loading && enabled, error, reload };
 }
 
 export function useMealCounts(date) {

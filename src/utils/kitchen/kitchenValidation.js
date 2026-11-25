@@ -4,6 +4,8 @@ import {
   MEAL_SESSIONS as LEGACY_PREP_SESSIONS,
   PREP_STATUS_ORDER,
   NOTE_MAX,
+  DISPOSAL_KIND,
+  DISPOSAL_REASON_MIN,
 } from '@/models/kitchen/kitchenConstants';
 
 /* Each validator returns { field: message }; empty object = valid. Used by forms and by the mock repository (422). */
@@ -127,6 +129,39 @@ export const validateForecastCells = (cells) => {
       else if (!Number.isInteger(n) || n < 0) errors[`${classId}|${date}`] = 'Nhập số nguyên từ 0.';
     }),
   );
+  return errors;
+};
+
+/**
+ * Phiếu xuất kho khô: trả NCC chỉ lô còn hạn và đúng NCC đã giao; xuất hủy chỉ lô đã hết hạn; mỗi phiếu một lý do.
+ * `lotById`: lô của điểm trường { id → { qty, expiryDate, supplierName } }; `supplierName`: NCC đã chọn (trả NCC).
+ */
+export const validateStockDisposal = ({ kind, supplierId, reason, lines }, { lotById, today, supplierName = '' }) => {
+  const errors = {};
+  const isReturn = kind === DISPOSAL_KIND.SUPPLIER_RETURN;
+  if (isReturn && !supplierId) errors.supplierId = 'Chọn nhà cung cấp nhận hàng trả.';
+  const text = String(reason || '').trim();
+  if (text.length < DISPOSAL_REASON_MIN) errors.reason = `Nhập lý do (từ ${DISPOSAL_REASON_MIN} ký tự).`;
+  else if (tooLong(text)) errors.reason = `Lý do tối đa ${NOTE_MAX} ký tự.`;
+  if (!lines?.length) errors.lines = 'Thêm ít nhất một lô.';
+  const seen = new Set();
+  (lines || []).forEach((line, i) => {
+    const lot = lotById?.[line.lotId];
+    if (!line.lotId) errors[`lines.${i}.lotId`] = 'Chọn lô.';
+    else if (!lot) errors[`lines.${i}.lotId`] = 'Lô không còn trong kho.';
+    else if (seen.has(line.lotId)) errors[`lines.${i}.lotId`] = 'Lô đã chọn ở dòng khác.';
+    else {
+      seen.add(line.lotId);
+      const expired = !!lot.expiryDate && lot.expiryDate < today;
+      if (isReturn && expired) errors[`lines.${i}.lotId`] = 'Lô đã hết hạn: dùng "Xuất kho (hết hạn)".';
+      else if (!isReturn && !expired) errors[`lines.${i}.lotId`] = 'Lô còn hạn: trả nhà cung cấp bằng "Xuất kho cho NCC".';
+      else if (isReturn && supplierName && lot.supplierName && lot.supplierName !== supplierName)
+        errors[`lines.${i}.lotId`] = 'Lô này không do nhà cung cấp đã chọn giao.';
+    }
+    const qty = num(line.qty);
+    if (!(qty > 0)) errors[`lines.${i}.qty`] = 'Nhập lớn hơn 0';
+    else if (lot && qty > lot.qty) errors[`lines.${i}.qty`] = `Tối đa ${lot.qty}`;
+  });
   return errors;
 };
 

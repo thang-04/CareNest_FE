@@ -88,6 +88,24 @@ test('ảnh bữa: danh sách theo điểm trường và ngày; nội dung tải
   assert.equal(await api.getPhotoBlob('4'), blob);
 });
 
+test('ảnh bữa cả tuần: gọi theo điểm trường và tuần, chuẩn hóa mảng thiếu về rỗng', async () => {
+  const client = fakeClient({
+    'GET /nutrition/meal-photos/week': {
+      campusId: 1,
+      weekStart: '2026-11-23',
+      days: [{ date: '2026-11-23', dayOff: false, upcoming: false, sessions: [{ session: 'LUNCH', status: 'MISSING' }] }],
+    },
+  });
+  const api = createKitchenRecordsApi({ client });
+  const week = await api.getPhotoWeek({ campusId: '1', weekStart: '2026-11-23' });
+  assert.deepEqual(client.calls[0].params, { campusId: '1', weekStart: '2026-11-23' });
+  assert.equal(week.days[0].sessions[0].status, 'MISSING');
+  assert.deepEqual(week.days[0].sessions[0].dishes, []);
+  assert.deepEqual(week.days[0].inspections, []);
+  const empty = createKitchenRecordsApi({ client: fakeClient({ 'GET /nutrition/meal-photos/week': null }) });
+  assert.deepEqual((await empty.getPhotoWeek({ campusId: '1' })).days, []);
+});
+
 test('khung giờ ảnh: GET đọc, PUT chỉ gửi bữa đã điền, chặn giờ sai trước khi gọi BE', async () => {
   const client = fakeClient({
     'GET /nutrition/meal-photo-windows': [{ session: 'LUNCH', startTime: '10:00:00', endTime: '11:30:00' }],
@@ -210,6 +228,7 @@ test('module kitchen-records: source api, route Web, file adapter và route BE c
     'POST /nutrition/food-samples/{x}/approve',
     'POST /nutrition/food-samples/{x}/approve-disposal',
     'GET /nutrition/meal-photos',
+    'GET /nutrition/meal-photos/week',
     'GET /nutrition/meal-photos/{x}/content',
     'GET /nutrition/meal-photo-windows',
     'PUT /nutrition/meal-photo-windows',

@@ -10,7 +10,13 @@ import { clickableRowProps } from '@/utils/clickableRow';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { ROLES } from '@/models/User';
-import { useClassAssessmentDetail, useClassAssessmentOverview, useDailyAssessmentClasses } from '@/hooks/assessment/useAssessment';
+import {
+  useClassAssessmentDetail,
+  useClassAssessmentOverview,
+  useDailyAssessment,
+  useDailyAssessmentClasses,
+} from '@/hooks/assessment/useAssessment';
+import { dailyOverviewValue } from '@/utils/assessment/dailyOverviewValues';
 import { OVERVIEW_PERIOD, OVERVIEW_PERIOD_LABELS } from '@/models/assessment/assessmentConstants';
 import { HEALTH_SYMPTOMS } from '@/utils/dailyHealthValidation';
 import { DateInput } from '@/components/form/DateInput';
@@ -91,7 +97,21 @@ function ConcernCell({ days, present, assessed, multiDay, note }) {
 /** Chi tiết một lớp trong kỳ: từng trẻ, tổng hợp tiêu chí và nhận xét. */
 function ClassDetail({ classId, period, date, schoolYear, onBack }) {
   const [page, setPage] = useState(1);
-  const { detail, loading, error, reload } = useClassAssessmentDetail({ classId, period, date, schoolYear });
+  const {
+    detail,
+    loading: detailLoading,
+    error: detailError,
+    reload: reloadDetail,
+  } = useClassAssessmentDetail({ classId, period, date, schoolYear });
+  const singleDay = period === OVERVIEW_PERIOD.DAY;
+  const { sheet, loading: sheetLoading, error: sheetError, reload: reloadSheet } = useDailyAssessment(singleDay ? { classId, date } : null);
+  const loading = detailLoading || (singleDay && sheetLoading);
+  const error = detailError || (singleDay && sheetError);
+  const reload = () => {
+    reloadDetail();
+    if (singleDay) reloadSheet();
+  };
+  const dailyRows = new Map((sheet?.rows || []).map((row) => [String(row.childId), row]));
   const rows = detail?.children || [];
   const multiDay = (detail?.schoolDays || 0) > 1;
   return (
@@ -116,6 +136,10 @@ function ClassDetail({ classId, period, date, schoolYear, onBack }) {
             notMet={rows.reduce((n, r) => n + r.chuaDat, 0)}
             flags={rows.reduce((n, r) => n + r.flags, 0)}
           />
+          <p className="text-sm text-2">
+            Các số Sức khỏe, Ăn, Ngủ trưa, Cảm xúc, Hành vi và Tham gia phía trên là số trẻ cần chú ý. Bảng dưới hiển thị kết quả đã lưu;
+            Chưa lưu là chưa lưu phần Hoạt động chung.
+          </p>
         </>
       )}
       {error ? (
@@ -160,13 +184,19 @@ function ClassDetail({ classId, period, date, schoolYear, onBack }) {
                     <td className="num">{multiDay ? r.presentDays : r.presentDays ? 'Có' : 'Vắng'}</td>
                     {CRITERIA.map((c) => (
                       <td key={c.key}>
-                        <ConcernCell
-                          days={r[c.child] || 0}
-                          present={r.presentDays}
-                          assessed={r.assessedDays}
-                          multiDay={multiDay}
-                          note={c.key === 'health' && r.healthDays ? signsText(r.signs) : c.note}
-                        />
+                        {singleDay ? (
+                          <span className={(r[c.child] || 0) > 0 ? 'text-danger' : undefined}>
+                            {r.presentDays ? dailyOverviewValue(dailyRows.get(String(r.childId)), c.key) : '–'}
+                          </span>
+                        ) : (
+                          <ConcernCell
+                            days={r[c.child] || 0}
+                            present={r.presentDays}
+                            assessed={r.assessedDays}
+                            multiDay={multiDay}
+                            note={c.key === 'health' && r.healthDays ? signsText(r.signs) : c.note}
+                          />
+                        )}
                       </td>
                     ))}
                     <td>

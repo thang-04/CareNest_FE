@@ -20,6 +20,20 @@ const CONFIG = {
 };
 const refs = buildRefs(CONFIG);
 
+test('EDU-106: map quyền nội dung năm từ BE và API dùng timeout riêng, signal, không nhận ứng viên', async () => {
+  assert.equal(toUiGoal(detail({ canEditCurriculum: true }), refs).canEditCurriculum, true);
+  assert.equal(toUiGoal(detail({ canEditCurriculum: false }), refs).canEditCurriculum, false);
+  const calls = [], controller = new AbortController();
+  axiosClient.defaults.adapter = async (config) => { calls.push(config); return respond(config,{matches:[],failedDomains:[]}); };
+  await educationPlanApi.matchGoalContents('17', {signal: controller.signal});
+  assert.equal(calls[0].url, '/education-plans/ai/year-plans/17/goal-content-map');
+  assert.equal(calls[0].timeout, 70000);
+  assert.equal(calls[0].signal, controller.signal);
+  assert.equal(calls[0].data, undefined);
+  await educationPlanApi.sendAiFeedback({kind:'SCHOOL_YEAR',suggested:2,kept:1,failedDomains:0,waitMs:50});
+  assert.equal(JSON.parse(calls.at(-1).data).kind,'SCHOOL_YEAR');
+});
+
 test('second annual save sends persisted branch IDs and matching parent keys after the first save', () => {
   const snapshot = {
     planLevel: 'SCHOOL_YEAR',
@@ -256,9 +270,6 @@ test('BE:EDU-11 — cấu hình: lĩnh vực thêm là lĩnh vực không chuẩ
     yearCreationScopes: [],
     signers,
     weekRows,
-    lateReturnGraceDays: 2,
-    lateApprovalGraceDays: 2,
-    canConfigureDeadlines: false,
   });
 
   let sent = null;

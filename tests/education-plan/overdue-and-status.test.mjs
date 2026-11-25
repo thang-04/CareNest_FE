@@ -2,6 +2,23 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { filterOverdue, overdueRows } from '../../src/models/education-plan/overdue.mjs';
 import { deadlineLabel } from '../../src/models/education-plan/deadline.mjs';
+import { publishedBranchCalendar } from '../../src/models/education-plan/branchCalendar.mjs';
+
+test('EDU-73: lịch chỉ xem lấy lịch và mốc tuần từ gói ban hành, bỏ lịch đang chờ', () => {
+  const plan = { themes: [{ id: 'one', name: 'Một', start: '2026-09-07', end: '2026-09-11' }], breaks: [] };
+  const snapshot = {
+    status: 'APPROVED', themeIds: ['one'], branchNames: { '2026-09-07': 'Tên khi ban hành' },
+    effectiveCalendar: {
+      themeSchedules: [{ themeId: 'one', startDate: '2026-09-07', endDate: '2026-09-11' }],
+      branches: [{ themeId: 'one', key: 'released', name: 'Tên khi ban hành', startDate: '2026-09-07', endDate: '2026-09-11' }],
+    },
+  };
+  const review = { status: 'REVIEW', themeIds: ['two'], branchNames: { '2026-10-05': 'Tên nháp' } };
+  const projected = publishedBranchCalendar(plan, [snapshot, review]);
+  assert.deepEqual([...projected.themeIds], ['one']);
+  assert.deepEqual(projected.names, { '2026-09-07': 'Tên khi ban hành' });
+  assert.equal(projected.branches[0].endDate, '2026-09-11');
+});
 
 // Spec 005 FR-021a: màn Kế hoạch quá hạn chỉ dựa vào cờ BE trả (canExtend, timeLock.canUnlock)
 const classes = [
@@ -84,34 +101,39 @@ test('FR-022: lọc nhóm tuổi rồi lớp, loại, học kỳ', () => {
 });
 
 test('FR-020: nhãn hạn luôn có tiền tố "Hạn:" để tách khỏi trạng thái duyệt', () => {
-  for (const s of ['NEAR', 'OVERDUE', 'ON_TIME', 'LATE', 'NORMAL'])
+  for (const s of ['NEAR', 'OVERDUE', 'ON_TIME', 'NORMAL'])
     assert.match(deadlineLabel({ deadline: '2026-11-16', daysLeft: 1, deadlineState: s }).label, /^Hạn: /);
 });
 
-test('EDU-97: lọc riêng quá hạn gửi/duyệt và giữ lịch sử mở lại hạn duyệt', () => {
+test('EDU-109 (9): một hạn hiệu lực, loại gửi/duyệt suy từ trạng thái, một thao tác mở hạn', () => {
   const eligible = overdueRows({
     today: '2026-11-20',
     themeDossiers: [
-      { id: 'send', status: 'DRAFT', canExtend: true },
-      { id: 'review', status: 'REVIEW', reviewDeadline: { locked: true, canReopen: true, lockFrom: '2026-11-18' } },
-      { id: 'denied', status: 'REVIEW', canExtend: true, reviewDeadline: { locked: true, canReopen: false } },
-      { id: 'reopened', status: 'REVIEW', reviewDeadline: { reopenUntil: '2026-11-25', reason: 'Bổ sung thời gian' } },
+      { id: 'send', status: 'DRAFT', canExtend: true, deadline: '2026-11-10' },
+      { id: 'review', status: 'REVIEW', canExtend: true, deadline: '2026-11-01', extendedTo: '2026-11-18' },
+      { id: 'denied', status: 'REVIEW', canExtend: false },
+      {
+        id: 'reopened',
+        status: 'REVIEW',
+        extendedTo: '2026-11-25',
+        history: [{ action: 'reopen_review_deadline', deadline: '2026-11-25', note: 'Bổ sung thời gian' }],
+      },
     ],
+    yearPlans: [{ id: 'y1', status: 'REVIEW', title: 'Năm', timeLock: { canUnlock: true, deadline: '2026-09-01' } }],
   });
+  assert.deepEqual(filterOverdue(eligible).map((r) => r.key), ['plan-y1', 'dossier-send', 'dossier-review']);
+  assert.deepEqual(filterOverdue(eligible, { deadlineKind: 'send' }).map((r) => r.docKey), ['send']);
+  assert.deepEqual(filterOverdue(eligible, { deadlineKind: 'review' }).map((r) => r.key), ['plan-y1', 'dossier-review']);
+  assert.equal(eligible.find((r) => r.docKey === 'review').deadline, '2026-11-18', 'hạn hiệu lực = extendedTo ?? deadline');
   assert.deepEqual(
-    filterOverdue(eligible).map((r) => r.docKey),
-    ['send', 'review'],
+    filterOverdue(eligible, { tab: 'extended', deadlineKind: 'review' }).map((r) => r.extension.deadline),
+    ['2026-11-18', '2026-11-25'],
   );
-  assert.deepEqual(
-    filterOverdue(eligible, { deadlineKind: 'send' }).map((r) => r.docKey),
-    ['send'],
-  );
-  assert.deepEqual(
-    filterOverdue(eligible, { deadlineKind: 'review' }).map((r) => r.docKey),
-    ['review'],
-  );
-  assert.deepEqual(
-    filterOverdue(eligible, { tab: 'extended', deadlineKind: 'review' }).map((r) => r.extension),
-    [{ deadline: '2026-11-25', note: 'Bổ sung thời gian' }],
-  );
+});
+
+test('EDU-109 (9): màn quá hạn chỉ gọi extend / unlock, không còn mở hạn duyệt riêng', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const src = await readFile(new URL('../../src/pages/education-plan/OverduePlansPage.jsx', import.meta.url), 'utf8');
+  assert.doesNotMatch(src, /reopen_review_deadline|reopenGoalReviewDeadline|Mở lại hạn duyệt/);
+  assert.match(src, /action: 'extend'/);
 });

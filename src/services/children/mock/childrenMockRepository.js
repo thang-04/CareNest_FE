@@ -7,9 +7,9 @@ import { PHONE_HAS_OTHER_ID, createBatchIdentityCheck, fillMissingCitizenIds, id
 import { MEASUREMENT_ROUND, OPEN_CAMPAIGN, buildSeedHealthChecks } from '@/mocks/healthCheckSeed';
 import { pushNotification } from '@/mocks/notificationMockRepository';
 import { activatePendingGuardians, applyGuardianEdits, differsFromAccount } from '@/mocks/parentAccountMock';
-import { activeYearId } from '@/mocks/roomManagers';
+import { activeYearEnd, activeYearId } from '@/mocks/roomManagers';
 import { buildSeedSchoolConfig } from '@/mocks/schoolConfigSeed';
-import { schoolYearIdOfDate } from '@/mocks/schoolYearScope';
+import { isPreparingYear, schoolYearIdOfDate } from '@/mocks/schoolYearScope';
 import { AGE_GROUPS, CHILD_STATUS } from '@/models/School';
 import {
   AI_TREND_STATUS,
@@ -30,7 +30,8 @@ import {
   formatAddress,
 } from '@/models/children/childProfile';
 import { isValidCitizenId, normalizeCitizenId } from '@/utils/citizenId';
-import { formatDate, normalizeText, todayInput } from '@/utils/format';
+import { formatDate, localDateOf, normalizeText, todayInput } from '@/utils/format';
+import { placementDateError, startDateError } from '@/utils/children/startDate';
 import { uid } from '@/utils/id';
 import { areaAccess, areaAllows } from '@/utils/school-config/schoolConfigPermissions';
 import {
@@ -344,7 +345,85 @@ export const ensureChildRecordsSeeded = () => {
   return readDb();
 };
 
-const ensureSeeded = ensureChildRecordsSeeded;
+/*
+ * G94-180/CHD-14 (BE giả): lớp chưa bắt đầu / lịch chuyển lưu ở child.nextClass { classId, from }; tới ngày đó thì thành lớp
+ * hiện tại (BE đọc lớp theo ngày của enrollment).
+ */
+const applyDueSchedules = (d) => {
+  const today = todayInput();
+  d.children.forEach((c) => {
+    // Chuyển lớp tới ngày áp trước: trẻ nghỉ ở lớp đang học vào ngày nghỉ
+    if (c.nextClass && c.nextClass.from <= today) {
+      const cls = (d.classes || []).find((k) => k.id === c.nextClass.classId);
+      c.classId = c.nextClass.classId;
+      if (cls) c.campusId = cls.campusId;
+      c.nextClass = null;
+    }
+    // G94-180/CHD-03: lịch nghỉ tới ngày ⇒ Đã nghỉ học từ ngày hẹn (BE job 00:05)
+    if (c.scheduledLeaveOn && c.scheduledLeaveOn <= today)
+      leaveNow(d, c, c.scheduledLeaveOn, c.scheduledLeaveReason || '', c.scheduledLeaveBy || 'system');
+  });
+};
+
+const ensureSeeded = () => {
+  const db = ensureChildRecordsSeeded();
+  const today = todayInput();
+  if (!(db.children || []).some((c) => (c.nextClass && c.nextClass.from <= today) || (c.scheduledLeaveOn && c.scheduledLeaveOn <= today)))
+    return db;
+  writeDb(applyDueSchedules);
+  return readDb();
+};
+
+const SAME_DAY_DATA_BLOCKED = 'Trẻ đã có điểm danh, sức khỏe hoặc đánh giá trong hôm nay. Thực hiện nghỉ học từ ngày học tiếp theo.';
+
+// G94-180/CHD-03 (user 25/11): câu lỗi ô leftAt như BE: ngày bất kỳ từ hôm nay tới hết năm học (kể cả thứ Bảy, ngày lễ);
+// hôm nay khóa khi trẻ có dữ liệu trong ngày (đã có lịch nghỉ thì withdrawChild chặn trước, phải hủy lịch).
+const leaveDateProblem = (db, child, leftAt, today) => {
+  if (leftAt < today) return 'Ngày nghỉ học không được trước hôm nay';
+  const yearEnd = activeYearEnd(db);
+  if (yearEnd && leftAt > yearEnd) return `Ngày nghỉ học phải trong năm học (tới ${formatDate(yearEnd)})`;
+  if (leftAt === today && (db.attendance || []).some((r) => r.childId === child.id && r.date === today)) return SAME_DAY_DATA_BLOCKED;
+  if (child.enrolledAt && leftAt < child.enrolledAt)
+    return `Ngày nghỉ học không được trước ngày tiếp nhận (${formatDate(child.enrolledAt)})`;
+  return '';
+};
+
+/**
+ * Chuyển trẻ sang Đã nghỉ học từ leftAt: cho nghỉ hôm nay, hoặc lịch nghỉ tới ngày (G94-180/CHD-03, như việc 00:05 của BE).
+ */
+const leaveNow = (d, target, leftAt, reason, userId) => {
+  // G94-180/CHD-03, CHD-14: có lịch chuyển / lớp chưa bắt đầu ⇒ xóa lịch; lớp chưa bắt đầu thì trẻ không còn lớp
+  const upcoming = target.nextClass;
+  if (upcoming) {
+    cancelUpcomingPlacement(d, target, userId);
+    if (target.classId === upcoming.classId) target.classId = null;
+    target.nextClass = null;
+  }
+  target.status = CHILD_STATUS.LEFT;
+  target.leftAt = leftAt;
+  target.leftReason = reason;
+  target.history = [...(target.history || []), { action: 'WITHDRAWN', userId, at: nowIso(), note: reason }];
+  // CHD-11: nghỉ học hủy đăng ký năm học sau còn mở.
+  const adm = openAdmissionOf(d, target.id);
+  if (adm) adm.status = 'CANCELLED';
+  const notified = [classOf(d, target), upcoming && d.classes.find((c) => c.id === upcoming.classId)].filter(
+    (c, i, all) => c && all.findIndex((x) => x?.id === c.id) === i,
+  );
+  notified
+    .flatMap((cls) => cls.teacherIds || [])
+    .forEach((teacherId) =>
+      pushNotification(d, {
+        userId: teacherId,
+        type: 'CHILD_WITHDRAWN',
+        title: 'Trẻ nghỉ học',
+        message: `${target.fullName} nghỉ học từ ngày ${formatDate(leftAt)}.`,
+        link: `/children/${target.id}`,
+      }),
+    );
+  delete target.scheduledLeaveOn;
+  delete target.scheduledLeaveReason;
+  delete target.scheduledLeaveBy;
+};
 
 const forbid = () => {
   throw new ApiError(403, FORBIDDEN);
@@ -357,7 +436,33 @@ const invalid = (errors, message = 'Thông tin chưa hợp lệ. Kiểm tra các
 const userName = (db, id) => db.users?.find((u) => u.id === id)?.fullName || '';
 const classOf = (db, child) => (child?.classId ? db.classes.find((c) => c.id === child.classId) || null : null);
 const declarationOf = (db, childId) => db.healthDeclarations.find((d) => d.childId === childId) || null;
-const activeCount = (db, classId) => db.children.filter((c) => c.classId === classId && c.status === CHILD_STATUS.ACTIVE).length;
+// Sĩ số tính cả trẻ đã hẹn vào lớp (G94-180/CHD-14, BE countOccupyingFrom); trẻ đang xếp không tính
+const activeCount = (db, classId, excludeChildId) =>
+  db.children.filter(
+    (c) => c.id !== excludeChildId && c.status === CHILD_STATUS.ACTIVE && (c.classId === classId || c.nextClass?.classId === classId),
+  ).length;
+// occupiedCount (G94-180/CHD-14, BE countOccupyingFrom): trẻ ở lớp từ ngày from = đang học còn ở lại + hẹn vào, trừ childId
+const occupiedFrom = (db, classId, from, excludeChildId) =>
+  db.children.filter((c) => {
+    if (c.id === excludeChildId || c.status !== CHILD_STATUS.ACTIVE) return false;
+    if (c.nextClass?.classId === classId) return true;
+    return c.classId === classId && !(c.nextClass && c.nextClass.from <= from);
+  }).length;
+const yearHolidays = (db, yearId) => (db.schoolHolidays || {})[yearId] || [];
+const nextClassView = (db, child) => {
+  if (!child?.nextClass) return null;
+  const cls = (db.classes || []).find((c) => c.id === child.nextClass.classId);
+  return { classId: child.nextClass.classId, className: cls?.name || '', from: child.nextClass.from };
+};
+// Lớp chưa bắt đầu bị thay / bị hủy / trẻ nghỉ: dòng lịch sử giữ lại, ghi đã hủy (BE PlacementRules.cancelUpcoming)
+const cancelUpcomingPlacement = (db, child, userId) => {
+  const next = child.nextClass;
+  if (!next) return;
+  const row = [...db.childPlacements]
+    .reverse()
+    .find((p) => p.childId === child.id && p.toClassId === next.classId && p.effectiveFrom === next.from && !p.cancelledAt);
+  if (row) Object.assign(row, { cancelledAt: nowIso(), cancelledBy: userId });
+};
 
 const findChild = (db, id) => {
   const child = db.children.find((c) => c.id === id);
@@ -480,6 +585,61 @@ const linkAccounts = (db, record, guardians) =>
     record.guardians[i].accountStatus = acc.status;
   });
 
+/** Đăng ký năm học sau còn mở (PENDING / PLACED); CANCELLED, COMPLETED không tính (BE CHD-11). */
+const openAdmissionOf = (db, childId) =>
+  (db.plannedAdmissions || []).find((a) => a.childId === childId && (a.status === 'PENDING' || a.status === 'PLACED')) || null;
+
+/** plannedAdmission như BE trả ở hồ sơ và danh sách: null khi trẻ không có đăng ký mở. */
+const plannedAdmissionOf = (db, childId) => {
+  const adm = openAdmissionOf(db, childId);
+  if (!adm) return null;
+  const cls = adm.classId ? db.classes.find((c) => c.id === adm.classId) : null;
+  return {
+    schoolYearId: adm.schoolYearId,
+    schoolYearName: schoolYearOf(db, adm.schoolYearId)?.name || adm.schoolYearId,
+    campusId: adm.campusId,
+    classId: adm.classId || null,
+    className: cls?.name || null,
+    startDate: adm.startDate,
+    status: adm.status,
+  };
+};
+
+/**
+ * Năm nhận trẻ cho tiếp nhận, nhập Excel, mở lại hồ sơ: năm đang hoạt động hoặc năm sau (PLANNED).
+ * CHD-11/CFG-YR-05 (BE 2412): năm sau chỉ nhận trẻ từ ngày mở chuẩn bị.
+ */
+const intakeYearOf = (db, schoolYearId) => {
+  const targetYearId = schoolYearId || activeYearId(db);
+  const targetYear = schoolYearOf(db, targetYearId);
+  const planned = targetYear?.status === 'PLANNED';
+  if (targetYearId !== activeYearId(db) && !planned) invalid({ schoolYearId: 'Năm học không nhận trẻ' });
+  if (planned && !isPreparingYear(targetYear, todayInput())) {
+    throw new ApiError(
+      409,
+      `Năm học ${targetYear.name} chưa tới ngày mở chuẩn bị (${targetYear.prepDate ? formatDate(targetYear.prepDate) : 'chưa đặt'})`,
+    );
+  }
+  return { targetYearId, targetYear, planned };
+};
+
+/**
+ * G94-180/CHD-14 (BE giả ChildIntakeServiceImpl.currentYearStart / plannedTarget): có gửi ngày bắt đầu đi học thì kiểm như BE
+ * (năm đang học: từ hôm nay tới cuối năm; năm sau: trong năm; là ngày học). Lời gọi cũ không gửi ngày (test, màn cũ) giữ như
+ * trước: năm đang học = hôm nay, năm sau = ngày bắt đầu năm. Màn tiếp nhận luôn gửi ngày.
+ */
+const intakeStartOf = (db, { targetYear, planned }, startDate) => {
+  if (!startDate) return planned ? targetYear?.startDate : todayInput();
+  const error = startDateError(startDate, targetYear || {}, todayInput(), yearHolidays(db, targetYear?.id));
+  if (error) invalid({ startDate: error });
+  return startDate;
+};
+
+/** CHD-11: đăng ký năm sau còn mở, chưa xếp lớp (PENDING); lớp dự kiến xếp ở Xếp lớp năm học mới. */
+const openNextYearAdmission = (db, childId, { schoolYearId, campusId, startDate }) => {
+  db.plannedAdmissions ||= [];
+  db.plannedAdmissions.push({ id: uid('adm'), childId, schoolYearId, campusId, classId: null, startDate, status: 'PENDING' });
+};
 /** Child as returned to the UI: account internals only for Principal / VP. */
 const toView = (db, child, user) => {
   const cls = classOf(db, child);
@@ -487,6 +647,8 @@ const toView = (db, child, user) => {
   const showAccounts = canViewParentAccounts(user);
   return {
     ...clone(child),
+    // CHD-11: đăng ký năm học sau (BE trả plannedAdmission, null khi không có).
+    plannedAdmission: plannedAdmissionOf(db, child.id),
     // CHD-13: BE luôn trả boolean, trẻ chưa có cờ đọc là báo ăn.
     mealRegistered: child.mealRegistered !== false,
     profile: child.profile ? clone(child.profile) : emptyChildProfile(),
@@ -509,6 +671,10 @@ const toView = (db, child, user) => {
     ageGroupId: cls?.ageGroupId || '',
     schoolYear: cls?.schoolYear || '',
     hasDeclaration: !!decl,
+    // G94-180/CHD-14: ngày bắt đầu đi học, chờ xếp lớp đã tới ngày đó, lớp sắp vào
+    startDate: child.startDate || null,
+    startDue: child.status === CHILD_STATUS.PENDING_PLACEMENT && !!child.startDate && child.startDate <= todayInput(),
+    nextClass: nextClassView(db, child),
   };
 };
 
@@ -531,6 +697,13 @@ const classInYear = (db, child, yearId) => {
  * hoạt động; trẻ nghỉ khi chưa có lớp ở năm của ngày nghỉ. Trạng thái giữ trạng thái hiện tại.
  */
 const inSchoolYear = (db, view, child, yearId) => {
+  // CHD-09, CHD-11: trẻ có đăng ký mở chỉ ở danh sách năm đăng ký, kể cả khi chờ xếp lớp (không vào năm đang hoạt động).
+  const adm = openAdmissionOf(db, child.id);
+  if (adm) {
+    if (adm.schoolYearId !== yearId) return null;
+    // Như BE: classId, className của trẻ vẫn null, lớp dự kiến chỉ nằm trong plannedAdmission.
+    return { ...view, classId: null, className: null, campusId: adm.campusId };
+  }
   const cls = classInYear(db, child, yearId);
   if (cls)
     return {
@@ -734,12 +907,13 @@ const tbContactDateOf = (mh) => (tbReported(mh) ? mh.tbContact.contactDate || ''
 // Kho trẻ chưa có danh sách năm học thì lấy theo seed cấu hình trường, như activeYearId
 const schoolYearOf = (db, id) => (db.schoolYears || buildSeedSchoolConfig().schoolYears).find((y) => y.id === id);
 
-const assertClassAvailable = (db, classId, user, schoolYearId = activeYearId(db)) => {
+const assertClassAvailable = (db, classId, user, schoolYearId = activeYearId(db), excludeChildId) => {
   const cls = db.classes.find((c) => c.id === classId);
   if (!cls || cls.status === 'INACTIVE') invalid({ classId: 'Lớp không tồn tại hoặc đã ngừng hoạt động' });
   if (cls.schoolYear !== schoolYearId) invalid({ classId: 'Lớp không thuộc năm học tiếp nhận đã chọn' });
   if (!areaAllows(user, 'children', cls.campusId, true)) invalid({ classId: 'Chỉ xếp được vào lớp thuộc điểm trường bạn được giao' });
-  if (activeCount(db, cls.id) >= cls.capacity) invalid({ classId: `${cls.name} đã đủ ${cls.capacity} trẻ. Chọn lớp khác.` });
+  if (activeCount(db, cls.id, excludeChildId) >= cls.capacity)
+    invalid({ classId: `${cls.name} đã đủ ${cls.capacity} trẻ. Chọn lớp khác.` });
   return cls;
 };
 
@@ -760,13 +934,13 @@ const enrollCampusOf = (db, campusId, user) => {
 /** Điểm trường nhận trẻ theo lớp hoặc điểm trường gửi lên; rỗng = điểm trường của PHT một điểm trường (như enrollCampusOf). */
 const targetCampusOf = (db, { classId, campusId }) => db.classes.find((c) => c.id === classId)?.campusId || campusId || '';
 
-const notifyClassTeachers = (db, cls, child) =>
+const notifyClassTeachers = (db, cls, child, from) =>
   (cls?.teacherIds || []).forEach((teacherId) =>
     pushNotification(db, {
       userId: teacherId,
       type: 'CHILD_PLACED',
       title: 'Lớp có trẻ mới',
-      message: `${child.fullName} đã được xếp vào ${cls.name}.`,
+      message: `${child.fullName} đã được xếp vào ${cls.name}${from && from > todayInput() ? ` từ ngày ${formatDate(from)}` : ''}.`,
       link: `/children/${child.id}`,
     }),
   );
@@ -793,7 +967,7 @@ const throwConflicts = (conflicts) => {
 
 const validateEnrollment = (db, { child, declaration }, excludeId) => {
   const errors = {
-    ...validateChildInfo(child),
+    ...validateChildInfo(child, { intakeDate: todayInput() }),
     ...prefix('declaration', validateDeclaration(declaration, { dateOfBirth: child?.dateOfBirth })),
   };
   const dup = !errors.fullName && !errors.dateOfBirth ? isDuplicate(db, child, excludeId) : null;
@@ -802,7 +976,7 @@ const validateEnrollment = (db, { child, declaration }, excludeId) => {
 
 const prefix = (p, errors) => Object.fromEntries(Object.entries(errors).map(([k, v]) => [`${p}.${k}`, v]));
 
-const createChild = (db, { child, declaration }, { classId, campusId, user }) => {
+const createChild = (db, { child, declaration }, { classId, campusId, user, startDate }) => {
   const { mealRegistered, ...cleaned } = cleanDeclaration(declaration);
   // CHD-13: không báo ăn ⇒ dị ứng, chế độ ăn lưu Chưa cung cấp.
   const decl = mealRegistered
@@ -823,6 +997,9 @@ const createChild = (db, { child, declaration }, { classId, campusId, user }) =>
     campusId,
     status: classId ? CHILD_STATUS.ACTIVE : CHILD_STATUS.PENDING_PLACEMENT,
     enrolledAt: todayInput(),
+    // G94-180/CHD-14: lớp chọn lúc tiếp nhận tính từ ngày bắt đầu đi học
+    startDate: startDate || todayInput(),
+    nextClass: classId && startDate && startDate > todayInput() ? { classId, from: startDate } : null,
     mealRegistered,
     // Người tiếp nhận chốt dị ứng ngay khi tiếp nhận, không chờ Hiệu trưởng duyệt (quyết định user 2026-10-14).
     allergies: [...decl.allergies.items],
@@ -839,7 +1016,15 @@ const createChild = (db, { child, declaration }, { classId, campusId, user }) =>
     history: [{ action: 'DECLARED', userId: user.id, at: nowIso() }],
   });
   if (classId)
-    db.childPlacements.push({ id: uid('pl'), childId: record.id, fromClassId: null, toClassId: classId, userId: user.id, at: nowIso() });
+    db.childPlacements.push({
+      id: uid('pl'),
+      childId: record.id,
+      fromClassId: null,
+      toClassId: classId,
+      userId: user.id,
+      at: nowIso(),
+      effectiveFrom: record.startDate,
+    });
   if (tbReported(decl.medicalHistory)) notifyTbContactReported(db, record, user.id, tbContactDateOf(decl.medicalHistory));
   return record;
 };
@@ -935,7 +1120,7 @@ export const childrenMockRepository = {
       .filter((c) => !filters.classId || c.classId === filters.classId)
       .filter((c) => !filters.status || c.status === filters.status)
       .filter((c) => !kw || normalizeText(`${c.fullName} ${c.code}`).includes(kw));
-    return list.sort((a, b) => a.className.localeCompare(b.className, 'vi') || a.fullName.localeCompare(b.fullName, 'vi'));
+    return list.sort((a, b) => (a.className || '').localeCompare(b.className || '', 'vi') || a.fullName.localeCompare(b.fullName, 'vi'));
   },
 
   /* ------------------------------ #32 Child profile ------------------------------ */
@@ -947,6 +1132,8 @@ export const childrenMockRepository = {
       .filter((p) => p.childId === id)
       .map((p) => ({
         ...p,
+        // G94-180/CHD-14: dòng cũ chưa có ngày vào lớp ⇒ ngày lưu (BE ChildPlacement.effectiveDate)
+        effectiveFrom: p.effectiveFrom || localDateOf(p.at),
         userName: userName(db, p.userId),
         fromClassName: db.classes.find((c) => c.id === p.fromClassId)?.name || '',
         toClassName: db.classes.find((c) => c.id === p.toClassId)?.name || '',
@@ -990,6 +1177,8 @@ export const childrenMockRepository = {
       code: match.code,
       fullName: match.fullName,
       leftAt: match.leftAt || null,
+      // G94-180/CHD-04: hộp mở lại hồ sơ mặc định điểm trường của trẻ (chỉ khi trong phạm vi người gọi, đã kiểm ở trên)
+      campusId: match.campusId,
       canReadmit: kind === 'LEFT' && canReadmitChild(match, user),
     };
   },
@@ -1007,7 +1196,7 @@ export const childrenMockRepository = {
   },
 
   /** Mở lại hồ sơ trẻ đã nghỉ học (user chốt 2026-10-23): về Chờ xếp lớp, giữ mã, lịch sử, sức khỏe, tài khoản phụ huynh. */
-  async readmitChild(childId, { reason } = {}, user) {
+  async readmitChild(childId, { reason, schoolYearId, startDate, campusId } = {}, user) {
     await delay();
     const db = ensureSeeded();
     const child = findChild(db, childId);
@@ -1018,12 +1207,27 @@ export const childrenMockRepository = {
     const text = String(reason || '').trim();
     if (!text) invalid({ reason: 'Nhập lý do tiếp nhận lại' });
     if (text.length > 300) invalid({ reason: 'Lý do tối đa 300 ký tự' });
+    // CHD-11: mở lại vào năm sau đã mở chuẩn bị ⇒ trẻ giữ điểm trường cũ, có đăng ký PENDING (BE 2412 nếu chưa tới ngày).
+    // Thiếu startDate ⇒ ngày bắt đầu năm học (BE plannedTarget, CHD-11).
+    const { targetYearId, targetYear, planned } = intakeYearOf(db, schoolYearId);
+    const admissionStart = intakeStartOf(db, { targetYear, planned }, startDate);
+    // G94-180/CHD-02 (user chốt 2026-11-22): chọn điểm trường khác thì kiểm như tiếp nhận; trống ⇒ giữ điểm trường cũ
+    const chosenCampus = campusId && campusId !== child.campusId ? enrollCampusOf(db, campusId, user) : null;
     return writeDb((d) => {
       const target = findChild(d, childId);
-      Object.assign(target, { status: CHILD_STATUS.PENDING_PLACEMENT, classId: null, readmittedAt: todayInput() });
+      Object.assign(target, {
+        status: CHILD_STATUS.PENDING_PLACEMENT,
+        classId: null,
+        nextClass: null,
+        readmittedAt: todayInput(),
+        startDate: admissionStart,
+      });
+      if (chosenCampus) target.campusId = chosenCampus;
       delete target.leftAt;
       delete target.leftReason;
       target.history = [...(target.history || []), { action: 'READMITTED', userId: user.id, at: nowIso(), note: text }];
+      if (planned)
+        openNextYearAdmission(d, target.id, { schoolYearId: targetYearId, campusId: target.campusId, startDate: admissionStart });
       return toView(d, target, user);
     });
   },
@@ -1050,7 +1254,17 @@ export const childrenMockRepository = {
     if (!schoolYear || !['ACTIVE', 'PLANNED'].includes(schoolYear.status)) return [];
     return db.classes
       .filter((c) => areaAllows(user, 'children', c.campusId, true) && c.status !== 'INACTIVE' && c.schoolYear === year)
-      .map((c) => ({ ...clone(c), enrolledCount: activeCount(db, c.id) }));
+      .map((c) => {
+        // Năm sắp diễn ra: cả hai bằng số trẻ đã xếp trước
+        if (schoolYear.status === 'PLANNED')
+          return { ...clone(c), enrolledCount: activeCount(db, c.id), occupiedCount: activeCount(db, c.id) };
+        const studying = db.children.filter((k) => k.status === CHILD_STATUS.ACTIVE && k.classId === c.id).length;
+        return {
+          ...clone(c),
+          enrolledCount: studying,
+          occupiedCount: occupiedFrom(db, c.id, filters?.from || todayInput(), filters?.childId),
+        };
+      });
   },
 
   async enrollChild(payload, user) {
@@ -1066,17 +1280,15 @@ export const childrenMockRepository = {
     if (hasErrors(errors)) invalid(errors);
     if (dup) throw new ApiError(409, 'Hồ sơ trẻ này đã tồn tại (trùng họ tên, ngày sinh và phụ huynh). Xem lại hồ sơ đã có.');
     throwConflicts(conflicts);
+    const startDate = intakeStartOf(db, intakeYearOf(db, payload.schoolYearId), payload.startDate);
     resolved = { ...resolved, child: await prepareMockPortraits(resolved.child) };
     return writeDb((d) => {
       // Lớp không bắt buộc khi tiếp nhận; có lớp thì vẫn kiểm sức chứa và campus, trẻ thuộc điểm trường của lớp.
-      const targetYearId = payload.schoolYearId || activeYearId(d);
-      const targetYear = schoolYearOf(d, targetYearId);
-      const planned = targetYear?.status === 'PLANNED';
-      if (targetYearId !== activeYearId(d) && !planned) invalid({ schoolYearId: 'Năm học không nhận trẻ' });
+      const { targetYearId, planned } = intakeYearOf(d, payload.schoolYearId);
       const cls = payload.classId ? assertClassAvailable(d, payload.classId, user, targetYearId) : null;
       if (cls && payload.campusId && cls.campusId !== payload.campusId) invalid({ classId: 'Lớp không thuộc điểm trường đã chọn' });
       const campusId = cls?.campusId || enrollCampusOf(d, payload.campusId, user);
-      const record = createChild(d, resolved, { classId: planned ? null : cls?.id || null, campusId, user });
+      const record = createChild(d, resolved, { classId: planned ? null : cls?.id || null, campusId, user, startDate });
       if (planned) {
         d.plannedAdmissions ||= [];
         d.plannedAdmissions.push({
@@ -1085,7 +1297,7 @@ export const childrenMockRepository = {
           schoolYearId: targetYearId,
           campusId,
           classId: cls?.id || null,
-          startDate: payload.startDate,
+          startDate,
           status: cls ? 'PLACED' : 'PENDING',
         });
       }
@@ -1100,7 +1312,7 @@ export const childrenMockRepository = {
         : [];
       // Form tiếp nhận: tạo tài khoản cho phụ huynh chưa có và gửi SMS ngay; nhập Excel vẫn kích hoạt sau (user chốt 2026-10-28, L-14).
       const activated = manageAccounts ? activatePendingGuardians(d, record) : [];
-      if (cls && !planned) notifyClassTeachers(d, cls, record);
+      if (cls && !planned) notifyClassTeachers(d, cls, record, startDate);
       return { ...toView(d, record, user), guardianAccounts: guardianAccountsOf(record, activated, edited) };
     });
   },
@@ -1223,8 +1435,9 @@ export const childrenMockRepository = {
   /**
    * Valid rows become children waiting for placement; their declaration is saved as entered (UC 3.8 alt flow).
    * campusId: điểm trường của cả file (bắt buộc với người được giao toàn trường, như enrollCampusOf).
+   * schoolYearId, startDate: năm sau đã mở chuẩn bị ⇒ mỗi trẻ có đăng ký PENDING (CHD-11); bỏ trống ⇒ năm đang hoạt động.
    */
-  async importChildren(rows, user, campusId) {
+  async importChildren(rows, user, campusId, { schoolYearId, startDate } = {}) {
     await delay();
     if (!canEnrollChild(user)) forbid();
     const db = ensureSeeded();
@@ -1244,9 +1457,14 @@ export const childrenMockRepository = {
         invalid({ file: 'File có dòng lỗi. Kiểm tra lại trước khi nhập.' });
       seen.push({ child: r.child, rowNo: i + 1 });
     });
+    // G94-180/CHD-14: một ngày bắt đầu đi học cho cả file
+    const admissionStart = intakeStartOf(db, intakeYearOf(db, schoolYearId), startDate);
     return writeDb((d) => {
+      const { targetYearId, planned } = intakeYearOf(d, schoolYearId);
       const created = resolved.map((r) => {
-        const record = createChild(d, r, { classId: null, campusId: targetCampusId, user });
+        const record = createChild(d, r, { classId: null, campusId: targetCampusId, user, startDate: admissionStart });
+        if (planned)
+          openNextYearAdmission(d, record.id, { schoolYearId: targetYearId, campusId: targetCampusId, startDate: admissionStart });
         return record;
       });
       return { created: created.length, ids: created.map((c) => c.id) };
@@ -1254,35 +1472,147 @@ export const childrenMockRepository = {
   },
 
   /* ------------------------------ #29 Class placement ------------------------------ */
-  async placeChild(childId, { classId, reason }, user) {
+  /**
+   * G94-180/CHD-14 (BE giả ChildRecordServiceImpl.place): ngày vào lớp / ngày chuyển lớp (`effectiveDate`) có gửi thì không trước
+   * mốc sớm nhất (hôm nay; xếp lần đầu không trước ngày bắt đầu đi học), không sau cuối năm, là ngày học. Ngày tương lai = lịch:
+   * trẻ ở lớp cũ tới hết ngày trước đó. Xếp / chuyển lần nữa thay lịch cũ. Không gửi ngày (lời gọi cũ) ⇒ mốc sớm nhất như trước.
+   */
+  async placeChild(childId, { classId, reason, effectiveDate } = {}, user) {
     await delay();
     const db = ensureSeeded();
     const child = findChild(db, childId);
     if (!canPlaceChild(child, user)) forbid();
+    // CHD-11 (BE 2414): trẻ đã đăng ký năm học sau chỉ xếp lớp ở màn Xếp lớp năm học mới.
+    if (openAdmissionOf(db, childId)) {
+      throw new ApiError(409, `${child.fullName} đã đăng ký cho năm học sắp tới, xếp lớp tại màn Xếp lớp năm học mới`);
+    }
+    const today = todayInput();
+    // Lớp chưa bắt đầu không tính là lớp đang học: đổi lớp đó không cần lý do
+    const fromClassId = child.nextClass && child.nextClass.classId === child.classId ? null : child.classId || null;
+    const earliest = !fromClassId && child.startDate && child.startDate > today ? child.startDate : today;
+    const date = effectiveDate || earliest;
     if (!classId) invalid({ classId: 'Chọn lớp cho trẻ' });
-    if (child.classId === classId) invalid({ classId: 'Trẻ đang học lớp này. Chọn lớp khác.' });
-    if (child.classId && !reason?.trim()) invalid({ reason: 'Nhập lý do chuyển lớp' });
-    if (!declarationOf(db, childId)) invalid({ classId: 'Trẻ chưa có khai báo sức khỏe. Khai báo trước khi xếp lớp.' });
+    if (fromClassId === classId) invalid({ classId: 'Trẻ đang học lớp này. Chọn lớp khác.' });
+    if (fromClassId && !reason?.trim()) invalid({ reason: 'Nhập lý do chuyển lớp' });
+    if (!declarationOf(db, childId)) invalid({ classId: 'Trẻ chưa có khai báo ăn và sức khỏe. Khai báo trước khi xếp lớp.' });
+    if (effectiveDate) {
+      const year = schoolYearOf(db, db.classes.find((c) => c.id === classId)?.schoolYear || activeYearId(db));
+      const error = placementDateError(effectiveDate, {
+        earliest,
+        today,
+        yearEnd: year?.endDate,
+        holidays: yearHolidays(db, year?.id),
+        transfer: !!fromClassId,
+      });
+      if (error) invalid({ effectiveDate: error });
+    }
+    // G94-180/CHD-03: lịch nghỉ học chưa tới ngày ⇒ không xếp / chuyển lớp từ ngày nghỉ trở đi (như BE)
+    if (child.scheduledLeaveOn && date >= child.scheduledLeaveOn)
+      invalid({ effectiveDate: `Trẻ nghỉ học từ ${formatDate(child.scheduledLeaveOn)}. Hủy lịch nghỉ trước khi xếp lớp từ ngày này` });
     return writeDb((d) => {
       const target = findChild(d, childId);
-      const cls = assertClassAvailable(d, classId, user);
-      // One class per child at a time: the transfer closes the old placement (data rule).
+      const cls = assertClassAvailable(d, classId, user, activeYearId(d), childId);
+      if (target.nextClass) {
+        const old = target.nextClass;
+        cancelUpcomingPlacement(d, target, user.id);
+        const oldClass = d.classes.find((c) => c.id === old.classId);
+        if (oldClass && old.classId !== cls.id)
+          (oldClass.teacherIds || []).forEach((teacherId) =>
+            pushNotification(d, {
+              userId: teacherId,
+              type: 'CHILD_PLACED',
+              title: 'Hủy lịch vào lớp',
+              message: `${target.fullName} không vào ${oldClass.name} từ ngày ${formatDate(old.from)} nữa.`,
+              link: `/children/${target.id}`,
+            }),
+          );
+        target.nextClass = null;
+        // Trẻ chỉ có lớp chưa bắt đầu ⇒ bỏ lớp đó
+        if (!fromClassId) target.classId = null;
+      }
       d.childPlacements.push({
         id: uid('pl'),
         childId,
-        fromClassId: target.classId,
+        fromClassId,
         toClassId: cls.id,
         userId: user.id,
         at: nowIso(),
         reason: reason?.trim() || '',
+        effectiveFrom: date,
       });
-      target.classId = cls.id;
-      // Điểm trường theo lớp (BE DOMAIN_MODEL: campus suy từ classroom): lớp ở điểm trường khác = chuyển điểm trường.
-      target.campusId = cls.campusId;
+      if (date > today && fromClassId) {
+        // Lịch chuyển: lớp hiện tại giữ tới hết ngày trước ngày chuyển
+        target.nextClass = { classId: cls.id, from: date };
+      } else {
+        target.classId = cls.id;
+        // Điểm trường theo lớp (BE DOMAIN_MODEL: campus suy từ classroom): lớp ở điểm trường khác = chuyển điểm trường.
+        target.campusId = cls.campusId;
+        target.nextClass = date > today ? { classId: cls.id, from: date } : null;
+      }
       target.status = CHILD_STATUS.ACTIVE;
-      notifyClassTeachers(d, cls, target);
+      notifyClassTeachers(d, cls, target, date);
       return toView(d, target, user);
     });
+  },
+
+  /** G94-180/CHD-14 (BE giả cancelScheduledPlacement): hủy lớp chưa bắt đầu; chưa học lớp nào ⇒ về Chờ xếp lớp. */
+  async cancelScheduledPlacement(childId, user) {
+    await delay();
+    const db = ensureSeeded();
+    const child = findChild(db, childId);
+    if (!canPlaceChild(child, user)) forbid();
+    if (!child.nextClass) invalid({ classId: 'Trẻ không có lịch vào lớp hoặc chuyển lớp chưa tới ngày' });
+    return writeDb((d) => {
+      const target = findChild(d, childId);
+      const next = target.nextClass;
+      cancelUpcomingPlacement(d, target, user.id);
+      const nextClass = d.classes.find((c) => c.id === next.classId);
+      (nextClass?.teacherIds || []).forEach((teacherId) =>
+        pushNotification(d, {
+          userId: teacherId,
+          type: 'CHILD_PLACED',
+          title: 'Hủy lịch vào lớp',
+          message: `${target.fullName} không vào ${nextClass.name} từ ngày ${formatDate(next.from)} nữa.`,
+          link: `/children/${target.id}`,
+        }),
+      );
+      if (target.classId === next.classId) {
+        target.classId = null;
+        target.status = CHILD_STATUS.PENDING_PLACEMENT;
+      }
+      target.nextClass = null;
+      return toView(d, target, user);
+    });
+  },
+
+  /** G94-180/CHD-14: ngày nghỉ của năm học để màn tiếp nhận / xếp lớp báo lỗi sớm (BE GET /school-years/{id}/holidays). */
+  async getSchoolHolidays(schoolYearId) {
+    await delay(60);
+    const db = ensureSchoolSeeded();
+    return clone(yearHolidays(db, schoolYearId || activeYearId(db)));
+  },
+
+  /**
+   * G94-180/CHD-03 (user 25/11): khoảng ngày cho nghỉ học (BE GET /children/{id}/leave-options); minDate là hôm nay nếu chọn được
+   * hôm nay, không thì ngày mai; maxDate là hết năm học đang hoạt động.
+   * Đơn giản hóa: mock chỉ biết điểm danh trong db.attendance (không có sức khỏe/đánh giá trong ngày), và chỉ khi màn điểm danh đã seed.
+   */
+  async getLeaveOptions(childId, user) {
+    await delay();
+    const db = ensureSeeded();
+    const child = findChild(db, childId);
+    if (!canWithdrawChild(child, user)) forbid();
+    const today = todayInput();
+    const yearEnd = activeYearEnd(db);
+    const problem = leaveDateProblem(db, child, today, today);
+    return {
+      today,
+      todayAllowed: !problem,
+      todayBlockedReason: problem || null,
+      // Hè / không có năm học đang hoạt động: không còn ngày nào chọn được (BE: minDate = maxDate = hôm nay)
+      minDate: !yearEnd ? today : problem ? addDays(today, 1) : today,
+      maxDate: yearEnd || today,
+    };
   },
 
   /** Cho nghỉ học: không xóa dữ liệu, chỉ chuyển trạng thái Đã nghỉ và giữ lớp cuối cùng để tra lịch sử. */
@@ -1293,27 +1623,51 @@ export const childrenMockRepository = {
     if (!canWithdrawChild(child, user)) forbid();
     const errors = {};
     if (!leftAt || !/^\d{4}-\d{2}-\d{2}$/.test(leftAt)) errors.leftAt = 'Chọn ngày nghỉ học';
-    else if (leftAt > todayInput()) errors.leftAt = 'Ngày nghỉ học không được ở tương lai';
-    else if (child.enrolledAt && leftAt < child.enrolledAt) errors.leftAt = 'Ngày nghỉ học không được trước ngày tiếp nhận';
+    else {
+      // BE chặn mọi lần cho nghỉ (kể cả hôm nay) khi đã có lịch nghỉ
+      const problem = child.scheduledLeaveOn
+        ? `Trẻ đã có lịch nghỉ học từ ${formatDate(child.scheduledLeaveOn)}. Hủy lịch nghỉ trước khi chọn ngày khác`
+        : leaveDateProblem(db, child, leftAt, todayInput());
+      if (problem) errors.leftAt = problem;
+    }
     if (!reason?.trim()) errors.reason = 'Nhập lý do cho trẻ nghỉ học';
     else if (reason.trim().length > 300) errors.reason = 'Lý do tối đa 300 ký tự';
     if (hasErrors(errors)) invalid(errors);
+    // G94-180/CHD-03: ngày sau hôm nay ⇒ đặt lịch nghỉ, trẻ vẫn ACTIVE tới ngày đó (BE tự chuyển Đã nghỉ khi tới ngày)
+    if (leftAt > todayInput()) {
+      return writeDb((d) => {
+        const target = findChild(d, childId);
+        target.scheduledLeaveOn = leftAt;
+        target.scheduledLeaveReason = reason.trim();
+        target.scheduledLeaveBy = user.id;
+        target.history = [...(target.history || []), { action: 'LEAVE_SCHEDULED', userId: user.id, at: nowIso(), note: reason.trim() }];
+        return toView(d, target, user);
+      });
+    }
     return writeDb((d) => {
       const target = findChild(d, childId);
-      target.status = CHILD_STATUS.LEFT;
-      target.leftAt = leftAt;
-      target.leftReason = reason.trim();
-      target.history = [...(target.history || []), { action: 'WITHDRAWN', userId: user.id, at: nowIso(), note: reason.trim() }];
-      const cls = classOf(d, target);
-      (cls?.teacherIds || []).forEach((teacherId) =>
-        pushNotification(d, {
-          userId: teacherId,
-          type: 'CHILD_WITHDRAWN',
-          title: 'Trẻ nghỉ học',
-          message: `${target.fullName} nghỉ học từ ngày ${formatDate(leftAt)}.`,
-          link: `/children/${target.id}`,
-        }),
-      );
+      leaveNow(d, target, leftAt, reason.trim(), user.id);
+      return toView(d, target, user);
+    });
+  },
+
+  /** G94-180/CHD-03 (BE giả DELETE /children/{id}/scheduled-leave): hủy lịch nghỉ, trẻ học tiếp như chưa hẹn. */
+  async cancelScheduledLeave(childId, user) {
+    await delay();
+    const db = ensureSeeded();
+    const child = findChild(db, childId);
+    if (!canWithdrawChild(child, user)) forbid();
+    if (!child.scheduledLeaveOn) throw new ApiError(409, 'Trẻ không có lịch nghỉ học chưa tới ngày');
+    return writeDb((d) => {
+      const target = findChild(d, childId);
+      const scheduledOn = target.scheduledLeaveOn;
+      delete target.scheduledLeaveOn;
+      delete target.scheduledLeaveReason;
+      delete target.scheduledLeaveBy;
+      target.history = [
+        ...(target.history || []),
+        { action: 'LEAVE_CANCELLED', userId: user.id, at: nowIso(), note: `Lịch nghỉ học từ ${formatDate(scheduledOn)}` },
+      ];
       return toView(d, target, user);
     });
   },
@@ -1345,7 +1699,11 @@ export const childrenMockRepository = {
         entry.historyChange = { from: clone(before), to: clone(clean.medicalHistory) };
       // Chỉ báo khi chuyển sang "Có tiếp xúc", không báo lại khi lưu lại; đã có ngày mà đổi ngày thì báo BGH (2026-10-21).
       const newTbContact = !tbReported(before) && tbReported(clean.medicalHistory);
-      const dateChange = { from: tbContactDateOf(before), to: tbContactDateOf(clean.medicalHistory), source: 'sửa khai báo sức khỏe' };
+      const dateChange = {
+        from: tbContactDateOf(before),
+        to: tbContactDateOf(clean.medicalHistory),
+        source: 'sửa khai báo ăn và sức khỏe',
+      };
       Object.assign(decl, clean, { declaredBy: user.id, declaredAt: nowIso() });
       decl.history.push(entry);
       const target = findChild(d, childId);
@@ -1354,6 +1712,16 @@ export const childrenMockRepository = {
       // Khai báo của Phó hiệu trưởng có hiệu lực ngay: bếp và điểm danh đọc danh sách mới.
       const owner = findChild(d, childId);
       owner.allergies = [...clean.allergies.items];
+      // BE:CHD-13 (22/11/2026): đổi "Báo ăn" ghi vào lịch sử hồ sơ (ChildRecordServiceImpl.saveDeclaration)
+      const mealBefore = owner.mealRegistered !== false;
+      if (mealBefore !== mealRegistered) {
+        const yesNo = (value) => (value ? 'Có' : 'Không');
+        const change = { field: 'mealRegistered', label: 'Báo ăn', from: yesNo(mealBefore), to: yesNo(mealRegistered) };
+        owner.history = [
+          ...(owner.history || []),
+          { action: 'UPDATED', userId: user.id, at: nowIso(), note: reason?.trim() || undefined, changes: [change] },
+        ];
+      }
       owner.mealRegistered = mealRegistered;
       return clone(decl);
     });

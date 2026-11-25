@@ -1,3 +1,4 @@
+import { childNameWithHistory } from '@/utils/childHistory';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Save, Lock, HeartPulse, CheckCircle2, BarChart3, ArrowRight, AlertTriangle } from '@/components/ui/icons';
@@ -42,12 +43,15 @@ import {
   sessionsAfterLeave,
 } from '@/models/attendance/attendanceConstants';
 import { schoolToday } from '@/utils/attendance/attendanceTime';
-import { inReadRanges, isPastClass, latestReadRange } from '@/utils/attendance/attendancePermissions';
 import { validateClassAttendance } from '@/utils/attendance/attendanceValidation';
 import { attendanceCrumbs } from '@/utils/attendance/breadcrumbs';
 import { normalizeText, formatDate, formatDateTime } from '@/utils/format';
 import { ChildAvatar } from '@/components/ChildAvatar';
 import { flagTone, healthFlag, healthReminder } from '@/utils/attendance/healthFlag';
+import { readableClassDate } from '@/utils/historyDate';
+import { TransferredHistoryPanel } from '@/components/TransferredHistoryPanel';
+import { hasBePermission } from '@/utils/bePermissions';
+import { PERMISSIONS } from '@/models/bePermissions';
 import '@/styles/modules/attendance.css';
 
 // Bữa của lớp = bữa Hiệu trưởng cấu hình cho nhóm tuổi; Có mặt mặc định ăn đủ, giáo viên có thể tắt báo ăn.
@@ -81,14 +85,8 @@ export default function AttendancePage() {
   // Lớp trên URL không thuộc năm đang chọn ở header ⇒ lớp đầu tiên của năm đó
   const paramClass = params.get('classId');
   const classId = classes.some((c) => c.id === paramClass) ? paramClass : classes[0]?.id || '';
-  // AUTH-03: lớp cũ chỉ xem trong các đợt đã dạy; mặc định ngày cuối của đợt gần nhất
   const selectedClass = classes.find((c) => c.id === classId);
-  const pastClass = isPastClass(selectedClass);
-  const latestRange = latestReadRange(selectedClass);
-  const date = params.get('date') || (pastClass ? latestRange.end : defaultDate);
-  const minDate = pastClass ? selectedClass.readRanges.reduce((min, r) => (r.start < min ? r.start : min), latestRange.start) : undefined;
-  const maxDate = pastClass && latestRange.end < today ? latestRange.end : today;
-  const dateAllowed = inReadRanges(selectedClass, date);
+  const date = readableClassDate(selectedClass, params.get('date')) || defaultDate;
   // unsaved: { attendance, health } — bản nháp điểm danh / ghi nhận sức khỏe chưa lưu
   const [unsaved, setUnsaved] = useState(NOTHING_UNSAVED);
   const [busy, setBusy] = useState(false);
@@ -102,6 +100,12 @@ export default function AttendancePage() {
     const apply = () => {
       const next = new URLSearchParams(params);
       next.set(key, value);
+      if (key === 'classId') {
+        const pickedClass = classes.find((c) => c.id === value);
+        if (pickedClass?.historicalReadOnly && pickedClass.lastReadableDate) next.set('date', pickedClass.lastReadableDate);
+        // Từ lớp lịch sử sang lớp đang dạy: bỏ ngày cũ, mở ngày mặc định
+        else if (selectedClass?.historicalReadOnly) next.delete('date');
+      }
       setUnsaved(NOTHING_UNSAVED);
       setParams(next, { replace: true });
     };
@@ -128,8 +132,7 @@ export default function AttendancePage() {
             classes={classes}
             classId={classId}
             date={date}
-            minDate={minDate}
-            maxDate={maxDate}
+            maxDate={today}
             onClassChange={(value) => changeFilter('classId', value)}
             onDateChange={(value) => changeFilter('date', value)}
           >
@@ -142,25 +145,18 @@ export default function AttendancePage() {
               Tiếp: Đánh giá hằng ngày <ArrowRight size={16} />
             </Link>
           </ClassDateBar>
-          {dateAllowed ? (
-            <ReceptionWorkbench
-              key={`${user.id}:${classId}:${date}`}
-              classId={classId}
-              date={date}
-              user={user}
-              onUnsaved={setUnsaved}
-              onBusy={setBusy}
-              saveRef={saveDraft}
-            />
-          ) : (
-            <div className="card">
-              <EmptyState
-                title="Ngày này ngoài đợt bạn đã dạy lớp"
-                description={`Chỉ xem được ngày đã phân công: ${selectedClass.readRanges
-                  .map((r) => `${formatDate(r.start)} – ${formatDate(r.end)}`)
-                  .join('; ')}.`}
-              />
-            </div>
+          <ReceptionWorkbench
+            key={`${user.id}:${classId}:${date}`}
+            classId={classId}
+            date={date}
+            user={user}
+            onUnsaved={setUnsaved}
+            onBusy={setBusy}
+            saveRef={saveDraft}
+          />
+          {/* Trẻ chuyển đến: điểm danh, sức khỏe ở lớp cũ trong ngày (chỉ xem), cần quyền xem đánh giá */}
+          {hasBePermission(user, PERMISSIONS.ASSESSMENT_VIEW) && (
+            <TransferredHistoryPanel classId={classId} range={{ from: date, to: date }} date={date} sections={['attendance']} />
           )}
         </>
       )}
@@ -616,7 +612,7 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
                                 aria-pressed={selectedId === row.child.id}
                                 onClick={() => selectChild(row.child.id)}
                               >
-                                <strong>{row.child.fullName}</strong>
+                                <strong>{childNameWithHistory(row.child.fullName, row.child.historyStatus)}</strong>
                               </button>
                               {/* CHD-13: trẻ không báo ăn ghi ở ô Trẻ; trẻ có ăn mà có dị ứng thì nhắc để GV biết suất thay thế */}
                               {row.child.mealRegistered === false ? (

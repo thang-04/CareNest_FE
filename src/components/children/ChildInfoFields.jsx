@@ -1,4 +1,5 @@
 import { StatusBadge } from '@/components/ui/StatusBadge';
+import { DateInput } from '@/components/form/DateInput';
 import { normalizeRecipients } from '@/utils/children/accountRecipient';
 import { Plus, Trash2, UserCheck } from '@/components/ui/icons';
 import { IntakeChoiceField, IntakeField, IntakePortraitField, IntakeSheet } from './IntakeSheet';
@@ -107,12 +108,10 @@ export function ChildInfoFields({
             />
           </IntakeField>
           <IntakeField sheet={sheet} label="Ngày sinh" required error={errors.dateOfBirth}>
-            <input
-              type="date"
-              className="input"
+            <DateInput
               value={value.dateOfBirth}
               max={todayInput()}
-              onChange={(e) => set('dateOfBirth', e.target.value)}
+              onChange={(next) => set('dateOfBirth', next)}
               onBlur={() => onBlurField?.('dateOfBirth')}
             />
           </IntakeField>

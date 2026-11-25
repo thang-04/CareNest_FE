@@ -1,7 +1,7 @@
 import { PERMISSION_FEATURES, PERMISSION_FLOWS, PERMISSION_GROUPS, PERMISSION_MODULE_LABELS } from '@/models/account/permissionConstants';
 
-// Cột HT chỉ để đối chiếu: quyền HT cố định trong code BE, không có hàng trong ma trận (ADR-0017).
-export const PERMISSION_MATRIX_ROLES = ['PRINCIPAL', 'VICE_PRINCIPAL', 'TEACHER', 'KITCHEN_STAFF'];
+// Quyền HT cố định trong code BE (ADR-0017), trừ 8 mã soạn/duyệt EDU-110; Tổ trưởng là cột riêng (EDU-110 (2)).
+export const PERMISSION_MATRIX_ROLES = ['PRINCIPAL', 'VICE_PRINCIPAL', 'TEAM_LEADER', 'TEACHER', 'KITCHEN_STAFF'];
 
 export const permissionMatrixRows = (catalog = [], roles = []) =>
   catalog.map((permission) => {

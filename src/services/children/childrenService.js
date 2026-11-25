@@ -15,9 +15,13 @@ export const getClassOptions = (schoolYear, user, options) => repo.getClassOptio
 export const enrollChild = (payload, user) => repo.enrollChild(payload, user);
 export const updateChild = (id, body, user) => repo.updateChild(id, body, user);
 export const previewEnrollmentImport = (file, user) => repo.previewImport(file, user);
-export const importChildren = (rows, user, campusId) => repo.importChildren(rows, user, campusId);
+export const importChildren = (rows, user, campusId, intake) => repo.importChildren(rows, user, campusId, intake);
 export const placeChild = (childId, body, user) => repo.placeChild(childId, body, user);
+export const cancelScheduledPlacement = (childId, user) => repo.cancelScheduledPlacement(childId, user);
+export const getSchoolHolidays = (schoolYearId, user) => repo.getSchoolHolidays(schoolYearId, user);
+export const getLeaveOptions = (childId, user) => repo.getLeaveOptions(childId, user);
 export const withdrawChild = (childId, body, user) => repo.withdrawChild(childId, body, user);
+export const cancelScheduledLeave = (childId, user) => repo.cancelScheduledLeave(childId, user);
 export const saveHealthDeclaration = (childId, body, user) => repo.saveDeclaration(childId, body, user);
 // CHD-11: GV gửi yêu cầu sửa hồ sơ/khai báo; HT, PHT điểm trường duyệt
 export const submitProfileChange = (childId, body, user) => repo.submitProfileChange(childId, body, user);

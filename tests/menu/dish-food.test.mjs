@@ -50,6 +50,16 @@ test('kiểm tra món: ô định lượng sai bị báo, ô trống được ph
   assert.match(e.ing_1, /ít nhất một nhóm/);
 });
 
+test('định lượng ở nhóm đã bỏ chọn không làm món hợp lệ', () => {
+  const errors = validateDish({
+    name: 'Món thử',
+    type: 'MAIN',
+    ageGroupIds: ['ag-5'],
+    ingredients: [{ foodId: 'f1', portions: { 'ag-2': 50, 'ag-5': '' } }],
+  });
+  assert.match(errors.ing_0, /ít nhất một nhóm/);
+});
+
 test('kiểm tra thực phẩm: tỷ lệ thải bỏ 0–90%', () => {
   const base = { name: 'Rau thử', group: 'VEGETABLE', unit: 'g', purchaseUnit: 'kg', purchaseUnitSize: 1000 };
   assert.ok(validateFood({ ...base, wastePct: 95 }).wastePct);

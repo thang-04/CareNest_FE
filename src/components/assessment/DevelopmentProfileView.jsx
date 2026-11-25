@@ -1,3 +1,4 @@
+import { childNameWithHistory } from '@/utils/childHistory';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Award, CalendarRange, ClipboardList, FileText, Flag, Ticket } from '@/components/ui/icons';
@@ -13,7 +14,8 @@ import { ChildAvatar } from '@/components/ChildAvatar';
 import { formatDate } from '@/utils/format';
 import { ageLabel, GENDER_LABELS } from '@/models/School';
 import { PERIOD_TYPE_LABELS, TICKET_TYPE_LABELS } from '@/models/assessment/assessmentConstants';
-import { periodLabel, periodOptions } from '@/utils/assessment/assessmentPeriods';
+import { periodLabel, todayIso } from '@/utils/assessment/assessmentPeriods';
+import { developmentPeriods } from '@/utils/assessment/developmentPeriods';
 
 const SCOPES = [
   { key: 'YEAR', label: 'Năm học' },
@@ -30,25 +32,12 @@ export function DevelopmentProfileView({ childId, mode, evaluationLink }) {
   const { schoolYear, schoolYears } = useSchoolYear();
   const year = schoolYears.find((y) => String(y.id) === String(schoolYear));
   const [scope, setScope] = useState('YEAR');
-  const options = useMemo(() => periodOptions(scope, schoolYear, year), [scope, schoolYear, year]);
+  const options = useMemo(() => developmentPeriods(scope, year, todayIso()), [scope, year]);
   const [periodIndex, setPeriodIndex] = useState(0);
   const period = options[Math.min(periodIndex, options.length - 1)] || null;
   const params = useMemo(() => (period ? { mode, start: period.start, end: period.end } : null), [mode, period]);
   const { development: d, loading, error, reload } = useChildDevelopment(childId, params);
   const [page, setPage] = useState(1);
-
-  if (error) {
-    if (error.status === 403 || error.status === 404)
-      return (
-        <StatusPage
-          bare
-          kind={String(error.status)}
-          title="Không xem được hồ sơ"
-          description="Bạn không có quyền xem hồ sơ của trẻ này hoặc trẻ không tồn tại."
-        />
-      );
-    return <ErrorState error={error} onRetry={reload} />;
-  }
 
   const daily = d?.dailyAssessments || [];
   const days = d?.days || [];
@@ -62,11 +51,11 @@ export function DevelopmentProfileView({ childId, mode, evaluationLink }) {
     <>
       <div className="card mb-16">
         <div className="card__body dg-period-bar">
-          {d && (
+          {d && !error && (
             <div className="dg-profile-head flex-1 min-w-220">
               <ChildAvatar child={d.child} size="lg" />
               <div>
-                <div className="fw-600 text-lg">{d.child.fullName}</div>
+                <div className="fw-600 text-lg">{childNameWithHistory(d.child.fullName, d.child.historyStatus)}</div>
                 <div className="text-2 text-sm">
                   {[
                     d.child.code,
@@ -131,9 +120,24 @@ export function DevelopmentProfileView({ childId, mode, evaluationLink }) {
         </div>
       </div>
 
-      {!period ? (
+      {error ? (
+        error.status === 403 || error.status === 404 ? (
+          <StatusPage
+            bare
+            kind={String(error.status)}
+            title="Không xem được dữ liệu trong kỳ này"
+            description="Hãy chọn kỳ nằm trong phạm vi bạn được phân công."
+          />
+        ) : (
+          <ErrorState error={error} onRetry={reload} />
+        )
+      ) : !period ? (
         <div className="card">
-          <EmptyState icon={CalendarRange} title="Năm học chưa bắt đầu" description="Chọn năm học khác ở thanh trên cùng." />
+          <EmptyState
+            icon={CalendarRange}
+            title={scope === 'SEMESTER' ? 'Chưa có học kỳ được cấu hình và bắt đầu' : 'Chưa có kỳ phù hợp'}
+            description="Kiểm tra năm học và thời gian học kỳ trong Cấu hình trường, hoặc chọn kỳ khác."
+          />
         </div>
       ) : loading || !d ? (
         <LoadingState />

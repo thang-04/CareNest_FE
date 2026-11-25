@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { api, beReachable, sql } from '../support/realBe.mjs';
 import { actionCount, clickAction, login, spaGo } from '../support/ui.mjs';
 
-// System spec 005 (BE thật): giáo án ngày theo mẫu chung — 4 mục a/b/c, dòng gợi ý xóa được, phần II Đánh giá trẻ trên ngày,
+// System spec 005 (BE thật): giáo án ngày theo mẫu chung — 4 mục a/b/c, dòng gợi ý xóa được, không còn phần Đánh giá trẻ trên ngày (bỏ 25/11/2026),
 // bỏ ô "Kế hoạch điều chỉnh và bổ sung", gửi kế hoạch giáo dục ngày thiếu mục ⇒ chữ đỏ, xuất file cả tuần.
 // teamlead34 = GVCN lớp 3–4 tuổi; chạy sau edu-semester-flow-ui (kế hoạch giáo dục chủ đề học kỳ 2 đã ban hành).
 test.describe.configure({ mode: 'serial' });
@@ -47,7 +47,7 @@ const openDay = async (page) => {
   await expect(page.getByRole('tab', { name: /Thứ 2/ })).toBeVisible({ timeout: 30_000 });
 };
 
-test('ST-005-01 giáo án ngày có 4 mục a/b/c, mục học 3 dòng gợi ý, phần II; không còn ô điều chỉnh', async ({ page }) => {
+test('ST-005-01 giáo án ngày có 4 mục a/b/c, mục học 3 dòng gợi ý; không còn phần đánh giá trẻ và ô điều chỉnh', async ({ page }) => {
   test.skip(!week, 'Không có tuần HK2 chưa dạy');
   await openDay(page);
   // Phần I là một bảng: mỗi mục một dòng tiêu đề
@@ -56,8 +56,8 @@ test('ST-005-01 giáo án ngày có 4 mục a/b/c, mục học 3 dòng gợi ý,
   await expect(page.getByText('a) Mục đích, yêu cầu').first()).toBeVisible();
   await expect(page.getByText('b) Chuẩn bị').first()).toBeVisible();
   await expect(page.getByText('c) Tiến hành').first()).toBeVisible();
-  await expect(page.getByRole('button', { name: 'II. Đánh giá trẻ trên ngày' })).toBeVisible();
-  await expect(page.getByLabel('1. Tình trạng sức khỏe của trẻ')).toBeVisible();
+  // Tiền 25/11/2026: bỏ phần "Đánh giá trẻ trên ngày" khỏi giáo án ngày
+  await expect(page.getByText(/Đánh giá trẻ trên ngày/)).toHaveCount(0);
   await expect(page.getByText(/Kế hoạch điều chỉnh/)).toHaveCount(0);
   for (const [i, t] of SUGGESTED.entries()) {
     const cell = page.getByLabel(`1. Hoạt động học – tên bước ${i + 1}`);
@@ -195,10 +195,10 @@ test('ST-005-04 xuất file ở trang Giáo án ngày: một file cả tuần th
   await expect(preview).toBeVisible();
   const frame = preview.frameLocator('iframe').first();
   const root = (await preview.locator('iframe').count()) ? frame.locator('body') : preview;
-  // Mẫu "Chủ đề gia đình ký số" (EDU-21, Tiền 13/11/2026): I. Chuẩn bị, II. Tiến hành; mỗi ngày … Đánh giá trẻ trên ngày
+  // Mẫu "Chủ đề gia đình ký số" (EDU-21, Tiền 13/11/2026): I. Chuẩn bị, II. Tiến hành; bỏ Đánh giá trẻ trên ngày (25/11/2026)
   await expect(root.getByText(/I\. Chuẩn bị/).first()).toBeVisible();
   await expect(root.getByText(/II\. Tiến hành/).first()).toBeVisible();
-  await expect(root.getByText(/Đánh giá trẻ trên ngày/).first()).toBeVisible();
+  await expect(root.getByText(/Đánh giá trẻ trên ngày/)).toHaveCount(0);
   await expect(root.getByText(/Kế hoạch điều chỉnh/)).toHaveCount(0);
 });
 

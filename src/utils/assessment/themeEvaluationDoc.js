@@ -1,3 +1,4 @@
+import { childNameWithHistory } from '@/utils/childHistory';
 /*
  * Bản in "Bảng đánh giá sự phát triển của trẻ" cuối chủ đề theo đúng mẫu giấy của trường (Cần chốt 04/11/2026): bảng
  * trẻ × "Các mục tiêu giáo dục", tổng số Đ / KĐ, dòng Tổng số trẻ đạt / Tỷ lệ, tổng kết 70%, lưu ý; chỗ ký Giáo viên chủ
@@ -64,7 +65,7 @@ ${goals.length ? `<th colspan="${goals.length}">Các mục tiêu giáo dục (Đ
     .map(
       (r, i) => `<tr>
 <td class="n">${i + 1}</td>
-<td class="name">${esc(r.fullName)}</td>
+<td class="name">${esc(childNameWithHistory(r.fullName, r.historyStatus))}</td>
 ${r.cells.map((c) => `<td class="n">${mark(c.met)}</td>`).join('')}
 <td class="n">${r.met}</td>
 <td class="n">${r.notMet || ''}</td>

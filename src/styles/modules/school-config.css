@@ -874,6 +874,7 @@
 .sc-plc-new__table {
   table-layout: fixed;
   width: 100%;
+  min-width: calc(var(--space-16) * 14);
 }
 .sc-plc-new__c-child {
   width: 24%;

@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { transformWithOxc } from 'vite';
 import React from 'react';
 
-// Tab trẻ mới tiếp nhận (Cần chốt 18/11/2026): ô chọn lớp chỉ hiện lớp đúng nhóm tuổi + điểm trường, có sĩ số
+// Xếp tay năm mới được khác nhóm tuổi (Cần 22/11), vẫn đúng điểm trường và giữ giới hạn sĩ số.
 const source = await readFile(new URL('../../src/components/school-config/NewAdmissionPlacementPanel.jsx', import.meta.url), 'utf8');
 const stubs = `import React from ${JSON.stringify(import.meta.resolve('react'))};
 const useState=v=>[typeof v==='function'?v():v,()=>{}];
@@ -61,17 +61,23 @@ test('danh sách gom theo nhóm tuổi, trẻ không khớp nhóm nào để cu�
   );
 });
 
-test('ô chọn lớp chỉ có lớp đúng nhóm tuổi và điểm trường, nhãn có điểm trường và sĩ số', () => {
+test('ô chọn lớp có cả nhóm tuổi khác trong cùng điểm trường, đúng nhóm gợi ý đứng trước', () => {
   const options = React.Children.toArray(selectFor('a1').props.children);
   assert.deepEqual(
     options.map((o) => o.props.value),
-    ['m1'],
+    ['m1', 'n1'],
   );
-  assert.equal(React.Children.toArray(options[0].props.children).join(''), 'Lớp Mầm 1 · Cơ sở 1 · 19/25');
+  assert.equal(React.Children.toArray(options[0].props.children).join(''), 'Lớp Mầm 1 · Mẫu giáo bé · Cơ sở 1 · 19/25');
 });
 
-test('lớp đầy không chọn được; trẻ không khớp nhóm tuổi không chọn được lớp', () => {
+test('lớp đầy không chọn được; trẻ không có nhóm gợi ý vẫn được xếp tay', () => {
   const full = React.Children.toArray(selectFor('a2').props.children);
   assert.equal(full[0].props.disabled, true);
-  assert.equal(selectFor('a3').props.disabled, true);
+  assert.equal(selectFor('a3').props.disabled, false);
+  assert.deepEqual(
+    React.Children.toArray(selectFor('a3').props.children)
+      .map((option) => option.props.value)
+      .sort(),
+    ['m1', 'n1'],
+  );
 });

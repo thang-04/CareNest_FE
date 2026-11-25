@@ -38,11 +38,11 @@ export function useHealthCheck(id, { live = true } = {}) {
 }
 
 /** Danh sách trẻ của một lớp trong đợt { campaign, cls, children, canRecord }. */
-export function useHealthCheckClass(id, classId) {
+export function useHealthCheckClass(id, classId, { enabled = true } = {}) {
   const { user } = useAuth();
   const { data, loading, error, reload } = useAsync(() => getHealthCheckClass(id, classId, user), [id, classId, user?.id], {
     refreshOnDataChange: true,
-    enabled: !!id && !!classId,
+    enabled: enabled && !!id && !!classId,
   });
   return { roster: data, loading, error, reload };
 }

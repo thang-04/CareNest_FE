@@ -46,6 +46,37 @@
   object-fit: cover;
 }
 
+/* Ảnh bữa ăn theo tuần: nhãn ngày kèm tóm tắt, bảng thông tin đối chiếu của một bữa */
+.kr-week-day {
+  display: grid;
+  gap: var(--space-1);
+  text-align: left;
+}
+.kr-week-day__note {
+  font-size: var(--fs-xs);
+  color: var(--color-text-muted);
+}
+.kr-week-day__note--warn {
+  color: var(--color-danger-fg);
+  font-weight: var(--fw-semibold);
+}
+.kr-facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+  font-size: var(--fs-sm);
+}
+.kr-facts dt {
+  color: var(--color-text-muted);
+}
+.kr-facts dd {
+  margin: 0;
+}
+.kr-facts__chip {
+  margin-left: var(--space-2);
+}
+
 .kr-window-time {
   width: 140px;
 }
@@ -70,12 +101,53 @@
 }
 .kr-card__top {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   gap: var(--space-3);
 }
 .kr-card__name {
-  flex: 1;
+  flex: 1 1 12rem;
   min-width: 0;
+  overflow-wrap: anywhere;
+}
+/* Nhãn trạng thái (mở/thu hồi/đã ký…) tự xuống hàng, không ép tiêu đề */
+.kr-card__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  max-width: 100%;
+}
+.kr-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* Yêu cầu mở mẫu ngày cũ chờ Hiệu trưởng duyệt (INS-05) */
+.kr-queue {
+  margin-bottom: var(--space-4);
+}
+.kr-approvals {
+  display: grid;
+  gap: var(--space-3);
+}
+.kr-approval {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.kr-approval__main {
+  flex: 1 1 280px;
+  min-width: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+.kr-approval__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
 }
 
 .kr-form-modal .modal__body {
