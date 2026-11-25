@@ -8,11 +8,17 @@ import * as hints from '@/utils/children/healthExamHints';
 import { validateHealthExam } from '@/utils/children/healthExamValidation';
 
 const MESSAGE = 'Nhập nhiệt độ gồm 2 chữ số, tối đa 2 chữ số sau dấu phẩy (vd 36,5)';
-const VITALS = { label: '1-3 tuổi', temperature: { feverFrom: 37.5, hypothermiaBelow: 35.5 }, pulse: { min: 80, max: 130 }, respiratoryRate: { min: 20, max: 40 } };
+const VITALS = {
+  label: '1-3 tuổi',
+  temperature: { feverFrom: 37.5, hypothermiaBelow: 35.5 },
+  pulse: { min: 80, max: 130 },
+  respiratoryRate: { min: 20, max: 40 },
+};
 
 test('temperatureFormatError: dạng sai bị chặn, dạng đúng và ô trống không báo lỗi', () => {
   for (const bad of ['3115345', '9,5', '36,555', '365', '36,', 'abc', '-36']) assert.equal(hints.temperatureFormatError(bad), MESSAGE, bad);
-  for (const ok of ['36', '36,5', '36.5', '36.55', '36,55', '', null, undefined]) assert.equal(hints.temperatureFormatError(ok), '', String(ok));
+  for (const ok of ['36', '36,5', '36.5', '36.55', '36,55', '', null, undefined])
+    assert.equal(hints.temperatureFormatError(ok), '', String(ok));
 });
 
 test('temperatureForBe: đổi dấu phẩy thành số; chuỗi sai dạng giữ nguyên để BE báo lỗi đúng ô', () => {

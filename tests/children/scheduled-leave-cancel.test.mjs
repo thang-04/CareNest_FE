@@ -142,3 +142,28 @@ test('hộp hủy: ConfirmationModal, tiêu đề, nội dung, gọi facade, toa
 test('JSDoc useLeaveOptions không còn nextSchoolDay', () => {
   assert.doesNotMatch(hookSrc, /nextSchoolDay/);
 });
+
+test('hủy lịch: ghi chú "Lịch nghỉ học từ ..." không có tiền tố Lý do; hủy khi không có lịch ⇒ 409', async () => {
+  NOW();
+  const { profileHistoryRows } = await import('@/utils/children/profileHistory');
+  const child = activeChild();
+  await children.withdrawChild(child.id, { leftAt: '2026-12-16', reason: 'Chuyển nhà' }, PRINCIPAL);
+  const view = await children.cancelScheduledLeave(child.id, PRINCIPAL);
+  const rows = profileHistoryRows(view.history);
+  assert.equal(rows.find((r) => r.note.startsWith('Lịch nghỉ học từ')).noteText, 'Lịch nghỉ học từ 16/12/2026');
+  assert.equal(rows.find((r) => r.note === 'Chuyển nhà').noteText, 'Lý do: Chuyển nhà');
+  await assert.rejects(
+    () => children.cancelScheduledLeave(child.id, PRINCIPAL),
+    (err) => err.status === 409 && err.message === 'Trẻ không có lịch nghỉ học chưa tới ngày',
+  );
+});
+
+test('xếp lớp từ ngày nghỉ trở đi bị từ chối khi trẻ có lịch nghỉ', async () => {
+  NOW();
+  const child = ensureChildRecordsSeeded().children.find((c) => c.status === 'ACTIVE' && c.classId);
+  await children.withdrawChild(child.id, { leftAt: '2026-12-16', reason: 'Chuyển nhà' }, PRINCIPAL);
+  await assert.rejects(
+    () => children.placeChild(child.id, { classId: 'x', reason: 'r', effectiveDate: '2026-12-16' }, PRINCIPAL),
+    (err) => err.details?.effectiveDate === 'Trẻ nghỉ học từ 16/12/2026. Hủy lịch nghỉ trước khi xếp lớp từ ngày này',
+  );
+});

@@ -352,13 +352,16 @@ export const ensureChildRecordsSeeded = () => {
 const applyDueSchedules = (d) => {
   const today = todayInput();
   d.children.forEach((c) => {
+    // Chuyển lớp tới ngày áp trước: trẻ nghỉ ở lớp đang học vào ngày nghỉ
+    if (c.nextClass && c.nextClass.from <= today) {
+      const cls = (d.classes || []).find((k) => k.id === c.nextClass.classId);
+      c.classId = c.nextClass.classId;
+      if (cls) c.campusId = cls.campusId;
+      c.nextClass = null;
+    }
     // G94-180/CHD-03: lịch nghỉ tới ngày ⇒ Đã nghỉ học từ ngày hẹn (BE job 00:05)
-    if (c.scheduledLeaveOn && c.scheduledLeaveOn <= today) leaveNow(d, c, c.scheduledLeaveOn, c.scheduledLeaveReason || '', 'system');
-    if (!c.nextClass || c.nextClass.from > today) return;
-    const cls = (d.classes || []).find((k) => k.id === c.nextClass.classId);
-    c.classId = c.nextClass.classId;
-    if (cls) c.campusId = cls.campusId;
-    c.nextClass = null;
+    if (c.scheduledLeaveOn && c.scheduledLeaveOn <= today)
+      leaveNow(d, c, c.scheduledLeaveOn, c.scheduledLeaveReason || '', c.scheduledLeaveBy || 'system');
   });
 };
 
@@ -419,6 +422,7 @@ const leaveNow = (d, target, leftAt, reason, userId) => {
     );
   delete target.scheduledLeaveOn;
   delete target.scheduledLeaveReason;
+  delete target.scheduledLeaveBy;
 };
 
 const forbid = () => {
@@ -1502,6 +1506,9 @@ export const childrenMockRepository = {
       });
       if (error) invalid({ effectiveDate: error });
     }
+    // G94-180/CHD-03: lịch nghỉ học chưa tới ngày ⇒ không xếp / chuyển lớp từ ngày nghỉ trở đi (như BE)
+    if (child.scheduledLeaveOn && date >= child.scheduledLeaveOn)
+      invalid({ effectiveDate: `Trẻ nghỉ học từ ${formatDate(child.scheduledLeaveOn)}. Hủy lịch nghỉ trước khi xếp lớp từ ngày này` });
     return writeDb((d) => {
       const target = findChild(d, childId);
       const cls = assertClassAvailable(d, classId, user, activeYearId(d), childId);
@@ -1596,13 +1603,15 @@ export const childrenMockRepository = {
     const child = findChild(db, childId);
     if (!canWithdrawChild(child, user)) forbid();
     const today = todayInput();
+    const yearEnd = activeYearEnd(db);
     const problem = leaveDateProblem(db, child, today, today);
     return {
       today,
       todayAllowed: !problem,
       todayBlockedReason: problem || null,
-      minDate: problem ? addDays(today, 1) : today,
-      maxDate: activeYearEnd(db),
+      // Hè / không có năm học đang hoạt động: không còn ngày nào chọn được (BE: minDate = maxDate = hôm nay)
+      minDate: !yearEnd ? today : problem ? addDays(today, 1) : today,
+      maxDate: yearEnd || today,
     };
   },
 
@@ -1630,10 +1639,8 @@ export const childrenMockRepository = {
         const target = findChild(d, childId);
         target.scheduledLeaveOn = leftAt;
         target.scheduledLeaveReason = reason.trim();
-        target.history = [
-          ...(target.history || []),
-          { action: 'LEAVE_SCHEDULED', userId: user.id, at: nowIso(), note: reason.trim(), effectiveFrom: leftAt },
-        ];
+        target.scheduledLeaveBy = user.id;
+        target.history = [...(target.history || []), { action: 'LEAVE_SCHEDULED', userId: user.id, at: nowIso(), note: reason.trim() }];
         return toView(d, target, user);
       });
     }
@@ -1650,12 +1657,17 @@ export const childrenMockRepository = {
     const db = ensureSeeded();
     const child = findChild(db, childId);
     if (!canWithdrawChild(child, user)) forbid();
-    if (!child.scheduledLeaveOn) invalid({ leftAt: 'Trẻ không có lịch nghỉ học để hủy' });
+    if (!child.scheduledLeaveOn) throw new ApiError(409, 'Trẻ không có lịch nghỉ học chưa tới ngày');
     return writeDb((d) => {
       const target = findChild(d, childId);
+      const scheduledOn = target.scheduledLeaveOn;
       delete target.scheduledLeaveOn;
       delete target.scheduledLeaveReason;
-      target.history = [...(target.history || []), { action: 'LEAVE_CANCELLED', userId: user.id, at: nowIso() }];
+      delete target.scheduledLeaveBy;
+      target.history = [
+        ...(target.history || []),
+        { action: 'LEAVE_CANCELLED', userId: user.id, at: nowIso(), note: `Lịch nghỉ học từ ${formatDate(scheduledOn)}` },
+      ];
       return toView(d, target, user);
     });
   },

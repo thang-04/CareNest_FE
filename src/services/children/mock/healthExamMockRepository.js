@@ -27,6 +27,7 @@ import { examToHistory, historyToExam, profileToExamAdmin } from '@/models/child
 import { formatDate, todayInput } from '@/utils/format';
 import { uid } from '@/utils/id';
 import { hasErrors } from '@/utils/children/childrenValidation';
+import { temperatureFormatError } from '@/utils/children/healthExamHints';
 import { needsParentOpinion, validateHealthExam } from '@/utils/children/healthExamValidation';
 import { canRecordMeasurement, canViewHealth } from '@/utils/children/childrenPermissions';
 import { ensureChildRecordsSeeded, ensureDeclarationOf, notifyTbContactDateChanged, toMeasurementView } from './childrenMockRepository';
@@ -239,7 +240,7 @@ const cleanExam = (raw, ref, { concluded, mode = CONCLUSION_MODE.STANDARD, keeps
           },
   };
   const vitals = pick(t.vitals, r.vitals);
-  VITAL_ITEMS.forEach((i) => (vitals[i.key] = num(r.vitals?.[i.key], i.key === 'temperatureC' ? 1 : 0)));
+  VITAL_ITEMS.forEach((i) => (vitals[i.key] = num(r.vitals?.[i.key], i.key === 'temperatureC' ? 2 : 0)));
   const nutrition = {
     ...pick(t.nutrition, r.nutrition),
     lengthForAgeSd: num(r.nutrition?.lengthForAgeSd, 1),
@@ -473,7 +474,12 @@ export const healthExamMockRepository = {
       );
       if (dateTaken) errors.date = dateTaken;
       if (hasErrors(errors)) invalid(errors);
-    } else if (dateTaken) invalid({ date: dateTaken }, dateTaken);
+    } else {
+      // Nháp: nhiệt độ sai dạng bị từ chối đúng ô (như BE), các ô số khác để trống / dở dang
+      const temperatureError = temperatureFormatError(payload.exam?.vitals?.temperatureC);
+      if (temperatureError) invalid({ ...(dateTaken ? { date: dateTaken } : {}), 'exam.vitals.temperatureC': temperatureError });
+      if (dateTaken) invalid({ date: dateTaken }, dateTaken);
+    }
 
     return writeDb((d) => {
       const num = (v) =>
