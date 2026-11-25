@@ -197,51 +197,79 @@ export const classSizeLimit = (ageGroup, room) => {
   return { max, reason: `${by}: ${parts.join(', ')}` };
 };
 
-export const validateCutoff = (form, year) => {
+// Ô giờ của lịch sinh hoạt: [field, câu khi trống, nhãn dùng trong câu lỗi thứ tự]
+const SCHEDULE_FIELDS = [
+  ['dropoffOpenFrom', 'Nhập giờ mở đón trẻ', 'Mở đón trẻ'],
+  ['morningStart', 'Nhập giờ bắt đầu buổi sáng', 'Bắt đầu sáng'],
+  ['morningEnd', 'Nhập giờ kết thúc buổi sáng', 'Kết thúc sáng'],
+  ['afternoonStart', 'Nhập giờ bắt đầu buổi chiều', 'Bắt đầu chiều'],
+  ['fullDayPickupFrom', 'Nhập mốc tính đủ ngày', 'Mốc tính đủ ngày'],
+  ['pickupStart', 'Nhập giờ bắt đầu khung trả trẻ', 'Bắt đầu trả trẻ'],
+  ['pickupEnd', 'Nhập giờ kết thúc khung trả trẻ', 'Kết thúc trả trẻ'],
+  ['afternoonEnd', 'Nhập giờ kết thúc buổi chiều', 'Kết thúc chiều'],
+];
+const TIME_LABELS = {
+  time: 'Giờ chốt',
+  latestAfternoonArrival: 'Giờ đến muộn nhất buổi chiều',
+  ...Object.fromEntries(SCHEDULE_FIELDS.map(([key, , label]) => [key, label])),
+};
+// [ô báo lỗi, so sánh, ô mốc]: '>' phải sau, '>=' phải bằng hoặc sau, '<' phải trước
+const SCHEDULE_ORDER = [
+  ['morningStart', '>=', 'dropoffOpenFrom'],
+  ['morningEnd', '>', 'morningStart'],
+  ['afternoonStart', '>', 'morningEnd'],
+  ['fullDayPickupFrom', '>', 'afternoonStart'],
+  ['pickupStart', '>=', 'fullDayPickupFrom'],
+  ['pickupEnd', '>', 'pickupStart'],
+  ['afternoonEnd', '>=', 'pickupEnd'],
+  ['time', '>=', 'dropoffOpenFrom'],
+  ['time', '<', 'morningEnd'],
+  ['latestAfternoonArrival', '>', 'time'],
+  ['latestAfternoonArrival', '>=', 'morningEnd'],
+  ['latestAfternoonArrival', '<', 'pickupStart'],
+];
+const ORDER_TEXT = { '>': 'phải sau', '>=': 'phải bằng hoặc sau', '<': 'phải trước' };
+
+/**
+ * Thứ tự giờ chốt và lịch sinh hoạt như BE DailyScheduleRules (PCK-04, ATT-06, ATT-13 — Cần chốt 25/11/2026, phương án
+ * A): mở đón ≤ bắt đầu sáng < kết thúc sáng < bắt đầu chiều < mốc tính đủ ngày ≤ bắt đầu trả < kết thúc trả ≤ kết thúc
+ * chiều; giờ chốt từ mở đón, trước kết thúc sáng; giờ đến muộn nhất sau giờ chốt, từ kết thúc sáng, trước bắt đầu trả.
+ * Lỗi báo ở ô đứng sau trong chuỗi (ô đầu của mỗi cặp), mỗi ô một lỗi đầu tiên; cặp có ô trống / sai dạng thì bỏ qua.
+ */
+export const cutoffOrderErrors = (form) => {
+  const e = {};
+  SCHEDULE_ORDER.forEach(([field, op, other]) => {
+    const value = form[field];
+    const ref = form[other];
+    if (e[field] || !TIME.test(value || '') || !TIME.test(ref || '')) return;
+    const ok = op === '>' ? value > ref : op === '>=' ? value >= ref : value < ref;
+    if (!ok) e[field] = `${TIME_LABELS[field]} ${ORDER_TEXT[op]} ${TIME_LABELS[other]} (${ref})`;
+  });
+  return e;
+};
+
+/** Như BE CUTOFF_DATE_PAST: đã có giờ chốt thì lần đổi sau chỉ áp dụng từ hôm nay (today = yyyy-mm-dd). */
+export const cutoffPastDateError = (effectiveFrom, { hasSetting = false, today = '' } = {}) =>
+  hasSetting && effectiveFrom && today && effectiveFrom < today ? 'Giờ chốt mới chỉ áp dụng từ hôm nay trở đi' : undefined;
+
+export const validateCutoff = (form, year, { hasSetting = false, today = '' } = {}) => {
   const e = {};
   if (!form.time) e.time = 'Nhập giờ chốt';
   else if (!TIME.test(form.time)) e.time = 'Nhập giờ hợp lệ dạng HH:mm, ví dụ 08:45';
   if (!form.effectiveFrom) e.effectiveFrom = 'Chọn ngày áp dụng';
   else if (year && (form.effectiveFrom < year.startDate || form.effectiveFrom > year.endDate))
     e.effectiveFrom = `Ngày áp dụng phải nằm trong năm học ${year.name}`;
-  // Như BE CUTOFF_LATEST_ARRIVAL_INVALID (ATT-13): giờ đến muộn nhất buổi chiều phải sau giờ chốt
-  if (form.latestAfternoonArrival) {
-    if (!TIME.test(form.latestAfternoonArrival)) e.latestAfternoonArrival = 'Nhập giờ hợp lệ dạng HH:mm, ví dụ 14:00';
-    else if (form.time && TIME.test(form.time) && form.latestAfternoonArrival <= form.time)
-      e.latestAfternoonArrival = `Giờ đến muộn nhất buổi chiều phải sau giờ chốt ${form.time}`;
+  else {
+    const past = cutoffPastDateError(form.effectiveFrom, { hasSetting, today });
+    if (past) e.effectiveFrom = past;
   }
-  const schedule = [
-    ['dropoffOpenFrom', 'Nhập giờ mở đón trẻ'],
-    ['morningStart', 'Nhập giờ bắt đầu buổi sáng'],
-    ['morningEnd', 'Nhập giờ kết thúc buổi sáng'],
-    ['afternoonStart', 'Nhập giờ bắt đầu buổi chiều'],
-    ['pickupStart', 'Nhập giờ bắt đầu khung trả trẻ'],
-    ['fullDayPickupFrom', 'Nhập mốc tính đủ ngày'],
-    ['pickupEnd', 'Nhập giờ kết thúc khung trả trẻ'],
-    ['afternoonEnd', 'Nhập giờ kết thúc buổi chiều'],
-  ];
-  schedule.forEach(([key, required]) => {
+  if (form.latestAfternoonArrival && !TIME.test(form.latestAfternoonArrival))
+    e.latestAfternoonArrival = 'Nhập giờ hợp lệ dạng HH:mm, ví dụ 14:00';
+  SCHEDULE_FIELDS.forEach(([key, required]) => {
     if (!form[key]) e[key] = required;
-    else if (!TIME.test(form[key])) e[key] = 'Nhập giờ hợp lệ dạng HH:mm, ví dụ 15:30';
+    else if (!TIME.test(form[key])) e[key] = 'Nhập giờ hợp lệ dạng HH:mm, ví dụ 15:00';
   });
-  if (!schedule.some(([key]) => e[key])) {
-    const [dropoffOpenFrom, morningStart, morningEnd, afternoonStart, pickupStart, fullDayPickupFrom, pickupEnd, afternoonEnd] =
-      schedule.map(([key]) => form[key]);
-    if (
-      !(
-        dropoffOpenFrom <= morningStart &&
-        morningStart < morningEnd &&
-        morningEnd < afternoonStart &&
-        afternoonStart < pickupStart &&
-        pickupStart <= fullDayPickupFrom &&
-        fullDayPickupFrom < pickupEnd &&
-        pickupEnd <= afternoonEnd
-      )
-    )
-      e.fullDayPickupFrom =
-        'Thứ tự phải là: mở đón trẻ ≤ bắt đầu sáng < kết thúc sáng < bắt đầu chiều < bắt đầu trả trẻ ≤ mốc tính đủ ngày < kết thúc trả trẻ ≤ kết thúc chiều';
-  }
-  return withLength(e, form, CUTOFF_LIMITS);
+  return withLength({ ...cutoffOrderErrors(form), ...e }, form, CUTOFF_LIMITS);
 };
 
 /** 4 ngày học kỳ do Hiệu trưởng chọn, theo thứ tự BE kiểm tra. */

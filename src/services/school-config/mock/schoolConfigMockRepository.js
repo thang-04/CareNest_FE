@@ -1263,9 +1263,9 @@ export const schoolConfigMockRepository = {
     return writeDb((db) => {
       const year = findYear(db, schoolYear);
       assertOpenYear(year);
-      const errors = validateCutoff(form, year);
-      if (hasErrors(errors)) throw invalid(errors);
       let setting = db.cutoffSettings.find((s) => s.schoolYear === schoolYear);
+      const errors = validateCutoff(form, year, { hasSetting: !!setting, today: schoolNow().date });
+      if (hasErrors(errors)) throw invalid(errors);
       const previousTime = setting?.time || null;
       const latestAfternoonArrival = form.latestAfternoonArrival || setting?.latestAfternoonArrival || '14:00';
       const dropoffOpenFrom = form.dropoffOpenFrom || setting?.dropoffOpenFrom || '06:30';
@@ -1273,7 +1273,7 @@ export const schoolConfigMockRepository = {
       const morningEnd = form.morningEnd || setting?.morningEnd || '11:00';
       const afternoonStart = form.afternoonStart || setting?.afternoonStart || '13:30';
       const pickupStart = form.pickupStart || setting?.pickupStart || '15:00';
-      const fullDayPickupFrom = form.fullDayPickupFrom || setting?.fullDayPickupFrom || '15:30';
+      const fullDayPickupFrom = form.fullDayPickupFrom || setting?.fullDayPickupFrom || '15:00';
       const pickupEnd = form.pickupEnd || setting?.pickupEnd || '17:00';
       const afternoonEnd = form.afternoonEnd || setting?.afternoonEnd || '17:00';
       if (
@@ -1286,7 +1286,7 @@ export const schoolConfigMockRepository = {
         (setting.morningEnd || '11:00') === morningEnd &&
         (setting.afternoonStart || '13:30') === afternoonStart &&
         (setting.pickupStart || '15:00') === pickupStart &&
-        (setting.fullDayPickupFrom || '15:30') === fullDayPickupFrom &&
+        (setting.fullDayPickupFrom || '15:00') === fullDayPickupFrom &&
         (setting.pickupEnd || '17:00') === pickupEnd &&
         (setting.afternoonEnd || '17:00') === afternoonEnd
       )
