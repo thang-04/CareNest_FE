@@ -440,7 +440,7 @@ export const educationPlanApi = {
       delete content.calendarRevision;
       delete content.durationPolicySnapshot;
     }
-    // Phần II "Đánh giá trẻ trên ngày" đợt này chỉ là giao diện, chưa lưu ở BE (spec 005 FR-008a)
+    // Phần "Đánh giá trẻ trên ngày" đã bỏ (Tiền 25/11/2026): không gửi review còn sót trong nháp cũ
     if (kind === 'day' && Array.isArray(content.days)) content.days = content.days.map(({ review: _review, ...d }) => d);
     return axiosClient.put(`/education-plans/class-docs/${kind}/${doc.id}`, content, { headers });
   },
