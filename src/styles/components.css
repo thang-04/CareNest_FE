@@ -3596,7 +3596,7 @@ button.stat-card .stat-card__label::after {
   gap: var(--space-1);
 }
 .week-picker__select {
-  width: 200px;
+  width: 280px;
   font-variant-numeric: tabular-nums;
 }
 .week-picker__select .search-select__value {
