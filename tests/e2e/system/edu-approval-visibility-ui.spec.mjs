@@ -95,7 +95,7 @@ test('ST-002-02 GV thứ hai không có nút sửa ở Dự kiến chủ đề -
   }
 });
 
-test('ST-002-03 Tổ trưởng thêm chủ đề nhánh ở bản tổ Nháp và lưu được (nhánh do tổ thêm, không xóa được nhánh kế thừa)', async ({
+test('ST-002-03 Tổ trưởng thêm chủ đề nhánh ở bản tổ Nháp và lưu được (nhánh do tổ thêm; Nháp xóa được cả nhánh kế thừa, EDU-100)', async ({
   page,
 }) => {
   test.skip(!teamDraft, 'Không có bản tổ Nháp của teamlead34 (chạy integration trước)');
@@ -113,7 +113,8 @@ test('ST-002-03 Tổ trưởng thêm chủ đề nhánh ở bản tổ Nháp và
   // Nhánh kế thừa không có nút xóa; nhánh tổ thêm có
   await expect(page.getByRole('button', { name: `Xóa nhánh gợi ý ${name}` })).toBeVisible();
   const inherited = saved.data.branchTemplates.find((t) => t.sourceTemplateId != null);
-  if (inherited) await expect(page.getByRole('button', { name: `Xóa nhánh gợi ý ${inherited.name}` })).toHaveCount(0);
+  // EDU-100 (0): bản tổ đang Nháp xóa được cả nhánh kế thừa từ kế hoạch năm học
+  if (inherited) await expect(page.getByRole('button', { name: `Xóa nhánh gợi ý ${inherited.name}` })).toHaveCount(1);
 });
 
 test('ST-002-04 HT đang mở trang Duyệt: bản PHT vừa gửi kèm ghi chú tự hiện (không tải lại); thẻ "Chờ bạn duyệt" dẫn sang hàng chờ', async ({
@@ -189,6 +190,9 @@ test('ST-002-06 GVCN xóa được chủ đề nhánh do lớp tự thêm (có h
   let theme;
   let start;
   let end;
+  // Tuần trùng đợt nghỉ không có tuần học (EduTeachingCalendar) ⇒ bỏ qua
+  const plan = (await api(U.tl, 'GET', `${GOALS}/${doc.yearPlanId}`)).data;
+  const breaks = plan?.breaks || [];
   for (const t of doc.themeSchedules.filter((x) => x.startDate >= sem2 && x.startDate > today)) {
     // BE chặn nhánh trùng tuần với mọi nhánh của lớp (cả chủ đề khác) ⇒ xét theo tuần Thứ Hai–Thứ Sáu, mọi nhánh
     const taken = doc.branches;
@@ -198,6 +202,7 @@ test('ST-002-06 GVCN xóa được chủ đề nhánh do lớp tự thêm (có h
       const friday = new Date(d);
       friday.setUTCDate(friday.getUTCDate() + 4);
       if (iso(friday) > t.endDate || taken.some((b) => b.startDate <= iso(friday) && b.endDate >= iso(d))) continue;
+      if (breaks.some((b) => b.startDate <= iso(friday) && b.endDate >= iso(d))) continue;
       [theme, start, end] = [t, new Date(d), friday];
       break;
     }
