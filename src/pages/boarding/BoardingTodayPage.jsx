@@ -11,7 +11,7 @@ import {
   Truck,
   Users,
 } from '@/components/ui/icons';
-import { Breadcrumb, EmptyState, ErrorState, LoadingState, StatusBadge } from '@/components';
+import { Breadcrumb, Button, EmptyState, ErrorState, LoadingState, StatusBadge } from '@/components';
 import { StatCard } from '@/components/ui/StatCard';
 import { CampusFilter } from '@/components/ui/CampusFilter';
 import { LockNote } from '@/components/ui/LockNote';
@@ -38,15 +38,9 @@ function TaskCell({ row, campus, syncing, onSyncStock }) {
       <div className="bd-actions">
         {row.actions.map((action, i) =>
           action.syncStock ? (
-            <button
-              key={action.key}
-              type="button"
-              className="btn btn--sm btn--primary"
-              disabled={syncing}
-              onClick={() => onSyncStock(campus)}
-            >
-              <RefreshCw size={14} /> {action.label}
-            </button>
+            <Button key={action.key} size="sm" variant="primary" icon={RefreshCw} loading={syncing} onClick={() => onSyncStock(campus)}>
+              {action.label}
+            </Button>
           ) : (
             <Link key={action.to} className={`btn btn--sm ${i ? 'btn--ghost' : ''}`} to={action.to}>
               {action.label} <ArrowRight size={14} />
@@ -83,9 +77,16 @@ function NextTask({ campuses, rowsPerCampus, syncing, onSyncStock }) {
         — {row.status}
       </span>
       {action?.syncStock ? (
-        <button type="button" className="btn btn--sm btn--primary bd-next__action" disabled={syncing} onClick={() => onSyncStock(campus)}>
-          <RefreshCw size={14} /> {action.label}
-        </button>
+        <Button
+          size="sm"
+          variant="primary"
+          icon={RefreshCw}
+          loading={syncing}
+          className="bd-next__action"
+          onClick={() => onSyncStock(campus)}
+        >
+          {action.label}
+        </Button>
       ) : (
         action && (
           <Link className="btn btn--sm btn--primary bd-next__action" to={action.to}>
