@@ -704,7 +704,8 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
             ? 'Kế hoạch đã ban hành nên không sửa được.'
             : isReviewStatus
               ? `Kế hoạch đang ở trạng thái duyệt nên không sửa được.`
-              : 'Bạn chỉ lập, sửa được kế hoạch giáo dục tổ của nhóm tuổi mình phụ trách.'}
+              : // EDU-110: quyền soạn theo ma trận vai trò, câu theo đúng loại kế hoạch đang mở
+                `Bạn không có quyền sửa ${pageLabel.toLowerCase()} này.`}
         </Notice>
       </div>
     );
