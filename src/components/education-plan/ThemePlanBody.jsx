@@ -2,7 +2,7 @@ import { Fragment, useMemo, useState } from 'react';
 import { Card } from '@/components/education-plan/eduUi';
 import { Cell, focusCell } from '@/components/education-plan/planUi';
 import { domainLabel } from '@/models/education-plan/educationPlanConstants';
-import { domainRoman, mtList, numberGoals } from '@/models/education-plan/goalTable';
+import { domainRoman, numberGoals } from '@/models/education-plan/goalTable';
 import { cardText, contentLinesOf, newCard, normalizeTheme, slotLabel, themeGoalBlocks } from '@/models/education-plan/classPlan';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { Adjustments, Check, Plus, RotateCcw, Sparkles, X } from '@/components/ui/icons';
@@ -88,15 +88,17 @@ export function ThemePlanBody({
   };
   const allRefsOf = (g) => contentLinesOf(rowOf(g).contents).map((_, i) => `${g.id}:${i}`);
   const lineGoals = () => goals.map((g) => ({ id: g.id, no: g.no, text: g.text, lines: contentLinesOf(rowOf(g).contents) }));
-  // AI gợi ý (EDU-20 mở rộng): chỉ cho MT chưa có hoạt động; mỗi gợi ý Dùng / Bỏ, chưa dùng thì chưa thành thẻ
-  const [ai, setAi] = useState({ busy: false, items: [] });
-  const askAi = async () => {
-    setAi({ busy: true, items: [] });
+  // AI gợi ý (EDU-20 mở rộng, BE POST /ai/activities): cho mọi MT chưa có hoạt động, hoặc cho đúng một MT ở dòng của nó
+  // (kể cả MT đã có hoạt động, để thêm ý); mỗi gợi ý Dùng / Bỏ, chưa dùng thì chưa thành thẻ
+  const [ai, setAi] = useState({ busy: false, goalId: null, items: [] });
+  const askAi = async (goalId = null) => {
+    setAi({ busy: true, goalId, items: [] });
     try {
-      const items = await suggestActivities({ themeName: currentTheme.name, goals: lineGoals().filter((g) => !cardsOf(g).length) });
-      setAi({ busy: false, items });
+      const target = lineGoals().filter((g) => (goalId ? String(g.id) === String(goalId) : !cardsOf(g).length));
+      const items = await suggestActivities({ themeName: currentTheme.name, goals: target });
+      setAi({ busy: false, goalId: null, items });
     } catch (error) {
-      setAi({ busy: false, items: [] });
+      setAi({ busy: false, goalId: null, items: [] });
       notify(error.message || 'Chưa gợi ý được, thử lại sau', 'err');
     }
   };
@@ -146,18 +148,21 @@ export function ThemePlanBody({
           {/* Gọn một dòng: một nút "Thao tác" trong card gom lấy/gợi ý hoạt động và mục tiêu của chủ đề (Tiền 18/11/2026) */}
           {editable && (
             <div className="ga-theme-goal-head mb-8 row row--wrap row--middle gap-2">
+              {suggestActivities && (
+                <Button
+                  variant="outline-primary"
+                  size="sm"
+                  icon={Sparkles}
+                  loading={ai.busy && !ai.goalId}
+                  disabled={ai.busy || !goals.some((g) => !cardsOf(g).length)}
+                  title={goals.length && !goals.some((g) => !cardsOf(g).length) ? 'Mọi MT đã có hoạt động' : undefined}
+                  onClick={() => askAi()}
+                >
+                  Gợi ý AI cho MT chưa có hoạt động
+                </Button>
+              )}
               <ActionsMenu
                 items={[
-                  ...(suggestActivities
-                    ? [
-                        {
-                          label: 'Gợi ý hoạt động (AI)',
-                          icon: Sparkles,
-                          onClick: askAi,
-                          disabled: ai.busy || !goals.some((g) => !cardsOf(g).length),
-                        },
-                      ]
-                    : []),
                   { label: 'Tùy chọn mục tiêu cho chủ đề này', icon: Adjustments, onClick: () => setShowGoalModal(true) },
                   { label: 'Khôi phục mục tiêu mặc định của năm', icon: RotateCcw, onClick: resetToDefault, disabled: !hasCustomTicks },
                 ]}
@@ -172,16 +177,6 @@ export function ThemePlanBody({
 
           {/* Nhắc dạng chữ đỏ nhỏ, căn phải như bước tạo chủ đề ở mục tiêu năm học, nằm ngay bên trên bảng */}
           {goals.length === 0 && <p className="text-danger text-sm text-right mb-8">Kế hoạch năm chưa tích nội dung nào vào chủ đề này.</p>}
-          {/* MT chưa có thẻ thì kế hoạch tuần không có gợi ý, cuối chủ đề không phủ được MT đó */}
-          {editable && goals.some((g) => !cardsOf(g).length) && (
-            // Rút gọn: số MT + 5 MT đầu, đủ danh sách ở title (Tiền 13/11/2026)
-            <p className="text-danger text-sm text-right mb-8" title={mtList(goals.filter((g) => !cardsOf(g).length).map((g) => g.no))}>
-              {(() => {
-                const missing = goals.filter((g) => !cardsOf(g).length).map((g) => g.no);
-                return `${missing.length} MT chưa có hoạt động giáo dục (${mtList(missing.slice(0, 5))}${missing.length > 5 ? '…' : ''}) nên kế hoạch tuần sẽ không có gợi ý cho các MT này.`;
-              })()}
-            </p>
-          )}
           {editable && cards.some((c) => c.legacy && !c.slot) && (
             <p className="text-danger text-sm text-right mb-8">Có hoạt động chưa rõ loại giờ.</p>
           )}
@@ -342,6 +337,18 @@ export function ThemePlanBody({
                               >
                                 <Plus size={16} aria-hidden />
                               </Button>
+                              {suggestActivities && (
+                                <Button
+                                  variant="icon"
+                                  title={`Gợi ý hoạt động (AI) cho MT${g.no}`}
+                                  aria-label={`Gợi ý hoạt động bằng AI cho MT${g.no}`}
+                                  loading={ai.busy && String(ai.goalId) === String(g.id)}
+                                  disabled={ai.busy}
+                                  onClick={() => askAi(g.id)}
+                                >
+                                  <Sparkles size={16} aria-hidden />
+                                </Button>
+                              )}
                             </div>
                           )}
                         </td>

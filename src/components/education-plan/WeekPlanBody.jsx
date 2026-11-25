@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { Copy, Download, Plus, Sparkles, Trash2, Wand2 } from '@/components/ui/icons';
+import { Button } from '@/components/ui/Button';
 import { SortHandle, SortableList, SortableRow } from '@/components/ui/Sortable';
 import { moveItem } from '@/hooks/useSortableList';
 import { AiDraftTag } from '@/components/ui/AiDraftTag';
@@ -1042,12 +1043,23 @@ export function DayTab({
               },
             ]
           : []),
-        ...(hoc.subject || hoc.topic
-          ? [{ label: aiBusy ? 'AI đang soạn…' : 'AI gợi ý tiến trình giờ học', icon: Sparkles, onClick: aiSteps, disabled: aiBusy }]
-          : []),
-        ...(aiDocKey ? [{ label: 'Sửa theo yêu cầu (AI)', icon: Wand2, onClick: () => setAiEditOpen(true) }] : []),
       ]}
     />
+  );
+  // AI là nút riêng, không nằm trong menu Thao tác (Tiền 25/11/2026); BE POST /ai/lesson-steps, /ai/class-docs/day/{key}/edit
+  const aiButtons = (
+    <>
+      {(hoc.subject || hoc.topic) && (
+        <Button variant="outline-primary" size="sm" icon={Sparkles} loading={aiBusy} onClick={aiSteps}>
+          AI gợi ý tiến trình giờ học
+        </Button>
+      )}
+      {aiDocKey && (
+        <Button variant="outline-primary" size="sm" icon={Wand2} onClick={() => setAiEditOpen(true)}>
+          Sửa theo yêu cầu (AI)
+        </Button>
+      )}
+    </>
   );
   return (
     <>
@@ -1095,7 +1107,12 @@ export function DayTab({
         </p>
       ))}
       <Section title="I. Kế hoạch giáo dục ngày">
-        {editable && <div className="row row--wrap row--middle gap-2">{toolsMenu}</div>}
+        {editable && (
+          <div className="row row--wrap row--middle gap-2">
+            {toolsMenu}
+            {aiButtons}
+          </div>
+        )}
         {aiEditNote && (
           <p className="muted text-sm" role="status">
             {aiEditNote}
