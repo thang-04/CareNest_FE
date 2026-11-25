@@ -32,7 +32,21 @@ export function WithdrawChildModal({ child, onClose, onDone }) {
 
   // Chưa chọn thì mặc định ngày đầu BE cho chọn; chỉ nhắc nhập liệu, luật ngày do BE kiểm
   const leftAt = picked ?? options?.minDate ?? '';
-  const validDate = !!options && isIsoDate(leftAt) && leftAt >= options.minDate && leftAt <= options.maxDate;
+  const noDays = !!options && options.minDate > options.maxDate;
+  const validDate =
+    !!options &&
+    !noDays &&
+    isIsoDate(leftAt) &&
+    leftAt >= options.minDate &&
+    leftAt <= options.maxDate &&
+    (options.todayAllowed || leftAt > options.today);
+  // Ngày gõ đủ nhưng ngoài khoảng chọn được: báo ngay, cùng câu BE
+  let dateError = '';
+  if (options && !noDays && isIsoDate(leftAt) && !validDate) {
+    if (leftAt < options.today) dateError = 'Ngày nghỉ học không được trước hôm nay';
+    else if (leftAt > options.maxDate) dateError = `Ngày nghỉ học phải trong năm học (tới ${formatDate(options.maxDate)})`;
+    else dateError = options.todayBlockedReason || 'Chọn ngày nghỉ học trong khoảng cho phép';
+  }
   const scheduled = !!options && validDate && leftAt > options.today;
 
   const confirm = async () => {
@@ -45,7 +59,7 @@ export function WithdrawChildModal({ child, onClose, onDone }) {
       await withdrawChild(child.id, { leftAt, reason: reason.trim() }, user);
       toast.success(
         scheduled
-          ? `${child.fullName} học tới hết ${formatDate(addDays(leftAt, -1))}, nghỉ học từ ngày đã chọn.`
+          ? `${child.fullName} học tới hết ${formatDate(addDays(leftAt, -1))}, nghỉ học từ ${formatDate(leftAt)}.`
           : `${child.fullName} nghỉ học từ ${formatDate(leftAt)}.`,
         scheduled ? 'Đã hẹn ngày nghỉ học' : 'Đã cho trẻ nghỉ học',
       );
@@ -75,8 +89,12 @@ export function WithdrawChildModal({ child, onClose, onDone }) {
           <FormField
             label="Ngày nghỉ học"
             required
-            error={errors.leftAt}
-            hint={`Chọn từ ${formatDate(options.minDate)} tới ${formatDate(options.maxDate)} (hết năm học)`}
+            error={errors.leftAt || dateError || undefined}
+            hint={
+              noDays
+                ? 'Không còn ngày nào chọn được trong năm học này'
+                : `Chọn từ ${formatDate(options.minDate)} tới ${formatDate(options.maxDate)} (hết năm học)`
+            }
           >
             <DateInput
               value={leftAt}
@@ -88,11 +106,7 @@ export function WithdrawChildModal({ child, onClose, onDone }) {
               }}
             />
           </FormField>
-          {!options.todayAllowed && (
-            <p className="text-muted">
-              {options.todayBlockedReason} Hôm nay không chọn được, chỉ chọn được từ ngày mai ({formatDate(options.minDate)}).
-            </p>
-          )}
+          {!options.todayAllowed && options.todayBlockedReason && <p className="text-muted">{options.todayBlockedReason}</p>}
           {scheduled && (
             <p className="text-muted">
               {`Trẻ vẫn học tới hết ngày ${formatDate(addDays(leftAt, -1))}, hệ thống tự chuyển sang Đã nghỉ học từ ngày đã chọn.`}
