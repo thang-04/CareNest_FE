@@ -156,10 +156,15 @@ export default function StockReceiptEditorPage() {
   }, [foods, receipt]);
   // Phiếu đang sửa: chỉ thực phẩm thuộc nhà cung cấp đã chọn (BE kiểm tra lại khi lưu và xác nhận)
   const {
-    foods: supplierFoods,
+    foods: allSupplierFoods,
     loading: supplierFoodsLoading,
     error: supplierFoodsError,
   } = useSupplierFoods(editable ? form?.supplierId : '', form?.receivedDate);
+  // Phiếu nhập chỉ nhận hàng khô: bỏ thực phẩm tươi của nhà cung cấp
+  const supplierFoods = useMemo(() => {
+    const dryIds = new Set(foods.map((f) => String(f.id)));
+    return dryIds.size ? allSupplierFoods.filter((f) => dryIds.has(String(f.foodId))) : allSupplierFoods;
+  }, [allSupplierFoods, foods]);
   const importFoods = useMemo(
     () => supplierFoods.map((f) => ({ id: f.foodId, code: f.code, name: f.name, unitPrice: f.price })),
     [supplierFoods],
