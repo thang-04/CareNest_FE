@@ -3,7 +3,7 @@ import { test } from 'node:test';
 
 globalThis.window = new EventTarget();
 
-const { createDryStockApi, toReceiptRequest } = await import('@/services/dryStockApi');
+const { createDryStockApi, toReceiptRequest, toDisposalRequest, toLot } = await import('@/services/dryStockApi');
 const { toBaseQuantity, toPurchaseQuantity, formatPurchaseQty, formatSignedPurchaseQty } = await import('@/utils/kitchen/stockUnits');
 const { emptyReceiptForm, receiptToForm, validateReceiptForm, mapReceiptErrors } = await import('@/utils/kitchen/stockReceiptForm');
 const { groupLotsByFood, expiryStatus, daysUntil, personName } = await import('@/utils/kitchen/stockLots');
@@ -201,14 +201,14 @@ test('form phiếu: phiếu BE đổi sang đơn vị mua, kiểm ô bắt buộ
 test('tồn kho: gom lô theo thực phẩm, nhắc hạn dùng, không hiện mã số thay tên người', () => {
   const groups = groupLotsByFood([
     { id: '2', food: OIL, remaining: 500 },
-    { id: '1', food: RICE, remaining: 12500 },
-    { id: '3', food: RICE, remaining: 2500 },
+    { id: '1', food: RICE, remaining: 12500, receivedDate: '2026-10-01' },
+    { id: '3', food: RICE, remaining: 2500, receivedDate: '2026-10-20' },
   ]);
   assert.deepEqual(
     groups.map((g) => [g.food.name, g.remaining, g.lots.map((l) => l.id)]),
     [
       ['Dầu ăn', 500, ['2']],
-      ['Gạo tẻ', 15000, ['1', '3']],
+      ['Gạo tẻ', 15000, ['3', '1']],
     ],
   );
   assert.equal(daysUntil('2026-11-10', '2026-11-03'), 7);
@@ -221,10 +221,79 @@ test('tồn kho: gom lô theo thực phẩm, nhắc hạn dùng, không hiện m
   assert.equal(personName(null), '');
 });
 
-test('module dry-stock khai source api với bốn route kho và file adapter', () => {
+test('tồn kho: lô trong từng thực phẩm xếp ngày nhập giảm dần, trùng ngày thì lô tạo sau đứng trước', () => {
+  const [group] = groupLotsByFood([
+    { id: '1', food: RICE, remaining: 1, receivedDate: '2026-10-16' },
+    { id: '2', food: RICE, remaining: 1, receivedDate: '2026-11-13' },
+    { id: '3', food: RICE, remaining: 1, receivedDate: '2026-10-30' },
+    { id: '4', food: RICE, remaining: 1, receivedDate: '2026-11-13' },
+  ]);
+  assert.deepEqual(
+    group.lots.map((l) => l.id),
+    ['4', '2', '3', '1'],
+  );
+});
+
+test('xuất kho: trả NCC POST /returns kèm supplierId, xuất hủy POST /write-offs không gửi supplierId, số lượng về đơn vị gốc', async () => {
+  const lotRice = toLot({ id: '41', food: RICE, remaining: 12500, supplierId: '3' });
+  const lotOil = toLot({ id: '42', food: OIL, remaining: 1500, supplierId: '3' });
+  const lotById = { 41: lotRice, 42: lotOil };
+  const client = fakeClient({
+    'POST /nutrition/stock/returns': { id: '1', code: 'XT-1' },
+    'POST /nutrition/stock/write-offs': { id: '2', code: 'XH-1' },
+  });
+  const api = createDryStockApi({ client });
+  const form = {
+    campusId: '1',
+    supplierId: '3',
+    reason: '  Giao thừa ',
+    lines: [
+      { lotId: '41', qty: '2.5' },
+      { lotId: '42', qty: '3' }, // đúng tồn hiện (3 chai) ⇒ gửi nguyên tồn gốc của lô
+    ],
+  };
+
+  await api.createDisposal('SUPPLIER_RETURN', form, lotById);
+  assert.equal(client.calls[0].url, '/nutrition/stock/returns');
+  assert.deepEqual(client.calls[0].body, {
+    campusId: '1',
+    supplierId: '3',
+    reason: 'Giao thừa',
+    lines: [
+      { lotId: '41', quantity: 2500 },
+      { lotId: '42', quantity: 1500 },
+    ],
+  });
+
+  await api.createDisposal('WRITE_OFF', form, lotById);
+  assert.equal(client.calls[1].url, '/nutrition/stock/write-offs');
+  assert.equal('supplierId' in client.calls[1].body, false);
+
+  assert.throws(
+    () => toDisposalRequest('WRITE_OFF', { ...form, lines: [{ lotId: '99', qty: '1' }] }, lotById),
+    (err) => !!err.details['lines.0.lotId'],
+  );
+});
+
+test('lịch sử kho: mọi loại bút toán BE (kể cả trả NCC, xuất hủy) có nhãn tiếng Việt và nằm trong bộ lọc', async () => {
+  const { STOCK_MOVEMENT_TYPES, STOCK_MOVEMENT_LABELS } = await import('@/models/kitchen/kitchenConstants');
+  for (const type of ['RECEIPT', 'DEDUCT', 'ADJUST', 'SHORTFALL_DEDUCT', 'RECEIPT_CANCEL', 'SUPPLIER_RETURN', 'WRITE_OFF']) {
+    assert.ok(STOCK_MOVEMENT_TYPES.includes(type), `thiếu ${type} trong bộ lọc`);
+    assert.ok(STOCK_MOVEMENT_LABELS[type] && STOCK_MOVEMENT_LABELS[type] !== type, `thiếu nhãn ${type}`);
+  }
+});
+
+test('module dry-stock khai source api với sáu route kho và file adapter', () => {
   const mod = INTEGRATION_MODULES['dry-stock'];
   assert.equal(mod.source, 'api');
-  assert.deepEqual(mod.routes, ['/kitchen/dry-stock', '/kitchen/stock-receipts', '/kitchen/stock-history', '/kitchen/stock-shortfalls']);
+  assert.deepEqual(mod.routes, [
+    '/kitchen/dry-stock',
+    '/kitchen/stock-receipts',
+    '/kitchen/stock-history',
+    '/kitchen/stock-shortfalls',
+    '/kitchen/stock-returns',
+    '/kitchen/stock-write-offs',
+  ]);
   assert.deepEqual(mod.files, ['src/services/dryStockApi.js']);
 });
 
@@ -239,12 +308,14 @@ test('biến động kho đọc theo đơn vị gốc, ngày gom theo ngày ăn 
     { id: 1, mealDate: '2026-10-30' },
     { id: 2, mealDate: '2026-10-30' },
     { id: 3, createdAt: '2026-10-26T03:00:00Z' },
+    { id: 4, createdAt: '2026-10-30T03:00:00Z' },
   ]);
+  // Nhãn chỉ là ngày; dòng ngày ghi trùng ngày ăn thì cùng một nhóm
   assert.deepEqual(
     groups.map((g) => [g.label, g.items.length]),
     [
-      ['Ngày ăn 30/10/2026', 2],
-      ['Ngày ghi 26/10/2026', 1],
+      ['30/10/2026', 3],
+      ['26/10/2026', 1],
     ],
   );
 });

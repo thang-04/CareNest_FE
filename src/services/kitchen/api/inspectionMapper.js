@@ -30,9 +30,41 @@ const safeImage = async (loadImage, imageKey) => {
   }
 };
 
-export const mapSheet = async (sheet, { canEdit, loadImage }) => {
+/** Mở ghi ngày cũ của một mẫu (INS-05) theo `InspectionDayResponse.TabApproval` của BE; BE chưa trả thì coi như không khóa. */
+export const mapApproval = (approval) => ({
+  id: approval?.approvalId ?? null,
+  locked: !!approval?.locked,
+  status: approval?.status || null,
+  reason: approval?.reason || '',
+  requestedByName: approval?.requestedByName || '',
+  decisionNote: approval?.decisionNote || '',
+  expiresAt: approval?.expiresAt || null,
+  canRequest: !!approval?.canRequest,
+  // BE trả `selfOpen` cho Hiệu trưởng: yêu cầu của họ mở ngay, không chờ ai duyệt
+  canSelfOpen: !!approval?.selfOpen,
+});
+
+/** Một yêu cầu trong hàng chờ của Hiệu trưởng hoặc kết quả vừa gửi/duyệt (`InspectionApprovalResponse`). */
+export const mapApprovalItem = (item) => ({
+  id: item.id,
+  campusId: item.campusId,
+  date: item.date,
+  tab: toUiTab(item.tab),
+  status: item.status,
+  selfOpened: !!item.selfOpened,
+  reason: item.reason || '',
+  requestedByName: item.requestedByName || '',
+  requestedAt: item.requestedAt || null,
+  decidedByName: item.decidedByName || '',
+  decidedAt: item.decidedAt || null,
+  decisionNote: item.decisionNote || '',
+  expiresAt: item.expiresAt || null,
+});
+
+export const mapSheet = async (sheet, { canEdit, loadImage, approval }) => {
   const tab = toUiTab(sheet.tab);
   const signed = sheet.status === INSPECTION_STATUS.SIGNED;
+  const mappedApproval = mapApproval(approval);
   const signature = sheet.signature ? { ...sheet.signature, imageUrl: await safeImage(loadImage, sheet.signature.imageKey) } : null;
   return {
     tab,
@@ -49,17 +81,29 @@ export const mapSheet = async (sheet, { canEdit, loadImage }) => {
       imageKey: event.imageKey || null,
     })),
     header: { place: sheet.header?.place || '', checkedAt: sheet.header?.checkedAt || '' },
-    // Mẫu đã ký bị khóa; chỉ "Sửa lại" (kèm lý do) mới mở khóa
-    canEdit: !!canEdit && !signed,
-    canReopen: !!canEdit && signed,
+    approval: mappedApproval,
+    // Mẫu đã ký bị khóa; chỉ "Sửa lại" (kèm lý do) mới mở khóa. Ngày cũ chưa được HT mở thì BE từ chối mọi lệnh ghi (INS-05)
+    canEdit: !!canEdit && !signed && !mappedApproval.locked,
+    canReopen: !!canEdit && signed && !mappedApproval.locked,
   };
 };
 
 export const mapDay = async (day, loadImage) => {
+  const approvals = Object.fromEntries((day.approvals || []).map((approval) => [toUiTab(approval.tab), approval]));
   const entries = await Promise.all(
-    day.sheets.map(async (sheet) => [toUiTab(sheet.tab), await mapSheet(sheet, { canEdit: day.canEdit, loadImage })]),
+    day.sheets.map(async (sheet) => {
+      const tab = toUiTab(sheet.tab);
+      return [tab, await mapSheet(sheet, { canEdit: day.canEdit, loadImage, approval: approvals[tab] })];
+    }),
   );
-  return { campusId: day.campusId, date: day.date, canEdit: day.canEdit, tabs: Object.fromEntries(entries) };
+  return {
+    campusId: day.campusId,
+    date: day.date,
+    canEdit: day.canEdit,
+    // Hiệu trưởng (BE đặt `selfOpen`) xem và xử lý hàng chờ yêu cầu mở mẫu
+    canDecide: Object.values(approvals).some((approval) => approval.selfOpen),
+    tabs: Object.fromEntries(entries),
+  };
 };
 
 /** Nhà cung cấp BE `{ id, name, phone, address, deliveryPerson, ... }` → `{ id, name, address, phone, contactName }` (bỏ CCCD). */

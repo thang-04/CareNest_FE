@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { BLOCKED_TEXT, dayKeyOf, deadlineLabel, dossierKey, semesterKey } from '../../src/models/education-plan/deadline.mjs';
+import { BLOCKED_TEXT, dayKeyOf, deadlineLabel, dossierKey, isOverdueDoc, semesterKey } from '../../src/models/education-plan/deadline.mjs';
 
 // BE spec 003 FR-006: nhãn hạn hiển thị đúng trạng thái BE tính (không tự tính ở FE)
 test('nhãn theo deadlineState', () => {
@@ -8,8 +8,14 @@ test('nhãn theo deadlineState', () => {
   assert.deepEqual(deadlineLabel({ ...base, deadlineState: 'NEAR' }), { tone: 'orange', label: 'Hạn: Gần đến hạn · còn 5 ngày (16/11)' });
   assert.equal(deadlineLabel({ ...base, deadlineState: 'OVERDUE' }).tone, 'red');
   assert.equal(deadlineLabel({ ...base, deadlineState: 'ON_TIME' }).label, 'Hạn: Đúng hạn');
-  assert.equal(deadlineLabel({ ...base, deadlineState: 'LATE' }).label, 'Hạn: Ban hành trễ');
   assert.equal(deadlineLabel({ ...base, deadlineState: 'NORMAL' }).label, 'Hạn: 16/11');
+});
+
+// EDU-109: ban hành sau hạn không hiện nhãn hạn (bỏ "Ban hành trễ")
+test('ban hành sau hạn: không nhãn', () => {
+  const base = { deadline: '2026-11-16' };
+  assert.equal(deadlineLabel({ ...base, deadlineState: 'LATE' }), null);
+  assert.equal(deadlineLabel({ ...base, deadlineState: 'ISSUED' }), null);
 });
 
 test('mở hạn: nhãn dùng hạn mới', () => {
@@ -32,19 +38,20 @@ test('khóa gốc và giáo án ngày khớp BE', () => {
   assert.equal(BLOCKED_TEXT.DEADLINE_PASSED, 'Quá hạn — chờ Hiệu trưởng mở hạn.');
 });
 
-// Trả lại sau hạn (Tiền 18/11/2026): BE trả graceTo = ngày đầu quá hạn của lần gửi lại
-test('trả lại sau hạn: nhãn hiện hạn gửi lại, hết hạn thì Quá hạn theo graceTo', () => {
-  const doc = { deadline: '2026-11-30', graceTo: '2026-12-07', daysLeft: 2 };
-  assert.deepEqual(deadlineLabel({ ...doc, deadlineState: 'NEAR' }), { tone: 'orange', label: 'Hạn: Gửi lại trước hết 06/12' });
-  assert.equal(deadlineLabel({ ...doc, deadlineState: 'OVERDUE' }).label, 'Hạn: Quá hạn (07/12)');
-  assert.equal(deadlineLabel({ ...doc, deadlineState: 'LATE' }).label, 'Hạn: Ban hành trễ');
+// EDU-109: khóa đúng ngày hạn, không còn ngày ân hạn (graceTo bị bỏ qua)
+test('nhãn cũ chuyển Quá hạn đúng ngày hạn', () => {
+  const saved = { deadline: '2026-11-19', deadlineState: 'NEAR', daysLeft: 1 };
+  assert.equal(deadlineLabel(saved, '2026-11-19').label, 'Hạn: Quá hạn (19/11)');
+  assert.equal(deadlineLabel({ ...saved, graceTo: '2026-11-22' }, '2026-11-20').label, 'Hạn: Quá hạn (19/11)');
+  assert.equal(deadlineLabel({ ...saved, deadlineState: 'ON_TIME' }, '2026-11-20').label, 'Hạn: Đúng hạn');
 });
 
-test('nhãn cũ chuyển Quá hạn đúng ngày khóa, có tính thời gian gửi lại', () => {
-  const saved = { deadline: '2026-11-19', deadlineState: 'NEAR', daysLeft: 1 };
-  assert.equal(deadlineLabel(saved, '2026-11-20').label, 'Hạn: Quá hạn (19/11)');
-  const withGrace = { ...saved, graceTo: '2026-11-22' };
-  assert.equal(deadlineLabel(withGrace, '2026-11-20').label, 'Hạn: Gửi lại trước hết 21/11');
-  assert.equal(deadlineLabel(withGrace, '2026-11-22').label, 'Hạn: Quá hạn (22/11)');
-  assert.equal(deadlineLabel({ ...saved, deadlineState: 'ON_TIME' }, '2026-11-20').label, 'Hạn: Đúng hạn');
+test('isOverdueDoc: chưa ban hành và quá hạn, kể cả Chờ duyệt', () => {
+  assert.equal(isOverdueDoc({ status: 'DRAFT', deadlineState: 'OVERDUE' }), true);
+  assert.equal(isOverdueDoc({ status: 'REVIEW', deadlineState: 'OVERDUE' }), true);
+  assert.equal(isOverdueDoc({ status: 'PENDING_VP', timeLock: { deadlineState: 'OVERDUE' } }), true);
+  assert.equal(isOverdueDoc({ status: 'REVIEW', reviewDeadline: { locked: true } }), true);
+  assert.equal(isOverdueDoc({ status: 'APPROVED', deadlineState: 'OVERDUE' }), false);
+  assert.equal(isOverdueDoc({ status: 'REVIEW', deadlineState: 'NEAR' }), false);
+  assert.equal(isOverdueDoc(undefined), false);
 });

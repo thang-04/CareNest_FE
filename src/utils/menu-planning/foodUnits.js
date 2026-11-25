@@ -42,6 +42,42 @@ const KNOWN_STOCK_UNITS = new Map([
   ['ml', ['ml', 1]],
 ]);
 
+/** Đơn vị đo chuẩn có tỷ lệ cố định; chỉ bao gói như hộp, chai, gói mới cần nhập dung lượng. */
+export const fixedPurchaseUnit = (purchaseUnit) => {
+  const known = KNOWN_STOCK_UNITS.get(norm(purchaseUnit));
+  return known ? { unit: known[0], size: known[1] } : null;
+};
+
+/** Form tạo mới: đổi đơn vị chuẩn thì đồng bộ toàn bộ tỷ lệ; đổi sang bao gói thì yêu cầu nhập lại dung lượng. */
+export const selectNewFoodPurchaseUnit = (food, purchaseUnit) => {
+  if (purchaseUnit === food.purchaseUnit) return food;
+  const fixed = fixedPurchaseUnit(purchaseUnit);
+  if (fixed)
+    return {
+      ...food,
+      unit: fixed.unit,
+      purchaseUnit,
+      purchaseUnitSize: fixed.size,
+      stockUnit: purchaseUnit,
+      stockUnitSize: fixed.size,
+      purchaseToStock: 1,
+    };
+  return { ...food, purchaseUnit, purchaseUnitSize: '', purchaseToStock: '' };
+};
+
+/** Bao gói đổi từ khối lượng sang thể tích (hoặc ngược lại) phải nhập lại dung lượng, không tự đổi g ↔ ml. */
+export const selectNewFoodBaseUnit = (food, unit) => {
+  if (fixedPurchaseUnit(food.purchaseUnit) || unit === food.unit) return food;
+  return {
+    ...food,
+    unit,
+    stockUnit: unit === 'ml' ? 'lít' : 'kg',
+    stockUnitSize: 1000,
+    purchaseUnitSize: '',
+    purchaseToStock: '',
+  };
+};
+
 /** Tỷ lệ hiển nhiên không cần nhập: mua trùng kho ⇒ 1; kg/lít ↔ g/ml ⇒ 1000. Chỉ trả ô nào suy ra được. */
 export const autoUnitRatios = ({ unit, purchaseUnit, stockUnit }) => {
   const stock = norm(stockUnit);

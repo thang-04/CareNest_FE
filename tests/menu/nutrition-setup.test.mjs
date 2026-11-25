@@ -65,6 +65,21 @@ test('dữ liệu hợp lệ không có lỗi', () => {
   assert.deepEqual(validateNutritionSetup({ effectiveFrom: TODAY, groups: [group()] }, TODAY), {});
 });
 
+test('nhu cầu năng lượng cả ngày phải lớn hơn kcal tối đa, chỉ báo tại ô dailyKcalNeed', () => {
+  const check = (dailyKcalNeed, over = {}) =>
+    validateNutritionSetup({ effectiveFrom: TODAY, groups: [group({ dailyKcalNeed, ...over })] }, TODAY);
+  const kcal700to750 = { norms: { kcal: ['700', '750'], protein: ['13', '20'], lipid: ['25', '35'], glucid: ['52', '60'] } };
+
+  assert.equal(
+    check('698', kcal700to750)['ag-4.dailyKcalNeed'],
+    'Nhu cầu năng lượng cả ngày phải lớn hơn năng lượng tối đa (750 kcal).',
+  );
+  assert.ok(check('750', kcal700to750)['ag-4.dailyKcalNeed']);
+  assert.deepEqual(check('751', kcal700to750), {});
+  assert.deepEqual(check('', kcal700to750), {});
+  assert.deepEqual(check('698', { norms: { kcal: ['', ''] } }), {});
+});
+
 test('đổi giá từ ngày mai: tạo mức giá mới, đóng mức cũ hôm nay, định mức áp dụng ngay', async () => {
   const setups = await repo.listNutritionSetups(VP);
   const form = toSetupForm(setups, TODAY);

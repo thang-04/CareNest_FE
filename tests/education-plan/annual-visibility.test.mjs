@@ -68,8 +68,9 @@ test('EDU-60: management role excluded from annual policy does not widen a team-
     db.eduConfig.workflowPolicy.year = { creators: ['VICE_PRINCIPAL'], reviewers: ['PRINCIPAL'] };
   });
   const mixed = { ...tl, roles: ['VICE_PRINCIPAL'] };
+  // EDU-73 (Tiền 23/11/2026): danh sách chính chỉ bản đã ban hành; bản Chờ duyệt xem qua hàng chờ
   assert.deepEqual(
     (await repo.getAll(mixed)).goals.filter((g) => g.planLevel === 'SCHOOL_YEAR').map((g) => g.id),
-    ['ag-3REVIEW', 'ag-3APPROVED', 'ag-4APPROVED'],
+    ['ag-3APPROVED', 'ag-4APPROVED'],
   );
 });

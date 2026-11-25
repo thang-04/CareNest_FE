@@ -152,3 +152,22 @@ export function toPayload(editable) {
 
 /** Thêm một dòng điểm tích cực trống cho form (key mới). */
 export const newPositive = () => ({ key: nextKey(), text: '' });
+
+const idRank = (id) => (id != null && id !== '' && !Number.isNaN(Number(id)) ? Number(id) : null);
+const isLaterId = (a, b) => {
+  const x = idRank(a);
+  const y = idRank(b);
+  return x != null && y != null ? x > y : String(a).localeCompare(String(b)) > 0;
+};
+const isExamRow = (m) => Boolean(m.exam || m.examStatus);
+
+/** Mỗi ngày một điểm tăng trưởng: ưu tiên phiếu khám, rồi id lớn hơn (HLT-01/HLT-08, user chốt 2026-11-24); giữ thứ tự ngày tăng dần. */
+export function oneMeasurementPerDay(measurements = []) {
+  const byDate = new Map();
+  for (const m of measurements) {
+    const kept = byDate.get(m.date);
+    if (!kept) byDate.set(m.date, m);
+    else if (isExamRow(m) !== isExamRow(kept) ? isExamRow(m) : isLaterId(m.id, kept.id)) byDate.set(m.date, m);
+  }
+  return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
+}

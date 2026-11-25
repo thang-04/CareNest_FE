@@ -25,6 +25,7 @@ export const createSchoolConfigApi = (axiosClient) => ({
 
   getStructure: (filters) => axiosClient.get('/school-structure', { params: filters }),
   getAgeGroups: () => axiosClient.get('/age-groups'),
+  getAgeGroupCatalog: () => axiosClient.get('/age-groups/catalog'),
   // PENDING BE: nhóm tuổi gửi mealSessions (MORNING | LUNCH | AFTERNOON), mealsPerDay = số phần tử
   // Nhóm tuổi theo năm học (Cần chốt 22/10/2026): thêm / xóa chỉ ở năm đang chọn
   saveAgeGroup: (id, form, _user, schoolYearId) =>

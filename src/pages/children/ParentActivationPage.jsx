@@ -4,6 +4,9 @@ import { AlertCircle, Filter, KeyRound, Lock, Unlock, UserPlus, Users } from '@/
 import { useCampusGuardianChildren } from '@/hooks/account/useGuardians';
 import { useGuardianStructure } from '@/hooks/account/useGuardians';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSchoolYear } from '@/contexts/SchoolYearContext';
+import { useChildYearLock } from '@/hooks/children/useChildYearLock';
+import { YearLockedNotice } from '@/components/children/YearLockedNotice';
 import { useToast } from '@/contexts/ToastContext';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
@@ -35,18 +38,25 @@ const CLASS_FILTER_MIN = 8;
 export default function ParentActivationPage() {
   const { user } = useAuth();
   const toast = useToast();
+  // Năm đã kết thúc hoặc năm sắp diễn ra chưa tới ngày mở chuẩn bị (CFG-YR-01, CHD-12): chỉ xem dù BE cho quản lý
+  const yearLocked = useChildYearLock();
+  const canManage = (child) => !yearLocked && !!child.canManage;
   const [params] = useSearchParams();
   const targetId = params.get('childId');
   const handledTarget = useRef('');
-  const structure = useGuardianStructure();
+  // Điểm trường, lớp, trẻ theo năm học chọn ở header (G94-437)
+  const { schoolYear } = useSchoolYear();
+  const structure = useGuardianStructure(schoolYear);
   const [campusPick, setCampusPick] = useState('');
   // PHT chỉ thấy điểm trường được giao (canActivateParentsAt = PARENT_ACCOUNT_MANAGE + locationIds); BE kiểm lại phạm vi
   const campuses = useMemo(() => structure.campuses.filter((c) => canActivateParentsAt(c.id, user)), [structure.campuses, user]);
   // Mặc định: điểm trường của tài khoản (PHT một điểm trường), HT nhiều điểm trường lấy đầu danh sách
   const defaultCampus = user?.campusId && campuses.some((c) => sameId(c.id, user.campusId)) ? user.campusId : (campuses[0]?.id ?? '');
+  // Điểm trường đã chọn không thuộc năm đang xem hoặc ngoài phạm vi ⇒ về điểm trường mặc định
   const campusId = campusPick && campuses.some((c) => sameId(c.id, campusPick)) ? campusPick : defaultCampus;
   const { data, loading, error, reload } = useCampusGuardianChildren(campusId, {
     enabled: !structure.loading && !!campusId,
+    schoolYear,
   });
   const [viewPick, setViewPick] = useState('');
   const [onlyMissing, setOnlyMissing] = useState(false);
@@ -141,6 +151,24 @@ export default function ParentActivationPage() {
     openChildProfile(child);
   };
 
+  // Luôn đủ tab điểm trường của năm, kể cả điểm trường đang chọn chưa có trẻ, đang tải hoặc lỗi (G94-436)
+  const campusTabs = campuses.length > 1 && (
+    <div className="pa-seg" role="group" aria-label="Điểm trường">
+      {campuses.map((c) => (
+        <button
+          key={c.id}
+          type="button"
+          className="pa-seg__item"
+          title={c.name}
+          aria-pressed={String(c.id) === String(campusId)}
+          onClick={() => pickCampus(c.id)}
+        >
+          {c.name}
+        </button>
+      ))}
+    </div>
+  );
+
   const handleConfirmAction = async () => {
     if (!confirmModal) return;
     const { type, guardian } = confirmModal;
@@ -179,6 +207,7 @@ export default function ParentActivationPage() {
     <div className="page">
       <Breadcrumb items={childrenCrumbs('Tài khoản phụ huynh')} />
       <h1 className="page__title">Tài khoản phụ huynh</h1>
+      <YearLockedNotice action="Kích hoạt tài khoản phụ huynh" subject="tài khoản phụ huynh" />
 
       {!error && !structure.error && (
         <div className="stat-grid people-stats" aria-label="Tổng quan tài khoản phụ huynh">
@@ -201,11 +230,13 @@ export default function ParentActivationPage() {
       {error || structure.error ? (
         <section className="card pa-state-panel">
           <PeopleTabs embedded />
+          {campusTabs && <div className="pa-state-panel__campuses">{campusTabs}</div>}
           <ErrorState error={error || structure.error} onRetry={error ? reload : structure.reload} />
         </section>
       ) : loading || structure.loading ? (
         <section className="card pa-state-panel">
           <PeopleTabs embedded />
+          {campusTabs && <div className="pa-state-panel__campuses">{campusTabs}</div>}
           <LoadingState />
         </section>
       ) : !campuses.length ? (
@@ -220,7 +251,12 @@ export default function ParentActivationPage() {
       ) : !groups.length ? (
         <section className="card pa-state-panel">
           <PeopleTabs embedded />
-          <EmptyState icon={Users} title="Chưa có bé nào" description="Chỉ hiện bé đang học trong phạm vi bạn phụ trách." />
+          {campusTabs && <div className="pa-state-panel__campuses">{campusTabs}</div>}
+          <EmptyState
+            icon={Users}
+            title="Chưa có bé nào"
+            description={campusId ? 'Cơ sở này chưa có trẻ trong năm học đang chọn.' : 'Chỉ hiện bé đang học trong phạm vi bạn phụ trách.'}
+          />
         </section>
       ) : (
         <section className="card people-list-workspace pa-workspace">
@@ -238,22 +274,7 @@ export default function ParentActivationPage() {
           <div className="pa-layout">
             <section className="pa-classes" aria-label="Lớp">
               <div className="pa-classes__toolbar">
-                {campuses.length > 1 && (
-                  <div className="pa-seg" role="group" aria-label="Điểm trường">
-                    {campuses.map((c) => (
-                      <button
-                        key={c.id}
-                        type="button"
-                        className="pa-seg__item"
-                        title={c.name}
-                        aria-pressed={String(c.id) === String(campusId)}
-                        onClick={() => pickCampus(c.id)}
-                      >
-                        {c.name}
-                      </button>
-                    ))}
-                  </div>
-                )}
+                {campusTabs}
                 {groups.length >= CLASS_FILTER_MIN && (
                   <label className="search-box pa-classes__filter">
                     <Filter size={16} className="muted" />
@@ -416,7 +437,7 @@ export default function ParentActivationPage() {
                                           <RowActions
                                             name={g.fullName}
                                             menu={
-                                              child.canManage
+                                              canManage(child)
                                                 ? [
                                                     {
                                                       label: 'Cấp lại mật khẩu tạm',
@@ -441,7 +462,7 @@ export default function ParentActivationPage() {
                                       <button
                                         type="button"
                                         className="btn btn--sm btn--primary"
-                                        disabled={!child.canManage}
+                                        disabled={!canManage(child)}
                                         onClick={() => openChildProfile(child)}
                                       >
                                         <UserPlus size={13} /> Kích hoạt tài khoản
@@ -472,7 +493,7 @@ export default function ParentActivationPage() {
           className="pa-guardian-modal"
           onClose={() => setOpenChild(null)}
         >
-          <fieldset disabled={!openChild.canManage} className="pa-guard-fieldset">
+          <fieldset disabled={!canManage(openChild)} className="pa-guard-fieldset">
             <GuardianPanel
               key={openChild.id}
               child={openChild}

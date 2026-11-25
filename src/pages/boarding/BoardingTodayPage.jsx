@@ -97,13 +97,13 @@ function NextTask({ campuses, rowsPerCampus, syncing, onSyncStock }) {
   );
 }
 
-/** Dải số liệu đầu trang: bao nhiêu việc cần xử lý, đang chờ, đã xong và chưa có thông tin trên các điểm trường đang xem. */
+/** Dải số liệu đầu trang: bao nhiêu việc cần xử lý, chờ bước khác, đã xong và chưa có thông tin trên các điểm trường đang xem. */
 function BoardSummary({ rowsPerCampus }) {
   const sum = summarizeBoardRows(rowsPerCampus);
   return (
     <div className="stat-grid">
       <StatCard tone="red" label="Việc cần xử lý" value={sum.attention} />
-      <StatCard tone="orange" label="Việc đang chờ" value={sum.waiting} />
+      <StatCard tone="blue" label="Việc chờ bước khác" value={sum.waiting} />
       <StatCard tone="green" label="Việc đã xong" value={sum.done} />
       <StatCard tone="gray" label="Chưa có thông tin / ngày nghỉ" value={sum.idle} />
     </div>

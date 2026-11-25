@@ -26,8 +26,13 @@ export function useAttendanceClasses({ own = false } = {}) {
   const list = useMemo(
     () =>
       (data || [])
-        .filter((c) => (own ? isClassTeacher(c, user) : canViewAttendance(c, user)))
-        .sort((a, b) => a.campusId.localeCompare(b.campusId) || a.name.localeCompare(b.name, 'vi')),
+        .filter((c) => (own ? isClassTeacher(c, user) || c.historicalReadOnly : canViewAttendance(c, user)))
+        .sort(
+          (a, b) =>
+            Number(!!a.historicalReadOnly) - Number(!!b.historicalReadOnly) ||
+            a.campusId.localeCompare(b.campusId) ||
+            a.name.localeCompare(b.name, 'vi'),
+        ),
     [data, own, user],
   );
   return { classes: list, loading, error, reload };

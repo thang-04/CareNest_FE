@@ -4,6 +4,7 @@ import { DB_CHANGED_EVENT } from '@/mocks/dbEvents';
 import { loadWithHold } from '@/hooks/loadingTiming';
 import {
   getAccountsWithOverrides,
+  getEduWorkflowIssues,
   getPermissionCatalog,
   getPermissionChangeLogs,
   getPermissionOverrides,
@@ -79,6 +80,11 @@ export function useAccountsWithOverrides({ live = true } = {}) {
 export function usePermissionStaff({ enabled = true } = {}) {
   const { user } = useAuth();
   return usePermissionQuery(() => getPermissionStaff(user), [], { enabled });
+}
+/** EDU-110 BR4.3: loại hồ sơ có ô soạn/duyệt đang sai luật (cấu hình cũ); `data.issues` rỗng khi hợp lệ. */
+export function useEduWorkflowIssues({ live = true } = {}) {
+  const { user } = useAuth();
+  return usePermissionQuery(() => getEduWorkflowIssues(user), [], { live });
 }
 export function usePermissionChangeLogs({ targetRole, targetUserId, page = 0, size = 20 } = {}) {
   const { user } = useAuth();

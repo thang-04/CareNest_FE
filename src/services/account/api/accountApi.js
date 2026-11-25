@@ -44,6 +44,7 @@ export const accountApi = {
         ...found,
         title: announcement.title,
         message: announcement.body,
+        bodyHtml: announcement.bodyHtml,
         senderName: announcement.senderName,
         attachments: announcement.attachments,
         read: true,

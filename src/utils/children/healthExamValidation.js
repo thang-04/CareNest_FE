@@ -15,6 +15,7 @@ import {
   YES_NO,
 } from '@/models/children/healthExamForm';
 import { tbContactDateError } from './childrenValidation';
+import { temperatureFormatError } from './healthExamHints';
 
 /*
  * Kiểm tra nhập liệu của phiếu Phụ lục II khi lưu kết luận (form báo ngay, backend giả trả 422 cùng khóa).
@@ -120,13 +121,16 @@ export const validateHealthExam = (payload, { dateOfBirth, examDate, reference, 
 
   // II. Sinh tồn
   VITAL_ITEMS.forEach((item) => {
-    checkNumber(errors, `exam.vitals.${item.key}`, exam.vitals?.[item.key], {
-      min: item.min,
-      max: item.max,
-      required: true,
-      label: item.label.replace(/ \(.*\)$/, '').toLowerCase(),
-      unit: item.unit,
-    });
+    const formatError = item.key === 'temperatureC' ? temperatureFormatError(exam.vitals?.[item.key]) : '';
+    if (formatError) errors[`exam.vitals.${item.key}`] = formatError;
+    else
+      checkNumber(errors, `exam.vitals.${item.key}`, exam.vitals?.[item.key], {
+        min: item.min,
+        max: item.max,
+        required: true,
+        label: item.label.replace(/ \(.*\)$/, '').toLowerCase(),
+        unit: item.unit,
+      });
     checkChoice(errors, `exam.vitals.${item.statusKey}`, exam.vitals?.[item.statusKey], item.options, 'Chọn trạng thái');
   });
 

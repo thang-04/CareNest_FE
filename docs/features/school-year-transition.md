@@ -8,3 +8,7 @@ Người dùng yêu cầu thêm bước xếp lớp năm mới của Hiệu trư
 - **Kích hoạt:** bị chặn khi còn bước bắt buộc chưa xong hoặc trước ngày bắt đầu 7 ngày; phải gõ tên năm học. Khi kích hoạt: năm cũ kết thúc, lớp cũ chỉ xem, trẻ chuyển lớp/nghỉ theo bản xếp lớp, phân công năm mới có hiệu lực. Mock kiểm tra lại cùng điều kiện.
 - Điểm danh, suất ăn, sức khỏe đầu ngày chỉ dùng lớp của năm học đang hoạt động. Header năm học tự theo năm đang hoạt động nếu người dùng chưa tự chọn.
 - PENDING BE: `GET /school-years/{id}/readiness`, `GET/PUT /school-years/{id}/placements`, `POST /school-years/{id}/placements/auto`, `POST /school-years/{id}/activate` với `{ confirmName }`.
+
+## Xếp thủ công khác nhóm tuổi — cập nhật 22/11/2026
+
+Theo yêu cầu của Cần: bảng Xếp lớp năm học mới cho phép chọn lớp thuộc nhóm tuổi khác, gồm trẻ đang học và tab trẻ mới tiếp nhận. Chưa làm lớp ghép. Gợi ý/tự xếp vẫn theo tuổi, ưu tiên đúng nhóm và campus; không tự chọn nhóm bất kỳ khi thiếu gợi ý. Tên lớp chọn kèm nhóm tuổi/campus/sĩ số; trẻ mới giữ campus đăng ký, cột tuổi ghi Nhóm tuổi gợi ý. Bữa ăn/mục tiêu áp dụng theo lớp đã chọn khi năm mới được kích hoạt. BE:CFG-YR-03 kiểm năm, scope, lớp đích, sĩ số; không còn chặn lệch tuổi ở lưu thủ công/readiness. Không đổi luồng chuyển lớp giữa năm hoặc màn tiếp nhận trẻ.

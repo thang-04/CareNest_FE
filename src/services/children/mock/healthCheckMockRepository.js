@@ -108,19 +108,54 @@ const BMI_ATTENTION_RANK = {
 };
 const byName = (a, b) => a.fullName.localeCompare(b.fullName, 'vi');
 
-/** Danh sách trẻ của lớp trong đợt + kết quả (BE trả, UI không tự tính). Báo cáo tổng hợp cân đo dùng chung. */
-export const rosterOf = (db, campaign, cls) => {
+/**
+ * Lớp của trẻ tại một ngày theo db.childPlacements (số đo mock không lưu lớp). Đơn giản hóa so với BE (HLT-09): chỉ biết các lần
+ * xếp/chuyển lớp đã ghi; không có lần nào thì là lớp hiện tại.
+ */
+const classAtDate = (db, ch, date) => {
+  const moves = (db.childPlacements || [])
+    .filter((p) => p.childId === ch.id)
+    .sort((a, b) => a.effectiveFrom.localeCompare(b.effectiveFrom));
+  if (moves.length === 0) return ch.classId;
+  const last = moves.filter((p) => p.effectiveFrom <= date).pop();
+  return last ? last.toClassId : moves[0].fromClassId || ch.classId;
+};
+
+const classLabelOf = (db, classId) => {
+  const c = db.classes.find((x) => x.id === classId);
+  return { className: c?.name || '', campusName: campusName(db, c?.campusId) };
+};
+
+/** Trẻ vắng hôm nay theo điểm danh (HLT-01, mã BE 5042): chỉ biết db.attendance đã seed, không có bản ghi thì coi là có mặt. */
+const isAbsentToday = (db, childId, today) =>
+  (db.attendance || []).some((r) => r.childId === childId && r.date === today && r.status !== 'PRESENT');
+
+/**
+ * Danh sách trẻ của lớp trong đợt + kết quả (BE trả, UI không tự tính). Báo cáo tổng hợp cân đo dùng chung.
+ * withMoved (chỉ danh sách lớp, HLT-09): thêm dòng chỉ xem của trẻ đã đo ở lớp này rồi chuyển lớp; các tổng hợp không tính dòng đó.
+ * Mọi dòng có canEdit / movedTo / measuredIn / absentToday như BE.
+ */
+export const rosterOf = (db, campaign, cls, { withMoved = false, canRecord = false } = {}) => {
   const status = campaignStatusOf(campaign);
   const round = campaignKindOf(campaign) === CAMPAIGN_KIND.MEASUREMENT;
   const resultByChild = Object.fromEntries(db.healthMeasurements.filter((m) => m.campaignId === campaign.id).map((m) => [m.childId, m]));
   const absent = new Set(campaign.absentChildIds || []);
+  const today = todayInput();
   const kids = db.children.filter(
     (ch) =>
       ch.classId === cls.id &&
       (resultByChild[ch.id] || (status === CAMPAIGN_STATUS.CLOSED ? absent.has(ch.id) : ch.status === CHILD_STATUS.ACTIVE)),
   );
-  return kids.sort(byName).map((ch) => {
+  const movedPlacementOf = (ch) => {
     const m = resultByChild[ch.id];
+    if (!withMoved || !m || ch.classId === cls.id || classAtDate(db, ch, m.date) !== cls.id) return null;
+    return (db.childPlacements || []).find((p) => p.childId === ch.id && p.fromClassId === cls.id && p.effectiveFrom <= today) || null;
+  };
+  const moved = withMoved ? db.children.filter((ch) => movedPlacementOf(ch)) : [];
+  return [...kids, ...moved].sort(byName).map((ch) => {
+    const movedTo = movedPlacementOf(ch);
+    const m = resultByChild[ch.id];
+    const measuredClassId = m && !movedTo ? classAtDate(db, ch, m.date) : cls.id;
     const draft = !!m && isExamDraft(m);
     const screen = m && !draft ? screenMeasurement(m, ch) : null;
     const prev = previousExamOf(db, ch.id, m?.date || campaign.startDate, m?.id);
@@ -148,6 +183,10 @@ export const rosterOf = (db, campaign, cls) => {
       conclusionCategory: screen?.conclusionCategory || null,
       conclusion: conclusionBrief(m),
       published: !!m?.published,
+      canEdit: canRecord && !movedTo,
+      movedTo: movedTo ? { ...classLabelOf(db, ch.classId), from: movedTo.effectiveFrom } : null,
+      measuredIn: m && measuredClassId !== cls.id ? { ...classLabelOf(db, measuredClassId), date: m.date } : null,
+      absentToday: !movedTo && isAbsentToday(db, ch.id, today),
       previous: prev
         ? {
             date: prev.date,
@@ -276,11 +315,12 @@ export const healthCheckMockRepository = {
     const c = findCampaign(db, id, user);
     const cls = scopedClasses(db, user, c.campusId).find((x) => x.id === classId);
     if (!cls) throw new ApiError(404, 'Không tìm thấy lớp trong đợt khám này.');
+    const canRecord = isOpenForEntry(c) && teachesClass(cls, user);
     return {
       campaign: toCampaignView(db, c, user),
       cls: { id: cls.id, name: cls.name },
-      children: rosterOf(db, c, cls),
-      canRecord: isOpenForEntry(c) && teachesClass(cls, user),
+      children: rosterOf(db, c, cls, { withMoved: true, canRecord }),
+      canRecord,
     };
   },
 

@@ -1394,6 +1394,68 @@ export const assessmentMockRepository = {
   },
 
   /* ----- #53 / #54 Development profile & progress ----- */
+  /* ----- Lịch sử lớp cũ của trẻ chuyển đến (BE OBS-35, GET /classes/{id}/transferred-assessment-history) ----- */
+  // BE giả: lấy trẻ đầu tiên của lớp làm trẻ chuyển đến từ một lớp khác, dữ liệu mẫu để xem giao diện
+  async getTransferredHistory({ classId, from, to }, user) {
+    await delay();
+    const db = ensureReady();
+    const cls = classOf(db, classId);
+    if (!cls) throw new ApiError(404, 'Không tìm thấy lớp.');
+    if (!isClassTeacher(cls, user) && !canUnlockAssessmentDay(cls, user)) forbid();
+    if (!from || !to || to < from) throw new ApiError(400, 'Khoảng ngày không hợp lệ.');
+    const child = activeChildrenOf(db, classId)[0];
+    const old = (db.classes || []).find((c) => c.id !== classId && c.campusId === cls.campusId);
+    if (!child || !old) return { classId, from, to, children: [] };
+    const teacher = (db.users || []).find((u) => u.role === ROLES.TEACHER)?.fullName || 'Giáo viên mẫu';
+    const at = `${from}T09:30:00+07:00`;
+    const ref = { classId: old.id, className: old.name };
+    const monday = weekStart(from);
+    return {
+      classId,
+      from,
+      to,
+      children: [
+        {
+          childId: child.id,
+          childName: child.fullName,
+          stays: [{ ...ref, from: addDays(from, -20), to }],
+          days: [
+            {
+              day: {
+                date: from,
+                health: { signs: [], note: '' },
+                meals: { LUNCH: 'AN_HET', AFTERNOON: 'AN_IT' },
+                nap: 'NGU_TOT',
+                emotion: 'HAPPY',
+                behaviors: [],
+                behaviorNote: '',
+                met: [{ id: 'demo-goal-1', name: 'MT1', description: 'Mục tiêu mẫu' }],
+                effort: [],
+                notMet: [],
+                comment: 'Bé tham gia hoạt động vui vẻ.',
+                ...ref,
+                recordedById: null,
+                recordedByName: teacher,
+                recordedAt: at,
+              },
+              recordedById: null,
+              recordedByName: teacher,
+              recordedAt: at,
+            },
+          ],
+          weeklyComments: [
+            { weekStart: monday, ...ref, content: 'Tuần này bé ăn ngoan, chơi hòa đồng.', sentAt: at, sentById: null, sentByName: teacher },
+          ],
+          attendance: [{ date: from, status: 'PRESENT', absentPart: null, ...ref, recordedById: null, recordedByName: teacher }],
+          health: [
+            { date: from, temperature: 36.6, symptoms: [], note: '', ...ref, recordedById: null, recordedByName: teacher, recordedAt: at },
+          ],
+          themeResults: [],
+        },
+      ],
+    };
+  },
+
   async getChildDevelopment(childId, { mode = 'profile', start, end }, user) {
     await delay();
     const db = ensureReady();

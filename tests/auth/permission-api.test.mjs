@@ -46,13 +46,13 @@ const overridesView = (userId) => ({ userId, roles: [], configurablePermissions:
 let calls;
 let bodies;
 const envelope = (config, data) => ({ status: 200, statusText: 'OK', headers: {}, config, data: { code: 200, desc: 'ok', data } });
-const fail = (config, status, desc) => {
+const fail = (config, status, desc, errorCode) => {
   throw new AxiosError(desc, AxiosError.ERR_BAD_REQUEST, config, null, {
     status,
     statusText: 'Error',
     headers: {},
     config,
-    data: { code: status, desc, data: null },
+    data: { code: status, desc, data: null, errorCode },
   });
 };
 
@@ -112,11 +112,33 @@ test('danh sách nhân sự: đọc đủ các trang /accounts theo vai trò, S�
 });
 
 test('người có ngoại lệ: chỉ giữ nhân sự có override, kèm thông tin hiển thị', async () => {
-  const result = await permissionApi.getAccountsWithOverrides();
+  const { accounts: result, unavailableCount } = await permissionApi.getAccountsWithOverrides();
 
+  assert.equal(unavailableCount, 0);
   assert.deepEqual(result.map((r) => r.userId), [2, 4]);
   assert.equal(result[0].fullName, 'Nhân sự demo 2');
   assert.equal(result[1].overrides[0].effect, 'REVOKE');
+});
+
+test('một tài khoản lỗi Keycloak 1111: giữ ngoại lệ đã tải và báo số tài khoản thiếu', async () => {
+  const adapter = axiosClient.defaults.adapter;
+  axiosClient.defaults.adapter = (config) =>
+    config.url === '/accounts/4/permission-overrides' ? fail(config, 503, 'Keycloak', 1111) : adapter(config);
+
+  const { accounts, unavailableCount } = await permissionApi.getAccountsWithOverrides();
+  assert.deepEqual(accounts.map((item) => item.userId), [2]);
+  assert.equal(unavailableCount, 1);
+});
+
+test('lỗi Keycloak toàn bộ hoặc API từ chối quyền: vẫn báo lỗi tải', async () => {
+  const adapter = axiosClient.defaults.adapter;
+  axiosClient.defaults.adapter = (config) =>
+    config.url.endsWith('/permission-overrides') ? fail(config, 503, 'Keycloak', 1111) : adapter(config);
+  await assert.rejects(permissionApi.getAccountsWithOverrides(), { status: 503, errorCode: 1111 });
+
+  axiosClient.defaults.adapter = (config) =>
+    config.url === '/accounts/4/permission-overrides' ? fail(config, 403, 'Không có quyền') : adapter(config);
+  await assert.rejects(permissionApi.getAccountsWithOverrides(), { status: 403 });
 });
 
 test('lưu ngoại lệ: giữ scope SCHOOL đang có, mã mới để BE mặc định', async () => {

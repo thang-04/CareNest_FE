@@ -47,3 +47,6 @@ playwright-report/
 .superpowers/
 .playwright-mcp/
 *.pyc
+
+# AI-DLC workspace (local)
+/aidlc/

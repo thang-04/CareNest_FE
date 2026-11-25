@@ -210,8 +210,9 @@ export const childrenApi = {
     ),
   // POST để CCCD, SĐT phụ huynh không nằm trên URL; lệch phụ huynh đã có ⇒ 409, details theo ô như khi lưu (2026-10-28).
   checkGuardianConflicts: (guardians) => axiosClient.post('/children/guardian-check', { guardians }),
-  readmitChild: (childId, body) => read(axiosClient.post(`/children/${childId}/readmit`, body)),
-  // Năm học ở header là tên "2026-2027"; BE nhận schoolYearId là id số (sai kiểu ⇒ 400/9002)
+  // Năm học ở header là tên ("2026-2027") còn BE nhận id số: đổi trước khi gửi, gửi tên ⇒ 400 mã 9002 (FE-BUG-261119)
+  readmitChild: async (childId, body) =>
+    read(axiosClient.post(`/children/${childId}/readmit`, { ...body, schoolYearId: await toBeSchoolYear(body?.schoolYearId) })),
   getPlacementClasses: async (filters = {}) =>
     read(
       axiosClient.get('/children/placement-classes', {
@@ -250,10 +251,26 @@ export const childrenApi = {
       })),
     }));
   },
-  importChildren: (rows, _user, campusId) =>
-    read(axiosClient.post('/children/enrollments/import', { rows: rows.map((row) => enrollmentPhotoRequest(row).body), campusId })),
+  // schoolYearId, startDate: nhập vào năm sau đã mở chuẩn bị (CHD-11); bỏ trống ⇒ năm đang hoạt động
+  importChildren: async (rows, _user, campusId, { schoolYearId, startDate } = {}) =>
+    read(
+      axiosClient.post('/children/enrollments/import', {
+        rows: rows.map((row) => enrollmentPhotoRequest(row).body),
+        campusId,
+        schoolYearId: await toBeSchoolYear(schoolYearId),
+        startDate,
+      }),
+    ),
+  // G94-180/CHD-14: effectiveDate = ngày vào lớp / ngày chuyển lớp (ngày tương lai = lịch chuyển)
   placeChild: (childId, body) => read(axiosClient.post(`/children/${childId}/placement`, body)),
+  // Hủy lịch chuyển / lớp chưa bắt đầu (BE 400 ô classId khi không có lịch)
+  cancelScheduledPlacement: (childId) => read(axiosClient.delete(`/children/${childId}/placement/scheduled`)),
+  // Ngày nghỉ của năm học (BE SchoolYearController, chỉ đọc) để báo lỗi ngày học sớm; BE vẫn kiểm
+  getSchoolHolidays: async (schoolYearId) => read(axiosClient.get(`/school-years/${await toBeSchoolYear(schoolYearId)}/holidays`)),
+  getLeaveOptions: (childId) => read(axiosClient.get(`/children/${childId}/leave-options`)),
   withdrawChild: (childId, body) => read(axiosClient.post(`/children/${childId}/withdraw`, body)),
+  // G94-180/CHD-03: hủy lịch nghỉ học (BE trả hồ sơ trẻ như withdraw)
+  cancelScheduledLeave: (childId) => read(axiosClient.delete(`/children/${childId}/scheduled-leave`)),
   saveDeclaration: (childId, body) => read(axiosClient.put(`/children/${childId}/health-declaration`, body)),
   listParentAccounts: (filters) => read(axiosClient.get('/children/parent-accounts', { params: filters })),
   findParentAccountByCitizenId: (idNumber) =>

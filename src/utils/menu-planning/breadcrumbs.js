@@ -7,7 +7,7 @@ export const menuCrumbs = (section, sectionTo, last) => [
 ];
 
 export const flowCrumbs = () => menuCrumbs('Quản lý dinh dưỡng');
-export const setupCrumbs = () => menuCrumbs('Thiết lập dinh dưỡng');
+export const setupCrumbs = () => menuCrumbs('Định mức dinh dưỡng');
 export const foodCrumbs = (last) => menuCrumbs('Thực phẩm', '/menu/foods', last);
 export const dishCrumbs = (last) => menuCrumbs('Món ăn', '/menu/dishes', last);
 export const sampleMenuCrumbs = (last) => menuCrumbs('Thực đơn mẫu', '/menu/menus', last);

@@ -45,7 +45,7 @@ export const createMealPlanApi = ({ client = beClient } = {}) => ({
       ...(date ? { date } : {}),
       ...(campusId ? { campusId } : {}),
       ...(children === '' || children == null ? {} : { children: Number(children) }),
-      items: items.map(({ session, dishId }) => ({ session, dishId })),
+      items: items.map(({ session, block, dishId }) => ({ session, ...(block ? { block } : {}), dishId })),
     };
     const stats = await client.post('/nutrition/menu-statistics', body);
     return { ...stats, dishes: stats?.dishes || [], ingredients: stats?.ingredients || [] };

@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Plus, LineChart, History, ArrowLeft, HeartPulse, RotateCcw, Stethoscope } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
+import { useChildYearLock } from '@/hooks/children/useChildYearLock';
+import { YearLockedNotice } from '@/components/children/YearLockedNotice';
 import { useHealthRecord } from '@/hooks/children/useChildRecords';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Modal } from '@/components/ui/Modal';
@@ -33,6 +35,7 @@ const kindLabelOf = (m) =>
 export default function ChildHealthRecordPage() {
   const { id } = useParams();
   const { user } = useAuth();
+  const yearLocked = useChildYearLock();
   const { record, loading, error, reload } = useHealthRecord(id);
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
@@ -67,8 +70,9 @@ export default function ChildHealthRecordPage() {
     );
 
   const { cls } = record;
-  const canRecord = canRecordMeasurement(child, user, cls);
-  const canEdit = canEditMeasurement(child, user, cls);
+  // Năm đã kết thúc hoặc năm sắp diễn ra chưa tới ngày mở chuẩn bị (CFG-YR-01, CHD-12): sổ chỉ xem
+  const canRecord = !yearLocked && canRecordMeasurement(child, user, cls);
+  const canEdit = !yearLocked && canEditMeasurement(child, user, cls);
   const filtered = !!(from || to || warningsOnly);
   const resetFilters = () => {
     setFrom('');
@@ -113,6 +117,7 @@ export default function ChildHealthRecordPage() {
           )}
         </div>
       </div>
+      <YearLockedNotice action="Nhập số đo, phiếu khám" subject="sức khỏe của trẻ" />
 
       <section className="card">
         <div className="card__header">

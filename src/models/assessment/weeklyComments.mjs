@@ -24,9 +24,9 @@ export const statusChip = (row) => {
 
 /** Số bản nháp có nội dung (gửi cả lớp) và số đã gửi / tổng trẻ. */
 export const boardCounts = (rows = []) => ({
-  total: rows.length,
-  sent: rows.filter((r) => r.status === WEEKLY_STATUS.SENT).length,
-  ready: rows.filter((r) => r.status === WEEKLY_STATUS.DRAFT && (r.content || '').trim()).length,
+  total: rows.filter((r) => !r.historical).length,
+  sent: rows.filter((r) => !r.historical && r.status === WEEKLY_STATUS.SENT).length,
+  ready: rows.filter((r) => !r.historical && r.status === WEEKLY_STATUS.DRAFT && (r.content || '').trim()).length,
 });
 
 /** Ô số liệu tuần của một trẻ (bên trên ô nhận xét). */

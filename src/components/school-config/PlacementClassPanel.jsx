@@ -15,15 +15,20 @@ import {
 
 const { PROMOTE, STAY, LEAVE, GRADUATE } = PLACEMENT_ACTION;
 
-/** Lớp năm mới hợp lệ cho một kết quả: lên lớp = nhóm tuổi kế tiếp, ở lại = cùng nhóm tuổi; cùng điểm trường xếp trước. */
+/** Xếp tay được khác nhóm; chỉ sắp lớp đúng nhóm gợi ý và cùng điểm trường lên trước. */
 const optionsFor = (targets, from, action) => {
   const group = action === PROMOTE ? from.nextAgeGroupId : from.ageGroupId;
   return targets
-    .filter((t) => t.ageGroupId === group)
-    .sort((a, b) => (a.campusId === from.campusId ? 0 : 1) - (b.campusId === from.campusId ? 0 : 1) || a.name.localeCompare(b.name, 'vi'));
+    .filter((t) => t.ageGroupId)
+    .sort(
+      (a, b) =>
+        Number(b.ageGroupId === group) - Number(a.ageGroupId === group) ||
+        Number(b.campusId === from.campusId) - Number(a.campusId === from.campusId) ||
+        a.name.localeCompare(b.name, 'vi'),
+    );
 };
 const defaultTarget = (targets, from, action) =>
-  (action === PROMOTE ? from.suggestedTargetId : optionsFor(targets, from, STAY)[0]?.id) || '';
+  (action === PROMOTE ? from.suggestedTargetId : optionsFor(targets, from, STAY).find((t) => t.ageGroupId === from.ageGroupId)?.id) || '';
 const initialRows = (from, targets) => {
   const first = from.graduating ? GRADUATE : PROMOTE;
   return Object.fromEntries(
@@ -43,7 +48,7 @@ const initialRows = (from, targets) => {
  * Xếp lớp năm mới cho các trẻ của một lớp cũ (bản dự kiến, áp dụng khi kích hoạt năm học).
  * Một dòng điều khiển "Cả lớp lên", chọn nhiều trẻ để đổi kết quả cùng lúc, thanh lưu luôn hiện ở cuối.
  */
-export function PlacementClassPanel({ yearId, from, targets, campusName, editable, onDirty, onSaved, heading }) {
+export function PlacementClassPanel({ yearId, from, targets, campusName, groupName = () => '', editable, onDirty, onSaved, heading }) {
   const { user } = useAuth();
   const toast = useToast();
   const [rows, setRows] = useState(() => initialRows(from, targets));
@@ -137,6 +142,9 @@ export function PlacementClassPanel({ yearId, from, targets, campusName, editabl
         </div>
       )}
       {/* Tên lớp và "Cả lớp lên" chung một hàng để bảng trẻ có nhiều chỗ hơn */}
+      <p className="muted text-sm">
+        Xếp thủ công được chọn lớp khác nhóm tuổi. Gợi ý tự động vẫn theo tuổi; bữa ăn và mục tiêu theo lớp năm mới được chọn.
+      </p>
       <div className="sc-plc__toolbar">
         {heading}
         {from.graduating ? (
@@ -156,7 +164,7 @@ export function PlacementClassPanel({ yearId, from, targets, campusName, editabl
               <option value="">Chọn lớp năm mới…</option>
               {promoteOptions.map((t) => (
                 <option key={t.id} value={t.id}>
-                  {t.name} · {campusName(t.campusId)}
+                  {t.name} · {groupName(t.ageGroupId)} · {campusName(t.campusId)}
                 </option>
               ))}
             </select>
@@ -257,7 +265,11 @@ export function PlacementClassPanel({ yearId, from, targets, campusName, editabl
                   <td>
                     <div className="sc-seg" role="radiogroup" aria-label={`Kết quả của ${ch.fullName}`}>
                       {actions.map((a) => (
-                        <label key={a} className={`sc-seg__item ${r.action === a ? 'is-on' : ''}`} title={PLACEMENT_ACTION_LABELS[a]}>
+                        <label
+                          key={a}
+                          className={`sc-seg__item ${r.action === a ? 'is-on' : ''}`}
+                          title={a === STAY ? 'Tiếp tục học; được chọn lớp khác nhóm tuổi' : PLACEMENT_ACTION_LABELS[a]}
+                        >
                           <input
                             type="radio"
                             className="sr-only"
@@ -283,7 +295,7 @@ export function PlacementClassPanel({ yearId, from, targets, campusName, editabl
                         <option value="">Chọn lớp</option>
                         {optionsFor(targets, from, r.action).map((t) => (
                           <option key={t.id} value={t.id}>
-                            {t.name} · {campusName(t.campusId)} · {seats[t.id] || 0}/{t.capacity}
+                            {t.name} · {groupName(t.ageGroupId)} · {campusName(t.campusId)} · {seats[t.id] || 0}/{t.capacity}
                           </option>
                         ))}
                       </select>

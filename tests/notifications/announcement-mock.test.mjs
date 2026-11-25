@@ -12,6 +12,33 @@ const { announcementMockRepository: repo } = await import('@/services/announceme
 const { accountMockRepository } = await import('@/services/account/mock/accountMockRepository');
 const { readDb } = await import('@/mocks/mockDatabase');
 
+test('BE giả trả bodyHtml và body chữ thường cho mẫu, lịch gửi và thông báo', async () => {
+  const actor = readDb().users.find((user) => user.role === 'PRINCIPAL');
+  const html = '<p>Xin <strong>chào</strong></p>';
+  const template = await repo.createTemplate({ name: 'Mẫu HTML', title: 'Tin', body: '', bodyHtml: html, campusId: null }, actor);
+  assert.equal(template.body, 'Xin chào');
+  assert.match(template.bodyHtml, /<strong>chào<\/strong>/);
+  const schedule = await repo.createSchedule(
+    { target: { scopeType: 'SCHOOL', roles: ['PARENT'] }, frequency: 'DAILY', sendTime: '08:00', templateId: template.id },
+    [],
+    actor,
+  );
+  assert.equal(schedule.body, 'Xin chào');
+  assert.match(schedule.bodyHtml, /<strong>chào<\/strong>/);
+  const message = await repo.create(
+    { title: 'Tin HTML', body: '', bodyHtml: html, target: { scopeType: 'SCHOOL', roles: ['PARENT'] }, sendAt: '2027-12-01T01:00:00Z' },
+    [],
+    actor,
+  );
+  assert.equal(message.body, 'Xin chào');
+  assert.match(message.bodyHtml, /<strong>chào<\/strong>/);
+  await repo.cancel(message.id, actor);
+  await repo.delete(message.id, actor);
+  await repo.activateSchedules([schedule.id], false, actor);
+  await repo.deleteSchedules([schedule.id], actor);
+  await repo.deleteTemplate(template.id, actor);
+});
+
 test('soạn lịch riêng hoặc điền mẫu lưu độc lập; bật/tắt chỉ lịch được tick, kiểm đủ ids trước đổi', async () => {
   const actor = readDb().users.find((user) => user.role === 'PRINCIPAL');
   const vice = readDb().users.find((user) => user.role === 'VICE_PRINCIPAL');
@@ -127,13 +154,18 @@ test('mock preview dùng lớp/vai trò, bỏ người gửi và mở toàn văn
   const target = { scopeType: 'CLASSROOM', classroomId: classroom.id, campusId: null, ageGroupId: null, roles: ['TEACHER'] };
   const preview = await repo.preview(target, {}, actor);
   assert.equal(preview.total, new Set(classroom.teacherIds).size);
-  const message = await repo.create({ title: 'Tin mẫu', body: 'D'.repeat(700), target, sendAt: null }, [], actor);
+  const message = await repo.create(
+    { title: 'Tin mẫu', body: '', bodyHtml: `<p><strong>${'D'.repeat(700)}</strong></p>`, target, sendAt: null },
+    [],
+    actor,
+  );
   assert.equal(message.recipientCount, preview.total);
   const receiver = readDb().users.find((user) => user.id === classroom.teacherIds[0]);
   const notification = readDb().notifications.find((item) => item.userId === receiver.id && item.announcementId === message.id);
   assert.equal(notification.message.length, 500);
   const full = await accountMockRepository.getNotification(notification.id, receiver);
   assert.equal(full.message.length, 700);
+  assert.match(full.bodyHtml, /<strong>D{700}<\/strong>/);
   assert.equal(full.senderName, actor.fullName);
 });
 
@@ -172,4 +204,44 @@ test('PHT chỉ sửa mẫu của điểm trường mình và vẫn xem được
     repo.createTemplate({ name: 'Sai điểm', title: 'Tin', body: 'Nội dung', campusId: other.id }, vice),
     (error) => error.status === 403,
   );
+});
+
+test('lịch gửi lặp theo BE giả: nhiều thứ, cách tuần, khoảng ngày, lỗi theo trường, bật lại lịch hết hạn bị từ chối (PAR-10)', async () => {
+  const { todayInput } = await import('../../src/utils/format.js');
+  const actor = readDb().users.find((user) => user.role === 'PRINCIPAL');
+  const base = { target: { scopeType: 'SCHOOL', roles: ['PARENT'] }, sendTime: '08:00', active: true, title: 'Tin', body: 'Nội dung' };
+
+  const weekly = await repo.createSchedule(
+    { ...base, frequency: 'WEEKLY', daysOfWeek: [5, 1, 3], intervalWeeks: 2, startDate: '2099-01-05', endDate: '2099-12-31' },
+    [],
+    actor,
+  );
+  assert.deepEqual(weekly.daysOfWeek, [1, 3, 5]);
+  assert.equal(weekly.dayOfWeek, 1);
+  assert.equal(weekly.intervalWeeks, 2);
+  assert.equal(weekly.endDate, '2099-12-31');
+
+  const daily = await repo.createSchedule({ ...base, frequency: 'DAILY', daysOfWeek: [2], dayOfMonth: 9 }, [], actor);
+  assert.deepEqual(daily.daysOfWeek, []);
+  assert.equal(daily.dayOfMonth, null);
+  assert.equal(daily.startDate, todayInput());
+
+  const legacy = await repo.createSchedule({ ...base, frequency: 'WEEKLY', dayOfWeek: 4 }, [], actor);
+  assert.deepEqual(legacy.daysOfWeek, [4]);
+
+  const fieldsOf = async (data) =>
+    repo.createSchedule({ ...base, ...data }, [], actor).then(
+      () => null,
+      (error) => Object.keys(error.details || {}),
+    );
+  assert.deepEqual(await fieldsOf({ frequency: undefined }), ['frequency']);
+  assert.deepEqual(await fieldsOf({ frequency: 'WEEKLY', daysOfWeek: [] }), ['daysOfWeek']);
+  assert.deepEqual(await fieldsOf({ frequency: 'WEEKLY', daysOfWeek: [1], intervalWeeks: 5 }), ['intervalWeeks']);
+  assert.deepEqual(await fieldsOf({ frequency: 'MONTHLY' }), ['dayOfMonth']);
+  assert.deepEqual(await fieldsOf({ frequency: 'DAILY', startDate: '2099-02-01', endDate: '2099-01-01' }), ['endDate']);
+  assert.deepEqual(await fieldsOf({ frequency: 'DAILY', endDate: '2000-01-01' }), ['endDate']);
+
+  const edited = await repo.updateSchedule(daily.id, { ...base, frequency: 'DAILY', endDate: todayInput() }, [], actor);
+  assert.equal(edited.endDate, todayInput());
+  assert.equal((await repo.schedule(daily.id, actor)).endDate, todayInput());
 });

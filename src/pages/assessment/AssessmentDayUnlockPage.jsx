@@ -121,7 +121,7 @@ export default function AssessmentDayUnlockPage() {
   useEffect(() => {
     if (shownYear.current === schoolYear) return;
     shownYear.current = schoolYear;
-    setForm((f) => ({ ...f, classId: '', date: lastLockedDay(yearStart), ...defaultUntil(yearEnd) }));
+    setForm({ classId: '', date: lastLockedDay(yearStart), reason: '', ...defaultUntil(yearEnd) });
     setErrors({});
     setFilters(EMPTY_FILTERS);
     setPage(1);
@@ -462,17 +462,17 @@ export default function AssessmentDayUnlockPage() {
           <ErrorState error={historyError} onRetry={reloadHistory} />
         ) : (
           <div className="table-wrap dg-roll-wrap">
-            <table className="table table--grid dg-roll">
+            <table className="table table--grid dg-roll dg-unlock-history">
               <thead>
                 <tr>
-                  <th>Loại</th>
-                  <th>Lớp</th>
-                  <th>Ngày / kỳ</th>
-                  <th>Người mở</th>
-                  <th>Lúc mở</th>
-                  <th>Lý do</th>
-                  <th className="center">Hiệu lực</th>
-                  <th className="cell--actions">Thao tác</th>
+                  <th className="dg-unlock-history-kind">Loại</th>
+                  <th className="dg-unlock-history-class">Lớp</th>
+                  <th className="dg-unlock-history-period">Ngày / kỳ</th>
+                  <th className="dg-unlock-history-user">Người mở</th>
+                  <th className="dg-unlock-history-opened">Lúc mở</th>
+                  <th className="dg-unlock-history-reason">Lý do</th>
+                  <th className="center dg-unlock-history-validity">Hiệu lực</th>
+                  <th className="cell--actions dg-unlock-history-actions">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
@@ -491,29 +491,29 @@ export default function AssessmentDayUnlockPage() {
                 ) : (
                   paginate(shown, page, 10).map((u) => (
                     <tr key={u.key}>
-                      <td>{KIND_LABELS[u.kind]}</td>
-                      <td className="fw-600">
+                      <td className="dg-unlock-history-kind">{KIND_LABELS[u.kind]}</td>
+                      <td className="fw-600 dg-unlock-history-class">
                         {u.className}
                         {multiCampus && <div className="text-sm muted">{campusLabel(u.campusId)}</div>}
                       </td>
-                      <td className="nowrap">
+                      <td className="dg-unlock-history-period">
                         {u.kind === 'WEEK'
                           ? `${formatDate(u.weekFrom)} – ${formatDate(u.weekEnd)}`
                           : isEvaluationKind(u.kind)
                             ? u.periodLabel || u.periodKey
                             : formatDate(u.date)}
                       </td>
-                      <td>{u.unlockedByName}</td>
-                      <td>{formatDateTime(u.unlockedAt)}</td>
-                      <td>{u.reason || '—'}</td>
-                      <td className="center">
+                      <td className="dg-unlock-history-user">{u.unlockedByName}</td>
+                      <td className="dg-unlock-history-opened">{formatDateTime(u.unlockedAt)}</td>
+                      <td className="dg-unlock-history-reason">{u.reason || '—'}</td>
+                      <td className="center dg-unlock-history-validity">
                         <UnlockWindowBadge
                           status={u.active ? 'ACTIVE' : u.revokedAt ? 'REVOKED' : 'EXPIRED'}
                           detail={formatDateTime(u.validUntil)}
                         />
                         {u.revokedByName && <div className="text-xs muted">bởi {u.revokedByName}</div>}
                       </td>
-                      <td className="cell--actions">
+                      <td className="cell--actions dg-unlock-history-actions">
                         {u.active && (
                           <RowActions
                             name={u.className}
@@ -550,7 +550,15 @@ export default function AssessmentDayUnlockPage() {
         )}
         {shown.length > 10 && <Pagination page={page} total={shown.length} pageSize={10} onChange={setPage} unit="lần" />}
       </div>
-      <LeaveConfirmModal {...guard.modal} canSave={false} />
+      <LeaveConfirmModal
+        {...guard.modal}
+        canSave={false}
+        onDiscard={() => {
+          setForm((f) => ({ ...f, reason: '' }));
+          setErrors({});
+          guard.modal.onDiscard();
+        }}
+      />
     </div>
   );
 }
