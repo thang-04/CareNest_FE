@@ -16,6 +16,7 @@ after(async () => {
   await server.close();
 });
 const { GoalTable, ThemeEventTable } = await server.ssrLoadModule('/src/components/education-plan/GoalTables.jsx');
+const { FilterableGoalTable } = await server.ssrLoadModule('/src/components/education-plan/FilterableGoalTable.jsx');
 const { BranchCalendarEditor } = await server.ssrLoadModule('/src/components/education-plan/BranchCalendarEditor.jsx');
 const { reapplyTeamDraft, inheritAnnual } = await import('../../src/models/education-plan/planLevel.mjs');
 const domains = [
@@ -51,6 +52,17 @@ test('TEAM can edit and add contents while keeping goal structure read only', ()
   assert.match(html, /aria-label="Nội dung đầu tiên của mục tiêu 1"/);
   assert.doesNotMatch(html, /aria-label="Mục tiêu 1 lĩnh vực/);
   assert.doesNotMatch(html, /aria-label="Xóa nội dung/);
+});
+// BE:EDU-103: ô tìm và lọc "Chưa thuộc chủ đề nào" chỉ ở bảng tick kế hoạch tổ
+test('team tick table shows search and unassigned filter; annual table does not', () => {
+  const team = renderToStaticMarkup(React.createElement(FilterableGoalTable, {
+    ...props, fixedCells: true, canEditContents: true, canAssignContents: true, onChange() {},
+  }));
+  assert.match(team, /data-testid="goal-tick-search"/);
+  assert.match(team, /Chưa thuộc chủ đề nào/);
+  assert.match(team, /Nội dung không chọn/);
+  const annual = renderToStaticMarkup(React.createElement(FilterableGoalTable, { ...props, themes: [], readOnly: false, onChange() {} }));
+  assert.doesNotMatch(annual, /goal-tick-search/);
 });
 test('annual goal table identifies required groups, goals and contents for assistive technology', () => {
   const html = renderToStaticMarkup(React.createElement(GoalTable, { ...props, readOnly: false, onChange() {} }));

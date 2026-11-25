@@ -28,7 +28,7 @@ const numberGoals=()=>({}), themeScheduleIssue=()=>'', isBlankTheme=()=>false, i
 const Card=({title,num,actions,children,className})=><section className={className}><h2>{num}. {title}</h2>{actions}{children}</section>;
 const ResponsiveToolbar = ({children, ...props}) => <div {...props}>{children}</div>;
 const PageHead=({actions})=><header>{actions}</header>, FoldAllButton=()=>null, Field=({label,children})=><label>{label}{children}</label>, Notice=({children})=><p>{children}</p>;
-const GoalTable=({fixedCells,readOnly,canAssignContents})=> <div data-table="goals" data-fixed={fixedCells} data-locked={readOnly} data-assign={canAssignContents}/>, ThemeEventTable=({fixedFields,readOnly})=> <div data-table="themes" data-fixed={fixedFields} data-locked={readOnly}/>;
+const GoalTable=({fixedCells,readOnly,canAssignContents})=> <div data-table="goals" data-fixed={fixedCells} data-locked={readOnly} data-assign={canAssignContents}/>, FilterableGoalTable=GoalTable, ActionsMenu=()=>null, AiThemeContentModal=()=>null, PrevYearTicksModal=()=>null, History=()=>null, Sparkles=()=>null, sendAiFeedback=async()=>null, ThemeEventTable=({fixedFields,readOnly})=> <div data-table="themes" data-fixed={fixedFields} data-locked={readOnly}/>;
 const PlanTabs=()=> <div role="tablist"/>, Stepper=()=> <nav data-stepper="true"/>;
 const Download=()=>null, FileDown=()=>null, Save=()=>null, X=()=>null, Upload=()=>null, ArrowLeft=()=>null, ArrowRight=()=>null;
 const ReviewActions=()=>null, VersionHistory=()=> <button data-history="true"/>, yearPlanLines=()=>[], LeaveConfirmModal=()=>null, fmtDate=(v)=>v;
