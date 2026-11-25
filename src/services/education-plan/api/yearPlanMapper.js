@@ -26,8 +26,8 @@ export const buildRefs = (config) => {
   const schoolYears = config?.schoolYears || [];
   const domains = config?.domains || [];
   return {
-    ageGroupCode: (id) => ageGroups.find((a) => a.id === id)?.code ?? null,
-    ageGroupId: (code) => ageGroups.find((a) => a.code === code)?.id ?? null,
+    ageGroupCode: (id) => (id == null ? null : (ageGroups.find((a) => String(a.id) === String(id) || a.code === id)?.code ?? null)),
+    ageGroupId: (code) => (code == null ? null : (ageGroups.find((a) => a.code === code || String(a.id) === String(code))?.id ?? null)),
     schoolYearId: (label) => schoolYears.find((y) => y.name === fromYearLabel(label))?.id ?? null,
     domainId: (name) => domains.find((d) => d.name === name)?.id ?? null,
   };
@@ -54,11 +54,6 @@ export const toUiEduConfig = (config) => {
     yearCreationScopes: (config?.yearCreationScopes || []).map((id) => buildRefs(config).ageGroupCode(id)).filter(Boolean),
     ...(config?.signers ? { signers: config.signers } : {}),
     ...(config?.weekRows ? { weekRows: config.weekRows } : {}),
-    // Trả lại sau hạn: số ngày lịch được gửi lại (Hiệu trưởng cấu hình, mặc định 2 — Tiền 18/11/2026)
-    lateReturnGraceDays: config?.lateReturnGraceDays ?? 2,
-    // EDU-97: hạn xử lý REVIEW tách biệt với ân hạn gửi lại sau khi bị trả lại.
-    lateApprovalGraceDays: config?.lateApprovalGraceDays ?? 2,
-    canConfigureDeadlines: config?.canConfigureDeadlines === true,
     // BE:EDU-21 — họ tên Hiệu trưởng, Phó HT đang hoạt động để in dưới chỗ ký tay
     ...(config?.signerNames ? { signerNames: config.signerNames } : {}),
   };
@@ -138,6 +133,7 @@ export const toUiGoal = (detail, refs) => {
     timeLock: detail.timeLock || null,
     reviewDeadline: detail.reviewDeadline || detail.timeLock?.reviewDeadline || null,
     code: detail.code,
+    schoolYearId: detail.schoolYearId,
     schoolYear: toYearLabel(detail.schoolYearName),
     ageGroupId: refs.ageGroupCode(detail.ageGroupId),
     title: detail.title,
@@ -170,6 +166,7 @@ export const toUiGoal = (detail, refs) => {
     breaks: (detail.breaks || []).map((b) => ({ id: String(b.id), label: b.label, start: b.startDate || '', end: b.endDate || '' })),
     domains,
     permissions: detail.permissions,
+    canEditCurriculum: detail.canEditCurriculum === true,
     // Phiên bản (BE:EDU-25): số phiên bản, phiên bản nguồn, hiện hành, các phiên bản người xem được thấy
     versionNo: detail.versionNo ?? 1,
     sourcePlanId: detail.sourcePlanId == null ? null : String(detail.sourcePlanId),
@@ -201,7 +198,7 @@ export const toYearPlanRequest = (goal, refs) => ({
     startDate: t.startDate || null,
     endDate: t.endDate || null,
   })),
-  schoolYearId: refs.schoolYearId(goal.schoolYear),
+  schoolYearId: serverId(goal.schoolYearId) ?? refs.schoolYearId(goal.schoolYear),
   ageGroupId: refs.ageGroupId(goal.ageGroupId),
   title: goal.title,
   description: goal.description || '',

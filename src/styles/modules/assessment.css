@@ -393,6 +393,35 @@
   width: calc(var(--space-16) * 4);
 }
 
+/* Lịch sử mở lại cần ưu tiên lý do; cột ngày/kỳ gọn để không làm hàng cao bất thường. */
+.dg-roll-wrap .dg-roll.dg-unlock-history {
+  min-width: 68rem;
+  table-layout: fixed;
+}
+.dg-unlock-history-kind {
+  width: 8.5rem;
+}
+.dg-unlock-history-class {
+  width: 9.5rem;
+}
+.dg-unlock-history-period {
+  width: 10.5rem;
+  overflow-wrap: anywhere;
+}
+.dg-unlock-history-user,
+.dg-unlock-history-opened {
+  width: 9rem;
+}
+.dg-unlock-history-reason {
+  min-width: 15rem;
+}
+.dg-unlock-history-validity {
+  width: 13rem;
+}
+.dg-unlock-history-actions {
+  width: 5rem;
+}
+
 /* Bảng số liệu kỳ: cột nhãn vừa chữ, cột số liệu chiếm phần còn lại */
 .dg-summary th[scope='row'] {
   width: 1%;
@@ -511,12 +540,14 @@
 
 /* ---------- AI draft ---------- */
 .dg-ai-box {
-  border: 1px dashed var(--purple-border);
-  background: var(--purple-25);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-muted);
   border-radius: var(--radius);
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-4);
   white-space: pre-line;
-  line-height: 1.6;
+  color: var(--color-text);
+  font-size: var(--fs-lg);
+  line-height: var(--lh-relaxed);
 }
 .dg-final {
   white-space: pre-line;
@@ -525,6 +556,14 @@
 .dg-editor {
   min-height: 220px;
   line-height: 1.6;
+}
+.dg-comment-preview {
+  margin-top: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface-muted);
+  overflow-wrap: anywhere;
 }
 
 /* ---------- Charts (plain SVG) ---------- */

@@ -169,10 +169,11 @@ export const buildDayBoardRows = (campus, { date } = {}) => [
   foodSampleRow(campus || {}, date),
 ];
 
-// Nhóm hiển thị của tông trạng thái cho dải số liệu đầu trang (chỉ đếm số việc theo tông BE đã trả, không đánh giá lại)
-const TONE_BUCKET = { red: 'attention', orange: 'waiting', purple: 'waiting', blue: 'waiting', green: 'done', gray: 'idle' };
+// Nhóm hiển thị của tông trạng thái cho dải số liệu đầu trang (chỉ đếm số việc theo tông BE đã trả, không đánh giá lại).
+// Đỏ, cam, tím là việc người dùng cần làm (cùng tập với dòng "Việc tiếp theo"); xanh dương là chờ bước khác.
+const TONE_BUCKET = { red: 'attention', orange: 'attention', purple: 'attention', blue: 'waiting', green: 'done', gray: 'idle' };
 
-/** Đếm số việc của mọi điểm trường theo nhóm: cần xử lý · đang chờ · hoàn tất · chưa có thông tin hoặc ngày nghỉ. */
+/** Đếm số việc của mọi điểm trường theo nhóm: cần xử lý · chờ bước khác · hoàn tất · chưa có thông tin hoặc ngày nghỉ. */
 export const summarizeBoardRows = (rowsPerCampus) => {
   const total = { attention: 0, waiting: 0, done: 0, idle: 0 };
   rowsPerCampus.flat().forEach((row) => {

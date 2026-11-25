@@ -3,6 +3,7 @@ import { canManagePermissions } from '@/utils/account/permissionManagementPermis
 import { validatePermissionChange } from '@/utils/account/permissionValidation';
 import { OVERRIDE_EFFECT, PERMISSION_ROLES } from '@/models/account/permissionConstants';
 import { uid } from '@/utils/id';
+import { eduCodesChanged, eduLocalIssues, isEduWorkflowCode } from '@/utils/account/eduRoleMatrix';
 
 // Cấu hình demo độc lập của UI G94-209; không áp vào quyền hoặc phân công đang chạy.
 
@@ -120,9 +121,35 @@ const CATALOG = [
     defaultRoles: ['PRINCIPAL'],
     configurableRoles: [],
   },
+  // BE EDU-110: 8 mã soạn/duyệt; ô cấu hình theo Permission.configurableRoles, tick mặc định theo chuỗi EDU-54
+  ...[
+    ['EDU_SCHOOL_YEAR_PLAN_EDIT', 'Soạn kế hoạch năm học', ['VICE_PRINCIPAL']],
+    ['EDU_SCHOOL_YEAR_PLAN_APPROVE', 'Duyệt kế hoạch năm học', ['PRINCIPAL']],
+    ['EDU_TEAM_PLAN_EDIT', 'Soạn kế hoạch tổ', ['TEAM_LEADER']],
+    ['EDU_TEAM_PLAN_APPROVE', 'Duyệt kế hoạch tổ', ['VICE_PRINCIPAL']],
+    ['EDU_SEMESTER_PACKAGE_EDIT', 'Soạn gói học kỳ', ['TEACHER']],
+    ['EDU_SEMESTER_PACKAGE_APPROVE', 'Duyệt gói học kỳ', ['TEAM_LEADER', 'VICE_PRINCIPAL']],
+    ['EDU_THEME_PLAN_EDIT', 'Soạn hồ sơ chủ đề', ['TEACHER']],
+    ['EDU_THEME_PLAN_APPROVE', 'Duyệt hồ sơ chủ đề', ['TEAM_LEADER', 'VICE_PRINCIPAL']],
+  ].map(([code, description, defaultRoles]) => ({
+    code,
+    module: 'education-plan',
+    feature: 'education-workflow',
+    action: 'MANAGE',
+    requires: [],
+    description,
+    defaultRoles,
+    configurableRoles: code.endsWith('_APPROVE')
+      ? ['PRINCIPAL', 'VICE_PRINCIPAL', 'TEAM_LEADER']
+      : ['PRINCIPAL', 'VICE_PRINCIPAL', 'TEAM_LEADER', 'TEACHER'],
+  })),
 ];
 
-const CONFIGURABLE_ROLES = ['VICE_PRINCIPAL', 'TEACHER', 'KITCHEN_STAFF'];
+// PRINCIPAL chỉ có ô cho 8 mã EDU-110, mã khác của HT cố định
+const CONFIGURABLE_ROLES = ['PRINCIPAL', 'VICE_PRINCIPAL', 'TEAM_LEADER', 'TEACHER', 'KITCHEN_STAFF'];
+const MATRIX_ROLES = [...PERMISSION_ROLES, 'TEAM_LEADER'];
+// Màn demo chỉ tạo ngoại lệ cho nhân sự PHT, GV, bếp như trước
+const OVERRIDE_ROLES = ['VICE_PRINCIPAL', 'TEACHER', 'KITCHEN_STAFF'];
 const PRIVILEGED_ROLES = ['PRINCIPAL', 'ADMIN'];
 
 const forbid = (message = 'Bạn không có quyền thực hiện thao tác này') => new ApiError(403, message);
@@ -151,9 +178,13 @@ const withRequiredRows = (rows) => {
 const ensure = (db) => {
   const seededVersion = Number(db.mockSeedVersions?.['permission-center-demo'] || 0);
   const permissionCenterRoleRows = CATALOG.flatMap((p) =>
-    p.defaultRoles.filter((role) => CONFIGURABLE_ROLES.includes(role)).map((role) => ({ role, code: p.code })),
+    p.defaultRoles.filter((role) => isConfigurableFor(p.code, role)).map((role) => ({ role, code: p.code })),
   );
-  applyMockSeedMigration(db, 'permission-center-demo', 2, { permissionCenterRoleRows });
+  applyMockSeedMigration(db, 'permission-center-demo', 3, { permissionCenterRoleRows });
+  // Bản 3 (EDU-110): dữ liệu cũ chưa có ô soạn/duyệt ⇒ thêm tick mặc định EDU-54
+  if (seededVersion > 0 && seededVersion < 3 && Array.isArray(db.permissionCenterRoleRows)) {
+    db.permissionCenterRoleRows.push(...permissionCenterRoleRows.filter((row) => isEduWorkflowCode(row.code)));
+  }
   // Bản 2 tách quyền xem: role đang có thao tác sửa giữ quyền xem trước đây đi kèm ngầm
   if (seededVersion === 1 && Array.isArray(db.permissionCenterRoleRows)) {
     db.permissionCenterRoleRows = withRequiredRows(db.permissionCenterRoleRows);
@@ -178,13 +209,17 @@ const ensure = (db) => {
 };
 
 const resolve = (db, roles, userId) => {
-  const fixed = roles.filter((role) => !CONFIGURABLE_ROLES.includes(role));
-  const result = new Set(CATALOG.filter((p) => p.defaultRoles.some((r) => fixed.includes(r))).map((p) => p.code));
+  // Mã cố định = mặc định của role mà role đó không có ô cấu hình
+  const result = new Set(
+    CATALOG.filter((p) => p.defaultRoles.some((r) => roles.includes(r) && !isConfigurableFor(p.code, r))).map((p) => p.code),
+  );
   const configured = new Set(
     db.permissionCenterRoleRows.filter((row) => roles.includes(row.role) && isConfigurableFor(row.code, row.role)).map((row) => row.code),
   );
   db.permissionCenterOverrides
-    .filter((o) => userId != null && o.userId === userId && roles.some((role) => isConfigurableFor(o.code, role)))
+    .filter(
+      (o) => userId != null && o.userId === userId && !isEduWorkflowCode(o.code) && roles.some((role) => isConfigurableFor(o.code, role)),
+    )
     .forEach((o) => (o.effect === OVERRIDE_EFFECT.GRANT ? configured.add(o.code) : configured.delete(o.code)));
   configured.forEach((code) => result.add(code));
   return sorted([...result]);
@@ -202,7 +237,8 @@ const roleEntry = (db, role) => ({
 
 const overridesView = (db, target) => {
   const roles = rolesOf(target);
-  const configurable = sorted(roles.flatMap(configurableCodesOf));
+  // BE EDU-110 (7): 8 mã soạn/duyệt không có ngoại lệ theo người
+  const configurable = sorted(roles.flatMap(configurableCodesOf).filter((code) => !isEduWorkflowCode(code)));
   return {
     userId: target.id,
     roles,
@@ -228,7 +264,80 @@ const requireReason = (reason) => {
   if (errors.reason) throw badRequest(errors.reason, errors);
 };
 
+const withCode = (error, errorCode) => Object.assign(error, { errorCode });
+
+/** Kiểm một vai trò trong lần lưu (BE PermissionServiceImpl.saveMatrix): role cố định 1117, mã không cấu hình được 1118. */
+const checkRole = (role, permissions) => {
+  if (!CONFIGURABLE_ROLES.includes(role)) throw withCode(forbid('Quyền của vai trò này cố định, không chỉnh được'), 1117);
+  if (!Array.isArray(permissions) || permissions.some((code) => typeof code !== 'string')) throw badRequest('Danh sách quyền không hợp lệ');
+  const invalid = permissions.find((code) => !isConfigurableFor(code, role));
+  if (invalid) throw withCode(badRequest(`Quyền ${invalid} không cấu hình được cho vai trò ${role}`), 1118);
+  const missing = permissions.flatMap((code) =>
+    byCode(code)
+      .requires.filter((required) => isConfigurableFor(required, role) && !permissions.includes(required))
+      .map((required) => [code, required]),
+  )[0];
+  if (missing) throw badRequest(`Quyền ${missing[0]} cần bật kèm quyền xem ${missing[1]}`);
+};
+
+const matrixOf = (db) => Object.fromEntries(MATRIX_ROLES.map((role) => [role, resolve(db, [role], null)]));
+
+/** Ghi nhiều vai trò một lần; đổi mã EDU mà sai luật ⇒ 400 7202 + issues, không ghi gì (BE EDU-110 BR1.x, BR2.3). */
+const saveRoles = (db, items, reason, user) => {
+  const before = matrixOf(db);
+  const after = { ...before, ...Object.fromEntries(items.map(({ role, permissions }) => [role, permissions])) };
+  if (eduCodesChanged(before, after)) {
+    const issues = eduLocalIssues(after);
+    if (issues.length) throw withCode(badRequest('Vai trò người soạn hoặc người duyệt không hợp lệ', { issues }), 7202);
+  }
+  const batchId = uid();
+  items.forEach(({ role, permissions }) => {
+    const was = new Set(before[role]);
+    const next = new Set(permissions);
+    configurableCodesOf(role)
+      .filter((code) => was.has(code) !== next.has(code))
+      .forEach((code) =>
+        db.permissionCenterChangeLogs.unshift({
+          id: uid(),
+          batchId,
+          actorUserId: user.id,
+          targetRole: role,
+          targetUserId: null,
+          permissionCode: code,
+          beforeState: was.has(code) ? 'ON' : 'OFF',
+          afterState: next.has(code) ? 'ON' : 'OFF',
+          reason: reason.trim(),
+          changedAt: now(),
+        }),
+      );
+    db.permissionCenterRoleRows = [
+      ...db.permissionCenterRoleRows.filter((row) => row.role !== role),
+      ...[...next].map((code) => ({ role, code })),
+    ];
+  });
+};
+
 export const permissionMockRepository = {
+  async getEduWorkflowIssues(user) {
+    await delay(80);
+    requireManager(user);
+    return clone({ issues: eduLocalIssues(matrixOf(ensure(readDb()))) });
+  },
+
+  async updateRolePermissionsBulk({ reason, roles }, user) {
+    await delay();
+    requireManager(user);
+    requireReason(reason);
+    if (!Array.isArray(roles) || !roles.length) throw badRequest('Danh sách vai trò không hợp lệ');
+    if (new Set(roles.map((item) => item?.role)).size !== roles.length) throw badRequest('Vai trò bị lặp');
+    roles.forEach(({ role, permissions }) => checkRole(role, permissions));
+    return writeDb((db) => {
+      ensure(db);
+      saveRoles(db, roles, reason, user);
+      return clone(MATRIX_ROLES.map((role) => roleEntry(db, role)));
+    });
+  },
+
   async getPermissionStaff(user) {
     await delay(80);
     requireManager(user);
@@ -256,49 +365,17 @@ export const permissionMockRepository = {
     await delay(100);
     requireManager(user);
     const db = ensure(readDb());
-    return clone(PERMISSION_ROLES.map((role) => roleEntry(db, role)));
+    return clone(MATRIX_ROLES.map((role) => roleEntry(db, role)));
   },
 
   async updateRolePermissions(role, { permissions, reason }, user) {
     await delay();
     requireManager(user);
-    if (!CONFIGURABLE_ROLES.includes(role)) throw forbid('Quyền của vai trò này cố định, không sửa được');
     requireReason(reason);
-    if (!Array.isArray(permissions) || permissions.some((code) => typeof code !== 'string'))
-      throw badRequest('Danh sách quyền không hợp lệ');
-    const invalid = permissions.find((code) => !isConfigurableFor(code, role));
-    if (invalid) throw badRequest(`Quyền ${invalid} không cấu hình được cho vai trò này`);
-    const missing = permissions.flatMap((code) =>
-      byCode(code)
-        .requires.filter((required) => isConfigurableFor(required, role) && !permissions.includes(required))
-        .map((required) => [code, required]),
-    )[0];
-    if (missing) throw badRequest(`Quyền ${missing[0]} cần bật kèm quyền xem ${missing[1]}`);
+    checkRole(role, permissions);
     return writeDb((db) => {
       ensure(db);
-      const before = new Set(resolve(db, [role], null));
-      const after = new Set(permissions);
-      const batchId = uid();
-      configurableCodesOf(role)
-        .filter((code) => before.has(code) !== after.has(code))
-        .forEach((code) =>
-          db.permissionCenterChangeLogs.unshift({
-            id: uid(),
-            batchId,
-            actorUserId: user.id,
-            targetRole: role,
-            targetUserId: null,
-            permissionCode: code,
-            beforeState: before.has(code) ? 'ON' : 'OFF',
-            afterState: after.has(code) ? 'ON' : 'OFF',
-            reason: reason.trim(),
-            changedAt: now(),
-          }),
-        );
-      db.permissionCenterRoleRows = [
-        ...db.permissionCenterRoleRows.filter((row) => row.role !== role),
-        ...[...after].map((code) => ({ role, code })),
-      ];
+      saveRoles(db, [{ role, permissions }], reason, user);
       return clone(roleEntry(db, role));
     });
   },
@@ -345,7 +422,7 @@ export const permissionMockRepository = {
       const target = db.users.find((u) => u.id === userId);
       if (!target) throw new ApiError(404, 'Không tìm thấy tài khoản');
       const roles = rolesOf(target);
-      if (roles.some((role) => PRIVILEGED_ROLES.includes(role)) || !roles.some((role) => CONFIGURABLE_ROLES.includes(role)))
+      if (roles.some((role) => PRIVILEGED_ROLES.includes(role)) || !roles.some((role) => OVERRIDE_ROLES.includes(role)))
         throw forbid('Không tạo ngoại lệ quyền cho tài khoản này');
       if (!Array.isArray(overrides)) throw badRequest('Danh sách ngoại lệ không hợp lệ');
       const requested = new Map();
@@ -353,6 +430,8 @@ export const permissionMockRepository = {
         const { permission, effect } = item || {};
         if (![OVERRIDE_EFFECT.GRANT, OVERRIDE_EFFECT.REVOKE].includes(effect)) throw badRequest('Trạng thái ngoại lệ không hợp lệ');
         if (requested.has(permission)) throw badRequest(`Quyền ${permission} bị lặp`);
+        // BE EDU-110 (7): không ngoại lệ soạn/duyệt theo người
+        if (isEduWorkflowCode(permission)) throw withCode(forbid('Không cấp ngoại lệ quyền cho tài khoản này'), 1120);
         if (!roles.some((role) => isConfigurableFor(permission, role)))
           throw badRequest(`Quyền ${permission} không áp dụng cho tài khoản này`);
         requested.set(permission, effect);

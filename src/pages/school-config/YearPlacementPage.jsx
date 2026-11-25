@@ -93,8 +93,12 @@ export default function YearPlacementPage() {
       classes.filter((c) => !c.graduating && !c.suggestedTargetId).map((c) => `${groupName(c.nextAgeGroupId)} (${campusName(c.campusId)})`),
     ),
   ];
-  const admissions = (plan?.newAdmissions || []).filter(
-    (item) => (!campusId || String(item.campusId) === String(campusId)) && (!groupId || String(item.ageGroupId) === String(groupId)),
+  const admissions = useMemo(
+    () =>
+      (plan?.newAdmissions || []).filter(
+        (item) => (!campusId || String(item.campusId) === String(campusId)) && (!groupId || String(item.ageGroupId) === String(groupId)),
+      ),
+    [plan?.newAdmissions, campusId, groupId],
   );
   const admissionsLeft = admissions.filter((item) => !item.targetClassId).length;
   const onClassDirty = useCallback((value) => setClassDirty(value), []);
@@ -411,6 +415,7 @@ export default function YearPlacementPage() {
                           from={selected}
                           targets={plan.targets}
                           campusName={campusName}
+                          groupName={groupName}
                           editable={plan.editable}
                           onDirty={onClassDirty}
                           onSaved={() => reload({ silent: true })}

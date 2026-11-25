@@ -156,6 +156,7 @@ test('AC-3, AC-6: nút AI chỉ hiện khi sửa được; dùng gợi ý tuần
   assert.match(modal, /disabled=\{busy \|\| running \|\| dirty \|\| unchecked\}/);
   // Chấm lại lỗi hoặc đang chấm ⇒ chưa cho dùng bản đang sửa
   assert.match(modal, /const unchecked = editor\.editable && \(editor\.evaluating \|\| !!editor\.evaluateError\)/);
+  assert.match(modal, /size=\{draft \? 'full' : 'lg'\}/);
 });
 
 const {

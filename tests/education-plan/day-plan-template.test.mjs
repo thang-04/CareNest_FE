@@ -174,12 +174,11 @@ test('FR-016, FR-017, SC-001, SC-005: file giáo án ngày cả tuần theo mẫ
     'II. Hoạt động ngoài trời',
     'III. Hoạt động góc',
     'IV. Hoạt động chiều',
-    'V. Đánh giá trẻ trên ngày',
     '1. Mục đích - yêu cầu',
     '3. Tiến hành',
   ])
     assert.ok(html.includes(s), s);
-  assert.equal((html.match(/V\. Đánh giá trẻ trên ngày/g) || []).length, 5);
+  assert.ok(!html.includes('Đánh giá trẻ trên ngày'));
   assert.ok(!html.includes('Kế hoạch điều chỉnh'));
   assert.ok(!html.includes('<th>Ghi chú</th>'));
   // Góc trống không in thành dòng rỗng

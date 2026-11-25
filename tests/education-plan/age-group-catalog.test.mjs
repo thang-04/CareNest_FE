@@ -85,18 +85,24 @@ test('filters group equal month bounds and exclude overlapping ranges', async ()
   const { ageRangeOptions, sameAgeRange } = await import('@/models/education-plan/educationPlanConstants');
   applyEduConfig({
     ageGroups: [
-      { id: 'original', name: 'Nhóm trẻ 24/36', shortName: 'Nhà trẻ', ageFromMonths: 24, ageToMonths: 36 },
+      { id: 'original', databaseId: 20, name: 'Nhóm trẻ 24/36', shortName: 'Nhà trẻ', ageFromMonths: 24, ageToMonths: 36 },
       { id: 'replacement', ageFromMonths: 24, ageToMonths: 36 },
       { id: 'overlap', name: 'Nhóm khác', shortName: 'Khác', ageFromMonths: 30, ageToMonths: 42 },
+      { id: 'same-start', name: 'Trùng đầu', ageFromMonths: 24, ageToMonths: 42 },
+      { id: 'legacy', name: 'Nhóm cũ', ageFromMonths: 24 },
     ],
   });
   try {
     assert.deepEqual(
       ageRangeOptions().map((group) => group.name),
-      ['Nhà trẻ', 'Khác'],
+      ['Nhà trẻ', 'Khác', 'Trùng đầu'],
     );
     assert.equal(sameAgeRange('original', 'replacement'), true);
     assert.equal(sameAgeRange('original', 'overlap'), false);
+    assert.equal(sameAgeRange(20, 'replacement'), true);
+    assert.equal(sameAgeRange('original', 'same-start'), false);
+    assert.equal(sameAgeRange('legacy', 'legacy'), false);
+    assert.equal(ageRangeOptions(undefined, { includeIncomplete: true }).at(-1).missingRange, true);
   } finally {
     applyEduConfig(null);
   }
@@ -117,7 +123,7 @@ test('annual list queries the selected year and resolves the representative grou
     } else if (request.url === '/education-plans/goals') {
       params = request.params;
       data = {
-        items: [20, 30].map((id) => ({ id, ageGroupId: id, schoolYearName: '2026-2027', planType: 'SCHOOL_YEAR' })),
+        items: [20].map((id) => ({ id, ageGroupId: id, schoolYearId: 5, schoolYearName: '2026-2027', planType: 'SCHOOL_YEAR' })),
         totalPages: 1,
       };
     } else {
@@ -126,14 +132,15 @@ test('annual list queries the selected year and resolves the representative grou
     return { status: 200, statusText: 'OK', headers: {}, config: request, data: { code: 200, desc: 'ok', data } };
   };
   try {
-    await educationPlanApi.getEduConfig();
-    const { goals } = await educationPlanApi.getAll(null, { planLevel: 'SCHOOL_YEAR', schoolYear: '2026 – 2027', ageRange: '24:36' });
+    const config = await educationPlanApi.getEduConfig(5);
+    assert.equal(config.ageGroups.length, 3);
+    const { goals } = await educationPlanApi.getAll(null, { planLevel: 'SCHOOL_YEAR', schoolYearId: 5, ageRange: '24:36' });
     assert.equal(params.ageGroupId, 20);
     assert.equal(params.schoolYearId, 5);
     assert.equal(params.planLevel, 'SCHOOL_YEAR');
     assert.deepEqual(
       goals.map((goal) => goal.ageGroupId),
-      ['original', 'other'],
+      ['original'],
     );
   } finally {
     axiosClient.defaults.adapter = originalAdapter;

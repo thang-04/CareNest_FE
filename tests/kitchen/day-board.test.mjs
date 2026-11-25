@@ -3,7 +3,7 @@ import { test } from 'node:test';
 
 globalThis.window = new EventTarget();
 
-const { buildDayBoardRows, nextBoardTask } = await import('@/utils/boarding/dayBoardRows');
+const { buildDayBoardRows, nextBoardTask, summarizeBoardRows } = await import('@/utils/boarding/dayBoardRows');
 const { createDayBoardApi } = await import('@/services/dayBoardApi');
 const { INTEGRATION_MODULES } = await import('@/config/integrationModules');
 
@@ -229,8 +229,15 @@ test('module day-board khai source api cho /boarding', () => {
 
 test('summarizeBoardRows đếm việc theo nhóm tông trạng thái của mọi điểm trường', async () => {
   const { summarizeBoardRows } = await import('@/utils/boarding/dayBoardRows');
-  const rows = [{ tone: 'red' }, { tone: 'orange' }, { tone: 'purple' }, { tone: 'green' }, { tone: 'gray' }, { tone: 'unknown' }];
-  assert.deepEqual(summarizeBoardRows([rows, [{ tone: 'green' }]]), { attention: 1, waiting: 2, done: 2, idle: 2 });
+  const rows = [{ tone: 'red' }, { tone: 'orange' }, { tone: 'purple' }, { tone: 'blue' }, { tone: 'green' }, { tone: 'gray' }, { tone: 'unknown' }];
+  assert.deepEqual(summarizeBoardRows([rows, [{ tone: 'green' }]]), { attention: 3, waiting: 1, done: 2, idle: 2 });
+});
+
+test('việc cần xử lý khớp dòng việc tiếp theo: thực đơn nháp (cam) vừa được đếm vừa được chọn', () => {
+  const c = campus({ menu: { status: 'DRAFT', nextWeekStatus: 'PUBLISHED', weekStart: '2026-11-23', nextWeekStart: '2026-11-30' } });
+  const rows = [buildDayBoardRows(c, { date: DATE })];
+  assert.ok(summarizeBoardRows(rows).attention > 0);
+  assert.ok(nextBoardTask(rows, [c]));
 });
 
 test('NUT-11: kho khô sắp thiếu ⇒ thêm câu nhắc ngày bắt đầu thiếu và nút Bản dự trù; đủ kho thì không nhắc', () => {

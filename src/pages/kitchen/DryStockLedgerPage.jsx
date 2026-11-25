@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
-import { Plus } from '@/components/ui/icons';
+import { useReceiptOrigin } from '@/hooks/kitchen/useReceiptOrigin';
+import { PackageX, Plus } from '@/components/ui/icons';
 import { Button, EmptyState, ErrorState, LoadingState, PageHeader } from '@/components';
 import { usePageReadOnly } from '@/contexts/PageReadOnlyContext';
 import { Tabs } from '@/components/ui/Tabs';
@@ -47,6 +48,7 @@ const TABS = {
 /** Kho khô (L2): tồn theo lô, phiếu nhập, lịch sử nhập/trừ, phần thiếu. Điểm trường chọn trên URL (?campusId=). */
 export default function DryStockLedgerPage({ tab = 'stock' }) {
   const navigate = useNavigate();
+  const origin = useReceiptOrigin();
   const { reason: viewOnlyReason } = usePageReadOnly();
   const campus = useStockCampus();
   const canManage = useCanManageStock(campus.campusId);
@@ -76,10 +78,28 @@ export default function DryStockLedgerPage({ tab = 'stock' }) {
           {campus.campusId && <KbCampusFilter campusId={campus.campusId} onChange={campus.setCampusId} canPick={campus.canPick} />}
           {/* Nút lập phiếu đứng cạnh tab và ô điểm trường, không treo riêng ở góc trên */}
           {campus.campusId && (
+            <>
+              <Button
+                icon={PackageX}
+                onClick={() => navigate(`/kitchen/stock-returns/new?campusId=${campus.campusId}`)}
+                disabledReason={canManage ? undefined : viewOnlyReason}
+              >
+                Xuất kho cho NCC
+              </Button>
+              <Button
+                icon={PackageX}
+                onClick={() => navigate(`/kitchen/stock-write-offs/new?campusId=${campus.campusId}`)}
+                disabledReason={canManage ? undefined : viewOnlyReason}
+              >
+                Xuất kho
+              </Button>
+            </>
+          )}
+          {campus.campusId && (
             <Button
               variant="primary"
               icon={Plus}
-              onClick={() => navigate(`/kitchen/stock-receipts/new?campusId=${campus.campusId}`)}
+              onClick={() => navigate(`/kitchen/stock-receipts/new?campusId=${campus.campusId}`, { state: origin })}
               disabledReason={canManage ? undefined : viewOnlyReason}
             >
               Lập phiếu nhập

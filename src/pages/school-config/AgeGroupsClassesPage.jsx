@@ -60,6 +60,8 @@ export default function AgeGroupsClassesPage({ embedded = false }) {
   const teamLeaders = useMemo(() => structure?.teamLeaders || [], [structure]);
   // Năm học đã kết thúc: chỉ xem, ẩn Thêm / Sửa / Xóa / Sao chép (SRS 4.1.3)
   const editable = canManageClasses(year, user);
+  // Danh sách nhóm tuổi được chốt trước khai giảng; năm đang hoạt động chỉ được mở thêm lớp trong nhóm đã có.
+  const canAddAgeGroup = editable && year?.status === YEAR_STATUS.PLANNED;
   // Nút sang màn Phân công giáo viên: theo từng quyền (phân công giáo viên / phân công tổ trưởng)
   const canAssignTeacherArea = teacherAssignmentAccess(user).access !== PERMISSION_ACCESS.NONE;
   const canLeaders = canViewTeamLeaders(user);
@@ -70,10 +72,9 @@ export default function AgeGroupsClassesPage({ embedded = false }) {
   const assignUrl = (hash = '') => `/school/teachers${yearId ? `?year=${yearId}` : ''}${hash}`;
   const principal = isPrincipal(user);
   const canCopy = editable && copySourcesFor(years, year).length > 0;
-  // Principal sees both campuses; other roles only the campus of their scope (GBR-GEN-01).
-  // HT: điểm trường của năm đang chọn (BE V151)
+  // Danh mục lọc khớp phạm vi cấu hình BE trả về, không suy từ điểm trường làm việc của PHT.
   const yearCampuses = useYearCampuses();
-  const campuses = principal ? yearCampuses || md.campuses : md.campuses.filter((c) => c.id === user?.campusId);
+  const campuses = yearCampuses || md.campuses;
 
   if (!canViewSchoolStructure(user))
     return (
@@ -166,9 +167,9 @@ export default function AgeGroupsClassesPage({ embedded = false }) {
                         : 'Phân công tổ trưởng'}
                   </Link>
                 )}
-                {editable && (
+                {canAddAgeGroup && (
                   <button className="btn btn--sm" onClick={() => setGroupModal({ group: null })}>
-                    <Plus size={15} /> Thêm nhóm tuổi
+                    <Plus size={15} /> Chọn nhóm tuổi áp dụng
                   </button>
                 )}
               </div>

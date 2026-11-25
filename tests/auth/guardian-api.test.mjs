@@ -34,6 +34,11 @@ beforeEach(() => {
     const query = config.params ? `?${new URLSearchParams(Object.entries(config.params).filter(([, v]) => v != null))}` : '';
     calls.push(`${method} ${config.url}${query}`);
     if (config.data) bodies.push(JSON.parse(config.data));
+    if (config.url === '/school-years')
+      return envelope(config, [
+        { id: 4, name: '2026-2027' },
+        { id: 5, name: '2027-2028' },
+      ]);
     if (config.url === '/campuses') return envelope(config, [{ id: 1, code: 'CS1', name: 'Điểm trường 1' }]);
     if (config.url === '/school-structure') return envelope(config, { year: null, ageGroups: [], classes: [{ id: 7, name: 'Lớp demo', campusId: 1 }] });
     if (config.url === '/children')
@@ -88,6 +93,21 @@ test('danh sách trẻ: một lần gọi guardian-overview cho cả trang, đ�
   assert.ok(page.items.every((c) => !('selectionRequired' in c)));
   assert.deepEqual(page.items.map((c) => c.canManage), [true, true, false, true]);
   assert.equal(page.totalPages, 1);
+});
+
+// G94-437 (BUG-56): màn Tài khoản phụ huynh theo năm học ở header; header dùng tên năm, BE nhận id số
+test('năm học đang chọn: cấu trúc và danh sách trẻ gửi id năm của BE', async () => {
+  await guardianApi.getStructure(null, '2027-2028');
+  await guardianApi.searchChildren({ campusId: 1, schoolYear: '2027-2028', page: 0, size: 100 });
+
+  assert.deepEqual(
+    calls.filter((c) => c !== 'GET /school-years'),
+    [
+      'GET /campuses?schoolYearId=5',
+      'GET /school-structure?schoolYearId=5',
+      'GET /children/guardian-overview?campusId=1&schoolYear=5&page=0&size=100',
+    ],
+  );
 });
 
 test('thêm phụ huynh: tra SĐT trước, gửi confirmUserId khi đã có tài khoản, không gửi email', async () => {

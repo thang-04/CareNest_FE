@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AlertTriangle, Calculator, CheckCircle2, Save } from '@/components/ui/icons';
 import { Button, DateInput, FormField, Modal, Spinner, StatCard, TextField } from '@/components';
+import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { WeekPicker } from '@/components/form/WeekPicker';
 import { Tabs } from '@/components/ui/Tabs';
-import { ForecastCountsTable, ForecastDryCard, ForecastDryOrderTable, ForecastLinesTable } from '@/components/kitchen/FreshForecastTables';
+import { ForecastCountsTable, ForecastDryCard, ForecastLinesTable } from '@/components/kitchen/FreshForecastTables';
 import { useToast } from '@/contexts/ToastContext';
 import { freshGoodsApi } from '@/services/freshGoodsApi';
 import { NOTE_MAX } from '@/models/kitchen/kitchenConstants';
@@ -29,8 +30,9 @@ const PERIOD_FROM_PAST_CODE = 6052;
  * Cột trái là đầu vào (kỳ, số trẻ, ghi chú), cột phải là kết quả BE tính.
  * Lưu xong gọi `onSaved(id)` để mở bản vừa lập.
  */
-export function FreshForecastCreateModal({ campusId, onClose, onSaved }) {
+export function FreshForecastCreateModal({ campusId, existing = [], onClose, onSaved }) {
   const toast = useToast();
+  const [confirmReplace, setConfirmReplace] = useState(false);
   const today = todayInput();
   const thisWeek = schoolWeekStart(today);
   const [form, setForm] = useState(() => ({ ...emptyForecastForm({ campusId, today: thisWeek }), ...weekPeriod(thisWeek, today) }));
@@ -53,10 +55,6 @@ export function FreshForecastCreateModal({ campusId, onClose, onSaved }) {
     setForm((f) => ({ ...f, counts: f.counts.map((c, i) => (i === index ? { ...c, expectedCount: value } : c)) }));
     setErrors((e) => ({ ...e, [`counts.${index}`]: undefined, _form: undefined }));
   };
-  const setDryQty = (index, value) => {
-    setForm((f) => ({ ...f, dryOrder: f.dryOrder.map((l, i) => (i === index ? { ...l, purchaseQuantity: value } : l)) }));
-    setErrors((e) => ({ ...e, [`dryOrder.${index}`]: undefined, _form: undefined }));
-  };
   const pickWeek = (next) => {
     setWeek(next);
     setForm((f) => ({ ...f, ...weekPeriod(next, todayInput()) }));
@@ -70,7 +68,11 @@ export function FreshForecastCreateModal({ campusId, onClose, onSaved }) {
   const inlineErrors = (err) => {
     if (err.errorCode === PERIOD_INVALID) return { periodTo: 'Kỳ dự trù tối đa 31 ngày' };
     if (err.errorCode === PERIOD_FROM_PAST_CODE) return { periodFrom: PERIOD_FROM_PAST };
-    return err.details && typeof err.details === 'object' ? err.details : { _form: err.message };
+    if (!err.details || typeof err.details !== 'object') return { _form: err.message };
+    const details = err.details;
+    return Object.keys(details).some((key) => key.startsWith('dryOrder.'))
+      ? { ...details, _form: 'Lượng hàng khô gợi ý không hợp lệ. Bấm Tính lại trước khi lưu.' }
+      : details;
   };
 
   const calculate = useCallback(async (input) => {
@@ -103,7 +105,12 @@ export function FreshForecastCreateModal({ campusId, onClose, onSaved }) {
     if (isIsoDate(form.periodFrom) && isIsoDate(form.periodTo)) calculate(formRef.current);
   }, [form.periodFrom, form.periodTo, calculate]);
 
+  // Cùng điểm trường và cùng kỳ đã có bản: chỉ bản mới nhất được dùng cho kiểm nhận nên hỏi xác nhận trước khi lập thêm
+  const samePeriod = existing.some((f) => f.periodFrom === form.periodFrom && f.periodTo === form.periodTo);
+  const requestSave = () => (samePeriod ? setConfirmReplace(true) : save());
+
   const save = async () => {
+    setConfirmReplace(false);
     setBusy('save');
     try {
       const saved = await freshGoodsApi.saveForecast(form);
@@ -136,7 +143,6 @@ export function FreshForecastCreateModal({ campusId, onClose, onSaved }) {
     ? [
         { key: 'fresh', label: 'Hàng tươi cần đặt', count: data.lines.length },
         { key: 'dry', label: 'Hàng khô cần nhập thêm', count: dryCount },
-        { key: 'dryOrder', label: 'Hàng khô đặt cho kỳ', count: form.dryOrder?.length ?? 0 },
       ]
     : [];
 
@@ -175,7 +181,13 @@ export function FreshForecastCreateModal({ campusId, onClose, onSaved }) {
           <Button disabled={busy === 'save'} onClick={onClose}>
             Hủy
           </Button>
-          <Button variant="primary" icon={Save} loading={busy === 'save'} disabled={!data || stale || busy === 'preview'} onClick={save}>
+          <Button
+            variant="primary"
+            icon={Save}
+            loading={busy === 'save'}
+            disabled={!data || stale || busy === 'preview'}
+            onClick={requestSave}
+          >
             Lưu bản dự trù
           </Button>
         </>
@@ -197,10 +209,19 @@ export function FreshForecastCreateModal({ campusId, onClose, onSaved }) {
             {mode === 'custom' && (
               <div className="kb-forecast-form__range">
                 <FormField label="Từ ngày" required error={errors.periodFrom}>
-                  <DateInput value={form.periodFrom} min={today} onChange={(v) => setField('periodFrom', v)} />
+                  <DateInput
+                    value={form.periodFrom}
+                    min={today}
+                    max={isIsoDate(form.periodTo) ? form.periodTo : undefined}
+                    onChange={(v) => setField('periodFrom', v)}
+                  />
                 </FormField>
                 <FormField label="Đến ngày" required error={errors.periodTo}>
-                  <DateInput value={form.periodTo} onChange={(v) => setField('periodTo', v)} />
+                  <DateInput
+                    value={form.periodTo}
+                    min={isIsoDate(form.periodFrom) ? form.periodFrom : todayInput()}
+                    onChange={(v) => setField('periodTo', v)}
+                  />
                 </FormField>
               </div>
             )}
@@ -269,18 +290,6 @@ export function FreshForecastCreateModal({ campusId, onClose, onSaved }) {
                   <p className="muted">Kỳ này chưa có thực phẩm tươi cần đặt. Kiểm tra thực đơn của các ngày trong kỳ.</p>
                 ))}
               {view === 'dry' && <ForecastDryCard forecast={data} className="kb-fcm__dry" />}
-              {view === 'dryOrder' &&
-                (form.dryOrder?.length ? (
-                  <>
-                    <p className="text-sm muted">
-                      Gợi ý bằng phần thiếu đến hết kỳ. Sửa lượng đặt nếu cần (0 = không đặt); lượng này được in và dùng để đối chiếu khi
-                      kiểm nhận hàng khô.
-                    </p>
-                    <ForecastDryOrderTable lines={form.dryOrder} editable={busy !== 'save'} errors={errors} onChange={setDryQty} />
-                  </>
-                ) : (
-                  <p className="muted">Kho khô đủ cho kỳ này, không có hàng khô cần đặt.</p>
-                ))}
             </>
           ) : (
             <div className="kb-fcm__placeholder">
@@ -295,6 +304,14 @@ export function FreshForecastCreateModal({ campusId, onClose, onSaved }) {
           )}
         </div>
       </div>
+      <ConfirmationModal
+        open={confirmReplace}
+        title="Đã có bản dự trù cùng kỳ"
+        message="Điểm trường này đã có bản dự trù cho đúng kỳ đã chọn. Bản mới sẽ được dùng cho kiểm nhận; bản cũ giữ lại để xem và chuyển thành Đã thay thế."
+        confirmLabel="Lập bản mới"
+        onConfirm={save}
+        onClose={() => setConfirmReplace(false)}
+      />
     </Modal>
   );
 }

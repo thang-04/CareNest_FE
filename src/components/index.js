@@ -39,6 +39,7 @@ export { DataTable } from './ui/DataTable';
 export { PageHeader } from './ui/PageHeader';
 export { ResponsiveToolbar } from './ui/ResponsiveToolbar';
 export { ListPage } from './ui/ListPage';
+export { RichBody } from './ui/RichBody';
 export { Tooltip } from './ui/Tooltip';
 export { ReadOnlyTag } from './ui/ReadOnlyTag';
 export { LockNote } from './ui/LockNote';

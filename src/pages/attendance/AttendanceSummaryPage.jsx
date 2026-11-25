@@ -1,3 +1,4 @@
+import { childNameWithHistory } from '@/utils/childHistory';
 import { DonutChart } from '@/components/charts/MiniCharts';
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -304,7 +305,7 @@ export default function AttendanceSummaryPage() {
                 id="dd-from"
                 className={rangeErrors.from ? 'is-invalid' : ''}
                 value={range.from}
-                max={today}
+                max={isIsoDate(range.to) && range.to < today ? range.to : today}
                 onChange={(value) => setRangeValue('from', value)}
                 aria-invalid={!!rangeErrors.from}
                 aria-describedby={!valid ? 'dd-range-error' : undefined}
@@ -318,6 +319,7 @@ export default function AttendanceSummaryPage() {
                 id="dd-to"
                 className={rangeErrors.to ? 'is-invalid' : ''}
                 value={range.to}
+                min={isIsoDate(range.from) ? range.from : undefined}
                 max={today}
                 onChange={(value) => setRangeValue('to', value)}
                 aria-invalid={!!rangeErrors.to}
@@ -600,7 +602,7 @@ export default function AttendanceSummaryPage() {
                           ) : (
                             summary.children.map((c) => (
                               <tr key={c.child.id}>
-                                <td>{c.child.fullName}</td>
+                                <td>{childNameWithHistory(c.child.fullName, c.historyStatus)}</td>
                                 <td className="num fw-600">{days(c.attendedDays ?? c.present)}</td>
                                 <td className="num">{c.excused}</td>
                                 <td className={`num ${c.unexcused ? 'text-danger' : ''}`}>{c.unexcused}</td>

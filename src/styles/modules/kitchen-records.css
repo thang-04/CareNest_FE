@@ -70,12 +70,53 @@
 }
 .kr-card__top {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   gap: var(--space-3);
 }
 .kr-card__name {
-  flex: 1;
+  flex: 1 1 12rem;
   min-width: 0;
+  overflow-wrap: anywhere;
+}
+/* Nhãn trạng thái (mở/thu hồi/đã ký…) tự xuống hàng, không ép tiêu đề */
+.kr-card__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  max-width: 100%;
+}
+.kr-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* Yêu cầu mở mẫu ngày cũ chờ Hiệu trưởng duyệt (INS-05) */
+.kr-queue {
+  margin-bottom: var(--space-4);
+}
+.kr-approvals {
+  display: grid;
+  gap: var(--space-3);
+}
+.kr-approval {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.kr-approval__main {
+  flex: 1 1 280px;
+  min-width: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+.kr-approval__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
 }
 
 .kr-form-modal .modal__body {

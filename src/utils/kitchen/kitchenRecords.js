@@ -72,7 +72,7 @@ export const sameMealCount = (samples) => {
   return (sample) => counts.get(`${sample.date}|${sample.session}`) || 0;
 };
 
-/** Số bản lưu mẫu đang chờ duyệt lưu mẫu (hủy mẫu chờ duyệt không tính) — BE chặn ký sổ M5 khi > 0 (NUT-21, mã 6115). */
+/** Số bản lưu mẫu đang chờ duyệt lưu mẫu (hủy mẫu chờ duyệt không tính) — BE chặn ký sổ M5 khi > 0 (NUT-21, mã 6140). */
 export const pendingSampleCount = (samples) => (samples || []).filter((s) => s.status === 'RECORDED').length;
 
 /** Lý do chưa ký được sổ lưu mẫu M5 để tắt nút Ký; '' khi không bị chặn vì mẫu chờ duyệt. */

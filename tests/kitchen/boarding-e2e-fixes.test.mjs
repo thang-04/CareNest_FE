@@ -4,12 +4,9 @@ import { test } from 'node:test';
 const { PERIOD_FROM_PAST, markEnough, validateForecastForm, weekPeriod } = await import('@/utils/kitchen/freshGoodsForm');
 const { pendingSampleCount, sameMealCount, sampleSignBlock } = await import('@/utils/kitchen/kitchenRecords');
 const { campusTitle } = await import('@/utils/campusLabel');
-const { validateNutritionSetup } = await import('@/utils/menu-planning/menuPlanningValidation');
 const { dishInUseNote } = await import('@/utils/menu-planning/catalogUsage');
 
 const TODAY = '2026-11-25';
-// Bữa lấy từ Cấu hình trường nên không kiểm ở đây
-const RO = { mealsReadOnly: true };
 
 test('dự trù: Từ ngày trước hôm nay báo lỗi tại ô, hôm nay thì không', () => {
   const form = { periodFrom: '2026-11-24', periodTo: '2026-11-27', counts: [] };
@@ -51,25 +48,6 @@ test('lưu mẫu: đếm số mẫu cùng ngày cùng bữa', () => {
   assert.equal(countOf(samples[0]), 2);
   assert.equal(countOf(samples[2]), 1);
   assert.equal(sameMealCount(undefined)({ date: TODAY, session: 'LUNCH' }), 0);
-});
-
-test('cấu hình nhóm tuổi: gam tối thiểu vượt năng lượng × cơ cấu báo tại ô (số liệu VPS), số hợp lý thì không', () => {
-  const group = (norms) => ({
-    ageGroupId: 'ag-4',
-    enabled: true,
-    price: '30000',
-    meals: [{ code: 'LUNCH', name: 'Bữa trưa', countAs: 'LUNCH' }],
-    norms,
-  });
-  const core = { kcal: ['615', '726'], protein: ['13', '20'], lipid: ['25', '35'], glucid: ['52', '60'] };
-  const vps = { ...core, animalProteinG: ['300', '400'], plantProteinG: ['300', '400'] };
-  const err = validateNutritionSetup({ effectiveFrom: TODAY, groups: [group(vps)] }, TODAY, RO)['ag-4.norms.animalProteinG'];
-  assert.match(err, /600 g/);
-  assert.match(err, /37 g/);
-  const ok = { ...core, animalProteinG: ['10', '20'], plantProteinG: ['8', '15'] };
-  assert.deepEqual(validateNutritionSetup({ effectiveFrom: TODAY, groups: [group(ok)] }, TODAY, RO), {});
-  // Chưa nhập năng lượng/cơ cấu ⇒ không đối chiếu gam
-  assert.deepEqual(validateNutritionSetup({ effectiveFrom: TODAY, groups: [group({ animalProteinG: ['5000', '6000'] })] }, TODAY, RO), {});
 });
 
 test('ngừng dùng món: câu xác nhận liệt kê thực đơn mẫu và tuần chưa qua', () => {

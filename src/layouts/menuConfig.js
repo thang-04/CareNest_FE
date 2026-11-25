@@ -108,9 +108,8 @@ const MENU_TEMPLATE_API = !USE_MOCK && INTEGRATION_MODULES['menu-template']?.sou
 const ITEMS = {
   notifications: { label: 'Thông báo của tôi', to: '/notifications' },
   announcements: { label: 'Thông báo nhà trường', to: '/announcements' },
-  announcementTemplates: { label: 'Mẫu thông báo', to: '/announcement-templates' },
-  notificationRules: { label: 'Quy tắc thông báo', to: '/notification-rules' },
-  announcementSchedules: { label: 'Lịch gửi thông báo', to: '/announcement-schedules' },
+  // `also`: tạo/sửa/chi tiết lịch gửi nằm ở đường dẫn riêng nhưng vẫn thuộc mục này
+  notificationSettings: { label: 'Cấu hình thông báo', to: '/notification-settings', also: ['/announcement-schedules/'] },
   schoolYears: {
     label: 'Năm học',
     to: '/school/years',
@@ -318,7 +317,7 @@ const ITEMS = {
     to: '/assessment/rewards',
   },
   nutritionSetup: {
-    label: 'Cấu hình nhóm tuổi',
+    label: 'Định mức dinh dưỡng',
     to: '/menu/setup',
   },
   foods: {
@@ -436,7 +435,7 @@ const MENUS = {
   [ROLES.PRINCIPAL]: [
     link('home'),
     link('approvals'),
-    group('notifications', ['notifications', 'announcements', 'announcementTemplates', 'notificationRules', 'announcementSchedules']),
+    group('notifications', ['notifications', 'announcements', 'notificationSettings']),
     group('school', [
       'schoolYears',
       'schoolPlacement',
@@ -487,7 +486,7 @@ const MENUS = {
   [ROLES.VICE_PRINCIPAL]: [
     link('home'),
     link('approvals'),
-    group('notifications', ['notifications', 'announcements', 'announcementTemplates']),
+    group('notifications', ['notifications', 'announcements', 'notificationSettings']),
     group('school', [
       'schoolYears',
       'schoolPlacement',

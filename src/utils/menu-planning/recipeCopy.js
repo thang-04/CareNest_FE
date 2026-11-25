@@ -14,7 +14,9 @@ export const duplicateDishForm = (dish, ageGroupIds, draftStatus) => ({
   type: dish.type,
   description: dish.description || '',
   status: draftStatus,
-  ingredients: (dish.ingredients || []).map((ing) => recipeRow(ing, ageGroupIds)),
+  // G94-379: giữ lựa chọn nhóm tuổi của món gốc (kiểu PMS); món cũ chưa có ⇒ dùng bộ cột hiện tại
+  ageGroupIds: dish.ageGroupIds?.length ? dish.ageGroupIds : ageGroupIds,
+  ingredients: (dish.ingredients || []).map((ing) => recipeRow(ing, dish.ageGroupIds?.length ? dish.ageGroupIds : ageGroupIds)),
 });
 
 /** Số ô đã nhập của nhóm đích sẽ bị đổi khi chép cột nguồn sang (để hỏi trước, không tự ghi đè). */

@@ -16,7 +16,7 @@ export const INTEGRATION_MODULES = {
   },
   announcements: {
     source: 'api',
-    routes: ['/announcements', '/announcement-templates', '/notification-rules', '/announcement-schedules'],
+    routes: ['/announcements', '/notification-settings', '/announcement-templates', '/notification-rules', '/announcement-schedules'],
     files: ['src/services/announcement/api/announcementApi.js'],
     facades: ['src/services/announcement/announcementService.js'],
   },
@@ -154,7 +154,14 @@ export const INTEGRATION_MODULES = {
   // Kho khô trên BE /nutrition/stock/*: tồn theo lô, phiếu nhập, lịch sử nhập/trừ, phần thiếu; route dài hơn nên thắng '/kitchen'
   'dry-stock': {
     source: 'api',
-    routes: ['/kitchen/dry-stock', '/kitchen/stock-receipts', '/kitchen/stock-history', '/kitchen/stock-shortfalls'],
+    routes: [
+      '/kitchen/dry-stock',
+      '/kitchen/stock-receipts',
+      '/kitchen/stock-history',
+      '/kitchen/stock-shortfalls',
+      '/kitchen/stock-returns',
+      '/kitchen/stock-write-offs',
+    ],
     files: ['src/services/dryStockApi.js'],
   },
   // Hàng tươi trên BE: bản dự trù /nutrition/fresh-forecasts, kiểm nhận hai lần /nutrition/fresh-checks, bảng đi chợ /nutrition/day-market; route dài hơn nên thắng '/kitchen'
@@ -216,6 +223,8 @@ export const INTEGRATION_MODULES = {
     routes: ['/kitchen/inspections'],
     files: ['src/services/kitchen/api/inspectionApi.js'],
     facades: ['src/services/kitchen/inspectionService.js'],
+    // INS-05 (BE G94-450, chưa vào dev): HT duyệt mở mẫu ngày cũ. Gỡ ba dòng này khi BE merge và đồng bộ be-api-routes.json
+    pending: ['POST /inspections/day/{x}/approvals', 'GET /inspections/approvals', 'POST /inspections/approvals/{x}/{x}'],
   },
   // Sổ báo ăn đã xác nhận: BE có GET /meal-counts ⇒ màn này dùng số thật, các màn bếp khác còn demo
   'kitchen-meal-count': {

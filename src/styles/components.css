@@ -884,6 +884,11 @@ tr.sortable-item--moved > td {
   padding: var(--space-2) var(--space-3);
   font-size: var(--fs-sm);
 }
+/* Cột Thao tác trong bảng kẻ ô: lề ngang rộng hơn để nhóm icon không sát vạch và tiêu đề */
+.table.table--grid th.cell--actions,
+.table.table--grid td.cell--actions {
+  padding-inline: var(--space-4);
+}
 .table tbody tr td {
   transition: background var(--duration-fast) ease;
 }
@@ -3042,6 +3047,14 @@ button.stat-card .stat-card__label::after {
   align-items: flex-end;
   flex-wrap: wrap;
 }
+/* Hàng lọc / thanh công cụ: nút nhỏ và tab cao bằng ô nhập (36px) để các điều khiển cùng hàng không lệch */
+:is(.filter-bar, .kb-toolbar, .bd-toolbar, .td-week-toolbar, .td-stat-filters) .btn--sm {
+  height: var(--input-height);
+}
+:is(.filter-bar, .kb-toolbar, .bd-toolbar, .td-week-toolbar, .td-stat-filters) .tabs {
+  min-height: var(--input-height);
+  align-items: center;
+}
 /* Nút thao tác của màn (Thêm, Nhập từ Excel…) nằm cuối hàng lọc, dồn sang phải; hẹp thì tự xuống hàng */
 .filter-bar__end {
   display: flex;
@@ -3591,7 +3604,7 @@ button.stat-card .stat-card__label::after {
   gap: var(--space-1);
 }
 .week-picker__select {
-  width: 200px;
+  width: 280px;
   font-variant-numeric: tabular-nums;
 }
 .week-picker__select .search-select__value {
@@ -3910,7 +3923,7 @@ button.stat-card .stat-card__label::after {
 .row-actions {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-1);
+  gap: var(--space-2);
 }
 /* Nút nghiệp vụ chính đặt liền RowActions trong ô Thao tác (không có .row bọc) vẫn cách đều */
 .cell--actions > .btn + .row-actions,
@@ -4176,6 +4189,30 @@ button.stat-card .stat-card__label::after {
     width: auto;
     white-space: nowrap;
   }
+}
+
+/* Nội dung HTML đã được lọc ở RichBody; bản chữ thường giữ xuống dòng cũ. */
+.rich-body {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.rich-body--html {
+  white-space: normal;
+}
+.rich-body p {
+  margin: 0 0 var(--space-2);
+}
+.rich-body p:last-child {
+  margin-bottom: 0;
+}
+.rich-body ul,
+.rich-body ol {
+  margin: 0 0 var(--space-2);
+  padding-left: var(--space-6);
+}
+.rich-body a {
+  color: var(--color-primary);
+  text-decoration: underline;
 }
 
 /* Nút khóa có lý do (Button disabledReason): vẫn rê chuột/Tab tới được, không đổi màu khi hover */
