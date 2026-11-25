@@ -280,9 +280,10 @@ export const educationPlanApi = {
   },
   // Kế hoạch năm/tổ chờ đúng người gọi duyệt; danh sách thường chỉ có bản đã ban hành (BE spec 002 FR-007)
   getReviewQueue: async (_actor, schoolYearId) => {
-    const id = serverId(schoolYearId);
-    if (schoolYearId != null && id == null) throw sourceError(400, 'Năm học không hợp lệ.');
     const refs = buildRefs(await loadConfig());
+    // Nhận cả mã năm của header (tên năm) như danh sách tài liệu lớp
+    const id = serverId(schoolYearId) ?? (schoolYearId ? refs.schoolYearId(String(schoolYearId)) : null);
+    if (schoolYearId != null && id == null) throw sourceError(400, 'Năm học không hợp lệ.');
     const items = await axiosClient.get(`${GOALS}/review-queue`, { params: id == null ? {} : { schoolYearId: id } });
     const scoped = id == null ? items : items.filter((p) => sameSchoolYearId(p.schoolYearId, id));
     return Promise.all(scoped.map((p) => fetchGoal(p.id, refs)));

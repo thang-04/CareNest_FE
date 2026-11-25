@@ -24,9 +24,9 @@ import { sortKey } from '@/utils/dashboard/dashboardFormat';
 
 /** Each source: (user, ctx) → Promise<PendingApprovalItem[]>. ctx = { users, schoolYear, date } */
 const SOURCES = {
-  // Kế hoạch năm/tổ: BE trả đúng bản chờ người gọi duyệt (EDU-05, EDU-54); không lọc năm để thấy mọi bản đang chờ
-  [APPROVAL_TYPE.YEAR_PLAN]: async (user) =>
-    (await getReviewQueue(user)).map((g) => ({
+  // Kế hoạch năm/tổ của năm đang chọn: BE trả đúng bản chờ người gọi duyệt (EDU-05, EDU-54)
+  [APPROVAL_TYPE.YEAR_PLAN]: async (user, { schoolYear }) =>
+    (await getReviewQueue(user, schoolYear)).map((g) => ({
       id: g.id,
       code: g.code,
       title: g.title,
