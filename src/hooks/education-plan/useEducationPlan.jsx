@@ -194,16 +194,6 @@ export function EducationPlanProvider({
   const value = useMemo(() => {
     const yearName = (year) => String(year?.label ?? '').replace(' - ', '-');
 
-    const write = (key, call, apply) => async (arg) => {
-      setData((prev) => (prev ? { ...prev, [key]: apply(prev[key], arg) } : prev));
-      try {
-        await call(arg);
-      } catch (err) {
-        toastApi.error(err.message, 'Không lưu được');
-        reload({ silent: true });
-      }
-    };
-    const saveIn = (key, call) => write(key, call, upsert);
     // Tài liệu của lớp: chờ kết quả từ service (quyền, trạng thái do service quyết định) rồi mới cập nhật màn hình
     // Spec 003: kế hoạch giáo dục chủ đề (semester), kế hoạch giáo dục ngày (dossier) là gốc gửi/duyệt; giáo án ngày (day) tách khỏi tuần
     const CLASS_KEY = {
@@ -264,7 +254,6 @@ export function EducationPlanProvider({
           return null;
         }
       };
-    const deleteIn = (key, call) => write(key, call, (list, id) => list.filter((x) => x.id !== id));
 
     // Tài liệu của lớp (kế hoạch giáo dục ngày chờ duyệt…) do người khác đổi; tải lại im lặng, không đụng kế hoạch năm/tổ
     const refreshClassDocs = async () => {
@@ -419,10 +408,6 @@ export function EducationPlanProvider({
         await service.deleteGoal(id, data?.goals.find((goal) => goal.id === id)?.revision, user);
         setData((prev) => (prev ? { ...prev, goals: prev.goals.filter((goal) => goal.id !== id) } : prev));
       },
-      saveTheme: saveIn('themes', service.saveTheme),
-      deleteTheme: deleteIn('themes', service.deleteTheme),
-      saveLesson: saveIn('lessons', service.saveLesson),
-      deleteLesson: deleteIn('lessons', service.deleteLesson),
     };
   }, [data, setData, reload, user, toast, toastApi, yearId, yearOption, yearOptions, setSchoolYear, ensureGoals, isActive, scope]);
 

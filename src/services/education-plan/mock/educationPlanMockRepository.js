@@ -86,12 +86,6 @@ const upsert = (list, item) => {
   return item;
 };
 
-const save = (kind) => async (item) => {
-  await delay();
-  if (!item?.id) throw eduError('REQUIRED_FIELD_MISSING', 'mã bản ghi');
-  return writeDb((db) => clone(upsert(ensureSeeded(db)[COLLECTIONS[kind]], clone(item))));
-};
-
 const remove = (kind) => async (id) => {
   await delay();
   writeDb((db) => {
@@ -722,8 +716,4 @@ export const educationPlanMockRepository = {
     if (goal && (revision ?? 0) !== (goal.revision ?? 0)) throw eduError('YEAR_PLAN_REVISION_STALE');
     return remove('goals')(id);
   },
-  saveTheme: save('themes'),
-  deleteTheme: remove('themes'),
-  saveLesson: save('lessons'),
-  deleteLesson: remove('lessons'),
 };

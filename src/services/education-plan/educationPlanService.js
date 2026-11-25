@@ -6,8 +6,6 @@ import { educationPlanMockRepository } from '@/services/education-plan/mock/educ
 import { educationPlanApi } from '@/services/education-plan/api/educationPlanApi';
 import { classPlanMockRepository } from '@/services/education-plan/mock/classPlanMockRepository';
 import { eduConfigMockRepository } from '@/services/education-plan/mock/eduConfigMockRepository';
-import { reviewAiMock } from '@/services/education-plan/mock/reviewAiMock';
-import { themeContentAiMock } from '@/services/education-plan/mock/themeContentAiMock';
 import { curriculumMockRepository } from '@/services/education-plan/mock/curriculumMockRepository';
 
 /** Facade: UI only calls these functions. */
@@ -119,10 +117,6 @@ const curriculum = USE_MOCK ? curriculumMockRepository : educationPlanApi;
 export const getCurriculumSources = (options) => curriculum.getCurriculumSources(options);
 export const getCurriculumGoals = (ageGroupCode, options) => curriculum.getCurriculumGoals(ageGroupCode, options);
 export const getCurriculumContents = (ageGroupCode, options) => curriculum.getCurriculumContents(ageGroupCode, options);
-export const saveTheme = (item) => repo.saveTheme(item);
-export const deleteTheme = (id) => repo.deleteTheme(id);
-export const saveLesson = (item) => repo.saveLesson(item);
-export const deleteLesson = (id) => repo.deleteLesson(id);
 
 // Tài liệu kế hoạch của lớp (chủ đề nhánh, kế hoạch chủ đề, giáo án tuần). user: người thao tác (mock cần để kiểm quyền).
 // Kèm lớp (classes) và giáo viên, tổ trưởng (staff) người xem được; schoolYearId: năm đang chọn ở header
@@ -159,25 +153,28 @@ export const saveEduConfig = (cfg, user) => (USE_MOCK ? eduConfigMockRepository.
 // Chế độ mock không có AI (bỏ dữ liệu AI giả, Tiền 25/11/2026): báo không khả dụng như khi AI tắt (AI-03)
 const aiUnavailable = () =>
   Promise.reject(Object.assign(new Error('Trợ lý AI đang không khả dụng, vui lòng thử lại sau'), { status: 503 }));
+// ponytail: tick năm trước không phải AI; mock không có kế hoạch năm trước nên báo cần máy chủ
+const needServer = () =>
+  Promise.reject(Object.assign(new Error('Chức năng này cần kết nối máy chủ'), { status: 503 }));
 // AI gợi ý tiến trình giờ học (nháp; giáo viên Giữ / Bỏ, sửa lại trước khi gửi duyệt)
 export const suggestLessonSteps = (input) => (USE_MOCK ? aiUnavailable() : educationPlanApi.suggestLessonSteps(input));
 // AI gợi ý thẻ hoạt động cho MT (BE:EDU-95): BE chỉ trả MT, loại giờ có trong yêu cầu
 export const suggestActivityCards = (input) => (USE_MOCK ? aiUnavailable() : educationPlanApi.suggestActivityCards(input));
 // BE:EDU-96 — khung Kiểm tra / Tóm tắt cho người duyệt; BE:EDU-95 — Sửa theo yêu cầu
 export const getClassDocChecks = (kind, docKey) =>
-  USE_MOCK ? reviewAiMock.getClassDocChecks(kind, docKey) : educationPlanApi.getClassDocChecks(kind, docKey);
+  USE_MOCK ? aiUnavailable() : educationPlanApi.getClassDocChecks(kind, docKey);
 export const editDayByRequest = (docKey, prompt) =>
-  USE_MOCK ? reviewAiMock.editDayByRequest(docKey, prompt) : educationPlanApi.editDayByRequest(docKey, prompt);
-export const reviewDay = (docKey) => (USE_MOCK ? reviewAiMock.reviewDay(docKey) : educationPlanApi.reviewDay(docKey));
+  USE_MOCK ? aiUnavailable() : educationPlanApi.editDayByRequest(docKey, prompt);
+export const reviewDay = (docKey) => (USE_MOCK ? aiUnavailable() : educationPlanApi.reviewDay(docKey));
 // BE:EDU-103 — AI gom nội dung vào chủ đề ở kế hoạch tổ (nháp, áp dụng chỉ thêm tick) và log tỉ lệ giữ
 export const matchThemeContents = (planId, body) =>
-  USE_MOCK ? themeContentAiMock.matchThemeContents(planId, body) : educationPlanApi.matchThemeContents(planId, body);
+  USE_MOCK ? aiUnavailable() : educationPlanApi.matchThemeContents(planId, body);
 export const matchGoalContents = (planId, options) =>
-  USE_MOCK ? themeContentAiMock.matchGoalContents(planId, options) : educationPlanApi.matchGoalContents(planId, options);
+  USE_MOCK ? aiUnavailable() : educationPlanApi.matchGoalContents(planId, options);
 // BE:EDU-104 — lấy tick từ kế hoạch tổ năm trước (FE ghép chủ đề/nội dung, áp dụng chỉ thêm tick)
 export const getPreviousYearTicks = (planId) =>
-  USE_MOCK ? themeContentAiMock.getPreviousYearTicks(planId) : educationPlanApi.getPreviousYearTicks(planId);
-export const sendAiFeedback = (body) => (USE_MOCK ? themeContentAiMock.sendAiFeedback(body) : educationPlanApi.sendAiFeedback(body));
+  USE_MOCK ? needServer() : educationPlanApi.getPreviousYearTicks(planId);
+export const sendAiFeedback = (body) => (USE_MOCK ? Promise.resolve(null) : educationPlanApi.sendAiFeedback(body));
 
 export const previewClassCalendar = async (request, plan) =>
   USE_MOCK
