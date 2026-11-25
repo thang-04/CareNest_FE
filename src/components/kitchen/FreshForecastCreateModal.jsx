@@ -186,10 +186,19 @@ export function FreshForecastCreateModal({ campusId, onClose, onSaved }) {
             {mode === 'custom' && (
               <div className="kb-forecast-form__range">
                 <FormField label="Từ ngày" required error={errors.periodFrom}>
-                  <DateInput value={form.periodFrom} min={todayInput()} onChange={(v) => setField('periodFrom', v)} />
+                  <DateInput
+                    value={form.periodFrom}
+                    min={todayInput()}
+                    max={isIsoDate(form.periodTo) ? form.periodTo : undefined}
+                    onChange={(v) => setField('periodFrom', v)}
+                  />
                 </FormField>
                 <FormField label="Đến ngày" required error={errors.periodTo}>
-                  <DateInput value={form.periodTo} onChange={(v) => setField('periodTo', v)} />
+                  <DateInput
+                    value={form.periodTo}
+                    min={isIsoDate(form.periodFrom) ? form.periodFrom : todayInput()}
+                    onChange={(v) => setField('periodTo', v)}
+                  />
                 </FormField>
               </div>
             )}

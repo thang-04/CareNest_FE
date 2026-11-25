@@ -1,3 +1,4 @@
+import { DISPOSAL_KIND } from '@/models/kitchen/kitchenConstants';
 import { beClient } from '@/services/http/beClient';
 import { toBaseQuantity, toPurchaseQuantity } from '@/utils/kitchen/stockUnits';
 
@@ -17,7 +18,7 @@ export const toReceipt = (receipt) => ({
   lines: (receipt.lines || []).map(toLine),
   rejectedLines: (receipt.rejectedLines || []).map(toLine),
 });
-const toLot = (lot) => ({
+export const toLot = (lot) => ({
   ...lot,
   purchaseQuantity: toPurchaseQuantity(lot.quantity, lot.food),
   purchaseRemaining: toPurchaseQuantity(lot.remaining, lot.food),
@@ -49,6 +50,22 @@ export const toReceiptRequest = (form, foodById) => ({
       quantity: toBaseQuantity(line.purchaseQty, food),
       unitPrice: blank(line.unitPrice) ? null : Number(line.unitPrice),
     };
+  }),
+});
+
+/**
+ * Form phiếu xuất kho (số lượng theo đơn vị mua) -> body BE (NUT-29, NUT-30). `lotById`: lô BE đã qua `toLot`.
+ * Xuất đúng bằng số tồn đang hiện thì gửi nguyên tồn gốc của lô để làm tròn đơn vị mua không để sót phần lẻ.
+ */
+export const toDisposalRequest = (kind, form, lotById) => ({
+  campusId: form.campusId,
+  ...(kind === DISPOSAL_KIND.SUPPLIER_RETURN ? { supplierId: form.supplierId } : {}),
+  reason: text(form.reason),
+  lines: (form.lines || []).map((line, i) => {
+    const lot = lotById[String(line.lotId)];
+    if (!lot) throw Object.assign(new Error('Lô không còn trong kho'), { details: { [`lines.${i}.lotId`]: 'Chọn lại lô' } });
+    const wholeLot = Number(line.qty) === lot.purchaseRemaining;
+    return { lotId: lot.id, quantity: wholeLot ? lot.remaining : toBaseQuantity(line.qty, lot.food) };
   }),
 });
 
@@ -97,6 +114,14 @@ export const createDryStockApi = ({ client = beClient } = {}) => ({
   async listShortfalls({ campusId } = {}) {
     const rows = await client.get('/nutrition/stock/shortfalls', { params: params({ campusId }) });
     return (rows || []).map(toShortfall);
+  },
+
+  /** Phiếu xuất kho: trả NCC (lô còn hạn) hoặc xuất hủy (lô hết hạn); BE kiểm hạn, NCC, tồn và quyền. */
+  async createDisposal(kind, form, lotById) {
+    const body = toDisposalRequest(kind, form, lotById);
+    return kind === DISPOSAL_KIND.SUPPLIER_RETURN
+      ? client.post('/nutrition/stock/returns', body)
+      : client.post('/nutrition/stock/write-offs', body);
   },
 });
 

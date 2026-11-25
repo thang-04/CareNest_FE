@@ -245,7 +245,8 @@ export default function LeaveRequestsPage() {
             Nhập khoảng ngày hợp lệ theo dd/mm/yyyy, ngày bắt đầu không sau ngày kết thúc.
           </p>
         )}
-        {leaves.error ? (
+        {/* Khoảng ngày sai: chỉ báo lỗi ở trên, không dựng bảng hay trạng thái "không có đơn nghỉ" */}
+        {invalidRange ? null : leaves.error ? (
           <ErrorState error={leaves.error} onRetry={leaves.reload} />
         ) : (
           <div className="table-wrap">
@@ -302,7 +303,7 @@ export default function LeaveRequestsPage() {
             </table>
           </div>
         )}
-        <Pagination page={currentPage} total={rows.length} pageSize={PAGE_SIZE} onChange={setPage} />
+        {!invalidRange && <Pagination page={currentPage} total={rows.length} pageSize={PAGE_SIZE} onChange={setPage} />}
       </div>
     </div>
   );

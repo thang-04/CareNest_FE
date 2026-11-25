@@ -122,7 +122,6 @@ export function statisticsExportRows(stats, title, groupBy = 'storage') {
       ['Tổng toàn trường'],
       ['Số trẻ', stats.children],
       ['Tiền ăn 1 trẻ', stats.costPerChild],
-      ['Ngân sách thực phẩm cao nhất', stats.foodBudget ?? stats.mealPrice ?? 'Chưa đặt'],
       ['Tổng tiền', stats.totalCost],
       [],
       ...stats.groups.flatMap((group) => [...statisticsExportRows(group, `${title} · ${group.ageGroupName}`, groupBy), []]),

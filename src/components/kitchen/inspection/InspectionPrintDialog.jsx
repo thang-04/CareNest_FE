@@ -23,13 +23,22 @@ export function InspectionPrintDialog({ tab, date, campusName, data, sampleData,
       title: INSPECTION_TAB_LABELS[tab],
     });
   return (
+    // Hộp vừa đủ xem tờ giấy (không toàn màn hình); `print-modal` để khi in tờ giấy không bị khung modal cắt. M4 nhãn in A4 dọc, các mẫu còn lại A4 ngang
     <Modal
       open
-      size="full"
-      className="kb-print-modal"
-      title={`In / xuất · ${INSPECTION_TAB_LABELS[tab]}`}
+      size={variant === 'label' ? 'lg' : 'xl'}
+      className="print-modal"
+      title={`In / xuất · ${variants.find((v) => v.key === variant)?.label ?? INSPECTION_TAB_LABELS[tab]}`}
       onClose={onClose}
-      footer={<PrintToolbar sheetRef={sheetRef} fileBase={excel.fileBase} onClose={onClose} orientation="landscape" onCsv={exportExcel} />}
+      footer={
+        <PrintToolbar
+          sheetRef={sheetRef}
+          fileBase={excel.fileBase}
+          onClose={onClose}
+          orientation={variant === 'label' ? 'portrait' : 'landscape'}
+          onCsv={exportExcel}
+        />
+      }
     >
       {variants.length > 1 && (
         <Tabs ariaLabel="Bản in" value={variant} onChange={setVariant} items={variants.map((v) => ({ key: v.key, label: v.label }))} />

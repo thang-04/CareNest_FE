@@ -17,9 +17,9 @@ test('padDisplayDate giữ nguyên chuỗi đã đủ hoặc chưa đủ', () =>
   assert.equal(padDisplayDate(''), '');
 });
 
-test('DateInput gõ qua padDisplayDate và đệm khi rời ô, vẫn gọi onBlur của người dùng', () => {
+test('DateInput nhận ngày 1 chữ số khi gõ và đệm số 0 khi rời ô, vẫn gọi onBlur của người dùng', () => {
   const src = readFileSync('src/components/form/DateInput.jsx', 'utf8');
-  assert.match(src, /parseDisplayDate\(padDisplayDate\(/);
+  assert.match(src, /onChange\?\.\(iso \|\| next\)/);
   assert.match(src, /onBlur/);
   assert.match(src, /padDisplayDate/);
 });

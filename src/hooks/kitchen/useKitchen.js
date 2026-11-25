@@ -15,7 +15,6 @@ import {
   getPublishedMenu,
   getDryStock,
   getDryStockItem,
-  getStockLots,
   getStockReceipt,
   getStockReceipts,
   getSupplier,
@@ -53,10 +52,6 @@ export const useFoodCatalog = () => {
 export const useDryStock = () => useKitchenQuery((user) => getDryStock(user), []);
 
 export const useDryStockItem = (foodId) => useKitchenQuery((user) => getDryStockItem({ foodId }, user), [foodId], { enabled: !!foodId });
-
-/** Lô còn tồn của điểm trường để chọn trên phiếu xuất kho; không tự làm mới khi đang nhập phiếu. */
-export const useStockLots = (campusId) =>
-  useKitchenQuery((user) => getStockLots({ campusId }, user), [campusId], { enabled: !!campusId, live: false });
 
 export const useStockReceipts = (campusId) => useKitchenQuery((user) => getStockReceipts({ campusId }, user), [campusId]);
 

@@ -105,8 +105,7 @@ export const MenuStatisticsPrint = forwardRef(function MenuStatisticsPrint(
       </div>
       {allGroups && (
         <p>
-          <b>Tổng toàn trường: {formatMoney(stats.totalCost)}</b> · Tiền ăn 1 trẻ: {formatMoney(stats.costPerChild)} · Ngân sách thực phẩm
-          cao nhất: {stats.mealPrice == null ? 'Chưa đặt' : formatMoney(stats.mealPrice)}
+          <b>Tổng toàn trường: {formatMoney(stats.totalCost)}</b> · Tiền ăn 1 trẻ: {formatMoney(stats.costPerChild)}
         </p>
       )}
       {(allGroups ? stats.groups : [stats]).map((group) => (

@@ -45,7 +45,7 @@ export const versionState = (v, today) =>
     : { tone: 'gray', label: v.effectiveFrom <= today ? 'Phiên bản đã có hiệu lực' : 'Chỉ xem' };
 
 /** Ô số tối thiểu / tối đa của một chỉ số; chỉ xem thì hiện số. */
-function MinMaxCells({ value = ['', ''], readOnly, label, invalid, onChange }) {
+function MinMaxCells({ value = ['', ''], readOnly, label, invalid, max, onChange }) {
   const cell = (i) =>
     readOnly ? (
       <span>{value[i] === '' || value[i] == null ? '—' : value[i]}</span>
@@ -53,6 +53,7 @@ function MinMaxCells({ value = ['', ''], readOnly, label, invalid, onChange }) {
       <TextField
         type="number"
         min="0"
+        max={max}
         className={`input td-norm__input ${invalid ? 'is-invalid' : ''}`}
         value={value[i] ?? ''}
         aria-label={`${label} ${i ? 'tối đa' : 'tối thiểu'}`}
@@ -99,6 +100,7 @@ function NormTable({ norms, readOnly, errorOf, onChange }) {
                     readOnly={readOnly}
                     label={c.label}
                     invalid={!!error}
+                    max={c.max}
                     onChange={(v) => onChange(c.key, v)}
                   />
                   <td className="muted">{c.unit}</td>

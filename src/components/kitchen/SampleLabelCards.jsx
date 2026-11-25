@@ -14,7 +14,7 @@ export function SampleLabelCards({ labels, date }) {
           <div>Tên mẫu thức ăn: {label.dishes.join('; ')}</div>
           <div>Thời gian lấy: {sampleTakenText(label.takenAt, date)}</div>
           <div className="ps-label__sign">
-            Người lấy mẫu <i>(họ tên và chữ ký)</i>: ……………………………………
+            Người lấy mẫu <i>(họ tên và chữ ký)</i>: ……………………
           </div>
         </div>
       ))}

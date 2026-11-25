@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { ClipboardCheck, Printer, Unlock } from '@/components/ui/icons';
 import { Breadcrumb, Button, EmptyState, ErrorState, LoadingState } from '@/components';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
@@ -23,7 +23,6 @@ import {
   APPROVAL_STATUS,
   INSPECTION_APPROVAL_REQUIRED,
   INSPECTION_FORMS,
-  INSPECTION_VARIANT_FORMS,
   INSPECTION_TAB_LABELS,
   INSPECTION_TAB_ORDER,
 } from '@/models/kitchen/inspectionConstants';
@@ -51,7 +50,7 @@ import '@/styles/modules/kitchen-records.css';
 
 const AUTOSAVE_MS = 20000;
 const EMPTY_HINT = {
-  fresh: 'Ngày này chưa có hàng tươi cần kiểm nhận.',
+  fresh: 'Chưa ghi nhận kiểm nhận hàng tươi cho ngày này.',
   dry: 'Ngày này chưa có phiếu xuất kho đồ khô.',
   process: 'Ngày này chưa có thực đơn đã công bố.',
   serve: 'Ngày này chưa có thực đơn đã công bố.',
@@ -59,7 +58,7 @@ const EMPTY_HINT = {
 };
 const clockOf = () => new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false });
 
-function FormCard({ tab, data, onOpen, onRequest, onRevoke }) {
+function FormCard({ tab, data, date, campusId, onOpen, onRequest, onRevoke }) {
   const signed = hasValidSignature(data) && data.status === 'SIGNED';
   const sig = data.signature;
   const empty = !data.rows.length;
@@ -77,17 +76,26 @@ function FormCard({ tab, data, onOpen, onRequest, onRevoke }) {
               {INSPECTION_FORMS[tab].step} · {INSPECTION_FORMS[tab].form}
             </div>
           </div>
-          <InspectionStatusBadge status={data.status} />
-          {approval.status && <ApprovalStatusBadge status={approval.status} />}
+          <div className="kr-card__badges">
+            <InspectionStatusBadge status={data.status} />
+            {approval.status && <ApprovalStatusBadge status={approval.status} />}
+          </div>
         </div>
         <p className="text-sm">{INSPECTION_FORMS[tab].hint}</p>
         <div className="text-sm muted">
           {empty ? EMPTY_HINT[tab] : `${data.rows.length} dòng`}
+          {empty && tab === 'fresh' && (
+            <>
+              {' '}
+              <Link to={`/kitchen/fresh-receipts?date=${date}&campusId=${campusId}`}>Đi tới kiểm nhận hàng hôm nay</Link>
+            </>
+          )}
           {signed && ` · Ký bởi ${sig.signedByName} lúc ${formatDateTime(sig.signedAt)}`}
         </div>
         <ApprovalNotice approval={approval} />
         <div className="kr-card__actions">
-          <Button variant="primary" disabled={empty} onClick={() => onOpen(tab)}>
+          {/* Mẫu rỗng vẫn xem được ở chế độ chỉ đọc; chỉ khóa khi có quyền sửa mà chưa có dòng nào để điền */}
+          <Button variant="primary" disabled={empty && data.canEdit} onClick={() => onOpen(tab)}>
             {data.canEdit ? 'Mở biểu mẫu' : 'Xem biểu mẫu'}
           </Button>
           {approval.canRequest && (
@@ -111,7 +119,7 @@ function LabelCard({ sample, onPrint }) {
         <div className="kr-card__top">
           <Printer size={20} className="muted" />
           <div className="kr-card__name">
-            <h2 className="card__title">{INSPECTION_VARIANT_FORMS.label.form} · Nhãn mẫu thức ăn lưu</h2>
+            <h2 className="card__title">M4 · Nhãn mẫu thức ăn lưu</h2>
             <div className="text-sm muted">Chỉ in, lập từ sổ lưu mẫu M5</div>
           </div>
         </div>
@@ -393,6 +401,8 @@ export default function InspectionDayPage() {
               key={key}
               tab={key}
               data={day.data.tabs[key]}
+              date={date}
+              campusId={campus.campusId}
               onOpen={openForm}
               onRequest={(tab) => setApprovalDialog({ tab, mode: 'request' })}
               onRevoke={(tab) => setApprovalDialog({ tab, mode: 'revoke' })}
