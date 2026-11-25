@@ -46,34 +46,41 @@ export function useClassPlanContext(classId) {
   const waiting = (!!raw && raw.summary) || (!!rawPrevious && rawPrevious.summary);
   const isClassTeacher = !!cls && (cls.teacherIds || []).some((id) => String(id) === String(user.id));
   const isHomeroomTeacher = isClassTeacher && String(cls.homeroomTeacherId) === String(user.id);
+  // BE EDU-110 (12): người soạn hồ sơ lớp theo vai trò soạn đã cấu hình (GV chủ nhiệm / tổ trưởng / PHT / HT) — dùng cờ
+  // BE trả (năm chỉ xem vẫn là người soạn để thấy bản đang soạn); chưa có cờ (mock) thì coi GV chủ nhiệm là người soạn
+  const capOf = (kind) =>
+    creationCapabilities.find((cap) => String(cap.classId) === String(classId) && cap.kind === kind);
+  const authorOf = (kind) => (capOf(kind) ? capOf(kind).reasonCode !== 'AUTHOR_FORBIDDEN' : isHomeroomTeacher);
+  const branchAuthor = authorOf('branch');
+  const dossierAuthor = authorOf('theme');
   const asRows = (p) =>
     p ? { ...p, domains: p.domains.map((d) => ({ ...d, rows: toRows(d, () => Math.random().toString(36).slice(2, 9)) })) } : null;
   const branchPlan = useMemo(() => {
     // Chưa có chi tiết: không dựng từ bản tóm tắt (thiếu chủ đề ⇒ trang dựng bản nháp sai, mất tên nhánh)
     if (!raw || waiting) return null;
     const source = asRows(raw);
-    if (!isHomeroomTeacher) {
+    if (!branchAuthor) {
       return publishedBranchCalendar(source, semesterPackages.filter((pkg) =>
         pkg.classId === classId && pkg.yearPlanId === raw.id));
     }
     const saved = branchPlans.find((b) => b.classId === classId && b.yearPlanId === raw.id);
     const base = adaptCalendar(saved || emptyBranchPlan({ classId, yearPlanId: raw.id }), source);
     return seedTeamBranchTemplates(base, source);
-  }, [raw, branchPlans, semesterPackages, classId, waiting, isHomeroomTeacher]);
+  }, [raw, branchPlans, semesterPackages, classId, waiting, branchAuthor]);
   // Kế hoạch năm dạng hàng của bảng (giống trang mục tiêu năm)
   const yearPlan = useMemo(() => {
-    const approved = isHomeroomTeacher
+    const approved = branchAuthor
       ? branchPlans.find((b) => b.classId === classId && b.yearPlanId === raw?.id && b.status === EDU_STATUS.APPROVED)
       : branchPlan;
     return raw && !waiting ? calendarPlan(asRows(raw), approved) : null;
-  }, [raw, branchPlans, branchPlan, classId, waiting, isHomeroomTeacher]);
+  }, [raw, branchPlans, branchPlan, classId, waiting, branchAuthor]);
   const previousPlan = useMemo(() => (waiting ? null : asRows(rawPrevious)), [rawPrevious, waiting]);
   const teachers = cls ? (cls.teacherIds || []).map((id) => users.find((u) => u.id === id)).filter(Boolean) : [];
   const leaders = cls ? users.filter((u) => u.role === ROLES.TEAM_LEADER && u.ageGroupId === cls.ageGroupId) : [];
   // Danh sách lớp do BE giới hạn theo phạm vi (EDU-64): HT/PHT mọi lớp, tổ trưởng lớp cùng nhóm tuổi, GV chỉ lớp mình
   const canPickClass = classes.length > 1;
   const isGroupLeader = leaders.some((leader) => String(leader.id) === String(user.id));
-  const canComposeClassDocs = isHomeroomTeacher;
+  const canComposeClassDocs = branchAuthor || dossierAuthor;
   const isVp = user.role === ROLES.VICE_PRINCIPAL;
   // Chỉ để hiển thị chuỗi duyệt dự kiến; bước thật do service quyết định khi gửi
   const skipLeader = !leaders.length || leaders.some((u) => (cls?.teacherIds || []).includes(u.id));
