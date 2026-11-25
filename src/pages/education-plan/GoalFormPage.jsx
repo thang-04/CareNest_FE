@@ -6,20 +6,24 @@ import { branchScheduleIssue } from '@/models/education-plan/branchTemplateSched
 import { planLevel as levelOf, planRoute, inheritAnnual, reapplyTeamDraft } from '@/models/education-plan/planLevel.mjs';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useLocation } from 'react-router-dom';
-import { useSchoolYear } from '@/contexts/SchoolYearContext';
+import { useAsync } from '@/hooks/useAsync';
 import { ActionsMenu, ReviewActions } from '@/components/education-plan/reviewUi';
 import { Download, FileDown, History, Save, Sparkles, X } from '@/components/ui/icons';
 import { AiThemeContentModal } from '@/components/education-plan/AiThemeContentModal';
+import { AiGoalContentModal } from '@/components/education-plan/AiGoalContentModal';
+import { applyGoalContents } from '@/models/education-plan/aiGoalContent.mjs';
 import { PrevYearTicksModal } from '@/components/education-plan/PrevYearTicksModal';
-import { sendAiFeedback } from '@/services/education-plan/educationPlanService';
+import { listGoalSources, sendAiFeedback } from '@/services/education-plan/educationPlanService';
 import { yearPlanFile } from '@/utils/education-plan/yearPlanDoc';
 import { useEducationPlan, useGoalDetails } from '@/hooks/education-plan/useEducationPlan';
 import { ErrorState, LoadingState } from '@/components/ui/States';
+import { StatusPage } from '@/components/ui/StatusPage';
 import { useYearPlanAutosave } from '@/hooks/education-plan/useYearPlanAutosave';
 import { recoveryText } from '@/models/education-plan/yearPlanAutosave.mjs';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import { ROLES } from '@/models/User';
+import { canPrincipalPublish } from '@/utils/education-plan/eduPermissions';
 import { AGE_GROUPS, DOMAINS, EDU_STATUS, SCHOOL_SCOPE, isStandardDomain } from '@/models/education-plan/educationPlanConstants';
 import {
   duplicateAbbrThemeIds,
@@ -53,6 +57,7 @@ import {
 import { Card, fmtDate, FoldAllButton, Notice, PageHead } from '@/components/education-plan/eduUi';
 import { VersionHistory } from '@/components/education-plan/VersionHistory';
 import { yearPlanLines } from '@/models/education-plan/planHistory.mjs';
+import { previousSchoolYears, sameSchoolYearId } from '@/models/education-plan/schoolYearScope.mjs';
 import DocPreviewModal from '@/components/education-plan/DocPreviewModal';
 import { Button } from '@/components';
 
@@ -113,11 +118,12 @@ export function focusYearPlanIssue(root, issue) {
  */
 export default function GoalFormPage(props) {
   const { id } = useParams();
-  const { goals } = useEducationPlan();
-  const plan = id ? goals.find((g) => g.id === id) : null;
+  const { goals, schoolYearId } = useEducationPlan();
+  const planLevel = props.planLevel ?? 'TEAM';
+  const plan = id ? goals.find((g) => g.id === id && levelOf(g) === planLevel && sameSchoolYearId(g.schoolYearId, schoolYearId)) : null;
   // Lập kế hoạch tổ mới: nội dung chép từ kế hoạch năm học nguồn (inheritAnnual) ⇒ tải trước chi tiết các bản nguồn đã ban hành
   const sources =
-    (props.planLevel ?? 'TEAM') === 'TEAM' && !plan
+    planLevel === 'TEAM' && !id
       ? goals.filter((g) => levelOf(g) === 'SCHOOL_YEAR' && g.status === EDU_STATUS.APPROVED).map((g) => g.id)
       : [];
   const details = useGoalDetails([id, plan?.curriculumSourcePlanId, ...sources]);
@@ -125,7 +131,16 @@ export default function GoalFormPage(props) {
   if (!details.loading) ready.current = true;
   if (!ready.current) return <LoadingState />;
   if (plan?.summary && details.error) return <ErrorState error={details.error} />;
-  return <GoalFormInner {...props} />;
+  if (schoolYearId == null || (id && !plan)) {
+    return (
+      <StatusPage
+        kind="404"
+        title={id ? 'Không tìm thấy kế hoạch trong năm học đang chọn' : 'Chọn năm học để lập kế hoạch'}
+        action={<Link to={planRoute({ planLevel })}>Về danh sách</Link>}
+      />
+    );
+  }
+  return <GoalFormInner key={JSON.stringify([schoolYearId, id])} {...props} />;
 }
 
 /** Lập / sửa kế hoạch giáo dục năm học của một nhóm tuổi theo mẫu MN Thái Dương (Phó HT và tổ trưởng cùng soạn). */
@@ -138,6 +153,9 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
   const {
     goals: allGoals,
     schoolYear,
+    schoolYearId,
+    yearOption,
+    yearOptions,
     saveGoal,
     refreshGoal,
     refreshPlans,
@@ -150,7 +168,6 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
   const levelsAvailable = eduConfig?.durationPolicyAvailable !== false;
   const goals = allGoals.filter((g) => levelOf(g) === planLevel);
   const [preview, setPreview] = useState(null);
-  const { schoolYears: yearOptions } = useSchoolYear();
   const navigate = useNavigate();
   const existing = goals.find((g) => g.id === id);
   const teamEditing = !annual && !!existing;
@@ -168,6 +185,7 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
       : // Mã cố định ngay từ đầu để các lần lưu cùng ghi vào một kế hoạch
         {
           ...emptyForm(schoolYear, isLeader ? user.ageGroupId : ''),
+          schoolYearId,
           ...(!annual ? { title: '' } : {}),
           planLevel,
           branchTemplates: [],
@@ -183,7 +201,7 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
       levelOf(g) === 'SCHOOL_YEAR' &&
       g.status === EDU_STATUS.APPROVED &&
       (g.current ?? !allGoals.some((next) => next.sourcePlanId === g.id && next.status === EDU_STATUS.APPROVED)) &&
-      g.schoolYear === form.schoolYear &&
+      sameSchoolYearId(g.schoolYearId, form.schoolYearId) &&
       (!form.ageGroupId || g.ageGroupId === form.ageGroupId),
   );
   const [errors, setErrors] = useState({});
@@ -206,23 +224,30 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
   }, [errors]);
 
   // BE:EDU-25 — phiên bản điều chỉnh dùng chung (năm học, nhóm tuổi) với các bản trước nên không tính là trùng
-  const sameScope = existing && existing.schoolYear === form.schoolYear && existing.ageGroupId === form.ageGroupId;
-  const dupGoal = !sameScope && goals.some((g) => g.id !== form.id && g.schoolYear === form.schoolYear && g.ageGroupId === form.ageGroupId);
+  const sameScope = existing && sameSchoolYearId(existing.schoolYearId, form.schoolYearId) && existing.ageGroupId === form.ageGroupId;
+  const dupGoal =
+    !sameScope &&
+    goals.some((g) => g.id !== form.id && sameSchoolYearId(g.schoolYearId, form.schoolYearId) && g.ageGroupId === form.ageGroupId);
   // Gợi ý dùng lại mục tiêu của kế hoạch năm khác năm học, cùng nhóm tuổi (EDU-24; ưu tiên năm gần nhất, bản đã ban hành)
-  const reusePlan = form.ageGroupId
-    ? goals
-        .filter((g) => g.id !== form.id && g.ageGroupId === form.ageGroupId && g.schoolYear < form.schoolYear)
-        .sort(
-          (a, b) =>
-            b.schoolYear.localeCompare(a.schoolYear) || Number(b.status === EDU_STATUS.APPROVED) - Number(a.status === EDU_STATUS.APPROVED),
-        )[0]
-    : null;
+  const priorYears = annual ? previousSchoolYears(yearOptions, form.schoolYearId) : [];
+  const { data: reusePlan } = useAsync(
+    async () => {
+      for (const year of priorYears) {
+        const sources = await listGoalSources({ schoolYearId: year.id, ageGroupId: form.ageGroupId, excludeId: form.id, planLevel }, user);
+        if (sources.length) return sources.find((plan) => plan.status === EDU_STATUS.APPROVED) ?? sources[0];
+      }
+      return null;
+    },
+    [user.id, form.ageGroupId, form.id, planLevel, priorYears.map((year) => year.id).join(',')],
+    { enabled: !!form.ageGroupId && priorYears.length > 0 },
+  );
   const [importing, setImporting] = useState(false);
   const [importingThemes, setImportingThemes] = useState(false);
   const [ministryOpen, setMinistryOpen] = useState(false);
   const [importReport, setImportReport] = useState(null);
   const [fileOpen, setFileOpen] = useState(false);
   const [aiThemeOpen, setAiThemeOpen] = useState(false);
+  const [aiGoalOpen, setAiGoalOpen] = useState(false);
   const [prevTicksOpen, setPrevTicksOpen] = useState(false);
 
   const set = (patch) => {
@@ -234,7 +259,6 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
     });
   };
   // Ngày bắt đầu, kết thúc năm học của kế hoạch: lịch chỉ cho chọn ngày trong khoảng này (BE kiểm lại khi lưu)
-  const yearOption = yearOptions.find((y) => y.label.replace(/\s*[-–]\s*/g, '-') === form.schoolYear.replace(/\s*[-–]\s*/g, '-'));
   const fileYearRange = { start: yearOption?.startDate, end: yearOption?.endDate };
   const yearRange = {
     start: yearOption?.startDate || `${form.schoolYear.slice(0, 4)}-09-01`,
@@ -254,6 +278,13 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
   const [finishing, setFinishing] = useState(false);
   const editRef = useRef({ revision: existing?.revision ?? 0 });
   const canEdit = permitted;
+  // EDU-110 (8): HT soạn loại này, chuỗi duyệt rỗng ⇒ "Ban hành" thay "Gửi duyệt"
+  const principalPublish = canPrincipalPublish({
+    user,
+    policy: eduConfig?.workflowPolicy?.[annual ? 'schoolYear' : 'year'],
+    status: existing?.status || EDU_STATUS.DRAFT,
+    author: canEdit,
+  });
 
   // Dòng chủ đề / đợt nghỉ còn trống (vừa Enter thêm) không tính vào kiểm tra, cột tích và bản lưu
   const themes = form.themes.filter((t) => !isBlankTheme(t));
@@ -376,6 +407,7 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
       id: source.id || `g-${uid()}`,
       code: source.code || `KHNH-${source.schoolYear.slice(2, 4)}${source.schoolYear.slice(-2)}-${agCode}`,
       schoolYear: source.schoolYear,
+      schoolYearId,
       ageGroupId: source.ageGroupId,
       title: source.title,
       description: source.description,
@@ -446,6 +478,9 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
       return formOf(saved);
     },
   });
+  const aiGoalAllowed = annual && saveReady && !finishing && form.canEditCurriculum !== false;
+  const aiGoalState = useRef(null);
+  aiGoalState.current = { allowed: aiGoalAllowed, form };
   const reloadContent = async () => {
     setPreservedDraft((old) => old || structuredClone(form));
     try {
@@ -541,7 +576,11 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
           sentBy: item.sentBy,
           id: targetId,
         },
-        { action, silent: true, edit: { ...editRef.current, requestId: crypto.randomUUID() } },
+        {
+          action: action === 'approve' && principalPublish ? 'publish' : action,
+          silent: true,
+          edit: { ...editRef.current, requestId: crypto.randomUUID() },
+        },
       );
       if (!saved) {
         throw new Error('Máy chủ không phản hồi kết quả sau khi gửi.');
@@ -665,7 +704,8 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
             ? 'Kế hoạch đã ban hành nên không sửa được.'
             : isReviewStatus
               ? `Kế hoạch đang ở trạng thái duyệt nên không sửa được.`
-              : 'Bạn chỉ lập, sửa được kế hoạch giáo dục tổ của nhóm tuổi mình phụ trách.'}
+              : // EDU-110: quyền soạn theo ma trận vai trò, câu theo đúng loại kế hoạch đang mở
+                `Bạn không có quyền sửa ${pageLabel.toLowerCase()} này.`}
         </Notice>
       </div>
     );
@@ -788,8 +828,9 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
                     !contentError &&
                     !(form.reviewItems || []).some((item) => !item.resolved) &&
                     (!annual || levelsAvailable) &&
-                    (existing?.permissions ? existing.permissions.canSubmit : canEdit),
-                  approve: false,
+                    (existing?.permissions ? existing.permissions.canSubmit : canEdit) &&
+                    !principalPublish,
+                  approve: principalPublish && !contentError && !(form.reviewItems || []).some((item) => !item.resolved),
                 }}
                 variant="btn--outline-primary"
                 unsaved={saver.unsaved}
@@ -901,7 +942,8 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
                     >
                       <option value="">Chọn nhóm tuổi</option>
                       {AGE_GROUPS.map((a) => {
-                        const taken = !existing && goals.some((g) => g.schoolYear === form.schoolYear && g.ageGroupId === a.id);
+                        const taken =
+                          !existing && goals.some((g) => sameSchoolYearId(g.schoolYearId, form.schoolYearId) && g.ageGroupId === a.id);
                         return (
                           <option key={a.id} value={a.id} disabled={taken || (!existing && !allowedAgeGroupIds.includes(a.id))}>
                             {a.name}
@@ -1107,6 +1149,18 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
                   ]}
                 />
               )}
+              {annual && aiGoalAllowed && (
+                <ActionsMenu
+                  items={[
+                    {
+                      label: 'AI gợi ý nội dung cho mục tiêu',
+                      icon: Sparkles,
+                      disabled: saver.saving || finishing || !goalsWithoutContent,
+                      onClick: () => setAiGoalOpen(true),
+                    },
+                  ]}
+                />
+              )}
             </div>
           }
         >
@@ -1156,6 +1210,39 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
                 sendAiFeedback({ kind: 'TEAM', ...stats }).catch(() => console.warn('[GoalFormPage] AI feedback not sent'));
               }}
               onClose={() => setAiThemeOpen(false)}
+            />
+          )}
+          {annual && aiGoalOpen && (
+            <AiGoalContentModal
+              plan={form}
+              allowed={aiGoalAllowed}
+              current={() => ({ plan: saver.current(), allowed: aiGoalState.current.allowed })}
+              ensureSaved={async () => {
+                if (!aiGoalState.current.allowed) return null;
+                if ((saver.unsaved || !savedId.current) && !(await saver.save())) return null;
+                const plan = saver.current();
+                return {
+                  planId: savedId.current || currentPlanId,
+                  plan,
+                  allowed: aiGoalState.current.allowed && plan.canEditCurriculum !== false,
+                };
+              }}
+              onApply={(result, picked) => {
+                if (!aiGoalState.current.allowed) return false;
+                const value = applyGoalContents(saver.current(), result.groups, picked, result.stamp, () => `ai-${uid()}`);
+                if (!value?.added) return false;
+                set({ domains: value.domains });
+                sendAiFeedback({
+                  kind: 'SCHOOL_YEAR',
+                  suggested: result.groups.reduce((n, g) => n + g.lines.length, 0),
+                  kept: value.added,
+                  failedDomains: result.failedDomains.length,
+                  waitMs: result.waitMs,
+                }).catch(() => console.warn('[GoalFormPage] AI feedback not sent'));
+                toast(`Đã thêm ${value.added} nội dung (chưa lưu)`);
+                return true;
+              }}
+              onClose={() => setAiGoalOpen(false)}
             />
           )}
           {!annual && prevTicksOpen && (

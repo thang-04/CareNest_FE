@@ -46,7 +46,7 @@ test('ST-003-01 khối Học kỳ ở trang Kế hoạch giáo dục chủ đề
   await expect(notFound(page)).toHaveCount(0);
   await expect(page.getByRole('combobox', { name: 'Học kỳ' })).toHaveValue('1');
   await expect(page.getByText(/[Gg]ói học kỳ/)).toHaveCount(0);
-  await expect(page.getByText(/Gần đến hạn|Quá hạn|Đúng hạn|Ban hành trễ|Hạn:? \d\d\/\d\d/).first()).toBeVisible();
+  await expect(page.getByText(/Gần đến hạn|Quá hạn|Đúng hạn|Hạn:? \d\d\/\d\d/).first()).toBeVisible();
 });
 
 // Spec 005 FR-021/FR-021a: mở hạn chỉ ở màn Kế hoạch quá hạn của Hiệu trưởng, không trang chi tiết nào có nút mở

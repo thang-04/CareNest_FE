@@ -6,7 +6,7 @@ File sinh tự động từ `BE:docs/api/openapi.yaml`, không sửa tay. Sinh l
 - Path đã bỏ tiền tố `/api` (trùng baseURL của Web/App). File controller tính từ gốc repo `CareNest_BE`.
 - Request/response chi tiết: đọc method trong controller và DTO nó dùng; lỗi theo `BE:docs/contracts/ERROR_CONTRACT.md`.
 
-Nguồn: CareNest_BE docs/api/openapi.yaml tại commit 5492d812 2026-11-25
+Nguồn: CareNest_BE docs/api/openapi.yaml tại commit 0c8bad76 2026-11-25
 
 Tổng: 448 endpoint.
 

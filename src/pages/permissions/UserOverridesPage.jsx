@@ -6,6 +6,7 @@ import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { RowActions } from '@/components/ui/RowActions';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
+import { Button } from '@/components/ui/Button';
 import { Avatar } from '@/components/ui/Avatar';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
@@ -29,7 +30,9 @@ export default function UserOverridesPage() {
   const toast = useToast();
   const navigate = useNavigate();
 
-  const { data: accounts, loading, error, reload } = useAccountsWithOverrides();
+  const { data, loading, error, reload } = useAccountsWithOverrides();
+  const { accounts, unavailableCount = 0 } = data || {};
+  const noOverrides = accounts?.length === 0 && !unavailableCount;
   const [params, setParams] = useSearchParams();
   const targetId = params.get('userId');
   const staffQuery = usePermissionStaff({ enabled: !!targetId });
@@ -120,6 +123,14 @@ export default function UserOverridesPage() {
           {staffQuery.error && <ErrorState error={staffQuery.error} onRetry={staffQuery.reload} />}
         </div>
       )}
+      {unavailableCount > 0 && (
+        <div className="alert alert--warning" role="status">
+          <span>Chưa đọc được quyền ngoại lệ của {unavailableCount} tài khoản. Danh sách bên dưới có thể chưa đầy đủ.</span>
+          <Button size="sm" onClick={() => reload()}>
+            Thử lại
+          </Button>
+        </div>
+      )}
       <section className="card">
         <div className="filter-bar">
           <SearchSubmit
@@ -146,11 +157,19 @@ export default function UserOverridesPage() {
         ) : filteredAccounts.length === 0 ? (
           <EmptyState
             icon={ShieldCheck}
-            title={accounts?.length === 0 ? 'Chưa có nhân sự nào có quyền ngoại lệ' : 'Không tìm thấy kết quả phù hợp'}
+            title={
+              noOverrides
+                ? 'Chưa có nhân sự nào có quyền ngoại lệ'
+                : unavailableCount
+                  ? 'Không có kết quả trong dữ liệu đã tải'
+                  : 'Không tìm thấy kết quả phù hợp'
+            }
             description={
-              accounts?.length === 0
+              noOverrides
                 ? 'Tất cả nhân sự trong trường đang sử dụng quyền mặc định theo vai trò. Bấm “Thêm ngoại lệ cho nhân sự” để thiết lập quyền riêng.'
-                : 'Thử thay đổi từ khóa tìm kiếm hoặc bỏ bớt bộ lọc.'
+                : accounts?.length > 0
+                  ? 'Thử thay đổi từ khóa tìm kiếm hoặc bỏ bớt bộ lọc.'
+                  : undefined
             }
             action={
               accounts?.length > 0 && (

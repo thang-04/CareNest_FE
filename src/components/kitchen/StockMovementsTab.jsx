@@ -61,7 +61,7 @@ export function StockMovementsTab({ campusId }) {
                 <th className="center">Loại</th>
                 <th className="num">Số lượng</th>
                 <th className="center">Ghi lúc</th>
-                {showReason && <th>Lý do</th>}
+                {showReason && <th className="center">Lý do</th>}
                 {showPerson && <th>Người thực hiện</th>}
               </tr>
             </thead>
@@ -89,7 +89,7 @@ export function StockMovementsTab({ campusId }) {
                         </td>
                         <td className="nowrap center">{formatDateTime(m.createdAt)}</td>
                         {showReason && (
-                          <td className="kb-cell-wrap">
+                          <td className="kb-cell-wrap center">
                             {m.receiptId && (
                               <Link to={`/kitchen/stock-receipts/${m.receiptId}`} className="kb-block">
                                 Xem phiếu nhập

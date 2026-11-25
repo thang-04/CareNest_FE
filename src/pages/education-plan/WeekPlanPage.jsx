@@ -1,7 +1,8 @@
+import { adaptCalendar } from '@/models/education-plan/branchCalendar.mjs';
 import { ResponsiveToolbar } from '@/components/ui/ResponsiveToolbar';
 import { useEffect, useId, useRef, useState } from 'react';
 import ActivityCardEditor from '@/components/education-plan/ActivityCardEditor';
-import { Link, Navigate, useParams } from 'react-router-dom';
+import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom';
 import { ClassFilterBar, classFilterPath, FilterSelect, ThemeBranchTabs, themesWithWeeks } from '@/components/education-plan/planUi';
 import { BlockedNotice } from '@/components/education-plan/DeadlineWidgets';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
@@ -55,7 +56,7 @@ import { DayTab, WeekTab } from '@/components/education-plan/WeekPlanBody';
 import { DayResources } from '@/components/education-plan/DayResources';
 import { FinishedThemeNote, SupersededNote, VersionCopyOffer, VersionFlagsPanel } from '@/components/education-plan/VersionWidgets';
 import { useDocVersion } from '@/hooks/education-plan/useDocVersion';
-import { checkFlag, dropReference, versionOf } from '@/models/education-plan/planVersions.mjs';
+import { checkFlag, classPlanVersionPath, dropReference, versionOf } from '@/models/education-plan/planVersions.mjs';
 import DocPreviewModal from '@/components/education-plan/DocPreviewModal';
 import { dayKeyOf } from '@/models/education-plan/deadline.mjs';
 import { Button } from '@/components';
@@ -73,8 +74,9 @@ const only = (doc, keys) => Object.fromEntries(keys.filter((k) => doc?.[k] !== u
  */
 export default function WeekPlanPage({ review = false, mode = 'week' }) {
   const { classId, weekStart } = useParams();
+  const [query] = useSearchParams();
   if (review) return <WeekReviewRedirect />;
-  return <WeekPlanInner key={`${classId}/${weekStart}/${mode}`} mode={mode} />;
+  return <WeekPlanInner key={`${classId}/${weekStart}/${mode}/${query.get('plan') || ''}`} mode={mode} />;
 }
 
 function WeekReviewRedirect() {
@@ -83,7 +85,12 @@ function WeekReviewRedirect() {
   if (ctx.loading) return <LoadingState />;
   const week = ctx.yearPlan ? yearWeeks(ctx.yearPlan).find((w) => w.type === 'week' && w.start === weekStart) : null;
   if (!week) return <StatusPage kind="404" title="Không tìm thấy tuần học này trong kế hoạch năm của lớp" />;
-  return <Navigate to={`/education/class/${classId}/weeks/${weekStart}`} replace />;
+  return (
+    <Navigate
+      to={classPlanVersionPath(`/education/class/${classId}/weeks/${weekStart}`, ctx.superseded ? ctx.yearPlan.id : null)}
+      replace
+    />
+  );
 }
 
 /**
@@ -205,7 +212,8 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
       }),
       ...savedWeek,
     });
-  const themeDocOf = () => classThemePlans.find((t) => t.classId === classId && t.themeId === week?.theme.id) || null;
+  const themeDocOf = () =>
+    classThemePlans.find((t) => t.classId === classId && t.yearPlanId === yearPlan?.id && t.themeId === week?.theme.id) || null;
 
   useEffect(() => {
     if (dirty || !week) return;
@@ -271,9 +279,9 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
 
   if (ctx.loading) return <LoadingState />;
   if (!cls || !yearPlan || !week) return <StatusPage kind="404" title="Không tìm thấy tuần học này trong kế hoạch năm của lớp" />;
+  if (!canComposeClassDocs && !saved) return <StatusPage kind="404" title="Kế hoạch chưa được ban hành hoặc không thuộc phạm vi xem" />;
   if (!draft) return <LoadingState />;
 
-  const status = saved?.status || EDU_STATUS.DRAFT;
   const editable = contentEditable;
   // Quyền sửa do BE quyết định (bản chưa ban hành sửa được cả tuần đã tới sau khi mở hạn); FE không tự khóa theo ngày
   const sharedEditable = editable;
@@ -292,18 +300,21 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
     [...semesterPackages, ...themeDossiers].find((d) => d.id === (days ? `ds_${classId}_${week.theme.id}` : containerKey)) || null;
   const branch = branchPlans.find((b) => b.classId === classId && b.yearPlanId === yearPlan.id);
   const branchName = branch?.names?.[weekStart] || '';
-  const themeDoc = classThemePlans.find((t) => t.classId === classId && t.themeId === week.theme.id) || null;
+  // BE EDU-111 (9): ghi chú tuần nhập ở trang Dự kiến, chỉ đọc ở đây, không vào bản in
+  const weekNote = (branch ? adaptCalendar(branch, yearPlan).notes?.[weekStart] : '')?.trim() || '';
+  const themeDoc = themeDocOf();
   const pageTitle = dayPage
     ? `Kế hoạch giáo dục ngày ${cls.name}`
     : days
       ? `Kế hoạch giáo dục ngày tuần ${week.no}`
       : `Kế hoạch tuần ${week.no}`;
+  const planPath = (path) => classPlanVersionPath(path, ctx.superseded ? yearPlan.id : null);
   const crumbs = dayPage
-    ? [{ label: 'Kế hoạch giáo dục' }, { label: 'Kế hoạch giáo dục ngày', to: `/education/day-plans/${classId}` }]
+    ? [{ label: 'Kế hoạch giáo dục' }, { label: 'Kế hoạch giáo dục ngày', to: planPath(`/education/day-plans/${classId}`) }]
     : [{ label: 'Kế hoạch giáo dục' }, { label: 'Kế hoạch giáo dục chủ đề' }, { label: pageTitle }];
-  const dayUrl = (ws) => `/education/day-plans/${classId}?week=${ws}`;
+  const dayUrl = (ws) => planPath(`/education/day-plans/${classId}?week=${ws}`);
   // Spec 004: kế hoạch giáo dục ngày = giáo án ngày; kế hoạch tuần thuộc kế hoạch giáo dục chủ đề
-  const dossier = themeDossiers.find((d) => d.id === `ds_${classId}_${week.theme.id}`) || null;
+  const dossier = themeDossiers.find((d) => d.yearPlanId === yearPlan.id && d.id === `ds_${classId}_${week.theme.id}`) || null;
   // EDU-79 (FR-015): tab Kế hoạch tuần ở trang ngày sửa được khi kế hoạch giáo dục chủ đề chứa chủ đề đã ban hành, trước ngày bắt đầu chủ đề;
   // quyền sửa và khóa vẫn do BE quyết định
   const firstWeek = weeks.find((w) => w.theme.id === week.theme.id);
@@ -343,7 +354,7 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
   const pickTheme = (id) => {
     const first = weeks.find((w) => String(w.theme.id) === id);
     if (!first) return;
-    guard.leave(dayPage ? dayUrl(first.start) : `/education/class/${classId}/themes/${first.theme.id}`);
+    guard.leave(dayPage ? dayUrl(first.start) : planPath(`/education/class/${classId}/themes/${first.theme.id}`));
   };
   const dayFilter = (footer = null) => (
     <ClassFilterBar
@@ -426,7 +437,7 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
       cards,
       weeks.filter((w) => w.theme.id === week.theme.id).map((w) => ({ start: w.start, offDays: w.offDays, doc: docOfWeek(w) })),
     ),
-    onOpenCoverage: () => guard.leave(`/education/class/${classId}/themes/${week.theme.id}?tab=coverage`),
+    onOpenCoverage: () => guard.leave(planPath(`/education/class/${classId}/themes/${week.theme.id}?tab=coverage`)),
   };
   // FR-014: "Tạo thẻ từ hoạt động này" — kế hoạch chủ đề còn sửa được thì thêm thẻ vào đó (lưu chủ đề trước); đang sửa tuần
   // theo kế hoạch giáo dục ngày thì thẻ lưu kèm bản tuần của hồ sơ, nhãn "bổ sung theo kế hoạch giáo dục ngày"
@@ -482,7 +493,9 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
                 disabled: !canComposeClassDocs,
                 onClick: () =>
                   guard.leave(
-                    `/education/class/${classId}/themes/${week.theme.id}/teach?week=${encodeURIComponent(weekStart)}&date=${encodeURIComponent(draft.days[day].date)}`,
+                    planPath(
+                      `/education/class/${classId}/themes/${week.theme.id}/teach?week=${encodeURIComponent(weekStart)}&date=${encodeURIComponent(draft.days[day].date)}`,
+                    ),
                   ),
               },
             ]
@@ -531,6 +544,7 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
           <div className="ga-week-hero__meta">
             Chủ đề: {week.theme.name} · {fmtDate(week.start)} → {fmtDate(week.end)}
           </div>
+          {weekNote && <div className="ga-week-hero__meta">Ghi chú tuần: {weekNote}</div>}
         </div>
       </div>
       {(days || !split) && (
@@ -633,7 +647,7 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
                     variant="outline-primary"
                     size="sm"
                     disabled={saver.saving}
-                    onClick={() => guard.leave(`/education/theme-plans/${classId}`)}
+                    onClick={() => guard.leave(planPath(`/education/theme-plans/${classId}`))}
                   >
                     <X size={16} aria-hidden /> Hủy
                   </Button>
@@ -792,11 +806,7 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
             offLabel={week?.offDays?.[day] || null}
             aiDocKey={split && savedDay?.id && dayEditable(day) ? savedDay.id : null}
             unsaved={saver.unsaved}
-            assessTo={
-              (split ? savedDay?.status : status) === EDU_STATUS.APPROVED
-                ? `/assessment/daily/skills?classId=${classId}&date=${draft.days[day].date}`
-                : null
-            }
+            notify={toast}
           />
         )}
       </div>

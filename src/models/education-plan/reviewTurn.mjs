@@ -5,7 +5,7 @@
 
 const waitingRoleOf = (doc) => doc?.review?.waitingRole ?? doc?.waitingRole ?? null;
 
-/** Đúng lượt duyệt theo cờ BE trả; `null` khi tài liệu không kèm `permissions` (không biết). */
+/** Có quyền thao tác duyệt/trả lại; `null` khi tài liệu không kèm `permissions`. */
 export function isReviewTurn(doc) {
   const p = doc?.permissions;
   if (!p) return null;
@@ -14,9 +14,11 @@ export function isReviewTurn(doc) {
 
 /** "Đang chờ <vai trò> duyệt" cho người không đúng lượt; null ⇒ giữ nhãn "Chờ duyệt" bình thường. */
 export function waitingLabel(doc, roleLabels = {}) {
-  if (doc?.status !== 'REVIEW') return null;
+  if (doc?.status !== 'REVIEW' || !(doc.review?.roles?.length >= 2)) return null;
   const role = waitingRoleOf(doc);
-  if (!role || isReviewTurn(doc) !== false) return null;
+  // Đúng lượt vẫn giữ nguyên khi hết hạn và các nút duyệt bị khóa (EDU-97).
+  const currentReviewer = doc.reviewDeadline?.isCurrentReviewer ?? doc.timeLock?.reviewDeadline?.isCurrentReviewer;
+  if (!role || (currentReviewer ?? isReviewTurn(doc)) !== false) return null;
   return `Đang chờ ${roleLabels[role] || role} duyệt`;
 }
 

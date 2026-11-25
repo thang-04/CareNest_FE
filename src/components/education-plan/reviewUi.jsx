@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Check, ListChecks, Send, Undo2 } from '@/components/ui/icons';
+import { Check, ListChecks, Send, Undo2, X } from '@/components/ui/icons';
 import { RowMenu } from '@/components/ui/RowMenu';
 import { Button } from '@/components/ui/Button';
 import { Card, Field, History, Modal, Notice, fmtDateTime } from '@/components/education-plan/eduUi';
@@ -34,7 +34,8 @@ export function ActionsMenu({ items, className = 'btn btn--sm btn--outline-prima
 /**
  * Nút gửi / trả lại / duyệt ở đầu trang và hộp xác nhận.
  * - name: tên tài liệu trong câu hỏi ("kế hoạch năm học", "chủ đề nhánh", "kế hoạch chủ đề").
- * - sendTo: người duyệt đầu tiên (vd. "Phó HT"); approveLabel: "Duyệt" hoặc "Ban hành".
+ * - sendTo: người duyệt đầu tiên (vd. "Phó HT"); approveLabel: "Duyệt" hoặc "Ban hành"; approveAction: action gửi
+ *   onAct khi bấm nút duyệt (vd. "principal_publish" khi HT ban hành thẳng, BE EDU-110 (8)).
  * - can: { send, reject, approve }; sendBlocked: lý do chưa gửi được (vd. còn thay đổi chưa lưu) để khóa nút.
  * - beforeOpen(action): trả false để không mở hộp (vd. kiểm tra form, nhắc thiếu dữ liệu).
  * - notes: câu giải thích thêm trong hộp theo action; onAct(action, note, savedDoc) trả kết quả (null khi lỗi thì hộp giữ lại).
@@ -49,6 +50,7 @@ export function ReviewActions({
   name,
   sendTo,
   approveLabel = 'Duyệt',
+  approveAction = 'approve',
   sendLabel = 'Gửi duyệt',
   can = {},
   sendBlocked,
@@ -118,7 +120,7 @@ export function ReviewActions({
         }
         savedDoc = typeof res === 'object' ? res : null;
       }
-      const res = await onAct(action, note.trim() || undefined, savedDoc);
+      const res = await onAct(action === 'approve' ? approveAction : action, note.trim() || undefined, savedDoc);
       if (res) {
         setAction(null);
       } else {
@@ -259,5 +261,40 @@ export function ReviewHistory({ items, open = false }) {
     >
       <History items={items} />
     </Card>
+  );
+}
+
+/** BE EDU-113: mẩu RAG mà AI dựa vào khi gợi ý (tài liệu trường hoặc giáo án web, có link nguồn) — chỉ để giáo viên xem. */
+export function RagRefLine({ refs = [] }) {
+  if (!refs.length) return null;
+  return (
+    <div className="text-sm muted">
+      Tham khảo:{' '}
+      {refs.map((r, i) => (
+        <span key={r.id}>
+          {i > 0 && '; '}
+          {r.url ? (
+            <a href={r.url} target="_blank" rel="noopener noreferrer">
+              {r.title || r.id}
+            </a>
+          ) : (
+            r.title || r.id
+          )}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Hai nút nhỏ ✓ giữ / ✗ bỏ ở góc dưới bên phải ô hoặc thẻ do AI điền (Tiền 25/11/2026, dùng chung kế hoạch chủ đề và
+ * giáo án ngày). Không bấm mà Lưu ⇒ giữ hết.
+ */
+export function AiPick({ label, onKeep, onDrop }) {
+  return (
+    <div className="text-right">
+      <Button variant="icon" icon={Check} title="Giữ gợi ý AI" aria-label={`Giữ gợi ý AI – ${label}`} onClick={onKeep} />
+      <Button variant="icon" icon={X} title="Bỏ gợi ý AI" aria-label={`Bỏ gợi ý AI – ${label}`} onClick={onDrop} />
+    </div>
   );
 }

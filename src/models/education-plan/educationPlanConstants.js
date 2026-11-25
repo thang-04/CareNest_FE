@@ -19,17 +19,29 @@ export const setAgeGroups = (groups) => {
 export const ageRangeKey = (group) =>
   group?.ageFromMonths != null && group?.ageToMonths != null ? group.ageFromMonths + ':' + group.ageToMonths : null;
 
+const ageGroupOf = (id) =>
+  id == null
+    ? null
+    : AGE_GROUPS.find((group) => [group.id, group.code, group.databaseId].some((value) => value != null && String(value) === String(id)));
+
 export const sameAgeRange = (left, right) => {
-  if (left === right) return true;
-  const key = ageRangeKey(AGE_GROUPS.find((g) => g.id === left));
-  return key != null && key === ageRangeKey(AGE_GROUPS.find((g) => g.id === right));
+  // Nhóm không có trong danh mục (danh mục chưa nạp) ⇒ so theo ID; nhóm thiếu mốc tháng thì không khớp
+  if (left != null && String(left) === String(right) && !ageGroupOf(left)) return true;
+  const key = ageRangeKey(ageGroupOf(left));
+  return key != null && key === ageRangeKey(ageGroupOf(right));
 };
 
-export const ageRangeOptions = (groups = AGE_GROUPS) => {
+export const ageRangeOptions = (groups = AGE_GROUPS, { includeIncomplete = false } = {}) => {
   const options = new Map();
   for (const group of groups) {
     const key = ageRangeKey(group);
     if (key && !options.has(key)) options.set(key, { ...group, rangeKey: key, name: group.shortName?.trim() || group.name });
+    if (!key && includeIncomplete)
+      options.set(`incomplete:${group.id}`, {
+        ...group,
+        missingRange: true,
+        name: group.shortName?.trim() || group.name,
+      });
   }
   return [...options.values()];
 };
@@ -230,6 +242,7 @@ export const EDU_ERROR_CODE = {
   YEAR_PLAN_CLASS_MISMATCH: 7108,
   YEAR_PLAN_NOT_ISSUED: 7109,
   EDU_CONFIG_FORBIDDEN: 7201,
+  SIGNERS_INVALID: 7202,
   YEAR_PLAN_SIGNER_REQUIRED: 7203,
   CLASS_DOC_APPROVER_REQUIRED: 7204,
   LESSON_ROW_REQUIRED: 7206,

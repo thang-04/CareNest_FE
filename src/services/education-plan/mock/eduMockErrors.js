@@ -59,6 +59,7 @@ const SPECS = {
   RESOURCE_ORDER_STALE: [409, 'Học liệu của mục đã thay đổi, tải lại trang rồi sắp xếp lại'],
   RESOURCE_ITEM_LOCKED: [409, 'Học liệu đang dùng ở giáo án chờ duyệt hoặc chưa qua ngày dạy: {0}. {1}'],
   EDU_CONFIG_FORBIDDEN: [403, 'Chỉ Hiệu trưởng hoặc Phó Hiệu trưởng sửa được cấu hình'],
+  SIGNERS_INVALID: [400, 'Vai trò người soạn hoặc người duyệt không hợp lệ'],
   YEAR_PLAN_SIGNER_REQUIRED: [400, 'Kế hoạch năm học phải có Phó Hiệu trưởng ký'],
   CLASS_DOC_APPROVER_REQUIRED: [400, 'Mỗi loại tài liệu lớp cần ít nhất một người duyệt'],
   LESSON_ROW_REQUIRED: [400, 'Không bỏ được dòng giờ học'],
