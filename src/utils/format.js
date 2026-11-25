@@ -25,6 +25,12 @@ export const normalizeDateInput = (raw) => {
   return out.slice(0, 3).join('/');
 };
 
+/** "5/9/2027" -> "05/09/2027"; text that is not d/m/yyyy is returned unchanged. */
+export const padDisplayDate = (text) => {
+  const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(text || '');
+  return m ? `${m[1].padStart(2, '0')}/${m[2].padStart(2, '0')}/${m[3]}` : text;
+};
+
 /** yyyy-mm-dd or ISO -> dd/mm/yyyy */
 export const formatDate = (value) => {
   if (!value) return '—';
@@ -97,6 +103,13 @@ export const timeAgo = (value) => {
 export const todayInput = () => {
   const d = new Date();
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
+
+/** yyyy-mm-dd cộng / trừ số ngày, tính theo lịch địa phương (không qua toISOString). */
+export const addDays = (iso, days) => {
+  const [y, m, d] = String(iso).split('-').map(Number);
+  const date = new Date(y, m - 1, d + days);
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 };
 
 /** Ngày địa phương yyyy-mm-dd của một thời điểm ISO (toISOString lệch múi giờ). */

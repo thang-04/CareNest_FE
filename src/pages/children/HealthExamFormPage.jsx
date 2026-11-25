@@ -14,6 +14,8 @@ import {
   Stethoscope,
 } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
+import { useChildYearLock } from '@/hooks/children/useChildYearLock';
+import { YearLockedNotice } from '@/components/children/YearLockedNotice';
 import { useToast } from '@/contexts/ToastContext';
 import { useHealthCheckClass, useHealthExam } from '@/hooks/children/useHealthChecks';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
@@ -47,6 +49,8 @@ import { ageLabel } from '@/models/School';
 import { formatDate, formatDateTime } from '@/utils/format';
 import { hasErrors } from '@/utils/children/childrenValidation';
 import { formatMeasurementChange } from '@/utils/children/childrenHelpers';
+import { unshownErrors, withoutUnshownErrors } from '@/utils/children/examDraftErrors';
+import { temperatureFormatError, temperatureForBe } from '@/utils/children/healthExamHints';
 import { validateHealthExam } from '@/utils/children/healthExamValidation';
 import { healthCheckCrumbs } from '@/utils/children/breadcrumbs';
 import '@/styles/modules/children.css';
@@ -124,12 +128,17 @@ export default function HealthExamFormPage() {
   const navigate = useNavigate();
   const { examView: view, setExamView, loading, error, reload } = useHealthExam(campaignId, childId);
   const classIdParam = params.get('classId') || view?.child.classId || '';
-  const { roster } = useHealthCheckClass(view?.canEdit && classIdParam ? campaignId : null, classIdParam);
+  // Năm đã kết thúc hoặc năm sắp diễn ra chưa tới ngày mở chuẩn bị (CFG-YR-01, CHD-12): phiếu chỉ xem dù BE cho nhập
+  const yearLocked = useChildYearLock();
+  const canEdit = !!view?.canEdit && !yearLocked;
+  const { roster } = useHealthCheckClass(canEdit && classIdParam ? campaignId : null, classIdParam);
   const [form, setForm] = useState(null);
   const [step, setStep] = useState(0);
   const [maxReached, setMaxReached] = useState(0);
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
+  // Lần lưu nháp gần nhất lỗi và chưa đổi dữ liệu ⇒ chuyển bước không lưu lại (tránh lặp cùng lỗi).
+  const [saveFailed, setSaveFailed] = useState(false);
   const [editing, setEditing] = useState(false);
   const [saved, setSaved] = useState(false);
   const [reviewStale, setReviewStale] = useState(false);
@@ -141,6 +150,7 @@ export default function HealthExamFormPage() {
   useEffect(() => {
     setForm(null);
     setErrors({});
+    setSaveFailed(false);
     setEditing(false);
     setSaved(false);
     setReviewStale(false);
@@ -163,13 +173,13 @@ export default function HealthExamFormPage() {
   const editRequested = params.get('edit') === '1';
   const [editApplied, setEditApplied] = useState(false);
   useEffect(() => {
-    if (!editRequested || editApplied || !view?.canEdit || view.measurement?.examStatus !== EXAM_STATUS.CONCLUDED) return;
+    if (!editRequested || editApplied || !canEdit || view.measurement?.examStatus !== EXAM_STATUS.CONCLUDED) return;
     setEditApplied(true);
     setEditing(true);
     setPreviewPoints(null);
     setStep(0);
     setMaxReached(4);
-  }, [editRequested, editApplied, view]);
+  }, [editRequested, editApplied, view, canEdit]);
 
   // Giữ lớp và bộ lọc danh sách lớp (keyword, result…) khi qua lại giữa đợt khám và phiếu.
   const listParams = new URLSearchParams(params);
@@ -200,7 +210,7 @@ export default function HealthExamFormPage() {
 
   const m = view.measurement;
   const concluded = m?.examStatus === EXAM_STATUS.CONCLUDED;
-  const editable = view.canEdit && (!concluded || editing);
+  const editable = canEdit && (!concluded || editing);
   // Bước Kết luận khi khám theo lớp có 2 nút lưu kết luận: điện thoại gom Lưu nháp, Lưu kết luận vào nút "…"
   const saveMenu = step === 4 && !concluded && !!roster;
   const back = (
@@ -220,6 +230,7 @@ export default function HealthExamFormPage() {
       <p className="muted mb-16">
         {child.code} · {child.className} · sinh ngày {formatDate(child.dateOfBirth)} ({ageLabel(child.dateOfBirth)}) · {view.campaign.name}
       </p>
+      <YearLockedNotice subject="sức khỏe của trẻ" />
     </>
   );
 
@@ -245,7 +256,7 @@ export default function HealthExamFormPage() {
       </div>
     );
 
-  if (!m && !view.canEdit)
+  if (!m && !canEdit)
     return (
       <div className="page">
         {head}
@@ -277,29 +288,51 @@ export default function HealthExamFormPage() {
   const update = (changes) => {
     setForm((f) => Object.entries(changes).reduce((acc, [p, v]) => setPath(acc, p, v), f));
     setErrors((e) => clearErrors(e, Object.keys(changes)));
+    setSaveFailed(false);
     if (concluded) setReviewStale(true);
   };
   const set = (path, value) => update({ [path]: value });
-  const payloadOf = (extra) => ({
+  // Nhiệt độ gửi BE dạng số ("36,5" ⇒ 36.5); sai dạng giữ chuỗi để BE báo lỗi đúng ô.
+  const withNumericTemperature = (exam) => ({
+    ...exam,
+    vitals: { ...exam.vitals, temperatureC: temperatureForBe(exam.vitals?.temperatureC) },
+  });
+  const payloadOf = ({ exam, ...extra }) => ({
     heightCm: form.heightCm,
     weightKg: form.weightKg,
     headCircumferenceCm: form.headCircumferenceCm,
     reason: form.reason,
+    exam: withNumericTemperature(exam),
     ...extra,
   });
+
+  // Nhiệt độ sai dạng (vd "36,5a") không gửi BE: báo đúng ô ngay, như lỗi lưu.
+  const temperatureBlocked = () => {
+    const message = temperatureFormatError(form.exam.vitals?.temperatureC);
+    if (!message) return false;
+    setErrors((e) => ({ ...e, 'exam.vitals.temperatureC': message }));
+    setSaveFailed(true);
+    return true;
+  };
 
   // Phiếu nháp tự lưu mỗi lần chuyển bước; lỗi lưu không làm mất dữ liệu đang nhập.
   const saveDraft = async (nextStep, { notify = false } = {}) => {
     if (!editable || concluded) return true;
+    if (temperatureBlocked()) return false;
     setBusy(true);
     try {
       const reached = Math.max(maxReached, nextStep);
       const res = await saveHealthExam(campaignId, childId, payloadOf({ exam: { ...form.exam, step: reached }, conclude: false }), user);
       setExamView(res);
       setReviewStale(false);
+      setSaveFailed(false);
+      setErrors(withoutUnshownErrors);
       if (notify) toast.success('Đã lưu nháp phiếu khám.');
       return true;
     } catch (err) {
+      // Lỗi ô hiện tại chỗ; lỗi không gắn ô (vd `date`) hiện ở khung đỏ đầu phiếu.
+      setErrors(err.details && Object.keys(err.details).length ? err.details : { _form: err.message });
+      setSaveFailed(true);
       toast.error(err, 'Chưa lưu được nháp');
       return false;
     } finally {
@@ -308,6 +341,7 @@ export default function HealthExamFormPage() {
   };
 
   const refreshPreview = async () => {
+    if (temperatureBlocked()) return;
     try {
       const res = await previewHealthExamReview(campaignId, childId, payloadOf({ exam: form.exam }), user);
       setPreviewPoints(res.reviewPoints);
@@ -318,7 +352,7 @@ export default function HealthExamFormPage() {
   };
 
   const goTo = async (i) => {
-    await saveDraft(i);
+    if (!saveFailed) await saveDraft(i);
     if (concluded && i === 4) await refreshPreview();
     setStep(i);
     setMaxReached((x) => Math.max(x, i));
@@ -399,7 +433,7 @@ export default function HealthExamFormPage() {
 
   // Màn kết quả ngay sau khi lưu kết luận: hệ thống đã làm gì, việc tiếp theo.
   if (saved && concluded) {
-    const next = view.canEdit ? nextChildId() : null;
+    const next = canEdit ? nextChildId() : null;
     return (
       <div className="page">
         {head}
@@ -502,7 +536,7 @@ export default function HealthExamFormPage() {
         </div>
         <div className="page-actions">
           {back}
-          {concluded && view.canEdit && (
+          {concluded && canEdit && (
             <div className="row gap-2">
               <button
                 className="btn"
@@ -531,6 +565,16 @@ export default function HealthExamFormPage() {
           <div>
             Bạn đang sửa phiếu đã có kết luận. Lưu lại kết luận cần ghi lý do; phiếu tự công bố lại và phụ huynh nhận thông báo kết quả đã
             cập nhật.
+          </div>
+        </div>
+      )}
+      {unshownErrors(errors).length > 0 && (
+        <div className="alert alert--danger mb-16" role="alert">
+          <ShieldAlert size={18} />
+          <div className="tr-cell-stack">
+            {unshownErrors(errors).map((text) => (
+              <span key={text}>{text}</span>
+            ))}
           </div>
         </div>
       )}

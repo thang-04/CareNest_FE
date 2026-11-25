@@ -6,7 +6,7 @@ File sinh tự động, không sửa tay. Sinh lại: `node scripts/check-api-co
 - Path đã chuẩn hóa tham số thành `{x}`. `[module: api|demo]` theo `src/config/integrationModules.js`.
 - Lời gọi có đường dẫn không phải chuỗi literal (vd. ghép từ biến) không nằm trong bảng.
 
-Tổng: 441 lời gọi.
+Tổng: 445 lời gọi.
 
 ```text
 DELETE /accounts/me/photo · src/services/account/api/accountPhotoApi.js [account: api] → src/main/java/com/carenest/controller/account/AccountPhotoController.java#deleteMyPhoto
@@ -17,6 +17,8 @@ DELETE /announcements/cancelled · src/services/announcement/api/announcementApi
 DELETE /announcements/{x} · src/services/announcement/api/announcementApi.js [announcements: api] → src/main/java/com/carenest/controller/announcement/AnnouncementController.java#deleteAnnouncement
 DELETE /campuses/{x} · src/services/school-config/api/schoolConfigApi.js [school-config: api] → src/main/java/com/carenest/controller/organization/CampusController.java#deleteCampus
 DELETE /children/{x}/guardians/{x} · src/services/account/api/guardianApi.js [guardian: api] → src/main/java/com/carenest/controller/child/GuardianController.java#removeGuardian
+DELETE /children/{x}/placement/scheduled · src/services/children/api/childrenApi.js [children: api] → src/main/java/com/carenest/controller/child/ChildEnrollmentController.java#cancelScheduledPlacement
+DELETE /children/{x}/scheduled-leave · src/services/children/api/childrenApi.js [children: api] → src/main/java/com/carenest/controller/child/ChildEnrollmentController.java#cancelScheduledLeave
 DELETE /classes/{x} · src/services/school-config/api/schoolConfigApi.js [school-config: api] → src/main/java/com/carenest/controller/organization/ClassController.java#deleteClass
 DELETE /education-plans/lessons/{x} · src/services/education-plan/api/educationPlanApi.js [education-plan: api] → (BE chưa có — pending)
 DELETE /education-plans/themes/{x} · src/services/education-plan/api/educationPlanApi.js [education-plan: api] → (BE chưa có — pending)
@@ -104,6 +106,7 @@ GET /children/{x}/guardians · src/services/account/api/guardianApi.js [guardian
 GET /children/{x}/guardians/pending · src/services/account/api/guardianApi.js [guardian: api] → src/main/java/com/carenest/controller/child/SelectedParentAccountController.java#pending
 GET /children/{x}/health · src/services/children/api/childrenApi.js [children: api] → src/main/java/com/carenest/controller/health/HealthMeasurementController.java#getHealthRecord
 GET /children/{x}/health/trend-analysis · src/services/children/api/childrenApi.js [children: api] → src/main/java/com/carenest/controller/health/HealthTrendController.java#latestTrend
+GET /children/{x}/leave-options · src/services/children/api/childrenApi.js [children: api] → src/main/java/com/carenest/controller/child/ChildEnrollmentController.java#leaveOptions
 GET /children/{x}/profile · src/services/children/api/childrenApi.js [children: api] → src/main/java/com/carenest/controller/child/ChildPhotoController.java#getProfile
 GET /children/{x}/profile-change-requests/latest · src/services/children/api/childrenApi.js [children: api] → src/main/java/com/carenest/controller/account/ChildProfileChangeRequestController.java#getLatestProfileChanges
 GET /classes · src/services/schoolService.js [school-lookup: demo] → (BE chưa có)
@@ -230,6 +233,7 @@ GET /school-years · src/services/mealPlanApi.js [meal-plan: api] → src/main/j
 GET /school-years · src/services/school-config/api/schoolConfigApi.js [school-config: api] → src/main/java/com/carenest/controller/organization/SchoolYearController.java#getSchoolYears
 GET /school-years/{x} · src/services/school-config/api/schoolConfigApi.js [school-config: api] → src/main/java/com/carenest/controller/organization/SchoolYearController.java#getSchoolYear
 GET /school-years/{x}/cutoff · src/services/school-config/api/schoolConfigApi.js [school-config: api] → src/main/java/com/carenest/controller/organization/AttendanceCutoffController.java#getCutoff
+GET /school-years/{x}/holidays · src/services/children/api/childrenApi.js [children: api] → src/main/java/com/carenest/controller/organization/SchoolYearController.java#getHolidays
 GET /school-years/{x}/holidays · src/services/mealPlanApi.js [meal-plan: api] → src/main/java/com/carenest/controller/organization/SchoolYearController.java#getHolidays
 GET /school-years/{x}/holidays · src/services/school-config/api/schoolConfigApi.js [school-config: api] → src/main/java/com/carenest/controller/organization/SchoolYearController.java#getHolidays
 GET /school-years/{x}/placements · src/services/school-config/api/schoolConfigApi.js [school-config: api] → src/main/java/com/carenest/controller/child/YearTransitionController.java#getPlacements

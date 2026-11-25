@@ -1,6 +1,6 @@
 import { forwardRef, useEffect, useRef, useState } from 'react';
 import { CalendarDays } from '@/components/ui/icons';
-import { formatDate, isIsoDate, normalizeDateInput, parseDisplayDate } from '@/utils/format';
+import { formatDate, isIsoDate, normalizeDateInput, padDisplayDate, parseDisplayDate } from '@/utils/format';
 
 const toText = (value) => (isIsoDate(value) ? formatDate(value) : value || '');
 
@@ -11,7 +11,7 @@ const toText = (value) => (isIsoDate(value) ? formatDate(value) : value || '');
  *
  * <DateInput value={form.startDate} onChange={(v) => set({ startDate: v })} />
  */
-export const DateInput = forwardRef(function DateInput({ value, onChange, min, max, className = '', disabled, ...props }, ref) {
+export const DateInput = forwardRef(function DateInput({ value, onChange, onBlur, min, max, className = '', disabled, ...props }, ref) {
   const [text, setText] = useState(() => toText(value));
   const pickerRef = useRef(null);
 
@@ -30,6 +30,13 @@ export const DateInput = forwardRef(function DateInput({ value, onChange, min, m
     }
     setText(next);
     onChange?.(iso || next);
+  };
+
+  // Rời ô thì hiển thị bản đã đệm số 0 nếu là ngày thật; vẫn gọi onBlur của người dùng
+  const handleBlur = (e) => {
+    const padded = padDisplayDate(text);
+    if (padded !== text && parseDisplayDate(padded)) setText(padded);
+    onBlur?.(e);
   };
 
   const openPicker = () => {
@@ -54,6 +61,7 @@ export const DateInput = forwardRef(function DateInput({ value, onChange, min, m
         className={`input ${className}`}
         value={text}
         onChange={handleType}
+        onBlur={handleBlur}
       />
       <input
         ref={pickerRef}

@@ -68,20 +68,20 @@ const { default: HealthTrendPage, context } = await loadView(
 export const context={view:'chart',measurement:${JSON.stringify(measurement)}};
 const {useEffect,useMemo,useRef}=React, useState=(v)=>React.useState(v==='chart' ? context.view : v);
 const child={id:'child-test',fullName:'Trẻ minh họa',code:'TEST',status:'ACTIVE',className:'Lớp thử'};
-const useAuth=()=>({user:{}}), useSchoolYear=()=>({schoolYear:'2026 – 2027'});
+const useAuth=()=>({user:{}}), useSchoolYear=()=>({schoolYear:'2026 – 2027'}), useChildYearLock=()=>false;
 const useSearchParams=()=>[new URLSearchParams('childId=child-test'),()=>{}];
 const useMasterData=()=>({campuses:[]}), useChildRecords=()=>({children:[child],loading:false});
 const useHealthRecord=()=>({record:{child,measurements:[context.measurement]},loading:false});
 const CHILD_STATUS={ACTIVE:'ACTIVE'}, isPrincipal=()=>false, isVicePrincipal=()=>false, canReviewHealthTrend=()=>false;
 const sortByName=(v)=>v, suggestAgeGroupId=()=>'', growthAxesFor=()=>({}), ageGroupById=()=>null;
-const TREND_PERIODS=[{key:'ALL',label:'Toàn bộ'}], withinTrendPeriod=(items)=>items;
+const TREND_PERIODS=[{key:'ALL',label:'Toàn bộ'}], withinTrendPeriod=(items)=>items, oneMeasurementPerDay=(items)=>items;
 const useClassOptions=()=>({year:null,ageGroups:[]}), ageGroupIn=()=>null;
 const NUTRITION_STATUS={NORMAL:'NORMAL'}, NUTRITION_STATUS_OPTIONS=[], labelOf=()=>'';
 const formatDate=(v)=>v, formatNumber=(v)=>v ?? '—', childrenCrumbs=()=>[];
 const GrowthChart=({title,points})=><figure><figcaption>{title}</figcaption><span>{points.map(p=>p.value).join(',')}</span></figure>;
 const Link=({to,children,...props})=><a href={to} {...props}>{children}</a>;
 const Breadcrumb=()=>null, TrendChildList=()=>null, AiTrendPanel=()=>null, HealthWarningCell=()=>null, ChildAccessState=()=>null, ChildAvatar=()=>null;
-const EmptyState=()=>null, LoadingState=()=>null;
+const EmptyState=()=>null, LoadingState=()=>null, YearLockedNotice=()=>null;
 const Tabs=({items})=>React.createElement('div',{role:'tablist'},items.map((t)=>React.createElement('button',{key:t.key,role:'tab'},t.label)));
 const LineChart=()=>null, HeartPulse=()=>null, ArrowLeft=()=>null, ChevronLeft=()=>null, ChevronRight=()=>null;
 `,
