@@ -1,7 +1,9 @@
 import { ROLES } from '@/models/User';
 import { formatDate } from '@/utils/format';
 import { getUsers } from '@/services/masterDataService';
-import { getAllClassDocSummaries, getClassDocContext } from '@/services/education-plan/educationPlanService';
+import { getAllClassDocSummaries, getClassDocContext, getReviewQueue } from '@/services/education-plan/educationPlanService';
+import { planRoute } from '@/models/education-plan/planLevel.mjs';
+import { submitEntryOf } from '@/models/education-plan/reviewHistory.mjs';
 import { getClassAssessmentOverview, getRewardLists } from '@/services/assessment/assessmentService';
 import { getMealCounts } from '@/services/attendance/attendanceService';
 import { getPublishedMenu } from '@/services/kitchen/kitchenService';
@@ -22,6 +24,18 @@ import { sortKey } from '@/utils/dashboard/dashboardFormat';
 
 /** Each source: (user, ctx) → Promise<PendingApprovalItem[]>. ctx = { users, schoolYear, date } */
 const SOURCES = {
+  // Kế hoạch năm/tổ: BE trả đúng bản chờ người gọi duyệt (EDU-05, EDU-54); không lọc năm để thấy mọi bản đang chờ
+  [APPROVAL_TYPE.YEAR_PLAN]: async (user) =>
+    (await getReviewQueue(user)).map((g) => ({
+      id: g.id,
+      code: g.code,
+      title: g.title,
+      by: g.sentBy?.name || submitEntryOf(g)?.by || '—',
+      at: g.sentAt ?? g.sentBy?.at ?? null,
+      campusId: null,
+      statusLabel: 'Chờ duyệt',
+      to: `${planRoute(g)}/${g.id}`,
+    })),
   // Hồ sơ lớp chờ đúng lượt người xem (EDU-05, EDU-18): BE lọc theo chuỗi duyệt và phạm vi, FE chỉ hiển thị
   [APPROVAL_TYPE.LESSON_REVIEW]: (user, { schoolYear }) => classDocRows(user, schoolYear, ['semester', 'dossier']),
   [APPROVAL_TYPE.THEME_PLAN]: (user, { schoolYear }) => classDocRows(user, schoolYear, ['semester']),
