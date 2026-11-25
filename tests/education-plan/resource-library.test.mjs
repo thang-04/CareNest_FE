@@ -11,7 +11,6 @@ globalThis.localStorage = {
 };
 
 const lr = await import('../../src/models/education-plan/learningResources.mjs');
-const { writeDb } = await import('../../src/mocks/mockDatabase.js');
 
 const teacher = { id: 'u-t1', role: 'TEACHER' };
 const other = { id: 'u-t2', role: 'TEACHER' };

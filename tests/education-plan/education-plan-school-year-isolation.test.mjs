@@ -12,8 +12,6 @@ globalThis.localStorage = { getItem: (key) => storage.get(key) ?? null, setItem:
 
 const { axiosClient } = await import('../../src/services/http/axiosClient.js');
 const { educationPlanApi } = await import('../../src/services/education-plan/api/educationPlanApi.js');
-const { EDU_SEED_VERSION } = await import('../../src/mocks/educationPlanSeed.js');
-const { writeDb } = await import('../../src/mocks/mockDatabase.js');
 
 const YEARS = [
   { id: 99, label: '2097 - 2098', name: '2097-2098', startDate: '2097-09-01', status: 'CLOSED' },
