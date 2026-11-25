@@ -287,7 +287,7 @@ export default function EduConfigPage() {
                         />
                       </td>
                       {editing && (
-                        <td className="center ga-cell-editable">
+                        <td className="cell--actions ga-cell-editable">
                           <div className="ga-goal-table__pad">
                             <button
                               type="button"
@@ -364,7 +364,7 @@ export default function EduConfigPage() {
                     <th className={editing ? 'ga-th-editable' : ''}>Tên hoạt động{editing && <span className="req">*</span>}</th>
                     <th className={`center ${editing ? 'ga-th-editable' : ''}`}>Cho gộp cả tuần</th>
                     <th className={`center ${editing ? 'ga-th-editable' : ''}`}>Mặc định cả tuần</th>
-                    {editing && <th className="center ga-th-editable">Thao tác</th>}
+                    {editing && <th className="cell--actions ga-th-editable">Thao tác</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -418,7 +418,7 @@ export default function EduConfigPage() {
                       </td>
                       {editing && (
                         // Một ô Thao tác: kéo xếp + xóa (Tiền 25/11/2026)
-                        <td className="center ga-cell-editable">
+                        <td className="cell--actions ga-cell-editable">
                           <div className="ga-goal-table__pad ga-sort-cell">
                             <SortHandle label={r.label} />
                             <button
