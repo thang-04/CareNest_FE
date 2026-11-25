@@ -1566,6 +1566,7 @@
 
 .td-week__dishes {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-1);
   margin: 0;
   padding: 0;
@@ -2979,6 +2980,7 @@
 /* Ba nút Thay thế · Thông tin · Xóa cùng hàng với tên món (như PMS, user chốt 09/11/2026); tên dài cắt "...", rê chuột xem đủ */
 .td-week__dishes li.td-dish {
   flex-wrap: nowrap;
+  min-width: 0;
 }
 .td-week__dishes li.td-dish > .td-grow {
   overflow: hidden;

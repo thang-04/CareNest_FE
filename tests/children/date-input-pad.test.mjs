@@ -19,7 +19,8 @@ test('padDisplayDate giữ nguyên chuỗi đã đủ hoặc chưa đủ', () =>
 
 test('DateInput nhận ngày 1 chữ số khi gõ và đệm số 0 khi rời ô, vẫn gọi onBlur của người dùng', () => {
   const src = readFileSync('src/components/form/DateInput.jsx', 'utf8');
-  assert.match(src, /onChange\?\.\(iso \|\| next\)/);
+  // Giá trị gửi form (ngày thật hoặc đoạn gõ dở) do typedDateOutcome quyết định, test ở tests/hardening/date-input-range.test.mjs
+  assert.match(src, /onChange\?\.\(emit\)/);
   assert.match(src, /onBlur/);
   assert.match(src, /padDisplayDate/);
 });

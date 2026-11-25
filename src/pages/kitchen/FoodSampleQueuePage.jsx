@@ -96,8 +96,10 @@ export default function FoodSampleQueuePage() {
   const days = useMemo(() => {
     const byDate = new Map();
     rows.forEach((sample) => {
-      if (!byDate.has(sample.date)) byDate.set(sample.date, { date: sample.date, samples: [] });
-      byDate.get(sample.date).samples.push(sample);
+      if (!byDate.has(sample.date)) byDate.set(sample.date, { date: sample.date, samples: [], pending: 0 });
+      const day = byDate.get(sample.date);
+      day.samples.push(sample);
+      if (isPendingApproval(sample)) day.pending += 1;
     });
     return [...byDate.values()];
   }, [rows]);
@@ -156,7 +158,8 @@ export default function FoodSampleQueuePage() {
               </tr>
             </thead>
             {days.map((day, i) => {
-              const open = dayToggle.isOpen(day.date, i);
+              // Ngày còn bản ghi chờ duyệt tự mở và có nhãn cảnh báo
+              const open = dayToggle.isOpen(day.date, i, day.pending > 0);
               return (
                 <tbody key={day.date}>
                   <DayBandRow
@@ -164,6 +167,7 @@ export default function FoodSampleQueuePage() {
                     label={formatDate(day.date)}
                     count={day.samples.length}
                     unit="bản ghi"
+                    warning={day.pending > 0 ? `${day.pending} chờ duyệt` : undefined}
                     open={open}
                     onToggle={() => dayToggle.toggle(day.date)}
                   />
