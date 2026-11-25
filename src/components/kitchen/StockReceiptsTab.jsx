@@ -44,7 +44,7 @@ export function StockReceiptsTab({ campusId }) {
           <thead>
             <tr>
               <th className="center">Ngày nhập</th>
-              <th>Nhà cung cấp</th>
+              <th className="center">Nhà cung cấp</th>
               <th className="num">Số mặt hàng</th>
               <th className="money">Tổng tiền</th>
               <th className="center">Trạng thái</th>
@@ -58,7 +58,7 @@ export function StockReceiptsTab({ campusId }) {
                 {...clickableRowProps(() => navigate(`/kitchen/stock-receipts/${r.id}`, { state: origin }))}
               >
                 <td className="fw-600 text-primary center">{formatDate(r.receivedDate)}</td>
-                <td>{r.supplierName}</td>
+                <td className="center">{r.supplierName}</td>
                 <td className="num">{r.lines.length}</td>
                 <td className="money nowrap">{formatMoney(r.totalValue)}</td>
                 <td className="center">
