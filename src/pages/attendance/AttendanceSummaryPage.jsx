@@ -138,7 +138,6 @@ export default function AttendanceSummaryPage() {
       'Nghỉ chiều',
       ...mealHead,
       'Trẻ có ăn',
-      'Trong đó ăn suất thay thế',
     ];
     const rows = summary.days.map((d) => [
       formatDate(d.date),
@@ -150,7 +149,6 @@ export default function AttendanceSummaryPage() {
       d.afternoonOff ?? 0,
       ...mealCols.map((s) => mealCount(d.meals, s)),
       d.mealTotal,
-      d.substitute,
     ]);
     const detailHead = multi
       ? ['Lớp', 'Điểm trường', 'Sĩ số', 'Có mặt', 'Vắng có phép', 'Vắng không phép', 'Lượt trẻ ăn']

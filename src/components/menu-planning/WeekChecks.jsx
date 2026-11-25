@@ -5,7 +5,7 @@ import { compareToNorm, mealsAllergens, mealsTotals, repeatedMainDishes, sameAll
 import { weekBudgetCheck } from '@/utils/menu-planning/menuChecks';
 import { formatDate } from '@/utils/format';
 import { normScopeMeals } from '@/utils/menu-planning/nutritionSetup';
-import { REPEAT_WINDOW_DAYS, RECORD_STATUS } from '@/models/menu-planning/menuPlanningConstants';
+import { REPEAT_WINDOW_DAYS } from '@/models/menu-planning/menuPlanningConstants';
 
 const Icon = ({ level }) =>
   level === 'ok' ? (
@@ -49,10 +49,7 @@ export function WeekChecks({ wm, catalog, previousDays = [], allergyRows = [] })
     mealsAllergens(d.meals, catalog.dishById, catalog.foodById).forEach((row) => {
       const ctx = allergyRows.find((r) => sameAllergen(r.allergen, row.allergen));
       if (!ctx) return;
-      const covered = catalog.allergyMenus.some(
-        (a) => a.baseMenuId === d.menuId && a.status === RECORD_STATUS.ACTIVE && a.restrictions.some((r) => sameAllergen(r, row.allergen)),
-      );
-      allergyIssues.push({ date: d.date, allergen: row.allergen, dishes: row.dishes.map((x) => x.name), ctx, covered });
+      allergyIssues.push({ date: d.date, allergen: row.allergen, dishes: row.dishes.map((x) => x.name), ctx });
     }),
   );
 
@@ -87,13 +84,13 @@ export function WeekChecks({ wm, catalog, previousDays = [], allergyRows = [] })
         </div>
       </li>
       <li>
-        <Icon level={allergyIssues.some((x) => !x.covered) ? 'bad' : allergyIssues.length ? 'warn' : 'ok'} />
+        <Icon level={allergyIssues.length ? 'warn' : 'ok'} />
         <div>
           {allergyIssues.length === 0 ? (
             'Không có món chứa thành phần mà trẻ trong nhóm tuổi bị dị ứng.'
           ) : (
             <>
-              Phát hiện xung đột chế độ ăn. Hãy xem các trẻ bị ảnh hưởng và thực đơn thay thế:
+              Phát hiện xung đột chế độ ăn. Hãy xem các trẻ bị ảnh hưởng và trao đổi với phụ huynh:
               {/* Gom theo chất gây dị ứng: số trẻ, lớp hiện một lần; mỗi ngày một dòng */}
               {[...new Set(allergyIssues.map((x) => x.allergen))].map((allergen) => {
                 const rows = allergyIssues.filter((x) => x.allergen === allergen);
@@ -113,9 +110,6 @@ export function WeekChecks({ wm, catalog, previousDays = [], allergyRows = [] })
                         <li key={x.date}>
                           <span className="td-conflict__date">{formatDate(x.date)}</span>
                           <span className="td-conflict__dishes">{x.dishes.join(', ')}</span>
-                          <span className={`chip ${x.covered ? 'chip--green' : 'chip--red'}`}>
-                            {x.covered ? 'Đã có suất thay thế' : 'Chưa có suất thay thế'}
-                          </span>
                         </li>
                       ))}
                     </ul>

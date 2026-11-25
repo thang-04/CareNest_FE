@@ -463,8 +463,8 @@ export function buildClassDay({ sheet, pickup, daily }) {
     attention.push({
       key: 'allergy',
       tone: 'orange',
-      title: `${allergic} trẻ dị ứng thực phẩm cần món thay thế`,
-      meta: 'Kiểm tra suất thay thế khi báo ăn',
+      title: `${allergic} trẻ dị ứng thực phẩm cần lưu ý khi báo ăn`,
+      meta: 'Trao đổi với phụ huynh về món ăn',
       to: `/attendance?classId=${classId}`,
       badge: null,
     });

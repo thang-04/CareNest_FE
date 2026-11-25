@@ -3,7 +3,7 @@ import { Lock } from '@/components/ui/icons';
 import { classMealRows } from '@/utils/attendance/classMealCount';
 
 /**
- * Suất ăn lớp hôm nay (giáo viên): mỗi bữa số suất thường, suất thay thế và trạng thái xác nhận của sổ điểm trường. Số do BE
+ * Suất ăn lớp hôm nay (giáo viên): mỗi bữa số suất và trạng thái xác nhận của sổ điểm trường. Số do BE
  * trả (`GET /meal-counts/class`), không tên trẻ.
  */
 export function ClassMealCard({ data, loading, error, onRetry }) {
@@ -26,13 +26,7 @@ export function ClassMealCard({ data, loading, error, onRetry }) {
           <li key={row.session} className="dd-meal-card__item">
             <span className="dd-meal-card__session">{row.title}:</span>
             <span className="dd-meal-card__count">
-              <b>{row.normal}</b> suất thường
-              {row.substitute > 0 && (
-                <>
-                  {' · '}
-                  <b>{row.substitute}</b> suất thay thế
-                </>
-              )}
+              <b>{row.normal}</b> suất
             </span>
             <span className="dd-meal-card__status">
               {row.locked && <Lock size={14} aria-hidden="true" />}
