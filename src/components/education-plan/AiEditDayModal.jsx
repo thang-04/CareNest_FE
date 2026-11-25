@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Check, Sparkles } from '@/components/ui/icons';
+import { AiIcon, Check } from '@/components/ui/icons';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { AiDraftTag } from '@/components/ui/AiDraftTag';
@@ -68,7 +68,7 @@ export function AiEditDayModal({ open, docKey, unsaved, onApply, onClose }) {
               Áp dụng {picked.size} ô
             </Button>
           ) : (
-            <Button variant="primary" icon={Sparkles} loading={busy} disabled={unsaved} onClick={ask}>
+            <Button variant="primary" icon={AiIcon} loading={busy} disabled={unsaved} onClick={ask}>
               Gợi ý thay đổi
             </Button>
           )}

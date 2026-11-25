@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
-import { Copy, Download, Plus, Sparkles, Trash2, Wand2 } from '@/components/ui/icons';
+import { AiIcon, Copy, Download, Plus, Trash2, Wand2 } from '@/components/ui/icons';
 import { Button } from '@/components/ui/Button';
 import { SortHandle, SortableList, SortableRow } from '@/components/ui/Sortable';
 import { moveItem } from '@/hooks/useSortableList';
@@ -1053,7 +1053,7 @@ export function DayTab({
   const aiButtons = (
     <>
       {(hoc.subject || hoc.topic) && (
-        <Button variant="outline-primary" size="sm" icon={Sparkles} loading={aiBusy} onClick={aiSteps}>
+        <Button variant="outline-primary" size="sm" icon={AiIcon} loading={aiBusy} onClick={aiSteps}>
           AI gợi ý tiến trình giờ học
         </Button>
       )}

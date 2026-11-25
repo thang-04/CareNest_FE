@@ -168,6 +168,8 @@ export {
   IconLayoutSidebarLeftExpand as SidebarExpand,
   IconLogout as SignOut,
   IconSoup as Soup,
+  // Nút/chức năng AI của kế hoạch giáo dục: icon có chữ "AI" cho dễ hiểu (Tiền 25/11/2026)
+  IconAi as AiIcon,
   IconSparkles as Sparkle,
   IconSparkles as Sparkles,
   IconRubberStamp as Stamp,

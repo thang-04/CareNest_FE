@@ -5,7 +5,7 @@ import { domainLabel } from '@/models/education-plan/educationPlanConstants';
 import { domainRoman, numberGoals } from '@/models/education-plan/goalTable';
 import { cardText, contentLinesOf, newCard, normalizeTheme, slotLabel, themeGoalBlocks } from '@/models/education-plan/classPlan';
 import { StatusBadge } from '@/components/ui/StatusBadge';
-import { Adjustments, Check, Plus, RotateCcw, Sparkles, X } from '@/components/ui/icons';
+import { Adjustments, AiIcon, Check, Plus, RotateCcw, X } from '@/components/ui/icons';
 import { ActionsMenu, RagRefLine } from '@/components/education-plan/reviewUi';
 import { Modal } from '@/components/ui/Modal';
 import { AiDraftTag } from '@/components/ui/AiDraftTag';
@@ -148,11 +148,24 @@ export function ThemePlanBody({
           {/* Gọn một dòng: một nút "Thao tác" trong card gom lấy/gợi ý hoạt động và mục tiêu của chủ đề (Tiền 18/11/2026) */}
           {editable && (
             <div className="ga-theme-goal-head mb-8 row row--wrap row--middle gap-2">
+              <ActionsMenu
+                items={[
+                  { label: 'Tùy chọn mục tiêu', icon: Adjustments, onClick: () => setShowGoalModal(true) },
+                  { label: 'Khôi phục mặc định', icon: RotateCcw, onClick: resetToDefault, disabled: !hasCustomTicks },
+                ]}
+              />
+              {hasCustomTicks && (
+                <span className="chip chip--orange text-sm" title="Mục tiêu đã được tùy chỉnh khác với Kế hoạch năm">
+                  Đã tùy chỉnh mục tiêu
+                </span>
+              )}
+              {/* Nút AI bên phải hàng nút (Tiền 25/11/2026) */}
+              <span className="spacer" />
               {suggestActivities && (
                 <Button
                   variant="outline-primary"
                   size="sm"
-                  icon={Sparkles}
+                  icon={AiIcon}
                   loading={ai.busy && !ai.goalId}
                   disabled={ai.busy || !goals.some((g) => !cardsOf(g).length)}
                   title={goals.length && !goals.some((g) => !cardsOf(g).length) ? 'Mọi MT đã có hoạt động' : undefined}
@@ -160,17 +173,6 @@ export function ThemePlanBody({
                 >
                   Gợi ý AI cho MT chưa có hoạt động
                 </Button>
-              )}
-              <ActionsMenu
-                items={[
-                  { label: 'Tùy chọn mục tiêu cho chủ đề này', icon: Adjustments, onClick: () => setShowGoalModal(true) },
-                  { label: 'Khôi phục mục tiêu mặc định của năm', icon: RotateCcw, onClick: resetToDefault, disabled: !hasCustomTicks },
-                ]}
-              />
-              {hasCustomTicks && (
-                <span className="chip chip--orange text-sm" title="Mục tiêu đã được tùy chỉnh khác với Kế hoạch năm">
-                  Đã tùy chỉnh mục tiêu
-                </span>
               )}
             </div>
           )}
@@ -348,7 +350,7 @@ export function ThemePlanBody({
                                   disabled={ai.busy}
                                   onClick={() => askAi(g.id)}
                                 >
-                                  <Sparkles size={16} aria-hidden />
+                                  <AiIcon size={16} aria-hidden />
                                 </Button>
                               )}
                             </div>

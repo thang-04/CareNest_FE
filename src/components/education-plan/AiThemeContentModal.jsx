@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Check, RotateCcw, Sparkles } from '@/components/ui/icons';
+import { AiIcon, Check, RotateCcw } from '@/components/ui/icons';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { AiDraftTag } from '@/components/ui/AiDraftTag';
@@ -110,7 +110,7 @@ export function AiThemeContentModal({ open, plan, ensureSaved, onApply, onClose 
           ) : (
             <Button
               variant="primary"
-              icon={Sparkles}
+              icon={AiIcon}
               loading={busy}
               disabled={!themes.length}
               onClick={ask}
