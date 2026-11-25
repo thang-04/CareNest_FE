@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Check, ListChecks, Send, Undo2 } from '@/components/ui/icons';
+import { Check, ListChecks, Send, Undo2, X } from '@/components/ui/icons';
 import { RowMenu } from '@/components/ui/RowMenu';
 import { Button } from '@/components/ui/Button';
 import { Card, Field, History, Modal, Notice, fmtDateTime } from '@/components/education-plan/eduUi';
@@ -282,6 +282,23 @@ export function RagRefLine({ refs = [] }) {
           )}
         </span>
       ))}
+    </div>
+  );
+}
+
+/**
+ * Hai nút nhỏ ✓ giữ / ✗ bỏ ở góc dưới bên phải ô hoặc thẻ do AI điền (Tiền 25/11/2026, dùng chung kế hoạch chủ đề và
+ * giáo án ngày). Không bấm mà Lưu ⇒ giữ hết.
+ */
+export function AiPick({ label, onKeep, onDrop }) {
+  return (
+    <div className="text-right">
+      <button type="button" className="icon-btn" title="Giữ gợi ý AI" aria-label={`Giữ gợi ý AI – ${label}`} onClick={onKeep}>
+        <Check size={16} aria-hidden />
+      </button>
+      <button type="button" className="icon-btn" title="Bỏ gợi ý AI" aria-label={`Bỏ gợi ý AI – ${label}`} onClick={onDrop}>
+        <X size={16} aria-hidden />
+      </button>
     </div>
   );
 }

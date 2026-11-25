@@ -46,7 +46,7 @@ import {
   weekRows,
 } from '@/models/education-plan/classPlan';
 import { mtList } from '@/models/education-plan/goalTable';
-import { ActionsMenu, RagRefLine } from '@/components/education-plan/reviewUi';
+import { ActionsMenu, AiPick, RagRefLine } from '@/components/education-plan/reviewUi';
 import { SelectField } from '@/components';
 import { AiEditDayModal } from '@/components/education-plan/AiEditDayModal';
 import { applyCellChanges } from '@/models/education-plan/aiEdit.mjs';
@@ -806,7 +806,7 @@ const STEP_FIELDS = [
  * Các dòng Tiến hành của một mục trong bảng chung của phần I: dòng có tên tùy chọn, xóa/đổi thứ tự (FR-003, FR-004).
  * Thêm dòng như bảng kế hoạch năm học: gõ vào dòng trống luôn có ở cuối, hoặc Enter ở ô tên bước (Tiền 11/11/2026).
  */
-function StepRows({ rows, editable, label, cols, onChange, onAskDelete, onRemovePart }) {
+function StepRows({ rows, editable, label, cols, onChange, onAskDelete, onRemovePart, aiCells = {}, onAiKeep, onAiDrop }) {
   // Dòng trống cuối giữ sẵn id: gõ vào thì thành dòng thật cùng id nên ô đang gõ không mất con trỏ
   const trailId = useRef(null);
   if (!trailId.current || rows.some((r) => r.id === trailId.current)) trailId.current = emptyRow().id;
@@ -886,16 +886,21 @@ function StepRows({ rows, editable, label, cols, onChange, onAskDelete, onRemove
                   onKeyDown={r.trail ? undefined : titleKeys(i)}
                 />
               </td>
-              {STEP_FIELDS.map(([f, name]) => (
-                <td key={f} className={editable ? 'ga-cell-editable' : ''}>
-                  <LimitedCell
-                    editable={editable}
-                    value={r.trail ? '' : r[f]}
-                    label={`${label} – ${name} ${r.trail ? 'dòng mới' : `dòng ${i + 1}`}`}
-                    onChange={(v) => (r.trail ? addTrailing(f, v) : set(i, f, v))}
-                  />
-                </td>
-              ))}
+              {STEP_FIELDS.map(([f, name]) => {
+                const aiKey = `${r.id}:${f}`;
+                const ai = editable && !r.trail && aiKey in aiCells;
+                return (
+                  <td key={f} className={ai ? 'ga-cell--ai' : editable ? 'ga-cell-editable' : ''}>
+                    <LimitedCell
+                      editable={editable}
+                      value={r.trail ? '' : r[f]}
+                      label={`${label} – ${name} ${r.trail ? 'dòng mới' : `dòng ${i + 1}`}`}
+                      onChange={(v) => (r.trail ? addTrailing(f, v) : set(i, f, v))}
+                    />
+                    {ai && <AiPick label={`${name} dòng ${i + 1}`} onKeep={() => onAiKeep(aiKey)} onDrop={() => onAiDrop(aiKey)} />}
+                  </td>
+                );
+              })}
               {editable && r.trail && <td className="cell--actions" />}
               {editable && !r.trail && (
                 <td className="cell--actions">
@@ -939,6 +944,14 @@ export function DayTab({
   const [aiBusy, setAiBusy] = useState(false);
   // Mẩu RAG AI dùng khi gợi ý tiến trình (BE EDU-113); chỉ để cô xem, không lưu vào giáo án
   const [aiRefs, setAiRefs] = useState([]);
+  // Ô tiến trình AI điền đang chờ ✓/✗ (Tiền 25/11/2026): chỉ ở màn hình; Lưu mà không bấm ⇒ giữ hết
+  const [aiCells, setAiCells] = useState({});
+  useEffect(() => {
+    if (!unsaved) {
+      setAiCells({});
+      setAiRefs([]);
+    }
+  }, [unsaved]);
   const [aiEditOpen, setAiEditOpen] = useState(false);
   const [aiEditNote, setAiEditNote] = useState('');
   const [askDelete, setAskDelete] = useState(null);
@@ -1012,25 +1025,25 @@ export function DayTab({
             }
           });
         });
-        if (filled.length) x.days[index].aiSteps = filled;
+        // Đánh dấu chờ ✓/✗ (gộp, chạy lại vẫn cùng kết quả)
+        setAiCells((cells) => ({ ...cells, ...Object.fromEntries(filled.map(({ id, f, v }) => [`${id}:${f}`, v])) }));
         return x;
       });
     } finally {
       setAiBusy(false);
     }
   };
-  const settleAi = (keep) =>
+  const keepAiCell = (key) => setAiCells(({ [key]: _, ...rest }) => rest);
+  // Bỏ: chỉ xóa ô cô chưa sửa lại sau khi AI điền
+  const dropAiCell = (key) => {
+    const [id, f] = key.split(':');
     update((x) => {
-      const day = x.days[index];
-      // Bỏ: chỉ xóa ô cô chưa sửa lại sau khi AI điền
-      if (!keep)
-        (day.aiSteps || []).forEach(({ id, f, v }) => {
-          const r = day.sections.hoc.rows.find((y) => y.id === id);
-          if (r && r[f] === v) r[f] = '';
-        });
-      delete day.aiSteps;
+      const r = x.days[index].sections.hoc.rows.find((y) => y.id === id);
+      if (r && r[f] === aiCells[key]) r[f] = '';
       return x;
     });
+    keepAiCell(key);
+  };
   const missing = DAY_SECTIONS.filter((s) => emptySections.includes(s.key));
   // Lấy / dùng lại / AI gợi ý của ngày ở card "I. Kế hoạch giáo dục ngày" (Tiền 18/11/2026); ≤2 mục hiện thẳng nút
   const toolsMenu = (
@@ -1069,21 +1082,11 @@ export function DayTab({
       <div className="section-title center">{longDay(d.date, index)}</div>
       {/* BE:EDU-41: ngày trùng đợt nghỉ không bắt buộc soạn */}
       {offLabel && <p className="text-sm text-warning center">Ngày nghỉ: {offLabel}</p>}
-      {d.aiSteps?.length > 0 && (
+      {Object.keys(aiCells).length > 0 && (
         <div className="row row--wrap gap-2">
           <AiDraftTag />
-          <span className="text-sm">Tiến trình giờ học do AI gợi ý, cô xem và sửa lại.</span>
+          <span className="text-sm">Tiến trình giờ học do AI gợi ý: bấm ✓ giữ, ✗ bỏ ở từng ô; Lưu là giữ hết.</span>
           {aiRefs.length > 0 && <RagRefLine refs={aiRefs} />}
-          {editable && (
-            <>
-              <button type="button" className="btn btn--primary btn--sm" onClick={() => settleAi(true)}>
-                Giữ
-              </button>
-              <button type="button" className="btn btn--sm" onClick={() => settleAi(false)}>
-                Bỏ
-              </button>
-            </>
-          )}
         </div>
       )}
       {missing.length > 0 && (
@@ -1228,6 +1231,9 @@ export function DayTab({
                         onChange={(rows) => setSec(s.key, 'rows', rows)}
                         onAskDelete={(name, run) => setAskDelete({ name, run })}
                         onRemovePart={() => dropPart(s, 'rows', 'c) Tiến hành')}
+                        aiCells={s.key === 'hoc' ? aiCells : {}}
+                        onAiKeep={keepAiCell}
+                        onAiDrop={dropAiCell}
                       />
                     )}
                     {editable && off.length > 0 && (

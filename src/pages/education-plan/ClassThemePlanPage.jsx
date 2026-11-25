@@ -383,6 +383,7 @@ function ThemePlanInner() {
           flagOf={(id) => version.unresolved.find((f) => f.goalId === String(id)) || null}
           added={draft.sourceDocKey ? addedGoalIds(version.changes) : null}
           suggestActivities={editable ? suggestActivityCards : null}
+          unsaved={saver.unsaved}
           notify={toast}
           usedCellsOf={(cardId) =>
             weekPlans
