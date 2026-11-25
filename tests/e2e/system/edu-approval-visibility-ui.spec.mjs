@@ -87,11 +87,12 @@ test('ST-002-02 GV thứ hai không có nút sửa ở Dự kiến chủ đề -
   await expect(page.locator('.ga-page')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Chỉnh sửa' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Lưu', exact: true })).toHaveCount(0);
-  // EDU-73 (Tiền 24/11/2026): GV không chủ nhiệm không nhận lịch nhánh đang soạn; chỉ thấy theo gói học kỳ đã ban hành
+  // EDU-111 (5) (Tiền 25/11/2026, thay phần lịch nhánh của EDU-73): người xem được lớp đọc lịch nhánh hiện tại, chỉ xem
   const docs = await api(U.gv2, 'GET', '/education-plans/class-docs');
-  expect(docs.data.branchPlans.some((b) => String(b.classId) === String(homeroomClass.id))).toBe(false);
-  const published = docs.data.semesterPackages.filter((p) => String(p.classId) === String(homeroomClass.id) && p.status === 'APPROVED');
-  if (!published.length) await expect(page.getByText('Chưa có lịch chủ đề nhánh đã ban hành')).toBeVisible();
+  for (const b of docs.data.branchPlans.filter((x) => String(x.classId) === String(homeroomClass.id))) {
+    expect(b.releasedView).toBe(true);
+    expect(b.permissions?.canEdit ?? false).toBe(false);
+  }
 });
 
 test('ST-002-03 Tổ trưởng thêm chủ đề nhánh ở bản tổ Nháp và lưu được (nhánh do tổ thêm, không xóa được nhánh kế thừa)', async ({

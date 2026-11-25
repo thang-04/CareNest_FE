@@ -304,11 +304,13 @@ test('ST-002-07 HT lọc nhóm tuổi rồi lớp; xem đủ lịch nhánh dự 
   await classSelect.selectOption(String(cls.id));
   await page.waitForURL((u) => u.pathname === `/education/branches/${cls.id}`);
   await expect(page.getByRole('button', { name: 'Chỉnh sửa' })).toHaveCount(0);
-  // EDU-73 (Tiền 24/11/2026, thay chốt 11/11): HT chỉ xem lịch nhánh theo gói học kỳ đã ban hành, không thấy bản đang soạn
-  const published = (await api(U.ht, 'GET', DOCS)).data.semesterPackages.some(
-    (p) => String(p.classId) === String(cls.id) && p.status === 'APPROVED',
-  );
-  if (!published) await expect(page.getByText('Chưa có lịch chủ đề nhánh đã ban hành')).toBeVisible();
+  // EDU-111 (5) (Tiền 25/11/2026, thay phần lịch nhánh của EDU-73): HT đọc lịch nhánh hiện tại ở mọi trạng thái, chỉ xem
+  const branch = (await api(U.ht, 'GET', DOCS)).data.branchPlans.find((b) => String(b.classId) === String(cls.id));
+  if (branch) {
+    expect(branch.releasedView).toBe(true);
+    expect(branch.permissions?.canEdit ?? false).toBe(false);
+  }
+  await expect(page.getByText('Chưa có lịch chủ đề nhánh đã ban hành')).toHaveCount(0);
 });
 
 test('ST-003-08 Hiệu trưởng mở hạn kế hoạch giáo dục chủ đề học kỳ 1 quá hạn ở màn Kế hoạch quá hạn; GVCN gửi được; PHT trả lại phải ghi lý do', async ({
