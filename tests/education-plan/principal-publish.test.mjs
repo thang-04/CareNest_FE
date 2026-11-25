@@ -5,7 +5,6 @@ globalThis.window = new EventTarget();
 const storage = new Map();
 globalThis.localStorage = { getItem: (key) => storage.get(key) || null, setItem: (key, value) => storage.set(key, value) };
 const { writeDb } = await import('@/mocks/mockDatabase');
-const { classPlanMockRepository: repo } = await import('@/services/education-plan/mock/classPlanMockRepository');
 const { withDefaults } = await import('@/models/education-plan/eduConfig');
 
 const principal = { id: 'pp-principal', role: 'PRINCIPAL', fullName: 'HT thử', status: 'ACTIVE' };
@@ -34,29 +33,6 @@ const seed = (theme, status = 'DRAFT') =>
       },
     ];
   });
-
-test('EDU-110 (11): HT soạn hồ sơ chủ đề, chuỗi rỗng ⇒ principal_publish ban hành và ghi bước HT', async () => {
-  seed({ creators: ['PRINCIPAL'], reviewers: [] });
-  const out = await repo.act('theme', 'pp-theme', { action: 'principal_publish' }, principal, { version: 0 });
-  assert.equal(out.status, 'APPROVED');
-  assert.deepEqual(
-    out.approvals.map((a) => a.roleKey),
-    ['PRINCIPAL'],
-  );
-});
-
-test('EDU-110 (10): hồ sơ Chờ duyệt mà chuỗi đã rỗng ⇒ HT ban hành được', async () => {
-  seed({ creators: ['PRINCIPAL'], reviewers: [] }, 'REVIEW');
-  const out = await repo.act('theme', 'pp-theme', { action: 'principal_publish' }, principal, { version: 0 });
-  assert.equal(out.status, 'APPROVED');
-});
-
-test('principal_publish bị chặn khi không phải HT hoặc chuỗi duyệt còn người', async () => {
-  seed({ creators: ['PRINCIPAL'], reviewers: [] });
-  await assert.rejects(repo.act('theme', 'pp-theme', { action: 'principal_publish' }, vp, { version: 0 }));
-  seed({ creators: ['PRINCIPAL'], reviewers: ['VICE_PRINCIPAL'] });
-  await assert.rejects(repo.act('theme', 'pp-theme', { action: 'principal_publish' }, principal, { version: 0 }));
-});
 
 test('HT bấm Ban hành kế hoạch năm/tổ ⇒ hook nạp lại như khi duyệt; API gọi /principal-publish', () => {
   const hook = readFileSync(new URL('../../src/hooks/education-plan/useEducationPlan.jsx', import.meta.url), 'utf8');

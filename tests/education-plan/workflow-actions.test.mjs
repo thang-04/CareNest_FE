@@ -173,69 +173,6 @@ test('Stale version 409 ném lỗi để UI nhận diện và yêu cầu tải l
   );
 });
 
-test('T050 [US3]: Mock repository - Sửa sau khi bị trả lại rồi gửi lại reset approvals và tăng reviewRound', async () => {
-  const { educationPlanMockRepository } = await import('@/services/education-plan/mock/educationPlanMockRepository');
-  const user = { id: 1, fullName: 'Tổ trưởng Khối', role: 'TEAM_LEADER' };
-
-  // 1. Tạo plan và gửi duyệt vòng 1
-  const saved = await educationPlanMockRepository.saveGoal(
-    { id: 'yp-mock-round-1', title: 'KH Mock', status: EDU_STATUS.DRAFT, owner: { userId: user.id } },
-    { edit: { sessionId: 's1', revision: 0, requestId: 'r1' } },
-  );
-  const submitted1 = await educationPlanMockRepository.saveGoal(
-    { ...saved, status: 'REVIEW', sentBy: user },
-    { edit: { sessionId: 's1', revision: saved.revision, requestId: 'r1-sub' } },
-  );
-  assert.equal(submitted1.status, 'REVIEW');
-  assert.equal(submitted1.reviewRound, 1);
-
-  // 2. Trả lại về DRAFT/REJECTED
-  const rejected = await educationPlanMockRepository.saveGoal(
-    { ...submitted1, status: EDU_STATUS.REJECTED, approvals: [{ roleKey: 'VICE_PRINCIPAL', name: 'PHT' }] },
-    {},
-  );
-  assert.equal(rejected.status, EDU_STATUS.REJECTED);
-
-  // 3. Sửa và gửi lại vòng 2
-  const edited = await educationPlanMockRepository.saveGoal(
-    { ...rejected, title: 'KH Mock Đã Sửa' },
-    { edit: { sessionId: 's2', revision: rejected.revision, requestId: 'r2' } },
-  );
-  const submitted2 = await educationPlanMockRepository.saveGoal(
-    { ...edited, status: 'REVIEW', sentBy: user },
-    { edit: { sessionId: 's2', revision: edited.revision, requestId: 'r2-sub' } },
-  );
-  assert.equal(submitted2.status, 'REVIEW');
-  assert.equal(submitted2.reviewRound, 2);
-  assert.deepEqual(submitted2.approvals, []);
-});
-
-test('T050 [US3]: Mock repository - Giữ approvals của round hiện tại khi chỉ đổi workflow policy', async () => {
-  const { educationPlanMockRepository } = await import('@/services/education-plan/mock/educationPlanMockRepository');
-  const user = { id: 1, fullName: 'Tổ trưởng Khối', role: 'TEAM_LEADER' };
-
-  const plan = await educationPlanMockRepository.saveGoal(
-    {
-      id: 'yp-mock-policy-1',
-      title: 'KH Mock Policy Change',
-      status: 'REVIEW',
-      reviewRound: 1,
-      approvals: [{ roleKey: 'TEAM_LEADER', name: 'Tổ trưởng A' }],
-      owner: { userId: user.id },
-    },
-    {},
-  );
-
-  // Lưu tiếp với cùng status REVIEW giữ approvals
-  const unchanged = await educationPlanMockRepository.saveGoal(
-    { ...plan },
-    {},
-  );
-  assert.equal(unchanged.reviewRound, 1);
-  assert.equal(unchanged.approvals.length, 1);
-  assert.equal(unchanged.approvals[0].roleKey, 'TEAM_LEADER');
-});
-
 
 test('nested review metadata takes precedence over legacy waitingRole', () => {
   const goal = toUiGoal({ id: 52, status: 'REVIEW', waitingRole: 'VICE_PRINCIPAL', review: { waitingRole: 'PRINCIPAL', roles: ['PRINCIPAL'] }, domains: [], themes: [] }, refs);

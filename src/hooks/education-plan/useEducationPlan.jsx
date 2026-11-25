@@ -3,7 +3,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useAsync } from '@/hooks/useAsync';
-import { USE_MOCK } from '@/config/env';
 import { LoadingState, ErrorState } from '@/components/ui/States';
 import { ROLES, ROLE_LABELS } from '@/models/User';
 import * as service from '@/services/education-plan/educationPlanService';
@@ -83,7 +82,7 @@ export function EducationPlanProvider({
   const { user: authUser } = useAuth();
   const toastApi = useToast();
   const { schoolYear: pickedYear, setSchoolYear, schoolYears } = useSchoolYear();
-  const yearOptions = useMemo(() => educationSchoolYears(schoolYears, USE_MOCK), [schoolYears]);
+  const yearOptions = useMemo(() => educationSchoolYears(schoolYears), [schoolYears]);
   const yearOption =
     yearOptions.find((year) => sameSchoolYearId(year.headerId, pickedYear)) ??
     yearOptions.find((year) => sameSchoolYearId(year.id, pickedYear));

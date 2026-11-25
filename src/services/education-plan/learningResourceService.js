@@ -1,7 +1,5 @@
 import axios from 'axios';
-import { USE_MOCK } from '@/config/env';
 import { axiosClient } from '@/services/http/axiosClient';
-import { learningResourceMockRepository as mock } from './mock/learningResourceMockRepository';
 
 // BE:EDU-81/82 — dòng gắn học liệu của kế hoạch giáo dục ngày (dd_…); tệp ở kho S3 private (BE spec 017), học liệu ở kho (spec 900)
 const base = (key) => `/education-plans/class-docs/day/${encodeURIComponent(key)}/learning-resources`;
@@ -36,4 +34,4 @@ export const learningResourceApi = {
   /** Liên kết xem có hạn (~15 phút) để gắn thẳng vào img/video/object; học liệu link trả url gốc. */
   contentUrl: async (_user, key, id) => (await axiosClient.get(`${base(key)}/${id}/url`)).url,
 };
-export const learningResourceService = USE_MOCK ? mock : learningResourceApi;
+export const learningResourceService = learningResourceApi;

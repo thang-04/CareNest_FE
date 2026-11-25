@@ -1,9 +1,8 @@
 export const sameSchoolYearId = (actual, expected) =>
   actual != null && actual !== '' && expected != null && expected !== '' && String(actual) === String(expected);
 
-export function educationSchoolYears(years, useMock) {
+export function educationSchoolYears(years) {
   return years.flatMap((year) => {
-    if (useMock) return [{ ...year, headerId: year.id }];
     const value = String(year.beId ?? year.id ?? '');
     const id = /^\d+$/.test(value) ? Number(value) : null;
     return Number.isSafeInteger(id) && id > 0 ? [{ ...year, id, headerId: year.id }] : [];
