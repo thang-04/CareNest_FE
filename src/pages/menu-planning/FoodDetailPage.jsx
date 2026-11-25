@@ -13,7 +13,7 @@ import { ErrorState, LoadingState } from '@/components/ui/States';
 import { AllergenChips, HistoryCard, RecordStatusBadge } from '@/components/menu-planning/MenuBadges';
 import { NutrientTable } from '@/components/menu-planning/NutrientTable';
 import { ContractStatusBadge } from '@/components/menu-planning/ContractStatusBadge';
-import { hasNutrition, hasOrigin, ingredientQty } from '@/utils/menu-planning/menuCalculations';
+import { hasNutrition, hasOrigin } from '@/utils/menu-planning/menuCalculations';
 import { activeAgeGroups } from '@/utils/menu-planning/nutritionSetup';
 import { foodCrumbs } from '@/utils/menu-planning/breadcrumbs';
 import {
@@ -69,14 +69,12 @@ export default function FoodDetailPage() {
   const nut = f.nutrition;
   // Định lượng của thực phẩm này trong từng món (một trẻ), theo công thức món
   const used = f.usedInDishes.map((u) => {
-    const dish = catalog.dishById[u.id];
-    const ings = (dish?.ingredients || []).filter((i) => i.foodId === f.id);
     return {
       ...u,
-      type: DISH_TYPE_LABELS[dish?.type] || '—',
+      type: DISH_TYPE_LABELS[u.dishType] || '—',
       qty: groups.map((g) => {
-        const vals = ings.map((i) => ingredientQty(i, g.id));
-        return vals.some((v) => v == null) ? null : vals.reduce((s, v) => s + v, 0);
+        const found = u.portions.filter((p) => String(p.ageGroupId) === String(g.id));
+        return found.length ? found.reduce((s, p) => s + Number(p.gramsPerChild), 0) : null;
       }),
     };
   });

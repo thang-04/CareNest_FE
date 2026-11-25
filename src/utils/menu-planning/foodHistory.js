@@ -26,6 +26,7 @@ export const toFoodHistoryEntry = (h, index) => ({
   // Dòng đổi giá lấy từ lịch sử giá không có id riêng ⇒ khóa theo vị trí
   id: `food-history-${index}`,
   userId: h.userId,
+  userName: h.userName || '',
   at: h.at,
   action: h.action,
   field: h.field || '',
