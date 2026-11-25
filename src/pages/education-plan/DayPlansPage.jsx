@@ -130,11 +130,7 @@ function DayPlansList({ classId }) {
   // Mặc định học kỳ đang diễn ra, chưa vào năm học thì học kỳ 1 (như trang Kế hoạch giáo dục chủ đề)
   const today = todayIso();
   const allThemesForHk = [...yearPlan.themes].filter((t) => t.start && t.end);
-  const choices = semesterChoices(
-    yearOption,
-    allThemesForHk,
-    packages,
-  );
+  const choices = semesterChoices(yearOption, allThemesForHk, packages);
   const current = [...choices].reverse().find((c) => c.deadline && c.deadline <= today) || choices[0];
   const hk = params.get('hk') || (current ? String(current.semesterNo) : '');
   const choice = choices.find((c) => String(c.semesterNo) === hk) || null;
@@ -144,12 +140,16 @@ function DayPlansList({ classId }) {
   const themeIds = choice ? choice.themeIds : null;
   const viewer = !canComposeClassDocs;
   const visibleThemes = themeIds ? allThemes.filter((t) => themeIds.includes(String(t.id))) : allThemes;
-  const themes = viewer ? visibleThemes.filter((theme) => themeDossiers.some((d) =>
-    d.classId === classId && d.yearPlanId === yearPlan.id && String(d.themeId) === String(theme.id))) : visibleThemes;
-  const dayUrl = (ws) => classPlanVersionPath(
-    `/education/day-plans/${classId}?week=${ws}${params.get('review') === '1' ? '&review=1' : ''}`,
-    ctx.superseded ? yearPlan.id : null,
-  );
+  const themes = viewer
+    ? visibleThemes.filter((theme) =>
+        themeDossiers.some((d) => d.classId === classId && d.yearPlanId === yearPlan.id && String(d.themeId) === String(theme.id)),
+      )
+    : visibleThemes;
+  const dayUrl = (ws) =>
+    classPlanVersionPath(
+      `/education/day-plans/${classId}?week=${ws}${params.get('review') === '1' ? '&review=1' : ''}`,
+      ctx.superseded ? yearPlan.id : null,
+    );
   const toggle = (id) =>
     setFolded((prev) => {
       const next = new Set(prev);
@@ -167,11 +167,14 @@ function DayPlansList({ classId }) {
             label="Học kỳ"
             value={hk}
             onChange={(key) =>
-              setParams((prev) => {
-                const next = new URLSearchParams(prev);
-                next.set('hk', key);
-                return next;
-              }, { replace: true })
+              setParams(
+                (prev) => {
+                  const next = new URLSearchParams(prev);
+                  next.set('hk', key);
+                  return next;
+                },
+                { replace: true },
+              )
             }
             options={choices.map((c) => ({ value: String(c.semesterNo), label: `Học kỳ ${c.semesterNo} (${c.themeIds.length})` }))}
           />

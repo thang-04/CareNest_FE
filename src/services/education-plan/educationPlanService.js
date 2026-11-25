@@ -153,12 +153,12 @@ export const actOnClassDoc = (kind, id, body, user, options) =>
 
 // Cấu hình kế hoạch giáo dục của trường (lĩnh vực, người ký, dòng hoạt động tuần)
 export const getEduConfig = (user) => (USE_MOCK ? eduConfigMockRepository.get(user) : educationPlanApi.getEduConfig());
-export const getEduConfigCached = (user) =>
-  USE_MOCK ? eduConfigMockRepository.get(user) : educationPlanApi.getEduConfigCached();
+export const getEduConfigCached = (user) => (USE_MOCK ? eduConfigMockRepository.get(user) : educationPlanApi.getEduConfigCached());
 export const saveEduConfig = (cfg, user) => (USE_MOCK ? eduConfigMockRepository.save(cfg, user) : educationPlanApi.saveEduConfig(cfg));
 
 // Chế độ mock không có AI (bỏ dữ liệu AI giả, Tiền 25/11/2026): báo không khả dụng như khi AI tắt (AI-03)
-const aiUnavailable = () => Promise.reject(Object.assign(new Error('Trợ lý AI đang không khả dụng, vui lòng thử lại sau'), { status: 503 }));
+const aiUnavailable = () =>
+  Promise.reject(Object.assign(new Error('Trợ lý AI đang không khả dụng, vui lòng thử lại sau'), { status: 503 }));
 // AI gợi ý tiến trình giờ học (nháp; giáo viên Giữ / Bỏ, sửa lại trước khi gửi duyệt)
 export const suggestLessonSteps = (input) => (USE_MOCK ? aiUnavailable() : educationPlanApi.suggestLessonSteps(input));
 // AI gợi ý thẻ hoạt động cho MT (BE:EDU-95): BE chỉ trả MT, loại giờ có trong yêu cầu

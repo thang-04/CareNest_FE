@@ -269,8 +269,7 @@ const withCode = (error, errorCode) => Object.assign(error, { errorCode });
 /** Kiểm một vai trò trong lần lưu (BE PermissionServiceImpl.saveMatrix): role cố định 1117, mã không cấu hình được 1118. */
 const checkRole = (role, permissions) => {
   if (!CONFIGURABLE_ROLES.includes(role)) throw withCode(forbid('Quyền của vai trò này cố định, không chỉnh được'), 1117);
-  if (!Array.isArray(permissions) || permissions.some((code) => typeof code !== 'string'))
-    throw badRequest('Danh sách quyền không hợp lệ');
+  if (!Array.isArray(permissions) || permissions.some((code) => typeof code !== 'string')) throw badRequest('Danh sách quyền không hợp lệ');
   const invalid = permissions.find((code) => !isConfigurableFor(code, role));
   if (invalid) throw withCode(badRequest(`Quyền ${invalid} không cấu hình được cho vai trò ${role}`), 1118);
   const missing = permissions.flatMap((code) =>

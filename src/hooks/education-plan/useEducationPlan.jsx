@@ -72,7 +72,14 @@ export const actDoneText = (kind, action, status) => {
  * lightDocs (edu-list-paging, Tiền 25/11/2026): trang danh sách không dùng nội dung tài liệu lớp ⇒ chỉ tải lớp/nhân sự,
  * không tải cả gói /class-docs (vài MB); trang tự tải danh sách gọn có phân trang.
  */
-export function EducationPlanProvider({ children, yearScoped = true, reviewView = false, lightDocs = false, classId = null, skipGoals = false }) {
+export function EducationPlanProvider({
+  children,
+  yearScoped = true,
+  reviewView = false,
+  lightDocs = false,
+  classId = null,
+  skipGoals = false,
+}) {
   const { user: authUser } = useAuth();
   const toastApi = useToast();
   const { schoolYear: pickedYear, setSchoolYear, schoolYears } = useSchoolYear();

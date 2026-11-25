@@ -637,16 +637,29 @@ export const educationPlanMockRepository = {
           .filter((goal) => schoolYearId == null || sameSchoolYearId(goalYearId(fresh, goal), schoolYearId))
           .filter((goal) => {
             const roles = mockRoles(user);
-            if (overdue) return roles.includes(ROLES.PRINCIPAL) && goal.status !== EDU_STATUS.APPROVED &&
-              !!(goal.timeLock?.canUnlock || goal.timeLock?.extendedTo || goal.timeLock?.reviewDeadline?.canReopen ||
-                goal.timeLock?.reviewDeadline?.reopenUntil);
+            if (overdue)
+              return (
+                roles.includes(ROLES.PRINCIPAL) &&
+                goal.status !== EDU_STATUS.APPROVED &&
+                !!(
+                  goal.timeLock?.canUnlock ||
+                  goal.timeLock?.extendedTo ||
+                  goal.timeLock?.reviewDeadline?.canReopen ||
+                  goal.timeLock?.reviewDeadline?.reopenUntil
+                )
+              );
             if (authorOf(fresh, goal, user)) return true;
             if (review && goal.status === 'REVIEW' && annualVisible(fresh, goal, user))
               return !!goalView(fresh, goal, user).permissions?.canApprove;
-            return goal.status === EDU_STATUS.APPROVED &&
-              (roles.includes(ROLES.PRINCIPAL) || roles.includes(ROLES.VICE_PRINCIPAL) || goal.ageGroupId === user?.ageGroupId ||
-                (fresh.classes || []).some((cls) => cls.ageGroupId === goal.ageGroupId &&
-                  (cls.teacherIds || []).some((id) => String(id) === String(user?.id))));
+            return (
+              goal.status === EDU_STATUS.APPROVED &&
+              (roles.includes(ROLES.PRINCIPAL) ||
+                roles.includes(ROLES.VICE_PRINCIPAL) ||
+                goal.ageGroupId === user?.ageGroupId ||
+                (fresh.classes || []).some(
+                  (cls) => cls.ageGroupId === goal.ageGroupId && (cls.teacherIds || []).some((id) => String(id) === String(user?.id)),
+                ))
+            );
           })
           .map((goal) => goalView(fresh, goal, user)),
       ),

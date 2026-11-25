@@ -122,8 +122,8 @@ export default function ClassPlanPage() {
 
   const base = `/education/class/${classId}`;
   const planPath = (path) => {
-    const review = params.get('review') === '1' && !path.startsWith('/education/branches/')
-      ? `${path.includes('?') ? '&' : '?'}review=1` : '';
+    const review =
+      params.get('review') === '1' && !path.startsWith('/education/branches/') ? `${path.includes('?') ? '&' : '?'}review=1` : '';
     return classPlanVersionPath(path + review, ctx.superseded ? yearPlan?.id : null);
   };
   // Học kỳ nằm trong card lọc chung (Tiền 13/11/2026).
@@ -167,11 +167,7 @@ export default function ClassPlanPage() {
   // Mặc định học kỳ đang diễn ra (hạn = ngày bắt đầu học kỳ đã tới), chưa vào năm học thì học kỳ 1
   const today = todayIso();
   const allThemesForHk = [...yearPlan.themes].filter((t) => t.start && t.end);
-  const choices = semesterChoices(
-    yearOption,
-    allThemesForHk,
-    packages,
-  );
+  const choices = semesterChoices(yearOption, allThemesForHk, packages);
   const current = [...choices].reverse().find((c) => c.deadline && c.deadline <= today) || choices[0];
   const hk = params.get('hk') || (current ? String(current.semesterNo) : '');
   const choice = choices.find((c) => String(c.semesterNo) === hk) || null;
@@ -182,8 +178,7 @@ export default function ClassPlanPage() {
   const allThemes = [...yearPlan.themes].filter((t) => t.start && t.end).sort((a, b) => a.start.localeCompare(b.start));
   const themeIds = choice ? choice.themeIds : null;
   const visibleThemes = themeIds ? allThemes.filter((t) => themeIds.includes(String(t.id))) : allThemes;
-  const themes = canComposeClassDocs || pkg?.status === 'APPROVED' || pkg?.status === 'REVIEW'
-    ? visibleThemes : [];
+  const themes = canComposeClassDocs || pkg?.status === 'APPROVED' || pkg?.status === 'REVIEW' ? visibleThemes : [];
   const numbers = numberGoals(yearPlan.domains);
   const themeArgs = (t, themeNo, doc, themeWeeks) => ({
     themeDoc: doc,
@@ -271,11 +266,14 @@ export default function ClassPlanPage() {
             label="Học kỳ"
             value={hk}
             onChange={(key) =>
-              setParams((prev) => {
-                const next = new URLSearchParams(prev);
-                next.set('hk', key);
-                return next;
-              }, { replace: true })
+              setParams(
+                (prev) => {
+                  const next = new URLSearchParams(prev);
+                  next.set('hk', key);
+                  return next;
+                },
+                { replace: true },
+              )
             }
             options={choices.map((c) => ({ value: String(c.semesterNo), label: `Học kỳ ${c.semesterNo} (${c.themeIds.length})` }))}
           />
@@ -287,14 +285,14 @@ export default function ClassPlanPage() {
             aria-label={pkg ? `Trạng thái và thao tác học kỳ ${pkg.semesterNo}` : 'Thao tác'}
           >
             <div className="ga-year-toolbar__group">
-              {pkg?.unreleased ? null : (
-                pkg && (
-                  <>
-                    <EduStatusBadge status={pkg.status} doc={pkg} />
-                    <DeadlineBadge doc={pkg} />
-                  </>
-                )
-              )}
+              {pkg?.unreleased
+                ? null
+                : pkg && (
+                    <>
+                      <EduStatusBadge status={pkg.status} doc={pkg} />
+                      <DeadlineBadge doc={pkg} />
+                    </>
+                  )}
               {foldAll}
             </div>
             <div className="ga-year-toolbar__group ga-year-toolbar__group--end">

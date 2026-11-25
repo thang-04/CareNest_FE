@@ -85,7 +85,12 @@ function WeekReviewRedirect() {
   if (ctx.loading) return <LoadingState />;
   const week = ctx.yearPlan ? yearWeeks(ctx.yearPlan).find((w) => w.type === 'week' && w.start === weekStart) : null;
   if (!week) return <StatusPage kind="404" title="Không tìm thấy tuần học này trong kế hoạch năm của lớp" />;
-  return <Navigate to={classPlanVersionPath(`/education/class/${classId}/weeks/${weekStart}`, ctx.superseded ? ctx.yearPlan.id : null)} replace />;
+  return (
+    <Navigate
+      to={classPlanVersionPath(`/education/class/${classId}/weeks/${weekStart}`, ctx.superseded ? ctx.yearPlan.id : null)}
+      replace
+    />
+  );
 }
 
 /**
@@ -207,7 +212,8 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
       }),
       ...savedWeek,
     });
-  const themeDocOf = () => classThemePlans.find((t) => t.classId === classId && t.yearPlanId === yearPlan?.id && t.themeId === week?.theme.id) || null;
+  const themeDocOf = () =>
+    classThemePlans.find((t) => t.classId === classId && t.yearPlanId === yearPlan?.id && t.themeId === week?.theme.id) || null;
 
   useEffect(() => {
     if (dirty || !week) return;
@@ -487,7 +493,9 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
                 disabled: !canComposeClassDocs,
                 onClick: () =>
                   guard.leave(
-                    planPath(`/education/class/${classId}/themes/${week.theme.id}/teach?week=${encodeURIComponent(weekStart)}&date=${encodeURIComponent(draft.days[day].date)}`),
+                    planPath(
+                      `/education/class/${classId}/themes/${week.theme.id}/teach?week=${encodeURIComponent(weekStart)}&date=${encodeURIComponent(draft.days[day].date)}`,
+                    ),
                   ),
               },
             ]

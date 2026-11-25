@@ -120,9 +120,7 @@ export default function GoalFormPage(props) {
   const { id } = useParams();
   const { goals, schoolYearId } = useEducationPlan();
   const planLevel = props.planLevel ?? 'TEAM';
-  const plan = id
-    ? goals.find((g) => g.id === id && levelOf(g) === planLevel && sameSchoolYearId(g.schoolYearId, schoolYearId))
-    : null;
+  const plan = id ? goals.find((g) => g.id === id && levelOf(g) === planLevel && sameSchoolYearId(g.schoolYearId, schoolYearId)) : null;
   // Lập kế hoạch tổ mới: nội dung chép từ kế hoạch năm học nguồn (inheritAnnual) ⇒ tải trước chi tiết các bản nguồn đã ban hành
   const sources =
     planLevel === 'TEAM' && !id
@@ -227,7 +225,9 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
 
   // BE:EDU-25 — phiên bản điều chỉnh dùng chung (năm học, nhóm tuổi) với các bản trước nên không tính là trùng
   const sameScope = existing && sameSchoolYearId(existing.schoolYearId, form.schoolYearId) && existing.ageGroupId === form.ageGroupId;
-  const dupGoal = !sameScope && goals.some((g) => g.id !== form.id && sameSchoolYearId(g.schoolYearId, form.schoolYearId) && g.ageGroupId === form.ageGroupId);
+  const dupGoal =
+    !sameScope &&
+    goals.some((g) => g.id !== form.id && sameSchoolYearId(g.schoolYearId, form.schoolYearId) && g.ageGroupId === form.ageGroupId);
   // Gợi ý dùng lại mục tiêu của kế hoạch năm khác năm học, cùng nhóm tuổi (EDU-24; ưu tiên năm gần nhất, bản đã ban hành)
   const priorYears = annual ? previousSchoolYears(yearOptions, form.schoolYearId) : [];
   const { data: reusePlan } = useAsync(
@@ -941,7 +941,8 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
                     >
                       <option value="">Chọn nhóm tuổi</option>
                       {AGE_GROUPS.map((a) => {
-                        const taken = !existing && goals.some((g) => sameSchoolYearId(g.schoolYearId, form.schoolYearId) && g.ageGroupId === a.id);
+                        const taken =
+                          !existing && goals.some((g) => sameSchoolYearId(g.schoolYearId, form.schoolYearId) && g.ageGroupId === a.id);
                         return (
                           <option key={a.id} value={a.id} disabled={taken || (!existing && !allowedAgeGroupIds.includes(a.id))}>
                             {a.name}
@@ -1148,11 +1149,16 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
                 />
               )}
               {annual && aiGoalAllowed && (
-                <ActionsMenu items={[{
-                  label: 'AI gợi ý nội dung cho mục tiêu', icon: Sparkles,
-                  disabled: saver.saving || finishing || !goalsWithoutContent,
-                  onClick: () => setAiGoalOpen(true),
-                }]} />
+                <ActionsMenu
+                  items={[
+                    {
+                      label: 'AI gợi ý nội dung cho mục tiêu',
+                      icon: Sparkles,
+                      disabled: saver.saving || finishing || !goalsWithoutContent,
+                      onClick: () => setAiGoalOpen(true),
+                    },
+                  ]}
+                />
               )}
             </div>
           }
@@ -1214,17 +1220,24 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
                 if (!aiGoalState.current.allowed) return null;
                 if ((saver.unsaved || !savedId.current) && !(await saver.save())) return null;
                 const plan = saver.current();
-                return { planId: savedId.current || currentPlanId, plan,
-                  allowed: aiGoalState.current.allowed && plan.canEditCurriculum !== false };
+                return {
+                  planId: savedId.current || currentPlanId,
+                  plan,
+                  allowed: aiGoalState.current.allowed && plan.canEditCurriculum !== false,
+                };
               }}
               onApply={(result, picked) => {
                 if (!aiGoalState.current.allowed) return false;
                 const value = applyGoalContents(saver.current(), result.groups, picked, result.stamp, () => `ai-${uid()}`);
                 if (!value?.added) return false;
                 set({ domains: value.domains });
-                sendAiFeedback({ kind: 'SCHOOL_YEAR', suggested: result.groups.reduce((n, g) => n + g.lines.length, 0),
-                  kept: value.added, failedDomains: result.failedDomains.length, waitMs: result.waitMs })
-                  .catch(() => console.warn('[GoalFormPage] AI feedback not sent'));
+                sendAiFeedback({
+                  kind: 'SCHOOL_YEAR',
+                  suggested: result.groups.reduce((n, g) => n + g.lines.length, 0),
+                  kept: value.added,
+                  failedDomains: result.failedDomains.length,
+                  waitMs: result.waitMs,
+                }).catch(() => console.warn('[GoalFormPage] AI feedback not sent'));
                 toast(`Đã thêm ${value.added} nội dung (chưa lưu)`);
                 return true;
               }}

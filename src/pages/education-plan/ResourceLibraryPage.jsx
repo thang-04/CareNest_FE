@@ -80,7 +80,9 @@ function ResourceLibraryForYear({ schoolYearId }) {
   const total = list.data?.totalElements || 0;
   // Danh sách chủ đề để lọc = chủ đề đã dạy của học liệu đã tải (giữ lại qua các lần lọc)
   useEffect(() => {
-    const seen = (list.data?.items || []).flatMap((r) => r.taughtThemes || []).filter((t) => sameSchoolYearId(t.schoolYearId, schoolYearId));
+    const seen = (list.data?.items || [])
+      .flatMap((r) => r.taughtThemes || [])
+      .filter((t) => sameSchoolYearId(t.schoolYearId, schoolYearId));
     if (!seen.length) return;
     setThemes((prev) => {
       const all = new Map(prev.map((t) => [themeKey(t), t]));

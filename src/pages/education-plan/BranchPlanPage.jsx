@@ -87,7 +87,14 @@ export default function BranchPlanPage() {
   if (!ctx.canComposeClassDocs) {
     return <PublishedBranches key={`${classId}:${yearPlan.id}`} ctx={ctx} classId={classId} />;
   }
-  return <BranchPlanInner key={`${classId}:${yearPlan.id}:${yearPlan.curriculumSourcePlanId || 'legacy'}`} classId={classId} ctx={ctx} onEditingChange={setEditing} />;
+  return (
+    <BranchPlanInner
+      key={`${classId}:${yearPlan.id}:${yearPlan.curriculumSourcePlanId || 'legacy'}`}
+      classId={classId}
+      ctx={ctx}
+      onEditingChange={setEditing}
+    />
+  );
 }
 
 function PublishedBranches({ ctx, classId }) {
@@ -105,24 +112,42 @@ function PublishedBranches({ ctx, classId }) {
   const inSemester = new Set(
     packages.filter((pkg) => !semester || String(pkg.semesterNo) === semester).flatMap((pkg) => (pkg.themeIds || []).map(String)),
   );
-  const rows = calendar
-    ? teachingWeeks(ctx.yearPlan, calendar).filter((week) => !semester || inSemester.has(String(week.theme.id)))
-    : [];
+  const rows = calendar ? teachingWeeks(ctx.yearPlan, calendar).filter((week) => !semester || inSemester.has(String(week.theme.id))) : [];
   return (
     <div className="page ga-page">
       <div className="ga-sticky-head">
         <PageHead crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: title }]} title={title} />
-        <ClassFilterBar showAllAges classes={ctx.classes} classId={classId} canPick={ctx.canPickClass}
-          onPick={(id, age) => navigate(classFilterPath('/education/branches', id, age))}>
-          <FilterSelect label="Học kỳ" value={semester} onChange={setSemester}
-            options={[{ value: '', label: 'Tất cả' }, ...packages.map((pkg) =>
-              ({ value: String(pkg.semesterNo), label: `Học kỳ ${pkg.semesterNo}` }))]} />
-          <FilterSelect label="Kiểu hiển thị" value={view} onChange={setView}
-            options={[{ value: 'list', label: 'Danh sách' }, { value: 'grid', label: 'Bảng' }]} />
+        <ClassFilterBar
+          showAllAges
+          classes={ctx.classes}
+          classId={classId}
+          canPick={ctx.canPickClass}
+          onPick={(id, age) => navigate(classFilterPath('/education/branches', id, age))}
+        >
+          <FilterSelect
+            label="Học kỳ"
+            value={semester}
+            onChange={setSemester}
+            options={[
+              { value: '', label: 'Tất cả' },
+              ...packages.map((pkg) => ({ value: String(pkg.semesterNo), label: `Học kỳ ${pkg.semesterNo}` })),
+            ]}
+          />
+          <FilterSelect
+            label="Kiểu hiển thị"
+            value={view}
+            onChange={setView}
+            options={[
+              { value: 'list', label: 'Danh sách' },
+              { value: 'grid', label: 'Bảng' },
+            ]}
+          />
         </ClassFilterBar>
       </div>
       <Card title={title}>
-        {!rows.length ? <EmptyState title="Lớp chưa có lịch chủ đề nhánh" /> : view === 'grid' ? (
+        {!rows.length ? (
+          <EmptyState title="Lớp chưa có lịch chủ đề nhánh" />
+        ) : view === 'grid' ? (
           <BranchGridTable rows={rows} names={calendar.names} branches={calendar.branches} />
         ) : (
           <DocTable className="ga-plan-table ga-goal-table ga-branch-plan-table ga-branch-readonly" data-testid="published-branch-list">
@@ -133,19 +158,38 @@ function PublishedBranches({ ctx, classId }) {
               <col className="ga-branch-plan-table__weeks" />
               <col />
             </colgroup>
-            <thead><tr>
-              <th scope="col">Tháng</th><th scope="col">Chủ đề</th><th scope="col">Chủ đề nhánh</th>
-              <th scope="col">Tuần</th><th scope="col">Ghi chú</th>
-            </tr></thead>
-            <tbody>{rows.map((row) => (
-              <tr key={`${row.theme.id}:${row.start}`}>
-                <td><div className="ga-goal-table__pad nowrap">{Number(row.start.slice(5, 7))}</div></td>
-                <td><div className="ga-goal-table__pad">{row.theme.name}</div></td>
-                <td><div className="ga-goal-table__pad">{calendar.names[row.start] || '—'}</div></td>
-                <td><div className="ga-goal-table__pad">Tuần {row.no} · {ddmm(row.start)} – {ddmm(row.end)}</div></td>
-                <td><div className="ga-goal-table__pad">{calendar.notes[row.start] || '—'}</div></td>
+            <thead>
+              <tr>
+                <th scope="col">Tháng</th>
+                <th scope="col">Chủ đề</th>
+                <th scope="col">Chủ đề nhánh</th>
+                <th scope="col">Tuần</th>
+                <th scope="col">Ghi chú</th>
               </tr>
-            ))}</tbody>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr key={`${row.theme.id}:${row.start}`}>
+                  <td>
+                    <div className="ga-goal-table__pad nowrap">{Number(row.start.slice(5, 7))}</div>
+                  </td>
+                  <td>
+                    <div className="ga-goal-table__pad">{row.theme.name}</div>
+                  </td>
+                  <td>
+                    <div className="ga-goal-table__pad">{calendar.names[row.start] || '—'}</div>
+                  </td>
+                  <td>
+                    <div className="ga-goal-table__pad">
+                      Tuần {row.no} · {ddmm(row.start)} – {ddmm(row.end)}
+                    </div>
+                  </td>
+                  <td>
+                    <div className="ga-goal-table__pad">{calendar.notes[row.start] || '—'}</div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
           </DocTable>
         )}
       </Card>
@@ -163,17 +207,8 @@ export function BranchPlanLegacyRedirect() {
 }
 
 function BranchPlanInner({ classId, ctx, onEditingChange }) {
-  const {
-    user,
-    branchPlans,
-    semesterPackages,
-    themeDossiers,
-    semesterConfigMissing,
-    saveClassDoc,
-    toast,
-    eduConfig,
-    staff,
-  } = useEducationPlan();
+  const { user, branchPlans, semesterPackages, themeDossiers, semesterConfigMissing, saveClassDoc, toast, eduConfig, staff } =
+    useEducationPlan();
   const [preview, setPreview] = useState(null);
   const [importContext, setImportContext] = useState(null);
   const [editing, setEditing] = useState(false);
@@ -302,9 +337,7 @@ function BranchPlanInner({ classId, ctx, onEditingChange }) {
   const themeLocked = (themeId) => {
     const dossier = themeDossiers.find((d) => d.id === `ds_${classId}_${themeId}`);
     return (
-      packageOf(themeId)?.status === EDU_STATUS.REVIEW ||
-      dossier?.status === EDU_STATUS.REVIEW ||
-      dossier?.status === EDU_STATUS.APPROVED
+      packageOf(themeId)?.status === EDU_STATUS.REVIEW || dossier?.status === EDU_STATUS.REVIEW || dossier?.status === EDU_STATUS.APPROVED
     );
   };
   const canDropBranch = (themeId) => !themeLocked(themeId);
@@ -407,13 +440,7 @@ function BranchPlanInner({ classId, ctx, onEditingChange }) {
     }
   };
   const importFile = (result, context) => {
-    if (
-      !canEdit ||
-      saver.saving ||
-      context.classId !== classId ||
-      context.yearPlanId !== yearPlan.id ||
-      draft.yearPlanId !== yearPlan.id
-    ) {
+    if (!canEdit || saver.saving || context.classId !== classId || context.yearPlanId !== yearPlan.id || draft.yearPlanId !== yearPlan.id) {
       toast('Lớp, kế hoạch năm hoặc quyền sửa đã thay đổi. Hãy mở lại bản xem trước.', 'warn');
       return false;
     }
@@ -703,7 +730,9 @@ function BranchPlanInner({ classId, ctx, onEditingChange }) {
                             )}
                           </div>
                         </td>
-                        <td className={`ga-branch-plan-table__week-cell${rowEditable ? ' ga-cell-editable' : editable ? ' cell--fixed' : ''}`}>
+                        <td
+                          className={`ga-branch-plan-table__week-cell${rowEditable ? ' ga-cell-editable' : editable ? ' cell--fixed' : ''}`}
+                        >
                           <div className="ga-goal-table__pad">
                             {rowEditable && (firstBranchWeek || !branch) ? (
                               <div className="ga-branch-template-dates ga-branch-date-range ga-branch-week-dates">

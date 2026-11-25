@@ -48,7 +48,13 @@ export default function EducationPlanLayout() {
     };
   }, []);
   return (
-    <EducationPlanProvider yearScoped={!settings && !curriculum} reviewView={reviewView} lightDocs={lightDocs} classId={classId} skipGoals={skipGoals}>
+    <EducationPlanProvider
+      yearScoped={!settings && !curriculum}
+      reviewView={reviewView}
+      lightDocs={lightDocs}
+      classId={classId}
+      skipGoals={skipGoals}
+    >
       <div ref={scope}>
         <Outlet />
       </div>

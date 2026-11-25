@@ -48,8 +48,7 @@ export function useClassPlanContext(classId) {
   const isHomeroomTeacher = isClassTeacher && String(cls.homeroomTeacherId) === String(user.id);
   // BE EDU-110 (12): người soạn hồ sơ lớp theo vai trò soạn đã cấu hình (GV chủ nhiệm / tổ trưởng / PHT / HT) — dùng cờ
   // BE trả (năm chỉ xem vẫn là người soạn để thấy bản đang soạn); chưa có cờ (mock) thì coi GV chủ nhiệm là người soạn
-  const capOf = (kind) =>
-    creationCapabilities.find((cap) => String(cap.classId) === String(classId) && cap.kind === kind);
+  const capOf = (kind) => creationCapabilities.find((cap) => String(cap.classId) === String(classId) && cap.kind === kind);
   const authorOf = (kind) => (capOf(kind) ? capOf(kind).reasonCode !== 'AUTHOR_FORBIDDEN' : isHomeroomTeacher);
   const branchAuthor = authorOf('branch');
   const dossierAuthor = authorOf('theme');
@@ -60,8 +59,10 @@ export function useClassPlanContext(classId) {
     if (!raw || waiting) return null;
     const source = asRows(raw);
     if (!branchAuthor) {
-      return publishedBranchCalendar(source, semesterPackages.filter((pkg) =>
-        pkg.classId === classId && pkg.yearPlanId === raw.id));
+      return publishedBranchCalendar(
+        source,
+        semesterPackages.filter((pkg) => pkg.classId === classId && pkg.yearPlanId === raw.id),
+      );
     }
     const saved = branchPlans.find((b) => b.classId === classId && b.yearPlanId === raw.id);
     const base = adaptCalendar(saved || emptyBranchPlan({ classId, yearPlanId: raw.id }), source);
@@ -196,7 +197,8 @@ export function ClassPicker({ classes, classId, onPick, showAllAges = false }) {
             )}
             {groups.map((g) => (
               <option key={g.id} value={g.id} disabled={g.missingRange}>
-                {g.name}{g.missingRange ? ' (thiếu khoảng tháng)' : ''}
+                {g.name}
+                {g.missingRange ? ' (thiếu khoảng tháng)' : ''}
               </option>
             ))}
           </SelectField>

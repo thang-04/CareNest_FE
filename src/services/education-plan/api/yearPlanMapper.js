@@ -26,8 +26,8 @@ export const buildRefs = (config) => {
   const schoolYears = config?.schoolYears || [];
   const domains = config?.domains || [];
   return {
-    ageGroupCode: (id) => id == null ? null : ageGroups.find((a) => String(a.id) === String(id) || a.code === id)?.code ?? null,
-    ageGroupId: (code) => code == null ? null : ageGroups.find((a) => a.code === code || String(a.id) === String(code))?.id ?? null,
+    ageGroupCode: (id) => (id == null ? null : (ageGroups.find((a) => String(a.id) === String(id) || a.code === id)?.code ?? null)),
+    ageGroupId: (code) => (code == null ? null : (ageGroups.find((a) => a.code === code || String(a.id) === String(code))?.id ?? null)),
     schoolYearId: (label) => schoolYears.find((y) => y.name === fromYearLabel(label))?.id ?? null,
     domainId: (name) => domains.find((d) => d.name === name)?.id ?? null,
   };

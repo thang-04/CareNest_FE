@@ -293,10 +293,7 @@ export function AppRoutes() {
             {/* BE EDU-112 (4): danh sách trước rồi mới vào chi tiết */}
             <Route path="theme-plans" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ClassDocListPage kind="semester" />)} />
             <Route path="theme-plans/:classId" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ClassPlanPage />)} />
-            <Route
-              path="day-plans"
-              element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ClassDocListPage kind="dossier" />)}
-            />
+            <Route path="day-plans" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <ClassDocListPage kind="dossier" />)} />
             <Route path="day-plans/:classId" element={edu([ROLES.PRINCIPAL, ...EDU_ALL], <DayPlansPage />)} />
             {/* Spec 900 (BE:EDU-88): kho học liệu dùng lại cho giáo án ngày */}
             <Route path="resources" element={edu([ROLES.TEAM_LEADER, ROLES.TEACHER], <ResourceLibraryPage />)} />

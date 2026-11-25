@@ -20,8 +20,9 @@ export const ageRangeKey = (group) =>
   group?.ageFromMonths != null && group?.ageToMonths != null ? group.ageFromMonths + ':' + group.ageToMonths : null;
 
 const ageGroupOf = (id) =>
-  id == null ? null : AGE_GROUPS.find((group) => [group.id, group.code, group.databaseId]
-    .some((value) => value != null && String(value) === String(id)));
+  id == null
+    ? null
+    : AGE_GROUPS.find((group) => [group.id, group.code, group.databaseId].some((value) => value != null && String(value) === String(id)));
 
 export const sameAgeRange = (left, right) => {
   // Nhóm không có trong danh mục (danh mục chưa nạp) ⇒ so theo ID; nhóm thiếu mốc tháng thì không khớp
@@ -35,11 +36,12 @@ export const ageRangeOptions = (groups = AGE_GROUPS, { includeIncomplete = false
   for (const group of groups) {
     const key = ageRangeKey(group);
     if (key && !options.has(key)) options.set(key, { ...group, rangeKey: key, name: group.shortName?.trim() || group.name });
-    if (!key && includeIncomplete) options.set(`incomplete:${group.id}`, {
-      ...group,
-      missingRange: true,
-      name: group.shortName?.trim() || group.name,
-    });
+    if (!key && includeIncomplete)
+      options.set(`incomplete:${group.id}`, {
+        ...group,
+        missingRange: true,
+        name: group.shortName?.trim() || group.name,
+      });
   }
   return [...options.values()];
 };

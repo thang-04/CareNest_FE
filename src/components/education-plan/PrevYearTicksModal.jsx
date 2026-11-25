@@ -81,8 +81,8 @@ export function PrevYearTicksModal({ open, plan, planId, onApply, onClose }) {
         {data?.source && (
           <>
             <p className="muted text-sm">
-              Nguồn: kế hoạch tổ đã ban hành năm học {data.source.schoolYearName}. Chọn chủ đề năm trước tương ứng với từng chủ đề năm
-              nay; nội dung trùng chữ trong cùng lĩnh vực được tick thêm, tick đang có giữ nguyên.
+              Nguồn: kế hoạch tổ đã ban hành năm học {data.source.schoolYearName}. Chọn chủ đề năm trước tương ứng với từng chủ đề năm nay;
+              nội dung trùng chữ trong cùng lĩnh vực được tick thêm, tick đang có giữ nguyên.
             </p>
             {!themes.length && <Notice>Chưa có chủ đề nào để lấy tick.</Notice>}
             {themes.map((t) => (

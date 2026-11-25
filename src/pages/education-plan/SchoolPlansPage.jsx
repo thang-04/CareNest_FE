@@ -205,7 +205,9 @@ export default function SchoolPlansPage() {
                     <td>{r.detail}</td>
                     <td>{r.by || '—'}</td>
                     <td>{r.at}</td>
-                    <td className="center">{r.year ? <YearPlanStatusBadge status={r.status} doc={r.doc} /> : <EduStatusBadge status={r.status} doc={r.doc} />}</td>
+                    <td className="center">
+                      {r.year ? <YearPlanStatusBadge status={r.status} doc={r.doc} /> : <EduStatusBadge status={r.status} doc={r.doc} />}
+                    </td>
                   </tr>
                 ))}
               </tbody>

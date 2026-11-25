@@ -68,7 +68,9 @@ function ThemePlanInner() {
   // Spec 004: kế hoạch chủ đề gửi/duyệt trong học kỳ (gốc sp_) ⇒ trạng thái, hạn, lịch sử lấy theo học kỳ
   const semester =
     semesterPackages.find((p) => p.id === saved?.containerKey) ||
-    semesterPackages.find((p) => p.classId === classId && p.yearPlanId === yearPlan?.id && (p.themeIds || []).map(String).includes(String(themeId))) ||
+    semesterPackages.find(
+      (p) => p.classId === classId && p.yearPlanId === yearPlan?.id && (p.themeIds || []).map(String).includes(String(themeId)),
+    ) ||
     null;
   const holder = semester || saved;
   const [draft, setDraft] = useState(null);
@@ -140,7 +142,8 @@ function ThemePlanInner() {
 
   if (ctx.loading) return <LoadingState />;
   if (!cls || !yearPlan || !theme) return <StatusPage kind="404" title="Không tìm thấy chủ đề trong kế hoạch năm đã ban hành của lớp" />;
-  if (!canComposeClassDocs && !saved) return <StatusPage kind="404" title="Kế hoạch chủ đề chưa được ban hành hoặc không thuộc phạm vi xem" />;
+  if (!canComposeClassDocs && !saved)
+    return <StatusPage kind="404" title="Kế hoạch chủ đề chưa được ban hành hoặc không thuộc phạm vi xem" />;
   const planPath = (path) => classPlanVersionPath(path, ctx.superseded ? yearPlan.id : null);
   if (!draft) return <LoadingState />;
 
