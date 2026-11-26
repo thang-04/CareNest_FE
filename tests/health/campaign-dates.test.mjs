@@ -117,3 +117,10 @@ test('Ngày hiển thị dd/mm/yyyy chuyển qua lại đúng với giá trị g
   assert.equal(parseDisplayDate('31/02/2027'), null);
   assert.equal(parseDisplayDate('29/02/2028'), '2028-02-29');
 });
+
+test('Tên chiến dịch theo loại hoạt động', () => {
+  for (const [kind, label] of [['EXAM', 'đợt khám'], ['MEASUREMENT', 'kỳ cân đo']]) {
+    assert.equal(validateHealthCheck(payload(kind, { name: '' })).name, `Nhập tên ${label}`);
+    assert.equal(validateHealthCheck(payload(kind, { name: 'x'.repeat(151) })).name, `Tên ${label} tối đa 150 ký tự`);
+  }
+});

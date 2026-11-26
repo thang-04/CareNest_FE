@@ -195,7 +195,7 @@ export const validateMeasurement = (m, { requireReason } = {}) => {
   else if (w < 3 || w > 60) errors.weightKg = 'Nhập cân nặng từ 3 đến 60 kg';
   else if (moreThanOneDecimal(m.weightKg)) errors.weightKg = 'Cân nặng lấy tối đa 1 chữ số thập phân';
   if ((m.note || '').length > 500) errors.note = 'Ghi chú tối đa 500 ký tự';
-  if (requireReason && !m.reason?.trim()) errors.reason = 'Nhập lý do sửa kết quả đã công bố';
+  if (requireReason && !m.reason?.trim()) errors.reason = 'Nhập lý do sửa số đo đã công bố';
   return errors;
 };
 
@@ -205,8 +205,9 @@ export const hasErrors = (errors) => Object.keys(errors || {}).length > 0;
 export const validateHealthCheck = (c, { creating = false } = {}) => {
   const errors = {};
   const minDate = creating ? today() : undefined;
-  if (!c.name?.trim()) errors.name = 'Nhập tên đợt khám';
-  else if (c.name.trim().length > 150) errors.name = 'Tên đợt tối đa 150 ký tự';
+  const label = c.kind === 'MEASUREMENT' ? 'kỳ cân đo' : 'đợt khám';
+  if (!c.name?.trim()) errors.name = `Nhập tên ${label}`;
+  else if (c.name.trim().length > 150) errors.name = `Tên ${label} tối đa 150 ký tự`;
   if (!c.campusId) errors.campusId = 'Chọn điểm trường';
   if (!isIsoDate(c.startDate)) errors.startDate = 'Nhập ngày bắt đầu hợp lệ theo dd/mm/yyyy';
   else if (minDate && c.startDate < minDate) errors.startDate = 'Ngày bắt đầu không được trước hôm nay';
