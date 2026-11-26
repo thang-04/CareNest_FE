@@ -17,7 +17,7 @@ const withDefaults = (balance) => ({
 
 /** Factory để test thay client HTTP. */
 export const createDayBalanceApi = ({ client = beClient } = {}) => ({
-  /** Trạng thái từng ngày học: [{ date, dayOff, saved, stale, passed, problems }]. */
+  /** Trạng thái từng ngày học: [{ date, dayOff, offReason, saved, stale, passed, problems }]. */
   async getStatuses(from, to) {
     return (await client.get('/nutrition/day-balances', { params: { from, to } })) || [];
   },

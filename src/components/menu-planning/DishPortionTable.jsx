@@ -14,7 +14,7 @@ export function DishPortionTable({ dish, foodById, groups }) {
   const cols = 10;
   return (
     <>
-      <div className="table-wrap">
+      <div className="table-wrap td-card-table td-soft">
         <table className="table table--grid table--compact td-portion-table">
           <thead>
             <>

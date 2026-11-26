@@ -17,7 +17,7 @@ import {
   addDays,
   schoolWeekStart,
 } from '@/models/menu-planning/menuPlanningConstants';
-import { dayMark } from '@/utils/menu-planning/dayBalance';
+import { dayMark, dayOffOf } from '@/utils/menu-planning/dayBalance';
 import { dayBlockItems, draftFromPlan, planBlocks, resolveWeekStart, setDayBlockItems } from '@/utils/menu-planning/mealPlanGrid';
 import { menuCrumbs } from '@/utils/menu-planning/breadcrumbs';
 import { todayInput } from '@/utils/format';
@@ -46,7 +46,13 @@ export default function DayBalancePage() {
   const blocks = planBlocks(plan);
   const block = blocks.includes(params.get('block')) ? params.get('block') : blocks[0];
   const days = plan?.days || [];
-  const date = days.some((d) => d.date === params.get('date')) ? params.get('date') : (days.find((d) => !d.off) || days[0])?.date;
+  // Ngày nghỉ = kế hoạch tuần đánh dấu nghỉ hoặc BE báo nghỉ (cuối tuần, lịch nghỉ của trường)
+  const isOff = (d) =>
+    dayOffOf(
+      d,
+      statusQ.statuses.find((s) => s.date === d.date),
+    ).off;
+  const date = days.some((d) => d.date === params.get('date')) ? params.get('date') : (days.find((d) => !isOff(d)) || days[0])?.date;
   const day = days.find((d) => d.date === date);
   const round = params.get('round') === '2' ? 2 : 1;
   const dishEditable = !!plan?.canEdit && plan.status !== MEAL_PLAN_STATUS.PUBLISHED;
@@ -110,8 +116,10 @@ export default function DayBalancePage() {
     );
 
   const statusOf = (d) => statusQ.statuses.find((s) => s.date === d);
+  const offReasonOf = (d) => dayOffOf(d, statusOf(d.date)).reason;
+  const offDays = days.filter(isOff);
   return (
-    <div className="page td-sections">
+    <div className="page td-bal-page">
       {head}
       <div className="row td-week-status">
         <MealPlanStatusBadge status={plan.status} size="lg" />
@@ -124,35 +132,52 @@ export default function DayBalancePage() {
           Xem cả tuần
         </Link>
       </div>
+      {offDays.length > 0 && (
+        <div className="alert alert--info" role="status">
+          <div>
+            <b>Ngày nghỉ trong tuần, không cân đối khẩu phần:</b>
+            <ul className="td-bal__off-list">
+              {offDays.map((d) => (
+                <li key={d.date}>
+                  {WEEKDAY_LABELS[days.indexOf(d)]} {ddmm(d.date)} · {offReasonOf(d)}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
       {!block ? (
         <section className="card">
           <EmptyState title="Chưa có khối nào để cân đối" description="Kiểm tra cấu hình nhóm tuổi và bữa ăn của trường." />
         </section>
       ) : (
         <>
-          <Tabs
-            variant="pill"
-            ariaLabel="Ngày trong tuần"
-            items={days.map((d, i) => ({
-              key: d.date,
-              label: `${WEEKDAY_LABELS[i]} ${ddmm(d.date)}${d.off ? ' · nghỉ' : dayMark(statusOf(d.date))}`,
-              title: statusOf(d.date)?.problems?.join('\n') || undefined,
-            }))}
-            value={date}
-            onChange={(key) => open({ date: key })}
-          />
-          <Tabs
-            ariaLabel="Lần cân đối"
-            items={[
-              { key: '1', label: 'Lần 1 · Dự kiến' },
-              { key: '2', label: 'Lần 2 · Sau chốt suất' },
-            ]}
-            value={String(round)}
-            onChange={(key) => open({ round: key })}
-          />
-          {day?.off ? (
+          <div className="td-week-toolbar td-bal__tabs">
+            <Tabs
+              variant="pill"
+              ariaLabel="Ngày trong tuần"
+              items={days.map((d, i) => ({
+                key: d.date,
+                label: `${WEEKDAY_LABELS[i]} ${ddmm(d.date)}${isOff(d) ? ' · nghỉ' : dayMark(statusOf(d.date))}`,
+                disabled: isOff(d) && d.date !== date,
+                title: isOff(d) ? offReasonOf(d) : statusOf(d.date)?.problems?.join('\n') || undefined,
+              }))}
+              value={date}
+              onChange={(key) => open({ date: key })}
+            />
+            <Tabs
+              ariaLabel="Lần cân đối"
+              items={[
+                { key: '1', label: 'Lần 1 · Dự kiến' },
+                { key: '2', label: 'Lần 2 · Sau chốt suất' },
+              ]}
+              value={String(round)}
+              onChange={(key) => open({ round: key })}
+            />
+          </div>
+          {day && isOff(day) ? (
             <section className="card">
-              <EmptyState title="Ngày nghỉ" description={day.note || 'Ngày này không phục vụ bữa ăn.'} />
+              <EmptyState title="Ngày nghỉ" description={offReasonOf(day)} />
             </section>
           ) : (
             day && (

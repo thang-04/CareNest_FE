@@ -38,7 +38,8 @@ const config = (over) => ({
   animalLipidGMax: 14,
   lunchKcalPctMin: 40,
   lunchKcalPctMax: 50,
-  dailyKcalNeed: 1300,
+  dailyKcalMin: 1230,
+  dailyKcalMax: 1320,
   normBasis: 'TT 28/2016',
   ...over,
 });
@@ -421,7 +422,7 @@ test('cấu hình nhóm tuổi BE → Thiết lập: id nhóm FE theo code, giá
     lunchKcalPct: [40, 50],
   });
   assert.ok(!('animalProteinG' in ag4.norms), 'khoảng null = chưa đặt');
-  assert.equal(ag4.dailyKcalNeed, 1300, 'nhu cầu năng lượng cả ngày (NUT-25)');
+  assert.deepEqual(ag4.dailyKcal, [1230, 1320], 'nhu cầu năng lượng cả ngày tối thiểu–tối đa (NUT-25)');
   assert.deepEqual(
     ag4.versions.map((v) => [v.effectiveFrom, v.editable]),
     [
@@ -452,7 +453,7 @@ test('lưu Thiết lập lên BE: một POST /batch chứa mọi nhóm đổi; k
     price: '32000',
     meals: [],
     norms,
-    dailyKcalNeed: '1300',
+    dailyKcal: ['1230', '1320'],
     ...over,
   });
   calls = [];
@@ -460,8 +461,8 @@ test('lưu Thiết lập lên BE: một POST /batch chứa mọi nhóm đổi; k
     effectiveFrom: '2099-01-01',
     basis: 'TT 28/2016',
     groups: [
-      group('ag-4', { dailyKcalNeed: '1400', applied: { protein: '14', lipid: '26', glucid: '60' } }),
-      group('ag-2', { norms: { kcal: ['', ''] }, price: '28000' }),
+      group('ag-4', { dailyKcal: ['1300', '1400'], applied: { protein: '14', lipid: '26', glucid: '60' } }),
+      group('ag-2', { dailyKcal: ['', ''], price: '28000' }),
     ],
   });
   const writes = calls.filter((c) => c.method !== 'get');
@@ -480,18 +481,11 @@ test('lưu Thiết lập lên BE: một POST /batch chứa mọi nhóm đổi; k
     serviceFee: 0,
     budgetTolerancePct: 5,
     normBasis: 'TT 28/2016',
-    dailyKcalNeed: 1400,
+    dailyKcalMin: 1300,
+    dailyKcalMax: 1400,
     appliedProteinPct: 14,
     appliedLipidPct: 26,
     appliedGlucidPct: 60,
-    kcalMin: 615,
-    kcalMax: 726,
-    proteinPctMin: 13,
-    proteinPctMax: 20,
-    lipidPctMin: 25,
-    lipidPctMax: 35,
-    glucidPctMin: 52,
-    glucidPctMax: 60,
     animalProteinGMin: 12,
     animalProteinGMax: 16,
     plantProteinGMin: null,
@@ -530,7 +524,8 @@ test('lưu Thiết lập lên BE: một POST /batch chứa mọi nhóm đổi; k
   });
   assert.equal(ag2.ageGroupId, '11');
   assert.equal(ag2.mealPrice, 28000);
-  assert.equal(ag2.kcalMin, null, 'ô trống ⇒ null (chưa đặt)');
+  assert.equal(ag2.dailyKcalMin, null, 'ô trống ⇒ null (chưa đặt)');
+  assert.ok(!('kcalMin' in ag2), 'năng lượng khuyến nghị do BE tính, không gửi lên (NUT-33)');
 
   calls = [];
   const unchanged = { ...norms, animalProteinG: ['', ''], calcium: ['', ''], vitaminA: ['', ''] };
@@ -722,4 +717,9 @@ test('nutrition ON/OFF maps status and saves without creating a dated config', a
     failed.saveNutritionSetups({ statusOnly: true, groups: [{ ageGroupId: 'ag-4', enabled: true, originalEnabled: false }] }),
     /unavailable/,
   );
+});
+
+test('thực phẩm BE đã nhập kho: cờ unitsLocked chuyển cho form để khóa ô đơn vị, quy đổi', async () => {
+  const [food] = await api.listFoods({});
+  assert.equal(food.unitsLocked, false, 'BE không báo khóa thì không khóa');
 });

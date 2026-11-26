@@ -55,8 +55,8 @@ test('seed: nhóm 5–6 tuổi để trống chuẩn tạm để demo trạng th
   assert.equal(isNormConfigured(catalog.norms['ag-5']), false);
 });
 
-test('thiết lập: để trống cả bốn chuẩn tạm hợp lệ; nhập dở một khoảng thì báo lỗi', () => {
-  const group = (norms) => ({
+test('thiết lập: để trống nhu cầu cả ngày hợp lệ; nhập dở một đầu thì báo lỗi', () => {
+  const group = (norms, dailyKcal = ['', '']) => ({
     ageGroupId: 'ag-4',
     enabled: true,
     price: '30000',
@@ -65,9 +65,10 @@ test('thiết lập: để trống cả bốn chuẩn tạm hợp lệ; nhập d
       { code: 'AFTERNOON', name: 'Bữa chiều', countAs: 'AFTERNOON' },
     ],
     norms,
+    dailyKcal,
   });
   const empty = { kcal: ['', ''], protein: ['', ''], lipid: ['', ''], glucid: ['', ''] };
   assert.deepEqual(validateNutritionSetup({ effectiveFrom: TODAY, groups: [group(empty)] }, TODAY), {});
-  const partial = { ...empty, kcal: ['600', ''] };
-  assert.ok(validateNutritionSetup({ effectiveFrom: TODAY, groups: [group(partial)] }, TODAY)['ag-4.norms.kcal']);
+  assert.ok(validateNutritionSetup({ effectiveFrom: TODAY, groups: [group(empty, ['1200', ''])] }, TODAY)['ag-4.dailyKcal']);
+  assert.deepEqual(validateNutritionSetup({ effectiveFrom: TODAY, groups: [group(empty, ['1200', '1300'])] }, TODAY), {});
 });

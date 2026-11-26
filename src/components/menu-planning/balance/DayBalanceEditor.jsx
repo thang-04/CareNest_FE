@@ -5,7 +5,7 @@ import { Tabs } from '@/components/ui/Tabs';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import { BalanceCounts } from '@/components/menu-planning/balance/BalanceCounts';
 import { BalanceFoodTable } from '@/components/menu-planning/balance/BalanceFoodTable';
-import { BalanceMoney, BalanceNutrition } from '@/components/menu-planning/balance/BalanceNutrition';
+import { BalanceNutrition } from '@/components/menu-planning/balance/BalanceNutrition';
 import { BalanceSidebar } from '@/components/menu-planning/balance/BalanceSidebar';
 import { BalanceSummaryTable } from '@/components/menu-planning/balance/BalanceSummaryTable';
 import { useDayBalance } from '@/hooks/menu-planning/useDayBalance';
@@ -17,7 +17,7 @@ import { mealGroupsOf, toBalanceRequest } from '@/utils/menu-planning/dayBalance
 const SUMMARY = 'summary';
 
 /**
- * Cân đối một ngày: số trẻ, tab nhóm tuổi của khối và tab tổng hợp mua hàng. Mỗi lần sửa gọi BE tính thử; "Lưu" ghi cả
+ * Cân đối một ngày: số trẻ, món trong ngày, rồi tab nhóm tuổi của khối và tab tổng hợp mua hàng (tab nằm dưới bảng món để đổi tab không làm bảng món xê dịch). Mỗi lần sửa gọi BE tính thử; "Lưu" ghi cả
  * bản cân đối của ngày. `guardRef` nhận bộ chặn rời màn để trang hỏi trước khi đổi tuần, ngày.
  */
 export function DayBalanceEditor({ date, round = 1, block, day, dishes, guardRef, onChangeDishes, onSaved }) {
@@ -82,7 +82,7 @@ export function DayBalanceEditor({ date, round = 1, block, day, dishes, guardRef
   const staleLabel = confirmedRound ? 'Suất hoặc thực đơn đã đổi, cần cân đối lại' : 'Thực đơn đã đổi, cần cân đối lại';
 
   return (
-    <>
+    <div className="td-bal-page">
       <div className="td-week-bar">
         <div className="row td-week-status">
           <StatusBadge
@@ -120,15 +120,16 @@ export function DayBalanceEditor({ date, round = 1, block, day, dishes, guardRef
         busy={busy}
         onChange={editable && !confirmedRound ? (count) => recalculate({ count }) : undefined}
       />
-      <Tabs
-        ariaLabel="Nhóm tuổi"
-        value={group ? String(group.ageGroupId) : SUMMARY}
-        onChange={setTab}
-        items={[...groups.map((g) => ({ key: String(g.ageGroupId), label: g.name })), { key: SUMMARY, label: 'Tổng hợp mua hàng' }]}
-      />
-      {group && <BalanceMoney evaluation={evaluation} />}
       <div className="td-bal">
         <BalanceSidebar
+          tabs={
+            <Tabs
+              ariaLabel="Nhóm tuổi"
+              value={group ? String(group.ageGroupId) : SUMMARY}
+              onChange={setTab}
+              items={[...groups.map((g) => ({ key: String(g.ageGroupId), label: g.name })), { key: SUMMARY, label: 'Tổng hợp mua hàng' }]}
+            />
+          }
           meals={mealGroupsOf(day, block, sessions)}
           dishes={dishes}
           evaluation={evaluation}
@@ -162,6 +163,6 @@ export function DayBalanceEditor({ date, round = 1, block, day, dishes, guardRef
         </div>
       </div>
       <LeaveConfirmModal {...guard.modal} />
-    </>
+    </div>
   );
 }

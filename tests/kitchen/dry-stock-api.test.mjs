@@ -304,6 +304,14 @@ test('biến động kho đọc theo đơn vị gốc, ngày gom theo ngày ăn 
   assert.equal(formatStockChange(-5289, { unit: 'g' }), '−5,29 kg');
   assert.equal(formatStockChange(1500, { unit: 'ml' }), '+1,5 lít');
   assert.equal(formatStockChange(-500, { purchaseUnit: 'chai', purchaseUnitSize: 500 }), '−1 chai');
+  // Đơn vị mua đóng gói: cùng đơn vị với tồn kho, kèm lượng gốc; mua theo kg, lít vẫn hiện theo đơn vị gốc
+  assert.equal(formatStockChange(-1500, { unit: 'g', purchaseUnit: 'hộp', purchaseUnitSize: 50 }), '−30 hộp (−1,5 kg)');
+  assert.equal(formatStockChange(2100, { unit: 'ml', purchaseUnit: 'chai', purchaseUnitSize: 700 }), '+3 chai (+2,1 lít)');
+  assert.equal(formatStockChange(-5289, { unit: 'g', purchaseUnit: 'kg', purchaseUnitSize: 1000 }), '−5,29 kg');
+  const { baseUnitLabels } = await import('../../src/utils/menu-planning/foodUnits.js');
+  assert.deepEqual(baseUnitLabels('ml'), { small: 'ml', big: 'lít' });
+  assert.deepEqual(baseUnitLabels('g'), { small: 'g', big: 'kg' });
+  assert.deepEqual(baseUnitLabels(undefined), { small: 'g', big: 'kg' });
   const groups = groupMovementsByDay([
     { id: 1, mealDate: '2026-10-30' },
     { id: 2, mealDate: '2026-10-30' },

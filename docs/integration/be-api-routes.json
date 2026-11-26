@@ -223,6 +223,7 @@
     "GET /school-years/{x}/readiness",
     "GET /school-years/{x}/semester-locks",
     "GET /school-years/{x}/vice-principal-assignments",
+    "GET /school/appearance",
     "GET /signatures/me",
     "GET /signatures/me/{x}/content",
     "GET /signatures/me/{x}/url",
@@ -456,6 +457,7 @@
     "PUT /school-years/{x}/placements",
     "PUT /school-years/{x}/semester",
     "PUT /school-years/{x}/vice-principal-assignments/{x}",
+    "PUT /school/appearance",
     "PUT /team-leader-assignments"
   ]
 }

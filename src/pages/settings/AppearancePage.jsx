@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { CheckCircle, Info, MagicWand, PushPin, Shuffle, WarningCircle } from '@/components/ui/icons';
+import { useAppearance } from '@/contexts/AppearanceContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useAsync } from '@/hooks/useAsync';
@@ -40,6 +41,7 @@ export default function AppearancePage() {
   const { user } = useAuth();
   const toast = useToast();
   const canEdit = canEditAppearance(user);
+  const { reload: reloadAppearance } = useAppearance();
   const { data, setData, loading, error, reload } = useAsync(() => getAppearance(user), [user.id]);
   const [form, setForm] = useState(null);
   const [serverError, setServerError] = useState('');
@@ -77,6 +79,8 @@ export default function AppearancePage() {
     try {
       const saved = await saveAppearance(form, user);
       setData(saved);
+      // Nền toàn app đọc cấu hình riêng ở AppearanceProvider: tải lại để đổi ngay, không chờ lần mở sau
+      reloadAppearance({ silent: true });
       toast.success('Đã lưu giao diện cho cả trường.');
     } catch (err) {
       const details = err.details && typeof err.details === 'object' ? Object.values(err.details) : [];

@@ -903,6 +903,14 @@ tr.sortable-item--moved > td {
 .table.table--grid tbody tr:hover td {
   background: var(--color-surface);
 }
+/* Dòng tiêu đề nhóm của bảng hai cấp (DataTable groupBy) */
+.table.table--grid tbody tr.table__group th {
+  padding-block: var(--space-2);
+  background: var(--color-surface-muted);
+  color: var(--color-text-secondary);
+  font-weight: var(--fw-bold);
+  text-align: left;
+}
 /* Căn lề theo loại dữ liệu (user chốt 08/11/2026, cách lai), tiêu đề cột dùng cùng class với ô:
    chữ dài (tên, lý do, ghi chú): trái (mặc định) · mọi giá trị ngắn (số, tiền, %, STT, ngày, trạng thái, đơn vị, mã, ô tích):
    .num / .money / .center giữa. Không căn phải để mỗi bảng chỉ có 2 kiểu căn */
@@ -3601,7 +3609,6 @@ button.stat-card .stat-card__label::after {
   position: absolute;
   right: var(--space-1);
 }
-/* Native date input kept only to open the browser calendar; DateInput shows the dd/mm/yyyy text box. */
 /* Chọn tuần: ‹ [lịch · nhãn tuần] › — lịch gốc neo dưới nút nhãn */
 .week-picker {
   display: inline-flex;
@@ -3617,11 +3624,12 @@ button.stat-card .stat-card__label::after {
   align-items: center;
   gap: var(--space-2);
 }
+/* Ô date gốc ẩn chỉ để mở lịch trình duyệt; rộng bằng ô nhập vì lịch neo theo mép trái của nó */
 .date-input__picker {
   position: absolute;
-  right: 0;
+  left: 0;
   bottom: 0;
-  width: 0;
+  width: 100%;
   height: 0;
   padding: 0;
   border: 0;
