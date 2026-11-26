@@ -16,7 +16,7 @@ const VERDICTS = [
  * nhóm tuổi đang xem kèm nút làm tròn, dựng lại từ công thức. `onChangeDishes` / `onRound` / `onReset` không truyền ⇒ ẩn
  * thao tác tương ứng.
  */
-export function BalanceSidebar({ meals, dishes, evaluation, busy, locked, onChangeDishes, onRound, onReset }) {
+export function BalanceSidebar({ meals, dishes, evaluation, busy, locked, tabs, onChangeDishes, onRound, onReset }) {
   const [adding, setAdding] = useState(null);
   const [step, setStep] = useState(ROUNDING_STEPS[0]);
   const current = meals.find((m) => m.session === adding);
@@ -102,6 +102,7 @@ export function BalanceSidebar({ meals, dishes, evaluation, busy, locked, onChan
           empty={{ title: 'Chưa có bữa nào' }}
         />
       </section>
+      {tabs}
       {evaluation && (
         <section className="card">
           <div className="card__header td-bal__verdict-head">
