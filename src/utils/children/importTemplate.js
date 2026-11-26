@@ -1,5 +1,11 @@
 import { IMPORT_COLUMNS } from '@/models/children/childrenConstants';
 
+/**
+ * File mẫu tải về (26/11/2026): .xlsx dựng từ IMPORT_COLUMNS và dòng mẫu dưới đây, mọi ô dạng chữ để Excel không đảo
+ * ngày/tháng hay bỏ số 0 đầu SĐT/CCCD; có danh sách chọn, ghi chú từng cột và trang Hướng dẫn. Đổi cột ⇒ dựng lại file.
+ */
+export const CHILD_IMPORT_TEMPLATE_URL = '/templates/tiep-nhan-tre-mau.xlsx';
+
 /** Hàng tiêu đề + dòng mẫu của file nhập tiếp nhận (mỗi giá trị ứng 1 cột IMPORT_COLUMNS, đúng thứ tự). */
 export const importTemplateRows = () => [
   IMPORT_COLUMNS.map((c) => c.label),

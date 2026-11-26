@@ -9,8 +9,7 @@ import { SelectField } from '@/components/form/Field';
 import { IntakeStartFields } from '@/components/children/IntakeStartFields';
 import { useYearHolidays } from '@/hooks/children/useChildRecords';
 import { previewEnrollmentImport } from '@/services/children/childrenService';
-import { importTemplateRows } from '@/utils/children/importTemplate';
-import { downloadCsv } from '@/utils/exportCsv';
+import { CHILD_IMPORT_TEMPLATE_URL } from '@/utils/children/importTemplate';
 import { childCampusesOf } from '@/utils/children/childrenPermissions';
 import { keepCampusPick } from '@/utils/children/childrenHelpers';
 import { saveImportDraft } from '@/utils/children/importDraft';
@@ -21,18 +20,17 @@ import { todayInput } from '@/utils/format';
 const MAX_SIZE = 10 * 1024 * 1024;
 const ACCEPT = '.csv,.xlsx,.xls';
 
-const downloadTemplate = () => downloadCsv(importTemplateRows(), 'mau-tiep-nhan-tre.csv');
-
 // Quy tắc chi tiết ẩn sau "Xem hướng dẫn chi tiết" (user chốt 14/11/2026); khung chính chỉ giữ 3 ý.
 const GUIDE_DETAILS = [
   'Hệ thống kiểm tra từng dòng: thông tin bắt buộc, số điện thoại, số CCCD phụ huynh, email và hồ sơ trùng. Dòng lỗi sửa trong file rồi tải lên lại.',
   'Các cột hành chính và tiền sử là bắt buộc, trừ CCCD trẻ và nhóm máu, vì phiếu khám sức khỏe lấy từ hồ sơ.',
-  'Số CCCD phụ huynh gồm 12 chữ số. Để ô ở dạng chữ để Excel không bỏ số 0 đầu.',
+  'Số CCCD phụ huynh gồm 12 chữ số. File mẫu .xlsx đã để mọi ô dạng chữ: gõ ngày dd/mm/yyyy, SĐT và CCCD giữ số 0 đầu.',
+  'Ảnh của trẻ và phụ huynh không nhập qua Excel; bổ sung ở hồ sơ trẻ sau khi nhập.',
   'Có thể nhập thêm phụ huynh 2, 3. Chọn một người nhận tài khoản ở cột CCCD phụ huynh nhận tài khoản hoặc ở bản xem trước.',
   'Số CCCD phụ huynh trùng tài khoản có sẵn: hệ thống dùng họ tên, số điện thoại, email của tài khoản và liên kết người được chọn với trẻ khi kích hoạt.',
   'Trẻ có tiếp xúc với người bệnh lao phải ghi ngày tiếp xúc gần nhất (dd/mm/yyyy). Hệ thống báo Hiệu trưởng và Phó hiệu trưởng điểm trường khi nhập.',
   'Cột Báo ăn: Có hoặc để trống là trẻ ăn ở trường; Không thì bỏ qua cột Dị ứng, Chế độ ăn.',
-  'File mẫu cũ thiếu cột (vd. "Số CCCD phụ huynh") thì tải lại file mẫu.',
+  'File mẫu cũ (.csv) hoặc thiếu cột thì tải lại file mẫu .xlsx.',
 ];
 
 // Nút bật/tắt nằm dưới phần chi tiết (không dùng <details> vì summary luôn đứng đầu): mở ra thì nút xuống cuối danh sách.
@@ -164,7 +162,7 @@ export function ImportChildrenModal({ initialCampusId, onClose, onChecked }) {
       open
       title="Nhập danh sách trẻ từ Excel"
       guide={<ImportGuide />}
-      onTemplate={downloadTemplate}
+      templateHref={CHILD_IMPORT_TEMPLATE_URL}
       templateLabel="Tải file mẫu"
       options={
         <>
