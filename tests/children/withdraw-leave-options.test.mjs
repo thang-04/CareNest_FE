@@ -149,3 +149,12 @@ test('modal gợi ý khoảng ngày, chỉ chọn từ ngày mai khi todayAllowe
   assert.match(modalSrc, /Trẻ vẫn học tới hết ngày \$\{formatDate\(/);
   assert.match(modalSrc, /hệ thống tự chuyển sang Đã nghỉ học từ ngày đã chọn\./);
 });
+
+test('Ngày nghỉ mặc định nằm trong khoảng BE cho phép', async () => {
+  const { defaultLeaveDate } = await import('@/utils/children/leaveDate');
+  const options = { today: '2026-11-27', minDate: '2026-11-27', maxDate: '2027-05-31' };
+  assert.equal(defaultLeaveDate(options), '2026-11-28');
+  assert.equal(defaultLeaveDate({ ...options, nextSchoolDay: '2026-11-30' }), '2026-11-30');
+  assert.equal(defaultLeaveDate({ ...options, maxDate: options.today }), options.today);
+  assert.match(modalSrc, /defaultLeaveDate\(options\)/);
+});

@@ -7,6 +7,7 @@ import { DateInput } from '@/components/form/DateInput';
 import { FormField } from '@/components/form/FormField';
 import { useLeaveOptions } from '@/hooks/children/useChildRecords';
 import { withdrawChild } from '@/services/children/childrenService';
+import { defaultLeaveDate } from '@/utils/children/leaveDate';
 import { addDays, formatDate, isIsoDate } from '@/utils/format';
 
 /**
@@ -30,8 +31,7 @@ export function WithdrawChildModal({ child, onClose, onDone }) {
       return next;
     });
 
-  // Chưa chọn thì mặc định ngày đầu BE cho chọn; chỉ nhắc nhập liệu, luật ngày do BE kiểm
-  const leftAt = picked ?? options?.minDate ?? '';
+  const leftAt = picked ?? defaultLeaveDate(options);
   const noDays = !!options && options.minDate > options.maxDate;
   const validDate =
     !!options &&
