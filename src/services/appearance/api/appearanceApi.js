@@ -1,10 +1,15 @@
-import { axiosClient } from '@/services/http/axiosClient';
+import { beClient } from '@/services/http/beClient';
 
 /*
- * PROPOSED endpoints only – contract chưa thống nhất với CareNest_BE (xem docs/plans/active/2026-10-09-giao-dien-tranh-nen.md).
+ * BE: SchoolAppearanceController (GET mọi người dùng đăng nhập, PUT Hiệu trưởng / Phó hiệu trưởng).
  * Cùng tên hàm và tham số với mock repository; người dùng lấy từ JWT nên bỏ qua `user`.
  */
 export const appearanceApi = {
-  getAppearance: () => axiosClient.get('/school/appearance'),
-  saveAppearance: (form) => axiosClient.put('/school/appearance', form),
+  getAppearance: () => beClient.get('/school/appearance'),
+  saveAppearance: (form) =>
+    beClient.put('/school/appearance', {
+      mode: form.mode,
+      pinnedSceneId: form.pinnedSceneId,
+      enabledSceneIds: form.enabledSceneIds,
+    }),
 };

@@ -448,6 +448,8 @@ PUT /school-years/{schoolYearId}/semester · src/main/java/com/carenest/controll
 GET /school-years/{schoolYearId}/semester-locks · src/main/java/com/carenest/controller/organization/SchoolYearController.java#getSemesterLocks
 GET /school-years/{schoolYearId}/vice-principal-assignments · src/main/java/com/carenest/controller/organization/VicePrincipalAssignmentController.java#getAssignments
 PUT /school-years/{schoolYearId}/vice-principal-assignments/{userId} · src/main/java/com/carenest/controller/organization/VicePrincipalAssignmentController.java#assign
+GET /school/appearance · src/main/java/com/carenest/controller/organization/SchoolAppearanceController.java#getAppearance
+PUT /school/appearance · src/main/java/com/carenest/controller/organization/SchoolAppearanceController.java#saveAppearance
 GET /signatures/me · src/main/java/com/carenest/controller/account/UserSignatureController.java#listSignatures
 POST /signatures/me · src/main/java/com/carenest/controller/account/UserSignatureController.java#uploadSignature
 DELETE /signatures/me/{signatureId} · src/main/java/com/carenest/controller/account/UserSignatureController.java#deleteSignature
@@ -460,3 +462,5 @@ GET /teacher-assignments · src/main/java/com/carenest/controller/organization/T
 GET /team-leader-assignments · src/main/java/com/carenest/controller/organization/TeacherAssignmentController.java#getTeamLeaders
 PUT /team-leader-assignments · src/main/java/com/carenest/controller/organization/TeacherAssignmentController.java#assignTeamLeader
 ```
+
+GET /nutrition/age-group-configs/statuses · src/main/java/com/carenest/controller/meals/AgeGroupMealConfigController.java#getGroupStatuses
