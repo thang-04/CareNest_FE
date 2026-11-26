@@ -26,8 +26,22 @@ const originOf = (menu, pathname, search) => {
   return to ? flatten(menu).find((e) => e.item.to === to) || null : null;
 };
 
-/** Mục sidebar của màn đang mở: mục nơi đi vào (nếu có), không thì mục có đường dẫn dài nhất bao được `pathname`; không có ⇒ null. */
-export const menuEntryFor = (menu, pathname, search = '') =>
+// Mục nơi đi vào được giữ qua các trang con (sửa, chuyển tuần, chủ đề…) cho tới khi mở một trang danh sách hoặc rời /education.
+// Gọi cùng (pathname, search) nhiều lần cho kết quả như nhau nên sidebar và breadcrumb dùng chung được.
+let stickyOrigin = null;
+export function trackOrigin(menu, pathname, search = '') {
+  const fresh = originOf(menu, pathname, search);
+  if (fresh) stickyOrigin = fresh.item.to;
+  else if (!pathname.startsWith('/education/') || flatten(menu).some((e) => e.item.to === pathname.replace(/\/$/, ''))) stickyOrigin = null;
+  return stickyOrigin;
+}
+
+/**
+ * Mục sidebar của màn đang mở: mục nơi đi vào (`origin` đang giữ hoặc ?review=1, ?overdue=1), không thì mục có đường dẫn dài
+ * nhất bao được `pathname`; không có ⇒ null.
+ */
+export const menuEntryFor = (menu, pathname, search = '', origin = null) =>
+  (pathname.startsWith('/education/') && origin ? flatten(menu).find((e) => e.item.to === origin) : null) ||
   originOf(menu, pathname, search) ||
   flatten(menu)
     .filter((e) => e.item.to && covers(e.item, pathname))
@@ -39,9 +53,9 @@ export const menuEntryFor = (menu, pathname, search = '') =>
  * Cấp con giữ lại = các crumb đứng sau crumb trỏ về mục sidebar; trang không có crumb như vậy thì giữ crumb cuối
  * (tên trang hiện tại) khi đang ở trang con, bỏ hết khi đang ở đúng trang của mục.
  */
-export function alignCrumbs(items, menu, pathname, search = '') {
+export function alignCrumbs(items, menu, pathname, search = '', origin = null) {
   const flat = flatten(menu);
-  let hit = menuEntryFor(menu, pathname, search);
+  let hit = menuEntryFor(menu, pathname, search, origin);
   let at = -1;
   if (hit) at = items.findLastIndex((c) => c.to === hit.item.to);
   else {

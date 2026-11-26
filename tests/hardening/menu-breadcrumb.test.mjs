@@ -105,3 +105,24 @@ test('trang chi tiết mở từ Duyệt hoặc Kế hoạch quá hạn giữ s�
   assert.equal(at('/education/school-year-plans/7', '?overdue=1'), 'overdue');
   assert.equal(at('/children/1', '?review=1'), undefined);
 });
+
+test('mục nơi đi vào được giữ qua trang con và thôi khi mở trang danh sách hoặc rời kế hoạch giáo dục', async () => {
+  const { trackOrigin } = await import('../../src/utils/menuBreadcrumb.js');
+  const menu = [
+    {
+      label: 'Kế hoạch giáo dục',
+      children: [
+        { key: 'year', label: 'Kế hoạch năm học', to: '/education/school-year-plans' },
+        { key: 'reviews', label: 'Duyệt kế hoạch giáo dục', to: '/education/plan-reviews' },
+      ],
+    },
+  ];
+  const track = (path, search = '') => trackOrigin(menu, path, search);
+  assert.equal(track('/education/school-year-plans/7', '?review=1'), '/education/plan-reviews');
+  assert.equal(track('/education/school-year-plans/7/edit'), '/education/plan-reviews');
+  assert.equal(menuEntryFor(menu, '/education/school-year-plans/7/edit', '', '/education/plan-reviews').item.key, 'reviews');
+  assert.equal(track('/education/school-year-plans'), null);
+  assert.equal(track('/education/school-year-plans/7'), null);
+  track('/education/school-year-plans/7', '?review=1');
+  assert.equal(track('/children'), null);
+});
