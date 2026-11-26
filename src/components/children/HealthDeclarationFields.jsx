@@ -67,7 +67,7 @@ export function HealthDeclarationFields({ value, onChange, errors = {}, dateOfBi
         items={value.allergies.items}
         onChange={(items) => set('allergies', { items })}
         placeholder="Ví dụ: Tôm"
-        maxItemLength={60}
+        maxItemLength={100}
         error={errors.allergies}
       />
     </div>

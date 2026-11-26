@@ -279,7 +279,7 @@ export function ChildInfoFields({
                     <input
                       className="input"
                       value={shown.fullName}
-                      maxLength={100}
+                      maxLength={150}
                       readOnly={locked}
                       onChange={(e) => setGuardian(i, 'fullName', e.target.value)}
                     />
