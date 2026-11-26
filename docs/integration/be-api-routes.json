@@ -301,6 +301,8 @@
     "POST /children/{x}/withdraw",
     "POST /classes",
     "POST /classes/{x}/attendance/children/{x}/arrived",
+    "POST /classes/{x}/attendance/children/{x}/full-day-present",
+    "POST /classes/{x}/attendance/children/{x}/meal-participation",
     "POST /daily-health-entries",
     "POST /education-plans/ai/activities",
     "POST /education-plans/ai/class-docs/day/{x}/edit",

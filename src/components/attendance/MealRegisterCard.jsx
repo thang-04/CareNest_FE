@@ -122,6 +122,8 @@ export function MealRegisterCard({ counts, campusName, user, md, onConfirm, read
     !!first &&
     first.date <= schoolToday() &&
     counts.some((c) => c.status !== 'OPEN') &&
+    // Sổ đã xác nhận khóa cứng (ATT-02a): GV mở lại cũng không đổi được suất nên không trả lại
+    !counts.some((c) => c.status === MEAL_COUNT_STATUS.CONFIRMED) &&
     canUnlockAttendanceDay({ campusId: first.campusId }, user);
   const onReturn = returnable ? setReturning : null;
   const actions = returnable;
@@ -245,7 +247,8 @@ export function MealRegisterCard({ counts, campusName, user, md, onConfirm, read
         {!confirmable.length && lastConfirmed && status === MEAL_COUNT_STATUS.CONFIRMED && (
           <div className="text-sm muted mt-12">
             Đã xác nhận đủ {counts.length} bữa · lần cuối bởi {confirmerLabel(lastConfirmed, md)} lúc{' '}
-            {formatDateTime(lastConfirmed.confirmedAt)}. Bếp đang dùng số này.
+            {formatDateTime(lastConfirmed.confirmedAt)}. Bếp đang dùng số này. Số đã xác nhận không sửa trong hệ thống; thiếu/thừa suất báo
+            bếp ngoài hệ thống.
           </div>
         )}
         {confirmable.length > 0 && (

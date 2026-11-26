@@ -24,7 +24,12 @@ export const createGeneralDraft = (row, mealSessions) => ({
 export const getGeneralSaveEntries = (rows, mealSessions, drafts, dirty) =>
   rows
     .filter((row) => !row.historyStatus && (!isGeneralRecorded(row) || dirty.has(row.childId)))
-    .map((row) => ({ childId: row.childId, ...(drafts[row.childId] || createGeneralDraft(row, mealSessions)) }));
+    // Dòng chưa ghi lúc mở trang chỉ tạo mới: cô khác ghi trước thì BE bỏ qua, không đè (OBS-33)
+    .map((row) => ({
+      childId: row.childId,
+      ...(drafts[row.childId] || createGeneralDraft(row, mealSessions)),
+      ...(isGeneralRecorded(row) ? {} : { createOnly: true }),
+    }));
 
 const draftKey = (draft) =>
   JSON.stringify({ ...draft, healthSigns: [...draft.healthSigns].sort(), behaviors: [...draft.behaviors].sort() });
