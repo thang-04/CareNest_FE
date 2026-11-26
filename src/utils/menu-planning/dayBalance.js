@@ -109,6 +109,17 @@ export const nutritionTableOf = (evaluation) => {
   ];
 };
 
+const OFF_DEFAULT = 'Ngày này không phục vụ bữa ăn.';
+
+/**
+ * Ngày nghỉ = kế hoạch tuần đánh dấu nghỉ hoặc BE báo nghỉ trong trạng thái cân đối (cuối tuần, lịch nghỉ của trường).
+ * Lý do ưu tiên câu BE trả, rồi ghi chú của kế hoạch tuần.
+ */
+export const dayOffOf = (day, status) => {
+  const off = !!day?.off || !!status?.dayOff;
+  return { off, reason: off ? status?.offReason || (day?.off ? day.note : '') || OFF_DEFAULT : '' };
+};
+
 /** Dấu trên tab ngày theo trạng thái cân đối BE trả. */
 export const dayMark = (status) => {
   if (!status) return '';

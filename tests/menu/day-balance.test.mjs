@@ -2,9 +2,8 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 const { createDayBalanceApi } = await import('@/services/dayBalanceApi');
-const { balanceBlocks, childrenOfCampus, dayMark, foodRowsOf, mealGroupsOf, nutritionTableOf, toBalanceRequest, verdictOf } = await import(
-  '@/utils/menu-planning/dayBalance'
-);
+const { balanceBlocks, childrenOfCampus, dayMark, dayOffOf, foodRowsOf, mealGroupsOf, nutritionTableOf, toBalanceRequest, verdictOf } =
+  await import('@/utils/menu-planning/dayBalance');
 
 const view = () => ({
   date: '2026-11-23',
@@ -143,4 +142,15 @@ test('adapter: đúng đường dẫn và tham số lần cân đối', async ()
     ['post', '/nutrition/day-balances/2026-11-23/preview', { round: 1 }, { a: 1 }],
     ['put', '/nutrition/day-balances/2026-11-23', { round: 1 }, { a: 2 }],
   ]);
+});
+
+test('ngày nghỉ: kế hoạch tuần đánh dấu nghỉ hoặc BE báo nghỉ, lý do ưu tiên câu BE', () => {
+  assert.deepEqual(dayOffOf({ off: false }, { dayOff: false }), { off: false, reason: '' });
+  assert.deepEqual(dayOffOf({ off: false }, undefined), { off: false, reason: '' });
+  assert.deepEqual(dayOffOf({ off: false }, { dayOff: true, offReason: 'Nghỉ Tết Dương lịch' }), {
+    off: true,
+    reason: 'Nghỉ Tết Dương lịch',
+  });
+  assert.deepEqual(dayOffOf({ off: true, note: 'Nghỉ bão' }, { dayOff: true }), { off: true, reason: 'Nghỉ bão' });
+  assert.equal(dayOffOf({ off: true, note: '' }, undefined).reason, 'Ngày này không phục vụ bữa ăn.');
 });
