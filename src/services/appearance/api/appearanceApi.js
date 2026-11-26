@@ -7,8 +7,7 @@ import { beClient } from '@/services/http/beClient';
  * cần token nên không gọi được; skipAuthRefresh để lỗi 401 không kích hoạt luồng hết phiên.
  */
 export const appearanceApi = {
-  getAppearance: (user) =>
-    user ? beClient.get('/school/appearance') : axiosClient.get('/school/appearance', { skipAuthRefresh: true }),
+  getAppearance: (user) => (user ? beClient.get('/school/appearance') : axiosClient.get('/school/appearance', { skipAuthRefresh: true })),
   saveAppearance: (form) =>
     beClient.put('/school/appearance', {
       mode: form.mode,
