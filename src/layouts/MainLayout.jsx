@@ -12,6 +12,7 @@ import { AreaGate } from '@/routes/RoleGuard';
 import { DemoDataBanner } from './DemoDataBanner';
 import { useMediaQuery } from '@/hooks';
 import { HeaderSlotContext } from '@/contexts/HeaderSlotContext';
+import { MenuOriginProvider } from '@/contexts/MenuOriginContext';
 import './layout.css';
 
 const COLLAPSED_KEY = 'carenest.sidebar.collapsed';
@@ -69,46 +70,54 @@ export function MainLayout() {
   const opening = useSyncExternalStore(subscribePageLoading, isPageLoading);
 
   return (
-    <div className="app-shell" data-area={BOARDING_AREA.test(pathname) ? 'boarding' : undefined}>
-      {opening && <div className="route-progress no-print" role="progressbar" aria-label="Đang mở trang" />}
-      <Sidebar
-        role={user.role}
-        collapsed={!isNarrow && collapsed}
-        drawer={isNarrow}
-        drawerOpen={drawerOpen}
-        onExpand={() => setCollapsed(false)}
-        onToggle={toggleSidebar}
-      />
-      {isNarrow && drawerOpen && <div className="drawer-backdrop no-print" onClick={() => setDrawerOpen(false)} />}
-      <div className="app-main">
-        <Header role={user.role} showMenuButton={isNarrow} menuOpen={drawerOpen} onToggleSidebar={toggleSidebar} crumbRef={setCrumbSlot} />
-        <HeaderSlotContext.Provider value={crumbSlot}>
-          <main className="app-content" aria-busy={opening || undefined}>
-            <DemoDataBanner pathname={pathname} />
-            {/* Mở app/tải lại tab: splash phủ cả màn tới khi trang đầu có chunk (không lộ vỏ trống). Đổi trang sau đó: chờ giữa vùng nội dung, giữ sidebar.
+    <MenuOriginProvider>
+      <div className="app-shell" data-area={BOARDING_AREA.test(pathname) ? 'boarding' : undefined}>
+        {opening && <div className="route-progress no-print" role="progressbar" aria-label="Đang mở trang" />}
+        <Sidebar
+          role={user.role}
+          collapsed={!isNarrow && collapsed}
+          drawer={isNarrow}
+          drawerOpen={drawerOpen}
+          onExpand={() => setCollapsed(false)}
+          onToggle={toggleSidebar}
+        />
+        {isNarrow && drawerOpen && <div className="drawer-backdrop no-print" onClick={() => setDrawerOpen(false)} />}
+        <div className="app-main">
+          <Header
+            role={user.role}
+            showMenuButton={isNarrow}
+            menuOpen={drawerOpen}
+            onToggleSidebar={toggleSidebar}
+            crumbRef={setCrumbSlot}
+          />
+          <HeaderSlotContext.Provider value={crumbSlot}>
+            <main className="app-content" aria-busy={opening || undefined}>
+              <DemoDataBanner pathname={pathname} />
+              {/* Mở app/tải lại tab: splash phủ cả màn tới khi trang đầu có chunk (không lộ vỏ trống). Đổi trang sau đó: chờ giữa vùng nội dung, giữ sidebar.
               Lỗi trang chỉ thay vùng nội dung, đổi route thì tự xóa. */}
-            <ErrorBoundary resetKey={pathname} wrap>
-              <Suspense
-                fallback={
-                  pageShown.current ? (
-                    <div className="page">
-                      <LoadingState />
-                    </div>
-                  ) : (
-                    <AppSplash />
-                  )
-                }
-              >
-                <AreaGate path={pathname}>
-                  <Outlet />
-                </AreaGate>
-                <PageShown onShown={markPageShown} />
-              </Suspense>
-            </ErrorBoundary>
-          </main>
-        </HeaderSlotContext.Provider>
-        <Footer />
+              <ErrorBoundary resetKey={pathname} wrap>
+                <Suspense
+                  fallback={
+                    pageShown.current ? (
+                      <div className="page">
+                        <LoadingState />
+                      </div>
+                    ) : (
+                      <AppSplash />
+                    )
+                  }
+                >
+                  <AreaGate path={pathname}>
+                    <Outlet />
+                  </AreaGate>
+                  <PageShown onShown={markPageShown} />
+                </Suspense>
+              </ErrorBoundary>
+            </main>
+          </HeaderSlotContext.Provider>
+          <Footer />
+        </div>
       </div>
-    </div>
+    </MenuOriginProvider>
   );
 }

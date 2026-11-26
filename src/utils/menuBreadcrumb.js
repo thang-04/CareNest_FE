@@ -26,14 +26,13 @@ const originOf = (menu, pathname, search) => {
   return to ? flatten(menu).find((e) => e.item.to === to) || null : null;
 };
 
-// Mục nơi đi vào được giữ qua các trang con (sửa, chuyển tuần, chủ đề…) cho tới khi mở một trang danh sách hoặc rời /education.
-// Gọi cùng (pathname, search) nhiều lần cho kết quả như nhau nên sidebar và breadcrumb dùng chung được.
-let stickyOrigin = null;
-export function trackOrigin(menu, pathname, search = '') {
+// Mục nơi đi vào (`current`) được giữ qua các trang con (sửa, chuyển tuần, chủ đề…) cho tới khi mở một trang danh sách của sidebar
+// hoặc rời /education. Hàm thuần: MenuOriginContext giữ giá trị giữa các lần đổi trang.
+export function nextOrigin(menu, pathname, search = '', current = null) {
   const fresh = originOf(menu, pathname, search);
-  if (fresh) stickyOrigin = fresh.item.to;
-  else if (!pathname.startsWith('/education/') || flatten(menu).some((e) => e.item.to === pathname.replace(/\/$/, ''))) stickyOrigin = null;
-  return stickyOrigin;
+  if (fresh) return fresh.item.to;
+  if (!pathname.startsWith('/education/') || flatten(menu).some((e) => e.item.to === pathname.replace(/\/$/, ''))) return null;
+  return current;
 }
 
 /**

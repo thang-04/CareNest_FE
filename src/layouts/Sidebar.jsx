@@ -7,7 +7,8 @@ import { getMenuForRole } from './menuConfig';
 import { UserMenu } from './UserMenu';
 import { useAuth } from '@/contexts/AuthContext';
 import { prefetchPath, prefetchWhenIdle } from '@/routes/routePrefetch';
-import { menuEntryFor, trackOrigin } from '@/utils/menuBreadcrumb';
+import { menuEntryFor } from '@/utils/menuBreadcrumb';
+import { useMenuOrigin } from '@/contexts/MenuOriginContext';
 
 const OPEN_GROUPS_KEY = 'carenest.sidebar.openGroups';
 
@@ -43,6 +44,7 @@ export function Sidebar({ role, collapsed, drawer = false, drawerOpen = false, o
     event.currentTarget.style.setProperty('--fly-left', `${Math.round(edge + 8)}px`);
   };
   const { pathname, search } = useLocation();
+  const origin = useMenuOrigin();
   const { user } = useAuth();
   // Menu tính theo quyền nên mỗi lần gọi là mảng mới: giữ cố định theo vai trò / người dùng,
   // nếu không effect bên dưới chạy lại mỗi lần render và đóng nhóm vừa mở
@@ -50,7 +52,7 @@ export function Sidebar({ role, collapsed, drawer = false, drawerOpen = false, o
   const menu = useMemo(() => getMenuForRole(role, user, hiddenItems), [role, user, hiddenItems]);
   const [open, setOpen] = useState(readOpenGroups);
   // Chỉ một mục sáng: mục có đường dẫn dài nhất bao màn đang mở (cùng cách chọn với breadcrumb)
-  const activeKey = menuEntryFor(menu, pathname, search, trackOrigin(menu, pathname, search))?.item.key;
+  const activeKey = menuEntryFor(menu, pathname, search, origin)?.item.key;
 
   // Open the group that contains the current page when navigating.
   useEffect(() => {
