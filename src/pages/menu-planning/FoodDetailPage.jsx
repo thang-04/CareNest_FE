@@ -12,6 +12,7 @@ import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { ErrorState, LoadingState } from '@/components/ui/States';
 import { AllergenChips, HistoryCard, RecordStatusBadge } from '@/components/menu-planning/MenuBadges';
 import { NutrientTable } from '@/components/menu-planning/NutrientTable';
+import { InfoGrid } from '@/components/menu-planning/InfoGrid';
 import { ContractStatusBadge } from '@/components/menu-planning/ContractStatusBadge';
 import { hasNutrition, hasOrigin } from '@/utils/menu-planning/menuCalculations';
 import { activeAgeGroups } from '@/utils/menu-planning/nutritionSetup';
@@ -128,55 +129,48 @@ export default function FoodDetailPage() {
       />
       <div className="tab-panel">
         {tab === 'info' && (
-          // Hai thẻ xếp dọc, thành phần dinh dưỡng chiếm cả bề ngang để 3 nhóm chất xếp cạnh nhau
+          // Hai thẻ xếp dọc, thành phần dinh dưỡng chiếm cả bề ngang để các ô chất đủ chỗ dàn ngang
           <div className="td-sections">
             <section className="card">
               <div className="card__header">
                 <h2 className="card__title">Thông tin chung</h2>
               </div>
-              <div className="card__body td-food-info">
-                <dl className="info-list">
-                  <dt>Mã</dt>
-                  <dd className="fw-600">{f.code}</dd>
-                  <dt>Nhóm</dt>
-                  <dd>{FOOD_GROUP_LABELS[f.group]}</dd>
-                  <dt>Nguồn gốc</dt>
-                  <dd>{FOOD_ORIGIN_LABELS[f.origin] || <span className="td-warn">Chưa có</span>}</dd>
-                  <dt>Bảo quản</dt>
-                  <dd>{FOOD_STORAGE_LABELS[f.storage] || '—'}</dd>
-                  <dt>Đơn vị tính</dt>
-                  <dd>{f.purchaseUnit || '—'}</dd>
-                  <dt>Hay dùng</dt>
-                  <dd>{f.favorite ? 'Có' : 'Không'}</dd>
-                </dl>
-                <dl className="info-list">
-                  <dt>Quy đổi</dt>
-                  <dd>
-                    1 {f.purchaseUnit || 'đơn vị'} = {(f.purchaseUnitSize ?? 0).toLocaleString('vi-VN')} {FOOD_UNIT_LABELS[f.unit]}
-                  </dd>
-                  <dt>Tỷ lệ thải bỏ</dt>
-                  <dd>{f.wastePct ?? 0}%</dd>
-                  <dt>Đơn giá</dt>
-                  <dd className="fw-600">{f.unitPrice == null ? 'Chưa có' : `${formatMoney(f.unitPrice)} / ${f.purchaseUnit}`}</dd>
-                  <dt>Nhà cung cấp</dt>
-                  <dd>
-                    {f.supplierName ? (
-                      <span className="td-chips">
-                        {f.supplierName} <ContractStatusBadge status={f.contractStatus} size="sm" />
-                      </span>
-                    ) : (
-                      <span className="td-warn">Chưa gán</span>
-                    )}
-                  </dd>
-                </dl>
-                <dl className="info-list td-food-info__full">
-                  <dt>Chất gây dị ứng</dt>
-                  <dd>
-                    <AllergenChips allergens={f.allergens} empty="Không có" />
-                  </dd>
-                  <dt>Ghi chú</dt>
-                  <dd>{f.note || '—'}</dd>
-                </dl>
+              <div className="card__body">
+                <InfoGrid
+                  items={[
+                    { label: 'Mã', value: <span className="fw-600">{f.code}</span> },
+                    { label: 'Nhóm', value: FOOD_GROUP_LABELS[f.group] },
+                    { label: 'Nguồn gốc', value: FOOD_ORIGIN_LABELS[f.origin] || <span className="td-warn">Chưa có</span> },
+                    { label: 'Bảo quản', value: FOOD_STORAGE_LABELS[f.storage] || '—' },
+                    { label: 'Đơn vị tính', value: f.purchaseUnit || '—' },
+                    {
+                      label: 'Quy đổi',
+                      value: `1 ${f.purchaseUnit || 'đơn vị'} = ${(f.purchaseUnitSize ?? 0).toLocaleString('vi-VN')} ${FOOD_UNIT_LABELS[f.unit]}`,
+                    },
+                    { label: 'Tỷ lệ thải bỏ', value: `${f.wastePct ?? 0}%` },
+                    {
+                      label: 'Đơn giá',
+                      value: (
+                        <span className="fw-600">
+                          {f.unitPrice == null ? 'Chưa có' : `${formatMoney(f.unitPrice)} / ${f.purchaseUnit}`}
+                        </span>
+                      ),
+                    },
+                    {
+                      label: 'Nhà cung cấp',
+                      value: f.supplierName ? (
+                        <span className="td-chips">
+                          {f.supplierName} <ContractStatusBadge status={f.contractStatus} size="sm" />
+                        </span>
+                      ) : (
+                        <span className="td-warn">Chưa gán</span>
+                      ),
+                    },
+                    { label: 'Hay dùng', value: f.favorite ? 'Có' : 'Không' },
+                    { label: 'Chất gây dị ứng', wide: true, value: <AllergenChips allergens={f.allergens} empty="Không có" /> },
+                    { label: 'Ghi chú', wide: true, value: f.note || '—' },
+                  ]}
+                />
               </div>
             </section>
             <section className="card">
@@ -185,13 +179,15 @@ export default function FoodDetailPage() {
                 <span className="text-sm muted">Trong 100 {f.unit} ăn được</span>
               </div>
               <div className="card__body">
-                <NutrientTable values={nut} />
-                {hasNutrition(f) && hasOrigin(f) && (
-                  <p className="text-sm muted mt-8">
-                    Đạm, béo tính vào phần {FOOD_ORIGIN_LABELS[f.origin].toLowerCase()} khi cân đối khẩu phần.
-                  </p>
-                )}
-                <p className="text-sm muted mt-8">Nguồn: {f.nutrientSource || 'chưa ghi'}</p>
+                <NutrientTable
+                  values={nut}
+                  originNote={
+                    hasNutrition(f) &&
+                    hasOrigin(f) &&
+                    `Đạm, béo tính vào phần ${FOOD_ORIGIN_LABELS[f.origin].toLowerCase()} khi cân đối khẩu phần.`
+                  }
+                  source={f.nutrientSource || 'chưa ghi'}
+                />
               </div>
             </section>
           </div>

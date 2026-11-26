@@ -291,13 +291,10 @@
   }
 }
 
-/* Điện thoại: 3 thẻ ngày/hàng làm số liệu tràn ngang trang; thông tin thực phẩm về 1 cột */
+/* Điện thoại: 3 thẻ ngày/hàng làm số liệu tràn ngang trang */
 @media (max-width: 640px) {
   .td-week-cards {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .td-food-info {
-    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -1984,6 +1981,47 @@
   font-weight: var(--fw-bold);
 }
 
+/* Dải chân bảng vi chất: cách tính bên trái, nguồn số liệu bên phải */
+.td-nutrient-foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: var(--space-2) var(--space-4);
+  margin-top: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--table-header-bg);
+  color: var(--color-text-secondary);
+  font-size: var(--fs-sm);
+}
+
+/* Bảng trong chi tiết/form món ăn: viền nhạt, khung bo góc, cùng kiểu với lưới thông tin và bảng vi chất.
+   Lặp 3 lần tên lớp để thắng lề/chữ của bảng kẻ ô dùng chung mà không đè lớp .table */
+.td-soft.td-soft.td-soft {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+.td-soft.td-soft.td-soft table {
+  border: 0;
+}
+.td-soft.td-soft.td-soft table tr > :is(th, td) {
+  border-color: var(--color-border);
+  font-size: var(--fs-md);
+}
+.td-soft.td-soft.td-soft table tr > :first-child {
+  border-left: 0;
+}
+.td-soft.td-soft.td-soft table tr > :last-child {
+  border-right: 0;
+}
+.td-soft.td-soft.td-soft table thead tr:first-child > * {
+  border-top: 0;
+}
+.td-soft.td-soft.td-soft table tbody tr:last-child > * {
+  border-bottom: 0;
+}
+
 /* Dinh dưỡng kiểu MISA: năng lượng nổi bật, thanh đạm / béo / bột theo % năng lượng */
 .td-nut {
   display: grid;
@@ -2055,32 +2093,6 @@
 .td-title-row {
   flex-wrap: wrap;
   gap: var(--space-3);
-}
-
-/* Thông tin chung thực phẩm: 2 cột nhãn–giá trị, dị ứng/ghi chú trải hết chiều ngang */
-.td-food-info {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  align-items: start;
-  gap: var(--space-3) var(--space-8);
-}
-
-/* Cùng độ rộng cột nhãn ở cả 3 khối để giá trị thẳng hàng */
-.td-food-info .info-list {
-  grid-template-columns: 140px minmax(0, 1fr);
-}
-/* Điện thoại: đặt sau rule gốc (khối 640px phía trên bị rule này đè) — 1 cột, nhãn trên giá trị */
-@media (max-width: 640px) {
-  .td-food-info,
-  .td-food-info .info-list {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-.td-food-info__full {
-  grid-column: 1 / -1;
-  padding-top: var(--space-3);
-  border-top: 1px solid var(--color-border);
 }
 
 @media (max-width: 1100px) {
@@ -2251,7 +2263,7 @@
   margin-bottom: var(--space-3);
 }
 
-/* Bảng thành phần dinh dưỡng của thực phẩm: dòng tiêu đề nhóm chất, tên chất không in đậm như tiêu đề */
+/* Bảng định mức theo nhóm tuổi: dòng tiêu đề nhóm chất */
 .table.table--grid .td-nutrient-table__group th {
   background: var(--table-header-bg);
   color: var(--tone-gray-fg);
@@ -2259,20 +2271,104 @@
   font-weight: var(--fw-bold);
 }
 
-/* Thành phần dinh dưỡng của thực phẩm chỉ còn nhóm năng lượng. */
-.td-nutrient-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-4);
-  align-items: start;
+/* Thành phần dinh dưỡng của thực phẩm: một bảng, 6 cột chia đều theo 3 nhóm; màn hẹp cuộn trong khung bảng.
+   Class riêng (không dùng .table) vì cỡ chữ và màu tiêu đề khác bảng danh sách */
+.td-nutrient-table {
+  table-layout: fixed;
+  width: 100%;
+  min-width: 48rem;
+  border-collapse: collapse;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: var(--fs-md);
 }
-.td-nutrient-group--energy .table.table--grid .td-nutrient-table__group th {
+.td-nutrient-table th,
+.td-nutrient-table td {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  text-align: left;
+}
+/* Khung ngoài do .table-wrap vẽ */
+.td-nutrient-table tr > :first-child {
+  border-left: 0;
+}
+.td-nutrient-table tr > :last-child {
+  border-right: 0;
+}
+.td-nutrient-table thead tr:first-child > * {
+  border-top: 0;
+}
+.td-nutrient-table tbody tr:last-child > * {
+  border-bottom: 0;
+}
+.td-nutrient-table .td-nutrient-num {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.td-nutrient-value {
+  font-size: var(--fs-lg);
+}
+/* Nền nhạt hai dòng tiêu đề theo nhóm để mắt tách được 3 khối cột */
+.td-nutrient-table th.td-nutrient-th--energy {
   background: var(--color-info-bg);
   color: var(--color-info-fg);
 }
+.td-nutrient-table th.td-nutrient-th--main {
+  background: var(--color-success-bg);
+  color: var(--color-success-fg);
+}
+.td-nutrient-table th.td-nutrient-th--supplementary {
+  background: var(--color-warning-bg);
+  color: var(--color-warning-fg);
+}
+.td-nutrient-table thead tr:first-child th.td-nutrient-th {
+  text-align: center;
+  font-weight: var(--fw-bold);
+}
 
-.td-nutrient-table tbody th[scope='row'] {
-  font-weight: var(--fw-regular);
+/* Thông tin nhãn – giá trị kẻ ô như bảng (chi tiết thực phẩm, món ăn): hai cặp mỗi hàng, ô nhãn nền nhạt */
+.td-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+.td-info-grid__item {
+  display: grid;
+  grid-template-columns: 11rem minmax(0, 1fr);
+  /* Viền ô ở mép ngoài bị khung cắt, chỉ còn vạch ngăn bên trong */
+  outline: 1px solid var(--color-border);
+}
+.td-info-grid__item--wide {
+  grid-column: 1 / -1;
+}
+.td-info-grid__item > dt,
+.td-info-grid__item > dd {
+  display: flex;
+  align-items: center;
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+}
+.td-info-grid__item > dt {
+  background: var(--table-header-bg);
+  color: var(--color-text);
+  font-weight: var(--fw-semibold);
+}
+.td-info-grid__item > dd {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 900px) {
+  .td-info-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 480px) {
+  .td-info-grid__item {
+    grid-template-columns: 8rem minmax(0, 1fr);
+  }
 }
 
 /* Ô so định mức (đạt / chưa đạt): giữ màu khi bảng kẻ ô ép nền trắng */
@@ -3539,11 +3635,6 @@
 .table.table--grid th.td-micro-th--vitamins {
   background: var(--color-warning-bg);
   color: var(--color-warning-fg);
-}
-.td-nutrient-table__group-in {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
 }
 .td-micro-fieldset legend .chip,
 .td-food-more summary .chip {
