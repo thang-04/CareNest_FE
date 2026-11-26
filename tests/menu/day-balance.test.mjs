@@ -154,3 +154,21 @@ test('ngày nghỉ: kế hoạch tuần đánh dấu nghỉ hoặc BE báo ngh�
   assert.deepEqual(dayOffOf({ off: true, note: 'Nghỉ bão' }, { dayOff: true }), { off: true, reason: 'Nghỉ bão' });
   assert.equal(dayOffOf({ off: true, note: '' }, undefined).reason, 'Ngày này không phục vụ bữa ăn.');
 });
+
+test('bảng cân đối ghi đơn vị gốc theo từng thực phẩm: g thành kg, ml thành lít', async () => {
+  const { baseUnitLabels } = await import('@/utils/menu-planning/foodUnits');
+  const v = {
+    ...view(),
+    foods: [
+      { foodId: '1', unit: 'ml' },
+      { foodId: '2', unit: 'g' },
+    ],
+    groups: [{ ageGroupId: '2', children: 1, rows: [{ foodId: '1' }, { foodId: '2' }] }],
+    lines: [],
+  };
+  const rows = foodRowsOf(v, '2');
+  assert.deepEqual(
+    rows.map((r) => baseUnitLabels(r.unit).big),
+    ['lít', 'kg'],
+  );
+});

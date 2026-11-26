@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Checkbox, DataTable } from '@/components';
 import { NumberCell } from '@/components/menu-planning/balance/NumberCell';
 import { MEAL_SESSION_LABELS, formatMoney } from '@/models/menu-planning/menuPlanningConstants';
+import { baseUnitLabels } from '@/utils/menu-planning/foodUnits';
 import { formatAmount, foodRowsOf } from '@/utils/menu-planning/dayBalance';
 
 const money = (value) => (value == null ? '—' : formatMoney(Number(value)));
@@ -29,7 +30,7 @@ export function BalanceFoodTable({ view, group, busy, onEdit }) {
             <ul className="td-bal__meals text-sm muted">
               {r.meals.map((m, i) => (
                 <li key={`${m.session}-${i}`}>
-                  {MEAL_SESSION_LABELS[m.session] || m.session} · {m.dishName}: {formatAmount(m.grams)} g
+                  {MEAL_SESSION_LABELS[m.session] || m.session} · {m.dishName}: {formatAmount(m.grams)} {baseUnitLabels(r.unit).small}
                 </li>
               ))}
             </ul>
@@ -39,7 +40,7 @@ export function BalanceFoodTable({ view, group, busy, onEdit }) {
     },
     {
       key: 'gramsPerChild',
-      header: 'Ăn 1 trẻ (g)',
+      header: 'Ăn 1 trẻ (g/ml)',
       className: 'num',
       render: (r) =>
         onEdit ? (
@@ -56,16 +57,16 @@ export function BalanceFoodTable({ view, group, busy, onEdit }) {
     },
     {
       key: 'totalGrams',
-      header: `Ăn ${children} trẻ (kg)`,
+      header: `Ăn ${children} trẻ (kg/lít)`,
       className: 'num',
-      render: (r) => formatAmount(Number(r.totalGrams) / 1000, 3),
+      render: (r) => `${formatAmount(Number(r.totalGrams) / 1000, 3)} ${baseUnitLabels(r.unit).big}`,
     },
     { key: 'wastePct', header: 'Thải bỏ (%)', className: 'num', render: (r) => formatAmount(r.wastePct) },
     {
       key: 'purchaseTotal',
-      header: `Mua ${children} trẻ (kg)`,
+      header: `Mua ${children} trẻ (kg/lít)`,
       className: 'num',
-      render: (r) => formatAmount(Number(r.purchaseTotal) / 1000, 3),
+      render: (r) => `${formatAmount(Number(r.purchaseTotal) / 1000, 3)} ${baseUnitLabels(r.unit).big}`,
     },
     {
       key: 'purchaseQuantity',
@@ -85,7 +86,12 @@ export function BalanceFoodTable({ view, group, busy, onEdit }) {
         ),
     },
     { key: 'purchaseUnit', header: 'ĐVT', className: 'center' },
-    { key: 'purchaseUnitSize', header: 'Quy đổi (g)', className: 'num', render: (r) => formatAmount(r.purchaseUnitSize) },
+    {
+      key: 'purchaseUnitSize',
+      header: 'Quy đổi (g/ml)',
+      className: 'num',
+      render: (r) => `${formatAmount(r.purchaseUnitSize)} ${baseUnitLabels(r.unit).small}`,
+    },
     { key: 'unitPrice', header: 'Đơn giá', className: 'money', render: (r) => money(r.unitPrice) },
     { key: 'cost', header: 'Thành tiền', className: 'money', render: (r) => money(r.cost) },
   ];
