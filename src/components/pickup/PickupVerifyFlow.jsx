@@ -220,7 +220,7 @@ export function PickupCallFlow({ childId, onDone }) {
         user,
       );
       toast.success(
-        handedOver ? 'Đã ghi nhận trả trẻ và thông báo cho phụ huynh.' : 'Đã ghi nhận không trả trẻ và thông báo cho phụ huynh.',
+        handedOver ? 'Đã ghi nhận trả trẻ và thông báo cho phụ huynh.' : 'Đã ghi nhận không trả trẻ.',
         'Ghi nhận thành công',
       );
       setConfirming(null);
@@ -284,7 +284,7 @@ export function PickupCallFlow({ childId, onDone }) {
             open={confirming === VERIFICATION.PHONE_DECLINED}
             danger
             title="Ghi nhận không trả trẻ?"
-            message={`${context.child.fullName} ở lại lớp. Nội dung cuộc gọi được lưu; phụ huynh sẽ nhận thông báo.`}
+            message={`${context.child.fullName} ở lại lớp. Nội dung cuộc gọi được lưu.`}
             confirmLabel="Ghi nhận không trả trẻ"
             onConfirm={record}
             onClose={() => setConfirming(null)}
