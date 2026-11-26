@@ -66,8 +66,8 @@ export default function EducationPlanLayout() {
       skipGoals={skipGoals}
     >
       <div ref={scope}>
+        {/* Xem hồ sơ quá hạn: tắt mọi nút và ô nhập; liên kết chuyển tuần, chủ đề vẫn dùng được */}
         {overdueView ? (
-          {/* Tắt mọi nút và ô nhập trong trang; liên kết chuyển tuần, chủ đề vẫn dùng được */}
           <fieldset disabled style={{ border: 0, margin: 0, padding: 0, minWidth: 0 }}>
             <Outlet />
           </fieldset>
