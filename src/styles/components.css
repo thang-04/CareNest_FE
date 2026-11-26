@@ -903,6 +903,14 @@ tr.sortable-item--moved > td {
 .table.table--grid tbody tr:hover td {
   background: var(--color-surface);
 }
+/* Dòng tiêu đề nhóm của bảng hai cấp (DataTable groupBy) */
+.table.table--grid tbody tr.table__group th {
+  padding-block: var(--space-2);
+  background: var(--color-surface-muted);
+  color: var(--color-text-secondary);
+  font-weight: var(--fw-bold);
+  text-align: left;
+}
 /* Căn lề theo loại dữ liệu (user chốt 08/11/2026, cách lai), tiêu đề cột dùng cùng class với ô:
    chữ dài (tên, lý do, ghi chú): trái (mặc định) · mọi giá trị ngắn (số, tiền, %, STT, ngày, trạng thái, đơn vị, mã, ô tích):
    .num / .money / .center giữa. Không căn phải để mỗi bảng chỉ có 2 kiểu căn */
