@@ -90,7 +90,7 @@ test('ATT-09: giáo viên gửi Vắng có phép khi chưa có báo nghỉ ⇒ 4
   assert.equal(readDb().attendance.find((r) => r.childId === childIds[0] && r.date === date).status, 'UNEXCUSED');
 });
 
-test('NUT-02: còn trẻ chưa điểm danh thì chặn xác nhận; điều chỉnh chỉ suất thay thế', async () => {
+test('NUT-02: còn trẻ chưa điểm danh thì chặn xác nhận, điểm danh đủ thì xác nhận được', async () => {
   setClock('2026-10-19T10:00:00+07:00'); // sau giờ chốt: sổ được tổng hợp
   const { counts } = await repo.getMealCounts({ date }, vp);
   const target = counts.find((c) => c.id && c.classes.some((line) => line.classId === cls.id));
@@ -100,34 +100,8 @@ test('NUT-02: còn trẻ chưa điểm danh thì chặn xác nhận; điều ch�
   );
   await assert.rejects(repo.confirmMealCount(target.id, vp), rejectStatus(409));
 
-  const base = { campusId: cls.campusId, date, session: target.session, classId: cls.id, note: 'Trẻ dị ứng nặng' };
-  await assert.rejects(repo.adjustMealDay({ ...base, normal: 5, substitute: 1 }, vp), rejectStatus(422));
-  const before = target.classes.find((line) => line.classId === cls.id);
-  const [adjusted] = await repo.adjustMealDay({ ...base, normal: null, substitute: before.substitute + 2 }, vp);
-  const line = adjusted.classes.find((l) => l.classId === cls.id);
-  assert.equal(line.substitute, before.substitute + 2);
-  assert.equal(line.normal, before.normal, 'suất thường không đổi qua điều chỉnh');
 
   completeAttendance({ campusId: cls.campusId, date });
   const confirmed = await repo.confirmMealCount(target.id, vp);
   assert.equal(confirmed.status, 'CONFIRMED');
-});
-
-test('NUT-02: điều chỉnh suất thay thế không bị điểm danh mở lại ghi đè', async () => {
-  completeAttendance({ campusId: cls.campusId, date });
-  setClock('2026-10-19T10:00:00+07:00');
-  const { counts } = await repo.getMealCounts({ date }, vp);
-  const target = counts.find((c) => c.id && c.classes.some((l) => l.classId === cls.id));
-  await repo.adjustMealDay(
-    { campusId: cls.campusId, date, session: target.session, classId: cls.id, normal: null, substitute: 4, note: 'Dị ứng' },
-    vp,
-  );
-  await repo.unlockAttendanceDay(
-    { classId: cls.id, date, validUntil: new RealDate(clock + 3600000).toISOString(), reason: 'Sửa điểm danh' },
-    vp,
-  );
-  await repo.saveClassAttendance({ classId: cls.id, date, entries: [{ childId: childIds[0], status: 'UNEXCUSED' }] }, teacher);
-  const stored = readDb().mealCounts.find((m) => m.id === target.id);
-  const line = (stored.pendingClasses || stored.classes).find((l) => l.classId === cls.id);
-  assert.equal(line.substitute, 4);
 });

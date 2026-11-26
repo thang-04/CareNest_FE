@@ -24,6 +24,9 @@ export const useFoodSamples = (campusId, from, to) =>
 export const useMealPhotos = (campusId, date) =>
   useRecordsQuery(() => kitchenRecordsApi.listPhotos({ campusId, date }), [campusId, date], !!campusId && isIsoDate(date));
 
+export const useMealPhotoWeek = (campusId, weekStart) =>
+  useRecordsQuery(() => kitchenRecordsApi.getPhotoWeek({ campusId, weekStart }), [campusId, weekStart], !!campusId && isIsoDate(weekStart));
+
 export const useMealPhotoWindows = () => useRecordsQuery(() => kitchenRecordsApi.getWindows(), []);
 
 /**

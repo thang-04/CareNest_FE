@@ -59,6 +59,21 @@ export function validateStaffAccount(form, { campuses = [] } = {}) {
   return e;
 }
 
+/** Form Admin tạo Hiệu trưởng: không có vai trò / điểm trường để chọn (BE: Admin chỉ tạo HT, HT phân công toàn trường). */
+export function validatePrincipalAccount(form) {
+  const e = validateStaffProfile(form, ROLES.PRINCIPAL);
+  if (!text(form.phone)) e.phone = 'Nhập số điện thoại';
+  else if (!normalizePhone(form.phone)) e.phone = 'Số điện thoại di động gồm 10 số, bắt đầu bằng 03, 05, 07, 08 hoặc 09';
+  return e;
+}
+
+export const toPrincipalPayload = (form) => ({
+  phone: normalizePhone(form.phone),
+  fullName: text(form.fullName),
+  email: text(form.email) || null,
+  role: ROLES.PRINCIPAL,
+});
+
 /** Body POST /accounts: PHT / bếp gắn phân công điểm trường; GV chưa gắn lớp, điểm trường là cơ sở công tác (BE AUTH-15). */
 export const toCreatePayload = (form) => ({
   phone: normalizePhone(form.phone),

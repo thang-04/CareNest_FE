@@ -97,11 +97,11 @@ export function ClassTodayPanel({ aside = null }) {
   const enabled = { enabled: !!classId };
   const attendanceQ = useWidget((u) => getClassAttendance(classId, date, u), [classId, date], enabled);
   const pickupQ = useWidget((u) => getPickupBoard({ classId, date }, u).catch(() => null), [classId, date], enabled);
-  const dailyQ = useWidget(
-    (u) => getDailyAssessment({ classId, date, schoolYear }, u).catch(() => null),
-    [classId, date, schoolYear],
-    enabled,
-  );
+  // Đánh giá hằng ngày chỉ gọi khi phiếu điểm danh báo hôm nay là ngày học, tránh lỗi 7302 ngày nghỉ
+  const schoolDay = !!attendanceQ.data?.schoolDay;
+  const dailyQ = useWidget((u) => getDailyAssessment({ classId, date, schoolYear }, u).catch(() => null), [classId, date, schoolYear], {
+    enabled: enabled.enabled && schoolDay,
+  });
   const lessonsQ = useWidget(() => getEducationLessons().then((d) => d.lessons.filter((l) => l.classId === user.classId)), [user.classId]);
   const evaluationsQ = useWidget(
     (u) =>

@@ -229,6 +229,8 @@ export const leaderOptionAllowed = (acts, current, userId) => {
 
 /** Staff accounts (SRS 4.4 "User account – Create / Edit / Deactivate", footnote 8: Principal, to confirm). */
 export const canManageStaff = isPrincipal;
+/** Admin quản trị kỹ thuật (BE AUTH-06, AUTH-15): màn Tài khoản chỉ tạo Hiệu trưởng, khóa/mở, cấp lại mật khẩu tạm. */
+export const isSystemAdmin = (user) => user?.role === ROLES.ADMIN;
 /** Hồ sơ nhân sự: Hiệu trưởng toàn quyền; PHT theo quyền "Hồ sơ nhân sự" được giao (Chỉ xem / Được sửa, theo điểm trường). */
 export const canViewStaff = (user) =>
   isPrincipal(user) || (isVicePrincipal(user) && areaAccess(user, 'staff').access !== PERMISSION_ACCESS.NONE);

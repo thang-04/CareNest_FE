@@ -23,12 +23,7 @@ export const attendanceApi = {
   getMealCounts: ({ date }) => axiosClient.get('/meal-counts', { params: { date } }),
   getClassMealCount: ({ classId, date }) => axiosClient.get('/meal-counts/class', { params: { classId, date } }),
   confirmMealCount: (id, seen) =>
-    axiosClient.post(`/meal-counts/${id}/confirm`, undefined, {
-      params: { seenServings: seen?.servings ?? undefined, seenSubstitute: seen?.substitute ?? undefined },
-    }),
-  // NUT-02: chỉ suất thay thế (kèm lý do); suất thường chỉ đổi qua điểm danh
-  adjustMealDay: ({ campusId, date, session, classId, substitute, note }) =>
-    axiosClient.post('/meal-counts/adjustments', { campusId, date, session: session || null, classId, normal: null, substitute, note }),
+    axiosClient.post(`/meal-counts/${id}/confirm`, undefined, { params: { seenServings: seen?.servings ?? undefined } }),
   getMealHandovers: ({ date }) => axiosClient.get('/meal-handovers', { params: { date } }),
   confirmHandover: (id, body) => axiosClient.post(`/meal-handovers/${id}/confirm`, body),
   reportHandoverShortage: (id, body) => axiosClient.post(`/meal-handovers/${id}/shortage`, body),
@@ -126,12 +121,7 @@ export const createAttendanceBeApi = (client) => ({
   getMealCounts: ({ date, schoolYear }) => client.get('/meal-counts', { params: { date, schoolYearId: schoolYear || undefined } }),
   // NUT-02, ATT-02: suất ăn từng bữa của một lớp cho giáo viên (BE kiểm phân công lớp, không tên trẻ)
   getClassMealCount: ({ classId, date }) => client.get('/meal-counts/class', { params: { classId, date } }),
-  // seen: { servings, substitute } cơ sở–ngày đang hiện; BE từ chối (409) nếu số đã đổi so với lúc xem (NUT-03)
+  // seen: { servings } cơ sở–ngày đang hiện; BE từ chối (409) nếu số đã đổi so với lúc xem (NUT-03)
   confirmMealCount: (id, seen) =>
-    client.post(`/meal-counts/${id}/confirm`, undefined, {
-      params: { seenServings: seen?.servings ?? undefined, seenSubstitute: seen?.substitute ?? undefined },
-    }),
-  // NUT-02: chỉ điều chỉnh suất thay thế; suất thường chỉ đổi qua điểm danh ⇒ normal luôn null
-  adjustMealDay: ({ campusId, date, session, classId, substitute, note }) =>
-    client.post('/meal-counts/adjustments', { campusId, date, session: session || null, classId, normal: null, substitute, note }),
+    client.post(`/meal-counts/${id}/confirm`, undefined, { params: { seenServings: seen?.servings ?? undefined } }),
 });

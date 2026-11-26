@@ -71,6 +71,51 @@ export const periodRange = (type, start, schoolYear) => {
 
 const dm = (s) => `${s.slice(8, 10)}/${s.slice(5, 7)}`;
 
+const nextDay = (iso) => {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
+};
+
+/**
+ * Kỳ của năm học đang chọn, chỉ kỳ đã bắt đầu (Hồ sơ / Tiến độ phát triển). Ngày năm học và 2 học kỳ lấy
+ * từ Cấu hình thời gian; chưa có năm học thật thì không đoán khoảng (tránh gửi ngày rác cho API), chỉ dự
+ * kiến theo nhãn năm học khi nhãn hợp lệ (chế độ mock).
+ */
+export const periodOptions = (scope, schoolYear, year, today = todayIso()) => {
+  const hasRealYear = !!year?.startDate && !!year?.endDate;
+  const range = hasRealYear
+    ? { start: year.startDate, end: year.endDate }
+    : /^\d{4}-\d{4}$/.test(String(schoolYear ?? ''))
+      ? schoolYearRange(schoolYear)
+      : null;
+  if (!range?.start || !range?.end) return [];
+  const { start, end } = range;
+  const until = end < today ? end : today;
+  if (until < start) return [];
+  if (scope === 'YEAR') return [{ start, end, label: periodLabel('YEAR', start, end) }];
+  if (scope === 'SEMESTER') {
+    const s1End = `${start.slice(0, 4)}-12-31`;
+    const semesters = year?.semester1Start
+      ? [
+          { start: year.semester1Start, end: year.semester1End, label: 'Học kỳ I' },
+          { start: year.semester2Start, end: year.semester2End, label: 'Học kỳ II' },
+        ]
+      : [
+          { start, end: s1End, label: 'Học kỳ I' },
+          { start: nextDay(s1End), end, label: 'Học kỳ II' },
+        ];
+    return semesters.filter((o) => o.start <= today).reverse();
+  }
+  if (scope === 'MONTH')
+    return monthsBetween(start, until)
+      .map((m) => ({ start: m, end: monthEnd(m), label: periodLabel('MONTH', m) }))
+      .reverse();
+  return weeksBetween(start, until)
+    .map((w) => ({ start: w, end: weekEnd(w), label: periodLabel('WEEK', w, weekEnd(w)) }))
+    .reverse();
+};
+
 export const periodLabel = (type, start, end) => {
   if (type === PERIOD_TYPE.WEEK) return `Tuần ${dm(start)} – ${dm(end)}/${end.slice(0, 4)}`;
   if (type === PERIOD_TYPE.MONTH) return `Tháng ${start.slice(5, 7)}/${start.slice(0, 4)}`;

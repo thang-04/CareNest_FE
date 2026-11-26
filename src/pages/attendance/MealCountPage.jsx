@@ -8,7 +8,7 @@ import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
 import { StatCard } from '@/components/ui/StatCard';
-import { MealAdjustModal, MealRegisterCard, dayStatus } from '@/components/attendance/MealRegisterCard';
+import { MealRegisterCard, dayStatus } from '@/components/attendance/MealRegisterCard';
 import { CampusFilter } from '@/components/ui/CampusFilter';
 import { DonutChart } from '@/components/charts/MiniCharts';
 import { ClassDateBar } from '@/components/attendance/ClassDateBar';
@@ -25,6 +25,7 @@ import { attendanceCrumbs } from '@/utils/attendance/breadcrumbs';
 import { dayBySession, dayRegister } from '@/utils/attendance/mealRegister';
 import { exportWithPreview } from '@/components/ui/ExportPreview';
 import { formatDate } from '@/utils/format';
+import { campusTitle } from '@/utils/campusLabel';
 import '@/styles/modules/attendance.css';
 
 /**
@@ -91,7 +92,6 @@ export default function MealCountPage() {
   const { data, loading, error, reload } = useMealCounts(date);
   const [confirming, setConfirming] = useState(null);
   const [confirmError, setConfirmError] = useState('');
-  const [adjusting, setAdjusting] = useState(null);
   const kitchen = user?.role === ROLES.KITCHEN_STAFF;
   // Hiệu trưởng xem cả trường: lọc điểm trường
   const [campusFilter, setCampusFilter] = useState('');
@@ -111,12 +111,11 @@ export default function MealCountPage() {
   // Xác nhận một bữa hoặc tất cả bữa còn chờ của điểm trường
   const doConfirm = async () => {
     try {
-      // Số suất (tổng, thay thế) cả ngày của điểm trường đang hiện: BE từ chối nếu đã đổi so với lúc xem
+      // Số suất cả ngày của điểm trường đang hiện: BE từ chối nếu đã đổi so với lúc xem
       const campusId = confirming.counts[0]?.campusId;
       const shown = (data?.counts || []).filter((c) => c.id && c.campusId === campusId);
       const seen = {
         servings: shown.reduce((sum, c) => sum + (c.totals?.normal || 0) + (c.totals?.substitute || 0), 0),
-        substitute: shown.reduce((sum, c) => sum + (c.totals?.substitute || 0), 0),
       };
       for (const c of confirming.counts) await confirmMealCount(c.id, user, seen);
       toast.success(`Đã xác nhận ${confirming.scope}. Đây là số bếp sẽ dùng.`, 'Xác nhận thành công');
@@ -141,7 +140,6 @@ export default function MealCountPage() {
         'Chưa điểm danh',
         ...sessions.map((sKey) => MEAL_SESSION_LABELS[sKey]),
         'Tổng suất',
-        'Suất thay thế',
         'Trạng thái',
       ],
     ];
@@ -156,7 +154,6 @@ export default function MealCountPage() {
           l.missing,
           ...sessions.map((sKey) => (l.meals[sKey] ? l.meals[sKey].normal + l.meals[sKey].substitute : '')),
           l.normal + l.substitute,
-          l.substitute,
           MEAL_COUNT_STATUS_LABELS[dayStatus(counts)] || dayStatus(counts),
         ]),
       );
@@ -217,7 +214,7 @@ export default function MealCountPage() {
         <>
           {ageGroupFilter && (
             <div className="alert alert--info mb-12" role="status">
-              Đang xem riêng một nhóm tuổi. Xác nhận, sửa suất thay thế làm ở chế độ Tất cả nhóm tuổi.
+              Đang xem riêng một nhóm tuổi. Xác nhận làm ở chế độ Tất cả nhóm tuổi.
             </div>
           )}
           <DayOverview counts={shownCounts} />
@@ -230,13 +227,10 @@ export default function MealCountPage() {
             <section key={campusId} className="mb-16">
               <MealRegisterCard
                 counts={shownCounts.filter((c) => c.campusId === campusId)}
-                campusName={
-                  allCampuses.length > 1 ? md.campusById?.(campusId)?.shortName || md.campusById?.(campusId)?.name || campusId : ''
-                }
+                campusName={campusTitle(campusId, md.campuses)}
                 user={user}
                 md={md}
                 onConfirm={setConfirming}
-                onAdjust={setAdjusting}
                 readOnly={!!ageGroupFilter}
               />
             </section>
@@ -261,17 +255,6 @@ export default function MealCountPage() {
           setConfirmError('');
         }}
       />
-      {adjusting && (
-        <MealAdjustModal
-          target={adjusting}
-          user={user}
-          onClose={() => setAdjusting(null)}
-          onSaved={() => {
-            setAdjusting(null);
-            reload({ silent: true });
-          }}
-        />
-      )}
     </div>
   );
 }

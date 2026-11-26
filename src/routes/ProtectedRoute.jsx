@@ -21,7 +21,7 @@ export function ProtectedRoute() {
       </StandaloneStatus>
     );
   if (status !== 'authenticated' && status !== 'reauth') return <Navigate to="/login" replace state={{ from: location }} />;
-  // ADMIN đăng nhập Web được nhưng chưa có màn riêng (ROLE_LABELS chỉ gồm vai trò có màn hình)
+  // Chỉ vai trò có màn Web (ROLE_LABELS, gồm cả ADMIN) mới vào được; vai trò khác thấy màn chặn
   if (!ROLE_LABELS[user.role])
     return (
       <StandaloneStatus

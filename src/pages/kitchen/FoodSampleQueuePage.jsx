@@ -12,7 +12,7 @@ import { useDayGroupToggle } from '@/hooks/kitchen/useDayGroupToggle';
 import { useFoodSamples } from '@/hooks/kitchen/useKitchenRecords';
 import { KITCHEN_RECORD_PAGES, MEAL_SESSION_LABELS } from '@/models/kitchen/kitchenRecordConstants';
 import { kitchenRecordsApi } from '@/services/kitchenRecordsApi';
-import { daysBefore, isPendingApproval, nextApproval, printableSamples, sortSamples } from '@/utils/kitchen/kitchenRecords';
+import { daysBefore, isPendingApproval, nextApproval, printableSamples, sameMealCount, sortSamples } from '@/utils/kitchen/kitchenRecords';
 import { kitchenCrumbs } from '@/utils/kitchen/breadcrumbs';
 import { foodSampleCsvRows } from '@/utils/kitchen/kitchenExport';
 import { exportWithPreview } from '@/components/ui/ExportPreview';
@@ -23,11 +23,14 @@ import '@/styles/modules/kitchen-records.css';
 const DEFAULT_RANGE_DAYS = 30;
 const SAMPLE_COLUMNS = 6;
 
-function SampleRow({ sample, busy, onApprove }) {
+function SampleRow({ sample, sameMeal, busy, onApprove }) {
   const next = nextApproval(sample);
   return (
     <tr>
-      <td className="center">{MEAL_SESSION_LABELS[sample.session] || sample.session}</td>
+      <td className="center">
+        {MEAL_SESSION_LABELS[sample.session] || sample.session}
+        {sameMeal > 1 && <div className="text-xs muted">Bữa có {sameMeal} mẫu</div>}
+      </td>
       <td>
         <ul className="kr-dishes">
           {sample.dishes.map((dish) => (
@@ -105,6 +108,7 @@ export default function FoodSampleQueuePage() {
   }, [rows]);
   const dayToggle = useDayGroupToggle(pendingOnly);
   const printable = useMemo(() => printableSamples(samples.data), [samples.data]);
+  const mealCountOf = useMemo(() => sameMealCount(samples.data), [samples.data]);
 
   const approve = async (sample, kind) => {
     setBusyId(sample.id);
@@ -173,7 +177,13 @@ export default function FoodSampleQueuePage() {
                   />
                   {open &&
                     day.samples.map((sample) => (
-                      <SampleRow key={sample.id} sample={sample} busy={busyId === sample.id} onApprove={approve} />
+                      <SampleRow
+                        key={sample.id}
+                        sample={sample}
+                        sameMeal={mealCountOf(sample)}
+                        busy={busyId === sample.id}
+                        onApprove={approve}
+                      />
                     ))}
                 </tbody>
               );

@@ -6,6 +6,9 @@
  * - `group`: tên nhóm cột liền kề ở hàng tiêu đề trên (Nơi cung cấp, Kiểm tra điều kiện vệ sinh).
  * `readOnly` = BE điền sẵn từ thực đơn, suất, hàng nhập.
  */
+/** Độ dài tối đa của ô văn bản một dòng biên bản (BE từ chối dài hơn: InspectionColumns.MAX_TEXT). */
+export const MAX_CELL_TEXT = 500;
+
 export const INSPECTION_TAB = { FRESH: 'fresh', DRY: 'dry', PROCESS: 'process', SERVE: 'serve', SAMPLE: 'sample' };
 export const INSPECTION_TAB_ORDER = [
   INSPECTION_TAB.FRESH,
@@ -67,7 +70,7 @@ export const INSPECTION_FORMS = {
   },
 };
 
-/** Biến thể in: M3 gộp lưu mẫu (B3) và M4 nhãn mẫu lập từ dữ liệu M5. */
+/** Biến thể in: M3 gộp lưu mẫu (B3) và M4 nhãn mẫu lập từ món của M3. */
 export const INSPECTION_VARIANT_FORMS = {
   combined: {
     step: 'B3',
@@ -87,10 +90,9 @@ export const INSPECTION_PRINT_VARIANTS = {
     { key: 'main', label: 'M3 · Kiểm tra trước khi ăn' },
     { key: 'combined', label: 'M3 gộp · Kiểm tra và lưu mẫu' },
   ],
-  sample: [
-    { key: 'main', label: 'M5 · Theo dõi lưu và hủy mẫu' },
-    { key: 'label', label: 'M4 · Nhãn mẫu thức ăn lưu' },
-  ],
+  // M4 không phải biên bản: chỉ in nhãn từ thẻ riêng
+  m4: [{ key: 'label', label: 'M4 · Nhãn mẫu thức ăn lưu' }],
+  sample: [{ key: 'main', label: 'M5 · Theo dõi lưu và hủy mẫu' }],
 };
 
 export const STORAGE_OPTIONS = [

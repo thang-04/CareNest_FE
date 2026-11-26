@@ -5,7 +5,7 @@ import { BE_ERROR_FIELDS } from './beErrorFields';
 import { fallbackErrorMessage } from './apiError';
 import { translateBeError } from './beErrorMessages';
 import { getDevAccessToken, tokenForRetry } from './devKeycloakAuth';
-import { tokenStorage, UNAUTHORIZED_EVENT } from './tokenStorage';
+import { notifySessionBlocked, tokenStorage, UNAUTHORIZED_EVENT } from './tokenStorage';
 import { DB_CHANGED_EVENT } from '@/mocks/dbEvents';
 
 /*
@@ -182,8 +182,9 @@ const call = async (method, url, { params, data, preserveEmptyStrings = [], time
     }
     return toUi(response.data.data);
   } catch (error) {
-    // Token bị BE từ chối ⇒ luồng hết phiên chung (AuthContext đăng xuất)
+    // Token bị BE từ chối (401) hoặc tài khoản bị khóa (403/1015) ⇒ luồng hết phiên chung (AuthContext đăng xuất)
     if (error.response?.status === 401) window.dispatchEvent(new CustomEvent(UNAUTHORIZED_EVENT));
+    else notifySessionBlocked(error);
     throw normalizeError(error);
   }
 };
@@ -202,6 +203,7 @@ const getBlob = async (url) => {
         error.response.data = undefined; // thân lỗi không phải JSON: dùng thông điệp theo status
       }
     }
+    notifySessionBlocked(error);
     throw normalizeError(error);
   }
 };

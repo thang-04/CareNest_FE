@@ -54,6 +54,8 @@ test('AC-3 NUT-11, P-38: kho khô đã trừ n thực phẩm, link lịch sử n
     'dryStock',
   );
   assert.match(withOpen.detail, /2 phần thiếu chờ bổ sung/);
+  // Còn thiếu từ ngày cũ thì không báo xanh "xong"
+  assert.equal(withOpen.tone, 'orange');
   assert.equal(withOpen.actions[0].to, '/kitchen/stock-history?campusId=1');
 });
 
@@ -73,6 +75,14 @@ test('P-38: trừ kho sau xác nhận suất từng lỗi ⇒ báo chưa trừ, 
   );
 });
 
+test('canSync = false ⇒ ẩn nút đồng bộ kho; BE cũ chưa có cờ thì vẫn hiện', () => {
+  const stock = { status: 'NOT_SYNCED', foodCount: 2, shortfallFoodCount: 0, openShortfallCount: 0 };
+  const has = (dryStock) => rowOf(buildDayBoardRows(campus({ dryStock })), 'dryStock').actions.some((a) => a.syncStock);
+  assert.equal(has({ ...stock, canSync: false }), false);
+  assert.equal(has({ ...stock, canSync: true }), true);
+  assert.equal(has(stock), true);
+});
+
 test('INS-03: M1 kho khô đã ký ⇒ ẩn nút đồng bộ, báo Sửa lại biên bản', () => {
   const row = rowOf(
     buildDayBoardRows(
@@ -85,6 +95,26 @@ test('INS-03: M1 kho khô đã ký ⇒ ẩn nút đồng bộ, báo Sửa lại 
     row.actions.some((a) => a.syncStock),
     false,
   );
+});
+
+test('INS-03: M1 kho khô đã ký báo ở mọi trạng thái kho, kể cả đã trừ xong', () => {
+  const row = rowOf(
+    buildDayBoardRows(
+      campus({ dryStock: { status: 'DEDUCTED', foodCount: 8, shortfallFoodCount: 0, openShortfallCount: 0, m1DrySigned: true } }),
+    ),
+    'dryStock',
+  );
+  assert.match(row.detail, /M1 kho khô đã ký/);
+  assert.equal(rowOf(buildDayBoardRows(campus(), { date: DATE }), 'dryStock').detail.includes('M1'), false);
+});
+
+test('INS-03: M1 hàng tươi đã ký ⇒ ghi chú khóa kiểm nhận, nút đổi thành Xem kiểm nhận', () => {
+  const row = rowOf(buildDayBoardRows(campus({ freshReceiptStatus: 'DONE', m1FreshSigned: true }), { date: DATE }), 'freshReceipt');
+  assert.match(row.detail, /M1 hàng tươi đã ký/);
+  assert.equal(row.actions[0].label, 'Xem kiểm nhận');
+  const open = rowOf(buildDayBoardRows(campus(), { date: DATE }), 'freshReceipt');
+  assert.equal(open.actions[0].label, 'Kiểm nhận');
+  assert.equal(open.detail.includes('M1'), false);
 });
 
 test('AC-3: kho khô thiếu n thực phẩm, link phần thiếu chờ bổ sung', () => {
@@ -209,7 +239,15 @@ test('module day-board khai source api cho /boarding', () => {
 
 test('summarizeBoardRows đếm việc theo nhóm tông trạng thái của mọi điểm trường', async () => {
   const { summarizeBoardRows } = await import('@/utils/boarding/dayBoardRows');
-  const rows = [{ tone: 'red' }, { tone: 'orange' }, { tone: 'purple' }, { tone: 'blue' }, { tone: 'green' }, { tone: 'gray' }, { tone: 'unknown' }];
+  const rows = [
+    { tone: 'red' },
+    { tone: 'orange' },
+    { tone: 'purple' },
+    { tone: 'blue' },
+    { tone: 'green' },
+    { tone: 'gray' },
+    { tone: 'unknown' },
+  ];
   assert.deepEqual(summarizeBoardRows([rows, [{ tone: 'green' }]]), { attention: 3, waiting: 1, done: 2, idle: 2 });
 });
 
