@@ -76,7 +76,7 @@ export default function SemesterEvaluationListPage() {
   const canEdit = !!board?.canEdit && hasBePermission(user, PERMISSIONS.ASSESSMENT_RECORD);
   const canConfirm = !!board?.canConfirm && hasBePermission(user, PERMISSIONS.ASSESSMENT_CONFIRM);
   const confirmBlocked = board?.confirmBlockedReason;
-  const confirmBlockedNote = confirmBlocked ? semesterConfirmBlockedNote(confirmBlocked, { endDate: board?.endDate, missing }) : '';
+  const confirmBlockedNote = confirmBlocked ? semesterConfirmBlockedNote(confirmBlocked, { endDate: board?.endDate }) : '';
   useEffect(() => {
     setNote(board?.note || '');
     setDetail(null);
@@ -301,7 +301,9 @@ export default function SemesterEvaluationListPage() {
                 </table>
               </div>
             )}
-            {missing > 0 && <p className="muted text-sm mt-8">{missing} trẻ còn mục tiêu chưa có kết quả.</p>}
+            {missing > 0 && (
+              <p className="muted text-sm mt-8">{missing} trẻ chưa có dữ liệu ở một số mục tiêu (ví dụ vào lớp muộn); vẫn xác nhận được.</p>
+            )}
             {errors._form && (
               <div className="alert alert--danger mt-16" role="alert">
                 {errors._form}
@@ -386,7 +388,7 @@ export default function SemesterEvaluationListPage() {
                     <td className="center">
                       {g.metActivities}/{g.assessedActivities}
                     </td>
-                    <td>{g.met === null ? 'Chưa có kết quả' : g.met ? 'Đạt' : 'Chưa đạt'}</td>
+                    <td>{g.met === null ? 'Chưa có dữ liệu' : g.met ? 'Đạt' : 'Chưa đạt'}</td>
                   </tr>
                 ))}
               </tbody>
