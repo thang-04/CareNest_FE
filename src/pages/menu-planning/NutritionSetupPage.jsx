@@ -257,7 +257,7 @@ export default function NutritionSetupPage() {
                       </td>
                       <td className="nowrap text-2">{info.range || '—'}</td>
                       <td className="nowrap">{appliedLabel(g.applied)}</td>
-                      <td className="num nowrap">{g.dailyKcalNeed ? `${g.dailyKcalNeed} kcal` : '—'}</td>
+                      <td className="num nowrap">{isSet(g.dailyKcal) ? `${rangeLabel(g.dailyKcal)} kcal` : '—'}</td>
                       <td className="num nowrap">{isSet(g.norms.kcal) ? `${rangeLabel(g.norms.kcal)} kcal` : '—'}</td>
                       <td className="money">
                         <div className="td-overview__price">
