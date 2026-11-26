@@ -48,6 +48,9 @@ function MicronutrientFields({ group, hasError, children }) {
   );
 }
 
+// BE khóa ba ô đơn vị khi thực phẩm đã nhập kho (NUT-32)
+const LOCK_HINT = 'Đã nhập kho nên không đổi được; quy cách khác thì thêm thực phẩm mới';
+
 /** Ô số có đơn vị dính bên phải (g, %, đ), tùy chọn chữ dẫn bên trái ("1 kg ="). */
 function Affix({ unit, prefix, className = '', disabled, ...props }) {
   // FormField gắn id, aria và class lỗi vào phần tử con: chuyển xuống ô nhập, viền lỗi lên khung
@@ -80,6 +83,7 @@ export function FoodEditor({ f }) {
     toggleAllergen,
     isNew,
     priceChanged,
+    locked,
   } = f;
   const [customUnit, setCustomUnit] = useState(false);
   const { items: suppliers } = useActiveSuppliers();
@@ -149,9 +153,10 @@ export function FoodEditor({ f }) {
             label="Đơn vị tính"
             required
             error={customUnit ? undefined : show('purchaseUnit')}
-            hint="Chọn đơn vị có sẵn hoặc nhập đơn vị mới"
+            hint={locked ? LOCK_HINT : 'Chọn đơn vị có sẵn hoặc nhập đơn vị mới'}
           >
             <SearchSelect
+              disabled={locked}
               options={[...unitOptions, { value: OTHER_UNIT, label: 'Nhập đơn vị khác…' }]}
               value={customUnit ? OTHER_UNIT : form.purchaseUnit}
               onChange={chooseUnit}
@@ -173,7 +178,7 @@ export function FoodEditor({ f }) {
               autoFocus
             />
           )}
-          {!fixedUnit && (
+          {(locked || !fixedUnit) && (
             <FormField
               label="Quy đổi gam hoặc ml"
               required
@@ -181,6 +186,7 @@ export function FoodEditor({ f }) {
               hint="Chỉ nhập cho đơn vị đóng gói, ví dụ 1 hộp = 100 g"
             >
               <Affix
+                disabled={locked}
                 unit={form.unit}
                 prefix={`1 ${purchaseUnit} =`}
                 step="any"
@@ -190,9 +196,15 @@ export function FoodEditor({ f }) {
               />
             </FormField>
           )}
-          {!fixedUnit && (
-            <FormField label="Đơn vị gốc" required error={show('unit')} hint="Dùng khi nhập định lượng món">
-              <SearchSelect options={toOptions(FOOD_UNIT_LABELS)} value={form.unit} onChange={setBaseUnit} ariaLabel="Đơn vị gốc" />
+          {(locked || !fixedUnit) && (
+            <FormField label="Đơn vị gốc" required error={show('unit')} hint={locked ? LOCK_HINT : 'Dùng khi nhập định lượng món'}>
+              <SearchSelect
+                disabled={locked}
+                options={toOptions(FOOD_UNIT_LABELS)}
+                value={form.unit}
+                onChange={setBaseUnit}
+                ariaLabel="Đơn vị gốc"
+              />
             </FormField>
           )}
           <FormField label="Tỷ lệ thải bỏ" error={show('wastePct')}>

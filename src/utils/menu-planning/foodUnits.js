@@ -101,3 +101,7 @@ export const hasPurchaseConversion = (food) => {
   const u = foodUnits(food);
   return u.purchaseUnit !== u.stockUnit || u.purchaseToStock !== 1;
 };
+
+/** Nhãn đơn vị gốc của thực phẩm cho bảng cân đối: nhỏ g / ml, lớn kg / lít (thiếu đơn vị ⇒ g). */
+export const baseUnitLabels = (unit) =>
+  String(unit || '').toLowerCase() === 'ml' ? { small: 'ml', big: 'lít' } : { small: 'g', big: 'kg' };

@@ -138,6 +138,8 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
     stockUnit: f.purchaseUnit,
     purchaseToStock: 1,
     stockUnitSize: f.purchaseUnitSize,
+    // BE khóa đơn vị, quy đổi khi thực phẩm đã nhập kho (NUT-32)
+    unitsLocked: !!f.unitsLocked,
     // Giá và NCC tại hôm nay theo lịch sử giá (NUT-27)
     unitPrice: f.unitPrice ?? null,
     supplierId: f.supplierId ?? null,
@@ -416,7 +418,6 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
         client.get(`/nutrition/foods/${id}/history`),
         agMaps(),
       ]);
-      // BE chưa trả khóa đơn vị theo kho
       return {
         ...toFood(f),
         usedInDishes: (dishes || []).map((d) => ({
@@ -429,7 +430,6 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
           })),
         })),
         history: (history || []).map(toFoodHistoryEntry),
-        unitsLocked: false,
       };
     },
 
