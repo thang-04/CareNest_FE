@@ -1,3 +1,16 @@
+---
+title: Cân đối khẩu phần theo ngày
+status: in-progress
+owner: FE
+jira: G94-487 / G94-493
+branch: dev
+modules: [boarding, kitchen]
+rules: []
+risk: medium
+created: 2026-11-26
+updated: 2026-11-26
+---
+
 # Cân đối khẩu phần theo ngày (FE-FEAT-185 · G94-487…493)
 
 Nguồn: đề xuất luồng bán trú của người phụ trách module, chốt ngày 26/11/2026. Làn L.

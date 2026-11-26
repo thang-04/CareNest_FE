@@ -114,6 +114,7 @@ export default function LeaveRequestsPage() {
       'Bé tham gia ăn',
       'Lý do',
       'Trạng thái',
+      'Ghi chú hiệu lực',
       'Hủy từ ngày',
       'Người gửi',
       'Gửi lúc',
@@ -128,6 +129,7 @@ export default function LeaveRequestsPage() {
       eatsLabel(r),
       r.reason,
       LEAVE_STATUS_LABELS[r.status] || r.status,
+      r.noticeOnly ? 'Báo nghỉ chiều sau giờ chốt; không đổi điểm danh/suất ăn' : '',
       cancelledFrom(r),
       r.createdByName || '',
       formatDateTime(r.createdAt),
@@ -140,6 +142,7 @@ export default function LeaveRequestsPage() {
   const statusOf = (r) => (
     <>
       <LeaveStatusBadge status={r.status} />
+      {r.noticeOnly && <div className="muted">Báo nghỉ chiều sau giờ chốt · không đổi điểm danh/suất ăn</div>}
       {cancelledFrom(r) && <div className="muted">Phụ huynh hủy từ {cancelledFrom(r)}</div>}
     </>
   );

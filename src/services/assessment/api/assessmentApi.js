@@ -70,6 +70,7 @@ export const createAssessmentBeApi = (client) => ({
           behaviorNote: e.behaviorNote || '',
           flag: e.flag ?? null,
           comment: e.comment ?? '',
+          ...(e.createOnly ? { createOnly: true } : {}),
         })),
       },
       { preserveEmptyStrings: ['classComment'] },
