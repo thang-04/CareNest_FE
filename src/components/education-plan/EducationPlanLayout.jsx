@@ -1,5 +1,6 @@
-import { useEffect, useRef } from 'react';
-import { Outlet, useMatch, useSearchParams } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { Link, Outlet, useMatch, useSearchParams } from 'react-router-dom';
+import { Notice } from '@/components/education-plan/eduUi';
 import { EducationPlanProvider } from '@/hooks/education-plan/useEducationPlan';
 import '@/styles/modules/education-plan.css';
 
@@ -18,6 +19,15 @@ export default function EducationPlanLayout() {
   const classPage = useMatch('/education/class/:classId/*');
   const classId = (themePlans || dayPlans || branches || classPage)?.params?.classId ?? null;
   const lightDocs = classId == null;
+  // Hiệu trưởng xem hồ sơ quá hạn của một lớp (mở từ Kế hoạch quá hạn): chỉ đọc. Giữ chế độ khi đi qua lại các trang lớp
+  // (đường dẫn trong trang không mang ?overdue=1); rời trang lớp thì thoát
+  const askedOverdue = classId != null && params.get('overdue') === '1';
+  const [overdueMode, setOverdueMode] = useState(askedOverdue);
+  useEffect(() => {
+    if (askedOverdue) setOverdueMode(true);
+    else if (classId == null) setOverdueMode(false);
+  }, [askedOverdue, classId]);
+  const overdueView = classId != null && (askedOverdue || overdueMode);
   // Hàng chờ duyệt, quá hạn tự tải danh sách của mình ⇒ không tải danh sách kế hoạch năm/tổ (size=200, 2 cấp)
   const overdue = useMatch('/education/overdue');
   const skipGoals = !!(reviews || overdue);
@@ -51,12 +61,25 @@ export default function EducationPlanLayout() {
     <EducationPlanProvider
       yearScoped={!settings && !curriculum}
       reviewView={reviewView}
+      overdueView={overdueView}
       lightDocs={lightDocs}
       classId={classId}
       skipGoals={skipGoals}
     >
       <div ref={scope}>
-        <Outlet />
+        {overdueView ? (
+          <>
+            <Notice tone="info">
+              Đang xem hồ sơ quá hạn (chỉ đọc). <Link to="/education/overdue">Về Kế hoạch quá hạn</Link>
+            </Notice>
+            {/* Tắt mọi nút và ô nhập trong trang; liên kết chuyển tuần, chủ đề vẫn dùng được */}
+            <fieldset disabled style={{ border: 0, margin: 0, padding: 0, minWidth: 0 }}>
+              <Outlet />
+            </fieldset>
+          </>
+        ) : (
+          <Outlet />
+        )}
       </div>
     </EducationPlanProvider>
   );

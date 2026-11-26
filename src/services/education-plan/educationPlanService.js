@@ -12,15 +12,11 @@ export const getGoalPage = (user, filter = {}) => repo.getGoalPage(user, filter)
 export const getGoalStats = (user, filter = {}) => repo.getGoalStats(user, filter);
 export const getOverdueBoard = (user, schoolYearId, filter = {}) => repo.getOverdueBoard(schoolYearId, filter);
 export const getGoal = (id, user) => repo.getGoal(id, user);
+export const getOverdueGoal = (user, schoolYearId, id) => repo.getOverdueGoal(id, schoolYearId);
 export const getOverduePlans = async (user, schoolYearId) => {
-  const [plans, docs] = await Promise.all([
-    repo.getAll(user, { schoolYearId, overdue: true }),
-    repo.getOverdueClassPlans(schoolYearId),
-  ]);
+  const [plans, docs] = await Promise.all([repo.getAll(user, { schoolYearId, overdue: true }), repo.getOverdueClassPlans(schoolYearId)]);
   return { ...plans, ...docs };
 };
-export const getOverduePlan = (user, schoolYearId, kind, id) =>
-  kind === 'semester' || kind === 'dossier' ? repo.getOverdueClassDoc(kind, id, schoolYearId) : repo.getOverdueGoal(id, schoolYearId);
 export const getClassDocRelease = (releaseId) => repo.getClassDocRelease(releaseId);
 export const listGoalSources = (filters, actor, options) => repo.listGoalSources(filters, actor, options);
 export const getGoalSource = (id, actor, options) => repo.getGoalSource(id, actor, options);
@@ -44,7 +40,7 @@ export const getCurriculumContents = (ageGroupCode, options) => repo.getCurricul
 // Tài liệu kế hoạch của lớp (chủ đề nhánh, kế hoạch chủ đề, giáo án tuần). user: người thao tác.
 // Kèm lớp (classes) và giáo viên, tổ trưởng (staff) người xem được; schoolYearId: năm đang chọn ở header
 // classId: trang của một lớp chỉ tải tài liệu lớp đó
-export const getClassPlans = (schoolYearId, user, review, classId) => repo.getClassPlans(schoolYearId, review, classId);
+export const getClassPlans = (schoolYearId, user, review, classId, overdue) => repo.getClassPlans(schoolYearId, review, classId, overdue);
 // Mọi bản gọn của các loại tài liệu (đi qua từng trang 100 dòng của BE); dùng khi màn cần cả danh sách, không phân trang
 export const getAllClassDocSummaries = async (schoolYearId, user, kinds, filter = {}) => {
   const items = [];

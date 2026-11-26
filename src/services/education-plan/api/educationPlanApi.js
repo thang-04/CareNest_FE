@@ -268,6 +268,7 @@ export const educationPlanApi = {
     }),
   // Mở một kế hoạch theo id (vd. bản Chờ duyệt từ hàng chờ, không có trong danh sách); BE trả 403 nếu chưa ban hành
   getGoal: async (id) => fetchGoal(serverId(id) ?? id, buildRefs(await loadConfig())),
+  // Hiệu trưởng xem bản chưa ban hành đang quá hạn (view=OVERDUE); BE trả bản chỉ đọc
   getOverdueGoal: async (id, schoolYearId) => {
     const refs = buildRefs(await loadConfig());
     return toUiGoal(
@@ -351,11 +352,13 @@ export const educationPlanApi = {
   },
   // Tài liệu + lớp + giáo viên, tổ trưởng của năm học đang chọn ở header (BE lọc theo phạm vi người xem)
   // Header giữ id số (API) hoặc tên năm "2027-2028" (nối thử qua beClient) ⇒ đổi tên sang id theo cấu hình
-  getClassPlans: async (schoolYearId, review = false, classId = null) => {
+  getClassPlans: async (schoolYearId, review = false, classId = null, overdue = false) => {
     const id = serverId(schoolYearId) ?? (schoolYearId ? buildRefs(await loadConfig()).schoolYearId(String(schoolYearId)) : null);
     if (schoolYearId != null && id == null) throw sourceError(400, 'Năm học không hợp lệ.');
     const params = id == null ? {} : { schoolYearId: id };
-    if (review) params.view = 'REVIEW';
+    // Hiệu trưởng xem hồ sơ quá hạn của một lớp (chỉ đọc); BE đòi có classId
+    if (overdue) params.view = 'OVERDUE';
+    else if (review) params.view = 'REVIEW';
     if (serverId(classId) != null) params.classId = serverId(classId);
     return axiosClient.get('/education-plans/class-docs', { params, timeout: LIST_TIMEOUT });
   },
@@ -382,11 +385,6 @@ export const educationPlanApi = {
   },
   getOverdueClassPlans: (schoolYearId) =>
     axiosClient.get('/education-plans/class-docs/overdue', { params: yearParam(schoolYearId), timeout: LIST_TIMEOUT }),
-  getOverdueClassDoc: (kind, docKey, schoolYearId) =>
-    axiosClient.get(`/education-plans/class-docs/overdue/${encodeURIComponent(kind)}/${encodeURIComponent(docKey)}`, {
-      params: yearParam(schoolYearId),
-      timeout: LIST_TIMEOUT,
-    }),
   getEduConfig: () => loadEduConfig(),
   // Provider mọi trang: cấu hình + luồng duyệt + chính sách thời lượng tải một lần mỗi phiên trang (lưu cấu hình thì tải lại)
   getEduConfigCached: () => {

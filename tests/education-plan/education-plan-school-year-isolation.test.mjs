@@ -315,8 +315,6 @@ const Pagination='nav', paginate=(items,page,size)=>items.slice((page-1)*size,pa
   const scopedA = wrapper();
   const stateA = app.componentState();
   const renderA = () => app.render(scopedA.type, stateA, scopedA.props);
-  assert.equal(descendants(renderA()).find((node) => node.props['data-testid'] === 'overdue-plans-view').props.to,
-    '/education/overdue?kind=TEAM&doc=A-1');
   descendants(renderA()).find((node) => node.type === 'input' && node.props.type === 'checkbox').props.onChange();
   descendants(renderA()).find((node) => node.props['data-testid'] === 'overdue-plans-extend-selected').props.onClick();
   const modal = descendants(renderA()).find((node) => node.type === 'test-modal');

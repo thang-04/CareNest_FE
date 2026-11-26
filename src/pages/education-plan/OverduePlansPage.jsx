@@ -1,6 +1,6 @@
 import { Button, SelectField } from '@/components';
 import { useEffect, useId, useRef, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Card, EduStatusBadge, EmptyState, PageHead, YearPlanStatusBadge, fmtDate, fmtDateTime } from '@/components/education-plan/eduUi';
 import { ExtendDeadlineModal } from '@/components/education-plan/DeadlineWidgets';
 import { FilterMore } from '@/components/ui/FilterMore';
@@ -8,75 +8,24 @@ import { Eye } from '@/components/ui/icons';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { usePolling } from '@/hooks/usePolling';
 import { useAsync } from '@/hooks/useAsync';
-import { Modal } from '@/components/ui/Modal';
 import { ErrorState, LoadingState } from '@/components/ui/States';
 import { Pagination } from '@/components/ui/Pagination';
-import { getOverdueBoard, getOverduePlan } from '@/services/education-plan/educationPlanService';
+import { getOverdueBoard } from '@/services/education-plan/educationPlanService';
 import { ageRangeOptions, sameAgeRange } from '@/models/education-plan/educationPlanConstants';
-import { OVERDUE_DEADLINE_LABEL, OVERDUE_KIND_LABEL } from '@/models/education-plan/overdue.mjs';
+import { planRoute } from '@/models/education-plan/planLevel.mjs';
+import { OVERDUE_KIND_LABEL } from '@/models/education-plan/overdue.mjs';
 
-const EMPTY_FILTER = { deadlineKind: '', ageGroupId: '', classId: '', kind: '', semesterNo: '' };
+const EMPTY_FILTER = { ageGroupId: '', classId: '', kind: '', semesterNo: '' };
 const PAGE_SIZE = 5;
 
-const linkOf = (r) => `/education/overdue?${new URLSearchParams({ kind: r.kind, doc: r.planId ?? r.docKey })}`;
-
-function OverdueDetail({ user, schoolYearId, kind, docKey, row, onClose }) {
-  const { data, error, reload } = useAsync(() => getOverduePlan(user, schoolYearId, kind, docKey), [user.id, schoolYearId, kind, docKey]);
-  const extension = row?.extension;
-  return (
-    <Modal
-      title={row?.title || OVERDUE_KIND_LABEL[kind]}
-      onClose={onClose}
-      footer={
-        <Button data-testid="overdue-detail-close" onClick={onClose}>
-          Đóng
-        </Button>
-      }
-    >
-      {error ? (
-        <ErrorState error={error} onRetry={reload} />
-      ) : !data ? (
-        <LoadingState />
-      ) : (
-        <div className="stack">
-          <div className="row row--wrap gap-2">
-            <EduStatusBadge status={data.status} doc={data} />
-            <span>Hạn {fmtDate(row?.deadline || data.deadline || data.timeLock?.deadline)}</span>
-          </div>
-          {extension && (
-            <span>
-              Hạn mới {fmtDate(extension.deadline)} · {[extension.by, extension.note].filter(Boolean).join(' · ')}
-            </span>
-          )}
-          {data.description && <p>{data.description}</p>}
-          {data.themes?.length > 0 && (
-            <ol>
-              {data.themes.map((theme) => (
-                <li key={theme.id}>{theme.name}</li>
-              ))}
-            </ol>
-          )}
-          {data.domains?.map((domain) => (
-            <section key={domain.id ?? domain.name}>
-              <h3>{domain.name}</h3>
-              <ul>
-                {domain.rows?.map((entry, index) => (
-                  <li key={entry.id ?? index}>{entry.text}</li>
-                ))}
-              </ul>
-            </section>
-          ))}
-          {data.members?.map((member) => (
-            <section key={member.id}>
-              <h3>{member.title || member.name || (member.weekStart ? `Tuần ${fmtDate(member.weekStart)}` : 'Kế hoạch chủ đề')}</h3>
-              {member.description && <p>{member.description}</p>}
-            </section>
-          ))}
-        </div>
-      )}
-    </Modal>
-  );
-}
+// Xem chỉ đọc trên trang chi tiết có sẵn; ?overdue=1 cho Hiệu trưởng đọc bản chưa ban hành
+const viewPathOf = (r) => {
+  if (r.planId) return `${planRoute(r.doc)}/${r.planId}?overdue=1`;
+  const plan = encodeURIComponent(r.doc.yearPlanId);
+  return r.kind === 'semester'
+    ? `/education/theme-plans/${r.classId}?hk=${r.doc.semesterNo}&plan=${plan}&overdue=1`
+    : `/education/day-plans/${r.classId}?theme=${r.doc.themeId}&plan=${plan}&overdue=1`;
+};
 
 /**
  * Kế hoạch quá hạn (spec 005 FR-021a, chỉ Hiệu trưởng): tài liệu chưa ban hành đã tới hạn của cả năm, tổ và lớp; tích
@@ -91,7 +40,6 @@ export default function OverduePlansPage() {
 function OverduePlansForYear({ schoolYearId }) {
   const id = useId();
   const { user, classes, actOnClassDoc, unlockGoal } = useEducationPlan();
-  const [params, setParams] = useSearchParams();
   const [tab, setTab] = useState('overdue');
   const [filter, setFilter] = useState(EMPTY_FILTER);
   const [page, setPage] = useState(1);
@@ -116,9 +64,6 @@ function OverduePlansForYear({ schoolYearId }) {
   }, []);
   usePolling(() => board.reload({ silent: true }), { enabled: !!schoolYearId });
 
-  const detailKind = params.get('kind');
-  const detailKey = params.get('doc');
-  const detailRow = shown.find((row) => row.kind === detailKind && String(row.planId ?? row.docKey) === detailKey);
   // Trang vượt số trang sau khi mở hạn (dòng rời tab) ⇒ về trang cuối
   const lastPage = Math.max(1, Math.ceil(total / PAGE_SIZE));
   useEffect(() => {
@@ -187,19 +132,6 @@ function OverduePlansForYear({ schoolYearId }) {
               >
                 <option value="overdue">Đang quá hạn ({count('overdue')})</option>
                 <option value="extended">Đã mở hạn ({count('extended')})</option>
-              </SelectField>
-            </div>
-            <div className="field">
-              <label className="field__label" htmlFor={`${id}-deadline-kind`}>
-                Loại quá hạn
-              </label>
-              <SelectField id={`${id}-deadline-kind`} value={filter.deadlineKind} onChange={(e) => setF({ deadlineKind: e.target.value })}>
-                <option value="">Tất cả</option>
-                {Object.entries(OVERDUE_DEADLINE_LABEL).map(([kind, label]) => (
-                  <option key={kind} value={kind}>
-                    {label}
-                  </option>
-                ))}
               </SelectField>
             </div>
             <div className="field">
@@ -328,9 +260,8 @@ function OverduePlansForYear({ schoolYearId }) {
                     <th>Lớp</th>
                     <th>Loại</th>
                     <th>Tên</th>
-                    <th>Loại quá hạn</th>
                     <th>{overdueTab ? 'Hạn' : 'Đã mở hạn tới'}</th>
-                    <th>{overdueTab ? 'Số ngày quá hạn' : 'Người mở · lý do'}</th>
+                    {!overdueTab && <th>Người mở · lý do</th>}
                     <th className="center">Trạng thái</th>
                     <th className="cell--actions">Thao tác</th>
                   </tr>
@@ -356,15 +287,14 @@ function OverduePlansForYear({ schoolYearId }) {
                           {errors[r.key] && <p className="field__error">{errors[r.key]}</p>}
                         </div>
                       </td>
-                      <td>{OVERDUE_DEADLINE_LABEL[overdueTab ? r.deadlineKind : r.extensionKind]}</td>
                       <td>{fmtDate(overdueTab ? r.deadline : r.extension?.deadline)}</td>
-                      <td>
-                        {overdueTab
-                          ? (r.daysOverdue ?? '—')
-                          : [r.extension?.by, r.extension?.at && fmtDateTime(r.extension.at), r.extension?.note]
-                              .filter(Boolean)
-                              .join(' · ') || '—'}
-                      </td>
+                      {!overdueTab && (
+                        <td>
+                          {[r.extension?.by, r.extension?.at && fmtDateTime(r.extension.at), r.extension?.note]
+                            .filter(Boolean)
+                            .join(' · ') || '—'}
+                        </td>
+                      )}
                       <td className="center">
                         {r.planId ? (
                           <YearPlanStatusBadge status={r.status} doc={r.doc} />
@@ -374,7 +304,7 @@ function OverduePlansForYear({ schoolYearId }) {
                       </td>
                       <td className="cell--actions">
                         <div className="row gap-2">
-                          <Link className="btn btn--sm btn--outline-primary" data-testid="overdue-plans-view" to={linkOf(r)}>
+                          <Link className="btn btn--sm btn--outline-primary" data-testid="overdue-plans-view" to={viewPathOf(r)}>
                             <Eye size={16} aria-hidden /> Xem
                           </Link>
                           {overdueTab && (
@@ -404,16 +334,6 @@ function OverduePlansForYear({ schoolYearId }) {
           </div>
         )}
       </Card>
-      {schoolYearId && detailKey && Object.hasOwn(OVERDUE_KIND_LABEL, detailKind) && (
-        <OverdueDetail
-          user={user}
-          schoolYearId={schoolYearId}
-          kind={detailKind}
-          docKey={detailKey}
-          row={detailRow}
-          onClose={() => setParams({}, { replace: true })}
-        />
-      )}
       {target && (
         <ExtendDeadlineModal
           title={target.length > 1 ? `Mở hạn ${target.length} kế hoạch` : `Mở hạn: ${target[0].title}`}

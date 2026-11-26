@@ -75,6 +75,7 @@ export function EducationPlanProvider({
   children,
   yearScoped = true,
   reviewView = false,
+  overdueView = false,
   lightDocs = false,
   classId = null,
   skipGoals = false,
@@ -88,8 +89,17 @@ export function EducationPlanProvider({
     yearOptions.find((year) => sameSchoolYearId(year.id, pickedYear));
   const yearId = yearScoped ? (yearOption?.id ?? null) : null;
   const scope = useMemo(
-    () => ({ yearId, userId: authUser.id, reviewView, lightDocs, classId, classRefreshSequence: 0, loadingGoalIds: new Set() }),
-    [yearId, authUser.id, reviewView, lightDocs, classId],
+    () => ({
+      yearId,
+      userId: authUser.id,
+      reviewView,
+      overdueView,
+      lightDocs,
+      classId,
+      classRefreshSequence: 0,
+      loadingGoalIds: new Set(),
+    }),
+    [yearId, authUser.id, reviewView, overdueView, lightDocs, classId],
   );
   const activeScope = useRef(scope);
   activeScope.current = scope;
@@ -116,14 +126,14 @@ export function EducationPlanProvider({
           ? {}
           : lightDocs
             ? service.getClassDocContext(yearId, authUser)
-            : service.getClassPlans(yearId, authUser, reviewView, classId),
+            : service.getClassPlans(yearId, authUser, reviewView, classId, overdueView),
         service.getEduConfigCached(authUser),
       ]).then(([plans, classDocs, eduConfig]) => {
         // Cấu hình áp dụng trước khi vẽ để bảng, nhãn lĩnh vực và file xuất dùng cùng một bản
         if (isActive()) applyEduConfig(eduConfig);
         return { ...plans, goals: mergeGoals(goalsRef.current, plans.goals), ...classDocs, eduConfig };
       }),
-    [yearId, authUser.id, reviewView, lightDocs, classId, skipGoals],
+    [yearId, authUser.id, reviewView, overdueView, lightDocs, classId, skipGoals],
     { refreshOnDataChange: true },
   );
 
@@ -260,7 +270,7 @@ export function EducationPlanProvider({
       const sequence = ++scope.classRefreshSequence;
       const classDocs = scope.lightDocs
         ? await service.getClassDocContext(yearId, actor)
-        : await service.getClassPlans(yearId, actor, scope.reviewView, scope.classId);
+        : await service.getClassPlans(yearId, actor, scope.reviewView, scope.classId, scope.overdueView);
       if (sequence === scope.classRefreshSequence) setData((prev) => (prev ? { ...prev, ...classDocs } : prev));
       return classDocs;
     };
@@ -270,7 +280,8 @@ export function EducationPlanProvider({
       refreshClassDocs,
       // Poll 20 s của trang một lớp: chỉ hỏi bản gọn của lớp; đổi (version/trạng thái/lượt duyệt) mới tải lại đủ tài liệu
       pollClassDocs: async () => {
-        if (yearId == null) return;
+        // Xem quá hạn là bản chụp chỉ đọc, không cần làm mới theo người khác
+        if (yearId == null || scope.overdueView) return;
         if (scope.classId == null) return refreshClassDocs();
         const items = await service.getAllClassDocSummaries(yearId, actor, undefined, {
           classIds: [scope.classId],
