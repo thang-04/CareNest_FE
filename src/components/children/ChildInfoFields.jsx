@@ -79,6 +79,7 @@ export function ChildInfoFields({
         {photosEnabled && !sheet && (
           <div className="mb-16">
             <PortraitPicker
+              required
               label="Ảnh của trẻ"
               file={value.photoFile}
               onChange={(file) => set('photoFile', file)}
@@ -90,6 +91,7 @@ export function ChildInfoFields({
         <Fields {...(sheet ? { title: 'I. Thông tin của trẻ' } : { className: split ? 'stack gap-4' : 'grid-3' })}>
           {photosEnabled && sheet && (
             <IntakePortraitField
+              required
               label="Ảnh của trẻ"
               file={value.photoFile}
               onChange={(file) => set('photoFile', file)}
@@ -240,6 +242,7 @@ export function ChildInfoFields({
                 {photosEnabled && !sheet && (
                   <div className="mb-12">
                     <PortraitPicker
+                      required
                       label={`Ảnh phụ huynh ${i + 1}`}
                       identity={g}
                       file={g.photoFile}
@@ -252,6 +255,7 @@ export function ChildInfoFields({
                 <Fields {...(sheet ? { title: 'Thông tin phụ huynh ' + (i + 1), band: false } : { className: 'tr-guardian__grid' })}>
                   {photosEnabled && sheet && (
                     <IntakePortraitField
+                      required
                       label={`Ảnh phụ huynh ${i + 1}`}
                       identity={g}
                       file={g.photoFile}

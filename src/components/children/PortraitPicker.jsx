@@ -3,7 +3,18 @@ import { Upload, Trash2, UserRound } from '@/components/ui/icons';
 import { PortraitImage } from '@/components/PortraitImage';
 import { PORTRAIT_ACCEPT, portraitFileError } from '@/utils/children/enrollmentPhotos';
 
-export function PortraitPicker({ label, file, identity, onChange, error, disabled, embedded = false, inputId, labelledBy }) {
+export function PortraitPicker({
+  label,
+  file,
+  identity,
+  onChange,
+  error,
+  disabled,
+  required = false,
+  embedded = false,
+  inputId,
+  labelledBy,
+}) {
   const generatedId = useId();
   const id = inputId || generatedId;
   const input = useRef(null);
@@ -14,6 +25,7 @@ export function PortraitPicker({ label, file, identity, onChange, error, disable
       {!embedded && (
         <label className="field__label" htmlFor={id}>
           {label}
+          {required && <span className="req">*</span>}
         </label>
       )}
       <div className="row row--wrap gap-3">

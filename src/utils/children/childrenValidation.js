@@ -83,7 +83,8 @@ export const validateChildProfile = (p = {}) => {
 };
 
 /** Child + guardians block of the enrollment form (kèm phần hành chính). */
-export const validateChildInfo = (data, { requireRecipient = true, intakeDate } = {}) => {
+// requirePhotos: form Tiếp nhận trẻ bắt buộc ảnh của trẻ và từng phụ huynh (G94-180/CHD-15, user chốt 2026-11-26; BE kiểm lại).
+export const validateChildInfo = (data, { requireRecipient = true, intakeDate, requirePhotos = false } = {}) => {
   const errors = { ...validateChildProfile(data.profile) };
   if (!data.fullName?.trim()) errors.fullName = 'Nhập họ tên trẻ';
   else if (data.fullName.trim().length > 100) errors.fullName = 'Họ tên tối đa 100 ký tự';
@@ -95,6 +96,7 @@ export const validateChildInfo = (data, { requireRecipient = true, intakeDate } 
   // Chỉ khi tiếp nhận (G94-180/CHD-13, BE kiểm lại): đủ 3 tháng tuổi tại ngày tiếp nhận; Sửa hồ sơ không truyền intakeDate
   else if (intakeDate && addMonthsIso(data.dateOfBirth, 3) > intakeDate) errors.dateOfBirth = 'Trẻ phải đủ 3 tháng tuổi tại ngày tiếp nhận';
   if (!data.gender) errors.gender = 'Chọn giới tính';
+  if (requirePhotos && !data.photoFile) errors.photo = 'Tải ảnh của trẻ';
   const guardians = data.guardians || [];
   if (guardians.length === 0) errors.guardians = 'Thêm ít nhất một phụ huynh';
   guardians.forEach((g, i) => {
@@ -108,6 +110,7 @@ export const validateChildInfo = (data, { requireRecipient = true, intakeDate } 
     if (!g.phone?.trim()) errors[`guardians.${i}.phone`] = 'Nhập số điện thoại để gửi tài khoản';
     else if (!isValidPhone(g.phone)) errors[`guardians.${i}.phone`] = 'Nhập số điện thoại hợp lệ, ví dụ 0912 345 678';
     if (g.email?.trim() && !isValidEmail(g.email)) errors[`guardians.${i}.email`] = 'Nhập email hợp lệ, ví dụ ten@example.com';
+    if (requirePhotos && !g.photoFile) errors[`guardians.${i}.photo`] = `Tải ảnh phụ huynh ${i + 1}`;
     const idError = citizenIdError(g.idNumber);
     if (idError) errors[`guardians.${i}.idNumber`] = idError;
   });

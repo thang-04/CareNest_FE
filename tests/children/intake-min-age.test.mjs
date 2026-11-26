@@ -22,7 +22,7 @@ test('Sửa hồ sơ (không truyền ngày tiếp nhận) ⇒ không kiểm tu�
 test('màn tiếp nhận và BE giả kiểm tuổi tối thiểu theo hôm nay', () => {
   assert.match(
     readFileSync('src/pages/children/EnrollChildPage.jsx', 'utf8'),
-    /validateChildInfo\(value, \{ intakeDate: todayInput\(\) \}\)/,
+    /validateChildInfo\(value, \{ intakeDate: todayInput\(\), requirePhotos: true \}\)/,
   );
   assert.match(
     readFileSync('src/services/children/mock/childrenMockRepository.js', 'utf8'),

@@ -216,7 +216,7 @@ export default function EnrollChildPage() {
   const waitingNames = effectiveInfo.guardians
     .filter((g) => (effectiveInfo.guardians.length === 1 || g.accountRecipient) && !accountOf(g.idNumber))
     .map((g) => g.fullName);
-  const validateInfo = (value) => validateChildInfo(value, { intakeDate: todayInput() });
+  const validateInfo = (value) => validateChildInfo(value, { intakeDate: todayInput(), requirePhotos: true });
 
   const goTo = (i) => {
     setStep(i);
