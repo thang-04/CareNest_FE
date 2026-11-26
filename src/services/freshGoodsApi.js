@@ -84,6 +84,7 @@ export const toDayMarket = (market) => {
     date: market?.date,
     status: DAY_MARKET_STATUS[market?.status] || market?.status,
     basis: market?.basis,
+    ...(market?.balanceRound ? { balanceRound: market.balanceRound } : {}),
     confirmedAt: market?.confirmedAt,
     groups,
     lines: (market?.lines || []).map((line) => ({

@@ -34,7 +34,8 @@ export function PublishWeekDialog({ open, plan, busy, error, dayHref, onConfirm,
       {busy && <SubmitOverlay state="sending" text="Đang công bố…" />}
       <div className="td-publish">
         <p className="td-flat">
-          Công bố kế hoạch tuần {weekLabel(plan.weekStart)} cho mọi khối. Sau khi công bố, lưới bị khóa và không sửa được nữa.
+          Công bố kế hoạch tuần {weekLabel(plan.weekStart)} cho mọi khối. Sau khi công bố, lưới bị khóa, hệ thống tự lập bản dự trù hàng
+          tươi cho từng điểm trường.
         </p>
         {error && (
           <div className="alert alert--danger" role="alert">
