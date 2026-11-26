@@ -207,7 +207,9 @@ export default function HealthMeasurementFormPage() {
       </div>
     );
 
-  const requireReason = !!existing?.published;
+  const requireReason = existing?.published &&
+    (Number(form.heightCm) !== Number(existing.heightCm) || Number(form.weightKg) !== Number(existing.weightKg) ||
+      form.note.trim() !== (existing.note || '').trim());
   const rules = { requireReason };
   // Ngày đo BE ghi khi lưu (chỉ để hiện): nhập mới là hôm nay, sửa giữ ngày đã lưu. Kỳ cân đo tự đóng sau ngày kết thúc
   // (HLT-17, 2026-11-04) nên phần kẹp về ngày kết thúc chỉ là chốt chặn.
