@@ -282,7 +282,7 @@ export default function CutoffSettingPage() {
                         required
                         type="time"
                         error={errors.latestAfternoonArrival}
-                        hint="Sau giờ chốt, từ kết thúc buổi sáng và trước giờ bắt đầu trả trẻ. Trẻ nghỉ buổi sáng chưa đến lớp trước giờ này được ghi Vắng cả ngày."
+                        hint="Phải sau giờ bắt đầu buổi chiều và trước giờ bắt đầu trả trẻ. Trẻ nghỉ buổi sáng chưa đến lớp trước giờ này được ghi Vắng cả ngày."
                         value={form.latestAfternoonArrival}
                         onChange={(e) => set({ latestAfternoonArrival: e.target.value })}
                         onBlur={() => blurCheck('latestAfternoonArrival')}

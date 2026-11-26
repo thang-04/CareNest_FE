@@ -72,7 +72,8 @@ function NextTask({ campuses, rowsPerCampus, syncing, onSyncStock }) {
       <span className="bd-next__text">
         Việc tiếp theo:{' '}
         <b>
-          {row.title} · {campus.campusName}
+          {row.title}
+          {campus ? ` · ${campus.campusName}` : ''}
         </b>{' '}
         — {row.status}
       </span>
@@ -113,7 +114,8 @@ function BoardSummary({ rowsPerCampus }) {
 
 /**
  * Bảng việc × điểm trường: mỗi hàng một việc bán trú trong ngày, mỗi cột một điểm trường, nên nhìn ngang so sánh được các điểm.
- * Trạng thái do BE trả (`GET /nutrition/day-board`); nút trong ô mở màn xử lý tương ứng.
+ * Trạng thái do BE trả (`GET /nutrition/day-board`); nút trong ô mở màn xử lý tương ứng. Việc chung cả trường (thực đơn tuần)
+ * gộp một ô trải hết các cột.
  */
 function BoardTable({ campuses, rowsPerCampus, syncing, onSyncStock }) {
   const tasks = rowsPerCampus[0] || [];
@@ -142,11 +144,17 @@ function BoardTable({ campuses, rowsPerCampus, syncing, onSyncStock }) {
                     </span>
                     {task.title}
                   </th>
-                  {campuses.map((campus, ci) => (
-                    <td key={campus.campusId}>
-                      <TaskCell row={rowsPerCampus[ci][i]} campus={campus} syncing={syncing} onSyncStock={onSyncStock} />
+                  {task.shared ? (
+                    <td colSpan={campuses.length}>
+                      <TaskCell row={task} campus={campuses[0]} syncing={syncing} onSyncStock={onSyncStock} />
                     </td>
-                  ))}
+                  ) : (
+                    campuses.map((campus, ci) => (
+                      <td key={campus.campusId}>
+                        <TaskCell row={rowsPerCampus[ci][i]} campus={campus} syncing={syncing} onSyncStock={onSyncStock} />
+                      </td>
+                    ))
+                  )}
                 </tr>
               );
             })}

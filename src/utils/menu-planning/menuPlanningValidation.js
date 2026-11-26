@@ -136,7 +136,7 @@ const OPTIONAL_NORM_KEYS = ['animalProteinG', 'plantProteinG', 'animalLipidG', '
 
 /**
  * Thiết lập dinh dưỡng (hỗ trợ nhập liệu; BE kiểm tra lại). Khóa lỗi: effectiveFrom,
- * `${ageGroupId}.price|serviceFee`, `${ageGroupId}.meals`, `${ageGroupId}.meals.${i}.name|countAs`, `${ageGroupId}.norms.${key}`.
+ * `${ageGroupId}.price|serviceFee|budgetTolerancePct`, `${ageGroupId}.meals`, `${ageGroupId}.meals.${i}.name|countAs`, `${ageGroupId}.norms.${key}`.
  */
 /** opts.mealsReadOnly: bữa lấy từ Cấu hình trường (BE) nên không kiểm; opts.minDate: ngày hiệu lực sớm nhất của bản mới. */
 export const validateNutritionSetup = (form, today, { mealsReadOnly = false, minDate } = {}) => {
@@ -154,6 +154,8 @@ export const validateNutritionSetup = (form, today, { mealsReadOnly = false, min
     const fee = g.serviceFee === '' || g.serviceFee == null ? 0 : Number(g.serviceFee);
     if (!Number.isInteger(fee) || fee < 0) e[`${key}.serviceFee`] = 'Phí dịch vụ là số tiền không âm.';
     else if (isNum(g.price) && fee > Number(g.price)) e[`${key}.serviceFee`] = 'Phí dịch vụ không được lớn hơn giá suất ăn.';
+    const tolerance = g.budgetTolerancePct === '' || g.budgetTolerancePct == null ? 5 : Number(g.budgetTolerancePct);
+    if (!(tolerance >= 0 && tolerance <= 100)) e[`${key}.budgetTolerancePct`] = 'Biên tiền từ 0 đến 100%.';
     if (!mealsReadOnly) {
       if (base.some((code) => !meals.some((m) => m.code === code))) e[`${key}.meals`] = 'Không bỏ được bữa gốc của nhóm tuổi.';
       meals.forEach((m, i) => {

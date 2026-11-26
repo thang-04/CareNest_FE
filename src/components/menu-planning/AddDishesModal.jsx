@@ -14,9 +14,9 @@ const TYPE_ORDER = Object.keys(DISH_TYPE_LABELS);
 
 /**
  * Chọn nhiều món cho một bữa của mẫu ngày: món đã chọn ở trên (bỏ từng món hoặc tất cả), danh sách nhóm theo loại món,
- * mỗi dòng có nhãn chất gây dị ứng (NUT-23) và kcal một suất của `ageGroup`. `onSave(dishes)` nhận danh sách món đã chọn của bữa.
+ * mỗi dòng có nhãn chất gây dị ứng (NUT-23) và kcal một suất của `ageGroup` (`hideKcal` thì ẩn). `onSave(dishes)` nhận danh sách món đã chọn của bữa.
  */
-export function AddDishesModal({ title, subtitle, dishes, selectedIds, ageGroup, onSave, onClose }) {
+export function AddDishesModal({ title, subtitle, dishes, selectedIds, ageGroup, hideKcal, onSave, onClose }) {
   const [picked, setPicked] = useState(() => selectedIds.map(String));
   const [keyword, setKeyword] = useState('');
   const [type, setType] = useState('');
@@ -102,9 +102,11 @@ export function AddDishesModal({ title, subtitle, dishes, selectedIds, ageGroup,
                   <Checkbox checked={picked.includes(String(d.id))} onChange={() => toggle(String(d.id))} />
                   <span className="td-grow">{d.name}</span>
                   {d.allergens?.length > 0 && <AllergenChips allergens={d.allergens} />}
-                  <span className="td-pick__kcal">
-                    <DishKcal dish={d} ageGroup={ageGroup} />
-                  </span>
+                  {!hideKcal && (
+                    <span className="td-pick__kcal">
+                      <DishKcal dish={d} ageGroup={ageGroup} />
+                    </span>
+                  )}
                 </label>
               ))}
             </section>

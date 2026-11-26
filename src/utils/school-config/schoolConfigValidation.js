@@ -226,6 +226,7 @@ const SCHEDULE_ORDER = [
   ['time', '<', 'morningEnd'],
   ['latestAfternoonArrival', '>', 'time'],
   ['latestAfternoonArrival', '>=', 'morningEnd'],
+  ['latestAfternoonArrival', '>', 'afternoonStart'],
   ['latestAfternoonArrival', '<', 'pickupStart'],
 ];
 const ORDER_TEXT = { '>': 'phải sau', '>=': 'phải bằng hoặc sau', '<': 'phải trước' };
@@ -233,7 +234,8 @@ const ORDER_TEXT = { '>': 'phải sau', '>=': 'phải bằng hoặc sau', '<': '
 /**
  * Thứ tự giờ chốt và lịch sinh hoạt như BE DailyScheduleRules (PCK-04, ATT-06, ATT-13 — Cần chốt 25/11/2026, phương án
  * A): mở đón ≤ bắt đầu sáng < kết thúc sáng < bắt đầu chiều < mốc tính đủ ngày ≤ bắt đầu trả < kết thúc trả ≤ kết thúc
- * chiều; giờ chốt từ mở đón, trước kết thúc sáng; giờ đến muộn nhất sau giờ chốt, từ kết thúc sáng, trước bắt đầu trả.
+ * chiều; giờ chốt từ mở đón, trước kết thúc sáng; giờ đến muộn nhất nằm trong khung nhận trẻ chiều: sau giờ chốt,
+ * sau bắt đầu chiều và trước bắt đầu trả trẻ.
  * Lỗi báo ở ô đứng sau trong chuỗi (ô đầu của mỗi cặp), mỗi ô một lỗi đầu tiên; cặp có ô trống / sai dạng thì bỏ qua.
  */
 export const cutoffOrderErrors = (form) => {

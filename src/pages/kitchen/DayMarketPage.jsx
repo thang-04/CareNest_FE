@@ -131,7 +131,9 @@ export default function DayMarketPage() {
         <KbCampusFilter campusId={campus.campusId} onChange={campus.setCampusId} canPick={campus.canPick} />
         {data && data.status !== 'HOLIDAY' && data.status !== 'NO_MENU' && (
           <span className="date-filter__static">
-            {data.basis === 'CONFIRMED' ? (
+            {data.balanceRound ? (
+              <StatusBadge tone="green" label={`Theo cân đối lần ${data.balanceRound}`} />
+            ) : data.basis === 'CONFIRMED' ? (
               <StatusBadge tone="green" label={`Theo số suất đã chốt${data.confirmedAt ? ` ${formatDateTime(data.confirmedAt)}` : ''}`} />
             ) : (
               <StatusBadge tone="orange" label="Theo số trẻ đang học, chưa chốt suất" />

@@ -70,14 +70,20 @@ test('giờ chốt từ giờ mở đón và trước kết thúc sáng', () => 
   assert.deepEqual(order({ time: '11:00' }), { time: 'Giờ chốt phải trước Kết thúc sáng (11:00)' });
 });
 
-test('giờ đến muộn nhất: sau giờ chốt, từ kết thúc sáng, trước bắt đầu trả trẻ', () => {
+test('giờ đến muộn nhất nằm trong khung nhận trẻ chiều', () => {
   assert.deepEqual(order({ time: '10:30', latestAfternoonArrival: '10:30' }), {
     latestAfternoonArrival: 'Giờ đến muộn nhất buổi chiều phải sau Giờ chốt (10:30)',
   });
-  assert.deepEqual(order({ latestAfternoonArrival: '11:00' }), {});
+  assert.deepEqual(order({ latestAfternoonArrival: '11:00' }), {
+    latestAfternoonArrival: 'Giờ đến muộn nhất buổi chiều phải sau Bắt đầu chiều (13:30)',
+  });
   assert.deepEqual(order({ latestAfternoonArrival: '10:59' }), {
     latestAfternoonArrival: 'Giờ đến muộn nhất buổi chiều phải bằng hoặc sau Kết thúc sáng (11:00)',
   });
+  assert.deepEqual(order({ latestAfternoonArrival: '13:30' }), {
+    latestAfternoonArrival: 'Giờ đến muộn nhất buổi chiều phải sau Bắt đầu chiều (13:30)',
+  });
+  assert.deepEqual(order({ latestAfternoonArrival: '13:31' }), {});
   assert.deepEqual(order({ latestAfternoonArrival: '14:59' }), {});
   assert.deepEqual(order({ latestAfternoonArrival: '15:00' }), {
     latestAfternoonArrival: 'Giờ đến muộn nhất buổi chiều phải trước Bắt đầu trả trẻ (15:00)',

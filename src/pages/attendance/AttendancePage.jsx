@@ -21,7 +21,14 @@ import { useAttendanceClasses, useAttendanceYear, useClassAttendance, useClassMe
 import { ClassMealCard } from '@/components/attendance/ClassMealCard';
 import { Switch } from '@/components/ui/Switch';
 import { Button } from '@/components/ui/Button';
-import { getClassAttendance, getDayInfo, markArrived, saveClassAttendance } from '@/services/attendance/attendanceService';
+import { RadioGroup, SelectField } from '@/components';
+import {
+  correctMealParticipation,
+  getClassAttendance,
+  getDayInfo,
+  markArrived,
+  saveClassAttendance,
+} from '@/services/attendance/attendanceService';
 import {
   createAttendanceRefresh,
   leaveStateChanged,
@@ -73,9 +80,42 @@ const NOTHING_UNSAVED = { attendance: false, health: false };
 const leavePart = (row) => (row.leaveRequest ? row.leaveRequest.part || LEAVE_PART.FULL_DAY : null);
 const halfPart = (row) =>
   !row.leaveRequest?.noticeOnly && leavePart(row) && leavePart(row) !== LEAVE_PART.FULL_DAY ? leavePart(row) : undefined;
+const isMorningUnexcused = (row) => row.record?.status === ATTENDANCE_STATUS.UNEXCUSED && !row.record?.absentPart;
+const hasMorningAbsence = (row) => halfPart(row) === LEAVE_PART.MORNING || row.record?.absentPart === LEAVE_PART.MORNING;
+const morningArrivalLabel = (row) => {
+  if (row.record?.absentPartUnexcused) {
+    return row.record.status === ATTENDANCE_STATUS.PRESENT ? 'Sáng vắng không phép · chiều có mặt' : 'Sáng vắng không phép · chưa đến';
+  }
+  return MORNING_LEAVE_STATUS_LABELS[row.record?.status] || 'Nghỉ sáng (có phép)';
+};
+// Trong khung nhận trẻ chiều của hôm nay, hoặc khi BGH đã mở lại ngày để sửa (GV quên bấm đúng giờ)
+const canMarkArrived = (sheet, day, date) =>
+  sheet.canRecord &&
+  (!!day.unlock ||
+    (date === day.today &&
+      day.baseLocked &&
+      day.now >= (sheet.afternoonStart || '13:30') &&
+      day.now < (sheet.latestAfternoonArrival || '14:00')));
+// ATT-08 (user chốt 26/11/2026): ngày mở lại, trẻ Có mặt chọn buổi trong một lần bấm
+const PRESENT_PARTS = [
+  { value: LEAVE_PART.FULL_DAY, label: 'Cả ngày' },
+  { value: LEAVE_PART.MORNING, label: 'Chỉ sáng' },
+  { value: LEAVE_PART.AFTERNOON, label: 'Chỉ chiều' },
+];
+// Buổi vắng ứng với buổi có mặt: chỉ sáng ⇒ vắng chiều, chỉ chiều ⇒ vắng sáng
+const absentHalfOf = (presentPart) =>
+  presentPart === LEAVE_PART.MORNING ? LEAVE_PART.AFTERNOON : presentPart === LEAVE_PART.AFTERNOON ? LEAVE_PART.MORNING : undefined;
+const recordPresentPart = (record) =>
+  record?.absentPart === LEAVE_PART.MORNING
+    ? LEAVE_PART.AFTERNOON
+    : record?.absentPart === LEAVE_PART.AFTERNOON
+      ? LEAVE_PART.MORNING
+      : LEAVE_PART.FULL_DAY;
 const changed = (entry, record, sessions) =>
   !!entry?.status &&
-  (entry.status !== (record?.status || '') || sessions.some((session) => !!entry.meals?.[session] !== !!record?.meals?.[session]));
+  (entry.status !== (record?.status || '') ||
+    (!!entry.presentPart && entry.presentPart !== recordPresentPart(record)) ||
+    sessions.some((session) => !!entry.meals?.[session] !== !!record?.meals?.[session]));
 
 export default function AttendancePage() {
   const { user } = useAuth();
@@ -213,14 +253,19 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
   const rows = useMemo(() => sheet?.children || [], [sheet]);
   const sessions = sessionsOf(sheet);
   const noneIn = allMeals(false, sessions);
-  // Trẻ nghỉ cả ngày, hoặc nghỉ sáng khi lớp/ngày chưa được mở lại: điểm danh theo đơn, GV không sửa
+  // Trẻ nghỉ sáng khi lớp/ngày chưa được mở lại: điểm danh theo đơn, GV chỉ đổi công tắc ăn bữa xế
   const reopened = !!(clock || sheet)?.unlock;
-  const leaveLocked = (row) =>
-    !!row.leaveRequest && (leavePart(row) === LEAVE_PART.FULL_DAY || (leavePart(row) === LEAVE_PART.MORNING && !reopened));
+  // Đơn cả ngày (user chốt 26/11/2026): trẻ vẫn đến lớp thì GV ghi Có mặt ngay, kể cả trước giờ chốt; không khóa
+  const leaveLocked = (row) => !!row.leaveRequest && !row.leaveRequest.noticeOnly && leavePart(row) === LEAVE_PART.MORNING && !reopened;
   // ATT-13: trẻ nghỉ sáng — trước giờ chốt GV vẫn gạt được công tắc ăn bữa xế (mặc định theo đơn), trạng thái giữ theo đơn
   const xeOnly = (row) => halfPart(row) === LEAVE_PART.MORNING && !reopened && !!row.record;
   // Bữa còn lại của trẻ nghỉ một buổi; mặc định ăn theo công tắc ăn của đơn
-  const rowSessions = (row) => sessionsAfterLeave(halfPart(row), sessions);
+  const rowSessions = (row) =>
+    sessionsAfterLeave(draft[row.child.id]?.presentPart ? absentHalfOf(draft[row.child.id].presentPart) : halfPart(row), sessions);
+  // Thẻ suất ăn đã trả trạng thái theo từng bữa. Khóa sớm ở UI để cô không
+  // bấm nhầm; backend vẫn kiểm tra lại cả xác nhận và chữ ký phiếu bếp.
+  const hasConfirmedMeal = (row) =>
+    rowSessions(row).some((session) => meal.data?.meals?.some((count) => count.session === session && count.status === 'CONFIRMED'));
   const presentMeals = (row) => ({
     ...noneIn,
     ...(row.leaveRequest?.eats === false ? {} : mealsWhenPresent(row.child, rowSessions(row))),
@@ -328,10 +373,43 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
   const setStatus = (row, present) => {
     if (leaveLocked(row)) return;
     const current = draft[row.child.id];
+    // Trẻ có đơn nghỉ cả ngày chọn Vắng ⇒ trở lại Vắng có phép theo đơn
+    const absentStatus =
+      leavePart(row) === LEAVE_PART.FULL_DAY && !row.leaveRequest?.noticeOnly ? ATTENDANCE_STATUS.EXCUSED : ATTENDANCE_STATUS.UNEXCUSED;
     update(row, {
-      status: present ? ATTENDANCE_STATUS.PRESENT : ATTENDANCE_STATUS.UNEXCUSED,
+      status: present ? ATTENDANCE_STATUS.PRESENT : absentStatus,
+      presentPart: undefined,
       meals: present ? (current?.status === ATTENDANCE_STATUS.PRESENT ? current.meals : presentMeals(row)) : noneIn,
     });
+  };
+  // Ngày mở lại: Có mặt Cả ngày / Chỉ sáng / Chỉ chiều; bữa mặc định theo buổi có mặt
+  const setPart = (row, part) => {
+    if (leaveLocked(row)) return;
+    const current = draft[row.child.id];
+    update(row, {
+      status: ATTENDANCE_STATUS.PRESENT,
+      presentPart: part,
+      // Ngày đã mở lại chỉ sửa chuyên cần; suất ăn đã chốt giữ nguyên.
+      meals: current?.meals || noneIn,
+    });
+  };
+  // Sau giờ chốt chỉ được sửa nhầm công tắc ăn của hôm nay. API kiểm tra lại
+  // sổ suất ăn chưa xác nhận và phiếu bếp chưa ký, nên không thể lách bằng UI.
+  const correctMeal = async (row, participates) => {
+    if (submitRef.current || date !== day?.today || !day?.baseLocked) return;
+    submitRef.current = true;
+    setSaving(true);
+    try {
+      await correctMealParticipation({ classId, childId: row.child.id, date, participates }, user);
+      await reconciliation.current?.refresh({ force: true, savedIds: [row.child.id] });
+      meal.reload({ silent: true });
+      toast.success(`Đã cập nhật tham gia ăn cho ${row.child.fullName}.`);
+    } catch (err) {
+      toast.error(err, 'Chưa cập nhật được suất ăn');
+    } finally {
+      submitRef.current = false;
+      setSaving(false);
+    }
   };
   // ATT-13: trẻ nghỉ sáng đến lớp buổi chiều — GV bấm "Đã đến" (từ giờ chốt tới giờ đến muộn nhất, BE kiểm)
   const arrived = async (row) => {
@@ -684,30 +762,90 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
                                       ? LEAVE_PART_TAGS[halfPart(row)]
                                       : entry.status === 'EXCUSED'
                                         ? 'Vắng có phép · Phụ huynh báo nghỉ'
-                                        : 'Phụ huynh báo nghỉ'}
+                                        : row.record?.status === ATTENDANCE_STATUS.PRESENT
+                                          ? 'Đến dù có đơn nghỉ'
+                                          : 'Phụ huynh báo nghỉ'}
                                 </button>
                               )}
                             </div>
                           </div>
                         </td>
                         <td>
-                          {leaveLocked(row) && halfPart(row) === LEAVE_PART.MORNING ? (
+                          {editable && !leaveLocked(row) ? (
+                            <>
+                              {reopened ? (
+                                <SelectField
+                                  className="select dd-reception__status-select"
+                                  value={
+                                    !entry.status
+                                      ? ''
+                                      : entry.status === 'PRESENT'
+                                        ? entry.presentPart ||
+                                          (row.record?.status === 'PRESENT' ? recordPresentPart(row.record) : LEAVE_PART.FULL_DAY)
+                                        : 'ABSENT'
+                                  }
+                                  options={[
+                                    ...PRESENT_PARTS.map((part) => ({
+                                      value: part.value,
+                                      label: `Có mặt · ${part.label}`,
+                                    })),
+                                    {
+                                      value: 'ABSENT',
+                                      label:
+                                        leavePart(row) === LEAVE_PART.FULL_DAY && !row.leaveRequest?.noticeOnly ? 'Nghỉ có phép' : 'Vắng',
+                                    },
+                                  ]}
+                                  onChange={(event) => {
+                                    const part = event.target.value;
+                                    if (part === 'ABSENT') setStatus(row, false);
+                                    else setPart(row, part);
+                                  }}
+                                  disabled={busy}
+                                  aria-label={`Điểm danh ${row.child.fullName}`}
+                                />
+                              ) : (
+                                <RadioGroup
+                                  name={`attendance-${row.child.id}`}
+                                  value={entry.status === 'PRESENT' ? 'PRESENT' : 'ABSENT'}
+                                  options={[
+                                    { value: 'PRESENT', label: 'Có mặt', className: 'dd-seg__item dd-seg__item--present' },
+                                    {
+                                      value: 'ABSENT',
+                                      label:
+                                        leavePart(row) === LEAVE_PART.FULL_DAY && !row.leaveRequest?.noticeOnly ? 'Nghỉ có phép' : 'Vắng',
+                                      className: 'dd-seg__item dd-seg__item--absent',
+                                    },
+                                  ]}
+                                  onChange={(status) => setStatus(row, status === 'PRESENT')}
+                                  disabled={busy}
+                                  className="dd-seg dd-reception__status"
+                                  aria-label={`Điểm danh ${row.child.fullName}`}
+                                />
+                              )}
+                              {/* Ngày mở lại: nhãn buổi vắng sáng theo bản ghi đã lưu */}
+                              {reopened && (hasMorningAbsence(row) || isMorningUnexcused(row)) && (
+                                <div className="dd-reception__arrival">
+                                  <StatusBadge
+                                    tone={row.record?.status === 'PRESENT' ? 'green' : row.record?.status === 'UNEXCUSED' ? 'red' : 'gray'}
+                                    label={morningArrivalLabel(row)}
+                                  />
+                                </div>
+                              )}
+                            </>
+                          ) : hasMorningAbsence(row) || isMorningUnexcused(row) ? (
                             <div className="dd-reception__arrival">
                               <StatusBadge
                                 tone={row.record?.status === 'PRESENT' ? 'green' : row.record?.status === 'UNEXCUSED' ? 'red' : 'gray'}
-                                label={MORNING_LEAVE_STATUS_LABELS[row.record?.status] || 'Nghỉ sáng (có phép)'}
+                                label={morningArrivalLabel(row)}
                               />
-                              {/* Nút hiện từ giờ chốt tới giờ đến muộn nhất buổi chiều của ngày hôm nay */}
-                              {sheet.canRecord &&
-                                row.record?.status === ATTENDANCE_STATUS.EXCUSED &&
-                                date === day.today &&
-                                day.baseLocked &&
-                                (!sheet.latestAfternoonArrival || day.now < sheet.latestAfternoonArrival) && (
+                              {/* ATT-03/B2: trường chỉ nhận trẻ trong khung buổi chiều đã cấu hình. */}
+                              {canMarkArrived(sheet, day, date) &&
+                                (row.record?.status === ATTENDANCE_STATUS.EXCUSED || isMorningUnexcused(row)) && (
                                   <Button
                                     size="sm"
                                     icon={CheckCircle2}
                                     disabled={busy}
-                                    title={`Ghi trẻ đến lớp buổi chiều, trước ${sheet.latestAfternoonArrival || '14:00'}`}
+                                    title={`Ghi trẻ đến lớp từ ${sheet.afternoonStart || '13:30'} đến trước ${sheet.latestAfternoonArrival || '14:00'}`}
                                     onClick={(event) => {
                                       event.stopPropagation();
                                       arrived(row);
@@ -716,25 +854,6 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
                                     Đã đến
                                   </Button>
                                 )}
-                            </div>
-                          ) : editable && !leaveLocked(row) ? (
-                            <div className="dd-seg dd-reception__status" role="radiogroup" aria-label={`Điểm danh ${row.child.fullName}`}>
-                              {[true, false].map((present) => (
-                                <label
-                                  key={String(present)}
-                                  className={`dd-seg__item dd-seg__item--${present ? 'present' : 'absent'} ${(present ? entry.status === 'PRESENT' : absent) ? 'is-on' : ''}`}
-                                >
-                                  <input
-                                    type="radio"
-                                    className="sr-only"
-                                    name={`attendance-${row.child.id}`}
-                                    checked={present ? entry.status === 'PRESENT' : absent}
-                                    disabled={busy}
-                                    onChange={() => setStatus(row, present)}
-                                  />
-                                  {present ? 'Có mặt' : 'Vắng'}
-                                </label>
-                              ))}
                             </div>
                           ) : (
                             <AttendanceRowBadge status={entry.status === 'PRESENT' ? 'PRESENT' : absent ? 'ABSENT' : 'NONE'} />
@@ -747,9 +866,10 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
                                 CHD-13 (Cần chốt 18/11/2026): trẻ không báo ăn luôn "—", nhãn "Không báo ăn" ở ô Trẻ */}
                             {/* ATT-13: trẻ nghỉ sáng có bữa xế theo công tắc ăn của đơn, kể cả khi chưa đến */}
                             {halfPart(row) === LEAVE_PART.MORNING &&
+                            !entry.presentPart &&
                             row.child.mealRegistered !== false &&
                             sessions.includes(MEAL_SESSION.AFTERNOON) ? (
-                              editable ? (
+                              editable && !day?.baseLocked ? (
                                 // Trước giờ chốt (hoặc khi mở lại): chỉ gạt bữa xế; sau giờ chốt khóa như mọi trẻ
                                 <>
                                   <span className="muted text-xs">Bữa xế</span>
@@ -768,7 +888,7 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
                               )
                             ) : entry.status !== ATTENDANCE_STATUS.PRESENT || row.child.mealRegistered === false ? (
                               <span className="muted">—</span>
-                            ) : editable && !leaveLocked(row) ? (
+                            ) : editable && !day?.baseLocked && !leaveLocked(row) ? (
                               <span className="dd-reception__meal">
                                 <Switch
                                   label={`Tham gia ăn: ${row.child.fullName}`}
@@ -780,9 +900,26 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
                                 />
                                 <span className="text-xs">{eatsAny(entry.meals, rowSessions(row)) ? 'Có' : 'Không'}</span>
                               </span>
+                            ) : editable && day?.baseLocked && date === day?.today && !leaveLocked(row) ? (
+                              <span className="dd-reception__meal">
+                                <Switch
+                                  label={`Sửa tham gia ăn: ${row.child.fullName}`}
+                                  disabled={busy || hasConfirmedMeal(row)}
+                                  checked={eatsAny(entry.meals, rowSessions(row))}
+                                  onChange={(on) => correctMeal(row, on)}
+                                />
+                                <span className="text-xs">{eatsAny(entry.meals, rowSessions(row)) ? 'Có' : 'Không'}</span>
+                              </span>
                             ) : (
                               <span>{eatsAny(entry.meals, rowSessions(row)) ? 'Có' : 'Không'}</span>
                             )}
+                            {/* ATT-03/B2: sáng vắng không phép, bữa xế đã bỏ từ giờ chốt thì chiều đến cũng không có suất */}
+                            {(isMorningUnexcused(row) || row.record?.absentPartUnexcused) &&
+                              row.child.mealRegistered !== false &&
+                              sessions.includes(MEAL_SESSION.AFTERNOON) &&
+                              !row.record?.meals?.[MEAL_SESSION.AFTERNOON] && (
+                                <span className="muted text-xs dd-reception__xe-off">Không có suất xế</span>
+                              )}
                             {/* Nghỉ chiều: bữa xế tắt và khóa */}
                             {halfPart(row) === LEAVE_PART.AFTERNOON && sessions.includes(MEAL_SESSION.AFTERNOON) && (
                               <span className="muted text-xs dd-reception__xe-off">Xế: nghỉ chiều</span>

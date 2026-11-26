@@ -11,10 +11,12 @@ export const attendanceApi = {
   saveClassAttendance: ({ classId, date, entries }) =>
     axiosClient.put(`/classes/${classId}/attendance`, {
       date,
-      entries: entries.map(({ childId, status, meals }) => ({ childId, status, meals })),
+      entries: entries.map(({ childId, status, meals, presentPart }) => ({ childId, status, meals, presentPart })),
     }),
   markArrived: ({ classId, childId, date }) =>
     axiosClient.post(`/classes/${classId}/attendance/children/${childId}/arrived`, undefined, { params: { date } }),
+  correctMealParticipation: ({ classId, childId, date, participates }) =>
+    axiosClient.post(`/classes/${classId}/attendance/children/${childId}/meal-participation`, { date, participates }),
   // PENDING BE: không có classId = tổng hợp nhiều lớp trong phạm vi người gọi (campusId tùy chọn, BE tự giới hạn phạm vi)
   getAttendanceSummary: ({ classId, campusId, from, to }) =>
     classId
@@ -59,6 +61,7 @@ const toSheet = (data) => {
     className: data.className,
     campusId: data.campusId,
     mealSessions: data.mealSessions,
+    afternoonStart: data.afternoonStart,
     latestAfternoonArrival: data.latestAfternoonArrival,
     canRecord: data.canRecord,
     mealCountStatus: null,
@@ -98,11 +101,15 @@ export const createAttendanceBeApi = (client) => ({
   saveClassAttendance: ({ classId, date, entries }) =>
     client.put(`/classes/${classId}/attendance`, {
       date,
-      entries: entries.map(({ childId, status, meals }) => ({ childId, status, meals })),
+      entries: entries.map(({ childId, status, meals, presentPart }) => ({ childId, status, meals, presentPart })),
     }),
   // ATT-13: trẻ nghỉ buổi sáng đã đến lớp buổi chiều (không đổi sổ báo ăn)
   markArrived: ({ classId, childId, date }) =>
     client.post(`/classes/${classId}/attendance/children/${childId}/arrived`, undefined, { params: { date } }),
+  // ATT-02a: after the cut-off, only today's accidental meal-participation toggle may be corrected.
+  // The server rejects it once a relevant meal count is confirmed or the kitchen record is signed.
+  correctMealParticipation: ({ classId, childId, date, participates }) =>
+    client.post(`/classes/${classId}/attendance/children/${childId}/meal-participation`, { date, participates }),
   getAttendanceSummary: async ({ classId, campusId, ageGroupId, schoolYear, from, to }) =>
     classId
       ? withSubstitute(await client.get(`/classes/${classId}/attendance/summary`, { params: { from, to } }), 'CLASS')

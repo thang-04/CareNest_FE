@@ -2119,42 +2119,6 @@
   display: block;
 }
 
-.td-eval-list {
-  display: grid;
-  gap: var(--space-2);
-  padding: var(--space-3) 0;
-}
-
-.td-eval th,
-.td-eval td {
-  vertical-align: top;
-}
-
-.table .td-eval__cell {
-  text-align: center;
-  white-space: normal;
-}
-.td-eval__cell .chip {
-  white-space: normal;
-}
-
-.td-eval__cell small {
-  display: block;
-  font-size: var(--fs-xs);
-}
-
-.td-eval__cell--ok small {
-  color: var(--tone-green-fg);
-}
-
-.td-eval__cell--warn small {
-  color: var(--tone-orange-fg);
-}
-
-.td-eval__cell--muted small {
-  color: var(--tone-gray-fg);
-}
-
 .td-publish {
   display: grid;
   gap: var(--space-4);
@@ -2551,53 +2515,7 @@
   color: var(--color-text-muted);
 }
 
-/* ---------- Kế hoạch tuần: dải 5 ngày, khối thu gọn ---------- */
-.td-days {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: var(--space-3);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.td-day {
-  display: grid;
-  gap: var(--space-2);
-  align-content: start;
-  justify-items: start;
-  min-width: 0;
-  padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-xl);
-  background: var(--color-surface);
-}
-.td-day__top {
-  display: flex;
-  gap: var(--space-2);
-  align-items: baseline;
-}
-.td-day__issues {
-  display: grid;
-  gap: 2px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  font-size: var(--fs-sm);
-  line-height: 1.4;
-}
-/* Câu lưu ý BE có thể rất dài: thẻ ngày chỉ hiện 2 dòng, đủ câu ở khối "Tất cả lưu ý của tuần" */
-.td-day__issues li {
-  display: -webkit-box;
-  overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-}
-.td-day__issue--err {
-  color: var(--color-danger-fg);
-}
-.td-day__issue--warn {
-  color: var(--color-warning-fg);
-}
+/* ---------- Khối thu gọn ---------- */
 .td-fold > summary {
   cursor: pointer;
   list-style: none;
@@ -2618,11 +2536,6 @@
 }
 .td-fold[open] > summary::after {
   rotate: 225deg;
-}
-@media (max-width: 1180px) {
-  .td-days {
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  }
 }
 
 /* ---------- Mẫu thực đơn ngày: danh sách trái, sửa phải ---------- */
@@ -2927,9 +2840,6 @@
   .td-pick__filters {
     grid-template-columns: minmax(0, 1fr);
   }
-  .td-days {
-    grid-template-columns: minmax(0, 1fr);
-  }
 }
 
 .td-daynut {
@@ -3217,15 +3127,6 @@
   justify-content: space-between;
   gap: var(--space-1);
 }
-/* Lý do ngắn đầu cột ngày thay cho "N lưu ý" */
-.td-week__reasons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
 /* Modal thông tin món mở từ lưới tuần */
 .td-dish-info {
   display: grid;
@@ -3255,31 +3156,7 @@
   border-left: 3px solid var(--dt, var(--tone-gray));
 }
 
-/* ---------- Bảng kiểm dinh dưỡng tuần: tab nhóm tuổi, nhóm hàng, nền theo trạng thái ---------- */
-.td-eval-wrap {
-  display: grid;
-  gap: var(--space-3);
-  min-width: 0;
-  padding: 0 var(--space-6) var(--space-6);
-}
-.td-eval__bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2) var(--space-4);
-}
-.td-eval__bar .tabs {
-  max-width: 100%;
-  overflow-x: auto;
-}
-.td-eval__legend {
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-1-5);
-  color: var(--color-text-secondary);
-}
+/* ---------- Chấm chú giải trạng thái dinh dưỡng ---------- */
 .td-eval__dot {
   display: inline-block;
   width: 12px;
@@ -3298,51 +3175,6 @@
 .td-eval__dot--high {
   background: var(--color-warning-bg);
   box-shadow: inset 0 0 0 1px var(--color-warning-border);
-}
-.table.td-eval .td-eval__group th {
-  padding-top: var(--space-2);
-  padding-bottom: var(--space-2);
-  background: var(--color-surface-muted);
-  color: var(--color-text-secondary);
-  font-size: var(--fs-xs);
-  font-weight: var(--fw-semibold);
-  text-align: left;
-}
-.td-eval__group th > span {
-  margin-right: var(--space-2);
-}
-.table .td-eval__norm {
-  color: var(--color-text-secondary);
-  font-size: var(--fs-sm);
-  text-align: center;
-  white-space: nowrap;
-}
-.table.td-eval td.td-eval__cell--low {
-  background: var(--color-danger-bg);
-}
-.td-eval__cell--low .fw-600,
-.td-eval__cell--low small {
-  color: var(--color-danger-fg);
-}
-.table.td-eval td.td-eval__cell--high {
-  background: var(--color-warning-bg);
-}
-.td-eval__cell--high .fw-600,
-.td-eval__cell--high small {
-  color: var(--color-warning-fg);
-}
-@media (max-width: 767px) {
-  .td-eval-wrap {
-    padding: 0 var(--space-4) var(--space-4);
-  }
-}
-.td-days-wrap {
-  display: grid;
-  gap: var(--space-2);
-}
-.td-days__bar {
-  display: flex;
-  justify-content: flex-end;
 }
 
 /* Mẫu ngày: món có vạch màu theo loại, modal chọn món cùng kiểu với lưới tuần, ô dinh dưỡng tô nền theo trạng thái BE */
@@ -4518,4 +4350,68 @@
 /* Cân đối giá suất − phí dịch vụ = ngân sách thực phẩm dưới bảng dinh dưỡng 1 trẻ / ngày */
 .td-daynut__budget {
   margin-top: var(--space-3);
+}
+
+/* ---------- Cân đối khẩu phần ngày: cột món + kết luận bên trái, bảng bên phải ---------- */
+.td-bal {
+  display: grid;
+  grid-template-columns: minmax(220px, 260px) minmax(0, 1fr);
+  gap: var(--space-4);
+  align-items: start;
+}
+.td-bal__side,
+.td-bal__main {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+.td-bal__meal + .td-bal__meal {
+  margin-top: var(--space-3);
+}
+.td-bal__meal-head,
+.td-bal__dishes li,
+.td-bal__verdicts > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+.td-bal__dishes {
+  margin: var(--space-1) 0 0;
+  padding-left: var(--space-5);
+}
+.td-bal__verdicts,
+.td-bal__actions {
+  display: grid;
+  gap: var(--space-3);
+}
+.td-bal__money {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-6);
+  margin: 0;
+}
+.td-bal__money dd {
+  margin: 0;
+}
+.td-bal__food {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.td-bal__meals {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.input.td-bal__input {
+  width: 6.5rem;
+  text-align: right;
+}
+@media (max-width: 1023px) {
+  .td-bal {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
