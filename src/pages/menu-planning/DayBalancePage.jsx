@@ -48,10 +48,11 @@ export default function DayBalancePage() {
   const days = plan?.days || [];
   const date = days.some((d) => d.date === params.get('date')) ? params.get('date') : (days.find((d) => !d.off) || days[0])?.date;
   const day = days.find((d) => d.date === date);
+  const round = params.get('round') === '2' ? 2 : 1;
   const dishEditable = !!plan?.canEdit && plan.status !== MEAL_PLAN_STATUS.PUBLISHED;
 
   const open = (next) => {
-    const target = new URLSearchParams(Object.entries({ week, block, date, ...next }).filter(([, v]) => v));
+    const target = new URLSearchParams(Object.entries({ week, block, date, round, ...next }).filter(([, v]) => v));
     if (guardRef.current) guardRef.current.leave(`/menu/nutrition?${target}`, { replace: true });
     else setParams(target, { replace: true });
   };
@@ -85,7 +86,7 @@ export default function DayBalancePage() {
             ariaLabel="Khối"
             items={blocks.map((key) => ({ key, label: MEAL_BLOCK_LABELS[key] || key }))}
             value={block}
-            onChange={(key) => setParams({ week, block: key, date }, { replace: true })}
+            onChange={(key) => setParams({ week, block: key, date, round }, { replace: true })}
           />
         )}
         <WeekPicker value={week} thisWeek={schoolWeekStart(today)} onChange={(next) => open({ week: next, date: '' })} />
@@ -140,6 +141,15 @@ export default function DayBalancePage() {
             value={date}
             onChange={(key) => open({ date: key })}
           />
+          <Tabs
+            ariaLabel="Lần cân đối"
+            items={[
+              { key: '1', label: 'Lần 1 · Dự kiến' },
+              { key: '2', label: 'Lần 2 · Sau chốt suất' },
+            ]}
+            value={String(round)}
+            onChange={(key) => open({ round: key })}
+          />
           {day?.off ? (
             <section className="card">
               <EmptyState title="Ngày nghỉ" description={day.note || 'Ngày này không phục vụ bữa ăn.'} />
@@ -147,8 +157,9 @@ export default function DayBalancePage() {
           ) : (
             day && (
               <DayBalanceEditor
-                key={`${date}|${menuVersion}`}
+                key={`${date}|${round}|${menuVersion}`}
                 date={date}
+                round={round}
                 block={block}
                 day={day}
                 dishes={dishes}

@@ -78,14 +78,19 @@ export function DayBalanceEditor({ date, round = 1, block, day, dishes, guardRef
   const evaluation = group && view.groups.find((g) => String(g.ageGroupId) === String(group.ageGroupId))?.evaluation;
   const sessions = group?.sessions || [...new Set(groups.flatMap((g) => g.sessions))];
   const editable = view.canEdit;
+  const confirmedRound = round === 2;
+  const staleLabel = confirmedRound ? 'Suất hoặc thực đơn đã đổi, cần cân đối lại' : 'Thực đơn đã đổi, cần cân đối lại';
 
   return (
     <>
       <div className="td-week-bar">
         <div className="row td-week-status">
-          <StatusBadge tone={view.passed ? 'green' : 'orange'} label={view.passed ? 'Ngày đạt cân đối' : 'Ngày chưa đạt'} />
+          <StatusBadge
+            tone={view.passed ? 'green' : 'orange'}
+            label={view.passed ? 'Ngày đạt cân đối' : confirmedRound ? 'Chưa đạt (vẫn lưu được)' : 'Ngày chưa đạt'}
+          />
           {!view.saved && <StatusBadge tone="gray" label="Chưa lưu cân đối" />}
-          {view.stale && <StatusBadge tone="red" label="Thực đơn đã đổi, cần cân đối lại" />}
+          {view.stale && <StatusBadge tone="red" label={staleLabel} />}
           {view.roundingStep == null && <span className="text-sm muted">Số chưa làm tròn</span>}
         </div>
         {editable && (
@@ -96,7 +101,25 @@ export function DayBalanceEditor({ date, round = 1, block, day, dishes, guardRef
           </div>
         )}
       </div>
-      <BalanceCounts title="Trẻ dự kiến" view={view} busy={busy} onChange={editable ? (count) => recalculate({ count }) : undefined} />
+      {view.blockedReason && (
+        <div className="alert alert--info" role="status">
+          <div>Chưa cân đối được lần này: {view.blockedReason}.</div>
+        </div>
+      )}
+      {confirmedRound && view.stale && editable && (
+        <div className="alert alert--warning">
+          <div>Tính lại theo số suất đã chốt mới nhất rồi lưu.</div>
+          <Button disabled={busy} onClick={() => recalculate({ roundingStep: view.roundingStep || 0.1, applyRounding: true })}>
+            Tính lại theo suất mới
+          </Button>
+        </div>
+      )}
+      <BalanceCounts
+        title={confirmedRound ? 'Suất đã chốt' : 'Trẻ dự kiến'}
+        view={view}
+        busy={busy}
+        onChange={editable && !confirmedRound ? (count) => recalculate({ count }) : undefined}
+      />
       <Tabs
         ariaLabel="Nhóm tuổi"
         value={group ? String(group.ageGroupId) : SUMMARY}
@@ -113,7 +136,8 @@ export function DayBalanceEditor({ date, round = 1, block, day, dishes, guardRef
           locked={dirty ? 'Lưu bản cân đối trước khi đổi món.' : ''}
           onChangeDishes={onChangeDishes}
           onRound={editable ? (roundingStep) => recalculate({ roundingStep, applyRounding: true }) : undefined}
-          onReset={() => recalculate({ fromRecipe: true })}
+          // Lần 2 giữ gam mỗi trẻ của lần 1 nên không dựng lại từ công thức
+          onReset={editable && !confirmedRound ? () => recalculate({ fromRecipe: true }) : undefined}
         />
         <div className="td-bal__main">
           {group ? (
