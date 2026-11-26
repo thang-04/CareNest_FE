@@ -87,3 +87,21 @@ test('màn mở từ màn khác bám theo crumb cha; màn ngoài sidebar và Tra
   assert.equal(alignCrumbs(home, MENU, '/'), home);
   assert.equal(labels(alignCrumbs([HOME, { label: 'Yêu cầu chờ duyệt' }], MENU, '/approvals')), 'Trang chủ > Chờ duyệt');
 });
+
+test('trang chi tiết mở từ Duyệt hoặc Kế hoạch quá hạn giữ sáng mục nơi đi vào', async () => {
+  const menu = [
+    {
+      label: 'Kế hoạch giáo dục',
+      children: [
+        { key: 'year', label: 'Kế hoạch năm học', to: '/education/school-year-plans' },
+        { key: 'reviews', label: 'Duyệt kế hoạch giáo dục', to: '/education/plan-reviews' },
+        { key: 'overdue', label: 'Kế hoạch quá hạn', to: '/education/overdue' },
+      ],
+    },
+  ];
+  const at = (path, search = '') => menuEntryFor(menu, path, search)?.item.key;
+  assert.equal(at('/education/school-year-plans/7'), 'year');
+  assert.equal(at('/education/school-year-plans/7', '?review=1'), 'reviews');
+  assert.equal(at('/education/school-year-plans/7', '?overdue=1'), 'overdue');
+  assert.equal(at('/children/1', '?review=1'), undefined);
+});

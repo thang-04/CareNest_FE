@@ -16,8 +16,8 @@ import { useHeaderSlot } from '@/contexts/HeaderSlotContext';
  */
 export function Breadcrumb({ items }) {
   const { user } = useAuth();
-  const { pathname } = useLocation();
-  const shown = alignCrumbs(items, getMenuForRole(user?.role, user), pathname);
+  const { pathname, search } = useLocation();
+  const shown = alignCrumbs(items, getMenuForRole(user?.role, user), pathname, search);
   usePageTitle(shown[shown.length - 1]?.label);
   const slot = useHeaderSlot();
   const mark = useRef(null);

@@ -277,9 +277,9 @@ test('review queue uses exact annual/TEAM type, own title, sentBy.at fallback an
   const nodes = (node) => (!React.isValidElement(node) ? [] : [node, ...React.Children.toArray(node.props.children).flatMap(nodes)]);
   const rows = nodes(tree).filter((node) => node.type === 'tr' && node.props.onClick);
   rows[0].props.onClick();
-  assert.equal(queueContext.destination, '/education/school-year-plans/annual-exact');
+  assert.equal(queueContext.destination, '/education/school-year-plans/annual-exact?review=1');
   rows[1].props.onClick();
-  assert.equal(queueContext.destination, '/education/goals/team-exact');
+  assert.equal(queueContext.destination, '/education/goals/team-exact?review=1');
 });
 
 test('EDU-93: hàng chờ hiện hồ sơ cho người duyệt bước khác (nút Xem) và mở trang xem giáo án ngày của chủ đề', () => {

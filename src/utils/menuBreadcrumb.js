@@ -17,20 +17,31 @@ const covers = (item, pathname) =>
   (item.to === '/' || item.exact ? pathname === item.to : pathname === item.to || pathname.startsWith(`${item.to}/`)) ||
   (item.also || []).some((prefix) => pathname.startsWith(prefix));
 
-/** Mục sidebar của màn đang mở: mục có đường dẫn dài nhất bao được `pathname`; không có ⇒ null. */
-export const menuEntryFor = (menu, pathname) =>
+// Trang chi tiết mở từ Duyệt / Kế hoạch quá hạn (?review=1, ?overdue=1) giữ sáng mục nơi đi vào, không nhảy sang mục của loại hồ sơ
+const ORIGINS = { overdue: '/education/overdue', review: '/education/plan-reviews' };
+const originOf = (menu, pathname, search) => {
+  if (!pathname.startsWith('/education/')) return null;
+  const query = new URLSearchParams(search);
+  const to = Object.entries(ORIGINS).find(([key]) => query.get(key) === '1')?.[1];
+  return to ? flatten(menu).find((e) => e.item.to === to) || null : null;
+};
+
+/** Mục sidebar của màn đang mở: mục nơi đi vào (nếu có), không thì mục có đường dẫn dài nhất bao được `pathname`; không có ⇒ null. */
+export const menuEntryFor = (menu, pathname, search = '') =>
+  originOf(menu, pathname, search) ||
   flatten(menu)
     .filter((e) => e.item.to && covers(e.item, pathname))
-    .sort((a, b) => b.item.to.length - a.item.to.length)[0] || null;
+    .sort((a, b) => b.item.to.length - a.item.to.length)[0] ||
+  null;
 
 /**
  * Đổi `items` của trang theo sidebar. Giữ nguyên khi màn không thuộc mục sidebar nào (kể cả qua crumb cha) hoặc là Trang chủ.
  * Cấp con giữ lại = các crumb đứng sau crumb trỏ về mục sidebar; trang không có crumb như vậy thì giữ crumb cuối
  * (tên trang hiện tại) khi đang ở trang con, bỏ hết khi đang ở đúng trang của mục.
  */
-export function alignCrumbs(items, menu, pathname) {
+export function alignCrumbs(items, menu, pathname, search = '') {
   const flat = flatten(menu);
-  let hit = menuEntryFor(menu, pathname);
+  let hit = menuEntryFor(menu, pathname, search);
   let at = -1;
   if (hit) at = items.findLastIndex((c) => c.to === hit.item.to);
   else {
