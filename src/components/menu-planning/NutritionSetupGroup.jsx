@@ -270,6 +270,35 @@ export function NutritionSetupGroup({ group: g, info, childCount, setup, usesApi
                       <td className="center">đ</td>
                     </tr>
                     <tr>
+                      <th scope="row">Biên tiền cho phép (đạt tiền)</th>
+                      <td className="center">
+                        {canEdit ? (
+                          <TextField
+                            className="input td-setup-table-input"
+                            type="number"
+                            min={0}
+                            max={100}
+                            step="0.5"
+                            value={g.budgetTolerancePct ?? ''}
+                            aria-label={`Biên tiền cho phép ${info.short}`}
+                            aria-invalid={!!errorOf('budgetTolerancePct')}
+                            onChange={(e) => setGroup(g.ageGroupId, (x) => (x.budgetTolerancePct = e.target.value))}
+                          />
+                        ) : (
+                          <b className="nowrap">±{Number(g.budgetTolerancePct ?? 5).toLocaleString('vi-VN')}</b>
+                        )}
+                        {errorOf('budgetTolerancePct') && (
+                          <span className="field__error td-setup-table__error" role="alert">
+                            {errorOf('budgetTolerancePct')}
+                          </span>
+                        )}
+                        <span className="td-setup-table__note">
+                          Tiền thực phẩm lệch ngân sách (giá suất − phí dịch vụ) trong biên này thì đạt.
+                        </span>
+                      </td>
+                      <td className="center">%</td>
+                    </tr>
+                    <tr>
                       <th scope="row">Nhu cầu năng lượng cả ngày</th>
                       <td className="center">
                         <TextField

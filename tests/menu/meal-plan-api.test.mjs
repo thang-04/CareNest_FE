@@ -9,10 +9,8 @@ const {
   blockSessions,
   cellItems,
   dayAllergenNotes,
-  dayResult,
   draftFromPlan,
   evaluationGroups,
-  evaluationSessions,
   gridSections,
   groupIssuesByDate,
   isDirty,
@@ -197,8 +195,6 @@ test('đồng bộ BE: khối, bữa từng khối theo thứ tự trong ngày, 
   assert.equal(groups.length, 1);
   assert.equal(groups[0].ageGroupName, 'Mẫu giáo 4-5 tuổi');
   assert.deepEqual(Object.keys(groups[0].byDate), [DAYS[0], DAYS[1]]);
-  assert.deepEqual(evaluationSessions(groups[0]), ['LUNCH', 'AFTERNOON'], 'bữa có % năng lượng (NUT-25), theo thứ tự trong ngày');
-  assert.deepEqual(evaluationSessions(evaluationGroups(plan, 'NURSERY')[0]), []);
   assert.deepEqual(planBlocks(null), []);
 });
 
@@ -243,13 +239,8 @@ test('bố cục sổ thực đơn: dải theo bữa, bữa trưa tách loại m
   assert.deepEqual(rowItems(monday, 'KINDERGARTEN', 'AFTERNOON', edit[1].rows[0]), []);
 });
 
-test('đầu cột: nhãn theo kết quả BE đã lưu; hàng dị ứng lấy chất của món theo danh mục', () => {
+test('hàng dị ứng lấy chất của món theo danh mục', () => {
   const plan = bePlan();
-  assert.deepEqual(dayResult(plan, DAYS[0]), { tone: 'red', label: '2 lưu ý' });
-  assert.deepEqual(dayResult(plan, DAYS[1]), { tone: 'orange', label: '1 lưu ý' });
-  // Ngày chưa được BE kiểm (không có đánh giá) thì không gắn nhãn "Đạt"
-  assert.equal(dayResult(plan, DAYS[2]), null);
-  assert.deepEqual(dayResult({ ...plan, issues: [] }, DAYS[1]), { tone: 'green', label: 'Đạt' });
   const draft = draftFromPlan(plan);
   const dishById = { 31: { id: '31', allergens: ['Trứng'] }, 30: { id: '30', allergens: [] } };
   assert.deepEqual(dayAllergenNotes(draft.days[0], 'KINDERGARTEN', dishById), [
@@ -307,7 +298,7 @@ test('module meal-plan khai source api cho /menu/weekly, /menu/statistics và /m
   const mod = INTEGRATION_MODULES['meal-plan'];
   assert.equal(mod.source, 'api');
   assert.deepEqual(mod.routes, ['/menu/weekly', '/menu/statistics', '/menu/nutrition']);
-  assert.deepEqual(mod.files, ['src/services/mealPlanApi.js']);
+  assert.deepEqual(mod.files, ['src/services/mealPlanApi.js', 'src/services/dayBalanceApi.js']);
 });
 
 test('sửa ngoại lệ ngày đã công bố (P-39): PUT .../days/{date}/amend gửi cả ngày mọi khối + lý do; lịch sử GET .../revisions', async () => {

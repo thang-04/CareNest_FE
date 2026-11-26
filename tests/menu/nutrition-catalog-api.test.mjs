@@ -476,8 +476,9 @@ test('lưu Thiết lập lên BE: một POST /batch chứa mọi nhóm đổi; k
     ageGroupId: '13',
     effectiveFrom: '2099-01-01',
     mealPrice: 32000,
-    // NUT-19: phí dịch vụ để trống gửi 0
+    // NUT-19: phí dịch vụ để trống gửi 0, biên tiền để trống gửi 5%
     serviceFee: 0,
+    budgetTolerancePct: 5,
     normBasis: 'TT 28/2016',
     dailyKcalNeed: 1400,
     appliedProteinPct: 14,

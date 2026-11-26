@@ -132,6 +132,13 @@ test('phí dịch vụ (NUT-19): trống = 0, không lớn hơn giá suất; ng�
   assert.deepEqual(check('5000'), {});
   assert.deepEqual(check('30000'), {});
   assert.equal(check('30001')['ag-4.serviceFee'], 'Phí dịch vụ không được lớn hơn giá suất ăn.');
+  const tolerance = (budgetTolerancePct) =>
+    validateNutritionSetup({ effectiveFrom: '2026-11-04', groups: [{ ...group, budgetTolerancePct }] }, '2026-11-03', opts)[
+      'ag-4.budgetTolerancePct'
+    ];
+  assert.equal(tolerance(''), undefined, 'để trống ⇒ mặc định 5%');
+  assert.equal(tolerance('7.5'), undefined);
+  assert.equal(tolerance('101'), 'Biên tiền từ 0 đến 100%.');
   const prices = [{ ageGroupId: 'ag-4', price: 30000, serviceFee: 5000, effectiveFrom: '2026-09-01', effectiveTo: null }];
   assert.equal(foodBudgetOn(prices, 'ag-4', '2026-11-04'), 25000);
   assert.equal(foodBudgetOn([{ ...prices[0], serviceFee: undefined }], 'ag-4', '2026-11-04'), 30000, 'giá cũ chưa có phí ⇒ phí 0');

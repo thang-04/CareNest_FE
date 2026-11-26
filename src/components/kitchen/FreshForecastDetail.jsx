@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Printer, Trash2 } from '@/components/ui/icons';
+import { ArrowLeft, Printer, RefreshCw, Trash2 } from '@/components/ui/icons';
 import {
   Breadcrumb,
   Button,
@@ -19,7 +19,7 @@ import { useFreshForecast } from '@/hooks/kitchen/useFreshGoods';
 import { freshGoodsApi } from '@/services/freshGoodsApi';
 import { kitchenCrumbs, KITCHEN_PAGES } from '@/utils/kitchen/breadcrumbs';
 import { personName } from '@/utils/kitchen/stockLots';
-import { formatDate, formatDateTime } from '@/utils/format';
+import { formatDate, formatDateTime, todayInput } from '@/utils/format';
 
 /** Một bản dự trù đã lưu: số trẻ, hàng tươi theo ngày, hàng khô cần nhập thêm, in danh sách đặt hàng, xóa (có xác nhận). */
 export function FreshForecastDetail({ campus }) {
@@ -31,6 +31,7 @@ export function FreshForecastDetail({ campus }) {
   const [printing, setPrinting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
   const sheetRef = useRef(null);
 
   const campusId = forecast ? String(forecast.campusId) : campus.campusId;
@@ -49,6 +50,29 @@ export function FreshForecastDetail({ campus }) {
     }
   };
 
+  // Cân đối đổi sau khi lập: lập bản mới cho các ngày còn lại của kỳ, giữ số trẻ và hàng khô đã chốt
+  const refresh = async () => {
+    setRefreshing(true);
+    try {
+      const today = todayInput();
+      const saved = await freshGoodsApi.saveForecast({
+        campusId: forecast.campusId,
+        periodFrom: forecast.periodFrom < today ? today : forecast.periodFrom,
+        periodTo: forecast.periodTo,
+        note: forecast.note,
+        counts: forecast.counts.map(({ ageGroupId, expectedCount }) => ({ ageGroupId, expectedCount })),
+        dryOrder: forecast.dryOrder,
+      });
+      toast.success('Đã lập bản dự trù mới theo cân đối.');
+      navigate(`/kitchen/forecast/${saved.id}?campusId=${saved.campusId}`);
+    } catch (err) {
+      toast.error(err, 'Chưa cập nhật được bản dự trù');
+    } finally {
+      setRefreshing(false);
+    }
+  };
+  const canRefresh = forecast?.outdated && forecast.canManage && forecast.periodTo >= todayInput();
+
   let content;
   if (forecastQ.error) content = <ErrorState error={forecastQ.error} onRetry={forecastQ.reload} />;
   else if (forecastQ.loading || !forecast) content = <LoadingState />;
@@ -59,6 +83,16 @@ export function FreshForecastDetail({ campus }) {
           Lập{personName(forecast.createdBy) ? ` bởi ${personName(forecast.createdBy)}` : ''} lúc {formatDateTime(forecast.createdAt)}.
           {forecast.note && <> Ghi chú: {forecast.note}</>}
         </p>
+        {forecast.outdated && (
+          <div className="alert alert--warning mb-16">
+            <div>Bản cân đối khẩu phần đã đổi sau khi lập bản dự trù này. Cập nhật để đặt hàng đúng số mới.</div>
+            {canRefresh && (
+              <Button variant="primary" icon={RefreshCw} loading={refreshing} onClick={refresh}>
+                Cập nhật bản dự trù
+              </Button>
+            )}
+          </div>
+        )}
         {forecast.counts.length > 0 && (
           <section className="card mb-16">
             <div className="card__header">

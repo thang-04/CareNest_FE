@@ -516,7 +516,7 @@ const MENUS = {
       'assessDayUnlocks',
     ]),
     ...boardingSection({
-      nutrition: ['weeklyMenus', 'menuStatistics', 'menus', 'nutrition'],
+      nutrition: ['weeklyMenus', 'nutrition', 'menuStatistics', 'menus'],
       kitchenOps: ['mealCount', 'publishedMenu', 'forecast', 'freshReceipts'],
       stock: ['dryStock', 'stockReceipts', 'stockHistory', 'stockShortfalls'],
       foodSafety: ['inspections', 'foodSamples', 'mealPhotos'],
