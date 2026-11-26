@@ -13,14 +13,7 @@ import {
   PageHead,
   YearPlanStatusBadge,
 } from '@/components/education-plan/eduUi';
-import {
-  ClassFilterBar,
-  classFilterPath,
-  ClassPageEmpty,
-  FilterSelect,
-  docReview,
-  useClassPlanContext,
-} from '@/components/education-plan/planUi';
+import { classFilterPath, ClassPageEmpty, docReview, useClassPlanContext } from '@/components/education-plan/planUi';
 import { RejectedNotice, ReviewActions, ReviewHistory } from '@/components/education-plan/reviewUi';
 import { submitEntryOf } from '@/models/education-plan/reviewHistory.mjs';
 import { BlockedNotice, DeadlineBadge } from '@/components/education-plan/DeadlineWidgets';
@@ -74,7 +67,7 @@ const MISSING_LABEL = { branch: 'tên chủ đề nhánh', theme: 'kế hoạch 
 export default function ClassPlanPage() {
   const { classId } = useParams();
   const navigate = useNavigate();
-  const [params, setParams] = useSearchParams();
+  const [params] = useSearchParams();
   const {
     user,
     branchPlans,
@@ -126,26 +119,16 @@ export default function ClassPlanPage() {
       params.get('review') === '1' && !path.startsWith('/education/branches/') ? `${path.includes('?') ? '&' : '?'}review=1` : '';
     return classPlanVersionPath(path + review, ctx.superseded ? yearPlan?.id : null);
   };
-  // Học kỳ nằm trong card lọc chung (Tiền 13/11/2026).
-  const headOf = (extra, toolbar = null) => (
+  const headOf = (toolbar = null) => (
     <div className="ga-sticky-head">
       <PageHead
         crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Kế hoạch giáo dục chủ đề' }]}
         title={`Kế hoạch giáo dục chủ đề ${cls.name}`}
       />
       {toolbar}
-      <ClassFilterBar
-        showAllAges
-        classes={classes}
-        classId={classId}
-        canPick={ctx.canPickClass}
-        onPick={(id, age) => navigate(classFilterPath('/education/theme-plans', id, age))}
-      >
-        {extra}
-      </ClassFilterBar>
     </div>
   );
-  const head = headOf(null);
+  const head = headOf();
 
   if (!yearPlan) {
     return (
@@ -261,23 +244,6 @@ export default function ClassPlanPage() {
     <div className="page ga-page">
       {preview && <DocPreviewModal file={preview} onClose={() => setPreview(null)} />}
       {headOf(
-        choices.length > 0 && (
-          <FilterSelect
-            label="Học kỳ"
-            value={hk}
-            onChange={(key) =>
-              setParams(
-                (prev) => {
-                  const next = new URLSearchParams(prev);
-                  next.set('hk', key);
-                  return next;
-                },
-                { replace: true },
-              )
-            }
-            options={choices.map((c) => ({ value: String(c.semesterNo), label: `Học kỳ ${c.semesterNo} (${c.themeIds.length})` }))}
-          />
-        ),
         (pkg || foldAll) && (
           <ResponsiveToolbar
             className="ga-year-toolbar"

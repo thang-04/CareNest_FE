@@ -7,14 +7,7 @@ import { getClassDocRelease, suggestActivityCards } from '@/services/education-p
 import { submitEntryOf } from '@/models/education-plan/reviewHistory.mjs';
 import { VersionHistory } from '@/components/education-plan/VersionHistory';
 import { docLines } from '@/models/education-plan/planHistory.mjs';
-import {
-  ClassFilterBar,
-  classFilterPath,
-  FilterSelect,
-  ThemeBranchTabs,
-  themesWithWeeks,
-  useClassPlanContext,
-} from '@/components/education-plan/planUi';
+import { ClassFilterBar, ThemeBranchTabs, useClassPlanContext } from '@/components/education-plan/planUi';
 import { RejectedNotice, ReviewHistory } from '@/components/education-plan/reviewUi';
 import { LoadingState } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
@@ -294,14 +287,9 @@ function ThemePlanInner() {
             {preview && <DocPreviewModal file={preview} onClose={() => setPreview(null)} />}
           </div>
         </ResponsiveToolbar>
-        {/* Thẻ đầu trang như Kế hoạch tuần / giáo án ngày: hàng lọc Nhóm tuổi · Lớp · Chủ đề, tên chủ đề và tab Kế hoạch chủ đề
-            rồi các chủ đề nhánh (Tiền 12/11/2026) */}
+        {/* Thẻ đầu trang: tên chủ đề và tab Kế hoạch chủ đề rồi các chủ đề nhánh; không có hàng lọc (chỉ trang danh sách có) */}
         <ClassFilterBar
-          showAllAges
-          classes={ctx.classes}
-          classId={classId}
-          canPick={ctx.canPickClass}
-          onPick={(id, age) => guard.leave(classFilterPath('/education/theme-plans', id, age))}
+          filters={false}
           footer={
             <>
               <div className="card__body">
@@ -327,15 +315,7 @@ function ThemePlanInner() {
               />
             </>
           }
-        >
-          <FilterSelect
-            label="Chủ đề"
-            value={String(themeId)}
-            options={themesWithWeeks(yearPlan).map((t) => ({ value: String(t.id), label: t.name }))}
-            onChange={(id) => guard.leave(planPath(`/education/class/${classId}/themes/${id}`))}
-          />
-          {/* Lọc mục tiêu nằm trong thẻ Bảng phủ MT; bỏ "Kiểu hiển thị" dạng cây (Tiền 13/11/2026) */}
-        </ClassFilterBar>
+        />
         {/* Thanh thao tác như màn Kế hoạch năm học: nút cỡ nhỏ viền xanh, nhóm lưu/gửi/xuất bên phải (Tiền 05/11) */}
       </div>
       {canComposeClassDocs && (
