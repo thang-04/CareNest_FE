@@ -169,6 +169,8 @@ export const INTEGRATION_MODULES = {
     source: 'api',
     routes: ['/kitchen/forecast', '/kitchen/fresh-receipts', '/kitchen/market-day'],
     files: ['src/services/freshGoodsApi.js'],
+    // BE tạm tắt endpoint nhập hàng khô khi kiểm tươi (G94-442, dev); bật lại thì bỏ khỏi pending
+    pending: ['POST /nutrition/fresh-checks/dry-receipts'],
   },
   // Bếp hôm nay (xem), lưu mẫu thức ăn (duyệt), ảnh bữa, khung giờ ảnh trên BE /nutrition/{kitchen/day,food-samples,meal-photos,meal-photo-windows}
   'kitchen-records': {

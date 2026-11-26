@@ -878,8 +878,8 @@ export const attendanceMockRepository = {
         const part = leave?.part || LEAVE_PART.FULL_DAY;
         // Nghỉ sáng trước giờ chốt: GV chỉ đổi công tắc ăn bữa xế, giữ trạng thái theo đơn
         const mealOnly = part === LEAVE_PART.MORNING && recordOf(db, entry.childId, date)?.status === entry.status;
-        // Đơn cả ngày: khi mở lại chỉ ghi được trẻ vẫn đến (Có mặt), không đổi thành Vắng không phép
-        const fullDayLocked = part === LEAVE_PART.FULL_DAY && (!info.unlock || entry.status === ATTENDANCE_STATUS.UNEXCUSED);
+        // Đơn cả ngày (user chốt 26/11/2026): trẻ vẫn đến thì ghi Có mặt ngay, không đổi thành Vắng không phép
+        const fullDayLocked = part === LEAVE_PART.FULL_DAY && entry.status === ATTENDANCE_STATUS.UNEXCUSED;
         if (leave && (fullDayLocked || (part === LEAVE_PART.MORNING && !info.unlock && !mealOnly))) {
           throw new ApiError(409, 'Phụ huynh cần hủy đơn nghỉ trước giờ chốt để điểm danh lại.');
         }

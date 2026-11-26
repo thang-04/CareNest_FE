@@ -253,14 +253,10 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
   const rows = useMemo(() => sheet?.children || [], [sheet]);
   const sessions = sessionsOf(sheet);
   const noneIn = allMeals(false, sessions);
-  // Trẻ nghỉ cả ngày, hoặc nghỉ sáng khi lớp/ngày chưa được mở lại: điểm danh theo đơn, GV không sửa
+  // Trẻ nghỉ sáng khi lớp/ngày chưa được mở lại: điểm danh theo đơn, GV chỉ đổi công tắc ăn bữa xế
   const reopened = !!(clock || sheet)?.unlock;
-  // Đơn cả ngày: khi ngày mở lại GV ghi được trẻ vẫn đến (user chốt 26/11/2026)
-  const leaveLocked = (row) =>
-    !!row.leaveRequest &&
-    !row.leaveRequest.noticeOnly &&
-    (leavePart(row) === LEAVE_PART.FULL_DAY || leavePart(row) === LEAVE_PART.MORNING) &&
-    !reopened;
+  // Đơn cả ngày (user chốt 26/11/2026): trẻ vẫn đến lớp thì GV ghi Có mặt ngay, kể cả trước giờ chốt; không khóa
+  const leaveLocked = (row) => !!row.leaveRequest && !row.leaveRequest.noticeOnly && leavePart(row) === LEAVE_PART.MORNING && !reopened;
   // ATT-13: trẻ nghỉ sáng — trước giờ chốt GV vẫn gạt được công tắc ăn bữa xế (mặc định theo đơn), trạng thái giữ theo đơn
   const xeOnly = (row) => halfPart(row) === LEAVE_PART.MORNING && !reopened && !!row.record;
   // Bữa còn lại của trẻ nghỉ một buổi; mặc định ăn theo công tắc ăn của đơn
@@ -811,7 +807,12 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
                                   value={entry.status === 'PRESENT' ? 'PRESENT' : 'ABSENT'}
                                   options={[
                                     { value: 'PRESENT', label: 'Có mặt', className: 'dd-seg__item dd-seg__item--present' },
-                                    { value: 'ABSENT', label: 'Vắng', className: 'dd-seg__item dd-seg__item--absent' },
+                                    {
+                                      value: 'ABSENT',
+                                      label:
+                                        leavePart(row) === LEAVE_PART.FULL_DAY && !row.leaveRequest?.noticeOnly ? 'Nghỉ có phép' : 'Vắng',
+                                      className: 'dd-seg__item dd-seg__item--absent',
+                                    },
                                   ]}
                                   onChange={(status) => setStatus(row, status === 'PRESENT')}
                                   disabled={busy}

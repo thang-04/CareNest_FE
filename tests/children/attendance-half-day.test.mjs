@@ -78,9 +78,10 @@ test('điểm danh mở lại: chọn buổi một lần bấm, gửi presentPar
   assert.match(page, /if \(part === 'ABSENT'\) setStatus\(row, false\);/);
   assert.match(page, /Đến dù có đơn nghỉ/);
   assert.match(page, /Không có suất xế/);
-  // Trẻ đã lưu Vắng vẫn chọn lại được khi bảng còn mở; đơn cả ngày chỉ khóa khi chưa mở lại
+  // Trẻ đã lưu Vắng vẫn chọn lại được khi bảng còn mở; chỉ đơn nghỉ sáng khóa khi chưa mở lại, đơn cả ngày không khóa
   assert.match(page, /\{editable && !leaveLocked\(row\) \? \(/);
-  assert.match(page, /\(leavePart\(row\) === LEAVE_PART\.FULL_DAY \|\| leavePart\(row\) === LEAVE_PART\.MORNING\) &&\s+!reopened/);
+  assert.match(page, /leavePart\(row\) === LEAVE_PART\.MORNING && !reopened/);
+  assert.doesNotMatch(page, /leavePart\(row\) === LEAVE_PART\.FULL_DAY \|\| leavePart\(row\) === LEAVE_PART\.MORNING/);
   assert.match(api, /\(\{ childId, status, meals, presentPart \}\) => \(\{ childId, status, meals, presentPart \}\)/);
   assert.match(mock, /e\.presentPart && \(!info\.unlock \|\| e\.status !== ATTENDANCE_STATUS\.PRESENT\)/);
 });
