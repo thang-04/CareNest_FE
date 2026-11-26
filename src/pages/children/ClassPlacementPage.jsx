@@ -428,7 +428,7 @@ export default function ClassPlacementPage() {
         message={
           selected && targetClass
             ? isTransfer
-              ? `${selected.fullName} sẽ rời ${selected.className} và vào ${targetName} từ ${formatDate(effectiveDate)}.${campusNote} Giáo viên lớp mới được thông báo.`
+              ? `${selected.fullName} sẽ rời ${selected.className} và vào ${targetName} từ ${formatDate(effectiveDate)}.${campusNote} Giáo viên lớp cũ và lớp mới được thông báo.`
               : `${selected.fullName} sẽ vào ${targetName} từ ${formatDate(effectiveDate)}.${campusNote} Giáo viên của lớp được thông báo.`
             : ''
         }
