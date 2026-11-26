@@ -8,14 +8,18 @@ import {
 } from '@/models/menu-planning/menuPlanningConstants';
 import { priceOn } from '@/utils/menu-planning/menuCalculations';
 
-/** Năng lượng một ngày (kcal) — bắt buộc cùng cơ cấu P:L:G để đánh giá ngày (BE NUT-24). */
-export const KCAL_NORM = { key: 'kcal', label: 'Năng lượng', unit: 'kcal' };
+/** Năng lượng khuyến nghị tại trường (kcal) — BE tính từ nhu cầu cả ngày theo Thông tư, chỉ xem (BE NUT-33). */
+export const KCAL_NORM = { key: 'kcal', label: 'Năng lượng khuyến nghị', unit: 'kcal' };
+/** Nhu cầu năng lượng cả ngày tối thiểu–tối đa (kcal/trẻ), người dùng nhập (BE NUT-25, NUT-33). */
+export const DAILY_KCAL_NORM = { key: 'dailyKcal', label: 'Nhu cầu năng lượng cả ngày', unit: 'kcal' };
 /** Cơ cấu áp dụng P:L:G: tỷ lệ năng lượng từ đạm, béo, bột đường (%). */
 export const STRUCTURE_NORM_COLUMNS = [
   { key: 'protein', label: 'Đạm', unit: '%' },
   { key: 'lipid', label: 'Béo', unit: '%' },
   { key: 'glucid', label: 'Bột đường', unit: '%' },
 ];
+/** Khóa khoảng do BE đặt (năng lượng khuyến nghị, khoảng đạm/béo/đường theo Thông tư): chỉ xem, không nhập, không kiểm ở FE. */
+export const DERIVED_NORM_KEYS = [KCAL_NORM.key, ...STRUCTURE_NORM_COLUMNS.map((c) => c.key)];
 /** Định mức gam / trẻ / ngày theo chất (BE NUT-24); chất nào để trống thì không đánh giá chất đó. `max` = trần BE (suy từ 5000 kcal/ngày). */
 export const GRAM_NORM_COLUMNS = [
   { key: 'animalProteinG', label: 'Đạm động vật', unit: 'g', max: 1250 },
@@ -24,7 +28,7 @@ export const GRAM_NORM_COLUMNS = [
   { key: 'plantLipidG', label: 'Béo thực vật', unit: 'g', max: 555 },
   { key: 'glucidG', label: 'Bột đường', unit: 'g', max: 1250 },
 ];
-/** Tỷ lệ năng lượng từng bữa gốc (% nhu cầu năng lượng cả ngày `dailyKcalNeed`, BE NUT-25). */
+/** Tỷ lệ năng lượng từng bữa gốc (% nhu cầu năng lượng cả ngày tối đa, BE NUT-25). */
 export const SESSION_NORM_KEYS = { MORNING: 'morningKcalPct', LUNCH: 'lunchKcalPct', AFTERNOON: 'afternoonKcalPct' };
 /** Định mức vi chất / trẻ / ngày (BE NUT-26), không bắt buộc; số sau trống = chỉ cần đạt tối thiểu. */
 export const MICRO_NORM_GROUPS = MICRONUTRIENT_GROUPS.map((g) => ({
@@ -47,7 +51,7 @@ export const DEFAULT_CONVERSION_FACTORS = {
   animalProteinShare: 0.6,
   animalLipidShare: 0.6,
 };
-/** Khóa định mức được gửi lên BE: năng lượng và khoảng P:L:G; gam theo chất do BE quy đổi, vi chất không nhập ở đây. */
+/** Khóa định mức đi cùng payload (mock dùng); BE thật tự tính năng lượng khuyến nghị và khoảng P:L:G nên API bỏ qua các khóa này. */
 const SUBMITTED_NORM_KEYS = [KCAL_NORM.key, ...STRUCTURE_NORM_COLUMNS.map((c) => c.key)];
 
 const toNum = (v) => (v === '' || v == null || Number.isNaN(Number(v)) ? null : Number(v));
@@ -170,7 +174,7 @@ export const toSetupForm = (setups, today) => ({
     norms: Object.fromEntries(
       ALL_NORM_COLUMNS.map(({ key }) => [key, (s.norms?.[key] || ['', '']).map((v) => (v == null ? '' : String(v)))]),
     ),
-    dailyKcalNeed: String(s.dailyKcalNeed ?? ''),
+    dailyKcal: [String(s.dailyKcal?.[0] ?? ''), String(s.dailyKcal?.[1] ?? '')],
     applied: Object.fromEntries(APPLIED_STRUCTURE_COLUMNS.map(({ key }) => [key, s.applied?.[key] == null ? '' : String(s.applied[key])])),
   })),
 });
@@ -188,7 +192,7 @@ export const toSetupPayload = (form) => ({
     budgetTolerancePct: g.budgetTolerancePct,
     meals: g.meals.map(({ code, name, countAs }) => ({ code, name: name.trim(), countAs })),
     norms: Object.fromEntries(SUBMITTED_NORM_KEYS.map((key) => [key, g.norms[key]])),
-    dailyKcalNeed: g.dailyKcalNeed,
+    dailyKcal: g.dailyKcal,
     applied: g.applied,
   })),
 });
