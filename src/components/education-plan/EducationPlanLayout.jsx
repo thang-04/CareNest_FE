@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, Outlet, useMatch, useSearchParams } from 'react-router-dom';
-import { Notice } from '@/components/education-plan/eduUi';
+import { Outlet, useMatch, useSearchParams } from 'react-router-dom';
 import { EducationPlanProvider } from '@/hooks/education-plan/useEducationPlan';
 import '@/styles/modules/education-plan.css';
 
@@ -68,15 +67,10 @@ export default function EducationPlanLayout() {
     >
       <div ref={scope}>
         {overdueView ? (
-          <>
-            <Notice tone="info">
-              Đang xem hồ sơ quá hạn (chỉ đọc). <Link to="/education/overdue">Về Kế hoạch quá hạn</Link>
-            </Notice>
-            {/* Tắt mọi nút và ô nhập trong trang; liên kết chuyển tuần, chủ đề vẫn dùng được */}
-            <fieldset disabled style={{ border: 0, margin: 0, padding: 0, minWidth: 0 }}>
-              <Outlet />
-            </fieldset>
-          </>
+          {/* Tắt mọi nút và ô nhập trong trang; liên kết chuyển tuần, chủ đề vẫn dùng được */}
+          <fieldset disabled style={{ border: 0, margin: 0, padding: 0, minWidth: 0 }}>
+            <Outlet />
+          </fieldset>
         ) : (
           <Outlet />
         )}
