@@ -28,6 +28,8 @@ const menuRow = (campus) => {
   return {
     key: 'menu',
     title: 'Thực đơn tuần',
+    // Một thực đơn chung cho mọi điểm trường (NUT-13): bảng gộp một ô, tiến độ đếm một lần
+    shared: true,
     tone,
     status,
     detail: `Tuần này: ${thisWeek[1]} · Tuần sau: ${nextWeek[1]}`,
@@ -180,7 +182,8 @@ const TONE_BUCKET = { red: 'attention', orange: 'attention', purple: 'attention'
 /** Đếm số việc của mọi điểm trường theo nhóm: cần xử lý · chờ bước khác · hoàn tất · chưa có thông tin hoặc ngày nghỉ. */
 export const summarizeBoardRows = (rowsPerCampus) => {
   const total = { attention: 0, waiting: 0, done: 0, idle: 0 };
-  rowsPerCampus.flat().forEach((row) => {
+  const counted = rowsPerCampus.flatMap((rows, i) => (i ? rows.filter((row) => !row.shared) : rows));
+  counted.forEach((row) => {
     total[TONE_BUCKET[row.tone] || 'idle'] += 1;
   });
   return total;
@@ -191,7 +194,8 @@ const NEXT_TONES = [['red'], ['orange', 'purple']];
 
 /**
  * Chọn việc hiển thị ở dòng "Việc tiếp theo": việc đầu tiên theo thứ tự hàng cố định (thực đơn tuần → … → lưu mẫu), điểm trường
- * theo thứ tự BE trả, có tông BE đã gán là đỏ, nếu không có thì cam/tím. Không có ⇒ null. Chỉ chọn để hiển thị, không đánh giá lại.
+ * theo thứ tự BE trả, có tông BE đã gán là đỏ, nếu không có thì cam/tím. Không có ⇒ null. Việc chung cả trường trả campus null.
+ * Chỉ chọn để hiển thị, không đánh giá lại.
  */
 export const nextBoardTask = (rowsPerCampus, campuses) => {
   const taskCount = rowsPerCampus[0]?.length || 0;
@@ -199,7 +203,7 @@ export const nextBoardTask = (rowsPerCampus, campuses) => {
     for (let t = 0; t < taskCount; t += 1)
       for (let c = 0; c < rowsPerCampus.length; c += 1) {
         const row = rowsPerCampus[c][t];
-        if (row && tones.includes(row.tone)) return { row, campus: campuses[c], action: row.actions[0] };
+        if (row && tones.includes(row.tone)) return { row, campus: row.shared ? null : campuses[c], action: row.actions[0] };
       }
   return null;
 };

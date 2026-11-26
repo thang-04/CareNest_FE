@@ -11,14 +11,25 @@ import { itemsBySession } from '@/utils/menu-planning/menuTemplateGrid';
  * Cân đối một ngày của một khối (bố cục MISA "Cân đối thực đơn"): bên trái mỗi bữa là món › thành phần cho 1 trẻ, bên phải
  * dinh dưỡng 1 trẻ / ngày so định mức theo nhóm tuổi. Số do BE tính qua `POST /nutrition/menu-statistics` trên món đang chọn
  * (kể cả chưa lưu). `onChange(items)` nhận món mới của khối trong ngày; không truyền ⇒ chỉ xem.
- * Dùng chung cho modal "Sửa ngày" của Kế hoạch tuần và màn Cân đối khẩu phần.
+ * Dùng chung cho modal "Sửa ngày" của Kế hoạch tuần (`dishesOnly`: chỉ chọn món, không tính dinh dưỡng) và màn Cân đối khẩu phần.
  */
-export function DayBalanceView({ items, sessions, groups, ageGroups, dishes, date, dayTitle, canEditRecipe, onChange }) {
+export function DayBalanceView({
+  items,
+  sessions,
+  groups = [],
+  ageGroups = [],
+  dishes,
+  date,
+  dayTitle,
+  canEditRecipe,
+  dishesOnly,
+  onChange,
+}) {
   const [ageGroupId, setAgeGroupId] = useState('');
   const [adding, setAdding] = useState(null);
   const editable = !!onChange;
   const currentGroup = groups.some((g) => g.id === ageGroupId) ? ageGroupId : groups[0]?.id;
-  const query = useMemo(() => dayStatisticsQuery(items, currentGroup, date), [items, currentGroup, date]);
+  const query = useMemo(() => (dishesOnly ? null : dayStatisticsQuery(items, currentGroup, date)), [dishesOnly, items, currentGroup, date]);
   const statsQ = useMenuStatistics(query);
   // Đổi món / nhóm tuổi: giữ số liệu cũ (làm mờ) tới khi BE trả số mới
   const shownStats = statsQ.data ?? statsQ.stale;
@@ -38,7 +49,7 @@ export function DayBalanceView({ items, sessions, groups, ageGroups, dishes, dat
   const remove = (session, dishId) => onChange(items.filter((i) => !(i.session === session && String(i.dishId) === String(dishId))));
 
   return (
-    <div className="td-day-balance">
+    <div className={dishesOnly ? undefined : 'td-day-balance'}>
       <div className="td-day-balance__meals">
         {sessions.map((session) => (
           <TemplateMealSection
@@ -49,21 +60,24 @@ export function DayBalanceView({ items, sessions, groups, ageGroups, dishes, dat
             loading={statsQ.loading}
             editable={editable}
             canEditRecipe={canEditRecipe}
+            dishesOnly={dishesOnly}
             onAdd={() => setAdding(session)}
             onRemove={(dishId) => remove(session, dishId)}
           />
         ))}
       </div>
-      <div className="td-day-balance__nutrition">
-        <MealNutritionCard
-          ageGroups={groups}
-          ageGroupId={currentGroup}
-          onAgeGroup={setAgeGroupId}
-          statsQ={{ ...statsQ, data: shownStats }}
-          hasItems={items.length > 0}
-          emptyText="Thêm món cho ngày này để xem dinh dưỡng."
-        />
-      </div>
+      {!dishesOnly && (
+        <div className="td-day-balance__nutrition">
+          <MealNutritionCard
+            ageGroups={groups}
+            ageGroupId={currentGroup}
+            onAgeGroup={setAgeGroupId}
+            statsQ={{ ...statsQ, data: shownStats }}
+            hasItems={items.length > 0}
+            emptyText="Thêm món cho ngày này để xem dinh dưỡng."
+          />
+        </div>
+      )}
       {adding && (
         <AddDishesModal
           title="Thêm món ăn"
@@ -71,6 +85,7 @@ export function DayBalanceView({ items, sessions, groups, ageGroups, dishes, dat
           dishes={dishes}
           selectedIds={(bySession[adding] || []).map((i) => i.dishId)}
           ageGroup={ageGroups.find((g) => String(g.id) === String(currentGroup))}
+          hideKcal={dishesOnly}
           onSave={(picked) => saveMeal(adding, picked)}
           onClose={() => setAdding(null)}
         />

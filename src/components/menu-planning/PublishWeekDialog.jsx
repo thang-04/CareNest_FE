@@ -8,9 +8,9 @@ import { weekLabel } from '@/models/menu-planning/menuPlanningConstants';
 
 /**
  * Hộp thoại công bố cả tuần: liệt kê lỗi chặn (theo ngày, nhóm tuổi, lý do) và cảnh báo do BE trả. Nút Công bố chỉ bấm được khi
- * BE báo `publishable`. `error` là câu BE trả khi từ chối (409), `issues` đã được nạp lại sau lần từ chối đó.
+ * BE báo `publishable`. `dayHref` gắn link sang cân đối ở từng ngày còn lỗi chặn. `error` là câu BE trả khi từ chối (409), `issues` đã được nạp lại sau lần từ chối đó.
  */
-export function PublishWeekDialog({ open, plan, busy, error, onConfirm, onClose }) {
+export function PublishWeekDialog({ open, plan, busy, error, dayHref, onConfirm, onClose }) {
   if (!plan) return null;
   const { blocking, warning, info } = issuesBySeverity(plan.issues);
   const rest = [...warning, ...info];
@@ -44,7 +44,7 @@ export function PublishWeekDialog({ open, plan, busy, error, onConfirm, onClose 
         {blocking.length > 0 ? (
           <div>
             <h3 className="td-publish__title">Cần sửa trước khi công bố ({blocking.length})</h3>
-            <MealPlanIssueList issues={blocking} />
+            <MealPlanIssueList issues={blocking} dayHref={dayHref} />
           </div>
         ) : (
           <div className="alert alert--success">Không còn lỗi chặn, có thể công bố.</div>

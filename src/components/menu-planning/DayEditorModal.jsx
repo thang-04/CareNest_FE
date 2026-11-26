@@ -58,7 +58,7 @@ export function DayEditorModal({
         </>
       }
     >
-      <DayBalanceView {...view} dayTitle={title} items={items} onChange={editable ? setItems : undefined} />
+      <DayBalanceView {...view} dishesOnly dayTitle={title} items={items} onChange={editable ? setItems : undefined} />
       {aiSwap && (
         <MenuAiSwapModal
           open={swapOpen}
