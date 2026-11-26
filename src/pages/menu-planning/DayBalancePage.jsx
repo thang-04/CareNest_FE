@@ -111,7 +111,7 @@ export default function DayBalancePage() {
 
   const statusOf = (d) => statusQ.statuses.find((s) => s.date === d);
   return (
-    <div className="page td-sections">
+    <div className="page td-bal-page">
       {head}
       <div className="row td-week-status">
         <MealPlanStatusBadge status={plan.status} size="lg" />
@@ -130,26 +130,28 @@ export default function DayBalancePage() {
         </section>
       ) : (
         <>
-          <Tabs
-            variant="pill"
-            ariaLabel="Ngày trong tuần"
-            items={days.map((d, i) => ({
-              key: d.date,
-              label: `${WEEKDAY_LABELS[i]} ${ddmm(d.date)}${d.off ? ' · nghỉ' : dayMark(statusOf(d.date))}`,
-              title: statusOf(d.date)?.problems?.join('\n') || undefined,
-            }))}
-            value={date}
-            onChange={(key) => open({ date: key })}
-          />
-          <Tabs
-            ariaLabel="Lần cân đối"
-            items={[
-              { key: '1', label: 'Lần 1 · Dự kiến' },
-              { key: '2', label: 'Lần 2 · Sau chốt suất' },
-            ]}
-            value={String(round)}
-            onChange={(key) => open({ round: key })}
-          />
+          <div className="td-week-toolbar td-bal__tabs">
+            <Tabs
+              variant="pill"
+              ariaLabel="Ngày trong tuần"
+              items={days.map((d, i) => ({
+                key: d.date,
+                label: `${WEEKDAY_LABELS[i]} ${ddmm(d.date)}${d.off ? ' · nghỉ' : dayMark(statusOf(d.date))}`,
+                title: statusOf(d.date)?.problems?.join('\n') || undefined,
+              }))}
+              value={date}
+              onChange={(key) => open({ date: key })}
+            />
+            <Tabs
+              ariaLabel="Lần cân đối"
+              items={[
+                { key: '1', label: 'Lần 1 · Dự kiến' },
+                { key: '2', label: 'Lần 2 · Sau chốt suất' },
+              ]}
+              value={String(round)}
+              onChange={(key) => open({ round: key })}
+            />
+          </div>
           {day?.off ? (
             <section className="card">
               <EmptyState title="Ngày nghỉ" description={day.note || 'Ngày này không phục vụ bữa ăn.'} />

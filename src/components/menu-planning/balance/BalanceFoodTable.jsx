@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Checkbox, DataTable, StatusBadge } from '@/components';
+import { Checkbox, DataTable } from '@/components';
 import { NumberCell } from '@/components/menu-planning/balance/NumberCell';
 import { MEAL_SESSION_LABELS, formatMoney } from '@/models/menu-planning/menuPlanningConstants';
 import { formatAmount, foodRowsOf } from '@/utils/menu-planning/dayBalance';
@@ -17,14 +17,14 @@ export function BalanceFoodTable({ view, group, busy, onEdit }) {
   const edit = (foodId, change) => onEdit({ ageGroupId: group.ageGroupId, foodId, ...change });
 
   const columns = [
-    { key: 'code', header: 'Mã', render: (r) => <span className="muted">{r.code}</span> },
+    { key: 'code', header: 'Mã', className: 'center', render: (r) => <span className="muted">{r.code}</span> },
     {
       key: 'name',
       header: 'Tên thực phẩm',
+      className: 'td-bal__name',
       render: (r) => (
         <div className="td-bal__food">
           <b>{r.name}</b>
-          <StatusBadge tone={r.storage === 'DRY' ? 'blue' : 'teal'} label={r.storage === 'DRY' ? 'Kho khô' : 'Đi chợ'} />
           {detail && (
             <ul className="td-bal__meals text-sm muted">
               {r.meals.map((m, i) => (
@@ -39,7 +39,7 @@ export function BalanceFoodTable({ view, group, busy, onEdit }) {
     },
     {
       key: 'gramsPerChild',
-      header: 'Lượng ăn 1 trẻ (g)',
+      header: 'Ăn 1 trẻ (g)',
       className: 'num',
       render: (r) =>
         onEdit ? (
@@ -56,20 +56,20 @@ export function BalanceFoodTable({ view, group, busy, onEdit }) {
     },
     {
       key: 'totalGrams',
-      header: `Lượng ăn ${children} trẻ (kg)`,
+      header: `Ăn ${children} trẻ (kg)`,
       className: 'num',
       render: (r) => formatAmount(Number(r.totalGrams) / 1000, 3),
     },
     { key: 'wastePct', header: 'Thải bỏ (%)', className: 'num', render: (r) => formatAmount(r.wastePct) },
     {
       key: 'purchaseTotal',
-      header: `Lượng mua ${children} trẻ (kg)`,
+      header: `Mua ${children} trẻ (kg)`,
       className: 'num',
       render: (r) => formatAmount(Number(r.purchaseTotal) / 1000, 3),
     },
     {
       key: 'purchaseQuantity',
-      header: 'Lượng mua theo ĐVT',
+      header: 'Mua theo ĐVT',
       className: 'num',
       render: (r) =>
         onEdit && children > 0 && r.purchaseQuantity != null ? (
@@ -84,10 +84,10 @@ export function BalanceFoodTable({ view, group, busy, onEdit }) {
           formatAmount(r.purchaseQuantity, 3)
         ),
     },
-    { key: 'purchaseUnit', header: 'ĐVT' },
-    { key: 'purchaseUnitSize', header: 'Quy đổi ra gam', className: 'num', render: (r) => formatAmount(r.purchaseUnitSize) },
+    { key: 'purchaseUnit', header: 'ĐVT', className: 'center' },
+    { key: 'purchaseUnitSize', header: 'Quy đổi (g)', className: 'num', render: (r) => formatAmount(r.purchaseUnitSize) },
     { key: 'unitPrice', header: 'Đơn giá', className: 'money', render: (r) => money(r.unitPrice) },
-    { key: 'cost', header: 'Tiền', className: 'money', render: (r) => money(r.cost) },
+    { key: 'cost', header: 'Thành tiền', className: 'money', render: (r) => money(r.cost) },
   ];
 
   return (
@@ -101,10 +101,16 @@ export function BalanceFoodTable({ view, group, busy, onEdit }) {
         </label>
       </div>
       <DataTable
-        className="td-bal__table"
+        className="td-bal__table table--compact"
         columns={columns}
         rows={rows}
         rowKey="foodId"
+        groupBy={(r) => (r.storage === 'DRY' ? 'DRY' : 'FRESH')}
+        groupLabel={(key, items) => (
+          <>
+            {key === 'DRY' ? 'Kho khô' : 'Đi chợ'} <span className="muted">· {items.length} thực phẩm</span>
+          </>
+        )}
         empty={{ title: 'Chưa có thực phẩm', description: 'Món của ngày chưa khai định lượng cho nhóm tuổi này.' }}
       />
     </section>
