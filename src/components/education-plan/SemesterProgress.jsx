@@ -5,8 +5,8 @@ import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { DataTable } from '@/components/ui/DataTable';
 import { Card, EduStatusBadge, Notice } from '@/components/education-plan/eduUi';
 import { docReview, useClassPlanContext } from '@/components/education-plan/planUi';
-import { RejectedNotice, ReviewActions, ReviewHistory } from '@/components/education-plan/reviewUi';
-import { BlockedNotice, DeadlineBadge } from '@/components/education-plan/DeadlineWidgets';
+import { ReviewActions } from '@/components/education-plan/reviewUi';
+import { DeadlineBadge } from '@/components/education-plan/DeadlineWidgets';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { numberGoals } from '@/models/education-plan/goalTable';
 import { submitEntryOf } from '@/models/education-plan/reviewHistory.mjs';
@@ -159,11 +159,9 @@ export function SemesterProgress({ classId, themeId, weekStart = null }) {
       >
         <div className="card__body">
           <div className="stack">
-            <RejectedNotice status={pkg.status} history={pkg.history} />
             {pkg.status === 'REVIEW' && submitEntryOf(pkg)?.note && (
               <Notice tone="info">{`Ghi chú khi gửi (${submitEntryOf(pkg).by || '—'}): ${submitEntryOf(pkg).note}`}</Notice>
             )}
-            <BlockedNotice doc={pkg} author={canComposeClassDocs} />
             {pkg.timeLocked && pkg.status === 'APPROVED' && canComposeClassDocs && (
               <Notice tone="info">Học kỳ đã bắt đầu, không điều chỉnh được nữa.</Notice>
             )}
@@ -209,7 +207,6 @@ export function SemesterProgress({ classId, themeId, weekStart = null }) {
         }}
         onClose={() => setConfirmRevise(false)}
       />
-      {pkg.history?.length > 0 && <ReviewHistory items={pkg.history} />}
     </>
   );
 }
