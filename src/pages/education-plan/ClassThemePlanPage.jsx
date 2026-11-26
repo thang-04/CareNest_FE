@@ -36,6 +36,7 @@ import { classPlanVersionPath } from '@/models/education-plan/planVersions.mjs';
 import DocPreviewModal from '@/components/education-plan/DocPreviewModal';
 import { BlockedNotice } from '@/components/education-plan/DeadlineWidgets';
 import { Button } from '@/components';
+import { SemesterProgress } from '@/components/education-plan/SemesterProgress';
 
 /**
  * Kế hoạch giáo dục chủ đề của lớp theo mẫu MN Thái Dương: TT | Mục tiêu (giữ số MT năm) | Nội dung | Hoạt động giáo dục,
@@ -318,6 +319,7 @@ function ThemePlanInner() {
         />
         {/* Thanh thao tác như màn Kế hoạch năm học: nút cỡ nhỏ viền xanh, nhóm lưu/gửi/xuất bên phải (Tiền 05/11) */}
       </div>
+      <SemesterProgress classId={classId} themeId={themeId} />
       {canComposeClassDocs && (
         <SupersededNote doc={saved || (ctx.superseded ? { superseded: true, yearPlanVersion: versionOf(yearPlan) } : null)} />
       )}

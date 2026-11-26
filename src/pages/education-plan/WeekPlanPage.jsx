@@ -4,6 +4,8 @@ import { useEffect, useId, useRef, useState } from 'react';
 import ActivityCardEditor from '@/components/education-plan/ActivityCardEditor';
 import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom';
 import { ClassFilterBar, ThemeBranchTabs } from '@/components/education-plan/planUi';
+import { SemesterProgress } from '@/components/education-plan/SemesterProgress';
+import { DossierProgress } from '@/components/education-plan/DossierProgress';
 import { BlockedNotice } from '@/components/education-plan/DeadlineWidgets';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { ChalkboardTeacher, Copy, FileDown, ListChecks, Save, X } from '@/components/ui/icons';
@@ -648,6 +650,10 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
           )}
         {/* Thanh thao tác như màn Kế hoạch năm học: nút cỡ nhỏ viền xanh, nhóm lưu/xuất bên phải (Tiền 05/11) */}
       </div>
+      {!dayPage && <SemesterProgress classId={classId} themeId={week.theme.id} weekStart={weekStart} />}
+      {dayPage && (
+        <DossierProgress classId={classId} themeId={week.theme.id} weekStart={weekStart} missing={emptyNow} sectionLabel={sectionLabel} />
+      )}
       {canComposeClassDocs && (
         <SupersededNote doc={saved || (ctx.superseded ? { superseded: true, yearPlanVersion: versionOf(yearPlan) } : null)} />
       )}
@@ -683,18 +689,6 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
         {days && goalErr.length > 0 && (
           <p className="text-danger text-sm text-right" role="alert">
             MT chưa được dạy ngày nào: {goalErr.map((g) => `MT${g.goalNo}`).join(', ')}
-          </p>
-        )}
-        {days && emptyNow.length > 0 && (
-          <p className="field__error" role="alert">
-            Còn {emptyNow.length} mục chưa có nội dung:{' '}
-            {emptyNow
-              .map((e) => {
-                const i = draft.days.findIndex((d) => d.date === e.date);
-                return `${WEEKDAY_LABELS[i] || ''} ${ddmm(e.date)}: ${sectionLabel(e.section)}`;
-              })
-              .join('; ')}
-            .
           </p>
         )}
         {day < 0 && dayPage ? (
