@@ -6,7 +6,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { getMenuForRole } from '@/layouts/menuConfig';
 import { alignCrumbs } from '@/utils/menuBreadcrumb';
-import { useMenuOrigin } from '@/contexts/MenuOriginContext';
 import { useHeaderSlot } from '@/contexts/HeaderSlotContext';
 
 /**
@@ -17,9 +16,8 @@ import { useHeaderSlot } from '@/contexts/HeaderSlotContext';
  */
 export function Breadcrumb({ items }) {
   const { user } = useAuth();
-  const { pathname, search } = useLocation();
-  const menu = getMenuForRole(user?.role, user);
-  const shown = alignCrumbs(items, menu, pathname, search, useMenuOrigin());
+  const { pathname } = useLocation();
+  const shown = alignCrumbs(items, getMenuForRole(user?.role, user), pathname);
   usePageTitle(shown[shown.length - 1]?.label);
   const slot = useHeaderSlot();
   const mark = useRef(null);

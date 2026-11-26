@@ -90,7 +90,7 @@ export default function PlanReviewQueuePage() {
       ageGroupId: g.ageGroupId != null ? String(g.ageGroupId) : '',
       what: g.title,
       label: g.planTypeLabel || (planLevel(g) === 'SCHOOL_YEAR' ? 'Kế hoạch năm học' : 'Kế hoạch tổ'),
-      to: `${planRoute(g)}/${g.id}?review=1`,
+      to: `${planRoute(g)}/${g.id}`,
       by: g.sentBy?.name || submitEntryOf(g)?.by,
       at: g.sentAt ?? g.sentBy?.at,
     })),
