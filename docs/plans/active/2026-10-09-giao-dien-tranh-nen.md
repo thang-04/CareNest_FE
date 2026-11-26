@@ -150,3 +150,4 @@ Repo chưa có framework test ⇒ kiểm chứng = verify + Playwright + kiểm 
 - BE thêm `GET/PUT /school/appearance` (`SchoolAppearanceController`, bảng `school_appearance` V204; GET mọi người dùng đăng nhập, PUT Hiệu trưởng/Phó hiệu trưởng); contract đúng đề xuất ở trên, lỗi ô trả `enabledSceneIds` / `pinnedSceneId`.
 - FE: `appearanceApi` dùng `beClient`, module `appearance` đổi `demo` → `api` (hết nhãn "Dữ liệu demo"); lưu xong tải lại cấu hình nền toàn app, máy khác nhận sau tối đa 10 phút.
 - Chưa chạy trên trình duyệt với BE thật; `vite build` đang lỗi sẵn do thiếu `@tiptap/extension-bold` trong node_modules (không liên quan).
+- Màn đăng nhập/quên mật khẩu cũng theo cấu hình của trường: `GET /school/appearance` công khai (BE G94-503); chưa đăng nhập FE gọi bằng `axiosClient` vì `beClient` cần token để nạp danh sách năm học.
