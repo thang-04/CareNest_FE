@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { Save } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
-import { FormField } from '@/components/form/FormField';
-import { Spinner } from '@/components/ui/States';
+import { TextAreaField, TextField } from '@/components/form/Field';
+import { Button } from '@/components/ui/Button';
 import { correctHandoverTime } from '@/services/pickup/pickupService';
 
 const toInput = (iso) => (iso ? new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '');
@@ -37,27 +37,28 @@ export function PickupTimeCorrection({ pickup, onDone }) {
 
   return (
     <section aria-label="Sửa giờ trả trẻ">
-      <FormField label="Giờ trả đúng" required error={errors.handoverTime}>
-        <input
-          className="input"
-          type="time"
-          value={form.handoverTime}
-          onChange={(e) => setForm({ ...form, handoverTime: e.target.value })}
-        />
-      </FormField>
-      <FormField label="Lý do sửa" required error={errors.reason} className="mt-12">
-        <textarea
-          className="textarea"
-          rows={3}
-          maxLength={500}
-          value={form.reason}
-          onChange={(e) => setForm({ ...form, reason: e.target.value })}
-        />
-      </FormField>
+      <TextField
+        label="Giờ trả đúng"
+        required
+        error={errors.handoverTime}
+        type="time"
+        value={form.handoverTime}
+        onChange={(e) => setForm({ ...form, handoverTime: e.target.value })}
+      />
+      <TextAreaField
+        label="Lý do sửa"
+        required
+        error={errors.reason}
+        fieldClassName="mt-12"
+        rows={3}
+        maxLength={500}
+        value={form.reason}
+        onChange={(e) => setForm({ ...form, reason: e.target.value })}
+      />
       <div className="dt-call__actions mt-16">
-        <button className="btn btn--primary" onClick={save} disabled={busy}>
-          {busy ? <Spinner small /> : <Save size={16} />} Lưu giờ trả
-        </button>
+        <Button variant="primary" icon={Save} loading={busy} onClick={save}>
+          Lưu giờ trả
+        </Button>
       </div>
     </section>
   );

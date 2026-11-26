@@ -255,14 +255,9 @@ export default function PickupListPage() {
                             </td>
                             <td className="cell--actions">
                               {!yearLocked && isToday && r.pickup?.handedOverAt && (
-                                <button
-                                  type="button"
-                                  className="btn btn--sm"
-                                  onClick={() => setCorrecting(r)}
-                                  aria-label={`Sửa giờ trả của ${r.child.fullName}`}
-                                >
+                                <Button size="sm" onClick={() => setCorrecting(r)} aria-label={`Sửa giờ trả của ${r.child.fullName}`}>
                                   Sửa giờ
-                                </button>
+                                </Button>
                               )}
                               {!yearLocked && isToday && r.status === PICKUP_STATUS.WAITING && (
                                 <div className="row-actions">
