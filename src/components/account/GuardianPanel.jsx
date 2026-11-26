@@ -1,3 +1,4 @@
+import { useActivationCode } from '@/components/account/useActivationCode';
 import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { KeyRound, Lock, Pencil, Trash2, Unlock, UserPlus } from '@/components/ui/icons';
@@ -40,6 +41,7 @@ function PersonCell({ name, relation }) {
 export function GuardianPanel({ child, classroomName, onChanged }) {
   const { user } = useAuth();
   const toast = useToast();
+  const activation = useActivationCode();
   const { data: guardians, loading, error, reload } = useChildGuardians(child.id);
   const candidatesQ = useAccountCandidates(child.id);
   const [chosenId, setChosenId] = useState('');
@@ -79,7 +81,7 @@ export function GuardianPanel({ child, classroomName, onChanged }) {
       if (linked) toast.success(`${linked} phụ huynh đã có tài khoản: đã liên kết thêm bé này, mật khẩu giữ nguyên.`);
       if (failed.length)
         toast.warning(
-          `Tài khoản đã tạo nhưng chưa gửi được SMS mật khẩu tới ${failed.map((r) => r.username).join(', ')}. Bấm "Cấp mật khẩu mới" để gửi lại.`,
+          `Tài khoản đã tạo nhưng chưa gửi được SMS mật khẩu tới ${failed.map((r) => r.username).join(', ')}. Bấm "Cấp lại mật khẩu tạm" để gửi lại.`,
           'Gửi SMS lỗi',
         );
     } catch (err) {
@@ -136,9 +138,9 @@ export function GuardianPanel({ child, classroomName, onChanged }) {
         }
       : confirm.type === 'password'
         ? {
-            title: 'Cấp mật khẩu mới',
+            title: `Cấp lại mật khẩu tạm cho ${target.fullName}?`,
             message: `Gửi mật khẩu tạm mới qua SMS tới ${target.username} (${target.fullName})? Mật khẩu cũ hết hiệu lực và các phiên đăng nhập hiện có bị đăng xuất.`,
-            confirmLabel: 'Gửi mật khẩu mới',
+            confirmLabel: 'Cấp lại mật khẩu tạm',
           }
         : {
             title: target.status === 'ACTIVE' ? 'Khóa tài khoản phụ huynh' : 'Mở khóa tài khoản phụ huynh',
@@ -148,6 +150,7 @@ export function GuardianPanel({ child, classroomName, onChanged }) {
 
   return (
     <>
+      {activation.dialog}
       <p className="text-sm text-2 pa-panel__meta">
         {classroomName || 'Chưa xếp lớp'} · sinh {formatDate(child.dateOfBirth)}
       </p>
@@ -195,11 +198,12 @@ export function GuardianPanel({ child, classroomName, onChanged }) {
                           <td className="cell--actions">
                             <div className="pa-row-actions">
                               <button type="button" className="btn btn--sm" onClick={() => setConfirm({ type: 'password', guardian: g })}>
-                                <KeyRound size={15} /> Cấp mật khẩu mới
+                                <KeyRound size={15} /> Cấp lại mật khẩu tạm
                               </button>
                               <RowMenu
                                 label={`Thao tác khác với tài khoản ${g.fullName}`}
                                 items={[
+                                  ...(g.status === 'PENDING_ACTIVATION' ? [{ label: 'Gửi lại mã kích hoạt', icon: KeyRound, onClick: () => activation.resend(g.userId) }] : []),
                                   {
                                     label: active ? 'Khóa tài khoản' : 'Mở khóa tài khoản',
                                     icon: active ? Lock : Unlock,

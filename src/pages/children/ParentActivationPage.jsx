@@ -1,3 +1,4 @@
+import { useActivationCode } from '@/components/account/useActivationCode';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AlertCircle, Filter, KeyRound, Lock, Unlock, UserPlus, Users } from '@/components/ui/icons';
@@ -38,6 +39,7 @@ const CLASS_FILTER_MIN = 8;
 export default function ParentActivationPage() {
   const { user } = useAuth();
   const toast = useToast();
+  const activation = useActivationCode();
   // Năm đã kết thúc hoặc năm sắp diễn ra chưa tới ngày mở chuẩn bị (CFG-YR-01, CHD-12): chỉ xem dù BE cho quản lý
   const yearLocked = useChildYearLock();
   const canManage = (child) => !yearLocked && !!child.canManage;
@@ -182,7 +184,7 @@ export default function ParentActivationPage() {
         reload({ silent: true });
       } catch (err) {
         setConfirmModal(null);
-        toast.error(err.message || 'Không thể cấp lại mật khẩu', 'Lỗi cấp lại mật khẩu');
+        toast.error(err.message || 'Không thể cấp lại mật khẩu tạm', 'Lỗi cấp lại mật khẩu tạm');
       }
       return;
     }
@@ -439,6 +441,7 @@ export default function ParentActivationPage() {
                                             menu={
                                               canManage(child)
                                                 ? [
+                                                    ...(g.status === 'PENDING_ACTIVATION' ? [{ label: 'Gửi lại mã kích hoạt', icon: KeyRound, onClick: () => activation.resend(g.userId) }] : []),
                                                     {
                                                       label: 'Cấp lại mật khẩu tạm',
                                                       icon: KeyRound,
@@ -484,6 +487,7 @@ export default function ParentActivationPage() {
         </section>
       )}
 
+      {activation.dialog}
       {/* Modal chi tiết phụ huynh */}
       {openChild && (
         <Modal
@@ -510,7 +514,7 @@ export default function ParentActivationPage() {
           open={!!confirmModal}
           title={
             confirmModal.type === 'password'
-              ? `Cấp lại mật khẩu cho ${confirmModal.guardian.fullName}?`
+              ? `Cấp lại mật khẩu tạm cho ${confirmModal.guardian.fullName}?`
               : confirmModal.guardian.status === 'ACTIVE'
                 ? `Khóa tài khoản ${confirmModal.guardian.fullName}?`
                 : `Mở khóa tài khoản ${confirmModal.guardian.fullName}?`
@@ -524,7 +528,7 @@ export default function ParentActivationPage() {
           }
           danger={confirmModal.type === 'status' && confirmModal.guardian.status === 'ACTIVE'}
           confirmLabel={
-            confirmModal.type === 'password' ? 'Cấp lại mật khẩu' : confirmModal.guardian.status === 'ACTIVE' ? 'Khóa tài khoản' : 'Mở khóa'
+            confirmModal.type === 'password' ? 'Cấp lại mật khẩu tạm' : confirmModal.guardian.status === 'ACTIVE' ? 'Khóa tài khoản' : 'Mở khóa'
           }
           onConfirm={handleConfirmAction}
           onClose={() => setConfirmModal(null)}
