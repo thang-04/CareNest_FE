@@ -18,10 +18,14 @@ export function AppearanceProvider({ children }) {
   // Chưa đăng nhập (màn đăng nhập, quên mật khẩu) chưa gọi được API ⇒ chọn tranh theo cấu hình mặc định
   const config = user ? data : DEFAULT_APPEARANCE;
 
+  // Mỗi chu kỳ tính lại giờ và tải lại cấu hình để người dùng đang mở máy thấy thay đổi của Hiệu trưởng
   useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), TICK_MS);
+    const timer = setInterval(() => {
+      setNow(new Date());
+      if (user) reload({ silent: true });
+    }, TICK_MS);
     return () => clearInterval(timer);
-  }, []);
+  }, [user, reload]);
 
   const sceneId = config ? pickScene(config, now) : DEFAULT_SCENE_ID;
 
