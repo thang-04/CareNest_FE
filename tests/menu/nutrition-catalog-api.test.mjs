@@ -723,3 +723,8 @@ test('nutrition ON/OFF maps status and saves without creating a dated config', a
     /unavailable/,
   );
 });
+
+test('thực phẩm BE đã nhập kho: cờ unitsLocked chuyển cho form để khóa ô đơn vị, quy đổi', async () => {
+  const [food] = await api.listFoods({});
+  assert.equal(food.unitsLocked, false, 'BE không báo khóa thì không khóa');
+});

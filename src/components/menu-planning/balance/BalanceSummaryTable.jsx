@@ -1,23 +1,25 @@
 import { DataTable } from '@/components';
 import { formatMoney } from '@/models/menu-planning/menuPlanningConstants';
+import { baseUnitLabels } from '@/utils/menu-planning/foodUnits';
 import { formatAmount } from '@/utils/menu-planning/dayBalance';
 
 /** Tổng hợp mua hàng toàn trường và phần của từng điểm trường (BE chia, cộng lại đúng tổng). */
 export function BalanceSummaryTable({ view }) {
   const foods = new Map(view.foods.map((f) => [String(f.foodId), f]));
   const rows = view.summary.map((row) => ({ ...foods.get(String(row.foodId)), ...row }));
-  const amount = (quantity, total) => (quantity == null ? `${formatAmount(Number(total) / 1000, 3)} kg` : formatAmount(quantity, 3));
+  const amount = (quantity, total, unit) =>
+    quantity == null ? `${formatAmount(Number(total) / 1000, 3)} ${baseUnitLabels(unit).big}` : formatAmount(quantity, 3);
   const columns = [
     { key: 'name', header: 'Thực phẩm', render: (r) => <b>{r.name}</b> },
     { key: 'purchaseUnit', header: 'ĐVT' },
-    { key: 'total', header: 'Toàn trường', className: 'num', render: (r) => <b>{amount(r.purchaseQuantity, r.purchaseTotal)}</b> },
+    { key: 'total', header: 'Toàn trường', className: 'num', render: (r) => <b>{amount(r.purchaseQuantity, r.purchaseTotal, r.unit)}</b> },
     ...view.campuses.map((campus) => ({
       key: `campus-${campus.campusId}`,
       header: campus.name,
       className: 'num',
       render: (r) => {
         const share = r.campuses.find((c) => String(c.campusId) === String(campus.campusId));
-        return share ? amount(share.purchaseQuantity, share.purchaseTotal) : '—';
+        return share ? amount(share.purchaseQuantity, share.purchaseTotal, r.unit) : '—';
       },
     })),
     { key: 'cost', header: 'Tiền', className: 'money', render: (r) => formatMoney(Number(r.cost || 0)) },

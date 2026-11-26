@@ -48,6 +48,9 @@ function MicronutrientFields({ group, hasError, children }) {
   );
 }
 
+// BE khóa ba ô đơn vị khi thực phẩm đã nhập kho (NUT-32)
+const LOCK_HINT = 'Đã nhập kho nên không đổi được; quy cách khác thì thêm thực phẩm mới';
+
 /** Ô số có đơn vị dính bên phải (g, %, đ), tùy chọn chữ dẫn bên trái ("1 kg ="). */
 function Affix({ unit, prefix, className = '', disabled, ...props }) {
   // FormField gắn id, aria và class lỗi vào phần tử con: chuyển xuống ô nhập, viền lỗi lên khung
@@ -80,6 +83,7 @@ export function FoodEditor({ f }) {
     toggleAllergen,
     isNew,
     priceChanged,
+    locked,
   } = f;
   const [customUnit, setCustomUnit] = useState(false);
   const { items: suppliers } = useActiveSuppliers();
@@ -92,7 +96,7 @@ export function FoodEditor({ f }) {
 
   return (
     <div className="td-food-editor">
-      <section className="td-food-box td-food-box--full">
+      <section className="td-food-box">
         <h3>Thông tin chung</h3>
         <div className="td-food-grid td-food-grid--general">
           <FormField label="Tên thực phẩm" required error={show('name')}>
@@ -144,14 +148,15 @@ export function FoodEditor({ f }) {
             {payload.purchaseUnitSize ? `1 ${purchaseUnit} = ${num(payload.purchaseUnitSize)} ${form.unit}` : 'Chưa nhập quy đổi'}
           </span>
         </div>
-        <div className="td-food-grid">
+        <div className="td-food-grid td-food-grid--wide">
           <FormField
             label="Đơn vị tính"
             required
             error={customUnit ? undefined : show('purchaseUnit')}
-            hint="Chọn đơn vị có sẵn hoặc nhập đơn vị mới"
+            hint={locked ? LOCK_HINT : 'Chọn đơn vị có sẵn hoặc nhập đơn vị mới'}
           >
             <SearchSelect
+              disabled={locked}
               options={[...unitOptions, { value: OTHER_UNIT, label: 'Nhập đơn vị khác…' }]}
               value={customUnit ? OTHER_UNIT : form.purchaseUnit}
               onChange={chooseUnit}
@@ -173,7 +178,7 @@ export function FoodEditor({ f }) {
               autoFocus
             />
           )}
-          {!fixedUnit && (
+          {(locked || !fixedUnit) && (
             <FormField
               label="Quy đổi gam hoặc ml"
               required
@@ -181,6 +186,7 @@ export function FoodEditor({ f }) {
               hint="Chỉ nhập cho đơn vị đóng gói, ví dụ 1 hộp = 100 g"
             >
               <Affix
+                disabled={locked}
                 unit={form.unit}
                 prefix={`1 ${purchaseUnit} =`}
                 step="any"
@@ -190,9 +196,15 @@ export function FoodEditor({ f }) {
               />
             </FormField>
           )}
-          {!fixedUnit && (
-            <FormField label="Đơn vị gốc" required error={show('unit')} hint="Dùng khi nhập định lượng món">
-              <SearchSelect options={toOptions(FOOD_UNIT_LABELS)} value={form.unit} onChange={setBaseUnit} ariaLabel="Đơn vị gốc" />
+          {(locked || !fixedUnit) && (
+            <FormField label="Đơn vị gốc" required error={show('unit')} hint={locked ? LOCK_HINT : 'Dùng khi nhập định lượng món'}>
+              <SearchSelect
+                disabled={locked}
+                options={toOptions(FOOD_UNIT_LABELS)}
+                value={form.unit}
+                onChange={setBaseUnit}
+                ariaLabel="Đơn vị gốc"
+              />
             </FormField>
           )}
           <FormField label="Tỷ lệ thải bỏ" error={show('wastePct')}>
@@ -260,7 +272,7 @@ export function FoodEditor({ f }) {
         <div className="td-food-box__head">
           <h3>Dinh dưỡng trên 100 {form.unit} ăn được</h3>
         </div>
-        <div className="td-food-grid">
+        <div className="td-food-grid td-food-grid--wide">
           <FormField label="Nguồn gốc" required error={show('origin')} className="td-span-all">
             <SearchSelect
               options={toOptions(FOOD_ORIGIN_LABELS)}
@@ -282,7 +294,7 @@ export function FoodEditor({ f }) {
           {/* Vi chất theo bảng PMS (BE NUT-26): không bắt buộc, trên 100 g ăn được */}
           {MICRONUTRIENT_GROUPS.map((g) => (
             <MicronutrientFields key={g.key} group={g} hasError={g.items.some((k) => show(k))}>
-              <div className="td-food-grid">
+              <div className="td-food-grid td-food-grid--wide">
                 {g.items.map((k) => (
                   <FormField
                     key={k}
@@ -302,7 +314,7 @@ export function FoodEditor({ f }) {
               </div>
             </MicronutrientFields>
           ))}
-          <div className="td-food-grid">
+          <div className="td-food-grid td-food-grid--wide">
             <FormField
               label="Nguồn số liệu dinh dưỡng"
               required
@@ -321,7 +333,7 @@ export function FoodEditor({ f }) {
         </div>
       </section>
 
-      <section className="td-food-box td-food-box--full">
+      <section className="td-food-box">
         <div className="td-food-box__head">
           <h3>Chất gây dị ứng</h3>
           {form.allergens.length > 0 ? (
