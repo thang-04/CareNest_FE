@@ -1,0 +1,11 @@
+@media print {
+  body:has(.activation-slip) > :not(.modal-backdrop:has(.activation-slip)) {
+    display: none !important;
+  }
+  body:has(.activation-slip) .modal-backdrop:has(.activation-slip) {
+    display: block !important;
+    position: static;
+    background: transparent;
+  }
+  .activation-slip .no-print { display: none !important; }
+}

@@ -100,3 +100,13 @@ test('SMS lỗi lần đầu (số giả kết thúc 99) ⇒ hồ sơ trẻ ghi 
   assert.ok(!('temporaryPassword' in again));
   assert.equal(onProfile().smsStatus, 'SENT');
 });
+
+test('gửi lại mã chỉ cho tài khoản đang chờ và người có quyền quản lý', async () => {
+  const [account] = await guardians.activateGuardians(child.id, VP);
+  await assert.rejects(guardians.resendActivationCode(account.userId, VP), { status: 409 });
+  writeDb((db) => { db.parentAccounts.find((a) => a.id === account.userId).status = 'PENDING_ACTIVATION'; });
+  await assert.rejects(guardians.resendActivationCode(account.userId, TEACHER), { status: 403 });
+  const result = await guardians.resendActivationCode(account.userId, VP);
+  assert.equal(result.activationCode, null);
+  assert.equal(result.smsStatus, 'SENT');
+});

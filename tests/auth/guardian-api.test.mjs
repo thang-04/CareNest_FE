@@ -134,3 +134,8 @@ test('kích hoạt gửi guardianId được chọn để máy chủ chặn lự
   await guardianApi.activateGuardians(11, null, 31);
   assert.deepEqual(bodies, [{ guardianId: 31 }]);
 });
+
+test('gửi lại mã kích hoạt theo tài khoản', async () => {
+  await guardianApi.resendActivationCode(21);
+  assert.deepEqual(calls, ['POST /parent-accounts/21/activation-code']);
+});

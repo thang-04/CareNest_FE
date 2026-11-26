@@ -230,6 +230,16 @@ export const guardianMockRepository = {
       return clone({ userId: account.id, fullName: account.fullName, username: account.username, status });
     });
   },
+  async resendActivationCode(id, actor) {
+    const account = loadAccount(await initialize(actor), id, actor);
+    if (account.status !== 'PENDING_ACTIVATION') throw new ApiError(409, 'Tài khoản không chờ kích hoạt.');
+    const failed = account.phone.endsWith('99');
+    return {
+      userId: id, username: account.username, smsStatus: failed ? 'FAILED' : 'SENT',
+      expiresAt: new Date(Date.now() + 15 * 60_000).toISOString(),
+      activationCode: failed ? String(crypto.getRandomValues(new Uint32Array(1))[0] % 1_000_000).padStart(6, '0') : null,
+    };
+  },
   async resetParentPassword(id, actor) {
     await initialize(actor);
     await delay(80);

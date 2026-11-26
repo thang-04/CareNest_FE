@@ -65,5 +65,6 @@ export const guardianApi = {
     axiosClient.post(`/children/${childId}/guardians`, { phone, fullName, relationship, confirmUserId }),
   removeGuardian: (childId, userId) => axiosClient.delete(`/children/${childId}/guardians/${userId}`),
   updateParentStatus: (userId, status) => axiosClient.patch(`/parent-accounts/${userId}/status`, { status }),
+  resendActivationCode: (userId) => axiosClient.post(`/parent-accounts/${userId}/activation-code`),
   resetParentPassword: (userId) => axiosClient.post(`/parent-accounts/${userId}/temporary-password`),
 };

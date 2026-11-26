@@ -35,3 +35,4 @@ export const listAllChildrenForGuardians = async (campusId, user, schoolYear) =>
   );
   return [first, ...rest].flatMap((page) => page.items);
 };
+export const resendActivationCode = (userId, user) => call('resendActivationCode', userId, user);
