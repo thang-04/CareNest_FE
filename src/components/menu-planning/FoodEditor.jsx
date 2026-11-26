@@ -92,7 +92,7 @@ export function FoodEditor({ f }) {
 
   return (
     <div className="td-food-editor">
-      <section className="td-food-box td-food-box--full">
+      <section className="td-food-box">
         <h3>Thông tin chung</h3>
         <div className="td-food-grid td-food-grid--general">
           <FormField label="Tên thực phẩm" required error={show('name')}>
@@ -144,7 +144,7 @@ export function FoodEditor({ f }) {
             {payload.purchaseUnitSize ? `1 ${purchaseUnit} = ${num(payload.purchaseUnitSize)} ${form.unit}` : 'Chưa nhập quy đổi'}
           </span>
         </div>
-        <div className="td-food-grid">
+        <div className="td-food-grid td-food-grid--wide">
           <FormField
             label="Đơn vị tính"
             required
@@ -260,7 +260,7 @@ export function FoodEditor({ f }) {
         <div className="td-food-box__head">
           <h3>Dinh dưỡng trên 100 {form.unit} ăn được</h3>
         </div>
-        <div className="td-food-grid">
+        <div className="td-food-grid td-food-grid--wide">
           <FormField label="Nguồn gốc" required error={show('origin')} className="td-span-all">
             <SearchSelect
               options={toOptions(FOOD_ORIGIN_LABELS)}
@@ -282,7 +282,7 @@ export function FoodEditor({ f }) {
           {/* Vi chất theo bảng PMS (BE NUT-26): không bắt buộc, trên 100 g ăn được */}
           {MICRONUTRIENT_GROUPS.map((g) => (
             <MicronutrientFields key={g.key} group={g} hasError={g.items.some((k) => show(k))}>
-              <div className="td-food-grid">
+              <div className="td-food-grid td-food-grid--wide">
                 {g.items.map((k) => (
                   <FormField
                     key={k}
@@ -302,7 +302,7 @@ export function FoodEditor({ f }) {
               </div>
             </MicronutrientFields>
           ))}
-          <div className="td-food-grid">
+          <div className="td-food-grid td-food-grid--wide">
             <FormField
               label="Nguồn số liệu dinh dưỡng"
               required
@@ -321,7 +321,7 @@ export function FoodEditor({ f }) {
         </div>
       </section>
 
-      <section className="td-food-box td-food-box--full">
+      <section className="td-food-box">
         <div className="td-food-box__head">
           <h3>Chất gây dị ứng</h3>
           {form.allergens.length > 0 ? (

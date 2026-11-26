@@ -3609,7 +3609,6 @@ button.stat-card .stat-card__label::after {
   position: absolute;
   right: var(--space-1);
 }
-/* Native date input kept only to open the browser calendar; DateInput shows the dd/mm/yyyy text box. */
 /* Chọn tuần: ‹ [lịch · nhãn tuần] › — lịch gốc neo dưới nút nhãn */
 .week-picker {
   display: inline-flex;
@@ -3625,11 +3624,12 @@ button.stat-card .stat-card__label::after {
   align-items: center;
   gap: var(--space-2);
 }
+/* Ô date gốc ẩn chỉ để mở lịch trình duyệt; rộng bằng ô nhập vì lịch neo theo mép trái của nó */
 .date-input__picker {
   position: absolute;
-  right: 0;
+  left: 0;
   bottom: 0;
-  width: 0;
+  width: 100%;
   height: 0;
   padding: 0;
   border: 0;
