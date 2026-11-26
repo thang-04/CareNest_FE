@@ -15,13 +15,29 @@ test('nghỉ một buổi: chỉ còn bữa của buổi còn học', () => {
 });
 
 // ATT-13: giờ đến muộn nhất buổi chiều phải sau giờ chốt (lỗi theo ô như BE DailyScheduleRules)
-test('cấu hình giờ: giờ đến muộn nhất buổi chiều phải sau giờ chốt', () => {
+test('cấu hình giờ: giờ đến muộn nhất phải nằm trong khung nhận trẻ chiều', () => {
   const year = { name: '2026-2027', startDate: '2026-09-01', endDate: '2027-05-31' };
-  const base = { time: '08:30', effectiveFrom: '2026-11-19', note: '' };
+  const base = {
+    time: '08:30',
+    effectiveFrom: '2026-11-19',
+    note: '',
+    dropoffOpenFrom: '06:30',
+    morningStart: '07:00',
+    morningEnd: '11:00',
+    afternoonStart: '13:30',
+    pickupStart: '15:00',
+    fullDayPickupFrom: '15:00',
+    pickupEnd: '17:00',
+    afternoonEnd: '17:00',
+  };
   assert.equal(validateCutoff({ ...base, latestAfternoonArrival: '14:00' }, year).latestAfternoonArrival, undefined);
   assert.match(
     validateCutoff({ ...base, latestAfternoonArrival: '08:00' }, year).latestAfternoonArrival,
     /Giờ đến muộn nhất buổi chiều phải sau Giờ chốt \(08:30\)/,
+  );
+  assert.match(
+    validateCutoff({ ...base, latestAfternoonArrival: '13:30' }, year).latestAfternoonArrival,
+    /Giờ đến muộn nhất buổi chiều phải sau Bắt đầu chiều \(13:30\)/,
   );
 });
 
@@ -76,6 +92,7 @@ test('điểm danh mở lại: chọn buổi một lần bấm, gửi presentPar
   assert.match(page, /<SelectField/);
   assert.match(page, /label: `Có mặt · \$\{part\.label\}`/);
   assert.match(page, /if \(part === 'ABSENT'\) setStatus\(row, false\);/);
+  assert.match(page, /!entry\.status\s*\? ''/);
   assert.match(page, /Đến dù có đơn nghỉ/);
   assert.match(page, /Không có suất xế/);
   // Trẻ đã lưu Vắng vẫn chọn lại được khi bảng còn mở; chỉ đơn nghỉ sáng khóa khi chưa mở lại, đơn cả ngày không khóa

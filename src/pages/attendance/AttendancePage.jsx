@@ -777,10 +777,12 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
                                 <SelectField
                                   className="select dd-reception__status-select"
                                   value={
-                                    entry.status === 'PRESENT'
-                                      ? entry.presentPart ||
-                                        (row.record?.status === 'PRESENT' ? recordPresentPart(row.record) : LEAVE_PART.FULL_DAY)
-                                      : 'ABSENT'
+                                    !entry.status
+                                      ? ''
+                                      : entry.status === 'PRESENT'
+                                        ? entry.presentPart ||
+                                          (row.record?.status === 'PRESENT' ? recordPresentPart(row.record) : LEAVE_PART.FULL_DAY)
+                                        : 'ABSENT'
                                   }
                                   options={[
                                     ...PRESENT_PARTS.map((part) => ({
