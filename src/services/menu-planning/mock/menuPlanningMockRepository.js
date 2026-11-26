@@ -240,6 +240,7 @@ const sanitizeSetup = (g) => ({
   enabled: g.enabled !== false,
   price: Number(g.price),
   serviceFee: Number(g.serviceFee) || 0,
+  budgetTolerancePct: Number(g.budgetTolerancePct ?? 5),
   meals: (g.meals || []).map((m) => ({
     code: m.code || uid('meal'),
     name: String(m.name || '').trim(),
@@ -1069,7 +1070,8 @@ export const menuPlanningMockRepository = {
       });
       if (hasErrors(errors)) fail(422, MSG.invalid, errors);
       const basis = String(payload.basis || '').trim();
-      const snapshot = (x) => JSON.stringify([x.enabled, x.price, x.serviceFee, x.meals, x.norms, x.basis, x.applied]);
+      const snapshot = (x) =>
+        JSON.stringify([x.enabled, x.price, x.serviceFee, x.budgetTolerancePct, x.meals, x.norms, x.basis, x.applied]);
       plans.forEach(({ g, data, total, current, changed }) => {
         const setup = db.nutritionSetups.find((x) => x.ageGroupId === g.ageGroupId);
         const before = snapshot(setup);

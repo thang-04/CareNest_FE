@@ -305,3 +305,22 @@ test('AC-9: mọi việc xanh hoặc xám ⇒ không có việc tiếp theo', ()
   assert.equal(nextBoardTask([buildDayBoardRows(done, { date: DATE })], [done]), null);
   assert.equal(nextBoardTask([], []), null);
 });
+
+test('dòng thực đơn tuần dùng chung cả trường: đánh dấu shared, đếm một lần', () => {
+  const c1 = campus();
+  const c2 = campus({ campusId: '2', campusName: 'Cơ sở 2' });
+  const rows = [c1, c2].map((c) => buildDayBoardRows(c, { date: DATE }));
+  assert.equal(rowOf(rows[0], 'menu').shared, true);
+  const both = summarizeBoardRows(rows);
+  const one = summarizeBoardRows([rows[0]]);
+  const total = (sum) => sum.attention + sum.waiting + sum.done + sum.idle;
+  assert.equal(total(one), 5);
+  assert.equal(total(both), 9);
+});
+
+test('việc tiếp theo là thực đơn tuần thì không gắn tên cơ sở', () => {
+  const c = campus({ menu: { status: 'DRAFT', nextWeekStatus: 'PUBLISHED', weekStart: '2026-11-23' }, freshReceiptStatus: 'DONE' });
+  const next = nextBoardTask([buildDayBoardRows(c, { date: DATE })], [c]);
+  assert.equal(next.row.key, 'menu');
+  assert.equal(next.campus, null);
+});

@@ -50,6 +50,7 @@ export const NORM_STEMS = {
 const configFieldOf = (key) => {
   if (key === 'mealPrice') return 'price';
   if (key === 'serviceFee') return 'serviceFee';
+  if (key === 'budgetTolerancePct') return 'budgetTolerancePct';
   if (key === 'dailyKcalNeed') return 'dailyKcalNeed';
   if (/^applied(Protein|Lipid|Glucid)Pct$/.test(key)) return 'applied';
   const norm = Object.entries(NORM_STEMS).find(([, stem]) => key === `${stem}Min` || key === `${stem}Max`);
@@ -317,6 +318,7 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
     effectiveFrom: v.effectiveFrom,
     price: v.mealPrice ?? null,
     serviceFee: v.serviceFee ?? 0,
+    budgetTolerancePct: v.budgetTolerancePct ?? 5,
     basis: v.normBasis || '',
     dailyKcalNeed: v.dailyKcalNeed ?? '',
     // Cơ cấu áp dụng P:L:G (BE NUT-27) và hệ số quy đổi BE đã dùng; chưa chọn thì không có
@@ -352,6 +354,7 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
     effectiveFrom,
     mealPrice: Number(g.price),
     serviceFee: numOrNull(g.serviceFee) ?? 0,
+    budgetTolerancePct: numOrNull(g.budgetTolerancePct) ?? 5,
     normBasis: text(basis),
     dailyKcalNeed: numOrNull(g.dailyKcalNeed),
     appliedProteinPct: numOrNull(g.applied?.protein),
@@ -372,6 +375,7 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
   const COMPARED_FIELDS = new Set([
     'ageGroupId',
     'mealPrice',
+    'budgetTolerancePct',
     'normBasis',
     'dailyKcalNeed',
     'appliedProteinPct',
@@ -612,6 +616,7 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
           basis: latest?.basis || '',
           price: latest?.price ?? '',
           serviceFee: latest?.serviceFee ?? 0,
+          budgetTolerancePct: latest?.budgetTolerancePct ?? 5,
           meals: (g.mealSessions || []).map((code) => ({ code, name: MEAL_SESSION_LABELS[code] || code, countAs: code })),
           norms: latest?.norms || {},
           dailyKcalNeed: latest?.dailyKcalNeed ?? '',
@@ -642,7 +647,7 @@ export const createNutritionCatalogApi = ({ client = beClient, storage = default
         if (payload.statusOnly) continue;
         const body = toConfigRequest(g, payload.effectiveFrom, payload.basis, beId);
         const latest = (await versionsOf(beId))[0];
-        if (latest && sameConfig(body, { serviceFee: 0, ...latest, ageGroupId: beId })) continue;
+        if (latest && sameConfig(body, { serviceFee: 0, budgetTolerancePct: 5, ...latest, ageGroupId: beId })) continue;
         changed.push({ ageGroupId: g.ageGroupId, body });
       }
       if (!changed.length && !statuses.length) return { saved: 0 };

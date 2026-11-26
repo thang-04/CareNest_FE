@@ -4,13 +4,26 @@ import { groupIssuesByDate } from '@/utils/menu-planning/mealPlanGrid';
 
 const SEVERITY = { BLOCKING: ['red', 'Cần sửa'], WARNING: ['orange', 'Cảnh báo'], INFO: ['teal', 'Lưu ý'] };
 
-/** Lỗi / cảnh báo của kế hoạch tuần do BE trả, gom theo ngày; câu BE đã nêu ngày, nhóm tuổi (hoặc khối) và lý do. */
-export function MealPlanIssueList({ issues }) {
+/**
+ * Lỗi / cảnh báo của kế hoạch tuần do BE trả, gom theo ngày; câu BE đã nêu ngày, nhóm tuổi (hoặc khối) và lý do.
+ * `dayHref(date, block)`: link sang Cân đối khẩu phần của ngày đó.
+ */
+export function MealPlanIssueList({ issues, dayHref }) {
   return (
     <div className="td-issue-groups">
       {groupIssuesByDate(issues).map((group) => (
         <section key={group.date || 'week'} className="td-issue-group" aria-label={group.label}>
-          <h4 className="td-issue-day">{group.label}</h4>
+          <h4 className="td-issue-day">
+            {group.label}
+            {dayHref && group.date && (
+              <>
+                {' · '}
+                <Link className="link-btn nowrap" to={dayHref(group.date, group.issues.find((i) => i.block)?.block)}>
+                  Mở cân đối
+                </Link>
+              </>
+            )}
+          </h4>
           <ul className="td-issue-list">
             {group.issues.map((issue, i) => {
               const [tone, label] = SEVERITY[issue.severity] || SEVERITY.INFO;

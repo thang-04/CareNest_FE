@@ -10,15 +10,16 @@ const num = (v) => (v == null ? '—' : Number(v).toLocaleString('vi-VN', { maxi
 /**
  * Một bữa của mẫu ngày: món theo loại, mở món xem thành phần cho 1 trẻ (số do BE tính — `dishIngredients` của menu-statistics).
  * Thành phần chỉ xem; gam/trẻ thuộc công thức món theo nhóm tuổi (NUT-18) nên sửa ở trang món.
+ * `dishesOnly`: chỉ liệt kê món (Kế hoạch tuần).
  */
-export function TemplateMealSection({ session, items, ingredients, loading, editable, canEditRecipe, onAdd, onRemove }) {
+export function TemplateMealSection({ session, items, ingredients, loading, editable, canEditRecipe, dishesOnly, onAdd, onRemove }) {
   // Món mở sẵn thành phần; người dùng thu gọn món nào thì nhớ món đó
   const [closed, setClosed] = useState(() => new Set());
   const toggle = (id) => setClosed((s) => (s.has(id) ? new Set([...s].filter((x) => x !== id)) : new Set([...s, id])));
   // ingredients: mảng; null = máy chủ không trả thành phần món; undefined = đang tải
   const lines = (dishId) => (ingredients || []).filter((l) => l.session === session && String(l.dishId) === String(dishId));
   const label = MEAL_SESSION_LABELS[session] || session;
-  const noLines = ingredients === null && !loading;
+  const noLines = dishesOnly || (ingredients === null && !loading);
 
   return (
     <section className={`card td-meal ${loading ? 'td-meal--busy' : ''}`} aria-label={label} aria-busy={!!loading}>
@@ -125,7 +126,7 @@ export function TemplateMealSection({ session, items, ingredients, loading, edit
               })}
             </tbody>
           </table>
-          {noLines && (
+          {noLines && !dishesOnly && (
             // Máy chủ cũ không trả `dishIngredients`: báo một lần cho cả bữa thay vì lặp dưới từng món
             <p className="td-meal__note text-sm muted">
               Chưa xem được thành phần từng món (máy chủ chưa hỗ trợ). Dinh dưỡng của ngày vẫn tính đủ.

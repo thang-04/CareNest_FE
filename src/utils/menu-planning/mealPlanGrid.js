@@ -1,6 +1,6 @@
 import { dayLabel } from '@/utils/menu-planning/menuChecks';
 import { LUNCH_LABELS, LUNCH_TYPES } from '@/utils/menu-planning/weekGridLayout';
-import { MEAL_PLAN_ISSUE_SHORT, mondayOf, schoolWeekStart, SESSION_ORDER } from '@/models/menu-planning/menuPlanningConstants';
+import { mondayOf, schoolWeekStart, SESSION_ORDER } from '@/models/menu-planning/menuPlanningConstants';
 import { isIsoDate } from '@/utils/format';
 
 /*
@@ -92,32 +92,6 @@ export const rowItems = (day, block, session, row) =>
     !row.type ? true : row.type === 'OTHER' ? !LUNCH_TYPES.includes(item.dishType) : item.dishType === row.type,
   );
 
-/** Nhãn đầu cột theo kết quả BE đã lưu: số lỗi chặn + cảnh báo của ngày; không có gì và ngày đã được kiểm ⇒ "Đạt". */
-export const dayResult = (plan, date) => {
-  const issues = (plan?.issues || []).filter((i) => i.date === date && (i.severity === 'BLOCKING' || i.severity === 'WARNING'));
-  if (issues.length) return { tone: issues.some((i) => i.severity === 'BLOCKING') ? 'red' : 'orange', label: `${issues.length} lưu ý` };
-  return (plan?.evaluations || []).some((e) => e.date === date) ? { tone: 'green', label: 'Đạt' } : null;
-};
-
-/**
- * Lý do ngắn ở đầu cột ngày: tối đa `max` nhãn khác nhau theo mã lưu ý BE (lỗi chặn trước), phần còn lại đếm vào `more`.
- * Mỗi lý do kèm câu đầy đủ BE trả để làm tooltip. Không có lưu ý ⇒ null (đầu cột giữ nhãn "Đạt" của `dayResult`).
- */
-export const dayReasons = (plan, date, max = 2) => {
-  const issues = (plan?.issues || [])
-    .filter((i) => i.date === date && (i.severity === 'BLOCKING' || i.severity === 'WARNING'))
-    .sort((a, b) => (a.severity === b.severity ? 0 : a.severity === 'BLOCKING' ? -1 : 1));
-  if (!issues.length) return null;
-  const byLabel = new Map();
-  issues.forEach((issue) => {
-    const label = MEAL_PLAN_ISSUE_SHORT[issue.code] || 'Lưu ý khác';
-    if (!byLabel.has(label)) byLabel.set(label, { label, tone: issue.severity === 'BLOCKING' ? 'red' : 'orange', messages: [] });
-    if (issue.message) byLabel.get(label).messages.push(issue.message);
-  });
-  const reasons = [...byLabel.values()].map((r) => ({ ...r, title: r.messages.join('\n') }));
-  return { reasons: reasons.slice(0, max), more: Math.max(0, reasons.length - max), all: reasons };
-};
-
 /** Hàng "Suất dị ứng": món trong ngày (khối đang xem) có chất gây dị ứng theo danh mục món — chỉ hiển thị. */
 export const dayAllergenNotes = (day, block, dishById) =>
   (day?.items || [])
@@ -185,16 +159,6 @@ export const copyDay = (draft, from, to, block) => {
 export const balanceHref = ({ week, block, date }) =>
   `/menu/nutrition?${new URLSearchParams(Object.entries({ week, block, date }).filter(([, v]) => v)).toString()}`;
 
-/** Thân `POST /nutrition/menu-statistics` cho món đang chọn của một ngày và một nhóm tuổi; chưa có món ⇒ null (không gọi). */
-export const dayStatisticsQuery = (items, ageGroupId, date) =>
-  ageGroupId && items?.length
-    ? {
-        ageGroupId: Number(ageGroupId),
-        ...(date ? { date } : {}),
-        items: items.map(({ session, dishId }) => ({ session, dishId: Number(dishId) })),
-      }
-    : null;
-
 // Bật ngày nghỉ giữ nguyên món đã chọn để bỏ nghỉ thì khôi phục; yêu cầu gửi đi không mang món của ngày nghỉ
 export const setDayOff = (draft, date, off) => updateDay(draft, date, (day) => ({ ...day, off: !!off }));
 export const setDayNote = (draft, date, note) => updateDay(draft, date, (day) => ({ ...day, note }));
@@ -239,11 +203,33 @@ export const evaluationGroups = (plan, block) => {
   return [...groups.values()];
 };
 
-/** Bữa có kết quả % năng lượng (`sessions` BE trả) trong các ngày của một nhóm tuổi, theo thứ tự trong ngày. */
-export const evaluationSessions = (group) => {
-  const found = new Set(Object.values(group?.byDate || {}).flatMap((e) => (e.sessions || []).map((r) => r.session)));
-  return SESSION_ORDER.filter((session) => found.has(session));
-};
+/* ---------- đồng bộ bữa chung giữa các khối ---------- */
+/** Bữa mà cả hai khối cùng ăn. */
+export const sharedSessions = (plan, block, other) =>
+  blockSessions(plan, block).filter((session) => blockSessions(plan, other).includes(session));
+
+const cellKey = (day, block, session) =>
+  cellItems(day, block, session)
+    .map((item) => item.dishId)
+    .join(',');
+
+/** Ô bữa chung của `block` đổi giữa `before` và `after` (thêm, đổi, xóa món) thì ghi đè ô cùng ngày, cùng bữa của khối khác. */
+export const syncSharedMeals = (before, after, plan, block) =>
+  planBlocks(plan)
+    .filter((other) => other !== block)
+    .reduce((draft, other) => {
+      const shared = sharedSessions(plan, block, other);
+      return {
+        days: draft.days.map((day) => {
+          const prev = before.days.find((d) => d.date === day.date);
+          const changed = shared.filter((session) => cellKey(prev, block, session) !== cellKey(day, block, session));
+          if (!changed.length) return day;
+          const kept = day.items.filter((item) => !(item.block === other && changed.includes(item.session)));
+          const copied = changed.flatMap((session) => cellItems(day, block, session).map((item) => ({ ...item, block: other })));
+          return { ...day, items: [...kept, ...copied] };
+        }),
+      };
+    }, after);
 
 /* ---------- lỗi / cảnh báo công bố ---------- */
 const SEVERITY_ORDER = ['BLOCKING', 'WARNING', 'INFO'];

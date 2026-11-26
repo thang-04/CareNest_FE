@@ -164,6 +164,7 @@ export const toSetupForm = (setups, today) => ({
     enabled: s.enabled,
     originalEnabled: s.enabled,
     price: String(s.price ?? ''),
+    budgetTolerancePct: String(s.budgetTolerancePct ?? 5),
     meals: s.meals.map((m) => ({ code: m.code, name: m.name, countAs: m.countAs })),
     // Số sau của vi chất có thể null (chỉ cần đạt tối thiểu) ⇒ ô trống, không thành chữ "null"
     norms: Object.fromEntries(
@@ -184,6 +185,7 @@ export const toSetupPayload = (form) => ({
     enabled: g.enabled,
     originalEnabled: g.originalEnabled,
     price: g.price,
+    budgetTolerancePct: g.budgetTolerancePct,
     meals: g.meals.map(({ code, name, countAs }) => ({ code, name: name.trim(), countAs })),
     norms: Object.fromEntries(SUBMITTED_NORM_KEYS.map((key) => [key, g.norms[key]])),
     dailyKcalNeed: g.dailyKcalNeed,
