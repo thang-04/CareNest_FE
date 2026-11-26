@@ -28,11 +28,22 @@ export const defaultPrepDate = (startDate, years, today, excludeId = null) => {
   return today && prep < today ? today : prep;
 };
 
+const SCHOOL_YEAR_NAME = /^(\d{4})-(\d{4})$/;
+
+/** Ngày gợi ý cho một tên năm học hợp lệ; Hiệu trưởng vẫn có thể thay đổi theo lịch thực tế của trường. */
+export const suggestedDatesForSchoolYearName = (name) => {
+  const match = SCHOOL_YEAR_NAME.exec(String(name || '').trim());
+  if (!match || Number(match[2]) !== Number(match[1]) + 1) return null;
+  const from = Number(match[1]);
+  return { startDate: `${from}-09-05`, endDate: `${from + 1}-05-31` };
+};
+
 /** Năm học liền sau năm mới nhất, để Hiệu trưởng ít phải gõ. */
 export const suggestNextYear = (years) => {
   const latest = [...years].sort((a, b) => b.startDate.localeCompare(a.startDate))[0];
   const from = latest ? Number(latest.name.slice(5)) : new Date().getFullYear();
-  return { name: `${from}-${from + 1}`, startDate: `${from}-09-05`, endDate: `${from + 1}-05-31` };
+  const name = `${from}-${from + 1}`;
+  return { name, ...suggestedDatesForSchoolYearName(name) };
 };
 
 /** Cùng ngày/tháng, dời theo số năm giữa năm nguồn và năm đích (yyyy-mm-dd). */

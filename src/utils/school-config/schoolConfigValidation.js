@@ -98,7 +98,7 @@ export const validateSchoolYear = (
   if (!e.startDate && !e.endDate) {
     const overlap = others.find((y) => form.startDate <= y.endDate && y.startDate <= form.endDate);
     if (overlap)
-      e.endDate = `Khoảng thời gian trùng với năm học ${overlap.name} (${formatDate(overlap.startDate)} – ${formatDate(overlap.endDate)})`;
+      e._form = `Khoảng ngày ${formatDate(form.startDate)} – ${formatDate(form.endDate)} trùng với năm học ${overlap.name} (${formatDate(overlap.startDate)} – ${formatDate(overlap.endDate)}). Hãy điều chỉnh ngày bắt đầu hoặc ngày kết thúc.`;
   }
   // CFG-YR-03: năm mới nối tiếp năm mới nhất (tên = năm mới nhất + 1, bắt đầu sau ngày kết thúc năm đó)
   const latest = creating ? [...others].sort((a, b) => b.startDate.localeCompare(a.startDate))[0] : null;

@@ -160,6 +160,16 @@ export const pickupMockRepository = {
   },
 
   /** #101 Pickup Result (UC 3.16): stores the outcome and notifies the parent. */
+  async correctHandoverTime({ pickupId, handoverTime, reason }) {
+    await delay();
+    return writeDb((db) => {
+      const record = (db.pickups || []).find((r) => r.id === pickupId);
+      if (!record?.handedOverAt) throw new ApiError(404, 'Không tìm thấy lần trả trẻ');
+      if (!String(reason || '').trim()) throw new ApiError(422, 'Nhập lý do sửa giờ trả.');
+      record.handedOverAt = new Date(`${record.date}T${handoverTime}:00+07:00`).toISOString();
+      return clone(record);
+    });
+  },
   async recordPickupResult(form, user) {
     await delay();
     return writeDb((db) => {
@@ -192,7 +202,7 @@ export const pickupMockRepository = {
         pickupPersonName: form.pickupPersonName.trim(),
         pickupPersonRelation: form.pickupPersonRelation.trim(),
         pickupPersonPhone: String(form.pickupPersonPhone || '').replace(/\s/g, ''),
-        handedOverAt: outcome === PICKUP_OUTCOME.HANDED_OVER ? new Date(`${today}T${form.handoverTime}:00+07:00`).toISOString() : null,
+        handedOverAt: outcome === PICKUP_OUTCOME.HANDED_OVER ? new Date().toISOString() : null,
         phoneConfirmed: form.verification === 'PHONE_CONFIRMED',
         note: String(form.note || '').trim(),
         // Trả trẻ sau khi cô báo phụ huynh đón về sớm: giữ liên kết để truy vết từ Sức khỏe trong ngày
