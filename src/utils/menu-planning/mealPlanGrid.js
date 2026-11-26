@@ -159,16 +159,6 @@ export const copyDay = (draft, from, to, block) => {
 export const balanceHref = ({ week, block, date }) =>
   `/menu/nutrition?${new URLSearchParams(Object.entries({ week, block, date }).filter(([, v]) => v)).toString()}`;
 
-/** Thân `POST /nutrition/menu-statistics` cho món đang chọn của một ngày và một nhóm tuổi; chưa có món ⇒ null (không gọi). */
-export const dayStatisticsQuery = (items, ageGroupId, date) =>
-  ageGroupId && items?.length
-    ? {
-        ageGroupId: Number(ageGroupId),
-        ...(date ? { date } : {}),
-        items: items.map(({ session, dishId }) => ({ session, dishId: Number(dishId) })),
-      }
-    : null;
-
 // Bật ngày nghỉ giữ nguyên món đã chọn để bỏ nghỉ thì khôi phục; yêu cầu gửi đi không mang món của ngày nghỉ
 export const setDayOff = (draft, date, off) => updateDay(draft, date, (day) => ({ ...day, off: !!off }));
 export const setDayNote = (draft, date, note) => updateDay(draft, date, (day) => ({ ...day, note }));

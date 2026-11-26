@@ -179,9 +179,16 @@ export const INTEGRATION_MODULES = {
   // Kế hoạch tuần theo khối + công bố trên BE /nutrition/meal-plans; thắng '/menu' của thực đơn mẫu còn demo
   'meal-plan': {
     source: 'api',
-    // Cân đối khẩu phần đọc/lưu kế hoạch tuần + menu-statistics (09/11/2026)
+    // Cân đối khẩu phần đọc kế hoạch tuần và bản cân đối ngày /nutrition/day-balances
     routes: ['/menu/weekly', '/menu/statistics', '/menu/nutrition'],
-    files: ['src/services/mealPlanApi.js'],
+    files: ['src/services/mealPlanApi.js', 'src/services/dayBalanceApi.js'],
+    // BE G94-489, chưa vào dev. Gỡ bốn dòng này khi BE merge và đồng bộ be-api-routes.json
+    pending: [
+      'GET /nutrition/day-balances',
+      'GET /nutrition/day-balances/{x}',
+      'POST /nutrition/day-balances/{x}/preview',
+      'PUT /nutrition/day-balances/{x}',
+    ],
   },
   // Mẫu thực đơn một ngày theo khối trên BE /nutrition/menu-templates (NUT-13, đổi 04/11)
   'menu-template': {

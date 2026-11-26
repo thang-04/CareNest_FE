@@ -298,7 +298,7 @@ test('module meal-plan khai source api cho /menu/weekly, /menu/statistics và /m
   const mod = INTEGRATION_MODULES['meal-plan'];
   assert.equal(mod.source, 'api');
   assert.deepEqual(mod.routes, ['/menu/weekly', '/menu/statistics', '/menu/nutrition']);
-  assert.deepEqual(mod.files, ['src/services/mealPlanApi.js']);
+  assert.deepEqual(mod.files, ['src/services/mealPlanApi.js', 'src/services/dayBalanceApi.js']);
 });
 
 test('sửa ngoại lệ ngày đã công bố (P-39): PUT .../days/{date}/amend gửi cả ngày mọi khối + lý do; lịch sử GET .../revisions', async () => {
