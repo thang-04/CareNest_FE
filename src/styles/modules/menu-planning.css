@@ -2317,9 +2317,17 @@
 /* Chi tiết thực phẩm: cột phải chứa bảng thành phần 3 cột (chất, hàm lượng, đơn vị) nên rộng hơn mặc định */
 /* Form thực phẩm: nhóm ô vi chất (khoáng chất, vitamin) không viền mặc định của fieldset */
 .td-micro-fieldset {
+  min-width: 0;
   margin-inline: 0;
   padding: 0;
   border: 0;
+}
+.td-micro-fieldset summary {
+  cursor: pointer;
+  font-size: var(--fs-sm);
+}
+.td-micro-fieldset[open] > summary {
+  margin-bottom: var(--space-2);
 }
 
 .td-micro-fieldset legend {
@@ -2350,7 +2358,7 @@
 /* ---------- Form thực phẩm dùng chung trang và modal (FoodEditor) ---------- */
 .td-food-editor {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-4);
 }
 .td-food-box {
@@ -2362,9 +2370,6 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-xl);
   background: var(--color-surface);
-}
-.td-food-box--full {
-  grid-column: 1 / -1;
 }
 .td-food-box h3 {
   font-size: var(--fs-md);
@@ -2384,6 +2389,10 @@
 }
 .td-food-grid--general {
   grid-template-columns: 2fr 2fr 1fr 1fr;
+}
+.td-food-grid--wide {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: start;
 }
 .td-food-grid .td-span-all {
   grid-column: 1 / -1;
@@ -2415,28 +2424,23 @@
   font-size: var(--fs-sm);
   white-space: nowrap;
 }
-.td-food-more > summary {
-  cursor: pointer;
-  color: var(--color-primary);
-  font-size: var(--fs-sm);
-  font-weight: var(--fw-medium);
-}
-.td-food-more[open] {
+.td-food-more {
   display: grid;
-  gap: var(--space-3);
+  gap: var(--space-4);
 }
 .td-food-page {
   padding: var(--card-padding);
 }
 @media (max-width: 1024px) {
-  .td-food-grid--general {
+  .td-food-grid--general,
+  .td-food-grid--wide {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
 }
 @media (max-width: 767px) {
-  .td-food-editor,
   .td-food-grid,
-  .td-food-grid--general {
+  .td-food-grid--general,
+  .td-food-grid--wide {
     grid-template-columns: minmax(0, 1fr);
   }
 }
