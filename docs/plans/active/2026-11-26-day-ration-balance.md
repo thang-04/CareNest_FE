@@ -23,3 +23,6 @@ chốt suất → cân đối lần 2 → kiểm nhận lần 2 (gọi thêm / t
   - Công tắc "Đồng bộ bữa chung" mặc định bật, không lưu; áp cho thêm/đổi/xóa, chép ngày, mẫu ngày, sửa ngày và sửa ngoại lệ.
     Gợi ý tuần bằng AI và màn Cân đối khẩu phần chưa đồng bộ.
   - Bỏ `WeekDaySummary`, `MealPlanEvaluations`; lý do chặn công bố vẫn ở hộp thoại công bố, kèm link "Mở cân đối".
+- 26/11/2026 · G94-488…492: màn cân đối có tab Lần 1 / Lần 2 (lần 2 đọc suất đã chốt, hiện lý do chưa mở); kiểm nhận lần 2 dùng
+  `FreshHandlingCard` (gọi thêm / trả lại / giữ dùng, in phiếu chênh lệch). `npm run verify` đạt. Chưa commit, chưa kiểm trên trình duyệt với BE thật.
+  Mã lỗi BE mới 6141–6145 (6138–6140 đã dùng ở dev).

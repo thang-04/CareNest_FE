@@ -169,6 +169,8 @@ export const INTEGRATION_MODULES = {
     source: 'api',
     routes: ['/kitchen/forecast', '/kitchen/fresh-receipts', '/kitchen/market-day'],
     files: ['src/services/freshGoodsApi.js'],
+    // BE tạm tắt endpoint nhập hàng khô tại kiểm nhận (hàng khô nhập qua Phiếu nhập); card FE đang ẩn
+    pending: ['POST /nutrition/fresh-checks/dry-receipts'],
   },
   // Bếp hôm nay (xem), lưu mẫu thức ăn (duyệt), ảnh bữa, khung giờ ảnh trên BE /nutrition/{kitchen/day,food-samples,meal-photos,meal-photo-windows}
   'kitchen-records': {
@@ -182,13 +184,6 @@ export const INTEGRATION_MODULES = {
     // Cân đối khẩu phần đọc kế hoạch tuần và bản cân đối ngày /nutrition/day-balances
     routes: ['/menu/weekly', '/menu/statistics', '/menu/nutrition'],
     files: ['src/services/mealPlanApi.js', 'src/services/dayBalanceApi.js'],
-    // BE G94-489, chưa vào dev. Gỡ bốn dòng này khi BE merge và đồng bộ be-api-routes.json
-    pending: [
-      'GET /nutrition/day-balances',
-      'GET /nutrition/day-balances/{x}',
-      'POST /nutrition/day-balances/{x}/preview',
-      'PUT /nutrition/day-balances/{x}',
-    ],
   },
   // Mẫu thực đơn một ngày theo khối trên BE /nutrition/menu-templates (NUT-13, đổi 04/11)
   'menu-template': {
