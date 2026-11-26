@@ -20,7 +20,8 @@ export function DossierProgress({ classId, themeId, weekStart, missing = [], sec
   const { dayPlans } = useEducationPlan();
   const ctx = useClassPlanContext(classId);
   const { yearPlan } = ctx;
-  const [folded, setFolded] = useState(false);
+  // Thu gọn mặc định để nội dung tuần/ngày hiện ngay; tự mở khi gửi duyệt báo còn thiếu
+  const [folded, setFolded] = useState(true);
   if (!yearPlan) return null;
   const path = (to) => classPlanVersionPath(to, ctx.superseded ? yearPlan.id : null);
   const weeks = yearWeeks(yearPlan).filter((w) => w.type === 'week' && w.theme.id === themeId);
@@ -42,8 +43,8 @@ export function DossierProgress({ classId, themeId, weekStart, missing = [], sec
       title={`Tiến độ chủ đề: ${weeks[0].theme.name}`}
       bodyClass={null}
       className="mb-16"
-      collapsed={folded}
-      onToggle={() => setFolded((f) => !f)}
+      collapsed={folded && missing.length === 0}
+      onToggle={() => setFolded((f) => !(f && missing.length === 0))}
     >
       <div className="card__body">
         <div className="stack">

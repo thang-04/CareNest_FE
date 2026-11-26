@@ -3,7 +3,7 @@ import { ResponsiveToolbar } from '@/components/ui/ResponsiveToolbar';
 import { useEffect, useId, useRef, useState } from 'react';
 import ActivityCardEditor from '@/components/education-plan/ActivityCardEditor';
 import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom';
-import { ClassFilterBar, ThemeBranchTabs } from '@/components/education-plan/planUi';
+import { ClassFilterBar, docReview, ThemeBranchTabs } from '@/components/education-plan/planUi';
 import { SemesterProgress } from '@/components/education-plan/SemesterProgress';
 import { DossierProgress } from '@/components/education-plan/DossierProgress';
 import { BlockedNotice } from '@/components/education-plan/DeadlineWidgets';
@@ -60,7 +60,7 @@ import { FinishedThemeNote, SupersededNote, VersionCopyOffer, VersionFlagsPanel 
 import { useDocVersion } from '@/hooks/education-plan/useDocVersion';
 import { checkFlag, classPlanVersionPath, dropReference, versionOf } from '@/models/education-plan/planVersions.mjs';
 import DocPreviewModal from '@/components/education-plan/DocPreviewModal';
-import { dayKeyOf } from '@/models/education-plan/deadline.mjs';
+import { BLOCKED_TEXT, dayKeyOf } from '@/models/education-plan/deadline.mjs';
 import { Button } from '@/components';
 
 const DAY_FIELDS = ['days', 'dayGoals', 'dossierCards'];
@@ -116,6 +116,7 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
     actOnClassDoc,
     toast,
     staff,
+    eduConfig,
   } = useEducationPlan();
   const [confirmRevise, setConfirmRevise] = useState(false);
   const [preview, setPreview] = useState(null);
@@ -343,6 +344,9 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
     reject: !!(dossierPerm.canReject ?? dossierPerm.canReturn),
   };
   const reviewTurn = !!dossierCan && (dossierCan.approve || dossierCan.reject);
+  // Gửi duyệt kế hoạch giáo dục ngày của cả chủ đề (cùng đơn vị với trang danh sách); BE trả quyền và lỗi mục thiếu
+  const dossierReview = dayPage && dossier ? docReview('theme', dossier, ctx, user, eduConfig) : null;
+  const canSendDossier = !!dossierReview && (dossierReview.can.send || (canComposeClassDocs && dossier.status === EDU_STATUS.DRAFT));
   const lastReviewStep = dossier?.review?.roles?.at(-1) === dossier?.review?.waitingRole;
   // Lỗi mục trống tự mất khi mục đó đã có nội dung
   const emptyNow = emptyErr.filter((e) => !sectionHasContent(draft.days.find((d) => d.date === e.date)?.sections?.[e.section]));
@@ -582,6 +586,23 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
                   </Button>
                 )}
                 <ActionsMenu items={pageTools} />
+                {canSendDossier && (
+                  <ReviewActions
+                    name={`kế hoạch giáo dục ngày ${week.theme.name}`}
+                    sendTo={dossierReview.sendTo}
+                    sendLabel="Gửi duyệt"
+                    can={{ ...dossierReview.can, approve: dossierReview.principalPublish, reject: false }}
+                    approveLabel={dossierReview.approveLabel}
+                    approveAction={dossierReview.approveAction}
+                    showSend={!dossierReview.principalPublish && canComposeClassDocs && dossier.status === EDU_STATUS.DRAFT}
+                    sendDisabledReason={BLOCKED_TEXT[dossier.blockedReason] || 'Chưa gửi được kế hoạch giáo dục ngày này'}
+                    unsaved={saver.unsaved}
+                    onSave={saver.save}
+                    onAct={dossierAct}
+                    variant="btn--outline-primary"
+                    menu={{}}
+                  />
+                )}
                 {reviewTurn && (
                   <ReviewActions
                     name={`kế hoạch giáo dục ngày ${week.theme.name}`}

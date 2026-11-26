@@ -26,7 +26,8 @@ export function SemesterProgress({ classId, themeId, weekStart = null }) {
   const [confirmRevise, setConfirmRevise] = useState(false);
   // Chỉ nêu phần còn thiếu chi tiết sau khi bấm Gửi duyệt (Tiền 11/11/2026); danh sách bên dưới luôn hiện trạng thái từng mục
   const [showMissing, setShowMissing] = useState(false);
-  const [folded, setFolded] = useState(false);
+  // Thu gọn mặc định để nội dung chủ đề/tuần hiện ngay, không phải kéo xuống; mở khi cần xem tiến độ hoặc khi gửi thiếu
+  const [folded, setFolded] = useState(true);
   const pkg =
     semesterPackages.find(
       (p) => p.classId === classId && p.yearPlanId === yearPlan?.id && (p.themeIds || []).map(String).includes(String(themeId)),
@@ -141,6 +142,7 @@ export function SemesterProgress({ classId, themeId, weekStart = null }) {
               beforeOpen={(next) => {
                 if (next !== 'submit' || !allMissing.length) return true;
                 setShowMissing(true);
+                setFolded(false);
                 return false;
               }}
               showSend={
