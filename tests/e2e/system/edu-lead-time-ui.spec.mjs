@@ -41,10 +41,9 @@ test('ST-003-01 khối Học kỳ ở trang Kế hoạch giáo dục chủ đề
   test.skip(!cls, 'Thiếu lớp');
   await login(page, U.tl);
   await spaGo(page, `/education/theme-plans/${cls.id}?hk=1`);
-  // Học kỳ là ô chọn trong thẻ lọc (Tiền 13/11/2026), không còn tab
-  await expect(page.getByRole('combobox', { name: 'Học kỳ' })).toBeVisible({ timeout: 30_000 });
+  // Trang chi tiết không còn hàng lọc (Tiền 26/11/2026): đợi thẻ tiến độ học kỳ
+  await expect(page.locator('.ga-page .card__title').first()).toBeVisible({ timeout: 30_000 });
   await expect(notFound(page)).toHaveCount(0);
-  await expect(page.getByRole('combobox', { name: 'Học kỳ' })).toHaveValue('1');
   await expect(page.getByText(/[Gg]ói học kỳ/)).toHaveCount(0);
   await expect(page.getByText(/Gần đến hạn|Quá hạn|Đúng hạn|Hạn:? \d\d\/\d\d/).first()).toBeVisible();
 });
