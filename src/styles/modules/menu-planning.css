@@ -4385,6 +4385,10 @@
 .td-bal__nut > .td-daynut__legend {
   margin: 0;
 }
+.td-bal__off-list {
+  margin: var(--space-1) 0 0;
+  padding-left: var(--space-5);
+}
 .td-bal__stt {
   width: 4rem;
 }
