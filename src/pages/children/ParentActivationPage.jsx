@@ -442,7 +442,15 @@ export default function ParentActivationPage() {
                                             menu={
                                               canManage(child)
                                                 ? [
-                                                    ...(g.status === 'PENDING_ACTIVATION' ? [{ label: 'Gửi lại mã kích hoạt', icon: KeyRound, onClick: () => activation.resend(g.userId) }] : []),
+                                                    ...(g.status === 'PENDING_ACTIVATION'
+                                                      ? [
+                                                          {
+                                                            label: 'Gửi lại mã kích hoạt',
+                                                            icon: KeyRound,
+                                                            onClick: () => activation.resend(g.userId),
+                                                          },
+                                                        ]
+                                                      : []),
                                                     {
                                                       label: 'Cấp lại mật khẩu tạm',
                                                       icon: KeyRound,
@@ -530,7 +538,11 @@ export default function ParentActivationPage() {
           }
           danger={confirmModal.type === 'status' && confirmModal.guardian.status === 'ACTIVE'}
           confirmLabel={
-            confirmModal.type === 'password' ? 'Cấp lại mật khẩu tạm' : confirmModal.guardian.status === 'ACTIVE' ? 'Khóa tài khoản' : 'Mở khóa'
+            confirmModal.type === 'password'
+              ? 'Cấp lại mật khẩu tạm'
+              : confirmModal.guardian.status === 'ACTIVE'
+                ? 'Khóa tài khoản'
+                : 'Mở khóa'
           }
           onConfirm={handleConfirmAction}
           onClose={() => setConfirmModal(null)}

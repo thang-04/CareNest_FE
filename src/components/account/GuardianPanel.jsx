@@ -203,7 +203,9 @@ export function GuardianPanel({ child, classroomName, onChanged }) {
                               <RowMenu
                                 label={`Thao tác khác với tài khoản ${g.fullName}`}
                                 items={[
-                                  ...(g.status === 'PENDING_ACTIVATION' ? [{ label: 'Gửi lại mã kích hoạt', icon: KeyRound, onClick: () => activation.resend(g.userId) }] : []),
+                                  ...(g.status === 'PENDING_ACTIVATION'
+                                    ? [{ label: 'Gửi lại mã kích hoạt', icon: KeyRound, onClick: () => activation.resend(g.userId) }]
+                                    : []),
                                   {
                                     label: active ? 'Khóa tài khoản' : 'Mở khóa tài khoản',
                                     icon: active ? Lock : Unlock,

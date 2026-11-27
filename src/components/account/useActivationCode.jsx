@@ -26,9 +26,16 @@ export function useActivationCode() {
     }
   };
   const dialog = slip && (
-    <Modal open title="Phiếu kích hoạt" className="activation-slip" onClose={() => setSlip(null)}
-      footer={<Button onClick={() => window.print()}>In phiếu</Button>}>
-      <p>Mã kích hoạt: {slip.activationCode} · hết hạn {formatDateTime(slip.expiresAt)}</p>
+    <Modal
+      open
+      title="Phiếu kích hoạt"
+      className="activation-slip"
+      onClose={() => setSlip(null)}
+      footer={<Button onClick={() => window.print()}>In phiếu</Button>}
+    >
+      <p>
+        Mã kích hoạt: {slip.activationCode} · hết hạn {formatDateTime(slip.expiresAt)}
+      </p>
     </Modal>
   );
   return { resend, dialog };
