@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { CalendarDays, ClipboardList, Info, Phone, School, UserCheck } from '@/components/ui/icons';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
+import { useCutoffSetting } from '@/hooks/school-config/useSchoolConfig';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { Modal } from '@/components/ui/Modal';
@@ -30,6 +31,8 @@ export default function PickupListPage() {
   const [params, setParams] = useSearchParams();
   // Năm sắp diễn ra chưa tới ngày mở chuẩn bị (CHD-12): đón trẻ chỉ xem
   const { schoolYear, activeYear, lockedYear, yearLocked, setSchoolYear } = useSchoolYear();
+  const { setting } = useCutoffSetting(schoolYear);
+  const fullDayPickupFrom = setting?.fullDayPickupFrom || '15:00';
   const today = todayInput();
   const date = params.get('date') || today;
   // Đón trẻ theo năm học đang hoạt động (user chốt 2026-10-28, Y-1): xem lại từ ngày đầu năm; năm chưa bắt đầu thì không chặn.
@@ -284,10 +287,14 @@ export default function PickupListPage() {
             </Link>
           </div>
           <Modal open={!!verifyId && !yearLocked} size="lg" title={`Trả trẻ: ${nameOf(verifyId)}`} onClose={closeModals}>
-            {verifyId && !yearLocked && <PickupPhotoFlow key={verifyId} childId={verifyId} onDone={handedOver} />}
+            {verifyId && !yearLocked && (
+              <PickupPhotoFlow key={verifyId} childId={verifyId} onDone={handedOver} fullDayPickupFrom={fullDayPickupFrom} />
+            )}
           </Modal>
           <Modal open={!!callId && !yearLocked} title={`Gọi phụ huynh: ${nameOf(callId)}`} onClose={closeModals}>
-            {callId && !yearLocked && <PickupCallFlow key={callId} childId={callId} onDone={handedOver} />}
+            {callId && !yearLocked && (
+              <PickupCallFlow key={callId} childId={callId} onDone={handedOver} fullDayPickupFrom={fullDayPickupFrom} />
+            )}
           </Modal>
         </>
       )}

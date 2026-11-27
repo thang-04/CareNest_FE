@@ -16,3 +16,11 @@ test('both photo and call pickup check the chosen time before sending', () => {
   assert.match(source, /const \[handoverTime, setHandoverTime\] = useState\(nowTime\)/);
   assert.match(source, /<TextField[\s\S]*?type="time"[\s\S]*?value=\{handoverTime\}/);
 });
+test('both handover flows warn about the afternoon attendance cutoff from configuration', () => {
+  const source = readFileSync('src/components/pickup/PickupVerifyFlow.jsx', 'utf8');
+  assert.equal(source.match(/Trả trước \{fullDayPickupFrom\}: trẻ được tính vắng buổi chiều \(nửa ngày\)\./g)?.length, 2);
+  const page = readFileSync('src/pages/pickup/PickupListPage.jsx', 'utf8');
+  assert.match(page, /useCutoffSetting\(schoolYear\)/);
+  assert.match(page, /setting\?\.fullDayPickupFrom \|\| '15:00'/);
+  assert.equal(page.match(/fullDayPickupFrom=\{fullDayPickupFrom\}/g)?.length, 2);
+});

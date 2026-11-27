@@ -78,7 +78,7 @@ function WaitingChild({ childId, children }) {
  * Màn 100 Pickup Verification (UC 3.15), nút "Trả trẻ" của danh sách Đón trẻ (user yêu cầu 2026-10-23): so người đón với ảnh
  * phụ huynh đã đăng ký; khớp thì ghi giờ trả ngay trong modal. Không khớp thì dùng nút "Gọi phụ huynh" của dòng. onDone: đã ghi nhận.
  */
-export function PickupPhotoFlow({ childId, onDone }) {
+export function PickupPhotoFlow({ childId, onDone, fullDayPickupFrom = '15:00' }) {
   const { user } = useAuth();
   const toast = useToast();
   const [guardian, setGuardian] = useState(null);
@@ -144,6 +144,9 @@ export function PickupPhotoFlow({ childId, onDone }) {
                 onChange={(e) => setForm({ ...form, note: e.target.value })}
               />
             </FormField>
+            {form.handoverTime && form.handoverTime < fullDayPickupFrom && (
+              <div className="alert alert--warning mt-12">Trả trước {fullDayPickupFrom}: trẻ được tính vắng buổi chiều (nửa ngày).</div>
+            )}
             <div className="dt-call__actions mt-16">
               <button className="btn" onClick={() => setGuardian(null)} disabled={busy}>
                 <ArrowLeft size={16} /> Chọn lại
@@ -186,7 +189,7 @@ export function PickupPhotoFlow({ childId, onDone }) {
  * ghi nhận ngay trong modal (trả trẻ ghi luôn: user chốt 2026-10-24). Người đón, lý do không trả ghi trong nội dung cuộc gọi.
  * onDone: đã ghi nhận.
  */
-export function PickupCallFlow({ childId, onDone }) {
+export function PickupCallFlow({ childId, onDone, fullDayPickupFrom = '15:00' }) {
   const { user } = useAuth();
   const toast = useToast();
   const [note, setNote] = useState('');
@@ -314,6 +317,9 @@ export function PickupCallFlow({ childId, onDone }) {
                 setTimeError('');
               }}
             />
+            {handoverTime && handoverTime < fullDayPickupFrom && (
+              <div className="alert alert--warning mt-12">Trả trước {fullDayPickupFrom}: trẻ được tính vắng buổi chiều (nửa ngày).</div>
+            )}
           </ConfirmationModal>
         </section>
       )}
