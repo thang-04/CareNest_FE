@@ -1,7 +1,7 @@
 import { ResponsiveToolbar } from '@/components/ui/ResponsiveToolbar';
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { FileDown, Save, X } from '@/components/ui/icons';
+import { FileDown, Save, X, Pencil } from '@/components/ui/icons';
 import { Card, EmptyCard, fmtDate, FoldAllButton, Notice, PageHead } from '@/components/education-plan/eduUi';
 import { getClassDocRelease, rewriteClassContents, suggestActivityCards } from '@/services/education-plan/educationPlanService';
 import { submitEntryOf } from '@/models/education-plan/reviewHistory.mjs';
@@ -12,6 +12,7 @@ import { RejectedNotice, ReviewHistory } from '@/components/education-plan/revie
 import { LoadingState } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
+import { useDocEditMode } from '@/hooks/education-plan/useDocEditMode';
 import { useManualSave } from '@/hooks/education-plan/useManualSave';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
@@ -67,6 +68,7 @@ function ThemePlanInner() {
     ) ||
     null;
   const holder = semester || saved;
+  const [editMode, setEditMode] = useDocEditMode(`${user?.id}:theme:${classId}`);
   const [draft, setDraft] = useState(null);
   const [dirty, setDirty] = useState(false);
   // Chỗ ThemePlanBody đặt menu "Lấy / gợi ý hoạt động" ở trái hàng nút
@@ -141,12 +143,17 @@ function ThemePlanInner() {
   const planPath = (path) => classPlanVersionPath(path, ctx.superseded ? yearPlan.id : null);
   if (!draft) return <LoadingState />;
 
-  const editable = canWrite;
+  const editable = canWrite && editMode;
   const copyOld = async () => {
     setCopying(true);
     const doc = await saveClassDoc('theme', version.copy());
     setCopying(false);
     if (doc) toast('Đã chép kế hoạch chủ đề cũ. Sửa các ô đỏ trước khi gửi duyệt.');
+  };
+  // Bỏ cờ đang sửa thì trang nạp lại bản đã lưu (bỏ thay đổi khi chọn "Không lưu")
+  const stopEditing = () => {
+    setDirty(false);
+    setEditMode(false);
   };
   const flagEdit = (fn) => {
     setDraft((d) => fn(d));
@@ -252,6 +259,11 @@ function ThemePlanInner() {
             {/* Lấy / gợi ý hoạt động ở nút "Thao tác" trong card I (Tiền 18/11/2026); Xuất file chủ đề chỉ ở thẻ chủ đề trang danh sách */}
           </div>
           <div className="ga-year-toolbar__group ga-year-toolbar__group--end">
+            {canWrite && !editMode && (
+              <Button variant="primary" size="sm" icon={Pencil} onClick={() => setEditMode(true)}>
+                {saved ? 'Chỉnh sửa' : 'Soạn'}
+              </Button>
+            )}
             {editable && (
               <>
                 <p className="muted text-sm ga-year-save-status" aria-live="polite">
@@ -265,13 +277,8 @@ function ThemePlanInner() {
                   linesOf={docLines}
                   onUse={(entry) => (entry ? saver.restoreDraft(entry) : saver.restoreSaved())}
                 />
-                {/* Trang luôn ở chế độ sửa: Hủy về Kế hoạch giáo dục chủ đề của lớp, còn thay đổi chưa lưu thì hỏi (Tiền 13/11/2026) */}
-                <Button
-                  variant="outline-primary"
-                  size="sm"
-                  disabled={saver.saving}
-                  onClick={() => guard.leave(`/education/theme-plans/${classId}`)}
-                >
+                {/* Hủy về chế độ xem, còn thay đổi chưa lưu thì hỏi (Tiền 28/11/2026) */}
+                <Button variant="outline-primary" size="sm" disabled={saver.saving} onClick={() => guard.leave(stopEditing)}>
                   <X size={16} aria-hidden /> Hủy
                 </Button>
                 <Button

@@ -8,7 +8,7 @@ import { SemesterProgress } from '@/components/education-plan/SemesterProgress';
 import { DossierProgress } from '@/components/education-plan/DossierProgress';
 import { BlockedNotice } from '@/components/education-plan/DeadlineWidgets';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
-import { ChalkboardTeacher, Copy, FileDown, ListChecks, Save, X } from '@/components/ui/icons';
+import { ChalkboardTeacher, Copy, FileDown, ListChecks, Save, X, Pencil } from '@/components/ui/icons';
 import { ReviewAssistPanel } from '@/components/education-plan/ReviewAssistPanel';
 import { EmptyCard, fmtDate, FoldAllButton, Notice, PageHead } from '@/components/education-plan/eduUi';
 import { VersionHistory } from '@/components/education-plan/VersionHistory';
@@ -20,6 +20,7 @@ import { numberGoals } from '@/models/education-plan/goalTable';
 import { LoadingState } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
+import { useDocEditMode } from '@/hooks/education-plan/useDocEditMode';
 import { useManualSave } from '@/hooks/education-plan/useManualSave';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
@@ -138,6 +139,7 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
   const split = dayPlans.length > 0 || themeDossiers.length > 0;
   const days = mode === 'days';
   const saved = split && days ? savedDay : savedWeek;
+  const [editMode, setEditMode] = useDocEditMode(`${user?.id}:${dayPage ? 'day' : 'theme'}:${classId}`);
   const [draft, setDraft] = useState(null);
   const [dirty, setDirty] = useState(false);
   const [tab, setTab] = useState(days ? '0' : 'week');
@@ -284,7 +286,7 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
   if (!canComposeClassDocs && !saved) return <StatusPage kind="404" title="Kế hoạch chưa được ban hành hoặc không thuộc phạm vi xem" />;
   if (!draft) return <LoadingState />;
 
-  const editable = contentEditable;
+  const editable = contentEditable && editMode;
   // Quyền sửa do BE quyết định (bản chưa ban hành sửa được cả tuần đã tới sau khi mở hạn); FE không tự khóa theo ngày
   const sharedEditable = editable;
   const dayEditable = () => editable;
@@ -296,6 +298,11 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
     if (doc) toast('Đã chép kế hoạch tuần cũ. Sửa các ô đỏ trước khi gửi duyệt kế hoạch giáo dục ngày.');
   };
   const fromTemplate = () => setDirty(true);
+  // Bỏ cờ đang sửa thì trang nạp lại bản đã lưu (bỏ thay đổi khi chọn "Không lưu")
+  const stopEditing = () => {
+    setDirty(false);
+    setEditMode(false);
+  };
   const flagEdit = (fn) => update((d) => fn(d));
   const containerKey = saved?.containerKey || savedWeek?.containerKey;
   const container =
@@ -614,6 +621,11 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
                 )}
               </>
             )}
+            {contentEditable && !editMode && (
+              <Button variant="primary" size="sm" icon={Pencil} onClick={() => setEditMode(true)}>
+                {saved ? 'Chỉnh sửa' : 'Soạn'}
+              </Button>
+            )}
             {editable && (
               <>
                 <p className="muted text-sm ga-year-save-status" aria-live="polite">
@@ -627,17 +639,10 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
                   linesOf={docLines}
                   onUse={(entry) => (entry ? saver.restoreDraft(entry) : saver.restoreSaved())}
                 />
-                {/* Trang luôn ở chế độ sửa: Hủy về Kế hoạch giáo dục chủ đề của lớp, còn thay đổi chưa lưu thì hỏi (Tiền 13/11/2026) */}
-                {!dayPage && (
-                  <Button
-                    variant="outline-primary"
-                    size="sm"
-                    disabled={saver.saving}
-                    onClick={() => guard.leave(planPath(`/education/theme-plans/${classId}`))}
-                  >
-                    <X size={16} aria-hidden /> Hủy
-                  </Button>
-                )}
+                {/* Hủy về chế độ xem, còn thay đổi chưa lưu thì hỏi (Tiền 28/11/2026) */}
+                <Button variant="outline-primary" size="sm" disabled={saver.saving} onClick={() => guard.leave(stopEditing)}>
+                  <X size={16} aria-hidden /> Hủy
+                </Button>
                 <Button
                   variant="primary"
                   size="sm"

@@ -1,17 +1,16 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Card, EduStatusBadge, EmptyState, PageHead, fmtDate } from '@/components/education-plan/eduUi';
 import { FilterSelect } from '@/components/education-plan/planUi';
 import { DeadlineBadge } from '@/components/education-plan/DeadlineWidgets';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { useAsync } from '@/hooks/useAsync';
+import { clearDocEditing } from '@/hooks/education-plan/useDocEditMode';
 import { getClassDocSummaries } from '@/services/education-plan/educationPlanService';
 import { ageRangeOptions, sameAgeRange } from '@/models/education-plan/educationPlanConstants';
-import { Eye, Pencil } from '@/components/ui/icons';
 import { ErrorState, LoadingState } from '@/components/ui/States';
 import { Pagination } from '@/components/ui/Pagination';
 import { Checkbox } from '@/components/form/Checkbox';
-import { Button } from '@/components/ui/Button';
 import { DataTable } from '@/components/ui/DataTable';
 
 const PAGE_SIZE = 10;
@@ -42,6 +41,8 @@ export default function ClassDocListPage({ kind }) {
   const [classId, setClassId] = useState('');
   const [page, setPage] = useState(1);
   const [showOld, setShowOld] = useState(false);
+  // Mở hồ sơ từ danh sách luôn bắt đầu ở chế độ xem
+  useEffect(clearDocEditing, []);
   const groupClasses = classes.filter((c) => !ageGroupId || sameAgeRange(c.ageGroupId, ageGroupId));
   const scopedClassId = groupClasses.some((c) => c.id === classId) ? classId : '';
   const classIds = scopedClassId ? [scopedClassId] : ageGroupId ? groupClasses.map((c) => c.id) : [];
@@ -154,26 +155,6 @@ export default function ClassDocListPage({ kind }) {
                 render: (d) => <EduStatusBadge status={d.status} doc={d} />,
               },
               { key: 'deadline', header: 'Hạn', className: 'center nowrap', render: (d) => <DeadlineBadge doc={d} /> },
-              {
-                key: 'actions',
-                header: 'Thao tác',
-                className: 'cell--actions',
-                // Còn sửa được (BE trả quyền) thì Chỉnh sửa; đã gửi duyệt, đã ban hành, bản cũ hoặc không có quyền sửa thì Xem
-                render: (d) => (
-                  <Button
-                    variant="outline-primary"
-                    size="sm"
-                    icon={d.permissions?.canEdit && !d.superseded ? Pencil : Eye}
-                    className="nowrap"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      navigate(meta.to(d));
-                    }}
-                  >
-                    {d.permissions?.canEdit && !d.superseded ? 'Chỉnh sửa' : 'Xem'}
-                  </Button>
-                ),
-              },
             ]}
           />
         )}
