@@ -1,6 +1,6 @@
 import { ApiError, readDb, writeDb } from '@/mocks/mockDatabase';
 import { ensureChildRecordsSeeded } from '@/services/children/mock/childrenMockRepository';
-import { canActivateParent, canEditChild } from '@/utils/children/childrenPermissions';
+import { canActivateParentsAt, canEditChild, canProposeChildEdit } from '@/utils/children/childrenPermissions';
 import { isValidPhone, normalizePhone } from '@/utils/children/childrenValidation';
 import { uid } from '@/utils/id';
 import { parentAccountOf } from '@/services/account/mock/guardianCompatibility';
@@ -29,7 +29,8 @@ function decide(id, actor, status, note) {
     const row = db.phoneChangeRequests?.find((r) => r.id === id);
     if (!row || row.status !== 'PENDING') throw new ApiError(409, 'Yêu cầu không còn chờ duyệt.');
     const { child, guardian } = target(db, row.childId, row.guardianId);
-    if (!canActivateParent(child, actor)) throw new ApiError(403, 'Không có quyền duyệt yêu cầu.');
+    if (!canActivateParentsAt(child.campusId, actor)) throw new ApiError(403, 'Không có quyền duyệt yêu cầu.');
+    if (child.status === 'LEFT') throw new ApiError(409, 'Trẻ đã nghỉ học. Từ chối yêu cầu này.');
     if (status === 'APPROVED') {
       if (normalizePhone(guardian.phone) !== normalizePhone(row.oldPhone)) throw new ApiError(409, 'Số cũ đã thay đổi.');
       checkAvailable(db, row.newPhone, guardian.phone);
@@ -54,7 +55,7 @@ export const phoneChangeMock = {
     ensureChildRecordsSeeded();
     return writeDb((db) => {
       const { child, guardian } = target(db, childId, guardianId);
-      if (!canEditChild(child, actor)) throw new ApiError(403, 'Không có quyền sửa hồ sơ.');
+      if (!canEditChild(child, actor) && !canProposeChildEdit(child, actor)) throw new ApiError(403, 'Không có quyền sửa hồ sơ.');
       const phone = checkAvailable(db, newPhone, guardian.phone);
       if (!reason?.trim() || reason.trim().length > 300) throw new ApiError(422, 'Nhập lý do đổi số (tối đa 300 ký tự).');
       const requests = (db.phoneChangeRequests ||= []);
@@ -80,7 +81,7 @@ export const phoneChangeMock = {
         requestedAt: new Date().toISOString(),
       };
       requests.unshift(row);
-      return { ...row, canDecide: canActivateParent(child, actor) };
+      return { ...row, canDecide: canActivateParentsAt(child.campusId, actor) };
     });
   },
   listPhoneChangeRequests(status, actor) {
@@ -88,7 +89,7 @@ export const phoneChangeMock = {
     const db = readDb();
     return (db.phoneChangeRequests || []).flatMap((row) => {
       const child = db.children.find((c) => c.id === row.childId);
-      if (!child || !canActivateParent(child, actor) || (status && row.status !== status)) return [];
+      if (!child || !canActivateParentsAt(child.campusId, actor) || (status && row.status !== status)) return [];
       return [{ ...row, canDecide: row.status === 'PENDING' }];
     });
   },

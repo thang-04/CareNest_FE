@@ -214,7 +214,7 @@ export default function EditChildPage() {
           accountGuardianIds={accountIds}
           accountOf={accountOf}
           childId={id}
-          onPhoneChange={proposing ? undefined : setPhoneGuardian}
+          onPhoneChange={setPhoneGuardian}
         />
       </section>
       <section className="card wizard-card">
