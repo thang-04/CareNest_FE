@@ -59,7 +59,7 @@ Nguồn [BE spec013](../../../CareNest_BE/specs/013-published-year-plan-visibili
 ## Spec 002 — duyệt, quyền xem, chủ đề nhánh (10/11/2026, BE:EDU-73)
 
 - Chủ đề nhánh trong bản tổ Nháp: Tổ trưởng hiện hành thêm (ô "Thêm chủ đề nhánh / dự án của …"), sửa tên/ngày; nút xóa chỉ hiện với nhánh do tổ thêm (`sourceTemplateId` rỗng). Trang Chủ đề / Chủ đề nhánh của lớp: GV chủ nhiệm thêm nhánh bằng cách chọn ngày ở tuần trống, xóa nhánh do lớp thêm qua hộp xác nhận.
-- Danh sách năm/tổ hiển thị đúng dữ liệu BE trả (BE chỉ trả bản đã ban hành cho người không phụ trách), không lọc lại ở client; trống ⇒ "Chưa có bản ban hành".
+- Danh sách năm/tổ hiển thị dữ liệu theo phạm vi BE trả. Nếu người chỉ xem chưa có bản đã ban hành trong danh sách, trang năm học hiện “Kế hoạch năm học chưa được ban hành” và trang tổ hiện “Kế hoạch giáo dục tổ chưa được ban hành” (EDU-73, Tiền 28/11/2026).
 - Trang Duyệt (`/education/plan-reviews`) đọc `GET /education-plans/goals/review-queue` + tài liệu lớp, tự làm mới mỗi 20 s khi tab hiển thị và khi quay lại tab (`hooks/usePolling.js`); mỗi dòng hiện "Ghi chú: …" của lần gửi gần nhất. Thẻ "Chờ bạn duyệt" ở danh sách (HT/PHT) đếm theo hàng chờ, bấm sang trang Duyệt.
 - Chi tiết kế hoạch: mở được bản Chờ duyệt theo id (không có trong danh sách); 403 hiện "Bản này chưa ban hành". Hiện ghi chú khi gửi, báo "Đã có bản mới hơn" khi bản đã ban hành bị thay, "Lịch sử duyệt" mở sẵn (BE chỉ trả cho người soạn/duyệt), "Các bản đã ban hành" cho kế hoạch tổ. Hồ sơ chủ đề lớp có "Các bản đã ban hành" mở bản xem trước từ nội dung lúc ban hành.
 - Email thông báo và chuông thông báo cho sự kiện duyệt: hoãn (BE chưa có loại thông báo EDU; facade thông báo FE còn chạy demo).

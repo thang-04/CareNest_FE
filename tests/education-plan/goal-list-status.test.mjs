@@ -19,7 +19,7 @@ const ROLES={VICE_PRINCIPAL:'vp', PRINCIPAL:'principal', TEAM_LEADER:'leader'}, 
 const isEduVicePrincipal=()=>context.role===ROLES.VICE_PRINCIPAL, canEduApprove=()=>true;
 const DEFAULT_WORKFLOW_POLICY={schoolYear:{creators:['vp'],reviewers:['principal']},year:{creators:['leader'],reviewers:['vp']}};
 const allGoalItems=()=>[], clickableRowProps=()=>({}), fmtDate=(value)=>value || '—';
-const Card=({children})=><section>{children}</section>, PageHead=({actions})=><header>{actions}</header>, StatCard=({label,value})=><span data-value={value}>{label}</span>, SearchSubmit=()=>null, EmptyState=()=>null;
+const Card=({children})=><section>{children}</section>, PageHead=({actions})=><header>{actions}</header>, StatCard=({label,value})=><span data-value={value}>{label}</span>, SearchSubmit=()=>null, EmptyState=({title})=><h2>{title}</h2>;
 const Link=({children,to})=><a href={to}>{children}</a>, Plus=()=>null, RotateCcw=()=>null;
 const YearPlanStatusBadge=({status})=><span data-status={status}>{status}</span>;
 const VersionBadge=()=> <span className="chip">Phiên bản màu</span>;
@@ -59,6 +59,25 @@ test('thẻ thống kê phân biệt kế hoạch giáo dục tổ và kế ho�
   assert.match(team, /Kế hoạch giáo dục tổ/);
   assert.doesNotMatch(team, /Kế hoạch trong năm học/);
   assert.match(annual, /Kế hoạch trong năm học/);
+});
+
+test('danh sách trống phân biệt thông báo cho người chỉ xem và người soạn theo loại kế hoạch', () => {
+  const { goals, role } = context;
+  try {
+    context.goals = [];
+    const emptyTitle = (planLevel) => renderToStaticMarkup(React.createElement(GoalListPage, { planLevel })).match(/<h2>([^<]*)<\/h2>/)?.[1];
+
+    context.role = 'principal';
+    assert.equal(emptyTitle('SCHOOL_YEAR'), 'Kế hoạch năm học chưa được ban hành');
+    assert.equal(emptyTitle('TEAM'), 'Kế hoạch giáo dục tổ chưa được ban hành');
+
+    context.role = 'vp';
+    assert.equal(emptyTitle('SCHOOL_YEAR'), 'Chưa có kế hoạch năm học');
+    context.role = 'leader';
+    assert.equal(emptyTitle('TEAM'), 'Chưa có kế hoạch giáo dục tổ');
+  } finally {
+    Object.assign(context, { goals, role });
+  }
 });
 
 test('hiệu trưởng thấy đúng danh sách BE trả (BE chỉ trả bản đã ban hành — spec 002 FR-007), bản cũ là thay thế', () => {

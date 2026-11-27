@@ -180,7 +180,7 @@ export default function GoalListPage({ planLevel = 'TEAM' }) {
         ) : rows.length === 0 ? (
           <EmptyState
             // Người chỉ xem chỉ thấy bản đã ban hành (BE spec 002 FR-011)
-            title={isYearCreator ? `Chưa có ${pageLabel.toLowerCase()}` : 'Chưa có bản ban hành'}
+            title={isYearCreator ? `Chưa có ${pageLabel.toLowerCase()}` : `${pageLabel} chưa được ban hành`}
           />
         ) : (
           <div className="table-wrap">
