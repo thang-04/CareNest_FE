@@ -11,7 +11,7 @@ import { useHealthCheckClass } from '@/hooks/children/useHealthChecks';
 import { BmiStatusBadge, ConclusionCategoryBadge, FollowUpLevelBadge } from '@/components/children/ChildBadges';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Modal } from '@/components/ui/Modal';
-import { EmptyState, LoadingState } from '@/components/ui/States';
+import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
 import { RowActions } from '@/components/ui/RowActions';
 import { HealthWarningCell } from '@/components/children/HealthWarningCell';
 import { MeasurementDetailModal } from '@/components/children/MeasurementDetailModal';
@@ -56,8 +56,23 @@ export default function ChildHealthRecordPage() {
     [record, from, to, warningsOnly],
   );
   const child = record?.child;
-  const { roster } = useHealthCheckClass(record?.openCampaign?.id, child?.classId);
-  const absentToday = roster?.children?.find((row) => String(row.childId) === String(id))?.absentToday;
+  const {
+    roster,
+    loading: rosterLoading,
+    error: rosterError,
+    reload: reloadRoster,
+  } = useHealthCheckClass(record?.openCampaign?.id, child?.classId);
+  const rosterChild = roster?.children?.find((row) => String(row.childId) === String(id));
+  const absentToday = rosterChild?.absentToday;
+  const entryDisabledReason = rosterError
+    ? 'Chưa kiểm tra được tình trạng đi học. Thử tải lại danh sách lớp.'
+    : rosterLoading || !roster
+      ? 'Đang kiểm tra tình trạng đi học của trẻ.'
+      : !rosterChild
+        ? 'Trẻ không có trong danh sách nhập của lớp.'
+        : absentToday
+          ? ABSENT_TODAY_HINT
+          : '';
   const crumbs = childrenCrumbs(childCrumb(child), 'Sổ sức khỏe');
 
   if (loading)
@@ -94,8 +109,8 @@ export default function ChildHealthRecordPage() {
     canRecord && open?.kind === CAMPAIGN_KIND.EXAM && open.resultStatus !== EXAM_STATUS.CONCLUDED && open.resultStatus !== 'LEGACY';
   const entryLink = (to, label, icon, primary = false) => {
     const className = primary ? 'btn btn--primary' : 'btn';
-    return absentToday ? (
-      <Button className={className} disabledReason={ABSENT_TODAY_HINT}>
+    return entryDisabledReason ? (
+      <Button className={className} disabledReason={entryDisabledReason}>
         {icon} {label}
       </Button>
     ) : (
@@ -133,6 +148,7 @@ export default function ChildHealthRecordPage() {
           {measureAction}
         </div>
       </div>
+      {(canMeasure || examOpen) && rosterError && <ErrorState error={rosterError} onRetry={reloadRoster} />}
       <div className="row gap-3">
         <span>
           Kết quả khám gần nhất:{' '}
