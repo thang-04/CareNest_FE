@@ -65,8 +65,8 @@ export default function ImportChildrenPage() {
               <Link className="btn" to="/children">
                 Về danh sách trẻ
               </Link>
-              <Link className="btn btn--primary" to="/children/placement">
-                <LayoutGrid size={16} /> Xếp lớp cho trẻ mới
+              <Link className="btn btn--primary" to={draft?.schoolYearStatus === 'PLANNED' ? '/school/placement' : '/children/placement'}>
+                <LayoutGrid size={16} /> {draft?.schoolYearStatus === 'PLANNED' ? 'Xếp lớp năm học mới' : 'Xếp lớp cho trẻ mới'}
               </Link>
             </div>
           </div>

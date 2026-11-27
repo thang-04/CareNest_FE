@@ -2,6 +2,13 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { beforeEach, test } from 'node:test';
 
+test('planned import result links to new-year placement', () => {
+  const page = readFileSync('src/pages/children/ImportChildrenPage.jsx', 'utf8');
+  assert.match(page, /schoolYearStatus === 'PLANNED' \? '\/school\/placement' : '\/children\/placement'/);
+  assert.ok(page.includes('Xếp lớp năm học mới'));
+  assert.match(readFileSync('src/components/children/ImportChildrenModal.jsx', 'utf8'), /schoolYearStatus: intakeYear\.status/);
+});
+
 const storage = new Map();
 globalThis.localStorage = {
   getItem: (k) => storage.get(k) ?? null,
