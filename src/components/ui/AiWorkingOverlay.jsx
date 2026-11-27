@@ -6,8 +6,6 @@ import { LottiePlayer } from './LottiePlayer';
 import { modalStack } from './modalStack';
 
 const STEP_MS = 900;
-// Nút Hủy chỉ hiện khi đã chờ lâu, tránh bấm vội làm phí lượt AI
-const CANCEL_AFTER_MS = 10_000;
 // Hoạt hình theo ngữ cảnh (user chọn): thực đơn = "Prepare Food", việc AI soạn chữ khác = giấy đang được viết
 const ART = {
   cooking: { load: () => import('@/assets/lottie/prepare-food.json'), Icon: Soup },
@@ -22,7 +20,7 @@ const DEFAULT_STEPS = {
  * Lớp phủ khi AI đang chạy (ngoại lệ có blur của DESIGN.md): mặc định phủ cả màn, trên modal, dưới toast.
  * kind: 'cooking' (thực đơn) | 'writing'. `scoped`: chỉ phủ khối cha có `position: relative`.
  * `lock`: khóa cả bàn phím trong lúc chờ (kế hoạch giáo dục: mỗi lúc chỉ một việc AI).
- * `onCancel`: sau 10 giây hiện nút Hủy.
+ * `onCancel`: hiện nút Hủy ngay từ đầu (Tiền 28/11/2026).
  */
 export function AiWorkingOverlay({
   kind = 'writing',
@@ -34,14 +32,6 @@ export function AiWorkingOverlay({
 }) {
   const [step, setStep] = useState(0);
   const art = ART[kind] || ART.writing;
-  const [canCancel, setCanCancel] = useState(false);
-  const cancellable = !!onCancel;
-
-  useEffect(() => {
-    if (!cancellable) return undefined;
-    const id = setTimeout(() => setCanCancel(true), CANCEL_AFTER_MS);
-    return () => clearTimeout(id);
-  }, [cancellable]);
 
   useEffect(() => {
     if (steps.length < 2) return undefined;
@@ -60,7 +50,7 @@ export function AiWorkingOverlay({
   // Lớp phủ chỉ chặn chuột: bỏ focus và nuốt phím để không gõ, Enter hay Ctrl+S phía dưới (vẫn cho tải lại trang)
   useEffect(() => {
     if (!lock) return undefined;
-    document.activeElement?.blur?.();
+    if (!document.activeElement?.closest?.('.ai-veil')) document.activeElement?.blur?.();
     const stop = (e) => {
       // Phím trên nút của lớp phủ (Enter/Space ở nút Hủy) vẫn dùng được
       if (e.target?.closest?.('.ai-veil')) return;
@@ -86,7 +76,7 @@ export function AiWorkingOverlay({
             {steps[step]}
           </div>
         )}
-        {canCancel && (
+        {onCancel && (
           <>
             <Button autoFocus onClick={onCancel}>
               Hủy
