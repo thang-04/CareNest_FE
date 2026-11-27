@@ -8,6 +8,7 @@ import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { LoadingState, Spinner } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
 import { FormField } from '@/components/form/FormField';
+import { PhoneChangeModal } from '@/components/children/PhoneChangeModal';
 import { ChildInfoFields } from '@/components/children/ChildInfoFields';
 import { ChildAccessState } from '@/components/children/ChildAccessState';
 import { submitProfileChange, updateChild } from '@/services/children/childrenService';
@@ -31,6 +32,7 @@ export default function EditChildPage() {
   const navigate = useNavigate();
   const { detail, loading, error, reload } = useChildDetail(id, { live: false });
   const [form, setForm] = useState(null);
+  const [phoneGuardian, setPhoneGuardian] = useState(null);
   const [reason, setReason] = useState('');
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
@@ -45,6 +47,7 @@ export default function EditChildPage() {
         dateOfBirth: c.dateOfBirth,
         gender: c.gender,
         guardians: c.guardians.map((g) => ({
+          id: g.id,
           fullName: g.fullName,
           relation: g.relation,
           phone: g.phone,
@@ -191,6 +194,7 @@ export default function EditChildPage() {
           accountGuardianIds={accountIds}
           accountOf={accountOf}
           childId={id}
+          onPhoneChange={proposing ? undefined : setPhoneGuardian}
         />
       </section>
       <section className="card wizard-card">
@@ -207,6 +211,7 @@ export default function EditChildPage() {
           />
         </FormField>
       </section>
+      {phoneGuardian && <PhoneChangeModal childId={id} guardian={phoneGuardian} onClose={() => setPhoneGuardian(null)} />}
       <div className="page-actions">{actions}</div>
     </div>
   );

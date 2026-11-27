@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/Button';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { DateInput } from '@/components/form/DateInput';
 import { normalizeRecipients } from '@/utils/children/accountRecipient';
@@ -59,6 +60,7 @@ export function ChildInfoFields({
   accountOf = () => null,
   accountReadOnly = false,
   childId = null,
+  onPhoneChange,
   split = false,
   sheet = false,
   photosEnabled = false,
@@ -295,6 +297,7 @@ export function ChildInfoFields({
                       onChange={(e) => setGuardian(i, 'phone', e.target.value)}
                       onBlur={() => onBlurField?.(`guardians.${i}.phone`)}
                     />
+                    {g.savedPhone && g.id && onPhoneChange && <Button size="sm" onClick={() => onPhoneChange(g)}>Đổi số</Button>}
                   </IntakeField>
                   <IntakeField
                     sheet={sheet}
