@@ -121,7 +121,7 @@ test('after cutoff: attendance reopening preserves meals and meal correction use
   const api = readFileSync('src/services/attendance/api/attendanceApi.js', 'utf8');
   const mock = readFileSync('src/services/attendance/mock/attendanceMockRepository.js', 'utf8');
   assert.match(page, /meals: current\?\.meals \|\| noneIn/);
-  assert.match(page, /correctMealParticipation\(\{ classId, childId: row\.child\.id, date, participates \}, user\)/);
+  assert.match(page, /correctMealParticipation\(\{ classId, childId: row\.child\.id, date, participates, meals \}, user\)/);
   assert.match(page, /editable && !day\?\.baseLocked && !leaveLocked\(row\)/);
   assert.match(page, /editable && day\?\.baseLocked && date === day\?\.today && !leaveLocked\(row\)/);
   assert.match(api, /attendance\/children\/\$\{childId\}\/meal-participation/);

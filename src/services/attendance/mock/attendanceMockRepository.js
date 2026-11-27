@@ -808,7 +808,7 @@ export const attendanceMockRepository = {
   },
 
   /** ATT-02a: sau giờ chốt, GV chỉ được sửa nhầm báo ăn của hôm nay khi số suất chưa xác nhận. */
-  async correctMealParticipation({ classId, childId, date, participates }, user) {
+  async correctMealParticipation({ classId, childId, date, participates, meals }, user) {
     await delay();
     return writeDb((db) => {
       const cls = findClass(db, classId);
@@ -829,7 +829,7 @@ export const attendanceMockRepository = {
       const at = new Date().toISOString();
       record.meals = {
         ...allMeals(false, classSessions(db, cls)),
-        ...Object.fromEntries(served.map((session) => [session, !!participates])),
+        ...Object.fromEntries(served.map((session) => [session, meals ? !!meals[session] : !!participates])),
       };
       record.recordedBy = user.id;
       record.recordedAt = at;
