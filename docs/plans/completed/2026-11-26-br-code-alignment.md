@@ -180,7 +180,7 @@ status: done
 
 - [x] `npm run api-index -- --from ../be-school-year-scope`; `check-api-contract --sync --from ../be-school-year-scope`; commit `G94-180: Sync BE API contract for BR alignment`.
 - [x] `npm test` (PowerShell) — all pass.
-- [x] Update FE docs for intake/health/pickup UI; plan `status: completed`, move to `docs/plans/completed/`; commit.
+- [x] Update FE docs for intake/health/pickup UI; plan `status: done`, move to `docs/plans/completed/`; commit.
 - [x] Controller (not subagent): re-shoot screens 5.1.1, 5.1.2, 5.2.2, 5.2.4, 5.3.1, 6.1.3, 6.1.5, 6.2.1, 6.3.2 and regenerate `FR-III-5-6-ho-so-tre-suc-khoe-don-tre-2026-11-24.docx`; mark items done in `report/sua_sau/CODE-can-sua-theo-BR-2026-11-26.md`.
 
 ## Completion log — 27/11/2026
