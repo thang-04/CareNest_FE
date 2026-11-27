@@ -59,7 +59,7 @@ export const getDevelopmentChildren = async (params, user) => {
 export const getEvaluations = (kind, filters, user) => (be ? be.getEvaluations(kind, filters) : repo.listEvaluations(kind, filters, user));
 export const getEvaluation = (kind, id, user) => (be || repo).getEvaluation(kind, id, user);
 export const saveEvaluationDraft = (kind, id, content, user) => (be || repo).saveEvaluationDraft(kind, id, content, user);
-export const confirmEvaluation = (kind, id, content, user) => (be || repo).confirmEvaluation(kind, id, content, user);
+export const confirmEvaluation = (kind, id, content, user, revision) => (be || repo).confirmEvaluation(kind, id, content, user, revision);
 export const regenerateEvaluationDraft = (kind, id, user, ai = false) => (be || repo).regenerateEvaluationDraft(kind, id, user, ai);
 export const markProgramCompletion = (id, completed, user) => (be || repo).markProgramCompletion(id, completed, user);
 export const getYearEndSheet = (id, user) => (be || repo).getYearEndSheet(id, user);
@@ -96,6 +96,8 @@ export const getThemeList = (params, user) => (be || repo).getThemeList(params, 
 export const getThemeEvaluation = (params, user) => (be || repo).getThemeEvaluation(params, user);
 export const saveThemeEvaluation = (body, user) => (be || repo).saveThemeEvaluation(body, user);
 export const confirmThemeEvaluation = (body, user) => (be || repo).confirmThemeEvaluation(body, user);
+// Chỉ BE trả canRevise nên bản demo không gọi tới
+export const getThemeRevision = (params) => (be || notConnected).getThemeRevision(params);
 export const saveClassRatings = (body, user) => (be || repo).saveClassRatings(body, user);
 export const getClassAssessmentDetail = (params, user) => (be || repo).getClassAssessmentDetail(params, user);
 export const issueTickets = (body, user) => (be || repo).issueTickets(body, user);
@@ -111,3 +113,4 @@ const semesterBackend = () => be || notConnected;
 export const getSemesterAssessment = (params) => semesterBackend().getSemesterAssessment(params);
 export const saveSemesterAssessment = (body) => semesterBackend().saveSemesterAssessment(body);
 export const confirmSemesterAssessment = (body) => semesterBackend().confirmSemesterAssessment(body);
+export const getSemesterRevision = (params) => semesterBackend().getSemesterRevision(params);

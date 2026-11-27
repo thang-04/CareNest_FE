@@ -16,7 +16,8 @@ import { AssessmentFormHeading } from '@/components/assessment/AssessmentFormHea
 import { useToast } from '@/contexts/ToastContext';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { useThemeClasses, useThemeEvaluation, useThemeList } from '@/hooks/assessment/useAssessment';
-import { confirmThemeEvaluation, saveThemeEvaluation } from '@/services/assessment/assessmentService';
+import { confirmThemeEvaluation, getThemeRevision, saveThemeEvaluation } from '@/services/assessment/assessmentService';
+import { Button } from '@/components/ui/Button';
 import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';
 import { themeEvaluationFile } from '@/utils/assessment/themeEvaluationDoc';
 import { exportWithPreview } from '@/components/ui/ExportPreview';
@@ -122,7 +123,27 @@ export default function ThemeEvaluationPage() {
       setConfirmOpen(false);
     }
   };
-  const save = () => run('save', saveThemeEvaluation, 'Đã lưu đánh giá cuối chủ đề.');
+  // Đang sửa bản đã xác nhận thì không có lưu nháp
+  const save = () => {
+    if (ev?.revising) {
+      toast.warning('Bấm Xác nhận lại để lưu bản sửa, hoặc bỏ thay đổi để rời trang.', 'Đang sửa bản đã xác nhận');
+      return false;
+    }
+    return run('save', saveThemeEvaluation, 'Đã lưu đánh giá cuối chủ đề.');
+  };
+  // OBS-30: sửa bản đã xác nhận; phụ huynh vẫn thấy bản cũ cho tới khi cô xác nhận lại
+  const revising = !!ev?.revising;
+  const startRevision = async () => {
+    setBusy('revise');
+    try {
+      const draft = await getThemeRevision({ classId: Number(currentClassId), themeId: Number(currentThemeId) });
+      setEvaluation({ ...draft, revising: true });
+    } catch (err) {
+      toast.error(err, 'Chưa sửa lại được đánh giá');
+    } finally {
+      setBusy('');
+    }
+  };
 
   const exportExcel = () => {
     if (!ev) return;
@@ -413,9 +434,21 @@ export default function ThemeEvaluationPage() {
                   {`Tối đa ${NOTE_MAX} ký tự (đang ${note.length}).`}
                 </span>
               )}
+              {ev.canRevise && (
+                <div className="row gap-2 mt-12 sc-end">
+                  <Button onClick={startRevision} loading={busy === 'revise'} disabled={!!busy}>
+                    Sửa lại
+                  </Button>
+                </div>
+              )}
               {(canEdit || canConfirm) && (
                 <div className="row gap-2 mt-12 sc-end">
-                  {canEdit && (
+                  {revising && (
+                    <Button onClick={() => reload()} disabled={!!busy}>
+                      Hủy sửa
+                    </Button>
+                  )}
+                  {canEdit && !revising && (
                     <button className="btn" onClick={save} disabled={!!busy || !changed}>
                       {busy === 'save' ? <Spinner small /> : <Save size={16} />} Lưu
                     </button>
@@ -427,7 +460,7 @@ export default function ThemeEvaluationPage() {
                       disabled={!!busy || !canConfirm}
                       title={ev.canConfirm ? '' : 'Xác nhận được từ ngày kết thúc chủ đề'}
                     >
-                      <CheckCircle2 size={16} /> Xác nhận đánh giá
+                      <CheckCircle2 size={16} /> {revising ? 'Xác nhận lại' : 'Xác nhận đánh giá'}
                     </button>
                   )}
                 </div>
@@ -439,7 +472,11 @@ export default function ThemeEvaluationPage() {
       <ConfirmationModal
         open={confirmOpen}
         title="Xác nhận đánh giá cuối chủ đề?"
-        message="Bảng sẽ được lưu cố định để in và cho tổ trưởng, Ban giám hiệu xem. Đã xác nhận thì không sửa được."
+        message={
+          revising
+            ? 'Bản mới sẽ thay bản đã xác nhận, phụ huynh được thông báo. Bản cũ vẫn được lưu.'
+            : 'Bảng sẽ được lưu cố định để in và cho tổ trưởng, Ban giám hiệu xem. Muốn sửa sau đó phải còn hạn hoặc được mở lại.'
+        }
         confirmLabel="Xác nhận đánh giá"
         onConfirm={() => run('confirm', confirmThemeEvaluation, 'Đã xác nhận đánh giá cuối chủ đề.')}
         onClose={() => setConfirmOpen(false)}

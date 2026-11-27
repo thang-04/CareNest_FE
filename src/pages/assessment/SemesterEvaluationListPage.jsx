@@ -16,7 +16,12 @@ import { useToast } from '@/contexts/ToastContext';
 import { useAsync } from '@/hooks/useAsync';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { useThemeClasses } from '@/hooks/assessment/useAssessment';
-import { getSemesterAssessment, saveSemesterAssessment, confirmSemesterAssessment } from '@/services/assessment/assessmentService';
+import {
+  getSemesterAssessment,
+  saveSemesterAssessment,
+  confirmSemesterAssessment,
+  getSemesterRevision,
+} from '@/services/assessment/assessmentService';
 import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';
 import { inlineErrors } from '@/utils/assessment/assessmentValidation';
 import { semesterConfirmBlockedNote } from '@/utils/assessment/semesterConfirmReason';
@@ -26,6 +31,7 @@ import { formatDate, formatDateTime } from '@/utils/format';
 import { semestersOf } from '@/utils/semesters';
 import { PERMISSIONS } from '@/models/bePermissions';
 import { hasBePermission } from '@/utils/bePermissions';
+import { Button } from '@/components/ui/Button';
 import '@/styles/modules/assessment.css';
 
 export default function SemesterEvaluationListPage() {
@@ -85,6 +91,10 @@ export default function SemesterEvaluationListPage() {
   const dirty = !!board && canEdit && note !== (board.note || '');
   const run = async (confirm = false) => {
     if (!board || busy) return false;
+    if (board.revising && !confirm) {
+      toast.warning('Bấm Xác nhận lại để lưu bản sửa, hoặc bỏ thay đổi để rời trang.', 'Đang sửa bản đã xác nhận');
+      return false;
+    }
     const requestScope = scope;
     setBusy(true);
     setErrors({});
@@ -112,6 +122,23 @@ export default function SemesterEvaluationListPage() {
     }
   };
   const guard = useLeaveGuard({ when: dirty || busy, onSave: () => run() });
+  // OBS-30: sửa bản đã xác nhận; phụ huynh vẫn thấy bản cũ cho tới khi cô xác nhận lại
+  const revising = !!board?.revising;
+  const startRevision = async () => {
+    setBusy(true);
+    setErrors({});
+    try {
+      const draft = await getSemesterRevision({ classId: board.classId, semester: board.semester });
+      setData({ ...draft, revising: true });
+    } catch (e) {
+      setErrors(inlineErrors(e, ['note']));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const cancelRevision = async () => {
+    setData(await getSemesterAssessment({ classId: board.classId, semester: board.semester }));
+  };
   const visible = (board?.rows || []).filter((r) => r.fullName.toLocaleLowerCase('vi').includes(search.applied.toLocaleLowerCase('vi')));
   const cell = (r, d) => r.domains.find((c) => c.domainId === d.domainId);
   return (
@@ -332,10 +359,23 @@ export default function SemesterEvaluationListPage() {
               )}
               {errors.note && <p className="field__error">{errors.note}</p>}
             </div>
+            {board.canRevise && (
+              <div className="row gap-2 mt-16">
+                <div className="spacer" />
+                <Button onClick={startRevision} loading={busy} disabled={busy}>
+                  Sửa lại
+                </Button>
+              </div>
+            )}
             {(canEdit || hasBePermission(user, PERMISSIONS.ASSESSMENT_CONFIRM)) && (
               <div className="row gap-2 mt-16">
                 <div className="spacer" />
-                {canEdit && (
+                {revising && (
+                  <Button onClick={cancelRevision} disabled={busy}>
+                    Hủy sửa
+                  </Button>
+                )}
+                {canEdit && !revising && (
                   <button className="btn" disabled={busy || (!dirty && board.status !== 'NONE')} onClick={() => run()}>
                     <Save size={16} /> Lưu
                   </button>
@@ -348,7 +388,7 @@ export default function SemesterEvaluationListPage() {
                       title={canConfirm ? '' : confirmBlockedNote}
                       onClick={() => setConfirmOpen(true)}
                     >
-                      Xác nhận
+                      {revising ? 'Xác nhận lại' : 'Xác nhận'}
                     </button>
                     {!canConfirm && confirmBlockedNote && <p className="muted text-sm">{confirmBlockedNote}</p>}
                   </>
@@ -361,7 +401,11 @@ export default function SemesterEvaluationListPage() {
       <ConfirmationModal
         open={confirmOpen}
         title="Xác nhận đánh giá học kỳ?"
-        message="Kết quả, lĩnh vực và mục tiêu sẽ được chốt cho cả lớp; sau xác nhận không chỉnh sửa."
+        message={
+          revising
+            ? 'Bản mới sẽ thay bản đã xác nhận, phụ huynh được thông báo. Bản cũ vẫn được lưu.'
+            : 'Kết quả, lĩnh vực và mục tiêu sẽ được chốt cho cả lớp; muốn sửa sau đó phải còn hạn hoặc được mở lại.'
+        }
         onConfirm={() => run(true)}
         onClose={() => !busy && setConfirmOpen(false)}
       />
