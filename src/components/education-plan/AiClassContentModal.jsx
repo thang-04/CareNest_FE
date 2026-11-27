@@ -12,7 +12,7 @@ const SITUATION_MAX = 500;
  * BE:EDU-115: ghi tình hình lớp (không bắt buộc) trước khi AI viết lại nội dung. Nêu trước các thẻ hoạt động sẽ bị xóa nếu
  * giữ bản AI. `scopeLabel` mô tả phạm vi (tất cả / một mục tiêu / một dòng).
  */
-export function AiClassContentModal({ scopeLabel, lostCards, busy, onSubmit, onClose }) {
+export function AiClassContentModal({ scopeLabel, lostCards, usedCellsOf, busy, onSubmit, onClose }) {
   const [situation, setSituation] = useState('');
   return (
     <Modal
@@ -43,7 +43,10 @@ export function AiClassContentModal({ scopeLabel, lostCards, busy, onSubmit, onC
             <span>Giữ bản AI thì các thẻ hoạt động sau bị xóa:</span>
             <ul>
               {lostCards.map((c) => (
-                <li key={c.id}>{cardText(c)}</li>
+                <li key={c.id}>
+                  {cardText(c)}
+                  {usedCellsOf(c.id) > 0 && ` (đang xếp ở ${usedCellsOf(c.id)} ô kế hoạch tuần)`}
+                </li>
               ))}
             </ul>
           </Notice>

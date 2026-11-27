@@ -345,6 +345,7 @@ export function ThemePlanBody({
                     }`
               }
               lostCards={cardsLostByRewrite(cards, rewriteGoals(rewrite.scope))}
+              usedCellsOf={usedCellsOf}
               busy={rewrite.busy}
               onSubmit={runRewrite}
               onClose={() => !rewrite.busy && setRewrite({ scope: null, busy: false })}
