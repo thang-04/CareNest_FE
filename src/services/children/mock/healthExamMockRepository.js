@@ -68,7 +68,9 @@ const contextOf = (db, campaignId, childId, user) => {
   const canViewRecorded = recordedClass && campaign?.campusId === recordedClass.campusId && canViewHealth(child, user, recordedClass);
   if (!campaign || !child || (!canViewRecorded && (campaign.campusId !== child.campusId || !canViewHealth(child, user, cls))))
     throw new ApiError(404, NOT_FOUND);
-  return { campaign, child, cls, m };
+  const readOnly = child.status !== CHILD_STATUS.ACTIVE || !cls || campaign.campusId !== cls.campusId || !canViewHealth(child, user, cls);
+  if (readOnly && !m) throw new ApiError(404, NOT_FOUND);
+  return { campaign, child, cls, m, readOnly };
 };
 
 const clampDate = (campaign, today = todayInput()) =>
@@ -347,7 +349,7 @@ const diffExam = (before, after) => {
 };
 
 /* ---------- View ---------- */
-const toExamView = (db, { campaign, child, cls, m }, user) => {
+const toExamView = (db, { campaign, child, cls, m, readOnly = false }, user) => {
   const open = isOpenForEntry(campaign);
   const legacy = !!m && !m.exam;
   const date = examDateOf(campaign, m);
@@ -408,8 +410,8 @@ const toExamView = (db, { campaign, child, cls, m }, user) => {
           .map((x) => x.exam.conclusion.doctorName),
       ),
     ].sort((a, b) => a.localeCompare(b, 'vi')),
-    canEdit: open && !legacy && child.status === CHILD_STATUS.ACTIVE && canRecordMeasurement(child, user, cls),
-    locked: !open || child.status !== CHILD_STATUS.ACTIVE || !canRecordMeasurement(child, user, cls),
+    canEdit: !readOnly && open && !legacy && child.status === CHILD_STATUS.ACTIVE && canRecordMeasurement(child, user, cls),
+    locked: readOnly || !open || child.status !== CHILD_STATUS.ACTIVE,
   };
 };
 
@@ -443,7 +445,7 @@ export const healthExamMockRepository = {
     const db = ensureChildRecordsSeeded();
     const ctx = contextOf(db, campaignId, childId, user);
     const { campaign, child, cls, m } = ctx;
-    if (!canRecordMeasurement(child, user, cls) || child.status !== CHILD_STATUS.ACTIVE) forbid();
+    if (ctx.readOnly || !canRecordMeasurement(child, user, cls) || child.status !== CHILD_STATUS.ACTIVE) forbid();
     if (!isOpenForEntry(campaign))
       throw new ApiError(409, 'Đợt khám đã đóng hoặc chưa bắt đầu. Hiệu trưởng mở lại đợt nếu cần nhập hoặc sửa phiếu.');
     if (m && !m.exam) throw new ApiError(409, 'Trẻ đã có kết quả nhập theo mẫu cũ trong đợt này. Xem ở Sổ sức khỏe.');

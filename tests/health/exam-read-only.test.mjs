@@ -67,6 +67,18 @@ test('former teacher can read a recorded exam after a class transfer', async () 
   assert.equal(view.canEdit, false);
   assert.equal(view.locked, true);
 });
+test('left child without an existing exam returns 404 rather than a new draft', async () => {
+  writeDb((db) => {
+    db.children.find((c) => c.id === childId).status = 'LEFT';
+    db.healthMeasurements = db.healthMeasurements.filter((m) => m.id !== 'readonly_exam');
+  });
+  await assert.rejects(exams.getHealthExam('hc_c1_open', childId, teacher), (e) => e.status === 404);
+});
+test('a principal viewing an active round has no edit permission without a closed-round lock', async () => {
+  const view = await exams.getHealthExam('hc_c1_open', childId, { id: 'u_hung', role: 'PRINCIPAL' });
+  assert.equal(view.canEdit, false);
+  assert.equal(view.locked, false);
+});
 test('exam access state depends on a failed request rather than edit permission', () => {
   const page = readFileSync('src/pages/children/HealthExamFormPage.jsx', 'utf8');
   assert.match(page, /if \(error \|\| !view\)/);
