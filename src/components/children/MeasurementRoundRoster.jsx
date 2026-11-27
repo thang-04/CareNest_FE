@@ -22,7 +22,7 @@ const COLS = 7;
 const PAGE_SIZE = 10;
 // Sổ dưới dòng lớp: 5 trẻ/trang để bảng lớp không bị đẩy quá dài (user yêu cầu 2026-11-11).
 const EMBEDDED_PAGE_SIZE = 5;
-const ABSENT_TODAY_HINT = 'Trẻ vắng hôm nay (điểm danh). Nhập khi trẻ có mặt.';
+import { ABSENT_TODAY_HINT } from '@/utils/children/healthRoster';
 const FILTER_DEFAULTS = { keyword: '', result: '', bmiWarning: '' };
 
 // Trẻ có cảnh báo BMI theo mức BE trả (HLT-18); chỉ để lọc hiển thị.

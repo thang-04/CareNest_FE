@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/Button';
 import { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Plus, LineChart, History, ArrowLeft, HeartPulse, RotateCcw, Stethoscope } from '@/components/ui/icons';
@@ -5,6 +6,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useChildYearLock } from '@/hooks/children/useChildYearLock';
 import { YearLockedNotice } from '@/components/children/YearLockedNotice';
 import { useHealthRecord } from '@/hooks/children/useChildRecords';
+import { ABSENT_TODAY_HINT } from '@/utils/children/healthRoster';
+import { useHealthCheckClass } from '@/hooks/children/useHealthChecks';
+import { BmiStatusBadge, ConclusionCategoryBadge, FollowUpLevelBadge } from '@/components/children/ChildBadges';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Modal } from '@/components/ui/Modal';
 import { EmptyState, LoadingState } from '@/components/ui/States';
@@ -52,6 +56,8 @@ export default function ChildHealthRecordPage() {
     [record, from, to, warningsOnly],
   );
   const child = record?.child;
+  const { roster } = useHealthCheckClass(record?.openCampaign?.id, child?.classId);
+  const absentToday = roster?.children?.find(row => String(row.childId) === String(id))?.absentToday;
   const crumbs = childrenCrumbs(childCrumb(child), 'Sổ sức khỏe');
 
   if (loading)
@@ -86,6 +92,13 @@ export default function ChildHealthRecordPage() {
   const measureLink = round ? `/children/${child.id}/health/new?campaignId=${round.id}` : '';
   const examOpen =
     canRecord && open?.kind === CAMPAIGN_KIND.EXAM && open.resultStatus !== EXAM_STATUS.CONCLUDED && open.resultStatus !== 'LEGACY';
+  const entryLink = (to, label, icon, primary = false) => {
+    const className = primary ? 'btn btn--primary' : 'btn';
+    return absentToday
+      ? <Button className={className} disabledReason={ABSENT_TODAY_HINT}>{icon} {label}</Button>
+      : <Link className={className} to={to}>{icon} {label}</Link>;
+  };
+  const measureAction = canMeasure && entryLink(measureLink, 'Nhập số đo', <Plus size={16} />, true);
   const isExam = viewing?.source === MEASUREMENT_SOURCE.EXAM;
   // Bút chì theo loại: phiếu khám mở trang phiếu ở chế độ sửa, số đo mở form số đo. Chỉ GV lớp, đợt/kỳ đang diễn ra (BE trả
   // locked; lần đo ngoài đợt luôn khóa).
@@ -105,17 +118,16 @@ export default function ChildHealthRecordPage() {
           <Link className="btn" to={`/children/health-trends?childId=${child.id}`}>
             <LineChart size={16} /> Xem xu hướng
           </Link>
-          {examOpen && (
-            <Link className="btn" to={`/children/health-checks/${open.id}/exam/${child.id}?classId=${child.classId}`}>
-              <Stethoscope size={16} /> {open.resultStatus === EXAM_STATUS.DRAFT ? 'Tiếp tục phiếu khám' : 'Khám trong đợt'}
-            </Link>
-          )}
-          {canMeasure && (
-            <Link className="btn btn--primary" to={measureLink}>
-              <Plus size={16} /> Nhập số đo
-            </Link>
-          )}
+          {examOpen && entryLink(`/children/health-checks/${open.id}/exam/${child.id}?classId=${child.classId}`,
+            open.resultStatus === EXAM_STATUS.DRAFT ? 'Tiếp tục phiếu khám' : 'Khám trong đợt', <Stethoscope size={16} />)}
+          {measureAction}
         </div>
+      </div>
+      <div className="row gap-3">
+        <span>Kết quả khám gần nhất: {record.latestExam ? <>
+          <ConclusionCategoryBadge status={record.latestExam.conclusionCategory} /> <FollowUpLevelBadge status={record.latestExam.followUpLevel} />
+        </> : 'Chưa có'}</span>
+        <span>BMI gần nhất: {record.latestBmi ? <BmiStatusBadge status={record.latestBmi.bmiStatus} /> : 'Chưa có'}</span>
       </div>
       <YearLockedNotice action="Nhập số đo, phiếu khám" subject="sức khỏe của trẻ" />
 
@@ -157,11 +169,7 @@ export default function ChildHealthRecordPage() {
                   <RotateCcw size={15} /> Đặt lại bộ lọc
                 </button>
               ) : (
-                canMeasure && (
-                  <Link className="btn btn--primary" to={measureLink}>
-                    <Plus size={16} /> Nhập số đo
-                  </Link>
-                )
+                measureAction
               )
             }
           />

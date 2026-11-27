@@ -309,3 +309,9 @@ test('DB demo cũ (seed v13): bỏ phiếu theo dõi và thông báo của nó; 
   });
   assert.equal(ensureChildRecordsSeeded().healthMeasurements.filter((m) => m.campaignId === ROUND).length, 0);
 });
+
+test('Sổ sức khỏe thể hiện vắng hôm nay và kết quả mới nhất', async () => {
+  const { readFileSync } = await import('node:fs');
+  const page = readFileSync('src/pages/children/ChildHealthRecordPage.jsx', 'utf8');
+  for (const field of ['absentToday', 'ABSENT_TODAY_HINT', 'record.latestExam', 'record.latestBmi', 'Tiếp tục phiếu khám']) assert.ok(page.includes(field), field);
+});

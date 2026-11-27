@@ -6,6 +6,7 @@ import { useChildYearLock } from '@/hooks/children/useChildYearLock';
 import { YearLockedNotice } from '@/components/children/YearLockedNotice';
 import { useToast } from '@/contexts/ToastContext';
 import { useHealthRecord } from '@/hooks/children/useChildRecords';
+import { nextRosterChild } from '@/utils/children/healthRoster';
 import { useHealthCheckClass } from '@/hooks/children/useHealthChecks';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { EmptyState, LoadingState, Spinner } from '@/components/ui/States';
@@ -60,7 +61,7 @@ export default function HealthMeasurementFormPage() {
   const fromRoster = !!params.get('campaignId') && !!classId;
   // Danh sách lớp của kỳ cho nút "Lưu và nhập trẻ tiếp theo".
   const { roster } = useHealthCheckClass(!measurementId && round && fromRoster ? round.id : null, classId);
-  const next = roster?.children.find((r) => r.result === CHILD_RESULT_STATUS.NOT_RECORDED && r.childId !== id) || null;
+  const next = nextRosterChild(roster?.children, id, [CHILD_RESULT_STATUS.NOT_RECORDED]);
 
   useEffect(() => {
     setForm(emptyForm());

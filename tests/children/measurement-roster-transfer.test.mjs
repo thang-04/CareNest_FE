@@ -109,7 +109,7 @@ test('MeasurementRoundRoster: sửa theo canEdit, khóa nhập khi vắng, bỏ 
   const src = read('src/components/children/MeasurementRoundRoster.jsx');
   assert.match(src, /r\.canEdit !== false/);
   assert.match(src, /r\.absentToday/);
-  assert.match(src, /Trẻ vắng hôm nay \(điểm danh\)\. Nhập khi trẻ có mặt\./);
+  assert.match(src, /ABSENT_TODAY_HINT/);
   assert.match(src, /Vắng hôm nay/);
   assert.match(src, /Đã chuyển sang /);
   assert.match(src, /Đo ở /);
@@ -121,7 +121,7 @@ test('MeasurementRoundRoster: sửa theo canEdit, khóa nhập khi vắng, bỏ 
 test('HealthCheckClassRoster: Khám khóa với trẻ vắng hôm nay, mẫu số bỏ trẻ đã chuyển lớp', () => {
   const src = read('src/components/children/HealthCheckClassRoster.jsx');
   assert.match(src, /r\.absentToday\s*\?\s*\{ label: 'Khám', strong: true, disabled: true, title: ABSENT_TODAY_HINT \}/);
-  assert.ok(src.includes('Trẻ vắng hôm nay (điểm danh). Nhập khi trẻ có mặt.'));
+  assert.ok(read('src/utils/children/healthRoster.js').includes('Trẻ vắng hôm nay (điểm danh). Nhập khi trẻ có mặt.'));
   assert.match(src, /Tiếp tục khám/);
   assert.match(src, /Xem phiếu/);
   assert.ok(src.includes('${concluded}/${countable} trẻ'));
@@ -132,4 +132,12 @@ test('bấm dòng trẻ vắng hôm nay không mở form: nút khóa thì về s
   assert.ok(exam.includes('navigate(primary && !primary.disabled ? examLink(r.childId) : healthLink)'));
   const round = read('src/components/children/MeasurementRoundRoster.jsx');
   assert.ok(round.includes('navigate(primary && !primary.disabled ? primary.to : healthLink)'));
+});
+
+test('Trẻ tiếp theo còn nhập được, không vòng về trẻ hiện tại', async () => {
+  const { nextRosterChild } = await import('@/utils/children/healthRoster');
+  const rows = [{childId: 1}, {childId: 2, absentToday: true}, {childId: 3, movedTo: {}}, {childId: 4, canEdit: false}, {childId: 5}]
+    .map(r => ({ result: 'NOT_RECORDED', canEdit: true, ...r }));
+  assert.equal(nextRosterChild(rows, 1, ['NOT_RECORDED']).childId, 5);
+  assert.equal(nextRosterChild(rows.slice(0, 4), 1, ['NOT_RECORDED']), null);
 });

@@ -17,6 +17,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useChildYearLock } from '@/hooks/children/useChildYearLock';
 import { YearLockedNotice } from '@/components/children/YearLockedNotice';
 import { useToast } from '@/contexts/ToastContext';
+import { nextRosterChild } from '@/utils/children/healthRoster';
 import { useHealthCheckClass, useHealthExam } from '@/hooks/children/useHealthChecks';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
@@ -212,7 +213,8 @@ export default function HealthExamFormPage() {
   const concluded = m?.examStatus === EXAM_STATUS.CONCLUDED;
   const editable = canEdit && (!concluded || editing);
   // Bước Kết luận khi khám theo lớp có 2 nút lưu kết luận: điện thoại gom Lưu nháp, Lưu kết luận vào nút "…"
-  const saveMenu = step === 4 && !concluded && !!roster;
+  const nextChildId = nextRosterChild(roster?.children, childId, [CHILD_RESULT_STATUS.NOT_RECORDED, CHILD_RESULT_STATUS.IN_PROGRESS])?.childId;
+  const saveMenu = step === 4 && !concluded && !!nextChildId;
   const back = (
     <Link className="btn btn--collapse" to={campaignLink}>
       <ArrowLeft size={16} /> <span className="btn__collapse">Về đợt khám</span>
@@ -359,15 +361,6 @@ export default function HealthExamFormPage() {
     window.scrollTo({ top: 0 });
   };
 
-  const nextChildId = () => {
-    const rows = roster?.children || [];
-    const idx = rows.findIndex((r) => r.childId === childId);
-    const order = [...rows.slice(idx + 1), ...rows.slice(0, Math.max(idx, 0))];
-    return (
-      order.find((r) => [CHILD_RESULT_STATUS.NOT_RECORDED, CHILD_RESULT_STATUS.IN_PROGRESS].includes(r.result) && r.childId !== childId)
-        ?.childId || null
-    );
-  };
   const examLink = (id) => `/children/health-checks/${campaignId}/exam/${id}${listQuery}`;
 
   const reviewPoints = (concluded ? previewPoints : null) || m?.reviewPoints || null;
@@ -410,7 +403,7 @@ export default function HealthExamFormPage() {
       setReviewStale(false);
       if (andNext) {
         toast.success(`Đã lưu kết luận của ${child.fullName} và công bố cho phụ huynh.`);
-        const next = nextChildId();
+        const next = nextChildId;
         if (next) navigate(examLink(next));
         else {
           toast.info('Đã khám xong các trẻ của lớp trong đợt khám.');
@@ -433,7 +426,7 @@ export default function HealthExamFormPage() {
 
   // Màn kết quả ngay sau khi lưu kết luận: hệ thống đã làm gì, việc tiếp theo.
   if (saved && concluded) {
-    const next = canEdit ? nextChildId() : null;
+    const next = canEdit ? nextChildId : null;
     return (
       <div className="page">
         {head}

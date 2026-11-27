@@ -19,7 +19,7 @@ import { MEASUREMENT_SOURCE, MEASUREMENT_SOURCE_LABELS } from '@/models/children
 import { formatDate, normalizeText } from '@/utils/format';
 
 const COLS = 6;
-const ABSENT_TODAY_HINT = 'Trẻ vắng hôm nay (điểm danh). Nhập khi trẻ có mặt.';
+import { ABSENT_TODAY_HINT } from '@/utils/children/healthRoster';
 // 10 trẻ một trang (user yêu cầu 2026-10-23).
 const PAGE_SIZE = 10;
 // Sổ dưới dòng lớp: 5 trẻ/trang để bảng lớp không bị đẩy quá dài (user yêu cầu 2026-11-11).
