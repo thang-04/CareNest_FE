@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { CalendarDays, ClipboardList, Info, Phone, School, UserCheck } from '@/components/ui/icons';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
-import { useCutoffSetting } from '@/hooks/school-config/useSchoolConfig';
+import { useCutoffSetting } from '@/hooks/useCutoffSetting';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { Modal } from '@/components/ui/Modal';

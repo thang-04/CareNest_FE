@@ -4,7 +4,6 @@ import { ROLES } from '@/models/User';
 import {
   getCampusDetail,
   getCampusesWithStats,
-  getCutoffSetting,
   getPlacements,
   getPrepClasses,
   getRolePermissions,
@@ -57,13 +56,7 @@ export function useSchoolStructure(schoolYear, campusId) {
   return { structure: data, loading, error, reload };
 }
 
-export function useCutoffSetting(schoolYear, { live = true } = {}) {
-  const { data, loading, error, reload } = useAsync(() => getCutoffSetting(schoolYear), [schoolYear], {
-    refreshOnDataChange: live,
-    enabled: !!schoolYear,
-  });
-  return { year: data?.year, setting: data?.setting, loading, error, reload };
-}
+export { useCutoffSetting } from '@/hooks/useCutoffSetting';
 
 export function useCampusList(schoolYear) {
   const { user } = useAuth();
