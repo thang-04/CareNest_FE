@@ -16,13 +16,16 @@ export function IntakeSheet({ title, children, band = true }) {
   );
 }
 
-export function IntakeField({ sheet = false, number, label, required, children, ...props }) {
+export function IntakeField({ sheet = false, number, label, required, children, action, ...props }) {
   const id = useId();
   if (!sheet)
     return (
-      <FormField label={label} required={required} {...props}>
-        {children}
-      </FormField>
+      <>
+        <FormField label={label} required={required} {...props}>
+          {children}
+        </FormField>
+        {action}
+      </>
     );
   return (
     <tr>
@@ -35,6 +38,7 @@ export function IntakeField({ sheet = false, number, label, required, children, 
       </th>
       <td>
         <FormField {...props}>{cloneElement(children, { id, 'aria-labelledby': id + '-label' })}</FormField>
+        {action}
       </td>
     </tr>
   );

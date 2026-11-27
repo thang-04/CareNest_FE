@@ -295,7 +295,21 @@ export function ChildInfoFields({
                       onChange={(e) => setGuardian(i, 'fullName', e.target.value)}
                     />
                   </IntakeField>
-                  <IntakeField sheet={sheet} label="Số điện thoại" required error={errors[`guardians.${i}.phone`]}>
+                  <IntakeField
+                    sheet={sheet}
+                    label="Số điện thoại"
+                    required
+                    error={errors[`guardians.${i}.phone`]}
+                    action={
+                      g.savedPhone &&
+                      g.id &&
+                      onPhoneChange && (
+                        <Button size="sm" onClick={() => onPhoneChange(g)}>
+                          Đổi số
+                        </Button>
+                      )
+                    }
+                  >
                     {/* G94-180/AUTH-21: SĐT đã lưu không sửa ở hồ sơ; đổi số qua yêu cầu đổi SĐT do HT/PHT duyệt */}
                     <input
                       className="input"
@@ -306,11 +320,6 @@ export function ChildInfoFields({
                       onChange={(e) => setGuardian(i, 'phone', e.target.value)}
                       onBlur={() => onBlurField?.(`guardians.${i}.phone`)}
                     />
-                    {g.savedPhone && g.id && onPhoneChange && (
-                      <Button size="sm" onClick={() => onPhoneChange(g)}>
-                        Đổi số
-                      </Button>
-                    )}
                   </IntakeField>
                   <IntakeField
                     sheet={sheet}
