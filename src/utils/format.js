@@ -1,3 +1,4 @@
+import { devNow } from '@/utils/devClock';
 const pad = (n) => String(n).padStart(2, '0');
 
 /** Giữ các đoạn ngày/tháng khi sửa giữa chuỗi; chỉ tự chèn dấu khi người dùng gõ liền 8 chữ số. */
@@ -101,7 +102,7 @@ export const timeAgo = (value) => {
 };
 
 export const todayInput = () => {
-  const d = new Date();
+  const d = devNow();
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 };
 

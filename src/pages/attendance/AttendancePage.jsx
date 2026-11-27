@@ -60,6 +60,8 @@ import { TransferredHistoryPanel } from '@/components/TransferredHistoryPanel';
 import { hasBePermission } from '@/utils/bePermissions';
 import { PERMISSIONS } from '@/models/bePermissions';
 import '@/styles/modules/attendance.css';
+import { useDevClockMarks } from '@/hooks/useDevClockMarks';
+import { dayTimeAt } from '@/utils/devClock';
 
 // Bữa của lớp = bữa Hiệu trưởng cấu hình cho nhóm tuổi; Có mặt mặc định ăn đủ, giáo viên có thể tắt báo ăn.
 const sessionsOf = (sheet) => mealSessionsOf(sheet);
@@ -336,6 +338,12 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
     };
   }, [date, classId, user]);
   const day = clock || sheet;
+  useDevClockMarks(
+    [
+      day?.cutoff && { label: `Chốt điểm danh & báo ăn ${formatDate(date)}`, at: dayTimeAt(date, day.cutoff) },
+      day?.unlock?.validUntil && { label: 'Hết hạn mở lại điểm danh', at: day.unlock.validUntil },
+    ].filter(Boolean),
+  );
   useEffect(() => {
     if (!day?.unlock) return;
     const remaining = Date.parse(day.unlock.validUntil) - Date.parse(day.serverTime);

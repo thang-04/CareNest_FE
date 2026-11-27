@@ -9,6 +9,7 @@ const stubs = `import React,{createContext,useCallback,useContext,useMemo,useRef
 import {educationSchoolYears,sameSchoolYearId} from ${JSON.stringify(import.meta.resolve('../../src/models/education-plan/schoolYearScope.mjs'))};
 const USE_MOCK=false;
 export let failure=null; export const setFailure=e=>failure=e;
+const devNow=()=>new Date();
 let retained={goals:[],eduConfig:{}};const effects=[];const useEffect=fn=>effects.push(fn);
 export const flushEffects=()=>effects.splice(0).forEach(fn=>fn());
 export const setRetained=next=>{retained=next;effects.length=0;};

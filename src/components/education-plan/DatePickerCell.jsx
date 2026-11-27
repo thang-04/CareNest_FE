@@ -2,13 +2,14 @@ import { useEffect, useRef, useState } from 'react';
 import { CalendarDays, ChevronLeft, ChevronRight } from '@/components/ui/icons';
 import FloatingPanel from '@/components/education-plan/FloatingPanel';
 import { fmtDate } from '@/components/education-plan/eduUi';
+import { devNow } from '@/utils/devClock';
 
 const DOW = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'CN'];
 const pad = (n) => String(n).padStart(2, '0');
 // Ngày dạng yyyy-mm-dd, tính theo UTC để không lệch múi giờ
 const isoOf = (d) => `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
 const monthStart = (iso) => {
-  const [y, m] = (iso || isoOf(new Date())).split('-').map(Number);
+  const [y, m] = (iso || isoOf(devNow())).split('-').map(Number);
   return new Date(Date.UTC(y, m - 1, 1));
 };
 const addMonths = (d, n) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + n, 1));
@@ -107,7 +108,7 @@ export default function DatePickerCell({
       .join(', ') || null;
   // Khoảng của chính dòng; mới có Từ ngày thì vẫn đánh dấu ngày bắt đầu để chọn Đến ngày cho dễ
   const inRange = (iso) => range.start && (range.end ? range.start <= iso && iso <= range.end : iso === range.start);
-  const today = isoOf(new Date());
+  const today = isoOf(devNow());
   const displayDate = value ? fmtDate(value) : '';
 
   return (
