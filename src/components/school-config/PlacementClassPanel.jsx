@@ -243,7 +243,7 @@ export function PlacementClassPanel({ yearId, from, targets, campusName, groupNa
                     />
                   </td>
                   <td className="nowrap sc-plc__child">
-                    <ChildAvatar child={ch} size="sm" />
+                    <ChildAvatar child={{ ...ch, photoUrl: ch.photoUrl || undefined }} size="sm" />
                     <span className="fw-600">{ch.fullName}</span>
                     {/* Lớp ra trường: kết quả hoàn thành chương trình ở đánh giá cuối năm (BE OBS-14) */}
                     {from.graduating && (

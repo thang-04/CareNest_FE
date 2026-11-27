@@ -184,7 +184,9 @@ export function TransferredHistoryPanel({ classId, range, date, weekStart, secti
     {
       key: 'child',
       header: 'Trẻ',
-      render: (c) => <ChildNameCell child={{ fullName: c.childName }} sub={(c.stays || []).map(stayText).join('; ') || null} />,
+      render: (c) => (
+        <ChildNameCell child={{ childId: c.childId, fullName: c.childName }} sub={(c.stays || []).map(stayText).join('; ') || null} />
+      ),
     },
     sections.includes('day') && {
       key: 'day',

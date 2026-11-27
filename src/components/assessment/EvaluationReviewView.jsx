@@ -308,7 +308,7 @@ export function EvaluationReviewView({ kind, id }) {
     <>
       <div className={yearEnd ? 'card dg-year-review-head' : 'page__head'}>
         <div className="dg-eval-head">
-          <ChildAvatar child={detail.child || { fullName: ev.childName }} size="lg" />
+          <ChildAvatar child={detail.child || { childId: ev.childId, fullName: ev.childName }} size="lg" />
           <div>
             <h1 className={yearEnd ? 'sr-only' : 'page__title'}>
               Đánh giá {PERIOD_TYPE_LABELS[ev.periodType].toLowerCase()} – {ev.childName}
