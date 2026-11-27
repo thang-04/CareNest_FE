@@ -368,6 +368,7 @@ export default function ChildrenListPage() {
                             <span className="stack gap-0">
                               <span className="fw-600 text-primary tr-child-name">{c.fullName}</span>
                               <span className="text-xs muted">{c.code}</span>
+                              {c.photoMissing && <StatusBadge tone="orange" size="sm" label="Thiếu ảnh" />}
                               {c.startDue && <StatusBadge tone="orange" size="sm" label="Đã tới ngày đi học, chưa có lớp" />}
                             </span>
                           </span>
