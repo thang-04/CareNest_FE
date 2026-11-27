@@ -1,14 +1,7 @@
 import { ResponsiveToolbar } from '@/components/ui/ResponsiveToolbar';
 import { useState } from 'react';
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import {
-  ClassFilterBar,
-  classFilterPath,
-  ClassPageEmpty,
-  FilterSelect,
-  docReview,
-  useClassPlanContext,
-} from '@/components/education-plan/planUi';
+import { classFilterPath, ClassPageEmpty, docReview, useClassPlanContext } from '@/components/education-plan/planUi';
 import { Card, DocAvailabilityBadge, EduStatusBadge, EmptyCard, FoldAllButton, PageHead } from '@/components/education-plan/eduUi';
 import { ReviewActions } from '@/components/education-plan/reviewUi';
 import { DeadlineBadge } from '@/components/education-plan/DeadlineWidgets';
@@ -83,18 +76,17 @@ function DayPlansWeek({ classId, params }) {
  * Không có dòng kế hoạch chủ đề, không có trạng thái / gửi duyệt chung của học kỳ. Quyền và điều kiện gửi do BE trả.
  */
 function DayPlansList({ classId }) {
-  const navigate = useNavigate();
-  const [params, setParams] = useSearchParams();
+  const [params] = useSearchParams();
   const { user, dayPlans, themeDossiers, semesterPackages, actOnClassDoc, eduConfig, pollClassDocs, yearOption } = useEducationPlan();
   const [folded, setFolded] = useState(() => new Set());
   // Lỗi BE trả khi gửi kế hoạch giáo dục ngày (7390 mục trống, 7396/7397 MT chưa dạy), theo từng chủ đề
   const [sendErr, setSendErr] = useState({});
   const ctx = useClassPlanContext(classId);
-  const { cls, classes, yearPlan, canComposeClassDocs } = ctx;
+  const { cls, yearPlan, canComposeClassDocs } = ctx;
   // Người khác gửi/duyệt/trả lại kế hoạch giáo dục ngày thì trang tự cập nhật
   usePolling(() => pollClassDocs?.().catch(() => {}));
   if (ctx.loading) return <LoadingState />;
-  const head = (filters = null, extra = null) => (
+  const head = (extra = null) => (
     <div className="ga-sticky-head">
       <PageHead
         crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Kế hoạch giáo dục ngày' }]}
@@ -105,16 +97,6 @@ function DayPlansList({ classId }) {
           <div className="ga-year-toolbar__group">{extra}</div>
         </ResponsiveToolbar>
       )}
-      {/* Học kỳ nằm cùng hàng lọc lớp (Tiền 13/11/2026). */}
-      <ClassFilterBar
-        showAllAges
-        classes={classes}
-        classId={classId}
-        canPick={ctx.canPickClass}
-        onPick={(id, age) => navigate(classFilterPath('/education/day-plans', id, age))}
-      >
-        {filters}
-      </ClassFilterBar>
     </div>
   );
   if (!cls || !yearPlan)
@@ -161,26 +143,7 @@ function DayPlansList({ classId }) {
   const foldAll = themes.length > 0 && <FoldAllButton />;
   return (
     <div className="page ga-page">
-      {head(
-        choices.length > 0 && (
-          <FilterSelect
-            label="Học kỳ"
-            value={hk}
-            onChange={(key) =>
-              setParams(
-                (prev) => {
-                  const next = new URLSearchParams(prev);
-                  next.set('hk', key);
-                  return next;
-                },
-                { replace: true },
-              )
-            }
-            options={choices.map((c) => ({ value: String(c.semesterNo), label: `Học kỳ ${c.semesterNo} (${c.themeIds.length})` }))}
-          />
-        ),
-        foldAll,
-      )}
+      {head(foldAll)}
       {themes.length === 0 && <EmptyCard title="Chưa có chủ đề trong học kỳ" />}
       {themes.map((t) => {
         const ti = allThemes.indexOf(t);

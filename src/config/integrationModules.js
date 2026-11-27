@@ -255,7 +255,7 @@ export const INTEGRATION_MODULES = {
     facades: ['src/services/signatureService.js'],
   },
   appearance: {
-    source: 'demo',
+    source: 'api',
     routes: ['/settings/appearance'],
     files: ['src/services/appearance/api/appearanceApi.js'],
     facades: ['src/services/appearance/appearanceService.js'],

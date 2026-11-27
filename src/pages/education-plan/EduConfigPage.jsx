@@ -354,7 +354,7 @@ export default function EduConfigPage() {
                   <col />
                   <col className="ga-col-flag" />
                   <col className="ga-col-flag" />
-                  {editing && <col className="ga-goal-table__sort" />}
+                  {editing && <col className="ga-col-row-actions" />}
                 </colgroup>
                 <thead>
                   <tr>

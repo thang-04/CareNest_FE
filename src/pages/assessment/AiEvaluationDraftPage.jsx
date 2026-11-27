@@ -78,7 +78,7 @@ export default function AiEvaluationDraftPage() {
       <>
         <div className="page__head">
           <div className="dg-eval-head">
-            <ChildAvatar child={detail.child || { fullName: ev.childName }} size="lg" />
+            <ChildAvatar child={detail.child || { childId: ev.childId, fullName: ev.childName }} size="lg" />
             <div>
               <h1 className="page__title">Bản nháp nhận xét – {ev.childName}</h1>
               <div className="row row--wrap gap-2">

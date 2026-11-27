@@ -13,8 +13,11 @@ import { BIG_UNITS, buysInBaseUnit, dishNutrition, storageGroups, supplierGroups
  */
 const num = (v, digits = 1) => (v == null || v === '' ? '—' : Number(v).toLocaleString('vi-VN', { maximumFractionDigits: digits }));
 const big = (v, unit) => (BIG_UNITS[unit] ? `${num(Number(v) / 1000, 2)} ${BIG_UNITS[unit]}` : `${num(v, 2)} ${unit || ''}`);
-const range = (row, suffix = '') => (row?.min == null ? 'Chưa đặt' : `${num(row.min)}–${num(row.max)}${suffix}`);
+const range = (row, suffix = '', digits = 1) =>
+  row?.min == null ? 'Chưa đặt' : `${num(row.min, digits)}–${num(row.max, digits)}${suffix}`;
 const CELL_TONES = { OK: 'td-stat--ok', LOW: 'td-stat--low', HIGH: 'td-stat--high' };
+// Cơ cấu áp dụng: % trường đã cấu hình ở Định mức dinh dưỡng (BE trả `applied` trên dòng đạm, béo, bột đường)
+const appliedLabel = (row) => (row?.applied == null ? 'Chưa đặt' : num(row.applied));
 const cellTone = (row) => CELL_TONES[row?.status] || '';
 
 /** Bảng món theo bữa (sáng → trưa → chiều); số một suất đọc từ danh mục món theo nhóm tuổi đang xem. */
@@ -205,7 +208,7 @@ export function StatisticsIngredients({ stats, groupBy = 'storage' }) {
 
 const GRAM_KEYS = ['animalProteinG', 'plantProteinG', 'animalLipidG', 'plantLipidG', 'glucidG'];
 
-/** Bảng dinh dưỡng: tổng, định mức gam/ngày, tỷ lệ đạt, ĐV–TV, cơ cấu P:L:G áp dụng và thực tế. */
+/** Bảng dinh dưỡng: tổng, định mức gam/ngày (hàm lượng quy đổi, BE NUT-34), tỷ lệ đạt, cơ cấu P:L:G áp dụng và thực tế. */
 export function StatisticsNutrition({ stats }) {
   const ev = stats.evaluation || {};
   const t = ev.totals || {};
@@ -261,7 +264,7 @@ export function StatisticsNutrition({ stats }) {
             <td>Định mức một ngày</td>
             {GRAM_KEYS.map((k) => (
               <td key={k} className="num nowrap">
-                {range(row[k])}
+                {range(row[k], '', 2)}
               </td>
             ))}
             <td className="num nowrap">{range(row.kcal)}</td>
@@ -284,23 +287,14 @@ export function StatisticsNutrition({ stats }) {
             </td>
           </tr>
           <tr>
-            <td>Động vật – thực vật (%)</td>
-            {GRAM_KEYS.slice(0, 4).map((k) => (
-              <td key={k} className="num">
-                {num(row[k]?.percent)}
-              </td>
-            ))}
-            <td colSpan={3} />
-          </tr>
-          <tr>
             <td>Cơ cấu áp dụng P : L : G (%)</td>
             <td colSpan={2} className="center">
-              {range(row.protein)}
+              {appliedLabel(row.protein)}
             </td>
             <td colSpan={2} className="center">
-              {range(row.lipid)}
+              {appliedLabel(row.lipid)}
             </td>
-            <td className="num nowrap">{range(row.glucid)}</td>
+            <td className="num nowrap">{appliedLabel(row.glucid)}</td>
             <td colSpan={2} />
           </tr>
           <tr>

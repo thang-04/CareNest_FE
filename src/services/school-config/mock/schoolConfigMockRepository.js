@@ -1256,6 +1256,26 @@ export const schoolConfigMockRepository = {
     });
   },
 
+  // BE giả ATT-06: chỉ hủy lịch chưa tới ngày áp dụng, không hủy mốc đầu tiên của năm
+  async cancelScheduledCutoff(schoolYear, effectiveFrom, user) {
+    await delay();
+    if (!canConfigureCutoff(user)) throw forbid();
+    seeded();
+    return writeDb((db) => {
+      assertOpenYear(findYear(db, schoolYear));
+      const setting = db.cutoffSettings.find((s) => s.schoolYear === schoolYear);
+      const history = setting?.history || [];
+      if (effectiveFrom <= schoolNow().date || !history.some((h) => h.effectiveFrom === effectiveFrom))
+        throw new ApiError(409, 'Chỉ hủy được lịch giờ chốt chưa tới ngày áp dụng');
+      if (!history.some((h) => h.effectiveFrom < effectiveFrom))
+        throw new ApiError(409, 'Không hủy được giờ chốt đầu tiên của năm học; muốn đổi thì lưu giờ khác cho ngày đó');
+      setting.history = history.filter((h) => h.effectiveFrom !== effectiveFrom);
+      const { previousTime, userId, at, note, ...latest } = setting.history[0];
+      Object.assign(setting, latest);
+      return clone(setting);
+    });
+  },
+
   async saveCutoffSetting(schoolYear, form, user) {
     await delay();
     if (!canConfigureCutoff(user)) throw forbid();

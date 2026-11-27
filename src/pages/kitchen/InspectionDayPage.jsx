@@ -52,6 +52,7 @@ import { kitchenCrumbs } from '@/utils/kitchen/breadcrumbs';
 import { formatDateTime, isIsoDate, todayInput } from '@/utils/format';
 import '@/styles/modules/kitchen.css';
 import '@/styles/modules/kitchen-records.css';
+import { devNow } from '@/utils/devClock';
 
 const AUTOSAVE_MS = 20000;
 const EMPTY_HINT = {
@@ -61,7 +62,7 @@ const EMPTY_HINT = {
   serve: 'Ngày này chưa có thực đơn đã công bố.',
   sample: 'Bếp chưa ghi lưu mẫu cho ngày này.',
 };
-const clockOf = () => new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false });
+const clockOf = () => devNow().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false });
 
 function FormCard({ tab, data, date, campusId, onOpen, onRequest, onRevoke }) {
   const signed = hasValidSignature(data) && data.status === 'SIGNED';

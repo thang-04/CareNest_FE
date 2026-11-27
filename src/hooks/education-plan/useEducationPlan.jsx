@@ -3,7 +3,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useAsync } from '@/hooks/useAsync';
-import { USE_MOCK } from '@/config/env';
 import { LoadingState, ErrorState } from '@/components/ui/States';
 import { ROLES, ROLE_LABELS } from '@/models/User';
 import * as service from '@/services/education-plan/educationPlanService';
@@ -11,11 +10,12 @@ import { AGE_GROUPS, EDU_STATUS, toEduYear, fromEduYear } from '@/models/educati
 import { applyEduConfig, withDefaults } from '@/models/education-plan/eduConfig';
 import { mergeGoals } from '@/models/education-plan/planVersions.mjs';
 import { educationSchoolYears, sameSchoolYearId } from '@/models/education-plan/schoolYearScope.mjs';
+import { devNow } from '@/utils/devClock';
 
 const EducationPlanContext = createContext(null);
 
 const now = () => {
-  const d = new Date();
+  const d = devNow();
   const p = (n) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
 };
@@ -76,6 +76,7 @@ export function EducationPlanProvider({
   children,
   yearScoped = true,
   reviewView = false,
+  overdueView = false,
   lightDocs = false,
   classId = null,
   skipGoals = false,
@@ -83,14 +84,23 @@ export function EducationPlanProvider({
   const { user: authUser } = useAuth();
   const toastApi = useToast();
   const { schoolYear: pickedYear, setSchoolYear, schoolYears } = useSchoolYear();
-  const yearOptions = useMemo(() => educationSchoolYears(schoolYears, USE_MOCK), [schoolYears]);
+  const yearOptions = useMemo(() => educationSchoolYears(schoolYears), [schoolYears]);
   const yearOption =
     yearOptions.find((year) => sameSchoolYearId(year.headerId, pickedYear)) ??
     yearOptions.find((year) => sameSchoolYearId(year.id, pickedYear));
   const yearId = yearScoped ? (yearOption?.id ?? null) : null;
   const scope = useMemo(
-    () => ({ yearId, userId: authUser.id, reviewView, lightDocs, classId, classRefreshSequence: 0, loadingGoalIds: new Set() }),
-    [yearId, authUser.id, reviewView, lightDocs, classId],
+    () => ({
+      yearId,
+      userId: authUser.id,
+      reviewView,
+      overdueView,
+      lightDocs,
+      classId,
+      classRefreshSequence: 0,
+      loadingGoalIds: new Set(),
+    }),
+    [yearId, authUser.id, reviewView, overdueView, lightDocs, classId],
   );
   const activeScope = useRef(scope);
   activeScope.current = scope;
@@ -117,14 +127,14 @@ export function EducationPlanProvider({
           ? {}
           : lightDocs
             ? service.getClassDocContext(yearId, authUser)
-            : service.getClassPlans(yearId, authUser, reviewView, classId),
+            : service.getClassPlans(yearId, authUser, reviewView, classId, overdueView),
         service.getEduConfigCached(authUser),
       ]).then(([plans, classDocs, eduConfig]) => {
         // Cấu hình áp dụng trước khi vẽ để bảng, nhãn lĩnh vực và file xuất dùng cùng một bản
         if (isActive()) applyEduConfig(eduConfig);
         return { ...plans, goals: mergeGoals(goalsRef.current, plans.goals), ...classDocs, eduConfig };
       }),
-    [yearId, authUser.id, reviewView, lightDocs, classId, skipGoals],
+    [yearId, authUser.id, reviewView, overdueView, lightDocs, classId, skipGoals],
     { refreshOnDataChange: true },
   );
 
@@ -194,16 +204,6 @@ export function EducationPlanProvider({
   const value = useMemo(() => {
     const yearName = (year) => String(year?.label ?? '').replace(' - ', '-');
 
-    const write = (key, call, apply) => async (arg) => {
-      setData((prev) => (prev ? { ...prev, [key]: apply(prev[key], arg) } : prev));
-      try {
-        await call(arg);
-      } catch (err) {
-        toastApi.error(err.message, 'Không lưu được');
-        reload({ silent: true });
-      }
-    };
-    const saveIn = (key, call) => write(key, call, upsert);
     // Tài liệu của lớp: chờ kết quả từ service (quyền, trạng thái do service quyết định) rồi mới cập nhật màn hình
     // Spec 003: kế hoạch giáo dục chủ đề (semester), kế hoạch giáo dục ngày (dossier) là gốc gửi/duyệt; giáo án ngày (day) tách khỏi tuần
     const CLASS_KEY = {
@@ -264,7 +264,6 @@ export function EducationPlanProvider({
           return null;
         }
       };
-    const deleteIn = (key, call) => write(key, call, (list, id) => list.filter((x) => x.id !== id));
 
     // Tài liệu của lớp (kế hoạch giáo dục ngày chờ duyệt…) do người khác đổi; tải lại im lặng, không đụng kế hoạch năm/tổ
     const refreshClassDocs = async () => {
@@ -272,7 +271,7 @@ export function EducationPlanProvider({
       const sequence = ++scope.classRefreshSequence;
       const classDocs = scope.lightDocs
         ? await service.getClassDocContext(yearId, actor)
-        : await service.getClassPlans(yearId, actor, scope.reviewView, scope.classId);
+        : await service.getClassPlans(yearId, actor, scope.reviewView, scope.classId, scope.overdueView);
       if (sequence === scope.classRefreshSequence) setData((prev) => (prev ? { ...prev, ...classDocs } : prev));
       return classDocs;
     };
@@ -282,7 +281,8 @@ export function EducationPlanProvider({
       refreshClassDocs,
       // Poll 20 s của trang một lớp: chỉ hỏi bản gọn của lớp; đổi (version/trạng thái/lượt duyệt) mới tải lại đủ tài liệu
       pollClassDocs: async () => {
-        if (yearId == null) return;
+        // Xem quá hạn là bản chụp chỉ đọc, không cần làm mới theo người khác
+        if (yearId == null || scope.overdueView) return;
         if (scope.classId == null) return refreshClassDocs();
         const items = await service.getAllClassDocSummaries(yearId, actor, undefined, {
           classIds: [scope.classId],
@@ -419,10 +419,6 @@ export function EducationPlanProvider({
         await service.deleteGoal(id, data?.goals.find((goal) => goal.id === id)?.revision, user);
         setData((prev) => (prev ? { ...prev, goals: prev.goals.filter((goal) => goal.id !== id) } : prev));
       },
-      saveTheme: saveIn('themes', service.saveTheme),
-      deleteTheme: deleteIn('themes', service.deleteTheme),
-      saveLesson: saveIn('lessons', service.saveLesson),
-      deleteLesson: deleteIn('lessons', service.deleteLesson),
     };
   }, [data, setData, reload, user, toast, toastApi, yearId, yearOption, yearOptions, setSchoolYear, ensureGoals, isActive, scope]);
 

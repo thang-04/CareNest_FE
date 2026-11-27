@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { readFileSync } from 'node:fs';
 import * as cascade from '../../src/models/education-plan/curriculum.mjs';
 
-import { CURRICULUM_SEED } from '../../src/mocks/curriculumSeed.js';
+import { CURRICULUM_SEED } from '../fixtures/curriculumSeed.js';
 import {
   addContentsToExistingGoals,
   addSuggestedContents,
@@ -63,59 +63,6 @@ test('EDU-28: câu 5 - 7 và dấu hai chấm được giữ nguyên trong ngu�
   }
 });
 
-test('EDU-61: nguồn mock có danh tính cha ổn định, không sửa seed hoặc mã mục tiêu', async () => {
-  globalThis.window ??= new EventTarget();
-  const { curriculumMockRepository: repo } = await import('../../src/services/education-plan/mock/curriculumMockRepository.js');
-  const before = JSON.stringify(CURRICULUM_SEED);
-  const all = [];
-  for (const age of ['ag-2', 'ag-3', 'ag-4', 'ag-5']) {
-    const goals = await repo.getCurriculumGoals(age);
-    assert.ok(goals.every((g) => g.domainId != null && g.expectedResultId != null));
-    assert.ok(goals.every((g) => !g.subDomain || g.subDomainId != null));
-    assert.deepEqual(goals.map((g) => g.id), goalsOf(age).map((g) => g.id));
-    assert.deepEqual(goals, await repo.getCurriculumGoals(age));
-    const contents = await repo.getCurriculumContents(age);
-    for (const c of contents) {
-      assert.equal(c.expectedResultId, undefined);
-      const g = goals.find((g) => g.domainName === c.domainName && g.subDomain === c.subDomain);
-      if (g) assert.equal(c.subDomainId, g.subDomainId);
-    }
-    all.push(...goals);
-  }
-  const identities = new Map();
-  for (const g of all) {
-    const tuple = JSON.stringify([g.ageGroup, g.sourceId, g.domainName, g.subDomain, g.groupNo, g.groupText]);
-    if (identities.has(g.expectedResultId)) assert.equal(identities.get(g.expectedResultId), tuple);
-    identities.set(g.expectedResultId, tuple);
-  }
-  assert.equal(JSON.stringify(CURRICULUM_SEED), before);
-});
-
-test('EDU-61: lưu, tải lại và tạo phiên bản mock giữ định danh nguồn', async () => {
-  globalThis.window ??= new EventTarget();
-  const store = new Map();
-  globalThis.localStorage = { getItem: (k) => store.get(k) || null, setItem: (k, v) => store.set(k, v), removeItem: (k) => store.delete(k) };
-  const { curriculumMockRepository } = await import('../../src/services/education-plan/mock/curriculumMockRepository.js');
-  const { educationPlanMockRepository: repo } = await import('../../src/services/education-plan/mock/educationPlanMockRepository.js');
-  const vp = { id: 'synthetic-vp', name: 'PHT kiểm thử', fullName: 'PHT kiểm thử', role: 'VICE_PRINCIPAL' };
-  const ht = { id: 'synthetic-ht', name: 'HT kiểm thử', fullName: 'HT kiểm thử', role: 'PRINCIPAL' };
-  await repo.getAll(vp);
-  const { writeDb } = await import('../../src/mocks/mockDatabase.js');
-  writeDb((db) => { db.users = [vp, ht, { id: 'curriculum-tl', role: 'TEAM_LEADER', ageGroupId: 'ag-3' }]; });
-  const [goal] = await curriculumMockRepository.getCurriculumGoals('ag-3');
-  const domains = curriculumAsSourcePlan([goal]).domains;
-  const form = { id: 'test-014-source', code: 'TEST014', planLevel: 'SCHOOL_YEAR', schoolYear: '2027 – 2028', ageGroupId: 'ag-3',
-    title: 'Kế hoạch kiểm thử', status: 'DRAFT', domains, themes: [{ id: 'theme', name: 'Chủ đề', abbr: 'CD', start: '2027-09-06', end: '2027-09-17' }], breaks: [], branchTemplates: [] };
-  let saved = await repo.saveGoal(form, { actor: vp });
-  const expected = saved.domains[0].rows.map((r) => [r.kind, r.curriculumSubDomainId, r.curriculumExpectedResultId, r.curriculumGoalId]);
-  const loaded = (await repo.getAll(vp)).goals.find((plan) => plan.id === saved.id);
-  assert.deepEqual(loaded.domains[0].rows.map((r) => [r.kind, r.curriculumSubDomainId, r.curriculumExpectedResultId, r.curriculumGoalId]), expected);
-  saved = await repo.saveGoal({ ...saved, status: 'REVIEW' }, { actor: vp, action: 'submit' });
-  saved = await repo.saveGoal({ ...saved, status: 'APPROVED' }, { actor: ht, action: 'approve' });
-  const version = await repo.createGoalVersion(saved.id, vp);
-  assert.deepEqual(version.domains[0].rows.map((r) => [r.kind, r.curriculumSubDomainId, r.curriculumExpectedResultId, r.curriculumGoalId]), expected);
-});
-
 const cascadeForm = () => ({ domains: [{ id: 'd', name: 'D', rows: [
   { id: 's1', kind: 'sub', text: 'Same', curriculumSubDomainId: 100 },
   { id: 'r1', kind: 'group', text: 'Same', curriculumExpectedResultId: 200 },
@@ -171,24 +118,6 @@ test('EDU-61: gợi ý dùng source ID đúng nhóm, nội dung lấy từ mọi
   assert.deepEqual(cascade.curriculumOptions(goals, scope, 'content').map((o) => o.text), ['A1', 'B1']);
   assert.deepEqual(cascade.curriculumOptions(goals, { domainName: 'D' }, 'goal'), []);
   assert.deepEqual(cascade.curriculumOptions(goals, { ...scope, subDomainId: 101 }, 'content'), []);
-});
-
-test('EDU-61: gợi ý giữ nguyên từng ký tự trong danh mục nguồn của bốn nhóm tuổi', async () => {
-  globalThis.window ??= new EventTarget();
-  const { curriculumMockRepository: repo } = await import('../../src/services/education-plan/mock/curriculumMockRepository.js');
-  for (const age of ['ag-2', 'ag-3', 'ag-4', 'ag-5']) {
-    const goals = await repo.getCurriculumGoals(age);
-    for (const goal of goals) {
-      const scope = { domainName: goal.domainName, subDomainId: goal.subDomainId, expectedResultId: goal.expectedResultId };
-      assert.ok(cascade.curriculumOptions(goals, scope, 'group').some((o) => o.patch.curriculumExpectedResultId === goal.expectedResultId && o.text === goal.groupText));
-      assert.ok(cascade.curriculumOptions(goals, scope, 'goal').some((o) => o.patch.curriculumGoalId === goal.id && o.text === goal.goalText));
-      const content = cascade.curriculumOptions(goals, scope, 'content');
-      for (let i = 0; i < goal.contents.length; i++) {
-        const key = JSON.stringify([goal.sourceId, goal.id, i]);
-        assert.equal(content.find((o) => o.key === key)?.text, goal.contents[i]);
-      }
-    }
-  }
 });
 
 test('dữ liệu mock trùng số lượng BE (V31) cho 4 nhóm tuổi', () => {

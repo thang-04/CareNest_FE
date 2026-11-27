@@ -250,7 +250,9 @@ export function ClassPageEmpty({
 }
 
 /** Hàng lọc chung của các màn tài liệu lớp: Nhóm tuổi → Lớp rồi các ô lọc riêng của màn; ô chọn cùng cỡ (FR-022a). */
-export function ClassFilterBar({ classes, classId, onPick, canPick = true, showAllAges = false, children, footer = null }) {
+export function ClassFilterBar({ classes, classId, onPick, canPick = true, showAllAges = false, children, footer = null, filters = true }) {
+  // Trang chi tiết không có hàng lọc (chỉ trang danh sách có); giữ phần footer (tên chủ đề, tab) nếu có
+  if (!filters) return footer ? <div className="card mb-16">{footer}</div> : null;
   const current = classes.find((c) => c.id === classId);
   return (
     <div className="card mb-16">

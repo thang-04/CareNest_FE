@@ -1,5 +1,7 @@
 // BE quyết định hạn theo EDU-74/76/94. Nhãn tự cập nhật khi tab còn mở qua ngày.
 
+import { devNow } from '../../utils/devClock.js';
+
 const ddmm = (iso) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}` : '');
 
 const ISSUED = new Set(['APPROVED', 'SENT', 'REPLACED']);
@@ -18,7 +20,7 @@ export function isOverdueDoc(doc) {
 /** { tone, label } cho StatusBadge; null khi không có hạn hoặc đã ban hành sau hạn. */
 
 const schoolDate = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit' });
-export const deadlineToday = () => schoolDate.format();
+export const deadlineToday = () => schoolDate.format(devNow());
 
 export function deadlineLabel(doc, today) {
   if (!doc?.deadline) return null;

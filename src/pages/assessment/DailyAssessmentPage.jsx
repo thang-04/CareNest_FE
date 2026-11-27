@@ -31,6 +31,7 @@ import { readableClassDate } from '@/utils/historyDate';
 import { TransferredHistoryPanel } from '@/components/TransferredHistoryPanel';
 import { dayRange } from '@/utils/assessment/transferredHistory';
 import '@/styles/modules/assessment.css';
+import { useDevClockMarks } from '@/hooks/useDevClockMarks';
 
 const COLS = 9;
 // Ô khác giá trị mặc định được tô nhẹ để giáo viên thấy ngay ngoại lệ
@@ -56,6 +57,7 @@ export default function DailyAssessmentPage() {
   );
   const params = useMemo(() => ({ classId: currentClassId, date: requestDate }), [currentClassId, requestDate]);
   const { sheet, loading, error, reload } = useDailyAssessment(params);
+  useDevClockMarks(sheet?.unlock?.validUntil ? [{ label: 'Hết hạn mở lại đánh giá', at: sheet.unlock.validUntil }] : []);
   const shownDate = requestDate || sheet?.date || '';
 
   const [drafts, setDrafts] = useState({});

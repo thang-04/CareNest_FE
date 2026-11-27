@@ -114,12 +114,20 @@ export function EvaluationReviewView({ kind, id }) {
   const saveRef = useRef(null);
   // Phiếu cuối năm (OBS-28): lưu phiếu trước khi xác nhận, hỏi khi rời màn còn sửa chưa lưu
   const sheetRef = useRef(null);
-  const editing = !!ev && ev.status !== EVAL_STATUS.CONFIRMED && loadedFrom === savedContent && content !== savedContent;
+  // OBS-30: sửa bản cuối năm đã xác nhận; mọi thay đổi gửi một lần lúc xác nhận lại
+  const [revision, setRevision] = useState(null);
+  const [canRevise, setCanRevise] = useState(false);
+  const revising = !!revision && String(revision.id) === String(ev?.id);
+  const editing = !!ev && (ev.status !== EVAL_STATUS.CONFIRMED || revising) && loadedFrom === savedContent && content !== savedContent;
   const [sheetEdited, setSheetEdited] = useState(false);
   const sheetDirty = () => !!sheetRef.current?.dirty;
   const guard = useLeaveGuard({
     when: editing || sheetEdited,
     onSave: async () => {
+      if (revising) {
+        toast.warning('Bấm Xác nhận lại để lưu bản sửa, hoặc bỏ thay đổi để rời trang.', 'Đang sửa bản đã xác nhận');
+        return false;
+      }
       if (sheetDirty() && !(await sheetRef.current.save())) return false;
       return editing ? (saveRef.current?.() ?? false) : true;
     },
@@ -149,6 +157,7 @@ export function EvaluationReviewView({ kind, id }) {
   const label = evaluationPeriodLabel(ev);
   // BE gửi kèm tên người xử lý; mock tra danh mục người dùng
   const name = (uid, shown) => shown || md.userById(uid)?.fullName || 'Hệ thống';
+  const program = revising ? revision.programCompleted : ev.programCompleted;
 
   const check = () => {
     const errors = validateEvaluationContent(content);
@@ -157,12 +166,13 @@ export function EvaluationReviewView({ kind, id }) {
   };
   // Lớp 5–6 tuổi: đánh giá cuối năm phải chọn Hoàn thành / Chưa hoàn thành chương trình trước khi xác nhận
   const checkProgram = () => {
-    const missing = ev.programApplicable && ev.programCompleted == null;
+    const missing = ev.programApplicable && program == null;
     setProgramError(missing ? 'Chọn Hoàn thành hoặc Chưa hoàn thành chương trình cho trẻ.' : '');
     return !missing;
   };
   const markProgram = async (completed) => {
     setProgramError('');
+    if (revising) return setRevision((r) => ({ ...r, programCompleted: completed }));
     setBusy('program');
     try {
       await markProgramCompletion(ev.id, completed, user);
@@ -231,36 +241,64 @@ export function EvaluationReviewView({ kind, id }) {
 
   const doConfirm = async () => {
     // Phiếu cuối năm còn sửa chưa lưu: lưu trước để xác nhận chốt đúng phiếu cô thấy
-    if (sheetDirty() && !(await sheetRef.current.save())) {
+    if (!revising && sheetDirty() && !(await sheetRef.current.save())) {
       setConfirmOpen(false);
       return null;
     }
     const res = await run(
       'confirm',
-      () => confirmEvaluation(kind, ev.id, content, user),
+      () =>
+        confirmEvaluation(
+          kind,
+          ev.id,
+          content,
+          user,
+          revising ? { programCompleted: program, sheet: sheetRef.current?.body() } : undefined,
+        ),
       () => 'Đánh giá đã được xác nhận thành công.',
     );
+    if (res) setRevision(null);
     setConfirmOpen(false);
     // Xác nhận xong thì mở luôn trẻ chưa xác nhận tiếp theo cùng lớp, cùng kỳ
-    if (res && nextPending) guard.leaveNow(linkOf(nextPending));
+    if (res && nextPending && !revising) guard.leaveNow(linkOf(nextPending));
     return res;
   };
 
   // Màn dài ~2 màn hình: nút Lưu/Xác nhận đặt cả đầu và cuối trang, cùng handler
-  const editActions = (canReview || canConfirm) && (
+  const startRevision = () => {
+    setContent(savedContent);
+    setRevision({ id: ev.id, programCompleted: ev.programCompleted });
+  };
+  const cancelRevision = () => {
+    setContent(savedContent);
+    setRevision(null);
+    reload({ silent: true });
+  };
+
+  const editActions = (canReview || canConfirm || revising || canRevise) && (
     <div className="row gap-2">
+      {canRevise && !revising && (
+        <Button onClick={startRevision} disabled={!!busy}>
+          Sửa lại
+        </Button>
+      )}
+      {revising && (
+        <Button onClick={cancelRevision} disabled={!!busy}>
+          Hủy sửa
+        </Button>
+      )}
       {canReview && (
         <button className="btn" onClick={save} disabled={!!busy}>
           {busy === 'save' ? <Spinner small /> : <Save size={16} />} Lưu chỉnh sửa
         </button>
       )}
-      {canConfirm && (
+      {(canConfirm || revising) && (
         <button
           className="btn btn--primary"
           onClick={() => [check(), checkProgram()].every(Boolean) && setConfirmOpen(true)}
           disabled={!!busy}
         >
-          <CheckCircle2 size={16} /> {yearEnd ? 'Xác nhận đánh giá' : 'Xác nhận và công bố'}
+          <CheckCircle2 size={16} /> {revising ? 'Xác nhận lại' : yearEnd ? 'Xác nhận đánh giá' : 'Xác nhận và công bố'}
         </button>
       )}
     </div>
@@ -270,7 +308,7 @@ export function EvaluationReviewView({ kind, id }) {
     <>
       <div className={yearEnd ? 'card dg-year-review-head' : 'page__head'}>
         <div className="dg-eval-head">
-          <ChildAvatar child={detail.child || { fullName: ev.childName }} size="lg" />
+          <ChildAvatar child={detail.child || { childId: ev.childId, fullName: ev.childName }} size="lg" />
           <div>
             <h1 className={yearEnd ? 'sr-only' : 'page__title'}>
               Đánh giá {PERIOD_TYPE_LABELS[ev.periodType].toLowerCase()} – {ev.childName}
@@ -322,10 +360,12 @@ export function EvaluationReviewView({ kind, id }) {
       {yearEnd && (
         <YearEndSheetCard
           // Xác nhận (đổi trạng thái) ⇒ tải lại phiếu: phiếu chuyển chỉ xem, có ngày ký trên bản in
-          key={`${ev.id}-${ev.status}`}
+          key={`${ev.id}-${ev.status}-${ev.confirmedAt}-${revising}`}
+          revising={revising}
+          onCanRevise={setCanRevise}
           evaluation={ev}
           child={detail.child}
-          comment={canReview ? content : ev.finalContent}
+          comment={canReview || revising ? content : ev.finalContent}
           sheetRef={sheetRef}
           onDirtyChange={setSheetEdited}
         />
@@ -344,7 +384,7 @@ export function EvaluationReviewView({ kind, id }) {
         </div>
       )}
 
-      {canReview ? (
+      {canReview || revising ? (
         <div className={yearEnd ? 'stack mt-16' : 'split-2 mt-16'}>
           <div className="card">
             <div className="card__header">
@@ -352,20 +392,22 @@ export function EvaluationReviewView({ kind, id }) {
               <DraftSourceTag draft={ev.aiDraft} />
             </div>
             <div className="card__body">
-              <div className="row row--wrap gap-2 mb-12">
-                <Button
-                  variant="outline-primary"
-                  icon={Sparkles}
-                  onClick={() => redraft(true)}
-                  loading={busy === 'redraft'}
-                  disabled={!!busy}
-                >
-                  AI viết nháp
-                </Button>
-                <Button onClick={() => redraft(false)} disabled={!!busy}>
-                  Viết theo mẫu
-                </Button>
-              </div>
+              {!revising && (
+                <div className="row row--wrap gap-2 mb-12">
+                  <Button
+                    variant="outline-primary"
+                    icon={Sparkles}
+                    onClick={() => redraft(true)}
+                    loading={busy === 'redraft'}
+                    disabled={!!busy}
+                  >
+                    AI viết nháp
+                  </Button>
+                  <Button onClick={() => redraft(false)} disabled={!!busy}>
+                    Viết theo mẫu
+                  </Button>
+                </div>
+              )}
               {ev.aiEnabled === false && <div className="muted text-sm mb-12">AI đang tắt trên backend; yêu cầu sẽ dùng mẫu câu.</div>}
               {ev.aiDraft ? (
                 <>
@@ -443,7 +485,7 @@ export function EvaluationReviewView({ kind, id }) {
                         <input
                           type="radio"
                           name={`program-${ev.id}`}
-                          checked={ev.programCompleted === value}
+                          checked={program === value}
                           disabled={!!busy}
                           onChange={() => markProgram(value)}
                         />
@@ -578,11 +620,15 @@ export function EvaluationReviewView({ kind, id }) {
         open={confirmOpen}
         title={yearEnd ? 'Xác nhận đánh giá cuối năm?' : 'Xác nhận và công bố đánh giá?'}
         message={
-          yearEnd
-            ? 'Đánh giá sẽ trở thành chính thức, dùng cho Ban giám hiệu và đề xuất khen thưởng. Sau khi xác nhận không sửa được.'
-            : 'Đánh giá sẽ trở thành chính thức và được công bố cho phụ huynh, Phó hiệu trưởng và Hiệu trưởng. Sau khi xác nhận không sửa được.'
+          revising
+            ? 'Bản mới sẽ thay bản đã xác nhận, phụ huynh được thông báo. Bản cũ vẫn được lưu.'
+            : yearEnd
+              ? 'Đánh giá sẽ trở thành chính thức, dùng cho Ban giám hiệu và đề xuất khen thưởng. Muốn sửa sau đó phải còn hạn hoặc được mở lại.'
+              : 'Đánh giá sẽ trở thành chính thức và được công bố cho phụ huynh, Phó hiệu trưởng và Hiệu trưởng. Sau khi xác nhận không sửa được.'
         }
-        confirmLabel={nextPending ? 'Xác nhận, trẻ tiếp' : yearEnd ? 'Xác nhận đánh giá' : 'Xác nhận và công bố'}
+        confirmLabel={
+          revising ? 'Xác nhận lại' : nextPending ? 'Xác nhận, trẻ tiếp' : yearEnd ? 'Xác nhận đánh giá' : 'Xác nhận và công bố'
+        }
         onConfirm={doConfirm}
         onClose={() => setConfirmOpen(false)}
       />

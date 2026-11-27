@@ -26,16 +26,17 @@ export const createPickupApi = (client) => ({
     };
   },
   // BE chỉ nhận các field này; khớp ảnh gửi vị trí phụ huynh, BE tự chép họ tên, quan hệ, SĐT từ hồ sơ trẻ
-  recordPickupResult: async ({ childId, verification, guardianPosition, handoverTime, note }) =>
+  recordPickupResult: async ({ childId, verification, guardianPosition, note }) =>
     toRecord(
       await client.post('/pickups', {
         childId,
         verification,
         guardianPosition: verification === VERIFICATION.PHOTO_MATCH ? guardianPosition : null,
-        handoverTime: handoverTime || null,
         note: note || '',
       }),
     ),
+  correctHandoverTime: async ({ pickupId, handoverTime, reason }) =>
+    toRecord(await client.patch(`/pickups/${pickupId}/handover-time`, { handoverTime, reason })),
   getPickupResults: async ({ date }) => ((await client.get('/pickups', { params: { date } })) || []).map(toRecord),
 });
 

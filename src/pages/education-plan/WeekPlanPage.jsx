@@ -3,7 +3,9 @@ import { ResponsiveToolbar } from '@/components/ui/ResponsiveToolbar';
 import { useEffect, useId, useRef, useState } from 'react';
 import ActivityCardEditor from '@/components/education-plan/ActivityCardEditor';
 import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom';
-import { ClassFilterBar, classFilterPath, FilterSelect, ThemeBranchTabs, themesWithWeeks } from '@/components/education-plan/planUi';
+import { ClassFilterBar, docReview, ThemeBranchTabs } from '@/components/education-plan/planUi';
+import { SemesterProgress } from '@/components/education-plan/SemesterProgress';
+import { DossierProgress } from '@/components/education-plan/DossierProgress';
 import { BlockedNotice } from '@/components/education-plan/DeadlineWidgets';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { ChalkboardTeacher, Copy, FileDown, ListChecks, Save, X } from '@/components/ui/icons';
@@ -58,7 +60,7 @@ import { FinishedThemeNote, SupersededNote, VersionCopyOffer, VersionFlagsPanel 
 import { useDocVersion } from '@/hooks/education-plan/useDocVersion';
 import { checkFlag, classPlanVersionPath, dropReference, versionOf } from '@/models/education-plan/planVersions.mjs';
 import DocPreviewModal from '@/components/education-plan/DocPreviewModal';
-import { dayKeyOf } from '@/models/education-plan/deadline.mjs';
+import { BLOCKED_TEXT, dayKeyOf } from '@/models/education-plan/deadline.mjs';
 import { Button } from '@/components';
 
 const DAY_FIELDS = ['days', 'dayGoals', 'dossierCards'];
@@ -114,12 +116,12 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
     actOnClassDoc,
     toast,
     staff,
+    eduConfig,
   } = useEducationPlan();
   const [confirmRevise, setConfirmRevise] = useState(false);
   const [preview, setPreview] = useState(null);
-  // BE:EDU-96: khung Kiểm tra / Tóm tắt và nháp ghi chú Trả lại gom từ Tóm tắt AI
+  // BE:EDU-96: khung Kiểm tra tiêu chí gửi duyệt
   const [assistOpen, setAssistOpen] = useState(false);
-  const [noteDraft, setNoteDraft] = useState('');
   // Mục còn trống BE trả khi gửi kế hoạch giáo dục ngày (FR-007a): [{ date, section }], hiện chữ đỏ tới khi sửa xong
   const [emptyErr, setEmptyErr] = useState([]);
   // MT chưa dạy BE trả khi gửi kế hoạch giáo dục ngày (EDU-80, 7396/7397): [{ goalId, goalNo }]
@@ -129,7 +131,7 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
   // Tab tuần ở trang ngày đang sửa được theo kế hoạch giáo dục ngày (tính khi render, đọc lúc lưu)
   const weekEditableRef = useRef({ editable: false }).current;
   const ctx = useClassPlanContext(classId);
-  const { cls, classes, yearPlan, canComposeClassDocs } = ctx;
+  const { cls, yearPlan, canComposeClassDocs } = ctx;
   const savedWeek = weekPlans.find((w) => w.classId === classId && w.yearPlanId === yearPlan?.id && w.weekStart === weekStart) || null;
   const savedDay = dayPlans.find((w) => w.classId === classId && w.yearPlanId === yearPlan?.id && w.weekStart === weekStart) || null;
   // Bản mock cũ chưa tách giáo án ngày: mọi thứ vẫn nằm ở giáo án tuần
@@ -312,7 +314,6 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
   const crumbs = dayPage
     ? [{ label: 'Kế hoạch giáo dục' }, { label: 'Kế hoạch giáo dục ngày', to: planPath(`/education/day-plans/${classId}`) }]
     : [{ label: 'Kế hoạch giáo dục' }, { label: 'Kế hoạch giáo dục chủ đề' }, { label: pageTitle }];
-  const dayUrl = (ws) => planPath(`/education/day-plans/${classId}?week=${ws}`);
   // Spec 004: kế hoạch giáo dục ngày = giáo án ngày; kế hoạch tuần thuộc kế hoạch giáo dục chủ đề
   const dossier = themeDossiers.find((d) => d.yearPlanId === yearPlan.id && d.id === `ds_${classId}_${week.theme.id}`) || null;
   // EDU-79 (FR-015): tab Kế hoạch tuần ở trang ngày sửa được khi kế hoạch giáo dục chủ đề chứa chủ đề đã ban hành, trước ngày bắt đầu chủ đề;
@@ -333,7 +334,6 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
     if (out) {
       setEmptyErr([]);
       setGoalErr([]);
-      setNoteDraft('');
     }
     return out;
   };
@@ -344,41 +344,15 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
     reject: !!(dossierPerm.canReject ?? dossierPerm.canReturn),
   };
   const reviewTurn = !!dossierCan && (dossierCan.approve || dossierCan.reject);
+  // Gửi duyệt kế hoạch giáo dục ngày của cả chủ đề (cùng đơn vị với trang danh sách); BE trả quyền và lỗi mục thiếu
+  const dossierReview = dayPage && dossier ? docReview('theme', dossier, ctx, user, eduConfig) : null;
+  const canSendDossier = !!dossierReview && (dossierReview.can.send || (canComposeClassDocs && dossier.status === EDU_STATUS.DRAFT));
   const lastReviewStep = dossier?.review?.roles?.at(-1) === dossier?.review?.waitingRole;
   // Lỗi mục trống tự mất khi mục đó đã có nội dung
   const emptyNow = emptyErr.filter((e) => !sectionHasContent(draft.days.find((d) => d.date === e.date)?.sections?.[e.section]));
   const sectionLabel = (key) => DAY_SECTIONS.find((s) => s.key === key)?.label.replace(/^\d+\.\s*/, '') || key;
-  // Hàng lọc chung các trang tài liệu lớp: Nhóm tuổi · Lớp · Chủ đề (· Tuần ở trang ngày), cùng một hàng bên trái (Tiền 12/11/2026)
-  const themeOptions = themesWithWeeks(yearPlan).map((t) => ({ value: String(t.id), label: t.name }));
-  const themeWeeks = weeks.filter((w) => w.theme.id === week.theme.id);
-  const pickTheme = (id) => {
-    const first = weeks.find((w) => String(w.theme.id) === id);
-    if (!first) return;
-    guard.leave(dayPage ? dayUrl(first.start) : planPath(`/education/class/${classId}/themes/${first.theme.id}`));
-  };
-  const dayFilter = (footer = null) => (
-    <ClassFilterBar
-      classes={classes}
-      classId={classId}
-      canPick={ctx.canPickClass}
-      showAllAges
-      onPick={(id, age) => guard.leave(classFilterPath(dayPage ? '/education/day-plans' : '/education/theme-plans', id, age))}
-      footer={footer}
-    >
-      <FilterSelect label="Chủ đề" value={String(week.theme.id)} options={themeOptions} onChange={pickTheme} />
-      {dayPage && (
-        <FilterSelect
-          label="Tuần"
-          value={weekStart}
-          options={themeWeeks.map((w, i) => ({
-            value: w.start,
-            label: `Tuần ${i + 1} (${ddmm(w.start)})${branch?.names?.[w.start] ? `: ${branch.names[w.start]}` : ''}`,
-          }))}
-          onChange={(v) => guard.leave(dayUrl(v))}
-        />
-      )}
-    </ClassFilterBar>
-  );
+  // Trang chi tiết không có hàng lọc (chỉ trang danh sách có); chỉ giữ thẻ tên chủ đề và tab nếu có
+  const dayFilter = (footer = null) => <ClassFilterBar filters={false} footer={footer} />;
   const dayPicker = dayFilter();
   // Mở thẳng đường dẫn khi chưa tới bước này: không hiện biểu mẫu, chỉ ra bước còn thiếu
   const lock =
@@ -599,24 +573,36 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
             {/* Lấy / gợi ý của ngày nằm trong card I của ngày (Tiền 18/11/2026) */}
             {/* Trả lại ở trái; Duyệt/Ban hành ở phải, luôn là nút riêng (Tiền 18/11/2026) */}
             {dayPage && reviewTurn && (
-              <ReviewActions
-                name={`kế hoạch giáo dục ngày ${week.theme.name}`}
-                can={{ reject: dossierCan.reject }}
-                onAct={dossierAct}
-                defaultNote={noteDraft}
-              />
+              <ReviewActions name={`kế hoạch giáo dục ngày ${week.theme.name}`} can={{ reject: dossierCan.reject }} onAct={dossierAct} />
             )}
           </div>
           <div className="ga-year-toolbar__group ga-year-toolbar__group--end">
             {dayPage && (
               <>
-                {/* BE:EDU-96: khung Kiểm tra / Tóm tắt (AI) bên phải cho người duyệt và người soạn */}
+                {/* BE:EDU-96: khung Kiểm tra bên phải */}
                 {dossier && (
                   <Button variant="outline-primary" size="sm" icon={ListChecks} onClick={() => setAssistOpen(true)}>
                     Kiểm tra
                   </Button>
                 )}
                 <ActionsMenu items={pageTools} />
+                {canSendDossier && (
+                  <ReviewActions
+                    name={`kế hoạch giáo dục ngày ${week.theme.name}`}
+                    sendTo={dossierReview.sendTo}
+                    sendLabel="Gửi duyệt"
+                    can={{ ...dossierReview.can, approve: dossierReview.principalPublish, reject: false }}
+                    approveLabel={dossierReview.approveLabel}
+                    approveAction={dossierReview.approveAction}
+                    showSend={!dossierReview.principalPublish && canComposeClassDocs && dossier.status === EDU_STATUS.DRAFT}
+                    sendDisabledReason={BLOCKED_TEXT[dossier.blockedReason] || 'Chưa gửi được kế hoạch giáo dục ngày này'}
+                    unsaved={saver.unsaved}
+                    onSave={saver.save}
+                    onAct={dossierAct}
+                    variant="btn--outline-primary"
+                    menu={{}}
+                  />
+                )}
                 {reviewTurn && (
                   <ReviewActions
                     name={`kế hoạch giáo dục ngày ${week.theme.name}`}
@@ -670,18 +656,7 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
               </Button>
             )}
             {preview && <DocPreviewModal file={preview} onClose={() => setPreview(null)} />}
-            {dayPage && dossier && (
-              <ReviewAssistPanel
-                open={assistOpen}
-                onClose={() => setAssistOpen(false)}
-                dossierKey={dossier.id}
-                dayKey={savedDay?.id}
-                canSummarize={!!savedDay?.id && (reviewTurn || canComposeClassDocs)}
-                canNote={reviewTurn && !!dossierCan.reject}
-                noteDraft={noteDraft}
-                onNoteDraft={setNoteDraft}
-              />
-            )}
+            {dayPage && dossier && <ReviewAssistPanel open={assistOpen} onClose={() => setAssistOpen(false)} dossierKey={dossier.id} />}
           </div>
         </ResponsiveToolbar>
         {dayPage && dayFilter(weekHead)}
@@ -696,6 +671,10 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
           )}
         {/* Thanh thao tác như màn Kế hoạch năm học: nút cỡ nhỏ viền xanh, nhóm lưu/xuất bên phải (Tiền 05/11) */}
       </div>
+      {!dayPage && <SemesterProgress classId={classId} themeId={week.theme.id} weekStart={weekStart} />}
+      {dayPage && (
+        <DossierProgress classId={classId} themeId={week.theme.id} weekStart={weekStart} missing={emptyNow} sectionLabel={sectionLabel} />
+      )}
       {canComposeClassDocs && (
         <SupersededNote doc={saved || (ctx.superseded ? { superseded: true, yearPlanVersion: versionOf(yearPlan) } : null)} />
       )}
@@ -731,18 +710,6 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
         {days && goalErr.length > 0 && (
           <p className="text-danger text-sm text-right" role="alert">
             MT chưa được dạy ngày nào: {goalErr.map((g) => `MT${g.goalNo}`).join(', ')}
-          </p>
-        )}
-        {days && emptyNow.length > 0 && (
-          <p className="field__error" role="alert">
-            Còn {emptyNow.length} mục chưa có nội dung:{' '}
-            {emptyNow
-              .map((e) => {
-                const i = draft.days.findIndex((d) => d.date === e.date);
-                return `${WEEKDAY_LABELS[i] || ''} ${ddmm(e.date)}: ${sectionLabel(e.section)}`;
-              })
-              .join('; ')}
-            .
           </p>
         )}
         {day < 0 && dayPage ? (

@@ -1,12 +1,13 @@
 /* Pure date / period helpers for the assessment module (dates are local yyyy-mm-dd strings). */
 import { slotsFor } from '@/models/education-plan/educationPlanConstants';
 import { NON_ASSESSED_SLOT_KEYWORDS, PERIOD_TYPE } from '@/models/assessment/assessmentConstants';
+import { devNow } from '@/utils/devClock';
 
 const pad = (n) => String(n).padStart(2, '0');
 const toDate = (s) => new Date(`${s}T00:00:00`);
 export const toIso = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 
-export const todayIso = () => toIso(new Date());
+export const todayIso = () => toIso(devNow());
 
 export const addDays = (s, n) => {
   const d = toDate(s);
@@ -150,7 +151,7 @@ export const isAssessmentLocked = (date, today = todayIso()) => today > date;
 
 /** Hạn của lần mở lại (người mở chọn ngày giờ); bản cũ chỉ lưu ngày thì hết lúc 23:59:59 ngày đó. */
 export const unlockDeadline = (validUntil) => new Date(/^\d{4}-\d{2}-\d{2}$/.test(validUntil) ? `${validUntil}T23:59:59` : validUntil);
-export const isUnlockActive = (unlock, now = new Date()) => !!unlock && unlockDeadline(unlock.validUntil) > now;
+export const isUnlockActive = (unlock, now = devNow()) => !!unlock && unlockDeadline(unlock.validUntil) > now;
 
 /** Timetable activities that can be assessed for the class age group (from the education-plan day slots). */
 export const assessableActivities = (ageGroupId) =>

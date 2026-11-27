@@ -529,3 +529,29 @@ test('resolve sends review primary key, current source and existing edit/revisio
   await assert.rejects(educationPlanApi.resolveGoalReview('41', '600', '20', edit), { status: 409 });
   assert.equal(attempts, 1);
 });
+
+test('Kế hoạch quá hạn: xem kế hoạch năm/tổ chưa ban hành gọi view=OVERDUE kèm năm học', async () => {
+  const calls = [];
+  axiosClient.defaults.adapter = async (config) => {
+    calls.push(config);
+    return respond(config, config.url.endsWith('/config') ? CONFIG : detail({ id: 41 }));
+  };
+  const goal = await educationPlanApi.getOverdueGoal('41', 5);
+  const read = calls.find((c) => c.url === '/education-plans/goals/41');
+  assert.equal(read.params.view, 'OVERDUE');
+  assert.equal(read.params.schoolYearId, 5);
+  assert.equal(goal.id, '41');
+});
+
+test('Kế hoạch quá hạn: hồ sơ lớp mở bằng view=OVERDUE kèm lớp, không dùng view REVIEW', async () => {
+  const calls = [];
+  axiosClient.defaults.adapter = async (config) => {
+    calls.push(config);
+    return respond(config, config.url.endsWith('/config') ? CONFIG : {});
+  };
+  await educationPlanApi.getClassPlans(5, true, '9', true);
+  const read = calls.find((c) => c.url === '/education-plans/class-docs');
+  assert.equal(read.params.view, 'OVERDUE');
+  assert.equal(read.params.classId, 9);
+  assert.equal(read.params.schoolYearId, 5);
+});

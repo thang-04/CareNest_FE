@@ -268,6 +268,7 @@ export const educationPlanApi = {
     }),
   // Mở một kế hoạch theo id (vd. bản Chờ duyệt từ hàng chờ, không có trong danh sách); BE trả 403 nếu chưa ban hành
   getGoal: async (id) => fetchGoal(serverId(id) ?? id, buildRefs(await loadConfig())),
+  // Hiệu trưởng xem bản chưa ban hành đang quá hạn (view=OVERDUE); BE trả bản chỉ đọc
   getOverdueGoal: async (id, schoolYearId) => {
     const refs = buildRefs(await loadConfig());
     return toUiGoal(
@@ -280,9 +281,10 @@ export const educationPlanApi = {
   },
   // Kế hoạch năm/tổ chờ đúng người gọi duyệt; danh sách thường chỉ có bản đã ban hành (BE spec 002 FR-007)
   getReviewQueue: async (_actor, schoolYearId) => {
-    const id = serverId(schoolYearId);
-    if (schoolYearId != null && id == null) throw sourceError(400, 'Năm học không hợp lệ.');
     const refs = buildRefs(await loadConfig());
+    // Nhận cả mã năm của header (tên năm) như danh sách tài liệu lớp
+    const id = serverId(schoolYearId) ?? (schoolYearId ? refs.schoolYearId(String(schoolYearId)) : null);
+    if (schoolYearId != null && id == null) throw sourceError(400, 'Năm học không hợp lệ.');
     const items = await axiosClient.get(`${GOALS}/review-queue`, { params: id == null ? {} : { schoolYearId: id } });
     const scoped = id == null ? items : items.filter((p) => sameSchoolYearId(p.schoolYearId, id));
     return Promise.all(scoped.map((p) => fetchGoal(p.id, refs)));
@@ -348,17 +350,15 @@ export const educationPlanApi = {
     await axiosClient.delete(`${GOALS}/${serverId(id) ?? id}`, { headers: editHeaders({ revision: revision ?? 0 }) });
     known.delete(String(id));
   },
-  saveTheme: (item) => axiosClient.put(`/education-plans/themes/${item.id}`, item),
-  deleteTheme: (id) => axiosClient.delete(`/education-plans/themes/${id}`),
-  saveLesson: (item) => axiosClient.put(`/education-plans/lessons/${item.id}`, item),
-  deleteLesson: (id) => axiosClient.delete(`/education-plans/lessons/${id}`),
   // Tài liệu + lớp + giáo viên, tổ trưởng của năm học đang chọn ở header (BE lọc theo phạm vi người xem)
   // Header giữ id số (API) hoặc tên năm "2027-2028" (nối thử qua beClient) ⇒ đổi tên sang id theo cấu hình
-  getClassPlans: async (schoolYearId, review = false, classId = null) => {
+  getClassPlans: async (schoolYearId, review = false, classId = null, overdue = false) => {
     const id = serverId(schoolYearId) ?? (schoolYearId ? buildRefs(await loadConfig()).schoolYearId(String(schoolYearId)) : null);
     if (schoolYearId != null && id == null) throw sourceError(400, 'Năm học không hợp lệ.');
     const params = id == null ? {} : { schoolYearId: id };
-    if (review) params.view = 'REVIEW';
+    // Hiệu trưởng xem hồ sơ quá hạn của một lớp (chỉ đọc); BE đòi có classId
+    if (overdue) params.view = 'OVERDUE';
+    else if (review) params.view = 'REVIEW';
     if (serverId(classId) != null) params.classId = serverId(classId);
     return axiosClient.get('/education-plans/class-docs', { params, timeout: LIST_TIMEOUT });
   },
@@ -385,11 +385,6 @@ export const educationPlanApi = {
   },
   getOverdueClassPlans: (schoolYearId) =>
     axiosClient.get('/education-plans/class-docs/overdue', { params: yearParam(schoolYearId), timeout: LIST_TIMEOUT }),
-  getOverdueClassDoc: (kind, docKey, schoolYearId) =>
-    axiosClient.get(`/education-plans/class-docs/overdue/${encodeURIComponent(kind)}/${encodeURIComponent(docKey)}`, {
-      params: yearParam(schoolYearId),
-      timeout: LIST_TIMEOUT,
-    }),
   getEduConfig: () => loadEduConfig(),
   // Provider mọi trang: cấu hình + luồng duyệt + chính sách thời lượng tải một lần mỗi phiên trang (lưu cấu hình thì tải lại)
   getEduConfigCached: () => {
@@ -459,8 +454,6 @@ export const educationPlanApi = {
   getClassDocChecks: (kind, docKey) => axiosClient.get(`/education-plans/class-docs/${kind}/${docKey}/checks`),
   // BE:EDU-95 — sửa giáo án ngày theo một câu yêu cầu: trả danh sách ô cũ → mới, không lưu
   editDayByRequest: (docKey, prompt) => axiosClient.post(`/education-plans/ai/class-docs/day/${docKey}/edit`, { prompt }),
-  // BE:EDU-96 — tóm tắt giáo án ngày cho người duyệt: gợi ý, không lưu
-  reviewDay: (docKey) => axiosClient.post(`/education-plans/ai/class-docs/day/${docKey}/review`),
   // BE:EDU-103 — gom nội dung vào chủ đề của kế hoạch tổ (song song theo lĩnh vực, ~40–60s): timeout riêng dài hơn mặc định
   matchThemeContents: (planId, body) =>
     axiosClient.post(`/education-plans/ai/team-plans/${serverId(planId)}/theme-content-map`, body, { timeout: AI_MATCH_TIMEOUT }),

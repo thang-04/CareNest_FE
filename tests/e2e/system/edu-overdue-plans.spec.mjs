@@ -107,7 +107,7 @@ test('ST-005-14 trang chi tiết không có nút mở hạn; nhãn hạn ("Hạn
   const cls = docs.classes.find((c) => String(c.homeroomTeacherId) === String(me.data.userId)) || docs.classes[0];
   await login(htPage, U.ht);
   await spaGo(htPage, `/education/theme-plans/${cls.id}?hk=1`);
-  await expect(htPage.getByRole('combobox', { name: 'Học kỳ' })).toBeVisible({ timeout: 30_000 });
+  await expect(htPage.locator('.ga-page').first()).toBeVisible({ timeout: 30_000 });
   await expect(htPage.getByRole('button', { name: /Mở hạn|Mở khóa/ })).toHaveCount(0);
   // HT chỉ thấy trạng thái/hạn của gói chưa ban hành khi gói quá hạn hoặc đã mở hạn (BE overdueRootNode, phụ thuộc dữ liệu);
   // nhãn hạn kiểm bằng người soạn (luôn thấy)
@@ -116,8 +116,7 @@ test('ST-005-14 trang chi tiết không có nút mở hạn; nhãn hạn ("Hạn
   await spaGo(page, `/education/theme-plans/${cls.id}?hk=1`);
   const deadline = page.getByText(/^Hạn: /).first();
   await expect(deadline).toBeVisible();
-  // Nhãn hạn nằm ngoài vùng tiêu đề thẻ (nơi đặt nhãn trạng thái duyệt)
-  await expect(page.locator('.card__header').getByText(/^Hạn: /)).toHaveCount(0);
+  // Thẻ tiến độ học kỳ (26/11/2026) để nhãn hạn cạnh nhãn trạng thái ở đầu thẻ: không còn kiểm vị trí
 });
 
 test('ST-005-15 hàng chờ duyệt: lọc Nhóm tuổi → Lớp và cột Hạn riêng', async ({ page }) => {
@@ -220,10 +219,8 @@ test('ST-005-21 PHT xem Kế hoạch giáo dục chủ đề: đủ học kỳ, 
   await login(page, U.vp);
   const frame = pkgs.find((p) => p.unreleased);
   await spaGo(page, `/education/theme-plans/${cls.id}${frame ? `?hk=${frame.semesterNo}` : ''}`);
-  // Học kỳ là ô chọn trong thẻ lọc (13/11/2026): đủ mục cho mọi học kỳ
-  const hk = page.getByRole('combobox', { name: 'Học kỳ' });
-  await expect(hk).toBeVisible({ timeout: 30_000 });
-  for (const p of pkgs) await expect(hk.locator('option', { hasText: new RegExp(`Học kỳ ${p.semesterNo}`) })).toHaveCount(1);
+  // Không còn hàng lọc ở trang chi tiết (26/11/2026)
+  await expect(page.locator('.ga-page .card__title').first()).toBeVisible({ timeout: 30_000 });
   if (!frame) return;
   const toolbar = page.getByRole('group', { name: `Trạng thái và thao tác học kỳ ${frame.semesterNo}` });
   await expect(toolbar.getByText('Chưa ban hành')).toHaveCount(0);

@@ -1,7 +1,6 @@
-import { PICKUP_OUTCOME, VERIFICATION, outcomeOf } from '@/models/pickup/pickupConstants';
+import { VERIFICATION } from '@/models/pickup/pickupConstants';
 
 const PHONE_RE = /^0\d{9}$/;
-const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 const NOTE_MAX = 500;
 
 export const pickupTimeError = (time, now) => {
@@ -26,13 +25,11 @@ const PHONE_VERIFICATIONS = [VERIFICATION.PHONE_CONFIRMED, VERIFICATION.PHONE_DE
 export const validatePickupResult = (form = {}) => {
   const errors = {};
   if (!Object.values(VERIFICATION).includes(form.verification)) errors.verification = 'Chọn kết quả xác minh người đón.';
-  const handedOver = outcomeOf(form.verification) === PICKUP_OUTCOME.HANDED_OVER;
   const needsPerson = form.verification === VERIFICATION.PHOTO_MATCH;
   if (needsPerson && !String(form.pickupPersonName || '').trim()) errors.pickupPersonName = 'Nhập họ tên người đón.';
   if (needsPerson && !String(form.pickupPersonRelation || '').trim()) errors.pickupPersonRelation = 'Chọn quan hệ với trẻ.';
   const phone = String(form.pickupPersonPhone || '').replace(/\s/g, '');
   if (phone && !PHONE_RE.test(phone)) errors.pickupPersonPhone = 'Số điện thoại gồm 10 chữ số, bắt đầu bằng 0.';
-  if (handedOver && !TIME_RE.test(String(form.handoverTime || ''))) errors.handoverTime = 'Nhập giờ trả trẻ (HH:mm).';
   const noteError = PHONE_VERIFICATIONS.includes(form.verification)
     ? callNoteError(form.note)
     : String(form.note || '').length > NOTE_MAX

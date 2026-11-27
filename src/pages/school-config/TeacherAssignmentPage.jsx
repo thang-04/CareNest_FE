@@ -34,6 +34,7 @@ import { teacherCrumbs } from '@/utils/school-config/breadcrumbs';
 import { ClassTeachersModal } from '@/components/school-config/ClassTeachersModal';
 import { SubstituteTeacherModal } from '@/components/school-config/SubstituteTeacherModal';
 import { TeamLeaderModal } from '@/components/school-config/TeamLeaderModal';
+import { isLocked, workingTeacherCount } from '@/utils/school-config/classTeachers';
 import '@/styles/modules/school-config.css';
 
 const CAMPUS_ALL = 'all';
@@ -88,10 +89,10 @@ function TeamLeaderRow({ group, classCount, current, campusName, readOnly, acts,
  * #26 Teacher Assignment (UC 2.6). Teacher part follows "Phân công giáo viên"; team leaders follow the separate VP area "Phân công tổ trưởng nhóm tuổi":
  * FULL (always the Principal) chooses any campus, RESTRICTED works on the own campus.
  */
-// Lọc tình trạng: đủ = từ 2 giáo viên + phụ trách chính; lớp được lưu với 0–3 giáo viên
+// Lọc tình trạng: đủ = từ 2 giáo viên còn hoạt động + phụ trách chính; lớp được lưu với 0–3 giáo viên
 const STATUS_MATCH = {
-  FULL: (c) => c.teacherIds.length >= TEACHERS_PER_CLASS && !!c.homeroomTeacherId,
-  MISSING: (c) => c.teacherIds.length > 0 && c.teacherIds.length < TEACHERS_PER_CLASS,
+  FULL: (c) => workingTeacherCount(c) >= TEACHERS_PER_CLASS && !!c.homeroomTeacherId && !isLocked(c, c.homeroomTeacherId),
+  MISSING: (c) => c.teacherIds.length > 0 && workingTeacherCount(c) < TEACHERS_PER_CLASS,
   NONE: (c) => c.teacherIds.length === 0,
   NO_HOMEROOM: (c) => c.teacherIds.length > 0 && !c.homeroomTeacherId,
 };
@@ -391,6 +392,14 @@ export default function TeacherAssignmentPage() {
                             .map((id) => teacherName(c, id))
                             .filter(Boolean)
                             .join(', ') || <span className="muted">Chưa phân công</span>}
+                          {c.teacherIds
+                            .filter((id) => isLocked(c, id))
+                            .map((id) => (
+                              <span key={id}>
+                                {' '}
+                                <span className="chip chip--orange">{teacherName(c, id)} bị khóa tài khoản, cần chọn người thay</span>
+                              </span>
+                            ))}
                           {c.teacherIds.length > 0 && !c.homeroomTeacherId && (
                             <>
                               {' '}

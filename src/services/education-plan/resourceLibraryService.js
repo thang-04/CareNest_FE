@@ -1,6 +1,4 @@
-import { USE_MOCK } from '@/config/env';
 import { axiosClient } from '@/services/http/axiosClient';
-import { resourceLibraryMockRepository as mock } from './mock/learningResourceMockRepository';
 import { loadEduRefs } from './api/educationPlanApi';
 
 // BE:EDU-82…88 (spec 901) — kho học liệu cá nhân: nhãn chủ đề đã dạy/MT/nhóm tuổi, gợi ý, khóa xóa/đổi tên
@@ -33,4 +31,4 @@ export const resourceLibraryApi = {
   },
   contentUrl: async (_user, id) => (await axiosClient.get(`${BASE}/${id}/url`)).url,
 };
-export const resourceLibraryService = USE_MOCK ? mock : resourceLibraryApi;
+export const resourceLibraryService = resourceLibraryApi;

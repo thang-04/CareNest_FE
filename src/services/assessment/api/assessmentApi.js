@@ -161,6 +161,8 @@ export const createAssessmentBeApi = (client) => ({
   getThemeEvaluation: ({ classId, themeId }) => client.get('/assessment/theme-evaluations', { params: { classId, themeId } }),
   saveThemeEvaluation: (body) => client.put('/assessment/theme-evaluations', body),
   confirmThemeEvaluation: (body) => client.post('/assessment/theme-evaluations/confirm', body),
+  // OBS-30: bảng tính lại để sửa bản đã xác nhận, xác nhận lại mới ghi
+  getThemeRevision: ({ classId, themeId }) => client.get('/assessment/theme-evaluations/revision', { params: { classId, themeId } }),
   // Nhận xét tuần theo trẻ (BE OBS-29): weekStart = thứ Hai; childId trống = cả lớp
   getWeeklyComments: ({ classId, weekStart }) =>
     client.get('/assessment/weekly-comments', { params: { classId, weekStart: weekStart || undefined } }),
@@ -217,7 +219,8 @@ export const createAssessmentBeApi = (client) => ({
     }),
   getEvaluation: (kind, id) => client.get(`/assessment/evaluations/${id}`),
   saveEvaluationDraft: (kind, id, content) => client.put(`/assessment/evaluations/${id}/content`, { content }),
-  confirmEvaluation: (kind, id, content) => client.post(`/assessment/evaluations/${id}/confirm`, { content }),
+  // revision: { programCompleted, sheet } chỉ gửi khi xác nhận lại bản đã xác nhận
+  confirmEvaluation: (kind, id, content, _user, revision) => client.post(`/assessment/evaluations/${id}/confirm`, { content, ...revision }),
   regenerateEvaluationDraft: (kind, id, _user, ai = false) =>
     client.post(`/assessment/evaluations/${id}/redraft`, ai ? { ai: true } : undefined),
   markProgramCompletion: (id, completed) => client.put(`/assessment/evaluations/${id}/program-completion`, { completed }),
@@ -225,6 +228,7 @@ export const createAssessmentBeApi = (client) => ({
   getSemesterAssessment: (params) => client.get('/assessment/semester-evaluations', { params }),
   saveSemesterAssessment: (body) => client.put('/assessment/semester-evaluations', body),
   confirmSemesterAssessment: (body) => client.post('/assessment/semester-evaluations/confirm', body),
+  getSemesterRevision: (params) => client.get('/assessment/semester-evaluations/revision', { params }),
   getYearEndSheet: (id) => client.get(`/assessment/evaluations/${id}/year-sheet`),
   saveYearEndSheet: (id, body) => client.put(`/assessment/evaluations/${id}/year-sheet`, body),
   // Hồ sơ / tiến độ phát triển: trẻ trong phạm vi của năm học, số liệu của trẻ theo khoảng ngày

@@ -220,8 +220,8 @@ test('ST-005-21 trang ngoài Kế hoạch giáo dục ngày: ô chọn học k�
 }) => {
   await login(page, U.tl);
   await spaGo(page, `/education/day-plans/${cls.id}`);
-  // Học kỳ là ô chọn trong thẻ lọc (Tiền 13/11/2026), không còn tab
-  await expect(page.getByRole('combobox', { name: 'Học kỳ' })).toBeVisible({ timeout: 30_000 });
+  // Trang ngoài không còn hàng lọc (Tiền 26/11/2026): lọc chỉ ở trang danh sách
+  await expect(page.locator('.ga-class-plan-table').first()).toBeVisible({ timeout: 30_000 });
   const firstCard = page
     .locator('section.card')
     .filter({ has: page.locator('.ga-class-plan-table') })

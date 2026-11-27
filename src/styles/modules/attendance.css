@@ -98,7 +98,7 @@
   width: calc(var(--space-16) * 2.625); /* đủ badge có icon "Chưa điểm danh" */
 }
 .dd-reception__col-meal {
-  width: calc(var(--space-16) * 1.625);
+  width: calc(var(--space-16) * 2.5); /* đủ "Phụ sáng, Trưa" trong ô chọn */
 }
 /* Cột Điểm danh: tiêu đề và nút Có mặt / Vắng cùng căn giữa */
 .dd-reception__table th.dd-reception__col-status,
@@ -206,6 +206,10 @@
 .dd-reception__status .dd-seg__item {
   min-height: var(--input-height);
   padding: var(--space-2);
+}
+.dd-reception__meal-select {
+  width: 100%;
+  min-width: 0;
 }
 .dd-reception__status-select {
   width: 100%;

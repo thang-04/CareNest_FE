@@ -4,7 +4,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { FormField } from '@/components/form/FormField';
-import { TextField } from '@/components/form/Field';
 import { EmptyState, ErrorState, LoadingState, Spinner } from '@/components/ui/States';
 import { recordPickupResult } from '@/services/pickup/pickupService';
 import { usePickupChild } from '@/hooks/pickup/usePickups';
@@ -15,12 +14,10 @@ import {
   VERIFICATION,
   VERIFICATION_LABELS,
 } from '@/models/pickup/pickupConstants';
-import { callNoteError, pickupTimeError, validatePickupResult } from '@/utils/pickup/pickupValidation';
+import { callNoteError, validatePickupResult } from '@/utils/pickup/pickupValidation';
 import { formatDateTime, initials } from '@/utils/format';
 import { PickupOutcomeBadge } from './PickupBadges';
 import { PortraitImage } from '@/components/PortraitImage';
-
-const nowTime = () => new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 
 function GuardianPhoto({ guardian }) {
   return (
@@ -82,7 +79,7 @@ export function PickupPhotoFlow({ childId, onDone, fullDayPickupFrom = '15:00' }
   const { user } = useAuth();
   const toast = useToast();
   const [guardian, setGuardian] = useState(null);
-  const [form, setForm] = useState({ handoverTime: nowTime(), note: '' });
+  const [form, setForm] = useState({ note: '' });
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
 
@@ -97,8 +94,6 @@ export function PickupPhotoFlow({ childId, onDone, fullDayPickupFrom = '15:00' }
       ...form,
     };
     const errs = validatePickupResult(payload);
-    const timeError = pickupTimeError(payload.handoverTime, nowTime());
-    if (timeError) errs.handoverTime = timeError;
     setErrors(errs);
     if (Object.keys(errs).length) return;
     setBusy(true);
@@ -125,16 +120,7 @@ export function PickupPhotoFlow({ childId, onDone, fullDayPickupFrom = '15:00' }
                 <b>Khớp ảnh đăng ký:</b> trả {context.child.fullName} cho {guardian.fullName} ({guardian.relation}).
               </div>
             </div>
-            <div className="grid-2">
-              <FormField label="Giờ trả trẻ" required error={errors.handoverTime}>
-                <input
-                  className="input"
-                  type="time"
-                  value={form.handoverTime}
-                  onChange={(e) => setForm({ ...form, handoverTime: e.target.value })}
-                />
-              </FormField>
-            </div>
+            <p className="muted text-sm">Giờ trả được ghi theo thời điểm bấm “Ghi nhận trả trẻ”.</p>
             <FormField label="Ghi chú" hint="Không bắt buộc" error={errors.note} className="mt-12">
               <textarea
                 className="textarea"
@@ -144,9 +130,6 @@ export function PickupPhotoFlow({ childId, onDone, fullDayPickupFrom = '15:00' }
                 onChange={(e) => setForm({ ...form, note: e.target.value })}
               />
             </FormField>
-            {form.handoverTime && form.handoverTime < fullDayPickupFrom && (
-              <div className="alert alert--warning mt-12">Trả trước {fullDayPickupFrom}: trẻ được tính vắng buổi chiều (nửa ngày).</div>
-            )}
             <div className="dt-call__actions mt-16">
               <button className="btn" onClick={() => setGuardian(null)} disabled={busy}>
                 <ArrowLeft size={16} /> Chọn lại
@@ -196,8 +179,6 @@ export function PickupCallFlow({ childId, onDone, fullDayPickupFrom = '15:00' })
   const [error, setError] = useState('');
   // Kết quả đang chờ xác nhận: PHONE_CONFIRMED (trả) hoặc PHONE_DECLINED (không trả).
   const [confirming, setConfirming] = useState(null);
-  const [handoverTime, setHandoverTime] = useState(nowTime);
-  const [timeError, setTimeError] = useState('');
 
   const checkNote = () => {
     const msg = callNoteError(note);
@@ -207,17 +188,11 @@ export function PickupCallFlow({ childId, onDone, fullDayPickupFrom = '15:00' })
 
   const ask = (verification) => {
     if (!checkNote()) return;
-    setTimeError('');
     setConfirming(verification);
   };
 
   const record = async () => {
     const handedOver = confirming === VERIFICATION.PHONE_CONFIRMED;
-    if (handedOver) {
-      const message = pickupTimeError(handoverTime, nowTime());
-      setTimeError(message || '');
-      if (message) return;
-    }
     try {
       await recordPickupResult(
         {
@@ -226,7 +201,6 @@ export function PickupCallFlow({ childId, onDone, fullDayPickupFrom = '15:00' })
           pickupPersonName: '',
           pickupPersonRelation: '',
           pickupPersonPhone: '',
-          handoverTime: handedOver ? handoverTime : '',
           note: note.trim(),
         },
         user,
@@ -301,26 +275,11 @@ export function PickupCallFlow({ childId, onDone, fullDayPickupFrom = '15:00' })
           <ConfirmationModal
             open={confirming === VERIFICATION.PHONE_CONFIRMED}
             title="Ghi nhận trả trẻ?"
-            message={`Trả ${context.child.fullName} lúc ${handoverTime} theo nội dung cuộc gọi. Phụ huynh sẽ nhận thông báo.`}
+            message={`Trả ${context.child.fullName} theo nội dung cuộc gọi, giờ trả là lúc bấm xác nhận. Phụ huynh sẽ nhận thông báo.`}
             confirmLabel="Ghi nhận trả trẻ"
             onConfirm={record}
             onClose={() => setConfirming(null)}
-          >
-            <TextField
-              label="Giờ trả trẻ"
-              type="time"
-              required
-              value={handoverTime}
-              error={timeError}
-              onChange={(e) => {
-                setHandoverTime(e.target.value);
-                setTimeError('');
-              }}
-            />
-            {handoverTime && handoverTime < fullDayPickupFrom && (
-              <div className="alert alert--warning mt-12">Trả trước {fullDayPickupFrom}: trẻ được tính vắng buổi chiều (nửa ngày).</div>
-            )}
-          </ConfirmationModal>
+          />
         </section>
       )}
     </WaitingChild>

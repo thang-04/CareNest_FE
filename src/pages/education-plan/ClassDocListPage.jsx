@@ -7,7 +7,7 @@ import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { useAsync } from '@/hooks/useAsync';
 import { getClassDocSummaries } from '@/services/education-plan/educationPlanService';
 import { ageRangeOptions, sameAgeRange } from '@/models/education-plan/educationPlanConstants';
-import { Eye } from '@/components/ui/icons';
+import { Eye, Pencil } from '@/components/ui/icons';
 import { ErrorState, LoadingState } from '@/components/ui/States';
 import { Pagination } from '@/components/ui/Pagination';
 import { Checkbox } from '@/components/form/Checkbox';
@@ -158,18 +158,19 @@ export default function ClassDocListPage({ kind }) {
                 key: 'actions',
                 header: 'Thao tác',
                 className: 'cell--actions',
+                // Còn sửa được (BE trả quyền) thì Chỉnh sửa; đã gửi duyệt, đã ban hành, bản cũ hoặc không có quyền sửa thì Xem
                 render: (d) => (
                   <Button
                     variant="outline-primary"
                     size="sm"
-                    icon={Eye}
+                    icon={d.permissions?.canEdit && !d.superseded ? Pencil : Eye}
                     className="nowrap"
                     onClick={(e) => {
                       e.stopPropagation();
                       navigate(meta.to(d));
                     }}
                   >
-                    Xem
+                    {d.permissions?.canEdit && !d.superseded ? 'Chỉnh sửa' : 'Xem'}
                   </Button>
                 ),
               },
