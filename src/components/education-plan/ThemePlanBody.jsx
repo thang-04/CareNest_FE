@@ -440,23 +440,13 @@ export function ThemePlanBody({
                             {flagOf(g.id) && <div className="field__error">{flagOf(g.id).message}</div>}
                           </div>
                         </td>
-                        <td className={editable ? 'ga-cell-editable' : ''}>
-                          {contentPending[g.id] ? (
-                            <div className="ga-goal-table__pad">
-                              {contentLinesOf(rowOf(g).contents).map((text, i) => (
-                                <div key={`${i}-${text}`} className={contentPending[g.id].marked.includes(i) ? 'ga-ai-filled' : undefined}>
-                                  - {text}
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <Cell
-                              editable={editable}
-                              value={rowOf(g).contents}
-                              label={`Nội dung của MT${g.no}`}
-                              onChange={(v) => setRow(g, 'contents', v)}
-                            />
-                          )}
+                        <td className={`${editable ? 'ga-cell-editable' : ''}${contentPending[g.id] ? ' ga-cell--ai' : ''}`}>
+                          <Cell
+                            editable={editable}
+                            value={rowOf(g).contents}
+                            label={`Nội dung của MT${g.no}`}
+                            onChange={(v) => setRow(g, 'contents', v)}
+                          />
                           {editable && rewriteContents && (
                             <ContentAi
                               goal={g}

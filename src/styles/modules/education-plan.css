@@ -3166,12 +3166,15 @@ html:has(.ga-page) {
   }
 }
 
-/* Gợi ý AI đang chờ ✓/✗ (Tiền 28/11/2026): dòng AI điền in đậm, ✓ xanh, ✗ đỏ */
-.ga-ai-filled,
-.ga-ai-filled *,
-.ga-cell--ai textarea,
-.ga-cell--ai input {
-  font-weight: var(--fw-bold);
+/* Gợi ý AI đang chờ ✓/✗ (Tiền 28/11/2026): ô AI điền nền xanh lá nhạt, ✓ xanh, ✗ đỏ */
+.table.ga-goal-table tbody tr td.ga-cell--ai,
+.ga-sug.ga-ai-filled,
+.ga-sug.ga-ai-filled:hover {
+  background: var(--color-success-bg);
+}
+.table.ga-goal-table tbody tr td.ga-cell--ai textarea,
+.table.ga-goal-table tbody tr td.ga-cell--ai input {
+  background: transparent;
 }
 .icon-btn.ga-ai-keep {
   color: var(--color-success-fg);

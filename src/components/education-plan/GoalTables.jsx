@@ -593,10 +593,12 @@ export function GoalTable({
         <tr key={`content-${c.id}`}>
           {k === 0 && lead}
           {k === 0 && head}
-          <td className={editContent ? 'ga-goal-content-cell ga-cell-editable' : isEditing && fixedCells ? 'cell--fixed' : ''}>
+          <td
+            className={`${editContent ? 'ga-goal-content-cell ga-cell-editable' : isEditing && fixedCells ? 'cell--fixed' : ''}${c.id in aiPending ? ' ga-cell--ai' : ''}`}
+          >
             {editContent ? (
               <>
-                <div className={`ga-goal-line__text${c.id in aiPending ? ' ga-ai-filled' : ''}`}>
+                <div className="ga-goal-line__text">
                   {cellInput({
                     'data-focus': c.id,
                     'aria-label': `Nội dung ${k + 1} của mục tiêu ${no || 'mới'}`,
