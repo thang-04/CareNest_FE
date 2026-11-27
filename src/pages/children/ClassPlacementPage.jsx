@@ -22,7 +22,7 @@ import { YearLockedNotice } from '@/components/children/YearLockedNotice';
 import { ClassPlacementFields } from '@/components/children/ClassPlacementFields';
 import { cancelScheduledPlacement, placeChild } from '@/services/children/childrenService';
 import { CHILD_STATUS, ageLabel } from '@/models/School';
-import { formatDate, normalizeText, todayInput } from '@/utils/format';
+import { addDays, formatDate, normalizeText, todayInput } from '@/utils/format';
 import {
   earliestPlacementDate,
   firstSchoolDay,
@@ -186,6 +186,7 @@ export default function ClassPlacementPage() {
       earliest,
       today,
       yearEnd: activeYear?.endDate,
+      scheduledLeaveOn: selected?.scheduledLeaveOn,
       holidays,
       transfer: isTransfer,
     });
@@ -304,6 +305,7 @@ export default function ClassPlacementPage() {
                         <td>
                           {c.className || <span className="muted">Chưa xếp</span>}
                           {isNotStarted(c) && <span className="muted text-xs"> ({notStartedLabel(c)})</span>}
+                          {c.scheduledLeaveOn && <div className="muted text-sm">Nghỉ từ {formatDate(c.scheduledLeaveOn)}</div>}
                           {hasScheduledTransfer(c) && <div className="text-xs">{scheduledTransferLabel(c)}</div>}
                           {pickCampus && <div className="muted text-xs">{campusLabel(c.campusId)}</div>}
                         </td>
@@ -387,7 +389,7 @@ export default function ClassPlacementPage() {
                 <DateInput
                   value={effectiveDate}
                   min={earliest}
-                  max={activeYear?.endDate}
+                  max={selected.scheduledLeaveOn ? addDays(selected.scheduledLeaveOn, -1) : activeYear?.endDate}
                   onChange={(value) => {
                     setEffectiveDate(value);
                     setDateTouched(true);

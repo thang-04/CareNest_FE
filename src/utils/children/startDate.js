@@ -65,10 +65,11 @@ export function startDateError(value, year, today, holidays = []) {
  * Câu lỗi ô ngày ở hộp Xếp lớp / Chuyển lớp (BE `ChildRecordServiceImpl.effectiveDateProblem`): không trước `earliest`
  * (hôm nay, hoặc ngày bắt đầu đi học khi xếp lần đầu), không sau ngày kết thúc năm, là ngày học; '' khi hợp lệ.
  */
-export function placementDateError(value, { earliest, today, yearEnd, holidays = [], transfer = false }) {
+export function placementDateError(value, { earliest, today, yearEnd, scheduledLeaveOn, holidays = [], transfer = false }) {
   const label = transfer ? 'Ngày chuyển lớp' : 'Ngày vào lớp';
   if (!value) return `Chọn ${label.toLowerCase()}`;
   if (!isIsoDate(value)) return `Nhập ${label.toLowerCase()} theo dạng dd/mm/yyyy`;
+  if (scheduledLeaveOn && value >= scheduledLeaveOn) return `Trẻ nghỉ học từ ${ddmmyyyy(scheduledLeaveOn)}. Hủy lịch nghỉ trước khi xếp lớp từ ngày này`;
   if (earliest && value < earliest) {
     return earliest === today
       ? `${label} không được trước hôm nay`

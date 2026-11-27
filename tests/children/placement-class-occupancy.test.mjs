@@ -32,3 +32,13 @@ test('gửi from, childId và đọc lại khi đổi ngày', () => {
   assert.match(read('src/pages/children/EnrollChildPage.jsx'), /usePlacementClasses\(intakeYear\?\.id, \{ from: startDate \}\)/);
   assert.match(read('src/services/children/mock/childrenMockRepository.js'), /occupiedCount/);
 });
+
+test('Không xếp lớp từ ngày nghỉ đã hẹn', async () => {
+  const { placementDateError } = await import('@/utils/children/startDate');
+  const options = { scheduledLeaveOn: '2026-11-30' };
+  assert.equal(placementDateError('2026-11-27', options), '');
+  assert.equal(placementDateError('2026-11-30', options), 'Trẻ nghỉ học từ 30/11/2026. Hủy lịch nghỉ trước khi xếp lớp từ ngày này');
+  const page = read('src/pages/children/ClassPlacementPage.jsx');
+  assert.match(page, /Nghỉ từ \{formatDate\(c.scheduledLeaveOn\)/);
+  assert.match(page, /addDays\(selected.scheduledLeaveOn, -1\)/);
+});
