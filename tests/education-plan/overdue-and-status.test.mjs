@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { filterOverdue, overdueRows } from '../../src/models/education-plan/overdue.mjs';
+import { filterOverdue, overdueClassTarget, overdueRows } from '../../src/models/education-plan/overdue.mjs';
 import { deadlineLabel } from '../../src/models/education-plan/deadline.mjs';
 import { publishedBranchCalendar } from '../../src/models/education-plan/branchCalendar.mjs';
 
@@ -136,4 +136,16 @@ test('EDU-109 (9): màn quá hạn chỉ gọi extend / unlock, không còn mở
   const src = await readFile(new URL('../../src/pages/education-plan/OverduePlansPage.jsx', import.meta.url), 'utf8');
   assert.doesNotMatch(src, /reopen_review_deadline|reopenGoalReviewDeadline|Mở lại hạn duyệt/);
   assert.match(src, /action: 'extend'/);
+});
+
+test('EDU-109: chi tiết dùng đúng mã gói và hồ sơ theo lớp, phiên bản nguồn, học kỳ hoặc chủ đề', () => {
+  const semester = { id: 'sp-1', classId: 7, yearPlanId: 32, semesterNo: 1, version: 6 };
+  const dossier = { id: 'ds-1', classId: 7, yearPlanId: 32, themeId: 14, version: 9 };
+  const scope = { classId: '7', planId: '32' };
+  assert.equal(overdueClassTarget([semester], { ...scope, docKey: 'sp-1', semesterNo: '1' }), semester);
+  assert.equal(overdueClassTarget([dossier], { ...scope, docKey: 'ds-1', themeId: '14' }), dossier);
+  assert.equal(overdueClassTarget([semester], { ...scope, docKey: 'sp-1', semesterNo: '2' }), null);
+  assert.equal(overdueClassTarget([dossier], { ...scope, docKey: 'ds-1', themeId: '15' }), null);
+  assert.equal(overdueClassTarget([dossier], { ...scope, classId: '8', docKey: 'ds-1', themeId: '14' }), null);
+  assert.equal(overdueClassTarget([dossier], { ...scope, planId: '33', docKey: 'ds-1', themeId: '14' }), null);
 });

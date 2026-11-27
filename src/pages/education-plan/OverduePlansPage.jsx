@@ -21,15 +21,15 @@ const PAGE_SIZE = 5;
 // Xem chỉ đọc trên trang chi tiết có sẵn; ?overdue=1 cho Hiệu trưởng đọc bản chưa ban hành
 const viewPathOf = (r) => {
   if (r.planId) return `${planRoute(r.doc)}/${r.planId}?overdue=1`;
-  const plan = encodeURIComponent(r.doc.yearPlanId);
-  return r.kind === 'semester'
-    ? `/education/theme-plans/${r.classId}?hk=${r.doc.semesterNo}&plan=${plan}&overdue=1`
-    : `/education/day-plans/${r.classId}?theme=${r.doc.themeId}&plan=${plan}&overdue=1`;
+  const detail = new URLSearchParams({ plan: r.doc.yearPlanId, overdue: '1', deadlineDoc: r.docKey });
+  if (r.kind === 'semester') detail.set('hk', r.doc.semesterNo);
+  else detail.set('theme', r.doc.themeId);
+  return r.kind === 'semester' ? `/education/theme-plans/${r.classId}?${detail}` : `/education/day-plans/${r.classId}?${detail}`;
 };
 
 /**
  * Kế hoạch quá hạn (spec 005 FR-021a, chỉ Hiệu trưởng): tài liệu chưa ban hành đã tới hạn của cả năm, tổ và lớp; tích
- * nhiều dòng rồi mở hạn với một lý do + hạn mới chung (theo cách "Grant extension" của Moodle). Trang chi tiết không có nút mở.
+ * nhiều dòng rồi mở hạn với một lý do + hạn mới chung.
  */
 export default function OverduePlansPage() {
   const { user, schoolYearId } = useEducationPlan();

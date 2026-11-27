@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Outlet, useMatch, useSearchParams } from 'react-router-dom';
-import { EducationPlanProvider } from '@/hooks/education-plan/useEducationPlan';
+import { EducationPlanProvider, useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
+import { ExtendDeadlineAction } from '@/components/education-plan/DeadlineWidgets';
+import { overdueClassTarget } from '@/models/education-plan/overdue.mjs';
 import '@/styles/modules/education-plan.css';
 
 /** Route wrapper: every /education page shares one data provider. */
@@ -16,6 +18,7 @@ export default function EducationPlanLayout() {
   const dayPlans = useMatch('/education/day-plans/:classId');
   const branches = useMatch('/education/branches/:classId');
   const classPage = useMatch('/education/class/:classId/*');
+  const themeDetail = useMatch('/education/class/:classId/themes/:themeId');
   const classId = (themePlans || dayPlans || branches || classPage)?.params?.classId ?? null;
   const lightDocs = classId == null;
   // Hiệu trưởng xem hồ sơ quá hạn của một lớp (mở từ Kế hoạch quá hạn): chỉ đọc. Giữ chế độ khi đi qua lại các trang lớp
@@ -27,6 +30,7 @@ export default function EducationPlanLayout() {
     else if (classId == null) setOverdueMode(false);
   }, [askedOverdue, classId]);
   const overdueView = classId != null && (askedOverdue || overdueMode);
+  const deadlineKind = dayPlans ? 'dossier' : themePlans || themeDetail ? 'semester' : null;
   // Hàng chờ duyệt, quá hạn tự tải danh sách của mình ⇒ không tải danh sách kế hoạch năm/tổ (size=200, 2 cấp)
   const overdue = useMatch('/education/overdue');
   const skipGoals = !!(reviews || overdue);
@@ -66,15 +70,48 @@ export default function EducationPlanLayout() {
       skipGoals={skipGoals}
     >
       <div ref={scope}>
-        {/* Xem hồ sơ quá hạn: tắt mọi nút và ô nhập; liên kết chuyển tuần, chủ đề vẫn dùng được */}
+        {/* Tách nút Mở hạn khỏi fieldset để nội dung hồ sơ lớp vẫn chỉ đọc. */}
         {overdueView ? (
-          <fieldset disabled className="ga-overdue-fieldset">
-            <Outlet />
-          </fieldset>
+          <>
+            {askedOverdue && deadlineKind && <OverdueClassDeadline kind={deadlineKind} classId={classId} params={params} />}
+            <fieldset disabled className="ga-overdue-fieldset">
+              <Outlet />
+            </fieldset>
+          </>
         ) : (
           <Outlet />
         )}
       </div>
     </EducationPlanProvider>
+  );
+}
+
+function OverdueClassDeadline({ kind, classId, params }) {
+  const { user, schoolYearId, semesterPackages, themeDossiers, actOnClassDoc } = useEducationPlan();
+  const doc = overdueClassTarget(kind === 'semester' ? semesterPackages : themeDossiers, {
+    docKey: params.get('deadlineDoc'),
+    classId,
+    planId: params.get('plan'),
+    semesterNo: kind === 'semester' ? params.get('hk') : null,
+    themeId: kind === 'dossier' ? params.get('theme') : null,
+  });
+  if (!doc) return null;
+
+  return (
+    <div className="ga-overdue-detail-actions">
+      <ExtendDeadlineAction
+        key={JSON.stringify([user.id, schoolYearId, kind, classId, doc.yearPlanId, doc.id])}
+        title={kind === 'semester' ? `Mở hạn: Gói học kỳ ${doc.semesterNo}` : 'Mở hạn: Hồ sơ chủ đề'}
+        canExtend={doc.canExtend}
+        onExtend={async ({ note, deadline }) => {
+          let failure;
+          const saved = await actOnClassDoc(kind, doc.id, { action: 'extend', note, deadline }, user, {
+            version: doc.version,
+            onError: (err) => (failure = err),
+          });
+          if (!saved) throw failure || new Error('Không mở hạn được');
+        }}
+      />
+    </div>
   );
 }

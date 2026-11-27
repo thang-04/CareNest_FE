@@ -346,13 +346,14 @@ export function EducationPlanProvider({
         }
       },
       getGoalChanges: service.getGoalChanges,
-      unlockGoal: async (id, body) => {
+      unlockGoal: async (id, body, { onError } = {}) => {
         try {
           const plan = await service.unlockGoal(id, body);
           if (isActive()) toast('Đã mở hạn');
           return plan;
         } catch (err) {
           if (isActive()) toastApi.error(err, 'Không mở khóa được');
+          onError?.(err);
           return null;
         }
       },

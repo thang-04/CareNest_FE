@@ -115,14 +115,14 @@ import {planLevel as levelOf, planRoute} from ${JSON.stringify(import.meta.resol
 import {sameSchoolYearId} from ${JSON.stringify(import.meta.resolve('../../src/models/education-plan/schoolYearScope.mjs'))};
 const BranchTemplateEditor=()=>null;
 const TeamSourceReview=()=>null;
-const useParams=()=>({id:'test'}), useNavigate=()=>()=>{}, useLocation=()=>({state:null}), useSearchParams=()=>[new URLSearchParams()];
-const DeadlineBadge=()=>null, ExtendDeadlineButton=()=>null;
+const useParams=()=>({id:'test'}), useNavigate=()=>()=>{}, useLocation=()=>({state:null}), useSearchParams=()=>[new URLSearchParams(detailContext.search)];
+const DeadlineBadge=()=>null, ExtendDeadlineAction=({canExtend})=>canExtend ? <button>Mở hạn</button> : null;
 const ROLE_LABELS={};
 const YearPlanSourceCard=({plan,source,children})=><section className="ga-plan-section--source" data-source-id={plan.curriculumSourcePlanId} data-source-title={source?.title}>{children}</section>;
 const ROLES={VICE_PRINCIPAL:'vp'}, AGE_GROUPS=[], DOMAINS=[], SCHOOL_SCOPE='Toàn trường', EDU_STATUS={DRAFT:'DRAFT',EDITING:'EDITING',APPROVED:'APPROVED'};
 const isEduVicePrincipal=(u)=>u?.role===ROLES.VICE_PRINCIPAL, canPrincipalPublish=()=>false;
 const plan={id:'test',schoolYearId:1,title:'Kế hoạch thử',status:'DRAFT',domains:[],themes:[],permissions:{canEdit:true}};
-export const detailContext={schoolYearId:1,requested:null,goals:[plan]};
+export const detailContext={schoolYearId:1,requested:null,goals:[plan],search:''};
 const useGoalDetails=()=>({loading:false});const useEducationPlan=()=>({...detailContext,themes:[],user:{id:'vp',role:'vp'},staff:[]});
 const goalIdsToTicks=(domains,themes)=>({domains,themes}), numberGoals=()=>({}), chainOf=()=>[], currentPlanInYear=()=>null;
 const Card=({title,num,children})=><section><h2>{num}. {title}</h2>{children}</section>;
@@ -162,6 +162,23 @@ test('chi tiết qua liên kết trực tiếp không hiển thị kế hoạch 
     const html = renderToStaticMarkup(React.createElement(GoalDetailPage));
     assert.match(html, /Không tìm thấy .* trong năm học đang chọn/);
     assert.doesNotMatch(html, /Kế hoạch thử|\/edit/);
+  } finally {
+    Object.assign(detailContext, before);
+  }
+});
+
+test('chi tiết năm và tổ mở từ Kế hoạch quá hạn chỉ hiện Mở hạn theo quyền backend', () => {
+  const before = { ...detailContext };
+  try {
+    detailContext.search = 'overdue=1';
+    for (const planLevel of ['SCHOOL_YEAR', 'TEAM']) {
+      detailContext.requested = { ...before.goals[0], planLevel, timeLock: { canUnlock: true } };
+      const render = () => renderToStaticMarkup(React.createElement(GoalDetailPage, { planLevel }));
+      assert.match(render(), /<button>Mở hạn<\/button>/);
+      assert.doesNotMatch(render(), /\/edit|Xuất file/);
+      detailContext.requested = { ...detailContext.requested, timeLock: { canUnlock: false } };
+      assert.doesNotMatch(render(), /<button>Mở hạn<\/button>/);
+    }
   } finally {
     Object.assign(detailContext, before);
   }

@@ -14,7 +14,7 @@ import { branchScheduleIssue } from '@/models/education-plan/branchTemplateSched
 import { GoalTable, ThemeEventTable } from '@/components/education-plan/GoalTables';
 import { yearPlanFile } from '@/utils/education-plan/yearPlanDoc';
 import { Card, fmtDate, FoldAllButton, Modal, Notice, PageHead } from '@/components/education-plan/eduUi';
-import { DeadlineBadge } from '@/components/education-plan/DeadlineWidgets';
+import { DeadlineBadge, ExtendDeadlineAction } from '@/components/education-plan/DeadlineWidgets';
 import { RejectedNotice, ReviewActions, ReviewHistory } from '@/components/education-plan/reviewUi';
 import { StatusPage } from '@/components/ui/StatusPage';
 import { LoadingState, Spinner } from '@/components/ui/States';
@@ -50,7 +50,7 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
   const basePath = planRoute({ planLevel });
   const pageLabel = annual ? 'Kế hoạch năm học' : 'Kế hoạch giáo dục tổ';
   const { id } = useParams();
-  // Mở từ Kế hoạch quá hạn của Hiệu trưởng: bản chưa ban hành, chỉ xem, không có thao tác nào
+  // Mở từ Kế hoạch quá hạn: nội dung chỉ đọc, Hiệu trưởng có thể mở hạn nếu BE cho phép
   const overdueView = useSearchParams()[0].get('overdue') === '1';
   const {
     goals: allGoals,
@@ -63,6 +63,7 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
     toast,
     staff,
     refreshGoal,
+    unlockGoal,
     eduConfig,
   } = useEducationPlan();
   const goals = allGoals.filter((g) => levelOf(g) === planLevel);
@@ -255,7 +256,6 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
         <ResponsiveToolbar className="ga-year-toolbar" role="group" aria-label={`Thao tác ${pageLabel.toLowerCase()}`}>
           <div className="ga-year-toolbar__group">
             <VersionBadge plan={g} goals={goals} />
-            {/* Spec 005: mở hạn chỉ ở màn Kế hoạch quá hạn của Hiệu trưởng, không ở trang chi tiết */}
             <DeadlineBadge doc={g.timeLock} />
             <FoldAllButton />
             {canDelete && (
@@ -270,6 +270,19 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
             )}
           </div>
           <div className="ga-year-toolbar__group ga-year-toolbar__group--end">
+            {overdueView && (
+              <ExtendDeadlineAction
+                key={JSON.stringify([user.id, schoolYearId, g.id])}
+                title={`Mở hạn: ${g.title}`}
+                canExtend={g.timeLock?.canUnlock}
+                onExtend={async (input) => {
+                  let failure;
+                  const saved = await unlockGoal(g.id, input, { onError: (err) => (failure = err) });
+                  if (!saved) throw failure || new Error('Không mở hạn được');
+                  await single.reload({ silent: true });
+                }}
+              />
+            )}
             {/* Chỉnh sửa cùng chỗ với Lưu ở mọi trang (Tiền 12/11/2026) */}
             {canEditNow && (
               <Link className="btn btn--sm btn--outline-primary" to={`${basePath}/${g.id}/edit`} replace state={{ backTo: basePath }}>

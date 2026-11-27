@@ -11,6 +11,20 @@ export const OVERDUE_KIND_LABEL = {
 
 export const OVERDUE_DEADLINE_LABEL = { send: 'Quá hạn gửi', review: 'Quá hạn duyệt' };
 
+/** Chỉ lấy hồ sơ lớp đúng dòng đã mở và đúng nguồn tổ đang xem. */
+export function overdueClassTarget(docs, { docKey, classId, planId, semesterNo, themeId }) {
+  if (!docKey || !classId || !planId) return null;
+  return (
+    docs.find(
+      (doc) =>
+        String(doc.id) === docKey &&
+        String(doc.classId) === classId &&
+        String(doc.yearPlanId) === planId &&
+        (semesterNo ? String(doc.semesterNo) === semesterNo : themeId != null && String(doc.themeId) === themeId),
+    ) || null
+  );
+}
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 const daysSince = (iso, today) => (iso ? Math.max(0, Math.round((Date.parse(today) - Date.parse(iso)) / DAY_MS)) : null);
 const isExtend = (h) => ['extend', 'reopen_review_deadline'].includes(h?.action?.toLowerCase());

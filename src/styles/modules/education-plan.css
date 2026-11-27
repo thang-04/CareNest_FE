@@ -1117,6 +1117,16 @@ table.ga-import-theme-table tbody tr:nth-child(even):hover td {
   min-width: 0;
 }
 
+.ga-overdue-detail-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-block-end: var(--space-4);
+}
+
+.ga-overdue-detail-actions:empty {
+  display: none;
+}
+
 .ga-media-upload,
 .ga-teaching-files,
 .ga-teaching-controls {
