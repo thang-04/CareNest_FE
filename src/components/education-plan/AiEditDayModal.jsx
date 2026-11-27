@@ -4,6 +4,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { AiDraftTag } from '@/components/ui/AiDraftTag';
 import { AiWorkingOverlay } from '@/components/ui/AiWorkingOverlay';
+import { useAiRun } from '@/hooks/education-plan/useAiRun';
 import { TextAreaField } from '@/components/form/Field';
 import { Checkbox } from '@/components/form/Checkbox';
 import { Notice } from '@/components/education-plan/eduUi';
@@ -16,6 +17,11 @@ import { editDayByRequest } from '@/services/education-plan/educationPlanService
 export function AiEditDayModal({ open, docKey, unsaved, onApply, onClose }) {
   const [prompt, setPrompt] = useState('');
   const [busy, setBusy] = useState(false);
+  const aiRun = useAiRun();
+  const cancelAi = () => {
+    aiRun.cancel();
+    setBusy(false);
+  };
   const [error, setError] = useState('');
   const [changes, setChanges] = useState(null);
   const [picked, setPicked] = useState(new Set());
@@ -29,14 +35,17 @@ export function AiEditDayModal({ open, docKey, unsaved, onApply, onClose }) {
     if (!prompt.trim()) return setError('Nhập yêu cầu, ví dụ: đổi bài thơ sang chủ đề giao thông.');
     setBusy(true);
     setError('');
+    const live = aiRun.begin();
     try {
       const res = await editDayByRequest(docKey, prompt.trim());
+      if (!live()) return;
       setChanges(res.changes || []);
       setPicked(new Set((res.changes || []).map((c) => c.path)));
     } catch (err) {
+      if (!live()) return;
       setError(err?.message || 'AI chưa trả lời được. Bạn vẫn sửa tay bình thường.');
     } finally {
-      setBusy(false);
+      if (live()) setBusy(false);
     }
   };
   const toggle = (path) =>
@@ -90,7 +99,7 @@ export function AiEditDayModal({ open, docKey, unsaved, onApply, onClose }) {
             setChanges(null);
           }}
         />
-        {busy && <AiWorkingOverlay lock text="AI đang sửa giáo án theo yêu cầu…" />}
+        {busy && <AiWorkingOverlay lock onCancel={cancelAi} text="AI đang sửa giáo án theo yêu cầu…" />}
         {error && (
           <p className="field__error" role="alert">
             {error}

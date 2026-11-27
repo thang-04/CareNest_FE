@@ -39,6 +39,7 @@ import {
 import { ThemeEventTable } from '@/components/education-plan/GoalTables';
 import { FilterableGoalTable } from '@/components/education-plan/FilterableGoalTable';
 import { AiWorkingOverlay } from '@/components/ui/AiWorkingOverlay';
+import { useAiRun } from '@/hooks/education-plan/useAiRun';
 import { submissionRequirementsIssue } from '@/models/education-plan/submitRequirements.mjs';
 import { mergeImportedGoals } from '@/models/education-plan/importGoals.mjs';
 import { mergeFilePlan } from '@/models/education-plan/importGoalFile.mjs';
@@ -486,6 +487,7 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
   const aiGoalState = useRef(null);
   aiGoalState.current = { allowed: aiGoalAllowed, form };
   const aiAlive = useRef(true);
+  const aiRun = useAiRun();
   useEffect(() => {
     // StrictMode mount hai lần: phải bật lại, không thì kết quả AI bị bỏ ở bản dev
     aiAlive.current = true;
@@ -503,15 +505,16 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
     if (aiGoal.busy || !aiGoalState.current.allowed) return;
     setAiGoal({ busy: true, goalId: goalId ?? '*' });
     const started = Date.now();
+    const live = aiRun.begin();
     try {
       const result = await requestGoalContents({
         ensureSaved: ensureSavedForAi,
         current: () => ({ plan: saver.current(), allowed: aiGoalState.current.allowed }),
-        active: () => aiAlive.current,
+        active: () => aiAlive.current && live(),
         request: (planId, id) => matchGoalContents(planId, { goalId: id }),
         goalId,
       });
-      if (!aiAlive.current) return;
+      if (!aiAlive.current || !live()) return;
       const value = result && applyGoalContents(saver.current(), result.matches, result.stamp, () => `ai-${uid()}`);
       if (!value) {
         toast('Bản soạn hoặc quyền sửa đã thay đổi trong lúc AI chạy. Bấm AI lại để nhận gợi ý cho bản hiện tại.', 'warn');
@@ -531,7 +534,7 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
       });
       toast(`AI đã điền ${value.added} nội dung (chưa lưu)${failed ? ` · chưa gợi ý được: ${failed}` : ''}`, failed ? 'warn' : 'ok');
     } catch (err) {
-      if (!aiAlive.current) return;
+      if (!aiAlive.current || !live()) return;
       toast(
         err?.errorCode === 8002 || err?.code === 'ECONNABORTED'
           ? 'AI trả lời quá lâu. Thử lại sau; bạn vẫn thêm nội dung bằng tay được.'
@@ -541,8 +544,12 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
         'err',
       );
     } finally {
-      if (aiAlive.current) setAiGoal({ busy: false, goalId: null });
+      if (aiAlive.current && live()) setAiGoal({ busy: false, goalId: null });
     }
+  };
+  const cancelAiGoals = () => {
+    aiRun.cancel();
+    setAiGoal({ busy: false, goalId: null });
   };
   const settleAiContent = (id) => setAiPending(({ [id]: _, ...rest }) => rest);
   const dropAiContent = (di, rowId, contentId) => {
@@ -1272,7 +1279,7 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
             !errors.domains.includes('chủ đề') &&
             !errors.domains.includes('nhóm') && <Notice>{errors.domains}</Notice>}
           {!annual && themes.length === 0 && <p className="text-success text-sm text-right">{NO_THEME_NOTE}</p>}
-          {aiGoal.busy && <AiWorkingOverlay lock text="AI đang gợi ý nội dung cho mục tiêu…" />}
+          {aiGoal.busy && <AiWorkingOverlay lock onCancel={cancelAiGoals} text="AI đang gợi ý nội dung cho mục tiêu…" />}
           <FilterableGoalTable
             reviewItems={form.reviewItems}
             newItems={form.newItems}

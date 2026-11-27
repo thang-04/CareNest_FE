@@ -7,6 +7,7 @@ import { AiDraftTag } from '@/components/ui/AiDraftTag';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { suggestLessonSteps } from '@/services/education-plan/educationPlanService';
 import { AiWorkingOverlay } from '@/components/ui/AiWorkingOverlay';
+import { useAiRun } from '@/hooks/education-plan/useAiRun';
 import { Card } from '@/components/education-plan/eduUi';
 import { Cell, focusCell } from '@/components/education-plan/planUi';
 import {
@@ -946,6 +947,11 @@ export function DayTab({
 }) {
   // Mục đang chờ AI (key) hoặc null
   const [aiBusy, setAiBusy] = useState(null);
+  const aiRun = useAiRun();
+  const cancelAi = () => {
+    aiRun.cancel();
+    setAiBusy(null);
+  };
   // Mẩu RAG AI dùng khi gợi ý tiến trình (BE EDU-113); chỉ để cô xem, không lưu vào giáo án
   const [aiRefs, setAiRefs] = useState([]);
   // Ô tiến trình AI điền đang chờ ✓/✗ (Tiền 25/11/2026): chỉ ở màn hình; Lưu mà không bấm ⇒ giữ hết
@@ -1021,6 +1027,7 @@ export function DayTab({
         .filter(Boolean);
     const topics = s.key === 'hoc' ? lines(hoc.topic) : [fw.name, fw.main, fw.combined].filter(Boolean);
     setAiBusy(s.key);
+    const live = aiRun.begin();
     try {
       const res = await suggestLessonSteps({
         subject: s.key === 'hoc' ? hoc.subject || '' : '',
@@ -1029,6 +1036,7 @@ export function DayTab({
         activity: s.label.replace(/^\d+\.\s*/, ''),
         steps: steps.map((t, n) => t || `Bước ${n + 1}`),
       });
+      if (!live()) return;
       setAiRefs(res?.refs || []);
       const out = res?.rows?.length ? res.rows : [res?.a, res?.b, res?.c];
       update((x) => {
@@ -1052,10 +1060,11 @@ export function DayTab({
       });
       if (!(res?.rows?.length || res?.a)) notify('AI chưa có gợi ý cho hoạt động này, cô tự soạn hoặc thử lại sau', 'warn');
     } catch (error) {
+      if (!live()) return;
       // AI lỗi/hết lượt (AI-03): báo rõ, cô vẫn tự soạn được
       notify(error?.message || 'Trợ lý AI đang không khả dụng, vui lòng thử lại sau', 'err');
     } finally {
-      setAiBusy(null);
+      if (live()) setAiBusy(null);
     }
   };
   const keepAiCell = (key) => setAiCells(({ [key]: _, ...rest }) => rest);
@@ -1145,7 +1154,7 @@ export function DayTab({
             {aiEditNote}
           </p>
         )}
-        {aiBusy && <AiWorkingOverlay lock text="AI đang gợi ý tiến trình giờ học…" />}
+        {aiBusy && <AiWorkingOverlay lock onCancel={cancelAi} text="AI đang gợi ý tiến trình giờ học…" />}
         {aiDocKey && (
           <AiEditDayModal
             open={aiEditOpen}

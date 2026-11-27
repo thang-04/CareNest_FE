@@ -8,6 +8,7 @@ import { StatusBadge } from '@/components/ui/StatusBadge';
 import { Adjustments, Plus, RotateCcw, Sparkles } from '@/components/ui/icons';
 import { ActionsMenu, AiPick, RagRefLine } from '@/components/education-plan/reviewUi';
 import { AiWorkingOverlay } from '@/components/ui/AiWorkingOverlay';
+import { useAiRun } from '@/hooks/education-plan/useAiRun';
 import ThemeGoalPickerModal from '@/components/education-plan/ThemeGoalPickerModal';
 import ActivityCardEditor from '@/components/education-plan/ActivityCardEditor';
 import { AiClassContentModal } from '@/components/education-plan/AiClassContentModal';
@@ -151,6 +152,16 @@ export function ThemePlanBody({
   const lineGoals = () => goals.map((g) => ({ id: g.id, no: g.no, text: g.text, lines: contentLinesOf(rowOf(g).contents) }));
   // BE:EDU-114: gợi ý theo dòng nội dung (nút chung: dòng chưa có hoạt động; nút từng MT: mọi dòng của MT)
   const [ai, setAi] = useState({ busy: false, goalId: null });
+  const activityRun = useAiRun();
+  const rewriteRun = useAiRun();
+  const cancelActivities = () => {
+    activityRun.cancel();
+    setAi({ busy: false, goalId: null });
+  };
+  const cancelRewrite = () => {
+    rewriteRun.cancel();
+    setRewrite({ scope: null, busy: false });
+  };
   const askAi = async (goalId = null) => {
     const targets = activityTargets(lineGoals(), cards, goalId);
     if (!targets.length) {
@@ -158,11 +169,13 @@ export function ThemePlanBody({
       return;
     }
     setAi({ busy: true, goalId });
+    const live = activityRun.begin();
     try {
       const items = await suggestActivities({
         themeName: currentTheme.name,
         goals: targets.map(({ id, no, text, lines }) => ({ id: String(id), no, text, lines })),
       });
+      if (!live()) return;
       const now = latest.current;
       const { drafts, skipped } = activityDrafts(items, targets, Object.fromEntries(now.lines.map((g) => [g.id, g.lines])));
       // Điền thẳng vào bảng (Tiền 25/11/2026): thẻ thành nháp chờ ✓/✗; Lưu mà không bấm ⇒ giữ hết
@@ -172,9 +185,10 @@ export function ThemePlanBody({
       if (!next.length) notify('AI chưa có gợi ý phù hợp', 'warn');
       else if (skipped) notify('Mục tiêu đã sửa trong lúc chờ AI được giữ nguyên', 'warn');
     } catch (error) {
+      if (!live()) return;
       notify(error.message || 'Chưa gợi ý được, thử lại sau', 'err');
     } finally {
-      setAi({ busy: false, goalId: null });
+      if (live()) setAi({ busy: false, goalId: null });
     }
   };
   // Thẻ AI đang chờ: { [cardId]: ref RAG | null } — chỉ ở màn hình, không lưu vào kế hoạch
@@ -204,8 +218,10 @@ export function ThemePlanBody({
   const runRewrite = async (situation) => {
     const requestGoals = rewriteGoals(rewrite.scope);
     setRewrite((r) => ({ ...r, busy: true }));
+    const live = rewriteRun.begin();
     try {
       const res = await rewriteContents({ situation, goals: requestGoals });
+      if (!live()) return;
       const now = latest.current;
       const result = applyRewrite({
         requestGoals,
@@ -220,6 +236,7 @@ export function ThemePlanBody({
       else if (result.skipped) notify('Mục tiêu đã sửa trong lúc chờ AI được giữ nguyên', 'warn');
       setRewrite({ scope: null, busy: false });
     } catch (error) {
+      if (!live()) return;
       setRewrite((r) => ({ ...r, busy: false }));
       notify(error.message || 'AI chưa viết được nội dung, thử lại sau', 'err');
     }
@@ -334,8 +351,8 @@ export function ThemePlanBody({
               onClose={() => setEditing(null)}
             />
           )}
-          {ai.busy && <AiWorkingOverlay lock text="AI đang gợi ý hoạt động…" />}
-          {rewrite.busy && <AiWorkingOverlay lock text="AI đang viết lại nội dung…" />}
+          {ai.busy && <AiWorkingOverlay lock onCancel={cancelActivities} text="AI đang gợi ý hoạt động…" />}
+          {rewrite.busy && <AiWorkingOverlay lock onCancel={cancelRewrite} text="AI đang viết lại nội dung…" />}
           {rewrite.scope && (
             <AiClassContentModal
               scopeLabel={

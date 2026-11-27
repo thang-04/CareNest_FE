@@ -4,6 +4,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { AiDraftTag } from '@/components/ui/AiDraftTag';
 import { AiWorkingOverlay } from '@/components/ui/AiWorkingOverlay';
+import { useAiRun } from '@/hooks/education-plan/useAiRun';
 import { TextAreaField } from '@/components/form/Field';
 import { Checkbox } from '@/components/form/Checkbox';
 import { Notice } from '@/components/education-plan/eduUi';
@@ -27,6 +28,11 @@ const aiError = (err) => {
 export function AiThemeContentModal({ open, plan, ensureSaved, onApply, onClose }) {
   const [requests, setRequests] = useState({});
   const [busy, setBusy] = useState(false);
+  const aiRun = useAiRun();
+  const cancelAi = () => {
+    aiRun.cancel();
+    setBusy(false);
+  };
   const [error, setError] = useState('');
   const [result, setResult] = useState(null);
   const [picked, setPicked] = useState(new Set());
@@ -50,8 +56,10 @@ export function AiThemeContentModal({ open, plan, ensureSaved, onApply, onClose 
     setBusy(true);
     setError('');
     const startedAt = Date.now();
+    const live = aiRun.begin();
     try {
       const planId = await ensureSaved();
+      if (!live()) return;
       if (!planId) {
         setError('Chưa lưu được kế hoạch nên chưa gọi AI. Sửa lỗi lưu ở đầu trang rồi thử lại.');
         return;
@@ -62,13 +70,14 @@ export function AiThemeContentModal({ open, plan, ensureSaved, onApply, onClose 
           .map((t) => ({ themeId: Number(t.id), request: requests[t.id].trim() })),
       };
       const res = await matchThemeContents(planId, body);
+      if (!live()) return;
       const next = { matches: res?.matches || [], failedDomains: res?.failedDomains || [], waitMs: Date.now() - startedAt };
       setResult(next);
       setPicked(new Set(reviewLines(groupMatches(plan, next.matches)).map((l) => l.key)));
     } catch (err) {
-      setError(aiError(err));
+      if (live()) setError(aiError(err));
     } finally {
-      setBusy(false);
+      if (live()) setBusy(false);
     }
   };
   const toggle = (keys) =>
@@ -124,7 +133,7 @@ export function AiThemeContentModal({ open, plan, ensureSaved, onApply, onClose 
     >
       <div className="stack">
         <AiDraftTag label="Gợi ý AI – tổ trưởng duyệt trước khi áp dụng" />
-        {busy && <AiWorkingOverlay lock text="AI đang gom nội dung theo từng lĩnh vực…" />}
+        {busy && <AiWorkingOverlay lock onCancel={cancelAi} text="AI đang gom nội dung theo từng lĩnh vực…" />}
         {error && <Notice>{error}</Notice>}
         {!result && (
           <>
