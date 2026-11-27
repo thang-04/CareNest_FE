@@ -14,7 +14,7 @@ import {planLevel as levelOf, planRoute, inheritAnnual} from ${JSON.stringify(im
 import {branchScheduleIssue} from ${JSON.stringify(import.meta.resolve('../../src/models/education-plan/branchTemplateSchedule.mjs'))};
 import {previousSchoolYears,sameSchoolYearId} from ${JSON.stringify(import.meta.resolve('../../src/models/education-plan/schoolYearScope.mjs'))};
 const BranchTemplateEditor=()=>null;
-const matchGoalContents=async()=>({matches:[],failedDomains:[]}), requestGoalContents=async()=>null, useAiRun=()=>({});
+const matchGoalContents=async()=>({matches:[],failedDomains:[]}), requestGoalContents=async()=>null, useAiRun=()=>({}), rememberShown=(s)=>s, shownFor=()=>undefined;
 const TeamSourceReview=()=>null;
 const YearPlanSourceCard=({plan,source,children})=><section className="ga-plan-section--source" data-source-id={plan.curriculumSourcePlanId} data-source-title={source?.title}>{children}</section>;
 

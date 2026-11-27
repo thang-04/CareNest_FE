@@ -461,7 +461,9 @@ export const educationPlanApi = {
   matchGoalContents: (planId, options = {}) =>
     axiosClient.post(
       `/education-plans/ai/year-plans/${serverId(planId)}/goal-content-map`,
-      options.goalId == null ? undefined : { goalId: serverId(options.goalId) },
+      options.goalId == null && !options.exclude
+        ? undefined
+        : { goalId: options.goalId == null ? undefined : serverId(options.goalId), exclude: options.exclude },
       {
         timeout: AI_MATCH_TIMEOUT,
         signal: options.signal,

@@ -10,7 +10,7 @@ import { useAsync } from '@/hooks/useAsync';
 import { ActionsMenu, ReviewActions } from '@/components/education-plan/reviewUi';
 import { Download, FileDown, History, Save, Sparkles, X } from '@/components/ui/icons';
 import { AiThemeContentModal } from '@/components/education-plan/AiThemeContentModal';
-import { applyGoalContents, requestGoalContents } from '@/models/education-plan/aiGoalContent.mjs';
+import { applyGoalContents, rememberShown, requestGoalContents, shownFor } from '@/models/education-plan/aiGoalContent.mjs';
 import { PrevYearTicksModal } from '@/components/education-plan/PrevYearTicksModal';
 import { listGoalSources, matchGoalContents, sendAiFeedback } from '@/services/education-plan/educationPlanService';
 import { yearPlanFile } from '@/utils/education-plan/yearPlanDoc';
@@ -253,6 +253,7 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
   const [aiGoal, setAiGoal] = useState({ busy: false, goalId: null });
   const [aiPending, setAiPending] = useState({});
   const aiStats = useRef({ suggested: 0, dropped: 0, failedDomains: 0, waitMs: 0 });
+  const aiShown = useRef({});
   const [prevTicksOpen, setPrevTicksOpen] = useState(false);
 
   const set = (patch) => {
@@ -511,7 +512,7 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
         ensureSaved: ensureSavedForAi,
         current: () => ({ plan: saver.current(), allowed: aiGoalState.current.allowed }),
         active: () => aiAlive.current && live(),
-        request: (planId, id) => matchGoalContents(planId, { goalId: id }),
+        request: (planId, id) => matchGoalContents(planId, { goalId: id, exclude: shownFor(aiShown.current, id) }),
         goalId,
       });
       if (!aiAlive.current || !live()) return;
@@ -525,6 +526,7 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
         toast(failed ? `AI chưa gợi ý được cho: ${failed}` : 'AI chưa có nội dung phù hợp để thêm', 'warn');
         return;
       }
+      aiShown.current = rememberShown(aiShown.current, result.matches);
       set({ domains: value.domains });
       setAiPending((p) => ({ ...p, ...value.pending }));
       Object.assign(aiStats.current, {

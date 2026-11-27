@@ -17,6 +17,21 @@ export const AI_CONTENT_SOURCE_LABELS = {
 
 export const goalContentStamp = (plan) => JSON.stringify(plan);
 
+const SHOWN_MAX = 60;
+
+/** BE:EDU-106 — nhớ câu đã gợi ý theo mục tiêu trong lúc đang soạn để lần sau BE trả câu khác. */
+export function rememberShown(shown, matches) {
+  const next = { ...shown };
+  for (const m of matches || []) next[m.goalId] = [...new Set([...(next[m.goalId] || []), m.text])].slice(-SHOWN_MAX);
+  return next;
+}
+
+/** Phần `exclude` gửi BE: đúng mục tiêu được hỏi, hoặc mọi mục tiêu ở nút chung; không có gì thì bỏ. */
+export function shownFor(shown, goalId = null) {
+  const picked = goalId == null ? shown : shown[goalId] ? { [goalId]: shown[goalId] } : {};
+  return Object.keys(picked).length ? picked : undefined;
+}
+
 /** Vị trí mục tiêu trong bản soạn, để tìm lại đúng mục tiêu sau lần Lưu đầu (id tạm đổi sang id thật). */
 export function locateGoal(plan, goalId) {
   for (const [di, d] of (plan?.domains || []).entries())

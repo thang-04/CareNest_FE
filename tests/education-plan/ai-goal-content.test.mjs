@@ -1,6 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { applyGoalContents, goalContentStamp, locateGoal, requestGoalContents } from '../../src/models/education-plan/aiGoalContent.mjs';
+import {
+  applyGoalContents,
+  goalContentStamp,
+  locateGoal,
+  requestGoalContents,
+  rememberShown,
+  shownFor,
+} from '../../src/models/education-plan/aiGoalContent.mjs';
 
 const form = () => ({
   id: '17',
@@ -161,4 +168,19 @@ test('EDU-106: rời màn trong lúc lưu không gọi AI; mục tiêu không c�
     null,
   );
   assert.equal(called, false);
+});
+
+test('EDU-106: nhớ câu đã gợi ý theo mục tiêu để lần sau không lặp', () => {
+  assert.equal(shownFor({}), undefined);
+  let shown = rememberShown({}, [
+    { goalId: 10, text: 'A' },
+    { goalId: 11, text: 'B' },
+  ]);
+  shown = rememberShown(shown, [
+    { goalId: 10, text: 'A' },
+    { goalId: 10, text: 'C' },
+  ]);
+  assert.deepEqual(shownFor(shown, '10'), { 10: ['A', 'C'] });
+  assert.deepEqual(shownFor(shown), { 10: ['A', 'C'], 11: ['B'] });
+  assert.equal(shownFor(shown, '99'), undefined);
 });
