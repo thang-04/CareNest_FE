@@ -37,3 +37,6 @@ export const analyzeHealthTrend = (childId, period, user) => repo.analyzeHealthT
 export const getLatestHealthTrend = (childId, user) => repo.getLatestHealthTrend(childId, user);
 export const approveHealthTrend = (childId, interpretationId, content, user) =>
   repo.approveHealthTrend(childId, interpretationId, content, user);
+
+export const replaceChildPhoto = (id, file, reason, user) => repo.replaceChildPhoto(id, file, reason, user);
+export const replaceGuardianPhoto = (id, guardianId, file, reason, user) => repo.replaceGuardianPhoto(id, guardianId, file, reason, user);

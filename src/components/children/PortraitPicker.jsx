@@ -6,6 +6,8 @@ import { PORTRAIT_ACCEPT, portraitFileError } from '@/utils/children/enrollmentP
 export function PortraitPicker({
   label,
   file,
+  photoUrl,
+  changeLabel,
   identity,
   onChange,
   error,
@@ -29,7 +31,7 @@ export function PortraitPicker({
         </label>
       )}
       <div className="row row--wrap gap-3">
-        <PortraitImage source={file} alt={label} className="avatar avatar--xl avatar--photo">
+        <PortraitImage source={file || photoUrl} alt={label} className="avatar avatar--xl avatar--photo">
           {embedded ? (
             // Khung ảnh trống cùng cỡ ảnh thật: biết trước chỗ ảnh sẽ hiện, không nhảy bố cục khi tải lên
             <span className="tr-portrait-empty" aria-hidden="true">
@@ -62,7 +64,7 @@ export function PortraitPicker({
           />
           <div className="row row--wrap gap-2">
             <button type="button" className="btn btn--sm" disabled={disabled} onClick={() => input.current?.click()}>
-              <Upload size={15} /> {file ? 'Thay ảnh' : 'Tải ảnh lên'}
+              <Upload size={15} /> {changeLabel || (file ? 'Thay ảnh' : 'Tải ảnh lên')}
             </button>
             {file && (
               <button

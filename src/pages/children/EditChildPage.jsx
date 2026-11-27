@@ -11,10 +11,12 @@ import { FormField } from '@/components/form/FormField';
 import { PhoneChangeModal } from '@/components/children/PhoneChangeModal';
 import { ChildInfoFields } from '@/components/children/ChildInfoFields';
 import { ChildAccessState } from '@/components/children/ChildAccessState';
-import { submitProfileChange, updateChild } from '@/services/children/childrenService';
+import { submitProfileChange, updateChild, replaceChildPhoto, replaceGuardianPhoto } from '@/services/children/childrenService';
 import { ProfileChangeNotice } from '@/components/children/ProfileChangeNotice';
 import { PARENT_ACCOUNT_STATUS, PROFILE_CHANGE_KIND } from '@/models/children/childrenConstants';
 import { emptyChildProfile } from '@/models/children/childProfile';
+import { portraitFileError } from '@/utils/children/enrollmentPhotos';
+import { saveProfilePhotos } from '@/utils/children/profilePhotos';
 import { hasErrors, validateChildInfo } from '@/utils/children/childrenValidation';
 import { canEditChild, canProposeChildEdit } from '@/utils/children/childrenPermissions';
 import { useChildYearLock } from '@/hooks/children/useChildYearLock';
@@ -43,11 +45,13 @@ export default function EditChildPage() {
     if (detail?.child) {
       const c = detail.child;
       setForm({
+        photoUrl: c.photoUrl,
         fullName: c.fullName,
         dateOfBirth: c.dateOfBirth,
         gender: c.gender,
         guardians: c.guardians.map((g) => ({
           id: g.id,
+          photoUrl: g.photoUrl,
           fullName: g.fullName,
           relation: g.relation,
           phone: g.phone,
@@ -112,13 +116,23 @@ export default function EditChildPage() {
 
   const save = async () => {
     const errs = validateChildInfo(effective, { requireRecipient: false });
+    if (!proposing) {
+      if (form.photoFile && portraitFileError(form.photoFile)) errs.photo = portraitFileError(form.photoFile);
+      form.guardians.forEach((g, i) => {
+        if (g.photoFile && portraitFileError(g.photoFile)) errs[`guardians.${i}.photo`] = portraitFileError(g.photoFile);
+      });
+    }
     if (!reason.trim()) errs.reason = 'Nhập lý do chỉnh sửa hồ sơ';
     setErrors(errs);
     if (hasErrors(errs)) return;
     setBusy(true);
     try {
       // savedPhone chỉ để khóa ô SĐT trên form, không gửi đi
-      const child = { ...effective, guardians: effective.guardians.map(({ savedPhone: _savedPhone, ...g }) => g) };
+      const { photoFile: _photoFile, photoUrl: _photoUrl, ...profile } = effective;
+      const child = {
+        ...profile,
+        guardians: effective.guardians.map(({ savedPhone: _savedPhone, photoFile: _file, photoUrl: _url, ...g }) => g),
+      };
       if (proposing) {
         await submitProfileChange(id, { kind: PROFILE_CHANGE_KIND.PROFILE, profile: { child, reason } }, user);
         toast.success('Đã gửi yêu cầu sửa hồ sơ. Hồ sơ đổi sau khi Hiệu trưởng hoặc Phó hiệu trưởng duyệt.');
@@ -126,6 +140,7 @@ export default function EditChildPage() {
         return;
       }
       const saved = await updateChild(id, { child, reason }, user);
+      await saveProfilePhotos(id, form, saved, reason, user, { replaceChildPhoto, replaceGuardianPhoto });
       // Đổi SĐT phụ huynh đã có tài khoản ⇒ BE đổi tên đăng nhập, gửi mật khẩu mới qua SMS (user chốt 2026-10-28).
       (saved.accountChanges || [])
         .filter((c) => c.phoneChanged)
@@ -140,6 +155,8 @@ export default function EditChildPage() {
       navigate(`/children/${id}`);
     } catch (err) {
       if (err.details) setErrors(err.details);
+      if (err.photoField)
+        setForm((value) => ({ ...value, photoFile: null, guardians: value.guardians.map((g) => ({ ...g, photoFile: null })) }));
       toast.error(err, 'Không lưu được hồ sơ');
     } finally {
       setBusy(false);
@@ -187,6 +204,9 @@ export default function EditChildPage() {
         </div>
         <ChildInfoFields
           sheet
+          photosEnabled={!proposing}
+          photoChangeLabel="Đổi ảnh"
+          disabled={busy}
           value={form}
           onChange={change}
           errors={errors}

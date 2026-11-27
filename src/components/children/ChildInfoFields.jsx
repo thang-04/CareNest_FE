@@ -64,6 +64,7 @@ export function ChildInfoFields({
   split = false,
   sheet = false,
   photosEnabled = false,
+  photoChangeLabel,
   disabled = false,
 }) {
   const set = (field, v) => onChange({ ...value, [field]: v });
@@ -84,6 +85,8 @@ export function ChildInfoFields({
               required
               label="Ảnh của trẻ"
               file={value.photoFile}
+              photoUrl={value.photoUrl}
+              changeLabel={photoChangeLabel}
               onChange={(file) => set('photoFile', file)}
               error={errors.photo}
               disabled={disabled}
@@ -96,6 +99,8 @@ export function ChildInfoFields({
               required
               label="Ảnh của trẻ"
               file={value.photoFile}
+              photoUrl={value.photoUrl}
+              changeLabel={photoChangeLabel}
               onChange={(file) => set('photoFile', file)}
               error={errors.photo}
               disabled={disabled}
@@ -248,6 +253,8 @@ export function ChildInfoFields({
                       label={`Ảnh phụ huynh ${i + 1}`}
                       identity={g}
                       file={g.photoFile}
+                      photoUrl={g.photoUrl}
+                      changeLabel={photoChangeLabel}
                       onChange={(file) => setGuardian(i, 'photoFile', file)}
                       error={errors[`guardians.${i}.photo`]}
                       disabled={disabled}
@@ -261,6 +268,8 @@ export function ChildInfoFields({
                       label={`Ảnh phụ huynh ${i + 1}`}
                       identity={g}
                       file={g.photoFile}
+                      photoUrl={g.photoUrl}
+                      changeLabel={photoChangeLabel}
                       onChange={(file) => setGuardian(i, 'photoFile', file)}
                       error={errors[`guardians.${i}.photo`]}
                       disabled={disabled}
@@ -297,7 +306,11 @@ export function ChildInfoFields({
                       onChange={(e) => setGuardian(i, 'phone', e.target.value)}
                       onBlur={() => onBlurField?.(`guardians.${i}.phone`)}
                     />
-                    {g.savedPhone && g.id && onPhoneChange && <Button size="sm" onClick={() => onPhoneChange(g)}>Đổi số</Button>}
+                    {g.savedPhone && g.id && onPhoneChange && (
+                      <Button size="sm" onClick={() => onPhoneChange(g)}>
+                        Đổi số
+                      </Button>
+                    )}
                   </IntakeField>
                   <IntakeField
                     sheet={sheet}

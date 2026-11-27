@@ -83,6 +83,13 @@ const withRelationLabels = (guardians = []) => guardians.map((g) => ({ ...g, rel
 // Cùng cách hiển thị năm học với header (SchoolYearContext): "2026 - 2027"
 const yearLabel = (name) => (name ? String(name).replace('-', ' - ') : name);
 // BE trả id số; màn và mock dùng id chuỗi (plan 2026-11-11-children-module-be-wiring)
+const replacementPhotoBody = (photo, reason) => {
+  const body = new FormData();
+  body.append('photo', photo);
+  body.append('reason', reason);
+  return body;
+};
+
 const read = (promise) => promise.then(stringifyIds);
 // approvedBy không theo mẫu tên id ⇒ đổi riêng để so với user.id (chuỗi) như mock
 const readTrend = (promise) => read(promise).then((t) => (t && t.approvedBy != null ? { ...t, approvedBy: String(t.approvedBy) } : t));
@@ -223,6 +230,9 @@ export const childrenApi = {
     const { body, config } = enrollmentPhotoRequest({ ...payload, schoolYearId: await toBeSchoolYear(payload.schoolYearId) });
     return read(axiosClient.post('/children/enrollments', body, config));
   },
+  replaceChildPhoto: (id, photo, reason) => read(axiosClient.put(`/children/${id}/photo`, replacementPhotoBody(photo, reason))),
+  replaceGuardianPhoto: (id, guardianId, photo, reason) =>
+    read(axiosClient.put(`/children/${id}/guardian-photos/${guardianId}`, replacementPhotoBody(photo, reason))),
   updateChild: (id, body) => read(axiosClient.put(`/children/${id}`, childUpdateBody(body))),
   // CHD-11: GV được cấp CHILD_PROFILE_EDIT gửi yêu cầu, HT/PHT điểm trường duyệt mới ghi vào hồ sơ
   submitProfileChange: (childId, { kind, profile, declaration }) =>
