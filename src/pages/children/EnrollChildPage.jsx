@@ -375,8 +375,12 @@ export default function EnrollChildPage() {
     const created = accounts.filter((a) => a.result === 'CREATED');
     // Tài khoản có sẵn đổi SĐT ở form ⇒ tên đăng nhập mới, mật khẩu mới gửi SMS (user chốt 2026-10-28).
     const renamed = accounts.filter((a) => a.result === 'LINKED' && a.phoneChanged);
-    const smsFailed = [...created, ...renamed].filter((a) => a.smsStatus === 'FAILED');
-    const smsSent = created.filter((a) => a.smsStatus !== 'FAILED');
+    const codes = created.filter((a) => a.credential === 'ACTIVATION_CODE');
+    const passwords = created.filter((a) => a.credential !== 'ACTIVATION_CODE');
+    const codeSent = codes.filter((a) => a.smsStatus !== 'FAILED');
+    const codeFailed = codes.filter((a) => a.smsStatus === 'FAILED');
+    const smsFailed = [...passwords, ...renamed].filter((a) => a.smsStatus === 'FAILED');
+    const smsSent = passwords.filter((a) => a.smsStatus !== 'FAILED');
     const renamedSent = renamed.filter((a) => a.smsStatus !== 'FAILED');
     const linked = accounts.filter((a) => a.result === 'LINKED');
     const waiting = accounts.filter((a) => a.result === 'NOT_ACTIVATED');
@@ -400,6 +404,8 @@ export default function EnrollChildPage() {
                 Mã trẻ <b>{saved.code}</b>.
               </div>
               {saved.plannedAdmission && <div>{plannedAdmissionNotice(saved.plannedAdmission)}</div>}
+              {codeSent.length > 0 && <div>Đã tạo tài khoản phụ huynh, mã kích hoạt gửi qua SMS tới {phones(codeSent)}.</div>}
+              {codeFailed.length > 0 && <div>Chưa gửi được SMS mã kích hoạt tới {phones(codeFailed)}.</div>}
               {smsSent.length > 0 && <div>Đã tạo tài khoản phụ huynh, mật khẩu tạm gửi qua SMS tới {phones(smsSent)}.</div>}
               {renamedSent.length > 0 && (
                 <div>Tài khoản có sẵn đổi tên đăng nhập sang {phones(renamedSent)}; mật khẩu tạm mới đã gửi qua SMS tới số mới.</div>
@@ -432,6 +438,11 @@ export default function EnrollChildPage() {
               <Link className="btn" to={`/children/${saved.id}`}>
                 <Eye size={16} /> Xem hồ sơ
               </Link>
+              {codes.length > 0 && (
+                <Link className="btn btn--primary" to={`/children/activation?childId=${saved.id}`}>
+                  <KeyRound size={16} /> Gửi lại mã kích hoạt
+                </Link>
+              )}
               {(waiting.length > 0 || smsFailed.length > 0) && (
                 <Link className="btn btn--primary" to={`/children/activation?childId=${saved.id}`}>
                   <KeyRound size={16} /> {waiting.length > 0 ? 'Kích hoạt tài khoản phụ huynh' : 'Gửi lại mật khẩu'}
