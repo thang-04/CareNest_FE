@@ -108,8 +108,8 @@ export const createAttendanceBeApi = (client) => ({
     client.post(`/classes/${classId}/attendance/children/${childId}/arrived`, undefined, { params: { date } }),
   // ATT-02a: after the cut-off, only today's accidental meal-participation toggle may be corrected.
   // The server rejects it once a relevant meal count is confirmed or the kitchen record is signed.
-  correctMealParticipation: ({ classId, childId, date, participates }) =>
-    client.post(`/classes/${classId}/attendance/children/${childId}/meal-participation`, { date, participates }),
+  correctMealParticipation: ({ classId, childId, date, participates, meals }) =>
+    client.post(`/classes/${classId}/attendance/children/${childId}/meal-participation`, { date, participates, meals }),
   getAttendanceSummary: async ({ classId, campusId, ageGroupId, schoolYear, from, to }) =>
     classId
       ? withSubstitute(await client.get(`/classes/${classId}/attendance/summary`, { params: { from, to } }), 'CLASS')

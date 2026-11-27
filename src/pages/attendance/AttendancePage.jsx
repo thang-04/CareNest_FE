@@ -19,7 +19,6 @@ import { ClassDateBar } from '@/components/attendance/ClassDateBar';
 import { DayLockAlert } from '@/components/attendance/DayLockAlert';
 import { useAttendanceClasses, useAttendanceYear, useClassAttendance, useClassMealCount } from '@/hooks/attendance/useAttendance';
 import { ClassMealCard } from '@/components/attendance/ClassMealCard';
-import { Switch } from '@/components/ui/Switch';
 import { Button } from '@/components/ui/Button';
 import { RadioGroup, SelectField } from '@/components';
 import {
@@ -60,10 +59,12 @@ import { TransferredHistoryPanel } from '@/components/TransferredHistoryPanel';
 import { hasBePermission } from '@/utils/bePermissions';
 import { PERMISSIONS } from '@/models/bePermissions';
 import '@/styles/modules/attendance.css';
+import { MealChoiceSelect } from '@/components/attendance/MealChoiceSelect';
+import { mealChoiceOf, mealChoiceOptions } from '@/utils/attendance/mealChoice';
 import { useDevClockMarks } from '@/hooks/useDevClockMarks';
 import { dayTimeAt } from '@/utils/devClock';
 
-// Bữa của lớp = bữa Hiệu trưởng cấu hình cho nhóm tuổi; Có mặt mặc định ăn đủ, giáo viên có thể tắt báo ăn.
+// Bữa của lớp = bữa Hiệu trưởng cấu hình cho nhóm tuổi; Có mặt mặc định ăn đủ, giáo viên chọn bữa trẻ ăn.
 const sessionsOf = (sheet) => mealSessionsOf(sheet);
 const toDraft = (sheet) =>
   Object.fromEntries(
@@ -77,6 +78,7 @@ const toDraft = (sheet) =>
       },
     ]),
   );
+const mealText = (meals, sessions) => mealChoiceOptions(sessions).find((option) => option.value === mealChoiceOf(meals, sessions))?.label;
 const NOTHING_UNSAVED = { attendance: false, health: false };
 // ATT-12, ATT-13: đơn nghỉ một buổi; trẻ nghỉ chiều GV vẫn điểm danh buổi sáng
 const leavePart = (row) => (row.leaveRequest ? row.leaveRequest.part || LEAVE_PART.FULL_DAY : null);
@@ -264,6 +266,8 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
   // Bữa còn lại của trẻ nghỉ một buổi; mặc định ăn theo công tắc ăn của đơn
   const rowSessions = (row) =>
     sessionsAfterLeave(draft[row.child.id]?.presentPart ? absentHalfOf(draft[row.child.id].presentPart) : halfPart(row), sessions);
+  // Sửa sau giờ chốt theo bản ghi đã lưu: buổi vắng không được chọn bữa
+  const correctableSessions = (row) => sessionsAfterLeave(row.record?.absentPart, sessions);
   // Thẻ suất ăn đã trả trạng thái theo từng bữa. Khóa sớm ở UI để cô không
   // bấm nhầm; backend vẫn kiểm tra lại cả xác nhận và chữ ký phiếu bếp.
   const hasConfirmedMeal = (row) =>
@@ -403,12 +407,13 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
   };
   // Sau giờ chốt chỉ được sửa nhầm công tắc ăn của hôm nay. API kiểm tra lại
   // sổ suất ăn chưa xác nhận và phiếu bếp chưa ký, nên không thể lách bằng UI.
-  const correctMeal = async (row, participates) => {
+  const correctMeal = async (row, meals) => {
     if (submitRef.current || date !== day?.today || !day?.baseLocked) return;
     submitRef.current = true;
     setSaving(true);
     try {
-      await correctMealParticipation({ classId, childId: row.child.id, date, participates }, user);
+      const participates = eatsAny(meals, sessions);
+      await correctMealParticipation({ classId, childId: row.child.id, date, participates, meals }, user);
       await reconciliation.current?.refresh({ force: true, savedIds: [row.child.id] });
       meal.reload({ silent: true });
       toast.success(`Đã cập nhật tham gia ăn cho ${row.child.fullName}.`);
@@ -878,48 +883,40 @@ function ReceptionWorkbench({ classId, date, user, onUnsaved, onBusy, saveRef })
                             row.child.mealRegistered !== false &&
                             sessions.includes(MEAL_SESSION.AFTERNOON) ? (
                               editable && !day?.baseLocked ? (
-                                // Trước giờ chốt (hoặc khi mở lại): chỉ gạt bữa xế; sau giờ chốt khóa như mọi trẻ
-                                <>
-                                  <span className="muted text-xs">Bữa xế</span>
-                                  <span className="dd-reception__meal">
-                                    <Switch
-                                      label={`Ăn bữa xế: ${row.child.fullName}`}
-                                      disabled={busy}
-                                      checked={!!entry.meals?.[MEAL_SESSION.AFTERNOON]}
-                                      onChange={(on) => update(row, { meals: { ...noneIn, [MEAL_SESSION.AFTERNOON]: on } })}
-                                    />
-                                    <span className="text-xs">{entry.meals?.[MEAL_SESSION.AFTERNOON] ? 'Có' : 'Không'}</span>
-                                  </span>
-                                </>
+                                // Trước giờ chốt: chỉ chọn bữa xế; sau giờ chốt khóa như mọi trẻ
+                                <MealChoiceSelect
+                                  aria-label={`Ăn bữa xế: ${row.child.fullName}`}
+                                  disabled={busy}
+                                  meals={entry.meals}
+                                  sessions={[MEAL_SESSION.AFTERNOON]}
+                                  classSessions={sessions}
+                                  onChange={(meals) => update(row, { meals })}
+                                />
                               ) : (
-                                <span className="text-xs">Xế: {entry.meals?.[MEAL_SESSION.AFTERNOON] ? 'Có' : 'Không'}</span>
+                                <span className="text-xs">{entry.meals?.[MEAL_SESSION.AFTERNOON] ? 'Ăn Xế' : 'Không ăn'}</span>
                               )
                             ) : entry.status !== ATTENDANCE_STATUS.PRESENT || row.child.mealRegistered === false ? (
                               <span className="muted">—</span>
                             ) : editable && !day?.baseLocked && !leaveLocked(row) ? (
-                              <span className="dd-reception__meal">
-                                <Switch
-                                  label={`Tham gia ăn: ${row.child.fullName}`}
-                                  disabled={busy}
-                                  checked={eatsAny(entry.meals, rowSessions(row))}
-                                  onChange={(on) =>
-                                    update(row, { meals: on ? { ...noneIn, ...allMeals(true, rowSessions(row)) } : noneIn })
-                                  }
-                                />
-                                <span className="text-xs">{eatsAny(entry.meals, rowSessions(row)) ? 'Có' : 'Không'}</span>
-                              </span>
+                              <MealChoiceSelect
+                                aria-label={`Tham gia ăn: ${row.child.fullName}`}
+                                disabled={busy}
+                                meals={entry.meals}
+                                sessions={rowSessions(row)}
+                                classSessions={sessions}
+                                onChange={(meals) => update(row, { meals })}
+                              />
                             ) : editable && day?.baseLocked && date === day?.today && !leaveLocked(row) ? (
-                              <span className="dd-reception__meal">
-                                <Switch
-                                  label={`Sửa tham gia ăn: ${row.child.fullName}`}
-                                  disabled={busy || hasConfirmedMeal(row)}
-                                  checked={eatsAny(entry.meals, rowSessions(row))}
-                                  onChange={(on) => correctMeal(row, on)}
-                                />
-                                <span className="text-xs">{eatsAny(entry.meals, rowSessions(row)) ? 'Có' : 'Không'}</span>
-                              </span>
+                              <MealChoiceSelect
+                                aria-label={`Sửa tham gia ăn: ${row.child.fullName}`}
+                                disabled={busy || hasConfirmedMeal(row)}
+                                meals={entry.meals}
+                                sessions={correctableSessions(row)}
+                                classSessions={sessions}
+                                onChange={(meals) => correctMeal(row, meals)}
+                              />
                             ) : (
-                              <span>{eatsAny(entry.meals, rowSessions(row)) ? 'Có' : 'Không'}</span>
+                              <span className="text-xs">{mealText(entry.meals, rowSessions(row))}</span>
                             )}
                             {/* ATT-03/B2: sáng vắng không phép, bữa xế đã bỏ từ giờ chốt thì chiều đến cũng không có suất */}
                             {(isMorningUnexcused(row) || row.record?.absentPartUnexcused) &&
