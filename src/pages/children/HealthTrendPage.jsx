@@ -23,7 +23,7 @@ import { formatDate } from '@/utils/format';
 import { formatNumber } from '@/utils/children/childrenHelpers';
 import { childrenCrumbs } from '@/utils/children/breadcrumbs';
 import { oneMeasurementPerDay, withinTrendPeriod } from '@/utils/children/healthTrend';
-import { canReviewHealthTrend, isPrincipal, isVicePrincipal } from '@/utils/children/childrenPermissions';
+import { canAnalyzeHealthTrend, canReviewHealthTrend, isPrincipal, isVicePrincipal } from '@/utils/children/childrenPermissions';
 import '@/styles/modules/children.css';
 import { CampusFilter } from '@/components/ui/CampusFilter';
 
@@ -283,6 +283,7 @@ export default function HealthTrendPage() {
                 childId={child.id}
                 user={user}
                 period={period}
+                canAnalyze={canAnalyzeHealthTrend(child, user, record?.cls)}
                 canReview={!yearLocked && canReviewHealthTrend(child, user, record?.cls)}
               />
               <div className="page-actions">

@@ -3,7 +3,6 @@ import { uid } from '@/utils/id';
 import { readDb, writeDb, clone, ApiError, delay } from '@/mocks/mockDatabase';
 import { childrenMockRepository as children } from '@/services/children/mock/childrenMockRepository';
 import { canActivateParent, canViewChild, canViewChildren, canViewParentAccounts } from '@/utils/children/childrenPermissions';
-import { areaAllows } from '@/utils/school-config/schoolConfigPermissions';
 import { normalizePhone, validateGuardian } from '@/utils/account/guardianValidation';
 import { issuePassword } from '@/mocks/authMockRepository';
 // Thêm phụ huynh kèm tạo tài khoản ngay (POST /children/{id}/guardians) đã bỏ: phụ huynh nhập ở hồ sơ trẻ rồi kích hoạt
@@ -54,7 +53,7 @@ const initialize = async (actor) => {
 };
 const loadChild = (db, id, actor, writing = false) => {
   const child = db.children.find((row) => row.id === id);
-  if (!child || !visible(db, child, actor) || (child.status === 'LEFT' && actor.role !== 'PRINCIPAL')) forbid();
+  if (!child || !visible(db, child, actor)) forbid();
   if (writing && !canActivateParent(child, actor)) forbid();
   return child;
 };
@@ -87,7 +86,7 @@ const syncStatus = (db, account) =>
 export const guardianMockRepository = {
   async getStructure(actor, schoolYear) {
     const db = await initialize(actor);
-    const campuses = db.campuses.filter((campus) => actor.role === 'PRINCIPAL' || areaAllows(actor, 'children', campus.id));
+    const campuses = db.campuses;
     const ids = new Set(campuses.map((campus) => campus.id));
     // Lớp của năm học chọn ở header (G94-437), mặc định năm đang hoạt động
     const year = schoolYear || activeYearId(db);
@@ -95,7 +94,6 @@ export const guardianMockRepository = {
   },
   async searchChildren({ campusId, schoolYear, page = 0, size = 100 } = {}, actor) {
     const db = await initialize(actor);
-    if (campusId && actor.role !== 'PRINCIPAL' && !areaAllows(actor, 'children', campusId)) forbid();
     if (!Number.isInteger(page) || page < 0 || !Number.isInteger(size) || size < 1 || size > 100)
       throw new ApiError(400, 'Phân trang không hợp lệ.');
     // Năm học chọn ở header (G94-437): trẻ, lớp, điểm trường của năm đó như GET /children?schoolYear (CHD-09)
@@ -128,7 +126,7 @@ export const guardianMockRepository = {
   },
   async getAccountCandidates(childId, actor) {
     const db = await initialize(actor);
-    return clone(loadChild(db, childId, actor, true).guardians || []);
+    return clone(loadChild(db, childId, actor).guardians || []);
   },
   async selectAccountRecipient(childId, guardianId, actor) {
     await initialize(actor);
@@ -237,7 +235,6 @@ export const guardianMockRepository = {
     return {
       userId: id, username: account.username, smsStatus: failed ? 'FAILED' : 'SENT',
       expiresAt: new Date(Date.now() + 15 * 60_000).toISOString(),
-      activationCode: failed ? String(crypto.getRandomValues(new Uint32Array(1))[0] % 1_000_000).padStart(6, '0') : null,
     };
   },
   async resetParentPassword(id, actor) {

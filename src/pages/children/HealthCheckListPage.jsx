@@ -15,7 +15,7 @@ import { clickableRowProps } from '@/utils/clickableRow';
 import { CampaignKindBadge, CampaignStatusBadge } from '@/components/children/ChildBadges';
 import { CAMPAIGN_KIND, CAMPAIGN_KIND_LABELS, CAMPAIGN_STATUS_LABELS } from '@/models/children/healthCheckConstants';
 import { formatDate } from '@/utils/format';
-import { canManageHealthCheck, isPrincipal } from '@/utils/children/childrenPermissions';
+import { canManageHealthCheck, seesAllCampusChildren } from '@/utils/children/childrenPermissions';
 import { healthCheckCrumbs } from '@/utils/children/breadcrumbs';
 import '@/styles/modules/children.css';
 import { CampusFilter } from '@/components/ui/CampusFilter';
@@ -71,7 +71,7 @@ export default function HealthCheckListPage() {
 
       <div className="card">
         <div className="filter-bar">
-          {isPrincipal(user) && (
+          {seesAllCampusChildren(user) && (
             <CampusFilter
               campuses={md.campuses}
               value={campusId}

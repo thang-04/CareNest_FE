@@ -15,6 +15,7 @@ import { getMissingFoodReports } from '@/services/kitchen/kitchenService';
 import { dryStockApi } from '@/services/dryStockApi';
 import { isDemoModule } from '@/services/demoSource';
 import { CHILD_STATUS } from '@/models/School';
+import { canPlaceChild } from '@/utils/children/childrenPermissions';
 import { MISSING_STATUS } from '@/models/kitchen/kitchenConstants';
 import '@/styles/modules/dashboard.css';
 
@@ -45,7 +46,7 @@ export default function VicePrincipalDashboard() {
           : Promise.resolve([]),
     [campusId],
   );
-  const pendingPlacement = (childrenQ.data || []).filter((c) => c.status === CHILD_STATUS.PENDING_PLACEMENT).length;
+  const pendingPlacement = (childrenQ.data || []).filter((c) => c.status === CHILD_STATUS.PENDING_PLACEMENT && canPlaceChild(c, user)).length;
   const campus = md.campusById(campusId);
   const campusLabel = campus?.shortName || campus?.name;
   const shortcuts = [
@@ -93,7 +94,7 @@ export default function VicePrincipalDashboard() {
                   icon: KeyRound,
                   title: 'Tài khoản phụ huynh chưa kích hoạt',
                   meta: parentsQ.error ? 'Không tải được – mở chức năng để xem' : 'Nhắc phụ huynh kích hoạt để nhận thông báo',
-                  end: endOf(parentsQ, (parentsQ.data || []).length),
+                  end: endOf(parentsQ, (parentsQ.data || []).filter((row) => row.canManage).length),
                 },
                 {
                   key: 'missing',

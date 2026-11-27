@@ -1,5 +1,5 @@
 import { recipientError } from './accountRecipient';
-import { addMonthsIso } from './childAge';
+import { fullMonthsBetween } from './childAge';
 import { DECLARATION_STATE, GUARDIAN_RELATIONS, MAX_GUARDIANS } from '@/models/children/childrenConstants';
 import { citizenIdError, normalizeCitizenId } from '@/utils/citizenId';
 import { formatDate, isIsoDate, todayInput } from '@/utils/format';
@@ -92,9 +92,8 @@ export const validateChildInfo = (data, { requireRecipient = true, intakeDate, r
   // Ô dd/mm/yyyy (DateInput) giữ nguyên chữ đã gõ khi chưa thành ngày có thật
   else if (!DATE_RE.test(data.dateOfBirth)) errors.dateOfBirth = 'Nhập ngày sinh theo dạng dd/mm/yyyy';
   else if (data.dateOfBirth > today()) errors.dateOfBirth = 'Ngày sinh không được ở tương lai';
-  else if (data.dateOfBirth < '2018-01-01') errors.dateOfBirth = 'Nhập ngày sinh hợp lệ cho trẻ mầm non';
-  // Chỉ khi tiếp nhận (G94-180/CHD-13, BE kiểm lại): đủ 3 tháng tuổi tại ngày tiếp nhận; Sửa hồ sơ không truyền intakeDate
-  else if (intakeDate && addMonthsIso(data.dateOfBirth, 3) > intakeDate) errors.dateOfBirth = 'Trẻ phải đủ 3 tháng tuổi tại ngày tiếp nhận';
+  else if (intakeDate && (fullMonthsBetween(data.dateOfBirth, intakeDate) < 3 || fullMonthsBetween(data.dateOfBirth, intakeDate) > 72))
+    errors.dateOfBirth = 'Chỉ tiếp nhận trẻ từ đủ 3 tháng đến 6 tuổi (không quá 72 tháng tròn) tại ngày tiếp nhận';
   if (!data.gender) errors.gender = 'Chọn giới tính';
   if (requirePhotos && !data.photoFile) errors.photo = 'Tải ảnh của trẻ';
   const guardians = data.guardians || [];

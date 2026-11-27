@@ -1,8 +1,9 @@
 import { ROLES } from '@/models/User';
 import { CHILD_STATUS } from '@/models/School';
-import { PERMISSION_ACCESS, PERMISSION_SCOPE } from '@/models/school-config/schoolConfigConstants';
+import { PERMISSION_ACCESS } from '@/models/school-config/schoolConfigConstants';
 import { areaAccess, areaAllows } from '@/utils/school-config/schoolConfigPermissions';
 import { PERMISSIONS } from '@/models/bePermissions';
+import { inBePermissionScope } from '@/utils/bePermissions';
 
 /*
  * Who may do what with child records (SRS 4.4 Permission Matrix, rows "Child enrollment & health declaration",
@@ -30,7 +31,7 @@ const childCan = (user, task, campusId) => {
   if (!isBeUser(user)) return areaAllows(user, 'children', campusId, task === 'create' ? 'create' : 'update');
   if (!isPrincipal(user) && !isVicePrincipal(user)) return false;
   if (!BE_CHILD_CODES[task].some((code) => user.bePermissions.includes(code))) return false;
-  return isPrincipal(user) || !campusId || ownsCampus(user, campusId);
+  return isPrincipal(user) || !campusId || BE_CHILD_CODES[task].some((code) => user.bePermissions.includes(code) && inBePermissionScope(user, code, campusId));
 };
 
 export const teachesClass = (cls, user) => !!cls && isTeacherRole(user) && (cls.teacherIds || []).includes(user.id);
@@ -40,15 +41,14 @@ export const CHILDREN_VIEW_ROLES = [ROLES.PRINCIPAL, ROLES.VICE_PRINCIPAL, ROLES
 
 export const canViewChildren = (user) =>
   isVicePrincipal(user) ? areaAccess(user, 'children').access !== PERMISSION_ACCESS.NONE : CHILDREN_VIEW_ROLES.includes(user?.role);
-/** VP được giao "Hồ sơ trẻ" toàn trường: hiện bộ lọc / cột điểm trường như Hiệu trưởng. */
-export const seesAllCampusChildren = (user) =>
-  isPrincipal(user) || (isVicePrincipal(user) && areaAccess(user, 'children').scope === PERMISSION_SCOPE.ALL);
+/** GEN-01/CP-22: PHT xem toàn trường; quyền thao tác vẫn theo điểm trường. */
+export const seesAllCampusChildren = (user) => isPrincipal(user) || isVicePrincipal(user);
 
 /** Profile, health record and health trend share the same view scope. */
 export const canViewChild = (child, user, cls) => {
   if (!child || !user) return false;
   if (isPrincipal(user)) return true;
-  if (isVicePrincipal(user)) return isBeUser(user) || areaAllows(user, 'children', child.campusId);
+  if (isVicePrincipal(user)) return true;
   return teachesClass(cls, user);
 };
 
@@ -109,6 +109,9 @@ export const canRecordMeasurement = (child, user, cls) =>
 export const canEditMeasurement = canRecordMeasurement;
 /* Sửa, duyệt nhận định xu hướng: chỉ GV đang phân công lớp hiện tại của trẻ, cùng điều kiện nhập số đo (BE HLT-21, 403 5041). */
 export const canReviewHealthTrend = canRecordMeasurement;
+
+export const canAnalyzeHealthTrend = (child, user, cls) =>
+  !!child && (isPrincipal(user) || (isVicePrincipal(user) && (isBeUser(user) ? ownsCampus(user, child.campusId) : String(user.campusId) === String(child.campusId))) || teachesClass(cls, user));
 
 /*
  * Đợt khám, kỳ cân đo (user chốt 2026-10-31, PROPOSED): Hiệu trưởng mọi điểm trường, PHT điểm trường của mình; giáo viên xem.

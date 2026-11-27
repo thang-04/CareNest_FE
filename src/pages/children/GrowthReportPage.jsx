@@ -1,7 +1,6 @@
 import { Fragment, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Download } from '@/components/ui/icons';
-import { useAuth } from '@/contexts/AuthContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useFilterParams } from '@/hooks/useFilterParams';
@@ -12,7 +11,6 @@ import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { GrowthReportDataBadge } from '@/components/children/ChildBadges';
 import { CAMPAIGN_STATUS } from '@/models/children/healthCheckConstants';
 import { sameId } from '@/services/http/idStrings';
-import { canManageHealthCheck, isPrincipal } from '@/utils/children/childrenPermissions';
 import { childrenCrumbs } from '@/utils/children/breadcrumbs';
 import {
   GROWTH_COLUMN_COUNT,
@@ -103,11 +101,9 @@ function ReportRow({ row }) {
 /**
  * Tổng hợp cân đo theo mẫu 5.1 của trường (coordinator chốt 2026-11-04; plan docs/plans/active/2026-11-04-health-growth-report.md):
  * số trẻ được cân đo, cân nặng, chiều cao, BMI theo tuổi chuẩn WHO từng lớp trong tháng, từ các kỳ cân đo và đợt khám bắt đầu trong
- * tháng. Hiệu trưởng xem mọi điểm trường; PHT điểm trường được giao. Số trẻ do BE đếm, trang chỉ tính tỉ lệ để hiển thị.
+ * tháng. Hiệu trưởng và PHT xem mọi điểm trường. Số trẻ do BE đếm, trang chỉ tính tỉ lệ để hiển thị.
  */
 export default function GrowthReportPage() {
-  const { user } = useAuth();
-  const principal = isPrincipal(user);
   const { schoolYear, schoolYears } = useSchoolYear();
   const md = useMasterData(schoolYear);
   const yearLabel = schoolYears.find((y) => y.id === schoolYear)?.label || schoolYear;
@@ -124,18 +120,13 @@ export default function GrowthReportPage() {
   const [filters, setFilters] = useFilterParams({ month: '', campusId: '' });
   const month = months.includes(filters.month) ? filters.month : months[0] || '';
 
-  // Hiệu trưởng: tất cả hoặc từng điểm trường; PHT: điểm trường được giao (1 điểm trường ⇒ chỉ hiện tên).
-  const campusOptions = principal ? md.campuses : md.campuses.filter((c) => canManageHealthCheck(user, c.id));
-  const campusSelectable = principal || campusOptions.length > 1;
+  // GEN-01/HLT-12: HT/PHT xem toàn trường và lọc từng điểm trường.
+  const campusOptions = md.campuses;
   // id /campuses là số khi nối BE, tham số URL là chuỗi
-  const campusId = campusSelectable && campusOptions.some((c) => sameId(c.id, filters.campusId)) ? filters.campusId : '';
+  const campusId = campusOptions.some((c) => sameId(c.id, filters.campusId)) ? filters.campusId : '';
   const scopeLabel = campusId
     ? campusOptions.find((c) => sameId(c.id, campusId))?.name || ''
-    : principal
-      ? 'Tất cả điểm trường'
-      : campusOptions.length === 1
-        ? campusOptions[0].name
-        : 'Các điểm trường được giao';
+    : 'Tất cả điểm trường';
 
   const { report, loading, error, reload } = useGrowthReport({ month, campusId });
   const shown = report && report.month === month ? report : null;
@@ -202,21 +193,13 @@ export default function GrowthReportPage() {
               </option>
             ))}
           </select>
-          {campusSelectable ? (
             <CampusFilter
               campuses={campusOptions}
               value={campusId}
               onChange={(v) => setFilters({ campusId: v })}
-              allLabel={principal ? 'Tất cả điểm trường' : 'Các điểm trường được giao'}
+              allLabel="Tất cả điểm trường"
               hideLabel
             />
-          ) : (
-            scopeLabel && (
-              <p className="gr-scope m-0">
-                Điểm trường: <strong>{scopeLabel}</strong>
-              </p>
-            )
-          )}
           {/* Cùng hàng bộ lọc, dồn phải; hẹp thì tự xuống hàng (G94-426) */}
           <div className="filter-bar__end">
             <button className="btn" onClick={exportExcel} disabled={!shown || busy}>

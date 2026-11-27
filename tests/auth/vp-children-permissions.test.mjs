@@ -65,3 +65,29 @@ test('AUTH-07: trang PHT không có mã sửa nào thì báo đang chỉ xem; c�
   assert.equal(isVpReadOnlyPage({ role: 'VICE_PRINCIPAL' }, '/children'), false);
   assert.equal(isVpReadOnlyPage({ role: 'PRINCIPAL', bePermissions: [] }, '/children'), false);
 });
+
+for (const [code, check] of [
+  ['CHILD_PROFILE_EDIT', children.canEditChild],
+  ['CHILD_PLACEMENT', children.canPlaceChild],
+  ['PARENT_ACCOUNT_MANAGE', children.canActivateParent],
+]) {
+  test(`GEN-02: ${code} respects SCHOOL and pinned campus independently`, () => {
+    const school = {...beVp([code]), beSchoolWidePermissions:[code]};
+    assert.equal(check(child('2'), school), true);
+    const pinned = {...beVp([code]), bePinnedCampusPermissions:{[code]:'2'}};
+    assert.equal(check(child('2'), pinned), true);
+    assert.equal(check(child('1'), pinned), false);
+    assert.equal(check(child('2'), beVp([])), false);
+  });
+}
+test('GEN-02: enrollment campus options follow granted scope', () => {
+  const campuses = [{id:'1'},{id:'2'}];
+  assert.deepEqual(children.childCampusesOf({...beVp(['CHILD_ENROLL']), bePinnedCampusPermissions:{CHILD_ENROLL:'2'}}, campuses).map(c=>c.id), ['2']);
+});
+test('HLT-01: analysis uses actual campus assignments for BE and demo', () => {
+  assert.equal(children.canAnalyzeHealthTrend(child('1'),beVp([])), true);
+  assert.equal(children.canAnalyzeHealthTrend(child('2'),beVp([])), false);
+  const demo = {role:'VICE_PRINCIPAL', campusId:'1', locationIds:['room_1']};
+  assert.equal(children.canAnalyzeHealthTrend(child('1'),demo), true);
+  assert.equal(children.canAnalyzeHealthTrend(child('2'),demo), false);
+});

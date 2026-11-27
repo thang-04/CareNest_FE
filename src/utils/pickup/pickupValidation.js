@@ -3,11 +3,6 @@ import { VERIFICATION } from '@/models/pickup/pickupConstants';
 const PHONE_RE = /^0\d{9}$/;
 const NOTE_MAX = 500;
 
-export const pickupTimeError = (time, now) => {
-  if (!TIME_RE.test(String(time || ''))) return 'Nhập giờ trả trẻ (HH:mm).';
-  return time > now ? 'Giờ trả trẻ không được sau giờ hiện tại.' : null;
-};
-
 /** Nội dung cuộc gọi bắt buộc khi xác minh qua điện thoại, cả trả và không trả (user chốt 2026-10-23). */
 export const callNoteError = (note) => {
   const text = String(note || '').trim();

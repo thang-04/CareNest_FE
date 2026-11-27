@@ -18,7 +18,7 @@ import { formatDateTime } from '@/utils/format';
  * sửa, duyệt bản nháp (BE HLT-21 vẫn kiểm, 403 5041); bản đã duyệt chỉ xem (user 14/11, Q4). `period`: khoảng đang chọn trên
  * biểu đồ — AI chỉ phân tích lần đo trong khoảng đó (HLT-21).
  */
-export function AiTrendPanel({ childId, user, period = 'ALL', canReview = false }) {
+export function AiTrendPanel({ childId, user, period = 'ALL', canReview = false, canAnalyze = false }) {
   const toast = useToast();
   const { data, loading, error, reload, setData } = useAsync(() => getLatestHealthTrend(childId, user), [childId, user?.id], {
     enabled: !!childId,
@@ -54,6 +54,7 @@ export function AiTrendPanel({ childId, user, period = 'ALL', canReview = false 
   };
 
   const analyze = async () => {
+    if (!canAnalyze || analyzing) return;
     setAnalyzing(true);
     setAnalyzeError(null);
     setEditing(false);
@@ -105,7 +106,7 @@ export function AiTrendPanel({ childId, user, period = 'ALL', canReview = false 
               </Button>
             </>
           )}
-          <Button
+          {canAnalyze && <Button
             size="sm"
             variant={hasAnalysis ? undefined : 'primary'}
             icon={RefreshCw}
@@ -113,7 +114,7 @@ export function AiTrendPanel({ childId, user, period = 'ALL', canReview = false 
             disabled={loading || analyzing || editing}
           >
             {analyzeLabel}
-          </Button>
+          </Button>}
         </div>
       </div>
       <div className="card__body">

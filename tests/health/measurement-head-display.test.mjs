@@ -72,7 +72,7 @@ const useAuth=()=>({user:{}}), useSchoolYear=()=>({schoolYear:'2026 – 2027'}),
 const useSearchParams=()=>[new URLSearchParams('childId=child-test'),()=>{}];
 const useMasterData=()=>({campuses:[]}), useChildRecords=()=>({children:[child],loading:false});
 const useHealthRecord=()=>({record:{child,measurements:[context.measurement]},loading:false});
-const CHILD_STATUS={ACTIVE:'ACTIVE'}, isPrincipal=()=>false, isVicePrincipal=()=>false, canReviewHealthTrend=()=>false;
+const CHILD_STATUS={ACTIVE:'ACTIVE'}, isPrincipal=()=>false, isVicePrincipal=()=>false, canReviewHealthTrend=()=>false, canAnalyzeHealthTrend=()=>false;
 const sortByName=(v)=>v, suggestAgeGroupId=()=>'', growthAxesFor=()=>({}), ageGroupById=()=>null;
 const TREND_PERIODS=[{key:'ALL',label:'Toàn bộ'}], withinTrendPeriod=(items)=>items, oneMeasurementPerDay=(items)=>items;
 const useClassOptions=()=>({year:null,ageGroups:[]}), ageGroupIn=()=>null;

@@ -28,7 +28,6 @@ import { GUARDIAN_RELATIONSHIP_LABELS } from '@/models/account/guardianConstants
 import { groupChildrenByClass, missingAccount, NO_CLASS, sortMissingFirst } from '@/utils/account/guardianCoverage';
 import { childrenCrumbs } from '@/utils/children/breadcrumbs';
 import { sameId } from '@/services/http/idStrings';
-import { canActivateParentsAt } from '@/utils/children/childrenPermissions';
 import { formatDate, normalizeText } from '@/utils/format';
 import '@/styles/modules/parent-accounts.css';
 
@@ -51,8 +50,8 @@ export default function ParentActivationPage() {
   const { schoolYear } = useSchoolYear();
   const structure = useGuardianStructure(schoolYear);
   const [campusPick, setCampusPick] = useState('');
-  // PHT chỉ thấy điểm trường được giao (canActivateParentsAt = PARENT_ACCOUNT_MANAGE + locationIds); BE kiểm lại phạm vi
-  const campuses = useMemo(() => structure.campuses.filter((c) => canActivateParentsAt(c.id, user)), [structure.campuses, user]);
+  // CP-22: xem mọi điểm trường; từng thao tác dùng child.canManage do BE trả.
+  const campuses = structure.campuses;
   // Mặc định: điểm trường của tài khoản (PHT một điểm trường), HT nhiều điểm trường lấy đầu danh sách
   const defaultCampus = user?.campusId && campuses.some((c) => sameId(c.id, user.campusId)) ? user.campusId : (campuses[0]?.id ?? '');
   // Điểm trường đã chọn không thuộc năm đang xem hoặc ngoài phạm vi ⇒ về điểm trường mặc định
@@ -180,8 +179,8 @@ export default function ParentActivationPage() {
         const result = await resetParentPassword(guardian.userId, user);
         setConfirmModal(null);
         // Mật khẩu tạm gửi qua SMS, không in phiếu (user bỏ màn in phiếu 2026-10-23).
-        if (result?.smsStatus === 'FAILED') toast.warning(`Chưa gửi được SMS mật khẩu tới ${result.username}. Thử lại sau.`, 'Gửi SMS lỗi');
-        else if (result) toast.success(`Đã gửi mật khẩu tạm mới qua SMS tới ${result.username}.`);
+        if (result?.smsStatus === 'SENT') toast.success(`Đã gửi mật khẩu tạm mới qua SMS tới ${result.username}.`);
+        else toast.warning(`Chưa xác nhận gửi được SMS mật khẩu tới ${result?.username || 'phụ huynh'}. Thử lại sau.`, 'Gửi SMS lỗi');
         reload({ silent: true });
       } catch (err) {
         setConfirmModal(null);
@@ -248,7 +247,7 @@ export default function ParentActivationPage() {
           <EmptyState
             icon={Users}
             title="Chưa có điểm trường"
-            description="Bạn chưa được giao điểm trường nào để quản lý tài khoản phụ huynh."
+            description="Năm học này chưa có điểm trường."
           />
         </section>
       ) : !groups.length ? (
@@ -258,7 +257,7 @@ export default function ParentActivationPage() {
           <EmptyState
             icon={Users}
             title="Chưa có bé nào"
-            description={campusId ? 'Cơ sở này chưa có trẻ trong năm học đang chọn.' : 'Chỉ hiện bé đang học trong phạm vi bạn phụ trách.'}
+            description={campusId ? 'Cơ sở này chưa có trẻ trong năm học đang chọn.' : 'Năm học đang chọn chưa có trẻ.'}
           />
         </section>
       ) : (

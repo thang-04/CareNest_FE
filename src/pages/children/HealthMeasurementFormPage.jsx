@@ -208,11 +208,12 @@ export default function HealthMeasurementFormPage() {
       </div>
     );
 
-  const requireReason =
+  const needsReason = (draft) =>
     existing?.published &&
-    (Number(form.heightCm) !== Number(existing.heightCm) ||
-      Number(form.weightKg) !== Number(existing.weightKg) ||
-      form.note.trim() !== (existing.note || '').trim());
+    (Number(draft.heightCm) !== Number(existing.heightCm) ||
+      Number(draft.weightKg) !== Number(existing.weightKg) ||
+      draft.note.trim() !== (existing.note || '').trim());
+  const requireReason = needsReason(form);
   const rules = { requireReason };
   // Ngày đo BE ghi khi lưu (chỉ để hiện): nhập mới là hôm nay, sửa giữ ngày đã lưu. Kỳ cân đo tự đóng sau ngày kết thúc
   // (HLT-17, 2026-11-04) nên phần kẹp về ngày kết thúc chỉ là chốt chặn.
@@ -221,7 +222,7 @@ export default function HealthMeasurementFormPage() {
   const set = (field, value) => {
     const nextForm = { ...form, [field]: value };
     setForm(nextForm);
-    const nextErrors = validateMeasurement(nextForm, rules);
+    const nextErrors = validateMeasurement(nextForm, { requireReason: needsReason(nextForm) });
     setErrors((prev) => {
       const kept = { ...prev };
       Object.keys(kept).forEach((k) => {

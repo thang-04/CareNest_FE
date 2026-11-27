@@ -4,6 +4,7 @@ import { useAsync } from '@/hooks/useAsync';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { approvePhoneChange, listPhoneChangeRequests, rejectPhoneChange } from '@/services/account/guardianService';
+import { formatDateTime } from '@/utils/format';
 
 export function PhoneChangeReview({ onChanged }) {
   const { user } = useAuth();
@@ -15,14 +16,16 @@ export function PhoneChangeReview({ onChanged }) {
   const [noteError, setNoteError] = useState('');
   const [busy, setBusy] = useState(false);
   const decide = async (row, rejectingRequest) => {
-    if (busy || (rejectingRequest && !note.trim())) return;
+    if (busy) return;
     setBusy(true);
     try {
-      if (rejectingRequest) await rejectPhoneChange(row.id, note.trim(), user);
-      else await approvePhoneChange(row.id, user);
+      const result = rejectingRequest ? await rejectPhoneChange(row.id, note.trim(), user) : await approvePhoneChange(row.id, user);
       setRejecting(null);
       setApproving(null);
-      toast.success(rejectingRequest ? 'Đã từ chối yêu cầu đổi số.' : 'Đã duyệt yêu cầu đổi số.');
+      if (rejectingRequest) toast.success('Đã từ chối yêu cầu đổi số.');
+      else if (result.smsStatus === 'FAILED') toast.warning('Đã duyệt đổi số nhưng chưa gửi được SMS tới số mới. Cấp lại mật khẩu tạm ở màn Tài khoản phụ huynh.', 'Gửi SMS lỗi');
+      else if (result.smsStatus === 'SENT') toast.success('Đã duyệt yêu cầu đổi số. Đã gửi SMS tới số mới.');
+      else toast.success('Đã duyệt yêu cầu đổi số.');
       reload();
       onChanged?.();
     } catch (err) {
@@ -39,6 +42,7 @@ export function PhoneChangeReview({ onChanged }) {
     { key: 'phone', header: 'Số cũ → số mới', render: (r) => `${r.oldPhone} → ${r.newPhone}` },
     { key: 'reason', header: 'Lý do' },
     { key: 'requestedByName', header: 'Người gửi' },
+    { key: 'requestedAt', header: 'Thời điểm', render: (r) => formatDateTime(r.requestedAt) },
     {
       key: 'actions',
       header: 'Thao tác',
@@ -80,14 +84,13 @@ export function PhoneChangeReview({ onChanged }) {
           title="Từ chối yêu cầu đổi số"
           onClose={() => !busy && setRejecting(null)}
           footer={
-            <Button disabled={!note.trim()} loading={busy} onClick={() => decide(rejecting, true)}>
+            <Button loading={busy} onClick={() => decide(rejecting, true)}>
               Từ chối
             </Button>
           }
         >
           <TextAreaField
-            label="Lý do từ chối"
-            required
+            label="Ghi chú từ chối (nếu cần)"
             maxLength={300}
             value={note}
             error={noteError}

@@ -31,11 +31,11 @@ const { default: Page } = await import(
   `data:text/javascript;base64,${Buffer.from(code.replace('from "react"', `from ${JSON.stringify(import.meta.resolve('react'))}`)).toString('base64')}`
 );
 const retry = () => {};
-const render = (kind, rosterState) => {
+const render = (kind, rosterState, resultStatus = 'DRAFT') => {
   globalThis.__entryRecord = {
     child: { id: 'entry_child', classId: 'entry_class', fullName: 'Trẻ kiểm thử' },
     measurements: [],
-    openCampaign: { id: 'entry_campaign', kind, resultStatus: 'DRAFT' },
+    openCampaign: { id: 'entry_campaign', kind, resultStatus },
   };
   globalThis.__entryRoster = { reload: retry, ...rosterState };
   return renderToStaticMarkup(React.createElement(Page));
@@ -58,10 +58,18 @@ for (const kind of ['MEASUREMENT', 'EXAM']) {
       }
     }
   });
-  test(`${kind}: successful roster enables entry only for a present row`, () => {
+  test(`${kind}: roster requires presence for new entry, but an existing exam draft can continue`, () => {
     assert.match(render(kind, { roster: loaded }), /href="[^"]*(?:health\/new|\/exam\/)/);
-    for (const children of [[], [{ childId: 'entry_child', absentToday: true }]]) {
-      assert.doesNotMatch(render(kind, { roster: { children } }), /href="[^"]*(?:health\/new|\/exam\/)/);
-    }
+    assert.doesNotMatch(render(kind, { roster: { children: [] } }), /href="[^"]*(?:health\/new|\/exam\/)/);
+    const absent = render(kind, { roster: { children: [{ childId: 'entry_child', absentToday: true }] } });
+    assert.match(absent, /Vắng hôm nay/);
+    if (kind === 'EXAM') assert.match(absent, /href="[^\"]*\/exam\//);
+    else assert.doesNotMatch(absent, /href="[^\"]*health\/new/);
   });
 }
+
+test('EXAM: absent child cannot create a new exam', () => {
+  const html = render('EXAM', {roster:{children:[{childId:'entry_child',absentToday:true}]}}, 'NOT_RECORDED');
+  assert.doesNotMatch(html, /href="[^"]*\/exam\//);
+  assert.match(html, /<button disabled=""/);
+});

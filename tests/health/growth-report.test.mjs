@@ -157,9 +157,9 @@ test('Phạm vi: HT mọi điểm trường; PHT điểm trường của mình; 
   const lan = await repo.getGrowthReport({ month: JULY }, LAN);
   assert.deepEqual(
     lan.campuses.map((c) => c.campusId),
-    ['c1'],
+    ['c1', 'c2'],
   );
-  await rejects(repo.getGrowthReport({ month: JULY, campusId: 'c2' }, LAN), 403);
+  assert.deepEqual((await repo.getGrowthReport({ month: JULY, campusId: 'c2' }, LAN)).campuses.map((c) => c.campusId), ['c2']);
   await rejects(repo.getGrowthReport({ month: JULY }, TUAN), 403);
   await rejects(repo.getGrowthReport({ month: JULY, campusId: 'c9' }, PRINCIPAL), 404);
   await rejects(repo.getGrowthReport({ month: '2026-7' }, PRINCIPAL), 400, 'month');

@@ -14,8 +14,9 @@ test('trang gửi năm học ở header cho cấu trúc và danh sách trẻ', (
   assert.match(page, /const \{ schoolYear \} = useSchoolYear\(\);/);
   assert.match(page, /useGuardianStructure\(schoolYear\)/);
   assert.match(page, /useCampusGuardianChildren\(campusId, \{\s*enabled: !structure\.loading[^}]*schoolYear,?\s*\}\)/);
-  // Điểm trường đã chọn không thuộc năm mới (hoặc ngoài phạm vi được giao) ⇒ về điểm trường mặc định
-  assert.match(page, /structure\.campuses\.filter\(\(c\) => canActivateParentsAt\(c\.id, user\)\)/);
+  // CP-22: xem mọi điểm trường của năm, không dùng quyền kích hoạt để lọc phạm vi đọc.
+  assert.match(page, /const campuses = structure\.campuses;/);
+  assert.match(page, /const canManage = \(child\) => !yearLocked && !!child\.canManage;/);
   assert.match(page, /campuses\.some\(\(c\) => sameId\(c\.id, campusPick\)\)/);
 });
 

@@ -107,10 +107,11 @@ export default function ChildHealthRecordPage() {
   const measureLink = round ? `/children/${child.id}/health/new?campaignId=${round.id}` : '';
   const examOpen =
     canRecord && open?.kind === CAMPAIGN_KIND.EXAM && open.resultStatus !== EXAM_STATUS.CONCLUDED && open.resultStatus !== 'LEGACY';
-  const entryLink = (to, label, icon, primary = false) => {
+  const entryLink = (to, label, icon, primary = false, continuing = false) => {
     const className = primary ? 'btn btn--primary' : 'btn';
-    return entryDisabledReason ? (
-      <Button className={className} disabledReason={entryDisabledReason}>
+    const disabledReason = continuing && absentToday ? (rosterError ? 'Không tải được danh sách trẻ.' : rosterLoading ? 'Đang tải danh sách trẻ.' : '') : entryDisabledReason;
+    return disabledReason ? (
+      <Button className={className} disabledReason={disabledReason}>
         {icon} {label}
       </Button>
     ) : (
@@ -144,12 +145,15 @@ export default function ChildHealthRecordPage() {
               `/children/health-checks/${open.id}/exam/${child.id}?classId=${child.classId}`,
               open.resultStatus === EXAM_STATUS.DRAFT ? 'Tiếp tục phiếu khám' : 'Khám trong đợt',
               <Stethoscope size={16} />,
+              false,
+              open.resultStatus === EXAM_STATUS.DRAFT,
             )}
           {measureAction}
         </div>
       </div>
       {(canMeasure || examOpen) && rosterError && <ErrorState error={rosterError} onRetry={reloadRoster} />}
       <div className="row gap-3">
+        {absentToday && <span className="badge badge--warning">Vắng hôm nay</span>}
         <span>
           Kết quả khám gần nhất:{' '}
           {record.latestExam ? (

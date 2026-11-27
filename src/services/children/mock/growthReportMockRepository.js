@@ -152,7 +152,7 @@ export const growthReportMockRepository = {
     // BE: tham số month kiểu YearMonth bắt buộc; thiếu hoặc sai dạng ⇒ 400 (REQUIRED_FIELD_MISSING / sai kiểu tham số)
     if (!MONTH_RE.test(month || '')) throw new ApiError(400, 'Thiếu thông tin bắt buộc: tháng', { month: 'Chọn tháng theo dạng yyyy-MM' });
     const active = (db.campuses || []).filter((c) => c.status !== 'INACTIVE');
-    const inScope = isPrincipal(user) ? active : active.filter((c) => c.id === user.campusId);
+    const inScope = active;
     let campuses = inScope;
     if (campusId) {
       if (!inScope.some((c) => c.id === campusId)) {

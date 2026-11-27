@@ -1,3 +1,4 @@
+import { devNow } from '@/utils/devClock';
 import { useState } from 'react';
 import { ArrowLeft, CheckCircle2, ImageOff, Phone, Save, ThumbsUp, UserCheck, XCircle } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
@@ -18,6 +19,8 @@ import { callNoteError, validatePickupResult } from '@/utils/pickup/pickupValida
 import { formatDateTime, initials } from '@/utils/format';
 import { PickupOutcomeBadge } from './PickupBadges';
 import { PortraitImage } from '@/components/PortraitImage';
+
+const nowTime = () => devNow().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 
 function GuardianPhoto({ guardian }) {
   return (
@@ -73,7 +76,7 @@ function WaitingChild({ childId, children }) {
 
 /**
  * Màn 100 Pickup Verification (UC 3.15), nút "Trả trẻ" của danh sách Đón trẻ (user yêu cầu 2026-10-23): so người đón với ảnh
- * phụ huynh đã đăng ký; khớp thì ghi giờ trả ngay trong modal. Không khớp thì dùng nút "Gọi phụ huynh" của dòng. onDone: đã ghi nhận.
+ * phụ huynh đã đăng ký; khớp thì BE ghi giờ trả khi xác nhận. Không khớp thì dùng nút "Gọi phụ huynh" của dòng. onDone: đã ghi nhận.
  */
 export function PickupPhotoFlow({ childId, onDone, fullDayPickupFrom = '15:00' }) {
   const { user } = useAuth();
@@ -120,7 +123,6 @@ export function PickupPhotoFlow({ childId, onDone, fullDayPickupFrom = '15:00' }
                 <b>Khớp ảnh đăng ký:</b> trả {context.child.fullName} cho {guardian.fullName} ({guardian.relation}).
               </div>
             </div>
-            <p className="muted text-sm">Giờ trả được ghi theo thời điểm bấm “Ghi nhận trả trẻ”.</p>
             <FormField label="Ghi chú" hint="Không bắt buộc" error={errors.note} className="mt-12">
               <textarea
                 className="textarea"
@@ -130,6 +132,9 @@ export function PickupPhotoFlow({ childId, onDone, fullDayPickupFrom = '15:00' }
                 onChange={(e) => setForm({ ...form, note: e.target.value })}
               />
             </FormField>
+            {nowTime() < fullDayPickupFrom && (
+              <div className="alert alert--warning mt-12">Trả trước {fullDayPickupFrom}: trẻ được tính vắng buổi chiều (nửa ngày).</div>
+            )}
             <div className="dt-call__actions mt-16">
               <button className="btn" onClick={() => setGuardian(null)} disabled={busy}>
                 <ArrowLeft size={16} /> Chọn lại
@@ -275,11 +280,15 @@ export function PickupCallFlow({ childId, onDone, fullDayPickupFrom = '15:00' })
           <ConfirmationModal
             open={confirming === VERIFICATION.PHONE_CONFIRMED}
             title="Ghi nhận trả trẻ?"
-            message={`Trả ${context.child.fullName} theo nội dung cuộc gọi, giờ trả là lúc bấm xác nhận. Phụ huynh sẽ nhận thông báo.`}
+            message={`Trả ${context.child.fullName} khi xác nhận theo nội dung cuộc gọi. Phụ huynh sẽ nhận thông báo.`}
             confirmLabel="Ghi nhận trả trẻ"
             onConfirm={record}
             onClose={() => setConfirming(null)}
-          />
+          >
+            {nowTime() < fullDayPickupFrom && (
+              <div className="alert alert--warning mt-12">Trả trước {fullDayPickupFrom}: trẻ được tính vắng buổi chiều (nửa ngày).</div>
+            )}
+          </ConfirmationModal>
         </section>
       )}
     </WaitingChild>

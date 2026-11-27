@@ -113,7 +113,8 @@ test('AC-1: quyền quản lý theo điểm trường', async () => {
   // PHT đóng, mở lại kỳ của điểm trường mình; không đụng được điểm trường khác.
   await checks.closeHealthCheck(created.id, LAN);
   await checks.reopenHealthCheck(created.id, { reason: 'Nhập bù (giả).' }, LAN);
-  await rejects(checks.closeHealthCheck(byPrincipal.id, LAN), 404);
+  assert.equal((await checks.getHealthCheck(byPrincipal.id, LAN)).campaign.campusId, 'c2');
+  await rejects(checks.closeHealthCheck(byPrincipal.id, LAN), 403);
 });
 
 test('AC-2: kỳ cân đo không có đơn vị khám; lọc theo loại', async () => {

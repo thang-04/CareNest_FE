@@ -112,8 +112,9 @@ export function GuardianPanel({ child, classroomName, onChanged }) {
     const g = confirm.guardian;
     if (confirm.type === 'password') {
       const result = await run(() => resetParentPassword(g.userId, user));
-      if (result?.smsStatus === 'FAILED') toast.warning(`Chưa gửi được SMS mật khẩu tới ${result.username}. Thử lại sau.`, 'Gửi SMS lỗi');
-      else if (result) toast.success(`Đã gửi mật khẩu tạm mới qua SMS tới ${result.username}.`);
+      if (!result) return;
+      if (result.smsStatus === 'SENT') toast.success(`Đã gửi mật khẩu tạm mới qua SMS tới ${result.username}.`);
+      else toast.warning(`Chưa xác nhận gửi được SMS mật khẩu tới ${result.username}. Thử lại sau.`, 'Gửi SMS lỗi');
       return;
     }
     if (confirm.type === 'remove') {

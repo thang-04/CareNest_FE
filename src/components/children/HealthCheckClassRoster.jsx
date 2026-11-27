@@ -159,9 +159,7 @@ export function HealthCheckClassRoster({ campaignId, classId, embedded = false, 
                       ? { label: 'Khám', strong: true, disabled: true, title: ABSENT_TODAY_HINT }
                       : { label: 'Khám', strong: true }
                     : r.canEdit && !yearLocked && r.result === CHILD_RESULT_STATUS.IN_PROGRESS
-                      ? r.absentToday
-                        ? { label: 'Tiếp tục khám', strong: true, disabled: true, title: ABSENT_TODAY_HINT }
-                        : { label: 'Tiếp tục khám', strong: true }
+                      ? { label: 'Tiếp tục khám', strong: true }
                       : hasExam
                         ? { label: 'Xem phiếu', strong: false }
                         : null;

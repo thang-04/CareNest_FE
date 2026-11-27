@@ -405,13 +405,13 @@ export default function EnrollChildPage() {
               </div>
               {saved.plannedAdmission && <div>{plannedAdmissionNotice(saved.plannedAdmission)}</div>}
               {codeSent.length > 0 && <div>Đã tạo tài khoản phụ huynh, mã kích hoạt gửi qua SMS tới {phones(codeSent)}.</div>}
-              {codeFailed.length > 0 && <div>Chưa gửi được SMS mã kích hoạt tới {phones(codeFailed)}.</div>}
+              {codeFailed.length > 0 && <div>Chưa gửi được SMS mã kích hoạt tới {phones(codeFailed)}: gửi lại mã kích hoạt ở màn Tài khoản phụ huynh.</div>}
               {smsSent.length > 0 && <div>Đã tạo tài khoản phụ huynh, mật khẩu tạm gửi qua SMS tới {phones(smsSent)}.</div>}
               {renamedSent.length > 0 && (
                 <div>Tài khoản có sẵn đổi tên đăng nhập sang {phones(renamedSent)}; mật khẩu tạm mới đã gửi qua SMS tới số mới.</div>
               )}
               {smsFailed.length > 0 && (
-                <div>Chưa gửi được SMS mật khẩu tới {phones(smsFailed)}: gửi lại mật khẩu ở màn Tài khoản phụ huynh.</div>
+                <div>Chưa gửi được SMS mật khẩu tới {phones(smsFailed)}: cấp lại mật khẩu tạm ở màn Tài khoản phụ huynh.</div>
               )}
               {linked.length > 0 && (
                 <div>Liên kết vào tài khoản có sẵn của {names(linked)}; phụ huynh xem được trẻ trên ứng dụng, không cần mật khẩu mới.</div>
@@ -445,7 +445,7 @@ export default function EnrollChildPage() {
               )}
               {(waiting.length > 0 || smsFailed.length > 0) && (
                 <Link className="btn btn--primary" to={`/children/activation?childId=${saved.id}`}>
-                  <KeyRound size={16} /> {waiting.length > 0 ? 'Kích hoạt tài khoản phụ huynh' : 'Gửi lại mật khẩu'}
+                  <KeyRound size={16} /> {waiting.length > 0 ? 'Kích hoạt tài khoản phụ huynh' : 'Cấp lại mật khẩu tạm'}
                 </Link>
               )}
             </div>

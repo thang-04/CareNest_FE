@@ -1,5 +1,14 @@
 # Verification — bằng chứng trước khi báo xong (FE)
 
+## BR bổ sung GEN-01/CP-22/CP-21 — 27/11/2026
+
+- `node --import ./scripts/register-auth-test-loader.mjs --test tests/children/*.test.mjs tests/health/*.test.mjs tests/auth/guardian-api.test.mjs tests/auth/vp-children-permissions.test.mjs`: **588/588**, không fail/skip.
+- `node --import ./scripts/register-auth-test-loader.mjs --test tests/auth/*.test.mjs`: **127/127**, không fail/skip. Có test auth trùng lượt trên nên không cộng thành số test duy nhất.
+- ESLint 8 source sửa (childrenPermissions, ParentActivationPage, GuardianPanel, HealthCheckListPage, GrowthReportPage và 3 mock repositories) đạt; `npm run build` đạt, còn cảnh báo Vite/rolldown/lottie có sẵn.
+- Regression đổi theo yêu cầu mới: PHT đọc đợt điểm trường khác nhưng đóng/sửa vẫn 403; bộ lọc tài khoản PH dùng phạm vi xem, từng thao tác dùng child.canManage; báo cáo PHT toàn trường/lọc điểm trường khác. Cả hai nơi cấp lại mật khẩu chỉ báo SMS thành công khi SENT.
+- Contract BE `ParentPasswordResponse` chỉ trả userId/username/smsStatus; không có consumer App cho endpoint quản trị này trong source hiện tại.
+- Không chạy harness wrapper; log native cục bộ trong `../report/br-fe-*.log`. Chưa chạy UI với BE triển khai hoặc gửi SMS thật.
+
 ## BR hồ sơ trẻ, sức khỏe và đón trẻ — 27/11/2026
 
 - `npm test` chạy trong PowerShell đạt 2.007/2.007 test, 11 nhóm, không fail/skip. Log cục bộ ở `node_modules/.br-full-tests-complete.log`. Các regression mới kiểm luồng đổi số, gửi mã kích hoạt, thay ảnh, phiếu khám chỉ đọc, khóa nhập khi roster đang tải/lỗi, chọn trẻ tiếp theo và giờ đón.

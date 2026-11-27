@@ -107,6 +107,6 @@ test('gửi lại mã chỉ cho tài khoản đang chờ và người có quyề
   writeDb((db) => { db.parentAccounts.find((a) => a.id === account.userId).status = 'PENDING_ACTIVATION'; });
   await assert.rejects(guardians.resendActivationCode(account.userId, TEACHER), { status: 403 });
   const result = await guardians.resendActivationCode(account.userId, VP);
-  assert.equal(result.activationCode, null);
+  assert.equal(Object.hasOwn(result, 'activationCode'), false);
   assert.equal(result.smsStatus, 'SENT');
 });

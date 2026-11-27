@@ -60,12 +60,12 @@ const campusName = (db, id) => db.campuses?.find((c) => c.id === id)?.name || ''
 const scopedClasses = (db, user, campusId) => {
   const ofCampus = db.classes.filter((c) => c.campusId === campusId);
   if (isPrincipal(user)) return ofCampus;
-  if (isVicePrincipal(user)) return user.campusId === campusId ? ofCampus : [];
+  if (isVicePrincipal(user)) return ofCampus;
   return ofCampus.filter((c) => teachesClass(c, user));
 };
 
 const canSeeCampaign = (db, user, c) =>
-  isPrincipal(user) || (isVicePrincipal(user) && user.campusId === c.campusId) || scopedClasses(db, user, c.campusId).length > 0;
+  isPrincipal(user) || isVicePrincipal(user) || scopedClasses(db, user, c.campusId).length > 0;
 
 const findCampaign = (db, id, user) => {
   const c = db.healthCheckCampaigns.find((x) => x.id === id);

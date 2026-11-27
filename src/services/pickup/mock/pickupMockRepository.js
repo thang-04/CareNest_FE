@@ -203,7 +203,7 @@ export const pickupMockRepository = {
         pickupPersonName: form.pickupPersonName.trim(),
         pickupPersonRelation: form.pickupPersonRelation.trim(),
         pickupPersonPhone: String(form.pickupPersonPhone || '').replace(/\s/g, ''),
-        handedOverAt: outcome === PICKUP_OUTCOME.HANDED_OVER ? devNow().toISOString() : null,
+        handedOverAt: outcome === PICKUP_OUTCOME.HANDED_OVER ? at : null,
         phoneConfirmed: form.verification === 'PHONE_CONFIRMED',
         note: String(form.note || '').trim(),
         // Trả trẻ sau khi cô báo phụ huynh đón về sớm: giữ liên kết để truy vết từ Sức khỏe trong ngày

@@ -15,8 +15,10 @@ export function PhoneChangeModal({ childId, guardian, onClose }) {
   const submit = async () => {
     if (busy) return;
     const next = {};
-    if (!isValidPhone(newPhone)) next.newPhone = 'Nhập số điện thoại gồm 10 chữ số, bắt đầu bằng 0.';
-    if (!reason.trim() || reason.trim().length > 300) next.reason = 'Nhập lý do đổi số (tối đa 300 ký tự).';
+    if (!newPhone.trim()) next.newPhone = 'Nhập số điện thoại mới';
+    else if (!isValidPhone(newPhone)) next.newPhone = 'Nhập số điện thoại hợp lệ, ví dụ 0912 345 678';
+    if (!reason.trim()) next.reason = 'Nhập lý do đổi số điện thoại';
+    else if (reason.trim().length > 300) next.reason = 'Lý do đổi số điện thoại tối đa 300 ký tự';
     setErrors(next);
     if (Object.keys(next).length) return;
     setBusy(true);

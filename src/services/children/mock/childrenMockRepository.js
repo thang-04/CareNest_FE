@@ -1817,6 +1817,7 @@ export const childrenMockRepository = {
           guardianIndex: index,
           guardian: clone(g),
           username: accountByPhone(db, g.phone)?.username || '',
+          canManage: canActivateParentsAt(c.campusId, user),
         })),
       )
       .filter((r) => !filters.status || r.guardian.accountStatus === filters.status)

@@ -44,6 +44,7 @@ export function PortraitPicker({
           )}
         </PortraitImage>
         <div className="stack gap-2">
+          {!file && !photoUrl && <span className="muted text-sm">Thiếu ảnh</span>}
           <input
             ref={input}
             id={id}
