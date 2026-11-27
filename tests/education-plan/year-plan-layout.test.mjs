@@ -115,7 +115,7 @@ import {planLevel as levelOf, planRoute} from ${JSON.stringify(import.meta.resol
 import {sameSchoolYearId} from ${JSON.stringify(import.meta.resolve('../../src/models/education-plan/schoolYearScope.mjs'))};
 const BranchTemplateEditor=()=>null;
 const TeamSourceReview=()=>null;
-const useParams=()=>({id:'test'}), useNavigate=()=>()=>{}, useLocation=()=>({state:null});
+const useParams=()=>({id:'test'}), useNavigate=()=>()=>{}, useLocation=()=>({state:null}), useSearchParams=()=>[new URLSearchParams()];
 const DeadlineBadge=()=>null, ExtendDeadlineButton=()=>null;
 const ROLE_LABELS={};
 const YearPlanSourceCard=({plan,source,children})=><section className="ga-plan-section--source" data-source-id={plan.curriculumSourcePlanId} data-source-title={source?.title}>{children}</section>;

@@ -1109,7 +1109,8 @@ table.ga-import-theme-table tbody tr:nth-child(even):hover td {
   color: var(--color-success-fg);
 }
 
-.ga-edit-fieldset {
+.ga-edit-fieldset,
+.ga-overdue-fieldset {
   border: 0;
   margin: 0;
   padding: 0;

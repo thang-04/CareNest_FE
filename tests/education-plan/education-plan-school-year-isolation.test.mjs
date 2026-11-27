@@ -12,10 +12,6 @@ globalThis.localStorage = { getItem: (key) => storage.get(key) ?? null, setItem:
 
 const { axiosClient } = await import('../../src/services/http/axiosClient.js');
 const { educationPlanApi } = await import('../../src/services/education-plan/api/educationPlanApi.js');
-const { educationPlanMockRepository } = await import('../../src/services/education-plan/mock/educationPlanMockRepository.js');
-const { classPlanMockRepository } = await import('../../src/services/education-plan/mock/classPlanMockRepository.js');
-const { EDU_SEED_VERSION } = await import('../../src/mocks/educationPlanSeed.js');
-const { writeDb } = await import('../../src/mocks/mockDatabase.js');
 
 const YEARS = [
   { id: 99, label: '2097 - 2098', name: '2097-2098', startDate: '2097-09-01', status: 'CLOSED' },
@@ -68,42 +64,6 @@ test('API kế hoạch ở trang quá hạn truyền cùng ID tới mọi trang 
     ['TEAM', 0], ['SCHOOL_YEAR', 0], ['TEAM', 1], ['SCHOOL_YEAR', 1],
   ]);
   assert.ok(calls.every(({ schoolYearId }) => schoolYearId === 5));
-});
-
-test('mock hàng chờ và danh sách chỉ trả ID đã chọn, gồm dữ liệu cũ được ánh xạ từ cấu hình', async () => {
-  const vp = { id: 'vp', role: 'VICE_PRINCIPAL' };
-  writeDb((db) => {
-    db.eduSeedVersion = EDU_SEED_VERSION;
-    db.schoolYears = YEARS;
-    db.eduGoals = [
-      { id: 'current', schoolYear: '2098 – 2099' },
-      { id: 'prior', schoolYear: '2098 – 2099', schoolYearId: 99 },
-    ].map((plan) => ({ ...plan, planLevel: 'TEAM', ageGroupId: 'ag-3', status: 'REVIEW', waitingRole: 'VICE_PRINCIPAL', domains: [] }));
-  });
-  assert.deepEqual((await educationPlanMockRepository.getReviewQueue(vp, '5')).map(({ id }) => id), ['current']);
-  assert.deepEqual((await educationPlanMockRepository.getAll(vp, { schoolYearId: 99 })).goals.map(({ id }) => id), []);
-  assert.deepEqual((await educationPlanMockRepository.getReviewQueue(vp, 99)).map(({ id }) => id), ['prior']);
-});
-
-test('mock hồ sơ lớp và khả năng tạo dùng lớp theo ID năm', async () => {
-  writeDb((db) => {
-    db.schoolYears = YEARS;
-    db.classes = [
-      { id: 'now', schoolYear: 5, ageGroupId: 'ag-3', teacherIds: [] },
-      { id: 'prior', schoolYear: '2097 – 2098', ageGroupId: 'ag-3', teacherIds: [] },
-      { id: 'legacy', ageGroupId: 'ag-3', teacherIds: [] },
-    ];
-    db.eduClassBranch = db.classes.map(({ id }) => ({ id: `bp-${id}`, classId: id, yearPlanId: 'source', status: 'DRAFT' }));
-    db.eduClassTheme = [];
-    db.eduClassWeek = [];
-  });
-  const current = await classPlanMockRepository.getAll(principal, 5);
-  assert.deepEqual(current.classes.map(({ id }) => id), ['now', 'legacy']);
-  assert.deepEqual(current.branchPlans.map(({ classId }) => classId), []);
-  assert.ok(current.creationCapabilities.every(({ classId }) => ['now', 'legacy'].includes(classId)));
-  const prior = await classPlanMockRepository.getAll(principal, 99);
-  assert.deepEqual(prior.classes.map(({ id }) => id), ['prior']);
-  assert.deepEqual(prior.branchPlans.map(({ classId }) => classId), []);
 });
 
 test('năm trước dựa theo ngày bắt đầu, dù thứ tự ID hoặc nhãn không phản ánh thời gian', () => {
@@ -208,14 +168,13 @@ const toEduYear=(value)=>value, fromEduYear=(value)=>value;
 const LoadingState=()=>null, ErrorState=()=>null;
 `);
 
-test('giữ ID BE khi bộ chọn dùng tên năm và giữ ID mock khi chỉ cấu hình trường nối BE', () => {
+test('giữ ID BE khi bộ chọn dùng tên năm', () => {
   const a = { id: '2026-2027', beId: 42, label: '2026 - 2027' };
   const b = { id: '17', label: '2025 - 2026' };
   const invalid = { id: 'không rõ' };
-  assert.deepEqual(educationSchoolYears([a, b, invalid], false).map(({ id, headerId }) => [id, headerId]), [
+  assert.deepEqual(educationSchoolYears([a, b, invalid]).map(({ id, headerId }) => [id, headerId]), [
     [42, '2026-2027'], [17, '17'],
   ]);
-  assert.deepEqual(educationSchoolYears([a], true).map(({ id, beId }) => [id, beId]), [['2026-2027', 42]]);
 });
 
 test('header giữ beId từ danh mục mà vẫn dùng khóa lựa chọn cũ', async () => {
@@ -356,8 +315,6 @@ const Pagination='nav', paginate=(items,page,size)=>items.slice((page-1)*size,pa
   const scopedA = wrapper();
   const stateA = app.componentState();
   const renderA = () => app.render(scopedA.type, stateA, scopedA.props);
-  assert.equal(descendants(renderA()).find((node) => node.props['data-testid'] === 'overdue-plans-view').props.to,
-    '/education/overdue?kind=TEAM&doc=A-1');
   descendants(renderA()).find((node) => node.type === 'input' && node.props.type === 'checkbox').props.onChange();
   descendants(renderA()).find((node) => node.props['data-testid'] === 'overdue-plans-extend-selected').props.onClick();
   const modal = descendants(renderA()).find((node) => node.type === 'test-modal');

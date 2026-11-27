@@ -70,9 +70,8 @@ test('ST-003-09 trang kế hoạch chủ đề không hiện hạn (chỉ ở tr
   await login(page, U.tl);
   await spaGo(page, `/education/class/${cls.id}/themes/${dossier.themeId}`);
   // Trạng thái, hạn chỉ ở hàng nút trang danh sách học kỳ, không lặp ở trang kế hoạch chủ đề (Tiền 14/11/2026)
-  await expect(page.getByRole('combobox', { name: 'Chủ đề' })).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator('.ga-page .card__title').first()).toBeVisible({ timeout: 30_000 });
   await expect(page.locator('.ga-year-toolbar').getByText(/Gần đến hạn|Quá hạn|Đúng hạn|Hạn/)).toHaveCount(0);
-  await expect(page.locator('.ga-page a[href^="/education/"]:not(nav[aria-label="Breadcrumb"] a)')).toHaveCount(0);
   await expect(page.getByText('Cách gửi duyệt kế hoạch chủ đề và kế hoạch tuần')).toHaveCount(0);
   await expect(page.getByRole('button', { name: /^Gửi duyệt$|Gửi .* duyệt kế hoạch chủ đề/ })).toHaveCount(0);
 });

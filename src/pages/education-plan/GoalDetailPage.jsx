@@ -4,7 +4,7 @@ import YearPlanSourceCard from '@/components/education-plan/YearPlanSourceCard';
 import { planLevel as levelOf, planRoute } from '@/models/education-plan/planLevel.mjs';
 import { submissionRequirementsIssue } from '@/models/education-plan/submitRequirements.mjs';
 import { useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Copy, FileDown, Pencil, Trash2 } from '@/components/ui/icons';
 import { ROLES } from '@/models/User';
 import { useEducationPlan, useGoalDetails } from '@/hooks/education-plan/useEducationPlan';
@@ -19,7 +19,7 @@ import { RejectedNotice, ReviewActions, ReviewHistory } from '@/components/educa
 import { StatusPage } from '@/components/ui/StatusPage';
 import { LoadingState, Spinner } from '@/components/ui/States';
 import { useAsync } from '@/hooks/useAsync';
-import { getGoal } from '@/services/education-plan/educationPlanService';
+import { getGoal, getOverdueGoal } from '@/services/education-plan/educationPlanService';
 import { submitEntryOf } from '@/models/education-plan/reviewHistory.mjs';
 import { ReleasedVersionsPanel, VersionBadge, YearPlanVersionPanel } from '@/components/education-plan/VersionWidgets';
 import { chainOf, currentPlanInYear } from '@/models/education-plan/planVersions.mjs';
@@ -35,11 +35,23 @@ const editable = (s) => s === EDU_STATUS.DRAFT || s === EDU_STATUS.REJECTED || s
 
 /** Kế hoạch giáo dục năm học của một nhóm tuổi: bảng mục tiêu (A), chủ đề, sự kiện (B), người xây dựng và ban hành. */
 
+const VIEW_ONLY = {
+  canEdit: false,
+  canSubmit: false,
+  canApprove: false,
+  canIssue: false,
+  canReturn: false,
+  canDelete: false,
+  canCreateVersion: false,
+};
+
 export default function GoalDetailPage({ planLevel = 'TEAM' }) {
   const annual = planLevel === 'SCHOOL_YEAR';
   const basePath = planRoute({ planLevel });
   const pageLabel = annual ? 'Kế hoạch năm học' : 'Kế hoạch giáo dục tổ';
   const { id } = useParams();
+  // Mở từ Kế hoạch quá hạn của Hiệu trưởng: bản chưa ban hành, chỉ xem, không có thao tác nào
+  const overdueView = useSearchParams()[0].get('overdue') === '1';
   const {
     goals: allGoals,
     schoolYearId,
@@ -64,9 +76,15 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
   const [deleteError, setDeleteError] = useState('');
   const [creating, setCreating] = useState(false);
   const [actionError, setActionError] = useState('');
-  const found = goals.find((x) => x.id === id && sameSchoolYearId(x.schoolYearId, schoolYearId));
+  const found = overdueView ? null : goals.find((x) => x.id === id && sameSchoolYearId(x.schoolYearId, schoolYearId));
   // Bản Chờ duyệt (mở từ hàng chờ/thông báo) không có trong danh sách ⇒ hỏi BE theo id; người chỉ xem nhận 403 "chưa ban hành"
-  const single = useAsync(() => getGoal(id, user), [id, user.id, schoolYearId], { enabled: schoolYearId != null && !found });
+  const single = useAsync(
+    () => (overdueView ? getOverdueGoal(user, schoolYearId, id) : getGoal(id, user)),
+    [id, user.id, schoolYearId, overdueView],
+    {
+      enabled: schoolYearId != null && !found,
+    },
+  );
   const requested = single.data;
   const g = found || (levelOf(requested) === planLevel && sameSchoolYearId(requested?.schoolYearId, schoolYearId) ? requested : null);
   // Danh sách chỉ có bản tóm tắt ⇒ tải chi tiết kế hoạch đang xem (và kế hoạch năm học nguồn của kế hoạch tổ)
@@ -114,7 +132,7 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
   const pending = isReview;
   const draftLike = editable(g.status) && !isReview;
   // API thật: BE trả quyền của người xem (permissions); mock chưa có thì tự suy
-  const perm = g.permissions;
+  const perm = overdueView ? VIEW_ONLY : g.permissions;
   const free = draftLike;
   const isReviewerForPlan = isReview && (g.waitingRole ? g.waitingRole === user.role : isVp);
   const canEditNow = perm ? perm.canEdit : free && (isVp || isLeader);
@@ -282,7 +300,7 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
               onAct={act}
             />
             {/* EDU-90: xuất file theo vai trò người tạo, BE trả cờ */}
-            {plan.permissions?.canExport !== false && (
+            {!overdueView && plan.permissions?.canExport !== false && (
               <button className="btn btn--sm btn--outline-primary" onClick={() => setPreview(yearPlanFile(plan, numbers, staff))}>
                 <FileDown size={16} aria-hidden /> Xuất file
               </button>
