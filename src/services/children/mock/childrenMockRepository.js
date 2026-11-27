@@ -647,6 +647,7 @@ const toView = (db, child, user) => {
   const showAccounts = canViewParentAccounts(user);
   return {
     ...clone(child),
+    photoMissing: !child.photoUrl || (child.guardians || []).some((g) => !g.photoUrl),
     // CHD-11: đăng ký năm học sau (BE trả plannedAdmission, null khi không có).
     plannedAdmission: plannedAdmissionOf(db, child.id),
     // CHD-13: BE luôn trả boolean, trẻ chưa có cờ đọc là báo ăn.
@@ -1314,6 +1315,35 @@ export const childrenMockRepository = {
       const activated = manageAccounts ? activatePendingGuardians(d, record) : [];
       if (cls && !planned) notifyClassTeachers(d, cls, record, startDate);
       return { ...toView(d, record, user), guardianAccounts: guardianAccountsOf(record, activated, edited) };
+    });
+  },
+
+  async replaceChildPhoto(id, file, reason, user) {
+    const db = ensureSeeded();
+    const child = findChild(db, id);
+    if (!canEditChild(child, user)) forbid();
+    if (!reason?.trim()) invalid({ reason: 'Nhập lý do đổi ảnh' });
+    const prepared = await prepareMockPortraits({ photoFile: file, guardians: [] });
+    return writeDb((d) => {
+      const target = findChild(d, id);
+      target.photoUrl = prepared.photoUrl;
+      target.history = [...(target.history || []), { action: 'PHOTO_UPDATED', userId: user.id, at: nowIso(), note: reason.trim() }];
+      return toView(d, target, user);
+    });
+  },
+
+  async replaceGuardianPhoto(id, guardianId, file, reason, user) {
+    const db = ensureSeeded();
+    const child = findChild(db, id);
+    if (!canEditChild(child, user)) forbid();
+    if (!child.guardians.some((g) => g.id === guardianId)) throw new ApiError(404, 'Không tìm thấy phụ huynh.');
+    if (!reason?.trim()) invalid({ reason: 'Nhập lý do đổi ảnh' });
+    const prepared = await prepareMockPortraits({ photoFile: file, guardians: [] });
+    return writeDb((d) => {
+      const target = findChild(d, id);
+      target.guardians.find((g) => g.id === guardianId).photoUrl = prepared.photoUrl;
+      target.history = [...(target.history || []), { action: 'GUARDIAN_PHOTO_UPDATED', userId: user.id, at: nowIso(), note: reason.trim() }];
+      return toView(d, target, user);
     });
   },
 
