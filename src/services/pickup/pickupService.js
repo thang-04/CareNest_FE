@@ -9,4 +9,5 @@ export const getPickupClasses = (user) => repo.getPickupClasses(user);
 export const getPickupBoard = (query, user) => repo.getPickupBoard(query, user);
 export const getPickupChild = (childId, user) => repo.getPickupChild(childId, user);
 export const recordPickupResult = (form, user) => repo.recordPickupResult(form, user);
+export const correctHandoverTime = (form, user) => repo.correctHandoverTime(form, user);
 export const getPickupResults = (query, user) => repo.getPickupResults(query, user);

@@ -567,7 +567,8 @@ export function AppRoutes() {
             {/* Nhận xét tháng/học kỳ cá nhân đã bỏ; giữ link cũ về hồ sơ hoặc bảng học kỳ. */}
             <Route path="periodic/*" element={<Navigate to="/assessment/children" replace />} />
             <Route path="monthly/*" element={<Navigate to="/assessment/children" replace />} />
-            <Route path="overview" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <ClassAssessmentOverviewPage />)} />
+            {/* BE chỉ cho BGH và tổ trưởng xem tổng quan liên lớp; giáo viên vẫn đánh giá lớp được phân công. */}
+            <Route path="overview" element={only([...LEADERS, R.TEAM_LEADER], <ClassAssessmentOverviewPage />)} />
             <Route path="quality-report" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <QualityReportPage />)} />
             <Route path="class-ratings" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <ClassRatingsPage />)} />
             <Route path="themes" element={permit([PERMISSIONS.ASSESSMENT_VIEW], <ThemeEvaluationPage />)} />
@@ -590,7 +591,8 @@ export function AppRoutes() {
             <Route path="summary" element={permit([PERMISSIONS.ATTENDANCE_VIEW], <AttendanceSummaryPage />)} />
             {/* AUTH-20: BGH xem số suất mọi điểm trường; nút xác nhận theo MEAL_COUNT_CONFIRM và cờ BE từng bữa */}
             <Route path="meal-count" element={only(LEADERS, <MealCountPage />)} />
-            <Route path="health" element={permit([PERMISSIONS.ATTENDANCE_VIEW], <DailyHealthOverviewPage />)} />
+            {/* BE chỉ cho Hiệu trưởng/Phó hiệu trưởng xem tổng hợp sức khỏe; giáo viên xem từng trẻ ngay màn điểm danh */}
+            <Route path="health" element={only(LEADERS, <DailyHealthOverviewPage />)} />
             <Route path="leave-requests" element={permit([PERMISSIONS.ATTENDANCE_VIEW], <LeaveRequestsPage />)} />
           </Route>
           <Route path="pickup">

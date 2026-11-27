@@ -18,9 +18,6 @@ import { callNoteError, validatePickupResult } from '@/utils/pickup/pickupValida
 import { formatDateTime, initials } from '@/utils/format';
 import { PickupOutcomeBadge } from './PickupBadges';
 import { PortraitImage } from '@/components/PortraitImage';
-import { devNow } from '@/utils/devClock';
-
-const nowTime = () => devNow().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 
 function GuardianPhoto({ guardian }) {
   return (
@@ -82,7 +79,7 @@ export function PickupPhotoFlow({ childId, onDone }) {
   const { user } = useAuth();
   const toast = useToast();
   const [guardian, setGuardian] = useState(null);
-  const [form, setForm] = useState({ handoverTime: nowTime(), note: '' });
+  const [form, setForm] = useState({ note: '' });
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
 
@@ -123,16 +120,7 @@ export function PickupPhotoFlow({ childId, onDone }) {
                 <b>Khớp ảnh đăng ký:</b> trả {context.child.fullName} cho {guardian.fullName} ({guardian.relation}).
               </div>
             </div>
-            <div className="grid-2">
-              <FormField label="Giờ trả trẻ" required error={errors.handoverTime}>
-                <input
-                  className="input"
-                  type="time"
-                  value={form.handoverTime}
-                  onChange={(e) => setForm({ ...form, handoverTime: e.target.value })}
-                />
-              </FormField>
-            </div>
+            <p className="muted text-sm">Giờ trả được ghi theo thời điểm bấm “Ghi nhận trả trẻ”.</p>
             <FormField label="Ghi chú" hint="Không bắt buộc" error={errors.note} className="mt-12">
               <textarea
                 className="textarea"
@@ -191,7 +179,6 @@ export function PickupCallFlow({ childId, onDone }) {
   const [error, setError] = useState('');
   // Kết quả đang chờ xác nhận: PHONE_CONFIRMED (trả) hoặc PHONE_DECLINED (không trả).
   const [confirming, setConfirming] = useState(null);
-  const [handoverTime, setHandoverTime] = useState('');
 
   const checkNote = () => {
     const msg = callNoteError(note);
@@ -201,7 +188,6 @@ export function PickupCallFlow({ childId, onDone }) {
 
   const ask = (verification) => {
     if (!checkNote()) return;
-    setHandoverTime(nowTime());
     setConfirming(verification);
   };
 
@@ -215,7 +201,6 @@ export function PickupCallFlow({ childId, onDone }) {
           pickupPersonName: '',
           pickupPersonRelation: '',
           pickupPersonPhone: '',
-          handoverTime: handedOver ? handoverTime : '',
           note: note.trim(),
         },
         user,
@@ -293,7 +278,7 @@ export function PickupCallFlow({ childId, onDone }) {
           <ConfirmationModal
             open={confirming === VERIFICATION.PHONE_CONFIRMED}
             title="Ghi nhận trả trẻ?"
-            message={`Trả ${context.child.fullName} lúc ${handoverTime} theo nội dung cuộc gọi. Phụ huynh sẽ nhận thông báo.`}
+            message={`Trả ${context.child.fullName} theo nội dung cuộc gọi, giờ trả là lúc bấm xác nhận. Phụ huynh sẽ nhận thông báo.`}
             confirmLabel="Ghi nhận trả trẻ"
             onConfirm={record}
             onClose={() => setConfirming(null)}

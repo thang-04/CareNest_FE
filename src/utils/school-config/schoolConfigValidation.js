@@ -98,7 +98,7 @@ export const validateSchoolYear = (
   if (!e.startDate && !e.endDate) {
     const overlap = others.find((y) => form.startDate <= y.endDate && y.startDate <= form.endDate);
     if (overlap)
-      e.endDate = `Khoảng thời gian trùng với năm học ${overlap.name} (${formatDate(overlap.startDate)} – ${formatDate(overlap.endDate)})`;
+      e._form = `Khoảng ngày ${formatDate(form.startDate)} – ${formatDate(form.endDate)} trùng với năm học ${overlap.name} (${formatDate(overlap.startDate)} – ${formatDate(overlap.endDate)}). Hãy điều chỉnh ngày bắt đầu hoặc ngày kết thúc.`;
   }
   // CFG-YR-03: năm mới nối tiếp năm mới nhất (tên = năm mới nhất + 1, bắt đầu sau ngày kết thúc năm đó)
   const latest = creating ? [...others].sort((a, b) => b.startDate.localeCompare(a.startDate))[0] : null;
@@ -254,7 +254,19 @@ export const cutoffOrderErrors = (form) => {
 export const cutoffPastDateError = (effectiveFrom, { hasSetting = false, today = '' } = {}) =>
   hasSetting && effectiveFrom && today && effectiveFrom < today ? 'Giờ chốt mới chỉ áp dụng từ hôm nay trở đi' : undefined;
 
-export const validateCutoff = (form, year, { hasSetting = false, today = '' } = {}) => {
+/* Cùng luật và cùng câu với BE (ATT-04, ATT-06). Chỉ kiểm khi nơi gọi đưa đủ ngữ cảnh. */
+export const cutoffTimingError = (form, year, { hasSetting, today = '', nowTime = '', currentTime = '' } = {}) => {
+  if (hasSetting === false && year && form.effectiveFrom > year.startDate)
+    return `Giờ chốt đầu tiên của năm học phải áp dụng từ ngày bắt đầu năm học ${year.startDate.split('-').reverse().join('/')}`;
+  if (hasSetting && nowTime && form.effectiveFrom === today) {
+    const earliest = currentTime && currentTime < form.time ? currentTime : form.time;
+    if (nowTime >= earliest) return 'Hôm nay đã qua giờ chốt, giờ chốt mới chỉ áp dụng từ ngày mai (không đổi giờ chốt giữa ngày)';
+  }
+  return undefined;
+};
+
+export const validateCutoff = (form, year, context = {}) => {
+  const { hasSetting = false, today = '' } = context;
   const e = {};
   if (!form.time) e.time = 'Nhập giờ chốt';
   else if (!TIME.test(form.time)) e.time = 'Nhập giờ hợp lệ dạng HH:mm, ví dụ 08:45';
@@ -262,8 +274,8 @@ export const validateCutoff = (form, year, { hasSetting = false, today = '' } = 
   else if (year && (form.effectiveFrom < year.startDate || form.effectiveFrom > year.endDate))
     e.effectiveFrom = `Ngày áp dụng phải nằm trong năm học ${year.name}`;
   else {
-    const past = cutoffPastDateError(form.effectiveFrom, { hasSetting, today });
-    if (past) e.effectiveFrom = past;
+    const timing = cutoffPastDateError(form.effectiveFrom, { hasSetting, today }) || cutoffTimingError(form, year, context);
+    if (timing) e.effectiveFrom = timing;
   }
   if (form.latestAfternoonArrival && !TIME.test(form.latestAfternoonArrival))
     e.latestAfternoonArrival = 'Nhập giờ hợp lệ dạng HH:mm, ví dụ 14:00';
