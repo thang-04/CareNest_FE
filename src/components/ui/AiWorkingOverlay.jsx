@@ -18,8 +18,9 @@ const DEFAULT_STEPS = {
 /**
  * Lớp phủ khi AI đang chạy (ngoại lệ có blur của DESIGN.md): mặc định phủ cả màn, trên modal, dưới toast.
  * kind: 'cooking' (thực đơn) | 'writing'. `scoped`: chỉ phủ khối cha có `position: relative`.
+ * `lock`: khóa cả bàn phím trong lúc chờ (kế hoạch giáo dục: mỗi lúc chỉ một việc AI).
  */
-export function AiWorkingOverlay({ kind = 'writing', text = 'AI đang soạn…', steps = DEFAULT_STEPS[kind], scoped = false }) {
+export function AiWorkingOverlay({ kind = 'writing', text = 'AI đang soạn…', steps = DEFAULT_STEPS[kind], scoped = false, lock = false }) {
   const [step, setStep] = useState(0);
   const art = ART[kind] || ART.writing;
 
@@ -36,6 +37,19 @@ export function AiWorkingOverlay({ kind = 'writing', text = 'AI đang soạn…'
     modalStack.push(token);
     return () => modalStack.remove(token);
   }, [scoped]);
+
+  // Lớp phủ chỉ chặn chuột: bỏ focus và nuốt phím để không gõ, Enter hay Ctrl+S phía dưới (vẫn cho tải lại trang)
+  useEffect(() => {
+    if (!lock) return undefined;
+    document.activeElement?.blur?.();
+    const stop = (e) => {
+      if (e.key === 'F5' || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'r')) return;
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    window.addEventListener('keydown', stop, true);
+    return () => window.removeEventListener('keydown', stop, true);
+  }, [lock]);
 
   const veil = (
     <div className={`ai-veil ${scoped ? 'ai-veil--scoped' : ''}`} role="status" aria-live="polite" aria-busy="true">

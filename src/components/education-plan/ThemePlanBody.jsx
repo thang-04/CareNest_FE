@@ -334,7 +334,8 @@ export function ThemePlanBody({
               onClose={() => setEditing(null)}
             />
           )}
-          {ai.busy && <AiWorkingOverlay text="AI đang gợi ý hoạt động…" />}
+          {ai.busy && <AiWorkingOverlay lock text="AI đang gợi ý hoạt động…" />}
+          {rewrite.busy && <AiWorkingOverlay lock text="AI đang viết lại nội dung…" />}
           {rewrite.scope && (
             <AiClassContentModal
               scopeLabel={

@@ -6,6 +6,7 @@ import { moveItem } from '@/hooks/useSortableList';
 import { AiDraftTag } from '@/components/ui/AiDraftTag';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { suggestLessonSteps } from '@/services/education-plan/educationPlanService';
+import { AiWorkingOverlay } from '@/components/ui/AiWorkingOverlay';
 import { Card } from '@/components/education-plan/eduUi';
 import { Cell, focusCell } from '@/components/education-plan/planUi';
 import {
@@ -1144,6 +1145,7 @@ export function DayTab({
             {aiEditNote}
           </p>
         )}
+        {aiBusy && <AiWorkingOverlay lock text="AI đang gợi ý tiến trình giờ học…" />}
         {aiDocKey && (
           <AiEditDayModal
             open={aiEditOpen}

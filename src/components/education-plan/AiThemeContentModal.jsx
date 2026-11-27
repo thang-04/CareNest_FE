@@ -124,7 +124,7 @@ export function AiThemeContentModal({ open, plan, ensureSaved, onApply, onClose 
     >
       <div className="stack">
         <AiDraftTag label="Gợi ý AI – tổ trưởng duyệt trước khi áp dụng" />
-        {busy && <AiWorkingOverlay text="AI đang gom nội dung theo từng lĩnh vực…" />}
+        {busy && <AiWorkingOverlay lock text="AI đang gom nội dung theo từng lĩnh vực…" />}
         {error && <Notice>{error}</Notice>}
         {!result && (
           <>

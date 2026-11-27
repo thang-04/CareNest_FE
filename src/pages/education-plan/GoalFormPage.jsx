@@ -38,6 +38,7 @@ import {
 } from '@/models/education-plan/goalTable';
 import { ThemeEventTable } from '@/components/education-plan/GoalTables';
 import { FilterableGoalTable } from '@/components/education-plan/FilterableGoalTable';
+import { AiWorkingOverlay } from '@/components/ui/AiWorkingOverlay';
 import { submissionRequirementsIssue } from '@/models/education-plan/submitRequirements.mjs';
 import { mergeImportedGoals } from '@/models/education-plan/importGoals.mjs';
 import { mergeFilePlan } from '@/models/education-plan/importGoalFile.mjs';
@@ -1271,6 +1272,7 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
             !errors.domains.includes('chủ đề') &&
             !errors.domains.includes('nhóm') && <Notice>{errors.domains}</Notice>}
           {!annual && themes.length === 0 && <p className="text-success text-sm text-right">{NO_THEME_NOTE}</p>}
+          {aiGoal.busy && <AiWorkingOverlay lock text="AI đang gợi ý nội dung cho mục tiêu…" />}
           <FilterableGoalTable
             reviewItems={form.reviewItems}
             newItems={form.newItems}

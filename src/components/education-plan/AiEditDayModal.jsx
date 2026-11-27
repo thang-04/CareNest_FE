@@ -3,6 +3,7 @@ import { Check, Sparkles } from '@/components/ui/icons';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { AiDraftTag } from '@/components/ui/AiDraftTag';
+import { AiWorkingOverlay } from '@/components/ui/AiWorkingOverlay';
 import { TextAreaField } from '@/components/form/Field';
 import { Checkbox } from '@/components/form/Checkbox';
 import { Notice } from '@/components/education-plan/eduUi';
@@ -89,6 +90,7 @@ export function AiEditDayModal({ open, docKey, unsaved, onApply, onClose }) {
             setChanges(null);
           }}
         />
+        {busy && <AiWorkingOverlay lock text="AI đang sửa giáo án theo yêu cầu…" />}
         {error && (
           <p className="field__error" role="alert">
             {error}
