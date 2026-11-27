@@ -6,9 +6,9 @@ File sinh tự động từ `BE:docs/api/openapi.yaml`, không sửa tay. Sinh l
 - Path đã bỏ tiền tố `/api` (trùng baseURL của Web/App). File controller tính từ gốc repo `CareNest_BE`.
 - Request/response chi tiết: đọc method trong controller và DTO nó dùng; lỗi theo `BE:docs/contracts/ERROR_CONTRACT.md`.
 
-Nguồn: repo CareNest_BE (bản đang làm việc)
+Nguồn: CareNest_BE docs/api/openapi.yaml tại commit 2eec2fe4 2026-11-28
 
-Tổng: 453 endpoint.
+Tổng: 454 endpoint.
 
 ```text
 GET /accounts · src/main/java/com/carenest/controller/account/AccountController.java#searchAccounts
@@ -212,6 +212,7 @@ GET /classrooms · src/main/java/com/carenest/controller/organization/SchoolStru
 POST /daily-health-entries · src/main/java/com/carenest/controller/attendance/DailyHealthController.java#addEntry
 GET /daily-health/overview · src/main/java/com/carenest/controller/attendance/DailyHealthController.java#getOverview
 POST /education-plans/ai/activities · src/main/java/com/carenest/controller/eduplan/EduAiController.java#suggestActivities
+POST /education-plans/ai/class-contents · src/main/java/com/carenest/controller/eduplan/EduAiController.java#rewriteClassContents
 POST /education-plans/ai/class-docs/day/{docKey}/edit · src/main/java/com/carenest/controller/eduplan/EduAiController.java#editDay
 POST /education-plans/ai/feedback · src/main/java/com/carenest/controller/eduplan/EduAiController.java#logFeedback
 POST /education-plans/ai/lesson-steps · src/main/java/com/carenest/controller/eduplan/EduAiController.java#suggestLessonSteps
