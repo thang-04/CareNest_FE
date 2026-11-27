@@ -32,13 +32,14 @@ import { isValidTime, schoolToday } from '@/utils/attendance/attendanceTime';
 import { attendanceCrumbs } from '@/utils/attendance/breadcrumbs';
 import { formatDate, formatDateTime, isIsoDate } from '@/utils/format';
 import '@/styles/modules/attendance.css';
+import { devNow } from '@/utils/devClock';
 
 const EMPTY_FILTERS = { campusId: '', classId: '', status: '', from: '', to: '' };
 
 export default function AttendanceDayUnlockPage() {
   const { user } = useAuth();
   const toast = useToast();
-  const [now, setNow] = useState(() => new Date());
+  const [now, setNow] = useState(() => devNow());
   const today = schoolToday();
   const classesQuery = useAttendanceClasses();
   // Năm đang hoạt động: lớp được mở lại. Năm đã đóng / sắp diễn ra: vẫn hiện lớp và lịch sử của năm để xem, nút mở lại khóa
@@ -120,7 +121,7 @@ export default function AttendanceDayUnlockPage() {
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setNow(new Date());
+      setNow(devNow());
       reloadDay({ silent: true });
     }, 30000);
     return () => clearInterval(timer);
@@ -138,7 +139,7 @@ export default function AttendanceDayUnlockPage() {
     if (!isIsoDate(form.untilDate) || !isValidTime(form.untilTime)) next.until = 'Nhập đủ ngày giờ hợp lệ.';
     const until = new Date(`${form.untilDate}T${form.untilTime}:00+07:00`);
     const yearEnd = untilCap;
-    if (!next.until && (until <= new Date() || (yearEnd && form.untilDate > yearEnd)))
+    if (!next.until && (until <= devNow() || (yearEnd && form.untilDate > yearEnd)))
       next.until = `Hạn phải sau hiện tại${yearEnd ? `, không quá ngày kết thúc năm học ${formatDate(yearEnd)}` : ''}.`;
     if (!form.reason.trim() || form.reason.trim().length > 300) next.reason = 'Nhập lý do mở lại, tối đa 300 ký tự.';
     setErrors(next);
@@ -156,7 +157,7 @@ export default function AttendanceDayUnlockPage() {
     setRevokeError('');
     try {
       await revokeAttendanceDayUnlock(item.id, user);
-      setNow(new Date());
+      setNow(devNow());
       toast.success(`Đã kết thúc mở lại điểm danh ${item.className}.`);
       await Promise.all([history.reload({ silent: true }), day.reload({ silent: true })]);
     } catch (error) {

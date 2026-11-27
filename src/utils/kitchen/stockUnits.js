@@ -22,14 +22,26 @@ export const formatPurchaseQty = (quantity, food) => `${formatQty(toPurchaseQuan
 
 const BIG_UNITS = { g: 'kg', ml: 'lít' };
 
-/** Biến động dễ đọc theo đơn vị gốc: "−502 g", "−5,29 kg", "+1,5 lít"; đơn vị khác giữ theo đơn vị mua. */
+/** Lượng theo đơn vị gốc dễ đọc: "502 g", "5,29 kg", "1,5 lít". */
+const readableBase = (abs, unit) =>
+  abs < 1000
+    ? `${Math.round(abs).toLocaleString('vi-VN')} ${unit}`
+    : `${(abs / 1000).toLocaleString('vi-VN', { maximumFractionDigits: 2 })} ${BIG_UNITS[unit]}`;
+
+/**
+ * Biến động có dấu cùng đơn vị với tồn kho: đơn vị mua đóng gói hiện "−30 hộp (−1,5 kg)"; mua theo kg, lít, g, ml hoặc
+ * chưa khai đơn vị mua thì hiện theo đơn vị gốc "−502 g", "−5,29 kg", "+1,5 lít".
+ */
 export const formatStockChange = (quantity, food) => {
   const unit = String(food?.unit || '').toLowerCase();
   if (!BIG_UNITS[unit]) return formatSignedPurchaseQty(quantity, food);
   const sign = Number(quantity) < 0 ? '−' : '+';
-  const abs = Math.abs(Number(quantity));
-  if (abs < 1000) return `${sign}${Math.round(abs).toLocaleString('vi-VN')} ${unit}`;
-  return `${sign}${(abs / 1000).toLocaleString('vi-VN', { maximumFractionDigits: 2 })} ${BIG_UNITS[unit]}`;
+  const base = `${sign}${readableBase(Math.abs(Number(quantity)), unit)}`;
+  const purchaseUnit = String(food?.purchaseUnit || '')
+    .trim()
+    .toLowerCase();
+  const packaged = purchaseUnit && ![unit, BIG_UNITS[unit], 'g', 'ml', 'kg', 'lít', 'lit', 'l'].includes(purchaseUnit);
+  return packaged ? `${formatSignedPurchaseQty(quantity, food)} (${base})` : base;
 };
 
 /** Biến động có dấu: "+2 kg" hoặc "−0,5 kg". */

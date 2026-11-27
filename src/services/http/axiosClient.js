@@ -1,9 +1,10 @@
 import axios from 'axios';
 import { API_BASE_URL, AUTH_USE_MOCK } from '@/config/env';
-import { tokenStorage, UNAUTHORIZED_EVENT } from './tokenStorage';
+import { notifySessionBlocked, tokenStorage, UNAUTHORIZED_EVENT } from './tokenStorage';
 import { refreshSession } from './authTransport';
 import { normalizeApiError, unwrapResponse } from './apiError';
 import { getDevAccessToken, hasDevSession, tokenForRetry } from './devKeycloakAuth';
+import { devClockHeaders } from '@/utils/devClock';
 
 export const axiosClient = axios.create({
   baseURL: API_BASE_URL,
@@ -20,6 +21,7 @@ axiosClient.interceptors.request.use(async (config) => {
   if (token) config.headers.Authorization = `Bearer ${token}`;
   else delete config.headers.Authorization;
   config.authGeneration ??= tokenStorage.getGeneration();
+  Object.assign(config.headers, devClockHeaders());
   // Header mặc định JSON khiến axios đổi FormData thành chuỗi JSON (BE trả 415) ⇒ để trình duyệt tự đặt multipart + boundary
   if (config.data instanceof FormData) config.headers.delete('Content-Type');
   return config;
@@ -38,6 +40,9 @@ axiosClient.interceptors.response.use(
       throw new axios.CanceledError('Yêu cầu đã bị hủy');
     }
     const config = error.config;
+    if (error.response?.status === 403 && (config?.authGeneration ?? tokenStorage.getGeneration()) === tokenStorage.getGeneration()) {
+      notifySessionBlocked(error);
+    }
     if (error.response?.status !== 401 || config?.skipAuthRefresh) {
       throw normalizeApiError(error);
     }

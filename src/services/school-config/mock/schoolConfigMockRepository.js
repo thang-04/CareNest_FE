@@ -1197,7 +1197,7 @@ export const schoolConfigMockRepository = {
       if (!target.setting && source.setting) {
         const day = schoolNow().date;
         const from = day > target.year.startDate ? day : target.year.startDate;
-        await this.saveCutoffSetting(targetYearId, { time: source.setting.time, effectiveFrom: from, note: '' }, user);
+        await this.saveCutoffSetting(targetYearId, { ...source.setting, effectiveFrom: from, note: '' }, user);
         result.cutoffTime = source.setting.time;
       }
     }
@@ -1256,6 +1256,26 @@ export const schoolConfigMockRepository = {
     });
   },
 
+  // BE giả ATT-06: chỉ hủy lịch chưa tới ngày áp dụng, không hủy mốc đầu tiên của năm
+  async cancelScheduledCutoff(schoolYear, effectiveFrom, user) {
+    await delay();
+    if (!canConfigureCutoff(user)) throw forbid();
+    seeded();
+    return writeDb((db) => {
+      assertOpenYear(findYear(db, schoolYear));
+      const setting = db.cutoffSettings.find((s) => s.schoolYear === schoolYear);
+      const history = setting?.history || [];
+      if (effectiveFrom <= schoolNow().date || !history.some((h) => h.effectiveFrom === effectiveFrom))
+        throw new ApiError(409, 'Chỉ hủy được lịch giờ chốt chưa tới ngày áp dụng');
+      if (!history.some((h) => h.effectiveFrom < effectiveFrom))
+        throw new ApiError(409, 'Không hủy được giờ chốt đầu tiên của năm học; muốn đổi thì lưu giờ khác cho ngày đó');
+      setting.history = history.filter((h) => h.effectiveFrom !== effectiveFrom);
+      const { previousTime, userId, at, note, ...latest } = setting.history[0];
+      Object.assign(setting, latest);
+      return clone(setting);
+    });
+  },
+
   async saveCutoffSetting(schoolYear, form, user) {
     await delay();
     if (!canConfigureCutoff(user)) throw forbid();
@@ -1263,16 +1283,32 @@ export const schoolConfigMockRepository = {
     return writeDb((db) => {
       const year = findYear(db, schoolYear);
       assertOpenYear(year);
-      const errors = validateCutoff(form, year);
-      if (hasErrors(errors)) throw invalid(errors);
       let setting = db.cutoffSettings.find((s) => s.schoolYear === schoolYear);
+      const errors = validateCutoff(form, year, { hasSetting: !!setting, today: schoolNow().date });
+      if (hasErrors(errors)) throw invalid(errors);
       const previousTime = setting?.time || null;
       const latestAfternoonArrival = form.latestAfternoonArrival || setting?.latestAfternoonArrival || '14:00';
+      const dropoffOpenFrom = form.dropoffOpenFrom || setting?.dropoffOpenFrom || '06:30';
+      const morningStart = form.morningStart || setting?.morningStart || '07:00';
+      const morningEnd = form.morningEnd || setting?.morningEnd || '11:00';
+      const afternoonStart = form.afternoonStart || setting?.afternoonStart || '13:30';
+      const pickupStart = form.pickupStart || setting?.pickupStart || '15:00';
+      const fullDayPickupFrom = form.fullDayPickupFrom || setting?.fullDayPickupFrom || '15:00';
+      const pickupEnd = form.pickupEnd || setting?.pickupEnd || '17:00';
+      const afternoonEnd = form.afternoonEnd || setting?.afternoonEnd || '17:00';
       if (
         setting &&
         setting.time === form.time &&
         setting.effectiveFrom === form.effectiveFrom &&
-        (setting.latestAfternoonArrival || '14:00') === latestAfternoonArrival
+        (setting.latestAfternoonArrival || '14:00') === latestAfternoonArrival &&
+        (setting.dropoffOpenFrom || '06:30') === dropoffOpenFrom &&
+        (setting.morningStart || '07:00') === morningStart &&
+        (setting.morningEnd || '11:00') === morningEnd &&
+        (setting.afternoonStart || '13:30') === afternoonStart &&
+        (setting.pickupStart || '15:00') === pickupStart &&
+        (setting.fullDayPickupFrom || '15:00') === fullDayPickupFrom &&
+        (setting.pickupEnd || '17:00') === pickupEnd &&
+        (setting.afternoonEnd || '17:00') === afternoonEnd
       )
         throw invalid({ time: 'Giờ chốt và ngày áp dụng chưa thay đổi' });
       // Màn điểm danh demo đọc giờ đến muộn nhất buổi chiều (ATT-13)
@@ -1285,6 +1321,14 @@ export const schoolConfigMockRepository = {
         time: form.time,
         effectiveFrom: form.effectiveFrom,
         latestAfternoonArrival,
+        dropoffOpenFrom,
+        morningStart,
+        morningEnd,
+        afternoonStart,
+        pickupStart,
+        fullDayPickupFrom,
+        pickupEnd,
+        afternoonEnd,
         updatedBy: user.id,
         updatedAt: now(),
       });
@@ -1292,6 +1336,14 @@ export const schoolConfigMockRepository = {
         time: form.time,
         effectiveFrom: form.effectiveFrom,
         latestAfternoonArrival,
+        dropoffOpenFrom,
+        morningStart,
+        morningEnd,
+        afternoonStart,
+        pickupStart,
+        fullDayPickupFrom,
+        pickupEnd,
+        afternoonEnd,
         previousTime,
         userId: user.id,
         at: now(),

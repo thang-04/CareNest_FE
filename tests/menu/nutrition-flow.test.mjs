@@ -15,7 +15,7 @@ const menuGroupOf = (entries, key) => entries.find((m) => m.key === key);
 
 test('PHT: khu bán trú gồm Bán trú hôm nay và năm nhóm theo việc', () => {
   assert.equal(menuGroup(ROLES.VICE_PRINCIPAL, 'boardingToday').to, '/boarding/today');
-  assert.deepEqual(keysOf(ROLES.VICE_PRINCIPAL, 'nutrition'), ['weeklyMenus', 'menus', 'nutrition']);
+  assert.deepEqual(keysOf(ROLES.VICE_PRINCIPAL, 'nutrition'), ['weeklyMenus', 'nutrition', 'menus']);
   // PHT xem Bếp hôm nay như HT (GET /nutrition/kitchen/day cho HT, PHT)
   assert.deepEqual(keysOf(ROLES.VICE_PRINCIPAL, 'kitchenOps'), ['mealCount', 'publishedMenu', 'forecast', 'freshReceipts']);
   assert.deepEqual(keysOf(ROLES.VICE_PRINCIPAL, 'stock'), ['dryStock', 'stockReceipts', 'stockHistory', 'stockShortfalls']);
@@ -23,7 +23,7 @@ test('PHT: khu bán trú gồm Bán trú hôm nay và năm nhóm theo việc', (
   assert.deepEqual(keysOf(ROLES.VICE_PRINCIPAL, 'catalog'), ['foods', 'dishes', 'nutritionSetup', 'suppliers']);
   assert.deepEqual(
     menuGroup(ROLES.VICE_PRINCIPAL).children.map((entry) => entry.to),
-    ['/menu/weekly', '/menu/menus', '/menu/nutrition'],
+    ['/menu/weekly', '/menu/nutrition', '/menu/menus'],
   );
 });
 

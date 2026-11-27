@@ -73,14 +73,6 @@ export const canConfirmMealCount = (count, user) =>
 /** Cảnh báo "cần xác nhận lại" chỉ cho người duyệt; bếp chỉ thấy số đã xác nhận. */
 export const canSeeMealReconfirmNotice = (user) => !!user && user.role !== ROLES.KITCHEN_STAFF;
 
-/** NUT-02: điều chỉnh suất thay thế từng lớp (ghi lý do): sau giờ khóa, cả khi đã xác nhận (chuyển sang chờ xác nhận lại). */
-// BE có cờ canAdjust (HT, PHT trong phạm vi được cấp) thì theo cờ; mock không có cờ thì xét theo vai trò (HT sửa được — Cần chốt 10/11/2026)
-export const canAdjustMealCount = (count, user) =>
-  !!count?.id &&
-  (count.canAdjust ??
-    ((user?.role === ROLES.PRINCIPAL || leadsCampus(count.campusId, user)) &&
-      [MEAL_COUNT_STATUS.PENDING_CONFIRMATION, MEAL_COUNT_STATUS.CONFIRMED].includes(count.status)));
-
 export const canOpenMealHandover = (user) => [ROLES.TEACHER, ROLES.TEAM_LEADER, ROLES.KITCHEN_STAFF].includes(user?.role);
 
 export const canViewHandover = (handover, cls, user) => {

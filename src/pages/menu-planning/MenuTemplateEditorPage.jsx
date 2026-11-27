@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { MENU_AI_ENABLED } from '@/config/env';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Save, Sparkles } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
@@ -178,7 +179,7 @@ export default function MenuTemplateEditorPage() {
                   {data.status === RECORD_STATUS.ACTIVE ? 'Ngừng dùng' : 'Dùng lại'}
                 </Button>
               )}
-              {editable && (
+              {MENU_AI_ENABLED && editable && (
                 <Button disabled={busy} onClick={() => setAiOpen(true)}>
                   <Sparkles size={16} /> AI gợi ý ngày
                 </Button>
@@ -270,7 +271,7 @@ export default function MenuTemplateEditorPage() {
           onClose={() => setAdding(null)}
         />
       )}
-      {editable && (
+      {MENU_AI_ENABLED && editable && (
         <MenuAiDailyModal
           open={aiOpen}
           onClose={() => setAiOpen(false)}

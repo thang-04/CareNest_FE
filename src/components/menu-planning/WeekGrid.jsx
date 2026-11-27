@@ -42,7 +42,6 @@ export function WeekGrid({
   catalog,
   menus,
   allergyRows,
-  allergyMenus,
   editable,
   busy,
   onPickMenu,
@@ -54,7 +53,7 @@ export function WeekGrid({
   isNew,
 }) {
   const sections = weekSections(catalog.nutritionSetups, wm.ageGroupId, wm.days, catalog.dishById, { keepEmpty: !!editable });
-  const notesOf = (day) => sections.flatMap((s) => dayAllergyNotes({ day, session: s.session, catalog, allergyRows, allergyMenus }));
+  const notesOf = (day) => sections.flatMap((s) => dayAllergyNotes({ day, session: s.session, catalog, allergyRows }));
   const hasNotes = wm.days.some((d) => notesOf(d).length > 0);
   const cols = wm.days.length + 1;
 
@@ -205,7 +204,7 @@ export function WeekGrid({
                     {list.length > 0 ? (
                       <ul className="td-week__notes">
                         {list.map((n) => (
-                          <li key={n.key} className={n.missing ? 'td-week__note--missing' : undefined}>
+                          <li key={n.key}>
                             <b>{n.dish}:</b> {n.text}
                           </li>
                         ))}

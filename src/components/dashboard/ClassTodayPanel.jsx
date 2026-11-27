@@ -95,10 +95,12 @@ export function ClassTodayPanel({ aside = null }) {
   const enabled = { enabled: !!classId };
   const attendanceQ = useWidget((u) => getClassAttendance(classId, date, u), [classId, date], enabled);
   const pickupQ = useWidget((u) => getPickupBoard({ classId, date }, u).catch(() => null), [classId, date], enabled);
+  // Đánh giá hằng ngày chỉ gọi khi phiếu điểm danh báo hôm nay là ngày học, tránh lỗi 7302 ngày nghỉ
+  const schoolDay = !!attendanceQ.data?.schoolDay;
   const dailyQ = useWidget(
     (u) => getDailyAssessment({ classId, date, schoolYear }, u).catch(() => null),
     [classId, date, schoolYear],
-    enabled,
+    { enabled: !!classId && schoolDay },
   );
   // BE chỉ có Nháp / Chờ duyệt / Đã ban hành; hồ sơ bị trả lại về Nháp (EDU-05)
   const lessonsQ = useWidget(

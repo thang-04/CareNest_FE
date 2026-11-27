@@ -89,6 +89,8 @@ test('bảng điểm danh từ BE: đơn nghỉ phụ huynh thành nhãn "Phụ 
     part: 'FULL_DAY',
     eats: null,
     eatsMeals: [],
+    // Đơn báo nghỉ chiều sau giờ chốt chỉ là thông báo (ATT-05b); BE cũ không trả ⇒ false
+    noticeOnly: false,
   });
   assert.equal(sheet.children[1].leaveRequest, null);
 });

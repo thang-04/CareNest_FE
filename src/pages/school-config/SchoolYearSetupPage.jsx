@@ -41,6 +41,7 @@ import {
   firstOpenStep,
   readCopyResult,
   shiftToYear,
+  suggestedDatesForSchoolYearName,
   suggestSemesters,
   stepOfPart,
   suggestNextYear,
@@ -78,6 +79,8 @@ function InfoStep({ year, years, user, onSaved }) {
   // CFG-YR-05: năm đã bắt đầu chỉ xem ngày mở chuẩn bị; chưa tự chọn ⇒ ngày gợi ý đi theo ngày bắt đầu
   const prepLocked = !planned;
   const [prepTouched, setPrepTouched] = useState(!!year);
+  // Chỉ tự đồng bộ khi người dùng chưa tự chọn ngày; không được ghi đè lịch năm học đã chọn thủ công.
+  const [datesTouched, setDatesTouched] = useState(!!year);
   const sources = useMemo(
     () => (planned ? copySourcesFor(years, { id: year?.id ?? null, startDate: form.startDate }) : []),
     [planned, years, year?.id, form.startDate],
@@ -115,13 +118,19 @@ function InfoStep({ year, years, user, onSaved }) {
   const set = (patch) => {
     if (SEMESTER_KEYS.some((k) => k in patch)) setSemesterTouched(true);
     const next = { ...patch };
-    if (patch.startDate !== undefined && !prepTouched) next.prepDate = defaultPrepDate(patch.startDate, others, today);
+    if (!year && patch.name !== undefined && !datesTouched) {
+      const suggested = suggestedDatesForSchoolYearName(patch.name);
+      if (suggested) Object.assign(next, suggested);
+    }
+    if (patch.startDate !== undefined || patch.endDate !== undefined) setDatesTouched(true);
+    if (next.startDate !== undefined && !prepTouched) next.prepDate = defaultPrepDate(next.startDate, others, today);
     setForm((f) => ({ ...f, ...next }));
     setErrors((e) => errorsAfterChange(e, next, { ...form, ...next }, {}));
   };
   const blurCheck = (field) => {
     const e = validate();
     if (e[field]) setErrors((prev) => ({ ...prev, [field]: e[field] }));
+    if (e._form) setErrors((prev) => ({ ...prev, _form: e._form }));
     // Đổi ngày năm học làm ngày mở chuẩn bị hết hợp lệ ⇒ báo ngay ở ô ngày mở chuẩn bị
     if (field !== 'prepDate' && e.prepDate && form.prepDate) setErrors((prev) => ({ ...prev, prepDate: e.prepDate }));
   };

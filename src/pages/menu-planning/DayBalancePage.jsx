@@ -1,30 +1,24 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Lock, Save } from '@/components/ui/icons';
-import { useAuth } from '@/contexts/AuthContext';
+import { Lock } from '@/components/ui/icons';
 import { useToast } from '@/contexts/ToastContext';
-import { Breadcrumb, Button, EmptyState, ErrorState, LoadingState } from '@/components';
+import { Breadcrumb, EmptyState, ErrorState, LoadingState } from '@/components';
 import { WeekPicker } from '@/components/form/WeekPicker';
 import { Tabs } from '@/components/ui/Tabs';
-import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import { MealPlanStatusBadge } from '@/components/menu-planning/MenuBadges';
-import { DayBalanceView } from '@/components/menu-planning/DayBalanceView';
-import { useActiveDishes, useBeAgeGroups, useMealPlan } from '@/hooks/menu-planning/useMealPlan';
-import { useLeaveGuard } from '@/hooks/useLeaveGuard';
+import { DayBalanceEditor } from '@/components/menu-planning/balance/DayBalanceEditor';
+import { useDayBalanceStatuses } from '@/hooks/menu-planning/useDayBalance';
+import { useActiveDishes, useMealPlan } from '@/hooks/menu-planning/useMealPlan';
 import { mealPlanApi } from '@/services/mealPlanApi';
-import { PERMISSIONS } from '@/models/bePermissions';
-import { hasBePermission } from '@/utils/bePermissions';
-import { MEAL_BLOCK_LABELS, MEAL_PLAN_STATUS, WEEKDAY_LABELS, schoolWeekStart } from '@/models/menu-planning/menuPlanningConstants';
 import {
-  blockSessions,
-  dayBlockItems,
-  draftFromPlan,
-  isDirty,
-  planBlocks,
-  resolveWeekStart,
-  setDayBlockItems,
-} from '@/utils/menu-planning/mealPlanGrid';
-import { ageGroupOptions } from '@/utils/menu-planning/menuStatistics';
+  MEAL_BLOCK_LABELS,
+  MEAL_PLAN_STATUS,
+  WEEKDAY_LABELS,
+  addDays,
+  schoolWeekStart,
+} from '@/models/menu-planning/menuPlanningConstants';
+import { dayMark, dayOffOf } from '@/utils/menu-planning/dayBalance';
+import { dayBlockItems, draftFromPlan, planBlocks, resolveWeekStart, setDayBlockItems } from '@/utils/menu-planning/mealPlanGrid';
 import { menuCrumbs } from '@/utils/menu-planning/breadcrumbs';
 import { todayInput } from '@/utils/format';
 import '@/styles/modules/menu-planning.css';
@@ -32,54 +26,61 @@ import '@/styles/modules/menu-planning.css';
 const ddmm = (iso) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
 
 /**
- * Cân đối khẩu phần (`/menu/nutrition`) trên dữ liệu BE: chọn tuần, khối, ngày (giữ trên URL) rồi cân đối món của ngày đó —
- * cùng nội dung với modal "Sửa ngày" của Kế hoạch tuần. Lưu nháp ghi lại cả tuần (`PUT /nutrition/meal-plans/{week}`);
- * tuần đã công bố hoặc không có `canEdit` thì chỉ xem (user chốt 09/11/2026: giữ menu Cân đối khẩu phần).
+ * Cân đối khẩu phần (`/menu/nutrition`): chọn tuần, khối, ngày (giữ trên URL) rồi cân đối ngày đó cho cả trường
+ * (`/nutrition/day-balances`). Tuần còn nháp thì đổi món ngay ở đây và ghi vào kế hoạch tuần.
  */
 export default function DayBalancePage() {
   const [params, setParams] = useSearchParams();
-  const { user } = useAuth();
   const toast = useToast();
   const today = todayInput();
   const week = resolveWeekStart(params.get('week'), today);
   const planQ = useMealPlan(week);
   const plan = planQ.data;
   const { dishes } = useActiveDishes();
-  const { ageGroups } = useBeAgeGroups();
-  const saved = useMemo(() => (plan ? draftFromPlan(plan) : null), [plan]);
-  const [draft, setDraft] = useState(null);
-  const [busy, setBusy] = useState(false);
-  useEffect(() => setDraft(saved), [saved]);
+  const statusQ = useDayBalanceStatuses(week, addDays(week, 4));
+  // Đổi món xong thì dựng lại bản cân đối của ngày
+  const [menuVersion, setMenuVersion] = useState(0);
+  // Bộ chặn rời màn của bản cân đối đang sửa: hỏi trước khi đổi tuần, khối, ngày
+  const guardRef = useRef(null);
 
   const blocks = planBlocks(plan);
   const block = blocks.includes(params.get('block')) ? params.get('block') : blocks[0];
-  const days = draft?.days || [];
-  const date = days.some((d) => d.date === params.get('date')) ? params.get('date') : (days.find((d) => !d.off) || days[0])?.date;
+  const days = plan?.days || [];
+  // Ngày nghỉ = kế hoạch tuần đánh dấu nghỉ hoặc BE báo nghỉ (cuối tuần, lịch nghỉ của trường)
+  const isOff = (d) =>
+    dayOffOf(
+      d,
+      statusQ.statuses.find((s) => s.date === d.date),
+    ).off;
+  const date = days.some((d) => d.date === params.get('date')) ? params.get('date') : (days.find((d) => !isOff(d)) || days[0])?.date;
   const day = days.find((d) => d.date === date);
-  const editable = !!plan?.canEdit && plan.status !== MEAL_PLAN_STATUS.PUBLISHED;
-  const dirty = !!draft && !!saved && isDirty(draft, saved);
-  const groups = useMemo(
-    () => ageGroupOptions((plan?.blocks || []).find((b) => b.block === block)?.ageGroupIds || [], ageGroups),
-    [plan, block, ageGroups],
-  );
-  const pick = (next) => setParams({ week, block, date, ...next }, { replace: true });
+  const round = params.get('round') === '2' ? 2 : 1;
+  const dishEditable = !!plan?.canEdit && plan.status !== MEAL_PLAN_STATUS.PUBLISHED;
 
-  const save = async () => {
-    setBusy(true);
+  const open = (next) => {
+    const target = new URLSearchParams(Object.entries({ week, block, date, round, ...next }).filter(([, v]) => v));
+    if (guardRef.current) guardRef.current.leave(`/menu/nutrition?${target}`, { replace: true });
+    else setParams(target, { replace: true });
+  };
+
+  const changeDishes = async (session, items) => {
+    const draft = draftFromPlan(plan);
+    const others = dayBlockItems(
+      draft.days.find((d) => d.date === date),
+      block,
+    ).filter((i) => i.session !== session);
     try {
-      planQ.setData(await mealPlanApi.savePlan(week, draft));
-      toast.success('Đã lưu nháp kế hoạch tuần.');
-      return true;
+      planQ.setData(
+        await mealPlanApi.savePlan(week, setDayBlockItems(draft, date, block, [...others, ...items.map((item) => ({ ...item, session }))])),
+      );
+      setMenuVersion((v) => v + 1);
+      statusQ.reload({ silent: true });
+      toast.success('Đã đổi món và lưu nháp kế hoạch tuần.');
     } catch (err) {
-      toast.error(err, 'Chưa lưu được kế hoạch tuần');
-      // Tuần vừa được công bố ở nơi khác: nạp lại để màn chuyển sang chỉ xem
+      toast.error(err, 'Chưa đổi được món');
       if (err.status === 409) planQ.reload({ silent: true });
-      return false;
-    } finally {
-      setBusy(false);
     }
   };
-  const guard = useLeaveGuard({ when: dirty, onSave: save });
 
   const head = (
     <>
@@ -91,14 +92,10 @@ export default function DayBalancePage() {
             ariaLabel="Khối"
             items={blocks.map((key) => ({ key, label: MEAL_BLOCK_LABELS[key] || key }))}
             value={block}
-            onChange={(key) => pick({ block: key })}
+            onChange={(key) => setParams({ week, block: key, date, round }, { replace: true })}
           />
         )}
-        <WeekPicker
-          value={week}
-          thisWeek={schoolWeekStart(today)}
-          onChange={(next) => guard.leave(`/menu/nutrition?week=${next}${block ? `&block=${block}` : ''}`, { replace: true })}
-        />
+        <WeekPicker value={week} thisWeek={schoolWeekStart(today)} onChange={(next) => open({ week: next, date: '' })} />
       </div>
     </>
   );
@@ -110,7 +107,7 @@ export default function DayBalancePage() {
         <ErrorState error={planQ.error} onRetry={planQ.reload} />
       </div>
     );
-  if (planQ.loading || !plan || !draft)
+  if (planQ.loading || !plan)
     return (
       <div className="page">
         {head}
@@ -118,32 +115,35 @@ export default function DayBalancePage() {
       </div>
     );
 
+  const statusOf = (d) => statusQ.statuses.find((s) => s.date === d);
+  const offReasonOf = (d) => dayOffOf(d, statusOf(d.date)).reason;
+  const offDays = days.filter(isOff);
   return (
-    <div className="page td-sections">
+    <div className="page td-bal-page">
       {head}
-      <div className="td-week-bar">
-        <div className="row td-week-status">
-          <MealPlanStatusBadge status={plan.status} size="lg" />
-          {!editable && (
-            <span className="chip chip--gray">
-              <Lock size={14} /> {plan.status === MEAL_PLAN_STATUS.PUBLISHED ? 'Đã khóa, không sửa' : 'Chỉ xem'}
-            </span>
-          )}
-          <Link className="text-sm" to={`/menu/weekly?week=${week}`}>
-            Xem cả tuần
-          </Link>
-        </div>
-        {editable && (
-          <div className="row td-week-toolbar__actions">
-            <Button variant="primary" disabled={busy || !dirty} onClick={save}>
-              <Save size={16} /> Lưu nháp
-            </Button>
-          </div>
+      <div className="row td-week-status">
+        <MealPlanStatusBadge status={plan.status} size="lg" />
+        {!dishEditable && (
+          <span className="chip chip--gray">
+            <Lock size={14} /> {plan.status === MEAL_PLAN_STATUS.PUBLISHED ? 'Đã công bố, đổi món ở Kế hoạch tuần' : 'Chỉ xem món'}
+          </span>
         )}
+        <Link className="text-sm" to={`/menu/weekly?week=${week}`}>
+          Xem cả tuần
+        </Link>
       </div>
-      {dirty && (
-        <div className="alert alert--warning">
-          <div>Có thay đổi chưa lưu. Bấm Lưu nháp để ghi vào kế hoạch tuần.</div>
+      {offDays.length > 0 && (
+        <div className="alert alert--info" role="status">
+          <div>
+            <b>Ngày nghỉ trong tuần, không cân đối khẩu phần:</b>
+            <ul className="td-bal__off-list">
+              {offDays.map((d) => (
+                <li key={d.date}>
+                  {WEEKDAY_LABELS[days.indexOf(d)]} {ddmm(d.date)} · {offReasonOf(d)}
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       )}
       {!block ? (
@@ -152,36 +152,50 @@ export default function DayBalancePage() {
         </section>
       ) : (
         <>
-          <Tabs
-            variant="pill"
-            ariaLabel="Ngày trong tuần"
-            items={days.map((d, i) => ({ key: d.date, label: `${WEEKDAY_LABELS[i]} ${ddmm(d.date)}${d.off ? ' · nghỉ' : ''}` }))}
-            value={date}
-            onChange={(key) => pick({ date: key })}
-          />
-          {day?.off ? (
+          <div className="td-week-toolbar td-bal__tabs">
+            <Tabs
+              variant="pill"
+              ariaLabel="Ngày trong tuần"
+              items={days.map((d, i) => ({
+                key: d.date,
+                label: `${WEEKDAY_LABELS[i]} ${ddmm(d.date)}${isOff(d) ? ' · nghỉ' : dayMark(statusOf(d.date))}`,
+                disabled: isOff(d) && d.date !== date,
+                title: isOff(d) ? offReasonOf(d) : statusOf(d.date)?.problems?.join('\n') || undefined,
+              }))}
+              value={date}
+              onChange={(key) => open({ date: key })}
+            />
+            <Tabs
+              ariaLabel="Lần cân đối"
+              items={[
+                { key: '1', label: 'Lần 1 · Dự kiến' },
+                { key: '2', label: 'Lần 2 · Sau chốt suất' },
+              ]}
+              value={String(round)}
+              onChange={(key) => open({ round: key })}
+            />
+          </div>
+          {day && isOff(day) ? (
             <section className="card">
-              <EmptyState title="Ngày nghỉ" description={day.note || 'Ngày này không phục vụ bữa ăn.'} />
+              <EmptyState title="Ngày nghỉ" description={offReasonOf(day)} />
             </section>
           ) : (
             day && (
-              <DayBalanceView
-                key={`${block}|${date}`}
-                items={dayBlockItems(day, block)}
-                sessions={blockSessions(plan, block)}
-                groups={groups}
-                ageGroups={ageGroups}
-                dishes={dishes}
+              <DayBalanceEditor
+                key={`${date}|${round}|${menuVersion}`}
                 date={date}
-                dayTitle={`${WEEKDAY_LABELS[days.indexOf(day)]} ${ddmm(date)} · ${MEAL_BLOCK_LABELS[block] || block}`}
-                canEditRecipe={hasBePermission(user, PERMISSIONS.NUTRITION_MANAGE)}
-                onChange={editable ? (items) => setDraft((d) => setDayBlockItems(d, date, block, items)) : undefined}
+                round={round}
+                block={block}
+                day={day}
+                dishes={dishes}
+                guardRef={guardRef}
+                onChangeDishes={dishEditable ? changeDishes : undefined}
+                onSaved={() => statusQ.reload({ silent: true })}
               />
             )
           )}
         </>
       )}
-      <LeaveConfirmModal {...guard.modal} />
     </div>
   );
 }

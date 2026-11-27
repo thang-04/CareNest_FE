@@ -81,6 +81,15 @@ export default function AttendanceSummaryPage() {
     setRange({ from: addDays(today, -13), to: today });
     setSemester('');
   }, [today]);
+  // Lớp chỉ còn xem lịch sử (GV hết phân công): BE chỉ cho đọc trong khoảng đã dạy, nên khoảng mặc định
+  // (14 ngày tới hôm nay) bị 403 ⇒ đưa về ngày cuối còn quyền đọc mà BE trả (lastReadableDate)
+  const selectedClass = classes.find((c) => c.id === classId);
+  const lastReadable = selectedClass?.historicalReadOnly ? selectedClass.lastReadableDate : null;
+  useEffect(() => {
+    if (!lastReadable || range.to <= lastReadable) return;
+    setSemester('');
+    setRange({ from: lastReadable, to: lastReadable });
+  }, [lastReadable, range.to]);
   const [pageSize, setPageSize] = useState(20);
   const [pageState, setPageState] = useState({ key: '', value: 1 });
   const rangeErrors = validateSummaryRange(range);
@@ -138,7 +147,6 @@ export default function AttendanceSummaryPage() {
       'Nghỉ chiều',
       ...mealHead,
       'Trẻ có ăn',
-      'Trong đó ăn suất thay thế',
     ];
     const rows = summary.days.map((d) => [
       formatDate(d.date),
@@ -150,7 +158,6 @@ export default function AttendanceSummaryPage() {
       d.afternoonOff ?? 0,
       ...mealCols.map((s) => mealCount(d.meals, s)),
       d.mealTotal,
-      d.substitute,
     ]);
     const detailHead = multi
       ? ['Lớp', 'Điểm trường', 'Sĩ số', 'Có mặt', 'Vắng có phép', 'Vắng không phép', 'Lượt trẻ ăn']
@@ -320,7 +327,7 @@ export default function AttendanceSummaryPage() {
                 className={rangeErrors.to ? 'is-invalid' : ''}
                 value={range.to}
                 min={isIsoDate(range.from) ? range.from : undefined}
-                max={today}
+                max={lastReadable || today}
                 onChange={(value) => setRangeValue('to', value)}
                 aria-invalid={!!rangeErrors.to}
                 aria-describedby={!valid ? 'dd-range-error' : undefined}

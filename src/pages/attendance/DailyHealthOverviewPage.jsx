@@ -186,7 +186,7 @@ function AttentionTable({ items, filtered, onClearFilter, onOpen }) {
                 <tr key={item.childId} className="row-click dd-hov__row" {...clickableRowProps(() => onOpen(item))}>
                   <td className="nowrap">
                     <div className="dd-hov__child">
-                      <ChildAvatar child={{ fullName: item.childName, photoUrl: item.photoUrl }} size="sm" />
+                      <ChildAvatar child={{ childId: item.childId, fullName: item.childName, photoUrl: item.photoUrl }} size="sm" />
                       <div>
                         <div className="fw-600">{childNameWithHistory(item.childName, item.historyStatus)}</div>
                         {item.childCode && <div className="muted text-xs">{item.childCode}</div>}

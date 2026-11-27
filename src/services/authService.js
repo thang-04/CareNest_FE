@@ -225,8 +225,19 @@ export const isLocalSessionExpired = () => {
 export const SESSION_CHECK_ENABLED = !AUTH_USE_MOCK;
 export const checkWebSession = () => beClient.get('/me/session');
 
-/** Có token lưu sẵn trên máy (mock/Keycloak dev) ⇒ tải lại mà nhận 401 nghĩa là phiên đã hết hạn, không phải chưa đăng nhập. */
-export const hasStoredSession = () => !!tokenStorage.get();
+// Gateway: token chỉ nằm trong RAM ⇒ dựa vào metadata của lần đăng nhập gần nhất (đăng xuất thì restoreBlocked)
+const wasSignedIn = () => {
+  if (AUTH_USE_MOCK || KEYCLOAK_DEV_LOGIN) return false;
+  try {
+    const operation = readAuthOperation();
+    return operation.type === 'login' && !operation.restoreBlocked;
+  } catch {
+    return false; // storage bị chặn/hỏng ⇒ coi như chưa đăng nhập
+  }
+};
+
+/** Đã có phiên trên máy (token mock/Keycloak dev, hoặc lần đăng nhập gateway chưa đăng xuất) ⇒ tải lại mà nhận 401 nghĩa là phiên đã hết hạn, không phải chưa đăng nhập. */
+export const hasStoredSession = () => !!tokenStorage.get() || wasSignedIn();
 
 // "Ghi nhớ đăng nhập": chỉ nhớ SĐT/email để điền sẵn; mật khẩu để trình quản lý mật khẩu của trình duyệt lo
 const REMEMBERED_LOGIN_KEY = 'carenest.auth.rememberedLogin';

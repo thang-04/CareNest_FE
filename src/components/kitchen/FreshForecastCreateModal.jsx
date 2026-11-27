@@ -8,13 +8,21 @@ import { ForecastCountsTable, ForecastDryCard, ForecastLinesTable } from '@/comp
 import { useToast } from '@/contexts/ToastContext';
 import { freshGoodsApi } from '@/services/freshGoodsApi';
 import { NOTE_MAX } from '@/models/kitchen/kitchenConstants';
-import { countsToForm, emptyForecastForm, forecastInputKey, validateForecastForm } from '@/utils/kitchen/freshGoodsForm';
+import {
+  PERIOD_FROM_PAST,
+  countsToForm,
+  emptyForecastForm,
+  forecastInputKey,
+  validateForecastForm,
+  weekPeriod,
+} from '@/utils/kitchen/freshGoodsForm';
 import { formatWeekdayDate, isIsoDate, todayInput } from '@/utils/format';
 import { addDays, schoolWeekStart, weekShortLabel } from '@/utils/week';
 
 // Mã BE của kỳ dự trù sai; thứ tự ngày đã kiểm ở ô nhập nên còn lại là kỳ quá dài, câu của BE dài và gộp hai lỗi
 const PERIOD_INVALID = 6041;
-const weekPeriod = (weekStart) => ({ periodFrom: weekStart, periodTo: addDays(weekStart, 4) });
+// Kỳ bắt đầu trước hôm nay: gắn vào ô Từ ngày thay vì lỗi chung
+const PERIOD_FROM_PAST_CODE = 6052;
 
 /**
  * Lập bản dự trù trong modal: chọn kỳ theo tuần (hoặc tùy chọn ngày), BE tính lượng thực phẩm ngay (xem trước, chưa lưu),
@@ -25,8 +33,9 @@ const weekPeriod = (weekStart) => ({ periodFrom: weekStart, periodTo: addDays(we
 export function FreshForecastCreateModal({ campusId, existing = [], onClose, onSaved }) {
   const toast = useToast();
   const [confirmReplace, setConfirmReplace] = useState(false);
-  const thisWeek = schoolWeekStart(todayInput());
-  const [form, setForm] = useState(() => ({ ...emptyForecastForm({ campusId, today: thisWeek }), ...weekPeriod(thisWeek) }));
+  const today = todayInput();
+  const thisWeek = schoolWeekStart(today);
+  const [form, setForm] = useState(() => ({ ...emptyForecastForm({ campusId, today: thisWeek }), ...weekPeriod(thisWeek, today) }));
   const [mode, setMode] = useState('this');
   const [week, setWeek] = useState(thisWeek);
   const [preview, setPreview] = useState(null); // { data, key } của lần tính gần nhất
@@ -48,7 +57,7 @@ export function FreshForecastCreateModal({ campusId, existing = [], onClose, onS
   };
   const pickWeek = (next) => {
     setWeek(next);
-    setForm((f) => ({ ...f, ...weekPeriod(next) }));
+    setForm((f) => ({ ...f, ...weekPeriod(next, todayInput()) }));
   };
   const pickMode = (next) => {
     setMode(next);
@@ -58,6 +67,7 @@ export function FreshForecastCreateModal({ campusId, existing = [], onClose, onS
 
   const inlineErrors = (err) => {
     if (err.errorCode === PERIOD_INVALID) return { periodTo: 'Kỳ dự trù tối đa 31 ngày' };
+    if (err.errorCode === PERIOD_FROM_PAST_CODE) return { periodFrom: PERIOD_FROM_PAST };
     if (!err.details || typeof err.details !== 'object') return { _form: err.message };
     const details = err.details;
     return Object.keys(details).some((key) => key.startsWith('dryOrder.'))
@@ -66,7 +76,7 @@ export function FreshForecastCreateModal({ campusId, existing = [], onClose, onS
   };
 
   const calculate = useCallback(async (input) => {
-    const found = validateForecastForm(input);
+    const found = validateForecastForm(input, todayInput());
     setErrors(found);
     if (Object.keys(found).length) return;
     const run = ++lastRun.current;
@@ -201,7 +211,7 @@ export function FreshForecastCreateModal({ campusId, existing = [], onClose, onS
                 <FormField label="Từ ngày" required error={errors.periodFrom}>
                   <DateInput
                     value={form.periodFrom}
-                    min={todayInput()}
+                    min={today}
                     max={isIsoDate(form.periodTo) ? form.periodTo : undefined}
                     onChange={(v) => setField('periodFrom', v)}
                   />
@@ -214,6 +224,11 @@ export function FreshForecastCreateModal({ campusId, existing = [], onClose, onS
                   />
                 </FormField>
               </div>
+            )}
+            {mode !== 'custom' && periodError && (
+              <p className="field__error" role="alert">
+                {periodError}
+              </p>
             )}
             {!periodError && isIsoDate(form.periodFrom) && isIsoDate(form.periodTo) && (
               <p className="kb-fcm__period">

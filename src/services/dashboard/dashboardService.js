@@ -61,7 +61,7 @@ const SOURCES = {
       .map((c) => ({
         id: c.id,
         code: `${MEAL_SESSION_LABELS[c.session] || c.session} ${formatDate(c.date)}`,
-        title: `${c.totals.normal + c.totals.substitute} suất (${c.totals.substitute} suất thay thế)`,
+        title: `${c.totals.normal + c.totals.substitute} suất`,
         by: 'Hệ thống chốt theo giờ điểm danh',
         at: c.aggregatedAt || c.date,
         campusId: c.campusId,

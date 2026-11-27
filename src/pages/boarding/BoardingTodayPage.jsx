@@ -11,7 +11,7 @@ import {
   Truck,
   Users,
 } from '@/components/ui/icons';
-import { Breadcrumb, EmptyState, ErrorState, LoadingState, StatusBadge } from '@/components';
+import { Breadcrumb, Button, EmptyState, ErrorState, LoadingState, StatusBadge } from '@/components';
 import { StatCard } from '@/components/ui/StatCard';
 import { CampusFilter } from '@/components/ui/CampusFilter';
 import { LockNote } from '@/components/ui/LockNote';
@@ -38,15 +38,9 @@ function TaskCell({ row, campus, syncing, onSyncStock }) {
       <div className="bd-actions">
         {row.actions.map((action, i) =>
           action.syncStock ? (
-            <button
-              key={action.key}
-              type="button"
-              className="btn btn--sm btn--primary"
-              disabled={syncing}
-              onClick={() => onSyncStock(campus)}
-            >
-              <RefreshCw size={14} /> {action.label}
-            </button>
+            <Button key={action.key} size="sm" variant="primary" icon={RefreshCw} loading={syncing} onClick={() => onSyncStock(campus)}>
+              {action.label}
+            </Button>
           ) : (
             <Link key={action.to} className={`btn btn--sm ${i ? 'btn--ghost' : ''}`} to={action.to}>
               {action.label} <ArrowRight size={14} />
@@ -78,14 +72,22 @@ function NextTask({ campuses, rowsPerCampus, syncing, onSyncStock }) {
       <span className="bd-next__text">
         Việc tiếp theo:{' '}
         <b>
-          {row.title} · {campus.campusName}
+          {row.title}
+          {campus ? ` · ${campus.campusName}` : ''}
         </b>{' '}
         — {row.status}
       </span>
       {action?.syncStock ? (
-        <button type="button" className="btn btn--sm btn--primary bd-next__action" disabled={syncing} onClick={() => onSyncStock(campus)}>
-          <RefreshCw size={14} /> {action.label}
-        </button>
+        <Button
+          size="sm"
+          variant="primary"
+          icon={RefreshCw}
+          loading={syncing}
+          className="bd-next__action"
+          onClick={() => onSyncStock(campus)}
+        >
+          {action.label}
+        </Button>
       ) : (
         action && (
           <Link className="btn btn--sm btn--primary bd-next__action" to={action.to}>
@@ -97,13 +99,13 @@ function NextTask({ campuses, rowsPerCampus, syncing, onSyncStock }) {
   );
 }
 
-/** Dải số liệu đầu trang: bao nhiêu việc cần xử lý, đang chờ, đã xong và chưa có thông tin trên các điểm trường đang xem. */
+/** Dải số liệu đầu trang: bao nhiêu việc cần xử lý, chờ bước khác, đã xong và chưa có thông tin trên các điểm trường đang xem. */
 function BoardSummary({ rowsPerCampus }) {
   const sum = summarizeBoardRows(rowsPerCampus);
   return (
     <div className="stat-grid">
       <StatCard tone="red" label="Việc cần xử lý" value={sum.attention} />
-      <StatCard tone="orange" label="Việc đang chờ" value={sum.waiting} />
+      <StatCard tone="blue" label="Việc chờ bước khác" value={sum.waiting} />
       <StatCard tone="green" label="Việc đã xong" value={sum.done} />
       <StatCard tone="gray" label="Chưa có thông tin / ngày nghỉ" value={sum.idle} />
     </div>
@@ -112,7 +114,8 @@ function BoardSummary({ rowsPerCampus }) {
 
 /**
  * Bảng việc × điểm trường: mỗi hàng một việc bán trú trong ngày, mỗi cột một điểm trường, nên nhìn ngang so sánh được các điểm.
- * Trạng thái do BE trả (`GET /nutrition/day-board`); nút trong ô mở màn xử lý tương ứng.
+ * Trạng thái do BE trả (`GET /nutrition/day-board`); nút trong ô mở màn xử lý tương ứng. Việc chung cả trường (thực đơn tuần)
+ * gộp một ô trải hết các cột.
  */
 function BoardTable({ campuses, rowsPerCampus, syncing, onSyncStock }) {
   const tasks = rowsPerCampus[0] || [];
@@ -141,11 +144,17 @@ function BoardTable({ campuses, rowsPerCampus, syncing, onSyncStock }) {
                     </span>
                     {task.title}
                   </th>
-                  {campuses.map((campus, ci) => (
-                    <td key={campus.campusId}>
-                      <TaskCell row={rowsPerCampus[ci][i]} campus={campus} syncing={syncing} onSyncStock={onSyncStock} />
+                  {task.shared ? (
+                    <td colSpan={campuses.length}>
+                      <TaskCell row={task} campus={campuses[0]} syncing={syncing} onSyncStock={onSyncStock} />
                     </td>
-                  ))}
+                  ) : (
+                    campuses.map((campus, ci) => (
+                      <td key={campus.campusId}>
+                        <TaskCell row={rowsPerCampus[ci][i]} campus={campus} syncing={syncing} onSyncStock={onSyncStock} />
+                      </td>
+                    ))
+                  )}
                 </tr>
               );
             })}

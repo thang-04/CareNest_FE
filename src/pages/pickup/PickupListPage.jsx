@@ -6,6 +6,7 @@ import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { Modal } from '@/components/ui/Modal';
 import { PickupCallFlow, PickupPhotoFlow } from '@/components/pickup/PickupVerifyFlow';
+import { PickupTimeCorrection } from '@/components/pickup/PickupTimeCorrection';
 import { EmptyState, ErrorState, LoadingState, SkeletonRows } from '@/components/ui/States';
 import { Tabs } from '@/components/ui/Tabs';
 import { PickupPerson, PickupStatusBadge, VerificationBadge } from '@/components/pickup/PickupBadges';
@@ -51,6 +52,7 @@ export default function PickupListPage() {
   // để trang ghi kết quả quay lại mở lại đúng modal.
   const verifyId = params.get('verify') || '';
   const callId = params.get('call') || '';
+  const [correcting, setCorrecting] = useState(null);
   const closeModals = () => {
     const next = new URLSearchParams(params);
     next.delete('verify');
@@ -252,6 +254,11 @@ export default function PickupListPage() {
                               )}
                             </td>
                             <td className="cell--actions">
+                              {!yearLocked && isToday && r.pickup?.handedOverAt && (
+                                <Button size="sm" onClick={() => setCorrecting(r)} aria-label={`Sửa giờ trả của ${r.child.fullName}`}>
+                                  Sửa giờ
+                                </Button>
+                              )}
                               {!yearLocked && isToday && r.status === PICKUP_STATUS.WAITING && (
                                 <div className="row-actions">
                                   <button type="button" className="btn btn--sm btn--primary" onClick={() => setParam('verify', r.child.id)}>
@@ -285,6 +292,18 @@ export default function PickupListPage() {
           </div>
           <Modal open={!!verifyId && !yearLocked} size="lg" title={`Trả trẻ: ${nameOf(verifyId)}`} onClose={closeModals}>
             {verifyId && !yearLocked && <PickupPhotoFlow key={verifyId} childId={verifyId} onDone={handedOver} />}
+          </Modal>
+          <Modal open={!!correcting} title={`Sửa giờ trả: ${correcting?.child.fullName || ''}`} onClose={() => setCorrecting(null)}>
+            {correcting && (
+              <PickupTimeCorrection
+                key={correcting.pickup.id}
+                pickup={correcting.pickup}
+                onDone={() => {
+                  setCorrecting(null);
+                  reload();
+                }}
+              />
+            )}
           </Modal>
           <Modal open={!!callId && !yearLocked} title={`Gọi phụ huynh: ${nameOf(callId)}`} onClose={closeModals}>
             {callId && !yearLocked && <PickupCallFlow key={callId} childId={callId} onDone={handedOver} />}

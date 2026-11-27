@@ -1,3 +1,4 @@
+import { devNow } from '@/utils/devClock';
 // BE:EDU-81 — học liệu gắn một mục hoạt động của một ngày trong kế hoạch giáo dục ngày: activityKey = "yyyy-MM-dd#mục".
 export const sectionKey = (date, section) => `${date}#${section}`;
 
@@ -102,7 +103,7 @@ export const MATCH_LABELS = { GOAL: 'Cùng MT', THEME: 'Cùng chủ đề' };
 /* ---------- Spec 901: kho cá nhân, chủ đề đã dạy, khóa xóa/đổi tên ---------- */
 
 /** Ngày hôm nay (yyyy-MM-dd) theo giờ Việt Nam. */
-export const todayVn = (at = new Date()) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).format(at);
+export const todayVn = (at = devNow()) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).format(at);
 
 const nextDay = (iso) => new Date(Date.parse(`${iso}T00:00:00Z`) + 86400000).toISOString().slice(0, 10);
 export const dmy = (iso) => (iso ? iso.split('-').reverse().join('/') : '');

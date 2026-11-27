@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Tabs } from '@/components/ui/Tabs';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   Breadcrumb,
   Button,
@@ -32,11 +32,20 @@ import { useBeAgeGroups, useMealPlan, useMenuStatistics } from '@/hooks/menu-pla
 import { useDishes } from '@/hooks/menu-planning/useMenuPlanning';
 import { useMenuTemplate } from '@/hooks/menu-planning/useMenuTemplates';
 import { WeekPicker } from '@/components/form/WeekPicker';
-import { WEEKDAY_LABELS, formatMoney, mondayOf, schoolWeekStart, weekDates } from '@/models/menu-planning/menuPlanningConstants';
+import {
+  MEAL_PLAN_STATUS,
+  WEEKDAY_LABELS,
+  formatMoney,
+  mondayOf,
+  schoolWeekStart,
+  weekDates,
+} from '@/models/menu-planning/menuPlanningConstants';
 import { menuCrumbs } from '@/utils/menu-planning/breadcrumbs';
 import { ageGroupOptions, allDayItems, planDayItems, statisticsExportRows, templateDayItems } from '@/utils/menu-planning/menuStatistics';
 import { formatDate, isIsoDate, todayInput } from '@/utils/format';
 import '@/styles/modules/menu-planning.css';
+import { balanceHref } from '@/utils/menu-planning/mealPlanGrid';
+import { StatusBadge } from '@/components/ui/StatusBadge';
 
 // Tên màn theo việc người dùng làm (user chốt 09/11/2026, thay "Thống kê định lượng")
 const PAGE_TITLE = 'Định lượng & đi chợ';
@@ -103,11 +112,14 @@ const CHILDREN_SOURCE = {
   INPUT: 'Số nhập tay',
   CONFIRMED: 'Theo suất đã xác nhận',
   ENROLLED: 'Theo sĩ số đang học',
+  MIXED: 'Nhiều nguồn theo từng nhóm',
+  BALANCE: 'Theo bản cân đối',
 };
 
 /*
  * Định lượng & đi chợ của một ngày thực đơn (in, xuất Excel; tách hàng tươi / kho khô khi BE trả cờ): nguồn là kế hoạch tuần (`?week=&date=`) hoặc bộ mẫu
- * (`?template=`, mẫu một ngày). Số trẻ để trống ⇒ BE lấy suất đã xác nhận, không có thì sĩ số.
+ * (`?template=`, mẫu một ngày). Số trẻ để trống ⇒ BE lấy suất đã xác nhận, không có thì sĩ số. Nguồn kế hoạch tuần tính
+ * theo bản cân đối của đúng ngày; tuần nháp chưa cân đối ngày đó thì chỉ dẫn sang Cân đối khẩu phần.
  */
 export default function MenuStatisticsPage() {
   const [params, setParams] = useSearchParams();
@@ -158,11 +170,15 @@ export default function MenuStatisticsPage() {
           campusId: campusId || undefined,
           children: allGroups ? '' : children,
           items,
+          useBalance: !templateId,
         }
       : null;
   const statsQ = useMenuStatistics(query);
   const stats = statsQ.data;
   const activeGroup = (stats?.groups || []).find((g) => String(g.ageGroupId) === view) || null;
+  const published = source.data?.status === MEAL_PLAN_STATUS.PUBLISHED;
+  // Số định lượng của ngày lấy từ bản cân đối; tuần đã công bố mà không có bản cân đối thì vẫn tính theo công thức
+  const unbalanced = !templateId && !!stats && !stats.balanceRound && !published;
 
   const setParam = (key, value) => {
     const next = new URLSearchParams(params);
@@ -324,12 +340,43 @@ export default function MenuStatisticsPage() {
         <ErrorState error={statsQ.error} onRetry={statsQ.reload} />
       ) : !stats ? (
         <LoadingState />
+      ) : unbalanced ? (
+        <section className="card">
+          <EmptyState
+            title="Ngày này chưa cân đối khẩu phần"
+            description="Định lượng và đi chợ tính theo bản cân đối của đúng ngày."
+            action={
+              <Link className="btn btn--primary" to={balanceHref({ week, date })}>
+                Mở Cân đối khẩu phần
+              </Link>
+            }
+          />
+        </section>
       ) : allGroups && !stats.groups?.length ? (
         <EmptyState title="Ngày này chưa có món" description="Không có món hợp lệ cho các nhóm tuổi trong ngày này." />
       ) : (
         <>
+          {!templateId && (
+            <div>
+              {stats.balanceRound ? (
+                <StatusBadge tone="green" label={`Theo cân đối lần ${stats.balanceRound}`} />
+              ) : (
+                <StatusBadge tone="orange" label="Tính theo công thức món (ngày chưa cân đối)" />
+              )}
+            </div>
+          )}
           <div className="stat-grid">
-            <StatCard className="stat-card--fit" tone="blue" icon={false} label="Số trẻ" value={stats.children} />
+            <StatCard
+              className="stat-card--fit"
+              tone="blue"
+              icon={false}
+              label={
+                stats.childrenSource
+                  ? `Số trẻ · ${(CHILDREN_SOURCE[stats.childrenSource] || stats.childrenSource).toLowerCase()}`
+                  : 'Số trẻ'
+              }
+              value={stats.children}
+            />
             <StatCard className="stat-card--fit" tone="green" icon={false} label="Tiền ăn 1 trẻ" value={formatMoney(stats.costPerChild)} />
             {/* Ngân sách mỗi nhóm tuổi một mức: xem theo từng nhóm, không có số toàn trường */}
             {!allGroups && (

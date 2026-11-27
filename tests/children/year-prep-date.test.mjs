@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { validateSchoolYear } from '@/utils/school-config/schoolConfigValidation';
-import { defaultPrepDate } from '@/utils/school-config/yearSetup';
+import { defaultPrepDate, suggestedDatesForSchoolYearName } from '@/utils/school-config/yearSetup';
 
 // BE CFG-YR-05: ô Ngày mở chuẩn bị ở form năm học báo lỗi ngay dưới ô
 const previous = { id: 'y1', name: '2026-2027', startDate: '2026-09-01', endDate: '2027-05-31' };
@@ -12,6 +12,21 @@ test('ngày mở chuẩn bị mặc định 1 tháng trước ngày bắt đầu
   assert.equal(defaultPrepDate('2027-09-05', [previous], '2027-07-01'), '2027-08-05');
   assert.equal(defaultPrepDate('2027-06-15', [previous], '2027-05-01'), '2027-06-01');
   assert.equal(defaultPrepDate('2027-09-05', [previous], '2027-08-20'), '2027-08-20');
+});
+
+test('tên năm học hợp lệ gợi ý đúng khoảng ngày, không mang ngày của năm trước', () => {
+  assert.deepEqual(suggestedDatesForSchoolYearName('2027-2028'), { startDate: '2027-09-05', endDate: '2028-05-31' });
+  assert.equal(suggestedDatesForSchoolYearName('2027-2029'), null);
+});
+
+test('báo lỗi trùng ở mức khoảng ngày thay vì gắn sai vào riêng ngày kết thúc', () => {
+  const errors = validateSchoolYear(
+    { name: '2027-2028', startDate: '2026-11-28', endDate: '2028-05-31', prepDate: '2026-11-27' },
+    [previous],
+    { creating: true, today: '2026-11-26' },
+  );
+  assert.match(errors._form, /Khoảng ngày 28\/11\/2026 – 31\/05\/2028 trùng với năm học 2026-2027/);
+  assert.equal(errors.endDate, undefined);
 });
 
 test('ngày mở chuẩn bị: bắt buộc, đúng định dạng, trước ngày bắt đầu, sau năm trước, không trước hôm nay', () => {

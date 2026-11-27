@@ -1,8 +1,9 @@
 import { Link, useSearchParams } from 'react-router-dom';
 import { ShoppingBasket } from '@/components/ui/icons';
 import { EmptyState, ErrorState, LoadingState, PageHeader } from '@/components';
-import { DryIntakeCard } from '@/components/kitchen/DryIntakeCard';
+// import { DryIntakeCard } from '@/components/kitchen/DryIntakeCard';
 import { FreshRoundCard } from '@/components/kitchen/FreshRoundCard';
+import { FreshHandlingCard } from '@/components/kitchen/FreshHandlingCard';
 import { KbCampusFilter, KbDateFilter } from '@/components/kitchen/KitchenFilters';
 import { useStockCampus } from '@/hooks/kitchen/useDryStock';
 import { useFoodGroupMap, useFreshCheck } from '@/hooks/kitchen/useFreshGoods';
@@ -13,7 +14,7 @@ import '@/styles/modules/kitchen.css';
 
 /**
  * Kiểm nhận hàng hôm nay trên BE (`/kitchen/fresh-receipts`): hàng tươi hai lần trong ngày — lần 1 so bản dự trù, lần 2 so
- * suất đã xác nhận — và các đợt hàng khô giao trong ngày (so lượng đặt của bản dự trù). Chọn ngày và điểm trường (?date=&campusId=); lần nào mở được, số cần nhận, quyền ghi đều do BE trả.
+ * bản cân đối lần 2 (xử lý chênh lệch) hoặc suất đã xác nhận — và các đợt hàng khô giao trong ngày (so lượng đặt của bản dự trù). Chọn ngày và điểm trường (?date=&campusId=); lần nào mở được, số cần nhận, quyền ghi đều do BE trả.
  */
 export default function FreshCheckPage() {
   const [params, setParams] = useSearchParams();
@@ -51,7 +52,7 @@ export default function FreshCheckPage() {
         {check.data.canManage && check.data.lockReason === 'M1_SIGNED' && (
           <div className="alert alert--info" role="status">
             Biên bản M1 hàng tươi của ngày đã ký nên kiểm nhận bị khóa. Muốn sửa, bấm Sửa lại ở{' '}
-            <Link to={`/kitchen/inspections?date=${date}&campusId=${campus.campusId}&form=FRESH`}>biên bản M1 tươi</Link>.
+            <Link to={`/kitchen/inspections?date=${date}&campusId=${campus.campusId}&form=fresh`}>biên bản M1 tươi</Link>.
           </div>
         )}
         {freshClosed ? (
@@ -71,19 +72,28 @@ export default function FreshCheckPage() {
             />
           </section>
         ) : (
-          check.data.rounds.map((round) => (
-            <FreshRoundCard
-              key={round.round}
-              round={round}
-              campusId={campus.campusId}
-              date={date}
-              canManage={check.data.canManage && check.data.editable !== false}
-              groupOfFood={foodGroups}
-              onSaved={check.setData}
-              onStale={() => check.reload({ silent: true })}
-            />
-          ))
+          check.data.rounds.map((round) => {
+            const common = {
+              round,
+              campusId: campus.campusId,
+              date,
+              canManage: check.data.canManage && check.data.editable !== false,
+              onSaved: check.setData,
+              onStale: () => check.reload({ silent: true }),
+            };
+            // Lần 2 theo cân đối: xử lý chênh lệch thay cho chọn đủ / thiếu / thừa
+            return round.handlingRequired ? (
+              <FreshHandlingCard
+                key={round.round}
+                {...common}
+                campusName={campus.campuses?.find((c) => String(c.id) === String(campus.campusId))?.name}
+              />
+            ) : (
+              <FreshRoundCard key={round.round} {...common} groupOfFood={foodGroups} />
+            );
+          })
         )}
+        {/* Tạm ẩn: hàng khô nhập qua Phiếu nhập, màn này chỉ kiểm hàng tươi. Bỏ comment khối dưới để bật lại.
         <DryIntakeCard
           dry={check.data.dry}
           campusId={campus.campusId}
@@ -92,6 +102,7 @@ export default function FreshCheckPage() {
           canWrite={check.data.canManage && date === todayInput()}
           onSaved={check.setData}
         />
+        */}
       </div>
     );
   }

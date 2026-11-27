@@ -11,17 +11,19 @@ import { useTabParam } from '@/hooks/useTabParam';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { ErrorState, LoadingState } from '@/components/ui/States';
 import { AllergenChips, DishStatusBadge, HistoryCard } from '@/components/menu-planning/MenuBadges';
+import { InfoGrid } from '@/components/menu-planning/InfoGrid';
 import { DishPortionTable } from '@/components/menu-planning/DishPortionTable';
 import { dishAllergens, ingredientBreakdown, ingredientQty } from '@/utils/menu-planning/menuCalculations';
 import { activeAgeGroups } from '@/utils/menu-planning/nutritionSetup';
 import { dishCrumbs } from '@/utils/menu-planning/breadcrumbs';
+import { dishInUseNote } from '@/utils/menu-planning/catalogUsage';
 import { DISH_TYPE_LABELS, FOOD_ORIGIN_LABELS, formatMoney } from '@/models/menu-planning/menuPlanningConstants';
 import '@/styles/modules/menu-planning.css';
 import { Button } from '@/components';
 
 const n1 = (v) => (typeof v === 'number' ? (Math.round(v * 10) / 10).toLocaleString('vi-VN') : '—');
 
-/** Chi tiết món ăn: tổng quan và thành phần, dinh dưỡng từng suất, nơi dùng và lịch sử. */
+/** Chi tiết món ăn: tổng quan (thông tin, thành phần, dinh dưỡng từng suất), nơi dùng và lịch sử. */
 export default function DishDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -33,7 +35,7 @@ export default function DishDetailPage() {
   const [confirm, setConfirm] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const [picked, setPicked] = useState('');
-  const [tab, setTab] = useTabParam(['overview', 'nutrition', 'usage']);
+  const [tab, setTab] = useTabParam(['overview', 'usage']);
 
   if (loading || catLoading) return <LoadingState />;
   if (error || !d)
@@ -100,14 +102,13 @@ export default function DishDetailPage() {
         </div>
       )}
 
-      {/* Thành phần ở tab đầu để giáo viên xem công thức trước số liệu dinh dưỡng. */}
+      {/* Thành phần đứng trên số liệu dinh dưỡng để giáo viên xem công thức trước. */}
       <Tabs
         ariaLabel="Phần chi tiết món ăn"
         value={tab}
         onChange={setTab}
         items={[
           { key: 'overview', label: 'Tổng quan và thành phần', count: d.ingredients?.length },
-          { key: 'nutrition', label: 'Dinh dưỡng' },
           { key: 'usage', label: 'Dùng trong thực đơn & lịch sử' },
         ]}
       />
@@ -118,21 +119,19 @@ export default function DishDetailPage() {
               <div className="card__header">
                 <h2 className="card__title">Thông tin chung</h2>
               </div>
-              <div className="card__body td-food-info">
-                <dl className="info-list">
-                  <dt>Mã</dt>
-                  <dd className="fw-600">{d.code}</dd>
-                  <dt>Loại</dt>
-                  <dd>{DISH_TYPE_LABELS[d.type]}</dd>
-                  <dt>Chứa</dt>
-                  <dd>
-                    <AllergenChips allergens={dishAllergens(d, catalog.foodById)} empty="Không có chất gây dị ứng" />
-                  </dd>
-                </dl>
-                <dl className="info-list">
-                  <dt>Mô tả</dt>
-                  <dd>{d.description || '—'}</dd>
-                </dl>
+              <div className="card__body">
+                <InfoGrid
+                  items={[
+                    { label: 'Mã', value: <span className="fw-600">{d.code}</span> },
+                    { label: 'Loại', value: DISH_TYPE_LABELS[d.type] },
+                    {
+                      label: 'Chứa',
+                      wide: true,
+                      value: <AllergenChips allergens={dishAllergens(d, catalog.foodById)} empty="Không có chất gây dị ứng" />,
+                    },
+                    { label: 'Mô tả', wide: true, value: d.description || '—' },
+                  ]}
+                />
               </div>
             </section>
 
@@ -147,7 +146,7 @@ export default function DishDetailPage() {
                   onChange={setPicked}
                 />
               </div>
-              <div className="table-wrap td-card-table">
+              <div className="table-wrap td-card-table td-soft">
                 <table className="table table--grid td-hl">
                   <thead>
                     <tr>
@@ -191,10 +190,7 @@ export default function DishDetailPage() {
                 </table>
               </div>
             </section>
-          </>
-        )}
-        {tab === 'nutrition' && (
-          <>
+
             <section className="card">
               <div className="card__header td-wrap-head">
                 <h2 className="card__title">Dinh dưỡng và chi phí một suất theo nhóm tuổi</h2>
@@ -219,7 +215,8 @@ export default function DishDetailPage() {
           </>
         )}
         {tab === 'usage' && (
-          <div className="td-split-aside">
+          // Xếp dọc: bảng lịch sử dài cần cả bề ngang, không đứng cạnh thẻ thực đơn mẫu
+          <>
             <section className="card">
               <div className="card__header">
                 <h2 className="card__title">Dùng trong thực đơn mẫu</h2>
@@ -240,7 +237,7 @@ export default function DishDetailPage() {
               </div>
             </section>
             <HistoryCard history={d.history} />
-          </div>
+          </>
         )}
       </div>
       <div className="page-actions">
@@ -254,7 +251,9 @@ export default function DishDetailPage() {
         title={softDelete ? 'Ngừng sử dụng món ăn' : 'Xóa món ăn'}
         message={
           softDelete
-            ? `Chuyển món "${d.name}" sang Ngừng sử dụng? Thực đơn đã có giữ nguyên; thực đơn mới không chọn được món này.`
+            ? `Chuyển món "${d.name}" sang Ngừng sử dụng? Thực đơn đã có giữ nguyên; thực đơn mới không chọn được món này.${
+                dishInUseNote(d) ? ` ${dishInUseNote(d)}` : ''
+              }`
             : `Xóa món "${d.name}"? Món đã nằm trong thực đơn sẽ không xóa được.`
         }
         confirmLabel={softDelete ? 'Ngừng sử dụng' : 'Xóa món ăn'}

@@ -1,11 +1,12 @@
 import axios from 'axios';
+import { devClockHeaders } from '@/utils/devClock';
 import { API_BASE_URL, AUTH_MODE, DEV_BE_BASE_URL } from '@/config/env';
 import { refreshSession } from './authTransport';
 import { BE_ERROR_FIELDS } from './beErrorFields';
 import { fallbackErrorMessage } from './apiError';
 import { translateBeError } from './beErrorMessages';
 import { getDevAccessToken, tokenForRetry } from './devKeycloakAuth';
-import { tokenStorage, UNAUTHORIZED_EVENT } from './tokenStorage';
+import { notifySessionBlocked, tokenStorage, UNAUTHORIZED_EVENT } from './tokenStorage';
 import { DB_CHANGED_EVENT } from '@/mocks/dbEvents';
 
 /*
@@ -47,6 +48,7 @@ const raw = axios.create({
 raw.interceptors.request.use(async (config) => {
   const token = await accessToken();
   if (token) config.headers.Authorization = `Bearer ${token}`;
+  Object.assign(config.headers, devClockHeaders());
   return config;
 });
 // 401 giữa chừng: làm mới token (chung với axiosClient) rồi gửi lại một lần; vẫn 401 thì call() báo hết phiên
@@ -182,8 +184,9 @@ const call = async (method, url, { params, data, preserveEmptyStrings = [], time
     }
     return toUi(response.data.data);
   } catch (error) {
-    // Token bị BE từ chối ⇒ luồng hết phiên chung (AuthContext đăng xuất)
+    // Token bị BE từ chối (401) hoặc tài khoản bị khóa (403/1015) ⇒ luồng hết phiên chung (AuthContext đăng xuất)
     if (error.response?.status === 401) window.dispatchEvent(new CustomEvent(UNAUTHORIZED_EVENT));
+    else notifySessionBlocked(error);
     throw normalizeError(error);
   }
 };
@@ -202,6 +205,7 @@ const getBlob = async (url) => {
         error.response.data = undefined; // thân lỗi không phải JSON: dùng thông điệp theo status
       }
     }
+    notifySessionBlocked(error);
     throw normalizeError(error);
   }
 };

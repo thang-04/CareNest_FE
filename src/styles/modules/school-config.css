@@ -1217,6 +1217,12 @@
 .sc-plc-page .sc-plc {
   grid-template-columns: minmax(calc(var(--space-16) * 4.5), 1.15fr) 3fr;
 }
+/* Dưới 1024px xếp dọc 1 cột; rule trên có độ ưu tiên cao hơn nên phải đặt lại ở đây */
+@media (max-width: 1023px) {
+  .sc-plc-page .sc-plc {
+    grid-template-columns: 1fr;
+  }
+}
 .sc-plc__group-auto {
   width: 100%;
   justify-content: center;

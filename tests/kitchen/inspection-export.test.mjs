@@ -9,7 +9,10 @@ import {
   inspectionLeafLabels,
   inspectionRows,
   inspectionTitle,
+  labelPrintBlock,
   sampleTakenText,
+  serveLabelData,
+  withBlankLabels,
 } from '@/utils/kitchen/inspectionExport';
 
 const ROW = {
@@ -115,17 +118,63 @@ test('M4 nhãn: mỗi bữa một nhãn gom tên các mẫu; Excel liệt kê b�
   const labels = inspectionLabels({ rows: SAMPLE_ROWS });
   assert.equal(labels.length, 1);
   assert.deepEqual(labels[0].dishes, ['Cơm', 'Canh']);
-  const out = inspectionExportRows('sample', { rows: SAMPLE_ROWS }, { date: '2026-11-09', variant: 'label' });
+  const out = inspectionExportRows('m4', { rows: SAMPLE_ROWS }, { date: '2026-11-09', variant: 'label' });
   assert.deepEqual(out.rows[out.headerRow], ['Bữa ăn', 'Tên mẫu thức ăn', 'Thời gian lấy mẫu']);
-  assert.equal(out.rows[out.headerRow + 1][1], 'Cơm; Canh');
-  assert.equal(inspectionTitle('sample', '2026-11-09', 'label').form, 'Mẫu 4');
+  assert.equal(out.rows.length - out.headerRow - 1, 4);
+  assert.equal(out.rows.at(-1)[1], 'Cơm; Canh');
+  assert.equal(out.sheetName, 'M4 - Nhãn mẫu thức ăn lưu');
+  assert.equal(inspectionTitle('m4', '2026-11-09', 'label').form, 'Mẫu 4');
 });
 
 test('M4 nhãn: chưa có giờ lấy mẫu thì trống giờ, phút nhưng in sẵn ngày; có giờ thì in giờ', () => {
   assert.equal(sampleTakenText('', '2026-11-23'), '…. giờ …… phút ….. ngày 23 tháng 11 năm 2026');
   assert.match(sampleTakenText('2026-11-23T03:05:00Z', '2026-11-23'), /23\/11\/2026/);
-  const out = inspectionExportRows('sample', { rows: [{ ...SAMPLE_ROWS[0], takenAt: '' }] }, { date: '2026-11-23', variant: 'label' });
-  assert.equal(out.rows[out.headerRow + 1][2], '…. giờ …… phút ….. ngày 23 tháng 11 năm 2026');
+  const out = inspectionExportRows('m4', { rows: [{ ...SAMPLE_ROWS[0], takenAt: '' }] }, { date: '2026-11-23', variant: 'label' });
+  assert.equal(out.rows.at(-1)[2], '…. giờ …… phút ….. ngày 23 tháng 11 năm 2026');
+});
+
+test('M4 chỉ in nhãn từ ngày lấy mẫu: ngày tương lai bị khóa, hôm nay và ngày đã qua in được', () => {
+  assert.equal(labelPrintBlock('2026-11-26', '2026-11-25'), 'Chưa đến ngày lấy mẫu.');
+  assert.equal(labelPrintBlock('2026-11-25', '2026-11-25'), '');
+  assert.equal(labelPrintBlock('2026-11-24', '2026-11-25'), '');
+});
+
+test('M4 tờ in đủ 4 nhãn: ngày 3 bữa thêm một nhãn trống ở đầu, đủ 4 bữa thì không thêm', () => {
+  const meals = ['MORNING', 'LUNCH', 'AFTERNOON'].map((key) => ({ key, sessionLabel: key, dishes: ['Cơm'], takenAt: '' }));
+  const sheet = withBlankLabels(meals);
+  assert.equal(sheet.length, 4);
+  assert.deepEqual(sheet[0].dishes, []);
+  assert.equal(sheet[0].sessionLabel, '');
+  assert.equal(sheet[1].key, 'MORNING');
+  assert.equal(withBlankLabels([...meals, { key: 'X', dishes: [] }]).length, 4);
+  assert.equal(withBlankLabels(meals.slice(0, 1)).length, 4);
+});
+
+test('M4 lập từ món M3: có nhãn khi bếp chưa lưu mẫu, mỗi bữa một nhãn, món chung hai khối ghi một lần', () => {
+  const serve = {
+    rows: [
+      { session: 'LUNCH', sessionLabel: 'Bữa trưa · Nhà trẻ', dishName: 'Cơm' },
+      { session: 'LUNCH', sessionLabel: 'Bữa trưa · Mẫu giáo', dishName: 'Cơm' },
+      { session: 'LUNCH', sessionLabel: 'Bữa trưa · Mẫu giáo', dishName: 'Canh' },
+    ],
+  };
+  const labels = inspectionLabels(serveLabelData(serve, { rows: [] }));
+  assert.equal(labels.length, 1);
+  assert.equal(labels[0].sessionLabel, 'Bữa trưa');
+  assert.deepEqual(labels[0].dishes, ['Cơm', 'Canh']);
+  assert.equal(labels[0].takenAt, '');
+});
+
+test('M4 lấy giờ lấy mẫu từ sổ M5 của đúng bữa', () => {
+  const serve = {
+    rows: [
+      { session: 'LUNCH', dishName: 'Cơm' },
+      { session: 'AFTERNOON', dishName: 'Cháo' },
+    ],
+  };
+  const labels = inspectionLabels(serveLabelData(serve, { rows: SAMPLE_ROWS }));
+  assert.equal(labels[0].takenAt, '2026-11-09T03:35:00Z');
+  assert.equal(labels[1].takenAt, '');
 });
 
 test('M5: giờ lấy mẫu in giờ ngày tháng năm, ô chưa hủy để rỗng', () => {

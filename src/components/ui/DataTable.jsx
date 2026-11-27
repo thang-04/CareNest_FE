@@ -2,12 +2,25 @@ import { clickableRowProps } from '@/utils/clickableRow';
 import { Pagination, paginate } from './Pagination';
 import { EmptyState, ErrorState, SkeletonRows } from './States';
 
+// [[key, rows]] theo thứ tự nhóm xuất hiện đầu tiên
+const groupRows = (rows, groupBy) => {
+  const map = new Map();
+  rows.forEach((row) => {
+    const key = groupBy(row);
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push(row);
+  });
+  return [...map.entries()];
+};
+
 /**
  * Bảng danh sách chuẩn: gói sẵn khung `table--grid`, trạng thái đang tải / trống / lỗi và phân trang,
  * để mỗi màn không tự ráp lại (và không quên một trạng thái).
  *
  * columns: [{ key, header, className?, render?: (row) => node }] — `className` áp cho cả th và td (center, num, cell--actions…).
  * empty:   props của EmptyState ({ title, description, action }).
+ * groupBy/groupLabel (tùy chọn): gom dòng thành nhóm theo `groupBy(row)`, mỗi nhóm có một dòng tiêu đề `groupLabel(key, rows)`
+ * trải hết bảng (bảng hai cấp); không dùng cùng phân trang.
  * Phân trang phía client: truyền page + onPageChange (+ pageSize, unit); bỏ trống ⇒ hiện mọi dòng.
  *
  * <DataTable columns={columns} rows={data} loading={loading} error={error} onRetry={reload}
@@ -27,6 +40,8 @@ export function DataTable({
   pageSize,
   unit,
   className = '',
+  groupBy,
+  groupLabel,
 }) {
   if (error) return <ErrorState error={error} onRetry={onRetry} />;
   const list = rows || [];
@@ -35,6 +50,16 @@ export function DataTable({
   const safePage = Math.min(page || 1, lastPage);
   const visible = paged ? paginate(list, safePage, pageSize) : list;
   const keyOf = typeof rowKey === 'function' ? rowKey : (row) => row[rowKey];
+  const groups = groupBy ? groupRows(visible, groupBy) : null;
+  const renderRow = (row) => (
+    <tr key={keyOf(row)} className={onRowClick ? 'row-click' : undefined} {...(onRowClick ? clickableRowProps(() => onRowClick(row)) : {})}>
+      {columns.map((col) => (
+        <td key={col.key} className={col.className}>
+          {col.render ? col.render(row) : (row[col.key] ?? <span className="muted">—</span>)}
+        </td>
+      ))}
+    </tr>
+  );
 
   return (
     <>
@@ -58,20 +83,17 @@ export function DataTable({
                   <EmptyState {...empty} />
                 </td>
               </tr>
+            ) : groups ? (
+              groups.flatMap(([key, items]) => [
+                <tr key={`group-${key}`} className="table__group">
+                  <th colSpan={columns.length} scope="colgroup">
+                    {groupLabel ? groupLabel(key, items) : key}
+                  </th>
+                </tr>,
+                ...items.map(renderRow),
+              ])
             ) : (
-              visible.map((row) => (
-                <tr
-                  key={keyOf(row)}
-                  className={onRowClick ? 'row-click' : undefined}
-                  {...(onRowClick ? clickableRowProps(() => onRowClick(row)) : {})}
-                >
-                  {columns.map((col) => (
-                    <td key={col.key} className={col.className}>
-                      {col.render ? col.render(row) : (row[col.key] ?? <span className="muted">—</span>)}
-                    </td>
-                  ))}
-                </tr>
-              ))
+              visible.map(renderRow)
             )}
           </tbody>
         </table>

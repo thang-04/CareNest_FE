@@ -243,7 +243,7 @@ export function PlacementClassPanel({ yearId, from, targets, campusName, groupNa
                     />
                   </td>
                   <td className="nowrap sc-plc__child">
-                    <ChildAvatar child={ch} size="sm" />
+                    <ChildAvatar child={{ ...ch, photoUrl: ch.photoUrl || undefined }} size="sm" />
                     <span className="fw-600">{ch.fullName}</span>
                     {/* Lớp ra trường: kết quả hoàn thành chương trình ở đánh giá cuối năm (BE OBS-14) */}
                     {from.graduating && (
@@ -257,6 +257,8 @@ export function PlacementClassPanel({ yearId, from, targets, campusName, groupNa
                             : 'Chưa đánh giá cuối năm'}
                       </span>
                     )}
+                    {/* Lớp khác: chỉ báo trẻ chưa có đánh giá cuối năm xác nhận, để tham khảo, không chặn xếp lớp */}
+                    {!from.graduating && ch.yearEndConfirmed === false && <span className="chip chip--gray">Chưa đánh giá cuối năm</span>}
                     <span className="muted text-xs">
                       {ch.code}
                       {!ch.placement && <span className="sc-plc__new"> · chưa lưu</span>}

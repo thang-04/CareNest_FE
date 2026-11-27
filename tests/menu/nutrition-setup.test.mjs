@@ -39,7 +39,7 @@ test('kiểm tra nhập: khoảng ngược, ngày đã qua, giá ngày, tên tr�
     {
       effectiveFrom: addDays(TODAY, -1),
       groups: [
-        group({ norms: { kcal: ['800', '700'], protein: ['13', '120'] } }),
+        group({ dailyKcal: ['800', '700'] }),
         group({
           ageGroupId: 'ag-3',
           price: '0',
@@ -53,8 +53,8 @@ test('kiểm tra nhập: khoảng ngược, ngày đã qua, giá ngày, tên tr�
     TODAY,
   );
   assert.match(e.effectiveFrom, /hôm nay/);
-  assert.ok(e['ag-4.norms.kcal']);
-  assert.match(e['ag-4.norms.protein'], /100%/);
+  assert.ok(e['ag-4.dailyKcal'], 'nhu cầu cả ngày: tối thiểu lớn hơn tối đa');
+  assert.ok(!('ag-4.norms.kcal' in e), 'năng lượng khuyến nghị do BE đặt nên không kiểm ở FE');
   assert.ok(e['ag-3.meals'], 'thiếu bữa chiều gốc');
   assert.ok(e['ag-3.meals.0.name']);
   assert.ok(e['ag-3.price'], 'giá ngày phải lớn hơn 0');
@@ -65,19 +65,13 @@ test('dữ liệu hợp lệ không có lỗi', () => {
   assert.deepEqual(validateNutritionSetup({ effectiveFrom: TODAY, groups: [group()] }, TODAY), {});
 });
 
-test('nhu cầu năng lượng cả ngày phải lớn hơn kcal tối đa, chỉ báo tại ô dailyKcalNeed', () => {
-  const check = (dailyKcalNeed, over = {}) =>
-    validateNutritionSetup({ effectiveFrom: TODAY, groups: [group({ dailyKcalNeed, ...over })] }, TODAY);
-  const kcal700to750 = { norms: { kcal: ['700', '750'], protein: ['13', '20'], lipid: ['25', '35'], glucid: ['52', '60'] } };
+test('nhu cầu năng lượng cả ngày: đủ hai đầu, tối thiểu ≤ tối đa, chỉ báo tại ô dailyKcal', () => {
+  const check = (dailyKcal) => validateNutritionSetup({ effectiveFrom: TODAY, groups: [group({ dailyKcal })] }, TODAY);
 
-  assert.equal(
-    check('698', kcal700to750)['ag-4.dailyKcalNeed'],
-    'Nhu cầu năng lượng cả ngày phải lớn hơn năng lượng tối đa (750 kcal).',
-  );
-  assert.ok(check('750', kcal700to750)['ag-4.dailyKcalNeed']);
-  assert.deepEqual(check('751', kcal700to750), {});
-  assert.deepEqual(check('', kcal700to750), {});
-  assert.deepEqual(check('698', { norms: { kcal: ['', ''] } }), {});
+  assert.equal(check(['1300', '1200'])['ag-4.dailyKcal'], 'Số đầu phải nhỏ hơn hoặc bằng số sau.');
+  assert.equal(check(['1200', ''])['ag-4.dailyKcal'], 'Nhập đủ tối thiểu và tối đa.');
+  assert.deepEqual(check(['1200', '1300']), {});
+  assert.deepEqual(check(['', '']), {});
 });
 
 test('đổi giá từ ngày mai: tạo mức giá mới, đóng mức cũ hôm nay, định mức áp dụng ngay', async () => {
