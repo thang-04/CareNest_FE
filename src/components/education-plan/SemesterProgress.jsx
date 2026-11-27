@@ -68,13 +68,8 @@ export function SemesterProgress({ classId, themeId, weekStart = null }) {
 
   const allMissing = pkg.status !== 'APPROVED' ? pkg.missing || [] : [];
   const themeNo = (id) => allThemes.findIndex((t) => String(t.id) === String(id)) + 1;
-  const themeName = (id) => allThemes.find((t) => String(t.id) === String(id))?.name || 'Chủ đề';
   const missingOf = (id, start) =>
     allMissing.filter((m) => String(m.themeId) === String(id) && (start ? m.weekStart === start : !m.weekStart));
-  const linkOfMissing = (m) =>
-    m.weekStart ? path(`/education/class/${classId}/weeks/${m.weekStart}`) : path(`/education/class/${classId}/themes/${m.themeId}`);
-  const labelOfMissing = (m) =>
-    `Chủ đề ${themeNo(m.themeId)}: ${themeName(m.themeId)} › ${MISSING_LABEL[m.kind] || m.kind}${m.weekStart ? ` (tuần ${ddmm(m.weekStart)})` : ''}`;
 
   const Status = ({ missing, done }) =>
     missing.length > 0 ? (
@@ -168,14 +163,9 @@ export function SemesterProgress({ classId, themeId, weekStart = null }) {
               <Notice tone="info">Học kỳ đã bắt đầu, không điều chỉnh được nữa.</Notice>
             )}
             {showMissing && allMissing.length > 0 && (
-              <div className="ga-plan-error-summary field__error" role="alert">
-                <p>Chưa gửi duyệt được: còn thiếu {allMissing.length} mục. Bấm vào từng mục để mở đúng chỗ cần làm.</p>
-                {allMissing.map((m) => (
-                  <div key={`${m.kind}-${m.themeId}-${m.weekStart || ''}`}>
-                    <Link to={linkOfMissing(m)}>{labelOfMissing(m)}</Link>
-                  </div>
-                ))}
-              </div>
+              <p className="field__error" role="alert">
+                Chưa gửi duyệt được: còn thiếu {allMissing.length} mục.
+              </p>
             )}
             <DataTable
               className="ga-plan-table ga-class-plan-table"
