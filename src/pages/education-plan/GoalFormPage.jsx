@@ -196,7 +196,6 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
   const [preservedDraft, setPreservedDraft] = useState(null);
   const [resolving, setResolving] = useState(false);
   const [reviewError, setReviewError] = useState('');
-  const inherited = !annual && form.sourceMode === 'INHERITED';
   const annualSources = allGoals.filter(
     (g) =>
       levelOf(g) === 'SCHOOL_YEAR' &&
@@ -1200,9 +1199,6 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
               }}
             />
           </>
-        )}
-        {inherited && (
-          <Notice tone="info">Nội dung kế thừa từ kế hoạch năm học được giữ cố định. Tích từng nội dung vào chủ đề ở phần 2.</Notice>
         )}
         <Card
           title="2. Mục tiêu nội dung giáo dục cuối độ tuổi"
