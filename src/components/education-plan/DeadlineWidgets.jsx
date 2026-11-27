@@ -88,6 +88,8 @@ export function ExtendDeadlineAction({ title, canExtend, onExtend }) {
     <>
       {canExtend && (
         <Button
+          variant="outline-primary"
+          size="sm"
           onClick={() => {
             setError('');
             setOpen(true);
