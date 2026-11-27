@@ -3185,3 +3185,13 @@ html:has(.ga-page) {
 .icon-btn.ga-ai-drop {
   color: var(--color-danger-fg);
 }
+
+/* Lọc bảng tick kế hoạch tổ (Tiền 28/11/2026): ô tìm giãn hết hàng, ô "Chưa thuộc chủ đề nào" cùng dòng */
+.ga-goal-filter > .input {
+  flex: 1 1 16rem;
+  width: auto;
+}
+.ga-goal-filter__only {
+  min-height: var(--input-height);
+  cursor: pointer;
+}

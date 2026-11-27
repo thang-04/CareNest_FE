@@ -19,7 +19,7 @@ export function FilterableGoalTable(props) {
   if (!filterable) return <GoalTable {...props} />;
   return (
     <>
-      <div className="filter-bar" data-testid="goal-tick-filter">
+      <div className="filter-bar filter-bar--aligned ga-goal-filter" data-testid="goal-tick-filter">
         <TextField
           type="search"
           aria-label="Tìm nội dung"
@@ -28,7 +28,7 @@ export function FilterableGoalTable(props) {
           onChange={(e) => setQuery(e.target.value)}
           data-testid="goal-tick-search"
         />
-        <label className="row row--middle gap-2 text-sm">
+        <label className="row row--middle gap-2 text-sm nowrap ga-goal-filter__only">
           <Checkbox checked={unassigned} onChange={(e) => setUnassigned(e.target.checked)} data-testid="goal-tick-unassigned" />
           <span>Chưa thuộc chủ đề nào</span>
         </label>
