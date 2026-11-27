@@ -27,7 +27,9 @@ export default function TeamLeaderDashboard() {
         getAllClassDocSummaries(schoolYear, u, ['semester'], { statuses: [EDU_STATUS.DRAFT], currentOnly: true }),
         getClassDocContext(schoolYear, u),
       ]);
-      const own = new Map((context.classes || []).filter((c) => String(c.ageGroupId) === String(user.ageGroupId)).map((c) => [String(c.id), c.name]));
+      const own = new Map(
+        (context.classes || []).filter((c) => String(c.ageGroupId) === String(user.ageGroupId)).map((c) => [String(c.id), c.name]),
+      );
       return docs.filter((d) => own.has(String(d.classId))).map((d) => ({ ...d, className: own.get(String(d.classId)) }));
     },
     [schoolYear, user.ageGroupId],
