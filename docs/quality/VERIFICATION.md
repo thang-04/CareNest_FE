@@ -1,5 +1,13 @@
 # Verification — bằng chứng trước khi báo xong (FE)
 
+## BR hồ sơ trẻ, sức khỏe và đón trẻ — 27/11/2026
+
+- `npm test` chạy trong PowerShell đạt 2.007/2.007 test, 11 nhóm, không fail/skip. Log cục bộ ở `node_modules/.br-full-tests-complete.log`. Các regression mới kiểm luồng đổi số, gửi mã kích hoạt, thay ảnh, phiếu khám chỉ đọc, khóa nhập khi roster đang tải/lỗi, chọn trẻ tiếp theo và giờ đón.
+- `npm run lint` và `npm run build` đạt. Build có cảnh báo Vite/rolldown/lottie hiện có.
+- Đồng bộ API từ `../be-school-year-scope` bằng lệnh sinh index và route snapshot trực tiếp. `node scripts/check-api-contract.mjs` trả 0 lỗi, 10 cảnh báo về snapshot sibling và API pending đã có.
+- Mở trực tiếp các màn trong trình duyệt bằng dữ liệu demo, sửa lỗi render IntakeField ở Tiếp nhận/Sửa hồ sơ và kiểm tra lại không có page error. Đã chụp 9 màn yêu cầu và thay ảnh vào FR ngày 24/11 và 26/11, giữ toàn bộ phần chữ, kiểm tra ZIP/XML.
+- Plan hoàn tất ở `docs/plans/completed/2026-11-26-br-code-alignment.md`. Commit local.
+
 ## 2026-11-20 — Danh mục nhóm tuổi kế hoạch giáo dục
 
 - Đối chiếu EDU-01/28/54/73 trong bản chuẩn; API config → `SchoolStructureService` → `age_groups`. Không đổi nghiệp vụ/contract/schema.

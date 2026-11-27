@@ -1,5 +1,17 @@
 # Giao diện tiếp nhận trẻ theo bố cục phiếu khám
 
+## Đối chiếu BR ngày 26/11/2026
+
+Triển khai theo kế hoạch G94-180 ngày 26/11/2026 trong worktree BE `../be-school-year-scope`. Quy tắc hồ sơ, phạm vi và quyền do BE quyết định.
+
+- Tiếp nhận năm học sắp diễn ra cho phép bỏ trống ngày bắt đầu đi học. Payload bỏ trường `startDate` khi trống để BE chọn ngày học đầu tiên. Nhập file cho năm sau dẫn tới `/school/placement`.
+- Trẻ trùng hồ sơ đã nghỉ chỉ có thao tác mở lại hồ sơ cũ. Mock và API từ chối tạo hoặc nhập mới hồ sơ trùng này.
+- Hộp cho nghỉ học chọn ngày học tiếp theo, hoặc ngày mai khi BE chưa trả ngày học tiếp theo. Khi giới hạn mùa hè chỉ cho hôm nay, hộp chọn hôm nay. Màn xếp lớp hiện ngày nghỉ đã hẹn và giới hạn ngày vào lớp tới trước ngày nghỉ.
+- Sửa hồ sơ cho HT/PHT đổi ảnh trẻ và từng phụ huynh. Ảnh được kiểm định dạng bằng `portraitFileError`, lưu sau hồ sơ với cùng lý do chỉnh sửa. Hủy chọn hoặc tải ảnh lỗi giữ ảnh đã lưu. Danh sách trẻ dùng cờ `photoMissing` của BE để hiện “Thiếu ảnh”.
+- Số điện thoại phụ huynh đã lưu có nút “Đổi số”. Hộp yêu cầu kiểm SĐT và lý do, gửi qua `POST /children/{childId}/guardians/{guardianId}/phone-change-requests`. Hồ sơ giữ số cũ trong thời gian chờ duyệt.
+- Ô họ tên phụ huynh nhận tối đa 150 ký tự. Từng chất dị ứng nhận tối đa 100 ký tự.
+- Kết quả tạo tài khoản đọc `credential` để ghi đúng mã kích hoạt hoặc mật khẩu tạm. Thao tác cấp lại mật khẩu dùng tên “Cấp lại mật khẩu tạm”.
+
 Nguồn: user ngày 05/11/2026 yêu cầu chỉnh UI Tiếp nhận trẻ, tham khảo Phiếu khám sức khỏe. Làn M, chỉ trình bày trong module children; không đổi BE, contract, trường dữ liệu, quyền hoặc luồng lưu.
 
 Actor: Hiệu trưởng/Phó hiệu trưởng có quyền tiếp nhận hiện có. Rule và luồng nguồn: BE docs/modules/child.md, CHD-01/05 và AUTH-20; lựa chọn một phụ huynh theo Spec013. Các hành động tiếp nhận/xếp lớp/khai báo/xác nhận giữ nguyên.

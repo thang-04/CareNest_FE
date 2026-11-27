@@ -1,5 +1,16 @@
 # Features — feature nghiệp vụ → màn hình Web
 
+## Đối chiếu giao diện BR ngày 26/11/2026
+
+Nguồn nghiệp vụ và contract của đợt sửa G94-180 ở `../be-school-year-scope/docs/modules/child.md` và `../be-school-year-scope/docs/modules/health.md`.
+
+- Sổ sức khỏe hiện kết luận khám gần nhất, mức theo dõi và BMI gần nhất từ `latestExam`, `latestBmi` BE trả. Nút nhập dùng trạng thái vắng của trẻ trong danh sách lớp của đợt/kỳ, có chú thích khi bị khóa. Phiếu khám đang nhập giữ nhãn “Tiếp tục phiếu khám”.
+- Nút chuyển trẻ tiếp theo bỏ qua dòng vắng, đã chuyển và dòng không được sửa. Nút ẩn khi hết trẻ phù hợp. Danh sách khám và cân đo dùng `canEdit` từng dòng, phiếu đã lưu của trẻ nghỉ hoặc chuyển điểm trường mở theo chế độ chỉ đọc BE trả.
+- Giáo viên thấy tab “Trẻ cần theo dõi” và khối cảnh báo BMI trong phạm vi dữ liệu BE trả. Sửa số đo đã công bố chỉ yêu cầu lý do khi chiều cao, cân nặng hoặc ghi chú thay đổi.
+- Form và lỗi tên đợt dùng “kỳ cân đo” cho MEASUREMENT, “đợt khám” cho EXAM.
+- Luồng gọi phụ huynh rồi trả trẻ có ô giờ trả. Cả xác minh bằng ảnh và qua cuộc gọi kiểm giờ không sau hiện tại, hiện cảnh báo trả trước mốc đủ ngày theo `fullDayPickupFrom` của cấu hình.
+- Màn Tài khoản phụ huynh có yêu cầu đổi SĐT chờ duyệt và thao tác theo `canDecide`. Từ chối cần ghi lý do. Tài khoản chờ kích hoạt có thao tác gửi lại mã, SMS lỗi mở phiếu in mã kèm hạn dùng, SMS thành công hiển thị thông báo gửi.
+
 File này **không chứa business rule**. Rule, flow, PENDING nằm ở BE module card/flow; ở đây chỉ map feature sang màn hình Web và chỉ chỗ đọc. Actor và permission từng màn hình: `docs/architecture/ROUTE_MAP.md`.
 
 `BE:<path>` = `../CareNest_BE/<path>` (xem `AGENTS.md`).
