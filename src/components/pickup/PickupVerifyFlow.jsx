@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { FormField } from '@/components/form/FormField';
+import { TextField } from '@/components/form/Field';
 import { EmptyState, ErrorState, LoadingState, Spinner } from '@/components/ui/States';
 import { recordPickupResult } from '@/services/pickup/pickupService';
 import { usePickupChild } from '@/hooks/pickup/usePickups';
@@ -14,7 +15,7 @@ import {
   VERIFICATION,
   VERIFICATION_LABELS,
 } from '@/models/pickup/pickupConstants';
-import { callNoteError, validatePickupResult } from '@/utils/pickup/pickupValidation';
+import { callNoteError, pickupTimeError, validatePickupResult } from '@/utils/pickup/pickupValidation';
 import { formatDateTime, initials } from '@/utils/format';
 import { PickupOutcomeBadge } from './PickupBadges';
 import { PortraitImage } from '@/components/PortraitImage';
@@ -96,6 +97,8 @@ export function PickupPhotoFlow({ childId, onDone }) {
       ...form,
     };
     const errs = validatePickupResult(payload);
+    const timeError = pickupTimeError(payload.handoverTime, nowTime());
+    if (timeError) errs.handoverTime = timeError;
     setErrors(errs);
     if (Object.keys(errs).length) return;
     setBusy(true);
@@ -190,7 +193,8 @@ export function PickupCallFlow({ childId, onDone }) {
   const [error, setError] = useState('');
   // Kết quả đang chờ xác nhận: PHONE_CONFIRMED (trả) hoặc PHONE_DECLINED (không trả).
   const [confirming, setConfirming] = useState(null);
-  const [handoverTime, setHandoverTime] = useState('');
+  const [handoverTime, setHandoverTime] = useState(nowTime);
+  const [timeError, setTimeError] = useState('');
 
   const checkNote = () => {
     const msg = callNoteError(note);
@@ -200,12 +204,17 @@ export function PickupCallFlow({ childId, onDone }) {
 
   const ask = (verification) => {
     if (!checkNote()) return;
-    setHandoverTime(nowTime());
+    setTimeError('');
     setConfirming(verification);
   };
 
   const record = async () => {
     const handedOver = confirming === VERIFICATION.PHONE_CONFIRMED;
+    if (handedOver) {
+      const message = pickupTimeError(handoverTime, nowTime());
+      setTimeError(message || '');
+      if (message) return;
+    }
     try {
       await recordPickupResult(
         {
@@ -219,10 +228,7 @@ export function PickupCallFlow({ childId, onDone }) {
         },
         user,
       );
-      toast.success(
-        handedOver ? 'Đã ghi nhận trả trẻ và thông báo cho phụ huynh.' : 'Đã ghi nhận không trả trẻ.',
-        'Ghi nhận thành công',
-      );
+      toast.success(handedOver ? 'Đã ghi nhận trả trẻ và thông báo cho phụ huynh.' : 'Đã ghi nhận không trả trẻ.', 'Ghi nhận thành công');
       setConfirming(null);
       onDone?.();
     } catch (err) {
@@ -296,7 +302,19 @@ export function PickupCallFlow({ childId, onDone }) {
             confirmLabel="Ghi nhận trả trẻ"
             onConfirm={record}
             onClose={() => setConfirming(null)}
-          />
+          >
+            <TextField
+              label="Giờ trả trẻ"
+              type="time"
+              required
+              value={handoverTime}
+              error={timeError}
+              onChange={(e) => {
+                setHandoverTime(e.target.value);
+                setTimeError('');
+              }}
+            />
+          </ConfirmationModal>
         </section>
       )}
     </WaitingChild>
