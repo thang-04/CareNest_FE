@@ -29,8 +29,8 @@ export const INTEGRATION_MODULES = {
   guardian: {
     source: 'api',
     routes: ['/children/activation'],
-    files: ['src/services/account/api/guardianApi.js'],
-    facades: ['src/services/account/guardianService.js'],
+    files: ['src/services/account/api/guardianApi.js', 'src/services/account/api/phoneChangeApi.js'],
+    facades: ['src/services/account/guardianService.js', 'src/services/guardianPhoneService.js'],
   },
   'school-config': {
     source: 'api',
