@@ -8,10 +8,9 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useAsync } from '@/hooks/useAsync';
 import { ActionsMenu, ReviewActions } from '@/components/education-plan/reviewUi';
-import { Download, FileDown, History, Save, Sparkles, X } from '@/components/ui/icons';
+import { Download, FileDown, Save, Sparkles, X } from '@/components/ui/icons';
 import { AiThemeContentModal } from '@/components/education-plan/AiThemeContentModal';
 import { applyGoalContents, rememberShown, requestGoalContents, shownFor } from '@/models/education-plan/aiGoalContent.mjs';
-import { PrevYearTicksModal } from '@/components/education-plan/PrevYearTicksModal';
 import { listGoalSources, matchGoalContents, sendAiFeedback } from '@/services/education-plan/educationPlanService';
 import { yearPlanFile } from '@/utils/education-plan/yearPlanDoc';
 import { useEducationPlan, useGoalDetails } from '@/hooks/education-plan/useEducationPlan';
@@ -254,7 +253,6 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
   const [aiPending, setAiPending] = useState({});
   const aiStats = useRef({ suggested: 0, dropped: 0, failedDomains: 0, waitMs: 0 });
   const aiShown = useRef({});
-  const [prevTicksOpen, setPrevTicksOpen] = useState(false);
 
   const set = (patch) => {
     setForm((f) => ({ ...f, ...patch }));
@@ -1235,13 +1233,6 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
                       disabled: saver.saving || finishing,
                       onClick: () => setAiThemeOpen(true),
                     },
-                    // BE:EDU-104: cần id kế hoạch đã lưu để BE tìm năm học liền trước
-                    {
-                      label: 'Lấy tick từ năm trước',
-                      icon: History,
-                      disabled: saver.saving || finishing || !(savedId.current || currentPlanId),
-                      onClick: () => setPrevTicksOpen(true),
-                    },
                   ]}
                 />
               )}
@@ -1315,18 +1306,6 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
                 sendAiFeedback({ kind: 'TEAM', ...stats }).catch(() => console.warn('[GoalFormPage] AI feedback not sent'));
               }}
               onClose={() => setAiThemeOpen(false)}
-            />
-          )}
-          {!annual && prevTicksOpen && (
-            <PrevYearTicksModal
-              open={prevTicksOpen}
-              plan={form}
-              planId={savedId.current || currentPlanId}
-              onApply={(domains, added) => {
-                set({ domains });
-                toast(`Đã thêm ${added} tick từ năm trước (chưa lưu)`);
-              }}
-              onClose={() => setPrevTicksOpen(false)}
             />
           )}
         </Card>

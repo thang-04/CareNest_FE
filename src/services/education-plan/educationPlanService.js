@@ -74,8 +74,6 @@ export const editDayByRequest = (docKey, prompt) => repo.editDayByRequest(docKey
 export const matchThemeContents = (planId, body) => repo.matchThemeContents(planId, body);
 export const rewriteClassContents = (body) => repo.rewriteClassContents(body);
 export const matchGoalContents = (planId, options) => repo.matchGoalContents(planId, options);
-// BE:EDU-104 — lấy tick từ kế hoạch tổ năm trước (FE ghép chủ đề/nội dung, áp dụng chỉ thêm tick)
-export const getPreviousYearTicks = (planId) => repo.getPreviousYearTicks(planId);
 export const sendAiFeedback = (body) => repo.sendAiFeedback(body);
 
 export const previewClassCalendar = (request) =>

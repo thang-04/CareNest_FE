@@ -481,8 +481,6 @@ export const educationPlanApi = {
       },
       { timeout: AI_MATCH_TIMEOUT },
     ),
-  // BE:EDU-104 — tick kế hoạch tổ đã ban hành năm học liền trước (source null + reason khi không có)
-  getPreviousYearTicks: (planId) => axiosClient.get(`/education-plans/goals/${serverId(planId)}/previous-year-ticks`),
   // BE:EDU-103 — số gợi ý / số giữ mỗi lần Áp dụng, BE chỉ ghi log
   sendAiFeedback: (body) => axiosClient.post('/education-plans/ai/feedback', body),
 };
