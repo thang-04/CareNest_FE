@@ -42,6 +42,7 @@ test('đổi số demo giữ số cũ đến khi duyệt và loại yêu cầu �
   const actor = { id: 'demo', role: 'PRINCIPAL' };
   const child = ensureChildRecordsSeeded().children.find((c) => c.status === 'ACTIVE' && c.guardians?.[0]);
   const g = child.guardians[0];
+  assert.ok(g.id, 'phụ huynh demo cần id ổn định để hiện và gửi yêu cầu đổi số');
   const currentPhone = () => readDb().children.find((c) => c.id === child.id).guardians[0].phone;
   const newPhone = '0900000987';
   const row = mock.requestPhoneChange(child.id, g.id, { newPhone, reason: 'Kiểm thử' }, actor);
@@ -65,6 +66,7 @@ test('giáo viên có quyền đề xuất gửi được yêu cầu trong lớp
   const { readDb } = await import('@/mocks/mockDatabase');
   const child = ensureChildRecordsSeeded().children.find((c) => c.status === 'ACTIVE' && c.guardians?.[0]);
   const guardian = child.guardians[0];
+  assert.ok(guardian.id);
   const teacher = { id: 'teacher_phone', role: 'TEACHER', bePermissions: ['CHILD_PROFILE_EDIT'], classIds: [child.classId] };
   const body = { newPhone: '0900000986', reason: 'Kiểm thử quyền đề xuất' };
   const row = mock.requestPhoneChange(child.id, guardian.id, body, teacher);

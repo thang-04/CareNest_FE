@@ -169,9 +169,14 @@ const seedRoundReady = (d, seedRound) => {
  * DB demo (một lần): mọi phụ huynh, tài khoản phụ huynh có CCCD (user yêu cầu 2026-10-21); người đi cùng ở phiếu khám
  * chọn từ phụ huynh của hồ sơ mà chưa có CCCD thì lấy CCCD của phụ huynh đó.
  */
-const GUARDIAN_ID_VERSION = 2;
+const GUARDIAN_ID_VERSION = 3;
 const backfillGuardianIds = (d) => {
   fillMissingCitizenIds(d);
+  (d.children || []).forEach((child) =>
+    (child.guardians || []).forEach((guardian) => {
+      guardian.id ||= uid('cg');
+    }),
+  );
   const childById = new Map((d.children || []).map((c) => [c.id, c]));
   (d.healthMeasurements || []).forEach((m) => {
     const companion = m.exam?.admin?.companion;

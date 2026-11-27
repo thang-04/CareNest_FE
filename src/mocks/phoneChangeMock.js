@@ -7,7 +7,7 @@ import { parentAccountOf } from '@/services/account/mock/guardianCompatibility';
 
 function target(db, childId, guardianId) {
   const child = db.children.find((c) => c.id === childId);
-  const guardian = child?.guardians.find((g) => g.id === guardianId);
+  const guardian = guardianId != null && child?.guardians.find((g) => g.id === guardianId);
   if (!guardian) throw new ApiError(404, 'Không tìm thấy phụ huynh.');
   return { child, guardian };
 }
