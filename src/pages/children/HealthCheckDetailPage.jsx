@@ -319,215 +319,215 @@ export default function HealthCheckDetailPage() {
       </SidePanel>
 
       <section className="card mt-16">
-          {/* Trẻ cần chú ý BE trả (watchList): đợt khám theo mức theo dõi, kỳ cân đo theo mức BMI (HLT-19). */}
-          <div className="tr-chart-toolbar">
-            <Tabs
-              items={[
-                { key: 'classes', label: teacher ? 'Danh sách lớp' : 'Tiến độ theo lớp' },
-                { key: 'watch', label: isRound ? 'Trẻ có cảnh báo BMI' : 'Trẻ cần theo dõi', count: watchList.length },
-              ]}
-              value={tab}
-              onChange={setTab}
-              ariaLabel={`Nội dung ${w.name}`}
-            />
-          </div>
-          {tab === 'classes' ? (
-            classes.length === 0 ? (
-              <EmptyState
-                icon={Users}
-                title="Không có lớp trong phạm vi của bạn"
-                description={`${isRound ? 'Kỳ cân đo' : 'Đợt khám'} này không có lớp bạn phụ trách.`}
-              />
-            ) : teacher ? (
-              classes.map((c, i) => (
-                <Roster key={`${c.classId}-${campaign.status}`} campaignId={campaign.id} classId={c.classId} {...foldProps(c, i)} />
-              ))
-            ) : (
-              <div className="table-wrap tr-table-flat">
-                <table className="table table--grid tr-class-table">
-                  <colgroup>
-                    <col />
-                    <col className="tr-class-table__col--progress" />
-                    {(isRound ? [1, 2] : [1, 2, 3]).map((n) => (
-                      <col key={n} className="tr-class-table__col--count" />
-                    ))}
-                  </colgroup>
-                  <thead>
-                    <tr>
-                      <th>Lớp</th>
-                      <th>{isRound ? 'Đã cân đo' : 'Đã có kết luận'}</th>
-                      <th className="num">{isRound ? 'Vắng cân đo' : 'Vắng khám'}</th>
-                      {!isRound && <th className="num">Cần theo dõi</th>}
-                      {!isRound && <th className="num">Cần theo dõi sát</th>}
-                      {isRound && <th className="num">Cảnh báo BMI</th>}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {classes.map((c) => {
-                      const open = classId === c.classId;
-                      const panelId = `hc-class-${c.classId}`;
-                      const toggle = () => selectClass(open ? '' : c.classId);
-                      return (
-                        <Fragment key={c.classId}>
-                          {/* Danh sách trẻ sổ ngay dưới dòng lớp, mỗi lúc một lớp (user yêu cầu 2026-10-23); bấm dòng hoặc nút để mở, đóng. */}
-                          <tr className={`tr-acc-row ${open ? 'tr-row-selected' : ''}`} onClick={toggle}>
-                            <td className="fw-600">
-                              <button
-                                type="button"
-                                className="tr-acc-toggle"
-                                aria-expanded={open}
-                                aria-controls={open ? panelId : undefined}
-                                title={open ? 'Thu gọn danh sách trẻ' : 'Xem danh sách trẻ'}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  toggle();
-                                }}
-                              >
-                                <ChevronDown
-                                  size={16}
-                                  className={`tr-acc-chevron ${open ? 'tr-acc-chevron--open' : ''}`}
-                                  aria-hidden="true"
-                                />
-                                <span className="tr-class-name">
-                                  {c.className}
-                                  <span className="tr-class-name__meta">Sĩ số {c.total}</span>
-                                </span>
-                              </button>
-                            </td>
-                            <td className="tr-progress-cell">
-                              <SegmentedProgress
-                                compact
-                                label={`Tiến độ ${c.className}`}
-                                total={c.total}
-                                text={c.total ? `${c.recorded}/${c.total}` : '0/0'}
-                                segments={[
-                                  { key: 'recorded', label: isRound ? 'Đã cân đo' : 'Đã có kết luận', value: c.recorded, tone: 'green' },
-                                  { key: 'inProgress', label: 'Đang khám', value: c.inProgress || 0, tone: 'blue' },
-                                  { key: 'absent', label: w.absent, value: c.absent || 0, tone: 'gray' },
-                                ]}
-                              />
-                            </td>
-                            <td className="num">
-                              <CountCell value={c.absent} />
-                            </td>
-                            {!isRound && (
-                              <td className="num">
-                                <CountCell value={c.watch} tone="orange" />
-                              </td>
-                            )}
-                            {!isRound && (
-                              <td className="num">
-                                <CountCell value={c.closeWatch} tone="red" />
-                              </td>
-                            )}
-                            {isRound && (
-                              <td className="num">
-                                <CountCell value={c.bmiWarning} tone="orange" />
-                              </td>
-                            )}
-                          </tr>
-                          {open && (
-                            <tr id={panelId} className="tr-acc-panel">
-                              <td colSpan={isRound ? 4 : 5}>
-                                <Roster key={`${c.classId}-${campaign.status}`} campaignId={campaign.id} classId={c.classId} embedded />
-                              </td>
-                            </tr>
-                          )}
-                        </Fragment>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )
-          ) : watchList.length === 0 ? (
+        {/* Trẻ cần chú ý BE trả (watchList): đợt khám theo mức theo dõi, kỳ cân đo theo mức BMI (HLT-19). */}
+        <div className="tr-chart-toolbar">
+          <Tabs
+            items={[
+              { key: 'classes', label: teacher ? 'Danh sách lớp' : 'Tiến độ theo lớp' },
+              { key: 'watch', label: isRound ? 'Trẻ có cảnh báo BMI' : 'Trẻ cần theo dõi', count: watchList.length },
+            ]}
+            value={tab}
+            onChange={setTab}
+            ariaLabel={`Nội dung ${w.name}`}
+          />
+        </div>
+        {tab === 'classes' ? (
+          classes.length === 0 ? (
             <EmptyState
-              icon={CheckCircle2}
-              title={isRound ? 'Chưa có trẻ có cảnh báo BMI' : 'Chưa có trẻ cần theo dõi'}
-              description={
-                isRound
-                  ? 'Trẻ có số đo của kỳ ở mức gầy còm nặng, gầy còm, nguy cơ thừa cân, thừa cân hoặc béo phì sẽ hiện ở đây.'
-                  : 'Trẻ ở mức Cần theo dõi hoặc Cần theo dõi sát trong đợt này sẽ hiện ở đây.'
-              }
+              icon={Users}
+              title="Không có lớp trong phạm vi của bạn"
+              description={`${isRound ? 'Kỳ cân đo' : 'Đợt khám'} này không có lớp bạn phụ trách.`}
             />
-          ) : isRound ? (
-            <div className="table-wrap tr-table-flat">
-              <table className="table table--grid">
-                <thead>
-                  <tr>
-                    <th>Trẻ</th>
-                    <th>Lớp</th>
-                    <th className="center">Ngày đo</th>
-                    <th className="num">BMI</th>
-                    <th>Cảnh báo BMI</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {watchList.map((r) => (
-                    // Bấm dòng mở sổ sức khỏe của trẻ (DESIGN §6.3), không cột icon Xem
-                    <tr key={r.childId} className="row-click" {...clickableRowProps(() => navigate(`/children/${r.childId}/health`))}>
-                      <td>
-                        <div className="fw-600">{r.fullName}</div>
-                        <div className="muted text-xs">{r.code}</div>
-                      </td>
-                      <td className="nowrap">{r.className}</td>
-                      <td className="nowrap center">{r.date ? formatDate(r.date) : '—'}</td>
-                      <td className="num">{formatNumber(r.bmi)}</td>
-                      <td>
-                        <BmiStatusBadge status={r.bmiStatus} />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          ) : teacher ? (
+            classes.map((c, i) => (
+              <Roster key={`${c.classId}-${campaign.status}`} campaignId={campaign.id} classId={c.classId} {...foldProps(c, i)} />
+            ))
           ) : (
             <div className="table-wrap tr-table-flat">
-              <table className="table table--grid">
+              <table className="table table--grid tr-class-table">
+                <colgroup>
+                  <col />
+                  <col className="tr-class-table__col--progress" />
+                  {(isRound ? [1, 2] : [1, 2, 3]).map((n) => (
+                    <col key={n} className="tr-class-table__col--count" />
+                  ))}
+                </colgroup>
                 <thead>
                   <tr>
-                    <th>Trẻ</th>
                     <th>Lớp</th>
-                    <th>Đợt này</th>
-                    <th>Lần khám trước</th>
+                    <th>{isRound ? 'Đã cân đo' : 'Đã có kết luận'}</th>
+                    <th className="num">{isRound ? 'Vắng cân đo' : 'Vắng khám'}</th>
+                    {!isRound && <th className="num">Cần theo dõi</th>}
+                    {!isRound && <th className="num">Cần theo dõi sát</th>}
+                    {isRound && <th className="num">Cảnh báo BMI</th>}
                   </tr>
                 </thead>
                 <tbody>
-                  {watchList.map((r) => (
-                    // Bấm dòng mở sổ sức khỏe của trẻ (DESIGN §6.3), không cột icon Xem
-                    <tr key={r.childId} className="row-click" {...clickableRowProps(() => navigate(`/children/${r.childId}/health`))}>
-                      <td>
-                        <div className="fw-600">{r.fullName}</div>
-                        <div className="muted text-xs">{r.code}</div>
-                      </td>
-                      <td className="nowrap">{r.className}</td>
-                      <td>
-                        <div className="tr-cell-stack">
-                          <ConclusionCategoryBadge status={r.conclusionCategory} />
-                          <span className="muted text-xs tr-note">
-                            {r.conclusion?.specialty ? `Chuyển khám: ${r.conclusion.specialty}` : r.conclusion?.issueText}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="text-sm">
-                        {r.previous ? (
-                          <div className="tr-cell-stack">
-                            <span className="muted text-xs">
-                              {formatDate(r.previous.date)}
-                              {r.previous.campaignName ? ` · ${r.previous.campaignName}` : ''}
-                            </span>
-                            <FollowUpLevelShortBadge status={r.previous.followUpLevel} />
-                          </div>
-                        ) : (
-                          <span className="muted">Chưa có</span>
+                  {classes.map((c) => {
+                    const open = classId === c.classId;
+                    const panelId = `hc-class-${c.classId}`;
+                    const toggle = () => selectClass(open ? '' : c.classId);
+                    return (
+                      <Fragment key={c.classId}>
+                        {/* Danh sách trẻ sổ ngay dưới dòng lớp, mỗi lúc một lớp (user yêu cầu 2026-10-23); bấm dòng hoặc nút để mở, đóng. */}
+                        <tr className={`tr-acc-row ${open ? 'tr-row-selected' : ''}`} onClick={toggle}>
+                          <td className="fw-600">
+                            <button
+                              type="button"
+                              className="tr-acc-toggle"
+                              aria-expanded={open}
+                              aria-controls={open ? panelId : undefined}
+                              title={open ? 'Thu gọn danh sách trẻ' : 'Xem danh sách trẻ'}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggle();
+                              }}
+                            >
+                              <ChevronDown
+                                size={16}
+                                className={`tr-acc-chevron ${open ? 'tr-acc-chevron--open' : ''}`}
+                                aria-hidden="true"
+                              />
+                              <span className="tr-class-name">
+                                {c.className}
+                                <span className="tr-class-name__meta">Sĩ số {c.total}</span>
+                              </span>
+                            </button>
+                          </td>
+                          <td className="tr-progress-cell">
+                            <SegmentedProgress
+                              compact
+                              label={`Tiến độ ${c.className}`}
+                              total={c.total}
+                              text={c.total ? `${c.recorded}/${c.total}` : '0/0'}
+                              segments={[
+                                { key: 'recorded', label: isRound ? 'Đã cân đo' : 'Đã có kết luận', value: c.recorded, tone: 'green' },
+                                { key: 'inProgress', label: 'Đang khám', value: c.inProgress || 0, tone: 'blue' },
+                                { key: 'absent', label: w.absent, value: c.absent || 0, tone: 'gray' },
+                              ]}
+                            />
+                          </td>
+                          <td className="num">
+                            <CountCell value={c.absent} />
+                          </td>
+                          {!isRound && (
+                            <td className="num">
+                              <CountCell value={c.watch} tone="orange" />
+                            </td>
+                          )}
+                          {!isRound && (
+                            <td className="num">
+                              <CountCell value={c.closeWatch} tone="red" />
+                            </td>
+                          )}
+                          {isRound && (
+                            <td className="num">
+                              <CountCell value={c.bmiWarning} tone="orange" />
+                            </td>
+                          )}
+                        </tr>
+                        {open && (
+                          <tr id={panelId} className="tr-acc-panel">
+                            <td colSpan={isRound ? 4 : 5}>
+                              <Roster key={`${c.classId}-${campaign.status}`} campaignId={campaign.id} classId={c.classId} embedded />
+                            </td>
+                          </tr>
                         )}
-                      </td>
-                    </tr>
-                  ))}
+                      </Fragment>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
-          )}
+          )
+        ) : watchList.length === 0 ? (
+          <EmptyState
+            icon={CheckCircle2}
+            title={isRound ? 'Chưa có trẻ có cảnh báo BMI' : 'Chưa có trẻ cần theo dõi'}
+            description={
+              isRound
+                ? 'Trẻ có số đo của kỳ ở mức gầy còm nặng, gầy còm, nguy cơ thừa cân, thừa cân hoặc béo phì sẽ hiện ở đây.'
+                : 'Trẻ ở mức Cần theo dõi hoặc Cần theo dõi sát trong đợt này sẽ hiện ở đây.'
+            }
+          />
+        ) : isRound ? (
+          <div className="table-wrap tr-table-flat">
+            <table className="table table--grid">
+              <thead>
+                <tr>
+                  <th>Trẻ</th>
+                  <th>Lớp</th>
+                  <th className="center">Ngày đo</th>
+                  <th className="num">BMI</th>
+                  <th>Cảnh báo BMI</th>
+                </tr>
+              </thead>
+              <tbody>
+                {watchList.map((r) => (
+                  // Bấm dòng mở sổ sức khỏe của trẻ (DESIGN §6.3), không cột icon Xem
+                  <tr key={r.childId} className="row-click" {...clickableRowProps(() => navigate(`/children/${r.childId}/health`))}>
+                    <td>
+                      <div className="fw-600">{r.fullName}</div>
+                      <div className="muted text-xs">{r.code}</div>
+                    </td>
+                    <td className="nowrap">{r.className}</td>
+                    <td className="nowrap center">{r.date ? formatDate(r.date) : '—'}</td>
+                    <td className="num">{formatNumber(r.bmi)}</td>
+                    <td>
+                      <BmiStatusBadge status={r.bmiStatus} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="table-wrap tr-table-flat">
+            <table className="table table--grid">
+              <thead>
+                <tr>
+                  <th>Trẻ</th>
+                  <th>Lớp</th>
+                  <th>Đợt này</th>
+                  <th>Lần khám trước</th>
+                </tr>
+              </thead>
+              <tbody>
+                {watchList.map((r) => (
+                  // Bấm dòng mở sổ sức khỏe của trẻ (DESIGN §6.3), không cột icon Xem
+                  <tr key={r.childId} className="row-click" {...clickableRowProps(() => navigate(`/children/${r.childId}/health`))}>
+                    <td>
+                      <div className="fw-600">{r.fullName}</div>
+                      <div className="muted text-xs">{r.code}</div>
+                    </td>
+                    <td className="nowrap">{r.className}</td>
+                    <td>
+                      <div className="tr-cell-stack">
+                        <ConclusionCategoryBadge status={r.conclusionCategory} />
+                        <span className="muted text-xs tr-note">
+                          {r.conclusion?.specialty ? `Chuyển khám: ${r.conclusion.specialty}` : r.conclusion?.issueText}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="text-sm">
+                      {r.previous ? (
+                        <div className="tr-cell-stack">
+                          <span className="muted text-xs">
+                            {formatDate(r.previous.date)}
+                            {r.previous.campaignName ? ` · ${r.previous.campaignName}` : ''}
+                          </span>
+                          <FollowUpLevelShortBadge status={r.previous.followUpLevel} />
+                        </div>
+                      ) : (
+                        <span className="muted">Chưa có</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
 
       <div className="page-actions">

@@ -57,7 +57,7 @@ export default function ChildHealthRecordPage() {
   );
   const child = record?.child;
   const { roster } = useHealthCheckClass(record?.openCampaign?.id, child?.classId);
-  const absentToday = roster?.children?.find(row => String(row.childId) === String(id))?.absentToday;
+  const absentToday = roster?.children?.find((row) => String(row.childId) === String(id))?.absentToday;
   const crumbs = childrenCrumbs(childCrumb(child), 'Sổ sức khỏe');
 
   if (loading)
@@ -94,9 +94,15 @@ export default function ChildHealthRecordPage() {
     canRecord && open?.kind === CAMPAIGN_KIND.EXAM && open.resultStatus !== EXAM_STATUS.CONCLUDED && open.resultStatus !== 'LEGACY';
   const entryLink = (to, label, icon, primary = false) => {
     const className = primary ? 'btn btn--primary' : 'btn';
-    return absentToday
-      ? <Button className={className} disabledReason={ABSENT_TODAY_HINT}>{icon} {label}</Button>
-      : <Link className={className} to={to}>{icon} {label}</Link>;
+    return absentToday ? (
+      <Button className={className} disabledReason={ABSENT_TODAY_HINT}>
+        {icon} {label}
+      </Button>
+    ) : (
+      <Link className={className} to={to}>
+        {icon} {label}
+      </Link>
+    );
   };
   const measureAction = canMeasure && entryLink(measureLink, 'Nhập số đo', <Plus size={16} />, true);
   const isExam = viewing?.source === MEASUREMENT_SOURCE.EXAM;
@@ -118,15 +124,27 @@ export default function ChildHealthRecordPage() {
           <Link className="btn" to={`/children/health-trends?childId=${child.id}`}>
             <LineChart size={16} /> Xem xu hướng
           </Link>
-          {examOpen && entryLink(`/children/health-checks/${open.id}/exam/${child.id}?classId=${child.classId}`,
-            open.resultStatus === EXAM_STATUS.DRAFT ? 'Tiếp tục phiếu khám' : 'Khám trong đợt', <Stethoscope size={16} />)}
+          {examOpen &&
+            entryLink(
+              `/children/health-checks/${open.id}/exam/${child.id}?classId=${child.classId}`,
+              open.resultStatus === EXAM_STATUS.DRAFT ? 'Tiếp tục phiếu khám' : 'Khám trong đợt',
+              <Stethoscope size={16} />,
+            )}
           {measureAction}
         </div>
       </div>
       <div className="row gap-3">
-        <span>Kết quả khám gần nhất: {record.latestExam ? <>
-          <ConclusionCategoryBadge status={record.latestExam.conclusionCategory} /> <FollowUpLevelBadge status={record.latestExam.followUpLevel} />
-        </> : 'Chưa có'}</span>
+        <span>
+          Kết quả khám gần nhất:{' '}
+          {record.latestExam ? (
+            <>
+              <ConclusionCategoryBadge status={record.latestExam.conclusionCategory} />{' '}
+              <FollowUpLevelBadge status={record.latestExam.followUpLevel} />
+            </>
+          ) : (
+            'Chưa có'
+          )}
+        </span>
         <span>BMI gần nhất: {record.latestBmi ? <BmiStatusBadge status={record.latestBmi.bmiStatus} /> : 'Chưa có'}</span>
       </div>
       <YearLockedNotice action="Nhập số đo, phiếu khám" subject="sức khỏe của trẻ" />

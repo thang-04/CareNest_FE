@@ -213,7 +213,10 @@ export default function HealthExamFormPage() {
   const concluded = m?.examStatus === EXAM_STATUS.CONCLUDED;
   const editable = canEdit && (!concluded || editing);
   // Bước Kết luận khi khám theo lớp có 2 nút lưu kết luận: điện thoại gom Lưu nháp, Lưu kết luận vào nút "…"
-  const nextChildId = nextRosterChild(roster?.children, childId, [CHILD_RESULT_STATUS.NOT_RECORDED, CHILD_RESULT_STATUS.IN_PROGRESS])?.childId;
+  const nextChildId = nextRosterChild(roster?.children, childId, [
+    CHILD_RESULT_STATUS.NOT_RECORDED,
+    CHILD_RESULT_STATUS.IN_PROGRESS,
+  ])?.childId;
   const saveMenu = step === 4 && !concluded && !!nextChildId;
   const back = (
     <Link className="btn btn--collapse" to={campaignLink}>
