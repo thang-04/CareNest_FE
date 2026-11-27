@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { StatusBadge } from '@/components/ui/StatusBadge';
+import { Button } from '@/components/ui/Button';
 import { Field, Modal, Notice } from '@/components/education-plan/eduUi';
 import { usePolling } from '@/hooks/usePolling';
 import { BLOCKED_TEXT, deadlineLabel, deadlineToday } from '@/models/education-plan/deadline.mjs';
@@ -23,8 +24,8 @@ export function BlockedNotice({ doc, author }) {
   return text ? <Notice>{text}</Notice> : null;
 }
 
-/** Hộp mở hạn (spec 005 FR-021a, chỉ ở màn Kế hoạch quá hạn): lý do bắt buộc, hạn mới sau hôm nay, dùng chung cho các dòng đã chọn. */
-export function ExtendDeadlineModal({ title = 'Mở hạn', confirmLabel = 'Mở hạn', onClose, onConfirm }) {
+/** Dùng chung cho danh sách Kế hoạch quá hạn và trang chi tiết. */
+export function ExtendDeadlineModal({ title = 'Mở hạn', confirmLabel = 'Mở hạn', error, onClose, onConfirm }) {
   const [note, setNote] = useState('');
   const [deadline, setDeadline] = useState('');
   const [tried, setTried] = useState(false);
@@ -35,8 +36,11 @@ export function ExtendDeadlineModal({ title = 'Mở hạn', confirmLabel = 'Mở
     setTried(true);
     if (!valid) return;
     setBusy(true);
-    await onConfirm({ note: note.trim(), deadline });
-    setBusy(false);
+    try {
+      await onConfirm({ note: note.trim(), deadline });
+    } finally {
+      setBusy(false);
+    }
   };
   return (
     <Modal
@@ -53,6 +57,11 @@ export function ExtendDeadlineModal({ title = 'Mở hạn', confirmLabel = 'Mở
         </>
       }
     >
+      {error && (
+        <p role="alert" className="field__error">
+          {error}
+        </p>
+      )}
       <Field label="Hạn mới" required htmlFor="extend-deadline" error={tried && !(deadline > today) ? 'Chọn ngày sau hôm nay' : undefined}>
         <input
           id="extend-deadline"
@@ -67,5 +76,42 @@ export function ExtendDeadlineModal({ title = 'Mở hạn', confirmLabel = 'Mở
         <textarea id="extend-note" className="textarea" rows={3} value={note} onChange={(e) => setNote(e.target.value)} />
       </Field>
     </Modal>
+  );
+}
+
+export function ExtendDeadlineAction({ title, canExtend, onExtend }) {
+  const [open, setOpen] = useState(false);
+  const [error, setError] = useState('');
+  if (!canExtend && !open) return null;
+
+  return (
+    <>
+      {canExtend && (
+        <Button
+          onClick={() => {
+            setError('');
+            setOpen(true);
+          }}
+        >
+          Mở hạn
+        </Button>
+      )}
+      {open && (
+        <ExtendDeadlineModal
+          title={title}
+          error={error}
+          onClose={() => setOpen(false)}
+          onConfirm={async (input) => {
+            setError('');
+            try {
+              await onExtend(input);
+              setOpen(false);
+            } catch (err) {
+              setError(err.message || 'Không mở hạn được');
+            }
+          }}
+        />
+      )}
+    </>
   );
 }

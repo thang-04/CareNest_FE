@@ -35,6 +35,7 @@ export default function ClassPlanPage() {
   const { semesterPackages, yearOption } = useEducationPlan();
   const ctx = useClassPlanContext(classId);
   const { cls, classes, yearPlan, pendingYearPlan, canComposeClassDocs } = ctx;
+  const overdueView = params.get('overdue') === '1';
   if (ctx.loading) return <LoadingState />;
   const crumbs = [{ label: 'Kế hoạch giáo dục' }, { label: 'Kế hoạch giáo dục chủ đề' }];
   if (!cls)
@@ -75,8 +76,11 @@ export default function ClassPlanPage() {
   const pkg = choice?.pkg || null;
   const visible = choice ? allThemes.filter((t) => choice.themeIds.includes(String(t.id))) : allThemes;
   // Người chỉ xem chỉ thấy học kỳ đã gửi hoặc đã ban hành (Tiền 23/11/2026)
-  const themes = canComposeClassDocs || pkg?.status === 'APPROVED' || pkg?.status === 'REVIEW' ? visible : [];
+  const themes = canComposeClassDocs || (overdueView && pkg) || pkg?.status === 'APPROVED' || pkg?.status === 'REVIEW' ? visible : [];
   if (themes.length) {
+    if (overdueView) {
+      return <Navigate replace to={`/education/class/${classId}/themes/${themes[0].id}?${params}`} />;
+    }
     const review = params.get('review') === '1' ? '?review=1' : '';
     return (
       <Navigate
