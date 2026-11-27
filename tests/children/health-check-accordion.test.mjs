@@ -29,3 +29,9 @@ test('RosterFold là details có summary', () => {
   assert.match(src, /<details/);
   assert.match(src, /<summary/);
 });
+
+test('Giáo viên xem danh sách theo dõi và BMI', () => {
+  const page = read('src/pages/children/HealthCheckDetailPage.jsx');
+  assert.doesNotMatch(page, /!teacher && isRound/);
+  assert.match(page, /label: teacher \? 'Danh sách lớp'/);
+});

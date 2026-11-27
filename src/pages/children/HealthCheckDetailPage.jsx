@@ -268,7 +268,7 @@ export default function HealthCheckDetailPage() {
               total={campaign.progress.total}
               segments={(isRound ? ROUND_SEGMENTS : EXAM_SEGMENTS).map((s) => ({ ...s, value: campaign.progress[s.key] ?? 0 }))}
             />
-            {!teacher && isRound && (
+            {isRound && (
               <section className="tr-hc-bmi" aria-labelledby="hc-bmi-title">
                 <h3 className="tr-hc-bmi__title" id="hc-bmi-title">
                   Cảnh báo BMI theo tuổi
@@ -318,29 +318,12 @@ export default function HealthCheckDetailPage() {
         </ul>
       </SidePanel>
 
-      {/* Giáo viên: danh sách trẻ của lớp hiện thẳng, không qua bảng tiến độ theo lớp và tab (user chốt 2026-10-22). */}
-      {teacher ? (
-        classes.length === 0 ? (
-          <section className="card mt-16">
-            <EmptyState
-              icon={Users}
-              title="Không có lớp trong phạm vi của bạn"
-              description={`${isRound ? 'Kỳ cân đo' : 'Đợt khám'} này không có lớp bạn phụ trách.`}
-            />
-          </section>
-        ) : (
-          // Trạng thái đợt đổi (hủy, đóng, mở lại) ⇒ dựng lại danh sách để tải lại quyền nhập
-          classes.map((c, i) => (
-            <Roster key={`${c.classId}-${campaign.status}`} campaignId={campaign.id} classId={c.classId} {...foldProps(c, i)} />
-          ))
-        )
-      ) : (
-        <section className="card mt-16">
+      <section className="card mt-16">
           {/* Trẻ cần chú ý BE trả (watchList): đợt khám theo mức theo dõi, kỳ cân đo theo mức BMI (HLT-19). */}
           <div className="tr-chart-toolbar">
             <Tabs
               items={[
-                { key: 'classes', label: 'Tiến độ theo lớp' },
+                { key: 'classes', label: teacher ? 'Danh sách lớp' : 'Tiến độ theo lớp' },
                 { key: 'watch', label: isRound ? 'Trẻ có cảnh báo BMI' : 'Trẻ cần theo dõi', count: watchList.length },
               ]}
               value={tab}
@@ -355,6 +338,10 @@ export default function HealthCheckDetailPage() {
                 title="Không có lớp trong phạm vi của bạn"
                 description={`${isRound ? 'Kỳ cân đo' : 'Đợt khám'} này không có lớp bạn phụ trách.`}
               />
+            ) : teacher ? (
+              classes.map((c, i) => (
+                <Roster key={`${c.classId}-${campaign.status}`} campaignId={campaign.id} classId={c.classId} {...foldProps(c, i)} />
+              ))
             ) : (
               <div className="table-wrap tr-table-flat">
                 <table className="table table--grid tr-class-table">
@@ -541,8 +528,7 @@ export default function HealthCheckDetailPage() {
               </table>
             </div>
           )}
-        </section>
-      )}
+      </section>
 
       <div className="page-actions">
         <Link className="btn" to="/children/health-checks">
