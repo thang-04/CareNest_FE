@@ -457,11 +457,16 @@ export const educationPlanApi = {
   // BE:EDU-103 — gom nội dung vào chủ đề của kế hoạch tổ (song song theo lĩnh vực, ~40–60s): timeout riêng dài hơn mặc định
   matchThemeContents: (planId, body) =>
     axiosClient.post(`/education-plans/ai/team-plans/${serverId(planId)}/theme-content-map`, body, { timeout: AI_MATCH_TIMEOUT }),
+  // BE:EDU-106 — goalId null ⇒ mọi mục tiêu chưa có nội dung; có ⇒ đúng mục tiêu đó
   matchGoalContents: (planId, options = {}) =>
-    axiosClient.post(`/education-plans/ai/year-plans/${serverId(planId)}/goal-content-map`, undefined, {
-      timeout: AI_MATCH_TIMEOUT,
-      signal: options.signal,
-    }),
+    axiosClient.post(
+      `/education-plans/ai/year-plans/${serverId(planId)}/goal-content-map`,
+      options.goalId == null ? undefined : { goalId: serverId(options.goalId) },
+      {
+        timeout: AI_MATCH_TIMEOUT,
+        signal: options.signal,
+      },
+    ),
   // BE:EDU-104 — tick kế hoạch tổ đã ban hành năm học liền trước (source null + reason khi không có)
   getPreviousYearTicks: (planId) => axiosClient.get(`/education-plans/goals/${serverId(planId)}/previous-year-ticks`),
   // BE:EDU-103 — số gợi ý / số giữ mỗi lần Áp dụng, BE chỉ ghi log

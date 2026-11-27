@@ -1,61 +1,88 @@
-// BE:EDU-106: chỉ duyệt/chọn mục C cho mục tiêu còn trống; quyền và ứng viên hợp lệ do BE kiểm lại.
-const keyText = (text) => String(text ?? '').toLowerCase().replace(/\s+/g, ' ').trim();
-const empty = (row) => !(row.contents || []).some((content) => String(content.text ?? '').trim());
+// BE:EDU-106 (đổi 28/11/2026): BE chọn nguồn, lọc căn cứ và chữ; FE chỉ gắn kết quả vào đúng mục tiêu của bản vừa lưu
+// thành nháp chờ ✓/✗ (như kế hoạch chủ đề). Quyền và ứng viên hợp lệ do BE kiểm.
+const keyText = (text) =>
+  String(text ?? '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+
+/** Nhãn nguồn hiện dưới dòng nội dung AI điền (giá trị `source` của BE). */
+export const AI_CONTENT_SOURCE_LABELS = {
+  CURRICULUM_C: 'Chương trình Bộ – nội dung theo độ tuổi (mục C)',
+  CURRICULUM_D: 'Chương trình Bộ – kết quả mong đợi (mục D)',
+  PREVIOUS_YEAR: 'Kế hoạch năm học trước',
+  RAG: 'Kho tham khảo của trường',
+  AI: 'AI soạn',
+};
 
 export const goalContentStamp = (plan) => JSON.stringify(plan);
 
-export function goalContentGroups(plan, matches, catalog) {
-  const candidates = new Map((catalog || []).map((content) => [String(content.id), content]));
-  const goals = new Map((plan?.domains || []).flatMap((domain) => (domain.rows || [])
-    .filter((row) => row.kind === 'goal' && row.text?.trim() && empty(row))
-    .map((row) => [String(row.id), { row, domain }])));
-  const groups = new Map();
-  const seen = new Set();
-  for (const match of matches || []) {
-    const goal = goals.get(String(match.goalId));
-    const content = candidates.get(String(match.curriculumContentId));
-    const from = String(match.from || '').trim();
-    if (!goal || !content?.text?.trim() || content.domainName !== goal.domain.name || !from
-        || !goal.row.text.toLowerCase().includes(from.toLowerCase())) continue;
-    const text = content.text;
-    const duplicate = `${goal.row.id}|${keyText(text)}`;
-    if (seen.has(duplicate)) continue;
-    seen.add(duplicate);
-    const id = String(goal.row.id);
-    if (!groups.has(id)) groups.set(id, { goalId: id, text: goal.row.text, domain: goal.domain.name, lines: [] });
-    groups.get(id).lines.push({ key: `${id}:${content.id}`, text, from });
-  }
-  return [...groups.values()];
+/** Vị trí mục tiêu trong bản soạn, để tìm lại đúng mục tiêu sau lần Lưu đầu (id tạm đổi sang id thật). */
+export function locateGoal(plan, goalId) {
+  for (const [di, d] of (plan?.domains || []).entries())
+    for (const [ri, r] of (d.rows || []).entries()) if (String(r.id) === String(goalId)) return { di, ri, text: r.text };
+  return null;
 }
 
-export function applyGoalContents(plan, groups, picked, stamp, makeId) {
+const goalAt = (plan, at) => {
+  const row = at && plan?.domains?.[at.di]?.rows?.[at.ri];
+  return row && row.kind === 'goal' && row.text === at.text ? row : null;
+};
+
+/**
+ * Gắn nội dung BE trả vào mục tiêu; bỏ câu đã có, bỏ dòng nội dung trống của mục tiêu được thêm. Bản soạn đã đổi so với lúc
+ * gọi AI ⇒ null. Trả { domains, added, pending: { [contentId]: { source, ref } } }.
+ */
+export function applyGoalContents(plan, matches, stamp, makeId) {
   if (goalContentStamp(plan) !== stamp) return null;
-  const chosen = new Map((groups || []).map((group) => [group.goalId, group.lines.filter((line) => picked.has(line.key))]));
+  const byGoal = new Map();
+  for (const m of matches || []) {
+    if (!String(m?.text ?? '').trim()) continue;
+    const k = String(m.goalId);
+    if (!byGoal.has(k)) byGoal.set(k, []);
+    byGoal.get(k).push(m);
+  }
   let added = 0;
-  const domains = (plan.domains || []).map((domain) => ({ ...domain, rows: (domain.rows || []).map((row) => {
-    const selected = chosen.get(String(row.id));
-    if (row.kind !== 'goal' || !empty(row) || !selected?.length) return row;
-    const have = new Set((row.contents || []).map((c) => keyText(c.text)));
-    const contents = [...(row.contents || [])];
-    for (const line of selected) {
-      if (!line.text.trim() || have.has(keyText(line.text))) continue;
-      have.add(keyText(line.text));
-      contents.push({ id: makeId(), text: line.text, themes: [] });
-      added += 1;
-    }
-    return { ...row, contents };
-  }) }));
-  return { domains, added };
+  const pending = {};
+  const domains = (plan.domains || []).map((domain) => ({
+    ...domain,
+    rows: (domain.rows || []).map((row) => {
+      const list = row.kind === 'goal' && byGoal.get(String(row.id));
+      if (!list) return row;
+      const contents = (row.contents || []).filter((c) => String(c.text ?? '').trim());
+      const have = new Set(contents.map((c) => keyText(c.text)));
+      const before = contents.length;
+      for (const m of list) {
+        const text = m.text.trim();
+        if (have.has(keyText(text))) continue;
+        have.add(keyText(text));
+        const id = makeId();
+        contents.push({ id, text, themes: [] });
+        pending[id] = { source: m.source || 'AI', ref: m.ref || null };
+        added += 1;
+      }
+      return contents.length === before ? row : { ...row, contents };
+    }),
+  }));
+  return { domains, added, pending };
 }
 
 // Tách phần điều phối để kiểm lưu lỗi, id sau lưu và kết quả lỗi thời bằng cùng hàm UI sử dụng.
-export async function requestGoalContents({ ensureSaved, current, request, loadCatalog, active }) {
+export async function requestGoalContents({ ensureSaved, current, request, active, goalId = null }) {
+  const at = goalId == null ? null : locateGoal(current().plan, goalId);
+  if (goalId != null && !at) return null;
   const saved = await ensureSaved();
   if (!active()) return null;
   if (!saved?.planId || !saved.allowed) throw new Error('Chưa lưu được kế hoạch hoặc đã mất quyền sửa nên chưa gọi AI.');
+  let savedGoalId = null;
+  if (at) {
+    const row = goalAt(saved.plan, at);
+    if (!row) return null;
+    savedGoalId = row.id;
+  }
   const stamp = goalContentStamp(saved.plan);
-  const [response, catalog] = await Promise.all([request(saved.planId), loadCatalog(saved.plan.ageGroupId)]);
+  const response = await request(saved.planId, savedGoalId);
   const latest = current();
   if (!active() || !latest.allowed || stamp !== goalContentStamp(latest.plan)) return null;
-  return { stamp, groups: goalContentGroups(saved.plan, response?.matches, catalog), failedDomains: response?.failedDomains || [] };
+  return { stamp, matches: response?.matches || [], failedDomains: response?.failedDomains || [] };
 }

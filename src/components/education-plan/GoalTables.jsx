@@ -3,7 +3,10 @@ import { branchDateIssues } from '@/models/education-plan/branchTemplateSchedule
 import { removeThemeReferences } from '@/models/education-plan/planLevel.mjs';
 import { fillGoalLabels, goalDisplayLabel, isLabelGoal } from '@/models/education-plan/goalLabels.mjs';
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Trash2, X } from '@/components/ui/icons';
+import { Sparkles, Trash2, X } from '@/components/ui/icons';
+import { Button } from '@/components/ui/Button';
+import { AiPick, RagRefLine } from '@/components/education-plan/reviewUi';
+import { AI_CONTENT_SOURCE_LABELS } from '@/models/education-plan/aiGoalContent.mjs';
 import { domainLabel } from '@/models/education-plan/educationPlanConstants';
 import {
   DUPLICATE_ABBR_MESSAGE,
@@ -152,6 +155,12 @@ export function GoalTable({
   newItems = [],
   // Điều kiện gửi duyệt (mục tiêu thiếu nội dung) chỉ báo đỏ sau khi bấm Gửi duyệt (Tiền 11/11/2026, đợt 2)
   showRequired = false,
+  // BE:EDU-106 — nội dung AI vừa điền chờ ✓/✗ ({ [contentId]: { source, ref } }) và nút AI từng mục tiêu
+  aiPending = {},
+  onAiKeep,
+  onAiDrop,
+  onAskAiGoal,
+  aiBusyGoalId = null,
 }) {
   const readOnly = viewOnly || fixedCells;
   const setFocusId = useCellFocus();
@@ -503,6 +512,19 @@ export function GoalTable({
                 </div>
               )}
               {dupHint(r.id, 'Mục tiêu đã có')}
+              {onAskAiGoal && r.text.trim() && (
+                <div className="ga-goal-table__pad text-right">
+                  <Button
+                    variant="icon"
+                    icon={Sparkles}
+                    title={`Gợi ý nội dung (AI) cho ${goalDisplayLabel(r, no)}`}
+                    aria-label={`Gợi ý nội dung bằng AI cho ${goalDisplayLabel(r, no)}`}
+                    loading={aiBusyGoalId != null && String(aiBusyGoalId) === String(r.id)}
+                    disabled={aiBusyGoalId != null}
+                    onClick={() => onAskAiGoal(r.id)}
+                  />
+                </div>
+              )}
             </>
           ) : (
             <div className="ga-goal-table__pad">
@@ -616,6 +638,15 @@ export function GoalTable({
                 )}
                 {!edit && <SourceItemMark itemKind="CONTENT" itemId={c.id} reviewItems={reviewItems} newItems={newItems} />}
                 {dupHint(c.id, 'Nội dung đã có')}
+                {c.id in aiPending && (
+                  <div className="ga-goal-table__pad">
+                    <div className="text-sm muted">
+                      Gợi ý AI · {AI_CONTENT_SOURCE_LABELS[aiPending[c.id].source] || AI_CONTENT_SOURCE_LABELS.AI}
+                    </div>
+                    {aiPending[c.id].ref && <RagRefLine refs={[aiPending[c.id].ref]} />}
+                    <AiPick label={c.text} onKeep={() => onAiKeep?.(c.id)} onDrop={() => onAiDrop?.(di, r.id, c.id)} />
+                  </div>
+                )}
               </>
             ) : (
               <div className="ga-goal-table__pad">

@@ -10,10 +10,9 @@ import { useAsync } from '@/hooks/useAsync';
 import { ActionsMenu, ReviewActions } from '@/components/education-plan/reviewUi';
 import { Download, FileDown, History, Save, Sparkles, X } from '@/components/ui/icons';
 import { AiThemeContentModal } from '@/components/education-plan/AiThemeContentModal';
-import { AiGoalContentModal } from '@/components/education-plan/AiGoalContentModal';
-import { applyGoalContents } from '@/models/education-plan/aiGoalContent.mjs';
+import { applyGoalContents, requestGoalContents } from '@/models/education-plan/aiGoalContent.mjs';
 import { PrevYearTicksModal } from '@/components/education-plan/PrevYearTicksModal';
-import { listGoalSources, sendAiFeedback } from '@/services/education-plan/educationPlanService';
+import { listGoalSources, matchGoalContents, sendAiFeedback } from '@/services/education-plan/educationPlanService';
 import { yearPlanFile } from '@/utils/education-plan/yearPlanDoc';
 import { useEducationPlan, useGoalDetails } from '@/hooks/education-plan/useEducationPlan';
 import { ErrorState, LoadingState } from '@/components/ui/States';
@@ -248,7 +247,10 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
   const [importReport, setImportReport] = useState(null);
   const [fileOpen, setFileOpen] = useState(false);
   const [aiThemeOpen, setAiThemeOpen] = useState(false);
-  const [aiGoalOpen, setAiGoalOpen] = useState(false);
+  // BE:EDU-106: AI điền thẳng vào bảng thành nháp ✓/✗; goalId null = nút chung (mọi mục tiêu chưa có nội dung)
+  const [aiGoal, setAiGoal] = useState({ busy: false, goalId: null });
+  const [aiPending, setAiPending] = useState({});
+  const aiStats = useRef({ suggested: 0, dropped: 0, failedDomains: 0, waitMs: 0 });
   const [prevTicksOpen, setPrevTicksOpen] = useState(false);
 
   const set = (patch) => {
@@ -482,6 +484,89 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
   const aiGoalAllowed = annual && saveReady && !finishing && form.canEditCurriculum !== false;
   const aiGoalState = useRef(null);
   aiGoalState.current = { allowed: aiGoalAllowed, form };
+  const aiAlive = useRef(true);
+  useEffect(() => {
+    // StrictMode mount hai lần: phải bật lại, không thì kết quả AI bị bỏ ở bản dev
+    aiAlive.current = true;
+    return () => {
+      aiAlive.current = false;
+    };
+  }, []);
+  const ensureSavedForAi = async () => {
+    if (!aiGoalState.current.allowed) return null;
+    if ((saver.unsaved || !savedId.current) && !(await saver.save())) return null;
+    const plan = saver.current();
+    return { planId: savedId.current || currentPlanId, plan, allowed: aiGoalState.current.allowed && plan.canEditCurriculum !== false };
+  };
+  const askAiGoals = async (goalId = null) => {
+    if (aiGoal.busy || !aiGoalState.current.allowed) return;
+    setAiGoal({ busy: true, goalId: goalId ?? '*' });
+    const started = Date.now();
+    try {
+      const result = await requestGoalContents({
+        ensureSaved: ensureSavedForAi,
+        current: () => ({ plan: saver.current(), allowed: aiGoalState.current.allowed }),
+        active: () => aiAlive.current,
+        request: (planId, id) => matchGoalContents(planId, { goalId: id }),
+        goalId,
+      });
+      if (!aiAlive.current) return;
+      const value = result && applyGoalContents(saver.current(), result.matches, result.stamp, () => `ai-${uid()}`);
+      if (!value) {
+        toast('Bản soạn hoặc quyền sửa đã thay đổi trong lúc AI chạy. Bấm AI lại để nhận gợi ý cho bản hiện tại.', 'warn');
+        return;
+      }
+      const failed = result.failedDomains.map((d) => d.name).join(', ');
+      if (!value.added) {
+        toast(failed ? `AI chưa gợi ý được cho: ${failed}` : 'AI chưa có nội dung phù hợp để thêm', 'warn');
+        return;
+      }
+      set({ domains: value.domains });
+      setAiPending((p) => ({ ...p, ...value.pending }));
+      Object.assign(aiStats.current, {
+        suggested: aiStats.current.suggested + value.added,
+        failedDomains: aiStats.current.failedDomains + result.failedDomains.length,
+        waitMs: aiStats.current.waitMs + (Date.now() - started),
+      });
+      toast(`AI đã điền ${value.added} nội dung (chưa lưu)${failed ? ` · chưa gợi ý được: ${failed}` : ''}`, failed ? 'warn' : 'ok');
+    } catch (err) {
+      if (!aiAlive.current) return;
+      toast(
+        err?.errorCode === 8002 || err?.code === 'ECONNABORTED'
+          ? 'AI trả lời quá lâu. Thử lại sau; bạn vẫn thêm nội dung bằng tay được.'
+          : err?.errorCode === 8001
+            ? 'AI đang tắt hoặc chưa trả lời được. Bạn vẫn thêm nội dung bằng tay được.'
+            : err?.message || 'Chưa lấy được gợi ý. Bạn vẫn thêm nội dung bằng tay được.',
+        'err',
+      );
+    } finally {
+      if (aiAlive.current) setAiGoal({ busy: false, goalId: null });
+    }
+  };
+  const settleAiContent = (id) => setAiPending(({ [id]: _, ...rest }) => rest);
+  const dropAiContent = (di, rowId, contentId) => {
+    set({
+      domains: saver
+        .current()
+        .domains.map((d, i) =>
+          i !== di
+            ? d
+            : { ...d, rows: d.rows.map((r) => (r.id !== rowId ? r : { ...r, contents: r.contents.filter((c) => c.id !== contentId) })) },
+        ),
+    });
+    settleAiContent(contentId);
+    aiStats.current.dropped += 1;
+  };
+  // Lưu xong ⇒ giữ mọi nháp AI còn chờ (như kế hoạch chủ đề) và gửi tỉ lệ giữ cho BE (EDU-103/106)
+  useEffect(() => {
+    if (saver.unsaved || !aiStats.current.suggested) return;
+    const { suggested, dropped, failedDomains, waitMs } = aiStats.current;
+    aiStats.current = { suggested: 0, dropped: 0, failedDomains: 0, waitMs: 0 };
+    setAiPending({});
+    sendAiFeedback({ kind: 'SCHOOL_YEAR', suggested, kept: suggested - dropped, failedDomains, waitMs }).catch(() =>
+      console.warn('[GoalFormPage] AI feedback not sent'),
+    );
+  }, [saver.unsaved]);
   const reloadContent = async () => {
     setPreservedDraft((old) => old || structuredClone(form));
     try {
@@ -1154,10 +1239,13 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
                 <ActionsMenu
                   items={[
                     {
-                      label: 'AI gợi ý nội dung cho mục tiêu',
+                      label:
+                        aiGoal.busy && aiGoal.goalId === '*'
+                          ? 'AI đang gợi ý nội dung…'
+                          : 'AI gợi ý nội dung cho mục tiêu chưa có nội dung',
                       icon: Sparkles,
-                      disabled: saver.saving || finishing || !goalsWithoutContent,
-                      onClick: () => setAiGoalOpen(true),
+                      disabled: saver.saving || finishing || aiGoal.busy || !goalsWithoutContent,
+                      onClick: () => askAiGoals(),
                     },
                   ]}
                 />
@@ -1196,6 +1284,11 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
             numbers={numbers}
             showRequired={requireDates}
             onChange={(domains) => set({ domains })}
+            aiPending={annual ? aiPending : undefined}
+            onAiKeep={settleAiContent}
+            onAiDrop={dropAiContent}
+            onAskAiGoal={annual && aiGoalAllowed && !saver.saving && !finishing ? askAiGoals : undefined}
+            aiBusyGoalId={aiGoal.busy ? aiGoal.goalId : null}
           />
           {!annual && (
             <AiThemeContentModal
@@ -1211,39 +1304,6 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
                 sendAiFeedback({ kind: 'TEAM', ...stats }).catch(() => console.warn('[GoalFormPage] AI feedback not sent'));
               }}
               onClose={() => setAiThemeOpen(false)}
-            />
-          )}
-          {annual && aiGoalOpen && (
-            <AiGoalContentModal
-              plan={form}
-              allowed={aiGoalAllowed}
-              current={() => ({ plan: saver.current(), allowed: aiGoalState.current.allowed })}
-              ensureSaved={async () => {
-                if (!aiGoalState.current.allowed) return null;
-                if ((saver.unsaved || !savedId.current) && !(await saver.save())) return null;
-                const plan = saver.current();
-                return {
-                  planId: savedId.current || currentPlanId,
-                  plan,
-                  allowed: aiGoalState.current.allowed && plan.canEditCurriculum !== false,
-                };
-              }}
-              onApply={(result, picked) => {
-                if (!aiGoalState.current.allowed) return false;
-                const value = applyGoalContents(saver.current(), result.groups, picked, result.stamp, () => `ai-${uid()}`);
-                if (!value?.added) return false;
-                set({ domains: value.domains });
-                sendAiFeedback({
-                  kind: 'SCHOOL_YEAR',
-                  suggested: result.groups.reduce((n, g) => n + g.lines.length, 0),
-                  kept: value.added,
-                  failedDomains: result.failedDomains.length,
-                  waitMs: result.waitMs,
-                }).catch(() => console.warn('[GoalFormPage] AI feedback not sent'));
-                toast(`Đã thêm ${value.added} nội dung (chưa lưu)`);
-                return true;
-              }}
-              onClose={() => setAiGoalOpen(false)}
             />
           )}
           {!annual && prevTicksOpen && (

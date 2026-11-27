@@ -1,101 +1,164 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { applyGoalContents, goalContentGroups, goalContentStamp, requestGoalContents } from '../../src/models/education-plan/aiGoalContent.mjs';
+import { applyGoalContents, goalContentStamp, locateGoal, requestGoalContents } from '../../src/models/education-plan/aiGoalContent.mjs';
 
-const form = () => ({ id: '17', ageGroupId: 'ag-5', schoolYear: '2026 – 2027', planLevel: 'SCHOOL_YEAR',
-  domains: [{ id: 'd-1', name: 'Ngôn ngữ', rows: [
-    { id: '10', kind: 'goal', text: 'Trẻ đọc thơ rõ lời', contents: [] },
-    { id: '11', kind: 'goal', text: 'Trẻ nghe kể chuyện', contents: [{ id: '1', text: 'Đã có', themes: [] }] },
-    { id: '12', kind: 'goal', text: 'Trẻ kể lại câu chuyện', contents: [{ id: '2', text: ' ', themes: [] }] },
-  ] }] });
-const catalog = [
-  { id: 20, domainName: 'Ngôn ngữ', text: 'Đọc thơ, ca dao' },
-  { id: 21, domainName: 'Ngôn ngữ', text: 'Kể lại câu chuyện' },
-  { id: 22, domainName: 'Thể chất', text: 'Chạy nhanh' },
-  { id: 23, domainName: 'Ngôn ngữ', text: 'ĐỌC THƠ, CA DAO' },
-];
-const matches = [
-  { goalId: 10, curriculumContentId: 20, text: 'AI viết bịa', from: 'đọc thơ' },
-  { goalId: 12, curriculumContentId: 21, from: 'kể lại' },
-];
-
-test('EDU-106: lấy chữ catalog, gom mục tiêu trống gồm mục tiêu tự thêm, bỏ id/domain/from sai và trùng chữ', () => {
-  const groups = goalContentGroups(form(), [...matches,
-    { goalId: 11, curriculumContentId: 21, from: 'nghe' },
-    { goalId: 99, curriculumContentId: 20, from: 'thơ' },
-    { goalId: 10, curriculumContentId: 999, from: 'thơ' },
-    { goalId: 10, curriculumContentId: 22, from: 'thơ' },
-    { goalId: 10, curriculumContentId: 21, from: 'không có' },
-    { goalId: 10, curriculumContentId: 23, from: 'thơ' },
-  ], catalog);
-  assert.equal(groups.length, 2);
-  assert.deepEqual(groups.map((g) => g.lines.length), [1, 1]);
-  assert.equal(groups[0].lines[0].text, catalog[0].text);
-  assert.equal(groups[1].goalId, '12');
+const form = () => ({
+  id: '17',
+  ageGroupId: 'ag-5',
+  schoolYear: '2026 – 2027',
+  planLevel: 'SCHOOL_YEAR',
+  domains: [
+    {
+      id: 'd-1',
+      name: 'Ngôn ngữ',
+      rows: [
+        { id: '10', kind: 'goal', text: 'Trẻ đọc thơ rõ lời', contents: [] },
+        { id: '11', kind: 'goal', text: 'Trẻ nghe kể chuyện', contents: [{ id: '1', text: 'Đã có', themes: [] }] },
+        { id: '12', kind: 'goal', text: 'Trẻ kể lại câu chuyện', contents: [{ id: '2', text: ' ', themes: [] }] },
+      ],
+    },
+  ],
 });
+const matches = [
+  { goalId: 10, text: 'Đọc thơ, ca dao.', source: 'CURRICULUM_C', ref: null },
+  { goalId: 11, text: 'đã có', source: 'CURRICULUM_D' },
+  { goalId: 11, text: 'Nghe kể chuyện cổ tích.', source: 'RAG', ref: { id: 'MT-1', title: 'Trẻ nghe kể' } },
+  { goalId: 12, text: 'Kể lại câu chuyện theo tranh.', source: 'AI' },
+  { goalId: 99, text: 'Mục tiêu lạ', source: 'AI' },
+  { goalId: 10, text: '  ', source: 'AI' },
+];
 
-test('EDU-106: giữ/bỏ chỉ chép chữ, giữ nội dung cũ, không liên kết catalog và không sửa input', () => {
-  const plan = form(), original = structuredClone(plan), groups = goalContentGroups(plan, matches, catalog);
-  const result = applyGoalContents(plan, groups, new Set(['10:20']), goalContentStamp(plan), () => 'new-content');
-  assert.equal(result.added, 1);
-  assert.deepEqual(result.domains[0].rows[0].contents, [{ id: 'new-content', text: 'Đọc thơ, ca dao', themes: [] }]);
-  assert.equal(result.domains[0].rows[1].contents[0].text, 'Đã có');
-  assert.equal(result.domains[0].rows[2].contents.length, 1);
+test('EDU-106: gắn nội dung vào đúng mục tiêu (kể cả đã có), bỏ trùng chữ và dòng trống, ghi nguồn chờ ✓/✗', () => {
+  const plan = form(),
+    original = structuredClone(plan);
+  let n = 0;
+  const result = applyGoalContents(plan, matches, goalContentStamp(plan), () => `ai-${++n}`);
+  assert.equal(result.added, 3);
+  const [r10, r11, r12] = result.domains[0].rows;
+  assert.deepEqual(r10.contents, [{ id: 'ai-1', text: 'Đọc thơ, ca dao.', themes: [] }]);
+  assert.deepEqual(
+    r11.contents.map((c) => c.text),
+    ['Đã có', 'Nghe kể chuyện cổ tích.'],
+  );
+  assert.deepEqual(
+    r12.contents.map((c) => c.text),
+    ['Kể lại câu chuyện theo tranh.'],
+  );
+  assert.deepEqual(result.pending, {
+    'ai-1': { source: 'CURRICULUM_C', ref: null },
+    'ai-2': { source: 'RAG', ref: { id: 'MT-1', title: 'Trẻ nghe kể' } },
+    'ai-3': { source: 'AI', ref: null },
+  });
   assert.deepEqual(plan, original);
 });
 
-test('EDU-106: không chọn gì giống Hủy, không có nội dung thêm; kết quả cũ không áp vào bản đổi tuổi/goal/nội dung', () => {
-  const plan = form(), stamp = goalContentStamp(plan), groups = goalContentGroups(plan, matches, catalog);
-  assert.equal(applyGoalContents(plan, groups, new Set(), stamp, () => 'id').added, 0);
-  for (const mutate of [p => { p.ageGroupId = 'ag-4'; }, p => { p.domains[0].rows[0].text = 'Đổi MT'; },
-    p => { p.domains[0].rows[0].contents.push({ id: 'fresh', text: 'Vừa nhập' }); }]) {
-    const changed = structuredClone(plan); mutate(changed);
-    assert.equal(applyGoalContents(changed, groups, new Set(['10:20']), stamp, () => 'id'), null);
+test('EDU-106: kết quả cũ không áp vào bản đã đổi trong lúc AI chạy', () => {
+  const plan = form(),
+    stamp = goalContentStamp(plan);
+  for (const mutate of [
+    (p) => {
+      p.ageGroupId = 'ag-4';
+    },
+    (p) => {
+      p.domains[0].rows[0].text = 'Đổi MT';
+    },
+    (p) => {
+      p.domains[0].rows[0].contents.push({ id: 'fresh', text: 'Vừa nhập' });
+    },
+  ]) {
+    const changed = structuredClone(plan);
+    mutate(changed);
+    assert.equal(
+      applyGoalContents(changed, matches, stamp, () => 'id'),
+      null,
+    );
   }
 });
 
-test('EDU-106: save thất bại không gọi AI hay tải catalog', async () => {
+test('EDU-106: lưu thất bại không gọi AI', async () => {
   let called = 0;
-  await assert.rejects(requestGoalContents({ ensureSaved: async () => null, current: () => ({ plan: form(), allowed: true }),
-    request: async () => { called++; }, loadCatalog: async () => { called++; }, active: () => true }), /Chưa lưu/);
+  await assert.rejects(
+    requestGoalContents({
+      ensureSaved: async () => null,
+      current: () => ({ plan: form(), allowed: true }),
+      request: async () => {
+        called++;
+      },
+      active: () => true,
+    }),
+    /Chưa lưu/,
+  );
   assert.equal(called, 0);
 });
 
-test('EDU-106: save thành công dùng đúng id kế hoạch và goal sau lưu, số lĩnh vực lỗi được giữ', async () => {
-  const saved = form(); let requested;
-  const result = await requestGoalContents({ ensureSaved: async () => ({ planId: '17', plan: saved, allowed: true }),
-    current: () => ({ plan: saved, allowed: true }), active: () => true,
-    request: async (id) => { requested = id; return { matches, failedDomains: [{ domainId: 5, name: 'Nghệ thuật' }] }; },
-    loadCatalog: async (age) => { assert.equal(age, 'ag-5'); return catalog; } });
-  assert.equal(requested, '17'); assert.equal(result.groups[0].goalId, '10');
+test('EDU-106: nút chung gửi goalId null; lĩnh vực lỗi được giữ', async () => {
+  const saved = form();
+  let args;
+  const result = await requestGoalContents({
+    ensureSaved: async () => ({ planId: '17', plan: saved, allowed: true }),
+    current: () => ({ plan: saved, allowed: true }),
+    active: () => true,
+    request: async (...a) => {
+      args = a;
+      return { matches, failedDomains: [{ domainId: 5, name: 'Nghệ thuật' }] };
+    },
+  });
+  assert.deepEqual(args, ['17', null]);
+  assert.equal(result.matches.length, matches.length);
   assert.equal(result.failedDomains[0].name, 'Nghệ thuật');
 });
 
-test('EDU-106: đóng modal trong lúc save không gọi AI', async () => {
-  let active = true, called = false;
-  const result = await requestGoalContents({ ensureSaved: async () => { active = false; return { planId: '17', plan: form(), allowed: true }; },
-    current: () => ({ plan: form(), allowed: true }), active: () => active,
-    request: async () => { called = true; }, loadCatalog: async () => [] });
-  assert.equal(result, null); assert.equal(called, false);
+test('EDU-106: nút từng mục tiêu tìm lại mục tiêu sau lần Lưu đầu (id tạm → id thật)', async () => {
+  const draft = form();
+  draft.domains[0].rows[0].id = 'tmp-1';
+  const saved = form();
+  let args,
+    plan = draft;
+  const result = await requestGoalContents({
+    ensureSaved: async () => {
+      plan = saved;
+      return { planId: '17', plan: saved, allowed: true };
+    },
+    current: () => ({ plan, allowed: true }),
+    active: () => true,
+    goalId: 'tmp-1',
+    request: async (...a) => {
+      args = a;
+      return { matches: [], failedDomains: [] };
+    },
+  });
+  assert.deepEqual(args, ['17', '10']);
+  assert.ok(result);
+  assert.deepEqual(locateGoal(saved, '12'), { di: 0, ri: 2, text: 'Trẻ kể lại câu chuyện' });
 });
 
-test('EDU-106: đóng modal, mất quyền hoặc sửa bản trong khi chờ bỏ kết quả AI', async () => {
-  for (const change of ['close', 'permission', 'draft']) {
-    const plan = form(); let active = true, allowed = true;
-    const result = await requestGoalContents({ ensureSaved: async () => ({ planId: '17', plan: structuredClone(plan), allowed: true }),
-      current: () => ({ plan, allowed }), active: () => active,
-      request: async () => { if(change==='close') active=false; if(change==='permission') allowed=false;
-        if(change==='draft') plan.title='Vừa sửa tên'; return { matches }; }, loadCatalog: async () => catalog });
-    assert.equal(result, null);
-  }
-});
-
-test('EDU-106: lỗi8001/8002 giữ nguyên bản soạn và truyền lỗi để UI báo/soạn tay', async () => {
-  const plan = form(), original = structuredClone(plan);
-  for(const errorCode of [8001,8002]) {
-    await assert.rejects(requestGoalContents({ ensureSaved: async () => ({ planId:'17', plan, allowed:true }),
-      current: () => ({plan,allowed:true}), active: () => true,
-      request: async () => { throw Object.assign(new Error('AI lỗi'),{errorCode}); }, loadCatalog: async () => catalog }), {errorCode});
-    assert.deepEqual(plan,original);
-  }
+test('EDU-106: rời màn trong lúc lưu không gọi AI; mục tiêu không còn thì bỏ', async () => {
+  let active = true,
+    called = false;
+  const result = await requestGoalContents({
+    ensureSaved: async () => {
+      active = false;
+      return { planId: '17', plan: form(), allowed: true };
+    },
+    current: () => ({ plan: form(), allowed: true }),
+    active: () => active,
+    request: async () => {
+      called = true;
+    },
+  });
+  assert.equal(result, null);
+  assert.equal(called, false);
+  assert.equal(
+    await requestGoalContents({
+      ensureSaved: async () => ({}),
+      current: () => ({ plan: form(), allowed: true }),
+      active: () => true,
+      request: async () => {
+        called = true;
+      },
+      goalId: 'không-có',
+    }),
+    null,
+  );
+  assert.equal(called, false);
 });

@@ -30,6 +30,8 @@ test('EDU-106: map quyền nội dung năm từ BE và API dùng timeout riêng,
   assert.equal(calls[0].timeout, 70000);
   assert.equal(calls[0].signal, controller.signal);
   assert.equal(calls[0].data, undefined);
+  await educationPlanApi.matchGoalContents('17', {goalId: '5'});
+  assert.deepEqual(JSON.parse(calls[1].data), {goalId: 5});
   await educationPlanApi.sendAiFeedback({kind:'SCHOOL_YEAR',suggested:2,kept:1,failedDomains:0,waitMs:50});
   assert.equal(JSON.parse(calls.at(-1).data).kind,'SCHOOL_YEAR');
 });
