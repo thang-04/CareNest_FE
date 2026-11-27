@@ -9,7 +9,7 @@ import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Avatar } from '@/components/ui/Avatar';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
 import { ScNoAccess } from '@/components/school-config/ScNoAccess';
-import { UnassignedBadge } from '@/components/school-config/SchoolConfigBadges';
+import { LockedAccountBadge, UnassignedBadge } from '@/components/school-config/SchoolConfigBadges';
 import { StaffQuickPanel } from '@/components/school-config/StaffQuickPanel';
 import { canAssignVicePrincipal, canManageCampus } from '@/utils/school-config/schoolConfigPermissions';
 import { campusCrumbs } from '@/utils/school-config/breadcrumbs';
@@ -23,7 +23,9 @@ function PersonRow({ person, sub, action }) {
     <li className="sc-person">
       <Avatar user={person} size="sm" />
       <div className="sc-person__text">
-        <div className="fw-600">{person.fullName}</div>
+        <div className="fw-600">
+          {person.fullName} {person.locked && <LockedAccountBadge />}
+        </div>
         <div className="text-xs muted">{sub || person.email}</div>
       </div>
       {action}

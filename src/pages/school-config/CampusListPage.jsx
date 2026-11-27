@@ -13,7 +13,7 @@ import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { RowActions } from '@/components/ui/RowActions';
 import { clickableRowProps } from '@/utils/clickableRow';
 import { ScNoAccess } from '@/components/school-config/ScNoAccess';
-import { UnassignedBadge } from '@/components/school-config/SchoolConfigBadges';
+import { LockedAccountBadge, UnassignedBadge } from '@/components/school-config/SchoolConfigBadges';
 import { canListCampuses, canManageCampus } from '@/utils/school-config/schoolConfigPermissions';
 import { campusCrumbs } from '@/utils/school-config/breadcrumbs';
 import { YearReadOnlyNotice } from '@/components/school-config/YearReadOnlyNotice';
@@ -160,7 +160,15 @@ export default function CampusListPage() {
                       </td>
                       <td className="text-sm sc-wrap">{c.address}</td>
                       <td>
-                        {c.vicePrincipals.length ? c.vicePrincipals.map((v) => <div key={v.id}>{v.fullName}</div>) : <UnassignedBadge />}
+                        {c.vicePrincipals.length ? (
+                          c.vicePrincipals.map((v) => (
+                            <div key={v.id}>
+                              {v.fullName} {v.locked && <LockedAccountBadge />}
+                            </div>
+                          ))
+                        ) : (
+                          <UnassignedBadge />
+                        )}
                       </td>
                       <td className="num">{c.classCount}</td>
                       <td className="num">{c.childCount}</td>

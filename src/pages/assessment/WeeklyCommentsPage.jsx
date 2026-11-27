@@ -1,5 +1,5 @@
 import { childNameWithHistory } from '@/utils/childHistory';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { PenLine, Save, Send, Sparkles } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
@@ -7,6 +7,10 @@ import { useToast } from '@/contexts/ToastContext';
 import { useAsync } from '@/hooks/useAsync';
 import { useDailyAssessmentClasses } from '@/hooks/assessment/useAssessment';
 import { useYearCampuses } from '@/hooks/useYearCampuses';
+import { useLeaveGuard } from '@/hooks/useLeaveGuard';
+import { useDraftBackup } from '@/hooks/assessment/useDraftBackup';
+import { VersionHistory } from '@/components/assessment/VersionHistory';
+import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import { PERMISSIONS } from '@/models/bePermissions';
 import { CampusFilter } from '@/components/ui/CampusFilter';
 import { getCampuses } from '@/services/masterDataService';
@@ -60,7 +64,8 @@ export default function WeeklyCommentsPage() {
     [yearCampuses, campuses, classes],
   );
   const campusClasses = useMemo(() => classes.filter((c) => !campusId || c.campusId === campusId), [classes, campusId]);
-  const [text, setText] = useState('');
+  // Chữ đang gõ gắn với đúng ô (lớp, tuần, trẻ, bản trên hệ thống); khác ô thì ô nhập lấy bản đã lưu
+  const [edited, setEdited] = useState(null);
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState('');
   const [confirm, setConfirm] = useState(null);
@@ -81,11 +86,31 @@ export default function WeeklyCommentsPage() {
   const editable = !!board?.canEdit && !row?.historical;
   const saved = row?.content || '';
 
-  // Đổi trẻ / tải lại: ô nhập lấy bản trên hệ thống
+  const textKey = `${currentClassId}|${board?.weekStart}|${row?.childId}|${saved}`;
+  const text = edited?.key === textKey ? edited.value : saved;
+  const setText = (value) => setEdited({ key: textKey, value });
+
+  // Đổi trẻ / tải lại: bỏ lỗi của ô trước
   useEffect(() => {
-    setText(saved);
     setErrors({});
   }, [row?.childId, saved]);
+
+  // Chữ đang gõ khác bản trên hệ thống: hỏi trước khi rời, giữ bản nháp trên máy như màn xếp loại
+  const dirty = editable && !!row && text !== saved;
+  const savedDoc = useMemo(() => ({ content: saved }), [saved]);
+  const currentDoc = useMemo(() => ({ content: text }), [text]);
+  const backup = useDraftBackup({
+    userId: user?.id,
+    docKey: row && board ? `weekly-comment:${currentClassId}:${board.weekStart}:${row.childId}` : null,
+    doc: currentDoc,
+    saved: savedDoc,
+    base: saved,
+    enabled: dirty,
+  });
+  const linesOf = useCallback((doc) => (doc?.content ? [doc.content] : []), []);
+  // Đổi trẻ / lớp / tuần / điểm trường khi còn chữ chưa lưu
+  const [pendingChange, setPendingChange] = useState(null);
+  const confirmChange = (apply) => (dirty ? setPendingChange(() => apply) : apply());
 
   const run = async (key, fn, success) => {
     setBusy(key);
@@ -119,8 +144,12 @@ export default function WeeklyCommentsPage() {
   const save = () => {
     const msg = contentError(text);
     if (msg) return setErrors({ content: msg });
-    return run('save', () => saveWeeklyComment({ ...base, childId: row.childId, content: text }, user), 'Đã lưu nháp.');
+    return run('save', () => saveWeeklyComment({ ...base, childId: row.childId, content: text }, user), 'Đã lưu nháp.').then((ok) => {
+      if (ok) backup.clear();
+      return ok;
+    });
   };
+  const guard = useLeaveGuard({ when: dirty, onSave: save });
   const askSend = () => {
     const msg = contentError(text, { sending: true });
     if (msg) return setErrors({ content: msg });
@@ -152,18 +181,23 @@ export default function WeeklyCommentsPage() {
               hideLabel
               campuses={campusOptions}
               value={campusId}
-              onChange={(id) => {
-                setCampusId(id);
-                setChildId('');
-              }}
+              onChange={(id) =>
+                confirmChange(() => {
+                  setCampusId(id);
+                  setChildId('');
+                })
+              }
             />
             {campusClasses.length > 1 ? (
               <SelectField
                 aria-label="Lớp"
                 value={currentClassId}
                 onChange={(e) => {
-                  setClassId(e.target.value);
-                  setChildId('');
+                  const next = e.target.value;
+                  confirmChange(() => {
+                    setClassId(next);
+                    setChildId('');
+                  });
                 }}
                 options={campusClasses.map((c) => ({ value: c.id, label: c.name }))}
               />
@@ -177,8 +211,11 @@ export default function WeeklyCommentsPage() {
                 aria-label="Tuần"
                 value={board.weekStart}
                 onChange={(e) => {
-                  setWeekStart(e.target.value);
-                  setChildId('');
+                  const next = e.target.value;
+                  confirmChange(() => {
+                    setWeekStart(next);
+                    setChildId('');
+                  });
                 }}
                 options={board.weeks.map((w) => ({ value: w.weekStart, label: weekOptionLabel(w) }))}
               />
@@ -235,7 +272,7 @@ export default function WeeklyCommentsPage() {
                       variant="ghost"
                       className={`wc-child ${active ? 'is-active' : ''}`}
                       aria-current={active || undefined}
-                      onClick={() => setChildId(r.childId)}
+                      onClick={() => !active && confirmChange(() => setChildId(r.childId))}
                     >
                       <span className="wc-child__name">{childNameWithHistory(r.fullName, r.historyStatus)}</span>
                       <StatusBadge tone={chip.tone} label={chip.label} size="sm" />
@@ -286,6 +323,17 @@ export default function WeeklyCommentsPage() {
                       }}
                     />
                     <div className="row gap-2 sc-end">
+                      <VersionHistory
+                        drafts={backup.drafts}
+                        saved={savedDoc}
+                        current={currentDoc}
+                        unsaved={dirty}
+                        linesOf={linesOf}
+                        onUse={(entry, doc) => {
+                          setText(doc?.content || '');
+                          if (entry) backup.used(entry);
+                        }}
+                      />
                       <Button
                         icon={board.aiEnabled ? Sparkles : PenLine}
                         loading={busy === 'draft'}
@@ -318,6 +366,28 @@ export default function WeeklyCommentsPage() {
         range={weekRange(board?.weekStart || weekStart)}
         weekStart={board?.weekStart || weekStart}
         sections={['weekly', 'themes']}
+      />
+      <LeaveConfirmModal
+        {...guard.modal}
+        canSave
+        message="Nhận xét tuần có thay đổi chưa lưu."
+        onDiscard={() => {
+          backup.clear({ pause: true });
+          guard.modal.onDiscard();
+        }}
+      />
+      <ConfirmationModal
+        open={!!pendingChange}
+        title="Bỏ các thay đổi chưa lưu?"
+        message="Chuyển sang chỗ khác sẽ bỏ phần nhận xét vừa gõ."
+        confirmLabel="Bỏ thay đổi và chuyển"
+        onClose={() => setPendingChange(null)}
+        onConfirm={() => {
+          backup.clear();
+          setEdited(null);
+          pendingChange?.();
+          setPendingChange(null);
+        }}
       />
       <ConfirmationModal
         open={!!confirm}

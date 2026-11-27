@@ -28,6 +28,11 @@ test('AC-11: ô từng bữa lấy nguyên số suất BE trả, không cộng t
   );
 });
 
+test('thẻ suất ăn lớp hiện cả suất thay thế của trẻ dị ứng, giữ nguyên số BE trả', () => {
+  const [row] = classMealRows({ meals: [meal({ normal: 18, substitute: 2 })] });
+  assert.deepEqual([row.normal, row.substitute], [18, 2]);
+});
+
 test('AC-11: đã xác nhận có ổ khóa và giờ; cần xác nhận lại ưu tiên hơn trạng thái', () => {
   const [confirmed] = classMealRows({ meals: [meal({ status: 'CONFIRMED', confirmedAt: '2026-11-09T02:15:00Z' })] });
   assert.equal(confirmed.locked, true);
