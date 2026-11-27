@@ -18,6 +18,7 @@ import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
 import { RowActions } from '@/components/ui/RowActions';
 import { AccountStatusBadge } from '@/components/account/AccountStatusBadge';
 import { ParentAccountBadge } from '@/components/children/ChildBadges';
+import { PhoneChangeReview } from '@/components/account/PhoneChangeReview';
 import { GuardianPanel } from '@/components/account/GuardianPanel';
 import { PeopleTabs } from '@/components/account/PeopleTabs';
 import { StatCard } from '@/components/ui/StatCard';
@@ -487,6 +488,7 @@ export default function ParentActivationPage() {
         </section>
       )}
 
+      <PhoneChangeReview onChanged={() => reload({ silent: true })} />
       {activation.dialog}
       {/* Modal chi tiết phụ huynh */}
       {openChild && (
