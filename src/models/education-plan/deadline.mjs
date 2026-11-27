@@ -17,6 +17,18 @@ export function isOverdueDoc(doc) {
   );
 }
 
+/**
+ * BE:EDU-76/109 — thẻ hạn của trang lập/sửa kế hoạch năm, tổ khi đã khóa gửi; null khi chưa khóa. Bản đã có: BE trả
+ * timeLock.timeLocked. Bản đang lập chưa có trên BE: hạn là ngày bắt đầu năm học.
+ */
+export function planFormDeadline({ plan, yearStart, today }) {
+  if (plan) {
+    if (ISSUED.has(plan.status) || !plan.timeLock?.timeLocked) return null;
+    return { ...plan.timeLock, deadlineState: 'OVERDUE' };
+  }
+  return yearStart && today >= yearStart ? { deadline: yearStart, deadlineState: 'OVERDUE' } : null;
+}
+
 /** { tone, label } cho StatusBadge; null khi không có hạn hoặc đã ban hành sau hạn. */
 
 const schoolDate = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit' });

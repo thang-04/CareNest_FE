@@ -37,6 +37,8 @@ import {
 } from '@/models/education-plan/goalTable';
 import { ThemeEventTable } from '@/components/education-plan/GoalTables';
 import { FilterableGoalTable } from '@/components/education-plan/FilterableGoalTable';
+import { DeadlineBadge } from '@/components/education-plan/DeadlineWidgets';
+import { deadlineToday, planFormDeadline } from '@/models/education-plan/deadline.mjs';
 import { AiWorkingOverlay } from '@/components/ui/AiWorkingOverlay';
 import { useAiRun } from '@/hooks/education-plan/useAiRun';
 import { submissionRequirementsIssue } from '@/models/education-plan/submitRequirements.mjs';
@@ -267,6 +269,8 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
     start: yearOption?.startDate || `${form.schoolYear.slice(0, 4)}-09-01`,
     end: yearOption?.endDate || `${Number(form.schoolYear.slice(0, 4)) + 1}-05-31`,
   };
+  // BE:EDU-109: đã tới hạn mà chưa ban hành thì khóa gửi, chỉ hiện thẻ Quá hạn
+  const overdue = planFormDeadline({ plan: existing, yearStart: yearOption?.startDate, today: deadlineToday() });
   // Phó HT và tổ trưởng nhóm tuổi cùng soạn, mỗi lúc một người giữ khóa "Đang sửa" (BE:EDU-03, EDU-10);
   const isReviewStatus = existing?.status === 'REVIEW' || existing?.status === EDU_STATUS.PENDING_VP;
   const pendingEdit = false;
@@ -857,6 +861,7 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
           >
             {/* Bên trái giữ các thao tác lấy nội dung; tên tài liệu chỉ ở header chung. */}
             <div className="ga-year-toolbar__group">
+              {overdue && <DeadlineBadge doc={overdue} />}
               <FoldAllButton />
               {annual && (
                 <RowMenu
@@ -918,12 +923,13 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
                 approveLabel={pendingEdit ? 'Lưu và ban hành' : 'Ban hành'}
                 can={{
                   send:
+                    !overdue &&
                     !contentError &&
                     !(form.reviewItems || []).some((item) => !item.resolved) &&
                     (!annual || levelsAvailable) &&
                     (existing?.permissions ? existing.permissions.canSubmit : canEdit) &&
                     !principalPublish,
-                  approve: principalPublish && !contentError && !(form.reviewItems || []).some((item) => !item.resolved),
+                  approve: !overdue && principalPublish && !contentError && !(form.reviewItems || []).some((item) => !item.resolved),
                 }}
                 variant="btn--outline-primary"
                 unsaved={saver.unsaved}
