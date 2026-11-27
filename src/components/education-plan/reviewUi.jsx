@@ -291,8 +291,22 @@ export function RagRefLine({ refs = [] }) {
 export function AiPick({ label, onKeep, onDrop }) {
   return (
     <div className="text-right">
-      <Button variant="icon" icon={Check} title="Giữ gợi ý AI" aria-label={`Giữ gợi ý AI – ${label}`} onClick={onKeep} />
-      <Button variant="icon" icon={X} title="Bỏ gợi ý AI" aria-label={`Bỏ gợi ý AI – ${label}`} onClick={onDrop} />
+      <Button
+        variant="icon"
+        className="ga-ai-keep"
+        icon={Check}
+        title="Giữ gợi ý AI"
+        aria-label={`Giữ gợi ý AI – ${label}`}
+        onClick={onKeep}
+      />
+      <Button
+        variant="icon"
+        className="icon-btn--danger ga-ai-drop"
+        icon={X}
+        title="Bỏ gợi ý AI"
+        aria-label={`Bỏ gợi ý AI – ${label}`}
+        onClick={onDrop}
+      />
     </div>
   );
 }

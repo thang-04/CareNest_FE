@@ -44,6 +44,7 @@ test('EDU-115: thay một dòng chỉ gỡ thẻ của dòng đó, ✗ trả l�
     ['a', 'c', 'd'],
   );
   assert.equal(result.pending['10'].before, current['10'].text);
+  assert.deepEqual(result.pending['10'].marked, [1]);
   assert.deepEqual(
     restoreCards(result.cards, result.pending['10'].removed).map((c) => c.id),
     ['a', 'c', 'd', 'b'],
@@ -62,6 +63,7 @@ test('EDU-115: thay cả mục tiêu; mục tiêu không có gợi ý hoặc đ�
   assert.equal(result.rows['10'], '- Hát to rõ.\n- Hát nhóm.');
   assert.equal(result.rows['11'], undefined);
   assert.equal(result.skipped, 1);
+  assert.deepEqual(result.pending['10'].marked, [0, 1]);
   assert.deepEqual(result.pending['10'].sources, ['CURRICULUM_C', 'AI']);
   assert.deepEqual(
     result.cards.map((c) => c.id),

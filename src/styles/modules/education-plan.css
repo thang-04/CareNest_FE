@@ -3165,3 +3165,20 @@ html:has(.ga-page) {
     flex-basis: 100%;
   }
 }
+
+/* Gợi ý AI đang chờ ✓/✗ (Tiền 28/11/2026): dòng AI điền in đậm, ✓ xanh, ✗ đỏ */
+.ga-ai-filled,
+.ga-ai-filled *,
+.ga-cell--ai textarea,
+.ga-cell--ai input {
+  font-weight: var(--fw-bold);
+}
+.icon-btn.ga-ai-keep {
+  color: var(--color-success-fg);
+}
+.icon-btn.ga-ai-keep:hover:not(:disabled) {
+  background: var(--color-success-bg);
+}
+.icon-btn.ga-ai-drop {
+  color: var(--color-danger-fg);
+}

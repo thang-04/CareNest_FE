@@ -47,6 +47,8 @@ export function applyRewrite({ requestGoals, current, cards, matches }) {
     rows[asked.id] = formatContentLines(lines);
     pending[asked.id] = {
       before: now.text,
+      // Vị trí các dòng do AI viết, để tô đậm
+      marked: asked.lineIndex == null ? lines.map((_, i) => i) : [asked.lineIndex],
       sources: [...new Set((asked.lineIndex == null ? mine : mine.slice(0, 1)).map((m) => m.source || 'AI'))],
       refs: mine.map((m) => m.ref).filter(Boolean),
       removed,

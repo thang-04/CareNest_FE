@@ -47,7 +47,12 @@ function CardChips({ cards, editable, onEdit, pending = {}, onKeep, onDrop }) {
         const type = c.slot ? slotLabel(c.slot) : '';
         return (
           <Fragment key={c.id}>
-            <button type="button" className="ga-sug" aria-label={`Sửa hoạt động ${cardText(c)}`} onClick={() => onEdit(c)}>
+            <button
+              type="button"
+              className={`ga-sug${c.id in pending ? ' ga-ai-filled' : ''}`}
+              aria-label={`Sửa hoạt động ${cardText(c)}`}
+              onClick={() => onEdit(c)}
+            >
               <span className="ga-sug__body">
                 {c.slot ? <span className="ga-sug__type">{type}</span> : <span className="text-danger text-sm">Chưa rõ loại giờ</span>}
                 <span className="ga-sug__text">{colon > 0 && c.slot ? c.name.slice(colon + 1).trim() : c.name}</span>
@@ -436,12 +441,22 @@ export function ThemePlanBody({
                           </div>
                         </td>
                         <td className={editable ? 'ga-cell-editable' : ''}>
-                          <Cell
-                            editable={editable}
-                            value={rowOf(g).contents}
-                            label={`Nội dung của MT${g.no}`}
-                            onChange={(v) => setRow(g, 'contents', v)}
-                          />
+                          {contentPending[g.id] ? (
+                            <div className="ga-goal-table__pad">
+                              {contentLinesOf(rowOf(g).contents).map((text, i) => (
+                                <div key={`${i}-${text}`} className={contentPending[g.id].marked.includes(i) ? 'ga-ai-filled' : undefined}>
+                                  - {text}
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <Cell
+                              editable={editable}
+                              value={rowOf(g).contents}
+                              label={`Nội dung của MT${g.no}`}
+                              onChange={(v) => setRow(g, 'contents', v)}
+                            />
+                          )}
                           {editable && rewriteContents && (
                             <ContentAi
                               goal={g}
