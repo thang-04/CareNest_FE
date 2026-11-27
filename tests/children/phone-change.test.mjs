@@ -15,12 +15,15 @@ test('yêu cầu đổi số điện thoại và quyết định dùng đúng AP
   await api.listPhoneChangeRequests('PENDING');
   await api.approvePhoneChange(3);
   await api.rejectPhoneChange(4, 'Lý do');
-  assert.deepEqual(calls.map((c) => [c.method, c.url]), [
-    ['post', '/children/1/guardians/2/phone-change-requests'],
-    ['get', '/parent-accounts/phone-change-requests'],
-    ['post', '/parent-accounts/phone-change-requests/3/approve'],
-    ['post', '/parent-accounts/phone-change-requests/4/reject'],
-  ]);
+  assert.deepEqual(
+    calls.map((c) => [c.method, c.url]),
+    [
+      ['post', '/children/1/guardians/2/phone-change-requests'],
+      ['get', '/parent-accounts/phone-change-requests'],
+      ['post', '/parent-accounts/phone-change-requests/3/approve'],
+      ['post', '/parent-accounts/phone-change-requests/4/reject'],
+    ],
+  );
   assert.deepEqual(JSON.parse(calls[0].data), { newPhone: '0900000001', reason: 'Kiểm thử' });
   assert.deepEqual(calls[1].params, { status: 'PENDING' });
   assert.deepEqual(JSON.parse(calls[3].data), { note: 'Lý do' });
@@ -28,8 +31,12 @@ test('yêu cầu đổi số điện thoại và quyết định dùng đúng AP
 
 test('đổi số demo giữ số cũ đến khi duyệt và loại yêu cầu đã quyết định', async () => {
   const storage = new Map();
-  globalThis.localStorage = { getItem: (k) => storage.get(k) ?? null, setItem: (k, v) => storage.set(k, v), removeItem: (k) => storage.delete(k) };
-  const { phoneChangeMock: mock } = await import('@/services/account/mock/phoneChangeMock');
+  globalThis.localStorage = {
+    getItem: (k) => storage.get(k) ?? null,
+    setItem: (k, v) => storage.set(k, v),
+    removeItem: (k) => storage.delete(k),
+  };
+  const { phoneChangeMock: mock } = await import('@/mocks/phoneChangeMock');
   const { ensureChildRecordsSeeded } = await import('@/services/children/mock/childrenMockRepository');
   const { readDb } = await import('@/mocks/mockDatabase');
   const actor = { id: 'demo', role: 'PRINCIPAL' };

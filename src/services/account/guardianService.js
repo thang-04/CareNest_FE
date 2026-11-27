@@ -1,7 +1,5 @@
 import { isDemoModule, sourceOf } from '@/services/demoSource';
 import { guardianMockRepository as mock } from './mock/guardianMockRepository';
-import { phoneChangeApi } from './api/phoneChangeApi';
-import { phoneChangeMock } from './mock/phoneChangeMock';
 import { guardianApi as api } from './api/guardianApi';
 
 /** Facade tài khoản phụ huynh; nguồn theo INTEGRATION_MODULES (api = BE GuardianController). */
@@ -39,8 +37,4 @@ export const listAllChildrenForGuardians = async (campusId, user, schoolYear) =>
 };
 export const resendActivationCode = (userId, user) => call('resendActivationCode', userId, user);
 
-const phoneRepo = sourceOf('guardian', phoneChangeMock, phoneChangeApi);
-export const requestPhoneChange = (childId, guardianId, body, user) => phoneRepo.requestPhoneChange(childId, guardianId, body, user);
-export const listPhoneChangeRequests = (status, user) => phoneRepo.listPhoneChangeRequests(status, user);
-export const approvePhoneChange = (id, user) => phoneRepo.approvePhoneChange(id, user);
-export const rejectPhoneChange = (id, note, user) => phoneRepo.rejectPhoneChange(id, note, user);
+export { requestPhoneChange, listPhoneChangeRequests, approvePhoneChange, rejectPhoneChange } from '@/services/guardianPhoneService';
