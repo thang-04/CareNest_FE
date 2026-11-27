@@ -374,7 +374,10 @@ export default function RewardClassPage() {
                     <Fragment key={c.childId}>
                       <tr>
                         <td>
-                          <ChildNameCell child={{ fullName: c.fullName }} sub={c.dateOfBirth ? formatDate(c.dateOfBirth) : null} />
+                          <ChildNameCell
+                            child={{ childId: c.childId, fullName: c.fullName }}
+                            sub={c.dateOfBirth ? formatDate(c.dateOfBirth) : null}
+                          />
                         </td>
                         <td className="num nowrap">
                           {c.attendanceRate == null ? '—' : `${c.attendanceRate}%`}

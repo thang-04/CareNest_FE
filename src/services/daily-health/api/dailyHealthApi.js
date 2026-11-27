@@ -105,7 +105,6 @@ export const createDailyHealthBeApi = (client) => ({
         return {
           ...child,
           childCode: '',
-          photoUrl: null,
           temperature: toEntry(latest).temperature,
           observation: latest.observation,
           symptoms: latest.symptoms,

@@ -17,6 +17,7 @@ export function ChildNameCell({ child, sub, size = 'sm' }) {
 
 /** Dòng đánh giá / đề xuất chỉ có childName, childCode, childPhotoUrl ⇒ dạng child cho ChildNameCell. */
 export const childOfRow = (row) => ({
+  childId: row.childId,
   fullName: row.childName,
   code: row.childCode,
   historyStatus: row.historyStatus,

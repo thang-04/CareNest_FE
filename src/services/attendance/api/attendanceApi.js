@@ -35,7 +35,7 @@ export const attendanceApi = {
 /** BE trả thông tin ngày trong `day`, trẻ chỉ có id/họ tên/ngày sinh: đổi về dạng mock để màn hình dùng chung. */
 const toSheet = (data) => {
   const children = data.children.map(({ child, record, health, leave }) => ({
-    child: { ...child, code: '', gender: null, allergies: [], photoUrl: null },
+    child: { ...child, code: '', gender: null, allergies: [] },
     record,
     // Đơn nghỉ phụ huynh còn hiệu lực ngày này (ATT-04): nhãn "Phụ huynh báo nghỉ" ở dòng trẻ
     // ATT-12: part = cả ngày / buổi sáng / buổi chiều; eats = bé ăn bữa của buổi còn học (null = không áp dụng);

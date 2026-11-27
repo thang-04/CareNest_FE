@@ -1,3 +1,4 @@
+import { childPhotoSource } from '@/utils/children/childPhoto';
 import { PortraitImage } from '@/components/PortraitImage';
 import { avatarTone, initials } from '@/utils/format';
 
@@ -8,7 +9,11 @@ import { avatarTone, initials } from '@/utils/format';
 export function ChildAvatar({ child, size = '' }) {
   const sizeClass = size ? ` avatar--${size}` : '';
   return (
-    <PortraitImage source={child?.photoUrl} alt={`Ảnh của ${child?.fullName || 'trẻ'}`} className={`avatar${sizeClass} avatar--photo`}>
+    <PortraitImage
+      source={childPhotoSource(child)}
+      alt={`Ảnh của ${child?.fullName || 'trẻ'}`}
+      className={`avatar${sizeClass} avatar--photo`}
+    >
       <span className={`avatar${sizeClass} avatar--tone-${avatarTone(child?.fullName)}`} aria-hidden="true">
         {initials(child?.fullName || '?')}
       </span>
