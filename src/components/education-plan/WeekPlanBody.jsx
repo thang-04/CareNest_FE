@@ -1205,7 +1205,7 @@ export function DayTab({
                                 size="sm"
                                 icon={Sparkles}
                                 loading={aiBusy === s.key}
-                                disabled={!!aiBusy}
+                                disabled={!!aiBusy || aiRun.cooling}
                                 onClick={() => aiSteps(s)}
                               >
                                 AI gợi ý

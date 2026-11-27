@@ -305,7 +305,7 @@ export function ThemePlanBody({
                   size="sm"
                   icon={Sparkles}
                   loading={ai.busy && !ai.goalId}
-                  disabled={ai.busy || !activityTargets(lineGoals(), cards).length}
+                  disabled={ai.busy || activityRun.cooling || !activityTargets(lineGoals(), cards).length}
                   title={goals.length && !activityTargets(lineGoals(), cards).length ? 'Mọi dòng nội dung đã có hoạt động' : undefined}
                   onClick={() => askAi()}
                 >
@@ -317,7 +317,7 @@ export function ThemePlanBody({
                   variant="outline-primary"
                   size="sm"
                   icon={Sparkles}
-                  disabled={rewrite.busy || !rewriteGoals({}).length}
+                  disabled={rewrite.busy || activityRun.cooling || !rewriteGoals({}).length}
                   onClick={() => setRewrite({ scope: {}, busy: false })}
                 >
                   Viết lại nội dung (AI)
@@ -447,7 +447,7 @@ export function ThemePlanBody({
                               goal={g}
                               lines={contentLinesOf(rowOf(g).contents)}
                               pending={contentPending[g.id]}
-                              busy={rewrite.busy}
+                              busy={rewrite.busy || activityRun.cooling}
                               onAsk={(lineIndex) => setRewrite({ scope: { goalId: g.id, lineIndex }, busy: false })}
                               onKeep={() => keepContent(g.id)}
                               onDrop={() => dropContent(g)}
@@ -487,7 +487,7 @@ export function ThemePlanBody({
                                   title={`Gợi ý hoạt động (AI) cho MT${g.no}`}
                                   aria-label={`Gợi ý hoạt động bằng AI cho MT${g.no}`}
                                   loading={ai.busy && String(ai.goalId) === String(g.id)}
-                                  disabled={ai.busy}
+                                  disabled={ai.busy || activityRun.cooling}
                                   onClick={() => askAi(g.id)}
                                 >
                                   <Sparkles size={16} aria-hidden />

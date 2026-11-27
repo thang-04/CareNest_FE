@@ -1252,7 +1252,7 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
                           ? 'AI đang gợi ý nội dung…'
                           : 'AI gợi ý nội dung cho mục tiêu chưa có nội dung',
                       icon: Sparkles,
-                      disabled: saver.saving || finishing || aiGoal.busy || !goalsWithoutContent,
+                      disabled: saver.saving || finishing || aiGoal.busy || aiRun.cooling || !goalsWithoutContent,
                       onClick: () => askAiGoals(),
                     },
                   ]}
@@ -1297,7 +1297,7 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
             onAiKeep={settleAiContent}
             onAiDrop={dropAiContent}
             onAskAiGoal={annual && aiGoalAllowed && !saver.saving && !finishing ? askAiGoals : undefined}
-            aiBusyGoalId={aiGoal.busy ? aiGoal.goalId : null}
+            aiBusyGoalId={aiGoal.busy ? aiGoal.goalId : aiRun.cooling ? '' : null}
           />
           {!annual && (
             <AiThemeContentModal

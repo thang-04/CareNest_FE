@@ -77,12 +77,9 @@ export function AiWorkingOverlay({
           </div>
         )}
         {onCancel && (
-          <>
-            <Button autoFocus onClick={onCancel}>
-              Hủy
-            </Button>
-            <div className="muted text-sm">Hủy thì lượt AI này vẫn được tính.</div>
-          </>
+          <Button autoFocus onClick={onCancel}>
+            Hủy
+          </Button>
         )}
       </div>
     </div>

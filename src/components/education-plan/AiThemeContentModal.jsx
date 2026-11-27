@@ -121,7 +121,7 @@ export function AiThemeContentModal({ open, plan, ensureSaved, onApply, onClose 
               variant="primary"
               icon={Sparkles}
               loading={busy}
-              disabled={!themes.length}
+              disabled={!themes.length || aiRun.cooling}
               onClick={ask}
               data-testid="ai-theme-content-ask"
             >
@@ -159,7 +159,7 @@ export function AiThemeContentModal({ open, plan, ensureSaved, onApply, onClose 
         {result?.failedDomains.length > 0 && (
           <div className="row row--middle row--wrap gap-2">
             <Notice>Lĩnh vực chưa gom được: {result.failedDomains.map((d) => d.name).join(', ')}.</Notice>
-            <Button size="sm" icon={RotateCcw} loading={busy} onClick={ask} data-testid="ai-theme-content-retry">
+            <Button size="sm" icon={RotateCcw} loading={busy} disabled={aiRun.cooling} onClick={ask} data-testid="ai-theme-content-retry">
               Thử lại
             </Button>
           </div>

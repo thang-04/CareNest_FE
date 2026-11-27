@@ -78,7 +78,7 @@ export function AiEditDayModal({ open, docKey, unsaved, onApply, onClose }) {
               Áp dụng {picked.size} ô
             </Button>
           ) : (
-            <Button variant="primary" icon={Sparkles} loading={busy} disabled={unsaved} onClick={ask}>
+            <Button variant="primary" icon={Sparkles} loading={busy} disabled={unsaved || aiRun.cooling} onClick={ask}>
               Gợi ý thay đổi
             </Button>
           )}
