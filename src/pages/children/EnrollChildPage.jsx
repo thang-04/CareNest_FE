@@ -268,7 +268,7 @@ export default function EnrollChildPage() {
         {
           reason: readmitReason,
           schoolYearId: readmitYear?.id,
-          startDate: readmitStart,
+          ...(readmitStart ? { startDate: readmitStart } : {}),
           campusId: readmitCampusId,
         },
         user,
@@ -348,7 +348,7 @@ export default function EnrollChildPage() {
           classId,
           campusId: campusId || undefined,
           schoolYearId: intakeYear?.id,
-          startDate,
+          ...(startDate ? { startDate } : {}),
           declaration,
         },
         user,

@@ -107,7 +107,7 @@ export default function ImportChildrenPage() {
         validRows.map((r) => r.payload),
         user,
         draft.campusId || undefined,
-        { schoolYearId: draft.schoolYearId, startDate: draft.startDate },
+        { schoolYearId: draft.schoolYearId, ...(draft.startDate ? { startDate: draft.startDate } : {}) },
       );
       clearImportDraft();
       setImported(result);

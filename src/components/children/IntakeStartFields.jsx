@@ -29,7 +29,12 @@ export function IntakeStartFields({ schoolYears, yearId, onYearChange, startDate
         onChange={(e) => onYearChange(schoolYears.find((y) => sameId(y.id, e.target.value)) || null)}
       />
       {year && (
-        <FormField label="Ngày bắt đầu đi học" required error={errors.startDate}>
+        <FormField
+          label="Ngày bắt đầu đi học"
+          required={!planned}
+          hint={planned ? 'Để trống = ngày học đầu tiên của năm học' : undefined}
+          error={errors.startDate}
+        >
           <DateInput value={startDate} min={planned ? year.startDate : todayInput()} max={year.endDate} onChange={onStartDateChange} />
         </FormField>
       )}

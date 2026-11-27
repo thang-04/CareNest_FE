@@ -46,7 +46,7 @@ export const defaultStartDate = (year, today, holidays = []) =>
 
 /** Câu lỗi ô "Ngày bắt đầu đi học" (tiếp nhận, mở lại hồ sơ, nhập Excel), cùng câu BE; '' khi hợp lệ. */
 export function startDateError(value, year, today, holidays = []) {
-  if (!value) return 'Chọn ngày bắt đầu đi học';
+  if (!value) return year?.status === 'PLANNED' ? '' : 'Chọn ngày bắt đầu đi học';
   if (!isIsoDate(value)) return 'Nhập ngày bắt đầu đi học theo dạng dd/mm/yyyy';
   if (year?.status === 'PLANNED') {
     if ((year.startDate && value < year.startDate) || (year.endDate && value > year.endDate)) {
@@ -69,7 +69,8 @@ export function placementDateError(value, { earliest, today, yearEnd, scheduledL
   const label = transfer ? 'Ngày chuyển lớp' : 'Ngày vào lớp';
   if (!value) return `Chọn ${label.toLowerCase()}`;
   if (!isIsoDate(value)) return `Nhập ${label.toLowerCase()} theo dạng dd/mm/yyyy`;
-  if (scheduledLeaveOn && value >= scheduledLeaveOn) return `Trẻ nghỉ học từ ${ddmmyyyy(scheduledLeaveOn)}. Hủy lịch nghỉ trước khi xếp lớp từ ngày này`;
+  if (scheduledLeaveOn && value >= scheduledLeaveOn)
+    return `Trẻ nghỉ học từ ${ddmmyyyy(scheduledLeaveOn)}. Hủy lịch nghỉ trước khi xếp lớp từ ngày này`;
   if (earliest && value < earliest) {
     return earliest === today
       ? `${label} không được trước hôm nay`

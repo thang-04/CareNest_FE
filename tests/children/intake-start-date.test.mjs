@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { beforeEach, test } from 'node:test';
 
 const storage = new Map();
@@ -33,6 +34,16 @@ const { filledMedicalHistory, filledProfile } = await import('./profileFixture.m
  * là ngày học; ngày tương lai là lịch (trẻ ở lớp cũ tới hết ngày trước đó); hủy / thay lịch; nhãn tới ngày đi học.
  */
 const PRINCIPAL = { id: 'u_hung', role: 'PRINCIPAL', campusId: 'c1' };
+test('planned intake accepts an empty start date and omits the blank payload field', () => {
+  assert.equal(startDateError('', { status: 'PLANNED' }, todayInput()), '');
+  assert.equal(startDateError('', { status: 'ACTIVE' }, todayInput()), 'Chọn ngày bắt đầu đi học');
+  const field = readFileSync('src/components/children/IntakeStartFields.jsx', 'utf8');
+  assert.match(field, /required=\{!planned\}/);
+  assert.ok(field.includes('Để trống = ngày học đầu tiên của năm học'));
+  for (const path of ['src/pages/children/EnrollChildPage.jsx', 'src/components/children/ImportChildrenModal.jsx']) {
+    assert.ok(readFileSync(path, 'utf8').includes('...(startDate ? { startDate } : {})'));
+  }
+});
 const HOLIDAY = { startDate: '2026-11-24', endDate: '2026-11-24', name: 'Nghỉ giả' };
 
 const saturdayFrom = (from) => {

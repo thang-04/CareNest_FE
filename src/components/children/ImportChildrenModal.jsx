@@ -146,7 +146,8 @@ export function ImportChildrenModal({ initialCampusId, onClose, onChecked }) {
         campusName,
         schoolYearId: intakeYear.id,
         schoolYearName: intakeYear.label,
-        startDate,
+        schoolYearStatus: intakeYear.status,
+        ...(startDate ? { startDate } : {}),
       };
       saveImportDraft(draft);
       onChecked(draft);
