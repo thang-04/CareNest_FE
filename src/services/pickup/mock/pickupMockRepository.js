@@ -1,4 +1,5 @@
 import { readDb, writeDb, clone, delay, ApiError } from '@/mocks/mockDatabase';
+import { devNow } from '@/utils/devClock';
 import { ensureSchoolSeeded } from '@/mocks/schoolMockRepository';
 import { buildPickupSeed } from '@/mocks/pickupSeed';
 import { activeYearId, activeYearStart } from '@/mocks/roomManagers';
@@ -188,7 +189,7 @@ export const pickupMockRepository = {
       if (recordsOf(db, child.id, today).some((p) => p.outcome === PICKUP_OUTCOME.HANDED_OVER))
         throw new ApiError(409, 'Trẻ đã được trả cho người đón hôm nay.');
 
-      const at = new Date().toISOString();
+      const at = devNow().toISOString();
       const outcome = outcomeOf(form.verification);
       const early = earlyRequestOf(db, child.id, today);
       const record = {
@@ -202,7 +203,7 @@ export const pickupMockRepository = {
         pickupPersonName: form.pickupPersonName.trim(),
         pickupPersonRelation: form.pickupPersonRelation.trim(),
         pickupPersonPhone: String(form.pickupPersonPhone || '').replace(/\s/g, ''),
-        handedOverAt: outcome === PICKUP_OUTCOME.HANDED_OVER ? new Date().toISOString() : null,
+        handedOverAt: outcome === PICKUP_OUTCOME.HANDED_OVER ? devNow().toISOString() : null,
         phoneConfirmed: form.verification === 'PHONE_CONFIRMED',
         note: String(form.note || '').trim(),
         // Trả trẻ sau khi cô báo phụ huynh đón về sớm: giữ liên kết để truy vết từ Sức khỏe trong ngày

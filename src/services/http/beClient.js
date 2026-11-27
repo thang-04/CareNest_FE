@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { devClockHeaders } from '@/utils/devClock';
 import { API_BASE_URL, AUTH_MODE, DEV_BE_BASE_URL } from '@/config/env';
 import { refreshSession } from './authTransport';
 import { BE_ERROR_FIELDS } from './beErrorFields';
@@ -47,6 +48,7 @@ const raw = axios.create({
 raw.interceptors.request.use(async (config) => {
   const token = await accessToken();
   if (token) config.headers.Authorization = `Bearer ${token}`;
+  Object.assign(config.headers, devClockHeaders());
   return config;
 });
 // 401 giữa chừng: làm mới token (chung với axiosClient) rồi gửi lại một lần; vẫn 401 thì call() báo hết phiên

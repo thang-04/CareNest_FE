@@ -151,12 +151,24 @@ test('AC-3, AC-6: nút AI chỉ hiện khi sửa được; dùng gợi ý tuần
   const template = readFileSync('src/pages/menu-planning/MenuTemplateEditorPage.jsx', 'utf8');
   const modal = readFileSync('src/components/menu-planning/MenuAiWeekModal.jsx', 'utf8');
 
-  assert.match(weekly, /\{editable && block && \(\s*<Button[^>]*onClick=\{\(\) => setAiOpen\(true\)\}/);
-  assert.match(template, /\{editable && \(\s*<Button[^>]*onClick=\{\(\) => setAiOpen\(true\)\}/);
+  assert.match(weekly, /\{MENU_AI_ENABLED && editable && block && \(\s*<Button[^>]*onClick=\{\(\) => setAiOpen\(true\)\}/);
+  assert.match(template, /\{MENU_AI_ENABLED && editable && \(\s*<Button[^>]*onClick=\{\(\) => setAiOpen\(true\)\}/);
   assert.match(modal, /disabled=\{busy \|\| running \|\| dirty \|\| unchecked\}/);
   // Chấm lại lỗi hoặc đang chấm ⇒ chưa cho dùng bản đang sửa
   assert.match(modal, /const unchecked = editor\.editable && \(editor\.evaluating \|\| !!editor\.evaluateError\)/);
   assert.match(modal, /size=\{draft \? 'full' : 'lg'\}/);
+});
+
+test('luồng AI thực đơn ẩn mặc định: chỉ bật khi VITE_MENU_AI_ENABLED=true, route gợi ý chuyển về kế hoạch tuần', () => {
+  const env = readFileSync('src/config/env.js', 'utf8');
+  const routes = readFileSync('src/routes/AppRoutes.jsx', 'utf8');
+  const weekly = readFileSync('src/pages/menu-planning/WeeklyPlanPage.jsx', 'utf8');
+  assert.match(env, /MENU_AI_ENABLED = import\.meta\.env\.VITE_MENU_AI_ENABLED === 'true'/);
+  assert.match(
+    routes,
+    /MENU_AI_ENABLED \? \(\s*only\(LEADERS, BOARDING_API[^:]*:\s*<AiMenuSuggestionPage \/>\)\s*\) : \(\s*<Navigate to="\/menu\/weekly" replace \/>/,
+  );
+  assert.match(weekly, /aiSwap=\{MENU_AI_ENABLED \? \{ block, weekStart: week \} : null\}/);
 });
 
 const {
@@ -434,7 +446,13 @@ test('AI-02, NUT-05: swapPool bỏ món đang ở ô, món trùng bữa và món
   assert.deepEqual([other.blocking, other.delta], [0, null]);
 
   const bad = swapOutcome({ dish: dish('5'), result: result('LOW', blocking, 99), date: day, baselineTotal: 75, ageGroup: { id: 7 } });
-  const stockOut = swapOutcome({ dish: dish('6', { outOfStock: true }), result: result('OK', [], 80), date: day, baselineTotal: 75, ageGroup: {} });
+  const stockOut = swapOutcome({
+    dish: dish('6', { outOfStock: true }),
+    result: result('OK', [], 80),
+    date: day,
+    baselineTotal: 75,
+    ageGroup: {},
+  });
   // Ít lỗi chặn thắng điểm cao; cùng kết quả thì món kho khô hết xuống sau
   assert.deepEqual(
     rankSwaps([bad, stockOut, ok]).map((o) => o.dish.dishId),
