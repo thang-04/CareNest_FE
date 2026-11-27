@@ -608,7 +608,7 @@ export function GoalTable({
                     onKeyDown: contentKeys(di, r, c),
                     onPaste: contentPaste(di, r, c),
                   })}
-                  {edit && (
+                  {edit && !(c.id in aiPending) && (
                     <button
                       type="button"
                       className="icon-btn icon-btn--danger"
