@@ -68,7 +68,7 @@ export default function EducationPlanLayout() {
       <div ref={scope}>
         {/* Xem hồ sơ quá hạn: tắt mọi nút và ô nhập; liên kết chuyển tuần, chủ đề vẫn dùng được */}
         {overdueView ? (
-          <fieldset disabled style={{ border: 0, margin: 0, padding: 0, minWidth: 0 }}>
+          <fieldset disabled className="ga-overdue-fieldset">
             <Outlet />
           </fieldset>
         ) : (
