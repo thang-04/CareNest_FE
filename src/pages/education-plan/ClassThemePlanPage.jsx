@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { FileDown, Save, X } from '@/components/ui/icons';
 import { Card, EmptyCard, fmtDate, FoldAllButton, Notice, PageHead } from '@/components/education-plan/eduUi';
-import { getClassDocRelease, suggestActivityCards } from '@/services/education-plan/educationPlanService';
+import { getClassDocRelease, rewriteClassContents, suggestActivityCards } from '@/services/education-plan/educationPlanService';
 import { submitEntryOf } from '@/models/education-plan/reviewHistory.mjs';
 import { VersionHistory } from '@/components/education-plan/VersionHistory';
 import { docLines } from '@/models/education-plan/planHistory.mjs';
@@ -368,6 +368,7 @@ function ThemePlanInner() {
           flagOf={(id) => version.unresolved.find((f) => f.goalId === String(id)) || null}
           added={draft.sourceDocKey ? addedGoalIds(version.changes) : null}
           suggestActivities={editable ? suggestActivityCards : null}
+          rewriteContents={editable ? (body) => rewriteClassContents({ ...body, classId, yearPlanId: yearPlan.id }) : null}
           unsaved={saver.unsaved}
           notify={toast}
           usedCellsOf={(cardId) =>

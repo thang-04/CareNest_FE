@@ -467,6 +467,18 @@ export const educationPlanApi = {
         signal: options.signal,
       },
     ),
+  // BE:EDU-115 — viết lại nội dung kế hoạch chủ đề theo tình hình lớp (nháp, không lưu)
+  rewriteClassContents: ({ classId, yearPlanId, situation, goals }) =>
+    axiosClient.post(
+      '/education-plans/ai/class-contents',
+      {
+        classId: serverId(classId),
+        yearPlanId: serverId(yearPlanId),
+        situation: situation || undefined,
+        goals: goals.filter((g) => serverId(g.id) != null).map((g) => ({ id: serverId(g.id), lines: g.lines, lineIndex: g.lineIndex })),
+      },
+      { timeout: AI_MATCH_TIMEOUT },
+    ),
   // BE:EDU-104 — tick kế hoạch tổ đã ban hành năm học liền trước (source null + reason khi không có)
   getPreviousYearTicks: (planId) => axiosClient.get(`/education-plans/goals/${serverId(planId)}/previous-year-ticks`),
   // BE:EDU-103 — số gợi ý / số giữ mỗi lần Áp dụng, BE chỉ ghi log

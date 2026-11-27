@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { Card } from '@/components/education-plan/eduUi';
 import { Cell, focusCell } from '@/components/education-plan/planUi';
 import { domainLabel } from '@/models/education-plan/educationPlanConstants';
@@ -10,6 +10,9 @@ import { ActionsMenu, AiPick, RagRefLine } from '@/components/education-plan/rev
 import { AiWorkingOverlay } from '@/components/ui/AiWorkingOverlay';
 import ThemeGoalPickerModal from '@/components/education-plan/ThemeGoalPickerModal';
 import ActivityCardEditor from '@/components/education-plan/ActivityCardEditor';
+import { AiClassContentModal } from '@/components/education-plan/AiClassContentModal';
+import { applyRewrite, cardsLostByRewrite, restoreCards, rewriteRequestGoals } from '@/models/education-plan/aiClassContent.mjs';
+import { AI_CONTENT_SOURCE_LABELS } from '@/models/education-plan/aiGoalContent.mjs';
 import { Button } from '@/components';
 
 /**
@@ -55,6 +58,49 @@ function CardChips({ cards, editable, onEdit, pending = {}, onKeep, onDrop }) {
   );
 }
 
+/** BE:EDU-115: dưới ô Nội dung — nút AI cả mục tiêu và từng dòng (khi có nhiều dòng), hoặc nháp AI chờ ✓/✗. */
+function ContentAi({ goal, lines, pending, busy, onAsk, onKeep, onDrop }) {
+  if (pending)
+    return (
+      <div className="ga-goal-table__pad">
+        <div className="text-sm muted">Gợi ý AI · {pending.sources.map((s) => AI_CONTENT_SOURCE_LABELS[s] || s).join(', ')}</div>
+        <RagRefLine refs={[...new Map(pending.refs.map((r) => [r.id, r])).values()]} />
+        <AiPick label={`Nội dung MT${goal.no}`} onKeep={onKeep} onDrop={onDrop} />
+      </div>
+    );
+  return (
+    <div className="ga-goal-table__pad">
+      {lines.length > 1 &&
+        lines.map((line, i) => (
+          <div key={`${i}-${line}`} className="row row--middle gap-2 text-sm">
+            <span className="muted">
+              {i + 1}. {line}
+            </span>
+            <span className="spacer" />
+            <Button
+              variant="icon"
+              icon={Sparkles}
+              title={`Viết lại dòng ${i + 1} (AI)`}
+              aria-label={`Viết lại dòng ${i + 1} của MT${goal.no} bằng AI`}
+              disabled={busy}
+              onClick={() => onAsk(i)}
+            />
+          </div>
+        ))}
+      <div className="text-right">
+        <Button
+          variant="icon"
+          icon={Sparkles}
+          title={`Viết lại nội dung MT${goal.no} (AI)`}
+          aria-label={`Viết lại toàn bộ nội dung MT${goal.no} bằng AI`}
+          disabled={busy}
+          onClick={() => onAsk(null)}
+        />
+      </div>
+    </div>
+  );
+}
+
 /**
  * Nội dung kế hoạch chủ đề (I. mục tiêu, nội dung, hoạt động; II. môi trường). Dùng ở trang soạn và chỉ đọc ở trang
  * duyệt giáo án tuần đầu của chủ đề (kế hoạch chủ đề duyệt chung với tuần đó).
@@ -73,6 +119,8 @@ export function ThemePlanBody({
   suggestActivities = null,
   notify = () => {},
   unsaved = true,
+  // BE:EDU-115: AI viết lại nội dung; null khi chỉ xem
+  rewriteContents = null,
   // Chỗ đặt menu "Lấy / gợi ý hoạt động" ở trái hàng nút của trang (phần tử DOM do trang cấp)
 }) {
   const blocks = themeGoalBlocks(yearPlan.domains, numberGoals(yearPlan.domains), themeId, draft?.customTicks);
@@ -124,10 +172,54 @@ export function ThemePlanBody({
     putCards(cards.filter((c) => c.id !== id));
     settleAi(id);
   };
+  // EDU-115: nội dung AI viết lại đang chờ ✓/✗, theo MT; scope = {} (tất cả) | { goalId } | { goalId, lineIndex }
+  const [contentPending, setContentPending] = useState({});
+  const [rewrite, setRewrite] = useState({ scope: null, busy: false });
   // Đã lưu ⇒ giữ hết gợi ý đang chờ
   useEffect(() => {
-    if (!unsaved) setAiPending({});
+    if (!unsaved) {
+      setAiPending({});
+      setContentPending({});
+    }
   }, [unsaved]);
+  const rewriteGoals = (scope) =>
+    rewriteRequestGoals(
+      lineGoals().filter((g) => !(g.id in contentPending)),
+      scope,
+    );
+  // Bảng mới nhất tại thời điểm AI trả lời (cô có thể vẫn đang gõ trong lúc chờ)
+  const latest = useRef(null);
+  const runRewrite = async (situation) => {
+    const requestGoals = rewriteGoals(rewrite.scope);
+    setRewrite((r) => ({ ...r, busy: true }));
+    try {
+      const res = await rewriteContents({ situation, goals: requestGoals });
+      const now = latest.current;
+      const result = applyRewrite({
+        requestGoals,
+        current: Object.fromEntries(now.lines.map((g) => [g.id, { text: now.rowOf(g).contents, lines: g.lines }])),
+        cards: now.cards,
+        matches: res?.matches,
+      });
+      now.lines.filter((g) => g.id in result.rows).forEach((g) => now.setRow(g, 'contents', result.rows[g.id]));
+      if (result.cards.length !== now.cards.length) now.setField('activities', result.cards);
+      setContentPending((p) => ({ ...p, ...result.pending }));
+      if (!result.changed) notify('AI chưa có nội dung phù hợp để thay', 'warn');
+      else if (result.skipped) notify('Mục tiêu đã sửa trong lúc chờ AI được giữ nguyên', 'warn');
+      setRewrite({ scope: null, busy: false });
+    } catch (error) {
+      setRewrite((r) => ({ ...r, busy: false }));
+      notify(error.message || 'AI chưa viết được nội dung, thử lại sau', 'err');
+    }
+  };
+  const keepContent = (goalId) => setContentPending(({ [goalId]: _, ...rest }) => rest);
+  const dropContent = (g) => {
+    const entry = contentPending[g.id];
+    setRow(g, 'contents', entry.before);
+    if (entry.removed.length) putCards(restoreCards(cards, entry.removed));
+    keepContent(g.id);
+  };
+  latest.current = { lines: lineGoals(), rowOf, cards, setRow, setField };
   // Trùng tên và loại giờ: chỉ cảnh báo (edge case)
   const dupes = cards.filter((c, i) => cards.findIndex((x) => x.slot === c.slot && x.name.trim() === c.name.trim()) !== i);
   // Mục I và II là hai thẻ riêng, mỗi thẻ thu gọn / mở được như các phần khác (Tiền 12/11/2026)
@@ -191,6 +283,17 @@ export function ThemePlanBody({
                   Gợi ý AI cho MT chưa có hoạt động
                 </Button>
               )}
+              {rewriteContents && (
+                <Button
+                  variant="outline-primary"
+                  size="sm"
+                  icon={Sparkles}
+                  disabled={rewrite.busy || !rewriteGoals({}).length}
+                  onClick={() => setRewrite({ scope: {}, busy: false })}
+                >
+                  Viết lại nội dung (AI)
+                </Button>
+              )}
             </div>
           )}
 
@@ -220,6 +323,21 @@ export function ThemePlanBody({
             />
           )}
           {ai.busy && <AiWorkingOverlay text="AI đang gợi ý hoạt động…" />}
+          {rewrite.scope && (
+            <AiClassContentModal
+              scopeLabel={
+                rewrite.scope.goalId == null
+                  ? 'mọi mục tiêu của chủ đề'
+                  : `MT${goals.find((g) => String(g.id) === String(rewrite.scope.goalId))?.no}${
+                      rewrite.scope.lineIndex == null ? '' : `, dòng ${rewrite.scope.lineIndex + 1}`
+                    }`
+              }
+              lostCards={cardsLostByRewrite(cards, rewriteGoals(rewrite.scope))}
+              busy={rewrite.busy}
+              onSubmit={runRewrite}
+              onClose={() => !rewrite.busy && setRewrite({ scope: null, busy: false })}
+            />
+          )}
           {showGoalModal && (
             <ThemeGoalPickerModal
               open={showGoalModal}
@@ -293,6 +411,17 @@ export function ThemePlanBody({
                             label={`Nội dung của MT${g.no}`}
                             onChange={(v) => setRow(g, 'contents', v)}
                           />
+                          {editable && rewriteContents && (
+                            <ContentAi
+                              goal={g}
+                              lines={contentLinesOf(rowOf(g).contents)}
+                              pending={contentPending[g.id]}
+                              busy={rewrite.busy}
+                              onAsk={(lineIndex) => setRewrite({ scope: { goalId: g.id, lineIndex }, busy: false })}
+                              onKeep={() => keepContent(g.id)}
+                              onDrop={() => dropContent(g)}
+                            />
+                          )}
                         </td>
                         <td>
                           {cardsOf(g).length > 0 ? (

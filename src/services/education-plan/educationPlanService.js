@@ -72,6 +72,7 @@ export const getClassDocChecks = (kind, docKey) => repo.getClassDocChecks(kind, 
 export const editDayByRequest = (docKey, prompt) => repo.editDayByRequest(docKey, prompt);
 // BE:EDU-103 — AI gom nội dung vào chủ đề ở kế hoạch tổ (nháp, áp dụng chỉ thêm tick) và log tỉ lệ giữ
 export const matchThemeContents = (planId, body) => repo.matchThemeContents(planId, body);
+export const rewriteClassContents = (body) => repo.rewriteClassContents(body);
 export const matchGoalContents = (planId, options) => repo.matchGoalContents(planId, options);
 // BE:EDU-104 — lấy tick từ kế hoạch tổ năm trước (FE ghép chủ đề/nội dung, áp dụng chỉ thêm tick)
 export const getPreviousYearTicks = (planId) => repo.getPreviousYearTicks(planId);
