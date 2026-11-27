@@ -529,16 +529,6 @@ export default function EnrollChildPage() {
                       <RotateCcw size={15} /> Mở lại hồ sơ cũ
                     </button>
                   )}
-                  <button
-                    type="button"
-                    className="btn btn--sm"
-                    onClick={() => {
-                      setDuplicate(null);
-                      toPlacement();
-                    }}
-                  >
-                    Vẫn tạo hồ sơ mới
-                  </button>
                 </div>
               </div>
             </div>

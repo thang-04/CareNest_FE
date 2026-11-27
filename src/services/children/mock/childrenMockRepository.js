@@ -1280,6 +1280,11 @@ export const childrenMockRepository = {
     const { errors, dup, conflicts } = validateEnrollment(db, resolved);
     if (hasErrors(errors)) invalid(errors);
     if (dup) throw new ApiError(409, 'Hồ sơ trẻ này đã tồn tại (trùng họ tên, ngày sinh và phụ huynh). Xem lại hồ sơ đã có.');
+    if (sameChildOf(db, resolved.child, { left: true })) {
+      const error = new ApiError(409, 'Trẻ đã có hồ sơ ở trạng thái Đã nghỉ học. Mở lại hồ sơ cũ thay vì tạo hồ sơ mới.');
+      error.errorCode = 'CHILD_DUPLICATE_LEFT';
+      throw error;
+    }
     throwConflicts(conflicts);
     const startDate = intakeStartOf(db, intakeYearOf(db, payload.schoolYearId), payload.startDate);
     resolved = { ...resolved, child: await prepareMockPortraits(resolved.child) };
@@ -1342,7 +1347,10 @@ export const childrenMockRepository = {
     return writeDb((d) => {
       const target = findChild(d, id);
       target.guardians.find((g) => g.id === guardianId).photoUrl = prepared.photoUrl;
-      target.history = [...(target.history || []), { action: 'GUARDIAN_PHOTO_UPDATED', userId: user.id, at: nowIso(), note: reason.trim() }];
+      target.history = [
+        ...(target.history || []),
+        { action: 'GUARDIAN_PHOTO_UPDATED', userId: user.id, at: nowIso(), note: reason.trim() },
+      ];
       return toView(d, target, user);
     });
   },
@@ -1446,7 +1454,7 @@ export const childrenMockRepository = {
       if (dup) messages.push('Trẻ đã có hồ sơ trong hệ thống (trùng họ tên, ngày sinh và phụ huynh)');
       const left = dup ? null : sameChildOf(db, r.payload.child, { left: true });
       if (left)
-        notes.push(`Trẻ từng học ở trường (hồ sơ cũ ${left.code}, đã nghỉ học): nên mở lại hồ sơ cũ ở Tiếp nhận trẻ thay vì nhập mới.`);
+        messages.push(`Trẻ từng học ở trường (hồ sơ cũ ${left.code}, đã nghỉ học): mở lại hồ sơ cũ ở Tiếp nhận trẻ, không nhập mới.`);
       // CHD-13: giống BE, báo cho người nhập biết ô Dị ứng, Chế độ ăn đã bị bỏ qua.
       if (r.payload.declaration?.mealRegistered === false && (r.raw?.allergies || r.raw?.diet))
         notes.push('Không báo ăn: bỏ qua cột Dị ứng, Chế độ ăn');
@@ -1483,7 +1491,7 @@ export const childrenMockRepository = {
       const { errors, dup, conflicts } = validateEnrollment(db, r);
       const duplicateRow = batchDuplicateOf(seen, r.child);
       const fileIssue = (r.child.guardians || []).some((g) => inFile(g, i + 1));
-      if (hasErrors(errors) || hasErrors(conflicts) || dup || duplicateRow || fileIssue)
+      if (hasErrors(errors) || hasErrors(conflicts) || dup || sameChildOf(db, r.child, { left: true }) || duplicateRow || fileIssue)
         invalid({ file: 'File có dòng lỗi. Kiểm tra lại trước khi nhập.' });
       seen.push({ child: r.child, rowNo: i + 1 });
     });

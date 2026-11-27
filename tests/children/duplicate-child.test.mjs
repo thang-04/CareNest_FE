@@ -69,7 +69,7 @@ test('trẻ sinh đôi tên chỉ khác dấu (Minh Anh / Minh Ánh), cùng ph�
   await children.enrollChild(payload('Nguyễn Minh Ánh', [guardian(1)]), VP);
 });
 
-test('trẻ đã nghỉ học trùng ⇒ gợi ý mở lại hồ sơ cũ; mở lại về Chờ xếp lớp, giữ mã; vẫn được tạo hồ sơ mới', async () => {
+test('trẻ đã nghỉ học trùng ⇒ mở lại hồ sơ cũ về Chờ xếp lớp, giữ mã', async () => {
   const old = await children.enrollChild(payload('Trần Bảo Ngọc', [guardian(4)]), VP);
   await children.withdrawChild(old.id, { leftAt: todayInput(), reason: 'Chuyển nơi ở (giả)' }, VP);
   const dup = await check('Trần Bảo Ngọc', [guardian(4)]);
@@ -87,11 +87,13 @@ test('trẻ đã nghỉ học trùng ⇒ gợi ý mở lại hồ sơ cũ; mở 
   assert.equal((await check('Trần Bảo Ngọc', [guardian(4)])).kind, 'ACTIVE');
 });
 
-test('trẻ đã nghỉ học: không mở lại mà tạo hồ sơ mới vẫn được (không 409)', async () => {
+test('trẻ đã nghỉ học: tạo trùng hồ sơ bị chặn với CHILD_DUPLICATE_LEFT', async () => {
   const old = await children.enrollChild(payload('Lê Gia Huy', [guardian(5)]), VP);
   await children.withdrawChild(old.id, { leftAt: todayInput(), reason: 'Nghỉ (giả)' }, VP);
-  const fresh = await children.enrollChild(payload('Lê Gia Huy', [guardian(5)]), VP);
-  assert.notEqual(fresh.id, old.id);
+  await assert.rejects(
+    children.enrollChild(payload('Lê Gia Huy', [guardian(5)]), VP),
+    (e) => e.status === 409 && e.errorCode === 'CHILD_DUPLICATE_LEFT',
+  );
 });
 
 test('sửa hồ sơ thành trùng trẻ khác (họ tên, ngày sinh, phụ huynh) ⇒ 409; khác phụ huynh thì lưu được', async () => {
@@ -127,6 +129,5 @@ test('nhập Excel: trùng hồ sơ đang học ⇒ dòng lỗi; khác phụ huy
   const { rows } = await children.previewImport({ name: 'tiep-nhan.csv', text: async () => text }, VP);
   assert.ok(rows[0].errors.some((e) => e.startsWith('Trẻ đã có hồ sơ trong hệ thống')));
   assert.deepEqual(rows[1].errors, []);
-  assert.deepEqual(rows[2].errors, []);
-  assert.ok(rows[2].notes.some((n) => n.includes(left.code)));
+  assert.ok(rows[2].errors.some((n) => n.includes(left.code)));
 });
