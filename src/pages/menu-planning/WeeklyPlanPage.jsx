@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { MENU_AI_ENABLED } from '@/config/env';
 import { Tabs } from '@/components/ui/Tabs';
 import { useSearchParams } from 'react-router-dom';
 import { Copy, FileDown, History, Info, Pencil, Save, Scale, Send, Sparkles } from '@/components/ui/icons';
@@ -264,7 +265,7 @@ export default function WeeklyPlanPage() {
           {plan.publishedAt && <span className="text-sm muted">Công bố lúc {formatDateTime(plan.publishedAt)}</span>}
         </div>
         <div className="row td-week-toolbar__actions">
-          {editable && block && (
+          {MENU_AI_ENABLED && editable && block && (
             <Button disabled={busy} onClick={() => setAiOpen(true)}>
               <Sparkles size={16} /> AI gợi ý
             </Button>
@@ -382,7 +383,7 @@ export default function WeeklyPlanPage() {
         }}
         onClose={() => setPending(null)}
       />
-      {editable && block && (
+      {MENU_AI_ENABLED && editable && block && (
         <MenuAiWeekModal
           open={aiOpen}
           onClose={() => setAiOpen(false)}
@@ -439,7 +440,7 @@ export default function WeeklyPlanPage() {
           initialItems={dayBlockItems(savedDay(amendingDay), block)}
           editable
           applyLabel="Tiếp tục"
-          aiSwap={{ block, weekStart: week }}
+          aiSwap={MENU_AI_ENABLED ? { block, weekStart: week } : null}
           sessions={blockSessions(plan, block)}
           dishes={dishes}
           canEditRecipe={hasBePermission(user, PERMISSIONS.NUTRITION_MANAGE)}

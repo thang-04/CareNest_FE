@@ -14,6 +14,8 @@ export const MOCK_LATENCY_MS = 250;
 const SCHOOL_CONFIG_DEV = import.meta.env.VITE_SCHOOL_CONFIG_API === 'true';
 export const SCHOOL_CONFIG_API = SCHOOL_CONFIG_DEV || AUTH_MODE === 'gateway';
 export const KEYCLOAK_DEV_LOGIN = SCHOOL_CONFIG_DEV && AUTH_USE_MOCK;
+// Luồng AI thực đơn (gợi ý ngày/tuần, đổi món, soạn mẫu) tắt mặc định; bật cùng carenest.menu-ai.enabled của BE
+export const MENU_AI_ENABLED = import.meta.env.VITE_MENU_AI_ENABLED === 'true';
 /** Chỉ dev, đi cùng cờ carenest.dev.activation.* của BE: cho thử kết thúc năm học trước ngày kết thúc. */
 export const DEV_SKIP_YEAR_DATES = import.meta.env.VITE_DEV_SKIP_YEAR_DATES === 'true';
 export const DEV_BE_BASE_URL = import.meta.env.VITE_DEV_BE_BASE_URL || '/be-api';
