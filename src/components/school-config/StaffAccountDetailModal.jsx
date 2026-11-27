@@ -31,7 +31,7 @@ export function StaffAccountDetailModal({ account, onClose, onEdit }) {
         <dl className="info-list">
           <dt>Vai trò</dt>
           <dd>{ROLE_LABELS[account.role] || none}</dd>
-          <dt>Điểm trường</dt>
+          <dt>Cơ sở công tác</dt>
           <dd>{account.campusNames.join(', ') || none}</dd>
           <dt>Đang phụ trách</dt>
           <dd>{account.duties.join(' · ') || none}</dd>

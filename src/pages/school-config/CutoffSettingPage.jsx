@@ -13,6 +13,7 @@ import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { DateInput } from '@/components/form/DateInput';
 import { FormField } from '@/components/form/FormField';
+import { TextField } from '@/components/form/Field';
 import { Pagination, paginate } from '@/components/ui/Pagination';
 import { ScNoAccess } from '@/components/school-config/ScNoAccess';
 import { HolidaySetting } from '@/components/school-config/HolidaySetting';
@@ -50,7 +51,20 @@ export default function CutoffSettingPage() {
   const md = useMasterData();
   const yearId = useConfigYear();
   const { year, setting, loading, error, reload } = useCutoffSetting(yearId, { live: false });
-  const [form, setForm] = useState({ time: '', effectiveFrom: '', note: '' });
+  const [form, setForm] = useState({
+    time: '',
+    effectiveFrom: '',
+    note: '',
+    latestAfternoonArrival: '',
+    dropoffOpenFrom: '',
+    morningStart: '',
+    morningEnd: '',
+    afternoonStart: '',
+    pickupStart: '',
+    fullDayPickupFrom: '',
+    pickupEnd: '',
+    afternoonEnd: '',
+  });
   const [initial, setInitial] = useState(null);
   const [errors, setErrors] = useState({});
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -79,13 +93,41 @@ export default function CutoffSettingPage() {
     if (!year) return;
     const today = todayInput();
     const from = today < year.startDate ? year.startDate : today;
-    const next = { time: setting?.time || '', effectiveFrom: from, note: '' };
+    const next = {
+      time: setting?.time || '',
+      effectiveFrom: from,
+      note: '',
+      latestAfternoonArrival: setting?.latestAfternoonArrival || '14:00',
+      dropoffOpenFrom: setting?.dropoffOpenFrom || '06:30',
+      morningStart: setting?.morningStart || '07:00',
+      morningEnd: setting?.morningEnd || '11:00',
+      afternoonStart: setting?.afternoonStart || '13:30',
+      pickupStart: setting?.pickupStart || '15:00',
+      fullDayPickupFrom: setting?.fullDayPickupFrom || '15:00',
+      pickupEnd: setting?.pickupEnd || '17:00',
+      afternoonEnd: setting?.afternoonEnd || '17:00',
+    };
     setForm(next);
     setInitial(next);
     setErrors({});
   }, [year, setting]);
 
-  const dirty = !!initial && ['time', 'effectiveFrom', 'note'].some((key) => form[key] !== initial[key]);
+  const dirty =
+    !!initial &&
+    [
+      'time',
+      'effectiveFrom',
+      'note',
+      'latestAfternoonArrival',
+      'dropoffOpenFrom',
+      'morningStart',
+      'morningEnd',
+      'afternoonStart',
+      'pickupStart',
+      'fullDayPickupFrom',
+      'pickupEnd',
+      'afternoonEnd',
+    ].some((key) => form[key] !== initial[key]);
   // Rời màn khi đang sửa giờ chốt ⇒ hỏi; "Lưu" trong hộp kiểm tra rồi lưu như nút Lưu giờ chốt
   const guard = useLeaveGuard({
     when: (dirty && !saving) || childDirty,
@@ -108,12 +150,38 @@ export default function CutoffSettingPage() {
     setErrors((e) => errorsAfterChange(e, patch, { ...form, ...patch }, CUTOFF_LIMITS));
   };
 
+  // Như BE CUTOFF_DATE_PAST: đã có giờ chốt thì lần đổi sau chỉ áp dụng từ hôm nay (gõ tay vượt được min của ô ngày)
+  const cutoffRuleContext = () => ({ hasSetting: !!setting?.history?.length, today: todayInput() });
+  // Rời ô thì báo lỗi của ô đó (thứ tự giờ như BE, Cần chốt 25/11/2026 phương án A); ô khác đã hết sai thì gỡ lỗi
+  const blurCheck = (field) => {
+    const e = validateCutoff(form, year, cutoffRuleContext());
+    setErrors((prev) => {
+      const next = { ...prev };
+      Object.keys(next).forEach((key) => {
+        if (key !== '_form' && !e[key]) delete next[key];
+      });
+      if (e[field]) next[field] = e[field];
+      return next;
+    });
+  };
+
   const validate = () => {
-    const e = validateCutoff(form, year);
-    // Như BE CUTOFF_DATE_PAST: đã có giờ chốt thì lần đổi sau chỉ áp dụng từ hôm nay (gõ tay vượt được min của ô ngày)
-    if (!e.effectiveFrom && setting?.history?.length && form.effectiveFrom < todayInput())
-      e.effectiveFrom = 'Giờ chốt mới chỉ áp dụng từ hôm nay trở đi';
-    if (!e.time && setting && setting.time === form.time && setting.effectiveFrom === form.effectiveFrom)
+    const e = validateCutoff(form, year, cutoffRuleContext());
+    if (
+      !e.time &&
+      setting &&
+      setting.time === form.time &&
+      setting.effectiveFrom === form.effectiveFrom &&
+      (setting.latestAfternoonArrival || '14:00') === form.latestAfternoonArrival &&
+      (setting.dropoffOpenFrom || '06:30') === form.dropoffOpenFrom &&
+      (setting.morningStart || '07:00') === form.morningStart &&
+      (setting.morningEnd || '11:00') === form.morningEnd &&
+      (setting.afternoonStart || '13:30') === form.afternoonStart &&
+      (setting.pickupStart || '15:00') === form.pickupStart &&
+      (setting.fullDayPickupFrom || '15:00') === form.fullDayPickupFrom &&
+      (setting.pickupEnd || '17:00') === form.pickupEnd &&
+      (setting.afternoonEnd || '17:00') === form.afternoonEnd
+    )
       e.time = 'Giờ chốt và ngày áp dụng chưa thay đổi';
     setErrors(e);
     return !hasErrors(e);
@@ -171,7 +239,9 @@ export default function CutoffSettingPage() {
                   <span>{setting.effectiveFrom > todayInput() ? 'Giờ chốt sắp áp dụng' : 'Giờ chốt đang áp dụng'}</span>
                   <b className="sc-cutoff__time">{setting.time}</b>
                   <span className="text-sm text-2">
-                    từ {formatDate(setting.effectiveFrom)} · năm học {year.name}
+                    từ {formatDate(setting.effectiveFrom)} · năm học {year.name} · trẻ nghỉ sáng đến muộn nhất{' '}
+                    {setting.latestAfternoonArrival || '14:00'} · đón trẻ từ {setting.dropoffOpenFrom || '06:30'} · trả trẻ{' '}
+                    {setting.pickupStart || '15:00'}–{setting.pickupEnd || '17:00'} · tính đủ ngày từ {setting.fullDayPickupFrom || '15:00'}
                   </span>
                 </div>
               ) : (
@@ -181,7 +251,7 @@ export default function CutoffSettingPage() {
 
             <section className="card">
               <div className="card__header">
-                <h2 className="card__title">Thay đổi giờ chốt</h2>
+                <h2 className="card__title">Giờ chốt và lịch sinh hoạt</h2>
               </div>
               <div className="card__body">
                 {closed ? (
@@ -198,14 +268,106 @@ export default function CutoffSettingPage() {
                     )}
                     <div className="grid-2">
                       <FormField label="Giờ chốt" required error={errors.time}>
-                        <input className="input" type="time" value={form.time} onChange={(e) => set({ time: e.target.value })} />
+                        <input
+                          className="input"
+                          type="time"
+                          value={form.time}
+                          onChange={(e) => set({ time: e.target.value })}
+                          onBlur={() => blurCheck('time')}
+                        />
                       </FormField>
+                      {/* ATT-13: trẻ nghỉ sáng chưa đến tới giờ này thì tự thành Vắng cả ngày, báo GV và phụ huynh */}
+                      <TextField
+                        label="Giờ đến muộn nhất buổi chiều"
+                        required
+                        type="time"
+                        error={errors.latestAfternoonArrival}
+                        hint="Phải sau giờ bắt đầu buổi chiều và trước giờ bắt đầu trả trẻ. Trẻ nghỉ buổi sáng chưa đến lớp trước giờ này được ghi Vắng cả ngày."
+                        value={form.latestAfternoonArrival}
+                        onChange={(e) => set({ latestAfternoonArrival: e.target.value })}
+                        onBlur={() => blurCheck('latestAfternoonArrival')}
+                      />
+                      <TextField
+                        label="Mở đón trẻ"
+                        required
+                        type="time"
+                        error={errors.dropoffOpenFrom}
+                        hint="Thời điểm nhà trường bắt đầu nhận trẻ đầu ngày."
+                        value={form.dropoffOpenFrom}
+                        onChange={(e) => set({ dropoffOpenFrom: e.target.value })}
+                        onBlur={() => blurCheck('dropoffOpenFrom')}
+                      />
+                      <TextField
+                        label="Bắt đầu buổi sáng"
+                        required
+                        type="time"
+                        error={errors.morningStart}
+                        value={form.morningStart}
+                        onChange={(e) => set({ morningStart: e.target.value })}
+                        onBlur={() => blurCheck('morningStart')}
+                      />
+                      <TextField
+                        label="Kết thúc buổi sáng"
+                        required
+                        type="time"
+                        error={errors.morningEnd}
+                        value={form.morningEnd}
+                        onChange={(e) => set({ morningEnd: e.target.value })}
+                        onBlur={() => blurCheck('morningEnd')}
+                      />
+                      <TextField
+                        label="Bắt đầu buổi chiều"
+                        required
+                        type="time"
+                        error={errors.afternoonStart}
+                        value={form.afternoonStart}
+                        onChange={(e) => set({ afternoonStart: e.target.value })}
+                        onBlur={() => blurCheck('afternoonStart')}
+                      />
+                      <TextField
+                        label="Bắt đầu khung trả trẻ"
+                        required
+                        type="time"
+                        error={errors.pickupStart}
+                        value={form.pickupStart}
+                        onChange={(e) => set({ pickupStart: e.target.value })}
+                        onBlur={() => blurCheck('pickupStart')}
+                      />
+                      <TextField
+                        label="Từ giờ này trả trẻ tính đủ ngày"
+                        required
+                        type="time"
+                        error={errors.fullDayPickupFrom}
+                        hint="Mặc định 15:00, sau bắt đầu buổi chiều và không muộn hơn bắt đầu khung trả trẻ. Trẻ đã có mặt buổi sáng, được trả trước mốc này tính 0,5 ngày; từ mốc này tính 1 ngày."
+                        value={form.fullDayPickupFrom}
+                        onChange={(e) => set({ fullDayPickupFrom: e.target.value })}
+                        onBlur={() => blurCheck('fullDayPickupFrom')}
+                      />
+                      <TextField
+                        label="Kết thúc khung trả trẻ"
+                        required
+                        type="time"
+                        error={errors.pickupEnd}
+                        value={form.pickupEnd}
+                        onChange={(e) => set({ pickupEnd: e.target.value })}
+                        onBlur={() => blurCheck('pickupEnd')}
+                      />
+                      <TextField
+                        label="Kết thúc buổi chiều"
+                        required
+                        type="time"
+                        error={errors.afternoonEnd}
+                        value={form.afternoonEnd}
+                        onChange={(e) => set({ afternoonEnd: e.target.value })}
+                        onBlur={() => blurCheck('afternoonEnd')}
+                      />
                       <FormField label="Áp dụng từ ngày" required error={errors.effectiveFrom}>
                         <DateInput
                           min={todayInput() > year.startDate ? todayInput() : year.startDate}
                           max={year.endDate}
                           value={form.effectiveFrom}
                           onChange={(value) => set({ effectiveFrom: value })}
+                          onBlur={() => blurCheck('effectiveFrom')}
                         />
                       </FormField>
                     </div>
@@ -241,6 +403,7 @@ export default function CutoffSettingPage() {
                     <th>Người thay đổi</th>
                     <th className="center">Giờ cũ</th>
                     <th className="center">Giờ mới</th>
+                    <th className="center">Lịch sinh hoạt</th>
                     <th className="center">Áp dụng từ</th>
                     <th>Ghi chú</th>
                   </tr>
@@ -248,7 +411,7 @@ export default function CutoffSettingPage() {
                 <tbody>
                   {!setting?.history?.length ? (
                     <tr>
-                      <td colSpan={6}>
+                      <td colSpan={7}>
                         <EmptyState title="Chưa có thay đổi nào" description="Mỗi lần đổi giờ chốt sẽ được ghi lại ở đây." />
                       </td>
                     </tr>
@@ -264,6 +427,11 @@ export default function CutoffSettingPage() {
                         <td>{h.userName || md.userById(h.userId)?.fullName || h.userId}</td>
                         <td className="center">{h.previousTime || '—'}</td>
                         <td className="fw-600 center">{h.time}</td>
+                        <td className="center">
+                          Đón {h.dropoffOpenFrom || '06:30'} · sáng {h.morningStart || '07:00'}–{h.morningEnd || '11:00'} · chiều{' '}
+                          {h.afternoonStart || '13:30'}–{h.afternoonEnd || '17:00'} · trả trẻ {h.pickupStart || '15:00'}–
+                          {h.pickupEnd || '17:00'} · đủ ngày từ {h.fullDayPickupFrom || '15:00'}
+                        </td>
                         <td className="center">{formatDate(h.effectiveFrom)}</td>
                         <td className="sc-wrap">{h.note || <span className="muted">—</span>}</td>
                       </tr>
@@ -290,7 +458,9 @@ export default function CutoffSettingPage() {
         title="Lưu giờ chốt"
         message={
           <>
-            Từ ngày <b>{formatDate(form.effectiveFrom)}</b>, điểm danh và suất ăn sẽ khóa lúc <b>{form.time}</b> mỗi ngày học.
+            Từ ngày <b>{formatDate(form.effectiveFrom)}</b>, điểm danh và suất ăn sẽ khóa lúc <b>{form.time}</b>. Trẻ nghỉ sáng chưa đến
+            trước <b>{form.latestAfternoonArrival}</b> được ghi vắng cả ngày; khung trả trẻ là <b>{form.pickupStart}</b>–
+            <b>{form.pickupEnd}</b>. Trẻ đã có mặt sáng được trả trước <b>{form.fullDayPickupFrom}</b> tính 0,5 ngày.
           </>
         }
         confirmLabel="Lưu giờ chốt"

@@ -9,7 +9,10 @@ import { Pagination, paginate } from '@/components/ui/Pagination';
 import { clickableRowProps } from '@/utils/clickableRow';
 import { useNavigate } from 'react-router-dom';
 import { ChildNameCell } from '@/components/assessment/ChildNameCell';
+import { childHistoryLabel } from '@/utils/childHistory';
 import { CampusFilter } from '@/components/ui/CampusFilter';
+import { useYearCampuses } from '@/hooks/useYearCampuses';
+import { PERMISSIONS } from '@/models/bePermissions';
 import { ageLabel } from '@/models/School';
 import { formatDate, normalizeText } from '@/utils/format';
 import { isLeader } from '@/utils/assessment/assessmentPermissions';
@@ -39,7 +42,9 @@ export default function ChildDevelopmentListPage() {
   const viewOnly = (id) => !leader && children.some((ch) => String(ch.classId) === id && ch.teaches === false);
   const inCampus = useMemo(() => children.filter((ch) => !campusId || String(ch.campusId) === campusId), [children, campusId]);
   const inGroup = inCampus.filter((ch) => !ageGroupId || String(ch.ageGroupId) === ageGroupId);
-  const campuses = useMemo(() => options(children, 'campusId', 'campusName'), [children]);
+  // HT: điểm trường của năm đang chọn (tên ngắn); PHT: theo phạm vi quyền được cấp; còn lại theo danh sách trẻ
+  const yearCampuses = useYearCampuses(PERMISSIONS.ASSESSMENT_VIEW);
+  const campuses = useMemo(() => yearCampuses || options(children, 'campusId', 'campusName'), [yearCampuses, children]);
   const ageGroups = useMemo(() => options(inCampus, 'ageGroupId', 'ageGroupName'), [inCampus]);
   const classes = options(inGroup, 'classId', 'className');
   const pick = (setter) => (value) => {
@@ -193,7 +198,9 @@ export default function ChildDevelopmentListPage() {
                       <td className="nowrap">{ch.dateOfBirth ? ageLabel(ch.dateOfBirth) : '—'}</td>
                       <td>
                         {ch.className || '—'}
-                        {ch.current === false && <div className="muted">Đã chuyển lớp / nghỉ</div>}
+                        {ch.current === false && childHistoryLabel(ch.historyStatus) && (
+                          <div className="muted">{childHistoryLabel(ch.historyStatus)}</div>
+                        )}
                       </td>
                     </tr>
                   ))

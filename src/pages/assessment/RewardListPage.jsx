@@ -15,6 +15,8 @@ import { isLeader, isPrincipal, isVicePrincipal } from '@/utils/assessment/asses
 import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';
 import '@/styles/modules/assessment.css';
 import { CampusFilter } from '@/components/ui/CampusFilter';
+import { useYearCampuses } from '@/hooks/useYearCampuses';
+import { PERMISSIONS } from '@/models/bePermissions';
 
 const STATUS_FILTERS = ['NONE', S.DRAFT, S.RETURNED, S.PENDING_VP, S.PENDING_PRINCIPAL, S.APPROVED];
 
@@ -28,11 +30,14 @@ export default function RewardListPage() {
   const [status, setStatus] = useState('');
   const [campusId, setCampusId] = useState('');
   const [page, setPage] = useState(1);
+  // HT: điểm trường của năm đang chọn; PHT: theo phạm vi quyền được cấp; còn lại theo danh sách lớp
+  const yearCampuses = useYearCampuses(PERMISSIONS.ASSESSMENT_VIEW);
   const campuses = useMemo(() => {
+    if (yearCampuses) return yearCampuses;
     const seen = new Map();
     rows.forEach((r) => seen.has(String(r.campusId)) || seen.set(String(r.campusId), r.campusName || r.campusId));
     return [...seen].map(([id, name]) => ({ id, name }));
-  }, [rows]);
+  }, [rows, yearCampuses]);
   const multiCampus = campuses.length > 1;
 
   const filtered = rows

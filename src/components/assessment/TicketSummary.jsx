@@ -1,3 +1,4 @@
+import { childNameWithHistory } from '@/utils/childHistory';
 import { useState } from 'react';
 import { Award, BadgeCheck, Download, Flag, Ticket } from '@/components/ui/icons';
 import { StatCard } from '@/components/ui/StatCard';
@@ -19,6 +20,12 @@ const SORTS = {
   flags: { label: 'Nhiều cờ bé ngoan → ít', fn: (a, b) => b.flags - a.flags || byName(a, b) },
   name: { label: 'Tên A → Z', fn: byName },
 };
+// issuedByNames: người đã phát phiếu tuần ở lớp đó (BE OBS-35)
+const issuersText = (item) => ((item.issuedByNames || []).length ? ` (người phát: ${item.issuedByNames.join(', ')})` : '');
+const evidenceText = (evidence) =>
+  (evidence || [])
+    .map((item) => `${item.className}: ${item.flagCount || 0} cờ, ${item.weeklyTickets || 0} phiếu tuần${issuersText(item)}`)
+    .join(' · ');
 
 /**
  * Tổng hợp phiếu bé ngoan của lớp theo trẻ: số phiếu tuần, phiếu tháng, cờ bé ngoan trong năm học hoặc một tháng.
@@ -37,7 +44,7 @@ export function TicketSummary({ classId }) {
       [
         [`Tổng hợp phiếu bé ngoan ${summary.cls.name} – ${rangeText}`],
         ['Mã trẻ', 'Họ tên', 'Phiếu bé ngoan (tuần)', 'Phiếu bé ngoan toàn diện (tháng)', 'Cờ bé ngoan'],
-        ...rows.map((r) => [r.child.code, r.child.fullName, r.weekly, r.monthly, r.flags]),
+        ...rows.map((r) => [r.child.code, childNameWithHistory(r.child.fullName, r.historyStatus), r.weekly, r.monthly, r.flags]),
       ],
       `phieu-be-ngoan-${summary.cls.name}-${month || 'nam-hoc'}.xlsx`,
     );
@@ -113,7 +120,8 @@ export function TicketSummary({ classId }) {
                   <tr key={r.child.id}>
                     <td className="num muted">{i + 1}</td>
                     <td>
-                      <ChildNameCell child={r.child} />
+                      <ChildNameCell child={{ ...r.child, historyStatus: r.historyStatus }} />
+                      {(r.evidence || []).length > 1 && <div className="muted text-xs">Căn cứ: {evidenceText(r.evidence)}</div>}
                     </td>
                     <td className={`num ${r.weekly ? 'fw-600' : 'muted'}`}>{r.weekly}</td>
                     <td className={`num ${r.monthly ? 'fw-600' : 'muted'}`}>{r.monthly}</td>

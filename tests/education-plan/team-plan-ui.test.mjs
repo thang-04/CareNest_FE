@@ -11,8 +11,12 @@ globalThis.localStorage = {
   removeItem: (k) => storage.delete(k),
 };
 const server = await createServer({ server: { middlewareMode: true }, appType: 'custom' });
-after(() => server.close());
+after(async () => {
+  await server.waitForRequestsIdle();
+  await server.close();
+});
 const { GoalTable, ThemeEventTable } = await server.ssrLoadModule('/src/components/education-plan/GoalTables.jsx');
+const { FilterableGoalTable } = await server.ssrLoadModule('/src/components/education-plan/FilterableGoalTable.jsx');
 const { BranchCalendarEditor } = await server.ssrLoadModule('/src/components/education-plan/BranchCalendarEditor.jsx');
 const { reapplyTeamDraft, inheritAnnual } = await import('../../src/models/education-plan/planLevel.mjs');
 const domains = [
@@ -48,6 +52,17 @@ test('TEAM can edit and add contents while keeping goal structure read only', ()
   assert.match(html, /aria-label="Nội dung đầu tiên của mục tiêu 1"/);
   assert.doesNotMatch(html, /aria-label="Mục tiêu 1 lĩnh vực/);
   assert.doesNotMatch(html, /aria-label="Xóa nội dung/);
+});
+// BE:EDU-103: ô tìm và lọc "Chưa thuộc chủ đề nào" chỉ ở bảng tick kế hoạch tổ
+test('team tick table shows search and unassigned filter; annual table does not', () => {
+  const team = renderToStaticMarkup(React.createElement(FilterableGoalTable, {
+    ...props, fixedCells: true, canEditContents: true, canAssignContents: true, onChange() {},
+  }));
+  assert.match(team, /data-testid="goal-tick-search"/);
+  assert.match(team, /Chưa thuộc chủ đề nào/);
+  assert.match(team, /Nội dung không chọn/);
+  const annual = renderToStaticMarkup(React.createElement(FilterableGoalTable, { ...props, themes: [], readOnly: false, onChange() {} }));
+  assert.doesNotMatch(annual, /goal-tick-search/);
 });
 test('annual goal table identifies required groups, goals and contents for assistive technology', () => {
   const html = renderToStaticMarkup(React.createElement(GoalTable, { ...props, readOnly: false, onChange() {} }));
@@ -101,21 +116,25 @@ test('nhập ngày sai thời lượng lịch lớp hiện lỗi trước khi g�
 const { default: TeamSourceReview } = await server.ssrLoadModule('/src/components/education-plan/TeamSourceReview.jsx');
 test('review panel separates unresolved/resolved/new items and uses reviewItemId for its action identity', () => {
   const plan = { domains, themes: props.themes,
-    reviewItems: [{ reviewItemId: 'review-901', itemKind: 'CONTENT', itemId: 'c1', sourcePlanId: 'annual-2', reason: 'Nội dung đã đổi', resolved: false },
-      { reviewItemId: 'review-902', itemKind: 'GOAL', itemId: 'g', reason: 'Đã đối chiếu', resolved: true }],
+    reviewItems: [{ reviewItemId: 'review-901', itemKind: 'CONTENT', itemId: 'c1', sourcePlanId: 'annual-2', reason: 'SOURCE_CHANGED', resolved: false },
+      { reviewItemId: 'review-902', itemKind: 'GOAL', itemId: 'g', reason: 'SOURCE_REMOVED', resolved: true }],
     newItems: [{ itemKind: 'CONTENT', itemId: 'c2' }] };
   const html = renderToStaticMarkup(React.createElement(TeamSourceReview, { plan, onResolve() {} }));
-  assert.match(html, /Còn 1 mục cần rà soát/); assert.match(html, /Nội dung đã đổi/);
+  assert.match(html, /Còn 1 mục cần rà soát/); assert.match(html, /Nội dung nguồn đã thay đổi/);
+  assert.doesNotMatch(html, /SOURCE_CHANGED|SOURCE_REMOVED/);
   assert.match(html, /Mới: Nội dung không chọn/); assert.match(html, /Đã kiểm tra/);
   assert.equal((html.match(/<button/g) || []).length, 1);
+  assert.match(html, /class="field__error" role="alert"><strong>Còn 1 mục/);
+  assert.match(html, /class="text-success"><strong>[^<]+<\/strong>: Mục này đã bị bỏ khỏi nguồn/);
+  assert.match(html, /class="text-success text-sm" role="status"><strong>Mục mới/);
   const table = renderToStaticMarkup(React.createElement(GoalTable, {
     domains, themes: props.themes, numbers: { g: 1 }, readOnly: true, fixedCells: true,
     reviewItems: plan.reviewItems, newItems: plan.newItems,
   }));
-  assert.match(table, /text-danger text-xs[^>]*role="note">Cần rà soát: Nội dung đã đổi/);
-  assert.match(table, /text-primary text-xs[^>]*role="note">Mới từ nguồn năm học/);
+  assert.match(table, /text-danger text-xs[^>]*role="note">Cần rà soát: Nội dung nguồn đã thay đổi/);
+  assert.match(table, /text-success text-xs[^>]*role="note">Mới từ nguồn năm học/);
   assert.match(table, /Nội dung không chọn/);
   const refreshed = renderToStaticMarkup(React.createElement(TeamSourceReview, { plan: { ...plan, reviewItems: plan.reviewItems.map((item) => ({ ...item, resolved: true })) } }));
   assert.doesNotMatch(refreshed, /Còn 1 mục|<button/);
-  assert.match(refreshed, /Đã rà soát các thay đổi/);
+  assert.match(refreshed, /class="text-success text-sm" role="status"><strong>Đã rà soát các thay đổi/);
 });

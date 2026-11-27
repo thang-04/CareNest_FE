@@ -52,3 +52,32 @@ test('chỉ phản hồi mới nhất được dùng; đổi lớp/rời màn b�
   const c=sync.refresh();sync.dispose();pending[2]('unmounted');await c;
   assert.deepEqual(applied,['new']);
 });
+
+// ATT-02a (Cần chốt 17/11/2026): một nút "Tham gia ăn" cho cả ngày; trẻ vắng không có suất
+test('gạt tắt tham gia ăn là thay đổi chưa lưu, được giữ khi sheet tải lại',()=>{
+  const sessions=['LUNCH','AFTERNOON'];
+  const saved={child:{id:'a'},record:{status:'PRESENT',meals:{LUNCH:true,AFTERNOON:true}},leaveRequest:null};
+  const old={mealSessions:sessions,children:[saved]};
+  const fresh={mealSessions:sessions,children:[saved]};
+  const off={a:{childId:'a',status:'PRESENT',meals:{LUNCH:false,AFTERNOON:false}}};
+  assert.deepEqual(reconcileAttendanceDraft(off,old,fresh).a.meals,{LUNCH:false,AFTERNOON:false});
+  assert.deepEqual(reconcileAttendanceDraft({},old,fresh).a.meals,{LUNCH:true,AFTERNOON:true});
+});
+test('báo đỏ dưới dòng: trẻ vắng còn bật ăn, bữa không thuộc nhóm tuổi',async()=>{
+  const { validateClassAttendance }=await import('@/utils/attendance/attendanceValidation');
+  const sessions=['LUNCH','AFTERNOON'];
+  const errors=validateClassAttendance([
+    {childId:'a',status:'UNEXCUSED',meals:{LUNCH:true}},
+    {childId:'b',status:'PRESENT',meals:{MORNING:true}},
+    {childId:'c',status:'PRESENT',meals:{LUNCH:false,AFTERNOON:false}},
+  ],{sessions});
+  assert.equal(errors.a.meals,'Trẻ vắng mặt không thể đăng ký suất ăn.');
+  assert.match(errors.b.meals,/không thuộc nhóm tuổi/);
+  assert.equal(errors.c,undefined);
+});
+test('bữa theo cấu hình nhóm tuổi, không tự đặt Trưa/Chiều khi sheet mới thiếu mealSessions',()=>{
+  const sessions=['MORNING','LUNCH','AFTERNOON'];
+  const saved={child:{id:'a'},record:{status:'PRESENT',meals:{MORNING:true,LUNCH:true,AFTERNOON:true}},leaveRequest:null};
+  const merged=reconcileAttendanceDraft({},{mealSessions:sessions,children:[saved]},{children:[saved]});
+  assert.deepEqual(merged.a.meals,{MORNING:true,LUNCH:true,AFTERNOON:true});
+});

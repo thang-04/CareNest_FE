@@ -9,10 +9,10 @@ test.describe.configure({ mode: 'serial' });
 
 const GOALS = '/education-plans/goals';
 const U = {
-  vp: 'tam.lethi@thuonghong.carenest.edu.vn',
-  ht: 'tuyet.hoangminh@thuonghong.carenest.edu.vn',
-  tl: 'lan.nguyenkim@thuonghong.carenest.edu.vn',
-  gv2: 'thanh.phamthi@thuonghong.carenest.edu.vn',
+  vp: 'viceprincipal',
+  ht: 'principal',
+  tl: 'teacher1',
+  gv2: 'teacher2',
 };
 const NOTE = '[E2E] Nhờ duyệt bản điều chỉnh, xem lại chủ đề Tết';
 const headers = (rev) => ({ 'X-Plan-Revision': String(rev ?? 0), 'Idempotency-Key': randomUUID(), 'X-Edit-Session': newSession() });
@@ -81,7 +81,8 @@ test('IT-002-02 bản tổ Nháp tự sinh: chỉ Tổ trưởng thấy; PHT/HT/
     expect(list.data.items.every((p) => p.status === 'APPROVED')).toBe(true);
     const direct = await api(user, 'GET', `${GOALS}/${teamDraft.id}`);
     expect(direct.status).toBe(403);
-    expect(direct.errorCode).toBe(7384); // EDU_PLAN_NOT_RELEASED
+    // EDU_PLAN_NOT_RELEASED khi trong phạm vi xem; GV khác nhóm tuổi của bản tổ ⇒ YEAR_PLAN_ACCESS_DENIED (EDU-06)
+    if (user !== U.gv2) expect(direct.errorCode).toBe(7384);
   }
   const forTl = await api(U.tl, 'GET', `${GOALS}/${teamDraft.id}`);
   expect(forTl.status).toBe(200);
@@ -93,14 +94,17 @@ test('IT-002-03 giáo viên thứ hai xem kế hoạch năm đã ban hành của
   const list = await api(U.gv2, 'GET', `${GOALS}?planLevel=SCHOOL_YEAR&size=100`);
   expect(list.status).toBe(200);
   expect(list.data.items.length).toBeGreaterThan(0);
-  expect(list.data.items.every((p) => p.ageGroupId === ageGroupId && p.status === 'APPROVED')).toBe(true);
-  const detail = await api(U.gv2, 'GET', `${GOALS}/${annual.id}`);
+  // Nhóm tuổi theo phân công của chính GV thứ hai (dữ liệu dev có thể khác nhóm tổ trưởng)
+  const gvGroup = list.data.items[0].ageGroupId;
+  expect(list.data.items.every((p) => p.ageGroupId === gvGroup && p.status === 'APPROVED')).toBe(true);
+  const gvAnnual = list.data.items.find((p) => p.current) || list.data.items[0];
+  const detail = await api(U.gv2, 'GET', `${GOALS}/${gvAnnual.id}`);
   expect(detail.status).toBe(200);
   expect(detail.data.permissions.canEdit).toBe(false);
   expect(detail.data.history).toEqual([]);
   expect(detail.data.versions.every((v) => v.status === 'APPROVED')).toBe(true);
   const vp = await api(U.vp, 'GET', `${GOALS}?planLevel=SCHOOL_YEAR&size=100`);
-  const other = vp.data.items.find((p) => p.ageGroupId !== ageGroupId && p.status === 'APPROVED');
+  const other = vp.data.items.find((p) => p.ageGroupId !== gvGroup && p.status === 'APPROVED');
   if (other) expect((await api(U.gv2, 'GET', `${GOALS}/${other.id}`)).status).toBe(403);
 });
 

@@ -7,6 +7,7 @@ import { ensureSchoolSeeded } from '@/mocks/schoolMockRepository';
 import { EDU_SEED_VERSION, ensureEduDemo } from '@/mocks/educationPlanSeed';
 import { ROLES, ROLE_LABELS } from '@/models/User';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
+import { mockSchoolYearId, sameSchoolYearId } from '@/models/education-plan/schoolYearScope.mjs';
 import {
   CARD_NAME_MAX,
   CLASS_DOC,
@@ -25,6 +26,7 @@ import { PENDING_OF, SIGN_ROLES, withDefaults } from '@/models/education-plan/ed
 import { numberGoals, toRows } from '@/models/education-plan/goalTable';
 import { currentPlanOf, diffPlans, unresolvedFlags, versionFlags, versionOf } from '@/models/education-plan/planVersions.mjs';
 import { parseCsv } from '@/utils/csv';
+import { classDocSummary } from '@/models/education-plan/classDocSummary.mjs';
 
 /*
  * Fake backend cho tài liệu kế hoạch của lớp (chủ đề nhánh, kế hoạch chủ đề, giáo án tuần).
@@ -145,6 +147,10 @@ const decorate = (db, doc, user, kind = doc.kind) => {
     version: doc.version ?? 0,
     dossierVersion: kind === 'week' ? (root?.version ?? null) : null,
     review,
+    // EDU-109 (9): khóa lại TỪ ngày hạn mở (không phải hết ngày đó), Hiệu trưởng mở tiếp được (lặp lại)
+    ...(doc.reviewDeadline?.reopenUntil && new Date().toISOString().slice(0, 10) >= doc.reviewDeadline.reopenUntil
+      ? { reviewDeadline: { ...doc.reviewDeadline, locked: true } }
+      : {}),
     superseded: isSuperseded(db, doc.yearPlanId),
     ...(user
       ? {
@@ -255,7 +261,45 @@ export const classPlanMockRepository = {
     });
     return { matches, warnings };
   },
-  async getAll(user) {
+  async getOverdue(user, schoolYearId) {
+    const { classes } = await this.getAll(user, schoolYearId);
+    return { classes, semesterPackages: [], themeDossiers: [] };
+  },
+  async getOverdueDoc() {
+    throw eduError('CLASS_DOC_NOT_FOUND');
+  },
+  // BE giả của edu-list-paging: cùng dữ liệu getAll, cắt gọn + phân trang như /class-docs/summary
+  async getSummaries(user, schoolYearId, { review = false, classIds, kinds, statuses, myTurn = false, page = 0, size = 5 } = {}) {
+    const all = await this.getAll(user, schoolYearId, review);
+    // myTurn (hàng chờ): hồ sơ đang chờ duyệt; mock dùng cả trạng thái chờ cũ PENDING_*
+    if (myTurn) statuses = ['REVIEW', 'PENDING_TL', 'PENDING_VP', 'PENDING_HT'];
+    const docs = ['semesterPackages', 'themeDossiers', 'branchPlans', 'classThemePlans', 'weekPlans', 'dayPlans']
+      .flatMap((key) => all[key] || [])
+      .filter(
+        (d) =>
+          (!classIds?.length || classIds.map(String).includes(String(d.classId))) &&
+          (!kinds?.length || kinds.includes(d.kind)) &&
+          (!statuses?.length || statuses.includes(d.status)),
+      );
+    const items = docs.slice(page * size, page * size + size).map(classDocSummary);
+    return { items, page, size, totalElements: docs.length, totalPages: Math.ceil(docs.length / size) };
+  },
+
+  async getOne(user, schoolYearId, kind, docKey) {
+    const all = await this.getAll(user, schoolYearId);
+    const doc = ['semesterPackages', 'themeDossiers', 'branchPlans', 'classThemePlans', 'weekPlans', 'dayPlans']
+      .flatMap((key) => all[key] || [])
+      .find((d) => d.kind === kind && d.id === docKey);
+    if (!doc) throw eduError('CLASS_DOC_NOT_FOUND');
+    return doc;
+  },
+
+  async getContext(user, schoolYearId) {
+    const { classes, staff, creationCapabilities, semesterConfigMissing } = await this.getAll(user, schoolYearId);
+    return { classes, staff, creationCapabilities, semesterConfigMissing };
+  },
+
+  async getAll(user, schoolYearId, review = false) {
     await delay();
     const db = readDb();
     // Bộ demo cũ: nạp bộ demo hiện hành (kế hoạch năm + bản nháp của lớp) trước khi đọc
@@ -263,17 +307,34 @@ export const classPlanMockRepository = {
     if (Object.values(COLLECTIONS).some((key) => !readDb()[key])) writeDb(ensureCollections);
     ensureSchoolSeeded();
     const fresh = readDb();
+    const activeYearId = fresh.schoolYears?.find((year) => year.status === 'ACTIVE')?.id;
+    const classes = (fresh.classes || []).filter(
+      (cls) =>
+        schoolYearId == null ||
+        sameSchoolYearId(cls.schoolYearId ?? mockSchoolYearId(fresh.schoolYears, cls.schoolYear) ?? activeYearId, schoolYearId),
+    );
+    const classIds = new Set(classes.map((cls) => String(cls.id)));
+    const docs = (kind) =>
+      fresh[COLLECTIONS[kind]]
+        .filter((doc) => classIds.has(String(doc.classId)))
+        .map((doc) => decorate(fresh, doc, user, kind))
+        .filter(
+          (doc) =>
+            canAuthor(fresh, doc.classId, user) ||
+            (kind !== 'branch' &&
+              (doc.status === EDU_STATUS.APPROVED || (review && (doc.permissions?.canApprove || doc.permissions?.canReject)))),
+        );
     return {
-      branchPlans: clone(fresh.eduClassBranch.map((d) => decorate(fresh, d, user, 'branch'))),
-      classThemePlans: clone(fresh.eduClassTheme.map((d) => decorate(fresh, d, user, 'theme'))),
-      weekPlans: clone(fresh.eduClassWeek.map((d) => decorate(fresh, d, user, 'week'))),
-      // ponytail: bản demo giữ cách duyệt cũ (BE:EDU-17); BE:EDU-74 (gói học kỳ, hồ sơ chủ đề, giáo án ngày) chỉ có ở API —
+      branchPlans: clone(docs('branch')),
+      classThemePlans: clone(docs('theme')),
+      weekPlans: clone(docs('week')),
+      // ponytail: bản demo giữ cách duyệt cũ (BE:EDU-17); BE:EDU-74 (kế hoạch giáo dục chủ đề, kế hoạch giáo dục ngày, giáo án ngày) chỉ có ở API —
       // danh sách rỗng ⇒ trang tự quay về gửi theo kế hoạch chủ đề. Dựng mock đầy đủ khi cần demo không có BE.
       semesterPackages: [],
       themeDossiers: [],
       dayPlans: [],
       semesterConfigMissing: false,
-      creationCapabilities: (fresh.classes || []).flatMap((cls) =>
+      creationCapabilities: classes.flatMap((cls) =>
         ['branch', 'theme', 'week'].map((kind) => ({
           classId: cls.id,
           kind,
@@ -283,7 +344,7 @@ export const classPlanMockRepository = {
         })),
       ),
       // Lớp và giáo viên, tổ trưởng (giống GET /education-plans/class-docs của BE)
-      classes: clone(fresh.classes || []),
+      classes: clone(classes),
       staff: (fresh.users || [])
         .filter((u) => u.role === ROLES.TEACHER || u.role === ROLES.TEAM_LEADER)
         .map((u) => ({ id: u.id, fullName: u.fullName, role: u.role, ageGroupId: u.ageGroupId })),
@@ -378,11 +439,11 @@ export const classPlanMockRepository = {
   /**
    * Gửi / duyệt / trả lại (không còn chữ ký trong hệ thống: duyệt xong thì in ra ký tay). action: submit | approve | reject.
    * - Chủ đề nhánh (branch): giáo viên của lớp gửi khi đủ tên các tuần; người duyệt theo eduConfig.signers.branch (Phó HT).
-   * - Hồ sơ chủ đề (theme): giáo viên gửi MỘT lần kế hoạch chủ đề + giáo án tất cả các nhánh; duyệt / trả lại cả hồ sơ
+   * - Kế hoạch giáo dục ngày (theme): giáo viên gửi MỘT lần kế hoạch chủ đề + giáo án tất cả các nhánh; duyệt / trả lại cả hồ sơ
    *   theo eduConfig.signers.week (Tổ trưởng → Phó HT). Giáo án các tuần mang cùng trạng thái với hồ sơ.
    * Bỏ bước tổ trưởng khi tổ trưởng của khối dạy lớp đó (gửi thẳng Phó HT).
    */
-  async act(kind, id, { action, note }, user, options = {}) {
+  async act(kind, id, { action, note, deadline }, user, options = {}) {
     await delay();
     ensureSchoolSeeded();
     return writeDb((db) => {
@@ -390,7 +451,7 @@ export const classPlanMockRepository = {
         throw eduError(name, ...args);
       };
       if (kind === CLASS_DOC.WEEK) fail('WEEKLY_LESSON_VIA_THEME');
-      if (kind === CLASS_DOC.BRANCH) fail('INVALID_VALUE', 'chủ đề nhánh gửi cùng hồ sơ chủ đề');
+      if (kind === CLASS_DOC.BRANCH) fail('INVALID_VALUE', 'chủ đề nhánh gửi cùng kế hoạch giáo dục ngày');
       const doc = findDoc(db, kind, id);
       assertVersion(doc, options.version);
       const cls = classOf(db, doc.classId);
@@ -420,7 +481,7 @@ export const classPlanMockRepository = {
         (waiting !== ROLES.TEAM_LEADER || isLeader) &&
         !authorsOf(db, doc).has(user.id);
       const lists = { branchPlans: db.eduClassBranch, weekPlans: db.eduClassWeek, classThemePlans: db.eduClassTheme, yearPlan };
-      // Hồ sơ chủ đề: giáo án các tuần đi cùng trạng thái của kế hoạch chủ đề
+      // Kế hoạch giáo dục ngày: giáo án các tuần đi cùng trạng thái của kế hoạch chủ đề
       const weekDocs = kind === CLASS_DOC.THEME ? dossierWeekDocs(doc, yearPlan, db.eduClassWeek).map((x) => x.doc) : [];
       const all = [doc, ...weekDocs.filter(Boolean)];
       const setStatus = (status, waitingRole, approval) =>
@@ -465,6 +526,18 @@ export const classPlanMockRepository = {
           d.history = [...(d.history || []), i === 0 ? e : { ...e, action: `${e.action} (kế hoạch chủ đề)` }];
         });
 
+      // EDU-109 (9): một thao tác Mở hạn lùi hạn chung cho gửi và duyệt (reopen_review_deadline cũ xử lý như extend)
+      if (action === 'extend' || action === 'reopen_review_deadline') {
+        if (!rolesOf(user).includes(ROLES.PRINCIPAL)) fail('EDU_CONFIG_FORBIDDEN');
+        if (!note?.trim() || !deadline || deadline <= new Date().toISOString().slice(0, 10)) fail('INVALID_VALUE', 'lý do hoặc hạn mới');
+        all.forEach((d) => {
+          d.extendedTo = deadline;
+          if (d.reviewDeadline) d.reviewDeadline = { ...d.reviewDeadline, locked: false, reopenUntil: deadline };
+        });
+        log({ ...entry(user, 'Mở hạn', '', note), action: 'extend', deadline });
+        return clone(decorate(db, doc, user, kind));
+      }
+
       if (action === 'submit') {
         if (!canAuthor(db, doc.classId, user)) fail('CLASS_DOC_TEACHER_ONLY');
         if (!isEditableStatus(doc.status)) fail('CLASS_DOC_SUBMITTED');
@@ -478,7 +551,7 @@ export const classPlanMockRepository = {
           error.details = { details: empty };
           throw error;
         }
-        // BE:EDU-80 (FR-030) — hồ sơ chủ đề thiếu MT của chủ đề ở mọi ngày dạy ⇒ chặn; gõ tay không tính
+        // BE:EDU-80 (FR-030) — kế hoạch giáo dục ngày thiếu MT của chủ đề ở mọi ngày dạy ⇒ chặn; gõ tay không tính
         if (kind === CLASS_DOC.THEME) {
           const goals = themeGoalsOf(yearPlan, doc.themeId, doc.customTicks);
           const weeks = dossierWeekDocs(doc, yearPlan, db.eduClassWeek).map((x) => ({
@@ -566,6 +639,20 @@ export const classPlanMockRepository = {
             note,
           ),
         );
+      } else if (action === 'principal_publish') {
+        // BE EDU-110 (8), (10), (11): HT soạn, chuỗi duyệt rỗng ⇒ HT ban hành thẳng từ Nháp hoặc Chờ duyệt
+        if (!rolesOf(user).includes(ROLES.PRINCIPAL) || (policy?.creators || []).join() !== ROLES.PRINCIPAL || rawChain.length)
+          fail('NOT_YOUR_REVIEW_STEP', 'ban hành');
+        if (![EDU_STATUS.DRAFT, EDU_STATUS.REJECTED, 'REVIEW'].includes(doc.status)) fail('YEAR_PLAN_INVALID_STATUS', 'ban hành');
+        setStatus(EDU_STATUS.APPROVED, null, {
+          userId: user.id,
+          name: user.fullName,
+          role: ROLE_LABELS[user.role] || user.role,
+          roleKey: ROLES.PRINCIPAL,
+          at: now(),
+          note: note || '',
+        });
+        log(entry(user, 'Hiệu trưởng ban hành', 'ok', note));
       } else if (action === 'reject') {
         if (!isWaitingFor) fail('NOT_YOUR_REVIEW_STEP', 'trả lại');
         if (!note?.trim()) fail('RETURN_REASON_REQUIRED');

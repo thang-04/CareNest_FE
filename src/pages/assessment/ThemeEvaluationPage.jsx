@@ -1,4 +1,7 @@
+import { childNameWithHistory } from '@/utils/childHistory';
 import { useEffect, useMemo, useState } from 'react';
+import { useYearCampuses } from '@/hooks/useYearCampuses';
+import { CampusFilter } from '@/components/ui/CampusFilter';
 import { useSearchParams } from 'react-router-dom';
 import { CheckCircle2, Download, Printer, Save } from '@/components/ui/icons';
 import ThemeEvaluationPreviewModal from '@/components/assessment/ThemeEvaluationPreviewModal';
@@ -44,7 +47,11 @@ export default function ThemeEvaluationPage() {
   const [search] = useSearchParams();
   const [classId, setClassId] = useState(search.get('classId') || '');
   const [themeId, setThemeId] = useState(search.get('period') || '');
-  const currentClassId = classId || classes[0]?.classId || '';
+  // Lọc điểm trường (HT: điểm trường của năm đang chọn; PHT: theo phạm vi quyền được cấp); lớp theo điểm trường đang chọn
+  const yearCampuses = useYearCampuses(PERMISSIONS.ASSESSMENT_VIEW);
+  const [campusId, setCampusId] = useState('');
+  const campusClasses = classes.filter((c) => !campusId || String(c.campusId) === String(campusId));
+  const currentClassId = campusClasses.some((c) => String(c.classId) === String(classId)) ? classId : campusClasses[0]?.classId || '';
   const { themes, loading: themesLoading, error: themesError, reload: reloadThemes } = useThemeList(currentClassId);
   // Mặc định chủ đề đã kết thúc gần nhất, chưa có thì chủ đề đang diễn ra
   const defaultTheme = [...themes].reverse().find((t) => t.period === 'ENDED') || themes.find((t) => t.period === 'ONGOING') || themes[0];
@@ -126,7 +133,13 @@ export default function ThemeEvaluationPage() {
         [`Chủ đề: ${ev.themeName}`],
         [`(Từ ngày ${formatDate(ev.startDate)} đến ngày ${formatDate(ev.endDate)}) – Lớp ${ev.className}`],
         head,
-        ...ev.rows.map((r, i) => [i + 1, r.fullName, ...r.cells.map((c) => mark(c.met)), r.met, r.notMet]),
+        ...ev.rows.map((r, i) => [
+          i + 1,
+          childNameWithHistory(r.fullName, r.historyStatus),
+          ...r.cells.map((c) => mark(c.met)),
+          r.met,
+          r.notMet,
+        ]),
         ['', 'Tổng số trẻ đạt', ...ev.goals.map((g) => g.metChildren)],
         ['', 'Tỷ lệ (%)', ...ev.goals.map((g) => (g.rate == null ? '' : g.rate))],
         [],
@@ -150,7 +163,17 @@ export default function ThemeEvaluationPage() {
       <h1 className="page__title">Đánh giá cuối chủ đề</h1>
       <div className="card">
         <div className="filter-bar">
-          {classes.length > 1 && (
+          <CampusFilter
+            campuses={yearCampuses || []}
+            value={campusId}
+            onChange={(next) =>
+              guard.leave(() => {
+                setCampusId(next);
+                setThemeId('');
+              })
+            }
+          />
+          {campusClasses.length > 1 && (
             <div className="field">
               <span className="field__label">Lớp</span>
               <select
@@ -165,7 +188,7 @@ export default function ThemeEvaluationPage() {
                   })
                 }
               >
-                {classes.map((c) => (
+                {campusClasses.map((c) => (
                   <option key={c.classId} value={c.classId}>
                     {c.name}
                     {classes.some((x) => x.teaches) && !c.teaches ? ' (chỉ xem)' : ''}
@@ -287,7 +310,7 @@ export default function ThemeEvaluationPage() {
                                 title="Đối chiếu đánh giá hằng ngày trong thời gian chủ đề"
                                 onClick={() => setXcheck(r)}
                               >
-                                {r.fullName}
+                                {childNameWithHistory(r.fullName, r.historyStatus)}
                               </button>
                             </td>
                             {r.cells.map((c) => {
@@ -296,7 +319,7 @@ export default function ThemeEvaluationPage() {
                               // Bỏ sửa tay ô đã lưu: chưa biết kết quả hệ thống tính tới khi lưu
                               // BE cũ chưa trả kết quả tự tính: bỏ sửa tay ô đã lưu thì chưa biết giá trị tới khi lưu
                               const reverting = c.manual && !manual && c.auto === undefined;
-                              const label = `${r.fullName} – MT ${goalTitle[c.goalId] || ''}: ${
+                              const label = `${childNameWithHistory(r.fullName, r.historyStatus)} – MT ${goalTitle[c.goalId] || ''}: ${
                                 reverting
                                   ? 'về kết quả hệ thống tính khi lưu'
                                   : value === true
@@ -307,7 +330,7 @@ export default function ThemeEvaluationPage() {
                               }`;
                               return (
                                 <td key={c.goalId} className="center">
-                                  {canEdit ? (
+                                  {canEdit && c.canEdit !== false ? (
                                     <button
                                       disabled={!!busy}
                                       type="button"

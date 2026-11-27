@@ -5,13 +5,12 @@ import { useAsync } from '@/hooks/useAsync';
 import { useMasterData } from '@/hooks/useMasterData';
 import { dryStockApi } from '@/services/dryStockApi';
 import { nutritionCatalogApi } from '@/services/nutritionCatalogApi';
-import { PERMISSIONS } from '@/models/bePermissions';
-import { hasBePermission } from '@/utils/bePermissions';
+import { canManageStockAt } from '@/utils/kitchen/kitchenPermissions';
 
-/** Hiện nút "Lập phiếu nhập" (chỉ ẩn/hiện; BE vẫn từ chối 403 khi không có quyền kho ở điểm trường đó). */
-export function useCanManageStock() {
+/** Được ghi kho, dự trù ở điểm trường đang xem (chỉ ẩn/khóa nút; BE vẫn từ chối khi không có quyền ở điểm trường đó). */
+export function useCanManageStock(campusId) {
   const { user } = useAuth();
-  return hasBePermission(user, PERMISSIONS.STOCK_MANAGE);
+  return canManageStockAt(user, campusId);
 }
 
 /**
@@ -45,8 +44,15 @@ const useStockQuery = (loader, deps, enabled = true) => {
   return useAsync(loader, [user?.id, ...deps], { enabled: enabled && !!user });
 };
 
+// Khoảng ngày ngược (từ > đến) không gửi truy vấn: màn lọc đã chặn nhập, đây là lớp phòng thêm
+const rangeOk = (from, to) => !(from && to && from > to);
+
 export const useReceipts = ({ campusId, from, to, status }) =>
-  useStockQuery(() => dryStockApi.listReceipts({ campusId, from, to, status }), [campusId, from, to, status], !!campusId);
+  useStockQuery(
+    () => dryStockApi.listReceipts({ campusId, from, to, status }),
+    [campusId, from, to, status],
+    !!campusId && rangeOk(from, to),
+  );
 
 export const useReceipt = (id) => useStockQuery(() => dryStockApi.getReceipt(id), [id], !!id);
 
@@ -57,7 +63,7 @@ export const useMovements = ({ campusId, from, to, foodId, type, page, size }) =
   useStockQuery(
     () => dryStockApi.listMovements({ campusId, from, to, foodId, type, page, size }),
     [campusId, from, to, foodId, type, page, size],
-    !!campusId,
+    !!campusId && rangeOk(from, to),
   );
 
 export const useShortfalls = (campusId) => useStockQuery(() => dryStockApi.listShortfalls({ campusId }), [campusId], !!campusId);
@@ -66,6 +72,12 @@ export const useShortfalls = (campusId) => useStockQuery(() => dryStockApi.listS
 export function useDryFoods() {
   const { data, ...rest } = useStockQuery(async () => (await nutritionCatalogApi.listFoods()).filter((f) => f.storage === 'DRY'), []);
   return { foods: data || [], ...rest };
+}
+
+/** Thực phẩm thuộc nhà cung cấp tại ngày nhập (giá hợp đồng còn hiệu lực); chưa chọn nhà cung cấp thì không nạp. */
+export function useSupplierFoods(supplierId, date) {
+  const { data, ...rest } = useStockQuery(() => nutritionCatalogApi.getSupplierFoods(supplierId, date), [supplierId, date], !!supplierId);
+  return { foods: supplierId ? data || [] : [], ...rest };
 }
 
 export function useActiveSuppliers() {

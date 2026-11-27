@@ -6,6 +6,8 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 const source = await readFile(new URL('../../src/hooks/education-plan/useEducationPlan.jsx', import.meta.url), 'utf8');
 const stubs = `import React,{createContext,useCallback,useContext,useMemo,useRef,useState} from ${JSON.stringify(import.meta.resolve('react'))};
+import {educationSchoolYears,sameSchoolYearId} from ${JSON.stringify(import.meta.resolve('../../src/models/education-plan/schoolYearScope.mjs'))};
+const USE_MOCK=false;
 export let failure=null; export const setFailure=e=>failure=e;
 const devNow=()=>new Date();
 let retained={goals:[],eduConfig:{}};const effects=[];const useEffect=fn=>effects.push(fn);

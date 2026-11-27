@@ -87,8 +87,7 @@ function ServingsCard({ servings }) {
           <tr>
             <th>Bữa ăn</th>
             <th>Lớp</th>
-            <th className="num">Suất thường</th>
-            <th className="num">Suất thay thế</th>
+            <th className="num">Số suất</th>
           </tr>
         </thead>
         <tbody>
@@ -101,8 +100,7 @@ function ServingsCard({ servings }) {
                   </th>
                 )}
                 <td>{item.classroomName}</td>
-                <td className="num">{fmtQty(item.normal)}</td>
-                <td className="num">{fmtQty(item.substitute)}</td>
+                <td className="num">{fmtQty(item.normal + item.substitute)}</td>
               </tr>
             )),
           )}

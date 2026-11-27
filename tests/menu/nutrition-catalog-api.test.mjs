@@ -38,7 +38,8 @@ const config = (over) => ({
   animalLipidGMax: 14,
   lunchKcalPctMin: 40,
   lunchKcalPctMax: 50,
-  dailyKcalNeed: 1300,
+  dailyKcalMin: 1230,
+  dailyKcalMax: 1320,
   normBasis: 'TT 28/2016',
   ...over,
 });
@@ -63,8 +64,8 @@ const beFood = {
   glucid: 0.5,
   calcium: 55,
   iron: 2.7,
+  zinc: 1.5,
   nutrientSource: 'Bảng TPVN',
-  nutrientSourceVersion: '2017',
   wastePct: 12,
   storage: 'FRESH',
   note: '',
@@ -94,6 +95,7 @@ const respond = (method, url, body) => {
   calls.push({ method, url, body });
   if (url === '/nutrition/allergens') return ALLERGENS;
   if (url === '/age-groups') return AGE_GROUPS;
+  if (url === '/nutrition/age-group-configs/statuses') return AGE_GROUPS.map((g) => ({ ageGroupId: g.id, enabled: true }));
   if (url === '/nutrition/foods' && method === 'get') return [beFood];
   if (url === '/nutrition/foods/import')
     return { created: body.items.filter((it) => it.id == null).length, updated: body.items.filter((it) => it.id != null).length };
@@ -135,17 +137,18 @@ test('thực phẩm BE → dạng FE: nhóm, dinh dưỡng, nguồn số liệu,
     protein: 14.8,
     lipid: 11.6,
     glucid: 0.5,
-    // NUT-26: BE có canxi, sắt; chất BE chưa có số liệu ⇒ null
+    // NUT-26: BE có canxi, sắt, kẽm; chất BE chưa có số liệu ⇒ null
     calcium: 55,
-    phosphorus: null,
     iron: 2.7,
+    zinc: 1.5,
     vitaminA: null,
+    vitaminC: null,
+    phosphorus: null,
     vitaminB1: null,
     vitaminB2: null,
     vitaminPp: null,
-    vitaminC: null,
   });
-  assert.deepEqual([food.nutrientSource, food.nutrientSourceVersion], ['Bảng TPVN', '2017']);
+  assert.equal(food.nutrientSource, 'Bảng TPVN');
   assert.deepEqual(food.allergens, ['Trứng']);
   assert.deepEqual([food.stockUnit, food.purchaseToStock, food.stockUnitSize], ['quả', 1, 50]);
   assert.equal(food.favorite, false);
@@ -169,7 +172,7 @@ test('lưu thực phẩm: tên dị ứng → allergenIds, nutrition → trườ
   assert.equal(put.body.foodGroup, 'EGG_DAIRY');
   assert.equal(put.body.purchaseUnitSize, 100, 'g/ml của đơn vị mua tính từ hai tỷ lệ của form');
   assert.deepEqual([put.body.kcal, put.body.glucid], [166, 0.5]);
-  assert.deepEqual([put.body.nutrientSource, put.body.nutrientSourceVersion], ['Bảng TPVN', '2017']);
+  assert.equal(put.body.nutrientSource, 'Bảng TPVN');
   assert.ok(!('status' in put.body));
   assert.equal(put.body.code, 'TP007', 'giữ mã cũ');
   assert.deepEqual(calls.at(-1), { method: 'patch', url: '/nutrition/foods/7/status', body: { status: 'INACTIVE' } });
@@ -256,6 +259,8 @@ test('món BE: dòng theo nhóm tuổi ⇔ portions theo id nhóm tuổi FE; ô 
   assert.deepEqual(dish.ingredients, [{ foodId: '7', foodName: 'Trứng gà', portions: { 'ag-2': 20, 'ag-4': 30 }, quantity: 30 }]);
   assert.deepEqual(dish.allergens, ['Trứng']);
   assert.equal(dish.nutritionByAgeGroup[0].ageGroupId, 'ag-4');
+  // Nhóm tuổi áp dụng suy từ dòng định lượng đã lưu, không tự thêm nhóm chưa chọn
+  assert.deepEqual(dish.ageGroupIds, ['ag-2', 'ag-4']);
 
   calls = [];
   await api.saveDish(null, {
@@ -320,6 +325,9 @@ test('nhà cung cấp: người giao hàng ↔ contactName; BE không trả CCCD
     address: '',
     deliveryPerson: 'Chị giao',
     idCard: '012345678901',
+    contractNo: '',
+    contractStart: null,
+    contractEnd: null,
   });
   assert.equal(calls.length, 1, 'trạng thái không đổi ⇒ không PATCH');
 });
@@ -414,7 +422,7 @@ test('cấu hình nhóm tuổi BE → Thiết lập: id nhóm FE theo code, giá
     lunchKcalPct: [40, 50],
   });
   assert.ok(!('animalProteinG' in ag4.norms), 'khoảng null = chưa đặt');
-  assert.equal(ag4.dailyKcalNeed, 1300, 'nhu cầu năng lượng cả ngày (NUT-25)');
+  assert.deepEqual(ag4.dailyKcal, [1230, 1320], 'nhu cầu năng lượng cả ngày tối thiểu–tối đa (NUT-25)');
   assert.deepEqual(
     ag4.versions.map((v) => [v.effectiveFrom, v.editable]),
     [
@@ -445,14 +453,17 @@ test('lưu Thiết lập lên BE: một POST /batch chứa mọi nhóm đổi; k
     price: '32000',
     meals: [],
     norms,
-    dailyKcalNeed: '1300',
+    dailyKcal: ['1230', '1320'],
     ...over,
   });
   calls = [];
   const result = await api.saveNutritionSetups({
     effectiveFrom: '2099-01-01',
     basis: 'TT 28/2016',
-    groups: [group('ag-4'), group('ag-2', { norms: { kcal: ['', ''] }, price: '28000' })],
+    groups: [
+      group('ag-4', { dailyKcal: ['1300', '1400'], applied: { protein: '14', lipid: '26', glucid: '60' } }),
+      group('ag-2', { dailyKcal: ['', ''], price: '28000' }),
+    ],
   });
   const writes = calls.filter((c) => c.method !== 'get');
   assert.deepEqual(
@@ -466,16 +477,15 @@ test('lưu Thiết lập lên BE: một POST /batch chứa mọi nhóm đổi; k
     ageGroupId: '13',
     effectiveFrom: '2099-01-01',
     mealPrice: 32000,
+    // NUT-19: phí dịch vụ để trống gửi 0, biên tiền để trống gửi 5%
+    serviceFee: 0,
+    budgetTolerancePct: 5,
     normBasis: 'TT 28/2016',
-    dailyKcalNeed: 1300,
-    kcalMin: 615,
-    kcalMax: 726,
-    proteinPctMin: 13,
-    proteinPctMax: 20,
-    lipidPctMin: 25,
-    lipidPctMax: 35,
-    glucidPctMin: 52,
-    glucidPctMax: 60,
+    dailyKcalMin: 1300,
+    dailyKcalMax: 1400,
+    appliedProteinPct: 14,
+    appliedLipidPct: 26,
+    appliedGlucidPct: 60,
     animalProteinGMin: 12,
     animalProteinGMax: 16,
     plantProteinGMin: null,
@@ -509,10 +519,13 @@ test('lưu Thiết lập lên BE: một POST /batch chứa mọi nhóm đổi; k
     vitaminPpMax: null,
     vitaminCMin: null,
     vitaminCMax: null,
+    zincMin: null,
+    zincMax: null,
   });
   assert.equal(ag2.ageGroupId, '11');
   assert.equal(ag2.mealPrice, 28000);
-  assert.equal(ag2.kcalMin, null, 'ô trống ⇒ null (chưa đặt)');
+  assert.equal(ag2.dailyKcalMin, null, 'ô trống ⇒ null (chưa đặt)');
+  assert.ok(!('kcalMin' in ag2), 'năng lượng khuyến nghị do BE tính, không gửi lên (NUT-33)');
 
   calls = [];
   const unchanged = { ...norms, animalProteinG: ['', ''], calcium: ['', ''], vitaminA: ['', ''] };
@@ -523,6 +536,16 @@ test('lưu Thiết lập lên BE: một POST /batch chứa mọi nhóm đổi; k
   });
   assert.ok(!calls.some((c) => c.method !== 'get'), 'giống bản mới nhất ⇒ không ghi');
   assert.equal(none.saved, 0);
+
+  // Gam theo chất, vi chất, % bữa không nhập ở màn Định mức dinh dưỡng: khác bản cũ chỉ ở các trường này không phải thay đổi
+  calls = [];
+  const gramOnly = await api.saveNutritionSetups({
+    effectiveFrom: '2099-02-01',
+    basis: 'TT 28/2016',
+    groups: [group('ag-4', { norms: { ...norms, animalProteinG: ['99', '120'], calcium: ['1', '2'] } })],
+  });
+  assert.equal(gramOnly.saved, 0);
+  assert.ok(!calls.some((c) => c.method !== 'get'));
 
   calls = [];
   await api.saveNutritionSetups({
@@ -598,7 +621,9 @@ test('kiểm tra thực đơn: danh mục BE ⇒ định mức, bữa, giá/ngà
   assert.deepEqual(live.foods, mockCatalog.foods, 'thực phẩm, món, thực đơn vẫn từ nguồn thực đơn');
   assert.deepEqual(live.dishes, mockCatalog.dishes);
   assert.equal(live.pricePerDay, true);
-  assert.deepEqual(live.mealPrices, [{ id: '40', ageGroupId: 'ag-4', price: 30000, effectiveFrom: '2026-09-01', effectiveTo: null }]);
+  assert.deepEqual(live.mealPrices, [
+    { id: '40', ageGroupId: 'ag-4', price: 30000, serviceFee: 0, effectiveFrom: '2026-09-01', effectiveTo: null },
+  ]);
   assert.deepEqual(live.norms['ag-4'].kcal, [615, 726]);
   assert.equal(live.norms['ag-4'].animalProteinG, undefined, 'khoảng chưa đặt ⇒ không có khóa');
   assert.deepEqual(live.norms['ag-2'], {}, 'nhóm chưa có cấu hình ⇒ chưa đặt định mức');
@@ -655,4 +680,46 @@ test('kiểm tra tiền ăn tuần: giá BE theo ngày ⇒ so từng ngày; mock
   assert.match(weekly.text, /ngân sách tuần/);
   const none = weekBudgetCheck({ days, ageGroupId: 'ag-2', weekStart: '2026-11-09', catalog: { mealPrices, pricePerDay: true } });
   assert.equal(none.level, 'warn');
+});
+
+test('nutrition ON/OFF maps status and saves without creating a dated config', async () => {
+  const writes = [];
+  const realClient = {
+    ...client,
+    get: async (url, args) =>
+      url === '/nutrition/age-group-configs/statuses'
+        ? AGE_GROUPS.map((g) => ({ ageGroupId: g.id, enabled: g.id !== '13' }))
+        : client.get(url, args),
+    post: async (url, body) => {
+      writes.push({ url, body });
+      return [];
+    },
+  };
+  const adapter = createNutritionCatalogApi({ client: realClient, storage });
+  const rows = await adapter.listNutritionSetups();
+  assert.equal(rows.find((g) => g.ageGroupId === 'ag-4').enabled, false);
+  const effective = await adapter.getEffectiveSetups('2026-11-23');
+  assert.equal(effective.nutritionSetups.find((g) => g.ageGroupId === 'ag-4').enabled, false);
+  await adapter.saveNutritionSetups({ statusOnly: true, groups: [{ ageGroupId: 'ag-4', enabled: true, originalEnabled: false }] });
+  assert.deepEqual(writes, [
+    { url: '/nutrition/age-group-configs/batch', body: { items: [], statuses: [{ ageGroupId: '13', enabled: true }] } },
+  ]);
+  const failed = createNutritionCatalogApi({
+    client: {
+      ...realClient,
+      post: async () => {
+        throw new Error('unavailable');
+      },
+    },
+    storage,
+  });
+  await assert.rejects(
+    failed.saveNutritionSetups({ statusOnly: true, groups: [{ ageGroupId: 'ag-4', enabled: true, originalEnabled: false }] }),
+    /unavailable/,
+  );
+});
+
+test('thực phẩm BE đã nhập kho: cờ unitsLocked chuyển cho form để khóa ô đơn vị, quy đổi', async () => {
+  const [food] = await api.listFoods({});
+  assert.equal(food.unitsLocked, false, 'BE không báo khóa thì không khóa');
 });

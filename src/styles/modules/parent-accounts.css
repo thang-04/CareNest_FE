@@ -67,6 +67,10 @@
   flex-wrap: wrap;
   gap: var(--space-3);
 }
+/* Thanh điểm trường khi điểm trường đang chọn chưa có trẻ, đang tải hoặc lỗi (G94-436) */
+.pa-state-panel__campuses {
+  padding: var(--card-padding-dense) var(--card-padding-dense) 0;
+}
 /* Tên điểm trường dài: xuống dòng thay vì cắt chữ */
 .pa-seg__item {
   min-height: var(--btn-height-sm);

@@ -11,6 +11,7 @@ import { EmptyState, ErrorState, LoadingState } from '@/components/ui/States';
 import { AllergenChips } from '@/components/menu-planning/MenuBadges';
 import { ageAbbr } from '@/utils/menu-planning/nutritionSetup';
 import { DISH_TYPE_LABELS } from '@/models/menu-planning/menuPlanningConstants';
+import { Button, SelectField, TextField } from '@/components';
 
 /**
  * Thư viện món tham khảo (chỉ đọc): PHT xem công thức theo nhóm tuổi và chép món về danh mục của trường.
@@ -53,21 +54,21 @@ export function ReferenceLibraryPanel({ open, onClose, groups, canCopy }) {
       <div className="filter-bar td-lib-filter">
         <label className="search-box td-grow">
           <Search size={17} className="muted" />
-          <input
+          <TextField
             placeholder="Tìm món tham khảo..."
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
             aria-label="Tìm món tham khảo"
           />
         </label>
-        <select className="select" value={type} onChange={(e) => setType(e.target.value)} aria-label="Loại món">
+        <SelectField className="select" value={type} onChange={(e) => setType(e.target.value)} aria-label="Loại món">
           <option value="">Tất cả loại món</option>
           {Object.entries(DISH_TYPE_LABELS).map(([k, v]) => (
             <option key={k} value={k}>
               {v}
             </option>
           ))}
-        </select>
+        </SelectField>
       </div>
       {loading ? (
         <LoadingState />
@@ -95,9 +96,9 @@ export function ReferenceLibraryPanel({ open, onClose, groups, canCopy }) {
                   <span className="chip chip--gray">Đã có trong danh mục</span>
                 ) : (
                   canCopy && (
-                    <button type="button" className="btn btn--sm btn--outline-primary" onClick={() => setPicked(d)}>
+                    <Button size="sm" variant="outline-primary" onClick={() => setPicked(d)}>
                       <CopyPlus size={15} /> Thêm vào món của trường
-                    </button>
+                    </Button>
                   )
                 )}
               </div>

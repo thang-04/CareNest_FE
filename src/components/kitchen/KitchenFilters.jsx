@@ -1,25 +1,32 @@
 import { useMasterData } from '@/hooks/useMasterData';
 import { ALL_MEAL_SESSIONS, MEAL_SESSION_LABELS } from '@/models/kitchen/kitchenConstants';
 import { DateInput } from '@/components/form/DateInput';
+import { SelectField } from '@/components/form/Field';
 import { formatQty, isIsoDate } from '@/utils/format';
 
 /* Small filter controls shared by the kitchen pages (all labelled, DESIGN.md §10). */
 
-export function KbDateFilter({ value, onChange, label = 'Ngày' }) {
+export function KbDateFilter({ value, onChange, label = 'Ngày', min, max }) {
   return (
     <label className="date-filter">
       {label}
-      <DateInput value={value} onChange={(next) => isIsoDate(next) && onChange(next)} aria-label={label} />
+      <DateInput value={value} min={min} max={max} onChange={(next) => isIsoDate(next) && onChange(next)} aria-label={label} />
     </label>
   );
 }
 
-/** Ngày lọc không bắt buộc: để trống = không lọc theo ngày; chỉ nhận ngày đủ hoặc rỗng. */
-export function KbOptionalDateFilter({ value, onChange, label }) {
+/** Ngày lọc không bắt buộc: để trống = không lọc theo ngày; chỉ nhận ngày đủ hoặc rỗng. `min`/`max` = đầu kia của khoảng ngày. */
+export function KbOptionalDateFilter({ value, onChange, label, min, max }) {
   return (
     <label className="date-filter">
       {label}
-      <DateInput value={value} onChange={(next) => (next === '' || isIsoDate(next)) && onChange(next)} aria-label={label} />
+      <DateInput
+        value={value}
+        min={min || undefined}
+        max={max || undefined}
+        onChange={(next) => (next === '' || isIsoDate(next)) && onChange(next)}
+        aria-label={label}
+      />
     </label>
   );
 }
@@ -28,14 +35,14 @@ export function KbSessionFilter({ value, onChange, withAll = false, sessions = A
   return (
     <label className="date-filter">
       Bữa ăn
-      <select className="select" value={value} onChange={(e) => onChange(e.target.value)}>
+      <SelectField value={value} onChange={(e) => onChange(e.target.value)}>
         {withAll && <option value="ALL">Cả ngày</option>}
         {sessions.map((s) => (
           <option key={s} value={s}>
             {MEAL_SESSION_LABELS[s]}
           </option>
         ))}
-      </select>
+      </SelectField>
     </label>
   );
 }
@@ -60,13 +67,13 @@ export function KbCampusFilter({ campusId, onChange, canPick, campuses }) {
   return (
     <label className="date-filter">
       Điểm trường
-      <select className="select" value={campusId} onChange={(e) => onChange(e.target.value)}>
+      <SelectField value={campusId} onChange={(e) => onChange(e.target.value)}>
         {list.map((c) => (
           <option key={c.id} value={c.id}>
             {c.shortName || c.name}
           </option>
         ))}
-      </select>
+      </SelectField>
     </label>
   );
 }

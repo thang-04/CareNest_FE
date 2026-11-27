@@ -1,5 +1,7 @@
+import { sameAgeRange } from '@/models/education-plan/educationPlanConstants';
 import { readDb, writeDb, clone, delay } from '@/mocks/mockDatabase';
 import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
+import { mockSchoolYearId, sameSchoolYearId } from '@/models/education-plan/schoolYearScope.mjs';
 import { eduError } from './eduMockErrors';
 import {
   MAX_PER_SECTION,
@@ -38,7 +40,7 @@ const requireOwned = (s, user, id) => {
   return item;
 };
 
-/* Giáo án ngày dd_X dùng chung khóa với giáo án tuần wp_X; trạng thái theo giáo án tuần + hồ sơ chủ đề. */
+/* Giáo án ngày dd_X dùng chung khóa với giáo án tuần wp_X; trạng thái theo giáo án tuần + kế hoạch giáo dục ngày. */
 const PENDING = new Set([EDU_STATUS.REVIEW, EDU_STATUS.SENT, EDU_STATUS.PENDING_TL, EDU_STATUS.PENDING_VP, EDU_STATUS.PENDING_HT]);
 const weekOf = (db, docKey) => (db.eduClassWeek || []).find((w) => w.id === `wp_${String(docKey).replace(/^dd_/, '')}`) || null;
 const dayStatusOf = (db, docKey) => {
@@ -53,14 +55,17 @@ const dayStatusOf = (db, docKey) => {
 };
 const schoolYearOf = (db, docKey) => {
   const week = weekOf(db, docKey);
-  return (db.eduGoals || []).find((g) => g.id === week?.yearPlanId)?.schoolYear ?? null;
+  const plan = (db.eduGoals || []).find((g) => g.id === week?.yearPlanId);
+  return {
+    schoolYearId: plan?.schoolYearId ?? mockSchoolYearId(db.schoolYears, plan?.schoolYear),
+    schoolYearName: plan?.schoolYear ?? null,
+  };
 };
 
 /** Nhãn tự thêm của một dòng gắn: chủ đề của ngày (+ năm học của lớp) và MT của mục. */
-const autoTags = (db, s, tags, attachmentId, schoolYear) => {
+const autoTags = (db, s, tags, attachmentId, year) => {
   if (!tags) return [];
   const goals = (db.eduGoals || []).flatMap((p) => p.rows || p.goals || []);
-  const year = { schoolYearId: schoolYear, schoolYearName: schoolYear };
   const out = [];
   if (tags.themeId != null || tags.themeName)
     out.push({ kind: 'THEME', refId: tags.themeId ?? null, curriculumGoalId: null, name: tags.themeName || null, ...year });
@@ -71,13 +76,13 @@ const autoTags = (db, s, tags, attachmentId, schoolYear) => {
   return out.map((t) => ({ ...t, id: nextId(s), attachmentId }));
 };
 
-const toTag = (t) => ({
+const toTag = (t, schoolYears) => ({
   id: tagId(t),
   kind: t.kind,
   refId: t.refId ?? null,
   curriculumGoalId: t.curriculumGoalId ?? null,
   name: t.name ?? null,
-  schoolYearId: t.schoolYearId ?? null,
+  schoolYearId: mockSchoolYearId(schoolYears, t.schoolYearId),
   schoolYearName: t.schoolYearName ?? t.schoolYearId ?? null,
   auto: t.attachmentId != null,
 });
@@ -90,8 +95,8 @@ const taughtOf = (tags) => {
   }
   return [...seen.values()];
 };
-const toItem = (s, i, extra = {}) => {
-  const tags = (i.tags || []).map(toTag);
+const toItem = (s, i, schoolYears, extra = {}) => {
+  const tags = (i.tags || []).map((t) => toTag(t, schoolYears));
   return {
     id: i.id,
     kind: i.kind,
@@ -309,16 +314,19 @@ export const resourceLibraryMockRepository = {
     );
     const taught = (i) =>
       (i.tags || []).some(
-        (t) => t.kind === 'THEME' && (!theme || norm(t.name) === theme) && (year == null || String(t.schoolYearId) === String(year)),
+        (t) =>
+          t.kind === 'THEME' &&
+          (!theme || norm(t.name) === theme) &&
+          (year == null || sameSchoolYearId(mockSchoolYearId(db.schoolYears, t.schoolYearId), year)),
       );
     const rows = s.items
       .filter((i) => i.ownerId === user?.id)
       .filter((i) => !q || i.title.toLowerCase().includes(q))
       .filter((i) => !query.kind || i.kind === query.kind)
-      .filter((i) => !query.ageGroupId || i.ageGroupId == null || String(i.ageGroupId) === String(query.ageGroupId))
+      .filter((i) => !query.ageGroupId || i.ageGroupId == null || sameAgeRange(i.ageGroupId, query.ageGroupId))
       .filter((i) => (!theme && year == null) || taught(i))
       .map((i) =>
-        toItem(s, i, {
+        toItem(s, i, db.schoolYears, {
           match: matchOf(i.tags, { goalIds: query.goalIds || [], curriculumIds, themeId: query.themeId, themeName: query.themeName }),
           attached: attached.has(i.id),
         }),
@@ -373,7 +381,7 @@ export const resourceLibraryMockRepository = {
         if (!i.tags.some((x) => x.attachmentId == null && tagKey(x) === tagKey(t)))
           i.tags.push({ ...t, id: nextId(s), attachmentId: null });
       i.updatedAt = now();
-      return toItem(s, i);
+      return toItem(s, i, db.schoolYears);
     });
   },
   /** Xóa vĩnh viễn: bị khóa ⇒ 7137; còn lại xóa mọi dòng gắn, nhãn và học liệu (EDU-85, spec 901). */

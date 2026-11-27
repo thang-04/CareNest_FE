@@ -1,6 +1,6 @@
 name: Deploy VPS
 
-# main = production (web.carenest.edu.vn), dev = môi trường dev (dev.carenest.edu.vn): push = verify + deploy,
+# main = production (thuonghong.carenest.edu.vn), dev = môi trường dev (dev.carenest.edu.vn): push = verify + deploy,
 # PR vào main/dev = chỉ verify; thay đổi chỉ tài liệu không chạy
 on:
   push:
@@ -59,7 +59,7 @@ jobs:
       APP_DIR: ${{ github.ref == 'refs/heads/dev' && '/data/thangnd/CAPSTONE/CareNest_FE-dev' || '/data/thangnd/CAPSTONE/CareNest_FE' }}
       CADDY_DIR: /data/thangnd/CAPSTONE/caddy
       SITE_FILE: ${{ github.ref == 'refs/heads/dev' && 'carenest-dev.caddy' || 'carenest-web.caddy' }}
-      SITE_URL: ${{ github.ref == 'refs/heads/dev' && 'https://dev.carenest.edu.vn/' || 'https://web.carenest.edu.vn/' }}
+      SITE_URL: ${{ github.ref == 'refs/heads/dev' && 'https://dev.carenest.edu.vn/' || 'https://thuonghong.carenest.edu.vn/' }}
       # Dev chạy cạnh production: project, container, image và cổng riêng (compose.yaml đọc các biến này)
       COMPOSE_PROJECT: ${{ github.ref == 'refs/heads/dev' && 'carenest-fe-dev' || 'carenest-fe' }}
       WEB_CONTAINER: ${{ github.ref == 'refs/heads/dev' && 'carenest-web-dev' || 'carenest-web' }}

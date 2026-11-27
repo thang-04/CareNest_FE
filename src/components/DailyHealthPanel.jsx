@@ -231,7 +231,7 @@ export function DailyHealthPanel({
             >
               {busy && <SubmitOverlay state="sending" />}
               <fieldset disabled={busy || parentBusy || !editable} className="dd-health__fields">
-                <FormField label="Thân nhiệt (°C)" error={errors.temperature}>
+                <FormField label="Thân nhiệt (°C)" required error={errors.temperature}>
                   <input
                     className="input"
                     inputMode="decimal"

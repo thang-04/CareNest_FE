@@ -12,6 +12,8 @@ import { DayProgress } from '@/components/dashboard/DayProgress';
 import { Spinner } from '@/components/ui/States';
 import { getChildren, getParentAccounts } from '@/services/children/childrenService';
 import { getMissingFoodReports } from '@/services/kitchen/kitchenService';
+import { dryStockApi } from '@/services/dryStockApi';
+import { isDemoModule } from '@/services/demoSource';
 import { CHILD_STATUS } from '@/models/School';
 import { MISSING_STATUS } from '@/models/kitchen/kitchenConstants';
 import '@/styles/modules/dashboard.css';
@@ -33,7 +35,16 @@ export default function VicePrincipalDashboard() {
   const dayQ = useDayProgress(todayQ);
   const childrenQ = useWidget((u) => getChildren({ schoolYear }, u), [schoolYear]);
   const parentsQ = useWidget((u) => getParentAccounts({ status: 'NOT_ACTIVATED' }, u));
-  const missingQ = useWidget((u) => getMissingFoodReports({ campusId, status: MISSING_STATUS.SUBMITTED }, u), [campusId]);
+  // Kho khô nối API thì báo thiếu lấy từ "Phần thiếu chờ bổ sung"; màn báo thiếu cũ chỉ còn ở bản demo
+  const missingQ = useWidget(
+    (u) =>
+      isDemoModule('dry-stock')
+        ? getMissingFoodReports({ campusId, status: MISSING_STATUS.SUBMITTED }, u)
+        : campusId
+          ? dryStockApi.listShortfalls({ campusId })
+          : Promise.resolve([]),
+    [campusId],
+  );
   const pendingPlacement = (childrenQ.data || []).filter((c) => c.status === CHILD_STATUS.PENDING_PLACEMENT).length;
   const campus = md.campusById(campusId);
   const campusLabel = campus?.shortName || campus?.name;
@@ -86,10 +97,10 @@ export default function VicePrincipalDashboard() {
                 },
                 {
                   key: 'missing',
-                  to: '/kitchen/missing-food',
+                  to: '/kitchen/stock-shortfalls',
                   icon: ChefHat,
                   title: 'Bếp báo thiếu thực phẩm',
-                  meta: missingQ.error ? 'Không tải được – mở chức năng để xem' : 'Báo cáo bếp gửi chờ xử lý',
+                  meta: missingQ.error ? 'Không tải được – mở chức năng để xem' : 'Phần thiếu kho khô chờ bổ sung',
                   end: endOf(missingQ, (missingQ.data || []).length),
                 },
               ]}

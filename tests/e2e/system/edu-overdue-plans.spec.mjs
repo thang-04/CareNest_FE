@@ -6,7 +6,7 @@ import { login, spaGo } from '../support/ui.mjs';
 // (chọn nhiều dòng, một lý do + hạn mới); bản đã ban hành không mở lại; lọc Nhóm tuổi → Lớp; hàng chờ duyệt có cột Hạn.
 test.describe.configure({ mode: 'serial' });
 
-const U = { ht: 'tuyet.hoangminh@thuonghong.carenest.edu.vn', vp: 'tam.lethi@thuonghong.carenest.edu.vn', tl: 'lan.nguyenkim@thuonghong.carenest.edu.vn' };
+const U = { ht: 'principal', vp: 'viceprincipal', tl: 'teacher1' };
 const DOCS = '/education-plans/class-docs';
 const run = Date.now() % 100000;
 const isoPlus = (days) => {
@@ -27,11 +27,12 @@ test.beforeAll(async () => {
   docs = (await api(U.ht, 'GET', DOCS)).data;
 });
 
-test('ST-005-10 HT: màn Kế hoạch quá hạn có hai thẻ, lọc Nhóm tuổi → Lớp (Lớp khóa tới khi chọn nhóm tuổi)', async ({ page }) => {
+test('ST-005-10 HT: màn Kế hoạch quá hạn có ô chọn trạng thái, lọc Nhóm tuổi → Lớp', async ({ page }) => {
   await login(page, U.ht);
   await spaGo(page, '/education/overdue');
-  await expect(page.getByRole('tab', { name: /Đang quá hạn/ })).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByRole('tab', { name: /Đã mở hạn/ })).toBeVisible();
+  const status = page.getByRole('combobox', { name: 'Trạng thái hạn' });
+  await expect(status).toHaveValue('overdue', { timeout: 30_000 });
+  await expect(status.locator('option[value="extended"]')).toHaveText(/Đã mở hạn/);
   const age = page.getByRole('combobox', { name: 'Nhóm tuổi' });
   const cls = page.getByRole('combobox', { name: /^Lớp:?$/ });
   await expect(cls).toBeDisabled();
@@ -41,15 +42,18 @@ test('ST-005-10 HT: màn Kế hoạch quá hạn có hai thẻ, lọc Nhóm tu�
     await expect(cls).toBeEnabled();
   }
   // Ô chọn của hàng lọc đủ rộng, không cắt tên (Tiền 12/11/2026, thay "cùng cỡ" của FR-022a): tối thiểu 5 lần chiều cao ô
-  const widths = await page.locator('.filter-bar .select').evaluateAll((els) => els.map((e) => e.getBoundingClientRect().width));
+  const widths = await page.locator('.filter-bar .select:visible').evaluateAll((els) => els.map((e) => e.getBoundingClientRect().width));
   expect(Math.min(...widths)).toBeGreaterThanOrEqual(180);
+  await page.locator('summary').filter({ hasText: 'Lọc thêm' }).click();
+  await expect(page.getByRole('combobox', { name: 'Loại hồ sơ' })).toBeVisible();
+  await expect(page.getByRole('combobox', { name: 'Học kỳ' })).toBeVisible();
 });
 
 test('ST-005-11 PHT không vào được màn quá hạn và API mở hạn bị từ chối; menu chỉ HT có mục', async ({ page }) => {
   const overdue = docs.semesterPackages.find((p) => p.canExtend) || docs.themeDossiers.find((d) => d.canExtend);
   await login(page, U.vp);
   await spaGo(page, '/education/overdue');
-  await expect(page.getByRole('tab', { name: /Đang quá hạn/ })).toHaveCount(0);
+  await expect(page.getByRole('combobox', { name: 'Trạng thái hạn' })).toHaveCount(0);
   await expect(page.getByRole('link', { name: 'Kế hoạch quá hạn' })).toHaveCount(0);
   test.skip(!overdue, 'Không có tài liệu quá hạn để thử API');
   const kind = overdue.semesterNo ? 'semester' : 'dossier';
@@ -62,7 +66,7 @@ test('ST-005-11 PHT không vào được màn quá hạn và API mở hạn bị
 
 test('ST-005-12 bản đã ban hành bị khóa từ ngày bắt đầu: HT gọi mở hạn bị từ chối', async () => {
   const locked = docs.semesterPackages.find((p) => p.status === 'APPROVED' && p.timeLocked);
-  test.skip(!locked, 'Không có gói học kỳ đã ban hành bị khóa');
+  test.skip(!locked, 'Không có kế hoạch giáo dục chủ đề đã ban hành bị khóa');
   expect(locked.canExtend).toBe(false);
   const res = await api(U.ht, 'POST', `${DOCS}/semester/${locked.id}/actions`, {
     body: { action: 'extend', note: '[E2E] mở bản đã ban hành', deadline: isoPlus(3) },
@@ -71,7 +75,7 @@ test('ST-005-12 bản đã ban hành bị khóa từ ngày bắt đầu: HT gọ
   expect(res.status, res.desc).toBe(400);
 });
 
-test('ST-005-13 HT tích 2 dòng, Mở hạn một lần (lý do + hạn mới) ⇒ hai dòng sang thẻ Đã mở hạn', async ({ page }) => {
+test('ST-005-13 HT tích 2 dòng, Mở hạn một lần (lý do + hạn mới) ⇒ hai dòng sang Đã mở hạn', async ({ page }) => {
   const rows = [...docs.semesterPackages.filter((p) => p.canExtend), ...docs.themeDossiers.filter((d) => d.canExtend)];
   test.skip(rows.length < 2, 'Cần ít nhất 2 tài liệu quá hạn');
   await login(page, U.ht);
@@ -88,12 +92,13 @@ test('ST-005-13 HT tích 2 dòng, Mở hạn một lần (lý do + hạn mới) 
   await dialog.getByLabel('Hạn mới').fill(isoPlus(7));
   await dialog.getByLabel('Lý do').fill(`[E2E] Mở hạn hàng loạt ${run}`);
   const calls = [];
-  page.on('response', (r) => (r.url().endsWith('/actions') || r.url().endsWith('/unlock')) && calls.push(r.status()));
+  // EDU-109 (9): một thao tác Mở hạn (actions extend / unlock) cho cả quá hạn gửi và duyệt
+  page.on('response', (r) => /\/(actions|unlock)$/.test(r.url()) && calls.push(r.status()));
   await dialog.getByRole('button', { name: 'Mở hạn' }).click();
   await expect(dialog).toHaveCount(0, { timeout: 30_000 });
   expect(calls).toEqual([200, 200]);
   await expect(boxes).toHaveCount(before - 2, { timeout: 30_000 });
-  await page.getByRole('tab', { name: /Đã mở hạn/ }).click();
+  await page.getByRole('combobox', { name: 'Trạng thái hạn' }).selectOption('extended');
   await expect(page.getByText(`[E2E] Mở hạn hàng loạt ${run}`).first()).toBeVisible();
 });
 
@@ -122,7 +127,8 @@ test('ST-005-15 hàng chờ duyệt: lọc Nhóm tuổi → Lớp và cột Hạ
   const hasItems = await page.locator('tbody tr').count();
   test.skip(!hasItems, 'Không có tài liệu chờ duyệt');
   await expect(page.getByRole('combobox', { name: 'Nhóm tuổi' })).toBeVisible();
-  await expect(page.getByRole('combobox', { name: /^Lớp:?$/ })).toBeDisabled();
+  // Phó hiệu trưởng lọc thêm theo lớp của năm học đang chọn (Tiền 12/11/2026) ⇒ ô Lớp chọn được ngay
+  await expect(page.getByRole('combobox', { name: /^Lớp:?$/ })).toBeEnabled();
   await expect(page.getByRole('columnheader', { name: 'Hạn' })).toBeVisible();
 });
 
@@ -197,15 +203,15 @@ test('ST-005-20 nút Hủy ở trang Cấu hình; Xuất file của Kế hoạch
   await expect(page.locator('.ga-sticky-head .filter-bar').getByRole('button', { name: 'Xuất file' })).toHaveCount(0);
 });
 
-// Tiền 11/11/2026: người chỉ xem thấy khung cả hai học kỳ ở trang Kế hoạch giáo dục chủ đề; phần chưa ban hành chỉ nhãn chung
-test('ST-005-21 PHT xem Kế hoạch giáo dục chủ đề: đủ học kỳ, gói chưa ban hành chỉ "Chưa ban hành", không hạn, không nút', async ({
+// Tiền 11/11/2026: người chỉ xem thấy khung cả hai học kỳ ở trang Kế hoạch giáo dục chủ đề; phần chưa ban hành để trống (Tiền 23/11/2026)
+test('ST-005-21 PHT xem Kế hoạch giáo dục chủ đề: đủ học kỳ, gói chưa ban hành để trống, không hạn, không nút', async ({
   page,
 }) => {
   const me = await api(U.tl, 'GET', '/accounts/me');
   const vpDocs = (await api(U.vp, 'GET', DOCS)).data;
   const cls = vpDocs.classes.find((c) => String(c.homeroomTeacherId) === String(me.data.userId)) || vpDocs.classes[0];
   const pkgs = vpDocs.semesterPackages.filter((p) => String(p.classId) === String(cls.id));
-  test.skip(!pkgs.length, 'Lớp chưa có gói học kỳ');
+  test.skip(!pkgs.length, 'Lớp chưa có kế hoạch giáo dục chủ đề');
   for (const p of pkgs.filter((x) => x.unreleased)) {
     expect(p.status).toBeUndefined();
     expect(p.deadlineState).toBeUndefined();
@@ -220,7 +226,7 @@ test('ST-005-21 PHT xem Kế hoạch giáo dục chủ đề: đủ học kỳ, 
   for (const p of pkgs) await expect(hk.locator('option', { hasText: new RegExp(`Học kỳ ${p.semesterNo}`) })).toHaveCount(1);
   if (!frame) return;
   const toolbar = page.getByRole('group', { name: `Trạng thái và thao tác học kỳ ${frame.semesterNo}` });
-  await expect(toolbar.getByText('Chưa ban hành')).toBeVisible();
+  await expect(toolbar.getByText('Chưa ban hành')).toHaveCount(0);
   await expect(toolbar.getByText(/^Hạn: /)).toHaveCount(0);
   await expect(page.getByRole('button', { name: /Gửi duyệt|Duyệt|Trả lại/ })).toHaveCount(0);
   await expect(page.getByText('Chưa lập')).toHaveCount(0);

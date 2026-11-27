@@ -11,15 +11,19 @@ import {
   Truck,
   Users,
 } from '@/components/ui/icons';
-import { Breadcrumb, EmptyState, ErrorState, LoadingState, StatusBadge } from '@/components';
+import { Breadcrumb, Button, EmptyState, ErrorState, LoadingState, StatusBadge } from '@/components';
 import { StatCard } from '@/components/ui/StatCard';
 import { CampusFilter } from '@/components/ui/CampusFilter';
+import { LockNote } from '@/components/ui/LockNote';
+import { ReadOnlyTag } from '@/components/ui/ReadOnlyTag';
 import { useToast } from '@/contexts/ToastContext';
+import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { DateInput } from '@/components/form/DateInput';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useDayBoard } from '@/hooks/boarding/useDayBoard';
 import { dayBoardApi } from '@/services/dayBoardApi';
 import { buildDayBoardRows, nextBoardTask, summarizeBoardRows } from '@/utils/boarding/dayBoardRows';
+import { boardDateInYear } from '@/utils/boarding/boardYearDate';
 import { isIsoDate, todayInput } from '@/utils/format';
 import '@/styles/modules/boarding.css';
 
@@ -34,15 +38,9 @@ function TaskCell({ row, campus, syncing, onSyncStock }) {
       <div className="bd-actions">
         {row.actions.map((action, i) =>
           action.syncStock ? (
-            <button
-              key={action.key}
-              type="button"
-              className="btn btn--sm btn--primary"
-              disabled={syncing}
-              onClick={() => onSyncStock(campus)}
-            >
-              <RefreshCw size={14} /> {action.label}
-            </button>
+            <Button key={action.key} size="sm" variant="primary" icon={RefreshCw} loading={syncing} onClick={() => onSyncStock(campus)}>
+              {action.label}
+            </Button>
           ) : (
             <Link key={action.to} className={`btn btn--sm ${i ? 'btn--ghost' : ''}`} to={action.to}>
               {action.label} <ArrowRight size={14} />
@@ -74,14 +72,22 @@ function NextTask({ campuses, rowsPerCampus, syncing, onSyncStock }) {
       <span className="bd-next__text">
         Việc tiếp theo:{' '}
         <b>
-          {row.title} · {campus.campusName}
+          {row.title}
+          {campus ? ` · ${campus.campusName}` : ''}
         </b>{' '}
         — {row.status}
       </span>
       {action?.syncStock ? (
-        <button type="button" className="btn btn--sm btn--primary bd-next__action" disabled={syncing} onClick={() => onSyncStock(campus)}>
-          <RefreshCw size={14} /> {action.label}
-        </button>
+        <Button
+          size="sm"
+          variant="primary"
+          icon={RefreshCw}
+          loading={syncing}
+          className="bd-next__action"
+          onClick={() => onSyncStock(campus)}
+        >
+          {action.label}
+        </Button>
       ) : (
         action && (
           <Link className="btn btn--sm btn--primary bd-next__action" to={action.to}>
@@ -93,13 +99,13 @@ function NextTask({ campuses, rowsPerCampus, syncing, onSyncStock }) {
   );
 }
 
-/** Dải số liệu đầu trang: bao nhiêu việc cần xử lý, đang chờ, đã xong và chưa có thông tin trên các điểm trường đang xem. */
+/** Dải số liệu đầu trang: bao nhiêu việc cần xử lý, chờ bước khác, đã xong và chưa có thông tin trên các điểm trường đang xem. */
 function BoardSummary({ rowsPerCampus }) {
   const sum = summarizeBoardRows(rowsPerCampus);
   return (
     <div className="stat-grid">
       <StatCard tone="red" label="Việc cần xử lý" value={sum.attention} />
-      <StatCard tone="orange" label="Việc đang chờ" value={sum.waiting} />
+      <StatCard tone="blue" label="Việc chờ bước khác" value={sum.waiting} />
       <StatCard tone="green" label="Việc đã xong" value={sum.done} />
       <StatCard tone="gray" label="Chưa có thông tin / ngày nghỉ" value={sum.idle} />
     </div>
@@ -108,7 +114,8 @@ function BoardSummary({ rowsPerCampus }) {
 
 /**
  * Bảng việc × điểm trường: mỗi hàng một việc bán trú trong ngày, mỗi cột một điểm trường, nên nhìn ngang so sánh được các điểm.
- * Trạng thái do BE trả (`GET /nutrition/day-board`); nút trong ô mở màn xử lý tương ứng.
+ * Trạng thái do BE trả (`GET /nutrition/day-board`); nút trong ô mở màn xử lý tương ứng. Việc chung cả trường (thực đơn tuần)
+ * gộp một ô trải hết các cột.
  */
 function BoardTable({ campuses, rowsPerCampus, syncing, onSyncStock }) {
   const tasks = rowsPerCampus[0] || [];
@@ -137,11 +144,17 @@ function BoardTable({ campuses, rowsPerCampus, syncing, onSyncStock }) {
                     </span>
                     {task.title}
                   </th>
-                  {campuses.map((campus, ci) => (
-                    <td key={campus.campusId}>
-                      <TaskCell row={rowsPerCampus[ci][i]} campus={campus} syncing={syncing} onSyncStock={onSyncStock} />
+                  {task.shared ? (
+                    <td colSpan={campuses.length}>
+                      <TaskCell row={task} campus={campuses[0]} syncing={syncing} onSyncStock={onSyncStock} />
                     </td>
-                  ))}
+                  ) : (
+                    campuses.map((campus, ci) => (
+                      <td key={campus.campusId}>
+                        <TaskCell row={rowsPerCampus[ci][i]} campus={campus} syncing={syncing} onSyncStock={onSyncStock} />
+                      </td>
+                    ))
+                  )}
                 </tr>
               );
             })}
@@ -159,7 +172,10 @@ function BoardTable({ campuses, rowsPerCampus, syncing, onSyncStock }) {
 export default function BoardingTodayPage() {
   const [params, setParams] = useSearchParams();
   const md = useMasterData();
-  const date = isIsoDate(params.get('date')) ? params.get('date') : todayInput();
+  const { schoolYear, schoolYears, yearReadOnly } = useSchoolYear();
+  const year = schoolYears.find((y) => y.id === schoolYear) || null;
+  // Ngày xem luôn thuộc năm học chọn ở header; đổi năm thì ngày ngoài năm tự chuyển về ngày hợp lệ
+  const date = boardDateInYear(isIsoDate(params.get('date')) ? params.get('date') : '', year, todayInput());
   const campusId = params.get('campusId') || '';
   const board = useDayBoard(date, campusId);
   const toast = useToast();
@@ -200,7 +216,11 @@ export default function BoardingTodayPage() {
     );
   else {
     const boardDate = board.data.date || date;
-    const rowsPerCampus = board.data.campuses.map((campus) => buildDayBoardRows(campus, { date: boardDate }));
+    // Năm học đã kết thúc chỉ xem lịch sử: bỏ nút "Đồng bộ kho" (thao tác ghi), giữ link xem màn xử lý
+    const rowsPerCampus = board.data.campuses.map((campus) => {
+      const rows = buildDayBoardRows(campus, { date: boardDate });
+      return yearReadOnly ? rows.map((row) => ({ ...row, actions: row.actions.filter((a) => !a.syncStock) })) : rows;
+    });
     body = (
       <>
         <NextTask campuses={board.data.campuses} rowsPerCampus={rowsPerCampus} syncing={syncing} onSyncStock={syncStock} />
@@ -215,13 +235,20 @@ export default function BoardingTodayPage() {
       <Breadcrumb items={[{ label: 'Trang chủ', to: '/' }, { label: 'Bán trú hôm nay' }]} />
       <div className="page__head">
         <div>
-          <h1 className="page__title">Bán trú hôm nay</h1>
+          <h1 className="page__title">Bán trú hôm nay {yearReadOnly && <ReadOnlyTag />}</h1>
+          {yearReadOnly && <LockNote>Năm học {year?.label || schoolYear} đã kết thúc — chỉ xem dữ liệu, không đồng bộ kho được.</LockNote>}
         </div>
       </div>
       <div className="bd-toolbar">
         <label className="date-filter">
           Ngày
-          <DateInput value={date} onChange={(next) => isIsoDate(next) && setFilter('date', next)} aria-label="Ngày" />
+          <DateInput
+            value={date}
+            min={year?.startDate || undefined}
+            max={year?.endDate || undefined}
+            onChange={(next) => isIsoDate(next) && setFilter('date', boardDateInYear(next, year, todayInput()))}
+            aria-label="Ngày"
+          />
         </label>
         <CampusFilter campuses={md.campuses} value={campusId} onChange={(id) => setFilter('campusId', id)} />
       </div>

@@ -1,3 +1,4 @@
+import { childNameWithHistory } from '@/utils/childHistory';
 import { DEFAULT_PRINT_TEMPLATE } from '@/config/printTemplate';
 import { formatDate } from '@/utils/format';
 import { approveRow, defaultSigners, signerCell } from '@/utils/assessment/docSignatures';
@@ -21,7 +22,7 @@ export function semesterAssessmentRows(board) {
     ['STT', 'Họ tên trẻ', ...board.domains.flatMap((d) => [`${d.name} · Đạt`, `${d.name} · Chưa đạt`])],
     ...board.rows.map((r, i) => [
       i + 1,
-      r.fullName,
+      childNameWithHistory(r.fullName, r.historyStatus),
       ...board.domains.flatMap((d) => {
         const cell = r.domains.find((c) => c.domainId === d.domainId);
         return [tick(cell?.met, true), tick(cell?.met, false)];
@@ -31,7 +32,7 @@ export function semesterAssessmentRows(board) {
     ['Một số lưu ý', board.note || ''],
   ];
 }
-/** signers: [{ title, name }] (mặc định GV chủ nhiệm, tổ trưởng, PHT từ BE); người đầu ký trên, còn lại ở "Duyệt kế hoạch". */
+/** signers: [{ title, name }] (mặc định giáo viên phụ trách lớp, tổ trưởng, PHT từ BE); người đầu ký trên, còn lại ở "Duyệt kế hoạch". */
 export function semesterAssessmentFile(board, signers = defaultSigners(board.signers)) {
   const [head, ...approvers] = signers;
   const headers = board.domains.map((d) => `<th colspan="2">${esc(d.name)}</th>`).join('');
@@ -39,7 +40,7 @@ export function semesterAssessmentFile(board, signers = defaultSigners(board.sig
   const body = board.rows
     .map(
       (r, i) =>
-        `<tr><td>${i + 1}</td><td class="name">${esc(r.fullName)}</td>${board.domains
+        `<tr><td>${i + 1}</td><td class="name">${esc(childNameWithHistory(r.fullName, r.historyStatus))}</td>${board.domains
           .map((d) => {
             const c = r.domains.find((x) => x.domainId === d.domainId);
             return `<td>${tick(c?.met, true)}</td><td>${tick(c?.met, false)}</td>`;

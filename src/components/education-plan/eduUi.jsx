@@ -20,9 +20,14 @@ import {
   SignaturePicker,
   Stepper as SharedStepper,
 } from '@/components';
-import { createStatusBadge } from '@/components/ui/StatusBadge';
+import { StatusBadge, createStatusBadge } from '@/components/ui/StatusBadge';
+import { ResponsiveToolbar } from '@/components/ui/ResponsiveToolbar';
 import { formatDate, formatFileSize } from '@/utils/format';
 import { EDU_STATUS_LABELS, educationDisplayStatus } from '@/models/education-plan/educationPlanConstants';
+import { WORKFLOW_ROLES } from '@/models/education-plan/eduConfig';
+import { waitingLabel } from '@/models/education-plan/reviewTurn.mjs';
+import { isOverdueDoc } from '@/models/education-plan/deadline.mjs';
+import { reviewHistoryItem } from '@/models/education-plan/reviewHistory.mjs';
 
 /*
  * Thin wrappers that keep the lesson-plan screens on the shared components and classes of
@@ -54,7 +59,11 @@ export function PageHead({ crumbs, title, desc, actions }) {
       <div className="page__head">
         <h1 className="page__title">{title}</h1>
         {desc && <p className="page__desc">{desc}</p>}
-        {actions && <div className="page__actions">{actions}</div>}
+        {actions && (
+          <ResponsiveToolbar className="page__actions" aria-label="Thao tác trang">
+            {actions}
+          </ResponsiveToolbar>
+        )}
       </div>
     </>
   );
@@ -74,11 +83,19 @@ const BaseEduStatusBadge = createStatusBadge(
   },
   EDU_STATUS_LABELS,
 );
-export const EduStatusBadge = ({ status, doc, ...props }) => (
-  <BaseEduStatusBadge status={educationDisplayStatus({ ...doc, status })} {...props} />
-);
+// EDU-93: người không đúng lượt thấy "Đang chờ <vai trò> duyệt", cùng tông chờ duyệt
+const WaitingBadge = ({ label, size }) => <StatusBadge tone="purple" icon={Clock} label={label} size={size} />;
+// EDU-109: hồ sơ chưa ban hành đã quá hạn chỉ hiện "Quá hạn" (chữ + icon, không chỉ dựa vào màu)
+const OverdueBadge = ({ size }) => <StatusBadge tone="red" icon={AlertTriangle} label="Quá hạn" size={size} />;
 
-/** Hạn gửi hồ sơ chủ đề chỉ để nhắc, không chặn. */
+export const EduStatusBadge = ({ status, doc, ...props }) => {
+  if (isOverdueDoc({ ...doc, status })) return <OverdueBadge size={props.size} />;
+  const waiting = waitingLabel({ ...doc, status }, WORKFLOW_ROLES);
+  if (waiting) return <WaitingBadge label={waiting} size={props.size} />;
+  return <BaseEduStatusBadge status={educationDisplayStatus({ ...doc, status })} {...props} />;
+};
+
+/** Hạn gửi kế hoạch giáo dục ngày chỉ để nhắc, không chặn. */
 export const DueStateBadge = createStatusBadge(
   { late: ['red', AlertTriangle], soon: ['orange', Clock] },
   { late: 'Quá hạn', soon: 'Sắp đến hạn' },
@@ -86,9 +103,8 @@ export const DueStateBadge = createStatusBadge(
 
 /** Dòng chưa có hồ sơ: chưa lập / chưa soạn, hoặc chưa tới lượt (khóa). */
 export const DocAvailabilityBadge = createStatusBadge(
-  { NOT_PLANNED: ['gray', FileText], NOT_DRAFTED: ['gray', FileText], LOCKED: ['gray', Lock], UNRELEASED: ['gray', FileText] },
-  // UNRELEASED: nhãn chung cho người chỉ xem, không lộ chưa lập / nháp / chờ duyệt (Tiền 11/11/2026)
-  { NOT_PLANNED: 'Chưa lập', NOT_DRAFTED: 'Chưa soạn', LOCKED: 'Chưa thể bắt đầu', UNRELEASED: 'Chưa ban hành' },
+  { NOT_PLANNED: ['gray', FileText], NOT_DRAFTED: ['gray', FileText], LOCKED: ['gray', Lock] },
+  { NOT_PLANNED: 'Chưa lập', NOT_DRAFTED: 'Chưa soạn', LOCKED: 'Chưa thể bắt đầu' },
 );
 
 /** Trạng thái kế hoạch năm: Tổ trưởng gửi Phó HT, Phó HT duyệt ban hành (ký tay trên bản in). */
@@ -107,9 +123,12 @@ const BaseYearPlanStatusBadge = createStatusBadge(
   },
   { ...EDU_STATUS_LABELS, APPROVED: 'Đã ban hành', REPLACED: 'Đã thay thế' },
 );
-export const YearPlanStatusBadge = ({ status, doc, ...props }) => (
-  <BaseYearPlanStatusBadge status={educationDisplayStatus({ ...doc, status })} {...props} />
-);
+export const YearPlanStatusBadge = ({ status, doc, ...props }) => {
+  if (isOverdueDoc({ ...doc, status })) return <OverdueBadge size={props.size} />;
+  const waiting = waitingLabel({ ...doc, status }, WORKFLOW_ROLES);
+  if (waiting) return <WaitingBadge label={waiting} size={props.size} />;
+  return <BaseYearPlanStatusBadge status={educationDisplayStatus({ ...doc, status })} {...props} />;
+};
 
 /** .card with optional numbered title, header actions and footer. bodyClass={null} renders children directly. */
 export function Card({ title, num, actions, children, foot, bodyClass = 'card__body', className = '', collapsed = false, onToggle }) {
@@ -329,36 +348,53 @@ export function EmptyCard(props) {
   );
 }
 
-/** Thông báo trong trang của kế hoạch giáo dục: luôn là chữ đỏ, không dùng thẻ màu (Tiền 11/11/2026). */
-export function Notice({ children }) {
+/** EDU-99: lỗi đỏ, thông tin và kết quả xử lý xanh lá. */
+export function Notice({ children, tone = 'err' }) {
+  const positive = tone === 'info' || tone === 'ok';
   return (
-    <p className="field__error" role="status">
+    <div className={positive ? 'text-success text-sm' : 'field__error'} role={positive ? 'status' : 'alert'}>
       {children}
-    </p>
+    </div>
   );
 }
 
-/** Processing history (oldest first); rejection reason shown under its entry. */
+const reviewClock = new Intl.DateTimeFormat('vi-VN', {
+  timeZone: 'Asia/Ho_Chi_Minh',
+  dateStyle: 'short',
+  timeStyle: 'short',
+});
+
+/** Lịch sử duyệt đi từ sự kiện đầu tiên đến cập nhật mới nhất. */
 export function History({ items }) {
   if (!items?.length) return <p className="muted">Chưa có lịch sử xử lý.</p>;
   return (
-    <ul className="history-list">
-      {items.map((h, i) => (
-        <li key={i}>
-          <div className={`history-list__dot ${h.tone ? `ga-dot--${h.tone}` : ''}`} />
-          <div>
-            <div className="fw-600">{h.action}</div>
-            <div className="muted text-xs">
-              {h.by} · {h.role} · {fmtDateTime(h.at)}
+    <ol className="ga-review-timeline">
+      {items.map((event, index) => {
+        const h = reviewHistoryItem(event);
+        const latest = index === items.length - 1;
+        const instant = h.at?.includes('T') ? new Date(h.at) : null;
+        const at = instant ? (Number.isFinite(instant.getTime()) ? reviewClock.format(instant) : null) : h.at ? fmtDateTime(h.at) : null;
+        return (
+          <li key={event.id ?? index} className="ga-review-timeline__step" data-tone={h.tone} aria-current={latest ? 'step' : undefined}>
+            <div className="ga-review-timeline__heading">
+              <strong>{h.title}</strong>
+              {latest && <span className="ga-review-timeline__latest">Mới nhất</span>}
             </div>
-            {h.note && (
-              <div className="ga-note mt-8">
-                {h.tone === 'err' ? 'Lý do' : 'Ghi chú'}: {h.note}
+            {(h.actor || at) && (
+              <div className="ga-review-timeline__meta">
+                {h.actor && <span>{h.actor}</span>}
+                {at && <time dateTime={h.at.replace(' ', 'T')}>{at}</time>}
               </div>
             )}
-          </div>
-        </li>
-      ))}
-    </ul>
+            {h.deadline && <p className="text-success">Hạn mới: {fmtDate(h.deadline)}</p>}
+            {h.note && (
+              <p className={h.rejected ? 'text-danger ga-review-timeline__note' : 'text-success ga-review-timeline__note'}>
+                <strong>{h.rejected ? 'Lý do' : 'Ghi chú'}:</strong> {h.note}
+              </p>
+            )}
+          </li>
+        );
+      })}
+    </ol>
   );
 }

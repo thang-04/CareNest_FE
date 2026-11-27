@@ -1,3 +1,4 @@
+import { childNameWithHistory } from '@/utils/childHistory';
 import { useMemo, useState } from 'react';
 import { CalendarRange, ChevronLeft, ChevronRight, Flag, Ticket } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
@@ -37,6 +38,16 @@ const GROUP = 'GROUP';
 
 // Đủ điều kiện chưa phát lên đầu, rồi đã phát, cuối cùng chưa đủ điều kiện
 const rank = (r) => (r.ticket ? 1 : r.eligible ? 0 : 2);
+// issuedByNames: người đã phát phiếu tuần ở lớp đó (BE OBS-35)
+const issuersText = (item) => ((item.issuedByNames || []).length ? ` (người phát: ${item.issuedByNames.join(', ')})` : '');
+const evidenceText = (evidence, weekly) =>
+  (evidence || [])
+    .map((item) =>
+      weekly
+        ? `${item.className}: ${item.presentDays || 0} ngày có mặt, ${item.flagCount || 0} cờ`
+        : `${item.className}: ${item.weeklyTickets || 0} phiếu tuần${issuersText(item)}`,
+    )
+    .join(' · ');
 import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';
 import '@/styles/modules/assessment.css';
 
@@ -188,7 +199,7 @@ function TeacherTicketsPage() {
                   </button>
                   <select
                     className="select"
-                    aria-label={weekly ? 'Tuần đã kết thúc' : 'Tháng đã kết thúc'}
+                    aria-label={weekly ? 'Tuần' : 'Tháng'}
                     value={board?.period?.start || ''}
                     onChange={(e) => changeFilter(() => setPeriodStart(e.target.value))}
                     disabled={!periods.length}
@@ -225,8 +236,8 @@ function TeacherTicketsPage() {
               ) : !loading && board && !board.period ? (
                 <EmptyState
                   icon={CalendarRange}
-                  title="Chưa có kỳ nào kết thúc"
-                  description="Phiếu chỉ được phát sau khi tuần hoặc tháng kết thúc."
+                  title="Chưa tới ngày phát phiếu"
+                  description="Phiếu tuần phát từ thứ Sáu của tuần, phiếu toàn diện từ thứ Sáu cuối cùng của tháng (thứ Sáu nghỉ thì ngày học cuối của tuần đó)."
                 />
               ) : (
                 <div className="table-wrap dg-roll-wrap">
@@ -274,14 +285,17 @@ function TeacherTicketsPage() {
                             <td className="center">
                               <input
                                 type="checkbox"
-                                aria-label={`Chọn ${r.child.fullName}`}
+                                aria-label={`Chọn ${childNameWithHistory(r.child.fullName, r.historyStatus)}`}
                                 checked={selected.has(r.child.id)}
                                 disabled={!r.eligible || r.canIssue === false || !!r.ticket}
                                 onChange={() => toggle(r.child.id)}
                               />
                             </td>
                             <td>
-                              <ChildNameCell child={r.child} />
+                              <ChildNameCell child={{ ...r.child, historyStatus: r.historyStatus }} />
+                              {(r.evidence || []).length > 1 && (
+                                <div className="muted text-xs">Căn cứ: {evidenceText(r.evidence, weekly)}</div>
+                              )}
                             </td>
                             {weekly ? (
                               <>

@@ -12,7 +12,7 @@
 ![Node.js](https://img.shields.io/badge/Node.js-22-5FA04E?logo=nodedotjs&logoColor=white)
 ![Playwright](https://img.shields.io/badge/Playwright-1.63-2EAD33?logo=playwright&logoColor=white)
 
-[Demo](https://web.carenest.edu.vn) · [Tài liệu](docs/INDEX.md) · [Backend](https://github.com/thang-04/CareNest_BE) · [Mobile](https://github.com/thang-04/CareNest_APP)
+[Demo](https://thuonghong.carenest.edu.vn) · [Tài liệu](docs/INDEX.md) · [Backend](https://github.com/thang-04/CareNest_BE) · [Mobile](https://github.com/thang-04/CareNest_APP)
 
 </div>
 
@@ -144,7 +144,7 @@ Workflow [`deploy.yml`](.github/workflows/deploy.yml) chỉ chạy trên `main`,
 - PR vào `main`: chạy `npm run verify`.
 - Push vào `main`: verify, đồng bộ source lên VPS, `docker compose up -d --build`, cập nhật site Caddy, kiểm tra HTTPS.
 
-Trên VPS, Caddy phục vụ <https://web.carenest.edu.vn>: request `/api/*` chuyển sang BE, phần còn lại vào container nginx chứa bundle React. Cài đặt VPS, secret, rollback: [DEPLOYMENT](docs/integration/DEPLOYMENT.md).
+Trên VPS, Caddy phục vụ <https://thuonghong.carenest.edu.vn>: request `/api/*` chuyển sang BE, phần còn lại vào container nginx chứa bundle React. Cài đặt VPS, secret, rollback: [DEPLOYMENT](docs/integration/DEPLOYMENT.md).
 
 ## Cấu trúc repo
 

@@ -5,11 +5,13 @@ import { useToast } from '@/contexts/ToastContext';
 import { Modal } from '@/components/ui/Modal';
 import { Spinner } from '@/components/ui/States';
 import { FormField } from '@/components/form/FormField';
-import { saveAgeGroup } from '@/services/school-config/schoolConfigService';
+import { TextField } from '@/components/form/Field';
+import { getAgeGroupCatalog, saveAgeGroup } from '@/services/school-config/schoolConfigService';
 import { MEAL_SESSION_LABELS, MEAL_SESSION_OPTIONS } from '@/models/school-config/schoolConfigConstants';
 import { validateAgeGroup, hasErrors, errorsAfterChange, AGE_GROUP_LIMITS } from '@/utils/school-config/schoolConfigValidation';
 
 const EMPTY = {
+  standardAgeGroupId: '',
   name: '',
   shortName: '',
   ageFromMonths: '',
@@ -20,16 +22,26 @@ const EMPTY = {
 };
 
 /** Age Group Form (SRS 4.1.4). The team leader is assigned on the Teacher Assignment screen, not here. */
-export function AgeGroupFormModal({ open, onClose, group, existing, classes = [], yearName }) {
+export function AgeGroupFormModal({ open, onClose, group, existing, classes = [], yearId, yearName }) {
   const { user } = useAuth();
   const toast = useToast();
   const [form, setForm] = useState(EMPTY);
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
+  const [catalog, setCatalog] = useState([]);
+  const [catalogLoading, setCatalogLoading] = useState(false);
 
   useEffect(() => {
     if (!open) return;
-    setForm(group ? { ...EMPTY, ...group } : EMPTY);
+    setCatalogLoading(true);
+    getAgeGroupCatalog()
+      .then((rows) => {
+        setCatalog(rows || []);
+        const standard = (rows || []).find((item) => String(item.id) === String(group?.id));
+        setForm(group ? { ...EMPTY, ...group, standardAgeGroupId: standard?.id || group.id } : EMPTY);
+      })
+      .catch((err) => setErrors({ _form: err.message || 'Không tải được danh mục nhóm tuổi chuẩn' }))
+      .finally(() => setCatalogLoading(false));
     setErrors({});
   }, [open, group]);
 
@@ -46,7 +58,17 @@ export function AgeGroupFormModal({ open, onClose, group, existing, classes = []
   // Đổi bữa của nhóm đang có lớp: cảnh báo áp dụng từ nay, dữ liệu cũ giữ nguyên
   const mealsChanged = !!group && [...(group.mealSessions || [])].sort().join(',') !== [...form.mealSessions].sort().join(',');
   // Màn hình biết lớp của năm đang chọn; mock/BE kiểm tra lại trên mọi năm chưa kết thúc
-  const check = () => validateAgeGroup(form, others, { blockingClasses: used });
+  const selectedStandard = catalog.find((item) => String(item.id) === String(form.standardAgeGroupId));
+  const availableCatalog = catalog.filter(
+    (item) => String(item.id) === String(group?.id) || !existing.some((current) => String(current.id) === String(item.id)),
+  );
+  const check = () => {
+    const result = validateAgeGroup(form, others, { blockingClasses: used });
+    if (!form.standardAgeGroupId) result.standardAgeGroupId = 'Chọn một nhóm tuổi chuẩn để áp dụng';
+    if (selectedStandard && Number(form.maxClassSize) > Number(selectedStandard.maxClassSize))
+      result.maxClassSize = `Sĩ số không vượt quá ${selectedStandard.maxClassSize} trẻ/lớp theo nhóm tuổi đã chọn`;
+    return result;
+  };
   const blurCheck = (field) => {
     const e = check();
     if (e[field]) setErrors((prev) => ({ ...prev, [field]: e[field] }));
@@ -58,7 +80,7 @@ export function AgeGroupFormModal({ open, onClose, group, existing, classes = []
     if (hasErrors(e)) return;
     setSaving(true);
     try {
-      await saveAgeGroup(group?.id || null, form, user);
+      await saveAgeGroup(group?.id || null, form, user, yearId);
       toast.success('Đã lưu thay đổi.', group ? 'Cập nhật nhóm tuổi' : 'Thêm nhóm tuổi');
       onClose(true);
     } catch (err) {
@@ -86,7 +108,7 @@ export function AgeGroupFormModal({ open, onClose, group, existing, classes = []
   return (
     <Modal
       open={open}
-      title={group ? `Sửa nhóm tuổi ${group.shortName}` : 'Thêm nhóm tuổi'}
+      title={group ? `Sửa cấu hình ${group.shortName}` : 'Chọn nhóm tuổi áp dụng'}
       onClose={saving ? undefined : () => onClose(false)}
       footer={
         <>
@@ -105,14 +127,42 @@ export function AgeGroupFormModal({ open, onClose, group, existing, classes = []
         </div>
       )}
       <div className="grid-2">
-        <FormField label="Tên nhóm tuổi" required error={errors.name}>
-          <input className="input" value={form.name} onChange={(e) => set({ name: e.target.value })} onBlur={() => blurCheck('name')} />
+        <FormField
+          label="Nhóm tuổi chuẩn"
+          required
+          error={errors.standardAgeGroupId}
+          hint="Trường chỉ chọn các nhóm thực tế mở trong năm học này."
+        >
+          <select
+            className="select"
+            value={form.standardAgeGroupId}
+            disabled={!!group || catalogLoading}
+            onChange={(event) => {
+              const standard = catalog.find((item) => String(item.id) === event.target.value);
+              if (!standard) return set({ standardAgeGroupId: '' });
+              set({
+                standardAgeGroupId: standard.id,
+                name: standard.name,
+                shortName: standard.shortName,
+                ageFromMonths: standard.ageFromMonths,
+                ageToMonths: standard.ageToMonths,
+                maxClassSize: standard.maxClassSize,
+              });
+            }}
+          >
+            <option value="">Chọn nhóm tuổi</option>
+            {availableCatalog.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.name} · tối đa {item.maxClassSize} trẻ/lớp
+              </option>
+            ))}
+          </select>
         </FormField>
-        <FormField label="Tên ngắn" required error={errors.shortName}>
-          <input className="input" value={form.shortName} onChange={(e) => set({ shortName: e.target.value })} />
-        </FormField>
-        {numberField('ageFromMonths', 'Độ tuổi từ (tháng)', { min: 0, max: 72 })}
-        {numberField('ageToMonths', 'Độ tuổi đến (tháng)', { min: 1, max: 72 })}
+        <div />
+        <TextField label="Tên nhóm tuổi" required error={errors.name} value={form.name} disabled />
+        <TextField label="Tên ngắn" required error={errors.shortName} value={form.shortName} disabled />
+        <TextField label="Độ tuổi từ (tháng)" value={form.ageFromMonths} disabled />
+        <TextField label="Độ tuổi đến (tháng)" value={form.ageToMonths} disabled />
         <fieldset className="field sc-meals">
           <legend className="field__label">
             Bữa ăn trong ngày<span className="req">*</span>
@@ -131,7 +181,11 @@ export function AgeGroupFormModal({ open, onClose, group, existing, classes = []
             </span>
           ) : null}
         </fieldset>
-        {numberField('maxClassSize', 'Sĩ số tối đa / lớp', { min: 1 })}
+        {numberField('maxClassSize', 'Sĩ số tối đa / lớp', {
+          min: 1,
+          max: selectedStandard?.maxClassSize,
+          hint: selectedStandard ? `Không vượt quá ${selectedStandard.maxClassSize} trẻ/lớp` : undefined,
+        })}
       </div>
       <FormField label="Yêu cầu dinh dưỡng" error={errors.nutritionNote} className="mt-12">
         <textarea className="textarea" rows={2} value={form.nutritionNote} onChange={(e) => set({ nutritionNote: e.target.value })} />

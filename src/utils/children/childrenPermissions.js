@@ -77,6 +77,19 @@ export const childCampusesOf = (user, campuses = [], action = 'create') =>
   campuses.filter((c) => c.status !== 'INACTIVE' && childCan(user, action === 'create' ? 'create' : 'place', c.id));
 // Tiền sử nằm ở khai báo nên sửa cùng quyền với Sửa hồ sơ: Hiệu trưởng hoặc Phó hiệu trưởng điểm trường (user chốt 2026-10-22).
 export const canDeclareHealth = canEditChild;
+/**
+ * BE:CHD-11 — GV được HT cấp thêm CHILD_PROFILE_EDIT gửi yêu cầu sửa hồ sơ/khai báo trẻ lớp đang phân công; hồ sơ chỉ
+ * đổi khi HT/PHT điểm trường duyệt. Chỉ để hiện nút; BE kiểm lại phạm vi.
+ */
+export const canProposeChildEdit = (child, user) =>
+  !!child &&
+  isBeUser(user) &&
+  isTeacherRole(user) &&
+  child.status !== CHILD_STATUS.LEFT &&
+  user.bePermissions.includes(PERMISSIONS.CHILD_PROFILE_EDIT) &&
+  (user.classIds || []).map(String).includes(String(child.classId));
+/** Nút Sửa hồ sơ / Khai báo: sửa trực tiếp (BGH) hoặc gửi yêu cầu chờ duyệt (GV được cấp). */
+export const canOpenChildEdit = (child, user) => canEditChild(child, user) || canProposeChildEdit(child, user);
 // Kích hoạt tài khoản phụ huynh (gửi mật khẩu tạm qua SMS): Hiệu trưởng toàn trường hoặc Phó hiệu trưởng điểm trường của trẻ
 // (user chốt 2026-10-23, PROPOSED — chờ BE).
 export const canActivateParent = (child, user) => managesChild(child, user, 'parent') && child.status !== CHILD_STATUS.LEFT;

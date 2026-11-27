@@ -85,9 +85,8 @@ test('EDU-61: lấy nguyên văn nguồn, lọc đích, lưu API và mở lại'
       goalInput = input;
       break;
     }
+  // Mục tiêu lấy từ Chương trình của Bộ đã gắn mã chương trình khi nhập; ô mục tiêu không còn danh sách gợi ý để chọn lại
   expect(goalInput).toBeTruthy();
-  await goalInput.click();
-  await page.getByRole('option', { name: selected.goalText, exact: true }).click();
   await page.getByRole('button', { name: 'Lưu', exact: true }).first().click();
   await expect(saveStatus(page)).toHaveText(/Đã lưu lúc/);
   const saved = (await api(USERS.vp, 'GET', `${goalsPath}/${annual.id}`)).data;

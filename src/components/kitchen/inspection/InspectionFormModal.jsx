@@ -1,5 +1,7 @@
 import { useRef, useState } from 'react';
-import { CheckCircle2, Lock, PenLine, Printer, Save, X } from '@/components/ui/icons';
+import { CheckCircle2, PenLine, Printer, Save, X } from '@/components/ui/icons';
+import { Button } from '@/components/ui/Button';
+import { LockNote } from '@/components/ui/LockNote';
 import { Modal } from '@/components/ui/Modal';
 import { InspectionHistory, ReopenDialog, SupplierFillDialog } from '@/components/kitchen/inspection/InspectionDialogs';
 import { InspectionStatusBadge } from '@/components/kitchen/inspection/InspectionBadges';
@@ -8,7 +10,9 @@ import { InspectionSheet } from '@/components/kitchen/inspection/InspectionSheet
 import { InspectionSignBoxes, InspectionSignDialog } from '@/components/kitchen/inspection/InspectionSignature';
 import { useAuth } from '@/contexts/AuthContext';
 import { INSPECTION_FORMS, INSPECTION_REQUIRED, INSPECTION_TAB_LABELS } from '@/models/kitchen/inspectionConstants';
+import { approvalNotice } from '@/utils/kitchen/inspectionApproval';
 import { hasValidSignature } from '@/utils/kitchen/inspectionForm';
+import { sampleSignBlock } from '@/utils/kitchen/kitchenRecords';
 
 /**
  * Biểu mẫu kiểm thực mở toàn màn hình: thanh trên có trạng thái, tiến độ cảm quan, Lưu nháp, Ký, Đóng (nút ghi ở đầu màn — DESIGN §8);
@@ -27,6 +31,7 @@ export function InspectionFormModal({
   missing,
   missingAction,
   sampleData,
+  pendingSamples = 0,
   onClose,
   onSave,
   onSaveQuiet,
@@ -45,6 +50,8 @@ export function InspectionFormModal({
   const signed = hasValidSignature(data) && data.status === 'SIGNED';
   const total = data.rows.length;
   const editable = data.canEdit && !busy;
+  // Ngày đã qua chưa được HT mở (INS-05): nói rõ vì sao chỉ xem được, không để người dùng tưởng mẫu bị hỏng
+  const lockNotice = data.approval?.locked ? approvalNotice(data.approval) : null;
 
   // In / xuất luôn lấy bản đã lưu: còn sửa dở thì lưu nháp trước
   const openPrint = async () => {
@@ -60,10 +67,14 @@ export function InspectionFormModal({
   };
   const jumpToMissing = () => jumpTo(missing[0], 'input[type="checkbox"]');
   const jumpToMissingAction = () => jumpTo(missingAction[0], '[data-cell$=":note"]');
-  const cannotSign = missing.length > 0 || missingAction.length > 0;
-  const signHint = missing.length
-    ? `Còn ${missing.length} dòng chưa chọn Đạt / Không đạt`
-    : `Còn ${missingAction.length} dòng Không đạt chưa ghi biện pháp xử lý`;
+  // Sổ M5: BE chặn ký khi còn mẫu của ngày chờ duyệt (6140) ⇒ tắt nút sẵn và nói lý do
+  const sampleBlock = tab === 'sample' ? sampleSignBlock(pendingSamples) : '';
+  const cannotSign = missing.length > 0 || missingAction.length > 0 || !!sampleBlock;
+  const signHint =
+    sampleBlock ||
+    (missing.length
+      ? `Còn ${missing.length} dòng chưa chọn Đạt / Không đạt`
+      : `Còn ${missingAction.length} dòng Không đạt chưa ghi biện pháp xử lý`);
 
   return (
     <Modal open size="full" label={INSPECTION_TAB_LABELS[tab]} onClose={onClose} closeOnBackdrop={false} className="kr-form-modal">
@@ -105,39 +116,39 @@ export function InspectionFormModal({
           )}
           {data.canEdit && savedAt && !dirty && <span className="text-xs muted">Đã lưu nháp lúc {savedAt}</span>}
           {data.canEdit && dirty && <span className="text-xs muted">Có thay đổi chưa lưu · tự lưu sau ít giây</span>}
-          {signed && !data.canEdit && (
-            <span className="text-sm muted kr-lock">
-              <Lock size={14} /> Đã ký nên đang khóa
-            </span>
+          {lockNotice ? (
+            <LockNote kind={lockNotice.kind}>{lockNotice.text}</LockNote>
+          ) : (
+            signed && !data.canEdit && <LockNote kind="locked">Đã ký nên đang khóa</LockNote>
           )}
           <div className="kr-form__actions">
             {data.canEdit && (
               <>
-                <button type="button" className="btn" disabled={busy || !dirty} onClick={onSave}>
-                  <Save size={16} /> Lưu nháp
-                </button>
-                <button
-                  type="button"
-                  className="btn btn--primary"
-                  disabled={busy || cannotSign}
-                  title={cannotSign ? signHint : undefined}
+                <Button icon={Save} disabled={busy || !dirty} onClick={onSave}>
+                  Lưu nháp
+                </Button>
+                <Button
+                  variant="primary"
+                  icon={PenLine}
+                  disabled={busy}
+                  disabledReason={cannotSign ? signHint : undefined}
                   onClick={() => setSigning(true)}
                 >
-                  <PenLine size={16} /> Ký xác nhận
-                </button>
+                  Ký xác nhận
+                </Button>
               </>
             )}
             {data.canReopen && (
-              <button type="button" className="btn" disabled={busy} onClick={() => setReopening(true)}>
-                <PenLine size={16} /> Sửa lại
-              </button>
+              <Button icon={PenLine} disabled={busy} onClick={() => setReopening(true)}>
+                Sửa lại
+              </Button>
             )}
-            <button type="button" className="btn" disabled={busy || total === 0} onClick={openPrint}>
-              <Printer size={16} /> In / xuất
-            </button>
-            <button type="button" className="btn" onClick={onClose}>
-              <X size={16} /> Đóng
-            </button>
+            <Button icon={Printer} disabled={busy || total === 0} onClick={openPrint}>
+              In / xuất
+            </Button>
+            <Button icon={X} onClick={onClose}>
+              Đóng
+            </Button>
           </div>
         </div>
         <div className="kr-form__scroll">
@@ -157,7 +168,16 @@ export function InspectionFormModal({
           <InspectionHistory history={data.history} />
         </div>
       </div>
-      <InspectionSignDialog open={signing} busy={busy} onClose={() => setSigning(false)} onConfirm={onSign} />
+      <InspectionSignDialog
+        open={signing}
+        busy={busy}
+        formLabel={INSPECTION_TAB_LABELS[tab]}
+        campusName={campusName}
+        date={date}
+        rowCount={total}
+        onClose={() => setSigning(false)}
+        onConfirm={onSign}
+      />
       {supplierOpen && <SupplierFillDialog onApply={onApplySupplier} onClose={() => setSupplierOpen(false)} />}
       {printing && (
         <InspectionPrintDialog
@@ -169,7 +189,15 @@ export function InspectionFormModal({
           onClose={() => setPrinting(false)}
         />
       )}
-      {reopening && <ReopenDialog busy={busy} onConfirm={onReopen} onClose={() => setReopening(false)} />}
+      {reopening && (
+        <ReopenDialog
+          busy={busy}
+          formLabel={INSPECTION_TAB_LABELS[tab]}
+          history={data.history}
+          onConfirm={onReopen}
+          onClose={() => setReopening(false)}
+        />
+      )}
     </Modal>
   );
 }

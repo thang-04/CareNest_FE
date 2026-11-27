@@ -42,7 +42,7 @@ const ev = {
   signers: { teachers: ['Cô Hương', 'Cô Anh'], teamLeaders: ['Cô Hân'], vicePrincipal: 'Cô Bình' },
 };
 
-test('bản in đánh giá cuối chủ đề theo mẫu giấy: tiêu đề, cột mục tiêu, Tổng số Đ/KĐ, tổng, chỗ ký GVCN và duyệt kế hoạch', () => {
+test('bản in đánh giá cuối chủ đề theo mẫu giấy: tiêu đề, cột mục tiêu, Tổng số Đ/KĐ, tổng, chỗ ký giáo viên và duyệt kế hoạch', () => {
   const { html, name } = themeEvaluationFile({ ...ev, confirmedAt: '2026-10-24T18:30:00Z' });
   assert.equal(name, 'Đánh giá cuối chủ đề - Bản thân bé - Mẫu giáo bé A2');
   for (const text of [
@@ -59,7 +59,7 @@ test('bản in đánh giá cuối chủ đề theo mẫu giấy: tiêu đề, c�
     'Số trẻ đạt dưới 70%: 1 trẻ',
     'Rèn thêm',
     'Thượng Hồng, ngày 25 tháng 10 năm 2026',
-    'GIÁO VIÊN CHỦ NHIỆM',
+    'GIÁO VIÊN',
     'Cô Hương, Cô Anh',
     'DUYỆT KẾ HOẠCH',
     'Từ ngày 5/10 đến ngày 30/10/2026',

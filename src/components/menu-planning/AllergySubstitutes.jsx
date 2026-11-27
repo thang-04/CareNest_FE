@@ -10,6 +10,7 @@ import { Spinner } from '@/components/ui/States';
 import { dishAllergens, mealsAllergens, sameAllergen } from '@/utils/menu-planning/menuCalculations';
 import { mealLabel } from '@/utils/menu-planning/nutritionSetup';
 import { ALLERGENS, RECORD_STATUS } from '@/models/menu-planning/menuPlanningConstants';
+import { Button, Checkbox, SelectField, TextField } from '@/components';
 
 /** Món cần thay vì chứa chất cần tránh: [{ session, dishId, name, type }]. */
 const conflictsOf = (meals, restrictions, catalog) =>
@@ -94,9 +95,9 @@ export function AllergySubstitutes({ menu, catalog, allergyRows, canManage }) {
           <AlertTriangle size={18} /> Suất thay thế dị ứng
         </h2>
         {canManage && menu?.id && (
-          <button type="button" className="btn btn--sm" onClick={startNew}>
+          <Button size="sm" onClick={startNew}>
             <Plus size={15} /> Thêm suất thay thế
-          </button>
+          </Button>
         )}
       </div>
       <div className="card__body">
@@ -125,9 +126,9 @@ export function AllergySubstitutes({ menu, catalog, allergyRows, canManage }) {
                   </div>
                 </div>
                 {canManage && (
-                  <button type="button" className="icon-btn" aria-label={`Sửa ${a.name}`} onClick={() => startEdit(a)}>
+                  <Button variant="icon" aria-label={`Sửa ${a.name}`} onClick={() => startEdit(a)}>
                     <Pencil size={16} />
-                  </button>
+                  </Button>
                 )}
               </li>
             ))}
@@ -146,19 +147,19 @@ export function AllergySubstitutes({ menu, catalog, allergyRows, canManage }) {
         onClose={() => setEditing(null)}
         footer={
           <>
-            <button type="button" className="btn" onClick={() => setEditing(null)} disabled={saving}>
+            <Button onClick={() => setEditing(null)} disabled={saving}>
               Hủy
-            </button>
-            <button type="button" className="btn btn--primary" onClick={save} disabled={saving || !conflicts.length}>
+            </Button>
+            <Button variant="primary" onClick={save} disabled={saving || !conflicts.length}>
               {saving && <Spinner small />} Lưu
-            </button>
+            </Button>
           </>
         }
       >
         {editing && (
           <div className="td-subs-editor">
             <FormField label="Tên suất thay thế" hint="Để trống thì đặt theo chất cần tránh">
-              <input
+              <TextField
                 className="input"
                 maxLength={100}
                 value={editing.name}
@@ -172,11 +173,7 @@ export function AllergySubstitutes({ menu, catalog, allergyRows, canManage }) {
                   const kids = allergyRows.find((r) => sameAllergen(r.allergen, a))?.childCount;
                   return (
                     <label key={a}>
-                      <input
-                        type="checkbox"
-                        checked={editing.restrictions.some((r) => sameAllergen(r, a))}
-                        onChange={() => toggleRestriction(a)}
-                      />
+                      <Checkbox checked={editing.restrictions.some((r) => sameAllergen(r, a))} onChange={() => toggleRestriction(a)} />
                       {a}
                       {kids ? ` · ${kids} trẻ` : ''}
                     </label>
@@ -204,7 +201,7 @@ export function AllergySubstitutes({ menu, catalog, allergyRows, canManage }) {
                             <td className="cell--fixed">{label(c.session)}</td>
                             <td className="cell--fixed">{c.name}</td>
                             <td>
-                              <select
+                              <SelectField
                                 className="select"
                                 value={editing.picks[k] || ''}
                                 onChange={(e) => setEditing((x) => ({ ...x, picks: { ...x.picks, [k]: e.target.value } }))}
@@ -215,7 +212,7 @@ export function AllergySubstitutes({ menu, catalog, allergyRows, canManage }) {
                                     {d.name}
                                   </option>
                                 ))}
-                              </select>
+                              </SelectField>
                             </td>
                           </tr>
                         );

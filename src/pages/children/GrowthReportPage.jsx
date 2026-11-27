@@ -107,9 +107,9 @@ function ReportRow({ row }) {
  */
 export default function GrowthReportPage() {
   const { user } = useAuth();
-  const md = useMasterData();
   const principal = isPrincipal(user);
   const { schoolYear, schoolYears } = useSchoolYear();
+  const md = useMasterData(schoolYear);
   const yearLabel = schoolYears.find((y) => y.id === schoolYear)?.label || schoolYear;
 
   // Tháng chọn được: tháng bắt đầu của các kỳ cân đo, đợt khám (chưa hủy) trong phạm vi, năm học đang chọn; mặc định tháng gần nhất.
@@ -151,13 +151,6 @@ export default function GrowthReportPage() {
       <Breadcrumb items={childrenCrumbs('Tổng hợp cân đo')} />
       <div className="page__head">
         <h1 className="page__title">Tổng hợp cân đo</h1>
-        {months.length > 0 && (
-          <div className="page__actions">
-            <button className="btn" onClick={exportExcel} disabled={!shown || busy}>
-              <Download size={16} /> Xuất Excel
-            </button>
-          </div>
-        )}
       </div>
     </>
   );
@@ -195,7 +188,7 @@ export default function GrowthReportPage() {
       {head}
 
       <div className="card mb-16">
-        <div className="filter-bar">
+        <div className="filter-bar filter-bar--aligned">
           <select
             className="select"
             aria-label="Tháng"
@@ -224,6 +217,12 @@ export default function GrowthReportPage() {
               </p>
             )
           )}
+          {/* Cùng hàng bộ lọc, dồn phải; hẹp thì tự xuống hàng (G94-426) */}
+          <div className="filter-bar__end">
+            <button className="btn" onClick={exportExcel} disabled={!shown || busy}>
+              <Download size={16} /> Xuất Excel
+            </button>
+          </div>
         </div>
       </div>
 

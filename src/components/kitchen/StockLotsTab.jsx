@@ -1,17 +1,18 @@
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Download, Plus, RotateCcw } from '@/components/ui/icons';
+import { useReceiptOrigin } from '@/hooks/kitchen/useReceiptOrigin';
+import { ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown, Download, Plus, RotateCcw } from '@/components/ui/icons';
 import { exportWithPreview } from '@/components/ui/ExportPreview';
 import { CategoryNav } from '@/components/ui/CategoryNav';
 import { FilterChips } from '@/components/ui/FilterChips';
 import { Pagination, paginate } from '@/components/ui/Pagination';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { FOOD_GROUP_LABELS } from '@/models/foodGroups';
-import { EmptyState, ErrorState, LoadingState, StatusBadge } from '@/components';
+import { Button, EmptyState, ErrorState, LoadingState, StatusBadge } from '@/components';
 import { useCanManageStock, useDryFoods, useLots } from '@/hooks/kitchen/useDryStock';
 import { expiryStatus, groupLotsByFood } from '@/utils/kitchen/stockLots';
-import { formatPurchaseQty } from '@/utils/kitchen/stockUnits';
-import { formatDate, formatMoney, normalizeText, todayInput } from '@/utils/format';
+import { formatPurchaseQty, toPurchaseQuantity } from '@/utils/kitchen/stockUnits';
+import { formatDate, formatMoney, formatQty, normalizeText, todayInput } from '@/utils/format';
 
 const PAGE = 8;
 const EXPIRY_BADGE = {
@@ -34,13 +35,22 @@ function ExpiryCell({ expiryDate }) {
   );
 }
 
-/** Tồn kho khô của một điểm trường: mỗi lô một dòng, lô hết hạn sớm đứng trước; bố cục giống màn Thực phẩm. */
+// Số theo đơn vị mua, không kèm đơn vị (đơn vị có cột riêng)
+const qtyOf = (quantity, food) => formatQty(toPurchaseQuantity(quantity, food));
+
+/**
+ * Tồn kho khô của một điểm trường theo bảng PMS: mỗi thực phẩm một dòng nhóm "Tên - Số lượng tồn: N", dưới là từng lô
+ * (Nhập / Xuất / Tồn); trong thực phẩm lô nhập mới nhất đứng trên cùng. Xuất = nhập − còn lại của lô.
+ */
 export function StockLotsTab({ campusId }) {
+  const origin = useReceiptOrigin();
   const [keyword, setKeyword] = useState('');
   const [includeEmpty, setIncludeEmpty] = useState(false);
   const [foodGroup, setFoodGroup] = useState('');
   const [page, setPage] = useState(1);
-  const canManage = useCanManageStock();
+  // Mặc định mở hết các lô như bảng PMS; chỉ nhớ nhóm người dùng thu gọn
+  const [collapsed, setCollapsed] = useState(() => new Set());
+  const canManage = useCanManageStock(campusId);
   const { foods } = useDryFoods();
   const lots = useLots({ campusId, includeEmpty });
   const allGroups = useMemo(() => groupLotsByFood(lots.data || []), [lots.data]);
@@ -55,14 +65,31 @@ export function StockLotsTab({ campusId }) {
     ],
     [allGroups, groupOfFood],
   );
-  // Mỗi lô một dòng; từ khóa khớp tên thực phẩm hoặc số lô
+  // Mỗi thực phẩm một dòng; khớp tên thì giữ mọi lô, chỉ khớp số lô thì chỉ giữ lô đó và mở sẵn
   const rows = useMemo(() => {
     const q = normalizeText(keyword);
     return allGroups
       .filter((g) => !foodGroup || groupOfFood.get(String(g.food?.id)) === foodGroup)
-      .flatMap((g) => g.lots.map((lot) => ({ lot, food: g.food })))
-      .filter(({ lot, food }) => !q || normalizeText(food?.name).includes(q) || normalizeText(lot.lotNo).includes(q));
+      .map((g) => {
+        if (!q || normalizeText(g.food?.name).includes(q)) return { ...g, byLot: false };
+        const lotsHit = g.lots.filter((lot) => normalizeText(lot.lotNo).includes(q));
+        // Tổng còn lại theo đúng các lô đang hiện
+        return lotsHit.length ? { ...groupLotsByFood(lotsHit)[0], byLot: true } : null;
+      })
+      .filter(Boolean);
   }, [allGroups, foodGroup, groupOfFood, keyword]);
+  const lotCount = rows.reduce((n, g) => n + g.lots.length, 0);
+  const keyOf = (g) => String(g.food?.id);
+  const isOpen = (g) => g.byLot || !collapsed.has(keyOf(g));
+  const toggle = (g) =>
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(keyOf(g))) next.delete(keyOf(g));
+      else next.add(keyOf(g));
+      return next;
+    });
+  const allOpen = rows.length > 0 && rows.every(isOpen);
+  const toggleAll = () => setCollapsed(allOpen ? new Set(rows.map(keyOf)) : new Set());
 
   const chips = [
     keyword && { key: 'keyword', label: `Từ khóa: ${keyword}`, onRemove: () => change(setKeyword)('') },
@@ -90,16 +117,16 @@ export function StockLotsTab({ campusId }) {
   else if (!rows.length)
     body = (
       <EmptyState
-        title={filtered ? 'Không có lô phù hợp' : 'Kho chưa có lô nào'}
+        title={filtered ? 'Không có thực phẩm phù hợp' : 'Kho chưa có lô nào'}
         description={filtered ? 'Thử đổi từ khóa hoặc bộ lọc.' : 'Tồn kho tăng khi phiếu nhập được xác nhận.'}
         action={
           filtered ? (
-            <button type="button" className="btn" onClick={reset}>
-              <RotateCcw size={15} /> Đặt lại bộ lọc
-            </button>
+            <Button icon={RotateCcw} onClick={reset}>
+              Đặt lại bộ lọc
+            </Button>
           ) : (
             canManage && (
-              <Link className="btn btn--primary" to={`/kitchen/stock-receipts/new?campusId=${campusId}`}>
+              <Link className="btn btn--primary" to={`/kitchen/stock-receipts/new?campusId=${campusId}`} state={origin}>
                 <Plus size={16} /> Lập phiếu nhập
               </Link>
             )
@@ -113,33 +140,70 @@ export function StockLotsTab({ campusId }) {
         <table className="table table--grid table--wrap-head kb-lots-table">
           <thead>
             <tr>
-              <th className="center">Số lô</th>
-              <th>Thực phẩm</th>
-              <th className="center">Hạn sử dụng</th>
-              <th className="center">Ngày nhập</th>
-              <th>Nhà cung cấp</th>
-              <th className="num">Đã nhập</th>
-              <th className="num">Còn lại</th>
-              <th className="money">Đơn giá</th>
+              <th rowSpan={2}>Tên thực phẩm</th>
+              <th rowSpan={2} className="money">
+                Đơn giá
+              </th>
+              <th colSpan={3} className="center">
+                Số lượng
+              </th>
+              <th rowSpan={2} className="center">
+                Đơn vị tính
+              </th>
+              <th rowSpan={2} className="center">
+                Ngày nhập
+              </th>
+              <th rowSpan={2} className="center">
+                Hạn sử dụng
+              </th>
+              <th rowSpan={2}>Nhà cung cấp</th>
+            </tr>
+            <tr>
+              <th className="num">Nhập</th>
+              <th className="num">Xuất</th>
+              <th className="num">Tồn</th>
             </tr>
           </thead>
           <tbody>
-            {paginate(rows, safePage, PAGE).map(({ lot, food }) => (
-              <tr key={lot.id}>
-                <td className="muted nowrap center">{lot.lotNo}</td>
-                <td className="fw-600">{food?.name}</td>
-                <td className="center">
-                  <ExpiryCell expiryDate={lot.expiryDate} />
-                </td>
-                <td className="center">{formatDate(lot.receivedDate)}</td>
-                <td>{lot.supplierName || <span className="muted">—</span>}</td>
-                <td className="num nowrap">{formatPurchaseQty(lot.quantity, lot.food)}</td>
-                <td className="num nowrap fw-600">{formatPurchaseQty(lot.remaining, lot.food)}</td>
-                <td className="money nowrap">
-                  {lot.unitPrice == null ? '—' : `${formatMoney(lot.unitPrice)}/${lot.food?.purchaseUnit || ''}`}
-                </td>
-              </tr>
-            ))}
+            {paginate(rows, safePage, PAGE).map((g) => {
+              const expanded = isOpen(g);
+              return (
+                <Fragment key={keyOf(g)}>
+                  <tr className="kb-lots-food">
+                    <td colSpan={9}>
+                      <Button
+                        variant="link"
+                        className="kb-lots-toggle"
+                        icon={expanded ? ChevronDown : ChevronRight}
+                        aria-expanded={expanded}
+                        onClick={() => toggle(g)}
+                      >
+                        {g.food?.name} - Số lượng tồn: {formatPurchaseQty(g.remaining, g.food)}
+                      </Button>
+                      <span className="muted text-sm kb-lots-count">{g.lots.length} lô</span>
+                    </td>
+                  </tr>
+                  {expanded &&
+                    g.lots.map((lot) => (
+                      <tr key={lot.id} className="kb-lots-lot">
+                        <td className="muted">
+                          {g.food?.name} · Lô {lot.lotNo}
+                        </td>
+                        <td className="money nowrap">{lot.unitPrice == null ? '—' : formatMoney(lot.unitPrice)}</td>
+                        <td className="num nowrap">{qtyOf(lot.quantity, lot.food)}</td>
+                        <td className="num nowrap">{qtyOf(lot.quantity - lot.remaining, lot.food)}</td>
+                        <td className="num nowrap fw-600">{qtyOf(lot.remaining, lot.food)}</td>
+                        <td className="center nowrap">{lot.food?.purchaseUnit || '—'}</td>
+                        <td className="center">{formatDate(lot.receivedDate)}</td>
+                        <td className="center">
+                          <ExpiryCell expiryDate={lot.expiryDate} />
+                        </td>
+                        <td>{lot.supplierName || <span className="muted">—</span>}</td>
+                      </tr>
+                    ))}
+                </Fragment>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -149,17 +213,21 @@ export function StockLotsTab({ campusId }) {
   const exportCsv = () =>
     exportWithPreview(
       [
-        ['Số lô', 'Thực phẩm', 'Hạn sử dụng', 'Ngày nhập', 'Nhà cung cấp', 'Đã nhập', 'Còn lại', 'Đơn giá'],
-        ...rows.map(({ lot, food }) => [
-          lot.lotNo,
-          food?.name,
-          formatDate(lot.expiryDate),
-          formatDate(lot.receivedDate),
-          lot.supplierName || '',
-          formatPurchaseQty(lot.quantity, lot.food),
-          formatPurchaseQty(lot.remaining, lot.food),
-          lot.unitPrice ?? '',
-        ]),
+        ['Số lô', 'Thực phẩm', 'Đơn giá', 'Nhập', 'Xuất', 'Tồn', 'Đơn vị tính', 'Ngày nhập', 'Hạn sử dụng', 'Nhà cung cấp'],
+        ...rows.flatMap(({ lots: list, food }) =>
+          list.map((lot) => [
+            lot.lotNo,
+            food?.name,
+            lot.unitPrice ?? '',
+            qtyOf(lot.quantity, lot.food),
+            qtyOf(lot.quantity - lot.remaining, lot.food),
+            qtyOf(lot.remaining, lot.food),
+            lot.food?.purchaseUnit || '',
+            formatDate(lot.receivedDate),
+            formatDate(lot.expiryDate),
+            lot.supplierName || '',
+          ]),
+        ),
       ],
       `ton-kho-kho-${todayInput()}.xlsx`,
     );
@@ -184,17 +252,20 @@ export function StockLotsTab({ campusId }) {
           >
             Hiện cả lô đã hết
           </button>
-          <button type="button" className="btn btn--ghost" onClick={reset} disabled={!filtered}>
-            <RotateCcw size={15} /> Đặt lại bộ lọc
-          </button>
-          <button type="button" className="btn" onClick={exportCsv} disabled={!rows.length}>
-            <Download size={16} /> Xuất Excel
-          </button>
+          <Button variant="ghost" icon={RotateCcw} onClick={reset} disabled={!filtered}>
+            Đặt lại bộ lọc
+          </Button>
+          <Button variant="ghost" icon={allOpen ? ChevronsDownUp : ChevronsUpDown} onClick={toggleAll} disabled={!rows.length}>
+            {allOpen ? 'Thu gọn tất cả' : 'Mở tất cả lô'}
+          </Button>
+          <Button icon={Download} onClick={exportCsv} disabled={!rows.length}>
+            Xuất Excel
+          </Button>
         </div>
-        <FilterChips count={lots.loading ? null : rows.length} unit="lô" chips={chips} />
+        <FilterChips count={lots.loading ? null : rows.length} unit={`thực phẩm · ${lotCount} lô`} chips={chips} />
         {body}
         {!lots.loading && rows.length > 0 && (
-          <Pagination page={safePage} total={rows.length} onChange={setPage} pageSize={PAGE} unit="lô" />
+          <Pagination page={safePage} total={rows.length} onChange={setPage} pageSize={PAGE} unit="thực phẩm" />
         )}
       </div>
     </section>

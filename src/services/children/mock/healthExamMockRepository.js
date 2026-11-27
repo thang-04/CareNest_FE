@@ -27,6 +27,7 @@ import { examToHistory, historyToExam, profileToExamAdmin } from '@/models/child
 import { formatDate, todayInput } from '@/utils/format';
 import { uid } from '@/utils/id';
 import { hasErrors } from '@/utils/children/childrenValidation';
+import { temperatureFormatError } from '@/utils/children/healthExamHints';
 import { needsParentOpinion, validateHealthExam } from '@/utils/children/healthExamValidation';
 import { canRecordMeasurement, canViewHealth } from '@/utils/children/childrenPermissions';
 import { ensureChildRecordsSeeded, ensureDeclarationOf, notifyTbContactDateChanged, toMeasurementView } from './childrenMockRepository';
@@ -239,7 +240,7 @@ const cleanExam = (raw, ref, { concluded, mode = CONCLUSION_MODE.STANDARD, keeps
           },
   };
   const vitals = pick(t.vitals, r.vitals);
-  VITAL_ITEMS.forEach((i) => (vitals[i.key] = num(r.vitals?.[i.key], i.key === 'temperatureC' ? 1 : 0)));
+  VITAL_ITEMS.forEach((i) => (vitals[i.key] = num(r.vitals?.[i.key], i.key === 'temperatureC' ? 2 : 0)));
   const nutrition = {
     ...pick(t.nutrition, r.nutrition),
     lengthForAgeSd: num(r.nutrition?.lengthForAgeSd, 1),
@@ -347,7 +348,7 @@ const toExamView = (db, { campaign, child, cls, m }, user) => {
   const open = isOpenForEntry(campaign);
   const legacy = !!m && !m.exam;
   const date = examDateOf(campaign, m);
-  const reference = examReferenceFor(child.dateOfBirth, date);
+  const reference = examReferenceFor(child.dateOfBirth, date, child.gender);
   const prev = previousExamOf(db, child.id, date, m?.id);
   const prevCampaign = prev?.campaignId ? db.healthCheckCampaigns.find((c) => c.id === prev.campaignId) : null;
   const view = m && !legacy ? toMeasurementView(db, m) : null;
@@ -423,7 +424,7 @@ export const healthExamMockRepository = {
     const { campaign, child, m } = contextOf(db, campaignId, childId, user);
     const date = examDateOf(campaign, m);
     const mode = conclusionModeOf(m);
-    const cleaned = cleanExam(payload?.exam, examReferenceFor(child.dateOfBirth, date), { concluded: false, mode });
+    const cleaned = cleanExam(payload?.exam, examReferenceFor(child.dateOfBirth, date, child.gender), { concluded: false, mode });
     const exam = withProfile(child, cleaned, m?.examStatus === EXAM_STATUS.CONCLUDED ? m.exam : null);
     return { reviewPoints: examReviewPoints({ date, exam }, child.dateOfBirth) };
   },
@@ -446,7 +447,7 @@ export const healthExamMockRepository = {
     const concluded = m?.examStatus === EXAM_STATUS.CONCLUDED;
     if (!payload.conclude && concluded) throw new ApiError(409, 'Phiếu đã có kết luận. Lưu lại kết luận kèm lý do sửa thay vì lưu nháp.');
     const date = examDateOf(campaign, m);
-    const reference = examReferenceFor(child.dateOfBirth, date);
+    const reference = examReferenceFor(child.dateOfBirth, date, child.gender);
     const mode = conclusionModeOf(m);
     if (payload.conclude && payload.conclusionMode && payload.conclusionMode !== mode)
       throw new ApiError(409, 'Mẫu kết luận của phiếu đã thay đổi. Tải lại phiếu khám rồi lưu lại.');
@@ -473,7 +474,12 @@ export const healthExamMockRepository = {
       );
       if (dateTaken) errors.date = dateTaken;
       if (hasErrors(errors)) invalid(errors);
-    } else if (dateTaken) invalid({ date: dateTaken }, dateTaken);
+    } else {
+      // Nháp: nhiệt độ sai dạng bị từ chối đúng ô (như BE), các ô số khác để trống / dở dang
+      const temperatureError = temperatureFormatError(payload.exam?.vitals?.temperatureC);
+      if (temperatureError) invalid({ ...(dateTaken ? { date: dateTaken } : {}), 'exam.vitals.temperatureC': temperatureError });
+      if (dateTaken) invalid({ date: dateTaken }, dateTaken);
+    }
 
     return writeDb((d) => {
       const num = (v) =>

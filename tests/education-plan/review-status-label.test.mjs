@@ -21,12 +21,13 @@ test('tổng quan toàn trường không hiển thị hồ sơ chờ duyệt', a
   const stubs = `
     import React, {useMemo, useState} from 'react';
     import {EDU_STATUS, EDU_STATUS_LABELS, isEduReviewPending} from ${JSON.stringify(import.meta.resolve('../../src/models/education-plan/educationPlanConstants.js'))};
-    const useGoalDetails=()=>({loading:false});const useEducationPlan=()=>({goals:[{id:'1',schoolYear:'2026',status:'REVIEW',title:'Demo',themes:[]}],branchPlans:[],classThemePlans:[],schoolYear:'2026',classes:[]});
+    const useGoalDetails=()=>({loading:false});const useEducationPlan=()=>({goals:[{id:'1',schoolYear:'2026',status:'REVIEW',title:'Demo',themes:[]}],schoolYear:'2026',schoolYearId:1,user:{id:'u'},classes:[]});
+    const useAsync=()=>({data:[],loading:false}), getAllClassDocSummaries=async()=>[];
     const useNavigate=()=>()=>{}, RotateCcw=()=>null, SearchSubmit=()=>null, PageHead=()=>null, EmptyState=()=>null;
     const Card=({children})=><section>{children}</section>, StatCard=({label,value})=><span>{label}: {value}</span>;
     const Tabs=({items})=><div role="tablist">{items.map((t)=><button key={t.key} role="tab">{t.label} {t.count}</button>)}</div>;
     const EduStatusBadge=({status})=><span>{EDU_STATUS_LABELS[status]}</span>, YearPlanStatusBadge=EduStatusBadge;
-    const AGE_GROUPS=[], allGoalItems=()=>[], themeNumber=()=>'', themeWeeksOf=()=>[], yearWeeks=()=>[], clickableRowProps=()=>({}), fmtDate=()=>'', fmtDateTime=()=>'';
+    const AGE_GROUPS=[], ageRangeOptions=()=>AGE_GROUPS, sameAgeRange=(a,b)=>a===b, allGoalItems=()=>[], themeNumber=()=>'', themeWeeksOf=()=>[], yearWeeks=()=>[], clickableRowProps=()=>({}), fmtDate=()=>'', fmtDateTime=()=>'';
   `;
   const isolated = source.replace(/^import [\s\S]*? from '[^']+';\r?\n/gm, '');
   const { code } = await transformWithOxc(stubs + isolated, 'SchoolPlansPage.jsx', { lang: 'jsx', jsx: { runtime: 'classic' } });

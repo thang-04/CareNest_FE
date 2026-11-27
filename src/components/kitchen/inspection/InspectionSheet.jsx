@@ -3,6 +3,8 @@ import { BodyCell } from '@/components/kitchen/inspection/InspectionCells';
 import { ColumnFillDialog } from '@/components/kitchen/inspection/InspectionDialogs';
 import { DateInput, TimeInput } from '@/components/kitchen/inspection/InspectionInputs';
 import { FormField } from '@/components/form/FormField';
+import { TextField } from '@/components/form/Field';
+import { Button } from '@/components/ui/Button';
 import { Clock, ListChecks, PenLine } from '@/components/ui/icons';
 import { INSPECTION_ACTIONS, INSPECTION_COLUMNS, INSPECTION_DECISION, INSPECTION_FORMS } from '@/models/kitchen/inspectionConstants';
 import { buildHeader, columnTick } from '@/utils/kitchen/inspectionForm';
@@ -27,6 +29,9 @@ const DRAGGABLE = FILLABLE;
 const EDGE = 40; // khoảng cách tới mép khung cuộn (px) thì bảng bắt đầu tự cuộn khi kéo
 const canDrag = (col) => !col.readOnly && DRAGGABLE.has(col.type);
 
+/** Cột đầu sau TT (tên thực phẩm / ca-bữa) ghim khi cuộn ngang; tiêu đề, dòng số cột và thân bảng phải cùng lớp để thẳng hàng. */
+const NAME_CLASS = 'kr-sheet__name';
+
 /** Lớp của ô thân bảng: căn giữa giá trị ngắn, có chấm kéo điền, và tô vùng đang kéo. */
 const cellClass = (leaf, index, drag) => {
   const { col } = leaf;
@@ -45,9 +50,9 @@ function FillButton({ col, editable, onOpen }) {
   if (!editable || col.readOnly || !FILLABLE.has(col.type)) return null;
   const label = `Điền hoặc xóa cả cột ${col.label}`;
   return (
-    <button type="button" className="icon-btn kr-fillbtn" title={label} aria-label={label} onClick={() => onOpen(col)}>
+    <Button variant="icon" className="kr-fillbtn" title={label} aria-label={label} onClick={() => onOpen(col)}>
       <PenLine size={16} aria-hidden="true" />
-    </button>
+    </Button>
   );
 }
 
@@ -117,10 +122,10 @@ function SheetHead({ date, campusName, inspectorName, form, errors, editable, on
   return (
     <div className="kr-sheet__head">
       <FormField label="Tên đơn vị">
-        <input className="input" value={campusName || ''} readOnly aria-readonly="true" />
+        <TextField className="input" value={campusName || ''} readOnly aria-readonly="true" />
       </FormField>
       <FormField label="Người kiểm tra">
-        <input className="input" value={inspectorName || ''} readOnly aria-readonly="true" />
+        <TextField className="input" value={inspectorName || ''} readOnly aria-readonly="true" />
       </FormField>
       <FormField label="Thời gian kiểm tra" error={failed}>
         <div className="kr-when">
@@ -257,9 +262,9 @@ export function InspectionSheet({
         {meta.part && <div className="kr-sheet__part">{meta.part}</div>}
         <div className="kr-sheet__tools">
           {hasSupplier && editable && (
-            <button type="button" className="btn btn--sm" onClick={onSupplier}>
-              <ListChecks size={14} /> Chọn nhà cung cấp cho cả bảng
-            </button>
+            <Button size="sm" icon={ListChecks} onClick={onSupplier}>
+              Chọn nhà cung cấp cho cả bảng
+            </Button>
           )}
         </div>
       </div>
@@ -271,12 +276,14 @@ export function InspectionSheet({
               <th rowSpan={2} className="kr-sheet__tt">
                 TT
               </th>
-              {top.map((cell) => (
+              {top.map((cell, index) => (
                 <th
                   key={cell.key}
                   colSpan={cell.colSpan}
                   rowSpan={cell.rowSpan}
-                  className={cell.colSpan > 1 || !cell.plain ? 'kr-sheet__group' : ''}
+                  className={[cell.colSpan > 1 || !cell.plain ? 'kr-sheet__group' : '', index === 0 ? NAME_CLASS : '']
+                    .filter(Boolean)
+                    .join(' ')}
                 >
                   <span className="kr-sheet__labelrow">
                     <span className="kr-sheet__label">{cell.label}</span>
@@ -301,7 +308,9 @@ export function InspectionSheet({
             <tr className="kr-sheet__nums">
               <th className="kr-sheet__tt">1</th>
               {leaves.map((leaf, index) => (
-                <th key={leaf.key}>{index + 2}</th>
+                <th key={leaf.key} className={index === 0 ? NAME_CLASS : undefined}>
+                  {index + 2}
+                </th>
               ))}
             </tr>
           </thead>
@@ -312,8 +321,11 @@ export function InspectionSheet({
               return (
                 <tr key={row.key} data-row-key={row.key} data-row-index={index} className={failed ? 'kr-row--fail' : ''}>
                   <td className="kr-sheet__tt">{index + 1}</td>
-                  {leaves.map((leaf) => (
-                    <td key={leaf.key} className={cellClass(leaf, index, drag)}>
+                  {leaves.map((leaf, leafIndex) => (
+                    <td
+                      key={leaf.key}
+                      className={[cellClass(leaf, index, drag), leafIndex === 0 ? NAME_CLASS : ''].filter(Boolean).join(' ')}
+                    >
                       <BodyCell
                         tab={tab}
                         leaf={leaf}

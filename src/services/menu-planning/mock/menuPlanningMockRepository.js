@@ -14,7 +14,7 @@ import { formatDate, normalizeText, todayInput } from '@/utils/format';
 import { activeAgeGroups, ageAbbr, hasLegacyNormKeys, mealsOf, migrateNormKeys } from '@/utils/menu-planning/nutritionSetup';
 import { foodUnits, purchaseUnitSizeOf } from '@/utils/menu-planning/foodUnits';
 import { ROLES } from '@/models/User';
-import { ageGroupById, isNurseryAgeGroup } from '@/models/School';
+import { AGE_GROUPS, ageGroupById, isNurseryAgeGroup } from '@/models/School';
 import {
   AI_DRAFT_KIND,
   AI_DRAFT_STATUS,
@@ -38,6 +38,7 @@ import {
   compareToNorm,
   dishAllergens,
   dishTotals,
+  foodBudgetOn,
   ingredientQty,
   mealsTotals,
   normalizeMeals,
@@ -221,7 +222,6 @@ const sanitizeFood = (p) => ({
   },
   origin: FOOD_ORIGIN_LABELS[p.origin] ? p.origin : '',
   nutrientSource: String(p.nutrientSource || '').trim(),
-  nutrientSourceVersion: String(p.nutrientSourceVersion || '').trim(),
   allergens: [...new Set((p.allergens || []).map((a) => String(a).trim()).filter(Boolean))],
   note: String(p.note || '').trim(),
   status: p.status === RECORD_STATUS.INACTIVE ? RECORD_STATUS.INACTIVE : RECORD_STATUS.ACTIVE,
@@ -239,6 +239,8 @@ const normsOf = (db, ageGroupId) => db.nutritionSetups?.find((x) => x.ageGroupId
 const sanitizeSetup = (g) => ({
   enabled: g.enabled !== false,
   price: Number(g.price),
+  serviceFee: Number(g.serviceFee) || 0,
+  budgetTolerancePct: Number(g.budgetTolerancePct ?? 5),
   meals: (g.meals || []).map((m) => ({
     code: m.code || uid('meal'),
     name: String(m.name || '').trim(),
@@ -251,6 +253,10 @@ const sanitizeSetup = (g) => ({
       // Vi chất được để trống số sau (chỉ cần đạt tối thiểu) ⇒ giữ null, không thành 0
       .map(([k, range]) => [k, range.map((v) => (v === '' || v == null ? null : Number(v)))]),
   ),
+  // BE NUT-27: cơ cấu áp dụng P:L:G; để trống cả ba = chưa chọn
+  applied: ['protein', 'lipid', 'glucid'].every((k) => g.applied?.[k] === '' || g.applied?.[k] == null)
+    ? null
+    : Object.fromEntries(['protein', 'lipid', 'glucid'].map((k) => [k, Number(g.applied[k])])),
 });
 
 /** Định lượng theo nhóm tuổi; `quantity` (khẩu phần chuẩn, hệ số 1) giữ cho dữ liệu cũ. */
@@ -393,7 +399,7 @@ const suggestDayFix = (db, { ageGroupId, date, meals, menuId, recentMainIds = []
   const dishById = byId(db.dishes);
   const foodById = byId(db.foods);
   const norms = { [ageGroupId]: normsOf(db, ageGroupId) };
-  const price = priceOn(db.mealPrices, ageGroupId, date)?.price ?? null;
+  const price = foodBudgetOn(db.mealPrices, ageGroupId, date);
   const day = normalizeMeals(meals, mealCodesDb(db, ageGroupId));
   const one = (d) => dishTotals(d, foodById, 1, ageGroupId);
   const allergy = allergyArgsOf(db, ageGroupId, menuId);
@@ -818,16 +824,24 @@ export const menuPlanningMockRepository = {
       ensure(db);
       requireManager(db, user);
       const before = id ? find(db.dishes, id, 'món ăn') : null;
+      const allGroupIds = AGE_GROUPS.map((g) => g.id);
       const data = {
         name: String(payload.name || '').trim(),
         type: payload.type,
         description: String(payload.description || '').trim(),
+        // G94-379: nhóm tuổi giáo viên chọn (kiểu PMS); chỉ giữ id hợp lệ, món cũ chưa có ⇒ đủ 4 nhóm
+        ageGroupIds: Array.isArray(payload.ageGroupIds) ? payload.ageGroupIds.filter((g) => allGroupIds.includes(g)) : allGroupIds,
         ingredients: (payload.ingredients || []).map(sanitizeIngredient),
         status: Object.values(DISH_STATUS).includes(payload.status) ? payload.status : DISH_STATUS.ACTIVE,
       };
-      // Rời Nháp (hoặc tạo mới dùng ngay) ⇒ đủ định lượng mọi nhóm tuổi đang áp dụng
+      // Rời Nháp (hoặc tạo mới dùng ngay) ⇒ đủ định lượng các nhóm tuổi món khai báo (chọn ở form), còn active
       const activating = data.status === DISH_STATUS.ACTIVE && (!before || before.status === DISH_STATUS.DRAFT);
-      const requireGroups = activating ? activeAgeGroups(db.nutritionSetups).map((g) => ({ id: g.id, name: ageAbbr(g.id) })) : null;
+      if (activating && !data.ageGroupIds.length) fail(422, MSG.invalid, { ageGroupIds: 'Chọn ít nhất một nhóm tuổi.' });
+      const requireGroups = activating
+        ? activeAgeGroups(db.nutritionSetups)
+            .filter((g) => data.ageGroupIds.includes(g.id))
+            .map((g) => ({ id: g.id, name: ageAbbr(g.id) }))
+        : null;
       const errors = validateDish({ ...data, id }, db.dishes, { requireGroups });
       if (hasErrors(errors)) fail(422, MSG.invalid, errors);
       const foodById = byId(db.foods);
@@ -989,6 +1003,8 @@ export const menuPlanningMockRepository = {
         name: ref.name,
         type: ref.type,
         description: ref.description,
+        // G94-379: món tham khảo chưa chọn nhóm tuổi ⇒ mặc định đủ 4 nhóm
+        ageGroupIds: ref.ageGroupIds?.length ? ref.ageGroupIds : AGE_GROUPS.map((g) => g.id),
         ingredients,
         // Không qua form để PHT chọn trạng thái ⇒ về Nháp, PHT kiểm tra rồi mới dùng (user chốt 20/10/2026)
         status: DISH_STATUS.DRAFT,
@@ -1015,6 +1031,7 @@ export const menuPlanningMockRepository = {
       ...clone(x),
       // Dữ liệu cũ lưu giá theo từng bữa: giá ngày = tổng
       price: x.price ?? (x.meals || []).reduce((sum, m) => sum + (m.unitPrice || 0), 0),
+      serviceFee: x.serviceFee ?? 0,
       childCount: childCount(x.ageGroupId),
       prices: clone(
         db.mealPrices.filter((p) => p.ageGroupId === x.ageGroupId).sort((a, b) => (a.effectiveFrom < b.effectiveFrom ? 1 : -1)),
@@ -1042,7 +1059,7 @@ export const menuPlanningMockRepository = {
         const latest = later
           ? db.mealPrices.filter((p) => p.ageGroupId === g.ageGroupId).sort((x, y) => (x.effectiveFrom < y.effectiveFrom ? 1 : -1))[0]
           : current;
-        const changed = !latest || latest.price !== total;
+        const changed = !latest || latest.price !== total || (Number(latest.serviceFee) || 0) !== data.serviceFee;
         if (changed && later)
           errors[`${g.ageGroupId}.meals`] =
             `Đã có giá áp dụng từ ${formatDate(later.effectiveFrom)}. Hãy chọn ngày áp dụng từ ngày đó trở đi.`;
@@ -1053,7 +1070,8 @@ export const menuPlanningMockRepository = {
       });
       if (hasErrors(errors)) fail(422, MSG.invalid, errors);
       const basis = String(payload.basis || '').trim();
-      const snapshot = (x) => JSON.stringify([x.enabled, x.price, x.meals, x.norms, x.basis]);
+      const snapshot = (x) =>
+        JSON.stringify([x.enabled, x.price, x.serviceFee, x.budgetTolerancePct, x.meals, x.norms, x.basis, x.applied]);
       plans.forEach(({ g, data, total, current, changed }) => {
         const setup = db.nutritionSetups.find((x) => x.ageGroupId === g.ageGroupId);
         const before = snapshot(setup);
@@ -1065,7 +1083,7 @@ export const menuPlanningMockRepository = {
         if (!changed) return;
         if (current?.effectiveFrom === effectiveFrom) {
           const note = `${current.price.toLocaleString('vi-VN')} đ → ${total.toLocaleString('vi-VN')} đ${reason ? ` · ${reason}` : ''}`;
-          Object.assign(current, { price: total, updatedAt: now() });
+          Object.assign(current, { price: total, serviceFee: data.serviceFee, updatedAt: now() });
           addHistory(current, 'UPDATED', user, note);
           return;
         }
@@ -1074,6 +1092,7 @@ export const menuPlanningMockRepository = {
           id: uid('mp'),
           ageGroupId: g.ageGroupId,
           price: total,
+          serviceFee: data.serviceFee,
           effectiveFrom,
           effectiveTo: null,
           note: reason,

@@ -1,7 +1,10 @@
+import { useState } from 'react';
 import { FormField } from '@/components/form/FormField';
 import { SearchSelect } from '@/components/ui/SearchSelect';
-import { StatusBadge } from '@/components/ui/StatusBadge';
-import { coverageTone } from '@/utils/menu-planning/microGroups';
+import { useActiveSuppliers } from '@/hooks/menu-planning/useMenuPlanning';
+import { DateInput } from '@/components/form/DateInput';
+import { fixedPurchaseUnit } from '@/utils/menu-planning/foodUnits';
+import { todayInput } from '@/utils/format';
 import {
   ALLERGENS,
   FOOD_GROUP_LABELS,
@@ -9,22 +12,53 @@ import {
   FOOD_STORAGE_LABELS,
   FOOD_UNIT_LABELS,
   MICRONUTRIENT_GROUPS,
-  MICRONUTRIENTS,
   MICRONUTRIENT_LABELS,
   MICRONUTRIENT_UNITS,
   RECORD_STATUS_LABELS,
   defaultStorageOf,
 } from '@/models/menu-planning/menuPlanningConstants';
+import { Checkbox, TextAreaField, TextField } from '@/components';
 
 const toOptions = (labels) => Object.entries(labels).map(([value, label]) => ({ value, label }));
 const num = (v) => Number(v).toLocaleString('vi-VN', { maximumFractionDigits: 3 });
+const OTHER_UNIT = '__other_unit__';
 
-/** Ô số có đơn vị dính bên phải (g, %, đ). */
-function Affix({ unit, className = '', ...props }) {
-  // FormField gắn id, aria và class lỗi vào phần tử con: chuyển xuống ô nhập, viền lỗi lên khung
+// Mỗi chất chính một màu chip để nhận ra nhanh giữa các ô số
+const MACROS = [
+  ['kcal', 'Năng lượng', 'kcal', 'orange'],
+  ['protein', 'Chất đạm', 'g', 'red'],
+  ['lipid', 'Chất béo', 'g', 'purple'],
+  ['glucid', 'Tinh bột', 'g', 'blue'],
+];
+
+function MicronutrientFields({ group, hasError, children }) {
+  if (group.key === 'supplementary') {
+    return (
+      <details className="td-micro-fieldset" open={hasError || undefined}>
+        <summary className="fw-600">{group.label}</summary>
+        {children}
+      </details>
+    );
+  }
   return (
-    <span className={`td-affix ${className.includes('is-invalid') ? 'is-invalid' : ''}`}>
-      <input type="number" min="0" className="input" {...props} />
+    <fieldset className="td-micro-fieldset">
+      <legend className="fw-600">{group.label}</legend>
+      {children}
+    </fieldset>
+  );
+}
+
+// BE khóa ba ô đơn vị khi thực phẩm đã nhập kho (NUT-32)
+const LOCK_HINT = 'Đã nhập kho nên không đổi được; quy cách khác thì thêm thực phẩm mới';
+
+/** Ô số có đơn vị dính bên phải (g, %, đ), tùy chọn chữ dẫn bên trái ("1 kg ="). */
+function Affix({ unit, prefix, className = '', disabled, ...props }) {
+  // FormField gắn id, aria và class lỗi vào phần tử con: chuyển xuống ô nhập, viền lỗi lên khung
+  const cls = ['td-affix', className.includes('is-invalid') && 'is-invalid', disabled && 'is-disabled'].filter(Boolean).join(' ');
+  return (
+    <span className={cls}>
+      {prefix && <span className="td-affix__prefix">{prefix}</span>}
+      <input type="number" min="0" className="input" disabled={disabled} {...props} />
       <span>{unit}</span>
     </span>
   );
@@ -35,22 +69,38 @@ function Affix({ unit, className = '', ...props }) {
  * `f` = kết quả `useFoodForm`. Dùng trong trang sửa và trong modal trên danh sách.
  */
 export function FoodEditor({ f }) {
-  const { form, payload, set, setNut, blur, show, toggleAllergen, locked } = f;
-  const unitPreview =
-    Number(form.purchaseToStock) > 0 && Number(form.stockUnitSize) > 0 && form.stockUnit && form.purchaseUnit
-      ? `1 ${form.purchaseUnit} = ${num(form.purchaseToStock)} ${form.stockUnit} = ${num(payload.purchaseUnitSize)} ${form.unit}`
-      : null;
-  const lockHint = 'Đã có lô tồn kho hoặc phiếu nhập: không đổi được';
-  const isFilled = (k) => String(form.nutrition[k] ?? '').trim() !== '';
-  const filledMicro = MICRONUTRIENTS.filter(isFilled).length;
+  const {
+    form,
+    payload,
+    set,
+    setPurchaseUnit,
+    setBaseUnit,
+    setUnitConversion,
+    unitOptions,
+    setNut,
+    blur,
+    show,
+    toggleAllergen,
+    isNew,
+    priceChanged,
+    locked,
+  } = f;
+  const [customUnit, setCustomUnit] = useState(false);
+  const { items: suppliers } = useActiveSuppliers();
+  const purchaseUnit = form.purchaseUnit || 'đơn vị tính';
+  const fixedUnit = isNew && fixedPurchaseUnit(form.purchaseUnit);
+  const chooseUnit = (value) => {
+    setCustomUnit(value === OTHER_UNIT);
+    setPurchaseUnit(value === OTHER_UNIT ? '' : value);
+  };
 
   return (
     <div className="td-food-editor">
-      <section className="td-food-box td-food-box--full">
+      <section className="td-food-box">
         <h3>Thông tin chung</h3>
         <div className="td-food-grid td-food-grid--general">
           <FormField label="Tên thực phẩm" required error={show('name')}>
-            <input
+            <TextField
               className="input"
               value={form.name}
               maxLength={100}
@@ -86,7 +136,7 @@ export function FoodEditor({ f }) {
           </FormField>
         </div>
         <label className="checkbox">
-          <input type="checkbox" checked={!!form.favorite} onChange={(e) => set('favorite', e.target.checked)} />
+          <Checkbox checked={!!form.favorite} onChange={(e) => set('favorite', e.target.checked)} />
           Hay dùng (lọc nhanh khi lập món)
         </label>
       </section>
@@ -94,68 +144,69 @@ export function FoodEditor({ f }) {
       <section className="td-food-box">
         <div className="td-food-box__head">
           <h3>Đơn vị, giá và thải bỏ</h3>
-          {unitPreview && <span className="text-sm muted">{unitPreview}</span>}
+          <span className="text-sm muted">
+            {payload.purchaseUnitSize ? `1 ${purchaseUnit} = ${num(payload.purchaseUnitSize)} ${form.unit}` : 'Chưa nhập quy đổi'}
+          </span>
         </div>
-        <div className="td-food-grid">
-          <FormField label="Đơn vị công thức" required error={show('unit')} hint="g hoặc ml khi nhập định lượng món">
+        <div className="td-food-grid td-food-grid--wide">
+          <FormField
+            label="Đơn vị tính"
+            required
+            error={customUnit ? undefined : show('purchaseUnit')}
+            hint={locked ? LOCK_HINT : 'Chọn đơn vị có sẵn hoặc nhập đơn vị mới'}
+          >
             <SearchSelect
-              options={toOptions(FOOD_UNIT_LABELS)}
-              value={form.unit}
-              onChange={(v) => set('unit', v)}
-              ariaLabel="Đơn vị công thức"
+              disabled={locked}
+              options={[...unitOptions, { value: OTHER_UNIT, label: 'Nhập đơn vị khác…' }]}
+              value={customUnit ? OTHER_UNIT : form.purchaseUnit}
+              onChange={chooseUnit}
+              ariaLabel="Đơn vị tính"
+              searchable
             />
           </FormField>
-          <FormField label="Đơn vị mua" required error={show('purchaseUnit')} hint="Ví dụ: kg, lít, thùng">
-            <input
-              className="input"
+          {customUnit && (
+            <TextField
+              label="Tên đơn vị mới"
+              required
+              error={show('purchaseUnit')}
+              hint="Ví dụ: bao 25 kg, hộp 200 g"
               value={form.purchaseUnit}
               maxLength={30}
-              onChange={(e) => set('purchaseUnit', e.target.value)}
+              onChange={(event) => setPurchaseUnit(event.target.value)}
               onBlur={blur('purchaseUnit')}
+              placeholder="Nhập tên đơn vị"
+              autoFocus
             />
-          </FormField>
-          <FormField label="Đơn vị kho" required error={show('stockUnit')} hint={locked ? lockHint : undefined}>
-            <input
-              className="input"
-              value={form.stockUnit}
-              maxLength={30}
-              disabled={locked}
-              onChange={(e) => set('stockUnit', e.target.value)}
-              onBlur={blur('stockUnit')}
-            />
-          </FormField>
-          <FormField
-            label={`Số ${form.stockUnit || 'đơn vị kho'} trong 1 ${form.purchaseUnit || 'đơn vị mua'}`}
-            required
-            error={show('purchaseToStock')}
-          >
-            <input
-              type="number"
-              min="0"
-              step="any"
-              className="input"
-              value={form.purchaseToStock}
-              onChange={(e) => set('purchaseToStock', e.target.value)}
-              onBlur={blur('purchaseToStock')}
-            />
-          </FormField>
-          <FormField
-            label={`Số ${form.unit} trong 1 ${form.stockUnit || 'đơn vị kho'}`}
-            required
-            error={show('stockUnitSize')}
-            hint={locked ? lockHint : undefined}
-          >
-            <input
-              type="number"
-              min="0"
-              step="any"
-              className="input"
-              value={form.stockUnitSize}
-              disabled={locked}
-              onChange={(e) => set('stockUnitSize', e.target.value)}
-              onBlur={blur('stockUnitSize')}
-            />
-          </FormField>
+          )}
+          {(locked || !fixedUnit) && (
+            <FormField
+              label="Quy đổi gam hoặc ml"
+              required
+              error={show('purchaseUnitSize')}
+              hint="Chỉ nhập cho đơn vị đóng gói, ví dụ 1 hộp = 100 g"
+            >
+              <Affix
+                disabled={locked}
+                unit={form.unit}
+                prefix={`1 ${purchaseUnit} =`}
+                step="any"
+                value={form.purchaseUnitSize}
+                onChange={(e) => setUnitConversion(e.target.value)}
+                onBlur={blur('purchaseUnitSize')}
+              />
+            </FormField>
+          )}
+          {(locked || !fixedUnit) && (
+            <FormField label="Đơn vị gốc" required error={show('unit')} hint={locked ? LOCK_HINT : 'Dùng khi nhập định lượng món'}>
+              <SearchSelect
+                disabled={locked}
+                options={toOptions(FOOD_UNIT_LABELS)}
+                value={form.unit}
+                onChange={setBaseUnit}
+                ariaLabel="Đơn vị gốc"
+              />
+            </FormField>
+          )}
           <FormField label="Tỷ lệ thải bỏ" error={show('wastePct')}>
             <Affix
               unit="%"
@@ -166,7 +217,11 @@ export function FoodEditor({ f }) {
               onBlur={blur('wastePct')}
             />
           </FormField>
-          <FormField label="Đơn giá" error={show('unitPrice')} className="td-span-all">
+          <FormField
+            label="Đơn giá"
+            error={show('unitPrice')}
+            hint={isNew ? 'Mức giá đầu tiên, áp dụng từ hôm nay' : 'Đổi giá sẽ thêm một mức giá mới, mức cũ vẫn lưu trong lịch sử'}
+          >
             <Affix
               unit={`đ / ${form.purchaseUnit || 'đơn vị mua'}`}
               step="500"
@@ -175,12 +230,49 @@ export function FoodEditor({ f }) {
               onBlur={blur('unitPrice')}
             />
           </FormField>
+          <FormField label="Nhà cung cấp" error={show('supplierId')}>
+            <SearchSelect
+              options={suppliers.map((s) => ({ value: s.id, label: s.name }))}
+              value={form.supplierId}
+              onChange={(v) => set('supplierId', v)}
+              placeholder="Chưa gán nhà cung cấp"
+              ariaLabel="Nhà cung cấp"
+              searchable
+            />
+          </FormField>
+          {priceChanged && (
+            <>
+              <FormField
+                label="Ngày hiệu lực của giá mới"
+                required
+                error={show('effectiveFrom')}
+                hint="Từ hôm nay trở đi; các ngày trước đó giữ giá cũ"
+              >
+                <DateInput value={form.effectiveFrom} min={todayInput()} onChange={(v) => set('effectiveFrom', v)} />
+              </FormField>
+              <FormField
+                label="Lý do đổi giá / nhà cung cấp"
+                error={show('priceReason')}
+                hint="Bắt buộc khi ngày hiệu lực nằm trong hạn hợp đồng hiện hành"
+              >
+                <TextField
+                  className="input"
+                  value={form.priceReason}
+                  maxLength={300}
+                  onChange={(e) => set('priceReason', e.target.value)}
+                  onBlur={blur('priceReason')}
+                />
+              </FormField>
+            </>
+          )}
         </div>
       </section>
 
       <section className="td-food-box">
-        <h3>Dinh dưỡng trên 100 {form.unit} ăn được</h3>
-        <div className="td-food-grid">
+        <div className="td-food-box__head">
+          <h3>Dinh dưỡng trên 100 {form.unit} ăn được</h3>
+        </div>
+        <div className="td-food-grid td-food-grid--wide">
           <FormField label="Nguồn gốc" required error={show('origin')} className="td-span-all">
             <SearchSelect
               options={toOptions(FOOD_ORIGIN_LABELS)}
@@ -191,39 +283,25 @@ export function FoodEditor({ f }) {
               ariaLabel="Nguồn gốc"
             />
           </FormField>
-          {[
-            ['kcal', 'Năng lượng', 'kcal'],
-            ['protein', 'Chất đạm', 'g'],
-            ['lipid', 'Chất béo', 'g'],
-            ['glucid', 'Tinh bột', 'g'],
-          ].map(([k, label, unit]) => (
-            <FormField key={k} label={label} error={show(k)}>
+          {MACROS.map(([k, label, unit, tone]) => (
+            <FormField key={k} label={<span className={`chip chip--${tone}`}>{label}</span>} error={show(k)}>
               <Affix unit={unit} step="0.1" value={form.nutrition[k]} onChange={(e) => setNut(k, e.target.value)} onBlur={blur(k)} />
             </FormField>
           ))}
         </div>
         <p className="text-xs muted">Để trống nếu chưa có số liệu – thực đơn dùng thực phẩm này sẽ được báo là chưa đủ dữ liệu.</p>
-        <details className="td-food-more">
-          <summary>
-            8 vi chất và nguồn số liệu{' '}
-            <StatusBadge
-              tone={coverageTone(filledMicro, MICRONUTRIENTS.length)}
-              label={`${filledMicro}/${MICRONUTRIENTS.length} đã nhập`}
-            />
-          </summary>
+        <div className="td-food-more">
           {/* Vi chất theo bảng PMS (BE NUT-26): không bắt buộc, trên 100 g ăn được */}
           {MICRONUTRIENT_GROUPS.map((g) => (
-            <fieldset key={g.key} className="td-micro-fieldset">
-              <legend className="fw-600">
-                {g.label}{' '}
-                <StatusBadge
-                  tone={coverageTone(g.items.filter(isFilled).length, g.items.length)}
-                  label={`${g.items.filter(isFilled).length}/${g.items.length} đã nhập`}
-                />
-              </legend>
-              <div className="td-food-grid">
+            <MicronutrientFields key={g.key} group={g} hasError={g.items.some((k) => show(k))}>
+              <div className="td-food-grid td-food-grid--wide">
                 {g.items.map((k) => (
-                  <FormField key={k} label={MICRONUTRIENT_LABELS[k]} error={show(k)}>
+                  <FormField
+                    key={k}
+                    label={MICRONUTRIENT_LABELS[k]}
+                    error={show(k)}
+                    hint={k === 'vitaminA' ? 'Nhập theo µg RAE; dữ liệu cũ ghi µg hoặc RE cần xác minh trước khi cộng chung.' : undefined}
+                  >
                     <Affix
                       unit={MICRONUTRIENT_UNITS[k]}
                       step="0.01"
@@ -234,16 +312,16 @@ export function FoodEditor({ f }) {
                   </FormField>
                 ))}
               </div>
-            </fieldset>
+            </MicronutrientFields>
           ))}
-          <div className="td-food-grid">
+          <div className="td-food-grid td-food-grid--wide">
             <FormField
               label="Nguồn số liệu dinh dưỡng"
               required
               error={show('nutrientSource')}
               hint="Ví dụ: Bảng thành phần thực phẩm Việt Nam"
             >
-              <input
+              <TextField
                 className="input"
                 value={form.nutrientSource}
                 maxLength={200}
@@ -251,31 +329,29 @@ export function FoodEditor({ f }) {
                 onBlur={blur('nutrientSource')}
               />
             </FormField>
-            <FormField label="Phiên bản nguồn" error={show('nutrientSourceVersion')}>
-              <input
-                className="input"
-                value={form.nutrientSourceVersion}
-                maxLength={50}
-                onChange={(e) => set('nutrientSourceVersion', e.target.value)}
-                onBlur={blur('nutrientSourceVersion')}
-              />
-            </FormField>
           </div>
-        </details>
+        </div>
       </section>
 
-      <section className="td-food-box td-food-box--full">
-        <h3>Chất gây dị ứng</h3>
+      <section className="td-food-box">
+        <div className="td-food-box__head">
+          <h3>Chất gây dị ứng</h3>
+          {form.allergens.length > 0 ? (
+            <span className="chip chip--red">{form.allergens.length} chất</span>
+          ) : (
+            <span className="chip chip--gray">Không có</span>
+          )}
+        </div>
         <fieldset className="td-allergen-pick">
           <legend className="sr-only">Chọn chất gây dị ứng có trong thực phẩm</legend>
           {ALLERGENS.map((a) => (
             <label key={a}>
-              <input type="checkbox" checked={form.allergens.includes(a)} onChange={() => toggleAllergen(a)} /> {a}
+              <Checkbox checked={form.allergens.includes(a)} onChange={() => toggleAllergen(a)} /> {a}
             </label>
           ))}
         </fieldset>
         <FormField label="Ghi chú">
-          <textarea className="textarea" rows={2} value={form.note} onChange={(e) => set('note', e.target.value)} />
+          <TextAreaField className="textarea" rows={2} value={form.note} onChange={(e) => set('note', e.target.value)} />
         </FormField>
       </section>
     </div>

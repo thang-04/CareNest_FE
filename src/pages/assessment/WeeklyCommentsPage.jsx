@@ -1,3 +1,4 @@
+import { childNameWithHistory } from '@/utils/childHistory';
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { PenLine, Save, Send, Sparkles } from '@/components/ui/icons';
@@ -5,6 +6,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useAsync } from '@/hooks/useAsync';
 import { useDailyAssessmentClasses } from '@/hooks/assessment/useAssessment';
+import { useYearCampuses } from '@/hooks/useYearCampuses';
+import { PERMISSIONS } from '@/models/bePermissions';
+import { CampusFilter } from '@/components/ui/CampusFilter';
+import { getCampuses } from '@/services/masterDataService';
 import { AiDraftTag } from '@/components/ui/AiDraftTag';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Button } from '@/components/ui/Button';
@@ -31,6 +36,8 @@ import {
 } from '@/models/assessment/weeklyComments.mjs';
 import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';
 import { formatDate, formatDateTime } from '@/utils/format';
+import { TransferredHistoryPanel } from '@/components/TransferredHistoryPanel';
+import { weekRange } from '@/utils/assessment/transferredHistory';
 import '@/styles/modules/assessment.css';
 
 /** Nhận xét tuần theo trẻ (BE OBS-29): GV viết nháp từ số liệu tuần, sửa, gửi phụ huynh; BGH, tổ trưởng chỉ xem. */
@@ -44,11 +51,20 @@ export default function WeeklyCommentsPage() {
   // Trống = tuần hiện tại (BE chọn); danh sách tuần lấy từ BE theo giáo án tuần của lớp
   const [weekStart, setWeekStart] = useState(search.get('weekStart') || '');
   const [childId, setChildId] = useState('');
+  // Lọc điểm trường: Hiệu trưởng có đủ điểm trường của năm đang chọn; PHT chỉ điểm trường của lớp trong phạm vi
+  const [campusId, setCampusId] = useState('');
+  const yearCampuses = useYearCampuses(PERMISSIONS.ASSESSMENT_VIEW);
+  const { data: campuses } = useAsync(() => getCampuses(user), [user?.id]);
+  const campusOptions = useMemo(
+    () => yearCampuses || (campuses || []).filter((c) => classes.some((cls) => cls.campusId === c.id)),
+    [yearCampuses, campuses, classes],
+  );
+  const campusClasses = useMemo(() => classes.filter((c) => !campusId || c.campusId === campusId), [classes, campusId]);
   const [text, setText] = useState('');
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState('');
   const [confirm, setConfirm] = useState(null);
-  const currentClassId = classId || classes[0]?.id || '';
+  const currentClassId = campusClasses.some((c) => String(c.id) === String(classId)) ? classId : campusClasses[0]?.id || '';
   const {
     data: board,
     loading,
@@ -62,7 +78,7 @@ export default function WeeklyCommentsPage() {
   const row = rows.find((r) => String(r.childId) === String(childId)) || rows[0];
   const counts = boardCounts(rows);
   // BE OBS-29: trong hạn (hoặc đang mở lại) GV sửa cả bản đã gửi; quá hạn BE trả canEdit=false
-  const editable = !!board?.canEdit;
+  const editable = !!board?.canEdit && !row?.historical;
   const saved = row?.content || '';
 
   // Đổi trẻ / tải lại: ô nhập lấy bản trên hệ thống
@@ -132,7 +148,16 @@ export default function WeeklyCommentsPage() {
       ) : (
         <div className="card">
           <div className="filter-bar wc-bar">
-            {classes.length > 1 ? (
+            <CampusFilter
+              hideLabel
+              campuses={campusOptions}
+              value={campusId}
+              onChange={(id) => {
+                setCampusId(id);
+                setChildId('');
+              }}
+            />
+            {campusClasses.length > 1 ? (
               <SelectField
                 aria-label="Lớp"
                 value={currentClassId}
@@ -140,10 +165,12 @@ export default function WeeklyCommentsPage() {
                   setClassId(e.target.value);
                   setChildId('');
                 }}
-                options={classes.map((c) => ({ value: c.id, label: c.name }))}
+                options={campusClasses.map((c) => ({ value: c.id, label: c.name }))}
               />
+            ) : campusClasses.length ? (
+              <span className="fw-600">{campusClasses[0].name}</span>
             ) : (
-              <span className="fw-600">{classes[0]?.name}</span>
+              <span className="text-sm muted">Điểm trường chưa có lớp</span>
             )}
             {board?.weeks?.length > 0 && (
               <SelectField
@@ -188,7 +215,9 @@ export default function WeeklyCommentsPage() {
               {errors._form}
             </p>
           )}
-          {error ? (
+          {!classesLoading && !currentClassId ? (
+            <EmptyState title="Điểm trường chưa có lớp trong năm học này" />
+          ) : error ? (
             <ErrorState error={error} onRetry={reload} />
           ) : loading || classesLoading || !board ? (
             <Spinner deferred />
@@ -208,15 +237,15 @@ export default function WeeklyCommentsPage() {
                       aria-current={active || undefined}
                       onClick={() => setChildId(r.childId)}
                     >
-                      <span className="wc-child__name">{r.fullName}</span>
+                      <span className="wc-child__name">{childNameWithHistory(r.fullName, r.historyStatus)}</span>
                       <StatusBadge tone={chip.tone} label={chip.label} size="sm" />
                     </Button>
                   );
                 })}
               </nav>
-              <section className="wc-panel" aria-label={`Nhận xét tuần của ${row.fullName}`}>
+              <section className="wc-panel" aria-label={`Nhận xét tuần của ${childNameWithHistory(row.fullName, row.historyStatus)}`}>
                 <div className="wc-panel__head">
-                  <h2 className="section-title">{row.fullName}</h2>
+                  <h2 className="section-title">{childNameWithHistory(row.fullName, row.historyStatus)}</h2>
                   {row.status === WEEKLY_STATUS.SENT ? (
                     <StatusBadge tone="green" label={`Đã gửi · ${formatDateTime(row.sentAt)}`} />
                   ) : (
@@ -283,6 +312,13 @@ export default function WeeklyCommentsPage() {
           )}
         </div>
       )}
+      {/* Trẻ chuyển đến: nhận xét tuần đã gửi và kết quả chủ đề ở lớp cũ, chỉ xem */}
+      <TransferredHistoryPanel
+        classId={currentClassId}
+        range={weekRange(board?.weekStart || weekStart)}
+        weekStart={board?.weekStart || weekStart}
+        sections={['weekly', 'themes']}
+      />
       <ConfirmationModal
         open={!!confirm}
         title={confirm === 'all' ? 'Gửi cả lớp cho phụ huynh?' : 'Gửi nhận xét cho phụ huynh?'}

@@ -39,7 +39,8 @@ const forecastCounts = (db, classes, sessions, valueOf) =>
 /** Lớp, bữa, số đăng ký ăn và ô dự trù đã lưu của một cơ sở: phần dùng chung cho mọi ngày. */
 export function forecastEnv(db, { campusId, record }) {
   const classes = activeKitchenClasses(db, campusId);
-  const active = (db.children || []).filter((ch) => ch.status === 'ACTIVE' && ch.classId);
+  // NUT-07/CHD-13: dự trù chỉ tính trẻ báo ăn (thiếu cờ ⇒ báo ăn); sĩ số lớp không đổi
+  const active = (db.children || []).filter((ch) => ch.status === 'ACTIVE' && ch.classId && ch.mealRegistered !== false);
   return {
     campusId,
     classes,
@@ -69,7 +70,10 @@ export function forecastDay(db, env, date, ctx) {
   );
   // Nghỉ đã báo: bản ghi vắng đã có cho ngày đó (GV điểm danh hoặc báo trước)
   const absent = {};
+  const noMealChildIds = new Set((db.children || []).filter((ch) => ch.mealRegistered === false).map((ch) => ch.id));
   (db.attendance || []).forEach((a) => {
+    // NUT-07/CHD-13: trẻ không báo ăn đã bị loại khỏi `registered`, bản ghi của trẻ không trừ thêm lần nữa
+    if (noMealChildIds.has(a.childId)) return;
     const cls = classes.find((item) => item.id === a.classId);
     const noMeal = cls && a.meals && classMealSessions(db, cls).every((session) => !a.meals[session]);
     if (a.date === date && a.campusId === campusId && (isAbsent(a.status) || noMeal)) absent[a.classId] = (absent[a.classId] || 0) + 1;

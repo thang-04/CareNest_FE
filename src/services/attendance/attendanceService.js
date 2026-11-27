@@ -26,14 +26,16 @@ export const revokeAttendanceDayUnlock = (id, user) =>
   be ? be.revokeAttendanceDayUnlock(id) : USE_MOCK ? attendanceMockRepository.revokeAttendanceDayUnlock(id, user) : unlockUnavailable();
 const leaveUnavailable = () =>
   Promise.reject(Object.assign(new Error('Danh sách đơn nghỉ chỉ có khi đăng nhập hệ thống CareNest.'), { status: 501 }));
-export const getLeaveRequests = (query) => (be ? be.searchLeaveRequests(query) : leaveUnavailable());
+export const getLeaveRequests = (query, user) =>
+  be ? be.searchLeaveRequests(query) : USE_MOCK ? attendanceMockRepository.searchLeaveRequests(query, user) : leaveUnavailable();
 export const getClassAttendance = (classId, date, user) => (be || repo).getClassAttendance(classId, date, user);
 export const saveClassAttendance = (payload, user) => (be || repo).saveClassAttendance(payload, user);
+export const markArrived = (payload, user) => (be || repo).markArrived(payload, user);
+export const correctMealParticipation = (payload, user) => (be || repo).correctMealParticipation(payload, user);
 export const getAttendanceSummary = (query, user) => (be || repo).getAttendanceSummary(query, user);
 export const getMealCounts = (query, user) => (be || repo).getMealCounts(query, user);
 export const getClassMealCount = (query, user) => (be || repo).getClassMealCount(query, user);
 export const confirmMealCount = (id, user, seen) => (be ? be.confirmMealCount(id, seen) : repo.confirmMealCount(id, user));
-export const adjustMealDay = (payload, user) => (be || repo).adjustMealDay(payload, user);
 export const getMealHandovers = (query, user) => handoverRepo.getMealHandovers(query, user);
 export const confirmHandover = (id, body, user) => handoverRepo.confirmHandover(id, body, user);
 export const reportHandoverShortage = (id, body, user) => handoverRepo.reportHandoverShortage(id, body, user);

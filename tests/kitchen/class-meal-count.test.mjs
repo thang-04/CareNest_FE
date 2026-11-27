@@ -18,12 +18,12 @@ const meal = (over = {}) => ({
 });
 
 test('AC-11: ô từng bữa lấy nguyên số suất BE trả, không cộng trừ lại', () => {
-  const rows = classMealRows({ meals: [meal(), meal({ session: 'AFTERNOON', normal: 20, substitute: 0 })] });
+  const rows = classMealRows({ meals: [meal({ normal: 20, substitute: 0 }), meal({ session: 'AFTERNOON', normal: 20, substitute: 0 })] });
   assert.deepEqual(
-    rows.map((r) => [r.title, r.normal, r.substitute, r.status, r.tone]),
+    rows.map((r) => [r.title, r.normal, r.status, r.tone]),
     [
-      ['Bữa trưa', 18, 2, 'Đang nhận báo ăn', 'blue'],
-      ['Bữa chiều', 20, 0, 'Đang nhận báo ăn', 'blue'],
+      ['Bữa trưa', 20, 'Đang nhận báo ăn', 'blue'],
+      ['Bữa chiều', 20, 'Đang nhận báo ăn', 'blue'],
     ],
   );
 });

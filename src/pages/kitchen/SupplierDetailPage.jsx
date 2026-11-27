@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { AlertTriangle, IdCard, MapPin, Pencil, Phone, Trash2, Truck, UserRound } from '@/components/ui/icons';
+import { AlertTriangle, FileText, IdCard, MapPin, Pencil, Phone, RefreshCw, Trash2, Truck, UserRound } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useSupplier } from '@/hooks/kitchen/useKitchen';
-import { Breadcrumb, ConfirmationModal, EmptyState, ErrorState, LoadingState } from '@/components';
-import { ReceiptStatusBadge, SupplierStatusBadge } from '@/components/kitchen/KitchenBadges';
+import { Breadcrumb, Button, ConfirmationModal, EmptyState, ErrorState, LoadingState } from '@/components';
+import { ContractStatusBadge, ReceiptStatusBadge, SupplierStatusBadge } from '@/components/kitchen/KitchenBadges';
+import { SupplierContractModal } from '@/components/kitchen/SupplierContractModal';
 import { SupplierEditModal } from '@/components/kitchen/SupplierEditModal';
-import { canEditSuppliers, deleteSupplier, saveSupplier } from '@/services/kitchen/kitchenService';
+import { canEditSuppliers, deleteSupplier, saveSupplier, suppliersUseApi } from '@/services/kitchen/kitchenService';
 import { canManageStock } from '@/utils/kitchen/kitchenPermissions';
 import { supplierCrumbs } from '@/utils/kitchen/breadcrumbs';
 import { clickableRowProps } from '@/utils/clickableRow';
@@ -25,6 +26,7 @@ export default function SupplierDetailPage() {
   const { data: s, loading, error, reload } = useSupplier(id);
   const [ask, setAsk] = useState(null);
   const [editing, setEditing] = useState(false);
+  const [contracting, setContracting] = useState(false);
   const [actionError, setActionError] = useState('');
   const canManage = canEditSuppliers(user);
   // Phiếu nhập chỉ PHT mở được (route nhập kho dành cho PHT)
@@ -41,6 +43,8 @@ export default function SupplierDetailPage() {
     );
 
   const active = s.status === SUPPLIER_STATUS.ACTIVE;
+  // Ngừng dùng không bị chặn; còn hợp đồng hiệu lực thì hộp xác nhận nói rõ để PHT cân nhắc
+  const contractInUse = ['ACTIVE', 'EXPIRING'].includes(s.contractStatus) && !!s.contractEnd;
   const toggle = async () => {
     try {
       await saveSupplier({ ...s, status: active ? SUPPLIER_STATUS.INACTIVE : SUPPLIER_STATUS.ACTIVE }, user);
@@ -70,6 +74,19 @@ export default function SupplierDetailPage() {
     { icon: IdCard, label: 'Mã số thuế', value: s.taxCode },
     { icon: IdCard, label: 'CCCD nhà cung cấp', value: s.idCard },
     { icon: MapPin, label: 'Địa chỉ', value: s.address, wide: true },
+    ...(suppliersUseApi()
+      ? [
+          {
+            icon: FileText,
+            label: 'Hợp đồng',
+            value:
+              s.contractStart && s.contractEnd
+                ? `${s.contractNo ? `${s.contractNo} · ` : ''}${formatDate(s.contractStart)} – ${formatDate(s.contractEnd)}`
+                : '',
+            wide: true,
+          },
+        ]
+      : []),
   ].filter((f) => f.value !== undefined);
 
   return (
@@ -83,6 +100,7 @@ export default function SupplierDetailPage() {
           <div className="kb-sup-hero__title">
             <h1 className="page__title">{s.name}</h1>
             <SupplierStatusBadge status={s.status} size="lg" />
+            {suppliersUseApi() && <ContractStatusBadge status={s.contractStatus} size="lg" />}
           </div>
           <div className="kb-sup-hero__meta">
             {s.code && <span className="td-tag td-tag--blue">{s.code}</span>}
@@ -92,16 +110,19 @@ export default function SupplierDetailPage() {
         {canManage && (
           <div className="kb-sup-hero__actions">
             {s.receiptCount === 0 && (
-              <button className="btn btn--outline-danger" onClick={() => setAsk('delete')}>
-                <Trash2 size={16} /> Xóa
-              </button>
+              <Button variant="outline-danger" icon={Trash2} onClick={() => setAsk('delete')}>
+                Xóa
+              </Button>
             )}
-            <button className="btn" onClick={() => setAsk('toggle')}>
-              {active ? 'Ngừng dùng' : 'Dùng lại'}
-            </button>
-            <button type="button" className="btn btn--primary" onClick={() => setEditing(true)}>
-              <Pencil size={16} /> Sửa nhà cung cấp
-            </button>
+            <Button onClick={() => setAsk('toggle')}>{active ? 'Ngừng dùng' : 'Dùng lại'}</Button>
+            {suppliersUseApi() && active && (
+              <Button icon={RefreshCw} onClick={() => setContracting(true)}>
+                Áp dụng hợp đồng mới
+              </Button>
+            )}
+            <Button variant="primary" icon={Pencil} onClick={() => setEditing(true)}>
+              Sửa nhà cung cấp
+            </Button>
           </div>
         )}
       </section>
@@ -141,7 +162,7 @@ export default function SupplierDetailPage() {
                   <th>Mã phiếu</th>
                   <th>Ngày nhập</th>
                   <th>Điểm trường</th>
-                  <th className="num">Số thực phẩm</th>
+                  <th className="num">Số mặt hàng</th>
                   <th className="money">Tổng tiền</th>
                   <th className="center">Trạng thái</th>
                 </tr>
@@ -174,7 +195,11 @@ export default function SupplierDetailPage() {
         title={active ? 'Ngừng dùng nhà cung cấp' : 'Dùng lại nhà cung cấp'}
         message={
           active
-            ? `Ngừng dùng "${s.name}"? Phiếu nhập mới không chọn được nhà cung cấp này; phiếu đã có vẫn giữ tên.`
+            ? `Ngừng dùng "${s.name}"? Phiếu nhập mới không chọn được nhà cung cấp này; phiếu đã có vẫn giữ tên.${
+                contractInUse
+                  ? ` Nhà cung cấp còn hợp đồng ${s.contractNo ? `${s.contractNo} ` : ''}đến ${formatDate(s.contractEnd)}: thực phẩm đang lấy giá từ nhà cung cấp này cần đổi sang nhà cung cấp khác trước khi điều chỉnh giá mới.`
+                  : ''
+              }`
             : `Dùng lại "${s.name}" cho phiếu nhập mới?`
         }
         confirmLabel={active ? 'Ngừng dùng' : 'Dùng lại'}
@@ -190,6 +215,7 @@ export default function SupplierDetailPage() {
         onConfirm={remove}
         onClose={() => setAsk(null)}
       />
+      {contracting && <SupplierContractModal supplier={s} onClose={() => setContracting(false)} onSaved={() => reload({ silent: true })} />}
       {editing && <SupplierEditModal supplierId={id} onClose={() => setEditing(false)} onSaved={() => reload({ silent: true })} />}
     </div>
   );

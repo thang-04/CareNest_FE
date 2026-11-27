@@ -5,6 +5,7 @@ import { AllergenChips } from '@/components/menu-planning/MenuBadges';
 import { dishAllergens, dishTotals } from '@/utils/menu-planning/menuCalculations';
 import { DISH_TYPE_LABELS, RECORD_STATUS } from '@/models/menu-planning/menuPlanningConstants';
 import { mealLabel } from '@/utils/menu-planning/nutritionSetup';
+import { Button, TextField } from '@/components';
 
 /**
  * Edits the dishes and portion multipliers of each session.
@@ -71,7 +72,7 @@ export function MealEditor({ meals, sessions, onChange, catalog, ageGroupId, err
                             />
                           </td>
                           <td>
-                            <input
+                            <TextField
                               type="number"
                               className="input"
                               min="0.1"
@@ -93,9 +94,8 @@ export function MealEditor({ meals, sessions, onChange, catalog, ageGroupId, err
                             {dish ? <AllergenChips allergens={dishAllergens(dish, catalog.foodById)} /> : '—'}
                           </td>
                           <td className="cell--actions">
-                            <button
-                              type="button"
-                              className="icon-btn"
+                            <Button
+                              variant="icon"
                               aria-label={`Bỏ món ${dish?.name || idx + 1}`}
                               title="Bỏ món"
                               disabled={disabled}
@@ -107,7 +107,7 @@ export function MealEditor({ meals, sessions, onChange, catalog, ageGroupId, err
                               }
                             >
                               <Trash2 size={16} />
-                            </button>
+                            </Button>
                           </td>
                         </tr>
                       );
@@ -122,13 +122,14 @@ export function MealEditor({ meals, sessions, onChange, catalog, ageGroupId, err
               </span>
             )}
             {!disabled && (
-              <button
-                type="button"
-                className="btn btn--sm btn--ghost mt-8"
+              <Button
+                size="sm"
+                variant="ghost"
+                className="mt-8"
                 onClick={() => update(session, [...meal.items, { dishId: '', portion: 1 }])}
               >
                 <Plus size={15} /> Thêm món
-              </button>
+              </Button>
             )}
           </div>
         );

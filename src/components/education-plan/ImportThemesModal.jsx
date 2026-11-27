@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Download } from '@/components/ui/icons';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { useGoalImportSources } from '@/hooks/education-plan/useGoalImportSources';
-import { AGE_GROUPS } from '@/models/education-plan/educationPlanConstants';
+import { AGE_GROUPS, ageRangeOptions, rangeOptionId } from '@/models/education-plan/educationPlanConstants';
 import { breakExists, themeExists } from '@/models/education-plan/importThemes.mjs';
 import { versionOf } from '@/models/education-plan/planVersions.mjs';
 import { EmptyState, Modal, Notice, YearPlanStatusBadge, fmtDate } from '@/components/education-plan/eduUi';
@@ -19,7 +19,7 @@ export default function ImportThemesModal({ planLevel = 'TEAM', excludeId, defau
   const { schoolYears, user } = useEducationPlan();
   // Mặc định năm học của kế hoạch đang soạn (Tiền 31/10)
   const [year, setYear] = useState(schoolYears.includes(defaultYear) ? defaultYear : schoolYears[1] || schoolYears[0] || '');
-  const [ageGroupId, setAgeGroupId] = useState(defaultAgeGroupId || '');
+  const [ageGroupId, setAgeGroupId] = useState(rangeOptionId(defaultAgeGroupId));
   const [sourceId, setSourceId] = useState('');
   const [picked, setPicked] = useState({ key: '', ids: [] });
   const [checking, setChecking] = useState(false);
@@ -89,7 +89,7 @@ export default function ImportThemesModal({ planLevel = 'TEAM', excludeId, defau
     if (!list.length) return null;
     return (
       <div className="table-wrap">
-        <table className="table ga-plan-table">
+        <table className="table ga-plan-table ga-import-theme-table">
           <caption className="ga-cur-sub__name">{title}</caption>
           <thead>
             <tr>
@@ -181,7 +181,7 @@ export default function ImportThemesModal({ planLevel = 'TEAM', excludeId, defau
             }}
           >
             <option value="">Tất cả nhóm tuổi</option>
-            {AGE_GROUPS.map((age) => (
+            {ageRangeOptions().map((age) => (
               <option key={age.id} value={age.id}>
                 {age.name}
               </option>

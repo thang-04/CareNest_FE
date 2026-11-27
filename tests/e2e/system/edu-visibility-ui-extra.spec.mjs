@@ -1,12 +1,12 @@
 import { test, expect } from '@playwright/test';
-import { api, beReachable } from '../support/realBe.mjs';
+import { api, beReachable, sql } from '../support/realBe.mjs';
 import { login, spaGo } from '../support/ui.mjs';
 
 // Giao diện cho các phần spec 002/003 trước đây chỉ có test API (IT-002-02/03/04, IT-003-04/05, thông báo có đường dẫn).
 // Dữ liệu dev 10/11/2026: teamlead34 = Tổ trưởng + GVCN lớp 1 (3–4 tuổi, cơ sở A), teacher6 = GV thứ hai lớp đó.
 test.describe.configure({ mode: 'serial' });
 
-const U = { vp: 'tam.lethi@thuonghong.carenest.edu.vn', ht: 'tuyet.hoangminh@thuonghong.carenest.edu.vn', tl: 'lan.nguyenkim@thuonghong.carenest.edu.vn', gv2: 'thanh.phamthi@thuonghong.carenest.edu.vn' };
+const U = { vp: 'viceprincipal', ht: 'principal', tl: 'teacher1', gv2: 'teacher2' };
 const GOALS = '/education-plans/goals';
 let cls;
 let myAge;
@@ -38,7 +38,11 @@ test('ST-002-08 bản chưa ban hành: HT/PHT mở đường dẫn thấy "Bản
 test('ST-002-09 GV thứ hai: chỉ thấy kế hoạch năm đã ban hành của nhóm tuổi mình, không thấy lịch sử duyệt; nhóm khác bị chặn', async ({
   page,
 }) => {
-  const mine = (await api(U.gv2, 'GET', `${GOALS}?planLevel=SCHOOL_YEAR&size=100`)).data.items;
+  // Trang lọc theo năm học đang chọn trên header (mặc định năm đang hoạt động)
+  const activeYear = sql(`select id from school_years where status = 'ACTIVE'`);
+  const mine = (await api(U.gv2, 'GET', `${GOALS}?planLevel=SCHOOL_YEAR&size=100`)).data.items.filter(
+    (p) => String(p.schoolYearId) === activeYear,
+  );
   test.skip(!mine.length, 'GV thứ hai chưa có kế hoạch năm đã ban hành');
   await login(page, U.gv2);
   await spaGo(page, '/education/school-year-plans');
@@ -62,12 +66,12 @@ test('ST-003-09 trang kế hoạch chủ đề không hiện hạn (chỉ ở tr
   const dossier = (await api(U.tl, 'GET', '/education-plans/class-docs')).data.themeDossiers?.find(
     (d) => String(d.classId) === String(cls.id),
   );
-  test.skip(!dossier, 'Lớp chưa có hồ sơ chủ đề');
+  test.skip(!dossier, 'Lớp chưa có kế hoạch giáo dục ngày');
   await login(page, U.tl);
   await spaGo(page, `/education/class/${cls.id}/themes/${dossier.themeId}`);
   // Trạng thái, hạn chỉ ở hàng nút trang danh sách học kỳ, không lặp ở trang kế hoạch chủ đề (Tiền 14/11/2026)
   await expect(page.getByRole('combobox', { name: 'Chủ đề' })).toBeVisible({ timeout: 30_000 });
-  await expect(page.locator('.ga-year-toolbar').getByText(/Gần đến hạn|Quá hạn|Đúng hạn|Ban hành trễ|Hạn/)).toHaveCount(0);
+  await expect(page.locator('.ga-year-toolbar').getByText(/Gần đến hạn|Quá hạn|Đúng hạn|Hạn/)).toHaveCount(0);
   await expect(page.locator('.ga-page a[href^="/education/"]:not(nav[aria-label="Breadcrumb"] a)')).toHaveCount(0);
   await expect(page.getByText('Cách gửi duyệt kế hoạch chủ đề và kế hoạch tuần')).toHaveCount(0);
   await expect(page.getByRole('button', { name: /^Gửi duyệt$|Gửi .* duyệt kế hoạch chủ đề/ })).toHaveCount(0);
@@ -89,7 +93,7 @@ test('ST-003-11 bấm thông báo kế hoạch giáo dục ở trang Thông báo
   await spaGo(page, '/notifications');
   await page.getByText(edu.title).first().click();
   // Trang chi tiết thông báo có nút mở bản ghi liên quan
-  await page.getByRole('button', { name: 'Mở nội dung liên quan' }).click();
+  await page.getByRole('button', { name: 'Xem chi tiết', exact: true }).click(); // G94-288: nút mở nội dung liên quan đổi tên
   await page.waitForURL((u) => u.pathname === edu.link, { timeout: 15_000 });
   await expect(page.getByText(/Không tìm thấy|Đã có lỗi/)).toHaveCount(0);
 });

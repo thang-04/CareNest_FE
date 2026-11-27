@@ -4,11 +4,15 @@ import { useAsync } from '@/hooks/useAsync';
 import {
   getChildDetail,
   getChildren,
+  getLatestProfileChanges,
+  getProfileChanges,
   getClassOptions,
   getHealthRecord,
   findParentAccountByCitizenId,
   getParentAccounts,
   getPlacementClasses,
+  getLeaveOptions,
+  getSchoolHolidays,
 } from '@/services/children/childrenService';
 import { isValidCitizenId, normalizeCitizenId } from '@/utils/citizenId';
 
@@ -42,13 +46,58 @@ export function useClassOptions(schoolYear, { all = false, enabled = true } = {}
   return { year: data?.year || null, ageGroups: data?.ageGroups || [], classes: data?.classes || [], loading, error };
 }
 
-/** Lớp tiếp nhận, xếp lớp được (kèm sĩ số hiện tại): BE chỉ trả lớp của năm học đang hoạt động (user chốt 2026-10-28, Y-3). */
-export function usePlacementClasses() {
+/** BE:CHD-11 — yêu cầu sửa hồ sơ/khai báo mới nhất của trẻ (GV gửi xem trạng thái, lý do từ chối). */
+export function useLatestProfileChanges(childId, { enabled = true } = {}) {
   const { user } = useAuth();
-  const { data, loading, error, reload } = useAsync(() => getPlacementClasses({}, user), [user?.id], {
+  const { data, loading, error, reload } = useAsync(() => getLatestProfileChanges(childId, user), [childId, user?.id], {
+    enabled: enabled && !!childId,
+  });
+  return { changes: data || [], loading, error, reload };
+}
+
+/** BE:CHD-11 — yêu cầu sửa hồ sơ trong phạm vi duyệt của HT/PHT. */
+export function useProfileChanges(status = 'PENDING', { enabled = true } = {}) {
+  const { user } = useAuth();
+  const { data, loading, error, reload } = useAsync(() => getProfileChanges(status, user), [status, user?.id], {
+    enabled,
     refreshOnDataChange: true,
   });
-  return { classes: data || [], loading, error, reload };
+  return { requests: data || [], loading, error, reload };
+}
+
+/** Lớp có thể tiếp nhận của năm đang hoạt động hoặc năm sắp tới, kèm sĩ số dự kiến. */
+export function usePlacementClasses(schoolYearId, { from, childId } = {}) {
+  const { user } = useAuth();
+  // Ngày đang gõ dở ⇒ giữ ngày đầy đủ gần nhất (tránh tải lại, thẻ lớp nháy trắng); ô trống ⇒ không gửi, BE lấy hôm nay
+  const lastComplete = useRef(undefined);
+  if (!from) lastComplete.current = undefined;
+  else if (/^\d{4}-\d{2}-\d{2}$/.test(from)) lastComplete.current = from;
+  const fromDate = lastComplete.current;
+  const { data, loading, error, reload } = useAsync(
+    () => getPlacementClasses({ schoolYearId, from: fromDate, childId }, user),
+    [schoolYearId, fromDate, childId, user?.id],
+    { refreshOnDataChange: true },
+  );
+  return { classes: data || [], loading, error, reload, from: fromDate };
+}
+
+/** Lựa chọn ngày nghỉ học của BE: { today, todayAllowed, todayBlockedReason, minDate, maxDate }. */
+export function useLeaveOptions(childId) {
+  const { user } = useAuth();
+  const { data, loading, error, reload } = useAsync(() => getLeaveOptions(childId, user), [childId, user?.id], { enabled: !!childId });
+  return { options: data, loading, error, reload };
+}
+
+/**
+ * Ngày nghỉ của năm học (G94-180/CHD-14) để chọn ngày học mặc định và báo lỗi sớm. Không tải được thì trả rỗng: BE vẫn kiểm
+ * ngày học và báo lỗi ở đúng ô.
+ */
+export function useYearHolidays(schoolYearId) {
+  const { user } = useAuth();
+  const { data, loading } = useAsync(() => getSchoolHolidays(schoolYearId, user).catch(() => []), [schoolYearId, user?.id], {
+    enabled: !!schoolYearId,
+  });
+  return { holidays: data || [], loading };
 }
 
 export function useParentAccounts(filters = {}) {

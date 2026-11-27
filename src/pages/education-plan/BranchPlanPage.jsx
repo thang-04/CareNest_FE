@@ -1,28 +1,36 @@
+import { Button } from '@/components/ui/Button';
+import { ResponsiveToolbar } from '@/components/ui/ResponsiveToolbar';
 import {
   adaptCalendar,
+  normalizeBranchCalendar,
   branchDisplayRows,
   branchWeeks,
   calendarDurationIssue,
+  removeBranch,
   resizeBranch,
   seedTeamBranchTemplates,
   teachingWeeks,
   updateWeek,
 } from '@/models/education-plan/branchCalendar.mjs';
 import { useEffect, useState } from 'react';
-import { Navigate, useParams } from 'react-router-dom';
-import { Check, Download, FileDown, Lightbulb, Pencil, Save, Wand2, X } from '@/components/ui/icons';
+import { Navigate, useNavigate, useParams } from 'react-router-dom';
+import { Check, Download, FileDown, Pencil, Save, Trash2, X } from '@/components/ui/icons';
 import { branchFile, leaderNameOf } from '@/utils/education-plan/classPlanDoc';
-import { rewriteBranchName, suggestBranchNames } from '@/services/education-plan/educationPlanService';
 import { Card, fmtDate, Notice, PageHead } from '@/components/education-plan/eduUi';
 import DatePickerCell from '@/components/education-plan/DatePickerCell';
 import { VersionHistory } from '@/components/education-plan/VersionHistory';
 import { docLines } from '@/models/education-plan/planHistory.mjs';
-import { Cell, ClassFilterBar, ClassPageEmpty, FilterSelect, focusCell, useClassPlanContext } from '@/components/education-plan/planUi';
+import {
+  Cell,
+  ClassFilterBar,
+  classFilterPath,
+  ClassPageEmpty,
+  FilterSelect,
+  focusCell,
+  useClassPlanContext,
+} from '@/components/education-plan/planUi';
 import { RejectedNotice } from '@/components/education-plan/reviewUi';
-import { LoadingState } from '@/components/ui/States';
-import { AiWorkingOverlay } from '@/components/ui/AiWorkingOverlay';
-import { Modal } from '@/components/ui/Modal';
-import { useAiRun } from '@/hooks/useAiRun';
+import { EmptyState, LoadingState } from '@/components/ui/States';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { useManualSave } from '@/hooks/education-plan/useManualSave';
@@ -39,7 +47,6 @@ import {
   offDaysText,
   semesterChoices,
 } from '@/models/education-plan/classPlan';
-import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { SupersededNote, VersionCopyOffer, VersionFlagsPanel } from '@/components/education-plan/VersionWidgets';
 import { useDocVersion } from '@/hooks/education-plan/useDocVersion';
 import { checkFlag, dropReference, versionOf } from '@/models/education-plan/planVersions.mjs';
@@ -55,9 +62,139 @@ import { DocTable } from '@/components/ui/DocTable';
  */
 export default function BranchPlanPage() {
   const { classId } = useParams();
-  // Đổi lớp thì dựng lại trang để bỏ bản sửa dở của lớp trước
-  const { yearPlan } = useClassPlanContext(classId);
-  return <BranchPlanInner key={`${classId}:${yearPlan?.id}:${yearPlan?.curriculumSourcePlanId || 'legacy'}`} classId={classId} />;
+  const navigate = useNavigate();
+  const ctx = useClassPlanContext(classId);
+  const { cls, classes, yearPlan } = ctx;
+  const { pollClassDocs } = useEducationPlan();
+  // Một chỗ poll cho cả trang; đang sửa thì dừng để giữ bản đang gõ
+  const [editing, setEditing] = useState(false);
+  usePolling(() => pollClassDocs?.().catch(() => {}), { enabled: !editing });
+  if (ctx.loading) return <LoadingState />;
+  if (!cls || !yearPlan) {
+    return (
+      <ClassPageEmpty
+        showAllAges
+        crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Dự kiến chủ đề - chủ đề nhánh' }]}
+        title="Dự kiến chủ đề - chủ đề nhánh"
+        classes={classes}
+        classId={classId}
+        onPick={(id, age) => navigate(classFilterPath('/education/branches', id, age))}
+        emptyTitle={cls ? 'Kế hoạch giáo dục tổ của nhóm tuổi này chưa được ban hành' : 'Không tìm thấy lớp'}
+      />
+    );
+  }
+  // Đổi lớp hoặc nguồn thì dựng lại vùng soạn của lớp mới.
+  if (!ctx.canComposeClassDocs) {
+    return <PublishedBranches key={`${classId}:${yearPlan.id}`} ctx={ctx} classId={classId} />;
+  }
+  return (
+    <BranchPlanInner
+      key={`${classId}:${yearPlan.id}:${yearPlan.curriculumSourcePlanId || 'legacy'}`}
+      classId={classId}
+      ctx={ctx}
+      onEditingChange={setEditing}
+    />
+  );
+}
+
+function PublishedBranches({ ctx, classId }) {
+  const title = 'Dự kiến chủ đề - chủ đề nhánh';
+  const navigate = useNavigate();
+  const { semesterPackages, branchPlans } = useEducationPlan();
+  const [view, setView] = useState('list');
+  const [semester, setSemester] = useState('');
+  const packages = semesterPackages
+    .filter((pkg) => pkg.classId === classId && pkg.yearPlanId === ctx.yearPlan.id)
+    .sort((a, b) => a.semesterNo - b.semesterNo);
+  // BE EDU-111 (5): người xem lớp thấy lịch nhánh hiện tại ở mọi trạng thái (bản GV vừa lưu), chỉ xem
+  const saved = branchPlans.find((b) => b.classId === classId && b.yearPlanId === ctx.yearPlan.id);
+  const calendar = saved ? adaptCalendar(saved, ctx.yearPlan) : null;
+  const inSemester = new Set(
+    packages.filter((pkg) => !semester || String(pkg.semesterNo) === semester).flatMap((pkg) => (pkg.themeIds || []).map(String)),
+  );
+  const rows = calendar ? teachingWeeks(ctx.yearPlan, calendar).filter((week) => !semester || inSemester.has(String(week.theme.id))) : [];
+  return (
+    <div className="page ga-page">
+      <div className="ga-sticky-head">
+        <PageHead crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: title }]} title={title} />
+        <ClassFilterBar
+          showAllAges
+          classes={ctx.classes}
+          classId={classId}
+          canPick={ctx.canPickClass}
+          onPick={(id, age) => navigate(classFilterPath('/education/branches', id, age))}
+        >
+          <FilterSelect
+            label="Học kỳ"
+            value={semester}
+            onChange={setSemester}
+            options={[
+              { value: '', label: 'Tất cả' },
+              ...packages.map((pkg) => ({ value: String(pkg.semesterNo), label: `Học kỳ ${pkg.semesterNo}` })),
+            ]}
+          />
+          <FilterSelect
+            label="Kiểu hiển thị"
+            value={view}
+            onChange={setView}
+            options={[
+              { value: 'list', label: 'Danh sách' },
+              { value: 'grid', label: 'Bảng' },
+            ]}
+          />
+        </ClassFilterBar>
+      </div>
+      <Card title={title}>
+        {!rows.length ? (
+          <EmptyState title="Lớp chưa có lịch chủ đề nhánh" />
+        ) : view === 'grid' ? (
+          <BranchGridTable rows={rows} names={calendar.names} branches={calendar.branches} />
+        ) : (
+          <DocTable className="ga-plan-table ga-goal-table ga-branch-plan-table ga-branch-readonly" data-testid="published-branch-list">
+            <colgroup>
+              <col className="ga-col-month" />
+              <col className="ga-goal-table__group" />
+              <col />
+              <col className="ga-branch-plan-table__weeks" />
+              <col />
+            </colgroup>
+            <thead>
+              <tr>
+                <th scope="col">Tháng</th>
+                <th scope="col">Chủ đề</th>
+                <th scope="col">Chủ đề nhánh</th>
+                <th scope="col">Tuần</th>
+                <th scope="col">Ghi chú</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr key={`${row.theme.id}:${row.start}`}>
+                  <td>
+                    <div className="ga-goal-table__pad nowrap">{Number(row.start.slice(5, 7))}</div>
+                  </td>
+                  <td>
+                    <div className="ga-goal-table__pad">{row.theme.name}</div>
+                  </td>
+                  <td>
+                    <div className="ga-goal-table__pad">{calendar.names[row.start] || '—'}</div>
+                  </td>
+                  <td>
+                    <div className="ga-goal-table__pad">
+                      Tuần {row.no} · {ddmm(row.start)} – {ddmm(row.end)}
+                    </div>
+                  </td>
+                  <td>
+                    <div className="ga-goal-table__pad">{calendar.notes[row.start] || '—'}</div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </DocTable>
+        )}
+      </Card>
+    </div>
+  );
 }
 
 // Bản gửi đi khi lưu: ô AI chưa ✓ / ✗ vẫn lưu tên trước đó, chỉ lưu khi giáo viên đã giữ
@@ -69,34 +206,28 @@ export function BranchPlanLegacyRedirect() {
   return <Navigate to={`/education/branches/${classId}`} replace />;
 }
 
-function BranchPlanInner({ classId }) {
-  const { user, branchPlans, semesterPackages, semesterConfigMissing, saveClassDoc, toast, eduConfig, staff, refreshClassDocs } =
+function BranchPlanInner({ classId, ctx, onEditingChange }) {
+  const { user, branchPlans, semesterPackages, themeDossiers, semesterConfigMissing, saveClassDoc, toast, eduConfig, staff } =
     useEducationPlan();
   const [preview, setPreview] = useState(null);
   const [importContext, setImportContext] = useState(null);
   const [editing, setEditing] = useState(false);
   const [pendingDates, setPendingDates] = useState({});
-  const ctx = useClassPlanContext(classId);
   const { cls, classes, yearPlan: sourcePlan, teachers, canComposeClassDocs } = ctx;
   const yearPlan = sourcePlan;
   const saved = yearPlan ? branchPlans.find((b) => b.classId === classId && b.yearPlanId === yearPlan.id) || null : null;
   const [draft, setDraft] = useState(null);
   const [dirty, setDirty] = useState(false);
-  // AI điền thẳng vào ô; tuần còn chờ giáo viên bấm giữ (✓) hoặc bỏ (✗): { [weekStart]: { prev, base } }
+  // Tên nhập từ file điền thẳng vào ô; tuần còn chờ giáo viên bấm giữ (✓) hoặc bỏ (✗): { [weekStart]: { prev, base } }
   // prev: tên trước khi AI đụng vào (✗ trả về), base: tên dùng để viết lại
   const [pending, setPending] = useState({});
-  const [aiTheme, setAiTheme] = useState(null);
   // AI viết lại tên đã có: tuần đang chờ kết quả và số lần đã viết lại (mỗi lần một cách khác)
-  const [rewriting, setRewriting] = useState(null);
-  const { run: runAi } = useAiRun();
-  const [showPending, setShowPending] = useState(false);
-  const [tries, setTries] = useState({});
   // Hộp xác nhận trước mỗi lần dùng AI: { title, message, confirmLabel, run }
   const [confirm, setConfirm] = useState(null);
   const [copying, setCopying] = useState(false);
   const [view, setView] = useState('list');
   const [semesterNo, setSemesterNo] = useState('');
-  const { schoolYear: yearId, schoolYears } = useSchoolYear();
+  const { yearOption } = useEducationPlan();
   const version = useDocVersion('branch', saved, ctx, branchPlans);
   const autoOk =
     !ctx.superseded &&
@@ -118,14 +249,16 @@ function BranchPlanInner({ classId }) {
     },
     backup: { userId: user?.id, key: yearPlan && `branch:${classId}:${yearPlan.id}` },
     onRestore: (doc) => {
-      setDraft(eduConfig.durationPolicyAvailable === false ? doc : adaptCalendar(doc, yearPlan));
+      setDraft(eduConfig.durationPolicyAvailable === false ? normalizeBranchCalendar(doc) : adaptCalendar(doc, yearPlan));
       setDirty(true);
       setEditing(true);
     },
   });
   const guard = useLeaveGuard({ when: editing && autoOk && saver.unsaved, onSave: saver.save });
-  // Đang xem (không sửa): trạng thái gói học kỳ do người khác đổi tự cập nhật; đang sửa thì không nạp lại để giữ bản đang gõ
-  usePolling(() => refreshClassDocs?.().catch(() => {}), { enabled: !editing });
+  useEffect(() => {
+    onEditingChange(editing);
+    return () => onEditingChange(false);
+  }, [editing, onEditingChange]);
 
   useEffect(() => {
     setEditing(false);
@@ -139,7 +272,7 @@ function BranchPlanInner({ classId }) {
     const adapted =
       doc &&
       (eduConfig.durationPolicyAvailable === false && saved
-        ? doc
+        ? normalizeBranchCalendar(doc)
         : adaptCalendar(
             {
               ...doc,
@@ -158,24 +291,12 @@ function BranchPlanInner({ classId }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [saved?.id, saved?.version, saved?.dossierVersion, saved?.status, saved?.history?.length, yearPlan?.id, classId, dirty]);
 
-  if (ctx.loading) return <LoadingState />;
-  if (!cls || !yearPlan)
-    return (
-      <ClassPageEmpty
-        crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Dự kiến chủ đề - chủ đề nhánh' }]}
-        title="Dự kiến chủ đề - chủ đề nhánh"
-        classes={classes}
-        classId={classId}
-        onPick={(id) => guard.leave(`/education/branches/${id}`)}
-        emptyTitle={cls ? 'Kế hoạch giáo dục tổ của nhóm tuổi này chưa được ban hành' : 'Không tìm thấy lớp'}
-      />
-    );
   if (!draft) return <LoadingState />;
 
   const status = saved?.status || EDU_STATUS.DRAFT;
   const packages = semesterPackages.filter((p) => p.classId === classId && p.yearPlanId === yearPlan?.id);
   const choices = semesterChoices(
-    schoolYears.find((y) => String(y.id) === String(yearId)),
+    yearOption,
     yearPlan.themes.filter((t) => t.start && t.end),
     packages,
   );
@@ -210,6 +331,24 @@ function BranchPlanInner({ classId }) {
     setDirty(true);
   };
   const editable = editing && canEdit;
+  // BE:EDU-111 — khóa theo chủ đề (chỉ ẩn/hiện, BE kiểm lại): gói học kỳ chờ duyệt hoặc hồ sơ chủ đề đã gửi/duyệt ⇒
+  // không thêm/sửa/xóa nhánh; còn lại (kể cả học kỳ đã ban hành) sửa và xóa được
+  const packageOf = (themeId) => packages.find((p) => (p.themeIds || []).map(String).includes(String(themeId)));
+  const themeLocked = (themeId) => {
+    const dossier = themeDossiers.find((d) => d.id === `ds_${classId}_${themeId}`);
+    return (
+      packageOf(themeId)?.status === EDU_STATUS.REVIEW || dossier?.status === EDU_STATUS.REVIEW || dossier?.status === EDU_STATUS.APPROVED
+    );
+  };
+  const canDropBranch = (themeId) => !themeLocked(themeId);
+  const confirmRemove = (branch, weekCount) =>
+    setConfirm({
+      danger: true,
+      title: 'Xóa chủ đề nhánh',
+      message: `Xóa chủ đề nhánh "${branch.name?.trim() || 'chưa đặt tên'}" (${weekCount} tuần)? Kế hoạch tuần và giáo án ngày đã soạn của ${weekCount > 1 ? 'các tuần' : 'tuần'} này sẽ bị xóa khi bấm Lưu.`,
+      confirmLabel: 'Xóa',
+      run: () => flagEdit((d) => removeBranch(d, yearPlan, branch.key)),
+    });
   const dateIssue = calendarDurationIssue(draft, yearPlan);
   const branchForWeek = (row) =>
     draft.branches.find(
@@ -217,9 +356,6 @@ function BranchPlanInner({ classId }) {
     );
   const allRows = branchDisplayRows(yearPlan, draft);
   const displayRows = allRows.filter(inSemester);
-  const mappedWeeks = allRows.filter((r) => r.type === 'week' && branchForWeek(r));
-  const weekCount = mappedWeeks.length;
-  const empty = mappedWeeks.filter((r) => !draft.names[r.start]?.trim()).length;
   const set = (field, key, value) => {
     setDraft((d) =>
       d.schemaVersion === 2 ? updateWeek(d, yearPlan, field, key, value) : { ...d, [field]: { ...d[field], [key]: value } },
@@ -232,32 +368,6 @@ function BranchPlanInner({ classId }) {
       return rest;
     });
   // Gợi ý các tuần còn trống: của một chủ đề, hoặc cả năm khi theme = null
-  const askAi = async (theme) => {
-    const weekRows = mappedWeeks;
-    const targets = weekRows.filter((r) => (!theme || r.theme.id === theme.id) && !draft.names[r.start]?.trim() && branchForWeek(r));
-    if (!targets.length) return toast(theme ? 'Các tuần của chủ đề này đã có tên chủ đề nhánh' : 'Cả năm đã có tên chủ đề nhánh');
-    const taken = weekRows.filter((r) => !targets.includes(r)).map((r) => draft.names[r.start] || '');
-    const themes = [...new Map(targets.map((r) => [r.theme.id, r.theme])).values()].map((t) => ({
-      id: t.id,
-      name: t.name,
-      festivals: t.festivals || '',
-      weeks: targets.filter((r) => r.theme.id === t.id).map((r) => ({ start: r.start, no: r.no })),
-    }));
-    setAiTheme(theme ? theme.id : 'all');
-    try {
-      const res = await runAi(() => suggestBranchNames({ classId, ageGroupId: cls.ageGroupId, themes, taken }));
-      res.suggestions.forEach((x) => set('names', x.weekStart, x.name));
-      setPending((p) => ({
-        ...p,
-        ...Object.fromEntries(res.suggestions.map((x) => [x.weekStart, { prev: draft.names[x.weekStart] || '', base: x.name }])),
-      }));
-      if (res.suggestions.length) setShowPending(true);
-    } catch {
-      toast('Chưa lấy được gợi ý. Bạn vẫn có thể tự nhập tên chủ đề nhánh.', 'warn');
-    } finally {
-      setAiTheme(null);
-    }
-  };
   // Giáo viên sửa ô đang chờ: lần viết lại sau dựa trên chữ vừa sửa
   const editName = (week, value) => {
     // Nhập tên trước khi chọn ngày: tuần chưa có nhánh tự thành nhánh 1 tuần, đổi ngày sau
@@ -267,55 +377,6 @@ function BranchPlanInner({ classId }) {
       return rest;
     });
     setPending((p) => (p[week] ? { ...p, [week]: { ...p[week], base: value } } : p));
-  };
-  const rewrite = async (r) => {
-    // Mỗi lần bấm viết lại từ cùng một tên gốc, không chồng lên bản AI trước
-    const p0 = pending[r.start];
-    const current = p0?.base ?? (draft.names[r.start] || '');
-    setRewriting(r.start);
-    try {
-      const res = await runAi(() => rewriteBranchName({ classId, name: current, themeName: r.theme.name, attempt: tries[r.start] || 0 }));
-      setTries((t) => ({ ...t, [r.start]: (t[r.start] || 0) + 1 }));
-      set('names', r.start, res.name);
-      // ✗ trả về tên gốc của giáo viên
-      setPending((p) => ({ ...p, [r.start]: { prev: p0 ? p0.prev : current, base: current } }));
-      setShowPending(true);
-    } catch {
-      toast('Chưa viết lại được. Bạn vẫn có thể tự sửa tên.', 'warn');
-    } finally {
-      setRewriting(null);
-    }
-  };
-  // Viết lại mọi tuần đã có tên trong năm, mỗi tuần vào trạng thái chờ ✓ / ✗ như viết lại từng ô
-  const rewriteAll = async () => {
-    const named = mappedWeeks.filter((r) => draft.names[r.start]?.trim());
-    if (!named.length) return toast('Chưa có tên chủ đề nhánh nào để viết lại');
-    setAiTheme('rewrite');
-    try {
-      const results = await runAi(() =>
-        Promise.all(
-          named.map((r) => {
-            const base = pending[r.start]?.base ?? draft.names[r.start];
-            return rewriteBranchName({ classId, name: base, themeName: r.theme.name, attempt: tries[r.start] || 0 }).then((res) => ({
-              r,
-              base,
-              name: res.name,
-            }));
-          }),
-        ),
-      );
-      results.forEach((x) => set('names', x.r.start, x.name));
-      setTries((t) => ({ ...t, ...Object.fromEntries(named.map((r) => [r.start, (t[r.start] || 0) + 1])) }));
-      setPending((p) => ({
-        ...p,
-        ...Object.fromEntries(results.map((x) => [x.r.start, { prev: p[x.r.start]?.prev ?? x.base, base: x.base }])),
-      }));
-      setShowPending(true);
-    } catch {
-      toast('Chưa viết lại được. Bạn vẫn có thể tự sửa tên.', 'warn');
-    } finally {
-      setAiTheme(null);
-    }
   };
   const rejectAi = (week) => {
     set('names', week, pending[week].prev);
@@ -330,40 +391,13 @@ function BranchPlanInner({ classId }) {
   const confirmRejectAll = () =>
     setConfirm({
       danger: true,
-      title: `Bỏ cả ${pendingWeeks.length} tên AI điền?`,
-      message: 'Các tuần này trở về tên trước khi AI điền (để trống nếu trước đó chưa có tên).',
+      title: `Bỏ cả ${pendingWeeks.length} tên nhập từ file?`,
+      message: 'Các tuần này trở về tên trước khi nhập (để trống nếu trước đó chưa có tên).',
       confirmLabel: 'Bỏ tất cả',
       run: rejectAll,
     });
-  const aiBusy = !!aiTheme || !!rewriting;
+  // AI đặt/viết lại tên nhánh đã bỏ (Tiền 25/11/2026); ô chờ ✓/✗ còn dùng cho nhập từ file
   const printArgs = { doc: saved || draft, cls, yearPlan, teachers, leaderName: leaderNameOf(staff, cls.ageGroupId, yearPlan?.schoolYear) };
-  // Hỏi trước khi chạy AI; kết quả là bản nháp để giáo viên giữ / bỏ
-  const confirmSuggest = (theme) => {
-    const n = mappedWeeks.filter((r) => (!theme || r.theme.id === theme.id) && !draft.names[r.start]?.trim()).length;
-    if (!n) return toast(theme ? 'Các tuần của chủ đề này đã có tên chủ đề nhánh' : 'Cả năm đã có tên chủ đề nhánh');
-    setConfirm({
-      title: theme ? `AI gợi ý cho "${theme.name}"?` : 'AI gợi ý cả năm?',
-      message: `AI sẽ đặt tên chủ đề nhánh cho ${n} tuần còn trống.`,
-      confirmLabel: 'Dùng AI gợi ý',
-      run: () => askAi(theme),
-    });
-  };
-  const confirmRewriteAll = () => {
-    const n = mappedWeeks.filter((r) => draft.names[r.start]?.trim()).length;
-    setConfirm({
-      title: 'AI viết lại cả năm?',
-      message: `AI sẽ viết lại ${n} tên chủ đề nhánh cho hay hơn.`,
-      confirmLabel: 'Dùng AI viết lại',
-      run: rewriteAll,
-    });
-  };
-  const confirmRewrite = (r) =>
-    setConfirm({
-      title: `AI viết lại tuần ${r.no}?`,
-      message: 'AI sẽ viết lại tên chủ đề nhánh cho hay hơn.',
-      confirmLabel: 'Dùng AI viết lại',
-      run: () => rewrite(r),
-    });
   const editReason = ctx.superseded
     ? 'Đang xem phiên bản kế hoạch tổ cũ'
     : !canEdit
@@ -406,14 +440,7 @@ function BranchPlanInner({ classId }) {
     }
   };
   const importFile = (result, context) => {
-    if (
-      !canEdit ||
-      aiBusy ||
-      saver.saving ||
-      context.classId !== classId ||
-      context.yearPlanId !== yearPlan.id ||
-      draft.yearPlanId !== yearPlan.id
-    ) {
+    if (!canEdit || saver.saving || context.classId !== classId || context.yearPlanId !== yearPlan.id || draft.yearPlanId !== yearPlan.id) {
       toast('Lớp, kế hoạch năm hoặc quyền sửa đã thay đổi. Hãy mở lại bản xem trước.', 'warn');
       return false;
     }
@@ -439,45 +466,13 @@ function BranchPlanInner({ classId }) {
           crumbs={[{ label: 'Kế hoạch giáo dục' }, { label: 'Dự kiến chủ đề - chủ đề nhánh' }, { label: cls.name }]}
           title={`Dự kiến chủ đề - chủ đề nhánh ${cls.name}`}
         />
-        <ClassFilterBar
-          classes={classes}
-          classId={classId}
-          canPick={ctx.canPickClass}
-          onPick={(id) => {
-            setEditing(false);
-            guard.leave(`/education/branches/${id}`);
-          }}
-        >
-          <FilterSelect
-            label="Học kỳ"
-            value={selectedPackage ? semesterNo : ''}
-            onChange={setSemesterNo}
-            options={[
-              { value: '', label: 'Cả năm' },
-              ...choices.map((c) => ({ value: String(c.semesterNo), label: `Học kỳ ${c.semesterNo}` })),
-            ]}
-          />
-          {!editable && (
-            <FilterSelect
-              label="Kiểu hiển thị"
-              value={view}
-              onChange={setView}
-              options={[
-                { value: 'list', label: 'Danh sách' },
-                { value: 'grid', label: 'Bảng' },
-              ]}
-            />
-          )}
-        </ClassFilterBar>
-        {/* Thanh thao tác như màn Kế hoạch năm học: nút cỡ nhỏ viền xanh, nhóm lưu/gửi/xuất bên phải (Tiền 04/11) */}
-        <div className="ga-year-toolbar" role="group" aria-label="Thao tác chủ đề nhánh">
+        <ResponsiveToolbar className="ga-year-toolbar" role="group" aria-label="Thao tác chủ đề nhánh">
           <div className="ga-year-toolbar__group">
-            <span className="ga-year-toolbar__title">{cls.name}</span>
             {editable && (
               <button
                 type="button"
                 className="btn btn--sm btn--outline-primary"
-                disabled={aiBusy || saver.saving}
+                disabled={saver.saving}
                 onClick={() => setImportContext({ classId, yearPlanId: yearPlan.id, draftCalendar: draft })}
               >
                 <Download size={16} aria-hidden /> Nhập file
@@ -502,7 +497,7 @@ function BranchPlanInner({ classId }) {
             )}
             {/* Chỉnh sửa / Hủy cùng một chỗ, Lưu đứng sau (Tiền 13/11/2026) */}
             {editable ? (
-              <button type="button" className="btn btn--sm btn--outline-primary" disabled={aiBusy || saver.saving} onClick={cancelEdit}>
+              <button type="button" className="btn btn--sm btn--outline-primary" disabled={saver.saving} onClick={cancelEdit}>
                 <X size={16} aria-hidden /> Hủy
               </button>
             ) : (
@@ -536,7 +531,39 @@ function BranchPlanInner({ classId }) {
             )}
             {preview && <DocPreviewModal file={preview} onClose={() => setPreview(null)} />}
           </div>
-        </div>
+        </ResponsiveToolbar>
+        <ClassFilterBar
+          showAllAges
+          classes={classes}
+          classId={classId}
+          canPick={ctx.canPickClass}
+          onPick={(id, age) => {
+            setEditing(false);
+            guard.leave(classFilterPath('/education/branches', id, age));
+          }}
+        >
+          <FilterSelect
+            label="Học kỳ"
+            value={selectedPackage ? semesterNo : ''}
+            onChange={setSemesterNo}
+            options={[
+              { value: '', label: 'Cả năm' },
+              ...choices.map((c) => ({ value: String(c.semesterNo), label: `Học kỳ ${c.semesterNo}` })),
+            ]}
+          />
+          {!editable && (
+            <FilterSelect
+              label="Kiểu hiển thị"
+              value={view}
+              onChange={setView}
+              options={[
+                { value: 'list', label: 'Danh sách' },
+                { value: 'grid', label: 'Bảng' },
+              ]}
+            />
+          )}
+        </ClassFilterBar>
+        {/* Thanh thao tác như màn Kế hoạch năm học: nút cỡ nhỏ viền xanh, nhóm lưu/gửi/xuất bên phải (Tiền 04/11) */}
       </div>
       {canEdit && <SupersededNote doc={saved || (ctx.superseded ? { superseded: true, yearPlanVersion: versionOf(yearPlan) } : null)} />}
       {!saved && version.prevDoc && !dirty && (
@@ -558,7 +585,7 @@ function BranchPlanInner({ classId }) {
         onDrop={(f) => flagEdit((d) => dropReference('branch', d, f))}
       />
       {canEdit && semesterConfigMissing && (
-        // Spec 003 US1/AC7: chưa có ngày học kỳ thì gói học kỳ không có hạn
+        // Spec 003 US1/AC7: chưa có ngày học kỳ thì kế hoạch giáo dục chủ đề không có hạn
         <Notice>Năm học chưa cấu hình học kỳ.</Notice>
       )}
       {!packages.length && ['DRAFT', 'REJECTED'].includes(status) && (
@@ -582,26 +609,7 @@ function BranchPlanInner({ classId }) {
                     <Check size={16} aria-hidden /> Giữ tất cả ({pendingWeeks.length})
                   </button>
                 </>
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    className="btn btn--outline-primary btn--sm"
-                    disabled={aiBusy || !empty}
-                    onClick={() => confirmSuggest(null)}
-                  >
-                    <Lightbulb size={16} aria-hidden /> AI gợi ý cả năm
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn--outline-primary btn--sm"
-                    disabled={aiBusy || empty === weekCount}
-                    onClick={confirmRewriteAll}
-                  >
-                    <Wand2 size={16} aria-hidden /> AI viết lại cả năm
-                  </button>
-                </>
-              )}
+              ) : null}
             </span>
           ) : null
         }
@@ -633,6 +641,9 @@ function BranchPlanInner({ classId }) {
                 </thead>
                 <tbody>
                   {displayRows.map((r, i) => {
+                    const rowEditable = editable && !themeLocked(r.theme.id);
+                    // Đang sửa: ô sửa được màu trắng, ô không sửa được màu xám (Tiền 25/11/2026)
+                    const lockedCell = editable ? 'cell--fixed' : undefined;
                     const monthCell = (i === 0 || !sameMonth(displayRows[i - 1], r)) && (
                       <td className={editable ? 'cell--fixed' : ''} rowSpan={spanFrom(i, sameMonth)}>
                         <div className="ga-goal-table__pad nowrap">Tháng {monthOf(r.start)}</div>
@@ -647,18 +658,6 @@ function BranchPlanInner({ classId }) {
                           </span>
                           {version.unresolved.some((f) => f.ref === `theme:${r.theme.id}`) && (
                             <span className="field__error">Chủ đề đổi ở kế hoạch năm mới — kiểm tra tên nhánh</span>
-                          )}
-                          {editable && (
-                            <span>
-                              <button
-                                type="button"
-                                className="btn btn--outline-primary btn--sm"
-                                disabled={aiBusy}
-                                onClick={() => confirmSuggest(r.theme)}
-                              >
-                                <Lightbulb size={14} aria-hidden /> {aiTheme === r.theme.id ? 'Đang gợi ý…' : 'AI gợi ý'}
-                              </button>
-                            </span>
                           )}
                         </div>
                       </td>
@@ -686,35 +685,34 @@ function BranchPlanInner({ classId }) {
                       <tr key={r.start}>
                         {monthCell}
                         {themeCell}
-                        <td className={editable ? (pending[r.start] ? 'ga-cell--ai' : 'ga-cell-editable') : undefined}>
+                        <td className={rowEditable ? (pending[r.start] ? 'ga-cell--ai' : 'ga-cell-editable') : lockedCell}>
                           <div className="ga-goal-line__text">
                             <Cell
-                              editable={editable}
+                              editable={rowEditable}
                               value={draft.names[r.start]}
                               label={`Chủ đề nhánh tuần ${r.no}`}
                               placeholder="Nhập tên chủ đề nhánh"
                               onChange={(v) => editName(r.start, v)}
                             />
-                            {editable && branch && !pending[r.start] && draft.names[r.start]?.trim() && (
-                              <button
-                                type="button"
-                                className="icon-btn"
-                                title="AI viết lại cho hay hơn"
-                                aria-label={`AI viết lại tên chủ đề nhánh tuần ${r.no}`}
-                                disabled={aiBusy}
-                                onClick={() => confirmRewrite(r)}
-                              >
-                                <Wand2 size={16} aria-hidden />
-                              </button>
+                            {/* BE:EDU-100 — xóa nhánh (kể cả nhánh kế thừa) khi kế hoạch giáo dục chủ đề của học kỳ chưa duyệt */}
+                            {rowEditable && branch && firstBranchWeek && canDropBranch(r.theme.id) && (
+                              <Button
+                                variant="icon"
+                                className="icon-btn--danger"
+                                icon={Trash2}
+                                title="Xóa chủ đề nhánh"
+                                aria-label={`Xóa chủ đề nhánh ${branch.name?.trim() || `tuần ${r.no}`}`}
+                                onClick={() => confirmRemove(branch, branchWeeks(branch, yearPlan, draft).length)}
+                              />
                             )}
-                            {/* Tên do AI điền hoặc viết lại: giữ (✓) hoặc bỏ (✗) ngay cạnh ô */}
-                            {editable && pending[r.start] && (
+                            {/* Tên nhập từ file: giữ (✓) hoặc bỏ (✗) ngay cạnh ô */}
+                            {rowEditable && pending[r.start] && (
                               <>
                                 <button
                                   type="button"
                                   className="icon-btn"
-                                  title="Giữ gợi ý"
-                                  aria-label={`Giữ gợi ý tuần ${r.no}`}
+                                  title="Giữ tên đã nhập"
+                                  aria-label={`Giữ tên đã nhập tuần ${r.no}`}
                                   onClick={() => settle(r.start)}
                                 >
                                   <Check size={16} aria-hidden />
@@ -722,8 +720,8 @@ function BranchPlanInner({ classId }) {
                                 <button
                                   type="button"
                                   className="icon-btn"
-                                  title="Bỏ gợi ý"
-                                  aria-label={`Bỏ gợi ý tuần ${r.no}`}
+                                  title="Bỏ tên đã nhập"
+                                  aria-label={`Bỏ tên đã nhập tuần ${r.no}`}
                                   onClick={() => rejectAi(r.start)}
                                 >
                                   <X size={16} aria-hidden />
@@ -732,9 +730,11 @@ function BranchPlanInner({ classId }) {
                             )}
                           </div>
                         </td>
-                        <td className={`ga-branch-plan-table__week-cell${editable ? ' ga-cell-editable' : ''}`}>
+                        <td
+                          className={`ga-branch-plan-table__week-cell${rowEditable ? ' ga-cell-editable' : editable ? ' cell--fixed' : ''}`}
+                        >
                           <div className="ga-goal-table__pad">
-                            {editable && (firstBranchWeek || !branch) ? (
+                            {rowEditable && (firstBranchWeek || !branch) ? (
                               <div className="ga-branch-template-dates ga-branch-date-range ga-branch-week-dates">
                                 <DatePickerCell
                                   compact
@@ -774,13 +774,13 @@ function BranchPlanInner({ classId }) {
                             {r.offDays?.some(Boolean) && <div className="text-xs text-warning">Nghỉ {offDaysText(r.offDays)}</div>}
                           </div>
                         </td>
-                        <td className={editable && branch ? 'ga-cell-editable' : ''}>
+                        <td className={rowEditable && branch ? 'ga-cell-editable' : lockedCell}>
                           {branch ? (
                             branchWeeks(branch, yearPlan, draft).map((week, _, weeks) => (
                               <div key={week.start}>
                                 {weeks.length > 1 && <span className="ga-goal-table__pad text-xs muted">Tuần {week.no}</span>}
                                 <Cell
-                                  editable={editable}
+                                  editable={rowEditable}
                                   value={draft.notes?.[week.start]}
                                   label={`Ghi chú tuần ${week.no}`}
                                   onChange={(value) => set('notes', week.start, value)}
@@ -836,71 +836,6 @@ function BranchPlanInner({ classId }) {
         onClose={() => setConfirm(null)}
       />
       {/* Ký, gửi, duyệt ngay cuối trang như trang mục tiêu năm; không mở hộp thoại */}
-      {/* AI xong ⇒ tên AI điền mở trong modal để giữ/bỏ; đóng modal thì ✓/✗ cạnh từng ô vẫn còn (user chốt) */}
-      <Modal
-        open={showPending && editable && pendingWeeks.length > 0}
-        onClose={() => setShowPending(false)}
-        size="lg"
-        title={`Tên chủ đề nhánh AI điền (${pendingWeeks.length})`}
-        footer={
-          <>
-            <button type="button" className="btn btn--ghost" onClick={() => setShowPending(false)}>
-              Đóng, xử lý sau
-            </button>
-            <button
-              type="button"
-              className="btn"
-              onClick={() => {
-                setShowPending(false);
-                confirmRejectAll();
-              }}
-            >
-              <X size={16} aria-hidden /> Bỏ tất cả
-            </button>
-            <button type="button" className="btn btn--success" onClick={() => setPending({})}>
-              <Check size={16} aria-hidden /> Giữ tất cả
-            </button>
-          </>
-        }
-      >
-        <p className="muted text-sm mb-12">Bản nháp AI: bấm ✓ để giữ, ✗ để trả về tên cũ. Đã giữ vẫn sửa được trong bảng.</p>
-        <ul className="ga-ai-review">
-          {mappedWeeks
-            .filter((r) => pending[r.start])
-            .map((r) => (
-              <li key={r.start} className="ga-ai-review__item">
-                <div className="ga-ai-review__week">
-                  <b>Tuần {r.no}</b> <span className="muted text-sm">· {r.theme.name}</span>
-                </div>
-                <div className="ga-ai-review__name">
-                  {pending[r.start].prev && <del className="muted">{pending[r.start].prev}</del>}
-                  <ins>{draft.names[r.start]}</ins>
-                </div>
-                <button
-                  type="button"
-                  className="icon-btn"
-                  title="Giữ gợi ý"
-                  aria-label={`Giữ gợi ý tuần ${r.no}`}
-                  onClick={() => settle(r.start)}
-                >
-                  <Check size={16} aria-hidden />
-                </button>
-                <button
-                  type="button"
-                  className="icon-btn"
-                  title="Bỏ gợi ý"
-                  aria-label={`Bỏ gợi ý tuần ${r.no}`}
-                  onClick={() => rejectAi(r.start)}
-                >
-                  <X size={16} aria-hidden />
-                </button>
-              </li>
-            ))}
-        </ul>
-      </Modal>
-      {aiBusy && (
-        <AiWorkingOverlay text={aiTheme === 'rewrite' || rewriting ? 'Đang viết lại tên chủ đề nhánh…' : 'Đang gợi ý tên chủ đề nhánh…'} />
-      )}
       <LeaveConfirmModal
         {...guard.modal}
         onDiscard={() => {

@@ -28,7 +28,7 @@ import {
   mealsTotals,
   normalizeMeals,
   overallNormStatus,
-  priceOn,
+  foodBudgetOn,
   withPortionDraft as withDraftQty,
 } from '@/utils/menu-planning/menuCalculations';
 import { validateMenu } from '@/utils/menu-planning/menuPlanningValidation';
@@ -41,6 +41,7 @@ import { mealCodesOf, mealLabel, mealsOf, normScopeMeals } from '@/utils/menu-pl
 import { isDemoModule } from '@/services/demoSource';
 import DayBalancePage from '@/pages/menu-planning/DayBalancePage';
 import '@/styles/modules/menu-planning.css';
+import { Button, SelectField, TextField } from '@/components';
 
 const clone = (v) => JSON.parse(JSON.stringify(v || []));
 const num = (v) => (Number(v) || 0).toLocaleString('vi-VN', { maximumFractionDigits: 1 });
@@ -214,7 +215,7 @@ function LegacyNutritionBalance() {
           ariaLabel="Nhóm tuổi"
         />
         <div className="td-week-picker">
-          <select
+          <SelectField
             className="select td-week-menu-select"
             value={weeklyMenuId}
             onChange={(e) => chooseWeek(e.target.value)}
@@ -227,7 +228,7 @@ function LegacyNutritionBalance() {
                 {w.status === WEEKLY_STATUS.DRAFT ? 'Bản nháp' : 'Đã xuất bản'}
               </option>
             ))}
-          </select>
+          </SelectField>
         </div>
       </div>
 
@@ -294,39 +295,26 @@ function LegacyNutritionBalance() {
                   {(dirty || Object.keys(qtyDrafts).length > 0) && <span className="chip chip--orange">Chưa lưu</span>}
                   {editable && (
                     <>
-                      <button type="button" className="btn" disabled={!dirty || busy} onClick={() => selectDay(savedDay)}>
+                      <Button disabled={!dirty || busy} onClick={() => selectDay(savedDay)}>
                         <RotateCcw size={16} /> Khôi phục
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn--primary"
-                        disabled={!dirty || busy || Object.keys(errors).length > 0}
-                        onClick={save}
-                      >
+                      </Button>
+                      <Button variant="primary" disabled={!dirty || busy || Object.keys(errors).length > 0} onClick={save}>
                         {busy ? <Spinner small /> : <Save size={16} />} Lưu điều chỉnh
-                      </button>
+                      </Button>
                     </>
                   )}
                 </div>
               </div>
               <div className="td-day-tabs">
-                <div className="tabs" role="tablist" aria-label="Nội dung ngày">
-                  {[
-                    ['meals', 'Món và khẩu phần'],
-                    ['result', 'Kết quả tính lại'],
-                  ].map(([key, label]) => (
-                    <button
-                      key={key}
-                      type="button"
-                      role="tab"
-                      aria-selected={view === key}
-                      className={`tab ${view === key ? 'tab--active' : ''}`}
-                      onClick={() => setView(key)}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
+                <Tabs
+                  ariaLabel="Nội dung ngày"
+                  items={[
+                    { key: 'meals', label: 'Món và khẩu phần' },
+                    { key: 'result', label: 'Kết quả tính lại' },
+                  ]}
+                  value={view}
+                  onChange={setView}
+                />
               </div>
               <div className="card__body" role="tabpanel">
                 {view === 'meals' ? (
@@ -347,7 +335,7 @@ function LegacyNutritionBalance() {
                       ageGroupId={wm.ageGroupId}
                       norms={catalog.norms}
                       setups={catalog.nutritionSetups}
-                      price={priceOn(catalog.mealPrices, wm.ageGroupId, date)?.price}
+                      price={foodBudgetOn(catalog.mealPrices, wm.ageGroupId, date)}
                     />
                     <div className="table-wrap mt-12">
                       <table className="table table--grid table--compact">
@@ -387,14 +375,19 @@ function LegacyNutritionBalance() {
             <section className="card mt-16">
               <div className="card__header td-wrap-head">
                 <h2 className="card__title">Định lượng món đang xem (g / trẻ · {ageGroupById(wm.ageGroupId)?.shortName})</h2>
-                <select className="select" value={reviewId} aria-label="Món đang xem" onChange={(e) => setReviewDishId(e.target.value)}>
+                <SelectField
+                  className="select"
+                  value={reviewId}
+                  aria-label="Món đang xem"
+                  onChange={(e) => setReviewDishId(e.target.value)}
+                >
                   {dayDishIds.map((id) => (
                     <option key={id} value={id}>
                       {savedCatalog.dishById[id].name}
                       {qtyDrafts[id] ? ' (đang sửa thử)' : ''}
                     </option>
                   ))}
-                </select>
+                </SelectField>
               </div>
               <div className="card__body">
                 <p className="text-sm muted td-flat mb-8">
@@ -425,7 +418,7 @@ function LegacyNutritionBalance() {
                             <td>{r.food?.name || 'Thực phẩm đã xóa'}</td>
                             <td>{FOOD_ORIGIN_LABELS[r.food?.origin] || <span className="td-warn">Chưa có</span>}</td>
                             <td className="num">
-                              <input
+                              <TextField
                                 className={`input td-qty ${badQty(value) ? 'is-invalid' : ''}`}
                                 inputMode="decimal"
                                 value={value}
@@ -474,18 +467,13 @@ function LegacyNutritionBalance() {
                   </p>
                 )}
                 <div className="row mt-12">
-                  <button type="button" className="btn" disabled={!reviewDirty || dishBusy} onClick={resetDish}>
+                  <Button disabled={!reviewDirty || dishBusy} onClick={resetDish}>
                     <RotateCcw size={16} /> Bỏ định lượng thử
-                  </button>
+                  </Button>
                   {canSaveDish && (
-                    <button
-                      type="button"
-                      className="btn btn--primary"
-                      disabled={!reviewDirty || reviewInvalid || dishBusy}
-                      onClick={saveDishQty}
-                    >
+                    <Button variant="primary" disabled={!reviewDirty || reviewInvalid || dishBusy} onClick={saveDishQty}>
                       {dishBusy ? <Spinner small /> : <Save size={16} />} Lưu định lượng vào món
-                    </button>
+                    </Button>
                   )}
                 </div>
               </div>

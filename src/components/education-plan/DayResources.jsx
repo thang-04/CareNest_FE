@@ -60,7 +60,7 @@ export function DayResources({ user, docKey, date, editable, ageGroupId = null, 
       alive = false;
     };
   }, [user, docKey, version]);
-  if (!docKey) return <Notice>Lưu kế hoạch giáo dục ngày trước khi gắn học liệu.</Notice>;
+  if (!docKey) return <Notice tone="info">Lưu kế hoạch giáo dục ngày trước khi gắn học liệu.</Notice>;
   const run = async (section, fn) => {
     setBusy(section);
     setError({ section: '', text: '' });
@@ -102,7 +102,7 @@ export function DayResources({ user, docKey, date, editable, ageGroupId = null, 
   const mine = (r) => r.uploadedBy != null && String(r.uploadedBy) === String(user?.id);
 
   return (
-    <Card title="III. Học liệu theo mục hoạt động" collapsed={folded} onToggle={() => setFolded((v) => !v)}>
+    <Card title="II. Học liệu theo mục hoạt động" collapsed={folded} onToggle={() => setFolded((v) => !v)}>
       <p className="muted">
         Ảnh tối đa 5 MB · Video 100 MB · PDF/slide/tệp khác 20 MB · link YouTube, Google Drive. Học liệu thêm ở đây tự vào kho của bạn để
         dùng lại ở ngày khác, năm sau. Dùng khi bấm "Dạy học ngày này".

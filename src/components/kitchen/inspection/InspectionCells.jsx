@@ -1,6 +1,6 @@
 import { DateInput, TimeInput } from '@/components/kitchen/inspection/InspectionInputs';
 import { AlertTriangle } from '@/components/ui/icons';
-import { INSPECTION_ACTIONS } from '@/models/kitchen/inspectionConstants';
+import { INSPECTION_ACTIONS, MAX_CELL_TEXT } from '@/models/kitchen/inspectionConstants';
 import { formatDate, formatDateTime, formatQty } from '@/utils/format';
 import { sampleWarning } from '@/utils/kitchen/inspectionRules';
 
@@ -103,6 +103,7 @@ export function BodyCell({ tab, leaf, row, value, error, editable, failed, defau
       <input
         {...common}
         type={col.type === 'number' ? 'number' : 'text'}
+        {...(col.type === 'number' ? {} : { maxLength: MAX_CELL_TEXT })}
         {...(col.type === 'number' ? { min: 0, step: 'any' } : {})}
         {...(listId ? { list: listId } : {})}
         {...(needsAction ? { placeholder: 'Bắt buộc: ghi biện pháp xử lý' } : {})}

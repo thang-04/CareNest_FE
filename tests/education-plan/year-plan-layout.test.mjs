@@ -12,25 +12,31 @@ import React, {useEffect, useRef, useState} from 'react';
 const devNow=()=>new Date();
 import {planLevel as levelOf, planRoute, inheritAnnual} from ${JSON.stringify(import.meta.resolve('../../src/models/education-plan/planLevel.mjs'))};
 import {branchScheduleIssue} from ${JSON.stringify(import.meta.resolve('../../src/models/education-plan/branchTemplateSchedule.mjs'))};
+import {previousSchoolYears,sameSchoolYearId} from ${JSON.stringify(import.meta.resolve('../../src/models/education-plan/schoolYearScope.mjs'))};
 const BranchTemplateEditor=()=>null;
+const AiGoalContentModal=()=>null;
 const TeamSourceReview=()=>null;
 const YearPlanSourceCard=({plan,source,children})=><section className="ga-plan-section--source" data-source-id={plan.curriculumSourcePlanId} data-source-title={source?.title}>{children}</section>;
 
 const RowMenu=({label,text,items})=><div data-import-menu={label}><button>{text}</button>{items.map(item=><button key={item.label} disabled={item.disabled}>{item.label}</button>)}</div>;
 const useParams=()=>({id:formContext.editId}), useLocation=()=>({state:null,search:''}), useSearchParams=()=>[new URLSearchParams()], useNavigate=()=>()=>{};
-const useSchoolYear=()=>({schoolYears:[]}), useMediaQuery=()=>false;
+const useAsync=()=>({data:null}), listGoalSources=async()=>[];
+const StatusPage=({title})=><p>{title}</p>, useMediaQuery=()=>false;
 const ROLE_LABELS={};
 const ROLES={VICE_PRINCIPAL:'vp',TEAM_LEADER:'leader'}, AGE_GROUPS=[{id:'ag-5',name:'Mẫu giáo lớn (5–6 tuổi)'},{id:'ag-4',name:'Mẫu giáo nhỡ (4–5 tuổi)'}], DOMAINS=[], SCHOOL_SCOPE='Toàn trường', EDU_STATUS={EDITING:'EDITING',DRAFT:'DRAFT',PENDING_VP:'PENDING_VP'}, EDU_ERROR_CODE={};
 export const formContext={goals:[],user:{id:'test',name:'Người soạn',role:'vp'}};
-const useGoalDetails=()=>({loading:false});const useEducationPlan=()=>({...formContext,schoolYear:'2026 – 2027',staff:[]});
+const useGoalDetails=()=>({loading:false});
+const useEducationPlan=()=>({...formContext,schoolYear:'2026 – 2027',schoolYearId:1,yearOptions:[],staff:[],goals:formContext.goals.map(g=>({...g,schoolYearId:g.schoolYearId ?? (g.schoolYear==='2026 – 2027' ? 1 : 2)}))});
 const useYearPlanAutosave=()=>({label:'Đã lưu',drafts:[],saved:()=>null}), useLeaveGuard=()=>({modal:{}});
 const goalIdsToTicks=(domains,themes)=>({domains,themes});
 const numberGoals=()=>({}), themeScheduleIssue=()=>'', isBlankTheme=()=>false, isBlankBreak=()=>false;
 const Card=({title,num,actions,children,className})=><section className={className}><h2>{num}. {title}</h2>{actions}{children}</section>;
+const ResponsiveToolbar = ({children, ...props}) => <div {...props}>{children}</div>;
 const PageHead=({actions})=><header>{actions}</header>, FoldAllButton=()=>null, Field=({label,children})=><label>{label}{children}</label>, Notice=({children})=><p>{children}</p>;
-const GoalTable=({fixedCells,readOnly,canAssignContents})=> <div data-table="goals" data-fixed={fixedCells} data-locked={readOnly} data-assign={canAssignContents}/>, ThemeEventTable=({fixedFields,readOnly})=> <div data-table="themes" data-fixed={fixedFields} data-locked={readOnly}/>;
+const GoalTable=({fixedCells,readOnly,canAssignContents})=> <div data-table="goals" data-fixed={fixedCells} data-locked={readOnly} data-assign={canAssignContents}/>, FilterableGoalTable=GoalTable, ActionsMenu=()=>null, AiThemeContentModal=()=>null, PrevYearTicksModal=()=>null, History=()=>null, Sparkles=()=>null, sendAiFeedback=async()=>null, ThemeEventTable=({fixedFields,readOnly})=> <div data-table="themes" data-fixed={fixedFields} data-locked={readOnly}/>;
 const PlanTabs=()=> <div role="tablist"/>, Stepper=()=> <nav data-stepper="true"/>;
 const Download=()=>null, FileDown=()=>null, Save=()=>null, X=()=>null, Upload=()=>null, ArrowLeft=()=>null, ArrowRight=()=>null;
+const canPrincipalPublish=()=>false;
 const ReviewActions=()=>null, VersionHistory=()=> <button data-history="true"/>, yearPlanLines=()=>[], LeaveConfirmModal=()=>null, fmtDate=(v)=>v;
 // Như Button thật (@/components/ui/Button): btn + biến thể + cỡ
 const Button = ({variant,size,icon:Icon,loading=false,disabled=false,type='button',className='',children,...rest}) => <button type={type} className={['btn',variant&&'btn--'+variant,size&&'btn--'+size,className].filter(Boolean).join(' ')} disabled={disabled||loading} {...rest}>{Icon && <Icon/>}{children}</button>;
@@ -89,9 +95,9 @@ test('thông tin chung nhập trong bảng và các nút dùng cùng kiểu trê
   assert.doesNotMatch(html, /<textarea id="title"/);
 
   assert.match(html, /id="desc"/);
-  // Kế hoạch tổ: bên trái hàng nút chỉ có tên ngắn (hiện khi dính), không có nút lấy nội dung
+  // Kế hoạch tổ không hiện tên lặp lại khi cuộn và không có nút lấy nội dung.
   const left = html.match(/class="ga-year-toolbar__group">([\s\S]*?)<\/div>/)[1];
-  assert.match(left, /ga-year-toolbar__title/);
+  assert.doesNotMatch(left, /ga-year-toolbar__title/);
   assert.doesNotMatch(left, /<button/);
   const right = html.match(/class="ga-year-toolbar__group ga-year-toolbar__group--end">([\s\S]*?)<\/div>/)[1];
   assert.doesNotMatch(right, /Nhập file/);
@@ -106,6 +112,7 @@ const detailStubs = `
 import React, {useState} from 'react';
 const devNow=()=>new Date();
 import {planLevel as levelOf, planRoute} from ${JSON.stringify(import.meta.resolve('../../src/models/education-plan/planLevel.mjs'))};
+import {sameSchoolYearId} from ${JSON.stringify(import.meta.resolve('../../src/models/education-plan/schoolYearScope.mjs'))};
 const BranchTemplateEditor=()=>null;
 const TeamSourceReview=()=>null;
 const useParams=()=>({id:'test'}), useNavigate=()=>()=>{}, useLocation=()=>({state:null});
@@ -113,21 +120,25 @@ const DeadlineBadge=()=>null, ExtendDeadlineButton=()=>null;
 const ROLE_LABELS={};
 const YearPlanSourceCard=({plan,source,children})=><section className="ga-plan-section--source" data-source-id={plan.curriculumSourcePlanId} data-source-title={source?.title}>{children}</section>;
 const ROLES={VICE_PRINCIPAL:'vp'}, AGE_GROUPS=[], DOMAINS=[], SCHOOL_SCOPE='Toàn trường', EDU_STATUS={DRAFT:'DRAFT',EDITING:'EDITING',APPROVED:'APPROVED'};
-const useGoalDetails=()=>({loading:false});const useEducationPlan=()=>({goals:[{id:'test',title:'Kế hoạch thử',status:'DRAFT',domains:[],themes:[],permissions:{canEdit:true}}],themes:[],user:{id:'vp',role:'vp'},staff:[]});
-const goalIdsToTicks=(domains,themes)=>({domains,themes}), numberGoals=()=>({}), chainOf=()=>[], currentPlanOf=()=>null;
+const isEduVicePrincipal=(u)=>u?.role===ROLES.VICE_PRINCIPAL, canPrincipalPublish=()=>false;
+const plan={id:'test',schoolYearId:1,title:'Kế hoạch thử',status:'DRAFT',domains:[],themes:[],permissions:{canEdit:true}};
+export const detailContext={schoolYearId:1,requested:null,goals:[plan]};
+const useGoalDetails=()=>({loading:false});const useEducationPlan=()=>({...detailContext,themes:[],user:{id:'vp',role:'vp'},staff:[]});
+const goalIdsToTicks=(domains,themes)=>({domains,themes}), numberGoals=()=>({}), chainOf=()=>[], currentPlanInYear=()=>null;
 const Card=({title,num,children})=><section><h2>{num}. {title}</h2>{children}</section>;
+const ResponsiveToolbar = ({children, ...props}) => <div {...props}>{children}</div>;
 const PageHead=({actions})=><header>{actions}</header>, FoldAllButton=()=>null, VersionBadge=()=>null, YearPlanVersionPanel=()=>null, ReviewHistory=()=>null, ReviewActions=()=>null, RejectedNotice=()=>null;
 const GoalTable=()=> <div data-table="goals"/>, ThemeEventTable=()=> <div data-table="themes"/>, PlanTabs=()=> <div role="tablist"/>;
 const Copy=()=>null, FileDown=()=>null, Pencil=()=>null, Trash2=()=>null, ArrowLeft=()=>null, fmtDate=()=> '—';
 const Link=({to,children,...props})=><a href={to} data-back-to={props.state?.backTo} data-replace={props.replace ? 'true' : 'false'} className={props.className}>{children}</a>;
-const useAsync=()=>({data:null,loading:false,error:null}), getGoal=async()=>null, LoadingState=()=>null, ReleasedVersionsPanel=()=>null, submitEntryOf=()=>null, StatusPage=()=>null;
+const useAsync=()=>({data:detailContext.requested,loading:false,error:null}), getGoal=async()=>null, LoadingState=()=>null, ReleasedVersionsPanel=()=>null, submitEntryOf=()=>null, StatusPage=({title})=><p>{title}</p>;
 `;
 const detailCode = await transformWithOxc(
   detailStubs + detailSource.replace(/^import [\s\S]*? from '[^']+';\r?\n/gm, ''),
   'GoalDetailPage.jsx',
   { lang: 'jsx', jsx: { runtime: 'classic' } },
 );
-const { default: GoalDetailPage } = await import(
+const { default: GoalDetailPage, detailContext } = await import(
   `data:text/javascript;base64,${Buffer.from(detailCode.code.replace('from "react"', `from ${JSON.stringify(import.meta.resolve('react'))}`)).toString('base64')}`
 );
 
@@ -141,6 +152,19 @@ test('chi tiết có cùng thứ tự phần với form, không tab và liên k�
   assert.match(html, /href="\/education\/goals\/test\/edit"[^>]*data-replace="true"/);
   assert.doesNotMatch(html, /Thoát/);
   assert.doesNotMatch(html, /btn--ghost/);
+});
+
+test('chi tiết qua liên kết trực tiếp không hiển thị kế hoạch của năm khác', () => {
+  const before = { ...detailContext };
+  try {
+    detailContext.schoolYearId = 2;
+    detailContext.requested = detailContext.goals[0];
+    const html = renderToStaticMarkup(React.createElement(GoalDetailPage));
+    assert.match(html, /Không tìm thấy .* trong năm học đang chọn/);
+    assert.doesNotMatch(html, /Kế hoạch thử|\/edit/);
+  } finally {
+    Object.assign(detailContext, before);
+  }
 });
 
 test('PHT can open and edit the annual review form before duration API rollout, without pretending save is available', () => {

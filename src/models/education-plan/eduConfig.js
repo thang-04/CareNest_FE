@@ -3,7 +3,14 @@
  * tên hiển thị 5 lĩnh vực, người ký theo từng loại tài liệu, các dòng hoạt động của kế hoạch tuần.
  * Quy tắc ai ký / ai duyệt là nghiệp vụ: bản này chạy trên mock, BE phải sở hữu cấu hình thật.
  */
-import { DOMAINS, STANDARD_DOMAINS, setDomainLabelOverrides, setDomains } from '@/models/education-plan/educationPlanConstants';
+import { applyDayTemplate } from './dayTemplate.js';
+import {
+  DOMAINS,
+  STANDARD_DOMAINS,
+  setAgeGroups,
+  setDomainLabelOverrides,
+  setDomains,
+} from '@/models/education-plan/educationPlanConstants';
 
 export const SIGN_ROLES = { TEAM_LEADER: 'Tổ trưởng', VICE_PRINCIPAL: 'Phó hiệu trưởng', PRINCIPAL: 'Hiệu trưởng' };
 
@@ -37,12 +44,12 @@ export const SIGN_DOCS = [
   {
     key: 'branch',
     label: 'Chủ đề nhánh, kế hoạch chủ đề, kế hoạch tuần',
-    hint: 'Giáo viên soạn, gửi theo học kỳ (gói học kỳ); Tổ trưởng và Phó Hiệu trưởng duyệt theo thứ tự.',
+    hint: 'Giáo viên soạn, gửi theo học kỳ (kế hoạch giáo dục chủ đề); Tổ trưởng và Phó Hiệu trưởng duyệt theo thứ tự.',
   },
   {
     key: 'theme',
     label: 'Kế hoạch giáo dục ngày',
-    hint: 'Giáo viên soạn, gửi theo chủ đề (hồ sơ chủ đề); Tổ trưởng và Phó Hiệu trưởng duyệt theo thứ tự.',
+    hint: 'Giáo viên soạn, gửi theo chủ đề (kế hoạch giáo dục ngày); Tổ trưởng và Phó Hiệu trưởng duyệt theo thứ tự.',
   },
   {
     key: 'week',
@@ -93,44 +100,68 @@ export const DEFAULT_DURATION = { theme: { minWeeks: 2, maxWeeks: 4 }, branch: {
  * "Khôi phục mặc định" của trang Cấu hình (Tiền 11/11/2026): đưa thời lượng, tên lĩnh vực, lĩnh vực thêm, người tạo/duyệt và dòng
  * kế hoạch tuần về mặc định; giữ số phiên bản và các cờ quyền BE trả. Chỉ đổi bản đang sửa, bấm Lưu mới ghi.
  */
-export const resetEduConfig = (cfg) => ({
-  ...cfg,
-  domainLabels: { ...DEFAULT_EDU_CONFIG.domainLabels },
-  extraDomains: [],
-  workflowPolicy: structuredClone(DEFAULT_WORKFLOW_POLICY),
-  durationPolicy: { ...cfg.durationPolicy, ...structuredClone(DEFAULT_DURATION) },
-  weekRows: structuredClone(DEFAULT_WEEK_ROWS),
-});
+export const resetEduConfig = (cfg) =>
+  cfg.planDefaults
+    ? {
+        ...cfg,
+        ...structuredClone(cfg.planDefaults.config_reset),
+        durationPolicy: { ...cfg.durationPolicy, ...cfg.planDefaults.config_reset.durationPolicy },
+      }
+    : {
+        ...cfg,
+        domainLabels: { ...DEFAULT_EDU_CONFIG.domainLabels },
+        extraDomains: [],
+        workflowPolicy: structuredClone(DEFAULT_WORKFLOW_POLICY),
+        durationPolicy: { ...cfg.durationPolicy, ...structuredClone(DEFAULT_DURATION) },
+        weekRows: structuredClone(DEFAULT_WEEK_ROWS),
+      };
 
 /** Cấu hình đầy đủ (bổ sung phần còn thiếu bằng mặc định). */
-export const withDefaults = (cfg) => ({
-  domainLabels: { ...DEFAULT_EDU_CONFIG.domainLabels, ...(cfg?.domainLabels || {}) },
-  extraDomains: (cfg?.extraDomains || []).filter((d) => d?.trim() && !STANDARD_DOMAINS.includes(d)),
-  workflowPolicy: cfg?.workflowPolicy
-    ? {
-        schoolYear: cfg.workflowPolicy.schoolYear || DEFAULT_WORKFLOW_POLICY.schoolYear,
-        year: cfg.workflowPolicy.year || DEFAULT_WORKFLOW_POLICY.year,
-        branch: cfg.workflowPolicy.branch || DEFAULT_WORKFLOW_POLICY.branch,
-        theme: cfg.workflowPolicy.theme || cfg.workflowPolicy.week || DEFAULT_WORKFLOW_POLICY.theme,
-      }
-    : DEFAULT_WORKFLOW_POLICY,
-  durationPolicyAvailable: cfg?.durationPolicyAvailable ?? true,
-  workflowRevision: cfg?.workflowRevision ?? 1,
-  durationPolicy: cfg?.durationPolicy || { revision: 1, ...DEFAULT_DURATION },
-  ...(cfg?.schoolYearCreationScopes ? { schoolYearCreationScopes: cfg.schoolYearCreationScopes } : {}),
-  canConfigure: cfg?.canConfigure ?? false,
-  ...(cfg?.yearCreationScopes ? { yearCreationScopes: cfg.yearCreationScopes } : {}),
-  signers: { ...DEFAULT_EDU_CONFIG.signers, ...(cfg?.signers || {}) },
-  // Cấu hình đã lưu trước khi có phần chung cả tuần: lấy extraLabel mặc định theo khóa dòng
-  weekRows: cfg?.weekRows?.length
-    ? cfg.weekRows.map((r) => ('extraLabel' in r ? r : { ...r, extraLabel: DEFAULT_WEEK_ROWS.find((d) => d.key === r.key)?.extraLabel }))
-    : DEFAULT_WEEK_ROWS,
-  signerNames: {
-    principals: cfg?.signerNames?.principals || [],
-    vicePrincipals: cfg?.signerNames?.vicePrincipals || [],
-    teamLeaders: cfg?.signerNames?.teamLeaders || {},
-  },
-});
+export const withDefaults = (cfg) => {
+  if (cfg?.planDefaults) {
+    if (
+      !cfg.planDefaults.config_reset ||
+      !cfg.planDefaults.day_template ||
+      !cfg.workflowPolicy ||
+      !cfg.durationPolicy ||
+      !cfg.signers ||
+      !Array.isArray(cfg.weekRows)
+    ) {
+      throw new Error('Cấu hình kế hoạch giáo dục từ máy chủ chưa đầy đủ.');
+    }
+    return cfg;
+  }
+  return {
+    standardDomains: cfg?.standardDomains ?? STANDARD_DOMAINS,
+    ageGroups: cfg?.ageGroups || [],
+    domainLabels: { ...DEFAULT_EDU_CONFIG.domainLabels, ...(cfg?.domainLabels || {}) },
+    extraDomains: (cfg?.extraDomains || []).filter((d) => d?.trim() && !(cfg?.standardDomains ?? STANDARD_DOMAINS).includes(d)),
+    workflowPolicy: cfg?.workflowPolicy
+      ? {
+          schoolYear: cfg.workflowPolicy.schoolYear || DEFAULT_WORKFLOW_POLICY.schoolYear,
+          year: cfg.workflowPolicy.year || DEFAULT_WORKFLOW_POLICY.year,
+          branch: cfg.workflowPolicy.branch || DEFAULT_WORKFLOW_POLICY.branch,
+          theme: cfg.workflowPolicy.theme || cfg.workflowPolicy.week || DEFAULT_WORKFLOW_POLICY.theme,
+        }
+      : DEFAULT_WORKFLOW_POLICY,
+    durationPolicyAvailable: cfg?.durationPolicyAvailable ?? true,
+    workflowRevision: cfg?.workflowRevision ?? 1,
+    durationPolicy: cfg?.durationPolicy || { revision: 1, ...DEFAULT_DURATION },
+    ...(cfg?.schoolYearCreationScopes ? { schoolYearCreationScopes: cfg.schoolYearCreationScopes } : {}),
+    canConfigure: cfg?.canConfigure ?? false,
+    ...(cfg?.yearCreationScopes ? { yearCreationScopes: cfg.yearCreationScopes } : {}),
+    signers: { ...DEFAULT_EDU_CONFIG.signers, ...(cfg?.signers || {}) },
+    // Cấu hình đã lưu trước khi có phần chung cả tuần: lấy extraLabel mặc định theo khóa dòng
+    weekRows: cfg?.weekRows?.length
+      ? cfg.weekRows.map((r) => ('extraLabel' in r ? r : { ...r, extraLabel: DEFAULT_WEEK_ROWS.find((d) => d.key === r.key)?.extraLabel }))
+      : DEFAULT_WEEK_ROWS,
+    signerNames: {
+      principals: cfg?.signerNames?.principals || [],
+      vicePrincipals: cfg?.signerNames?.vicePrincipals || [],
+      teamLeaders: cfg?.signerNames?.teamLeaders || {},
+    },
+  };
+};
 
 /**
  * Họ tên in sẵn cho vai trò khi chưa có người ban hành, duyệt (BE:EDU-21): Tổ trưởng của nhóm tuổi trong năm học đó;
@@ -156,7 +187,9 @@ export const getEduConfig = () => current;
 
 export const applyEduConfig = (cfg) => {
   current = withDefaults(cfg);
-  setDomains([...STANDARD_DOMAINS, ...current.extraDomains]);
+  if (current.planDefaults) applyDayTemplate(current.planDefaults.day_template);
+  setAgeGroups(current.ageGroups);
+  setDomains([...current.standardDomains, ...current.extraDomains]);
   setDomainLabelOverrides(Object.fromEntries(DOMAINS.map((d) => [d, current.domainLabels[d]]).filter(([, v]) => v?.trim())));
 };
 

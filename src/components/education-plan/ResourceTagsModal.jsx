@@ -2,10 +2,11 @@ import { useId, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { LABELS } from '@/components/ui/labels';
 import { LoadingState } from '@/components/ui/States';
+import { useUnsavedMark } from '@/hooks/useLeaveGuard';
 import { Modal, Notice } from './eduUi';
 import { FilterSelect } from './planUi';
 import { useEducationPlan, useGoalDetails } from '@/hooks/education-plan/useEducationPlan';
-import { currentPlanOf } from '@/models/education-plan/planVersions.mjs';
+import { currentPlanInYear } from '@/models/education-plan/planVersions.mjs';
 import { numberGoals, toRows } from '@/models/education-plan/goalTable';
 import { AGE_GROUPS } from '@/models/education-plan/educationPlanConstants';
 import { norm } from '@/models/education-plan/learningResources.mjs';
@@ -21,7 +22,7 @@ const themeKey = (t) => `${norm(t.name)}|${t.schoolYearId ?? ''}`;
  */
 export function ResourceTagsModal({ item, taught, busy, error, onSave, onClose }) {
   const id = useId();
-  const { goals: plans, schoolYear } = useEducationPlan();
+  const { goals: plans, schoolYearId } = useEducationPlan();
   const tags = item.tags || [];
   const [age, setAge] = useState(item.ageGroupId ? String(item.ageGroupId) : '');
   const [dropped, setDropped] = useState(() => new Set());
@@ -29,7 +30,10 @@ export function ResourceTagsModal({ item, taught, busy, error, onSave, onClose }
   const [pick, setPick] = useState('');
   const [typed, setTyped] = useState('');
   const [addGoals, setAddGoals] = useState([]);
-  const plan = age ? currentPlanOf(plans, age, schoolYear) : null;
+  // Chỉ tính phần sẽ gửi khi lưu: nhóm tuổi đổi, nhãn thêm mới, nhãn tay đánh dấu bỏ
+  const initialAge = item.ageGroupId ? String(item.ageGroupId) : '';
+  useUnsavedMark(age !== initialAge || dropped.size > 0 || addThemes.length > 0 || addGoals.length > 0);
+  const plan = age ? currentPlanInYear(plans, age, schoolYearId) : null;
   const planLoad = useGoalDetails([plan?.id]);
   const detail = plan && !plan.summary ? plan : null;
   const planGoals = detail
@@ -165,7 +169,7 @@ export function ResourceTagsModal({ item, taught, busy, error, onSave, onClose }
         </div>
       </fieldset>
       {age && planLoad.loading && <LoadingState />}
-      {age && !plan && <Notice>Nhóm tuổi chưa có kế hoạch năm học đã ban hành: chưa chọn được MT.</Notice>}
+      {age && !plan && <Notice tone="info">Nhóm tuổi chưa có kế hoạch năm học đã ban hành: chưa chọn được MT.</Notice>}
       {detail && planGoals.length > 0 && (
         <fieldset className="ga-edit-fieldset stack">
           <legend className="field__label">Mục tiêu (MT) học liệu phục vụ</legend>

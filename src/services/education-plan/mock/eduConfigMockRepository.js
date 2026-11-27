@@ -2,6 +2,7 @@ import { workflowKey } from '@/models/education-plan/planLevel.mjs';
 import { readDb, writeDb, clone, delay } from '@/mocks/mockDatabase';
 import { eduError } from './eduMockErrors';
 import { ROLES } from '@/models/User';
+import { AGE_GROUPS } from '@/models/School';
 import { CREATOR_ROLES, REVIEWER_ROLES, withDefaults } from '@/models/education-plan/eduConfig';
 
 const rolesOf = (user) => [...(user?.roles || []), user?.role];
@@ -15,6 +16,7 @@ const view = (config, user) => {
   const groups = scoped ? [user?.ageGroupId].filter(Boolean) : [...new Set((readDb().classes || []).map((cls) => cls.ageGroupId))];
   return {
     ...cfg,
+    ageGroups: clone(AGE_GROUPS),
     canConfigure: canConfigure(user),
     ...(user
       ? {

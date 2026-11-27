@@ -4,6 +4,7 @@ import { StatusBadge } from '@/components/ui/StatusBadge';
 import { LUNCH_TYPES, dayAllergyNotes, weekSections } from '@/utils/menu-planning/weekGridLayout';
 import { daySummary } from '@/utils/menu-planning/daySummary';
 import { DISH_TYPE_LABELS, RECORD_STATUS, WEEKDAY_LABELS } from '@/models/menu-planning/menuPlanningConstants';
+import { Checkbox, SelectField } from '@/components';
 
 const ddmm = (iso) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
 
@@ -41,7 +42,6 @@ export function WeekGrid({
   catalog,
   menus,
   allergyRows,
-  allergyMenus,
   editable,
   busy,
   onPickMenu,
@@ -53,7 +53,7 @@ export function WeekGrid({
   isNew,
 }) {
   const sections = weekSections(catalog.nutritionSetups, wm.ageGroupId, wm.days, catalog.dishById, { keepEmpty: !!editable });
-  const notesOf = (day) => sections.flatMap((s) => dayAllergyNotes({ day, session: s.session, catalog, allergyRows, allergyMenus }));
+  const notesOf = (day) => sections.flatMap((s) => dayAllergyNotes({ day, session: s.session, catalog, allergyRows }));
   const hasNotes = wm.days.some((d) => notesOf(d).length > 0);
   const cols = wm.days.length + 1;
 
@@ -103,7 +103,7 @@ export function WeekGrid({
             </span>
           ) : (
             // "+ Thêm" là chính ô chọn gốc: một lần bấm mở danh sách của trình duyệt, không bị cắt trong bảng cuộn
-            <select
+            <SelectField
               className="td-week__add td-week__add-select"
               value=""
               disabled={busy}
@@ -117,7 +117,7 @@ export function WeekGrid({
                   {row.type ? '' : ` (${DISH_TYPE_LABELS[x.type]})`}
                 </option>
               ))}
-            </select>
+            </SelectField>
           ))}
       </td>
     );
@@ -138,7 +138,7 @@ export function WeekGrid({
                     {WEEKDAY_LABELS[i]} <span className="muted td-week__date">{ddmm(d.date)}</span>
                   </b>
                   {editable && !d.holiday ? (
-                    <select
+                    <SelectField
                       className="select"
                       value={d.menuId || ''}
                       disabled={busy}
@@ -152,7 +152,7 @@ export function WeekGrid({
                           {m.name}
                         </option>
                       ))}
-                    </select>
+                    </SelectField>
                   ) : (
                     <span className="text-xs muted">
                       {d.holiday ? `Nghỉ: ${d.note}` : menus.find((m) => m.id === d.menuId)?.name || '—'}
@@ -162,13 +162,7 @@ export function WeekGrid({
                     <DayResult day={d} wm={wm} catalog={catalog} issues={issuesByDate?.[d.date]} onOpen={onOpenDay} />
                     {editable && (
                       <label className="checkbox text-xs">
-                        <input
-                          type="checkbox"
-                          checked={!!d.holiday}
-                          disabled={busy}
-                          onChange={(e) => onHoliday(d.date, e.target.checked)}
-                        />{' '}
-                        Nghỉ
+                        <Checkbox checked={!!d.holiday} disabled={busy} onChange={(e) => onHoliday(d.date, e.target.checked)} /> Nghỉ
                       </label>
                     )}
                   </div>
@@ -210,7 +204,7 @@ export function WeekGrid({
                     {list.length > 0 ? (
                       <ul className="td-week__notes">
                         {list.map((n) => (
-                          <li key={n.key} className={n.missing ? 'td-week__note--missing' : undefined}>
+                          <li key={n.key}>
                             <b>{n.dish}:</b> {n.text}
                           </li>
                         ))}

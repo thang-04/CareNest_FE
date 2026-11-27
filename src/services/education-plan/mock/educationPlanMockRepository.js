@@ -4,7 +4,8 @@ import { readDb, writeDb, clone, delay } from '@/mocks/mockDatabase';
 import { eduError } from './eduMockErrors';
 import { parseGoalsCsv } from '@/utils/education-plan/goalCsv';
 import { EDU_SEED_VERSION, ensureEduDemo } from '@/mocks/educationPlanSeed';
-import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
+import { EDU_STATUS, sameAgeRange } from '@/models/education-plan/educationPlanConstants';
+import { mockSchoolYearId, sameSchoolYearId } from '@/models/education-plan/schoolYearScope.mjs';
 import { SIGN_ROLES, withDefaults } from '@/models/education-plan/eduConfig';
 import { ROLES } from '@/models/User';
 import { duplicateAbbrThemeIds, toRows } from '@/models/education-plan/goalTable';
@@ -16,6 +17,9 @@ import { chainOf, currentPlanOf, diffPlans, versionOf } from '@/models/education
  * deleting anything that has already been sent. Backend must own the approval flow.
  */
 const COLLECTIONS = { goals: 'eduGoals', themes: 'eduThemes', lessons: 'eduLessons' };
+
+// Bản demo cũ lưu tên năm. Tra ID một lần ở ranh giới kho dữ liệu.
+const goalYearId = (db, goal) => goal.schoolYearId ?? mockSchoolYearId(db.schoolYears, goal.schoolYear);
 
 // EDU-65/57: tổ được sửa/thêm nội dung, giữ cấu trúc và không xóa nội dung nguồn.
 const teamStructure = (plan) =>
@@ -175,12 +179,14 @@ const goalView = (db, goal, user) => {
     approvals: goal.approvals || [],
     printSnapshot: goal.printSnapshot || null,
   };
-  if (!user) return { ...goal, editing: null, editExpiresAt: null, review };
+  const schoolYearId = goalYearId(db, goal);
+  if (!user) return { ...goal, schoolYearId, editing: null, editExpiresAt: null, review };
   const author = authorOf(db, goal, user) && designatedAuthor(goal, user);
   const open = [EDU_STATUS.DRAFT, EDU_STATUS.EDITING, EDU_STATUS.REJECTED].includes(goal.status);
   const canReview = goal.status === 'REVIEW' && mockRoles(user).includes(review.waitingRole) && !(goal.authorIds || []).includes(user.id);
   return {
     ...goal,
+    schoolYearId,
     editing: null,
     editExpiresAt: null,
     status: goal.status === EDU_STATUS.EDITING || goal.status === EDU_STATUS.REJECTED ? EDU_STATUS.DRAFT : goal.status,
@@ -274,6 +280,18 @@ const saveGoal = async (item, options = {}) => {
       (item.branchTemplates || []).some((t) => !t.name?.trim() || !item.themes.some((theme) => String(theme.id) === String(t.themeId)))
     )
       throw eduError('INVALID_VALUE', 'chủ đề nhánh / dự án thiếu tên hoặc sai chủ đề cha');
+    // BE EDU-110 (8), (10): HT soạn, chuỗi duyệt rỗng ⇒ HT ban hành thẳng từ Nháp hoặc Chờ duyệt
+    if (actor && options.action === 'publish') {
+      const policy = withDefaults(db.eduConfig).workflowPolicy[workflowKey(prev || item)];
+      if (actor.role !== 'PRINCIPAL' || policy.creators.join() !== 'PRINCIPAL' || policy.reviewers.length)
+        throw eduError('NOT_YOUR_REVIEW_STEP', 'ban hành');
+      if (prev && ![EDU_STATUS.DRAFT, EDU_STATUS.REJECTED, 'REVIEW'].includes(prev.status))
+        throw eduError('YEAR_PLAN_INVALID_STATUS', 'ban hành');
+      const next = { ...(prev || {}), ...item, revision: (prev?.revision || 0) + 1, waitingRole: null, status: EDU_STATUS.APPROVED };
+      upsert(list, next);
+      ensureTeamAfterPublication(db, next);
+      return clone(goalView(db, next, actor));
+    }
     if (actor && options.action === 'approve') {
       if (!goalView(db, prev, actor).permissions.canApprove) throw eduError('NOT_YOUR_REVIEW_STEP', 'duyệt');
       const roles = withDefaults(db.eduConfig).workflowPolicy[workflowKey(prev)].reviewers;
@@ -549,15 +567,16 @@ export const educationPlanMockRepository = {
     if (!annualVisible(readDb(), plan, user) || !annualVisible(readDb(), from, user)) throw eduError('YEAR_PLAN_ACCESS_DENIED');
     return diffPlans(from, plan);
   },
-  async listGoalSources({ schoolYear, ageGroupId, excludeId, planLevel = 'TEAM' } = {}, actor) {
+  async listGoalSources({ schoolYear, schoolYearId, ageGroupId, excludeId, planLevel = 'TEAM' } = {}, actor) {
     const group = planLevel === 'SCHOOL_YEAR' ? ageGroupId : sourceGroup(actor, ageGroupId);
     await delay();
+    const db = readDb();
     return sourceGoals()
       .filter(
         (goal) =>
           (goal.planLevel || 'TEAM') === planLevel &&
-          (!schoolYear || goal.schoolYear === schoolYear) &&
-          (!group || goal.ageGroupId === group) &&
+          (schoolYearId == null ? !schoolYear || goal.schoolYear === schoolYear : sameSchoolYearId(goalYearId(db, goal), schoolYearId)) &&
+          (!group || sameAgeRange(goal.ageGroupId, group)) &&
           sourceVisible(actor, goal) &&
           String(goal.id) !== String(excludeId),
       )
@@ -573,20 +592,26 @@ export const educationPlanMockRepository = {
     return clone({ ...goal, id: String(goal.id), revision: goal.revision ?? 0, goalCount: goalCount(goal) });
   },
   // BE spec 002 FR-001/FR-007: hàng chờ = kế hoạch Chờ duyệt mà người gọi duyệt được ở bước hiện tại
-  async getReviewQueue(user) {
-    const { goals } = await this.getAll(user);
+  async getReviewQueue(user, schoolYearId) {
+    const { goals } = await this.getAll(user, { schoolYearId, review: true });
     return goals.filter((g) => g.status === 'REVIEW' && !!(g.permissions?.canApprove ?? g.permissions?.canIssue));
   },
   async getGoal(id, user) {
-    const { goals } = await this.getAll(user);
+    const { goals } = await this.getAll(user, { review: true });
     const goal = goals.find((g) => String(g.id) === String(id));
     if (!goal) throw eduError('YEAR_PLAN_NOT_FOUND');
     return goal;
   },
+  async getOverdueGoal(user, schoolYearId, id) {
+    const { goals } = await this.getAll(user, { schoolYearId, overdue: true });
+    const found = goals.find((goal) => String(goal.id) === String(id));
+    if (!found) throw eduError('YEAR_PLAN_NOT_FOUND');
+    return found;
+  },
   async getClassDocRelease() {
     throw eduError('CLASS_DOC_NOT_FOUND');
   },
-  async getAll(user) {
+  async getAll(user, { schoolYearId, overdue = false, review = false } = {}) {
     await delay();
     const db = readDb();
     if (db.eduSeedVersion !== EDU_SEED_VERSION) writeDb(ensureSeeded);
@@ -607,7 +632,37 @@ export const educationPlanMockRepository = {
     if (pending.length) writeDb((next) => pending.forEach((annual) => ensureTeamAfterPublication(next, annual)));
     const fresh = readDb();
     return {
-      goals: clone(fresh.eduGoals.filter((goal) => annualVisible(fresh, goal, user)).map((goal) => goalView(fresh, goal, user))),
+      goals: clone(
+        fresh.eduGoals
+          .filter((goal) => schoolYearId == null || sameSchoolYearId(goalYearId(fresh, goal), schoolYearId))
+          .filter((goal) => {
+            const roles = mockRoles(user);
+            if (overdue)
+              return (
+                roles.includes(ROLES.PRINCIPAL) &&
+                goal.status !== EDU_STATUS.APPROVED &&
+                !!(
+                  goal.timeLock?.canUnlock ||
+                  goal.timeLock?.extendedTo ||
+                  goal.timeLock?.reviewDeadline?.canReopen ||
+                  goal.timeLock?.reviewDeadline?.reopenUntil
+                )
+              );
+            if (authorOf(fresh, goal, user)) return true;
+            if (review && goal.status === 'REVIEW' && annualVisible(fresh, goal, user))
+              return !!goalView(fresh, goal, user).permissions?.canApprove;
+            return (
+              goal.status === EDU_STATUS.APPROVED &&
+              (roles.includes(ROLES.PRINCIPAL) ||
+                roles.includes(ROLES.VICE_PRINCIPAL) ||
+                goal.ageGroupId === user?.ageGroupId ||
+                (fresh.classes || []).some(
+                  (cls) => cls.ageGroupId === goal.ageGroupId && (cls.teacherIds || []).some((id) => String(id) === String(user?.id)),
+                ))
+            );
+          })
+          .map((goal) => goalView(fresh, goal, user)),
+      ),
       themes: clone(fresh.eduThemes),
       lessons: clone(fresh.eduLessons),
     };

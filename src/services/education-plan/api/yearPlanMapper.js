@@ -26,8 +26,8 @@ export const buildRefs = (config) => {
   const schoolYears = config?.schoolYears || [];
   const domains = config?.domains || [];
   return {
-    ageGroupCode: (id) => ageGroups.find((a) => a.id === id)?.code ?? null,
-    ageGroupId: (code) => ageGroups.find((a) => a.code === code)?.id ?? null,
+    ageGroupCode: (id) => (id == null ? null : (ageGroups.find((a) => String(a.id) === String(id) || a.code === id)?.code ?? null)),
+    ageGroupId: (code) => (code == null ? null : (ageGroups.find((a) => a.code === code || String(a.id) === String(code))?.id ?? null)),
     schoolYearId: (label) => schoolYears.find((y) => y.name === fromYearLabel(label))?.id ?? null,
     domainId: (name) => domains.find((d) => d.name === name)?.id ?? null,
   };
@@ -37,12 +37,16 @@ export const buildRefs = (config) => {
 export const toUiEduConfig = (config) => {
   const domains = config?.domains || [];
   return {
+    ...(config?.planDefaults ? { planDefaults: config.planDefaults } : {}),
+    standardDomains: domains.filter((d) => d.standard).map((d) => d.name),
+    ageGroups: (config?.ageGroups || []).map((group) => ({ ...group, databaseId: group.id, id: group.code })),
     domainLabels: Object.fromEntries(domains.filter((d) => d.displayLabel).map((d) => [d.name, d.displayLabel])),
     extraDomains: domains.filter((d) => !d.standard).map((d) => d.name),
     workflowPolicy: config?.workflow?.policies || config?.workflowPolicy || null,
     durationPolicyAvailable: config?.durationPolicyAvailable ?? true,
     workflowRevision: config?.workflow?.revision ?? config?.workflowRevision ?? 1,
-    canConfigure: config?.workflow?.canConfigure ?? false,
+    // Quyền Cấu hình kế hoạch là cờ gốc do BE trả; bản cũ chỉ có trong workflow.
+    canConfigure: config?.canConfigure ?? config?.workflow?.canConfigure ?? false,
     ...(config?.durationPolicy ? { durationPolicy: config.durationPolicy } : {}),
     ...(config?.schoolYearCreationScopes
       ? { schoolYearCreationScopes: config.schoolYearCreationScopes.map((id) => buildRefs(config).ageGroupCode(id)).filter(Boolean) }
@@ -127,7 +131,9 @@ export const toUiGoal = (detail, refs) => {
     editExpiresAt: detail.editExpiresAt,
     // Spec 004 Q3b/Q5: khóa từ ngày bắt đầu năm học, Hiệu trưởng mở khóa
     timeLock: detail.timeLock || null,
+    reviewDeadline: detail.reviewDeadline || detail.timeLock?.reviewDeadline || null,
     code: detail.code,
+    schoolYearId: detail.schoolYearId,
     schoolYear: toYearLabel(detail.schoolYearName),
     ageGroupId: refs.ageGroupCode(detail.ageGroupId),
     title: detail.title,
@@ -144,6 +150,7 @@ export const toUiGoal = (detail, refs) => {
     waitingRoleLabel: detail.waitingRoleLabel || null,
     creationCapabilities: detail.creationCapabilities || null,
     review: detail.review || null,
+    ...(typeof detail.returned === 'boolean' ? { returned: detail.returned } : {}),
     lastReturnNote: detail.lastReturnNote || null,
     history: (detail.history || []).map((h) => ({
       at: localDateTime(h.at),
@@ -159,6 +166,7 @@ export const toUiGoal = (detail, refs) => {
     breaks: (detail.breaks || []).map((b) => ({ id: String(b.id), label: b.label, start: b.startDate || '', end: b.endDate || '' })),
     domains,
     permissions: detail.permissions,
+    canEditCurriculum: detail.canEditCurriculum === true,
     // Phiên bản (BE:EDU-25): số phiên bản, phiên bản nguồn, hiện hành, các phiên bản người xem được thấy
     versionNo: detail.versionNo ?? 1,
     sourcePlanId: detail.sourcePlanId == null ? null : String(detail.sourcePlanId),
@@ -190,7 +198,7 @@ export const toYearPlanRequest = (goal, refs) => ({
     startDate: t.startDate || null,
     endDate: t.endDate || null,
   })),
-  schoolYearId: refs.schoolYearId(goal.schoolYear),
+  schoolYearId: serverId(goal.schoolYearId) ?? refs.schoolYearId(goal.schoolYear),
   ageGroupId: refs.ageGroupId(goal.ageGroupId),
   title: goal.title,
   description: goal.description || '',

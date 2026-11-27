@@ -2,18 +2,18 @@ import { test, expect } from '@playwright/test';
 import { api, beReachable, sql } from '../support/realBe.mjs';
 import { actionCount, clickAction, login, spaGo } from '../support/ui.mjs';
 
-// System spec 005 (BE thật): giáo án ngày theo mẫu chung — 4 mục a/b/c, dòng gợi ý xóa được, phần II Đánh giá trẻ trên ngày,
-// bỏ ô "Kế hoạch điều chỉnh và bổ sung", gửi hồ sơ chủ đề thiếu mục ⇒ chữ đỏ, xuất file cả tuần.
-// teamlead34 = GVCN lớp 3–4 tuổi; chạy sau edu-semester-flow-ui (gói học kỳ 2 đã ban hành).
+// System spec 005 (BE thật): giáo án ngày theo mẫu chung — 4 mục a/b/c, dòng gợi ý xóa được, không còn phần Đánh giá trẻ trên ngày (bỏ 25/11/2026),
+// bỏ ô "Kế hoạch điều chỉnh và bổ sung", gửi kế hoạch giáo dục ngày thiếu mục ⇒ chữ đỏ, xuất file cả tuần.
+// teamlead34 = GVCN lớp 3–4 tuổi; chạy sau edu-semester-flow-ui (kế hoạch giáo dục chủ đề học kỳ 2 đã ban hành).
 test.describe.configure({ mode: 'serial' });
 
-const U = { tl: 'lan.nguyenkim@thuonghong.carenest.edu.vn' };
+const U = { tl: 'teacher1' };
 const DOCS = '/education-plans/class-docs';
 const SECTIONS = ['1. Hoạt động học', '2. Hoạt động ngoài trời', '3. Hoạt động góc', '4. Hoạt động chiều'];
 const SUGGESTED = ['Ổn định tổ chức, gây hứng thú', 'Nội dung trọng tâm', 'Kết thúc'];
 const today = new Date().toISOString().slice(0, 10);
 let cls;
-let week; // tuần của chủ đề HK2 chưa tới ngày dạy, hồ sơ chủ đề còn Nháp
+let week; // tuần của chủ đề HK2 chưa tới ngày dạy, kế hoạch giáo dục ngày còn Nháp
 
 test.beforeAll(async () => {
   test.skip(!(await beReachable()), 'BE thật không chạy');
@@ -47,7 +47,7 @@ const openDay = async (page) => {
   await expect(page.getByRole('tab', { name: /Thứ 2/ })).toBeVisible({ timeout: 30_000 });
 };
 
-test('ST-005-01 giáo án ngày có 4 mục a/b/c, mục học 3 dòng gợi ý, phần II; không còn ô điều chỉnh', async ({ page }) => {
+test('ST-005-01 giáo án ngày có 4 mục a/b/c, mục học 3 dòng gợi ý; không còn phần đánh giá trẻ và ô điều chỉnh', async ({ page }) => {
   test.skip(!week, 'Không có tuần HK2 chưa dạy');
   await openDay(page);
   // Phần I là một bảng: mỗi mục một dòng tiêu đề
@@ -56,8 +56,8 @@ test('ST-005-01 giáo án ngày có 4 mục a/b/c, mục học 3 dòng gợi ý,
   await expect(page.getByText('a) Mục đích, yêu cầu').first()).toBeVisible();
   await expect(page.getByText('b) Chuẩn bị').first()).toBeVisible();
   await expect(page.getByText('c) Tiến hành').first()).toBeVisible();
-  await expect(page.getByRole('button', { name: 'II. Đánh giá trẻ trên ngày' })).toBeVisible();
-  await expect(page.getByLabel('1. Tình trạng sức khỏe của trẻ')).toBeVisible();
+  // Tiền 25/11/2026: bỏ phần "Đánh giá trẻ trên ngày" khỏi giáo án ngày
+  await expect(page.getByText(/Đánh giá trẻ trên ngày/)).toHaveCount(0);
   await expect(page.getByText(/Kế hoạch điều chỉnh/)).toHaveCount(0);
   for (const [i, t] of SUGGESTED.entries()) {
     const cell = page.getByLabel(`1. Hoạt động học – tên bước ${i + 1}`);
@@ -135,11 +135,11 @@ test('ST-005-18 xóa tay phần a) và c) của mục Hoạt động chiều, l�
   expect((await saved).status()).toBe(200);
 });
 
-test('ST-005-03 gửi hồ sơ chủ đề còn mục trống ⇒ chữ đỏ đầu bảng và tại mục, không chỉ thông báo nổi', async ({ page }) => {
+test('ST-005-03 gửi kế hoạch giáo dục ngày còn mục trống ⇒ chữ đỏ đầu bảng và tại mục, không chỉ thông báo nổi', async ({ page }) => {
   test.skip(!week, 'Không có tuần HK2 chưa dạy');
   const docs = (await api(U.tl, 'GET', DOCS)).data;
   const dossier = docs.themeDossiers.find((d) => String(d.classId) === String(cls.id) && String(d.themeId) === String(week.themeId));
-  test.skip(!dossier || dossier.blockedReason, `Hồ sơ chủ đề chưa gửi được (${dossier?.blockedReason})`);
+  test.skip(!dossier || dossier.blockedReason, `Kế hoạch giáo dục ngày chưa gửi được (${dossier?.blockedReason})`);
   // Các tuần khác của chủ đề cần có giáo án ngày (BE chặn 7113 trước); soạn qua API, chừa trống mục Góc để BE trả 7390
   let version = dossier.version;
   for (const w of docs.weekPlans.filter((x) => String(x.classId) === String(cls.id) && String(x.themeId) === String(week.themeId))) {
@@ -169,7 +169,7 @@ test('ST-005-03 gửi hồ sơ chủ đề còn mục trống ⇒ chữ đỏ đ
     expect(res.status, res.desc).toBe(200);
     version = (await api(U.tl, 'GET', DOCS)).data.themeDossiers.find((d) => d.id === dossier.id).version;
   }
-  // Gửi duyệt hồ sơ chủ đề chỉ ở đầu thẻ chủ đề trang danh sách Kế hoạch giáo dục ngày (Tiền 14/11/2026)
+  // Gửi duyệt kế hoạch giáo dục ngày chỉ ở đầu thẻ chủ đề trang danh sách Kế hoạch giáo dục ngày (Tiền 14/11/2026)
   await login(page, U.tl);
   await spaGo(page, `/education/day-plans/${cls.id}?hk=2`);
   const card = page
@@ -195,10 +195,10 @@ test('ST-005-04 xuất file ở trang Giáo án ngày: một file cả tuần th
   await expect(preview).toBeVisible();
   const frame = preview.frameLocator('iframe').first();
   const root = (await preview.locator('iframe').count()) ? frame.locator('body') : preview;
-  // Mẫu "Chủ đề gia đình ký số" (EDU-21, Tiền 13/11/2026): I. Chuẩn bị, II. Tiến hành; mỗi ngày … Đánh giá trẻ trên ngày
+  // Mẫu "Chủ đề gia đình ký số" (EDU-21, Tiền 13/11/2026): I. Chuẩn bị, II. Tiến hành; bỏ Đánh giá trẻ trên ngày (25/11/2026)
   await expect(root.getByText(/I\. Chuẩn bị/).first()).toBeVisible();
   await expect(root.getByText(/II\. Tiến hành/).first()).toBeVisible();
-  await expect(root.getByText(/Đánh giá trẻ trên ngày/).first()).toBeVisible();
+  await expect(root.getByText(/Đánh giá trẻ trên ngày/)).toHaveCount(0);
   await expect(root.getByText(/Kế hoạch điều chỉnh/)).toHaveCount(0);
 });
 

@@ -168,6 +168,33 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-full);
   background: var(--color-surface);
+  overflow-wrap: anywhere;
+}
+/* Xem khai báo sức khỏe: tên phần + thẻ trẻ cùng hàng, xuống dòng khi hẹp thay vì tràn khỏi thẻ */
+.card__header.tr-decl-head {
+  flex-wrap: wrap;
+}
+/* Báo ăn, người chốt ở dòng trên hai bảng khai báo */
+.tr-decl-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-8);
+  margin: 0;
+  font-size: var(--fs-sm);
+}
+.tr-decl-meta > div {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.tr-decl-meta dt {
+  flex: none;
+  color: var(--color-text-muted);
+}
+.tr-decl-meta dd {
+  margin: 0;
+  overflow-wrap: anywhere;
 }
 
 /* Dải phần đứng ngoài bảng (III. Phụ huynh): cùng dáng dải phần trong bảng tiếp nhận */
@@ -222,6 +249,10 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, calc(var(--space-16) * 4)), calc(var(--space-16) * 5.5)));
   gap: var(--space-3) var(--space-4);
+}
+/* Năm học tiếp nhận + ngày bắt đầu đi học (IntakeStartFields) nằm chung lưới với các ô xếp lớp */
+.tr-placement-filters__start {
+  display: contents;
 }
 .tr-intake-portrait > .field > .row {
   flex-direction: column;
@@ -407,6 +438,16 @@
   margin-left: 2px;
   color: inherit;
   cursor: pointer;
+}
+/* Nút × trong chip dùng Button icon: giữ gọn như cũ, bỏ khung 32px và nền khi rê chuột */
+.icon-btn.tr-chip-remove {
+  width: auto;
+  height: auto;
+  border-radius: var(--radius-full);
+}
+.icon-btn.tr-chip-remove:hover:not(:disabled) {
+  background: none;
+  color: inherit;
 }
 .tr-chip-remove:focus-visible {
   outline: 2px solid var(--primary);
@@ -1285,6 +1326,12 @@
   align-self: center;
   font-size: var(--fs-sm);
 }
+/* Danh sách trẻ: người xem chỉ có một lớp ⇒ nhãn "Lớp · N trẻ" thay ô lọc lớp (G94-425) */
+.tr-class-scope {
+  align-self: center;
+  margin: 0;
+  font-size: var(--fs-sm);
+}
 /* 6 thẻ số liệu một hàng ở màn rộng (auto-fit chung để thẻ Béo phì rơi một mình xuống hàng 2); hẹp hơn 3 rồi 2 cột */
 .stat-grid.gr-stats {
   grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -1469,7 +1516,7 @@
   background: var(--color-surface);
 }
 
-/* Tiền sử nhiều tên bệnh (ExamSheetListDetail): ô nhập + nút Thêm một dòng, chip bên dưới */
+/* Tiền sử nhiều tên bệnh (ChipListInput trong ExamAdminStep): ô nhập + nút Thêm một dòng, chip bên dưới */
 .tr-exam-sheet__detail--list {
   align-items: flex-start;
 }
@@ -1509,4 +1556,42 @@
 .tr-import-toggle:focus-visible {
   outline: 2px solid var(--primary);
   border-radius: var(--radius-sm);
+}
+
+/* BE:CHD-11 — chi tiết đề xuất sửa hồ sơ ở màn duyệt: dòng GV đổi tô vàng chờ duyệt */
+.tr-proposal__text {
+  white-space: pre-line;
+}
+.tr-proposal__changed {
+  display: inline-block;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-sm);
+  background: var(--color-warning-bg);
+  color: var(--color-warning-fg);
+  font-weight: var(--fw-semibold);
+}
+
+/* Khối thu gọn của từng lớp khi giáo viên có từ 2 lớp */
+.tr-roster-fold > .tr-roster-fold__summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  cursor: pointer;
+  list-style: none;
+}
+.tr-roster-fold > .tr-roster-fold__summary::-webkit-details-marker {
+  display: none;
+}
+.tr-roster-fold .tr-roster-fold__chevron {
+  transition: transform var(--duration-fast) var(--ease-out);
+  transform: rotate(-90deg);
+}
+.tr-roster-fold[open] .tr-roster-fold__chevron {
+  transform: rotate(0);
+}
+@media (prefers-reduced-motion: reduce) {
+  .tr-roster-fold .tr-roster-fold__chevron {
+    transition: none;
+  }
 }

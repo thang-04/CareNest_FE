@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { MENU_AI_ENABLED } from '@/config/env';
 import { useSearchParams } from 'react-router-dom';
 import { Copy, Lock, Pencil, Plus, Send, Sparkles } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
@@ -53,6 +54,8 @@ import {
   weekLabel,
 } from '@/models/menu-planning/menuPlanningConstants';
 import '@/styles/modules/menu-planning.css';
+import { Button, TextField } from '@/components';
+import { Tabs } from '@/components/ui/Tabs';
 
 // Ngày trong tuần trước dời sang tuần này (giữ thực đơn mẫu và món đã sửa)
 const shiftDays = (days, weekStart) =>
@@ -231,20 +234,13 @@ export default function WeeklyMenuPage() {
       </div>
       {/* Chọn nhóm tuổi, tuần và nút thao tác ở hàng riêng để không chen vào hàng tiêu đề */}
       <div className="td-week-toolbar">
-        <div className="tabs tabs--pill" role="tablist" aria-label="Nhóm tuổi">
-          {groups.map((g) => (
-            <button
-              key={g.id}
-              type="button"
-              role="tab"
-              aria-selected={g.id === ag}
-              className={`tab ${g.id === ag ? 'tab--active' : ''}`}
-              onClick={() => setParams({ ag: g.id, week })}
-            >
-              {g.shortName}
-            </button>
-          ))}
-        </div>
+        <Tabs
+          variant="pill"
+          ariaLabel="Nhóm tuổi"
+          items={groups.map((g) => ({ key: g.id, label: g.shortName }))}
+          value={ag}
+          onChange={(id) => setParams({ ag: id, week })}
+        />
         <WeekPicker value={week} thisWeek={mondayOf(today)} onChange={(w) => setParams({ ag, week: w })} />
       </div>
       <div className="td-week-bar">
@@ -261,14 +257,9 @@ export default function WeeklyMenuPage() {
               <span className="row td-chips text-sm">
                 Phiên bản:
                 {versions.map((v) => (
-                  <button
-                    key={v.id}
-                    type="button"
-                    className={`link-btn ${v.id === wm.id ? 'fw-600' : ''}`}
-                    onClick={() => go({ id: v.id })}
-                  >
+                  <Button key={v.id} variant="link" className={v.id === wm.id ? 'fw-600' : ''} onClick={() => go({ id: v.id })}>
                     v{v.version} ({WEEKLY_STATUS_LABELS[v.status]})
-                  </button>
+                  </Button>
                 ))}
               </span>
             )}
@@ -280,25 +271,24 @@ export default function WeeklyMenuPage() {
               <Lock size={14} /> Chỉ xem
             </span>
           )}
-          {canManage && (!wm || editable) && (
-            <button type="button" className="btn btn--outline-primary" disabled={busy} onClick={() => setAiOpen(true)}>
+          {MENU_AI_ENABLED && canManage && (!wm || editable) && (
+            <Button variant="outline-primary" disabled={busy} onClick={() => setAiOpen(true)}>
               <Sparkles size={16} /> AI soạn tuần
-            </button>
+            </Button>
           )}
           {editable && previous && (
-            <button type="button" className="btn" disabled={busy} onClick={() => setConfirm({ kind: 'copy' })}>
+            <Button disabled={busy} onClick={() => setConfirm({ kind: 'copy' })}>
               <Copy size={16} /> Sao chép tuần trước
-            </button>
+            </Button>
           )}
           {editable && (
-            <button type="button" className="btn btn--primary" disabled={busy} onClick={() => setConfirm({ kind: 'publish' })}>
+            <Button variant="primary" disabled={busy} onClick={() => setConfirm({ kind: 'publish' })}>
               <Send size={16} /> Xuất bản
-            </button>
+            </Button>
           )}
           {canManage && wm?.status === WEEKLY_STATUS.PUBLISHED && !versions.some((w) => w.status === WEEKLY_STATUS.DRAFT) && (
-            <button
-              type="button"
-              className="btn btn--outline-primary"
+            <Button
+              variant="outline-primary"
               disabled={busy}
               onClick={() => {
                 setReason('');
@@ -306,7 +296,7 @@ export default function WeeklyMenuPage() {
               }}
             >
               <Pencil size={16} /> Tạo phiên bản thay thế
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -359,12 +349,12 @@ export default function WeeklyMenuPage() {
                       </>
                     )}
                   </span>
-                  <button type="button" className="btn btn--sm btn--primary" disabled={busy} onClick={() => applyFix(date)}>
+                  <Button size="sm" variant="primary" disabled={busy} onClick={() => applyFix(date)}>
                     {fix.proposal.fromDishId ? 'Đổi món' : 'Thêm món'}
-                  </button>
-                  <button type="button" className="btn btn--sm btn--ghost" disabled={busy} onClick={() => skipFix(date)}>
+                  </Button>
+                  <Button size="sm" variant="ghost" disabled={busy} onClick={() => skipFix(date)}>
                     Để sau
-                  </button>
+                  </Button>
                   <span className="text-xs muted td-fix__reason">{fix.reason}</span>
                 </div>
               )}
@@ -384,32 +374,31 @@ export default function WeeklyMenuPage() {
               title={canManage ? 'Tuần này chưa có thực đơn' : 'Tuần này chưa có thực đơn đã xuất bản'}
               description={
                 canManage
-                  ? 'Soạn tay, sao chép tuần trước hoặc nhờ AI soạn từ thực đơn mẫu của trường.'
+                  ? MENU_AI_ENABLED
+                    ? 'Soạn tay, sao chép tuần trước hoặc nhờ AI soạn từ thực đơn mẫu của trường.'
+                    : 'Soạn tay hoặc sao chép tuần trước.'
                   : 'Phó hiệu trưởng xuất bản xong thì thực đơn hiện ở đây.'
               }
               action={
                 canManage && (
                   <div className="row td-chips">
-                    <button type="button" className="btn btn--primary" disabled={busy} onClick={() => setAiOpen(true)}>
-                      <Sparkles size={16} /> AI soạn tuần
-                    </button>
-                    <button type="button" className="btn" disabled={busy} onClick={() => create([])}>
+                    {MENU_AI_ENABLED && (
+                      <Button variant="primary" disabled={busy} onClick={() => setAiOpen(true)}>
+                        <Sparkles size={16} /> AI soạn tuần
+                      </Button>
+                    )}
+                    <Button disabled={busy} onClick={() => create([])}>
                       <Plus size={16} /> Soạn tay
-                    </button>
+                    </Button>
                     {previous && (
-                      <button type="button" className="btn" disabled={busy} onClick={() => create(shiftDays(previous.days, week))}>
+                      <Button disabled={busy} onClick={() => create(shiftDays(previous.days, week))}>
                         <Copy size={16} /> Sao chép tuần trước
-                      </button>
+                      </Button>
                     )}
                     {aiDraft && aiDraft.weekStart === week && aiDraft.ageGroupId === ag && (
-                      <button
-                        type="button"
-                        className="btn btn--outline-primary"
-                        disabled={busy}
-                        onClick={() => create(aiDraft.days, aiDraft.id)}
-                      >
+                      <Button variant="outline-primary" disabled={busy} onClick={() => create(aiDraft.days, aiDraft.id)}>
                         <Sparkles size={16} /> Dùng bản nháp AI
-                      </button>
+                      </Button>
                     )}
                   </div>
                 )
@@ -452,15 +441,10 @@ export default function WeeklyMenuPage() {
                   Hệ thống tự kiểm tra theo định mức, tiền ăn và dị ứng ở Thiết lập. Bấm vào ngày để xem số liệu.
                 </span>
               </div>
-              {editable && issueDates.length > 0 && (
-                <button
-                  type="button"
-                  className="btn btn--sm btn--outline-primary"
-                  disabled={busy || fixing}
-                  onClick={() => askFixes(issueDates)}
-                >
+              {MENU_AI_ENABLED && editable && issueDates.length > 0 && (
+                <Button size="sm" variant="outline-primary" disabled={busy || fixing} onClick={() => askFixes(issueDates)}>
                   <Sparkles size={14} /> AI gợi ý cách sửa
-                </button>
+                </Button>
               )}
             </div>
             {grouped.length ? (
@@ -570,7 +554,7 @@ export default function WeeklyMenuPage() {
       >
         <div className="td-confirm-fields">
           <FormField label="Lý do thay đổi" required>
-            <input className="input" maxLength={200} value={reason} onChange={(e) => setReason(e.target.value)} />
+            <TextField className="input" maxLength={200} value={reason} onChange={(e) => setReason(e.target.value)} />
           </FormField>
         </div>
       </ConfirmationModal>
@@ -598,7 +582,7 @@ export default function WeeklyMenuPage() {
       >
         <div className="td-confirm-fields">
           <FormField label="Lý do nghỉ" required>
-            <input
+            <TextField
               className="input"
               maxLength={100}
               placeholder="Ví dụ: nghỉ lễ"
@@ -614,11 +598,7 @@ export default function WeeklyMenuPage() {
         onClose={() => setShowFixes(false)}
         size="lg"
         title="Gợi ý của AI"
-        footer={
-          <button type="button" className="btn" onClick={() => setShowFixes(false)}>
-            Đóng, xử lý sau
-          </button>
-        }
+        footer={<Button onClick={() => setShowFixes(false)}>Đóng, xử lý sau</Button>}
       >
         {fixList}
       </Modal>

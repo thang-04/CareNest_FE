@@ -1,4 +1,8 @@
+import { childNameWithHistory } from '@/utils/childHistory';
 import { useEffect, useMemo, useState } from 'react';
+import { useYearCampuses } from '@/hooks/useYearCampuses';
+import { PERMISSIONS } from '@/models/bePermissions';
+import { CampusFilter } from '@/components/ui/CampusFilter';
 import { Link, useSearchParams } from 'react-router-dom';
 import { ChildAvatar } from '@/components/ChildAvatar';
 import { Flag, Lock, Save, UserX } from '@/components/ui/icons';
@@ -23,6 +27,9 @@ import { DateInput } from '@/components/form/DateInput';
 import { formatDate, formatDateTime, isIsoDate } from '@/utils/format';
 import { todayIso } from '@/utils/assessment/assessmentPeriods';
 import { assessmentCrumbs, SECTIONS } from '@/utils/assessment/breadcrumbs';
+import { readableClassDate } from '@/utils/historyDate';
+import { TransferredHistoryPanel } from '@/components/TransferredHistoryPanel';
+import { dayRange } from '@/utils/assessment/transferredHistory';
 import '@/styles/modules/assessment.css';
 import { useDevClockMarks } from '@/hooks/useDevClockMarks';
 
@@ -39,11 +46,19 @@ export default function DailyAssessmentPage() {
   const [classId, setClassId] = useState(search.get('classId') || '');
   const [date, setDate] = useState(() => search.get('date') || '');
   // Chưa chọn ngày: BE trả ngày học gần nhất theo ngày nghỉ trong cấu hình năm học (lễ, Tết…)
-  const currentClassId = classes.some((c) => c.id === classId) ? classId : classes[0]?.id || '';
-  const params = useMemo(() => ({ classId: currentClassId, date: date || undefined }), [currentClassId, date]);
+  // Lọc điểm trường (HT: điểm trường của năm đang chọn; PHT: theo phạm vi quyền được cấp); lớp theo điểm trường đang chọn
+  const yearCampuses = useYearCampuses(PERMISSIONS.ASSESSMENT_VIEW);
+  const [campusId, setCampusId] = useState('');
+  const campusClasses = classes.filter((c) => !campusId || String(c.campusId) === String(campusId));
+  const currentClassId = campusClasses.some((c) => c.id === classId) ? classId : campusClasses[0]?.id || '';
+  const requestDate = readableClassDate(
+    campusClasses.find((c) => c.id === currentClassId),
+    date,
+  );
+  const params = useMemo(() => ({ classId: currentClassId, date: requestDate }), [currentClassId, requestDate]);
   const { sheet, loading, error, reload } = useDailyAssessment(params);
   useDevClockMarks(sheet?.unlock?.validUntil ? [{ label: 'Hết hạn mở lại đánh giá', at: sheet.unlock.validUntil }] : []);
-  const shownDate = date || sheet?.date || '';
+  const shownDate = requestDate || sheet?.date || '';
 
   const [drafts, setDrafts] = useState({});
   const [loadedSheet, setLoadedSheet] = useState(null);
@@ -68,7 +83,9 @@ export default function DailyAssessmentPage() {
   const saveEntries =
     changedEntries.length || !writable
       ? changedEntries
-      : (sheet?.rows || []).map((r) => ({ childId: r.childId, ...(drafts[r.childId] || createGeneralDraft(r, sheet.mealSessions)) }));
+      : (sheet?.rows || [])
+          .filter((r) => !r.historyStatus)
+          .map((r) => ({ childId: r.childId, ...(drafts[r.childId] || createGeneralDraft(r, sheet.mealSessions)) }));
   const classCommentDirty = !!sheet && loadedSheet === sheet && classComment !== (sheet.classComment?.text || '');
   const canSave = saveEntries.length > 0 || classCommentDirty;
   const hasChanges = dirty.size > 0 || classCommentDirty;
@@ -137,14 +154,15 @@ export default function DailyAssessmentPage() {
       ) : (
         <div className="card">
           <div className="filter-bar">
+            <CampusFilter campuses={yearCampuses || []} value={campusId} onChange={(next) => confirmChange(() => setCampusId(next))} />
             <div className="field">
               <label className="field__label" htmlFor="dg-class">
                 Lớp
               </label>
               {/* GV chỉ dạy một lớp: hiện tên lớp, không bắt chọn */}
-              {classes.length === 1 ? (
+              {campusClasses.length <= 1 ? (
                 <span id="dg-class" className="fw-600">
-                  {classes[0].name}
+                  {campusClasses[0]?.name || 'Điểm trường chưa có lớp'}
                 </span>
               ) : (
                 <select
@@ -153,12 +171,17 @@ export default function DailyAssessmentPage() {
                   value={currentClassId}
                   onChange={(e) => {
                     const next = e.target.value;
-                    confirmChange(() => setClassId(next));
+                    confirmChange(() => {
+                      setClassId(next);
+                      const pickedClass = campusClasses.find((c) => c.id === next);
+                      if (pickedClass?.historicalReadOnly) setDate(pickedClass.lastReadableDate || '');
+                    });
                   }}
                 >
-                  {classes.map((c) => (
+                  {campusClasses.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name}
+                      {c.historicalReadOnly ? ' (lịch sử · chỉ xem)' : ''}
                     </option>
                   ))}
                 </select>
@@ -216,7 +239,11 @@ export default function DailyAssessmentPage() {
           )}
 
           {error ? (
-            <ErrorState error={error} onRetry={reload} />
+            Number(error.errorCode) === 7302 ? (
+              <EmptyState title="Ngày đã chọn không phải ngày học" description="Chọn ngày học để xem đánh giá của trẻ." />
+            ) : (
+              <ErrorState error={error} onRetry={reload} />
+            )
           ) : (
             <div className="table-wrap dg-roll-wrap dg-sheet-wrap">
               <table className="table table--grid dg-sheet dg-roll">
@@ -261,8 +288,8 @@ export default function DailyAssessmentPage() {
                     sheet.rows.map((r) => {
                       const id = r.childId;
                       const d = drafts[id] || createGeneralDraft(r, sheet.mealSessions);
-                      const disabled = !writable || saving;
-                      const name = r.fullName;
+                      const disabled = !writable || saving || !!r.historyStatus;
+                      const name = childNameWithHistory(r.fullName, r.historyStatus);
                       const commentTooLong = (d.comment || '').length > DAILY_COMMENT_MAX;
                       const commentInvalid = commentTooLong || (!!commentError && dirty.has(id) && !!d.comment.trim());
                       // Viền trái của dòng: chưa lưu / đã ghi nhận / chưa đánh giá
@@ -401,6 +428,8 @@ export default function DailyAssessmentPage() {
           )}
         </div>
       )}
+      {/* Trẻ chuyển đến: lịch sử ở lớp cũ trong ngày này, chỉ xem, không thuộc phần lưu */}
+      <TransferredHistoryPanel classId={currentClassId} range={dayRange(shownDate)} date={shownDate} />
 
       {writable && (
         <div className="page-actions">

@@ -72,6 +72,51 @@ export const periodRange = (type, start, schoolYear) => {
 
 const dm = (s) => `${s.slice(8, 10)}/${s.slice(5, 7)}`;
 
+const nextDay = (iso) => {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
+};
+
+/**
+ * Kỳ của năm học đang chọn, chỉ kỳ đã bắt đầu (Hồ sơ / Tiến độ phát triển). Ngày năm học và 2 học kỳ lấy
+ * từ Cấu hình thời gian; chưa có năm học thật thì không đoán khoảng (tránh gửi ngày rác cho API), chỉ dự
+ * kiến theo nhãn năm học khi nhãn hợp lệ (chế độ mock).
+ */
+export const periodOptions = (scope, schoolYear, year, today = todayIso()) => {
+  const hasRealYear = !!year?.startDate && !!year?.endDate;
+  const range = hasRealYear
+    ? { start: year.startDate, end: year.endDate }
+    : /^\d{4}-\d{4}$/.test(String(schoolYear ?? ''))
+      ? schoolYearRange(schoolYear)
+      : null;
+  if (!range?.start || !range?.end) return [];
+  const { start, end } = range;
+  const until = end < today ? end : today;
+  if (until < start) return [];
+  if (scope === 'YEAR') return [{ start, end, label: periodLabel('YEAR', start, end) }];
+  if (scope === 'SEMESTER') {
+    const s1End = `${start.slice(0, 4)}-12-31`;
+    const semesters = year?.semester1Start
+      ? [
+          { start: year.semester1Start, end: year.semester1End, label: 'Học kỳ I' },
+          { start: year.semester2Start, end: year.semester2End, label: 'Học kỳ II' },
+        ]
+      : [
+          { start, end: s1End, label: 'Học kỳ I' },
+          { start: nextDay(s1End), end, label: 'Học kỳ II' },
+        ];
+    return semesters.filter((o) => o.start <= today).reverse();
+  }
+  if (scope === 'MONTH')
+    return monthsBetween(start, until)
+      .map((m) => ({ start: m, end: monthEnd(m), label: periodLabel('MONTH', m) }))
+      .reverse();
+  return weeksBetween(start, until)
+    .map((w) => ({ start: w, end: weekEnd(w), label: periodLabel('WEEK', w, weekEnd(w)) }))
+    .reverse();
+};
+
 export const periodLabel = (type, start, end) => {
   if (type === PERIOD_TYPE.WEEK) return `Tuần ${dm(start)} – ${dm(end)}/${end.slice(0, 4)}`;
   if (type === PERIOD_TYPE.MONTH) return `Tháng ${start.slice(5, 7)}/${start.slice(0, 4)}`;
@@ -93,11 +138,8 @@ export const evaluationPeriodLabel = (e) =>
     ? `Tuần ${e.weekNo} (${dm(e.periodStart)} – ${dm(e.periodEnd)}/${e.periodEnd.slice(0, 4)})`
     : periodLabel(e.periodType, e.periodStart, e.periodEnd);
 
-/**
- * Week -> month assignment for the monthly ticket: the month that holds the Monday.
- * Assumption – GBR-REW-02 leaves the cross-month rule open.
- */
-export const monthOfWeek = (monday) => monthStart(monday);
+// OBS-10 (Cần chốt 18/11/2026): tuần thuộc tháng chứa thứ Sáu của tuần (ngày phát phiếu tuần)
+export const monthOfWeek = (monday) => monthStart(addDays(monday, 4));
 
 /**
  * Đánh giá ngày khóa sau 23:59:59 của chính ngày đó (Cần chốt 15/10/2026, thay GBR-OBS-03 "hết ngày học tiếp theo").

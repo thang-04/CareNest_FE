@@ -1,4 +1,5 @@
 import { OVERRIDE_EFFECT } from '@/models/account/permissionConstants';
+import { isEduWorkflowCode } from '@/utils/account/eduRoleMatrix';
 
 /**
  * Mỗi quyền cấu hình được của một người = một công tắc (BE AUTH-10).
@@ -28,6 +29,9 @@ export const permissionDraftRows = (view, roleDefaults, draft) =>
     overrides: draft ?? view.overrides,
     effectivePermissions: view.effectivePermissions,
   });
+
+/** Bỏ 8 mã soạn/duyệt EDU-110 khỏi danh sách và payload ngoại lệ (BE chặn bằng 1120). */
+export const withoutEduWorkflowRows = (rows) => rows.filter((row) => !isEduWorkflowCode(row.code));
 
 export const overridesFromSwitches = (rows, values) =>
   rows

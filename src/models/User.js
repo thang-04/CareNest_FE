@@ -13,6 +13,7 @@
  */
 
 export const ROLES = {
+  ADMIN: 'ADMIN',
   PRINCIPAL: 'PRINCIPAL',
   VICE_PRINCIPAL: 'VICE_PRINCIPAL',
   TEAM_LEADER: 'TEAM_LEADER',
@@ -21,6 +22,7 @@ export const ROLES = {
 };
 
 export const ROLE_LABELS = {
+  ADMIN: 'Quản trị hệ thống',
   PRINCIPAL: 'Hiệu trưởng',
   VICE_PRINCIPAL: 'Phó hiệu trưởng',
   TEAM_LEADER: 'Tổ trưởng nhóm tuổi',

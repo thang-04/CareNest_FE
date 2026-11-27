@@ -68,7 +68,7 @@ export function ImportBranchFileModal({ classId, yearPlanId, user, draft, templa
       confirmDisabled={!changes.length}
       onConfirm={() => (overwrites ? setConfirm(true) : apply())}
       onClose={onClose}
-      options={USE_MOCK ? <Notice>Chế độ demo chỉ đọc CSV. Word và Excel cần kết nối máy chủ.</Notice> : null}
+      options={USE_MOCK ? <Notice tone="info">Chế độ demo chỉ đọc CSV. Word và Excel cần kết nối máy chủ.</Notice> : null}
     >
       {state.status === 'error' && <Notice>{state.message}</Notice>}
       {preview && (
@@ -97,7 +97,7 @@ export function ImportBranchFileModal({ classId, yearPlanId, user, draft, templa
               </table>
             </div>
           ) : (
-            <Notice>Không có tên nhánh khớp để thêm.</Notice>
+            <Notice tone="info">Không có tên nhánh khớp để thêm.</Notice>
           )}
           {preview.warnings?.length > 0 && (
             <Notice>

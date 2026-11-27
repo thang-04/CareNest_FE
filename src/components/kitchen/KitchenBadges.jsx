@@ -1,5 +1,6 @@
 import {
   AlertTriangle,
+  Camera,
   CheckCircle2,
   CircleX,
   Clock,
@@ -12,6 +13,7 @@ import {
   Trash2,
 } from '@/components/ui/icons';
 import { StatusBadge, createStatusBadge } from '@/components/ui/StatusBadge';
+import { MEAL_PHOTO_STATUS_LABELS } from '@/models/kitchen/kitchenRecordConstants';
 import {
   FORECAST_DAY_PLAN_LABELS,
   FRESH_CHECK_RESULT_LABELS,
@@ -23,6 +25,7 @@ import {
   RECEIPT_STATUS_LABELS,
   STOCK_MOVEMENT_LABELS,
   SUPPLIER_STATUS_LABELS,
+  CONTRACT_STATUS_LABELS,
 } from '@/models/kitchen/kitchenConstants';
 
 /* Tones follow DESIGN.md §3.2: orange = waiting for someone else, blue = in progress, purple = waiting for approval, green = done. */
@@ -77,6 +80,8 @@ export const StockMovementBadge = createStatusBadge(
     ADJUST: ['orange', null],
     SHORTFALL_DEDUCT: ['orange', null],
     RECEIPT_CANCEL: ['gray', null],
+    SUPPLIER_RETURN: ['orange', null],
+    WRITE_OFF: ['red', null],
   },
   STOCK_MOVEMENT_LABELS,
 );
@@ -84,6 +89,11 @@ export const StockMovementBadge = createStatusBadge(
 export const SupplierStatusBadge = createStatusBadge(
   { ACTIVE: ['green', CheckCircle2], INACTIVE: ['gray', PauseCircle] },
   SUPPLIER_STATUS_LABELS,
+);
+
+export const ContractStatusBadge = createStatusBadge(
+  { ACTIVE: ['green'], EXPIRING: ['orange'], EXPIRED: ['red'], NOT_STARTED: ['blue'], NONE: ['gray'] },
+  CONTRACT_STATUS_LABELS,
 );
 
 export const MealCountStatusBadge = createStatusBadge(
@@ -115,6 +125,12 @@ export function FoodSampleStatusBadge({ status, time }) {
 
 /* Mức tồn kho khô: chỉ hiển thị trạng thái và số ngày BE/hook đã tính, không tự tính ngưỡng. */
 const STOCK_LEVEL_STYLE = { OUT: ['red', PackageX], LOW: ['orange', Hourglass] };
+// Ảnh bữa ăn (NUT-16): thiếu = đỏ, chờ đăng = cam, đã đăng = xanh; bữa không có thì xám
+export const MealPhotoStatusBadge = createStatusBadge(
+  { POSTED: ['green', Camera], MISSING: ['red', AlertTriangle], PENDING: ['orange', Clock], NOT_EXPECTED: ['gray', FileQuestion] },
+  MEAL_PHOTO_STATUS_LABELS,
+);
+
 export function StockLevelBadge({ status, daysLeft }) {
   const style = STOCK_LEVEL_STYLE[status];
   if (!style) return null;

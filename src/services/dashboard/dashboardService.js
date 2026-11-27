@@ -100,7 +100,7 @@ const SOURCES = {
       .map((c) => ({
         id: c.id,
         code: `${MEAL_SESSION_LABELS[c.session] || c.session} ${formatDate(c.date)}`,
-        title: `${c.totals.normal + c.totals.substitute} suất (${c.totals.substitute} suất thay thế)`,
+        title: `${c.totals.normal + c.totals.substitute} suất`,
         by: 'Hệ thống chốt theo giờ điểm danh',
         at: c.aggregatedAt || c.date,
         campusId: c.campusId,
@@ -131,7 +131,7 @@ export async function getPendingApprovals(user, { schoolYear, date }) {
   if (!canViewPendingApprovals(user)) return [];
   const types = APPROVAL_TYPES_BY_ROLE[user.role] || [];
   // Names only decorate the rows: the list still works when the user directory is unavailable.
-  const users = await getUsers()
+  const users = await getUsers(user)
     .then((list) => Object.fromEntries(list.map((u) => [u.id, u.fullName])))
     .catch(() => ({}));
   const ctx = {
@@ -183,11 +183,14 @@ export function buildLunch({ counts, menu, campusId = '', campusName = (id) => i
 }
 
 /** Sổ báo ăn + thực đơn đã công bố hôm nay; nguồn lỗi hoặc 403 theo vai trò trả null. */
-export async function getLunchSources(user, { date }) {
+// withCounts=false: trang chủ theo lớp chỉ hiện món; sổ báo ăn toàn trường chỉ HT/PHT/bếp đọc được (403 với GV)
+export async function getLunchSources(user, { date, withCounts = true }) {
   const [counts, menu] = await Promise.all([
-    getMealCounts({ date }, user)
-      .then((r) => r?.counts || [])
-      .catch(() => null),
+    withCounts
+      ? getMealCounts({ date }, user)
+          .then((r) => r?.counts || [])
+          .catch(() => null)
+      : null,
     getPublishedMenu({ date, view: 'day' }, user).catch(() => null),
   ]);
   return { counts, menu };

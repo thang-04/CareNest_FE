@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { api } from '../support/realBe.mjs';
 import { login, spaGo } from '../support/ui.mjs';
 
-const user = 'lan.nguyenkim@thuonghong.carenest.edu.vn';
+const user = 'teacher1';
 const addDays = (iso, days) => new Date(Date.parse(iso) + days * 86400000).toISOString().slice(0, 10);
 const dmy = (iso) => iso.split('-').reverse().join('/');
 
@@ -13,11 +13,22 @@ test('ST-BRANCH-18 đổi nhánh thành hai tuần, gộp bảng và báo trùng
   expect(cls, 'Cần lớp chủ nhiệm để kiểm tra giao diện soạn').toBeTruthy();
   let stored = structuredClone(docs.branchPlans.find((b) => String(b.classId) === String(cls.id)));
   expect(stored).toBeTruthy();
+  // EDU-111 (1): chủ đề có gói học kỳ chờ duyệt hoặc hồ sơ chủ đề đã gửi/duyệt thì khóa nhánh ⇒ chỉ thử chủ đề còn sửa được
+  const themeLocked = (themeId) => {
+    const pkg = docs.semesterPackages.find(
+      (p) => (p.themeIds || []).map(String).includes(String(themeId)) && String(p.classId) === String(cls.id),
+    );
+    const dossier = docs.themeDossiers.find((d) => d.id === `ds_${cls.id}_${themeId}`);
+    return pkg?.status === 'REVIEW' || ['REVIEW', 'APPROVED'].includes(dossier?.status);
+  };
+  // Tuần trùng đợt nghỉ không có tuần học ⇒ ba tuần thử phải nằm ngoài đợt nghỉ của kế hoạch
+  const breaks = (await api(user, 'GET', `/education-plans/goals/${stored.yearPlanId}`)).data?.breaks || [];
+  const inBreak = (from, to) => breaks.some((b) => b.startDate <= to && b.endDate >= from);
   let start;
   let schedule;
-  for (const s of stored.themeSchedules) {
+  for (const s of stored.themeSchedules.filter((x) => !themeLocked(x.themeId))) {
     for (let date = s.startDate; addDays(date, 18) <= s.endDate; date = addDays(date, 7)) {
-      if (date.slice(0, 7) === addDays(date, 18).slice(0, 7)) {
+      if (date.slice(0, 7) === addDays(date, 18).slice(0, 7) && !inBreak(date, addDays(date, 18))) {
         start = date;
         schedule = s;
         break;
@@ -25,7 +36,7 @@ test('ST-BRANCH-18 đổi nhánh thành hai tuần, gộp bảng và báo trùng
     }
     if (start) break;
   }
-  expect(start, 'Cần ba tuần trong cùng tháng/chủ đề').toBeTruthy();
+  expect(start, 'Cần ba tuần trong cùng tháng của một chủ đề chưa khóa').toBeTruthy();
   stored = {
     ...stored,
     status: 'DRAFT',

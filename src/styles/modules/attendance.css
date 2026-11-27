@@ -97,6 +97,9 @@
 .dd-reception__col-status {
   width: calc(var(--space-16) * 2.625); /* đủ badge có icon "Chưa điểm danh" */
 }
+.dd-reception__col-meal {
+  width: calc(var(--space-16) * 1.625);
+}
 /* Cột Điểm danh: tiêu đề và nút Có mặt / Vắng cùng căn giữa */
 .dd-reception__table th.dd-reception__col-status,
 .dd-reception__table td:last-child {
@@ -172,9 +175,41 @@
 .dd-reception__status {
   white-space: nowrap;
 }
+.dd-reception__mealcell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.dd-reception__meal {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  white-space: nowrap;
+}
+/* ATT-13: trẻ nghỉ buổi sáng — trạng thái theo đơn và nút Đã đến cùng ô */
+.dd-reception__arrival {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+}
+.dd-reception__xe-off {
+  white-space: nowrap;
+}
+/* Chữ Có / Không cùng độ rộng để nút gạt các dòng thẳng hàng */
+.dd-reception__meal > .text-xs {
+  min-width: 4.5ch;
+  text-align: left;
+}
 .dd-reception__status .dd-seg__item {
   min-height: var(--input-height);
   padding: var(--space-2);
+}
+.dd-reception__status-select {
+  width: 100%;
+  min-width: 0;
 }
 .dd-reception__status label:focus-within {
   outline: 2px solid var(--color-focus);
@@ -184,10 +219,7 @@
   margin: var(--space-2) 0 0;
 }
 .dd-reception__footer {
-  /* Dính đáy màn hình: lớp đông trẻ vẫn thấy nút Lưu mà không phải cuộn xuống */
-  position: sticky;
-  bottom: 0;
-  z-index: 2;
+  /* Nằm ngay dưới khung bảng (khung tự cuộn, cao vừa màn hình): không dính đáy để khỏi che các dòng cuối của bảng */
   padding-top: var(--space-3);
   padding-bottom: var(--space-3);
   background: var(--color-surface);
@@ -726,6 +758,30 @@
   padding: 0;
   min-width: 0;
 }
+/* Tên trẻ và nhãn Không báo ăn / Dị ứng trên cùng một hàng */
+.dd-reception__nameline {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.dd-reception__nameline > .dd-reception__child {
+  flex: 0 0 auto;
+  max-width: 70%;
+}
+/* Nhãn co lại (… ) khi hết chỗ, rê chuột xem đủ */
+.dd-reception__mealtag {
+  display: inline-flex;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+.dd-reception__mealtag .chip {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .dd-reception__child strong {
   display: block;
   overflow: hidden;
@@ -772,30 +828,42 @@
   justify-content: flex-end;
 }
 
-/* Thẻ "Suất ăn lớp hôm nay" của giáo viên: mỗi bữa một ô (số suất, trạng thái xác nhận) */
+/* Thẻ "Suất ăn lớp hôm nay" của giáo viên: một hàng gọn, mỗi bữa "Bữa trưa: N suất thường · trạng thái" (Cần 18/11/2026) */
 .dd-meal-card {
-  margin-bottom: var(--space-4);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-5);
+  margin-bottom: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+}
+.dd-meal-card__title {
+  margin: 0;
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+}
+.dd-meal-card__body {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 .dd-meal-card__list {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: var(--space-3);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-5);
   margin: 0;
   padding: 0;
   list-style: none;
 }
 .dd-meal-card__item {
-  display: grid;
-  gap: var(--space-1-5);
-  padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
 }
 .dd-meal-card__session {
   font-weight: var(--fw-semibold);
 }
 .dd-meal-card__count b {
-  font-size: var(--fs-lg);
   font-variant-numeric: tabular-nums;
 }
 .dd-meal-card__status {

@@ -1,19 +1,28 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Check, Pencil, Save, X } from '@/components/ui/icons';
-import { ConfirmationModal } from '@/components';
+import { Button, ConfirmationModal, LockNote, SelectField, TextAreaField, TextField } from '@/components';
 import { FreshCheckResultBadge, FreshRoundStateBadge } from '@/components/kitchen/KitchenBadges';
 import { fmtQty } from '@/components/kitchen/KitchenFilters';
 import { useToast } from '@/contexts/ToastContext';
+import { useSuppliers } from '@/hooks/kitchen/useKitchen';
 import { freshGoodsApi } from '@/services/freshGoodsApi';
 import { FOOD_GROUP_LABELS } from '@/models/foodGroups';
 import { FRESH_CHECK_RESULT, FRESH_CHECK_RESULT_LABELS, FRESH_ROUND_LABELS, NOTE_MAX } from '@/models/kitchen/kitchenConstants';
-import { groupRoundLines, roundState, roundToForm, tallyResults, validateRoundForm, withEditReason } from '@/utils/kitchen/freshGoodsForm';
+import {
+  groupRoundLines,
+  markEnough,
+  roundState,
+  roundToForm,
+  tallyResults,
+  validateRoundForm,
+  withEditReason,
+} from '@/utils/kitchen/freshGoodsForm';
 import { personName } from '@/utils/kitchen/stockLots';
 import { formatDateTime } from '@/utils/format';
 
 const REASON_MAX = 200;
-const COLUMNS = 6;
+const COLUMNS = 7;
 
 /** Nhóm nút Đủ / Thiếu / Thừa của một dòng. */
 function ResultSeg({ value, onChange, label }) {
@@ -42,6 +51,7 @@ export function FreshRoundCard({ round, campusId, date, canManage, groupOfFood, 
   const [reason, setReason] = useState('');
   const [reasonError, setReasonError] = useState('');
   const [saveError, setSaveError] = useState('');
+  const { data: activeSuppliers } = useSuppliers({ status: 'ACTIVE' });
   const state = roundState(round);
   const canWrite = canManage && round.available && round.lines.length > 0;
   const editable = canWrite && (!round.recorded || editing);
@@ -62,7 +72,12 @@ export function FreshRoundCard({ round, campusId, date, canManage, groupOfFood, 
       return next;
     });
   };
-  const markAll = () => setForm((f) => ({ ...f, lines: f.lines.map((l) => ({ ...l, result: FRESH_CHECK_RESULT.ENOUGH })) }));
+  const markAll = () => setForm((f) => markEnough(f, round.lines));
+  const pickResult = (index, result) => {
+    if (result !== FRESH_CHECK_RESULT.ENOUGH) return setLine(index, { result });
+    const next = markEnough(form, round.lines, index).lines[index];
+    return setLine(index, { result: next.result, receivedQty: next.receivedQty });
+  };
 
   const startEdit = () => {
     setForm(roundToForm(round));
@@ -152,9 +167,7 @@ export function FreshRoundCard({ round, campusId, date, canManage, groupOfFood, 
       )}
       {!round.available && !round.recorded && (
         <div className="card__body">
-          <div className="alert alert--info" role="status">
-            {round.unavailableReason || 'Lần kiểm này chưa mở.'}
-          </div>
+          <LockNote kind="notYet">{round.unavailableReason || 'Lần kiểm này chưa mở.'}</LockNote>
         </div>
       )}
       {round.available && !round.lines.length && <p className="card__body muted">Ngày này không có hàng tươi cần nhận.</p>}
@@ -173,6 +186,7 @@ export function FreshRoundCard({ round, campusId, date, canManage, groupOfFood, 
                 <tr>
                   <th>STT</th>
                   <th className="min-w-220 kb-fresh__left">Thực phẩm</th>
+                  <th className="kb-fresh__left">Nhà cung cấp</th>
                   <th>Cần nhận</th>
                   <th>Thực nhận</th>
                   <th>Kết quả</th>
@@ -184,30 +198,26 @@ export function FreshRoundCard({ round, campusId, date, canManage, groupOfFood, 
           </div>
           {editable ? (
             <div className="kb-fresh__foot">
-              <label className="field__label" htmlFor={`fresh-note-${round.round}`}>
-                Ghi chú chung
-              </label>
-              <textarea
-                id={`fresh-note-${round.round}`}
-                className="textarea"
+              <TextAreaField
+                label="Ghi chú chung"
                 rows={2}
                 maxLength={NOTE_MAX}
                 value={form.note}
                 onChange={(e) => setForm((f) => ({ ...f, note: e.target.value }))}
               />
               <div className="row row--between mt-12">
-                <button type="button" className="btn" onClick={markAll}>
-                  <Check size={16} /> Đánh dấu tất cả Đủ
-                </button>
+                <Button icon={Check} onClick={markAll}>
+                  Đánh dấu tất cả Đủ
+                </Button>
                 <div className="row gap-2">
                   {editing && (
-                    <button type="button" className="btn" onClick={cancelEdit}>
-                      <X size={16} /> Hủy sửa
-                    </button>
+                    <Button icon={X} onClick={cancelEdit}>
+                      Hủy sửa
+                    </Button>
                   )}
-                  <button type="button" className="btn btn--primary" onClick={askConfirm}>
-                    <Save size={16} /> {round.recorded ? 'Lưu kiểm nhận' : 'Ghi nhận kiểm nhận'}
-                  </button>
+                  <Button variant="primary" icon={Save} onClick={askConfirm}>
+                    {round.recorded ? 'Lưu kiểm nhận' : 'Ghi nhận kiểm nhận'}
+                  </Button>
                 </div>
               </div>
             </div>
@@ -216,9 +226,9 @@ export function FreshRoundCard({ round, campusId, date, canManage, groupOfFood, 
               {round.note && <p className="text-sm">Ghi chú chung: {round.note}</p>}
               {canWrite && round.recorded && (
                 <div className="kb-fresh__actions">
-                  <button type="button" className="btn" onClick={startEdit}>
-                    <Pencil size={16} /> Sửa kiểm nhận
-                  </button>
+                  <Button icon={Pencil} onClick={startEdit}>
+                    Sửa kiểm nhận
+                  </Button>
                 </div>
               )}
             </div>
@@ -248,12 +258,10 @@ export function FreshRoundCard({ round, campusId, date, canManage, groupOfFood, 
         </p>
         {round.recorded && (
           <div className="kb-fresh__reason">
-            <label className="field__label" htmlFor={`fresh-reason-${round.round}`}>
-              Lý do sửa lại (bắt buộc)
-            </label>
-            <textarea
-              id={`fresh-reason-${round.round}`}
-              className={`textarea ${reasonError ? 'input--error' : ''}`}
+            <TextAreaField
+              label="Lý do sửa lại"
+              required
+              error={reasonError}
               rows={2}
               maxLength={REASON_MAX}
               value={reason}
@@ -262,12 +270,17 @@ export function FreshRoundCard({ round, campusId, date, canManage, groupOfFood, 
                 setReasonError('');
               }}
             />
-            {reasonError && <div className="field__error">{reasonError}</div>}
           </div>
         )}
       </ConfirmationModal>
     </section>
   );
+
+  // NCC đang hoạt động + NCC đã ghi của dòng (có thể đã ngừng) để không mất giá trị khi sửa lại
+  function supplierOptions(current) {
+    const list = activeSuppliers || [];
+    return current && !list.some((s) => String(s.id) === String(current.id)) ? [current, ...list] : list;
+  }
 
   // Dòng nhóm + các thực phẩm của nhóm; STT chạy liền qua các nhóm. Là hàm render (không phải component) để ô nhập không bị dựng lại mỗi lần gõ
   function renderGroup(group) {
@@ -286,6 +299,28 @@ export function FreshRoundCard({ round, campusId, date, canManage, groupOfFood, 
             <tr key={line.food.id}>
               <td>{++shown}</td>
               <td className="kb-fresh__left">{line.food.name}</td>
+              <td className="kb-fresh__left">
+                {editable ? (
+                  <>
+                    <SelectField
+                      className={`select ${err('supplierId') ? 'input--error' : ''}`}
+                      value={row.supplierId}
+                      onChange={(e) => setLine(i, { supplierId: e.target.value })}
+                      aria-label={`Nhà cung cấp ${line.food.name}`}
+                    >
+                      <option value="">Chưa gán</option>
+                      {supplierOptions(line.supplier).map((s) => (
+                        <option key={s.id} value={String(s.id)}>
+                          {s.name}
+                        </option>
+                      ))}
+                    </SelectField>
+                    {err('supplierId') && <div className="field__error">{err('supplierId')}</div>}
+                  </>
+                ) : (
+                  line.supplier?.name || <span className="muted">—</span>
+                )}
+              </td>
               <td className="nowrap">
                 {fmtQty(line.purchaseExpectedQty)} {unit}
               </td>
@@ -293,7 +328,7 @@ export function FreshRoundCard({ round, campusId, date, canManage, groupOfFood, 
                 {editable ? (
                   <>
                     <span className="kb-fresh__qty">
-                      <input
+                      <TextField
                         type="number"
                         min="0"
                         step="any"
@@ -317,7 +352,7 @@ export function FreshRoundCard({ round, campusId, date, canManage, groupOfFood, 
               <td>
                 {editable ? (
                   <>
-                    <ResultSeg value={row.result} onChange={(result) => setLine(i, { result })} label={`Kết quả ${line.food.name}`} />
+                    <ResultSeg value={row.result} onChange={(result) => pickResult(i, result)} label={`Kết quả ${line.food.name}`} />
                     {err('result') && <div className="field__error">{err('result')}</div>}
                   </>
                 ) : line.result ? (
@@ -328,7 +363,7 @@ export function FreshRoundCard({ round, campusId, date, canManage, groupOfFood, 
               </td>
               <td className="kb-fresh__left">
                 {editable ? (
-                  <input
+                  <TextField
                     className="input"
                     value={row.note}
                     maxLength={NOTE_MAX}

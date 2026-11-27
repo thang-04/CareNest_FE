@@ -68,6 +68,9 @@ import { toBeSchoolYear } from '@/services/http/schoolYearIds';
  * headCircumferenceCm: BE ghi ngày (mới = hôm nay, sửa giữ ngày), kỳ cân đo không ghi vòng đầu (response vẫn có
  * headCircumferenceCm của dữ liệu cũ); không còn lỗi ngày ngoài kỳ (HEALTH_MEASUREMENT_DATE_OUTSIDE), trùng ngày đo ⇒ 409.
  * GET health bỏ headCircumferenceUntil (mock: rules).
+ * Báo ăn (CHD-13, docs/plans/active/2026-11-18-intake-meal-registration.md): POST enrollments, PUT health-declaration, import nhận
+ * declaration.mealRegistered (boolean, thiếu/null = true); child.mealRegistered (boolean) ở GET profile, danh sách, bảng điểm danh.
+ * Cờ ở hồ sơ trẻ, không ở bản khai đã lưu; false ⇒ BE giữ dị ứng, chế độ ăn đã lưu, tiếp nhận mới thì lưu Chưa cung cấp.
  */
 const PAGE_SIZE = 100;
 // Màn danh sách, xếp lớp tự lọc theo trạng thái; BE mặc định bỏ trẻ đã nghỉ nên gửi đủ 3 trạng thái như mock
@@ -175,6 +178,18 @@ async function loadProfile(id) {
   return { declaration: null, placements: [], ...result, cls, child };
 }
 
+// BE nhận mã quan hệ (FATHER...); savedPhone chỉ để form khóa ô SĐT đã lưu (G94-180/AUTH-21)
+const childUpdateBody = (body) => ({
+  ...body,
+  child: {
+    ...body.child,
+    guardians: (body.child?.guardians || []).map(({ savedPhone: _savedPhone, ...g }) => ({
+      ...g,
+      relation: relationCode(g.relation),
+    })),
+  },
+});
+
 export const childrenApi = {
   listChildren: (filters = {}) => listAllChildren({ ...filters, statuses: ALL_STATUSES }),
   getClassOptions,
@@ -195,26 +210,33 @@ export const childrenApi = {
     ),
   // POST để CCCD, SĐT phụ huynh không nằm trên URL; lệch phụ huynh đã có ⇒ 409, details theo ô như khi lưu (2026-10-28).
   checkGuardianConflicts: (guardians) => axiosClient.post('/children/guardian-check', { guardians }),
-  readmitChild: (childId, body) => read(axiosClient.post(`/children/${childId}/readmit`, body)),
-  getPlacementClasses: (filters) => read(axiosClient.get('/children/placement-classes', { params: filters })),
-  enrollChild: (payload) => {
-    const { body, config } = enrollmentPhotoRequest(payload);
-    return read(axiosClient.post('/children/enrollments', body, config));
-  },
-  // BE nhận mã quan hệ (FATHER...); savedPhone chỉ để form khóa ô SĐT đã lưu (G94-180/AUTH-21)
-  updateChild: (id, body) =>
+  // Năm học ở header là tên ("2026-2027") còn BE nhận id số: đổi trước khi gửi, gửi tên ⇒ 400 mã 9002 (FE-BUG-261119)
+  readmitChild: async (childId, body) =>
+    read(axiosClient.post(`/children/${childId}/readmit`, { ...body, schoolYearId: await toBeSchoolYear(body?.schoolYearId) })),
+  getPlacementClasses: async (filters = {}) =>
     read(
-      axiosClient.put(`/children/${id}`, {
-        ...body,
-        child: {
-          ...body.child,
-          guardians: (body.child?.guardians || []).map(({ savedPhone: _savedPhone, ...g }) => ({
-            ...g,
-            relation: relationCode(g.relation),
-          })),
-        },
+      axiosClient.get('/children/placement-classes', {
+        params: { ...filters, schoolYearId: await toBeSchoolYear(filters.schoolYearId) },
       }),
     ),
+  enrollChild: async (payload) => {
+    const { body, config } = enrollmentPhotoRequest({ ...payload, schoolYearId: await toBeSchoolYear(payload.schoolYearId) });
+    return read(axiosClient.post('/children/enrollments', body, config));
+  },
+  updateChild: (id, body) => read(axiosClient.put(`/children/${id}`, childUpdateBody(body))),
+  // CHD-11: GV được cấp CHILD_PROFILE_EDIT gửi yêu cầu, HT/PHT điểm trường duyệt mới ghi vào hồ sơ
+  submitProfileChange: (childId, { kind, profile, declaration }) =>
+    read(
+      axiosClient.post(`/children/${childId}/profile-change-requests`, {
+        kind,
+        profile: profile ? childUpdateBody(profile) : null,
+        declaration: declaration || null,
+      }),
+    ),
+  getLatestProfileChanges: (childId) => read(axiosClient.get(`/children/${childId}/profile-change-requests/latest`)),
+  listProfileChanges: (status) => read(axiosClient.get('/children/profile-change-requests', { params: { status } })),
+  approveProfileChange: (requestId) => read(axiosClient.post(`/children/profile-change-requests/${requestId}/approve`)),
+  rejectProfileChange: (requestId, note) => read(axiosClient.post(`/children/profile-change-requests/${requestId}/reject`, { note })),
   previewImport: (file) => {
     const form = new FormData();
     form.append('file', file);
@@ -229,10 +251,26 @@ export const childrenApi = {
       })),
     }));
   },
-  importChildren: (rows, _user, campusId) =>
-    read(axiosClient.post('/children/enrollments/import', { rows: rows.map((row) => enrollmentPhotoRequest(row).body), campusId })),
+  // schoolYearId, startDate: nhập vào năm sau đã mở chuẩn bị (CHD-11); bỏ trống ⇒ năm đang hoạt động
+  importChildren: async (rows, _user, campusId, { schoolYearId, startDate } = {}) =>
+    read(
+      axiosClient.post('/children/enrollments/import', {
+        rows: rows.map((row) => enrollmentPhotoRequest(row).body),
+        campusId,
+        schoolYearId: await toBeSchoolYear(schoolYearId),
+        startDate,
+      }),
+    ),
+  // G94-180/CHD-14: effectiveDate = ngày vào lớp / ngày chuyển lớp (ngày tương lai = lịch chuyển)
   placeChild: (childId, body) => read(axiosClient.post(`/children/${childId}/placement`, body)),
+  // Hủy lịch chuyển / lớp chưa bắt đầu (BE 400 ô classId khi không có lịch)
+  cancelScheduledPlacement: (childId) => read(axiosClient.delete(`/children/${childId}/placement/scheduled`)),
+  // Ngày nghỉ của năm học (BE SchoolYearController, chỉ đọc) để báo lỗi ngày học sớm; BE vẫn kiểm
+  getSchoolHolidays: async (schoolYearId) => read(axiosClient.get(`/school-years/${await toBeSchoolYear(schoolYearId)}/holidays`)),
+  getLeaveOptions: (childId) => read(axiosClient.get(`/children/${childId}/leave-options`)),
   withdrawChild: (childId, body) => read(axiosClient.post(`/children/${childId}/withdraw`, body)),
+  // G94-180/CHD-03: hủy lịch nghỉ học (BE trả hồ sơ trẻ như withdraw)
+  cancelScheduledLeave: (childId) => read(axiosClient.delete(`/children/${childId}/scheduled-leave`)),
   saveDeclaration: (childId, body) => read(axiosClient.put(`/children/${childId}/health-declaration`, body)),
   listParentAccounts: (filters) => read(axiosClient.get('/children/parent-accounts', { params: filters })),
   findParentAccountByCitizenId: (idNumber) =>

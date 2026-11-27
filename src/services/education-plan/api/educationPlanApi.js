@@ -1,16 +1,22 @@
 import { axiosClient } from '@/services/http/axiosClient';
 import { ROLES } from '@/models/User';
-import { EDU_STATUS } from '@/models/education-plan/educationPlanConstants';
+import { EDU_STATUS, ageRangeKey } from '@/models/education-plan/educationPlanConstants';
+import { sameSchoolYearId } from '@/models/education-plan/schoolYearScope.mjs';
 import { buildRefs, planSteps, serverId, toUiEduConfig, toUiGoal, toYearPlanRequest } from './yearPlanMapper';
 
 /*
  * Mục tiêu năm học (kế hoạch năm) và cấu hình: theo contract BE (`BE:docs/api/openapi.yaml`, /education-plans/...).
- * Tài liệu của lớp: /education-plans/class-docs (BE:EDU-12..18). AI vẫn là PROPOSED, BE chưa có.
+ * Tài liệu của lớp: /education-plans/class-docs (BE:EDU-12..18). AI hỗ trợ soạn/duyệt: /education-plans/ai (BE:EDU-95, 96, 103).
  * Cùng tên hàm và tham số với mock repository.
  */
 const GOALS = '/education-plans/goals';
 
 const sourceError = (status, message) => Object.assign(new Error(message), { status });
+const yearParam = (value) => {
+  const schoolYearId = serverId(value);
+  if (schoolYearId == null) throw sourceError(400, 'Năm học không hợp lệ.');
+  return { schoolYearId };
+};
 const sourceSummary = (item, refs) => ({
   id: String(item.id),
   code: item.code,
@@ -32,6 +38,25 @@ const loadConfig = (refresh = false) => {
   });
   return configCache;
 };
+let eduConfigCache = null;
+const loadEduConfig = async () => {
+  const [config, workflow, durationPolicy] = await Promise.all([
+    loadConfig(true),
+    axiosClient.get('/education-plans/workflow-policy'),
+    axiosClient.get('/education-plans/duration-policy').catch((error) => {
+      if (error.status === 404) return null;
+      throw error;
+    }),
+  ]);
+  const fresh = {
+    ...config,
+    workflow,
+    durationPolicyAvailable: !!durationPolicy?.theme && !!durationPolicy?.branch,
+    ...(durationPolicy?.theme && durationPolicy?.branch ? { durationPolicy } : {}),
+  };
+  configCache = Promise.resolve(fresh);
+  return toUiEduConfig(fresh);
+};
 /** Bảng đổi id UI ↔ BE (nhóm tuổi `ag-3` ↔ id số) cho service khác của module, vd. kho học liệu. */
 export const loadEduRefs = async () => buildRefs(await loadConfig());
 // Trạng thái + quyền trên BE của từng kế hoạch, để biết lần lưu là sửa, gửi, ban hành hay trả lại
@@ -46,6 +71,7 @@ const bodyKey = (goal, refs) => JSON.stringify(toYearPlanRequest(goal, refs));
 // Trang tải chi tiết từng kế hoạch cùng lúc; trình duyệt chỉ mở 6 kết nối nên yêu cầu xếp hàng có thể vượt 15 giây mặc định
 // ponytail: nới thời gian chờ; về lâu dài cần API danh sách trả đủ nội dung hoặc tải chi tiết khi mở
 const LIST_TIMEOUT = 60000;
+const AI_MATCH_TIMEOUT = 70000;
 const fetchGoal = async (id, refs) => remember(await axiosClient.get(`${GOALS}/${id}`, { timeout: LIST_TIMEOUT }), refs);
 
 const editHeaders = (edit) => {
@@ -68,7 +94,8 @@ const runSteps = async (goal, refs, edit, forceSave = false, action) => {
   let id = serverId(goal.id);
   let detail = null;
   const prev = id == null ? null : known.get(String(id));
-  const actionCall = { submit: 'submit', approve: 'issue', reject: 'return' }[action];
+  // publish: HT soạn, chuỗi duyệt rỗng ⇒ ban hành thẳng (BE EDU-110 (8), (10))
+  const actionCall = { submit: 'submit', approve: 'issue', reject: 'return', publish: 'principal-publish' }[action];
   const steps = actionCall
     ? [{ call: actionCall, note: goal.history?.at(-1)?.note || null }]
     : planSteps(prev, goal, forceSave || !prev || prev.body !== bodyKey(goal, refs));
@@ -80,7 +107,12 @@ const runSteps = async (goal, refs, edit, forceSave = false, action) => {
       detail = await axiosClient.post(
         `${GOALS}/${id}/${step.call}`,
         { note: step.note },
-        { headers: (step.call === 'submit' ? editHeaders : reviewHeaders)({ ...edit, requestId: crypto.randomUUID() }) },
+        {
+          headers: (['submit', 'principal-publish'].includes(step.call) ? editHeaders : reviewHeaders)({
+            ...edit,
+            requestId: crypto.randomUUID(),
+          }),
+        },
       );
     edit.revision = detail.contentRevision ?? detail.revision;
     id = detail.id;
@@ -121,12 +153,12 @@ export const educationPlanApi = {
   getCurriculumSources: (options = {}) => axiosClient.get('/education-plans/curriculum/sources', { signal: options.signal }),
   getCurriculumGoals: (ageGroupCode, options) => curriculumOf('goals', ageGroupCode, options),
   getCurriculumContents: (ageGroupCode, options) => curriculumOf('contents', ageGroupCode, options),
-  listGoalSources: async ({ schoolYear, ageGroupId, excludeId, planLevel } = {}, actor, options = {}) => {
+  listGoalSources: async ({ schoolYear, schoolYearId, ageGroupId, excludeId, planLevel } = {}, actor, options = {}) => {
     const group = ageGroupId;
     const refs = buildRefs(await loadConfig());
     const params = planLevel ? { planLevel } : {};
-    if (schoolYear) {
-      params.schoolYearId = refs.schoolYearId(schoolYear);
+    if (schoolYearId != null || schoolYear) {
+      params.schoolYearId = schoolYearId == null ? refs.schoolYearId(schoolYear) : serverId(schoolYearId);
       if (params.schoolYearId == null) throw sourceError(400, 'Năm học đã chọn không hợp lệ.');
     }
     if (group) {
@@ -163,22 +195,42 @@ export const educationPlanApi = {
       goalCount: goal.domains.reduce((count, domain) => count + domain.rows.filter((row) => row.kind === 'goal').length, 0),
     };
   },
-  getAll: async () => {
-    const refs = buildRefs(await loadConfig());
+  getAll: async (_actor, filter = {}) => {
+    const config = await loadConfig();
+    const refs = buildRefs(config);
+    const group = filter.ageRange ? config.ageGroups?.find((entry) => ageRangeKey(entry) === filter.ageRange) : null;
+    if (filter.ageRange && !group) throw sourceError(400, 'Khoảng tuổi không hợp lệ.');
     // Danh sách đã theo phạm vi người xem (BE)
     const pages = await Promise.all(
-      ['TEAM', 'SCHOOL_YEAR'].map((planLevel) =>
-        axiosClient.get(GOALS, { params: { page: 0, size: 200, planLevel }, timeout: LIST_TIMEOUT }).catch((error) => {
-          if (planLevel === 'SCHOOL_YEAR' && error.status === 404) return { items: [] };
-          throw error;
-        }),
-      ),
+      (filter.planLevel ? [filter.planLevel] : ['TEAM', 'SCHOOL_YEAR']).map(async (planLevel) => {
+        const params = { page: 0, size: 200, planLevel };
+        if (filter.overdue) Object.assign(params, yearParam(filter.schoolYearId), { view: 'OVERDUE' });
+        if (filter.schoolYearId != null || filter.schoolYear) {
+          params.schoolYearId = filter.schoolYearId == null ? refs.schoolYearId(filter.schoolYear) : serverId(filter.schoolYearId);
+          if (params.schoolYearId == null) throw sourceError(400, 'Năm học không hợp lệ.');
+        }
+        if (group) params.ageGroupId = group.id;
+        else if (filter.ageGroupId) {
+          params.ageGroupId = refs.ageGroupId(filter.ageGroupId);
+          if (params.ageGroupId == null) throw sourceError(400, 'Nhóm tuổi không hợp lệ.');
+        }
+        const items = [];
+        let page;
+        do {
+          try {
+            page = await axiosClient.get(GOALS, { params: { ...params }, timeout: LIST_TIMEOUT });
+          } catch (error) {
+            if (params.page === 0 && planLevel === 'SCHOOL_YEAR' && error.status === 404) return [];
+            throw error;
+          }
+          items.push(...page.items.filter((item) => planLevel !== 'SCHOOL_YEAR' || (item.planType || item.planLevel) === planLevel));
+          params.page++;
+        } while (params.page < page.totalPages);
+        return items;
+      }),
     );
-    const summaries = new Map(
-      pages
-        .flatMap((page, index) => page.items.filter((item) => index === 0 || (item.planType || item.planLevel) === 'SCHOOL_YEAR'))
-        .map((item) => [String(item.id), item]),
-    );
+    const items = pages.flat().filter((item) => filter.schoolYearId == null || sameSchoolYearId(item.schoolYearId, filter.schoolYearId));
+    const summaries = new Map(items.map((item) => [String(item.id), item]));
     // Chỉ bản tóm tắt; trang nào cần nội dung thì tải chi tiết kế hoạch đó (useGoalDetails) — không tải hết khi vào module
     const goals = [...summaries.values()].map((p) => ({
       ...toUiGoal(p, refs),
@@ -188,15 +240,54 @@ export const educationPlanApi = {
     }));
     return { goals, themes: [], lessons: [] };
   },
+  // edu-list-paging (Tiền 25/11/2026): một trang danh sách kế hoạch năm/tổ (BE lọc + phân trang, ẩn bản đã thay thế)
+  getGoalPage: async (_actor, { planLevel, schoolYearId, ageRange, q, currentOnly = true, page = 0, size = 5 } = {}) => {
+    const config = await loadConfig();
+    const refs = buildRefs(config);
+    const params = { planLevel, page, size, currentOnly };
+    const year = serverId(schoolYearId);
+    if (year != null) params.schoolYearId = year;
+    if (ageRange) {
+      const group = config.ageGroups?.find((entry) => ageRangeKey(entry) === ageRange);
+      if (!group) throw sourceError(400, 'Khoảng tuổi không hợp lệ.');
+      params.ageGroupId = group.id;
+    }
+    if (q?.trim()) params.q = q.trim();
+    const result = await axiosClient.get(GOALS, { params, timeout: LIST_TIMEOUT });
+    return { ...result, items: result.items.map((p) => ({ ...toUiGoal(p, refs), summary: true, goalCount: p.goalCount ?? 0 })) };
+  },
+  getGoalStats: async (_actor, { planLevel, schoolYearId } = {}) => {
+    const refs = buildRefs(await loadConfig());
+    const stats = await axiosClient.get(`${GOALS}/stats`, { params: { planLevel, ...yearParam(schoolYearId) } });
+    return { ...stats, ageGroupIdsWithPlan: (stats.ageGroupIdsWithPlan || []).map((id) => refs.ageGroupCode(id)) };
+  },
+  getOverdueBoard: (schoolYearId, filter = {}) =>
+    axiosClient.get('/education-plans/class-docs/overdue-board', {
+      params: { ...yearParam(schoolYearId), ...Object.fromEntries(Object.entries(filter).filter(([, v]) => v !== '' && v != null)) },
+      timeout: LIST_TIMEOUT,
+    }),
   // Mở một kế hoạch theo id (vd. bản Chờ duyệt từ hàng chờ, không có trong danh sách); BE trả 403 nếu chưa ban hành
   getGoal: async (id) => fetchGoal(serverId(id) ?? id, buildRefs(await loadConfig())),
-  // Kế hoạch năm/tổ chờ đúng người gọi duyệt; danh sách thường chỉ có bản đã ban hành (BE spec 002 FR-007)
-  getReviewQueue: async () => {
+  getOverdueGoal: async (id, schoolYearId) => {
     const refs = buildRefs(await loadConfig());
-    const items = await axiosClient.get(`${GOALS}/review-queue`);
-    return Promise.all(items.map((p) => fetchGoal(p.id, refs)));
+    return toUiGoal(
+      await axiosClient.get(`${GOALS}/${serverId(id)}`, {
+        params: { ...yearParam(schoolYearId), view: 'OVERDUE' },
+        timeout: LIST_TIMEOUT,
+      }),
+      refs,
+    );
   },
-  // Một bản hồ sơ chủ đề đã ban hành trước đây (nội dung + chuỗi ký), chỉ đọc
+  // Kế hoạch năm/tổ chờ đúng người gọi duyệt; danh sách thường chỉ có bản đã ban hành (BE spec 002 FR-007)
+  getReviewQueue: async (_actor, schoolYearId) => {
+    const id = serverId(schoolYearId);
+    if (schoolYearId != null && id == null) throw sourceError(400, 'Năm học không hợp lệ.');
+    const refs = buildRefs(await loadConfig());
+    const items = await axiosClient.get(`${GOALS}/review-queue`, { params: id == null ? {} : { schoolYearId: id } });
+    const scoped = id == null ? items : items.filter((p) => sameSchoolYearId(p.schoolYearId, id));
+    return Promise.all(scoped.map((p) => fetchGoal(p.id, refs)));
+  },
+  // Một bản kế hoạch giáo dục ngày đã ban hành trước đây (nội dung + chuỗi ký), chỉ đọc
   getClassDocRelease: (releaseId) => axiosClient.get(`/education-plans/class-docs/releases/${releaseId}`),
   // Trả kế hoạch đã lưu (id do BE cấp) để trang lập kế hoạch dùng tiếp id thật
   saveGoal: async (item, options = {}) => {
@@ -249,8 +340,7 @@ export const educationPlanApi = {
   },
   unlockGoal: async (id, body) => {
     const refs = buildRefs(await loadConfig());
-    await axiosClient.post(`${GOALS}/${serverId(id) ?? id}/unlock`, body);
-    return fetchGoal(serverId(id) ?? id, refs);
+    return toUiGoal(await axiosClient.post(`${GOALS}/${serverId(id) ?? id}/unlock`, body), refs);
   },
   getGoalChanges: (id, fromId) =>
     axiosClient.get(`${GOALS}/${serverId(id) ?? id}/changes`, { params: fromId ? { fromPlanId: serverId(fromId) ?? fromId } : {} }),
@@ -264,38 +354,50 @@ export const educationPlanApi = {
   deleteLesson: (id) => axiosClient.delete(`/education-plans/lessons/${id}`),
   // Tài liệu + lớp + giáo viên, tổ trưởng của năm học đang chọn ở header (BE lọc theo phạm vi người xem)
   // Header giữ id số (API) hoặc tên năm "2027-2028" (nối thử qua beClient) ⇒ đổi tên sang id theo cấu hình
-  getClassPlans: async (schoolYearId) => {
+  getClassPlans: async (schoolYearId, review = false, classId = null) => {
     const id = serverId(schoolYearId) ?? (schoolYearId ? buildRefs(await loadConfig()).schoolYearId(String(schoolYearId)) : null);
-    return axiosClient.get('/education-plans/class-docs', { params: id == null ? {} : { schoolYearId: id }, timeout: LIST_TIMEOUT });
+    if (schoolYearId != null && id == null) throw sourceError(400, 'Năm học không hợp lệ.');
+    const params = id == null ? {} : { schoolYearId: id };
+    if (review) params.view = 'REVIEW';
+    if (serverId(classId) != null) params.classId = serverId(classId);
+    return axiosClient.get('/education-plans/class-docs', { params, timeout: LIST_TIMEOUT });
   },
-  getEduConfig: async () => {
-    const [config, workflow, durationPolicy] = await Promise.all([
-      loadConfig(true),
-      axiosClient.get('/education-plans/workflow-policy'),
-      axiosClient.get('/education-plans/duration-policy').catch((error) => {
-        if (error.status === 404) return null;
-        throw error;
-      }),
-    ]);
-    const fresh = {
-      ...config,
-      workflow,
-      durationPolicyAvailable: !!durationPolicy?.theme && !!durationPolicy?.branch,
-      ...(durationPolicy?.theme && durationPolicy?.branch ? { durationPolicy } : {}),
-    };
-    configCache = Promise.resolve(fresh);
-    return toUiEduConfig(fresh);
+  // edu-list-paging (Tiền 25/11/2026): danh sách gọn có phân trang/lọc, chi tiết theo khóa, phần lớp/nhân sự riêng
+  getClassDocSummaries: async (
+    schoolYearId,
+    { review = false, classIds, kinds, statuses, myTurn = false, currentOnly = false, page = 0, size = 5 } = {},
+  ) => {
+    const id = serverId(schoolYearId) ?? (schoolYearId ? buildRefs(await loadConfig()).schoolYearId(String(schoolYearId)) : null);
+    const params = { page, size, ...(id == null ? {} : { schoolYearId: id }), ...(review ? { view: 'REVIEW' } : {}) };
+    if (kinds?.length) params.kind = kinds.join(',');
+    if (classIds?.length) params.classIds = classIds.join(',');
+    if (statuses?.length) params.status = statuses.join(',');
+    // Hàng chờ duyệt: BE lọc hồ sơ người xem thuộc chuỗi duyệt (EDU-93) và phân trang ngay ở truy vấn
+    if (myTurn) params.myTurn = true;
+    // BE EDU-112 (4): chỉ bản đang hiệu lực (bỏ hồ sơ theo kế hoạch tổ đã bị thay thế)
+    if (currentOnly) params.currentOnly = true;
+    return axiosClient.get('/education-plans/class-docs/summary', { params, timeout: LIST_TIMEOUT });
   },
-  saveWorkflowPolicy: async (cfg) => {
-    try {
-      const policies = { ...cfg.workflowPolicy };
-      if (cfg.durationPolicyAvailable === false) delete policies.schoolYear;
-      await axiosClient.put('/education-plans/workflow-policy', { revision: cfg.workflowRevision, policies });
-    } finally {
-      configCache = null;
-      known.clear();
-    }
-    return educationPlanApi.getEduConfig();
+  getClassDoc: (kind, docKey) => axiosClient.get(`/education-plans/class-docs/${kind}/${encodeURIComponent(docKey)}`),
+  getClassDocContext: async (schoolYearId) => {
+    const id = serverId(schoolYearId) ?? (schoolYearId ? buildRefs(await loadConfig()).schoolYearId(String(schoolYearId)) : null);
+    return axiosClient.get('/education-plans/class-docs/context', { params: id == null ? {} : { schoolYearId: id } });
+  },
+  getOverdueClassPlans: (schoolYearId) =>
+    axiosClient.get('/education-plans/class-docs/overdue', { params: yearParam(schoolYearId), timeout: LIST_TIMEOUT }),
+  getOverdueClassDoc: (kind, docKey, schoolYearId) =>
+    axiosClient.get(`/education-plans/class-docs/overdue/${encodeURIComponent(kind)}/${encodeURIComponent(docKey)}`, {
+      params: yearParam(schoolYearId),
+      timeout: LIST_TIMEOUT,
+    }),
+  getEduConfig: () => loadEduConfig(),
+  // Provider mọi trang: cấu hình + luồng duyệt + chính sách thời lượng tải một lần mỗi phiên trang (lưu cấu hình thì tải lại)
+  getEduConfigCached: () => {
+    eduConfigCache ||= loadEduConfig().catch((err) => {
+      eduConfigCache = null;
+      throw err;
+    });
+    return eduConfigCache;
   },
   // BE:EDU-11 — lưu xong thì dùng luôn bản BE trả về làm dữ liệu tham chiếu của phiên
   saveEduConfig: async (cfg) => {
@@ -312,14 +414,8 @@ export const educationPlanApi = {
     const saved = await axiosClient.put('/education-plans/config', {
       domainLabels: cfg.domainLabels || {},
       extraDomains: cfg.extraDomains || [],
-      // API cấu hình vẫn bắt buộc ô ký; lấy từ policy vừa lưu để khớp projection trên server.
-      signers: cfg.workflowPolicy
-        ? {
-            year: cfg.workflowPolicy.year.reviewers,
-            branch: cfg.workflowPolicy.branch.reviewers,
-            week: cfg.workflowPolicy.theme.reviewers,
-          }
-        : cfg.signers,
+      // Ô ký do BE quản lý và trả lại sau mỗi lần lưu luồng duyệt.
+      signers: current.signers ?? cfg.signers,
       weekRows: cfg.weekRows,
     });
     const fresh = {
@@ -328,6 +424,7 @@ export const educationPlanApi = {
       ...(durationPolicy ? { durationPolicy } : {}),
     };
     configCache = Promise.resolve(fresh);
+    eduConfigCache = null;
     return toUiEduConfig(fresh);
   },
   saveClassDoc: (kind, doc, options = {}) => {
@@ -335,7 +432,7 @@ export const educationPlanApi = {
     if (doc?.dossierVersion != null) headers['X-Dossier-Version'] = String(doc.dossierVersion);
     if (options?.headers) Object.assign(headers, options.headers);
     if ((kind === 'week' || kind === 'day') && doc?.dossierVersion == null)
-      throw sourceError(409, 'Hãy tải lại hồ sơ chủ đề trước khi lưu tuần.');
+      throw sourceError(409, 'Hãy tải lại kế hoạch giáo dục ngày trước khi lưu tuần.');
     const { version, dossierVersion, review, permissions, ...content } = doc;
     if (kind === 'branch' && content.schemaVersion === 2) {
       delete content.names;
@@ -343,7 +440,7 @@ export const educationPlanApi = {
       delete content.calendarRevision;
       delete content.durationPolicySnapshot;
     }
-    // Phần II "Đánh giá trẻ trên ngày" đợt này chỉ là giao diện, chưa lưu ở BE (spec 005 FR-008a)
+    // Phần "Đánh giá trẻ trên ngày" đã bỏ (Tiền 25/11/2026): không gửi review còn sót trong nháp cũ
     if (kind === 'day' && Array.isArray(content.days)) content.days = content.days.map(({ review: _review, ...d }) => d);
     return axiosClient.put(`/education-plans/class-docs/${kind}/${doc.id}`, content, { headers });
   },
@@ -355,7 +452,25 @@ export const educationPlanApi = {
     if (options?.headers) Object.assign(headers, options.headers);
     return axiosClient.post(`/education-plans/class-docs/${kind}/${id}/actions`, body, { headers });
   },
-  suggestBranchNames: (input) => axiosClient.post('/education-plans/ai/branch-names', input),
-  rewriteBranchName: (input) => axiosClient.post('/education-plans/ai/branch-names/rewrite', input),
   suggestLessonSteps: (input) => axiosClient.post('/education-plans/ai/lesson-steps', input),
+  // BE:EDU-95 — gợi ý thẻ hoạt động cho MT chưa có hoạt động
+  suggestActivityCards: (input) => axiosClient.post('/education-plans/ai/activities', input),
+  // BE:EDU-96 — tiêu chí gửi duyệt đạt / chưa đạt (khung Kiểm tra)
+  getClassDocChecks: (kind, docKey) => axiosClient.get(`/education-plans/class-docs/${kind}/${docKey}/checks`),
+  // BE:EDU-95 — sửa giáo án ngày theo một câu yêu cầu: trả danh sách ô cũ → mới, không lưu
+  editDayByRequest: (docKey, prompt) => axiosClient.post(`/education-plans/ai/class-docs/day/${docKey}/edit`, { prompt }),
+  // BE:EDU-96 — tóm tắt giáo án ngày cho người duyệt: gợi ý, không lưu
+  reviewDay: (docKey) => axiosClient.post(`/education-plans/ai/class-docs/day/${docKey}/review`),
+  // BE:EDU-103 — gom nội dung vào chủ đề của kế hoạch tổ (song song theo lĩnh vực, ~40–60s): timeout riêng dài hơn mặc định
+  matchThemeContents: (planId, body) =>
+    axiosClient.post(`/education-plans/ai/team-plans/${serverId(planId)}/theme-content-map`, body, { timeout: AI_MATCH_TIMEOUT }),
+  matchGoalContents: (planId, options = {}) =>
+    axiosClient.post(`/education-plans/ai/year-plans/${serverId(planId)}/goal-content-map`, undefined, {
+      timeout: AI_MATCH_TIMEOUT,
+      signal: options.signal,
+    }),
+  // BE:EDU-104 — tick kế hoạch tổ đã ban hành năm học liền trước (source null + reason khi không có)
+  getPreviousYearTicks: (planId) => axiosClient.get(`/education-plans/goals/${serverId(planId)}/previous-year-ticks`),
+  // BE:EDU-103 — số gợi ý / số giữ mỗi lần Áp dụng, BE chỉ ghi log
+  sendAiFeedback: (body) => axiosClient.post('/education-plans/ai/feedback', body),
 };

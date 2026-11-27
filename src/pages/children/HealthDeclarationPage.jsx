@@ -3,20 +3,24 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Pencil, Save, History } from '@/components/ui/icons';
 import { SidePanel } from '@/components/ui/SidePanel';
 import { useAuth } from '@/contexts/AuthContext';
+import { useChildYearLock } from '@/hooks/children/useChildYearLock';
+import { YearLockedNotice } from '@/components/children/YearLockedNotice';
 import { useToast } from '@/contexts/ToastContext';
 import { useMasterData } from '@/hooks/useMasterData';
-import { useChildDetail } from '@/hooks/children/useChildRecords';
+import { useChildDetail, useLatestProfileChanges } from '@/hooks/children/useChildRecords';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { LoadingState, Spinner } from '@/components/ui/States';
 import { FormField } from '@/components/form/FormField';
 import { ChildAccessState } from '@/components/children/ChildAccessState';
 import { DeclarationSummary } from '@/components/children/DeclarationSummary';
+import { ChildBrief, ChildCardHead } from '@/components/children/ChildBrief';
 import { HealthDeclarationFields } from '@/components/children/HealthDeclarationFields';
-import { saveHealthDeclaration } from '@/services/children/childrenService';
-import { ALLERGY_STATE_LABELS, DECLARATION_STATE } from '@/models/children/childrenConstants';
+import { saveHealthDeclaration, submitProfileChange } from '@/services/children/childrenService';
+import { ProfileChangeNotice } from '@/components/children/ProfileChangeNotice';
+import { ALLERGY_STATE_LABELS, DECLARATION_STATE, PROFILE_CHANGE_KIND } from '@/models/children/childrenConstants';
 import { formatDateTime } from '@/utils/format';
 import { hasErrors, validateDeclaration } from '@/utils/children/childrenValidation';
-import { canDeclareHealth } from '@/utils/children/childrenPermissions';
+import { canDeclareHealth, canOpenChildEdit, canProposeChildEdit } from '@/utils/children/childrenPermissions';
 import { emptyDeclaration } from '@/utils/children/childrenHelpers';
 import { MEDICAL_HISTORY_ITEMS, emptyMedicalHistory, historyItemText } from '@/models/children/childProfile';
 import { childCrumb, childrenCrumbs } from '@/utils/children/breadcrumbs';
@@ -44,6 +48,10 @@ const allergyText = (a) =>
 export default function HealthDeclarationPage() {
   const { id } = useParams();
   const { user } = useAuth();
+  // Năm đã kết thúc hoặc năm sắp diễn ra chưa tới ngày mở chuẩn bị (CFG-YR-01, CHD-12): khai báo chỉ xem
+  const yearLocked = useChildYearLock();
+  // Sửa trực tiếp (BGH) hoặc gửi yêu cầu (GV được cấp, BE:CHD-11), nhưng không khi năm bị khóa
+  const mayDeclare = (c) => !yearLocked && canOpenChildEdit(c, user);
   const toast = useToast();
   const md = useMasterData();
   const [editing, setEditing] = useState(false);
@@ -60,10 +68,15 @@ export default function HealthDeclarationPage() {
   const autoOpened = useRef(false);
 
   const child = detail?.child;
-  const crumbs = childrenCrumbs(childCrumb(child), 'Khai báo sức khỏe');
+  // BE:CHD-11 — GV được cấp quyền: lưu là gửi yêu cầu, khai báo đổi khi HT/PHT duyệt
+  const proposing = !!child && !canDeclareHealth(child, user) && canProposeChildEdit(child, user);
+  const { changes, reload: reloadChanges } = useLatestProfileChanges(id, { enabled: proposing });
+  const crumbs = childrenCrumbs(childCrumb(child), 'Khai báo ăn và sức khỏe');
 
   const openEditor = (d = emptyDeclaration()) => {
     setForm({
+      // CHD-13: cờ Báo ăn nằm trên hồ sơ trẻ, không có trong bản khai đã lưu; thiếu cờ ⇒ báo ăn.
+      mealRegistered: child?.mealRegistered !== false,
       allergies: { ...d.allergies, items: [...d.allergies.items] },
       diet: { ...d.diet },
       otherNotes: { ...(d.otherNotes || emptyDeclaration().otherNotes) },
@@ -77,14 +90,14 @@ export default function HealthDeclarationPage() {
   useEffect(() => {
     if (!directEdit || autoOpened.current || !detail?.child) return;
     autoOpened.current = true;
-    if (canDeclareHealth(detail.child, user)) openEditor(detail.declaration || undefined);
+    if (mayDeclare(detail.child)) openEditor(detail.declaration || undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [directEdit, detail, user]);
 
   const leaveEditor = () => (directEdit ? navigate(`/children/${id}`) : setEditing(false));
 
   // Tránh nháy chế độ xem trước khi form tự mở
-  const waitingEditor = directEdit && !autoOpened.current && !!child && canDeclareHealth(child, user);
+  const waitingEditor = directEdit && !autoOpened.current && !!child && mayDeclare(child);
   if (loading || waitingEditor)
     return (
       <div className="page">
@@ -102,7 +115,7 @@ export default function HealthDeclarationPage() {
 
   const { declaration } = detail;
   const lastChange = declaration?.history?.[declaration.history.length - 1];
-  const canEdit = canDeclareHealth(child, user);
+  const canEdit = mayDeclare(child);
   // Sửa khai báo đã có thì bắt buộc lý do; dữ liệu có hiệu lực ngay cho bếp.
   const needsReason = !!declaration;
 
@@ -115,8 +128,15 @@ export default function HealthDeclarationPage() {
     if (hasErrors(errs)) return;
     setBusy(true);
     try {
+      if (proposing) {
+        await submitProfileChange(id, { kind: PROFILE_CHANGE_KIND.HEALTH_DECLARATION, declaration: { declaration: form, reason } }, user);
+        toast.success('Đã gửi yêu cầu sửa khai báo. Khai báo đổi sau khi Hiệu trưởng hoặc Phó hiệu trưởng duyệt.');
+        reloadChanges({ silent: true });
+        leaveEditor();
+        return;
+      }
       await saveHealthDeclaration(id, { declaration: form, reason }, user);
-      toast.success('Đã lưu khai báo sức khỏe.');
+      toast.success('Đã lưu khai báo ăn và sức khỏe.');
       reload({ silent: true });
       leaveEditor();
     } catch (err) {
@@ -131,22 +151,27 @@ export default function HealthDeclarationPage() {
     <div className="page">
       <Breadcrumb items={crumbs} />
       <div className="page__head">
-        <h1 className="page__title">Khai báo sức khỏe: {child.fullName}</h1>
+        <h1 className="page__title">Khai báo ăn và sức khỏe: {child.fullName}</h1>
         {!editing && (
           <div className="row gap-2">
             {canEdit && (
               <button className="btn btn--primary" onClick={startEdit}>
-                <Pencil size={16} /> {declaration ? 'Sửa khai báo' : 'Khai báo sức khỏe'}
+                <Pencil size={16} /> {declaration ? 'Sửa khai báo' : 'Khai báo ăn và sức khỏe'}
               </button>
             )}
           </div>
         )}
       </div>
+      <YearLockedNotice action="Khai báo ăn và sức khỏe" subject="sức khỏe của trẻ" />
+      {proposing && <ProfileChangeNotice changes={changes} kind={PROFILE_CHANGE_KIND.HEALTH_DECLARATION} />}
 
       {editing ? (
         <>
+          {/* Dạng bảng như bước 3 tiếp nhận; thẻ Lý do giữ riêng bên dưới (user duyệt 19/11/2026) */}
           <section className="card wizard-card">
+            <ChildCardHead title="Báo ăn và sức khỏe" child={child} />
             <HealthDeclarationFields
+              sheet
               dateOfBirth={child.dateOfBirth}
               value={form}
               onChange={(v) => {
@@ -168,7 +193,7 @@ export default function HealthDeclarationPage() {
               <ArrowLeft size={16} /> Hủy
             </button>
             <button className="btn btn--primary" onClick={save} disabled={busy}>
-              {busy ? <Spinner small /> : <Save size={16} />} Lưu khai báo
+              {busy ? <Spinner small /> : <Save size={16} />} {proposing ? 'Gửi yêu cầu duyệt' : 'Lưu khai báo'}
             </button>
           </div>
         </>
@@ -176,11 +201,12 @@ export default function HealthDeclarationPage() {
         <>
           {/* Lịch sử chỉ vài dòng: chân khối hiện thay đổi gần nhất, đủ lịch sử trong panel (user yêu cầu 2026-11-11) */}
           <section className="card">
-            <div className="card__header">
-              <h2 className="card__title">Thông tin khai báo</h2>
+            <div className="card__header tr-decl-head">
+              <h2 className="card__title">Báo ăn và sức khỏe</h2>
+              <ChildBrief child={child} />
             </div>
             <div className="card__body">
-              <DeclarationSummary declaration={declaration} />
+              <DeclarationSummary declaration={declaration} mealRegistered={child.mealRegistered !== false} />
             </div>
             {lastChange && (
               <div className="tr-hc-overview__foot">

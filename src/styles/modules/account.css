@@ -344,9 +344,15 @@
   margin: var(--space-3) 0 var(--space-2);
 }
 .ac-notif__message {
+  max-width: 80ch;
   margin: 0;
   line-height: 1.6;
   white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.ac-notif__file-name {
+  min-width: 0;
   overflow-wrap: anywhere;
 }
 

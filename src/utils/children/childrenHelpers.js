@@ -1,28 +1,45 @@
-import { AGE_GROUPS, CHILD_STATUS } from '@/models/School';
+import { AGE_GROUPS, CHILD_STATUS, ageInMonths } from '@/models/School';
 import { MOTOR_RESULT_LABELS } from '@/models/children/childrenConstants';
 import { emptyChildProfile, emptyMedicalHistory } from '@/models/children/childProfile';
 import { formatDate } from '@/utils/format';
 
 /**
- * Display hint only: the age group a child normally joins in a school year (by birth year).
+ * Display hint only: nhóm tuổi của trẻ tại đúng ngày bắt đầu năm học.
  * The service validates the placement; this just preselects the age group in the form.
  * yearStart: ngày bắt đầu năm học (BE, "2026-09-01") hoặc id năm mock ("2026-2027"); ageGroups: nhóm tuổi có
- * ageFromMonths/ageToMonths (BE hoặc AGE_GROUPS). Tuổi theo năm sinh; ngoài khoảng ⇒ nhóm nhỏ nhất/lớn nhất.
+ * ageFromMonths/ageToMonths (BE hoặc AGE_GROUPS). Ngoài các nhóm trường áp dụng ⇒ để trống, không tự ép nhóm gần nhất.
  */
 export const suggestAgeGroupId = (dateOfBirth, yearStart, ageGroups = AGE_GROUPS) => {
   if (!dateOfBirth || !yearStart || !ageGroups.length) return '';
-  const months = (Number(String(yearStart).slice(0, 4)) - Number(dateOfBirth.slice(0, 4))) * 12;
+  const start = /^\d{4}-\d{2}-\d{2}$/.test(String(yearStart)) ? String(yearStart) : `${String(yearStart).slice(0, 4)}-09-01`;
+  const months = ageInMonths(dateOfBirth, start);
   const sorted = [...ageGroups].sort((a, b) => a.ageFromMonths - b.ageFromMonths);
   const match = sorted.find((g) => g.ageFromMonths <= months && months < g.ageToMonths);
-  return (match || (months < sorted[0].ageFromMonths ? sorted[0] : sorted[sorted.length - 1])).id;
+  return match?.id || '';
 };
+
+/** Giá trị lọc trạng thái cho trẻ có đăng ký năm học sau (nhãn Sắp nhập học); không phải trạng thái của trẻ. */
+export const PLANNED_ADMISSION_FILTER = 'PLANNED';
 
 /**
  * Danh sách trẻ theo trạng thái đang lọc: chưa chọn ⇒ chỉ trẻ đang học, chờ xếp lớp; trẻ đã nghỉ chỉ hiện khi chọn
  * "Đã nghỉ" (user chốt 2026-11-11, G94-180/CHD-09 giữ nguyên, chỉ đổi mặc định hiển thị).
+ *
+ * Trẻ theo thẻ thống kê: Chờ xếp lớp không gồm trẻ đã đăng ký năm sau (xếp ở màn Xếp lớp năm học mới), Sắp nhập học gồm trẻ có
+ * plannedAdmission (CHD-11).
  */
-export const childrenOfStatus = (children, status) =>
-  status ? children.filter((c) => c.status === status) : children.filter((c) => c.status !== CHILD_STATUS.LEFT);
+export const childrenOfStatus = (children, status) => {
+  if (status === PLANNED_ADMISSION_FILTER) return children.filter((c) => c.plannedAdmission);
+  if (status === CHILD_STATUS.PENDING_PLACEMENT) return children.filter((c) => c.status === status && !c.plannedAdmission);
+  return status ? children.filter((c) => c.status === status) : children.filter((c) => c.status !== CHILD_STATUS.LEFT);
+};
+
+/** Ô lớp của trẻ Sắp nhập học (CHD-11): lớp dự kiến hoặc chưa xếp lớp. */
+export const plannedClassLabel = (planned) => (planned.className ? `${planned.className} (dự kiến)` : 'Chưa xếp lớp');
+
+/** Câu ở hồ sơ trẻ có đăng ký năm học sau (CHD-11). */
+export const plannedAdmissionNotice = (planned) =>
+  `Đăng ký năm học ${planned.schoolYearName}, ${planned.className ? `lớp dự kiến ${planned.className}` : 'chưa xếp lớp'}, vào học từ ${formatDate(planned.startDate)}. Xếp, đổi lớp dự kiến ở Xếp lớp năm học mới.${planned.className ? '' : ' Phải xếp lớp trước khi kích hoạt năm học; không xếp được thì cho nghỉ học để hủy đăng ký.'}`;
 
 /** Nhóm tuổi theo id trong danh sách (BE id số/chuỗi, mock 'ag-*'); không có ⇒ null. */
 export const ageGroupIn = (ageGroups, id) => ageGroups.find((g) => id != null && String(g.id) === String(id)) || null;
@@ -51,6 +68,9 @@ export const hasHealthWarning = (m) => (!!m.bmiStatus && m.bmiStatus !== 'NORMAL
 export const defaultCampusId = (campuses, user) =>
   campuses.length === 1 ? campuses[0].id : campuses.some((c) => c.id === user?.campusId) ? user.campusId : '';
 
+/** Điểm trường đã chọn còn trong danh sách (đổi năm tiếp nhận, G94-180/CHD-02) thì giữ; không thì null để dùng mặc định. */
+export const keepCampusPick = (pick, campuses) => (pick != null && campuses.some((c) => String(c.id) === String(pick)) ? pick : null);
+
 export const emptyGuardian = () => ({ fullName: '', relation: 'Mẹ', phone: '', idNumber: '', email: '' });
 
 /**
@@ -75,7 +95,9 @@ export const emptyChildInfo = () => ({
   profile: emptyChildProfile(),
 });
 
+// CHD-13: mặc định trẻ ăn ở trường (báo ăn).
 export const emptyDeclaration = () => ({
+  mealRegistered: true,
   allergies: { state: 'NOT_PROVIDED', items: [] },
   diet: { state: 'NOT_PROVIDED', text: '' },
   otherNotes: { state: 'NOT_PROVIDED', text: '' },

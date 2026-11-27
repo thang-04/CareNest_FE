@@ -38,15 +38,15 @@ const LINKS = {
     icon: House,
     to: '/',
   },
+  adminAccounts: {
+    label: 'Tài khoản',
+    icon: ShieldCheck,
+    to: '/school/staff',
+  },
   approvals: {
     label: 'Chờ duyệt',
     icon: ListChecks,
     to: '/approvals',
-  },
-  notifications: {
-    label: 'Thông báo',
-    icon: Bell,
-    to: '/notifications',
   },
   // BE meal-management-permissions.md mục 1: "Bán trú hôm nay" là một trang, không có mục con
   boardingToday: {
@@ -58,6 +58,7 @@ const LINKS = {
 
 /** Groups: same label + icon for every role. */
 const GROUPS = {
+  notifications: { label: 'Thông báo', icon: Bell },
   school: {
     label: 'Cấu hình trường',
     icon: CalendarDots,
@@ -110,6 +111,10 @@ const MENU_TEMPLATE_API = !USE_MOCK && INTEGRATION_MODULES['menu-template']?.sou
 
 /** Sub-menu items. */
 const ITEMS = {
+  notifications: { label: 'Thông báo của tôi', to: '/notifications' },
+  announcements: { label: 'Thông báo nhà trường', to: '/announcements' },
+  // `also`: tạo/sửa/chi tiết lịch gửi nằm ở đường dẫn riêng nhưng vẫn thuộc mục này
+  notificationSettings: { label: 'Cấu hình thông báo', to: '/notification-settings', also: ['/announcement-schedules/'] },
   schoolYears: {
     label: 'Năm học',
     to: '/school/years',
@@ -178,10 +183,6 @@ const ITEMS = {
   healthChecks: {
     label: 'Đợt khám, kỳ cân đo',
     to: '/children/health-checks',
-  },
-  healthFollowUps: {
-    label: 'Phiếu theo dõi sức khỏe',
-    to: '/children/health-follow-ups',
   },
   healthTrends: {
     label: 'Xu hướng sức khỏe',
@@ -317,7 +318,7 @@ const ITEMS = {
     to: '/assessment/rewards',
   },
   nutritionSetup: {
-    label: 'Cấu hình nhóm tuổi',
+    label: 'Định mức dinh dưỡng',
     to: '/menu/setup',
   },
   foods: {
@@ -374,7 +375,7 @@ const ITEMS = {
     to: '/kitchen/dry-stock',
   },
   freshReceipts: {
-    label: 'Kiểm nhận hàng tươi',
+    label: 'Kiểm nhận hàng hôm nay',
     to: '/kitchen/fresh-receipts',
   },
   inspections: {
@@ -415,6 +416,8 @@ const group = (key, itemKeys) => ({
   })),
 });
 const account = group('system', ['profile', 'signatures', 'password']);
+// BUG-005: Admin kỹ thuật không ký hồ sơ nào ⇒ nhóm Hệ thống không có "Chữ ký"
+const adminAccount = group('system', ['profile', 'password']);
 // Nhãn khu trên sidebar: các mục liền nhau cùng `section` được Sidebar gom dưới một nhãn
 const BOARDING_SECTION = 'Bán trú';
 // Khu bán trú: "Bán trú hôm nay" đứng đầu, rồi năm nhóm theo thứ tự cố định; nhóm không có mục nào thì bỏ
@@ -435,6 +438,7 @@ const MENUS = {
   [ROLES.PRINCIPAL]: [
     link('home'),
     link('approvals'),
+    group('notifications', ['notifications', 'announcements', 'notificationSettings']),
     group('school', [
       'schoolYears',
       'schoolPlacement',
@@ -481,11 +485,11 @@ const MENUS = {
       catalog: ['foods', 'dishes', 'nutritionSetup', 'suppliers'],
     }),
     account,
-    link('notifications'),
   ],
   [ROLES.VICE_PRINCIPAL]: [
     link('home'),
     link('approvals'),
+    group('notifications', ['notifications', 'announcements', 'notificationSettings']),
     group('school', [
       'schoolYears',
       'schoolPlacement',
@@ -512,18 +516,18 @@ const MENUS = {
       'assessDayUnlocks',
     ]),
     ...boardingSection({
-      nutrition: ['weeklyMenus', 'menuStatistics', 'menus', 'nutrition'],
+      nutrition: ['weeklyMenus', 'nutrition', 'menuStatistics', 'menus'],
       kitchenOps: ['mealCount', 'publishedMenu', 'forecast', 'freshReceipts'],
       stock: ['dryStock', 'stockReceipts', 'stockHistory', 'stockShortfalls'],
       foodSafety: ['inspections', 'foodSamples', 'mealPhotos'],
       catalog: ['foods', 'dishes', 'nutritionSetup', 'suppliers'],
     }),
     account,
-    link('notifications'),
   ],
   [ROLES.TEAM_LEADER]: [
     link('home'),
     link('approvals'),
+    group('notifications', ['notifications']),
     group('children', ['childList', 'healthChecks', 'healthTrends']),
     group('attendance', ['attendance', 'attendanceSummary', 'leaveRequests', 'pickup']),
     group('education', [
@@ -550,10 +554,10 @@ const MENUS = {
       'assessProfiles',
     ]),
     account,
-    link('notifications'),
   ],
   [ROLES.TEACHER]: [
     link('home'),
+    group('notifications', ['notifications']),
     group('children', ['childList', 'childNewYearClass', 'healthChecks', 'healthTrends']),
     group('attendance', ['attendance', 'attendanceSummary', 'leaveRequests', 'pickup']),
     group('education', ['eduSchoolYear', 'eduGoals', 'eduBranch', 'eduThemePlans', 'eduDayPlans', 'eduResources', 'eduCurriculum']),
@@ -570,10 +574,11 @@ const MENUS = {
       'assessProfiles',
     ]),
     account,
-    link('notifications'),
   ],
   // AUTH-21: bếp chỉ dùng App, Web không có màn bán trú cho bếp
-  [ROLES.KITCHEN_STAFF]: [link('home'), account, link('notifications')],
+  [ROLES.KITCHEN_STAFF]: [link('home'), group('notifications', ['notifications']), account],
+  // BUG-005: Admin quản trị kỹ thuật — chỉ màn tài khoản + Hồ sơ/Đổi mật khẩu, không nghiệp vụ trẻ
+  [ROLES.ADMIN]: [link('adminAccounts'), adminAccount],
 };
 
 /** "Phân công giáo viên" follows the permission of the Role & Permission screen; every other item stays role-based. */
@@ -713,7 +718,10 @@ const withApiOnlyItems = (menu) =>
 // hiddenItems: mục cần ẩn theo dữ liệu tải sau (vd. "Duyệt kế hoạch giáo dục" của Hiệu trưởng khi Hiệu trưởng không ký)
 export const getMenuForRole = (role, user, hiddenItems = []) =>
   withApiOnlyItems(
-    withBePermissions(withVpAreas(withTeacherAssignment(MENUS[role] || [link('home'), account, link('notifications')], user), user), user),
+    withBePermissions(
+      withVpAreas(withTeacherAssignment(MENUS[role] || [link('home'), group('notifications', ['notifications']), account], user), user),
+      user,
+    ),
   )
     .map((e) => (e.children && hiddenItems.length ? { ...e, children: e.children.filter((c) => !hiddenItems.includes(c.key)) } : e))
     .filter((e) => !e.children || e.children.length > 0);

@@ -16,8 +16,9 @@ import { Eye, MapPin, Pencil, Tag, Trash2 } from '@/components/ui/icons';
 import { useAsync } from '@/hooks/useAsync';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { resourceLibraryService as api } from '@/services/education-plan/resourceLibraryService';
-import { AGE_GROUPS, EDU_STATUS_LABELS } from '@/models/education-plan/educationPlanConstants';
+import { AGE_GROUPS, EDU_STATUS_LABELS, ageRangeOptions } from '@/models/education-plan/educationPlanConstants';
 import { mondayOf } from '@/models/education-plan/classPlan';
+import { sameSchoolYearId } from '@/models/education-plan/schoolYearScope.mjs';
 import {
   KIND_LABELS,
   deletableText,
@@ -42,6 +43,11 @@ const themeLabel = (t) => (t.schoolYearName ? `${t.name} · ${t.schoolYearName}`
  * năm học. Đổi tên, sửa nhãn, xem nơi đang dùng, xóa vĩnh viễn (BE khóa khi giáo án Chờ duyệt / chưa qua ngày dạy — 7137).
  */
 export default function ResourceLibraryPage() {
+  const { user, schoolYearId } = useEducationPlan();
+  return <ResourceLibraryForYear key={JSON.stringify([user.id, schoolYearId])} schoolYearId={schoolYearId} />;
+}
+
+function ResourceLibraryForYear({ schoolYearId }) {
   const { user, toast } = useEducationPlan();
   const [query, setQuery] = useState('');
   const [kind, setKind] = useState('');
@@ -60,25 +66,30 @@ export default function ResourceLibraryPage() {
         kind,
         ageGroupId: ageGroupId || null,
         teachThemeName: chosen?.name,
-        schoolYearId: chosen?.schoolYearId,
+        schoolYearId,
         page,
         size: 50,
       }),
-    [user, query, kind, ageGroupId, theme, page],
-    { refreshOnDataChange: true },
+    [user.id, schoolYearId, query, kind, ageGroupId, theme, page],
+    { enabled: schoolYearId != null, refreshOnDataChange: true },
   );
-  const items = list.data?.items || [];
+  const items = (list.data?.items || []).map((item) => ({
+    ...item,
+    taughtThemes: (item.taughtThemes || []).filter((t) => sameSchoolYearId(t.schoolYearId, schoolYearId)),
+  }));
   const total = list.data?.totalElements || 0;
   // Danh sách chủ đề để lọc = chủ đề đã dạy của học liệu đã tải (giữ lại qua các lần lọc)
   useEffect(() => {
-    const seen = (list.data?.items || []).flatMap((r) => r.taughtThemes || []);
+    const seen = (list.data?.items || [])
+      .flatMap((r) => r.taughtThemes || [])
+      .filter((t) => sameSchoolYearId(t.schoolYearId, schoolYearId));
     if (!seen.length) return;
     setThemes((prev) => {
       const all = new Map(prev.map((t) => [themeKey(t), t]));
       seen.forEach((t) => all.set(themeKey(t), t));
       return all.size === prev.length ? prev : [...all.values()].sort((a, b) => themeLabel(a).localeCompare(themeLabel(b), 'vi'));
     });
-  }, [list.data]);
+  }, [list.data, schoolYearId]);
 
   const menuOf = (r) => [
     { label: 'Xem', icon: Eye, onClick: () => setModal({ type: 'view', item: r }) },
@@ -175,7 +186,7 @@ export default function ResourceLibraryPage() {
               label="Nhóm tuổi"
               value={ageGroupId}
               onChange={setAgeGroupId}
-              options={[{ value: '', label: 'Tất cả' }, ...AGE_GROUPS.map((g) => ({ value: String(g.id), label: g.name }))]}
+              options={[{ value: '', label: 'Tất cả' }, ...ageRangeOptions().map((g) => ({ value: String(g.id), label: g.name }))]}
             />
           </div>
           <FilterChips

@@ -447,3 +447,23 @@ test('a failed password reset after offline logout cannot reopen bootstrap of an
   assert.equal(requests.length, httpBeforeReload);
   assert.equal(tokenStorage.get(), null);
 });
+
+test('hasStoredSession is true after a gateway login and false after logout or an unreadable store', async () => {
+  assert.equal(auth.hasStoredSession(), false);
+  await auth.login({ identifier: 'staff-test', password: 'test-password' }); // carenest:allow-secret
+  tokenStorage.clear(); // tải lại trang: token trong RAM mất, metadata còn
+  assert.equal(auth.hasStoredSession(), true);
+  await auth.logout();
+  assert.equal(auth.hasStoredSession(), false);
+  await auth.login({ identifier: 'staff-test', password: 'test-password' }); // carenest:allow-secret
+  tokenStorage.clear();
+  const original = localStorage.getItem;
+  localStorage.getItem = () => {
+    throw new Error('storage blocked');
+  };
+  try {
+    assert.equal(auth.hasStoredSession(), false);
+  } finally {
+    localStorage.getItem = original;
+  }
+});

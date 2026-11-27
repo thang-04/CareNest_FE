@@ -1,3 +1,4 @@
+import { WHO_HEAD_CIRCUMFERENCE_FOR_AGE } from './whoHeadCircumferenceForAge';
 import { FOLLOW_UP_LEVEL, HEAD_CIRCUMFERENCE_STATUS } from '@/models/children/childrenConstants';
 import {
   CLINICAL_ITEMS,
@@ -39,7 +40,14 @@ const TEMPERATURE = { feverFrom: 37.5, hypothermiaBelow: 36 };
 
 // Chuẩn vòng đầu WHO chỉ tới 60 tháng ⇒ trẻ lớn hơn không đo vòng đầu.
 const HEAD_MAX_AGE_MONTHS = 60;
-const headBand = (ageMonths) => ({ low: 45.5 + (ageMonths - 24) * 0.06, high: 51 + (ageMonths - 24) * 0.06 });
+// Khoảng −2SD..+2SD của bảng WHO theo giới tính, tháng tuổi, làm tròn 1 chữ số (BE:WhoHeadCircumferenceForAge, user chốt 2026-11-22)
+const headBand = (gender, ageMonths) => {
+  const lms = WHO_HEAD_CIRCUMFERENCE_FOR_AGE[gender]?.[ageMonths];
+  if (!lms) return null;
+  const [l, m, s] = lms;
+  const at = (z) => Math.round(m * Math.pow(1 + l * s * z, 1 / l) * 10) / 10;
+  return { low: at(-2), high: at(2) };
+};
 
 export const ageMonthsOn = (dateOfBirth, on) => {
   const [y1, m1, d1] = dateOfBirth.split('-').map(Number);
@@ -47,8 +55,8 @@ export const ageMonthsOn = (dateOfBirth, on) => {
   return (y2 - y1) * 12 + (m2 - m1) - (d2 < d1 ? 1 : 0);
 };
 
-/** Khoảng tham khảo theo tuổi tại ngày khám, BE trả cho form phiếu khám. */
-export const examReferenceFor = (dateOfBirth, on) => {
+/** Khoảng tham khảo theo tuổi tại ngày khám, BE trả cho form phiếu khám; thiếu giới tính ⇒ không có khoảng vòng đầu. */
+export const examReferenceFor = (dateOfBirth, on, gender) => {
   const ageMonths = ageMonthsOn(dateOfBirth, on);
   const band = VITAL_BANDS.find((b) => ageMonths <= b.maxMonths);
   const headApplies = ageMonths <= HEAD_MAX_AGE_MONTHS;
@@ -56,7 +64,7 @@ export const examReferenceFor = (dateOfBirth, on) => {
   return {
     ageMonths,
     vitals: { label: band.label, pulse: band.pulse, respiratoryRate: band.respiratoryRate, temperature: TEMPERATURE },
-    head: headApplies ? headBand(ageMonths) : null,
+    head: headApplies ? headBand(gender, ageMonths) : null,
     headApplies,
     autismQuestion: ageMonths >= autism[0] && ageMonths <= autism[1],
     label: VITAL_REFERENCE.label,

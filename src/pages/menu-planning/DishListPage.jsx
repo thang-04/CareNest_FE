@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { AlertCircle, BookOpen, CircleCheck, Copy, Plus, RotateCcw, Soup } from '@/components/ui/icons';
+import { BookOpen, Copy, Plus, RotateCcw, Soup } from '@/components/ui/icons';
 import { useDishes, useCatalogAccess, useCatalogLookups } from '@/hooks/menu-planning/useMenuPlanning';
 import { useFilterParams } from '@/hooks/useFilterParams';
-import { Breadcrumb } from '@/components/ui/Breadcrumb';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { usePageReadOnly } from '@/contexts/PageReadOnlyContext';
 import { Pagination, paginate } from '@/components/ui/Pagination';
 import { EmptyState, ErrorState, SkeletonRows } from '@/components/ui/States';
 import { FilterMore } from '@/components/ui/FilterMore';
@@ -11,7 +12,6 @@ import { FilterChips } from '@/components/ui/FilterChips';
 import { SearchSubmit } from '@/components/ui/SearchSubmit';
 import { RowActions } from '@/components/ui/RowActions';
 import { clickableRowProps } from '@/utils/clickableRow';
-import { StatusBadge } from '@/components/ui/StatusBadge';
 import { AllergenChips, DishStatusBadge } from '@/components/menu-planning/MenuBadges';
 import { CategoryNav } from '@/components/ui/CategoryNav';
 import { ReferenceLibraryPanel } from '@/components/menu-planning/ReferenceLibraryPanel';
@@ -20,20 +20,22 @@ import { activeAgeGroups, ageAbbr } from '@/utils/menu-planning/nutritionSetup';
 import { dishCrumbs } from '@/utils/menu-planning/breadcrumbs';
 import { ALLERGENS, DISH_STATUS, DISH_STATUS_LABELS, DISH_TYPE_LABELS } from '@/models/menu-planning/menuPlanningConstants';
 import '@/styles/modules/menu-planning.css';
+import { Button, SelectField } from '@/components';
 
 const PAGE = 8;
-const FILTER_DEFAULTS = { type: '', keyword: '', portion: '', allergen: '', status: '' };
+const FILTER_DEFAULTS = { type: '', keyword: '', allergen: '', status: '' };
 
 /** Bước 2 luồng dinh dưỡng – danh mục món ăn: loại món bên trái, bảng bên phải; bấm món để mở trang sửa. */
 export default function DishListPage() {
   const navigate = useNavigate();
   const { canManage } = useCatalogAccess();
+  const { reason: viewOnlyReason } = usePageReadOnly();
   // Chỉ xem (không có quyền sửa danh mục) ⇒ bỏ cột Thao tác; bấm dòng vẫn mở chi tiết
-  const colCount = canManage ? 6 : 5;
+  const colCount = canManage ? 5 : 4;
   const { catalog } = useCatalogLookups();
   // Bộ lọc lưu trên URL: mở món rồi Back vẫn giữ loại món, từ khóa và bộ lọc phụ
   const [filters, setFilters, resetFilters, activeKeys] = useFilterParams(FILTER_DEFAULTS);
-  const { keyword, type, portion, allergen, status } = filters;
+  const { keyword, type, allergen, status } = filters;
   const [page, setPage] = useState(1);
   const [library, setLibrary] = useState(false);
   // Lọc loại món ở client để danh mục bên trái đếm đúng theo các bộ lọc còn lại
@@ -41,7 +43,7 @@ export default function DishListPage() {
   const groups = activeAgeGroups(catalog.nutritionSetups);
   const groupIds = groups.map((g) => g.id);
   const missingOf = (d) => missingPortionGroups(d, groupIds);
-  const rows = items.filter((d) => (!type || d.type === type) && (!portion || missingOf(d).length > 0));
+  const rows = items.filter((d) => !type || d.type === type);
   const filtered = activeKeys.length > 0;
   const safePage = Math.min(page, Math.max(1, Math.ceil(rows.length / PAGE)));
   const open = (d) => navigate(`/menu/dishes/${d.id}`);
@@ -56,7 +58,6 @@ export default function DishListPage() {
   const chipLabels = {
     keyword: `Từ khóa: ${keyword}`,
     type: `Loại món: ${DISH_TYPE_LABELS[type] || type}`,
-    portion: 'Thiếu định lượng',
     allergen: `Chứa ${allergen}`,
     status: `Trạng thái: ${DISH_STATUS_LABELS[status] || status}`,
   };
@@ -68,58 +69,58 @@ export default function DishListPage() {
 
   return (
     <div className="page">
-      <Breadcrumb items={dishCrumbs()} />
-      <div className="page__head">
-        <div>
-          <h1 className="page__title">Món ăn</h1>
-        </div>
-        <div className="page__actions">
-          <button type="button" className="btn" onClick={() => setLibrary(true)}>
-            <BookOpen size={16} /> Thư viện tham khảo
-          </button>
-          {canManage && (
-            <Link to="/menu/dishes/new" className="btn btn--primary">
-              <Plus size={16} /> Thêm món ăn
-            </Link>
-          )}
-        </div>
-      </div>
+      <PageHeader
+        crumbs={dishCrumbs()}
+        title="Món ăn"
+        readOnly={!canManage}
+        actions={
+          <div className="page__actions">
+            <Button icon={BookOpen} onClick={() => setLibrary(true)}>
+              Thư viện tham khảo
+            </Button>
+            <Button
+              variant="primary"
+              icon={Plus}
+              onClick={() => navigate('/menu/dishes/new')}
+              disabledReason={canManage ? undefined : viewOnlyReason}
+            >
+              Thêm món ăn
+            </Button>
+          </div>
+        }
+      />
       <section className="card td-split-nav">
         <CategoryNav title="Loại món ăn" items={navItems} value={type} onChange={change('type')} />
         <div className="td-split-nav__main">
           <div className="filter-bar">
             <SearchSubmit className="td-grow" value={keyword} placeholder="Tìm tên món ăn" label="Tìm món" onSearch={change('keyword')} />
-            <select className="select" value={portion} onChange={(e) => change('portion')(e.target.value)} aria-label="Định lượng">
-              <option value="">Tất cả định lượng</option>
-              <option value="MISSING">Thiếu định lượng</option>
-            </select>
             <FilterMore count={[allergen, status].filter(Boolean).length}>
               <label className="field">
                 <span className="field__label">Chất gây dị ứng</span>
-                <select className="select" value={allergen} onChange={(e) => change('allergen')(e.target.value)}>
+                <SelectField className="select" value={allergen} onChange={(e) => change('allergen')(e.target.value)}>
                   <option value="">Mọi chất gây dị ứng</option>
                   {ALLERGENS.map((a) => (
                     <option key={a} value={a}>
                       Chứa {a}
                     </option>
                   ))}
-                </select>
+                </SelectField>
               </label>
               <label className="field">
                 <span className="field__label">Trạng thái</span>
-                <select className="select" value={status} onChange={(e) => change('status')(e.target.value)}>
+                <SelectField className="select" value={status} onChange={(e) => change('status')(e.target.value)}>
                   <option value="">Tất cả trạng thái</option>
                   {Object.entries(DISH_STATUS_LABELS).map(([k, v]) => (
                     <option key={k} value={k}>
                       {v}
                     </option>
                   ))}
-                </select>
+                </SelectField>
               </label>
             </FilterMore>
-            <button type="button" className="btn" onClick={reset} disabled={!filtered}>
+            <Button onClick={reset} disabled={!filtered}>
               <RotateCcw size={15} /> Đặt lại bộ lọc
-            </button>
+            </Button>
           </div>
           <FilterChips count={loading ? null : rows.length} unit="món" chips={chips} />
           {error ? (
@@ -133,7 +134,6 @@ export default function DishListPage() {
                     <th>Tên món ăn</th>
                     <th className="center">Loại món</th>
                     <th>Nhóm tuổi áp dụng</th>
-                    <th className="center">Định lượng</th>
                     {canManage && <th className="cell--actions">Thao tác</th>}
                   </tr>
                 </thead>
@@ -149,9 +149,9 @@ export default function DishListPage() {
                           description={filtered ? 'Thử đổi từ khóa hoặc bộ lọc.' : 'Thêm món hoặc chọn từ thư viện tham khảo.'}
                           action={
                             filtered ? (
-                              <button className="btn" onClick={reset}>
+                              <Button onClick={reset}>
                                 <RotateCcw size={15} /> Đặt lại bộ lọc
-                              </button>
+                              </Button>
                             ) : (
                               canManage && (
                                 <Link className="btn btn--primary" to="/menu/dishes/new">
@@ -180,13 +180,6 @@ export default function DishListPage() {
                               .filter((id) => !missing.includes(id))
                               .map(ageAbbr)
                               .join(' · ') || '—'}
-                          </td>
-                          <td className="center">
-                            {missing.length ? (
-                              <StatusBadge tone="orange" icon={AlertCircle} label={`Thiếu ${missing.map(ageAbbr).join(', ')}`} />
-                            ) : (
-                              <StatusBadge tone="green" icon={CircleCheck} label="Đủ" />
-                            )}
                           </td>
                           {canManage && (
                             <td className="cell--actions">

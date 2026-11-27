@@ -6,6 +6,9 @@
  * - `group`: tên nhóm cột liền kề ở hàng tiêu đề trên (Nơi cung cấp, Kiểm tra điều kiện vệ sinh).
  * `readOnly` = BE điền sẵn từ thực đơn, suất, hàng nhập.
  */
+/** Độ dài tối đa của ô văn bản một dòng biên bản (BE từ chối dài hơn: InspectionColumns.MAX_TEXT). */
+export const MAX_CELL_TEXT = 500;
+
 export const INSPECTION_TAB = { FRESH: 'fresh', DRY: 'dry', PROCESS: 'process', SERVE: 'serve', SAMPLE: 'sample' };
 export const INSPECTION_TAB_ORDER = [
   INSPECTION_TAB.FRESH,
@@ -67,7 +70,7 @@ export const INSPECTION_FORMS = {
   },
 };
 
-/** Biến thể in: M3 gộp lưu mẫu (B3) và M4 nhãn mẫu lập từ dữ liệu M5. */
+/** Biến thể in: M3 gộp lưu mẫu (B3) và M4 nhãn mẫu lập từ món của M3. */
 export const INSPECTION_VARIANT_FORMS = {
   combined: {
     step: 'B3',
@@ -87,10 +90,9 @@ export const INSPECTION_PRINT_VARIANTS = {
     { key: 'main', label: 'M3 · Kiểm tra trước khi ăn' },
     { key: 'combined', label: 'M3 gộp · Kiểm tra và lưu mẫu' },
   ],
-  sample: [
-    { key: 'main', label: 'M5 · Theo dõi lưu và hủy mẫu' },
-    { key: 'label', label: 'M4 · Nhãn mẫu thức ăn lưu' },
-  ],
+  // M4 không phải biên bản: chỉ in nhãn từ thẻ riêng
+  m4: [{ key: 'label', label: 'M4 · Nhãn mẫu thức ăn lưu' }],
+  sample: [{ key: 'main', label: 'M5 · Theo dõi lưu và hủy mẫu' }],
 };
 
 export const STORAGE_OPTIONS = [
@@ -188,6 +190,39 @@ export const INSPECTION_COMBINED_COLUMNS = [...INSPECTION_COLUMNS.serve, ...SAMP
 
 export const INSPECTION_STATUS = { DRAFT: 'DRAFT', SIGNED: 'SIGNED' };
 export const INSPECTION_STATUS_LABELS = { DRAFT: 'Chưa ký', SIGNED: 'Đã ký' };
+
+/*
+ * Mở ghi mẫu của ngày đã qua cần Hiệu trưởng duyệt (INS-05, BE `docs/business/BUSINESS_RULES.md`). Trạng thái, hạn và quyền gửi yêu cầu
+ * do BE trả theo từng mẫu; Web chỉ hiển thị và gửi yêu cầu, không tự suy ra ngày nào bị khóa.
+ */
+export const APPROVAL_STATUS = {
+  PENDING: 'PENDING',
+  APPROVED: 'APPROVED',
+  REJECTED: 'REJECTED',
+  REVOKED: 'REVOKED',
+  CONSUMED: 'CONSUMED',
+  EXPIRED: 'EXPIRED',
+};
+export const APPROVAL_STATUS_LABELS = {
+  PENDING: 'Chờ HT duyệt',
+  APPROVED: 'Đang được mở',
+  REJECTED: 'HT đã từ chối',
+  REVOKED: 'HT đã thu hồi',
+  CONSUMED: 'Đã ký xong',
+  EXPIRED: 'Hết hạn mở',
+};
+/** Mã lỗi BE khi ghi mẫu ngày cũ mà chưa có quyền mở (ApiCode INSPECTION_APPROVAL_REQUIRED). */
+export const INSPECTION_APPROVAL_REQUIRED = 6116;
+/** Hạn mở HT chọn khi duyệt hoặc tự mở (giờ); BE mặc định 48 giờ và giới hạn tối đa. */
+export const APPROVAL_HOUR_OPTIONS = [
+  { value: '6', label: '6 giờ' },
+  { value: '24', label: '24 giờ' },
+  { value: '48', label: '48 giờ (mặc định)' },
+  { value: '72', label: '72 giờ' },
+  { value: '168', label: '7 ngày' },
+];
+export const APPROVAL_REASON_MIN = 3;
+export const APPROVAL_TEXT_MAX = 500;
 
 /** Ô ký tay (ký sau khi in) cạnh ô "Người kiểm tra" do PHT ký ảnh. */
 export const INSPECTION_HAND_SIGN_LABELS = {

@@ -1,4 +1,4 @@
-# Thẻ hoạt động gắn MT, Bảng phủ MT, kế hoạch tuần theo hồ sơ chủ đề
+# Thẻ hoạt động gắn MT, Bảng phủ MT, kế hoạch tuần theo kế hoạch giáo dục ngày
 
 Nguồn: `BE:docs/business/BUSINESS_RULES.md` EDU-78, EDU-79, EDU-80; spec `specs/006-activity-cards-mt-map` (Tiền 12/11/2026).
 BE quyết định kiểm thẻ, MT của lượt xếp, bản tuần hiệu lực (`effectiveWeek`) và chặn gửi (7396/7397); màn chỉ hiển thị.
@@ -20,7 +20,7 @@ BE quyết định kiểm thẻ, MT của lượt xếp, bản tuần hiệu l�
   nhiều ô, nhiều tuần. Thẻ dòng học tên "Môn: đề tài" điền Môn và Đề tài.
 - Ô gõ tay: chip đỏ "Chưa gắn MT" + nút "Gán mục tiêu" (đổi tên từ "Tạo thẻ từ hoạt động này", Tiền 14/11/2026). Trang Kế hoạch tuần: thẻ thêm vào kế hoạch chủ đề (lưu chủ đề
   ngay), ô trỏ tới thẻ, tuần lưu khi bấm Lưu. Trang ngày (sửa theo hồ sơ): thẻ lưu kèm `day.content.week.cards`, nhãn "Bổ sung theo
-  hồ sơ chủ đề".
+  kế hoạch giáo dục ngày".
 - Dòng tổng dưới bảng: lượt xếp, MT tuần phủ, ô gõ tay chưa MT, MT cả chủ đề đã phủ/tổng, MT còn thiếu (link tab Bảng phủ MT).
 
 ## Tab "Bảng phủ MT" (`CoverageTab`, `?tab=coverage` của trang kế hoạch chủ đề)
@@ -33,18 +33,21 @@ BE quyết định kiểm thẻ, MT của lượt xếp, bản tuần hiệu l�
 
 ## Trang Kế hoạch giáo dục ngày
 
-- Tab "Kế hoạch tuần" sửa được khi gói học kỳ chứa chủ đề đã ban hành, hồ sơ chủ đề còn sửa được và trước ngày bắt đầu chủ đề;
+- Tab "Kế hoạch tuần" sửa được khi kế hoạch giáo dục chủ đề chứa chủ đề đã ban hành, kế hoạch giáo dục ngày còn sửa được và trước ngày bắt đầu chủ đề;
   ngoài khoảng đó chỉ xem. Lưu cùng nút Lưu của giáo án ngày (khóa `week` của `day`, chỉ khi khác bản theo kỳ).
 - Ô khác bản theo kỳ có chữ "Khác bản theo kỳ"; nhãn "Đã sửa theo chủ đề", "Bản theo kỳ đã đổi" (mốc `week.base`).
 - Mỗi ngày: dòng "MT trong ngày" (chip MT); mục có hoạt động gõ tay có chip "chưa gắn MT"; ô a) còn trống được điền sẵn
   "- MTn: câu MT" một lần; thẻ bị bỏ khỏi ô tuần sau khi soạn ngày ⇒ "Đã đổi ở kế hoạch tuần" (chữ cô viết giữ nguyên).
-- Gửi hồ sơ chủ đề bị 7396/7397 ⇒ chữ đỏ nhỏ căn phải "MT chưa được dạy ngày nào: MT…" (từ `data.details`).
+- Gửi kế hoạch giáo dục ngày bị 7396/7397 ⇒ chữ đỏ nhỏ căn phải "MT chưa được dạy ngày nào: MT…" (từ `data.details`).
 
-## Gói học kỳ (`ClassPlanPage`)
+## Kế hoạch giáo dục chủ đề (`ClassPlanPage`)
 
-- Hộp xác nhận gửi gói học kỳ liệt kê MT chưa dạy ngày nào (chỉ cảnh báo); học kỳ cuối BE chặn 7397.
+- Hộp xác nhận gửi kế hoạch giáo dục chủ đề liệt kê MT chưa dạy ngày nào (chỉ cảnh báo); học kỳ cuối BE chặn 7397.
 
 - Tiền 13/11/2026 (nhập nhanh thẻ hoạt động): đầu phần I hiện dòng đếm xám "N mục tiêu · M chưa có hoạt động". Thẻ mới tích sẵn mọi nội dung của MT đang đứng (bỏ tích được), mặc định loại giờ vừa dùng ở thẻ trước, Enter ở ô tên là lưu; lưu thiếu thông tin thì con trỏ tới ô lỗi đầu tiên. Ô tên tắt tự điền của trình duyệt (từng bị điền email đăng nhập).
+- **Tiền 25/11/2026 (AI điền thẳng vào bảng, đồng bộ 2 trang):** gợi ý AI không mở hộp riêng. Kế hoạch chủ đề: thẻ hoạt động AI thêm thẳng vào ô MT; giáo án ngày: AI điền thẳng ô "Hoạt động của cô/trẻ". Ô/thẻ AI có ✓ (giữ) / ✗ (bỏ) ở góc dưới bên phải (`AiPick`, reviewUi), ô tiến trình viền xanh (`ga-cell--ai` sẵn có). Đánh dấu chờ chỉ ở màn hình (không ghi vào kế hoạch/giáo án, bỏ `days[].aiSteps`); **Lưu = giữ hết** (lưu xong xóa đánh dấu). Tham khảo RAG hiện dưới thẻ chờ / cạnh nhãn AI của ngày.
+- **Tiền 25/11/2026 (AI): AI không nằm trong menu "Thao tác". Kế hoạch chủ đề: nút riêng "Gợi ý AI cho MT chưa có hoạt động" ở đầu phần I + nút ngôi sao "Gợi ý AI cho MT này" cạnh nút "+" ở từng dòng MT (gọi BE `POST /ai/activities` với 1 MT, kể cả MT đã có hoạt động); bỏ dòng đỏ "N MT chưa có hoạt động giáo dục … nên kế hoạch tuần sẽ không có gợi ý". Giáo án ngày: nút riêng "AI gợi ý tiến trình giờ học" (`POST /ai/lesson-steps`) và "Sửa theo yêu cầu (AI)" cạnh menu Thao tác. Nút đang chạy khóa + spinner (`Button loading`).**
+- **Tiền 25/11/2026: bỏ ô gõ nhanh, "Gõ nhanh: loại giờ" và "Lấy hoạt động năm trước" (xóa `ImportActivitiesModal`, `activityImport.mjs`); thêm hoạt động chỉ qua nút "+" (hộp đầy đủ); giữ "Gợi ý hoạt động (AI)". Hai dòng 13/11 dưới đây còn để tra lịch sử.**
 - Tiền 13/11/2026 (phần 4): ô "Gõ tên hoạt động, Enter" ở mỗi dòng MT dùng "Loại giờ khi gõ nhanh" ở đầu phần I (chưa chọn ⇒ mở hộp đầy đủ, điền sẵn tên). "Lấy hoạt động năm trước": kế hoạch chủ đề đã ban hành của lớp mình ở các năm trước, cùng tên chủ đề, theo phạm vi BE trả; ghép MT/nội dung theo câu chữ (`models/education-plan/activityImport.mjs`), thẻ không ghép được thì báo. "Gợi ý hoạt động (AI)": mở rộng EDU-20 PROPOSED, chỉ `services/education-plan/mock/activityAiMock.js` (BE chưa có API, không gọi HTTP), hộp duyệt Dùng/Bỏ từng gợi ý, "Dùng tất cả".
 - Tiền 13/11/2026 (gọn trang): menu "Lấy / gợi ý hoạt động" (Lấy năm trước, Gợi ý AI) ở trái hàng nút, đặt bằng portal vào chỗ trang cấp (`toolsTarget`); đầu phần I còn menu "Mục tiêu" (Tùy chọn / Khôi phục) và "Gõ nhanh: loại giờ"; cảnh báo MT chưa có hoạt động ghi số + 5 MT đầu (đủ danh sách ở title); mỗi dòng: ô gõ nhanh + nút "+" mở hộp đầy đủ; thẻ tên một dòng.
 - Tiền 13/11/2026 (đồng bộ trang): bỏ "Kiểu hiển thị" (dạng cây) ở kế hoạch chủ đề. Tab Bảng phủ MT: thẻ "Bảng phủ mục tiêu" thu gọn được (theo "Thu gọn tất cả"), dòng đếm "Đã phủ x/y mục tiêu" ở đầu thẻ, ô "Lọc mục tiêu" trong thẻ (không ở hàng lọc trang). Kế hoạch ngày: menu "Lấy / gợi ý" (Lấy từ kế hoạch tuần, Dùng lại bài đã soạn, AI gợi ý tiến trình) ở trái hàng nút cạnh "Dạy học ngày này"; "III. Học liệu theo mục hoạt động" thu gọn được.

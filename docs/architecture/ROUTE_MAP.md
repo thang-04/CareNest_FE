@@ -109,3 +109,8 @@ User chốt bỏ màn `/assessment/periodic` cho GV (cả tổ trưởng), PHT, 
 ## Kết quả mục tiêu cuối chủ đề — 05/11/2026
 
 OBS-27: BE tính từng mục tiêu đạt khi ít nhất 50% hoạt động đã đánh giá là đạt; chưa chấm/ngày vắng không tính mẫu số. Cùng hoạt động lưu sửa thay kết quả; không đếm thêm lần. FE hiển thị dấu +/−/trống từ BE, không tự tính. Tổng kết chủ đề 70%, sửa tay, bản đã xác nhận và URL giữ nguyên. Phiếu năm chưa chốt lấy kết quả mới từ BE. Plan chính: BE:docs/plans/active/2026-11-05-theme-goal-majority.md.
+
+
+## Nhóm Thông báo trên sidebar — Tiền yêu cầu 17/11/2026
+
+Một nhóm `notifications` trong menu chính cho mọi role. `/notifications` mang nhãn Thông báo của tôi; HT/PHT có `/announcements` và `/announcement-templates`; riêng HT có `/notification-rules` và `/announcement-schedules`. Các route chi tiết/soạn/sửa giữ nguyên, làm sáng mục danh sách tương ứng; breadcrumb tự lấy nhóm Thông báo từ menuConfig. Quyền route/backend không đổi. Chi tiết hiện hành thay các ghi chú thiết kế cũ về Web notification ở bảng trên: [school-notifications](../features/school-notifications.md).

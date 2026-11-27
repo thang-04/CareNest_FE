@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AlertTriangle, ChevronDown, ChevronUp } from '@/components/ui/icons';
 import { Button } from '@/components/ui/Button';
 import { useAuth } from '@/contexts/AuthContext';
@@ -6,32 +6,22 @@ import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { ImportDialog } from '@/components/upload/ImportDialog';
 import { SelectField } from '@/components/form/Field';
-import { ActiveYearNotice } from '@/components/children/ActiveYearNotice';
+import { IntakeStartFields } from '@/components/children/IntakeStartFields';
+import { useYearHolidays } from '@/hooks/children/useChildRecords';
 import { previewEnrollmentImport } from '@/services/children/childrenService';
-import { IMPORT_COLUMNS } from '@/models/children/childrenConstants';
+import { importTemplateRows } from '@/utils/children/importTemplate';
 import { downloadCsv } from '@/utils/exportCsv';
 import { childCampusesOf } from '@/utils/children/childrenPermissions';
+import { keepCampusPick } from '@/utils/children/childrenHelpers';
 import { saveImportDraft } from '@/utils/children/importDraft';
+import { intakeYearOptions } from '@/utils/schoolYearPrep';
+import { defaultStartDate, startDateError as startDateProblem } from '@/utils/children/startDate';
+import { todayInput } from '@/utils/format';
 
 const MAX_SIZE = 10 * 1024 * 1024;
 const ACCEPT = '.csv,.xlsx,.xls';
 
-const downloadTemplate = () =>
-  downloadCsv(
-    [
-      IMPORT_COLUMNS.map((c) => c.label),
-      // Dòng mẫu: hành chính và tiền sử bắt buộc trừ CCCD trẻ, nhóm máu (user chốt 2026-10-22; tuần thai từ 2026-11-04); mỗi giá
-      // trị ứng 1 cột IMPORT_COLUMNS.
-      [
-        ...['Nguyễn Minh An', '15/04/2022', 'Nam', 'Nguyễn Văn Bình', 'Bố', '0912 000 111', '9999 1200 0111'],
-        ...['phuhuynh.mau@example.com', 'Không', ''],
-        ...['', 'Không', '39', 'Kinh', 'Trẻ em dưới 6 tuổi', '', 'Hải Phòng', 'Phường Thượng Hồng', 'Số 1 đường mẫu'],
-        ...['Không', 'Không', 'Không', ''],
-        ...['', '', '', '', '', '', '', '', '', '', ''],
-      ],
-    ],
-    'mau-tiep-nhan-tre.csv',
-  );
+const downloadTemplate = () => downloadCsv(importTemplateRows(), 'mau-tiep-nhan-tre.csv');
 
 // Quy tắc chi tiết ẩn sau "Xem hướng dẫn chi tiết" (user chốt 14/11/2026); khung chính chỉ giữ 3 ý.
 const GUIDE_DETAILS = [
@@ -41,6 +31,7 @@ const GUIDE_DETAILS = [
   'Có thể nhập thêm phụ huynh 2, 3. Chọn một người nhận tài khoản ở cột CCCD phụ huynh nhận tài khoản hoặc ở bản xem trước.',
   'Số CCCD phụ huynh trùng tài khoản có sẵn: hệ thống dùng họ tên, số điện thoại, email của tài khoản và liên kết người được chọn với trẻ khi kích hoạt.',
   'Trẻ có tiếp xúc với người bệnh lao phải ghi ngày tiếp xúc gần nhất (dd/mm/yyyy). Hệ thống báo Hiệu trưởng và Phó hiệu trưởng điểm trường khi nhập.',
+  'Cột Báo ăn: Có hoặc để trống là trẻ ăn ở trường; Không thì bỏ qua cột Dị ứng, Chế độ ăn.',
   'File mẫu cũ thiếu cột (vd. "Số CCCD phụ huynh") thì tải lại file mẫu.',
 ];
 
@@ -83,8 +74,15 @@ function ImportGuide() {
  */
 export function ImportChildrenModal({ initialCampusId, onClose, onChecked }) {
   const { user } = useAuth();
-  const md = useMasterData();
-  const { yearReadOnly } = useSchoolYear();
+  const { schoolYears } = useSchoolYear();
+  // CHD-11, G94-180/CHD-14: năm tiếp nhận (năm đang hoạt động hoặc năm sau đã mở chuẩn bị) bắt buộc, không chọn sẵn, không theo
+  // header; một ngày bắt đầu đi học cho cả file.
+  const yearOptions = intakeYearOptions(schoolYears);
+  const [yearPick, setYearPick] = useState('');
+  const intakeYear = yearOptions.find((y) => String(y.id) === yearPick) || null;
+  const { holidays } = useYearHolidays(intakeYear?.id);
+  // Điểm trường của năm tiếp nhận (G94-180/CHD-02, user chốt 2026-11-22)
+  const md = useMasterData(intakeYear?.id ?? null);
   const campusOptions = childCampusesOf(user, md.campuses);
   // Có từ 2 điểm trường được tiếp nhận (Hiệu trưởng, PHT được phân 2 điểm trường) ⇒ bắt buộc chọn, không chọn sẵn; 1 điểm trường ⇒ dùng luôn.
   const pickCampus = campusOptions.length > 1;
@@ -92,6 +90,18 @@ export function ImportChildrenModal({ initialCampusId, onClose, onChecked }) {
     pickCampus && campusOptions.some((c) => String(c.id) === String(initialCampusId)) ? String(initialCampusId) : '',
   );
   const [campusError, setCampusError] = useState('');
+  // Đổi năm tiếp nhận: điểm trường đã chọn không có trong năm mới ⇒ bỏ chọn (chỉ xét khi danh sách đã tải xong)
+  useEffect(() => {
+    if (!md.loading && campusPick && keepCampusPick(campusPick, campusOptions) == null) setCampusPick('');
+  }, [md.loading, campusOptions, campusPick]);
+  const [startDate, setStartDate] = useState('');
+  const [startTouched, setStartTouched] = useState(false);
+  const [dateErrors, setDateErrors] = useState({});
+  // Ngày mặc định tính lại khi ngày nghỉ của năm tải xong (người dùng chưa tự chọn ngày)
+  useEffect(() => {
+    if (intakeYear && !startTouched) setStartDate(defaultStartDate(intakeYear, todayInput(), holidays));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ tính lại khi đổi năm hoặc ngày nghỉ tải xong
+  }, [yearPick, holidays]);
   const [file, setFile] = useState(null);
   const [fileError, setFileError] = useState('');
   const [unsupported, setUnsupported] = useState('');
@@ -113,6 +123,14 @@ export function ImportChildrenModal({ initialCampusId, onClose, onChecked }) {
       setCampusError('Chọn điểm trường tiếp nhận trẻ');
       return;
     }
+    const errors = {
+      schoolYearId: intakeYear ? '' : 'Chọn năm học tiếp nhận',
+      startDate: intakeYear ? startDateProblem(startDate, intakeYear, todayInput(), holidays) : '',
+    };
+    if (errors.schoolYearId || errors.startDate) {
+      setDateErrors(errors);
+      return;
+    }
     setFileError('');
     setUnsupported('');
     setReading(true);
@@ -122,7 +140,16 @@ export function ImportChildrenModal({ initialCampusId, onClose, onChecked }) {
         setUnsupported(preview.message);
         return;
       }
-      const draft = { preview, fileName: file.name, fileSize: file.size, campusId, campusName };
+      const draft = {
+        preview,
+        fileName: file.name,
+        fileSize: file.size,
+        campusId,
+        campusName,
+        schoolYearId: intakeYear.id,
+        schoolYearName: intakeYear.label,
+        startDate,
+      };
       saveImportDraft(draft);
       onChecked(draft);
     } catch (err) {
@@ -141,7 +168,24 @@ export function ImportChildrenModal({ initialCampusId, onClose, onChecked }) {
       templateLabel="Tải file mẫu"
       options={
         <>
-          <ActiveYearNotice action="Nhập danh sách trẻ" />
+          <IntakeStartFields
+            schoolYears={schoolYears}
+            yearId={yearPick}
+            onYearChange={(next) => {
+              setYearPick(next ? String(next.id) : '');
+              setStartTouched(false);
+              setStartDate(defaultStartDate(next, todayInput()));
+              setDateErrors({});
+            }}
+            startDate={startDate}
+            onStartDateChange={(value) => {
+              setStartDate(value);
+              setStartTouched(true);
+              setDateErrors((current) => ({ ...current, startDate: undefined }));
+            }}
+            errors={dateErrors}
+          />
+          {intakeYear && <div className="text-sm muted">Ngày bắt đầu đi học áp dụng cho mọi trẻ trong file.</div>}
           {pickCampus ? (
             <SelectField
               label="Điểm trường tiếp nhận"
@@ -176,7 +220,7 @@ export function ImportChildrenModal({ initialCampusId, onClose, onChecked }) {
       onFile={takeFile}
       confirmLabel="Tải lên và kiểm tra"
       idleLabel="Tải lên và kiểm tra"
-      confirmDisabled={!file || tooLarge || yearReadOnly}
+      confirmDisabled={!file || tooLarge}
       busy={reading}
       onConfirm={check}
       onClose={onClose}

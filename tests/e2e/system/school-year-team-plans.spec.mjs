@@ -21,8 +21,18 @@ test('Q01/Q03 PHT có nút lập năm học và cột nhánh trắng, Enter thê
   const body = await yearPlanBody(`${E2E.titlePrefix} annual table`);
   body.planLevel = 'SCHOOL_YEAR';
   body.themes[0].endDate = '2027-09-17';
+  // YearPlanPublicationValidator: gửi duyệt cần tối thiểu 9 chủ đề ⇒ thêm 8 chủ đề, mỗi chủ đề 2 tuần (cần 2–4 tuần) sau chủ đề đầu
+  for (let i = 0; i < 8; i++) {
+    const start = new Date(Date.UTC(2027, 8, 20 + i * 14));
+    const end = new Date(Date.UTC(2027, 8, 31 + i * 14));
+    const iso = (d) => d.toISOString().slice(0, 10);
+    body.themes.push({ key: `t${i + 2}`, name: `Chủ đề E2E ${i + 2}`, abbr: `E${i + 2}`, startDate: iso(start), endDate: iso(end), festivals: '', note: '' });
+  }
   body.domains[0].rows[0].contents[0].themeKeys = [];
-  body.branchTemplates = [{ key: 'b1', themeKey: 't1', name: 'Nhánh gợi ý' }];
+  // Gửi kế hoạch năm học cần mục tiêu nằm trong một nhóm kết quả mong đợi (requireAnnualContents)
+  body.domains[0].rows.unshift({ kind: 'group', text: 'Nhóm kết quả (E2E)', contents: [] });
+  // Gửi duyệt kiểm lịch chủ đề (7214): nhánh mẫu cần đủ ngày bắt đầu, kết thúc trong khoảng chủ đề
+  body.branchTemplates = [{ key: 'b1', themeKey: 't1', name: 'Nhánh gợi ý', startDate: '2027-09-06', endDate: '2027-09-10' }];
   const result = await api(USERS.vp, 'POST', goals, { body, headers: editHeaders(session, 0) });
   expect(result.status).toBe(201);
   annual = result.data;
@@ -40,15 +50,25 @@ test('Q01/Q03 PHT có nút lập năm học và cột nhánh trắng, Enter thê
   await spaGo(page, `/education/school-year-plans/${annual.id}/edit`);
   const cell = page.locator('.ga-branch-template-cell').first();
   await expect(cell).toHaveCSS('background-color', 'rgb(255, 255, 255)');
-  const input = cell.getByRole('textbox', { name: /^Thêm chủ đề nhánh \/ dự án/ });
+  // Mỗi nhánh một dòng, ô thêm nhánh ở dòng cuối của chủ đề ⇒ tìm trong bảng (kế hoạch test chỉ có một chủ đề)
+  const input = page.getByRole('textbox', { name: /^Thêm chủ đề nhánh \/ dự án/ }).first();
   await input.fill('Nhánh thêm bằng Enter');
-  await cell
+  await page
     .getByRole('textbox', { name: /^Chủ đề nhánh \/ dự án/ })
     .last()
     .press('Enter');
-  await expect(cell.locator('.ga-branch-template-item')).toHaveCount(2);
-  await expect(cell.locator('input[type=date]').first()).toHaveAttribute('min', '2027-09-06');
-  await expect(cell.locator('input[type=date]').first()).toHaveAttribute('max', '2027-09-17');
+  // Gõ vào ô thêm đã tạo nhánh; Enter ở nhánh có tên chèn một dòng nhánh trống ngay sau và chuyển con trỏ tới đó
+  await expect(page.locator('.ga-branch-template-item')).toHaveCount(3);
+  const added = page.getByRole('textbox', { name: /^Chủ đề nhánh \/ dự án/ }).nth(2);
+  await expect(added).toHaveValue('');
+  await expect(added).toBeFocused();
+  // Ô ngày là bộ chọn lịch (gõ dd/mm/yyyy rồi Enter); ngày ngoài khoảng của chủ đề bị từ chối kèm khoảng cho phép
+  await cell.getByRole('button', { name: 'Từ nhánh Nhánh gợi ý', exact: true }).click();
+  const typed = page.getByRole('textbox', { name: 'Gõ Từ nhánh Nhánh gợi ý', exact: true });
+  await typed.fill('01/09/2027');
+  await typed.press('Enter');
+  await expect(page.getByRole('alert').filter({ hasText: 'Chọn ngày trong năm học: 06/09/2027 – 17/09/2027' })).toBeVisible();
+  await typed.press('Escape');
   if (browserSession)
     await api(USERS.vp, 'POST', `${goals}/${annual.id}/finish-editing`, { headers: editHeaders(browserSession, annual.revision) });
 });
@@ -59,20 +79,19 @@ test('Q05/Q12 annual PHT→HT, TEAM kế thừa có cột map và ô cố địn
   expect(result.status).toBe(200);
   annual = (await api(USERS.vp, 'GET', `${goals}/${annual.id}`)).data;
   result = await api(USERS.vp, 'POST', `${goals}/${annual.id}/submit`, { headers: editHeaders(session, annual.revision) });
-  expect(result.status).toBe(200);
-  result = await api(USERS.principal, 'POST', `${goals}/${annual.id}/issue`);
-  expect(result.status).toBe(200);
-  const body = await yearPlanBody(`${E2E.titlePrefix} inherited team`);
-  body.planLevel = 'TEAM';
-  body.curriculumSourcePlanId = annual.id;
-  delete body.domains;
-  delete body.themes;
-  delete body.breaks;
-  const created = await api(USERS.teacher1, 'POST', goals, { body, headers: editHeaders(newSession(), 0) });
-  expect(created.status).toBe(201);
-  team = created.data;
+  expect(result.status, `${result.errorCode} ${result.desc}`).toBe(200);
+  // Duyệt/ban hành cần revision hiện tại (X-Plan-Revision)
+  annual = (await api(USERS.vp, 'GET', `${goals}/${annual.id}`)).data;
+  result = await api(USERS.principal, 'POST', `${goals}/${annual.id}/issue`, { headers: editHeaders(newSession(), annual.revision) });
+  expect(result.status, `${result.errorCode} ${result.desc}`).toBe(200);
+  // Ban hành kế hoạch năm học ⇒ hệ thống tự sinh bản tổ Nháp kế thừa (EduTeamAutoDraft); không tạo tay (7002)
+  const teams = await api(USERS.teacher1, 'GET', `${goals}?planLevel=TEAM&schoolYearId=${annual.schoolYearId}&size=100`);
+  const auto = teams.data.items.find((p) => p.curriculumSourcePlanId === annual.id);
+  expect(auto, 'bản tổ tự sinh từ kế hoạch năm học vừa ban hành').toBeTruthy();
+  team = (await api(USERS.teacher1, 'GET', `${goals}/${auto.id}`)).data;
   expect(team.curriculumSourcePlanId).toBe(annual.id);
   await login(page, USERS.teacher1);
+  await pickYear(page, E2E.schoolYear); // EDU-107: trang lọc theo năm chọn ở header
   await spaGo(page, `/education/goals/${team.id}/edit`);
   await expect(page.locator('.ga-theme-table, .ga-goal-table').first()).toBeVisible();
   const fixed = page
@@ -87,5 +106,7 @@ test('EDU-57 PHT không xóa được TEAM qua API', async () => {
   expect(team).toBeTruthy();
   const rejected = await api(USERS.vp, 'DELETE', `${goals}/${team.id}`, { headers: editHeaders(newSession(), team.revision) });
   expect(rejected.status).toBe(403);
-  expect((await api(USERS.vp, 'GET', `${goals}/${team.id}`)).status).toBe(200);
+  // Bản tổ vẫn còn (không bị xóa): Tổ trưởng đọc được; PHT chỉ xem bản đã ban hành (EDU-73) ⇒ 403 "chưa ban hành"
+  expect((await api(USERS.teacher1, 'GET', `${goals}/${team.id}`)).status).toBe(200);
+  expect((await api(USERS.vp, 'GET', `${goals}/${team.id}`)).errorCode).toBe(7384);
 });

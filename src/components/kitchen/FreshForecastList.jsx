@@ -1,19 +1,20 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Plus, ShoppingBasket } from '@/components/ui/icons';
-import { Breadcrumb, EmptyState, ErrorState, LoadingState } from '@/components';
+import { Button, DataTable, EmptyState, ErrorState, LoadingState, PageHeader, StatusBadge } from '@/components';
+import { usePageReadOnly } from '@/contexts/PageReadOnlyContext';
 import { FreshForecastCreateModal } from '@/components/kitchen/FreshForecastCreateModal';
 import { KbCampusFilter } from '@/components/kitchen/KitchenFilters';
 import { useCanManageStock } from '@/hooks/kitchen/useDryStock';
 import { useFreshForecasts } from '@/hooks/kitchen/useFreshGoods';
 import { kitchenCrumbs, KITCHEN_PAGES } from '@/utils/kitchen/breadcrumbs';
-import { clickableRowProps } from '@/utils/clickableRow';
 import { formatDate, formatDateTime } from '@/utils/format';
 
 /** Các bản dự trù đã lưu của một điểm trường, mới nhất trước; mở một bản để xem, in hoặc xóa. */
 export function FreshForecastList({ campus, autoOpen = false }) {
   const navigate = useNavigate();
-  const canManage = useCanManageStock();
+  const canManage = useCanManageStock(campus.campusId);
+  const { reason: viewOnlyReason } = usePageReadOnly();
   const forecasts = useFreshForecasts(campus.campusId);
   // autoOpen: vào từ đường dẫn /forecast/new ⇒ mở sẵn hộp lập bản dự trù
   const [creating, setCreating] = useState(autoOpen && canManage);
@@ -23,9 +24,9 @@ export function FreshForecastList({ campus, autoOpen = false }) {
     if (autoOpen) navigate(listPath, { replace: true });
   };
   const create = (
-    <button type="button" className="btn btn--primary" onClick={() => setCreating(true)}>
-      <Plus size={16} /> Lập bản dự trù
-    </button>
+    <Button variant="primary" icon={Plus} onClick={() => setCreating(true)} disabledReason={canManage ? undefined : viewOnlyReason}>
+      Lập bản dự trù
+    </Button>
   );
 
   let body;
@@ -41,57 +42,55 @@ export function FreshForecastList({ campus, autoOpen = false }) {
     );
   else
     body = (
-      <div className="table-wrap">
-        <table className="table table--grid">
-          <thead>
-            <tr>
-              <th>Kỳ dự trù</th>
-              <th>Ghi chú</th>
-              <th className="num">Số thực phẩm</th>
-              <th>Ngày lập</th>
-            </tr>
-          </thead>
-          <tbody>
-            {forecasts.data.map((f) => (
-              <tr
-                key={f.id}
-                className="row-click"
-                {...clickableRowProps(() => navigate(`/kitchen/forecast/${f.id}?campusId=${campus.campusId}`))}
-              >
-                <td className="fw-600 text-primary nowrap">
-                  {formatDate(f.periodFrom)} – {formatDate(f.periodTo)}
-                </td>
-                <td>{f.note || <span className="muted">—</span>}</td>
-                <td className="num">{f.foodCount}</td>
-                <td className="nowrap">{formatDateTime(f.createdAt)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <DataTable
+        rows={forecasts.data}
+        onRowClick={(f) => navigate(`/kitchen/forecast/${f.id}?campusId=${campus.campusId}`)}
+        columns={[
+          {
+            key: 'period',
+            header: 'Kỳ dự trù',
+            className: 'fw-600 text-primary nowrap center',
+            render: (f) => `${formatDate(f.periodFrom)} – ${formatDate(f.periodTo)}`,
+          },
+          { key: 'version', header: 'Bản', className: 'nowrap center', render: (f) => (f.version == null ? '—' : `Bản ${f.version}`) },
+          {
+            key: 'status',
+            header: 'Trạng thái',
+            className: 'nowrap center',
+            // BE cũ chưa trả `current` thì không đoán trạng thái
+            render: (f) => {
+              if (f.current == null) return <span className="muted">—</span>;
+              return f.current ? (
+                <StatusBadge tone="green" label="Đang dùng cho kiểm nhận" size="sm" />
+              ) : (
+                <StatusBadge tone="gray" label="Đã thay thế" size="sm" />
+              );
+            },
+          },
+          { key: 'note', header: 'Ghi chú', render: (f) => f.note || <span className="muted">—</span> },
+          { key: 'foodCount', header: 'Số mặt hàng', className: 'num' },
+          { key: 'createdAt', header: 'Ngày lập', className: 'nowrap center', render: (f) => formatDateTime(f.createdAt) },
+        ]}
+      />
     );
 
   return (
     <div className="page">
-      <Breadcrumb items={kitchenCrumbs(KITCHEN_PAGES.forecast)} />
-      <div className="page__head">
-        <div>
-          <h1 className="page__title">Bản dự trù</h1>
-        </div>
-      </div>
+      <PageHeader crumbs={kitchenCrumbs(KITCHEN_PAGES.forecast)} title="Bản dự trù" readOnly={!canManage} />
       <div className="kb-toolbar">
         <KbCampusFilter campusId={campus.campusId} onChange={campus.setCampusId} canPick={campus.canPick} />
         <div className="kb-toolbar__end">
           <Link className="btn" to={`/kitchen/market-day?campusId=${campus.campusId}`}>
             <ShoppingBasket size={16} /> Đi chợ theo ngày
           </Link>
-          {canManage && create}
+          {create}
         </div>
       </div>
       <section className="card">{body}</section>
       {creating && (
         <FreshForecastCreateModal
           campusId={campus.campusId}
+          existing={forecasts.data || []}
           onClose={closeCreate}
           onSaved={(id) => navigate(`/kitchen/forecast/${id}?campusId=${campus.campusId}`, { replace: true })}
         />

@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { Download, Printer, ShoppingBasket } from '@/components/ui/icons';
 import { useStockCampus } from '@/hooks/kitchen/useDryStock';
 import { useDayMarket } from '@/hooks/kitchen/useFreshGoods';
-import { Breadcrumb, EmptyState, ErrorState, LoadingState, StatusBadge } from '@/components';
+import { Breadcrumb, Button, EmptyState, ErrorState, LoadingState, StatusBadge } from '@/components';
 import { Modal } from '@/components/ui/Modal';
 import { PrintPaperFit } from '@/components/print/PrintPaperFit';
 import { PrintToolbar } from '@/components/print/PrintToolbar';
@@ -131,7 +131,9 @@ export default function DayMarketPage() {
         <KbCampusFilter campusId={campus.campusId} onChange={campus.setCampusId} canPick={campus.canPick} />
         {data && data.status !== 'HOLIDAY' && data.status !== 'NO_MENU' && (
           <span className="date-filter__static">
-            {data.basis === 'CONFIRMED' ? (
+            {data.balanceRound ? (
+              <StatusBadge tone="green" label={`Theo cân đối lần ${data.balanceRound}`} />
+            ) : data.basis === 'CONFIRMED' ? (
               <StatusBadge tone="green" label={`Theo số suất đã chốt${data.confirmedAt ? ` ${formatDateTime(data.confirmedAt)}` : ''}`} />
             ) : (
               <StatusBadge tone="orange" label="Theo số trẻ đang học, chưa chốt suất" />
@@ -147,9 +149,9 @@ export default function DayMarketPage() {
             >
               <Download size={16} /> Xuất Excel
             </button>
-            <button type="button" className="btn" onClick={() => setPrinting(true)}>
-              <Printer size={16} /> In bảng đi chợ
-            </button>
+            <Button icon={Printer} onClick={() => setPrinting(true)}>
+              In bảng đi chợ
+            </Button>
           </div>
         )}
       </div>
@@ -162,7 +164,9 @@ export default function DayMarketPage() {
           size="full"
           className="kb-print-modal"
           title="Bảng đi chợ"
-          footer={<PrintToolbar sheetRef={sheetRef} fileBase={`Bang_di_cho_${date}`} printLabel="In bảng" orientation="landscape" />}
+          footer={
+            <PrintToolbar sheetRef={sheetRef} fileBase={`Bang_di_cho_${date}`} onClose={() => setPrinting(false)} orientation="landscape" />
+          }
         >
           <PrintPaperFit>
             <DayMarketPrint ref={sheetRef} data={data} />
