@@ -1,4 +1,5 @@
 import { Suspense } from 'react';
+import { MENU_AI_ENABLED } from '@/config/env';
 import { Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { lazyPage, registerRouteTree } from './routePrefetch';
 import { MainLayout } from '@/layouts/MainLayout';
@@ -474,7 +475,13 @@ export function AppRoutes() {
             />
             <Route
               path="ai-suggestion"
-              element={only(LEADERS, BOARDING_API ? <BoardingPendingPage feature="suggestion" /> : <AiMenuSuggestionPage />)}
+              element={
+                MENU_AI_ENABLED ? (
+                  only(LEADERS, BOARDING_API ? <BoardingPendingPage feature="suggestion" /> : <AiMenuSuggestionPage />)
+                ) : (
+                  <Navigate to="/menu/weekly" replace />
+                )
+              }
             />
             <Route path="weekly" element={only(LEADERS, MEAL_PLAN_API ? <WeeklyPlanPage /> : <WeeklyMenuListPage />)} />
             <Route

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { MENU_AI_ENABLED } from '@/config/env';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Save, Sparkles, Info } from '@/components/ui/icons';
 import { useAuth } from '@/contexts/AuthContext';
@@ -166,7 +167,7 @@ export default function WeeklyMenuFormPage() {
           </h1>
           {aiDraft && <AiDraftLabel />}
         </div>
-        {!id && (
+        {MENU_AI_ENABLED && !id && (
           <Link
             className="btn btn--outline-primary"
             to={`/menu/ai-suggestion?kind=WEEKLY${form.ageGroupId ? `&ageGroupId=${form.ageGroupId}` : ''}&weekStart=${form.weekStart}`}
