@@ -99,13 +99,17 @@ test('sổ sức khỏe và danh sách nhập theo lớp: canRecord/canEdit gồ
   const record = read('src/pages/children/ChildHealthRecordPage.jsx');
   assert.match(record, /const canRecord = !yearLocked && canRecordMeasurement\(/);
   assert.match(record, /const canEdit = !yearLocked && canEditMeasurement\(/);
-  for (const name of ['HealthCheckClassRoster', 'MeasurementRoundRoster']) {
-    assert.match(
-      read(`src/components/children/${name}.jsx`),
-      /const canRecord = !!roster\?\.canRecord && !yearLocked;/,
-      `${name} thiếu canRecord && !yearLocked`,
+  const examRoster = read('src/components/children/HealthCheckClassRoster.jsx');
+  for (const result of ['NOT_RECORDED', 'IN_PROGRESS']) {
+    assert.ok(
+      examRoster.includes(`r.canEdit && !yearLocked && r.result === CHILD_RESULT_STATUS.${result}`),
+      `thiếu khóa năm cho ${result}`,
     );
   }
+  const measurementRoster = read('src/components/children/MeasurementRoundRoster.jsx');
+  assert.match(measurementRoster, /const canRecord = !!roster\?\.canRecord && !yearLocked;/);
+  assert.match(measurementRoster, /canRecord && r\.canEdit !== false && r\.result === CHILD_RESULT_STATUS\.NOT_RECORDED/);
+  assert.match(measurementRoster, /canRecord && r\.canEdit !== false && recorded/);
 });
 
 test('danh sách đợt khám: canCreate gồm !yearLocked và gợi ý rỗng dựa trên canCreate', () => {
@@ -123,6 +127,6 @@ test('đón trẻ: nút trả/gọi và hai modal đều chặn bằng !yearLock
   assert.match(src, /\{!yearLocked && isToday && r\.status === PICKUP_STATUS\.WAITING/);
   assert.match(src, /open=\{!!verifyId && !yearLocked\}/);
   assert.match(src, /open=\{!!callId && !yearLocked\}/);
-  assert.match(src, /\{verifyId && !yearLocked && <PickupPhotoFlow/);
-  assert.match(src, /\{callId && !yearLocked && <PickupCallFlow/);
+  assert.match(src, /\{verifyId && !yearLocked &&\s*\(?\s*<PickupPhotoFlow/);
+  assert.match(src, /\{callId && !yearLocked &&\s*\(?\s*<PickupCallFlow/);
 });
