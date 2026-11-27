@@ -3186,10 +3186,9 @@ html:has(.ga-page) {
   color: var(--color-danger-fg);
 }
 
-/* Lọc bảng tick kế hoạch tổ (Tiền 28/11/2026): ô tìm giãn hết hàng, ô "Chưa thuộc chủ đề nào" cùng dòng */
+/* Lọc bảng tick kế hoạch tổ (Tiền 28/11/2026): ô tìm ngắn, ô "Chưa thuộc chủ đề nào" cùng dòng */
 .ga-goal-filter > .input {
-  flex: 1 1 16rem;
-  width: auto;
+  flex: 0 1 22rem;
 }
 .ga-goal-filter__only {
   min-height: var(--input-height);
