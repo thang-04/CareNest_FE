@@ -54,7 +54,10 @@ export default function ClassRatingsPage() {
   const yearCampuses = useYearCampuses(PERMISSIONS.ASSESSMENT_VIEW);
   const campuses = yearCampuses || ratings?.campuses || [];
   const multiCampus = leader && campuses.length > 1;
-  const campusName = (id) => campuses.find((c) => String(c.id) === String(id))?.name || '';
+  const campusName = (id) => {
+    const c = campuses.find((x) => String(x.id) === String(id));
+    return c?.shortName || c?.name || '';
+  };
 
   // Bản đang sửa: classId -> { levels, note }; chỉ gửi các lớp có thay đổi
   const [drafts, setDrafts] = useState({});
@@ -170,7 +173,7 @@ export default function ClassRatingsPage() {
   // Bảng đang thấy (kể cả ô vừa sửa chưa lưu) dùng chung cho Xuất Excel và bản in
   const table = () => ({
     title: `Xếp loại nhóm lớp – ${CLASS_RATING_PERIOD_LABELS[period]}${campusId ? ` – ${campusName(campusId)}` : ''}`,
-    headers: ['STT', 'Tên nhóm, lớp', ...CLASS_RATING_CRITERIA.map((c) => c.label), 'Xếp loại chung', 'Ghi chú'],
+    headers: ['STT', 'Tên lớp', ...CLASS_RATING_CRITERIA.map((c) => c.label), 'Xếp loại chung', 'Ghi chú'],
     rows: rows.map((r, i) => [
       i + 1,
       multiCampus ? `${r.className} (${campusName(r.campusId)})` : r.className,
@@ -307,7 +310,7 @@ export default function ClassRatingsPage() {
               <thead>
                 <tr>
                   <th className="num">STT</th>
-                  <th>Nhóm, lớp</th>
+                  <th>Tên lớp</th>
                   {CLASS_RATING_CRITERIA.map((c) => (
                     <th key={c.key}>{c.label}</th>
                   ))}

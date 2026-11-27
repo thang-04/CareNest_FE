@@ -48,6 +48,7 @@ import {
   EMAIL_MAX,
   NAME_MAX,
   STAFF_ROLES,
+  STAFF_SHEET,
   emailRequired,
   normalizePhone,
   staffExportRows,
@@ -148,7 +149,7 @@ export function StaffAccountsBeView({ tabs = null }) {
     setExporting(true);
     try {
       const all = (await listAllStaffAccounts(filters)).map((a) => toStaffRow(a, lookups));
-      exportWithPreview(staffExportRows(all), `tai-khoan-nhan-su-${todayInput()}.xlsx`);
+      exportWithPreview(staffExportRows(all), `tai-khoan-nhan-su-${todayInput()}.xlsx`, { sheetName: STAFF_SHEET });
     } catch (err) {
       toast.error(err, 'Không xuất được danh sách');
     } finally {
