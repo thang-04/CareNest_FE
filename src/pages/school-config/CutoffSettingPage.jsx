@@ -9,6 +9,7 @@ import { useCutoffSetting } from '@/hooks/school-config/useSchoolConfig';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { EmptyState, ErrorState, LoadingState, Spinner } from '@/components/ui/States';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
+import { Button } from '@/components/ui/Button';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { DateInput } from '@/components/form/DateInput';
@@ -22,11 +23,13 @@ import { PrepDateSetting } from '@/components/school-config/PrepDateSetting';
 import { MealPhotoWindowsSetting } from '@/components/MealPhotoWindowsSetting';
 import { Tabs } from '@/components/ui/Tabs';
 import { isDemoModule } from '@/services/demoSource';
-import { saveCutoffSetting } from '@/services/school-config/schoolConfigService';
+import { devNow } from '@/utils/devClock';
+import { cancelScheduledCutoff, saveCutoffSetting } from '@/services/school-config/schoolConfigService';
 import { YEAR_STATUS } from '@/models/school-config/schoolConfigConstants';
 import { canConfigureCutoff } from '@/utils/school-config/schoolConfigPermissions';
 import { validateCutoff, hasErrors, errorsAfterChange, CUTOFF_LIMITS } from '@/utils/school-config/schoolConfigValidation';
 import { cutoffCrumbs } from '@/utils/school-config/breadcrumbs';
+import { splitCutoffSchedule } from '@/utils/school-config/cutoffSchedule';
 import { formatDate, formatDateTime, todayInput } from '@/utils/format';
 import '@/styles/modules/school-config.css';
 
@@ -70,6 +73,7 @@ export default function CutoffSettingPage() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [historyPage, setHistoryPage] = useState(1);
+  const [cancelling, setCancelling] = useState(null);
   const [params, setParams] = useSearchParams();
   const tab = OTHER_TABS.includes(params.get('tab')) ? params.get('tab') : 'cutoff';
   // Tab Giờ đăng ảnh / Học kỳ / Ngày nghỉ báo còn thay đổi chưa lưu; đổi tab hay rời màn đều hỏi như tab giờ chốt
@@ -92,7 +96,8 @@ export default function CutoffSettingPage() {
   useEffect(() => {
     if (!year) return;
     const today = todayInput();
-    const from = today < year.startDate ? year.startDate : today;
+    // Lần đặt đầu tiên của năm phải áp dụng từ đầu năm học
+    const from = !setting?.history?.length || today < year.startDate ? year.startDate : today;
     const next = {
       time: setting?.time || '',
       effectiveFrom: from,
@@ -151,7 +156,18 @@ export default function CutoffSettingPage() {
   };
 
   // Như BE CUTOFF_DATE_PAST: đã có giờ chốt thì lần đổi sau chỉ áp dụng từ hôm nay (gõ tay vượt được min của ô ngày)
-  const cutoffRuleContext = () => ({ hasSetting: !!setting?.history?.length, today: todayInput() });
+  // Banner theo ngày áp dụng, không theo lần lưu cuối: giờ đã hẹn vẫn đổi đúng ngày hẹn
+  const { current, upcoming } = splitCutoffSchedule(setting?.history, todayInput());
+  const shown = current || upcoming[0] || setting;
+  // Mốc đang hiện ở đầu trang không nằm trong danh sách hủy; các mốc còn lại đều có giờ đứng trước
+  const nextChanges = upcoming.filter((entry) => entry !== shown);
+  const keptChanges = upcoming.filter((entry) => entry.effectiveFrom > form.effectiveFrom);
+  const cutoffRuleContext = () => ({
+    hasSetting: !!setting?.history?.length,
+    today: todayInput(),
+    nowTime: devNow().toTimeString().slice(0, 5),
+    currentTime: current?.time || '',
+  });
   // Rời ô thì báo lỗi của ô đó (thứ tự giờ như BE, Cần chốt 25/11/2026 phương án A); ô khác đã hết sai thì gỡ lỗi
   const blurCheck = (field) => {
     const e = validateCutoff(form, year, cutoffRuleContext());
@@ -167,20 +183,21 @@ export default function CutoffSettingPage() {
 
   const validate = () => {
     const e = validateCutoff(form, year, cutoffRuleContext());
+    // So với bản đang giữ cho đúng ngày áp dụng đã chọn, như BE
+    const sameDate = setting?.history?.find((entry) => entry.effectiveFrom === form.effectiveFrom);
     if (
       !e.time &&
-      setting &&
-      setting.time === form.time &&
-      setting.effectiveFrom === form.effectiveFrom &&
-      (setting.latestAfternoonArrival || '14:00') === form.latestAfternoonArrival &&
-      (setting.dropoffOpenFrom || '06:30') === form.dropoffOpenFrom &&
-      (setting.morningStart || '07:00') === form.morningStart &&
-      (setting.morningEnd || '11:00') === form.morningEnd &&
-      (setting.afternoonStart || '13:30') === form.afternoonStart &&
-      (setting.pickupStart || '15:00') === form.pickupStart &&
-      (setting.fullDayPickupFrom || '15:00') === form.fullDayPickupFrom &&
-      (setting.pickupEnd || '17:00') === form.pickupEnd &&
-      (setting.afternoonEnd || '17:00') === form.afternoonEnd
+      sameDate &&
+      sameDate.time === form.time &&
+      (sameDate.latestAfternoonArrival || '14:00') === form.latestAfternoonArrival &&
+      (sameDate.dropoffOpenFrom || '06:30') === form.dropoffOpenFrom &&
+      (sameDate.morningStart || '07:00') === form.morningStart &&
+      (sameDate.morningEnd || '11:00') === form.morningEnd &&
+      (sameDate.afternoonStart || '13:30') === form.afternoonStart &&
+      (sameDate.pickupStart || '15:00') === form.pickupStart &&
+      (sameDate.fullDayPickupFrom || '15:00') === form.fullDayPickupFrom &&
+      (sameDate.pickupEnd || '17:00') === form.pickupEnd &&
+      (sameDate.afternoonEnd || '17:00') === form.afternoonEnd
     )
       e.time = 'Giờ chốt và ngày áp dụng chưa thay đổi';
     setErrors(e);
@@ -188,6 +205,18 @@ export default function CutoffSettingPage() {
   };
   const ask = () => {
     if (validate()) setConfirmOpen(true);
+  };
+
+  const cancelSchedule = async () => {
+    try {
+      await cancelScheduledCutoff(yearId, cancelling.effectiveFrom, user);
+      toast.success('Đã hủy lịch đổi giờ chốt.');
+      reload({ silent: true });
+    } catch (err) {
+      toast.error(err, 'Không hủy được lịch giờ chốt');
+    } finally {
+      setCancelling(null);
+    }
   };
 
   // Trả true khi lưu được
@@ -236,13 +265,27 @@ export default function CutoffSettingPage() {
               {setting ? (
                 <div className="sc-cutoff">
                   <Clock4 size={20} className="text-primary" aria-hidden="true" />
-                  <span>{setting.effectiveFrom > todayInput() ? 'Giờ chốt sắp áp dụng' : 'Giờ chốt đang áp dụng'}</span>
-                  <b className="sc-cutoff__time">{setting.time}</b>
+                  <span>{shown.effectiveFrom > todayInput() ? 'Giờ chốt sắp áp dụng' : 'Giờ chốt đang áp dụng'}</span>
+                  <b className="sc-cutoff__time">{shown.time}</b>
                   <span className="text-sm text-2">
-                    từ {formatDate(setting.effectiveFrom)} · năm học {year.name} · trẻ nghỉ sáng đến muộn nhất{' '}
-                    {setting.latestAfternoonArrival || '14:00'} · đón trẻ từ {setting.dropoffOpenFrom || '06:30'} · trả trẻ{' '}
-                    {setting.pickupStart || '15:00'}–{setting.pickupEnd || '17:00'} · tính đủ ngày từ {setting.fullDayPickupFrom || '15:00'}
+                    từ {formatDate(shown.effectiveFrom)} · năm học {year.name} · trẻ nghỉ sáng đến muộn nhất{' '}
+                    {shown.latestAfternoonArrival || '14:00'} · đón trẻ từ {shown.dropoffOpenFrom || '06:30'} · trả trẻ{' '}
+                    {shown.pickupStart || '15:00'}–{shown.pickupEnd || '17:00'} · tính đủ ngày từ {shown.fullDayPickupFrom || '15:00'}
                   </span>
+                  {nextChanges.map((entry) => (
+                    <span key={entry.effectiveFrom} className="text-sm fw-600">
+                      Từ {formatDate(entry.effectiveFrom)} đổi thành {entry.time}{' '}
+                      {!closed && (
+                        <Button
+                          size="sm"
+                          onClick={() => setCancelling(entry)}
+                          aria-label={`Hủy lịch đổi giờ từ ${formatDate(entry.effectiveFrom)}`}
+                        >
+                          Hủy lịch
+                        </Button>
+                      )}
+                    </span>
+                  ))}
                 </div>
               ) : (
                 <div className="muted">Chưa có giờ chốt.</div>
@@ -417,11 +460,7 @@ export default function CutoffSettingPage() {
                     </tr>
                   ) : (
                     // Mới nhất trước, 5 lần / trang
-                    paginate(
-                      [...setting.history].reverse(),
-                      Math.min(historyPage, Math.max(1, Math.ceil(setting.history.length / 5))),
-                      5,
-                    ).map((h) => (
+                    paginate(setting.history, Math.min(historyPage, Math.max(1, Math.ceil(setting.history.length / 5))), 5).map((h) => (
                       <tr key={`${h.at}-${h.time}`}>
                         <td className="nowrap center">{formatDateTime(h.at)}</td>
                         <td>{h.userName || md.userById(h.userId)?.fullName || h.userId}</td>
@@ -461,11 +500,32 @@ export default function CutoffSettingPage() {
             Từ ngày <b>{formatDate(form.effectiveFrom)}</b>, điểm danh và suất ăn sẽ khóa lúc <b>{form.time}</b>. Trẻ nghỉ sáng chưa đến
             trước <b>{form.latestAfternoonArrival}</b> được ghi vắng cả ngày; khung trả trẻ là <b>{form.pickupStart}</b>–
             <b>{form.pickupEnd}</b>. Trẻ đã có mặt sáng được trả trước <b>{form.fullDayPickupFrom}</b> tính 0,5 ngày.
+            {keptChanges.map((entry) => (
+              <span key={entry.effectiveFrom}>
+                {' '}
+                Lịch đã hẹn vẫn giữ: từ <b>{formatDate(entry.effectiveFrom)}</b> khóa lúc <b>{entry.time}</b>.
+              </span>
+            ))}
           </>
         }
         confirmLabel="Lưu giờ chốt"
         onConfirm={persist}
         onClose={() => setConfirmOpen(false)}
+      />
+      <ConfirmationModal
+        open={!!cancelling}
+        title="Hủy lịch đổi giờ chốt"
+        message={
+          cancelling && (
+            <>
+              Hủy lịch đổi thành <b>{cancelling.time}</b> từ ngày <b>{formatDate(cancelling.effectiveFrom)}</b>? Giờ chốt trước đó tiếp tục
+              áp dụng. Giáo viên, bếp và Phó Hiệu trưởng sẽ nhận thông báo.
+            </>
+          )
+        }
+        confirmLabel="Hủy lịch"
+        onConfirm={cancelSchedule}
+        onClose={() => setCancelling(null)}
       />
       <LeaveConfirmModal {...guard.modal} />
     </div>
