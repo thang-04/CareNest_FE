@@ -13,3 +13,8 @@ test('Trang chi tiết mặc định chỉ xem; bấm Chỉnh sửa giữ theo p
   clearDocEditing();
   assert.equal(isDocEditing('u:day:1'), false);
 });
+
+test('EDU-116: lịch sử ghi đúng thao tác xóa phiên bản điều chỉnh', async () => {
+  const { reviewHistoryItem } = await import('../../src/models/education-plan/reviewHistory.mjs');
+  assert.equal(reviewHistoryItem({ action: 'discard_revision' }).title, 'Xóa phiên bản điều chỉnh');
+});

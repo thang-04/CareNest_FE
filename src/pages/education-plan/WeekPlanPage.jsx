@@ -8,7 +8,7 @@ import { SemesterProgress } from '@/components/education-plan/SemesterProgress';
 import { DossierProgress } from '@/components/education-plan/DossierProgress';
 import { BlockedNotice, DeadlineBadge } from '@/components/education-plan/DeadlineWidgets';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
-import { ChalkboardTeacher, Copy, FileDown, ListChecks, Save, X, Pencil } from '@/components/ui/icons';
+import { ChalkboardTeacher, Copy, FileDown, ListChecks, Save, X, Pencil, Trash2 } from '@/components/ui/icons';
 import { ReviewAssistPanel } from '@/components/education-plan/ReviewAssistPanel';
 import { EmptyCard, fmtDate, FoldAllButton, Notice, PageHead, EduStatusBadge } from '@/components/education-plan/eduUi';
 import { VersionHistory } from '@/components/education-plan/VersionHistory';
@@ -120,6 +120,7 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
     eduConfig,
   } = useEducationPlan();
   const [confirmRevise, setConfirmRevise] = useState(false);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [preview, setPreview] = useState(null);
   // BE:EDU-96: khung Kiểm tra tiêu chí gửi duyệt
   const [assistOpen, setAssistOpen] = useState(false);
@@ -487,6 +488,10 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
             ]
           : []),
         ...(dossier?.canRevise ? [{ label: 'Tạo phiên bản điều chỉnh', icon: Copy, onClick: () => setConfirmRevise(true) }] : []),
+        // BE:EDU-116 — chỉ người tạo phiên bản điều chỉnh, quyền do BE trả
+        ...(dossier?.canDiscardRevision
+          ? [{ label: 'Xóa phiên bản điều chỉnh', icon: Trash2, onClick: () => setConfirmDiscard(true) }]
+          : []),
       ]
     : [];
 
@@ -820,6 +825,20 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
           onClose={() => setCardFor(null)}
         />
       )}
+      <ConfirmationModal
+        open={confirmDiscard}
+        danger
+        title={`Xóa phiên bản điều chỉnh kế hoạch giáo dục ngày "${week.theme.name}"?`}
+        message="Mọi thay đổi trong phiên bản điều chỉnh sẽ mất, nội dung trở về bản đã ban hành. Học liệu đính kèm và lịch chủ đề nhánh không đổi lại."
+        confirmLabel="Xóa phiên bản"
+        onConfirm={async () => {
+          setConfirmDiscard(false);
+          // Bỏ luôn phần đang soạn dở của phiên bản bị xóa rồi nạp lại bản đã ban hành
+          saver.discardBackup();
+          if (await dossierAct('discard_revision')) stopEditing();
+        }}
+        onClose={() => setConfirmDiscard(false)}
+      />
       <ConfirmationModal
         open={confirmRevise}
         title={`Tạo phiên bản điều chỉnh kế hoạch giáo dục ngày "${week.theme.name}"?`}

@@ -63,6 +63,7 @@ export const actDoneText = (kind, action, status) => {
   const next = NEXT_SIGNER[status];
   if (action === 'extend') return `Đã mở khóa ${name}`;
   if (action === 'revise') return `Đã tạo phiên bản điều chỉnh ${name}`;
+  if (action === 'discard_revision') return `Đã xóa phiên bản điều chỉnh ${name}`;
   if (action === 'reject') return `Đã trả lại ${name}`;
   if (action === 'submit') return next ? `Đã gửi ${next} duyệt ${name}` : `Đã gửi ${name}`;
   return next ? `Đã duyệt ${name}, chuyển ${next} duyệt tiếp` : `Đã duyệt ${name}`;

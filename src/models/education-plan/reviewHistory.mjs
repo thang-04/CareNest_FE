@@ -15,6 +15,7 @@ const HISTORY_ACTIONS = {
   REOPEN_REVIEW_DEADLINE: 'Mở hạn',
   CREATE_VERSION: 'Tạo phiên bản điều chỉnh',
   REVISE: 'Tạo phiên bản điều chỉnh',
+  DISCARD_REVISION: 'Xóa phiên bản điều chỉnh',
   REVISE_FUTURE: 'Điều chỉnh phần chưa dạy',
   WEEK_CHANGED: 'Cập nhật kế hoạch tuần',
   VP_EDIT: 'Phó hiệu trưởng cập nhật kế hoạch',

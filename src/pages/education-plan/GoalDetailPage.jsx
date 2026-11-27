@@ -149,7 +149,9 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
     status: g.status,
     author: canEditNow || canSend,
   });
-  const canDelete = annual && (perm ? perm.canDelete : isVp && g.status === EDU_STATUS.DRAFT);
+  // BE:EDU-116 — phiên bản điều chỉnh (năm, tổ) chỉ người tạo xóa được; quyền do BE trả
+  const canDelete = perm ? perm.canDelete : annual && isVp && g.status === EDU_STATUS.DRAFT;
+  const isRevision = Number(g.versionNo) > 1;
   // BE:EDU-25, EDU-112 (2) — sửa bản đã ban hành = tạo phiên bản mới (năm học và tổ); bản đã ban hành giữ nguyên
   const canCreateVersion =
     perm?.canCreateVersion ??
@@ -260,7 +262,7 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
             <FoldAllButton />
             {canDelete && (
               <button className="btn btn--sm btn--outline-danger" onClick={() => setModal('delete')}>
-                <Trash2 size={16} aria-hidden /> Xóa
+                <Trash2 size={16} aria-hidden /> {isRevision ? 'Xóa phiên bản điều chỉnh' : 'Xóa'}
               </button>
             )}
             {canCreateVersion && (
@@ -471,7 +473,7 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
 
       {modal === 'delete' && (
         <Modal
-          title={`Xóa “${g.title}”?`}
+          title={isRevision ? `Xóa phiên bản điều chỉnh “${g.title}”?` : `Xóa “${g.title}”?`}
           onClose={deleting ? undefined : closeDelete}
           footer={
             <>
@@ -479,7 +481,7 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
                 Giữ lại
               </button>
               <button className="btn btn--outline-danger" disabled={usedBy.length > 0 || deleting} onClick={removePlan}>
-                {deleting ? <Spinner small /> : <Trash2 size={16} aria-hidden />} Xóa kế hoạch
+                {deleting ? <Spinner small /> : <Trash2 size={16} aria-hidden />} {isRevision ? 'Xóa phiên bản' : 'Xóa kế hoạch'}
               </button>
             </>
           }
@@ -488,7 +490,11 @@ export default function GoalDetailPage({ planLevel = 'TEAM' }) {
           {usedBy.length > 0 ? (
             <Notice>Không xóa được vì đã có kế hoạch chủ đề sử dụng kế hoạch này.</Notice>
           ) : (
-            <p>Bản nháp sẽ bị xóa khỏi hệ thống và không khôi phục lại được.</p>
+            <p>
+              {isRevision
+                ? 'Mọi thay đổi trong phiên bản điều chỉnh sẽ mất và không khôi phục lại được. Bản đã ban hành vẫn giữ hiệu lực.'
+                : 'Bản nháp sẽ bị xóa khỏi hệ thống và không khôi phục lại được.'}
+            </p>
           )}
         </Modal>
       )}

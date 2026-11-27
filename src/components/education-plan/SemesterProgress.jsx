@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, CheckCircle2, Circle, Copy } from '@/components/ui/icons';
+import { AlertTriangle, CheckCircle2, Circle, Copy, Trash2 } from '@/components/ui/icons';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { DataTable } from '@/components/ui/DataTable';
 import { Card, Notice } from '@/components/education-plan/eduUi';
@@ -23,6 +23,7 @@ export function SemesterProgress({ classId, themeId, weekStart = null }) {
   const ctx = useClassPlanContext(classId);
   const { yearPlan, canComposeClassDocs, branchPlan } = ctx;
   const [confirmRevise, setConfirmRevise] = useState(false);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
   // Chỉ nêu phần còn thiếu chi tiết sau khi bấm Gửi duyệt (Tiền 11/11/2026); danh sách bên dưới luôn hiện trạng thái từng mục
   const [showMissing, setShowMissing] = useState(false);
   // Thu gọn mặc định để nội dung chủ đề/tuần hiện ngay, không phải kéo xuống; mở khi cần xem tiến độ hoặc khi gửi thiếu
@@ -145,7 +146,13 @@ export function SemesterProgress({ classId, themeId, weekStart = null }) {
               onAct={act}
               variant="btn--outline-primary"
               menu={{
-                after: pkg.canRevise ? [{ label: 'Tạo phiên bản điều chỉnh', icon: Copy, onClick: () => setConfirmRevise(true) }] : [],
+                after: [
+                  ...(pkg.canRevise ? [{ label: 'Tạo phiên bản điều chỉnh', icon: Copy, onClick: () => setConfirmRevise(true) }] : []),
+                  // BE:EDU-116 — chỉ người tạo phiên bản điều chỉnh, quyền do BE trả
+                  ...(pkg.canDiscardRevision
+                    ? [{ label: 'Xóa phiên bản điều chỉnh', icon: Trash2, onClick: () => setConfirmDiscard(true) }]
+                    : []),
+                ],
               }}
             />
           </div>
@@ -185,6 +192,18 @@ export function SemesterProgress({ classId, themeId, weekStart = null }) {
           </div>
         </div>
       </Card>
+      <ConfirmationModal
+        open={confirmDiscard}
+        danger
+        title={`Xóa phiên bản điều chỉnh học kỳ ${pkg.semesterNo}?`}
+        message="Mọi thay đổi trong phiên bản điều chỉnh sẽ mất, nội dung trở về bản đã ban hành. Học liệu đính kèm và lịch chủ đề nhánh không đổi lại."
+        confirmLabel="Xóa phiên bản"
+        onConfirm={async () => {
+          setConfirmDiscard(false);
+          await act('discard_revision');
+        }}
+        onClose={() => setConfirmDiscard(false)}
+      />
       <ConfirmationModal
         open={confirmRevise}
         title={`Tạo phiên bản điều chỉnh học kỳ ${pkg.semesterNo}?`}
