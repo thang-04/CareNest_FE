@@ -57,3 +57,35 @@ export function applyRewrite({ requestGoals, current, cards, matches }) {
 
 /** ✗: trả lại thẻ đã gỡ (thẻ đã được thêm lại bằng tay thì không nhân đôi). */
 export const restoreCards = (cards, removed) => [...cards, ...removed.filter((r) => !cards.some((c) => c.id === r.id))];
+
+/**
+ * BE:EDU-114 — dòng nội dung cần gợi ý hoạt động: nút chung (goalId null) lấy dòng chưa có thẻ; nút từng MT lấy mọi dòng của
+ * MT đó; MT không còn dòng nào thì bỏ. `index` giữ vị trí thật của từng dòng, `all` để nhận ra bảng đã đổi.
+ */
+export function activityTargets(goals, cards, goalId = null) {
+  const used = new Set(cards.flatMap((c) => c.contentRefs || []));
+  return goals
+    .filter((g) => goalId == null || String(g.id) === String(goalId))
+    .map((g) => {
+      const index = g.lines.map((_, i) => i).filter((i) => goalId != null || !used.has(`${g.id}:${i}`));
+      return { id: g.id, no: g.no, text: g.text, lines: index.map((i) => g.lines[i]), index, all: g.lines };
+    })
+    .filter((g) => g.lines.length);
+}
+
+/** Đổi chỉ số dòng AI trả về thành contentRefs thật; MT đã sửa nội dung trong lúc chờ thì bỏ gợi ý của MT đó. */
+export function activityDrafts(items, targets, current) {
+  const drafts = [];
+  let skipped = 0;
+  for (const item of items || []) {
+    const target = targets.find((g) => String(g.id) === String(item.goalId));
+    if (!target) continue;
+    if (JSON.stringify(current[target.id]) !== JSON.stringify(target.all)) {
+      skipped += 1;
+      continue;
+    }
+    const contentRefs = (item.lines || []).filter((i) => i >= 0 && i < target.index.length).map((i) => `${target.id}:${target.index[i]}`);
+    if (contentRefs.length) drafts.push({ slot: item.slot, name: item.name, goalIds: [target.id], contentRefs, ref: item.ref });
+  }
+  return { drafts, skipped };
+}

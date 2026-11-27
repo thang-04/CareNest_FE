@@ -1,6 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { applyRewrite, cardsLostByRewrite, restoreCards, rewriteRequestGoals } from '../../src/models/education-plan/aiClassContent.mjs';
+import {
+  activityDrafts,
+  activityTargets,
+  applyRewrite,
+  cardsLostByRewrite,
+  restoreCards,
+  rewriteRequestGoals,
+} from '../../src/models/education-plan/aiClassContent.mjs';
 
 const goals = [
   { id: '10', lines: ['Hát cũ', 'Vỗ tay'] },
@@ -60,4 +67,34 @@ test('EDU-115: thay cả mục tiêu; mục tiêu không có gợi ý hoặc đ�
     result.cards.map((c) => c.id),
     ['c', 'd'],
   );
+});
+
+test('EDU-114: nút chung chỉ gửi dòng chưa có thẻ; nút từng mục tiêu gửi mọi dòng; mục tiêu trống bỏ qua', () => {
+  const list = [...goals, { id: '12', lines: [] }];
+  const used = [
+    { id: 'a', contentRefs: ['10:0'] },
+    { id: 'c', contentRefs: ['11:0'] },
+  ];
+  const all = activityTargets(list, used);
+  assert.deepEqual(
+    all.map((g) => [g.id, g.lines, g.index]),
+    [['10', ['Vỗ tay'], [1]]],
+  );
+  assert.deepEqual(activityTargets(list, used, '10')[0].index, [0, 1]);
+  assert.deepEqual(activityTargets(list, used, '12'), []);
+});
+
+test('EDU-114: thẻ gắn đúng dòng thật; nội dung đổi trong lúc chờ thì bỏ', () => {
+  const targets = activityTargets(goals, [{ id: 'a', contentRefs: ['10:0'] }]);
+  const items = [
+    { goalId: '10', slot: 'hoc', name: 'Gõ phách', lines: [0, 5] },
+    { goalId: '11', slot: 'hoc', name: 'Thơ', lines: [0] },
+    { goalId: '99', slot: 'hoc', name: 'Lạ', lines: [0] },
+  ];
+  const { drafts, skipped } = activityDrafts(items, targets, { 10: goals[0].lines, 11: ['Đọc thơ mới'] });
+  assert.deepEqual(
+    drafts.map((d) => [d.name, d.contentRefs, d.goalIds]),
+    [['Gõ phách', ['10:1'], ['10']]],
+  );
+  assert.equal(skipped, 1);
 });

@@ -11,7 +11,14 @@ import { AiWorkingOverlay } from '@/components/ui/AiWorkingOverlay';
 import ThemeGoalPickerModal from '@/components/education-plan/ThemeGoalPickerModal';
 import ActivityCardEditor from '@/components/education-plan/ActivityCardEditor';
 import { AiClassContentModal } from '@/components/education-plan/AiClassContentModal';
-import { applyRewrite, cardsLostByRewrite, restoreCards, rewriteRequestGoals } from '@/models/education-plan/aiClassContent.mjs';
+import {
+  activityDrafts,
+  activityTargets,
+  applyRewrite,
+  cardsLostByRewrite,
+  restoreCards,
+  rewriteRequestGoals,
+} from '@/models/education-plan/aiClassContent.mjs';
 import { AI_CONTENT_SOURCE_LABELS } from '@/models/education-plan/aiGoalContent.mjs';
 import { Button } from '@/components';
 
@@ -141,28 +148,33 @@ export function ThemePlanBody({
     putCards(cards.some((c) => c.id === card.id) ? cards.map((c) => (c.id === card.id ? card : c)) : [...cards, card]);
     setEditing(null);
   };
-  const allRefsOf = (g) => contentLinesOf(rowOf(g).contents).map((_, i) => `${g.id}:${i}`);
   const lineGoals = () => goals.map((g) => ({ id: g.id, no: g.no, text: g.text, lines: contentLinesOf(rowOf(g).contents) }));
-  // AI gợi ý (EDU-20 mở rộng, BE POST /ai/activities): cho mọi MT chưa có hoạt động, hoặc cho đúng một MT ở dòng của nó
-  // (kể cả MT đã có hoạt động, để thêm ý); mỗi gợi ý Dùng / Bỏ, chưa dùng thì chưa thành thẻ
-  const [ai, setAi] = useState({ busy: false, goalId: null, items: [] });
+  // BE:EDU-114: gợi ý theo dòng nội dung (nút chung: dòng chưa có hoạt động; nút từng MT: mọi dòng của MT)
+  const [ai, setAi] = useState({ busy: false, goalId: null });
   const askAi = async (goalId = null) => {
-    setAi({ busy: true, goalId, items: [] });
+    const targets = activityTargets(lineGoals(), cards, goalId);
+    if (!targets.length) {
+      notify('Mục tiêu chưa có nội dung để gợi ý', 'warn');
+      return;
+    }
+    setAi({ busy: true, goalId });
     try {
-      const target = lineGoals().filter((g) => (goalId ? String(g.id) === String(goalId) : !cardsOf(g).length));
-      const items = await suggestActivities({ themeName: currentTheme.name, goals: target });
-      // Điền thẳng vào bảng (Tiền 25/11/2026): thẻ thành nháp chờ ✓/✗; Lưu mà không bấm ⇒ giữ hết
-      const next = items.map((it) => {
-        const g = goals.find((x) => String(x.id) === it.goalId);
-        return { ...newCard({ slot: it.slot, name: it.name, goalIds: [it.goalId], contentRefs: g ? allRefsOf(g) : [] }), ref: it.ref };
+      const items = await suggestActivities({
+        themeName: currentTheme.name,
+        goals: targets.map(({ id, no, text, lines }) => ({ id: String(id), no, text, lines })),
       });
-      if (next.length) putCards([...cards, ...next.map(({ ref: _ref, ...c }) => c)]);
+      const now = latest.current;
+      const { drafts, skipped } = activityDrafts(items, targets, Object.fromEntries(now.lines.map((g) => [g.id, g.lines])));
+      // Điền thẳng vào bảng (Tiền 25/11/2026): thẻ thành nháp chờ ✓/✗; Lưu mà không bấm ⇒ giữ hết
+      const next = drafts.map(({ ref, ...d }) => ({ ...newCard(d), ref }));
+      if (next.length) now.setField('activities', [...now.cards, ...next.map(({ ref: _ref, ...c }) => c)]);
       setAiPending((p) => ({ ...p, ...Object.fromEntries(next.map((c) => [c.id, c.ref || null])) }));
       if (!next.length) notify('AI chưa có gợi ý phù hợp', 'warn');
-      setAi({ busy: false, goalId: null, items: [] });
+      else if (skipped) notify('Mục tiêu đã sửa trong lúc chờ AI được giữ nguyên', 'warn');
     } catch (error) {
-      setAi({ busy: false, goalId: null, items: [] });
       notify(error.message || 'Chưa gợi ý được, thử lại sau', 'err');
+    } finally {
+      setAi({ busy: false, goalId: null });
     }
   };
   // Thẻ AI đang chờ: { [cardId]: ref RAG | null } — chỉ ở màn hình, không lưu vào kế hoạch
@@ -276,11 +288,11 @@ export function ThemePlanBody({
                   size="sm"
                   icon={Sparkles}
                   loading={ai.busy && !ai.goalId}
-                  disabled={ai.busy || !goals.some((g) => !cardsOf(g).length)}
-                  title={goals.length && !goals.some((g) => !cardsOf(g).length) ? 'Mọi MT đã có hoạt động' : undefined}
+                  disabled={ai.busy || !activityTargets(lineGoals(), cards).length}
+                  title={goals.length && !activityTargets(lineGoals(), cards).length ? 'Mọi dòng nội dung đã có hoạt động' : undefined}
                   onClick={() => askAi()}
                 >
-                  Gợi ý AI cho MT chưa có hoạt động
+                  Gợi ý hoạt động cho nội dung chưa có
                 </Button>
               )}
               {rewriteContents && (
