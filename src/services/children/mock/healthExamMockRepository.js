@@ -31,7 +31,7 @@ import { temperatureFormatError } from '@/utils/children/healthExamHints';
 import { needsParentOpinion, validateHealthExam } from '@/utils/children/healthExamValidation';
 import { canRecordMeasurement, canViewHealth } from '@/utils/children/childrenPermissions';
 import { ensureChildRecordsSeeded, ensureDeclarationOf, notifyTbContactDateChanged, toMeasurementView } from './childrenMockRepository';
-import { previousExamOf } from './healthCheckMockRepository';
+import { classAtDate, previousExamOf } from './healthCheckMockRepository';
 import { campaignStatusOf, isOpenForEntry } from './healthCheckRule';
 import { conclusionBrief, examReferenceFor, examReviewPoints, screenMeasurement } from './healthScreeningRule';
 
@@ -62,9 +62,12 @@ const contextOf = (db, campaignId, childId, user) => {
   const campaign = (db.healthCheckCampaigns || []).find((c) => c.id === campaignId);
   const child = db.children.find((c) => c.id === childId);
   const cls = classOf(db, child);
-  // Ngoài phạm vi trả 404 như không tồn tại.
-  if (!campaign || !child || campaign.campusId !== child.campusId || !canViewHealth(child, user, cls)) throw new ApiError(404, NOT_FOUND);
   const m = db.healthMeasurements.find((x) => x.childId === childId && x.campaignId === campaignId) || null;
+  const recordedClass = m && child ? db.classes.find((c) => c.id === classAtDate(db, child, m.date)) : null;
+  // Ngoài phạm vi trả 404 như không tồn tại.
+  const canViewRecorded = recordedClass && campaign?.campusId === recordedClass.campusId && canViewHealth(child, user, recordedClass);
+  if (!campaign || !child || (!canViewRecorded && (campaign.campusId !== child.campusId || !canViewHealth(child, user, cls))))
+    throw new ApiError(404, NOT_FOUND);
   return { campaign, child, cls, m };
 };
 
@@ -405,8 +408,8 @@ const toExamView = (db, { campaign, child, cls, m }, user) => {
           .map((x) => x.exam.conclusion.doctorName),
       ),
     ].sort((a, b) => a.localeCompare(b, 'vi')),
-    canEdit: open && !legacy && canRecordMeasurement(child, user, cls),
-    locked: !open,
+    canEdit: open && !legacy && child.status === CHILD_STATUS.ACTIVE && canRecordMeasurement(child, user, cls),
+    locked: !open || child.status !== CHILD_STATUS.ACTIVE || !canRecordMeasurement(child, user, cls),
   };
 };
 

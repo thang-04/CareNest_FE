@@ -42,7 +42,6 @@ export function HealthCheckClassRoster({ campaignId, classId, embedded = false, 
   const { roster, loading, error, reload } = useHealthCheckClass(campaignId, classId, { enabled: open });
   // Năm đã kết thúc hoặc năm sắp diễn ra chưa tới ngày mở chuẩn bị (CFG-YR-01, CHD-12): chỉ xem
   const yearLocked = useChildYearLock();
-  const canRecord = !!roster?.canRecord && !yearLocked;
   const rows = useMemo(() => roster?.children || [], [roster]);
   const countable = rows.filter((r) => !r.movedTo).length;
   const concluded = rows.filter((r) => !r.movedTo && r.result === CHILD_RESULT_STATUS.RECORDED).length;
@@ -154,24 +153,23 @@ export function HealthCheckClassRoster({ campaignId, classId, embedded = false, 
                 // Việc chính của dòng: giáo viên khám / khám tiếp; có phiếu thì xem phiếu. Bấm dòng làm việc chính, không có thì
                 // mở sổ sức khỏe (DESIGN §6.3: bấm dòng mở chi tiết, không icon Xem).
                 // Trẻ đã chuyển lớp chỉ xem, không thao tác (HLT-09)
-                const primary = r.movedTo
-                  ? null
-                  : canRecord && r.result === CHILD_RESULT_STATUS.NOT_RECORDED
+                const primary =
+                  r.canEdit && !yearLocked && r.result === CHILD_RESULT_STATUS.NOT_RECORDED
                     ? r.absentToday
                       ? { label: 'Khám', strong: true, disabled: true, title: ABSENT_TODAY_HINT }
                       : { label: 'Khám', strong: true }
-                    : canRecord && r.result === CHILD_RESULT_STATUS.IN_PROGRESS
-                      ? { label: 'Tiếp tục khám', strong: true }
+                    : r.canEdit && !yearLocked && r.result === CHILD_RESULT_STATUS.IN_PROGRESS
+                      ? r.absentToday
+                        ? { label: 'Tiếp tục khám', strong: true, disabled: true, title: ABSENT_TODAY_HINT }
+                        : { label: 'Tiếp tục khám', strong: true }
                       : hasExam
                         ? { label: 'Xem phiếu', strong: false }
                         : null;
                 return (
                   <tr
                     key={r.childId}
-                    className={r.movedTo ? undefined : 'row-click'}
-                    {...(r.movedTo
-                      ? {}
-                      : clickableRowProps(() => navigate(primary && !primary.disabled ? examLink(r.childId) : healthLink)))}
+                    className="row-click"
+                    {...clickableRowProps(() => navigate(primary && !primary.disabled ? examLink(r.childId) : healthLink))}
                   >
                     <td>
                       <div className="fw-600">{r.fullName}</div>

@@ -112,7 +112,7 @@ const byName = (a, b) => a.fullName.localeCompare(b.fullName, 'vi');
  * Lớp của trẻ tại một ngày theo db.childPlacements (số đo mock không lưu lớp). Đơn giản hóa so với BE (HLT-09): chỉ biết các lần
  * xếp/chuyển lớp đã ghi; không có lần nào thì là lớp hiện tại.
  */
-const classAtDate = (db, ch, date) => {
+export const classAtDate = (db, ch, date) => {
   const moves = (db.childPlacements || [])
     .filter((p) => p.childId === ch.id)
     .sort((a, b) => a.effectiveFrom.localeCompare(b.effectiveFrom));
@@ -183,7 +183,7 @@ export const rosterOf = (db, campaign, cls, { withMoved = false, canRecord = fal
       conclusionCategory: screen?.conclusionCategory || null,
       conclusion: conclusionBrief(m),
       published: !!m?.published,
-      canEdit: canRecord && !movedTo,
+      canEdit: canRecord && !movedTo && ch.status === CHILD_STATUS.ACTIVE,
       movedTo: movedTo ? { ...classLabelOf(db, ch.classId), from: movedTo.effectiveFrom } : null,
       measuredIn: m && measuredClassId !== cls.id ? { ...classLabelOf(db, measuredClassId), date: m.date } : null,
       absentToday: !movedTo && isAbsentToday(db, ch.id, today),
