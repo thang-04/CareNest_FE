@@ -2,7 +2,7 @@ import { ResponsiveToolbar } from '@/components/ui/ResponsiveToolbar';
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { FileDown, Save, X, Pencil } from '@/components/ui/icons';
-import { Card, EmptyCard, fmtDate, FoldAllButton, Notice, PageHead } from '@/components/education-plan/eduUi';
+import { Card, EmptyCard, fmtDate, FoldAllButton, Notice, PageHead, EduStatusBadge } from '@/components/education-plan/eduUi';
 import { getClassDocRelease, rewriteClassContents, suggestActivityCards } from '@/services/education-plan/educationPlanService';
 import { submitEntryOf } from '@/models/education-plan/reviewHistory.mjs';
 import { VersionHistory } from '@/components/education-plan/VersionHistory';
@@ -35,7 +35,7 @@ import { useDocVersion } from '@/hooks/education-plan/useDocVersion';
 import { addedGoalIds, checkFlag, danglingRows, dropReference, versionOf } from '@/models/education-plan/planVersions.mjs';
 import { classPlanVersionPath } from '@/models/education-plan/planVersions.mjs';
 import DocPreviewModal from '@/components/education-plan/DocPreviewModal';
-import { BlockedNotice } from '@/components/education-plan/DeadlineWidgets';
+import { BlockedNotice, DeadlineBadge } from '@/components/education-plan/DeadlineWidgets';
 import { Button } from '@/components';
 import { SemesterProgress } from '@/components/education-plan/SemesterProgress';
 
@@ -254,7 +254,13 @@ function ThemePlanInner() {
         <PageHead crumbs={crumbs} title={`Kế hoạch giáo dục chủ đề: ${theme.name}`} />
         <ResponsiveToolbar className="ga-year-toolbar" role="group" aria-label="Thao tác kế hoạch chủ đề">
           <div className="ga-year-toolbar__group">
-            {/* Trạng thái, hạn chỉ ở thẻ học kỳ trang danh sách (Tiền 14/11/2026) */}
+            {/* Trạng thái, hạn của học kỳ ở đầu trang như kế hoạch năm (Tiền 28/11/2026) */}
+            {semester && !semester.unreleased && (
+              <>
+                <EduStatusBadge status={semester.status} doc={semester} />
+                <DeadlineBadge doc={semester} />
+              </>
+            )}
             <FoldAllButton />
             {/* Lấy / gợi ý hoạt động ở nút "Thao tác" trong card I (Tiền 18/11/2026); Xuất file chủ đề chỉ ở thẻ chủ đề trang danh sách */}
           </div>

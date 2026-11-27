@@ -3,10 +3,9 @@ import { Link } from 'react-router-dom';
 import { AlertTriangle, CheckCircle2, Circle, Copy } from '@/components/ui/icons';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { DataTable } from '@/components/ui/DataTable';
-import { Card, EduStatusBadge, Notice } from '@/components/education-plan/eduUi';
+import { Card, Notice } from '@/components/education-plan/eduUi';
 import { docReview, useClassPlanContext } from '@/components/education-plan/planUi';
 import { ReviewActions } from '@/components/education-plan/reviewUi';
-import { DeadlineBadge } from '@/components/education-plan/DeadlineWidgets';
 import { useEducationPlan } from '@/hooks/education-plan/useEducationPlan';
 import { numberGoals } from '@/models/education-plan/goalTable';
 import { submitEntryOf } from '@/models/education-plan/reviewHistory.mjs';
@@ -124,8 +123,6 @@ export function SemesterProgress({ classId, themeId, weekStart = null }) {
         onToggle={() => setFolded((f) => !f)}
         actions={
           <div className="row row--wrap row--middle gap-2">
-            <EduStatusBadge status={pkg.status} doc={pkg} />
-            <DeadlineBadge doc={pkg} />
             {allMissing.length > 0 && <span className="field__error text-sm nowrap">Còn thiếu {allMissing.length} mục</span>}
             <ReviewActions
               name={`học kỳ ${pkg.semesterNo}`}

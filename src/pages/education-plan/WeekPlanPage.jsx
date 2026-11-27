@@ -6,11 +6,11 @@ import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom';
 import { ClassFilterBar, docReview, ThemeBranchTabs } from '@/components/education-plan/planUi';
 import { SemesterProgress } from '@/components/education-plan/SemesterProgress';
 import { DossierProgress } from '@/components/education-plan/DossierProgress';
-import { BlockedNotice } from '@/components/education-plan/DeadlineWidgets';
+import { BlockedNotice, DeadlineBadge } from '@/components/education-plan/DeadlineWidgets';
 import { ConfirmationModal } from '@/components/ui/ConfirmationModal';
 import { ChalkboardTeacher, Copy, FileDown, ListChecks, Save, X, Pencil } from '@/components/ui/icons';
 import { ReviewAssistPanel } from '@/components/education-plan/ReviewAssistPanel';
-import { EmptyCard, fmtDate, FoldAllButton, Notice, PageHead } from '@/components/education-plan/eduUi';
+import { EmptyCard, fmtDate, FoldAllButton, Notice, PageHead, EduStatusBadge } from '@/components/education-plan/eduUi';
 import { VersionHistory } from '@/components/education-plan/VersionHistory';
 import { docLines } from '@/models/education-plan/planHistory.mjs';
 import { useClassPlanContext } from '@/components/education-plan/planUi';
@@ -329,6 +329,11 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
   weekEditableRef.editable =
     dayPage && editable && !!dossier && dossier.blockedReason !== 'SEMESTER_NOT_RELEASED' && todayIso() < firstWeek.start;
   const weekApproved = savedWeek?.status === EDU_STATUS.APPROVED;
+  const headDoc = dayPage
+    ? dossier
+    : semesterPackages.find(
+        (p) => p.classId === classId && p.yearPlanId === yearPlan.id && (p.themeIds || []).map(String).includes(String(week.theme.id)),
+      ) || null;
   const dossierAct = async (action, note, _saved, extra) => {
     const out = await actOnClassDoc('dossier', dossier.id, { action, note, ...extra }, user, {
       version: dossier.version,
@@ -575,7 +580,13 @@ export function WeekPlanInner({ mode, classId: classIdProp, weekStart: weekStart
         <PageHead crumbs={crumbs} title={pageTitle} />
         <ResponsiveToolbar className="ga-year-toolbar" role="group" aria-label="Thao tác kế hoạch tuần">
           <div className="ga-year-toolbar__group">
-            {/* Trạng thái, hạn chỉ ở trang danh sách (thẻ học kỳ / thẻ chủ đề), không lặp ở trang trong (Tiền 14/11/2026) */}
+            {/* Trạng thái, hạn ở đầu trang: trang ngày theo hồ sơ chủ đề, trang tuần theo học kỳ (Tiền 28/11/2026) */}
+            {headDoc && !headDoc.unreleased && (
+              <>
+                <EduStatusBadge status={headDoc.status} doc={headDoc} />
+                <DeadlineBadge doc={headDoc} />
+              </>
+            )}
             <FoldAllButton />
             {/* Lấy / gợi ý của ngày nằm trong card I của ngày (Tiền 18/11/2026) */}
             {/* Trả lại ở trái; Duyệt/Ban hành ở phải, luôn là nút riêng (Tiền 18/11/2026) */}
