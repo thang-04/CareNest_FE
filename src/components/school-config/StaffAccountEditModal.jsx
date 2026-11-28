@@ -1,31 +1,45 @@
 import { useState } from 'react';
-import { Phone, Save, UserRound } from '@/components/ui/icons';
-import { StaffFormSection, StaffIdentityCard, WorkCampusField } from '@/components/school-config/StaffAccountFormParts';
+import { Phone, Save, ShieldCheck, UserRound } from '@/components/ui/icons';
+import { StaffFormSection, StaffIdentityCard, StaffRolePicker, WorkCampusField } from '@/components/school-config/StaffAccountFormParts';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useMasterData } from '@/hooks/useMasterData';
-import { ROLES } from '@/models/User';
+import { ROLES, ROLE_LABELS } from '@/models/User';
 import { workCampusOptions } from '@/utils/school-config/schoolConfigPermissions';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
+import { StaffRoleReviewModal } from '@/components/school-config/StaffRoleReviewModal';
 import { TextField } from '@/components/form/Field';
-import { updateStaffAccountProfile } from '@/services/school-config/schoolConfigService';
-import { EMAIL_MAX, NAME_MAX, emailRequired, toProfilePayload, validateStaffEdit } from '@/utils/school-config/staffImport';
+import { changeStaffAccountRole, updateStaffAccountProfile } from '@/services/school-config/schoolConfigService';
+import {
+  EMAIL_MAX,
+  NAME_MAX,
+  emailRequired,
+  staffEditCampusId,
+  staffRoleChangeRows,
+  staffRoleChoices,
+  toProfilePayload,
+  toRoleChangePayload,
+  validateStaffEdit,
+} from '@/utils/school-config/staffImport';
 
 /**
- * Sửa thông tin tài khoản nhân sự nối BE (AUTH-25): họ tên, email; GV thêm cơ sở công tác (AUTH-15). Vai trò, phân công điểm
- * trường của PHT / bếp, trạng thái đổi ở chức năng riêng.
+ * Sửa tài khoản nhân sự nối BE (AUTH-25): họ tên, email, vai trò; GV thêm cơ sở công tác (AUTH-15). Điểm trường của PHT /
+ * bếp khi giữ nguyên vai trò, và trạng thái, đổi ở chức năng riêng.
  */
 export function StaffAccountEditModal({ account, onClose }) {
   const toast = useToast();
   const { user } = useAuth();
   const md = useMasterData();
-  const teacher = account.role === ROLES.TEACHER;
+  const { roles, lockedReason } = staffRoleChoices(account, user);
   const [form, setForm] = useState({
     fullName: account.fullName || '',
     email: account.email || '',
-    workCampusId: account.workCampusId ? String(account.workCampusId) : '',
+    role: account.role,
+    workCampusId: staffEditCampusId(account),
   });
+  const roleChanged = form.role !== account.role;
+  const showCampus = roleChanged || form.role === ROLES.TEACHER;
   // Cơ sở hiện tại của GV luôn có trong danh sách dù ngoài phạm vi chọn của người sửa
   const campuses = workCampusOptions(md.campuses, user);
   const currentCampus = md.campusById(form.workCampusId);
@@ -33,40 +47,60 @@ export function StaffAccountEditModal({ account, onClose }) {
     currentCampus && !campuses.some((c) => String(c.id) === String(currentCampus.id)) ? [currentCampus, ...campuses] : campuses;
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  // Hồ sơ lưu xong nhưng đổi vai trò lỗi: đóng modal vẫn phải tải lại danh sách
+  const [profileSaved, setProfileSaved] = useState(false);
   const set = (patch) => {
     setForm((f) => ({ ...f, ...patch }));
-    setErrors((e) => Object.fromEntries(Object.entries(e).filter(([k]) => !(k in patch) && k !== '_form')));
+    // Đổi vai trò làm đổi luật bắt buộc email và cơ sở ⇒ bỏ cả hai lỗi đang hiện
+    const stale = ['_form', ...Object.keys(patch), ...('role' in patch ? ['email', 'workCampusId'] : [])];
+    setErrors((e) => Object.fromEntries(Object.entries(e).filter(([k]) => !stale.includes(k))));
   };
   const blur = (field) => {
     const e = validateStaffEdit(form, account.role);
     if (e[field]) setErrors((prev) => ({ ...prev, [field]: e[field] }));
   };
+  const close = () => onClose(profileSaved);
   const save = async () => {
+    setSaving(true);
+    let saved = false;
+    try {
+      // Lưu hồ sơ trước: email trùng thì dừng khi chưa kết thúc phân công nào
+      const keepCampus = roleChanged ? account.workCampusId : undefined;
+      await updateStaffAccountProfile(account.userId, toProfilePayload(form, account.role, keepCampus));
+      saved = true;
+      if (roleChanged) await changeStaffAccountRole(account.userId, toRoleChangePayload(form));
+      toast.success(roleChanged ? `Đã đổi vai trò sang ${ROLE_LABELS[form.role]}.` : 'Đã lưu thông tin tài khoản.', form.fullName.trim());
+      onClose(true);
+    } catch (err) {
+      if (saved) {
+        setProfileSaved(true);
+        setErrors({ ...err.details, _form: `Đã lưu thông tin, chưa đổi được vai trò: ${err.message}` });
+      } else setErrors(err.details || { _form: err.message });
+      setConfirming(false);
+      setSaving(false);
+    }
+  };
+  const submit = () => {
     const e = validateStaffEdit(form, account.role);
     setErrors(e);
     if (Object.keys(e).length) return;
-    setSaving(true);
-    try {
-      await updateStaffAccountProfile(account.userId, toProfilePayload(form, account.role));
-      toast.success('Đã lưu thông tin tài khoản.', form.fullName.trim());
-      onClose(true);
-    } catch (err) {
-      setErrors(err.details || { _form: err.message });
-      setSaving(false);
-    }
+    if (roleChanged) setConfirming(true);
+    else save();
   };
   return (
     <Modal
       open
+      size="lg"
       className="sc-account-modal"
       title="Sửa thông tin tài khoản"
-      onClose={saving ? undefined : () => onClose(false)}
+      onClose={saving ? undefined : close}
       footer={
         <>
-          <Button onClick={() => onClose(false)} disabled={saving}>
+          <Button onClick={close} disabled={saving}>
             Hủy
           </Button>
-          <Button variant="primary" icon={Save} loading={saving} onClick={save}>
+          <Button variant="primary" icon={Save} loading={saving} onClick={submit}>
             Lưu thay đổi
           </Button>
         </>
@@ -79,6 +113,13 @@ export function StaffAccountEditModal({ account, onClose }) {
           </div>
         )}
         <StaffIdentityCard account={account} />
+        <StaffFormSection
+          icon={ShieldCheck}
+          title="Vai trò"
+          description={lockedReason || 'Đổi vai trò sẽ kết thúc các phân công đang hiệu lực.'}
+        >
+          {!lockedReason && <StaffRolePicker roles={roles} value={form.role} error={errors.role} onChange={(role) => set({ role })} />}
+        </StaffFormSection>
         <StaffFormSection icon={UserRound} title="Thông tin cá nhân">
           <TextField
             label="Họ tên"
@@ -91,7 +132,7 @@ export function StaffAccountEditModal({ account, onClose }) {
           />
           <TextField
             label="Email"
-            required={emailRequired(account.role)}
+            required={emailRequired(form.role)}
             error={errors.email}
             type="email"
             maxLength={EMAIL_MAX}
@@ -99,26 +140,18 @@ export function StaffAccountEditModal({ account, onClose }) {
             onChange={(e) => set({ email: e.target.value })}
             onBlur={() => blur('email')}
           />
-          {teacher && (
+          {showCampus && (
             <WorkCampusField
-              campuses={campusOptions}
-              role={account.role}
-              error={errors.workCampusId}
+              campuses={roleChanged ? campuses : campusOptions}
+              role={form.role}
+              error={errors.workCampusId || errors.campusId}
               value={form.workCampusId}
               onChange={(workCampusId) => set({ workCampusId })}
               onBlur={() => blur('workCampusId')}
             />
           )}
         </StaffFormSection>
-        <StaffFormSection
-          icon={Phone}
-          title="Đăng nhập"
-          description={
-            teacher
-              ? 'Vai trò và trạng thái đổi ở chức năng riêng, không sửa ở đây.'
-              : 'Vai trò, điểm trường và trạng thái đổi ở chức năng riêng, không sửa ở đây.'
-          }
-        >
+        <StaffFormSection icon={Phone} title="Đăng nhập" description="Trạng thái đổi ở chức năng riêng, không sửa ở đây.">
           <TextField
             label="Số điện thoại (tên đăng nhập)"
             hint="Số điện thoại là tên đăng nhập nên không sửa được."
@@ -129,6 +162,15 @@ export function StaffAccountEditModal({ account, onClose }) {
           />
         </StaffFormSection>
       </div>
+      {confirming && (
+        <StaffRoleReviewModal
+          name={account.fullName}
+          rows={staffRoleChangeRows(account, form, currentCampus?.shortName || currentCampus?.name || '')}
+          saving={saving}
+          onConfirm={save}
+          onClose={() => setConfirming(false)}
+        />
+      )}
     </Modal>
   );
 }

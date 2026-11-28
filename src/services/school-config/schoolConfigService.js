@@ -134,7 +134,7 @@ export const saveRolePermissions = (role, payload, user) => repo.saveRolePermiss
 
 /*
  * Tài khoản nhân sự trên BE thật (API tài khoản của dev, G94-60): danh sách phân trang theo phạm vi người xem, tạo kèm
- * phân công, khóa / mở, cấp lại mật khẩu tạm. BE chưa có API sửa hồ sơ / đổi vai trò nên màn không cho làm hai việc đó.
+ * phân công, sửa hồ sơ, đổi vai trò (AUTH-25), khóa / mở, cấp lại mật khẩu tạm.
  */
 export const STAFF_ACCOUNTS_ON_BE = SCHOOL_CONFIG_API;
 export const searchStaffAccounts = ({ role, status, campusId, q, page = 0, size = 10 } = {}) =>
@@ -153,5 +153,6 @@ export const listAllStaffAccounts = async (filters = {}) => {
 };
 export const createStaffAccount = (payload) => beClient.post('/accounts', payload);
 export const updateStaffAccountProfile = (id, payload) => beClient.patch(`/accounts/${id}/profile`, payload);
+export const changeStaffAccountRole = (id, payload) => beClient.put(`/accounts/${id}/staff-role`, payload);
 export const setStaffAccountStatus = (id, status) => beClient.patch(`/accounts/${id}/status`, { status });
 export const resetStaffPassword = (id, temporaryPassword) => beClient.post(`/accounts/${id}/temporary-password`, { temporaryPassword });
