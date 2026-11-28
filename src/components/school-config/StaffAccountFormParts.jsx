@@ -5,7 +5,7 @@ import { ROLES, ROLE_LABELS } from '@/models/User';
 import { SelectField } from '@/components/form/Field';
 import { STAFF_ROLES } from '@/utils/school-config/staffImport';
 
-const ROLE_INFO = {
+export const ROLE_INFO = {
   [ROLES.VICE_PRINCIPAL]: { icon: ShieldCheck, hint: 'Phụ trách một điểm trường' },
   [ROLES.TEACHER]: { icon: ChalkboardTeacher, hint: 'Xếp lớp sau ở Phân công giáo viên' },
   [ROLES.KITCHEN_STAFF]: { icon: ChefHat, hint: 'Tài khoản bếp của điểm trường' },
@@ -49,11 +49,11 @@ export function StaffFormSection({ icon: Icon, title, description, children }) {
 }
 
 /** Chọn vai trò bằng thẻ (thay ô select) để thấy luôn khác biệt giữa các vai trò. */
-export function StaffRolePicker({ value, onChange, error }) {
+export function StaffRolePicker({ value, onChange, error, roles = STAFF_ROLES }) {
   return (
     <div className="field">
       <div className="sc-role-picker" role="radiogroup" aria-label="Vai trò" aria-required="true">
-        {STAFF_ROLES.map((role) => {
+        {roles.map((role) => {
           const { icon: Icon, hint } = ROLE_INFO[role] || {};
           const selected = value === role;
           return (

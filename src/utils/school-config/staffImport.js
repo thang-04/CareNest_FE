@@ -83,19 +83,75 @@ export const toCreatePayload = (form) => ({
   assignment: { campusId: form.campusId || null },
 });
 
-/** Lỗi form sửa hồ sơ: GV phải có cơ sở công tác (GV cũ chưa có thì bắt buộc chọn — BE AUTH-15). */
-export function validateStaffEdit(form, role) {
+/**
+ * Vai trò người sửa được đổi sang (BE AUTH-25, AUTH-17): Hiệu trưởng chọn cả 3 vai trò nhân sự, PHT chỉ Giáo viên / Bếp.
+ * Không đổi được thì `roles` rỗng kèm `lockedReason`.
+ */
+export function staffRoleChoices(account, actor) {
+  const locked = (lockedReason) => ({ roles: [], lockedReason });
+  if (String(account.userId) === String(actor?.id)) return locked('Không tự đổi vai trò của chính mình.');
+  if (!STAFF_ROLES.includes(account.role)) return locked('Vai trò này không đổi được trên màn hình này.');
+  if (account.status === 'INACTIVE') return locked('Tài khoản đang bị vô hiệu hóa. Kích hoạt lại rồi mới đổi vai trò.');
+  const roles = actor?.role === ROLES.VICE_PRINCIPAL ? STAFF_ROLES.filter((r) => r !== ROLES.VICE_PRINCIPAL) : STAFF_ROLES;
+  return { roles, lockedReason: '' };
+}
+
+/** Cơ sở điền sẵn ở form sửa: cơ sở công tác của GV, không có thì điểm trường đang được phân công. */
+export const staffEditCampusId = (account) =>
+  String(account.workCampusId || (account.activeAssignments || []).find((s) => s.campusId)?.campusId || '');
+
+/**
+ * Lỗi form sửa: email theo vai trò đang chọn; GV phải có cơ sở công tác (BE AUTH-15), đổi vai trò thì vai trò nào cũng
+ * phải chọn cơ sở.
+ */
+export function validateStaffEdit(form, currentRole) {
+  const role = form.role || currentRole;
   const e = validateStaffProfile(form, role);
-  if (role === ROLES.TEACHER && !form.workCampusId) e.workCampusId = WORK_CAMPUS_REQUIRED;
+  if ((role === ROLES.TEACHER || role !== currentRole) && !form.workCampusId) e.workCampusId = WORK_CAMPUS_REQUIRED;
   return e;
 }
 
-/** Body PATCH /accounts/{id}/profile (AUTH-25): họ tên, email; GV kèm cơ sở công tác. SĐT là tên đăng nhập nên không sửa ở đây. */
-export const toProfilePayload = (form, role) => ({
-  fullName: text(form.fullName),
-  email: text(form.email) || null,
-  ...(role === ROLES.TEACHER && form.workCampusId ? { workCampusId: form.workCampusId } : {}),
-});
+// Phụ trách ngay sau khi đổi (AUTH-25): PHT / bếp nhận phân công điểm trường, GV chưa có lớp
+const DUTY_AFTER_CHANGE = {
+  [ROLES.VICE_PRINCIPAL]: (campus) => `Phụ trách ${campus}`,
+  [ROLES.KITCHEN_STAFF]: (campus) => `Bếp tại ${campus}`,
+  [ROLES.TEACHER]: () => 'Chưa có lớp',
+};
+
+/**
+ * Dòng bảng trước / sau khi xác nhận đổi vai trò. `account` là dòng danh sách (có campusNames, duties); `campusName` là cơ sở
+ * mới đã chọn. Họ tên, email chỉ hiện khi có sửa.
+ */
+export function staffRoleChangeRows(account, form, campusName) {
+  const row = (id, label, before, after) => ({ id, label, before, after });
+  const rows = [
+    row('role', 'Vai trò', ROLE_LABELS[account.role], ROLE_LABELS[form.role]),
+    row('campus', 'Cơ sở công tác', account.campusNames.join(', ') || 'Chưa có', campusName),
+    row('duties', 'Đang phụ trách', account.duties.join(', ') || 'Chưa được phân công', DUTY_AFTER_CHANGE[form.role](campusName)),
+  ];
+  const name = text(form.fullName);
+  if (name !== text(account.fullName)) rows.push(row('fullName', 'Họ tên', account.fullName, name));
+  const email = text(form.email);
+  // Email để trống ⇒ BE giữ email cũ
+  if (email && email !== text(account.email)) rows.push(row('email', 'Email', account.email || 'Chưa có', email));
+  return rows;
+}
+
+/** Body PUT /accounts/{id}/staff-role (AUTH-25): GV nhận cơ sở công tác, PHT / bếp nhận phân công điểm trường. */
+export const toRoleChangePayload = (form) => ({ role: form.role, assignment: { campusId: form.workCampusId } });
+
+/**
+ * Body PATCH /accounts/{id}/profile (AUTH-25): họ tên, email; GV kèm cơ sở công tác. SĐT là tên đăng nhập nên không sửa ở đây.
+ * Đang đổi vai trò: hồ sơ lưu theo vai trò cũ với `keepWorkCampusId`, cơ sở mới đi cùng lệnh đổi vai trò.
+ */
+export const toProfilePayload = (form, role, keepWorkCampusId) => {
+  const workCampusId = keepWorkCampusId || form.workCampusId;
+  return {
+    fullName: text(form.fullName),
+    email: text(form.email) || null,
+    ...(role === ROLES.TEACHER && workCampusId ? { workCampusId } : {}),
+  };
+};
 
 const findCampus = (campuses, v) => campuses.find((c) => [c.shortName, c.name, c.code].some((x) => x && key(x) === key(v))) || null;
 const roleOf = (v) => STAFF_ROLES.find((r) => key(ROLE_LABELS[r]) === key(v) || key(r) === key(v)) || '';
