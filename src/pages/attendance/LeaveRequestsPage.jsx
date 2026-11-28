@@ -7,7 +7,6 @@ import { Pagination, paginate } from '@/components/ui/Pagination';
 import { DateInput } from '@/components/form/DateInput';
 import { SelectField } from '@/components/form/Field';
 import { SemesterSelect } from '@/components/form/SemesterSelect';
-import { semesterRange } from '@/utils/semesters';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSchoolYear } from '@/contexts/SchoolYearContext';
 import { useAsync } from '@/hooks/useAsync';
@@ -20,9 +19,10 @@ import { getCampuses } from '@/services/masterDataService';
 import { getLeaveRequests } from '@/services/attendance/attendanceService';
 import { canFilterLeaveByCampus } from '@/utils/attendance/attendancePermissions';
 import { addDays, schoolToday } from '@/utils/attendance/attendanceTime';
+import { leaveDefaultRange } from '@/utils/attendance/leaveRange';
 import { attendanceCrumbs } from '@/utils/attendance/breadcrumbs';
 import { exportWithPreview } from '@/components/ui/ExportPreview';
-import { formatDate, formatDateTime, isIsoDate, monthRangeOf } from '@/utils/format';
+import { formatDate, formatDateTime, isIsoDate } from '@/utils/format';
 import { childNameWithHistory } from '@/utils/childHistory';
 import { LEAVE_PART, LEAVE_PART_LABELS, LEAVE_STATUS_LABELS, MEAL_SESSION_LABELS } from '@/models/attendance/attendanceConstants';
 import '@/styles/modules/attendance.css';
@@ -39,23 +39,27 @@ const eatsLabel = (r) =>
 export default function LeaveRequestsPage() {
   const { user } = useAuth();
   const today = schoolToday();
-  const [filters, setFilters] = useState(() => ({ ...monthRangeOf(today), campusId: '', classId: '', ageGroupId: '' }));
+  // from / to trống = dùng khoảng mặc định theo năm học đang chọn
+  const [picked, setFilters] = useState({ campusId: '', classId: '', ageGroupId: '' });
   const [page, setPage] = useState(1);
   // Lọc nhanh theo học kỳ: đặt khoảng ngày theo học kỳ; sửa ngày tay thì bỏ chọn
   const [semester, setSemester] = useState('');
   const classesQuery = useAttendanceClasses();
-  // Năm học ở đầu trang: xem lại đơn của năm cũ. Đổi năm ⇒ bỏ lớp đã chọn; hôm nay ngoài năm đó thì xem tháng cuối năm
+  // Năm học ở đầu trang: xem lại đơn của năm cũ. Đổi năm ⇒ bỏ lớp đã chọn, về khoảng mặc định của năm đó
   const { schoolYear, schoolYears } = useSchoolYear();
+  const yearRange = leaveDefaultRange(
+    today,
+    schoolYears.find((o) => o.id === schoolYear),
+  );
+  const filters = { ...yearRange, ...picked };
   const yearRef = useRef(schoolYear);
   useEffect(() => {
     if (yearRef.current === schoolYear) return;
     yearRef.current = schoolYear;
-    const y = schoolYears.find((o) => o.id === schoolYear);
-    const inYear = !y?.startDate || (today >= y.startDate && today <= y.endDate);
-    setFilters((f) => ({ ...f, ...monthRangeOf(inYear ? today : y.endDate), classId: '' }));
+    setFilters((f) => ({ campusId: f.campusId, ageGroupId: f.ageGroupId, classId: '' }));
     setSemester('');
     setPage(1);
-  }, [schoolYear, schoolYears, today]);
+  }, [schoolYear]);
   const { data: campuses } = useAsync(() => getCampuses(user), [user?.id]);
   const leader = canFilterLeaveByCampus(user);
   const ageGroups = useAgeGroupOptions(classesQuery.classes);
@@ -164,11 +168,11 @@ export default function LeaveRequestsPage() {
             <span className="field__label">Học kỳ</span>
             <SemesterSelect
               value={semester}
-              emptyLabel="Chọn ngày"
+              emptyLabel="Tùy chọn ngày"
               onChange={(key, sem) => {
-                const next = semesterRange(sem, today);
-                setSemester(next ? key : '');
-                if (next) setFilter(next);
+                // Đơn nghỉ gửi trước ngày nghỉ ⇒ lấy trọn học kỳ, không cắt ở hôm nay
+                setSemester(sem ? key : '');
+                if (sem) setFilter({ from: sem.start, to: sem.end });
               }}
             />
           </div>
@@ -177,7 +181,6 @@ export default function LeaveRequestsPage() {
             <DateInput
               aria-label="Từ ngày"
               value={filters.from}
-              max={filters.to || undefined}
               onChange={(from) => {
                 setSemester('');
                 setFilter({ from });
@@ -189,7 +192,6 @@ export default function LeaveRequestsPage() {
             <DateInput
               aria-label="Đến ngày"
               value={filters.to}
-              min={filters.from || undefined}
               onChange={(to) => {
                 setSemester('');
                 setFilter({ to });
@@ -238,7 +240,11 @@ export default function LeaveRequestsPage() {
           <button
             className="btn"
             type="button"
-            onClick={() => setFilter({ ...monthRangeOf(today), campusId: '', classId: '', ageGroupId: '' })}
+            onClick={() => {
+              setFilters({ campusId: '', classId: '', ageGroupId: '' });
+              setSemester('');
+              setPage(1);
+            }}
           >
             <RotateCcw size={15} /> Đặt lại bộ lọc
           </button>
@@ -258,7 +264,8 @@ export default function LeaveRequestsPage() {
                 <tr>
                   <th>Trẻ</th>
                   <th>Lớp</th>
-                  <th className="center">Nghỉ</th>
+                  <th className="center">Từ ngày</th>
+                  <th className="center">Đến ngày</th>
                   <th className="center">Buổi</th>
                   <th className="center" title="Bữa của buổi còn học; — khi đơn cả ngày hoặc buổi còn học không có bữa">
                     Bé tham gia ăn
@@ -271,10 +278,10 @@ export default function LeaveRequestsPage() {
               </thead>
               <tbody>
                 {leaves.loading && !leaves.data ? (
-                  <SkeletonRows rows={4} cols={9} />
+                  <SkeletonRows rows={4} cols={10} />
                 ) : rows.length === 0 ? (
                   <tr>
-                    <td colSpan={9}>
+                    <td colSpan={10}>
                       {filters.campusId && !classes.length ? (
                         <EmptyState title="Chưa có dữ liệu" description="Điểm trường này chưa có lớp trong năm học đang chọn." />
                       ) : (
@@ -290,9 +297,8 @@ export default function LeaveRequestsPage() {
                         {r.className}
                         {leader && campusIds.size > 1 && r.campusId ? ` · ${campusName(r.campusId)}` : ''}
                       </td>
-                      <td className="nowrap center">
-                        {r.fromDate === r.toDate ? formatDate(r.fromDate) : `${formatDate(r.fromDate)} – ${formatDate(r.toDate)}`}
-                      </td>
+                      <td className="nowrap center">{formatDate(r.fromDate)}</td>
+                      <td className="nowrap center">{formatDate(r.toDate)}</td>
                       <td className="nowrap center">{LEAVE_PART_LABELS[r.part || LEAVE_PART.FULL_DAY]}</td>
                       <td className="center">{eatsLabel(r)}</td>
                       <td>{r.reason}</td>
