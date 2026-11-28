@@ -48,7 +48,6 @@ import {
   syncSharedMeals,
 } from '@/utils/menu-planning/mealPlanGrid';
 import { applyTemplateDay, dayBlockItemCount, templateItemsForDate } from '@/utils/menu-planning/menuTemplateGrid';
-import { statisticsHref } from '@/utils/menu-planning/menuStatistics';
 import { weeklyCrumbs } from '@/utils/menu-planning/breadcrumbs';
 import { formatDateTime, todayInput } from '@/utils/format';
 import '@/styles/modules/menu-planning.css';
@@ -340,7 +339,7 @@ export default function WeeklyPlanPage() {
               editable={editable}
               busy={busy}
               onEdit={editDraft}
-              dayLink={plan.status === MEAL_PLAN_STATUS.NONE ? undefined : (day) => statisticsHref({ week, date: day.date })}
+              dayLink={plan.status === MEAL_PLAN_STATUS.NONE ? undefined : (day) => `/kitchen/market-day?date=${day.date}`}
               templates={templates}
               onPickTemplate={pickTemplate}
               dayActions={plan.status === MEAL_PLAN_STATUS.NONE && !editable ? undefined : dayActions}

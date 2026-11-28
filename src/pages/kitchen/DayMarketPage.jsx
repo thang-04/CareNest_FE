@@ -120,7 +120,7 @@ export default function DayMarketPage() {
 
   return (
     <div className="page">
-      <Breadcrumb items={kitchenCrumbs(KITCHEN_PAGES.forecast, KITCHEN_PAGES.dayMarket.label)} />
+      <Breadcrumb items={kitchenCrumbs(KITCHEN_PAGES.dayMarket)} />
       <div className="page__head">
         <div>
           <h1 className="page__title">Đi chợ theo ngày</h1>

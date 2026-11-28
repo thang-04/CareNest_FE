@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import { MENU_AI_ENABLED } from '@/config/env';
-import { Navigate, Route, Routes, useParams } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom';
 import { lazyPage, registerRouteTree } from './routePrefetch';
 import { MainLayout } from '@/layouts/MainLayout';
 import { RoleGuard } from './RoleGuard';
@@ -10,6 +10,7 @@ import { ROLES } from '@/models/User';
 import { PERMISSIONS } from '@/models/bePermissions';
 import { hasBePermission } from '@/utils/bePermissions';
 import HomePage from '@/pages/HomePage';
+import { legacyStatisticsTarget } from '@/utils/menu-planning/menuStatistics';
 import ComingSoonPage from '@/pages/ComingSoonPage';
 import NotificationsPage from '@/pages/NotificationsPage';
 import NotFoundPage from '@/pages/NotFoundPage';
@@ -192,7 +193,6 @@ const NutritionBalancePage = lazyPage(() => import('@/pages/menu-planning/Nutrit
 const WeeklyPlanPage = lazyPage(() => import('@/pages/menu-planning/WeeklyPlanPage'));
 const MenuTemplateListPage = lazyPage(() => import('@/pages/menu-planning/MenuTemplateListPage'));
 const MenuTemplateEditorPage = lazyPage(() => import('@/pages/menu-planning/MenuTemplateEditorPage'));
-const MenuStatisticsPage = lazyPage(() => import('@/pages/menu-planning/MenuStatisticsPage'));
 const MenuPlanListPage = lazyPage(() => import('@/pages/menu-planning/MenuPlanListPage'));
 const MenuPlanDetailPage = lazyPage(() => import('@/pages/menu-planning/MenuPlanDetailPage'));
 const R = ROLES;
@@ -217,6 +217,12 @@ const DENIED = 'Chức năng này không thuộc quyền của vai trò hiện t
 function ThemeReviewRedirect() {
   const { classId, themeId } = useParams();
   return <Navigate to={`/education/class/${classId}/themes/${themeId}`} replace />;
+}
+
+// Màn Định lượng & đi chợ đã bỏ: link cũ mở Cân đối khẩu phần (hoặc trang mẫu) cùng tuần/ngày
+function LegacyStatisticsRedirect() {
+  const { search } = useLocation();
+  return <Navigate to={legacyStatisticsTarget(search)} replace />;
 }
 
 function SupplierRedirect() {
@@ -439,10 +445,7 @@ export function AppRoutes() {
               path="templates/:id"
               element={TEMPLATE_API ? only(LEADERS, <MenuTemplateEditorPage />) : <Navigate to="/menu/menus" replace />}
             />
-            <Route
-              path="statistics"
-              element={MEAL_PLAN_API ? only(LEADERS, <MenuStatisticsPage />) : <Navigate to="/menu/weekly" replace />}
-            />
+            <Route path="statistics" element={<LegacyStatisticsRedirect />} />
             {/* Hiệu trưởng và Phó hiệu trưởng thao tác bán trú trong bản demo; BE vẫn kiểm quyền khi nối API. */}
             <Route path="menus" element={TEMPLATE_API ? <Navigate to="/menu/templates" replace /> : only(LEADERS, <MenuListPage />)} />
             <Route

@@ -38,6 +38,17 @@ export const dishNutrition = (dish, ageGroup) =>
     [ageGroup?.id, ageGroup?.code].some((key) => key != null && String(n.ageGroupId) === String(key)),
   ) || null;
 
+/** Đích của link cũ `/menu/statistics` (màn đã bỏ): mẫu ⇒ trang mẫu; còn lại ⇒ Cân đối khẩu phần cùng tuần/ngày. */
+export const legacyStatisticsTarget = (search) => {
+  const params = new URLSearchParams(search);
+  const template = params.get('template');
+  if (template) return `/menu/templates/${encodeURIComponent(template)}`;
+  const next = new URLSearchParams();
+  ['week', 'date'].forEach((key) => params.get(key) && next.set(key, params.get(key)));
+  const query = next.toString();
+  return query ? `/menu/nutrition?${query}` : '/menu/nutrition';
+};
+
 /** Link mở trang thống kê từ kế hoạch tuần hoặc bộ mẫu. */
 export const statisticsHref = (source) =>
   `/menu/statistics?${new URLSearchParams(Object.entries(source).filter(([, v]) => v != null && v !== '')).toString()}`;
