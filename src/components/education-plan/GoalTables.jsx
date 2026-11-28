@@ -148,6 +148,7 @@ export function GoalTable({
   onChange,
   readOnly: viewOnly = false,
   canAssignContents = false,
+  onThemeTick,
   canEditContents = false,
   fixedCells = false,
   editLabels = false,
@@ -167,6 +168,7 @@ export function GoalTable({
   const edit = !readOnly && !fixedCells;
   const editContent = edit || canEditContents;
   const isEditing = Boolean(edit || canEditContents || canAssignContents);
+  const pendingReviews = new Set(reviewItems.filter((item) => !item.resolved).map((item) => `${item.itemKind}:${item.itemId}`));
   const newRowIds = useRef(new Map());
   const existingRowIds = new Set(domains.flatMap((d) => d.rows.flatMap((r) => [r.id, ...(r.contents || []).map((c) => c.id)])));
   const allocateNewRowId = (slot) => {
@@ -287,10 +289,12 @@ export function GoalTable({
     });
   };
   const flip = (list, id) => (list.includes(id) ? list.filter((t) => t !== id) : [...list, id]);
-  const toggleTick = (di, r, c, themeId) =>
+  const toggleTick = (di, r, c, themeId) => {
     mapContents(di, r.id, (cs) => cs.map((x) => (x.id === c.id ? { ...x, themes: flip(x.themes, themeId) } : x)));
+    onThemeTick?.(c.id, themeId, r.id);
+  };
   /** Các ô "Chủ đề thực hiện" của một nội dung (c = null: mục tiêu chưa có nội dung, ô trống). */
-  const themeCells = (di, r, c, label) =>
+  const themeCells = (di, r, c, label, needsReview = false) =>
     themes.map((t) => {
       const on = !!c && c.themes.includes(t.id);
       // EDU-50: nội dung trống (chỉ có khoảng trắng) chưa tích được; dấu tích cũ vẫn bỏ được
@@ -300,7 +304,7 @@ export function GoalTable({
       return (
         <td
           key={t.id}
-          className={c && (edit || canAssignContents) ? 'center ga-theme-tick-cell' : 'center'}
+          className={`center${c && (edit || canAssignContents) ? ' ga-theme-tick-cell' : ''}${needsReview ? ' ga-source-review-cell' : ''}`}
           // Ô cao theo hàng: bấm phần trống dưới nút cũng tick (bàn phím vẫn dùng nút)
           onClick={
             c && (edit || canAssignContents)
@@ -589,12 +593,13 @@ export function GoalTable({
             {k === 0 && del}
           </tr>
         );
+      const needsReview = pendingReviews.has(`CONTENT:${c.id}`) || pendingReviews.has(`GOAL:${r.id}`);
       return (
         <tr key={`content-${c.id}`}>
           {k === 0 && lead}
           {k === 0 && head}
           <td
-            className={`${editContent ? 'ga-goal-content-cell ga-cell-editable' : isEditing && fixedCells ? 'cell--fixed' : ''}${c.id in aiPending ? ' ga-cell--ai' : ''}`}
+            className={`${editContent ? 'ga-goal-content-cell ga-cell-editable' : isEditing && fixedCells ? 'cell--fixed' : ''}${c.id in aiPending ? ' ga-cell--ai' : ''}${needsReview ? ' ga-source-review-cell' : ''}`}
           >
             {editContent ? (
               <>
@@ -657,7 +662,7 @@ export function GoalTable({
               </div>
             )}
           </td>
-          {themeCells(di, r, c, `nội dung ${k + 1} của mục tiêu ${no || 'mới'}`)}
+          {themeCells(di, r, c, `nội dung ${k + 1} của mục tiêu ${no || 'mới'}`, needsReview)}
           {k === 0 && del}
         </tr>
       );
@@ -994,10 +999,11 @@ export function GoalTable({
                 {themes.map((t) => (
                   <th
                     key={t.id}
-                    className={`center text-xs ${isEditing && canAssignContents ? 'ga-th-editable' : isEditing && fixedCells ? 'cell--fixed' : ''}`}
+                    className={`center text-xs ${isEditing && canAssignContents ? 'ga-th-editable' : isEditing && fixedCells ? 'cell--fixed' : ''}${pendingReviews.has(`THEME:${t.id}`) ? ' ga-source-review-cell' : ''}`}
                     title={t.name}
                   >
                     {themeAbbr(t) || '?'}
+                    {pendingReviews.has(`THEME:${t.id}`) && <div className="text-danger">Cần rà soát</div>}
                   </th>
                 ))}
               </tr>

@@ -2754,6 +2754,16 @@ h2.ga-cur-domain__head {
   font-weight: var(--fw-semibold);
   box-shadow: inset 0 0 0 1px var(--color-primary-border);
 }
+.ga-team-plan .table.ga-goal-table tbody tr:nth-child(n) > td.ga-source-review-cell,
+.ga-team-plan .table.ga-goal-table thead tr > th.ga-source-review-cell {
+  background: var(--color-danger-bg);
+}
+.ga-team-plan .ga-goal-table .ga-source-review-cell .ga-theme-tick:is([aria-pressed='true'], .ga-goal-table__pad:not(:empty)) {
+  background: transparent;
+}
+.ga-team-plan .ga-goal-table .ga-source-review-cell .text-danger {
+  color: var(--color-danger-fg);
+}
 .ga-team-plan .table-wrap:has(> .ga-goal-table) {
   max-height: none;
   overflow: visible;

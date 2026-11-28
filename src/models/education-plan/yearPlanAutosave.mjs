@@ -19,7 +19,21 @@ export const yearPlanContentKey = (doc) =>
     themes: doc.themes || [],
     branchTemplates: doc.branchTemplates || [],
     breaks: doc.breaks || [],
+    sourceReviewTouches: doc.sourceReviewTouches || {},
   });
+
+export function trackSourceReviewTick(doc, contentId, themeId, goalId) {
+  const targetIds = { CONTENT: contentId, THEME: themeId, GOAL: goalId };
+  const touched = (doc.reviewItems || []).filter(
+    (item) => !item.resolved && String(item.itemId) === String(targetIds[item.itemKind]),
+  );
+  if (!touched.length) return doc;
+  const sourceReviewTouches = { ...doc.sourceReviewTouches };
+  touched.forEach(({ reviewItemId }) => {
+    sourceReviewTouches[reviewItemId] = (sourceReviewTouches[reviewItemId] || 0) + 1;
+  });
+  return { ...doc, sourceReviewTouches };
+}
 
 export function reconcileYearPlanIds(current, snapshot, saved) {
   const ids = new Map();
@@ -37,6 +51,7 @@ export function reconcileYearPlanIds(current, snapshot, saved) {
     domain.rows?.forEach((row, i) => pair(row.contents, target?.rows?.[i]?.contents));
   }
   const idOf = (id) => ids.get(id) ?? id;
+  const pendingReviewIds = new Set((saved.reviewItems || []).filter((item) => !item.resolved).map((item) => String(item.reviewItemId)));
   return {
     ...current,
     id: saved.id,
@@ -44,6 +59,11 @@ export function reconcileYearPlanIds(current, snapshot, saved) {
     contentRevision: saved.contentRevision,
     previousSourcePlanId: saved.previousSourcePlanId,
     reviewItems: saved.reviewItems,
+    sourceReviewTouches: Object.fromEntries(
+      Object.entries(current.sourceReviewTouches || {}).filter(
+        ([id, count]) => pendingReviewIds.has(id) && snapshot.sourceReviewTouches?.[id] !== count,
+      ),
+    ),
     newItems: saved.newItems,
     status: saved.status,
     permissions: saved.permissions,

@@ -114,27 +114,35 @@ test('nhập ngày sai thời lượng lịch lớp hiện lỗi trước khi g�
 });
 
 const { default: TeamSourceReview } = await server.ssrLoadModule('/src/components/education-plan/TeamSourceReview.jsx');
-test('review panel separates unresolved/resolved/new items and uses reviewItemId for its action identity', () => {
+test('team plan review highlights the content and theme cells and uses the normal save action', () => {
   const plan = { domains, themes: props.themes,
     reviewItems: [{ reviewItemId: 'review-901', itemKind: 'CONTENT', itemId: 'c1', sourcePlanId: 'annual-2', reason: 'SOURCE_CHANGED', resolved: false },
       { reviewItemId: 'review-902', itemKind: 'GOAL', itemId: 'g', reason: 'SOURCE_REMOVED', resolved: true }],
     newItems: [{ itemKind: 'CONTENT', itemId: 'c2' }] };
-  const html = renderToStaticMarkup(React.createElement(TeamSourceReview, { plan, onResolve() {} }));
-  assert.match(html, /Còn 1 mục cần rà soát/); assert.match(html, /Nội dung nguồn đã thay đổi/);
+  const html = renderToStaticMarkup(React.createElement(TeamSourceReview, { plan, editing: true }));
+  assert.match(html, /Còn 1 mục cần rà soát/);
+  assert.match(html, /bấm Lưu/);
   assert.doesNotMatch(html, /SOURCE_CHANGED|SOURCE_REMOVED/);
-  assert.match(html, /Mới: Nội dung không chọn/); assert.match(html, /Đã kiểm tra/);
-  assert.equal((html.match(/<button/g) || []).length, 1);
+  assert.match(html, /Mới: Nội dung không chọn/);
+  assert.doesNotMatch(html, /<button|Đã sửa liên kết/);
   assert.match(html, /class="field__error" role="alert"><strong>Còn 1 mục/);
-  assert.match(html, /class="text-success"><strong>[^<]+<\/strong>: Mục này đã bị bỏ khỏi nguồn/);
   assert.match(html, /class="text-success text-sm" role="status"><strong>Mục mới/);
-  const table = renderToStaticMarkup(React.createElement(GoalTable, {
+  const tableProps = {
     domains, themes: props.themes, numbers: { g: 1 }, readOnly: true, fixedCells: true,
     reviewItems: plan.reviewItems, newItems: plan.newItems,
-  }));
-  assert.match(table, /text-danger text-xs[^>]*role="note">Cần rà soát: Nội dung nguồn đã thay đổi/);
-  assert.match(table, /text-success text-xs[^>]*role="note">Mới từ nguồn năm học/);
-  assert.match(table, /Nội dung không chọn/);
-  const refreshed = renderToStaticMarkup(React.createElement(TeamSourceReview, { plan: { ...plan, reviewItems: plan.reviewItems.map((item) => ({ ...item, resolved: true })) } }));
+  };
+  for (const editing of [false, true]) {
+    const table = renderToStaticMarkup(React.createElement(GoalTable, {
+      ...tableProps, canEditContents: editing, canAssignContents: editing, onChange() {},
+    }));
+    const row = table.match(/<tr>(?:(?!<\/tr>).)*Cần kiểm tra dấu tích chủ đề.*?<\/tr>/s)?.[0] || '';
+    assert.equal((row.match(/ga-source-review-cell/g) || []).length, 2);
+    assert.equal((table.match(/ga-source-review-cell/g) || []).length, 2);
+    assert.match(table, /text-success text-xs[^>]*role="note">Mới từ nguồn năm học/);
+  }
+  const resolved = plan.reviewItems.map((item) => ({ ...item, resolved: true }));
+  const refreshed = renderToStaticMarkup(React.createElement(TeamSourceReview, { plan: { ...plan, reviewItems: resolved } }));
   assert.doesNotMatch(refreshed, /Còn 1 mục|<button/);
   assert.match(refreshed, /class="text-success text-sm" role="status"><strong>Đã rà soát các thay đổi/);
+  assert.doesNotMatch(renderToStaticMarkup(React.createElement(GoalTable, { ...tableProps, reviewItems: resolved })), /ga-source-review-cell/);
 });

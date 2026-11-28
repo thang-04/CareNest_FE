@@ -1,6 +1,29 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { reconcileYearPlanIds, createSaveQueue, yearPlanContentKey } from '../../src/models/education-plan/yearPlanAutosave.mjs';
+import { reconcileYearPlanIds, createSaveQueue, trackSourceReviewTick, yearPlanContentKey } from '../../src/models/education-plan/yearPlanAutosave.mjs';
+
+test('reselecting the same theme makes only the reviewed row and theme pending', () => {
+  const reviewItems = [
+    { reviewItemId: '90', itemKind: 'CONTENT', itemId: '2', resolved: false },
+    { reviewItemId: '91', itemKind: 'CONTENT', itemId: '3', resolved: false },
+    { reviewItemId: '92', itemKind: 'THEME', itemId: '2', resolved: false },
+    { reviewItemId: '93', itemKind: 'CONTENT', itemId: '2', resolved: true },
+  ];
+  const initial = { reviewItems, domains: [{ rows: [{ contents: [{ id: '2', themes: ['2'] }] }] }] };
+  const toggled = trackSourceReviewTick(initial, '2', '2', 'g');
+  const snapshot = trackSourceReviewTick(toggled, '2', '2', 'g');
+  assert.deepEqual(snapshot.domains, initial.domains);
+  assert.notEqual(yearPlanContentKey(snapshot), yearPlanContentKey(initial));
+  assert.deepEqual(snapshot.sourceReviewTouches, { 90: 2, 92: 2 });
+
+  const current = trackSourceReviewTick(snapshot, '3', '2', 'g');
+  const saved = { ...initial, reviewItems: [{ ...reviewItems[0], resolved: true }, ...reviewItems.slice(1)] };
+  const next = reconcileYearPlanIds(current, snapshot, saved);
+  assert.deepEqual(next.sourceReviewTouches, { 91: 1, 92: 3 });
+  assert.equal(next.reviewItems[0].resolved, true);
+  assert.equal(next.reviewItems[2].resolved, false);
+  assert.deepEqual(reconcileYearPlanIds(snapshot, snapshot, saved).sourceReviewTouches, {});
+});
 
 test('saving assigns branch and parent theme IDs without losing edits made while waiting', () => {
   const snapshot = {

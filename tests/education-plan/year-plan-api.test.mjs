@@ -502,6 +502,31 @@ test('spec015 maps planType, sentAt, source baseline, distinct review IDs and re
   assert.equal(toUiGoal(detail({ sentBy: { at: '2026-11-08T03:00:00Z' } }), refs).sentAt, '2026-11-08');
 });
 
+test('saving a team plan sends touched review IDs with the ticks in a single update', async () => {
+  const calls = [];
+  const plan = detail({ id: 741, planType: 'TEAM', status: 'DRAFT', curriculumSourcePlanId: 20, contentRevision: 8 });
+  const edit = { revision: 8, requestId: crypto.randomUUID() };
+  axiosClient.defaults.adapter = async (config) => {
+    if (config.url === '/education-plans/config') return respond(config, CONFIG);
+    if (config.method === 'get' && config.url === '/education-plans/goals/741') return respond(config, plan);
+    calls.push(config);
+    return respond(config, {
+      ...plan,
+      contentRevision: 9,
+      reviewItems: [{ reviewItemId: 600, itemId: 200, itemKind: 'CONTENT', sourcePlanId: 20, resolved: true }],
+    });
+  };
+  const item = await educationPlanApi.getGoal('741');
+  assert.equal(Object.hasOwn(toYearPlanRequest(item, refs), 'reviewedSourceItemIds'), false);
+  const saved = await educationPlanApi.saveGoal({ ...item, reviewedSourceItemIds: ['600'] }, { edit, silent: true });
+  assert.deepEqual(calls.map(({ method, url }) => [method, url]), [['put', '/education-plans/goals/741']]);
+  const body = JSON.parse(calls[0].data);
+  assert.deepEqual(body.reviewedSourceItemIds, [600]);
+  assert.deepEqual(body.domains[0].rows[1].contents[0].themeKeys, ['300']);
+  assert.equal(calls[0].headers.get('X-Plan-Revision'), '8');
+  assert.equal(saved.reviewItems[0].resolved, true);
+});
+
 test('resolve sends review primary key, current source and existing edit/revision/idempotency headers; conflicts propagate without retry', async () => {
   const calls = [];
   const edit = { sessionId: crypto.randomUUID(), revision: 8, requestId: crypto.randomUUID() };

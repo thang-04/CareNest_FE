@@ -17,7 +17,7 @@ import { useEducationPlan, useGoalDetails } from '@/hooks/education-plan/useEduc
 import { ErrorState, LoadingState } from '@/components/ui/States';
 import { StatusPage } from '@/components/ui/StatusPage';
 import { useYearPlanAutosave } from '@/hooks/education-plan/useYearPlanAutosave';
-import { recoveryText } from '@/models/education-plan/yearPlanAutosave.mjs';
+import { recoveryText, trackSourceReviewTick } from '@/models/education-plan/yearPlanAutosave.mjs';
 import { useLeaveGuard } from '@/hooks/useLeaveGuard';
 import { LeaveConfirmModal } from '@/components/ui/LeaveConfirmModal';
 import { ROLES } from '@/models/User';
@@ -162,7 +162,6 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
     saveGoal,
     refreshGoal,
     refreshPlans,
-    resolveGoalReview,
     toast,
     user,
     staff,
@@ -196,8 +195,6 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
         },
   );
   const [preservedDraft, setPreservedDraft] = useState(null);
-  const [resolving, setResolving] = useState(false);
-  const [reviewError, setReviewError] = useState('');
   const annualSources = allGoals.filter(
     (g) =>
       levelOf(g) === 'SCHOOL_YEAR' &&
@@ -350,7 +347,7 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
         return false;
       }
       if (!annual && (form.reviewItems || []).some((item) => !item.resolved)) {
-        setErrors({ source: 'Còn mục cần rà soát theo nguồn mới. Sửa dấu tích và xác nhận từng mục trước khi gửi.' });
+        setErrors({ source: 'Còn mục cần rà soát theo nguồn mới. Kiểm tra dấu tích chủ đề và Lưu trước khi gửi.' });
         return false;
       }
       if (annual && (form.branchTemplates || []).some((t) => !t.name?.trim())) {
@@ -478,7 +475,11 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
       if (!snapshot.title.trim()) throw Object.assign(new Error('Nhập tên kế hoạch'), { status: 400 });
       if (!annual && !existing && !annualSources.some((source) => source.id === snapshot.curriculumSourcePlanId))
         throw Object.assign(new Error('Nguồn không còn hợp lệ. Tải lại danh sách và chọn kế hoạch năm học hiện hành.'), { status: 409 });
-      const item = build(pendingEdit ? EDU_STATUS.PENDING_VP : EDU_STATUS.DRAFT, {}, snapshot);
+      const item = build(
+        pendingEdit ? EDU_STATUS.PENDING_VP : EDU_STATUS.DRAFT,
+        { reviewedSourceItemIds: Object.keys(snapshot.sourceReviewTouches || {}) },
+        snapshot,
+      );
       const saved = await saveGoal(item, { silent: true, edit: { ...editRef.current, requestId } });
       editRef.current.revision = saved.revision ?? editRef.current.revision;
       if (saved.id) savedId.current = saved.id;
@@ -843,7 +844,7 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
       {annual && !levelsAvailable && (
         <Notice tone="info">Bạn đang soạn bản xem trước. Máy chủ chưa hỗ trợ lưu và gửi duyệt kế hoạch năm học.</Notice>
       )}
-      <fieldset disabled={!canEdit || !contentReady || finishing || resolving} className="ga-edit-fieldset">
+      <fieldset disabled={!canEdit || !contentReady || finishing} className="ga-edit-fieldset">
         <div className="ga-sticky-head">
           <PageHead
             crumbs={[
@@ -955,7 +956,6 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
           </ResponsiveToolbar>
         </div>
 
-        {reviewError && <Notice>{reviewError}</Notice>}
 
         {!existing && dupGoal && (
           <Notice>
@@ -1170,42 +1170,7 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
             )}
           </YearPlanSourceCard>
         )}
-        {!annual && (
-          <>
-            {reviewError && <Notice>{reviewError}</Notice>}
-            <TeamSourceReview
-              plan={form}
-              busy={resolving || !saveReady || saver.saving}
-              onResolve={async (reviewItem) => {
-                if (resolving) return;
-                setResolving(true);
-                setReviewError('');
-                try {
-                  if (!(await saver.save())) return;
-                  const current = saver.current();
-                  const saved = await resolveGoalReview(
-                    savedId.current || form.id,
-                    reviewItem.reviewItemId,
-                    current.curriculumSourcePlanId,
-                    { ...editRef.current, requestId: crypto.randomUUID() },
-                  );
-                  editRef.current.revision = saved.revision ?? editRef.current.revision;
-                  const value = formOf(saved);
-                  setForm(value);
-                  saver.markClean(value);
-                } catch (error) {
-                  setReviewError(error.message);
-                  if (error.status === 409 || error.status === 403) {
-                    setContentError(error.message);
-                    setContentReady(false);
-                  }
-                } finally {
-                  setResolving(false);
-                }
-              }}
-            />
-          </>
-        )}
+        {!annual && <TeamSourceReview plan={form} editing />}
         <Card
           title="2. Mục tiêu nội dung giáo dục cuối độ tuổi"
           className="ga-plan-section--goals"
@@ -1288,6 +1253,7 @@ function GoalFormInner({ planLevel = 'TEAM' }) {
             numbers={numbers}
             showRequired={requireDates}
             onChange={(domains) => set({ domains })}
+            onThemeTick={(contentId, themeId, goalId) => setForm((current) => trackSourceReviewTick(current, contentId, themeId, goalId))}
             aiPending={annual ? aiPending : undefined}
             onAiKeep={settleAiContent}
             onAiDrop={dropAiContent}

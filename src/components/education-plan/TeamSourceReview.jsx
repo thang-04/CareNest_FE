@@ -17,7 +17,7 @@ export function sourceItemLabel(plan, item) {
   return target?.text || target?.name || `${item.itemKind} #${item.itemId}`;
 }
 
-export default function TeamSourceReview({ plan, onResolve, busy = false }) {
+export default function TeamSourceReview({ plan, editing = false }) {
   const items = plan.reviewItems || [];
   const newItems = plan.newItems || [];
   if (!items.length && !newItems.length) return null;
@@ -29,23 +29,8 @@ export default function TeamSourceReview({ plan, onResolve, busy = false }) {
           <strong>
             {unresolved.length ? `Còn ${unresolved.length} mục cần rà soát trước khi gửi duyệt` : 'Đã rà soát các thay đổi của nguồn'}
           </strong>
-          <ul className="stack">
-            {items.map((item) => (
-              <li key={item.reviewItemId} className="row row--between row--wrap gap-2">
-                <span className={item.resolved ? 'text-success' : 'field__error'}>
-                  <strong>{sourceItemLabel(plan, item)}</strong>: {sourceReason(item.reason)} ·{' '}
-                  {item.resolved ? 'Đã kiểm tra' : 'Cần rà soát'}
-                </span>
-                {!item.resolved && onResolve && (
-                  <button type="button" className="btn btn--sm" disabled={busy} onClick={() => onResolve(item)}>
-                    Đã sửa liên kết, xác nhận kiểm tra
-                  </button>
-                )}
-              </li>
-            ))}
-          </ul>
-          {!!onResolve && (
-            <p className="text-success">Lưu dấu tích đã sửa trước khi xác nhận. Máy chủ kiểm tra liên kết theo nguồn hiện tại.</p>
+          {editing && unresolved.length > 0 && (
+            <p>Kiểm tra dấu tích ở dòng đỏ hoặc cột chủ đề có nhãn rà soát, rồi bấm Lưu. Nếu dấu tích đã đúng, bỏ tích rồi tích lại như cũ.</p>
           )}
         </Notice>
       )}
@@ -68,7 +53,9 @@ export function SourceItemMark({ itemKind, itemId, reviewItems = [], newItems = 
   if (review)
     return (
       <div className="text-danger text-xs" role="note">
-        Cần rà soát: {sourceReason(review.reason)}
+        {itemKind === 'CONTENT' && review.reason === 'SOURCE_CHANGED'
+          ? 'Cần kiểm tra dấu tích chủ đề'
+          : `Cần rà soát: ${sourceReason(review.reason)}`}
       </div>
     );
   if (newItems.some((item) => item.itemKind === itemKind && String(item.itemId) === String(itemId)))

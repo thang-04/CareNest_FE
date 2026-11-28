@@ -190,6 +190,7 @@ export const toYearPlanRequest = (goal, refs) => ({
   planLevel: goal.planType || goal.planLevel || 'TEAM',
   planType: goal.planType || goal.planLevel || 'TEAM',
   ...(goal.curriculumSourcePlanId ? { curriculumSourcePlanId: serverId(goal.curriculumSourcePlanId) } : {}),
+  ...(goal.reviewedSourceItemIds?.length ? { reviewedSourceItemIds: goal.reviewedSourceItemIds.map(serverId) } : {}),
   branchTemplates: (goal.branchTemplates || []).map((t) => ({
     key: String(t.id),
     id: serverId(t.id),
